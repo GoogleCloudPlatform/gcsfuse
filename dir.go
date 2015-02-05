@@ -53,10 +53,20 @@ func (d *dir) readDirWithContext(ctx context.Context) (
 		}
 
 		// Extract objects as files.
-		log.Fatal("TODO")
+		for _, o := range objects.Results {
+			ents = append(ents, fuse.Dirent{
+				Type: fuse.DT_File,
+				Name: o.Name, // TODO(jacobsa): Strip prefix.
+			})
+		}
 
 		// Extract prefixes as directories.
-		log.Fatal("TODO")
+		for _, p := range objects.Prefixes {
+			ents = append(ents, fuse.Dirent{
+				Type: fuse.DT_Dir,
+				Name: p, // TODO(jacobsa): Strip prefix.
+			})
+		}
 
 		// Move on to the next set of results.
 		query = objects.Next
