@@ -110,8 +110,12 @@ func (d *dir) lookup(ctx context.Context, name string) (fs.Node, fuse.Error) {
 	// Is there a matching file name?
 	for _, o := range objects.Results {
 		if o.Name == fullName {
-			log.Println("TODO(jacobsa): Handle files.")
-			return nil, fuse.EIO
+			node := &file{
+				authContext: d.authContext,
+				bucketName:  d.bucketName,
+				objectName:  o.Name,
+			}
+			return node, nil
 		}
 	}
 
