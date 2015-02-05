@@ -29,7 +29,7 @@ type dir struct {
 func (d *dir) Attr() fuse.Attr {
 	return fuse.Attr{
 		// TODO(jacobsa): Expose ACLs from GCS?
-		Mode: os.ModeDir | 0700,
+		Mode: os.ModeDir | 0500,
 	}
 }
 
