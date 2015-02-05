@@ -21,6 +21,8 @@ type Conn interface {
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
 // authorization information.
 type Bucket interface {
+	Name() string
+
 	// ListObjects lists objects in the bucket that meet certain criteria.
 	ListObjects(ctx context.Context, query *storage.Query) (*storage.Objects, error)
 }
