@@ -29,7 +29,6 @@ const (
 	clientRedirectUrl = "urn:ietf:wg:oauth:2.0:oob"
 )
 
-var fProjectId = flag.String("project_id", "", "GCS project ID owning the bucket.")
 var fAuthCode = flag.String("authorization_code", "", "Authorization code provided when authorizing this app. Must be set if not in cache. Run without flag set to print URL.")
 
 var gTokenCachePath = path.Join(getHomeDir(), ".gcfs.token_cache.json")
@@ -41,16 +40,6 @@ func getHomeDir() string {
 	}
 
 	return usr.HomeDir
-}
-
-func getProjectId() string {
-	s := *fProjectId
-	if s == "" {
-		fmt.Println("You must set -project_id.")
-		os.Exit(1)
-	}
-
-	return s
 }
 
 func getAuthCode(config *oauth2.Config) string {
@@ -223,6 +212,10 @@ func getAuthenticatedHttpClient() (*http.Client, error) {
 // Return a context containing Cloud authentication parameters derived from
 // command-line flags. May block on network traffic.
 func getAuthContext() (context.Context, error) {
+	// TODO(jacobsa): I don't know what this is for, and it doesn't seem to
+	// matter.
+	const projectId = "fixme"
+
 	// Create the HTTP client.
 	httpClient, err := getAuthenticatedHttpClient()
 	if err != nil {
@@ -230,5 +223,5 @@ func getAuthContext() (context.Context, error) {
 	}
 
 	// Create the context.
-	return cloud.NewContext(getProjectId(), httpClient), nil
+	return cloud.NewContext(projectId, httpClient), nil
 }
