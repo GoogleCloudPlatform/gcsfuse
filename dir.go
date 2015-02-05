@@ -9,7 +9,13 @@ import (
 	"bazil.org/fuse"
 )
 
+const dirSeparator = '/'
+
+// A "directory" in GCS, defined by an object name prefix. All prefixes end
+// with dirSeparator except for the special case of the root directory, where
+// the prefix is the empty string.
 type dir struct {
+	prefix string
 }
 
 func (d *dir) Attr() fuse.Attr {
