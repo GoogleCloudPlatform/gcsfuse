@@ -19,6 +19,18 @@ func usage() {
 	flag.PrintDefaults()
 }
 
+var fBucketName = flag.String("bucket", "", "Name of GCS bucket to mount.")
+
+func getBucketName() string {
+	s := *fBucketName
+	if s == "" {
+		fmt.Println("You must set -bucket.")
+		os.Exit(1)
+	}
+
+	return s
+}
+
 func main() {
 	// Set up flags.
 	flag.Usage = usage
@@ -54,6 +66,7 @@ func main() {
 	// Serve a file system on the connection.
 	fileSystem := &fileSystem{
 		authContext: authContext,
+		bucketName:  getBucketName(),
 	}
 
 	log.Println("Beginning to serve FUSE connection.")

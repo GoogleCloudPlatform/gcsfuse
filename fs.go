@@ -11,12 +11,13 @@ import (
 
 type fileSystem struct {
 	authContext context.Context
+	bucketName  string
 }
 
 func (fs *fileSystem) Root() (fs.Node, fuse.Error) {
 	d := &dir{
 		authContext: fs.authContext,
-		bucketName:  "TODO(jacobsa): Accept a bucket name in a flag.",
+		bucketName:  fs.bucketName,
 	}
 
 	return d, nil
