@@ -9,6 +9,8 @@ import (
 	"log"
 	"os"
 
+	"golang.org/x/net/context"
+
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 )
@@ -44,7 +46,13 @@ func main() {
 	defer c.Close()
 
 	// Serve a file system on the connection.
-	if err := fs.Serve(c, &fileSystem{}); err != nil {
+	//
+	// TODO(jacobsa): Actually set up an auth context.
+	fileSystem := &fileSystem{
+		authContext: context.Background(),
+	}
+
+	if err := fs.Serve(c, fileSystem); err != nil {
 		log.Fatal("fuse.Conn.Serve: ", err)
 	}
 

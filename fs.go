@@ -6,11 +6,18 @@ package main
 import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+	"golang.org/x/net/context"
 )
 
 type fileSystem struct {
+	authContext context.Context
 }
 
 func (fs *fileSystem) Root() (fs.Node, fuse.Error) {
-	return &dir{}, nil
+	d := &dir{
+		authContext: fs.authContext,
+		bucketName:  "TODO(jacobsa): Accept a bucket name in a flag.",
+	}
+
+	return d, nil
 }
