@@ -16,4 +16,19 @@ type Conn interface {
 // Open a connection to GCS for the project with the given ID using the
 // supplied HTTP client, which is assumed to handle authorization and
 // authentication.
-func OpenConn(projID string, c *http.Client) (Conn, error)
+func OpenConn(projID string, c *http.Client) (Conn, error) {
+	return &conn{projID, c}, nil
+}
+
+type conn struct {
+	projID string
+	client *http.Client
+}
+
+func (c *conn) GetBucket(name string) Bucket {
+	return &bucket{
+		projID: c.projID,
+		client: c.client,
+		name:   name,
+	}
+}
