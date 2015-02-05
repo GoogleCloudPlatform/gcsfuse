@@ -4,10 +4,14 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
+	"os/user"
+	"path"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -17,8 +21,6 @@ import (
 )
 
 const (
-	tokenCachePath = "~/.gcfs.token_cache.json"
-
 	// TODO(jacobsa): Change these two.
 	clientID     = "862099979392-0oppqb36povstoiadd6aafcr8pa1utfh.apps.googleusercontent.com"
 	clientSecret = "-mOOwbKKhqOwUSh8YNCblo5c"
@@ -29,6 +31,17 @@ const (
 
 var fProjectId = flag.String("project_id", "", "GCS project ID owning the bucket.")
 var fAuthCode = flag.String("authorization_code", "", "Authorization code provided when authorizing this app. Must be set if not in cache. Run without flag set to print URL.")
+
+var gTokenCachePath = path.Join(getHomeDir(), ".gcfs.token_cache.json")
+
+func getHomeDir() string {
+	usr, err := user.Current()
+	if err != nil {
+		log.Fatal("user.Current: ", err)
+	}
+
+	return usr.HomeDir
+}
 
 func getProjectId() string {
 	s := *fProjectId
@@ -64,7 +77,9 @@ type authCodeTokenSource struct {
 	config *oauth2.Config
 }
 
-func (ts *authCodeTokenSource) Token() (*oauth2.Token, error)
+func (ts *authCodeTokenSource) Token() (*oauth2.Token, error) {
+	return ts.config.Exchange(oauth2.NoContext, getAuthCode(ts.config))
+}
 
 // A TokenSource that loads from and writes to an on-disk cache. On cache miss
 // or on hit for an invalid token, it falls through to a wrapped source. Should
@@ -74,11 +89,82 @@ type cachingTokenSource struct {
 	wrapped oauth2.TokenSource
 }
 
-func (ts *cachingTokenSource) Token() (*oauth2.Token, error)
+func (ts *cachingTokenSource) Token() (*oauth2.Token, error) {
+	// First consult the cache.
+	t, err := ts.LookUp()
+	if err != nil {
+		// Log the error and ignore it.
+		log.Println("Error loading from token cache: ", err)
+	}
 
-// Return an HTTP client configured with OAuth credentials from command-line
-// flags. May block on network traffic.
-func getAuthenticatedHttpClient() (*http.Client, error) {
+	// Was there a cache hit?
+	if t != nil {
+		if t.Valid() {
+			return t, nil
+		}
+
+		log.Println("Ignoring invalid (expired?) token from cache.")
+	}
+
+	// Ask the wrapped source.
+	t, err = ts.wrapped.Token()
+	if err != nil {
+		return nil, err
+	}
+
+	// Insert into cache, then return the token.
+	err = ts.Insert(t)
+	if err != nil {
+		log.Println("Error inserting into token cache: ", err)
+	}
+
+	return t, nil
+}
+
+// Look for a token in the cache. Returns nil, nil on miss.
+func (ts *cachingTokenSource) LookUp() (*oauth2.Token, error) {
+	// Open the cache file.
+	file, err := os.Open(gTokenCachePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	// Decode the token.
+	t := &oauth2.Token{}
+	if err := json.NewDecoder(file).Decode(t); err != nil {
+		return nil, err
+	}
+
+	return t, nil
+}
+
+func (ts *cachingTokenSource) Insert(t *oauth2.Token) error {
+	const flags = os.O_RDWR | os.O_CREATE | os.O_TRUNC
+	const perm = 0600
+
+	// Open the cache file.
+	file, err := os.OpenFile(gTokenCachePath, flags, perm)
+	if err != nil {
+		return err
+	}
+
+	// Encode the token.
+	if err := json.NewEncoder(file).Encode(t); err != nil {
+		file.Close()
+		return err
+	}
+
+	// Close the file.
+	if err := file.Close(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Return an OAuth token source based on command-line flags.
+func getTokenSource() (ts oauth2.TokenSource, err error) {
 	// Set up the OAuth config object.
 	config := &oauth2.Config{
 		ClientID:     clientID,
@@ -88,19 +174,34 @@ func getAuthenticatedHttpClient() (*http.Client, error) {
 		Endpoint:     google.Endpoint,
 	}
 
-	var tokenSource oauth2.TokenSource
-
 	// As a last resort, we need to ask the config object to exchange the
 	// flag-supplied authorization code for a token.
-	tokenSource = &authCodeTokenSource{config}
+	ts = &authCodeTokenSource{config}
 
 	// Ideally though, we'd prefer to retrieve the token from cache to avoid
 	// asking the user for a code.
-	tokenSource = &cachingTokenSource{tokenSource}
+	ts = &cachingTokenSource{ts}
 
 	// Make sure not to consult the cache when a valid token is already lying
 	// around.
-	tokenSource = oauth2.ReuseTokenSource(nil, tokenSource)
+	ts = oauth2.ReuseTokenSource(nil, ts)
+
+	return
+}
+
+// Return an HTTP client configured with OAuth credentials from command-line
+// flags. May block on network traffic.
+func getAuthenticatedHttpClient() (*http.Client, error) {
+	// Set up a token source.
+	tokenSource, err := getTokenSource()
+	if err != nil {
+		return nil, err
+	}
+
+	// Ensure that we fail early if misconfigured by requesting an initial token.
+	if _, err := tokenSource.Token(); err != nil {
+		return nil, fmt.Errorf("Getting initial OAuth token: %v", err)
+	}
 
 	// Create the HTTP transport.
 	transport := &oauth2.Transport{
