@@ -60,26 +60,19 @@ func getAuthCode(config *oauth2.Config) string {
 	return s
 }
 
-// A TokenSource that asks an oauth2.Config object to derive a token based on
-// the flag-supplied auth code when necessary.
-type authCodeTokenSource struct {
+// A TokenSource that retrieves tokens in the following preference order:
+//
+//  1. From a cache on disk, when it contains a valid token.
+//  2. From an oauth token refresher, seeded with the last valid cached token.
+//  3. By exchanging a new authorization code via the config object.
+//
+// This source should be wrapped with oauth2.ReuseTokenSource to avoid
+// reading/writing the cache for every request.
+type tokenSource struct {
 	config *oauth2.Config
 }
 
-func (ts *authCodeTokenSource) Token() (*oauth2.Token, error) {
-	log.Println("Exchanging auth code for token.")
-	return ts.config.Exchange(oauth2.NoContext, getAuthCode(ts.config))
-}
-
-// A TokenSource that loads from and writes to an on-disk cache. On cache miss
-// or on hit for an invalid token, it falls through to a wrapped source. Should
-// be wrapped using oauth2.ReuseTokenSource to avoid reading/writing the cache
-// for every request.
-type cachingTokenSource struct {
-	wrapped oauth2.TokenSource
-}
-
-func (ts *cachingTokenSource) Token() (*oauth2.Token, error) {
+func (ts *tokenSource) getToken() (*oauth2.Token, error) {
 	// First consult the cache.
 	log.Println("Looking up OAuth token in cache.")
 	t, err := ts.LookUp()
@@ -88,18 +81,29 @@ func (ts *cachingTokenSource) Token() (*oauth2.Token, error) {
 		log.Println("Error loading from token cache: ", err)
 	}
 
-	// Was there a cache hit?
+	// If the cached token is valid, we can return it.
+	if t != nil && t.Valid() {
+		return t, nil
+	}
+
+	// Otherwise if there was a cached token, it is probably expired and we can
+	// attempt to refresh it.
 	if t != nil {
-		if t.Valid() {
-			log.Println("Cache hit when asked for OAuth token.")
+		if t, err = ts.config.TokenSource(oauth2.NoContext, t).Token(); err == nil {
 			return t, nil
 		}
 
-		log.Println("Ignoring invalid (expired?) token from cache.")
+		log.Println("Error refreshing token:", err)
 	}
 
-	// Ask the wrapped source.
-	t, err = ts.wrapped.Token()
+	// We must fall back to exchanging an auth code.
+	log.Println("Exchanging auth code for token.")
+	return ts.config.Exchange(oauth2.NoContext, getAuthCode(ts.config))
+}
+
+func (ts *tokenSource) Token() (*oauth2.Token, error) {
+	// Obtain the token.
+	t, err := ts.getToken()
 	if err != nil {
 		return nil, err
 	}
@@ -107,16 +111,14 @@ func (ts *cachingTokenSource) Token() (*oauth2.Token, error) {
 	// Insert into cache, then return the token.
 	err = ts.Insert(t)
 	if err != nil {
-		log.Println("Error inserting into token cache: ", err)
+		log.Println("Error inserting into token cache:", err)
 	}
-
-	log.Println("Cached OAuth token for later use.")
 
 	return t, nil
 }
 
 // Look for a token in the cache. Returns nil, nil on miss.
-func (ts *cachingTokenSource) LookUp() (*oauth2.Token, error) {
+func (ts *tokenSource) LookUp() (*oauth2.Token, error) {
 	// Open the cache file.
 	file, err := os.Open(gTokenCachePath)
 	if err != nil {
@@ -133,7 +135,7 @@ func (ts *cachingTokenSource) LookUp() (*oauth2.Token, error) {
 	return t, nil
 }
 
-func (ts *cachingTokenSource) Insert(t *oauth2.Token) error {
+func (ts *tokenSource) Insert(t *oauth2.Token) error {
 	const flags = os.O_RDWR | os.O_CREATE | os.O_TRUNC
 	const perm = 0600
 
@@ -168,16 +170,10 @@ func getTokenSource() (ts oauth2.TokenSource, err error) {
 		Endpoint:     google.Endpoint,
 	}
 
-	// As a last resort, we need to ask the config object to exchange the
-	// flag-supplied authorization code for a token.
-	ts = &authCodeTokenSource{config}
-
-	// Ideally though, we'd prefer to retrieve the token from cache to avoid
-	// asking the user for a code.
-	ts = &cachingTokenSource{ts}
+	ts = &tokenSource{config}
 
 	// Make sure not to consult the cache when a valid token is already lying
-	// around.
+	// around in memory.
 	ts = oauth2.ReuseTokenSource(nil, ts)
 
 	return
