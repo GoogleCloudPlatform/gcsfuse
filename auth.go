@@ -78,6 +78,7 @@ type authCodeTokenSource struct {
 }
 
 func (ts *authCodeTokenSource) Token() (*oauth2.Token, error) {
+	log.Println("Exchanging auth code for token.")
 	return ts.config.Exchange(oauth2.NoContext, getAuthCode(ts.config))
 }
 
@@ -91,6 +92,7 @@ type cachingTokenSource struct {
 
 func (ts *cachingTokenSource) Token() (*oauth2.Token, error) {
 	// First consult the cache.
+	log.Println("Looking up OAuth token in cache.")
 	t, err := ts.LookUp()
 	if err != nil {
 		// Log the error and ignore it.
@@ -100,6 +102,7 @@ func (ts *cachingTokenSource) Token() (*oauth2.Token, error) {
 	// Was there a cache hit?
 	if t != nil {
 		if t.Valid() {
+			log.Println("Cache hit when asked for OAuth token.")
 			return t, nil
 		}
 
@@ -117,6 +120,8 @@ func (ts *cachingTokenSource) Token() (*oauth2.Token, error) {
 	if err != nil {
 		log.Println("Error inserting into token cache: ", err)
 	}
+
+	log.Println("Cached OAuth token for later use.")
 
 	return t, nil
 }
@@ -199,6 +204,7 @@ func getAuthenticatedHttpClient() (*http.Client, error) {
 	}
 
 	// Ensure that we fail early if misconfigured by requesting an initial token.
+	log.Println("Requesting initial OAuth token.")
 	if _, err := tokenSource.Token(); err != nil {
 		return nil, fmt.Errorf("Getting initial OAuth token: %v", err)
 	}

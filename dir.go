@@ -36,6 +36,8 @@ func (d *dir) Attr() fuse.Attr {
 // information.
 func (d *dir) readDirWithContext(ctx context.Context) (
 	ents []fuse.Dirent, fuseErr fuse.Error) {
+	log.Printf("ReadDir: [%s]/%s", d.bucketName, d.objectPrefix)
+
 	// List repeatedly until there is no more to list.
 	query := &storage.Query{
 		Delimiter: string(dirSeparator),
@@ -46,7 +48,7 @@ func (d *dir) readDirWithContext(ctx context.Context) (
 		// Grab one set of results.
 		objects, err := storage.ListObjects(ctx, d.bucketName, query)
 		if err != nil {
-			fuse.Debug("storage.ListObjects: " + err.Error())
+			log.Println("storage.ListObjects:", err)
 			return nil, fuse.EIO
 		}
 

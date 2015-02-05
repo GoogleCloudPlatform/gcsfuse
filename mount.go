@@ -36,12 +36,14 @@ func main() {
 	mountPoint := flag.Arg(0)
 
 	// Set up a GCS authentication context.
+	log.Println("Initializing GCS auth context.")
 	authContext, err := getAuthContext()
 	if err != nil {
 		log.Fatal("Couldn't get GCS auth context: ", err)
 	}
 
 	// Open a FUSE connection.
+	log.Println("Opening a FUSE connection.")
 	c, err := fuse.Mount(mountPoint)
 	if err != nil {
 		log.Fatal("fuse.Mount: ", err)
@@ -54,11 +56,13 @@ func main() {
 		authContext: authContext,
 	}
 
+	log.Println("Beginning to serve FUSE connection.")
 	if err := fs.Serve(c, fileSystem); err != nil {
 		log.Fatal("fuse.Conn.Serve: ", err)
 	}
 
 	// Report any errors that occurred while mounting.
+	log.Println("Waiting for FUSE shutdown.")
 	<-c.Ready
 	if err := c.MountError; err != nil {
 		log.Fatal("Error mounting: ", err)
