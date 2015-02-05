@@ -12,5 +12,5 @@ type fileSystem struct {
 }
 
 func (fs *fileSystem) Root() (fs.Node, fuse.Error) {
-	return nil, fuse.ENOSYS
+	return &dir{}, nil
 }
