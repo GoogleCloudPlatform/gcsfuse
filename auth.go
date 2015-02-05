@@ -8,52 +8,46 @@ import (
 	"net/http"
 
 	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/storage/v1"
 	"google.golang.org/cloud"
 )
 
-// TODO(jacobsa): Change these.
 const (
-	clientId          = "862099979392-0oppqb36povstoiadd6aafcr8pa1utfh.apps.googleusercontent.com"
-	clientSecret      = "-mOOwbKKhqOwUSh8YNCblo5c"
+	// TODO(jacobsa): Change these two.
+	clientID     = "862099979392-0oppqb36povstoiadd6aafcr8pa1utfh.apps.googleusercontent.com"
+	clientSecret = "-mOOwbKKhqOwUSh8YNCblo5c"
+
+	// Cf. https://developers.google.com/accounts/docs/OAuth2InstalledApp#choosingredirecturi
 	clientRedirectUrl = "urn:ietf:wg:oauth:2.0:oob"
-	authURL           = "https://accounts.google.com/o/oauth2/auth"
-	tokenURL          = "https://accounts.google.com/o/oauth2/token"
-	tokenCachePath    = "~/.gscfs.token_cache.json"
 )
 
 var fProjectId = flag.String("project_id", "", "GCS project ID owning the bucket.")
+var authCode = flag.String("authorization_code", "", "Authorization code provided when authorizing this app. Run without flag set to print URL.")
 
 func getProjectId() (string, error)
-
-func configureToken(transport *oauth2.Transport, cache oauth2.TokenCache) error
+func getAuthCode() string
 
 // Return an HTTP client configured with OAuth credentials from command-line
 // flags. May block on network traffic.
 func getAuthenticatedHttpClient() (*http.Client, error) {
 	// Set up the OAuth config object.
 	config := &oauth2.Config{
-		ClientId:     clientId,
+		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		RedirectURL:  clientRedirectUrl,
-		Scope:        storage.DevstorageFull_controlScope,
-		AuthURL:      authURL,
-		TokenURL:     tokenURL,
-		TokenCache:   oauth2.CacheFile(tokenCachePath),
+		Scopes:       []string{storage.DevstorageFull_controlScope},
+		Endpoint:     google.Endpoint,
 	}
 
-	// Create a transport.
-	transport := &oauth2.Transport{
-		Config:    config,
-		Transport: http.DefaultTransport,
+	// Attempt to exchange the auth code for a token.
+	token, err := config.Exchange(oauth2.NoContext, getAuthCode())
+	if err != nil {
+		return nil, err
 	}
 
-	// Attempt to configure an OAuth token.
-	if err := configureToken(transport, config.TokenCache); err != nil {
-		return err
-	}
-
-	return transport.Client(), nil
+	return config.Client(oauth2.NoContext, token), nil
 }
 
 // Return a context containing Cloud authentication parameters derived from
