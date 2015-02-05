@@ -4,8 +4,6 @@
 package main
 
 import (
-	"os"
-
 	"golang.org/x/net/context"
 
 	"bazil.org/fuse"
@@ -20,6 +18,6 @@ type file struct {
 func (f *file) Attr() fuse.Attr {
 	return fuse.Attr{
 		// TODO(jacobsa): Expose ACLs from GCS?
-		Mode: os.ModeDir | 0500,
+		Mode: 0400,
 	}
 }
