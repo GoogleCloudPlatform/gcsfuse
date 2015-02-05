@@ -9,15 +9,13 @@ import (
 	"log"
 	"os"
 
-	"golang.org/x/net/context"
-
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 )
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	fmt.Fprintf(os.Stderr, "  %s <mount-point>\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "  %s [flags] <mount-point>\n", os.Args[0])
 	flag.PrintDefaults()
 }
 
@@ -37,6 +35,12 @@ func main() {
 
 	mountPoint := flag.Arg(0)
 
+	// Set up a GCS authentication context.
+	authContext, err := getAuthContext()
+	if err != nil {
+		log.Fatal("Couldn't get GCS auth context: ", err)
+	}
+
 	// Open a FUSE connection.
 	c, err := fuse.Mount(mountPoint)
 	if err != nil {
@@ -46,10 +50,8 @@ func main() {
 	defer c.Close()
 
 	// Serve a file system on the connection.
-	//
-	// TODO(jacobsa): Actually set up an auth context.
 	fileSystem := &fileSystem{
-		authContext: context.Background(),
+		authContext: authContext,
 	}
 
 	if err := fs.Serve(c, fileSystem); err != nil {

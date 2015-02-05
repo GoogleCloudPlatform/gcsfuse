@@ -5,7 +5,9 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
+	"os"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -24,10 +26,35 @@ const (
 )
 
 var fProjectId = flag.String("project_id", "", "GCS project ID owning the bucket.")
-var authCode = flag.String("authorization_code", "", "Authorization code provided when authorizing this app. Run without flag set to print URL.")
+var fAuthCode = flag.String("authorization_code", "", "Authorization code provided when authorizing this app. Run without flag set to print URL.")
 
-func getProjectId() (string, error)
-func getAuthCode() string
+func getProjectId() string {
+	s := *fProjectId
+	if s == "" {
+		fmt.Println("You must set -project_id.")
+		os.Exit(1)
+	}
+
+	return s
+}
+
+func getAuthCode(config *oauth2.Config) string {
+	s := *fAuthCode
+	if s == "" {
+		// NOTE(jacobsa): As of 2015-02-05 the documentation for
+		// oauth2.Config.AuthCodeURL says that it is required to set this, but as
+		// far as I can tell (cf. RFC 6749 §10.12) it is irrelevant for an
+		// installed application that doesn't have a meaningful redirect URL.
+		const csrfToken = ""
+
+		fmt.Println("You must set -authorization_code.")
+		fmt.Println("Visit this URL to obtain a code:")
+		fmt.Println("    ", config.AuthCodeURL(csrfToken, oauth2.AccessTypeOffline))
+		os.Exit(1)
+	}
+
+	return s
+}
 
 // Return an HTTP client configured with OAuth credentials from command-line
 // flags. May block on network traffic.
@@ -42,7 +69,7 @@ func getAuthenticatedHttpClient() (*http.Client, error) {
 	}
 
 	// Attempt to exchange the auth code for a token.
-	token, err := config.Exchange(oauth2.NoContext, getAuthCode())
+	token, err := config.Exchange(oauth2.NoContext, getAuthCode(config))
 	if err != nil {
 		return nil, err
 	}
@@ -59,12 +86,6 @@ func getAuthContext() (context.Context, error) {
 		return nil, err
 	}
 
-	// Find the project ID.
-	projectId, err := getProjectId()
-	if err != nil {
-		return nil, err
-	}
-
 	// Create the context.
-	return cloud.NewContext(projectId, httpClient), nil
+	return cloud.NewContext(getProjectId(), httpClient), nil
 }
