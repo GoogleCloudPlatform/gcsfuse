@@ -53,9 +53,21 @@ func (d *dir) readDir(ctx context.Context) (
 
 		// Extract objects as files.
 		for _, o := range objects.Results {
+			// Special case: the GCS storage browser's "New folder" button causes an
+			// object with a trailing slash to be created. For example, if you make a
+			// folder called "bar" within a folder called "foo", that creates an
+			// object called "foo/bar/". (It seems like the redundant ones may be
+			// removed eventually, but that's not relevant.)
+			//
+			// When we list the directory "foo/", we don't want to return the object
+			// named "foo/" as if it were a file within the directory. So skip it.
+			if o.Name == d.objectPrefix {
+				continue
+			}
+
 			ents = append(ents, fuse.Dirent{
 				Type: fuse.DT_File,
-				Name: o.Name, // TODO(jacobsa): Strip prefix.
+				Name: path.Base(o.Name),
 			})
 		}
 
@@ -63,7 +75,7 @@ func (d *dir) readDir(ctx context.Context) (
 		for _, p := range objects.Prefixes {
 			ents = append(ents, fuse.Dirent{
 				Type: fuse.DT_Dir,
-				Name: p, // TODO(jacobsa): Strip prefix.
+				Name: path.Base(p),
 			})
 		}
 
