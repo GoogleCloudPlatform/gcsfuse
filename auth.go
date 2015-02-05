@@ -13,11 +13,10 @@ import (
 	"os/user"
 	"path"
 
-	"golang.org/x/net/context"
+	"github.com/jacobsa/gcsfs/gcs"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/storage/v1"
-	"google.golang.org/cloud"
 )
 
 const (
@@ -205,9 +204,9 @@ func getAuthenticatedHttpClient() (*http.Client, error) {
 	return client, nil
 }
 
-// Return a context containing Cloud authentication parameters derived from
-// command-line flags. May block on network traffic.
-func getAuthContext() (context.Context, error) {
+// Return a GCS connection pre-bound with authentication parameters derived
+// from command-line flags. May block on network traffic.
+func getConn() (gcs.Conn, error) {
 	// TODO(jacobsa): I don't know what this is for, and it doesn't seem to
 	// matter.
 	const projectId = "fixme"
@@ -218,6 +217,6 @@ func getAuthContext() (context.Context, error) {
 		return nil, err
 	}
 
-	// Create the context.
-	return cloud.NewContext(projectId, httpClient), nil
+	// Create the connection.
+	return gcs.OpenConn(projectId, httpClient)
 }

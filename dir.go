@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/jacobsa/gcsfs/gcs"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 
@@ -21,8 +22,7 @@ const dirSeparator = '/'
 // with dirSeparator except for the special case of the root directory, where
 // the prefix is the empty string.
 type dir struct {
-	authContext  context.Context
-	bucketName   string
+	bucket       gcs.Bucket
 	objectPrefix string
 }
 
@@ -35,7 +35,7 @@ func (d *dir) Attr() fuse.Attr {
 
 func (d *dir) readDir(ctx context.Context) (
 	ents []fuse.Dirent, fuseErr fuse.Error) {
-	log.Printf("ReadDir: [%s]/%s", d.bucketName, d.objectPrefix)
+	log.Printf("ReadDir: [%s]/%s", d.bucket.Name(), d.objectPrefix)
 
 	// List repeatedly until there is no more to list.
 	query := &storage.Query{
@@ -45,9 +45,9 @@ func (d *dir) readDir(ctx context.Context) (
 
 	for query != nil {
 		// Grab one set of results.
-		objects, err := storage.ListObjects(ctx, d.bucketName, query)
+		objects, err := d.bucket.ListObjects(ctx, query)
 		if err != nil {
-			log.Println("storage.ListObjects:", err)
+			log.Println("bucket.ListObjects:", err)
 			return nil, fuse.EIO
 		}
 
@@ -87,7 +87,7 @@ func (d *dir) readDir(ctx context.Context) (
 }
 
 func (d *dir) lookup(ctx context.Context, name string) (fs.Node, fuse.Error) {
-	log.Printf("Lookup: ([%s]/%s) %s", d.bucketName, d.objectPrefix, name)
+	log.Printf("Lookup: ([%s]/%s) %s", d.bucket.Name(), d.objectPrefix, name)
 
 	// Join the directory's prefix with this node's name to get the full name
 	// that we expect to see in GCS (minus the slash that will be on it if it's a
@@ -113,9 +113,9 @@ func (d *dir) lookup(ctx context.Context, name string) (fs.Node, fuse.Error) {
 		Prefix:    fullName,
 	}
 
-	objects, err := storage.ListObjects(ctx, d.bucketName, query)
+	objects, err := d.bucket.ListObjects(ctx, query)
 	if err != nil {
-		log.Println("storage.ListObjects:", err)
+		log.Println("bucket.ListObjects:", err)
 		return nil, fuse.EIO
 	}
 
@@ -123,9 +123,8 @@ func (d *dir) lookup(ctx context.Context, name string) (fs.Node, fuse.Error) {
 	for _, o := range objects.Results {
 		if o.Name == fullName {
 			node := &file{
-				authContext: d.authContext,
-				bucketName:  d.bucketName,
-				objectName:  o.Name,
+				bucket:     d.bucket,
+				objectName: o.Name,
 			}
 			return node, nil
 		}
@@ -135,8 +134,7 @@ func (d *dir) lookup(ctx context.Context, name string) (fs.Node, fuse.Error) {
 	for _, p := range objects.Prefixes {
 		if p == fullName+"/" {
 			node := &dir{
-				authContext:  d.authContext,
-				bucketName:   d.bucketName,
+				bucket:       d.bucket,
 				objectPrefix: p,
 			}
 
@@ -148,14 +146,14 @@ func (d *dir) lookup(ctx context.Context, name string) (fs.Node, fuse.Error) {
 }
 
 func (d *dir) ReadDir(intr fs.Intr) ([]fuse.Dirent, fuse.Error) {
-	ctx, cancel := withIntr(d.authContext, intr)
+	ctx, cancel := withIntr(context.Background(), intr)
 	defer cancel()
 
 	return d.readDir(ctx)
 }
 
 func (d *dir) Lookup(name string, intr fs.Intr) (fs.Node, fuse.Error) {
-	ctx, cancel := withIntr(d.authContext, intr)
+	ctx, cancel := withIntr(context.Background(), intr)
 	defer cancel()
 
 	return d.lookup(ctx, name)

@@ -6,18 +6,16 @@ package main
 import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-	"golang.org/x/net/context"
+	"github.com/jacobsa/gcsfs/gcs"
 )
 
 type fileSystem struct {
-	authContext context.Context
-	bucketName  string
+	bucket gcs.Bucket
 }
 
 func (fs *fileSystem) Root() (fs.Node, fuse.Error) {
 	d := &dir{
-		authContext: fs.authContext,
-		bucketName:  fs.bucketName,
+		bucket: fs.bucket,
 	}
 
 	return d, nil

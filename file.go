@@ -4,15 +4,14 @@
 package main
 
 import (
-	"golang.org/x/net/context"
+	"github.com/jacobsa/gcsfs/gcs"
 
 	"bazil.org/fuse"
 )
 
 type file struct {
-	authContext context.Context
-	bucketName  string
-	objectName  string
+	bucket     gcs.Bucket
+	objectName string
 }
 
 func (f *file) Attr() fuse.Attr {

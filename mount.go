@@ -47,11 +47,11 @@ func main() {
 
 	mountPoint := flag.Arg(0)
 
-	// Set up a GCS authentication context.
-	log.Println("Initializing GCS auth context.")
-	authContext, err := getAuthContext()
+	// Set up a GCS connection.
+	log.Println("Initializing GCS connection.")
+	conn, err := getConn()
 	if err != nil {
-		log.Fatal("Couldn't get GCS auth context: ", err)
+		log.Fatal("Couldn't get GCS connection: ", err)
 	}
 
 	// Open a FUSE connection.
@@ -65,8 +65,7 @@ func main() {
 
 	// Serve a file system on the connection.
 	fileSystem := &fileSystem{
-		authContext: authContext,
-		bucketName:  getBucketName(),
+		bucket: conn.GetBucket(getBucketName()),
 	}
 
 	log.Println("Beginning to serve FUSE connection.")
