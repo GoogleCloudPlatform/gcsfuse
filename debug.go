@@ -11,7 +11,7 @@ import (
 )
 
 var enableDebugMessages = flag.Bool(
-	"debug",
+	"fuse_debug",
 	false,
 	"Write FUSE debugging messages to stderr.")
 
