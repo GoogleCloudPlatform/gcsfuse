@@ -4,6 +4,7 @@
 package main
 
 import (
+	"log"
 	"os"
 	"sync"
 
@@ -46,7 +47,23 @@ func (f *file) Attr() fuse.Attr {
 func (f *file) ensureTempFile(ctx context.Context) error
 
 // Throw away the local temporary file, if any.
-func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error
+func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	// Is there a file to close?
+	if f.tempFile == nil {
+		return nil
+	}
+
+	// Close it.
+	if err := f.tempFile.Close(); err != nil {
+		log.Println("Error closing temp file:", err)
+	}
+
+	f.tempFile = nil
+	return nil
+}
 
 // Ensure that the local temporary file is initialized, then read from it.
 func (f *file) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error
