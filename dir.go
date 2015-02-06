@@ -35,7 +35,7 @@ type dir struct {
 	children map[string]fs.Node // GUARDED_BY(mu)
 }
 
-// Make sure dir implements the interfaces we thing it does.
+// Make sure dir implements the interfaces we think it does.
 var (
 	_ fs.Node               = &dir{}
 	_ fs.NodeStringLookuper = &dir{}
