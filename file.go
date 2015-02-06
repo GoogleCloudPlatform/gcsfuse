@@ -12,11 +12,13 @@ import (
 type file struct {
 	bucket     gcs.Bucket
 	objectName string
+	size       uint64
 }
 
 func (f *file) Attr() fuse.Attr {
 	return fuse.Attr{
 		// TODO(jacobsa): Expose ACLs from GCS?
 		Mode: 0400,
+		Size: f.size,
 	}
 }

@@ -77,6 +77,7 @@ func (d *dir) initChildren(ctx context.Context) error {
 			children[path.Base(o.Name)] = &file{
 				bucket:     d.bucket,
 				objectName: o.Name,
+				size:       uint64(o.Size),
 			}
 		}
 
