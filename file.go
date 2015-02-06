@@ -4,6 +4,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -66,4 +67,24 @@ func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 }
 
 // Ensure that the local temporary file is initialized, then read from it.
-func (f *file) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error
+func (f *file) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+	// Ensure the temp file is present.
+	if err := f.ensureTempFile(ctx); err != nil {
+		return err
+	}
+
+	// Lock to read the temp file. If it went away in the meantime, that means
+	// the kernel (erroneously) released us while reading from us.
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	// Verify our assumptions.
+	if len(resp.Data) != req.Size {
+		panic(fmt.Sprintf("%v-byte read request with %v-byte buffer.", req.Size, len(resp.Data)))
+	}
+
+	// Read the data.
+	_, err := f.tempFile.ReadAt(resp.Data, req.Offset)
+
+	return err
+}
