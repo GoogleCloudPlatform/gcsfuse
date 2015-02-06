@@ -4,7 +4,7 @@
 package main
 
 import (
-	"github.com/jacobsa/gcsfs/gcs"
+	"github.com/jacobsa/gcloud/gcs"
 
 	"bazil.org/fuse"
 )

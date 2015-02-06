@@ -8,7 +8,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/jacobsa/gcsfs/gcs"
+	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 

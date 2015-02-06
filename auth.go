@@ -13,7 +13,7 @@ import (
 	"os/user"
 	"path"
 
-	"github.com/jacobsa/gcsfs/gcs"
+	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/storage/v1"

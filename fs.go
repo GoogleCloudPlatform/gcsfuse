@@ -6,7 +6,7 @@ package main
 import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-	"github.com/jacobsa/gcsfs/gcs"
+	"github.com/jacobsa/gcloud/gcs"
 )
 
 type fileSystem struct {
