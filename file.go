@@ -91,9 +91,15 @@ func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 		return nil
 	}
 
-	// Close it.
+	// Close it, after grabbing its path.
+	path := f.tempFile.Name()
 	if err := f.tempFile.Close(); err != nil {
 		log.Println("Error closing temp file:", err)
+	}
+
+	// Attempt to delete it.
+	if err := os.Remove(path); err != nil {
+		log.Println("Error deleting temp file:", err)
 	}
 
 	f.tempFile = nil
@@ -112,10 +118,8 @@ func (f *file) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadR
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
-	// Verify our assumptions.
-	if len(resp.Data) != req.Size {
-		panic(fmt.Sprintf("%v-byte read request with %v-byte buffer.", req.Size, len(resp.Data)))
-	}
+	// Allocate a response buffer.
+	resp.Data = make([]byte, req.Size)
 
 	// Read the data.
 	_, err := f.tempFile.ReadAt(resp.Data, req.Offset)
