@@ -139,57 +139,15 @@ func (d *dir) readDir(ctx context.Context) (
 func (d *dir) lookup(ctx context.Context, name string) (fs.Node, fuse.Error) {
 	log.Printf("Lookup: ([%s]/%s) %s", d.bucket.Name(), d.objectPrefix, name)
 
-	// Join the directory's prefix with this node's name to get the full name
-	// that we expect to see in GCS (minus the slash that will be on it if it's a
-	// prefix representing a directory).
-	fullName := path.Join(d.objectPrefix, name)
-
-	// We must determine whether this is a file or a directory. List objects
-	// whose names start with fullName.
-	//
-	// HACK(jacobsa): As of 2015-02-05 the documentation here doesn't guarantee
-	// that object listing results are ordered by object name:
-	//
-	//    https://cloud.google.com/storage/docs/json_api/v1/objects/list
-	//
-	// Therefore in theory we are not guaranteed to see the object name on the
-	// first page of results. It is reasonable to assume however that the results
-	// are in order. Still, even if that is the case, we may have trouble with
-	// directories since there are characters before '/' that could be in a path
-	// name. Perhaps we should be sending a separate request for fullName plus
-	// the slash, as much as it pains me to do so.
-	query := &storage.Query{
-		Delimiter: string(dirSeparator),
-		Prefix:    fullName,
-	}
-
-	objects, err := d.bucket.ListObjects(ctx, query)
-	if err != nil {
-		log.Println("bucket.ListObjects:", err)
+	// Ensure that our cache of children has been initialized.
+	if err := d.initChildren(ctx); err != nil {
+		log.Println("d.initChildren:", err)
 		return nil, fuse.EIO
 	}
 
-	// Is there a matching file name?
-	for _, o := range objects.Results {
-		if o.Name == fullName {
-			node := &file{
-				bucket:     d.bucket,
-				objectName: o.Name,
-			}
-			return node, nil
-		}
-	}
-
-	// Is there a matching directory name?
-	for _, p := range objects.Prefixes {
-		if p == fullName+"/" {
-			node := &dir{
-				bucket:       d.bucket,
-				objectPrefix: p,
-			}
-
-			return node, nil
-		}
+	// Find the object within the map.
+	if n, ok := d.children[name]; ok {
+		return n, nil
 	}
 
 	return nil, fuse.ENOENT
