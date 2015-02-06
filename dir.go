@@ -30,10 +30,19 @@ type dir struct {
 	mu sync.RWMutex
 
 	// A map from (relative) names of children to nodes for those children,
-	// initialized from GCS the first time it is needed for a ReadDir, Lookup,
+	// initialized from GCS the first time it is needed for a ReadDirAll, Lookup,
 	// etc. All nodes within the map are of type *dir or *file.
 	children map[string]fs.Node // GUARDED_BY(mu)
 }
+
+// Make sure dir implements the interfaces we thing it does.
+var (
+	_ fs.Node               = &dir{}
+	_ fs.NodeStringLookuper = &dir{}
+
+	_ fs.Handle             = &dir{}
+	_ fs.HandleReadDirAller = &dir{}
+)
 
 // Initialize d.children from GCS if it has not already been populated.
 func (d *dir) initChildren(ctx context.Context) error {
@@ -106,9 +115,9 @@ func (d *dir) Attr() fuse.Attr {
 	}
 }
 
-func (d *dir) ReadDir(ctx context.Context) (
+func (d *dir) ReadDirAll(ctx context.Context) (
 	ents []fuse.Dirent, err error) {
-	log.Printf("ReadDir: [%s]/%s", d.bucket.Name(), d.objectPrefix)
+	log.Printf("ReadDirAll: [%s]/%s", d.bucket.Name(), d.objectPrefix)
 
 	// Ensure that our cache of children has been initialized.
 	if err := d.initChildren(ctx); err != nil {
