@@ -5,6 +5,8 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"sync"
@@ -45,7 +47,39 @@ func (f *file) Attr() fuse.Attr {
 
 // If the file contents have not yet been fetched to a temporary file, fetch
 // them.
-func (f *file) ensureTempFile(ctx context.Context) error
+func (f *file) ensureTempFile(ctx context.Context) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	// Do we already have a file?
+	if f.tempFile != nil {
+		return nil
+	}
+
+	// Create a temporary file.
+	tempFile, err := ioutil.TempFile("", "gcsfs")
+	if err != nil {
+		return fmt.Errorf("ioutil.TempFile: %v", err)
+	}
+
+	// Create a reader for the object.
+	readCloser, err := f.bucket.NewReader(ctx, f.objectName)
+	if err != nil {
+		return fmt.Errorf("bucket.NewReader: %v", err)
+	}
+
+	defer readCloser.Close()
+
+	// Copy the object contents into the file.
+	if _, err := io.Copy(tempFile, readCloser); err != nil {
+		return fmt.Errorf("io.Copy: %v", err)
+	}
+
+	// Save the file for later.
+	f.tempFile = tempFile
+
+	return nil
+}
 
 // Throw away the local temporary file, if any.
 func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
