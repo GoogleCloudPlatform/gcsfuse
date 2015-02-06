@@ -4,9 +4,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path"
+	"sync"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
@@ -24,18 +26,26 @@ const dirSeparator = '/'
 type dir struct {
 	bucket       gcs.Bucket
 	objectPrefix string
+
+	mu sync.RWMutex
+
+	// A map from (relative) names of children to nodes for those children,
+	// initialized from GCS the first time it is needed for a ReadDir, Lookup,
+	// etc. All nodes within the map are of type *dir or *file.
+	children map[string]fs.Node // GUARDED_BY(mu)
 }
 
-func (d *dir) Attr() fuse.Attr {
-	return fuse.Attr{
-		// TODO(jacobsa): Expose ACLs from GCS?
-		Mode: os.ModeDir | 0500,
+// Initialize d.children from GCS if it has not already been populated.
+func (d *dir) initChildren(ctx context.Context) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// Have we already initialized the map?
+	if d.children != nil {
+		return nil
 	}
-}
 
-func (d *dir) readDir(ctx context.Context) (
-	ents []fuse.Dirent, fuseErr fuse.Error) {
-	log.Printf("ReadDir: [%s]/%s", d.bucket.Name(), d.objectPrefix)
+	children := make(map[string]fs.Node)
 
 	// List repeatedly until there is no more to list.
 	query := &storage.Query{
@@ -47,8 +57,7 @@ func (d *dir) readDir(ctx context.Context) (
 		// Grab one set of results.
 		objects, err := d.bucket.ListObjects(ctx, query)
 		if err != nil {
-			log.Println("bucket.ListObjects:", err)
-			return nil, fuse.EIO
+			return fmt.Errorf("bucket.ListObjects: %v", err)
 		}
 
 		// Extract objects as files.
@@ -65,22 +74,63 @@ func (d *dir) readDir(ctx context.Context) (
 				continue
 			}
 
-			ents = append(ents, fuse.Dirent{
-				Type: fuse.DT_File,
-				Name: path.Base(o.Name),
-			})
+			children[path.Base(o.Name)] = &file{
+				bucket:     d.bucket,
+				objectName: o.Name,
+			}
 		}
 
 		// Extract prefixes as directories.
 		for _, p := range objects.Prefixes {
-			ents = append(ents, fuse.Dirent{
-				Type: fuse.DT_Dir,
-				Name: path.Base(p),
-			})
+			children[path.Base(p)] = &dir{
+				bucket:       d.bucket,
+				objectPrefix: p,
+			}
 		}
 
 		// Move on to the next set of results.
 		query = objects.Next
+	}
+
+	// Save the map.
+	d.children = children
+
+	return nil
+}
+
+func (d *dir) Attr() fuse.Attr {
+	return fuse.Attr{
+		// TODO(jacobsa): Expose ACLs from GCS?
+		Mode: os.ModeDir | 0500,
+	}
+}
+
+func (d *dir) readDir(ctx context.Context) (
+	ents []fuse.Dirent, fuseErr fuse.Error) {
+	log.Printf("ReadDir: [%s]/%s", d.bucket.Name(), d.objectPrefix)
+
+	// Ensure that our cache of children has been initialized.
+	if err := d.initChildren(ctx); err != nil {
+		log.Println("d.initChildren:", err)
+		return nil, fuse.EIO
+	}
+
+	// Read out the contents of the cache.
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	for name, node := range d.children {
+		ent := fuse.Dirent{
+			Name: name,
+		}
+
+		if _, ok := node.(*dir); ok {
+			ent.Type = fuse.DT_Dir
+		} else {
+			ent.Type = fuse.DT_File
+		}
+
+		ents = append(ents, ent)
 	}
 
 	return
