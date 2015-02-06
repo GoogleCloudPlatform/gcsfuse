@@ -106,14 +106,13 @@ func (d *dir) Attr() fuse.Attr {
 	}
 }
 
-func (d *dir) readDir(ctx context.Context) (
-	ents []fuse.Dirent, fuseErr fuse.Error) {
+func (d *dir) ReadDir(ctx context.Context) (
+	ents []fuse.Dirent, err error) {
 	log.Printf("ReadDir: [%s]/%s", d.bucket.Name(), d.objectPrefix)
 
 	// Ensure that our cache of children has been initialized.
 	if err := d.initChildren(ctx); err != nil {
-		log.Println("d.initChildren:", err)
-		return nil, fuse.EIO
+		return nil, fmt.Errorf("d.initChildren: %v", err)
 	}
 
 	// Read out the contents of the cache.
@@ -137,13 +136,12 @@ func (d *dir) readDir(ctx context.Context) (
 	return
 }
 
-func (d *dir) lookup(ctx context.Context, name string) (fs.Node, fuse.Error) {
+func (d *dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	log.Printf("Lookup: ([%s]/%s) %s", d.bucket.Name(), d.objectPrefix, name)
 
 	// Ensure that our cache of children has been initialized.
 	if err := d.initChildren(ctx); err != nil {
-		log.Println("d.initChildren:", err)
-		return nil, fuse.EIO
+		return nil, fmt.Errorf("d.initChildren: %v", err)
 	}
 
 	// Find the object within the map.
@@ -152,18 +150,4 @@ func (d *dir) lookup(ctx context.Context, name string) (fs.Node, fuse.Error) {
 	}
 
 	return nil, fuse.ENOENT
-}
-
-func (d *dir) ReadDir(intr fs.Intr) ([]fuse.Dirent, fuse.Error) {
-	ctx, cancel := withIntr(context.Background(), intr)
-	defer cancel()
-
-	return d.readDir(ctx)
-}
-
-func (d *dir) Lookup(name string, intr fs.Intr) (fs.Node, fuse.Error) {
-	ctx, cancel := withIntr(context.Background(), intr)
-	defer cancel()
-
-	return d.lookup(ctx, name)
 }
