@@ -218,5 +218,5 @@ func getConn() (gcs.Conn, error) {
 	}
 
 	// Create the connection.
-	return gcs.OpenConn(projectId, httpClient)
+	return gcs.NewConn(projectId, httpClient)
 }
