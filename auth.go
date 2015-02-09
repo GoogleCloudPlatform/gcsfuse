@@ -207,8 +207,10 @@ func getAuthenticatedHttpClient() (*http.Client, error) {
 // Return a GCS connection pre-bound with authentication parameters derived
 // from command-line flags. May block on network traffic.
 func getConn() (gcs.Conn, error) {
-	// TODO(jacobsa): I don't know what this is for, and it doesn't seem to
-	// matter.
+	// TODO(jacobsa): A project ID is apparently only needed for creating and
+	// listing buckets, presumably since a bucket ID already maps to a unique
+	// project ID (cf. http://goo.gl/Plh3rb). So do we need this at all for our
+	// use case? Probably not.
 	const projectId = "fixme"
 
 	// Create the HTTP client.
