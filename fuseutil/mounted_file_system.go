@@ -105,6 +105,7 @@ func MountFileSystem(
 	mfs = &MountedFileSystem{
 		dir:                  dir,
 		readyStatusAvailable: make(chan struct{}),
+		joinStatusAvailable:  make(chan struct{}),
 	}
 
 	// Mount in the background.
