@@ -9,7 +9,9 @@ import (
 	"golang.org/x/net/context"
 )
 
-// XXX: Comments
+// A struct representing the status of a mount operation, with methods for
+// waiting on the mount to complete, waiting for unmounting, and causing
+// unmounting.
 type MountedFileSystem struct {
 }
 
@@ -28,8 +30,10 @@ func (mfs *MountedFileSystem) Join() error
 // unmounted.
 func (mfs *MountedFileSystem) Unmount() error
 
-// XXX: Comments
+// Attempt to mount the supplied file system on the given directory.
+// mfs.WaitForReady() must be called to find out whether the mount was
+// successful.
 func MountFileSystem(
 	dir string,
 	fs fusefs.FS,
-	options ...fuse.MountOption) *MountedFileSystem
+	options ...fuse.MountOption) (mfs *MountedFileSystem)
