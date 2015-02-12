@@ -57,7 +57,7 @@ func (f *file) ensureTempFile(ctx context.Context) error {
 	}
 
 	// Create a temporary file.
-	tempFile, err := ioutil.TempFile("", "gcsfs")
+	tempFile, err := ioutil.TempFile("", "gcsfuse")
 	if err != nil {
 		return fmt.Errorf("ioutil.TempFile: %v", err)
 	}

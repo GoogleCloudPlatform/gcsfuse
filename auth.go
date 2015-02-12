@@ -40,7 +40,7 @@ func getTokenSource() (ts oauth2.TokenSource, err error) {
 	return oauthutil.NewTerribleTokenSource(
 		config,
 		flag.Lookup("auth_code"),
-		".gcsfs.token_cache.json")
+		".gcsfuse.token_cache.json")
 }
 
 // Return an HTTP client configured with OAuth credentials from command-line
