@@ -15,9 +15,14 @@ import (
 type MountedFileSystem struct {
 	dir string
 
-	// The result to return from WaitForReady. Not valid until the channel is closed.
+	// The result to return from WaitForReady. Not valid until the channel is
+	// closed.
 	readyStatus          error
 	readyStatusAvailable chan struct{}
+
+	// The result to return from Join. Not valid until the channel is closed.
+	joinStatus          error
+	joinStatusAvailable chan struct{}
 }
 
 // Wait until the mount point is ready to be used. After a successful return
@@ -36,7 +41,14 @@ func (mfs *MountedFileSystem) WaitForReady(ctx context.Context) error {
 // Block until the file system has been unmounted. The return value will be
 // non-nil if anything unexpected happened while mounting or serving. May be
 // called multiple times.
-func (mfs *MountedFileSystem) Join() error
+func (mfs *MountedFileSystem) Join(ctx context.Context) error {
+	select {
+	case <-mfs.joinStatusAvailable:
+		return mfs.joinStatus
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
 
 // Attempt to unmount the file system. Use Join to wait for it to actually be
 // unmounted. You must first call WaitForReady to ensure there is no race with
