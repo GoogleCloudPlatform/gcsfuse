@@ -4,6 +4,9 @@
 package fuseutil
 
 import (
+	"errors"
+	"log"
+
 	"bazil.org/fuse"
 	fusefs "bazil.org/fuse/fs"
 	"golang.org/x/net/context"
@@ -60,7 +63,36 @@ func (mfs *MountedFileSystem) Unmount() error {
 // Runs in the background.
 func (mfs *MountedFileSystem) mountAndServe(
 	fs fusefs.FS,
-	options []fuse.MountOption)
+	options []fuse.MountOption) {
+	// Open a FUSE connection.
+	log.Println("Opening a FUSE connection.")
+	c, err := fuse.Mount(mfs.dir, options...)
+	if err != nil {
+		mfs.readyStatus = errors.New("fuse.Mount: " + err.Error())
+		close(mfs.readyStatusAvailable)
+		return
+	}
+
+	defer c.Close()
+
+	// Start a goroutine that will notify the MountedFileSystem object when the
+	// connection says it is ready (or it fails to become ready).
+	go func() {
+		<-c.Ready
+		mfs.readyStatus = c.MountError
+		close(mfs.readyStatusAvailable)
+	}()
+
+	// Serve the connection using the file system object.
+	if err := fusefs.Serve(c, fs); err != nil {
+		mfs.joinStatus = errors.New("fusefs.Serve: " + err.Error())
+		close(mfs.joinStatusAvailable)
+		return
+	}
+
+	// Signal that everything is okay.
+	close(mfs.joinStatusAvailable)
+}
 
 // Attempt to mount the supplied file system on the given directory.
 // mfs.WaitForReady() must be called to find out whether the mount was
