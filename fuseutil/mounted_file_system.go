@@ -53,7 +53,9 @@ func (mfs *MountedFileSystem) Join(ctx context.Context) error {
 // Attempt to unmount the file system. Use Join to wait for it to actually be
 // unmounted. You must first call WaitForReady to ensure there is no race with
 // mounting.
-func (mfs *MountedFileSystem) Unmount() error
+func (mfs *MountedFileSystem) Unmount() error {
+	return fuse.Unmount(mfs.dir)
+}
 
 // Runs in the background.
 func (mfs *MountedFileSystem) mountAndServe(
