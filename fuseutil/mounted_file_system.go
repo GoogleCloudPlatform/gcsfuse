@@ -13,6 +13,7 @@ import (
 // waiting on the mount to complete, waiting for unmounting, and causing
 // unmounting.
 type MountedFileSystem struct {
+	dir string
 }
 
 // Wait until the mount point is ready to be used. After a successful return
@@ -31,10 +32,25 @@ func (mfs *MountedFileSystem) Join() error
 // mounting.
 func (mfs *MountedFileSystem) Unmount() error
 
+// Runs in the background.
+func (mfs *MountedFileSystem) mountAndServe(
+	fs fusefs.FS,
+	options []fuse.MountOption)
+
 // Attempt to mount the supplied file system on the given directory.
 // mfs.WaitForReady() must be called to find out whether the mount was
 // successful.
 func MountFileSystem(
 	dir string,
 	fs fusefs.FS,
-	options ...fuse.MountOption) (mfs *MountedFileSystem)
+	options ...fuse.MountOption) (mfs *MountedFileSystem) {
+	// Initialize the struct.
+	mfs = &MountedFileSystem{
+		dir: dir,
+	}
+
+	// Mount in the background.
+	go mfs.mountAndServe(fs, options)
+
+	return mfs
+}
