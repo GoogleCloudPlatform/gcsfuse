@@ -1,7 +1,7 @@
 // Copyright 2015 Google Inc. All Rights Reserved.
 // Author: jacobsa@google.com (Aaron Jacobs)
 
-package main
+package fs
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ import (
 	"google.golang.org/cloud/storage"
 
 	"bazil.org/fuse"
-	"bazil.org/fuse/fs"
+	fusefs "bazil.org/fuse/fs"
 )
 
 const dirSeparator = '/'
@@ -32,16 +32,16 @@ type dir struct {
 	// A map from (relative) names of children to nodes for those children,
 	// initialized from GCS the first time it is needed for a ReadDirAll, Lookup,
 	// etc. All nodes within the map are of type *dir or *file.
-	children map[string]fs.Node // GUARDED_BY(mu)
+	children map[string]fusefs.Node // GUARDED_BY(mu)
 }
 
 // Make sure dir implements the interfaces we think it does.
 var (
-	_ fs.Node               = &dir{}
-	_ fs.NodeStringLookuper = &dir{}
+	_ fusefs.Node               = &dir{}
+	_ fusefs.NodeStringLookuper = &dir{}
 
-	_ fs.Handle             = &dir{}
-	_ fs.HandleReadDirAller = &dir{}
+	_ fusefs.Handle             = &dir{}
+	_ fusefs.HandleReadDirAller = &dir{}
 )
 
 // Initialize d.children from GCS if it has not already been populated.
@@ -54,7 +54,7 @@ func (d *dir) initChildren(ctx context.Context) error {
 		return nil
 	}
 
-	children := make(map[string]fs.Node)
+	children := make(map[string]fusefs.Node)
 
 	// List repeatedly until there is no more to list.
 	query := &storage.Query{
@@ -145,7 +145,7 @@ func (d *dir) ReadDirAll(ctx context.Context) (
 	return
 }
 
-func (d *dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
+func (d *dir) Lookup(ctx context.Context, name string) (fusefs.Node, error) {
 	log.Printf("Lookup: ([%s]/%s) %s", d.bucket.Name(), d.objectPrefix, name)
 
 	// Ensure that our cache of children has been initialized.

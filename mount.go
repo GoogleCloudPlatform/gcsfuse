@@ -9,8 +9,10 @@ import (
 	"log"
 	"os"
 
+	"github.com/jacobsa/gcsfuse/fs"
+
 	"bazil.org/fuse"
-	"bazil.org/fuse/fs"
+	fusefs "bazil.org/fuse/fs"
 )
 
 func usage() {
@@ -63,13 +65,15 @@ func main() {
 
 	defer c.Close()
 
-	// Serve a file system on the connection.
-	fileSystem := &fileSystem{
-		bucket: conn.GetBucket(getBucketName()),
+	// Create a file system.
+	fileSystem, err := fs.NewFuseFS(conn.GetBucket(getBucketName()))
+	if err != nil {
+		log.Fatal("fs.NewFuseFS:", err)
 	}
 
+	// Serve the file system on the connection.
 	log.Println("Beginning to serve FUSE connection.")
-	if err := fs.Serve(c, fileSystem); err != nil {
+	if err := fusefs.Serve(c, fileSystem); err != nil {
 		log.Fatal("fuse.Conn.Serve: ", err)
 	}
 

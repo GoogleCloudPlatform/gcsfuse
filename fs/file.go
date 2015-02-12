@@ -1,7 +1,7 @@
 // Copyright 2015 Google Inc. All Rights Reserved.
 // Author: jacobsa@google.com (Aaron Jacobs)
 
-package main
+package fs
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ import (
 	"golang.org/x/net/context"
 
 	"bazil.org/fuse"
-	"bazil.org/fuse/fs"
+	fusefs "bazil.org/fuse/fs"
 )
 
 // A remote object's name and metadata, along with a local temporary file that
@@ -31,10 +31,10 @@ type file struct {
 
 // Make sure file implements the interfaces we think it does.
 var (
-	_ fs.Node           = &file{}
-	_ fs.Handle         = &file{}
-	_ fs.HandleReader   = &file{}
-	_ fs.HandleReleaser = &file{}
+	_ fusefs.Node           = &file{}
+	_ fusefs.Handle         = &file{}
+	_ fusefs.HandleReader   = &file{}
+	_ fusefs.HandleReleaser = &file{}
 )
 
 func (f *file) Attr() fuse.Attr {
