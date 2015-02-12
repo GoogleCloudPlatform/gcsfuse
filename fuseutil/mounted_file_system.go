@@ -14,13 +14,24 @@ import (
 // unmounting.
 type MountedFileSystem struct {
 	dir string
+
+	// The result to return from WaitForReady. Not valid until the channel is closed.
+	readyStatus          error
+	readyStatusAvailable chan struct{}
 }
 
 // Wait until the mount point is ready to be used. After a successful return
 // from this function, the contents of the mounted file system should be
 // visible in the directory supplied to NewMountPoint. May be called multiple
 // times.
-func (mfs *MountedFileSystem) WaitForReady(ctx context.Context) error
+func (mfs *MountedFileSystem) WaitForReady(ctx context.Context) error {
+	select {
+	case <-mfs.readyStatusAvailable:
+		return mfs.readyStatus
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
 
 // Block until the file system has been unmounted. The return value will be
 // non-nil if anything unexpected happened while mounting or serving. May be
@@ -46,7 +57,8 @@ func MountFileSystem(
 	options ...fuse.MountOption) (mfs *MountedFileSystem) {
 	// Initialize the struct.
 	mfs = &MountedFileSystem{
-		dir: dir,
+		dir:                  dir,
+		readyStatusAvailable: make(chan struct{}),
 	}
 
 	// Mount in the background.
