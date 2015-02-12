@@ -71,6 +71,27 @@ type readOnlyTest struct {
 	fsTest
 }
 
+func (t *readOnlyTest) EmptyRoot() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readOnlyTest) ContentsInRoot() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readOnlyTest) EmptySubDirectory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readOnlyTest) ContentsInSubDirectory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readOnlyTest) ContentsInLeafDirectory() {
+	AssertTrue(false, "TODO")
+}
+
+// TODO(jacobsa): Error conditions
 func (t *readOnlyTest) DoesFoo() {
 	AssertTrue(false, "TODO")
 }
