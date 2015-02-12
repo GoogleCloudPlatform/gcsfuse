@@ -19,3 +19,9 @@ func (fs *fileSystem) Root() (fs.Node, error) {
 
 	return d, nil
 }
+
+// Create a fuse file system whose root directory is the root of the supplied
+// bucket.
+func NewFuseFS(bucket gcs.Bucket) (fs.FS, error) {
+	return &fileSystem{bucket}, nil
+}
