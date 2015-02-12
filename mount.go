@@ -10,9 +10,8 @@ import (
 	"os"
 
 	"github.com/jacobsa/gcsfuse/fs"
-
-	"bazil.org/fuse"
-	fusefs "bazil.org/fuse/fs"
+	"github.com/jacobsa/gcsfuse/fuseutil"
+	"golang.org/x/net/context"
 )
 
 func usage() {
@@ -56,31 +55,25 @@ func main() {
 		log.Fatal("Couldn't get GCS connection: ", err)
 	}
 
-	// Open a FUSE connection.
-	log.Println("Opening a FUSE connection.")
-	c, err := fuse.Mount(mountPoint)
-	if err != nil {
-		log.Fatal("fuse.Mount: ", err)
-	}
-
-	defer c.Close()
-
 	// Create a file system.
 	fileSystem, err := fs.NewFuseFS(conn.GetBucket(getBucketName()))
 	if err != nil {
 		log.Fatal("fs.NewFuseFS:", err)
 	}
 
-	// Serve the file system on the connection.
-	log.Println("Beginning to serve FUSE connection.")
-	if err := fusefs.Serve(c, fileSystem); err != nil {
-		log.Fatal("fuse.Conn.Serve: ", err)
+	// Mount the file system.
+	mountedFS := fuseutil.MountFileSystem(mountPoint, fileSystem)
+
+	if err := mountedFS.WaitForReady(context.Background()); err != nil {
+		log.Fatal("MountedFileSystem.WaitForReady:", err)
 	}
 
-	// Report any errors that occurred while mounting.
-	log.Println("Waiting for FUSE shutdown.")
-	<-c.Ready
-	if err := c.MountError; err != nil {
-		log.Fatal("Error mounting: ", err)
+	log.Println("File system has been successfully mounted.")
+
+	// Wait for it to be unmounted.
+	if err := mountedFS.Join(context.Background()); err != nil {
+		log.Fatal("MountedFileSystem.Join:", err)
 	}
+
+	log.Println("Successfully unmounted.")
 }
