@@ -16,9 +16,8 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 type fsTest struct {
-	getBucket func() gcs.Bucket
-	ctx       context.Context
-	bucket    gcs.Bucket
+	ctx    context.Context
+	bucket gcs.Bucket
 }
 
 var _ fsTestSetUpInterface = &fsTest{}
