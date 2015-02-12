@@ -4,7 +4,7 @@
 package fs
 
 import (
-	"bazil.org/fuse/fs"
+	fusefs "bazil.org/fuse/fs"
 	"github.com/jacobsa/gcloud/gcs"
 )
 
@@ -12,7 +12,7 @@ type fileSystem struct {
 	bucket gcs.Bucket
 }
 
-func (fs *fileSystem) Root() (fs.Node, error) {
+func (fs *fileSystem) Root() (fusefs.Node, error) {
 	d := &dir{
 		bucket: fs.bucket,
 	}
@@ -22,6 +22,6 @@ func (fs *fileSystem) Root() (fs.Node, error) {
 
 // Create a fuse file system whose root directory is the root of the supplied
 // bucket.
-func NewFuseFS(bucket gcs.Bucket) (fs.FS, error) {
+func NewFuseFS(bucket gcs.Bucket) (fusefs.FS, error) {
 	return &fileSystem{bucket}, nil
 }
