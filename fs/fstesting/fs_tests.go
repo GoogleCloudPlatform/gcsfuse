@@ -20,11 +20,14 @@ type fsTest struct {
 	bucket gcs.Bucket
 }
 
-var _ fsTestSetUpInterface = &fsTest{}
+var _ fsTestInterface = &fsTest{}
 
 func (t *fsTest) setUpFsTest(b gcs.Bucket) {
 	t.bucket = b
 	t.ctx = context.Background()
+}
+
+func (t *fsTest) tearDownFsTest() {
 }
 
 ////////////////////////////////////////////////////////////////////////

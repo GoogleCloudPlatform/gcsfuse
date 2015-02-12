@@ -13,8 +13,9 @@ import (
 )
 
 // An interface that all FS tests must implement.
-type fsTestSetUpInterface interface {
+type fsTestInterface interface {
 	setUpFsTest(b gcs.Bucket)
+	tearDownFsTest()
 }
 
 func getSuiteName(suiteType reflect.Type) string {
@@ -38,7 +39,7 @@ func getTestMethods(suitePointerType reflect.Type) []reflect.Method {
 
 func registerTestSuite(
 	makeBucket func() gcs.Bucket,
-	prototype fsTestSetUpInterface) {
+	prototype fsTestInterface) {
 	suitePointerType := reflect.TypeOf(prototype)
 	suiteType := suitePointerType.Elem()
 
@@ -55,16 +56,21 @@ func registerTestSuite(
 		var instance reflect.Value = reflect.New(suiteType)
 
 		// SetUp should create a bucket and then initialize the suite object,
-		// remembering that the suite implements fsTestSetUpInterface.
+		// remembering that the suite implements fsTestInterface.
 		tf.SetUp = func(*ogletest.TestInfo) {
 			bucket := makeBucket()
-			instance.Interface().(fsTestSetUpInterface).setUpFsTest(bucket)
+			instance.Interface().(fsTestInterface).setUpFsTest(bucket)
 		}
 
 		// The test function itself should simply invoke the method.
 		methodCopy := method
 		tf.Run = func() {
 			methodCopy.Func.Call([]reflect.Value{instance})
+		}
+
+		// TearDown should work much like SetUp.
+		tf.TearDown = func() {
+			instance.Interface().(fsTestInterface).tearDownFsTest()
 		}
 
 		// Save the test function.
@@ -79,7 +85,7 @@ func registerTestSuite(
 // suites that exercise a file system wrapping that bucket.
 func RegisterFSTests(makeBucket func() gcs.Bucket) {
 	// A list of empty instances of the test suites we want to register.
-	suitePrototypes := []fsTestSetUpInterface{
+	suitePrototypes := []fsTestInterface{
 		&readOnlyTest{},
 	}
 
