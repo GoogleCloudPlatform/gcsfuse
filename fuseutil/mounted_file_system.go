@@ -38,9 +38,9 @@ func (mfs *MountedFileSystem) WaitForReady(ctx context.Context) error {
 	}
 }
 
-// Block until the file system has been unmounted. The return value will be
-// non-nil if anything unexpected happened while mounting or serving. May be
-// called multiple times.
+// Block until a mounted file system has been unmounted. The return value will
+// be non-nil if anything unexpected happened while serving. May be called
+// multiple times. Must not be called unless WaitForReady has returned nil.
 func (mfs *MountedFileSystem) Join(ctx context.Context) error {
 	select {
 	case <-mfs.joinStatusAvailable:
