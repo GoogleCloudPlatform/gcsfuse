@@ -20,9 +20,9 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 type fsTest struct {
-	ctx               context.Context
-	bucket            gcs.Bucket
-	mountedFileSystem *fuseutil.MountedFileSystem
+	ctx    context.Context
+	bucket gcs.Bucket
+	mfs    *fuseutil.MountedFileSystem
 }
 
 var _ fsTestInterface = &fsTest{}
@@ -46,19 +46,19 @@ func (t *fsTest) setUpFsTest(b gcs.Bucket) {
 		panic("NewFuseFS: " + err.Error())
 	}
 
-	t.mountedFileSystem = fuseutil.MountFileSystem(mountPoint, fileSystem)
-	if err := t.mountedFileSystem.WaitForReady(t.ctx); err != nil {
+	t.mfs = fuseutil.MountFileSystem(mountPoint, fileSystem)
+	if err := t.mfs.WaitForReady(t.ctx); err != nil {
 		panic("MountedFileSystem.WaitForReady: " + err.Error())
 	}
 }
 
 func (t *fsTest) tearDownFsTest() {
 	// Unmount the file system.
-	if err := t.mountedFileSystem.Unmount(); err != nil {
+	if err := t.mfs.Unmount(); err != nil {
 		panic("MountedFileSystem.Unmount: " + err.Error())
 	}
 
-	if err := t.mountedFileSystem.Join(t.ctx); err != nil {
+	if err := t.mfs.Join(t.ctx); err != nil {
 		panic("MountedFileSystem.Join: " + err.Error())
 	}
 }
