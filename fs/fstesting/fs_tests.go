@@ -11,6 +11,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcsfuse/fs"
 	"github.com/jacobsa/gcsfuse/fuseutil"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
@@ -72,7 +73,10 @@ type readOnlyTest struct {
 }
 
 func (t *readOnlyTest) EmptyRoot() {
-	AssertTrue(false, "TODO")
+	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+
+	ExpectThat(entries, ElementsAre())
 }
 
 func (t *readOnlyTest) ContentsInRoot() {
