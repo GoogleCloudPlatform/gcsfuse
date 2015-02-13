@@ -164,6 +164,7 @@ func (t *readOnlyTest) ContentsInLeafDirectory() {
 	AssertTrue(false, "TODO")
 }
 
+// TODO(jacobsa): Inodes
 // TODO(jacobsa): Error conditions
 func (t *readOnlyTest) DoesFoo() {
 	AssertTrue(false, "TODO")
