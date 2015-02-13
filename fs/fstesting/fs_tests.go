@@ -405,8 +405,14 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed() {
 	ExpectEq("foo", entries[1].Name())
 }
 
-// TODO(jacobsa): Inodes
-// TODO(jacobsa): Error conditions
-func (t *readOnlyTest) DoesFoo() {
+func (t *readOnlyTest) Inodes() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readOnlyTest) OpenNonExistentFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readOnlyTest) ReadNonExistentDir() {
 	AssertTrue(false, "TODO")
 }
