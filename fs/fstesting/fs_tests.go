@@ -25,6 +25,18 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func getFileNames(entries []os.FileInfo) (names []string) {
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
 // Common
 ////////////////////////////////////////////////////////////////////////
 
@@ -138,7 +150,7 @@ func (t *readOnlyTest) ContentsInRoot() {
 	entries, err := ioutil.ReadDir(t.mfs.Dir())
 	AssertEq(nil, err)
 
-	AssertEq(4, len(entries))
+	AssertEq(4, len(entries), "Names: %v", getFileNames(entries))
 	var e os.FileInfo
 
 	// bar
@@ -235,7 +247,7 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
 	entries, err := ioutil.ReadDir(path.Join(t.mfs.Dir(), "dir"))
 	AssertEq(nil, err)
 
-	AssertEq(4, len(entries))
+	AssertEq(4, len(entries), "Names: %v", getFileNames(entries))
 	var e os.FileInfo
 
 	// bar
@@ -313,7 +325,7 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderNotPresent() {
 	entries, err := ioutil.ReadDir(path.Join(t.mfs.Dir(), "dir"))
 	AssertEq(nil, err)
 
-	AssertEq(4, len(entries))
+	AssertEq(4, len(entries), "Names: %v", getFileNames(entries))
 	var e os.FileInfo
 
 	// bar
@@ -362,7 +374,7 @@ func (t *readOnlyTest) ListDirectoryTwice_NoChange() {
 	entries, err := ioutil.ReadDir(t.mfs.Dir())
 	AssertEq(nil, err)
 
-	AssertEq(2, len(entries))
+	AssertEq(2, len(entries), "Names: %v", getFileNames(entries))
 	ExpectEq("bar", entries[0].Name())
 	ExpectEq("foo", entries[1].Name())
 
@@ -370,7 +382,7 @@ func (t *readOnlyTest) ListDirectoryTwice_NoChange() {
 	entries, err = ioutil.ReadDir(t.mfs.Dir())
 	AssertEq(nil, err)
 
-	AssertEq(2, len(entries))
+	AssertEq(2, len(entries), "Names: %v", getFileNames(entries))
 	ExpectEq("bar", entries[0].Name())
 	ExpectEq("foo", entries[1].Name())
 }
@@ -388,7 +400,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheStillValid() {
 	entries, err := ioutil.ReadDir(t.mfs.Dir())
 	AssertEq(nil, err)
 
-	AssertEq(2, len(entries))
+	AssertEq(2, len(entries), "Names: %v", getFileNames(entries))
 	ExpectEq("bar", entries[0].Name())
 	ExpectEq("foo", entries[1].Name())
 
@@ -403,7 +415,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheStillValid() {
 	entries, err = ioutil.ReadDir(t.mfs.Dir())
 	AssertEq(nil, err)
 
-	AssertEq(2, len(entries))
+	AssertEq(2, len(entries), "Names: %v", getFileNames(entries))
 	ExpectEq("bar", entries[0].Name())
 	ExpectEq("foo", entries[1].Name())
 }
@@ -421,7 +433,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheInvalidated() {
 	entries, err := ioutil.ReadDir(t.mfs.Dir())
 	AssertEq(nil, err)
 
-	AssertEq(2, len(entries))
+	AssertEq(2, len(entries), "Names: %v", getFileNames(entries))
 	ExpectEq("bar", entries[0].Name())
 	ExpectEq("foo", entries[1].Name())
 
@@ -436,7 +448,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheInvalidated() {
 	entries, err = ioutil.ReadDir(t.mfs.Dir())
 	AssertEq(nil, err)
 
-	AssertEq(2, len(entries))
+	AssertEq(2, len(entries), "Names: %v", getFileNames(entries))
 	ExpectEq("baz", entries[0].Name())
 	ExpectEq("foo", entries[1].Name())
 }
@@ -455,7 +467,7 @@ func (t *readOnlyTest) Inodes() {
 	entries, err := ioutil.ReadDir(t.mfs.Dir())
 	AssertEq(nil, err)
 
-	AssertEq(3, len(entries))
+	AssertEq(3, len(entries), "Names: %v", getFileNames(entries))
 
 	// Confirm all of the inodes are distinct.
 	inodesSeen := make(map[uint64]struct{})
