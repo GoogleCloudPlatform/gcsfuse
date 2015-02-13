@@ -7,6 +7,7 @@ package fstesting
 
 import (
 	"io/ioutil"
+	"math"
 	"os"
 	"time"
 
@@ -130,11 +131,25 @@ func (t *readOnlyTest) ContentsInRoot() {
 	e = entries[0]
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
-	ExpectEq(0, e.Mode())                           // TODO
-	ExpectThat(e.ModTime(), DeepEquals(time.Now())) // TODO
+	ExpectEq(os.ModeDir|os.FileMode(0500), e.Mode())
+	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
 	ExpectTrue(e.IsDir())
 
-	AssertTrue(false, "TODO")
+	// baz
+	e = entries[1]
+	ExpectEq("baz", e.Name())
+	ExpectEq(len("burrito"), e.Size())
+	ExpectEq(os.FileMode(0400), e.Mode())
+	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectFalse(e.IsDir())
+
+	// foo
+	e = entries[2]
+	ExpectEq("foo", e.Name())
+	ExpectEq(len("taco"), e.Size())
+	ExpectEq(os.FileMode(0400), e.Mode())
+	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectFalse(e.IsDir())
 }
 
 func (t *readOnlyTest) EmptySubDirectory() {
