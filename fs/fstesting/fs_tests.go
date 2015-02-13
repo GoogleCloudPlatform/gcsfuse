@@ -349,12 +349,30 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderNotPresent() {
 	ExpectTrue(e.IsDir())
 }
 
-func (t *readOnlyTest) ContentsInLeafDirectory() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *readOnlyTest) ListDirectoryTwice_NoChange() {
-	AssertTrue(false, "TODO")
+	// Set up initial contents.
+	AssertEq(
+		nil,
+		t.createEmptyObjects([]string{
+			"foo",
+			"bar",
+		}))
+
+	// List once.
+	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+
+	AssertEq(2, len(entries))
+	ExpectEq("bar", entries[0].Name())
+	ExpectEq("foo", entries[1].Name())
+
+	// List again.
+	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+
+	AssertEq(2, len(entries))
+	ExpectEq("bar", entries[0].Name())
+	ExpectEq("foo", entries[1].Name())
 }
 
 func (t *readOnlyTest) ListDirectoryTwice_Changed() {
