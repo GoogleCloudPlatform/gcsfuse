@@ -21,6 +21,7 @@ import (
 // A remote object's name and metadata, along with a local temporary file that
 // contains its contents (when initialized).
 type file struct {
+	logger     *log.Logger
 	bucket     gcs.Bucket
 	objectName string
 	size       uint64
@@ -94,12 +95,12 @@ func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 	// Close it, after grabbing its path.
 	path := f.tempFile.Name()
 	if err := f.tempFile.Close(); err != nil {
-		log.Println("Error closing temp file:", err)
+		f.logger.Println("Error closing temp file:", err)
 	}
 
 	// Attempt to delete it.
 	if err := os.Remove(path); err != nil {
-		log.Println("Error deleting temp file:", err)
+		f.logger.Println("Error deleting temp file:", err)
 	}
 
 	f.tempFile = nil

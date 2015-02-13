@@ -24,6 +24,7 @@ const dirSeparator = '/'
 // with dirSeparator except for the special case of the root directory, where
 // the prefix is the empty string.
 type dir struct {
+	logger       *log.Logger
 	bucket       gcs.Bucket
 	objectPrefix string
 
@@ -84,6 +85,7 @@ func (d *dir) initChildren(ctx context.Context) error {
 			}
 
 			children[path.Base(o.Name)] = &file{
+				logger:     d.logger,
 				bucket:     d.bucket,
 				objectName: o.Name,
 				size:       uint64(o.Size),
@@ -93,6 +95,7 @@ func (d *dir) initChildren(ctx context.Context) error {
 		// Extract prefixes as directories.
 		for _, p := range objects.Prefixes {
 			children[path.Base(p)] = &dir{
+				logger:       d.logger,
 				bucket:       d.bucket,
 				objectPrefix: p,
 			}
@@ -117,7 +120,7 @@ func (d *dir) Attr() fuse.Attr {
 
 func (d *dir) ReadDirAll(ctx context.Context) (
 	ents []fuse.Dirent, err error) {
-	log.Printf("ReadDirAll: [%s]/%s", d.bucket.Name(), d.objectPrefix)
+	d.logger.Printf("ReadDirAll: [%s]/%s", d.bucket.Name(), d.objectPrefix)
 
 	// Ensure that our cache of children has been initialized.
 	if err := d.initChildren(ctx); err != nil {
@@ -146,7 +149,7 @@ func (d *dir) ReadDirAll(ctx context.Context) (
 }
 
 func (d *dir) Lookup(ctx context.Context, name string) (fusefs.Node, error) {
-	log.Printf("Lookup: ([%s]/%s) %s", d.bucket.Name(), d.objectPrefix, name)
+	d.logger.Printf("Lookup: ([%s]/%s) %s", d.bucket.Name(), d.objectPrefix, name)
 
 	// Ensure that our cache of children has been initialized.
 	if err := d.initChildren(ctx); err != nil {
