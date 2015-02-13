@@ -10,6 +10,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"syscall"
 	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -406,7 +407,30 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed() {
 }
 
 func (t *readOnlyTest) Inodes() {
-	AssertTrue(false, "TODO")
+	// Set up two files and a directory placeholder.
+	AssertEq(
+		nil,
+		t.createEmptyObjects([]string{
+			"foo",
+			"bar/",
+			"baz",
+		}))
+
+	// List.
+	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+
+	AssertEq(3, len(entries))
+
+	// Confirm all of the inodes are distinct.
+	inodesSeen := make(map[uint64]struct{})
+	for _, fileInfo := range entries {
+		stat := fileInfo.Sys().(*syscall.Stat_t)
+		_, ok := inodesSeen[stat.Ino]
+		AssertFalse(ok, "Duplicate inode: %v", fileInfo)
+
+		inodesSeen[stat.Ino] = struct{}{}
+	}
 }
 
 func (t *readOnlyTest) OpenNonExistentFile() {
