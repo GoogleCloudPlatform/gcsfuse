@@ -4,7 +4,7 @@
 package timeutil
 
 import (
-	"log"
+	"sync"
 	"time"
 )
 
@@ -36,14 +36,22 @@ func RealClock() Clock {
 // zero time.
 type SimulatedClock struct {
 	Clock
+
+	mu sync.RWMutex
+	t  time.Time // GUARDED_BY(mu)
 }
 
 func (sc *SimulatedClock) Now() time.Time {
-	log.Fatal("TODO: Implement SimulatedClock.Now.")
-	return time.Time{}
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	return sc.t
 }
 
 // Advance the current time according to the clock by the supplied duration.
 func (sc *SimulatedClock) AdvanceTime(d time.Duration) {
-	log.Fatal("TODO: Implement SimulatedClock.AdvanceTime.")
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+
+	sc.t = sc.t.Add(d)
 }
