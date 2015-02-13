@@ -33,7 +33,7 @@ func getTokenSource() (ts oauth2.TokenSource, err error) {
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		RedirectURL:  clientRedirectUrl,
-		Scopes:       []string{storage.DevstorageFull_controlScope},
+		Scopes:       []string{storage.DevstorageRead_writeScope},
 		Endpoint:     google.Endpoint,
 	}
 
