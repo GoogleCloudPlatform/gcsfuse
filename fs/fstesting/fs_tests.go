@@ -430,7 +430,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheInvalidated() {
 	AssertEq(nil, t.createEmptyObjects([]string{"baz"}))
 
 	// Advance the clock to just after the cache expiry.
-	t.clock.AdvanceTime(fs.DirListingCacheTTL - time.Millisecond)
+	t.clock.AdvanceTime(fs.DirListingCacheTTL + time.Millisecond)
 
 	// List again.
 	entries, err = ioutil.ReadDir(t.mfs.Dir())
