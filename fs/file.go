@@ -38,6 +38,19 @@ var (
 	_ fusefs.HandleReleaser = &file{}
 )
 
+func newFile(
+	logger *log.Logger,
+	bucket gcs.Bucket,
+	objectName string,
+	size uint64) *file {
+	return &file{
+		logger:     logger,
+		bucket:     bucket,
+		objectName: objectName,
+		size:       size,
+	}
+}
+
 func (f *file) Attr() fuse.Attr {
 	return fuse.Attr{
 		// TODO(jacobsa): Expose ACLs from GCS?

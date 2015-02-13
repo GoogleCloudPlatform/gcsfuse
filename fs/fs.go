@@ -25,11 +25,7 @@ type fileSystem struct {
 }
 
 func (fs *fileSystem) Root() (fusefs.Node, error) {
-	d := &dir{
-		logger: fs.logger,
-		bucket: fs.bucket,
-	}
-
+	d := newDir(fs.logger, fs.bucket, "")
 	return d, nil
 }
 

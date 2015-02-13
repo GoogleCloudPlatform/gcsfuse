@@ -45,6 +45,17 @@ var (
 	_ fusefs.HandleReadDirAller = &dir{}
 )
 
+func newDir(
+	logger *log.Logger,
+	bucket gcs.Bucket,
+	objectPrefix string) *dir {
+	return &dir{
+		logger:       logger,
+		bucket:       bucket,
+		objectPrefix: objectPrefix,
+	}
+}
+
 // Initialize d.children from GCS if it has not already been populated.
 func (d *dir) initChildren(ctx context.Context) error {
 	d.mu.Lock()
@@ -84,21 +95,17 @@ func (d *dir) initChildren(ctx context.Context) error {
 				continue
 			}
 
-			children[path.Base(o.Name)] = &file{
-				logger:     d.logger,
-				bucket:     d.bucket,
-				objectName: o.Name,
-				size:       uint64(o.Size),
-			}
+			children[path.Base(o.Name)] =
+				newFile(
+					d.logger,
+					d.bucket,
+					o.Name,
+					uint64(o.Size))
 		}
 
 		// Extract prefixes as directories.
 		for _, p := range objects.Prefixes {
-			children[path.Base(p)] = &dir{
-				logger:       d.logger,
-				bucket:       d.bucket,
-				objectPrefix: p,
-			}
+			children[path.Base(p)] = newDir(d.logger, d.bucket, p)
 		}
 
 		// Move on to the next set of results.
