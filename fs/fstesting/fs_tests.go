@@ -124,13 +124,21 @@ func (t *readOnlyTest) ContentsInRoot() {
 					},
 					Contents: "burrito",
 				},
+
+				// File in sub-directory
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "qux/asdf",
+					},
+					Contents: "",
+				},
 			}))
 
 	// ReadDir
 	entries, err := ioutil.ReadDir(t.mfs.Dir())
 	AssertEq(nil, err)
 
-	AssertEq(3, len(entries))
+	AssertEq(4, len(entries))
 	var e os.FileInfo
 
 	// bar
@@ -156,6 +164,14 @@ func (t *readOnlyTest) ContentsInRoot() {
 	ExpectEq(os.FileMode(0400), e.Mode())
 	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
 	ExpectFalse(e.IsDir())
+
+	// qux
+	e = entries[3]
+	ExpectEq("qux", e.Name())
+	ExpectEq(0, e.Size())
+	ExpectEq(os.ModeDir|os.FileMode(0500), e.Mode())
+	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectTrue(e.IsDir())
 }
 
 func (t *readOnlyTest) EmptySubDirectory() {
@@ -205,13 +221,21 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
 					},
 					Contents: "burrito",
 				},
+
+				// File in sub-directory
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "dir/qux/asdf",
+					},
+					Contents: "",
+				},
 			}))
 
 	// ReadDir
 	entries, err := ioutil.ReadDir(path.Join(t.mfs.Dir(), "dir"))
 	AssertEq(nil, err)
 
-	AssertEq(3, len(entries))
+	AssertEq(4, len(entries))
 	var e os.FileInfo
 
 	// bar
@@ -237,6 +261,14 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
 	ExpectEq(os.FileMode(0400), e.Mode())
 	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
 	ExpectFalse(e.IsDir())
+
+	// qux
+	e = entries[3]
+	ExpectEq("qux", e.Name())
+	ExpectEq(0, e.Size())
+	ExpectEq(os.ModeDir|os.FileMode(0500), e.Mode())
+	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectTrue(e.IsDir())
 }
 
 func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderNotPresent() {
