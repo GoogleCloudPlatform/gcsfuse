@@ -84,13 +84,15 @@ func getBucketOrDie() gcs.Bucket {
 ////////////////////////////////////////////////////////////////////////
 
 func init() {
-	fstesting.RegisterFSTests(func() gcs.Bucket {
-		bucket := getBucketOrDie()
+	fstesting.RegisterFSTests(
+		"RealGCS",
+		func() gcs.Bucket {
+			bucket := getBucketOrDie()
 
-		if err := gcsutil.DeleteAllObjects(context.Background(), bucket); err != nil {
-			panic("DeleteAllObjects: " + err.Error())
-		}
+			if err := gcsutil.DeleteAllObjects(context.Background(), bucket); err != nil {
+				panic("DeleteAllObjects: " + err.Error())
+			}
 
-		return bucket
-	})
+			return bucket
+		})
 }
