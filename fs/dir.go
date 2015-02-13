@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 
@@ -25,6 +26,7 @@ const dirSeparator = '/'
 // the prefix is the empty string.
 type dir struct {
 	logger       *log.Logger
+	clock        timeutil.Clock
 	bucket       gcs.Bucket
 	objectPrefix string
 
@@ -47,10 +49,12 @@ var (
 
 func newDir(
 	logger *log.Logger,
+	clock timeutil.Clock,
 	bucket gcs.Bucket,
 	objectPrefix string) *dir {
 	return &dir{
 		logger:       logger,
+		clock:        clock,
 		bucket:       bucket,
 		objectPrefix: objectPrefix,
 	}
@@ -105,7 +109,7 @@ func (d *dir) initChildren(ctx context.Context) error {
 
 		// Extract prefixes as directories.
 		for _, p := range objects.Prefixes {
-			children[path.Base(p)] = newDir(d.logger, d.bucket, p)
+			children[path.Base(p)] = newDir(d.logger, d.clock, d.bucket, p)
 		}
 
 		// Move on to the next set of results.

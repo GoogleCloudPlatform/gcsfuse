@@ -17,6 +17,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	"github.com/jacobsa/gcsfuse/fs"
 	"github.com/jacobsa/gcsfuse/fuseutil"
+	"github.com/jacobsa/gcsfuse/timeutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
@@ -29,6 +30,7 @@ import (
 
 type fsTest struct {
 	ctx    context.Context
+	clock  timeutil.Clock
 	bucket gcs.Bucket
 	mfs    *fuseutil.MountedFileSystem
 }
@@ -36,11 +38,9 @@ type fsTest struct {
 var _ fsTestInterface = &fsTest{}
 
 func (t *fsTest) setUpFsTest(b gcs.Bucket) {
-	var err error
-
-	// Record bucket and context information.
-	t.bucket = b
 	t.ctx = context.Background()
+	t.clock = &timeutil.SimulatedClock{}
+	t.bucket = b
 
 	// Set up a temporary directory for mounting.
 	mountPoint, err := ioutil.TempDir("", "fs_test")
@@ -49,7 +49,7 @@ func (t *fsTest) setUpFsTest(b gcs.Bucket) {
 	}
 
 	// Mount a file system.
-	fileSystem, err := fs.NewFuseFS(b)
+	fileSystem, err := fs.NewFuseFS(t.clock, b)
 	if err != nil {
 		panic("NewFuseFS: " + err.Error())
 	}
