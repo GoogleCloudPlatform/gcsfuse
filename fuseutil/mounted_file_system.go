@@ -27,6 +27,12 @@ type MountedFileSystem struct {
 	joinStatusAvailable chan struct{}
 }
 
+// Return the directory on which the file system is mounted (or where we
+// attempted to mount it.)
+func (mfs *MountedFileSystem) Dir() string {
+	return mfs.dir
+}
+
 // Wait until the mount point is ready to be used. After a successful return
 // from this function, the contents of the mounted file system should be
 // visible in the directory supplied to NewMountPoint. May be called multiple
