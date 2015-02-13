@@ -7,6 +7,8 @@ package fstesting
 
 import (
 	"io/ioutil"
+	"os"
+	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
@@ -88,6 +90,7 @@ func (t *readOnlyTest) EmptyRoot() {
 }
 
 func (t *readOnlyTest) ContentsInRoot() {
+	// Set up contents.
 	AssertEq(
 		nil,
 		t.createObjects(
@@ -117,8 +120,19 @@ func (t *readOnlyTest) ContentsInRoot() {
 			}))
 
 	// ReadDir
-	_, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := ioutil.ReadDir(t.mfs.Dir())
 	AssertEq(nil, err)
+
+	AssertEq(3, len(entries))
+	var e os.FileInfo
+
+	// bar
+	e = entries[0]
+	ExpectEq("bar", e.Name())
+	ExpectEq(0, e.Size())
+	ExpectEq(0, e.Mode())                           // TODO
+	ExpectThat(e.ModTime(), DeepEquals(time.Now())) // TODO
+	ExpectTrue(e.IsDir())
 
 	AssertTrue(false, "TODO")
 }
