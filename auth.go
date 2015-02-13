@@ -15,8 +15,8 @@ import (
 
 const (
 	// TODO(jacobsa): Change these two.
-	clientID     = "862099979392-0oppqb36povstoiadd6aafcr8pa1utfh.apps.googleusercontent.com"
-	clientSecret = "-mOOwbKKhqOwUSh8YNCblo5c"
+	clientID     = "501259388845-j47fftkfn6lhp4o80ajg38cs8jed2dmj.apps.googleusercontent.com"
+	clientSecret = "-z3_0mx4feP2mqOGhRIEk_DN"
 
 	// Cf. https://developers.google.com/accounts/docs/OAuth2InstalledApp#choosingredirecturi
 	clientRedirectUrl = "urn:ietf:wg:oauth:2.0:oob"
