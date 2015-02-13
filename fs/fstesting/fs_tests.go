@@ -9,11 +9,13 @@ import (
 	"io/ioutil"
 
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	"github.com/jacobsa/gcsfuse/fs"
 	"github.com/jacobsa/gcsfuse/fuseutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
+	"google.golang.org/cloud/storage"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -64,6 +66,11 @@ func (t *fsTest) tearDownFsTest() {
 	}
 }
 
+func (t *fsTest) createObjects(objects []*gcsutil.ObjectInfo) error {
+	_, err := gcsutil.CreateObjects(t.ctx, t.bucket, objects)
+	return err
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Read-only interaction
 ////////////////////////////////////////////////////////////////////////
@@ -73,6 +80,7 @@ type readOnlyTest struct {
 }
 
 func (t *readOnlyTest) EmptyRoot() {
+	// ReadDir
 	entries, err := ioutil.ReadDir(t.mfs.Dir())
 	AssertEq(nil, err)
 
@@ -80,6 +88,38 @@ func (t *readOnlyTest) EmptyRoot() {
 }
 
 func (t *readOnlyTest) ContentsInRoot() {
+	AssertEq(
+		nil,
+		t.createObjects(
+			[]*gcsutil.ObjectInfo{
+				// File
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "foo",
+					},
+					Contents: "taco",
+				},
+
+				// Directory
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "bar/",
+					},
+				},
+
+				// File
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "baz",
+					},
+					Contents: "burrito",
+				},
+			}))
+
+	// ReadDir
+	_, err := ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+
 	AssertTrue(false, "TODO")
 }
 
