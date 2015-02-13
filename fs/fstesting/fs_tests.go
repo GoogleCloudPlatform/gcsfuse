@@ -7,6 +7,7 @@ package fstesting
 
 import (
 	"io/ioutil"
+	"log"
 	"math"
 	"os"
 	"path"
@@ -100,9 +101,27 @@ type readOnlyTest struct {
 	fsTest
 }
 
+func (t *readOnlyTest) readDirUntil(desiredLen int, dir string) (entries []os.FileInfo, err error) {
+	startTime := time.Now()
+	iters := 0
+	defer func() {
+		log.Println("readDirUntil took", time.Since(startTime), "for", iters, "calls")
+	}()
+
+	for {
+		iters++
+		entries, err = ioutil.ReadDir(dir)
+		if err != nil || len(entries) == desiredLen {
+			return
+		}
+
+		t.clock.AdvanceTime(10 * fs.DirListingCacheTTL)
+	}
+}
+
 func (t *readOnlyTest) EmptyRoot() {
 	// ReadDir
-	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := t.readDirUntil(0, t.mfs.Dir())
 	AssertEq(nil, err)
 
 	ExpectThat(entries, ElementsAre())
@@ -147,7 +166,7 @@ func (t *readOnlyTest) ContentsInRoot() {
 			}))
 
 	// ReadDir
-	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := t.readDirUntil(4, t.mfs.Dir())
 	AssertEq(nil, err)
 
 	AssertEq(4, len(entries), "Names: %v", getFileNames(entries))
@@ -191,7 +210,10 @@ func (t *readOnlyTest) EmptySubDirectory() {
 	AssertEq(nil, t.createEmptyObjects([]string{"bar/"}))
 
 	// ReadDir
-	entries, err := ioutil.ReadDir(path.Join(t.mfs.Dir(), "bar"))
+	_, err := t.readDirUntil(1, t.mfs.Dir())
+	AssertEq(nil, err)
+
+	entries, err := t.readDirUntil(0, path.Join(t.mfs.Dir(), "bar"))
 	AssertEq(nil, err)
 
 	ExpectThat(entries, ElementsAre())
@@ -244,7 +266,7 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
 			}))
 
 	// ReadDir
-	entries, err := ioutil.ReadDir(path.Join(t.mfs.Dir(), "dir"))
+	entries, err := t.readDirUntil(4, path.Join(t.mfs.Dir(), "dir"))
 	AssertEq(nil, err)
 
 	AssertEq(4, len(entries), "Names: %v", getFileNames(entries))
@@ -322,7 +344,7 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderNotPresent() {
 			}))
 
 	// ReadDir
-	entries, err := ioutil.ReadDir(path.Join(t.mfs.Dir(), "dir"))
+	entries, err := t.readDirUntil(4, path.Join(t.mfs.Dir(), "dir"))
 	AssertEq(nil, err)
 
 	AssertEq(4, len(entries), "Names: %v", getFileNames(entries))
@@ -371,7 +393,7 @@ func (t *readOnlyTest) ListDirectoryTwice_NoChange() {
 		}))
 
 	// List once.
-	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := t.readDirUntil(2, t.mfs.Dir())
 	AssertEq(nil, err)
 
 	AssertEq(2, len(entries), "Names: %v", getFileNames(entries))
@@ -379,7 +401,7 @@ func (t *readOnlyTest) ListDirectoryTwice_NoChange() {
 	ExpectEq("foo", entries[1].Name())
 
 	// List again.
-	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	entries, err = t.readDirUntil(2, t.mfs.Dir())
 	AssertEq(nil, err)
 
 	AssertEq(2, len(entries), "Names: %v", getFileNames(entries))
@@ -397,7 +419,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheStillValid() {
 		}))
 
 	// List once.
-	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := t.readDirUntil(2, t.mfs.Dir())
 	AssertEq(nil, err)
 
 	AssertEq(2, len(entries), "Names: %v", getFileNames(entries))
@@ -412,7 +434,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheStillValid() {
 	t.clock.AdvanceTime(fs.DirListingCacheTTL - time.Millisecond)
 
 	// List again.
-	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	entries, err = t.readDirUntil(2, t.mfs.Dir())
 	AssertEq(nil, err)
 
 	AssertEq(2, len(entries), "Names: %v", getFileNames(entries))
@@ -430,7 +452,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheInvalidated() {
 		}))
 
 	// List once.
-	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := t.readDirUntil(2, t.mfs.Dir())
 	AssertEq(nil, err)
 
 	AssertEq(2, len(entries), "Names: %v", getFileNames(entries))
@@ -445,7 +467,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheInvalidated() {
 	t.clock.AdvanceTime(fs.DirListingCacheTTL + time.Millisecond)
 
 	// List again.
-	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	entries, err = t.readDirUntil(2, t.mfs.Dir())
 	AssertEq(nil, err)
 
 	AssertEq(2, len(entries), "Names: %v", getFileNames(entries))
@@ -464,7 +486,7 @@ func (t *readOnlyTest) Inodes() {
 		}))
 
 	// List.
-	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := t.readDirUntil(3, t.mfs.Dir())
 	AssertEq(nil, err)
 
 	AssertEq(3, len(entries), "Names: %v", getFileNames(entries))
