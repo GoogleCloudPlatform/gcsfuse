@@ -30,7 +30,7 @@ import (
 
 type fsTest struct {
 	ctx    context.Context
-	clock  timeutil.Clock
+	clock  timeutil.SimulatedClock
 	bucket gcs.Bucket
 	mfs    *fuseutil.MountedFileSystem
 }
@@ -39,7 +39,6 @@ var _ fsTestInterface = &fsTest{}
 
 func (t *fsTest) setUpFsTest(b gcs.Bucket) {
 	t.ctx = context.Background()
-	t.clock = &timeutil.SimulatedClock{}
 	t.bucket = b
 
 	// Set up a temporary directory for mounting.
@@ -49,7 +48,7 @@ func (t *fsTest) setUpFsTest(b gcs.Bucket) {
 	}
 
 	// Mount a file system.
-	fileSystem, err := fs.NewFuseFS(t.clock, b)
+	fileSystem, err := fs.NewFuseFS(&t.clock, b)
 	if err != nil {
 		panic("NewFuseFS: " + err.Error())
 	}
@@ -397,6 +396,9 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheStillValid() {
 	AssertEq(nil, t.bucket.DeleteObject(t.ctx, "bar"))
 	AssertEq(nil, t.createEmptyObjects([]string{"baz"}))
 
+	// Advance the clock to just before the cache expiry.
+	t.clock.AdvanceTime(fs.DirListingCacheTTL - time.Millisecond)
+
 	// List again.
 	entries, err = ioutil.ReadDir(t.mfs.Dir())
 	AssertEq(nil, err)
@@ -426,6 +428,9 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheInvalidated() {
 	// Add "baz" and remove "bar".
 	AssertEq(nil, t.bucket.DeleteObject(t.ctx, "bar"))
 	AssertEq(nil, t.createEmptyObjects([]string{"baz"}))
+
+	// Advance the clock to just after the cache expiry.
+	t.clock.AdvanceTime(fs.DirListingCacheTTL - time.Millisecond)
 
 	// List again.
 	entries, err = ioutil.ReadDir(t.mfs.Dir())

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"sync"
+	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcsfuse/timeutil"
@@ -20,6 +21,9 @@ import (
 )
 
 const dirSeparator = '/'
+
+// Implementation detail, do not touch.
+var DirListingCacheTTL = 10 * time.Second
 
 // A "directory" in GCS, defined by an object name prefix. All prefixes end
 // with dirSeparator except for the special case of the root directory, where
