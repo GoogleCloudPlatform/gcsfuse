@@ -434,9 +434,9 @@ func (t *readOnlyTest) Inodes() {
 }
 
 func (t *readOnlyTest) OpenNonExistentFile() {
-	AssertTrue(false, "TODO")
-}
+	_, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
 
-func (t *readOnlyTest) ReadNonExistentDir() {
-	AssertTrue(false, "TODO")
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("foo")))
+	ExpectThat(err, Error(HasSubstr("no such file")))
 }
