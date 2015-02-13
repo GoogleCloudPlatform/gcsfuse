@@ -376,7 +376,37 @@ func (t *readOnlyTest) ListDirectoryTwice_NoChange() {
 	ExpectEq("foo", entries[1].Name())
 }
 
-func (t *readOnlyTest) ListDirectoryTwice_Changed() {
+func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheStillValid() {
+	// Set up initial contents.
+	AssertEq(
+		nil,
+		t.createEmptyObjects([]string{
+			"foo",
+			"bar",
+		}))
+
+	// List once.
+	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+
+	AssertEq(2, len(entries))
+	ExpectEq("bar", entries[0].Name())
+	ExpectEq("foo", entries[1].Name())
+
+	// Add "baz" and remove "bar".
+	AssertEq(nil, t.bucket.DeleteObject(t.ctx, "bar"))
+	AssertEq(nil, t.createEmptyObjects([]string{"baz"}))
+
+	// List again.
+	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+
+	AssertEq(2, len(entries))
+	ExpectEq("bar", entries[0].Name())
+	ExpectEq("foo", entries[1].Name())
+}
+
+func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheInvalidated() {
 	// Set up initial contents.
 	AssertEq(
 		nil,
