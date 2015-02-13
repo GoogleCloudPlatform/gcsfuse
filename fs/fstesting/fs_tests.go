@@ -170,7 +170,73 @@ func (t *readOnlyTest) EmptySubDirectory() {
 }
 
 func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
-	AssertTrue(false, "TODO")
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			[]*gcsutil.ObjectInfo{
+				// Placeholder
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "dir/",
+					},
+					Contents: "",
+				},
+
+				// File
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "foo",
+					},
+					Contents: "taco",
+				},
+
+				// Directory
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "bar/",
+					},
+				},
+
+				// File
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "baz",
+					},
+					Contents: "burrito",
+				},
+			}))
+
+	// ReadDir
+	entries, err := ioutil.ReadDir(path.Join(t.mfs.Dir(), "dir"))
+	AssertEq(nil, err)
+
+	AssertEq(3, len(entries))
+	var e os.FileInfo
+
+	// bar
+	e = entries[0]
+	ExpectEq("bar", e.Name())
+	ExpectEq(0, e.Size())
+	ExpectEq(os.ModeDir|os.FileMode(0500), e.Mode())
+	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectTrue(e.IsDir())
+
+	// baz
+	e = entries[1]
+	ExpectEq("baz", e.Name())
+	ExpectEq(len("burrito"), e.Size())
+	ExpectEq(os.FileMode(0400), e.Mode())
+	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectFalse(e.IsDir())
+
+	// foo
+	e = entries[2]
+	ExpectEq("foo", e.Name())
+	ExpectEq(len("taco"), e.Size())
+	ExpectEq(os.FileMode(0400), e.Mode())
+	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectFalse(e.IsDir())
 }
 
 func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderNotPresent() {
