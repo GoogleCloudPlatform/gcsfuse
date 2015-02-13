@@ -169,7 +169,11 @@ func (t *readOnlyTest) EmptySubDirectory() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *readOnlyTest) ContentsInSubDirectory() {
+func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderNotPresent() {
 	AssertTrue(false, "TODO")
 }
 
