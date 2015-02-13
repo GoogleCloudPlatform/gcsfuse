@@ -4,9 +4,6 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -25,10 +22,9 @@ const (
 	clientRedirectUrl = "urn:ietf:wg:oauth:2.0:oob"
 )
 
-var _ = flag.String("auth_code", "", "Authorization code provided when authorizing this app. Must be set if not in cache. Run without flag set to print URL.")
-
-// Return an OAuth token source based on command-line flags.
-func getTokenSource() (ts oauth2.TokenSource, err error) {
+// Return an HTTP client configured with OAuth credentials from command-line
+// flags. May block on network traffic.
+func getAuthenticatedHttpClient() (*http.Client, error) {
 	config := &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
@@ -37,36 +33,9 @@ func getTokenSource() (ts oauth2.TokenSource, err error) {
 		Endpoint:     google.Endpoint,
 	}
 
-	return oauthutil.NewTerribleTokenSource(
+	return oauthutil.NewTerribleHttpClient(
 		config,
-		flag.Lookup("auth_code"),
 		".gcsfuse.token_cache.json")
-}
-
-// Return an HTTP client configured with OAuth credentials from command-line
-// flags. May block on network traffic.
-func getAuthenticatedHttpClient() (*http.Client, error) {
-	// Set up a token source.
-	tokenSource, err := getTokenSource()
-	if err != nil {
-		return nil, err
-	}
-
-	// Ensure that we fail early if misconfigured by requesting an initial token.
-	log.Println("Requesting initial OAuth token.")
-	if _, err := tokenSource.Token(); err != nil {
-		return nil, fmt.Errorf("Getting initial OAuth token: %v", err)
-	}
-
-	// Create the HTTP transport.
-	transport := &oauth2.Transport{
-		Source: tokenSource,
-	}
-
-	// Create the HTTP client.
-	client := &http.Client{Transport: transport}
-
-	return client, nil
 }
 
 // Return a GCS connection pre-bound with authentication parameters derived
