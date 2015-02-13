@@ -37,9 +37,6 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	// Enable debugging, if requested.
-	initDebugging()
-
 	// Grab the mount point.
 	if flag.NArg() != 1 {
 		usage()
