@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"math"
 	"os"
+	"path"
 	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -71,6 +72,11 @@ func (t *fsTest) tearDownFsTest() {
 
 func (t *fsTest) createObjects(objects []*gcsutil.ObjectInfo) error {
 	_, err := gcsutil.CreateObjects(t.ctx, t.bucket, objects)
+	return err
+}
+
+func (t *fsTest) createEmptyObjects(names []string) error {
+	_, err := gcsutil.CreateEmptyObjects(t.ctx, t.bucket, names)
 	return err
 }
 
@@ -153,7 +159,14 @@ func (t *readOnlyTest) ContentsInRoot() {
 }
 
 func (t *readOnlyTest) EmptySubDirectory() {
-	AssertTrue(false, "TODO")
+	// Set up an empty directory placeholder called 'bar'.
+	AssertEq(nil, t.createEmptyObjects([]string{"bar/"}))
+
+	// ReadDir
+	entries, err := ioutil.ReadDir(path.Join(t.mfs.Dir(), "bar"))
+	AssertEq(nil, err)
+
+	ExpectThat(entries, ElementsAre())
 }
 
 func (t *readOnlyTest) ContentsInSubDirectory() {
