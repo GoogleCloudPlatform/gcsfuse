@@ -12,6 +12,7 @@ import (
 
 	fusefs "bazil.org/fuse/fs"
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcsfuse/timeutil"
 )
 
 var fEnableDebug = flag.Bool(
@@ -21,15 +22,12 @@ var fEnableDebug = flag.Bool(
 
 type fileSystem struct {
 	logger *log.Logger
+	clock  timeutil.Clock
 	bucket gcs.Bucket
 }
 
 func (fs *fileSystem) Root() (fusefs.Node, error) {
-	d := &dir{
-		logger: fs.logger,
-		bucket: fs.bucket,
-	}
-
+	d := newDir(fs.logger, fs.clock, fs.bucket, "")
 	return d, nil
 }
 
@@ -43,10 +41,12 @@ func makeLogger() *log.Logger {
 }
 
 // Create a fuse file system whose root directory is the root of the supplied
-// bucket.
-func NewFuseFS(bucket gcs.Bucket) (fusefs.FS, error) {
+// bucket. The supplied clock will be used for cache invalidation; it is *not*
+// used for file modification times.
+func NewFuseFS(clock timeutil.Clock, bucket gcs.Bucket) (fusefs.FS, error) {
 	fs := &fileSystem{
 		logger: makeLogger(),
+		clock:  clock,
 		bucket: bucket,
 	}
 

@@ -9,8 +9,10 @@ import (
 	"os"
 	"path"
 	"sync"
+	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 
@@ -20,20 +22,28 @@ import (
 
 const dirSeparator = '/'
 
+// Implementation detail, do not touch.
+var DirListingCacheTTL = 10 * time.Second
+
 // A "directory" in GCS, defined by an object name prefix. All prefixes end
 // with dirSeparator except for the special case of the root directory, where
 // the prefix is the empty string.
 type dir struct {
 	logger       *log.Logger
+	clock        timeutil.Clock
 	bucket       gcs.Bucket
 	objectPrefix string
 
 	mu sync.RWMutex
 
 	// A map from (relative) names of children to nodes for those children,
-	// initialized from GCS the first time it is needed for a ReadDirAll, Lookup,
-	// etc. All nodes within the map are of type *dir or *file.
+	// initialized from GCS the when it is needed for a ReadDirAll, Lookup, etc.
+	// and is not present or is expired. All nodes within the map are of type
+	// *dir or *file.
 	children map[string]fusefs.Node // GUARDED_BY(mu)
+
+	// The clock time at which children should be treated as invalid.
+	childrenExpiry time.Time // GUARDED_BY(mu)
 }
 
 // Make sure dir implements the interfaces we think it does.
@@ -45,13 +55,27 @@ var (
 	_ fusefs.HandleReadDirAller = &dir{}
 )
 
-// Initialize d.children from GCS if it has not already been populated.
+func newDir(
+	logger *log.Logger,
+	clock timeutil.Clock,
+	bucket gcs.Bucket,
+	objectPrefix string) *dir {
+	return &dir{
+		logger:       logger,
+		clock:        clock,
+		bucket:       bucket,
+		objectPrefix: objectPrefix,
+	}
+}
+
+// Initialize d.children from GCS if it has not already been populated or has
+// expired.
 func (d *dir) initChildren(ctx context.Context) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	// Have we already initialized the map?
-	if d.children != nil {
+	// Have we already initialized the map and is it up to date?
+	if d.children != nil && d.clock.Now().Before(d.childrenExpiry) {
 		return nil
 	}
 
@@ -84,21 +108,17 @@ func (d *dir) initChildren(ctx context.Context) error {
 				continue
 			}
 
-			children[path.Base(o.Name)] = &file{
-				logger:     d.logger,
-				bucket:     d.bucket,
-				objectName: o.Name,
-				size:       uint64(o.Size),
-			}
+			children[path.Base(o.Name)] =
+				newFile(
+					d.logger,
+					d.bucket,
+					o.Name,
+					uint64(o.Size))
 		}
 
 		// Extract prefixes as directories.
 		for _, p := range objects.Prefixes {
-			children[path.Base(p)] = &dir{
-				logger:       d.logger,
-				bucket:       d.bucket,
-				objectPrefix: p,
-			}
+			children[path.Base(p)] = newDir(d.logger, d.clock, d.bucket, p)
 		}
 
 		// Move on to the next set of results.
@@ -107,6 +127,7 @@ func (d *dir) initChildren(ctx context.Context) error {
 
 	// Save the map.
 	d.children = children
+	d.childrenExpiry = d.clock.Now().Add(DirListingCacheTTL)
 
 	return nil
 }

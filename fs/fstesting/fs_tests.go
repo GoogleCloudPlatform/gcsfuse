@@ -17,6 +17,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	"github.com/jacobsa/gcsfuse/fs"
 	"github.com/jacobsa/gcsfuse/fuseutil"
+	"github.com/jacobsa/gcsfuse/timeutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
@@ -29,6 +30,7 @@ import (
 
 type fsTest struct {
 	ctx    context.Context
+	clock  timeutil.SimulatedClock
 	bucket gcs.Bucket
 	mfs    *fuseutil.MountedFileSystem
 }
@@ -36,11 +38,8 @@ type fsTest struct {
 var _ fsTestInterface = &fsTest{}
 
 func (t *fsTest) setUpFsTest(b gcs.Bucket) {
-	var err error
-
-	// Record bucket and context information.
-	t.bucket = b
 	t.ctx = context.Background()
+	t.bucket = b
 
 	// Set up a temporary directory for mounting.
 	mountPoint, err := ioutil.TempDir("", "fs_test")
@@ -49,7 +48,7 @@ func (t *fsTest) setUpFsTest(b gcs.Bucket) {
 	}
 
 	// Mount a file system.
-	fileSystem, err := fs.NewFuseFS(b)
+	fileSystem, err := fs.NewFuseFS(&t.clock, b)
 	if err != nil {
 		panic("NewFuseFS: " + err.Error())
 	}
@@ -376,7 +375,7 @@ func (t *readOnlyTest) ListDirectoryTwice_NoChange() {
 	ExpectEq("foo", entries[1].Name())
 }
 
-func (t *readOnlyTest) ListDirectoryTwice_Changed() {
+func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheStillValid() {
 	// Set up initial contents.
 	AssertEq(
 		nil,
@@ -396,6 +395,42 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed() {
 	// Add "baz" and remove "bar".
 	AssertEq(nil, t.bucket.DeleteObject(t.ctx, "bar"))
 	AssertEq(nil, t.createEmptyObjects([]string{"baz"}))
+
+	// Advance the clock to just before the cache expiry.
+	t.clock.AdvanceTime(fs.DirListingCacheTTL - time.Millisecond)
+
+	// List again.
+	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+
+	AssertEq(2, len(entries))
+	ExpectEq("bar", entries[0].Name())
+	ExpectEq("foo", entries[1].Name())
+}
+
+func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheInvalidated() {
+	// Set up initial contents.
+	AssertEq(
+		nil,
+		t.createEmptyObjects([]string{
+			"foo",
+			"bar",
+		}))
+
+	// List once.
+	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+
+	AssertEq(2, len(entries))
+	ExpectEq("bar", entries[0].Name())
+	ExpectEq("foo", entries[1].Name())
+
+	// Add "baz" and remove "bar".
+	AssertEq(nil, t.bucket.DeleteObject(t.ctx, "bar"))
+	AssertEq(nil, t.createEmptyObjects([]string{"baz"}))
+
+	// Advance the clock to just after the cache expiry.
+	t.clock.AdvanceTime(fs.DirListingCacheTTL + time.Millisecond)
 
 	// List again.
 	entries, err = ioutil.ReadDir(t.mfs.Dir())
