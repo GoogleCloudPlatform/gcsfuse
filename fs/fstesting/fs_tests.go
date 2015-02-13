@@ -177,6 +177,14 @@ func (t *readOnlyTest) ContentsInLeafDirectory() {
 	AssertTrue(false, "TODO")
 }
 
+func (t *readOnlyTest) ListDirectoryTwice_NoChange() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readOnlyTest) ListDirectoryTwice_Changed() {
+	AssertTrue(false, "TODO")
+}
+
 // TODO(jacobsa): Inodes
 // TODO(jacobsa): Error conditions
 func (t *readOnlyTest) DoesFoo() {
