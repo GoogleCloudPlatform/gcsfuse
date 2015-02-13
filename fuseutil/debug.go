@@ -5,7 +5,10 @@ package fuseutil
 
 import (
 	"flag"
+	"io"
+	"io/ioutil"
 	"log"
+	"os"
 )
 
 var fEnableDebug = flag.Bool(
@@ -13,14 +16,12 @@ var fEnableDebug = flag.Bool(
 	false,
 	"Write FUSE debugging messages to stderr.")
 
-func logDebugMessage(msg interface{}) {
-	log.Println("fuseutil:", msg)
-}
-
-func getDebugFunc() func(interface{}) {
+// Create a logger based on command-line flag settings.
+func makeLogger() *log.Logger {
+	var writer io.Writer = ioutil.Discard
 	if *fEnableDebug {
-		return logDebugMessage
+		writer = os.Stderr
 	}
 
-	return nil
+	return log.New(writer, "fuseutil: ", log.LstdFlags)
 }

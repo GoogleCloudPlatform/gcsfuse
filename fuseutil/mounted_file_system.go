@@ -5,7 +5,6 @@ package fuseutil
 
 import (
 	"errors"
-	"log"
 
 	"bazil.org/fuse"
 	fusefs "bazil.org/fuse/fs"
@@ -70,8 +69,10 @@ func (mfs *MountedFileSystem) Unmount() error {
 func (mfs *MountedFileSystem) mountAndServe(
 	fs fusefs.FS,
 	options []fuse.MountOption) {
+	logger := makeLogger()
+
 	// Open a FUSE connection.
-	log.Println("Opening a FUSE connection.")
+	logger.Println("Opening a FUSE connection.")
 	c, err := fuse.Mount(mfs.dir, options...)
 	if err != nil {
 		mfs.readyStatus = errors.New("fuse.Mount: " + err.Error())
@@ -91,8 +92,10 @@ func (mfs *MountedFileSystem) mountAndServe(
 
 	// Serve the connection using the file system object.
 	server := &fusefs.Server{
-		FS:    fs,
-		Debug: getDebugFunc(),
+		FS: fs,
+		Debug: func(msg interface{}) {
+			logger.Println(msg)
+		},
 	}
 
 	if err := server.Serve(c); err != nil {
