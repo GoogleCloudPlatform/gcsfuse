@@ -3,7 +3,10 @@
 
 package timeutil
 
-import "time"
+import (
+	"log"
+	"time"
+)
 
 type Clock interface {
 	Now() time.Time
@@ -13,8 +16,16 @@ type Clock interface {
 // Real clock
 ////////////////////////////////////////////////////////////////////////
 
+type realClock struct{}
+
+func (c realClock) Now() time.Time {
+	return time.Now()
+}
+
 // Return a clock that follows the real time, according to the system.
-func RealClock() Clock
+func RealClock() Clock {
+	return realClock{}
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Simulated clock
@@ -27,5 +38,12 @@ type SimulatedClock struct {
 	Clock
 }
 
+func (sc *SimulatedClock) Now() time.Time {
+	log.Fatal("TODO: Implement SimulatedClock.Now.")
+	return time.Time{}
+}
+
 // Advance the current time according to the clock by the supplied duration.
-func (sc *SimulatedClock) AdvanceTime(d time.Duration)
+func (sc *SimulatedClock) AdvanceTime(d time.Duration) {
+	log.Fatal("TODO: Implement SimulatedClock.AdvanceTime.")
+}
