@@ -4,6 +4,7 @@
 package fstesting
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -38,6 +39,7 @@ func getTestMethods(suitePointerType reflect.Type) []reflect.Method {
 }
 
 func registerTestSuite(
+	conditionName string,
 	makeBucket func() gcs.Bucket,
 	prototype fsTestInterface) {
 	suitePointerType := reflect.TypeOf(prototype)
@@ -45,7 +47,7 @@ func registerTestSuite(
 
 	// We don't need anything fancy at the suite level.
 	var ts ogletest.TestSuite
-	ts.Name = getSuiteName(suiteType)
+	ts.Name = fmt.Sprintf("%s.%s", conditionName, getSuiteName(suiteType))
 
 	// For each method, we create a test function.
 	for _, method := range getTestMethods(suitePointerType) {
@@ -82,8 +84,9 @@ func registerTestSuite(
 }
 
 // Given a function that returns an initialized, empty bucket, register test
-// suites that exercise a file system wrapping that bucket.
-func RegisterFSTests(makeBucket func() gcs.Bucket) {
+// suites that exercise a file system wrapping that bucket. The condition name
+// should be something like "RealGCS" or "FakeGCS".
+func RegisterFSTests(conditionName string, makeBucket func() gcs.Bucket) {
 	// A list of empty instances of the test suites we want to register.
 	suitePrototypes := []fsTestInterface{
 		&readOnlyTest{},
@@ -91,6 +94,6 @@ func RegisterFSTests(makeBucket func() gcs.Bucket) {
 
 	// Register each.
 	for _, suitePrototype := range suitePrototypes {
-		registerTestSuite(makeBucket, suitePrototype)
+		registerTestSuite(conditionName, makeBucket, suitePrototype)
 	}
 }

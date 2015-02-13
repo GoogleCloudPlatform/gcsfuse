@@ -17,7 +17,9 @@ import (
 func TestOgletest(t *testing.T) { ogletest.RunTests(t) }
 
 func init() {
-	fstesting.RegisterFSTests(func() gcs.Bucket {
-		return gcsfake.NewFakeBucket("some_bucket")
-	})
+	fstesting.RegisterFSTests(
+		"FakeGCS",
+		func() gcs.Bucket {
+			return gcsfake.NewFakeBucket("some_bucket")
+		})
 }
