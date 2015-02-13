@@ -37,9 +37,13 @@ type dir struct {
 	mu sync.RWMutex
 
 	// A map from (relative) names of children to nodes for those children,
-	// initialized from GCS the first time it is needed for a ReadDirAll, Lookup,
-	// etc. All nodes within the map are of type *dir or *file.
+	// initialized from GCS the when it is needed for a ReadDirAll, Lookup, etc.
+	// and is not present or is expired. All nodes within the map are of type
+	// *dir or *file.
 	children map[string]fusefs.Node // GUARDED_BY(mu)
+
+	// The clock time at which children should be treated as invalid.
+	childrenExpiry time.Time // GUARDED_BY(mu)
 }
 
 // Make sure dir implements the interfaces we think it does.
@@ -64,13 +68,14 @@ func newDir(
 	}
 }
 
-// Initialize d.children from GCS if it has not already been populated.
+// Initialize d.children from GCS if it has not already been populated or has
+// expired.
 func (d *dir) initChildren(ctx context.Context) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	// Have we already initialized the map?
-	if d.children != nil {
+	// Have we already initialized the map and is it up to date?
+	if d.children != nil && d.clock.Now().Before(d.childrenExpiry) {
 		return nil
 	}
 
@@ -122,6 +127,7 @@ func (d *dir) initChildren(ctx context.Context) error {
 
 	// Save the map.
 	d.children = children
+	d.childrenExpiry = d.clock.Now().Add(DirListingCacheTTL)
 
 	return nil
 }
