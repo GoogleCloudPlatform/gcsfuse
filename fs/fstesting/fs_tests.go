@@ -376,7 +376,33 @@ func (t *readOnlyTest) ListDirectoryTwice_NoChange() {
 }
 
 func (t *readOnlyTest) ListDirectoryTwice_Changed() {
-	AssertTrue(false, "TODO")
+	// Set up initial contents.
+	AssertEq(
+		nil,
+		t.createEmptyObjects([]string{
+			"foo",
+			"bar",
+		}))
+
+	// List once.
+	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+
+	AssertEq(2, len(entries))
+	ExpectEq("bar", entries[0].Name())
+	ExpectEq("foo", entries[1].Name())
+
+	// Add "baz" and remove "bar".
+	AssertEq(nil, t.bucket.DeleteObject(t.ctx, "bar"))
+	AssertEq(nil, t.createEmptyObjects([]string{"baz"}))
+
+	// List again.
+	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+
+	AssertEq(2, len(entries))
+	ExpectEq("baz", entries[0].Name())
+	ExpectEq("foo", entries[1].Name())
 }
 
 // TODO(jacobsa): Inodes
