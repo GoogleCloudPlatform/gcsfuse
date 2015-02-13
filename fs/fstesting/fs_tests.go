@@ -186,7 +186,7 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
 				// File
 				&gcsutil.ObjectInfo{
 					Attrs: storage.ObjectAttrs{
-						Name: "foo",
+						Name: "dir/foo",
 					},
 					Contents: "taco",
 				},
@@ -194,14 +194,14 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
 				// Directory
 				&gcsutil.ObjectInfo{
 					Attrs: storage.ObjectAttrs{
-						Name: "bar/",
+						Name: "dir/bar/",
 					},
 				},
 
 				// File
 				&gcsutil.ObjectInfo{
 					Attrs: storage.ObjectAttrs{
-						Name: "baz",
+						Name: "dir/baz",
 					},
 					Contents: "burrito",
 				},
