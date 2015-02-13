@@ -90,7 +90,12 @@ func (mfs *MountedFileSystem) mountAndServe(
 	}()
 
 	// Serve the connection using the file system object.
-	if err := fusefs.Serve(c, fs); err != nil {
+	server := &fusefs.Server{
+		FS:    fs,
+		Debug: getDebugFunc(),
+	}
+
+	if err := server.Serve(c); err != nil {
 		mfs.joinStatus = errors.New("fusefs.Serve: " + err.Error())
 		close(mfs.joinStatusAvailable)
 		return
