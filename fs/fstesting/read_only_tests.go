@@ -87,6 +87,18 @@ func (t *fsTest) tearDownFsTest() {
 	}
 }
 
+func (t *fsTest) createWithContents(name string, contents string) error {
+	return t.createObjects(
+		[]*gcsutil.ObjectInfo{
+			&gcsutil.ObjectInfo{
+				Attrs: storage.ObjectAttrs{
+					Name: name,
+				},
+				Contents: contents,
+			},
+		})
+}
+
 func (t *fsTest) createObjects(objects []*gcsutil.ObjectInfo) error {
 	_, err := gcsutil.CreateObjects(t.ctx, t.bucket, objects)
 	return err
@@ -534,7 +546,22 @@ func (t *readOnlyTest) OpenNonExistentFile() {
 }
 
 func (t *readOnlyTest) ReadEntireFile_Small() {
-	AssertTrue(false, "TODO")
+	// Create an object.
+	AssertEq(nil, t.createWithContents("foo", "tacoburritoenchilada"))
+
+	// Wait for it to show up in the file system.
+	_, err := t.readDirUntil(1, t.mfs.Dir())
+	AssertEq(nil, err)
+
+	// Attempt to open it.
+	f, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+	defer func() { AssertEq(nil, f.Close()) }()
+
+	// Read its entire contents.
+	slice, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	ExpectEq("tacoburritoenchilada", string(slice))
 }
 
 func (t *readOnlyTest) ReadEntireFile_Large() {
