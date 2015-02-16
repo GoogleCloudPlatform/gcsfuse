@@ -660,11 +660,13 @@ func (t *readOnlyTest) ReadFromFile_Large() {
 		actual, err := readRange(f, offset, size)
 		AssertEq(nil, err)
 
-		AssertTrue(
-			expected == actual,
-			"Expected:\n%s\nActual:\n%s",
-			hex.Dump([]byte(expected)),
-			hex.Dump([]byte(actual)))
+		if expected != actual {
+			AssertTrue(
+				expected == actual,
+				"Expected:\n%s\nActual:\n%s",
+				hex.Dump([]byte(expected)),
+				hex.Dump([]byte(actual)))
+			}
 	}
 }
 

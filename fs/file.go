@@ -143,7 +143,7 @@ func (f *file) Read(
 	resp.Data = resp.Data[:n]
 
 	// Special case: read(2) doesn't return EOF errors.
-  if err == io.EOF {
+	if err == io.EOF {
 		err = nil
 	}
 
