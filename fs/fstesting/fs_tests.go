@@ -276,6 +276,10 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
 				},
 			}))
 
+	// Wait for the directory to show up in the file system.
+	_, err := t.readDirUntil(1, path.Join(t.mfs.Dir()))
+	AssertEq(nil, err)
+
 	// ReadDir
 	entries, err := t.readDirUntil(4, path.Join(t.mfs.Dir(), "dir"))
 	AssertEq(nil, err)
@@ -353,6 +357,10 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderNotPresent() {
 					Contents: "",
 				},
 			}))
+
+	// Wait for the directory to show up in the file system.
+	_, err := t.readDirUntil(1, path.Join(t.mfs.Dir()))
+	AssertEq(nil, err)
 
 	// ReadDir
 	entries, err := t.readDirUntil(4, path.Join(t.mfs.Dir(), "dir"))
