@@ -101,21 +101,32 @@ type readOnlyTest struct {
 	fsTest
 }
 
-func (t *readOnlyTest) readDirUntil(desiredLen int, dir string) (entries []os.FileInfo, err error) {
+// Repeatedly call ioutil.ReadDir until an error is encountered or until the
+// result has the given length. After each successful call with the wrong
+// length, advance the clock by more than the directory listing cache TTL in
+// order to flush the cache before the next call.
+//
+// This is a hacky workaround for the lack of list-after-write consistency in
+// GCS that must be used when interacting with GCS through a side channel
+// rather than through the file system. We set up some objects through a back
+// door, then list repeatedly until we see the state we hope to see.
+func (t *readOnlyTest) readDirUntil(
+	desiredLen int,
+	dir string) (entries []os.FileInfo, err error) {
 	startTime := time.Now()
-	iters := 0
-	defer func() {
-		log.Println("readDirUntil took", time.Since(startTime), "for", iters, "calls")
-	}()
-
-	for {
-		iters++
+	for i := 1; ; i++ {
 		entries, err = ioutil.ReadDir(dir)
 		if err != nil || len(entries) == desiredLen {
 			return
 		}
 
-		t.clock.AdvanceTime(10 * fs.DirListingCacheTTL)
+		t.clock.AdvanceTime(2 * fs.DirListingCacheTTL)
+
+		// If this is taking a long time, log that fact so that the user can tell
+		// why the test is hanging.
+		if time.Since(startTime) > 5*time.Second {
+			log.Printf("readDirUntil waiting for length %v...", desiredLen)
+		}
 	}
 }
 
