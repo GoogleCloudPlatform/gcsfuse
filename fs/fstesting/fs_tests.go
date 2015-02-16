@@ -7,6 +7,7 @@ package fstesting
 
 import (
 	"io/ioutil"
+	"log"
 	"math"
 	"os"
 	"path"
@@ -100,9 +101,38 @@ type readOnlyTest struct {
 	fsTest
 }
 
+// Repeatedly call ioutil.ReadDir until an error is encountered or until the
+// result has the given length. After each successful call with the wrong
+// length, advance the clock by more than the directory listing cache TTL in
+// order to flush the cache before the next call.
+//
+// This is a hacky workaround for the lack of list-after-write consistency in
+// GCS that must be used when interacting with GCS through a side channel
+// rather than through the file system. We set up some objects through a back
+// door, then list repeatedly until we see the state we hope to see.
+func (t *readOnlyTest) readDirUntil(
+	desiredLen int,
+	dir string) (entries []os.FileInfo, err error) {
+	startTime := time.Now()
+	for i := 1; ; i++ {
+		entries, err = ioutil.ReadDir(dir)
+		if err != nil || len(entries) == desiredLen {
+			return
+		}
+
+		t.clock.AdvanceTime(2 * fs.DirListingCacheTTL)
+
+		// If this is taking a long time, log that fact so that the user can tell
+		// why the test is hanging.
+		if time.Since(startTime) > 5*time.Second {
+			log.Printf("readDirUntil waiting for length %v...", desiredLen)
+		}
+	}
+}
+
 func (t *readOnlyTest) EmptyRoot() {
 	// ReadDir
-	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := t.readDirUntil(0, t.mfs.Dir())
 	AssertEq(nil, err)
 
 	ExpectThat(entries, ElementsAre())
@@ -147,7 +177,7 @@ func (t *readOnlyTest) ContentsInRoot() {
 			}))
 
 	// ReadDir
-	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := t.readDirUntil(4, t.mfs.Dir())
 	AssertEq(nil, err)
 
 	AssertEq(4, len(entries), "Names: %v", getFileNames(entries))
@@ -191,7 +221,10 @@ func (t *readOnlyTest) EmptySubDirectory() {
 	AssertEq(nil, t.createEmptyObjects([]string{"bar/"}))
 
 	// ReadDir
-	entries, err := ioutil.ReadDir(path.Join(t.mfs.Dir(), "bar"))
+	_, err := t.readDirUntil(1, t.mfs.Dir())
+	AssertEq(nil, err)
+
+	entries, err := t.readDirUntil(0, path.Join(t.mfs.Dir(), "bar"))
 	AssertEq(nil, err)
 
 	ExpectThat(entries, ElementsAre())
@@ -243,8 +276,12 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
 				},
 			}))
 
+	// Wait for the directory to show up in the file system.
+	_, err := t.readDirUntil(1, path.Join(t.mfs.Dir()))
+	AssertEq(nil, err)
+
 	// ReadDir
-	entries, err := ioutil.ReadDir(path.Join(t.mfs.Dir(), "dir"))
+	entries, err := t.readDirUntil(4, path.Join(t.mfs.Dir(), "dir"))
 	AssertEq(nil, err)
 
 	AssertEq(4, len(entries), "Names: %v", getFileNames(entries))
@@ -321,8 +358,12 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderNotPresent() {
 				},
 			}))
 
+	// Wait for the directory to show up in the file system.
+	_, err := t.readDirUntil(1, path.Join(t.mfs.Dir()))
+	AssertEq(nil, err)
+
 	// ReadDir
-	entries, err := ioutil.ReadDir(path.Join(t.mfs.Dir(), "dir"))
+	entries, err := t.readDirUntil(4, path.Join(t.mfs.Dir(), "dir"))
 	AssertEq(nil, err)
 
 	AssertEq(4, len(entries), "Names: %v", getFileNames(entries))
@@ -371,7 +412,7 @@ func (t *readOnlyTest) ListDirectoryTwice_NoChange() {
 		}))
 
 	// List once.
-	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := t.readDirUntil(2, t.mfs.Dir())
 	AssertEq(nil, err)
 
 	AssertEq(2, len(entries), "Names: %v", getFileNames(entries))
@@ -379,7 +420,7 @@ func (t *readOnlyTest) ListDirectoryTwice_NoChange() {
 	ExpectEq("foo", entries[1].Name())
 
 	// List again.
-	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	entries, err = t.readDirUntil(2, t.mfs.Dir())
 	AssertEq(nil, err)
 
 	AssertEq(2, len(entries), "Names: %v", getFileNames(entries))
@@ -397,7 +438,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheStillValid() {
 		}))
 
 	// List once.
-	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := t.readDirUntil(2, t.mfs.Dir())
 	AssertEq(nil, err)
 
 	AssertEq(2, len(entries), "Names: %v", getFileNames(entries))
@@ -412,7 +453,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheStillValid() {
 	t.clock.AdvanceTime(fs.DirListingCacheTTL - time.Millisecond)
 
 	// List again.
-	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	entries, err = t.readDirUntil(2, t.mfs.Dir())
 	AssertEq(nil, err)
 
 	AssertEq(2, len(entries), "Names: %v", getFileNames(entries))
@@ -430,7 +471,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheInvalidated() {
 		}))
 
 	// List once.
-	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := t.readDirUntil(2, t.mfs.Dir())
 	AssertEq(nil, err)
 
 	AssertEq(2, len(entries), "Names: %v", getFileNames(entries))
@@ -445,7 +486,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheInvalidated() {
 	t.clock.AdvanceTime(fs.DirListingCacheTTL + time.Millisecond)
 
 	// List again.
-	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	entries, err = t.readDirUntil(2, t.mfs.Dir())
 	AssertEq(nil, err)
 
 	AssertEq(2, len(entries), "Names: %v", getFileNames(entries))
@@ -464,7 +505,7 @@ func (t *readOnlyTest) Inodes() {
 		}))
 
 	// List.
-	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := t.readDirUntil(3, t.mfs.Dir())
 	AssertEq(nil, err)
 
 	AssertEq(3, len(entries), "Names: %v", getFileNames(entries))
