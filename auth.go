@@ -4,38 +4,26 @@
 package main
 
 import (
+	"flag"
+	"log"
 	"net/http"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/oauthutil"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
-	"google.golang.org/api/storage/v1"
+	storagev1 "google.golang.org/api/storage/v1"
 )
 
-const (
-	// TODO(jacobsa): Change these two.
-	clientID     = "501259388845-j47fftkfn6lhp4o80ajg38cs8jed2dmj.apps.googleusercontent.com"
-	clientSecret = "-z3_0mx4feP2mqOGhRIEk_DN"
-
-	// Cf. https://developers.google.com/accounts/docs/OAuth2InstalledApp#choosingredirecturi
-	clientRedirectUrl = "urn:ietf:wg:oauth:2.0:oob"
-)
+var fKeyFile = flag.String("key_file", "", "Path to a JSON key for a service account created on the Google Developers Console.")
 
 // Return an HTTP client configured with OAuth credentials from command-line
 // flags. May block on network traffic.
 func getAuthenticatedHttpClient() (*http.Client, error) {
-	config := &oauth2.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		RedirectURL:  clientRedirectUrl,
-		Scopes:       []string{storage.DevstorageRead_writeScope},
-		Endpoint:     google.Endpoint,
+	if *fKeyFile == "" {
+		log.Fatalln("You must set --key_file.")
 	}
 
-	return oauthutil.NewTerribleHttpClient(
-		config,
-		".gcsfuse.token_cache.json")
+	const scope = storagev1.DevstorageRead_writeScope
+	return oauthutil.NewJWTHttpClient(*fKeyFile, []string{scope})
 }
 
 // Return a GCS connection pre-bound with authentication parameters derived
