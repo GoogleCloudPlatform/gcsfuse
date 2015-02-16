@@ -10,11 +10,14 @@
 package fstesting
 
 import (
+	"io"
 	"io/ioutil"
 	"log"
 	"math"
+	"math/rand"
 	"os"
 	"path"
+	"strings"
 	"syscall"
 	"time"
 
@@ -38,6 +41,34 @@ func getFileNames(entries []os.FileInfo) (names []string) {
 		names = append(names, e.Name())
 	}
 
+	return
+}
+
+// REQUIRES: n % 4 == 0
+func randString(n int) string {
+	bytes := make([]byte, n)
+	for i := 0; i < n; i += 4 {
+		u32 := rand.Uint32()
+		bytes[i] = byte(u32 >> 0)
+		bytes[i+1] = byte(u32 >> 8)
+		bytes[i+2] = byte(u32 >> 16)
+		bytes[i+3] = byte(u32 >> 24)
+	}
+
+	return string(bytes)
+}
+
+func readRange(r io.ReadSeeker, offset int64, n int) (s string, err error) {
+	if _, err = r.Seek(offset, 0); err != nil {
+		return
+	}
+
+	bytes := make([]byte, n)
+	if _, err = io.ReadFull(r, bytes); err != nil {
+		return
+	}
+
+	s = string(bytes)
 	return
 }
 
@@ -85,6 +116,18 @@ func (t *fsTest) tearDownFsTest() {
 	if err := t.mfs.Join(t.ctx); err != nil {
 		panic("MountedFileSystem.Join: " + err.Error())
 	}
+}
+
+func (t *fsTest) createWithContents(name string, contents string) error {
+	return t.createObjects(
+		[]*gcsutil.ObjectInfo{
+			&gcsutil.ObjectInfo{
+				Attrs: storage.ObjectAttrs{
+					Name: name,
+				},
+				Contents: contents,
+			},
+		})
 }
 
 func (t *fsTest) createObjects(objects []*gcsutil.ObjectInfo) error {
@@ -531,4 +574,75 @@ func (t *readOnlyTest) OpenNonExistentFile() {
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("foo")))
 	ExpectThat(err, Error(HasSubstr("no such file")))
+}
+
+func (t *readOnlyTest) ReadFromFile_Small() {
+	// Create an object.
+	AssertEq(nil, t.createWithContents("foo", "tacoburritoenchilada"))
+
+	// Wait for it to show up in the file system.
+	_, err := t.readDirUntil(1, t.mfs.Dir())
+	AssertEq(nil, err)
+
+	// Attempt to open it.
+	f, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+	defer func() { AssertEq(nil, f.Close()) }()
+
+	// Read its entire contents.
+	slice, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	ExpectEq("tacoburritoenchilada", string(slice))
+
+	// Read parts of it.
+	var s string
+
+	s, err = readRange(f, int64(len("taco")), len("burrito"))
+	AssertEq(nil, err)
+	ExpectEq("burrito", s)
+
+	s, err = readRange(f, 0, len("taco"))
+	AssertEq(nil, err)
+	ExpectEq("taco", s)
+
+	s, err = readRange(f, int64(len("tacoburrito")), len("enchilada"))
+	AssertEq(nil, err)
+	ExpectEq("enchilada", s)
+}
+
+func (t *readOnlyTest) ReadFromFile_Large() {
+	const contentLen = 1 << 20
+	contents := randString(contentLen)
+
+	// Create an object.
+	AssertEq(nil, t.createWithContents("foo", contents))
+
+	// Wait for it to show up in the file system.
+	_, err := t.readDirUntil(1, t.mfs.Dir())
+	AssertEq(nil, err)
+
+	// Attempt to open it.
+	f, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+	defer func() { AssertEq(nil, f.Close()) }()
+
+	// Read its entire contents.
+	slice, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	ExpectEq(contents, string(slice))
+
+	// Read from parts of it.
+	referenceReader := strings.NewReader(contents)
+	for trial := 0; trial < 1000; trial++ {
+		offset := rand.Int63n(contentLen + 1)
+		size := rand.Intn(int(contentLen - offset))
+
+		expected, err := readRange(referenceReader, offset, size)
+		AssertEq(nil, err)
+
+		actual, err := readRange(f, offset, size)
+		AssertEq(nil, err)
+
+		AssertEq(expected, actual)
+	}
 }
