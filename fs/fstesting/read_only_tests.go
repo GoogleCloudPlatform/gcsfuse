@@ -10,9 +10,11 @@
 package fstesting
 
 import (
+	"encoding/hex"
 	"io/ioutil"
 	"log"
 	"math"
+	"math/rand"
 	"os"
 	"path"
 	"syscall"
@@ -39,6 +41,21 @@ func getFileNames(entries []os.FileInfo) (names []string) {
 	}
 
 	return
+}
+
+// REQUIRES: numHexChars % 8 == 0
+func randHexString(numHexChars int) string {
+	numBytes := numHexChars / 2
+	bytes := make([]byte, numBytes)
+	for i := 0; i < numBytes; i += 4 {
+		u32 := rand.Uint32()
+		bytes[i] = byte(u32 >> 0)
+		bytes[i+1] = byte(u32 >> 8)
+		bytes[i+2] = byte(u32 >> 16)
+		bytes[i+3] = byte(u32 >> 24)
+	}
+
+	return hex.EncodeToString(bytes)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -565,7 +582,23 @@ func (t *readOnlyTest) ReadEntireFile_Small() {
 }
 
 func (t *readOnlyTest) ReadEntireFile_Large() {
-	AssertTrue(false, "TODO")
+	// Create an object.
+	contents := randHexString(1 << 20)
+	AssertEq(nil, t.createWithContents("foo", contents))
+
+	// Wait for it to show up in the file system.
+	_, err := t.readDirUntil(1, t.mfs.Dir())
+	AssertEq(nil, err)
+
+	// Attempt to open it.
+	f, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+	defer func() { AssertEq(nil, f.Close()) }()
+
+	// Read its entire contents.
+	slice, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	ExpectEq(contents, string(slice))
 }
 
 func (t *readOnlyTest) RandomReadsWithinFile_Small() {
