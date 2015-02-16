@@ -10,7 +10,6 @@
 package fstesting
 
 import (
-	"encoding/hex"
 	"io/ioutil"
 	"log"
 	"math"
@@ -43,11 +42,10 @@ func getFileNames(entries []os.FileInfo) (names []string) {
 	return
 }
 
-// REQUIRES: numHexChars % 8 == 0
-func randHexString(numHexChars int) string {
-	numBytes := numHexChars / 2
-	bytes := make([]byte, numBytes)
-	for i := 0; i < numBytes; i += 4 {
+// REQUIRES: n % 4 == 0
+func randString(n int) string {
+	bytes := make([]byte, n)
+	for i := 0; i < n; i += 4 {
 		u32 := rand.Uint32()
 		bytes[i] = byte(u32 >> 0)
 		bytes[i+1] = byte(u32 >> 8)
@@ -55,7 +53,7 @@ func randHexString(numHexChars int) string {
 		bytes[i+3] = byte(u32 >> 24)
 	}
 
-	return hex.EncodeToString(bytes)
+	return string(bytes)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -583,7 +581,7 @@ func (t *readOnlyTest) ReadEntireFile_Small() {
 
 func (t *readOnlyTest) ReadEntireFile_Large() {
 	// Create an object.
-	contents := randHexString(1 << 20)
+	contents := randString(1 << 20)
 	AssertEq(nil, t.createWithContents("foo", contents))
 
 	// Wait for it to show up in the file system.
