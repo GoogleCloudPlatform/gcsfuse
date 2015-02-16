@@ -10,6 +10,7 @@
 package fstesting
 
 import (
+	"encoding/hex"
 	"io"
 	"io/ioutil"
 	"log"
@@ -659,7 +660,11 @@ func (t *readOnlyTest) ReadFromFile_Large() {
 		actual, err := readRange(f, offset, size)
 		AssertEq(nil, err)
 
-		AssertEq(expected, actual)
+		AssertTrue(
+			expected == actual,
+			"Expected:\n%s\nActual:\n%s",
+			hex.Dump([]byte(expected)),
+			hex.Dump([]byte(actual)))
 	}
 }
 
