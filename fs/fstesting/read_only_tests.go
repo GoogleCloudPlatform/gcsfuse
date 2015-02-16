@@ -10,6 +10,7 @@
 package fstesting
 
 import (
+	"io"
 	"io/ioutil"
 	"log"
 	"math"
@@ -54,6 +55,20 @@ func randString(n int) string {
 	}
 
 	return string(bytes)
+}
+
+func readRange(r io.ReadSeeker, offset int64, n int) (s string, err error) {
+	if _, err = r.Seek(offset, 0); err != nil {
+		return
+	}
+
+	bytes := make([]byte, n)
+	if _, err = io.ReadFull(r, bytes); err != nil {
+		return
+	}
+
+	s = string(bytes)
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -600,7 +615,32 @@ func (t *readOnlyTest) ReadEntireFile_Large() {
 }
 
 func (t *readOnlyTest) RandomReadsWithinFile_Small() {
-	AssertTrue(false, "TODO")
+	// Create an object.
+	AssertEq(nil, t.createWithContents("foo", "tacoburritoenchilada"))
+
+	// Wait for it to show up in the file system.
+	_, err := t.readDirUntil(1, t.mfs.Dir())
+	AssertEq(nil, err)
+
+	// Attempt to open it.
+	f, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+	defer func() { AssertEq(nil, f.Close()) }()
+
+	// Read parts of it.
+	var s string
+
+	s, err = readRange(f, int64(len("taco")), len("burrito"))
+	AssertEq(nil, err)
+	ExpectEq("burrito", s)
+
+	s, err = readRange(f, 0, len("taco"))
+	AssertEq(nil, err)
+	ExpectEq("taco", s)
+
+	s, err = readRange(f, int64(len("tacoburrito")), len("enchilada"))
+	AssertEq(nil, err)
+	ExpectEq("enchilada", s)
 }
 
 func (t *readOnlyTest) RandomReadsWithinFile_Large() {
