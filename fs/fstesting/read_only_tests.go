@@ -1,7 +1,11 @@
 // Copyright 2015 Google Inc. All Rights Reserved.
 // Author: jacobsa@google.com (Aaron Jacobs)
 //
-// Tests registered by RegisterFSTests.
+// A collection of tests for a file system where we do not attempt to write to
+// the file system at all. Rather we set up contents in a GCS bucket out of
+// band, wait for them to be available, and then read them via the file system.
+//
+// These tests are registered by RegisterFSTests.
 
 package fstesting
 
