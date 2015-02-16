@@ -20,8 +20,6 @@ import (
 	"github.com/jacobsa/gcsfuse/fs/fstesting"
 	"github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
@@ -31,22 +29,18 @@ func TestIntegrationTest(t *testing.T) { ogletest.RunTests(t) }
 // Wiring code
 ////////////////////////////////////////////////////////////////////////
 
+var fKeyFile = flag.String("key_file", "", "Path to a JSON key for a service account created on the Google Developers Console.")
 var fBucket = flag.String("bucket", "", "Empty bucket to use for storage.")
 
 func getHttpClientOrDie() *http.Client {
-	// Set up a token source.
-	config := &oauth2.Config{
-		ClientID:     "501259388845-j47fftkfn6lhp4o80ajg38cs8jed2dmj.apps.googleusercontent.com",
-		ClientSecret: "-z3_0mx4feP2mqOGhRIEk_DN",
-		RedirectURL:  "urn:ietf:wg:oauth:2.0:oob",
-		Scopes:       []string{storagev1.DevstorageRead_writeScope},
-		Endpoint:     google.Endpoint,
+	if *fKeyFile == "" {
+		panic("You must set --key_file.")
 	}
 
-	const cacheFileName = ".gcsfuse_integration_test.token_cache.json"
-	httpClient, err := oauthutil.NewTerribleHttpClient(config, cacheFileName)
+	const scope = storagev1.DevstorageRead_writeScope
+	httpClient, err := oauthutil.NewJWTHttpClient(*fKeyFile, []string{scope})
 	if err != nil {
-		panic("NewTerribleHttpClient: " + err.Error())
+		panic("oauthutil.NewJWTHttpClient: " + err.Error())
 	}
 
 	return httpClient
