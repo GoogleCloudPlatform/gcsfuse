@@ -672,7 +672,7 @@ func (t *readOnlyTest) ReadBeyondEndOfFile() {
 
 	buf := make([]byte, 2)
 	n, err := f.Read(buf)
-	AssertEq(1, n)
+	AssertEq(1, n, "err: %v", err)
 	AssertEq(contents[contentLen-1], buf[0])
 
 	if err == nil {

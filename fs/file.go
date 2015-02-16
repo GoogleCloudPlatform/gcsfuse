@@ -121,7 +121,10 @@ func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 }
 
 // Ensure that the local temporary file is initialized, then read from it.
-func (f *file) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+func (f *file) Read(
+	ctx context.Context,
+	req *fuse.ReadRequest,
+	resp *fuse.ReadResponse) error {
 	// Ensure the temp file is present.
 	if err := f.ensureTempFile(ctx); err != nil {
 		return err
@@ -136,7 +139,13 @@ func (f *file) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadR
 	resp.Data = make([]byte, req.Size)
 
 	// Read the data.
-	_, err := f.tempFile.ReadAt(resp.Data, req.Offset)
+	n, err := f.tempFile.ReadAt(resp.Data, req.Offset)
+	resp.Data = resp.Data[:n]
+
+	// Special case: read(2) doesn't return EOF errors.
+  if err == io.EOF {
+		err = nil
+	}
 
 	return err
 }
