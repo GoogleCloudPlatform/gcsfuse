@@ -532,3 +532,19 @@ func (t *readOnlyTest) OpenNonExistentFile() {
 	ExpectThat(err, Error(HasSubstr("foo")))
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
+
+func (t *readOnlyTest) ReadEntireFile_Small() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readOnlyTest) ReadEntireFile_Large() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readOnlyTest) RandomReadsWithinFile_Small() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readOnlyTest) RandomReadsWithinFile_Large() {
+	AssertTrue(false, "TODO")
+}
