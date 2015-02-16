@@ -575,7 +575,7 @@ func (t *readOnlyTest) OpenNonExistentFile() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
-func (t *readOnlyTest) ReadEntireFile_Small() {
+func (t *readOnlyTest) ReadFromFile_Small() {
 	// Create an object.
 	AssertEq(nil, t.createWithContents("foo", "tacoburritoenchilada"))
 
@@ -592,40 +592,6 @@ func (t *readOnlyTest) ReadEntireFile_Small() {
 	slice, err := ioutil.ReadAll(f)
 	AssertEq(nil, err)
 	ExpectEq("tacoburritoenchilada", string(slice))
-}
-
-func (t *readOnlyTest) ReadEntireFile_Large() {
-	// Create an object.
-	contents := randString(1 << 20)
-	AssertEq(nil, t.createWithContents("foo", contents))
-
-	// Wait for it to show up in the file system.
-	_, err := t.readDirUntil(1, t.mfs.Dir())
-	AssertEq(nil, err)
-
-	// Attempt to open it.
-	f, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
-	AssertEq(nil, err)
-	defer func() { AssertEq(nil, f.Close()) }()
-
-	// Read its entire contents.
-	slice, err := ioutil.ReadAll(f)
-	AssertEq(nil, err)
-	ExpectEq(contents, string(slice))
-}
-
-func (t *readOnlyTest) RandomReadsWithinFile_Small() {
-	// Create an object.
-	AssertEq(nil, t.createWithContents("foo", "tacoburritoenchilada"))
-
-	// Wait for it to show up in the file system.
-	_, err := t.readDirUntil(1, t.mfs.Dir())
-	AssertEq(nil, err)
-
-	// Attempt to open it.
-	f, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
-	AssertEq(nil, err)
-	defer func() { AssertEq(nil, f.Close()) }()
 
 	// Read parts of it.
 	var s string
@@ -643,6 +609,25 @@ func (t *readOnlyTest) RandomReadsWithinFile_Small() {
 	ExpectEq("enchilada", s)
 }
 
-func (t *readOnlyTest) RandomReadsWithinFile_Large() {
+func (t *readOnlyTest) ReadFromFile_Large() {
+	// Create an object.
+	contents := randString(1 << 20)
+	AssertEq(nil, t.createWithContents("foo", contents))
+
+	// Wait for it to show up in the file system.
+	_, err := t.readDirUntil(1, t.mfs.Dir())
+	AssertEq(nil, err)
+
+	// Attempt to open it.
+	f, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+	defer func() { AssertEq(nil, f.Close()) }()
+
+	// Read its entire contents.
+	slice, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	ExpectEq(contents, string(slice))
+
+	// Read from parts of it.
 	AssertTrue(false, "TODO")
 }
