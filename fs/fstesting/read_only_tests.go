@@ -17,6 +17,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"strings"
 	"syscall"
 	"time"
 
@@ -610,8 +611,10 @@ func (t *readOnlyTest) ReadFromFile_Small() {
 }
 
 func (t *readOnlyTest) ReadFromFile_Large() {
+	const contentLen = 1 << 20
+	contents := randString(contentLen)
+
 	// Create an object.
-	contents := randString(1 << 20)
 	AssertEq(nil, t.createWithContents("foo", contents))
 
 	// Wait for it to show up in the file system.
@@ -629,5 +632,17 @@ func (t *readOnlyTest) ReadFromFile_Large() {
 	ExpectEq(contents, string(slice))
 
 	// Read from parts of it.
-	AssertTrue(false, "TODO")
+	referenceReader := strings.NewReader(contents)
+	for trial := 0; trial < 1000; trial++ {
+		offset := rand.Int63n(contentLen + 1)
+		size := rand.Intn(int(contentLen - offset))
+
+		expected, err := readRange(referenceReader, offset, size)
+		AssertEq(nil, err)
+
+		actual, err := readRange(f, offset, size)
+		AssertEq(nil, err)
+
+		AssertEq(expected, actual)
+	}
 }
