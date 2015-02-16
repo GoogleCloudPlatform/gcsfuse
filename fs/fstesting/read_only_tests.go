@@ -577,8 +577,11 @@ func (t *readOnlyTest) OpenNonExistentFile() {
 }
 
 func (t *readOnlyTest) ReadFromFile_Small() {
+	const contents = "tacoburritoenchilada"
+	const contentLen = len(contents)
+
 	// Create an object.
-	AssertEq(nil, t.createWithContents("foo", "tacoburritoenchilada"))
+	AssertEq(nil, t.createWithContents("foo", contents))
 
 	// Wait for it to show up in the file system.
 	_, err := t.readDirUntil(1, t.mfs.Dir())
@@ -594,7 +597,7 @@ func (t *readOnlyTest) ReadFromFile_Small() {
 	AssertEq(nil, err)
 	ExpectEq("tacoburritoenchilada", string(slice))
 
-	// Read parts of it.
+	// Read various ranges of it.
 	var s string
 
 	s, err = readRange(f, int64(len("taco")), len("burrito"))
@@ -644,5 +647,36 @@ func (t *readOnlyTest) ReadFromFile_Large() {
 		AssertEq(nil, err)
 
 		AssertEq(expected, actual)
+	}
+}
+
+func (t *readOnlyTest) ReadBeyondEndOfFile() {
+	const contents = "tacoburritoenchilada"
+	const contentLen = len(contents)
+
+	// Create an object.
+	AssertEq(nil, t.createWithContents("foo", contents))
+
+	// Wait for it to show up in the file system.
+	_, err := t.readDirUntil(1, t.mfs.Dir())
+	AssertEq(nil, err)
+
+	// Attempt to open it.
+	f, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+	defer func() { AssertEq(nil, f.Close()) }()
+
+	// Attempt to read beyond the end of the file.
+	_, err = f.Seek(int64(contentLen-1), 0)
+	AssertEq(nil, err)
+
+	buf := make([]byte, 2)
+	n, err := f.Read(buf)
+	AssertEq(1, n)
+	AssertEq(contents[contentLen-1], buf[0])
+
+	if err == nil {
+		n, err = f.Read(buf)
+		AssertEq(0, n)
 	}
 }
