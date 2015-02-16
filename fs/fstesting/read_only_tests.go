@@ -108,8 +108,21 @@ func (t *fsTest) setUpFsTest(b gcs.Bucket) {
 }
 
 func (t *fsTest) tearDownFsTest() {
-	// Unmount the file system.
-	if err := t.mfs.Unmount(); err != nil {
+	// Unmount the file system. Try again on "resource busy" errors.
+	delay := 10 * time.Millisecond
+	for {
+		err := t.mfs.Unmount()
+		if err == nil {
+			break
+		}
+
+		if strings.Contains(err.Error(), "resource busy") {
+			log.Println("Resource busy error while unmounting; trying again")
+			time.Sleep(delay)
+			delay = time.Duration(1.3 * float64(delay))
+			continue
+		}
+
 		panic("MountedFileSystem.Unmount: " + err.Error())
 	}
 
