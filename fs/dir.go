@@ -4,6 +4,7 @@
 package fs
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -49,6 +50,8 @@ type dir struct {
 // Make sure dir implements the interfaces we think it does.
 var (
 	_ fusefs.Node               = &dir{}
+	_ fusefs.NodeCreater        = &dir{}
+	_ fusefs.NodeMknoder        = &dir{}
 	_ fusefs.NodeStringLookuper = &dir{}
 
 	_ fusefs.Handle             = &dir{}
@@ -185,4 +188,22 @@ func (d *dir) Lookup(ctx context.Context, name string) (fusefs.Node, error) {
 	}
 
 	return nil, fuse.ENOENT
+}
+
+func (d *dir) Create(
+	ctx context.Context,
+	req *fuse.CreateRequest,
+	resp *fuse.CreateResponse) (
+	fusefs.Node,
+	fusefs.Handle,
+	error) {
+	// Tell fuse to use Mknod followed by Open, rather than re-implementing much
+	// of Open here.
+	return nil, nil, fuse.ENOSYS
+}
+
+func (d *dir) Mknod(
+	ctx context.Context,
+	req *fuse.MknodRequest) (fusefs.Node, error) {
+	return nil, errors.New("TODO(jacobsa): Support Mknod.")
 }
