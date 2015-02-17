@@ -77,3 +77,19 @@ func (t *readWriteTest) Sync() {
 func (t *readWriteTest) Truncate() {
 	AssertTrue(false, "TODO")
 }
+
+func (t *readWriteTest) CreateEmptyDirectory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) CreateWithinSubDirectory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) OpenWithinSubDirectory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) TruncateWithinSubDirectory() {
+	AssertTrue(false, "TODO")
+}
