@@ -11,6 +11,10 @@
 package fstesting
 
 import (
+	"io/ioutil"
+	"os"
+	"path"
+
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -39,6 +43,15 @@ func (t *readWriteTest) OpenNonExistent_ReadWrite() {
 }
 
 func (t *readWriteTest) OpenExistingFile_ReadOnly() {
+	// Create a file.
+	const contents = "tacoburritoenchilada"
+	AssertEq(
+		nil,
+		ioutil.WriteFile(
+			path.Join(t.mfs.Dir(), "foo"),
+			[]byte(contents),
+			os.FileMode(0644)))
+
 	AssertTrue(false, "TODO")
 }
 
@@ -59,6 +72,10 @@ func (t *readWriteTest) TruncateExistingFile_WriteOnly() {
 }
 
 func (t *readWriteTest) TruncateExistingFile_ReadWrite() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) OpenReadOnlyFileForWrite() {
 	AssertTrue(false, "TODO")
 }
 
