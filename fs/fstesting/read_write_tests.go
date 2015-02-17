@@ -22,6 +22,58 @@ type readWriteTest struct {
 	fsTest
 }
 
-func (t *readWriteTest) DoesFoo() {
+func (t *readWriteTest) OpenNonExistent_CreateFlagNotSet() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) OpenNonExistent_ReadOnly() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) OpenNonExistent_WriteOnly() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) OpenNonExistent_ReadWrite() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) OpenExistingFile_ReadOnly() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) OpenExistingFile_WriteOnly() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) OpenExistingFile_ReadWrite() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) TruncateExistingFile_ReadOnly() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) TruncateExistingFile_WriteOnly() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) TruncateExistingFile_ReadWrite() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) Seek() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) Stat() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) Sync() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) Truncate() {
 	AssertTrue(false, "TODO")
 }
