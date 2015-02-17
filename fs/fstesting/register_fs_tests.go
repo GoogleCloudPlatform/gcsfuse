@@ -5,8 +5,11 @@ package fstesting
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/ogletest"
@@ -87,6 +90,8 @@ func registerTestSuite(
 // suites that exercise a file system wrapping that bucket. The condition name
 // should be something like "RealGCS" or "FakeGCS".
 func RegisterFSTests(conditionName string, makeBucket func() gcs.Bucket) {
+	ensureSignalHandler()
+
 	// A list of empty instances of the test suites we want to register.
 	suitePrototypes := []fsTestInterface{
 		&readOnlyTest{},
@@ -96,4 +101,50 @@ func RegisterFSTests(conditionName string, makeBucket func() gcs.Bucket) {
 	for _, suitePrototype := range suitePrototypes {
 		registerTestSuite(conditionName, makeBucket, suitePrototype)
 	}
+}
+
+var signalHandlerOnce sync.Once
+
+// Make sure the user doesn't freeze the program by hitting Ctrl-C, which is
+// frustrating.
+//
+// Why does the freeze happen? When the kernel goes to clean up after the
+// process, it attempts to close its files. That involves telling the kernel
+// fuse module to flush, which in turn attempts to contact the process. But
+// the user mode end of fuse in the process is already dead, so we have a
+// deadlock with a kernel stack that looks something like this:
+//
+//     [<ffffffff812aa77a>] wait_answer_interruptible+0x6a/0xa0
+//     [<ffffffff812aab7b>] __fuse_request_send+0x1fb/0x280
+//     [<ffffffff812aac12>] fuse_request_send+0x12/0x20
+//     [<ffffffff812b3837>] fuse_flush+0xd7/0x120
+//     [<ffffffff811ba79f>] filp_close+0x2f/0x70
+//     [<ffffffff811daad8>] put_files_struct+0x88/0xe0
+//     [<ffffffff811dabd7>] exit_files+0x47/0x50
+//     [<ffffffff81069c86>] do_exit+0x296/0xa50
+//     [<ffffffff8106a4bf>] do_group_exit+0x3f/0xa0
+//     [<ffffffff8106a534>] SyS_exit_group+0x14/0x20
+//     [<ffffffff8172f82d>] system_call_fastpath+0x1a/0x1f
+//     [<ffffffffffffffff>] 0xffffffffffffffff
+//
+// SIGKILL probably does the same thing, but we can't catch that. If a
+// process gets into this state, the only way to kill it for sure is to write
+// to the 'abort' file in the appropriate sub-directory of
+// /sys/fs/fuse/connections, as documented here:
+//
+//     https://www.kernel.org/doc/Documentation/filesystems/fuse.txt
+//
+func ensureSignalHandler() {
+	signalHandlerOnce.Do(func() {
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, os.Interrupt)
+
+		go func() {
+			for {
+				<-sigChan
+				fmt.Println("SIGINT is a bad idea; it will cause freezes.")
+				fmt.Println("See register_fs_tests.go for details.")
+			}
+		}()
+	})
 }

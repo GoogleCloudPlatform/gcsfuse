@@ -666,7 +666,7 @@ func (t *readOnlyTest) ReadFromFile_Large() {
 				"Expected:\n%s\nActual:\n%s",
 				hex.Dump([]byte(expected)),
 				hex.Dump([]byte(actual)))
-			}
+		}
 	}
 }
 
