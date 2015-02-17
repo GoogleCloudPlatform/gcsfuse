@@ -26,7 +26,7 @@ var fBucketName = flag.String("bucket", "", "Name of GCS bucket to mount.")
 func getBucketName() string {
 	s := *fBucketName
 	if s == "" {
-		fmt.Println("You must set -bucket.")
+		fmt.Println("You must set --bucket.")
 		os.Exit(1)
 	}
 
