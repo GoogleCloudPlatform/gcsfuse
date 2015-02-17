@@ -70,10 +70,9 @@ func newDir(
 
 // Initialize d.children from GCS if it has not already been populated or has
 // expired.
+//
+// EXCLUSIVE_LOCKS_REQUIRED(d.mu)
 func (d *dir) initChildren(ctx context.Context) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
 	// Have we already initialized the map and is it up to date?
 	if d.children != nil && d.clock.Now().Before(d.childrenExpiry) {
 		return nil
@@ -141,6 +140,9 @@ func (d *dir) Attr() fuse.Attr {
 
 func (d *dir) ReadDirAll(ctx context.Context) (
 	ents []fuse.Dirent, err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	d.logger.Printf("ReadDirAll: [%s]/%s", d.bucket.Name(), d.objectPrefix)
 
 	// Ensure that our cache of children has been initialized.
@@ -149,9 +151,6 @@ func (d *dir) ReadDirAll(ctx context.Context) (
 	}
 
 	// Read out the contents of the cache.
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-
 	for name, node := range d.children {
 		ent := fuse.Dirent{
 			Name: name,
@@ -170,6 +169,9 @@ func (d *dir) ReadDirAll(ctx context.Context) (
 }
 
 func (d *dir) Lookup(ctx context.Context, name string) (fusefs.Node, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	d.logger.Printf("Lookup: ([%s]/%s) %s", d.bucket.Name(), d.objectPrefix, name)
 
 	// Ensure that our cache of children has been initialized.
