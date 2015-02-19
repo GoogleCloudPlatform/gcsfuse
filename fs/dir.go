@@ -162,12 +162,16 @@ func newDir(
 	clock timeutil.Clock,
 	bucket gcs.Bucket,
 	objectPrefix string) *dir {
-	return &dir{
+	d := &dir{
 		logger:       logger,
 		clock:        clock,
 		bucket:       bucket,
 		objectPrefix: objectPrefix,
 	}
+
+	d.mu = syncutil.NewInvariantMutex(func() { d.checkInvariants() })
+
+	return d
 }
 
 // Ensure that d.contents is fresh and usable. Must be called before using
