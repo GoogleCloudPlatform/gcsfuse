@@ -161,6 +161,12 @@ func newDir(
 	clock timeutil.Clock,
 	bucket gcs.Bucket,
 	objectPrefix string) *dir {
+	// Check the object prefix.
+	if objectPrefix != "" && objectPrefix[len(objectPrefix)-1] != dirSeparator {
+		panic("Unexpected object prefix: " + objectPrefix)
+	}
+
+	// Create the dir struct.
 	d := &dir{
 		logger:                  logger,
 		clock:                   clock,
@@ -174,6 +180,8 @@ func newDir(
 
 	return d
 }
+
+func (d *dir) checkInvariants()
 
 // Ensure that d.contents is fresh and usable. Must be called before using
 // d.contents.
