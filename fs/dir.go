@@ -211,10 +211,10 @@ func (d *dir) checkInvariants() {
 
 	// Check each child modification. Build a list of names we've seen while
 	// doing so.
-	var childModificationsNames sort.StringSlice
+	var listNames sort.StringSlice
 	for e := d.childModifications.Front(); e != nil; e = e.Next() {
 		m := e.Value.(childModification)
-		childModificationsNames = append(childModificationsNames, m.name)
+		listNames = append(listNames, m.name)
 
 		if m.node == nil {
 			if n, ok := d.contents[m.name]; ok {
@@ -227,19 +227,36 @@ func (d *dir) checkInvariants() {
 		}
 	}
 
+	sort.Sort(listNames)
+
 	// Check that there were no duplicate names.
-	sort.Sort(childModificationsNames)
-	for i, name := range childModificationsNames {
+	for i, name := range listNames {
 		if i == 0 {
 			continue
 		}
 
-		if name == childModificationsNames[i-1] {
+		if name == listNames[i-1] {
 			panic("Duplicated name in childModifications: " + name)
 		}
 	}
 
-	panic("TODO")
+	// Check the index. Build a list of names it contains While doing so.
+	var indexNames sort.StringSlice
+	for name, e := range d.childModificationsIndex {
+		indexNames = append(indexNames, name)
+
+		m := e.Value.(childModification)
+		if m.name != name {
+			panic(fmt.Sprintf("Index name mismatch: %s vs. %s", m.name, name))
+		}
+	}
+
+	sort.Sort(indexNames)
+
+	// Check that the index contains the same set of names.
+	if !reflect.DeepEqual(listNames, indexNames) {
+		panic(fmt.Sprintf("Names mismatch:\n%v\n%v", listNames, indexNames))
+	}
 }
 
 // Ensure that d.contents is fresh and usable. Must be called before using
