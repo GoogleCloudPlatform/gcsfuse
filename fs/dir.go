@@ -63,12 +63,12 @@ var ListingCacheTTL = 10 * time.Second
 // instead of living here?
 var ChildActionMemoryTTL = 5 * time.Minute
 
-// See the childAdditions field of dir.
-type childAddition struct {
+// See the childModifications field of dir.
+type childModification struct {
 	time time.Time
 	name string
 
-	// INVARIANT: Of type *file or *dir.
+	// INVARIANT: nil or of type *file or *dir.
 	node fusefs.Node
 }
 
@@ -116,49 +116,33 @@ type dir struct {
 	contents           map[string]fusefs.Node // GUARDED_BY(mu)
 	contentsExpiration time.Time              // GUARDED_BY(mu)
 
-	// A collection of children that have recently been added locally and the
-	// time at which it happened, ordered by the sequence in which it happened.
-	// For a record R in this list with R's age less than ChildActionMemoryTTL,
-	// any listing from the bucket should be augmented by adding R, overwriting
-	// it if its name already exists. See ChildActionMemoryTTL for more info.
+	// A collection of children that have recently been added or removed locally
+	// and the time at which it happened, ordered by the sequence in which it
+	// happened. Elements M with M.node == nil are removals; all others are
+	// additions.
+	//
+	// For a record M in this list with M's age less than ChildActionMemoryTTL,
+	// any listing from the bucket should be augmented by pretending M just
+	// happened.
 	//
 	// TODO(jacobsa): Make sure to test link followed by unlink, and unlink
 	// followed by link.
 	//
 	// TODO(jacobsa): Make sure to test that these expire eventually, i.e. that
-	// foreign overwrites and deletes are reflected eventually.
+	// foreign overwrites, deletes, and recreates are reflected eventually.
 	//
-	// INVARIANT: All elements are of type childAddition.
+	// INVARIANT: All elements are of type childModification.
 	// INVARIANT: Contains no duplicate names.
-	// INVARIANT: If contents != nil, then for all A, contents[A.name] == A.node
-	childAdditions list.List // GUARDED_BY(mu)
+	// INVARIANT: For each M with M.node == nil, contents does not contain M.name.
+	// INVARIANT: For each M with M.node != nil,
+	//              contents == nil || contents[M.name] == M.node.
+	childModifications list.List // GUARDED_BY(mu)
 
-	// An index of childAdditions by name.
+	// An index of childModifications by name.
 	//
-	// INVARIANT: For all names N in the map, the indexed addition has name N.
-	// INVARIANT: Contains exactly the set of names in childAdditions.
-	childAdditionsIndex map[string]*list.Element
-
-	// A collection of children that have recently been removed locally and the
-	// time at which it happened, ordered by the sequence in which it happened.
-	// For a record R in this list with R's age less than ChildActionMemoryTTL,
-	// any listing from the bucket should be augmented by removing any child with
-	// the name given by R. See ChildActionMemoryTTL for more info.
-	//
-	// TODO(jacobsa): Make sure to test that these expire eventually, i.e. that
-	// foreign re-creates are reflected eventually.
-	//
-	// INVARIANT: All elements are of type childRemoval.
-	// INVARIANT: Contains no duplicate names.
-	// INVARIANT: Contains no overlap in names with childAdditions.
-	// INVARIANT: For all R, contents does not contain R.name.
-	childRemovals list.List // GUARDED_BY(mu)
-
-	// An index of childRemovals by name.
-	//
-	// INVARIANT: For all names N in the map, the indexed removal has name N.
-	// INVARIANT: Contains exactly the set of names in childRemovals.
-	childRemovalsIndex map[string]*list.Element
+	// INVARIANT: For all names N in the map, the indexed modification has name N.
+	// INVARIANT: Contains exactly the set of names in childModifications.
+	childModificationsIndex map[string]*list.Element
 }
 
 // Make sure dir implements the interfaces we think it does.
