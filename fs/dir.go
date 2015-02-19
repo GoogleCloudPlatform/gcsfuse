@@ -195,7 +195,7 @@ func (d *dir) ReadDirAll(ctx context.Context) (ents []fuse.Dirent, err error) {
 	d.logger.Printf("ReadDirAll: [%s]/%s", d.bucket.Name(), d.objectPrefix)
 
 	// Ensure that we can use d.contents.
-	if err := d.ensureContents(ctx); err != nil {
+	if err = d.ensureContents(ctx); err != nil {
 		err = fmt.Errorf("d.ensureContents: %v", err)
 		return
 	}
@@ -218,24 +218,28 @@ func (d *dir) ReadDirAll(ctx context.Context) (ents []fuse.Dirent, err error) {
 	return
 }
 
-func (d *dir) Lookup(ctx context.Context, name string) (fusefs.Node, error) {
+func (d *dir) Lookup(
+	ctx context.Context,
+	name string) (n fusefs.Node, err error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	d.logger.Printf("Lookup: ([%s]/%s) %s", d.bucket.Name(), d.objectPrefix, name)
 
 	// Ensure that we can use d.contents.
-	if err := d.ensureContents(ctx); err != nil {
+	if err = d.ensureContents(ctx); err != nil {
 		err = fmt.Errorf("d.ensureContents: %v", err)
 		return
 	}
 
 	// Find the object within the map.
-	if n, ok := d.contents[name]; ok {
-		return n, nil
+	var ok bool
+	if n, ok = d.contents[name]; ok {
+		return
 	}
 
-	return nil, fuse.ENOENT
+	err = fuse.ENOENT
+	return
 }
 
 func (d *dir) Create(
