@@ -307,6 +307,9 @@ func (d *dir) ensureContents(ctx context.Context) error {
 				prefix)
 	}
 
+	// Choose an expiration time.
+	d.contentsExpiration = d.clock.Now().Add(ListingCacheTTL)
+
 	// TODO(jacobsa): Apply child modifications.
 	return nil
 }
