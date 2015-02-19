@@ -101,13 +101,13 @@ type dir struct {
 	// Our current best understanding of the contents of the directory in GCS,
 	// formed by listing the bucket and then patching according to child addition
 	// and removal records at the time, and patched since then by subsequent
-	// additions and removals. May be nil if no listing has happened or the
-	// listing expired (see below).
+	// additions and removals.
 	//
 	// The time after which this should be generated anew from a new listing is
 	// also stored. This is set to the time at which the listing completed plus
 	// ListingCacheTTL.
 	//
+	// INVARIANT: contents != nil
 	// INVARIANT: All nodes are of type *dir or *file.
 	// INVARIANT: All nodes are indexed by names that agree with node contents.
 	contents           map[string]fusefs.Node // GUARDED_BY(mu)
@@ -131,12 +131,12 @@ type dir struct {
 	// INVARIANT: All elements are of type childModification.
 	// INVARIANT: Contains no duplicate names.
 	// INVARIANT: For each M with M.node == nil, contents does not contain M.name.
-	// INVARIANT: For each M with M.node != nil,
-	//              contents == nil || contents[M.name] == M.node.
+	// INVARIANT: For each M with M.node != nil, contents[M.name] == M.node.
 	childModifications list.List // GUARDED_BY(mu)
 
 	// An index of childModifications by name.
 	//
+	// INVARIANT: childModificationsIndex != nil
 	// INVARIANT: For all names N in the map, the indexed modification has name N.
 	// INVARIANT: Contains exactly the set of names in childModifications.
 	childModificationsIndex map[string]*list.Element // GUARDED_BY(mu)
@@ -162,10 +162,12 @@ func newDir(
 	bucket gcs.Bucket,
 	objectPrefix string) *dir {
 	d := &dir{
-		logger:       logger,
-		clock:        clock,
-		bucket:       bucket,
-		objectPrefix: objectPrefix,
+		logger:                  logger,
+		clock:                   clock,
+		bucket:                  bucket,
+		objectPrefix:            objectPrefix,
+		contents:                make(map[string]fusefs.Node),
+		childModificationsIndex: make(map[string]*list.Element),
 	}
 
 	d.mu = syncutil.NewInvariantMutex(func() { d.checkInvariants() })
