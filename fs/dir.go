@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
+	"reflect"
 	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -181,7 +183,35 @@ func newDir(
 	return d
 }
 
-func (d *dir) checkInvariants()
+func (d *dir) checkInvariants() {
+	// Check that maps are non-nil.
+	if d.contents == nil || d.childModificationsIndex == nil {
+		panic("Expected contents and childModificationsIndex to be non-nil.")
+	}
+
+	// Check each element of the contents map.
+	for name, node := range d.contents {
+		if node == nil {
+			panic("nil node for name: " + name)
+		}
+
+		d, okDir := node.(*dir)
+		f, okFile := node.(*file)
+		if !okDir && !okFile {
+			panic(fmt.Sprintf("Unexpected node type: %v", reflect.TypeOf(node)))
+		}
+
+		if okDir && name != path.Base(d.objectPrefix) {
+			panic(fmt.Sprintf("Name mismatch: %s vs. %s", name, d.objectPrefix))
+		}
+
+		if okFile && name != path.Base(f.objectName) {
+			panic(fmt.Sprintf("Name mismatch: %s vs. %s", name, f.objectName))
+		}
+	}
+
+	panic("TODO")
+}
 
 // Ensure that d.contents is fresh and usable. Must be called before using
 // d.contents.
