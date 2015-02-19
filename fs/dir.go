@@ -142,7 +142,7 @@ type dir struct {
 	//
 	// INVARIANT: For all names N in the map, the indexed modification has name N.
 	// INVARIANT: Contains exactly the set of names in childModifications.
-	childModificationsIndex map[string]*list.Element
+	childModificationsIndex map[string]*list.Element // GUARDED_BY(mu)
 }
 
 // Make sure dir implements the interfaces we think it does.
