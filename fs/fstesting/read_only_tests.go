@@ -181,7 +181,7 @@ func (t *readOnlyTest) readDirUntil(
 			return
 		}
 
-		t.clock.AdvanceTime(2 * fs.DirListingCacheTTL)
+		t.clock.AdvanceTime(2 * fs.ListingCacheTTL)
 
 		// If this is taking a long time, log that fact so that the user can tell
 		// why the test is hanging.
@@ -511,7 +511,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheStillValid() {
 	AssertEq(nil, t.createEmptyObjects([]string{"baz"}))
 
 	// Advance the clock to just before the cache expiry.
-	t.clock.AdvanceTime(fs.DirListingCacheTTL - time.Millisecond)
+	t.clock.AdvanceTime(fs.ListingCacheTTL - time.Millisecond)
 
 	// List again.
 	entries, err = t.readDirUntil(2, t.mfs.Dir())
@@ -544,7 +544,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheInvalidated() {
 	AssertEq(nil, t.createEmptyObjects([]string{"baz"}))
 
 	// Advance the clock to just after the cache expiry.
-	t.clock.AdvanceTime(fs.DirListingCacheTTL + time.Millisecond)
+	t.clock.AdvanceTime(fs.ListingCacheTTL + time.Millisecond)
 
 	// List again.
 	entries, err = t.readDirUntil(2, t.mfs.Dir())
