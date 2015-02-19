@@ -221,13 +221,14 @@ func (d *dir) Lookup(ctx context.Context, name string) (fusefs.Node, error) {
 
 	d.logger.Printf("Lookup: ([%s]/%s) %s", d.bucket.Name(), d.objectPrefix, name)
 
-	// Ensure that our cache of children has been initialized.
-	if err := d.initChildren(ctx); err != nil {
-		return nil, fmt.Errorf("d.initChildren: %v", err)
+	// Ensure that we can use d.contents.
+	if err := d.ensureContents(ctx); err != nil {
+		err = fmt.Errorf("d.ensureContents: %v", err)
+		return
 	}
 
 	// Find the object within the map.
-	if n, ok := d.children[name]; ok {
+	if n, ok := d.contents[name]; ok {
 		return n, nil
 	}
 
