@@ -34,7 +34,7 @@ const dirSeparator = '/'
 // locally.
 //
 // TODO(jacobsa): Set this according to real-world performance issues when the
-// kernel does e.g. ReadDir followed by LookUp. Can probably be set quite
+// kernel does e.g. ReadDir followed by Lookup. Can probably be set quite
 // small.
 //
 // TODO(jacobsa): Can this be moved to a decorator implementation of gcs.Bucket
