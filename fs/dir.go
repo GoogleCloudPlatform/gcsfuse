@@ -9,14 +9,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path"
 	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
 	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
-	"google.golang.org/cloud/storage"
 
 	"bazil.org/fuse"
 	fusefs "bazil.org/fuse/fs"
@@ -169,68 +167,15 @@ func newDir(
 	}
 }
 
-// Initialize d.children from GCS if it has not already been populated or has
-// expired.
+// Ensure that d.contents is fresh and usable. Must be called before using
+// d.contents.
+//
+// TODO(jacobsa): If contents hasn't expired, return immediately. Otherwise
+// list parasitically while holding the lock (why not, we can make this more
+// subtle later if we must) and modify the result appropriately.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(d.mu)
-func (d *dir) initChildren(ctx context.Context) error {
-	// Have we already initialized the map and is it up to date?
-	if d.children != nil && d.clock.Now().Before(d.childrenExpiry) {
-		return nil
-	}
-
-	children := make(map[string]fusefs.Node)
-
-	// List repeatedly until there is no more to list.
-	query := &storage.Query{
-		Delimiter: string(dirSeparator),
-		Prefix:    d.objectPrefix,
-	}
-
-	for query != nil {
-		// Grab one set of results.
-		objects, err := d.bucket.ListObjects(ctx, query)
-		if err != nil {
-			return fmt.Errorf("bucket.ListObjects: %v", err)
-		}
-
-		// Extract objects as files.
-		for _, o := range objects.Results {
-			// Special case: the GCS storage browser's "New folder" button causes an
-			// object with a trailing slash to be created. For example, if you make a
-			// folder called "bar" within a folder called "foo", that creates an
-			// object called "foo/bar/". (It seems like the redundant ones may be
-			// removed eventually, but that's not relevant.)
-			//
-			// When we list the directory "foo/", we don't want to return the object
-			// named "foo/" as if it were a file within the directory. So skip it.
-			if o.Name == d.objectPrefix {
-				continue
-			}
-
-			children[path.Base(o.Name)] =
-				newFile(
-					d.logger,
-					d.bucket,
-					o.Name,
-					uint64(o.Size))
-		}
-
-		// Extract prefixes as directories.
-		for _, p := range objects.Prefixes {
-			children[path.Base(p)] = newDir(d.logger, d.clock, d.bucket, p)
-		}
-
-		// Move on to the next set of results.
-		query = objects.Next
-	}
-
-	// Save the map.
-	d.children = children
-	d.childrenExpiry = d.clock.Now().Add(DirListingCacheTTL)
-
-	return nil
-}
+func (d *dir) ensureContents(ctx context.Context) error
 
 func (d *dir) Attr() fuse.Attr {
 	return fuse.Attr{
