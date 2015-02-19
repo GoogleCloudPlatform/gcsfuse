@@ -9,10 +9,10 @@ import (
 	"log"
 	"os"
 	"path"
-	"sync"
 	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/syncutil"
 	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
@@ -24,27 +24,104 @@ import (
 const dirSeparator = '/'
 
 // Implementation detail, do not touch.
-var DirListingCacheTTL = 10 * time.Second
+//
+// How long we cache the most recent listing for a particular directory from
+// GCS before regarding it as stale.
+//
+// Intended to paper over performance issues caused by quick follow-up calls;
+// for example when the fuse VFS performs a readdir followed quickly by a
+// lookup for each child. The drawback is that this increases the time before a
+// write by a foreign machine within a recently-listed directory will be seen
+// locally.
+//
+// TODO(jacobsa): Set this according to real-world performance issues when the
+// kernel does e.g. ReadDir followed by LookUp. Can probably be set quite
+// small.
+//
+// TODO(jacobsa): Can this be moved to a decorator implementation of gcs.Bucket
+// instead of living here?
+var ListingCacheTTL = 10 * time.Second
 
-// A "directory" in GCS, defined by an object name prefix. All prefixes end
-// with dirSeparator except for the special case of the root directory, where
-// the prefix is the empty string.
+// Implementation detail, do not touch.
+//
+// How long we remember that we took some action on the contents of a directory
+// (linking or unlinking), and pretend the action is reflected in the listing
+// even if it is not.
+//
+// Intended to paper over the fact that GCS doesn't offer list-your-own-writes
+// consistency: it may be an arbitrarily long time before you see the creation
+// or deletion of an object in a subsequent listing, and even if you see it in
+// one listing you may not in the next. The drawback is that modifications to
+// recently-modified directories by foreign machines will not be reflected
+// locally for awhile.
+//
+// TODO(jacobsa): Set this according to information about listing staleness
+// distributions from the GCS team.
+//
+// TODO(jacobsa): Can this be moved to a decorator implementation of gcs.Bucket
+// instead of living here?
+var ChildActionMemoryTTL = 5 * time.Minute
+
+// A "directory" in GCS, defined by an object name prefix.
+//
+// For example, if the bucket contains objects "foo/bar" and "foo/baz", this
+// implicitly defines the directory "foo/". No matter what the contents of the
+// bucket, there is an implicit root directory "".
 type dir struct {
-	logger       *log.Logger
-	clock        timeutil.Clock
-	bucket       gcs.Bucket
+	/////////////////////////
+	// Dependencies
+	/////////////////////////
+
+	logger *log.Logger
+	clock  timeutil.Clock
+	bucket gcs.Bucket
+
+	/////////////////////////
+	// Constant data
+	/////////////////////////
+
+	// INVARIANT: objectPrefix is "" (representing the root directory) or ends
+	// with dirSeparator.
 	objectPrefix string
 
-	mu sync.RWMutex
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
 
-	// A map from (relative) names of children to nodes for those children,
-	// initialized from GCS the when it is needed for a ReadDirAll, Lookup, etc.
-	// and is not present or is expired. All nodes within the map are of type
-	// *dir or *file.
-	children map[string]fusefs.Node // GUARDED_BY(mu)
+	// TODO(jacobsa): Make sure to initialize this correctly.
+	fixmemu syncutil.InvariantMutex
 
-	// The clock time at which children should be treated as invalid.
-	childrenExpiry time.Time // GUARDED_BY(mu)
+	// A cache of the most recent listing of the directory from GCS, expressed as
+	// a map from (relative) names of children of this directory to nodes for
+	// those children. May be nil if there is no most recent listing or if the
+	// listing expired (see below).
+	//
+	// The time at which the listing completed is also stored. If clock.Now()
+	// minus this time is more than ListingCacheTTL, the most recent listing
+	// should not be used for any purpose.
+	//
+	// INVARIANT: All nodes are of type *dir or *file.
+	mostRecentListing     map[string]fusefs.Node // GUARDED_BY(mu)
+	mostRecentListingTime time.Time              // GUARDED_BY(mu)
+
+	// A collection of children that have recently been added locally and the
+	// time at which it happened. For a record R in this list with R's age less
+	// than ChildActionMemoryTTL, any listing from the bucket should be augmented
+	// by adding R, overwriting it if its name already exists. See
+	// ChildActionMemoryTTL for more info.
+	//
+	// TODO(jacobsa): Make sure to test link followed by unlink, and unlink
+	// followed by link.
+	//
+	// INVARIANT: All nodes are of type *dir or *file.
+	childAdditions []childAddition // GUARDED_BY(mu)
+
+	// A collection of children that have recently been removed locally and the
+	// time at which it happened. For a record R in this list with R's age less
+	// than ChildActionMemoryTTL, any listing from the bucket should be augmented
+	// by removing any child with the name given by R. See ChildActionMemoryTTL
+	// for more info.
+	childRemovals []childRemoval // GUARDED_BY(mu)
 }
 
 // Make sure dir implements the interfaces we think it does.
