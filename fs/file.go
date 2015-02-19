@@ -20,6 +20,9 @@ import (
 
 // A remote object's name and metadata, along with a local temporary file that
 // contains its contents (when initialized).
+//
+// TODO(jacobsa): After becoming comfortable with the representation of dir and
+// its concurrency protection, audit this file and make sure it is up to par.
 type file struct {
 	logger     *log.Logger
 	bucket     gcs.Bucket
