@@ -15,9 +15,11 @@ import (
 	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	"github.com/jacobsa/gcloud/syncutil"
 	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
+	"google.golang.org/cloud/storage"
 
 	"bazil.org/fuse"
 	fusefs "bazil.org/fuse/fs"
@@ -274,6 +276,39 @@ func (d *dir) ensureContents(ctx context.Context) error {
 	}
 
 	// Grab a listing.
+	query := &storage.Query{
+		Delimiter: string(dirSeparator),
+		Prefix:    d.objectPrefix,
+	}
+
+	objects, prefixes, err := gcsutil.List(ctx, d.bucket, query)
+	if err != nil {
+		return fmt.Errorf("gcsutil.List: %v", err)
+	}
+
+	// Convert the listing into a contents map.
+	d.contents = make(map[string]fusefs.Node)
+
+	for _, o := range objects {
+		d.contents[path.Base(o.Name)] =
+			newFile(
+				d.logger,
+				d.bucket,
+				o.Name,
+				uint64(o.Size))
+	}
+
+	for _, prefix := range prefixes {
+		d.contents[path.Base(prefix)] =
+			newDir(
+				d.logger,
+				d.clock,
+				d.bucket,
+				prefix)
+	}
+
+	// TODO(jacobsa): Apply child modifications.
+	return nil
 }
 
 func (d *dir) Attr() fuse.Attr {
