@@ -185,20 +185,20 @@ func (d *dir) Attr() fuse.Attr {
 	}
 }
 
-func (d *dir) ReadDirAll(ctx context.Context) (
-	ents []fuse.Dirent, err error) {
+func (d *dir) ReadDirAll(ctx context.Context) (ents []fuse.Dirent, err error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	d.logger.Printf("ReadDirAll: [%s]/%s", d.bucket.Name(), d.objectPrefix)
 
-	// Ensure that our cache of children has been initialized.
-	if err := d.initChildren(ctx); err != nil {
-		return nil, fmt.Errorf("d.initChildren: %v", err)
+	// Ensure that we can use d.contents.
+	if err := d.ensureContents(ctx); err != nil {
+		err = fmt.Errorf("d.ensureContents: %v", err)
+		return
 	}
 
-	// Read out the contents of the cache.
-	for name, node := range d.children {
+	// Read out entries from the contents map.
+	for name, node := range d.contents {
 		ent := fuse.Dirent{
 			Name: name,
 		}
