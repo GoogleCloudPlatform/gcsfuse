@@ -145,6 +145,9 @@ type dir struct {
 
 // Make sure dir implements the interfaces we think it does.
 var (
+	// TODO(jacobsa): I think we want to embed fusefs.NdoeRef in all of our
+	// fusefs.Node types, so that we better benefit from fusefs.Server node
+	// caching.
 	_ fusefs.Node               = &dir{}
 	_ fusefs.NodeCreater        = &dir{}
 	_ fusefs.NodeMknoder        = &dir{}
