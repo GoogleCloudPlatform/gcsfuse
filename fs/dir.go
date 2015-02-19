@@ -96,8 +96,7 @@ type dir struct {
 	// Mutable state
 	/////////////////////////
 
-	// TODO(jacobsa): Make sure to initialize this correctly.
-	fixmemu syncutil.InvariantMutex
+	mu syncutil.InvariantMutex
 
 	// Our current best understanding of the contents of the directory in GCS,
 	// formed by listing the bucket and then patching according to child addition
@@ -192,6 +191,7 @@ func (d *dir) Attr() fuse.Attr {
 	}
 }
 
+// LOCKS_EXCLUDED(d.mu)
 func (d *dir) ReadDirAll(ctx context.Context) (ents []fuse.Dirent, err error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -222,6 +222,7 @@ func (d *dir) ReadDirAll(ctx context.Context) (ents []fuse.Dirent, err error) {
 	return
 }
 
+// LOCKS_EXCLUDED(d.mu)
 func (d *dir) Lookup(
 	ctx context.Context,
 	name string) (n fusefs.Node, err error) {
