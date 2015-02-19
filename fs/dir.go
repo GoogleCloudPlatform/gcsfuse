@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"sort"
 	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -205,6 +206,36 @@ func (d *dir) checkInvariants() {
 
 		if okFile && name != path.Base(f.objectName) {
 			panic(fmt.Sprintf("Name mismatch: %s vs. %s", name, f.objectName))
+		}
+	}
+
+	// Check each child modification. Build a list of names we've seen while
+	// doing so.
+	var childModificationsNames sort.StringSlice
+	for e := d.childModifications.Front(); e != nil; e = e.Next() {
+		m := e.Value.(childModification)
+		childModificationsNames = append(childModificationsNames, m.name)
+
+		if m.node == nil {
+			if n, ok := d.contents[m.name]; ok {
+				panic(fmt.Sprintf("d.contents[%s] == %v for removal", m.name, n))
+			}
+		} else {
+			if n := d.contents[m.name]; n != m.node {
+				panic(fmt.Sprintf("d.contents[%s] == %v, not %v", m.name, n, m.node))
+			}
+		}
+	}
+
+	// Check that there were no duplicate names.
+	sort.Sort(childModificationsNames)
+	for i, name := range childModificationsNames {
+		if i == 0 {
+			continue
+		}
+
+		if name == childModificationsNames[i-1] {
+			panic("Duplicated name in childModifications: " + name)
 		}
 	}
 
