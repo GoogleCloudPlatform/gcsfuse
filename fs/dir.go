@@ -179,6 +179,7 @@ func (d *dir) ensureContents(ctx context.Context) error
 
 func (d *dir) Attr() fuse.Attr {
 	return fuse.Attr{
+		// TODO(jacobsa): Reflect that we allow writes now. Make sure to test.
 		// TODO(jacobsa): Expose ACLs from GCS?
 		Mode: os.ModeDir | 0500,
 	}
