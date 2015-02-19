@@ -67,8 +67,6 @@ var ChildActionMemoryTTL = 5 * time.Minute
 type childModification struct {
 	time time.Time
 	name string
-
-	// INVARIANT: nil or of type *file or *dir.
 	node fusefs.Node
 }
 
