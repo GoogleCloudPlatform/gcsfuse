@@ -267,7 +267,14 @@ func (d *dir) checkInvariants() {
 // subtle later if we must) and modify the result appropriately.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(d.mu)
-func (d *dir) ensureContents(ctx context.Context) error
+func (d *dir) ensureContents(ctx context.Context) error {
+	// Are the contents already fresh?
+	if d.clock.Now().Before(d.contentsExpiration) {
+		return nil
+	}
+
+	// Grab a listing.
+}
 
 func (d *dir) Attr() fuse.Attr {
 	return fuse.Attr{
