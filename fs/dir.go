@@ -326,6 +326,8 @@ func (d *dir) ensureContents(ctx context.Context) error {
 }
 
 func (d *dir) Attr() fuse.Attr {
+	d.logger.Printf("Attr: [%s]/%s", d.bucket.Name(), d.objectPrefix)
+
 	return fuse.Attr{
 		// TODO(jacobsa): Reflect that we allow writes now. Make sure to test.
 		// TODO(jacobsa): Expose ACLs from GCS?
@@ -396,6 +398,8 @@ func (d *dir) Create(
 	fusefs.Node,
 	fusefs.Handle,
 	error) {
+	d.logger.Printf("Create: [%s]/%s", d.bucket.Name(), d.objectPrefix)
+
 	// Tell fuse to use Mknod followed by Open, rather than re-implementing much
 	// of Open here.
 	return nil, nil, fuse.ENOSYS
@@ -405,6 +409,7 @@ func (d *dir) Mknod(
 	ctx context.Context,
 	req *fuse.MknodRequest) (node fusefs.Node, err error) {
 	objectName := path.Join(d.objectPrefix, req.Name)
+	d.logger.Printf("Mknode: [%s]/%s", d.bucket.Name(), objectName)
 
 	// The kernel appears to do the appropriate locking and querying to ensure
 	// that vfs_mknod is called only when a child with the given name doesn't exist.
