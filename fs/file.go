@@ -265,6 +265,9 @@ func (f *file) Write(
 // after some timeout after it is unused, to avoid data loss due to power loss.
 // Do #3 only if it becomes clear that #2 is not sufficient for real users.
 //
+// I wonder if we also need to do it when destroying. Will the kernel send us
+// forgets before destroying? Again, add only if needed.
+//
 // LOCKS_EXCLUDED(f.mu)
 func (f *file) Flush(
 	ctx context.Context,
