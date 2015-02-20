@@ -39,6 +39,7 @@ var (
 	_ fusefs.Handle         = &file{}
 	_ fusefs.HandleReader   = &file{}
 	_ fusefs.HandleReleaser = &file{}
+	_ fusefs.HandleWriter   = &file{}
 )
 
 func newFile(
@@ -64,6 +65,8 @@ func (f *file) Attr() fuse.Attr {
 
 // If the file contents have not yet been fetched to a temporary file, fetch
 // them.
+//
+// LOCKS_EXCLUDED(f.mu)
 func (f *file) ensureTempFile(ctx context.Context) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -99,6 +102,8 @@ func (f *file) ensureTempFile(ctx context.Context) error {
 }
 
 // Throw away the local temporary file, if any.
+//
+// LOCKS_EXCLUDED(f.mu)
 func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -124,6 +129,8 @@ func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 }
 
 // Ensure that the local temporary file is initialized, then read from it.
+//
+// LOCKS_EXCLUDED(f.mu)
 func (f *file) Read(
 	ctx context.Context,
 	req *fuse.ReadRequest,
