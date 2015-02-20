@@ -420,7 +420,8 @@ func (d *dir) Mknod(
 	d.logger.Printf("Mknod: [%s]/%s", d.bucket.Name(), objectName)
 
 	// The kernel appears to do the appropriate locking and querying to ensure
-	// that vfs_mknod is called only when a child with the given name doesn't exist.
+	// that vfs_mknod is called only when a child with the given name doesn't
+	// exist.
 	//
 	// For example, here are some relative bits from the implementation of the
 	// mknodat system call:
