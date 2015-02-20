@@ -98,6 +98,10 @@ type dir struct {
 	// Mutable state
 	/////////////////////////
 
+	// TODO(jacobsa): Does the kernel handle this for us, by virtue of locking
+	// our inode before calling anything that might modify state? I guess we
+	// still might have a problem if it uses a reader lock, because e.g. Lookup
+	// may modify d.contents.
 	mu syncutil.InvariantMutex
 
 	// Our current best understanding of the contents of the directory in GCS,
