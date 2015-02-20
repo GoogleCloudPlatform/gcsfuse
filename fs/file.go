@@ -64,7 +64,8 @@ type file struct {
 
 // Make sure file implements the interfaces we think it does.
 var (
-	_ fusefs.Node = &file{}
+	_ fusefs.Node          = &file{}
+	_ fusefs.NodeGetattrer = &file{}
 
 	_ fusefs.Handle         = &file{}
 	_ fusefs.HandleFlusher  = &file{}
@@ -100,6 +101,8 @@ func (f *file) checkInvariants() {
 	}
 }
 
+// TODO(jacobsa): Share code with Getattr below.
+//
 // LOCKS_EXCLUDED(f.mu)
 func (f *file) Attr() fuse.Attr {
 	f.mu.RLock()
@@ -110,10 +113,9 @@ func (f *file) Attr() fuse.Attr {
 	// Find the current size.
 	size := f.remoteSize
 	if f.tempFile != nil {
-		// See if the scenario in the TODO below can ever even come to pass. If
-		// this triggers for Getattr in particular, try implementing that, since it
-		// allows returning an error. If it triggers elsewhere, file a bug with the
-		// fuse package to see what we're intended to do with errors.
+		// See if the scenario in the TODO below can ever even come to pass. If so,
+		// file a bug with the fuse package to see what we're intended to do with
+		// errors.
 		panic("Received an Attr call with a temp file active.")
 
 		fi, err := f.tempFile.Stat()
@@ -130,6 +132,36 @@ func (f *file) Attr() fuse.Attr {
 		Mode: 0700,
 		Size: size,
 	}
+}
+
+// LOCKS_EXCLUDED(f.mu)
+func (f *file) Getattr(
+	ctx context.Context,
+	req *fuse.GetattrRequest,
+	resp *fuse.GetattrResponse) (err error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	f.logger.Printf("Getattr: [%s]/%s", f.bucket.Name(), f.objectName)
+
+	// Find the current size.
+	size := f.remoteSize
+	if f.tempFile != nil {
+		var fi os.FileInfo
+		if fi, err = f.tempFile.Stat(); err != nil {
+			err = fmt.Errorf("tempFile.Stat: %v", err)
+			return
+		}
+
+		size = uint64(fi.Size())
+	}
+
+	resp.Attr = fuse.Attr{
+		Mode: 0700,
+		Size: size,
+	}
+
+	return
 }
 
 // If the file contents have not yet been fetched to a temporary file, fetch
