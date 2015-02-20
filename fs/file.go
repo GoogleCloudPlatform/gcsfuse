@@ -4,6 +4,7 @@
 package fs
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -158,4 +159,14 @@ func (f *file) Read(
 	}
 
 	return err
+}
+
+// Ensure that the local temporary file is initialized, then write to it.
+//
+// LOCKS_EXCLUDED(f.mu)
+func (f *file) Write(
+	ctx context.Context,
+	req *fuse.WriteRequest,
+	resp *fuse.WriteResponse) error {
+	return errors.New("TODO(jacobsa): Implement file.Write.")
 }
