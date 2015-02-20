@@ -110,6 +110,12 @@ func (f *file) Attr() fuse.Attr {
 	// Find the current size.
 	size := f.remoteSize
 	if f.tempFile != nil {
+		// See if the scenario in the TODO below can ever even come to pass. If
+		// this triggers for Getattr in particular, try implementing that, since it
+		// allows returning an error. If it triggers elsewhere, file a bug with the
+		// fuse package to see what we're intended to do with errors.
+		panic("Received an Attr call with a temp file active.")
+
 		fi, err := f.tempFile.Stat()
 		if err != nil {
 			// TODO(jacobsa): What do we do about this? The fuse package gives us no
