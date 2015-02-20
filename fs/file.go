@@ -36,12 +36,13 @@ type file struct {
 
 // Make sure file implements the interfaces we think it does.
 var (
+	_ fusefs.Node = &file{}
+
 	_ fusefs.Handle         = &file{}
 	_ fusefs.HandleFlusher  = &file{}
 	_ fusefs.HandleReader   = &file{}
 	_ fusefs.HandleReleaser = &file{}
 	_ fusefs.HandleWriter   = &file{}
-	_ fusefs.Node           = &file{}
 )
 
 func newFile(
