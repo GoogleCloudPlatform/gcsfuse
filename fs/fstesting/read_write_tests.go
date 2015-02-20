@@ -169,3 +169,19 @@ func (t *readWriteTest) StatUnopenedFile() {
 func (t *readWriteTest) LstatUnopenedFile() {
 	AssertTrue(false, "TODO")
 }
+
+func (t *readWriteTest) ListingsAreCached() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) AdditionsAreCached() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) RemovalsAreCached() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) BufferedWritesFlushedOnUnmount() {
+	AssertTrue(false, "TODO")
+}
