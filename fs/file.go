@@ -4,6 +4,7 @@
 package fs
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -35,11 +36,12 @@ type file struct {
 
 // Make sure file implements the interfaces we think it does.
 var (
-	_ fusefs.Node           = &file{}
 	_ fusefs.Handle         = &file{}
+	_ fusefs.HandleFlusher  = &file{}
 	_ fusefs.HandleReader   = &file{}
 	_ fusefs.HandleReleaser = &file{}
 	_ fusefs.HandleWriter   = &file{}
+	_ fusefs.Node           = &file{}
 )
 
 func newFile(
@@ -174,5 +176,15 @@ func (f *file) Write(
 
 	// Write to the temp file.
 	resp.Size, err = f.tempFile.WriteAt(req.Data, req.Offset)
+	return
+}
+
+// Put the temporary file back in the bucket if it's dirty.
+//
+// LOCKS_EXCLUDED(f.mu)
+func (f *file) Flush(
+	ctx context.Context,
+	req *fuse.FlushRequest) (err error) {
+	err = errors.New("TODO(jacobsa): file.Flush.")
 	return
 }
