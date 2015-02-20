@@ -107,12 +107,23 @@ func (f *file) Attr() fuse.Attr {
 
 	f.logger.Printf("Attr: [%s]/%s", f.bucket.Name(), f.objectName)
 
+	// Find the current size.
+	size := f.remoteSize
+	if f.tempFile != nil {
+		fi, err := f.tempFile.Stat()
+		if err != nil {
+			// TODO(jacobsa): What do we do about this? The fuse package gives us no
+			// opportunity for returning an error here.
+			panic("tempFile.Stat: " + err.Error())
+		}
+
+		size = uint64(fi.Size())
+	}
+
 	return fuse.Attr{
 		// TODO(jacobsa): Expose ACLs from GCS?
 		Mode: 0400,
-		// TODO(jacobsa): Catch the bug here (that this may be wrong when
-		// f.tempFile != nil) with a test, then fix it.
-		Size: f.remoteSize,
+		Size: size,
 	}
 }
 
@@ -166,12 +177,12 @@ func (f *file) ensureTempFile(ctx context.Context) error {
 // 2. When we do throw out the temp file (probably when the inode is being
 // forgotten?, we need to write it back if it's dirty.
 //
-// 3. Ditto with updating remoteSize.
-//
 // Add tests for all of these bugs before fixing them.
 //
 // LOCKS_EXCLUDED(f.mu)
-func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
+func (f *file) Release(
+	ctx context.Context,
+	req *fuse.ReleaseRequest) (err error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -182,19 +193,29 @@ func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 		return nil
 	}
 
+	// Stat it, for use below.
+	fileInfo, err := f.tempFile.Stat()
+	if err != nil {
+		err = fmt.Errorf("Statting temp file: %v", err)
+		return
+	}
+
 	// Close it, after grabbing its path.
 	path := f.tempFile.Name()
 	if err := f.tempFile.Close(); err != nil {
+		// TODO(jacobsa): Don't eat this error.
 		f.logger.Println("Error closing temp file:", err)
 	}
 
 	// Attempt to delete it.
 	if err := os.Remove(path); err != nil {
+		// TODO(jacobsa): Don't eat this error.
 		f.logger.Println("Error deleting temp file:", err)
 	}
 
 	f.tempFile = nil
 	f.tempFileDirty = false
+	f.remoteSize = uint64(fileInfo.Size())
 
 	return nil
 }
