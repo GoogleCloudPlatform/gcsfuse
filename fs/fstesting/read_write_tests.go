@@ -52,7 +52,21 @@ func (t *readWriteTest) OpenExistingFile_ReadOnly() {
 			[]byte(contents),
 			os.FileMode(0644)))
 
-	AssertTrue(false, "TODO")
+	// Open the file for reading.
+	f, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	defer func() {
+		ExpectEq(nil, f.Close())
+	}()
+
+	// Check its name.
+	ExpectEq(path.Join(t.mfs.Dir(), "foo"), f.Name())
+
+	// Read its contents.
+	fileContents, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	ExpectEq(contents, string(fileContents))
 }
 
 func (t *readWriteTest) OpenExistingFile_WriteOnly() {
@@ -72,6 +86,18 @@ func (t *readWriteTest) TruncateExistingFile_WriteOnly() {
 }
 
 func (t *readWriteTest) TruncateExistingFile_ReadWrite() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) OpenAlreadyOpenedFile_ReadOnly() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) OpenAlreadyOpenedFile_WriteOnly() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) OpenAlreadyOpenedFile_ReadWrite() {
 	AssertTrue(false, "TODO")
 }
 
@@ -108,5 +134,13 @@ func (t *readWriteTest) OpenWithinSubDirectory() {
 }
 
 func (t *readWriteTest) TruncateWithinSubDirectory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) ReadFromWriteOnlyFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) WriteToReadOnlyFile() {
 	AssertTrue(false, "TODO")
 }
