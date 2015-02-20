@@ -17,6 +17,7 @@ import (
 	"path"
 	"time"
 
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -76,6 +77,13 @@ func (t *readWriteTest) OpenExistingFile_ReadOnly() {
 	fileContents, err := ioutil.ReadAll(f)
 	AssertEq(nil, err)
 	ExpectEq(contents, string(fileContents))
+
+	// Attempt to write.
+	n, err := f.Write([]byte("taco"))
+
+	AssertEq(0, n)
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 }
 
 func (t *readWriteTest) OpenExistingFile_WriteOnly() {
