@@ -202,15 +202,15 @@ func (f *file) Release(
 
 	// Close it, after grabbing its path.
 	path := f.tempFile.Name()
-	if err := f.tempFile.Close(); err != nil {
-		// TODO(jacobsa): Don't eat this error.
-		f.logger.Println("Error closing temp file:", err)
+	if err = f.tempFile.Close(); err != nil {
+		err = fmt.Errorf("Closing temp file: %v", err)
+		return
 	}
 
 	// Attempt to delete it.
-	if err := os.Remove(path); err != nil {
-		// TODO(jacobsa): Don't eat this error.
-		f.logger.Println("Error deleting temp file:", err)
+	if err = os.Remove(path); err != nil {
+		err = fmt.Errorf("Deleting temp file: %v", err)
+		return
 	}
 
 	f.tempFile = nil
