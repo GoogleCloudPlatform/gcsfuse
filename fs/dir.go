@@ -290,6 +290,18 @@ func (d *dir) ensureContents(ctx context.Context) error {
 	d.contents = make(map[string]fusefs.Node)
 
 	for _, o := range objects {
+		// Special case: the GCS storage browser's "New folder" button causes an
+		// object with a trailing slash to be created. For example, if you make a
+		// folder called "bar" within a folder called "foo", that creates an object
+		// called "foo/bar/". (It seems like the redundant ones may be removed
+		// eventually, but that's not relevant.)
+		//
+		// When we list the directory "foo/", we don't want to return the object
+		// named "foo/" as if it were a file within the directory. So skip it.
+		if o.Name == d.objectPrefix {
+			continue
+		}
+
 		d.contents[path.Base(o.Name)] =
 			newFile(
 				d.logger,
