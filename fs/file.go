@@ -105,6 +105,8 @@ func (f *file) Attr() fuse.Attr {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
+	f.logger.Printf("Attr: [%s]/%s", f.bucket.Name(), f.objectName)
+
 	return fuse.Attr{
 		// TODO(jacobsa): Expose ACLs from GCS?
 		Mode: 0400,
@@ -173,6 +175,8 @@ func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
+	f.logger.Printf("Release: [%s]/%s", f.bucket.Name(), f.objectName)
+
 	// Is there a file to close?
 	if f.tempFile == nil {
 		return nil
@@ -205,6 +209,8 @@ func (f *file) Read(
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
+	f.logger.Printf("Read: [%s]/%s", f.bucket.Name(), f.objectName)
+
 	// Ensure the temp file is present.
 	if err := f.ensureTempFile(ctx); err != nil {
 		return err
@@ -234,6 +240,8 @@ func (f *file) Write(
 	resp *fuse.WriteResponse) (err error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
+	f.logger.Printf("Write: [%s]/%s", f.bucket.Name(), f.objectName)
 
 	// Ensure the temp file is present. If it's not, grab the current contents
 	// from GCS.
@@ -278,6 +286,8 @@ func (f *file) Flush(
 	req *fuse.FlushRequest) (err error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
+	f.logger.Printf("Flush: [%s]/%s", f.bucket.Name(), f.objectName)
 
 	// Is there anything interesting for us to do?
 	if !f.tempFileDirty {
