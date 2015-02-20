@@ -405,5 +405,28 @@ func (d *dir) Create(
 func (d *dir) Mknod(
 	ctx context.Context,
 	req *fuse.MknodRequest) (fusefs.Node, error) {
+	// The kernel appears to do the appropriate locking and querying to ensure
+	// that vfs_mknod is called only when a child with the given name doesn't exist.
+	//
+	// For example, here are some relative bits from the implementation of the
+	// mknodat system call:
+	//
+	//  *  http://goo.gl/QZecHk: mknodat calls user_path_create and later
+	//     done_path_create. The former acquires an inode mutex via
+	//     filename_create, and the latter releases it.
+	//
+	//  *  http://goo.gl/rbhFg4: filename_create calls lookup_hash and returns an
+	//     error if it returns a positive dentry.
+	//
+	//  *  http://goo.gl/7Ea9D9: lookup_hash eventually calls lookup_real, which
+	//     calls the inode's lookup method.
+	//
+	// So this process recently certified the child doesn't already exist. It's
+	// possible some other process has created it in the meantime, but we don't
+	// guarantee we won't clobber its writes.
+	//
+	// Therefore, create an empty object.
+	panic("TODO")
+
 	return nil, errors.New("TODO(jacobsa): Support Mknod.")
 }
