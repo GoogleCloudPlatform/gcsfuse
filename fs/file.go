@@ -233,6 +233,11 @@ func (f *file) Write(
 func (f *file) Flush(
 	ctx context.Context,
 	req *fuse.FlushRequest) (err error) {
+	// Is there anything interesting for us to do?
+	if !f.tempFileDirty {
+		return
+	}
+
 	err = errors.New("TODO(jacobsa): file.Flush.")
 	return
 }
