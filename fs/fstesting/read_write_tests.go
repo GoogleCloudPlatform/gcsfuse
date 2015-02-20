@@ -124,22 +124,32 @@ func (t *readWriteTest) OpenExistingFile_WriteOnly() {
 	_, err = ioutil.ReadAll(f)
 
 	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("TODO")))
+	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 
 	// Write to the start of the file using File.Write.
-	AssertTrue(false, "TODO")
+	_, err = f.Write([]byte("000"))
+	AssertEq(nil, err)
 
 	// Write to the middle of the file using File.WriteAt.
-	AssertTrue(false, "TODO")
+	_, err = f.WriteAt([]byte("111"), 4)
+	AssertEq(nil, err)
 
 	// Seek and write past the end of the file.
-	AssertTrue(false, "TODO")
+	_, err = f.Seek(int64(len(contents)), 0)
+	AssertEq(nil, err)
+
+	_, err = f.Write([]byte("222"))
+	AssertEq(nil, err)
 
 	// Close the file.
-	AssertTrue(false, "TODO")
+	AssertEq(nil, f.Close())
+	f = nil
 
 	// Read back its contents.
-	AssertTrue(false, "TODO")
+	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertEq(nil, err)
+	ExpectEq("000o111ritoenchilada222", string(fileContents))
 }
 
 func (t *readWriteTest) OpenExistingFile_ReadWrite() {
