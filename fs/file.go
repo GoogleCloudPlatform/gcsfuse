@@ -249,6 +249,22 @@ func (f *file) Write(
 
 // Put the temporary file back in the bucket if it's dirty.
 //
+// TODO(jacobsa): This probably isn't the write place to do this. ext2 doesn't
+// appear to do anything at all for i_op->flush, for example, and the fuse
+// documentation pretty much says as much (http://goo.gl/KkBJM3 "Filesystems
+// shouldn't assume that flush will always be called after some writes, or that
+// if will be called at all"). Instead:
+//
+//  1. We should definitely do it on fsync, because the user asked.
+//  2. We should definitely do it when the kernel is forgetting the inode,
+//     because we won't get another chance.
+//  3. Maybe we should do it after some timeout after the file is closed (the
+//     file handle is released).
+//
+// Avoid doing #3 for now, because the kernel may already forget the inode
+// after some timeout after it is unused, to avoid data loss due to power loss.
+// Do #3 only if it becomes clear that #2 is not sufficient for real users.
+//
 // LOCKS_EXCLUDED(f.mu)
 func (f *file) Flush(
 	ctx context.Context,
