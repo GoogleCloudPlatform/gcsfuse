@@ -90,7 +90,15 @@ func newFile(
 	return f
 }
 
-func (f *file) checkInvariants()
+func (f *file) checkInvariants() {
+	if f.tempFileDirty && f.tempFile == nil {
+		panic("Expected !tempFileDirty when tempFile == nil.")
+	}
+
+	if f.tempFile != nil && f.remoteSize != 0 {
+		panic("Expected remoteSize == 0 when tempFile != nil.")
+	}
+}
 
 func (f *file) Attr() fuse.Attr {
 	return fuse.Attr{
