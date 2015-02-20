@@ -4,7 +4,6 @@
 package fs
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -162,6 +161,18 @@ func (f *file) Read(
 func (f *file) Write(
 	ctx context.Context,
 	req *fuse.WriteRequest,
-	resp *fuse.WriteResponse) error {
-	return errors.New("TODO(jacobsa): Implement file.Write.")
+	resp *fuse.WriteResponse) (err error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	// Ensure the temp file is present. If it's not, grab the current contents
+	// from GCS.
+	if err = f.ensureTempFile(ctx); err != nil {
+		err = fmt.Errorf("ensureTempFile: %v", err)
+		return
+	}
+
+	// Write to the temp file.
+	resp.Size, err = f.tempFile.WriteAt(req.Data, req.Offset)
+	return
 }
