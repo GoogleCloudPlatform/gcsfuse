@@ -153,3 +153,11 @@ func (t *readWriteTest) ReadFromWriteOnlyFile() {
 func (t *readWriteTest) WriteToReadOnlyFile() {
 	AssertTrue(false, "TODO")
 }
+
+func (t *readWriteTest) StatUnopenedFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) LstatUnopenedFile() {
+	AssertTrue(false, "TODO")
+}
