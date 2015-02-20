@@ -67,11 +67,8 @@ func (f *file) Attr() fuse.Attr {
 // If the file contents have not yet been fetched to a temporary file, fetch
 // them.
 //
-// LOCKS_EXCLUDED(f.mu)
+// EXCLUSIVE_LOCKS_REQUIRED(f.mu)
 func (f *file) ensureTempFile(ctx context.Context) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
 	// Do we already have a file?
 	if f.tempFile != nil {
 		return nil
@@ -136,15 +133,13 @@ func (f *file) Read(
 	ctx context.Context,
 	req *fuse.ReadRequest,
 	resp *fuse.ReadResponse) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	// Ensure the temp file is present.
 	if err := f.ensureTempFile(ctx); err != nil {
 		return err
 	}
-
-	// Lock to read the temp file. If it went away in the meantime, that means
-	// the kernel (erroneously) released us while reading from us.
-	f.mu.RLock()
-	defer f.mu.RUnlock()
 
 	// Allocate a response buffer.
 	resp.Data = make([]byte, req.Size)
