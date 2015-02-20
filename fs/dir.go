@@ -405,11 +405,15 @@ func (d *dir) Create(
 	return nil, nil, fuse.ENOSYS
 }
 
+// LOCKS_EXCLUDED(d.mu)
 func (d *dir) Mknod(
 	ctx context.Context,
 	req *fuse.MknodRequest) (node fusefs.Node, err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	objectName := path.Join(d.objectPrefix, req.Name)
-	d.logger.Printf("Mknode: [%s]/%s", d.bucket.Name(), objectName)
+	d.logger.Printf("Mknod: [%s]/%s", d.bucket.Name(), objectName)
 
 	// The kernel appears to do the appropriate locking and querying to ensure
 	// that vfs_mknod is called only when a child with the given name doesn't exist.
