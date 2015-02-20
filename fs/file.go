@@ -100,7 +100,11 @@ func (f *file) checkInvariants() {
 	}
 }
 
+// LOCKS_EXCLUDED(f.mu)
 func (f *file) Attr() fuse.Attr {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
 	return fuse.Attr{
 		// TODO(jacobsa): Expose ACLs from GCS?
 		Mode: 0400,
