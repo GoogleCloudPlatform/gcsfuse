@@ -5,7 +5,6 @@ package fs
 
 import (
 	"container/list"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -404,7 +403,9 @@ func (d *dir) Create(
 
 func (d *dir) Mknod(
 	ctx context.Context,
-	req *fuse.MknodRequest) (fusefs.Node, error) {
+	req *fuse.MknodRequest) (node fusefs.Node, err error) {
+	objectName := path.Join(d.objectPrefix, req.Name)
+
 	// The kernel appears to do the appropriate locking and querying to ensure
 	// that vfs_mknod is called only when a child with the given name doesn't exist.
 	//
@@ -426,7 +427,30 @@ func (d *dir) Mknod(
 	// guarantee we won't clobber its writes.
 	//
 	// Therefore, create an empty object.
-	panic("TODO")
+	o, err := gcsutil.CreateObject(
+		ctx,
+		d.bucket,
+		&storage.ObjectAttrs{
+			Name: objectName,
+		},
+		"")
 
-	return nil, errors.New("TODO(jacobsa): Support Mknod.")
+	if err != nil {
+		err = fmt.Errorf("gcsutil.CreateObject: %v", err)
+		return
+	}
+
+	// Set up a file node.
+	node = newFile(
+		d.logger,
+		d.bucket,
+		objectName,
+		uint64(o.Size))
+
+	// Store it in our contents map.
+	//
+	// TODO(jacobsa): Also add to d.childModifications.
+	d.contents[path.Base(objectName)] = node
+
+	return
 }
