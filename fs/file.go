@@ -10,9 +10,9 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"sync"
 
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
 
 	"bazil.org/fuse"
@@ -25,13 +25,41 @@ import (
 // TODO(jacobsa): After becoming comfortable with the representation of dir and
 // its concurrency protection, audit this file and make sure it is up to par.
 type file struct {
-	logger     *log.Logger
-	bucket     gcs.Bucket
-	objectName string
-	size       uint64
+	/////////////////////////
+	// Dependencies
+	/////////////////////////
 
-	mu       sync.RWMutex
+	logger *log.Logger
+	bucket gcs.Bucket
+
+	/////////////////////////
+	// Constant data
+	/////////////////////////
+
+	objectName string
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
+	mu syncutil.InvariantMutex
+
+	// A local temporary file containing the current contents of the logical
+	// file. Lazily created. When non-ni, this is authoritative.
 	tempFile *os.File // GUARDED_BY(mu)
+
+	// Set to true when we need to flush tempFile to GCS before allowing the user
+	// to successfully close the file. false implies that the GCS object is up to
+	// date (or has been modified only by a foreign machine).
+	//
+	// INVARIANT: If true, then tempFile != nil
+	tempFileDirty bool // GUARDED_BY(mu)
+
+	// When tempFile == nil, the current size of the object named objectName on
+	// GCS, as far as we are aware.
+	//
+	// INVARIANT: If tempFile != nil, then remoteSize == 0
+	remoteSize uint64 // GUARDED_BY(mu)
 }
 
 // Make sure file implements the interfaces we think it does.
@@ -49,20 +77,28 @@ func newFile(
 	logger *log.Logger,
 	bucket gcs.Bucket,
 	objectName string,
-	size uint64) *file {
-	return &file{
+	remoteSize uint64) *file {
+	f := &file{
 		logger:     logger,
 		bucket:     bucket,
 		objectName: objectName,
-		size:       size,
+		remoteSize: remoteSize,
 	}
+
+	f.mu = syncutil.NewInvariantMutex(func() { f.checkInvariants() })
+
+	return f
 }
+
+func (f *file) checkInvariants()
 
 func (f *file) Attr() fuse.Attr {
 	return fuse.Attr{
 		// TODO(jacobsa): Expose ACLs from GCS?
 		Mode: 0400,
-		Size: f.size,
+		// TODO(jacobsa): Catch the bug here (that this may be wrong when
+		// f.tempFile != nil) with a test, then fix it.
+		Size: f.remoteSize,
 	}
 }
 
