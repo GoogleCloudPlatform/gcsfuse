@@ -333,9 +333,7 @@ func (d *dir) Attr() fuse.Attr {
 	d.logger.Printf("Attr: [%s]/%s", d.bucket.Name(), d.objectPrefix)
 
 	return fuse.Attr{
-		// TODO(jacobsa): Reflect that we allow writes now. Make sure to test.
-		// TODO(jacobsa): Expose ACLs from GCS?
-		Mode: os.ModeDir | 0500,
+		Mode: os.ModeDir | 0700,
 	}
 }
 

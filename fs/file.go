@@ -127,8 +127,7 @@ func (f *file) Attr() fuse.Attr {
 	}
 
 	return fuse.Attr{
-		// TODO(jacobsa): Expose ACLs from GCS?
-		Mode: 0400,
+		Mode: 0700,
 		Size: size,
 	}
 }

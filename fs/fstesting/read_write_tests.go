@@ -68,7 +68,7 @@ func (t *readWriteTest) OpenExistingFile_ReadOnly() {
 	fi, err := f.Stat()
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len(contents), fi.Size())
-	ExpectEq(os.FileMode(0644), fi.Mode())
+	ExpectEq(os.FileMode(0), fi.Mode() & ^os.ModePerm)
 	ExpectLt(math.Abs(time.Since(fi.ModTime()).Seconds()), 10)
 	ExpectFalse(fi.IsDir())
 
