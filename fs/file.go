@@ -142,6 +142,9 @@ func (f *file) ensureTempFile(ctx context.Context) error {
 	// Save the file for later.
 	f.tempFile = tempFile
 
+	// remoteSize is no longer authoritative.
+	f.remoteSize = 0
+
 	return nil
 }
 
