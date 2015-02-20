@@ -4,7 +4,6 @@
 package fs
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,6 +13,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
+	"google.golang.org/cloud/storage"
 
 	"bazil.org/fuse"
 	fusefs "bazil.org/fuse/fs"
@@ -150,6 +150,20 @@ func (f *file) ensureTempFile(ctx context.Context) error {
 
 // Throw away the local temporary file, if any.
 //
+// TODO(jacobsa): There are a few bugs here.
+//
+// 1. This is called when a file descriptor is closed (actually the last clone
+// of a file descriptor? -- test this), not when the last file descriptor
+// referring to an inode is closed. We don't want to throw away the temp file
+// just yet. Add tests for this.
+//
+// 2. When we do throw out the temp file (probably when the inode is being
+// forgotten?, we need to write it back if it's dirty.
+//
+// 3. Ditto with updating remoteSize.
+//
+// Add tests for all of these bugs before fixing them.
+//
 // LOCKS_EXCLUDED(f.mu)
 func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 	f.mu.Lock()
@@ -239,11 +253,33 @@ func (f *file) Write(
 func (f *file) Flush(
 	ctx context.Context,
 	req *fuse.FlushRequest) (err error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	// Is there anything interesting for us to do?
 	if !f.tempFileDirty {
 		return
 	}
 
-	err = errors.New("TODO(jacobsa): file.Flush.")
+	// Flush the temp file to GCS.
+	createReq := &gcs.CreateObjectRequest{
+		Attrs: storage.ObjectAttrs{
+			Name: f.objectName,
+		},
+		Contents: f.tempFile,
+	}
+
+	if _, err = f.bucket.CreateObject(ctx, createReq); err != nil {
+		err = fmt.Errorf("bucket.CreateObject: %v", err)
+		return
+	}
+
+	// We are no longer dirty.
+	//
+	// TODO(jacobsa): Add a test for this. Cause a flush to happen, then
+	// overwrite object contents out of band, then make sure they don't restore
+	// next time flush happens.
+	f.tempFileDirty = false
+
 	return
 }
