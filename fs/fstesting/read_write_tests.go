@@ -66,7 +66,7 @@ func (t *readWriteTest) OpenExistingFile_ReadOnly() {
 	ExpectEq(path.Join(t.mfs.Dir(), "foo"), f.Name())
 
 	fi, err := f.Stat()
-	ExpectEq(path.Join(t.mfs.Dir(), "foo"), fi.Name())
+	ExpectEq("foo", fi.Name())
 	ExpectEq(len(contents), fi.Size())
 	ExpectEq(os.FileMode(0644), fi.Mode())
 	ExpectLt(math.Abs(time.Since(fi.ModTime()).Seconds()), 10)
