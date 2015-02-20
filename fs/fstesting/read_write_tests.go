@@ -143,7 +143,9 @@ func (t *readWriteTest) OpenExistingFile_WriteOnly() {
 	AssertEq(nil, err)
 
 	// Check the size now.
-	AssertTrue(false, "TODO")
+	fi, err = f.Stat()
+	AssertEq(nil, err)
+	ExpectEq(len(contents)+len("222"), fi.Size())
 
 	// Close the file.
 	AssertEq(nil, f.Close())
@@ -202,7 +204,9 @@ func (t *readWriteTest) OpenExistingFile_ReadWrite() {
 	AssertEq(nil, err)
 
 	// Check the size now.
-	AssertTrue(false, "TODO")
+	fi, err = f.Stat()
+	AssertEq(nil, err)
+	ExpectEq(len(contents)+len("222"), fi.Size())
 
 	// Read some contents with Seek and Read.
 	_, err = f.Seek(4, 0)
