@@ -197,10 +197,16 @@ func (t *readOnlyTest) readDirUntil(
 		// If this is taking awhile, log that fact so that the user can tell why
 		// the test is hanging.
 		if time.Since(startTime) > time.Second {
+			var names []string
+			for _, fi := range entries {
+				names = append(names, fi.Name())
+			}
+
 			log.Printf(
-				"readDirUntil waiting for length %v. Current: %v",
+				"readDirUntil waiting for length %v. Current: %v, names: %v",
 				desiredLen,
-				len(entries))
+				len(entries),
+				names)
 		}
 	}
 
