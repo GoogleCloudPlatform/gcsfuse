@@ -172,6 +172,8 @@ func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 	}
 
 	f.tempFile = nil
+	f.tempFileDirty = false
+
 	return nil
 }
 
@@ -222,8 +224,12 @@ func (f *file) Write(
 		return
 	}
 
+	// Mark us dirty.
+	f.tempFileDirty = true
+
 	// Write to the temp file.
 	resp.Size, err = f.tempFile.WriteAt(req.Data, req.Offset)
+
 	return
 }
 
