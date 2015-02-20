@@ -142,6 +142,9 @@ func (t *readWriteTest) OpenExistingFile_WriteOnly() {
 	_, err = f.Write([]byte("222"))
 	AssertEq(nil, err)
 
+	// Check the size now.
+	AssertTrue(false, "TODO")
+
 	// Close the file.
 	AssertEq(nil, f.Close())
 	f = nil
@@ -198,6 +201,9 @@ func (t *readWriteTest) OpenExistingFile_ReadWrite() {
 	_, err = f.Write([]byte("222"))
 	AssertEq(nil, err)
 
+	// Check the size now.
+	AssertTrue(false, "TODO")
+
 	// Read some contents with Seek and Read.
 	_, err = f.Seek(4, 0)
 	AssertEq(nil, err)
@@ -227,7 +233,78 @@ func (t *readWriteTest) OpenExistingFile_ReadWrite() {
 }
 
 func (t *readWriteTest) OpenExistingFile_Append() {
-	AssertTrue(false, "TODO")
+	// Create a file.
+	const contents = "tacoburritoenchilada"
+	AssertEq(
+		nil,
+		ioutil.WriteFile(
+			path.Join(t.mfs.Dir(), "foo"),
+			[]byte(contents),
+			os.FileMode(0644)))
+
+	// Open the file for reading.
+	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR|os.O_APPEND, 0)
+	AssertEq(nil, err)
+
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	// Check its vitals.
+	ExpectEq(path.Join(t.mfs.Dir(), "foo"), f.Name())
+
+	fi, err := f.Stat()
+	ExpectEq("foo", fi.Name())
+	ExpectEq(len(contents), fi.Size())
+	ExpectEq(os.FileMode(0), fi.Mode() & ^os.ModePerm)
+	ExpectLt(math.Abs(time.Since(fi.ModTime()).Seconds()), 10)
+	ExpectFalse(fi.IsDir())
+
+	// Write using File.Write. This should go to the end of the file regardless
+	// of whether we Seek somewhere else first.
+	_, err = f.Seek(1, 0)
+	AssertEq(nil, err)
+
+	_, err = f.Write([]byte("222"))
+	AssertEq(nil, err)
+
+	// Write to the middle of the file using File.WriteAt.
+	_, err = f.WriteAt([]byte("111"), 4)
+	AssertEq(nil, err)
+
+	// Check the size now.
+	fi, err = f.Stat()
+	AssertEq(nil, err)
+	ExpectEq(len(contents)+len("222"), fi.Size())
+
+	// Read some contents with Seek and Read.
+	_, err = f.Seek(4, 0)
+	AssertEq(nil, err)
+
+	buf := make([]byte, 4)
+	_, err = io.ReadFull(f, buf)
+
+	AssertEq(nil, err)
+	ExpectEq("111r", string(buf))
+
+	// Read the full contents with ReadAt.
+	buf = make([]byte, len(contents)+len("222"))
+	_, err = f.ReadAt(buf, 0)
+
+	AssertEq(nil, err)
+	ExpectEq("taco111ritoenchilada222", string(buf))
+
+	// Close the file.
+	AssertEq(nil, f.Close())
+	f = nil
+
+	// Read back its contents after opening anew for reading.
+	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertEq(nil, err)
+	ExpectEq("taco111ritoenchilada222", string(fileContents))
 }
 
 func (t *readWriteTest) TruncateExistingFile_ReadOnly() {
