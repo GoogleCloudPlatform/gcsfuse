@@ -175,20 +175,42 @@ func (t *readOnlyTest) readDirUntil(
 	desiredLen int,
 	dir string) (entries []os.FileInfo, err error) {
 	startTime := time.Now()
-	for i := 1; ; i++ {
+	endTime := startTime.Add(5 * time.Second)
+
+	for i := 0; ; i++ {
 		entries, err = ioutil.ReadDir(dir)
 		if err != nil || len(entries) == desiredLen {
 			return
 		}
 
-		t.clock.AdvanceTime(2 * fs.DirListingCacheTTL)
+		t.clock.AdvanceTime(2 * fs.ListingCacheTTL)
 
-		// If this is taking a long time, log that fact so that the user can tell
-		// why the test is hanging.
-		if time.Since(startTime) > 5*time.Second {
-			log.Printf("readDirUntil waiting for length %v...", desiredLen)
+		// Should we stop?
+		if time.Now().After(endTime) {
+			break
+		}
+
+		// Sleep for awhile.
+		const baseDelay = 10 * time.Millisecond
+		time.Sleep(time.Duration(math.Pow(1.3, float64(i)) * float64(baseDelay)))
+
+		// If this is taking awhile, log that fact so that the user can tell why
+		// the test is hanging.
+		if time.Since(startTime) > time.Second {
+			var names []string
+			for _, fi := range entries {
+				names = append(names, fi.Name())
+			}
+
+			log.Printf(
+				"readDirUntil waiting for length %v. Current: %v, names: %v",
+				desiredLen,
+				len(entries),
+				names)
 		}
 	}
+
+	return
 }
 
 func (t *readOnlyTest) EmptyRoot() {
@@ -248,7 +270,7 @@ func (t *readOnlyTest) ContentsInRoot() {
 	e = entries[0]
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
-	ExpectEq(os.ModeDir|os.FileMode(0500), e.Mode())
+	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
 	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
 	ExpectTrue(e.IsDir())
 
@@ -256,7 +278,7 @@ func (t *readOnlyTest) ContentsInRoot() {
 	e = entries[1]
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
-	ExpectEq(os.FileMode(0400), e.Mode())
+	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
 	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
 	ExpectFalse(e.IsDir())
 
@@ -264,7 +286,7 @@ func (t *readOnlyTest) ContentsInRoot() {
 	e = entries[2]
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
-	ExpectEq(os.FileMode(0400), e.Mode())
+	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
 	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
 	ExpectFalse(e.IsDir())
 
@@ -272,7 +294,7 @@ func (t *readOnlyTest) ContentsInRoot() {
 	e = entries[3]
 	ExpectEq("qux", e.Name())
 	ExpectEq(0, e.Size())
-	ExpectEq(os.ModeDir|os.FileMode(0500), e.Mode())
+	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
 	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
 	ExpectTrue(e.IsDir())
 }
@@ -352,7 +374,7 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
 	e = entries[0]
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
-	ExpectEq(os.ModeDir|os.FileMode(0500), e.Mode())
+	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
 	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
 	ExpectTrue(e.IsDir())
 
@@ -360,7 +382,7 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
 	e = entries[1]
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
-	ExpectEq(os.FileMode(0400), e.Mode())
+	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
 	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
 	ExpectFalse(e.IsDir())
 
@@ -368,7 +390,7 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
 	e = entries[2]
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
-	ExpectEq(os.FileMode(0400), e.Mode())
+	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
 	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
 	ExpectFalse(e.IsDir())
 
@@ -376,7 +398,7 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
 	e = entries[3]
 	ExpectEq("qux", e.Name())
 	ExpectEq(0, e.Size())
-	ExpectEq(os.ModeDir|os.FileMode(0500), e.Mode())
+	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
 	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
 	ExpectTrue(e.IsDir())
 }
@@ -434,7 +456,7 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderNotPresent() {
 	e = entries[0]
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
-	ExpectEq(os.ModeDir|os.FileMode(0500), e.Mode())
+	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
 	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
 	ExpectTrue(e.IsDir())
 
@@ -442,7 +464,7 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderNotPresent() {
 	e = entries[1]
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
-	ExpectEq(os.FileMode(0400), e.Mode())
+	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
 	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
 	ExpectFalse(e.IsDir())
 
@@ -450,7 +472,7 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderNotPresent() {
 	e = entries[2]
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
-	ExpectEq(os.FileMode(0400), e.Mode())
+	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
 	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
 	ExpectFalse(e.IsDir())
 
@@ -458,7 +480,7 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderNotPresent() {
 	e = entries[3]
 	ExpectEq("qux", e.Name())
 	ExpectEq(0, e.Size())
-	ExpectEq(os.ModeDir|os.FileMode(0500), e.Mode())
+	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
 	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
 	ExpectTrue(e.IsDir())
 }
@@ -511,7 +533,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheStillValid() {
 	AssertEq(nil, t.createEmptyObjects([]string{"baz"}))
 
 	// Advance the clock to just before the cache expiry.
-	t.clock.AdvanceTime(fs.DirListingCacheTTL - time.Millisecond)
+	t.clock.AdvanceTime(fs.ListingCacheTTL - time.Millisecond)
 
 	// List again.
 	entries, err = t.readDirUntil(2, t.mfs.Dir())
@@ -544,7 +566,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheInvalidated() {
 	AssertEq(nil, t.createEmptyObjects([]string{"baz"}))
 
 	// Advance the clock to just after the cache expiry.
-	t.clock.AdvanceTime(fs.DirListingCacheTTL + time.Millisecond)
+	t.clock.AdvanceTime(fs.ListingCacheTTL + time.Millisecond)
 
 	// List again.
 	entries, err = t.readDirUntil(2, t.mfs.Dir())
