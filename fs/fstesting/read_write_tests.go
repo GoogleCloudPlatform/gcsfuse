@@ -89,7 +89,7 @@ func (t *openTest) ExistingFile() {
 			[]byte(contents),
 			os.FileMode(0644)))
 
-	// Open the file for reading.
+	// Open the file.
 	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0)
 	AssertEq(nil, err)
 
@@ -154,7 +154,7 @@ func (t *modesTest) ReadOnlyMode() {
 			[]byte(contents),
 			os.FileMode(0644)))
 
-	// Open the file for reading.
+	// Open the file.
 	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDONLY, 0)
 	AssertEq(nil, err)
 
@@ -293,7 +293,7 @@ func (t *modesTest) ReadWriteMode() {
 	AssertEq(nil, f.Close())
 	f = nil
 
-	// Read back its contents after opening anew for reading.
+	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertEq(nil, err)
@@ -370,7 +370,7 @@ func (t *modesTest) AppendMode_ReadWrite() {
 	AssertEq(nil, f.Close())
 	f = nil
 
-	// Read back its contents after opening anew for reading.
+	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertEq(nil, err)
