@@ -290,6 +290,9 @@ func (d *dir) ensureContents(ctx context.Context) error {
 	}
 
 	// Convert the listing into a contents map.
+	//
+	// TODO(jacobsa): Some facility for re-using the existing nodes that are
+	// already in the map if they are up to date (or updating them).
 	d.contents = make(map[string]fusefs.Node)
 
 	for _, o := range objects {
