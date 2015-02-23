@@ -13,10 +13,8 @@ package fstesting
 import (
 	"io"
 	"io/ioutil"
-	"math"
 	"os"
 	"path"
-	"time"
 
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -56,27 +54,10 @@ func (t *readWriteTest) OpenNonExistent_ReadOnly() {
 		}
 	}()
 
-	// Check its vitals.
-	ExpectEq(path.Join(t.mfs.Dir(), "foo"), f.Name())
-
-	fi, err := f.Stat()
-	ExpectEq("foo", fi.Name())
-	ExpectEq(0, fi.Size())
-	ExpectEq(os.FileMode(0), fi.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(fi.ModTime()).Seconds()), 10)
-	ExpectFalse(fi.IsDir())
-
 	// Read its contents.
 	fileContents, err := ioutil.ReadAll(f)
 	AssertEq(nil, err)
 	ExpectEq("", string(fileContents))
-
-	// Attempt to write.
-	n, err := f.Write([]byte("taco"))
-
-	AssertEq(0, n)
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 }
 
 func (t *readWriteTest) OpenNonExistent_WriteOnly() {
@@ -93,41 +74,9 @@ func (t *readWriteTest) OpenNonExistent_WriteOnly() {
 		}
 	}()
 
-	// Check its vitals.
-	ExpectEq(path.Join(t.mfs.Dir(), "foo"), f.Name())
-
-	fi, err := f.Stat()
-	ExpectEq("foo", fi.Name())
-	ExpectEq(0, fi.Size())
-	ExpectEq(os.FileMode(0), fi.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(fi.ModTime()).Seconds()), 10)
-	ExpectFalse(fi.IsDir())
-
-	// Reading should fail.
-	_, err = ioutil.ReadAll(f)
-
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
-
-	// Write to the start of the file using File.Write.
-	_, err = f.Write([]byte("000"))
+	// Write some contents.
+	_, err = f.Write([]byte("012"))
 	AssertEq(nil, err)
-
-	// Write to the middle of the file using File.WriteAt.
-	_, err = f.WriteAt([]byte("1"), 1)
-	AssertEq(nil, err)
-
-	// Seek and write past the end of the file.
-	_, err = f.Seek(3, 0)
-	AssertEq(nil, err)
-
-	_, err = f.Write([]byte("222"))
-	AssertEq(nil, err)
-
-	// Check the size now.
-	fi, err = f.Stat()
-	AssertEq(nil, err)
-	ExpectEq(len("010222"), fi.Size())
 
 	// Close the file.
 	AssertEq(nil, f.Close())
@@ -137,7 +86,7 @@ func (t *readWriteTest) OpenNonExistent_WriteOnly() {
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertEq(nil, err)
-	ExpectEq("010222", string(fileContents))
+	ExpectEq("012", string(fileContents))
 }
 
 func (t *readWriteTest) OpenNonExistent_ReadWrite() {
@@ -154,62 +103,29 @@ func (t *readWriteTest) OpenNonExistent_ReadWrite() {
 		}
 	}()
 
-	// Check its vitals.
-	ExpectEq(path.Join(t.mfs.Dir(), "foo"), f.Name())
-
-	fi, err := f.Stat()
-	ExpectEq("foo", fi.Name())
-	ExpectEq(0, fi.Size())
-	ExpectEq(os.FileMode(0), fi.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(fi.ModTime()).Seconds()), 10)
-	ExpectFalse(fi.IsDir())
-
-	// Write to the start of the file using File.Write.
-	_, err = f.Write([]byte("000"))
+	// Write some contents.
+	_, err = f.Write([]byte("012"))
 	AssertEq(nil, err)
-
-	// Write to the middle of the file using File.WriteAt.
-	_, err = f.WriteAt([]byte("1"), 1)
-	AssertEq(nil, err)
-
-	// Seek and write past the end of the file.
-	_, err = f.Seek(3, 0)
-	AssertEq(nil, err)
-
-	_, err = f.Write([]byte("222"))
-	AssertEq(nil, err)
-
-	// Check the size now.
-	fi, err = f.Stat()
-	AssertEq(nil, err)
-	ExpectEq(len("010222"), fi.Size())
 
 	// Read some contents with Seek and Read.
-	_, err = f.Seek(2, 0)
+	_, err = f.Seek(1, 0)
 	AssertEq(nil, err)
 
-	buf := make([]byte, 4)
+	buf := make([]byte, 2)
 	_, err = io.ReadFull(f, buf)
 
 	AssertEq(nil, err)
-	ExpectEq("0222", string(buf))
-
-	// Read the full contents with ReadAt.
-	buf = make([]byte, len("010222"))
-	_, err = f.ReadAt(buf, 0)
-
-	AssertEq(nil, err)
-	ExpectEq("010222", string(buf))
+	ExpectEq("12", string(buf))
 
 	// Close the file.
 	AssertEq(nil, f.Close())
 	f = nil
 
-	// Read back its contents after opening anew for reading.
+	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertEq(nil, err)
-	ExpectEq("010222", string(fileContents))
+	ExpectEq("012", string(fileContents))
 }
 
 func (t *readWriteTest) OpenNonExistent_Append() {
@@ -227,34 +143,17 @@ func (t *readWriteTest) OpenExistingFile_ReadOnly() {
 			os.FileMode(0644)))
 
 	// Open the file for reading.
-	f, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
+	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDONLY, 0)
 	AssertEq(nil, err)
 
 	defer func() {
 		ExpectEq(nil, f.Close())
 	}()
 
-	// Check its vitals.
-	ExpectEq(path.Join(t.mfs.Dir(), "foo"), f.Name())
-
-	fi, err := f.Stat()
-	ExpectEq("foo", fi.Name())
-	ExpectEq(len(contents), fi.Size())
-	ExpectEq(os.FileMode(0), fi.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(fi.ModTime()).Seconds()), 10)
-	ExpectFalse(fi.IsDir())
-
 	// Read its contents.
 	fileContents, err := ioutil.ReadAll(f)
 	AssertEq(nil, err)
 	ExpectEq(contents, string(fileContents))
-
-	// Attempt to write.
-	n, err := f.Write([]byte("taco"))
-
-	AssertEq(0, n)
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 }
 
 func (t *readWriteTest) OpenExistingFile_WriteOnly() {
@@ -277,41 +176,9 @@ func (t *readWriteTest) OpenExistingFile_WriteOnly() {
 		}
 	}()
 
-	// Check its vitals.
-	ExpectEq(path.Join(t.mfs.Dir(), "foo"), f.Name())
-
-	fi, err := f.Stat()
-	ExpectEq("foo", fi.Name())
-	ExpectEq(len(contents), fi.Size())
-	ExpectEq(os.FileMode(0), fi.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(fi.ModTime()).Seconds()), 10)
-	ExpectFalse(fi.IsDir())
-
-	// Reading should fail.
-	_, err = ioutil.ReadAll(f)
-
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
-
 	// Write to the start of the file using File.Write.
 	_, err = f.Write([]byte("000"))
 	AssertEq(nil, err)
-
-	// Write to the middle of the file using File.WriteAt.
-	_, err = f.WriteAt([]byte("111"), 4)
-	AssertEq(nil, err)
-
-	// Seek and write past the end of the file.
-	_, err = f.Seek(int64(len(contents)), 0)
-	AssertEq(nil, err)
-
-	_, err = f.Write([]byte("222"))
-	AssertEq(nil, err)
-
-	// Check the size now.
-	fi, err = f.Stat()
-	AssertEq(nil, err)
-	ExpectEq(len(contents)+len("222"), fi.Size())
 
 	// Close the file.
 	AssertEq(nil, f.Close())
@@ -321,7 +188,7 @@ func (t *readWriteTest) OpenExistingFile_WriteOnly() {
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertEq(nil, err)
-	ExpectEq("000o111ritoenchilada222", string(fileContents))
+	ExpectEq("000oburritoenchilada", string(fileContents))
 }
 
 func (t *readWriteTest) OpenExistingFile_ReadWrite() {
@@ -344,62 +211,29 @@ func (t *readWriteTest) OpenExistingFile_ReadWrite() {
 		}
 	}()
 
-	// Check its vitals.
-	ExpectEq(path.Join(t.mfs.Dir(), "foo"), f.Name())
-
-	fi, err := f.Stat()
-	ExpectEq("foo", fi.Name())
-	ExpectEq(len(contents), fi.Size())
-	ExpectEq(os.FileMode(0), fi.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(fi.ModTime()).Seconds()), 10)
-	ExpectFalse(fi.IsDir())
-
 	// Write to the start of the file using File.Write.
-	_, err = f.Write([]byte("000"))
+	_, err = f.Write([]byte("012"))
 	AssertEq(nil, err)
-
-	// Write to the middle of the file using File.WriteAt.
-	_, err = f.WriteAt([]byte("111"), 4)
-	AssertEq(nil, err)
-
-	// Seek and write past the end of the file.
-	_, err = f.Seek(int64(len(contents)), 0)
-	AssertEq(nil, err)
-
-	_, err = f.Write([]byte("222"))
-	AssertEq(nil, err)
-
-	// Check the size now.
-	fi, err = f.Stat()
-	AssertEq(nil, err)
-	ExpectEq(len(contents)+len("222"), fi.Size())
 
 	// Read some contents with Seek and Read.
-	_, err = f.Seek(4, 0)
+	_, err = f.Seek(2, 0)
 	AssertEq(nil, err)
 
 	buf := make([]byte, 4)
 	_, err = io.ReadFull(f, buf)
 
 	AssertEq(nil, err)
-	ExpectEq("111r", string(buf))
-
-	// Read the full contents with ReadAt.
-	buf = make([]byte, len(contents)+len("222"))
-	_, err = f.ReadAt(buf, 0)
-
-	AssertEq(nil, err)
-	ExpectEq("000o111ritoenchilada222", string(buf))
+	ExpectEq("2obu", string(buf))
 
 	// Close the file.
 	AssertEq(nil, f.Close())
 	f = nil
 
-	// Read back its contents after opening anew for reading.
+	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertEq(nil, err)
-	ExpectEq("000o111ritoenchilada222", string(fileContents))
+	ExpectEq("012oburritoenchilada", string(fileContents))
 }
 
 func (t *readWriteTest) OpenExistingFile_Append() {
@@ -412,7 +246,7 @@ func (t *readWriteTest) OpenExistingFile_Append() {
 			[]byte(contents),
 			os.FileMode(0644)))
 
-	// Open the file for reading.
+	// Open the file.
 	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR|os.O_APPEND, 0)
 	AssertEq(nil, err)
 
@@ -422,59 +256,33 @@ func (t *readWriteTest) OpenExistingFile_Append() {
 		}
 	}()
 
-	// Check its vitals.
-	ExpectEq(path.Join(t.mfs.Dir(), "foo"), f.Name())
-
-	fi, err := f.Stat()
-	ExpectEq("foo", fi.Name())
-	ExpectEq(len(contents), fi.Size())
-	ExpectEq(os.FileMode(0), fi.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(fi.ModTime()).Seconds()), 10)
-	ExpectFalse(fi.IsDir())
-
 	// Write using File.Write. This should go to the end of the file regardless
 	// of whether we Seek somewhere else first.
 	_, err = f.Seek(1, 0)
 	AssertEq(nil, err)
 
-	_, err = f.Write([]byte("222"))
+	_, err = f.Write([]byte("012"))
 	AssertEq(nil, err)
-
-	// Write to the middle of the file using File.WriteAt.
-	_, err = f.WriteAt([]byte("111"), 4)
-	AssertEq(nil, err)
-
-	// Check the size now.
-	fi, err = f.Stat()
-	AssertEq(nil, err)
-	ExpectEq(len(contents)+len("222"), fi.Size())
 
 	// Read some contents with Seek and Read.
-	_, err = f.Seek(4, 0)
+	_, err = f.Seek(int64(len(contents)-1), 0)
 	AssertEq(nil, err)
 
 	buf := make([]byte, 4)
 	_, err = io.ReadFull(f, buf)
 
 	AssertEq(nil, err)
-	ExpectEq("111r", string(buf))
-
-	// Read the full contents with ReadAt.
-	buf = make([]byte, len(contents)+len("222"))
-	_, err = f.ReadAt(buf, 0)
-
-	AssertEq(nil, err)
-	ExpectEq("taco111ritoenchilada222", string(buf))
+	ExpectEq("a012", string(buf))
 
 	// Close the file.
 	AssertEq(nil, f.Close())
 	f = nil
 
-	// Read back its contents after opening anew for reading.
+	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertEq(nil, err)
-	ExpectEq("taco111ritoenchilada222", string(fileContents))
+	ExpectEq("tacoburritoenchilada012", string(fileContents))
 }
 
 func (t *readWriteTest) TruncateExistingFile_ReadOnly() {
