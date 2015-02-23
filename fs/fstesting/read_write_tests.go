@@ -40,56 +40,7 @@ func (t *openTest) NonExistent_CreateFlagNotSet() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
-func (t *openTest) NonExistent_ReadOnly() {
-	// Open the file.
-	f, err := os.OpenFile(
-		path.Join(t.mfs.Dir(), "foo"),
-		os.O_RDONLY|os.O_CREATE,
-		0700)
-
-	AssertEq(nil, err)
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
-
-	// Read its contents.
-	fileContents, err := ioutil.ReadAll(f)
-	AssertEq(nil, err)
-	ExpectEq("", string(fileContents))
-}
-
-func (t *openTest) NonExistent_WriteOnly() {
-	// Open the file.
-	f, err := os.OpenFile(
-		path.Join(t.mfs.Dir(), "foo"),
-		os.O_WRONLY|os.O_CREATE,
-		0700)
-
-	AssertEq(nil, err)
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
-
-	// Write some contents.
-	_, err = f.Write([]byte("012"))
-	AssertEq(nil, err)
-
-	// Close the file.
-	AssertEq(nil, f.Close())
-	f = nil
-
-	// Read back its contents.
-	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
-
-	AssertEq(nil, err)
-	ExpectEq("012", string(fileContents))
-}
-
-func (t *openTest) NonExistent_ReadWrite() {
+func (t *openTest) NonExistent_CreateFlagSet() {
 	// Open the file.
 	f, err := os.OpenFile(
 		path.Join(t.mfs.Dir(), "foo"),
@@ -128,70 +79,7 @@ func (t *openTest) NonExistent_ReadWrite() {
 	ExpectEq("012", string(fileContents))
 }
 
-func (t *openTest) NonExistent_Append() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *openTest) ExistingFile_ReadOnly() {
-	// Create a file.
-	const contents = "tacoburritoenchilada"
-	AssertEq(
-		nil,
-		ioutil.WriteFile(
-			path.Join(t.mfs.Dir(), "foo"),
-			[]byte(contents),
-			os.FileMode(0644)))
-
-	// Open the file for reading.
-	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDONLY, 0)
-	AssertEq(nil, err)
-
-	defer func() {
-		ExpectEq(nil, f.Close())
-	}()
-
-	// Read its contents.
-	fileContents, err := ioutil.ReadAll(f)
-	AssertEq(nil, err)
-	ExpectEq(contents, string(fileContents))
-}
-
-func (t *openTest) ExistingFile_WriteOnly() {
-	// Create a file.
-	const contents = "tacoburritoenchilada"
-	AssertEq(
-		nil,
-		ioutil.WriteFile(
-			path.Join(t.mfs.Dir(), "foo"),
-			[]byte(contents),
-			os.FileMode(0644)))
-
-	// Open the file.
-	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_WRONLY, 0)
-	AssertEq(nil, err)
-
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
-
-	// Write to the start of the file using File.Write.
-	_, err = f.Write([]byte("000"))
-	AssertEq(nil, err)
-
-	// Close the file.
-	AssertEq(nil, f.Close())
-	f = nil
-
-	// Read back its contents.
-	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
-
-	AssertEq(nil, err)
-	ExpectEq("000oburritoenchilada", string(fileContents))
-}
-
-func (t *openTest) ExistingFile_ReadWrite() {
+func (t *openTest) ExistingFile() {
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -236,84 +124,11 @@ func (t *openTest) ExistingFile_ReadWrite() {
 	ExpectEq("012oburritoenchilada", string(fileContents))
 }
 
-func (t *openTest) ExistingFile_Append() {
-	// Create a file.
-	const contents = "tacoburritoenchilada"
-	AssertEq(
-		nil,
-		ioutil.WriteFile(
-			path.Join(t.mfs.Dir(), "foo"),
-			[]byte(contents),
-			os.FileMode(0644)))
-
-	// Open the file.
-	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR|os.O_APPEND, 0)
-	AssertEq(nil, err)
-
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
-
-	// Write using File.Write. This should go to the end of the file regardless
-	// of whether we Seek somewhere else first.
-	_, err = f.Seek(1, 0)
-	AssertEq(nil, err)
-
-	_, err = f.Write([]byte("012"))
-	AssertEq(nil, err)
-
-	// Read some contents with Seek and Read.
-	_, err = f.Seek(int64(len(contents)-1), 0)
-	AssertEq(nil, err)
-
-	buf := make([]byte, 4)
-	_, err = io.ReadFull(f, buf)
-
-	AssertEq(nil, err)
-	ExpectEq("a012", string(buf))
-
-	// Close the file.
-	AssertEq(nil, f.Close())
-	f = nil
-
-	// Read back its contents.
-	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
-
-	AssertEq(nil, err)
-	ExpectEq("tacoburritoenchilada012", string(fileContents))
-}
-
-func (t *openTest) TruncateExistingFile_ReadOnly() {
+func (t *openTest) ExistingFile_Truncate() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *openTest) TruncateExistingFile_WriteOnly() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *openTest) TruncateExistingFile_ReadWrite() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *openTest) TruncateExistingFile_Append() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *openTest) AlreadyOpenedFile_ReadOnly() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *openTest) AlreadyOpenedFile_WriteOnly() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *openTest) AlreadyOpenedFile_ReadWrite() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *openTest) AlreadyOpenedFile_Append() {
+func (t *openTest) AlreadyOpenedFile() {
 	AssertTrue(false, "TODO")
 }
 
