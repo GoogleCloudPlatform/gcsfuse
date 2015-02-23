@@ -5,8 +5,11 @@ package gcsproxy
 
 import (
 	"io"
+	"log"
+	"os"
 
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/syncutil"
 	"google.golang.org/cloud/storage"
 )
 
@@ -19,6 +22,40 @@ import (
 // All methods are safe for concurrent access. Concurrent readers and writers
 // within process receive the same guarantees as with POSIX files.
 type ProxyObject struct {
+	/////////////////////////
+	// Dependencies
+	/////////////////////////
+
+	logger *log.Logger
+	bucket gcs.Bucket
+
+	/////////////////////////
+	// Constant data
+	/////////////////////////
+
+	// The name of the GCS object for which we are a proxy. Might not exist in
+	// the bucket.
+	objectName string
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
+	mu syncutil.InvariantMutex
+
+	// The specific generation of the object from which our local state is
+	// branched. If we have no local state, the contents of this object are
+	// exactly our contents. May be nil if NoteLatest was never called.
+	source *storage.Object // GUARDED_BY(mu)
+
+	// A local temporary file containing the contents of our source (or the empty
+	// string if no source) along with any local modifications. When nil, to be
+	// regarded as the empty file.
+	localFile *os.File // GUARDED_BY(mu)
+
+	// false iff source is non-nil and is authoritative for our view of the
+	// contents. Sync needs to do work iff this is true.
+	dirty bool // GUARDED_BY(mu)
 }
 
 var _ io.ReaderAt = &ProxyObject{}
