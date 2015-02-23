@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
@@ -159,6 +160,9 @@ func (f *file) Getattr(
 	resp.Attr = fuse.Attr{
 		Mode: 0700,
 		Size: size,
+
+		// TODO(jacobsa): Do something more useful here.
+		Mtime: time.Now(),
 	}
 
 	return
