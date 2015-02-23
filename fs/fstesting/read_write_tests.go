@@ -31,14 +31,52 @@ type readWriteTest struct {
 }
 
 func (t *readWriteTest) OpenNonExistent_CreateFlagNotSet() {
-	_, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0700)
+	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0700)
+	defer func() {
+		if f != nil {
+			f.Close()
+		}
+	}()
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
 func (t *readWriteTest) OpenNonExistent_ReadOnly() {
-	AssertTrue(false, "TODO")
+	// Open the file for reading.
+	f, err := os.OpenFile(
+		path.Join(t.mfs.Dir(), "foo"),
+		os.O_RDONLY|os.O_CREATE,
+		0700)
+
+	AssertEq(nil, err)
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	// Check its vitals.
+	ExpectEq(path.Join(t.mfs.Dir(), "foo"), f.Name())
+
+	fi, err := f.Stat()
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(os.FileMode(0), fi.Mode() & ^os.ModePerm)
+	ExpectLt(math.Abs(time.Since(fi.ModTime()).Seconds()), 10)
+	ExpectFalse(fi.IsDir())
+
+	// Read its contents.
+	fileContents, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	ExpectEq("", string(fileContents))
+
+	// Attempt to write.
+	n, err := f.Write([]byte("taco"))
+
+	AssertEq(0, n)
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 }
 
 func (t *readWriteTest) OpenNonExistent_WriteOnly() {
