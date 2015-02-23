@@ -5,6 +5,7 @@ package fs
 
 import (
 	"fmt"
+	"hash/fnv"
 	"io"
 	"io/ioutil"
 	"log"
@@ -102,6 +103,15 @@ func (f *file) checkInvariants() {
 	}
 }
 
+func generateInodeNumber(objectName string) uint64 {
+	h := fnv.New64()
+	if _, err := io.WriteString(h, objectName); err != nil {
+		panic(err)
+	}
+
+	return h.Sum64()
+}
+
 // TODO(jacobsa): Share code with Getattr below.
 //
 // LOCKS_EXCLUDED(f.mu)
@@ -130,8 +140,9 @@ func (f *file) Attr() fuse.Attr {
 	}
 
 	return fuse.Attr{
-		Mode: 0700,
-		Size: size,
+		Inode: generateInodeNumber(f.objectName),
+		Mode:  0700,
+		Size:  size,
 	}
 }
 
@@ -158,8 +169,9 @@ func (f *file) Getattr(
 	}
 
 	resp.Attr = fuse.Attr{
-		Mode: 0700,
-		Size: size,
+		Inode: generateInodeNumber(f.objectName),
+		Mode:  0700,
+		Size:  size,
 
 		// TODO(jacobsa): Do something more useful here.
 		Mtime: time.Now(),
