@@ -36,16 +36,25 @@ func NewProxyObject(
 //
 // If this is no newer than the newest generation that has previously been
 // observed, it is ignored. Otherwise, it becomes the definitive source of data
-// for the object. Any local caches are thrown out, including local
+// for the object. Any local-only state is clobbered, including local
 // modifications.
 func (po *ProxyObject) NoteLatest(o storage.Object) error
 
+// Return the current size in bytes of our view of the content.
 func (po *ProxyObject) Size() uint64
 
+// Make a random access read into our view of the content. May block for
+// network access.
 func (po *ProxyObject) ReadAt(buf []byte, offset int64) (int, error)
 
+// Make a random access write into our view of the content. May block for
+// network access. Not guaranteed to be reflected remotely until after Sync is
+// called successfully.
 func (po *ProxyObject) WriteAt(buf []byte, offset int64) (int, error)
 
+// Truncate our view of the content to the given number of bytes, extending if
+// n is greater than Size(). May block for network access. Not guaranteed to be
+// reflected remotely until after Sync is called successfully.
 func (po *ProxyObject) Truncate(n uint64) error
 
 // Ensure that the remote object reflects the local state, returning a record
