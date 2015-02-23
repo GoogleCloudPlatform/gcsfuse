@@ -58,5 +58,6 @@ func (po *ProxyObject) WriteAt(buf []byte, offset int64) (int, error)
 func (po *ProxyObject) Truncate(n uint64) error
 
 // Ensure that the remote object reflects the local state, returning a record
-// for a generation that does. Clobbers the remote version.
+// for a generation that does. Clobbers the remote version. Does no work if the
+// remote version is already up to date.
 func (po *ProxyObject) Sync() (storage.Object, error)
