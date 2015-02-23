@@ -4,6 +4,7 @@
 package gcsproxy
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -46,15 +47,22 @@ type ProxyObject struct {
 	// The specific generation of the object from which our local state is
 	// branched. If we have no local state, the contents of this object are
 	// exactly our contents. May be nil if NoteLatest was never called.
+	//
+	// INVARIANT: If source != nil, source.Size >= 0
 	source *storage.Object // GUARDED_BY(mu)
 
 	// A local temporary file containing the contents of our source (or the empty
-	// string if no source) along with any local modifications. When nil, to be
-	// regarded as the empty file.
+	// string if no source) along with any local modifications. The authority on
+	// our view of the object when non-nil.
+	//
+	// A nil file is to be regarded as empty, but is not authoritative unless
+	// source is also nil.
 	localFile *os.File // GUARDED_BY(mu)
 
-	// false iff source is non-nil and is authoritative for our view of the
-	// contents. Sync needs to do work iff this is true.
+	// false if the contents of localFile may be different from the contents of
+	// the object referred to by source. Sync needs to do work iff this is true.
+	//
+	// INVARIANT: If false, then source != nil.
 	dirty bool // GUARDED_BY(mu)
 }
 
@@ -96,7 +104,34 @@ func (po *ProxyObject) checkInvariants()
 func (po *ProxyObject) NoteLatest(o storage.Object) error
 
 // Return the current size in bytes of our view of the content.
-func (po *ProxyObject) Size() uint64
+func (po *ProxyObject) Size() (n uint64, err error) {
+	// If we have a local file, it is authoritative.
+	if po.localFile != nil {
+		var fi os.FileInfo
+		if fi, err = po.localFile.Stat(); err != nil {
+			err = fmt.Errorf("localFile.Stat: %v", err)
+			return
+		}
+
+		nSigned := fi.Size()
+		if nSigned < 0 {
+			err = fmt.Errorf("Stat returned nonsense size: %v", nSigned)
+			return
+		}
+
+		n = uint64(nSigned)
+		return
+	}
+
+	// Otherwise, if we have a source then it is authoritative.
+	if po.source != nil {
+		n = uint64(po.source.Size)
+		return
+	}
+
+	// Otherwise, we are empty.
+	return
+}
 
 // Make a random access read into our view of the content. May block for
 // network access.
