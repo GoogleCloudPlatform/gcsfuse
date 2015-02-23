@@ -200,7 +200,14 @@ func (po *ProxyObject) ReadAt(buf []byte, offset int64) (n int, err error) {
 // Make a random access write into our view of the content. May block for
 // network access. Not guaranteed to be reflected remotely until after Sync is
 // called successfully.
-func (po *ProxyObject) WriteAt(buf []byte, offset int64) (int, error)
+func (po *ProxyObject) WriteAt(buf []byte, offset int64) (n int, err error) {
+	if err = po.ensureLocalFile(); err != nil {
+		return
+	}
+
+	n, err = po.localFile.WriteAt(buf, offset)
+	return
+}
 
 // Truncate our view of the content to the given number of bytes, extending if
 // n is greater than Size(). May block for network access. Not guaranteed to be
