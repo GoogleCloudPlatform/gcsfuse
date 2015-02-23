@@ -271,7 +271,9 @@ func (t *readOnlyTest) ContentsInRoot() {
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
 	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectLt(
+		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
+		"ModTime: %v", e.ModTime())
 	ExpectTrue(e.IsDir())
 
 	// baz
@@ -279,7 +281,9 @@ func (t *readOnlyTest) ContentsInRoot() {
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
 	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectLt(
+		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
+		"ModTime: %v", e.ModTime())
 	ExpectFalse(e.IsDir())
 
 	// foo
@@ -287,7 +291,9 @@ func (t *readOnlyTest) ContentsInRoot() {
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
 	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectLt(
+		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
+		"ModTime: %v", e.ModTime())
 	ExpectFalse(e.IsDir())
 
 	// qux
@@ -295,7 +301,9 @@ func (t *readOnlyTest) ContentsInRoot() {
 	ExpectEq("qux", e.Name())
 	ExpectEq(0, e.Size())
 	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectLt(
+		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
+		"ModTime: %v", e.ModTime())
 	ExpectTrue(e.IsDir())
 }
 
@@ -375,7 +383,9 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
 	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectLt(
+		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
+		"ModTime: %v", e.ModTime())
 	ExpectTrue(e.IsDir())
 
 	// baz
@@ -383,7 +393,9 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
 	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectLt(
+		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
+		"ModTime: %v", e.ModTime())
 	ExpectFalse(e.IsDir())
 
 	// foo
@@ -391,7 +403,9 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
 	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectLt(
+		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
+		"ModTime: %v", e.ModTime())
 	ExpectFalse(e.IsDir())
 
 	// qux
@@ -399,7 +413,9 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
 	ExpectEq("qux", e.Name())
 	ExpectEq(0, e.Size())
 	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectLt(
+		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
+		"ModTime: %v", e.ModTime())
 	ExpectTrue(e.IsDir())
 }
 
@@ -457,7 +473,9 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderNotPresent() {
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
 	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectLt(
+		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
+		"ModTime: %v", e.ModTime())
 	ExpectTrue(e.IsDir())
 
 	// baz
@@ -465,7 +483,9 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderNotPresent() {
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
 	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectLt(
+		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
+		"ModTime: %v", e.ModTime())
 	ExpectFalse(e.IsDir())
 
 	// foo
@@ -473,7 +493,9 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderNotPresent() {
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
 	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectLt(
+		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
+		"ModTime: %v", e.ModTime())
 	ExpectFalse(e.IsDir())
 
 	// qux
@@ -481,7 +503,9 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderNotPresent() {
 	ExpectEq("qux", e.Name())
 	ExpectEq(0, e.Size())
 	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(e.ModTime()).Seconds()), 30)
+	ExpectLt(
+		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
+		"ModTime: %v", e.ModTime())
 	ExpectTrue(e.IsDir())
 }
 
@@ -598,7 +622,11 @@ func (t *readOnlyTest) Inodes() {
 	for _, fileInfo := range entries {
 		stat := fileInfo.Sys().(*syscall.Stat_t)
 		_, ok := inodesSeen[stat.Ino]
-		AssertFalse(ok, "Duplicate inode: %v", fileInfo)
+		AssertFalse(
+			ok,
+			"Duplicate inode (%v). File info: %v",
+			stat.Ino,
+			fileInfo)
 
 		inodesSeen[stat.Ino] = struct{}{}
 	}
