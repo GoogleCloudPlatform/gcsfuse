@@ -44,7 +44,7 @@ func (po *ProxyObject) Size() uint64
 
 func (po *ProxyObject) ReadAt(buf []byte, offset int64) (int, error)
 
-func (po *ProxyObject) WriterAt(buf []byte, offset int64) (int, error)
+func (po *ProxyObject) WriteAt(buf []byte, offset int64) (int, error)
 
 func (po *ProxyObject) Truncate(n uint64) error
 
