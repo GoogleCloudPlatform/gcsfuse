@@ -24,8 +24,8 @@ type ProxyObject struct {
 var _ io.ReaderAt = &ProxyObject{}
 var _ io.WriterAt = &ProxyObject{}
 
-// Create a new view on the GCS object with the given name. The object is
-// assumed to be non-existent, so that all non-empty reads return an error. Use
+// Create a new view on the GCS object with the given name. The remote object
+// is assumed to be non-existent, so that the local contents are empty. Use
 // NoteLatest to change that if necessary.
 func NewProxyObject(
 	bucket gcs.Bucket,
