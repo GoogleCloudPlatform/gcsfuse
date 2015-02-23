@@ -21,14 +21,14 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////
-// Read-write interaction
+// Open
 ////////////////////////////////////////////////////////////////////////
 
-type readWriteTest struct {
+type openTest struct {
 	fsTest
 }
 
-func (t *readWriteTest) OpenNonExistent_CreateFlagNotSet() {
+func (t *openTest) NonExistent_CreateFlagNotSet() {
 	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0700)
 	defer func() {
 		if f != nil {
@@ -40,7 +40,7 @@ func (t *readWriteTest) OpenNonExistent_CreateFlagNotSet() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
-func (t *readWriteTest) OpenNonExistent_ReadOnly() {
+func (t *openTest) NonExistent_ReadOnly() {
 	// Open the file.
 	f, err := os.OpenFile(
 		path.Join(t.mfs.Dir(), "foo"),
@@ -60,7 +60,7 @@ func (t *readWriteTest) OpenNonExistent_ReadOnly() {
 	ExpectEq("", string(fileContents))
 }
 
-func (t *readWriteTest) OpenNonExistent_WriteOnly() {
+func (t *openTest) NonExistent_WriteOnly() {
 	// Open the file.
 	f, err := os.OpenFile(
 		path.Join(t.mfs.Dir(), "foo"),
@@ -89,7 +89,7 @@ func (t *readWriteTest) OpenNonExistent_WriteOnly() {
 	ExpectEq("012", string(fileContents))
 }
 
-func (t *readWriteTest) OpenNonExistent_ReadWrite() {
+func (t *openTest) NonExistent_ReadWrite() {
 	// Open the file.
 	f, err := os.OpenFile(
 		path.Join(t.mfs.Dir(), "foo"),
@@ -128,11 +128,11 @@ func (t *readWriteTest) OpenNonExistent_ReadWrite() {
 	ExpectEq("012", string(fileContents))
 }
 
-func (t *readWriteTest) OpenNonExistent_Append() {
+func (t *openTest) NonExistent_Append() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) OpenExistingFile_ReadOnly() {
+func (t *openTest) ExistingFile_ReadOnly() {
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -156,7 +156,7 @@ func (t *readWriteTest) OpenExistingFile_ReadOnly() {
 	ExpectEq(contents, string(fileContents))
 }
 
-func (t *readWriteTest) OpenExistingFile_WriteOnly() {
+func (t *openTest) ExistingFile_WriteOnly() {
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -191,7 +191,7 @@ func (t *readWriteTest) OpenExistingFile_WriteOnly() {
 	ExpectEq("000oburritoenchilada", string(fileContents))
 }
 
-func (t *readWriteTest) OpenExistingFile_ReadWrite() {
+func (t *openTest) ExistingFile_ReadWrite() {
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -236,7 +236,7 @@ func (t *readWriteTest) OpenExistingFile_ReadWrite() {
 	ExpectEq("012oburritoenchilada", string(fileContents))
 }
 
-func (t *readWriteTest) OpenExistingFile_Append() {
+func (t *openTest) ExistingFile_Append() {
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -285,43 +285,51 @@ func (t *readWriteTest) OpenExistingFile_Append() {
 	ExpectEq("tacoburritoenchilada012", string(fileContents))
 }
 
-func (t *readWriteTest) TruncateExistingFile_ReadOnly() {
+func (t *openTest) TruncateExistingFile_ReadOnly() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) TruncateExistingFile_WriteOnly() {
+func (t *openTest) TruncateExistingFile_WriteOnly() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) TruncateExistingFile_ReadWrite() {
+func (t *openTest) TruncateExistingFile_ReadWrite() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) TruncateExistingFile_Append() {
+func (t *openTest) TruncateExistingFile_Append() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) OpenAlreadyOpenedFile_ReadOnly() {
+func (t *openTest) AlreadyOpenedFile_ReadOnly() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) OpenAlreadyOpenedFile_WriteOnly() {
+func (t *openTest) AlreadyOpenedFile_WriteOnly() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) OpenAlreadyOpenedFile_ReadWrite() {
+func (t *openTest) AlreadyOpenedFile_ReadWrite() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) OpenAlreadyOpenedFile_Append() {
+func (t *openTest) AlreadyOpenedFile_Append() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) OpenReadOnlyFileForWrite() {
+func (t *openTest) OpenReadOnlyFileForWrite() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) ReadOnlyMode() {
+////////////////////////////////////////////////////////////////////////
+// Modes
+////////////////////////////////////////////////////////////////////////
+
+type modesTest struct {
+	fsTest
+}
+
+func (t *modesTest) ReadOnlyMode() {
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -352,7 +360,7 @@ func (t *readWriteTest) ReadOnlyMode() {
 	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 }
 
-func (t *readWriteTest) WriteOnlyMode() {
+func (t *modesTest) WriteOnlyMode() {
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -409,7 +417,7 @@ func (t *readWriteTest) WriteOnlyMode() {
 	ExpectEq("000o111ritoenchilada222", string(fileContents))
 }
 
-func (t *readWriteTest) ReadWriteMode() {
+func (t *modesTest) ReadWriteMode() {
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -477,15 +485,15 @@ func (t *readWriteTest) ReadWriteMode() {
 	ExpectEq("000o111ritoenchilada222", string(fileContents))
 }
 
-func (t *readWriteTest) AppendMode_ReadOnly() {
+func (t *modesTest) AppendMode_ReadOnly() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) AppendMode_WriteOnly() {
+func (t *modesTest) AppendMode_WriteOnly() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) AppendMode_ReadWrite() {
+func (t *modesTest) AppendMode_ReadWrite() {
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -552,6 +560,14 @@ func (t *readWriteTest) AppendMode_ReadWrite() {
 
 	AssertEq(nil, err)
 	ExpectEq("taco111ritoenchilada222333", string(fileContents))
+}
+
+////////////////////////////////////////////////////////////////////////
+// Read/write interaction
+////////////////////////////////////////////////////////////////////////
+
+type readWriteTest struct {
+	fsTest
 }
 
 func (t *readWriteTest) WritePastEndOfFile() {
