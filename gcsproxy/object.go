@@ -25,7 +25,7 @@ import (
 //
 // All methods are safe for concurrent access. Concurrent readers and writers
 // within process receive the same guarantees as with POSIX files.
-type ProxyObject struct {
+type ObjectProxy struct {
 	/////////////////////////
 	// Dependencies
 	/////////////////////////
@@ -70,16 +70,16 @@ type ProxyObject struct {
 	dirty bool // GUARDED_BY(mu)
 }
 
-var _ io.ReaderAt = &ProxyObject{}
-var _ io.WriterAt = &ProxyObject{}
+var _ io.ReaderAt = &ObjectProxy{}
+var _ io.WriterAt = &ObjectProxy{}
 
 // Create a new view on the GCS object with the given name. The remote object
 // is assumed to be non-existent, so that the local contents are empty. Use
 // NoteLatest to change that if necessary.
-func NewProxyObject(
+func NewObjectProxy(
 	bucket gcs.Bucket,
-	name string) (po *ProxyObject, err error) {
-	po = &ProxyObject{
+	name string) (op *ObjectProxy, err error) {
+	op = &ObjectProxy{
 		logger: getLogger(),
 		bucket: bucket,
 		name:   name,
@@ -91,23 +91,23 @@ func NewProxyObject(
 		dirty:     true,
 	}
 
-	po.mu = syncutil.NewInvariantMutex(po.checkInvariants)
+	op.mu = syncutil.NewInvariantMutex(op.checkInvariants)
 	return
 }
 
-// SHARED_LOCKS_REQUIRED(po.mu)
-func (po *ProxyObject) checkInvariants() {
-	if po.source != nil && po.source.Size <= 0 {
-		if po.source.Size <= 0 {
-			panic(fmt.Sprintf("Non-sensical source size: %v", po.source.Size))
+// SHARED_LOCKS_REQUIRED(op.mu)
+func (op *ObjectProxy) checkInvariants() {
+	if op.source != nil && op.source.Size <= 0 {
+		if op.source.Size <= 0 {
+			panic(fmt.Sprintf("Non-sensical source size: %v", op.source.Size))
 		}
 
-		if po.source.Name != po.name {
-			panic(fmt.Sprintf("Name mismatch: %s vs. %s", po.source.Name, po.name))
+		if op.source.Name != op.name {
+			panic(fmt.Sprintf("Name mismatch: %s vs. %s", op.source.Name, op.name))
 		}
 	}
 
-	if !po.dirty && po.source == nil {
+	if !op.dirty && op.source == nil {
 		panic("A clean proxy must have a source set.")
 	}
 }
@@ -119,28 +119,28 @@ func (po *ProxyObject) checkInvariants() {
 // observed, it is ignored. Otherwise, it becomes the definitive source of data
 // for the object. Any local-only state is clobbered, including local
 // modifications.
-func (po *ProxyObject) NoteLatest(o storage.Object) (err error) {
+func (op *ObjectProxy) NoteLatest(o storage.Object) (err error) {
 	// Sanity check the input.
 	if o.Size < 0 {
 		err = fmt.Errorf("Object contains negative size: %v", o.Size)
 		return
 	}
 
-	if o.Name != po.name {
-		err = fmt.Errorf("Object name mismatch: %s vs. %s", o.Name, po.name)
+	if o.Name != op.name {
+		err = fmt.Errorf("Object name mismatch: %s vs. %s", o.Name, op.name)
 		return
 	}
 
 	// Do nothing if nothing has changed.
-	if po.source != nil && po.source.Generation == o.Generation {
+	if op.source != nil && op.source.Generation == o.Generation {
 		return
 	}
 
 	// Throw out the local file, if any.
-	if po.localFile != nil {
-		path := po.localFile.Name()
+	if op.localFile != nil {
+		path := op.localFile.Name()
 
-		if err = po.localFile.Close(); err != nil {
+		if err = op.localFile.Close(); err != nil {
 			err = fmt.Errorf("Closing local file: %v", err)
 			return
 		}
@@ -152,19 +152,19 @@ func (po *ProxyObject) NoteLatest(o storage.Object) (err error) {
 	}
 
 	// Reset state.
-	po.source = &o
-	po.localFile = nil
-	po.dirty = false
+	op.source = &o
+	op.localFile = nil
+	op.dirty = false
 
 	return
 }
 
 // Return the current size in bytes of our view of the content.
-func (po *ProxyObject) Size() (n uint64, err error) {
+func (op *ObjectProxy) Size() (n uint64, err error) {
 	// If we have a local file, it is authoritative.
-	if po.localFile != nil {
+	if op.localFile != nil {
 		var fi os.FileInfo
-		if fi, err = po.localFile.Stat(); err != nil {
+		if fi, err = op.localFile.Stat(); err != nil {
 			err = fmt.Errorf("localFile.Stat: %v", err)
 			return
 		}
@@ -180,8 +180,8 @@ func (po *ProxyObject) Size() (n uint64, err error) {
 	}
 
 	// Otherwise, if we have a source then it is authoritative.
-	if po.source != nil {
-		n = uint64(po.source.Size)
+	if op.source != nil {
+		n = uint64(op.source.Size)
 		return
 	}
 
@@ -191,33 +191,33 @@ func (po *ProxyObject) Size() (n uint64, err error) {
 
 // Make a random access read into our view of the content. May block for
 // network access.
-func (po *ProxyObject) ReadAt(buf []byte, offset int64) (n int, err error) {
-	if err = po.ensureLocalFile(); err != nil {
+func (op *ObjectProxy) ReadAt(buf []byte, offset int64) (n int, err error) {
+	if err = op.ensureLocalFile(); err != nil {
 		return
 	}
 
-	n, err = po.localFile.ReadAt(buf, offset)
+	n, err = op.localFile.ReadAt(buf, offset)
 	return
 }
 
 // Make a random access write into our view of the content. May block for
 // network access. Not guaranteed to be reflected remotely until after Sync is
 // called successfully.
-func (po *ProxyObject) WriteAt(buf []byte, offset int64) (n int, err error) {
-	if err = po.ensureLocalFile(); err != nil {
+func (op *ObjectProxy) WriteAt(buf []byte, offset int64) (n int, err error) {
+	if err = op.ensureLocalFile(); err != nil {
 		return
 	}
 
-	po.dirty = true
-	n, err = po.localFile.WriteAt(buf, offset)
+	op.dirty = true
+	n, err = op.localFile.WriteAt(buf, offset)
 	return
 }
 
 // Truncate our view of the content to the given number of bytes, extending if
 // n is greater than Size(). May block for network access. Not guaranteed to be
 // reflected remotely until after Sync is called successfully.
-func (po *ProxyObject) Truncate(n uint64) (err error) {
-	if err = po.ensureLocalFile(); err != nil {
+func (op *ObjectProxy) Truncate(n uint64) (err error) {
+	if err = op.ensureLocalFile(); err != nil {
 		return
 	}
 
@@ -227,25 +227,25 @@ func (po *ProxyObject) Truncate(n uint64) (err error) {
 		return
 	}
 
-	po.dirty = true
-	err = po.localFile.Truncate(int64(n))
+	op.dirty = true
+	err = op.localFile.Truncate(int64(n))
 	return
 }
 
 // Ensure that the remote object reflects the local state, returning a record
 // for a generation that does. Clobbers the remote version. Does no work if the
 // remote version is already up to date.
-func (po *ProxyObject) Sync(ctx context.Context) (o storage.Object, err error) {
+func (op *ObjectProxy) Sync(ctx context.Context) (o storage.Object, err error) {
 	// Is there anything to do?
-	if !po.dirty {
-		o = *po.source
+	if !op.dirty {
+		o = *op.source
 		return
 	}
 
 	// Choose a reader.
 	var contents io.Reader
-	if po.localFile != nil {
-		contents = po.localFile
+	if op.localFile != nil {
+		contents = op.localFile
 	} else {
 		contents = strings.NewReader("")
 	}
@@ -253,12 +253,12 @@ func (po *ProxyObject) Sync(ctx context.Context) (o storage.Object, err error) {
 	// Create a new generation of the object.
 	req := &gcs.CreateObjectRequest{
 		Attrs: storage.ObjectAttrs{
-			Name: po.name,
+			Name: op.name,
 		},
 		Contents: contents,
 	}
 
-	created, err := po.bucket.CreateObject(ctx, req)
+	created, err := op.bucket.CreateObject(ctx, req)
 	if err != nil {
 		return
 	}
@@ -266,11 +266,11 @@ func (po *ProxyObject) Sync(ctx context.Context) (o storage.Object, err error) {
 	o = *created
 
 	// Update local state.
-	po.source = created
-	po.dirty = false
+	op.source = created
+	op.dirty = false
 
 	return
 }
 
-// Ensure that po.localFile != nil and contains the correct contents.
-func (po *ProxyObject) ensureLocalFile() (err error)
+// Ensure that op.localFile != nil and contains the correct contents.
+func (op *ObjectProxy) ensureLocalFile() (err error)
