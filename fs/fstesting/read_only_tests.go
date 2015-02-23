@@ -622,7 +622,11 @@ func (t *readOnlyTest) Inodes() {
 	for _, fileInfo := range entries {
 		stat := fileInfo.Sys().(*syscall.Stat_t)
 		_, ok := inodesSeen[stat.Ino]
-		AssertFalse(ok, "Duplicate inode: %v", fileInfo)
+		AssertFalse(
+			ok,
+			"Duplicate inode (%v). File info: %v",
+			stat.Ino,
+			fileInfo)
 
 		inodesSeen[stat.Ino] = struct{}{}
 	}
