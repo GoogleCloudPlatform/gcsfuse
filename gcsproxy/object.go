@@ -206,6 +206,7 @@ func (po *ProxyObject) WriteAt(buf []byte, offset int64) (n int, err error) {
 		return
 	}
 
+	po.dirty = true
 	n, err = po.localFile.WriteAt(buf, offset)
 	return
 }
@@ -224,6 +225,7 @@ func (po *ProxyObject) Truncate(n uint64) (err error) {
 		return
 	}
 
+	po.dirty = true
 	err = po.localFile.Truncate(int64(n))
 	return
 }
