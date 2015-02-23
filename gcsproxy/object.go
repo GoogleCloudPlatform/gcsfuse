@@ -35,7 +35,7 @@ type ProxyObject struct {
 
 	// The name of the GCS object for which we are a proxy. Might not exist in
 	// the bucket.
-	objectName string
+	name string
 
 	/////////////////////////
 	// Mutable state
@@ -66,7 +66,25 @@ var _ io.WriterAt = &ProxyObject{}
 // NoteLatest to change that if necessary.
 func NewProxyObject(
 	bucket gcs.Bucket,
-	name string) (*ProxyObject, error)
+	name string) (po *ProxyObject, err error) {
+	po = &ProxyObject{
+		logger: getLogger(),
+		bucket: bucket,
+		name:   name,
+
+		// Initial state: empty contents, dirty. (The remote object needs to be
+		// truncated.)
+		source:    nil,
+		localFile: nil,
+		dirty:     true,
+	}
+
+	po.mu = syncutil.NewInvariantMutex(po.checkInvariants)
+	return
+}
+
+// SHARED_LOCKS_REQUIRED(po.mu)
+func (po *ProxyObject) checkInvariants()
 
 // Inform the proxy object of the most recently observed generation of the
 // object of interest in GCS.
