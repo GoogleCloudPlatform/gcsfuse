@@ -524,26 +524,12 @@ func (t *readWriteTest) ReadOnlyMode() {
 			os.FileMode(0644)))
 
 	// Open the file for reading.
-	f, err := os.OpenFile(
-		path.Join(t.mfs.Dir(), "foo"),
-		os.O_RDONLY,
-		0700)
-
+	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDONLY, 0)
 	AssertEq(nil, err)
 
 	defer func() {
 		ExpectEq(nil, f.Close())
 	}()
-
-	// Check its vitals.
-	ExpectEq(path.Join(t.mfs.Dir(), "foo"), f.Name())
-
-	fi, err := f.Stat()
-	ExpectEq("foo", fi.Name())
-	ExpectEq(len(contents), fi.Size())
-	ExpectEq(os.FileMode(0), fi.Mode() & ^os.ModePerm)
-	ExpectLt(math.Abs(time.Since(fi.ModTime()).Seconds()), 10)
-	ExpectFalse(fi.IsDir())
 
 	// Read its contents.
 	fileContents, err := ioutil.ReadAll(f)
@@ -559,7 +545,60 @@ func (t *readWriteTest) ReadOnlyMode() {
 }
 
 func (t *readWriteTest) WriteOnlyMode() {
-	AssertTrue(false, "TODO")
+	// Create a file.
+	const contents = "tacoburritoenchilada"
+	AssertEq(
+		nil,
+		ioutil.WriteFile(
+			path.Join(t.mfs.Dir(), "foo"),
+			[]byte(contents),
+			os.FileMode(0644)))
+
+	// Open the file.
+	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_WRONLY, 0)
+	AssertEq(nil, err)
+
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	// Reading should fail.
+	_, err = ioutil.ReadAll(f)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
+
+	// Write to the start of the file using File.Write.
+	_, err = f.Write([]byte("000"))
+	AssertEq(nil, err)
+
+	// Write to the middle of the file using File.WriteAt.
+	_, err = f.WriteAt([]byte("111"), 4)
+	AssertEq(nil, err)
+
+	// Seek and write past the end of the file.
+	_, err = f.Seek(int64(len(contents)), 0)
+	AssertEq(nil, err)
+
+	_, err = f.Write([]byte("222"))
+	AssertEq(nil, err)
+
+	// Check the size now.
+	fi, err := f.Stat()
+	AssertEq(nil, err)
+	ExpectEq(len(contents)+len("222"), fi.Size())
+
+	// Close the file.
+	AssertEq(nil, f.Close())
+	f = nil
+
+	// Read back its contents.
+	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertEq(nil, err)
+	ExpectEq("000o111ritoenchilada222", string(fileContents))
 }
 
 func (t *readWriteTest) ReadWriteMode() {
