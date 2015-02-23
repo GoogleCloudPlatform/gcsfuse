@@ -49,6 +49,7 @@ type ProxyObject struct {
 	// exactly our contents. May be nil if NoteLatest was never called.
 	//
 	// INVARIANT: If source != nil, source.Size >= 0
+	// INVARIANT: If source != nil, source.Name == name
 	source *storage.Object // GUARDED_BY(mu)
 
 	// A local temporary file containing the contents of our source (or the empty
@@ -94,7 +95,13 @@ func NewProxyObject(
 // SHARED_LOCKS_REQUIRED(po.mu)
 func (po *ProxyObject) checkInvariants() {
 	if po.source != nil && po.source.Size <= 0 {
-		panic(fmt.Sprintf("Non-sensical source size: %v", po.source.Size))
+		if po.source.Size <= 0 {
+			panic(fmt.Sprintf("Non-sensical source size: %v", po.source.Size))
+		}
+
+		if po.source.Name != po.name {
+			panic(fmt.Sprintf("Name mismatch: %s vs. %s", po.source.Name, po.name))
+		}
 	}
 
 	if !po.dirty && po.source == nil {
@@ -113,6 +120,16 @@ func (po *ProxyObject) NoteLatest(o storage.Object) (err error) {
 	// Sanity check the input.
 	if o.Size < 0 {
 		err = fmt.Errorf("Object contains negative size: %v", o.Size)
+		return
+	}
+
+	if o.Name != po.name {
+		err = fmt.Errorf("Object name mismatch: %s vs. %s", o.Name, po.name)
+		return
+	}
+
+	// Do nothing if nothing has changed.
+	if po.source != nil && po.source.Generation == o.Generation {
 		return
 	}
 
