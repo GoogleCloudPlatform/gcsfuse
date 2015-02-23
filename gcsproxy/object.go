@@ -109,7 +109,35 @@ func (po *ProxyObject) checkInvariants() {
 // observed, it is ignored. Otherwise, it becomes the definitive source of data
 // for the object. Any local-only state is clobbered, including local
 // modifications.
-func (po *ProxyObject) NoteLatest(o storage.Object) error
+func (po *ProxyObject) NoteLatest(o storage.Object) (err error) {
+	// Sanity check the input.
+	if o.Size < 0 {
+		err = fmt.Errorf("Object contains negative size: %v", o.Size)
+		return
+	}
+
+	// Throw out the local file, if any.
+	if po.localFile != nil {
+		path := po.localFile.Name()
+
+		if err = po.localFile.Close(); err != nil {
+			err = fmt.Errorf("Closing local file: %v", err)
+			return
+		}
+
+		if err = os.Remove(path); err != nil {
+			err = fmt.Errorf("Unlinking local file: %v", err)
+			return
+		}
+	}
+
+	// Reset state.
+	po.source = &o
+	po.localFile = nil
+	po.dirty = false
+
+	return
+}
 
 // Return the current size in bytes of our view of the content.
 func (po *ProxyObject) Size() (n uint64, err error) {
