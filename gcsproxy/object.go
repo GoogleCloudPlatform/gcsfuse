@@ -188,7 +188,14 @@ func (po *ProxyObject) Size() (n uint64, err error) {
 
 // Make a random access read into our view of the content. May block for
 // network access.
-func (po *ProxyObject) ReadAt(buf []byte, offset int64) (int, error)
+func (po *ProxyObject) ReadAt(buf []byte, offset int64) (n int, err error) {
+	if err = po.ensureLocalFile(); err != nil {
+		return
+	}
+
+	n, err = po.localFile.ReadAt(buf, offset)
+	return
+}
 
 // Make a random access write into our view of the content. May block for
 // network access. Not guaranteed to be reflected remotely until after Sync is
@@ -204,3 +211,6 @@ func (po *ProxyObject) Truncate(n uint64) error
 // for a generation that does. Clobbers the remote version. Does no work if the
 // remote version is already up to date.
 func (po *ProxyObject) Sync() (storage.Object, error)
+
+// Ensure that po.localFile != nil and contains the correct contents.
+func (po *ProxyObject) ensureLocalFile() (err error)
