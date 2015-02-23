@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -212,7 +213,20 @@ func (po *ProxyObject) WriteAt(buf []byte, offset int64) (n int, err error) {
 // Truncate our view of the content to the given number of bytes, extending if
 // n is greater than Size(). May block for network access. Not guaranteed to be
 // reflected remotely until after Sync is called successfully.
-func (po *ProxyObject) Truncate(n uint64) error
+func (po *ProxyObject) Truncate(n uint64) (err error) {
+	if err = po.ensureLocalFile(); err != nil {
+		return
+	}
+
+	// Convert to signed, which is what os.File wants.
+	if n > math.MaxInt64 {
+		err = fmt.Errorf("Illegal offset: %v", n)
+		return
+	}
+
+	err = po.localFile.Truncate(int64(n))
+	return
+}
 
 // Ensure that the remote object reflects the local state, returning a record
 // for a generation that does. Clobbers the remote version. Does no work if the
