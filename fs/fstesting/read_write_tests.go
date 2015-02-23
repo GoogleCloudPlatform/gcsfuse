@@ -513,6 +513,34 @@ func (t *readWriteTest) OpenReadOnlyFileForWrite() {
 	AssertTrue(false, "TODO")
 }
 
+func (t *readWriteTest) ReadOnlyMode() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) WriteOnlyMode() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) ReadWriteMode() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) AppendMode_ReadOnly() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) AppendMode_WriteOnly() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) AppendMode_ReadWrite() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) WritePastEndOfFile() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *readWriteTest) Seek() {
 	AssertTrue(false, "TODO")
 }
