@@ -43,7 +43,7 @@ func (t *readWriteTest) OpenNonExistent_CreateFlagNotSet() {
 }
 
 func (t *readWriteTest) OpenNonExistent_ReadOnly() {
-	// Open the file for reading.
+	// Open the file.
 	f, err := os.OpenFile(
 		path.Join(t.mfs.Dir(), "foo"),
 		os.O_RDONLY|os.O_CREATE,
@@ -80,7 +80,64 @@ func (t *readWriteTest) OpenNonExistent_ReadOnly() {
 }
 
 func (t *readWriteTest) OpenNonExistent_WriteOnly() {
-	AssertTrue(false, "TODO")
+	// Open the file.
+	f, err := os.OpenFile(
+		path.Join(t.mfs.Dir(), "foo"),
+		os.O_WRONLY|os.O_CREATE,
+		0700)
+
+	AssertEq(nil, err)
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	// Check its vitals.
+	ExpectEq(path.Join(t.mfs.Dir(), "foo"), f.Name())
+
+	fi, err := f.Stat()
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(os.FileMode(0), fi.Mode() & ^os.ModePerm)
+	ExpectLt(math.Abs(time.Since(fi.ModTime()).Seconds()), 10)
+	ExpectFalse(fi.IsDir())
+
+	// Reading should fail.
+	_, err = ioutil.ReadAll(f)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
+
+	// Write to the start of the file using File.Write.
+	_, err = f.Write([]byte("000"))
+	AssertEq(nil, err)
+
+	// Write to the middle of the file using File.WriteAt.
+	_, err = f.WriteAt([]byte("1"), 1)
+	AssertEq(nil, err)
+
+	// Seek and write past the end of the file.
+	_, err = f.Seek(3, 0)
+	AssertEq(nil, err)
+
+	_, err = f.Write([]byte("222"))
+	AssertEq(nil, err)
+
+	// Check the size now.
+	fi, err = f.Stat()
+	AssertEq(nil, err)
+	ExpectEq(len("010222"), fi.Size())
+
+	// Close the file.
+	AssertEq(nil, f.Close())
+	f = nil
+
+	// Read back its contents.
+	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertEq(nil, err)
+	ExpectEq("010222", string(fileContents))
 }
 
 func (t *readWriteTest) OpenNonExistent_ReadWrite() {
@@ -142,7 +199,7 @@ func (t *readWriteTest) OpenExistingFile_WriteOnly() {
 			[]byte(contents),
 			os.FileMode(0644)))
 
-	// Open the file for reading.
+	// Open the file.
 	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_WRONLY, 0)
 	AssertEq(nil, err)
 
