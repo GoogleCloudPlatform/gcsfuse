@@ -31,7 +31,10 @@ type readWriteTest struct {
 }
 
 func (t *readWriteTest) OpenNonExistent_CreateFlagNotSet() {
-	AssertTrue(false, "TODO")
+	_, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0700)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
 func (t *readWriteTest) OpenNonExistent_ReadOnly() {
