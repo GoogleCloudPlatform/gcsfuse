@@ -89,7 +89,7 @@ func (t *openTest) ExistingFile() {
 			[]byte(contents),
 			os.FileMode(0644)))
 
-	// Open the file for reading.
+	// Open the file.
 	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0)
 	AssertEq(nil, err)
 
@@ -125,7 +125,54 @@ func (t *openTest) ExistingFile() {
 }
 
 func (t *openTest) ExistingFile_Truncate() {
-	AssertTrue(false, "TODO")
+	// Create a file.
+	AssertEq(
+		nil,
+		ioutil.WriteFile(
+			path.Join(t.mfs.Dir(), "foo"),
+			[]byte("blahblahblah"),
+			os.FileMode(0644)))
+
+	// Open the file.
+	f, err := os.OpenFile(
+		path.Join(t.mfs.Dir(), "foo"),
+		os.O_RDWR|os.O_TRUNC,
+		0)
+
+	AssertEq(nil, err)
+
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	// The file should be empty.
+	fi, err := f.Stat()
+	AssertEq(nil, err)
+	ExpectEq(0, fi.Size())
+
+	// Write to the start of the file using File.Write.
+	_, err = f.Write([]byte("012"))
+	AssertEq(nil, err)
+
+	// Read the contents.
+	_, err = f.Seek(0, 0)
+	AssertEq(nil, err)
+
+	contentsSlice, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	ExpectEq("012", string(contentsSlice))
+
+	// Close the file.
+	AssertEq(nil, f.Close())
+	f = nil
+
+	// Read back its contents.
+	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertEq(nil, err)
+	ExpectEq("012", string(fileContents))
 }
 
 func (t *openTest) AlreadyOpenedFile() {
@@ -154,7 +201,7 @@ func (t *modesTest) ReadOnlyMode() {
 			[]byte(contents),
 			os.FileMode(0644)))
 
-	// Open the file for reading.
+	// Open the file.
 	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDONLY, 0)
 	AssertEq(nil, err)
 
@@ -293,7 +340,7 @@ func (t *modesTest) ReadWriteMode() {
 	AssertEq(nil, f.Close())
 	f = nil
 
-	// Read back its contents after opening anew for reading.
+	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertEq(nil, err)
@@ -370,7 +417,7 @@ func (t *modesTest) AppendMode_ReadWrite() {
 	AssertEq(nil, f.Close())
 	f = nil
 
-	// Read back its contents after opening anew for reading.
+	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertEq(nil, err)
