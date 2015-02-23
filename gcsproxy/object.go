@@ -92,7 +92,15 @@ func NewProxyObject(
 }
 
 // SHARED_LOCKS_REQUIRED(po.mu)
-func (po *ProxyObject) checkInvariants()
+func (po *ProxyObject) checkInvariants() {
+	if po.source != nil && po.source.Size <= 0 {
+		panic(fmt.Sprintf("Non-sensical source size: %v", po.source.Size))
+	}
+
+	if !po.dirty && po.source == nil {
+		panic("A clean proxy must have a source set.")
+	}
+}
 
 // Inform the proxy object of the most recently observed generation of the
 // object of interest in GCS.
