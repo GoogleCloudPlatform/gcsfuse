@@ -9,9 +9,11 @@ import (
 	"log"
 	"math"
 	"os"
+	"strings"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
+	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )
 
@@ -233,7 +235,42 @@ func (po *ProxyObject) Truncate(n uint64) (err error) {
 // Ensure that the remote object reflects the local state, returning a record
 // for a generation that does. Clobbers the remote version. Does no work if the
 // remote version is already up to date.
-func (po *ProxyObject) Sync() (storage.Object, error)
+func (po *ProxyObject) Sync(ctx context.Context) (o storage.Object, err error) {
+	// Is there anything to do?
+	if !po.dirty {
+		o = *po.source
+		return
+	}
+
+	// Choose a reader.
+	var contents io.Reader
+	if po.localFile != nil {
+		contents = po.localFile
+	} else {
+		contents = strings.NewReader("")
+	}
+
+	// Create a new generation of the object.
+	req := &gcs.CreateObjectRequest{
+		Attrs: storage.ObjectAttrs{
+			Name: po.name,
+		},
+		Contents: contents,
+	}
+
+	created, err := po.bucket.CreateObject(ctx, req)
+	if err != nil {
+		return
+	}
+
+	o = *created
+
+	// Update local state.
+	po.source = created
+	po.dirty = false
+
+	return
+}
 
 // Ensure that po.localFile != nil and contains the correct contents.
 func (po *ProxyObject) ensureLocalFile() (err error)
