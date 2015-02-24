@@ -202,6 +202,8 @@ func (op *ObjectProxy) ReadAt(
 // Make a random access write into our view of the content. May block for
 // network access. Not guaranteed to be reflected remotely until after Sync is
 // called successfully.
+//
+// Guarantees that err != nil if n < len(buf)
 func (op *ObjectProxy) WriteAt(
 	ctx context.Context,
 	buf []byte,
