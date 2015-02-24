@@ -758,8 +758,28 @@ func (t *SourceObjectPresentTest) Truncate_NewReaderFails() {
 }
 
 func (t *SourceObjectPresentTest) Truncate_NewReaderSucceeds() {
-	AssertTrue(false, "TODO")
-	AssertTrue(false, "TODO: Try sync")
+	buf := make([]byte, 1024)
+	var n int
+	var err error
+
+	// Bucket.NewReader
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("taco")), nil))
+
+	// Truncate
+	err = t.op.Truncate(1)
+	AssertEq(nil, err)
+
+	// Read
+	n, err = t.op.ReadAt(buf, 0)
+	AssertEq(io.EOF, err)
+	ExpectEq("t", string(buf[:n]))
+
+	// The object should be regarded as dirty by Sync.
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	t.op.Sync()
 }
 
 func (t *SourceObjectPresentTest) Sync_NoInteractions() {
