@@ -490,11 +490,44 @@ func (t *NoSourceObjectTest) Sync_CreateObjectFails() {
 }
 
 func (t *NoSourceObjectTest) Sync_Successful() {
-	AssertTrue(false, "TODO")
-}
+	var n int
+	var err error
 
-func (t *NoSourceObjectTest) SyncTwice() {
-	AssertTrue(false, "TODO")
+	// Dirty the proxy.
+	n, err = t.op.WriteAt([]byte("taco"), 0)
+	AssertEq(nil, err)
+	AssertEq(len("taco"), n)
+
+	// Have the call to CreateObject succeed.
+	expected := &storage.Object{
+		Name: t.objectName,
+	}
+
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(oglemock.Return(expected, nil))
+
+	// Sync -- should succeed
+	o, err := t.op.Sync()
+
+	AssertEq(nil, err)
+	ExpectEq(expected, o)
+
+	// Further calls to Sync should do nothing.
+	o2, err := t.op.Sync()
+
+	AssertEq(nil, err)
+	ExpectEq(o, o2)
+
+	// The data we wrote before should still be present.
+	size, err := t.op.Size()
+	AssertEq(nil, err)
+	ExpectEq(len("taco"), size)
+
+	buf := make([]byte, 1024)
+	n, err = t.op.ReadAt(buf, 0)
+
+	AssertEq(io.EOF, err)
+	ExpectEq("taco", string(buf[:n]))
 }
 
 ////////////////////////////////////////////////////////////////////////
