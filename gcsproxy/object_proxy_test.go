@@ -101,7 +101,47 @@ var _ SetUpInterface = &NoSourceObjectTest{}
 
 func init() { RegisterTestSuite(&NoSourceObjectTest{}) }
 
-func (t *NoSourceObjectTest) DoesFoo() {
+func (t *NoSourceObjectTest) NoteLatest_NegativeSize() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) NoteLatest_WrongName() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Size_InitialState() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Size_AfterTruncating() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Size_AfterReading() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Read_InitialState() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) WriteThenRead() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) GrowByTruncating() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Sync_NoChanges() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Sync_AfterWriting() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Sync_AfterTruncating() {
 	AssertTrue(false, "TODO")
 }
 
