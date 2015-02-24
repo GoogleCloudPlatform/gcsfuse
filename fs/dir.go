@@ -209,8 +209,8 @@ func (d *dir) checkInvariants() {
 			panic(fmt.Sprintf("Name mismatch: %s vs. %s", name, d.objectPrefix))
 		}
 
-		if okFile && name != path.Base(f.objectName) {
-			panic(fmt.Sprintf("Name mismatch: %s vs. %s", name, f.objectName))
+		if okFile && name != path.Base(f.objectProxy.Name()) {
+			panic(fmt.Sprintf("Name mismatch: %s vs. %s", name, f.objectProxy.Name()))
 		}
 	}
 
@@ -272,10 +272,10 @@ func (d *dir) checkInvariants() {
 // subtle later if we must) and modify the result appropriately.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(d.mu)
-func (d *dir) ensureContents(ctx context.Context) error {
+func (d *dir) ensureContents(ctx context.Context) (err error) {
 	// Are the contents already fresh?
 	if d.clock.Now().Before(d.contentsExpiration) {
-		return nil
+		return
 	}
 
 	// Grab a listing.
@@ -286,14 +286,15 @@ func (d *dir) ensureContents(ctx context.Context) error {
 
 	objects, prefixes, err := gcsutil.List(ctx, d.bucket, query)
 	if err != nil {
-		return fmt.Errorf("gcsutil.List: %v", err)
+		err = fmt.Errorf("gcsutil.List: %v", err)
+		return
 	}
 
 	// Convert the listing into a contents map.
 	//
 	// TODO(jacobsa): Some facility for re-using the existing nodes that are
 	// already in the map if they are up to date (or updating them).
-	d.contents = make(map[string]fusefs.Node)
+	contents := make(map[string]fusefs.Node)
 
 	for _, o := range objects {
 		// Special case: the GCS storage browser's "New folder" button causes an
@@ -308,16 +309,17 @@ func (d *dir) ensureContents(ctx context.Context) error {
 			continue
 		}
 
-		d.contents[path.Base(o.Name)] =
-			newFile(
-				d.logger,
-				d.bucket,
-				o.Name,
-				uint64(o.Size))
+		var f *file
+		if f, err = newFile(d.logger, d.bucket, o); err != nil {
+			err = fmt.Errorf("newFile: %v", err)
+			return
+		}
+
+		contents[path.Base(o.Name)] = f
 	}
 
 	for _, prefix := range prefixes {
-		d.contents[path.Base(prefix)] =
+		contents[path.Base(prefix)] =
 			newDir(
 				d.logger,
 				d.clock,
@@ -325,11 +327,13 @@ func (d *dir) ensureContents(ctx context.Context) error {
 				prefix)
 	}
 
+	d.contents = contents
+
 	// Choose an expiration time.
 	d.contentsExpiration = d.clock.Now().Add(ListingCacheTTL)
 
 	// TODO(jacobsa): Apply child modifications.
-	return nil
+	return
 }
 
 func (d *dir) Attr() fuse.Attr {
