@@ -210,12 +210,12 @@ func (t *NoSourceObjectTest) Read_InitialState() {
 	}
 }
 
-func (t *NoSourceObjectTest) WriteToEndOfFileThenRead() {
+func (t *NoSourceObjectTest) WriteToEndOfObjectThenRead() {
 	var n int
 	var err error
 	var buf []byte
 
-	// Extend the file by writing twice.
+	// Extend the object by writing twice.
 	n, err = t.op.WriteAt([]byte("taco"), 0)
 	AssertEq(nil, err)
 	AssertEq(len("taco"), n)
@@ -241,12 +241,12 @@ func (t *NoSourceObjectTest) WriteToEndOfFileThenRead() {
 	ExpectEq("obur", string(buf[:n]))
 }
 
-func (t *NoSourceObjectTest) WritePastEndOfFileThenRead() {
+func (t *NoSourceObjectTest) WritePastEndOfObjectThenRead() {
 	var n int
 	var err error
 	var buf []byte
 
-	// Extend the file by writing past its end.
+	// Extend the object by writing past its end.
 	n, err = t.op.WriteAt([]byte("taco"), 2)
 	AssertEq(nil, err)
 	AssertEq(len("taco"), n)
@@ -273,12 +273,12 @@ func (t *NoSourceObjectTest) WritePastEndOfFileThenRead() {
 	ExpectEq("\x00tac", string(buf[:n]))
 }
 
-func (t *NoSourceObjectTest) WriteWithinFileThenRead() {
+func (t *NoSourceObjectTest) WriteWithinObjectThenRead() {
 	var n int
 	var err error
 	var buf []byte
 
-	// Write several bytes to extend the file.
+	// Write several bytes to extend the object.
 	n, err = t.op.WriteAt([]byte("00000"), 0)
 	AssertEq(nil, err)
 	AssertEq(len("00000"), n)
