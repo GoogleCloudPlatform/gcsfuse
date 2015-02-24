@@ -211,7 +211,34 @@ func (t *NoSourceObjectTest) Read_InitialState() {
 }
 
 func (t *NoSourceObjectTest) WriteToEndOfFileThenRead() {
-	AssertTrue(false, "TODO")
+	var n int
+	var err error
+	var buf []byte
+
+	// Extend the file by writing twice.
+	n, err = t.op.WriteAt([]byte("taco"), 0)
+	AssertEq(nil, err)
+	AssertEq(len("taco"), n)
+
+	n, err = t.op.WriteAt([]byte("burrito"), int64(len("taco")))
+	AssertEq(nil, err)
+	AssertEq(len("burrito"), n)
+
+	// Read the whole thing.
+	buf = make([]byte, 1024)
+	n, err = t.op.ReadAt(buf, 0)
+
+	AssertEq(io.EOF, err)
+	ExpectEq(len("tacoburrito"), n)
+	ExpectEq("tacoburrito", string(buf[:n]))
+
+	// Read a range in the middle.
+	buf = make([]byte, 4)
+	n, err = t.op.ReadAt(buf, 3)
+
+	AssertEq(nil, err)
+	ExpectEq(4, n)
+	ExpectEq("obur", string(buf[:n]))
 }
 
 func (t *NoSourceObjectTest) WritePastEndOfFileThenRead() {
