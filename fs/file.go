@@ -168,7 +168,7 @@ func (f *file) Release(
 
 	f.logger.Printf("Release: %s", f.objectProxy.Name())
 
-	err = f.objectProxy.Clean()
+	err = f.objectProxy.Clean(ctx)
 	return
 }
 
