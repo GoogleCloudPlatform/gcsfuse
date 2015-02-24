@@ -991,7 +991,24 @@ func (t *SourceObjectPresentTest) Clean_AfterReading() {
 }
 
 func (t *SourceObjectPresentTest) Clean_AfterWriting() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Write, successfully.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+
+	_, err = t.op.WriteAt([]byte("a"), 0)
+	AssertEq(nil, err)
+
+	// Clean
+	err = t.op.Clean()
+	AssertEq(nil, err)
+
+	// The next write should need to fetch the object again.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	t.op.WriteAt([]byte("a"), 0)
 }
 
 func (t *SourceObjectPresentTest) Clean_AfterTruncating() {
