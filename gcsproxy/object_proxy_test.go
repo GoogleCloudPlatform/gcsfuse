@@ -530,6 +530,18 @@ func (t *NoSourceObjectTest) Sync_Successful() {
 	ExpectEq("taco", string(buf[:n]))
 }
 
+func (t *NoSourceObjectTest) NoteLatest_NoInteractions() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) NoteLatest_AfterWriting() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) NoteLatest_AfterTruncating() {
+	AssertTrue(false, "TODO")
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Source object present
 ////////////////////////////////////////////////////////////////////////
@@ -560,6 +572,57 @@ func (t *SourceObjectPresentTest) SetUp(ti *TestInfo) {
 	}
 }
 
-func (t *SourceObjectPresentTest) DoesFoo() {
+func (t *SourceObjectPresentTest) Read_CallsBucket() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Read_BucketFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Read_BucketSucceeds() {
+	AssertTrue(false, "TODO")
+	AssertTrue(false, "TODO: Try sync")
+}
+
+func (t *SourceObjectPresentTest) Write_CallsBucket() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Write_BucketFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Write_BucketSucceeds() {
+	AssertTrue(false, "TODO")
+	AssertTrue(false, "TODO: Try sync")
+}
+
+func (t *SourceObjectPresentTest) Truncate_CallsBucket() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Truncate_BucketFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Truncate_BucketSucceeds() {
+	AssertTrue(false, "TODO")
+	AssertTrue(false, "TODO: Try sync")
+}
+
+func (t *SourceObjectPresentTest) Sync_NoInteractions() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) NoteLatest_EarlierThanPrev() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) NoteLatest_SameAsPrev() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) NoteLatest_NewerThanPrev() {
 	AssertTrue(false, "TODO")
 }
