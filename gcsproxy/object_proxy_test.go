@@ -677,7 +677,12 @@ func (t *SourceObjectPresentTest) Read_BucketSucceeds() {
 }
 
 func (t *SourceObjectPresentTest) Write_CallsBucket() {
-	AssertTrue(false, "TODO")
+	// Bucket.Read
+	ExpectCall(t.bucket, "NewReader")(Any(), t.sourceObject.Name).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	// WriteAt
+	t.op.WriteAt([]byte(""), 0)
 }
 
 func (t *SourceObjectPresentTest) Write_BucketFails() {
