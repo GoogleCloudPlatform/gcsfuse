@@ -449,7 +449,44 @@ func (t *NoSourceObjectTest) Sync_AfterTruncating() {
 }
 
 func (t *NoSourceObjectTest) Sync_CreateObjectFails() {
-	AssertTrue(false, "TODO")
+	var n int
+	var err error
+
+	// Write some data.
+	n, err = t.op.WriteAt([]byte("taco"), 0)
+	AssertEq(nil, err)
+	AssertEq(len("taco"), n)
+
+	// First call to create object: fail.
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, errors.New("taco")))
+
+	// Sync -- should fail.
+	_, err = t.op.Sync()
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("CreateObject")))
+	ExpectThat(err, Error(HasSubstr("taco")))
+
+	// The data we wrote before should still be present.
+	size, err := t.op.Size()
+	AssertEq(nil, err)
+	ExpectEq(len("taco"), size)
+
+	buf := make([]byte, 1024)
+	n, err = t.op.ReadAt(buf, 0)
+
+	AssertEq(io.EOF, err)
+	ExpectEq("taco", string(buf[:n]))
+
+	// The file should still be regarded as dirty -- a further call to Sync
+	// should call CreateObject again.
+	ExpectCall(t.bucket, "CreateObject")(
+		Any(),
+		AllOf(nameIs(t.objectName), contentsAre("taco"))).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	t.op.Sync()
 }
 
 func (t *NoSourceObjectTest) Sync_Successful() {
