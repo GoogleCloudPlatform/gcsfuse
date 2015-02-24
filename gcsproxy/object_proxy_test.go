@@ -117,7 +117,17 @@ func (t *NoSourceObjectTest) NoteLatest_NegativeSize() {
 }
 
 func (t *NoSourceObjectTest) NoteLatest_WrongName() {
-	AssertTrue(false, "TODO")
+	o := &storage.Object{
+		Name:       t.objectName + "foo",
+		Generation: 1234,
+		Size:       0,
+	}
+
+	err := t.op.NoteLatest(o)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("name")))
+	ExpectThat(err, Error(HasSubstr("foo")))
 }
 
 func (t *NoSourceObjectTest) Size_InitialState() {
