@@ -460,11 +460,10 @@ func (d *dir) Mknod(
 	}
 
 	// Set up a file node.
-	node = newFile(
-		d.logger,
-		d.bucket,
-		objectName,
-		uint64(o.Size))
+	if node, err = newFile(d.logger, d.bucket, o); err != nil {
+		err = fmt.Errorf("newFile: %v", err)
+		return
+	}
 
 	// Store it in our contents map.
 	//
