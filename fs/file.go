@@ -72,6 +72,10 @@ func newFile(
 		return
 	}
 
+	if err = f.objectProxy.NoteLatest(remoteObject); err != nil {
+		err = fmt.Errorf("NoteLatest: %v", err)
+	}
+
 	// Set up the mutex.
 	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
 
