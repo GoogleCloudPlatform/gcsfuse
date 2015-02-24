@@ -65,14 +65,22 @@ func (op *checkingObjectProxy) Sync(ctx context.Context) (*storage.Object, error
 ////////////////////////////////////////////////////////////////////////
 
 type ObjectProxyTest struct {
-	op *checkingObjectProxy
+	objectName string
+	bucket     mock_gcs.MockBucket
+	op         checkingObjectProxy
 }
 
 var _ SetUpInterface = &ObjectProxyTest{}
 
 func init() { RegisterTestSuite(&ObjectProxyTest{}) }
 
-func (t *ObjectProxyTest) SetUp(ti *TestInfo)
+func (t *ObjectProxyTest) SetUp(ti *TestInfo) {
+	t.objectName = "some/object"
+	t.bucket = mock_gcs.NewMock(ti.MockController, "bucket")
+	t.checkingObjectProxy.wrapped = gcsproxy.NewObjectProxy(
+		t.bucket,
+		t.objectName)
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Test functions
