@@ -298,7 +298,26 @@ func (t *NoSourceObjectTest) WriteWithinObjectThenRead() {
 }
 
 func (t *NoSourceObjectTest) GrowByTruncating() {
-	AssertTrue(false, "TODO")
+	var n int
+	var err error
+	var buf []byte
+
+	// Truncate
+	err = t.op.Truncate(4)
+	AssertEq(nil, err)
+
+	// Size
+	size, err := t.op.Size()
+	AssertEq(nil, err)
+	ExpectEq(4, size)
+
+	// Read the whole thing.
+	buf = make([]byte, 1024)
+	n, err = t.op.ReadAt(buf, 0)
+
+	AssertEq(io.EOF, err)
+	ExpectEq(4, n)
+	ExpectEq("\x00\x00\x00\x00", string(buf[:n]))
 }
 
 func (t *NoSourceObjectTest) Sync_NoChanges() {
