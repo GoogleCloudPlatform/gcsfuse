@@ -73,8 +73,6 @@ type ObjectProxyTest struct {
 
 var _ SetUpInterface = &ObjectProxyTest{}
 
-func init() { RegisterTestSuite(&ObjectProxyTest{}) }
-
 func (t *ObjectProxyTest) SetUp(ti *TestInfo) {
 	t.objectName = "some/object"
 	t.bucket = mock_gcs.NewMockBucket(ti.MockController, "bucket")
@@ -90,9 +88,39 @@ func (t *ObjectProxyTest) SetUp(ti *TestInfo) {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Test functions
+// No source object
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ObjectProxyTest) DoesFoo() {
+// A test whose initial conditions are a fresh object proxy without a source
+// object set.
+type NoSourceObjectTest struct {
+	ObjectProxyTest
+}
+
+var _ SetUpInterface = &NoSourceObjectTest{}
+
+func init() { RegisterTestSuite(&NoSourceObjectTest{}) }
+
+func (t *NoSourceObjectTest) DoesFoo() {
+	AssertTrue(false, "TODO")
+}
+
+////////////////////////////////////////////////////////////////////////
+// Source object present
+////////////////////////////////////////////////////////////////////////
+
+// A test whose initial conditions are an object proxy branching from a source
+// object in the bucket.
+type SourceObjectPresentTest struct {
+	ObjectProxyTest
+}
+
+var _ SetUpInterface = &SourceObjectPresentTest{}
+
+func init() { RegisterTestSuite(&SourceObjectPresentTest{}) }
+
+func (t *SourceObjectPresentTest) SetUp(ti *TestInfo)
+
+func (t *SourceObjectPresentTest) DoesFoo() {
 	AssertTrue(false, "TODO")
 }
