@@ -546,6 +546,11 @@ func (t *NoSourceObjectTest) NoteLatest_NoInteractions() {
 	AssertEq(nil, err)
 	ExpectEq(19, size)
 
+	// Sync should return the new object without doing anything interesting.
+	syncResult, err := t.op.Sync()
+	AssertEq(nil, err)
+	ExpectEq(newObj, syncResult)
+
 	// A read should cause the object to be faulted in.
 	ExpectCall(t.bucket, "NewReader")(Any(), t.objectName).
 		WillOnce(oglemock.Return(nil, errors.New("")))
@@ -554,11 +559,37 @@ func (t *NoSourceObjectTest) NoteLatest_NoInteractions() {
 }
 
 func (t *NoSourceObjectTest) NoteLatest_AfterWriting() {
-	AssertTrue(false, "TODO")
-}
+	var err error
 
-func (t *NoSourceObjectTest) NoteLatest_AfterTruncating() {
-	AssertTrue(false, "TODO")
+	// Write
+	_, err = t.op.WriteAt([]byte("taco"), 0)
+	AssertEq(nil, err)
+
+	// NoteLatest
+	newObj := &storage.Object{
+		Name:       t.objectName,
+		Generation: 17,
+		Size:       19,
+	}
+
+	err = t.op.NoteLatest(newObj)
+	AssertEq(nil, err)
+
+	// The new size should be reflected.
+	size, err := t.op.Size()
+	AssertEq(nil, err)
+	ExpectEq(19, size)
+
+	// Sync should return the new object without doing anything interesting.
+	syncResult, err := t.op.Sync()
+	AssertEq(nil, err)
+	ExpectEq(newObj, syncResult)
+
+	// A read should cause the object to be faulted in.
+	ExpectCall(t.bucket, "NewReader")(Any(), t.objectName).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	t.op.ReadAt(make([]byte, 1), 0)
 }
 
 ////////////////////////////////////////////////////////////////////////
