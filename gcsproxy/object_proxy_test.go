@@ -630,7 +630,29 @@ func (t *NoSourceObjectTest) Clean_NoInteractions() {
 }
 
 func (t *NoSourceObjectTest) Clean_AfterReading() {
-	AssertTrue(false, "TODO")
+	var buf []byte
+	var n int
+	var err error
+
+	// Read
+	buf = make([]byte, 4)
+	n, err = t.op.ReadAt(buf, 0)
+	AssertEq(io.EOF, err)
+	ExpectEq(0, n)
+
+	// Clean
+	err = t.op.Clean()
+	AssertEq(nil, err)
+
+	// Sizing and reading should still work.
+	size, err := t.op.Size()
+	AssertEq(nil, err)
+	ExpectEq(0, size)
+
+	buf = make([]byte, 4)
+	n, err = t.op.ReadAt(buf, 0)
+	AssertEq(io.EOF, err)
+	ExpectEq(0, n)
 }
 
 func (t *NoSourceObjectTest) Clean_AfterWriting() {
