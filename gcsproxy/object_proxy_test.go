@@ -113,13 +113,27 @@ func (t *NoSourceObjectTest) DoesFoo() {
 // object in the bucket.
 type SourceObjectPresentTest struct {
 	ObjectProxyTest
+	sourceObject storage.Object
 }
 
 var _ SetUpInterface = &SourceObjectPresentTest{}
 
 func init() { RegisterTestSuite(&SourceObjectPresentTest{}) }
 
-func (t *SourceObjectPresentTest) SetUp(ti *TestInfo)
+func (t *SourceObjectPresentTest) SetUp(ti *TestInfo) {
+	t.ObjectProxyTest.SetUp(ti)
+
+	// Set up the source object.
+	t.sourceObject = storage.Object{
+		Name:       t.objectName,
+		Generation: 123,
+		Size:       456,
+	}
+
+	if err := t.op.NoteLatest(&t.sourceObject); err != nil {
+		panic(err)
+	}
+}
 
 func (t *SourceObjectPresentTest) DoesFoo() {
 	AssertTrue(false, "TODO")
