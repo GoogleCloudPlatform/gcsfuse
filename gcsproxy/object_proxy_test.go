@@ -434,7 +434,18 @@ func (t *NoSourceObjectTest) Sync_AfterWriting() {
 }
 
 func (t *NoSourceObjectTest) Sync_AfterTruncating() {
-	AssertTrue(false, "TODO")
+	// Truncate outwards.
+	err := t.op.Truncate(2)
+	AssertEq(nil, err)
+
+	// CreateObject -- should receive null bytes.
+	ExpectCall(t.bucket, "CreateObject")(
+		Any(),
+		AllOf(nameIs(t.objectName), contentsAre("\x00\x00"))).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	// Sync
+	t.op.Sync()
 }
 
 func (t *NoSourceObjectTest) Sync_CreateObjectFails() {
