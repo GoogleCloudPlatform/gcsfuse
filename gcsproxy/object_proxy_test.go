@@ -8,6 +8,7 @@ import (
 
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	"github.com/jacobsa/gcsfuse/gcsproxy"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
@@ -102,7 +103,17 @@ var _ SetUpInterface = &NoSourceObjectTest{}
 func init() { RegisterTestSuite(&NoSourceObjectTest{}) }
 
 func (t *NoSourceObjectTest) NoteLatest_NegativeSize() {
-	AssertTrue(false, "TODO")
+	o := &storage.Object{
+		Name:       t.objectName,
+		Generation: 1234,
+		Size:       -1,
+	}
+
+	err := t.op.NoteLatest(o)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("size")))
+	ExpectThat(err, Error(HasSubstr("-1")))
 }
 
 func (t *NoSourceObjectTest) NoteLatest_WrongName() {
