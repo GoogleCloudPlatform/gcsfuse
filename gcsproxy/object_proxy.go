@@ -91,7 +91,7 @@ func NewObjectProxy(
 // syncutil.InvariantMutex to automate the process.
 func (op *ObjectProxy) CheckInvariants() {
 	if op.source != nil && op.source.Size <= 0 {
-		if op.source.Size <= 0 {
+		if op.source.Size < 0 {
 			panic(fmt.Sprintf("Non-sensical source size: %v", op.source.Size))
 		}
 
