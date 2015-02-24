@@ -733,6 +733,12 @@ func (t *SourceObjectPresentTest) SetUp(ti *TestInfo) {
 	}
 }
 
+func (t *SourceObjectPresentTest) Size_InitialState() {
+	size, err := t.op.Size()
+	AssertEq(nil, err)
+	ExpectEq(t.sourceObject.Size, size)
+}
+
 func (t *SourceObjectPresentTest) Read_CallsNewReader() {
 	// Bucket.NewReader
 	ExpectCall(t.bucket, "NewReader")(Any(), t.sourceObject.Name).
