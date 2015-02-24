@@ -89,6 +89,12 @@ type checkingObjectProxy struct {
 	wrapped *gcsproxy.ObjectProxy
 }
 
+func (op *checkingObjectProxy) Name() string {
+	op.wrapped.CheckInvariants()
+	defer op.wrapped.CheckInvariants()
+	return op.wrapped.Name()
+}
+
 func (op *checkingObjectProxy) NoteLatest(o *storage.Object) error {
 	op.wrapped.CheckInvariants()
 	defer op.wrapped.CheckInvariants()
@@ -164,6 +170,10 @@ type NoSourceObjectTest struct {
 var _ SetUpInterface = &NoSourceObjectTest{}
 
 func init() { RegisterTestSuite(&NoSourceObjectTest{}) }
+
+func (t *NoSourceObjectTest) Name() {
+	ExpectEq(t.objectName, t.op.Name())
+}
 
 func (t *NoSourceObjectTest) NoteLatest_NegativeSize() {
 	o := &storage.Object{

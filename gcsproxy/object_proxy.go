@@ -86,6 +86,11 @@ func NewObjectProxy(
 	return
 }
 
+// Return the name of the proxied object.
+func (op *ObjectProxy) Name() string {
+	return op.name
+}
+
 // Panic if any internal invariants are violated. Careful users can call this
 // at appropriate times to help debug weirdness. Consider using
 // syncutil.InvariantMutex to automate the process.
