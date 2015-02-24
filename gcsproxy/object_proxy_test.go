@@ -131,7 +131,10 @@ func (t *NoSourceObjectTest) NoteLatest_WrongName() {
 }
 
 func (t *NoSourceObjectTest) Size_InitialState() {
-	AssertTrue(false, "TODO")
+	size, err := t.op.Size()
+
+	AssertEq(nil, err)
+	ExpectEq(0, size)
 }
 
 func (t *NoSourceObjectTest) Size_AfterTruncating() {
