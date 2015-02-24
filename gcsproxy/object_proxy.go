@@ -124,8 +124,8 @@ func (op *ObjectProxy) NoteLatest(o *storage.Object) (err error) {
 		return
 	}
 
-	// Do nothing if nothing has changed.
-	if op.source != nil && op.source.Generation == o.Generation {
+	// Do nothing if this is not newer than what we have.
+	if op.source != nil && o.Generation <= op.source.Generation {
 		return
 	}
 
