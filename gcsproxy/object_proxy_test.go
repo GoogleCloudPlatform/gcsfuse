@@ -4,18 +4,60 @@
 package gcsproxy_test
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"testing"
 
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	"github.com/jacobsa/gcsfuse/gcsproxy"
 	. "github.com/jacobsa/oglematchers"
+	"github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )
 
 func TestOgletest(t *testing.T) { RunTests(t) }
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+// An oglemock.Matcher that accepts a predicate function and a description,
+// making it easy to make anonymous matcher types.
+type predicateMatcher struct {
+	Desc      string
+	Predicate func(interface{}) error
+}
+
+var _ Matcher = &predicateMatcher{}
+
+func (m *predicateMatcher) Matches(candidate interface{}) error {
+	return m.Predicate(candidate)
+}
+
+func (m *predicateMatcher) Description() string {
+	return m.Desc
+}
+
+func nameIs(name string) Matcher {
+	return &predicateMatcher{
+		Desc: fmt.Sprintf("Name is: %s", name),
+		Predicate: func(candidate interface{}) error {
+			panic("TODO")
+		},
+	}
+}
+
+func contentsAre(s string) Matcher {
+	return &predicateMatcher{
+		Desc: fmt.Sprintf("Object contents are: %s", s),
+		Predicate: func(candidate interface{}) error {
+			panic("TODO")
+		},
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Invariant-checking object proxy
@@ -57,10 +99,10 @@ func (op *checkingObjectProxy) Truncate(n uint64) error {
 	return op.wrapped.Truncate(context.Background(), n)
 }
 
-func (op *checkingObjectProxy) Sync(ctx context.Context) (*storage.Object, error) {
+func (op *checkingObjectProxy) Sync() (*storage.Object, error) {
 	op.wrapped.CheckInvariants()
 	defer op.wrapped.CheckInvariants()
-	return op.wrapped.Sync(ctx)
+	return op.wrapped.Sync(context.Background())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -320,7 +362,18 @@ func (t *NoSourceObjectTest) GrowByTruncating() {
 	ExpectEq("\x00\x00\x00\x00", string(buf[:n]))
 }
 
-func (t *NoSourceObjectTest) Sync_NoChanges() {
+func (t *NoSourceObjectTest) Sync_NoInteractions() {
+	// CreateObject -- should receive an empty string.
+	ExpectCall(t.bucket, "CreateObject")(
+		Any(),
+		AllOf(nameIs(t.objectName), contentsAre(""))).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	// Sync
+	t.op.Sync()
+}
+
+func (t *NoSourceObjectTest) Sync_ReadCallsOnly() {
 	AssertTrue(false, "TODO")
 }
 
@@ -329,6 +382,18 @@ func (t *NoSourceObjectTest) Sync_AfterWriting() {
 }
 
 func (t *NoSourceObjectTest) Sync_AfterTruncating() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Sync_CreateObjectFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Sync_Successful() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) SyncTwice() {
 	AssertTrue(false, "TODO")
 }
 
