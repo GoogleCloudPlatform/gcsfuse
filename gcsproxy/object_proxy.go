@@ -118,7 +118,7 @@ func (op *ObjectProxy) CheckInvariants() {
 // observed, it is ignored. Otherwise, it becomes the definitive source of data
 // for the object. Any local-only state is clobbered, including local
 // modifications.
-func (op *ObjectProxy) NoteLatest(o storage.Object) (err error) {
+func (op *ObjectProxy) NoteLatest(o *storage.Object) (err error) {
 	// Sanity check the input.
 	if o.Size < 0 {
 		err = fmt.Errorf("Object contains negative size: %v", o.Size)
@@ -151,7 +151,7 @@ func (op *ObjectProxy) NoteLatest(o storage.Object) (err error) {
 	}
 
 	// Reset state.
-	op.source = &o
+	op.source = o
 	op.localFile = nil
 	op.dirty = false
 
@@ -234,10 +234,10 @@ func (op *ObjectProxy) Truncate(n uint64) (err error) {
 // Ensure that the remote object reflects the local state, returning a record
 // for a generation that does. Clobbers the remote version. Does no work if the
 // remote version is already up to date.
-func (op *ObjectProxy) Sync(ctx context.Context) (o storage.Object, err error) {
+func (op *ObjectProxy) Sync(ctx context.Context) (o *storage.Object, err error) {
 	// Is there anything to do?
 	if !op.dirty {
-		o = *op.source
+		o = op.source
 		return
 	}
 
@@ -257,15 +257,12 @@ func (op *ObjectProxy) Sync(ctx context.Context) (o storage.Object, err error) {
 		Contents: contents,
 	}
 
-	created, err := op.bucket.CreateObject(ctx, req)
-	if err != nil {
+	if o, err = op.bucket.CreateObject(ctx, req); err != nil {
 		return
 	}
 
-	o = *created
-
 	// Update local state.
-	op.source = created
+	op.source = o
 	op.dirty = false
 
 	return
