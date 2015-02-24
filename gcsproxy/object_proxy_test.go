@@ -166,7 +166,20 @@ func (t *NoSourceObjectTest) Size_AfterTruncatingToNonZero() {
 }
 
 func (t *NoSourceObjectTest) Size_AfterReading() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Read
+	buf := make([]byte, 0)
+	n, err := t.op.ReadAt(buf, 0)
+
+	AssertEq(nil, err)
+	AssertEq(0, n)
+
+	// Size
+	size, err := t.op.Size()
+
+	AssertEq(nil, err)
+	ExpectEq(0, size)
 }
 
 func (t *NoSourceObjectTest) Read_InitialState() {
