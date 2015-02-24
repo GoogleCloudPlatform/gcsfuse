@@ -680,7 +680,27 @@ func (t *NoSourceObjectTest) Clean_AfterWriting() {
 }
 
 func (t *NoSourceObjectTest) Clean_AfterTruncating() {
-	AssertTrue(false, "TODO")
+	var buf []byte
+	var n int
+	var err error
+
+	// Truncate
+	err = t.op.Truncate(1)
+	AssertEq(nil, err)
+
+	// Clean
+	err = t.op.Clean()
+	AssertEq(nil, err)
+
+	// Should be back to empty.
+	size, err := t.op.Size()
+	AssertEq(nil, err)
+	ExpectEq(0, size)
+
+	buf = make([]byte, 4)
+	n, err = t.op.ReadAt(buf, 0)
+	AssertEq(io.EOF, err)
+	ExpectEq(0, n)
 }
 
 ////////////////////////////////////////////////////////////////////////
