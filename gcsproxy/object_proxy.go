@@ -230,6 +230,9 @@ func (op *ObjectProxy) Truncate(ctx context.Context, n uint64) (err error) {
 // Ensure that the remote object reflects the local state, returning a record
 // for a generation that does. Clobbers the remote version. Does no work if the
 // remote version is already up to date.
+//
+// There is no need to call NoteLatest with the output; it is automatically
+// noted.
 func (op *ObjectProxy) Sync(ctx context.Context) (o *storage.Object, err error) {
 	// Is there anything to do?
 	if !op.dirty {
