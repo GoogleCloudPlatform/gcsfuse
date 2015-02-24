@@ -696,7 +696,13 @@ func (t *readOnlyTest) ReadFromFile_Large() {
 	// Read its entire contents.
 	slice, err := ioutil.ReadAll(f)
 	AssertEq(nil, err)
-	ExpectEq(contents, string(slice))
+	if contents != string(slice) {
+		ExpectTrue(
+			false,
+			"Expected:\n%v\n\nActual:\n%v",
+			hex.Dump([]byte(contents)),
+			hex.Dump(slice))
+	}
 
 	// Read from parts of it.
 	referenceReader := strings.NewReader(contents)

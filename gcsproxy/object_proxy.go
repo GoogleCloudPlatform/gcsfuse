@@ -86,6 +86,11 @@ func NewObjectProxy(
 	return
 }
 
+// Return the name of the proxied object.
+func (op *ObjectProxy) Name() string {
+	return op.name
+}
+
 // Panic if any internal invariants are violated. Careful users can call this
 // at appropriate times to help debug weirdness. Consider using
 // syncutil.InvariantMutex to automate the process.
@@ -129,24 +134,14 @@ func (op *ObjectProxy) NoteLatest(o *storage.Object) (err error) {
 		return
 	}
 
-	// Throw out the local file, if any.
-	if op.localFile != nil {
-		path := op.localFile.Name()
-
-		if err = op.localFile.Close(); err != nil {
-			err = fmt.Errorf("Closing local file: %v", err)
-			return
-		}
-
-		if err = os.Remove(path); err != nil {
-			err = fmt.Errorf("Unlinking local file: %v", err)
-			return
-		}
+	// Throw away any local state.
+	if err = op.Clean(); err != nil {
+		err = fmt.Errorf("Clean: %v", err)
+		return
 	}
 
-	// Reset state.
+	// We are now a clean copy of the new source.
 	op.source = o
-	op.localFile = nil
 	op.dirty = false
 
 	return
@@ -236,6 +231,9 @@ func (op *ObjectProxy) Truncate(ctx context.Context, n uint64) (err error) {
 // Ensure that the remote object reflects the local state, returning a record
 // for a generation that does. Clobbers the remote version. Does no work if the
 // remote version is already up to date.
+//
+// There is no need to call NoteLatest with the output; it is automatically
+// noted.
 func (op *ObjectProxy) Sync(ctx context.Context) (o *storage.Object, err error) {
 	// Is there anything to do?
 	if !op.dirty {
@@ -321,6 +319,37 @@ func (op *ObjectProxy) ensureLocalFile(ctx context.Context) (err error) {
 
 	// Snarf the file.
 	op.localFile, f = f, nil
+
+	return
+}
+
+// Throw away any local modifications to the object, reverting to the latest
+// version handed to NoteLatest (or the non-existent object if none). Watch
+// out!
+//
+// Careful users should call this in order to clean up local state before
+// dropping all references to the object proxy.
+func (op *ObjectProxy) Clean() (err error) {
+	// Throw out the local file, if any.
+	if op.localFile != nil {
+		path := op.localFile.Name()
+
+		if err = op.localFile.Close(); err != nil {
+			err = fmt.Errorf("Closing local file: %v", err)
+			return
+		}
+
+		if err = os.Remove(path); err != nil {
+			err = fmt.Errorf("Unlinking local file: %v", err)
+			return
+		}
+	}
+
+	op.localFile = nil
+
+	// We are now dirty iff we have never seen a remote source (i.e. we are the
+	// implicit empty object).
+	op.dirty = (op.source == nil)
 
 	return
 }
