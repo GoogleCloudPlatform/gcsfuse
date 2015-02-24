@@ -152,7 +152,17 @@ func (t *NoSourceObjectTest) Size_AfterTruncatingToZero() {
 }
 
 func (t *NoSourceObjectTest) Size_AfterTruncatingToNonZero() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Truncate
+	err = t.op.Truncate(123)
+	AssertEq(nil, err)
+
+	// Size
+	size, err := t.op.Size()
+
+	AssertEq(nil, err)
+	ExpectEq(123, size)
 }
 
 func (t *NoSourceObjectTest) Size_AfterReading() {
