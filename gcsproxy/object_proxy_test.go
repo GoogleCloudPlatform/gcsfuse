@@ -41,19 +41,19 @@ func (op *checkingObjectProxy) Size() (uint64, error) {
 func (op *checkingObjectProxy) ReadAt(b []byte, o int64) (int, error) {
 	op.wrapped.CheckInvariants()
 	defer op.wrapped.CheckInvariants()
-	return op.wrapped.ReadAt(b, o)
+	return op.wrapped.ReadAt(context.Background(), b, o)
 }
 
 func (op *checkingObjectProxy) WriteAt(b []byte, o int64) (int, error) {
 	op.wrapped.CheckInvariants()
 	defer op.wrapped.CheckInvariants()
-	return op.wrapped.WriteAt(b, o)
+	return op.wrapped.WriteAt(context.Background(), b, o)
 }
 
 func (op *checkingObjectProxy) Truncate(n uint64) error {
 	op.wrapped.CheckInvariants()
 	defer op.wrapped.CheckInvariants()
-	return op.wrapped.Truncate(n)
+	return op.wrapped.Truncate(context.Background(), n)
 }
 
 func (op *checkingObjectProxy) Sync(ctx context.Context) (*storage.Object, error) {

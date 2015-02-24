@@ -68,9 +68,6 @@ type ObjectProxy struct {
 	dirty bool
 }
 
-var _ io.ReaderAt = &ObjectProxy{}
-var _ io.WriterAt = &ObjectProxy{}
-
 // Create a new view on the GCS object with the given name. The remote object
 // is assumed to be non-existent, so that the local contents are empty. Use
 // NoteLatest to change that if necessary.
@@ -190,8 +187,11 @@ func (op *ObjectProxy) Size() (n uint64, err error) {
 
 // Make a random access read into our view of the content. May block for
 // network access.
-func (op *ObjectProxy) ReadAt(buf []byte, offset int64) (n int, err error) {
-	if err = op.ensureLocalFile(); err != nil {
+func (op *ObjectProxy) ReadAt(
+	ctx context.Context,
+	buf []byte,
+	offset int64) (n int, err error) {
+	if err = op.ensureLocalFile(ctx); err != nil {
 		return
 	}
 
@@ -202,8 +202,11 @@ func (op *ObjectProxy) ReadAt(buf []byte, offset int64) (n int, err error) {
 // Make a random access write into our view of the content. May block for
 // network access. Not guaranteed to be reflected remotely until after Sync is
 // called successfully.
-func (op *ObjectProxy) WriteAt(buf []byte, offset int64) (n int, err error) {
-	if err = op.ensureLocalFile(); err != nil {
+func (op *ObjectProxy) WriteAt(
+	ctx context.Context,
+	buf []byte,
+	offset int64) (n int, err error) {
+	if err = op.ensureLocalFile(ctx); err != nil {
 		return
 	}
 
@@ -215,8 +218,8 @@ func (op *ObjectProxy) WriteAt(buf []byte, offset int64) (n int, err error) {
 // Truncate our view of the content to the given number of bytes, extending if
 // n is greater than Size(). May block for network access. Not guaranteed to be
 // reflected remotely until after Sync is called successfully.
-func (op *ObjectProxy) Truncate(n uint64) (err error) {
-	if err = op.ensureLocalFile(); err != nil {
+func (op *ObjectProxy) Truncate(ctx context.Context, n uint64) (err error) {
+	if err = op.ensureLocalFile(ctx); err != nil {
 		return
 	}
 
@@ -269,7 +272,7 @@ func (op *ObjectProxy) Sync(ctx context.Context) (o *storage.Object, err error) 
 }
 
 // Ensure that op.localFile != nil and contains the correct contents.
-func (op *ObjectProxy) ensureLocalFile() (err error) {
+func (op *ObjectProxy) ensureLocalFile(ctx context.Context) (err error) {
 	// If we've already got a local file, we're done.
 	if op.localFile != nil {
 		return
