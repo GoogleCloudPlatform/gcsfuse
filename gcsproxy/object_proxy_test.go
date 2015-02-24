@@ -4,6 +4,7 @@
 package gcsproxy_test
 
 import (
+	"io"
 	"testing"
 
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
@@ -183,7 +184,44 @@ func (t *NoSourceObjectTest) Size_AfterReading() {
 }
 
 func (t *NoSourceObjectTest) Read_InitialState() {
-	AssertTrue(false, "TODO")
+	var err error
+	var buf []byte
+	var n int
+
+	// Empty range (offset 0)
+	buf = make([]byte, 0)
+	n, err = t.op.ReadAt(buf, 0)
+
+	AssertEq(nil, err)
+	ExpectEq(0, n)
+
+	// Empty range (non-zero offset)
+	buf = make([]byte, 0)
+	n, err = t.op.ReadAt(buf, 17)
+
+	AssertEq(nil, err)
+	ExpectEq(0, n)
+
+	// Non-empty range (offset 0)
+	buf = make([]byte, 10)
+	n, err = t.op.ReadAt(buf, 0)
+
+	AssertEq(io.EOF, err)
+	ExpectEq(0, n)
+
+	// Non-empty range (offset 0)
+	buf = make([]byte, 10)
+	n, err = t.op.ReadAt(buf, 0)
+
+	ExpectEq(io.EOF, err)
+	ExpectEq(0, n)
+
+	// Non-empty range (non-zero offset)
+	buf = make([]byte, 10)
+	n, err = t.op.ReadAt(buf, 17)
+
+	ExpectEq(io.EOF, err)
+	ExpectEq(0, n)
 }
 
 func (t *NoSourceObjectTest) WriteThenRead() {
