@@ -623,7 +623,12 @@ func (t *SourceObjectPresentTest) SetUp(ti *TestInfo) {
 }
 
 func (t *SourceObjectPresentTest) Read_CallsBucket() {
-	AssertTrue(false, "TODO")
+	// Bucket.Read
+	ExpectCall(t.bucket, "NewReader")(Any(), t.sourceObject.Name).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	// ReadAt
+	t.op.ReadAt(make([]byte, 1), 0)
 }
 
 func (t *SourceObjectPresentTest) Read_BucketFails() {
