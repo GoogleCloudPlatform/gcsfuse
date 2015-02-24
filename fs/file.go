@@ -80,14 +80,9 @@ func newFile(
 	return
 }
 
+// SHARED_LOCKS_REQUIRED(f.mu)
 func (f *file) checkInvariants() {
-	if f.tempFileDirty && f.tempFile == nil {
-		panic("Expected !tempFileDirty when tempFile == nil.")
-	}
-
-	if f.tempFile != nil && f.remoteSize != 0 {
-		panic("Expected remoteSize == 0 when tempFile != nil.")
-	}
+	f.objectProxy.CheckInvariants()
 }
 
 func generateInodeNumber(objectName string) uint64 {
