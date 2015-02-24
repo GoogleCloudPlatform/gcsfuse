@@ -791,7 +791,21 @@ func (t *SourceObjectPresentTest) Sync_NoInteractions() {
 }
 
 func (t *SourceObjectPresentTest) NoteLatest_EarlierThanPrev() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// NoteLatest
+	o := &storage.Object{}
+	*o = *t.sourceObject
+	o.Generation--
+
+	err = t.op.NoteLatest(o)
+	AssertEq(nil, err)
+
+	// The input should have been ignored.
+	syncResult, err := t.op.Sync()
+
+	AssertEq(nil, err)
+	ExpectEq(t.sourceObject, syncResult)
 }
 
 func (t *SourceObjectPresentTest) NoteLatest_SameAsPrev() {
