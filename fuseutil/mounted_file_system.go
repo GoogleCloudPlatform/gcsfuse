@@ -69,7 +69,7 @@ func (mfs *MountedFileSystem) Unmount() error {
 func (mfs *MountedFileSystem) mountAndServe(
 	fs fusefs.FS,
 	options []fuse.MountOption) {
-	logger := makeLogger()
+	logger := getLogger()
 
 	// Open a FUSE connection.
 	logger.Println("Opening a FUSE connection.")
