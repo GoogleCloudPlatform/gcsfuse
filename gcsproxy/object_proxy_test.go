@@ -24,12 +24,41 @@ type checkingObjectProxy struct {
 	wrapped *gcsproxy.ObjectProxy
 }
 
-func (op *checkingObjectProxy) NoteLatest(o *storage.Object) (err error)
-func (op *checkingObjectProxy) Size() (n uint64, err error)
-func (op *checkingObjectProxy) ReadAt(b []byte, o int64) (int, error)
-func (op *checkingObjectProxy) WriteAt(b []byte, o int64) (int, error)
-func (op *checkingObjectProxy) Truncate(n uint64) error
-func (op *checkingObjectProxy) Sync(ctx context.Context) (*storage.Object, error)
+func (op *checkingObjectProxy) NoteLatest(o *storage.Object) error {
+	op.wrapped.CheckInvariants()
+	defer op.wrapped.CheckInvariants()
+	return op.wrapped.NoteLatest(o)
+}
+
+func (op *checkingObjectProxy) Size() (uint64, error) {
+	op.wrapped.CheckInvariants()
+	defer op.wrapped.CheckInvariants()
+	return op.wrapped.Size()
+}
+
+func (op *checkingObjectProxy) ReadAt(b []byte, o int64) (int, error) {
+	op.wrapped.CheckInvariants()
+	defer op.wrapped.CheckInvariants()
+	return op.wrapped.ReadAt(b, o)
+}
+
+func (op *checkingObjectProxy) WriteAt(b []byte, o int64) (int, error) {
+	op.wrapped.CheckInvariants()
+	defer op.wrapped.CheckInvariants()
+	return op.wrapped.WriteAt(b, o)
+}
+
+func (op *checkingObjectProxy) Truncate(n uint64) error {
+	op.wrapped.CheckInvariants()
+	defer op.wrapped.CheckInvariants()
+	return op.wrapped.Truncate(n)
+}
+
+func (op *checkingObjectProxy) Sync(ctx context.Context) (*storage.Object, error) {
+	op.wrapped.CheckInvariants()
+	defer op.wrapped.CheckInvariants()
+	return op.wrapped.Sync(ctx)
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
