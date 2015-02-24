@@ -730,11 +730,31 @@ func (t *SourceObjectPresentTest) Write_NewReaderSucceeds() {
 }
 
 func (t *SourceObjectPresentTest) Truncate_CallsNewReader() {
-	AssertTrue(false, "TODO")
+	// Bucket.NewReader
+	ExpectCall(t.bucket, "NewReader")(Any(), t.sourceObject.Name).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	// WriteAt
+	t.op.Truncate(1)
 }
 
 func (t *SourceObjectPresentTest) Truncate_NewReaderFails() {
-	AssertTrue(false, "TODO")
+	// Bucket.NewReader
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, errors.New("taco")))
+
+	// ReadAt
+	err := t.op.Truncate(1)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("NewReader")))
+	ExpectThat(err, Error(HasSubstr("taco")))
+
+	// A subsequent call should cause it to happen all over again.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	t.op.Truncate(1)
 }
 
 func (t *SourceObjectPresentTest) Truncate_NewReaderSucceeds() {
