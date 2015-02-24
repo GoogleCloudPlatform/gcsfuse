@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math"
 	"os"
 	"strings"
@@ -30,7 +29,6 @@ type ObjectProxy struct {
 	// Dependencies
 	/////////////////////////
 
-	logger *log.Logger
 	bucket gcs.Bucket
 
 	/////////////////////////
@@ -75,7 +73,6 @@ func NewObjectProxy(
 	bucket gcs.Bucket,
 	name string) (op *ObjectProxy, err error) {
 	op = &ObjectProxy{
-		logger: getLogger(),
 		bucket: bucket,
 		name:   name,
 
