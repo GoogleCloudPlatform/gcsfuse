@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )
@@ -24,8 +23,8 @@ import (
 // until the Sync method is called, at which time a new generation of the
 // object is created.
 //
-// All methods are safe for concurrent access. Concurrent readers and writers
-// within process receive the same guarantees as with POSIX files.
+// This type is not safe for concurrent access. The user must provide external
+// synchronization.
 type ObjectProxy struct {
 	/////////////////////////
 	// Dependencies
@@ -46,15 +45,13 @@ type ObjectProxy struct {
 	// Mutable state
 	/////////////////////////
 
-	mu syncutil.InvariantMutex
-
 	// The specific generation of the object from which our local state is
 	// branched. If we have no local state, the contents of this object are
 	// exactly our contents. May be nil if NoteLatest was never called.
 	//
 	// INVARIANT: If source != nil, source.Size >= 0
 	// INVARIANT: If source != nil, source.Name == name
-	source *storage.Object // GUARDED_BY(mu)
+	source *storage.Object
 
 	// A local temporary file containing the contents of our source (or the empty
 	// string if no source) along with any local modifications. The authority on
@@ -62,13 +59,13 @@ type ObjectProxy struct {
 	//
 	// A nil file is to be regarded as empty, but is not authoritative unless
 	// source is also nil.
-	localFile *os.File // GUARDED_BY(mu)
+	localFile *os.File
 
 	// false if the contents of localFile may be different from the contents of
 	// the object referred to by source. Sync needs to do work iff this is true.
 	//
 	// INVARIANT: If false, then source != nil.
-	dirty bool // GUARDED_BY(mu)
+	dirty bool
 }
 
 var _ io.ReaderAt = &ObjectProxy{}
@@ -92,12 +89,13 @@ func NewObjectProxy(
 		dirty:     true,
 	}
 
-	op.mu = syncutil.NewInvariantMutex(op.checkInvariants)
 	return
 }
 
-// SHARED_LOCKS_REQUIRED(op.mu)
-func (op *ObjectProxy) checkInvariants() {
+// Panic if any internal invariants are violated. Careful users can call this
+// at appropriate times to help debug weirdness. Consider using
+// syncutil.InvariantMutex to automate the process.
+func (op *ObjectProxy) CheckInvariants() {
 	if op.source != nil && op.source.Size <= 0 {
 		if op.source.Size <= 0 {
 			panic(fmt.Sprintf("Non-sensical source size: %v", op.source.Size))
