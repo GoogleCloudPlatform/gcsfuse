@@ -14,6 +14,7 @@ import (
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
+	"github.com/jacobsa/gcsfuse/gcsproxy"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 
@@ -21,8 +22,8 @@ import (
 	fusefs "bazil.org/fuse/fs"
 )
 
-// A remote object's name and metadata, along with a local temporary file that
-// contains its contents (when initialized).
+// A thin wrapper around an object proxy for an object in GCS, implementing the
+// interfaces necessary for the fusefs package.
 //
 // TODO(jacobsa): After becoming comfortable with the representation of dir and
 // its concurrency protection, audit this file and make sure it is up to par.
@@ -35,33 +36,15 @@ type file struct {
 	bucket gcs.Bucket
 
 	/////////////////////////
-	// Constant data
-	/////////////////////////
-
-	objectName string
-
-	/////////////////////////
 	// Mutable state
 	/////////////////////////
 
 	mu syncutil.InvariantMutex
 
-	// A local temporary file containing the current contents of the logical
-	// file. Lazily created. When non-ni, this is authoritative.
-	tempFile *os.File // GUARDED_BY(mu)
-
-	// Set to true when we need to flush tempFile to GCS before allowing the user
-	// to successfully close the file. false implies that the GCS object is up to
-	// date (or has been modified only by a foreign machine).
+	// A proxy for the file contents in GCS.
 	//
-	// INVARIANT: If true, then tempFile != nil
-	tempFileDirty bool // GUARDED_BY(mu)
-
-	// When tempFile == nil, the current size of the object named objectName on
-	// GCS, as far as we are aware.
-	//
-	// INVARIANT: If tempFile != nil, then remoteSize == 0
-	remoteSize uint64 // GUARDED_BY(mu)
+	// INVARIANT: objectProxy.CheckInvariants() doesn't panic
+	objectProxy *gcsproxy.ObjectProxy // PT_GUARDED_BY(mu)
 }
 
 // Make sure file implements the interfaces we think it does.
