@@ -967,7 +967,27 @@ func (t *SourceObjectPresentTest) Clean_NoInteractions() {
 }
 
 func (t *SourceObjectPresentTest) Clean_AfterReading() {
-	AssertTrue(false, "TODO")
+	buf := make([]byte, 1024)
+	var n int
+	var err error
+
+	// Read, successfully.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("taco")), nil))
+
+	n, err = t.op.ReadAt(buf, 0)
+	AssertEq(io.EOF, err)
+	AssertEq("taco", string(buf[:n]))
+
+	// Clean
+	err = t.op.Clean()
+	AssertEq(nil, err)
+
+	// The next read should need to fetch the object again.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	t.op.ReadAt(buf, 0)
 }
 
 func (t *SourceObjectPresentTest) Clean_AfterWriting() {
