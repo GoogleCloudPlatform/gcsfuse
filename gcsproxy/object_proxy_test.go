@@ -274,7 +274,27 @@ func (t *NoSourceObjectTest) WritePastEndOfFileThenRead() {
 }
 
 func (t *NoSourceObjectTest) WriteWithinFileThenRead() {
-	AssertTrue(false, "TODO")
+	var n int
+	var err error
+	var buf []byte
+
+	// Write several bytes to extend the file.
+	n, err = t.op.WriteAt([]byte("00000"), 0)
+	AssertEq(nil, err)
+	AssertEq(len("00000"), n)
+
+	// Overwrite some in the middle.
+	n, err = t.op.WriteAt([]byte("11"), 1)
+	AssertEq(nil, err)
+	AssertEq(len("11"), n)
+
+	// Read the whole thing.
+	buf = make([]byte, 1024)
+	n, err = t.op.ReadAt(buf, 0)
+
+	AssertEq(io.EOF, err)
+	ExpectEq(len("01100"), n)
+	ExpectEq("01100", string(buf[:n]))
 }
 
 func (t *NoSourceObjectTest) GrowByTruncating() {
