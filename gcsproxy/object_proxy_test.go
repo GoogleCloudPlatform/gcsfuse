@@ -783,7 +783,11 @@ func (t *SourceObjectPresentTest) Truncate_NewReaderSucceeds() {
 }
 
 func (t *SourceObjectPresentTest) Sync_NoInteractions() {
-	AssertTrue(false, "TODO")
+	// Sync should do nothing interesting.
+	syncResult, err := t.op.Sync()
+
+	AssertEq(nil, err)
+	ExpectEq(t.sourceObject, syncResult)
 }
 
 func (t *SourceObjectPresentTest) NoteLatest_EarlierThanPrev() {
