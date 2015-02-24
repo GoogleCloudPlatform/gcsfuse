@@ -33,7 +33,6 @@ type file struct {
 	/////////////////////////
 
 	logger *log.Logger
-	bucket gcs.Bucket
 
 	/////////////////////////
 	// Mutable state
@@ -62,18 +61,23 @@ var (
 func newFile(
 	logger *log.Logger,
 	bucket gcs.Bucket,
-	objectName string,
-	remoteSize uint64) *file {
-	f := &file{
-		logger:     logger,
-		bucket:     bucket,
-		objectName: objectName,
-		remoteSize: remoteSize,
+	remoteObject *storage.Object) (f *file, err error) {
+	// Create the struct.
+	f = &file{
+		logger: logger,
 	}
 
-	f.mu = syncutil.NewInvariantMutex(func() { f.checkInvariants() })
+	// Set up the object proxy.
+	f.objectProxy, err = gcsproxy.NewObjectProxy(bucket, remoteObject.Name)
+	if err != nil {
+		err = fmt.Errorf("NewObjectProxy: %v", err)
+		return
+	}
 
-	return f
+	// Set up the mutex.
+	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
+
+	return
 }
 
 func (f *file) checkInvariants() {
