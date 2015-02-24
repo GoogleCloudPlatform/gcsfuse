@@ -197,8 +197,6 @@ func (f *file) Read(
 	return err
 }
 
-// Ensure that the local temporary file is initialized, then write to it.
-//
 // LOCKS_EXCLUDED(f.mu)
 func (f *file) Write(
 	ctx context.Context,
@@ -207,21 +205,9 @@ func (f *file) Write(
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	f.logger.Printf("Write: [%s]/%s", f.bucket.Name(), f.objectName)
+	f.logger.Printf("Write: %s", f.objectProxy.Name())
 
-	// Ensure the temp file is present. If it's not, grab the current contents
-	// from GCS.
-	if err = f.ensureTempFile(ctx); err != nil {
-		err = fmt.Errorf("ensureTempFile: %v", err)
-		return
-	}
-
-	// Mark us dirty.
-	f.tempFileDirty = true
-
-	// Write to the temp file.
-	resp.Size, err = f.tempFile.WriteAt(req.Data, req.Offset)
-
+	resp.Size, err = f.objectProxy.WriteAt(ctx, req.Data, req.Offset)
 	return
 }
 
