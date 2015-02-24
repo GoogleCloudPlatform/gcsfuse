@@ -809,9 +809,36 @@ func (t *SourceObjectPresentTest) NoteLatest_EarlierThanPrev() {
 }
 
 func (t *SourceObjectPresentTest) NoteLatest_SameAsPrev() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// NoteLatest
+	o := &storage.Object{}
+	*o = *t.sourceObject
+
+	err = t.op.NoteLatest(o)
+	AssertEq(nil, err)
+
+	// The input should have been ignored.
+	syncResult, err := t.op.Sync()
+
+	AssertEq(nil, err)
+	ExpectEq(t.sourceObject, syncResult)
 }
 
 func (t *SourceObjectPresentTest) NoteLatest_NewerThanPrev() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// NoteLatest
+	o := &storage.Object{}
+	*o = *t.sourceObject
+	o.Generation++
+
+	err = t.op.NoteLatest(o)
+	AssertEq(nil, err)
+
+	// The input should have been adopted.
+	syncResult, err := t.op.Sync()
+
+	AssertEq(nil, err)
+	ExpectEq(o, syncResult)
 }
