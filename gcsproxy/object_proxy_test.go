@@ -705,8 +705,28 @@ func (t *SourceObjectPresentTest) Write_BucketFails() {
 }
 
 func (t *SourceObjectPresentTest) Write_BucketSucceeds() {
-	AssertTrue(false, "TODO")
-	AssertTrue(false, "TODO: Try sync")
+	buf := make([]byte, 1024)
+	var n int
+	var err error
+
+	// Bucket.Read
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("taco")), nil))
+
+	// Write
+	_, err = t.op.WriteAt([]byte("burrito"), 3)
+	AssertEq(nil, err)
+
+	// Read
+	n, err = t.op.ReadAt(buf, 0)
+	AssertEq(io.EOF, err)
+	ExpectEq("tacburrito", string(buf[:n]))
+
+	// The object should be regarded as dirty by Sync.
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	t.op.Sync()
 }
 
 func (t *SourceObjectPresentTest) Truncate_CallsBucket() {
