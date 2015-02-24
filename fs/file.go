@@ -7,9 +7,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
-	"io/ioutil"
 	"log"
-	"os"
 	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -147,45 +145,7 @@ func (f *file) Getattr(
 	return
 }
 
-// If the file contents have not yet been fetched to a temporary file, fetch
-// them.
-//
-// EXCLUSIVE_LOCKS_REQUIRED(f.mu)
-func (f *file) ensureTempFile(ctx context.Context) error {
-	// Do we already have a file?
-	if f.tempFile != nil {
-		return nil
-	}
-
-	// Create a temporary file.
-	tempFile, err := ioutil.TempFile("", "gcsfuse")
-	if err != nil {
-		return fmt.Errorf("ioutil.TempFile: %v", err)
-	}
-
-	// Create a reader for the object.
-	readCloser, err := f.bucket.NewReader(ctx, f.objectName)
-	if err != nil {
-		return fmt.Errorf("bucket.NewReader: %v", err)
-	}
-
-	defer readCloser.Close()
-
-	// Copy the object contents into the file.
-	if _, err := io.Copy(tempFile, readCloser); err != nil {
-		return fmt.Errorf("io.Copy: %v", err)
-	}
-
-	// Save the file for later.
-	f.tempFile = tempFile
-
-	// remoteSize is no longer authoritative.
-	f.remoteSize = 0
-
-	return nil
-}
-
-// Throw away the local temporary file, if any.
+// Throw away local state, if any.
 //
 // TODO(jacobsa): There are a few bugs here.
 //
@@ -206,42 +166,12 @@ func (f *file) Release(
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	f.logger.Printf("Release: [%s]/%s", f.bucket.Name(), f.objectName)
+	f.logger.Printf("Release: %s", f.objectProxy.Name())
 
-	// Is there a file to close?
-	if f.tempFile == nil {
-		return nil
-	}
-
-	// Stat it, for use below.
-	fileInfo, err := f.tempFile.Stat()
-	if err != nil {
-		err = fmt.Errorf("Statting temp file: %v", err)
-		return
-	}
-
-	// Close it, after grabbing its path.
-	path := f.tempFile.Name()
-	if err = f.tempFile.Close(); err != nil {
-		err = fmt.Errorf("Closing temp file: %v", err)
-		return
-	}
-
-	// Attempt to delete it.
-	if err = os.Remove(path); err != nil {
-		err = fmt.Errorf("Deleting temp file: %v", err)
-		return
-	}
-
-	f.tempFile = nil
-	f.tempFileDirty = false
-	f.remoteSize = uint64(fileInfo.Size())
-
-	return nil
+	err = f.objectProxy.Clean()
+	return
 }
 
-// Ensure that the local temporary file is initialized, then read from it.
-//
 // LOCKS_EXCLUDED(f.mu)
 func (f *file) Read(
 	ctx context.Context,
@@ -250,18 +180,13 @@ func (f *file) Read(
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	f.logger.Printf("Read: [%s]/%s", f.bucket.Name(), f.objectName)
-
-	// Ensure the temp file is present.
-	if err := f.ensureTempFile(ctx); err != nil {
-		return err
-	}
+	f.logger.Printf("Read: %s", f.objectProxy.Name())
 
 	// Allocate a response buffer.
 	resp.Data = make([]byte, req.Size)
 
 	// Read the data.
-	n, err := f.tempFile.ReadAt(resp.Data, req.Offset)
+	n, err := f.objectProxy.ReadAt(ctx, resp.Data, req.Offset)
 	resp.Data = resp.Data[:n]
 
 	// Special case: read(2) doesn't return EOF errors.
