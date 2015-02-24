@@ -137,7 +137,21 @@ func (t *NoSourceObjectTest) Size_InitialState() {
 	ExpectEq(0, size)
 }
 
-func (t *NoSourceObjectTest) Size_AfterTruncating() {
+func (t *NoSourceObjectTest) Size_AfterTruncatingToZero() {
+	var err error
+
+	// Truncate
+	err = t.op.Truncate(0)
+	AssertEq(nil, err)
+
+	// Size
+	size, err := t.op.Size()
+
+	AssertEq(nil, err)
+	ExpectEq(0, size)
+}
+
+func (t *NoSourceObjectTest) Size_AfterTruncatingToNonZero() {
 	AssertTrue(false, "TODO")
 }
 
