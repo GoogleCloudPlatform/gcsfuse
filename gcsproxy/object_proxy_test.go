@@ -531,7 +531,26 @@ func (t *NoSourceObjectTest) Sync_Successful() {
 }
 
 func (t *NoSourceObjectTest) NoteLatest_NoInteractions() {
-	AssertTrue(false, "TODO")
+	// NoteLatest
+	newObj := &storage.Object{
+		Name:       t.objectName,
+		Generation: 17,
+		Size:       19,
+	}
+
+	err := t.op.NoteLatest(newObj)
+	AssertEq(nil, err)
+
+	// The size should be reflected.
+	size, err := t.op.Size()
+	AssertEq(nil, err)
+	ExpectEq(19, size)
+
+	// A read should cause the object to be faulted in.
+	ExpectCall(t.bucket, "NewReader")(Any(), t.objectName).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	t.op.ReadAt(make([]byte, 1), 0)
 }
 
 func (t *NoSourceObjectTest) NoteLatest_AfterWriting() {
