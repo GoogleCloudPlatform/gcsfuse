@@ -213,11 +213,11 @@ func (f *file) Write(
 
 // Put the temporary file back in the bucket if it's dirty.
 //
-// TODO(jacobsa): This probably isn't the write place to do this. ext2 doesn't
-// appear to do anything at all for i_op->flush, for example, and the fuse
-// documentation pretty much says as much (http://goo.gl/KkBJM3 "Filesystems
-// shouldn't assume that flush will always be called after some writes, or that
-// if will be called at all"). Instead:
+// TODO(jacobsa): This probably isn't the correct place to do this. ext2
+// doesn't appear to do anything at all for i_op->flush, for example, and the
+// fuse documentation pretty much says as much (http://goo.gl/KkBJM3
+// "Filesystems shouldn't assume that flush will always be called after some
+// writes, or that if will be called at all"). Instead:
 //
 //  1. We should definitely do it on fsync, because the user asked.
 //  2. We should definitely do it when the kernel is forgetting the inode,
@@ -239,32 +239,11 @@ func (f *file) Flush(
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	f.logger.Printf("Flush: [%s]/%s", f.bucket.Name(), f.objectName)
+	f.logger.Printf("Flush: %s", f.objectProxy.Name())
 
-	// Is there anything interesting for us to do?
-	if !f.tempFileDirty {
-		return
-	}
-
-	// Flush the temp file to GCS.
-	createReq := &gcs.CreateObjectRequest{
-		Attrs: storage.ObjectAttrs{
-			Name: f.objectName,
-		},
-		Contents: f.tempFile,
-	}
-
-	if _, err = f.bucket.CreateObject(ctx, createReq); err != nil {
-		err = fmt.Errorf("bucket.CreateObject: %v", err)
-		return
-	}
-
-	// We are no longer dirty.
-	//
-	// TODO(jacobsa): Add a test for this. Cause a flush to happen, then
-	// overwrite object contents out of band, then make sure they don't restore
-	// next time flush happens.
-	f.tempFileDirty = false
+	// TODO(jacobsa): We probably shouldn't just be ignoring the storage.Object
+	// result here?
+	_, err = f.objectProxy.Sync(ctx)
 
 	return
 }
