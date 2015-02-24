@@ -140,8 +140,9 @@ func (op *ObjectProxy) NoteLatest(o *storage.Object) (err error) {
 		return
 	}
 
-	// Update the source.
+	// We are now a clean copy of the new source.
 	op.source = o
+	op.dirty = false
 
 	return
 }
@@ -346,7 +347,8 @@ func (op *ObjectProxy) Clean() (err error) {
 
 	op.localFile = nil
 
-	// We are now dirty iff we have never seen a remote source.
+	// We are now dirty iff we have never seen a remote source (i.e. we are the
+	// implicit empty object).
 	op.dirty = (op.source == nil)
 
 	return
