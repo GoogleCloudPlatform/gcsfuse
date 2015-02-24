@@ -4,7 +4,6 @@
 package gcsproxy
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -135,25 +134,14 @@ func (op *ObjectProxy) NoteLatest(o *storage.Object) (err error) {
 		return
 	}
 
-	// Throw out the local file, if any.
-	if op.localFile != nil {
-		path := op.localFile.Name()
-
-		if err = op.localFile.Close(); err != nil {
-			err = fmt.Errorf("Closing local file: %v", err)
-			return
-		}
-
-		if err = os.Remove(path); err != nil {
-			err = fmt.Errorf("Unlinking local file: %v", err)
-			return
-		}
+	// Throw away any local state.
+	if err = op.Clean(); err != nil {
+		err = fmt.Errorf("Clean: %v", err)
+		return
 	}
 
-	// Reset state.
+	// Update the source.
 	op.source = o
-	op.localFile = nil
-	op.dirty = false
 
 	return
 }
@@ -337,7 +325,25 @@ func (op *ObjectProxy) ensureLocalFile(ctx context.Context) (err error) {
 //
 // Careful users should call this in order to clean up local state before
 // dropping all references to the object proxy.
-func (op *ObjectProxy) Clean(ctx context.Context) (err error) {
-	err = errors.New("TODO: Implement Clean.")
+func (op *ObjectProxy) Clean() (err error) {
+	// Throw out the local file, if any.
+	if op.localFile != nil {
+		path := op.localFile.Name()
+
+		if err = op.localFile.Close(); err != nil {
+			err = fmt.Errorf("Closing local file: %v", err)
+			return
+		}
+
+		if err = os.Remove(path); err != nil {
+			err = fmt.Errorf("Unlinking local file: %v", err)
+			return
+		}
+	}
+
+	// Reset state.
+	op.localFile = nil
+	op.dirty = false
+
 	return
 }

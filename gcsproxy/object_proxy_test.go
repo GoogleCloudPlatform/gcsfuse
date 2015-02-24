@@ -134,7 +134,7 @@ func (op *checkingObjectProxy) Sync() (*storage.Object, error) {
 func (op *checkingObjectProxy) Clean() error {
 	op.wrapped.CheckInvariants()
 	defer op.wrapped.CheckInvariants()
-	return op.wrapped.Clean(context.Background())
+	return op.wrapped.Clean()
 }
 
 ////////////////////////////////////////////////////////////////////////
