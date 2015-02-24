@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 	"testing"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -600,7 +601,7 @@ func (t *NoSourceObjectTest) NoteLatest_AfterWriting() {
 // object in the bucket.
 type SourceObjectPresentTest struct {
 	ObjectProxyTest
-	sourceObject storage.Object
+	sourceObject *storage.Object
 }
 
 var _ SetUpInterface = &SourceObjectPresentTest{}
@@ -611,13 +612,13 @@ func (t *SourceObjectPresentTest) SetUp(ti *TestInfo) {
 	t.ObjectProxyTest.SetUp(ti)
 
 	// Set up the source object.
-	t.sourceObject = storage.Object{
+	t.sourceObject = &storage.Object{
 		Name:       t.objectName,
 		Generation: 123,
 		Size:       456,
 	}
 
-	if err := t.op.NoteLatest(&t.sourceObject); err != nil {
+	if err := t.op.NoteLatest(t.sourceObject); err != nil {
 		panic(err)
 	}
 }
@@ -651,8 +652,28 @@ func (t *SourceObjectPresentTest) Read_BucketFails() {
 }
 
 func (t *SourceObjectPresentTest) Read_BucketSucceeds() {
-	AssertTrue(false, "TODO")
-	AssertTrue(false, "TODO: Try sync")
+	buf := make([]byte, 1024)
+	var n int
+	var err error
+
+	// Bucket.Read
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("taco")), nil))
+
+	// Reads
+	n, err = t.op.ReadAt(buf[:1], 2)
+	AssertEq(nil, err)
+	ExpectEq("c", string(buf[:n]))
+
+	n, err = t.op.ReadAt(buf[:10], 0)
+	AssertEq(io.EOF, err)
+	ExpectEq("taco", string(buf[:n]))
+
+	// Sync should do nothing interesting.
+	syncResult, err := t.op.Sync()
+
+	AssertEq(nil, err)
+	ExpectEq(t.sourceObject, syncResult)
 }
 
 func (t *SourceObjectPresentTest) Write_CallsBucket() {
