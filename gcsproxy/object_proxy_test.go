@@ -210,7 +210,15 @@ func (t *NoSourceObjectTest) Read_InitialState() {
 	}
 }
 
-func (t *NoSourceObjectTest) WriteThenRead() {
+func (t *NoSourceObjectTest) WriteToEndOfFileThenRead() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) WritePastEndOfFileThenRead() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) WriteWithinFileThenRead() {
 	AssertTrue(false, "TODO")
 }
 
