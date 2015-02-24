@@ -332,8 +332,11 @@ func (op *ObjectProxy) ensureLocalFile(ctx context.Context) (err error) {
 }
 
 // Throw away any local modifications to the object, reverting to the latest
-// version handed to NoteLatest (or the non-existent object if none). Be
-// careful!
+// version handed to NoteLatest (or the non-existent object if none). Watch
+// out!
+//
+// Careful users should call this in order to clean up local state before
+// dropping all references to the object proxy.
 func (op *ObjectProxy) Clean(ctx context.Context) (err error) {
 	err = errors.New("TODO: Implement Clean.")
 	return
