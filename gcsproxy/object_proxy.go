@@ -4,9 +4,9 @@
 package gcsproxy
 
 import (
-	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"math"
 	"os"
@@ -270,6 +270,54 @@ func (op *ObjectProxy) Sync(ctx context.Context) (o *storage.Object, err error) 
 
 // Ensure that op.localFile != nil and contains the correct contents.
 func (op *ObjectProxy) ensureLocalFile() (err error) {
-	err = errors.New("TODO: ObjectProxy.ensureLocalFile")
+	// If we've already got a local file, we're done.
+	if op.localFile != nil {
+		return
+	}
+
+	// Create a temporary file.
+	var f *os.File
+	if f, err = ioutil.TempFile("", "gcsproxy"); err != nil {
+		err = fmt.Errorf("ioutil.TempFile: %v", err)
+		return
+	}
+
+	defer func() {
+		if f != nil {
+			f.Close()
+		}
+	}()
+
+	// If we have a source, then we must fetch its contents.
+	//
+	// TODO(jacobsa): We need to plumb in a particular generation here, or we may
+	// consider ourselves to have branched from the wrong generation, causing
+	// write clobbering. For example:
+	//
+	//  1. Initial state: object is at generation N.
+	//  2. User lists directory, sees generation N.
+	//  3. Other user writes generation N+1.
+	//  4. User opens file, we read generation N+1 but still think we're at N.
+	//  5. User makes local modifications.
+	//  6. User lists directory again, sees generation N+1.
+	//
+	// At the end of this process, the local modifications are blown away even
+	// though in actual fact they were based on generation N+1.
+	if op.source != nil {
+		var reader io.Reader
+		if reader, err = op.bucket.NewReader(ctx, op.name); err != nil {
+			err = fmt.Errorf("NewReader: %v", err)
+			return
+		}
+
+		if _, err = io.Copy(f, reader); err != nil {
+			err = fmt.Errorf("io.Copy: %v", err)
+			return
+		}
+	}
+
+	// Snarf the file.
+	op.localFile, f = f, nil
+
 	return
 }
