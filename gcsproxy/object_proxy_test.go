@@ -393,7 +393,21 @@ func (t *NoSourceObjectTest) Sync_NoInteractions() {
 }
 
 func (t *NoSourceObjectTest) Sync_ReadCallsOnly() {
-	AssertTrue(false, "TODO")
+	// Make a Read call
+	buf := make([]byte, 0)
+	n, err := t.op.ReadAt(buf, 0)
+
+	AssertEq(nil, err)
+	AssertEq(0, n)
+
+	// CreateObject -- should receive an empty string.
+	ExpectCall(t.bucket, "CreateObject")(
+		Any(),
+		AllOf(nameIs(t.objectName), contentsAre(""))).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	// Sync
+	t.op.Sync()
 }
 
 func (t *NoSourceObjectTest) Sync_AfterWriting() {
