@@ -4,6 +4,7 @@
 package gcsproxy
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -273,4 +274,7 @@ func (op *ObjectProxy) Sync(ctx context.Context) (o storage.Object, err error) {
 }
 
 // Ensure that op.localFile != nil and contains the correct contents.
-func (op *ObjectProxy) ensureLocalFile() (err error)
+func (op *ObjectProxy) ensureLocalFile() (err error) {
+	err = errors.New("TODO: ObjectProxy.ensureLocalFile")
+	return
+}
