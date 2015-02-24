@@ -101,28 +101,18 @@ func (f *file) Attr() fuse.Attr {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
-	f.logger.Printf("Attr: [%s]/%s", f.bucket.Name(), f.objectName)
+	f.logger.Printf("Attr: %s", f.objectProxy.Name())
 
 	// Find the current size.
-	size := f.remoteSize
-	if f.tempFile != nil {
-		// See if the scenario in the TODO below can ever even come to pass. If so,
-		// file a bug with the fuse package to see what we're intended to do with
-		// errors.
-		panic("Received an Attr call with a temp file active.")
-
-		fi, err := f.tempFile.Stat()
-		if err != nil {
-			// TODO(jacobsa): What do we do about this? The fuse package gives us no
-			// opportunity for returning an error here.
-			panic("tempFile.Stat: " + err.Error())
-		}
-
-		size = uint64(fi.Size())
+	size, err := f.objectProxy.Size()
+	if err != nil {
+		// TODO(jacobsa): What do we do about this? The fuse package gives us no
+		// opportunity for returning an error here.
+		panic("objectProxy.Size: " + err.Error())
 	}
 
 	return fuse.Attr{
-		Inode: generateInodeNumber(f.objectName),
+		Inode: generateInodeNumber(f.objectProxy.Name()),
 		Mode:  0700,
 		Size:  size,
 	}
