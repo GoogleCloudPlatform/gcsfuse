@@ -184,44 +184,30 @@ func (t *NoSourceObjectTest) Size_AfterReading() {
 }
 
 func (t *NoSourceObjectTest) Read_InitialState() {
-	var err error
-	var buf []byte
-	var n int
+	type testCase struct {
+		offset      int64
+		size        int
+		expectedErr error
+		expectedN   int
+	}
 
-	// Empty range (offset 0)
-	buf = make([]byte, 0)
-	n, err = t.op.ReadAt(buf, 0)
+	testCases := []testCase{
+		// Empty ranges
+		testCase{0, 0, nil, 0},
+		testCase{17, 0, nil, 0},
 
-	AssertEq(nil, err)
-	ExpectEq(0, n)
+		// Non-empty ranges
+		testCase{0, 10, io.EOF, 0},
+		testCase{17, 10, io.EOF, 0},
+	}
 
-	// Empty range (non-zero offset)
-	buf = make([]byte, 0)
-	n, err = t.op.ReadAt(buf, 17)
+	for _, tc := range testCases {
+		buf := make([]byte, tc.size)
+		n, err := t.op.ReadAt(buf, tc.offset)
 
-	AssertEq(nil, err)
-	ExpectEq(0, n)
-
-	// Non-empty range (offset 0)
-	buf = make([]byte, 10)
-	n, err = t.op.ReadAt(buf, 0)
-
-	AssertEq(io.EOF, err)
-	ExpectEq(0, n)
-
-	// Non-empty range (offset 0)
-	buf = make([]byte, 10)
-	n, err = t.op.ReadAt(buf, 0)
-
-	ExpectEq(io.EOF, err)
-	ExpectEq(0, n)
-
-	// Non-empty range (non-zero offset)
-	buf = make([]byte, 10)
-	n, err = t.op.ReadAt(buf, 17)
-
-	ExpectEq(io.EOF, err)
-	ExpectEq(0, n)
+		AssertEq(tc.expectedErr, err, "Test case: %v", tc)
+		AssertEq(tc.expectedN, n, "Test case: %v", tc)
+	}
 }
 
 func (t *NoSourceObjectTest) WriteThenRead() {
