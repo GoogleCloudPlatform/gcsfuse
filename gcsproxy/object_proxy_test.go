@@ -411,7 +411,26 @@ func (t *NoSourceObjectTest) Sync_ReadCallsOnly() {
 }
 
 func (t *NoSourceObjectTest) Sync_AfterWriting() {
-	AssertTrue(false, "TODO")
+	var n int
+	var err error
+
+	// Write some data.
+	n, err = t.op.WriteAt([]byte("taco"), 0)
+	AssertEq(nil, err)
+	AssertEq(len("taco"), n)
+
+	n, err = t.op.WriteAt([]byte("burrito"), int64(len("taco")))
+	AssertEq(nil, err)
+	AssertEq(len("burrito"), n)
+
+	// CreateObject -- should receive the contents we wrote above.
+	ExpectCall(t.bucket, "CreateObject")(
+		Any(),
+		AllOf(nameIs(t.objectName), contentsAre("tacoburrito"))).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	// Sync
+	t.op.Sync()
 }
 
 func (t *NoSourceObjectTest) Sync_AfterTruncating() {
