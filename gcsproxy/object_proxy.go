@@ -341,9 +341,10 @@ func (op *ObjectProxy) Clean() (err error) {
 		}
 	}
 
-	// Reset state.
 	op.localFile = nil
-	op.dirty = false
+
+	// We are now dirty iff we have never seen a remote source.
+	op.dirty = (op.source == nil)
 
 	return
 }
