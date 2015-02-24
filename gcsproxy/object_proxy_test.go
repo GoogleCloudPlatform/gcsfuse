@@ -131,6 +131,12 @@ func (op *checkingObjectProxy) Sync() (*storage.Object, error) {
 	return op.wrapped.Sync(context.Background())
 }
 
+func (op *checkingObjectProxy) Clean() error {
+	op.wrapped.CheckInvariants()
+	defer op.wrapped.CheckInvariants()
+	return op.wrapped.Clean(context.Background())
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
@@ -283,9 +289,9 @@ func (t *NoSourceObjectTest) Read_InitialState() {
 }
 
 func (t *NoSourceObjectTest) WriteToEndOfObjectThenRead() {
+	var buf []byte
 	var n int
 	var err error
-	var buf []byte
 
 	// Extend the object by writing twice.
 	n, err = t.op.WriteAt([]byte("taco"), 0)
@@ -604,7 +610,23 @@ func (t *NoSourceObjectTest) NoteLatest_AfterWriting() {
 }
 
 func (t *NoSourceObjectTest) Clean_NoInteractions() {
-	AssertTrue(false, "TODO")
+	var buf []byte
+	var n int
+	var err error
+
+	// Clean
+	err = t.op.Clean()
+	AssertEq(nil, err)
+
+	// Sizing and reading should still work.
+	size, err := t.op.Size()
+	AssertEq(nil, err)
+	ExpectEq(0, size)
+
+	buf = make([]byte, 4)
+	n, err = t.op.ReadAt(buf, 0)
+	AssertEq(io.EOF, err)
+	ExpectEq(0, n)
 }
 
 func (t *NoSourceObjectTest) Clean_AfterReading() {
