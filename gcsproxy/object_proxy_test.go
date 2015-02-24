@@ -6,6 +6,7 @@ package gcsproxy_test
 import (
 	"testing"
 
+	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	"github.com/jacobsa/gcsfuse/gcsproxy"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
@@ -76,10 +77,16 @@ func init() { RegisterTestSuite(&ObjectProxyTest{}) }
 
 func (t *ObjectProxyTest) SetUp(ti *TestInfo) {
 	t.objectName = "some/object"
-	t.bucket = mock_gcs.NewMock(ti.MockController, "bucket")
-	t.checkingObjectProxy.wrapped = gcsproxy.NewObjectProxy(
+	t.bucket = mock_gcs.NewMockBucket(ti.MockController, "bucket")
+
+	var err error
+	t.op.wrapped, err = gcsproxy.NewObjectProxy(
 		t.bucket,
 		t.objectName)
+
+	if err != nil {
+		panic(err)
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
