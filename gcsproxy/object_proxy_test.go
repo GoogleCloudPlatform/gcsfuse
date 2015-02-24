@@ -983,6 +983,11 @@ func (t *SourceObjectPresentTest) Clean_AfterReading() {
 	err = t.op.Clean()
 	AssertEq(nil, err)
 
+	// Sync should need to do nothing.
+	syncResult, err := t.op.Sync()
+	AssertEq(nil, err)
+	ExpectEq(t.sourceObject, syncResult)
+
 	// The next read should need to fetch the object again.
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(nil, errors.New("")))
@@ -1004,6 +1009,11 @@ func (t *SourceObjectPresentTest) Clean_AfterWriting() {
 	err = t.op.Clean()
 	AssertEq(nil, err)
 
+	// Sync should need to do nothing.
+	syncResult, err := t.op.Sync()
+	AssertEq(nil, err)
+	ExpectEq(t.sourceObject, syncResult)
+
 	// The next write should need to fetch the object again.
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(nil, errors.New("")))
@@ -1012,5 +1022,27 @@ func (t *SourceObjectPresentTest) Clean_AfterWriting() {
 }
 
 func (t *SourceObjectPresentTest) Clean_AfterTruncating() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Truncate, successfully.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+
+	err = t.op.Truncate(1)
+	AssertEq(nil, err)
+
+	// Clean
+	err = t.op.Clean()
+	AssertEq(nil, err)
+
+	// Sync should need to do nothing.
+	syncResult, err := t.op.Sync()
+	AssertEq(nil, err)
+	ExpectEq(t.sourceObject, syncResult)
+
+	// The next truncation should need to fetch the object again.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	t.op.Truncate(1)
 }
