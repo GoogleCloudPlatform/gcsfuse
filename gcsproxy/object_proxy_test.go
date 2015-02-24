@@ -623,8 +623,8 @@ func (t *SourceObjectPresentTest) SetUp(ti *TestInfo) {
 	}
 }
 
-func (t *SourceObjectPresentTest) Read_CallsBucket() {
-	// Bucket.Read
+func (t *SourceObjectPresentTest) Read_CallsNewReader() {
+	// Bucket.NewReader
 	ExpectCall(t.bucket, "NewReader")(Any(), t.sourceObject.Name).
 		WillOnce(oglemock.Return(nil, errors.New("")))
 
@@ -632,8 +632,8 @@ func (t *SourceObjectPresentTest) Read_CallsBucket() {
 	t.op.ReadAt(make([]byte, 1), 0)
 }
 
-func (t *SourceObjectPresentTest) Read_BucketFails() {
-	// Bucket.Read
+func (t *SourceObjectPresentTest) Read_NewReaderFails() {
+	// Bucket.NewReader
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(nil, errors.New("taco")))
 
@@ -651,12 +651,12 @@ func (t *SourceObjectPresentTest) Read_BucketFails() {
 	t.op.ReadAt(make([]byte, 1), 0)
 }
 
-func (t *SourceObjectPresentTest) Read_BucketSucceeds() {
+func (t *SourceObjectPresentTest) Read_NewReaderSucceeds() {
 	buf := make([]byte, 1024)
 	var n int
 	var err error
 
-	// Bucket.Read
+	// Bucket.NewReader
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("taco")), nil))
 
@@ -676,8 +676,8 @@ func (t *SourceObjectPresentTest) Read_BucketSucceeds() {
 	ExpectEq(t.sourceObject, syncResult)
 }
 
-func (t *SourceObjectPresentTest) Write_CallsBucket() {
-	// Bucket.Read
+func (t *SourceObjectPresentTest) Write_CallsNewReader() {
+	// Bucket.NewReader
 	ExpectCall(t.bucket, "NewReader")(Any(), t.sourceObject.Name).
 		WillOnce(oglemock.Return(nil, errors.New("")))
 
@@ -685,8 +685,8 @@ func (t *SourceObjectPresentTest) Write_CallsBucket() {
 	t.op.WriteAt([]byte(""), 0)
 }
 
-func (t *SourceObjectPresentTest) Write_BucketFails() {
-	// Bucket.Read
+func (t *SourceObjectPresentTest) Write_NewReaderFails() {
+	// Bucket.NewReader
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(nil, errors.New("taco")))
 
@@ -704,12 +704,12 @@ func (t *SourceObjectPresentTest) Write_BucketFails() {
 	t.op.WriteAt([]byte(""), 0)
 }
 
-func (t *SourceObjectPresentTest) Write_BucketSucceeds() {
+func (t *SourceObjectPresentTest) Write_NewReaderSucceeds() {
 	buf := make([]byte, 1024)
 	var n int
 	var err error
 
-	// Bucket.Read
+	// Bucket.NewReader
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("taco")), nil))
 
@@ -729,15 +729,15 @@ func (t *SourceObjectPresentTest) Write_BucketSucceeds() {
 	t.op.Sync()
 }
 
-func (t *SourceObjectPresentTest) Truncate_CallsBucket() {
+func (t *SourceObjectPresentTest) Truncate_CallsNewReader() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *SourceObjectPresentTest) Truncate_BucketFails() {
+func (t *SourceObjectPresentTest) Truncate_NewReaderFails() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *SourceObjectPresentTest) Truncate_BucketSucceeds() {
+func (t *SourceObjectPresentTest) Truncate_NewReaderSucceeds() {
 	AssertTrue(false, "TODO")
 	AssertTrue(false, "TODO: Try sync")
 }
