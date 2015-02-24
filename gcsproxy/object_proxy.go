@@ -260,6 +260,7 @@ func (op *ObjectProxy) Sync(ctx context.Context) (o *storage.Object, err error) 
 	}
 
 	if o, err = op.bucket.CreateObject(ctx, req); err != nil {
+		err = fmt.Errorf("CreateObject: %v", err)
 		return
 	}
 
