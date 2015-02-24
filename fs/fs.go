@@ -31,7 +31,7 @@ func (fs *fileSystem) Root() (fusefs.Node, error) {
 	return d, nil
 }
 
-func makeLogger() *log.Logger {
+func getLogger() *log.Logger {
 	var writer io.Writer = ioutil.Discard
 	if *fEnableDebug {
 		writer = os.Stderr
@@ -45,7 +45,7 @@ func makeLogger() *log.Logger {
 // used for file modification times.
 func NewFuseFS(clock timeutil.Clock, bucket gcs.Bucket) (fusefs.FS, error) {
 	fs := &fileSystem{
-		logger: makeLogger(),
+		logger: getLogger(),
 		clock:  clock,
 		bucket: bucket,
 	}

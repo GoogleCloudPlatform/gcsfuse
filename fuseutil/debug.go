@@ -17,7 +17,7 @@ var fEnableDebug = flag.Bool(
 	"Write FUSE debugging messages to stderr.")
 
 // Create a logger based on command-line flag settings.
-func makeLogger() *log.Logger {
+func getLogger() *log.Logger {
 	var writer io.Writer = ioutil.Discard
 	if *fEnableDebug {
 		writer = os.Stderr
