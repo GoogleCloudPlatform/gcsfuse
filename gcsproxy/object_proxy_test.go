@@ -954,7 +954,16 @@ func (t *SourceObjectPresentTest) NoteLatest_NewerThanPrev() {
 }
 
 func (t *SourceObjectPresentTest) Clean_NoInteractions() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Clean
+	err = t.op.Clean()
+	AssertEq(nil, err)
+
+	// Sync should still have to do nothing.
+	syncResult, err := t.op.Sync()
+	AssertEq(nil, err)
+	ExpectEq(t.sourceObject, syncResult)
 }
 
 func (t *SourceObjectPresentTest) Clean_AfterReading() {
