@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"testing"
 
+	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	"github.com/jacobsa/gcsfuse/gcsproxy"
 	. "github.com/jacobsa/oglematchers"
@@ -45,7 +47,12 @@ func nameIs(name string) Matcher {
 	return &predicateMatcher{
 		Desc: fmt.Sprintf("Name is: %s", name),
 		Predicate: func(candidate interface{}) error {
-			panic("TODO")
+			req := candidate.(*gcs.CreateObjectRequest)
+			if req.Attrs.Name != name {
+				return errors.New("")
+			}
+
+			return nil
 		},
 	}
 }
@@ -54,7 +61,19 @@ func contentsAre(s string) Matcher {
 	return &predicateMatcher{
 		Desc: fmt.Sprintf("Object contents are: %s", s),
 		Predicate: func(candidate interface{}) error {
-			panic("TODO")
+			// Snarf the contents.
+			req := candidate.(*gcs.CreateObjectRequest)
+			contents, err := ioutil.ReadAll(req.Contents)
+			if err != nil {
+				panic(err)
+			}
+
+			// Compare
+			if string(contents) != s {
+				return errors.New("")
+			}
+
+			return nil
 		},
 	}
 }
