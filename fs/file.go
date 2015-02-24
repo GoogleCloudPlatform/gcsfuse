@@ -126,22 +126,17 @@ func (f *file) Getattr(
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
-	f.logger.Printf("Getattr: [%s]/%s", f.bucket.Name(), f.objectName)
+	f.logger.Printf("Getattr: %s", f.objectProxy.Name())
 
 	// Find the current size.
-	size := f.remoteSize
-	if f.tempFile != nil {
-		var fi os.FileInfo
-		if fi, err = f.tempFile.Stat(); err != nil {
-			err = fmt.Errorf("tempFile.Stat: %v", err)
-			return
-		}
-
-		size = uint64(fi.Size())
+	size, err := f.objectProxy.Size()
+	if err != nil {
+		err = fmt.Errorf("objectProxy.Size: %v", err)
+		return
 	}
 
 	resp.Attr = fuse.Attr{
-		Inode: generateInodeNumber(f.objectName),
+		Inode: generateInodeNumber(f.objectProxy.Name()),
 		Mode:  0700,
 		Size:  size,
 
