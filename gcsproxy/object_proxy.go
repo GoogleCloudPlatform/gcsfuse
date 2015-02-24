@@ -4,6 +4,7 @@
 package gcsproxy
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -333,4 +334,7 @@ func (op *ObjectProxy) ensureLocalFile(ctx context.Context) (err error) {
 // Throw away any local modifications to the object, reverting to the latest
 // version handed to NoteLatest (or the non-existent object if none). Be
 // careful!
-func (op *ObjectProxy) Clean(ctx context.Context) (err error)
+func (op *ObjectProxy) Clean(ctx context.Context) (err error) {
+	err = errors.New("TODO: Implement Clean.")
+	return
+}

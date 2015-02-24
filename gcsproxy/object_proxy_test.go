@@ -603,6 +603,22 @@ func (t *NoSourceObjectTest) NoteLatest_AfterWriting() {
 	t.op.ReadAt(make([]byte, 1), 0)
 }
 
+func (t *NoSourceObjectTest) Clean_NoInteractions() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Clean_AfterReading() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Clean_AfterWriting() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Clean_AfterTruncating() {
+	AssertTrue(false, "TODO")
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Source object present
 ////////////////////////////////////////////////////////////////////////
@@ -851,4 +867,20 @@ func (t *SourceObjectPresentTest) NoteLatest_NewerThanPrev() {
 
 	AssertEq(nil, err)
 	ExpectEq(o, syncResult)
+}
+
+func (t *SourceObjectPresentTest) Clean_NoInteractions() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Clean_AfterReading() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Clean_AfterWriting() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Clean_AfterTruncating() {
+	AssertTrue(false, "TODO")
 }
