@@ -386,7 +386,31 @@ func (t *ListingProxyTest) List_CacheHasExpired() {
 }
 
 func (t *ListingProxyTest) NoteNewObject_IllegalNames() {
-	AssertTrue(false, "TODO")
+	var err error
+	try := func(name string) error {
+		return t.lp.NoteNewObject(&storage.Object{Name: name})
+	}
+
+	// Equal to directory name
+	err = try(t.dirName)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("Illegal object name")))
+	ExpectThat(err, Error(HasSubstr(t.dirName)))
+
+	// Sub-directory name
+	err = try(t.dirName + "subdir/")
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("Illegal object name")))
+	ExpectThat(err, Error(HasSubstr("subdir/")))
+
+	// Non-descendant
+	err = try("some/other/dir/obj")
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("descendant")))
+	ExpectThat(err, Error(HasSubstr("some/other/dir/obj")))
 }
 
 func (t *ListingProxyTest) NoteNewObject_NoPreviousListing() {
