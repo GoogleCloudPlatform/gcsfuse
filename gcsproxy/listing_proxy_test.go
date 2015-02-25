@@ -434,7 +434,38 @@ func (t *ListingProxyTest) NoteNewObject_PreviousRemoval() {
 }
 
 func (t *ListingProxyTest) NoteNewSubdirectory_IllegalNames() {
-	AssertTrue(false, "TODO")
+	var err error
+	try := func(name string) error {
+		return t.lp.NoteNewObject(&storage.Object{Name: name})
+	}
+
+	// Object name
+	err = try(t.dirName + "foo")
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("Illegal directory name")))
+	ExpectThat(err, Error(HasSubstr("foo")))
+
+	// Non-descendant
+	err = try("some/other/dir/")
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("descendant")))
+	ExpectThat(err, Error(HasSubstr("some/other/dir/")))
+
+	// Equal to directory name
+	err = try(t.dirName)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("descendant")))
+	ExpectThat(err, Error(HasSubstr(t.dirName)))
+
+	// Descendant but not immediate
+	err = try(t.dirName + "subdir/other/")
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("immediate descendant")))
+	ExpectThat(err, Error(HasSubstr("subdir/other/")))
 }
 
 func (t *ListingProxyTest) NoteNewSubdirectory_NoPreviousListing() {
