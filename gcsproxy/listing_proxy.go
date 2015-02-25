@@ -337,6 +337,12 @@ func (lp *ListingProxy) List(
 // response to a call to List will contain this object even if it is not
 // present in a listing from the underlying bucket.
 func (lp *ListingProxy) NoteNewObject(o *storage.Object) (err error) {
+	// Make sure the object has a legal name.
+	if err = lp.checkObjectName(o.Name); err != nil {
+		err = fmt.Errorf("Illegal object name (%v): %s", err, o.Name)
+		return
+	}
+
 	err = errors.New("TODO: Implement NoteNewObject.")
 	return
 }
@@ -349,6 +355,12 @@ func (lp *ListingProxy) NoteNewObject(o *storage.Object) (err error) {
 // The name must be a legal directory prefix for a sub-directory of this
 // directory. See notes on ListingProxy for more details.
 func (lp *ListingProxy) NoteNewSubdirectory(name string) (err error) {
+	// Make sure the object has a legal name.
+	if err = lp.checkObjectName(name); err != nil {
+		err = fmt.Errorf("Illegal sub-directory name (%v): %s", err, name)
+		return
+	}
+
 	err = errors.New("TODO: Implement NoteNewSubdirectory.")
 	return
 }
