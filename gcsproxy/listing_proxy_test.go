@@ -628,8 +628,48 @@ func (t *ListingProxyTest) NoteNewSubdirectory_IllegalNames() {
 	ExpectThat(err, Error(HasSubstr("subdir/other/")))
 }
 
-func (t *ListingProxyTest) NoteNewSubdirectory_NoPreviousListing() {
-	AssertTrue(false, "TODO")
+func (t *ListingProxyTest) NoteNewSubdirectory_NewListingRequired_NoConflict() {
+	var err error
+	name := t.dirName + "foo/"
+
+	// Note a sub-directory.
+	err = t.lp.NoteNewSubdirectory(name)
+	AssertEq(nil, err)
+
+	// Simulate a successful listing from GCS not containing that name.
+	listing := &storage.Objects{}
+
+	ExpectCall(t.bucket, "ListSubdirectorys")(Any(), Any()).
+		WillOnce(oglemock.Return(listing, nil))
+
+	_, subdirs, err := t.lp.List()
+	AssertEq(nil, err)
+
+	// The sole entry should be the new sub-dir.
+	ExpectThat(subdirs, ElementsAre(name))
+}
+
+func (t *ListingProxyTest) NoteNewSubdirectory_NewListingRequired_Conflict() {
+	var err error
+	name := t.dirName + "foo/"
+
+	// Note a sub-directory.
+	err = t.lp.NoteNewSubdirectory(name)
+	AssertEq(nil, err)
+
+	// Simulate a successful listing from GCS containing that name.
+	listing := &storage.Objects{
+		Prefixes: []string{name},
+	}
+
+	ExpectCall(t.bucket, "ListSubdirectorys")(Any(), Any()).
+		WillOnce(oglemock.Return(listing, nil))
+
+	_, subdirs, err := t.lp.List()
+	AssertEq(nil, err)
+
+	// The sole entry should be the name.
+	ExpectThat(subdirs, ElementsAre(name))
 }
 
 func (t *ListingProxyTest) NoteNewSubdirectory_PrevListingConflicts() {
