@@ -313,7 +313,12 @@ func (lp *ListingProxy) List(
 		Prefix:    lp.name,
 	}
 
-	return gcsutil.List(ctx, lp.bucket, query)
+	if objects, subdirs, err = gcsutil.List(ctx, lp.bucket, query); err != nil {
+		err = fmt.Errorf("gcsutil.List: %v", err)
+		return
+	}
+
+	return
 }
 
 // Note that an object has been added to the directory, overriding any previous
