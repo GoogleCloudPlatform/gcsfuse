@@ -112,6 +112,14 @@ func (t *ListingProxyTest) List_BucketFails() {
 	AssertTrue(false, "TODO")
 }
 
+func (t *ListingProxyTest) List_BucketReturnsIllegalObjectName() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) List_BucketReturnsIllegalDirectoryName() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *ListingProxyTest) List_EmptyResult() {
 	AssertTrue(false, "TODO")
 }
