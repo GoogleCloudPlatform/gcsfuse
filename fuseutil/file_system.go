@@ -27,6 +27,57 @@ type InodeID uint64
 //
 type GenerationNumber uint64
 
-// XXX: Comments
-type FileSystem interface {
+// A request to look up a child by name within a parent directory. This is sent
+// by the kernel when resolving user paths to dentry structs, which are then
+// cached.
+type LookupRequest struct {
+	// The ID of the directory inode to which the child belongs.
+	Parent InodeID
+
+	// The name of the child of interest, relative to the parent. For example, in
+	// this directory structure:
+	//
+	//     foo/
+	//         bar/
+	//             baz
+	//
+	// the file system may receive a request to look up the child named "bar" for
+	// the parent foo/.
+	Name string
 }
+
+// XXX: Comments
+type LookupResponse struct {
+	// XXX: Fields
+}
+
+// An interface that must be implemented by file systems to be mounted with
+// FUSE. Comments reflect requirements on the file system imposed by the
+// kernel. See also the comments on request and response structs.
+//
+// Not all methods need to have interesting implementations. Embed a field of
+// type NothingImplementedFileSystem to inherit defaults that return ENOSYS to
+// the kernel.
+type FileSystem interface {
+	// Look up a child by name within a parent directory. The kernel calls this
+	// when resolving user paths to dentry structs, which are then cached.
+	//
+	// The returned inode ID must be valid until a later call to Forget.
+	Lookup(
+		ctx context.Contexst,
+		req *LookupRequest) (*LookupResponse, error)
+
+	// Forget an inode ID previously issued (e.g. by Lookup). The kernel calls
+	// this when removing an inode from its internal caches.
+	//
+	// The node ID will not be used in further calls to the file system (unless
+	// it is reissued by the file system).
+	Forget(
+		ctx context.Context,
+		req *ForgetRequest) (*ForgetResponse, error)
+}
+
+type NothingImplementedFileSystem struct {
+}
+
+var _ FileSystem = NothingImplementedFileSystem{}
