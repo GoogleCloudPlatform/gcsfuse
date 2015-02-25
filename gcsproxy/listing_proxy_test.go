@@ -639,7 +639,7 @@ func (t *ListingProxyTest) NoteNewSubdirectory_NewListingRequired_NoConflict() {
 	// Simulate a successful listing from GCS not containing that name.
 	listing := &storage.Objects{}
 
-	ExpectCall(t.bucket, "ListSubdirectorys")(Any(), Any()).
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
 		WillOnce(oglemock.Return(listing, nil))
 
 	_, subdirs, err := t.lp.List()
@@ -662,7 +662,7 @@ func (t *ListingProxyTest) NoteNewSubdirectory_NewListingRequired_Conflict() {
 		Prefixes: []string{name},
 	}
 
-	ExpectCall(t.bucket, "ListSubdirectorys")(Any(), Any()).
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
 		WillOnce(oglemock.Return(listing, nil))
 
 	_, subdirs, err := t.lp.List()
