@@ -61,17 +61,26 @@ func (lp *checkingListingProxy) NoteRemoval(name string) error {
 ////////////////////////////////////////////////////////////////////////
 
 type ListingProxyTest struct {
-	objectName string
-	bucket     mock_gcs.MockBucket
-	clock      timeutil.SimulatedClock
-	lp         checkingListingProxy
+	dirName string
+	bucket  mock_gcs.MockBucket
+	clock   timeutil.SimulatedClock
+	lp      checkingListingProxy
 }
 
 var _ SetUpInterface = &ListingProxyTest{}
 
 func init() { RegisterTestSuite(&ListingProxyTest{}) }
 
-func (t *ListingProxyTest) SetUp(ti *TestInfo)
+func (t *ListingProxyTest) SetUp(ti *TestInfo) {
+	t.dirName = "some/dir/"
+	t.bucket = mock_gcs.NewMockBucket(ti.MockController, "bucket")
+
+	var err error
+	t.lp.wrapped, err = gcsproxy.NewListingProxy(t.bucket, &t.clock, t.dirName)
+	if err != nil {
+		panic(err)
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Test functions
