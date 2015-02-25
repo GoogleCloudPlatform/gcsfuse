@@ -413,7 +413,7 @@ func (t *ListingProxyTest) NoteNewObject_IllegalNames() {
 	ExpectThat(err, Error(HasSubstr("some/other/dir/obj")))
 }
 
-func (t *ListingProxyTest) NoteNewObject_NewListingRequest_NoConflict() {
+func (t *ListingProxyTest) NoteNewObject_NewListingRequired_NoConflict() {
 	var err error
 	o := &storage.Object{
 		Name: t.dirName + "foo",
@@ -436,7 +436,7 @@ func (t *ListingProxyTest) NoteNewObject_NewListingRequest_NoConflict() {
 	ExpectThat(objects, ElementsAre(o))
 }
 
-func (t *ListingProxyTest) NoteNewObject_NewListingRequest_Conflict() {
+func (t *ListingProxyTest) NoteNewObject_NewListingRequired_Conflict() {
 	var err error
 	o := &storage.Object{
 		Name: t.dirName + "foo",
