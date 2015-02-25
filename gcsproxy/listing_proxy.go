@@ -201,6 +201,10 @@ func (lp *ListingProxy) Name() string {
 // at appropriate times to help debug weirdness. Consider using
 // syncutil.InvariantMutex to automate the process.
 func (lp *ListingProxy) CheckInvariants() {
+	if err := checkDirName(lp.name); err != nil {
+		panic("Illegal name: " + err.Error())
+	}
+
 	// Check that maps are non-nil.
 	if lp.contents == nil || lp.childModificationsIndex == nil {
 		panic("Expected contents and childModificationsIndex to be non-nil.")
@@ -218,9 +222,17 @@ func (lp *ListingProxy) CheckInvariants() {
 				panic(fmt.Sprintf("Name mismatch: %s vs. %s", name, typedNode))
 			}
 
+			if err := checkDirName(typedNode); err != nil {
+				panic("Illegal directory name: " + typedNode)
+			}
+
 		case *storage.Object:
 			if name != typedNode.Name {
 				panic(fmt.Sprintf("Name mismatch: %s vs. %s", name, typedNode.Name))
+			}
+
+			if err := checkDirName(typedNode.Name); err == nil {
+				panic("Illegal object name: " + typedNode.Name)
 			}
 		}
 	}
@@ -314,5 +326,14 @@ func (lp *ListingProxy) NoteNewSubdirectory(name string) (err error) {
 // present in a listing from the underlying bucket.
 func (lp *ListingProxy) NoteRemoval(name string) (err error) {
 	err = errors.New("TODO: Implement NoteRemoval.")
+	return
+}
+
+func checkDirName(name string) (err error) {
+	if name == "" || name[len(name)-1] == '/' {
+		return
+	}
+
+	err = errors.New("Non-empty names must end with a slash.")
 	return
 }
