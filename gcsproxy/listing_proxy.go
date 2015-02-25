@@ -111,6 +111,18 @@ func NewListingProxy(
 	return
 }
 
+// Return the directory prefix with which this object was configured.
+func (lp *ListingProxy) Name() string {
+	panic("TODO: Implement Name.")
+}
+
+// Panic if any internal invariants are violated. Careful users can call this
+// at appropriate times to help debug weirdness. Consider using
+// syncutil.InvariantMutex to automate the process.
+func (lp *ListingProxy) CheckInvariants() {
+	panic("TODO: Implement CheckInvariants.")
+}
+
 // Obtain a listing of the objects directly within the directory and the
 // immediate sub-directories. (See comments on ListingProxy for precise
 // semantics.)

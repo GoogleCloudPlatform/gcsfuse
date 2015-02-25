@@ -9,13 +9,12 @@ import (
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	"github.com/jacobsa/gcsfuse/gcsproxy"
 	"github.com/jacobsa/gcsfuse/timeutil"
-	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )
 
-func TestOgletest(t *testing.T) { RunTests(t) }
+func TestListingProxy(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Invariant-checking listing proxy
