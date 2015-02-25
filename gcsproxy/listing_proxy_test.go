@@ -5,7 +5,6 @@ package gcsproxy_test
 
 import (
 	"errors"
-	"path"
 	"testing"
 
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
@@ -146,7 +145,7 @@ func (t *ListingProxyTest) List_BucketFails() {
 
 func (t *ListingProxyTest) List_BucketReturnsIllegalObjectName() {
 	badObj := &storage.Object{
-		Name: path.Join(t.dirName, "foo/"),
+		Name: t.dirName + "foo/",
 	}
 
 	badListing := &storage.Objects{
@@ -168,9 +167,9 @@ func (t *ListingProxyTest) List_BucketReturnsIllegalObjectName() {
 func (t *ListingProxyTest) List_BucketReturnsIllegalDirectoryName() {
 	badListing := &storage.Objects{
 		Prefixes: []string{
-			path.Join(t.dirName, "foo/"),
-			path.Join(t.dirName, "bar"),
-			path.Join(t.dirName, "baz/"),
+			t.dirName + "foo/",
+			t.dirName + "bar",
+			t.dirName + "baz/",
 		},
 	}
 
@@ -223,12 +222,12 @@ func (t *ListingProxyTest) List_NonEmptyResult() {
 	// Bucket.ListObjects
 	listing := &storage.Objects{
 		Results: []*storage.Object{
-			&storage.Object{Name: path.Join(t.dirName, "foo")},
-			&storage.Object{Name: path.Join(t.dirName, "bar")},
+			&storage.Object{Name: t.dirName + "foo"},
+			&storage.Object{Name: t.dirName + "bar"},
 		},
 		Prefixes: []string{
-			path.Join(t.dirName, "baz"),
-			path.Join(t.dirName, "qux"),
+			t.dirName + "baz/",
+			t.dirName + "qux/",
 		},
 	}
 
