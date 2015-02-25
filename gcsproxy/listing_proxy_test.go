@@ -822,7 +822,18 @@ func (t *ListingProxyTest) NoteRemoval_IllegalNames() {
 }
 
 func (t *ListingProxyTest) NoteRemoval_LegalNames() {
-	AssertTrue(false, "TODO")
+	var err error
+	try := func(name string) error {
+		return t.lp.NoteRemoval(name)
+	}
+
+	// Object
+	err = try(t.dirName + "foo")
+	ExpectEq(nil, err)
+
+	// Sub-directory
+	err = try(t.dirName + "foo/")
+	ExpectEq(nil, err)
 }
 
 func (t *ListingProxyTest) NoteRemoval_ListingRequired_NoConflict() {
