@@ -20,14 +20,12 @@ import (
 // contents of directory P are:
 //
 //  *  The "files" within the directory: all objects named N such that
-//      *  N has P as a prefix.
-//      *  N is not equal to P.
+//      *  P is a strict prefix of N.
 //      *  The portion of N following the prefix P contains no slashes.
 //
 //  *  The immediate "sub-directories": all strings P' such that
 //      *  P' is a legal directory prefix according to the definition above.
-//      *  P' has P as a prefix.
-//      *  P' is not equal to P.
+//      *  P is a strict prefix of P'.
 //      *  The portion of P' following the prefix P contains exactly one slash.
 //      *  There is at least one objcet with name N such that N has P' as a
 //         prefix.
