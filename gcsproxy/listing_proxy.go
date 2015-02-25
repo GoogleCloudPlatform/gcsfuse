@@ -80,7 +80,7 @@ type ListingProxy struct {
 	// Constant data
 	/////////////////////////
 
-	// INVARIANT: checkDirName(name) == nil
+	// INVARIANT: isDirName(name)
 	name string
 
 	/////////////////////////
@@ -102,8 +102,8 @@ type ListingProxy struct {
 	// INVARIANT: contents != nil
 	// INVARIANT: For all keys k, name is a strict prefix of k.
 	// INVARIANT: All values are of type string or *storage.Object.
-	// INVARIANT: For all string values v, checkDirName(v) == nil
-	// INVARIANT: For all object values o, checkDirName(o.Name) != nil
+	// INVARIANT: For all string values v, checkSubdirName(v) == nil
+	// INVARIANT: For all object values o, checkObjectName(o.Name) != nil
 	// INVARIANT: All entries are indexed by the correct name.
 	contents           map[string]interface{}
 	contentsExpiration time.Time
@@ -186,8 +186,8 @@ func NewListingProxy(
 	clock timeutil.Clock,
 	dir string) (lp *ListingProxy, err error) {
 	// Make sure the directory name is legal.
-	if err = checkDirName(dir); err != nil {
-		err = fmt.Errorf("Illegal directory name (%v): %s", err, dir)
+	if !isDirName(dir) {
+		err = fmt.Errorf("Illegal directory name: %s", dir)
 		return
 	}
 
@@ -213,8 +213,8 @@ func (lp *ListingProxy) Name() string {
 // syncutil.InvariantMutex to automate the process.
 func (lp *ListingProxy) CheckInvariants() {
 	// Check the name.
-	if err := checkDirName(lp.name); err != nil {
-		panic("Illegal name: " + err.Error())
+	if !isDirName(lp.name) {
+		panic("Illegal name")
 	}
 
 	// Check that maps are non-nil.
@@ -240,7 +240,7 @@ func (lp *ListingProxy) CheckInvariants() {
 				panic(fmt.Sprintf("Name mismatch: %s vs. %s", k, typedNode))
 			}
 
-			if err := checkDirName(typedNode); err != nil {
+			if err := lp.checkSubdirName(typedNode); err != nil {
 				panic("Illegal directory name: " + typedNode)
 			}
 
@@ -249,7 +249,7 @@ func (lp *ListingProxy) CheckInvariants() {
 				panic(fmt.Sprintf("Name mismatch: %s vs. %s", k, typedNode.Name))
 			}
 
-			if err := checkDirName(typedNode.Name); err == nil {
+			if err := lp.checkObjectName(typedNode.Name); err != nil {
 				panic("Illegal object name: " + typedNode.Name)
 			}
 		}
@@ -363,12 +363,47 @@ func (lp *ListingProxy) NoteRemoval(name string) (err error) {
 	return
 }
 
-func checkDirName(name string) (err error) {
-	if name == "" || name[len(name)-1] == '/' {
+func isDirName(name string) bool {
+	return name == "" || name[len(name)-1] == '/'
+}
+
+func (lp *ListingProxy) checkObjectName(name string) (err error) {
+	if isDirName(name) {
+		err = errors.New("Not an object name.")
 		return
 	}
 
-	err = errors.New("Non-empty names must end with a slash")
+	trimmed := strings.TrimPrefix(name, lp.name)
+	if name == trimmed {
+		err = errors.New("Not a descendant.")
+		return
+	}
+
+	if strings.IndexByte(trimmed, '/') >= 0 {
+		err = errors.New("Not a direct descendant.")
+		return
+	}
+
+	return
+}
+
+func (lp *ListingProxy) checkSubdirName(name string) (err error) {
+	if !isDirName(name) {
+		err = errors.New("Not a directory name.")
+		return
+	}
+
+	trimmed := strings.TrimPrefix(name, lp.name)
+	if name == trimmed {
+		err = errors.New("Not a descendant.")
+		return
+	}
+
+	if strings.IndexByte(trimmed, '/') != len(trimmed)-1 {
+		err = errors.New("Not a direct descendant.")
+		return
+	}
+
 	return
 }
 
@@ -402,15 +437,9 @@ func (lp *ListingProxy) ensureContents(ctx context.Context) (err error) {
 			continue
 		}
 
-		// Objects shouldn't have directory names.
-		if err = checkDirName(o.Name); err == nil {
-			err = fmt.Errorf("Illegal object name returned by List: %s", o.Name)
-			return
-		}
-
-		// Make sure the object is a strict descendant.
-		if !strings.HasPrefix(o.Name, lp.name) {
-			err = fmt.Errorf("List returned non-descendant object: %s", o.Name)
+		// Make sure the object name is legal.
+		if err = lp.checkObjectName(o.Name); err != nil {
+			err = fmt.Errorf("List returned bad object name (%v): %s", err, o.Name)
 			return
 		}
 
@@ -420,9 +449,9 @@ func (lp *ListingProxy) ensureContents(ctx context.Context) (err error) {
 	// Process the returned prefixes.
 	for _, subdir := range subdirs {
 		// Directory names must be legal.
-		if err = checkDirName(subdir); err != nil {
+		if err = lp.checkSubdirName(subdir); err != nil {
 			err = fmt.Errorf(
-				"Illegal directory name returned by List (%v): %s",
+				"List returned bad sub-dir name (%v): %s",
 				err,
 				subdir)
 			return
