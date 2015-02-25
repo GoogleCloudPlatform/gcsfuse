@@ -824,7 +824,30 @@ func (t *ListingProxyTest) NoteRemoval_ListingRequired_Conflict() {
 }
 
 func (t *ListingProxyTest) NoteRemoval_PrevListingConflicts() {
-	AssertTrue(false, "TODO")
+	var err error
+	name := t.dirName + "foo/"
+
+	// Simulate a successful listing from GCS containing an entry for the name of
+	// interest.
+	listing := &storage.Objects{
+		Prefixes: []string{name},
+	}
+
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(listing, nil))
+
+	_, _, err = t.lp.List()
+	AssertEq(nil, err)
+
+	// Note the removal of the sub-directory.
+	err = t.lp.NoteRemoval(name)
+	AssertEq(nil, err)
+
+	// List again. The sub-dir should be gone.
+	_, subdirs, err := t.lp.List()
+
+	AssertEq(nil, err)
+	ExpectThat(subdirs, ElementsAre())
 }
 
 func (t *ListingProxyTest) NoteRemoval_PrevListingDoesntConflict() {
