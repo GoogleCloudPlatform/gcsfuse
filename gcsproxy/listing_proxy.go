@@ -132,8 +132,8 @@ type ListingProxy struct {
 
 // See ListingProxy.childModifications.
 type childModification struct {
-	time time.Time
-	name string
+	expiration time.Time
+	name       string
 
 	// INVARIANT: node == nil or node is of type string or *storage.Object
 	node interface{}
@@ -356,9 +356,9 @@ func (lp *ListingProxy) NoteNewObject(o *storage.Object) (err error) {
 
 	// Add a record.
 	m := childModification{
-		time: lp.clock.Now(),
-		name: name,
-		node: o,
+		expiration: lp.clock.Now().Add(ListingProxy_ModificationMemoryTTL),
+		name:       name,
+		node:       o,
 	}
 
 	lp.childModifications.PushBack(m)
@@ -516,6 +516,29 @@ func (lp *ListingProxy) ensureContents(ctx context.Context) (err error) {
 	return
 }
 
-func (lp *ListingProxy) cleanChildModifications()
+func (lp *ListingProxy) cleanChildModifications() {
+	now := lp.clock.Now()
+
+	// The simple way: build a list of names of expired modifications to remove.
+	var names []string
+	for e := lp.childModifications.Front(); e != nil; e = e.Next() {
+		m := e.Value.(childModification)
+
+		// Stop when we hit the first non-expired element. There may be expired
+		// ones further on if time is not monotonic, but meh.
+		if now.Before(m.expiration) {
+			break
+		}
+
+		names = append(names, m.name)
+	}
+
+	// Remove each name.
+	for _, name := range names {
+		e := lp.childModificationsIndex[name]
+		lp.childModifications.Remove(e)
+		delete(lp.childModificationsIndex, name)
+	}
+}
 
 func (lp *ListingProxy) playBackModification(m childModification)
