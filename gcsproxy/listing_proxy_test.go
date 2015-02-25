@@ -5,6 +5,7 @@ package gcsproxy_test
 
 import (
 	"errors"
+	"sort"
 	"testing"
 
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
@@ -18,6 +19,28 @@ import (
 )
 
 func TestListingProxy(t *testing.T) { RunTests(t) }
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+type ObjectSlice []*storage.Object
+
+func (s ObjectSlice) Len() int           { return len(s) }
+func (s ObjectSlice) Less(i, j int) bool { return s[i].Name < s[j].Name }
+func (s ObjectSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
+func sortObjectsByName(s []*storage.Object) []*storage.Object {
+	sortable := ObjectSlice(s)
+	sort.Sort(sortable)
+	return sortable
+}
+
+func sortStrings(s []string) []string {
+	sortable := sort.StringSlice(s)
+	sort.Sort(sortable)
+	return sortable
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Invariant-checking listing proxy
@@ -231,8 +254,8 @@ func (t *ListingProxyTest) List_NonEmptyResult_PlaceholderForProxiedDirPresent()
 	listing := &storage.Objects{
 		Results: []*storage.Object{
 			&storage.Object{Name: t.dirName},
-			&storage.Object{Name: t.dirName + "foo"},
 			&storage.Object{Name: t.dirName + "bar"},
+			&storage.Object{Name: t.dirName + "foo"},
 		},
 		Prefixes: []string{
 			t.dirName + "baz/",
@@ -245,6 +268,9 @@ func (t *ListingProxyTest) List_NonEmptyResult_PlaceholderForProxiedDirPresent()
 
 	// List
 	objects, subdirs, err := t.lp.List()
+
+	objects = sortObjectsByName(objects)
+	subdirs = sortStrings(subdirs)
 
 	AssertEq(nil, err)
 	ExpectThat(objects, ElementsAre(listing.Results[1], listing.Results[2]))
@@ -255,8 +281,8 @@ func (t *ListingProxyTest) List_NonEmptyResult_PlaceholderForProxiedDirNotPresen
 	// Bucket.ListObjects
 	listing := &storage.Objects{
 		Results: []*storage.Object{
-			&storage.Object{Name: t.dirName + "foo"},
 			&storage.Object{Name: t.dirName + "bar"},
+			&storage.Object{Name: t.dirName + "foo"},
 		},
 		Prefixes: []string{
 			t.dirName + "baz/",
@@ -269,6 +295,9 @@ func (t *ListingProxyTest) List_NonEmptyResult_PlaceholderForProxiedDirNotPresen
 
 	// List
 	objects, subdirs, err := t.lp.List()
+
+	objects = sortObjectsByName(objects)
+	subdirs = sortStrings(subdirs)
 
 	AssertEq(nil, err)
 	ExpectThat(objects, ElementsAre(listing.Results[0], listing.Results[1]))
