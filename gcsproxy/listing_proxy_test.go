@@ -122,7 +122,15 @@ func (t *ListingProxyTest) NoteNewObject() {
 	AssertTrue(false, "TODO")
 }
 
+func (t *ListingProxyTest) NoteNewObject_IllegalNames() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *ListingProxyTest) NoteNewSubdirectory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) NoteNewSubdirectory_IllegalNames() {
 	AssertTrue(false, "TODO")
 }
 
