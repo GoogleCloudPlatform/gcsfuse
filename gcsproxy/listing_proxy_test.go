@@ -7,6 +7,7 @@ import (
 	"errors"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	"github.com/jacobsa/gcsfuse/gcsproxy"
@@ -338,7 +339,31 @@ func (t *ListingProxyTest) List_NonEmptyResult_PlaceholderForProxiedDirNotPresen
 }
 
 func (t *ListingProxyTest) List_CacheIsValid() {
-	AssertTrue(false, "TODO")
+	// List once.
+	listing := &storage.Objects{
+		Results: []*storage.Object{
+			&storage.Object{Name: t.dirName + "foo"},
+		},
+		Prefixes: []string{
+			t.dirName + "baz/",
+		},
+	}
+
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(listing, nil))
+
+	_, _, err := t.lp.List()
+	AssertEq(nil, err)
+
+	// Move into the future, but not quite too far.
+	t.clock.AdvanceTime(gcsproxy.ListingProxy_ListingCacheTTL - time.Millisecond)
+
+	// List again. Without any work, the results should be correct.
+	objects, subdirs, err := t.lp.List()
+
+	AssertEq(nil, err)
+	ExpectThat(objects, ElementsAre(listing.Results[0]))
+	ExpectThat(subdirs, ElementsAre(listing.Prefixes[0]))
 }
 
 func (t *ListingProxyTest) List_CacheHasExpired() {
