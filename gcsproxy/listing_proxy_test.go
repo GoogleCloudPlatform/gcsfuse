@@ -247,8 +247,8 @@ func (t *ListingProxyTest) List_NonEmptyResult_PlaceholderForProxiedDirPresent()
 	objects, subdirs, err := t.lp.List()
 
 	AssertEq(nil, err)
-	ExpectThat(objects, DeepEquals(listing.Results))
-	ExpectThat(subdirs, DeepEquals(listing.Prefixes))
+	ExpectThat(objects, ElementsAre(listing.Results[1], listing.Results[2]))
+	ExpectThat(subdirs, ElementsAre(listing.Prefixes[0], listing.Prefixes[1]))
 }
 
 func (t *ListingProxyTest) List_NonEmptyResult_PlaceholderForProxiedDirNotPresent() {
@@ -271,8 +271,8 @@ func (t *ListingProxyTest) List_NonEmptyResult_PlaceholderForProxiedDirNotPresen
 	objects, subdirs, err := t.lp.List()
 
 	AssertEq(nil, err)
-	ExpectThat(objects, DeepEquals(listing.Results))
-	ExpectThat(subdirs, DeepEquals(listing.Prefixes))
+	ExpectThat(objects, ElementsAre(listing.Results[0], listing.Results[1]))
+	ExpectThat(subdirs, ElementsAre(listing.Prefixes[0], listing.Prefixes[1]))
 }
 
 func (t *ListingProxyTest) List_CacheIsValid() {
