@@ -99,18 +99,31 @@ const ListingProxy_ListingCacheTTL = 10 * time.Second
 // instead of living here?
 const ListingProxy_ModificationMemoryTTL = 5 * time.Minute
 
-// XXX: Comments
+// Create a listing proxy object for the directory identified by the given
+// prefix (see comments on ListingProxy). The supplied clock will be used for
+// cache TTLs.
 func NewListingProxy(
 	bucket gcs.Bucket,
 	clock timeutil.Clock,
 	dir string) (lp *ListingProxy, err error)
 
-// XXX: Comments
+// Obtain a listing of the objects directly within the directory and the
+// immediate sub-directories. (See comments on ListingProxy for precise
+// semantics.)
+//
+// This listing reflects any additions and removals set up with NoteAddition
+// and NoteRemoval.
 func (lp *ListingProxy) List(
 	ctx context.Context) (objects []*storage.Object, subdirs []string, err error)
 
-// XXX: Comments
+// Note that an object has been added to the directory, overriding any previous
+// additions or removals. For awhile after this call, the response to a call to
+// List will contain this object even if it is not present in a listing from
+// the underlying bucket.
 func (lp *ListingProxy) NoteAddition(o *storage.Object) (err error)
 
-// XXX: Comments
+// Note that an object or directory prefix has been removed from the directory,
+// overriding any previous additions or removals. For awhile after this call,
+// the response to a call to List will not contain this name even if it is
+// present in a listing from the underlying bucket.
 func (lp *ListingProxy) NoteRemoval(name string) (err error)
