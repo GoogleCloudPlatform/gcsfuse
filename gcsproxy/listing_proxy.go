@@ -297,7 +297,8 @@ func (lp *ListingProxy) CheckInvariants() {
 
 // Obtain a listing of the objects directly within the directory and the
 // immediate sub-directories. (See comments on ListingProxy for precise
-// semantics.)
+// semantics.) Object and sub-directory names are fully specified, not
+// relative.
 //
 // This listing reflects any additions and removals set up with NoteNewObject,
 // NoteNewSubdirectory, or NoteRemoval.

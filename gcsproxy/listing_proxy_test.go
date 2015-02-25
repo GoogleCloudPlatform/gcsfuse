@@ -220,6 +220,30 @@ func (t *ListingProxyTest) List_OnlyPlaceholderForProxiedDir() {
 }
 
 func (t *ListingProxyTest) List_NonEmptyResult() {
+	// Bucket.ListObjects
+	listing := &storage.Objects{
+		Results: []*storage.Object{
+			&storage.Object{Name: path.Join(t.dirName, "foo")},
+			&storage.Object{Name: path.Join(t.dirName, "bar")},
+		},
+		Prefixes: []string{
+			path.Join(t.dirName, "baz"),
+			path.Join(t.dirName, "qux"),
+		},
+	}
+
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(listing, nil))
+
+	// List
+	objects, subdirs, err := t.lp.List()
+
+	AssertEq(nil, err)
+	ExpectThat(objects, DeepEquals(listing.Results))
+	ExpectThat(subdirs, DeepEquals(listing.Prefixes))
+}
+
+func (t *ListingProxyTest) List_CacheIsValid() {
 	AssertTrue(false, "TODO")
 }
 
