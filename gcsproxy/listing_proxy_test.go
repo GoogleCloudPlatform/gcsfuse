@@ -232,7 +232,23 @@ func (t *ListingProxyTest) List_BucketReturnsNonDescendantObject() {
 }
 
 func (t *ListingProxyTest) List_BucketReturnsNonDescendantPrefix() {
-	AssertTrue(false, "TODO")
+	badListing := &storage.Objects{
+		Prefixes: []string{
+			"some/other/dir/",
+		},
+	}
+
+	// Bucket.ListObjects
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(badListing, nil))
+
+	// List
+	_, _, err := t.lp.List()
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("some/other/dir/")))
+	ExpectThat(err, Error(HasSubstr("descendant")))
+	ExpectThat(err, Error(HasSubstr(t.dirName)))
 }
 
 func (t *ListingProxyTest) List_EmptyResult() {
