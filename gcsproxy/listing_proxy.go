@@ -361,8 +361,7 @@ func (lp *ListingProxy) NoteNewObject(o *storage.Object) (err error) {
 		node:       o,
 	}
 
-	lp.childModifications.PushBack(m)
-	// TODO: Modify index too.
+	lp.childModificationsIndex[m.name] = lp.childModifications.PushBack(m)
 
 	// Ensure the record is reflected in the contents.
 	lp.playBackModification(m)
