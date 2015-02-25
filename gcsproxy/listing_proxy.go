@@ -332,6 +332,25 @@ func (lp *ListingProxy) List(
 	return
 }
 
+func (lp *ListingProxy) noteModification(m childModification) (err error) {
+	// When we're finished, trim any expired modifications.
+	defer lp.cleanChildModifications()
+
+	// Delete any existing record for this name.
+	if e, ok := lp.childModificationsIndex[m.name]; ok {
+		lp.childModifications.Remove(e)
+		delete(lp.childModificationsIndex, m.name)
+	}
+
+	// Add a record.
+	lp.childModificationsIndex[m.name] = lp.childModifications.PushBack(m)
+
+	// Ensure the record is reflected in the contents.
+	lp.playBackModification(m)
+
+	return
+}
+
 // Note that an object has been added to the directory, overriding any previous
 // additions or removals with the same name. For awhile after this call, the
 // response to a call to List will contain this object even if it is not
@@ -339,32 +358,17 @@ func (lp *ListingProxy) List(
 func (lp *ListingProxy) NoteNewObject(o *storage.Object) (err error) {
 	name := o.Name
 
-	// When we're finished, trim any expired modifications.
-	defer lp.cleanChildModifications()
-
 	// Make sure the object has a legal name.
 	if err = lp.checkObjectName(name); err != nil {
 		err = fmt.Errorf("Illegal object name (%v): %s", err, name)
 		return
 	}
 
-	// Delete any existing record for this name.
-	if e, ok := lp.childModificationsIndex[name]; ok {
-		lp.childModifications.Remove(e)
-		delete(lp.childModificationsIndex, name)
-	}
-
-	// Add a record.
-	m := childModification{
+	lp.noteModification(childModification{
 		expiration: lp.clock.Now().Add(ListingProxy_ModificationMemoryTTL),
 		name:       name,
 		node:       o,
-	}
-
-	lp.childModificationsIndex[m.name] = lp.childModifications.PushBack(m)
-
-	// Ensure the record is reflected in the contents.
-	lp.playBackModification(m)
+	})
 
 	return
 }
