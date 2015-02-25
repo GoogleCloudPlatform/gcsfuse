@@ -9,6 +9,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	"github.com/jacobsa/gcsfuse/gcsproxy"
 	"github.com/jacobsa/gcsfuse/timeutil"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
@@ -87,11 +88,16 @@ func (t *ListingProxyTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *ListingProxyTest) CreateForRootDirectory() {
-	AssertTrue(false, "TODO")
+	_, err := gcsproxy.NewListingProxy(t.bucket, &t.clock, "")
+	AssertEq(nil, err)
 }
 
 func (t *ListingProxyTest) CreateForIllegalDirectoryName() {
-	AssertTrue(false, "TODO")
+	_, err := gcsproxy.NewListingProxy(t.bucket, &t.clock, "foo/bar")
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("foo/bar")))
+	ExpectThat(err, Error(HasSubstr("directory name")))
 }
 
 func (t *ListingProxyTest) Name() {
