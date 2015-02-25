@@ -5,6 +5,7 @@ package gcsproxy_test
 
 import (
 	"errors"
+	"path"
 	"testing"
 
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
@@ -144,7 +145,24 @@ func (t *ListingProxyTest) List_BucketFails() {
 }
 
 func (t *ListingProxyTest) List_BucketReturnsIllegalObjectName() {
-	AssertTrue(false, "TODO")
+	badObj := &storage.Object{
+		Name: path.Join(t.dirName, "foo/"),
+	}
+
+	badListing := &storage.Objects{
+		Results: []*storage.Object{badObj},
+	}
+
+	// Bucket.ListObjects
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(badListing, nil))
+
+	// List
+	_, _, err := t.lp.List()
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("object name")))
+	ExpectThat(err, Error(HasSubstr(badObj.Name)))
 }
 
 func (t *ListingProxyTest) List_BucketReturnsIllegalDirectoryName() {
