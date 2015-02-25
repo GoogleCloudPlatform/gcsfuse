@@ -209,7 +209,26 @@ func (t *ListingProxyTest) List_BucketReturnsIllegalDirectoryName() {
 }
 
 func (t *ListingProxyTest) List_BucketReturnsNonDescendantObject() {
-	AssertTrue(false, "TODO")
+	badObj := &storage.Object{
+		Name: "some/other/dir/obj",
+	}
+
+	badListing := &storage.Objects{
+		Results: []*storage.Object{badObj},
+	}
+
+	// Bucket.ListObjects
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(badListing, nil))
+
+	// List
+	_, _, err := t.lp.List()
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("object")))
+	ExpectThat(err, Error(HasSubstr(badObj.Name)))
+	ExpectThat(err, Error(HasSubstr("descendant")))
+	ExpectThat(err, Error(HasSubstr(t.dirName)))
 }
 
 func (t *ListingProxyTest) List_BucketReturnsNonDescendantPrefix() {
