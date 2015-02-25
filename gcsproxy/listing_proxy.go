@@ -111,16 +111,25 @@ func NewListingProxy(
 // immediate sub-directories. (See comments on ListingProxy for precise
 // semantics.)
 //
-// This listing reflects any additions and removals set up with NoteAddition
-// and NoteRemoval.
+// This listing reflects any additions and removals set up with NoteNewObject,
+// NoteNewSubdirectory, or NoteRemoval.
 func (lp *ListingProxy) List(
 	ctx context.Context) (objects []*storage.Object, subdirs []string, err error)
 
 // Note that an object has been added to the directory, overriding any previous
-// additions or removals. For awhile after this call, the response to a call to
-// List will contain this object even if it is not present in a listing from
-// the underlying bucket.
-func (lp *ListingProxy) NoteAddition(o *storage.Object) (err error)
+// additions or removals with the same name. For awhile after this call, the
+// response to a call to List will contain this object even if it is not
+// present in a listing from the underlying bucket.
+func (lp *ListingProxy) NoteNewObject(o *storage.Object) (err error)
+
+// Note that a sub-directory has been added to the directory, overriding any
+// previous additions or removals with the same name. For awhile after this
+// call, the response to a call to List will contain this object even if it is
+// not present in a listing from the underlying bucket.
+//
+// The name must be a legal directory prefix for a sub-directory of this
+// directory. See notes on ListingProxy for more details.
+func (lp *ListingProxy) NoteNewSubdirectory(name string) (err error)
 
 // Note that an object or directory prefix has been removed from the directory,
 // overriding any previous additions or removals. For awhile after this call,
