@@ -100,7 +100,6 @@ type ListingProxy struct {
 	// *storage.Object.
 	//
 	// INVARIANT: contents != nil
-	// INVARIANT: For all keys k, name is a strict prefix of k.
 	// INVARIANT: All values are of type string or *storage.Object.
 	// INVARIANT: For all string values v, checkSubdirName(v) == nil
 	// INVARIANT: For all object values o, checkObjectName(o.Name) != nil
