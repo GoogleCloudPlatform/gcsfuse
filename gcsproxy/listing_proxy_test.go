@@ -228,7 +228,6 @@ func (t *ListingProxyTest) List_BucketReturnsNonDescendantObject() {
 	ExpectThat(err, Error(HasSubstr("object")))
 	ExpectThat(err, Error(HasSubstr(badObj.Name)))
 	ExpectThat(err, Error(HasSubstr("descendant")))
-	ExpectThat(err, Error(HasSubstr(t.dirName)))
 }
 
 func (t *ListingProxyTest) List_BucketReturnsNonDescendantPrefix() {
@@ -248,7 +247,6 @@ func (t *ListingProxyTest) List_BucketReturnsNonDescendantPrefix() {
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("some/other/dir/")))
 	ExpectThat(err, Error(HasSubstr("descendant")))
-	ExpectThat(err, Error(HasSubstr(t.dirName)))
 }
 
 func (t *ListingProxyTest) List_EmptyResult() {

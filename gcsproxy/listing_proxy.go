@@ -402,6 +402,12 @@ func (lp *ListingProxy) ensureContents(ctx context.Context) (err error) {
 			return
 		}
 
+		// Make sure the object is a strict descendant.
+		if !strings.HasPrefix(o.Name, lp.name) {
+			err = fmt.Errorf("List returned non-descendant object: %s", o.Name)
+			return
+		}
+
 		contents[o.Name] = o
 	}
 
@@ -413,6 +419,12 @@ func (lp *ListingProxy) ensureContents(ctx context.Context) (err error) {
 				"Illegal directory name returned by List (%v): %s",
 				err,
 				subdir)
+			return
+		}
+
+		// Make sure the directory is a strict descendant.
+		if !(strings.HasPrefix(subdir, lp.name) && subdir != lp.name) {
+			err = fmt.Errorf("List returned non-descendant directory: %s", subdir)
 			return
 		}
 
