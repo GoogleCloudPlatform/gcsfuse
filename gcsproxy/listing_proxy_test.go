@@ -413,7 +413,30 @@ func (t *ListingProxyTest) NoteNewObject_IllegalNames() {
 	ExpectThat(err, Error(HasSubstr("some/other/dir/obj")))
 }
 
-func (t *ListingProxyTest) NoteNewObject_NoPreviousListing() {
+func (t *ListingProxyTest) NoteNewObject_NewListingRequest_NoConflict() {
+	var err error
+	o := &storage.Object{
+		Name: t.dirName + "foo",
+	}
+
+	// Note an object.
+	err = t.lp.NoteNewObject(o)
+	AssertEq(nil, err)
+
+	// Simulate a successful listing from GCS not containing that name.
+	listing := &storage.Objects{}
+
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(listing, nil))
+
+	objects, _, err := t.lp.List()
+	AssertEq(nil, err)
+
+	// The sole contents should be the new object.
+	ExpectThat(objects, ElementsAre(o))
+}
+
+func (t *ListingProxyTest) NoteNewObject_NewListingRequest_Conflict() {
 	AssertTrue(false, "TODO")
 }
 
