@@ -358,7 +358,7 @@ func (lp *ListingProxy) noteModification(m childModification) (err error) {
 func (lp *ListingProxy) NoteNewObject(o *storage.Object) (err error) {
 	name := o.Name
 
-	// Make sure the object has a legal name.
+	// Make sure the name is legal.
 	if err = lp.checkObjectName(name); err != nil {
 		err = fmt.Errorf("Illegal object name (%v): %s", err, name)
 		return
@@ -381,16 +381,18 @@ func (lp *ListingProxy) NoteNewObject(o *storage.Object) (err error) {
 // The name must be a legal directory prefix for a sub-directory of this
 // directory. See notes on ListingProxy for more details.
 func (lp *ListingProxy) NoteNewSubdirectory(name string) (err error) {
-	// When we're finished, trim any expired modifications.
-	defer lp.cleanChildModifications()
-
-	// Make sure the object has a legal name.
+	// Make sure the name is legal.
 	if err = lp.checkSubdirName(name); err != nil {
 		err = fmt.Errorf("Illegal sub-directory name (%v): %s", err, name)
 		return
 	}
 
-	err = errors.New("TODO: Implement NoteNewSubdirectory.")
+	lp.noteModification(childModification{
+		expiration: lp.clock.Now().Add(ListingProxy_ModificationMemoryTTL),
+		name:       name,
+		node:       name,
+	})
+
 	return
 }
 
@@ -399,9 +401,6 @@ func (lp *ListingProxy) NoteNewSubdirectory(name string) (err error) {
 // the response to a call to List will not contain this name even if it is
 // present in a listing from the underlying bucket.
 func (lp *ListingProxy) NoteRemoval(name string) (err error) {
-	// When we're finished, trim any expired modifications.
-	defer lp.cleanChildModifications()
-
 	err = errors.New("TODO: Implement NoteRemoval.")
 	return
 }
