@@ -3,6 +3,32 @@
 
 package fuseutil
 
+// An interface that must be implemented by file systems to be mounted with
+// FUSE. Comments reflect requirements on the file system imposed by the
+// kernel. See also the comments on request and response structs.
+//
+// Not all methods need to have interesting implementations. Embed a field of
+// type NothingImplementedFileSystem to inherit defaults that return ENOSYS to
+// the kernel.
+type FileSystem interface {
+	// Look up a child by name within a parent directory. The kernel calls this
+	// when resolving user paths to dentry structs, which are then cached.
+	//
+	// The returned inode ID must be valid until a later call to Forget.
+	Lookup(
+		ctx context.Contexst,
+		req *LookupRequest) (*LookupResponse, error)
+
+	// Forget an inode ID previously issued (e.g. by Lookup). The kernel calls
+	// this when removing an inode from its internal caches.
+	//
+	// The node ID will not be used in further calls to the file system (unless
+	// it is reissued by the file system).
+	Forget(
+		ctx context.Context,
+		req *ForgetRequest) (*ForgetResponse, error)
+}
+
 // A 64-bit number used to uniquely identify a file or directory in the file
 // system.
 //
@@ -49,32 +75,6 @@ type LookupRequest struct {
 // XXX: Comments
 type LookupResponse struct {
 	// XXX: Fields
-}
-
-// An interface that must be implemented by file systems to be mounted with
-// FUSE. Comments reflect requirements on the file system imposed by the
-// kernel. See also the comments on request and response structs.
-//
-// Not all methods need to have interesting implementations. Embed a field of
-// type NothingImplementedFileSystem to inherit defaults that return ENOSYS to
-// the kernel.
-type FileSystem interface {
-	// Look up a child by name within a parent directory. The kernel calls this
-	// when resolving user paths to dentry structs, which are then cached.
-	//
-	// The returned inode ID must be valid until a later call to Forget.
-	Lookup(
-		ctx context.Contexst,
-		req *LookupRequest) (*LookupResponse, error)
-
-	// Forget an inode ID previously issued (e.g. by Lookup). The kernel calls
-	// this when removing an inode from its internal caches.
-	//
-	// The node ID will not be used in further calls to the file system (unless
-	// it is reissued by the file system).
-	Forget(
-		ctx context.Context,
-		req *ForgetRequest) (*ForgetResponse, error)
 }
 
 type NothingImplementedFileSystem struct {
