@@ -86,6 +86,46 @@ func (t *ListingProxyTest) SetUp(ti *TestInfo) {
 // Test functions
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ListingProxyTest) DoesFoo() {
+func (t *ListingProxyTest) CreateForRootDirectory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) CreateForIllegalDirectoryName() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) Name() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) List_CallsBucket() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) List_BucketFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) List_EmptyResult() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) List_NonEmptyResult() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) List_CacheHasExpired() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) NoteNewObject() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) NoteNewSubdirectory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) NoteRemoval() {
 	AssertTrue(false, "TODO")
 }
