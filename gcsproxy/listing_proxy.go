@@ -533,7 +533,7 @@ func (lp *ListingProxy) cleanChildModifications() {
 		names = append(names, m.name)
 	}
 
-	// Remove each name.
+	// Remove each name we noted above.
 	for _, name := range names {
 		e := lp.childModificationsIndex[name]
 		lp.childModifications.Remove(e)
@@ -541,4 +541,12 @@ func (lp *ListingProxy) cleanChildModifications() {
 	}
 }
 
-func (lp *ListingProxy) playBackModification(m childModification)
+func (lp *ListingProxy) playBackModification(m childModification) {
+	// Removal?
+	if m.node == nil {
+		delete(lp.contents, m.name)
+		return
+	}
+
+	lp.contents[m.name] = m.node
+}
