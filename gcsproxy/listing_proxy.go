@@ -318,6 +318,24 @@ func (lp *ListingProxy) List(
 		return
 	}
 
+	// Make sure the response is valid.
+	for _, o := range objects {
+		if err = checkDirName(o.Name); err == nil {
+			err = fmt.Errorf("Illegal object name returned by List: %s", o.Name)
+			return
+		}
+	}
+
+	for _, subdir := range subdirs {
+		if err = checkDirName(subdir); err != nil {
+			err = fmt.Errorf(
+				"Illegal directory name returned by List (%v): %s",
+				err,
+				subdir)
+			return
+		}
+	}
+
 	return
 }
 
@@ -356,6 +374,6 @@ func checkDirName(name string) (err error) {
 		return
 	}
 
-	err = errors.New("Non-empty names must end with a slash.")
+	err = errors.New("Non-empty names must end with a slash")
 	return
 }
