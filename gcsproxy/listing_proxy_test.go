@@ -367,7 +367,22 @@ func (t *ListingProxyTest) List_CacheIsValid() {
 }
 
 func (t *ListingProxyTest) List_CacheHasExpired() {
-	AssertTrue(false, "TODO")
+	// List successfully.
+	listing := &storage.Objects{}
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(listing, nil))
+
+	_, _, err := t.lp.List()
+	AssertEq(nil, err)
+
+	// Move just slightly too far into the future.
+	t.clock.AdvanceTime(gcsproxy.ListingProxy_ListingCacheTTL + time.Millisecond)
+
+	// We should need to fall through to the bucket.
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(listing, errors.New("")))
+
+	t.lp.List()
 }
 
 func (t *ListingProxyTest) NoteNewObject_IllegalNames() {
