@@ -6,6 +6,9 @@ package gcsproxy
 import (
 	"container/list"
 	"errors"
+	"fmt"
+	"reflect"
+	"sort"
 	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -100,7 +103,7 @@ type ListingProxy struct {
 	// INVARIANT: For all string values v, name is a strict prefix of v
 	// INVARIANT: For all object values o, checkDirName(o.Name) != nil
 	// INVARIANT: For all object values o, name is a strict prefix of o.Name
-	// INVARIANT: All entries are indexed by the correct names.
+	// INVARIANT: All entries are indexed by the correct name.
 	contents           map[string]interface{}
 	contentsExpiration time.Time
 
@@ -194,7 +197,78 @@ func (lp *ListingProxy) Name() string {
 // at appropriate times to help debug weirdness. Consider using
 // syncutil.InvariantMutex to automate the process.
 func (lp *ListingProxy) CheckInvariants() {
-	panic("TODO: Implement CheckInvariants.")
+	// Check that maps are non-nil.
+	if lp.contents == nil || lp.childModificationsIndex == nil {
+		panic("Expected contents and childModificationsIndex to be non-nil.")
+	}
+
+	// Check each element of the contents map.
+	for name, node := range lp.contents {
+		switch typedNode := node.(type) {
+		default:
+			panic(fmt.Sprintf("Bad type for node: %v", node))
+
+		case string:
+			// Sub-directory
+			if name != typedNode {
+				panic(fmt.Sprintf("Name mismatch: %s vs. %s", name, typedNode))
+			}
+
+		case *storage.Object:
+			if name != typedNode.Name {
+				panic(fmt.Sprintf("Name mismatch: %s vs. %s", name, typedNode.Name))
+			}
+		}
+	}
+
+	// Check each child modification. Build a list of names we've seen while
+	// doing so.
+	var listNames sort.StringSlice
+	for e := lp.childModifications.Front(); e != nil; e = e.Next() {
+		m := e.Value.(childModification)
+		listNames = append(listNames, m.name)
+
+		if m.node == nil {
+			if n, ok := lp.contents[m.name]; ok {
+				panic(fmt.Sprintf("lp.contents[%s] == %v for removal", m.name, n))
+			}
+		} else {
+			if n := lp.contents[m.name]; n != m.node {
+				panic(fmt.Sprintf("lp.contents[%s] == %v, not %v", m.name, n, m.node))
+			}
+		}
+	}
+
+	sort.Sort(listNames)
+
+	// Check that there were no duplicate names.
+	for i, name := range listNames {
+		if i == 0 {
+			continue
+		}
+
+		if name == listNames[i-1] {
+			panic("Duplicated name in childModifications: " + name)
+		}
+	}
+
+	// Check the index. Build a list of names it contains While doing so.
+	var indexNames sort.StringSlice
+	for name, e := range lp.childModificationsIndex {
+		indexNames = append(indexNames, name)
+
+		m := e.Value.(childModification)
+		if m.name != name {
+			panic(fmt.Sprintf("Index name mismatch: %s vs. %s", m.name, name))
+		}
+	}
+
+	sort.Sort(indexNames)
+
+	// Check that the index contains the same set of names.
+	if !reflect.DeepEqual(listNames, indexNames) {
+		panic(fmt.Sprintf("Names mismatch:\n%v\n%v", listNames, indexNames))
+	}
 }
 
 // Obtain a listing of the objects directly within the directory and the
