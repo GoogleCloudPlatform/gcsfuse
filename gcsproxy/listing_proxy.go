@@ -405,7 +405,7 @@ func (lp *ListingProxy) checkSubdirName(name string) (err error) {
 	}
 
 	trimmed := strings.TrimPrefix(name, lp.name)
-	if name == trimmed {
+	if name == lp.name || name == trimmed {
 		err = errors.New("Not a descendant.")
 		return
 	}
