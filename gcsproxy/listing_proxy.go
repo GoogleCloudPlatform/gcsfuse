@@ -4,6 +4,7 @@
 package gcsproxy
 
 import (
+	"container/list"
 	"errors"
 	"time"
 
@@ -59,7 +60,80 @@ import (
 // placeholder object, whether empty (burrito/, queso/carne/nachos/) or
 // non-empty (enchilada/), and others are implicitly defined by
 // their children (queso/carne/).
+//
+// Not safe for concurrent access. The user must provide external
+// synchronization if necessary.
 type ListingProxy struct {
+	/////////////////////////
+	// Dependencies
+	/////////////////////////
+
+	bucket gcs.Bucket
+	clock  timeutil.Clock
+
+	/////////////////////////
+	// Constant data
+	/////////////////////////
+
+	// INVARIANT: checkDirName(name) == nil
+	name string
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
+	// Our current best understanding of the contents of the directory in GCS,
+	// formed by listing the bucket and then patching according to child
+	// modification records at the time, and patched since then by subsequent
+	// modifications.
+	//
+	// The time after which this should be generated anew from a new listing is
+	// also stored. This is set to the time at which the listing completed plus
+	// the listing cache TTL.
+	//
+	// Sub-directories are of type string, and objects are of type
+	// *storage.Object.
+	//
+	// INVARIANT: contents != nil
+	// INVARIANT: All values are of type string or *storage.Object.
+	// INVARIANT: For all string values v, checkDirName(v) == nil
+	// INVARIANT: For all string values v, name is a strict prefix of v
+	// INVARIANT: For all object values o, checkDirName(o.Name) != nil
+	// INVARIANT: For all object values o, name is a strict prefix of o.Name
+	// INVARIANT: All entries are indexed by the correct names.
+	contents           map[string]interface{}
+	contentsExpiration time.Time
+
+	// A collection of children that have recently been added or removed locally
+	// and the time at which it happened, ordered by the sequence in which it
+	// happened. Elements M with M.node == nil are removals; all others are
+	// additions.
+	//
+	// For a record M in this list with M's age less than the modification TTL,
+	// any listing from the bucket should be augmented by pretending M just
+	// happened.
+	//
+	// INVARIANT: All elements are of type childModification.
+	// INVARIANT: Contains no duplicate names.
+	// INVARIANT: For each M with M.node == nil, contents does not contain M.name.
+	// INVARIANT: For each M with M.node != nil, contents[M.name] == M.node.
+	childModifications list.List
+
+	// An index of childModifications by name.
+	//
+	// INVARIANT: childModificationsIndex != nil
+	// INVARIANT: For all names N in the map, the indexed modification has name N.
+	// INVARIANT: Contains exactly the set of names in childModifications.
+	childModificationsIndex map[string]*list.Element
+}
+
+// See ListingProxy.childModifications.
+type childModification struct {
+	time time.Time
+	name string
+
+	// INVARIANT: node == nil or node is of type string or *storage.Object
+	node interface{}
 }
 
 // How long we cache the most recent listing for a particular directory from
