@@ -436,14 +436,14 @@ func (t *ListingProxyTest) NoteNewObject_PreviousRemoval() {
 func (t *ListingProxyTest) NoteNewSubdirectory_IllegalNames() {
 	var err error
 	try := func(name string) error {
-		return t.lp.NoteNewObject(&storage.Object{Name: name})
+		return t.lp.NoteNewSubdirectory(name)
 	}
 
 	// Object name
 	err = try(t.dirName + "foo")
 
 	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("Illegal directory name")))
+	ExpectThat(err, Error(HasSubstr("Illegal sub-directory name")))
 	ExpectThat(err, Error(HasSubstr("foo")))
 
 	// Non-descendant
@@ -464,7 +464,7 @@ func (t *ListingProxyTest) NoteNewSubdirectory_IllegalNames() {
 	err = try(t.dirName + "subdir/other/")
 
 	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("immediate descendant")))
+	ExpectThat(err, Error(HasSubstr("direct descendant")))
 	ExpectThat(err, Error(HasSubstr("subdir/other/")))
 }
 

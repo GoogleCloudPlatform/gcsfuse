@@ -356,7 +356,7 @@ func (lp *ListingProxy) NoteNewObject(o *storage.Object) (err error) {
 // directory. See notes on ListingProxy for more details.
 func (lp *ListingProxy) NoteNewSubdirectory(name string) (err error) {
 	// Make sure the object has a legal name.
-	if err = lp.checkObjectName(name); err != nil {
+	if err = lp.checkSubdirName(name); err != nil {
 		err = fmt.Errorf("Illegal sub-directory name (%v): %s", err, name)
 		return
 	}
