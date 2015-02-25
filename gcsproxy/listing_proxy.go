@@ -307,32 +307,19 @@ func (lp *ListingProxy) CheckInvariants() {
 // NoteNewSubdirectory, or NoteRemoval.
 func (lp *ListingProxy) List(
 	ctx context.Context) (objects []*storage.Object, subdirs []string, err error) {
-	// List the directory.
-	query := &storage.Query{
-		Delimiter: "/",
-		Prefix:    lp.name,
-	}
-
-	if objects, subdirs, err = gcsutil.List(ctx, lp.bucket, query); err != nil {
-		err = fmt.Errorf("gcsutil.List: %v", err)
+	// Make sure lp.contents is valid.
+	if err = lp.ensureContents(ctx); err != nil {
 		return
 	}
 
-	// Make sure the response is valid.
-	for _, o := range objects {
-		if err = checkDirName(o.Name); err == nil {
-			err = fmt.Errorf("Illegal object name returned by List: %s", o.Name)
-			return
-		}
-	}
+	// Read out the contents.
+	for name, node := range lp.contents {
+		switch typedNode := node.(type) {
+		case *storage.Object:
+			objects = append(objects, typedNode)
 
-	for _, subdir := range subdirs {
-		if err = checkDirName(subdir); err != nil {
-			err = fmt.Errorf(
-				"Illegal directory name returned by List (%v): %s",
-				err,
-				subdir)
-			return
+		case string:
+			subdirs = append(subdirs, name)
 		}
 	}
 
@@ -375,5 +362,52 @@ func checkDirName(name string) (err error) {
 	}
 
 	err = errors.New("Non-empty names must end with a slash")
+	return
+}
+
+// If lp.contents is up to date, do nothing. Otherwise, regenerate it.
+func (lp *ListingProxy) ensureContents(ctx context.Context) (err error) {
+	contents := make(map[string]interface{})
+
+	// List the directory.
+	query := &storage.Query{
+		Delimiter: "/",
+		Prefix:    lp.name,
+	}
+
+	objects, subdirs, err := gcsutil.List(ctx, lp.bucket, query)
+	if err != nil {
+		err = fmt.Errorf("gcsutil.List: %v", err)
+		return
+	}
+
+	// Process the returned objects.
+	for _, o := range objects {
+		// Objects shouldn't have directory names.
+		if err = checkDirName(o.Name); err == nil {
+			err = fmt.Errorf("Illegal object name returned by List: %s", o.Name)
+			return
+		}
+
+		contents[o.Name] = o
+	}
+
+	// Process the returned prefixes.
+	for _, subdir := range subdirs {
+		// Directory names must be legal.
+		if err = checkDirName(subdir); err != nil {
+			err = fmt.Errorf(
+				"Illegal directory name returned by List (%v): %s",
+				err,
+				subdir)
+			return
+		}
+
+		contents[subdir] = subdir
+	}
+
+	// Swap in the new map.
+	lp.contents = contents
+
 	return
 }
