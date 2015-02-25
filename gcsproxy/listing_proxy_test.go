@@ -101,7 +101,7 @@ func (t *ListingProxyTest) CreateForIllegalDirectoryName() {
 }
 
 func (t *ListingProxyTest) Name() {
-	AssertTrue(false, "TODO")
+	ExpectEq(t.dirName, t.lp.Name())
 }
 
 func (t *ListingProxyTest) List_CallsBucket() {
