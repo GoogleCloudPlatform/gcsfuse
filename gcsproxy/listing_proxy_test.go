@@ -201,7 +201,22 @@ func (t *ListingProxyTest) List_EmptyResult() {
 }
 
 func (t *ListingProxyTest) List_OnlyPlaceholderForProxiedDir() {
-	AssertTrue(false, "TODO")
+	// Bucket.ListObjects
+	listing := &storage.Objects{
+		Results: []*storage.Object{
+			&storage.Object{Name: t.dirName},
+		},
+	}
+
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(listing, nil))
+
+	// List
+	objects, subdirs, err := t.lp.List()
+
+	AssertEq(nil, err)
+	ExpectThat(objects, ElementsAre())
+	ExpectThat(subdirs, ElementsAre())
 }
 
 func (t *ListingProxyTest) List_NonEmptyResult() {
