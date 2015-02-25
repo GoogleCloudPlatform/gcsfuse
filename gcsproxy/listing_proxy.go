@@ -185,6 +185,7 @@ func NewListingProxy(
 	clock timeutil.Clock,
 	dir string) (lp *ListingProxy, err error) {
 	lp = &ListingProxy{
+		name:                    dir,
 		contents:                make(map[string]interface{}),
 		childModificationsIndex: make(map[string]*list.Element),
 	}
@@ -194,7 +195,7 @@ func NewListingProxy(
 
 // Return the directory prefix with which this object was configured.
 func (lp *ListingProxy) Name() string {
-	panic("TODO: Implement Name.")
+	return lp.name
 }
 
 // Panic if any internal invariants are violated. Careful users can call this
