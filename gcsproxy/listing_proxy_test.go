@@ -131,7 +131,16 @@ func (t *ListingProxyTest) List_CallsBucket() {
 }
 
 func (t *ListingProxyTest) List_BucketFails() {
-	AssertTrue(false, "TODO")
+	// Bucket.ListObjects
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, errors.New("taco")))
+
+	// List
+	_, _, err := t.lp.List()
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("List")))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *ListingProxyTest) List_BucketReturnsIllegalObjectName() {
