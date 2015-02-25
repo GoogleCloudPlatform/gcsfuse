@@ -166,7 +166,24 @@ func (t *ListingProxyTest) List_BucketReturnsIllegalObjectName() {
 }
 
 func (t *ListingProxyTest) List_BucketReturnsIllegalDirectoryName() {
-	AssertTrue(false, "TODO")
+	badListing := &storage.Objects{
+		Prefixes: []string{
+			path.Join(t.dirName, "foo/"),
+			path.Join(t.dirName, "bar"),
+			path.Join(t.dirName, "baz/"),
+		},
+	}
+
+	// Bucket.ListObjects
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(badListing, nil))
+
+	// List
+	_, _, err := t.lp.List()
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("directory name")))
+	ExpectThat(err, Error(HasSubstr(badListing.Prefixes[1])))
 }
 
 func (t *ListingProxyTest) List_EmptyResult() {
