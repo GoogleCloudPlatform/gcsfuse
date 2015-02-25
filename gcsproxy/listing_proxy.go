@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -99,11 +100,10 @@ type ListingProxy struct {
 	// *storage.Object.
 	//
 	// INVARIANT: contents != nil
+	// INVARIANT: For all keys k, name is a strict prefix of k.
 	// INVARIANT: All values are of type string or *storage.Object.
 	// INVARIANT: For all string values v, checkDirName(v) == nil
-	// INVARIANT: For all string values v, name is a strict prefix of v
 	// INVARIANT: For all object values o, checkDirName(o.Name) != nil
-	// INVARIANT: For all object values o, name is a strict prefix of o.Name
 	// INVARIANT: All entries are indexed by the correct name.
 	contents           map[string]interface{}
 	contentsExpiration time.Time
@@ -212,6 +212,7 @@ func (lp *ListingProxy) Name() string {
 // at appropriate times to help debug weirdness. Consider using
 // syncutil.InvariantMutex to automate the process.
 func (lp *ListingProxy) CheckInvariants() {
+	// Check the name.
 	if err := checkDirName(lp.name); err != nil {
 		panic("Illegal name: " + err.Error())
 	}
@@ -222,15 +223,21 @@ func (lp *ListingProxy) CheckInvariants() {
 	}
 
 	// Check each element of the contents map.
-	for name, node := range lp.contents {
+	for k, node := range lp.contents {
+		// Check that the key is legal.
+		if !(strings.HasPrefix(k, lp.name) && k != lp.name) {
+			panic(fmt.Sprintf("Name %s is not a strict prefix of key %s", lp.name, k))
+		}
+
+		// Type-specific logic
 		switch typedNode := node.(type) {
 		default:
 			panic(fmt.Sprintf("Bad type for node: %v", node))
 
 		case string:
 			// Sub-directory
-			if name != typedNode {
-				panic(fmt.Sprintf("Name mismatch: %s vs. %s", name, typedNode))
+			if k != typedNode {
+				panic(fmt.Sprintf("Name mismatch: %s vs. %s", k, typedNode))
 			}
 
 			if err := checkDirName(typedNode); err != nil {
@@ -238,8 +245,8 @@ func (lp *ListingProxy) CheckInvariants() {
 			}
 
 		case *storage.Object:
-			if name != typedNode.Name {
-				panic(fmt.Sprintf("Name mismatch: %s vs. %s", name, typedNode.Name))
+			if k != typedNode.Name {
+				panic(fmt.Sprintf("Name mismatch: %s vs. %s", k, typedNode.Name))
 			}
 
 			if err := checkDirName(typedNode.Name); err == nil {

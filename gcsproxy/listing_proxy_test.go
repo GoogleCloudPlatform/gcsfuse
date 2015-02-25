@@ -185,6 +185,14 @@ func (t *ListingProxyTest) List_BucketReturnsIllegalDirectoryName() {
 	ExpectThat(err, Error(HasSubstr(badListing.Prefixes[1])))
 }
 
+func (t *ListingProxyTest) List_BucketReturnsNonDescendantObject() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) List_BucketReturnsNonDescendantPrefix() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *ListingProxyTest) List_EmptyResult() {
 	// Bucket.ListObjects
 	listing := &storage.Objects{}
