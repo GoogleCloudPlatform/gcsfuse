@@ -779,6 +779,52 @@ func (t *ListingProxyTest) NoteNewSubdirectory_PreviousRemoval() {
 	ExpectThat(subdirs, ElementsAre(name))
 }
 
+func (t *ListingProxyTest) NoteRemoval_IllegalNames() {
+	var err error
+	try := func(name string) error {
+		return t.lp.NoteRemoval(name)
+	}
+
+	// Equal to directory name
+	err = try(t.dirName)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("descendant")))
+	ExpectThat(err, Error(HasSubstr(t.dirName)))
+
+	// Non-descendant object
+	err = try("some/other/dir/obj")
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("descendant")))
+	ExpectThat(err, Error(HasSubstr("some/other/dir/obj")))
+
+	// Non-descendant directory
+	err = try("some/other/dir/")
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("descendant")))
+	ExpectThat(err, Error(HasSubstr("some/other/dir/obj")))
+
+	// Descendant object but not immediate
+	err = try(t.dirName + "foo/bar")
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("direct descendant")))
+	ExpectThat(err, Error(HasSubstr("foo/bar")))
+
+	// Descendant directory but not immediate
+	err = try(t.dirName + "foo/bar/")
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("direct descendant")))
+	ExpectThat(err, Error(HasSubstr("foo/bar/")))
+}
+
+func (t *ListingProxyTest) NoteRemoval_LegalNames() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *ListingProxyTest) NoteRemoval_ListingRequired_NoConflict() {
 	var err error
 	name := t.dirName + "foo/"
