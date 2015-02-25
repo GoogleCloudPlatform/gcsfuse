@@ -4,12 +4,14 @@
 package gcsproxy_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	"github.com/jacobsa/gcsfuse/gcsproxy"
 	"github.com/jacobsa/gcsfuse/timeutil"
 	. "github.com/jacobsa/oglematchers"
+	"github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
@@ -105,7 +107,27 @@ func (t *ListingProxyTest) Name() {
 }
 
 func (t *ListingProxyTest) List_CallsBucket() {
-	AssertTrue(false, "TODO")
+	// Bucket.ListObjects
+	var query *storage.Query
+	saveQuery := func(
+		ctx context.Context,
+		q *storage.Query) (*storage.Objects, error) {
+		query = q
+		return nil, errors.New("")
+	}
+
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Invoke(saveQuery))
+
+	// List
+	t.lp.List()
+
+	AssertNe(nil, query)
+	ExpectEq("/", query.Delimiter)
+	ExpectEq(t.dirName, query.Prefix)
+	ExpectFalse(query.Versions)
+	ExpectEq("", query.Cursor)
+	ExpectEq(0, query.MaxResults)
 }
 
 func (t *ListingProxyTest) List_BucketFails() {
@@ -121,6 +143,10 @@ func (t *ListingProxyTest) List_BucketReturnsIllegalDirectoryName() {
 }
 
 func (t *ListingProxyTest) List_EmptyResult() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) List_OnlyPlaceholderForProxiedDir() {
 	AssertTrue(false, "TODO")
 }
 
