@@ -10,7 +10,7 @@ import (
 	"google.golang.org/cloud/storage"
 )
 
-// A view on a 'directory' in GCS that caches listings and modifications.
+// A view on a "directory" in GCS that caches listings and modifications.
 //
 // Directories are by convention defined by '/' characters in object names. A
 // directory is uniquely identified by an object name prefix that ends with a
