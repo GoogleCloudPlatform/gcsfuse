@@ -804,7 +804,7 @@ func (t *ListingProxyTest) NoteRemoval_IllegalNames() {
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("descendant")))
-	ExpectThat(err, Error(HasSubstr("some/other/dir/obj")))
+	ExpectThat(err, Error(HasSubstr("some/other/dir/")))
 
 	// Descendant object but not immediate
 	err = try(t.dirName + "foo/bar")

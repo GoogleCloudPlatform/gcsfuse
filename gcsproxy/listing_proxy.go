@@ -401,7 +401,18 @@ func (lp *ListingProxy) NoteNewSubdirectory(name string) (err error) {
 // the response to a call to List will not contain this name even if it is
 // present in a listing from the underlying bucket.
 func (lp *ListingProxy) NoteRemoval(name string) (err error) {
-	err = errors.New("TODO: Implement NoteRemoval.")
+	// Make sure this is a legal child object or sub-directory name.
+	if lp.checkObjectName(name) != nil && lp.checkSubdirName(name) != nil {
+		err = fmt.Errorf("Name doesn't appear to be a direct descendant: %s", name)
+		return
+	}
+
+	lp.noteModification(childModification{
+		expiration: lp.clock.Now().Add(ListingProxy_ModificationMemoryTTL),
+		name:       name,
+		node:       nil,
+	})
+
 	return
 }
 
