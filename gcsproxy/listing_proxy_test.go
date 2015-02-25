@@ -986,3 +986,45 @@ func (t *ListingProxyTest) NoteRemoval_PreviousRemoval() {
 	AssertEq(nil, err)
 	ExpectThat(subdirs, ElementsAre())
 }
+
+func (t *ListingProxyTest) ModificationExpiration() {
+	var err error
+
+	// Note additions of both types and removals of both types.
+	err = t.lp.NoteNewObject(&storage.Object{Name: t.dirName + "foo"})
+	AssertEq(nil, err)
+
+	err = t.lp.NoteNewSubdirectory(t.dirName + "bar/")
+	AssertEq(nil, err)
+
+	err = t.lp.NoteRemoval(t.dirName + "baz")
+	AssertEq(nil, err)
+
+	err = t.lp.NoteRemoval(t.dirName + "qux/")
+	AssertEq(nil, err)
+
+	// Advance to the point where the modifications should have expired.
+	t.clock.AdvanceTime(
+		gcsproxy.ListingProxy_ModificationMemoryTTL + time.Millisecond)
+
+	// List. The modifications should have no effect.
+	listing := &storage.Objects{
+		Results: []*storage.Object{
+			&storage.Object{
+				Name: t.dirName + "baz",
+			},
+		},
+		Prefixes: []string{
+			t.dirName + "qux/",
+		},
+	}
+
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(listing, nil))
+
+	objects, subdirs, err := t.lp.List()
+	AssertEq(nil, err)
+
+	ExpectThat(objects, ElementsAre(listing.Results[0]))
+	ExpectThat(subdirs, ElementsAre(listing.Prefixes[0]))
+}
