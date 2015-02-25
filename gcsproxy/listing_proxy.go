@@ -374,6 +374,12 @@ func checkDirName(name string) (err error) {
 
 // If lp.contents is up to date, do nothing. Otherwise, regenerate it.
 func (lp *ListingProxy) ensureContents(ctx context.Context) (err error) {
+	// Is the map up to date?
+	if lp.clock.Now().Before(lp.contentsExpiration) {
+		return
+	}
+
+	// We will build a new map.
 	contents := make(map[string]interface{})
 
 	// List the directory.
@@ -431,8 +437,9 @@ func (lp *ListingProxy) ensureContents(ctx context.Context) (err error) {
 		contents[subdir] = subdir
 	}
 
-	// Swap in the new map.
+	// Swap in the new map and update the expiration time.
 	lp.contents = contents
+	lp.contentsExpiration = lp.clock.Now().Add(ListingProxy_ListingCacheTTL)
 
 	return
 }
