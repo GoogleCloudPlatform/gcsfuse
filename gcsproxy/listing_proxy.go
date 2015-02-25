@@ -513,6 +513,11 @@ func (lp *ListingProxy) ensureContents(ctx context.Context) (err error) {
 	lp.contents = contents
 	lp.contentsExpiration = lp.clock.Now().Add(ListingProxy_ListingCacheTTL)
 
+	// Play back child modifications.
+	for e := lp.childModifications.Front(); e != nil; e = e.Next() {
+		lp.playBackModification(e.Value.(childModification))
+	}
+
 	return
 }
 
