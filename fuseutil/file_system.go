@@ -3,6 +3,12 @@
 
 package fuseutil
 
+import (
+	"time"
+
+	"golang.org/x/net/context"
+)
+
 // An interface that must be implemented by file systems to be mounted with
 // FUSE. Comments reflect requirements on the file system imposed by the
 // kernel. See also the comments on request and response structs.
@@ -16,7 +22,7 @@ type FileSystem interface {
 	//
 	// The returned inode ID must be valid until a later call to Forget.
 	Lookup(
-		ctx context.Contexst,
+		ctx context.Context,
 		req *LookupRequest) (*LookupResponse, error)
 
 	// Forget an inode ID previously issued (e.g. by Lookup). The kernel calls
@@ -53,6 +59,13 @@ type InodeID uint64
 //
 type GenerationNumber uint64
 
+// Attributes for a file or directory inode. Corresponds to struct inode (cf.
+// http://goo.gl/tvYyQt).
+type InodeAttributes struct {
+	// The size of the file in bytes.
+	Size uint64
+}
+
 // A request to look up a child by name within a parent directory. This is sent
 // by the kernel when resolving user paths to dentry structs, which are then
 // cached.
@@ -74,7 +87,31 @@ type LookupRequest struct {
 
 // XXX: Comments
 type LookupResponse struct {
-	// XXX: Fields
+	// The ID of the child inode. This must remain valid until a later call to
+	// Forget.
+	InodeID InodeID
+
+	// A generation number for this incarnation of the inode with the given ID.
+	// See comments on type GenerationNumber for more.
+	GenerationNumber GenerationNumber
+
+	// Attributes for the child inode.
+	InodeAttributes InodeAttributes
+
+	// The time until which the FUSE module in the kernel may cache the
+	// attributes above for the inode. The cache will be correctly invalidated
+	// for any modification to the attributes that goes through the local kernel,
+	// but of course cannot be for changes that may happen spontaneously or due
+	// to foreign machines.
+	//
+	// More reading:
+	//     http://stackoverflow.com/q/21540315/1505451
+	AttrExpiration time.Time
+
+	// The time until which the kernel may maintain an entry for this name to
+	// inode mapping in its dentry cache. After this time, it will revalidate the
+	// dentry.
+	EntryExpiration time.Time
 }
 
 type NothingImplementedFileSystem struct {
