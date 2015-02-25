@@ -193,6 +193,8 @@ func NewListingProxy(
 
 	// Create the object.
 	lp = &ListingProxy{
+		bucket:                  bucket,
+		clock:                   clock,
 		name:                    dir,
 		contents:                make(map[string]interface{}),
 		childModificationsIndex: make(map[string]*list.Element),
