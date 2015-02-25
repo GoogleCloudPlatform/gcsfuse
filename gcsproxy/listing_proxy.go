@@ -4,6 +4,7 @@
 package gcsproxy
 
 import (
+	"errors"
 	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -105,7 +106,10 @@ const ListingProxy_ModificationMemoryTTL = 5 * time.Minute
 func NewListingProxy(
 	bucket gcs.Bucket,
 	clock timeutil.Clock,
-	dir string) (lp *ListingProxy, err error)
+	dir string) (lp *ListingProxy, err error) {
+	err = errors.New("TODO: Implement NewListingProxy.")
+	return
+}
 
 // Obtain a listing of the objects directly within the directory and the
 // immediate sub-directories. (See comments on ListingProxy for precise
@@ -114,13 +118,19 @@ func NewListingProxy(
 // This listing reflects any additions and removals set up with NoteNewObject,
 // NoteNewSubdirectory, or NoteRemoval.
 func (lp *ListingProxy) List(
-	ctx context.Context) (objects []*storage.Object, subdirs []string, err error)
+	ctx context.Context) (objects []*storage.Object, subdirs []string, err error) {
+	err = errors.New("TODO: Implement List.")
+	return
+}
 
 // Note that an object has been added to the directory, overriding any previous
 // additions or removals with the same name. For awhile after this call, the
 // response to a call to List will contain this object even if it is not
 // present in a listing from the underlying bucket.
-func (lp *ListingProxy) NoteNewObject(o *storage.Object) (err error)
+func (lp *ListingProxy) NoteNewObject(o *storage.Object) (err error) {
+	err = errors.New("TODO: Implement NoteNewObject.")
+	return
+}
 
 // Note that a sub-directory has been added to the directory, overriding any
 // previous additions or removals with the same name. For awhile after this
@@ -129,10 +139,16 @@ func (lp *ListingProxy) NoteNewObject(o *storage.Object) (err error)
 //
 // The name must be a legal directory prefix for a sub-directory of this
 // directory. See notes on ListingProxy for more details.
-func (lp *ListingProxy) NoteNewSubdirectory(name string) (err error)
+func (lp *ListingProxy) NoteNewSubdirectory(name string) (err error) {
+	err = errors.New("TODO: Implement NoteNewSubdirectory.")
+	return
+}
 
 // Note that an object or directory prefix has been removed from the directory,
 // overriding any previous additions or removals. For awhile after this call,
 // the response to a call to List will not contain this name even if it is
 // present in a listing from the underlying bucket.
-func (lp *ListingProxy) NoteRemoval(name string) (err error)
+func (lp *ListingProxy) NoteRemoval(name string) (err error) {
+	err = errors.New("TODO: Implement NoteRemoval.")
+	return
+}
