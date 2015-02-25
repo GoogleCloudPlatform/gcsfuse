@@ -212,15 +212,27 @@ func (t *ListingProxyTest) List_CacheHasExpired() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *ListingProxyTest) NoteNewObject() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *ListingProxyTest) NoteNewObject_IllegalNames() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *ListingProxyTest) NoteNewSubdirectory() {
+func (t *ListingProxyTest) NoteNewObject_NoPreviousListing() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) NoteNewObject_PrevListingConflicts() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) NoteNewObject_PrevListingDoesntConflict() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) NoteNewObject_PreviousAddition() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) NoteNewObject_PreviousRemoval() {
 	AssertTrue(false, "TODO")
 }
 
@@ -228,6 +240,42 @@ func (t *ListingProxyTest) NoteNewSubdirectory_IllegalNames() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *ListingProxyTest) NoteRemoval() {
+func (t *ListingProxyTest) NoteNewSubdirectory_NoPreviousListing() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) NoteNewSubdirectory_PrevListingConflicts() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) NoteNewSubdirectory_PrevListingDoesntConflict() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) NoteNewSubdirectory_PreviousAddition() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) NoteNewSubdirectory_PreviousRemoval() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) NoteRemoval_NoPreviousListing() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) NoteRemoval_PrevListingConflicts() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) NoteRemoval_PrevListingDoesntConflict() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) NoteRemoval_PreviousAddition() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ListingProxyTest) NoteRemoval_PreviousRemoval() {
 	AssertTrue(false, "TODO")
 }
