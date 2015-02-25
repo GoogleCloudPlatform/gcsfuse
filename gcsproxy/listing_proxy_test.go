@@ -752,7 +752,31 @@ func (t *ListingProxyTest) NoteNewSubdirectory_PreviousAddition() {
 }
 
 func (t *ListingProxyTest) NoteNewSubdirectory_PreviousRemoval() {
-	AssertTrue(false, "TODO")
+	var err error
+	name := t.dirName + "foo/"
+
+	// Simulate a successful listing from GCS containing nothing of interest.
+	listing := &storage.Objects{}
+
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(listing, nil))
+
+	_, _, err = t.lp.List()
+	AssertEq(nil, err)
+
+	// Note the removal of the sub-directory.
+	err = t.lp.NoteRemoval(name)
+	AssertEq(nil, err)
+
+	// Note the addition.
+	err = t.lp.NoteNewSubdirectory(name)
+	AssertEq(nil, err)
+
+	// List again. We should see it.
+	_, subdirs, err := t.lp.List()
+
+	AssertEq(nil, err)
+	ExpectThat(subdirs, ElementsAre(name))
 }
 
 func (t *ListingProxyTest) NoteRemoval_NoPreviousListing() {
