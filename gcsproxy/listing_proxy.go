@@ -390,6 +390,12 @@ func (lp *ListingProxy) ensureContents(ctx context.Context) (err error) {
 
 	// Process the returned objects.
 	for _, o := range objects {
+		// Special case: a placeholder object for the directory itself will show up
+		// in the result, but we don't want it in our listing.
+		if o.Name == lp.name {
+			continue
+		}
+
 		// Objects shouldn't have directory names.
 		if err = checkDirName(o.Name); err == nil {
 			err = fmt.Errorf("Illegal object name returned by List: %s", o.Name)
