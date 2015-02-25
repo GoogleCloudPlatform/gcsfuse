@@ -673,15 +673,82 @@ func (t *ListingProxyTest) NoteNewSubdirectory_NewListingRequired_Conflict() {
 }
 
 func (t *ListingProxyTest) NoteNewSubdirectory_PrevListingConflicts() {
-	AssertTrue(false, "TODO")
+	var err error
+	name := t.dirName + "foo/"
+
+	// Simulate a successful listing from GCS containing an entry for the name of
+	// interest.
+	listing := &storage.Objects{
+		Prefixes: []string{name},
+	}
+
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(listing, nil))
+
+	_, _, err = t.lp.List()
+	AssertEq(nil, err)
+
+	// Note the addition of the sub-directory.
+	err = t.lp.NoteNewSubdirectory(name)
+	AssertEq(nil, err)
+
+	// List again. We should get only one record.
+	_, subdirs, err := t.lp.List()
+
+	AssertEq(nil, err)
+	ExpectThat(subdirs, ElementsAre(name))
 }
 
 func (t *ListingProxyTest) NoteNewSubdirectory_PrevListingDoesntConflict() {
-	AssertTrue(false, "TODO")
+	var err error
+	name := t.dirName + "foo/"
+
+	// Simulate a successful listing from GCS containing nothing of interest.
+	listing := &storage.Objects{}
+
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(listing, nil))
+
+	_, _, err = t.lp.List()
+	AssertEq(nil, err)
+
+	// Note the addition of the sub-directory.
+	err = t.lp.NoteNewSubdirectory(name)
+	AssertEq(nil, err)
+
+	// List again. We should get the sub-dir.
+	_, subdirs, err := t.lp.List()
+
+	AssertEq(nil, err)
+	ExpectThat(subdirs, ElementsAre(name))
 }
 
 func (t *ListingProxyTest) NoteNewSubdirectory_PreviousAddition() {
-	AssertTrue(false, "TODO")
+	var err error
+	name := t.dirName + "foo/"
+
+	// Simulate a successful listing from GCS containing nothing of interest.
+	listing := &storage.Objects{}
+
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(listing, nil))
+
+	_, _, err = t.lp.List()
+	AssertEq(nil, err)
+
+	// Note the addition of the sub-directory.
+	err = t.lp.NoteNewSubdirectory(name)
+	AssertEq(nil, err)
+
+	// And again.
+	err = t.lp.NoteNewSubdirectory(name)
+	AssertEq(nil, err)
+
+	// List again. We should get only one record.
+	_, subdirs, err := t.lp.List()
+
+	AssertEq(nil, err)
+	ExpectThat(subdirs, ElementsAre(name))
 }
 
 func (t *ListingProxyTest) NoteNewSubdirectory_PreviousRemoval() {
