@@ -184,7 +184,11 @@ func NewListingProxy(
 	bucket gcs.Bucket,
 	clock timeutil.Clock,
 	dir string) (lp *ListingProxy, err error) {
-	err = errors.New("TODO: Implement NewListingProxy.")
+	lp = &ListingProxy{
+		contents:                make(map[string]interface{}),
+		childModificationsIndex: make(map[string]*list.Element),
+	}
+
 	return
 }
 
