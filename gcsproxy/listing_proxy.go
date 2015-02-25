@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
@@ -304,8 +305,13 @@ func (lp *ListingProxy) CheckInvariants() {
 // NoteNewSubdirectory, or NoteRemoval.
 func (lp *ListingProxy) List(
 	ctx context.Context) (objects []*storage.Object, subdirs []string, err error) {
-	err = errors.New("TODO: Implement List.")
-	return
+	// List the directory.
+	query := &storage.Query{
+		Delimiter: "/",
+		Prefix:    lp.name,
+	}
+
+	return gcsutil.List(ctx, lp.bucket, query)
 }
 
 // Note that an object has been added to the directory, overriding any previous
