@@ -337,13 +337,36 @@ func (lp *ListingProxy) List(
 // response to a call to List will contain this object even if it is not
 // present in a listing from the underlying bucket.
 func (lp *ListingProxy) NoteNewObject(o *storage.Object) (err error) {
+	name := o.Name
+
+	// When we're finished, trim any expired modifications.
+	defer lp.cleanChildModifications()
+
 	// Make sure the object has a legal name.
-	if err = lp.checkObjectName(o.Name); err != nil {
-		err = fmt.Errorf("Illegal object name (%v): %s", err, o.Name)
+	if err = lp.checkObjectName(name); err != nil {
+		err = fmt.Errorf("Illegal object name (%v): %s", err, name)
 		return
 	}
 
-	err = errors.New("TODO: Implement NoteNewObject.")
+	// Delete any existing record for this name.
+	if e, ok := lp.childModificationsIndex[name]; ok {
+		lp.childModifications.Remove(e)
+		delete(lp.childModificationsIndex, name)
+	}
+
+	// Add a record.
+	m := childModification{
+		time: lp.clock.Now(),
+		name: name,
+		node: o,
+	}
+
+	lp.childModifications.PushBack(m)
+	// TODO: Modify index too.
+
+	// Ensure the record is reflected in the contents.
+	lp.playBackModification(m)
+
 	return
 }
 
@@ -355,6 +378,9 @@ func (lp *ListingProxy) NoteNewObject(o *storage.Object) (err error) {
 // The name must be a legal directory prefix for a sub-directory of this
 // directory. See notes on ListingProxy for more details.
 func (lp *ListingProxy) NoteNewSubdirectory(name string) (err error) {
+	// When we're finished, trim any expired modifications.
+	defer lp.cleanChildModifications()
+
 	// Make sure the object has a legal name.
 	if err = lp.checkSubdirName(name); err != nil {
 		err = fmt.Errorf("Illegal sub-directory name (%v): %s", err, name)
@@ -370,6 +396,9 @@ func (lp *ListingProxy) NoteNewSubdirectory(name string) (err error) {
 // the response to a call to List will not contain this name even if it is
 // present in a listing from the underlying bucket.
 func (lp *ListingProxy) NoteRemoval(name string) (err error) {
+	// When we're finished, trim any expired modifications.
+	defer lp.cleanChildModifications()
+
 	err = errors.New("TODO: Implement NoteRemoval.")
 	return
 }
@@ -477,9 +506,16 @@ func (lp *ListingProxy) ensureContents(ctx context.Context) (err error) {
 		contents[subdir] = subdir
 	}
 
+	// Trim any expired modifications.
+	lp.cleanChildModifications()
+
 	// Swap in the new map and update the expiration time.
 	lp.contents = contents
 	lp.contentsExpiration = lp.clock.Now().Add(ListingProxy_ListingCacheTTL)
 
 	return
 }
+
+func (lp *ListingProxy) cleanChildModifications()
+
+func (lp *ListingProxy) playBackModification(m childModification)
