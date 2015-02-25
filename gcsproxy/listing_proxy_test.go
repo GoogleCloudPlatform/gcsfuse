@@ -467,7 +467,38 @@ func (t *ListingProxyTest) NoteNewObject_NewListingRequired_Conflict() {
 }
 
 func (t *ListingProxyTest) NoteNewObject_PrevListingConflicts() {
-	AssertTrue(false, "TODO")
+	var err error
+	name := t.dirName + "foo"
+
+	// Simulate a successful listing from GCS containing an entry for the object
+	// of interest.
+	listing := &storage.Objects{
+		Results: []*storage.Object{
+			&storage.Object{
+				Name: name,
+			},
+		},
+	}
+
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(listing, nil))
+
+	_, _, err = t.lp.List()
+	AssertEq(nil, err)
+
+	// Note a different version of the object.
+	o := &storage.Object{
+		Name: name,
+	}
+
+	err = t.lp.NoteNewObject(o)
+	AssertEq(nil, err)
+
+	// List again. We should get the new version.
+	objects, _, err := t.lp.List()
+
+	AssertEq(nil, err)
+	ExpectThat(objects, ElementsAre(o))
 }
 
 func (t *ListingProxyTest) NoteNewObject_PrevListingDoesntConflict() {
