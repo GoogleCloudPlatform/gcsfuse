@@ -779,7 +779,28 @@ func (t *ListingProxyTest) NoteNewSubdirectory_PreviousRemoval() {
 	ExpectThat(subdirs, ElementsAre(name))
 }
 
-func (t *ListingProxyTest) NoteRemoval_NoPreviousListing() {
+func (t *ListingProxyTest) NoteRemoval_ListingRequired_NoConflict() {
+	var err error
+	name := t.dirName + "foo/"
+
+	// Note a removal.
+	err = t.lp.NoteRemoval(name)
+	AssertEq(nil, err)
+
+	// Simulate a successful listing from GCS not containing that name.
+	listing := &storage.Objects{}
+
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(listing, nil))
+
+	_, subdirs, err := t.lp.List()
+	AssertEq(nil, err)
+
+	// There should be no results.
+	ExpectThat(subdirs, ElementsAre())
+}
+
+func (t *ListingProxyTest) NoteRemoval_ListingRequired_Conflict() {
 	AssertTrue(false, "TODO")
 }
 
