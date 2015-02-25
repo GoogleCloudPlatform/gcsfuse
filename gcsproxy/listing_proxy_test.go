@@ -218,7 +218,32 @@ func (t *ListingProxyTest) List_OnlyPlaceholderForProxiedDir() {
 	ExpectThat(subdirs, ElementsAre())
 }
 
-func (t *ListingProxyTest) List_NonEmptyResult() {
+func (t *ListingProxyTest) List_NonEmptyResult_PlaceholderForProxiedDirPresent() {
+	// Bucket.ListObjects
+	listing := &storage.Objects{
+		Results: []*storage.Object{
+			&storage.Object{Name: t.dirName},
+			&storage.Object{Name: t.dirName + "foo"},
+			&storage.Object{Name: t.dirName + "bar"},
+		},
+		Prefixes: []string{
+			t.dirName + "baz/",
+			t.dirName + "qux/",
+		},
+	}
+
+	ExpectCall(t.bucket, "ListObjects")(Any(), Any()).
+		WillOnce(oglemock.Return(listing, nil))
+
+	// List
+	objects, subdirs, err := t.lp.List()
+
+	AssertEq(nil, err)
+	ExpectThat(objects, DeepEquals(listing.Results))
+	ExpectThat(subdirs, DeepEquals(listing.Prefixes))
+}
+
+func (t *ListingProxyTest) List_NonEmptyResult_PlaceholderForProxiedDirNotPresent() {
 	// Bucket.ListObjects
 	listing := &storage.Objects{
 		Results: []*storage.Object{
