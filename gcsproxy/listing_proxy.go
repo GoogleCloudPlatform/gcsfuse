@@ -4,6 +4,8 @@
 package gcsproxy
 
 import (
+	"time"
+
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
@@ -60,6 +62,44 @@ import (
 // their children (queso/carne/).
 type ListingProxy struct {
 }
+
+// How long we cache the most recent listing for a particular directory from
+// GCS before regarding it as stale.
+//
+// Intended to paper over performance issues caused by quick follow-up calls;
+// for example when the fuse VFS performs a readdir followed quickly by a
+// lookup for each child. The drawback is that this increases the time before a
+// write by a foreign machine within a recently-listed directory will be seen
+// locally.
+//
+// TODO(jacobsa): Do we need this at all? Maybe the VFS layer does appropriate
+// caching. Experiment with setting it to zero or ripping out the code.
+//
+// TODO(jacobsa): Set this according to real-world performance issues when the
+// kernel does e.g. ReadDir followed by Lookup. Can probably be set quite
+// small.
+//
+// TODO(jacobsa): Can this be moved to a decorator implementation of gcs.Bucket
+// instead of living here?
+const ListingProxy_ListingCacheTTL = 10 * time.Second
+
+// How long we remember that we took some action on the contents of a directory
+// (linking or unlinking), and pretend the action is reflected in the listing
+// even if it is not reflected in a call to Bucket.ListObjects.
+//
+// Intended to paper over the fact that GCS doesn't offer list-your-own-writes
+// consistency: it may be an arbitrarily long time before you see the creation
+// or deletion of an object in a subsequent listing, and even if you see it in
+// one listing you may not see it in the next. The drawback is that foreign
+// modifications to recently-locally-modified directories will not be reflected
+// locally for awhile.
+//
+// TODO(jacobsa): Set this according to information about listing staleness
+// distributions from the GCS team.
+//
+// TODO(jacobsa): Can this be moved to a decorator implementation of gcs.Bucket
+// instead of living here?
+const ListingProxy_ModificationMemoryTTL = 5 * time.Minute
 
 // XXX: Comments
 func NewListingProxy(
