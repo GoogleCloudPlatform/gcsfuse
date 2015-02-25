@@ -184,6 +184,13 @@ func NewListingProxy(
 	bucket gcs.Bucket,
 	clock timeutil.Clock,
 	dir string) (lp *ListingProxy, err error) {
+	// Make sure the directory name is legal.
+	if err = checkDirName(dir); err != nil {
+		err = fmt.Errorf("Illegal directory name (%v): %s", err, dir)
+		return
+	}
+
+	// Create the object.
 	lp = &ListingProxy{
 		name:                    dir,
 		contents:                make(map[string]interface{}),
