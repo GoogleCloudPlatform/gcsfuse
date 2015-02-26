@@ -5,7 +5,10 @@ package samples_test
 
 import (
 	"io/ioutil"
+	"log"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/jacobsa/gcsfuse/fuseutil"
 	"github.com/jacobsa/gcsfuse/fuseutil/samples"
@@ -24,6 +27,7 @@ type HelloFSTest struct {
 }
 
 var _ SetUpInterface = &HelloFSTest{}
+var _ TearDownInterface = &HelloFSTest{}
 
 func init() { RegisterTestSuite(&HelloFSTest{}) }
 
@@ -44,6 +48,30 @@ func (t *HelloFSTest) SetUp(ti *TestInfo) {
 
 	if err = t.mfs.WaitForReady(context.Background()); err != nil {
 		panic("MountedFileSystem.WaitForReady: " + err.Error())
+	}
+}
+
+func (t *HelloFSTest) TearDown() {
+	// Unmount the file system. Try again on "resource busy" errors.
+	delay := 10 * time.Millisecond
+	for {
+		err := t.mfs.Unmount()
+		if err == nil {
+			break
+		}
+
+		if strings.Contains(err.Error(), "resource busy") {
+			log.Println("Resource busy error while unmounting; trying again")
+			time.Sleep(delay)
+			delay = time.Duration(1.3 * float64(delay))
+			continue
+		}
+
+		panic("MountedFileSystem.Unmount: " + err.Error())
+	}
+
+	if err := t.mfs.Join(context.Background()); err != nil {
+		panic("MountedFileSystem.Join: " + err.Error())
 	}
 }
 
