@@ -8,6 +8,8 @@ import (
 	"io"
 	"log"
 
+	"golang.org/x/net/context"
+
 	"bazil.org/fuse"
 )
 
@@ -59,6 +61,10 @@ func (s *server) handleFuseRequest(fuseReq fuse.Request) {
 	// Log the request.
 	s.logger.Println("Received:", fuseReq)
 
+	// TODO(jacobsa): Support cancellation when interrupted, if we can coax the
+	// system into reproducing such requests.
+	ctx := context.Background()
+
 	// Attempt to handle it.
 	switch typed := fuseReq.(type) {
 	case *fuse.InitRequest:
@@ -75,6 +81,25 @@ func (s *server) handleFuseRequest(fuseReq fuse.Request) {
 		// intercept this.
 		fuseResp := &fuse.StatfsResponse{}
 		s.logger.Println("Responding:", fuseResp)
+		typed.Respond(fuseResp)
+
+	case *fuse.OpenRequest:
+		// Convert the request.
+		req := &OpenRequest{
+			Inode: InodeID(typed.Header.Node),
+			Flags: typed.Flags,
+		}
+
+		// Call the file system.
+		if _, err := s.fs.Open(ctx, req); err != nil {
+			s.logger.Print("Responding:", err)
+			typed.RespondError(err)
+			return
+		}
+
+		// There is nothing interesting to convert in the response.
+		fuseResp := &fuse.OpenResponse{}
+		s.logger.Print("Responding:", fuseResp)
 		typed.Respond(fuseResp)
 
 	default:
