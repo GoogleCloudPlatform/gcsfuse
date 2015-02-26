@@ -20,6 +20,14 @@ import (
 //
 // Must be safe for concurrent access via all methods.
 type FileSystem interface {
+	// Open a file or directory identified by an inode ID. The kernel calls this
+	// method when setting up a struct file for a particular inode, usually in
+	// response to an open(2) call from a user-space process. This may have side
+	// effects, depending on the flags passed.
+	Open(
+		ctx context.Context,
+		req *OpenRequest) (*OpenResponse, error)
+
 	// Look up a child by name within a parent directory. The kernel calls this
 	// when resolving user paths to dentry structs, which are then cached.
 	Lookup(
@@ -81,6 +89,20 @@ type InodeAttributes struct {
 ////////////////////////////////////////////////////////////////////////
 // Requests and responses
 ////////////////////////////////////////////////////////////////////////
+
+type OpenRequest struct {
+	// The ID of the inode to be opened.
+	Inode InodeID
+
+	// Mode and options flags.
+	Flags fuse.OpenFlags
+}
+
+// Currently nothing interesting here. The file system should perform any
+// checking and side effects necessary as part of FileSystem.Open, and return
+// an error if appropriate.
+type OpenResponse struct {
+}
 
 type LookupRequest struct {
 	// The ID of the directory inode to which the child belongs.

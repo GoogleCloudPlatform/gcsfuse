@@ -12,6 +12,12 @@ type NotImplementedFileSystem struct {
 
 var _ FileSystem = &NotImplementedFileSystem{}
 
+func (fs *NotImplementedFileSystem) Open(
+	ctx context.Context,
+	req *OpenRequest) (*OpenResponse, error) {
+	return nil, ENOSYS
+}
+
 func (fs *NotImplementedFileSystem) Lookup(
 	ctx context.Context,
 	req *LookupRequest) (*LookupResponse, error) {
