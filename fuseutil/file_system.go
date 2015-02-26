@@ -66,9 +66,6 @@ type InodeAttributes struct {
 	Size uint64
 }
 
-// A request to look up a child by name within a parent directory. This is sent
-// by the kernel when resolving user paths to dentry structs, which are then
-// cached.
 type LookupRequest struct {
 	// The ID of the directory inode to which the child belongs.
 	Parent InodeID
@@ -85,7 +82,6 @@ type LookupRequest struct {
 	Name string
 }
 
-// XXX: Comments
 type LookupResponse struct {
 	// The ID of the child inode. This must remain valid until a later call to
 	// Forget.
