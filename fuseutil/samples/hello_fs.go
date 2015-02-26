@@ -3,7 +3,10 @@
 
 package samples
 
-import "github.com/jacobsa/gcsfuse/fuseutil"
+import (
+	"github.com/jacobsa/gcsfuse/fuseutil"
+	"github.com/jacobsa/gcsfuse/timeutil"
+)
 
 // A file system with a fixed structure that looks like this:
 //
@@ -14,6 +17,7 @@ import "github.com/jacobsa/gcsfuse/fuseutil"
 // Each file contains the string "Hello, world!".
 type HelloFS struct {
 	fuseutil.NotImplementedFileSystem
+	Clock timeutil.Clock
 }
 
 var _ fuseutil.FileSystem = &HelloFS{}

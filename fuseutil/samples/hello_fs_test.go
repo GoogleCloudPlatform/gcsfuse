@@ -6,12 +6,14 @@ package samples_test
 import (
 	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/jacobsa/gcsfuse/fuseutil"
 	"github.com/jacobsa/gcsfuse/fuseutil/samples"
+	"github.com/jacobsa/gcsfuse/timeutil"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
@@ -23,7 +25,8 @@ func TestHelloFS(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 
 type HelloFSTest struct {
-	mfs *fuseutil.MountedFileSystem
+	clock timeutil.SimulatedClock
+	mfs   *fuseutil.MountedFileSystem
 }
 
 var _ SetUpInterface = &HelloFSTest{}
@@ -34,6 +37,9 @@ func init() { RegisterTestSuite(&HelloFSTest{}) }
 func (t *HelloFSTest) SetUp(ti *TestInfo) {
 	var err error
 
+	// Set up a fixed, non-zero time.
+	t.clock.AdvanceTime(time.Now().Sub(t.clock.Now()))
+
 	// Set up a temporary directory for mounting.
 	mountPoint, err := ioutil.TempDir("", "hello_fs_test")
 	if err != nil {
@@ -41,7 +47,10 @@ func (t *HelloFSTest) SetUp(ti *TestInfo) {
 	}
 
 	// Mount a file system.
-	fs := &samples.HelloFS{}
+	fs := &samples.HelloFS{
+		Clock: &t.clock,
+	}
+
 	if t.mfs, err = fuseutil.Mount(mountPoint, fs); err != nil {
 		panic("Mount: " + err.Error())
 	}
@@ -80,7 +89,27 @@ func (t *HelloFSTest) TearDown() {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *HelloFSTest) ReadDir_Root() {
-	AssertTrue(false, "TODO")
+	entries, err := ioutil.ReadDir(t.mfs.Dir())
+
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+	var fi os.FileInfo
+
+	// dir
+	fi = entries[0]
+	ExpectEq("dir", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(os.ModeDir|0500, fi.Mode())
+	ExpectEq(t.clock.Now(), fi.ModTime())
+	ExpectTrue(fi.IsDir())
+
+	// hello
+	fi = entries[1]
+	ExpectEq("hello", fi.Name())
+	ExpectEq(len("Hello, world!"), fi.Size())
+	ExpectEq(0400, fi.Mode())
+	ExpectEq(t.clock.Now(), fi.ModTime())
+	ExpectFalse(fi.IsDir())
 }
 
 func (t *HelloFSTest) ReadDir_Subdir() {
