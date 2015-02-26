@@ -98,20 +98,30 @@ type LookupResponse struct {
 	// Attributes for the child inode.
 	InodeAttributes InodeAttributes
 
-	// The time until which the FUSE module in the kernel may cache the
-	// attributes above for the inode. The cache will be correctly invalidated
-	// for any modification to the attributes that goes through the local kernel,
-	// but of course cannot be for changes that may happen spontaneously or due
-	// to foreign machines.
-	//
-	// More reading:
-	//     http://stackoverflow.com/q/21540315/1505451
-	AttrExpiration time.Time
-
 	// The time until which the kernel may maintain an entry for this name to
 	// inode mapping in its dentry cache. After this time, it will revalidate the
 	// dentry.
 	EntryExpiration time.Time
+
+	// The FUSE VFS layer in the kernel maintains a cache of file attributes,
+	// used whenever up to date information about size, mode, etc. is needed.
+	//
+	// For example, this is the abridged call chain for fstat(2):
+	//
+	//  *  (https://github.com/torvalds/linux/blob/b7a6ec52dd4eced4a9bcda9ca85b3c8af84d3c90/fs/stat.c#L203) fstat calls vfs_fstat.
+	//  *  (https://github.com/torvalds/linux/blob/b7a6ec52dd4eced4a9bcda9ca85b3c8af84d3c90/fs/stat.c#L77) vfs_fstat eventuall calls vfs_getattr_nosec.
+	//  *  (https://github.com/torvalds/linux/blob/b7a6ec52dd4eced4a9bcda9ca85b3c8af84d3c90/fs/stat.c#L40) vfs_getattr_nosec calls i_op->getattr (fuse_getattr).
+	//  *  (https://github.com/torvalds/linux/blob/e36cb0b89ce20b4f8786a57e8a6bc8476f577650/fs/fuse/dir.c#L1726) fuse_getattr calls fuse_update_attributes.
+	//  *  (https://github.com/torvalds/linux/blob/e36cb0b89ce20b4f8786a57e8a6bc8476f577650/fs/fuse/dir.c#L909) fuse_update_attributes uses the values in the struct inode if allowed, otherwise calling out to the user-space code.
+	//
+	// In addition to obvious cases like fstat, this is also used in more subtle cases like updating size information before seeking (https://github.com/torvalds/linux/blob/e36cb0b89ce20b4f8786a57e8a6bc8476f577650/fs/fuse/file.c#L2258) or reading (https://github.com/torvalds/linux/blob/e36cb0b89ce20b4f8786a57e8a6bc8476f577650/fs/fuse/file.c#L891).
+	//
+	// This field controls when the attributes returned in this response and
+	// stashed in the struct inode should be re-queried.
+	//
+	// More reading:
+	//     http://stackoverflow.com/q/21540315/1505451
+	AttrExpiration time.Time
 }
 
 type NothingImplementedFileSystem struct {
