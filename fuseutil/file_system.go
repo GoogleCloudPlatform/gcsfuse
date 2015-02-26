@@ -32,6 +32,10 @@ type FileSystem interface {
 		req *ForgetRequest) (*ForgetResponse, error)
 }
 
+////////////////////////////////////////////////////////////////////////
+// Simple types
+////////////////////////////////////////////////////////////////////////
+
 // A 64-bit number used to uniquely identify a file or directory in the file
 // system.
 //
@@ -62,6 +66,10 @@ type InodeAttributes struct {
 	// The size of the file in bytes.
 	Size uint64
 }
+
+////////////////////////////////////////////////////////////////////////
+// Requests and responses
+////////////////////////////////////////////////////////////////////////
 
 type LookupRequest struct {
 	// The ID of the directory inode to which the child belongs.
@@ -135,8 +143,3 @@ type ForgetRequest struct {
 
 type ForgetResponse struct {
 }
-
-type NotImplementedFileSystem struct {
-}
-
-var _ FileSystem = NotImplementedFileSystem{}
