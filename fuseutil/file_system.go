@@ -49,7 +49,9 @@ type FileSystem interface {
 type InodeID uint64
 
 // A distinguished inode ID that identifies the root of the file system, e.g.
-// in a request to Open or Lookup.
+// in a request to Open or Lookup. Unlike all other inode IDs, which are minted
+// by the file system, the FUSE VFS layer may send a request for this ID
+// without the file system ever having referenced it in a previous response.
 const RootInodeID InodeID = InodeID(fuse.RootID)
 
 // A generation number for an inode. Irrelevant for file systems that won't be
