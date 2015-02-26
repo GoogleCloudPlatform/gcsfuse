@@ -99,16 +99,6 @@ type LookupResponse struct {
 	// Current ttributes for the child inode.
 	Attributes InodeAttributes
 
-	// The time until which the kernel may maintain an entry for this name to
-	// inode mapping in its dentry cache. After this time, it will revalidate the
-	// dentry.
-	//
-	// Leave at the zero value to disable caching.
-	//
-	// TODO(jacobsa): Make this comment more thorough, ideally with a code walk
-	// like the one for AttributesExpiration below.
-	EntryExpiration time.Time
-
 	// The FUSE VFS layer in the kernel maintains a cache of file attributes,
 	// used whenever up to date information about size, mode, etc. is needed.
 	//
@@ -131,7 +121,7 @@ type LookupResponse struct {
 	// systems cannot spontaneously change; all modifications go through the
 	// kernel which can update the inode struct as appropriate.
 	//
-	// In contrast, a fuse file system may have spontaneous changes, so it calls
+	// In contrast, a FUSE file system may have spontaneous changes, so it calls
 	// out to user space to fetch attributes. However this is expensive, so the
 	// FUSE layer in the kernel caches the attributes if requested.
 	//
@@ -142,6 +132,27 @@ type LookupResponse struct {
 	// More reading:
 	//     http://stackoverflow.com/q/21540315/1505451
 	AttributesExpiration time.Time
+
+	// The time until which the kernel may maintain an entry for this name to
+	// inode mapping in its dentry cache. After this time, it will revalidate the
+	// dentry.
+	//
+	// As in the discussion of attribute caching above, unlike real file systems,
+	// FUSE file systems may spontaneously change their name -> inode mapping.
+	// Therefore the FUSE VFS layer uses dentry_operations::d_revalidate
+	// (http://goo.gl/dVea0h) to intercept lookups and revalidate by calling the
+	// user-space Lookup method. However the latter may be slow, so it caches the
+	// entries until the time defined by this field.
+	//
+	// Example code walk:
+	//
+	//     * (http://goo.gl/M2G3tO) lookup_dcache calls d_revalidate if enabled.
+	//     * (http://goo.gl/ef0Elu) fuse_dentry_revalidate just uses the dentry's
+	//     inode if fuse_dentry_time(entry) hasn't passed. Otherwise it sends a
+	//     lookup request.
+	//
+	// Leave at the zero value to disable caching.
+	EntryExpiration time.Time
 }
 
 type ForgetRequest struct {
