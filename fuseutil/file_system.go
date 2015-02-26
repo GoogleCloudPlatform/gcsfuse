@@ -126,6 +126,16 @@ type LookupResponse struct {
 	AttributesExpiration time.Time
 }
 
+type ForgetRequest struct {
+	// The inode to be forgotten. The kernel guarantees that the node ID will not
+	// be used in further calls to the file system (unless it is reissued by the
+	// file system).
+	ID InodeID
+}
+
+type ForgetResponse struct {
+}
+
 type NotImplementedFileSystem struct {
 }
 
