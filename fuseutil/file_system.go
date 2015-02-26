@@ -10,17 +10,14 @@ import (
 )
 
 // An interface that must be implemented by file systems to be mounted with
-// FUSE. Comments reflect requirements on the file system imposed by the
-// kernel. See also the comments on request and response structs.
+// FUSE. See also the comments on request and response structs.
 //
 // Not all methods need to have interesting implementations. Embed a field of
-// type NothingImplementedFileSystem to inherit defaults that return ENOSYS to
-// the kernel.
+// type NotImplementedFileSystem to inherit defaults that return ENOSYS to the
+// kernel.
 type FileSystem interface {
 	// Look up a child by name within a parent directory. The kernel calls this
 	// when resolving user paths to dentry structs, which are then cached.
-	//
-	// The returned inode ID must be valid until a later call to Forget.
 	Lookup(
 		ctx context.Context,
 		req *LookupRequest) (*LookupResponse, error)
@@ -28,8 +25,8 @@ type FileSystem interface {
 	// Forget an inode ID previously issued (e.g. by Lookup). The kernel calls
 	// this when removing an inode from its internal caches.
 	//
-	// The node ID will not be used in further calls to the file system (unless
-	// it is reissued by the file system).
+	// The kernel guarantees that the node ID will not be used in further calls
+	// to the file system (unless it is reissued by the file system).
 	Forget(
 		ctx context.Context,
 		req *ForgetRequest) (*ForgetResponse, error)
@@ -83,20 +80,25 @@ type LookupRequest struct {
 }
 
 type LookupResponse struct {
-	// The ID of the child inode. This must remain valid until a later call to
-	// Forget.
-	InodeID InodeID
+	// The ID of the child inode. The file system must ensure that the returned
+	// inode ID remains valid until a later call to Forget.
+	Child InodeID
 
 	// A generation number for this incarnation of the inode with the given ID.
 	// See comments on type GenerationNumber for more.
-	GenerationNumber GenerationNumber
+	Generation GenerationNumber
 
-	// Attributes for the child inode.
-	InodeAttributes InodeAttributes
+	// Current ttributes for the child inode.
+	Attributes InodeAttributes
 
 	// The time until which the kernel may maintain an entry for this name to
 	// inode mapping in its dentry cache. After this time, it will revalidate the
 	// dentry.
+	//
+	// Leave at the zero value to disable caching.
+	//
+	// TODO(jacobsa): Make this comment more thorough, ideally with a code walk
+	// like the one for AttributesExpiration below.
 	EntryExpiration time.Time
 
 	// The FUSE VFS layer in the kernel maintains a cache of file attributes,
@@ -116,14 +118,15 @@ type LookupResponse struct {
 	// or reading (http://goo.gl/FQSWs8).
 	//
 	// This field controls when the attributes returned in this response and
-	// stashed in the struct inode should be re-queried.
+	// stashed in the struct inode should be re-queried. Leave at the zero value
+	// to disable caching.
 	//
 	// More reading:
 	//     http://stackoverflow.com/q/21540315/1505451
-	AttrExpiration time.Time
+	AttributesExpiration time.Time
 }
 
-type NothingImplementedFileSystem struct {
+type NotImplementedFileSystem struct {
 }
 
-var _ FileSystem = NothingImplementedFileSystem{}
+var _ FileSystem = NotImplementedFileSystem{}
