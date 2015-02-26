@@ -125,6 +125,16 @@ type LookupResponse struct {
 	// cases like updating size information before seeking (http://goo.gl/2nnMFa)
 	// or reading (http://goo.gl/FQSWs8).
 	//
+	// Most 'real' file systems do not set inode_operations::getattr, and
+	// therefore vfs_getattr_nosec calls generic_fillattr which simply grabs the
+	// information from the inode struct. This makes sense because these file
+	// systems cannot spontaneously change; all modifications go through the
+	// kernel which can update the inode struct as appropriate.
+	//
+	// In contrast, a fuse file system may have spontaneous changes, so it calls
+	// out to user space to fetch attributes. However this is expensive, so the
+	// FUSE layer in the kernel caches the attributes if requested.
+	//
 	// This field controls when the attributes returned in this response and
 	// stashed in the struct inode should be re-queried. Leave at the zero value
 	// to disable caching.
