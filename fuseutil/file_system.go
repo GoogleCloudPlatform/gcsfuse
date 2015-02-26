@@ -6,6 +6,8 @@ package fuseutil
 import (
 	"time"
 
+	"bazil.org/fuse"
+
 	"golang.org/x/net/context"
 )
 
@@ -39,11 +41,16 @@ type FileSystem interface {
 ////////////////////////////////////////////////////////////////////////
 
 // A 64-bit number used to uniquely identify a file or directory in the file
-// system.
+// system. File systems may mint inode IDs with any value except for
+// RootInodeID.
 //
 // This corresponds to struct inode::i_no in the VFS layer.
 // (Cf. http://goo.gl/tvYyQt)
 type InodeID uint64
+
+// A distinguished inode ID that identifies the root of the file system, e.g.
+// in a request to Open or Lookup.
+const RootInodeID InodeID = InodeID(fuse.RootID)
 
 // A generation number for an inode. Irrelevant for file systems that won't be
 // exported over NFS. For those that will and that reuse inode IDs when they
