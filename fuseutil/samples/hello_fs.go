@@ -6,6 +6,7 @@ package samples
 import "github.com/jacobsa/gcsfuse/fuseutil"
 
 type HelloFS struct {
+	fuseutil.NotImplementedFileSystem
 }
 
 var _ fuseutil.FileSystem = &HelloFS{}
