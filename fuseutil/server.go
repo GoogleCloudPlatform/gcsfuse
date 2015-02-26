@@ -69,6 +69,14 @@ func (s *server) handleFuseRequest(fuseReq fuse.Request) {
 		s.logger.Println("Responding:", fuseResp)
 		typed.Respond(fuseResp)
 
+	case *fuse.StatfsRequest:
+		// Responding to this is required to make mounting work, at least on OS X.
+		// We don't currently expose the capability for the file system to
+		// intercept this.
+		fuseResp := &fuse.StatfsResponse{}
+		s.logger.Println("Responding:", fuseResp)
+		typed.Respond(fuseResp)
+
 	default:
 		s.logger.Println("Unhandled type. Returning ENOSYS.")
 		typed.RespondError(ENOSYS)
