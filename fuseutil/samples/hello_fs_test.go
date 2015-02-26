@@ -51,6 +51,26 @@ func (t *HelloFSTest) SetUp(ti *TestInfo) {
 // Test functions
 ////////////////////////////////////////////////////////////////////////
 
-func (t *HelloFSTest) DoesFoo() {
+func (t *HelloFSTest) ReadDir_Root() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *HelloFSTest) ReadDir_Subdir() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *HelloFSTest) StatHello() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *HelloFSTest) StatWorld() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *HelloFSTest) ReadHello() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *HelloFSTest) ReadWorld() {
 	AssertTrue(false, "TODO")
 }
