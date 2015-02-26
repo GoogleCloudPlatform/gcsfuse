@@ -84,12 +84,16 @@ func (mfs *MountedFileSystem) mountAndServe(
 	// Start a goroutine that will notify the MountedFileSystem object when the
 	// connection says it is ready (or it fails to become ready).
 	go func() {
+		logger.Println("Waiting for the FUSE connection to be ready.")
 		<-c.Ready
+		logger.Println("The FUSE connection is ready.")
+
 		mfs.readyStatus = c.MountError
 		close(mfs.readyStatusAvailable)
 	}()
 
 	// Serve the connection using the file system object.
+	logger.Println("Serving the FUSE connection.")
 	if err := server.Serve(c); err != nil {
 		mfs.joinStatus = errors.New("Serve: " + err.Error())
 		close(mfs.joinStatusAvailable)
