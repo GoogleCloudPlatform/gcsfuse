@@ -111,19 +111,6 @@ func (mfs *MountedFileSystem) mountAndServe(
 // Attempt to mount the supplied file system on the given directory.
 // mfs.WaitForReady() must be called to find out whether the mount was
 // successful.
-func MountFileSystem(
+func Mount(
 	dir string,
-	fs fusefs.FS,
-	options ...fuse.MountOption) (mfs *MountedFileSystem) {
-	// Initialize the struct.
-	mfs = &MountedFileSystem{
-		dir:                  dir,
-		readyStatusAvailable: make(chan struct{}),
-		joinStatusAvailable:  make(chan struct{}),
-	}
-
-	// Mount in the background.
-	go mfs.mountAndServe(fs, options)
-
-	return mfs
-}
+	fs FileSystem) (mfs *MountedFileSystem)
