@@ -110,9 +110,10 @@ type LookupResponse struct {
 	//
 	//  *  (http://goo.gl/tKBH1p) fstat calls vfs_fstat.
 	//  *  (http://goo.gl/3HeITq) vfs_fstat eventuall calls vfs_getattr_nosec.
-	//  *  (http://goo.gl/DccFQr) vfs_getattr_nosec calls i_op->getattr (fuse_getattr).
+	//  *  (http://goo.gl/DccFQr) vfs_getattr_nosec calls i_op->getattr.
 	//  *  (http://goo.gl/dpKkst) fuse_getattr calls fuse_update_attributes.
-	//  *  (http://goo.gl/yNlqPw) fuse_update_attributes uses the values in the struct inode if allowed, otherwise calling out to the user-space code.
+	//  *  (http://goo.gl/yNlqPw) fuse_update_attributes uses the values in the
+	//     struct inode if allowed, otherwise calling out to the user-space code.
 	//
 	// In addition to obvious cases like fstat, this is also used in more subtle
 	// cases like updating size information before seeking (http://goo.gl/2nnMFa)
