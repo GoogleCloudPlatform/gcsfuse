@@ -51,7 +51,11 @@ func (s *server) Serve(c *fuse.Conn) (err error) {
 			return
 		}
 
-		// TODO(jacobsa): Do something useful.
-		s.logger.Println("RECEIVED:", fuseReq)
+		go s.handleFuseRequest(fuseReq)
 	}
+}
+
+func (s *server) handleFuseRequest(fuseReq fuse.Request) {
+	s.logger.Println("RECEIVED:", fuseReq)
+	fuseReq.RespondError(ENOSYS)
 }
