@@ -5,6 +5,8 @@ package fuseutil
 
 import "golang.org/x/net/context"
 
+// Embed this within your file system type to inherit default implementations
+// of all methods that return ENOSYS.
 type NotImplementedFileSystem struct {
 }
 
