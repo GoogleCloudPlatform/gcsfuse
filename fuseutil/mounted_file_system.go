@@ -7,7 +7,6 @@ import (
 	"errors"
 
 	"bazil.org/fuse"
-	fusefs "bazil.org/fuse/fs"
 	"golang.org/x/net/context"
 )
 
@@ -67,7 +66,7 @@ func (mfs *MountedFileSystem) Unmount() error {
 
 // Runs in the background.
 func (mfs *MountedFileSystem) mountAndServe(
-	fs fusefs.FS,
+	server *server,
 	options []fuse.MountOption) {
 	logger := getLogger()
 
@@ -91,15 +90,8 @@ func (mfs *MountedFileSystem) mountAndServe(
 	}()
 
 	// Serve the connection using the file system object.
-	server := &fusefs.Server{
-		FS: fs,
-		Debug: func(msg interface{}) {
-			logger.Println(msg)
-		},
-	}
-
 	if err := server.Serve(c); err != nil {
-		mfs.joinStatus = errors.New("fusefs.Serve: " + err.Error())
+		mfs.joinStatus = errors.New("Serve: " + err.Error())
 		close(mfs.joinStatusAvailable)
 		return
 	}
@@ -113,4 +105,23 @@ func (mfs *MountedFileSystem) mountAndServe(
 // successful.
 func Mount(
 	dir string,
-	fs FileSystem) (mfs *MountedFileSystem)
+	fs FileSystem,
+	options ...fuse.MountOption) (mfs *MountedFileSystem, err error) {
+	// Create a server object.
+	server, err := newServer(fs)
+	if err != nil {
+		return
+	}
+
+	// Initialize the struct.
+	mfs = &MountedFileSystem{
+		dir:                  dir,
+		readyStatusAvailable: make(chan struct{}),
+		joinStatusAvailable:  make(chan struct{}),
+	}
+
+	// Mount in the background.
+	go mfs.mountAndServe(server, options)
+
+	return
+}
