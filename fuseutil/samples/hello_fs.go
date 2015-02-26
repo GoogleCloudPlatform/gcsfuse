@@ -6,6 +6,7 @@ package samples
 import (
 	"github.com/jacobsa/gcsfuse/fuseutil"
 	"github.com/jacobsa/gcsfuse/timeutil"
+	"golang.org/x/net/context"
 )
 
 // A file system with a fixed structure that looks like this:
@@ -21,3 +22,16 @@ type HelloFS struct {
 }
 
 var _ fuseutil.FileSystem = &HelloFS{}
+
+func (fs *HelloFS) Open(
+	ctx context.Context,
+	req *fuseutil.OpenRequest) (resp *fuseutil.OpenResponse, err error) {
+	// We always allow opening the root directory.
+	if req.Inode == fuseutil.RootInodeID {
+		return
+	}
+
+	// TODO(jacobsa): Handle others.
+	err = fuseutil.ENOSYS
+	return
+}
