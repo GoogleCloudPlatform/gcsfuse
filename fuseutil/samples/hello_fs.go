@@ -5,6 +5,13 @@ package samples
 
 import "github.com/jacobsa/gcsfuse/fuseutil"
 
+// A file system with a fixed structure that looks like this:
+//
+//     hello
+//     dir/
+//         world
+//
+// Each file contains the string "Hello, world!".
 type HelloFS struct {
 	fuseutil.NotImplementedFileSystem
 }
