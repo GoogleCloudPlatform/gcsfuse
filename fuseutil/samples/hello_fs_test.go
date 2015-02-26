@@ -112,22 +112,38 @@ func (t *HelloFSTest) ReadDir_Root() {
 	ExpectFalse(fi.IsDir())
 }
 
-func (t *HelloFSTest) ReadDir_Subdir() {
+func (t *HelloFSTest) ReadDir_Dir() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *HelloFSTest) StatHello() {
+func (t *HelloFSTest) ReadDir_NonExistent() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *HelloFSTest) StatWorld() {
+func (t *HelloFSTest) Stat_Hello() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *HelloFSTest) ReadHello() {
+func (t *HelloFSTest) Stat_Dir() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *HelloFSTest) ReadWorld() {
+func (t *HelloFSTest) Stat_World() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *HelloFSTest) Stat_NonExistent() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *HelloFSTest) Read_Hello() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *HelloFSTest) Read_World() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *HelloFSTest) Open_NonExistent() {
 	AssertTrue(false, "TODO")
 }
