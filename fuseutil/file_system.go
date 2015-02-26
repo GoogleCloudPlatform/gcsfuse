@@ -15,6 +15,8 @@ import (
 // Not all methods need to have interesting implementations. Embed a field of
 // type NotImplementedFileSystem to inherit defaults that return ENOSYS to the
 // kernel.
+//
+// Must be safe for concurrent access via all methods.
 type FileSystem interface {
 	// Look up a child by name within a parent directory. The kernel calls this
 	// when resolving user paths to dentry structs, which are then cached.
