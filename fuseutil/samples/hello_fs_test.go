@@ -29,6 +29,7 @@ func init() { RegisterTestSuite(&HelloFSTest{}) }
 
 func (t *HelloFSTest) SetUp(ti *TestInfo) {
 	var err error
+
 	// Set up a temporary directory for mounting.
 	mountPoint, err := ioutil.TempDir("", "hello_fs_test")
 	if err != nil {
