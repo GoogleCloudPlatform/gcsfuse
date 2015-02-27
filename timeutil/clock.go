@@ -48,6 +48,14 @@ func (sc *SimulatedClock) Now() time.Time {
 	return sc.t
 }
 
+// Set the current time according to the clock.
+func (sc *SimulatedClock) SetTime(t time.Time) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+
+	sc.t = t
+}
+
 // Advance the current time according to the clock by the supplied duration.
 func (sc *SimulatedClock) AdvanceTime(d time.Duration) {
 	sc.mu.Lock()
