@@ -70,7 +70,7 @@ consistency section below):
 
 *   Say that machine B then runs `cat foo/bar/qux`.
 
-The `cat` command on machine B will result in the following series of calls
+The `cat` command on machine B will result in the following sequence of calls
 from the kernel VFS layer to gcsfuse:
 
 *   Look up the inode for 'foo' within the root. Call it F.
