@@ -121,8 +121,7 @@ When you open a file, the contents you observe inside of it are as follows:
     the section on consistency below.
 
 *   Otherwise, the contents will be some particular generation of the GCS
-    object (created concurrently with the open and first read) or the empty
-    string.
+    object (created concurrently with the open call) or the empty string.
 
 Less precisely: you will see the same contents as all other processes on your
 machine, and those contents will initially consist of the contents of some
@@ -130,9 +129,9 @@ generation of the object, or the file may be empty if the object was not
 created before opening the file.
 
 The contents of an open file do *not* spontaneously change when a new
-generation of the object is changed. If you open a file and read a bit, then
-overwrite or delete the object in GCS, your file handle will still observe the
-same contents.
+generation of the object is changed. If you open a file, then overwrite or
+delete the object in GCS, your file handle will still observe the same
+contents as before the modification.
 
 
 # Writing, syncing, and closing
