@@ -6,7 +6,7 @@ consistency guarantees are made, etc.
 reflect reality. TODO(jacobsa): Update this warning when this is no longer
 aspirational.
 
-## Files and directories
+# Files and directories
 
 GCS object names map directly to file paths using the separator '/', with
 directories implicitly defined by the existence of an object containing the
@@ -48,7 +48,7 @@ The full technical definition is in [listing_proxy.go][].
 [listing_proxy.go]: https://github.com/jacobsa/gcsfuse/blob/bb13286d818c6fd76262bf559f1a386c109f3638/gcsproxy/listing_proxy.go#L33-L81
 
 
-## Generations
+# Generations
 
 GCS has a notion of an [object generation number][generations] associated with
 each object name. These provide a total order on requests to modify an object,
@@ -65,7 +65,7 @@ having empty contents. The definitions below include such generations.
 [generations]: https://cloud.google.com/storage/docs/generations-preconditions
 
 
-## File contents
+# File contents
 
 When you open a file, the contents you observe inside of it are as follows:
 
@@ -94,7 +94,7 @@ overwrite or delete the object in GCS, your file handle will still observe the
 same contents.
 
 
-## Writing, syncing, and closing
+# Writing, syncing, and closing
 
 Files may be opened for writing. Modifications are reflected immediately in
 reads of the file by processes local to the machine using the same file system.
@@ -105,7 +105,7 @@ guarantees about whether they are reflected in GCS after writing but before
 syncing or closing.
 
 
-## Write/read consistency
+# Write/read consistency
 
 gcsfuse offers close-to-open consistency. This means that any writes made to a
 file before a successful `close` are guaranteed to be visible to an `open` that
@@ -122,7 +122,7 @@ handle for the file, and that the call to `close` on A happened before the call
 to `open` on B. Then the contents of the file as seen by B are guaranteed to be
 exactly the contents of some generation G' of O such that `G <= G'`.
 
-### Caveat
+## Caveat
 
 There is one caveat to this guarantee, due to the lack of listing consistency
 in GCS and to the way the kernel VFS layer works. Although the guarantee on
@@ -177,6 +177,6 @@ have existing objects (like the "foo/bar/qux" case), then the objects will be
 inaccessible via gcsfuse until they create the directories leading up to them.
 
 
-## Listing consistency
+# Listing consistency
 
 TODO(jacobsa)
