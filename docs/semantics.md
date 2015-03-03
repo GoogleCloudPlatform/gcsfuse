@@ -85,8 +85,8 @@ When you open a file, the contents you observe inside of it are as follows:
 
 Less precisely: you will see the same contents as all other processes on your
 machine, and those contents will initially consist of the contents of some
-generation of the object. (There are guarantees about which generation; see
-below.)
+generation of the object, or the file may be empty if the object was not
+created before opening the file.
 
 The contents of an open file do *not* spontaneously change when a new
 generation of the object is changed. If you open a file and read a bit, then
