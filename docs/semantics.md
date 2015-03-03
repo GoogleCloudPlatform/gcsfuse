@@ -160,7 +160,7 @@ saw at `close` time were committed to some generation G of O.
 Now say that B opens a file backed by O, that B did not already have an open
 handle for the file, and that the call to `close` on A happened before the call
 to `open` on B. Then the contents of the file as seen by B are guaranteed to be
-exactly the contents of some generation G' of O such that `G <= G'`.
+exactly the contents of some generation G' of O such that G <= G'.
 
 
 # Listing consistency
