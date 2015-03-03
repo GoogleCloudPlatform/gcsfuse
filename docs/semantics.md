@@ -163,6 +163,20 @@ to `open` on B. Then the contents of the file as seen by B are guaranteed to be
 exactly the contents of some generation G' of O such that G <= G'.
 
 
-# Listing consistency
+# Directory listing
 
-TODO(jacobsa)
+Unlike reads for a particular object, listing operations in GCS are
+[eventually consistent][consistency]. This means that directory listings in
+gcsfuse may be arbitrarily far out of date. Additionally, seeing a fresh
+listing once does not imply that future listings will be fresh. This applies at
+the user level to commands like `ls`, and to the posix interfaces they use like
+`readdir`.
+
+[consistency]: https://cloud.google.com/storage/docs/concepts-techniques#consistency
+
+gcsfuse attempts to paper over this issue somewhat by remembering local
+modifications (creations and removals) for some period of time, so that e.g.
+creating a file and then listing its parent directory on the same machine will
+result in the expected experience. However note that this means that e.g. a
+subsequent deletion of the file on another machine will not be reflected in a
+directory listing on the creating machine for that time period.
