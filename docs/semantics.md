@@ -45,3 +45,23 @@ placeholder object, whether empty (burrito/, queso/carne/nachos/) or non-empty
 The full technical definition is in [listing_proxy.go][].
 
 [listing_proxy.go]: https://github.com/jacobsa/gcsfuse/blob/bb13286d818c6fd76262bf559f1a386c109f3638/gcsproxy/listing_proxy.go#L33-L81
+
+
+## Opening and reading
+
+TODO (jacobsa)
+
+
+## Writing, flushing, and closing
+
+TODO (jacobsa)
+
+
+## Write/read consistency
+
+TODO (jacobsa)
+
+
+## Listing consistency
+
+TODO(jacobsa)
