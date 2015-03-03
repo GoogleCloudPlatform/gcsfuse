@@ -56,7 +56,8 @@ containing a file named "bar".
 The alternative is to have an object named "foo/bar/baz" implicitly define a
 directory named "foo" with a child directory named "bar". This would work fine
 if GCS offered consistent object listing, but it does not: object listings
-may be arbitrarily far out of date. Because of this, implicit definition of
+may be arbitrarily far out of date and seeing a fresh listing once does not
+guarantee you will see it again. Because of this, implicit definition of
 directories would cause problems for consistency guarantees (see the
 consistency section below):
 
