@@ -76,7 +76,7 @@ from the kernel VFS layer to gcsfuse:
 *   Look up the inode for 'foo' within the root. Call it F.
 *   Look up the inode for 'bar' within F. Call it B.
 *   Look up the inode for 'qux' within B. Call it Q.
-*   Open Q for reading. Call the handle H.
+*   Open Q for reading. Call the resulting handle H.
 *   Read from H.
 
 However, it is possible (and even likely) that machine B will not be able to
