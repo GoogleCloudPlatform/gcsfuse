@@ -94,9 +94,15 @@ overwrite or delete the object in GCS, your file handle will still observe the
 same contents.
 
 
-## Writing, flushing, and closing
+## Writing, syncing, and closing
 
-TODO (jacobsa)
+Files may be opened for writing. Modifications are reflected immediately in
+reads of the file by processes local to the machine using the same file system.
+
+After a successful `fsync` or a successful `close`, modifications to a file are
+guaranteed to be reflected in the underlying GCS object. There are no
+guarantees about whether they are reflected in GCS after writing but before
+syncing or closing.
 
 
 ## Write/read consistency
