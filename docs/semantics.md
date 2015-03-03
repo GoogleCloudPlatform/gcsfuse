@@ -165,7 +165,7 @@ This will succeed because the directory "foo/bar" already implicitly exists.
 But unlike before it will not result in the creation of objects named "foo/"
 and "foo/bar/". Therefore if GCS does not yet show any of the objects in a
 request to list objects, there is no way that the first lookup request from the
-kernel can succeed.
+kernel on B can succeed, and the `echo` command will fail.
 
 TODO(jacobsa): We are probably causing this problem for ourselves. Perhaps we
 should adopt the following convention: there is no 'real' directory inode
