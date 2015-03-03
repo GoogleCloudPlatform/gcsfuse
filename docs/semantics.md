@@ -107,7 +107,74 @@ syncing or closing.
 
 ## Write/read consistency
 
-TODO (jacobsa)
+gcsfuse offers close-to-open consistency. This means that any writes made to a
+file before a successful `close` are guaranteed to be visible to an `open` that
+happens after the `close` completes, on the same or a remote machine. The same
+is true of an `fsync` to `open` sequence.
+
+More precisely: Let O be an object in GCS, and A and B be machines. Say that A
+opens a file backed by O, makes some modifications to it and then sees `close`
+return successfully. Because `close` returned successfully, the contents that A
+saw at `close` time were committed to some generation G of O.
+
+Now say that B opens a file backed by O, that B did not already have an open
+handle for the file, and that the call to `close` on A happened before the call
+to `open` on B. Then the contents of the file as seen by B are guaranteed to be
+exactly the contents of some generation G' of O such that `G <= G'`.
+
+### Caveat
+
+There is one caveat to this guarantee, due to the lack of listing consistency
+in GCS and to the way the kernel VFS layer works. Although the guarantee on
+file contents above holds when `open` succeeds, it is possible that `open` will
+fail with `ENOENT` if there are no placeholder objects for the directory
+ancestors of the object being opened. This will persist until requests to GCS
+to list the directories involved return up to date responses.
+
+For example, say that A does this:
+
+    cd /mount_point
+    mkdir -p foo/bar
+    echo "hello" > foo/bar/baz
+
+and then B does this:
+
+    cd /mount_point
+    cat foo/bar/baz
+
+This will result in the kernel issuing the following set of requests to gcsfuse
+on B:
+
+*   Look up the inode for 'foo' within the root. Call it F.
+*   Look up the inode for 'bar' within F. Call it B.
+*   Look up the inode for 'baz' within B. Call it B'.
+*   Open B' for reading. Call the handle H.
+*   Read from H.
+
+`mkdir -p` on A will ensure that there are inodes for each of the directories,
+and GCS's write-to-read consistency will ensure that B can see them during the
+lookup requests. So this will work fine.
+
+But now assume that the initial contents of the bucket are a single object
+named "foo/bar/qux", very recently created, and A does only the following:
+
+    cd /mount_point
+    echo "hello" > foo/bar/baz
+
+This will succeed because the directory "foo/bar" already implicitly exists.
+But unlike before it will not result in the creation of objects named "foo/"
+and "foo/bar/". Therefore if GCS does not yet show any of the objects in a
+request to list objects, there is no way that the first lookup request from the
+kernel can succeed.
+
+TODO(jacobsa): We are probably causing this problem for ourselves. Perhaps we
+should adopt the following convention: there is no 'real' directory inode
+unless the placeholder object exists. That is, there is no implicit definition
+of directories. So when we do Objects.list we follow by stat requests for the
+placeholder objects, and filter out prefixes that have no result. If the user
+sets up their directory structure only via gcsfuse this works out fine. If they
+have existing objects (like the "foo/bar/qux" case), then the objects will be
+inaccessible via gcsfuse until they create the directories leading up to them.
 
 
 ## Listing consistency
