@@ -8,10 +8,10 @@ aspirational.
 
 # Files and directories
 
-GCS object names map directly to file paths using the separator '/', with
-directories implicitly defined by the existence of an object containing the
-directory path as a prefix. Directories may also be explicitly defined (whether
-empty or not) by an object with a trailing slash in its name.
+GCS object names map directly to file paths using the separator '/'. Object
+names ending in a slash represent a directory, and all other object names
+represent a file. Directories are not implicitly defined; they exist only if a
+matching object ending in a slash exists.
 
 This is all much clearer with an example. Say that the GCS bucket contains the
 following objects:
@@ -20,8 +20,9 @@ following objects:
 *   enchilada/
 *   enchilada/0
 *   enchilada/1
-*   queso/carne/carnitas
-*   queso/carne/nachos/
+*   queso/
+*   queso/carne/
+*   queso/carne/nachos
 *   taco
 
 Then the gcsfuse directory structure will be as follows, where a trailing slash
@@ -34,18 +35,57 @@ of the file system:
          1
      queso/
          carne/
-             carnitas
-             nachos/
+             nachos
      taco
 
-In particular, note that some directories are explicitly defined by a
-placeholder object, whether empty (burrito/, queso/carne/nachos/) or non-empty
-(enchilada/), and others are implicitly defined by their children
-(queso/carne/).
+## Caveat
 
-The full technical definition is in [listing_proxy.go][].
+As mentioned above, there is no allowance for the implicit existence of
+directories. Since the usual file system operations like `mkdir` will do the
+right thing, if you set up a bucket's structure using only gcsfuse then you
+will not notice anything odd about this. If, however, you use some other tool
+to set up objects in GCS, you may notice that not all objects are visible until
+you create leading directories for them.
 
-[listing_proxy.go]: https://github.com/jacobsa/gcsfuse/blob/bb13286d818c6fd76262bf559f1a386c109f3638/gcsproxy/listing_proxy.go#L33-L81
+For example, say that you use some other tool to set up a single object named
+"foo/bar" in your bucket, then mount the bucket with gcsfuse. The file system
+will initially appear empty, since there is no "foo/" object. However if you
+subsequently run `mkdir foo`, you will now see a directory named "foo"
+containing a file named "bar".
+
+The alternative is to have an object named "foo/bar/baz" implicitly define a
+directory named "foo" with a child directory named "bar". This would work fine
+if GCS offered consistent object listing, but it does not: object listings
+may be arbitrarily far out of date. Because of this, implicit definition of
+directories would cause problems for consistency guarantees (see the
+consistency section below):
+
+*   Imagine the initial contents of the bucket are a single recently-created
+    object named "foo/bar/baz".
+
+*   Say that machine A can see this object in a listing and runs
+    `echo "hello" > foo/bar/qux`. This should work because the intermediate
+    directories exist implicitly.
+
+*   Say that machine B then runs `cat foo/bar/qux`.
+
+The `cat` command on machine B will result in the following series of calls
+from the kernel VFS layer to gcsfuse:
+
+*   Look up the inode for 'foo' within the root. Call it F.
+*   Look up the inode for 'bar' within F. Call it B.
+*   Look up the inode for 'qux' within B. Call it Q.
+*   Open Q for reading. Call the handle H.
+*   Read from H.
+
+However, it is possible (and even likely) that machine B will not be able to
+see either of the two objects in a GCS object listing. Therefore when it
+receives the first lookup request from the kernel it will neither be able to
+find an object named "foo/" nor be able to see such a prefix in a listing of
+the root of the bucket, and it will have no choice but to return `ENOENT`.
+So the `cat` command will result in a "no such file or directory" error. This
+violates our close-to-open consistency guarantee documented below -- after
+machine A successfully writes the file, machine B should be able to read it.
 
 
 # Generations
@@ -121,60 +161,6 @@ Now say that B opens a file backed by O, that B did not already have an open
 handle for the file, and that the call to `close` on A happened before the call
 to `open` on B. Then the contents of the file as seen by B are guaranteed to be
 exactly the contents of some generation G' of O such that `G <= G'`.
-
-## Caveat
-
-There is one caveat to this guarantee, due to the lack of listing consistency
-in GCS and to the way the kernel VFS layer works. Although the guarantee on
-file contents above holds when `open` succeeds, it is possible that `open` will
-fail with `ENOENT` if there are no placeholder objects for the directory
-ancestors of the object being opened. This will persist until requests to GCS
-to list the directories involved return up to date responses.
-
-For example, say that A does this:
-
-    cd /mount_point
-    mkdir -p foo/bar
-    echo "hello" > foo/bar/baz
-
-and then B does this:
-
-    cd /mount_point
-    cat foo/bar/baz
-
-This will result in the kernel issuing the following set of requests to gcsfuse
-on B:
-
-*   Look up the inode for 'foo' within the root. Call it F.
-*   Look up the inode for 'bar' within F. Call it B.
-*   Look up the inode for 'baz' within B. Call it B'.
-*   Open B' for reading. Call the handle H.
-*   Read from H.
-
-`mkdir -p` on A will ensure that there are inodes for each of the directories,
-and GCS's write-to-read consistency will ensure that B can see them during the
-lookup requests. So this will work fine.
-
-But now assume that the initial contents of the bucket are a single object
-named "foo/bar/qux", very recently created, and A does only the following:
-
-    cd /mount_point
-    echo "hello" > foo/bar/baz
-
-This will succeed because the directory "foo/bar" already implicitly exists.
-But unlike before it will not result in the creation of objects named "foo/"
-and "foo/bar/". Therefore if GCS does not yet show any of the objects in a
-request to list objects, there is no way that the first lookup request from the
-kernel on B can succeed, and the `echo` command will fail.
-
-TODO(jacobsa): We are probably causing this problem for ourselves. Perhaps we
-should adopt the following convention: there is no 'real' directory inode
-unless the placeholder object exists. That is, there is no implicit definition
-of directories. So when we do Objects.list we follow by stat requests for the
-placeholder objects, and filter out prefixes that have no result. If the user
-sets up their directory structure only via gcsfuse this works out fine. If they
-have existing objects (like the "foo/bar/qux" case), then the objects will be
-inaccessible via gcsfuse until they create the directories leading up to them.
 
 
 # Listing consistency
