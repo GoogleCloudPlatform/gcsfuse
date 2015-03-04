@@ -106,61 +106,62 @@ having empty contents. The definitions below include such generations.
 [generations]: https://cloud.google.com/storage/docs/generations-preconditions
 
 
-# File contents
+# Inodes and file contents
 
-When you open a file, the contents you observe inside of it are as follows:
+The first time a gcsfuse process encounters an (object name, generation) pair
+in GCS that it didn't create, it assigns it an unsued inode ID. Inode IDs are
+local to a particular process, and there are no guarantees about their
+stability across machines or invocations on a single machine.
 
-*   If the file is already opened on the local machine via the same file system,
-    in your process or in another, the contents are the same as the contents
-    seen by that file descriptor. This includes any local modifications that
-    have not yet been flushed (see below).
-
-*   Otherwise, if the creation of some generation of an object (including
-    tombstone generations for deletions) happened before the open operation,
-    then the contents will be some particular generation of the GCS object. See
-    the section on consistency below.
-
-*   Otherwise, the contents will be some particular generation of the GCS
-    object (created concurrently with the open call) or the empty string.
-
-Less precisely: you will see the same contents as all other processes on your
-machine, and those contents will initially consist of the contents of some
-generation of the object, or the file may be empty if the object was not
-created before opening the file.
-
-The contents of an open file do *not* spontaneously change when a new
-generation of the object is changed. If you open a file, then overwrite or
-delete the object in GCS, your file handle will still observe the same
-contents as before the modification.
-
-
-# Writing, syncing, and closing
+When the user opens a file by name, the kernel VFS layer translates this to a
+series of requests to look up inodes while resolving path components.
+Afterward, it asks to open a handle for a particular inode ID. Therefore the
+contents observed when opening a gcsfuse file are exactly the contents of a
+particular generation of the object backing that file (or the empty string if
+the file is newly created).
 
 Files may be opened for writing. Modifications are reflected immediately in
-reads of the file by processes local to the machine using the same file system.
+reads of the same inode by processes local to the machine using the same file
+system. After a successful `fsync` or a successful `close`, modifications to a
+file are guaranteed to be reflected in the underlying GCS object, assuming the
+backing object's generation number has not changed due to writes from another
+process. There are no guarantees about whether they are reflected in GCS after
+writing but before syncing or closing.
 
-After a successful `fsync` or a successful `close`, modifications to a file are
-guaranteed to be reflected in the underlying GCS object. There are no
-guarantees about whether they are reflected in GCS after writing but before
-syncing or closing.
+Calling `fsync` or `close` on a file descriptor may result in a new generation
+of the object backing the file, as described above. In this case, gcsfuse does
+*not* mint a new inode ID.
+
+The intent of these conventions is to make it appear as though local writes to
+a file are in-place modifications as with a traditional file system, whereas
+remote overwrites of a GCS object appear as some other process unlinking the
+file from its directory and then linking a distinct file using the same name.
+The `st_nlink` field will reflect this when using `fstat`.
+
+Note the following consequence: if machine A opens a file and writes to it,
+then machine B deletes or replaces its backing object, then machine A closes
+the file, machine A's writes will be lost. This matches the behavior on a
+single machine when process A opens a file and then process B unlinkes it.
+Process A continues to have a consistent view of the file's contents until it
+closes the file handle, at which point the contents are lost.
 
 
 # Write/read consistency
 
-gcsfuse offers close-to-open consistency. This means that any writes made to a
-file before a successful `close` are guaranteed to be visible to an `open` that
-happens after the `close` completes, on the same or a remote machine. The same
-is true of an `fsync` to `open` sequence.
+gcsfuse offers close-to-open and fsync-to-open consistency. As discussed above,
+`close` and `fsync` create a new generation of the object before returning, as
+long as the object hasn't been changed since it was last observed by the
+gcsfuse process. On the other end, `open` guarantees to observe a generation at
+least as recent as all generations created before `open` was called.
 
-More precisely: Let O be an object in GCS, and A and B be machines. Say that A
-opens a file backed by O, makes some modifications to it and then sees `close`
-return successfully. Because `close` returned successfully, the contents that A
-saw at `close` time were committed to some generation G of O.
+Therefore if:
 
-Now say that B opens a file backed by O, that B did not already have an open
-handle for the file, and that the call to `close` on A happened before the call
-to `open` on B. Then the contents of the file as seen by B are guaranteed to be
-exactly the contents of some generation G' of O such that G <= G'.
+*   machine A opens a file and writes then successfully closes or syncs it, and
+*   the file was not concurrently unlinked from the point of view of A, and
+*   machine B opens the file after machine A finishes closing or syncing,
+
+then machine B will observe a version of the file at least as new as the one
+created by machine A.
 
 
 # Directory listing
