@@ -31,17 +31,6 @@ var fEnableDebug = flag.Bool(
 	false,
 	"Write gcsfuse/fs debugging messages to stderr.")
 
-type fileSystem struct {
-	logger *log.Logger
-	clock  timeutil.Clock
-	bucket gcs.Bucket
-}
-
-func (fs *fileSystem) Root() (fusefs.Node, error) {
-	d := newDir(fs.logger, fs.clock, fs.bucket, "")
-	return d, nil
-}
-
 func getLogger() *log.Logger {
 	var writer io.Writer = ioutil.Discard
 	if *fEnableDebug {
@@ -54,12 +43,4 @@ func getLogger() *log.Logger {
 // Create a fuse file system whose root directory is the root of the supplied
 // bucket. The supplied clock will be used for cache invalidation; it is *not*
 // used for file modification times.
-func NewFuseFS(clock timeutil.Clock, bucket gcs.Bucket) (fusefs.FS, error) {
-	fs := &fileSystem{
-		logger: getLogger(),
-		clock:  clock,
-		bucket: bucket,
-	}
-
-	return fs, nil
-}
+func NewFuseFS(clock timeutil.Clock, bucket gcs.Bucket) (fusefs.FS, error)
