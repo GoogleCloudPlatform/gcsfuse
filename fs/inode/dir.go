@@ -16,16 +16,15 @@ package fs
 
 import "github.com/jacobsa/gcloud/syncutil"
 
-type FileInode struct {
+type DirInode struct {
 	/////////////////////////
 	// Constant data
 	/////////////////////////
 
-	// The name of the GCS object backing the inode. This may or may not yet
-	// exist.
+	// The name of the GCS object backing the inode. Special case: the empty
+	// string means this is the root inode.
 	//
-	// INVARIANT: name != ""
-	// INVARIANT: name[len(name)-1] != '/'
+	// INVARIANT: name == "" || name[len(name)-1] == '/'
 	name string
 
 	/////////////////////////
@@ -35,9 +34,4 @@ type FileInode struct {
 	// A mutex that must be held when calling certain methods. See documentation
 	// for each method.
 	Mu syncutil.InvariantMutex
-
-	// The generation number of the GCS object from which this inode was
-	// branched, or zero if it is newly created. This is used as a precondition
-	// in object write requests.
-	srcGeneration uint64
 }
