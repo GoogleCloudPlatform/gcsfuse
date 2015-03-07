@@ -65,12 +65,12 @@ func main() {
 	}
 
 	// Create a file system.
-	fileSystem, err := fs.NewFuseFS(
+	fileSystem, err := fs.NewFileSystem(
 		timeutil.RealClock(),
 		conn.GetBucket(getBucketName()))
 
 	if err != nil {
-		log.Fatal("fs.NewFuseFS:", err)
+		log.Fatal("fs.NewFileSystem:", err)
 	}
 
 	// Mount the file system.

@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fs
+package inode
 
-import "github.com/jacobsa/gcloud/syncutil"
+import (
+	"fmt"
+
+	"github.com/jacobsa/gcloud/syncutil"
+)
 
 type DirInode struct {
 	/////////////////////////
@@ -34,4 +38,28 @@ type DirInode struct {
 	// A mutex that must be held when calling certain methods. See documentation
 	// for each method.
 	Mu syncutil.InvariantMutex
+}
+
+// Create a directory inode for the directory with the given name. The name
+// must end with a slash unless this is the root directory, in which case it
+// must be empty.
+//
+// REQUIRES: name == "" || name[len(name)-1] == '/'
+func NewDirInode(name string) (d *DirInode) {
+	// Set up the basic struct.
+	d = &DirInode{
+		name: name,
+	}
+
+	// Set up invariant checking.
+	d.Mu = syncutil.NewInvariantMutex(d.checkInvariants)
+
+	return
+}
+
+func (d *DirInode) checkInvariants() {
+	// Check the name.
+	if !(d.name == "" || d.name[len(d.name)-1] == '/') {
+		panic(fmt.Sprintf("Unexpected name: %s", d.name))
+	}
 }
