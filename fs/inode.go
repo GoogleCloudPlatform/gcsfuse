@@ -14,6 +14,8 @@
 
 package fs
 
+import "github.com/jacobsa/gcloud/syncutil"
+
 type inode struct {
 	/////////////////////////
 	// Constant data
@@ -29,4 +31,17 @@ type inode struct {
 	// INVARIANT: If dir, then name is empty or name ends with '/'
 	// INVARIANT: If !dir, then name is non-empty and name doesn't end with '/'
 	name string
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
+	mu syncutil.InvariantMutex
+
+	// The generation number of the GCS object from which this inode was
+	// branched, or zero if it is newly created. This is used as a precondition
+	// in object write requests. It is only relevant for files.
+	//
+	// INVARIANT: If dir, then srcGeneration == 0
+	srcGeneration uint64
 }
