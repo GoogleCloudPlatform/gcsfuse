@@ -19,6 +19,7 @@ import (
 
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/syncutil"
+	"golang.org/x/net/context"
 )
 
 type DirInode struct {
@@ -83,4 +84,5 @@ func (d *DirInode) checkInvariants() {
 //
 // SHARED_LOCKS_REQUIRED(d.Mu)
 func (d *DirInode) ReadEntries(
+	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string)
