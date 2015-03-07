@@ -21,8 +21,8 @@ type DirInode struct {
 	// Constant data
 	/////////////////////////
 
-	// The name of the GCS object backing the inode. Special case: the empty
-	// string means this is the root inode.
+	// The name of the GCS object backing the inode, used as a prefix when
+	// listing. Special case: the empty string means this is the root inode.
 	//
 	// INVARIANT: name == "" || name[len(name)-1] == '/'
 	name string
