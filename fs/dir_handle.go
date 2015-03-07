@@ -45,7 +45,7 @@ type dirHandle struct {
 
 	// The logical offset at which entries[0] lies.
 	//
-	// INVARIANT: entriesOffset + 1 == entries[0].Offset
+	// INVARIANT: If len(entries) > 0, entriesOffset + 1 == entries[0].Offset
 	//
 	// GUARDED_BY(Mu)
 	entriesOffset fuse.DirOffset
@@ -58,6 +58,23 @@ type dirHandle struct {
 
 // Create a directory handle that obtains listings from the supplied inode.
 func newDirHandle(in *inode.DirInode) *dirHandle
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func (dh *dirHandle) checkInvariants()
+
+// Read more entries from the inode. On successful exit, dh.entries is empty
+// iff we have hit the end of the directory.
+//
+// EXCLUSIVE_LOCKS_REQUIRED(dh.Mu)
+// SHARED_LOCKS_REQUIRED(dh.in.Mu)
+func (dh *dirHandle) readMoreEntries() (err error)
+
+////////////////////////////////////////////////////////////////////////
+// Public interface
+////////////////////////////////////////////////////////////////////////
 
 // Handle a request to read from the directory.
 //
@@ -74,4 +91,47 @@ func newDirHandle(in *inode.DirInode) *dirHandle
 // LOCKS_EXCLUDED(dh.in.Mu)
 func (dh *dirHandle) ReadDir(
 	ctx context.Context,
-	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error)
+	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {
+	resp = &fuse.ReadDirResponse{}
+
+	dh.in.RLock()
+	defer dh.in.RUnlock()
+
+	// If the request is for offset zero, we assume that either this is the first
+	// call or rewinddir has been called. Reset state.
+	if req.Offset == 0 {
+		dh.entries = nil
+		dh.entriesOffset = 0
+		dh.tok = ""
+	}
+
+	// Is the offset in range? If not, this represents a seekdir we cannot
+	// support, as discussed above.
+	if req.Offset < dh.entriesOffset {
+		err = fuse.EINVAL
+		return
+	}
+
+	index := int(req.DirOffset - dh.entriesOffset)
+	if index > len(dh.entries) {
+		err = fuse.EINVAL
+		return
+	}
+
+	// Do we need to read more entries?
+	if index == len(dh.entries) {
+		if err = dh.readMoreEntries(); err != nil {
+			return
+		}
+
+		// Have we hit the end of the directory?
+		if len(dh.entries) == 0 {
+			return
+		}
+
+		// Otherwise, update the index.
+		index = 0
+	}
+
+	// TODO: Now we can just copy out entries.
+}
