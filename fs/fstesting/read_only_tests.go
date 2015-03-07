@@ -33,10 +33,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	"github.com/jacobsa/gcsfuse/fs"
-	"github.com/jacobsa/gcsfuse/fuseutil"
 	"github.com/jacobsa/gcsfuse/timeutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -92,7 +92,7 @@ type fsTest struct {
 	ctx    context.Context
 	clock  timeutil.SimulatedClock
 	bucket gcs.Bucket
-	mfs    *fuseutil.MountedFileSystem
+	mfs    *fuse.MountedFileSystem
 }
 
 var _ fsTestInterface = &fsTest{}
@@ -113,7 +113,11 @@ func (t *fsTest) setUpFsTest(b gcs.Bucket) {
 		panic("NewFuseFS: " + err.Error())
 	}
 
-	t.mfs = fuseutil.MountFileSystem(mountPoint, fileSystem)
+	t.mfs, err = fuse.Mount(mountPoint, fileSystem)
+	if err != nil {
+		panic("Mount: " + err.Error())
+	}
+
 	if err := t.mfs.WaitForReady(t.ctx); err != nil {
 		panic("MountedFileSystem.WaitForReady: " + err.Error())
 	}
@@ -194,7 +198,8 @@ func (t *readOnlyTest) readDirUntil(
 			return
 		}
 
-		t.clock.AdvanceTime(2 * fs.ListingCacheTTL)
+		// TODO(jacobsa): Remove this?
+		// t.clock.AdvanceTime(2 * fs.ListingCacheTTL)
 
 		// Should we stop?
 		if time.Now().After(endTime) {
@@ -568,7 +573,8 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheStillValid() {
 	AssertEq(nil, t.createEmptyObjects([]string{"baz"}))
 
 	// Advance the clock to just before the cache expiry.
-	t.clock.AdvanceTime(fs.ListingCacheTTL - time.Millisecond)
+	// t.clock.AdvanceTime(fs.ListingCacheTTL - time.Millisecond)
+	AssertTrue(false, "TODO(jacobsa): Figure out what to do here.")
 
 	// List again.
 	entries, err = t.readDirUntil(2, t.mfs.Dir())
@@ -601,7 +607,8 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheInvalidated() {
 	AssertEq(nil, t.createEmptyObjects([]string{"baz"}))
 
 	// Advance the clock to just after the cache expiry.
-	t.clock.AdvanceTime(fs.ListingCacheTTL + time.Millisecond)
+	// t.clock.AdvanceTime(fs.ListingCacheTTL + time.Millisecond)
+	AssertTrue(false, "TODO(jacobsa): Figure out what to do here.")
 
 	// List again.
 	entries, err = t.readDirUntil(2, t.mfs.Dir())

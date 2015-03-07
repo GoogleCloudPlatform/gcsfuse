@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fuseutil
+package fs
 
 import (
 	"flag"
@@ -23,16 +23,15 @@ import (
 )
 
 var fEnableDebug = flag.Bool(
-	"fuseutil.debug",
+	"fs.debug",
 	false,
-	"Write FUSE debugging messages to stderr.")
+	"Write gcsfuse/fs debugging messages to stderr.")
 
-// Create a logger based on command-line flag settings.
 func getLogger() *log.Logger {
 	var writer io.Writer = ioutil.Discard
 	if *fEnableDebug {
 		writer = os.Stderr
 	}
 
-	return log.New(writer, "fuseutil: ", log.LstdFlags)
+	return log.New(writer, "gcsfuse/fs: ", log.LstdFlags)
 }

@@ -15,51 +15,46 @@
 package fs
 
 import (
-	"flag"
-	"io"
-	"io/ioutil"
-	"log"
-	"os"
-
-	fusefs "bazil.org/fuse/fs"
+	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcsfuse/timeutil"
+	"golang.org/x/net/context"
 )
 
-var fEnableDebug = flag.Bool(
-	"fs.debug",
-	false,
-	"Write gcsfuse/fs debugging messages to stderr.")
-
-type fileSystem struct {
-	logger *log.Logger
-	clock  timeutil.Clock
-	bucket gcs.Bucket
-}
-
-func (fs *fileSystem) Root() (fusefs.Node, error) {
-	d := newDir(fs.logger, fs.clock, fs.bucket, "")
-	return d, nil
-}
-
-func getLogger() *log.Logger {
-	var writer io.Writer = ioutil.Discard
-	if *fEnableDebug {
-		writer = os.Stderr
-	}
-
-	return log.New(writer, "gcsfuse/fs: ", log.LstdFlags)
-}
-
 // Create a fuse file system whose root directory is the root of the supplied
-// bucket. The supplied clock will be used for cache invalidation; it is *not*
-// used for file modification times.
-func NewFuseFS(clock timeutil.Clock, bucket gcs.Bucket) (fusefs.FS, error) {
-	fs := &fileSystem{
-		logger: getLogger(),
+// bucket. The supplied clock will be used for cache invalidation, modification
+// times, etc.
+func NewFuseFS(
+	clock timeutil.Clock,
+	bucket gcs.Bucket) (fs fuse.FileSystem, err error) {
+	fs = &fileSystem{
 		clock:  clock,
 		bucket: bucket,
 	}
 
-	return fs, nil
+	return
+}
+
+type fileSystem struct {
+	fuseutil.NotImplementedFileSystem
+
+	/////////////////////////
+	// Dependencies
+	/////////////////////////
+
+	clock  timeutil.Clock
+	bucket gcs.Bucket
+}
+
+////////////////////////////////////////////////////////////////////////
+// FileSystem methods
+////////////////////////////////////////////////////////////////////////
+
+func (fs *fileSystem) Init(
+	ctx context.Context,
+	req *fuse.InitRequest) (resp *fuse.InitResponse, err error) {
+	// Nothing interesting to do.
+	resp = &fuse.InitResponse{}
+	return
 }
