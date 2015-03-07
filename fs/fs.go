@@ -19,6 +19,7 @@ import (
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcsfuse/timeutil"
+	"golang.org/x/net/context"
 )
 
 // Create a fuse file system whose root directory is the root of the supplied
@@ -44,4 +45,16 @@ type fileSystem struct {
 
 	clock  timeutil.Clock
 	bucket gcs.Bucket
+}
+
+////////////////////////////////////////////////////////////////////////
+// FileSystem methods
+////////////////////////////////////////////////////////////////////////
+
+func (fs *fileSystem) Init(
+	ctx context.Context,
+	req *fuse.InitRequest) (resp *fuse.InitResponse, err error) {
+	// Nothing interesting to do.
+	resp = &fuse.InitResponse{}
+	return
 }
