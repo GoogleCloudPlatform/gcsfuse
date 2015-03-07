@@ -62,14 +62,18 @@ type fileSystem struct {
 	// INVARIANT: For all i < fuse.RootInodeID, inodes[i] == nil
 	// INVARIANT: inodes[fuse.RootInodeID] != nil
 	// INVARIANT: inodes[fuse.RootInodeID] is of type *inode.DirInode
-	inodes []interface{} // GUARDED_BY(mu)
+	//
+	// GUARDED_BY(mu)
+	inodes []interface{}
 
 	// A list of inode IDs within inodes available for reuse, not including the
 	// reserved IDs less than fuse.RootInodeID.
 	//
 	// INVARIANT: This is all and only indices i of 'inodes' such that i >
 	// fuse.RootInodeID and inodes[i] == nil
-	freeInodeIDs []fuse.InodeID // GUARDED_BY(mu)
+	//
+	// GUARDED_BY(mu)
+	freeInodeIDs []fuse.InodeID
 }
 
 ////////////////////////////////////////////////////////////////////////
