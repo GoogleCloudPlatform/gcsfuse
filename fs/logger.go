@@ -15,12 +15,23 @@
 package fs
 
 import (
-	fusefs "bazil.org/fuse/fs"
-	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcsfuse/timeutil"
+	"flag"
+	"io"
+	"io/ioutil"
+	"log"
+	"os"
 )
 
-// Create a fuse file system whose root directory is the root of the supplied
-// bucket. The supplied clock will be used for cache invalidation; it is *not*
-// used for file modification times.
-func NewFuseFS(clock timeutil.Clock, bucket gcs.Bucket) (fusefs.FS, error)
+var fEnableDebug = flag.Bool(
+	"fs.debug",
+	false,
+	"Write gcsfuse/fs debugging messages to stderr.")
+
+func getLogger() *log.Logger {
+	var writer io.Writer = ioutil.Discard
+	if *fEnableDebug {
+		writer = os.Stderr
+	}
+
+	return log.New(writer, "gcsfuse/fs: ", log.LstdFlags)
+}
