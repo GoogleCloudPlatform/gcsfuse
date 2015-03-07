@@ -26,7 +26,7 @@ type dirHandle struct {
 	Mu syncutil.InvariantMutex
 }
 
-// TODO(jacobsa): Comments.
+// Create a directory handle that obtains listings from the supplied inode.
 func newDirHandle(in *inode.DirInode) *dirHandle
 
 // Handle a request to read from the directory.
@@ -39,6 +39,9 @@ func newDirHandle(in *inode.DirInode) *dirHandle
 // Special case: we assume that a zero offset indicates that rewinddir has been
 // called (since fuse gives us no way to intercept and know for sure), and
 // start the listing process over again.
+//
+// EXCLUSIVE_LOCKS_REQUIRED(dh.Mu)
+// LOCKS_EXCLUDED(dh.in.Mu)
 func (dh *dirHandle) ReadDir(
 	ctx context.Context,
 	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error)

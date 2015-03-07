@@ -41,7 +41,8 @@ type fileSystem struct {
 	// Mutable state
 	/////////////////////////
 
-	// When acquiring this lock, the caller must hold no inode locks.
+	// When acquiring this lock, the caller must hold no inode or dir handle
+	// locks.
 	mu syncutil.InvariantMutex
 
 	// The collection of live inodes, keyed by inode ID. No ID less than
