@@ -15,7 +15,7 @@
 package fs
 
 import (
-	fusefs "bazil.org/fuse/fs"
+	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcsfuse/timeutil"
 )
@@ -23,4 +23,6 @@ import (
 // Create a fuse file system whose root directory is the root of the supplied
 // bucket. The supplied clock will be used for cache invalidation, modification
 // times, etc.
-func NewFuseFS(clock timeutil.Clock, bucket gcs.Bucket) (fusefs.FS, error)
+func NewFuseFS(
+	clock timeutil.Clock,
+	bucket gcs.Bucket) (fs fuse.FileSystem, err error)
