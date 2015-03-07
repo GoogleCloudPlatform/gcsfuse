@@ -35,3 +35,10 @@ type DirInode struct {
 	// for each method.
 	Mu syncutil.InvariantMutex
 }
+
+// Create a directory inode for the directory with the given name. The name
+// must end with a slash unless this is the root directory, in which case it
+// must be empty.
+//
+// REQUIRES: name == "" || name[len(name)-1] == '/'
+func NewDirInode(name string) *DirInode

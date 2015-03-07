@@ -33,11 +33,17 @@ import (
 func NewFuseFS(
 	clock timeutil.Clock,
 	bucket gcs.Bucket) (ffs fuse.FileSystem, err error) {
+	// Set up the basic struct.
 	fs := &fileSystem{
 		clock:  clock,
 		bucket: bucket,
+		inodes: make([]interface{}, fuse.RootInodeID+1),
 	}
 
+	// Set up the root inode.
+	fs.inodes[fuse.RootInodeID] = inode.NewDirInode("")
+
+	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
 
 	ffs = fs
