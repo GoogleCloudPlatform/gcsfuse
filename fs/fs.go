@@ -16,6 +16,7 @@ package fs
 
 import (
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcsfuse/timeutil"
 )
@@ -25,4 +26,22 @@ import (
 // times, etc.
 func NewFuseFS(
 	clock timeutil.Clock,
-	bucket gcs.Bucket) (fs fuse.FileSystem, err error)
+	bucket gcs.Bucket) (fs fuse.FileSystem, err error) {
+	fs = &fileSystem{
+		clock:  clock,
+		bucket: bucket,
+	}
+
+	return
+}
+
+type fileSystem struct {
+	fuseutil.NotImplementedFileSystem
+
+	/////////////////////////
+	// Dependencies
+	/////////////////////////
+
+	clock  timeutil.Clock
+	bucket gcs.Bucket
+}
