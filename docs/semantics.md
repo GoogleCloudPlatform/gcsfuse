@@ -116,9 +116,9 @@ stability across machines or invocations on a single machine.
 When the user opens a file by name, the kernel VFS layer translates this to a
 series of requests to look up inodes while resolving path components.
 Afterward, it asks to open a handle for a particular inode ID. Therefore the
-contents observed when opening a gcsfuse file are exactly the contents of a
-particular generation of the object backing that file (or the empty string if
-the file is newly created).
+contents observed when opening a gcsfuse file that is not already opened on the
+local machine are exactly the contents of a particular generation of the object
+backing that file (or the empty string if the file is newly created).
 
 Files may be opened for writing. Modifications are reflected immediately in
 reads of the same inode by processes local to the machine using the same file
