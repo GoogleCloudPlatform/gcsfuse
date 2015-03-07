@@ -44,26 +44,22 @@ type fileSystem struct {
 	// When acquiring this lock, the caller must hold no inode locks.
 	mu syncutil.InvariantMutex
 
-	// The collection of live inodes, indexed by ID. IDs of free inodes that may
-	// be re-used have nil entries. No ID less than fuse.RootInodeID is ever used.
+	// The collection of live inodes, keyed by inode ID. No ID less than
+	// fuse.RootInodeID is ever used.
 	//
-	// INVARIANT: All elements are nil or of type *inode.(Dir|File)Inode
-	// INVARIANT: len(inodes) > fuse.RootInodeID
-	// INVARIANT: For all i < fuse.RootInodeID, inodes[i] == nil
-	// INVARIANT: inodes[fuse.RootInodeID] != nil
+	// INVARIANT: All values are of type *inode.DirInode or *inode.FileInode
+	// INVARIANT: For all keys k, k >= fuse.RootInodeID
 	// INVARIANT: inodes[fuse.RootInodeID] is of type *inode.DirInode
 	//
 	// GUARDED_BY(mu)
-	inodes []interface{}
+	inodes map[fuse.InodeID]interface{}
 
-	// A list of inode IDs within inodes available for reuse, not including the
-	// reserved IDs less than fuse.RootInodeID.
+	// The next inode ID to hand out. We assume that this will never overflow,
+	// since even if we were handing out inode IDs at 4 GHz, it would still take
+	// over a century to do so.
 	//
-	// INVARIANT: This is all and only indices i of 'inodes' such that i >
-	// fuse.RootInodeID and inodes[i] == nil
-	//
-	// GUARDED_BY(mu)
-	freeInodeIDs []fuse.InodeID
+	// INVARIANT: For all keys k in inodes, k < nextInodeID
+	nextInodeID fuse.InodeID
 }
 
 // Create a fuse file system whose root directory is the root of the supplied
@@ -74,9 +70,10 @@ func NewFileSystem(
 	bucket gcs.Bucket) (ffs fuse.FileSystem, err error) {
 	// Set up the basic struct.
 	fs := &fileSystem{
-		clock:  clock,
-		bucket: bucket,
-		inodes: make([]interface{}, fuse.RootInodeID+1),
+		clock:       clock,
+		bucket:      bucket,
+		inodes:      make(map[fuse.InodeID]interface{}),
+		nextInodeID: fuse.RootInodeID + 1,
 	}
 
 	// Set up the root inode.
@@ -94,45 +91,24 @@ func NewFileSystem(
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *fileSystem) checkInvariants() {
-	// Check reserved inodes.
-	for i := 0; i < fuse.RootInodeID; i++ {
-		if fs.inodes[i] != nil {
-			panic(fmt.Sprintf("Non-nil inode for ID: %v", i))
+	// Check fs.inodes keys.
+	for id, _ := range fs.inodes {
+		if id < fuse.RootInodeID {
+			panic(fmt.Sprintf("Illegal inode ID: %v", id))
 		}
 	}
 
 	// Check the root inode.
 	_ = fs.inodes[fuse.RootInodeID].(*inode.DirInode)
 
-	// Check the type of each inode. While we're at it, build our own list of
-	// free IDs.
-	freeIDsEncountered := make(map[fuse.InodeID]struct{})
-	for i := fuse.RootInodeID + 1; i < len(fs.inodes); i++ {
-		in := fs.inodes[i]
+	// Check the type of each inode.
+	for _, in := range fs.inodes {
 		switch in.(type) {
 		case *inode.DirInode:
 		case *inode.FileInode:
 
-		case nil:
-			freeIDsEncountered[fuse.InodeID(i)] = struct{}{}
-
 		default:
 			panic(fmt.Sprintf("Unexpected inode type: %v", reflect.TypeOf(in)))
-		}
-	}
-
-	// Check fs.freeInodeIDs.
-	if len(fs.freeInodeIDs) != len(freeIDsEncountered) {
-		panic(
-			fmt.Sprintf(
-				"Length mismatch: %v vs. %v",
-				len(fs.freeInodeIDs),
-				len(freeIDsEncountered)))
-	}
-
-	for _, id := range fs.freeInodeIDs {
-		if _, ok := freeIDsEncountered[id]; !ok {
-			panic(fmt.Sprintf("Unexected free inode ID: %v", id))
 		}
 	}
 }
