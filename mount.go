@@ -20,8 +20,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcsfuse/fs"
-	"github.com/jacobsa/gcsfuse/fuseutil"
 	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
 )
@@ -65,13 +65,19 @@ func main() {
 	}
 
 	// Create a file system.
-	fileSystem, err := fs.NewFuseFS(timeutil.RealClock(), conn.GetBucket(getBucketName()))
+	fileSystem, err := fs.NewFuseFS(
+		timeutil.RealClock(),
+		conn.GetBucket(getBucketName()))
+
 	if err != nil {
 		log.Fatal("fs.NewFuseFS:", err)
 	}
 
 	// Mount the file system.
-	mountedFS := fuseutil.MountFileSystem(mountPoint, fileSystem)
+	mountedFS, err := fuse.Mount(mountPoint, fileSystem)
+	if err != nil {
+		log.Fatal("Mount:", err)
+	}
 
 	if err := mountedFS.WaitForReady(context.Background()); err != nil {
 		log.Fatal("MountedFileSystem.WaitForReady:", err)
