@@ -18,6 +18,7 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/syncutil"
 	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
 )
@@ -45,10 +46,34 @@ type fileSystem struct {
 
 	clock  timeutil.Clock
 	bucket gcs.Bucket
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
+	// When acquiring this lock, the caller must hold no inode locks.
+	mu syncutil.InvariantMutex
+
+	// The collection of live inodes, indexed by ID. IDs of free inodes that may
+	// be re-used have nil entries. No ID less than fuse.RootInodeID is ever used.
+	//
+	// INVARIANT: All elements are of type *inode.FileInode or *inode.DirInode
+	// INVARIANT: len(inodes) > fuse.RootInodeID
+	// INVARIANT: For all i < fuse.RootInodeID, inodes[i] == nil
+	// INVARIANT: inodes[fuse.RootInodeID] != nil
+	// INVARIANT: inodes[fuse.RootInodeID] is of type *inode.DirInode
+	inodes []interface{} // GUARDED_BY(mu)
+
+	// A list of inode IDs within inodes available for reuse, not including the
+	// reserved IDs less than fuse.RootInodeID.
+	//
+	// INVARIANT: This is all and only indices i of 'inodes' such that i >
+	// fuse.RootInodeID and inodes[i] == nil
+	freeInodeIDs []fuse.InodeID // GUARDED_BY(mu)
 }
 
 ////////////////////////////////////////////////////////////////////////
-// FileSystem methods
+// fuse.FileSystem methods
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *fileSystem) Init(
