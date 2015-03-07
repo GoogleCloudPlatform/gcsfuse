@@ -39,5 +39,7 @@ type FileInode struct {
 	// The generation number of the GCS object from which this inode was
 	// branched, or zero if it is newly created. This is used as a precondition
 	// in object write requests.
+	//
+	// GUARDED_BY(Mu)
 	srcGeneration uint64
 }
