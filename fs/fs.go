@@ -15,10 +15,14 @@
 package fs
 
 import (
+	"fmt"
+	"reflect"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
+	"github.com/jacobsa/gcsfuse/fs/inode"
 	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
 )
@@ -60,7 +64,7 @@ type fileSystem struct {
 	// The collection of live inodes, indexed by ID. IDs of free inodes that may
 	// be re-used have nil entries. No ID less than fuse.RootInodeID is ever used.
 	//
-	// INVARIANT: All elements are of type *inode.FileInode or *inode.DirInode
+	// INVARIANT: All elements are nil or of type *inode.(Dir|File)Inode
 	// INVARIANT: len(inodes) > fuse.RootInodeID
 	// INVARIANT: For all i < fuse.RootInodeID, inodes[i] == nil
 	// INVARIANT: inodes[fuse.RootInodeID] != nil
@@ -83,7 +87,49 @@ type fileSystem struct {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func (fs *fileSystem) checkInvariants()
+func (fs *fileSystem) checkInvariants() {
+	// Check reserved inodes.
+	for i := 0; i < fuse.RootInodeID; i++ {
+		if fs.inodes[i] != nil {
+			panic(fmt.Sprintf("Non-nil inode for ID: %v", i))
+		}
+	}
+
+	// Check the root inode.
+	_ = fs.inodes[fuse.RootInodeID].(*inode.DirInode)
+
+	// Check the type of each inode. While we're at it, build our own list of
+	// free IDs.
+	freeIDsEncountered := make(map[fuse.InodeID]struct{})
+	for i := fuse.RootInodeID + 1; i < len(fs.inodes); i++ {
+		in := fs.inodes[i]
+		switch in.(type) {
+		case *inode.DirInode:
+		case *inode.FileInode:
+
+		case nil:
+			freeIDsEncountered[fuse.InodeID(i)] = struct{}{}
+
+		default:
+			panic(fmt.Sprintf("Unexpected inode type: %v", reflect.TypeOf(in)))
+		}
+	}
+
+	// Check fs.freeInodeIDs.
+	if len(fs.freeInodeIDs) != len(freeIDsEncountered) {
+		panic(
+			fmt.Sprintf(
+				"Length mismatch: %v vs. %v",
+				len(fs.freeInodeIDs),
+				len(freeIDsEncountered)))
+	}
+
+	for _, id := range fs.freeInodeIDs {
+		if _, ok := freeIDsEncountered[id]; !ok {
+			panic(fmt.Sprintf("Unexected free inode ID: %v", id))
+		}
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////
 // fuse.FileSystem methods
