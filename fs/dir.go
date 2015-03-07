@@ -39,25 +39,6 @@ const dirSeparator = '/'
 
 // Implementation detail, do not touch.
 //
-// How long we cache the most recent listing for a particular directory from
-// GCS before regarding it as stale.
-//
-// Intended to paper over performance issues caused by quick follow-up calls;
-// for example when the fuse VFS performs a readdir followed quickly by a
-// lookup for each child. The drawback is that this increases the time before a
-// write by a foreign machine within a recently-listed directory will be seen
-// locally.
-//
-// TODO(jacobsa): Set this according to real-world performance issues when the
-// kernel does e.g. ReadDir followed by Lookup. Can probably be set quite
-// small.
-//
-// TODO(jacobsa): Can this be moved to a decorator implementation of gcs.Bucket
-// instead of living here?
-var ListingCacheTTL = 10 * time.Second
-
-// Implementation detail, do not touch.
-//
 // How long we remember that we took some action on the contents of a directory
 // (linking or unlinking), and pretend the action is reflected in the listing
 // even if it is not.
