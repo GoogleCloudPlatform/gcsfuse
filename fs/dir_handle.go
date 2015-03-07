@@ -16,6 +16,7 @@ package fs
 
 import (
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/syncutil"
 	"github.com/jacobsa/gcsfuse/fs/inode"
 	"golang.org/x/net/context"
@@ -23,7 +24,36 @@ import (
 
 // State required for reading from directories.
 type dirHandle struct {
+	/////////////////////////
+	// Constant data
+	/////////////////////////
+
+	in *inode.DirInode
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
 	Mu syncutil.InvariantMutex
+
+	// Entries that we have buffered from a previous call to in.ReadEntries.
+	//
+	// INVARIANT: For each i in range, entries[i+1].Offset == entries[i].Offset + 1
+	//
+	// GUARDED_BY(Mu)
+	entries []fuseutil.Dirent
+
+	// The logical offset at which entries[0] lies.
+	//
+	// INVARIANT: entriesOffset + 1 == entries[0].Offset
+	//
+	// GUARDED_BY(Mu)
+	entriesOffset fuse.DirOffset
+
+	// The continuation token to supply in the next call to in.ReadEntries.
+	//
+	// GUARDED_BY(Mu)
+	tok string
 }
 
 // Create a directory handle that obtains listings from the supplied inode.
