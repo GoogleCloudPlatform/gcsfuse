@@ -14,7 +14,11 @@
 
 package inode
 
-import "github.com/jacobsa/gcloud/syncutil"
+import (
+	"fmt"
+
+	"github.com/jacobsa/gcloud/syncutil"
+)
 
 type DirInode struct {
 	/////////////////////////
@@ -41,4 +45,21 @@ type DirInode struct {
 // must be empty.
 //
 // REQUIRES: name == "" || name[len(name)-1] == '/'
-func NewDirInode(name string) *DirInode
+func NewDirInode(name string) (d *DirInode) {
+	// Set up the basic struct.
+	d = &DirInode{
+		name: name,
+	}
+
+	// Set up invariant checking.
+	d.Mu = syncutil.NewInvariantMutex(d.checkInvariants)
+
+	return
+}
+
+func (d *DirInode) checkInvariants() {
+	// Check the name.
+	if !(d.name == "" || d.name[len(d.name)-1] == '/') {
+		panic(fmt.Sprintf("Unexpected name: %s", d.name))
+	}
+}
