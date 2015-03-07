@@ -17,6 +17,7 @@ package inode
 import (
 	"fmt"
 
+	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/syncutil"
 )
 
@@ -57,9 +58,29 @@ func NewDirInode(name string) (d *DirInode) {
 	return
 }
 
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
 func (d *DirInode) checkInvariants() {
 	// Check the name.
 	if !(d.name == "" || d.name[len(d.name)-1] == '/') {
 		panic(fmt.Sprintf("Unexpected name: %s", d.name))
 	}
 }
+
+////////////////////////////////////////////////////////////////////////
+// Public interface
+////////////////////////////////////////////////////////////////////////
+
+// Read some number of entries from the directory, returning a continuation
+// token that can be used to pick up the read operation where it left off.
+// Supply the empty token on the first call.
+//
+// At the end of the directory, the returned continuation token will be empty.
+// Otherwise it will be non-empty. There is no guarantee about the number of
+// entries returned; it may be zero even with a non-empty continuation token.
+//
+// SHARED_LOCKS_REQUIRED(d.Mu)
+func (d *DirInode) ReadEntries(
+	tok string) (entries []fuseutil.Dirent, newTok string)
