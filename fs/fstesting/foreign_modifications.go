@@ -108,9 +108,9 @@ func (t *fsTest) setUpFsTest(b gcs.Bucket) {
 	}
 
 	// Mount a file system.
-	fileSystem, err := fs.NewFuseFS(&t.clock, b)
+	fileSystem, err := fs.NewFileSystem(&t.clock, b)
 	if err != nil {
-		panic("NewFuseFS: " + err.Error())
+		panic("NewFileSystem: " + err.Error())
 	}
 
 	t.mfs, err = fuse.Mount(mountPoint, fileSystem)

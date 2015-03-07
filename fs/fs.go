@@ -27,29 +27,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Create a fuse file system whose root directory is the root of the supplied
-// bucket. The supplied clock will be used for cache invalidation, modification
-// times, etc.
-func NewFuseFS(
-	clock timeutil.Clock,
-	bucket gcs.Bucket) (ffs fuse.FileSystem, err error) {
-	// Set up the basic struct.
-	fs := &fileSystem{
-		clock:  clock,
-		bucket: bucket,
-		inodes: make([]interface{}, fuse.RootInodeID+1),
-	}
-
-	// Set up the root inode.
-	fs.inodes[fuse.RootInodeID] = inode.NewDirInode("")
-
-	// Set up invariant checking.
-	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
-
-	ffs = fs
-	return
-}
-
 type fileSystem struct {
 	fuseutil.NotImplementedFileSystem
 
@@ -87,6 +64,29 @@ type fileSystem struct {
 	//
 	// GUARDED_BY(mu)
 	freeInodeIDs []fuse.InodeID
+}
+
+// Create a fuse file system whose root directory is the root of the supplied
+// bucket. The supplied clock will be used for cache invalidation, modification
+// times, etc.
+func NewFileSystem(
+	clock timeutil.Clock,
+	bucket gcs.Bucket) (ffs fuse.FileSystem, err error) {
+	// Set up the basic struct.
+	fs := &fileSystem{
+		clock:  clock,
+		bucket: bucket,
+		inodes: make([]interface{}, fuse.RootInodeID+1),
+	}
+
+	// Set up the root inode.
+	fs.inodes[fuse.RootInodeID] = inode.NewDirInode("")
+
+	// Set up invariant checking.
+	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
+
+	ffs = fs
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
