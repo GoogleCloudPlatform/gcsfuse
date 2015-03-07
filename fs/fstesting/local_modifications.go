@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A collection of tests for a file system backed by a GCS bucket, where in
-// most cases we interact with the file system directly for creating and
-// mofiying files (rather than through the side channel of the GCS bucket
-// itself).
+// A collection of tests for a file system backed by a GCS bucket, where we
+// interact with the file system directly for creating and modifying files
+// (rather than through the side channel of the GCS bucket itself).
 //
 // These tests are registered by RegisterFSTests.
 

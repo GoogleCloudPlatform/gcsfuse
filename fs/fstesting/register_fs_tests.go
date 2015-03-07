@@ -105,7 +105,7 @@ func RegisterFSTests(conditionName string, makeBucket func() gcs.Bucket) {
 
 	// A list of empty instances of the test suites we want to register.
 	suitePrototypes := []fsTestInterface{
-		&readOnlyTest{},
+		&foreignModsTest{},
 		&openTest{},
 		&modesTest{},
 		&readWriteTest{},

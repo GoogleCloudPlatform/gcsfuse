@@ -173,7 +173,7 @@ func (t *fsTest) createEmptyObjects(names []string) error {
 // Read-only interaction
 ////////////////////////////////////////////////////////////////////////
 
-type readOnlyTest struct {
+type foreignModsTest struct {
 	fsTest
 }
 
@@ -186,7 +186,7 @@ type readOnlyTest struct {
 // GCS that must be used when interacting with GCS through a side channel
 // rather than through the file system. We set up some objects through a back
 // door, then list repeatedly until we see the state we hope to see.
-func (t *readOnlyTest) readDirUntil(
+func (t *foreignModsTest) readDirUntil(
 	desiredLen int,
 	dir string) (entries []os.FileInfo, err error) {
 	startTime := time.Now()
@@ -229,7 +229,7 @@ func (t *readOnlyTest) readDirUntil(
 	return
 }
 
-func (t *readOnlyTest) EmptyRoot() {
+func (t *foreignModsTest) EmptyRoot() {
 	// ReadDir
 	entries, err := t.readDirUntil(0, t.mfs.Dir())
 	AssertEq(nil, err)
@@ -237,7 +237,7 @@ func (t *readOnlyTest) EmptyRoot() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *readOnlyTest) ContentsInRoot() {
+func (t *foreignModsTest) ContentsInRoot() {
 	// Set up contents.
 	AssertEq(
 		nil,
@@ -323,7 +323,7 @@ func (t *readOnlyTest) ContentsInRoot() {
 	ExpectTrue(e.IsDir())
 }
 
-func (t *readOnlyTest) EmptySubDirectory() {
+func (t *foreignModsTest) EmptySubDirectory() {
 	// Set up an empty directory placeholder called 'bar'.
 	AssertEq(nil, t.createEmptyObjects([]string{"bar/"}))
 
@@ -337,7 +337,7 @@ func (t *readOnlyTest) EmptySubDirectory() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
+func (t *foreignModsTest) ContentsInSubDirectory_PlaceholderPresent() {
 	// Set up contents.
 	AssertEq(
 		nil,
@@ -435,7 +435,7 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderPresent() {
 	ExpectTrue(e.IsDir())
 }
 
-func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderNotPresent() {
+func (t *foreignModsTest) ContentsInSubDirectory_PlaceholderNotPresent() {
 	// Set up contents.
 	AssertEq(
 		nil,
@@ -525,7 +525,7 @@ func (t *readOnlyTest) ContentsInSubDirectory_PlaceholderNotPresent() {
 	ExpectTrue(e.IsDir())
 }
 
-func (t *readOnlyTest) ListDirectoryTwice_NoChange() {
+func (t *foreignModsTest) ListDirectoryTwice_NoChange() {
 	// Set up initial contents.
 	AssertEq(
 		nil,
@@ -551,7 +551,7 @@ func (t *readOnlyTest) ListDirectoryTwice_NoChange() {
 	ExpectEq("foo", entries[1].Name())
 }
 
-func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheStillValid() {
+func (t *foreignModsTest) ListDirectoryTwice_Changed_CacheStillValid() {
 	// Set up initial contents.
 	AssertEq(
 		nil,
@@ -585,7 +585,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheStillValid() {
 	ExpectEq("foo", entries[1].Name())
 }
 
-func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheInvalidated() {
+func (t *foreignModsTest) ListDirectoryTwice_Changed_CacheInvalidated() {
 	// Set up initial contents.
 	AssertEq(
 		nil,
@@ -619,7 +619,7 @@ func (t *readOnlyTest) ListDirectoryTwice_Changed_CacheInvalidated() {
 	ExpectEq("foo", entries[1].Name())
 }
 
-func (t *readOnlyTest) Inodes() {
+func (t *foreignModsTest) Inodes() {
 	// Set up two files and a directory placeholder.
 	AssertEq(
 		nil,
@@ -650,7 +650,7 @@ func (t *readOnlyTest) Inodes() {
 	}
 }
 
-func (t *readOnlyTest) OpenNonExistentFile() {
+func (t *foreignModsTest) OpenNonExistentFile() {
 	_, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertNe(nil, err)
@@ -658,7 +658,7 @@ func (t *readOnlyTest) OpenNonExistentFile() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
-func (t *readOnlyTest) ReadFromFile_Small() {
+func (t *foreignModsTest) ReadFromFile_Small() {
 	const contents = "tacoburritoenchilada"
 	const contentLen = len(contents)
 
@@ -695,7 +695,7 @@ func (t *readOnlyTest) ReadFromFile_Small() {
 	ExpectEq("enchilada", s)
 }
 
-func (t *readOnlyTest) ReadFromFile_Large() {
+func (t *foreignModsTest) ReadFromFile_Large() {
 	const contentLen = 1 << 20
 	contents := randString(contentLen)
 
@@ -744,7 +744,7 @@ func (t *readOnlyTest) ReadFromFile_Large() {
 	}
 }
 
-func (t *readOnlyTest) ReadBeyondEndOfFile() {
+func (t *foreignModsTest) ReadBeyondEndOfFile() {
 	const contents = "tacoburritoenchilada"
 	const contentLen = len(contents)
 
