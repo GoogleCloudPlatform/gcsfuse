@@ -21,6 +21,6 @@ import (
 )
 
 // Create a fuse file system whose root directory is the root of the supplied
-// bucket. The supplied clock will be used for cache invalidation; it is *not*
-// used for file modification times.
+// bucket. The supplied clock will be used for cache invalidation, modification
+// times, etc.
 func NewFuseFS(clock timeutil.Clock, bucket gcs.Bucket) (fusefs.FS, error)
