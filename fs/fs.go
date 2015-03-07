@@ -28,12 +28,15 @@ import (
 // times, etc.
 func NewFuseFS(
 	clock timeutil.Clock,
-	bucket gcs.Bucket) (fs fuse.FileSystem, err error) {
-	fs = &fileSystem{
+	bucket gcs.Bucket) (ffs fuse.FileSystem, err error) {
+	fs := &fileSystem{
 		clock:  clock,
 		bucket: bucket,
 	}
 
+	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
+
+	ffs = fs
 	return
 }
 
@@ -75,6 +78,12 @@ type fileSystem struct {
 	// GUARDED_BY(mu)
 	freeInodeIDs []fuse.InodeID
 }
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func (fs *fileSystem) checkInvariants()
 
 ////////////////////////////////////////////////////////////////////////
 // fuse.FileSystem methods
