@@ -15,6 +15,9 @@
 package fs
 
 import (
+	"fmt"
+	"io"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/syncutil"
@@ -65,12 +68,12 @@ func newDirHandle(in *inode.DirInode) *dirHandle
 
 func (dh *dirHandle) checkInvariants()
 
-// Read more entries from the inode. On successful exit, dh.entries is empty
-// iff we have hit the end of the directory.
+// Read some entries from the directory inode. Return an error iff zero entries
+// are returned. When the end of the directory is hit, this error will be
+// io.EOF.
 //
-// EXCLUSIVE_LOCKS_REQUIRED(dh.Mu)
-// SHARED_LOCKS_REQUIRED(dh.in.Mu)
-func (dh *dirHandle) readMoreEntries() (err error)
+// SHARED_LOCKS_REQUIRED(in.Mu)
+func readEntries(in *inode) (entries []fuseutil.Dirent, tok string, err error)
 
 ////////////////////////////////////////////////////////////////////////
 // Public interface
@@ -105,13 +108,15 @@ func (dh *dirHandle) ReadDir(
 		dh.tok = ""
 	}
 
-	// Is the offset in range? If not, this represents a seekdir we cannot
-	// support, as discussed above.
+	// Is the offset from before what we have buffered? If not, this represents a
+	// seekdir we cannot support, as discussed in the method comments above.
 	if req.Offset < dh.entriesOffset {
 		err = fuse.EINVAL
 		return
 	}
 
+	// Is the offset past the end of what we have buffered? If so, this must be
+	// an invalid seekdir according to posix.
 	index := int(req.DirOffset - dh.entriesOffset)
 	if index > len(dh.entries) {
 		err = fuse.EINVAL
@@ -120,18 +125,37 @@ func (dh *dirHandle) ReadDir(
 
 	// Do we need to read more entries?
 	if index == len(dh.entries) {
-		if err = dh.readMoreEntries(); err != nil {
+		newEntries, newTok, err := readEntries(dh.in)
+
+		// For EOF we simply return an empty listing.
+		if err == io.EOF {
+			err = nil
 			return
 		}
 
-		// Have we hit the end of the directory?
-		if len(dh.entries) == 0 {
+		// Propagate other errors.
+		if err != nil {
+			err = fmt.Errorf("readEntries: %v", err)
 			return
 		}
 
-		// Otherwise, update the index.
+		// Update state.
+		dh.entriesOffset += len(dh.entries)
+		dh.entries = newEntries
+		dh.tok = newTok
+
+		// Now we want to read from the front of dh.entries.
 		index = 0
 	}
 
-	// TODO: Now we can just copy out entries.
+	// Now we copy out entries until we run out of entries or space.
+	for i := index; i < len(dh.entries); i++ {
+		resp.Data = fuseutil.AppendDirent(resp.Data, dh.entries[i])
+		if resp.Data > req.Size {
+			resp.Data = resp.Data[:req.Size]
+			break
+		}
+	}
+
+	return
 }
