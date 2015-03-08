@@ -60,7 +60,17 @@ type dirHandle struct {
 }
 
 // Create a directory handle that obtains listings from the supplied inode.
-func newDirHandle(in *inode.DirInode) *dirHandle
+func newDirHandle(in *inode.DirInode) (dh *dirHandle) {
+	// Set up the basic struct.
+	dh = &dirHandle{
+		in: in,
+	}
+
+	// Set up invariant checking.
+	dh.Mu = syncutil.NewInvariantMutex(dh.checkInvariants)
+
+	return
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
