@@ -74,8 +74,9 @@ func (dh *dirHandle) checkInvariants()
 //
 // SHARED_LOCKS_REQUIRED(in.Mu)
 func readEntries(
-	in *inode,
-	firstEntryOffset int) (entries []fuseutil.Dirent, tok string, err error)
+	in *inode.DirInode,
+	firstEntryOffset fuse.DirOffset) (
+	entries []fuseutil.Dirent, tok string, err error)
 
 ////////////////////////////////////////////////////////////////////////
 // Public interface
@@ -99,8 +100,8 @@ func (dh *dirHandle) ReadDir(
 	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {
 	resp = &fuse.ReadDirResponse{}
 
-	dh.in.RLock()
-	defer dh.in.RUnlock()
+	dh.in.Mu.RLock()
+	defer dh.in.Mu.RUnlock()
 
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
@@ -119,7 +120,7 @@ func (dh *dirHandle) ReadDir(
 
 	// Is the offset past the end of what we have buffered? If so, this must be
 	// an invalid seekdir according to posix.
-	index := int(req.DirOffset - dh.entriesOffset)
+	index := int(req.Offset - dh.entriesOffset)
 	if index > len(dh.entries) {
 		err = fuse.EINVAL
 		return
@@ -127,9 +128,12 @@ func (dh *dirHandle) ReadDir(
 
 	// Do we need to read more entries?
 	if index == len(dh.entries) {
-		newEntries, newTok, err := readEntries(
+		var newEntries []fuseutil.Dirent
+		var newTok string
+
+		newEntries, newTok, err = readEntries(
 			dh.in,
-			dh.entriesOffset+len(dh.entries))
+			dh.entriesOffset+fuse.DirOffset(len(dh.entries)))
 
 		// For EOF we simply return an empty listing.
 		if err == io.EOF {
@@ -144,7 +148,7 @@ func (dh *dirHandle) ReadDir(
 		}
 
 		// Update state.
-		dh.entriesOffset += len(dh.entries)
+		dh.entriesOffset += fuse.DirOffset(len(dh.entries))
 		dh.entries = newEntries
 		dh.tok = newTok
 
@@ -155,7 +159,7 @@ func (dh *dirHandle) ReadDir(
 	// Now we copy out entries until we run out of entries or space.
 	for i := index; i < len(dh.entries); i++ {
 		resp.Data = fuseutil.AppendDirent(resp.Data, dh.entries[i])
-		if resp.Data > req.Size {
+		if len(resp.Data) > req.Size {
 			resp.Data = resp.Data[:req.Size]
 			break
 		}

@@ -78,7 +78,7 @@ func NewFileSystem(
 	}
 
 	// Set up the root inode.
-	fs.inodes[fuse.RootInodeID] = inode.NewDirInode("")
+	fs.inodes[fuse.RootInodeID] = inode.NewDirInode(bucket, "")
 
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
