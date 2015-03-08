@@ -16,13 +16,22 @@ package inode
 
 import (
 	"fmt"
+	"path"
 
 	"github.com/jacobsa/fuse/fuseutil"
+	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
+	"google.golang.org/cloud/storage"
 )
 
 type DirInode struct {
+	/////////////////////////
+	// Dependencies
+	/////////////////////////
+
+	bucket gcs.Bucket
+
 	/////////////////////////
 	// Constant data
 	/////////////////////////
@@ -47,10 +56,11 @@ type DirInode struct {
 // must be empty.
 //
 // REQUIRES: name == "" || name[len(name)-1] == '/'
-func NewDirInode(name string) (d *DirInode) {
+func NewDirInode(bucket gcs.Bucket, name string) (d *DirInode) {
 	// Set up the basic struct.
 	d = &DirInode{
-		name: name,
+		bucket: bucket,
+		name:   name,
 	}
 
 	// Set up invariant checking.
@@ -87,4 +97,46 @@ func (d *DirInode) checkInvariants() {
 // SHARED_LOCKS_REQUIRED(d.Mu)
 func (d *DirInode) ReadEntries(
 	ctx context.Context,
-	tok string) (entries []fuseutil.Dirent, newTok string)
+	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
+	// Ask the bucket to list some objects.
+	query := &storage.Query{
+		Delimiter: "/",
+		Prefix:    d.name,
+		Cursor:    tok,
+	}
+
+	listing, err := d.bucket.ListObjects(ctx, query)
+	if err != nil {
+		err = fmt.Errorf("ListObjects: %v", err)
+		return
+	}
+
+	// Convert objects to entries for files.
+	for _, o := range listing.Results {
+		e := fuseutil.Dirent{
+			Inode: GenerateFileInodeID(o.Name, o.Generation),
+			Name:  path.Base(o.Name),
+			Type:  fuseutil.DT_File,
+		}
+
+		entries = append(entries, e)
+	}
+
+	// Convert prefixes to entries for directories.
+	for _, p := range listing.Prefixes {
+		e := fuseutil.Dirent{
+			Inode: GenerateDirInodeID(p),
+			Name:  path.Base(p),
+			Type:  fuseutil.DT_Directory,
+		}
+
+		entries = append(entries, e)
+	}
+
+	// Return an appropriate continuation token, if any.
+	if listing.Next != nil {
+		newTok = listing.Next.Cursor
+	}
+
+	return
+}
