@@ -82,6 +82,8 @@ func (d *DirInode) checkInvariants() {
 // Otherwise it will be non-empty. There is no guarantee about the number of
 // entries returned; it may be zero even with a non-empty continuation token.
 //
+// The contents of the Offset field for returned entries is undefined.
+//
 // SHARED_LOCKS_REQUIRED(d.Mu)
 func (d *DirInode) ReadEntries(
 	ctx context.Context,

@@ -73,7 +73,9 @@ func (dh *dirHandle) checkInvariants()
 // io.EOF.
 //
 // SHARED_LOCKS_REQUIRED(in.Mu)
-func readEntries(in *inode) (entries []fuseutil.Dirent, tok string, err error)
+func readEntries(
+	in *inode,
+	firstEntryOffset int) (entries []fuseutil.Dirent, tok string, err error)
 
 ////////////////////////////////////////////////////////////////////////
 // Public interface
@@ -125,7 +127,9 @@ func (dh *dirHandle) ReadDir(
 
 	// Do we need to read more entries?
 	if index == len(dh.entries) {
-		newEntries, newTok, err := readEntries(dh.in)
+		newEntries, newTok, err := readEntries(
+			dh.in,
+			dh.entriesOffset+len(dh.entries))
 
 		// For EOF we simply return an empty listing.
 		if err == io.EOF {
