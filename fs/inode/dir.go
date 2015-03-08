@@ -92,7 +92,8 @@ func (d *DirInode) checkInvariants() {
 // Otherwise it will be non-empty. There is no guarantee about the number of
 // entries returned; it may be zero even with a non-empty continuation token.
 //
-// The contents of the Offset field for returned entries is undefined.
+// The contents of the Offset and Inode fields for returned entries is
+// undefined.
 //
 // SHARED_LOCKS_REQUIRED(d.Mu)
 func (d *DirInode) ReadEntries(
@@ -114,9 +115,8 @@ func (d *DirInode) ReadEntries(
 	// Convert objects to entries for files.
 	for _, o := range listing.Results {
 		e := fuseutil.Dirent{
-			Inode: GenerateFileInodeID(o.Name, o.Generation),
-			Name:  path.Base(o.Name),
-			Type:  fuseutil.DT_File,
+			Name: path.Base(o.Name),
+			Type: fuseutil.DT_File,
 		}
 
 		entries = append(entries, e)
@@ -125,9 +125,8 @@ func (d *DirInode) ReadEntries(
 	// Convert prefixes to entries for directories.
 	for _, p := range listing.Prefixes {
 		e := fuseutil.Dirent{
-			Inode: GenerateDirInodeID(p),
-			Name:  path.Base(p),
-			Type:  fuseutil.DT_Directory,
+			Name: path.Base(p),
+			Type: fuseutil.DT_Directory,
 		}
 
 		entries = append(entries, e)
