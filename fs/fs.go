@@ -219,34 +219,19 @@ func (fs *fileSystem) getAttributes(
 	return
 }
 
-// Finish the LookUpInode process for a directory with the given object record.
+// Find a directory inode for the given object record. Create one if there
+// isn't already one available.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
-func (fs *fileSystem) lookUpDirInode(
+func (fs *fileSystem) lookUpOrCreateDirInode(
 	ctx context.Context,
-	o *storage.Object) (resp *fuse.LookUpInodeResponse, err error) {
+	o *storage.Object) (in *inode.DirInode, err error) {
 	// Do we already have an inode for this name?
-	if in := fs.dirNameIndex[o.Name]; in != nil {
-		resp.Entry.Child = in.ID()
-
-		if resp.Entry.Attributes, err = in.Attributes(ctx); err != nil {
-			return
-		}
-
+	if in = fs.dirNameIndex[o.Name]; in != nil {
 		return
 	}
 
 	err = errors.New("TODO(jacobsa): Mint an inode.")
-	return
-}
-
-// Finish the LookUpInode process for a file with the given object record.
-//
-// EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
-func (fs *fileSystem) lookUpFileInode(
-	ctx context.Context,
-	o *storage.Object) (resp *fuse.LookUpInodeResponse, err error) {
-	err = errors.New("TODO(jacobsa): Implement lookUpFileInode.")
 	return
 }
 
@@ -285,12 +270,25 @@ func (fs *fileSystem) LookUpInode(
 		return
 	}
 
-	// Is the child a directory or a file?
+	// Is the child a directory?
 	if isDirName(o.Name) {
-		return fs.lookUpDirInode(ctx, o)
+		var in *inode.DirInode
+		in, err = fs.lookUpOrCreateDirInode(ctx, o)
+		if err != nil {
+			return
+		}
+
+		resp.Entry.Child = in.ID()
+		if resp.Entry.Attributes, err = in.Attributes(ctx); err != nil {
+			return
+		}
+
+		return
 	}
 
-	return fs.lookUpFileInode(ctx, o)
+	// The child is a file.
+	err = errors.New("TODO(jacobsa): Handle files in the same way.")
+	return
 }
 
 func (fs *fileSystem) GetInodeAttributes(
