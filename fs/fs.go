@@ -247,10 +247,10 @@ func (fs *fileSystem) getDirForReadingOrDie(
 	return
 }
 
-// Get attributes for the given directory inode, fixing up ownership information.
+// Get attributes for the inode, fixing up ownership information.
 //
 // SHARED_LOCKS_REQUIRED(fs.mu)
-// SHARED_LOCK_FUNCTION(d.mu)
+// SHARED_LOCKS_REQUIRED(d.mu)
 func (fs *fileSystem) getAttributes(
 	ctx context.Context,
 	d *inode.DirInode) (attrs fuse.InodeAttributes, err error) {
