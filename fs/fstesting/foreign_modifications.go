@@ -22,6 +22,7 @@ package fstesting
 
 import (
 	"encoding/hex"
+	"errors"
 	"io"
 	"io/ioutil"
 	"log"
@@ -203,6 +204,7 @@ func (t *foreignModsTest) readDirUntil(
 
 		// Should we stop?
 		if time.Now().After(endTime) {
+			err = errors.New("Timeout waiting for the given length.")
 			break
 		}
 
@@ -265,21 +267,13 @@ func (t *foreignModsTest) ContentsInRoot() {
 					},
 					Contents: "burrito",
 				},
-
-				// File in sub-directory
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "qux/asdf",
-					},
-					Contents: "",
-				},
 			}))
 
 	// ReadDir
-	entries, err := t.readDirUntil(4, t.mfs.Dir())
+	entries, err := t.readDirUntil(3, t.mfs.Dir())
 	AssertEq(nil, err)
 
-	AssertEq(4, len(entries), "Names: %v", getFileNames(entries))
+	AssertEq(3, len(entries), "Names: %v", getFileNames(entries))
 	var e os.FileInfo
 
 	// bar
@@ -311,16 +305,6 @@ func (t *foreignModsTest) ContentsInRoot() {
 		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
 		"ModTime: %v", e.ModTime())
 	ExpectFalse(e.IsDir())
-
-	// qux
-	e = entries[3]
-	ExpectEq("qux", e.Name())
-	ExpectEq(0, e.Size())
-	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
-	ExpectTrue(e.IsDir())
 }
 
 func (t *foreignModsTest) EmptySubDirectory() {
@@ -338,7 +322,32 @@ func (t *foreignModsTest) EmptySubDirectory() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *foreignModsTest) ContentsInSubDirectory_PlaceholderPresent() {
+func (t *foreignModsTest) UnreachableObjects() {
+	// Set up objects that appear to be directory contents, but for which there
+	// is no directory object.
+	_, err := gcsutil.CreateEmptyObjects(
+		t.ctx,
+		t.bucket,
+		[]string{
+			"foo/0",
+			"foo/1",
+			"bar/0/",
+		})
+
+	AssertEq(nil, err)
+
+	// Nothing should show up in the root.
+	_, err = t.readDirUntil(0, path.Join(t.mfs.Dir()))
+	AssertEq(nil, err)
+
+	// Statting the directories shouldn't work.
+	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertNe(nil, err)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+}
+
+func (t *foreignModsTest) ContentsInSubDirectory() {
 	// Set up contents.
 	AssertEq(
 		nil,
@@ -374,14 +383,6 @@ func (t *foreignModsTest) ContentsInSubDirectory_PlaceholderPresent() {
 					},
 					Contents: "burrito",
 				},
-
-				// File in sub-directory
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "dir/qux/asdf",
-					},
-					Contents: "",
-				},
 			}))
 
 	// Wait for the directory to show up in the file system.
@@ -389,10 +390,10 @@ func (t *foreignModsTest) ContentsInSubDirectory_PlaceholderPresent() {
 	AssertEq(nil, err)
 
 	// ReadDir
-	entries, err := t.readDirUntil(4, path.Join(t.mfs.Dir(), "dir"))
+	entries, err := t.readDirUntil(3, path.Join(t.mfs.Dir(), "dir"))
 	AssertEq(nil, err)
 
-	AssertEq(4, len(entries), "Names: %v", getFileNames(entries))
+	AssertEq(3, len(entries), "Names: %v", getFileNames(entries))
 	var e os.FileInfo
 
 	// bar
@@ -424,106 +425,6 @@ func (t *foreignModsTest) ContentsInSubDirectory_PlaceholderPresent() {
 		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
 		"ModTime: %v", e.ModTime())
 	ExpectFalse(e.IsDir())
-
-	// qux
-	e = entries[3]
-	ExpectEq("qux", e.Name())
-	ExpectEq(0, e.Size())
-	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
-	ExpectTrue(e.IsDir())
-}
-
-func (t *foreignModsTest) ContentsInSubDirectory_PlaceholderNotPresent() {
-	// Set up contents.
-	AssertEq(
-		nil,
-		t.createObjects(
-			[]*gcsutil.ObjectInfo{
-				// File
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "dir/foo",
-					},
-					Contents: "taco",
-				},
-
-				// Directory
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "dir/bar/",
-					},
-				},
-
-				// File
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "dir/baz",
-					},
-					Contents: "burrito",
-				},
-
-				// File in sub-directory
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "dir/qux/asdf",
-					},
-					Contents: "",
-				},
-			}))
-
-	// Wait for the directory to show up in the file system.
-	_, err := t.readDirUntil(1, path.Join(t.mfs.Dir()))
-	AssertEq(nil, err)
-
-	// ReadDir
-	entries, err := t.readDirUntil(4, path.Join(t.mfs.Dir(), "dir"))
-	AssertEq(nil, err)
-
-	AssertEq(4, len(entries), "Names: %v", getFileNames(entries))
-	var e os.FileInfo
-
-	// bar
-	e = entries[0]
-	ExpectEq("bar", e.Name())
-	ExpectEq(0, e.Size())
-	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
-	ExpectTrue(e.IsDir())
-
-	// baz
-	e = entries[1]
-	ExpectEq("baz", e.Name())
-	ExpectEq(len("burrito"), e.Size())
-	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
-	ExpectFalse(e.IsDir())
-
-	// foo
-	e = entries[2]
-	ExpectEq("foo", e.Name())
-	ExpectEq(len("taco"), e.Size())
-	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
-	ExpectFalse(e.IsDir())
-
-	// qux
-	e = entries[3]
-	ExpectEq("qux", e.Name())
-	ExpectEq(0, e.Size())
-	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
-	ExpectTrue(e.IsDir())
 }
 
 func (t *foreignModsTest) ListDirectoryTwice_NoChange() {

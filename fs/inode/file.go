@@ -15,25 +15,25 @@
 package inode
 
 import (
-	"errors"
-
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
+	"google.golang.org/cloud/storage"
 )
 
 type FileInode struct {
 	/////////////////////////
+	// Dependencies
+	/////////////////////////
+
+	bucket gcs.Bucket
+
+	/////////////////////////
 	// Constant data
 	/////////////////////////
 
-	id fuse.InodeID
-
-	// The name of the GCS object backing the inode. This may or may not yet
-	// exist.
-	//
-	// INVARIANT: name != ""
-	// INVARIANT: name[len(name)-1] != '/'
+	id   fuse.InodeID
 	name string
 
 	/////////////////////////
@@ -42,21 +42,61 @@ type FileInode struct {
 
 	// A mutex that must be held when calling certain methods. See documentation
 	// for each method.
-	Mu syncutil.InvariantMutex
+	mu syncutil.InvariantMutex
 
-	// The generation number of the GCS object from which this inode was
-	// branched, or zero if it is newly created. This is used as a precondition
-	// in object write requests.
+	// A record for the object from which this inode was branched. The object's
+	// generation is used as a precondition in object write requests.
 	//
-	// GUARDED_BY(Mu)
-	srcGeneration uint64
+	// GUARDED_BY(mu)
+	srcObject storage.Object
 }
 
 var _ Inode = &FileInode{}
 
+// Create a file inode for the given object in GCS.
+//
+// REQUIRES: o != nil
+// REQUIRES: len(o.Name) > 0
+// REQUIRES: o.Name[len(o.Name)-1] != '/'
+func NewFileInode(
+	bucket gcs.Bucket,
+	id fuse.InodeID,
+	o *storage.Object) (f *FileInode) {
+	// Set up the basic struct.
+	f = &FileInode{
+		bucket:    bucket,
+		id:        id,
+		name:      o.Name,
+		srcObject: *o,
+	}
+
+	// Set up invariant checking.
+	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func (f *FileInode) checkInvariants() {
+	if len(f.name) == 0 || f.name[len(f.name)-1] == '/' {
+		panic("Illegal file name: " + f.name)
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
+
+func (f *FileInode) Lock() {
+	f.mu.Lock()
+}
+
+func (f *FileInode) Unlock() {
+	f.mu.Unlock()
+}
 
 func (f *FileInode) ID() fuse.InodeID {
 	return f.id
@@ -68,6 +108,23 @@ func (f *FileInode) Name() string {
 
 func (f *FileInode) Attributes(
 	ctx context.Context) (attrs fuse.InodeAttributes, err error) {
-	err = errors.New("TODO(jacobsa): Implement FileInode.Attributes.")
+	attrs = fuse.InodeAttributes{
+		Size: uint64(f.srcObject.Size),
+		Mode: 0700,
+	}
+
 	return
+}
+
+// Return the generation number from which this inode was branched. This is
+// used as a precondition in object write requests.
+//
+// TODO(jacobsa): Make sure to add a test for opening a file with O_CREAT then
+// opening it again for reading, and sharing data across the two descriptors.
+// This should fail if we have screwed up the fuse lookup process with regards
+// to the zero generation.
+//
+// SHARED_LOCKS_REQUIRED(f.mu)
+func (f *FileInode) SourceGeneration() int64 {
+	return f.srcObject.Generation
 }
