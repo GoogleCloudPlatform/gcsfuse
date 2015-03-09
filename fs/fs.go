@@ -78,7 +78,7 @@ type fileSystem struct {
 	// type *inode.DirHandle.
 	//
 	// GUARDED_BY(mu)
-	dirNameIndex map[string]*inode.DirHandle
+	dirNameIndex map[string]*inode.DirInode
 
 	// The collection of live handles, keyed by handle ID.
 	//
@@ -140,7 +140,7 @@ func (fs *fileSystem) checkInvariants() {
 	dirsSeen := 0
 	filesSeen := 0
 	for _, in := range fs.inodes {
-		switch in.(type) {
+		switch typed := in.(type) {
 		case *inode.DirInode:
 			dirsSeen++
 			if fs.dirNameIndex[typed.Name()] != typed {
@@ -156,11 +156,11 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	// Make sure that the indexes are exhaustive.
-	if len(dirNameIndex) != dirsSeen {
+	if len(fs.dirNameIndex) != dirsSeen {
 		panic(
 			fmt.Sprintf(
 				"dirNameIndex length mismatch: %v vs. %v",
-				len(dirNameIndex),
+				len(fs.dirNameIndex),
 				dirsSeen))
 	}
 
