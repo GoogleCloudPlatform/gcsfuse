@@ -311,7 +311,7 @@ func (fs *fileSystem) lookUpOrCreateFileInode(
 	fs.nextInodeID++
 
 	// Create and index an inode.
-	in = inode.NewFileInode(fs.bucket, id, o.Name, o.Generation)
+	in = inode.NewFileInode(fs.bucket, id, o)
 	fs.inodes[id] = in
 	fs.fileIndex[nandg] = in
 

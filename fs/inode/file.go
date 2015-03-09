@@ -21,6 +21,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
+	"google.golang.org/cloud/storage"
 )
 
 type FileInode struct {
@@ -34,13 +35,7 @@ type FileInode struct {
 	// Constant data
 	/////////////////////////
 
-	id fuse.InodeID
-
-	// The name of the GCS object backing the inode. This may or may not yet
-	// exist.
-	//
-	// INVARIANT: name != ""
-	// INVARIANT: name[len(name)-1] != '/'
+	id   fuse.InodeID
 	name string
 
 	/////////////////////////
@@ -51,32 +46,30 @@ type FileInode struct {
 	// for each method.
 	Mu syncutil.InvariantMutex
 
-	// The generation number of the GCS object from which this inode was
-	// branched, or zero if it is newly created. This is used as a precondition
-	// in object write requests.
+	// A record for the object from which this inode was branched. The object's
+	// generation is used as a precondition in object write requests.
 	//
 	// GUARDED_BY(Mu)
-	srcGeneration int64
+	srcObject storage.Object
 }
 
 var _ Inode = &FileInode{}
 
-// Create a file inode for the object with the given name and generation. The
-// name must be non-empty and must not end with a slash.
+// Create a file inode for the given object in GCS.
 //
-// REQUIRES: len(name) > 0
-// REQUIRES: name[len(name)-1] != '/'
+// REQUIRES: o != nil
+// REQUIRES: len(o.Name) > 0
+// REQUIRES: o.Name[len(o.Name)-1] != '/'
 func NewFileInode(
 	bucket gcs.Bucket,
 	id fuse.InodeID,
-	name string,
-	generation int64) (f *FileInode) {
+	o *storage.Object) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
-		bucket:        bucket,
-		id:            id,
-		name:          name,
-		srcGeneration: generation,
+		bucket:    bucket,
+		id:        id,
+		name:      o.Name,
+		srcObject: *o,
 	}
 
 	// Set up invariant checking.
@@ -113,17 +106,15 @@ func (f *FileInode) Attributes(
 	return
 }
 
-// Return the generation number from which this inode was branched, or zero if
-// it is newly created. This is used as a precondition in object write
-// requests.
+// Return the generation number from which this inode was branched. This is
+// used as a precondition in object write requests.
 //
 // TODO(jacobsa): Make sure to add a test for opening a file with O_CREAT then
 // opening it again for reading, and sharing data across the two descriptors.
 // This should fail if we have screwed up the fuse lookup process with regards
-// to the zero generation. We probably want to make this always non-zero (add
-// an invariant) by creating an empty object when opening with O_CREAT.
+// to the zero generation.
 //
 // SHARED_LOCKS_REQUIRED(f.Mu)
 func (f *FileInode) SourceGeneration() int64 {
-	return f.srcGeneration
+	return f.srcObject.Generation
 }
