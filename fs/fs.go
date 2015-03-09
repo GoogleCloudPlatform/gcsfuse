@@ -58,6 +58,7 @@ type fileSystem struct {
 	//
 	// INVARIANT: All values are of type *inode.DirInode or *inode.FileInode
 	// INVARIANT: For all keys k, k >= fuse.RootInodeID
+	// INVARIANT: For all keys k, inodes[k].ID() == k
 	// INVARIANT: inodes[fuse.RootInodeID] is of type *inode.DirInode
 	//
 	// GUARDED_BY(mu)
@@ -150,7 +151,13 @@ func (fs *fileSystem) checkInvariants() {
 	// seen.
 	dirsSeen := 0
 	filesSeen := 0
-	for _, in := range fs.inodes {
+	for id, in := range fs.inodes {
+		// Check the ID.
+		if in.ID() != id {
+			panic(fmt.Sprintf("ID mismatch: %v vs. %v", in.ID(), id))
+		}
+
+		// Check type-specific stuff.
 		switch typed := in.(type) {
 		case *inode.DirInode:
 			if !isDirName(typed.Name()) {
