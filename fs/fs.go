@@ -238,7 +238,15 @@ func (fs *fileSystem) lookUpOrCreateDirInode(
 		return
 	}
 
-	err = errors.New("TODO(jacobsa): Mint an inode.")
+	// Mint an ID.
+	id := fs.nextInodeID
+	fs.nextInodeID++
+
+	// Create and index an inode.
+	in = inode.NewDirInode(fs.bucket, id, o.Name)
+	fs.inodes[id] = in
+	fs.dirNameIndex[in.Name()] = in
+
 	return
 }
 
