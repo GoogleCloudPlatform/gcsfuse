@@ -107,16 +107,23 @@ func (d *DirInode) Attributes(
 // for the current object of that name in the GCS bucket. If both a file and a
 // directory with the given name exist, be consistent from call to call about
 // which is preferred. Return fuse.ENOENT if neither is found.
-func (d *DirInode) LookUpChild(name string) (o *storage.Object, err error) {
+func (d *DirInode) LookUpChild(
+	ctx context.Context,
+	name string) (o *storage.Object, err error) {
 	// See if the child is a directory first.
-	o, err = d.bucket.StatObject(d.name + name + "/")
+	statReq := &gcs.StatObjectRequest{
+		Name: d.name + name + "/",
+	}
+
+	o, err = d.bucket.StatObject(ctx, statReq)
 	if err != nil && err != gcs.ErrNotFound {
 		err = fmt.Errorf("StatObject: %v", err)
 		return
 	}
 
 	// Try again as a file.
-	o, err = d.bucket.StatObject(d.name + name)
+	statReq.Name = d.name + name
+	o, err = d.bucket.StatObject(ctx, statReq)
 
 	if err == gcs.ErrNotFound {
 		err = fuse.ENOENT
