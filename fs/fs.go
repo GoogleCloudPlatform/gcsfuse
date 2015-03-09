@@ -61,7 +61,7 @@ type fileSystem struct {
 	// INVARIANT: inodes[fuse.RootInodeID] is of type *inode.DirInode
 	//
 	// GUARDED_BY(mu)
-	inodes map[fuse.InodeID]interface{}
+	inodes map[fuse.InodeID]inode.Inode
 
 	// The next inode ID to hand out. We assume that this will never overflow,
 	// since even if we were handing out inode IDs at 4 GHz, it would still take
@@ -270,24 +270,24 @@ func (fs *fileSystem) LookUpInode(
 		return
 	}
 
-	// Is the child a directory?
+	// Is the child a directory or a file?
+	var in inode.Inode
 	if isDirName(o.Name) {
-		var in *inode.DirInode
 		in, err = fs.lookUpOrCreateDirInode(ctx, o)
-		if err != nil {
-			return
-		}
+	} else {
+		err = errors.New("TODO(jacobsa): Handle files in the same way.")
+	}
 
-		resp.Entry.Child = in.ID()
-		if resp.Entry.Attributes, err = in.Attributes(ctx); err != nil {
-			return
-		}
-
+	if err != nil {
 		return
 	}
 
-	// The child is a file.
-	err = errors.New("TODO(jacobsa): Handle files in the same way.")
+	// Fill out the response.
+	resp.Entry.Child = in.ID()
+	if resp.Entry.Attributes, err = in.Attributes(ctx); err != nil {
+		return
+	}
+
 	return
 }
 
