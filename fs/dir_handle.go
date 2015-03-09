@@ -108,7 +108,7 @@ func readEntries(
 	// Fix up the offset of any entries returned.
 	defer func() {
 		for i := 0; i < len(entries); i++ {
-			entries[i].Offset = firstEntryOffset + fuse.DirOffset(i)
+			entries[i].Offset = firstEntryOffset + 1 + fuse.DirOffset(i)
 		}
 	}()
 
