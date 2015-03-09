@@ -378,21 +378,13 @@ func (fs *fileSystem) GetInodeAttributes(
 	// Find the inode.
 	in := fs.inodes[req.Inode]
 
-	// Grab its attributes.
-	switch typed := in.(type) {
-	case *inode.DirInode:
-		resp.Attributes, err = fs.getAttributes(ctx, typed)
-		if err != nil {
-			err = fmt.Errorf("DirInode.Attributes: %v", err)
-			return
-		}
+	in.Lock()
+	defer in.Unlock()
 
-	default:
-		panic(
-			fmt.Sprintf(
-				"Unknown inode type for ID %v: %v",
-				req.Inode,
-				reflect.TypeOf(in)))
+	// Grab its attributes.
+	resp.Attributes, err = fs.getAttributes(ctx, in)
+	if err != nil {
+		return
 	}
 
 	return
