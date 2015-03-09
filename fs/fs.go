@@ -15,6 +15,7 @@
 package fs
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -224,7 +225,10 @@ func (fs *fileSystem) lookUpDirInode(
 // EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
 func (fs *fileSystem) lookUpFileInode(
 	ctx context.Context,
-	o *storage.Object) (resp *fuse.LookUpInodeResponse, err error)
+	o *storage.Object) (resp *fuse.LookUpInodeResponse, err error) {
+	err = errors.New("TODO(jacobsa): Implement lookUpFileInode.")
+	return
+}
 
 ////////////////////////////////////////////////////////////////////////
 // fuse.FileSystem methods
