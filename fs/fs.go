@@ -219,6 +219,23 @@ func (fs *fileSystem) OpenDir(
 	return
 }
 
+func (fs *fileSystem) ReadDir(
+	ctx context.Context,
+	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	// Find the handle.
+	dh := fs.handles[req.Handle].(*dirHandle)
+	dh.Mu.Lock()
+	defer dh.Mu.Unlock()
+
+	// Serve the request.
+	resp, err = dh.ReadDir(ctx, req)
+
+	return
+}
+
 func (fs *fileSystem) ReleaseDirHandle(
 	ctx context.Context,
 	req *fuse.ReleaseDirHandleRequest) (
