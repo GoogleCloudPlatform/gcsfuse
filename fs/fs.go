@@ -103,15 +103,18 @@ func NewFileSystem(
 	bucket gcs.Bucket) (ffs fuse.FileSystem, err error) {
 	// Set up the basic struct.
 	fs := &fileSystem{
-		clock:       clock,
-		bucket:      bucket,
-		inodes:      make(map[fuse.InodeID]interface{}),
-		nextInodeID: fuse.RootInodeID + 1,
-		handles:     make(map[fuse.HandleID]interface{}),
+		clock:        clock,
+		bucket:       bucket,
+		inodes:       make(map[fuse.InodeID]interface{}),
+		nextInodeID:  fuse.RootInodeID + 1,
+		dirNameIndex: make(map[string]*inode.DirInode),
+		handles:      make(map[fuse.HandleID]interface{}),
 	}
 
 	// Set up the root inode.
-	fs.inodes[fuse.RootInodeID] = inode.NewDirInode(bucket, "")
+	root := inode.NewDirInode(bucket, "")
+	fs.inodes[fuse.RootInodeID] = root
+	fs.dirNameIndex[""] = root
 
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
