@@ -66,7 +66,19 @@ type fileSystem struct {
 	// over a century to do so.
 	//
 	// INVARIANT: For all keys k in inodes, k < nextInodeID
+	//
+	// GUARDED_BY(mu)
 	nextInodeID fuse.InodeID
+
+	// An index of all directory inodes by Name().
+	//
+	// INVARIANT: For each key k, dirNameIndex[k].Name() == k
+	//
+	// INVARIANT: The values are all and only the values of the inodes map of
+	// type *inode.DirHandle.
+	//
+	// GUARDED_BY(mu)
+	dirNameIndex map[string]*inode.DirHandle
 
 	// The collection of live handles, keyed by handle ID.
 	//
@@ -78,6 +90,8 @@ type fileSystem struct {
 	// The next handle ID to hand out. We assume that this will never overflow.
 	//
 	// INVARIANT: For all keys k in handles, k < nextHandleID
+	//
+	// GUARDED_BY(mu)
 	nextHandleID fuse.HandleID
 }
 
@@ -121,15 +135,33 @@ func (fs *fileSystem) checkInvariants() {
 	// Check the root inode.
 	_ = fs.inodes[fuse.RootInodeID].(*inode.DirInode)
 
-	// Check the type of each inode.
+	// Check each inode, and the indexes over them. Keep a count of each type
+	// seen.
+	dirsSeen := 0
+	filesSeen := 0
 	for _, in := range fs.inodes {
 		switch in.(type) {
 		case *inode.DirInode:
+			dirsSeen++
+			if fs.dirNameIndex[typed.Name()] != typed {
+				panic(fmt.Sprintf("dirNameIndex mismatch: %s", typed.Name()))
+			}
+
 		case *inode.FileInode:
+			filesSeen++
 
 		default:
 			panic(fmt.Sprintf("Unexpected inode type: %v", reflect.TypeOf(in)))
 		}
+	}
+
+	// Make sure that the indexes are exhaustive.
+	if len(dirNameIndex) != dirsSeen {
+		panic(
+			fmt.Sprintf(
+				"dirNameIndex length mismatch: %v vs. %v",
+				len(dirNameIndex),
+				dirsSeen))
 	}
 
 	// Check handles.
@@ -206,9 +238,6 @@ func (fs *fileSystem) GetInodeAttributes(
 	// Grab its attributes.
 	switch typed := in.(type) {
 	case *inode.DirInode:
-		typed.Mu.RLock()
-		defer typed.Mu.RUnlock()
-
 		resp.Attributes, err = fs.getAttributes(ctx, typed)
 		if err != nil {
 			err = fmt.Errorf("DirInode.Attributes: %v", err)
