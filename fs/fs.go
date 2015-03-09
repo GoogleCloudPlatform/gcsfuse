@@ -128,6 +128,8 @@ func NewFileSystem(
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+func isDirName(name string) bool
+
 func (fs *fileSystem) checkInvariants() {
 	// Check inode keys.
 	for id, _ := range fs.inodes {
@@ -213,14 +215,14 @@ func (fs *fileSystem) getAttributes(
 // EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
 func (fs *fileSystem) lookUpDirInode(
 	ctx context.Context,
-	o *storage.Object) (resp *LookUpInodeResponse, err error)
+	o *storage.Object) (resp *fuse.LookUpInodeResponse, err error)
 
 // Finish the LookUpInode process for a file with the given object record.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
 func (fs *fileSystem) lookUpFileInode(
 	ctx context.Context,
-	o *storage.Object) (resp *LookUpInodeResponse, err error)
+	o *storage.Object) (resp *fuse.LookUpInodeResponse, err error)
 
 ////////////////////////////////////////////////////////////////////////
 // fuse.FileSystem methods
@@ -251,7 +253,7 @@ func (fs *fileSystem) LookUpInode(
 	parent := fs.inodes[req.Parent].(*inode.DirInode)
 
 	// Find a record for the child with the given name.
-	o, err := parent.LookUpChild(req.Name)
+	o, err := parent.LookUpChild(ctx, req.Name)
 	if err != nil {
 		err = fmt.Errorf("LookUpChild: %v", err)
 		return
