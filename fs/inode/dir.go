@@ -38,6 +38,8 @@ type DirInode struct {
 	// Constant data
 	/////////////////////////
 
+	id fuse.InodeID
+
 	// The name of the GCS object backing the inode, used as a prefix when
 	// listing. Special case: the empty string means this is the root inode.
 	//
@@ -60,10 +62,14 @@ var _ Inode = &DirInode{}
 // must be empty.
 //
 // REQUIRES: name == "" || name[len(name)-1] == '/'
-func NewDirInode(bucket gcs.Bucket, name string) (d *DirInode) {
+func NewDirInode(
+	bucket gcs.Bucket,
+	id fuse.InodeID,
+	name string) (d *DirInode) {
 	// Set up the basic struct.
 	d = &DirInode{
 		bucket: bucket,
+		id:     id,
 		name:   name,
 	}
 
@@ -89,7 +95,9 @@ func (d *DirInode) checkInvariants() {
 ////////////////////////////////////////////////////////////////////////
 
 // Return the ID of this inode.
-func (d *DirInode) ID() fuse.InodeID
+func (d *DirInode) ID() fuse.InodeID {
+	return d.id
+}
 
 // Return the full name of the directory object in GCS, including the trailing
 // slash (e.g. "foo/bar/").
