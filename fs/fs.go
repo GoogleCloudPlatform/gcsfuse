@@ -87,6 +87,7 @@ func NewFileSystem(
 		bucket:      bucket,
 		inodes:      make(map[fuse.InodeID]interface{}),
 		nextInodeID: fuse.RootInodeID + 1,
+		handles:     make(map[fuse.HandleID]interface{}),
 	}
 
 	// Set up the root inode.
