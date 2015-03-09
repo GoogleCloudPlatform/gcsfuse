@@ -83,4 +83,6 @@ func (f *FileInode) Attributes(
 // an invariant) by creating an empty object when opening with O_CREAT.
 //
 // SHARED_LOCKS_REQUIRED(f.Mu)
-func (f *FileInode) SourceGeneration() uint64
+func (f *FileInode) SourceGeneration() uint64 {
+	return f.srcGeneration
+}
