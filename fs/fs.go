@@ -79,14 +79,23 @@ type fileSystem struct {
 	// An index of all directory inodes by Name().
 	//
 	// INVARIANT: For each key k, isDirName(k)
-	//
 	// INVARIANT: For each key k, dirIndex[k].Name() == k
-	//
 	// INVARIANT: The values are all and only the values of the inodes map of
-	// type *inode.DirHandle.
+	// type *inode.DirInode.
 	//
 	// GUARDED_BY(mu)
 	dirIndex map[string]*inode.DirInode
+
+	// An index of all file inodes by (Name(), SourceGeneration()) pairs.
+	//
+	// INVARIANT: For each key k, !isDirName(k)
+	// INVARIANT: For each key k, fileIndex[k].Name() == k.name
+	// INVARIANT: For each key k, fileIndex[k].SourceGeneration() == k.gen
+	// INVARIANT: The values are all and only the values of the inodes map of
+	// type *inode.FileInode.
+	//
+	// GUARDED_BY(mu)
+	fileIndex map[nameAndGen]*inode.FileInode
 
 	// The collection of live handles, keyed by handle ID.
 	//
@@ -103,6 +112,11 @@ type fileSystem struct {
 	nextHandleID fuse.HandleID
 }
 
+type nameAndGen struct {
+	name string
+	gen  uint64
+}
+
 // Create a fuse file system whose root directory is the root of the supplied
 // bucket. The supplied clock will be used for cache invalidation, modification
 // times, etc.
@@ -116,6 +130,7 @@ func NewFileSystem(
 		inodes:      make(map[fuse.InodeID]inode.Inode),
 		nextInodeID: fuse.RootInodeID + 1,
 		dirIndex:    make(map[string]*inode.DirInode),
+		fileIndex:   make(map[nameAndGen]*inode.FileInode),
 		handles:     make(map[fuse.HandleID]interface{}),
 	}
 
@@ -163,17 +178,31 @@ func (fs *fileSystem) checkInvariants() {
 		// Check type-specific stuff.
 		switch typed := in.(type) {
 		case *inode.DirInode:
+			dirsSeen++
+
 			if !isDirName(typed.Name()) {
 				panic(fmt.Sprintf("Unexpected directory name: %s", typed.Name()))
 			}
 
-			dirsSeen++
 			if fs.dirIndex[typed.Name()] != typed {
 				panic(fmt.Sprintf("dirIndex mismatch: %s", typed.Name()))
 			}
 
 		case *inode.FileInode:
 			filesSeen++
+
+			if isDirName(typed.Name()) {
+				panic(fmt.Sprintf("Unexpected file name: %s", typed.Name()))
+			}
+
+			nandg := nameAndGen{typed.Name(), typed.SourceGeneration()}
+			if fs.fileIndex[nandg] != typed {
+				panic(
+					fmt.Sprintf(
+						"fileIndex mismatch: %s, %v",
+						typed.Name(),
+						typed.SourceGeneration()))
+			}
 
 		default:
 			panic(fmt.Sprintf("Unexpected inode type: %v", reflect.TypeOf(in)))
@@ -186,6 +215,14 @@ func (fs *fileSystem) checkInvariants() {
 			fmt.Sprintf(
 				"dirIndex length mismatch: %v vs. %v",
 				len(fs.dirIndex),
+				dirsSeen))
+	}
+
+	if len(fs.fileIndex) != filesSeen {
+		panic(
+			fmt.Sprintf(
+				"fileIndex length mismatch: %v vs. %v",
+				len(fs.fileIndex),
 				dirsSeen))
 	}
 
