@@ -74,6 +74,8 @@ type fileSystem struct {
 
 	// An index of all directory inodes by Name().
 	//
+	// INVARIANT: For each key k, isDirName(k)
+	//
 	// INVARIANT: For each key k, dirNameIndex[k].Name() == k
 	//
 	// INVARIANT: The values are all and only the values of the inodes map of
@@ -151,6 +153,10 @@ func (fs *fileSystem) checkInvariants() {
 	for _, in := range fs.inodes {
 		switch typed := in.(type) {
 		case *inode.DirInode:
+			if !isDirName(typed.Name()) {
+				panic(fmt.Sprintf("Unexpected directory name: %s", typed.Name()))
+			}
+
 			dirsSeen++
 			if fs.dirNameIndex[typed.Name()] != typed {
 				panic(fmt.Sprintf("dirNameIndex mismatch: %s", typed.Name()))
@@ -218,7 +224,21 @@ func (fs *fileSystem) getAttributes(
 // EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
 func (fs *fileSystem) lookUpDirInode(
 	ctx context.Context,
-	o *storage.Object) (resp *fuse.LookUpInodeResponse, err error)
+	o *storage.Object) (resp *fuse.LookUpInodeResponse, err error) {
+	// Do we already have an inode for this name?
+	if in := fs.dirNameIndex[o.Name]; in != nil {
+		resp.Entry.Child = in.ID()
+
+		if resp.Entry.Attributes, err = in.Attributes(ctx); err != nil {
+			return
+		}
+
+		return
+	}
+
+	err = errors.New("TODO(jacobsa): Mint an inode.")
+	return
+}
 
 // Finish the LookUpInode process for a file with the given object record.
 //

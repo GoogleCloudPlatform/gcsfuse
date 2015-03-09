@@ -86,6 +86,9 @@ func (d *DirInode) checkInvariants() {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
+// Return the ID of this inode.
+func (d *DirInode) ID() fuse.InodeID
+
 // Return the full name of the directory object in GCS, including the trailing
 // slash (e.g. "foo/bar/").
 func (d *DirInode) Name() string {
