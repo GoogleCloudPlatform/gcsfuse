@@ -87,8 +87,6 @@ func (d *DirInode) checkInvariants() {
 ////////////////////////////////////////////////////////////////////////
 
 // Return up to date attributes for the directory.
-//
-// SHARED_LOCKS_REQUIRED(d.Mu)
 func (d *DirInode) Attributes(
 	ctx context.Context) (attrs fuse.InodeAttributes, err error) {
 	attrs = fuse.InodeAttributes{
@@ -109,8 +107,6 @@ func (d *DirInode) Attributes(
 //
 // The contents of the Offset and Inode fields for returned entries is
 // undefined.
-//
-// SHARED_LOCKS_REQUIRED(d.Mu)
 func (d *DirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {

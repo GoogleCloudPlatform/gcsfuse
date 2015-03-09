@@ -99,8 +99,6 @@ func (dh *dirHandle) checkInvariants() {
 // Read some entries from the directory inode. Return newTok == nil (possibly
 // with a non-empty list of entries) when the end of the directory has been
 // hit.
-//
-// SHARED_LOCKS_REQUIRED(in.Mu)
 func readEntries(
 	ctx context.Context,
 	in *inode.DirInode,
@@ -178,14 +176,10 @@ func readEntries(
 // start the listing process over again.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(dh.Mu)
-// LOCKS_EXCLUDED(dh.in.Mu)
 func (dh *dirHandle) ReadDir(
 	ctx context.Context,
 	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {
 	resp = &fuse.ReadDirResponse{}
-
-	dh.in.Mu.RLock()
-	defer dh.in.Mu.RUnlock()
 
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
