@@ -14,12 +14,17 @@
 
 package inode
 
-import "github.com/jacobsa/gcloud/syncutil"
+import (
+	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/gcloud/syncutil"
+)
 
 type FileInode struct {
 	/////////////////////////
 	// Constant data
 	/////////////////////////
+
+	id fuse.InodeID
 
 	// The name of the GCS object backing the inode. This may or may not yet
 	// exist.
@@ -42,4 +47,18 @@ type FileInode struct {
 	//
 	// GUARDED_BY(Mu)
 	srcGeneration uint64
+}
+
+var _ Inode = &FileInode{}
+
+////////////////////////////////////////////////////////////////////////
+// Public interface
+////////////////////////////////////////////////////////////////////////
+
+func (f *FileInode) ID() fuse.InodeID {
+	return f.id
+}
+
+func (f *FileInode) Name() string {
+	return f.name
 }
