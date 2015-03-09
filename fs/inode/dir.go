@@ -53,6 +53,8 @@ type DirInode struct {
 	Mu syncutil.InvariantMutex
 }
 
+var _ Inode = &DirInode{}
+
 // Create a directory inode for the directory with the given name. The name
 // must end with a slash unless this is the root directory, in which case it
 // must be empty.
