@@ -88,7 +88,9 @@ func (d *DirInode) checkInvariants() {
 
 // Return the full name of the directory object in GCS, including the trailing
 // slash (e.g. "foo/bar/").
-func (d *DirInode) Name() string
+func (d *DirInode) Name() string {
+	return d.name
+}
 
 // Return up to date attributes for the directory.
 func (d *DirInode) Attributes(
