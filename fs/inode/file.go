@@ -15,8 +15,6 @@
 package inode
 
 import (
-	"errors"
-
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
@@ -110,7 +108,11 @@ func (f *FileInode) Name() string {
 
 func (f *FileInode) Attributes(
 	ctx context.Context) (attrs fuse.InodeAttributes, err error) {
-	err = errors.New("TODO(jacobsa): Implement FileInode.Attributes.")
+	attrs = fuse.InodeAttributes{
+		Size: uint64(f.srcObject.Size),
+		Mode: 0700,
+	}
+
 	return
 }
 
