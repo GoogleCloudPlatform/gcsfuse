@@ -16,7 +16,6 @@ package fs
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -53,7 +52,9 @@ type dirHandle struct {
 	// GUARDED_BY(Mu)
 	entriesOffset fuse.DirOffset
 
-	// The continuation token to supply in the next call to in.ReadEntries.
+	// The continuation token to supply in the next call to in.ReadEntries. If
+	// empty, we have finished reading the directory and must be rewound to
+	// obtain more entries.
 	//
 	// GUARDED_BY(Mu)
 	tok string
@@ -94,9 +95,9 @@ func (dh *dirHandle) checkInvariants() {
 	}
 }
 
-// Read some entries from the directory inode. Return an error if zero entries
-// are returned. When the end of the directory is hit, this error will be
-// io.EOF.
+// Read some entries from the directory inode. Return newTok == "" (possibly
+// with a non-empty list of entries) when the end of the directory has been
+// hit.
 //
 // SHARED_LOCKS_REQUIRED(in.Mu)
 func readEntries(
@@ -128,7 +129,6 @@ func readEntries(
 
 		// If we're at the end of the directory, we're done.
 		if newTok == "" {
-			err = io.EOF
 			return
 		}
 
@@ -185,24 +185,18 @@ func (dh *dirHandle) ReadDir(
 		return
 	}
 
-	// Do we need to read more entries?
-	if index == len(dh.entries) {
+	// Do we need to read more entries, and can we?
+	if index == len(dh.entries) && dh.tok != "" {
 		var newEntries []fuseutil.Dirent
 		var newTok string
 
+		// Read some entries.
 		newEntries, newTok, err = readEntries(
 			ctx,
 			dh.in,
 			dh.tok,
 			dh.entriesOffset+fuse.DirOffset(len(dh.entries)))
 
-		// For EOF we simply return an empty listing.
-		if err == io.EOF {
-			err = nil
-			return
-		}
-
-		// Propagate other errors.
 		if err != nil {
 			err = fmt.Errorf("readEntries: %v", err)
 			return
