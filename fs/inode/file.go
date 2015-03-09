@@ -89,7 +89,11 @@ func NewFileInode(
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func (f *FileInode) checkInvariants()
+func (f *FileInode) checkInvariants() {
+	if len(f.name) == 0 || f.name[len(f.name)-1] == '/' {
+		panic("Illegal file name: " + f.name)
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Public interface
