@@ -80,13 +80,13 @@ type fileSystem struct {
 	//
 	// INVARIANT: For each key k, isDirName(k)
 	//
-	// INVARIANT: For each key k, dirNameIndex[k].Name() == k
+	// INVARIANT: For each key k, dirIndex[k].Name() == k
 	//
 	// INVARIANT: The values are all and only the values of the inodes map of
 	// type *inode.DirHandle.
 	//
 	// GUARDED_BY(mu)
-	dirNameIndex map[string]*inode.DirInode
+	dirIndex map[string]*inode.DirInode
 
 	// The collection of live handles, keyed by handle ID.
 	//
@@ -111,18 +111,18 @@ func NewFileSystem(
 	bucket gcs.Bucket) (ffs fuse.FileSystem, err error) {
 	// Set up the basic struct.
 	fs := &fileSystem{
-		clock:        clock,
-		bucket:       bucket,
-		inodes:       make(map[fuse.InodeID]inode.Inode),
-		nextInodeID:  fuse.RootInodeID + 1,
-		dirNameIndex: make(map[string]*inode.DirInode),
-		handles:      make(map[fuse.HandleID]interface{}),
+		clock:       clock,
+		bucket:      bucket,
+		inodes:      make(map[fuse.InodeID]inode.Inode),
+		nextInodeID: fuse.RootInodeID + 1,
+		dirIndex:    make(map[string]*inode.DirInode),
+		handles:     make(map[fuse.HandleID]interface{}),
 	}
 
 	// Set up the root inode.
 	root := inode.NewDirInode(bucket, fuse.RootInodeID, "")
 	fs.inodes[fuse.RootInodeID] = root
-	fs.dirNameIndex[""] = root
+	fs.dirIndex[""] = root
 
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
@@ -168,8 +168,8 @@ func (fs *fileSystem) checkInvariants() {
 			}
 
 			dirsSeen++
-			if fs.dirNameIndex[typed.Name()] != typed {
-				panic(fmt.Sprintf("dirNameIndex mismatch: %s", typed.Name()))
+			if fs.dirIndex[typed.Name()] != typed {
+				panic(fmt.Sprintf("dirIndex mismatch: %s", typed.Name()))
 			}
 
 		case *inode.FileInode:
@@ -181,11 +181,11 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	// Make sure that the indexes are exhaustive.
-	if len(fs.dirNameIndex) != dirsSeen {
+	if len(fs.dirIndex) != dirsSeen {
 		panic(
 			fmt.Sprintf(
-				"dirNameIndex length mismatch: %v vs. %v",
-				len(fs.dirNameIndex),
+				"dirIndex length mismatch: %v vs. %v",
+				len(fs.dirIndex),
 				dirsSeen))
 	}
 
@@ -237,7 +237,7 @@ func (fs *fileSystem) lookUpOrCreateDirInode(
 	ctx context.Context,
 	o *storage.Object) (in *inode.DirInode, err error) {
 	// Do we already have an inode for this name?
-	if in = fs.dirNameIndex[o.Name]; in != nil {
+	if in = fs.dirIndex[o.Name]; in != nil {
 		return
 	}
 
@@ -248,7 +248,7 @@ func (fs *fileSystem) lookUpOrCreateDirInode(
 	// Create and index an inode.
 	in = inode.NewDirInode(fs.bucket, id, o.Name)
 	fs.inodes[id] = in
-	fs.dirNameIndex[in.Name()] = in
+	fs.dirIndex[in.Name()] = in
 
 	return
 }
