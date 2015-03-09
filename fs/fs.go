@@ -128,7 +128,9 @@ func NewFileSystem(
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func isDirName(name string) bool
+func isDirName(name string) bool {
+	return name == "" || name[len(name)-1] == '/'
+}
 
 func (fs *fileSystem) checkInvariants() {
 	// Check inode keys.
