@@ -731,4 +731,10 @@ func (t *foreignModsTest) ObjectIsDeleted() {
 	AssertEq(nil, err)
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	// Opening again should not work.
+	_, err = os.Open(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertNe(nil, err)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
