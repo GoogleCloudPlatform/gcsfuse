@@ -122,12 +122,19 @@ func (d *DirInode) Attributes(
 func (d *DirInode) LookUpChild(
 	ctx context.Context,
 	name string) (o *storage.Object, err error) {
-	// See if the child is a directory first.
+	// Stat the child as a directory first.
 	statReq := &gcs.StatObjectRequest{
 		Name: d.name + name + "/",
 	}
 
 	o, err = d.bucket.StatObject(ctx, statReq)
+
+	// Did we find it successfully?
+	if err == nil {
+		return
+	}
+
+	// Propagate all errors except "not found".
 	if err != nil && err != gcs.ErrNotFound {
 		err = fmt.Errorf("StatObject: %v", err)
 		return
