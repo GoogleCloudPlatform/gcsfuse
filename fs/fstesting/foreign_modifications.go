@@ -328,10 +328,11 @@ func (t *foreignModsTest) EmptySubDirectory() {
 	AssertEq(nil, t.createEmptyObjects([]string{"bar/"}))
 
 	// ReadDir
-	_, err := t.readDirUntil(1, t.mfs.Dir())
+	entries, err := t.readDirUntil(1, t.mfs.Dir())
 	AssertEq(nil, err)
+	AssertEq(1, len(entries))
 
-	entries, err := t.readDirUntil(0, path.Join(t.mfs.Dir(), "bar"))
+	entries, err = t.readDirUntil(0, path.Join(t.mfs.Dir(), "bar"))
 	AssertEq(nil, err)
 
 	ExpectThat(entries, ElementsAre())

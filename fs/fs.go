@@ -41,8 +41,15 @@ type fileSystem struct {
 	// Mutable state
 	/////////////////////////
 
-	// When acquiring this lock, the caller must hold no inode locks.
+	// When acquiring this lock, the caller must hold no inode or dir handle
+	// locks.
 	mu syncutil.InvariantMutex
+
+	// The user and group owning everything in the file system.
+	//
+	// GUARDED_BY(Mu)
+	uid uint32
+	gid uint32
 
 	// The collection of live inodes, keyed by inode ID. No ID less than
 	// fuse.RootInodeID is ever used.
@@ -60,6 +67,18 @@ type fileSystem struct {
 	//
 	// INVARIANT: For all keys k in inodes, k < nextInodeID
 	nextInodeID fuse.InodeID
+
+	// The collection of live handles, keyed by handle ID.
+	//
+	// INVARIANT: All values are of type *dirHandle
+	//
+	// GUARDED_BY(mu)
+	handles map[fuse.HandleID]interface{}
+
+	// The next handle ID to hand out. We assume that this will never overflow.
+	//
+	// INVARIANT: For all keys k in handles, k < nextHandleID
+	nextHandleID fuse.HandleID
 }
 
 // Create a fuse file system whose root directory is the root of the supplied
@@ -74,10 +93,11 @@ func NewFileSystem(
 		bucket:      bucket,
 		inodes:      make(map[fuse.InodeID]interface{}),
 		nextInodeID: fuse.RootInodeID + 1,
+		handles:     make(map[fuse.HandleID]interface{}),
 	}
 
 	// Set up the root inode.
-	fs.inodes[fuse.RootInodeID] = inode.NewDirInode("")
+	fs.inodes[fuse.RootInodeID] = inode.NewDirInode(bucket, "")
 
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
@@ -91,9 +111,9 @@ func NewFileSystem(
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *fileSystem) checkInvariants() {
-	// Check fs.inodes keys.
+	// Check inode keys.
 	for id, _ := range fs.inodes {
-		if id < fuse.RootInodeID {
+		if id < fuse.RootInodeID || id >= fs.nextInodeID {
 			panic(fmt.Sprintf("Illegal inode ID: %v", id))
 		}
 	}
@@ -111,17 +131,44 @@ func (fs *fileSystem) checkInvariants() {
 			panic(fmt.Sprintf("Unexpected inode type: %v", reflect.TypeOf(in)))
 		}
 	}
+
+	// Check handles.
+	for id, h := range fs.handles {
+		if id >= fs.nextHandleID {
+			panic(fmt.Sprintf("Illegal handle ID: %v", id))
+		}
+
+		_ = h.(*dirHandle)
+	}
 }
 
 // Find the given inode and return it with its lock held for reading. Panic if
 // it doesn't exist or is the wrong type.
 //
 // SHARED_LOCKS_REQUIRED(fs.mu)
-// SHARED_LOCK_FUNCTION(inode.mu)
+// SHARED_LOCK_FUNCTION(in.mu)
 func (fs *fileSystem) getDirForReadingOrDie(
 	id fuse.InodeID) (in *inode.DirInode) {
 	in = fs.inodes[id].(*inode.DirInode)
 	in.Mu.RLock()
+	return
+}
+
+// Get attributes for the given directory inode, fixing up ownership information.
+//
+// SHARED_LOCKS_REQUIRED(fs.mu)
+// SHARED_LOCK_FUNCTION(d.mu)
+func (fs *fileSystem) getAttributes(
+	ctx context.Context,
+	d *inode.DirInode) (attrs fuse.InodeAttributes, err error) {
+	attrs, err = d.Attributes(ctx)
+	if err != nil {
+		return
+	}
+
+	attrs.Uid = fs.uid
+	attrs.Gid = fs.gid
+
 	return
 }
 
@@ -132,8 +179,50 @@ func (fs *fileSystem) getDirForReadingOrDie(
 func (fs *fileSystem) Init(
 	ctx context.Context,
 	req *fuse.InitRequest) (resp *fuse.InitResponse, err error) {
-	// Nothing interesting to do.
 	resp = &fuse.InitResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Store the mounting user's info for later.
+	fs.uid = req.Header.Uid
+	fs.gid = req.Header.Gid
+
+	return
+}
+
+func (fs *fileSystem) GetInodeAttributes(
+	ctx context.Context,
+	req *fuse.GetInodeAttributesRequest) (
+	resp *fuse.GetInodeAttributesResponse, err error) {
+	resp = &fuse.GetInodeAttributesResponse{}
+
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	// Find the inode.
+	in := fs.inodes[req.Inode]
+
+	// Grab its attributes.
+	switch typed := in.(type) {
+	case *inode.DirInode:
+		typed.Mu.RLock()
+		defer typed.Mu.RUnlock()
+
+		resp.Attributes, err = fs.getAttributes(ctx, typed)
+		if err != nil {
+			err = fmt.Errorf("DirInode.Attributes: %v", err)
+			return
+		}
+
+	default:
+		panic(
+			fmt.Sprintf(
+				"Unknown inode type for ID %v: %v",
+				req.Inode,
+				reflect.TypeOf(in)))
+	}
+
 	return
 }
 
@@ -142,14 +231,56 @@ func (fs *fileSystem) OpenDir(
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
 	resp = &fuse.OpenDirResponse{}
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Make sure the inode still exists and is a directory. If not, something has
 	// screwed up because the VFS layer shouldn't have let us forget the inode
 	// before opening it.
 	in := fs.getDirForReadingOrDie(req.Inode)
 	defer in.Mu.RUnlock()
+
+	// Allocate a handle.
+	handleID := fs.nextHandleID
+	fs.nextHandleID++
+
+	fs.handles[handleID] = newDirHandle(in)
+	resp.Handle = handleID
+
+	return
+}
+
+func (fs *fileSystem) ReadDir(
+	ctx context.Context,
+	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	// Find the handle.
+	dh := fs.handles[req.Handle].(*dirHandle)
+	dh.Mu.Lock()
+	defer dh.Mu.Unlock()
+
+	// Serve the request.
+	resp, err = dh.ReadDir(ctx, req)
+
+	return
+}
+
+func (fs *fileSystem) ReleaseDirHandle(
+	ctx context.Context,
+	req *fuse.ReleaseDirHandleRequest) (
+	resp *fuse.ReleaseDirHandleResponse, err error) {
+	resp = &fuse.ReleaseDirHandleResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Sanity check that this handle exists and is of the correct type.
+	_ = fs.handles[req.Handle].(*dirHandle)
+
+	// Clear the entry from the map.
+	delete(fs.handles, req.Handle)
 
 	return
 }
