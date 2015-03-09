@@ -676,3 +676,15 @@ func (t *foreignModsTest) ReadBeyondEndOfFile() {
 		AssertEq(0, n)
 	}
 }
+
+func (t *foreignModsTest) ObjectIsOverwritten() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *foreignModsTest) ObjectMetadataIsUpdated() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *foreignModsTest) ObjectIsDeleted() {
+	AssertTrue(false, "TODO")
+}
