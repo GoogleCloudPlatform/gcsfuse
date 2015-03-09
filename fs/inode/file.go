@@ -25,6 +25,12 @@ import (
 
 type FileInode struct {
 	/////////////////////////
+	// Dependencies
+	/////////////////////////
+
+	bucket gcs.Bucket
+
+	/////////////////////////
 	// Constant data
 	/////////////////////////
 
@@ -64,7 +70,26 @@ func NewFileInode(
 	bucket gcs.Bucket,
 	id fuse.InodeID,
 	name string,
-	generation int64) (f *FileInode)
+	generation int64) (f *FileInode) {
+	// Set up the basic struct.
+	f = &FileInode{
+		bucket:        bucket,
+		id:            id,
+		name:          name,
+		srcGeneration: generation,
+	}
+
+	// Set up invariant checking.
+	f.Mu = syncutil.NewInvariantMutex(f.checkInvariants)
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func (f *FileInode) checkInvariants()
 
 ////////////////////////////////////////////////////////////////////////
 // Public interface
