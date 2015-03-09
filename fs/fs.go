@@ -61,6 +61,18 @@ type fileSystem struct {
 	//
 	// INVARIANT: For all keys k in inodes, k < nextInodeID
 	nextInodeID fuse.InodeID
+
+	// The collection of live handles, keyed by handle ID.
+	//
+	// INVARIANT: All values are of type *dirHandle
+	//
+	// GUARDED_BY(mu)
+	handles map[fuse.HandleID]interface{}
+
+	// The next handle ID to hand out. We assume that this will never overflow.
+	//
+	// INVARIANT: For all keys k in handles, k < nextHandleID
+	nextHandleID fuse.HandleID
 }
 
 // Create a fuse file system whose root directory is the root of the supplied
@@ -92,9 +104,9 @@ func NewFileSystem(
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *fileSystem) checkInvariants() {
-	// Check fs.inodes keys.
+	// Check inode keys.
 	for id, _ := range fs.inodes {
-		if id < fuse.RootInodeID {
+		if id < fuse.RootInodeID || id >= fs.nextInodeID {
 			panic(fmt.Sprintf("Illegal inode ID: %v", id))
 		}
 	}
@@ -111,6 +123,15 @@ func (fs *fileSystem) checkInvariants() {
 		default:
 			panic(fmt.Sprintf("Unexpected inode type: %v", reflect.TypeOf(in)))
 		}
+	}
+
+	// Check handles.
+	for id, h := range fs.handles {
+		if id >= fs.nextHandleID {
+			panic(fmt.Sprintf("Illegal handle ID: %v", id))
+		}
+
+		_ = h.(*dirHandle)
 	}
 }
 
