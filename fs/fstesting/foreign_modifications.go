@@ -320,6 +320,10 @@ func (t *foreignModsTest) EmptySubDirectory() {
 	ExpectThat(entries, ElementsAre())
 }
 
+func (t *foreignModsTest) UnreachableObjects() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *foreignModsTest) ContentsInSubDirectory_PlaceholderPresent() {
 	// Set up contents.
 	AssertEq(
