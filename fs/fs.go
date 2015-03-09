@@ -109,14 +109,14 @@ func NewFileSystem(
 	fs := &fileSystem{
 		clock:        clock,
 		bucket:       bucket,
-		inodes:       make(map[fuse.InodeID]interface{}),
+		inodes:       make(map[fuse.InodeID]inode.Inode),
 		nextInodeID:  fuse.RootInodeID + 1,
 		dirNameIndex: make(map[string]*inode.DirInode),
 		handles:      make(map[fuse.HandleID]interface{}),
 	}
 
 	// Set up the root inode.
-	root := inode.NewDirInode(bucket, "")
+	root := inode.NewDirInode(bucket, fuse.RootInodeID, "")
 	fs.inodes[fuse.RootInodeID] = root
 	fs.dirNameIndex[""] = root
 
