@@ -105,7 +105,6 @@ func (d *DirInode) Name() string {
 	return d.name
 }
 
-// Return up to date attributes for the directory.
 func (d *DirInode) Attributes(
 	ctx context.Context) (attrs fuse.InodeAttributes, err error) {
 	attrs = fuse.InodeAttributes{

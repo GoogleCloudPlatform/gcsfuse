@@ -15,8 +15,11 @@
 package inode
 
 import (
+	"errors"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/syncutil"
+	"golang.org/x/net/context"
 )
 
 type FileInode struct {
@@ -61,4 +64,10 @@ func (f *FileInode) ID() fuse.InodeID {
 
 func (f *FileInode) Name() string {
 	return f.name
+}
+
+func (f *FileInode) Attributes(
+	ctx context.Context) (attrs fuse.InodeAttributes, err error) {
+	err = errors.New("TODO(jacobsa): Implement FileInode.Attributes.")
+	return
 }

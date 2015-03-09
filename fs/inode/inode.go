@@ -14,7 +14,10 @@
 
 package inode
 
-import "github.com/jacobsa/fuse"
+import (
+	"github.com/jacobsa/fuse"
+	"golang.org/x/net/context"
+)
 
 type Inode interface {
 	// Return the ID assigned to the inode.
@@ -23,4 +26,7 @@ type Inode interface {
 	// Return the name of the GCS object backing the inode. This may be "foo/bar"
 	// for a file, or "foo/bar/" for a directory.
 	Name() string
+
+	// Return up to date attributes for this inode.
+	Attributes(ctx context.Context) (fuse.InodeAttributes, error)
 }
