@@ -15,11 +15,16 @@
 package inode
 
 import (
+	"sync"
+
 	"github.com/jacobsa/fuse"
 	"golang.org/x/net/context"
 )
 
 type Inode interface {
+	// All methods below require the lock to be held.
+	sync.Locker
+
 	// Return the ID assigned to the inode.
 	ID() fuse.InodeID
 

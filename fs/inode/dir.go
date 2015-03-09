@@ -52,7 +52,7 @@ type DirInode struct {
 
 	// A mutex that must be held when calling certain methods. See documentation
 	// for each method.
-	Mu syncutil.InvariantMutex
+	mu syncutil.InvariantMutex
 }
 
 var _ Inode = &DirInode{}
@@ -74,7 +74,7 @@ func NewDirInode(
 	}
 
 	// Set up invariant checking.
-	d.Mu = syncutil.NewInvariantMutex(d.checkInvariants)
+	d.mu = syncutil.NewInvariantMutex(d.checkInvariants)
 
 	return
 }
@@ -93,6 +93,14 @@ func (d *DirInode) checkInvariants() {
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
+
+func (d *DirInode) Lock() {
+	d.mu.Lock()
+}
+
+func (d *DirInode) Unlock() {
+	d.mu.Unlock()
+}
 
 // Return the ID of this inode.
 func (d *DirInode) ID() fuse.InodeID {

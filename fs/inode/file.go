@@ -44,12 +44,12 @@ type FileInode struct {
 
 	// A mutex that must be held when calling certain methods. See documentation
 	// for each method.
-	Mu syncutil.InvariantMutex
+	mu syncutil.InvariantMutex
 
 	// A record for the object from which this inode was branched. The object's
 	// generation is used as a precondition in object write requests.
 	//
-	// GUARDED_BY(Mu)
+	// GUARDED_BY(mu)
 	srcObject storage.Object
 }
 
@@ -73,7 +73,7 @@ func NewFileInode(
 	}
 
 	// Set up invariant checking.
-	f.Mu = syncutil.NewInvariantMutex(f.checkInvariants)
+	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
 
 	return
 }
@@ -91,6 +91,14 @@ func (f *FileInode) checkInvariants() {
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
+
+func (f *FileInode) Lock() {
+	f.mu.Lock()
+}
+
+func (f *FileInode) Unlock() {
+	f.mu.Unlock()
+}
 
 func (f *FileInode) ID() fuse.InodeID {
 	return f.id
@@ -114,7 +122,7 @@ func (f *FileInode) Attributes(
 // This should fail if we have screwed up the fuse lookup process with regards
 // to the zero generation.
 //
-// SHARED_LOCKS_REQUIRED(f.Mu)
+// SHARED_LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SourceGeneration() int64 {
 	return f.srcObject.Generation
 }

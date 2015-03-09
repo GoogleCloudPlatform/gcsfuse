@@ -235,18 +235,6 @@ func (fs *fileSystem) checkInvariants() {
 	}
 }
 
-// Find the given inode and return it with its lock held for reading. Panic if
-// it doesn't exist or is the wrong type.
-//
-// SHARED_LOCKS_REQUIRED(fs.mu)
-// SHARED_LOCK_FUNCTION(in.mu)
-func (fs *fileSystem) getDirForReadingOrDie(
-	id fuse.InodeID) (in *inode.DirInode) {
-	in = fs.inodes[id].(*inode.DirInode)
-	in.Mu.RLock()
-	return
-}
-
 // Get attributes for the inode, fixing up ownership information.
 //
 // SHARED_LOCKS_REQUIRED(fs.mu)
@@ -418,8 +406,9 @@ func (fs *fileSystem) OpenDir(
 	// Make sure the inode still exists and is a directory. If not, something has
 	// screwed up because the VFS layer shouldn't have let us forget the inode
 	// before opening it.
-	in := fs.getDirForReadingOrDie(req.Inode)
-	defer in.Mu.RUnlock()
+	in := fs.inodes[req.Inode].(*inode.DirInode)
+	in.Lock()
+	defer in.Unlock()
 
 	// Allocate a handle.
 	handleID := fs.nextHandleID
