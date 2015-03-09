@@ -103,6 +103,12 @@ func (d *DirInode) Attributes(
 	return
 }
 
+// Look up the direct child with the given relative name, returning a record
+// for the current object of that name in the GCS bucket. If both a file and a
+// directory with the given name exist, be consistent from call to call about
+// which is preferred.
+func (d *DirInode) LookUpChild(name string) (o *storage.Object, err error)
+
 // Read some number of entries from the directory, returning a continuation
 // token that can be used to pick up the read operation where it left off.
 // Supply the empty token on the first call.
