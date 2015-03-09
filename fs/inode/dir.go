@@ -16,6 +16,7 @@ package inode
 
 import (
 	"fmt"
+	"os"
 	"path"
 
 	"github.com/jacobsa/fuse"
@@ -89,7 +90,14 @@ func (d *DirInode) checkInvariants() {
 //
 // SHARED_LOCKS_REQUIRED(d.Mu)
 func (d *DirInode) Attributes(
-	ctx context.Context) (attrs fuse.InodeAttributes, err error)
+	ctx context.Context) (attrs fuse.InodeAttributes, err error) {
+	attrs = fuse.InodeAttributes{
+		Mode: 0700 | os.ModeDir,
+		// TODO(jacobsa): Track mtime and maybe atime.
+	}
+
+	return
+}
 
 // Read some number of entries from the directory, returning a continuation
 // token that can be used to pick up the read operation where it left off.
