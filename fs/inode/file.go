@@ -71,3 +71,16 @@ func (f *FileInode) Attributes(
 	err = errors.New("TODO(jacobsa): Implement FileInode.Attributes.")
 	return
 }
+
+// Return the generation number from which this inode was branched, or zero if
+// it is newly created. This is used as a precondition in object write
+// requests.
+//
+// TODO(jacobsa): Make sure to add a test for opening a file with O_CREAT then
+// opening it again for reading, and sharing data across the two descriptors.
+// This should fail if we have screwed up the fuse lookup process with regards
+// to the zero generation. We probably want to make this always non-zero (add
+// an invariant) by creating an empty object when opening with O_CREAT.
+//
+// SHARED_LOCKS_REQUIRED(f.Mu)
+func (f *FileInode) SourceGeneration() uint64
