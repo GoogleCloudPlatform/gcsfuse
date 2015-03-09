@@ -105,6 +105,13 @@ func readEntries(
 	tok string,
 	firstEntryOffset fuse.DirOffset) (
 	entries []fuseutil.Dirent, newTok string, err error) {
+	// Fix up the offset of any entries returned.
+	defer func() {
+		for i := 0; i < len(entries); i++ {
+			entries[i].Offset = firstEntryOffset + fuse.DirOffset(i)
+		}
+	}()
+
 	// Loop until we get a non-empty result, we finish, or an error occurs.
 	for {
 		entries, newTok, err = in.ReadEntries(ctx, tok)
