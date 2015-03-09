@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
@@ -83,6 +84,12 @@ func (d *DirInode) checkInvariants() {
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
+
+// Return up to date attributes for the directory.
+//
+// SHARED_LOCKS_REQUIRED(d.Mu)
+func (d *DirInode) Attributes(
+	ctx context.Context) (attrs fuse.InodeAttributes, err error)
 
 // Read some number of entries from the directory, returning a continuation
 // token that can be used to pick up the read operation where it left off.

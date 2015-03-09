@@ -160,6 +160,41 @@ func (fs *fileSystem) Init(
 	return
 }
 
+func (fs *fileSystem) GetInodeAttributes(
+	ctx context.Context,
+	req *fuse.GetInodeAttributesRequest) (
+	resp *fuse.GetInodeAttributesResponse, err error) {
+	resp = &fuse.GetInodeAttributesResponse{}
+
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	// Find the inode.
+	in := fs.inodes[req.Inode]
+
+	// Grab its attributes.
+	switch typed := in.(type) {
+	case *inode.DirInode:
+		typed.Mu.RLock()
+		defer typed.Mu.RUnlock()
+
+		resp.Attributes, err = typed.Attributes(ctx)
+		if err != nil {
+			err = fmt.Errorf("DirInode.Attributes: %v", err)
+			return
+		}
+
+	default:
+		panic(
+			fmt.Sprintf(
+				"Unknown inode type for ID %v: %v",
+				req.Inode,
+				reflect.TypeOf(in)))
+	}
+
+	return
+}
+
 func (fs *fileSystem) OpenDir(
 	ctx context.Context,
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
