@@ -265,21 +265,13 @@ func (t *foreignModsTest) ContentsInRoot() {
 					},
 					Contents: "burrito",
 				},
-
-				// File in sub-directory
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "qux/asdf",
-					},
-					Contents: "",
-				},
 			}))
 
 	// ReadDir
-	entries, err := t.readDirUntil(4, t.mfs.Dir())
+	entries, err := t.readDirUntil(3, t.mfs.Dir())
 	AssertEq(nil, err)
 
-	AssertEq(4, len(entries), "Names: %v", getFileNames(entries))
+	AssertEq(3, len(entries), "Names: %v", getFileNames(entries))
 	var e os.FileInfo
 
 	// bar
@@ -311,16 +303,6 @@ func (t *foreignModsTest) ContentsInRoot() {
 		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
 		"ModTime: %v", e.ModTime())
 	ExpectFalse(e.IsDir())
-
-	// qux
-	e = entries[3]
-	ExpectEq("qux", e.Name())
-	ExpectEq(0, e.Size())
-	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
-	ExpectTrue(e.IsDir())
 }
 
 func (t *foreignModsTest) EmptySubDirectory() {
