@@ -15,6 +15,7 @@
 package fs
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/jacobsa/gcsfuse/fs/inode"
 	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
+	"google.golang.org/cloud/storage"
 )
 
 type fileSystem struct {
@@ -56,17 +58,32 @@ type fileSystem struct {
 	//
 	// INVARIANT: All values are of type *inode.DirInode or *inode.FileInode
 	// INVARIANT: For all keys k, k >= fuse.RootInodeID
+	// INVARIANT: For all keys k, inodes[k].ID() == k
 	// INVARIANT: inodes[fuse.RootInodeID] is of type *inode.DirInode
 	//
 	// GUARDED_BY(mu)
-	inodes map[fuse.InodeID]interface{}
+	inodes map[fuse.InodeID]inode.Inode
 
 	// The next inode ID to hand out. We assume that this will never overflow,
 	// since even if we were handing out inode IDs at 4 GHz, it would still take
 	// over a century to do so.
 	//
 	// INVARIANT: For all keys k in inodes, k < nextInodeID
+	//
+	// GUARDED_BY(mu)
 	nextInodeID fuse.InodeID
+
+	// An index of all directory inodes by Name().
+	//
+	// INVARIANT: For each key k, isDirName(k)
+	//
+	// INVARIANT: For each key k, dirNameIndex[k].Name() == k
+	//
+	// INVARIANT: The values are all and only the values of the inodes map of
+	// type *inode.DirHandle.
+	//
+	// GUARDED_BY(mu)
+	dirNameIndex map[string]*inode.DirInode
 
 	// The collection of live handles, keyed by handle ID.
 	//
@@ -78,6 +95,8 @@ type fileSystem struct {
 	// The next handle ID to hand out. We assume that this will never overflow.
 	//
 	// INVARIANT: For all keys k in handles, k < nextHandleID
+	//
+	// GUARDED_BY(mu)
 	nextHandleID fuse.HandleID
 }
 
@@ -89,15 +108,18 @@ func NewFileSystem(
 	bucket gcs.Bucket) (ffs fuse.FileSystem, err error) {
 	// Set up the basic struct.
 	fs := &fileSystem{
-		clock:       clock,
-		bucket:      bucket,
-		inodes:      make(map[fuse.InodeID]interface{}),
-		nextInodeID: fuse.RootInodeID + 1,
-		handles:     make(map[fuse.HandleID]interface{}),
+		clock:        clock,
+		bucket:       bucket,
+		inodes:       make(map[fuse.InodeID]inode.Inode),
+		nextInodeID:  fuse.RootInodeID + 1,
+		dirNameIndex: make(map[string]*inode.DirInode),
+		handles:      make(map[fuse.HandleID]interface{}),
 	}
 
 	// Set up the root inode.
-	fs.inodes[fuse.RootInodeID] = inode.NewDirInode(bucket, "")
+	root := inode.NewDirInode(bucket, fuse.RootInodeID, "")
+	fs.inodes[fuse.RootInodeID] = root
+	fs.dirNameIndex[""] = root
 
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
@@ -110,6 +132,10 @@ func NewFileSystem(
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+func isDirName(name string) bool {
+	return name == "" || name[len(name)-1] == '/'
+}
+
 func (fs *fileSystem) checkInvariants() {
 	// Check inode keys.
 	for id, _ := range fs.inodes {
@@ -121,15 +147,43 @@ func (fs *fileSystem) checkInvariants() {
 	// Check the root inode.
 	_ = fs.inodes[fuse.RootInodeID].(*inode.DirInode)
 
-	// Check the type of each inode.
-	for _, in := range fs.inodes {
-		switch in.(type) {
+	// Check each inode, and the indexes over them. Keep a count of each type
+	// seen.
+	dirsSeen := 0
+	filesSeen := 0
+	for id, in := range fs.inodes {
+		// Check the ID.
+		if in.ID() != id {
+			panic(fmt.Sprintf("ID mismatch: %v vs. %v", in.ID(), id))
+		}
+
+		// Check type-specific stuff.
+		switch typed := in.(type) {
 		case *inode.DirInode:
+			if !isDirName(typed.Name()) {
+				panic(fmt.Sprintf("Unexpected directory name: %s", typed.Name()))
+			}
+
+			dirsSeen++
+			if fs.dirNameIndex[typed.Name()] != typed {
+				panic(fmt.Sprintf("dirNameIndex mismatch: %s", typed.Name()))
+			}
+
 		case *inode.FileInode:
+			filesSeen++
 
 		default:
 			panic(fmt.Sprintf("Unexpected inode type: %v", reflect.TypeOf(in)))
 		}
+	}
+
+	// Make sure that the indexes are exhaustive.
+	if len(fs.dirNameIndex) != dirsSeen {
+		panic(
+			fmt.Sprintf(
+				"dirNameIndex length mismatch: %v vs. %v",
+				len(fs.dirNameIndex),
+				dirsSeen))
 	}
 
 	// Check handles.
@@ -172,6 +226,30 @@ func (fs *fileSystem) getAttributes(
 	return
 }
 
+// Find a directory inode for the given object record. Create one if there
+// isn't already one available.
+//
+// EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
+func (fs *fileSystem) lookUpOrCreateDirInode(
+	ctx context.Context,
+	o *storage.Object) (in *inode.DirInode, err error) {
+	// Do we already have an inode for this name?
+	if in = fs.dirNameIndex[o.Name]; in != nil {
+		return
+	}
+
+	// Mint an ID.
+	id := fs.nextInodeID
+	fs.nextInodeID++
+
+	// Create and index an inode.
+	in = inode.NewDirInode(fs.bucket, id, o.Name)
+	fs.inodes[id] = in
+	fs.dirNameIndex[in.Name()] = in
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // fuse.FileSystem methods
 ////////////////////////////////////////////////////////////////////////
@@ -191,6 +269,44 @@ func (fs *fileSystem) Init(
 	return
 }
 
+func (fs *fileSystem) LookUpInode(
+	ctx context.Context,
+	req *fuse.LookUpInodeRequest) (resp *fuse.LookUpInodeResponse, err error) {
+	resp = &fuse.LookUpInodeResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Find the parent directory in question.
+	parent := fs.inodes[req.Parent].(*inode.DirInode)
+
+	// Find a record for the child with the given name.
+	o, err := parent.LookUpChild(ctx, req.Name)
+	if err != nil {
+		return
+	}
+
+	// Is the child a directory or a file?
+	var in inode.Inode
+	if isDirName(o.Name) {
+		in, err = fs.lookUpOrCreateDirInode(ctx, o)
+	} else {
+		err = errors.New("TODO(jacobsa): Handle files in the same way.")
+	}
+
+	if err != nil {
+		return
+	}
+
+	// Fill out the response.
+	resp.Entry.Child = in.ID()
+	if resp.Entry.Attributes, err = in.Attributes(ctx); err != nil {
+		return
+	}
+
+	return
+}
+
 func (fs *fileSystem) GetInodeAttributes(
 	ctx context.Context,
 	req *fuse.GetInodeAttributesRequest) (
@@ -206,9 +322,6 @@ func (fs *fileSystem) GetInodeAttributes(
 	// Grab its attributes.
 	switch typed := in.(type) {
 	case *inode.DirInode:
-		typed.Mu.RLock()
-		defer typed.Mu.RUnlock()
-
 		resp.Attributes, err = fs.getAttributes(ctx, typed)
 		if err != nil {
 			err = fmt.Errorf("DirInode.Attributes: %v", err)

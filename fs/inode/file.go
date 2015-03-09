@@ -14,12 +14,20 @@
 
 package inode
 
-import "github.com/jacobsa/gcloud/syncutil"
+import (
+	"errors"
+
+	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/gcloud/syncutil"
+	"golang.org/x/net/context"
+)
 
 type FileInode struct {
 	/////////////////////////
 	// Constant data
 	/////////////////////////
+
+	id fuse.InodeID
 
 	// The name of the GCS object backing the inode. This may or may not yet
 	// exist.
@@ -42,4 +50,24 @@ type FileInode struct {
 	//
 	// GUARDED_BY(Mu)
 	srcGeneration uint64
+}
+
+var _ Inode = &FileInode{}
+
+////////////////////////////////////////////////////////////////////////
+// Public interface
+////////////////////////////////////////////////////////////////////////
+
+func (f *FileInode) ID() fuse.InodeID {
+	return f.id
+}
+
+func (f *FileInode) Name() string {
+	return f.name
+}
+
+func (f *FileInode) Attributes(
+	ctx context.Context) (attrs fuse.InodeAttributes, err error) {
+	err = errors.New("TODO(jacobsa): Implement FileInode.Attributes.")
+	return
 }

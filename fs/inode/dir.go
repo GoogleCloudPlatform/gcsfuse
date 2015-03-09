@@ -38,6 +38,8 @@ type DirInode struct {
 	// Constant data
 	/////////////////////////
 
+	id fuse.InodeID
+
 	// The name of the GCS object backing the inode, used as a prefix when
 	// listing. Special case: the empty string means this is the root inode.
 	//
@@ -53,15 +55,21 @@ type DirInode struct {
 	Mu syncutil.InvariantMutex
 }
 
+var _ Inode = &DirInode{}
+
 // Create a directory inode for the directory with the given name. The name
 // must end with a slash unless this is the root directory, in which case it
 // must be empty.
 //
 // REQUIRES: name == "" || name[len(name)-1] == '/'
-func NewDirInode(bucket gcs.Bucket, name string) (d *DirInode) {
+func NewDirInode(
+	bucket gcs.Bucket,
+	id fuse.InodeID,
+	name string) (d *DirInode) {
 	// Set up the basic struct.
 	d = &DirInode{
 		bucket: bucket,
+		id:     id,
 		name:   name,
 	}
 
@@ -86,12 +94,64 @@ func (d *DirInode) checkInvariants() {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-// Return up to date attributes for the directory.
+// Return the ID of this inode.
+func (d *DirInode) ID() fuse.InodeID {
+	return d.id
+}
+
+// Return the full name of the directory object in GCS, including the trailing
+// slash (e.g. "foo/bar/").
+func (d *DirInode) Name() string {
+	return d.name
+}
+
 func (d *DirInode) Attributes(
 	ctx context.Context) (attrs fuse.InodeAttributes, err error) {
 	attrs = fuse.InodeAttributes{
 		Mode: 0700 | os.ModeDir,
 		// TODO(jacobsa): Track mtime and maybe atime.
+	}
+
+	return
+}
+
+// Look up the direct child with the given relative name, returning a record
+// for the current object of that name in the GCS bucket. If both a file and a
+// directory with the given name exist, be consistent from call to call about
+// which is preferred. Return fuse.ENOENT if neither is found.
+func (d *DirInode) LookUpChild(
+	ctx context.Context,
+	name string) (o *storage.Object, err error) {
+	// Stat the child as a directory first.
+	statReq := &gcs.StatObjectRequest{
+		Name: d.name + name + "/",
+	}
+
+	o, err = d.bucket.StatObject(ctx, statReq)
+
+	// Did we find it successfully?
+	if err == nil {
+		return
+	}
+
+	// Propagate all errors except "not found".
+	if err != nil && err != gcs.ErrNotFound {
+		err = fmt.Errorf("StatObject: %v", err)
+		return
+	}
+
+	// Try again as a file.
+	statReq.Name = d.name + name
+	o, err = d.bucket.StatObject(ctx, statReq)
+
+	if err == gcs.ErrNotFound {
+		err = fuse.ENOENT
+		return
+	}
+
+	if err != nil {
+		err = fmt.Errorf("StatObject: %v", err)
+		return
 	}
 
 	return
