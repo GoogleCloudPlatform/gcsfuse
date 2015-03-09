@@ -76,7 +76,23 @@ func newDirHandle(in *inode.DirInode) (dh *dirHandle) {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func (dh *dirHandle) checkInvariants()
+func (dh *dirHandle) checkInvariants() {
+	// Check that the offsets increment by one each time.
+	for i := 0; i < len(dh.entries)-1; i++ {
+		if dh.entries[i].Offset+1 != dh.entries[i+1].Offset {
+			panic(
+				fmt.Sprintf(
+					"Unexpected offset sequence: %v, %v",
+					dh.entries[i].Offset,
+					dh.entries[i+1].Offset))
+		}
+	}
+
+	// Check the first offset.
+	if len(dh.entries) > 0 && dh.entries[0].Offset != dh.entriesOffset+1 {
+		panic(fmt.Sprintf("Unexpected entriesOffset value."))
+	}
+}
 
 // Read some entries from the directory inode. Return an error if zero entries
 // are returned. When the end of the directory is hit, this error will be
