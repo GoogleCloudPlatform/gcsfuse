@@ -106,22 +106,23 @@ func (d *DirInode) Attributes(
 // Look up the direct child with the given relative name, returning a record
 // for the current object of that name in the GCS bucket. If both a file and a
 // directory with the given name exist, be consistent from call to call about
-// which is preferred.
+// which is preferred. Return fuse.ENOENT if neither is found.
 func (d *DirInode) LookUpChild(name string) (o *storage.Object, err error) {
 	// See if the child is a directory first.
 	o, err = d.bucket.StatObject(d.name + name + "/")
-	if err != nil {
+	if err != nil && err != gcs.ErrNotFound {
 		err = fmt.Errorf("StatObject: %v", err)
-		return
-	}
-
-	if o != nil {
-		// We found a directory.
 		return
 	}
 
 	// Try again as a file.
 	o, err = d.bucket.StatObject(d.name + name)
+
+	if err == gcs.ErrNotFound {
+		err = fuse.ENOENT
+		return
+	}
+
 	if err != nil {
 		err = fmt.Errorf("StatObject: %v", err)
 		return
