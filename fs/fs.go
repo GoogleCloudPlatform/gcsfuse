@@ -273,7 +273,6 @@ func (fs *fileSystem) LookUpInode(
 	// Find a record for the child with the given name.
 	o, err := parent.LookUpChild(ctx, req.Name)
 	if err != nil {
-		err = fmt.Errorf("LookUpChild: %v", err)
 		return
 	}
 
