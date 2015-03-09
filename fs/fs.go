@@ -164,14 +164,21 @@ func (fs *fileSystem) OpenDir(
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
 	resp = &fuse.OpenDirResponse{}
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Make sure the inode still exists and is a directory. If not, something has
 	// screwed up because the VFS layer shouldn't have let us forget the inode
 	// before opening it.
 	in := fs.getDirForReadingOrDie(req.Inode)
 	defer in.Mu.RUnlock()
+
+	// Allocate a handle.
+	handleID := fs.nextHandleID
+	fs.nextHandleID++
+
+	fs.handles[handleID] = newDirHandle(in)
+	resp.Handle = handleID
 
 	return
 }
