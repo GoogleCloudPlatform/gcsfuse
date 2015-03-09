@@ -182,3 +182,21 @@ func (fs *fileSystem) OpenDir(
 
 	return
 }
+
+func (fs *fileSystem) ReleaseDirHandle(
+	ctx context.Context,
+	req *fuse.ReleaseDirHandleRequest) (
+	resp *fuse.ReleaseDirHandleResponse, err error) {
+	resp = &fuse.ReleaseDirHandleResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Sanity check that this handle exists and is of the correct type.
+	_ = fs.handles[req.Handle].(*dirHandle)
+
+	// Clear the entry from the map.
+	delete(fs.handles, req.Handle)
+
+	return
+}
