@@ -257,7 +257,6 @@ func (fs *fileSystem) getAttributes(
 // isn't already one available.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
-// EXCLUSIVE_LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateDirInode(
 	ctx context.Context,
 	o *storage.Object) (in *inode.DirInode, err error) {
@@ -282,7 +281,6 @@ func (fs *fileSystem) lookUpOrCreateDirInode(
 // already one available.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
-// EXCLUSIVE_LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateFileInode(
 	ctx context.Context,
 	o *storage.Object) (in *inode.FileInode, err error) {
@@ -356,6 +354,7 @@ func (fs *fileSystem) LookUpInode(
 		return
 	}
 
+	in.Lock()
 	defer in.Unlock()
 
 	// Fill out the response.
