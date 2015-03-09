@@ -272,6 +272,8 @@ func (fs *fileSystem) Init(
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
 	req *fuse.LookUpInodeRequest) (resp *fuse.LookUpInodeResponse, err error) {
+	resp = &fuse.LookUpInodeResponse{}
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
