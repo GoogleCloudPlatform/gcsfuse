@@ -78,15 +78,41 @@ func newDirHandle(in *inode.DirInode) (dh *dirHandle) {
 
 func (dh *dirHandle) checkInvariants()
 
-// Read some entries from the directory inode. Return an error iff zero entries
+// Read some entries from the directory inode. Return an error if zero entries
 // are returned. When the end of the directory is hit, this error will be
 // io.EOF.
 //
 // SHARED_LOCKS_REQUIRED(in.Mu)
 func readEntries(
+	ctx context.Context,
 	in *inode.DirInode,
+	tok string,
 	firstEntryOffset fuse.DirOffset) (
-	entries []fuseutil.Dirent, tok string, err error)
+	entries []fuseutil.Dirent, newTok string, err error) {
+	// Loop until we get a non-empty result, we finish, or an error occurs.
+	for {
+		entries, newTok, err = in.ReadEntries(ctx, tok)
+
+		// Propagate errors.
+		if err != nil {
+			return
+		}
+
+		// If some entries were returned, we are done.
+		if len(entries) > 0 {
+			return
+		}
+
+		// If we're at the end of the directory, we're done.
+		if newTok == "" {
+			err = io.EOF
+			return
+		}
+
+		// Otherwise, go around and ask for more entries.
+		tok = newTok
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Public interface
@@ -142,7 +168,9 @@ func (dh *dirHandle) ReadDir(
 		var newTok string
 
 		newEntries, newTok, err = readEntries(
+			ctx,
 			dh.in,
+			dh.tok,
 			dh.entriesOffset+fuse.DirOffset(len(dh.entries)))
 
 		// For EOF we simply return an empty listing.
