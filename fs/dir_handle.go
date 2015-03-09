@@ -52,19 +52,20 @@ type dirHandle struct {
 	// GUARDED_BY(Mu)
 	entriesOffset fuse.DirOffset
 
-	// The continuation token to supply in the next call to in.ReadEntries. If
-	// empty, we have finished reading the directory and must be rewound to
-	// obtain more entries.
+	// The continuation token to supply in the next call to in.ReadEntries. At
+	// the start of the directory, this is the empty string. When we have hit the
+	// end of the directory, this is nil.
 	//
 	// GUARDED_BY(Mu)
-	tok string
+	tok *string
 }
 
 // Create a directory handle that obtains listings from the supplied inode.
 func newDirHandle(in *inode.DirInode) (dh *dirHandle) {
 	// Set up the basic struct.
 	dh = &dirHandle{
-		in: in,
+		in:  in,
+		tok: new(string),
 	}
 
 	// Set up invariant checking.
@@ -95,7 +96,7 @@ func (dh *dirHandle) checkInvariants() {
 	}
 }
 
-// Read some entries from the directory inode. Return newTok == "" (possibly
+// Read some entries from the directory inode. Return newTok == nil (possibly
 // with a non-empty list of entries) when the end of the directory has been
 // hit.
 //
@@ -105,7 +106,7 @@ func readEntries(
 	in *inode.DirInode,
 	tok string,
 	firstEntryOffset fuse.DirOffset) (
-	entries []fuseutil.Dirent, newTok string, err error) {
+	entries []fuseutil.Dirent, newTok *string, err error) {
 	// Fix up the offset of any entries returned.
 	defer func() {
 		for i := 0; i < len(entries); i++ {
@@ -113,9 +114,17 @@ func readEntries(
 		}
 	}()
 
+	// Return newTok != nil iff there is more to read. Note that we use tok in
+	// the loop below.
+	defer func() {
+		if tok != "" {
+			newTok = &tok
+		}
+	}()
+
 	// Loop until we get a non-empty result, we finish, or an error occurs.
 	for {
-		entries, newTok, err = in.ReadEntries(ctx, tok)
+		entries, tok, err = in.ReadEntries(ctx, tok)
 
 		// Propagate errors.
 		if err != nil {
@@ -128,12 +137,11 @@ func readEntries(
 		}
 
 		// If we're at the end of the directory, we're done.
-		if newTok == "" {
+		if tok == "" {
 			return
 		}
 
 		// Otherwise, go around and ask for more entries.
-		tok = newTok
 	}
 }
 
@@ -167,7 +175,7 @@ func (dh *dirHandle) ReadDir(
 	if req.Offset == 0 {
 		dh.entries = nil
 		dh.entriesOffset = 0
-		dh.tok = ""
+		dh.tok = new(string)
 	}
 
 	// Is the offset from before what we have buffered? If not, this represents a
@@ -186,15 +194,15 @@ func (dh *dirHandle) ReadDir(
 	}
 
 	// Do we need to read more entries, and can we?
-	if index == len(dh.entries) && dh.tok != "" {
+	if index == len(dh.entries) && dh.tok != nil {
 		var newEntries []fuseutil.Dirent
-		var newTok string
+		var newTok *string
 
 		// Read some entries.
 		newEntries, newTok, err = readEntries(
 			ctx,
 			dh.in,
-			dh.tok,
+			*dh.tok,
 			dh.entriesOffset+fuse.DirOffset(len(dh.entries)))
 
 		if err != nil {
