@@ -238,11 +238,11 @@ func (fs *fileSystem) checkInvariants() {
 // Get attributes for the inode, fixing up ownership information.
 //
 // SHARED_LOCKS_REQUIRED(fs.mu)
-// SHARED_LOCKS_REQUIRED(d.mu)
+// EXCLUSIVE_LOCKS_REQUIRED(in)
 func (fs *fileSystem) getAttributes(
 	ctx context.Context,
-	d *inode.DirInode) (attrs fuse.InodeAttributes, err error) {
-	attrs, err = d.Attributes(ctx)
+	in inode.Inode) (attrs fuse.InodeAttributes, err error) {
+	attrs, err = in.Attributes(ctx)
 	if err != nil {
 		return
 	}
@@ -257,6 +257,7 @@ func (fs *fileSystem) getAttributes(
 // isn't already one available.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
+// EXCLUSIVE_LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateDirInode(
 	ctx context.Context,
 	o *storage.Object) (in *inode.DirInode, err error) {
@@ -281,6 +282,7 @@ func (fs *fileSystem) lookUpOrCreateDirInode(
 // already one available.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
+// EXCLUSIVE_LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateFileInode(
 	ctx context.Context,
 	o *storage.Object) (in *inode.FileInode, err error) {
@@ -353,6 +355,8 @@ func (fs *fileSystem) LookUpInode(
 	if err != nil {
 		return
 	}
+
+	defer in.Unlock()
 
 	// Fill out the response.
 	resp.Entry.Child = in.ID()
