@@ -45,6 +45,12 @@ type fileSystem struct {
 	// locks.
 	mu syncutil.InvariantMutex
 
+	// The user and group owning everything in the file system.
+	//
+	// GUARDED_BY(Mu)
+	uid uint32
+	gid uint32
+
 	// The collection of live inodes, keyed by inode ID. No ID less than
 	// fuse.RootInodeID is ever used.
 	//
@@ -140,11 +146,29 @@ func (fs *fileSystem) checkInvariants() {
 // it doesn't exist or is the wrong type.
 //
 // SHARED_LOCKS_REQUIRED(fs.mu)
-// SHARED_LOCK_FUNCTION(inode.mu)
+// SHARED_LOCK_FUNCTION(in.mu)
 func (fs *fileSystem) getDirForReadingOrDie(
 	id fuse.InodeID) (in *inode.DirInode) {
 	in = fs.inodes[id].(*inode.DirInode)
 	in.Mu.RLock()
+	return
+}
+
+// Get attributes for the given directory inode, fixing up ownership information.
+//
+// SHARED_LOCKS_REQUIRED(fs.mu)
+// SHARED_LOCK_FUNCTION(d.mu)
+func (fs *fileSystem) getAttributes(
+	ctx context.Context,
+	d *inode.DirInode) (attrs fuse.InodeAttributes, err error) {
+	attrs, err = d.Attributes(ctx)
+	if err != nil {
+		return
+	}
+
+	attrs.Uid = fs.uid
+	attrs.Gid = fs.gid
+
 	return
 }
 
@@ -155,8 +179,15 @@ func (fs *fileSystem) getDirForReadingOrDie(
 func (fs *fileSystem) Init(
 	ctx context.Context,
 	req *fuse.InitRequest) (resp *fuse.InitResponse, err error) {
-	// Nothing interesting to do.
 	resp = &fuse.InitResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Store the mounting user's info for later.
+	fs.uid = req.Header.Uid
+	fs.gid = req.Header.Gid
+
 	return
 }
 
@@ -178,7 +209,7 @@ func (fs *fileSystem) GetInodeAttributes(
 		typed.Mu.RLock()
 		defer typed.Mu.RUnlock()
 
-		resp.Attributes, err = typed.Attributes(ctx)
+		resp.Attributes, err = fs.getAttributes(ctx, typed)
 		if err != nil {
 			err = fmt.Errorf("DirInode.Attributes: %v", err)
 			return
