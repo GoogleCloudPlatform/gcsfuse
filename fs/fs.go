@@ -15,7 +15,6 @@
 package fs
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 
@@ -290,6 +289,14 @@ func (fs *fileSystem) lookUpOrCreateDirInode(
 	return
 }
 
+// Find a file inode for the given object record. Create one if there isn't
+// already one available.
+//
+// EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
+func (fs *fileSystem) lookUpOrCreateFileInode(
+	ctx context.Context,
+	o *storage.Object) (in *inode.FileInode, err error)
+
 ////////////////////////////////////////////////////////////////////////
 // fuse.FileSystem methods
 ////////////////////////////////////////////////////////////////////////
@@ -331,7 +338,7 @@ func (fs *fileSystem) LookUpInode(
 	if isDirName(o.Name) {
 		in, err = fs.lookUpOrCreateDirInode(ctx, o)
 	} else {
-		err = errors.New("TODO(jacobsa): Handle files in the same way.")
+		in, err = fs.lookUpOrCreateFileInode(ctx, o)
 	}
 
 	if err != nil {
