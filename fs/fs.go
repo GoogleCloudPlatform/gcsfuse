@@ -113,7 +113,7 @@ type fileSystem struct {
 
 type nameAndGen struct {
 	name string
-	gen  uint64
+	gen  int64
 }
 
 // Create a fuse file system whose root directory is the root of the supplied
@@ -295,7 +295,28 @@ func (fs *fileSystem) lookUpOrCreateDirInode(
 // EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
 func (fs *fileSystem) lookUpOrCreateFileInode(
 	ctx context.Context,
-	o *storage.Object) (in *inode.FileInode, err error)
+	o *storage.Object) (in *inode.FileInode, err error) {
+	nandg := nameAndGen{
+		name: o.Name,
+		gen:  o.Generation,
+	}
+
+	// Do we already have an inode for this (name, generation) pair?
+	if in = fs.fileIndex[nandg]; in != nil {
+		return
+	}
+
+	// Mint an ID.
+	id := fs.nextInodeID
+	fs.nextInodeID++
+
+	// Create and index an inode.
+	in = inode.NewFileInode(fs.bucket, id, o.Name, o.Generation)
+	fs.inodes[id] = in
+	fs.fileIndex[nandg] = in
+
+	return
+}
 
 ////////////////////////////////////////////////////////////////////////
 // fuse.FileSystem methods

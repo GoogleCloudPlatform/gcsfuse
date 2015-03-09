@@ -18,6 +18,7 @@ import (
 	"errors"
 
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
 )
@@ -49,10 +50,21 @@ type FileInode struct {
 	// in object write requests.
 	//
 	// GUARDED_BY(Mu)
-	srcGeneration uint64
+	srcGeneration int64
 }
 
 var _ Inode = &FileInode{}
+
+// Create a file inode for the object with the given name and generation. The
+// name must be non-empty and must not end with a slash.
+//
+// REQUIRES: len(name) > 0
+// REQUIRES: name[len(name)-1] != '/'
+func NewFileInode(
+	bucket gcs.Bucket,
+	id fuse.InodeID,
+	name string,
+	generation int64) (f *FileInode)
 
 ////////////////////////////////////////////////////////////////////////
 // Public interface
@@ -83,6 +95,6 @@ func (f *FileInode) Attributes(
 // an invariant) by creating an empty object when opening with O_CREAT.
 //
 // SHARED_LOCKS_REQUIRED(f.Mu)
-func (f *FileInode) SourceGeneration() uint64 {
+func (f *FileInode) SourceGeneration() int64 {
 	return f.srcGeneration
 }
