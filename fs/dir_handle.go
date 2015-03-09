@@ -126,6 +126,23 @@ func readEntries(
 	for {
 		entries, tok, err = in.ReadEntries(ctx, tok)
 
+		// Return a bogus inode ID for each entry, but not the root inode ID.
+		//
+		// NOTE(jacobsa): As far as I can tell this is harmless. Minting and
+		// returning a real inode ID is difficult because fuse does not count
+		// readdir as an operation that increases the inode ID's lookup count and
+		// we therefore don't get a forget for it later, but we would like to not
+		// have to remember every inode ID that we've ever minted for readdir.
+		//
+		// If it turns out this is not harmless, we'll need to switch to something
+		// like inode IDs based on (object name, generation) hashes. But then what
+		// about the birthday problem? And more importantly, what about our
+		// semantic of not minting a new inode ID when the generation changes due
+		// to a local action?
+		for i, _ := range entries {
+			entries[i].Inode = fuse.RootInodeID + 1
+		}
+
 		// Propagate errors.
 		if err != nil {
 			return
