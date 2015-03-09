@@ -25,6 +25,7 @@ import (
 	"github.com/jacobsa/gcsfuse/fs/inode"
 	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
+	"google.golang.org/cloud/storage"
 )
 
 type fileSystem struct {
@@ -207,6 +208,20 @@ func (fs *fileSystem) getAttributes(
 	return
 }
 
+// Finish the LookUpInode process for a directory with the given object record.
+//
+// EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
+func (fs *fileSystem) lookUpDirInode(
+	ctx context.Context,
+	o *storage.Object) (resp *LookUpInodeResponse, err error)
+
+// Finish the LookUpInode process for a file with the given object record.
+//
+// EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
+func (fs *fileSystem) lookUpFileInode(
+	ctx context.Context,
+	o *storage.Object) (resp *LookUpInodeResponse, err error)
+
 ////////////////////////////////////////////////////////////////////////
 // fuse.FileSystem methods
 ////////////////////////////////////////////////////////////////////////
@@ -224,6 +239,30 @@ func (fs *fileSystem) Init(
 	fs.gid = req.Header.Gid
 
 	return
+}
+
+func (fs *fileSystem) LookUpInode(
+	ctx context.Context,
+	req *fuse.LookUpInodeRequest) (resp *fuse.LookUpInodeResponse, err error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Find the parent directory in question.
+	parent := fs.inodes[req.Parent].(*inode.DirInode)
+
+	// Find a record for the child with the given name.
+	o, err := parent.LookUpChild(req.Name)
+	if err != nil {
+		err = fmt.Errorf("LookUpChild: %v", err)
+		return
+	}
+
+	// Is the child a directory or a file?
+	if isDirName(o.Name) {
+		return fs.lookUpDirInode(ctx, o)
+	}
+
+	return fs.lookUpFileInode(ctx, o)
 }
 
 func (fs *fileSystem) GetInodeAttributes(
