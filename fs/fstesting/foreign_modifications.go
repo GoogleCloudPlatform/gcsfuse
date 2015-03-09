@@ -711,10 +711,24 @@ func (t *foreignModsTest) ObjectIsOverwritten() {
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
-func (t *foreignModsTest) ObjectMetadataIsUpdated() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *foreignModsTest) ObjectIsDeleted() {
-	AssertTrue(false, "TODO")
+	// Create an object.
+	AssertEq(nil, t.createWithContents("foo", "taco"))
+
+	// Open the corresponding file for reading.
+	f, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+	defer func() {
+		ExpectEq(nil, f.Close())
+	}()
+
+	// Delete the object.
+	AssertEq(nil, t.bucket.DeleteObject(t.ctx, "foo"))
+
+	// The file should appear to be unlinked, but with the previous contents.
+	fi, err := f.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq(len("taco"), fi.Size())
+	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 }
