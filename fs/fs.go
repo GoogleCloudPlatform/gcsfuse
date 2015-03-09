@@ -368,7 +368,7 @@ func (fs *fileSystem) LookUpInode(
 
 	// Fill out the response.
 	resp.Entry.Child = in.ID()
-	if resp.Entry.Attributes, err = in.Attributes(ctx); err != nil {
+	if resp.Entry.Attributes, err = fs.getAttributes(ctx, in); err != nil {
 		return
 	}
 
