@@ -101,36 +101,47 @@ Although the GCS documentation doesn't define it this way, it is convenient
 when discussing consistency to think of deletions as resulting in generations
 as well, with a number also assigned according to this total order in a way
 compatible with causality. Such a "tombstone" generation can be thought of as
-having empty contents. The definitions below include such generations.
+having empty contents. Additionally, it is convenient to think of the initial
+non-existent state of any object name as being generation number zero.
+
+The discussion below uses the term "generation" in this manner.
 
 [generations]: https://cloud.google.com/storage/docs/generations-preconditions
 
 
-# Inodes and file contents
+# File inodes
 
-The first time a gcsfuse process encounters an (object name, generation) pair
-in GCS that it didn't create, it assigns it an unsued inode ID. Inode IDs are
-local to a particular process, and there are no guarantees about their
-stability across machines or invocations on a single machine.
+As in any file system, file inodes in a gcsfuse file system logically contain
+file contents and metadata. A file inode is iniitalized with a particular
+generation of a particular object within GCS (the "source generation"), and its
+contents are initially exactly the contents of that generation.
 
-When the user opens a file by name, the kernel VFS layer translates this to a
-series of requests to look up inodes while resolving path components.
-Afterward, it asks to open a handle for a particular inode ID. Therefore the
-contents observed when opening a gcsfuse file that is not already opened on the
-local machine are exactly the contents of a particular generation of the object
-backing that file (or the empty string if the file is newly created).
-
-Files may be opened for writing. Modifications are reflected immediately in
+Inodes may be opened for writing. Modifications are reflected immediately in
 reads of the same inode by processes local to the machine using the same file
-system. After a successful `fsync` or a successful `close`, modifications to a
-file are guaranteed to be reflected in the underlying GCS object, assuming the
-backing object's generation number has not changed due to writes from another
-process. There are no guarantees about whether they are reflected in GCS after
-writing but before syncing or closing.
+system. After a successful `fsync` or a successful `close`, the contents of the
+inode are guaranteed to have been written to the GCS object with the matching
+name if the object's generation number still matches the source generation
+number of the inode. (It may not if there have been modifications from another
+actor in the meantime.) There are no guarantees about whether local
+modifications are reflected in GCS after writing but before syncing or closing.
 
-Calling `fsync` or `close` on a file descriptor may result in a new generation
-of the object backing the file, as described above. In this case, gcsfuse does
-*not* mint a new inode ID.
+If a new generation number is assigned to a GCS object due to a flush from an
+inode, the source generation number of the inode is updated and the inode ID
+remains stable. Otherwise, if a new generation is created by another machine or
+in some other manner from the local machine, the new generation is treated as
+an inode distinct from any other inode already created for the object name.
+Inode IDs are local to a single gcsfuse process, and there are no guarantees
+about their stability across machines or invocations on a single machine.
+
+One of the fundamental operations in the VFS layer of the kernel is looking up
+the inode for a particular name within a directory. gcsfuse responds to such
+lookups as follows:
+
+1.  Stat the object with the given name within the GCS bucket.
+2.  If the object does not exist, return an error.
+3.  Call the generation number of the object N. If there is already an inode
+    for this name with source generation number N, return it.
+4.  Create a new inode for this name with source generation number N.
 
 The intent of these conventions is to make it appear as though local writes to
 a file are in-place modifications as with a traditional file system, whereas
@@ -141,7 +152,7 @@ The `st_nlink` field will reflect this when using `fstat`.
 Note the following consequence: if machine A opens a file and writes to it,
 then machine B deletes or replaces its backing object, then machine A closes
 the file, machine A's writes will be lost. This matches the behavior on a
-single machine when process A opens a file and then process B unlinkes it.
+single machine when process A opens a file and then process B unlinks it.
 Process A continues to have a consistent view of the file's contents until it
 closes the file handle, at which point the contents are lost.
 
