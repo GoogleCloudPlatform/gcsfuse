@@ -116,6 +116,8 @@ file contents and metadata. A file inode is iniitalized with a particular
 generation of a particular object within GCS (the "source generation"), and its
 contents are initially exactly the contents of that generation.
 
+## Modifications
+
 Inodes may be opened for writing. Modifications are reflected immediately in
 reads of the same inode by processes local to the machine using the same file
 system. After a successful `fsync` or a successful `close`, the contents of the
@@ -125,6 +127,8 @@ number of the inode. (It may not if there have been modifications from another
 actor in the meantime.) There are no guarantees about whether local
 modifications are reflected in GCS after writing but before syncing or closing.
 
+## Identity
+
 If a new generation number is assigned to a GCS object due to a flush from an
 inode, the source generation number of the inode is updated and the inode ID
 remains stable. Otherwise, if a new generation is created by another machine or
@@ -132,6 +136,8 @@ in some other manner from the local machine, the new generation is treated as
 an inode distinct from any other inode already created for the object name.
 Inode IDs are local to a single gcsfuse process, and there are no guarantees
 about their stability across machines or invocations on a single machine.
+
+## Lookups
 
 One of the fundamental operations in the VFS layer of the kernel is looking up
 the inode for a particular name within a directory. gcsfuse responds to such
@@ -142,6 +148,8 @@ lookups as follows:
 3.  Call the generation number of the object N. If there is already an inode
     for this name with source generation number N, return it.
 4.  Create a new inode for this name with source generation number N.
+
+## User-visible semantics
 
 The intent of these conventions is to make it appear as though local writes to
 a file are in-place modifications as with a traditional file system, whereas
