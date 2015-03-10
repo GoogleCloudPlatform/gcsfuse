@@ -101,7 +101,10 @@ Although the GCS documentation doesn't define it this way, it is convenient
 when discussing consistency to think of deletions as resulting in generations
 as well, with a number also assigned according to this total order in a way
 compatible with causality. Such a "tombstone" generation can be thought of as
-having empty contents. The definitions below include such generations.
+having empty contents. Additionally, it is convenient to think of the initial
+non-existent state of any object name as being generation number zero.
+
+The discussion below uses the term "generation" in this manner.
 
 [generations]: https://cloud.google.com/storage/docs/generations-preconditions
 
