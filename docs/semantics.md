@@ -112,16 +112,36 @@ The discussion below uses the term "generation" in this manner.
 # Inodes and file contents
 
 As in any file system, file inodes in a gcsfuse file system logically contain
-file contents and metadata. They are iniitalized with a particular generation
-of a particular object within GCS, and may change via writes and metadata
-updates.
+file contents and metadata. A file inode is iniitalized with a particular
+generation of a particular object within GCS (the "source generation"), and its
+contents are initially exactly the contents of that generation.
+
+Inodes may be opened for writing. Modifications are reflected immediately in
+reads of the same inode by processes local to the machine using the same file
+system. After a successful `fsync` or a successful `close`, the contents of the
+inode are guaranteed to have been written to the GCS object with the matching
+name if the object's generation number still matches the source generation
+number of the inode. (It may not if there have been modifications from another
+actor in the meantime.) There are no guarantees about whether local
+modifications are reflected in GCS after writing but before syncing or closing.
 
 If a new generation number is assigned to the GCS object due to a flush from an
-inode (via `fsync` or `close`, see below), the inode ID remains stable.
-Otherwise, if the generation is created by another machine or in some other
-manner from the local machine, the new generation is treated as a new inode.
-Inode IDs are local to a particular process, and there are no guarantees about
-their stability across machines or invocations on a single machine.
+inode, the source generation number of the inode is updated and the inode ID
+remains stable. Otherwise, if the generation is created by another machine or
+in some other manner from the local machine, the new generation is treated as a
+distinct inode. Inode IDs are local to a single gcsfuse process, and there are
+no guarantees about their stability across machines or invocations on a single
+machine.
+
+One of the fundamental operations in the VFS layer of the kernel is looking up
+the inode for a particular name within a directory. gcsfuse responds to such
+lookups as follows:
+
+1.  Stat the object with the given name within the GCS bucket.
+2.  If the object does not exist, return an error.
+3.  Call the generation number of the object N. If there is already an inode
+    for this name with source generation number N, return it.
+4.  Create a new inode for this name with source generation number N.
 
 When the user opens a file by name, the kernel VFS layer translates this to a
 series of requests to look up inodes while resolving path components.
@@ -130,13 +150,13 @@ contents observed when opening a gcsfuse file that is not already opened on the
 local machine are exactly the contents of a particular generation of the object
 backing that file (or the empty string if the file is newly created).
 
-Files may be opened for writing. Modifications are reflected immediately in
-reads of the same inode by processes local to the machine using the same file
-system. After a successful `fsync` or a successful `close`, modifications to a
-file are guaranteed to be reflected in the underlying GCS object, assuming the
-backing object's generation number has not changed due to writes from another
-process. There are no guarantees about whether they are reflected in GCS after
-writing but before syncing or closing.
+Files may be opened for writing, which implicitly opens a particular inode.
+Modifications are reflected immediately in reads of the same inode by processes
+local to the machine using the same file system. After a successful `fsync` or
+a successful `close`, modifications to a file are guaranteed to be reflected in
+the underlying GCS object, assuming the backing object's generation number has
+not changed due to writes from another process. There are no guarantees about
+whether they are reflected in GCS after writing but before syncing or closing.
 
 Calling `fsync` or `close` on a file descriptor may result in a new generation
 of the object backing the file, as described above. In this case, gcsfuse does
