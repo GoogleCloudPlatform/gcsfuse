@@ -125,7 +125,7 @@ number of the inode. (It may not if there have been modifications from another
 actor in the meantime.) There are no guarantees about whether local
 modifications are reflected in GCS after writing but before syncing or closing.
 
-If a new generation number is assigned to the GCS object due to a flush from an
+If a new generation number is assigned to a GCS object due to a flush from an
 inode, the source generation number of the inode is updated and the inode ID
 remains stable. Otherwise, if a new generation is created by another machine or
 in some other manner from the local machine, the new generation is treated as
