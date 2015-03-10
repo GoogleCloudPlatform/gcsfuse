@@ -152,7 +152,7 @@ The `st_nlink` field will reflect this when using `fstat`.
 Note the following consequence: if machine A opens a file and writes to it,
 then machine B deletes or replaces its backing object, then machine A closes
 the file, machine A's writes will be lost. This matches the behavior on a
-single machine when process A opens a file and then process B unlinkes it.
+single machine when process A opens a file and then process B unlinks it.
 Process A continues to have a consistent view of the file's contents until it
 closes the file handle, at which point the contents are lost.
 
