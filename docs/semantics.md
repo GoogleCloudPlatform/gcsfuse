@@ -109,7 +109,7 @@ The discussion below uses the term "generation" in this manner.
 [generations]: https://cloud.google.com/storage/docs/generations-preconditions
 
 
-# Inodes and file contents
+# File inodes
 
 As in any file system, file inodes in a gcsfuse file system logically contain
 file contents and metadata. A file inode is iniitalized with a particular
