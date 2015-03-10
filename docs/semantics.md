@@ -143,25 +143,6 @@ lookups as follows:
     for this name with source generation number N, return it.
 4.  Create a new inode for this name with source generation number N.
 
-When the user opens a file by name, the kernel VFS layer translates this to a
-series of requests to look up inodes while resolving path components.
-Afterward, it asks to open a handle for a particular inode ID. Therefore the
-contents observed when opening a gcsfuse file that is not already opened on the
-local machine are exactly the contents of a particular generation of the object
-backing that file (or the empty string if the file is newly created).
-
-Files may be opened for writing, which implicitly opens a particular inode.
-Modifications are reflected immediately in reads of the same inode by processes
-local to the machine using the same file system. After a successful `fsync` or
-a successful `close`, modifications to a file are guaranteed to be reflected in
-the underlying GCS object, assuming the backing object's generation number has
-not changed due to writes from another process. There are no guarantees about
-whether they are reflected in GCS after writing but before syncing or closing.
-
-Calling `fsync` or `close` on a file descriptor may result in a new generation
-of the object backing the file, as described above. In this case, gcsfuse does
-*not* mint a new inode ID.
-
 The intent of these conventions is to make it appear as though local writes to
 a file are in-place modifications as with a traditional file system, whereas
 remote overwrites of a GCS object appear as some other process unlinking the
