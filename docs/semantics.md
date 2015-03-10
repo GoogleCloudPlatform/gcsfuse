@@ -111,10 +111,17 @@ The discussion below uses the term "generation" in this manner.
 
 # Inodes and file contents
 
-The first time a gcsfuse process encounters an (object name, generation) pair
-in GCS that it didn't create, it assigns it an unsued inode ID. Inode IDs are
-local to a particular process, and there are no guarantees about their
-stability across machines or invocations on a single machine.
+As in any file system, file inodes in a gcsfuse file system logically contain
+file contents and metadata. They are iniitalized with a particular generation
+of a particular object within GCS, and may change via writes and metadata
+updates.
+
+If a new generation number is assigned to the GCS object due to a flush from an
+inode (via `fsync` or `close`, see below), the inode ID remains stable.
+Otherwise, if the generation is created by another machine or in some other
+manner from the local machine, the new generation is treated as a new inode.
+Inode IDs are local to a particular process, and there are no guarantees about
+their stability across machines or invocations on a single machine.
 
 When the user opens a file by name, the kernel VFS layer translates this to a
 series of requests to look up inodes while resolving path components.
