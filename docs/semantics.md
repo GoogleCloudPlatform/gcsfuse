@@ -127,11 +127,11 @@ modifications are reflected in GCS after writing but before syncing or closing.
 
 If a new generation number is assigned to the GCS object due to a flush from an
 inode, the source generation number of the inode is updated and the inode ID
-remains stable. Otherwise, if the generation is created by another machine or
-in some other manner from the local machine, the new generation is treated as a
-distinct inode. Inode IDs are local to a single gcsfuse process, and there are
-no guarantees about their stability across machines or invocations on a single
-machine.
+remains stable. Otherwise, if a new generation is created by another machine or
+in some other manner from the local machine, the new generation is treated as
+an inode distinct from any other inode already created for the object name.
+Inode IDs are local to a single gcsfuse process, and there are no guarantees
+about their stability across machines or invocations on a single machine.
 
 One of the fundamental operations in the VFS layer of the kernel is looking up
 the inode for a particular name within a directory. gcsfuse responds to such
