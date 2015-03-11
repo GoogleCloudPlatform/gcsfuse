@@ -106,16 +106,10 @@ func (op *checkingObjectProxy) Name() string {
 	return op.wrapped.Name()
 }
 
-func (op *checkingObjectProxy) NoteLatest(o *storage.Object) error {
+func (op *checkingObjectProxy) Stat(ctx context.Context) (uint64, bool, error) {
 	op.wrapped.CheckInvariants()
 	defer op.wrapped.CheckInvariants()
-	return op.wrapped.NoteLatest(o)
-}
-
-func (op *checkingObjectProxy) Size() (uint64, error) {
-	op.wrapped.CheckInvariants()
-	defer op.wrapped.CheckInvariants()
-	return op.wrapped.Size()
+	return op.wrapped.Stat(ctx)
 }
 
 func (op *checkingObjectProxy) ReadAt(b []byte, o int64) (int, error) {
@@ -136,16 +130,10 @@ func (op *checkingObjectProxy) Truncate(n uint64) error {
 	return op.wrapped.Truncate(context.Background(), n)
 }
 
-func (op *checkingObjectProxy) Sync() (*storage.Object, error) {
+func (op *checkingObjectProxy) Sync() (uint64, error) {
 	op.wrapped.CheckInvariants()
 	defer op.wrapped.CheckInvariants()
 	return op.wrapped.Sync(context.Background())
-}
-
-func (op *checkingObjectProxy) Clean() error {
-	op.wrapped.CheckInvariants()
-	defer op.wrapped.CheckInvariants()
-	return op.wrapped.Clean()
 }
 
 ////////////////////////////////////////////////////////////////////////
