@@ -15,6 +15,7 @@
 package fs
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -453,5 +454,19 @@ func (fs *fileSystem) ReleaseDirHandle(
 	// Clear the entry from the map.
 	delete(fs.handles, req.Handle)
 
+	return
+}
+
+// TODO(jacobsa): Make sure we have failing tests for O_CREAT and O_TRUNC
+// behavior, then implement those.
+//
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) OpenFile(
+	ctx context.Context,
+	req *fuse.OpenFileRequest) (
+	resp *fuse.OpenFileResponse, err error) {
+	resp = &fuse.OpenFileResponse{}
+
+	err = errors.New("TODO(jacobsa): Implement OpenFile.")
 	return
 }
