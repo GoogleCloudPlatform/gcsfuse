@@ -21,4 +21,7 @@ import (
 )
 
 // Return a matcher for times whose absolute distance from t is less than d.
-func TimeNear(t time.Time, d time.Duration) oglematchers.Matcher
+func TimeNear(t time.Time, d time.Duration) oglematchers.Matcher {
+	// TODO
+	return nil
+}
