@@ -17,6 +17,7 @@ package gcsproxy_test
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"testing"
 
@@ -182,7 +183,11 @@ func (t *NoSourceObjectTest) Name() {
 }
 
 func (t *NoSourceObjectTest) Read_InitialState() {
-	AssertTrue(false, "TODO")
+	buf := make([]byte, 1024)
+	n, err := t.op.ReadAt(buf, 0)
+
+	ExpectEq(io.EOF, err)
+	ExpectEq(0, n)
 }
 
 func (t *NoSourceObjectTest) WriteToEndOfObjectThenRead() {
