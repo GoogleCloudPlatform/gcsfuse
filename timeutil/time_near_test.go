@@ -90,7 +90,22 @@ func (t *TimeNearTest) WithinRadius() {
 }
 
 func (t *TimeNearTest) AtRadius() {
-	AssertTrue(false, "TODO")
+	const radius = 100 * time.Millisecond
+	expected := time.Now().Round(time.Second)
+	matcher := timeutil.TimeNear(expected, radius)
+	var err error
+
+	// Below
+	err = matcher.Matches(expected.Add(-radius))
+
+	AssertNe(nil, err)
+	ExpectEq("which differs by 100ms", err.Error())
+
+	// Above
+	err = matcher.Matches(expected.Add(radius))
+
+	AssertNe(nil, err)
+	ExpectEq("which differs by 100ms", err.Error())
 }
 
 func (t *TimeNearTest) OutsideOfRadius() {
