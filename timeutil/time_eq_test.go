@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/jacobsa/gcsfuse/timeutil"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -59,10 +60,24 @@ func (t *TimeEqTest) ActualIsNotATime() {
 	ExpectEq("which is not a time", err.Error())
 }
 
-func (t *TimeEqTest) ActualIsBeforeExpected() {
-	AssertTrue(false, "TODO")
+func (t *TimeEqTest) ActualAndExpectedDontMatch() {
+	expected := time.Now().Round(time.Second)
+	matcher := timeutil.TimeEq(expected)
+	var err error
+
+	// actual before expected
+	err = matcher.Matches(expected.Add(-2 * time.Second))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("off by -2s")))
+
+	// actual after expected
+	err = matcher.Matches(expected.Add(2 * time.Second))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("off by 2s")))
 }
 
-func (t *TimeEqTest) ActualIsAfterExpected() {
+func (t *TimeEqTest) ActualAndExpectedMatch() {
 	AssertTrue(false, "TODO")
 }
