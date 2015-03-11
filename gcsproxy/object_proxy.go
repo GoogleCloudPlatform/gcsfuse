@@ -20,7 +20,6 @@ import (
 
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
-	"google.golang.org/cloud/storage"
 )
 
 // A sentinel error returned by ObjectProxy.Sync.
@@ -46,8 +45,8 @@ type ObjectProxy struct {
 	// Constant data
 	/////////////////////////
 
-	// The name of the GCS object for which we are a proxy. Might not exist in
-	// the bucket.
+	// The name of the GCS object for which we are a proxy. Might not currently
+	// exist in the bucket.
 	name string
 
 	/////////////////////////
@@ -56,24 +55,20 @@ type ObjectProxy struct {
 
 	// The specific generation of the object from which our local state is
 	// branched. If we have no local state, the contents of this object are
-	// exactly our contents. May be nil if NoteLatest was never called.
-	//
-	// INVARIANT: If source != nil, source.Size >= 0
-	// INVARIANT: If source != nil, source.Name == name
-	source *storage.Object
+	// exactly our contents. May be zero if our source is a "doesn't exist"
+	// generation.
+	srcGeneration uint64
 
-	// A local temporary file containing the contents of our source (or the empty
-	// string if no source) along with any local modifications. The authority on
-	// our view of the object when non-nil.
-	//
-	// A nil file is to be regarded as empty, but is not authoritative unless
-	// source is also nil.
+	// A local temporary file containing our current contents. When non-nil, this
+	// is the authority on our contents. When nil, our contents are defined by
+	// the generation identified by srcGeneration.
 	localFile *os.File
 
-	// false if the contents of localFile may be different from the contents of
-	// the object referred to by source. Sync needs to do work iff this is true.
+	// false if localFile is present but its contents may be different from the
+	// contents of our source generation. Sync needs to do work iff this is true.
 	//
-	// INVARIANT: If false, then source != nil.
+	// INVARIANT: If srcGeneration == 0, then dirty
+	// INVARIANT: If dirty, then localFile != nil
 	dirty bool
 }
 
