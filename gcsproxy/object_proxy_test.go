@@ -361,8 +361,50 @@ func (t *NoSourceObjectTest) Sync_CreateObjectSaysPreconditionFailed() {
 	t.op.Sync()
 }
 
-func (t *NoSourceObjectTest) Sync_Successful() {
+func (t *NoSourceObjectTest) Sync_BucketReturnsNegativeGeneration() {
 	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Sync_BucketReturnsZeroGeneration() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Sync_Successful() {
+	var n int
+	var err error
+
+	// Dirty the proxy.
+	n, err = t.op.WriteAt([]byte("taco"), 0)
+	AssertEq(nil, err)
+	AssertEq(len("taco"), n)
+
+	// Have the call to CreateObject succeed.
+	o := &storage.Object{
+		Name:       t.objectName,
+		Generation: 17,
+	}
+
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(oglemock.Return(o, nil))
+
+	// Sync -- should succeed
+	gen, err := t.op.Sync()
+
+	AssertEq(nil, err)
+	ExpectEq(17, gen)
+
+	// Further calls to Sync should do nothing.
+	gen, err = t.op.Sync()
+
+	AssertEq(nil, err)
+	ExpectEq(17, gen)
+
+	// The data we wrote before should still be present.
+	buf := make([]byte, 1024)
+	n, err = t.op.ReadAt(buf, 0)
+
+	AssertEq(io.EOF, err)
+	ExpectEq("taco", string(buf[:n]))
 }
 
 func (t *NoSourceObjectTest) Stat_CallsBucket() {
