@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/jacobsa/oglematchers"
+	"github.com/jacobsa/gcsfuse/timeutil"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -38,9 +38,9 @@ func init() { RegisterTestSuite(&TimeEqTest{}) }
 ////////////////////////////////////////////////////////////////////////
 
 func (t *TimeEqTest) Description() {
-	t := time.Now()
-	matcher := TimeEq(t)
-	ExpectEq(t.String(), matcher.Description())
+	expected := time.Now()
+	matcher := timeutil.TimeEq(expected)
+	ExpectEq(expected.String(), matcher.Description())
 }
 
 func (t *TimeEqTest) DoesFoo() {
