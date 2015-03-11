@@ -44,7 +44,12 @@ func (t *TimeEqTest) Description() {
 }
 
 func (t *TimeEqTest) ActualIsNil() {
-	AssertTrue(false, "TODO")
+	expected := time.Now()
+	matcher := timeutil.TimeEq(expected)
+
+	err := matcher.Matches(nil)
+	AssertNe(nil, err)
+	ExpectEq("which is not a time", err.Error())
 }
 
 func (t *TimeEqTest) ActualIsString() {
