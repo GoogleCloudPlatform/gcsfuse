@@ -290,19 +290,7 @@ func (t *NoSourceObjectTest) GrowByTruncating() {
 	ExpectEq("\x00\x00\x00\x00", string(buf[:n]))
 }
 
-func (t *NoSourceObjectTest) Sync_NoInteractions() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *NoSourceObjectTest) Sync_ReadCallsOnly() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *NoSourceObjectTest) Sync_AfterWriting() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *NoSourceObjectTest) Sync_AfterTruncating() {
+func (t *NoSourceObjectTest) Sync_CallsCreateObject() {
 	AssertTrue(false, "TODO")
 }
 
@@ -406,6 +394,18 @@ func (t *SourceObjectPresentTest) Truncate_NewReaderSucceeds() {
 }
 
 func (t *SourceObjectPresentTest) Sync_NoInteractions() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Sync_AfterReading() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Sync_AfterWriting() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Sync_AfterTruncating() {
 	AssertTrue(false, "TODO")
 }
 
