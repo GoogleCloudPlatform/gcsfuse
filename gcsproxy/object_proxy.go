@@ -128,8 +128,26 @@ func (op *ObjectProxy) CheckInvariants() {
 
 // Destroy any local file caches, putting the proxy into an indeterminate
 // state. Should be used before dropping the final reference to the proxy.
-func (op *ObjectProxy) Destroy() {
-	panic("TODO")
+func (op *ObjectProxy) Destroy() (err error) {
+	// Make sure that when we exit no invariants are violated.
+	defer func() {
+		op.srcGeneration = 1
+		op.localFile = nil
+		op.dirty = false
+	}()
+
+	// If we have no local file, there's nothing to do.
+	if op.localFile == nil {
+		return
+	}
+
+	// Close the local file.
+	if err = op.localFile.Close(); err != nil {
+		err = fmt.Errorf("Close: %v", err)
+		return
+	}
+
+	return
 }
 
 // Return the current size in bytes of the content and an indication of whether
@@ -192,8 +210,8 @@ func (op *ObjectProxy) Sync(ctx context.Context) (gen uint64, err error) {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-// Set up a local temporary file for the given generation of the given object.
-// Special case: generation == 0 means an empty file.
+// Set up an unlinked local temporary file for the given generation of the
+// given object. Special case: generation == 0 means an empty file.
 func makeLocalFile(
 	ctx context.Context,
 	bucket gcs.Bucket,
@@ -206,7 +224,15 @@ func makeLocalFile(
 		return
 	}
 
-	// Fetch its contents if necessary.
+	// Unlink the file so that its inode will be garbage collected when the file
+	// is closed.
+	if err = os.Remove(f.Name()); err != nil {
+		f.Close()
+		err = fmt.Errorf("Remove: %v", err)
+		return
+	}
+
+	// Fetch the object's contents if necessary.
 	if generation != 0 {
 		panic("TODO")
 	}
