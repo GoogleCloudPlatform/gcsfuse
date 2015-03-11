@@ -330,6 +330,7 @@ func (t *NoSourceObjectTest) Sync_CreateObjectFails() {
 	_, err := t.op.Sync()
 
 	AssertNe(nil, err)
+	ExpectThat(err, Not(hasSameTypeAs(&gcs.PreconditionError{})))
 	ExpectThat(err, Error(HasSubstr("CreateObject")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 
@@ -341,7 +342,23 @@ func (t *NoSourceObjectTest) Sync_CreateObjectFails() {
 }
 
 func (t *NoSourceObjectTest) Sync_CreateObjectSaysPreconditionFailed() {
-	AssertTrue(false, "TODO")
+	// CreateObject -- return a precondition error.
+	e := &gcs.PreconditionError{Err: errors.New("taco")}
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, e))
+
+	// Sync
+	_, err := t.op.Sync()
+
+	AssertThat(err, hasSameTypeAs(&gcs.PreconditionError{}))
+	ExpectThat(err, Error(HasSubstr("CreateObject")))
+	ExpectThat(err, Error(HasSubstr("taco")))
+
+	// A further call to Sync should cause the bucket to be called again.
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	t.op.Sync()
 }
 
 func (t *NoSourceObjectTest) Sync_Successful() {
