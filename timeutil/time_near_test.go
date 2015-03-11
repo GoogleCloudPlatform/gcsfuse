@@ -63,7 +63,30 @@ func (t *TimeNearTest) ActualIsNotATime() {
 }
 
 func (t *TimeNearTest) WithinRadius() {
-	AssertTrue(false, "TODO")
+	const radius = 100 * time.Millisecond
+	expected := time.Now().Round(time.Second)
+	matcher := timeutil.TimeNear(expected, radius)
+	var err error
+
+	// Left edge
+	err = matcher.Matches(expected.Add(-radius + time.Nanosecond))
+	ExpectEq(nil, err)
+
+	// Left of center
+	err = matcher.Matches(expected.Add(-time.Nanosecond))
+	ExpectEq(nil, err)
+
+	// Center
+	err = matcher.Matches(expected)
+	ExpectEq(nil, err)
+
+	// Right of center
+	err = matcher.Matches(expected.Add(time.Nanosecond))
+	ExpectEq(nil, err)
+
+	// Left edge
+	err = matcher.Matches(expected.Add(radius - time.Nanosecond))
+	ExpectEq(nil, err)
 }
 
 func (t *TimeNearTest) AtRadius() {
