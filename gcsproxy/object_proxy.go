@@ -95,8 +95,7 @@ func NewObjectProxy(
 	// For "doesn't exist" source generations, we must establish an empty local
 	// file and mark the proxy dirty.
 	if srcGeneration == 0 {
-		op.localFile, err = makeLocalFile(ctx, bucket, name, srcGeneration)
-		if err != nil {
+		if err = op.ensureLocalFile(ctx); err != nil {
 			return
 		}
 
@@ -203,5 +202,24 @@ func makeLocalFile(
 		panic("TODO")
 	}
 
+	return
+}
+
+// Ensure that op.localFile is non-nil with an authoritative view of op's
+// contents.
+func (op *ObjectProxy) ensureLocalFile(ctx context.Context) (err error) {
+	// Is there anything to do?
+	if op.localFile != nil {
+		return
+	}
+
+	// Set up the file.
+	f, err := makeLocalFile(ctx, op.bucket, op.name, op.srcGeneration)
+	if err != nil {
+		err = fmt.Errorf("makeLocalFile: %v", err)
+		return
+	}
+
+	op.localFile = f
 	return
 }
