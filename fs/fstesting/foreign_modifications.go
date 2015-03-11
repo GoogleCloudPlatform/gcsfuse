@@ -91,16 +91,17 @@ func readRange(r io.ReadSeeker, offset int64, n int) (s string, err error) {
 
 type fsTest struct {
 	ctx    context.Context
-	clock  timeutil.SimulatedClock
+	clock  timeutil.Clock
 	bucket gcs.Bucket
 	mfs    *fuse.MountedFileSystem
 }
 
 var _ fsTestInterface = &fsTest{}
 
-func (t *fsTest) setUpFsTest(b gcs.Bucket) {
+func (t *fsTest) setUpFsTest(deps FSTestDeps) {
 	t.ctx = context.Background()
-	t.bucket = b
+	t.clock = deps.Clock
+	t.bucket = deps.Bucket
 
 	// Set up a temporary directory for mounting.
 	mountPoint, err := ioutil.TempDir("", "fs_test")
@@ -109,7 +110,7 @@ func (t *fsTest) setUpFsTest(b gcs.Bucket) {
 	}
 
 	// Mount a file system.
-	fileSystem, err := fs.NewFileSystem(&t.clock, b)
+	fileSystem, err := fs.NewFileSystem(t.clock, t.bucket)
 	if err != nil {
 		panic("NewFileSystem: " + err.Error())
 	}
