@@ -22,7 +22,7 @@ import (
 	. "github.com/jacobsa/ogletest"
 )
 
-func TestTimeEquals(t *testing.T) { RunTests(t) }
+func TestTimeEq(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -37,12 +37,12 @@ func init() { RegisterTestSuite(&TimeEqTest{}) }
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *TimeEqualsTest) Description() {
+func (t *TimeEqTest) Description() {
 	t := time.Now()
 	matcher := TimeEq(t)
 	ExpectEq(t.String(), matcher.Description())
 }
 
-func (t *TimeEqualsTest) DoesFoo() {
+func (t *TimeEqTest) DoesFoo() {
 	AssertTrue(false, "TODO")
 }
