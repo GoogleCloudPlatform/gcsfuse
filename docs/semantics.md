@@ -182,6 +182,24 @@ look up child inodes. Unlike file inodes:
     directories. There are no guarantees for the contents of `stat::st_mtime`
     or equivalent.
 
+### Reading
+
+Unlike reads for a particular object, listing operations in GCS are
+[eventually consistent][consistency]. This means that directory listings in
+gcsfuse may be arbitrarily far out of date. Additionally, seeing a fresh
+listing once does not imply that future listings will be fresh. This applies at
+the user level to commands like `ls`, and to the posix interfaces they use like
+`readdir`.
+
+[consistency]: https://cloud.google.com/storage/docs/concepts-techniques#consistency
+
+gcsfuse attempts to paper over this issue somewhat by remembering local
+modifications (creations and removals) for some period of time, so that e.g.
+creating a file and then listing its parent directory on the same machine will
+result in the expected experience. However note that this means that e.g. a
+subsequent deletion of the file on another machine will not be reflected in a
+directory listing on the creating machine for that time period.
+
 
 # Write/read consistency
 
@@ -199,22 +217,3 @@ Therefore if:
 
 then machine B will observe a version of the file at least as new as the one
 created by machine A.
-
-
-# Directory listing
-
-Unlike reads for a particular object, listing operations in GCS are
-[eventually consistent][consistency]. This means that directory listings in
-gcsfuse may be arbitrarily far out of date. Additionally, seeing a fresh
-listing once does not imply that future listings will be fresh. This applies at
-the user level to commands like `ls`, and to the posix interfaces they use like
-`readdir`.
-
-[consistency]: https://cloud.google.com/storage/docs/concepts-techniques#consistency
-
-gcsfuse attempts to paper over this issue somewhat by remembering local
-modifications (creations and removals) for some period of time, so that e.g.
-creating a file and then listing its parent directory on the same machine will
-result in the expected experience. However note that this means that e.g. a
-subsequent deletion of the file on another machine will not be reflected in a
-directory listing on the creating machine for that time period.
