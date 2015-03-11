@@ -116,7 +116,15 @@ func (op *ObjectProxy) Name() string {
 // at appropriate times to help debug weirdness. Consider using
 // syncutil.InvariantMutex to automate the process.
 func (op *ObjectProxy) CheckInvariants() {
-	panic("TODO")
+	// INVARIANT: If srcGeneration == 0, then dirty
+	if op.srcGeneration == 0 && !op.dirty {
+		panic("Expected dirty.")
+	}
+
+	// INVARIANT: If dirty, then localFile != nil
+	if op.dirty && op.localFile == nil {
+		panic("Expected non-nil localFile.")
+	}
 }
 
 // Destroy any local file caches, putting the proxy into an indeterminate
