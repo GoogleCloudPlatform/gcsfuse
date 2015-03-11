@@ -310,6 +310,7 @@ func (fs *fileSystem) lookUpOrCreateFileInode(
 // fuse.FileSystem methods
 ////////////////////////////////////////////////////////////////////////
 
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) Init(
 	ctx context.Context,
 	req *fuse.InitRequest) (resp *fuse.InitResponse, err error) {
@@ -325,6 +326,7 @@ func (fs *fileSystem) Init(
 	return
 }
 
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
 	req *fuse.LookUpInodeRequest) (resp *fuse.LookUpInodeResponse, err error) {
@@ -366,6 +368,7 @@ func (fs *fileSystem) LookUpInode(
 	return
 }
 
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) GetInodeAttributes(
 	ctx context.Context,
 	req *fuse.GetInodeAttributesRequest) (
@@ -390,6 +393,7 @@ func (fs *fileSystem) GetInodeAttributes(
 	return
 }
 
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) OpenDir(
 	ctx context.Context,
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
@@ -415,6 +419,7 @@ func (fs *fileSystem) OpenDir(
 	return
 }
 
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadDir(
 	ctx context.Context,
 	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {
@@ -432,6 +437,7 @@ func (fs *fileSystem) ReadDir(
 	return
 }
 
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReleaseDirHandle(
 	ctx context.Context,
 	req *fuse.ReleaseDirHandleRequest) (
