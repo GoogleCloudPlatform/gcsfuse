@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -203,7 +204,22 @@ func (op *ObjectProxy) WriteAt(
 // n is greater than the current size. May block for network access. Not
 // guaranteed to be reflected remotely until after Sync is called successfully.
 func (op *ObjectProxy) Truncate(ctx context.Context, n uint64) (err error) {
-	panic("TODO")
+	// Make sure we have a local file.
+	if err = op.ensureLocalFile(ctx); err != nil {
+		err = fmt.Errorf("ensureLocalFile: %v", err)
+		return
+	}
+
+	// Convert to signed, which is what os.File wants.
+	if n > math.MaxInt64 {
+		err = fmt.Errorf("Illegal offset: %v", n)
+		return
+	}
+
+	op.dirty = true
+	err = op.localFile.Truncate(int64(n))
+
+	return
 }
 
 // If the proxy is dirty due to having been written to or due to having a nil
