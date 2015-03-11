@@ -306,7 +306,19 @@ func (t *NoSourceObjectTest) Sync_CallsCreateObject_NoInteractions() {
 }
 
 func (t *NoSourceObjectTest) Sync_CallsCreateObject_AfterWriting() {
-	AssertTrue(false, "TODO")
+	// Write some data.
+	n, err := t.op.WriteAt([]byte("taco"), 0)
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// CreateObject -- should receive "taco" and a generation zero precondition.
+	ExpectCall(t.bucket, "CreateObject")(
+		Any(),
+		AllOf(nameIs(t.objectName), contentsAre("taco"), generationIs(0))).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	// Sync
+	t.op.Sync()
 }
 
 func (t *NoSourceObjectTest) Sync_CreateObjectFails() {
