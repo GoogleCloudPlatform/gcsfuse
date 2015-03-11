@@ -322,7 +322,22 @@ func (t *NoSourceObjectTest) Sync_CallsCreateObject_AfterWriting() {
 }
 
 func (t *NoSourceObjectTest) Sync_CreateObjectFails() {
-	AssertTrue(false, "TODO")
+	// CreateObject -- return an error.
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, errors.New("taco")))
+
+	// Sync
+	_, err := t.op.Sync()
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("CreateObject")))
+	ExpectThat(err, Error(HasSubstr("taco")))
+
+	// A further call to Sync should cause the bucket to be called again.
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	t.op.Sync()
 }
 
 func (t *NoSourceObjectTest) Sync_CreateObjectSaysPreconditionFailed() {
