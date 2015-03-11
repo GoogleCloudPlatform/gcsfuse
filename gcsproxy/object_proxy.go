@@ -77,11 +77,12 @@ type ObjectProxy struct {
 	dirty bool
 }
 
-// Create a view on the given GCS object generation, or nil if branching from a
-// non-existent object (in which case the initial contents are empty).
+// Create a view on the given GCS object generation, or zero if branching from
+// a non-existent object (in which case the initial contents are empty).
 func NewObjectProxy(
 	bucket gcs.Bucket,
-	o *storage.Object) (op *ObjectProxy, err error)
+	name string,
+	srcGeneration uint64) (op *ObjectProxy, err error)
 
 // Return the name of the proxied object. This may or may not be an object that
 // currently exists in the bucket.
@@ -127,8 +128,8 @@ func (op *ObjectProxy) WriteAt(
 func (op *ObjectProxy) Truncate(ctx context.Context, n uint64) (err error)
 
 // If the proxy is dirty due to having been written to or due to having a nil
-// source, save its current contents to GCS and return a record for a
-// generation with those contents. Do so with a precondition such that the
-// creation will fail if the source generation is not current. In that case,
-// return ErrNotCurrent.
-func (op *ObjectProxy) Sync(ctx context.Context) (o *storage.Object, err error)
+// source, save its current contents to GCS and return a generation number for
+// a generation with exactly those contents. Do so with a precondition such
+// that the creation will fail if the source generation is not current. In that
+// case, return ErrNotCurrent.
+func (op *ObjectProxy) Sync(ctx context.Context) (gen uint64, err error)
