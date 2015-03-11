@@ -171,6 +171,32 @@ func (t *fsTest) createEmptyObjects(names []string) error {
 	return err
 }
 
+// Ensure that the clock will report a different time after returning.
+func (t *fsTest) advanceTime() {
+	// For simulated clocks, we can just advance the time.
+	if c, ok := t.clock.(*timeutil.SimulatedClock); ok {
+		c.AdvanceTime(time.Second)
+		return
+	}
+
+	// Otherwise, sleep a moment.
+	time.Sleep(time.Millisecond)
+}
+
+// Return a matcher that matches event times as reported by the bucket
+// corresponding to the supplied start time as measured by the test.
+func (t *fsTest) matchesStartTime(start time.Time) Matcher {
+	// For simulated clocks we can use exact equality.
+	if _, ok := t.clock.(*timeutil.SimulatedClock); ok {
+		return timeutil.TimeEq(start)
+	}
+
+	// Otherwise, we need to take into account latency between the start of our
+	// call and the time the server actually executed the operation.
+	const slop = 60 * time.Second
+	return timeutil.TimeNear(start, slop)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Read-only interaction
 ////////////////////////////////////////////////////////////////////////
@@ -242,6 +268,7 @@ func (t *foreignModsTest) EmptyRoot() {
 
 func (t *foreignModsTest) ContentsInRoot() {
 	// Set up contents.
+	createTime := t.clock.Now()
 	AssertEq(
 		nil,
 		t.createObjects(
@@ -270,6 +297,9 @@ func (t *foreignModsTest) ContentsInRoot() {
 				},
 			}))
 
+	// Make sure the time below doesn't match.
+	t.advanceTime()
+
 	// ReadDir
 	entries, err := t.readDirUntil(3, t.mfs.Dir())
 	AssertEq(nil, err)
@@ -282,9 +312,6 @@ func (t *foreignModsTest) ContentsInRoot() {
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
 	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
 	ExpectTrue(e.IsDir())
 
 	// baz
@@ -292,9 +319,7 @@ func (t *foreignModsTest) ContentsInRoot() {
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
 	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
+	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 
 	// foo
@@ -302,9 +327,7 @@ func (t *foreignModsTest) ContentsInRoot() {
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
 	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
+	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 }
 
@@ -350,6 +373,7 @@ func (t *foreignModsTest) UnreachableObjects() {
 
 func (t *foreignModsTest) ContentsInSubDirectory() {
 	// Set up contents.
+	createTime := t.clock.Now()
 	AssertEq(
 		nil,
 		t.createObjects(
@@ -386,6 +410,9 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 				},
 			}))
 
+	// Make sure the time below doesn't match.
+	t.advanceTime()
+
 	// Wait for the directory to show up in the file system.
 	_, err := t.readDirUntil(1, path.Join(t.mfs.Dir()))
 	AssertEq(nil, err)
@@ -402,19 +429,14 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
 	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
-	ExpectTrue(e.IsDir())
+	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 
 	// baz
 	e = entries[1]
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
 	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
+	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 
 	// foo
@@ -422,9 +444,7 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
 	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
+	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 }
 

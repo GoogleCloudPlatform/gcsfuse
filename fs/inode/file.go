@@ -109,8 +109,9 @@ func (f *FileInode) Name() string {
 func (f *FileInode) Attributes(
 	ctx context.Context) (attrs fuse.InodeAttributes, err error) {
 	attrs = fuse.InodeAttributes{
-		Size: uint64(f.srcObject.Size),
-		Mode: 0700,
+		Size:  uint64(f.srcObject.Size),
+		Mode:  0700,
+		Mtime: f.srcObject.Updated,
 	}
 
 	return
