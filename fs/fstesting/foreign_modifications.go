@@ -103,6 +103,9 @@ func (t *fsTest) setUpFsTest(deps FSTestDeps) {
 	t.clock = deps.Clock
 	t.bucket = deps.Bucket
 
+	// Set up a fixed, non-zero time.
+	t.clock.SetTime(time.Now().Round(time.Second))
+
 	// Set up a temporary directory for mounting.
 	mountPoint, err := ioutil.TempDir("", "fs_test")
 	if err != nil {
