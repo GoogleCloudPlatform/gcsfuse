@@ -17,16 +17,13 @@ package gcsproxy_test
 import (
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"strings"
 	"testing"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	"github.com/jacobsa/gcsfuse/gcsproxy"
 	. "github.com/jacobsa/oglematchers"
-	"github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
@@ -191,10 +188,6 @@ func (t *NoSourceObjectTest) Stat_BucketFails() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *NoSourceObjectTest) Stat_BucketSaysFound() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *NoSourceObjectTest) Stat_InitialState() {
 	AssertTrue(false, "TODO")
 }
@@ -212,6 +205,10 @@ func (t *NoSourceObjectTest) Stat_AfterReading() {
 }
 
 func (t *NoSourceObjectTest) Stat_AfterWriting() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Stat_Clobbered() {
 	AssertTrue(false, "TODO")
 }
 
@@ -282,322 +279,82 @@ func (t *SourceObjectPresentTest) SetUp(ti *TestInfo) {
 	t.ObjectProxyTest.setUp(ti, 123)
 }
 
-func (t *SourceObjectPresentTest) Size_InitialState() {
-	size, err := t.op.Size()
-	AssertEq(nil, err)
-	ExpectEq(t.sourceObject.Size, size)
+func (t *SourceObjectPresentTest) Stat_CallsBucket() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Stat_BucketFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Stat_BucketSaysNotFound() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Stat_InitialState() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Stat_AfterShortening() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Stat_AfterGrowing() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Stat_AfterReading() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Stat_AfterWriting() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Stat_Clobbered() {
+	AssertTrue(false, "TODO")
 }
 
 func (t *SourceObjectPresentTest) Read_CallsNewReader() {
-	// Bucket.NewReader
-	ExpectCall(t.bucket, "NewReader")(Any(), t.sourceObject.Name).
-		WillOnce(oglemock.Return(nil, errors.New("")))
-
-	// ReadAt
-	t.op.ReadAt(make([]byte, 1), 0)
+	AssertTrue(false, "TODO")
 }
 
 func (t *SourceObjectPresentTest) Read_NewReaderFails() {
-	// Bucket.NewReader
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(nil, errors.New("taco")))
-
-	// ReadAt
-	_, err := t.op.ReadAt(make([]byte, 1), 0)
-
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("NewReader")))
-	ExpectThat(err, Error(HasSubstr("taco")))
-
-	// A subsequent call should cause it to happen all over again.
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(nil, errors.New("")))
-
-	t.op.ReadAt(make([]byte, 1), 0)
+	AssertTrue(false, "TODO")
 }
 
 func (t *SourceObjectPresentTest) Read_NewReaderSucceeds() {
-	buf := make([]byte, 1024)
-	var n int
-	var err error
-
-	// Bucket.NewReader
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("taco")), nil))
-
-	// Reads
-	n, err = t.op.ReadAt(buf[:1], 2)
-	AssertEq(nil, err)
-	ExpectEq("c", string(buf[:n]))
-
-	n, err = t.op.ReadAt(buf[:10], 0)
-	AssertEq(io.EOF, err)
-	ExpectEq("taco", string(buf[:n]))
-
-	// Sync should do nothing interesting.
-	syncResult, err := t.op.Sync()
-
-	AssertEq(nil, err)
-	ExpectEq(t.sourceObject, syncResult)
+	AssertTrue(false, "TODO")
 }
 
 func (t *SourceObjectPresentTest) Write_CallsNewReader() {
-	// Bucket.NewReader
-	ExpectCall(t.bucket, "NewReader")(Any(), t.sourceObject.Name).
-		WillOnce(oglemock.Return(nil, errors.New("")))
-
-	// WriteAt
-	t.op.WriteAt([]byte(""), 0)
+	AssertTrue(false, "TODO")
 }
 
 func (t *SourceObjectPresentTest) Write_NewReaderFails() {
-	// Bucket.NewReader
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(nil, errors.New("taco")))
-
-	// ReadAt
-	_, err := t.op.WriteAt([]byte(""), 0)
-
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("NewReader")))
-	ExpectThat(err, Error(HasSubstr("taco")))
-
-	// A subsequent call should cause it to happen all over again.
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(nil, errors.New("")))
-
-	t.op.WriteAt([]byte(""), 0)
+	AssertTrue(false, "TODO")
 }
 
 func (t *SourceObjectPresentTest) Write_NewReaderSucceeds() {
-	buf := make([]byte, 1024)
-	var n int
-	var err error
-
-	// Bucket.NewReader
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("taco")), nil))
-
-	// Write
-	_, err = t.op.WriteAt([]byte("burrito"), 3)
-	AssertEq(nil, err)
-
-	// Read
-	n, err = t.op.ReadAt(buf, 0)
-	AssertEq(io.EOF, err)
-	ExpectEq("tacburrito", string(buf[:n]))
-
-	// The object should be regarded as dirty by Sync.
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(oglemock.Return(nil, errors.New("")))
-
-	t.op.Sync()
+	AssertTrue(false, "TODO")
 }
 
 func (t *SourceObjectPresentTest) Truncate_CallsNewReader() {
-	// Bucket.NewReader
-	ExpectCall(t.bucket, "NewReader")(Any(), t.sourceObject.Name).
-		WillOnce(oglemock.Return(nil, errors.New("")))
-
-	// WriteAt
-	t.op.Truncate(1)
+	AssertTrue(false, "TODO")
 }
 
 func (t *SourceObjectPresentTest) Truncate_NewReaderFails() {
-	// Bucket.NewReader
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(nil, errors.New("taco")))
-
-	// ReadAt
-	err := t.op.Truncate(1)
-
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("NewReader")))
-	ExpectThat(err, Error(HasSubstr("taco")))
-
-	// A subsequent call should cause it to happen all over again.
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(nil, errors.New("")))
-
-	t.op.Truncate(1)
+	AssertTrue(false, "TODO")
 }
 
 func (t *SourceObjectPresentTest) Truncate_NewReaderSucceeds() {
-	buf := make([]byte, 1024)
-	var n int
-	var err error
-
-	// Bucket.NewReader
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("taco")), nil))
-
-	// Truncate
-	err = t.op.Truncate(1)
-	AssertEq(nil, err)
-
-	// Read
-	n, err = t.op.ReadAt(buf, 0)
-	AssertEq(io.EOF, err)
-	ExpectEq("t", string(buf[:n]))
-
-	// The object should be regarded as dirty by Sync.
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(oglemock.Return(nil, errors.New("")))
-
-	t.op.Sync()
+	AssertTrue(false, "TODO")
 }
 
 func (t *SourceObjectPresentTest) Sync_NoInteractions() {
-	// Sync should do nothing interesting.
-	syncResult, err := t.op.Sync()
-
-	AssertEq(nil, err)
-	ExpectEq(t.sourceObject, syncResult)
+	AssertTrue(false, "TODO")
 }
 
-func (t *SourceObjectPresentTest) NoteLatest_EarlierThanPrev() {
-	var err error
-
-	// NoteLatest
-	o := &storage.Object{}
-	*o = *t.sourceObject
-	o.Generation--
-
-	err = t.op.NoteLatest(o)
-	AssertEq(nil, err)
-
-	// The input should have been ignored.
-	syncResult, err := t.op.Sync()
-
-	AssertEq(nil, err)
-	ExpectEq(t.sourceObject, syncResult)
-}
-
-func (t *SourceObjectPresentTest) NoteLatest_SameAsPrev() {
-	var err error
-
-	// NoteLatest
-	o := &storage.Object{}
-	*o = *t.sourceObject
-
-	err = t.op.NoteLatest(o)
-	AssertEq(nil, err)
-
-	// The input should have been ignored.
-	syncResult, err := t.op.Sync()
-
-	AssertEq(nil, err)
-	ExpectEq(t.sourceObject, syncResult)
-}
-
-func (t *SourceObjectPresentTest) NoteLatest_NewerThanPrev() {
-	var err error
-
-	// NoteLatest
-	o := &storage.Object{}
-	*o = *t.sourceObject
-	o.Generation++
-
-	err = t.op.NoteLatest(o)
-	AssertEq(nil, err)
-
-	// The input should have been adopted.
-	syncResult, err := t.op.Sync()
-
-	AssertEq(nil, err)
-	ExpectEq(o, syncResult)
-}
-
-func (t *SourceObjectPresentTest) Clean_NoInteractions() {
-	var err error
-
-	// Clean
-	err = t.op.Clean()
-	AssertEq(nil, err)
-
-	// Sync should still have to do nothing.
-	syncResult, err := t.op.Sync()
-	AssertEq(nil, err)
-	ExpectEq(t.sourceObject, syncResult)
-}
-
-func (t *SourceObjectPresentTest) Clean_AfterReading() {
-	buf := make([]byte, 1024)
-	var n int
-	var err error
-
-	// Read, successfully.
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("taco")), nil))
-
-	n, err = t.op.ReadAt(buf, 0)
-	AssertEq(io.EOF, err)
-	AssertEq("taco", string(buf[:n]))
-
-	// Clean
-	err = t.op.Clean()
-	AssertEq(nil, err)
-
-	// Sync should need to do nothing.
-	syncResult, err := t.op.Sync()
-	AssertEq(nil, err)
-	ExpectEq(t.sourceObject, syncResult)
-
-	// The next read should need to fetch the object again.
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(nil, errors.New("")))
-
-	t.op.ReadAt(buf, 0)
-}
-
-func (t *SourceObjectPresentTest) Clean_AfterWriting() {
-	var err error
-
-	// Write, successfully.
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
-
-	_, err = t.op.WriteAt([]byte("a"), 0)
-	AssertEq(nil, err)
-
-	// Clean
-	err = t.op.Clean()
-	AssertEq(nil, err)
-
-	// Sync should need to do nothing.
-	syncResult, err := t.op.Sync()
-	AssertEq(nil, err)
-	ExpectEq(t.sourceObject, syncResult)
-
-	// The next write should need to fetch the object again.
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(nil, errors.New("")))
-
-	t.op.WriteAt([]byte("a"), 0)
-}
-
-func (t *SourceObjectPresentTest) Clean_AfterTruncating() {
-	var err error
-
-	// Truncate, successfully.
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
-
-	err = t.op.Truncate(1)
-	AssertEq(nil, err)
-
-	// Clean
-	err = t.op.Clean()
-	AssertEq(nil, err)
-
-	// Sync should need to do nothing.
-	syncResult, err := t.op.Sync()
-	AssertEq(nil, err)
-	ExpectEq(t.sourceObject, syncResult)
-
-	// The next truncation should need to fetch the object again.
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(nil, errors.New("")))
-
-	t.op.Truncate(1)
+func (t *SourceObjectPresentTest) Sync_CallsCreateObject() {
+	AssertTrue(false, "TODO")
 }
