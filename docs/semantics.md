@@ -116,6 +116,8 @@ file contents and metadata. A file inode is iniitalized with a particular
 generation of a particular object within GCS (the "source generation"), and its
 contents are initially exactly the contents of that generation.
 
+### Modifications
+
 Inodes may be opened for writing. Modifications are reflected immediately in
 reads of the same inode by processes local to the machine using the same file
 system. After a successful `fsync` or a successful `close`, the contents of the
@@ -125,6 +127,11 @@ number of the inode. (It may not if there have been modifications from another
 actor in the meantime.) There are no guarantees about whether local
 modifications are reflected in GCS after writing but before syncing or closing.
 
+Modification time (`stat::st_mtime` on Linux) is tracked for file inodes. No
+other times are tracked.
+
+### Identity
+
 If a new generation number is assigned to a GCS object due to a flush from an
 inode, the source generation number of the inode is updated and the inode ID
 remains stable. Otherwise, if a new generation is created by another machine or
@@ -132,6 +139,8 @@ in some other manner from the local machine, the new generation is treated as
 an inode distinct from any other inode already created for the object name.
 Inode IDs are local to a single gcsfuse process, and there are no guarantees
 about their stability across machines or invocations on a single machine.
+
+### Lookups
 
 One of the fundamental operations in the VFS layer of the kernel is looking up
 the inode for a particular name within a directory. gcsfuse responds to such
@@ -142,6 +151,8 @@ lookups as follows:
 3.  Call the generation number of the object N. If there is already an inode
     for this name with source generation number N, return it.
 4.  Create a new inode for this name with source generation number N.
+
+### User-visible semantics
 
 The intent of these conventions is to make it appear as though local writes to
 a file are in-place modifications as with a traditional file system, whereas
@@ -155,6 +166,21 @@ the file, machine A's writes will be lost. This matches the behavior on a
 single machine when process A opens a file and then process B unlinks it.
 Process A continues to have a consistent view of the file's contents until it
 closes the file handle, at which point the contents are lost.
+
+
+# Directory inodes
+
+gcsfuse directory inodes exist simply to satisfy the kernel and export a way to
+look up child inodes. Unlike file inodes:
+
+*   There are no guarantees about stability of directory inode IDs. They may
+    change from lookup to lookup even if nothing has changed in the GCS bucket.
+    They may not change even if the directory object in the bucket has been
+    overwritten.
+
+*   gcsfuse does not keep track of modification time for
+    directories. There are no guarantees for the contents of `stat::st_mtime`
+    or equivalent.
 
 
 # Write/read consistency
