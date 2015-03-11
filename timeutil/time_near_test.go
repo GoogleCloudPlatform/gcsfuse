@@ -48,7 +48,18 @@ func (t *TimeNearTest) Description() {
 }
 
 func (t *TimeNearTest) ActualIsNotATime() {
-	AssertTrue(false, "TODO")
+	matcher := timeutil.TimeNear(time.Now(), time.Second)
+	var err error
+
+	// nil
+	err = matcher.Matches(nil)
+	AssertNe(nil, err)
+	ExpectEq("which is not a time", err.Error())
+
+	// string
+	err = matcher.Matches("foo")
+	AssertNe(nil, err)
+	ExpectEq("which is not a time", err.Error())
 }
 
 func (t *TimeNearTest) WithinRadius() {
