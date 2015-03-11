@@ -109,7 +109,7 @@ func NewObjectProxy(
 // Return the name of the proxied object. This may or may not be an object that
 // currently exists in the bucket.
 func (op *ObjectProxy) Name() string {
-	panic("TODO")
+	return op.name
 }
 
 // Panic if any internal invariants are violated. Careful users can call this
