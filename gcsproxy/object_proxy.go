@@ -16,6 +16,8 @@ package gcsproxy
 
 import (
 	"errors"
+	"fmt"
+	"io/ioutil"
 	"os"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -181,5 +183,17 @@ func makeLocalFile(
 	bucket gcs.Bucket,
 	name string,
 	generation uint64) (f *os.File, err error) {
-	panic("TODO")
+	// Create the file.
+	f, err = ioutil.TempFile("", "object_proxy")
+	if err != nil {
+		err = fmt.Errorf("TempFile: %v", err)
+		return
+	}
+
+	// Fetch its contents if necessary.
+	if generation != 0 {
+		panic("TODO")
+	}
+
+	return
 }
