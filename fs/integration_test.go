@@ -29,6 +29,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	"github.com/jacobsa/gcloud/oauthutil"
 	"github.com/jacobsa/gcsfuse/fs/fstesting"
+	"github.com/jacobsa/gcsfuse/timeutil"
 	"github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 	storagev1 "google.golang.org/api/storage/v1"
@@ -91,13 +92,15 @@ func getBucketOrDie() gcs.Bucket {
 func init() {
 	fstesting.RegisterFSTests(
 		"RealGCS",
-		func() gcs.Bucket {
-			bucket := getBucketOrDie()
+		func() (deps fstesting.FSTestDeps) {
+			deps.Bucket = getBucketOrDie()
+			deps.Clock = timeutil.RealClock()
 
-			if err := gcsutil.DeleteAllObjects(context.Background(), bucket); err != nil {
+			err := gcsutil.DeleteAllObjects(context.Background(), deps.Bucket)
+			if err != nil {
 				panic("DeleteAllObjects: " + err.Error())
 			}
 
-			return bucket
+			return
 		})
 }
