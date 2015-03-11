@@ -43,6 +43,18 @@ func (t *TimeEqTest) Description() {
 	ExpectEq(expected.String(), matcher.Description())
 }
 
-func (t *TimeEqTest) DoesFoo() {
+func (t *TimeEqTest) ActualIsNil() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *TimeEqTest) ActualIsString() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *TimeEqTest) ActualIsBeforeExpected() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *TimeEqTest) ActualIsAfterExpected() {
 	AssertTrue(false, "TODO")
 }
