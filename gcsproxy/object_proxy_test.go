@@ -222,7 +222,30 @@ func (t *NoSourceObjectTest) WriteToEndOfObjectThenRead() {
 }
 
 func (t *NoSourceObjectTest) WritePastEndOfObjectThenRead() {
-	AssertTrue(false, "TODO")
+	var n int
+	var err error
+	var buf []byte
+
+	// Extend the object by writing past its end.
+	n, err = t.op.WriteAt([]byte("taco"), 2)
+	AssertEq(nil, err)
+	AssertEq(len("taco"), n)
+
+	// Read the whole thing.
+	buf = make([]byte, 1024)
+	n, err = t.op.ReadAt(buf, 0)
+
+	AssertEq(io.EOF, err)
+	ExpectEq(2+len("taco"), n)
+	ExpectEq("\x00\x00taco", string(buf[:n]))
+
+	// Read a range in the middle.
+	buf = make([]byte, 4)
+	n, err = t.op.ReadAt(buf, 1)
+
+	AssertEq(nil, err)
+	ExpectEq(4, n)
+	ExpectEq("\x00tac", string(buf[:n]))
 }
 
 func (t *NoSourceObjectTest) WriteWithinObjectThenRead() {
