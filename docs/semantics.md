@@ -127,6 +127,9 @@ number of the inode. (It may not if there have been modifications from another
 actor in the meantime.) There are no guarantees about whether local
 modifications are reflected in GCS after writing but before syncing or closing.
 
+Modification time (`stat::st_mtime` on Linux) is tracked for file inodes. No
+other times are tracked.
+
 ### Identity
 
 If a new generation number is assigned to a GCS object due to a flush from an
@@ -163,6 +166,16 @@ the file, machine A's writes will be lost. This matches the behavior on a
 single machine when process A opens a file and then process B unlinks it.
 Process A continues to have a consistent view of the file's contents until it
 closes the file handle, at which point the contents are lost.
+
+
+# Directory inodes
+
+gcsfuse directory inodes exist simply to satisfy the kernel and export a way to
+look up child inodes.
+
+Unlike file inodes, gcsfuse does not keep track of modification time for
+directories. There are no guarantees for the contents of `stat::st_mtime` or
+equivalent.
 
 
 # Write/read consistency
