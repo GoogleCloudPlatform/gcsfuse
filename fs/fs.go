@@ -15,7 +15,6 @@
 package fs
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 
@@ -467,6 +466,11 @@ func (fs *fileSystem) OpenFile(
 	resp *fuse.OpenFileResponse, err error) {
 	resp = &fuse.OpenFileResponse{}
 
-	err = errors.New("TODO(jacobsa): Implement OpenFile.")
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	// Sanity check that this inode exists and is of the correct type.
+	_ = fs.inodes[req.Inode].(*inode.FileInode)
+
 	return
 }
