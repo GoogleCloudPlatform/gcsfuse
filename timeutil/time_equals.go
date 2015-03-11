@@ -15,12 +15,25 @@
 package timeutil
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jacobsa/oglematchers"
 )
 
-func timeEq(t time.Time, c interface{}) error
+func timeEq(expected time.Time, c interface{}) error {
+	actual, ok := c.(time.Time)
+	if !ok {
+		return errors.New("which is not a time")
+	}
+
+	if diff := actual.Sub(expected); diff != 0 {
+		return fmt.Errorf("which is off by %v", diff)
+	}
+
+	return nil
+}
 
 // Return a matcher for times that are exactly equal to the given input time.
 func TimeEq(t time.Time) oglematchers.Matcher {
