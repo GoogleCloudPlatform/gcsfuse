@@ -289,7 +289,6 @@ func (t *foreignModsTest) ContentsInRoot() {
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
 	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
-	ExpectThat(e.ModTime(), timeutil.TimeEq(createTime))
 	ExpectTrue(e.IsDir())
 
 	// baz
@@ -408,7 +407,6 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 	ExpectEq(0, e.Size())
 	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
 	ExpectThat(e.ModTime(), timeutil.TimeEq(createTime))
-	ExpectTrue(e.IsDir())
 
 	// baz
 	e = entries[1]
