@@ -23,7 +23,7 @@ import (
 )
 
 // A sentinel error returned by ObjectProxy.Sync.
-const ErrNotCurrent = errors.New("Source generation not current.")
+var ErrNotCurrent error = errors.New("Source generation not current.")
 
 // A view on a particular generation of an object in GCS that allows random
 // access reads and writes.
