@@ -171,11 +171,16 @@ closes the file handle, at which point the contents are lost.
 # Directory inodes
 
 gcsfuse directory inodes exist simply to satisfy the kernel and export a way to
-look up child inodes.
+look up child inodes. Unlike file inodes:
 
-Unlike file inodes, gcsfuse does not keep track of modification time for
-directories. There are no guarantees for the contents of `stat::st_mtime` or
-equivalent.
+*   There are no guarantees about stability of directory inode IDs. They may
+    change from lookup to lookup even if nothing has changed in the GCS bucket.
+    They may not change even if the directory object in the bucket has been
+    overwritten.
+
+*   gcsfuse does not keep track of modification time for
+    directories. There are no guarantees for the contents of `stat::st_mtime`
+    or equivalent.
 
 
 # Write/read consistency
