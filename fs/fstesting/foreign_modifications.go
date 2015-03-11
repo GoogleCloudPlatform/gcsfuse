@@ -429,7 +429,7 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
 	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
-	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
+	ExpectTrue(e.IsDir())
 
 	// baz
 	e = entries[1]
