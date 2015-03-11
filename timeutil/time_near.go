@@ -15,13 +15,31 @@
 package timeutil
 
 import (
+	"errors"
+	"fmt"
+	"math"
 	"time"
 
 	"github.com/jacobsa/oglematchers"
 )
 
+func timeNear(t time.Time, d time.Duration, c interface{}) error {
+	actual, ok := c.(time.Time)
+	if !ok {
+		return errors.New("which is not a time")
+	}
+
+	absDiff := time.Duration(math.Abs(float64(actual.Sub(t))))
+	if absDiff >= d {
+		return fmt.Errorf("which differs by %v", absDiff)
+	}
+
+	return nil
+}
+
 // Return a matcher for times whose absolute distance from t is less than d.
 func TimeNear(t time.Time, d time.Duration) oglematchers.Matcher {
-	// TODO
-	return nil
+	return oglematchers.NewMatcher(
+		func(c interface{}) error { return timeNear(t, d, c) },
+		fmt.Sprintf("within %v of %v", d, t))
 }
