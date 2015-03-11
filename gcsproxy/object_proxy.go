@@ -15,7 +15,6 @@
 package gcsproxy
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -24,9 +23,6 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
-
-// A sentinel error returned by ObjectProxy.Sync.
-var ErrNotCurrent error = errors.New("Source generation not current.")
 
 // A view on a particular generation of an object in GCS that allows random
 // access reads and writes.
@@ -230,7 +226,7 @@ func (op *ObjectProxy) Truncate(ctx context.Context, n uint64) (err error) {
 // source, save its current contents to GCS and return a generation number for
 // a generation with exactly those contents. Do so with a precondition such
 // that the creation will fail if the source generation is not current. In that
-// case, return ErrNotCurrent.
+// case, return an error of type *gcs.PreconditionError.
 func (op *ObjectProxy) Sync(ctx context.Context) (gen uint64, err error) {
 	panic("TODO")
 }
