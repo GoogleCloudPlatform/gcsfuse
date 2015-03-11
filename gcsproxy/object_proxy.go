@@ -148,7 +148,16 @@ func (op *ObjectProxy) ReadAt(
 	ctx context.Context,
 	buf []byte,
 	offset int64) (n int, err error) {
-	panic("TODO")
+	// Make sure we have a local file.
+	if err = op.ensureLocalFile(ctx); err != nil {
+		err = fmt.Errorf("ensureLocalFile: %v", err)
+		return
+	}
+
+	// Serve the read from the file.
+	n, err = op.localFile.ReadAt(buf, offset)
+
+	return
 }
 
 // Make a random access write into our view of the content. May block for
