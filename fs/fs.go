@@ -310,6 +310,7 @@ func (fs *fileSystem) lookUpOrCreateFileInode(
 // fuse.FileSystem methods
 ////////////////////////////////////////////////////////////////////////
 
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) Init(
 	ctx context.Context,
 	req *fuse.InitRequest) (resp *fuse.InitResponse, err error) {
@@ -325,6 +326,7 @@ func (fs *fileSystem) Init(
 	return
 }
 
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
 	req *fuse.LookUpInodeRequest) (resp *fuse.LookUpInodeResponse, err error) {
@@ -366,6 +368,7 @@ func (fs *fileSystem) LookUpInode(
 	return
 }
 
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) GetInodeAttributes(
 	ctx context.Context,
 	req *fuse.GetInodeAttributesRequest) (
@@ -390,6 +393,7 @@ func (fs *fileSystem) GetInodeAttributes(
 	return
 }
 
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) OpenDir(
 	ctx context.Context,
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
@@ -415,6 +419,7 @@ func (fs *fileSystem) OpenDir(
 	return
 }
 
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadDir(
 	ctx context.Context,
 	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {
@@ -432,6 +437,7 @@ func (fs *fileSystem) ReadDir(
 	return
 }
 
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReleaseDirHandle(
 	ctx context.Context,
 	req *fuse.ReleaseDirHandleRequest) (
@@ -446,6 +452,25 @@ func (fs *fileSystem) ReleaseDirHandle(
 
 	// Clear the entry from the map.
 	delete(fs.handles, req.Handle)
+
+	return
+}
+
+// TODO(jacobsa): Make sure we have failing tests for O_TRUNC behavior, then
+// implement it.
+//
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) OpenFile(
+	ctx context.Context,
+	req *fuse.OpenFileRequest) (
+	resp *fuse.OpenFileResponse, err error) {
+	resp = &fuse.OpenFileResponse{}
+
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	// Sanity check that this inode exists and is of the correct type.
+	_ = fs.inodes[req.Inode].(*inode.FileInode)
 
 	return
 }
