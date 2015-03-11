@@ -43,17 +43,20 @@ func (t *TimeEqTest) Description() {
 	ExpectEq(expected.String(), matcher.Description())
 }
 
-func (t *TimeEqTest) ActualIsNil() {
+func (t *TimeEqTest) ActualIsNotATime() {
 	expected := time.Now()
 	matcher := timeutil.TimeEq(expected)
+	var err error
 
-	err := matcher.Matches(nil)
+	// nil
+	err = matcher.Matches(nil)
 	AssertNe(nil, err)
 	ExpectEq("which is not a time", err.Error())
-}
 
-func (t *TimeEqTest) ActualIsString() {
-	AssertTrue(false, "TODO")
+	// string
+	err = matcher.Matches("foo")
+	AssertNe(nil, err)
+	ExpectEq("which is not a time", err.Error())
 }
 
 func (t *TimeEqTest) ActualIsBeforeExpected() {
