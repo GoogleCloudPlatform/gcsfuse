@@ -18,10 +18,11 @@ package fs_test
 
 import (
 	"testing"
+	"time"
 
-	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/gcsfuse/fs/fstesting"
+	"github.com/jacobsa/gcsfuse/timeutil"
 	"github.com/jacobsa/ogletest"
 )
 
@@ -30,7 +31,15 @@ func TestOgletest(t *testing.T) { ogletest.RunTests(t) }
 func init() {
 	fstesting.RegisterFSTests(
 		"FakeGCS",
-		func() gcs.Bucket {
-			return gcsfake.NewFakeBucket("some_bucket")
+		func() (deps fstesting.FSTestDeps) {
+			// Set up a fixed, non-zero time.
+			clock := &timeutil.SimulatedClock{}
+			clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
+			deps.Clock = clock
+
+			// Set up the bucket.
+			deps.Bucket = gcsfake.NewFakeBucket(clock, "some_bucket")
+
+			return
 		})
 }
