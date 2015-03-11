@@ -72,13 +72,36 @@ type ObjectProxy struct {
 	dirty bool
 }
 
+////////////////////////////////////////////////////////////////////////
+// Public interface
+////////////////////////////////////////////////////////////////////////
+
 // Create a view on the given GCS object generation, or zero if branching from
 // a non-existent object (in which case the initial contents are empty).
 func NewObjectProxy(
+	ctx context.Context,
 	bucket gcs.Bucket,
 	name string,
 	srcGeneration uint64) (op *ObjectProxy, err error) {
-	panic("TODO")
+	// Set up the basic struct.
+	op = &ObjectProxy{
+		bucket:        bucket,
+		name:          name,
+		srcGeneration: srcGeneration,
+	}
+
+	// For "doesn't exist" source generations, we must establish an empty local
+	// file and mark the proxy dirty.
+	if srcGeneration == 0 {
+		op.localFile, err = makeLocalFile(ctx, bucket, name, srcGeneration)
+		if err != nil {
+			return
+		}
+
+		op.dirty = true
+	}
+
+	return
 }
 
 // Return the name of the proxied object. This may or may not be an object that
@@ -144,5 +167,19 @@ func (op *ObjectProxy) Truncate(ctx context.Context, n uint64) (err error) {
 // that the creation will fail if the source generation is not current. In that
 // case, return ErrNotCurrent.
 func (op *ObjectProxy) Sync(ctx context.Context) (gen uint64, err error) {
+	panic("TODO")
+}
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+// Set up a local temporary file for the given generation of the given object.
+// Special case: generation == 0 means an empty file.
+func makeLocalFile(
+	ctx context.Context,
+	bucket gcs.Bucket,
+	name string,
+	generation uint64) (f *os.File, err error) {
 	panic("TODO")
 }

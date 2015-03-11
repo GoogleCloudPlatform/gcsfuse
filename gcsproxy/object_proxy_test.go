@@ -149,6 +149,7 @@ func (t *ObjectProxyTest) setUp(ti *TestInfo, srcGeneration uint64) {
 
 	var err error
 	t.op.wrapped, err = gcsproxy.NewObjectProxy(
+		context.Background(),
 		t.bucket,
 		t.objectName,
 		srcGeneration)
