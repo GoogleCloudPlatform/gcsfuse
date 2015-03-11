@@ -25,6 +25,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	"github.com/jacobsa/gcsfuse/gcsproxy"
 	. "github.com/jacobsa/oglematchers"
+	"github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
@@ -86,6 +87,27 @@ func contentsAre(s string) Matcher {
 			return nil
 		},
 	}
+}
+
+func generationIs(g int64) Matcher {
+	pred := func(c interface{}) error {
+		req := c.(*gcs.CreateObjectRequest)
+		if req.GenerationPrecondition == nil {
+			return errors.New("which has a nil GenerationPrecondition field.")
+		}
+
+		if *req.GenerationPrecondition != g {
+			return fmt.Errorf(
+				"Which has *GenerationPrecondition == %v",
+				*req.GenerationPrecondition)
+		}
+
+		return nil
+	}
+
+	return NewMatcher(
+		pred,
+		fmt.Sprintf("*GenerationPrecondition == %v", g))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -291,7 +313,15 @@ func (t *NoSourceObjectTest) GrowByTruncating() {
 }
 
 func (t *NoSourceObjectTest) Sync_CallsCreateObject_NoInteractions() {
-	AssertTrue(false, "TODO")
+	// CreateObject -- should receive an empty string and a generation zero
+	// precondition.
+	ExpectCall(t.bucket, "CreateObject")(
+		Any(),
+		AllOf(nameIs(t.objectName), contentsAre(""), generationIs(0))).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	// Sync
+	t.op.Sync()
 }
 
 func (t *NoSourceObjectTest) Sync_CallsCreateObject_AfterWriting() {
