@@ -290,7 +290,11 @@ func (t *NoSourceObjectTest) GrowByTruncating() {
 	ExpectEq("\x00\x00\x00\x00", string(buf[:n]))
 }
 
-func (t *NoSourceObjectTest) Sync_CallsCreateObject() {
+func (t *NoSourceObjectTest) Sync_CallsCreateObject_NoInteractions() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Sync_CallsCreateObject_AfterWriting() {
 	AssertTrue(false, "TODO")
 }
 
