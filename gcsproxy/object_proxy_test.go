@@ -146,16 +146,15 @@ type ObjectProxyTest struct {
 	op         checkingObjectProxy
 }
 
-var _ SetUpInterface = &ObjectProxyTest{}
-
-func (t *ObjectProxyTest) SetUp(ti *TestInfo) {
+func (t *ObjectProxyTest) setUp(ti *TestInfo, srcGeneration uint64) {
 	t.objectName = "some/object"
 	t.bucket = mock_gcs.NewMockBucket(ti.MockController, "bucket")
 
 	var err error
 	t.op.wrapped, err = gcsproxy.NewObjectProxy(
 		t.bucket,
-		t.objectName)
+		t.objectName,
+		srcGeneration)
 
 	if err != nil {
 		panic(err)
@@ -175,6 +174,10 @@ type NoSourceObjectTest struct {
 var _ SetUpInterface = &NoSourceObjectTest{}
 
 func init() { RegisterTestSuite(&NoSourceObjectTest{}) }
+
+func (t *NoSourceObjectTest) SetUp(ti *TestInfo) {
+	t.ObjectProxyTest.setUp(ti, 0)
+}
 
 func (t *NoSourceObjectTest) Name() {
 	ExpectEq(t.objectName, t.op.Name())
@@ -718,18 +721,7 @@ var _ SetUpInterface = &SourceObjectPresentTest{}
 func init() { RegisterTestSuite(&SourceObjectPresentTest{}) }
 
 func (t *SourceObjectPresentTest) SetUp(ti *TestInfo) {
-	t.ObjectProxyTest.SetUp(ti)
-
-	// Set up the source object.
-	t.sourceObject = &storage.Object{
-		Name:       t.objectName,
-		Generation: 123,
-		Size:       456,
-	}
-
-	if err := t.op.NoteLatest(t.sourceObject); err != nil {
-		panic(err)
-	}
+	t.ObjectProxyTest.setUp(ti, 123)
 }
 
 func (t *SourceObjectPresentTest) Size_InitialState() {
