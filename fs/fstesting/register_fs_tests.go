@@ -23,13 +23,23 @@ import (
 	"sync"
 
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcsfuse/timeutil"
 	"github.com/jacobsa/ogletest"
 	"github.com/jacobsa/ogletest/srcutil"
 )
 
+// Dependencies needed by the tests registered by RegisterFSTests.
+type FSTestDeps struct {
+	// An initialized, empty bucket.
+	Bucket gcs.Bucket
+
+	// A clock matching the bucket's notion of time.
+	Clock timeutil.Clock
+}
+
 // An interface that all FS tests must implement.
 type fsTestInterface interface {
-	setUpFsTest(b gcs.Bucket)
+	setUpFsTest(deps FSTestDeps)
 	tearDownFsTest()
 }
 
@@ -54,7 +64,7 @@ func getTestMethods(suitePointerType reflect.Type) []reflect.Method {
 
 func registerTestSuite(
 	conditionName string,
-	makeBucket func() gcs.Bucket,
+	makeDeps func() FSTestDeps,
 	prototype fsTestInterface) {
 	suitePointerType := reflect.TypeOf(prototype)
 	suiteType := suitePointerType.Elem()
@@ -74,8 +84,7 @@ func registerTestSuite(
 		// SetUp should create a bucket and then initialize the suite object,
 		// remembering that the suite implements fsTestInterface.
 		tf.SetUp = func(*ogletest.TestInfo) {
-			bucket := makeBucket()
-			instance.Interface().(fsTestInterface).setUpFsTest(bucket)
+			instance.Interface().(fsTestInterface).setUpFsTest(makeDeps())
 		}
 
 		// The test function itself should simply invoke the method.
@@ -97,10 +106,10 @@ func registerTestSuite(
 	ogletest.Register(ts)
 }
 
-// Given a function that returns an initialized, empty bucket, register test
+// Given a function that returns appropriate test depencencies, register test
 // suites that exercise a file system wrapping that bucket. The condition name
 // should be something like "RealGCS" or "FakeGCS".
-func RegisterFSTests(conditionName string, makeBucket func() gcs.Bucket) {
+func RegisterFSTests(conditionName string, makeDeps func() FSTestDeps) {
 	ensureSignalHandler()
 
 	// A list of empty instances of the test suites we want to register.
@@ -113,7 +122,7 @@ func RegisterFSTests(conditionName string, makeBucket func() gcs.Bucket) {
 
 	// Register each.
 	for _, suitePrototype := range suitePrototypes {
-		registerTestSuite(conditionName, makeBucket, suitePrototype)
+		registerTestSuite(conditionName, makeDeps, suitePrototype)
 	}
 }
 
