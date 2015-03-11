@@ -16,7 +16,9 @@ package timeutil_test
 
 import (
 	"testing"
+	"time"
 
+	"github.com/jacobsa/gcsfuse/timeutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
@@ -37,7 +39,12 @@ func init() { RegisterTestSuite(&TimeNearTest{}) }
 ////////////////////////////////////////////////////////////////////////
 
 func (t *TimeNearTest) Description() {
-	AssertTrue(false, "TODO")
+	expected := time.Now()
+	matcher := timeutil.TimeNear(expected, 2*time.Second)
+
+	desc := matcher.Description()
+	ExpectThat(desc, HasSubstr("within 2s"))
+	ExpectThat(desc, HasSubstr(expected.String()))
 }
 
 func (t *TimeNearTest) ActualIsNotATime() {
