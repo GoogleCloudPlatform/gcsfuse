@@ -245,6 +245,7 @@ func (t *foreignModsTest) EmptyRoot() {
 
 func (t *foreignModsTest) ContentsInRoot() {
 	// Set up contents.
+	createTime := t.clock.Now()
 	AssertEq(
 		nil,
 		t.createObjects(
@@ -273,6 +274,9 @@ func (t *foreignModsTest) ContentsInRoot() {
 				},
 			}))
 
+	// Make sure the time below doesn't match.
+	t.clock.AdvanceTime(time.Second)
+
 	// ReadDir
 	entries, err := t.readDirUntil(3, t.mfs.Dir())
 	AssertEq(nil, err)
@@ -285,9 +289,7 @@ func (t *foreignModsTest) ContentsInRoot() {
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
 	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
+	ExpectEq(0, e.ModTime().Sub(createTime), "ModTime: %v", e.ModTime())
 	ExpectTrue(e.IsDir())
 
 	// baz
@@ -295,9 +297,7 @@ func (t *foreignModsTest) ContentsInRoot() {
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
 	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
+	ExpectEq(0, e.ModTime().Sub(createTime), "ModTime: %v", e.ModTime())
 	ExpectFalse(e.IsDir())
 
 	// foo
@@ -305,9 +305,7 @@ func (t *foreignModsTest) ContentsInRoot() {
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
 	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
+	ExpectEq(0, e.ModTime().Sub(createTime), "ModTime: %v", e.ModTime())
 	ExpectFalse(e.IsDir())
 }
 
@@ -353,6 +351,7 @@ func (t *foreignModsTest) UnreachableObjects() {
 
 func (t *foreignModsTest) ContentsInSubDirectory() {
 	// Set up contents.
+	createTime := t.clock.Now()
 	AssertEq(
 		nil,
 		t.createObjects(
@@ -389,6 +388,9 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 				},
 			}))
 
+	// Make sure the time below doesn't match.
+	t.clock.AdvanceTime(time.Second)
+
 	// Wait for the directory to show up in the file system.
 	_, err := t.readDirUntil(1, path.Join(t.mfs.Dir()))
 	AssertEq(nil, err)
@@ -405,9 +407,7 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
 	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
+	ExpectEq(0, e.ModTime().Sub(createTime), "ModTime: %v", e.ModTime())
 	ExpectTrue(e.IsDir())
 
 	// baz
@@ -415,9 +415,7 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
 	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
+	ExpectEq(0, e.ModTime().Sub(createTime), "ModTime: %v", e.ModTime())
 	ExpectFalse(e.IsDir())
 
 	// foo
@@ -425,9 +423,7 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
 	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
-	ExpectLt(
-		math.Abs(time.Since(e.ModTime()).Seconds()), 30,
-		"ModTime: %v", e.ModTime())
+	ExpectEq(0, e.ModTime().Sub(createTime), "ModTime: %v", e.ModTime())
 	ExpectFalse(e.IsDir())
 }
 
