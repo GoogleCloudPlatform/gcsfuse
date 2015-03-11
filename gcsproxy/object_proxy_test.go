@@ -180,38 +180,6 @@ func (t *NoSourceObjectTest) Name() {
 	ExpectEq(t.objectName, t.op.Name())
 }
 
-func (t *NoSourceObjectTest) Stat_CallsBucket() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *NoSourceObjectTest) Stat_BucketFails() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *NoSourceObjectTest) Stat_InitialState() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *NoSourceObjectTest) Stat_AfterShortening() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *NoSourceObjectTest) Stat_AfterGrowing() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *NoSourceObjectTest) Stat_AfterReading() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *NoSourceObjectTest) Stat_AfterWriting() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *NoSourceObjectTest) Stat_Clobbered() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *NoSourceObjectTest) Read_InitialState() {
 	AssertTrue(false, "TODO")
 }
@@ -260,6 +228,38 @@ func (t *NoSourceObjectTest) Sync_Successful() {
 	AssertTrue(false, "TODO")
 }
 
+func (t *NoSourceObjectTest) Stat_CallsBucket() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Stat_BucketFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Stat_InitialState() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Stat_AfterShortening() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Stat_AfterGrowing() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Stat_AfterReading() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Stat_AfterWriting() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoSourceObjectTest) Stat_Clobbered() {
+	AssertTrue(false, "TODO")
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Source object present
 ////////////////////////////////////////////////////////////////////////
@@ -277,42 +277,6 @@ func init() { RegisterTestSuite(&SourceObjectPresentTest{}) }
 
 func (t *SourceObjectPresentTest) SetUp(ti *TestInfo) {
 	t.ObjectProxyTest.setUp(ti, 123)
-}
-
-func (t *SourceObjectPresentTest) Stat_CallsBucket() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *SourceObjectPresentTest) Stat_BucketFails() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *SourceObjectPresentTest) Stat_BucketSaysNotFound() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *SourceObjectPresentTest) Stat_InitialState() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *SourceObjectPresentTest) Stat_AfterShortening() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *SourceObjectPresentTest) Stat_AfterGrowing() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *SourceObjectPresentTest) Stat_AfterReading() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *SourceObjectPresentTest) Stat_AfterWriting() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *SourceObjectPresentTest) Stat_Clobbered() {
-	AssertTrue(false, "TODO")
 }
 
 func (t *SourceObjectPresentTest) Read_CallsNewReader() {
@@ -356,5 +320,41 @@ func (t *SourceObjectPresentTest) Sync_NoInteractions() {
 }
 
 func (t *SourceObjectPresentTest) Sync_CallsCreateObject() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Stat_CallsBucket() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Stat_BucketFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Stat_BucketSaysNotFound() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Stat_InitialState() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Stat_AfterShortening() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Stat_AfterGrowing() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Stat_AfterReading() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Stat_AfterWriting() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Stat_Clobbered() {
 	AssertTrue(false, "TODO")
 }
