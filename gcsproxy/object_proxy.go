@@ -187,7 +187,16 @@ func (op *ObjectProxy) WriteAt(
 	ctx context.Context,
 	buf []byte,
 	offset int64) (n int, err error) {
-	panic("TODO")
+	// Make sure we have a local file.
+	if err = op.ensureLocalFile(ctx); err != nil {
+		err = fmt.Errorf("ensureLocalFile: %v", err)
+		return
+	}
+
+	// Serve the write using the file.
+	n, err = op.localFile.WriteAt(buf, offset)
+
+	return
 }
 
 // Truncate our view of the content to the given number of bytes, extending if
