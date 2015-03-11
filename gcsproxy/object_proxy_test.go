@@ -37,27 +37,9 @@ func TestOgletest(t *testing.T) { RunTests(t) }
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-// An oglemock.Matcher that accepts a predicate function and a description,
-// making it easy to make anonymous matcher types.
-type predicateMatcher struct {
-	Desc      string
-	Predicate func(interface{}) error
-}
-
-var _ Matcher = &predicateMatcher{}
-
-func (m *predicateMatcher) Matches(candidate interface{}) error {
-	return m.Predicate(candidate)
-}
-
-func (m *predicateMatcher) Description() string {
-	return m.Desc
-}
-
 func nameIs(name string) Matcher {
-	return &predicateMatcher{
-		Desc: fmt.Sprintf("Name is: %s", name),
-		Predicate: func(candidate interface{}) error {
+	return NewMatcher(
+		func(candidate interface{}) error {
 			req := candidate.(*gcs.CreateObjectRequest)
 			if req.Attrs.Name != name {
 				return errors.New("")
@@ -65,13 +47,12 @@ func nameIs(name string) Matcher {
 
 			return nil
 		},
-	}
+		fmt.Sprintf("Name is: %s", name))
 }
 
 func contentsAre(s string) Matcher {
-	return &predicateMatcher{
-		Desc: fmt.Sprintf("Object contents are: %s", s),
-		Predicate: func(candidate interface{}) error {
+	return NewMatcher(
+		func(candidate interface{}) error {
 			// Snarf the contents.
 			req := candidate.(*gcs.CreateObjectRequest)
 			contents, err := ioutil.ReadAll(req.Contents)
@@ -86,7 +67,7 @@ func contentsAre(s string) Matcher {
 
 			return nil
 		},
-	}
+		fmt.Sprintf("Object contents are: %s", s))
 }
 
 func generationIs(g int64) Matcher {
