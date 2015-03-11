@@ -77,26 +77,36 @@ type ObjectProxy struct {
 func NewObjectProxy(
 	bucket gcs.Bucket,
 	name string,
-	srcGeneration uint64) (op *ObjectProxy, err error)
+	srcGeneration uint64) (op *ObjectProxy, err error) {
+	panic("TODO")
+}
 
 // Return the name of the proxied object. This may or may not be an object that
 // currently exists in the bucket.
-func (op *ObjectProxy) Name() string
+func (op *ObjectProxy) Name() string {
+	panic("TODO")
+}
 
 // Panic if any internal invariants are violated. Careful users can call this
 // at appropriate times to help debug weirdness. Consider using
 // syncutil.InvariantMutex to automate the process.
-func (op *ObjectProxy) CheckInvariants()
+func (op *ObjectProxy) CheckInvariants() {
+	panic("TODO")
+}
 
 // Destroy any local file caches, putting the proxy into an indeterminate
 // state. Should be used before dropping the final reference to the proxy.
-func (op *ObjectProxy) Destroy()
+func (op *ObjectProxy) Destroy() {
+	panic("TODO")
+}
 
 // Return the current size in bytes of the content and an indication of whether
 // the proxied object has changed out from under us (in which case Sync will
 // fail).
 func (op *ObjectProxy) Stat(
-	ctx context.Context) (size uint64, clobbered bool, err error)
+	ctx context.Context) (size uint64, clobbered bool, err error) {
+	panic("TODO")
+}
 
 // Make a random access read into our view of the content. May block for
 // network access.
@@ -105,7 +115,9 @@ func (op *ObjectProxy) Stat(
 func (op *ObjectProxy) ReadAt(
 	ctx context.Context,
 	buf []byte,
-	offset int64) (n int, err error)
+	offset int64) (n int, err error) {
+	panic("TODO")
+}
 
 // Make a random access write into our view of the content. May block for
 // network access. Not guaranteed to be reflected remotely until after Sync is
@@ -115,16 +127,22 @@ func (op *ObjectProxy) ReadAt(
 func (op *ObjectProxy) WriteAt(
 	ctx context.Context,
 	buf []byte,
-	offset int64) (n int, err error)
+	offset int64) (n int, err error) {
+	panic("TODO")
+}
 
 // Truncate our view of the content to the given number of bytes, extending if
 // n is greater than the current size. May block for network access. Not
 // guaranteed to be reflected remotely until after Sync is called successfully.
-func (op *ObjectProxy) Truncate(ctx context.Context, n uint64) (err error)
+func (op *ObjectProxy) Truncate(ctx context.Context, n uint64) (err error) {
+	panic("TODO")
+}
 
 // If the proxy is dirty due to having been written to or due to having a nil
 // source, save its current contents to GCS and return a generation number for
 // a generation with exactly those contents. Do so with a precondition such
 // that the creation will fail if the source generation is not current. In that
 // case, return ErrNotCurrent.
-func (op *ObjectProxy) Sync(ctx context.Context) (gen uint64, err error)
+func (op *ObjectProxy) Sync(ctx context.Context) (gen uint64, err error) {
+	panic("TODO")
+}
