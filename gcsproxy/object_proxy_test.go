@@ -330,7 +330,7 @@ func (t *NoSourceObjectTest) Sync_CreateObjectFails() {
 	_, err := t.op.Sync()
 
 	AssertNe(nil, err)
-	ExpectThat(err, Not(hasSameTypeAs(&gcs.PreconditionError{})))
+	ExpectThat(err, Not(HasSameTypeAs(&gcs.PreconditionError{})))
 	ExpectThat(err, Error(HasSubstr("CreateObject")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 
@@ -350,7 +350,7 @@ func (t *NoSourceObjectTest) Sync_CreateObjectSaysPreconditionFailed() {
 	// Sync
 	_, err := t.op.Sync()
 
-	AssertThat(err, hasSameTypeAs(&gcs.PreconditionError{}))
+	AssertThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
 	ExpectThat(err, Error(HasSubstr("CreateObject")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 
