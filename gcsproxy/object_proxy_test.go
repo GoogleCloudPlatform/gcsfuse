@@ -382,7 +382,23 @@ func (t *NoSourceObjectTest) Sync_BucketReturnsNegativeGeneration() {
 }
 
 func (t *NoSourceObjectTest) Sync_BucketReturnsZeroGeneration() {
-	AssertTrue(false, "TODO")
+	// CreateObject
+	o := &storage.Object{
+		Name:       t.objectName,
+		Generation: 0,
+	}
+
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(oglemock.Return(o, nil))
+
+	// Sync
+	_, err := t.op.Sync()
+
+	AssertNe(nil, err)
+	ExpectThat(err, Not(HasSameTypeAs(&gcs.PreconditionError{})))
+	ExpectThat(err, Error(HasSubstr("CreateObject")))
+	ExpectThat(err, Error(HasSubstr("invalid generation")))
+	ExpectThat(err, Error(HasSubstr("0")))
 }
 
 func (t *NoSourceObjectTest) Sync_Successful() {
