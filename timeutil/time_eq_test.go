@@ -79,5 +79,9 @@ func (t *TimeEqTest) ActualAndExpectedDontMatch() {
 }
 
 func (t *TimeEqTest) ActualAndExpectedMatch() {
-	AssertTrue(false, "TODO")
+	expected := time.Now().Round(time.Second)
+	matcher := timeutil.TimeEq(expected)
+
+	err := matcher.Matches(expected)
+	ExpectEq(nil, err)
 }
