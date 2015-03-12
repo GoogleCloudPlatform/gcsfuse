@@ -22,6 +22,7 @@ import (
 
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
+	"google.golang.org/cloud/storage"
 )
 
 // A view on a particular generation of an object in GCS that allows random
@@ -228,7 +229,48 @@ func (op *ObjectProxy) Truncate(ctx context.Context, n uint64) (err error) {
 // that the creation will fail if the source generation is not current. In that
 // case, return an error of type *gcs.PreconditionError.
 func (op *ObjectProxy) Sync(ctx context.Context) (gen uint64, err error) {
-	panic("TODO")
+	// Do we need to do anything?
+	if !op.dirty {
+		gen = op.srcGeneration
+		return
+	}
+
+	// TODO(jacobsa): Add a test that ensures we don't screw up the seek position
+	// within the file when reading below. Sync then dirty then Sync.
+
+	// Write a new generation of the object with the appropriate contents, using
+	// an appropriate precondition.
+	signedSrcGeneration := int64(op.srcGeneration)
+	req := &gcs.CreateObjectRequest{
+		Attrs: storage.ObjectAttrs{
+			Name: op.name,
+		},
+		Contents:               op.localFile,
+		GenerationPrecondition: &signedSrcGeneration,
+	}
+
+	o, err := op.bucket.CreateObject(ctx, req)
+	if err != nil {
+		return
+	}
+
+	// Make sure the server didn't return a silly generation number.
+	//
+	// TODO(jacobsa): Push unsigned generation numbers and a guarantee on zero
+	// into package gcs, including checking results from the server, and remove
+	// this.
+	if o.Generation <= 0 {
+		err = fmt.Errorf("GCS returned invalid generation number: %v", o.Generation)
+		return
+	}
+
+	gen = uint64(o.Generation)
+
+	// Update our state.
+	op.srcGeneration = gen
+	op.dirty = false
+
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
