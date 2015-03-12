@@ -169,7 +169,41 @@ func (op *ObjectProxy) Destroy() (err error) {
 // fail).
 func (op *ObjectProxy) Stat(
 	ctx context.Context) (size uint64, clobbered bool, err error) {
-	panic("TODO")
+	// Stat the object in GCS.
+	req := &gcs.StatObjectRequest{Name: op.name}
+	o, bucketErr := op.bucket.StatObject(ctx, req)
+
+	// Propagate errors. Special case: suppress ErrNotFound, treating it as a
+	// zero generation below.
+	if bucketErr != nil && bucketErr != gcs.ErrNotFound {
+		err = fmt.Errorf("StatObject: %v", bucketErr)
+		return
+	}
+
+	// Find the generation number, or zero if not found.
+	var currentGen uint64
+	if bucketErr == nil {
+		currentGen = o.Generation
+	}
+
+	// We are clobbered iff the generation doesn't match our source generation.
+	clobbered = (currentGen != op.srcGeneration)
+
+	// If we have a file, it is authoritative for our size. Otherwise our source
+	// size is authoritative.
+	if op.localFile != nil {
+		var fi os.FileInfo
+		if fi, err = op.localFile.Stat(); err != nil {
+			err = fmt.Errorf("Stat: %v", err)
+			return
+		}
+
+		size = uint64(fi.Size())
+	} else {
+		size = op.srcSize
+	}
+
+	return
 }
 
 // Make a random access read into our view of the content. May block for
