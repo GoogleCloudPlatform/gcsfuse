@@ -558,11 +558,41 @@ func (t *NoSourceObjectTest) Stat_AfterWriting() {
 }
 
 func (t *NoSourceObjectTest) Stat_NotClobbered() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// StatObject
+	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, gcs.ErrNotFound))
+
+	// Stat
+	_, clobbered, err := t.op.Stat()
+
+	AssertEq(nil, err)
+	ExpectFalse(clobbered)
 }
 
 func (t *NoSourceObjectTest) Stat_Clobbered() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Truncate large.
+	err = t.op.Truncate(17)
+	AssertEq(nil, err)
+
+	// StatObject -- return an object
+	o := &storage.Object{
+		Name:       t.objectName,
+		Generation: 1,
+	}
+
+	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
+		WillOnce(oglemock.Return(o, nil))
+
+	// Stat
+	size, clobbered, err := t.op.Stat()
+
+	AssertEq(nil, err)
+	AssertEq(17, size)
+	ExpectTrue(clobbered)
 }
 
 ////////////////////////////////////////////////////////////////////////
