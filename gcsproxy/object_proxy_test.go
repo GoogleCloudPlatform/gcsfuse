@@ -488,7 +488,7 @@ func (t *NoSourceObjectTest) WriteThenSyncThenWriteThenSync() {
 
 func (t *NoSourceObjectTest) Stat_CallsBucket() {
 	// StatObject
-	ExpectCall(t.bucket, "StatObject")(Any(), AllOf(nameIs(t.objectName))).
+	ExpectCall(t.bucket, "StatObject")(Any(), nameIs(t.objectName)).
 		WillOnce(oglemock.Return(nil, errors.New("")))
 
 	// Stat
@@ -496,7 +496,15 @@ func (t *NoSourceObjectTest) Stat_CallsBucket() {
 }
 
 func (t *NoSourceObjectTest) Stat_BucketFails() {
-	AssertTrue(false, "TODO")
+	// StatObject
+	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, errors.New("taco")))
+
+	// Stat
+	_, _, err := t.op.Stat()
+
+	ExpectThat(err, Error(HasSubstr("StatObject")))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *NoSourceObjectTest) Stat_InitialState() {
