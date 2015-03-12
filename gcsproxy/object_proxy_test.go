@@ -439,6 +439,41 @@ func (t *NoSourceObjectTest) Sync_Successful() {
 	ExpectEq("taco", string(buf[:n]))
 }
 
+func (t *NoSourceObjectTest) WriteThenSyncThenWriteThenSync() {
+	var n int
+	var err error
+
+	// Dirty the proxy.
+	n, err = t.op.WriteAt([]byte("taco"), 0)
+	AssertEq(nil, err)
+	AssertEq(len("taco"), n)
+
+	// Sync -- should cause the contents so far to be written out.
+	o := &storage.Object{
+		Name:       t.objectName,
+		Generation: 1,
+	}
+
+	ExpectCall(t.bucket, "CreateObject")(Any(), contentsAre("taco")).
+		WillOnce(oglemock.Return(o, nil))
+
+	_, err = t.op.Sync()
+	AssertEq(nil, err)
+
+	// Write some more data at the end.
+	n, err = t.op.WriteAt([]byte("burrito"), 4)
+	AssertEq(nil, err)
+	AssertEq(len("burrito"), n)
+
+	// Sync -- should cause the full contents to be written out.
+	o.Generation = 2
+	ExpectCall(t.bucket, "CreateObject")(Any(), contentsAre("tacoburrito")).
+		WillOnce(oglemock.Return(o, nil))
+
+	_, err = t.op.Sync()
+	AssertEq(nil, err)
+}
+
 func (t *NoSourceObjectTest) Stat_CallsBucket() {
 	AssertTrue(false, "TODO")
 }
