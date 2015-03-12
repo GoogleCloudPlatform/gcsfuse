@@ -520,12 +520,23 @@ func (t *NoSourceObjectTest) Stat_InitialState() {
 	ExpectFalse(clobbered)
 }
 
-func (t *NoSourceObjectTest) Stat_AfterShortening() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *NoSourceObjectTest) Stat_AfterGrowing() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Truncate large.
+	err = t.op.Truncate(17)
+	AssertEq(nil, err)
+
+	// StatObject -- return not found, as expected.
+	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, gcs.ErrNotFound))
+
+	// Stat
+	size, clobbered, err := t.op.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq(17, size)
+	ExpectFalse(clobbered)
 }
 
 func (t *NoSourceObjectTest) Stat_AfterReading() {
