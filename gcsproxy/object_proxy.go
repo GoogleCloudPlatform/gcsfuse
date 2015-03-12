@@ -235,8 +235,13 @@ func (op *ObjectProxy) Sync(ctx context.Context) (gen uint64, err error) {
 		return
 	}
 
-	// TODO(jacobsa): Add a test that ensures we don't screw up the seek position
-	// within the file when reading below. Sync then dirty then Sync.
+	// Seek the file to the start so that it can be used as a reader for its full
+	// contents below.
+	_, err = op.localFile.Seek(0, 0)
+	if err != nil {
+		err = fmt.Errorf("Seek: %v", err)
+		return
+	}
 
 	// Write a new generation of the object with the appropriate contents, using
 	// an appropriate precondition.
