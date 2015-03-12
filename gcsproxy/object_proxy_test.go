@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"reflect"
 	"testing"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -37,12 +38,23 @@ func TestOgletest(t *testing.T) { RunTests(t) }
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func createNameIs(name string) Matcher {
+func nameIs(name string) Matcher {
 	return NewMatcher(
 		func(candidate interface{}) error {
-			req := candidate.(*gcs.CreateObjectRequest)
-			if req.Attrs.Name != name {
-				return errors.New("")
+			var actual string
+			switch typed := candidate.(type) {
+			case *gcs.CreateObjectRequest:
+				actual = typed.Attrs.Name
+
+			case *gcs.StatObjectRequest:
+				actual = typed.Name
+
+			default:
+				return fmt.Errorf("which is of type %v", reflect.TypeOf(candidate))
+			}
+
+			if actual != name {
+				return fmt.Errorf("which has name %v", actual)
 			}
 
 			return nil
@@ -298,7 +310,7 @@ func (t *NoSourceObjectTest) Sync_CallsCreateObject_NoInteractions() {
 	// precondition.
 	ExpectCall(t.bucket, "CreateObject")(
 		Any(),
-		AllOf(createNameIs(t.objectName), contentsAre(""), generationIs(0))).
+		AllOf(nameIs(t.objectName), contentsAre(""), generationIs(0))).
 		WillOnce(oglemock.Return(nil, errors.New("")))
 
 	// Sync
@@ -314,7 +326,7 @@ func (t *NoSourceObjectTest) Sync_CallsCreateObject_AfterWriting() {
 	// CreateObject -- should receive "taco" and a generation zero precondition.
 	ExpectCall(t.bucket, "CreateObject")(
 		Any(),
-		AllOf(createNameIs(t.objectName), contentsAre("taco"), generationIs(0))).
+		AllOf(nameIs(t.objectName), contentsAre("taco"), generationIs(0))).
 		WillOnce(oglemock.Return(nil, errors.New("")))
 
 	// Sync
@@ -475,7 +487,12 @@ func (t *NoSourceObjectTest) WriteThenSyncThenWriteThenSync() {
 }
 
 func (t *NoSourceObjectTest) Stat_CallsBucket() {
-	AssertTrue(false, "TODO")
+	// StatObject
+	ExpectCall(t.bucket, "StatObject")(Any(), AllOf(nameIs(t.objectName))).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	// Stat
+	t.op.Stat()
 }
 
 func (t *NoSourceObjectTest) Stat_BucketFails() {
