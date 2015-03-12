@@ -119,7 +119,7 @@ func (op *checkingObjectProxy) Name() string {
 	return op.wrapped.Name()
 }
 
-func (op *checkingObjectProxy) Stat() (uint64, bool, error) {
+func (op *checkingObjectProxy) Stat() (int64, bool, error) {
 	op.wrapped.CheckInvariants()
 	defer op.wrapped.CheckInvariants()
 	return op.wrapped.Stat(context.Background())
@@ -137,13 +137,13 @@ func (op *checkingObjectProxy) WriteAt(b []byte, o int64) (int, error) {
 	return op.wrapped.WriteAt(context.Background(), b, o)
 }
 
-func (op *checkingObjectProxy) Truncate(n uint64) error {
+func (op *checkingObjectProxy) Truncate(n int64) error {
 	op.wrapped.CheckInvariants()
 	defer op.wrapped.CheckInvariants()
 	return op.wrapped.Truncate(context.Background(), n)
 }
 
-func (op *checkingObjectProxy) Sync() (uint64, error) {
+func (op *checkingObjectProxy) Sync() (int64, error) {
 	op.wrapped.CheckInvariants()
 	defer op.wrapped.CheckInvariants()
 	return op.wrapped.Sync(context.Background())
@@ -161,8 +161,8 @@ type ObjectProxyTest struct {
 
 func (t *ObjectProxyTest) setUp(
 	ti *TestInfo,
-	srcGeneration uint64,
-	srcSize uint64) {
+	srcGeneration int64,
+	srcSize int64) {
 	t.objectName = "some/object"
 	t.bucket = mock_gcs.NewMockBucket(ti.MockController, "bucket")
 
@@ -375,26 +375,6 @@ func (t *NoSourceObjectTest) Sync_CreateObjectSaysPreconditionFailed() {
 		WillOnce(oglemock.Return(nil, errors.New("")))
 
 	t.op.Sync()
-}
-
-func (t *NoSourceObjectTest) Sync_BucketReturnsNegativeGeneration() {
-	// CreateObject
-	o := &storage.Object{
-		Name:       t.objectName,
-		Generation: -1,
-	}
-
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(oglemock.Return(o, nil))
-
-	// Sync
-	_, err := t.op.Sync()
-
-	AssertNe(nil, err)
-	ExpectThat(err, Not(HasSameTypeAs(&gcs.PreconditionError{})))
-	ExpectThat(err, Error(HasSubstr("CreateObject")))
-	ExpectThat(err, Error(HasSubstr("invalid generation")))
-	ExpectThat(err, Error(HasSubstr("-1")))
 }
 
 func (t *NoSourceObjectTest) Sync_BucketReturnsZeroGeneration() {

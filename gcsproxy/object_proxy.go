@@ -57,13 +57,13 @@ type ObjectProxy struct {
 	// branched. If we have no local state, the contents of this object are
 	// exactly our contents. May be zero if our source is a "doesn't exist"
 	// generation.
-	srcGeneration uint64
+	srcGeneration int64
 
 	// The size of the object from which our local state is branched. If
 	// srcGeneration is non-zero, this is the size of that generation in GCS.
 	//
 	// INVARIANT: If srcGeneration == 0, srcSize == 0
-	srcSize uint64
+	srcSize int64
 
 	// A local temporary file containing our current contents. When non-nil, this
 	// is the authority on our contents. When nil, our contents are defined by
@@ -91,8 +91,8 @@ func NewObjectProxy(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	name string,
-	srcGeneration uint64,
-	srcSize uint64) (op *ObjectProxy, err error) {
+	srcGeneration int64,
+	srcSize int64) (op *ObjectProxy, err error) {
 	// Set up the basic struct.
 	op = &ObjectProxy{
 		bucket:        bucket,
@@ -168,7 +168,7 @@ func (op *ObjectProxy) Destroy() (err error) {
 // the proxied object has changed out from under us (in which case Sync will
 // fail).
 func (op *ObjectProxy) Stat(
-	ctx context.Context) (size uint64, clobbered bool, err error) {
+	ctx context.Context) (size int64, clobbered bool, err error) {
 	// Stat the object in GCS.
 	req := &gcs.StatObjectRequest{Name: op.name}
 	o, bucketErr := op.bucket.StatObject(ctx, req)
@@ -181,7 +181,7 @@ func (op *ObjectProxy) Stat(
 	}
 
 	// Find the generation number, or zero if not found.
-	var currentGen uint64
+	var currentGen int64
 	if bucketErr == nil {
 		currentGen = o.Generation
 	}
@@ -198,7 +198,7 @@ func (op *ObjectProxy) Stat(
 			return
 		}
 
-		size = uint64(fi.Size())
+		size = fi.Size()
 	} else {
 		size = op.srcSize
 	}
@@ -252,7 +252,7 @@ func (op *ObjectProxy) WriteAt(
 // Truncate our view of the content to the given number of bytes, extending if
 // n is greater than the current size. May block for network access. Not
 // guaranteed to be reflected remotely until after Sync is called successfully.
-func (op *ObjectProxy) Truncate(ctx context.Context, n uint64) (err error) {
+func (op *ObjectProxy) Truncate(ctx context.Context, n int64) (err error) {
 	// Make sure we have a local file.
 	if err = op.ensureLocalFile(ctx); err != nil {
 		err = fmt.Errorf("ensureLocalFile: %v", err)
@@ -278,7 +278,7 @@ func (op *ObjectProxy) Truncate(ctx context.Context, n uint64) (err error) {
 // a generation with exactly those contents. Do so with a precondition such
 // that the creation will fail if the source generation is not current. In that
 // case, return an error of type *gcs.PreconditionError.
-func (op *ObjectProxy) Sync(ctx context.Context) (gen uint64, err error) {
+func (op *ObjectProxy) Sync(ctx context.Context) (gen int64, err error) {
 	// Do we need to do anything?
 	if !op.dirty {
 		gen = op.srcGeneration
@@ -321,12 +321,9 @@ func (op *ObjectProxy) Sync(ctx context.Context) (gen uint64, err error) {
 		return
 	}
 
-	// Make sure the server didn't return a silly generation number.
-	//
-	// TODO(jacobsa): Push unsigned generation numbers and a guarantee on zero
-	// into package gcs, including checking results from the server, and remove
-	// this.
-	if o.Generation <= 0 {
+	// Make sure the server didn't return a zero generation number, since we use
+	// that as a sentinel.
+	if o.Generation == 0 {
 		err = fmt.Errorf(
 			"CreateObject returned invalid generation number: %v",
 			o.Generation)
@@ -334,7 +331,7 @@ func (op *ObjectProxy) Sync(ctx context.Context) (gen uint64, err error) {
 		return
 	}
 
-	gen = uint64(o.Generation)
+	gen = o.Generation
 
 	// Update our state.
 	op.srcGeneration = gen
@@ -353,7 +350,7 @@ func makeLocalFile(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	name string,
-	generation uint64) (f *os.File, err error) {
+	generation int64) (f *os.File, err error) {
 	// Create the file.
 	f, err = ioutil.TempFile("", "object_proxy")
 	if err != nil {
