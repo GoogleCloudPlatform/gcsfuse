@@ -587,7 +587,9 @@ func (t *NoSourceObjectTest) Stat_Clobbered() {
 // object in the bucket.
 type SourceObjectPresentTest struct {
 	ObjectProxyTest
-	sourceObject *storage.Object
+
+	srcGeneration int64
+	srcSize       int64
 }
 
 var _ SetUpInterface = &SourceObjectPresentTest{}
@@ -595,7 +597,9 @@ var _ SetUpInterface = &SourceObjectPresentTest{}
 func init() { RegisterTestSuite(&SourceObjectPresentTest{}) }
 
 func (t *SourceObjectPresentTest) SetUp(ti *TestInfo) {
-	t.ObjectProxyTest.setUp(ti, 123, 456)
+	t.srcGeneration = 123
+	t.srcSize = 456
+	t.ObjectProxyTest.setUp(ti, t.srcGeneration, t.srcSize)
 }
 
 func (t *SourceObjectPresentTest) Read_CallsNewReader() {
