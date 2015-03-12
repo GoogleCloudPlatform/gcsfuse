@@ -159,7 +159,10 @@ type ObjectProxyTest struct {
 	op         checkingObjectProxy
 }
 
-func (t *ObjectProxyTest) setUp(ti *TestInfo, srcGeneration uint64) {
+func (t *ObjectProxyTest) setUp(
+	ti *TestInfo,
+	srcGeneration uint64,
+	srcSize uint64) {
 	t.objectName = "some/object"
 	t.bucket = mock_gcs.NewMockBucket(ti.MockController, "bucket")
 
@@ -168,7 +171,8 @@ func (t *ObjectProxyTest) setUp(ti *TestInfo, srcGeneration uint64) {
 		context.Background(),
 		t.bucket,
 		t.objectName,
-		srcGeneration)
+		srcGeneration,
+		srcSize)
 
 	if err != nil {
 		panic(err)
@@ -190,7 +194,7 @@ var _ SetUpInterface = &NoSourceObjectTest{}
 func init() { RegisterTestSuite(&NoSourceObjectTest{}) }
 
 func (t *NoSourceObjectTest) SetUp(ti *TestInfo) {
-	t.ObjectProxyTest.setUp(ti, 0)
+	t.ObjectProxyTest.setUp(ti, 0, 0)
 }
 
 func (t *NoSourceObjectTest) Name() {
@@ -611,7 +615,7 @@ var _ SetUpInterface = &SourceObjectPresentTest{}
 func init() { RegisterTestSuite(&SourceObjectPresentTest{}) }
 
 func (t *SourceObjectPresentTest) SetUp(ti *TestInfo) {
-	t.ObjectProxyTest.setUp(ti, 123)
+	t.ObjectProxyTest.setUp(ti, 123, 456)
 }
 
 func (t *SourceObjectPresentTest) Read_CallsNewReader() {

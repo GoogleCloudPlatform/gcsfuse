@@ -59,6 +59,12 @@ type ObjectProxy struct {
 	// generation.
 	srcGeneration uint64
 
+	// The size of the object from which our local state is branched. If
+	// srcGeneration is non-zero, this is the size of that generation in GCS.
+	//
+	// INVARIANT: If srcGeneration == 0, srcSize == 0
+	srcSize uint64
+
 	// A local temporary file containing our current contents. When non-nil, this
 	// is the authority on our contents. When nil, our contents are defined by
 	// the generation identified by srcGeneration.
@@ -76,18 +82,23 @@ type ObjectProxy struct {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-// Create a view on the given GCS object generation, or zero if branching from
-// a non-existent object (in which case the initial contents are empty).
+// Create a view on the given GCS object generation which is assumed to have
+// the given size, or zero if branching from a non-existent object (in which
+// case the initial contents are empty).
+//
+// REQUIRES: If srcGeneration == 0, then srcSize == 0
 func NewObjectProxy(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	name string,
-	srcGeneration uint64) (op *ObjectProxy, err error) {
+	srcGeneration uint64,
+	srcSize uint64) (op *ObjectProxy, err error) {
 	// Set up the basic struct.
 	op = &ObjectProxy{
 		bucket:        bucket,
 		name:          name,
 		srcGeneration: srcGeneration,
+		srcSize:       srcSize,
 	}
 
 	// For "doesn't exist" source generations, we must establish an empty local
@@ -113,6 +124,11 @@ func (op *ObjectProxy) Name() string {
 // at appropriate times to help debug weirdness. Consider using
 // syncutil.InvariantMutex to automate the process.
 func (op *ObjectProxy) CheckInvariants() {
+	// INVARIANT: If srcGeneration == 0, srcSize == 0
+	if op.srcGeneration == 0 && op.srcSize != 0 {
+		panic("Expected zero source size.")
+	}
+
 	// INVARIANT: If srcGeneration == 0, then dirty
 	if op.srcGeneration == 0 && !op.dirty {
 		panic("Expected dirty.")
