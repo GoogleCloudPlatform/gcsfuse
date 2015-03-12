@@ -37,7 +37,7 @@ func TestOgletest(t *testing.T) { RunTests(t) }
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func nameIs(name string) Matcher {
+func createNameIs(name string) Matcher {
 	return NewMatcher(
 		func(candidate interface{}) error {
 			req := candidate.(*gcs.CreateObjectRequest)
@@ -298,7 +298,7 @@ func (t *NoSourceObjectTest) Sync_CallsCreateObject_NoInteractions() {
 	// precondition.
 	ExpectCall(t.bucket, "CreateObject")(
 		Any(),
-		AllOf(nameIs(t.objectName), contentsAre(""), generationIs(0))).
+		AllOf(createNameIs(t.objectName), contentsAre(""), generationIs(0))).
 		WillOnce(oglemock.Return(nil, errors.New("")))
 
 	// Sync
@@ -314,7 +314,7 @@ func (t *NoSourceObjectTest) Sync_CallsCreateObject_AfterWriting() {
 	// CreateObject -- should receive "taco" and a generation zero precondition.
 	ExpectCall(t.bucket, "CreateObject")(
 		Any(),
-		AllOf(nameIs(t.objectName), contentsAre("taco"), generationIs(0))).
+		AllOf(createNameIs(t.objectName), contentsAre("taco"), generationIs(0))).
 		WillOnce(oglemock.Return(nil, errors.New("")))
 
 	// Sync
