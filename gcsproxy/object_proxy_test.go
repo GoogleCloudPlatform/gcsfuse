@@ -539,12 +539,25 @@ func (t *NoSourceObjectTest) Stat_AfterGrowing() {
 	ExpectFalse(clobbered)
 }
 
-func (t *NoSourceObjectTest) Stat_AfterReading() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *NoSourceObjectTest) Stat_AfterWriting() {
-	AssertTrue(false, "TODO")
+	var n int
+	var err error
+
+	// Extend the object by writing.
+	n, err = t.op.WriteAt([]byte("taco"), 0)
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// StatObject -- return not found, as expected.
+	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, gcs.ErrNotFound))
+
+	// Stat
+	size, clobbered, err := t.op.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq(4, size)
+	ExpectFalse(clobbered)
 }
 
 func (t *NoSourceObjectTest) Stat_Clobbered() {
