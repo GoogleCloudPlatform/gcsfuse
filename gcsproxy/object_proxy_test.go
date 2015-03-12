@@ -508,7 +508,16 @@ func (t *NoSourceObjectTest) Stat_BucketFails() {
 }
 
 func (t *NoSourceObjectTest) Stat_InitialState() {
-	AssertTrue(false, "TODO")
+	// StatObject -- return not found, as expected.
+	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, gcs.ErrNotFound))
+
+	// Stat
+	size, clobbered, err := t.op.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq(0, size)
+	ExpectFalse(clobbered)
 }
 
 func (t *NoSourceObjectTest) Stat_AfterShortening() {
