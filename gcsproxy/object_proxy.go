@@ -250,7 +250,19 @@ func (op *ObjectProxy) Sync(ctx context.Context) (gen uint64, err error) {
 	}
 
 	o, err := op.bucket.CreateObject(ctx, req)
+
+	// Special case: handle precondition errors.
+	if _, ok := err.(*gcs.PreconditionError); ok {
+		err = &gcs.PreconditionError{
+			Err: fmt.Errorf("CreateObject: %v", err),
+		}
+
+		return
+	}
+
+	// Propagate other errors more directly.
 	if err != nil {
+		err = fmt.Errorf("CreateObject: %v", err)
 		return
 	}
 
@@ -260,7 +272,10 @@ func (op *ObjectProxy) Sync(ctx context.Context) (gen uint64, err error) {
 	// into package gcs, including checking results from the server, and remove
 	// this.
 	if o.Generation <= 0 {
-		err = fmt.Errorf("GCS returned invalid generation number: %v", o.Generation)
+		err = fmt.Errorf(
+			"CreateObject returned invalid generation number: %v",
+			o.Generation)
+
 		return
 	}
 
