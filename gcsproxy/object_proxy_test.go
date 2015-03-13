@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"testing/iotest"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
@@ -640,7 +641,20 @@ func (t *SourceObjectPresentTest) Read_NewReaderFails() {
 }
 
 func (t *SourceObjectPresentTest) Read_ReadError() {
-	AssertTrue(false, "TODO")
+	// NewReader -- return a reader that returns an error after the first byte.
+	rc := ioutil.NopCloser(
+		iotest.TimeoutReader(
+			iotest.OneByteReader(
+				strings.NewReader("aaa"))))
+
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(rc, nil))
+
+	// ReadAt
+	_, err := t.op.ReadAt([]byte{}, 0)
+
+	ExpectThat(err, Error(HasSubstr("Copy:")))
+	ExpectThat(err, Error(HasSubstr("timeout")))
 }
 
 func (t *SourceObjectPresentTest) Read_CloseError() {
