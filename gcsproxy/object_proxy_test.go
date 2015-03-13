@@ -614,7 +614,15 @@ func (t *SourceObjectPresentTest) Read_CallsNewReader() {
 }
 
 func (t *SourceObjectPresentTest) Read_NewReaderFails() {
-	AssertTrue(false, "TODO")
+	// NewReader
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, errors.New("taco")))
+
+	// ReadAt
+	_, err := t.op.ReadAt([]byte{}, 0)
+
+	ExpectThat(err, Error(HasSubstr("NewReader")))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *SourceObjectPresentTest) Read_NewReaderSucceeds() {
