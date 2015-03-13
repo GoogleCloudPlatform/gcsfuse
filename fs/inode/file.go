@@ -15,13 +15,19 @@
 package inode
 
 import (
+	"fmt"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
+	"github.com/jacobsa/gcsfuse/gcsproxy"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )
 
+// TODO(jacobsa): Add a Destroy method here that calls ObjectProxy.Destroy, and
+// make sure it's called when the inode is forgotten. Also, make sure package
+// fuse has support for actually calling Forget.
 type FileInode struct {
 	/////////////////////////
 	// Dependencies
@@ -33,8 +39,7 @@ type FileInode struct {
 	// Constant data
 	/////////////////////////
 
-	id   fuse.InodeID
-	name string
+	id fuse.InodeID
 
 	/////////////////////////
 	// Mutable state
@@ -44,11 +49,12 @@ type FileInode struct {
 	// for each method.
 	mu syncutil.InvariantMutex
 
-	// A record for the object from which this inode was branched. The object's
-	// generation is used as a precondition in object write requests.
+	// A proxy for the backing object in GCS.
+	//
+	// INVARIANT: proxy.CheckInvariants() does not panic
 	//
 	// GUARDED_BY(mu)
-	srcObject storage.Object
+	proxy *gcsproxy.ObjectProxy
 }
 
 var _ Inode = &FileInode{}
@@ -56,18 +62,25 @@ var _ Inode = &FileInode{}
 // Create a file inode for the given object in GCS.
 //
 // REQUIRES: o != nil
+// REQUIRES: o.Generation > 0
 // REQUIRES: len(o.Name) > 0
 // REQUIRES: o.Name[len(o.Name)-1] != '/'
 func NewFileInode(
+	ctx context.Context,
 	bucket gcs.Bucket,
 	id fuse.InodeID,
-	o *storage.Object) (f *FileInode) {
+	o *storage.Object) (f *FileInode, err error) {
 	// Set up the basic struct.
 	f = &FileInode{
-		bucket:    bucket,
-		id:        id,
-		name:      o.Name,
-		srcObject: *o,
+		bucket: bucket,
+		id:     id,
+	}
+
+	// Set up the proxy.
+	f.proxy, err = gcsproxy.NewObjectProxy(ctx, bucket, o)
+	if err != nil {
+		err = fmt.Errorf("NewObjectProxy: %v", err)
+		return
 	}
 
 	// Set up invariant checking.
@@ -81,9 +94,14 @@ func NewFileInode(
 ////////////////////////////////////////////////////////////////////////
 
 func (f *FileInode) checkInvariants() {
-	if len(f.name) == 0 || f.name[len(f.name)-1] == '/' {
-		panic("Illegal file name: " + f.name)
+	// Make sure the name is legal.
+	name := f.proxy.Name()
+	if len(name) == 0 || name[len(name)-1] == '/' {
+		panic("Illegal file name: " + name)
 	}
+
+	// INVARIANT: proxy.CheckInvariants() does not panic
+	f.proxy.CheckInvariants()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -102,16 +120,33 @@ func (f *FileInode) ID() fuse.InodeID {
 	return f.id
 }
 
+// SHARED_LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Name() string {
-	return f.name
+	return f.proxy.Name()
 }
 
+// SHARED_LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
 	ctx context.Context) (attrs fuse.InodeAttributes, err error) {
+	// Stat the object.
+	size, _, err := f.proxy.Stat(ctx)
+	if err != nil {
+		err = fmt.Errorf("Stat: %v", err)
+		return
+	}
+
+	// Fill out the struct.
+	//
+	// TODO(jacobsa): Add a test for nlink == 0 when clobbered and update the
+	// code here.
+	//
+	// TODO(jacobsa): Make ObjectProxy.Stat return a struct containing mtime as
+	// well as size and clobbered. (Get mtime from the local file when around,
+	// otherwise the source object.) Then include Mtime here. But first make sure
+	// there is a failing test.
 	attrs = fuse.InodeAttributes{
-		Size:  uint64(f.srcObject.Size),
-		Mode:  0700,
-		Mtime: f.srcObject.Updated,
+		Size: uint64(size),
+		Mode: 0700,
 	}
 
 	return
@@ -126,6 +161,4 @@ func (f *FileInode) Attributes(
 // to the zero generation.
 //
 // SHARED_LOCKS_REQUIRED(f.mu)
-func (f *FileInode) SourceGeneration() int64 {
-	return f.srcObject.Generation
-}
+func (f *FileInode) SourceGeneration() int64
