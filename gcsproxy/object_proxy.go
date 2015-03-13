@@ -94,7 +94,9 @@ func (op *ObjectProxy) Name() string {
 // proxy were branched. If Sync has been successfully called, this is the
 // generation most recently returned by Sync. Otherwise it is the generation
 // from which the proxy was created.
-func (op *ObjectProxy) SourceGeneration() int64
+func (op *ObjectProxy) SourceGeneration() int64 {
+	return op.src.Generation
+}
 
 // Panic if any internal invariants are violated. Careful users can call this
 // at appropriate times to help debug weirdness. Consider using
