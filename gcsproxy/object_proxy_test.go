@@ -147,6 +147,12 @@ func (op *checkingObjectProxy) Name() string {
 	return op.wrapped.Name()
 }
 
+func (op *checkingObjectProxy) SourceGeneration() int64 {
+	op.wrapped.CheckInvariants()
+	defer op.wrapped.CheckInvariants()
+	return op.wrapped.SourceGeneration()
+}
+
 func (op *checkingObjectProxy) Stat() (int64, bool, error) {
 	op.wrapped.CheckInvariants()
 	defer op.wrapped.CheckInvariants()
