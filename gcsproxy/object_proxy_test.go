@@ -870,7 +870,24 @@ func (t *SourceObjectPresentTest) Stat_BucketSaysNotFound_Dirty() {
 }
 
 func (t *SourceObjectPresentTest) Stat_InitialState() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// StatObject
+	o := &storage.Object{
+		Name:       t.objectName,
+		Generation: t.srcGeneration,
+		Size:       t.srcSize,
+	}
+
+	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
+		WillOnce(oglemock.Return(o, nil))
+
+	// Stat
+	size, clobbered, err := t.op.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq(t.srcSize, size)
+	ExpectFalse(clobbered)
 }
 
 func (t *SourceObjectPresentTest) Stat_AfterShortening() {
@@ -889,6 +906,6 @@ func (t *SourceObjectPresentTest) Stat_AfterWriting() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *SourceObjectPresentTest) Stat_Clobbered() {
+func (t *SourceObjectPresentTest) Stat_ClobberedByNewGeneration() {
 	AssertTrue(false, "TODO")
 }
