@@ -434,7 +434,7 @@ func (t *ObjectProxyTest) GrowByTruncating() {
 	ExpectEq(s+"\x00\x00\x00\x00", string(buf[:n]))
 }
 
-func (t *NoSourceObjectTest) ShrinkByTruncating() {
+func (t *ObjectProxyTest) ShrinkByTruncating() {
 	AssertTrue(false, "TODO")
 }
 
@@ -529,7 +529,7 @@ func (t *ObjectProxyTest) Sync_CallsCreateObject() {
 	t.op.Sync()
 }
 
-func (t *NoSourceObjectTest) Sync_CreateObjectFails() {
+func (t *ObjectProxyTest) Sync_CreateObjectFails() {
 	// CreateObject -- return an error.
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
 		WillOnce(oglemock.Return(nil, errors.New("taco")))
@@ -549,7 +549,7 @@ func (t *NoSourceObjectTest) Sync_CreateObjectFails() {
 	t.op.Sync()
 }
 
-func (t *NoSourceObjectTest) Sync_CreateObjectSaysPreconditionFailed() {
+func (t *ObjectProxyTest) Sync_CreateObjectSaysPreconditionFailed() {
 	// CreateObject -- return a precondition error.
 	e := &gcs.PreconditionError{Err: errors.New("taco")}
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
@@ -569,7 +569,7 @@ func (t *NoSourceObjectTest) Sync_CreateObjectSaysPreconditionFailed() {
 	t.op.Sync()
 }
 
-func (t *NoSourceObjectTest) Sync_BucketReturnsZeroGeneration() {
+func (t *ObjectProxyTest) Sync_BucketReturnsZeroGeneration() {
 	// CreateObject
 	o := &storage.Object{
 		Name:       t.objectName,
@@ -589,7 +589,7 @@ func (t *NoSourceObjectTest) Sync_BucketReturnsZeroGeneration() {
 	ExpectThat(err, Error(HasSubstr("0")))
 }
 
-func (t *NoSourceObjectTest) Sync_Successful() {
+func (t *ObjectProxyTest) Sync_Successful() {
 	var n int
 	var err error
 
@@ -627,9 +627,13 @@ func (t *NoSourceObjectTest) Sync_Successful() {
 	ExpectEq("taco", string(buf[:n]))
 }
 
-func (t *NoSourceObjectTest) WriteThenSyncThenWriteThenSync() {
+func (t *ObjectProxyTest) WriteThenSyncThenWriteThenSync() {
 	var n int
 	var err error
+
+	// NewReader
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
 
 	// Dirty the proxy.
 	n, err = t.op.WriteAt([]byte("taco"), 0)
@@ -671,7 +675,7 @@ func (t *ObjectProxyTest) Stat_CallsBucket() {
 	t.op.Stat()
 }
 
-func (t *NoSourceObjectTest) Stat_BucketFails() {
+func (t *ObjectProxyTest) Stat_BucketFails() {
 	// StatObject
 	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
 		WillOnce(oglemock.Return(nil, errors.New("taco")))
