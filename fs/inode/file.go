@@ -161,6 +161,4 @@ func (f *FileInode) Attributes(
 // to the zero generation.
 //
 // SHARED_LOCKS_REQUIRED(f.mu)
-func (f *FileInode) SourceGeneration() int64 {
-	return f.srcObject.Generation
-}
+func (f *FileInode) SourceGeneration() int64
