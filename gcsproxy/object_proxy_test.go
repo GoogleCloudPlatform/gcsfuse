@@ -432,7 +432,7 @@ func (t *ObjectProxyTest) GrowByTruncating() {
 	n, err = t.op.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
-	ExpectEq(t.src.Size+17, n)
+	ExpectEq(t.src.Size+4, n)
 	ExpectEq(s+"\x00\x00\x00\x00", string(buf[:n]))
 }
 
@@ -558,6 +558,12 @@ func (t *ObjectProxyTest) Sync_CreateObjectFails() {
 }
 
 func (t *ObjectProxyTest) Sync_CreateObjectSaysPreconditionFailed() {
+	// Dirty the proxy.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+
+	t.op.Truncate(0)
+
 	// CreateObject -- return a precondition error.
 	e := &gcs.PreconditionError{Err: errors.New("taco")}
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
@@ -578,6 +584,12 @@ func (t *ObjectProxyTest) Sync_CreateObjectSaysPreconditionFailed() {
 }
 
 func (t *ObjectProxyTest) Sync_BucketReturnsZeroGeneration() {
+	// Dirty the proxy.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+
+	t.op.Truncate(0)
+
 	// CreateObject
 	o := &storage.Object{
 		Name:       t.src.Name,
@@ -602,9 +614,10 @@ func (t *ObjectProxyTest) Sync_Successful() {
 	var err error
 
 	// Dirty the proxy.
-	n, err = t.op.WriteAt([]byte("taco"), 0)
-	AssertEq(nil, err)
-	AssertEq(len("taco"), n)
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+
+	t.op.Truncate(0)
 
 	// Have the call to CreateObject succeed.
 	o := &storage.Object{
