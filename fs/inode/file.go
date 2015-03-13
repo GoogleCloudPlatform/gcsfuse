@@ -37,8 +37,7 @@ type FileInode struct {
 	// Constant data
 	/////////////////////////
 
-	id   fuse.InodeID
-	name string
+	id fuse.InodeID
 
 	/////////////////////////
 	// Mutable state
@@ -71,7 +70,6 @@ func NewFileInode(
 	f = &FileInode{
 		bucket:    bucket,
 		id:        id,
-		name:      o.Name,
 		srcObject: *o,
 	}
 
@@ -87,8 +85,9 @@ func NewFileInode(
 
 func (f *FileInode) checkInvariants() {
 	// Make sure the name is legal.
-	if len(f.name) == 0 || f.name[len(f.name)-1] == '/' {
-		panic("Illegal file name: " + f.name)
+	name := f.proxy.Name()
+	if len(name) == 0 || name[len(name)-1] == '/' {
+		panic("Illegal file name: " + name)
 	}
 
 	// INVARIANT: proxy.CheckInvariants() does not panic
@@ -111,8 +110,9 @@ func (f *FileInode) ID() fuse.InodeID {
 	return f.id
 }
 
+// SHARED_LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Name() string {
-	return f.name
+	return f.proxy.Name()
 }
 
 func (f *FileInode) Attributes(
