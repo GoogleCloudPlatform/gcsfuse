@@ -15,6 +15,8 @@
 package inode
 
 import (
+	"fmt"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
@@ -60,17 +62,31 @@ var _ Inode = &FileInode{}
 // Create a file inode for the given object in GCS.
 //
 // REQUIRES: o != nil
+// REQUIRES: o.Generation > 0
 // REQUIRES: len(o.Name) > 0
 // REQUIRES: o.Name[len(o.Name)-1] != '/'
 func NewFileInode(
+	ctx context.Context,
 	bucket gcs.Bucket,
 	id fuse.InodeID,
-	o *storage.Object) (f *FileInode) {
+	o *storage.Object) (f *FileInode, err error) {
 	// Set up the basic struct.
 	f = &FileInode{
-		bucket:    bucket,
-		id:        id,
-		srcObject: *o,
+		bucket: bucket,
+		id:     id,
+	}
+
+	// Set up the proxy.
+	f.proxy, err = gcsproxy.NewObjectProxy(
+		ctx,
+		bucket,
+		o.Name,
+		o.Generation,
+		o.Size)
+
+	if err != nil {
+		err = fmt.Errorf("NewObjectProxy: %v", err)
+		return
 	}
 
 	// Set up invariant checking.
