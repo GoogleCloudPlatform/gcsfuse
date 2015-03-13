@@ -437,7 +437,26 @@ func (t *ObjectProxyTest) GrowByTruncating() {
 }
 
 func (t *ObjectProxyTest) ShrinkByTruncating() {
-	AssertTrue(false, "TODO")
+	var n int
+	var err error
+	var buf []byte
+
+	// NewReader
+	s := strings.Repeat("a", int(t.src.Size))
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
+
+	// Truncate
+	err = t.op.Truncate(t.src.Size - 4)
+	AssertEq(nil, err)
+
+	// Read the whole thing.
+	buf = make([]byte, 1024)
+	n, err = t.op.ReadAt(buf, 0)
+
+	AssertEq(io.EOF, err)
+	ExpectEq(t.src.Size-4, n)
+	ExpectEq(s[:t.src.Size-4], string(buf[:n]))
 }
 
 func (t *ObjectProxyTest) Sync_NoInteractions() {
