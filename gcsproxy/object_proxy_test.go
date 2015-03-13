@@ -50,8 +50,11 @@ func nameIs(name string) Matcher {
 			case *gcs.StatObjectRequest:
 				actual = typed.Name
 
+			case *gcs.ReadObjectRequest:
+				actual = typed.Name
+
 			default:
-				return fmt.Errorf("which is of type %v", reflect.TypeOf(candidate))
+				panic(fmt.Sprintf("Unhandled type: %v", reflect.TypeOf(candidate)))
 			}
 
 			if actual != name {
