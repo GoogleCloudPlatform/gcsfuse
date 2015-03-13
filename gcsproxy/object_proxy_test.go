@@ -341,10 +341,14 @@ func (t *ObjectProxyTest) WriteToEndOfObjectThenRead() {
 	ExpectEq("obur", string(buf[:n]))
 }
 
-func (t *NoSourceObjectTest) WritePastEndOfObjectThenRead() {
+func (t *ObjectProxyTest) WritePastEndOfObjectThenRead() {
 	var n int
 	var err error
 	var buf []byte
+
+	// NewReader
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
 
 	// Extend the object by writing past its end.
 	n, err = t.op.WriteAt([]byte("taco"), 2)
@@ -368,10 +372,14 @@ func (t *NoSourceObjectTest) WritePastEndOfObjectThenRead() {
 	ExpectEq("\x00tac", string(buf[:n]))
 }
 
-func (t *NoSourceObjectTest) WriteWithinObjectThenRead() {
+func (t *ObjectProxyTest) WriteWithinObjectThenRead() {
 	var n int
 	var err error
 	var buf []byte
+
+	// NewReader
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
 
 	// Write several bytes to extend the object.
 	n, err = t.op.WriteAt([]byte("00000"), 0)
@@ -403,22 +411,27 @@ func (t *ObjectProxyTest) Truncate_CallsNewReader() {
 	t.op.Truncate(17)
 }
 
-func (t *NoSourceObjectTest) GrowByTruncating() {
+func (t *ObjectProxyTest) GrowByTruncating() {
 	var n int
 	var err error
 	var buf []byte
 
+	// NewReader
+	s := strings.Repeat("a", int(t.srcSize))
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
+
 	// Truncate
-	err = t.op.Truncate(4)
+	err = t.op.Truncate(t.src.Size + 4)
 	AssertEq(nil, err)
 
 	// Read the whole thing.
 	buf = make([]byte, 1024)
 	n, err = t.op.ReadAt(buf, 0)
 
-	AssertEq(io.EOF, err)
-	ExpectEq(4, n)
-	ExpectEq("\x00\x00\x00\x00", string(buf[:n]))
+	AssertEq(nil, err)
+	ExpectEq(t.src.Size+17, n)
+	ExpectEq(s+"\x00\x00\x00\x00", string(buf[:n]))
 }
 
 func (t *NoSourceObjectTest) ShrinkByTruncating() {
