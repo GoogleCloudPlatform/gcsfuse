@@ -143,16 +143,18 @@ func (d *DirInode) LookUpChild(
 	}
 
 	// Propagate all errors except "not found".
-	if err != nil && err != gcs.ErrNotFound {
-		err = fmt.Errorf("StatObject: %v", err)
-		return
+	if err != nil {
+		if _, ok := err.(*gcs.NotFoundError); !ok {
+			err = fmt.Errorf("StatObject: %v", err)
+			return
+		}
 	}
 
 	// Try again as a file.
 	statReq.Name = d.name + name
 	o, err = d.bucket.StatObject(ctx, statReq)
 
-	if err == gcs.ErrNotFound {
+	if _, ok := err.(*gcs.NotFoundError); ok {
 		err = fuse.ENOENT
 		return
 	}
