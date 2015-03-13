@@ -22,6 +22,9 @@ import (
 	"google.golang.org/cloud/storage"
 )
 
+// TODO(jacobsa): Add a Destroy method here that calls ObjectProxy.Destroy, and
+// make sure it's called when the inode is forgotten. Also, make sure package
+// fuse has support for actually calling Forget.
 type FileInode struct {
 	/////////////////////////
 	// Dependencies
