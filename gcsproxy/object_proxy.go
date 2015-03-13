@@ -290,7 +290,7 @@ func (op *ObjectProxy) Sync(ctx context.Context) (gen int64, err error) {
 ////////////////////////////////////////////////////////////////////////
 
 // Set up an unlinked local temporary file for the given generation of the
-// given object. Special case: generation == 0 means an empty file.
+// given object.
 func makeLocalFile(
 	ctx context.Context,
 	bucket gcs.Bucket,
@@ -318,31 +318,28 @@ func makeLocalFile(
 		return
 	}
 
-	// Fetch the object's contents if necessary.
-	if generation != 0 {
-		req := &gcs.ReadObjectRequest{
-			Name:       name,
-			Generation: generation,
-		}
+	// Open the object for reading.
+	req := &gcs.ReadObjectRequest{
+		Name:       name,
+		Generation: generation,
+	}
 
-		// Open for reading.
-		var rc io.ReadCloser
-		if rc, err = bucket.NewReader(ctx, req); err != nil {
-			err = fmt.Errorf("NewReader: %v", err)
-			return
-		}
+	var rc io.ReadCloser
+	if rc, err = bucket.NewReader(ctx, req); err != nil {
+		err = fmt.Errorf("NewReader: %v", err)
+		return
+	}
 
-		// Copy to the file.
-		if _, err = io.Copy(f, rc); err != nil {
-			err = fmt.Errorf("Copy: %v", err)
-			return
-		}
+	// Copy to the file.
+	if _, err = io.Copy(f, rc); err != nil {
+		err = fmt.Errorf("Copy: %v", err)
+		return
+	}
 
-		// Close.
-		if err = rc.Close(); err != nil {
-			err = fmt.Errorf("Close: %v", err)
-			return
-		}
+	// Close.
+	if err = rc.Close(); err != nil {
+		err = fmt.Errorf("Close: %v", err)
+		return
 	}
 
 	return
@@ -357,7 +354,7 @@ func (op *ObjectProxy) ensureLocalFile(ctx context.Context) (err error) {
 	}
 
 	// Set up the file.
-	f, err := makeLocalFile(ctx, op.bucket, op.name, op.srcGeneration)
+	f, err := makeLocalFile(ctx, op.bucket, op.Name(), op.src.Generation)
 	if err != nil {
 		err = fmt.Errorf("makeLocalFile: %v", err)
 		return
