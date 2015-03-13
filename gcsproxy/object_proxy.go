@@ -173,11 +173,14 @@ func (op *ObjectProxy) Stat(
 	req := &gcs.StatObjectRequest{Name: op.name}
 	o, bucketErr := op.bucket.StatObject(ctx, req)
 
-	// Propagate errors. Special case: suppress ErrNotFound, treating it as a
-	// zero generation below.
-	if bucketErr != nil && bucketErr != gcs.ErrNotFound {
-		err = fmt.Errorf("StatObject: %v", bucketErr)
-		return
+	// Propagate errors.
+	if bucketErr != nil {
+		// Propagate errors. Special case: suppress gcs.NotFoundError, treating it
+		// as a zero generation below.
+		if _, ok := bucketErr.(*gcs.NotFoundError); !ok {
+			err = fmt.Errorf("StatObject: %v", bucketErr)
+			return
+		}
 	}
 
 	// Find the generation number, or zero if not found.

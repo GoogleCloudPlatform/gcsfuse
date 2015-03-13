@@ -494,7 +494,7 @@ func (t *NoSourceObjectTest) Stat_BucketFails() {
 func (t *NoSourceObjectTest) Stat_InitialState() {
 	// StatObject
 	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
-		WillOnce(oglemock.Return(nil, gcs.ErrNotFound))
+		WillOnce(oglemock.Return(nil, &gcs.NotFoundError{}))
 
 	// Stat
 	size, _, err := t.op.Stat()
@@ -512,7 +512,7 @@ func (t *NoSourceObjectTest) Stat_AfterGrowing() {
 
 	// StatObject
 	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
-		WillOnce(oglemock.Return(nil, gcs.ErrNotFound))
+		WillOnce(oglemock.Return(nil, &gcs.NotFoundError{}))
 
 	// Stat
 	size, _, err := t.op.Stat()
@@ -532,7 +532,7 @@ func (t *NoSourceObjectTest) Stat_AfterWriting() {
 
 	// StatObject
 	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
-		WillOnce(oglemock.Return(nil, gcs.ErrNotFound))
+		WillOnce(oglemock.Return(nil, &gcs.NotFoundError{}))
 
 	// Stat
 	size, _, err := t.op.Stat()
@@ -546,7 +546,7 @@ func (t *NoSourceObjectTest) Stat_NotClobbered() {
 
 	// StatObject
 	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
-		WillOnce(oglemock.Return(nil, gcs.ErrNotFound))
+		WillOnce(oglemock.Return(nil, &gcs.NotFoundError{}))
 
 	// Stat
 	_, clobbered, err := t.op.Stat()
