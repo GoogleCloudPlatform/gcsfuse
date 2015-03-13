@@ -84,9 +84,10 @@ func NewObjectProxy(
 }
 
 // Return the name of the proxied object. This may or may not be an object that
-// currently exists in the bucket.
+// currently exists in the bucket, depending on whether the backing object has
+// been deleted.
 func (op *ObjectProxy) Name() string {
-	return op.name
+	return op.src.Name
 }
 
 // Panic if any internal invariants are violated. Careful users can call this
