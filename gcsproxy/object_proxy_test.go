@@ -897,7 +897,7 @@ func (t *SourceObjectPresentTest) Stat_AfterShortening() {
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
 
-	err = t.op.Truncate(17)
+	err = t.op.Truncate(t.srcSize - 1)
 	AssertEq(nil, err)
 
 	// StatObject
@@ -914,12 +914,36 @@ func (t *SourceObjectPresentTest) Stat_AfterShortening() {
 	size, clobbered, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(17, size)
+	ExpectEq(t.srcSize-1, size)
 	ExpectFalse(clobbered)
 }
 
 func (t *SourceObjectPresentTest) Stat_AfterGrowing() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Truncate
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+
+	err = t.op.Truncate(t.srcSize + 17)
+	AssertEq(nil, err)
+
+	// StatObject
+	o := &storage.Object{
+		Name:       t.objectName,
+		Generation: t.srcGeneration,
+		Size:       t.srcSize,
+	}
+
+	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
+		WillOnce(oglemock.Return(o, nil))
+
+	// Stat
+	size, clobbered, err := t.op.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq(t.srcSize+17, size)
+	ExpectFalse(clobbered)
 }
 
 func (t *SourceObjectPresentTest) Stat_AfterReading() {
