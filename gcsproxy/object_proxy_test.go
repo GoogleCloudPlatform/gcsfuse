@@ -306,10 +306,14 @@ func (t *ObjectProxyTest) Write_CallsNewReader() {
 	t.op.WriteAt([]byte{}, 0)
 }
 
-func (t *NoSourceObjectTest) WriteToEndOfObjectThenRead() {
+func (t *ObjectProxyTest) WriteToEndOfObjectThenRead() {
 	var buf []byte
 	var n int
 	var err error
+
+	// NewReader
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
 
 	// Extend the object by writing twice.
 	n, err = t.op.WriteAt([]byte("taco"), 0)
