@@ -610,29 +610,10 @@ func (t *NoSourceObjectTest) Stat_Clobbered() {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Source object present
+// Tests
 ////////////////////////////////////////////////////////////////////////
 
-// A test whose initial conditions are an object proxy branching from a source
-// object in the bucket.
-type SourceObjectPresentTest struct {
-	ObjectProxyTest
-
-	srcGeneration int64
-	srcSize       int64
-}
-
-var _ SetUpInterface = &SourceObjectPresentTest{}
-
-func init() { RegisterTestSuite(&SourceObjectPresentTest{}) }
-
-func (t *SourceObjectPresentTest) SetUp(ti *TestInfo) {
-	t.srcGeneration = 123
-	t.srcSize = 456
-	t.ObjectProxyTest.setUp(ti, t.srcGeneration, t.srcSize)
-}
-
-func (t *SourceObjectPresentTest) Read_CallsNewReader() {
+func (t *ObjectProxyTest) Read_CallsNewReader() {
 	// NewReader
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
@@ -643,7 +624,7 @@ func (t *SourceObjectPresentTest) Read_CallsNewReader() {
 	t.op.ReadAt([]byte{}, 0)
 }
 
-func (t *SourceObjectPresentTest) Read_NewReaderFails() {
+func (t *ObjectProxyTest) Read_NewReaderFails() {
 	// NewReader
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(nil, errors.New("taco")))
@@ -655,7 +636,7 @@ func (t *SourceObjectPresentTest) Read_NewReaderFails() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *SourceObjectPresentTest) Read_ReadError() {
+func (t *ObjectProxyTest) Read_ReadError() {
 	// NewReader -- return a reader that returns an error after the first byte.
 	rc := ioutil.NopCloser(
 		iotest.TimeoutReader(
@@ -672,7 +653,7 @@ func (t *SourceObjectPresentTest) Read_ReadError() {
 	ExpectThat(err, Error(HasSubstr("timeout")))
 }
 
-func (t *SourceObjectPresentTest) Read_CloseError() {
+func (t *ObjectProxyTest) Read_CloseError() {
 	// NewReader -- return a ReadCloser that will fail to close.
 	rc := &errorReadCloser{
 		wrapped: strings.NewReader(""),
@@ -689,7 +670,7 @@ func (t *SourceObjectPresentTest) Read_CloseError() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *SourceObjectPresentTest) Read_NewReaderSucceeds() {
+func (t *ObjectProxyTest) Read_NewReaderSucceeds() {
 	const contents = "tacoburrito"
 	buf := make([]byte, 1024)
 	var n int
@@ -714,7 +695,7 @@ func (t *SourceObjectPresentTest) Read_NewReaderSucceeds() {
 	ExpectEq("cobu", string(buf[:n]))
 }
 
-func (t *SourceObjectPresentTest) Write_CallsNewReader() {
+func (t *ObjectProxyTest) Write_CallsNewReader() {
 	// NewReader
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
@@ -725,7 +706,7 @@ func (t *SourceObjectPresentTest) Write_CallsNewReader() {
 	t.op.WriteAt([]byte{}, 0)
 }
 
-func (t *SourceObjectPresentTest) Truncate_CallsNewReader() {
+func (t *ObjectProxyTest) Truncate_CallsNewReader() {
 	// NewReader
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
@@ -736,7 +717,7 @@ func (t *SourceObjectPresentTest) Truncate_CallsNewReader() {
 	t.op.Truncate(17)
 }
 
-func (t *SourceObjectPresentTest) Sync_NoInteractions() {
+func (t *ObjectProxyTest) Sync_NoInteractions() {
 	// There should be nothing to do.
 	gen, err := t.op.Sync()
 
@@ -744,7 +725,7 @@ func (t *SourceObjectPresentTest) Sync_NoInteractions() {
 	ExpectEq(t.srcGeneration, gen)
 }
 
-func (t *SourceObjectPresentTest) Sync_AfterReading() {
+func (t *ObjectProxyTest) Sync_AfterReading() {
 	const contents = "tacoburrito"
 	buf := make([]byte, 1024)
 	var n int
@@ -767,7 +748,7 @@ func (t *SourceObjectPresentTest) Sync_AfterReading() {
 	ExpectEq(t.srcGeneration, gen)
 }
 
-func (t *SourceObjectPresentTest) Sync_AfterWriting() {
+func (t *ObjectProxyTest) Sync_AfterWriting() {
 	var n int
 	var err error
 
@@ -787,7 +768,7 @@ func (t *SourceObjectPresentTest) Sync_AfterWriting() {
 	t.op.Sync()
 }
 
-func (t *SourceObjectPresentTest) Sync_AfterTruncating() {
+func (t *ObjectProxyTest) Sync_AfterTruncating() {
 	var err error
 
 	// Successfully truncate.
@@ -804,7 +785,7 @@ func (t *SourceObjectPresentTest) Sync_AfterTruncating() {
 	t.op.Sync()
 }
 
-func (t *SourceObjectPresentTest) Sync_CallsCreateObject() {
+func (t *ObjectProxyTest) Sync_CallsCreateObject() {
 	var err error
 
 	// Dirty the object by truncating.
@@ -827,7 +808,7 @@ func (t *SourceObjectPresentTest) Sync_CallsCreateObject() {
 	t.op.Sync()
 }
 
-func (t *SourceObjectPresentTest) Stat_CallsBucket() {
+func (t *ObjectProxyTest) Stat_CallsBucket() {
 	// StatObject
 	ExpectCall(t.bucket, "StatObject")(Any(), nameIs(t.objectName)).
 		WillOnce(oglemock.Return(nil, errors.New("")))
@@ -836,7 +817,7 @@ func (t *SourceObjectPresentTest) Stat_CallsBucket() {
 	t.op.Stat()
 }
 
-func (t *SourceObjectPresentTest) Stat_BucketSaysNotFound_NotDirty() {
+func (t *ObjectProxyTest) Stat_BucketSaysNotFound_NotDirty() {
 	// StatObject
 	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
 		WillOnce(oglemock.Return(nil, &gcs.NotFoundError{}))
@@ -849,7 +830,7 @@ func (t *SourceObjectPresentTest) Stat_BucketSaysNotFound_NotDirty() {
 	ExpectTrue(clobbered)
 }
 
-func (t *SourceObjectPresentTest) Stat_BucketSaysNotFound_Dirty() {
+func (t *ObjectProxyTest) Stat_BucketSaysNotFound_Dirty() {
 	var err error
 
 	// Dirty the object by truncating.
@@ -871,7 +852,7 @@ func (t *SourceObjectPresentTest) Stat_BucketSaysNotFound_Dirty() {
 	ExpectTrue(clobbered)
 }
 
-func (t *SourceObjectPresentTest) Stat_InitialState() {
+func (t *ObjectProxyTest) Stat_InitialState() {
 	var err error
 
 	// StatObject
@@ -892,7 +873,7 @@ func (t *SourceObjectPresentTest) Stat_InitialState() {
 	ExpectFalse(clobbered)
 }
 
-func (t *SourceObjectPresentTest) Stat_AfterShortening() {
+func (t *ObjectProxyTest) Stat_AfterShortening() {
 	var err error
 
 	// Truncate
@@ -920,7 +901,7 @@ func (t *SourceObjectPresentTest) Stat_AfterShortening() {
 	ExpectFalse(clobbered)
 }
 
-func (t *SourceObjectPresentTest) Stat_AfterGrowing() {
+func (t *ObjectProxyTest) Stat_AfterGrowing() {
 	var err error
 
 	// Truncate
@@ -948,7 +929,7 @@ func (t *SourceObjectPresentTest) Stat_AfterGrowing() {
 	ExpectFalse(clobbered)
 }
 
-func (t *SourceObjectPresentTest) Stat_AfterReading() {
+func (t *ObjectProxyTest) Stat_AfterReading() {
 	var err error
 
 	// Read
@@ -977,7 +958,7 @@ func (t *SourceObjectPresentTest) Stat_AfterReading() {
 	ExpectFalse(clobbered)
 }
 
-func (t *SourceObjectPresentTest) Stat_AfterWriting() {
+func (t *ObjectProxyTest) Stat_AfterWriting() {
 	var err error
 
 	// Extend by writing.
@@ -1006,7 +987,7 @@ func (t *SourceObjectPresentTest) Stat_AfterWriting() {
 	ExpectFalse(clobbered)
 }
 
-func (t *SourceObjectPresentTest) Stat_ClobberedByNewGeneration_NotDirty() {
+func (t *ObjectProxyTest) Stat_ClobberedByNewGeneration_NotDirty() {
 	// StatObject
 	o := &storage.Object{
 		Name:       t.objectName,
@@ -1025,7 +1006,7 @@ func (t *SourceObjectPresentTest) Stat_ClobberedByNewGeneration_NotDirty() {
 	ExpectTrue(clobbered)
 }
 
-func (t *SourceObjectPresentTest) Stat_ClobberedByNewGeneration_Dirty() {
+func (t *ObjectProxyTest) Stat_ClobberedByNewGeneration_Dirty() {
 	var err error
 
 	// Truncate
