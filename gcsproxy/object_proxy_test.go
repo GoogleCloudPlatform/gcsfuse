@@ -1004,6 +1004,25 @@ func (t *SourceObjectPresentTest) Stat_AfterWriting() {
 	ExpectFalse(clobbered)
 }
 
-func (t *SourceObjectPresentTest) Stat_ClobberedByNewGeneration() {
+func (t *SourceObjectPresentTest) Stat_ClobberedByNewGeneration_NotDirty() {
+	// StatObject
+	o := &storage.Object{
+		Name:       t.objectName,
+		Generation: t.srcGeneration + 17,
+		Size:       t.srcSize,
+	}
+
+	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
+		WillOnce(oglemock.Return(o, nil))
+
+	// Stat
+	size, clobbered, err := t.op.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq(t.srcSize, size)
+	ExpectTrue(clobbered)
+}
+
+func (t *SourceObjectPresentTest) Stat_ClobberedByNewGeneration_Dirty() {
 	AssertTrue(false, "TODO")
 }
