@@ -120,7 +120,7 @@ func (f *FileInode) ID() fuse.InodeID {
 	return f.id
 }
 
-// SHARED_LOCKS_REQUIRED(f.mu)
+// EXCLUSIVE_LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Name() string {
 	return f.proxy.Name()
 }
@@ -133,12 +133,12 @@ func (f *FileInode) Name() string {
 // This should fail if we have screwed up the fuse lookup process with regards
 // to the zero generation.
 //
-// SHARED_LOCKS_REQUIRED(f.mu)
+// EXCLUSIVE_LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SourceGeneration() int64 {
 	return f.proxy.SourceGeneration()
 }
 
-// SHARED_LOCKS_REQUIRED(f.mu)
+// EXCLUSIVE_LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
 	ctx context.Context) (attrs fuse.InodeAttributes, err error) {
 	// Stat the object.
