@@ -20,6 +20,7 @@ import (
 	"io"
 	"io/ioutil"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -626,7 +627,28 @@ func (t *SourceObjectPresentTest) Read_NewReaderFails() {
 }
 
 func (t *SourceObjectPresentTest) Read_NewReaderSucceeds() {
-	AssertTrue(false, "TODO")
+	const contents = "tacoburrito"
+	buf := make([]byte, 1024)
+	var n int
+	var err error
+
+	// NewReader
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(contents)), nil))
+
+	// Read once.
+	n, err = t.op.ReadAt(buf[:4], 0)
+
+	AssertEq(nil, err)
+	AssertEq(4, n)
+	ExpectEq("taco", string(buf[:n]))
+
+	// The second read should work without calling NewReader again.
+	n, err = t.op.ReadAt(buf[2:6], 0)
+
+	AssertEq(nil, err)
+	AssertEq(4, n)
+	ExpectEq("cobu", string(buf[:n]))
 }
 
 func (t *SourceObjectPresentTest) Write_CallsNewReader() {
