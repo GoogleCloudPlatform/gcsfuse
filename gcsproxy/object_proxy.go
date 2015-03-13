@@ -43,38 +43,22 @@ type ObjectProxy struct {
 	bucket gcs.Bucket
 
 	/////////////////////////
-	// Constant data
-	/////////////////////////
-
-	// The name of the GCS object for which we are a proxy. Might not currently
-	// exist in the bucket.
-	name string
-
-	/////////////////////////
 	// Mutable state
 	/////////////////////////
 
-	// The specific generation of the object from which our local state is
-	// branched. If we have no local state, the contents of this object are
-	// exactly our contents. May be zero if our source is a "doesn't exist"
-	// generation.
-	srcGeneration int64
-
-	// The size of the object from which our local state is branched. If
-	// srcGeneration is non-zero, this is the size of that generation in GCS.
-	//
-	// INVARIANT: If srcGeneration == 0, srcSize == 0
-	srcSize int64
+	// A record for the specific generation of the object from which our local
+	// state is branched. If we have no local state, the contents of this
+	// generation are exactly our contents.
+	src storage.Object
 
 	// A local temporary file containing our current contents. When non-nil, this
 	// is the authority on our contents. When nil, our contents are defined by
-	// the generation identified by srcGeneration.
+	// 'src' above.
 	localFile *os.File
 
-	// false if localFile is present but its contents may be different from the
+	// true if localFile is present but its contents may be different from the
 	// contents of our source generation. Sync needs to do work iff this is true.
 	//
-	// INVARIANT: If srcGeneration == 0, then dirty
 	// INVARIANT: If dirty, then localFile != nil
 	dirty bool
 }
@@ -83,58 +67,33 @@ type ObjectProxy struct {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-// Create a view on the given GCS object generation which is assumed to have
-// the given size, or zero if branching from a non-existent object (in which
-// case the initial contents are empty).
+// Create a view on the given GCS object generation.
 //
-// REQUIRES: If srcGeneration == 0, then srcSize == 0
+// REQUIRES: o != nil
 func NewObjectProxy(
 	ctx context.Context,
 	bucket gcs.Bucket,
-	name string,
-	srcGeneration int64,
-	srcSize int64) (op *ObjectProxy, err error) {
+	o *storage.Object) (op *ObjectProxy, err error) {
 	// Set up the basic struct.
 	op = &ObjectProxy{
-		bucket:        bucket,
-		name:          name,
-		srcGeneration: srcGeneration,
-		srcSize:       srcSize,
-	}
-
-	// For "doesn't exist" source generations, we must establish an empty local
-	// file and mark the proxy dirty.
-	if srcGeneration == 0 {
-		if err = op.ensureLocalFile(ctx); err != nil {
-			return
-		}
-
-		op.dirty = true
+		bucket: bucket,
+		src:    *o,
 	}
 
 	return
 }
 
 // Return the name of the proxied object. This may or may not be an object that
-// currently exists in the bucket.
+// currently exists in the bucket, depending on whether the backing object has
+// been deleted.
 func (op *ObjectProxy) Name() string {
-	return op.name
+	return op.src.Name
 }
 
 // Panic if any internal invariants are violated. Careful users can call this
 // at appropriate times to help debug weirdness. Consider using
 // syncutil.InvariantMutex to automate the process.
 func (op *ObjectProxy) CheckInvariants() {
-	// INVARIANT: If srcGeneration == 0, srcSize == 0
-	if op.srcGeneration == 0 && op.srcSize != 0 {
-		panic("Expected zero source size.")
-	}
-
-	// INVARIANT: If srcGeneration == 0, then dirty
-	if op.srcGeneration == 0 && !op.dirty {
-		panic("Expected dirty.")
-	}
-
 	// INVARIANT: If dirty, then localFile != nil
 	if op.dirty && op.localFile == nil {
 		panic("Expected non-nil localFile.")
@@ -146,7 +105,6 @@ func (op *ObjectProxy) CheckInvariants() {
 func (op *ObjectProxy) Destroy() (err error) {
 	// Make sure that when we exit no invariants are violated.
 	defer func() {
-		op.srcGeneration = 1
 		op.localFile = nil
 		op.dirty = false
 	}()
@@ -170,29 +128,6 @@ func (op *ObjectProxy) Destroy() (err error) {
 // fail).
 func (op *ObjectProxy) Stat(
 	ctx context.Context) (size int64, clobbered bool, err error) {
-	// Stat the object in GCS.
-	req := &gcs.StatObjectRequest{Name: op.name}
-	o, bucketErr := op.bucket.StatObject(ctx, req)
-
-	// Propagate errors.
-	if bucketErr != nil {
-		// Propagate errors. Special case: suppress gcs.NotFoundError, treating it
-		// as a zero generation below.
-		if _, ok := bucketErr.(*gcs.NotFoundError); !ok {
-			err = fmt.Errorf("StatObject: %v", bucketErr)
-			return
-		}
-	}
-
-	// Find the generation number, or zero if not found.
-	var currentGen int64
-	if bucketErr == nil {
-		currentGen = o.Generation
-	}
-
-	// We are clobbered iff the generation doesn't match our source generation.
-	clobbered = (currentGen != op.srcGeneration)
-
 	// If we have a file, it is authoritative for our size. Otherwise our source
 	// size is authoritative.
 	if op.localFile != nil {
@@ -204,8 +139,28 @@ func (op *ObjectProxy) Stat(
 
 		size = fi.Size()
 	} else {
-		size = op.srcSize
+		size = op.src.Size
 	}
+
+	// Stat the object in GCS.
+	req := &gcs.StatObjectRequest{Name: op.Name()}
+	o, err := op.bucket.StatObject(ctx, req)
+
+	// Special case: "not found" means we have been clobbered.
+	if _, ok := err.(*gcs.NotFoundError); ok {
+		err = nil
+		clobbered = true
+		return
+	}
+
+	// Propagate other errors.
+	if err != nil {
+		err = fmt.Errorf("StatObject: %v", err)
+		return
+	}
+
+	// We are clobbered iff the generation doesn't match our source generation.
+	clobbered = (o.Generation != op.src.Generation)
 
 	return
 }
@@ -273,15 +228,15 @@ func (op *ObjectProxy) Truncate(ctx context.Context, n int64) (err error) {
 	return
 }
 
-// If the proxy is dirty due to having been written to or due to having a nil
-// source, save its current contents to GCS and return a generation number for
-// a generation with exactly those contents. Do so with a precondition such
-// that the creation will fail if the source generation is not current. In that
-// case, return an error of type *gcs.PreconditionError.
+// If the proxy is dirty due to having been modified, save its current contents
+// to GCS and return a generation number for a generation with exactly those
+// contents. Do so with a precondition such that the creation will fail if the
+// source generation is not current. In that case, return an error of type
+// *gcs.PreconditionError.
 func (op *ObjectProxy) Sync(ctx context.Context) (gen int64, err error) {
 	// Do we need to do anything?
 	if !op.dirty {
-		gen = op.srcGeneration
+		gen = op.src.Generation
 		return
 	}
 
@@ -295,13 +250,12 @@ func (op *ObjectProxy) Sync(ctx context.Context) (gen int64, err error) {
 
 	// Write a new generation of the object with the appropriate contents, using
 	// an appropriate precondition.
-	signedSrcGeneration := int64(op.srcGeneration)
 	req := &gcs.CreateObjectRequest{
 		Attrs: storage.ObjectAttrs{
-			Name: op.name,
+			Name: op.src.Name,
 		},
 		Contents:               op.localFile,
-		GenerationPrecondition: &signedSrcGeneration,
+		GenerationPrecondition: &op.src.Generation,
 	}
 
 	o, err := op.bucket.CreateObject(ctx, req)
@@ -321,21 +275,12 @@ func (op *ObjectProxy) Sync(ctx context.Context) (gen int64, err error) {
 		return
 	}
 
-	// Make sure the server didn't return a zero generation number, since we use
-	// that as a sentinel.
-	if o.Generation == 0 {
-		err = fmt.Errorf(
-			"CreateObject returned invalid generation number: %v",
-			o.Generation)
-
-		return
-	}
-
-	gen = o.Generation
-
 	// Update our state.
-	op.srcGeneration = gen
+	op.src = *o
 	op.dirty = false
+
+	// Return the generation number.
+	gen = op.src.Generation
 
 	return
 }
@@ -345,7 +290,7 @@ func (op *ObjectProxy) Sync(ctx context.Context) (gen int64, err error) {
 ////////////////////////////////////////////////////////////////////////
 
 // Set up an unlinked local temporary file for the given generation of the
-// given object. Special case: generation == 0 means an empty file.
+// given object.
 func makeLocalFile(
 	ctx context.Context,
 	bucket gcs.Bucket,
@@ -373,31 +318,28 @@ func makeLocalFile(
 		return
 	}
 
-	// Fetch the object's contents if necessary.
-	if generation != 0 {
-		req := &gcs.ReadObjectRequest{
-			Name:       name,
-			Generation: generation,
-		}
+	// Open the object for reading.
+	req := &gcs.ReadObjectRequest{
+		Name:       name,
+		Generation: generation,
+	}
 
-		// Open for reading.
-		var rc io.ReadCloser
-		if rc, err = bucket.NewReader(ctx, req); err != nil {
-			err = fmt.Errorf("NewReader: %v", err)
-			return
-		}
+	var rc io.ReadCloser
+	if rc, err = bucket.NewReader(ctx, req); err != nil {
+		err = fmt.Errorf("NewReader: %v", err)
+		return
+	}
 
-		// Copy to the file.
-		if _, err = io.Copy(f, rc); err != nil {
-			err = fmt.Errorf("Copy: %v", err)
-			return
-		}
+	// Copy to the file.
+	if _, err = io.Copy(f, rc); err != nil {
+		err = fmt.Errorf("Copy: %v", err)
+		return
+	}
 
-		// Close.
-		if err = rc.Close(); err != nil {
-			err = fmt.Errorf("Close: %v", err)
-			return
-		}
+	// Close.
+	if err = rc.Close(); err != nil {
+		err = fmt.Errorf("Close: %v", err)
+		return
 	}
 
 	return
@@ -412,7 +354,7 @@ func (op *ObjectProxy) ensureLocalFile(ctx context.Context) (err error) {
 	}
 
 	// Set up the file.
-	f, err := makeLocalFile(ctx, op.bucket, op.name, op.srcGeneration)
+	f, err := makeLocalFile(ctx, op.bucket, op.Name(), op.src.Generation)
 	if err != nil {
 		err = fmt.Errorf("makeLocalFile: %v", err)
 		return
