@@ -228,15 +228,15 @@ func (op *ObjectProxy) Truncate(ctx context.Context, n int64) (err error) {
 	return
 }
 
-// If the proxy is dirty due to having been written to or due to having a nil
-// source, save its current contents to GCS and return a generation number for
-// a generation with exactly those contents. Do so with a precondition such
-// that the creation will fail if the source generation is not current. In that
-// case, return an error of type *gcs.PreconditionError.
+// If the proxy is dirty due to having been modified, save its current contents
+// to GCS and return a generation number for a generation with exactly those
+// contents. Do so with a precondition such that the creation will fail if the
+// source generation is not current. In that case, return an error of type
+// *gcs.PreconditionError.
 func (op *ObjectProxy) Sync(ctx context.Context) (gen int64, err error) {
 	// Do we need to do anything?
 	if !op.dirty {
-		gen = op.srcGeneration
+		gen = op.src.Generation
 		return
 	}
 
@@ -250,13 +250,12 @@ func (op *ObjectProxy) Sync(ctx context.Context) (gen int64, err error) {
 
 	// Write a new generation of the object with the appropriate contents, using
 	// an appropriate precondition.
-	signedSrcGeneration := int64(op.srcGeneration)
 	req := &gcs.CreateObjectRequest{
 		Attrs: storage.ObjectAttrs{
-			Name: op.name,
+			Name: op.src.Name,
 		},
 		Contents:               op.localFile,
-		GenerationPrecondition: &signedSrcGeneration,
+		GenerationPrecondition: &op.src.Generation,
 	}
 
 	o, err := op.bucket.CreateObject(ctx, req)
@@ -276,21 +275,12 @@ func (op *ObjectProxy) Sync(ctx context.Context) (gen int64, err error) {
 		return
 	}
 
-	// Make sure the server didn't return a zero generation number, since we use
-	// that as a sentinel.
-	if o.Generation == 0 {
-		err = fmt.Errorf(
-			"CreateObject returned invalid generation number: %v",
-			o.Generation)
-
-		return
-	}
-
-	gen = o.Generation
-
 	// Update our state.
-	op.srcGeneration = gen
+	op.src = *o
 	op.dirty = false
+
+	// Return the generation number.
+	gen = op.src.Generation
 
 	return
 }
