@@ -18,6 +18,7 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
+	"github.com/jacobsa/gcsfuse/gcsproxy"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )
@@ -47,11 +48,12 @@ type FileInode struct {
 	// for each method.
 	mu syncutil.InvariantMutex
 
-	// A record for the object from which this inode was branched. The object's
-	// generation is used as a precondition in object write requests.
+	// A proxy for the backing object in GCS.
+	//
+	// INVARIANT: proxy.CheckInvariants() does not panic
 	//
 	// GUARDED_BY(mu)
-	srcObject storage.Object
+	proxy *gcsproxy.ObjectProxy
 }
 
 var _ Inode = &FileInode{}
