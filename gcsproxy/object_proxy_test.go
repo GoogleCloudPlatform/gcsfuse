@@ -947,7 +947,32 @@ func (t *SourceObjectPresentTest) Stat_AfterGrowing() {
 }
 
 func (t *SourceObjectPresentTest) Stat_AfterReading() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Read
+	s := strings.Repeat("a", int(t.srcSize))
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
+
+	_, err = t.op.ReadAt([]byte{}, 0)
+	AssertEq(nil, err)
+
+	// StatObject
+	o := &storage.Object{
+		Name:       t.objectName,
+		Generation: t.srcGeneration,
+		Size:       t.srcSize,
+	}
+
+	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
+		WillOnce(oglemock.Return(o, nil))
+
+	// Stat
+	size, clobbered, err := t.op.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq(t.srcSize, size)
+	ExpectFalse(clobbered)
 }
 
 func (t *SourceObjectPresentTest) Stat_AfterWriting() {
