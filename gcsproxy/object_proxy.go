@@ -20,14 +20,14 @@ import (
 	"io/ioutil"
 	"math"
 	"os"
-	"strings"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )
 
-// A view on an object in GCS that allows random access reads and writes.
+// A view on a particular generation of an object in GCS that allows random
+// access reads and writes.
 //
 // Reads may involve reading from a local cache. Writes are buffered locally
 // until the Sync method is called, at which time a new generation of the
@@ -46,8 +46,8 @@ type ObjectProxy struct {
 	// Constant data
 	/////////////////////////
 
-	// The name of the GCS object for which we are a proxy. Might not exist in
-	// the bucket.
+	// The name of the GCS object for which we are a proxy. Might not currently
+	// exist in the bucket.
 	name string
 
 	/////////////////////////
@@ -56,48 +56,67 @@ type ObjectProxy struct {
 
 	// The specific generation of the object from which our local state is
 	// branched. If we have no local state, the contents of this object are
-	// exactly our contents. May be nil if NoteLatest was never called.
-	//
-	// INVARIANT: If source != nil, source.Size >= 0
-	// INVARIANT: If source != nil, source.Name == name
-	source *storage.Object
+	// exactly our contents. May be zero if our source is a "doesn't exist"
+	// generation.
+	srcGeneration int64
 
-	// A local temporary file containing the contents of our source (or the empty
-	// string if no source) along with any local modifications. The authority on
-	// our view of the object when non-nil.
+	// The size of the object from which our local state is branched. If
+	// srcGeneration is non-zero, this is the size of that generation in GCS.
 	//
-	// A nil file is to be regarded as empty, but is not authoritative unless
-	// source is also nil.
+	// INVARIANT: If srcGeneration == 0, srcSize == 0
+	srcSize int64
+
+	// A local temporary file containing our current contents. When non-nil, this
+	// is the authority on our contents. When nil, our contents are defined by
+	// the generation identified by srcGeneration.
 	localFile *os.File
 
-	// false if the contents of localFile may be different from the contents of
-	// the object referred to by source. Sync needs to do work iff this is true.
+	// false if localFile is present but its contents may be different from the
+	// contents of our source generation. Sync needs to do work iff this is true.
 	//
-	// INVARIANT: If false, then source != nil.
+	// INVARIANT: If srcGeneration == 0, then dirty
+	// INVARIANT: If dirty, then localFile != nil
 	dirty bool
 }
 
-// Create a new view on the GCS object with the given name. The remote object
-// is assumed to be non-existent, so that the local contents are empty. Use
-// NoteLatest to change that if necessary.
-func NewObjectProxy(
-	bucket gcs.Bucket,
-	name string) (op *ObjectProxy, err error) {
-	op = &ObjectProxy{
-		bucket: bucket,
-		name:   name,
+////////////////////////////////////////////////////////////////////////
+// Public interface
+////////////////////////////////////////////////////////////////////////
 
-		// Initial state: empty contents, dirty. (The remote object needs to be
-		// truncated.)
-		source:    nil,
-		localFile: nil,
-		dirty:     true,
+// Create a view on the given GCS object generation which is assumed to have
+// the given size, or zero if branching from a non-existent object (in which
+// case the initial contents are empty).
+//
+// REQUIRES: If srcGeneration == 0, then srcSize == 0
+func NewObjectProxy(
+	ctx context.Context,
+	bucket gcs.Bucket,
+	name string,
+	srcGeneration int64,
+	srcSize int64) (op *ObjectProxy, err error) {
+	// Set up the basic struct.
+	op = &ObjectProxy{
+		bucket:        bucket,
+		name:          name,
+		srcGeneration: srcGeneration,
+		srcSize:       srcSize,
+	}
+
+	// For "doesn't exist" source generations, we must establish an empty local
+	// file and mark the proxy dirty.
+	if srcGeneration == 0 {
+		if err = op.ensureLocalFile(ctx); err != nil {
+			return
+		}
+
+		op.dirty = true
 	}
 
 	return
 }
 
-// Return the name of the proxied object.
+// Return the name of the proxied object. This may or may not be an object that
+// currently exists in the bucket.
 func (op *ObjectProxy) Name() string {
 	return op.name
 }
@@ -106,99 +125,108 @@ func (op *ObjectProxy) Name() string {
 // at appropriate times to help debug weirdness. Consider using
 // syncutil.InvariantMutex to automate the process.
 func (op *ObjectProxy) CheckInvariants() {
-	if op.source != nil && op.source.Size <= 0 {
-		if op.source.Size < 0 {
-			panic(fmt.Sprintf("Non-sensical source size: %v", op.source.Size))
-		}
-
-		if op.source.Name != op.name {
-			panic(fmt.Sprintf("Name mismatch: %s vs. %s", op.source.Name, op.name))
-		}
+	// INVARIANT: If srcGeneration == 0, srcSize == 0
+	if op.srcGeneration == 0 && op.srcSize != 0 {
+		panic("Expected zero source size.")
 	}
 
-	if !op.dirty && op.source == nil {
-		panic("A clean proxy must have a source set.")
+	// INVARIANT: If srcGeneration == 0, then dirty
+	if op.srcGeneration == 0 && !op.dirty {
+		panic("Expected dirty.")
+	}
+
+	// INVARIANT: If dirty, then localFile != nil
+	if op.dirty && op.localFile == nil {
+		panic("Expected non-nil localFile.")
 	}
 }
 
-// Inform the proxy object of the most recently observed generation of the
-// object of interest in GCS.
-//
-// If this is no newer than the newest generation that has previously been
-// observed, it is ignored. Otherwise, it becomes the definitive source of data
-// for the object. Any local-only state is clobbered, including local
-// modifications.
-func (op *ObjectProxy) NoteLatest(o *storage.Object) (err error) {
-	// Sanity check the input.
-	if o.Size < 0 {
-		err = fmt.Errorf("Object contains negative size: %v", o.Size)
+// Destroy any local file caches, putting the proxy into an indeterminate
+// state. Should be used before dropping the final reference to the proxy.
+func (op *ObjectProxy) Destroy() (err error) {
+	// Make sure that when we exit no invariants are violated.
+	defer func() {
+		op.srcGeneration = 1
+		op.localFile = nil
+		op.dirty = false
+	}()
+
+	// If we have no local file, there's nothing to do.
+	if op.localFile == nil {
 		return
 	}
 
-	if o.Name != op.name {
-		err = fmt.Errorf("Object name mismatch: %s vs. %s", o.Name, op.name)
+	// Close the local file.
+	if err = op.localFile.Close(); err != nil {
+		err = fmt.Errorf("Close: %v", err)
 		return
 	}
-
-	// Do nothing if this is not newer than what we have.
-	if op.source != nil && o.Generation <= op.source.Generation {
-		return
-	}
-
-	// Throw away any local state.
-	if err = op.Clean(); err != nil {
-		err = fmt.Errorf("Clean: %v", err)
-		return
-	}
-
-	// We are now a clean copy of the new source.
-	op.source = o
-	op.dirty = false
 
 	return
 }
 
-// Return the current size in bytes of our view of the content.
-func (op *ObjectProxy) Size() (n uint64, err error) {
-	// If we have a local file, it is authoritative.
+// Return the current size in bytes of the content and an indication of whether
+// the proxied object has changed out from under us (in which case Sync will
+// fail).
+func (op *ObjectProxy) Stat(
+	ctx context.Context) (size int64, clobbered bool, err error) {
+	// Stat the object in GCS.
+	req := &gcs.StatObjectRequest{Name: op.name}
+	o, bucketErr := op.bucket.StatObject(ctx, req)
+
+	// Propagate errors.
+	if bucketErr != nil {
+		// Propagate errors. Special case: suppress gcs.NotFoundError, treating it
+		// as a zero generation below.
+		if _, ok := bucketErr.(*gcs.NotFoundError); !ok {
+			err = fmt.Errorf("StatObject: %v", bucketErr)
+			return
+		}
+	}
+
+	// Find the generation number, or zero if not found.
+	var currentGen int64
+	if bucketErr == nil {
+		currentGen = o.Generation
+	}
+
+	// We are clobbered iff the generation doesn't match our source generation.
+	clobbered = (currentGen != op.srcGeneration)
+
+	// If we have a file, it is authoritative for our size. Otherwise our source
+	// size is authoritative.
 	if op.localFile != nil {
 		var fi os.FileInfo
 		if fi, err = op.localFile.Stat(); err != nil {
-			err = fmt.Errorf("localFile.Stat: %v", err)
+			err = fmt.Errorf("Stat: %v", err)
 			return
 		}
 
-		nSigned := fi.Size()
-		if nSigned < 0 {
-			err = fmt.Errorf("Stat returned nonsense size: %v", nSigned)
-			return
-		}
-
-		n = uint64(nSigned)
-		return
+		size = fi.Size()
+	} else {
+		size = op.srcSize
 	}
 
-	// Otherwise, if we have a source then it is authoritative.
-	if op.source != nil {
-		n = uint64(op.source.Size)
-		return
-	}
-
-	// Otherwise, we are empty.
 	return
 }
 
 // Make a random access read into our view of the content. May block for
 // network access.
+//
+// Guarantees that err != nil if n < len(buf)
 func (op *ObjectProxy) ReadAt(
 	ctx context.Context,
 	buf []byte,
 	offset int64) (n int, err error) {
+	// Make sure we have a local file.
 	if err = op.ensureLocalFile(ctx); err != nil {
+		err = fmt.Errorf("ensureLocalFile: %v", err)
 		return
 	}
 
+	// Serve the read from the file.
 	n, err = op.localFile.ReadAt(buf, offset)
+
 	return
 }
 
@@ -211,20 +239,25 @@ func (op *ObjectProxy) WriteAt(
 	ctx context.Context,
 	buf []byte,
 	offset int64) (n int, err error) {
+	// Make sure we have a local file.
 	if err = op.ensureLocalFile(ctx); err != nil {
+		err = fmt.Errorf("ensureLocalFile: %v", err)
 		return
 	}
 
 	op.dirty = true
 	n, err = op.localFile.WriteAt(buf, offset)
+
 	return
 }
 
 // Truncate our view of the content to the given number of bytes, extending if
-// n is greater than Size(). May block for network access. Not guaranteed to be
-// reflected remotely until after Sync is called successfully.
-func (op *ObjectProxy) Truncate(ctx context.Context, n uint64) (err error) {
+// n is greater than the current size. May block for network access. Not
+// guaranteed to be reflected remotely until after Sync is called successfully.
+func (op *ObjectProxy) Truncate(ctx context.Context, n int64) (err error) {
+	// Make sure we have a local file.
 	if err = op.ensureLocalFile(ctx); err != nil {
+		err = fmt.Errorf("ensureLocalFile: %v", err)
 		return
 	}
 
@@ -236,131 +269,155 @@ func (op *ObjectProxy) Truncate(ctx context.Context, n uint64) (err error) {
 
 	op.dirty = true
 	err = op.localFile.Truncate(int64(n))
+
 	return
 }
 
-// Ensure that the remote object reflects the local state, returning a record
-// for a generation that does. Clobbers the remote version. Does no work if the
-// remote version is already up to date.
-//
-// There is no need to call NoteLatest with the output; it is automatically
-// noted.
-func (op *ObjectProxy) Sync(ctx context.Context) (o *storage.Object, err error) {
-	// Is there anything to do?
+// If the proxy is dirty due to having been written to or due to having a nil
+// source, save its current contents to GCS and return a generation number for
+// a generation with exactly those contents. Do so with a precondition such
+// that the creation will fail if the source generation is not current. In that
+// case, return an error of type *gcs.PreconditionError.
+func (op *ObjectProxy) Sync(ctx context.Context) (gen int64, err error) {
+	// Do we need to do anything?
 	if !op.dirty {
-		o = op.source
+		gen = op.srcGeneration
 		return
 	}
 
-	// Choose a reader.
-	var contents io.Reader
-	if op.localFile != nil {
-		contents = op.localFile
-	} else {
-		contents = strings.NewReader("")
+	// Seek the file to the start so that it can be used as a reader for its full
+	// contents below.
+	_, err = op.localFile.Seek(0, 0)
+	if err != nil {
+		err = fmt.Errorf("Seek: %v", err)
+		return
 	}
 
-	// Create a new generation of the object.
+	// Write a new generation of the object with the appropriate contents, using
+	// an appropriate precondition.
+	signedSrcGeneration := int64(op.srcGeneration)
 	req := &gcs.CreateObjectRequest{
 		Attrs: storage.ObjectAttrs{
 			Name: op.name,
 		},
-		Contents: contents,
+		Contents:               op.localFile,
+		GenerationPrecondition: &signedSrcGeneration,
 	}
 
-	if o, err = op.bucket.CreateObject(ctx, req); err != nil {
+	o, err := op.bucket.CreateObject(ctx, req)
+
+	// Special case: handle precondition errors.
+	if _, ok := err.(*gcs.PreconditionError); ok {
+		err = &gcs.PreconditionError{
+			Err: fmt.Errorf("CreateObject: %v", err),
+		}
+
+		return
+	}
+
+	// Propagate other errors more directly.
+	if err != nil {
 		err = fmt.Errorf("CreateObject: %v", err)
 		return
 	}
 
-	// Update local state.
-	op.source = o
+	// Make sure the server didn't return a zero generation number, since we use
+	// that as a sentinel.
+	if o.Generation == 0 {
+		err = fmt.Errorf(
+			"CreateObject returned invalid generation number: %v",
+			o.Generation)
+
+		return
+	}
+
+	gen = o.Generation
+
+	// Update our state.
+	op.srcGeneration = gen
 	op.dirty = false
 
 	return
 }
 
-// Ensure that op.localFile != nil and contains the correct contents.
-func (op *ObjectProxy) ensureLocalFile(ctx context.Context) (err error) {
-	// If we've already got a local file, we're done.
-	if op.localFile != nil {
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+// Set up an unlinked local temporary file for the given generation of the
+// given object. Special case: generation == 0 means an empty file.
+func makeLocalFile(
+	ctx context.Context,
+	bucket gcs.Bucket,
+	name string,
+	generation int64) (f *os.File, err error) {
+	// Create the file.
+	f, err = ioutil.TempFile("", "object_proxy")
+	if err != nil {
+		err = fmt.Errorf("TempFile: %v", err)
 		return
 	}
 
-	// Create a temporary file.
-	var f *os.File
-	if f, err = ioutil.TempFile("", "gcsproxy"); err != nil {
-		err = fmt.Errorf("ioutil.TempFile: %v", err)
-		return
-	}
-
+	// Ensure that we clean up the file if we return in error from this method.
 	defer func() {
-		if f != nil {
+		if err != nil {
 			f.Close()
+			f = nil
 		}
 	}()
 
-	// If we have a source, then we must fetch its contents.
-	//
-	// TODO(jacobsa): We need to plumb in a particular generation here, or we may
-	// consider ourselves to have branched from the wrong generation, causing
-	// write clobbering. For example:
-	//
-	//  1. Initial state: object is at generation N.
-	//  2. User lists directory, sees generation N.
-	//  3. Other user writes generation N+1.
-	//  4. User opens file, we read generation N+1 but still think we're at N.
-	//  5. User makes local modifications.
-	//  6. User lists directory again, sees generation N+1.
-	//
-	// At the end of this process, the local modifications are blown away even
-	// though in actual fact they were based on generation N+1.
-	if op.source != nil {
-		var reader io.Reader
-		if reader, err = op.bucket.NewReader(ctx, op.name); err != nil {
+	// Unlink the file so that its inode will be garbage collected when the file
+	// is closed.
+	if err = os.Remove(f.Name()); err != nil {
+		err = fmt.Errorf("Remove: %v", err)
+		return
+	}
+
+	// Fetch the object's contents if necessary.
+	if generation != 0 {
+		req := &gcs.ReadObjectRequest{
+			Name:       name,
+			Generation: generation,
+		}
+
+		// Open for reading.
+		var rc io.ReadCloser
+		if rc, err = bucket.NewReader(ctx, req); err != nil {
 			err = fmt.Errorf("NewReader: %v", err)
 			return
 		}
 
-		if _, err = io.Copy(f, reader); err != nil {
-			err = fmt.Errorf("io.Copy: %v", err)
+		// Copy to the file.
+		if _, err = io.Copy(f, rc); err != nil {
+			err = fmt.Errorf("Copy: %v", err)
+			return
+		}
+
+		// Close.
+		if err = rc.Close(); err != nil {
+			err = fmt.Errorf("Close: %v", err)
 			return
 		}
 	}
-
-	// Snarf the file.
-	op.localFile, f = f, nil
 
 	return
 }
 
-// Throw away any local modifications to the object, reverting to the latest
-// version handed to NoteLatest (or the non-existent object if none). Watch
-// out!
-//
-// Careful users should call this in order to clean up local state before
-// dropping all references to the object proxy.
-func (op *ObjectProxy) Clean() (err error) {
-	// Throw out the local file, if any.
+// Ensure that op.localFile is non-nil with an authoritative view of op's
+// contents.
+func (op *ObjectProxy) ensureLocalFile(ctx context.Context) (err error) {
+	// Is there anything to do?
 	if op.localFile != nil {
-		path := op.localFile.Name()
-
-		if err = op.localFile.Close(); err != nil {
-			err = fmt.Errorf("Closing local file: %v", err)
-			return
-		}
-
-		if err = os.Remove(path); err != nil {
-			err = fmt.Errorf("Unlinking local file: %v", err)
-			return
-		}
+		return
 	}
 
-	op.localFile = nil
+	// Set up the file.
+	f, err := makeLocalFile(ctx, op.bucket, op.name, op.srcGeneration)
+	if err != nil {
+		err = fmt.Errorf("makeLocalFile: %v", err)
+		return
+	}
 
-	// We are now dirty iff we have never seen a remote source (i.e. we are the
-	// implicit empty object).
-	op.dirty = (op.source == nil)
-
+	op.localFile = f
 	return
 }
