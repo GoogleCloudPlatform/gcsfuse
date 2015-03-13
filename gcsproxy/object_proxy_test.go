@@ -743,7 +743,26 @@ func (t *SourceObjectPresentTest) Sync_NoInteractions() {
 }
 
 func (t *SourceObjectPresentTest) Sync_AfterReading() {
-	AssertTrue(false, "TODO")
+	const contents = "tacoburrito"
+	buf := make([]byte, 1024)
+	var n int
+	var err error
+
+	// Successfully read a fiew bytes.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(contents)), nil))
+
+	n, err = t.op.ReadAt(buf[:4], 0)
+
+	AssertEq(nil, err)
+	AssertEq(4, n)
+	ExpectEq("taco", string(buf[:n]))
+
+	// Sync should still need to do nothing.
+	gen, err := t.op.Sync()
+
+	AssertEq(nil, err)
+	ExpectEq(t.srcGeneration, gen)
 }
 
 func (t *SourceObjectPresentTest) Sync_AfterWriting() {
