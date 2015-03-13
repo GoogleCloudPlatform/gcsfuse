@@ -128,29 +128,6 @@ func (op *ObjectProxy) Destroy() (err error) {
 // fail).
 func (op *ObjectProxy) Stat(
 	ctx context.Context) (size int64, clobbered bool, err error) {
-	// Stat the object in GCS.
-	req := &gcs.StatObjectRequest{Name: op.name}
-	o, bucketErr := op.bucket.StatObject(ctx, req)
-
-	// Propagate errors.
-	if bucketErr != nil {
-		// Propagate errors. Special case: suppress gcs.NotFoundError, treating it
-		// as a zero generation below.
-		if _, ok := bucketErr.(*gcs.NotFoundError); !ok {
-			err = fmt.Errorf("StatObject: %v", bucketErr)
-			return
-		}
-	}
-
-	// Find the generation number, or zero if not found.
-	var currentGen int64
-	if bucketErr == nil {
-		currentGen = o.Generation
-	}
-
-	// We are clobbered iff the generation doesn't match our source generation.
-	clobbered = (currentGen != op.srcGeneration)
-
 	// If we have a file, it is authoritative for our size. Otherwise our source
 	// size is authoritative.
 	if op.localFile != nil {
@@ -162,8 +139,28 @@ func (op *ObjectProxy) Stat(
 
 		size = fi.Size()
 	} else {
-		size = op.srcSize
+		size = op.src.Size
 	}
+
+	// Stat the object in GCS.
+	req := &gcs.StatObjectRequest{Name: op.Name()}
+	o, err := op.bucket.StatObject(ctx, req)
+
+	// Special case: "not found" means we have been clobbered.
+	if _, ok := err.(*gcs.NotFoundError); ok {
+		err = nil
+		clobbered = true
+		return
+	}
+
+	// Propagate other errors.
+	if err != nil {
+		err = fmt.Errorf("StatObject: %v", err)
+		return
+	}
+
+	// We are clobbered iff the generation doesn't match our source generation.
+	clobbered = (o.Generation != op.src.Generation)
 
 	return
 }
