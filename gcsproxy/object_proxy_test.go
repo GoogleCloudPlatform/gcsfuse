@@ -766,7 +766,24 @@ func (t *SourceObjectPresentTest) Sync_AfterReading() {
 }
 
 func (t *SourceObjectPresentTest) Sync_AfterWriting() {
-	AssertTrue(false, "TODO")
+	const contents = "tacoburrito"
+	var n int
+	var err error
+
+	// Successfully write a fiew bytes.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+
+	n, err = t.op.WriteAt([]byte("taco"), 0)
+
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Sync should call CreateObject.
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	t.op.Sync()
 }
 
 func (t *SourceObjectPresentTest) Sync_AfterTruncating() {
