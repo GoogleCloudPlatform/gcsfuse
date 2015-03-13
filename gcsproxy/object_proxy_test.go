@@ -1024,5 +1024,29 @@ func (t *SourceObjectPresentTest) Stat_ClobberedByNewGeneration_NotDirty() {
 }
 
 func (t *SourceObjectPresentTest) Stat_ClobberedByNewGeneration_Dirty() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Truncate
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+
+	err = t.op.Truncate(t.srcSize + 17)
+	AssertEq(nil, err)
+
+	// StatObject
+	o := &storage.Object{
+		Name:       t.objectName,
+		Generation: t.srcGeneration + 19,
+		Size:       t.srcSize,
+	}
+
+	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
+		WillOnce(oglemock.Return(o, nil))
+
+	// Stat
+	size, clobbered, err := t.op.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq(t.srcSize+17, size)
+	ExpectTrue(clobbered)
 }
