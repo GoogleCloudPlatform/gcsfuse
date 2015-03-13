@@ -826,14 +826,28 @@ func (t *SourceObjectPresentTest) Sync_CallsCreateObject() {
 }
 
 func (t *SourceObjectPresentTest) Stat_CallsBucket() {
-	AssertTrue(false, "TODO")
+	// StatObject
+	ExpectCall(t.bucket, "StatObject")(Any(), nameIs(t.objectName)).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	// Stat
+	t.op.Stat()
 }
 
-func (t *SourceObjectPresentTest) Stat_BucketFails() {
-	AssertTrue(false, "TODO")
+func (t *SourceObjectPresentTest) Stat_BucketSaysNotFound_NotDirty() {
+	// StatObject
+	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, &gcs.NotFoundError{}))
+
+	// Stat
+	size, clobbered, err := t.op.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq(t.srcSize, size)
+	ExpectTrue(clobbered)
 }
 
-func (t *SourceObjectPresentTest) Stat_BucketSaysNotFound() {
+func (t *SourceObjectPresentTest) Stat_BucketSaysNotFound_Dirty() {
 	AssertTrue(false, "TODO")
 }
 
