@@ -713,7 +713,14 @@ func (t *SourceObjectPresentTest) Read_NewReaderSucceeds() {
 }
 
 func (t *SourceObjectPresentTest) Write_CallsNewReader() {
-	AssertTrue(false, "TODO")
+	// NewReader
+	ExpectCall(t.bucket, "NewReader")(
+		Any(),
+		AllOf(nameIs(t.objectName), generationIs(t.srcGeneration))).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	// WriteAt
+	t.op.WriteAt([]byte{}, 0)
 }
 
 func (t *SourceObjectPresentTest) Write_NewReaderFails() {
