@@ -147,6 +147,12 @@ func (op *checkingObjectProxy) Name() string {
 	return op.wrapped.Name()
 }
 
+func (op *checkingObjectProxy) SourceGeneration() int64 {
+	op.wrapped.CheckInvariants()
+	defer op.wrapped.CheckInvariants()
+	return op.wrapped.SourceGeneration()
+}
+
 func (op *checkingObjectProxy) Stat() (int64, bool, error) {
 	op.wrapped.CheckInvariants()
 	defer op.wrapped.CheckInvariants()
@@ -214,6 +220,10 @@ func (t *ObjectProxyTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
+
+func (t *ObjectProxyTest) InitialSourceGeneration() {
+	ExpectEq(t.src.Generation, t.op.SourceGeneration())
+}
 
 func (t *ObjectProxyTest) Read_CallsNewReader() {
 	// NewReader
@@ -465,6 +475,7 @@ func (t *ObjectProxyTest) Sync_NoInteractions() {
 
 	AssertEq(nil, err)
 	ExpectEq(t.src.Generation, gen)
+	ExpectEq(t.src.Generation, t.op.SourceGeneration())
 }
 
 func (t *ObjectProxyTest) Sync_AfterReading() {
@@ -488,6 +499,7 @@ func (t *ObjectProxyTest) Sync_AfterReading() {
 
 	AssertEq(nil, err)
 	ExpectEq(t.src.Generation, gen)
+	ExpectEq(t.src.Generation, t.op.SourceGeneration())
 }
 
 func (t *ObjectProxyTest) Sync_AfterWriting() {
@@ -569,6 +581,9 @@ func (t *ObjectProxyTest) Sync_CreateObjectFails() {
 	ExpectThat(err, Error(HasSubstr("CreateObject")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 
+	// Nothing should have changed.
+	ExpectEq(t.src.Generation, t.op.SourceGeneration())
+
 	// A further call to Sync should cause the bucket to be called again.
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
 		WillOnce(oglemock.Return(nil, errors.New("")))
@@ -594,6 +609,9 @@ func (t *ObjectProxyTest) Sync_CreateObjectSaysPreconditionFailed() {
 	AssertThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
 	ExpectThat(err, Error(HasSubstr("CreateObject")))
 	ExpectThat(err, Error(HasSubstr("taco")))
+
+	// Nothing should have changed.
+	ExpectEq(t.src.Generation, t.op.SourceGeneration())
 
 	// A further call to Sync should cause the bucket to be called again.
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
@@ -628,12 +646,14 @@ func (t *ObjectProxyTest) Sync_Successful() {
 
 	AssertEq(nil, err)
 	ExpectEq(17, gen)
+	ExpectEq(17, t.op.SourceGeneration())
 
 	// Further calls to Sync should do nothing.
 	gen, err = t.op.Sync()
 
 	AssertEq(nil, err)
 	ExpectEq(17, gen)
+	ExpectEq(17, t.op.SourceGeneration())
 
 	// The data we wrote before should still be present.
 	buf := make([]byte, 1024)
