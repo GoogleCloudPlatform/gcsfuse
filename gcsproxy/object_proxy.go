@@ -105,7 +105,6 @@ func (op *ObjectProxy) CheckInvariants() {
 func (op *ObjectProxy) Destroy() (err error) {
 	// Make sure that when we exit no invariants are violated.
 	defer func() {
-		op.srcGeneration = 1
 		op.localFile = nil
 		op.dirty = false
 	}()
