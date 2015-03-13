@@ -77,13 +77,7 @@ func NewFileInode(
 	}
 
 	// Set up the proxy.
-	f.proxy, err = gcsproxy.NewObjectProxy(
-		ctx,
-		bucket,
-		o.Name,
-		o.Generation,
-		o.Size)
-
+	f.proxy, err = gcsproxy.NewObjectProxy(ctx, bucket, o)
 	if err != nil {
 		err = fmt.Errorf("NewObjectProxy: %v", err)
 		return
