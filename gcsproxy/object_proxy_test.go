@@ -734,14 +734,6 @@ func (t *SourceObjectPresentTest) Truncate_CallsNewReader() {
 	t.op.Truncate(17)
 }
 
-func (t *SourceObjectPresentTest) Truncate_NewReaderFails() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *SourceObjectPresentTest) Truncate_NewReaderSucceeds() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *SourceObjectPresentTest) Sync_NoInteractions() {
 	AssertTrue(false, "TODO")
 }
