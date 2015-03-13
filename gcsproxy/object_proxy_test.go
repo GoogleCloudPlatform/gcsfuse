@@ -182,25 +182,27 @@ func (op *checkingObjectProxy) Sync() (int64, error) {
 ////////////////////////////////////////////////////////////////////////
 
 type ObjectProxyTest struct {
-	objectName string
-	bucket     mock_gcs.MockBucket
-	op         checkingObjectProxy
+	src    storage.Object
+	bucket mock_gcs.MockBucket
+	op     checkingObjectProxy
 }
 
-func (t *ObjectProxyTest) setUp(
-	ti *TestInfo,
-	srcGeneration int64,
-	srcSize int64) {
-	t.objectName = "some/object"
+var _ SetUpInterface = &ObjectProxyTest{}
+
+func (t *ObjectProxyTest) SetUp(ti *TestInfo) {
+	t.src = storage.Object{
+		Name:       "some/object",
+		Generation: 123,
+		Size:       456,
+	}
+
 	t.bucket = mock_gcs.NewMockBucket(ti.MockController, "bucket")
 
 	var err error
 	t.op.wrapped, err = gcsproxy.NewObjectProxy(
 		context.Background(),
 		t.bucket,
-		t.objectName,
-		srcGeneration,
-		srcSize)
+		&t.src)
 
 	if err != nil {
 		panic(err)
