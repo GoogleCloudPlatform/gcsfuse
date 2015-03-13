@@ -67,33 +67,17 @@ type ObjectProxy struct {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-// Create a view on the given GCS object generation which is assumed to have
-// the given size, or zero if branching from a non-existent object (in which
-// case the initial contents are empty).
+// Create a view on the given GCS object generation.
 //
-// REQUIRES: If srcGeneration == 0, then srcSize == 0
+// REQUIRES: o != nil
 func NewObjectProxy(
 	ctx context.Context,
 	bucket gcs.Bucket,
-	name string,
-	srcGeneration int64,
-	srcSize int64) (op *ObjectProxy, err error) {
+	o *storage.Object) (op *ObjectProxy, err error) {
 	// Set up the basic struct.
 	op = &ObjectProxy{
-		bucket:        bucket,
-		name:          name,
-		srcGeneration: srcGeneration,
-		srcSize:       srcSize,
-	}
-
-	// For "doesn't exist" source generations, we must establish an empty local
-	// file and mark the proxy dirty.
-	if srcGeneration == 0 {
-		if err = op.ensureLocalFile(ctx); err != nil {
-			return
-		}
-
-		op.dirty = true
+		bucket: bucket,
+		src:    *o,
 	}
 
 	return
