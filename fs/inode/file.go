@@ -125,6 +125,19 @@ func (f *FileInode) Name() string {
 	return f.proxy.Name()
 }
 
+// Return the generation number from which this inode was branched. This is
+// used as a precondition in object write requests.
+//
+// TODO(jacobsa): Make sure to add a test for opening a file with O_CREAT then
+// opening it again for reading, and sharing data across the two descriptors.
+// This should fail if we have screwed up the fuse lookup process with regards
+// to the zero generation.
+//
+// SHARED_LOCKS_REQUIRED(f.mu)
+func (f *FileInode) SourceGeneration() int64 {
+	return f.proxy.SourceGeneration()
+}
+
 // SHARED_LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
 	ctx context.Context) (attrs fuse.InodeAttributes, err error) {
@@ -151,14 +164,3 @@ func (f *FileInode) Attributes(
 
 	return
 }
-
-// Return the generation number from which this inode was branched. This is
-// used as a precondition in object write requests.
-//
-// TODO(jacobsa): Make sure to add a test for opening a file with O_CREAT then
-// opening it again for reading, and sharing data across the two descriptors.
-// This should fail if we have screwed up the fuse lookup process with regards
-// to the zero generation.
-//
-// SHARED_LOCKS_REQUIRED(f.mu)
-func (f *FileInode) SourceGeneration() int64
