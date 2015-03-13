@@ -85,15 +85,25 @@ func contentsAre(s string) Matcher {
 
 func generationIs(g int64) Matcher {
 	pred := func(c interface{}) error {
-		req := c.(*gcs.CreateObjectRequest)
-		if req.GenerationPrecondition == nil {
-			return errors.New("which has a nil GenerationPrecondition field.")
-		}
+		switch req := c.(type) {
+		case *gcs.CreateObjectRequest:
+			if req.GenerationPrecondition == nil {
+				return errors.New("which has a nil GenerationPrecondition field.")
+			}
 
-		if *req.GenerationPrecondition != g {
-			return fmt.Errorf(
-				"Which has *GenerationPrecondition == %v",
-				*req.GenerationPrecondition)
+			if *req.GenerationPrecondition != g {
+				return fmt.Errorf(
+					"which has *GenerationPrecondition == %v",
+					*req.GenerationPrecondition)
+			}
+
+		case *gcs.ReadObjectRequest:
+			if req.Generation != g {
+				return fmt.Errorf("which has Generation == %v", req.Generation)
+			}
+
+		default:
+			panic(fmt.Sprintf("Unknown type: %v", reflect.TypeOf(c)))
 		}
 
 		return nil
