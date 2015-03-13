@@ -652,7 +652,7 @@ func (t *SourceObjectPresentTest) Read_NewReaderSucceeds() {
 	ExpectEq("taco", string(buf[:n]))
 
 	// The second read should work without calling NewReader again.
-	n, err = t.op.ReadAt(buf[2:6], 0)
+	n, err = t.op.ReadAt(buf[:4], 2)
 
 	AssertEq(nil, err)
 	AssertEq(4, n)
