@@ -766,7 +766,6 @@ func (t *SourceObjectPresentTest) Sync_AfterReading() {
 }
 
 func (t *SourceObjectPresentTest) Sync_AfterWriting() {
-	const contents = "tacoburrito"
 	var n int
 	var err error
 
@@ -779,7 +778,7 @@ func (t *SourceObjectPresentTest) Sync_AfterWriting() {
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
-	// Sync should call CreateObject.
+	// Sync should regard us as dirty.
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
 		WillOnce(oglemock.Return(nil, errors.New("")))
 
@@ -787,7 +786,20 @@ func (t *SourceObjectPresentTest) Sync_AfterWriting() {
 }
 
 func (t *SourceObjectPresentTest) Sync_AfterTruncating() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Successfully truncate.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+
+	err = t.op.Truncate(17)
+	AssertEq(nil, err)
+
+	// Sync should regard us as dirty.
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	t.op.Sync()
 }
 
 func (t *SourceObjectPresentTest) Sync_CallsCreateObject() {
