@@ -131,10 +131,22 @@ func (f *FileInode) Name() string {
 	return f.proxy.Name()
 }
 
+// SHARED_LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
 	ctx context.Context) (attrs fuse.InodeAttributes, err error) {
+	// Stat the object.
+	size, _, err := f.op.Stat(ctx)
+	if err != nil {
+		err = fmt.Errorf("Stat: %v", err)
+		return
+	}
+
+	// Fill out the struct.
+	//
+	// TODO(jacobsa): Add a test for nlink == 0 when clobbered and update the
+	// code here.
 	attrs = fuse.InodeAttributes{
-		Size:  uint64(f.srcObject.Size),
+		Size:  uint64(size),
 		Mode:  0700,
 		Mtime: f.srcObject.Updated,
 	}
