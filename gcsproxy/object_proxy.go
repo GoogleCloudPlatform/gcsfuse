@@ -362,10 +362,17 @@ func makeLocalFile(
 		return
 	}
 
+	// Ensure that we clean up the file if we return in error from this method.
+	defer func() {
+		if err != nil {
+			f.Close()
+			f = nil
+		}
+	}()
+
 	// Unlink the file so that its inode will be garbage collected when the file
 	// is closed.
 	if err = os.Remove(f.Name()); err != nil {
-		f.Close()
 		err = fmt.Errorf("Remove: %v", err)
 		return
 	}
@@ -393,6 +400,7 @@ func makeLocalFile(
 		// Close.
 		if err = rc.Close(); err != nil {
 			err = fmt.Errorf("Close: %v", err)
+			return
 		}
 	}
 

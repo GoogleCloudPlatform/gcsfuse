@@ -118,6 +118,19 @@ func generationIs(g int64) Matcher {
 		fmt.Sprintf("*GenerationPrecondition == %v", g))
 }
 
+type errorReadCloser struct {
+	wrapped io.Reader
+	err     error
+}
+
+func (ec *errorReadCloser) Read(p []byte) (n int, err error) {
+	return ec.wrapped.Read(p)
+}
+
+func (ec *errorReadCloser) Close() error {
+	return ec.err
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Invariant-checking object proxy
 ////////////////////////////////////////////////////////////////////////
@@ -658,7 +671,20 @@ func (t *SourceObjectPresentTest) Read_ReadError() {
 }
 
 func (t *SourceObjectPresentTest) Read_CloseError() {
-	AssertTrue(false, "TODO")
+	// NewReader -- return a ReadCloser that will fail to close.
+	rc := &errorReadCloser{
+		wrapped: strings.NewReader(""),
+		err:     errors.New("taco"),
+	}
+
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(rc, nil))
+
+	// ReadAt
+	_, err := t.op.ReadAt([]byte{}, 0)
+
+	ExpectThat(err, Error(HasSubstr("Close:")))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *SourceObjectPresentTest) Read_NewReaderSucceeds() {
