@@ -735,7 +735,11 @@ func (t *SourceObjectPresentTest) Truncate_CallsNewReader() {
 }
 
 func (t *SourceObjectPresentTest) Sync_NoInteractions() {
-	AssertTrue(false, "TODO")
+	// There should be nothing to do.
+	gen, err := t.op.Sync()
+
+	AssertEq(nil, err)
+	ExpectEq(t.srcGeneration, gen)
 }
 
 func (t *SourceObjectPresentTest) Sync_AfterReading() {
