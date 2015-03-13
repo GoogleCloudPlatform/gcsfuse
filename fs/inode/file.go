@@ -86,9 +86,13 @@ func NewFileInode(
 ////////////////////////////////////////////////////////////////////////
 
 func (f *FileInode) checkInvariants() {
+	// Make sure the name is legal.
 	if len(f.name) == 0 || f.name[len(f.name)-1] == '/' {
 		panic("Illegal file name: " + f.name)
 	}
+
+	// INVARIANT: proxy.CheckInvariants() does not panic
+	f.proxy.CheckInvariants()
 }
 
 ////////////////////////////////////////////////////////////////////////
