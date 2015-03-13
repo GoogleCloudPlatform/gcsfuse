@@ -431,7 +431,7 @@ func (t *ObjectProxyTest) GrowByTruncating() {
 	buf = make([]byte, 1024)
 	n, err = t.op.ReadAt(buf, 0)
 
-	AssertEq(nil, err)
+	AssertEq(io.EOF, err)
 	ExpectEq(t.src.Size+17, n)
 	ExpectEq(s+"\x00\x00\x00\x00", string(buf[:n]))
 }
@@ -532,6 +532,12 @@ func (t *ObjectProxyTest) Sync_CallsCreateObject() {
 }
 
 func (t *ObjectProxyTest) Sync_CreateObjectFails() {
+	// Dirty the proxy.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+
+	t.op.Truncate(0)
+
 	// CreateObject -- return an error.
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
 		WillOnce(oglemock.Return(nil, errors.New("taco")))
