@@ -245,8 +245,6 @@ func (op *ObjectProxy) WriteAt(
 		return
 	}
 
-	// TODO(jacobsa): Make sure the dirty flag modification below is tested by
-	// removing it and looking for a failure.
 	op.dirty = true
 	n, err = op.localFile.WriteAt(buf, offset)
 
@@ -269,8 +267,6 @@ func (op *ObjectProxy) Truncate(ctx context.Context, n int64) (err error) {
 		return
 	}
 
-	// TODO(jacobsa): Make sure the dirty flag modification below is tested by
-	// removing it and looking for a failure.
 	op.dirty = true
 	err = op.localFile.Truncate(int64(n))
 
