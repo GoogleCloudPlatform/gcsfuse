@@ -626,6 +626,14 @@ func (t *SourceObjectPresentTest) Read_NewReaderFails() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
+func (t *SourceObjectPresentTest) Read_ReadError() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SourceObjectPresentTest) Read_CloseError() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *SourceObjectPresentTest) Read_NewReaderSucceeds() {
 	const contents = "tacoburrito"
 	buf := make([]byte, 1024)

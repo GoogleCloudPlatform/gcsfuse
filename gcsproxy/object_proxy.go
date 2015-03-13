@@ -16,6 +16,7 @@ package gcsproxy
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math"
 	"os"
@@ -371,7 +372,28 @@ func makeLocalFile(
 
 	// Fetch the object's contents if necessary.
 	if generation != 0 {
-		panic("TODO")
+		req := &gcs.ReadObjectRequest{
+			Name:       name,
+			Generation: generation,
+		}
+
+		// Open for reading.
+		var rc io.ReadCloser
+		if rc, err = bucket.NewReader(ctx, req); err != nil {
+			err = fmt.Errorf("NewReader: %v", err)
+			return
+		}
+
+		// Copy to the file.
+		if _, err = io.Copy(f, rc); err != nil {
+			err = fmt.Errorf("Copy: %v", err)
+			return
+		}
+
+		// Close.
+		if err = rc.Close(); err != nil {
+			err = fmt.Errorf("Close: %v", err)
+		}
 	}
 
 	return
