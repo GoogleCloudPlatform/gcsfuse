@@ -217,7 +217,7 @@ func (t *ObjectProxyTest) Read_CallsNewReader() {
 	// NewReader
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
-		AllOf(nameIs(t.objectName), generationIs(t.srcGeneration))).
+		AllOf(nameIs(t.src.Name), generationIs(t.src.Generation))).
 		WillOnce(oglemock.Return(nil, errors.New("")))
 
 	// ReadAt
@@ -299,7 +299,7 @@ func (t *ObjectProxyTest) Write_CallsNewReader() {
 	// NewReader
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
-		AllOf(nameIs(t.objectName), generationIs(t.srcGeneration))).
+		AllOf(nameIs(t.src.Name), generationIs(t.src.Generation))).
 		WillOnce(oglemock.Return(nil, errors.New("")))
 
 	// WriteAt
@@ -404,7 +404,7 @@ func (t *ObjectProxyTest) Truncate_CallsNewReader() {
 	// NewReader
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
-		AllOf(nameIs(t.objectName), generationIs(t.srcGeneration))).
+		AllOf(nameIs(t.src.Name), generationIs(t.src.Generation))).
 		WillOnce(oglemock.Return(nil, errors.New("")))
 
 	// Truncate
@@ -417,7 +417,7 @@ func (t *ObjectProxyTest) GrowByTruncating() {
 	var buf []byte
 
 	// NewReader
-	s := strings.Repeat("a", int(t.srcSize))
+	s := strings.Repeat("a", int(t.src.Size))
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
@@ -443,7 +443,7 @@ func (t *ObjectProxyTest) Sync_NoInteractions() {
 	gen, err := t.op.Sync()
 
 	AssertEq(nil, err)
-	ExpectEq(t.srcGeneration, gen)
+	ExpectEq(t.src.Generation, gen)
 }
 
 func (t *ObjectProxyTest) Sync_AfterReading() {
@@ -466,7 +466,7 @@ func (t *ObjectProxyTest) Sync_AfterReading() {
 	gen, err := t.op.Sync()
 
 	AssertEq(nil, err)
-	ExpectEq(t.srcGeneration, gen)
+	ExpectEq(t.src.Generation, gen)
 }
 
 func (t *ObjectProxyTest) Sync_AfterWriting() {
@@ -520,9 +520,9 @@ func (t *ObjectProxyTest) Sync_CallsCreateObject() {
 	ExpectCall(t.bucket, "CreateObject")(
 		Any(),
 		AllOf(
-			nameIs(t.objectName),
+			nameIs(t.src.Name),
 			contentsAre("\x00"),
-			generationIs(t.srcGeneration))).
+			generationIs(t.src.Generation))).
 		WillOnce(oglemock.Return(nil, errors.New("")))
 
 	// Sync
@@ -572,7 +572,7 @@ func (t *ObjectProxyTest) Sync_CreateObjectSaysPreconditionFailed() {
 func (t *ObjectProxyTest) Sync_BucketReturnsZeroGeneration() {
 	// CreateObject
 	o := &storage.Object{
-		Name:       t.objectName,
+		Name:       t.src.Name,
 		Generation: 0,
 	}
 
@@ -600,7 +600,7 @@ func (t *ObjectProxyTest) Sync_Successful() {
 
 	// Have the call to CreateObject succeed.
 	o := &storage.Object{
-		Name:       t.objectName,
+		Name:       t.src.Name,
 		Generation: 17,
 	}
 
@@ -642,7 +642,7 @@ func (t *ObjectProxyTest) WriteThenSyncThenWriteThenSync() {
 
 	// Sync -- should cause the contents so far to be written out.
 	o := &storage.Object{
-		Name:       t.objectName,
+		Name:       t.src.Name,
 		Generation: 1,
 	}
 
@@ -668,7 +668,7 @@ func (t *ObjectProxyTest) WriteThenSyncThenWriteThenSync() {
 
 func (t *ObjectProxyTest) Stat_CallsBucket() {
 	// StatObject
-	ExpectCall(t.bucket, "StatObject")(Any(), nameIs(t.objectName)).
+	ExpectCall(t.bucket, "StatObject")(Any(), nameIs(t.src.Name)).
 		WillOnce(oglemock.Return(nil, errors.New("")))
 
 	// Stat
@@ -696,7 +696,7 @@ func (t *ObjectProxyTest) Stat_BucketSaysNotFound_NotDirty() {
 	size, clobbered, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(t.srcSize, size)
+	ExpectEq(t.src.Size, size)
 	ExpectTrue(clobbered)
 }
 
@@ -727,9 +727,9 @@ func (t *ObjectProxyTest) Stat_InitialState() {
 
 	// StatObject
 	o := &storage.Object{
-		Name:       t.objectName,
-		Generation: t.srcGeneration,
-		Size:       t.srcSize,
+		Name:       t.src.Name,
+		Generation: t.src.Generation,
+		Size:       t.src.Size,
 	}
 
 	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
@@ -739,7 +739,7 @@ func (t *ObjectProxyTest) Stat_InitialState() {
 	size, clobbered, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(t.srcSize, size)
+	ExpectEq(t.src.Size, size)
 	ExpectFalse(clobbered)
 }
 
@@ -750,14 +750,14 @@ func (t *ObjectProxyTest) Stat_AfterShortening() {
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
 
-	err = t.op.Truncate(t.srcSize - 1)
+	err = t.op.Truncate(t.src.Size - 1)
 	AssertEq(nil, err)
 
 	// StatObject
 	o := &storage.Object{
-		Name:       t.objectName,
-		Generation: t.srcGeneration,
-		Size:       t.srcSize,
+		Name:       t.src.Name,
+		Generation: t.src.Generation,
+		Size:       t.src.Size,
 	}
 
 	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
@@ -767,7 +767,7 @@ func (t *ObjectProxyTest) Stat_AfterShortening() {
 	size, clobbered, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(t.srcSize-1, size)
+	ExpectEq(t.src.Size-1, size)
 	ExpectFalse(clobbered)
 }
 
@@ -778,14 +778,14 @@ func (t *ObjectProxyTest) Stat_AfterGrowing() {
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
 
-	err = t.op.Truncate(t.srcSize + 17)
+	err = t.op.Truncate(t.src.Size + 17)
 	AssertEq(nil, err)
 
 	// StatObject
 	o := &storage.Object{
-		Name:       t.objectName,
-		Generation: t.srcGeneration,
-		Size:       t.srcSize,
+		Name:       t.src.Name,
+		Generation: t.src.Generation,
+		Size:       t.src.Size,
 	}
 
 	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
@@ -795,7 +795,7 @@ func (t *ObjectProxyTest) Stat_AfterGrowing() {
 	size, clobbered, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(t.srcSize+17, size)
+	ExpectEq(t.src.Size+17, size)
 	ExpectFalse(clobbered)
 }
 
@@ -803,7 +803,7 @@ func (t *ObjectProxyTest) Stat_AfterReading() {
 	var err error
 
 	// Read
-	s := strings.Repeat("a", int(t.srcSize))
+	s := strings.Repeat("a", int(t.src.Size))
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
@@ -812,9 +812,9 @@ func (t *ObjectProxyTest) Stat_AfterReading() {
 
 	// StatObject
 	o := &storage.Object{
-		Name:       t.objectName,
-		Generation: t.srcGeneration,
-		Size:       t.srcSize,
+		Name:       t.src.Name,
+		Generation: t.src.Generation,
+		Size:       t.src.Size,
 	}
 
 	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
@@ -824,7 +824,7 @@ func (t *ObjectProxyTest) Stat_AfterReading() {
 	size, clobbered, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(t.srcSize, size)
+	ExpectEq(t.src.Size, size)
 	ExpectFalse(clobbered)
 }
 
@@ -832,18 +832,18 @@ func (t *ObjectProxyTest) Stat_AfterWriting() {
 	var err error
 
 	// Extend by writing.
-	s := strings.Repeat("a", int(t.srcSize))
+	s := strings.Repeat("a", int(t.src.Size))
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
-	_, err = t.op.WriteAt([]byte("taco"), t.srcSize)
+	_, err = t.op.WriteAt([]byte("taco"), t.src.Size)
 	AssertEq(nil, err)
 
 	// StatObject
 	o := &storage.Object{
-		Name:       t.objectName,
-		Generation: t.srcGeneration,
-		Size:       t.srcSize,
+		Name:       t.src.Name,
+		Generation: t.src.Generation,
+		Size:       t.src.Size,
 	}
 
 	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
@@ -853,16 +853,16 @@ func (t *ObjectProxyTest) Stat_AfterWriting() {
 	size, clobbered, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(t.srcSize+int64(len("taco")), size)
+	ExpectEq(t.src.Size+int64(len("taco")), size)
 	ExpectFalse(clobbered)
 }
 
 func (t *ObjectProxyTest) Stat_ClobberedByNewGeneration_NotDirty() {
 	// StatObject
 	o := &storage.Object{
-		Name:       t.objectName,
-		Generation: t.srcGeneration + 17,
-		Size:       t.srcSize,
+		Name:       t.src.Name,
+		Generation: t.src.Generation + 17,
+		Size:       t.src.Size,
 	}
 
 	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
@@ -872,7 +872,7 @@ func (t *ObjectProxyTest) Stat_ClobberedByNewGeneration_NotDirty() {
 	size, clobbered, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(t.srcSize, size)
+	ExpectEq(t.src.Size, size)
 	ExpectTrue(clobbered)
 }
 
@@ -883,14 +883,14 @@ func (t *ObjectProxyTest) Stat_ClobberedByNewGeneration_Dirty() {
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
 
-	err = t.op.Truncate(t.srcSize + 17)
+	err = t.op.Truncate(t.src.Size + 17)
 	AssertEq(nil, err)
 
 	// StatObject
 	o := &storage.Object{
-		Name:       t.objectName,
-		Generation: t.srcGeneration + 19,
-		Size:       t.srcSize,
+		Name:       t.src.Name,
+		Generation: t.src.Generation + 19,
+		Size:       t.src.Size,
 	}
 
 	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
@@ -900,6 +900,6 @@ func (t *ObjectProxyTest) Stat_ClobberedByNewGeneration_Dirty() {
 	size, clobbered, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(t.srcSize+17, size)
+	ExpectEq(t.src.Size+17, size)
 	ExpectTrue(clobbered)
 }
