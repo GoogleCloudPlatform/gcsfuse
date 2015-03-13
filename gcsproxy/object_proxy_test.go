@@ -583,32 +583,6 @@ func (t *ObjectProxyTest) Sync_CreateObjectSaysPreconditionFailed() {
 	t.op.Sync()
 }
 
-func (t *ObjectProxyTest) Sync_BucketReturnsZeroGeneration() {
-	// Dirty the proxy.
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
-
-	t.op.Truncate(0)
-
-	// CreateObject
-	o := &storage.Object{
-		Name:       t.src.Name,
-		Generation: 0,
-	}
-
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(oglemock.Return(o, nil))
-
-	// Sync
-	_, err := t.op.Sync()
-
-	AssertNe(nil, err)
-	ExpectThat(err, Not(HasSameTypeAs(&gcs.PreconditionError{})))
-	ExpectThat(err, Error(HasSubstr("CreateObject")))
-	ExpectThat(err, Error(HasSubstr("invalid generation")))
-	ExpectThat(err, Error(HasSubstr("0")))
-}
-
 func (t *ObjectProxyTest) Sync_Successful() {
 	var n int
 	var err error
