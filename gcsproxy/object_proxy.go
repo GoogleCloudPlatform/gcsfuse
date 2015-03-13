@@ -94,16 +94,6 @@ func (op *ObjectProxy) Name() string {
 // at appropriate times to help debug weirdness. Consider using
 // syncutil.InvariantMutex to automate the process.
 func (op *ObjectProxy) CheckInvariants() {
-	// INVARIANT: If srcGeneration == 0, srcSize == 0
-	if op.srcGeneration == 0 && op.srcSize != 0 {
-		panic("Expected zero source size.")
-	}
-
-	// INVARIANT: If srcGeneration == 0, then dirty
-	if op.srcGeneration == 0 && !op.dirty {
-		panic("Expected dirty.")
-	}
-
 	// INVARIANT: If dirty, then localFile != nil
 	if op.dirty && op.localFile == nil {
 		panic("Expected non-nil localFile.")
