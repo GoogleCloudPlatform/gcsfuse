@@ -478,3 +478,21 @@ func (fs *fileSystem) OpenFile(
 
 	return
 }
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) ReadFile(
+	ctx context.Context,
+	req *fuse.ReadFileRequest) (resp *fuse.ReadFileResponse, err error) {
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	// Find the inode.
+	in := fs.inodes[req.Inode].(*inode.FileInode)
+	in.Lock()
+	defer in.Unlock()
+
+	// Serve the request.
+	resp, err = in.ReadFile(ctx, req)
+
+	return
+}
