@@ -34,7 +34,7 @@ import (
 	"google.golang.org/cloud/storage"
 )
 
-func TestOgletest(t *testing.T) { RunTests(t) }
+func TestObjectProxy(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -188,6 +188,8 @@ type ObjectProxyTest struct {
 }
 
 var _ SetUpInterface = &ObjectProxyTest{}
+
+func init() { RegisterTestSuite(&ObjectProxyTest{}) }
 
 func (t *ObjectProxyTest) SetUp(ti *TestInfo) {
 	t.src = storage.Object{
