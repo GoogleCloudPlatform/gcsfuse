@@ -603,7 +603,14 @@ func (t *SourceObjectPresentTest) SetUp(ti *TestInfo) {
 }
 
 func (t *SourceObjectPresentTest) Read_CallsNewReader() {
-	AssertTrue(false, "TODO")
+	// NewReader
+	ExpectCall(t.bucket, "NewReader")(
+		Any(),
+		AllOf(nameIs(t.objectName), generationIs(t.srcGeneration))).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	// ReadAt
+	t.op.ReadAt([]byte{}, 0)
 }
 
 func (t *SourceObjectPresentTest) Read_NewReaderFails() {
