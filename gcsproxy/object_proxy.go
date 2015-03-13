@@ -43,38 +43,22 @@ type ObjectProxy struct {
 	bucket gcs.Bucket
 
 	/////////////////////////
-	// Constant data
-	/////////////////////////
-
-	// The name of the GCS object for which we are a proxy. Might not currently
-	// exist in the bucket.
-	name string
-
-	/////////////////////////
 	// Mutable state
 	/////////////////////////
 
-	// The specific generation of the object from which our local state is
-	// branched. If we have no local state, the contents of this object are
-	// exactly our contents. May be zero if our source is a "doesn't exist"
-	// generation.
-	srcGeneration int64
-
-	// The size of the object from which our local state is branched. If
-	// srcGeneration is non-zero, this is the size of that generation in GCS.
-	//
-	// INVARIANT: If srcGeneration == 0, srcSize == 0
-	srcSize int64
+	// A record for the specific generation of the object from which our local
+	// state is branched. If we have no local state, the contents of this
+	// generation are exactly our contents.
+	src storage.Object
 
 	// A local temporary file containing our current contents. When non-nil, this
 	// is the authority on our contents. When nil, our contents are defined by
-	// the generation identified by srcGeneration.
+	// 'src' above.
 	localFile *os.File
 
-	// false if localFile is present but its contents may be different from the
+	// true if localFile is present but its contents may be different from the
 	// contents of our source generation. Sync needs to do work iff this is true.
 	//
-	// INVARIANT: If srcGeneration == 0, then dirty
 	// INVARIANT: If dirty, then localFile != nil
 	dirty bool
 }
