@@ -848,7 +848,25 @@ func (t *SourceObjectPresentTest) Stat_BucketSaysNotFound_NotDirty() {
 }
 
 func (t *SourceObjectPresentTest) Stat_BucketSaysNotFound_Dirty() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Dirty the object by truncating.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+
+	err = t.op.Truncate(17)
+	AssertEq(nil, err)
+
+	// StatObject
+	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, &gcs.NotFoundError{}))
+
+	// Stat
+	size, clobbered, err := t.op.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq(17, size)
+	ExpectTrue(clobbered)
 }
 
 func (t *SourceObjectPresentTest) Stat_InitialState() {
