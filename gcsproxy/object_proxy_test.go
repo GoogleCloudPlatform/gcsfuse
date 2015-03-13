@@ -803,7 +803,26 @@ func (t *SourceObjectPresentTest) Sync_AfterTruncating() {
 }
 
 func (t *SourceObjectPresentTest) Sync_CallsCreateObject() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Dirty the object by truncating.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+
+	err = t.op.Truncate(1)
+	AssertEq(nil, err)
+
+	// CreateObject should be called with the correct precondition.
+	ExpectCall(t.bucket, "CreateObject")(
+		Any(),
+		AllOf(
+			nameIs(t.objectName),
+			contentsAre("\x00"),
+			generationIs(t.srcGeneration))).
+		WillOnce(oglemock.Return(nil, errors.New("")))
+
+	// Sync
+	t.op.Sync()
 }
 
 func (t *SourceObjectPresentTest) Stat_CallsBucket() {
