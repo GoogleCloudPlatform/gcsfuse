@@ -617,7 +617,9 @@ func (t *ObjectProxyTest) Sync_Successful() {
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
 
-	t.op.Truncate(0)
+	n, err = t.op.WriteAt([]byte("taco"), 0)
+	AssertEq(nil, err)
+	AssertEq(len("taco"), n)
 
 	// Have the call to CreateObject succeed.
 	o := &storage.Object{
