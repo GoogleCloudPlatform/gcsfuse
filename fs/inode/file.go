@@ -170,4 +170,23 @@ func (f *FileInode) Attributes(
 // EXCLUSIVE_LOCKS_REQUIRED(f.mu)
 func (f *FileInode) ReadFile(
 	ctx context.Context,
-	req *fuse.ReadFileRequest) (resp *fuse.ReadFileResponse, err error)
+	req *fuse.ReadFileRequest) (resp *fuse.ReadFileResponse, err error) {
+	resp = &fuse.ReadFileResponse{}
+
+	// Read from the proxy.
+	//
+	// TODO(jacobsa): Make sure we have a failing test for io.EOF here.
+	buf := make([]byte, req.Size)
+	n, err := f.proxy.ReadAt(ctx, buf, req.Offset)
+	if err != nil {
+		err = fmt.Errorf("ReadAt: %v", err)
+		return
+	}
+
+	// Fill in the response.
+	//
+	// TODO(jacobsa): Make sure a test fails if we don't reslice here.
+	resp.Data = buf[:n]
+
+	return
+}
