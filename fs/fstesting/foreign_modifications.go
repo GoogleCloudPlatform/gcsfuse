@@ -737,24 +737,32 @@ func (t *foreignModsTest) ObjectIsDeleted() {
 	AssertEq(nil, t.createWithContents("foo", "taco"))
 
 	// Open the corresponding file for reading.
-	f, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
-	AssertEq(nil, err)
+	f1, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
 	defer func() {
-		ExpectEq(nil, f.Close())
+		if f1 != nil {
+			ExpectEq(nil, f1.Close())
+		}
 	}()
+
+	AssertEq(nil, err)
 
 	// Delete the object.
 	AssertEq(nil, t.bucket.DeleteObject(t.ctx, "foo"))
 
 	// The file should appear to be unlinked, but with the previous contents.
-	fi, err := f.Stat()
+	fi, err := f1.Stat()
 
 	AssertEq(nil, err)
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Opening again should not work.
-	_, err = os.Open(path.Join(t.mfs.Dir(), "foo"))
+	f2, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
+	defer func() {
+		if f2 != nil {
+			ExpectEq(nil, f2.Close())
+		}
+	}()
 
 	AssertNe(nil, err)
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
