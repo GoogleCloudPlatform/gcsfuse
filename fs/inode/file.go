@@ -16,6 +16,7 @@ package inode
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
@@ -161,6 +162,32 @@ func (f *FileInode) Attributes(
 		Size: uint64(size),
 		Mode: 0700,
 	}
+
+	return
+}
+
+// Serve a read request for this file.
+//
+// EXCLUSIVE_LOCKS_REQUIRED(f.mu)
+func (f *FileInode) ReadFile(
+	ctx context.Context,
+	req *fuse.ReadFileRequest) (resp *fuse.ReadFileResponse, err error) {
+	resp = &fuse.ReadFileResponse{}
+
+	// Read from the proxy.
+	buf := make([]byte, req.Size)
+	n, err := f.proxy.ReadAt(ctx, buf, req.Offset)
+
+	// We don't return errors for EOF. Otherwise, propagate errors.
+	if err == io.EOF {
+		err = nil
+	} else if err != nil {
+		err = fmt.Errorf("ReadAt: %v", err)
+		return
+	}
+
+	// Fill in the response.
+	resp.Data = buf[:n]
 
 	return
 }
