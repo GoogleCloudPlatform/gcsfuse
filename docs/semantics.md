@@ -6,6 +6,17 @@ consistency guarantees are made, etc.
 reflect reality. TODO(jacobsa): Update this warning when this is no longer
 aspirational.
 
+# Buckets
+
+GCS has a feature called [object versioning][versioning] that allows buckets to
+be put into a mode where the history of each object is maintained, even when it
+is overwritten or deleted. gcsfuse does not support such buckets, and the file
+system semantics discussed below do not apply to buckets in this mode—the
+behavior for such buckets is undefined.
+
+[versioning]: https://cloud.google.com/storage/docs/object-versioning
+
+
 # Files and directories
 
 GCS object names map directly to file paths using the separator '/'. Object
