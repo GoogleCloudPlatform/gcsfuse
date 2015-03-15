@@ -16,6 +16,7 @@ package inode
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
@@ -174,18 +175,18 @@ func (f *FileInode) ReadFile(
 	resp = &fuse.ReadFileResponse{}
 
 	// Read from the proxy.
-	//
-	// TODO(jacobsa): Make sure we have a failing test for io.EOF here.
 	buf := make([]byte, req.Size)
 	n, err := f.proxy.ReadAt(ctx, buf, req.Offset)
-	if err != nil {
+
+	// We don't return errors for EOF. Otherwise, propagate errors.
+	if err == io.EOF {
+		err = nil
+	} else if err != nil {
 		err = fmt.Errorf("ReadAt: %v", err)
 		return
 	}
 
 	// Fill in the response.
-	//
-	// TODO(jacobsa): Make sure a test fails if we don't reslice here.
 	resp.Data = buf[:n]
 
 	return
