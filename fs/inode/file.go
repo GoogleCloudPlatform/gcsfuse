@@ -164,3 +164,10 @@ func (f *FileInode) Attributes(
 
 	return
 }
+
+// Serve a read request for this file.
+//
+// EXCLUSIVE_LOCKS_REQUIRED(f.mu)
+func (f *FileInode) ReadFile(
+	ctx context.Context,
+	req *fuse.ReadFileRequest) (resp *fuse.ReadFileResponse, err error)
