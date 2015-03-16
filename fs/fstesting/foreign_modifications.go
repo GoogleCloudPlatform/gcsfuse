@@ -703,33 +703,48 @@ func (t *foreignModsTest) ObjectIsOverwritten() {
 	AssertEq(nil, t.createWithContents("foo", "taco"))
 
 	// Open the corresponding file for reading.
-	f, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
+	f1, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
 	AssertEq(nil, err)
 	defer func() {
-		ExpectEq(nil, f.Close())
+		ExpectEq(nil, f1.Close())
 	}()
+
+	// Make sure that the contents are cached locally.
+	_, err = f1.ReadAt(make([]byte, 1), 0)
+	AssertEq(nil, err)
 
 	// Overwrite the object.
 	AssertEq(nil, t.createWithContents("foo", "burrito"))
 
 	// The file should appear to be unlinked, but with the previous contents.
-	fi, err := f.Stat()
+	fi, err := f1.Stat()
 
 	AssertEq(nil, err)
 	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
+	// TODO(jacobsa): Re-enable this assertion if the following issue is fixed:
+	//     https://github.com/bazillion/fuse/issues/66
+	// ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Opening again should yield the new version.
-	newF, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
+	f2, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
 	AssertEq(nil, err)
 	defer func() {
-		ExpectEq(nil, newF.Close())
+		ExpectEq(nil, f2.Close())
 	}()
 
-	fi, err = newF.Stat()
+	fi, err = f2.Stat()
 	AssertEq(nil, err)
 	ExpectEq(len("burrito"), fi.Size())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	// Reading from the old file handle should give the old data.
+	contents, err := ioutil.ReadAll(f1)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
+
+	contents, err = ioutil.ReadAll(f2)
+	AssertEq(nil, err)
+	ExpectEq("burrito", string(contents))
 }
 
 func (t *foreignModsTest) ObjectIsDeleted() {
@@ -754,7 +769,9 @@ func (t *foreignModsTest) ObjectIsDeleted() {
 
 	AssertEq(nil, err)
 	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
+	// TODO(jacobsa): Re-enable this assertion if the following issue is fixed:
+	//     https://github.com/bazillion/fuse/issues/66
+	// ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Opening again should not work.
 	f2, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
