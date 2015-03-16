@@ -26,4 +26,4 @@ go get github.com/jacobsa/gcsfuse
 ```
 
 This will fetch the gcsfuse sources, build them, and install a binary named
-`gcsfuse.
+`gcsfuse`.
