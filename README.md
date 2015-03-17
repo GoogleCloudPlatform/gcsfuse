@@ -12,7 +12,8 @@ Prerequisites:
 *   gcsfuse is distributed as source code in the [Go][go] language. If you do
     not yet have Go installed, see [here][go-install] for instructions. Be sure
     to follow the linked [setup instructions][go-setup], in particular setting
-    the `GOPATH` environment variable.
+    the `GOPATH` environment variable and ensuring `$GOPATH/bin` is in your
+    `PATH` environment variable.
 
 *   OS X only: Before using gcsfuse, you must have [FUSE for OS X][osxfuse].
     Installing FUSE is not necessary on Linux, since modern versions have kernel
@@ -38,7 +39,7 @@ go get github.com/jacobsa/gcsfuse
 ```
 
 This will fetch the gcsfuse sources, build them, and install a binary named
-`gcsfuse`.
+`gcsfuse` to `$GOPATH/bin`.
 
 
 # Mounting
