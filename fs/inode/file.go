@@ -170,7 +170,7 @@ func (f *FileInode) Attributes(
 // Serve a read request for this file.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) ReadFile(
+func (f *FileInode) Read(
 	ctx context.Context,
 	req *fuse.ReadFileRequest) (resp *fuse.ReadFileResponse, err error) {
 	resp = &fuse.ReadFileResponse{}
@@ -189,6 +189,21 @@ func (f *FileInode) ReadFile(
 
 	// Fill in the response.
 	resp.Data = buf[:n]
+
+	return
+}
+
+// Serve a write request for this file.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) Write(
+	ctx context.Context,
+	req *fuse.WriteFileRequest) (resp *fuse.WriteFileResponse, err error) {
+	resp = &fuse.WriteFileResponse{}
+
+	// Write to the proxy. Note that the proxy guarantees that it returns an
+	// error for short writes.
+	_, err = f.proxy.WriteAt(ctx, req.Data, req.Offset)
 
 	return
 }

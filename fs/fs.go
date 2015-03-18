@@ -17,8 +17,10 @@ package fs
 import (
 	"fmt"
 	"os/user"
+	"path"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -430,6 +432,72 @@ func (fs *fileSystem) GetInodeAttributes(
 }
 
 // LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) CreateFile(
+	ctx context.Context,
+	req *fuse.CreateFileRequest) (
+	resp *fuse.CreateFileResponse, err error) {
+	resp = &fuse.CreateFileResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Find the parent.
+	parent := fs.inodes[req.Parent]
+
+	parent.Lock()
+	defer parent.Unlock()
+
+	// Create an empty backing object for the child, failing if it already
+	// exists.
+	//
+	// TODO(jacobsa): Make sure that there is a test that ensures the object
+	// exists once the file is opened with O_CREAT but before it has been closed
+	// (but not necessarily that its contents are there).
+	var precond int64
+	createReq := &gcs.CreateObjectRequest{
+		Attrs: storage.ObjectAttrs{
+			Name: path.Join(parent.Name(), req.Name),
+		},
+		Contents:               strings.NewReader(""),
+		GenerationPrecondition: &precond,
+	}
+
+	o, err := fs.bucket.CreateObject(ctx, createReq)
+	if err != nil {
+		// TODO(jacobsa): Add a test that fails, then map gcs.PreconditionError to
+		// EEXISTS.
+		err = fmt.Errorf("CreateObject: %v", err)
+		return
+	}
+
+	// Create a child inode.
+	childID := fs.nextInodeID
+	fs.nextInodeID++
+
+	child, err := inode.NewFileInode(fs.clock, fs.bucket, childID, o)
+	if err != nil {
+		err = fmt.Errorf("NewFileInode: %v", err)
+		return
+	}
+
+	child.Lock()
+	defer child.Unlock()
+
+	// Index the child inode.
+	fs.inodes[childID] = child
+	fs.fileIndex[nameAndGen{child.Name(), child.SourceGeneration()}] = child
+
+	// Fill out the response.
+	resp.Entry.Child = childID
+	if resp.Entry.Attributes, err = fs.getAttributes(ctx, child); err != nil {
+		err = fmt.Errorf("getAttributes: %v", err)
+		return
+	}
+
+	return
+}
+
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) OpenDir(
 	ctx context.Context,
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
@@ -524,7 +592,27 @@ func (fs *fileSystem) ReadFile(
 	defer in.Unlock()
 
 	// Serve the request.
-	resp, err = in.ReadFile(ctx, req)
+	resp, err = in.Read(ctx, req)
+
+	return
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+//
+// TODO(jacobsa): Make sure there is a test for fsync and close behavior.
+func (fs *fileSystem) WriteFile(
+	ctx context.Context,
+	req *fuse.WriteFileRequest) (resp *fuse.WriteFileResponse, err error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Find the inode.
+	in := fs.inodes[req.Inode].(*inode.FileInode)
+	in.Lock()
+	defer in.Unlock()
+
+	// Serve the request.
+	resp, err = in.Write(ctx, req)
 
 	return
 }
