@@ -31,6 +31,16 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func getFileOffset(f *os.File) (offset int64, err error) {
+	const relativeToCurrent = 1
+	offset, err = f.Seek(0, relativeToCurrent)
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
 // Open
 ////////////////////////////////////////////////////////////////////////
 
@@ -365,7 +375,7 @@ func (t *modesTest) AppendMode_WriteOnly() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *modesTest) AppendMode_ReadWrite() {
+func (t *modesTest) AppendMode_SeekAndWrite() {
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -393,45 +403,91 @@ func (t *modesTest) AppendMode_ReadWrite() {
 	_, err = f.Write([]byte("222"))
 	AssertEq(nil, err)
 
-	// Write to the middle of the file using File.WriteAt.
-	_, err = f.WriteAt([]byte("111"), 4)
+	// The seek position should have been updated.
+	off, err := getFileOffset(f)
 	AssertEq(nil, err)
-
-	// Write well past the end of the file using File.WriteAt.
-	_, err = f.WriteAt([]byte("333"), 100)
-	AssertEq(nil, err)
+	ExpectEq(len(contents)+len("222"), off)
 
 	// Check the size now.
 	fi, err := f.Stat()
 	AssertEq(nil, err)
-	ExpectEq(len(contents)+len("222333"), fi.Size())
+	ExpectEq(len(contents)+len("222"), fi.Size())
 
-	// Read some contents with Seek and Read.
-	_, err = f.Seek(4, 0)
-	AssertEq(nil, err)
-
-	buf := make([]byte, 4)
-	_, err = io.ReadFull(f, buf)
+	// Read the full contents with ReadAt.
+	buf := make([]byte, len(contents)+len("222"))
+	_, err = f.ReadAt(buf, 0)
 
 	AssertEq(nil, err)
-	ExpectEq("111r", string(buf))
+	ExpectEq(contents+"222", string(buf))
+
+	// Read the full contents with another file handle.
+	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertEq(nil, err)
+	ExpectEq(contents+"222", string(fileContents))
+}
+
+func (t *modesTest) AppendMode_WriteAt() {
+	// Create a file.
+	const contents = "tacoburritoenchilada"
+	AssertEq(
+		nil,
+		ioutil.WriteFile(
+			path.Join(t.mfs.Dir(), "foo"),
+			[]byte(contents),
+			os.FileMode(0644)))
+
+	// Open the file.
+	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR|os.O_APPEND, 0)
+	AssertEq(nil, err)
+
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	// Seek somewhere in the file.
+	_, err = f.Seek(1, 0)
+	AssertEq(nil, err)
+
+	// Write to the middle of the file using File.WriteAt.
+	_, err = f.WriteAt([]byte("111"), 4)
+	AssertEq(nil, err)
+
+	// The seek position should have been unaffected.
+	off, err := getFileOffset(f)
+	AssertEq(nil, err)
+	ExpectEq(1, off)
+
+	// Check the size now.
+	fi, err := f.Stat()
+	AssertEq(nil, err)
+	ExpectEq(len(contents), fi.Size())
+
+	// Read the full contents with ReadAt.
+	buf := make([]byte, len(contents)+len("222"))
+	_, err = f.ReadAt(buf, 0)
+
+	AssertEq(nil, err)
+	ExpectEq("taco111ritoenchilada", string(buf))
 
 	// Read the full contents with ReadAt.
 	buf = make([]byte, len(contents)+len("222333"))
 	_, err = f.ReadAt(buf, 0)
 
 	AssertEq(nil, err)
-	ExpectEq("taco111ritoenchilada222333", string(buf))
+	ExpectEq("taco111ritoenchilada", string(buf))
 
-	// Close the file.
-	AssertEq(nil, f.Close())
-	f = nil
-
-	// Read back its contents.
+	// Read the full contents with another file handle.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertEq(nil, err)
-	ExpectEq("taco111ritoenchilada222333", string(fileContents))
+	ExpectEq("taco111ritoenchilada", string(fileContents))
+}
+
+func (t *modesTest) AppendMode_WriteAt_PastEOF() {
+	AssertTrue(false, "TODO")
 }
 
 ////////////////////////////////////////////////////////////////////////
