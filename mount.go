@@ -74,7 +74,7 @@ func main() {
 	}
 
 	// Mount the file system.
-	mountedFS, err := fuse.Mount(mountPoint, fileSystem)
+	mountedFS, err := fuse.Mount(mountPoint, fileSystem, &fuse.MountConfig{})
 	if err != nil {
 		log.Fatal("Mount:", err)
 	}

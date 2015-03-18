@@ -115,7 +115,7 @@ func (t *fsTest) setUpFsTest(deps FSTestDeps) {
 		panic("NewFileSystem: " + err.Error())
 	}
 
-	t.mfs, err = fuse.Mount(mountPoint, fileSystem)
+	t.mfs, err = fuse.Mount(mountPoint, fileSystem, &fuse.MountConfig{})
 	if err != nil {
 		panic("Mount: " + err.Error())
 	}
