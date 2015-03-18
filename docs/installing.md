@@ -50,8 +50,8 @@ as of 2015-03-18, `/dev/fuse` has incorrect permissions (cf.
 commands:
 
 ```
-chmod g+rw /dev/fuse
-chgrp fuse /dev/fuse
+sudo chmod g+rw /dev/fuse
+sudo chgrp fuse /dev/fuse
 ```
 
 [stackexchange]: http://superuser.com/a/800016/429161
