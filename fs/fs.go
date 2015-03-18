@@ -449,6 +449,10 @@ func (fs *fileSystem) CreateFile(
 
 	// Create an empty backing object for the child, failing if it already
 	// exists.
+	//
+	// TODO(jacobsa): Make sure that there is a test that ensures the object
+	// exists once the file is opened with O_CREAT but before it has been closed
+	// (but not necessarily that its contents are there).
 	var precond int64
 	createReq := &gcs.CreateObjectRequest{
 		Attrs: storage.ObjectAttrs{
