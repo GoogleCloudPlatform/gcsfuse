@@ -22,6 +22,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
 	"github.com/jacobsa/gcsfuse/gcsproxy"
+	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )
@@ -67,7 +68,7 @@ var _ Inode = &FileInode{}
 // REQUIRES: len(o.Name) > 0
 // REQUIRES: o.Name[len(o.Name)-1] != '/'
 func NewFileInode(
-	ctx context.Context,
+	clock timeutil.Clock,
 	bucket gcs.Bucket,
 	id fuse.InodeID,
 	o *storage.Object) (f *FileInode, err error) {
@@ -78,7 +79,7 @@ func NewFileInode(
 	}
 
 	// Set up the proxy.
-	f.proxy, err = gcsproxy.NewObjectProxy(ctx, bucket, o)
+	f.proxy, err = gcsproxy.NewObjectProxy(clock, bucket, o)
 	if err != nil {
 		err = fmt.Errorf("NewObjectProxy: %v", err)
 		return
