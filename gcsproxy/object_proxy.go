@@ -63,6 +63,15 @@ type ObjectProxy struct {
 	dirty bool
 }
 
+type StatResult struct {
+	// The current size in bytes of the content, including any local
+	// modifications that have not been Sync'd.
+	Size int64
+
+	// Has the object changed out from under us in GCS? If so, Sync will fail.
+	Clobbered bool
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -134,8 +143,7 @@ func (op *ObjectProxy) Destroy() (err error) {
 // Return the current size in bytes of the content and an indication of whether
 // the proxied object has changed out from under us (in which case Sync will
 // fail).
-func (op *ObjectProxy) Stat(
-	ctx context.Context) (size int64, clobbered bool, err error) {
+func (op *ObjectProxy) Stat(ctx context.Context) (sr StatResult, err error) {
 	// If we have a file, it is authoritative for our size. Otherwise our source
 	// size is authoritative.
 	if op.localFile != nil {
@@ -145,9 +153,9 @@ func (op *ObjectProxy) Stat(
 			return
 		}
 
-		size = fi.Size()
+		sr.Size = fi.Size()
 	} else {
-		size = op.src.Size
+		sr.Size = op.src.Size
 	}
 
 	// Stat the object in GCS.
@@ -157,7 +165,7 @@ func (op *ObjectProxy) Stat(
 	// Special case: "not found" means we have been clobbered.
 	if _, ok := err.(*gcs.NotFoundError); ok {
 		err = nil
-		clobbered = true
+		sr.Clobbered = true
 		return
 	}
 
@@ -168,7 +176,7 @@ func (op *ObjectProxy) Stat(
 	}
 
 	// We are clobbered iff the generation doesn't match our source generation.
-	clobbered = (o.Generation != op.src.Generation)
+	sr.Clobbered = (o.Generation != op.src.Generation)
 
 	return
 }
