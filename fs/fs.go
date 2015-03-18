@@ -449,13 +449,13 @@ func (fs *fileSystem) SetInodeAttributes(
 
 	// The only thing we support changing is size, and then only for directories.
 	if req.Mode != nil || req.Atime != nil || req.Mtime != nil {
-		err = ENOSYS
+		err = fuse.ENOSYS
 		return
 	}
 
 	file, ok := in.(*inode.FileInode)
 	if !ok {
-		err = ENOSYS
+		err = fuse.ENOSYS
 		return
 	}
 
