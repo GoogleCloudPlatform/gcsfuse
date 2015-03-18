@@ -143,7 +143,7 @@ func (f *FileInode) SourceGeneration() int64 {
 func (f *FileInode) Attributes(
 	ctx context.Context) (attrs fuse.InodeAttributes, err error) {
 	// Stat the object.
-	size, clobbered, err := f.proxy.Stat(ctx)
+	sr, err := f.proxy.Stat(ctx)
 	if err != nil {
 		err = fmt.Errorf("Stat: %v", err)
 		return
@@ -157,13 +157,13 @@ func (f *FileInode) Attributes(
 	// there is a failing test.
 	attrs = fuse.InodeAttributes{
 		Nlink: 1,
-		Size:  uint64(size),
+		Size:  uint64(sr.Size),
 		Mode:  0700,
 	}
 
 	// If the object has been clobbered, we reflect that as the inode being
 	// unlinked.
-	if clobbered {
+	if sr.Clobbered {
 		attrs.Nlink = 0
 	}
 
