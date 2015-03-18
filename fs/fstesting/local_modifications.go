@@ -990,10 +990,6 @@ func (t *fileTest) LstatUnopenedFile() {
 	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *fileTest) BufferedWritesFlushedOnUnmount() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *fileTest) UnlinkFile_Exists() {
 	AssertTrue(false, "TODO")
 }
@@ -1021,5 +1017,9 @@ func (t *fileTest) Sync() {
 
 func (t *fileTest) Close() {
 	// Make sure to test that the content shows up in the bucket.
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) BufferedWritesFlushedOnUnmount() {
 	AssertTrue(false, "TODO")
 }
