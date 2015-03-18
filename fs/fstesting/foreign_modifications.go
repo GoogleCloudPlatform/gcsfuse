@@ -721,9 +721,7 @@ func (t *foreignModsTest) ObjectIsOverwritten() {
 
 	AssertEq(nil, err)
 	ExpectEq(len("taco"), fi.Size())
-	// TODO(jacobsa): Re-enable this assertion if the following issue is fixed:
-	//     https://github.com/bazillion/fuse/issues/66
-	// ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Opening again should yield the new version.
 	f2, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
@@ -769,9 +767,7 @@ func (t *foreignModsTest) ObjectIsDeleted() {
 
 	AssertEq(nil, err)
 	ExpectEq(len("taco"), fi.Size())
-	// TODO(jacobsa): Re-enable this assertion if the following issue is fixed:
-	//     https://github.com/bazillion/fuse/issues/66
-	// ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Opening again should not work.
 	f2, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
