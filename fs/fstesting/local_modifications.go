@@ -613,6 +613,14 @@ func (t *directoryTest) Rmdir_OpenedForReading() {
 	AssertTrue(false, "TODO")
 }
 
+func (t *directoryTest) CreateHardLink() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *directoryTest) CreateSymlink() {
+	AssertTrue(false, "TODO")
+}
+
 ////////////////////////////////////////////////////////////////////////
 // File interaction
 ////////////////////////////////////////////////////////////////////////
