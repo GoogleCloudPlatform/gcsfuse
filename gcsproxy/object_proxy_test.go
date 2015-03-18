@@ -23,10 +23,12 @@ import (
 	"strings"
 	"testing"
 	"testing/iotest"
+	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	"github.com/jacobsa/gcsfuse/gcsproxy"
+	"github.com/jacobsa/gcsfuse/timeutil"
 	. "github.com/jacobsa/oglematchers"
 	"github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -189,6 +191,7 @@ func (op *checkingObjectProxy) Sync() (int64, error) {
 
 type ObjectProxyTest struct {
 	src    storage.Object
+	clock  timeutil.SimulatedClock
 	bucket mock_gcs.MockBucket
 	op     checkingObjectProxy
 }
@@ -206,9 +209,12 @@ func (t *ObjectProxyTest) SetUp(ti *TestInfo) {
 
 	t.bucket = mock_gcs.NewMockBucket(ti.MockController, "bucket")
 
+	// Set up a fixed, non-zero time.
+	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
+
 	var err error
 	t.op.wrapped, err = gcsproxy.NewObjectProxy(
-		context.Background(),
+		&t.clock,
 		t.bucket,
 		&t.src)
 

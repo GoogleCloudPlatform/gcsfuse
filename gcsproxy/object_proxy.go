@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )
@@ -41,6 +42,7 @@ type ObjectProxy struct {
 	/////////////////////////
 
 	bucket gcs.Bucket
+	clock  timeutil.Clock
 
 	/////////////////////////
 	// Mutable state
@@ -80,11 +82,12 @@ type StatResult struct {
 //
 // REQUIRES: o != nil
 func NewObjectProxy(
-	ctx context.Context,
+	clock timeutil.Clock,
 	bucket gcs.Bucket,
 	o *storage.Object) (op *ObjectProxy, err error) {
 	// Set up the basic struct.
 	op = &ObjectProxy{
+		clock:  clock,
 		bucket: bucket,
 		src:    *o,
 	}
