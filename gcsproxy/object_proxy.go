@@ -20,8 +20,10 @@ import (
 	"io/ioutil"
 	"math"
 	"os"
+	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )
@@ -41,6 +43,7 @@ type ObjectProxy struct {
 	/////////////////////////
 
 	bucket gcs.Bucket
+	clock  timeutil.Clock
 
 	/////////////////////////
 	// Mutable state
@@ -56,10 +59,15 @@ type ObjectProxy struct {
 	// 'src' above.
 	localFile *os.File
 
+	// The time at which a method that modifies our contents was last called, or
+	// nil if never.
+	mtime *time.Time
+
 	// true if localFile is present but its contents may be different from the
 	// contents of our source generation. Sync needs to do work iff this is true.
 	//
 	// INVARIANT: If dirty, then localFile != nil
+	// INVARIANT: If dirty, then mtime != nil
 	dirty bool
 }
 
@@ -67,6 +75,10 @@ type StatResult struct {
 	// The current size in bytes of the content, including any local
 	// modifications that have not been Sync'd.
 	Size int64
+
+	// The time at which the contents were last updated, or the creation time of
+	// the source object if they never have been.
+	Mtime time.Time
 
 	// Has the object changed out from under us in GCS? If so, Sync will fail.
 	Clobbered bool
@@ -80,11 +92,12 @@ type StatResult struct {
 //
 // REQUIRES: o != nil
 func NewObjectProxy(
-	ctx context.Context,
+	clock timeutil.Clock,
 	bucket gcs.Bucket,
 	o *storage.Object) (op *ObjectProxy, err error) {
 	// Set up the basic struct.
 	op = &ObjectProxy{
+		clock:  clock,
 		bucket: bucket,
 		src:    *o,
 	}
@@ -115,6 +128,11 @@ func (op *ObjectProxy) CheckInvariants() {
 	if op.dirty && op.localFile == nil {
 		panic("Expected non-nil localFile.")
 	}
+
+	// INVARIANT: If dirty, then mtime != nil
+	if op.dirty && op.mtime == nil {
+		panic("Expected non-nil mtime.")
+	}
 }
 
 // Destroy any local file caches, putting the proxy into an indeterminate
@@ -144,6 +162,15 @@ func (op *ObjectProxy) Destroy() (err error) {
 // the proxied object has changed out from under us (in which case Sync will
 // fail).
 func (op *ObjectProxy) Stat(ctx context.Context) (sr StatResult, err error) {
+	// If we have ever been modified, our mtime field is authoritative (even if
+	// we've been Sync'd, because Sync is not supposed to affect the mtime).
+	// Otherwise our source object's creation time is our mtime.
+	if op.mtime != nil {
+		sr.Mtime = *op.mtime
+	} else {
+		sr.Mtime = op.src.Updated
+	}
+
 	// If we have a file, it is authoritative for our size. Otherwise our source
 	// size is authoritative.
 	if op.localFile != nil {
@@ -216,7 +243,10 @@ func (op *ObjectProxy) WriteAt(
 		return
 	}
 
+	newMtime := op.clock.Now()
+
 	op.dirty = true
+	op.mtime = &newMtime
 	n, err = op.localFile.WriteAt(buf, offset)
 
 	return
@@ -238,7 +268,10 @@ func (op *ObjectProxy) Truncate(ctx context.Context, n int64) (err error) {
 		return
 	}
 
+	newMtime := op.clock.Now()
+
 	op.dirty = true
+	op.mtime = &newMtime
 	err = op.localFile.Truncate(int64(n))
 
 	return

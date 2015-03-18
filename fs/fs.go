@@ -299,7 +299,7 @@ func (fs *fileSystem) lookUpOrCreateFileInode(
 	fs.nextInodeID++
 
 	// Create and index an inode.
-	if in, err = inode.NewFileInode(ctx, fs.bucket, id, o); err != nil {
+	if in, err = inode.NewFileInode(fs.clock, fs.bucket, id, o); err != nil {
 		err = fmt.Errorf("NewFileInode: %v", err)
 		return
 	}
