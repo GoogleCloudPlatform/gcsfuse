@@ -503,7 +503,53 @@ func (t *modesTest) AppendMode_WriteAt() {
 }
 
 func (t *modesTest) AppendMode_WriteAt_PastEOF() {
-	AssertTrue(false, "TODO")
+	// Linux's support for pwrite is buggy; the pwrite(2) man page says this:
+	//
+	//     POSIX requires that opening a file with the O_APPEND flag should have
+	//     no affect on the location at which pwrite() writes data.  However, on
+	//     Linux,  if  a  file  is opened with O_APPEND, pwrite() appends data to
+	//     the end of the file, regardless of the value of offset.
+	//
+	isLinux := (runtime.GOOS == "linux")
+
+	// Open a file.
+	f, err := os.OpenFile(
+		path.Join(t.mfs.Dir(), "foo"),
+		os.O_RDWR|os.O_APPEND|os.O_CREATE,
+		0600)
+
+	AssertEq(nil, err)
+
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	// Write three bytes.
+	n, err := f.Write([]byte("111"))
+	AssertEq(nil, err)
+	AssertEq(3, n)
+
+	// Write at offset six.
+	n, err = f.WriteAt([]byte("222"), 6)
+	AssertEq(nil, err)
+	AssertEq(3, n)
+
+	// The seek position should have been unaffected.
+	off, err := getFileOffset(f)
+	AssertEq(nil, err)
+	ExpectEq(3, off)
+
+	// Read the full contents of the file.
+	contents, err := ioutil.ReadFile(f.Name())
+	AssertEq(nil, err)
+
+	if isLinux {
+		ExpectEq("111222", string(contents))
+	} else {
+		ExpectEq("111\x00\x00\x00222", string(contents))
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
