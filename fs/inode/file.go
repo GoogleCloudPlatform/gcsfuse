@@ -170,7 +170,7 @@ func (f *FileInode) Attributes(
 // Serve a read request for this file.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) ReadFile(
+func (f *FileInode) Read(
 	ctx context.Context,
 	req *fuse.ReadFileRequest) (resp *fuse.ReadFileResponse, err error) {
 	resp = &fuse.ReadFileResponse{}

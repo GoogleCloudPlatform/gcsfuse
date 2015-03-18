@@ -588,7 +588,7 @@ func (fs *fileSystem) ReadFile(
 	defer in.Unlock()
 
 	// Serve the request.
-	resp, err = in.ReadFile(ctx, req)
+	resp, err = in.Read(ctx, req)
 
 	return
 }
