@@ -314,7 +314,7 @@ func (t *foreignModsTest) ContentsInRoot() {
 	e = entries[0]
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
-	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
+	ExpectEq(0700|os.ModeDir, e.Mode())
 	ExpectTrue(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 
@@ -322,7 +322,7 @@ func (t *foreignModsTest) ContentsInRoot() {
 	e = entries[1]
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
-	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
+	ExpectEq(os.FileMode(0700), e.Mode())
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
@@ -331,7 +331,7 @@ func (t *foreignModsTest) ContentsInRoot() {
 	e = entries[2]
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
-	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
+	ExpectEq(os.FileMode(0700), e.Mode())
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
@@ -434,7 +434,7 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 	e = entries[0]
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
-	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
+	ExpectEq(0700|os.ModeDir, e.Mode())
 	ExpectTrue(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 
@@ -442,7 +442,7 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 	e = entries[1]
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
-	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
+	ExpectEq(os.FileMode(0700), e.Mode())
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
@@ -451,7 +451,7 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 	e = entries[2]
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
-	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
+	ExpectEq(os.FileMode(0700), e.Mode())
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
