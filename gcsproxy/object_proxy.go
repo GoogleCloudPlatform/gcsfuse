@@ -76,6 +76,10 @@ type StatResult struct {
 	// modifications that have not been Sync'd.
 	Size int64
 
+	// The time at which the contents were last updated, or the creation time of
+	// the source object if they never have been.
+	Mtime time.Time
+
 	// Has the object changed out from under us in GCS? If so, Sync will fail.
 	Clobbered bool
 }
