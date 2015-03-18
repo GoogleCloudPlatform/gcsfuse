@@ -23,212 +23,24 @@ package fstesting
 import (
 	"encoding/hex"
 	"errors"
-	"io"
 	"io/ioutil"
 	"log"
 	"math"
 	"math/rand"
 	"os"
-	"os/user"
 	"path"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/jacobsa/fuse"
-	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
-	"github.com/jacobsa/gcsfuse/fs"
-	"github.com/jacobsa/gcsfuse/timeutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
-	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )
 
 ////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
-
-func getFileNames(entries []os.FileInfo) (names []string) {
-	for _, e := range entries {
-		names = append(names, e.Name())
-	}
-
-	return
-}
-
-// REQUIRES: n % 4 == 0
-func randString(n int) string {
-	bytes := make([]byte, n)
-	for i := 0; i < n; i += 4 {
-		u32 := rand.Uint32()
-		bytes[i] = byte(u32 >> 0)
-		bytes[i+1] = byte(u32 >> 8)
-		bytes[i+2] = byte(u32 >> 16)
-		bytes[i+3] = byte(u32 >> 24)
-	}
-
-	return string(bytes)
-}
-
-func readRange(r io.ReadSeeker, offset int64, n int) (s string, err error) {
-	if _, err = r.Seek(offset, 0); err != nil {
-		return
-	}
-
-	bytes := make([]byte, n)
-	if _, err = io.ReadFull(r, bytes); err != nil {
-		return
-	}
-
-	s = string(bytes)
-	return
-}
-
-func currentUid() uint32 {
-	user, err := user.Current()
-	if err != nil {
-		panic(err)
-	}
-
-	uid, err := strconv.ParseUint(user.Uid, 10, 32)
-	if err != nil {
-		panic(err)
-	}
-
-	return uint32(uid)
-}
-
-func currentGid() uint32 {
-	user, err := user.Current()
-	if err != nil {
-		panic(err)
-	}
-
-	gid, err := strconv.ParseUint(user.Gid, 10, 32)
-	if err != nil {
-		panic(err)
-	}
-
-	return uint32(gid)
-}
-
-////////////////////////////////////////////////////////////////////////
-// Common
-////////////////////////////////////////////////////////////////////////
-
-type fsTest struct {
-	ctx    context.Context
-	clock  timeutil.Clock
-	bucket gcs.Bucket
-	mfs    *fuse.MountedFileSystem
-}
-
-var _ fsTestInterface = &fsTest{}
-
-func (t *fsTest) setUpFsTest(deps FSTestDeps) {
-	t.ctx = context.Background()
-	t.clock = deps.Clock
-	t.bucket = deps.Bucket
-
-	// Set up a temporary directory for mounting.
-	mountPoint, err := ioutil.TempDir("", "fs_test")
-	if err != nil {
-		panic("ioutil.TempDir: " + err.Error())
-	}
-
-	// Mount a file system.
-	fileSystem, err := fs.NewFileSystem(t.clock, t.bucket)
-	if err != nil {
-		panic("NewFileSystem: " + err.Error())
-	}
-
-	t.mfs, err = fuse.Mount(mountPoint, fileSystem, &fuse.MountConfig{})
-	if err != nil {
-		panic("Mount: " + err.Error())
-	}
-
-	if err := t.mfs.WaitForReady(t.ctx); err != nil {
-		panic("MountedFileSystem.WaitForReady: " + err.Error())
-	}
-}
-
-func (t *fsTest) tearDownFsTest() {
-	// Unmount the file system. Try again on "resource busy" errors.
-	delay := 10 * time.Millisecond
-	for {
-		err := t.mfs.Unmount()
-		if err == nil {
-			break
-		}
-
-		if strings.Contains(err.Error(), "resource busy") {
-			log.Println("Resource busy error while unmounting; trying again")
-			time.Sleep(delay)
-			delay = time.Duration(1.3 * float64(delay))
-			continue
-		}
-
-		panic("MountedFileSystem.Unmount: " + err.Error())
-	}
-
-	if err := t.mfs.Join(t.ctx); err != nil {
-		panic("MountedFileSystem.Join: " + err.Error())
-	}
-}
-
-func (t *fsTest) createWithContents(name string, contents string) error {
-	return t.createObjects(
-		[]*gcsutil.ObjectInfo{
-			&gcsutil.ObjectInfo{
-				Attrs: storage.ObjectAttrs{
-					Name: name,
-				},
-				Contents: contents,
-			},
-		})
-}
-
-func (t *fsTest) createObjects(objects []*gcsutil.ObjectInfo) error {
-	_, err := gcsutil.CreateObjects(t.ctx, t.bucket, objects)
-	return err
-}
-
-func (t *fsTest) createEmptyObjects(names []string) error {
-	_, err := gcsutil.CreateEmptyObjects(t.ctx, t.bucket, names)
-	return err
-}
-
-// Ensure that the clock will report a different time after returning.
-func (t *fsTest) advanceTime() {
-	// For simulated clocks, we can just advance the time.
-	if c, ok := t.clock.(*timeutil.SimulatedClock); ok {
-		c.AdvanceTime(time.Second)
-		return
-	}
-
-	// Otherwise, sleep a moment.
-	time.Sleep(time.Millisecond)
-}
-
-// Return a matcher that matches event times as reported by the bucket
-// corresponding to the supplied start time as measured by the test.
-func (t *fsTest) matchesStartTime(start time.Time) Matcher {
-	// For simulated clocks we can use exact equality.
-	if _, ok := t.clock.(*timeutil.SimulatedClock); ok {
-		return timeutil.TimeEq(start)
-	}
-
-	// Otherwise, we need to take into account latency between the start of our
-	// call and the time the server actually executed the operation.
-	const slop = 60 * time.Second
-	return timeutil.TimeNear(start, slop)
-}
-
-////////////////////////////////////////////////////////////////////////
-// Read-only interaction
+// Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
 type foreignModsTest struct {
@@ -287,6 +99,10 @@ func (t *foreignModsTest) readDirUntil(
 
 	return
 }
+
+////////////////////////////////////////////////////////////////////////
+// Tests
+////////////////////////////////////////////////////////////////////////
 
 func (t *foreignModsTest) StatRoot() {
 	fi, err := os.Stat(t.mfs.Dir())
