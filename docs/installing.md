@@ -23,8 +23,13 @@ export PATH=$PATH:$GOPATH/bin
 
 ## Fuse
 
-OS X only: Before using gcsfuse, you must have [osxfuse][]. Installing fuse is
-not necessary on Linux, since modern versions have kernel support built in.
+### Linux
+
+TODO
+
+### OS X
+
+OS X users must install [osxfuse][] before running gcsfuse.
 
 [osxfuse]: https://osxfuse.github.io/
 
