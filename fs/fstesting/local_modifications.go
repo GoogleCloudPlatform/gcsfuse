@@ -681,7 +681,31 @@ func (t *fileTest) WriteStartsPastEndOfFile() {
 }
 
 func (t *fileTest) WriteAtDoesntChangeOffset_NotAppendMode() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Make it 16 bytes long.
+	err = f.Truncate(16)
+	AssertEq(nil, err)
+
+	// Seek to offset 4.
+	_, err = f.Seek(4, 0)
+	AssertEq(nil, err)
+
+	// Write the range [10, 14).
+	n, err = f.WriteAt([]byte("taco"), 2)
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// We should still be at offset 4.
+	offset, err := getFileOffset(f)
+	AssertEq(nil, err)
+	ExpectEq(4, offset)
 }
 
 func (t *fileTest) WriteAtDoesntChangeOffset_AppendMode() {
