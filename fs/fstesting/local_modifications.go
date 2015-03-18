@@ -1022,7 +1022,47 @@ func (t *fileTest) UnlinkFile_NonExistent() {
 }
 
 func (t *fileTest) UnlinkFile_StillOpen() {
-	AssertTrue(false, "TODO")
+	fileName := path.Join(t.mfs.Dir(), "foo")
+
+	// Create and open a file.
+	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0600)
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Write some data into it.
+	n, err := f.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Unlink it.
+	err = os.Remove(fileName)
+	AssertEq(nil, err)
+
+	// The directory should no longer contain it.
+	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
+
+	// We should be able to stat the file. It should still show as having
+	// contents, but with no links.
+	fi, err := f.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq(4, fi.Size())
+	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	// The contents should still be available.
+	buf := make([]byte, 1024)
+	n, err = f.ReadAt(buf, 0)
+
+	AssertEq(io.EOF, err)
+	AssertEq(4, n)
+	ExpectEq("taco", string(buf[:4]))
+
+	// Writing should still work, too.
+	n, err = f.Write([]byte("burrito"))
+	AssertEq(nil, err)
+	AssertEq(len("burrito"), n)
 }
 
 func (t *fileTest) Chmod() {
