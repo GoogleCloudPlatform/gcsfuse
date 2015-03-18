@@ -204,6 +204,18 @@ func (t *openTest) OpenReadOnlyFileForWrite() {
 	AssertTrue(false, "TODO")
 }
 
+func (t *openTest) CreateWithinSubDirectory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *openTest) OpenWithinSubDirectory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *openTest) TruncateWithinSubDirectory() {
+	AssertTrue(false, "TODO")
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Modes
 ////////////////////////////////////////////////////////////////////////
@@ -544,92 +556,144 @@ func (t *modesTest) AppendMode_WriteAt_PastEOF() {
 	}
 }
 
+func (t *modesTest) ReadFromWriteOnlyFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *modesTest) WriteToReadOnlyFile() {
+	AssertTrue(false, "TODO")
+}
+
 ////////////////////////////////////////////////////////////////////////
-// Read/write interaction
+// Directory interaction
 ////////////////////////////////////////////////////////////////////////
 
-type readWriteTest struct {
+type directoryTest struct {
 	fsTest
 }
 
-func (t *readWriteTest) Mkdir_OneLevel() {
+func (t *directoryTest) Mkdir_OneLevel() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) Mkdir_TwoLevels() {
+func (t *directoryTest) Mkdir_TwoLevels() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) Mkdir_AlreadyExists() {
+func (t *directoryTest) Mkdir_AlreadyExists() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) Mkdir_IntermediateIsFile() {
+func (t *directoryTest) Mkdir_IntermediateIsFile() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) Mkdir_IntermediateIsNonExistent() {
+func (t *directoryTest) Mkdir_IntermediateIsNonExistent() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) WritePastEndOfFile() {
+func (t *directoryTest) Rmdir_NonEmpty() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) Seek() {
+func (t *directoryTest) Rmdir_Empty() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) Stat() {
+func (t *directoryTest) Rmdir_OpenedForReading() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) Sync() {
+////////////////////////////////////////////////////////////////////////
+// File interaction
+////////////////////////////////////////////////////////////////////////
+
+type fileTest struct {
+	fsTest
+}
+
+func (t *fileTest) WriteOverlapsEndOfFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) WriteStartsAtEndOfFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) WriteStartsPastEndOfFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) WriteAtDoesntChangeOffset_NotAppendMode() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) WriteAtDoesntChangeOffset_AppendMode() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) ReadsPastEndOfFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) Truncate_Smaller() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) Truncate_SameSize() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) Truncate_Larger() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) Seek() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) Stat() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) StatUnopenedFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) LstatUnopenedFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) BufferedWritesFlushedOnUnmount() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) UnlinkFile_Exists() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) UnlinkFile_NonExistent() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) UnlinkFile_StillOpen() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) Chmod() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) Chtimes() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) Sync() {
 	// Make sure to test that the content shows up in the bucket.
 	AssertTrue(false, "TODO")
 }
 
-func (t *readWriteTest) Close() {
+func (t *fileTest) Close() {
 	// Make sure to test that the content shows up in the bucket.
-	AssertTrue(false, "TODO")
-}
-
-func (t *readWriteTest) Truncate() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *readWriteTest) CreateEmptyDirectory() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *readWriteTest) CreateWithinSubDirectory() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *readWriteTest) OpenWithinSubDirectory() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *readWriteTest) TruncateWithinSubDirectory() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *readWriteTest) ReadFromWriteOnlyFile() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *readWriteTest) WriteToReadOnlyFile() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *readWriteTest) StatUnopenedFile() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *readWriteTest) LstatUnopenedFile() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *readWriteTest) BufferedWritesFlushedOnUnmount() {
 	AssertTrue(false, "TODO")
 }
