@@ -21,17 +21,47 @@ export PATH=$PATH:$GOPATH/bin
 [go-install]: http://golang.org/doc/install
 [go-setup]: http://golang.org/doc/code.html
 
+
 ## Fuse
 
 ### Linux
 
-TODO
+Linux users must ensure that the `fusermount` binary is installed and is
+executableby the user running gcsfuse, and that kernel support for fuse is
+enabled and `/dev/fuse` has the appropriate permissions.
+
+On Debian, fuse can be installed with:
+
+```
+sudo apt-get update && sudo apt-get install fuse
+```
+
+By default only those users in the `fuse` group can mount a fuse file system.
+Add your user to this group with the following command, then log out and log
+back in:
+
+```
+sudo adduser $USER fuse
+```
+
+On some versions of Debian, including the default Google Compute Engine image
+as of 2015-03-18, `/dev/fuse` has incorrect permissions (cf.
+[this][stackexchange] StackExchange answer). Fix this with the following
+commands:
+
+```
+chmod g+rw /dev/fuse
+chgrp fuse /dev/fuse
+```
+
+[stackexchange]: http://superuser.com/a/800016/429161
 
 ### OS X
 
 OS X users must install [osxfuse][] before running gcsfuse.
 
 [osxfuse]: https://osxfuse.github.io/
+
 
 ## Git
 
@@ -43,6 +73,7 @@ sudo apt-get install git-core`).
 
 [git]: http://git-scm.com/
 [git-download]: http://git-scm.com/downloads
+
 
 
 # Installation
