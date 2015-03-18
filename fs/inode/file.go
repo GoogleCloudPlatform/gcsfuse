@@ -143,7 +143,7 @@ func (f *FileInode) SourceGeneration() int64 {
 func (f *FileInode) Attributes(
 	ctx context.Context) (attrs fuse.InodeAttributes, err error) {
 	// Stat the object.
-	size, _, err := f.proxy.Stat(ctx)
+	size, clobbered, err := f.proxy.Stat(ctx)
 	if err != nil {
 		err = fmt.Errorf("Stat: %v", err)
 		return
@@ -151,16 +151,20 @@ func (f *FileInode) Attributes(
 
 	// Fill out the struct.
 	//
-	// TODO(jacobsa): Add a test for nlink == 0 when clobbered and update the
-	// code here.
-	//
 	// TODO(jacobsa): Make ObjectProxy.Stat return a struct containing mtime as
 	// well as size and clobbered. (Get mtime from the local file when around,
 	// otherwise the source object.) Then include Mtime here. But first make sure
 	// there is a failing test.
 	attrs = fuse.InodeAttributes{
-		Size: uint64(size),
-		Mode: 0700,
+		Nlink: 1,
+		Size:  uint64(size),
+		Mode:  0700,
+	}
+
+	// If the object has been clobbered, we reflect that as the inode being
+	// unlinked.
+	if clobbered {
+		attrs.Nlink = 0
 	}
 
 	return

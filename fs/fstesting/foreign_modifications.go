@@ -300,7 +300,10 @@ func (t *foreignModsTest) ContentsInRoot() {
 	// Make sure the time below doesn't match.
 	t.advanceTime()
 
+	/////////////////////////
 	// ReadDir
+	/////////////////////////
+
 	entries, err := t.readDirUntil(3, t.mfs.Dir())
 	AssertEq(nil, err)
 
@@ -313,6 +316,7 @@ func (t *foreignModsTest) ContentsInRoot() {
 	ExpectEq(0, e.Size())
 	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
 	ExpectTrue(e.IsDir())
+	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 
 	// baz
 	e = entries[1]
@@ -321,6 +325,7 @@ func (t *foreignModsTest) ContentsInRoot() {
 	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
+	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 
 	// foo
 	e = entries[2]
@@ -329,6 +334,7 @@ func (t *foreignModsTest) ContentsInRoot() {
 	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
+	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 }
 
 func (t *foreignModsTest) EmptySubDirectory() {
@@ -430,6 +436,7 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 	ExpectEq(0, e.Size())
 	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
 	ExpectTrue(e.IsDir())
+	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 
 	// baz
 	e = entries[1]
@@ -438,6 +445,7 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
+	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 
 	// foo
 	e = entries[2]
@@ -446,6 +454,7 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
+	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 }
 
 func (t *foreignModsTest) ListDirectoryTwice_NoChange() {
@@ -703,7 +712,7 @@ func (t *foreignModsTest) ObjectIsOverwritten() {
 	AssertEq(nil, t.createWithContents("foo", "taco"))
 
 	// Open the corresponding file for reading.
-	f1, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
+	f1, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDONLY, 0)
 	AssertEq(nil, err)
 	defer func() {
 		ExpectEq(nil, f1.Close())
@@ -724,7 +733,11 @@ func (t *foreignModsTest) ObjectIsOverwritten() {
 	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Opening again should yield the new version.
-	f2, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
+	//
+	// NOTE(jacobsa): We must open with a different mode here than above to work
+	// around the fact that osxfuse will re-use file handles. See the notes on
+	// fuse.FileSystem.OpenFile for more.
+	f2, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0)
 	AssertEq(nil, err)
 	defer func() {
 		ExpectEq(nil, f2.Close())

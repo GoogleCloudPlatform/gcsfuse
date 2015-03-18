@@ -116,7 +116,8 @@ func (d *DirInode) Name() string {
 func (d *DirInode) Attributes(
 	ctx context.Context) (attrs fuse.InodeAttributes, err error) {
 	attrs = fuse.InodeAttributes{
-		Mode: 0700 | os.ModeDir,
+		Nlink: 1,
+		Mode:  0700 | os.ModeDir,
 		// TODO(jacobsa): Track mtime and maybe atime.
 	}
 
