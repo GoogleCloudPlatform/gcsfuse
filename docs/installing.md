@@ -27,7 +27,7 @@ export PATH=$PATH:$GOPATH/bin
 ### Linux
 
 Linux users must ensure that the `fusermount` binary is installed and is
-executableby the user running gcsfuse, and that kernel support for fuse is
+executable by the user running gcsfuse, and that kernel support for fuse is
 enabled and `/dev/fuse` has the appropriate permissions.
 
 On Debian, fuse can be installed with:
@@ -65,7 +65,7 @@ OS X users must install [osxfuse][] before running gcsfuse.
 
 ## Git
 
-The `go get` command bbelow will need to fetch source code from GitHub, which
+The `go get` command below will need to fetch source code from GitHub, which
 requires [Git][git]. If the `git` binary is not installed on your system,
 download it [here][git-download] or install it by some other means (for example
 on Google Compute Engine Debian instances you can run:
