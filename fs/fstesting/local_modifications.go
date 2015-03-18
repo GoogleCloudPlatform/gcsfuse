@@ -466,10 +466,10 @@ func (t *modesTest) AppendMode_WriteAt() {
 	ExpectEq(len(contents), fi.Size())
 
 	// Read the full contents with ReadAt.
-	buf := make([]byte, len(contents)+len("222"))
+	buf := make([]byte, 1024)
 	_, err = f.ReadAt(buf, 0)
 
-	AssertEq(nil, err)
+	AssertEq(io.EOF, err)
 	ExpectEq("taco111ritoenchilada", string(buf))
 
 	// Read the full contents with ReadAt.
