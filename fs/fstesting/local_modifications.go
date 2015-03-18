@@ -661,7 +661,23 @@ func (t *fileTest) WriteStartsAtEndOfFile() {
 }
 
 func (t *fileTest) WriteStartsPastEndOfFile() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Write the range [2, 6).
+	n, err = f.WriteAt([]byte("taco"), 2)
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Read the full contents of the file.
+	contents, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	ExpectEq("\x00\x00taco", string(contents))
 }
 
 func (t *fileTest) WriteAtDoesntChangeOffset_NotAppendMode() {
