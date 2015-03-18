@@ -1015,7 +1015,10 @@ func (t *fileTest) UnlinkFile_Exists() {
 }
 
 func (t *fileTest) UnlinkFile_NonExistent() {
-	AssertTrue(false, "TODO")
+	err := os.Remove(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
 func (t *fileTest) UnlinkFile_StillOpen() {
