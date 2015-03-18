@@ -432,6 +432,51 @@ func (fs *fileSystem) GetInodeAttributes(
 }
 
 // LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) SetInodeAttributes(
+	ctx context.Context,
+	req *fuse.SetInodeAttributesRequest) (
+	resp *fuse.SetInodeAttributesResponse, err error) {
+	resp = &fuse.SetInodeAttributesResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Find the inode.
+	in := fs.inodes[req.Inode]
+
+	in.Lock()
+	defer in.Unlock()
+
+	// The only thing we support changing is size, and then only for directories.
+	if req.Mode != nil || req.Atime != nil || req.Mtime != nil {
+		err = fuse.ENOSYS
+		return
+	}
+
+	file, ok := in.(*inode.FileInode)
+	if !ok {
+		err = fuse.ENOSYS
+		return
+	}
+
+	// Set the size, if specified.
+	if req.Size != nil {
+		if err = file.Truncate(ctx, int64(*req.Size)); err != nil {
+			err = fmt.Errorf("Truncate: %v", err)
+			return
+		}
+	}
+
+	// Fill in the response.
+	resp.Attributes, err = fs.getAttributes(ctx, in)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) CreateFile(
 	ctx context.Context,
 	req *fuse.CreateFileRequest) (
