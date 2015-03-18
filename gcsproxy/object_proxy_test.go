@@ -153,7 +153,7 @@ func (op *checkingObjectProxy) SourceGeneration() int64 {
 	return op.wrapped.SourceGeneration()
 }
 
-func (op *checkingObjectProxy) Stat() (int64, bool, error) {
+func (op *checkingObjectProxy) Stat() (gcsproxy.StatResult, error) {
 	op.wrapped.CheckInvariants()
 	defer op.wrapped.CheckInvariants()
 	return op.wrapped.Stat(context.Background())
