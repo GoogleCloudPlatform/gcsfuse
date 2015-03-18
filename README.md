@@ -7,7 +7,7 @@ it for anything of importance in its current state.
 
 # Installing
 
-See [installing.md][installing.md] for full installation instructions. The summary is that if
+See [installing.md][docs/installing.md] for full installation instructions. The summary is that if
 you already have Go, fuse, and Git installed, you need only run:
 
 [installing.md]: https://github.com/jacobsa/gcsfuse/blob/master/docs/installing.md
