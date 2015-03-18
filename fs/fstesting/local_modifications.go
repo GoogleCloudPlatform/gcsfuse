@@ -368,14 +368,6 @@ func (t *modesTest) ReadWriteMode() {
 	ExpectEq("000o111ritoenchilada222", string(fileContents))
 }
 
-func (t *modesTest) AppendMode_ReadOnly() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *modesTest) AppendMode_WriteOnly() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *modesTest) AppendMode_SeekAndWrite() {
 	// Create a file.
 	const contents = "tacoburritoenchilada"
