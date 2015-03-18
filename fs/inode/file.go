@@ -151,15 +151,11 @@ func (f *FileInode) Attributes(
 	}
 
 	// Fill out the struct.
-	//
-	// TODO(jacobsa): Make ObjectProxy.Stat return a struct containing mtime as
-	// well as size and clobbered. (Get mtime from the local file when around,
-	// otherwise the source object.) Then include Mtime here. But first make sure
-	// there is a failing test.
 	attrs = fuse.InodeAttributes{
 		Nlink: 1,
 		Size:  uint64(sr.Size),
 		Mode:  0700,
+		Mtime: sr.Mtime,
 	}
 
 	// If the object has been clobbered, we reflect that as the inode being
