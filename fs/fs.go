@@ -468,7 +468,10 @@ func (fs *fileSystem) SetInodeAttributes(
 	}
 
 	// Fill in the response.
-	panic("TODO")
+	resp.Attributes, err = fs.getAttributes(ctx, in)
+	if err != nil {
+		return
+	}
 
 	return
 }
