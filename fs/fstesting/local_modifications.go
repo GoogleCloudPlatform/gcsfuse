@@ -1065,6 +1065,10 @@ func (t *fileTest) UnlinkFile_StillOpen() {
 	AssertEq(len("burrito"), n)
 }
 
+func (t *fileTest) UnlinkFile_FromSubDirectory() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *fileTest) Chmod() {
 	AssertTrue(false, "TODO")
 }
