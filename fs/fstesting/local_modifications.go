@@ -25,6 +25,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"runtime"
 
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -428,6 +429,15 @@ func (t *modesTest) AppendMode_SeekAndWrite() {
 }
 
 func (t *modesTest) AppendMode_WriteAt() {
+	// Linux's support for pwrite is buggy; the pwrite(2) man page says this:
+	//
+	//     POSIX requires that opening a file with the O_APPEND flag should have
+	//     no affect on the location at which pwrite() writes data.  However, on
+	//     Linux,  if  a  file  is opened with O_APPEND, pwrite() appends data to
+	//     the end of the file, regardless of the value of offset.
+	//
+	isLinux := (runtime.GOOS == "linux")
+
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -463,20 +473,33 @@ func (t *modesTest) AppendMode_WriteAt() {
 	// Check the size now.
 	fi, err := f.Stat()
 	AssertEq(nil, err)
-	ExpectEq(len(contents), fi.Size())
+
+	if isLinux {
+		ExpectEq(len(contents+"111"), fi.Size())
+	} else {
+		ExpectEq(len(contents), fi.Size())
+	}
 
 	// Read the full contents with ReadAt.
 	buf := make([]byte, 1024)
 	n, err := f.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
-	ExpectEq("taco111ritoenchilada", string(buf[:n]))
+	if isLinux {
+		ExpectEq("tacoburritoenchilada111", string(buf[:n]))
+	} else {
+		ExpectEq("taco111ritoenchilada", string(buf[:n]))
+	}
 
 	// Read the full contents with another file handle.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertEq(nil, err)
-	ExpectEq("taco111ritoenchilada", string(fileContents))
+	if isLinux {
+		ExpectEq("tacoburritoenchilada111", string(fileContents))
+	} else {
+		ExpectEq("taco111ritoenchilada", string(fileContents))
+	}
 }
 
 func (t *modesTest) AppendMode_WriteAt_PastEOF() {
