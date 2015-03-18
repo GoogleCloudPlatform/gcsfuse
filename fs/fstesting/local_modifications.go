@@ -741,7 +741,37 @@ func (t *fileTest) WriteAtDoesntChangeOffset_AppendMode() {
 }
 
 func (t *fileTest) ReadsPastEndOfFile() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+	buf := make([]byte, 1024)
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Give it some contents.
+	n, err = f.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Read a range overlapping EOF.
+	n, err = f.ReadAt(buf[:4], 2)
+	AssertEq(io.EOF, err)
+	ExpectEq(2, n)
+	ExpectEq("co", string(buf[:n]))
+
+	// Read a range starting at EOF.
+	n, err = f.ReadAt(buf[:4], 4)
+	AssertEq(io.EOF, err)
+	ExpectEq(0, n)
+	ExpectEq("", string(buf[:n]))
+
+	// Read a range starting past EOF.
+	n, err = f.ReadAt(buf[:4], 100)
+	AssertEq(io.EOF, err)
+	ExpectEq(0, n)
+	ExpectEq("", string(buf[:n]))
 }
 
 func (t *fileTest) Truncate_Smaller() {
