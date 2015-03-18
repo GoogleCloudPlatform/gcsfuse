@@ -288,7 +288,7 @@ func (t *foreignModsTest) readDirUntil(
 	return
 }
 
-func (t *foreignModsTest) EmptyRoot() {
+func (t *foreignModsTest) ReadDir_EmptyRoot() {
 	// ReadDir
 	entries, err := t.readDirUntil(0, t.mfs.Dir())
 	AssertEq(nil, err)
@@ -296,7 +296,7 @@ func (t *foreignModsTest) EmptyRoot() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *foreignModsTest) ContentsInRoot() {
+func (t *foreignModsTest) ReadDir_ContentsInRoot() {
 	// Set up contents.
 	createTime := t.clock.Now()
 	AssertEq(
@@ -373,7 +373,7 @@ func (t *foreignModsTest) ContentsInRoot() {
 	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *foreignModsTest) EmptySubDirectory() {
+func (t *foreignModsTest) ReadDir_EmptySubDirectory() {
 	// Set up an empty directory placeholder called 'bar'.
 	AssertEq(nil, t.createEmptyObjects([]string{"bar/"}))
 
@@ -388,32 +388,7 @@ func (t *foreignModsTest) EmptySubDirectory() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *foreignModsTest) UnreachableObjects() {
-	// Set up objects that appear to be directory contents, but for which there
-	// is no directory object.
-	_, err := gcsutil.CreateEmptyObjects(
-		t.ctx,
-		t.bucket,
-		[]string{
-			"foo/0",
-			"foo/1",
-			"bar/0/",
-		})
-
-	AssertEq(nil, err)
-
-	// Nothing should show up in the root.
-	_, err = t.readDirUntil(0, path.Join(t.mfs.Dir()))
-	AssertEq(nil, err)
-
-	// Statting the directories shouldn't work.
-	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
-
-	AssertNe(nil, err)
-	ExpectTrue(os.IsNotExist(err), "err: %v", err)
-}
-
-func (t *foreignModsTest) ContentsInSubDirectory() {
+func (t *foreignModsTest) ReadDir_ContentsInSubDirectory() {
 	// Set up contents.
 	createTime := t.clock.Now()
 	AssertEq(
@@ -497,6 +472,31 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
 	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
+}
+
+func (t *foreignModsTest) UnreachableObjects() {
+	// Set up objects that appear to be directory contents, but for which there
+	// is no directory object.
+	_, err := gcsutil.CreateEmptyObjects(
+		t.ctx,
+		t.bucket,
+		[]string{
+			"foo/0",
+			"foo/1",
+			"bar/0/",
+		})
+
+	AssertEq(nil, err)
+
+	// Nothing should show up in the root.
+	_, err = t.readDirUntil(0, path.Join(t.mfs.Dir()))
+	AssertEq(nil, err)
+
+	// Statting the directories shouldn't work.
+	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertNe(nil, err)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
 func (t *foreignModsTest) Inodes() {
