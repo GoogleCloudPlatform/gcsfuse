@@ -717,7 +717,7 @@ func (t *ObjectProxyTest) Stat_BucketFails() {
 		WillOnce(oglemock.Return(nil, errors.New("taco")))
 
 	// Stat
-	_, _, err := t.op.Stat()
+	_, err := t.op.Stat()
 
 	ExpectThat(err, Error(HasSubstr("StatObject")))
 	ExpectThat(err, Error(HasSubstr("taco")))
@@ -729,11 +729,11 @@ func (t *ObjectProxyTest) Stat_BucketSaysNotFound_NotDirty() {
 		WillOnce(oglemock.Return(nil, &gcs.NotFoundError{}))
 
 	// Stat
-	size, clobbered, err := t.op.Stat()
+	sr, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(t.src.Size, size)
-	ExpectTrue(clobbered)
+	ExpectEq(t.src.Size, sr.Size)
+	ExpectTrue(sr.Clobbered)
 }
 
 func (t *ObjectProxyTest) Stat_BucketSaysNotFound_Dirty() {
@@ -751,11 +751,11 @@ func (t *ObjectProxyTest) Stat_BucketSaysNotFound_Dirty() {
 		WillOnce(oglemock.Return(nil, &gcs.NotFoundError{}))
 
 	// Stat
-	size, clobbered, err := t.op.Stat()
+	sr, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(17, size)
-	ExpectTrue(clobbered)
+	ExpectEq(17, sr.Size)
+	ExpectTrue(sr.Clobbered)
 }
 
 func (t *ObjectProxyTest) Stat_InitialState() {
@@ -772,11 +772,11 @@ func (t *ObjectProxyTest) Stat_InitialState() {
 		WillOnce(oglemock.Return(o, nil))
 
 	// Stat
-	size, clobbered, err := t.op.Stat()
+	sr, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(t.src.Size, size)
-	ExpectFalse(clobbered)
+	ExpectEq(t.src.Size, sr.Size)
+	ExpectFalse(sr.Clobbered)
 }
 
 func (t *ObjectProxyTest) Stat_AfterShortening() {
@@ -800,11 +800,11 @@ func (t *ObjectProxyTest) Stat_AfterShortening() {
 		WillOnce(oglemock.Return(o, nil))
 
 	// Stat
-	size, clobbered, err := t.op.Stat()
+	sr, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(t.src.Size-1, size)
-	ExpectFalse(clobbered)
+	ExpectEq(t.src.Size-1, sr.Size)
+	ExpectFalse(sr.Clobbered)
 }
 
 func (t *ObjectProxyTest) Stat_AfterGrowing() {
@@ -828,11 +828,11 @@ func (t *ObjectProxyTest) Stat_AfterGrowing() {
 		WillOnce(oglemock.Return(o, nil))
 
 	// Stat
-	size, clobbered, err := t.op.Stat()
+	sr, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(t.src.Size+17, size)
-	ExpectFalse(clobbered)
+	ExpectEq(t.src.Size+17, sr.Size)
+	ExpectFalse(sr.Clobbered)
 }
 
 func (t *ObjectProxyTest) Stat_AfterReading() {
@@ -857,11 +857,11 @@ func (t *ObjectProxyTest) Stat_AfterReading() {
 		WillOnce(oglemock.Return(o, nil))
 
 	// Stat
-	size, clobbered, err := t.op.Stat()
+	sr, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(t.src.Size, size)
-	ExpectFalse(clobbered)
+	ExpectEq(t.src.Size, sr.Size)
+	ExpectFalse(sr.Clobbered)
 }
 
 func (t *ObjectProxyTest) Stat_AfterWriting() {
@@ -886,11 +886,11 @@ func (t *ObjectProxyTest) Stat_AfterWriting() {
 		WillOnce(oglemock.Return(o, nil))
 
 	// Stat
-	size, clobbered, err := t.op.Stat()
+	sr, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(t.src.Size+int64(len("taco")), size)
-	ExpectFalse(clobbered)
+	ExpectEq(t.src.Size+int64(len("taco")), sr.Size)
+	ExpectFalse(sr.Clobbered)
 }
 
 func (t *ObjectProxyTest) Stat_ClobberedByNewGeneration_NotDirty() {
@@ -905,11 +905,11 @@ func (t *ObjectProxyTest) Stat_ClobberedByNewGeneration_NotDirty() {
 		WillOnce(oglemock.Return(o, nil))
 
 	// Stat
-	size, clobbered, err := t.op.Stat()
+	sr, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(t.src.Size, size)
-	ExpectTrue(clobbered)
+	ExpectEq(t.src.Size, sr.Size)
+	ExpectTrue(sr.Clobbered)
 }
 
 func (t *ObjectProxyTest) Stat_ClobberedByNewGeneration_Dirty() {
@@ -933,9 +933,9 @@ func (t *ObjectProxyTest) Stat_ClobberedByNewGeneration_Dirty() {
 		WillOnce(oglemock.Return(o, nil))
 
 	// Stat
-	size, clobbered, err := t.op.Stat()
+	sr, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(t.src.Size+17, size)
-	ExpectTrue(clobbered)
+	ExpectEq(t.src.Size+17, sr.Size)
+	ExpectTrue(sr.Clobbered)
 }
