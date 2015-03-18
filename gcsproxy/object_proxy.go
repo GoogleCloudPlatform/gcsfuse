@@ -230,7 +230,10 @@ func (op *ObjectProxy) WriteAt(
 		return
 	}
 
+	newMtime := op.clock.Now()
+
 	op.dirty = true
+	op.mtime = &newMtime
 	n, err = op.localFile.WriteAt(buf, offset)
 
 	return
@@ -252,7 +255,10 @@ func (op *ObjectProxy) Truncate(ctx context.Context, n int64) (err error) {
 		return
 	}
 
+	newMtime := op.clock.Now()
+
 	op.dirty = true
+	op.mtime = &newMtime
 	err = op.localFile.Truncate(int64(n))
 
 	return
