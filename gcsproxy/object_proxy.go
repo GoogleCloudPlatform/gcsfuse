@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"math"
 	"os"
+	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcsfuse/timeutil"
@@ -58,10 +59,15 @@ type ObjectProxy struct {
 	// 'src' above.
 	localFile *os.File
 
+	// The time at which a method that modifies our contents was last called, or
+	// nil if never.
+	mtime *time.Time
+
 	// true if localFile is present but its contents may be different from the
 	// contents of our source generation. Sync needs to do work iff this is true.
 	//
 	// INVARIANT: If dirty, then localFile != nil
+	// INVARIANT: If dirty, then mtime != nil
 	dirty bool
 }
 
@@ -117,6 +123,11 @@ func (op *ObjectProxy) CheckInvariants() {
 	// INVARIANT: If dirty, then localFile != nil
 	if op.dirty && op.localFile == nil {
 		panic("Expected non-nil localFile.")
+	}
+
+	// INVARIANT: If dirty, then mtime != nil
+	if op.dirty && op.mtime == nil {
+		panic("Expected non-nil mtime.")
 	}
 }
 
