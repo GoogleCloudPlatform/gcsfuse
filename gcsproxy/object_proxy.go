@@ -63,6 +63,15 @@ type ObjectProxy struct {
 	dirty bool
 }
 
+type StatResult struct {
+	// The current size in bytes of the content, including any local
+	// modifications that have not been Sync'd.
+	Size int64
+
+	// Has the object changed out from under us in GCS? If so, Sync will fail.
+	Clobbered bool
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
