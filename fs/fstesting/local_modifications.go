@@ -613,39 +613,249 @@ type fileTest struct {
 }
 
 func (t *fileTest) WriteOverlapsEndOfFile() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Make it 4 bytes long.
+	err = f.Truncate(4)
+	AssertEq(nil, err)
+
+	// Write the range [2, 6).
+	n, err = f.WriteAt([]byte("taco"), 2)
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Read the full contents of the file.
+	contents, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	ExpectEq("\x00\x00taco", string(contents))
 }
 
 func (t *fileTest) WriteStartsAtEndOfFile() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Make it 2 bytes long.
+	err = f.Truncate(2)
+	AssertEq(nil, err)
+
+	// Write the range [2, 6).
+	n, err = f.WriteAt([]byte("taco"), 2)
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Read the full contents of the file.
+	contents, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	ExpectEq("\x00\x00taco", string(contents))
 }
 
 func (t *fileTest) WriteStartsPastEndOfFile() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Write the range [2, 6).
+	n, err = f.WriteAt([]byte("taco"), 2)
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Read the full contents of the file.
+	contents, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	ExpectEq("\x00\x00taco", string(contents))
 }
 
 func (t *fileTest) WriteAtDoesntChangeOffset_NotAppendMode() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Make it 16 bytes long.
+	err = f.Truncate(16)
+	AssertEq(nil, err)
+
+	// Seek to offset 4.
+	_, err = f.Seek(4, 0)
+	AssertEq(nil, err)
+
+	// Write the range [10, 14).
+	n, err = f.WriteAt([]byte("taco"), 2)
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// We should still be at offset 4.
+	offset, err := getFileOffset(f)
+	AssertEq(nil, err)
+	ExpectEq(4, offset)
 }
 
 func (t *fileTest) WriteAtDoesntChangeOffset_AppendMode() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+
+	// Create a file in append mode.
+	f, err := os.OpenFile(
+		path.Join(t.mfs.Dir(), "foo"),
+		os.O_RDWR|os.O_APPEND|os.O_CREATE,
+		0600)
+
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Make it 16 bytes long.
+	err = f.Truncate(16)
+	AssertEq(nil, err)
+
+	// Seek to offset 4.
+	_, err = f.Seek(4, 0)
+	AssertEq(nil, err)
+
+	// Write the range [10, 14).
+	n, err = f.WriteAt([]byte("taco"), 2)
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// We should still be at offset 4.
+	offset, err := getFileOffset(f)
+	AssertEq(nil, err)
+	ExpectEq(4, offset)
 }
 
 func (t *fileTest) ReadsPastEndOfFile() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+	buf := make([]byte, 1024)
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Give it some contents.
+	n, err = f.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Read a range overlapping EOF.
+	n, err = f.ReadAt(buf[:4], 2)
+	AssertEq(io.EOF, err)
+	ExpectEq(2, n)
+	ExpectEq("co", string(buf[:n]))
+
+	// Read a range starting at EOF.
+	n, err = f.ReadAt(buf[:4], 4)
+	AssertEq(io.EOF, err)
+	ExpectEq(0, n)
+	ExpectEq("", string(buf[:n]))
+
+	// Read a range starting past EOF.
+	n, err = f.ReadAt(buf[:4], 100)
+	AssertEq(io.EOF, err)
+	ExpectEq(0, n)
+	ExpectEq("", string(buf[:n]))
 }
 
 func (t *fileTest) Truncate_Smaller() {
-	AssertTrue(false, "TODO")
+	var err error
+	fileName := path.Join(t.mfs.Dir(), "foo")
+
+	// Create a file.
+	err = ioutil.WriteFile(fileName, []byte("taco"), 0600)
+	AssertEq(nil, err)
+
+	// Open it for modification.
+	f, err := os.OpenFile(fileName, os.O_RDWR, 0)
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Truncate it.
+	err = f.Truncate(2)
+	AssertEq(nil, err)
+
+	// Stat it.
+	fi, err := f.Stat()
+	AssertEq(nil, err)
+	ExpectEq(2, fi.Size())
+
+	// Read the contents.
+	contents, err := ioutil.ReadFile(fileName)
+	AssertEq(nil, err)
+	ExpectEq("ta", string(contents))
 }
 
 func (t *fileTest) Truncate_SameSize() {
-	AssertTrue(false, "TODO")
+	var err error
+	fileName := path.Join(t.mfs.Dir(), "foo")
+
+	// Create a file.
+	err = ioutil.WriteFile(fileName, []byte("taco"), 0600)
+	AssertEq(nil, err)
+
+	// Open it for modification.
+	f, err := os.OpenFile(fileName, os.O_RDWR, 0)
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Truncate it.
+	err = f.Truncate(4)
+	AssertEq(nil, err)
+
+	// Stat it.
+	fi, err := f.Stat()
+	AssertEq(nil, err)
+	ExpectEq(4, fi.Size())
+
+	// Read the contents.
+	contents, err := ioutil.ReadFile(fileName)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
 }
 
 func (t *fileTest) Truncate_Larger() {
-	AssertTrue(false, "TODO")
+	var err error
+	fileName := path.Join(t.mfs.Dir(), "foo")
+
+	// Create a file.
+	err = ioutil.WriteFile(fileName, []byte("taco"), 0600)
+	AssertEq(nil, err)
+
+	// Open it for modification.
+	f, err := os.OpenFile(fileName, os.O_RDWR, 0)
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Truncate it.
+	err = f.Truncate(6)
+	AssertEq(nil, err)
+
+	// Stat it.
+	fi, err := f.Stat()
+	AssertEq(nil, err)
+	ExpectEq(6, fi.Size())
+
+	// Read the contents.
+	contents, err := ioutil.ReadFile(fileName)
+	AssertEq(nil, err)
+	ExpectEq("taco\x00\x00", string(contents))
 }
 
 func (t *fileTest) Seek() {

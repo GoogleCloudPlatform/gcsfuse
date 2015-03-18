@@ -41,6 +41,9 @@ type fsTest struct {
 	clock  timeutil.Clock
 	bucket gcs.Bucket
 	mfs    *fuse.MountedFileSystem
+
+	// Files to close when tearing down. Nil entries are skipped.
+	toClose []io.Closer
 }
 
 var _ fsTestInterface = &fsTest{}
@@ -73,6 +76,18 @@ func (t *fsTest) setUpFsTest(deps FSTestDeps) {
 }
 
 func (t *fsTest) tearDownFsTest() {
+	// Close any files we opened.
+	for _, c := range t.toClose {
+		if c == nil {
+			continue
+		}
+
+		err := c.Close()
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	// Unmount the file system. Try again on "resource busy" errors.
 	delay := 10 * time.Millisecond
 	for {
