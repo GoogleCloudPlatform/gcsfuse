@@ -175,7 +175,7 @@ func readEntries(
 // called (since fuse gives us no way to intercept and know for sure), and
 // start the listing process over again.
 //
-// EXCLUSIVE_LOCKS_REQUIRED(dh.Mu)
+// LOCKS_REQUIRED(dh.Mu)
 func (dh *dirHandle) ReadDir(
 	ctx context.Context,
 	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {

@@ -276,8 +276,8 @@ func (fs *fileSystem) checkInvariants() {
 
 // Get attributes for the inode, fixing up ownership information.
 //
-// SHARED_LOCKS_REQUIRED(fs.mu)
-// EXCLUSIVE_LOCKS_REQUIRED(in)
+// LOCKS_REQUIRED(fs.mu)
+// LOCKS_REQUIRED(in)
 func (fs *fileSystem) getAttributes(
 	ctx context.Context,
 	in inode.Inode) (attrs fuse.InodeAttributes, err error) {
@@ -295,7 +295,7 @@ func (fs *fileSystem) getAttributes(
 // Find a directory inode for the given object record. Create one if there
 // isn't already one available.
 //
-// EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
+// LOCKS_REQUIRED(fs.mu)
 func (fs *fileSystem) lookUpOrCreateDirInode(
 	ctx context.Context,
 	o *storage.Object) (in *inode.DirInode, err error) {
@@ -319,7 +319,7 @@ func (fs *fileSystem) lookUpOrCreateDirInode(
 // Find a file inode for the given object record. Create one if there isn't
 // already one available.
 //
-// EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
+// LOCKS_REQUIRED(fs.mu)
 func (fs *fileSystem) lookUpOrCreateFileInode(
 	ctx context.Context,
 	o *storage.Object) (in *inode.FileInode, err error) {
@@ -411,8 +411,8 @@ func (fs *fileSystem) GetInodeAttributes(
 	resp *fuse.GetInodeAttributesResponse, err error) {
 	resp = &fuse.GetInodeAttributesResponse{}
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Find the inode.
 	in := fs.inodes[req.Inode]
@@ -459,8 +459,8 @@ func (fs *fileSystem) OpenDir(
 func (fs *fileSystem) ReadDir(
 	ctx context.Context,
 	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Find the handle.
 	dh := fs.handles[req.Handle].(*dirHandle)
@@ -502,8 +502,8 @@ func (fs *fileSystem) OpenFile(
 	resp *fuse.OpenFileResponse, err error) {
 	resp = &fuse.OpenFileResponse{}
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Sanity check that this inode exists and is of the correct type.
 	_ = fs.inodes[req.Inode].(*inode.FileInode)
@@ -515,8 +515,8 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	req *fuse.ReadFileRequest) (resp *fuse.ReadFileResponse, err error) {
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Find the inode.
 	in := fs.inodes[req.Inode].(*inode.FileInode)
