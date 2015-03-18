@@ -859,7 +859,33 @@ func (t *fileTest) Truncate_Larger() {
 }
 
 func (t *fileTest) Seek() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+	buf := make([]byte, 1024)
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Give it some contents.
+	n, err = f.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Seek and overwrite.
+	off, err := f.Seek(1, 0)
+	AssertEq(nil, err)
+	AssertEq(1, off)
+
+	n, err = f.Write([]byte("xx"))
+	AssertEq(nil, err)
+	AssertEq(2, n)
+
+	// Read full the contents of the file.
+	n, err = f.ReadAt(buf, 0)
+	AssertEq(io.EOF, err)
+	ExpectEq("txxo", string(buf[:n]))
 }
 
 func (t *fileTest) Stat() {
