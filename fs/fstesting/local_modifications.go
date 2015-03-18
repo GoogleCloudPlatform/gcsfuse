@@ -26,6 +26,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"syscall"
 
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -572,6 +573,14 @@ type directoryTest struct {
 	fsTest
 }
 
+func (t *directoryTest) Stat() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *directoryTest) ReadDir() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *directoryTest) Mkdir_OneLevel() {
 	AssertTrue(false, "TODO")
 }
@@ -889,7 +898,36 @@ func (t *fileTest) Seek() {
 }
 
 func (t *fileTest) Stat() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Give it some contents.
+	t.advanceTime()
+	writeTime := t.clock.Now()
+
+	n, err = f.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	t.advanceTime()
+
+	// Stat it.
+	fi, err := f.Stat()
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(len("taco"), fi.Size())
+	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectThat(fi.ModTime(), t.matchesStartTime(writeTime))
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *fileTest) StatUnopenedFile() {
