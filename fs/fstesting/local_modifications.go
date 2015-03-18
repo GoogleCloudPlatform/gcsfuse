@@ -25,10 +25,21 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"runtime"
 
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func getFileOffset(f *os.File) (offset int64, err error) {
+	const relativeToCurrent = 1
+	offset, err = f.Seek(0, relativeToCurrent)
+	return
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Open
@@ -365,7 +376,7 @@ func (t *modesTest) AppendMode_WriteOnly() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *modesTest) AppendMode_ReadWrite() {
+func (t *modesTest) AppendMode_SeekAndWrite() {
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -393,45 +404,152 @@ func (t *modesTest) AppendMode_ReadWrite() {
 	_, err = f.Write([]byte("222"))
 	AssertEq(nil, err)
 
-	// Write to the middle of the file using File.WriteAt.
-	_, err = f.WriteAt([]byte("111"), 4)
+	// The seek position should have been updated.
+	off, err := getFileOffset(f)
 	AssertEq(nil, err)
-
-	// Write well past the end of the file using File.WriteAt.
-	_, err = f.WriteAt([]byte("333"), 100)
-	AssertEq(nil, err)
+	ExpectEq(len(contents)+len("222"), off)
 
 	// Check the size now.
 	fi, err := f.Stat()
 	AssertEq(nil, err)
-	ExpectEq(len(contents)+len("222333"), fi.Size())
-
-	// Read some contents with Seek and Read.
-	_, err = f.Seek(4, 0)
-	AssertEq(nil, err)
-
-	buf := make([]byte, 4)
-	_, err = io.ReadFull(f, buf)
-
-	AssertEq(nil, err)
-	ExpectEq("111r", string(buf))
+	ExpectEq(len(contents)+len("222"), fi.Size())
 
 	// Read the full contents with ReadAt.
-	buf = make([]byte, len(contents)+len("222333"))
-	_, err = f.ReadAt(buf, 0)
+	buf := make([]byte, 1024)
+	n, err := f.ReadAt(buf, 0)
 
-	AssertEq(nil, err)
-	ExpectEq("taco111ritoenchilada222333", string(buf))
+	AssertEq(io.EOF, err)
+	ExpectEq(contents+"222", string(buf[:n]))
 
-	// Close the file.
-	AssertEq(nil, f.Close())
-	f = nil
-
-	// Read back its contents.
+	// Read the full contents with another file handle.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertEq(nil, err)
-	ExpectEq("taco111ritoenchilada222333", string(fileContents))
+	ExpectEq(contents+"222", string(fileContents))
+}
+
+func (t *modesTest) AppendMode_WriteAt() {
+	// Linux's support for pwrite is buggy; the pwrite(2) man page says this:
+	//
+	//     POSIX requires that opening a file with the O_APPEND flag should have
+	//     no affect on the location at which pwrite() writes data.  However, on
+	//     Linux,  if  a  file  is opened with O_APPEND, pwrite() appends data to
+	//     the end of the file, regardless of the value of offset.
+	//
+	isLinux := (runtime.GOOS == "linux")
+
+	// Create a file.
+	const contents = "tacoburritoenchilada"
+	AssertEq(
+		nil,
+		ioutil.WriteFile(
+			path.Join(t.mfs.Dir(), "foo"),
+			[]byte(contents),
+			os.FileMode(0644)))
+
+	// Open the file.
+	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR|os.O_APPEND, 0)
+	AssertEq(nil, err)
+
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	// Seek somewhere in the file.
+	_, err = f.Seek(1, 0)
+	AssertEq(nil, err)
+
+	// Write to the middle of the file using File.WriteAt.
+	_, err = f.WriteAt([]byte("111"), 4)
+	AssertEq(nil, err)
+
+	// The seek position should have been unaffected.
+	off, err := getFileOffset(f)
+	AssertEq(nil, err)
+	ExpectEq(1, off)
+
+	// Check the size now.
+	fi, err := f.Stat()
+	AssertEq(nil, err)
+
+	if isLinux {
+		ExpectEq(len(contents+"111"), fi.Size())
+	} else {
+		ExpectEq(len(contents), fi.Size())
+	}
+
+	// Read the full contents with ReadAt.
+	buf := make([]byte, 1024)
+	n, err := f.ReadAt(buf, 0)
+
+	AssertEq(io.EOF, err)
+	if isLinux {
+		ExpectEq("tacoburritoenchilada111", string(buf[:n]))
+	} else {
+		ExpectEq("taco111ritoenchilada", string(buf[:n]))
+	}
+
+	// Read the full contents with another file handle.
+	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertEq(nil, err)
+	if isLinux {
+		ExpectEq("tacoburritoenchilada111", string(fileContents))
+	} else {
+		ExpectEq("taco111ritoenchilada", string(fileContents))
+	}
+}
+
+func (t *modesTest) AppendMode_WriteAt_PastEOF() {
+	// Linux's support for pwrite is buggy; the pwrite(2) man page says this:
+	//
+	//     POSIX requires that opening a file with the O_APPEND flag should have
+	//     no affect on the location at which pwrite() writes data.  However, on
+	//     Linux,  if  a  file  is opened with O_APPEND, pwrite() appends data to
+	//     the end of the file, regardless of the value of offset.
+	//
+	isLinux := (runtime.GOOS == "linux")
+
+	// Open a file.
+	f, err := os.OpenFile(
+		path.Join(t.mfs.Dir(), "foo"),
+		os.O_RDWR|os.O_APPEND|os.O_CREATE,
+		0600)
+
+	AssertEq(nil, err)
+
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	// Write three bytes.
+	n, err := f.Write([]byte("111"))
+	AssertEq(nil, err)
+	AssertEq(3, n)
+
+	// Write at offset six.
+	n, err = f.WriteAt([]byte("222"), 6)
+	AssertEq(nil, err)
+	AssertEq(3, n)
+
+	// The seek position should have been unaffected.
+	off, err := getFileOffset(f)
+	AssertEq(nil, err)
+	ExpectEq(3, off)
+
+	// Read the full contents of the file.
+	contents, err := ioutil.ReadFile(f.Name())
+	AssertEq(nil, err)
+
+	if isLinux {
+		ExpectEq("111222", string(contents))
+	} else {
+		ExpectEq("111\x00\x00\x00222", string(contents))
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
