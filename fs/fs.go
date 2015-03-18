@@ -16,7 +16,9 @@ package fs
 
 import (
 	"fmt"
+	"os/user"
 	"reflect"
+	"strconv"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -39,18 +41,20 @@ type fileSystem struct {
 	bucket gcs.Bucket
 
 	/////////////////////////
+	// Constant data
+	/////////////////////////
+
+	// The user and group owning everything in the file system.
+	uid uint32
+	gid uint32
+
+	/////////////////////////
 	// Mutable state
 	/////////////////////////
 
 	// When acquiring this lock, the caller must hold no inode or dir handle
 	// locks.
 	mu syncutil.InvariantMutex
-
-	// The user and group owning everything in the file system.
-	//
-	// GUARDED_BY(Mu)
-	uid uint32
-	gid uint32
 
 	// The collection of live inodes, keyed by inode ID. No ID less than
 	// fuse.RootInodeID is ever used.
@@ -116,16 +120,51 @@ type nameAndGen struct {
 	gen  int64
 }
 
+func getUser() (uid uint32, gid uint32, err error) {
+	// Ask for the current user.
+	user, err := user.Current()
+	if err != nil {
+		panic(err)
+	}
+
+	// Parse UID.
+	uid64, err := strconv.ParseUint(user.Uid, 10, 32)
+	if err != nil {
+		err = fmt.Errorf("Parsing UID (%s): %v", user.Uid, err)
+		return
+	}
+
+	// Parse GID.
+	gid64, err := strconv.ParseUint(user.Gid, 10, 32)
+	if err != nil {
+		err = fmt.Errorf("Parsing GID (%s): %v", user.Gid, err)
+		return
+	}
+
+	uid = uint32(uid64)
+	gid = uint32(gid64)
+
+	return
+}
+
 // Create a fuse file system whose root directory is the root of the supplied
 // bucket. The supplied clock will be used for cache invalidation, modification
 // times, etc.
 func NewFileSystem(
 	clock timeutil.Clock,
 	bucket gcs.Bucket) (ffs fuse.FileSystem, err error) {
+	// Get ownership information.
+	uid, gid, err := getUser()
+	if err != nil {
+		return
+	}
+
 	// Set up the basic struct.
 	fs := &fileSystem{
 		clock:       clock,
 		bucket:      bucket,
+		uid:         uid,
+		gid:         gid,
 		inodes:      make(map[fuse.InodeID]inode.Inode),
 		nextInodeID: fuse.RootInodeID + 1,
 		dirIndex:    make(map[string]*inode.DirInode),
@@ -319,13 +358,6 @@ func (fs *fileSystem) Init(
 	ctx context.Context,
 	req *fuse.InitRequest) (resp *fuse.InitResponse, err error) {
 	resp = &fuse.InitResponse{}
-
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
-	// Store the mounting user's info for later.
-	fs.uid = req.Header.Uid
-	fs.gid = req.Header.Gid
 
 	return
 }
