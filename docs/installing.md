@@ -68,8 +68,11 @@ OS X users must install [osxfuse][] before running gcsfuse.
 The `go get` command bbelow will need to fetch source code from GitHub, which
 requires [Git][git]. If the `git` binary is not installed on your system,
 download it [here][git-download] or install it by some other means (for example
-on Google Compute Engine Debian instances you can run `sudo apt-get update &&
-sudo apt-get install git-core`).
+on Google Compute Engine Debian instances you can run:
+
+```
+sudo apt-get update && sudo apt-get install git-core
+```
 
 [git]: http://git-scm.com/
 [git-download]: http://git-scm.com/downloads
