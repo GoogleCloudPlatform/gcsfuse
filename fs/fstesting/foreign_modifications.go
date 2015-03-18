@@ -29,7 +29,9 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"os/user"
 	"path"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -83,6 +85,34 @@ func readRange(r io.ReadSeeker, offset int64, n int) (s string, err error) {
 
 	s = string(bytes)
 	return
+}
+
+func currentUid() uint32 {
+	user, err := user.Current()
+	if err != nil {
+		panic(err)
+	}
+
+	uid, err := strconv.ParseUint(user.Uid, 10, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	return uint32(uid)
+}
+
+func currentGid() uint32 {
+	user, err := user.Current()
+	if err != nil {
+		panic(err)
+	}
+
+	gid, err := strconv.ParseUint(user.Gid, 10, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	return uint32(gid)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -317,6 +347,8 @@ func (t *foreignModsTest) ContentsInRoot() {
 	ExpectEq(0700|os.ModeDir, e.Mode())
 	ExpectTrue(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
 
 	// baz
 	e = entries[1]
@@ -326,6 +358,8 @@ func (t *foreignModsTest) ContentsInRoot() {
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
 
 	// foo
 	e = entries[2]
@@ -335,6 +369,8 @@ func (t *foreignModsTest) ContentsInRoot() {
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *foreignModsTest) EmptySubDirectory() {
@@ -437,6 +473,8 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 	ExpectEq(0700|os.ModeDir, e.Mode())
 	ExpectTrue(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
 
 	// baz
 	e = entries[1]
@@ -446,6 +484,8 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
 
 	// foo
 	e = entries[2]
@@ -455,6 +495,8 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *foreignModsTest) Inodes() {
