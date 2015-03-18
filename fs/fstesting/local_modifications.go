@@ -414,11 +414,11 @@ func (t *modesTest) AppendMode_SeekAndWrite() {
 	ExpectEq(len(contents)+len("222"), fi.Size())
 
 	// Read the full contents with ReadAt.
-	buf := make([]byte, len(contents)+len("222"))
-	_, err = f.ReadAt(buf, 0)
+	buf := make([]byte, 1024)
+	n, err := f.ReadAt(buf, 0)
 
-	AssertEq(nil, err)
-	ExpectEq(contents+"222", string(buf))
+	AssertEq(io.EOF, err)
+	ExpectEq(contents+"222", string(buf[:n]))
 
 	// Read the full contents with another file handle.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
@@ -467,17 +467,10 @@ func (t *modesTest) AppendMode_WriteAt() {
 
 	// Read the full contents with ReadAt.
 	buf := make([]byte, 1024)
-	_, err = f.ReadAt(buf, 0)
+	n, err := f.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
-	ExpectEq("taco111ritoenchilada", string(buf))
-
-	// Read the full contents with ReadAt.
-	buf = make([]byte, len(contents)+len("222333"))
-	_, err = f.ReadAt(buf, 0)
-
-	AssertEq(nil, err)
-	ExpectEq("taco111ritoenchilada", string(buf))
+	ExpectEq("taco111ritoenchilada", string(buf[:n]))
 
 	// Read the full contents with another file handle.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
