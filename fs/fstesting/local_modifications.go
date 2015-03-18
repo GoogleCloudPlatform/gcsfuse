@@ -26,6 +26,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"syscall"
 
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -572,6 +573,14 @@ type directoryTest struct {
 	fsTest
 }
 
+func (t *directoryTest) Stat() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *directoryTest) ReadDir() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *directoryTest) Mkdir_OneLevel() {
 	AssertTrue(false, "TODO")
 }
@@ -601,6 +610,14 @@ func (t *directoryTest) Rmdir_Empty() {
 }
 
 func (t *directoryTest) Rmdir_OpenedForReading() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *directoryTest) CreateHardLink() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *directoryTest) CreateSymlink() {
 	AssertTrue(false, "TODO")
 }
 
@@ -859,35 +876,193 @@ func (t *fileTest) Truncate_Larger() {
 }
 
 func (t *fileTest) Seek() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+	buf := make([]byte, 1024)
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Give it some contents.
+	n, err = f.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Seek and overwrite.
+	off, err := f.Seek(1, 0)
+	AssertEq(nil, err)
+	AssertEq(1, off)
+
+	n, err = f.Write([]byte("xx"))
+	AssertEq(nil, err)
+	AssertEq(2, n)
+
+	// Read full the contents of the file.
+	n, err = f.ReadAt(buf, 0)
+	AssertEq(io.EOF, err)
+	ExpectEq("txxo", string(buf[:n]))
 }
 
 func (t *fileTest) Stat() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Give it some contents.
+	t.advanceTime()
+	writeTime := t.clock.Now()
+
+	n, err = f.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	t.advanceTime()
+
+	// Stat it.
+	fi, err := f.Stat()
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(len("taco"), fi.Size())
+	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectThat(fi.ModTime(), t.matchesStartTime(writeTime))
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *fileTest) StatUnopenedFile() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create and close a file.
+	t.advanceTime()
+	createTime := t.clock.Now()
+
+	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "foo"), []byte("taco"), 0700)
+	AssertEq(nil, err)
+
+	t.advanceTime()
+
+	// Stat it.
+	fi, err := os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(len("taco"), fi.Size())
+	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *fileTest) LstatUnopenedFile() {
-	AssertTrue(false, "TODO")
-}
+	var err error
 
-func (t *fileTest) BufferedWritesFlushedOnUnmount() {
-	AssertTrue(false, "TODO")
+	// Create and close a file.
+	t.advanceTime()
+	createTime := t.clock.Now()
+
+	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "foo"), []byte("taco"), 0700)
+	AssertEq(nil, err)
+
+	t.advanceTime()
+
+	// Lstat it.
+	fi, err := os.Lstat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(len("taco"), fi.Size())
+	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *fileTest) UnlinkFile_Exists() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Write a file.
+	fileName := path.Join(t.mfs.Dir(), "foo")
+	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
+	AssertEq(nil, err)
+
+	// Unlink it.
+	err = os.Remove(fileName)
+	AssertEq(nil, err)
+
+	// Statting it should fail.
+	_, err = os.Stat(fileName)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
+
+	// Nothing should be in the directory.
+	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
 }
 
 func (t *fileTest) UnlinkFile_NonExistent() {
-	AssertTrue(false, "TODO")
+	err := os.Remove(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
 func (t *fileTest) UnlinkFile_StillOpen() {
-	AssertTrue(false, "TODO")
+	fileName := path.Join(t.mfs.Dir(), "foo")
+
+	// Create and open a file.
+	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0600)
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Write some data into it.
+	n, err := f.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Unlink it.
+	err = os.Remove(fileName)
+	AssertEq(nil, err)
+
+	// The directory should no longer contain it.
+	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
+
+	// We should be able to stat the file. It should still show as having
+	// contents, but with no links.
+	fi, err := f.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq(4, fi.Size())
+	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	// The contents should still be available.
+	buf := make([]byte, 1024)
+	n, err = f.ReadAt(buf, 0)
+
+	AssertEq(io.EOF, err)
+	AssertEq(4, n)
+	ExpectEq("taco", string(buf[:4]))
+
+	// Writing should still work, too.
+	n, err = f.Write([]byte("burrito"))
+	AssertEq(nil, err)
+	AssertEq(len("burrito"), n)
 }
 
 func (t *fileTest) Chmod() {
@@ -905,5 +1080,9 @@ func (t *fileTest) Sync() {
 
 func (t *fileTest) Close() {
 	// Make sure to test that the content shows up in the bucket.
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) BufferedWritesFlushedOnUnmount() {
 	AssertTrue(false, "TODO")
 }
