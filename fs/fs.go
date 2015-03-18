@@ -592,3 +592,23 @@ func (fs *fileSystem) ReadFile(
 
 	return
 }
+
+// LOCKS_EXCLUDED(fs.mu)
+//
+// TODO(jacobsa): Make sure there is a test for fsync and close behavior.
+func (fs *fileSystem) WriteFile(
+	ctx context.Context,
+	req *fuse.WriteFileRequest) (resp *fuse.WriteFileResponse, err error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Find the inode.
+	in := fs.inodes[req.Inode].(*inode.FileInode)
+	in.Lock()
+	defer in.Unlock()
+
+	// Serve the request.
+	resp, err = in.Write(ctx, req)
+
+	return
+}
