@@ -2,11 +2,20 @@
 
 ## Go
 
-gcsfuse is distributed as source code in the [Go][go] language. If you do not
-yet have Go installed, see [here][go-install] for instructions. Be sure to
-follow the linked [setup instructions][go-setup], in particular setting the
-`GOPATH` environment variable and ensuring `$GOPATH/bin` is in your `PATH`
-environment variable.
+gcsfuse is distributed as source code in the [Go][go] language. If you already
+have a working Go environment at the latest version, you can skip this section.
+
+If you do not yet have Go installed, see [here][go-install] for instructions.
+Be sure to follow the linked [setup instructions][go-setup], in particular
+setting the `GOPATH` environment variable and ensuring both the `go` tool and
+`$GOPATH/bin` are in your `PATH` environment variable. That probably involves
+putting something that looks like this in your shell environment:
+
+```
+export GOPATH=$HOME/go
+export PATH=$PATH:/usr/local/go/bin
+export PATH=$PATH:$GOPATH/bin
+```
 
 [go]: http://golang.org/
 [go-install]: http://golang.org/doc/install
