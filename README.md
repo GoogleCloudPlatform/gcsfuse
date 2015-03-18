@@ -2,15 +2,15 @@ This is a user-space file system for interacting with [Google Cloud
 Storage][gcs]. It is not yet ready for public consumption, so please do not use
 it for anything of importance in its current state.
 
-[gcs]: https://cloud.google.com/storage/
+[gcs]: https://cloud.google.com/storage/docs
 
 
 # Installing
 
-See [installing.md][] for full installation instructions. The summary is that if
+See [installing.md][installing.md] for full installation instructions. The summary is that if
 you already have Go, fuse, and Git installed, you need only run:
 
-[installing.md]: https://github.com/jacobsa/gcsfuse/blob/master/docs/installing.md
+[installing.md]: docs/installing.md
 
 ```
 go get github.com/jacobsa/gcsfuse
@@ -34,7 +34,7 @@ instructions [here][create-key] to create a service account, generate a private
 key, and download a JSON file containing the private key. Place the JSON file on
 the machine that will be mounting the bucket.
 
-[console]: console.developers.google.com
+[console]: https://console.developers.google.com/project/_/storage/browser
 [service account]: https://cloud.google.com/storage/docs/authentication#service_accounts
 [create-key]: https://cloud.google.com/storage/docs/authentication#generating-a-private-key
 
