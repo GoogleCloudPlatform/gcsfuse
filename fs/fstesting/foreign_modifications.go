@@ -29,7 +29,9 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"os/user"
 	"path"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -83,6 +85,34 @@ func readRange(r io.ReadSeeker, offset int64, n int) (s string, err error) {
 
 	s = string(bytes)
 	return
+}
+
+func currentUid() uint32 {
+	user, err := user.Current()
+	if err != nil {
+		panic(err)
+	}
+
+	uid, err := strconv.ParseUint(user.Uid, 10, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	return uint32(uid)
+}
+
+func currentGid() uint32 {
+	user, err := user.Current()
+	if err != nil {
+		panic(err)
+	}
+
+	gid, err := strconv.ParseUint(user.Gid, 10, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	return uint32(gid)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -258,7 +288,20 @@ func (t *foreignModsTest) readDirUntil(
 	return
 }
 
-func (t *foreignModsTest) EmptyRoot() {
+func (t *foreignModsTest) StatRoot() {
+	fi, err := os.Stat(t.mfs.Dir())
+	AssertEq(nil, err)
+
+	ExpectEq(path.Base(t.mfs.Dir()), fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(0700|os.ModeDir, fi.Mode())
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+}
+
+func (t *foreignModsTest) ReadDir_EmptyRoot() {
 	// ReadDir
 	entries, err := t.readDirUntil(0, t.mfs.Dir())
 	AssertEq(nil, err)
@@ -266,7 +309,7 @@ func (t *foreignModsTest) EmptyRoot() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *foreignModsTest) ContentsInRoot() {
+func (t *foreignModsTest) ReadDir_ContentsInRoot() {
 	// Set up contents.
 	createTime := t.clock.Now()
 	AssertEq(
@@ -314,30 +357,36 @@ func (t *foreignModsTest) ContentsInRoot() {
 	e = entries[0]
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
-	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
+	ExpectEq(0700|os.ModeDir, e.Mode())
 	ExpectTrue(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
 
 	// baz
 	e = entries[1]
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
-	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
+	ExpectEq(os.FileMode(0700), e.Mode())
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
 
 	// foo
 	e = entries[2]
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
-	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
+	ExpectEq(os.FileMode(0700), e.Mode())
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *foreignModsTest) EmptySubDirectory() {
+func (t *foreignModsTest) ReadDir_EmptySubDirectory() {
 	// Set up an empty directory placeholder called 'bar'.
 	AssertEq(nil, t.createEmptyObjects([]string{"bar/"}))
 
@@ -352,32 +401,7 @@ func (t *foreignModsTest) EmptySubDirectory() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *foreignModsTest) UnreachableObjects() {
-	// Set up objects that appear to be directory contents, but for which there
-	// is no directory object.
-	_, err := gcsutil.CreateEmptyObjects(
-		t.ctx,
-		t.bucket,
-		[]string{
-			"foo/0",
-			"foo/1",
-			"bar/0/",
-		})
-
-	AssertEq(nil, err)
-
-	// Nothing should show up in the root.
-	_, err = t.readDirUntil(0, path.Join(t.mfs.Dir()))
-	AssertEq(nil, err)
-
-	// Statting the directories shouldn't work.
-	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
-
-	AssertNe(nil, err)
-	ExpectTrue(os.IsNotExist(err), "err: %v", err)
-}
-
-func (t *foreignModsTest) ContentsInSubDirectory() {
+func (t *foreignModsTest) ReadDir_ContentsInSubDirectory() {
 	// Set up contents.
 	createTime := t.clock.Now()
 	AssertEq(
@@ -434,27 +458,58 @@ func (t *foreignModsTest) ContentsInSubDirectory() {
 	e = entries[0]
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
-	ExpectEq(os.ModeDir, e.Mode() & ^os.ModePerm)
+	ExpectEq(0700|os.ModeDir, e.Mode())
 	ExpectTrue(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
 
 	// baz
 	e = entries[1]
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
-	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
+	ExpectEq(os.FileMode(0700), e.Mode())
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
 
 	// foo
 	e = entries[2]
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
-	ExpectEq(os.FileMode(0), e.Mode() & ^os.ModePerm)
+	ExpectEq(os.FileMode(0700), e.Mode())
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
+}
+
+func (t *foreignModsTest) UnreachableObjects() {
+	// Set up objects that appear to be directory contents, but for which there
+	// is no directory object.
+	_, err := gcsutil.CreateEmptyObjects(
+		t.ctx,
+		t.bucket,
+		[]string{
+			"foo/0",
+			"foo/1",
+			"bar/0/",
+		})
+
+	AssertEq(nil, err)
+
+	// Nothing should show up in the root.
+	_, err = t.readDirUntil(0, path.Join(t.mfs.Dir()))
+	AssertEq(nil, err)
+
+	// Statting the directories shouldn't work.
+	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertNe(nil, err)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
 func (t *foreignModsTest) Inodes() {
