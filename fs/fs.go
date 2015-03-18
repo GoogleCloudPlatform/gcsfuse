@@ -560,9 +560,6 @@ func (fs *fileSystem) ReleaseDirHandle(
 	return
 }
 
-// TODO(jacobsa): Make sure we have failing tests for O_TRUNC behavior, then
-// implement it.
-//
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) OpenFile(
 	ctx context.Context,
