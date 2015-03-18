@@ -205,6 +205,7 @@ func (t *ObjectProxyTest) SetUp(ti *TestInfo) {
 		Name:       "some/object",
 		Generation: 123,
 		Size:       456,
+		Updated:    time.Date(2001, 2, 3, 4, 5, 0, 0, time.Local),
 	}
 
 	t.bucket = mock_gcs.NewMockBucket(ti.MockController, "bucket")
@@ -739,6 +740,7 @@ func (t *ObjectProxyTest) Stat_BucketSaysNotFound_NotDirty() {
 
 	AssertEq(nil, err)
 	ExpectEq(t.src.Size, sr.Size)
+	ExpectThat(sr.Mtime, timeutil.TimeEq(t.src.Updated))
 	ExpectTrue(sr.Clobbered)
 }
 
@@ -749,8 +751,13 @@ func (t *ObjectProxyTest) Stat_BucketSaysNotFound_Dirty() {
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
 
+	t.clock.AdvanceTime(time.Second)
+	truncateTime := t.clock.Now()
+
 	err = t.op.Truncate(17)
 	AssertEq(nil, err)
+
+	t.clock.AdvanceTime(time.Second)
 
 	// StatObject
 	ExpectCall(t.bucket, "StatObject")(Any(), Any()).
@@ -761,6 +768,7 @@ func (t *ObjectProxyTest) Stat_BucketSaysNotFound_Dirty() {
 
 	AssertEq(nil, err)
 	ExpectEq(17, sr.Size)
+	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
 	ExpectTrue(sr.Clobbered)
 }
 
@@ -782,6 +790,7 @@ func (t *ObjectProxyTest) Stat_InitialState() {
 
 	AssertEq(nil, err)
 	ExpectEq(t.src.Size, sr.Size)
+	ExpectThat(sr.Mtime, timeutil.TimeEq(t.src.Updated))
 	ExpectFalse(sr.Clobbered)
 }
 
@@ -792,8 +801,13 @@ func (t *ObjectProxyTest) Stat_AfterShortening() {
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
 
+	t.clock.AdvanceTime(time.Second)
+	truncateTime := t.clock.Now()
+
 	err = t.op.Truncate(t.src.Size - 1)
 	AssertEq(nil, err)
+
+	t.clock.AdvanceTime(time.Second)
 
 	// StatObject
 	o := &storage.Object{
@@ -810,6 +824,7 @@ func (t *ObjectProxyTest) Stat_AfterShortening() {
 
 	AssertEq(nil, err)
 	ExpectEq(t.src.Size-1, sr.Size)
+	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
 	ExpectFalse(sr.Clobbered)
 }
 
@@ -820,8 +835,13 @@ func (t *ObjectProxyTest) Stat_AfterGrowing() {
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
 
+	t.clock.AdvanceTime(time.Second)
+	truncateTime := t.clock.Now()
+
 	err = t.op.Truncate(t.src.Size + 17)
 	AssertEq(nil, err)
+
+	t.clock.AdvanceTime(time.Second)
 
 	// StatObject
 	o := &storage.Object{
@@ -838,6 +858,7 @@ func (t *ObjectProxyTest) Stat_AfterGrowing() {
 
 	AssertEq(nil, err)
 	ExpectEq(t.src.Size+17, sr.Size)
+	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
 	ExpectFalse(sr.Clobbered)
 }
 
@@ -867,6 +888,7 @@ func (t *ObjectProxyTest) Stat_AfterReading() {
 
 	AssertEq(nil, err)
 	ExpectEq(t.src.Size, sr.Size)
+	ExpectThat(sr.Mtime, timeutil.TimeEq(t.src.Updated))
 	ExpectFalse(sr.Clobbered)
 }
 
@@ -878,8 +900,13 @@ func (t *ObjectProxyTest) Stat_AfterWriting() {
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
+	t.clock.AdvanceTime(time.Second)
+	writeTime := t.clock.Now()
+
 	_, err = t.op.WriteAt([]byte("taco"), t.src.Size)
 	AssertEq(nil, err)
+
+	t.clock.AdvanceTime(time.Second)
 
 	// StatObject
 	o := &storage.Object{
@@ -896,6 +923,7 @@ func (t *ObjectProxyTest) Stat_AfterWriting() {
 
 	AssertEq(nil, err)
 	ExpectEq(t.src.Size+int64(len("taco")), sr.Size)
+	ExpectThat(sr.Mtime, timeutil.TimeEq(writeTime))
 	ExpectFalse(sr.Clobbered)
 }
 
@@ -915,6 +943,7 @@ func (t *ObjectProxyTest) Stat_ClobberedByNewGeneration_NotDirty() {
 
 	AssertEq(nil, err)
 	ExpectEq(t.src.Size, sr.Size)
+	ExpectThat(sr.Mtime, timeutil.TimeEq(t.src.Updated))
 	ExpectTrue(sr.Clobbered)
 }
 
@@ -925,8 +954,13 @@ func (t *ObjectProxyTest) Stat_ClobberedByNewGeneration_Dirty() {
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
 
+	t.clock.AdvanceTime(time.Second)
+	truncateTime := t.clock.Now()
+
 	err = t.op.Truncate(t.src.Size + 17)
 	AssertEq(nil, err)
+
+	t.clock.AdvanceTime(time.Second)
 
 	// StatObject
 	o := &storage.Object{
@@ -943,5 +977,6 @@ func (t *ObjectProxyTest) Stat_ClobberedByNewGeneration_Dirty() {
 
 	AssertEq(nil, err)
 	ExpectEq(t.src.Size+17, sr.Size)
+	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
 	ExpectTrue(sr.Clobbered)
 }
