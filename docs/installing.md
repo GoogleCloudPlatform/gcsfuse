@@ -21,11 +21,10 @@ export PATH=$PATH:$GOPATH/bin
 [go-install]: http://golang.org/doc/install
 [go-setup]: http://golang.org/doc/code.html
 
-## FUSE
+## Fuse
 
-OS X only: Before using gcsfuse, you must have [FUSE for OS X][osxfuse].
-Installing FUSE is not necessary on Linux, since modern versions have kernel
-support built in.
+OS X only: Before using gcsfuse, you must have [osxfuse][]. Installing fuse is
+not necessary on Linux, since modern versions have kernel support built in.
 
 [osxfuse]: https://osxfuse.github.io/
 
