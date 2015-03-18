@@ -461,11 +461,14 @@ func (fs *fileSystem) SetInodeAttributes(
 
 	// Set the size, if specified.
 	if req.Size != nil {
-		if err = file.Truncate(int64(*req.Size)); err != nil {
+		if err = file.Truncate(ctx, int64(*req.Size)); err != nil {
 			err = fmt.Errorf("Truncate: %v", err)
 			return
 		}
 	}
+
+	// Fill in the response.
+	panic("TODO")
 
 	return
 }

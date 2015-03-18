@@ -207,3 +207,13 @@ func (f *FileInode) Write(
 
 	return
 }
+
+// Truncate the file to the specified size.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) Truncate(
+	ctx context.Context,
+	size int64) (err error) {
+	err = f.proxy.Truncate(ctx, size)
+	return
+}
