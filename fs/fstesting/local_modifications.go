@@ -931,7 +931,29 @@ func (t *fileTest) Stat() {
 }
 
 func (t *fileTest) StatUnopenedFile() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create and close a file.
+	t.advanceTime()
+	createTime := t.clock.Now()
+
+	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "foo"), []byte("taco"), 0700)
+	AssertEq(nil, err)
+
+	t.advanceTime()
+
+	// Stat it.
+	fi, err := os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(len("taco"), fi.Size())
+	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *fileTest) LstatUnopenedFile() {
