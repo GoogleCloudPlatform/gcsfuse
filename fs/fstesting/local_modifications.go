@@ -552,6 +552,26 @@ type readWriteTest struct {
 	fsTest
 }
 
+func (t *readWriteTest) Mkdir_OneLevel() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) Mkdir_TwoLevels() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) Mkdir_AlreadyExists() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) Mkdir_IntermediateIsFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) Mkdir_IntermediateIsNonExistent() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *readWriteTest) WritePastEndOfFile() {
 	AssertTrue(false, "TODO")
 }
