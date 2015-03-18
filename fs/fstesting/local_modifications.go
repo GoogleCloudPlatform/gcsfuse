@@ -565,6 +565,12 @@ func (t *readWriteTest) Stat() {
 }
 
 func (t *readWriteTest) Sync() {
+	// Make sure to test that the content shows up in the bucket.
+	AssertTrue(false, "TODO")
+}
+
+func (t *readWriteTest) Close() {
+	// Make sure to test that the content shows up in the bucket.
 	AssertTrue(false, "TODO")
 }
 
@@ -601,18 +607,6 @@ func (t *readWriteTest) StatUnopenedFile() {
 }
 
 func (t *readWriteTest) LstatUnopenedFile() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *readWriteTest) ListingsAreCached() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *readWriteTest) AdditionsAreCached() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *readWriteTest) RemovalsAreCached() {
 	AssertTrue(false, "TODO")
 }
 
