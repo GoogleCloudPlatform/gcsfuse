@@ -117,7 +117,8 @@ func RegisterFSTests(conditionName string, makeDeps func() FSTestDeps) {
 		&foreignModsTest{},
 		&openTest{},
 		&modesTest{},
-		&readWriteTest{},
+		&directoryTest{},
+		&fileTest{},
 	}
 
 	// Register each.
