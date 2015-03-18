@@ -162,6 +162,15 @@ func (op *ObjectProxy) Destroy() (err error) {
 // the proxied object has changed out from under us (in which case Sync will
 // fail).
 func (op *ObjectProxy) Stat(ctx context.Context) (sr StatResult, err error) {
+	// If we have ever been modified, our mtime field is authoritative (even if
+	// we've been Sync'd, because Sync is not supposed to affect the mtime).
+	// Otherwise our source object's creation time is our mtime.
+	if op.mtime != nil {
+		sr.Mtime = *op.mtime
+	} else {
+		sr.Mtime = op.src.Updated
+	}
+
 	// If we have a file, it is authoritative for our size. Otherwise our source
 	// size is authoritative.
 	if op.localFile != nil {
