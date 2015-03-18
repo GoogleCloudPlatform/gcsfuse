@@ -288,6 +288,19 @@ func (t *foreignModsTest) readDirUntil(
 	return
 }
 
+func (t *foreignModsTest) StatRoot() {
+	fi, err := os.Stat(t.mfs.Dir())
+	AssertEq(nil, err)
+
+	ExpectEq(path.Base(t.mfs.Dir()), fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(0700|os.ModeDir, fi.Mode())
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+}
+
 func (t *foreignModsTest) ReadDir_EmptyRoot() {
 	// ReadDir
 	entries, err := t.readDirUntil(0, t.mfs.Dir())
