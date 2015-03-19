@@ -888,20 +888,6 @@ func (t *directoryTest) ReadDir_SubDirectory() {
 	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *directoryTest) Rmdir_NonEmpty() {
-	var err error
-
-	// Create two levels of directories.
-	err = os.MkdirAll(path.Join(t.mfs.Dir(), "foo/bar"), 0754)
-	AssertEq(nil, err)
-
-	// Attempt to remove the parent.
-	err = os.Remove(path.Join(t.mfs.Dir(), "foo"))
-
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("not empty")))
-}
-
 func (t *directoryTest) Rmdir_Empty() {
 	var err error
 	var entries []os.FileInfo
