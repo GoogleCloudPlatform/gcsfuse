@@ -22,12 +22,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
-	"github.com/googlecloudplatform/gcsfuse/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )
@@ -470,6 +470,61 @@ func (fs *fileSystem) SetInodeAttributes(
 	// Fill in the response.
 	resp.Attributes, err = fs.getAttributes(ctx, in)
 	if err != nil {
+		return
+	}
+
+	return
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) MkDir(
+	ctx context.Context,
+	req *fuse.MkDirRequest) (
+	resp *fuse.MkDirResponse, err error) {
+	resp = &fuse.MkDirResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Find the parent.
+	parent := fs.inodes[req.Parent]
+
+	parent.Lock()
+	defer parent.Unlock()
+
+	// Create an empty backing object for the child, failing if it already
+	// exists.
+	var precond int64
+	createReq := &gcs.CreateObjectRequest{
+		Attrs: storage.ObjectAttrs{
+			Name: path.Join(parent.Name(), req.Name) + "/",
+		},
+		Contents:               strings.NewReader(""),
+		GenerationPrecondition: &precond,
+	}
+
+	o, err := fs.bucket.CreateObject(ctx, createReq)
+	if err != nil {
+		err = fmt.Errorf("CreateObject: %v", err)
+		return
+	}
+
+	// Create a child inode.
+	id := fs.nextInodeID
+	fs.nextInodeID++
+
+	child := inode.NewDirInode(fs.bucket, id, o.Name)
+	child.Lock()
+	defer child.Unlock()
+
+	// Index the child inode.
+	fs.inodes[child.ID()] = child
+	fs.dirIndex[child.Name()] = child
+
+	// Fill out the response.
+	resp.Entry.Child = child.ID()
+	if resp.Entry.Attributes, err = fs.getAttributes(ctx, child); err != nil {
+		err = fmt.Errorf("getAttributes: %v", err)
 		return
 	}
 
