@@ -226,8 +226,9 @@ func (t *openTest) AlreadyOpenedFile() {
 	AssertEq(2, n)
 	ExpectEq("ta", string(buf[:n]))
 
-	// Write some contents with the second handle.
-	n, err = f1.Write([]byte("nk"))
+	// Write some contents with the second handle, which should now be at offset
+	// 2.
+	n, err = f2.Write([]byte("nk"))
 	AssertEq(nil, err)
 	AssertEq(2, n)
 
