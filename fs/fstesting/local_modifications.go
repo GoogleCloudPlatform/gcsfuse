@@ -938,7 +938,19 @@ func (t *directoryTest) Rmdir_OpenedForReading() {
 }
 
 func (t *directoryTest) CreateHardLink() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Write a file.
+	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "foo"), []byte(""), 0700)
+	AssertEq(nil, err)
+
+	// Attempt to hard link it. We don't support doing so.
+	err = os.Link(
+		path.Join(t.mfs.Dir(), "foo"),
+		path.Join(t.mfs.Dir(), "bar"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
 func (t *directoryTest) CreateSymlink() {
