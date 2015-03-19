@@ -579,7 +579,20 @@ func (t *modesTest) AppendMode_WriteAt_PastEOF() {
 }
 
 func (t *modesTest) ReadFromWriteOnlyFile() {
-	AssertTrue(false, "TODO")
+	// Create and open a file for writing.
+	f, err := os.OpenFile(
+		path.Join(t.mfs.Dir(), "foo"),
+		os.O_WRONLY|os.O_CREATE,
+		0700)
+
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Attempt to read from it.
+	_, err = f.Read(make([]byte, 1024))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 }
 
 func (t *modesTest) WriteToReadOnlyFile() {
