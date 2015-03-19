@@ -887,7 +887,54 @@ func (t *directoryTest) Rmdir_Empty() {
 }
 
 func (t *directoryTest) Rmdir_OpenedForReading() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create a directory.
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "dir"), 0700)
+	AssertEq(nil, err)
+
+	// Open the directory for reading.
+	f, err := os.Open(path.Join(t.mfs.Dir(), "dir"))
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	AssertEq(nil, err)
+
+	// Remove the directory.
+	err = os.Remove(path.Join(t.mfs.Dir(), "dir"))
+	AssertEq(nil, err)
+
+	// Create a new directory, with the same name even, and add some contents
+	// within it.
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "dir/foo"), 0700)
+	AssertEq(nil, err)
+
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "dir/bar"), 0700)
+	AssertEq(nil, err)
+
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "dir/baz"), 0700)
+	AssertEq(nil, err)
+
+	// We should still be able to stat the open file handle. It should show up as
+	// unlinked.
+	fi, err := f.Stat()
+
+	ExpectEq("dir", fi.Name())
+	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	// Attempt to read from the directory. This shouldn't see any junk from the
+	// new directory. It should either succeed with an empty result or should
+	// return ENOENT.
+	entries, err := f.Readdir(0)
+
+	if err != nil {
+		ExpectThat(err, Error(HasSubstr("no such file")))
+	} else {
+		ExpectThat(entries, ElementsAre())
+	}
 }
 
 func (t *directoryTest) CreateHardLink() {
