@@ -858,7 +858,32 @@ func (t *directoryTest) Rmdir_NonEmpty() {
 }
 
 func (t *directoryTest) Rmdir_Empty() {
-	AssertTrue(false, "TODO")
+	var err error
+	var entries []os.FileInfo
+
+	// Create two levels of directories.
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "foo/bar"), 0754)
+	AssertEq(nil, err)
+
+	// Remove the leaf.
+	err = os.Remove(path.Join(t.mfs.Dir(), "foo/bar"))
+	AssertEq(nil, err)
+
+	// There should be nothing left in the parent.
+	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
+
+	// Remove the parent.
+	err = os.Remove(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	// Now the root directory should be empty, too.
+	entries, err = ioutil.ReadDir(t.mfs.Dir())
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
 }
 
 func (t *directoryTest) Rmdir_OpenedForReading() {
