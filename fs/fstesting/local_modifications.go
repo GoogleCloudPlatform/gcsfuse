@@ -733,7 +733,23 @@ func (t *directoryTest) Stat_FirstLevelDirectory() {
 }
 
 func (t *directoryTest) Stat_SecondLevelDirectory() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create two levels of directories.
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "parent/dir"), 0700)
+	AssertEq(nil, err)
+
+	// Stat it.
+	fi, err := os.Stat(path.Join(t.mfs.Dir(), "parent/dir"))
+	AssertEq(nil, err)
+
+	ExpectEq("dir", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *directoryTest) ReadDir_Root() {
