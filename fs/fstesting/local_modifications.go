@@ -575,14 +575,6 @@ type directoryTest struct {
 	fsTest
 }
 
-func (t *directoryTest) Stat() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *directoryTest) ReadDir() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *directoryTest) Mkdir_OneLevel() {
 	AssertTrue(false, "TODO")
 }
@@ -600,6 +592,22 @@ func (t *directoryTest) Mkdir_IntermediateIsFile() {
 }
 
 func (t *directoryTest) Mkdir_IntermediateIsNonExistent() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *directoryTest) Stat_Root() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *directoryTest) Stat_SubDirectory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *directoryTest) ReadDir_Root() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *directoryTest) ReadDir_SubDirectory() {
 	AssertTrue(false, "TODO")
 }
 
