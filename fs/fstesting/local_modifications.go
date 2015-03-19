@@ -932,6 +932,11 @@ func (t *directoryTest) Rmdir_Empty() {
 }
 
 func (t *directoryTest) Rmdir_OpenedForReading() {
+	// TODO(jacobsa): Re-enable this test when issue #8 is fixed.
+	// Cf. https://github.com/GoogleCloudPlatform/gcsfuse/issues/8
+	AddFailure("Waiting for issue #8 to be resolved.")
+	AbortTest()
+
 	var err error
 
 	// Create a directory.
