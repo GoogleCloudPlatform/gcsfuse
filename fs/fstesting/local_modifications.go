@@ -200,7 +200,41 @@ func (t *openTest) ExistingFile_Truncate() {
 }
 
 func (t *openTest) AlreadyOpenedFile() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+	buf := make([]byte, 1024)
+
+	// Create and open a file.
+	f1, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f1)
+	AssertEq(nil, err)
+
+	// Write some data into it.
+	n, err = f1.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Open another handle for reading and writing.
+	f2, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0)
+	t.toClose = append(t.toClose, f2)
+	AssertEq(nil, err)
+
+	// The contents written through the first handle should be available to the
+	// second handle..
+	n, err = f2.Read(buf[:2])
+	AssertEq(nil, err)
+	AssertEq(2, n)
+	ExpectEq("ta", string(buf[:n]))
+
+	// Write some contents with the second handle.
+	n, err = f1.Write([]byte("nk"))
+	AssertEq(nil, err)
+	AssertEq(2, n)
+
+	// Check the overall contents now.
+	contents, err := ioutil.ReadFile(f2.Name())
+	AssertEq(nil, err)
+	ExpectEq("tank", string(contents))
 }
 
 func (t *openTest) OpenReadOnlyFileForWrite() {
