@@ -576,7 +576,55 @@ type directoryTest struct {
 }
 
 func (t *directoryTest) Mkdir_OneLevel() {
-	AssertTrue(false, "TODO")
+	var err error
+	var fi os.FileInfo
+	var entries []os.FileInfo
+
+	dirName := path.Join(t.mfs.Dir(), "dir")
+
+	// Create a directory within the root.
+	t.advanceTime()
+	createTime := t.clock.Now()
+
+	err = os.Mkdir(dirName, 0754)
+	AssertEq(nil, err)
+
+	t.advanceTime()
+
+	// Stat the directory.
+	fi, err = os.Stat(dirName)
+
+	AssertEq(nil, err)
+	ExpectEq("dir", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+
+	// Check the root's mtime.
+	fi, err = os.Stat(t.mfs.Dir())
+
+	AssertEq(nil, err)
+	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
+
+	// Read the directory.
+	entries, err = ioutil.ReadDir(dirName)
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
+
+	// Read the root.
+	entries, err = ioutil.ReadDir(t.mfs.Dir())
+
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("dir", fi.Name())
+	ExpectEq(os.ModeDir|0700, fi.Mode())
 }
 
 func (t *directoryTest) Mkdir_TwoLevels() {
