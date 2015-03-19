@@ -27,7 +27,9 @@ import (
 	"path"
 	"runtime"
 	"syscall"
+	"time"
 
+	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
@@ -1114,23 +1116,87 @@ func (t *fileTest) UnlinkFile_FromSubDirectory() {
 }
 
 func (t *fileTest) Chmod() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Write a file.
+	fileName := path.Join(t.mfs.Dir(), "foo")
+	err = ioutil.WriteFile(fileName, []byte(""), 0700)
+	AssertEq(nil, err)
+
+	// Attempt to chmod it. We don't support doing so.
+	err = os.Chmod(fileName, 0777)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
 func (t *fileTest) Chtimes() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Write a file.
+	fileName := path.Join(t.mfs.Dir(), "foo")
+	err = ioutil.WriteFile(fileName, []byte(""), 0700)
+	AssertEq(nil, err)
+
+	// Attempt to change its atime and mtime. We don't support doing so.
+	err = os.Chtimes(fileName, time.Now(), time.Now())
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
 func (t *fileTest) Sync() {
-	// Make sure to test that the content shows up in the bucket.
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Give it some contents.
+	n, err = f.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Sync it.
+	err = f.Sync()
+	AssertEq(nil, err)
+
+	// The contents should now be in the bucket, even though we haven't closed
+	// the file.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	AssertEq(nil, err)
+	ExpectEq("taco", contents)
 }
 
 func (t *fileTest) Close() {
-	// Make sure to test that the content shows up in the bucket.
-	AssertTrue(false, "TODO")
-}
+	var err error
+	var n int
 
-func (t *fileTest) BufferedWritesFlushedOnUnmount() {
-	AssertTrue(false, "TODO")
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	AssertEq(nil, err)
+
+	// Give it some contents.
+	n, err = f.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Close it.
+	err = f.Close()
+	f = nil
+	AssertEq(nil, err)
+
+	// The contents should now be in the bucket.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	AssertEq(nil, err)
+	ExpectEq("taco", contents)
 }
