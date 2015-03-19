@@ -796,7 +796,51 @@ func (t *directoryTest) ReadDir_Root() {
 }
 
 func (t *directoryTest) ReadDir_SubDirectory() {
-	AssertTrue(false, "TODO")
+	var err error
+	var fi os.FileInfo
+
+	// Create a directory.
+	parent := path.Join(t.mfs.Dir(), "parent")
+	err = os.Mkdir(parent, 0700)
+	AssertEq(nil, err)
+
+	// Create a file and a directory within it.
+	t.advanceTime()
+	createTime := t.clock.Now()
+
+	err = ioutil.WriteFile(path.Join(parent, "bar"), []byte("taco"), 0700)
+	AssertEq(nil, err)
+
+	err = os.Mkdir(path.Join(parent, "foo"), 0700)
+	AssertEq(nil, err)
+
+	t.advanceTime()
+
+	// ReadDir
+	entries, err := ioutil.ReadDir(parent)
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+
+	// bar
+	fi = entries[0]
+	ExpectEq("bar", fi.Name())
+	ExpectEq(len("taco"), fi.Size())
+	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+
+	// foo
+	fi = entries[1]
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *directoryTest) Rmdir_NonEmpty() {
