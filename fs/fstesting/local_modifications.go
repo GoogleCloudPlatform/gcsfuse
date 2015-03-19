@@ -1065,6 +1065,54 @@ func (t *fileTest) UnlinkFile_StillOpen() {
 	AssertEq(len("burrito"), n)
 }
 
+func (t *fileTest) UnlinkFile_NoLongerInBucket() {
+	var err error
+
+	// Write a file.
+	fileName := path.Join(t.mfs.Dir(), "foo")
+	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
+	AssertEq(nil, err)
+
+	// Delete it from the bucket through the back door.
+	err = t.bucket.DeleteObject(t.ctx, "foo")
+	AssertEq(nil, err)
+
+	// Attempt to unlink it.
+	err = os.Remove(fileName)
+
+	AssertNe(nil, err)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+}
+
+func (t *fileTest) UnlinkFile_FromSubDirectory() {
+	var err error
+
+	// Create a sub-directory.
+	dirName := path.Join(t.mfs.Dir(), "dir")
+	err = os.Mkdir(dirName, 0700)
+	AssertEq(nil, err)
+
+	// Write a file to that directory.
+	fileName := path.Join(dirName, "foo")
+	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
+	AssertEq(nil, err)
+
+	// Unlink it.
+	err = os.Remove(fileName)
+	AssertEq(nil, err)
+
+	// Statting it should fail.
+	_, err = os.Stat(fileName)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
+
+	// Nothing should be in the directory.
+	entries, err := ioutil.ReadDir(dirName)
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
+}
+
 func (t *fileTest) Chmod() {
 	AssertTrue(false, "TODO")
 }

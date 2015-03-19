@@ -543,6 +543,32 @@ func (fs *fileSystem) CreateFile(
 }
 
 // LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) Unlink(
+	ctx context.Context,
+	req *fuse.UnlinkRequest) (
+	resp *fuse.UnlinkResponse, err error) {
+	resp = &fuse.UnlinkResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Find the parent.
+	//
+	// TODO(jacobsa): Once we figure out the object path, we don't need to
+	// continue to hold this or the file system lock. Ditto with many other
+	// methods.
+	parent := fs.inodes[req.Parent]
+
+	parent.Lock()
+	defer parent.Unlock()
+
+	// Delete the backing object.
+	err = fs.bucket.DeleteObject(ctx, path.Join(parent.Name(), req.Name))
+
+	return
+}
+
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) OpenDir(
 	ctx context.Context,
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
