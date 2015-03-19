@@ -596,7 +596,20 @@ func (t *modesTest) ReadFromWriteOnlyFile() {
 }
 
 func (t *modesTest) WriteToReadOnlyFile() {
-	AssertTrue(false, "TODO")
+	// Create and open a file for reading.
+	f, err := os.OpenFile(
+		path.Join(t.mfs.Dir(), "foo"),
+		os.O_RDONLY|os.O_CREATE,
+		0700)
+
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Attempt to write t it.
+	_, err = f.Write([]byte("taco"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 }
 
 ////////////////////////////////////////////////////////////////////////
