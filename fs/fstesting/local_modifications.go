@@ -719,7 +719,14 @@ func (t *directoryTest) Mkdir_IntermediateIsFile() {
 }
 
 func (t *directoryTest) Mkdir_IntermediateIsNonExistent() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Attempt to create a sub-directory of a non-existent sub-directory.
+	dirName := path.Join(t.mfs.Dir(), "foo/dir")
+	err = os.Mkdir(dirName, 0754)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file or directory")))
 }
 
 func (t *directoryTest) Stat_Root() {
