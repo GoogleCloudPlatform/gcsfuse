@@ -844,7 +844,17 @@ func (t *directoryTest) ReadDir_SubDirectory() {
 }
 
 func (t *directoryTest) Rmdir_NonEmpty() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create two levels of directories.
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "foo/bar"), 0754)
+	AssertEq(nil, err)
+
+	// Attempt to remove the parent.
+	err = os.Remove(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("not empty")))
 }
 
 func (t *directoryTest) Rmdir_Empty() {
