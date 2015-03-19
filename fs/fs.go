@@ -598,6 +598,29 @@ func (fs *fileSystem) CreateFile(
 }
 
 // LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) RmDir(
+	ctx context.Context,
+	req *fuse.RmDirRequest) (
+	resp *fuse.RmDirResponse, err error) {
+	resp = &fuse.RmDirResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Find the parent. We assume that it exists because otherwise the kernel has
+	// done something mildly concerning.
+	parent := fs.inodes[req.Parent]
+	parent.Lock()
+	defer parent.Unlock()
+
+	// Delete the backing object. Unfortunately we have no way to precondition
+	// this on the directory being empty.
+	err = fs.bucket.DeleteObject(ctx, path.Join(parent.Name(), req.Name)+"/")
+
+	return
+}
+
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) Unlink(
 	ctx context.Context,
 	req *fuse.UnlinkRequest) (
