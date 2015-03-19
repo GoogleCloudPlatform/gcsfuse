@@ -1114,7 +1114,18 @@ func (t *fileTest) UnlinkFile_FromSubDirectory() {
 }
 
 func (t *fileTest) Chmod() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Write a file.
+	fileName := path.Join(t.mfs.Dir(), "foo")
+	err = ioutil.WriteFile(fileName, []byte(""), 0700)
+	AssertEq(nil, err)
+
+	// Attempt to chmod it. We don't support doing so.
+	err = os.Chmod(fileName, 0777)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
 func (t *fileTest) Chtimes() {
