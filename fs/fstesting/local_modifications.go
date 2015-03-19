@@ -583,13 +583,8 @@ func (t *directoryTest) Mkdir_OneLevel() {
 	dirName := path.Join(t.mfs.Dir(), "dir")
 
 	// Create a directory within the root.
-	t.advanceTime()
-	createTime := t.clock.Now()
-
 	err = os.Mkdir(dirName, 0754)
 	AssertEq(nil, err)
-
-	t.advanceTime()
 
 	// Stat the directory.
 	fi, err = os.Stat(dirName)
@@ -598,17 +593,10 @@ func (t *directoryTest) Mkdir_OneLevel() {
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
 	ExpectEq(os.ModeDir|0700, fi.Mode())
-	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
 	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
-
-	// Check the root's mtime.
-	fi, err = os.Stat(t.mfs.Dir())
-
-	AssertEq(nil, err)
-	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
 
 	// Read the directory.
 	entries, err = ioutil.ReadDir(dirName)
@@ -637,13 +625,8 @@ func (t *directoryTest) Mkdir_TwoLevels() {
 	AssertEq(nil, err)
 
 	// Create a child of that directory.
-	t.advanceTime()
-	createTime := t.clock.Now()
-
 	err = os.Mkdir(path.Join(t.mfs.Dir(), "parent/dir"), 0754)
 	AssertEq(nil, err)
-
-	t.advanceTime()
 
 	// Stat the directory.
 	fi, err = os.Stat(path.Join(t.mfs.Dir(), "parent/dir"))
@@ -652,23 +635,10 @@ func (t *directoryTest) Mkdir_TwoLevels() {
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
 	ExpectEq(os.ModeDir|0700, fi.Mode())
-	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
 	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
-
-	// Check the parent's mtime.
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "parent"))
-
-	AssertEq(nil, err)
-	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
-
-	// Check the root's mtime.
-	fi, err = os.Stat(t.mfs.Dir())
-
-	AssertEq(nil, err)
-	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
 
 	// Read the directory.
 	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "parent/dir"))
