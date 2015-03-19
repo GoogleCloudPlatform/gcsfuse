@@ -1066,7 +1066,22 @@ func (t *fileTest) UnlinkFile_StillOpen() {
 }
 
 func (t *fileTest) UnlinkFile_NoLongerInBucket() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Write a file.
+	fileName := path.Join(t.mfs.Dir(), "foo")
+	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
+	AssertEq(nil, err)
+
+	// Delete it from the bucket through the back door.
+	err = t.bucket.DeleteObject(t.ctx, "foo")
+	AssertEq(nil, err)
+
+	// Attempt to unlink it.
+	err = os.Remove(fileName)
+
+	AssertNe(nil, err)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
 func (t *fileTest) UnlinkFile_FromSubDirectory() {
