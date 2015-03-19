@@ -27,6 +27,7 @@ import (
 	"path"
 	"runtime"
 	"syscall"
+	"time"
 
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -1129,7 +1130,18 @@ func (t *fileTest) Chmod() {
 }
 
 func (t *fileTest) Chtimes() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Write a file.
+	fileName := path.Join(t.mfs.Dir(), "foo")
+	err = ioutil.WriteFile(fileName, []byte(""), 0700)
+	AssertEq(nil, err)
+
+	// Attempt to change its atime and mtime. We don't support doing so.
+	err = os.Chtimes(fileName, time.Now(), time.Now())
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
 func (t *fileTest) Sync() {
