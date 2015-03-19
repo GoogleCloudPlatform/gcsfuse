@@ -23,7 +23,7 @@ import (
 	"sync"
 
 	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcsfuse/timeutil"
+	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/ogletest"
 	"github.com/jacobsa/ogletest/srcutil"
 )

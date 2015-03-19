@@ -21,8 +21,8 @@ import (
 	"time"
 
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
-	"github.com/jacobsa/gcsfuse/fs/fstesting"
-	"github.com/jacobsa/gcsfuse/timeutil"
+	"github.com/googlecloudplatform/gcsfuse/fs/fstesting"
+	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/ogletest"
 )
 

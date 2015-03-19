@@ -21,8 +21,8 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
-	"github.com/jacobsa/gcsfuse/gcsproxy"
-	"github.com/jacobsa/gcsfuse/timeutil"
+	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
+	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )

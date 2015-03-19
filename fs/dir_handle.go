@@ -20,7 +20,7 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/syncutil"
-	"github.com/jacobsa/gcsfuse/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"golang.org/x/net/context"
 )
 
