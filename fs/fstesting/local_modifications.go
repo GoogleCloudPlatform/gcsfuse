@@ -238,22 +238,6 @@ func (t *openTest) AlreadyOpenedFile() {
 	ExpectEq("tank", string(contents))
 }
 
-func (t *openTest) OpenReadOnlyFileForWrite() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *openTest) CreateWithinSubDirectory() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *openTest) OpenWithinSubDirectory() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *openTest) TruncateWithinSubDirectory() {
-	AssertTrue(false, "TODO")
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Modes
 ////////////////////////////////////////////////////////////////////////
