@@ -700,39 +700,273 @@ func (t *directoryTest) Mkdir_IntermediateIsNonExistent() {
 }
 
 func (t *directoryTest) Stat_Root() {
-	AssertTrue(false, "TODO")
+	fi, err := os.Stat(t.mfs.Dir())
+	AssertEq(nil, err)
+
+	ExpectEq(path.Base(t.mfs.Dir()), fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *directoryTest) Stat_SubDirectory() {
-	AssertTrue(false, "TODO")
+func (t *directoryTest) Stat_FirstLevelDirectory() {
+	var err error
+
+	// Create a sub-directory.
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "dir"), 0700)
+	AssertEq(nil, err)
+
+	// Stat it.
+	fi, err := os.Stat(path.Join(t.mfs.Dir(), "dir"))
+	AssertEq(nil, err)
+
+	ExpectEq("dir", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+}
+
+func (t *directoryTest) Stat_SecondLevelDirectory() {
+	var err error
+
+	// Create two levels of directories.
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "parent/dir"), 0700)
+	AssertEq(nil, err)
+
+	// Stat it.
+	fi, err := os.Stat(path.Join(t.mfs.Dir(), "parent/dir"))
+	AssertEq(nil, err)
+
+	ExpectEq("dir", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *directoryTest) ReadDir_Root() {
-	AssertTrue(false, "TODO")
+	var err error
+	var fi os.FileInfo
+
+	// Create a file and a directory.
+	t.advanceTime()
+	createTime := t.clock.Now()
+
+	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "bar"), []byte("taco"), 0700)
+	AssertEq(nil, err)
+
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "foo"), 0700)
+	AssertEq(nil, err)
+
+	t.advanceTime()
+
+	// ReadDir
+	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+
+	// bar
+	fi = entries[0]
+	ExpectEq("bar", fi.Name())
+	ExpectEq(len("taco"), fi.Size())
+	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+
+	// foo
+	fi = entries[1]
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *directoryTest) ReadDir_SubDirectory() {
-	AssertTrue(false, "TODO")
+	var err error
+	var fi os.FileInfo
+
+	// Create a directory.
+	parent := path.Join(t.mfs.Dir(), "parent")
+	err = os.Mkdir(parent, 0700)
+	AssertEq(nil, err)
+
+	// Create a file and a directory within it.
+	t.advanceTime()
+	createTime := t.clock.Now()
+
+	err = ioutil.WriteFile(path.Join(parent, "bar"), []byte("taco"), 0700)
+	AssertEq(nil, err)
+
+	err = os.Mkdir(path.Join(parent, "foo"), 0700)
+	AssertEq(nil, err)
+
+	t.advanceTime()
+
+	// ReadDir
+	entries, err := ioutil.ReadDir(parent)
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+
+	// bar
+	fi = entries[0]
+	ExpectEq("bar", fi.Name())
+	ExpectEq(len("taco"), fi.Size())
+	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+
+	// foo
+	fi = entries[1]
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *directoryTest) Rmdir_NonEmpty() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create two levels of directories.
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "foo/bar"), 0754)
+	AssertEq(nil, err)
+
+	// Attempt to remove the parent.
+	err = os.Remove(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("not empty")))
 }
 
 func (t *directoryTest) Rmdir_Empty() {
-	AssertTrue(false, "TODO")
+	var err error
+	var entries []os.FileInfo
+
+	// Create two levels of directories.
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "foo/bar"), 0754)
+	AssertEq(nil, err)
+
+	// Remove the leaf.
+	err = os.Remove(path.Join(t.mfs.Dir(), "foo/bar"))
+	AssertEq(nil, err)
+
+	// There should be nothing left in the parent.
+	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
+
+	// Remove the parent.
+	err = os.Remove(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	// Now the root directory should be empty, too.
+	entries, err = ioutil.ReadDir(t.mfs.Dir())
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
 }
 
 func (t *directoryTest) Rmdir_OpenedForReading() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create a directory.
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "dir"), 0700)
+	AssertEq(nil, err)
+
+	// Open the directory for reading.
+	f, err := os.Open(path.Join(t.mfs.Dir(), "dir"))
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	AssertEq(nil, err)
+
+	// Remove the directory.
+	err = os.Remove(path.Join(t.mfs.Dir(), "dir"))
+	AssertEq(nil, err)
+
+	// Create a new directory, with the same name even, and add some contents
+	// within it.
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "dir/foo"), 0700)
+	AssertEq(nil, err)
+
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "dir/bar"), 0700)
+	AssertEq(nil, err)
+
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "dir/baz"), 0700)
+	AssertEq(nil, err)
+
+	// We should still be able to stat the open file handle. It should show up as
+	// unlinked.
+	fi, err := f.Stat()
+
+	ExpectEq("dir", fi.Name())
+	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	// Attempt to read from the directory. This shouldn't see any junk from the
+	// new directory. It should either succeed with an empty result or should
+	// return ENOENT.
+	entries, err := f.Readdir(0)
+
+	if err != nil {
+		ExpectThat(err, Error(HasSubstr("no such file")))
+	} else {
+		ExpectThat(entries, ElementsAre())
+	}
 }
 
 func (t *directoryTest) CreateHardLink() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Write a file.
+	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "foo"), []byte(""), 0700)
+	AssertEq(nil, err)
+
+	// Attempt to hard link it. We don't support doing so.
+	err = os.Link(
+		path.Join(t.mfs.Dir(), "foo"),
+		path.Join(t.mfs.Dir(), "bar"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
 func (t *directoryTest) CreateSymlink() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Write a file.
+	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "foo"), []byte(""), 0700)
+	AssertEq(nil, err)
+
+	// Attempt to symlink it. We don't support doing so.
+	err = os.Symlink(
+		path.Join(t.mfs.Dir(), "foo"),
+		path.Join(t.mfs.Dir(), "bar"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
 ////////////////////////////////////////////////////////////////////////
