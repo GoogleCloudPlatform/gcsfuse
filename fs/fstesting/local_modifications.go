@@ -29,6 +29,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
@@ -1145,8 +1146,28 @@ func (t *fileTest) Chtimes() {
 }
 
 func (t *fileTest) Sync() {
-	// Make sure to test that the content shows up in the bucket.
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Give it some contents.
+	n, err = f.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Sync it.
+	err = f.Sync()
+	AssertEq(nil, err)
+
+	// The contents should now be in the bucket, even though we haven't closed
+	// the file.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	AssertEq(nil, err)
+	ExpectEq("taco", contents)
 }
 
 func (t *fileTest) Close() {
