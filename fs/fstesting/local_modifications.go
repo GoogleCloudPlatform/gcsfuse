@@ -200,23 +200,42 @@ func (t *openTest) ExistingFile_Truncate() {
 }
 
 func (t *openTest) AlreadyOpenedFile() {
-	AssertTrue(false, "TODO")
-}
+	var err error
+	var n int
+	buf := make([]byte, 1024)
 
-func (t *openTest) OpenReadOnlyFileForWrite() {
-	AssertTrue(false, "TODO")
-}
+	// Create and open a file.
+	f1, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f1)
+	AssertEq(nil, err)
 
-func (t *openTest) CreateWithinSubDirectory() {
-	AssertTrue(false, "TODO")
-}
+	// Write some data into it.
+	n, err = f1.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
 
-func (t *openTest) OpenWithinSubDirectory() {
-	AssertTrue(false, "TODO")
-}
+	// Open another handle for reading and writing.
+	f2, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0)
+	t.toClose = append(t.toClose, f2)
+	AssertEq(nil, err)
 
-func (t *openTest) TruncateWithinSubDirectory() {
-	AssertTrue(false, "TODO")
+	// The contents written through the first handle should be available to the
+	// second handle..
+	n, err = f2.Read(buf[:2])
+	AssertEq(nil, err)
+	AssertEq(2, n)
+	ExpectEq("ta", string(buf[:n]))
+
+	// Write some contents with the second handle, which should now be at offset
+	// 2.
+	n, err = f2.Write([]byte("nk"))
+	AssertEq(nil, err)
+	AssertEq(2, n)
+
+	// Check the overall contents now.
+	contents, err := ioutil.ReadFile(f2.Name())
+	AssertEq(nil, err)
+	ExpectEq("tank", string(contents))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -560,11 +579,37 @@ func (t *modesTest) AppendMode_WriteAt_PastEOF() {
 }
 
 func (t *modesTest) ReadFromWriteOnlyFile() {
-	AssertTrue(false, "TODO")
+	// Create and open a file for writing.
+	f, err := os.OpenFile(
+		path.Join(t.mfs.Dir(), "foo"),
+		os.O_WRONLY|os.O_CREATE,
+		0700)
+
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Attempt to read from it.
+	_, err = f.Read(make([]byte, 1024))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 }
 
 func (t *modesTest) WriteToReadOnlyFile() {
-	AssertTrue(false, "TODO")
+	// Create and open a file for reading.
+	f, err := os.OpenFile(
+		path.Join(t.mfs.Dir(), "foo"),
+		os.O_RDONLY|os.O_CREATE,
+		0700)
+
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Attempt to write t it.
+	_, err = f.Write([]byte("taco"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 }
 
 ////////////////////////////////////////////////////////////////////////
