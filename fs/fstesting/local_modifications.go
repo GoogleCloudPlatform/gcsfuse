@@ -700,10 +700,39 @@ func (t *directoryTest) Mkdir_IntermediateIsNonExistent() {
 }
 
 func (t *directoryTest) Stat_Root() {
-	AssertTrue(false, "TODO")
+	fi, err := os.Stat(t.mfs.Dir())
+	AssertEq(nil, err)
+
+	ExpectEq(path.Base(t.mfs.Dir()), fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *directoryTest) Stat_SubDirectory() {
+func (t *directoryTest) Stat_FirstLevelDirectory() {
+	var err error
+
+	// Create a sub-directory.
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "dir"), 0700)
+	AssertEq(nil, err)
+
+	// Stat it.
+	fi, err := os.Stat(path.Join(t.mfs.Dir(), "dir"))
+	AssertEq(nil, err)
+
+	ExpectEq("dir", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+}
+
+func (t *directoryTest) Stat_SecondLevelDirectory() {
 	AssertTrue(false, "TODO")
 }
 
