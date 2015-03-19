@@ -1085,7 +1085,32 @@ func (t *fileTest) UnlinkFile_NoLongerInBucket() {
 }
 
 func (t *fileTest) UnlinkFile_FromSubDirectory() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create a sub-directory.
+	dirName := path.Join(t.mfs.Dir(), "dir")
+	err = os.Mkdir(dirName, 0700)
+	AssertEq(nil, err)
+
+	// Write a file to that directory.
+	fileName := path.Join(dirName, "foo")
+	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
+	AssertEq(nil, err)
+
+	// Unlink it.
+	err = os.Remove(fileName)
+	AssertEq(nil, err)
+
+	// Statting it should fail.
+	_, err = os.Stat(fileName)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
+
+	// Nothing should be in the directory.
+	entries, err := ioutil.ReadDir(dirName)
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
 }
 
 func (t *fileTest) Chmod() {
