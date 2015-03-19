@@ -244,3 +244,15 @@ as GCS object/bucket ACLs, so we cannot faithfully represent the latter and to
 do so would be misleading since it would not necessarily offer any security.
 
 [allow_other]: https://github.com/torvalds/linux/blob/a33f32244d8550da8b4a26e277ce07d5c6d158b5/Documentation/filesystems/fuse.txt##L102-L105
+
+
+# Surprising behaviors
+
+## Unlinking directories
+
+Because GCS offers no way to delete an object conditional on the non-existence
+of other objects, there is no way for gcsfuse to unlink a directory if and only
+if it is empty. So gcsfuse takes the simple route, and always allows a
+directory to be unlinked, even if non-empty. The contents of a non-empty
+directory that is unlinked are not deleted but simply become inaccessible—the
+placeholder object for the unlinked directory is simply removed.
