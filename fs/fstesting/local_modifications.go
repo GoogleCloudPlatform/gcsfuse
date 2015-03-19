@@ -1200,7 +1200,3 @@ func (t *fileTest) Close() {
 	AssertEq(nil, err)
 	ExpectEq("taco", contents)
 }
-
-func (t *fileTest) BufferedWritesFlushedOnUnmount() {
-	AssertTrue(false, "TODO")
-}
