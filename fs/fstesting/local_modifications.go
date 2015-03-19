@@ -628,7 +628,63 @@ func (t *directoryTest) Mkdir_OneLevel() {
 }
 
 func (t *directoryTest) Mkdir_TwoLevels() {
-	AssertTrue(false, "TODO")
+	var err error
+	var fi os.FileInfo
+	var entries []os.FileInfo
+
+	// Create a directory within the root.
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "parent"), 0700)
+	AssertEq(nil, err)
+
+	// Create a child of that directory.
+	t.advanceTime()
+	createTime := t.clock.Now()
+
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "parent/dir"), 0754)
+	AssertEq(nil, err)
+
+	t.advanceTime()
+
+	// Stat the directory.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "parent/dir"))
+
+	AssertEq(nil, err)
+	ExpectEq("dir", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+
+	// Check the parent's mtime.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "parent"))
+
+	AssertEq(nil, err)
+	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
+
+	// Check the root's mtime.
+	fi, err = os.Stat(t.mfs.Dir())
+
+	AssertEq(nil, err)
+	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
+
+	// Read the directory.
+	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "parent/dir"))
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
+
+	// Read the parent.
+	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "parent"))
+
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("dir", fi.Name())
+	ExpectEq(os.ModeDir|0700, fi.Mode())
 }
 
 func (t *directoryTest) Mkdir_AlreadyExists() {
