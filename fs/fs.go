@@ -554,8 +554,6 @@ func (fs *fileSystem) CreateFile(
 
 	o, err := fs.bucket.CreateObject(op.Context(), createReq)
 	if err != nil {
-		// TODO(jacobsa): Add a test that fails, then map gcs.PreconditionError to
-		// EEXISTS.
 		err = fmt.Errorf("CreateObject: %v", err)
 		return
 	}
