@@ -738,8 +738,6 @@ func (fs *fileSystem) ReadFile(
 }
 
 // LOCKS_EXCLUDED(fs.mu)
-//
-// TODO(jacobsa): Make sure there is a test for fsync and close behavior.
 func (fs *fileSystem) WriteFile(
 	op *fuseops.WriteFileOp) {
 	var err error
