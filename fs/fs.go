@@ -62,9 +62,6 @@ type fileSystem struct {
 	// The collection of live inodes, keyed by inode ID. No ID less than
 	// fuseops.RootInodeID is ever used.
 	//
-	// TODO(jacobsa): Implement ForgetInode support in the fuse package, then
-	// implement the method here and clean up these maps.
-	//
 	// INVARIANT: All values are of type *inode.DirInode or *inode.FileInode
 	// INVARIANT: For all keys k, k >= fuseops.RootInodeID
 	// INVARIANT: For all keys k, inodes[k].ID() == k
