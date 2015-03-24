@@ -20,7 +20,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
-	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
@@ -172,13 +171,10 @@ func (f *FileInode) Attributes(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Read(
-	ctx context.Context,
-	req *fuse.ReadFileRequest) (resp *fuse.ReadFileResponse, err error) {
-	resp = &fuse.ReadFileResponse{}
-
+	op *fuseops.ReadFileOp) (err error) {
 	// Read from the proxy.
-	buf := make([]byte, req.Size)
-	n, err := f.proxy.ReadAt(ctx, buf, req.Offset)
+	buf := make([]byte, op.Size)
+	n, err := f.proxy.ReadAt(op.Context(), buf, op.Offset)
 
 	// We don't return errors for EOF. Otherwise, propagate errors.
 	if err == io.EOF {
@@ -189,7 +185,7 @@ func (f *FileInode) Read(
 	}
 
 	// Fill in the response.
-	resp.Data = buf[:n]
+	op.Data = buf[:n]
 
 	return
 }
@@ -198,13 +194,10 @@ func (f *FileInode) Read(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Write(
-	ctx context.Context,
-	req *fuse.WriteFileRequest) (resp *fuse.WriteFileResponse, err error) {
-	resp = &fuse.WriteFileResponse{}
-
+	op *fuseops.WriteFileOp) (err error) {
 	// Write to the proxy. Note that the proxy guarantees that it returns an
 	// error for short writes.
-	_, err = f.proxy.WriteAt(ctx, req.Data, req.Offset)
+	_, err = f.proxy.WriteAt(op.Context(), op.Data, op.Offset)
 
 	return
 }
