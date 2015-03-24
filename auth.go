@@ -40,11 +40,12 @@ func getAuthenticatedHttpClient() (*http.Client, error) {
 // Return a GCS connection pre-bound with authentication parameters derived
 // from command-line flags. May block on network traffic.
 func getConn() (gcs.Conn, error) {
-	// TODO(jacobsa): A project ID is apparently only needed for creating and
-	// listing buckets, presumably since a bucket ID already maps to a unique
-	// project ID (cf. http://goo.gl/Plh3rb). So do we need this at all for our
-	// use case? Probably not.
-	const projectId = "fixme"
+	// NOTE(jacobsa): A project ID is only needed for creating and listing
+	// buckets, presumably since a bucket ID already maps to a unique project ID
+	// (cf. http://goo.gl/Plh3rb). Since we do neither, we don't need to set this
+	// to anything interesting. More importantly, we don't need to ask the user
+	// to give it to us.
+	const projectId = "gcsfuse_fake_project_id"
 
 	// Create the HTTP client.
 	httpClient, err := getAuthenticatedHttpClient()
