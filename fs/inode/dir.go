@@ -119,7 +119,6 @@ func (d *DirInode) Attributes(
 	attrs = fuseops.InodeAttributes{
 		Nlink: 1,
 		Mode:  0700 | os.ModeDir,
-		// TODO(jacobsa): Track mtime and maybe atime.
 	}
 
 	return

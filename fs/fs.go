@@ -62,9 +62,6 @@ type fileSystem struct {
 	// The collection of live inodes, keyed by inode ID. No ID less than
 	// fuseops.RootInodeID is ever used.
 	//
-	// TODO(jacobsa): Implement ForgetInode support in the fuse package, then
-	// implement the method here and clean up these maps.
-	//
 	// INVARIANT: All values are of type *inode.DirInode or *inode.FileInode
 	// INVARIANT: For all keys k, k >= fuseops.RootInodeID
 	// INVARIANT: For all keys k, inodes[k].ID() == k
@@ -546,10 +543,6 @@ func (fs *fileSystem) CreateFile(
 
 	// Create an empty backing object for the child, failing if it already
 	// exists.
-	//
-	// TODO(jacobsa): Make sure that there is a test that ensures the object
-	// exists once the file is opened with O_CREAT but before it has been closed
-	// (but not necessarily that its contents are there).
 	var precond int64
 	createReq := &gcs.CreateObjectRequest{
 		Attrs: storage.ObjectAttrs{
@@ -561,8 +554,6 @@ func (fs *fileSystem) CreateFile(
 
 	o, err := fs.bucket.CreateObject(op.Context(), createReq)
 	if err != nil {
-		// TODO(jacobsa): Add a test that fails, then map gcs.PreconditionError to
-		// EEXISTS.
 		err = fmt.Errorf("CreateObject: %v", err)
 		return
 	}
@@ -626,10 +617,6 @@ func (fs *fileSystem) Unlink(
 	defer fs.mu.Unlock()
 
 	// Find the parent.
-	//
-	// TODO(jacobsa): Once we figure out the object path, we don't need to
-	// continue to hold this or the file system lock. Ditto with many other
-	// methods.
 	parent := fs.inodes[op.Parent]
 
 	parent.Lock()
@@ -738,8 +725,6 @@ func (fs *fileSystem) ReadFile(
 }
 
 // LOCKS_EXCLUDED(fs.mu)
-//
-// TODO(jacobsa): Make sure there is a test for fsync and close behavior.
 func (fs *fileSystem) WriteFile(
 	op *fuseops.WriteFileOp) {
 	var err error

@@ -27,9 +27,6 @@ import (
 	"google.golang.org/cloud/storage"
 )
 
-// TODO(jacobsa): Add a Destroy method here that calls ObjectProxy.Destroy, and
-// make sure it's called when the inode is forgotten. Also, make sure package
-// fuse has support for actually calling Forget.
 type FileInode struct {
 	/////////////////////////
 	// Dependencies
@@ -129,11 +126,6 @@ func (f *FileInode) Name() string {
 
 // Return the generation number from which this inode was branched. This is
 // used as a precondition in object write requests.
-//
-// TODO(jacobsa): Make sure to add a test for opening a file with O_CREAT then
-// opening it again for reading, and sharing data across the two descriptors.
-// This should fail if we have screwed up the fuse lookup process with regards
-// to the zero generation.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SourceGeneration() int64 {

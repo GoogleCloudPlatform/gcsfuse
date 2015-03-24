@@ -29,6 +29,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -62,6 +63,10 @@ func (t *openTest) NonExistent_CreateFlagNotSet() {
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
+
+	// No object should have been created.
+	_, err = gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
 func (t *openTest) NonExistent_CreateFlagSet() {
@@ -77,6 +82,11 @@ func (t *openTest) NonExistent_CreateFlagSet() {
 			ExpectEq(nil, f.Close())
 		}
 	}()
+
+	// The object should now be present in the bucket, with empty contents.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	AssertEq(nil, err)
+	ExpectEq("", contents)
 
 	// Write some contents.
 	_, err = f.Write([]byte("012"))
@@ -918,7 +928,6 @@ func (t *directoryTest) Rmdir_Empty() {
 }
 
 func (t *directoryTest) Rmdir_OpenedForReading() {
-	// TODO(jacobsa): Re-enable this test when issue #8 is fixed.
 	// Cf. https://github.com/GoogleCloudPlatform/gcsfuse/issues/8
 	AddFailure("Waiting for issue #8 to be resolved.")
 	AbortTest()
