@@ -617,10 +617,6 @@ func (fs *fileSystem) Unlink(
 	defer fs.mu.Unlock()
 
 	// Find the parent.
-	//
-	// TODO(jacobsa): Once we figure out the object path, we don't need to
-	// continue to hold this or the file system lock. Ditto with many other
-	// methods.
 	parent := fs.inodes[op.Parent]
 
 	parent.Lock()
