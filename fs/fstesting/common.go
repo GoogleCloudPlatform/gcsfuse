@@ -87,7 +87,7 @@ func (t *fsTest) tearDownFsTest() {
 	// Unmount the file system. Try again on "resource busy" errors.
 	delay := 10 * time.Millisecond
 	for {
-		err := t.mfs.Unmount()
+		err := fuse.Unmount(t.mfs.Dir())
 		if err == nil {
 			break
 		}
