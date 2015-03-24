@@ -150,12 +150,12 @@ func getUser() (uid uint32, gid uint32, err error) {
 	return
 }
 
-// Create a fuse file system whose root directory is the root of the supplied
-// bucket. The supplied clock will be used for cache invalidation, modification
-// times, etc.
-func NewFileSystem(
+// Create a fuse file system server whose root directory is the root of the
+// supplied bucket. The supplied clock will be used for cache invalidation,
+// modification times, etc.
+func NewServer(
 	clock timeutil.Clock,
-	bucket gcs.Bucket) (ffs fuse.FileSystem, err error) {
+	bucket gcs.Bucket) (server fuse.Server, err error) {
 	// Get ownership information.
 	uid, gid, err := getUser()
 	if err != nil {
@@ -183,7 +183,7 @@ func NewFileSystem(
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
 
-	ffs = fs
+	server = fuseutil.NewFileSystemServer(fs)
 	return
 }
 
