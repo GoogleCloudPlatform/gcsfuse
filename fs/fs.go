@@ -679,7 +679,7 @@ func (fs *fileSystem) ReadDir(
 	defer dh.Mu.Unlock()
 
 	// Serve the request.
-	op, err = dh.ReadDir(op.Context(), op)
+	err = dh.ReadDir(op)
 
 	return
 }

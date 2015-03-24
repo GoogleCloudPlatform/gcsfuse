@@ -165,7 +165,7 @@ func readEntries(
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-// Handle a request to read from the directory.
+// Handle a request to read from the directory, without responding.
 //
 // Because the GCS API for listing objects has no notion of a stable offset
 // like the posix telldir/seekdir API does, there is no way for us to
@@ -178,13 +178,10 @@ func readEntries(
 //
 // LOCKS_REQUIRED(dh.Mu)
 func (dh *dirHandle) ReadDir(
-	ctx context.Context,
-	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {
-	resp = &fuse.ReadDirResponse{}
-
+	op *fuseops.ReadDirOp) (err error) {
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
-	if req.Offset == 0 {
+	if op.Offset == 0 {
 		dh.entries = nil
 		dh.entriesOffset = 0
 		dh.tok = new(string)
@@ -192,14 +189,14 @@ func (dh *dirHandle) ReadDir(
 
 	// Is the offset from before what we have buffered? If not, this represents a
 	// seekdir we cannot support, as discussed in the method comments above.
-	if req.Offset < dh.entriesOffset {
+	if op.Offset < dh.entriesOffset {
 		err = fuse.EINVAL
 		return
 	}
 
 	// Is the offset past the end of what we have buffered? If so, this must be
 	// an invalid seekdir according to posix.
-	index := int(req.Offset - dh.entriesOffset)
+	index := int(op.Offset - dh.entriesOffset)
 	if index > len(dh.entries) {
 		err = fuse.EINVAL
 		return
@@ -212,7 +209,7 @@ func (dh *dirHandle) ReadDir(
 
 		// Read some entries.
 		newEntries, newTok, err = readEntries(
-			ctx,
+			op.Context(),
 			dh.in,
 			*dh.tok,
 			dh.entriesOffset+fuseops.DirOffset(len(dh.entries)))
@@ -233,9 +230,9 @@ func (dh *dirHandle) ReadDir(
 
 	// Now we copy out entries until we run out of entries or space.
 	for i := index; i < len(dh.entries); i++ {
-		resp.Data = fuseutil.AppendDirent(resp.Data, dh.entries[i])
-		if len(resp.Data) > req.Size {
-			resp.Data = resp.Data[:req.Size]
+		op.Data = fuseutil.AppendDirent(op.Data, dh.entries[i])
+		if len(op.Data) > op.Size {
+			op.Data = op.Data[:op.Size]
 			break
 		}
 	}
