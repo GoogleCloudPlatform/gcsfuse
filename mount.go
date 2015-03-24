@@ -70,7 +70,7 @@ func main() {
 		conn.GetBucket(getBucketName()))
 
 	if err != nil {
-		log.Fatal("fs.NewFileSystem:", err)
+		log.Fatal("fs.NewServer:", err)
 	}
 
 	// Mount the file system.

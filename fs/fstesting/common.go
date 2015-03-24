@@ -25,11 +25,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/fs"
+	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
-	"github.com/googlecloudplatform/gcsfuse/fs"
-	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/oglematchers"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
@@ -60,18 +60,14 @@ func (t *fsTest) setUpFsTest(deps FSTestDeps) {
 	}
 
 	// Mount a file system.
-	fileSystem, err := fs.NewFileSystem(t.clock, t.bucket)
+	server, err := fs.NewServer(t.clock, t.bucket)
 	if err != nil {
-		panic("NewFileSystem: " + err.Error())
+		panic("NewServer: " + err.Error())
 	}
 
-	t.mfs, err = fuse.Mount(mountPoint, fileSystem, &fuse.MountConfig{})
+	t.mfs, err = fuse.Mount(mountPoint, server, &fuse.MountConfig{})
 	if err != nil {
 		panic("Mount: " + err.Error())
-	}
-
-	if err := t.mfs.WaitForReady(t.ctx); err != nil {
-		panic("MountedFileSystem.WaitForReady: " + err.Error())
 	}
 }
 
