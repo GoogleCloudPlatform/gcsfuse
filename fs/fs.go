@@ -358,13 +358,19 @@ func (fs *fileSystem) lookUpOrCreateFileInode(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) Init(
-	op *fuseops.InitOp) (err error) {
+	op *fuseops.InitOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) LookUpInode(
-	op *fuseops.LookUpInodeOp) (err error) {
+	op *fuseops.LookUpInodeOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -403,7 +409,10 @@ func (fs *fileSystem) LookUpInode(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) GetInodeAttributes(
-	op *fuseops.GetInodeAttributesOp) (err error) {
+	op *fuseops.GetInodeAttributesOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -424,7 +433,10 @@ func (fs *fileSystem) GetInodeAttributes(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) SetInodeAttributes(
-	op *fuseops.SetInodeAttributesOp) (err error) {
+	op *fuseops.SetInodeAttributesOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -465,7 +477,10 @@ func (fs *fileSystem) SetInodeAttributes(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) MkDir(
-	op *fuseops.MkDirOp) (err error) {
+	op *fuseops.MkDirOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -516,7 +531,10 @@ func (fs *fileSystem) MkDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) CreateFile(
-	op *fuseops.CreateFileOp) (err error) {
+	op *fuseops.CreateFileOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -578,7 +596,10 @@ func (fs *fileSystem) CreateFile(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) RmDir(
-	op *fuseops.RmDirOp) (err error) {
+	op *fuseops.RmDirOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -597,7 +618,10 @@ func (fs *fileSystem) RmDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) Unlink(
-	op *fuseops.UnlinkOp) (err error) {
+	op *fuseops.UnlinkOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -619,7 +643,10 @@ func (fs *fileSystem) Unlink(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) OpenDir(
-	op *fuseops.OpenDirOp) (err error) {
+	op *fuseops.OpenDirOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -642,7 +669,10 @@ func (fs *fileSystem) OpenDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadDir(
-	op *fuseops.ReadDirOp) (err error) {
+	op *fuseops.ReadDirOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	// Find the handle.
 	dh := fs.handles[op.Handle].(*dirHandle)
 	dh.Mu.Lock()
@@ -656,7 +686,10 @@ func (fs *fileSystem) ReadDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReleaseDirHandle(
-	op *fuseops.ReleaseDirHandleOp) (err error) {
+	op *fuseops.ReleaseDirHandleOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -671,7 +704,10 @@ func (fs *fileSystem) ReleaseDirHandle(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) OpenFile(
-	op *fuseops.OpenFileOp) (err error) {
+	op *fuseops.OpenFileOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -683,7 +719,10 @@ func (fs *fileSystem) OpenFile(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadFile(
-	op *fuseops.ReadFileOp) (err error) {
+	op *fuseops.ReadFileOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -702,7 +741,10 @@ func (fs *fileSystem) ReadFile(
 //
 // TODO(jacobsa): Make sure there is a test for fsync and close behavior.
 func (fs *fileSystem) WriteFile(
-	op *fuseops.WriteFileOp) (err error) {
+	op *fuseops.WriteFileOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
