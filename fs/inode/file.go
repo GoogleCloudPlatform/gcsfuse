@@ -18,11 +18,12 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/jacobsa/fuse"
-	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/syncutil"
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
+	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )
@@ -41,7 +42,7 @@ type FileInode struct {
 	// Constant data
 	/////////////////////////
 
-	id fuse.InodeID
+	id fuseops.InodeID
 
 	/////////////////////////
 	// Mutable state
@@ -70,7 +71,7 @@ var _ Inode = &FileInode{}
 func NewFileInode(
 	clock timeutil.Clock,
 	bucket gcs.Bucket,
-	id fuse.InodeID,
+	id fuseops.InodeID,
 	o *storage.Object) (f *FileInode, err error) {
 	// Set up the basic struct.
 	f = &FileInode{
@@ -118,7 +119,7 @@ func (f *FileInode) Unlock() {
 	f.mu.Unlock()
 }
 
-func (f *FileInode) ID() fuse.InodeID {
+func (f *FileInode) ID() fuseops.InodeID {
 	return f.id
 }
 
@@ -142,7 +143,7 @@ func (f *FileInode) SourceGeneration() int64 {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
-	ctx context.Context) (attrs fuse.InodeAttributes, err error) {
+	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
 	// Stat the object.
 	sr, err := f.proxy.Stat(ctx)
 	if err != nil {
@@ -151,7 +152,7 @@ func (f *FileInode) Attributes(
 	}
 
 	// Fill out the struct.
-	attrs = fuse.InodeAttributes{
+	attrs = fuseops.InodeAttributes{
 		Nlink: 1,
 		Size:  uint64(sr.Size),
 		Mode:  0700,
