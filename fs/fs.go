@@ -358,27 +358,21 @@ func (fs *fileSystem) lookUpOrCreateFileInode(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) Init(
-	ctx context.Context,
-	req *fuse.InitRequest) (resp *fuse.InitResponse, err error) {
-	resp = &fuse.InitResponse{}
-
+	op *fuseops.InitOp) (err error) {
 	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) LookUpInode(
-	ctx context.Context,
-	req *fuse.LookUpInodeRequest) (resp *fuse.LookUpInodeResponse, err error) {
-	resp = &fuse.LookUpInodeResponse{}
-
+	op *fuseops.LookUpInodeOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Find the parent directory in question.
-	parent := fs.inodes[req.Parent].(*inode.DirInode)
+	parent := fs.inodes[op.Parent].(*inode.DirInode)
 
 	// Find a record for the child with the given name.
-	o, err := parent.LookUpChild(ctx, req.Name)
+	o, err := parent.LookUpChild(op.Context(), op.Name)
 	if err != nil {
 		return
 	}
@@ -386,9 +380,9 @@ func (fs *fileSystem) LookUpInode(
 	// Is the child a directory or a file?
 	var in inode.Inode
 	if isDirName(o.Name) {
-		in, err = fs.lookUpOrCreateDirInode(ctx, o)
+		in, err = fs.lookUpOrCreateDirInode(op.Context(), o)
 	} else {
-		in, err = fs.lookUpOrCreateFileInode(ctx, o)
+		in, err = fs.lookUpOrCreateFileInode(op.Context(), o)
 	}
 
 	if err != nil {
@@ -399,8 +393,8 @@ func (fs *fileSystem) LookUpInode(
 	defer in.Unlock()
 
 	// Fill out the response.
-	resp.Entry.Child = in.ID()
-	if resp.Entry.Attributes, err = fs.getAttributes(ctx, in); err != nil {
+	op.Entry.Child = in.ID()
+	if op.Entry.Attributes, err = fs.getAttributes(op.Context(), in); err != nil {
 		return
 	}
 
@@ -409,22 +403,18 @@ func (fs *fileSystem) LookUpInode(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) GetInodeAttributes(
-	ctx context.Context,
-	req *fuse.GetInodeAttributesRequest) (
-	resp *fuse.GetInodeAttributesResponse, err error) {
-	resp = &fuse.GetInodeAttributesResponse{}
-
+	op *fuseops.GetInodeAttributesOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Find the inode.
-	in := fs.inodes[req.Inode]
+	in := fs.inodes[op.Inode]
 
 	in.Lock()
 	defer in.Unlock()
 
 	// Grab its attributes.
-	resp.Attributes, err = fs.getAttributes(ctx, in)
+	op.Attributes, err = fs.getAttributes(op.Context(), in)
 	if err != nil {
 		return
 	}
@@ -434,22 +424,18 @@ func (fs *fileSystem) GetInodeAttributes(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) SetInodeAttributes(
-	ctx context.Context,
-	req *fuse.SetInodeAttributesRequest) (
-	resp *fuse.SetInodeAttributesResponse, err error) {
-	resp = &fuse.SetInodeAttributesResponse{}
-
+	op *fuseops.SetInodeAttributesOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Find the inode.
-	in := fs.inodes[req.Inode]
+	in := fs.inodes[op.Inode]
 
 	in.Lock()
 	defer in.Unlock()
 
 	// The only thing we support changing is size, and then only for directories.
-	if req.Mode != nil || req.Atime != nil || req.Mtime != nil {
+	if op.Mode != nil || op.Atime != nil || op.Mtime != nil {
 		err = fuse.ENOSYS
 		return
 	}
@@ -461,15 +447,15 @@ func (fs *fileSystem) SetInodeAttributes(
 	}
 
 	// Set the size, if specified.
-	if req.Size != nil {
-		if err = file.Truncate(ctx, int64(*req.Size)); err != nil {
+	if op.Size != nil {
+		if err = file.Truncate(op.Context(), int64(*op.Size)); err != nil {
 			err = fmt.Errorf("Truncate: %v", err)
 			return
 		}
 	}
 
 	// Fill in the response.
-	resp.Attributes, err = fs.getAttributes(ctx, in)
+	op.Attributes, err = fs.getAttributes(op.Context(), in)
 	if err != nil {
 		return
 	}
@@ -479,16 +465,12 @@ func (fs *fileSystem) SetInodeAttributes(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) MkDir(
-	ctx context.Context,
-	req *fuse.MkDirRequest) (
-	resp *fuse.MkDirResponse, err error) {
-	resp = &fuse.MkDirResponse{}
-
+	op *fuseops.MkDirOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Find the parent.
-	parent := fs.inodes[req.Parent]
+	parent := fs.inodes[op.Parent]
 
 	parent.Lock()
 	defer parent.Unlock()
@@ -498,13 +480,13 @@ func (fs *fileSystem) MkDir(
 	var precond int64
 	createReq := &gcs.CreateObjectRequest{
 		Attrs: storage.ObjectAttrs{
-			Name: path.Join(parent.Name(), req.Name) + "/",
+			Name: path.Join(parent.Name(), op.Name) + "/",
 		},
 		Contents:               strings.NewReader(""),
 		GenerationPrecondition: &precond,
 	}
 
-	o, err := fs.bucket.CreateObject(ctx, createReq)
+	o, err := fs.bucket.CreateObject(op.Context(), createReq)
 	if err != nil {
 		err = fmt.Errorf("CreateObject: %v", err)
 		return
@@ -523,8 +505,8 @@ func (fs *fileSystem) MkDir(
 	fs.dirIndex[child.Name()] = child
 
 	// Fill out the response.
-	resp.Entry.Child = child.ID()
-	if resp.Entry.Attributes, err = fs.getAttributes(ctx, child); err != nil {
+	op.Entry.Child = child.ID()
+	if op.Entry.Attributes, err = fs.getAttributes(op.Context(), child); err != nil {
 		err = fmt.Errorf("getAttributes: %v", err)
 		return
 	}
@@ -534,16 +516,12 @@ func (fs *fileSystem) MkDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) CreateFile(
-	ctx context.Context,
-	req *fuse.CreateFileRequest) (
-	resp *fuse.CreateFileResponse, err error) {
-	resp = &fuse.CreateFileResponse{}
-
+	op *fuseops.CreateFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Find the parent.
-	parent := fs.inodes[req.Parent]
+	parent := fs.inodes[op.Parent]
 
 	parent.Lock()
 	defer parent.Unlock()
@@ -557,13 +535,13 @@ func (fs *fileSystem) CreateFile(
 	var precond int64
 	createReq := &gcs.CreateObjectRequest{
 		Attrs: storage.ObjectAttrs{
-			Name: path.Join(parent.Name(), req.Name),
+			Name: path.Join(parent.Name(), op.Name),
 		},
 		Contents:               strings.NewReader(""),
 		GenerationPrecondition: &precond,
 	}
 
-	o, err := fs.bucket.CreateObject(ctx, createReq)
+	o, err := fs.bucket.CreateObject(op.Context(), createReq)
 	if err != nil {
 		// TODO(jacobsa): Add a test that fails, then map gcs.PreconditionError to
 		// EEXISTS.
@@ -589,8 +567,8 @@ func (fs *fileSystem) CreateFile(
 	fs.fileIndex[nameAndGen{child.Name(), child.SourceGeneration()}] = child
 
 	// Fill out the response.
-	resp.Entry.Child = childID
-	if resp.Entry.Attributes, err = fs.getAttributes(ctx, child); err != nil {
+	op.Entry.Child = childID
+	if op.Entry.Attributes, err = fs.getAttributes(op.Context(), child); err != nil {
 		err = fmt.Errorf("getAttributes: %v", err)
 		return
 	}
@@ -600,34 +578,26 @@ func (fs *fileSystem) CreateFile(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) RmDir(
-	ctx context.Context,
-	req *fuse.RmDirRequest) (
-	resp *fuse.RmDirResponse, err error) {
-	resp = &fuse.RmDirResponse{}
-
+	op *fuseops.RmDirOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Find the parent. We assume that it exists because otherwise the kernel has
 	// done something mildly concerning.
-	parent := fs.inodes[req.Parent]
+	parent := fs.inodes[op.Parent]
 	parent.Lock()
 	defer parent.Unlock()
 
 	// Delete the backing object. Unfortunately we have no way to precondition
 	// this on the directory being empty.
-	err = fs.bucket.DeleteObject(ctx, path.Join(parent.Name(), req.Name)+"/")
+	err = fs.bucket.DeleteObject(op.Context(), path.Join(parent.Name(), op.Name)+"/")
 
 	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) Unlink(
-	ctx context.Context,
-	req *fuse.UnlinkRequest) (
-	resp *fuse.UnlinkResponse, err error) {
-	resp = &fuse.UnlinkResponse{}
-
+	op *fuseops.UnlinkOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -636,30 +606,27 @@ func (fs *fileSystem) Unlink(
 	// TODO(jacobsa): Once we figure out the object path, we don't need to
 	// continue to hold this or the file system lock. Ditto with many other
 	// methods.
-	parent := fs.inodes[req.Parent]
+	parent := fs.inodes[op.Parent]
 
 	parent.Lock()
 	defer parent.Unlock()
 
 	// Delete the backing object.
-	err = fs.bucket.DeleteObject(ctx, path.Join(parent.Name(), req.Name))
+	err = fs.bucket.DeleteObject(op.Context(), path.Join(parent.Name(), op.Name))
 
 	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) OpenDir(
-	ctx context.Context,
-	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
-	resp = &fuse.OpenDirResponse{}
-
+	op *fuseops.OpenDirOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Make sure the inode still exists and is a directory. If not, something has
 	// screwed up because the VFS layer shouldn't have let us forget the inode
 	// before opening it.
-	in := fs.inodes[req.Inode].(*inode.DirInode)
+	in := fs.inodes[op.Inode].(*inode.DirInode)
 	in.Lock()
 	defer in.Unlock()
 
@@ -668,78 +635,65 @@ func (fs *fileSystem) OpenDir(
 	fs.nextHandleID++
 
 	fs.handles[handleID] = newDirHandle(in)
-	resp.Handle = handleID
+	op.Handle = handleID
 
 	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadDir(
-	ctx context.Context,
-	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
+	op *fuseops.ReadDirOp) (err error) {
 	// Find the handle.
-	dh := fs.handles[req.Handle].(*dirHandle)
+	dh := fs.handles[op.Handle].(*dirHandle)
 	dh.Mu.Lock()
 	defer dh.Mu.Unlock()
 
 	// Serve the request.
-	resp, err = dh.ReadDir(ctx, req)
+	op, err = dh.ReadDir(op.Context(), op)
 
 	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReleaseDirHandle(
-	ctx context.Context,
-	req *fuse.ReleaseDirHandleRequest) (
-	resp *fuse.ReleaseDirHandleResponse, err error) {
-	resp = &fuse.ReleaseDirHandleResponse{}
-
+	op *fuseops.ReleaseDirHandleOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Sanity check that this handle exists and is of the correct type.
-	_ = fs.handles[req.Handle].(*dirHandle)
+	_ = fs.handles[op.Handle].(*dirHandle)
 
 	// Clear the entry from the map.
-	delete(fs.handles, req.Handle)
+	delete(fs.handles, op.Handle)
 
 	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) OpenFile(
-	ctx context.Context,
-	req *fuse.OpenFileRequest) (
-	resp *fuse.OpenFileResponse, err error) {
-	resp = &fuse.OpenFileResponse{}
-
+	op *fuseops.OpenFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Sanity check that this inode exists and is of the correct type.
-	_ = fs.inodes[req.Inode].(*inode.FileInode)
+	_ = fs.inodes[op.Inode].(*inode.FileInode)
 
 	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadFile(
-	ctx context.Context,
-	req *fuse.ReadFileRequest) (resp *fuse.ReadFileResponse, err error) {
+	op *fuseops.ReadFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Find the inode.
-	in := fs.inodes[req.Inode].(*inode.FileInode)
+	in := fs.inodes[op.Inode].(*inode.FileInode)
 	in.Lock()
 	defer in.Unlock()
 
 	// Serve the request.
-	resp, err = in.Read(ctx, req)
+	err = in.Read(op)
 
 	return
 }
@@ -748,18 +702,17 @@ func (fs *fileSystem) ReadFile(
 //
 // TODO(jacobsa): Make sure there is a test for fsync and close behavior.
 func (fs *fileSystem) WriteFile(
-	ctx context.Context,
-	req *fuse.WriteFileRequest) (resp *fuse.WriteFileResponse, err error) {
+	op *fuseops.WriteFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Find the inode.
-	in := fs.inodes[req.Inode].(*inode.FileInode)
+	in := fs.inodes[op.Inode].(*inode.FileInode)
 	in.Lock()
 	defer in.Unlock()
 
 	// Serve the request.
-	resp, err = in.Write(ctx, req)
+	err = in.Write(op)
 
 	return
 }
