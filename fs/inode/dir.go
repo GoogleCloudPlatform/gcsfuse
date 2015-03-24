@@ -20,6 +20,7 @@ import (
 	"path"
 
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
@@ -38,7 +39,7 @@ type DirInode struct {
 	// Constant data
 	/////////////////////////
 
-	id fuse.InodeID
+	id fuseops.InodeID
 
 	// The name of the GCS object backing the inode, used as a prefix when
 	// listing. Special case: the empty string means this is the root inode.
@@ -64,7 +65,7 @@ var _ Inode = &DirInode{}
 // REQUIRES: name == "" || name[len(name)-1] == '/'
 func NewDirInode(
 	bucket gcs.Bucket,
-	id fuse.InodeID,
+	id fuseops.InodeID,
 	name string) (d *DirInode) {
 	// Set up the basic struct.
 	d = &DirInode{
@@ -103,7 +104,7 @@ func (d *DirInode) Unlock() {
 }
 
 // Return the ID of this inode.
-func (d *DirInode) ID() fuse.InodeID {
+func (d *DirInode) ID() fuseops.InodeID {
 	return d.id
 }
 
@@ -114,8 +115,8 @@ func (d *DirInode) Name() string {
 }
 
 func (d *DirInode) Attributes(
-	ctx context.Context) (attrs fuse.InodeAttributes, err error) {
-	attrs = fuse.InodeAttributes{
+	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+	attrs = fuseops.InodeAttributes{
 		Nlink: 1,
 		Mode:  0700 | os.ModeDir,
 		// TODO(jacobsa): Track mtime and maybe atime.

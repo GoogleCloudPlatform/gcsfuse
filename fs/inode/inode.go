@@ -17,7 +17,7 @@ package inode
 import (
 	"sync"
 
-	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
 )
 
@@ -26,12 +26,12 @@ type Inode interface {
 	sync.Locker
 
 	// Return the ID assigned to the inode.
-	ID() fuse.InodeID
+	ID() fuseops.InodeID
 
 	// Return the name of the GCS object backing the inode. This may be "foo/bar"
 	// for a file, or "foo/bar/" for a directory.
 	Name() string
 
 	// Return up to date attributes for this inode.
-	Attributes(ctx context.Context) (fuse.InodeAttributes, error)
+	Attributes(ctx context.Context) (fuseops.InodeAttributes, error)
 }

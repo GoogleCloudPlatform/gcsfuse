@@ -20,9 +20,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/jacobsa/fuse"
 	"github.com/googlecloudplatform/gcsfuse/fs"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
+	"github.com/jacobsa/fuse"
 	"golang.org/x/net/context"
 )
 
@@ -64,23 +64,19 @@ func main() {
 		log.Fatal("Couldn't get GCS connection: ", err)
 	}
 
-	// Create a file system.
-	fileSystem, err := fs.NewFileSystem(
+	// Create a file system server.
+	server, err := fs.NewServer(
 		timeutil.RealClock(),
 		conn.GetBucket(getBucketName()))
 
 	if err != nil {
-		log.Fatal("fs.NewFileSystem:", err)
+		log.Fatal("fs.NewServer:", err)
 	}
 
 	// Mount the file system.
-	mountedFS, err := fuse.Mount(mountPoint, fileSystem, &fuse.MountConfig{})
+	mountedFS, err := fuse.Mount(mountPoint, server, &fuse.MountConfig{})
 	if err != nil {
 		log.Fatal("Mount:", err)
-	}
-
-	if err := mountedFS.WaitForReady(context.Background()); err != nil {
-		log.Fatal("MountedFileSystem.WaitForReady:", err)
 	}
 
 	log.Println("File system has been successfully mounted.")

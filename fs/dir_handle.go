@@ -17,10 +17,11 @@ package fs
 import (
 	"fmt"
 
+	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/syncutil"
-	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"golang.org/x/net/context"
 )
 
@@ -50,7 +51,7 @@ type dirHandle struct {
 	// INVARIANT: If len(entries) > 0, entriesOffset + 1 == entries[0].Offset
 	//
 	// GUARDED_BY(Mu)
-	entriesOffset fuse.DirOffset
+	entriesOffset fuseops.DirOffset
 
 	// The continuation token to supply in the next call to in.ReadEntries. At
 	// the start of the directory, this is the empty string. When we have hit the
@@ -103,12 +104,12 @@ func readEntries(
 	ctx context.Context,
 	in *inode.DirInode,
 	tok string,
-	firstEntryOffset fuse.DirOffset) (
+	firstEntryOffset fuseops.DirOffset) (
 	entries []fuseutil.Dirent, newTok *string, err error) {
 	// Fix up the offset of any entries returned.
 	defer func() {
 		for i := 0; i < len(entries); i++ {
-			entries[i].Offset = firstEntryOffset + 1 + fuse.DirOffset(i)
+			entries[i].Offset = firstEntryOffset + 1 + fuseops.DirOffset(i)
 		}
 	}()
 
@@ -138,7 +139,7 @@ func readEntries(
 		// semantic of not minting a new inode ID when the generation changes due
 		// to a local action?
 		for i, _ := range entries {
-			entries[i].Inode = fuse.RootInodeID + 1
+			entries[i].Inode = fuseops.RootInodeID + 1
 		}
 
 		// Propagate errors.
@@ -164,7 +165,7 @@ func readEntries(
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-// Handle a request to read from the directory.
+// Handle a request to read from the directory, without responding.
 //
 // Because the GCS API for listing objects has no notion of a stable offset
 // like the posix telldir/seekdir API does, there is no way for us to
@@ -177,13 +178,10 @@ func readEntries(
 //
 // LOCKS_REQUIRED(dh.Mu)
 func (dh *dirHandle) ReadDir(
-	ctx context.Context,
-	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {
-	resp = &fuse.ReadDirResponse{}
-
+	op *fuseops.ReadDirOp) (err error) {
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
-	if req.Offset == 0 {
+	if op.Offset == 0 {
 		dh.entries = nil
 		dh.entriesOffset = 0
 		dh.tok = new(string)
@@ -191,14 +189,14 @@ func (dh *dirHandle) ReadDir(
 
 	// Is the offset from before what we have buffered? If not, this represents a
 	// seekdir we cannot support, as discussed in the method comments above.
-	if req.Offset < dh.entriesOffset {
+	if op.Offset < dh.entriesOffset {
 		err = fuse.EINVAL
 		return
 	}
 
 	// Is the offset past the end of what we have buffered? If so, this must be
 	// an invalid seekdir according to posix.
-	index := int(req.Offset - dh.entriesOffset)
+	index := int(op.Offset - dh.entriesOffset)
 	if index > len(dh.entries) {
 		err = fuse.EINVAL
 		return
@@ -211,10 +209,10 @@ func (dh *dirHandle) ReadDir(
 
 		// Read some entries.
 		newEntries, newTok, err = readEntries(
-			ctx,
+			op.Context(),
 			dh.in,
 			*dh.tok,
-			dh.entriesOffset+fuse.DirOffset(len(dh.entries)))
+			dh.entriesOffset+fuseops.DirOffset(len(dh.entries)))
 
 		if err != nil {
 			err = fmt.Errorf("readEntries: %v", err)
@@ -222,7 +220,7 @@ func (dh *dirHandle) ReadDir(
 		}
 
 		// Update state.
-		dh.entriesOffset += fuse.DirOffset(len(dh.entries))
+		dh.entriesOffset += fuseops.DirOffset(len(dh.entries))
 		dh.entries = newEntries
 		dh.tok = newTok
 
@@ -232,9 +230,9 @@ func (dh *dirHandle) ReadDir(
 
 	// Now we copy out entries until we run out of entries or space.
 	for i := index; i < len(dh.entries); i++ {
-		resp.Data = fuseutil.AppendDirent(resp.Data, dh.entries[i])
-		if len(resp.Data) > req.Size {
-			resp.Data = resp.Data[:req.Size]
+		op.Data = fuseutil.AppendDirent(op.Data, dh.entries[i])
+		if len(op.Data) > op.Size {
+			op.Data = op.Data[:op.Size]
 			break
 		}
 	}
