@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
@@ -59,18 +60,18 @@ type fileSystem struct {
 	mu syncutil.InvariantMutex
 
 	// The collection of live inodes, keyed by inode ID. No ID less than
-	// fuse.RootInodeID is ever used.
+	// fuseops.RootInodeID is ever used.
 	//
 	// TODO(jacobsa): Implement ForgetInode support in the fuse package, then
 	// implement the method here and clean up these maps.
 	//
 	// INVARIANT: All values are of type *inode.DirInode or *inode.FileInode
-	// INVARIANT: For all keys k, k >= fuse.RootInodeID
+	// INVARIANT: For all keys k, k >= fuseops.RootInodeID
 	// INVARIANT: For all keys k, inodes[k].ID() == k
-	// INVARIANT: inodes[fuse.RootInodeID] is of type *inode.DirInode
+	// INVARIANT: inodes[fuseops.RootInodeID] is of type *inode.DirInode
 	//
 	// GUARDED_BY(mu)
-	inodes map[fuse.InodeID]inode.Inode
+	inodes map[fuseops.InodeID]inode.Inode
 
 	// The next inode ID to hand out. We assume that this will never overflow,
 	// since even if we were handing out inode IDs at 4 GHz, it would still take
@@ -79,7 +80,7 @@ type fileSystem struct {
 	// INVARIANT: For all keys k in inodes, k < nextInodeID
 	//
 	// GUARDED_BY(mu)
-	nextInodeID fuse.InodeID
+	nextInodeID fuseops.InodeID
 
 	// An index of all directory inodes by Name().
 	//
@@ -107,14 +108,14 @@ type fileSystem struct {
 	// INVARIANT: All values are of type *dirHandle
 	//
 	// GUARDED_BY(mu)
-	handles map[fuse.HandleID]interface{}
+	handles map[fuseops.HandleID]interface{}
 
 	// The next handle ID to hand out. We assume that this will never overflow.
 	//
 	// INVARIANT: For all keys k in handles, k < nextHandleID
 	//
 	// GUARDED_BY(mu)
-	nextHandleID fuse.HandleID
+	nextHandleID fuseops.HandleID
 }
 
 type nameAndGen struct {
@@ -167,16 +168,16 @@ func NewFileSystem(
 		bucket:      bucket,
 		uid:         uid,
 		gid:         gid,
-		inodes:      make(map[fuse.InodeID]inode.Inode),
-		nextInodeID: fuse.RootInodeID + 1,
+		inodes:      make(map[fuseops.InodeID]inode.Inode),
+		nextInodeID: fuseops.RootInodeID + 1,
 		dirIndex:    make(map[string]*inode.DirInode),
 		fileIndex:   make(map[nameAndGen]*inode.FileInode),
-		handles:     make(map[fuse.HandleID]interface{}),
+		handles:     make(map[fuseops.HandleID]interface{}),
 	}
 
 	// Set up the root inode.
-	root := inode.NewDirInode(bucket, fuse.RootInodeID, "")
-	fs.inodes[fuse.RootInodeID] = root
+	root := inode.NewDirInode(bucket, fuseops.RootInodeID, "")
+	fs.inodes[fuseops.RootInodeID] = root
 	fs.dirIndex[""] = root
 
 	// Set up invariant checking.
@@ -197,13 +198,13 @@ func isDirName(name string) bool {
 func (fs *fileSystem) checkInvariants() {
 	// Check inode keys.
 	for id, _ := range fs.inodes {
-		if id < fuse.RootInodeID || id >= fs.nextInodeID {
+		if id < fuseops.RootInodeID || id >= fs.nextInodeID {
 			panic(fmt.Sprintf("Illegal inode ID: %v", id))
 		}
 	}
 
 	// Check the root inode.
-	_ = fs.inodes[fuse.RootInodeID].(*inode.DirInode)
+	_ = fs.inodes[fuseops.RootInodeID].(*inode.DirInode)
 
 	// Check each inode, and the indexes over them. Keep a count of each type
 	// seen.
@@ -282,7 +283,7 @@ func (fs *fileSystem) checkInvariants() {
 // LOCKS_REQUIRED(in)
 func (fs *fileSystem) getAttributes(
 	ctx context.Context,
-	in inode.Inode) (attrs fuse.InodeAttributes, err error) {
+	in inode.Inode) (attrs fuseops.InodeAttributes, err error) {
 	attrs, err = in.Attributes(ctx)
 	if err != nil {
 		return

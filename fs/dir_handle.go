@@ -17,10 +17,11 @@ package fs
 import (
 	"fmt"
 
+	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/syncutil"
-	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"golang.org/x/net/context"
 )
 
@@ -50,7 +51,7 @@ type dirHandle struct {
 	// INVARIANT: If len(entries) > 0, entriesOffset + 1 == entries[0].Offset
 	//
 	// GUARDED_BY(Mu)
-	entriesOffset fuse.DirOffset
+	entriesOffset fuseops.DirOffset
 
 	// The continuation token to supply in the next call to in.ReadEntries. At
 	// the start of the directory, this is the empty string. When we have hit the
@@ -103,12 +104,12 @@ func readEntries(
 	ctx context.Context,
 	in *inode.DirInode,
 	tok string,
-	firstEntryOffset fuse.DirOffset) (
+	firstEntryOffset fuseops.DirOffset) (
 	entries []fuseutil.Dirent, newTok *string, err error) {
 	// Fix up the offset of any entries returned.
 	defer func() {
 		for i := 0; i < len(entries); i++ {
-			entries[i].Offset = firstEntryOffset + 1 + fuse.DirOffset(i)
+			entries[i].Offset = firstEntryOffset + 1 + fuseops.DirOffset(i)
 		}
 	}()
 
@@ -138,7 +139,7 @@ func readEntries(
 		// semantic of not minting a new inode ID when the generation changes due
 		// to a local action?
 		for i, _ := range entries {
-			entries[i].Inode = fuse.RootInodeID + 1
+			entries[i].Inode = fuseops.RootInodeID + 1
 		}
 
 		// Propagate errors.
@@ -214,7 +215,7 @@ func (dh *dirHandle) ReadDir(
 			ctx,
 			dh.in,
 			*dh.tok,
-			dh.entriesOffset+fuse.DirOffset(len(dh.entries)))
+			dh.entriesOffset+fuseops.DirOffset(len(dh.entries)))
 
 		if err != nil {
 			err = fmt.Errorf("readEntries: %v", err)
@@ -222,7 +223,7 @@ func (dh *dirHandle) ReadDir(
 		}
 
 		// Update state.
-		dh.entriesOffset += fuse.DirOffset(len(dh.entries))
+		dh.entriesOffset += fuseops.DirOffset(len(dh.entries))
 		dh.entries = newEntries
 		dh.tok = newTok
 
