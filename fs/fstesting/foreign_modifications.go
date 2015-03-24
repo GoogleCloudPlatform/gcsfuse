@@ -68,9 +68,6 @@ func (t *foreignModsTest) readDirUntil(
 			return
 		}
 
-		// TODO(jacobsa): Remove this?
-		// t.clock.AdvanceTime(2 * fs.ListingCacheTTL)
-
 		// Should we stop?
 		if time.Now().After(endTime) {
 			err = errors.New("Timeout waiting for the given length.")
