@@ -527,25 +527,16 @@ func (fs *fileSystem) CreateFile(
 		return
 	}
 
-	// Create a child inode.
-	childID := fs.nextInodeID
-	fs.nextInodeID++
-
-	child, err := inode.NewFileInode(fs.clock, fs.bucket, childID, o)
+	// Create and index a child inode.
+	child, err := fs.lookUpOrCreateInode(op.Context(), o)
 	if err != nil {
-		err = fmt.Errorf("NewFileInode: %v", err)
 		return
 	}
 
-	child.Lock()
 	defer child.Unlock()
 
-	// Index the child inode.
-	fs.inodes[childID] = child
-	fs.fileIndex[nameAndGen{child.Name(), child.SourceGeneration()}] = child
-
 	// Fill out the response.
-	op.Entry.Child = childID
+	op.Entry.Child = child.ID()
 	if op.Entry.Attributes, err = fs.getAttributes(op.Context(), child); err != nil {
 		err = fmt.Errorf("getAttributes: %v", err)
 		return
