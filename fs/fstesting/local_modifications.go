@@ -940,6 +940,10 @@ func (t *directoryTest) Rmdir_OpenedForReading() {
 	}
 }
 
+func (t *directoryTest) Rmdir_ThenRecreateWithSameName() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *directoryTest) CreateHardLink() {
 	var err error
 
@@ -1452,6 +1456,10 @@ func (t *fileTest) UnlinkFile_FromSubDirectory() {
 	entries, err := ioutil.ReadDir(dirName)
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
+}
+
+func (t *fileTest) UnlinkFile_ThenRecreateWithSameName() {
+	AssertTrue(false, "TODO")
 }
 
 func (t *fileTest) Chmod() {
