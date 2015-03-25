@@ -101,6 +101,8 @@ func (d *DirInode) checkInvariants() {
 	}
 }
 
+func (d *DirInode) clobbered(ctx context.Context) (clobbered bool, err error)
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -131,9 +133,21 @@ func (d *DirInode) SourceGeneration() int64 {
 
 func (d *DirInode) Attributes(
 	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+	// Find out whether the backing object has been clobbered in GCS.
+	clobbered, err := d.clobbered(ctx)
+	if err != nil {
+		err = fmt.Errorf("clobbered: %v", err)
+		return
+	}
+
+	// Set up basic attributes.
 	attrs = fuseops.InodeAttributes{
-		Nlink: 1,
-		Mode:  0700 | os.ModeDir,
+		Mode: 0700 | os.ModeDir,
+	}
+
+	// Modify Nlink as appropriate.
+	if !clobbered {
+		attrs.Nlink = 1
 	}
 
 	return
