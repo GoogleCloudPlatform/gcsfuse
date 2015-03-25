@@ -44,31 +44,47 @@ type DirInode struct {
 	// prefix when listing. Special case: the empty string means this is the root
 	// inode.
 	//
+	// INVARIANT: src != nil
 	// INVARIANT: src.Name == "" || src.Name[len(name)-1] == '/'
-	src *storage.Object
+	src storage.Object
 }
 
 var _ Inode = &DirInode{}
+
+// Create a directory inode for the root of the file system. For this inode,
+// the result of SourceGeneration() is unspecified but stable.
+func NewRootInode(bucket gcs.Bucket) (d *DirInode) {
+	d = &DirInode{
+		bucket: bucket,
+		id:     fuseops.RootInodeID,
+
+		// A dummy object whose name is the empty string.
+		src: storage.Object{},
+	}
+
+	return
+}
 
 // Create a directory inode for the supplied source object. The object's name
 // must end with a slash unless this is the root directory, in which case it
 // must be empty.
 //
 // REQUIRES: o != nil
-// REQUIRES: o.Name == "" || o.Name[len(name)-1] == '/'
+// REQUIRES: o.Name != ""
+// REQUIRES: o.Name[len(o.Name)-1] == '/'
 func NewDirInode(
 	bucket gcs.Bucket,
 	id fuseops.InodeID,
 	o *storage.Object) (d *DirInode) {
-	if !(o.Name == "" || o.Name[len(o.Name)-1] == '/') {
+	if o.Name[len(o.Name)-1] != '/' {
 		panic(fmt.Sprintf("Unexpected name: %s", o.Name))
 	}
 
-	// Set up the basic struct.
+	// Set up the struct.
 	d = &DirInode{
 		bucket: bucket,
 		id:     id,
-		src:    o,
+		src:    *o,
 	}
 
 	return
