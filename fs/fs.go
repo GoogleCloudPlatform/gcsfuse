@@ -282,12 +282,21 @@ func (fs *fileSystem) getAttributes(
 }
 
 // Find an inode for the given object record. Create one if there isn't already
-// one available.
+// one available. Return the inode locked.
 //
 // LOCKS_REQUIRED(fs.mu)
+// LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInode(
 	ctx context.Context,
 	o *storage.Object) (in inode.Inode, err error) {
+	// Make sure to return the inode locked.
+	defer func() {
+		if in != nil {
+			in.Lock()
+		}
+	}()
+
+	// Build the index key.
 	nandg := nameAndGen{
 		name: o.Name,
 		gen:  o.Generation,
@@ -357,7 +366,6 @@ func (fs *fileSystem) LookUpInode(
 		return
 	}
 
-	in.Lock()
 	defer in.Unlock()
 
 	// Fill out the response.
@@ -469,17 +477,13 @@ func (fs *fileSystem) MkDir(
 		return
 	}
 
-	// Create a child inode.
-	id := fs.nextInodeID
-	fs.nextInodeID++
+	// Create and index a child inode.
+	child, err := fs.lookUpOrCreateInode(op.Context(), o)
+	if err != nil {
+		return
+	}
 
-	child := inode.NewDirInode(fs.bucket, id, o)
-	child.Lock()
 	defer child.Unlock()
-
-	// Index the child inode.
-	fs.inodes[child.ID()] = child
-	fs.dirIndex[child.Name()] = child
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
