@@ -573,5 +573,26 @@ func (t *foreignModsTest) ObjectIsDeleted_File() {
 }
 
 func (t *foreignModsTest) ObjectIsDeleted_Directory() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create a directory placeholder.
+	AssertEq(nil, t.createWithContents("dir/", ""))
+
+	// Open the corresponding inode.
+	t.f1, err = os.Open(path.Join(t.mfs.Dir(), "dir"))
+	AssertEq(nil, err)
+
+	// Delete the object.
+	AssertEq(nil, t.bucket.DeleteObject(t.ctx, "dir/"))
+
+	// The inode should appear to be unlinked, but otherwise be okay.
+	fi, err := t.f1.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectTrue(fi.IsDir())
+
+	// Opening again should not work.
+	t.f2, err = os.Open(path.Join(t.mfs.Dir(), "dir"))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }

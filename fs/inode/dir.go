@@ -115,8 +115,6 @@ func (d *DirInode) clobbered(ctx context.Context) (clobbered bool, err error) {
 	o, err := d.bucket.StatObject(ctx, req)
 
 	// "Not found" means clobbered.
-	//
-	// TODO(jacobsa): Add a test for this.
 	if _, ok := err.(*gcs.NotFoundError); ok {
 		clobbered = true
 		err = nil
