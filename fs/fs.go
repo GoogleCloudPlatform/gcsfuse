@@ -59,46 +59,33 @@ type fileSystem struct {
 	// locks.
 	mu syncutil.InvariantMutex
 
-	// The collection of live inodes, keyed by inode ID. No ID less than
-	// fuseops.RootInodeID is ever used.
-	//
-	// INVARIANT: All values are of type *inode.DirInode or *inode.FileInode
-	// INVARIANT: For all keys k, k >= fuseops.RootInodeID
-	// INVARIANT: For all keys k, inodes[k].ID() == k
-	// INVARIANT: inodes[fuseops.RootInodeID] is of type *inode.DirInode
-	//
-	// GUARDED_BY(mu)
-	inodes map[fuseops.InodeID]inode.Inode
-
 	// The next inode ID to hand out. We assume that this will never overflow,
 	// since even if we were handing out inode IDs at 4 GHz, it would still take
 	// over a century to do so.
 	//
-	// INVARIANT: For all keys k in inodes, k < nextInodeID
-	//
 	// GUARDED_BY(mu)
 	nextInodeID fuseops.InodeID
 
-	// An index of all directory inodes by Name().
+	// The collection of live inodes, keyed by inode ID. No ID less than
+	// fuseops.RootInodeID is ever used.
 	//
-	// INVARIANT: For each key k, isDirName(k)
-	// INVARIANT: For each key k, dirIndex[k].Name() == k
-	// INVARIANT: The values are all and only the values of the inodes map of
-	// type *inode.DirInode.
+	// INVARIANT: For all keys k, fuseops.RootInodeID <= k < nextInodeID
+	// INVARIANT: For all keys k, inodes[k].ID() == k
+	// INVARIANT: inodes[fuseops.RootInodeID] is of type *inode.DirInode
+	// INVARIANT: For all v, if isDirName(v.Name()) then v is *inode.DirInode
+	// INVARIANT: For all v, if !isDirName(v.Name()) then v is *inode.FileInode
 	//
 	// GUARDED_BY(mu)
-	dirIndex map[string]*inode.DirInode
+	inodes map[fuseops.InodeID]inode.Inode
 
-	// An index of all file inodes by (Name(), SourceGeneration()) pairs.
+	// An index of all inodes by (Name(), SourceGeneration()) pairs.
 	//
-	// INVARIANT: For each key k, !isDirName(k)
-	// INVARIANT: For each key k, fileIndex[k].Name() == k.name
-	// INVARIANT: For each key k, fileIndex[k].SourceGeneration() == k.gen
-	// INVARIANT: The values are all and only the values of the inodes map of
-	// type *inode.FileInode.
+	// INVARIANT: For each key k, inodeIndex[k].Name() == k.name
+	// INVARIANT: For each key k, inodeIndex[k].SourceGeneration() == k.gen
+	// INVARIANT: The values are all and only the values of the inodes map
 	//
 	// GUARDED_BY(mu)
-	fileIndex map[nameAndGen]*inode.FileInode
+	inodeIndex map[nameAndGen]inode.Inode
 
 	// The collection of live handles, keyed by handle ID.
 	//
@@ -167,15 +154,14 @@ func NewServer(
 		gid:         gid,
 		inodes:      make(map[fuseops.InodeID]inode.Inode),
 		nextInodeID: fuseops.RootInodeID + 1,
-		dirIndex:    make(map[string]*inode.DirInode),
-		fileIndex:   make(map[nameAndGen]*inode.FileInode),
+		inodeIndex:  make(map[nameAndGen]inode.Inode),
 		handles:     make(map[fuseops.HandleID]interface{}),
 	}
 
 	// Set up the root inode.
 	root := inode.NewRootInode(bucket)
 	fs.inodes[fuseops.RootInodeID] = root
-	fs.dirIndex[""] = root
+	fs.inodeIndex[nameAndGen{root.Name(), root.SourceGeneration()}] = root
 
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
@@ -193,84 +179,87 @@ func isDirName(name string) bool {
 }
 
 func (fs *fileSystem) checkInvariants() {
-	// Check inode keys.
+	// INVARIANT: For all keys k, fuseops.RootInodeID <= k < nextInodeID
 	for id, _ := range fs.inodes {
 		if id < fuseops.RootInodeID || id >= fs.nextInodeID {
 			panic(fmt.Sprintf("Illegal inode ID: %v", id))
 		}
 	}
 
-	// Check the root inode.
-	_ = fs.inodes[fuseops.RootInodeID].(*inode.DirInode)
-
-	// Check each inode, and the indexes over them. Keep a count of each type
-	// seen.
-	dirsSeen := 0
-	filesSeen := 0
+	// INVARIANT: For all keys k, inodes[k].ID() == k
 	for id, in := range fs.inodes {
-		// Check the ID.
 		if in.ID() != id {
 			panic(fmt.Sprintf("ID mismatch: %v vs. %v", in.ID(), id))
 		}
+	}
 
-		// Check type-specific stuff.
-		switch typed := in.(type) {
-		case *inode.DirInode:
-			dirsSeen++
+	// INVARIANT: inodes[fuseops.RootInodeID] is of type *inode.DirInode
+	_ = fs.inodes[fuseops.RootInodeID].(*inode.DirInode)
 
-			if !isDirName(typed.Name()) {
-				panic(fmt.Sprintf("Unexpected directory name: %s", typed.Name()))
+	// INVARIANT: For all v, if isDirName(v.Name()) then v is *inode.DirInode
+	for _, in := range fs.inodes {
+		if isDirName(in.Name()) {
+			_, ok := in.(*inode.DirInode)
+			if !ok {
+				panic(fmt.Sprintf(
+					"Unexpected inode type for name \"%s\": %v",
+					in.Name(),
+					reflect.TypeOf(in)))
 			}
-
-			if fs.dirIndex[typed.Name()] != typed {
-				panic(fmt.Sprintf("dirIndex mismatch: %s", typed.Name()))
-			}
-
-		case *inode.FileInode:
-			filesSeen++
-
-			if isDirName(typed.Name()) {
-				panic(fmt.Sprintf("Unexpected file name: %s", typed.Name()))
-			}
-
-			nandg := nameAndGen{typed.Name(), typed.SourceGeneration()}
-			if fs.fileIndex[nandg] != typed {
-				panic(
-					fmt.Sprintf(
-						"fileIndex mismatch: %s, %v",
-						typed.Name(),
-						typed.SourceGeneration()))
-			}
-
-		default:
-			panic(fmt.Sprintf("Unexpected inode type: %v", reflect.TypeOf(in)))
 		}
 	}
 
-	// Make sure that the indexes are exhaustive.
-	if len(fs.dirIndex) != dirsSeen {
-		panic(
-			fmt.Sprintf(
-				"dirIndex length mismatch: %v vs. %v",
-				len(fs.dirIndex),
-				dirsSeen))
-	}
-
-	if len(fs.fileIndex) != filesSeen {
-		panic(
-			fmt.Sprintf(
-				"fileIndex length mismatch: %v vs. %v",
-				len(fs.fileIndex),
-				dirsSeen))
-	}
-
-	// Check handles.
-	for id, h := range fs.handles {
-		if id >= fs.nextHandleID {
-			panic(fmt.Sprintf("Illegal handle ID: %v", id))
+	// INVARIANT: For all v, if !isDirName(v.Name()) then v is *inode.FileInode
+	for _, in := range fs.inodes {
+		if !isDirName(in.Name()) {
+			_, ok := in.(*inode.FileInode)
+			if !ok {
+				panic(fmt.Sprintf(
+					"Unexpected inode type for name \"%s\": %v",
+					in.Name(),
+					reflect.TypeOf(in)))
+			}
 		}
+	}
 
+	// INVARIANT: For each key k, inodeIndex[k].Name() == k.name
+	for k, in := range fs.inodeIndex {
+		if in.Name() != k.name {
+			panic(fmt.Sprintf("Name mismatch: %v vs. %v", in.Name(), k.name))
+		}
+	}
+
+	// INVARIANT: For each key k, inodeIndex[k].SourceGeneration() == k.gen
+	for k, in := range fs.inodeIndex {
+		if in.SourceGeneration() != k.gen {
+			panic(fmt.Sprintf(
+				"Generation mismatch: %v vs. %v",
+				in.SourceGeneration(),
+				k.gen))
+		}
+	}
+
+	// INVARIANT: The values are all and only the values of the inodes map
+	for id, in := range fs.inodes {
+		if in != fs.inodes[id] {
+			panic("inodeIndex is not a subset of inodes")
+		}
+	}
+
+	if len(fs.inodeIndex) != len(fs.inodes) {
+		panic("inodeIndex values are not the same set as inodes")
+	}
+
+	// INVARIANT: All values are of type *dirHandle
+	for _, h := range fs.handles {
 		_ = h.(*dirHandle)
+	}
+
+	// INVARIANT: For all keys k in handles, k < nextHandleID
+	for k, _ := range fs.handles {
+		if k >= fs.nextHandleID {
+			panic(fmt.Sprintf("Illegal handle ID: %v", k))
+		}
 	}
 }
 
@@ -292,44 +281,29 @@ func (fs *fileSystem) getAttributes(
 	return
 }
 
-// Find a directory inode for the given object record. Create one if there
-// isn't already one available.
+// Find an inode for the given object record. Create one if there isn't already
+// one available. Return the inode locked.
 //
 // LOCKS_REQUIRED(fs.mu)
-func (fs *fileSystem) lookUpOrCreateDirInode(
+// LOCK_FUNCTION(in)
+func (fs *fileSystem) lookUpOrCreateInode(
 	ctx context.Context,
-	o *storage.Object) (in *inode.DirInode, err error) {
-	// Do we already have an inode for this name?
-	if in = fs.dirIndex[o.Name]; in != nil {
-		return
-	}
+	o *storage.Object) (in inode.Inode, err error) {
+	// Make sure to return the inode locked.
+	defer func() {
+		if in != nil {
+			in.Lock()
+		}
+	}()
 
-	// Mint an ID.
-	id := fs.nextInodeID
-	fs.nextInodeID++
-
-	// Create and index an inode.
-	in = inode.NewDirInode(fs.bucket, id, o)
-	fs.inodes[id] = in
-	fs.dirIndex[in.Name()] = in
-
-	return
-}
-
-// Find a file inode for the given object record. Create one if there isn't
-// already one available.
-//
-// LOCKS_REQUIRED(fs.mu)
-func (fs *fileSystem) lookUpOrCreateFileInode(
-	ctx context.Context,
-	o *storage.Object) (in *inode.FileInode, err error) {
+	// Build the index key.
 	nandg := nameAndGen{
 		name: o.Name,
 		gen:  o.Generation,
 	}
 
 	// Do we already have an inode for this (name, generation) pair?
-	if in = fs.fileIndex[nandg]; in != nil {
+	if in = fs.inodeIndex[nandg]; in != nil {
 		return
 	}
 
@@ -337,14 +311,20 @@ func (fs *fileSystem) lookUpOrCreateFileInode(
 	id := fs.nextInodeID
 	fs.nextInodeID++
 
-	// Create and index an inode.
-	if in, err = inode.NewFileInode(fs.clock, fs.bucket, id, o); err != nil {
-		err = fmt.Errorf("NewFileInode: %v", err)
-		return
+	// Create an inode.
+	if isDirName(o.Name) {
+		in = inode.NewDirInode(fs.bucket, id, o)
+	} else {
+		in, err = inode.NewFileInode(fs.clock, fs.bucket, id, o)
+		if err != nil {
+			err = fmt.Errorf("NewFileInode: %v", err)
+			return
+		}
 	}
 
+	// Index the inode.
 	fs.inodes[id] = in
-	fs.fileIndex[nandg] = in
+	fs.inodeIndex[nandg] = in
 
 	return
 }
@@ -380,19 +360,12 @@ func (fs *fileSystem) LookUpInode(
 		return
 	}
 
-	// Is the child a directory or a file?
+	// Find or mint an inode.
 	var in inode.Inode
-	if isDirName(o.Name) {
-		in, err = fs.lookUpOrCreateDirInode(op.Context(), o)
-	} else {
-		in, err = fs.lookUpOrCreateFileInode(op.Context(), o)
-	}
-
-	if err != nil {
+	if in, err = fs.lookUpOrCreateInode(op.Context(), o); err != nil {
 		return
 	}
 
-	in.Lock()
 	defer in.Unlock()
 
 	// Fill out the response.
@@ -504,17 +477,13 @@ func (fs *fileSystem) MkDir(
 		return
 	}
 
-	// Create a child inode.
-	id := fs.nextInodeID
-	fs.nextInodeID++
+	// Create and index a child inode.
+	child, err := fs.lookUpOrCreateInode(op.Context(), o)
+	if err != nil {
+		return
+	}
 
-	child := inode.NewDirInode(fs.bucket, id, o)
-	child.Lock()
 	defer child.Unlock()
-
-	// Index the child inode.
-	fs.inodes[child.ID()] = child
-	fs.dirIndex[child.Name()] = child
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
@@ -558,25 +527,16 @@ func (fs *fileSystem) CreateFile(
 		return
 	}
 
-	// Create a child inode.
-	childID := fs.nextInodeID
-	fs.nextInodeID++
-
-	child, err := inode.NewFileInode(fs.clock, fs.bucket, childID, o)
+	// Create and index a child inode.
+	child, err := fs.lookUpOrCreateInode(op.Context(), o)
 	if err != nil {
-		err = fmt.Errorf("NewFileInode: %v", err)
 		return
 	}
 
-	child.Lock()
 	defer child.Unlock()
 
-	// Index the child inode.
-	fs.inodes[childID] = child
-	fs.fileIndex[nameAndGen{child.Name(), child.SourceGeneration()}] = child
-
 	// Fill out the response.
-	op.Entry.Child = childID
+	op.Entry.Child = child.ID()
 	if op.Entry.Attributes, err = fs.getAttributes(op.Context(), child); err != nil {
 		err = fmt.Errorf("getAttributes: %v", err)
 		return
