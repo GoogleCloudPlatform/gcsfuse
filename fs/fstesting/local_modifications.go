@@ -1508,7 +1508,30 @@ func (t *fileTest) Sync_Dirty() {
 }
 
 func (t *fileTest) Sync_NotDirty() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create a file.
+	t.f1, err = os.Create(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	// The above should have created a generation for the object. Grab a record
+	// for it.
+	statReq := &gcs.StatObjectRequest{
+		Name: "foo",
+	}
+
+	o1, err := t.bucket.StatObject(t.ctx, statReq)
+	AssertEq(nil, err)
+
+	// Sync the file.
+	err = t.f1.Sync()
+	AssertEq(nil, err)
+
+	// A new generation need not have been written.
+	o2, err := t.bucket.StatObject(t.ctx, statReq)
+	AssertEq(nil, err)
+
+	ExpectEq(o1.Generation, o2.Generation)
 }
 
 func (t *fileTest) Sync_Clobbered() {
