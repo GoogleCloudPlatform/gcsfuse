@@ -33,6 +33,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
+	"google.golang.org/cloud/storage"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -1483,7 +1484,7 @@ func (t *fileTest) Chtimes() {
 	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
-func (t *fileTest) Sync() {
+func (t *fileTest) Sync_Dirty() {
 	var err error
 	var n int
 
@@ -1507,7 +1508,67 @@ func (t *fileTest) Sync() {
 	ExpectEq("taco", contents)
 }
 
-func (t *fileTest) Close() {
+func (t *fileTest) Sync_NotDirty() {
+	var err error
+
+	// Create a file.
+	t.f1, err = os.Create(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	// The above should have created a generation for the object. Grab a record
+	// for it.
+	statReq := &gcs.StatObjectRequest{
+		Name: "foo",
+	}
+
+	o1, err := t.bucket.StatObject(t.ctx, statReq)
+	AssertEq(nil, err)
+
+	// Sync the file.
+	err = t.f1.Sync()
+	AssertEq(nil, err)
+
+	// A new generation need not have been written.
+	o2, err := t.bucket.StatObject(t.ctx, statReq)
+	AssertEq(nil, err)
+
+	ExpectEq(o1.Generation, o2.Generation)
+}
+
+func (t *fileTest) Sync_Clobbered() {
+	var err error
+	var n int
+
+	// Create a file.
+	t.f1, err = os.Create(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	// Dirty the file by giving it some contents.
+	n, err = t.f1.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Replace the underyling object with a new generation.
+	_, err = gcsutil.CreateObject(
+		t.ctx,
+		t.bucket,
+		&storage.ObjectAttrs{
+			Name: "foo",
+		},
+		"foobar")
+
+	// Sync the file. This should not result in an error, but the new generation
+	// should not be replaced.
+	err = t.f1.Sync()
+	AssertEq(nil, err)
+
+	// Check that the new generation was not replaced.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	AssertEq(nil, err)
+	ExpectEq("foobar", contents)
+}
+
+func (t *fileTest) Close_Dirty() {
 	var err error
 	var n int
 
@@ -1529,4 +1590,66 @@ func (t *fileTest) Close() {
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("taco", contents)
+}
+
+func (t *fileTest) Close_NotDirty() {
+	var err error
+
+	// Create a file.
+	t.f1, err = os.Create(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	// The above should have created a generation for the object. Grab a record
+	// for it.
+	statReq := &gcs.StatObjectRequest{
+		Name: "foo",
+	}
+
+	o1, err := t.bucket.StatObject(t.ctx, statReq)
+	AssertEq(nil, err)
+
+	// Close the file.
+	err = t.f1.Close()
+	t.f1 = nil
+	AssertEq(nil, err)
+
+	// A new generation need not have been written.
+	o2, err := t.bucket.StatObject(t.ctx, statReq)
+	AssertEq(nil, err)
+
+	ExpectEq(o1.Generation, o2.Generation)
+}
+
+func (t *fileTest) Close_Clobbered() {
+	var err error
+	var n int
+
+	// Create a file.
+	t.f1, err = os.Create(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	// Dirty the file by giving it some contents.
+	n, err = t.f1.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Replace the underyling object with a new generation.
+	_, err = gcsutil.CreateObject(
+		t.ctx,
+		t.bucket,
+		&storage.ObjectAttrs{
+			Name: "foo",
+		},
+		"foobar")
+
+	// Close the file. This should not result in an error, but the new generation
+	// should not be replaced.
+	err = t.f1.Close()
+	t.f1 = nil
+	AssertEq(nil, err)
+
+	// Check that the new generation was not replaced.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	AssertEq(nil, err)
+	ExpectEq("foobar", contents)
 }
