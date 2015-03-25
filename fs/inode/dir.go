@@ -23,7 +23,6 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )
@@ -41,41 +40,52 @@ type DirInode struct {
 
 	id fuseops.InodeID
 
-	// The name of the GCS object backing the inode, used as a prefix when
-	// listing. Special case: the empty string means this is the root inode.
+	// The the GCS object backing the inode. The object's name is used as a
+	// prefix when listing. Special case: the empty string means this is the root
+	// inode.
 	//
-	// INVARIANT: name == "" || name[len(name)-1] == '/'
-	name string
-
-	/////////////////////////
-	// Mutable state
-	/////////////////////////
-
-	// A mutex that must be held when calling certain methods. See documentation
-	// for each method.
-	mu syncutil.InvariantMutex
+	// INVARIANT: src != nil
+	// INVARIANT: src.Name == "" || src.Name[len(name)-1] == '/'
+	src storage.Object
 }
 
 var _ Inode = &DirInode{}
 
-// Create a directory inode for the directory with the given name. The name
+// Create a directory inode for the root of the file system. For this inode,
+// the result of SourceGeneration() is unspecified but stable.
+func NewRootInode(bucket gcs.Bucket) (d *DirInode) {
+	d = &DirInode{
+		bucket: bucket,
+		id:     fuseops.RootInodeID,
+
+		// A dummy object whose name is the empty string.
+		src: storage.Object{},
+	}
+
+	return
+}
+
+// Create a directory inode for the supplied source object. The object's name
 // must end with a slash unless this is the root directory, in which case it
 // must be empty.
 //
-// REQUIRES: name == "" || name[len(name)-1] == '/'
+// REQUIRES: o != nil
+// REQUIRES: o.Name != ""
+// REQUIRES: o.Name[len(o.Name)-1] == '/'
 func NewDirInode(
 	bucket gcs.Bucket,
 	id fuseops.InodeID,
-	name string) (d *DirInode) {
-	// Set up the basic struct.
+	o *storage.Object) (d *DirInode) {
+	if o.Name[len(o.Name)-1] != '/' {
+		panic(fmt.Sprintf("Unexpected name: %s", o.Name))
+	}
+
+	// Set up the struct.
 	d = &DirInode{
 		bucket: bucket,
 		id:     id,
-		name:   name,
+		src:    *o,
 	}
-
-	// Set up invariant checking.
-	d.mu = syncutil.NewInvariantMutex(d.checkInvariants)
 
 	return
 }
@@ -85,9 +95,9 @@ func NewDirInode(
 ////////////////////////////////////////////////////////////////////////
 
 func (d *DirInode) checkInvariants() {
-	// Check the name.
-	if !(d.name == "" || d.name[len(d.name)-1] == '/') {
-		panic(fmt.Sprintf("Unexpected name: %s", d.name))
+	// INVARIANT: src.Name == "" || src.Name[len(name)-1] == '/'
+	if !(d.src.Name == "" || d.src.Name[len(d.src.Name)-1] == '/') {
+		panic(fmt.Sprintf("Unexpected name: %s", d.src.Name))
 	}
 }
 
@@ -96,11 +106,11 @@ func (d *DirInode) checkInvariants() {
 ////////////////////////////////////////////////////////////////////////
 
 func (d *DirInode) Lock() {
-	d.mu.Lock()
+	// We don't require locks.
 }
 
 func (d *DirInode) Unlock() {
-	d.mu.Unlock()
+	// We don't require locks.
 }
 
 // Return the ID of this inode.
@@ -111,7 +121,12 @@ func (d *DirInode) ID() fuseops.InodeID {
 // Return the full name of the directory object in GCS, including the trailing
 // slash (e.g. "foo/bar/").
 func (d *DirInode) Name() string {
-	return d.name
+	return d.src.Name
+}
+
+// Return the generation number from which this inode was branched.
+func (d *DirInode) SourceGeneration() int64 {
+	return d.src.Generation
 }
 
 func (d *DirInode) Attributes(
@@ -133,7 +148,7 @@ func (d *DirInode) LookUpChild(
 	name string) (o *storage.Object, err error) {
 	// Stat the child as a directory first.
 	statReq := &gcs.StatObjectRequest{
-		Name: d.name + name + "/",
+		Name: d.Name() + name + "/",
 	}
 
 	o, err = d.bucket.StatObject(ctx, statReq)
@@ -152,7 +167,7 @@ func (d *DirInode) LookUpChild(
 	}
 
 	// Try again as a file.
-	statReq.Name = d.name + name
+	statReq.Name = d.Name() + name
 	o, err = d.bucket.StatObject(ctx, statReq)
 
 	if _, ok := err.(*gcs.NotFoundError); ok {
@@ -184,7 +199,7 @@ func (d *DirInode) ReadEntries(
 	// Ask the bucket to list some objects.
 	query := &storage.Query{
 		Delimiter: "/",
-		Prefix:    d.name,
+		Prefix:    d.Name(),
 		Cursor:    tok,
 	}
 

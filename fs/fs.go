@@ -173,7 +173,7 @@ func NewServer(
 	}
 
 	// Set up the root inode.
-	root := inode.NewDirInode(bucket, fuseops.RootInodeID, "")
+	root := inode.NewRootInode(bucket)
 	fs.inodes[fuseops.RootInodeID] = root
 	fs.dirIndex[""] = root
 
@@ -309,7 +309,7 @@ func (fs *fileSystem) lookUpOrCreateDirInode(
 	fs.nextInodeID++
 
 	// Create and index an inode.
-	in = inode.NewDirInode(fs.bucket, id, o.Name)
+	in = inode.NewDirInode(fs.bucket, id, o)
 	fs.inodes[id] = in
 	fs.dirIndex[in.Name()] = in
 
@@ -508,7 +508,7 @@ func (fs *fileSystem) MkDir(
 	id := fs.nextInodeID
 	fs.nextInodeID++
 
-	child := inode.NewDirInode(fs.bucket, id, o.Name)
+	child := inode.NewDirInode(fs.bucket, id, o)
 	child.Lock()
 	defer child.Unlock()
 
