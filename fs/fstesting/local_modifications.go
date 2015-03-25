@@ -941,7 +941,29 @@ func (t *directoryTest) Rmdir_OpenedForReading() {
 }
 
 func (t *directoryTest) Rmdir_ThenRecreateWithSameName() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create a directory.
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "dir"), 0700)
+	AssertEq(nil, err)
+
+	// Unlink the directory.
+	err = os.Remove(path.Join(t.mfs.Dir(), "dir"))
+	AssertEq(nil, err)
+
+	// Re-create the directory with the same name. Nothing crazy should happen.
+	// In the past, this used to crash (cf.
+	// https://github.com/GoogleCloudPlatform/gcsfuse/issues/8).
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "dir"), 0700)
+	AssertEq(nil, err)
+
+	// Statting should reveal nothing surprising.
+	fi, err := os.Stat(path.Join(t.mfs.Dir(), "dir"))
+	AssertEq(nil, err)
+
+	ExpectEq("dir", fi.Name())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectTrue(fi.IsDir())
 }
 
 func (t *directoryTest) CreateHardLink() {
