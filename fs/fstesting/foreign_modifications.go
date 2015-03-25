@@ -533,7 +533,24 @@ func (t *foreignModsTest) ObjectIsOverwritten_File() {
 }
 
 func (t *foreignModsTest) ObjectIsOverwritten_Directory() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create a directory placeholder.
+	AssertEq(nil, t.createWithContents("dir/", ""))
+
+	// Open the corresponding inode.
+	t.f1, err = os.Open(path.Join(t.mfs.Dir(), "dir"))
+	AssertEq(nil, err)
+
+	// Overwrite the object.
+	AssertEq(nil, t.createWithContents("dir/", ""))
+
+	// The inode should appear to be unlinked, but otherwise be okay.
+	fi, err := t.f1.Stat()
+
+	AssertEq(nil, err)
+	ExpectTrue(fi.IsDir())
+	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
 func (t *foreignModsTest) ObjectIsDeleted_File() {
@@ -589,8 +606,8 @@ func (t *foreignModsTest) ObjectIsDeleted_Directory() {
 	fi, err := t.f1.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectTrue(fi.IsDir())
+	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Opening again should not work.
 	t.f2, err = os.Open(path.Join(t.mfs.Dir(), "dir"))
