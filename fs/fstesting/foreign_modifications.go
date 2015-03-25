@@ -481,7 +481,7 @@ func (t *foreignModsTest) ReadBeyondEndOfFile() {
 	}
 }
 
-func (t *foreignModsTest) ObjectIsOverwritten() {
+func (t *foreignModsTest) ObjectIsOverwritten_File() {
 	// Create an object.
 	AssertEq(nil, t.createWithContents("foo", "taco"))
 
@@ -532,7 +532,11 @@ func (t *foreignModsTest) ObjectIsOverwritten() {
 	ExpectEq("burrito", string(contents))
 }
 
-func (t *foreignModsTest) ObjectIsDeleted() {
+func (t *foreignModsTest) ObjectIsOverwritten_Directory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *foreignModsTest) ObjectIsDeleted_File() {
 	// Create an object.
 	AssertEq(nil, t.createWithContents("foo", "taco"))
 
@@ -566,4 +570,8 @@ func (t *foreignModsTest) ObjectIsDeleted() {
 
 	AssertNe(nil, err)
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+}
+
+func (t *foreignModsTest) ObjectIsDeleted_Directory() {
+	AssertTrue(false, "TODO")
 }

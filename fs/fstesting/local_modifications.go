@@ -892,10 +892,6 @@ func (t *directoryTest) Rmdir_Empty() {
 }
 
 func (t *directoryTest) Rmdir_OpenedForReading() {
-	// Cf. https://github.com/GoogleCloudPlatform/gcsfuse/issues/8
-	AddFailure("Waiting for issue #8 to be resolved.")
-	AbortTest()
-
 	var err error
 
 	// Create a directory.
@@ -928,16 +924,11 @@ func (t *directoryTest) Rmdir_OpenedForReading() {
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
-	// Attempt to read from the directory. This shouldn't see any junk from the
-	// new directory. It should either succeed with an empty result or should
-	// return ENOENT.
-	entries, err := t.f1.Readdir(0)
-
-	if err != nil {
-		ExpectThat(err, Error(HasSubstr("no such file")))
-	} else {
-		ExpectThat(entries, ElementsAre())
-	}
+	// Attempt to read from the directory. Unfortunately we can't implement the
+	// guarantee that no new entries are returned, but nothing crazy should
+	// happen.
+	_, err = t.f1.Readdir(0)
+	ExpectEq(nil, err)
 }
 
 func (t *directoryTest) Rmdir_ThenRecreateWithSameName() {
