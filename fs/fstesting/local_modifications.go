@@ -1481,7 +1481,29 @@ func (t *fileTest) UnlinkFile_FromSubDirectory() {
 }
 
 func (t *fileTest) UnlinkFile_ThenRecreateWithSameName() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Write a file.
+	fileName := path.Join(t.mfs.Dir(), "foo")
+	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
+	AssertEq(nil, err)
+
+	// Unlink it.
+	err = os.Remove(fileName)
+	AssertEq(nil, err)
+
+	// Re-create a file with the same name.
+	err = ioutil.WriteFile(fileName, []byte("taco"), 0600)
+	AssertEq(nil, err)
+
+	// Statting should result in a record for the new contents.
+	fi, err := os.Stat(fileName)
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(len("taco"), fi.Size())
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
 func (t *fileTest) Chmod() {
