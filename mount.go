@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 
 	"github.com/googlecloudplatform/gcsfuse/fs"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
@@ -42,6 +43,25 @@ func getBucketName() string {
 	}
 
 	return s
+}
+
+func registerSigintHandler(mountPoint string) {
+	// Register for SIGINT.
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt)
+
+	// Start a goroutine that will unmount when the signal is received.
+	go func() {
+		<-signalChan
+		log.Println("Received SIGINT, attempting to unmount...")
+
+		err := fuse.Unmount(mountPoint)
+		if err != nil {
+			log.Printf("Failed to unmount in response to SIGINT: %v", err)
+		} else {
+			log.Printf("Successfully unmounted in response to SIGINT.")
+		}
+	}()
 }
 
 func main() {
@@ -81,10 +101,13 @@ func main() {
 
 	log.Println("File system has been successfully mounted.")
 
+	// Let the user unmount with Ctrl-C (SIGINT).
+	registerSigintHandler(mountedFS.Dir())
+
 	// Wait for it to be unmounted.
 	if err := mountedFS.Join(context.Background()); err != nil {
 		log.Fatal("MountedFileSystem.Join:", err)
 	}
 
-	log.Println("Successfully unmounted.")
+	log.Println("Successfully exiting.")
 }
