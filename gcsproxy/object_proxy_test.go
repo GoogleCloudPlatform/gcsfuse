@@ -25,10 +25,10 @@ import (
 	"testing/iotest"
 	"time"
 
-	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
+	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	. "github.com/jacobsa/oglematchers"
 	"github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -179,7 +179,7 @@ func (op *checkingObjectProxy) Truncate(n int64) error {
 	return op.wrapped.Truncate(context.Background(), n)
 }
 
-func (op *checkingObjectProxy) Sync() (int64, error) {
+func (op *checkingObjectProxy) Sync() error {
 	op.wrapped.CheckInvariants()
 	defer op.wrapped.CheckInvariants()
 	return op.wrapped.Sync(context.Background())
@@ -478,10 +478,9 @@ func (t *ObjectProxyTest) ShrinkByTruncating() {
 
 func (t *ObjectProxyTest) Sync_NoInteractions() {
 	// There should be nothing to do.
-	gen, err := t.op.Sync()
+	err := t.op.Sync()
 
 	AssertEq(nil, err)
-	ExpectEq(t.src.Generation, gen)
 	ExpectEq(t.src.Generation, t.op.SourceGeneration())
 }
 
@@ -502,10 +501,9 @@ func (t *ObjectProxyTest) Sync_AfterReading() {
 	ExpectEq("taco", string(buf[:n]))
 
 	// Sync should still need to do nothing.
-	gen, err := t.op.Sync()
+	err = t.op.Sync()
 
 	AssertEq(nil, err)
-	ExpectEq(t.src.Generation, gen)
 	ExpectEq(t.src.Generation, t.op.SourceGeneration())
 }
 
@@ -581,7 +579,7 @@ func (t *ObjectProxyTest) Sync_CreateObjectFails() {
 		WillOnce(oglemock.Return(nil, errors.New("taco")))
 
 	// Sync
-	_, err := t.op.Sync()
+	err := t.op.Sync()
 
 	AssertNe(nil, err)
 	ExpectThat(err, Not(HasSameTypeAs(&gcs.PreconditionError{})))
@@ -611,7 +609,7 @@ func (t *ObjectProxyTest) Sync_CreateObjectSaysPreconditionFailed() {
 		WillOnce(oglemock.Return(nil, e))
 
 	// Sync
-	_, err := t.op.Sync()
+	err := t.op.Sync()
 
 	AssertThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
 	ExpectThat(err, Error(HasSubstr("CreateObject")))
@@ -649,17 +647,15 @@ func (t *ObjectProxyTest) Sync_Successful() {
 		WillOnce(oglemock.Return(o, nil))
 
 	// Sync -- should succeed
-	gen, err := t.op.Sync()
+	err = t.op.Sync()
 
 	AssertEq(nil, err)
-	ExpectEq(17, gen)
 	ExpectEq(17, t.op.SourceGeneration())
 
 	// Further calls to Sync should do nothing.
-	gen, err = t.op.Sync()
+	err = t.op.Sync()
 
 	AssertEq(nil, err)
-	ExpectEq(17, gen)
 	ExpectEq(17, t.op.SourceGeneration())
 
 	// The data we wrote before should still be present.
@@ -692,7 +688,7 @@ func (t *ObjectProxyTest) WriteThenSyncThenWriteThenSync() {
 	ExpectCall(t.bucket, "CreateObject")(Any(), contentsAre("taco")).
 		WillOnce(oglemock.Return(o, nil))
 
-	_, err = t.op.Sync()
+	err = t.op.Sync()
 	AssertEq(nil, err)
 
 	// Write some more data at the end.
@@ -705,7 +701,7 @@ func (t *ObjectProxyTest) WriteThenSyncThenWriteThenSync() {
 	ExpectCall(t.bucket, "CreateObject")(Any(), contentsAre("tacoburrito")).
 		WillOnce(oglemock.Return(o, nil))
 
-	_, err = t.op.Sync()
+	err = t.op.Sync()
 	AssertEq(nil, err)
 }
 

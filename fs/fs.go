@@ -743,3 +743,23 @@ func (fs *fileSystem) WriteFile(
 
 	return
 }
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) FlushFile(
+	op *fuseops.FlushFileOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Find the inode.
+	in := fs.inodes[op.Inode].(*inode.FileInode)
+	in.Lock()
+	defer in.Unlock()
+
+	// Serve the request.
+	err = in.Flush(op)
+
+	return
+}
