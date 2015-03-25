@@ -54,12 +54,8 @@ type openTest struct {
 }
 
 func (t *openTest) NonExistent_CreateFlagNotSet() {
-	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0700)
-	defer func() {
-		if f != nil {
-			f.Close()
-		}
-	}()
+	var err error
+	t.f1, err = os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0700)
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
@@ -70,18 +66,15 @@ func (t *openTest) NonExistent_CreateFlagNotSet() {
 }
 
 func (t *openTest) NonExistent_CreateFlagSet() {
+	var err error
+
 	// Open the file.
-	f, err := os.OpenFile(
+	t.f1, err = os.OpenFile(
 		path.Join(t.mfs.Dir(), "foo"),
 		os.O_RDWR|os.O_CREATE,
 		0700)
 
 	AssertEq(nil, err)
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
 
 	// The object should now be present in the bucket, with empty contents.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
@@ -89,22 +82,22 @@ func (t *openTest) NonExistent_CreateFlagSet() {
 	ExpectEq("", contents)
 
 	// Write some contents.
-	_, err = f.Write([]byte("012"))
+	_, err = t.f1.Write([]byte("012"))
 	AssertEq(nil, err)
 
 	// Read some contents with Seek and Read.
-	_, err = f.Seek(1, 0)
+	_, err = t.f1.Seek(1, 0)
 	AssertEq(nil, err)
 
 	buf := make([]byte, 2)
-	_, err = io.ReadFull(f, buf)
+	_, err = io.ReadFull(t.f1, buf)
 
 	AssertEq(nil, err)
 	ExpectEq("12", string(buf))
 
 	// Close the file.
-	AssertEq(nil, f.Close())
-	f = nil
+	AssertEq(nil, t.f1.Close())
+	t.f1 = nil
 
 	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
@@ -114,6 +107,8 @@ func (t *openTest) NonExistent_CreateFlagSet() {
 }
 
 func (t *openTest) ExistingFile() {
+	var err error
+
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -124,32 +119,26 @@ func (t *openTest) ExistingFile() {
 			os.FileMode(0644)))
 
 	// Open the file.
-	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0)
+	t.f1, err = os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0)
 	AssertEq(nil, err)
 
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
-
 	// Write to the start of the file using File.Write.
-	_, err = f.Write([]byte("012"))
+	_, err = t.f1.Write([]byte("012"))
 	AssertEq(nil, err)
 
 	// Read some contents with Seek and Read.
-	_, err = f.Seek(2, 0)
+	_, err = t.f1.Seek(2, 0)
 	AssertEq(nil, err)
 
 	buf := make([]byte, 4)
-	_, err = io.ReadFull(f, buf)
+	_, err = io.ReadFull(t.f1, buf)
 
 	AssertEq(nil, err)
 	ExpectEq("2obu", string(buf))
 
 	// Close the file.
-	AssertEq(nil, f.Close())
-	f = nil
+	AssertEq(nil, t.f1.Close())
+	t.f1 = nil
 
 	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
@@ -159,6 +148,8 @@ func (t *openTest) ExistingFile() {
 }
 
 func (t *openTest) ExistingFile_Truncate() {
+	var err error
+
 	// Create a file.
 	AssertEq(
 		nil,
@@ -168,39 +159,33 @@ func (t *openTest) ExistingFile_Truncate() {
 			os.FileMode(0644)))
 
 	// Open the file.
-	f, err := os.OpenFile(
+	t.f1, err = os.OpenFile(
 		path.Join(t.mfs.Dir(), "foo"),
 		os.O_RDWR|os.O_TRUNC,
 		0)
 
 	AssertEq(nil, err)
 
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
-
 	// The file should be empty.
-	fi, err := f.Stat()
+	fi, err := t.f1.Stat()
 	AssertEq(nil, err)
 	ExpectEq(0, fi.Size())
 
 	// Write to the start of the file using File.Write.
-	_, err = f.Write([]byte("012"))
+	_, err = t.f1.Write([]byte("012"))
 	AssertEq(nil, err)
 
 	// Read the contents.
-	_, err = f.Seek(0, 0)
+	_, err = t.f1.Seek(0, 0)
 	AssertEq(nil, err)
 
-	contentsSlice, err := ioutil.ReadAll(f)
+	contentsSlice, err := ioutil.ReadAll(t.f1)
 	AssertEq(nil, err)
 	ExpectEq("012", string(contentsSlice))
 
 	// Close the file.
-	AssertEq(nil, f.Close())
-	f = nil
+	AssertEq(nil, t.f1.Close())
+	t.f1 = nil
 
 	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
@@ -215,35 +200,33 @@ func (t *openTest) AlreadyOpenedFile() {
 	buf := make([]byte, 1024)
 
 	// Create and open a file.
-	f1, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
-	t.toClose = append(t.toClose, f1)
+	t.f1, err = os.Create(path.Join(t.mfs.Dir(), "foo"))
 	AssertEq(nil, err)
 
 	// Write some data into it.
-	n, err = f1.Write([]byte("taco"))
+	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
 	// Open another handle for reading and writing.
-	f2, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0)
-	t.toClose = append(t.toClose, f2)
+	t.f2, err = os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0)
 	AssertEq(nil, err)
 
 	// The contents written through the first handle should be available to the
 	// second handle..
-	n, err = f2.Read(buf[:2])
+	n, err = t.f2.Read(buf[:2])
 	AssertEq(nil, err)
 	AssertEq(2, n)
 	ExpectEq("ta", string(buf[:n]))
 
 	// Write some contents with the second handle, which should now be at offset
 	// 2.
-	n, err = f2.Write([]byte("nk"))
+	n, err = t.f2.Write([]byte("nk"))
 	AssertEq(nil, err)
 	AssertEq(2, n)
 
 	// Check the overall contents now.
-	contents, err := ioutil.ReadFile(f2.Name())
+	contents, err := ioutil.ReadFile(t.f2.Name())
 	AssertEq(nil, err)
 	ExpectEq("tank", string(contents))
 }
@@ -257,6 +240,8 @@ type modesTest struct {
 }
 
 func (t *modesTest) ReadOnlyMode() {
+	var err error
+
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -267,20 +252,16 @@ func (t *modesTest) ReadOnlyMode() {
 			os.FileMode(0644)))
 
 	// Open the file.
-	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDONLY, 0)
+	t.f1, err = os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDONLY, 0)
 	AssertEq(nil, err)
 
-	defer func() {
-		ExpectEq(nil, f.Close())
-	}()
-
 	// Read its contents.
-	fileContents, err := ioutil.ReadAll(f)
+	fileContents, err := ioutil.ReadAll(t.f1)
 	AssertEq(nil, err)
 	ExpectEq(contents, string(fileContents))
 
 	// Attempt to write.
-	n, err := f.Write([]byte("taco"))
+	n, err := t.f1.Write([]byte("taco"))
 
 	AssertEq(0, n)
 	AssertNe(nil, err)
@@ -288,6 +269,8 @@ func (t *modesTest) ReadOnlyMode() {
 }
 
 func (t *modesTest) WriteOnlyMode() {
+	var err error
+
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -298,44 +281,38 @@ func (t *modesTest) WriteOnlyMode() {
 			os.FileMode(0644)))
 
 	// Open the file.
-	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_WRONLY, 0)
+	t.f1, err = os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_WRONLY, 0)
 	AssertEq(nil, err)
 
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
-
 	// Reading should fail.
-	_, err = ioutil.ReadAll(f)
+	_, err = ioutil.ReadAll(t.f1)
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 
 	// Write to the start of the file using File.Write.
-	_, err = f.Write([]byte("000"))
+	_, err = t.f1.Write([]byte("000"))
 	AssertEq(nil, err)
 
 	// Write to the middle of the file using File.WriteAt.
-	_, err = f.WriteAt([]byte("111"), 4)
+	_, err = t.f1.WriteAt([]byte("111"), 4)
 	AssertEq(nil, err)
 
 	// Seek and write past the end of the file.
-	_, err = f.Seek(int64(len(contents)), 0)
+	_, err = t.f1.Seek(int64(len(contents)), 0)
 	AssertEq(nil, err)
 
-	_, err = f.Write([]byte("222"))
+	_, err = t.f1.Write([]byte("222"))
 	AssertEq(nil, err)
 
 	// Check the size now.
-	fi, err := f.Stat()
+	fi, err := t.f1.Stat()
 	AssertEq(nil, err)
 	ExpectEq(len(contents)+len("222"), fi.Size())
 
 	// Close the file.
-	AssertEq(nil, f.Close())
-	f = nil
+	AssertEq(nil, t.f1.Close())
+	t.f1 = nil
 
 	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
@@ -345,6 +322,8 @@ func (t *modesTest) WriteOnlyMode() {
 }
 
 func (t *modesTest) ReadWriteMode() {
+	var err error
+
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -355,55 +334,49 @@ func (t *modesTest) ReadWriteMode() {
 			os.FileMode(0644)))
 
 	// Open the file.
-	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0)
+	t.f1, err = os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0)
 	AssertEq(nil, err)
 
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
-
 	// Write to the start of the file using File.Write.
-	_, err = f.Write([]byte("000"))
+	_, err = t.f1.Write([]byte("000"))
 	AssertEq(nil, err)
 
 	// Write to the middle of the file using File.WriteAt.
-	_, err = f.WriteAt([]byte("111"), 4)
+	_, err = t.f1.WriteAt([]byte("111"), 4)
 	AssertEq(nil, err)
 
 	// Seek and write past the end of the file.
-	_, err = f.Seek(int64(len(contents)), 0)
+	_, err = t.f1.Seek(int64(len(contents)), 0)
 	AssertEq(nil, err)
 
-	_, err = f.Write([]byte("222"))
+	_, err = t.f1.Write([]byte("222"))
 	AssertEq(nil, err)
 
 	// Check the size now.
-	fi, err := f.Stat()
+	fi, err := t.f1.Stat()
 	AssertEq(nil, err)
 	ExpectEq(len(contents)+len("222"), fi.Size())
 
 	// Read some contents with Seek and Read.
-	_, err = f.Seek(4, 0)
+	_, err = t.f1.Seek(4, 0)
 	AssertEq(nil, err)
 
 	buf := make([]byte, 4)
-	_, err = io.ReadFull(f, buf)
+	_, err = io.ReadFull(t.f1, buf)
 
 	AssertEq(nil, err)
 	ExpectEq("111r", string(buf))
 
 	// Read the full contents with ReadAt.
 	buf = make([]byte, len(contents)+len("222"))
-	_, err = f.ReadAt(buf, 0)
+	_, err = t.f1.ReadAt(buf, 0)
 
 	AssertEq(nil, err)
 	ExpectEq("000o111ritoenchilada222", string(buf))
 
 	// Close the file.
-	AssertEq(nil, f.Close())
-	f = nil
+	AssertEq(nil, t.f1.Close())
+	t.f1 = nil
 
 	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
@@ -413,6 +386,8 @@ func (t *modesTest) ReadWriteMode() {
 }
 
 func (t *modesTest) AppendMode_SeekAndWrite() {
+	var err error
+
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -423,36 +398,30 @@ func (t *modesTest) AppendMode_SeekAndWrite() {
 			os.FileMode(0644)))
 
 	// Open the file.
-	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR|os.O_APPEND, 0)
+	t.f1, err = os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR|os.O_APPEND, 0)
 	AssertEq(nil, err)
-
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
 
 	// Write using File.Write. This should go to the end of the file regardless
 	// of whether we Seek somewhere else first.
-	_, err = f.Seek(1, 0)
+	_, err = t.f1.Seek(1, 0)
 	AssertEq(nil, err)
 
-	_, err = f.Write([]byte("222"))
+	_, err = t.f1.Write([]byte("222"))
 	AssertEq(nil, err)
 
 	// The seek position should have been updated.
-	off, err := getFileOffset(f)
+	off, err := getFileOffset(t.f1)
 	AssertEq(nil, err)
 	ExpectEq(len(contents)+len("222"), off)
 
 	// Check the size now.
-	fi, err := f.Stat()
+	fi, err := t.f1.Stat()
 	AssertEq(nil, err)
 	ExpectEq(len(contents)+len("222"), fi.Size())
 
 	// Read the full contents with ReadAt.
 	buf := make([]byte, 1024)
-	n, err := f.ReadAt(buf, 0)
+	n, err := t.f1.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
 	ExpectEq(contents+"222", string(buf[:n]))
@@ -465,6 +434,8 @@ func (t *modesTest) AppendMode_SeekAndWrite() {
 }
 
 func (t *modesTest) AppendMode_WriteAt() {
+	var err error
+
 	// Linux's support for pwrite is buggy; the pwrite(2) man page says this:
 	//
 	//     POSIX requires that opening a file with the O_APPEND flag should have
@@ -484,30 +455,24 @@ func (t *modesTest) AppendMode_WriteAt() {
 			os.FileMode(0644)))
 
 	// Open the file.
-	f, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR|os.O_APPEND, 0)
+	t.f1, err = os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR|os.O_APPEND, 0)
 	AssertEq(nil, err)
 
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
-
 	// Seek somewhere in the file.
-	_, err = f.Seek(1, 0)
+	_, err = t.f1.Seek(1, 0)
 	AssertEq(nil, err)
 
 	// Write to the middle of the file using File.WriteAt.
-	_, err = f.WriteAt([]byte("111"), 4)
+	_, err = t.f1.WriteAt([]byte("111"), 4)
 	AssertEq(nil, err)
 
 	// The seek position should have been unaffected.
-	off, err := getFileOffset(f)
+	off, err := getFileOffset(t.f1)
 	AssertEq(nil, err)
 	ExpectEq(1, off)
 
 	// Check the size now.
-	fi, err := f.Stat()
+	fi, err := t.f1.Stat()
 	AssertEq(nil, err)
 
 	if isLinux {
@@ -518,7 +483,7 @@ func (t *modesTest) AppendMode_WriteAt() {
 
 	// Read the full contents with ReadAt.
 	buf := make([]byte, 1024)
-	n, err := f.ReadAt(buf, 0)
+	n, err := t.f1.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
 	if isLinux {
@@ -539,6 +504,8 @@ func (t *modesTest) AppendMode_WriteAt() {
 }
 
 func (t *modesTest) AppendMode_WriteAt_PastEOF() {
+	var err error
+
 	// Linux's support for pwrite is buggy; the pwrite(2) man page says this:
 	//
 	//     POSIX requires that opening a file with the O_APPEND flag should have
@@ -549,36 +516,30 @@ func (t *modesTest) AppendMode_WriteAt_PastEOF() {
 	isLinux := (runtime.GOOS == "linux")
 
 	// Open a file.
-	f, err := os.OpenFile(
+	t.f1, err = os.OpenFile(
 		path.Join(t.mfs.Dir(), "foo"),
 		os.O_RDWR|os.O_APPEND|os.O_CREATE,
 		0600)
 
 	AssertEq(nil, err)
 
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
-
 	// Write three bytes.
-	n, err := f.Write([]byte("111"))
+	n, err := t.f1.Write([]byte("111"))
 	AssertEq(nil, err)
 	AssertEq(3, n)
 
 	// Write at offset six.
-	n, err = f.WriteAt([]byte("222"), 6)
+	n, err = t.f1.WriteAt([]byte("222"), 6)
 	AssertEq(nil, err)
 	AssertEq(3, n)
 
 	// The seek position should have been unaffected.
-	off, err := getFileOffset(f)
+	off, err := getFileOffset(t.f1)
 	AssertEq(nil, err)
 	ExpectEq(3, off)
 
 	// Read the full contents of the file.
-	contents, err := ioutil.ReadFile(f.Name())
+	contents, err := ioutil.ReadFile(t.f1.Name())
 	AssertEq(nil, err)
 
 	if isLinux {
@@ -589,34 +550,36 @@ func (t *modesTest) AppendMode_WriteAt_PastEOF() {
 }
 
 func (t *modesTest) ReadFromWriteOnlyFile() {
+	var err error
+
 	// Create and open a file for writing.
-	f, err := os.OpenFile(
+	t.f1, err = os.OpenFile(
 		path.Join(t.mfs.Dir(), "foo"),
 		os.O_WRONLY|os.O_CREATE,
 		0700)
 
-	t.toClose = append(t.toClose, f)
 	AssertEq(nil, err)
 
 	// Attempt to read from it.
-	_, err = f.Read(make([]byte, 1024))
+	_, err = t.f1.Read(make([]byte, 1024))
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 }
 
 func (t *modesTest) WriteToReadOnlyFile() {
+	var err error
+
 	// Create and open a file for reading.
-	f, err := os.OpenFile(
+	t.f1, err = os.OpenFile(
 		path.Join(t.mfs.Dir(), "foo"),
 		os.O_RDONLY|os.O_CREATE,
 		0700)
 
-	t.toClose = append(t.toClose, f)
 	AssertEq(nil, err)
 
 	// Attempt to write t it.
-	_, err = f.Write([]byte("taco"))
+	_, err = t.f1.Write([]byte("taco"))
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
@@ -939,13 +902,7 @@ func (t *directoryTest) Rmdir_OpenedForReading() {
 	AssertEq(nil, err)
 
 	// Open the directory for reading.
-	f, err := os.Open(path.Join(t.mfs.Dir(), "dir"))
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
-
+	t.f1, err = os.Open(path.Join(t.mfs.Dir(), "dir"))
 	AssertEq(nil, err)
 
 	// Remove the directory.
@@ -965,7 +922,7 @@ func (t *directoryTest) Rmdir_OpenedForReading() {
 
 	// We should still be able to stat the open file handle. It should show up as
 	// unlinked.
-	fi, err := f.Stat()
+	fi, err := t.f1.Stat()
 
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
@@ -973,7 +930,7 @@ func (t *directoryTest) Rmdir_OpenedForReading() {
 	// Attempt to read from the directory. This shouldn't see any junk from the
 	// new directory. It should either succeed with an empty result or should
 	// return ENOENT.
-	entries, err := f.Readdir(0)
+	entries, err := t.f1.Readdir(0)
 
 	if err != nil {
 		ExpectThat(err, Error(HasSubstr("no such file")))
@@ -1027,21 +984,20 @@ func (t *fileTest) WriteOverlapsEndOfFile() {
 	var n int
 
 	// Create a file.
-	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
-	t.toClose = append(t.toClose, f)
+	t.f1, err = os.Create(path.Join(t.mfs.Dir(), "foo"))
 	AssertEq(nil, err)
 
 	// Make it 4 bytes long.
-	err = f.Truncate(4)
+	err = t.f1.Truncate(4)
 	AssertEq(nil, err)
 
 	// Write the range [2, 6).
-	n, err = f.WriteAt([]byte("taco"), 2)
+	n, err = t.f1.WriteAt([]byte("taco"), 2)
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
 	// Read the full contents of the file.
-	contents, err := ioutil.ReadAll(f)
+	contents, err := ioutil.ReadAll(t.f1)
 	AssertEq(nil, err)
 	ExpectEq("\x00\x00taco", string(contents))
 }
@@ -1051,21 +1007,20 @@ func (t *fileTest) WriteStartsAtEndOfFile() {
 	var n int
 
 	// Create a file.
-	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
-	t.toClose = append(t.toClose, f)
+	t.f1, err = os.Create(path.Join(t.mfs.Dir(), "foo"))
 	AssertEq(nil, err)
 
 	// Make it 2 bytes long.
-	err = f.Truncate(2)
+	err = t.f1.Truncate(2)
 	AssertEq(nil, err)
 
 	// Write the range [2, 6).
-	n, err = f.WriteAt([]byte("taco"), 2)
+	n, err = t.f1.WriteAt([]byte("taco"), 2)
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
 	// Read the full contents of the file.
-	contents, err := ioutil.ReadAll(f)
+	contents, err := ioutil.ReadAll(t.f1)
 	AssertEq(nil, err)
 	ExpectEq("\x00\x00taco", string(contents))
 }
@@ -1075,17 +1030,16 @@ func (t *fileTest) WriteStartsPastEndOfFile() {
 	var n int
 
 	// Create a file.
-	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
-	t.toClose = append(t.toClose, f)
+	t.f1, err = os.Create(path.Join(t.mfs.Dir(), "foo"))
 	AssertEq(nil, err)
 
 	// Write the range [2, 6).
-	n, err = f.WriteAt([]byte("taco"), 2)
+	n, err = t.f1.WriteAt([]byte("taco"), 2)
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
 	// Read the full contents of the file.
-	contents, err := ioutil.ReadAll(f)
+	contents, err := ioutil.ReadAll(t.f1)
 	AssertEq(nil, err)
 	ExpectEq("\x00\x00taco", string(contents))
 }
@@ -1095,25 +1049,24 @@ func (t *fileTest) WriteAtDoesntChangeOffset_NotAppendMode() {
 	var n int
 
 	// Create a file.
-	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
-	t.toClose = append(t.toClose, f)
+	t.f1, err = os.Create(path.Join(t.mfs.Dir(), "foo"))
 	AssertEq(nil, err)
 
 	// Make it 16 bytes long.
-	err = f.Truncate(16)
+	err = t.f1.Truncate(16)
 	AssertEq(nil, err)
 
 	// Seek to offset 4.
-	_, err = f.Seek(4, 0)
+	_, err = t.f1.Seek(4, 0)
 	AssertEq(nil, err)
 
 	// Write the range [10, 14).
-	n, err = f.WriteAt([]byte("taco"), 2)
+	n, err = t.f1.WriteAt([]byte("taco"), 2)
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
 	// We should still be at offset 4.
-	offset, err := getFileOffset(f)
+	offset, err := getFileOffset(t.f1)
 	AssertEq(nil, err)
 	ExpectEq(4, offset)
 }
@@ -1123,29 +1076,28 @@ func (t *fileTest) WriteAtDoesntChangeOffset_AppendMode() {
 	var n int
 
 	// Create a file in append mode.
-	f, err := os.OpenFile(
+	t.f1, err = os.OpenFile(
 		path.Join(t.mfs.Dir(), "foo"),
 		os.O_RDWR|os.O_APPEND|os.O_CREATE,
 		0600)
 
-	t.toClose = append(t.toClose, f)
 	AssertEq(nil, err)
 
 	// Make it 16 bytes long.
-	err = f.Truncate(16)
+	err = t.f1.Truncate(16)
 	AssertEq(nil, err)
 
 	// Seek to offset 4.
-	_, err = f.Seek(4, 0)
+	_, err = t.f1.Seek(4, 0)
 	AssertEq(nil, err)
 
 	// Write the range [10, 14).
-	n, err = f.WriteAt([]byte("taco"), 2)
+	n, err = t.f1.WriteAt([]byte("taco"), 2)
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
 	// We should still be at offset 4.
-	offset, err := getFileOffset(f)
+	offset, err := getFileOffset(t.f1)
 	AssertEq(nil, err)
 	ExpectEq(4, offset)
 }
@@ -1156,29 +1108,28 @@ func (t *fileTest) ReadsPastEndOfFile() {
 	buf := make([]byte, 1024)
 
 	// Create a file.
-	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
-	t.toClose = append(t.toClose, f)
+	t.f1, err = os.Create(path.Join(t.mfs.Dir(), "foo"))
 	AssertEq(nil, err)
 
 	// Give it some contents.
-	n, err = f.Write([]byte("taco"))
+	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
 	// Read a range overlapping EOF.
-	n, err = f.ReadAt(buf[:4], 2)
+	n, err = t.f1.ReadAt(buf[:4], 2)
 	AssertEq(io.EOF, err)
 	ExpectEq(2, n)
 	ExpectEq("co", string(buf[:n]))
 
 	// Read a range starting at EOF.
-	n, err = f.ReadAt(buf[:4], 4)
+	n, err = t.f1.ReadAt(buf[:4], 4)
 	AssertEq(io.EOF, err)
 	ExpectEq(0, n)
 	ExpectEq("", string(buf[:n]))
 
 	// Read a range starting past EOF.
-	n, err = f.ReadAt(buf[:4], 100)
+	n, err = t.f1.ReadAt(buf[:4], 100)
 	AssertEq(io.EOF, err)
 	ExpectEq(0, n)
 	ExpectEq("", string(buf[:n]))
@@ -1193,16 +1144,15 @@ func (t *fileTest) Truncate_Smaller() {
 	AssertEq(nil, err)
 
 	// Open it for modification.
-	f, err := os.OpenFile(fileName, os.O_RDWR, 0)
-	t.toClose = append(t.toClose, f)
+	t.f1, err = os.OpenFile(fileName, os.O_RDWR, 0)
 	AssertEq(nil, err)
 
 	// Truncate it.
-	err = f.Truncate(2)
+	err = t.f1.Truncate(2)
 	AssertEq(nil, err)
 
 	// Stat it.
-	fi, err := f.Stat()
+	fi, err := t.f1.Stat()
 	AssertEq(nil, err)
 	ExpectEq(2, fi.Size())
 
@@ -1221,16 +1171,15 @@ func (t *fileTest) Truncate_SameSize() {
 	AssertEq(nil, err)
 
 	// Open it for modification.
-	f, err := os.OpenFile(fileName, os.O_RDWR, 0)
-	t.toClose = append(t.toClose, f)
+	t.f1, err = os.OpenFile(fileName, os.O_RDWR, 0)
 	AssertEq(nil, err)
 
 	// Truncate it.
-	err = f.Truncate(4)
+	err = t.f1.Truncate(4)
 	AssertEq(nil, err)
 
 	// Stat it.
-	fi, err := f.Stat()
+	fi, err := t.f1.Stat()
 	AssertEq(nil, err)
 	ExpectEq(4, fi.Size())
 
@@ -1249,16 +1198,15 @@ func (t *fileTest) Truncate_Larger() {
 	AssertEq(nil, err)
 
 	// Open it for modification.
-	f, err := os.OpenFile(fileName, os.O_RDWR, 0)
-	t.toClose = append(t.toClose, f)
+	t.f1, err = os.OpenFile(fileName, os.O_RDWR, 0)
 	AssertEq(nil, err)
 
 	// Truncate it.
-	err = f.Truncate(6)
+	err = t.f1.Truncate(6)
 	AssertEq(nil, err)
 
 	// Stat it.
-	fi, err := f.Stat()
+	fi, err := t.f1.Stat()
 	AssertEq(nil, err)
 	ExpectEq(6, fi.Size())
 
@@ -1274,26 +1222,25 @@ func (t *fileTest) Seek() {
 	buf := make([]byte, 1024)
 
 	// Create a file.
-	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
-	t.toClose = append(t.toClose, f)
+	t.f1, err = os.Create(path.Join(t.mfs.Dir(), "foo"))
 	AssertEq(nil, err)
 
 	// Give it some contents.
-	n, err = f.Write([]byte("taco"))
+	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
 	// Seek and overwrite.
-	off, err := f.Seek(1, 0)
+	off, err := t.f1.Seek(1, 0)
 	AssertEq(nil, err)
 	AssertEq(1, off)
 
-	n, err = f.Write([]byte("xx"))
+	n, err = t.f1.Write([]byte("xx"))
 	AssertEq(nil, err)
 	AssertEq(2, n)
 
 	// Read full the contents of the file.
-	n, err = f.ReadAt(buf, 0)
+	n, err = t.f1.ReadAt(buf, 0)
 	AssertEq(io.EOF, err)
 	ExpectEq("txxo", string(buf[:n]))
 }
@@ -1303,22 +1250,21 @@ func (t *fileTest) Stat() {
 	var n int
 
 	// Create a file.
-	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
-	t.toClose = append(t.toClose, f)
+	t.f1, err = os.Create(path.Join(t.mfs.Dir(), "foo"))
 	AssertEq(nil, err)
 
 	// Give it some contents.
 	t.advanceTime()
 	writeTime := t.clock.Now()
 
-	n, err = f.Write([]byte("taco"))
+	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
 	t.advanceTime()
 
 	// Stat it.
-	fi, err := f.Stat()
+	fi, err := t.f1.Stat()
 	AssertEq(nil, err)
 
 	ExpectEq("foo", fi.Name())
@@ -1415,15 +1361,16 @@ func (t *fileTest) UnlinkFile_NonExistent() {
 }
 
 func (t *fileTest) UnlinkFile_StillOpen() {
+	var err error
+
 	fileName := path.Join(t.mfs.Dir(), "foo")
 
 	// Create and open a file.
-	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0600)
-	t.toClose = append(t.toClose, f)
+	t.f1, err = os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0600)
 	AssertEq(nil, err)
 
 	// Write some data into it.
-	n, err := f.Write([]byte("taco"))
+	n, err := t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
@@ -1438,7 +1385,7 @@ func (t *fileTest) UnlinkFile_StillOpen() {
 
 	// We should be able to stat the file. It should still show as having
 	// contents, but with no links.
-	fi, err := f.Stat()
+	fi, err := t.f1.Stat()
 
 	AssertEq(nil, err)
 	ExpectEq(4, fi.Size())
@@ -1446,14 +1393,14 @@ func (t *fileTest) UnlinkFile_StillOpen() {
 
 	// The contents should still be available.
 	buf := make([]byte, 1024)
-	n, err = f.ReadAt(buf, 0)
+	n, err = t.f1.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
 	AssertEq(4, n)
 	ExpectEq("taco", string(buf[:4]))
 
 	// Writing should still work, too.
-	n, err = f.Write([]byte("burrito"))
+	n, err = t.f1.Write([]byte("burrito"))
 	AssertEq(nil, err)
 	AssertEq(len("burrito"), n)
 }
@@ -1541,17 +1488,16 @@ func (t *fileTest) Sync() {
 	var n int
 
 	// Create a file.
-	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
-	t.toClose = append(t.toClose, f)
+	t.f1, err = os.Create(path.Join(t.mfs.Dir(), "foo"))
 	AssertEq(nil, err)
 
 	// Give it some contents.
-	n, err = f.Write([]byte("taco"))
+	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
 	// Sync it.
-	err = f.Sync()
+	err = t.f1.Sync()
 	AssertEq(nil, err)
 
 	// The contents should now be in the bucket, even though we haven't closed
@@ -1566,24 +1512,17 @@ func (t *fileTest) Close() {
 	var n int
 
 	// Create a file.
-	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
-
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
-
+	t.f1, err = os.Create(path.Join(t.mfs.Dir(), "foo"))
 	AssertEq(nil, err)
 
 	// Give it some contents.
-	n, err = f.Write([]byte("taco"))
+	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
 	// Close it.
-	err = f.Close()
-	f = nil
+	err = t.f1.Close()
+	t.f1 = nil
 	AssertEq(nil, err)
 
 	// The contents should now be in the bucket.

@@ -31,6 +31,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	"github.com/jacobsa/oglematchers"
+	"github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )
@@ -43,7 +44,8 @@ type fsTest struct {
 	mfs    *fuse.MountedFileSystem
 
 	// Files to close when tearing down. Nil entries are skipped.
-	toClose []io.Closer
+	f1 *os.File
+	f2 *os.File
 }
 
 var _ fsTestInterface = &fsTest{}
@@ -73,15 +75,12 @@ func (t *fsTest) setUpFsTest(deps FSTestDeps) {
 
 func (t *fsTest) tearDownFsTest() {
 	// Close any files we opened.
-	for _, c := range t.toClose {
-		if c == nil {
-			continue
-		}
+	if t.f1 != nil {
+		ogletest.ExpectEq(nil, t.f1.Close())
+	}
 
-		err := c.Close()
-		if err != nil {
-			panic(err)
-		}
+	if t.f2 != nil {
+		ogletest.ExpectEq(nil, t.f2.Close())
 	}
 
 	// Unmount the file system. Try again on "resource busy" errors.
