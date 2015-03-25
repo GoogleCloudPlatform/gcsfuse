@@ -940,6 +940,32 @@ func (t *directoryTest) Rmdir_OpenedForReading() {
 	}
 }
 
+func (t *directoryTest) Rmdir_ThenRecreateWithSameName() {
+	var err error
+
+	// Create a directory.
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "dir"), 0700)
+	AssertEq(nil, err)
+
+	// Unlink the directory.
+	err = os.Remove(path.Join(t.mfs.Dir(), "dir"))
+	AssertEq(nil, err)
+
+	// Re-create the directory with the same name. Nothing crazy should happen.
+	// In the past, this used to crash (cf.
+	// https://github.com/GoogleCloudPlatform/gcsfuse/issues/8).
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "dir"), 0700)
+	AssertEq(nil, err)
+
+	// Statting should reveal nothing surprising.
+	fi, err := os.Stat(path.Join(t.mfs.Dir(), "dir"))
+	AssertEq(nil, err)
+
+	ExpectEq("dir", fi.Name())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectTrue(fi.IsDir())
+}
+
 func (t *directoryTest) CreateHardLink() {
 	var err error
 
@@ -1452,6 +1478,32 @@ func (t *fileTest) UnlinkFile_FromSubDirectory() {
 	entries, err := ioutil.ReadDir(dirName)
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
+}
+
+func (t *fileTest) UnlinkFile_ThenRecreateWithSameName() {
+	var err error
+
+	// Write a file.
+	fileName := path.Join(t.mfs.Dir(), "foo")
+	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
+	AssertEq(nil, err)
+
+	// Unlink it.
+	err = os.Remove(fileName)
+	AssertEq(nil, err)
+
+	// Re-create a file with the same name.
+	err = ioutil.WriteFile(fileName, []byte("taco"), 0600)
+	AssertEq(nil, err)
+
+	// Statting should result in a record for the new contents.
+	fi, err := os.Stat(fileName)
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(len("taco"), fi.Size())
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
 func (t *fileTest) Chmod() {
