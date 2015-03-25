@@ -22,8 +22,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/jacobsa/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
+	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )
@@ -278,14 +278,16 @@ func (op *ObjectProxy) Truncate(ctx context.Context, n int64) (err error) {
 }
 
 // If the proxy is dirty due to having been modified, save its current contents
-// to GCS and return a generation number for a generation with exactly those
-// contents. Do so with a precondition such that the creation will fail if the
-// source generation is not current. In that case, return an error of type
-// *gcs.PreconditionError.
-func (op *ObjectProxy) Sync(ctx context.Context) (gen int64, err error) {
+// to GCS, creating a generation with exactly those contents. Do so with a
+// precondition such that the creation will fail if the source generation is
+// not current. In that case, return an error of type *gcs.PreconditionError.
+// If the proxy is not dirty, simply return nil.
+//
+// After this method successfully returns, SourceGeneration returns the
+// generation at which the contents are current.
+func (op *ObjectProxy) Sync(ctx context.Context) (err error) {
 	// Do we need to do anything?
 	if !op.dirty {
-		gen = op.src.Generation
 		return
 	}
 
@@ -327,9 +329,6 @@ func (op *ObjectProxy) Sync(ctx context.Context) (gen int64, err error) {
 	// Update our state.
 	op.src = *o
 	op.dirty = false
-
-	// Return the generation number.
-	gen = op.src.Generation
 
 	return
 }
