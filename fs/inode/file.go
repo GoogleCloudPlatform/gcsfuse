@@ -219,6 +219,15 @@ func (f *FileInode) Write(
 	return
 }
 
+// Serve a sync op for this file, without responding.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) Sync(
+	op *fuseops.SyncFileOp) (err error) {
+	err = f.sync(op.Context())
+	return
+}
+
 // Serve a flush op for this file, without responding.
 //
 // LOCKS_REQUIRED(f.mu)
