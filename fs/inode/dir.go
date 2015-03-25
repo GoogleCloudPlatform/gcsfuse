@@ -101,7 +101,39 @@ func (d *DirInode) checkInvariants() {
 	}
 }
 
-func (d *DirInode) clobbered(ctx context.Context) (clobbered bool, err error)
+func (d *DirInode) clobbered(ctx context.Context) (clobbered bool, err error) {
+	// Special case: the root is never clobbered.
+	if d.ID() == fuseops.RootInodeID {
+		return
+	}
+
+	// Stat the backing object.
+	req := &gcs.StatObjectRequest{
+		Name: d.Name(),
+	}
+
+	o, err := d.bucket.StatObject(ctx, req)
+
+	// "Not found" means clobbered.
+	//
+	// TODO(jacobsa): Add a test for this.
+	if _, ok := err.(*gcs.NotFoundError); ok {
+		clobbered = true
+		err = nil
+		return
+	}
+
+	// Propagate other errors.
+	if err != nil {
+		err = fmt.Errorf("StatObject: %v", err)
+		return
+	}
+
+	// We are clobbered if the generation number has changed.
+	clobbered = o.Generation != d.SourceGeneration()
+
+	return
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Public interface
