@@ -351,15 +351,9 @@ func (fs *fileSystem) LookUpInode(
 		return
 	}
 
-	// Is the child a directory or a file?
+	// Find or mint an inode.
 	var in inode.Inode
-	if isDirName(o.Name) {
-		in, err = fs.lookUpOrCreateDirInode(op.Context(), o)
-	} else {
-		in, err = fs.lookUpOrCreateFileInode(op.Context(), o)
-	}
-
-	if err != nil {
+	if in, err = fs.lookUpOrCreateInode(op.Context(), o); err != nil {
 		return
 	}
 
