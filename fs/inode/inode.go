@@ -32,6 +32,9 @@ type Inode interface {
 	// for a file, or "foo/bar/" for a directory.
 	Name() string
 
+	// Return the generation number from which this inode was branched.
+	SourceGeneration() int64
+
 	// Return up to date attributes for this inode.
 	Attributes(ctx context.Context) (fuseops.InodeAttributes, error)
 }
