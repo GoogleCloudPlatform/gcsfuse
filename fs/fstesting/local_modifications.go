@@ -33,6 +33,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
+	"google.golang.org/cloud/storage"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -1591,5 +1592,35 @@ func (t *fileTest) Close_NotDirty() {
 }
 
 func (t *fileTest) Close_Clobbered() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+
+	// Create a file.
+	t.f1, err = os.Create(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	// Dirty the file by giving it some contents.
+	n, err = t.f1.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Replace the underyling object with a new generation.
+	_, err = gcsutil.CreateObject(
+		t.ctx,
+		t.bucket,
+		&storage.ObjectAttrs{
+			Name: "foo",
+		},
+		"foobar")
+
+	// Close the file. This should not result in an error, but the new generation
+	// should not be replaced.
+	err = t.f1.Close()
+	t.f1 = nil
+	AssertEq(nil, err)
+
+	// Check that the new generation was not replaced.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	AssertEq(nil, err)
+	ExpectEq("foobar", contents)
 }
