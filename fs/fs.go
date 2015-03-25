@@ -281,44 +281,20 @@ func (fs *fileSystem) getAttributes(
 	return
 }
 
-// Find a directory inode for the given object record. Create one if there
-// isn't already one available.
+// Find an inode for the given object record. Create one if there isn't already
+// one available.
 //
 // LOCKS_REQUIRED(fs.mu)
-func (fs *fileSystem) lookUpOrCreateDirInode(
+func (fs *fileSystem) lookUpOrCreateInode(
 	ctx context.Context,
-	o *storage.Object) (in *inode.DirInode, err error) {
-	// Do we already have an inode for this name?
-	if in = fs.dirIndex[o.Name]; in != nil {
-		return
-	}
-
-	// Mint an ID.
-	id := fs.nextInodeID
-	fs.nextInodeID++
-
-	// Create and index an inode.
-	in = inode.NewDirInode(fs.bucket, id, o)
-	fs.inodes[id] = in
-	fs.dirIndex[in.Name()] = in
-
-	return
-}
-
-// Find a file inode for the given object record. Create one if there isn't
-// already one available.
-//
-// LOCKS_REQUIRED(fs.mu)
-func (fs *fileSystem) lookUpOrCreateFileInode(
-	ctx context.Context,
-	o *storage.Object) (in *inode.FileInode, err error) {
+	o *storage.Object) (in inode.Inode, err error) {
 	nandg := nameAndGen{
 		name: o.Name,
 		gen:  o.Generation,
 	}
 
 	// Do we already have an inode for this (name, generation) pair?
-	if in = fs.fileIndex[nandg]; in != nil {
+	if in = fs.inodeIndex[nandg]; in != nil {
 		return
 	}
 
@@ -326,14 +302,20 @@ func (fs *fileSystem) lookUpOrCreateFileInode(
 	id := fs.nextInodeID
 	fs.nextInodeID++
 
-	// Create and index an inode.
-	if in, err = inode.NewFileInode(fs.clock, fs.bucket, id, o); err != nil {
-		err = fmt.Errorf("NewFileInode: %v", err)
-		return
+	// Create an inode.
+	if isDirName(o.Name) {
+		in = inode.NewDirInode(fs.bucket, id, o)
+	} else {
+		in, err = inode.NewFileInode(fs.clock, fs.bucket, id, o)
+		if err != nil {
+			err = fmt.Errorf("NewFileInode: %v", err)
+			return
+		}
 	}
 
+	// Index the inode.
 	fs.inodes[id] = in
-	fs.fileIndex[nandg] = in
+	fs.inodeIndex[nandg] = in
 
 	return
 }
