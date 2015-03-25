@@ -78,7 +78,7 @@ type fileSystem struct {
 	// INVARIANT: The values are all and only the values of the inodes map
 	//
 	// GUARDED_BY(mu)
-	inodeIndex map[nameAndGen]*inode.FileInode
+	inodeIndex map[nameAndGen]inode.Inode
 
 	// The next inode ID to hand out. We assume that this will never overflow,
 	// since even if we were handing out inode IDs at 4 GHz, it would still take
@@ -155,16 +155,15 @@ func NewServer(
 		uid:         uid,
 		gid:         gid,
 		inodes:      make(map[fuseops.InodeID]inode.Inode),
+		inodeIndex:  make(map[nameAndGen]inode.Inode),
 		nextInodeID: fuseops.RootInodeID + 1,
-		dirIndex:    make(map[string]*inode.DirInode),
-		fileIndex:   make(map[nameAndGen]*inode.FileInode),
 		handles:     make(map[fuseops.HandleID]interface{}),
 	}
 
 	// Set up the root inode.
 	root := inode.NewRootInode(bucket)
 	fs.inodes[fuseops.RootInodeID] = root
-	fs.dirIndex[""] = root
+	fs.inodeIndex[nameAndGen{root.Name(), root.SourceGeneration()}] = root
 
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
