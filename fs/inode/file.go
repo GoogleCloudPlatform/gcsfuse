@@ -201,6 +201,14 @@ func (f *FileInode) Flush(
 	op *fuseops.FlushFileOp) (err error) {
 	// Write out the proxy's contents if it is dirty.
 	err = f.proxy.Sync(op.Context())
+
+	// Special case: a precondition error means we were clobbered, which we treat
+	// as being unlinked. There's no reason to return an error in that case.
+	if _, ok := err.(*gcs.PreconditionError); ok {
+		err = nil
+	}
+
+	// Propagate other errors.
 	if err != nil {
 		err = fmt.Errorf("ObjectProxy.Sync: %v", err)
 		return
