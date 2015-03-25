@@ -159,7 +159,7 @@ func (f *FileInode) Attributes(
 	return
 }
 
-// Serve a read request for this file.
+// Serve a read op for this file, without responding.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Read(
@@ -182,7 +182,7 @@ func (f *FileInode) Read(
 	return
 }
 
-// Serve a write request for this file.
+// Serve a write op for this file, without responding.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Write(
@@ -190,6 +190,21 @@ func (f *FileInode) Write(
 	// Write to the proxy. Note that the proxy guarantees that it returns an
 	// error for short writes.
 	_, err = f.proxy.WriteAt(op.Context(), op.Data, op.Offset)
+
+	return
+}
+
+// Serve a flush op for this file, without responding.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) Flush(
+	op *fuseops.FlushFileOp) (err error) {
+	// Write out the proxy's contents if it is dirty.
+	err = f.proxy.Sync(op.Context())
+	if err != nil {
+		err = fmt.Errorf("ObjectProxy.Sync: %v", err)
+		return
+	}
 
 	return
 }
