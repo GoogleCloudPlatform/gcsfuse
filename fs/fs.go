@@ -62,13 +62,23 @@ type fileSystem struct {
 	// The collection of live inodes, keyed by inode ID. No ID less than
 	// fuseops.RootInodeID is ever used.
 	//
-	// INVARIANT: All values are of type *inode.DirInode or *inode.FileInode
 	// INVARIANT: For all keys k, k >= fuseops.RootInodeID
 	// INVARIANT: For all keys k, inodes[k].ID() == k
 	// INVARIANT: inodes[fuseops.RootInodeID] is of type *inode.DirInode
+	// INVARIANT: For all v, if isDirName(v.Name()) then v is *inode.DirInode
+	// INVARIANT: For all v, if !isDirName(v.Name()) then v is *inode.FileInode
 	//
 	// GUARDED_BY(mu)
 	inodes map[fuseops.InodeID]inode.Inode
+
+	// An index of all inodes by (Name(), SourceGeneration()) pairs.
+	//
+	// INVARIANT: For each key k, inodeIndex[k].Name() == k.name
+	// INVARIANT: For each key k, inodeIndex[k].SourceGeneration() == k.gen
+	// INVARIANT: The values are all and only the values of the inodes map
+	//
+	// GUARDED_BY(mu)
+	inodeIndex map[nameAndGen]*inode.FileInode
 
 	// The next inode ID to hand out. We assume that this will never overflow,
 	// since even if we were handing out inode IDs at 4 GHz, it would still take
@@ -78,27 +88,6 @@ type fileSystem struct {
 	//
 	// GUARDED_BY(mu)
 	nextInodeID fuseops.InodeID
-
-	// An index of all directory inodes by Name().
-	//
-	// INVARIANT: For each key k, isDirName(k)
-	// INVARIANT: For each key k, dirIndex[k].Name() == k
-	// INVARIANT: The values are all and only the values of the inodes map of
-	// type *inode.DirInode.
-	//
-	// GUARDED_BY(mu)
-	dirIndex map[string]*inode.DirInode
-
-	// An index of all file inodes by (Name(), SourceGeneration()) pairs.
-	//
-	// INVARIANT: For each key k, !isDirName(k)
-	// INVARIANT: For each key k, fileIndex[k].Name() == k.name
-	// INVARIANT: For each key k, fileIndex[k].SourceGeneration() == k.gen
-	// INVARIANT: The values are all and only the values of the inodes map of
-	// type *inode.FileInode.
-	//
-	// GUARDED_BY(mu)
-	fileIndex map[nameAndGen]*inode.FileInode
 
 	// The collection of live handles, keyed by handle ID.
 	//
