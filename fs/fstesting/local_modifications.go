@@ -1483,7 +1483,7 @@ func (t *fileTest) Chtimes() {
 	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
-func (t *fileTest) Sync() {
+func (t *fileTest) Sync_Dirty() {
 	var err error
 	var n int
 
@@ -1507,7 +1507,15 @@ func (t *fileTest) Sync() {
 	ExpectEq("taco", contents)
 }
 
-func (t *fileTest) Close() {
+func (t *fileTest) Sync_NotDirty() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) Sync_Clobbered() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) Close_Dirty() {
 	var err error
 	var n int
 
@@ -1529,4 +1537,12 @@ func (t *fileTest) Close() {
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("taco", contents)
+}
+
+func (t *fileTest) Close_NotDirty() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *fileTest) Close_Clobbered() {
+	AssertTrue(false, "TODO")
 }
