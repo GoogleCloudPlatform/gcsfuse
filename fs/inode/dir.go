@@ -23,6 +23,7 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )
@@ -133,6 +134,33 @@ func (d *DirInode) clobbered(ctx context.Context) (clobbered bool, err error) {
 	return
 }
 
+// Stat the object with the given name, returning (nil, nil) if the object
+// doesn't exist rather than failing.
+func statObjectMayNotExist(
+	ctx context.Context,
+	bucket gcs.Bucket,
+	name string) (o *storage.Object, err error) {
+	// Call the bucket.
+	req := &gcs.StatObjectRequest{
+		Name: name,
+	}
+
+	o, err = bucket.StatObject(ctx, req)
+
+	// Suppress "not found" errors.
+	if _, ok := err.(*gcs.NotFoundError); ok {
+		err = nil
+	}
+
+	// Annotate others.
+	if err != nil {
+		err = fmt.Errorf("StatObject: %v", err)
+		return
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -190,38 +218,36 @@ func (d *DirInode) Attributes(
 func (d *DirInode) LookUpChild(
 	ctx context.Context,
 	name string) (o *storage.Object, err error) {
-	// Stat the child as a file first.
-	statReq := &gcs.StatObjectRequest{
-		Name: d.Name() + name,
-	}
+	b := syncutil.NewBundle(ctx)
 
-	o, err = d.bucket.StatObject(ctx, statReq)
+	// Stat the child as a file.
+	var fileRecord *storage.Object
+	b.Add(func(ctx context.Context) (err error) {
+		fileRecord, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name)
+		return
+	})
 
-	// Did we find it successfully?
-	if err == nil {
+	// Stat the child as a directory.
+	var dirRecord *storage.Object
+	b.Add(func(ctx context.Context) (err error) {
+		dirRecord, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name+"/")
+		return
+	})
+
+	// Wait for both.
+	err = b.Join()
+	if err != nil {
 		return
 	}
 
-	// Propagate all errors except "not found".
-	if err != nil {
-		if _, ok := err.(*gcs.NotFoundError); !ok {
-			err = fmt.Errorf("StatObject: %v", err)
-			return
-		}
-	}
-
-	// Try again as a directory.
-	statReq.Name = d.Name() + name + "/"
-	o, err = d.bucket.StatObject(ctx, statReq)
-
-	if _, ok := err.(*gcs.NotFoundError); ok {
+	// Prefer files over directories.
+	switch {
+	case fileRecord != nil:
+		o = fileRecord
+	case dirRecord != nil:
+		o = dirRecord
+	default:
 		err = fuse.ENOENT
-		return
-	}
-
-	if err != nil {
-		err = fmt.Errorf("StatObject: %v", err)
-		return
 	}
 
 	return
