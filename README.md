@@ -52,10 +52,19 @@ The directory onto which you are mounting the file system
 
 # Performance
 
-Performance when copying data into GCS is comparable to gsutil (see
-[issue #22][issue-22] for testing notes). There is some overhead due to staging
-of data in temporary files before writing out to GCS, which is unavoidable given
-the file system semantics.
+Behind the scenes, when a newly-opened file is first read or modified, gcsfuse
+downloads the entire backing object's contents from GCS. (Unless it is a
+newly-created file, of course.) The contents are stored in a local temporary
+file, which is used to serve reads and modifications. Later, when the file is
+closed or fsync'd, gcsfuse writes the contents of the local file back to GCS as
+a new object generation.
+
+The consequence of this is that gcsfuse is relatively efficient when reading or
+writing entire large files, but will not be particularly fast for small numbers
+of random reads or writes within larger files. Performance when copying large
+files into GCS is comparable to gsutil (see [issue #22][issue-22] for testing
+notes). There is some overhead due to staging of data in temporary files before
+writing out to GCS, which is unavoidable given the file system semantics.
 
 [issue-22]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/22
 
