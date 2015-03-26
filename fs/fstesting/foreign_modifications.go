@@ -302,7 +302,8 @@ func (t *foreignModsTest) ReadDir_ContentsInSubDirectory() {
 
 func (t *foreignModsTest) UnreachableObjects() {
 	// Set up objects that appear to be directory contents, but for which there
-	// is no directory placeholder object.
+	// is no directory placeholder object. We don't have implicit directories
+	// enabled, so these should be unreachable.
 	_, err := gcsutil.CreateEmptyObjects(
 		t.ctx,
 		t.bucket,
@@ -674,4 +675,22 @@ func (t *foreignModsTest) ObjectIsDeleted_Directory() {
 	// Opening again should not work.
 	t.f2, err = os.Open(path.Join(t.mfs.Dir(), "dir"))
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+}
+
+////////////////////////////////////////////////////////////////////////
+// Implicit directories
+////////////////////////////////////////////////////////////////////////
+
+type implicitDirsTest struct {
+	fsTest
+}
+
+func (t *implicitDirsTest) setUpFSTest(cfg FSTestConfig) {
+	// TODO(jacobsa): Set the config option when it exists before calling the
+	// embedded method.
+	t.fsTest.setUpFSTest(cfg)
+}
+
+func (t *implicitDirsTest) DoesFoo() {
+	AssertTrue(false, "TODO")
 }
