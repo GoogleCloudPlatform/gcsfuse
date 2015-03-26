@@ -48,3 +48,17 @@ gcsfuse --key_file /path/to/key.json --bucket my-bucket /path/to/mount/point
 
 The directory onto which you are mounting the file system
 (`/path/to/mount/point` in the above example) must already exist.
+
+
+# Performance
+
+Performance when copying data into GCS is comparable to gsutil (see
+[issue #22][issue-22] for testing notes). There is some overhead due to staging
+of data in temporary files before writing out to GCS, which is unavoidable given
+the file system semantics.
+
+[issue-22]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/22
+
+If you notice unreasonable performance, please [file an issue][issues].
+
+[issues]: https://github.com/googlecloudplatform/gcsfuse/issues
