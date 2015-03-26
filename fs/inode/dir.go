@@ -23,6 +23,7 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/storage"
 )
@@ -151,6 +152,12 @@ func statObjectMayNotExist(
 		err = nil
 	}
 
+	// Annotate others.
+	if err != nil {
+		err = fmt.Errorf("StatObject: %v", err)
+		return
+	}
+
 	return
 }
 
@@ -211,29 +218,36 @@ func (d *DirInode) Attributes(
 func (d *DirInode) LookUpChild(
 	ctx context.Context,
 	name string) (o *storage.Object, err error) {
-	// Stat the child as a file first.
-	o, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name)
+	b := syncutil.NewBundle(ctx)
+
+	// Stat the child as a file.
+	var fileRecord *storage.Object
+	b.Add(func(ctx context.Context) (err error) {
+		fileRecord, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name)
+		return
+	})
+
+	// Stat the child as a directory.
+	var dirRecord *storage.Object
+	b.Add(func(ctx context.Context) (err error) {
+		dirRecord, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name+"/")
+		return
+	})
+
+	// Wait for both.
+	err = b.Join()
 	if err != nil {
-		err = fmt.Errorf("statObjectMayNotExist: %v", err)
 		return
 	}
 
-	// Did we find it successfully?
-	if o != nil {
-		return
-	}
-
-	// Try again as a directory.
-	o, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name+"/")
-	if err != nil {
-		err = fmt.Errorf("statObjectMayNotExist: %v", err)
-		return
-	}
-
-	// This time "not found" is an error.
-	if o == nil {
+	// Prefer files over directories.
+	switch {
+	case fileRecord != nil:
+		o = fileRecord
+	case dirRecord != nil:
+		o = dirRecord
+	default:
 		err = fuse.ENOENT
-		return
 	}
 
 	return
