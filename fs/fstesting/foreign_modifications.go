@@ -302,7 +302,7 @@ func (t *foreignModsTest) ReadDir_ContentsInSubDirectory() {
 
 func (t *foreignModsTest) UnreachableObjects() {
 	// Set up objects that appear to be directory contents, but for which there
-	// is no directory object.
+	// is no directory placeholder object.
 	_, err := gcsutil.CreateEmptyObjects(
 		t.ctx,
 		t.bucket,
