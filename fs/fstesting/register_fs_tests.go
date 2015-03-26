@@ -22,24 +22,21 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/jacobsa/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/timeutil"
+	"github.com/googlecloudplatform/gcsfuse/fs"
 	"github.com/jacobsa/ogletest"
 	"github.com/jacobsa/ogletest/srcutil"
 )
 
-// Dependencies needed by the tests registered by RegisterFSTests.
-type FSTestDeps struct {
-	// An initialized, empty bucket.
-	Bucket gcs.Bucket
-
-	// A clock matching the bucket's notion of time.
-	Clock timeutil.Clock
+// Dependencies and configration needed by the tests registered by
+// RegisterFSTests.
+type FSTestConfig struct {
+	// Configuration for the fuse server to be created.
+	ServerConfig fs.ServerConfig
 }
 
 // An interface that all FS tests must implement.
 type fsTestInterface interface {
-	setUpFsTest(deps FSTestDeps)
+	setUpFsTest(config FSTestConfig)
 	tearDownFsTest()
 }
 
@@ -64,7 +61,7 @@ func getTestMethods(suitePointerType reflect.Type) []reflect.Method {
 
 func registerTestSuite(
 	conditionName string,
-	makeDeps func() FSTestDeps,
+	makeConfig func() FSTestConfig,
 	prototype fsTestInterface) {
 	suitePointerType := reflect.TypeOf(prototype)
 	suiteType := suitePointerType.Elem()
@@ -84,7 +81,7 @@ func registerTestSuite(
 		// SetUp should create a bucket and then initialize the suite object,
 		// remembering that the suite implements fsTestInterface.
 		tf.SetUp = func(*ogletest.TestInfo) {
-			instance.Interface().(fsTestInterface).setUpFsTest(makeDeps())
+			instance.Interface().(fsTestInterface).setUpFsTest(makeConfig())
 		}
 
 		// The test function itself should simply invoke the method.
@@ -106,10 +103,10 @@ func registerTestSuite(
 	ogletest.Register(ts)
 }
 
-// Given a function that returns appropriate test depencencies, register test
-// suites that exercise a file system wrapping that bucket. The condition name
+// Given a function that returns appropriate test config, register test suites
+// that exercise a file system created from that config. The condition name
 // should be something like "RealGCS" or "FakeGCS".
-func RegisterFSTests(conditionName string, makeDeps func() FSTestDeps) {
+func RegisterFSTests(conditionName string, makeConfig func() FSTestConfig) {
 	ensureSignalHandler()
 
 	// A list of empty instances of the test suites we want to register.
@@ -123,7 +120,7 @@ func RegisterFSTests(conditionName string, makeDeps func() FSTestDeps) {
 
 	// Register each.
 	for _, suitePrototype := range suitePrototypes {
-		registerTestSuite(conditionName, makeDeps, suitePrototype)
+		registerTestSuite(conditionName, makeConfig, suitePrototype)
 	}
 }
 
