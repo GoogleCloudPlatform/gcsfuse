@@ -112,6 +112,7 @@ func RegisterFSTests(conditionName string, makeConfig func() FSTestConfig) {
 	// A list of empty instances of the test suites we want to register.
 	suitePrototypes := []fsTestInterface{
 		&foreignModsTest{},
+		&implicitDirsTest{},
 		&openTest{},
 		&modesTest{},
 		&directoryTest{},
