@@ -63,8 +63,8 @@ The consequence of this is that gcsfuse is relatively efficient when reading or
 writing entire large files, but will not be particularly fast for small numbers
 of random reads or writes within larger files. Performance when copying large
 files into GCS is comparable to gsutil (see [issue #22][issue-22] for testing
-notes). There is some overhead due to staging of data in temporary files before
-writing out to GCS, which is unavoidable given the file system semantics.
+notes). There is some overhead due to the staging of data in a local temporary
+file, as discussed above.
 
 [issue-22]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/22
 
