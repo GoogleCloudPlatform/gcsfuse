@@ -33,12 +33,16 @@ import (
 	"google.golang.org/cloud/storage"
 )
 
-// Create a fuse file system server whose root directory is the root of the
-// supplied bucket. The supplied clock will be used for cache invalidation,
-// modification times, etc.
-func NewServer(
-	clock timeutil.Clock,
-	bucket gcs.Bucket) (server fuse.Server, err error) {
+type ServerConfig struct {
+	// A clock used for cache validation and modification times.
+	Clock timeutil.Clock
+
+	// The bucket that the file system is to export.
+	Bucket gcs.Bucket
+}
+
+// Create a fuse file system server according to the supplied configuration.
+func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	// Get ownership information.
 	uid, gid, err := getUser()
 	if err != nil {
@@ -47,8 +51,8 @@ func NewServer(
 
 	// Set up the basic struct.
 	fs := &fileSystem{
-		clock:       clock,
-		bucket:      bucket,
+		clock:       cfg.Clock,
+		bucket:      cfg.Bucket,
 		uid:         uid,
 		gid:         gid,
 		inodes:      make(map[fuseops.InodeID]inode.Inode),
@@ -58,7 +62,7 @@ func NewServer(
 	}
 
 	// Set up the root inode.
-	root := inode.NewRootInode(bucket)
+	root := inode.NewRootInode(cfg.Bucket)
 	fs.inodes[fuseops.RootInodeID] = root
 	fs.inodeIndex[nameAndGen{root.Name(), root.SourceGeneration()}] = root
 
