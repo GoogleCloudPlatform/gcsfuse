@@ -133,6 +133,27 @@ func (d *DirInode) clobbered(ctx context.Context) (clobbered bool, err error) {
 	return
 }
 
+// Stat the object with the given name, returning (nil, nil) if the object
+// doesn't exist rather than failing.
+func statObjectMayNotExist(
+	ctx context.Context,
+	bucket gcs.Bucket,
+	name string) (o *storage.Object, err error) {
+	// Call the bucket.
+	req := &gcs.StatObjectRequest{
+		Name: name,
+	}
+
+	o, err = bucket.StatObject(ctx, req)
+
+	// Suppress "not found" errors.
+	if _, ok := err.(*gcs.NotFoundError); ok {
+		err = nil
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -191,36 +212,27 @@ func (d *DirInode) LookUpChild(
 	ctx context.Context,
 	name string) (o *storage.Object, err error) {
 	// Stat the child as a file first.
-	statReq := &gcs.StatObjectRequest{
-		Name: d.Name() + name,
-	}
-
-	o, err = d.bucket.StatObject(ctx, statReq)
-
-	// Did we find it successfully?
-	if err == nil {
+	o, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name)
+	if err != nil {
+		err = fmt.Errorf("statObjectMayNotExist: %v", err)
 		return
 	}
 
-	// Propagate all errors except "not found".
-	if err != nil {
-		if _, ok := err.(*gcs.NotFoundError); !ok {
-			err = fmt.Errorf("StatObject: %v", err)
-			return
-		}
+	// Did we find it successfully?
+	if o != nil {
+		return
 	}
 
 	// Try again as a directory.
-	statReq.Name = d.Name() + name + "/"
-	o, err = d.bucket.StatObject(ctx, statReq)
-
-	if _, ok := err.(*gcs.NotFoundError); ok {
-		err = fuse.ENOENT
+	o, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name+"/")
+	if err != nil {
+		err = fmt.Errorf("statObjectMayNotExist: %v", err)
 		return
 	}
 
-	if err != nil {
-		err = fmt.Errorf("StatObject: %v", err)
+	// This time "not found" is an error.
+	if o == nil {
+		err = fuse.ENOENT
 		return
 	}
 
