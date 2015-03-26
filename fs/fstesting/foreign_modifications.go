@@ -325,6 +325,48 @@ func (t *foreignModsTest) UnreachableObjects() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
+func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
+	var fi os.FileInfo
+	var err error
+
+	// Set up an object named "foo" and one named "foo/", plus a child for the
+	// latter.
+	AssertEq(
+		nil,
+		t.createObjects(
+			[]*gcsutil.ObjectInfo{
+				// File
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "foo",
+					},
+					Contents: "taco",
+				},
+
+				// Directory
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "foo/",
+					},
+				},
+
+				// Directory child
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "foo/bar",
+					},
+					Contents: "",
+				},
+			}))
+
+	// Statting "foo" should yield the directory.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+}
+
 func (t *foreignModsTest) Inodes() {
 	// Set up two files and a directory placeholder.
 	AssertEq(
