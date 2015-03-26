@@ -50,10 +50,10 @@ type fsTest struct {
 
 var _ fsTestInterface = &fsTest{}
 
-func (t *fsTest) setUpFsTest(deps FSTestDeps) {
+func (t *fsTest) setUpFsTest(cfg FSTestConfig) {
 	t.ctx = context.Background()
-	t.clock = deps.Clock
-	t.bucket = deps.Bucket
+	t.clock = cfg.ServerConfig.Clock
+	t.bucket = cfg.ServerConfig.Bucket
 
 	// Set up a temporary directory for mounting.
 	mountPoint, err := ioutil.TempDir("", "fs_test")
@@ -61,12 +61,13 @@ func (t *fsTest) setUpFsTest(deps FSTestDeps) {
 		panic("ioutil.TempDir: " + err.Error())
 	}
 
-	// Mount a file system.
-	server, err := fs.NewServer(t.clock, t.bucket)
+	// Create a file system server.
+	server, err := fs.NewServer(&cfg.ServerConfig)
 	if err != nil {
 		panic("NewServer: " + err.Error())
 	}
 
+	// Mount the file system.
 	t.mfs, err = fuse.Mount(mountPoint, server, &fuse.MountConfig{})
 	if err != nil {
 		panic("Mount: " + err.Error())
