@@ -36,7 +36,7 @@ type FSTestConfig struct {
 
 // An interface that all FS tests must implement.
 type fsTestInterface interface {
-	setUpFsTest(config FSTestConfig)
+	setUpFSTest(config FSTestConfig)
 	tearDownFsTest()
 }
 
@@ -81,7 +81,7 @@ func registerTestSuite(
 		// SetUp should create a bucket and then initialize the suite object,
 		// remembering that the suite implements fsTestInterface.
 		tf.SetUp = func(*ogletest.TestInfo) {
-			instance.Interface().(fsTestInterface).setUpFsTest(makeConfig())
+			instance.Interface().(fsTestInterface).setUpFSTest(makeConfig())
 		}
 
 		// The test function itself should simply invoke the method.

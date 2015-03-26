@@ -50,7 +50,7 @@ type fsTest struct {
 
 var _ fsTestInterface = &fsTest{}
 
-func (t *fsTest) setUpFsTest(cfg FSTestConfig) {
+func (t *fsTest) setUpFSTest(cfg FSTestConfig) {
 	t.ctx = context.Background()
 	t.clock = cfg.ServerConfig.Clock
 	t.bucket = cfg.ServerConfig.Bucket
