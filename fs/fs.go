@@ -33,6 +33,50 @@ import (
 	"google.golang.org/cloud/storage"
 )
 
+type ServerConfig struct {
+	// A clock used for cache validation and modification times.
+	Clock timeutil.Clock
+
+	// The bucket that the file system is to export.
+	Bucket gcs.Bucket
+}
+
+// Create a fuse file system server according to the supplied configuration.
+func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
+	// Get ownership information.
+	uid, gid, err := getUser()
+	if err != nil {
+		return
+	}
+
+	// Set up the basic struct.
+	fs := &fileSystem{
+		clock:       cfg.Clock,
+		bucket:      cfg.Bucket,
+		uid:         uid,
+		gid:         gid,
+		inodes:      make(map[fuseops.InodeID]inode.Inode),
+		nextInodeID: fuseops.RootInodeID + 1,
+		inodeIndex:  make(map[nameAndGen]inode.Inode),
+		handles:     make(map[fuseops.HandleID]interface{}),
+	}
+
+	// Set up the root inode.
+	root := inode.NewRootInode(cfg.Bucket)
+	fs.inodes[fuseops.RootInodeID] = root
+	fs.inodeIndex[nameAndGen{root.Name(), root.SourceGeneration()}] = root
+
+	// Set up invariant checking.
+	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
+
+	server = fuseutil.NewFileSystemServer(fs)
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// fileSystem type
+////////////////////////////////////////////////////////////////////////
+
 type fileSystem struct {
 	fuseutil.NotImplementedFileSystem
 
@@ -131,42 +175,6 @@ func getUser() (uid uint32, gid uint32, err error) {
 	uid = uint32(uid64)
 	gid = uint32(gid64)
 
-	return
-}
-
-// Create a fuse file system server whose root directory is the root of the
-// supplied bucket. The supplied clock will be used for cache invalidation,
-// modification times, etc.
-func NewServer(
-	clock timeutil.Clock,
-	bucket gcs.Bucket) (server fuse.Server, err error) {
-	// Get ownership information.
-	uid, gid, err := getUser()
-	if err != nil {
-		return
-	}
-
-	// Set up the basic struct.
-	fs := &fileSystem{
-		clock:       clock,
-		bucket:      bucket,
-		uid:         uid,
-		gid:         gid,
-		inodes:      make(map[fuseops.InodeID]inode.Inode),
-		nextInodeID: fuseops.RootInodeID + 1,
-		inodeIndex:  make(map[nameAndGen]inode.Inode),
-		handles:     make(map[fuseops.HandleID]interface{}),
-	}
-
-	// Set up the root inode.
-	root := inode.NewRootInode(bucket)
-	fs.inodes[fuseops.RootInodeID] = root
-	fs.inodeIndex[nameAndGen{root.Name(), root.SourceGeneration()}] = root
-
-	// Set up invariant checking.
-	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
-
-	server = fuseutil.NewFileSystemServer(fs)
 	return
 }
 
