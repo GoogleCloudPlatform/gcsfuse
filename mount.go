@@ -85,10 +85,12 @@ func main() {
 	}
 
 	// Create a file system server.
-	server, err := fs.NewServer(
-		timeutil.RealClock(),
-		conn.GetBucket(getBucketName()))
+	serverCfg := &fs.ServerConfig{
+		Clock:  timeutil.RealClock(),
+		Bucket: conn.GetBucket(getBucketName()),
+	}
 
+	server, err := fs.NewServer(serverCfg)
 	if err != nil {
 		log.Fatal("fs.NewServer:", err)
 	}
