@@ -691,6 +691,30 @@ func (t *implicitDirsTest) setUpFSTest(cfg FSTestConfig) {
 	t.fsTest.setUpFSTest(cfg)
 }
 
-func (t *implicitDirsTest) DoesFoo() {
+func (t *implicitDirsTest) NothingInRoot() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *implicitDirsTest) NothingInSubDir() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *implicitDirsTest) FileObjectPresent() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *implicitDirsTest) DirectoryObjectPresent() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *implicitDirsTest) ImplicitDirectory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *implicitDirsTest) FileObjectAndDirectoryObject() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *implicitDirsTest) FileAndImplicitDirectory() {
 	AssertTrue(false, "TODO")
 }
