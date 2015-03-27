@@ -302,7 +302,7 @@ This behavior is not ideal, and is liable to change soon. See
 Not all of the usual file system features are supported. Most prominently:
 
 *   Renaming is not currently supported. See [issue #11][issue-11].
-*   Symlinks are not currently supported. See [issue #12][issue-10].
+*   Symlinks are not currently supported. See [issue #12][issue-12].
 
 [issue-11]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/11
 [issue-12]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/12
