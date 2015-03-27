@@ -97,26 +97,6 @@ func NewDirInode(
 	return
 }
 
-// See notes on NewImplicitDirInode.
-const ImplicitDirGen int64 = -1
-
-// Like NewDirInode, but with the understanding that this is an "implicit"
-// directory inode not backed by an actual source object. For this inode, the
-// result of SourceGeneration() is guaranteed to be ImplicitDirGen.
-func NewImplicitDirInode(
-	bucket gcs.Bucket,
-	id fuseops.InodeID,
-	name string,
-	implicitDirs bool) (d *DirInode) {
-	dummy := &storage.Object{
-		Name:       name,
-		Generation: ImplicitDirGen,
-	}
-
-	d = NewDirInode(bucket, id, dummy)
-	return
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
@@ -237,10 +217,20 @@ func (d *DirInode) Attributes(
 	return
 }
 
+// See notes on NewImplicitDirInode.
+const ImplicitDirGen int64 = -1
+
 // Look up the direct child with the given relative name, returning a record
 // for the current object of that name in the GCS bucket. If both a file and a
 // directory with the given name exist, be consistent from call to call about
 // which is preferred. Return fuse.ENOENT if neither is found.
+//
+// If this inode was created with implicitDirs is set, this method will use
+// ListObjects to find child directories that are "implicitly" defined by the
+// existence of their own descendents. For example, if there is an object named
+// "foo/bar/baz" and this is the directory "foo", a child directory named "bar"
+// will be implied. In this case, the child's generation will be the sentinel
+// value ImplicitDirGen.
 func (d *DirInode) LookUpChild(
 	ctx context.Context,
 	name string) (o *storage.Object, err error) {
