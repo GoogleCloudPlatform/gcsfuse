@@ -216,7 +216,7 @@ func (t *foreignModsTest) UnreachableObjects() {
 	// Set up objects that appear to be directory contents, but for which there
 	// is no directory placeholder object. We don't have implicit directories
 	// enabled, so these should be unreachable.
-	_, err := gcsutil.CreateEmptyObjects(
+	err := gcsutil.CreateEmptyObjects(
 		t.ctx,
 		t.bucket,
 		[]string{
