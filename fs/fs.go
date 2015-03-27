@@ -39,6 +39,18 @@ type ServerConfig struct {
 
 	// The bucket that the file system is to export.
 	Bucket gcs.Bucket
+
+	// By default, if a bucket contains the object "foo/bar" but no object named
+	// "foo/", it's as if the directory doesn't exist. This allows us to have
+	// non-flaky name resolution code.
+	//
+	// Setting this bool to true enables a mode where object listings are
+	// consulted to allow for the directory in the situation above to exist. Note
+	// that this has drawbacks in the form of name resolution flakiness and
+	// surprising behavior.
+	//
+	// See docs/semantics.md for more info.
+	ImplicitDirectories bool
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -51,18 +63,19 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 
 	// Set up the basic struct.
 	fs := &fileSystem{
-		clock:       cfg.Clock,
-		bucket:      cfg.Bucket,
-		uid:         uid,
-		gid:         gid,
-		inodes:      make(map[fuseops.InodeID]inode.Inode),
-		nextInodeID: fuseops.RootInodeID + 1,
-		inodeIndex:  make(map[nameAndGen]inode.Inode),
-		handles:     make(map[fuseops.HandleID]interface{}),
+		clock:        cfg.Clock,
+		bucket:       cfg.Bucket,
+		implicitDirs: cfg.ImplicitDirectories,
+		uid:          uid,
+		gid:          gid,
+		inodes:       make(map[fuseops.InodeID]inode.Inode),
+		nextInodeID:  fuseops.RootInodeID + 1,
+		inodeIndex:   make(map[nameAndGen]inode.Inode),
+		handles:      make(map[fuseops.HandleID]interface{}),
 	}
 
 	// Set up the root inode.
-	root := inode.NewRootInode(cfg.Bucket)
+	root := inode.NewRootInode(cfg.Bucket, fs.implicitDirs)
 	fs.inodes[fuseops.RootInodeID] = root
 	fs.inodeIndex[nameAndGen{root.Name(), root.SourceGeneration()}] = root
 
@@ -84,8 +97,9 @@ type fileSystem struct {
 	// Dependencies
 	/////////////////////////
 
-	clock  timeutil.Clock
-	bucket gcs.Bucket
+	clock        timeutil.Clock
+	bucket       gcs.Bucket
+	implicitDirs bool
 
 	/////////////////////////
 	// Constant data
@@ -126,6 +140,7 @@ type fileSystem struct {
 	//
 	// INVARIANT: For each key k, inodeIndex[k].Name() == k.name
 	// INVARIANT: For each key k, inodeIndex[k].SourceGeneration() == k.gen
+	// INVARIANT: For each key k, k.gen == ImplicitDirGen only if implicitDirs
 	// INVARIANT: The values are all and only the values of the inodes map
 	//
 	// GUARDED_BY(mu)
@@ -247,6 +262,13 @@ func (fs *fileSystem) checkInvariants() {
 		}
 	}
 
+	// INVARIANT: For each key k, k.gen == ImplicitDirGen only if implicitDirs
+	for k, in := range fs.inodeIndex {
+		if k.gen == inode.ImplicitDirGen && !fs.implicitDirs {
+			panic(fmt.Sprintf("Unexpected implicit generation: %s", in.Name()))
+		}
+	}
+
 	// INVARIANT: The values are all and only the values of the inodes map
 	for id, in := range fs.inodes {
 		if in != fs.inodes[id] {
@@ -321,7 +343,7 @@ func (fs *fileSystem) lookUpOrCreateInode(
 
 	// Create an inode.
 	if isDirName(o.Name) {
-		in = inode.NewDirInode(fs.bucket, id, o)
+		in = inode.NewDirInode(fs.bucket, id, o, fs.implicitDirs)
 	} else {
 		in, err = inode.NewFileInode(fs.clock, fs.bucket, id, o)
 		if err != nil {

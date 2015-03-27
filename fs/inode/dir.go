@@ -39,7 +39,8 @@ type DirInode struct {
 	// Constant data
 	/////////////////////////
 
-	id fuseops.InodeID
+	id           fuseops.InodeID
+	implicitDirs bool
 
 	// The the GCS object backing the inode. The object's name is used as a
 	// prefix when listing. Special case: the empty string means this is the root
@@ -52,17 +53,20 @@ type DirInode struct {
 
 var _ Inode = &DirInode{}
 
-// Create a directory inode for the root of the file system. For this inode,
-// the result of SourceGeneration() is unspecified but stable.
-func NewRootInode(bucket gcs.Bucket) (d *DirInode) {
-	d = &DirInode{
-		bucket: bucket,
-		id:     fuseops.RootInodeID,
+// Set notes on NewRootInode.
+const RootGen int64 = 0
 
-		// A dummy object whose name is the empty string.
-		src: storage.Object{},
+// Create a directory inode for the root of the file system. For this inode,
+// the result of SourceGeneration() is guaranteed to be RootGen.
+func NewRootInode(
+	bucket gcs.Bucket,
+	implicitDirs bool) (d *DirInode) {
+	dummy := &storage.Object{
+		Name:       "",
+		Generation: RootGen,
 	}
 
+	d = NewDirInode(bucket, fuseops.RootInodeID, dummy, implicitDirs)
 	return
 }
 
@@ -70,22 +74,28 @@ func NewRootInode(bucket gcs.Bucket) (d *DirInode) {
 // must end with a slash unless this is the root directory, in which case it
 // must be empty.
 //
+// If implicitDirs is set, LookUpChild will use ListObjects to find child
+// directories that are "implicitly" defined by the existence of their own
+// descendents. For example, if there is an object named "foo/bar/baz" and this
+// is the directory "foo", a child directory named "bar" will be implied.
+//
 // REQUIRES: o != nil
-// REQUIRES: o.Name != ""
-// REQUIRES: o.Name[len(o.Name)-1] == '/'
+// REQUIRES: o.Name == "" || o.Name[len(o.Name)-1] == '/'
 func NewDirInode(
 	bucket gcs.Bucket,
 	id fuseops.InodeID,
-	o *storage.Object) (d *DirInode) {
-	if o.Name[len(o.Name)-1] != '/' {
+	o *storage.Object,
+	implicitDirs bool) (d *DirInode) {
+	if o.Name != "" && o.Name[len(o.Name)-1] != '/' {
 		panic(fmt.Sprintf("Unexpected name: %s", o.Name))
 	}
 
 	// Set up the struct.
 	d = &DirInode{
-		bucket: bucket,
-		id:     id,
-		src:    *o,
+		bucket:       bucket,
+		id:           id,
+		implicitDirs: implicitDirs,
+		src:          *o,
 	}
 
 	return
@@ -131,6 +141,91 @@ func (d *DirInode) clobbered(ctx context.Context) (clobbered bool, err error) {
 	// We are clobbered if the generation number has changed.
 	clobbered = o.Generation != d.SourceGeneration()
 
+	return
+}
+
+func (d *DirInode) lookUpChildFile(
+	ctx context.Context,
+	name string) (o *storage.Object, err error) {
+	o, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name)
+	if err != nil {
+		err = fmt.Errorf("statObjectMayNotExist: %v", err)
+		return
+	}
+
+	return
+}
+
+func (d *DirInode) lookUpChildDir(
+	ctx context.Context,
+	name string) (o *storage.Object, err error) {
+	b := syncutil.NewBundle(ctx)
+
+	// Stat the placeholder object.
+	b.Add(func(ctx context.Context) (err error) {
+		o, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name+"/")
+		if err != nil {
+			err = fmt.Errorf("statObjectMayNotExist: %v", err)
+			return
+		}
+
+		return
+	})
+
+	// If implicit directories are enabled, find out whether the child name is
+	// implicitly defined.
+	var implicitlyDefined bool
+	if d.implicitDirs {
+		b.Add(func(ctx context.Context) (err error) {
+			implicitlyDefined, err = objectNamePrefixNonEmpty(
+				ctx,
+				d.bucket,
+				d.Name()+name+"/")
+
+			if err != nil {
+				err = fmt.Errorf("objectNamePrefixNonEmpty: %v", err)
+				return
+			}
+
+			return
+		})
+	}
+
+	// Wait for both.
+	err = b.Join()
+	if err != nil {
+		return
+	}
+
+	// If statting failed by the directory is implicitly defined, fake a source
+	// object.
+	if o == nil && implicitlyDefined {
+		o = &storage.Object{
+			Name:       d.Name() + name + "/",
+			Generation: ImplicitDirGen,
+		}
+	}
+
+	return
+}
+
+// List the supplied object name prefix to find out whether it is non-empty.
+func objectNamePrefixNonEmpty(
+	ctx context.Context,
+	bucket gcs.Bucket,
+	prefix string) (nonEmpty bool, err error) {
+	query := &storage.Query{
+		Prefix:     prefix,
+		MaxResults: 1,
+	}
+
+	listing, err := bucket.ListObjects(ctx, query)
+	if err != nil {
+		err = fmt.Errorf("ListObjects: %v", err)
+		return
+	}
+
+	nonEmpty = len(listing.Results) != 0
 	return
 }
 
@@ -211,10 +306,20 @@ func (d *DirInode) Attributes(
 	return
 }
 
+// See notes on DirInode.LookUpChild.
+const ImplicitDirGen int64 = -1
+
 // Look up the direct child with the given relative name, returning a record
 // for the current object of that name in the GCS bucket. If both a file and a
 // directory with the given name exist, be consistent from call to call about
 // which is preferred. Return fuse.ENOENT if neither is found.
+//
+// If this inode was created with implicitDirs is set, this method will use
+// ListObjects to find child directories that are "implicitly" defined by the
+// existence of their own descendents. For example, if there is an object named
+// "foo/bar/baz" and this is the directory "foo", a child directory named "bar"
+// will be implied. In this case, the child's generation will be the sentinel
+// value ImplicitDirGen.
 func (d *DirInode) LookUpChild(
 	ctx context.Context,
 	name string) (o *storage.Object, err error) {
@@ -223,14 +328,14 @@ func (d *DirInode) LookUpChild(
 	// Stat the child as a file.
 	var fileRecord *storage.Object
 	b.Add(func(ctx context.Context) (err error) {
-		fileRecord, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name)
+		fileRecord, err = d.lookUpChildFile(ctx, name)
 		return
 	})
 
 	// Stat the child as a directory.
 	var dirRecord *storage.Object
 	b.Add(func(ctx context.Context) (err error) {
-		dirRecord, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name+"/")
+		dirRecord, err = d.lookUpChildDir(ctx, name)
 		return
 	})
 

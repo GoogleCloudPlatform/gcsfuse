@@ -22,16 +22,12 @@ package fstesting
 
 import (
 	"encoding/hex"
-	"errors"
 	"io/ioutil"
-	"log"
-	"math"
 	"math/rand"
 	"os"
 	"path"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
@@ -45,56 +41,6 @@ import (
 
 type foreignModsTest struct {
 	fsTest
-}
-
-// Repeatedly call ioutil.ReadDir until an error is encountered or until the
-// result has the given length. After each successful call with the wrong
-// length, advance the clock by more than the directory listing cache TTL in
-// order to flush the cache before the next call.
-//
-// This is a hacky workaround for the lack of list-after-write consistency in
-// GCS that must be used when interacting with GCS through a side channel
-// rather than through the file system. We set up some objects through a back
-// door, then list repeatedly until we see the state we hope to see.
-func (t *foreignModsTest) readDirUntil(
-	desiredLen int,
-	dir string) (entries []os.FileInfo, err error) {
-	startTime := time.Now()
-	endTime := startTime.Add(5 * time.Second)
-
-	for i := 0; ; i++ {
-		entries, err = ioutil.ReadDir(dir)
-		if err != nil || len(entries) == desiredLen {
-			return
-		}
-
-		// Should we stop?
-		if time.Now().After(endTime) {
-			err = errors.New("Timeout waiting for the given length.")
-			break
-		}
-
-		// Sleep for awhile.
-		const baseDelay = 10 * time.Millisecond
-		time.Sleep(time.Duration(math.Pow(1.3, float64(i)) * float64(baseDelay)))
-
-		// If this is taking awhile, log that fact so that the user can tell why
-		// the test is hanging.
-		if time.Since(startTime) > time.Second {
-			var names []string
-			for _, fi := range entries {
-				names = append(names, fi.Name())
-			}
-
-			log.Printf(
-				"readDirUntil waiting for length %v. Current: %v, names: %v",
-				desiredLen,
-				len(entries),
-				names)
-		}
-	}
-
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -302,7 +248,8 @@ func (t *foreignModsTest) ReadDir_ContentsInSubDirectory() {
 
 func (t *foreignModsTest) UnreachableObjects() {
 	// Set up objects that appear to be directory contents, but for which there
-	// is no directory object.
+	// is no directory placeholder object. We don't have implicit directories
+	// enabled, so these should be unreachable.
 	_, err := gcsutil.CreateEmptyObjects(
 		t.ctx,
 		t.bucket,
@@ -367,7 +314,7 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 
-	// Listing the directory will result in both.
+	// Listing the directory will result in two copies of the directory.
 	//
 	// This behavior is a bug.
 	// Cf. https://github.com/GoogleCloudPlatform/gcsfuse/issues/28
@@ -378,11 +325,9 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 	ExpectEq("foo", entries[0].Name())
 	ExpectEq("foo", entries[1].Name())
 
-	// This is also a bug.
 	ExpectEq(0, entries[0].Size())
 	ExpectEq(0, entries[1].Size())
 
-	// This is also a bug.
 	ExpectTrue(entries[0].IsDir())
 	ExpectTrue(entries[1].IsDir())
 }
@@ -673,5 +618,329 @@ func (t *foreignModsTest) ObjectIsDeleted_Directory() {
 
 	// Opening again should not work.
 	t.f2, err = os.Open(path.Join(t.mfs.Dir(), "dir"))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+}
+
+////////////////////////////////////////////////////////////////////////
+// Implicit directories
+////////////////////////////////////////////////////////////////////////
+
+type implicitDirsTest struct {
+	fsTest
+}
+
+func (t *implicitDirsTest) setUpFSTest(cfg FSTestConfig) {
+	cfg.ServerConfig.ImplicitDirectories = true
+	t.fsTest.setUpFSTest(cfg)
+}
+
+func (t *implicitDirsTest) NothingPresent() {
+	// ReadDir
+	entries, err := t.readDirUntil(0, t.mfs.Dir())
+	AssertEq(nil, err)
+
+	ExpectThat(entries, ElementsAre())
+}
+
+func (t *implicitDirsTest) FileObjectPresent() {
+	var fi os.FileInfo
+	var entries []os.FileInfo
+	var err error
+
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			[]*gcsutil.ObjectInfo{
+				// File
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "foo",
+					},
+					Contents: "taco",
+				},
+			}))
+
+	// Statting the name should return an entry for the file.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(4, fi.Size())
+	ExpectFalse(fi.IsDir())
+
+	// ReadDir should show the file.
+	entries, err = t.readDirUntil(1, t.mfs.Dir())
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("foo", fi.Name())
+	ExpectEq(4, fi.Size())
+	ExpectFalse(fi.IsDir())
+}
+
+func (t *implicitDirsTest) DirectoryObjectPresent() {
+	var fi os.FileInfo
+	var entries []os.FileInfo
+	var err error
+
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			[]*gcsutil.ObjectInfo{
+				// Directory
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "foo/",
+					},
+				},
+			}))
+
+	// Statting the name should return an entry for the directory.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+
+	// ReadDir should show the directory.
+	entries, err = t.readDirUntil(1, t.mfs.Dir())
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+}
+
+func (t *implicitDirsTest) ImplicitDirectory_DefinedByFile() {
+	var fi os.FileInfo
+	var entries []os.FileInfo
+	var err error
+
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			[]*gcsutil.ObjectInfo{
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "foo/bar",
+					},
+				},
+			}))
+
+	// Statting the name should return an entry for the directory.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+
+	// ReadDir should show the directory.
+	entries, err = t.readDirUntil(1, t.mfs.Dir())
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+}
+
+func (t *implicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
+	var fi os.FileInfo
+	var entries []os.FileInfo
+	var err error
+
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			[]*gcsutil.ObjectInfo{
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "foo/bar/",
+					},
+				},
+			}))
+
+	// Statting the name should return an entry for the directory.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+
+	// ReadDir should show the directory.
+	entries, err = t.readDirUntil(1, t.mfs.Dir())
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+}
+
+func (t *implicitDirsTest) ConflictingNames_PlaceholderPresent() {
+	var fi os.FileInfo
+	var entries []os.FileInfo
+	var err error
+
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			[]*gcsutil.ObjectInfo{
+				// File
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "foo",
+					},
+					Contents: "taco",
+				},
+
+				// Directory
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "foo/",
+					},
+				},
+			}))
+
+	// Statting the name should return an entry for the directory.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+
+	// ReadDir shows two copies of the directory.
+	//
+	// This behavior is a bug.
+	// Cf. https://github.com/GoogleCloudPlatform/gcsfuse/issues/28
+	entries, err = t.readDirUntil(2, t.mfs.Dir())
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+
+	ExpectEq("foo", entries[0].Name())
+	ExpectEq("foo", entries[1].Name())
+
+	ExpectEq(0, entries[0].Size())
+	ExpectEq(0, entries[1].Size())
+
+	ExpectTrue(entries[0].IsDir())
+	ExpectTrue(entries[1].IsDir())
+}
+
+func (t *implicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
+	var fi os.FileInfo
+	var entries []os.FileInfo
+	var err error
+
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			[]*gcsutil.ObjectInfo{
+				// File
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "foo",
+					},
+					Contents: "taco",
+				},
+
+				// Directory
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "foo/bar",
+					},
+				},
+			}))
+
+	// Statting the name should return an entry for the directory.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+
+	// ReadDir shows two copies of the directory.
+	//
+	// This behavior is a bug.
+	// Cf. https://github.com/GoogleCloudPlatform/gcsfuse/issues/28
+	entries, err = t.readDirUntil(2, t.mfs.Dir())
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+
+	ExpectEq("foo", entries[0].Name())
+	ExpectEq("foo", entries[1].Name())
+
+	ExpectEq(0, entries[0].Size())
+	ExpectEq(0, entries[1].Size())
+
+	ExpectTrue(entries[0].IsDir())
+	ExpectTrue(entries[1].IsDir())
+}
+
+func (t *implicitDirsTest) StatUnknownName_NoOtherContents() {
+	var err error
+
+	// Stat an unknown name.
+	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+}
+
+func (t *implicitDirsTest) StatUnknownName_UnrelatedContents() {
+	var err error
+
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			[]*gcsutil.ObjectInfo{
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "bar",
+					},
+				},
+
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "baz",
+					},
+				},
+			}))
+
+	// Stat an unknown name.
+	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+}
+
+func (t *implicitDirsTest) StatUnknownName_PrefixOfActualNames() {
+	var err error
+
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			[]*gcsutil.ObjectInfo{
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "foop",
+					},
+				},
+
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "fooq/",
+					},
+				},
+			}))
+
+	// Stat an unknown name.
+	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
