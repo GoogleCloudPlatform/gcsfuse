@@ -860,11 +860,37 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 }
 
 func (t *implicitDirsTest) StatUnknownName_NoOtherContents() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Stat an unknown name.
+	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
 func (t *implicitDirsTest) StatUnknownName_UnrelatedContents() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			[]*gcsutil.ObjectInfo{
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "bar",
+					},
+				},
+
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "baz",
+					},
+				},
+			}))
+
+	// Stat an unknown name.
+	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
 func (t *implicitDirsTest) StatUnknownName_PrefixOfActualDirectoryName() {
