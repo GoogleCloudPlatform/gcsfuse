@@ -809,7 +809,54 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderPresent() {
 }
 
 func (t *implicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
-	AssertTrue(false, "TODO")
+	var fi os.FileInfo
+	var entries []os.FileInfo
+	var err error
+
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			[]*gcsutil.ObjectInfo{
+				// File
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "foo",
+					},
+					Contents: "taco",
+				},
+
+				// Directory
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "foo/bar",
+					},
+				},
+			}))
+
+	// Statting the name should return an entry for the directory.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+
+	// ReadDir shows two copies of the directory.
+	//
+	// This behavior is a bug.
+	// Cf. https://github.com/GoogleCloudPlatform/gcsfuse/issues/28
+	entries, err = t.readDirUntil(2, t.mfs.Dir())
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+
+	ExpectEq("foo", entries[0].Name())
+	ExpectEq("foo", entries[1].Name())
+
+	ExpectEq(0, entries[0].Size())
+	ExpectEq(0, entries[1].Size())
+
+	ExpectTrue(entries[0].IsDir())
+	ExpectTrue(entries[1].IsDir())
 }
 
 func (t *implicitDirsTest) StatUnknownName_NoOtherContents() {
