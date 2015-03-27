@@ -718,3 +718,15 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderPresent() {
 func (t *implicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 	AssertTrue(false, "TODO")
 }
+
+func (t *implicitDirsTest) StatUnknownName_NoOtherContents() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *implicitDirsTest) StatUnknownName_UnrelatedContents() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *implicitDirsTest) StatUnknownName_PrefixOfActualDirectoryName() {
+	AssertTrue(false, "TODO")
+}
