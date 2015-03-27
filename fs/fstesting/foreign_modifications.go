@@ -32,7 +32,6 @@ import (
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
-	"google.golang.org/cloud/storage"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -74,29 +73,15 @@ func (t *foreignModsTest) ReadDir_ContentsInRoot() {
 	AssertEq(
 		nil,
 		t.createObjects(
-			[]*gcsutil.ObjectInfo{
+			map[string]string{
 				// File
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "foo",
-					},
-					Contents: "taco",
-				},
+				"foo": "taco",
 
 				// Directory
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "bar/",
-					},
-				},
+				"bar/": "",
 
 				// File
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "baz",
-					},
-					Contents: "burrito",
-				},
+				"baz": "burrito",
 			}))
 
 	// Make sure the time below doesn't match.
@@ -166,37 +151,18 @@ func (t *foreignModsTest) ReadDir_ContentsInSubDirectory() {
 	AssertEq(
 		nil,
 		t.createObjects(
-			[]*gcsutil.ObjectInfo{
+			map[string]string{
 				// Placeholder
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "dir/",
-					},
-					Contents: "",
-				},
+				"dir/": "",
 
 				// File
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "dir/foo",
-					},
-					Contents: "taco",
-				},
+				"dir/foo": "taco",
 
 				// Directory
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "dir/bar/",
-					},
-				},
+				"dir/bar/": "",
 
 				// File
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "dir/baz",
-					},
-					Contents: "burrito",
-				},
+				"dir/baz": "burrito",
 			}))
 
 	// Make sure the time below doesn't match.
@@ -250,7 +216,7 @@ func (t *foreignModsTest) UnreachableObjects() {
 	// Set up objects that appear to be directory contents, but for which there
 	// is no directory placeholder object. We don't have implicit directories
 	// enabled, so these should be unreachable.
-	_, err := gcsutil.CreateEmptyObjects(
+	err := gcsutil.CreateEmptyObjects(
 		t.ctx,
 		t.bucket,
 		[]string{
@@ -282,29 +248,15 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 	AssertEq(
 		nil,
 		t.createObjects(
-			[]*gcsutil.ObjectInfo{
+			map[string]string{
 				// File
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "foo",
-					},
-					Contents: "taco",
-				},
+				"foo": "taco",
 
 				// Directory
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "foo/",
-					},
-				},
+				"foo/": "",
 
 				// Directory child
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "foo/bar",
-					},
-					Contents: "",
-				},
+				"foo/bar": "",
 			}))
 
 	// Statting "foo" should yield the directory.
@@ -651,14 +603,9 @@ func (t *implicitDirsTest) FileObjectPresent() {
 	AssertEq(
 		nil,
 		t.createObjects(
-			[]*gcsutil.ObjectInfo{
+			map[string]string{
 				// File
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "foo",
-					},
-					Contents: "taco",
-				},
+				"foo": "taco",
 			}))
 
 	// Statting the name should return an entry for the file.
@@ -689,13 +636,9 @@ func (t *implicitDirsTest) DirectoryObjectPresent() {
 	AssertEq(
 		nil,
 		t.createObjects(
-			[]*gcsutil.ObjectInfo{
+			map[string]string{
 				// Directory
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "foo/",
-					},
-				},
+				"foo/": "",
 			}))
 
 	// Statting the name should return an entry for the directory.
@@ -724,12 +667,8 @@ func (t *implicitDirsTest) ImplicitDirectory_DefinedByFile() {
 	AssertEq(
 		nil,
 		t.createObjects(
-			[]*gcsutil.ObjectInfo{
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "foo/bar",
-					},
-				},
+			map[string]string{
+				"foo/bar": "",
 			}))
 
 	// Statting the name should return an entry for the directory.
@@ -758,12 +697,8 @@ func (t *implicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 	AssertEq(
 		nil,
 		t.createObjects(
-			[]*gcsutil.ObjectInfo{
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "foo/bar/",
-					},
-				},
+			map[string]string{
+				"foo/bar/": "",
 			}))
 
 	// Statting the name should return an entry for the directory.
@@ -792,21 +727,12 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderPresent() {
 	AssertEq(
 		nil,
 		t.createObjects(
-			[]*gcsutil.ObjectInfo{
+			map[string]string{
 				// File
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "foo",
-					},
-					Contents: "taco",
-				},
+				"foo": "taco",
 
 				// Directory
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "foo/",
-					},
-				},
+				"foo/": "",
 			}))
 
 	// Statting the name should return an entry for the directory.
@@ -843,21 +769,12 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 	AssertEq(
 		nil,
 		t.createObjects(
-			[]*gcsutil.ObjectInfo{
+			map[string]string{
 				// File
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "foo",
-					},
-					Contents: "taco",
-				},
+				"foo": "taco",
 
 				// Directory
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "foo/bar",
-					},
-				},
+				"foo/bar": "",
 			}))
 
 	// Statting the name should return an entry for the directory.
@@ -900,18 +817,9 @@ func (t *implicitDirsTest) StatUnknownName_UnrelatedContents() {
 	AssertEq(
 		nil,
 		t.createObjects(
-			[]*gcsutil.ObjectInfo{
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "bar",
-					},
-				},
-
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "baz",
-					},
-				},
+			map[string]string{
+				"bar": "",
+				"baz": "",
 			}))
 
 	// Stat an unknown name.
@@ -926,18 +834,9 @@ func (t *implicitDirsTest) StatUnknownName_PrefixOfActualNames() {
 	AssertEq(
 		nil,
 		t.createObjects(
-			[]*gcsutil.ObjectInfo{
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "foop",
-					},
-				},
-
-				&gcsutil.ObjectInfo{
-					Attrs: storage.ObjectAttrs{
-						Name: "fooq/",
-					},
-				},
+			map[string]string{
+				"foop":  "",
+				"fooq/": "",
 			}))
 
 	// Stat an unknown name.

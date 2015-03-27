@@ -25,7 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
-	"google.golang.org/cloud/storage"
 )
 
 // A view on a particular generation of an object in GCS that allows random
@@ -52,7 +51,7 @@ type ObjectProxy struct {
 	// A record for the specific generation of the object from which our local
 	// state is branched. If we have no local state, the contents of this
 	// generation are exactly our contents.
-	src storage.Object
+	src gcs.Object
 
 	// A local temporary file containing our current contents. When non-nil, this
 	// is the authority on our contents. When nil, our contents are defined by
@@ -94,7 +93,7 @@ type StatResult struct {
 func NewObjectProxy(
 	clock timeutil.Clock,
 	bucket gcs.Bucket,
-	o *storage.Object) (op *ObjectProxy, err error) {
+	o *gcs.Object) (op *ObjectProxy, err error) {
 	// Set up the basic struct.
 	op = &ObjectProxy{
 		clock:  clock,
@@ -302,9 +301,7 @@ func (op *ObjectProxy) Sync(ctx context.Context) (err error) {
 	// Write a new generation of the object with the appropriate contents, using
 	// an appropriate precondition.
 	req := &gcs.CreateObjectRequest{
-		Attrs: storage.ObjectAttrs{
-			Name: op.src.Name,
-		},
+		Name:                   op.src.Name,
 		Contents:               op.localFile,
 		GenerationPrecondition: &op.src.Generation,
 	}

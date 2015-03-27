@@ -33,7 +33,6 @@ import (
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
-	"google.golang.org/cloud/storage"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -1595,9 +1594,7 @@ func (t *fileTest) Sync_Clobbered() {
 	_, err = gcsutil.CreateObject(
 		t.ctx,
 		t.bucket,
-		&storage.ObjectAttrs{
-			Name: "foo",
-		},
+		"foo",
 		"foobar")
 
 	// Sync the file. This should not result in an error, but the new generation
@@ -1680,9 +1677,7 @@ func (t *fileTest) Close_Clobbered() {
 	_, err = gcsutil.CreateObject(
 		t.ctx,
 		t.bucket,
-		&storage.ObjectAttrs{
-			Name: "foo",
-		},
+		"foo",
 		"foobar")
 
 	// Close the file. This should not result in an error, but the new generation
