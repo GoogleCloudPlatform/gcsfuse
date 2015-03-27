@@ -711,10 +711,10 @@ func (t *implicitDirsTest) ImplicitDirectory() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *implicitDirsTest) FileObjectAndDirectoryObject() {
+func (t *implicitDirsTest) ConflictingNames_PlaceholderPresent() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *implicitDirsTest) FileAndImplicitDirectory() {
+func (t *implicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 	AssertTrue(false, "TODO")
 }
