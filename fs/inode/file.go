@@ -24,7 +24,6 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
-	"google.golang.org/cloud/storage"
 )
 
 type FileInode struct {
@@ -68,7 +67,7 @@ func NewFileInode(
 	clock timeutil.Clock,
 	bucket gcs.Bucket,
 	id fuseops.InodeID,
-	o *storage.Object) (f *FileInode, err error) {
+	o *gcs.Object) (f *FileInode, err error) {
 	// Set up the basic struct.
 	f = &FileInode{
 		bucket: bucket,
