@@ -52,17 +52,20 @@ type DirInode struct {
 
 var _ Inode = &DirInode{}
 
-// Create a directory inode for the root of the file system. For this inode,
-// the result of SourceGeneration() is guaranteed to be zero.
-func NewRootInode(bucket gcs.Bucket) (d *DirInode) {
-	d = &DirInode{
-		bucket: bucket,
-		id:     fuseops.RootInodeID,
+// Set notes on NewRootInode.
+const RootGen int64 = 0
 
-		// A dummy object whose name is the empty string.
-		src: storage.Object{},
+// Create a directory inode for the root of the file system. For this inode,
+// the result of SourceGeneration() is guaranteed to be RootGen.
+func NewRootInode(
+	bucket gcs.Bucket,
+	implicitDirs bool) (d *DirInode) {
+	dummy := &storage.Object{
+		Name:       "",
+		Generation: RootGen,
 	}
 
+	d = NewDirInode(bucket, fuseops.RootInodeID, dummy, implicitDirs)
 	return
 }
 
@@ -217,7 +220,7 @@ func (d *DirInode) Attributes(
 	return
 }
 
-// See notes on NewImplicitDirInode.
+// See notes on DirInode.LookUpChild.
 const ImplicitDirGen int64 = -1
 
 // Look up the direct child with the given relative name, returning a record
