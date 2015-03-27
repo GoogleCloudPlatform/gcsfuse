@@ -142,6 +142,20 @@ func (d *DirInode) clobbered(ctx context.Context) (clobbered bool, err error) {
 	return
 }
 
+func (d *DirInode) lookUpChildFile(
+	ctx context.Context,
+	name string) (o *storage.Object, err error) {
+	o, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name)
+	return
+}
+
+func (d *DirInode) lookUpChildDir(
+	ctx context.Context,
+	name string) (o *storage.Object, err error) {
+	o, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name+"/")
+	return
+}
+
 // Stat the object with the given name, returning (nil, nil) if the object
 // doesn't exist rather than failing.
 func statObjectMayNotExist(
@@ -241,14 +255,14 @@ func (d *DirInode) LookUpChild(
 	// Stat the child as a file.
 	var fileRecord *storage.Object
 	b.Add(func(ctx context.Context) (err error) {
-		fileRecord, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name)
+		fileRecord, err = d.lookUpChildFile(ctx, name)
 		return
 	})
 
 	// Stat the child as a directory.
 	var dirRecord *storage.Object
 	b.Add(func(ctx context.Context) (err error) {
-		dirRecord, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name+"/")
+		dirRecord, err = d.lookUpChildDir(ctx, name)
 		return
 	})
 
