@@ -360,13 +360,12 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 				},
 			}))
 
-	// Statting "foo" should yield the file.
+	// Statting "foo" should yield the directory.
 	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
 	AssertEq(nil, err)
 
 	ExpectEq("foo", fi.Name())
-	ExpectEq(4, fi.Size())
-	ExpectFalse(fi.IsDir())
+	ExpectTrue(fi.IsDir())
 
 	// Listing the directory will result in both.
 	//
@@ -379,11 +378,13 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 	ExpectEq("foo", entries[0].Name())
 	ExpectEq("foo", entries[1].Name())
 
-	ExpectThat([]int64{entries[0].Size(), entries[1].Size()}, Contains(4))
+	// This is also a bug.
+	ExpectEq(0, entries[0].Size())
+	ExpectEq(0, entries[1].Size())
 
 	// This is also a bug.
-	ExpectFalse(entries[0].IsDir())
-	ExpectFalse(entries[1].IsDir())
+	ExpectTrue(entries[0].IsDir())
+	ExpectTrue(entries[1].IsDir())
 }
 
 func (t *foreignModsTest) Inodes() {
