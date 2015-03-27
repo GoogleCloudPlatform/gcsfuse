@@ -39,6 +39,18 @@ type ServerConfig struct {
 
 	// The bucket that the file system is to export.
 	Bucket gcs.Bucket
+
+	// By default, if a bucket contains the object "foo/bar" but no object named
+	// "foo/", it's as if the directory doesn't exist. This allows us to have
+	// non-flaky name resolution code.
+	//
+	// Setting this bool to true enables a mode where object listings are
+	// consulted to allow for the directory in the situation above to exist. Note
+	// that this has drawbacks in the form of name resolution flakiness and
+	// surprising behavior.
+	//
+	// See docs/semantics.md for more info.
+	ImplicitDirectories bool
 }
 
 // Create a fuse file system server according to the supplied configuration.

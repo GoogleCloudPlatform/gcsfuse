@@ -630,8 +630,7 @@ type implicitDirsTest struct {
 }
 
 func (t *implicitDirsTest) setUpFSTest(cfg FSTestConfig) {
-	// TODO(jacobsa): Set the config option when it exists before calling the
-	// embedded method.
+	cfg.ServerConfig.ImplicitDirectories = true
 	t.fsTest.setUpFSTest(cfg)
 }
 
