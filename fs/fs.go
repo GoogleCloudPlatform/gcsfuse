@@ -63,14 +63,15 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 
 	// Set up the basic struct.
 	fs := &fileSystem{
-		clock:       cfg.Clock,
-		bucket:      cfg.Bucket,
-		uid:         uid,
-		gid:         gid,
-		inodes:      make(map[fuseops.InodeID]inode.Inode),
-		nextInodeID: fuseops.RootInodeID + 1,
-		inodeIndex:  make(map[nameAndGen]inode.Inode),
-		handles:     make(map[fuseops.HandleID]interface{}),
+		clock:        cfg.Clock,
+		bucket:       cfg.Bucket,
+		implicitDirs: cfg.ImplicitDirectories,
+		uid:          uid,
+		gid:          gid,
+		inodes:       make(map[fuseops.InodeID]inode.Inode),
+		nextInodeID:  fuseops.RootInodeID + 1,
+		inodeIndex:   make(map[nameAndGen]inode.Inode),
+		handles:      make(map[fuseops.HandleID]interface{}),
 	}
 
 	// Set up the root inode.
@@ -96,8 +97,9 @@ type fileSystem struct {
 	// Dependencies
 	/////////////////////////
 
-	clock  timeutil.Clock
-	bucket gcs.Bucket
+	clock        timeutil.Clock
+	bucket       gcs.Bucket
+	implicitDirs bool
 
 	/////////////////////////
 	// Constant data
@@ -138,6 +140,7 @@ type fileSystem struct {
 	//
 	// INVARIANT: For each key k, inodeIndex[k].Name() == k.name
 	// INVARIANT: For each key k, inodeIndex[k].SourceGeneration() == k.gen
+	// INVARIANT: For each key k, k.gen == 0 only if implicitDirs is true.
 	// INVARIANT: The values are all and only the values of the inodes map
 	//
 	// GUARDED_BY(mu)
@@ -256,6 +259,13 @@ func (fs *fileSystem) checkInvariants() {
 				"Generation mismatch: %v vs. %v",
 				in.SourceGeneration(),
 				k.gen))
+		}
+	}
+
+	// INVARIANT: For each key k, k.gen == 0 only if implicitDirs is true.
+	for k, in := range fs.inodeIndex {
+		if k.gen == 0 && !fs.implicitDirs {
+			panic(fmt.Sprintf("Unexpected zero generation: %s", in.Name()))
 		}
 	}
 
