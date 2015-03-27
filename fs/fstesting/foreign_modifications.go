@@ -327,6 +327,7 @@ func (t *foreignModsTest) UnreachableObjects() {
 
 func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 	var fi os.FileInfo
+	var entries []os.FileInfo
 	var err error
 
 	// Set up an object named "foo" and one named "foo/", plus a child for the
@@ -366,6 +367,23 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(4, fi.Size())
 	ExpectFalse(fi.IsDir())
+
+	// Listing the directory will result in both.
+	//
+	// This behavior is a bug.
+	// Cf. https://github.com/GoogleCloudPlatform/gcsfuse/issues/28
+	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+
+	ExpectEq("foo", entries[0].Name())
+	ExpectEq("foo", entries[1].Name())
+
+	ExpectThat([]int64{entries[0].Size(), entries[1].Size()}, Contains(4))
+
+	// This is also a bug.
+	ExpectFalse(entries[0].IsDir())
+	ExpectFalse(entries[1].IsDir())
 }
 
 func (t *foreignModsTest) Inodes() {
