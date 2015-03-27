@@ -75,7 +75,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	}
 
 	// Set up the root inode.
-	root := inode.NewRootInode(cfg.Bucket)
+	root := inode.NewRootInode(cfg.Bucket, fs.implicitDirs)
 	fs.inodes[fuseops.RootInodeID] = root
 	fs.inodeIndex[nameAndGen{root.Name(), root.SourceGeneration()}] = root
 
@@ -343,7 +343,7 @@ func (fs *fileSystem) lookUpOrCreateInode(
 
 	// Create an inode.
 	if isDirName(o.Name) {
-		in = inode.NewDirInode(fs.bucket, id, o)
+		in = inode.NewDirInode(fs.bucket, id, o, fs.implicitDirs)
 	} else {
 		in, err = inode.NewFileInode(fs.clock, fs.bucket, id, o)
 		if err != nil {
