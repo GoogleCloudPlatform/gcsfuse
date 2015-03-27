@@ -257,3 +257,40 @@ if it is empty. So gcsfuse takes the simple route, and always allows a
 directory to be unlinked, even if non-empty. The contents of a non-empty
 directory that is unlinked are not deleted but simply become inaccessible—the
 placeholder object for the unlinked directory is simply removed.
+
+## Name conflicts
+
+It is possible to have a GCS bucket containing an object named `foo` and
+another object named `foo/`:
+
+*   This situation can easily happen when writing to GCS directly, since there
+    is nothing special about those names as far as GCS is concerned.
+
+*   This situation may happen if two different machines have the same bucket
+    mounted with gcsfuse, and at about the same time one creates a file named
+    "foo" and the other creates a directory with the same name. This is because
+    the creation of the object `foo/` is not preconditioned on the absence of
+    the object named `foo`, and vice versa.
+
+Traditional file systems did not allow multiple directory entries with the same
+name, so all tools and kernel code are structured around this assumption.
+Therefore it's not possible for gcsfuse to faithfully show both the file and
+the directory in this case.
+
+The current behavior of gcsfuse for this situation is as follows:
+
+*   When the kernel asks to look up the inode named "foo", the directory inode
+    is returned. Therefore direct interaction with the name (e.g. `mv foo bar`)
+    will manipulate the directory.
+
+*   When the kernel asks to read the parent directory, both entries are
+    returned. So `ls` will show the name "foo" twice.
+
+Because `ls -l` stats the entries it finds, and statting results in the kernel
+lookup operation discussed above, that command will simply show a duplicate
+entry for the directory.
+
+This behavior is not ideal, and is liable to change soon. See
+[issue #28][issue-28] for more information.
+
+[issue-28]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/28
