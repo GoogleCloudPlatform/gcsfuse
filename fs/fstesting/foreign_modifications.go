@@ -684,7 +684,38 @@ func (t *implicitDirsTest) FileObjectPresent() {
 }
 
 func (t *implicitDirsTest) DirectoryObjectPresent() {
-	AssertTrue(false, "TODO")
+	var fi os.FileInfo
+	var entries []os.FileInfo
+	var err error
+
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			[]*gcsutil.ObjectInfo{
+				// Directory
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "foo/",
+					},
+				},
+			}))
+
+	// Statting the name should return an entry for the directory.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+
+	// ReadDir should show the directory.
+	entries, err = t.readDirUntil(1, t.mfs.Dir())
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
 }
 
 func (t *implicitDirsTest) ImplicitDirectory() {
