@@ -140,7 +140,7 @@ type fileSystem struct {
 	//
 	// INVARIANT: For each key k, inodeIndex[k].Name() == k.name
 	// INVARIANT: For each key k, inodeIndex[k].SourceGeneration() == k.gen
-	// INVARIANT: For each key k, k.gen == 0 only if implicitDirs is true.
+	// INVARIANT: For each key k, k.gen == -1 only if implicitDirs is true.
 	// INVARIANT: The values are all and only the values of the inodes map
 	//
 	// GUARDED_BY(mu)
@@ -262,10 +262,10 @@ func (fs *fileSystem) checkInvariants() {
 		}
 	}
 
-	// INVARIANT: For each key k, k.gen == 0 only if implicitDirs is true.
+	// INVARIANT: For each key k, k.gen == -1 only if implicitDirs is true.
 	for k, in := range fs.inodeIndex {
-		if k.gen == 0 && !fs.implicitDirs {
-			panic(fmt.Sprintf("Unexpected zero generation: %s", in.Name()))
+		if k.gen == -1 && !fs.implicitDirs {
+			panic(fmt.Sprintf("Unexpected -1 generation: %s", in.Name()))
 		}
 	}
 

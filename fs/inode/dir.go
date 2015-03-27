@@ -53,7 +53,7 @@ type DirInode struct {
 var _ Inode = &DirInode{}
 
 // Create a directory inode for the root of the file system. For this inode,
-// the result of SourceGeneration() is unspecified but stable.
+// the result of SourceGeneration() is guaranteed to be zero.
 func NewRootInode(bucket gcs.Bucket) (d *DirInode) {
 	d = &DirInode{
 		bucket: bucket,
