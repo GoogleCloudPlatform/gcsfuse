@@ -213,7 +213,21 @@ func (d *DirInode) lookUpChildDir(
 func objectNamePrefixNonEmpty(
 	ctx context.Context,
 	bucket gcs.Bucket,
-	name string) (nonEmpty bool, err error)
+	prefix string) (nonEmpty bool, err error) {
+	query := &storage.Query{
+		Prefix:     prefix,
+		MaxResults: 1,
+	}
+
+	listing, err := bucket.ListObjects(ctx, query)
+	if err != nil {
+		err = fmt.Errorf("ListObjects: %v", err)
+		return
+	}
+
+	nonEmpty = len(listing.Results) != 0
+	return
+}
 
 // Stat the object with the given name, returning (nil, nil) if the object
 // doesn't exist rather than failing.
