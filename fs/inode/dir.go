@@ -70,13 +70,19 @@ func NewRootInode(bucket gcs.Bucket) (d *DirInode) {
 // must end with a slash unless this is the root directory, in which case it
 // must be empty.
 //
+// If implicitDirs is set, LookUpChild will use ListObjects to find child
+// directories that are "implicitly" defined by the existence of their own
+// descendents. For example, if there is an object named "foo/bar/baz" and this
+// is the directory "foo", a child directory named "bar" will be implied.
+//
 // REQUIRES: o != nil
 // REQUIRES: o.Name != ""
 // REQUIRES: o.Name[len(o.Name)-1] == '/'
 func NewDirInode(
 	bucket gcs.Bucket,
 	id fuseops.InodeID,
-	o *storage.Object) (d *DirInode) {
+	o *storage.Object,
+	implicitDirs bool) (d *DirInode) {
 	if o.Name[len(o.Name)-1] != '/' {
 		panic(fmt.Sprintf("Unexpected name: %s", o.Name))
 	}
@@ -100,7 +106,8 @@ const ImplicitDirGen int64 = -1
 func NewImplicitDirInode(
 	bucket gcs.Bucket,
 	id fuseops.InodeID,
-	name string) (d *DirInode) {
+	name string,
+	implicitDirs bool) (d *DirInode) {
 	dummy := &storage.Object{
 		Name:       name,
 		Generation: ImplicitDirGen,
