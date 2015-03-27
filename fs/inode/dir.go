@@ -39,7 +39,8 @@ type DirInode struct {
 	// Constant data
 	/////////////////////////
 
-	id fuseops.InodeID
+	id           fuseops.InodeID
+	implicitDirs bool
 
 	// The the GCS object backing the inode. The object's name is used as a
 	// prefix when listing. Special case: the empty string means this is the root
@@ -91,9 +92,10 @@ func NewDirInode(
 
 	// Set up the struct.
 	d = &DirInode{
-		bucket: bucket,
-		id:     id,
-		src:    *o,
+		bucket:       bucket,
+		id:           id,
+		implicitDirs: implicitDirs,
+		src:          *o,
 	}
 
 	return
@@ -146,15 +148,72 @@ func (d *DirInode) lookUpChildFile(
 	ctx context.Context,
 	name string) (o *storage.Object, err error) {
 	o, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name)
+	if err != nil {
+		err = fmt.Errorf("statObjectMayNotExist: %v", err)
+		return
+	}
+
 	return
 }
 
 func (d *DirInode) lookUpChildDir(
 	ctx context.Context,
 	name string) (o *storage.Object, err error) {
-	o, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name+"/")
+	b := syncutil.NewBundle(ctx)
+
+	// Stat the placeholder object.
+	b.Add(func(ctx context.Context) (err error) {
+		o, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name+"/")
+		if err != nil {
+			err = fmt.Errorf("statObjectMayNotExist: %v", err)
+			return
+		}
+
+		return
+	})
+
+	// If implicit directories are enabled, find out whether the child name is
+	// implicitly defined.
+	var implicitlyDefined bool
+	if d.implicitDirs {
+		b.Add(func(ctx context.Context) (err error) {
+			implicitlyDefined, err = objectNamePrefixNonEmpty(
+				ctx,
+				d.bucket,
+				d.Name()+name+"/")
+
+			if err != nil {
+				err = fmt.Errorf("objectNamePrefixNonEmpty: %v", err)
+				return
+			}
+
+			return
+		})
+	}
+
+	// Wait for both.
+	err = b.Join()
+	if err != nil {
+		return
+	}
+
+	// If statting failed by the directory is implicitly defined, fake a source
+	// object.
+	if o == nil && implicitlyDefined {
+		o = &storage.Object{
+			Name:       d.Name() + name + "/",
+			Generation: ImplicitDirGen,
+		}
+	}
+
 	return
 }
+
+// List the supplied object name prefix to find out whether it is non-empty.
+func objectNamePrefixNonEmpty(
+	ctx context.Context,
+	bucket gcs.Bucket,
+	name string) (nonEmpty bool, err error)
 
 // Stat the object with the given name, returning (nil, nil) if the object
 // doesn't exist rather than failing.
