@@ -91,6 +91,29 @@ func NewDirInode(
 	return
 }
 
+// See notes on NewImplicitDirInode.
+const ImplicitDirGen int64 = -1
+
+// Create a directory inode for the supplied name, with the understanding that
+// this is an "implicit" directory inode not backed by an actual source object.
+// For this inode, the result of SourceGeneration() is guaranteed to be
+// ImplicitDirGen.
+//
+// REQUIRES: name != ""
+// REQUIRES: name[len(o.Name)-1] == '/'
+func NewImplicitDirInode(
+	bucket gcs.Bucket,
+	id fuseops.InodeID,
+	name string) (d *DirInode) {
+	dummy := &storage.Object{
+		Name:       name,
+		Generation: ImplicitDirGen,
+	}
+
+	d = NewDirInode(bucket, id, dummy)
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
