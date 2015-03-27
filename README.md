@@ -49,6 +49,12 @@ gcsfuse --key_file /path/to/key.json --bucket my-bucket /path/to/mount/point
 The directory onto which you are mounting the file system
 (`/path/to/mount/point` in the above example) must already exist.
 
+If you are mounting a bucket that was populated with objects by some other means
+besides gcsfuse, you may be interested in the `--implicit_dirs` flag. See the
+notes in [semantics.md][] for more information.
+
+[semantics.md]: docs/semantics.md
+
 
 # Performance
 
