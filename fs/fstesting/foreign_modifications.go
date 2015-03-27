@@ -715,7 +715,7 @@ func (t *implicitDirsTest) DirectoryObjectPresent() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *implicitDirsTest) ImplicitDirectory() {
+func (t *implicitDirsTest) ImplicitDirectory_DefinedByFile() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
@@ -725,16 +725,43 @@ func (t *implicitDirsTest) ImplicitDirectory() {
 		nil,
 		t.createObjects(
 			[]*gcsutil.ObjectInfo{
-				// Two children of the implicit directory
 				&gcsutil.ObjectInfo{
 					Attrs: storage.ObjectAttrs{
 						Name: "foo/bar",
 					},
 				},
+			}))
 
+	// Statting the name should return an entry for the directory.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+
+	// ReadDir should show the directory.
+	entries, err = t.readDirUntil(1, t.mfs.Dir())
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+}
+
+func (t *implicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
+	var fi os.FileInfo
+	var entries []os.FileInfo
+	var err error
+
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			[]*gcsutil.ObjectInfo{
 				&gcsutil.ObjectInfo{
 					Attrs: storage.ObjectAttrs{
-						Name: "foo/baz/",
+						Name: "foo/bar/",
 					},
 				},
 			}))
