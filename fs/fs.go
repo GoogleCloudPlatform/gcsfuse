@@ -30,7 +30,6 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
-	"google.golang.org/cloud/storage"
 )
 
 type ServerConfig struct {
@@ -318,7 +317,7 @@ func (fs *fileSystem) getAttributes(
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInode(
 	ctx context.Context,
-	o *storage.Object) (in inode.Inode, err error) {
+	o *gcs.Object) (in inode.Inode, err error) {
 	// Make sure to return the inode locked.
 	defer func() {
 		if in != nil {
@@ -494,9 +493,7 @@ func (fs *fileSystem) MkDir(
 	// exists.
 	var precond int64
 	createReq := &gcs.CreateObjectRequest{
-		Attrs: storage.ObjectAttrs{
-			Name: path.Join(parent.Name(), op.Name) + "/",
-		},
+		Name:                   path.Join(parent.Name(), op.Name) + "/",
 		Contents:               strings.NewReader(""),
 		GenerationPrecondition: &precond,
 	}
@@ -544,9 +541,7 @@ func (fs *fileSystem) CreateFile(
 	// exists.
 	var precond int64
 	createReq := &gcs.CreateObjectRequest{
-		Attrs: storage.ObjectAttrs{
-			Name: path.Join(parent.Name(), op.Name),
-		},
+		Name:                   path.Join(parent.Name(), op.Name),
 		Contents:               strings.NewReader(""),
 		GenerationPrecondition: &precond,
 	}

@@ -25,7 +25,6 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
-	"google.golang.org/cloud/storage"
 )
 
 type DirInode struct {
@@ -48,7 +47,7 @@ type DirInode struct {
 	//
 	// INVARIANT: src != nil
 	// INVARIANT: src.Name == "" || src.Name[len(name)-1] == '/'
-	src storage.Object
+	src gcs.Object
 }
 
 var _ Inode = &DirInode{}
@@ -61,7 +60,7 @@ const RootGen int64 = 0
 func NewRootInode(
 	bucket gcs.Bucket,
 	implicitDirs bool) (d *DirInode) {
-	dummy := &storage.Object{
+	dummy := &gcs.Object{
 		Name:       "",
 		Generation: RootGen,
 	}
@@ -84,7 +83,7 @@ func NewRootInode(
 func NewDirInode(
 	bucket gcs.Bucket,
 	id fuseops.InodeID,
-	o *storage.Object,
+	o *gcs.Object,
 	implicitDirs bool) (d *DirInode) {
 	if o.Name != "" && o.Name[len(o.Name)-1] != '/' {
 		panic(fmt.Sprintf("Unexpected name: %s", o.Name))
@@ -146,7 +145,7 @@ func (d *DirInode) clobbered(ctx context.Context) (clobbered bool, err error) {
 
 func (d *DirInode) lookUpChildFile(
 	ctx context.Context,
-	name string) (o *storage.Object, err error) {
+	name string) (o *gcs.Object, err error) {
 	o, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name)
 	if err != nil {
 		err = fmt.Errorf("statObjectMayNotExist: %v", err)
@@ -158,7 +157,7 @@ func (d *DirInode) lookUpChildFile(
 
 func (d *DirInode) lookUpChildDir(
 	ctx context.Context,
-	name string) (o *storage.Object, err error) {
+	name string) (o *gcs.Object, err error) {
 	b := syncutil.NewBundle(ctx)
 
 	// Stat the placeholder object.
@@ -200,7 +199,7 @@ func (d *DirInode) lookUpChildDir(
 	// If statting failed by the directory is implicitly defined, fake a source
 	// object.
 	if o == nil && implicitlyDefined {
-		o = &storage.Object{
+		o = &gcs.Object{
 			Name:       d.Name() + name + "/",
 			Generation: ImplicitDirGen,
 		}
@@ -214,18 +213,18 @@ func objectNamePrefixNonEmpty(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	prefix string) (nonEmpty bool, err error) {
-	query := &storage.Query{
+	req := &gcs.ListObjectsRequest{
 		Prefix:     prefix,
 		MaxResults: 1,
 	}
 
-	listing, err := bucket.ListObjects(ctx, query)
+	listing, err := bucket.ListObjects(ctx, req)
 	if err != nil {
 		err = fmt.Errorf("ListObjects: %v", err)
 		return
 	}
 
-	nonEmpty = len(listing.Results) != 0
+	nonEmpty = len(listing.Objects) != 0
 	return
 }
 
@@ -234,7 +233,7 @@ func objectNamePrefixNonEmpty(
 func statObjectMayNotExist(
 	ctx context.Context,
 	bucket gcs.Bucket,
-	name string) (o *storage.Object, err error) {
+	name string) (o *gcs.Object, err error) {
 	// Call the bucket.
 	req := &gcs.StatObjectRequest{
 		Name: name,
@@ -322,18 +321,18 @@ const ImplicitDirGen int64 = -1
 // value ImplicitDirGen.
 func (d *DirInode) LookUpChild(
 	ctx context.Context,
-	name string) (o *storage.Object, err error) {
+	name string) (o *gcs.Object, err error) {
 	b := syncutil.NewBundle(ctx)
 
 	// Stat the child as a file.
-	var fileRecord *storage.Object
+	var fileRecord *gcs.Object
 	b.Add(func(ctx context.Context) (err error) {
 		fileRecord, err = d.lookUpChildFile(ctx, name)
 		return
 	})
 
 	// Stat the child as a directory.
-	var dirRecord *storage.Object
+	var dirRecord *gcs.Object
 	b.Add(func(ctx context.Context) (err error) {
 		dirRecord, err = d.lookUpChildDir(ctx, name)
 		return
@@ -372,20 +371,20 @@ func (d *DirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
 	// Ask the bucket to list some objects.
-	query := &storage.Query{
-		Delimiter: "/",
-		Prefix:    d.Name(),
-		Cursor:    tok,
+	req := &gcs.ListObjectsRequest{
+		Delimiter:         "/",
+		Prefix:            d.Name(),
+		ContinuationToken: tok,
 	}
 
-	listing, err := d.bucket.ListObjects(ctx, query)
+	listing, err := d.bucket.ListObjects(ctx, req)
 	if err != nil {
 		err = fmt.Errorf("ListObjects: %v", err)
 		return
 	}
 
 	// Convert objects to entries for files.
-	for _, o := range listing.Results {
+	for _, o := range listing.Objects {
 		e := fuseutil.Dirent{
 			Name: path.Base(o.Name),
 			Type: fuseutil.DT_File,
@@ -394,8 +393,8 @@ func (d *DirInode) ReadEntries(
 		entries = append(entries, e)
 	}
 
-	// Convert prefixes to entries for directories.
-	for _, p := range listing.Prefixes {
+	// Convert runs to entries for directories.
+	for _, p := range listing.CollapsedRuns {
 		e := fuseutil.Dirent{
 			Name: path.Base(p),
 			Type: fuseutil.DT_Directory,
@@ -405,9 +404,7 @@ func (d *DirInode) ReadEntries(
 	}
 
 	// Return an appropriate continuation token, if any.
-	if listing.Next != nil {
-		newTok = listing.Next.Cursor
-	}
+	newTok = listing.ContinuationToken
 
 	return
 }
