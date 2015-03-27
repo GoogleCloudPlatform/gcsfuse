@@ -22,8 +22,8 @@ behavior for such buckets is undefined.
 
 GCS object names map directly to file paths using the separator '/'. Object
 names ending in a slash represent a directory, and all other object names
-represent a file. Directories are not implicitly defined; they exist only if a
-matching object ending in a slash exists.
+represent a file. Directories are by default not implicitly defined; they exist
+only if a matching object ending in a slash exists.
 
 This is all much clearer with an example. Say that the GCS bucket contains the
 following objects:
@@ -50,14 +50,15 @@ of the file system:
              nachos
      taco
 
-## Caveat
+## Implicit directories
 
-As mentioned above, there is no allowance for the implicit existence of
-directories. Since the usual file system operations like `mkdir` will do the
+As mentioned above, by default there is no allowance for the implicit existence
+of directories. Since the usual file system operations like `mkdir` will do the
 right thing, if you set up a bucket's structure using only gcsfuse then you
 will not notice anything odd about this. If, however, you use some other tool
-to set up objects in GCS, you may notice that not all objects are visible until
-you create leading directories for them.
+to set up objects in GCS (such as the storage browser in the Google Developers
+Console), you may notice that not all objects are visible until you create
+leading directories for them.
 
 For example, say that you use some other tool to set up a single object named
 "foo/bar" in your bucket, then mount the bucket with gcsfuse. The file system
@@ -65,40 +66,40 @@ will initially appear empty, since there is no "foo/" object. However if you
 subsequently run `mkdir foo`, you will now see a directory named "foo"
 containing a file named "bar".
 
-The alternative is to have an object named "foo/bar/baz" implicitly define a
-directory named "foo" with a child directory named "bar". This would work fine
-if GCS offered consistent object listing, but it does not: object listings
-may be arbitrarily far out of date and seeing a fresh listing once does not
-guarantee you will see it again. Because of this, implicit definition of
-directories would cause problems for consistency guarantees (see the
-consistency section below):
+gcsfuse supports a flag called `--implicit_dirs` that changes the behavior.
+When this flag is enabled, name lookup requests from the kernel use the GCS
+API's Objects.list operation to search for objects that would implicitly define
+the existence of a directory with the name in question. So, in the example
+above, there would appear to be a directory named "foo".
 
-*   Imagine the initial contents of the bucket are a single recently-created
-    object named "foo/bar/baz".
+The use of `--implicit_dirs` has some drawbacks (see [issue #7][issue-7] for a
+more thorough discussion):
 
-*   Say that machine A can see this object in a listing and runs
-    `echo "hello" > foo/bar/qux`. This should work because the intermediate
-    directories exist implicitly.
+*   The feature requires an additional request to GCS for each name lookup,
+    which may have costs in terms of request budget and latency.
 
-*   Say that machine B then runs `cat foo/bar/qux`.
+*   GCS object listings are only eventually consistent, so directories that
+    recently implicitly sprang into existence due to the creation of a child
+    object may not show up for several minutes (or, in rare extreme cases,
+    hours or days). Similarly, recently deleted objects may continue for a time
+    to implicitly define directories that eventually wink out of existence.
+    Even if an up to date listing is seen once, it is not guaranteed to be seen
+    on the next lookup.
 
-The `cat` command on machine B will result in the following sequence of calls
-from the kernel VFS layer to gcsfuse:
+*   With this setup, it will appear as if there is a directory called "foo"
+    containing a file called "bar". But when the user runs `rm foo/bar`,
+    suddenly it will appear as if the file system is completely empty. This is
+    contrary to expectations, since the user hasn't run `rmdir foo`.
 
-*   Look up the inode for 'foo' within the root. Call it F.
-*   Look up the inode for 'bar' within F. Call it B.
-*   Look up the inode for 'qux' within B. Call it Q.
-*   Open Q for reading. Call the resulting handle H.
-*   Read from H.
+*   gcsfuse sends a single Objects.list request to GCS, and treats the
+    directory as being implicitly defined if the results are non-empty. In rare
+    cases (notably when many objects have recently been deleted) Objects.list
+    may return an abitrary number of empty response with continuation tokens,
+    even for a non-empty name range. In order to bound the number of requests,
+    gcsfuse simply ignores this subtlety. Therefore in rare cases an implicitly
+    defined directory will fail to appear.
 
-However, it is possible (and even likely) that machine B will not be able to
-see either of the two objects in a GCS object listing. Therefore when it
-receives the first lookup request from the kernel it will neither be able to
-find an object named "foo/" nor be able to see such a prefix in a listing of
-the root of the bucket, and it will have no choice but to return `ENOENT`.
-So the `cat` command will result in a "no such file or directory" error. This
-violates our close-to-open consistency guarantee documented below -- after
-machine A successfully writes the file, machine B should be able to read it.
+[issue-7]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/7
 
 
 # Generations

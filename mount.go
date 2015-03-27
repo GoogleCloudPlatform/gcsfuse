@@ -35,6 +35,11 @@ func usage() {
 
 var fBucketName = flag.String("bucket", "", "Name of GCS bucket to mount.")
 
+var fImplicitDirs = flag.Bool(
+	"implicit_dirs",
+	false,
+	"Implicitly define directories based on their content. See docs/semantics.md.")
+
 func getBucketName() string {
 	s := *fBucketName
 	if s == "" {
@@ -86,8 +91,9 @@ func main() {
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{
-		Clock:  timeutil.RealClock(),
-		Bucket: conn.GetBucket(getBucketName()),
+		Clock:               timeutil.RealClock(),
+		Bucket:              conn.GetBucket(getBucketName()),
+		ImplicitDirectories: *fImplicitDirs,
 	}
 
 	server, err := fs.NewServer(serverCfg)
