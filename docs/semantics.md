@@ -258,6 +258,7 @@ directory to be unlinked, even if non-empty. The contents of a non-empty
 directory that is unlinked are not deleted but simply become inaccessible—the
 placeholder object for the unlinked directory is simply removed.
 
+
 ## Name conflicts
 
 It is possible to have a GCS bucket containing an object named `foo` and
@@ -294,3 +295,14 @@ This behavior is not ideal, and is liable to change soon. See
 [issue #28][issue-28] for more information.
 
 [issue-28]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/28
+
+
+## Missing features
+
+Not all of the usual file system features are supported. Most prominently:
+
+*   Renaming is not currently supported. See [issue #11][issue-11].
+*   Symlinks are not currently supported. See [issue #12][issue-10].
+
+[issue-11]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/11
+[issue-12]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/12
