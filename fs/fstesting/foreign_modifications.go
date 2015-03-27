@@ -893,6 +893,28 @@ func (t *implicitDirsTest) StatUnknownName_UnrelatedContents() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *implicitDirsTest) StatUnknownName_PrefixOfActualDirectoryName() {
-	AssertTrue(false, "TODO")
+func (t *implicitDirsTest) StatUnknownName_PrefixOfActualNames() {
+	var err error
+
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			[]*gcsutil.ObjectInfo{
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "foop",
+					},
+				},
+
+				&gcsutil.ObjectInfo{
+					Attrs: storage.ObjectAttrs{
+						Name: "fooq/",
+					},
+				},
+			}))
+
+	// Stat an unknown name.
+	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
