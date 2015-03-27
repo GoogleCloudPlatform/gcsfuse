@@ -35,7 +35,6 @@ import (
 	"github.com/jacobsa/oglematchers"
 	"github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
-	"google.golang.org/cloud/storage"
 )
 
 // A struct that can be embedded to inherit common file system test behaviors.
@@ -110,24 +109,16 @@ func (t *fsTest) tearDownFsTest() {
 }
 
 func (t *fsTest) createWithContents(name string, contents string) error {
-	return t.createObjects(
-		[]*gcsutil.ObjectInfo{
-			&gcsutil.ObjectInfo{
-				Attrs: storage.ObjectAttrs{
-					Name: name,
-				},
-				Contents: contents,
-			},
-		})
+	return t.createObjects(map[string]string{name: contents})
 }
 
-func (t *fsTest) createObjects(objects []*gcsutil.ObjectInfo) error {
-	_, err := gcsutil.CreateObjects(t.ctx, t.bucket, objects)
+func (t *fsTest) createObjects(in map[string]string) error {
+	err := gcsutil.CreateObjects(t.ctx, t.bucket, in)
 	return err
 }
 
 func (t *fsTest) createEmptyObjects(names []string) error {
-	_, err := gcsutil.CreateEmptyObjects(t.ctx, t.bucket, names)
+	err := gcsutil.CreateEmptyObjects(t.ctx, t.bucket, names)
 	return err
 }
 

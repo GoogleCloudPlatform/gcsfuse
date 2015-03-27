@@ -33,7 +33,6 @@ import (
 	"github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
-	"google.golang.org/cloud/storage"
 )
 
 func TestObjectProxy(t *testing.T) { RunTests(t) }
@@ -48,7 +47,7 @@ func nameIs(name string) Matcher {
 			var actual string
 			switch typed := candidate.(type) {
 			case *gcs.CreateObjectRequest:
-				actual = typed.Attrs.Name
+				actual = typed.Name
 
 			case *gcs.StatObjectRequest:
 				actual = typed.Name
@@ -190,7 +189,7 @@ func (op *checkingObjectProxy) Sync() error {
 ////////////////////////////////////////////////////////////////////////
 
 type ObjectProxyTest struct {
-	src    storage.Object
+	src    gcs.Object
 	clock  timeutil.SimulatedClock
 	bucket mock_gcs.MockBucket
 	op     checkingObjectProxy
@@ -201,7 +200,7 @@ var _ SetUpInterface = &ObjectProxyTest{}
 func init() { RegisterTestSuite(&ObjectProxyTest{}) }
 
 func (t *ObjectProxyTest) SetUp(ti *TestInfo) {
-	t.src = storage.Object{
+	t.src = gcs.Object{
 		Name:       "some/object",
 		Generation: 123,
 		Size:       456,
@@ -638,7 +637,7 @@ func (t *ObjectProxyTest) Sync_Successful() {
 	AssertEq(len("taco"), n)
 
 	// Have the call to CreateObject succeed.
-	o := &storage.Object{
+	o := &gcs.Object{
 		Name:       t.src.Name,
 		Generation: 17,
 	}
@@ -680,7 +679,7 @@ func (t *ObjectProxyTest) WriteThenSyncThenWriteThenSync() {
 	AssertEq(len("taco"), n)
 
 	// Sync -- should cause the contents so far to be written out.
-	o := &storage.Object{
+	o := &gcs.Object{
 		Name:       t.src.Name,
 		Generation: 1,
 	}
@@ -772,7 +771,7 @@ func (t *ObjectProxyTest) Stat_InitialState() {
 	var err error
 
 	// StatObject
-	o := &storage.Object{
+	o := &gcs.Object{
 		Name:       t.src.Name,
 		Generation: t.src.Generation,
 		Size:       t.src.Size,
@@ -806,7 +805,7 @@ func (t *ObjectProxyTest) Stat_AfterShortening() {
 	t.clock.AdvanceTime(time.Second)
 
 	// StatObject
-	o := &storage.Object{
+	o := &gcs.Object{
 		Name:       t.src.Name,
 		Generation: t.src.Generation,
 		Size:       t.src.Size,
@@ -840,7 +839,7 @@ func (t *ObjectProxyTest) Stat_AfterGrowing() {
 	t.clock.AdvanceTime(time.Second)
 
 	// StatObject
-	o := &storage.Object{
+	o := &gcs.Object{
 		Name:       t.src.Name,
 		Generation: t.src.Generation,
 		Size:       t.src.Size,
@@ -870,7 +869,7 @@ func (t *ObjectProxyTest) Stat_AfterReading() {
 	AssertEq(nil, err)
 
 	// StatObject
-	o := &storage.Object{
+	o := &gcs.Object{
 		Name:       t.src.Name,
 		Generation: t.src.Generation,
 		Size:       t.src.Size,
@@ -905,7 +904,7 @@ func (t *ObjectProxyTest) Stat_AfterWriting() {
 	t.clock.AdvanceTime(time.Second)
 
 	// StatObject
-	o := &storage.Object{
+	o := &gcs.Object{
 		Name:       t.src.Name,
 		Generation: t.src.Generation,
 		Size:       t.src.Size,
@@ -925,7 +924,7 @@ func (t *ObjectProxyTest) Stat_AfterWriting() {
 
 func (t *ObjectProxyTest) Stat_ClobberedByNewGeneration_NotDirty() {
 	// StatObject
-	o := &storage.Object{
+	o := &gcs.Object{
 		Name:       t.src.Name,
 		Generation: t.src.Generation + 17,
 		Size:       t.src.Size,
@@ -959,7 +958,7 @@ func (t *ObjectProxyTest) Stat_ClobberedByNewGeneration_Dirty() {
 	t.clock.AdvanceTime(time.Second)
 
 	// StatObject
-	o := &storage.Object{
+	o := &gcs.Object{
 		Name:       t.src.Name,
 		Generation: t.src.Generation + 19,
 		Size:       t.src.Size,
