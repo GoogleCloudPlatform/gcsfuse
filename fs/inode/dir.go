@@ -240,12 +240,12 @@ func (d *DirInode) LookUpChild(
 		return
 	}
 
-	// Prefer files over directories.
+	// Prefer directories over files.
 	switch {
-	case fileRecord != nil:
-		o = fileRecord
 	case dirRecord != nil:
 		o = dirRecord
+	case fileRecord != nil:
+		o = fileRecord
 	default:
 		err = fuse.ENOENT
 	}
