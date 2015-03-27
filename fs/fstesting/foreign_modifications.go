@@ -22,16 +22,12 @@ package fstesting
 
 import (
 	"encoding/hex"
-	"errors"
 	"io/ioutil"
-	"log"
-	"math"
 	"math/rand"
 	"os"
 	"path"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
@@ -45,56 +41,6 @@ import (
 
 type foreignModsTest struct {
 	fsTest
-}
-
-// Repeatedly call ioutil.ReadDir until an error is encountered or until the
-// result has the given length. After each successful call with the wrong
-// length, advance the clock by more than the directory listing cache TTL in
-// order to flush the cache before the next call.
-//
-// This is a hacky workaround for the lack of list-after-write consistency in
-// GCS that must be used when interacting with GCS through a side channel
-// rather than through the file system. We set up some objects through a back
-// door, then list repeatedly until we see the state we hope to see.
-func (t *foreignModsTest) readDirUntil(
-	desiredLen int,
-	dir string) (entries []os.FileInfo, err error) {
-	startTime := time.Now()
-	endTime := startTime.Add(5 * time.Second)
-
-	for i := 0; ; i++ {
-		entries, err = ioutil.ReadDir(dir)
-		if err != nil || len(entries) == desiredLen {
-			return
-		}
-
-		// Should we stop?
-		if time.Now().After(endTime) {
-			err = errors.New("Timeout waiting for the given length.")
-			break
-		}
-
-		// Sleep for awhile.
-		const baseDelay = 10 * time.Millisecond
-		time.Sleep(time.Duration(math.Pow(1.3, float64(i)) * float64(baseDelay)))
-
-		// If this is taking awhile, log that fact so that the user can tell why
-		// the test is hanging.
-		if time.Since(startTime) > time.Second {
-			var names []string
-			for _, fi := range entries {
-				names = append(names, fi.Name())
-			}
-
-			log.Printf(
-				"readDirUntil waiting for length %v. Current: %v, names: %v",
-				desiredLen,
-				len(entries),
-				names)
-		}
-	}
-
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -691,12 +637,12 @@ func (t *implicitDirsTest) setUpFSTest(cfg FSTestConfig) {
 	t.fsTest.setUpFSTest(cfg)
 }
 
-func (t *implicitDirsTest) NothingInRoot() {
-	AssertTrue(false, "TODO")
-}
+func (t *implicitDirsTest) NothingPresent() {
+	// ReadDir
+	entries, err := t.readDirUntil(0, t.mfs.Dir())
+	AssertEq(nil, err)
 
-func (t *implicitDirsTest) NothingInSubDir() {
-	AssertTrue(false, "TODO")
+	ExpectThat(entries, ElementsAre())
 }
 
 func (t *implicitDirsTest) FileObjectPresent() {
