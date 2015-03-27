@@ -79,14 +79,13 @@ func NewRootInode(
 // is the directory "foo", a child directory named "bar" will be implied.
 //
 // REQUIRES: o != nil
-// REQUIRES: o.Name != ""
-// REQUIRES: o.Name[len(o.Name)-1] == '/'
+// REQUIRES: o.Name == "" || o.Name[len(o.Name)-1] == '/'
 func NewDirInode(
 	bucket gcs.Bucket,
 	id fuseops.InodeID,
 	o *storage.Object,
 	implicitDirs bool) (d *DirInode) {
-	if o.Name[len(o.Name)-1] != '/' {
+	if o.Name != "" && o.Name[len(o.Name)-1] != '/' {
 		panic(fmt.Sprintf("Unexpected name: %s", o.Name))
 	}
 
