@@ -514,7 +514,9 @@ func (fs *fileSystem) MkDir(
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
-	if op.Entry.Attributes, err = fs.getAttributes(op.Context(), child); err != nil {
+	op.Entry.Attributes, err = fs.getAttributes(op.Context(), child)
+
+	if err != nil {
 		err = fmt.Errorf("getAttributes: %v", err)
 		return
 	}
@@ -562,7 +564,9 @@ func (fs *fileSystem) CreateFile(
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
-	if op.Entry.Attributes, err = fs.getAttributes(op.Context(), child); err != nil {
+	op.Entry.Attributes, err = fs.getAttributes(op.Context(), child)
+
+	if err != nil {
 		err = fmt.Errorf("getAttributes: %v", err)
 		return
 	}
@@ -587,7 +591,9 @@ func (fs *fileSystem) RmDir(
 
 	// Delete the backing object. Unfortunately we have no way to precondition
 	// this on the directory being empty.
-	err = fs.bucket.DeleteObject(op.Context(), path.Join(parent.Name(), op.Name)+"/")
+	err = fs.bucket.DeleteObject(
+		op.Context(),
+		path.Join(parent.Name(), op.Name)+"/")
 
 	return
 }
