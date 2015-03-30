@@ -181,7 +181,7 @@ func (op *ObjectProxy) Stat(ctx context.Context) (sr StatResult, err error) {
 
 		sr.Size = fi.Size()
 	} else {
-		sr.Size = op.src.Size
+		sr.Size = int64(op.src.Size)
 	}
 
 	// Stat the object in GCS.
