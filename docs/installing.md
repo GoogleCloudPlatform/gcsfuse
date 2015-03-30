@@ -40,6 +40,8 @@ Linux users must ensure that the `fusermount` binary is installed and is
 executableby the user running gcsfuse, and that kernel support for fuse is
 enabled and `/dev/fuse` has the appropriate permissions.
 
+#### Debian and Ubuntu
+
 On Debian, fuse can be installed with:
 
 ```
@@ -65,6 +67,26 @@ sudo chgrp fuse /dev/fuse
 ```
 
 [stackexchange]: http://superuser.com/a/800016/429161
+
+
+#### CentOS and Red Hat
+
+fuse may be installed with:
+
+```
+sudo yum install fuse
+```
+
+
+#### SUSE
+
+fuse may be installed with:
+
+```
+sudo zypper refresh
+sudo zypper install fuse
+```
+
 
 ### OS X
 
