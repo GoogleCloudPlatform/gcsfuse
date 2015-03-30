@@ -358,6 +358,33 @@ func (fs *fileSystem) lookUpOrCreateInode(
 	return
 }
 
+// Synchronize the supplied file inode to GCS, updating the index as
+// appropriate.
+//
+// LOCKS_REQUIRED(fs.mu)
+// LOCKS_REQUIRED(f.mu)
+func (fs *fileSystem) syncFile(
+	ctx context.Context,
+	f *inode.FileInode) (err error) {
+	oldGen := f.SourceGeneration()
+
+	// Sync the inode.
+	err = f.Sync(ctx)
+	if err != nil {
+		err = fmt.Errorf("FileInode.Sync: %v", err)
+		return
+	}
+
+	// Update the index if necessary.
+	newGen := f.SourceGeneration()
+	if oldGen != newGen {
+		delete(fs.inodeIndex, nameAndGen{f.Name(), oldGen})
+		fs.inodeIndex[nameAndGen{f.Name(), newGen}] = f
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // fuse.FileSystem methods
 ////////////////////////////////////////////////////////////////////////
@@ -749,8 +776,8 @@ func (fs *fileSystem) SyncFile(
 	in.Lock()
 	defer in.Unlock()
 
-	// Serve the request.
-	err = in.Sync(op)
+	// Sync it.
+	err = fs.syncFile(op.Context(), in)
 
 	return
 }
@@ -769,8 +796,8 @@ func (fs *fileSystem) FlushFile(
 	in.Lock()
 	defer in.Unlock()
 
-	// Serve the request.
-	err = in.Flush(op)
+	// Sync it.
+	err = fs.syncFile(op.Context(), in)
 
 	return
 }
