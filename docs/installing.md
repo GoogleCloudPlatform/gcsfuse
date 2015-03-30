@@ -1,5 +1,15 @@
 # Prerequisites
 
+## Operating system
+
+gcsfuse has been tested successfully with the following operating systems:
+
+*   Linux (minimum kernel version 3.10)
+*   OS X (minimum version 10.10.2)
+
+It may or may not work correctly with other operating systems and older versions.
+
+
 ## Go
 
 gcsfuse is distributed as source code in the [Go][go] language. If you already
