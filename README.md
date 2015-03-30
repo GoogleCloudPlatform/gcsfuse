@@ -12,9 +12,10 @@ backwards-incompatible changes.
 
 The careful user should be sure to read [semantics.md][] for information on how
 gcsfuse maps file system operations to GCS operations, and especially on
-surprising behaviors.
+surprising behaviors. The list of [open issues][issues] may also be of interest.
 
 [semantics.md]: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md
+[issues]: https://github.com/GoogleCloudPlatform/gcsfuse/issues
 
 
 # Installing
