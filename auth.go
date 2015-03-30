@@ -51,8 +51,10 @@ func getConn() (gcs.Conn, error) {
 	}
 
 	// Create the connection.
+	const userAgent = "gcsfuse/0.0"
 	cfg := &gcs.ConnConfig{
 		HTTPClient: httpClient,
+		UserAgent:  userAgent,
 	}
 
 	return gcs.NewConn(cfg)
