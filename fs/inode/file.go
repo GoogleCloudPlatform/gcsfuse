@@ -198,8 +198,9 @@ func (f *FileInode) Write(
 // clobbered, treat it as a non-error (simulating the inode having been
 // unlinked).
 //
-// After this method returns, SourceGeneration will return the new generation
-// by which this inode should be known.
+// After this method succeeds, SourceGeneration will return the new generation
+// by which this inode should be known (which may be the same as before). If it
+// fails, the generation will not change.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Sync(ctx context.Context) (err error) {
