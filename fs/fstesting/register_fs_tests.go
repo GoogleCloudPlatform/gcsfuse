@@ -93,6 +93,13 @@ func registerTestSuite(
 		// TearDown should work much like SetUp.
 		tf.TearDown = func() {
 			instance.Interface().(fsTestInterface).tearDownFsTest()
+
+			// If we took a Ctrl-C during this test, prevent further tests.
+			select {
+			default:
+			case <-sigintReceived:
+				os.Exit(1)
+			}
 		}
 
 		// Save the test function.
@@ -126,6 +133,9 @@ func RegisterFSTests(conditionName string, makeConfig func() FSTestConfig) {
 }
 
 var signalHandlerOnce sync.Once
+
+// A channel that is closed after SIGINT is received.
+var sigintReceived = make(chan struct{})
 
 // Make sure the user doesn't freeze the program by hitting Ctrl-C, which is
 // frustrating.
@@ -164,8 +174,8 @@ func ensureSignalHandler() {
 		go func() {
 			for {
 				<-sigChan
-				fmt.Println("SIGINT is a bad idea; it will cause freezes.")
-				fmt.Println("See register_fs_tests.go for details.")
+				fmt.Println("SIGINT received. Halting tests after this one completes.")
+				close(sigintReceived)
 			}
 		}()
 	})
