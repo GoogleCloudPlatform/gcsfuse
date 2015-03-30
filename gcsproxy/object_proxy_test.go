@@ -440,7 +440,7 @@ func (t *ObjectProxyTest) GrowByTruncating() {
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	// Truncate
-	err = t.op.Truncate(t.src.Size + 4)
+	err = t.op.Truncate(int64(t.src.Size + 4))
 	AssertEq(nil, err)
 
 	// Read the whole thing.
@@ -463,7 +463,7 @@ func (t *ObjectProxyTest) ShrinkByTruncating() {
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	// Truncate
-	err = t.op.Truncate(t.src.Size - 4)
+	err = t.op.Truncate(int64(t.src.Size - 4))
 	AssertEq(nil, err)
 
 	// Read the whole thing.
@@ -799,7 +799,7 @@ func (t *ObjectProxyTest) Stat_AfterShortening() {
 	t.clock.AdvanceTime(time.Second)
 	truncateTime := t.clock.Now()
 
-	err = t.op.Truncate(t.src.Size - 1)
+	err = t.op.Truncate(int64(t.src.Size - 1))
 	AssertEq(nil, err)
 
 	t.clock.AdvanceTime(time.Second)
@@ -833,7 +833,7 @@ func (t *ObjectProxyTest) Stat_AfterGrowing() {
 	t.clock.AdvanceTime(time.Second)
 	truncateTime := t.clock.Now()
 
-	err = t.op.Truncate(t.src.Size + 17)
+	err = t.op.Truncate(int64(t.src.Size + 17))
 	AssertEq(nil, err)
 
 	t.clock.AdvanceTime(time.Second)
@@ -898,7 +898,7 @@ func (t *ObjectProxyTest) Stat_AfterWriting() {
 	t.clock.AdvanceTime(time.Second)
 	writeTime := t.clock.Now()
 
-	_, err = t.op.WriteAt([]byte("taco"), t.src.Size)
+	_, err = t.op.WriteAt([]byte("taco"), int64(t.src.Size))
 	AssertEq(nil, err)
 
 	t.clock.AdvanceTime(time.Second)
@@ -917,7 +917,7 @@ func (t *ObjectProxyTest) Stat_AfterWriting() {
 	sr, err := t.op.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(t.src.Size+int64(len("taco")), sr.Size)
+	ExpectEq(int(t.src.Size)+len("taco"), sr.Size)
 	ExpectThat(sr.Mtime, timeutil.TimeEq(writeTime))
 	ExpectFalse(sr.Clobbered)
 }
@@ -952,7 +952,7 @@ func (t *ObjectProxyTest) Stat_ClobberedByNewGeneration_Dirty() {
 	t.clock.AdvanceTime(time.Second)
 	truncateTime := t.clock.Now()
 
-	err = t.op.Truncate(t.src.Size + 17)
+	err = t.op.Truncate(int64(t.src.Size + 17))
 	AssertEq(nil, err)
 
 	t.clock.AdvanceTime(time.Second)
