@@ -927,7 +927,9 @@ func (t *directoryTest) Rmdir_OpenedForReading() {
 	// guarantee that no new entries are returned, but nothing crazy should
 	// happen.
 	_, err = t.f1.Readdir(0)
-	ExpectEq(nil, err)
+	if err != nil {
+		ExpectThat(err, Error(HasSubstr("no such file")))
+	}
 }
 
 func (t *directoryTest) Rmdir_ThenRecreateWithSameName() {
