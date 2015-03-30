@@ -24,7 +24,11 @@ import (
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
-var fKeyFile = flag.String("key_file", "", "Path to a JSON key for a service account created on the Google Developers Console.")
+var fKeyFile = flag.String(
+	"key_file",
+	"",
+	"Path to a JSON key for a service account created on the Google "+
+		"Developers Console.")
 
 // Return an HTTP client configured with OAuth credentials from command-line
 // flags. May block on network traffic.
