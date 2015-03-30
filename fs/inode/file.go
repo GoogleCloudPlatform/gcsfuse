@@ -103,30 +103,6 @@ func (f *FileInode) checkInvariants() {
 	f.proxy.CheckInvariants()
 }
 
-// Write out contents to GCS. If this fails due to the generation having been
-// clobbered, treat it as a non-error (simulating the inode having been
-// unlinked).
-//
-// LOCKS_REQUIRED(f.mu)
-func (f *FileInode) sync(ctx context.Context) (err error) {
-	// Write out the proxy's contents if it is dirty.
-	err = f.proxy.Sync(ctx)
-
-	// Special case: a precondition error means we were clobbered, which we treat
-	// as being unlinked. There's no reason to return an error in that case.
-	if _, ok := err.(*gcs.PreconditionError); ok {
-		err = nil
-	}
-
-	// Propagate other errors.
-	if err != nil {
-		err = fmt.Errorf("ObjectProxy.Sync: %v", err)
-		return
-	}
-
-	return
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -218,21 +194,30 @@ func (f *FileInode) Write(
 	return
 }
 
-// Serve a sync op for this file, without responding.
+// Write out contents to GCS. If this fails due to the generation having been
+// clobbered, treat it as a non-error (simulating the inode having been
+// unlinked).
+//
+// After this method returns, SourceGeneration will return the new generation
+// by which this inode should be known.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Sync(
-	op *fuseops.SyncFileOp) (err error) {
-	err = f.sync(op.Context())
-	return
-}
+func (f *FileInode) Sync(ctx context.Context) (err error) {
+	// Write out the proxy's contents if it is dirty.
+	err = f.proxy.Sync(ctx)
 
-// Serve a flush op for this file, without responding.
-//
-// LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Flush(
-	op *fuseops.FlushFileOp) (err error) {
-	err = f.sync(op.Context())
+	// Special case: a precondition error means we were clobbered, which we treat
+	// as being unlinked. There's no reason to return an error in that case.
+	if _, ok := err.(*gcs.PreconditionError); ok {
+		err = nil
+	}
+
+	// Propagate other errors.
+	if err != nil {
+		err = fmt.Errorf("ObjectProxy.Sync: %v", err)
+		return
+	}
+
 	return
 }
 

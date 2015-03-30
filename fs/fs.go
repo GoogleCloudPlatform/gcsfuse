@@ -750,7 +750,7 @@ func (fs *fileSystem) SyncFile(
 	defer in.Unlock()
 
 	// Serve the request.
-	err = in.Sync(op)
+	err = in.Sync(op.Context())
 
 	return
 }
@@ -770,7 +770,7 @@ func (fs *fileSystem) FlushFile(
 	defer in.Unlock()
 
 	// Serve the request.
-	err = in.Flush(op)
+	err = in.Sync(op.Context())
 
 	return
 }
