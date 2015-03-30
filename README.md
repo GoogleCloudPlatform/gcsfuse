@@ -1,8 +1,20 @@
-This is a user-space file system for interacting with [Google Cloud
-Storage][gcs]. It is not yet ready for public consumption, so please do not use
-it for anything of importance in its current state.
+gcsfuse is a user-space file system for interacting with [Google Cloud
+Storage][gcs].
 
 [gcs]: https://cloud.google.com/storage/
+
+
+# Current status
+
+Please treat gcsfuse as alpha-quality software. Use it for whatever you like,
+but be aware that bugs may lurk, and that we reserve the right to make
+backwards-incompatible changes.
+
+The careful user should be sure to read [semantics.md][] for information on how
+gcsfuse maps file system operations to GCS operations, and especially on
+surprising behaviors.
+
+[semantics.md]: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md
 
 
 # Installing
