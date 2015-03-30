@@ -70,13 +70,13 @@ func getBucketNameOrDie() string {
 // Return a bucket based on the contents of command-line flags, exiting the
 // process if misconfigured.
 func getBucketOrDie() gcs.Bucket {
-	// A project ID is apparently only needed for creating and listing buckets,
-	// presumably since a bucket ID already maps to a unique project ID (cf.
-	// http://goo.gl/Plh3rb). This doesn't currently matter to us.
-	const projectId = "some_project_id"
-
 	// Set up a GCS connection.
-	conn, err := gcs.NewConn(projectId, getHttpClientOrDie())
+	cfg := &gcs.ConnConfig{
+		HTTPClient: getHttpClientOrDie(),
+		UserAgent:  "gcsfuse-integration-test",
+	}
+
+	conn, err := gcs.NewConn(cfg)
 	if err != nil {
 		log.Fatalf("gcs.NewConn: %v", err)
 	}
