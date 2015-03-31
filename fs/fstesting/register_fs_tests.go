@@ -172,11 +172,9 @@ func ensureSignalHandler() {
 		signal.Notify(sigChan, os.Interrupt)
 
 		go func() {
-			for {
-				<-sigChan
-				fmt.Println("SIGINT received. Halting tests after this one completes.")
-				close(sigintReceived)
-			}
+			<-sigChan
+			fmt.Println("SIGINT received. Halting tests after this one completes.")
+			close(sigintReceived)
 		}()
 	})
 }

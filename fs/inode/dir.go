@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
@@ -223,6 +224,40 @@ func (d *DirInode) lookUpChildDir(
 	return
 }
 
+// REQUIRES: strings.HasSuffix(name, ConflictingFileNameSuffix)
+func (d *DirInode) lookUpConflicting(
+	ctx context.Context,
+	name string) (o *gcs.Object, err error) {
+	strippedName := strings.TrimSuffix(name, ConflictingFileNameSuffix)
+
+	// In order to a marked name to be accepted, we require the conflicting
+	// directory to exist.
+	var dir *gcs.Object
+	dir, err = d.lookUpChildDir(ctx, strippedName)
+	if err != nil {
+		err = fmt.Errorf("Looking up stripped name: %v", err)
+		return
+	}
+
+	if dir == nil {
+		err = fuse.ENOENT
+		return
+	}
+
+	// The directory name exists. Find the conflicting file.
+	o, err = d.lookUpChildFile(ctx, strippedName)
+	if err != nil {
+		return
+	}
+
+	if o == nil {
+		err = fuse.ENOENT
+		return
+	}
+
+	return
+}
+
 // List the supplied object name prefix to find out whether it is non-empty.
 func objectNamePrefixNonEmpty(
 	ctx context.Context,
@@ -334,10 +369,22 @@ func (d *DirInode) Attributes(
 // See notes on DirInode.LookUpChild.
 const ImplicitDirGen int64 = -1
 
+// A suffix that can be used to unambiguously tag a file system name.
+// (Unambiguous because U+000A is not allowed in GCS object names.) This is
+// used to refer to the file in a (file, directory) pair with conflicting
+// object names.
+//
+// See also the notes on DirInode.LookUpChild.
+const ConflictingFileNameSuffix = "\n"
+
 // Look up the direct child with the given relative name, returning a record
 // for the current object of that name in the GCS bucket. If both a file and a
-// directory with the given name exist, be consistent from call to call about
-// which is preferred. Return fuse.ENOENT if neither is found.
+// directory with the given name exist, the directory is preferred. Return
+// fuse.ENOENT if neither is found.
+//
+// Special case: if the name ends in ConflictingFileNameSuffix, we strip the
+// suffix, confirm that a conflicting directory exists, then return a record
+// for the file.
 //
 // If this inode was created with implicitDirs is set, this method will use
 // ListObjects to find child directories that are "implicitly" defined by the
@@ -349,6 +396,12 @@ func (d *DirInode) LookUpChild(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
 	b := syncutil.NewBundle(ctx)
+
+	// Is this a conflict marker name?
+	if strings.HasSuffix(name, ConflictingFileNameSuffix) {
+		o, err = d.lookUpConflicting(ctx, name)
+		return
+	}
 
 	// Stat the child as a file.
 	var fileRecord *gcs.Object
