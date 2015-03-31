@@ -229,10 +229,7 @@ func (t *foreignModsTest) UnreachableObjects() {
 	AssertEq(nil, err)
 
 	// Nothing should show up in the root.
-	//
-	// TODO(jacobsa): Switch this back to t.readDirUntil when issue #31 is fixed:
-	//     https://github.com/GoogleCloudPlatform/gcsfuse/issues/31
-	entries, err := ioutil.ReadDir(t.Dir)
+	entries, err := t.readDirUntil(0, t.Dir)
 	AssertEq(nil, err)
 	ExpectEq(0, len(entries))
 
