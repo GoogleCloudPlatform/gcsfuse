@@ -464,6 +464,13 @@ func (d *DirInode) ReadEntries(
 
 	// Convert objects to entries for files.
 	for _, o := range listing.Objects {
+		// Skip the entry for the backing object itself, which of course has its
+		// own name as a prefix but which we don't wan tto appear to contain
+		// itself.
+		if o.Name == d.Name() {
+			continue
+		}
+
 		e := fuseutil.Dirent{
 			Name: path.Base(o.Name),
 			Type: fuseutil.DT_File,
