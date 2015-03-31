@@ -276,7 +276,7 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 	ExpectEq("foo\n", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(0, fi.Size())
-	ExpectEq(0700, fi.Mode())
+	ExpectEq(os.FileMode(0700), fi.Mode())
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 
@@ -781,7 +781,7 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderPresent() {
 	ExpectEq("foo\n", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(0, fi.Size())
-	ExpectEq(0700, fi.Mode())
+	ExpectEq(os.FileMode(0700), fi.Mode())
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 
@@ -835,7 +835,7 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 	ExpectEq("foo\n", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(0, fi.Size())
-	ExpectEq(0700, fi.Mode())
+	ExpectEq(os.FileMode(0700), fi.Mode())
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 
