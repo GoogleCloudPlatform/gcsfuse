@@ -101,7 +101,9 @@ func (dh *dirHandle) checkInvariants() {
 // with a non-empty list of entries) when the end of the directory has been
 // hit.
 //
-// The contents of the entries' Offset fields are undefined.
+// The contents of the entries' Offset fields are undefined. This function
+// always behaves as if implicit directories are defined; see notes on
+// DirInode.ReadEntries.
 func readSomeEntries(
 	ctx context.Context,
 	in *inode.DirInode,
@@ -132,11 +134,51 @@ func readSomeEntries(
 	return
 }
 
-// Call readSomeEntries in a loop until the directory is exhausted. Return
-// contents sorted by name and with correct Offset fields.
+// Read all entries for the directory, making no effort to deal with
+// conflicting names or the lack of implicit directories (see notes on
+// DirInode.ReadEntries).
+//
+// Write entries to the supplied channel, without closing. Entry Offset fields
+// have unspecified contents.
+func readEntries(
+	ctx context.Context,
+	in *inode.DirInode,
+	entries chan<- fuseutil.Dirent) (err error) {
+	var tok string
+	for {
+		// Read a batch.
+		var batch []fuseutil.Dirent
+
+		batch, tok, err = readSomeEntries(ctx, in, tok)
+		if err != nil {
+			return
+		}
+
+		// Write each to the channel.
+		for _, e := range batch {
+			select {
+			case <-ctx.Done():
+				err = ctx.Err()
+				return
+
+			case entries <- e:
+			}
+		}
+
+		// Are we done?
+		if tok == "" {
+			break
+		}
+	}
+
+	return
+}
+
 func readAllEntries(
 	ctx context.Context,
 	in *inode.DirInode) (entries SortedDirents, err error) {
+	b := syncutil.NewBundle(ctx)
+
 	// Ensure that our result is sorted, with correct offset fields.
 	defer func() {
 		sort.Sort(entries)
@@ -146,24 +188,25 @@ func readAllEntries(
 		}
 	}()
 
-	// Read in a loop.
-	var tok string
-	for {
-		var batch []fuseutil.Dirent
+	// Read into a channel.
+	c := make(chan fuseutil.Dirent, 100)
+	b.Add(func(ctx context.Context) (err error) {
+		defer close(c)
+		err = readEntries(ctx, in, c)
+		return
+	})
 
-		// Accumulate some more entries.
-		batch, tok, err = readSomeEntries(ctx, in, tok)
-		if err != nil {
-			return
+	// Accumulate into the slice.
+	b.Add(func(ctx context.Context) (err error) {
+		for e := range c {
+			entries = append(entries, e)
 		}
 
-		entries = append(entries, batch...)
+		return
+	})
 
-		// Are we done?
-		if tok == "" {
-			break
-		}
-	}
+	// Wait.
+	err = b.Join()
 
 	return
 }
