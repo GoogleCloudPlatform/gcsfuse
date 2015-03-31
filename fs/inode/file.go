@@ -137,18 +137,11 @@ func (f *FileInode) SourceGeneration() int64 {
 	return f.proxy.SourceGeneration()
 }
 
-// Increment the lookup count for the inode. For use in fuse operations where
-// the kernel expects us to remember the inode.
-//
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) IncrementLookupCount() {
 	f.lookupCount++
 }
 
-// Decrement the lookup count for the inode by the given amount. If this method
-// returns true, the lookup count has hit zero and the inode has been
-// destroyed. The inode must not be used further.
-//
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) DecrementLookupCount(n uint64) (destroyed bool) {
 	// Make sure n is in range.
