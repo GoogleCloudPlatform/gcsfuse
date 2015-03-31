@@ -180,16 +180,36 @@ func fixConflictingNames(in SortedDirents) (out []fuseutil.Dirent, err error) {
 		return
 	}
 
-	// Fix adjacent duplicates.
-	for i, e := range in {
-		if i > 0 {
-			prev := in[i-1]
-			if e.Type == fuseutil.DT_File && e.Name == prev.Name {
-				e.Name += inode.ConflictingFileNameSuffix
-			}
+	// Copy to the output slice.
+	out = make([]fuseutil.Dirent, len(in))
+	copy(out, in)
+
+	// Examine each adjacent pair of names.
+	for i, _ := range out {
+		e := &out[i]
+
+		// Find the previous entry.
+		if i == 0 {
+			continue
 		}
 
-		out = append(out, e)
+		prev := &out[i-1]
+
+		// Does the pair have matching names?
+		if e.Name != prev.Name {
+			continue
+		}
+
+		// Repair whichever is the file, remembering that there's no way to get any
+		// other type in the mix.
+		if e.Type == fuseutil.DT_File {
+			e.Name += inode.ConflictingFileNameSuffix
+		} else {
+			if prev.Type != fuseutil.DT_File {
+				panic(fmt.Sprintf("Unexpected type for entry: %v", prev))
+			}
+			prev.Name += inode.ConflictingFileNameSuffix
+		}
 	}
 
 	return
