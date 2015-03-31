@@ -17,12 +17,12 @@ package gcsproxy
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"os"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
+	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
@@ -342,9 +342,9 @@ func makeLocalFile(
 	name string,
 	generation int64) (f *os.File, err error) {
 	// Create the file.
-	f, err = ioutil.TempFile("", "object_proxy")
+	f, err = fsutil.AnonymousFile("")
 	if err != nil {
-		err = fmt.Errorf("TempFile: %v", err)
+		err = fmt.Errorf("AnonymousFile: %v", err)
 		return
 	}
 
@@ -355,13 +355,6 @@ func makeLocalFile(
 			f = nil
 		}
 	}()
-
-	// Unlink the file so that its inode will be garbage collected when the file
-	// is closed.
-	if err = os.Remove(f.Name()); err != nil {
-		err = fmt.Errorf("Remove: %v", err)
-		return
-	}
 
 	// Open the object for reading.
 	req := &gcs.ReadObjectRequest{
