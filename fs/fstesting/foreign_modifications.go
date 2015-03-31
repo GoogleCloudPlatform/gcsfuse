@@ -254,7 +254,7 @@ func (t *foreignModsTest) UnreachableObjects() {
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Statting the other name shouldn't work at all.
-	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	_, err = os.Stat(path.Join(t.mfs.Dir(), "bar"))
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
