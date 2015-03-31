@@ -2,11 +2,6 @@ This document defines the semantics of a gcsfuse file system mounted with a GCS
 bucket, including how files and directories map to object names, what
 consistency guarantees are made, etc.
 
-*WARNING*: This document is aspirational. As of 2015-03-25, it does not yet
-reflect reality. See [issue #18][issue-18].
-
-[issue-18]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/18
-
 # Buckets
 
 GCS has a feature called [object versioning][versioning] that allows buckets to
@@ -125,7 +120,7 @@ The discussion below uses the term "generation" in this manner.
 # File inodes
 
 As in any file system, file inodes in a gcsfuse file system logically contain
-file contents and metadata. A file inode is iniitalized with a particular
+file contents and metadata. A file inode is initialized with a particular
 generation of a particular object within GCS (the "source generation"), and its
 contents are initially exactly the contents of that generation.
 
@@ -206,13 +201,6 @@ the user level to commands like `ls`, and to the posix interfaces they use like
 
 [consistency]: https://cloud.google.com/storage/docs/concepts-techniques#consistency
 
-gcsfuse attempts to paper over this issue somewhat by remembering local
-modifications (creations and removals) for some period of time, so that e.g.
-creating a file and then listing its parent directory on the same machine will
-result in the expected experience. However note that this means that e.g. a
-subsequent deletion of the file on another machine will not be reflected in a
-directory listing on the creating machine for that time period.
-
 
 # Write/read consistency
 
@@ -257,7 +245,26 @@ of other objects, there is no way for gcsfuse to unlink a directory if and only
 if it is empty. So gcsfuse takes the simple route, and always allows a
 directory to be unlinked, even if non-empty. The contents of a non-empty
 directory that is unlinked are not deleted but simply become inaccessible—the
-placeholder object for the unlinked directory is simply removed.
+placeholder object for the unlinked directory is simply removed. (Unless
+`--implicit_dirs` is set; see the section on implicit directories above.)
+
+
+## Reading directories
+
+gcsfuse implements requests from the kernel to read the contents of a directory
+(as when listing a directory with `ls`, for example) by calling
+[Objects.list][] in the GCS API. The call uses a delimiter of `/` to avoid
+paying the bandwidth and request cost of also listing very large
+sub-directories.
+
+[Objects.list]: https://cloud.google.com/storage/docs/json_api/v1/objects/list
+
+However, with this implementation there is no way for gcsfuse to distinguish a
+child directory that actually exists (because its placeholder object is
+present) and one that is only implicitly defined. So when `--implicit_dirs` is
+not set, directory listings may contain names that are inaccessible in a later
+call from the kernel to gcsfuse to look up the inode by name. For example, a
+call to readdir(3) may return names for which fstat(2) returns `ENOENT`.
 
 
 ## Name conflicts
