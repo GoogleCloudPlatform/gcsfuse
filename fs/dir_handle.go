@@ -39,34 +39,26 @@ type dirHandle struct {
 
 	Mu syncutil.InvariantMutex
 
-	// Entries that we have buffered from a previous call to in.ReadEntries.
+	// All entries in the directory. Populated the first time we need one.
 	//
-	// INVARIANT: For each i in range, entries[i+1].Offset == entries[i].Offset + 1
+	// INVARIANT: For each i, entries[i+1].Offset == entries[i].Offset + 1
 	//
 	// GUARDED_BY(Mu)
 	entries []fuseutil.Dirent
 
-	// The logical offset at which entries[0] lies.
+	// Has entries yet been populated?
 	//
-	// INVARIANT: If len(entries) > 0, entriesOffset + 1 == entries[0].Offset
-	//
-	// GUARDED_BY(Mu)
-	entriesOffset fuseops.DirOffset
-
-	// The continuation token to supply in the next call to in.ReadEntries. At
-	// the start of the directory, this is the empty string. When we have hit the
-	// end of the directory, this is nil.
+	// INVARIANT: If !entriesValid, then len(entries) == 0
 	//
 	// GUARDED_BY(Mu)
-	tok *string
+	entriesValid bool
 }
 
 // Create a directory handle that obtains listings from the supplied inode.
 func newDirHandle(in *inode.DirInode) (dh *dirHandle) {
 	// Set up the basic struct.
 	dh = &dirHandle{
-		in:  in,
-		tok: new(string),
+		in: in,
 	}
 
 	// Set up invariant checking.
@@ -80,9 +72,9 @@ func newDirHandle(in *inode.DirInode) (dh *dirHandle) {
 ////////////////////////////////////////////////////////////////////////
 
 func (dh *dirHandle) checkInvariants() {
-	// Check that the offsets increment by one each time.
+	// INVARIANT: For each i, entries[i+1].Offset == entries[i].Offset + 1
 	for i := 0; i < len(dh.entries)-1; i++ {
-		if dh.entries[i].Offset+1 != dh.entries[i+1].Offset {
+		if !(dh.entries[i+1].Offset == dh.entries[i].Offset+1) {
 			panic(
 				fmt.Sprintf(
 					"Unexpected offset sequence: %v, %v",
@@ -91,74 +83,76 @@ func (dh *dirHandle) checkInvariants() {
 		}
 	}
 
-	// Check the first offset.
-	if len(dh.entries) > 0 && dh.entries[0].Offset != dh.entriesOffset+1 {
-		panic(fmt.Sprintf("Unexpected entriesOffset value."))
+	// INVARIANT: If !entriesValid, then len(entries) == 0
+	if !dh.entriesValid && len(dh.entries) != 0 {
+		panic("Unexpected non-empty entries slice")
 	}
 }
 
-// Read some entries from the directory inode. Return newTok == nil (possibly
+// Read some entries from the directory inode. Return newTok == "" (possibly
 // with a non-empty list of entries) when the end of the directory has been
 // hit.
-func readEntries(
+func readSomeEntries(
 	ctx context.Context,
 	in *inode.DirInode,
 	tok string,
 	firstEntryOffset fuseops.DirOffset) (
-	entries []fuseutil.Dirent, newTok *string, err error) {
+	entries []fuseutil.Dirent, newTok string, err error) {
+	entries, newTok, err = in.ReadEntries(ctx, tok)
+	if err != nil {
+		err = fmt.Errorf("ReadEntries: %v", err)
+		return
+	}
+
+	// Return a bogus inode ID for each entry, but not the root inode ID.
+	//
+	// NOTE(jacobsa): As far as I can tell this is harmless. Minting and
+	// returning a real inode ID is difficult because fuse does not count
+	// readdir as an operation that increases the inode ID's lookup count and
+	// we therefore don't get a forget for it later, but we would like to not
+	// have to remember every inode ID that we've ever minted for readdir.
+	//
+	// If it turns out this is not harmless, we'll need to switch to something
+	// like inode IDs based on (object name, generation) hashes. But then what
+	// about the birthday problem? And more importantly, what about our
+	// semantic of not minting a new inode ID when the generation changes due
+	// to a local action?
+	for i, _ := range entries {
+		entries[i].Inode = fuseops.RootInodeID + 1
+	}
+
 	// Fix up the offset of any entries returned.
-	defer func() {
-		for i := 0; i < len(entries); i++ {
-			entries[i].Offset = firstEntryOffset + 1 + fuseops.DirOffset(i)
-		}
-	}()
+	for i := 0; i < len(entries); i++ {
+		entries[i].Offset = firstEntryOffset + 1 + fuseops.DirOffset(i)
+	}
 
-	// Return newTok != nil iff there is more to read. Note that we use tok in
-	// the loop below.
-	defer func() {
-		if tok != "" {
-			newTok = &tok
-		}
-	}()
+	return
+}
 
-	// Loop until we get a non-empty result, we finish, or an error occurs.
+// Call readSomeEntries in a loop until the directory is exhausted.
+func readAllEntries(
+	ctx context.Context,
+	in *inode.DirInode) (entries []fuseutil.Dirent, err error) {
+	var tok string
 	for {
-		entries, tok, err = in.ReadEntries(ctx, tok)
+		var batch []fuseutil.Dirent
 
-		// Return a bogus inode ID for each entry, but not the root inode ID.
-		//
-		// NOTE(jacobsa): As far as I can tell this is harmless. Minting and
-		// returning a real inode ID is difficult because fuse does not count
-		// readdir as an operation that increases the inode ID's lookup count and
-		// we therefore don't get a forget for it later, but we would like to not
-		// have to remember every inode ID that we've ever minted for readdir.
-		//
-		// If it turns out this is not harmless, we'll need to switch to something
-		// like inode IDs based on (object name, generation) hashes. But then what
-		// about the birthday problem? And more importantly, what about our
-		// semantic of not minting a new inode ID when the generation changes due
-		// to a local action?
-		for i, _ := range entries {
-			entries[i].Inode = fuseops.RootInodeID + 1
-		}
-
-		// Propagate errors.
+		// Accumulate some more entries.
+		firstOffset := fuseops.DirOffset(len(entries))
+		batch, tok, err = readSomeEntries(ctx, in, tok, firstOffset)
 		if err != nil {
 			return
 		}
 
-		// If some entries were returned, we are done.
-		if len(entries) > 0 {
-			return
-		}
+		entries = append(entries, batch...)
 
-		// If we're at the end of the directory, we're done.
+		// Are we done?
 		if tok == "" {
-			return
+			break
 		}
-
-		// Otherwise, go around and ask for more entries.
 	}
+
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -166,11 +160,6 @@ func readEntries(
 ////////////////////////////////////////////////////////////////////////
 
 // Handle a request to read from the directory, without responding.
-//
-// Because the GCS API for listing objects has no notion of a stable offset
-// like the posix telldir/seekdir API does, there is no way for us to
-// efficiently support seeking backwards. Therefore we return EINVAL when an
-// offset for an entry that we no longer have buffered is encountered.
 //
 // Special case: we assume that a zero offset indicates that rewinddir has been
 // called (since fuse gives us no way to intercept and know for sure), and
@@ -183,52 +172,31 @@ func (dh *dirHandle) ReadDir(
 	// call or rewinddir has been called. Reset state.
 	if op.Offset == 0 {
 		dh.entries = nil
-		dh.entriesOffset = 0
-		dh.tok = new(string)
+		dh.entriesValid = false
 	}
 
-	// Is the offset from before what we have buffered? If not, this represents a
-	// seekdir we cannot support, as discussed in the method comments above.
-	if op.Offset < dh.entriesOffset {
-		err = fuse.EINVAL
-		return
+	// Do we need to read entries from GCS?
+	if !dh.entriesValid {
+		var entries []fuseutil.Dirent
+		entries, err = readAllEntries(op.Context(), dh.in)
+		if err != nil {
+			err = fmt.Errorf("readAllEntries: %v", err)
+			return
+		}
+
+		dh.entries = entries
+		dh.entriesValid = true
 	}
 
 	// Is the offset past the end of what we have buffered? If so, this must be
 	// an invalid seekdir according to posix.
-	index := int(op.Offset - dh.entriesOffset)
+	index := int(op.Offset)
 	if index > len(dh.entries) {
 		err = fuse.EINVAL
 		return
 	}
 
-	// Do we need to read more entries, and can we?
-	if index == len(dh.entries) && dh.tok != nil {
-		var newEntries []fuseutil.Dirent
-		var newTok *string
-
-		// Read some entries.
-		newEntries, newTok, err = readEntries(
-			op.Context(),
-			dh.in,
-			*dh.tok,
-			dh.entriesOffset+fuseops.DirOffset(len(dh.entries)))
-
-		if err != nil {
-			err = fmt.Errorf("readEntries: %v", err)
-			return
-		}
-
-		// Update state.
-		dh.entriesOffset += fuseops.DirOffset(len(dh.entries))
-		dh.entries = newEntries
-		dh.tok = newTok
-
-		// Now we want to read from the front of dh.entries.
-		index = 0
-	}
-
-	// Now we copy out entries until we run out of entries or space.
+	// We copy out entries until we run out of entries or space.
 	for i := index; i < len(dh.entries); i++ {
 		op.Data = fuseutil.AppendDirent(op.Data, dh.entries[i])
 		if len(op.Data) > op.Size {
