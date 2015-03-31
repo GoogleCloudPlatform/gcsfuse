@@ -170,6 +170,8 @@ func readAllEntries(
 	return
 }
 
+const conflictingFileMarker = '\n'
+
 // Resolve name conflicts between file objects and directory objects (e.g. the
 // objects "foo/bar" and "foo/bar/") by appending U+000A, which is illegal in
 // GCS object names, to conflicting file names.
@@ -185,7 +187,7 @@ func fixConflictingNames(in SortedDirents) (out []fuseutil.Dirent, err error) {
 		if i > 0 {
 			prev := in[i-1]
 			if e.Type == fuseutil.DT_File && e.Name == prev.Name {
-				e.Name += "\n"
+				e.Name += string(conflictingFileMarker)
 			}
 		}
 
