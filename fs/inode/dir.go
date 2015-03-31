@@ -48,6 +48,12 @@ type DirInode struct {
 	// INVARIANT: src != nil
 	// INVARIANT: src.Name == "" || src.Name[len(name)-1] == '/'
 	src gcs.Object
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
+	lc lookupCount
 }
 
 var _ Inode = &DirInode{}
@@ -57,6 +63,8 @@ const RootGen int64 = 0
 
 // Create a directory inode for the root of the file system. For this inode,
 // the result of SourceGeneration() is guaranteed to be RootGen.
+//
+// The initial lookup count is one.
 func NewRootInode(
 	bucket gcs.Bucket,
 	implicitDirs bool) (d *DirInode) {
@@ -78,6 +86,8 @@ func NewRootInode(
 // descendents. For example, if there is an object named "foo/bar/baz" and this
 // is the directory "foo", a child directory named "bar" will be implied.
 //
+// The initial lookup count is one.
+//
 // REQUIRES: o != nil
 // REQUIRES: o.Name == "" || o.Name[len(o.Name)-1] == '/'
 func NewDirInode(
@@ -95,6 +105,11 @@ func NewDirInode(
 		id:           id,
 		implicitDirs: implicitDirs,
 		src:          *o,
+	}
+
+	d.lc = lookupCount{
+		count:   1,
+		destroy: func() error { return nil },
 	}
 
 	return
@@ -281,6 +296,17 @@ func (d *DirInode) Name() string {
 // Return the generation number from which this inode was branched.
 func (d *DirInode) SourceGeneration() int64 {
 	return d.src.Generation
+}
+
+// LOCKS_REQUIRED(d.mu)
+func (d *DirInode) IncrementLookupCount() {
+	d.lc.Inc()
+}
+
+// LOCKS_REQUIRED(d.mu)
+func (d *DirInode) DecrementLookupCount(n uint64) (destroyed bool) {
+	destroyed = d.lc.Dec(n)
+	return
 }
 
 func (d *DirInode) Attributes(
