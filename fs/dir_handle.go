@@ -100,12 +100,12 @@ func (dh *dirHandle) checkInvariants() {
 // Read some entries from the directory inode. Return newTok == "" (possibly
 // with a non-empty list of entries) when the end of the directory has been
 // hit.
+//
+// The contents of the entries' Offset fields are undefined.
 func readSomeEntries(
 	ctx context.Context,
 	in *inode.DirInode,
-	tok string,
-	firstEntryOffset fuseops.DirOffset) (
-	entries []fuseutil.Dirent, newTok string, err error) {
+	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
 	entries, newTok, err = in.ReadEntries(ctx, tok)
 	if err != nil {
 		err = fmt.Errorf("ReadEntries: %v", err)
@@ -129,22 +129,21 @@ func readSomeEntries(
 		entries[i].Inode = fuseops.RootInodeID + 1
 	}
 
-	// Fix up the offset of any entries returned.
-	for i := 0; i < len(entries); i++ {
-		entries[i].Offset = firstEntryOffset + 1 + fuseops.DirOffset(i)
-	}
-
 	return
 }
 
 // Call readSomeEntries in a loop until the directory is exhausted. Return
-// contents sorted by name.
+// contents sorted by name and with correct Offset fields.
 func readAllEntries(
 	ctx context.Context,
 	in *inode.DirInode) (entries SortedDirents, err error) {
-	// Ensure that our result is actually sorted.
+	// Ensure that our result is sorted, with correct offset fields.
 	defer func() {
 		sort.Sort(entries)
+
+		for i := 0; i < len(entries); i++ {
+			entries[i].Offset = fuseops.DirOffset(i) + 1
+		}
 	}()
 
 	// Read in a loop.
@@ -153,8 +152,7 @@ func readAllEntries(
 		var batch []fuseutil.Dirent
 
 		// Accumulate some more entries.
-		firstOffset := fuseops.DirOffset(len(entries))
-		batch, tok, err = readSomeEntries(ctx, in, tok, firstOffset)
+		batch, tok, err = readSomeEntries(ctx, in, tok)
 		if err != nil {
 			return
 		}
@@ -173,27 +171,23 @@ func readAllEntries(
 // Resolve name conflicts between file objects and directory objects (e.g. the
 // objects "foo/bar" and "foo/bar/") by appending U+000A, which is illegal in
 // GCS object names, to conflicting file names.
-func fixConflictingNames(in SortedDirents) (out []fuseutil.Dirent, err error) {
+func fixConflictingNames(entries SortedDirents) (err error) {
 	// Sanity check.
-	if !sort.IsSorted(in) {
+	if !sort.IsSorted(entries) {
 		err = fmt.Errorf("Expected sorted input")
 		return
 	}
 
-	// Copy to the output slice.
-	out = make([]fuseutil.Dirent, len(in))
-	copy(out, in)
-
 	// Examine each adjacent pair of names.
-	for i, _ := range out {
-		e := &out[i]
+	for i, _ := range entries {
+		e := &entries[i]
 
 		// Find the previous entry.
 		if i == 0 {
 			continue
 		}
 
-		prev := &out[i-1]
+		prev := &entries[i-1]
 
 		// Does the pair have matching names?
 		if e.Name != prev.Name {
@@ -246,7 +240,7 @@ func (dh *dirHandle) ReadDir(
 		}
 
 		// Fix name conflicts.
-		entries, err = fixConflictingNames(entries)
+		err = fixConflictingNames(entries)
 		if err != nil {
 			err = fmt.Errorf("fixConflictingNames: %v", err)
 			return
