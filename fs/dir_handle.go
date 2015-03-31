@@ -200,6 +200,7 @@ func filterMissingDirectories(
 			// TODO(jacobsa): Return nil, nil from LookUpChild in this case and
 			// simplify calling code.
 			if err == fuse.ENOENT {
+				err = nil
 				continue
 			}
 
