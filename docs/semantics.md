@@ -254,6 +254,24 @@ placeholder object for the unlinked directory is simply removed. (Unless
 `--implicit_dirs` is set; see the section on implicit directories above.)
 
 
+## Reading directories
+
+gcsfuse implements requests from the kernel to read the contents of a directory
+(as when listing a directory with `ls`, for example) by calling
+[Objects.list][] in the GCS API. The call uses a delimiter of `/` to avoid
+paying the bandwidth and request cost of also listing very large
+sub-directories.
+
+[Objects.list]: https://cloud.google.com/storage/docs/json_api/v1/objects/list
+
+However, with this implementation there is no way for gcsfuse to distinguish a
+child directory that actually exists (because its placeholder object is
+present) and one that is only implicitly defined. So when `--implicit_dirs` is
+not set, directory listings may contain names that are inaccessible in a later
+call from the kernel to gcsfuse to look up the inode by name. For example, a
+call to readdir(3) may return names for which fstat(2) returns `ENOENT`.
+
+
 ## Name conflicts
 
 It is possible to have a GCS bucket containing an object named `foo` and
