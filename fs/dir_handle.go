@@ -174,6 +174,19 @@ func readEntries(
 	return
 }
 
+// Filter out entries with type DT_Directory for which in.LookUpChild does not
+// return a directory. This can be used to implicit directories without a
+// matching backing object from the output of DirInode.ReadDir, which always
+// behaves as if implicit directories are enabled.
+func filterMissingDirectories(
+	ctx context.Context,
+	in *inode.DirInode,
+	entriesIn <-chan fuseutil.Dirent,
+	entriesOut chan<- fuseutil.Dirent) (err error) {
+	err = fmt.Errorf("TODO: filterMissingDirectories")
+	return
+}
+
 // Resolve name conflicts between file objects and directory objects (e.g. the
 // objects "foo/bar" and "foo/bar/") by appending U+000A, which is illegal in
 // GCS object names, to conflicting file names.
