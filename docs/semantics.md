@@ -250,7 +250,8 @@ of other objects, there is no way for gcsfuse to unlink a directory if and only
 if it is empty. So gcsfuse takes the simple route, and always allows a
 directory to be unlinked, even if non-empty. The contents of a non-empty
 directory that is unlinked are not deleted but simply become inaccessible—the
-placeholder object for the unlinked directory is simply removed.
+placeholder object for the unlinked directory is simply removed. (Unless
+`--implicit_dirs` is set; see the section on implicit directories above.)
 
 
 ## Name conflicts
