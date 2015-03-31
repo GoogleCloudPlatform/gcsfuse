@@ -23,6 +23,7 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
+	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
 )
@@ -188,7 +189,42 @@ func filterMissingDirectories(
 	in *inode.DirInode,
 	entriesIn <-chan fuseutil.Dirent,
 	entriesOut chan<- fuseutil.Dirent) (err error) {
-	err = fmt.Errorf("TODO: filterMissingDirectories")
+	for e := range entriesIn {
+		// If this is a directory, confirm it actually exists.
+		if e.Type == fuseutil.DT_Directory {
+			var o *gcs.Object
+			o, err = in.LookUpChild(ctx, e.Name)
+
+			// Skip this entry if we failed to find anything.
+			//
+			// TODO(jacobsa): Return nil, nil from LookUpChild in this case and
+			// simplify calling code.
+			if err == fuse.ENOENT {
+				continue
+			}
+
+			// Propagate other errors.
+			if err != nil {
+				err = fmt.Errorf("LookUpChild: %v", err)
+				return
+			}
+
+			// Skip this entry if the result is not a directory.
+			if !isDirName(o.Name) {
+				continue
+			}
+		}
+
+		// Pass on the entry.
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+
+		case entriesOut <- e:
+		}
+	}
+
 	return
 }
 
