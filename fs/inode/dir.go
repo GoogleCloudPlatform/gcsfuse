@@ -334,13 +334,22 @@ func (d *DirInode) Attributes(
 // See notes on DirInode.LookUpChild.
 const ImplicitDirGen int64 = -1
 
-// See notes on DirInode.LookUpChild.
+// A suffix that can be used to unambiguously tag a file system name.
+// (Unambiguous because U+000A is not allowed in GCS object names.) This is
+// used to refer to the file in a (file, directory) pair with conflicting
+// object names.
+//
+// See also the notes on DirInode.LookUpChild.
 const ConflictingFileNameSuffix = "\n"
 
 // Look up the direct child with the given relative name, returning a record
 // for the current object of that name in the GCS bucket. If both a file and a
-// directory with the given name exist, be consistent from call to call about
-// which is preferred. Return fuse.ENOENT if neither is found.
+// directory with the given name exist, the directory is preferred. Return
+// fuse.ENOENT if neither is found.
+//
+// Special case: if the name ends in ConflictingFileNameSuffix, we strip the
+// suffix, confirm that a conflicting directory exists, then return a record
+// for the file.
 //
 // If this inode was created with implicitDirs is set, this method will use
 // ListObjects to find child directories that are "implicitly" defined by the
