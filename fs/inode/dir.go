@@ -20,7 +20,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
@@ -224,6 +223,10 @@ func (d *DirInode) lookUpChildDir(
 	return
 }
 
+// Look up the file for a (file, dir) pair with conflicting names, overriding
+// the default behavior. If the file doesn't exist, return a nil record with a
+// nil error. If the directory doesn't exist, pretend the file doesn't exist.
+//
 // REQUIRES: strings.HasSuffix(name, ConflictingFileNameSuffix)
 func (d *DirInode) lookUpConflicting(
 	ctx context.Context,
@@ -235,23 +238,18 @@ func (d *DirInode) lookUpConflicting(
 	var dir *gcs.Object
 	dir, err = d.lookUpChildDir(ctx, strippedName)
 	if err != nil {
-		err = fmt.Errorf("Looking up stripped name: %v", err)
+		err = fmt.Errorf("lookUpChildDir for stripped name: %v", err)
 		return
 	}
 
 	if dir == nil {
-		err = fuse.ENOENT
 		return
 	}
 
 	// The directory name exists. Find the conflicting file.
 	o, err = d.lookUpChildFile(ctx, strippedName)
 	if err != nil {
-		return
-	}
-
-	if o == nil {
-		err = fuse.ENOENT
+		err = fmt.Errorf("lookUpChildFile for stripped name: %v", err)
 		return
 	}
 
@@ -379,8 +377,8 @@ const ConflictingFileNameSuffix = "\n"
 
 // Look up the direct child with the given relative name, returning a record
 // for the current object of that name in the GCS bucket. If both a file and a
-// directory with the given name exist, the directory is preferred. Return
-// fuse.ENOENT if neither is found.
+// directory with the given name exist, the directory is preferred. Return a
+// nil record with a nil error if neither is found.
 //
 // Special case: if the name ends in ConflictingFileNameSuffix, we strip the
 // suffix, confirm that a conflicting directory exists, then return a record
@@ -429,8 +427,6 @@ func (d *DirInode) LookUpChild(
 		o = dirRecord
 	case fileRecord != nil:
 		o = fileRecord
-	default:
-		err = fuse.ENOENT
 	}
 
 	return
