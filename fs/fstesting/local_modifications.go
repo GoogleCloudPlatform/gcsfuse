@@ -29,6 +29,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
@@ -617,13 +618,13 @@ func (t *directoryTest) Mkdir_OneLevel() {
 	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 
 	// Read the directory.
-	entries, err = ioutil.ReadDir(dirName)
+	entries, err = fusetesting.ReadDirPicky(dirName)
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
 
 	// Read the root.
-	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
 
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
@@ -659,13 +660,13 @@ func (t *directoryTest) Mkdir_TwoLevels() {
 	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 
 	// Read the directory.
-	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "parent/dir"))
+	entries, err = fusetesting.ReadDirPicky(path.Join(t.mfs.Dir(), "parent/dir"))
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
 
 	// Read the parent.
-	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "parent"))
+	entries, err = fusetesting.ReadDirPicky(path.Join(t.mfs.Dir(), "parent"))
 
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
@@ -787,7 +788,7 @@ func (t *directoryTest) ReadDir_Root() {
 	t.advanceTime()
 
 	// ReadDir
-	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
 	AssertEq(2, len(entries))
 
@@ -835,7 +836,7 @@ func (t *directoryTest) ReadDir_SubDirectory() {
 	t.advanceTime()
 
 	// ReadDir
-	entries, err := ioutil.ReadDir(parent)
+	entries, err := fusetesting.ReadDirPicky(parent)
 	AssertEq(nil, err)
 	AssertEq(2, len(entries))
 
@@ -874,7 +875,7 @@ func (t *directoryTest) Rmdir_Empty() {
 	AssertEq(nil, err)
 
 	// There should be nothing left in the parent.
-	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "foo"))
+	entries, err = fusetesting.ReadDirPicky(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
@@ -884,7 +885,7 @@ func (t *directoryTest) Rmdir_Empty() {
 	AssertEq(nil, err)
 
 	// Now the root directory should be empty, too.
-	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
@@ -926,7 +927,7 @@ func (t *directoryTest) Rmdir_OpenedForReading() {
 	// Attempt to read from the directory. Unfortunately we can't implement the
 	// guarantee that no new entries are returned, but nothing crazy should
 	// happen.
-	_, err = t.f1.Readdir(0)
+	_, err = t.f1.Readdirnames(0)
 	if err != nil {
 		ExpectThat(err, Error(HasSubstr("no such file")))
 	}
@@ -1367,7 +1368,7 @@ func (t *fileTest) UnlinkFile_Exists() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 
 	// Nothing should be in the directory.
-	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
 }
@@ -1398,7 +1399,7 @@ func (t *fileTest) UnlinkFile_StillOpen() {
 	AssertEq(nil, err)
 
 	// The directory should no longer contain it.
-	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
 
@@ -1467,7 +1468,7 @@ func (t *fileTest) UnlinkFile_FromSubDirectory() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 
 	// Nothing should be in the directory.
-	entries, err := ioutil.ReadDir(dirName)
+	entries, err := fusetesting.ReadDirPicky(dirName)
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
 }

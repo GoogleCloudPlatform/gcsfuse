@@ -31,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/fs"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	"github.com/jacobsa/oglematchers"
@@ -160,10 +161,10 @@ func (t *fsTest) matchesStartTime(start time.Time) oglematchers.Matcher {
 	return timeutil.TimeNear(start, slop)
 }
 
-// Repeatedly call ioutil.ReadDir until an error is encountered or until the
-// result has the given length. After each successful call with the wrong
-// length, advance the clock by more than the directory listing cache TTL in
-// order to flush the cache before the next call.
+// Repeatedly call fusetesting.ReadDirPicky until an error is encountered or
+// until the result has the given length. After each successful call with the
+// wrong length, advance the clock by more than the directory listing cache TTL
+// in order to flush the cache before the next call.
 //
 // This is a hacky workaround for the lack of list-after-write consistency in
 // GCS that must be used when interacting with GCS through a side channel
@@ -176,7 +177,7 @@ func (t *fsTest) readDirUntil(
 	endTime := startTime.Add(5 * time.Second)
 
 	for i := 0; ; i++ {
-		entries, err = ioutil.ReadDir(dir)
+		entries, err = fusetesting.ReadDirPicky(dir)
 		if err != nil || len(entries) == desiredLen {
 			return
 		}
