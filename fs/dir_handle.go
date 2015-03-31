@@ -170,6 +170,31 @@ func readAllEntries(
 	return
 }
 
+// Resolve name conflicts between file objects and directory objects (e.g. the
+// objects "foo/bar" and "foo/bar/") by appending U+000A, which is illegal in
+// GCS object names, to conflicting file names.
+func fixConflictingNames(in SortedDirents) (out []fuseutil.Dirent, err error) {
+	// Sanity check.
+	if !sort.IsSorted(in) {
+		err = fmt.Errorf("Expected sorted input")
+		return
+	}
+
+	// Fix adjacent duplicates.
+	for i, e := range in {
+		if i > 0 {
+			prev := in[i-1]
+			if e.Type == fuseutil.DT_File && e.Name == prev.Name {
+				e.Name += "\n"
+			}
+		}
+
+		out = append(out, e)
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -192,6 +217,7 @@ func (dh *dirHandle) ReadDir(
 
 	// Do we need to read entries from GCS?
 	if !dh.entriesValid {
+		// Read entries.
 		var entries []fuseutil.Dirent
 		entries, err = readAllEntries(op.Context(), dh.in)
 		if err != nil {
@@ -199,6 +225,14 @@ func (dh *dirHandle) ReadDir(
 			return
 		}
 
+		// Fix name conflicts.
+		entries, err = fixConflictingNames(entries)
+		if err != nil {
+			err = fmt.Errorf("fixConflictingNames: %v", err)
+			return
+		}
+
+		// Update state.
 		dh.entries = entries
 		dh.entriesValid = true
 	}
