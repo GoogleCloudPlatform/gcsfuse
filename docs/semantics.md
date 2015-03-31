@@ -2,11 +2,6 @@ This document defines the semantics of a gcsfuse file system mounted with a GCS
 bucket, including how files and directories map to object names, what
 consistency guarantees are made, etc.
 
-*WARNING*: This document is aspirational. As of 2015-03-25, it does not yet
-reflect reality. See [issue #18][issue-18].
-
-[issue-18]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/18
-
 # Buckets
 
 GCS has a feature called [object versioning][versioning] that allows buckets to
