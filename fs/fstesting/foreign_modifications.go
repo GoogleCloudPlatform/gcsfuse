@@ -229,8 +229,12 @@ func (t *foreignModsTest) UnreachableObjects() {
 	AssertEq(nil, err)
 
 	// Nothing should show up in the root.
-	_, err = t.readDirUntil(0, path.Join(t.mfs.Dir()))
+	//
+	// TODO(jacobsa): Switch this back to t.readDirUntil when issue #31 is fixed:
+	//     https://github.com/GoogleCloudPlatform/gcsfuse/issues/31
+	entries, err := ioutil.ReadDir(t.Dir)
 	AssertEq(nil, err)
+	ExpectEq(0, len(entries))
 
 	// Statting the directories shouldn't work.
 	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
