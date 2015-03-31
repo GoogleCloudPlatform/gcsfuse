@@ -334,6 +334,9 @@ func (d *DirInode) Attributes(
 // See notes on DirInode.LookUpChild.
 const ImplicitDirGen int64 = -1
 
+// See notes on DirInode.LookUpChild.
+const ConflictingFileNameSuffix = "\n"
+
 // Look up the direct child with the given relative name, returning a record
 // for the current object of that name in the GCS bucket. If both a file and a
 // directory with the given name exist, be consistent from call to call about
