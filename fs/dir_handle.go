@@ -73,11 +73,11 @@ func newDirHandle(in *inode.DirInode) (dh *dirHandle) {
 ////////////////////////////////////////////////////////////////////////
 
 // Dirents, sorted by name.
-type SortedDirents []fuseutil.Dirent
+type sortedDirents []fuseutil.Dirent
 
-func (p SortedDirents) Len() int           { return len(p) }
-func (p SortedDirents) Less(i, j int) bool { return p[i].Name < p[j].Name }
-func (p SortedDirents) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p sortedDirents) Len() int           { return len(p) }
+func (p sortedDirents) Less(i, j int) bool { return p[i].Name < p[j].Name }
+func (p sortedDirents) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 func (dh *dirHandle) checkInvariants() {
 	// INVARIANT: For each i, entries[i+1].Offset == entries[i].Offset + 1
@@ -174,43 +174,6 @@ func readEntries(
 	return
 }
 
-func readAllEntries(
-	ctx context.Context,
-	in *inode.DirInode) (entries SortedDirents, err error) {
-	b := syncutil.NewBundle(ctx)
-
-	// Ensure that our result is sorted, with correct offset fields.
-	defer func() {
-		sort.Sort(entries)
-
-		for i := 0; i < len(entries); i++ {
-			entries[i].Offset = fuseops.DirOffset(i) + 1
-		}
-	}()
-
-	// Read into a channel.
-	c := make(chan fuseutil.Dirent, 100)
-	b.Add(func(ctx context.Context) (err error) {
-		defer close(c)
-		err = readEntries(ctx, in, c)
-		return
-	})
-
-	// Accumulate into the slice.
-	b.Add(func(ctx context.Context) (err error) {
-		for e := range c {
-			entries = append(entries, e)
-		}
-
-		return
-	})
-
-	// Wait.
-	err = b.Join()
-
-	return
-}
-
 // Resolve name conflicts between file objects and directory objects (e.g. the
 // objects "foo/bar" and "foo/bar/") by appending U+000A, which is illegal in
 // GCS object names, to conflicting file names.
@@ -218,7 +181,7 @@ func readAllEntries(
 // Input must be sorted by name.
 func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 	// Sanity check.
-	if !sort.IsSorted(SortedDirents(entries)) {
+	if !sort.IsSorted(sortedDirents(entries)) {
 		err = fmt.Errorf("Expected sorted input")
 		return
 	}
@@ -254,6 +217,53 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 	return
 }
 
+func readAllEntries(
+	ctx context.Context,
+	in *inode.DirInode) (entries []fuseutil.Dirent, err error) {
+	b := syncutil.NewBundle(ctx)
+
+	// Read into a channel.
+	c := make(chan fuseutil.Dirent, 100)
+	b.Add(func(ctx context.Context) (err error) {
+		defer close(c)
+		err = readEntries(ctx, in, c)
+		return
+	})
+
+	// Accumulate into the slice.
+	b.Add(func(ctx context.Context) (err error) {
+		for e := range c {
+			entries = append(entries, e)
+		}
+
+		return
+	})
+
+	// Wait.
+	err = b.Join()
+	if err != nil {
+		return
+	}
+
+	// Ensure that the entries are sorted, for use in fixConflictingNames
+	// below.
+	sort.Sort(sortedDirents(entries))
+
+	// Fix name conflicts.
+	err = fixConflictingNames(entries)
+	if err != nil {
+		err = fmt.Errorf("fixConflictingNames: %v", err)
+		return
+	}
+
+	// Fix up offset fields.
+	for i := 0; i < len(entries); i++ {
+		entries[i].Offset = fuseops.DirOffset(i) + 1
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -281,13 +291,6 @@ func (dh *dirHandle) ReadDir(
 		entries, err = readAllEntries(op.Context(), dh.in)
 		if err != nil {
 			err = fmt.Errorf("readAllEntries: %v", err)
-			return
-		}
-
-		// Fix name conflicts.
-		err = fixConflictingNames(entries)
-		if err != nil {
-			err = fmt.Errorf("fixConflictingNames: %v", err)
 			return
 		}
 
