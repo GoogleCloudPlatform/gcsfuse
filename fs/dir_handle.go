@@ -171,9 +171,11 @@ func readAllEntries(
 // Resolve name conflicts between file objects and directory objects (e.g. the
 // objects "foo/bar" and "foo/bar/") by appending U+000A, which is illegal in
 // GCS object names, to conflicting file names.
-func fixConflictingNames(entries SortedDirents) (err error) {
+//
+// Input must be sorted by name.
+func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 	// Sanity check.
-	if !sort.IsSorted(entries) {
+	if !sort.IsSorted(SortedDirents(entries)) {
 		err = fmt.Errorf("Expected sorted input")
 		return
 	}
