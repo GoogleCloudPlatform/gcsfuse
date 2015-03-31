@@ -254,13 +254,15 @@ func (dh *dirHandle) readAllEntries(
 		filtered = unfiltered
 	} else {
 		filtered = make(chan fuseutil.Dirent, 100)
+
+		var wg sync.WaitGroup
 		f := func(ctx context.Context) error {
+			defer wg.Done()
 			return filterMissingDirectories(ctx, dh.in, unfiltered, filtered)
 		}
 
 		// Bound the parallelism with which we call the bucket.
 		const filterWorkers = 32
-		var wg sync.WaitGroup
 		for i := 0; i < filterWorkers; i++ {
 			wg.Add(1)
 			b.Add(f)
