@@ -446,6 +446,11 @@ func (d *DirInode) LookUpChild(
 //
 // The contents of the Offset and Inode fields for returned entries is
 // undefined.
+//
+// Warning: This method always behaves as if implicit directories are enabled,
+// regardless of how the inode was configured. If you want to ensure that
+// directories actually exist it non-implicit mode, you must call LookUpChild
+// to do so.
 func (d *DirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {

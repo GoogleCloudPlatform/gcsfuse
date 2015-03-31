@@ -17,11 +17,13 @@ package fs
 import (
 	"fmt"
 	"sort"
+	"sync"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
+	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
 )
@@ -32,7 +34,8 @@ type dirHandle struct {
 	// Constant data
 	/////////////////////////
 
-	in *inode.DirInode
+	in           *inode.DirInode
+	implicitDirs bool
 
 	/////////////////////////
 	// Mutable state
@@ -56,10 +59,13 @@ type dirHandle struct {
 }
 
 // Create a directory handle that obtains listings from the supplied inode.
-func newDirHandle(in *inode.DirInode) (dh *dirHandle) {
+func newDirHandle(
+	in *inode.DirInode,
+	implicitDirs bool) (dh *dirHandle) {
 	// Set up the basic struct.
 	dh = &dirHandle{
-		in: in,
+		in:           in,
+		implicitDirs: implicitDirs,
 	}
 
 	// Set up invariant checking.
@@ -73,11 +79,11 @@ func newDirHandle(in *inode.DirInode) (dh *dirHandle) {
 ////////////////////////////////////////////////////////////////////////
 
 // Dirents, sorted by name.
-type SortedDirents []fuseutil.Dirent
+type sortedDirents []fuseutil.Dirent
 
-func (p SortedDirents) Len() int           { return len(p) }
-func (p SortedDirents) Less(i, j int) bool { return p[i].Name < p[j].Name }
-func (p SortedDirents) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p sortedDirents) Len() int           { return len(p) }
+func (p sortedDirents) Less(i, j int) bool { return p[i].Name < p[j].Name }
+func (p sortedDirents) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 func (dh *dirHandle) checkInvariants() {
 	// INVARIANT: For each i, entries[i+1].Offset == entries[i].Offset + 1
@@ -101,7 +107,9 @@ func (dh *dirHandle) checkInvariants() {
 // with a non-empty list of entries) when the end of the directory has been
 // hit.
 //
-// The contents of the entries' Offset fields are undefined.
+// The contents of the entries' Offset fields are undefined. This function
+// always behaves as if implicit directories are defined; see notes on
+// DirInode.ReadEntries.
 func readSomeEntries(
 	ctx context.Context,
 	in *inode.DirInode,
@@ -132,36 +140,89 @@ func readSomeEntries(
 	return
 }
 
-// Call readSomeEntries in a loop until the directory is exhausted. Return
-// contents sorted by name and with correct Offset fields.
-func readAllEntries(
+// Read all entries for the directory, making no effort to deal with
+// conflicting names or the lack of implicit directories (see notes on
+// DirInode.ReadEntries).
+//
+// Write entries to the supplied channel, without closing. Entry Offset fields
+// have unspecified contents.
+func readEntries(
 	ctx context.Context,
-	in *inode.DirInode) (entries SortedDirents, err error) {
-	// Ensure that our result is sorted, with correct offset fields.
-	defer func() {
-		sort.Sort(entries)
-
-		for i := 0; i < len(entries); i++ {
-			entries[i].Offset = fuseops.DirOffset(i) + 1
-		}
-	}()
-
-	// Read in a loop.
+	in *inode.DirInode,
+	entries chan<- fuseutil.Dirent) (err error) {
 	var tok string
 	for {
+		// Read a batch.
 		var batch []fuseutil.Dirent
 
-		// Accumulate some more entries.
 		batch, tok, err = readSomeEntries(ctx, in, tok)
 		if err != nil {
 			return
 		}
 
-		entries = append(entries, batch...)
+		// Write each to the channel.
+		for _, e := range batch {
+			select {
+			case <-ctx.Done():
+				err = ctx.Err()
+				return
+
+			case entries <- e:
+			}
+		}
 
 		// Are we done?
 		if tok == "" {
 			break
+		}
+	}
+
+	return
+}
+
+// Filter out entries with type DT_Directory for which in.LookUpChild does not
+// return a directory. This can be used to implicit directories without a
+// matching backing object from the output of DirInode.ReadDir, which always
+// behaves as if implicit directories are enabled.
+func filterMissingDirectories(
+	ctx context.Context,
+	in *inode.DirInode,
+	entriesIn <-chan fuseutil.Dirent,
+	entriesOut chan<- fuseutil.Dirent) (err error) {
+	for e := range entriesIn {
+		// If this is a directory, confirm it actually exists.
+		if e.Type == fuseutil.DT_Directory {
+			var o *gcs.Object
+			o, err = in.LookUpChild(ctx, e.Name)
+
+			// Skip this entry if we failed to find anything.
+			//
+			// TODO(jacobsa): Return nil, nil from LookUpChild in this case and
+			// simplify calling code.
+			if err == fuse.ENOENT {
+				err = nil
+				continue
+			}
+
+			// Propagate other errors.
+			if err != nil {
+				err = fmt.Errorf("LookUpChild: %v", err)
+				return
+			}
+
+			// Skip this entry if the result is not a directory.
+			if !isDirName(o.Name) {
+				continue
+			}
+		}
+
+		// Pass on the entry.
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+
+		case entriesOut <- e:
 		}
 	}
 
@@ -175,7 +236,7 @@ func readAllEntries(
 // Input must be sorted by name.
 func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 	// Sanity check.
-	if !sort.IsSorted(SortedDirents(entries)) {
+	if !sort.IsSorted(sortedDirents(entries)) {
 		err = fmt.Errorf("Expected sorted input")
 		return
 	}
@@ -211,6 +272,79 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 	return
 }
 
+func (dh *dirHandle) readAllEntries(
+	ctx context.Context) (entries []fuseutil.Dirent, err error) {
+	b := syncutil.NewBundle(ctx)
+
+	// Read entries into a channel.
+	unfiltered := make(chan fuseutil.Dirent, 100)
+	b.Add(func(ctx context.Context) (err error) {
+		defer close(unfiltered)
+		err = readEntries(ctx, dh.in, unfiltered)
+		return
+	})
+
+	// If implicit directories are disabled, filter out entries for
+	// sub-directories without a matching backing object.
+	var filtered chan fuseutil.Dirent
+	if dh.implicitDirs {
+		filtered = unfiltered
+	} else {
+		filtered = make(chan fuseutil.Dirent, 100)
+
+		var wg sync.WaitGroup
+		f := func(ctx context.Context) error {
+			defer wg.Done()
+			return filterMissingDirectories(ctx, dh.in, unfiltered, filtered)
+		}
+
+		// Bound the parallelism with which we call the bucket.
+		const filterWorkers = 32
+		for i := 0; i < filterWorkers; i++ {
+			wg.Add(1)
+			b.Add(f)
+		}
+
+		go func() {
+			wg.Wait()
+			close(filtered)
+		}()
+	}
+
+	// Accumulate entries into the slice.
+	b.Add(func(ctx context.Context) (err error) {
+		for e := range filtered {
+			entries = append(entries, e)
+		}
+
+		return
+	})
+
+	// Wait.
+	err = b.Join()
+	if err != nil {
+		return
+	}
+
+	// Ensure that the entries are sorted, for use in fixConflictingNames
+	// below.
+	sort.Sort(sortedDirents(entries))
+
+	// Fix name conflicts.
+	err = fixConflictingNames(entries)
+	if err != nil {
+		err = fmt.Errorf("fixConflictingNames: %v", err)
+		return
+	}
+
+	// Fix up offset fields.
+	for i := 0; i < len(entries); i++ {
+		entries[i].Offset = fuseops.DirOffset(i) + 1
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -235,16 +369,9 @@ func (dh *dirHandle) ReadDir(
 	if !dh.entriesValid {
 		// Read entries.
 		var entries []fuseutil.Dirent
-		entries, err = readAllEntries(op.Context(), dh.in)
+		entries, err = dh.readAllEntries(op.Context())
 		if err != nil {
 			err = fmt.Errorf("readAllEntries: %v", err)
-			return
-		}
-
-		// Fix name conflicts.
-		err = fixConflictingNames(entries)
-		if err != nil {
-			err = fmt.Errorf("fixConflictingNames: %v", err)
 			return
 		}
 
