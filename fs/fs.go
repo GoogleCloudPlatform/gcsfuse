@@ -502,6 +502,36 @@ func (fs *fileSystem) SetInodeAttributes(
 }
 
 // LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) ForgetInode(
+	op *fuseops.ForgetInodeOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Find the inode.
+	in := fs.inodes[op.Inode]
+
+	in.Lock()
+	defer in.Unlock()
+
+	// Decrement the lookup count. If destroyed, we should remove it from the
+	// index.
+	nandg := nameAndGen{
+		name: in.Name(),
+		gen:  in.SourceGeneration(),
+	}
+
+	if in.DecrementLookupCount(op.N) {
+		delete(fs.inodes, op.Inode)
+		delete(fs.inodeIndex, nandg)
+	}
+
+	return
+}
+
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) MkDir(
 	op *fuseops.MkDirOp) {
 	var err error
