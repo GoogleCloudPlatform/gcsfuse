@@ -16,6 +16,7 @@ package fstesting
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -43,6 +44,7 @@ type fsTest struct {
 	clock  timeutil.Clock
 	bucket gcs.Bucket
 	mfs    *fuse.MountedFileSystem
+	Dir    string
 
 	// Files to close when tearing down. Nil entries are skipped.
 	f1 *os.File
@@ -52,12 +54,14 @@ type fsTest struct {
 var _ fsTestInterface = &fsTest{}
 
 func (t *fsTest) setUpFSTest(cfg FSTestConfig) {
+	var err error
+
 	t.ctx = context.Background()
 	t.clock = cfg.ServerConfig.Clock
 	t.bucket = cfg.ServerConfig.Bucket
 
 	// Set up a temporary directory for mounting.
-	mountPoint, err := ioutil.TempDir("", "fs_test")
+	t.Dir, err = ioutil.TempDir("", "fs_test")
 	if err != nil {
 		panic("ioutil.TempDir: " + err.Error())
 	}
@@ -69,13 +73,15 @@ func (t *fsTest) setUpFSTest(cfg FSTestConfig) {
 	}
 
 	// Mount the file system.
-	t.mfs, err = fuse.Mount(mountPoint, server, &fuse.MountConfig{})
+	t.mfs, err = fuse.Mount(t.Dir, server, &fuse.MountConfig{})
 	if err != nil {
 		panic("Mount: " + err.Error())
 	}
 }
 
 func (t *fsTest) tearDownFsTest() {
+	var err error
+
 	// Close any files we opened.
 	if t.f1 != nil {
 		ogletest.ExpectEq(nil, t.f1.Close())
@@ -105,6 +111,12 @@ func (t *fsTest) tearDownFsTest() {
 
 	if err := t.mfs.Join(t.ctx); err != nil {
 		panic("MountedFileSystem.Join: " + err.Error())
+	}
+
+	// Unlink the mount point.
+	if err = os.Remove(t.Dir); err != nil {
+		err = fmt.Errorf("Unlinking mount point: %v", err)
+		return
 	}
 }
 
