@@ -256,7 +256,7 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 				"foo/": "",
 
 				// Directory child
-				"foo/bar": "",
+				"foo/bar": "burrito",
 			}))
 
 	// A listing of the parent should contain a directory named "foo" and a
@@ -274,7 +274,6 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 
 	fi = entries[1]
 	ExpectEq("foo\n", fi.Name())
-	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(os.FileMode(0700), fi.Mode())
 	ExpectFalse(fi.IsDir())
@@ -294,6 +293,18 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 	ExpectEq("foo\n", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectFalse(fi.IsDir())
+
+	// Listing the directory should yield the sole child file.
+	entries, err = ioutil.ReadDir(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("bar", fi.Name())
+	ExpectEq(len("burrito"), fi.Size())
+	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
 func (t *foreignModsTest) StatTrailingNewlineName_NoConflictingNames() {
