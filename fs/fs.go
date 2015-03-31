@@ -331,8 +331,10 @@ func (fs *fileSystem) lookUpOrCreateInode(
 		gen:  o.Generation,
 	}
 
-	// Do we already have an inode for this (name, generation) pair?
+	// Do we already have an inode for this (name, generation) pair? If so,
+	// increase its lookup count and return it.
 	if in = fs.inodeIndex[nandg]; in != nil {
+		in.IncrementLookupCount()
 		return
 	}
 
