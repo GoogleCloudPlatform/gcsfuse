@@ -125,7 +125,7 @@ The discussion below uses the term "generation" in this manner.
 # File inodes
 
 As in any file system, file inodes in a gcsfuse file system logically contain
-file contents and metadata. A file inode is iniitalized with a particular
+file contents and metadata. A file inode is initialized with a particular
 generation of a particular object within GCS (the "source generation"), and its
 contents are initially exactly the contents of that generation.
 
