@@ -30,7 +30,12 @@ go get github.com/googlecloudplatform/gcsfuse
 ```
 
 This will fetch the gcsfuse sources, build them, and install a binary named
-`gcsfuse` to `$GOPATH/bin`.
+`gcsfuse` to `$GOPATH/bin`. If you ever need to update to the latest version of
+gcsfuse, you can do so with:
+
+```
+go get -u github.com/googlecloudplatform/gcsfuse
+```
 
 
 # Mounting
