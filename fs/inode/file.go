@@ -17,7 +17,6 @@ package inode
 import (
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
@@ -44,7 +43,7 @@ type FileInode struct {
 	// Mutable state
 	/////////////////////////
 
-	lookupCount uint64
+	lc lookupCount
 
 	// A mutex that must be held when calling certain methods. See documentation
 	// for each method.
@@ -74,9 +73,13 @@ func NewFileInode(
 	o *gcs.Object) (f *FileInode, err error) {
 	// Set up the basic struct.
 	f = &FileInode{
-		bucket:      bucket,
-		id:          id,
-		lookupCount: 1,
+		bucket: bucket,
+		id:     id,
+	}
+
+	f.lc = lookupCount{
+		count:   1,
+		destroy: func() error { return f.proxy.Destroy() },
 	}
 
 	// Set up the proxy.
@@ -139,31 +142,12 @@ func (f *FileInode) SourceGeneration() int64 {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) IncrementLookupCount() {
-	f.lookupCount++
+	f.lc.Inc()
 }
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) DecrementLookupCount(n uint64) (destroyed bool) {
-	// Make sure n is in range.
-	if n > f.lookupCount {
-		panic(fmt.Sprintf(
-			"n is greater than lookup count: %v vs. %v",
-			n,
-			f.lookupCount))
-	}
-
-	// Decrement and destroy if necessary.
-	f.lookupCount -= n
-
-	if f.lookupCount == 0 {
-		err := f.proxy.Destroy()
-		if err != nil {
-			log.Printf("Error destroying proxy: %v", err)
-		}
-
-		destroyed = true
-	}
-
+	destroyed = f.lc.Dec(n)
 	return
 }
 
