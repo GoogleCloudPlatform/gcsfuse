@@ -17,6 +17,7 @@ package fs
 import (
 	"fmt"
 	"sort"
+	"sync"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/jacobsa/fuse"
@@ -32,7 +33,8 @@ type dirHandle struct {
 	// Constant data
 	/////////////////////////
 
-	in *inode.DirInode
+	in           *inode.DirInode
+	implicitDirs bool
 
 	/////////////////////////
 	// Mutable state
@@ -56,10 +58,13 @@ type dirHandle struct {
 }
 
 // Create a directory handle that obtains listings from the supplied inode.
-func newDirHandle(in *inode.DirInode) (dh *dirHandle) {
+func newDirHandle(
+	in *inode.DirInode,
+	implicitDirs bool) (dh *dirHandle) {
 	// Set up the basic struct.
 	dh = &dirHandle{
-		in: in,
+		in:           in,
+		implicitDirs: implicitDirs,
 	}
 
 	// Set up invariant checking.
@@ -230,22 +235,46 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 	return
 }
 
-func readAllEntries(
-	ctx context.Context,
-	in *inode.DirInode) (entries []fuseutil.Dirent, err error) {
+func (dh *dirHandle) readAllEntries(
+	ctx context.Context) (entries []fuseutil.Dirent, err error) {
 	b := syncutil.NewBundle(ctx)
 
-	// Read into a channel.
-	c := make(chan fuseutil.Dirent, 100)
+	// Read entries into a channel.
+	unfiltered := make(chan fuseutil.Dirent, 100)
 	b.Add(func(ctx context.Context) (err error) {
-		defer close(c)
-		err = readEntries(ctx, in, c)
+		defer close(unfiltered)
+		err = readEntries(ctx, dh.in, unfiltered)
 		return
 	})
 
-	// Accumulate into the slice.
+	// If implicit directories are disabled, filter out entries for
+	// sub-directories without a matching backing object.
+	var filtered chan fuseutil.Dirent
+	if dh.implicitDirs {
+		filtered = unfiltered
+	} else {
+		filtered = make(chan fuseutil.Dirent, 100)
+		f := func(ctx context.Context) error {
+			return filterMissingDirectories(ctx, dh.in, unfiltered, filtered)
+		}
+
+		// Bound the parallelism with which we call the bucket.
+		const filterWorkers = 32
+		var wg sync.WaitGroup
+		for i := 0; i < filterWorkers; i++ {
+			wg.Add(1)
+			b.Add(f)
+		}
+
+		go func() {
+			wg.Wait()
+			close(filtered)
+		}()
+	}
+
+	// Accumulate entries into the slice.
 	b.Add(func(ctx context.Context) (err error) {
-		for e := range c {
+		for e := range filtered {
 			entries = append(entries, e)
 		}
 
@@ -301,7 +330,7 @@ func (dh *dirHandle) ReadDir(
 	if !dh.entriesValid {
 		// Read entries.
 		var entries []fuseutil.Dirent
-		entries, err = readAllEntries(op.Context(), dh.in)
+		entries, err = dh.readAllEntries(op.Context())
 		if err != nil {
 			err = fmt.Errorf("readAllEntries: %v", err)
 			return
