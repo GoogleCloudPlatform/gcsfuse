@@ -57,7 +57,8 @@ type FileInode struct {
 
 var _ Inode = &FileInode{}
 
-// Create a file inode for the given object in GCS.
+// Create a file inode for the given object in GCS. The initial lookup count is
+// one.
 //
 // REQUIRES: o != nil
 // REQUIRES: o.Generation > 0
@@ -131,6 +132,19 @@ func (f *FileInode) Name() string {
 func (f *FileInode) SourceGeneration() int64 {
 	return f.proxy.SourceGeneration()
 }
+
+// Increment the lookup count for the inode. For use in fuse operations where
+// the kernel expects us to remember the inode.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) IncrementLookupCount()
+
+// Decrement the lookup count for the inode. If this method returns true, the
+// lookup count has hit zero and the inode has been destroyed. The inode must
+// not be used further.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) DecrementLookupCount() (destroyed bool)
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
