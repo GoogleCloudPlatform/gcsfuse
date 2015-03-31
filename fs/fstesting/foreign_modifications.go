@@ -780,7 +780,7 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderPresent() {
 	fi = entries[1]
 	ExpectEq("foo\n", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(0, fi.Size())
+	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(os.FileMode(0700), fi.Mode())
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
@@ -829,12 +829,12 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 	ExpectEq(0, fi.Size())
 	ExpectEq(0700|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
-	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	fi = entries[1]
 	ExpectEq("foo\n", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(0, fi.Size())
+	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(os.FileMode(0700), fi.Mode())
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
