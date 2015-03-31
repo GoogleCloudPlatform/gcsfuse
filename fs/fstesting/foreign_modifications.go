@@ -214,29 +214,47 @@ func (t *foreignModsTest) ReadDir_ContentsInSubDirectory() {
 }
 
 func (t *foreignModsTest) UnreachableObjects() {
+	var fi os.FileInfo
+	var err error
+
 	// Set up objects that appear to be directory contents, but for which there
 	// is no directory placeholder object. We don't have implicit directories
 	// enabled, so these should be unreachable.
-	err := gcsutil.CreateEmptyObjects(
+	err = gcsutil.CreateEmptyObjects(
 		t.ctx,
 		t.bucket,
 		[]string{
+			// Implicit directory contents, conflicting file name.
+			"foo",
 			"foo/0",
 			"foo/1",
+
+			// Implicit directory contents, no conflicting file name.
 			"bar/0/",
 		})
 
 	AssertEq(nil, err)
 
-	// Nothing should show up in the root.
-	entries, err := t.readDirUntil(0, t.Dir)
+	// Only the conflicitng file name should show up in the root.
+	entries, err := t.readDirUntil(1, t.Dir)
 	AssertEq(nil, err)
-	ExpectEq(0, len(entries))
+	AssertEq(1, len(entries))
 
-	// Statting the directories shouldn't work.
+	fi = entries[0]
+	ExpectEq("foo", fi.Name())
+	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	// Statting the conflicting name should give the file.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	// Statting the other name shouldn't work at all.
 	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
-
-	AssertNe(nil, err)
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
