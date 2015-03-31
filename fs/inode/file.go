@@ -139,12 +139,12 @@ func (f *FileInode) SourceGeneration() int64 {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) IncrementLookupCount()
 
-// Decrement the lookup count for the inode. If this method returns true, the
-// lookup count has hit zero and the inode has been destroyed. The inode must
-// not be used further.
+// Decrement the lookup count for the inode by the given amount. If this method
+// returns true, the lookup count has hit zero and the inode has been
+// destroyed. The inode must not be used further.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) DecrementLookupCount() (destroyed bool)
+func (f *FileInode) DecrementLookupCount(n uint64) (destroyed bool)
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
