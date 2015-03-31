@@ -29,6 +29,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -261,7 +262,7 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 
 	// A listing of the parent should contain a directory named "foo" and a
 	// file named "foo\n".
-	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
 	AssertEq(2, len(entries))
 
@@ -295,7 +296,7 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 	ExpectFalse(fi.IsDir())
 
 	// Listing the directory should yield the sole child file.
-	entries, err = ioutil.ReadDir(path.Join(t.Dir, "foo"))
+	entries, err = fusetesting.ReadDirPicky(path.Join(t.Dir, "foo"))
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
 
@@ -777,7 +778,7 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderPresent() {
 
 	// A listing of the parent should contain a directory named "foo" and a
 	// file named "foo\n".
-	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
 	AssertEq(2, len(entries))
 
@@ -831,7 +832,7 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 
 	// A listing of the parent should contain a directory named "foo" and a
 	// file named "foo\n".
-	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
 	AssertEq(2, len(entries))
 
