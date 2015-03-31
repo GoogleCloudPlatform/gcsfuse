@@ -16,6 +16,7 @@ package fs
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/jacobsa/fuse"
@@ -70,6 +71,13 @@ func newDirHandle(in *inode.DirInode) (dh *dirHandle) {
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
+
+// Dirents, sorted by name.
+type SortedDirents []fuseutil.Dirent
+
+func (p SortedDirents) Len() int           { return len(p) }
+func (p SortedDirents) Less(i, j int) bool { return p[i].Name < p[j].Name }
+func (p SortedDirents) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 func (dh *dirHandle) checkInvariants() {
 	// INVARIANT: For each i, entries[i+1].Offset == entries[i].Offset + 1
@@ -129,10 +137,17 @@ func readSomeEntries(
 	return
 }
 
-// Call readSomeEntries in a loop until the directory is exhausted.
+// Call readSomeEntries in a loop until the directory is exhausted. Return
+// contents sorted by name.
 func readAllEntries(
 	ctx context.Context,
-	in *inode.DirInode) (entries []fuseutil.Dirent, err error) {
+	in *inode.DirInode) (entries SortedDirents, err error) {
+	// Ensure that our result is actually sorted.
+	defer func() {
+		sort.Sort(entries)
+	}()
+
+	// Read in a loop.
 	var tok string
 	for {
 		var batch []fuseutil.Dirent
