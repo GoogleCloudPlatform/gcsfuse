@@ -128,7 +128,7 @@ type fileSystem struct {
 	//
 	// INVARIANT: For all keys k, fuseops.RootInodeID <= k < nextInodeID
 	// INVARIANT: For all keys k, inodes[k].ID() == k
-	// INVARIANT: inodes[fuseops.RootInodeID] is of type *inode.DirInode
+	// INVARIANT: inodes[fuseops.RootInodeID] is missing or of type *inode.DirInode
 	// INVARIANT: For all v, if isDirName(v.Name()) then v is *inode.DirInode
 	// INVARIANT: For all v, if !isDirName(v.Name()) then v is *inode.FileInode
 	//
@@ -215,8 +215,16 @@ func (fs *fileSystem) checkInvariants() {
 		}
 	}
 
-	// INVARIANT: inodes[fuseops.RootInodeID] is of type *inode.DirInode
-	_ = fs.inodes[fuseops.RootInodeID].(*inode.DirInode)
+	// INVARIANT: inodes[fuseops.RootInodeID] is missing or of type *inode.DirInode
+	//
+	// The missing case is when we've received a forget request for the root
+	// inode, while unmounting.
+	switch in := fs.inodes[fuseops.RootInodeID].(type) {
+	case nil:
+	case *inode.DirInode:
+	default:
+		panic(fmt.Sprintf("Unexpected type for root: %v", reflect.TypeOf(in)))
+	}
 
 	// INVARIANT: For all v, if isDirName(v.Name()) then v is *inode.DirInode
 	for _, in := range fs.inodes {
