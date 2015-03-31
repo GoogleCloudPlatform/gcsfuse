@@ -259,6 +259,27 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 				"foo/bar": "",
 			}))
 
+	// A listing of the parent should contain a directory named "foo" and a
+	// file named "foo\n".
+	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+
+	fi = entries[0]
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(0700|os.ModeDir, fi.Mode())
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	fi = entries[1]
+	ExpectEq("foo\n", fi.Name())
+	ExpectEq(len("taco"), fi.Size())
+	ExpectEq(0, fi.Size())
+	ExpectEq(0700, fi.Mode())
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+
 	// Statting "foo" should yield the directory.
 	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
 	AssertEq(nil, err)
@@ -266,22 +287,30 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 
-	// Listing the directory will result in two copies of the directory.
-	//
-	// This behavior is a bug.
-	// Cf. https://github.com/GoogleCloudPlatform/gcsfuse/issues/28
-	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	// Statting "foo\n" should yield the file.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo\n"))
 	AssertEq(nil, err)
-	AssertEq(2, len(entries))
 
-	ExpectEq("foo", entries[0].Name())
-	ExpectEq("foo", entries[1].Name())
+	ExpectEq("foo\n", fi.Name())
+	ExpectEq(len("taco"), fi.Size())
+	ExpectFalse(fi.IsDir())
+}
 
-	ExpectEq(0, entries[0].Size())
-	ExpectEq(0, entries[1].Size())
+func (t *foreignModsTest) StatTrailingNewlineName_NoConflictingNames() {
+	var err error
 
-	ExpectTrue(entries[0].IsDir())
-	ExpectTrue(entries[1].IsDir())
+	// Set up an object named "foo".
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				"foo": "taco",
+			}))
+
+	// We shouldn't be able to stat "foo\n", because there is no conflicting
+	// directory name.
+	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo\n"))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
 func (t *foreignModsTest) Inodes() {
@@ -735,29 +764,41 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderPresent() {
 				"foo/": "",
 			}))
 
-	// Statting the name should return an entry for the directory.
+	// A listing of the parent should contain a directory named "foo" and a
+	// file named "foo\n".
+	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+
+	fi = entries[0]
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(0700|os.ModeDir, fi.Mode())
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	fi = entries[1]
+	ExpectEq("foo\n", fi.Name())
+	ExpectEq(len("taco"), fi.Size())
+	ExpectEq(0, fi.Size())
+	ExpectEq(0700, fi.Mode())
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	// Statting "foo" should yield the directory.
 	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
 	AssertEq(nil, err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 
-	// ReadDir shows two copies of the directory.
-	//
-	// This behavior is a bug.
-	// Cf. https://github.com/GoogleCloudPlatform/gcsfuse/issues/28
-	entries, err = t.readDirUntil(2, t.mfs.Dir())
+	// Statting "foo\n" should yield the file.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo\n"))
 	AssertEq(nil, err)
-	AssertEq(2, len(entries))
 
-	ExpectEq("foo", entries[0].Name())
-	ExpectEq("foo", entries[1].Name())
-
-	ExpectEq(0, entries[0].Size())
-	ExpectEq(0, entries[1].Size())
-
-	ExpectTrue(entries[0].IsDir())
-	ExpectTrue(entries[1].IsDir())
+	ExpectEq("foo\n", fi.Name())
+	ExpectEq(len("taco"), fi.Size())
+	ExpectFalse(fi.IsDir())
 }
 
 func (t *implicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
@@ -773,33 +814,45 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 				// File
 				"foo": "taco",
 
-				// Directory
+				// Implicit directory
 				"foo/bar": "",
 			}))
 
-	// Statting the name should return an entry for the directory.
+	// A listing of the parent should contain a directory named "foo" and a
+	// file named "foo\n".
+	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+
+	fi = entries[0]
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(0700|os.ModeDir, fi.Mode())
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	fi = entries[1]
+	ExpectEq("foo\n", fi.Name())
+	ExpectEq(len("taco"), fi.Size())
+	ExpectEq(0, fi.Size())
+	ExpectEq(0700, fi.Mode())
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	// Statting "foo" should yield the directory.
 	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
 	AssertEq(nil, err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 
-	// ReadDir shows two copies of the directory.
-	//
-	// This behavior is a bug.
-	// Cf. https://github.com/GoogleCloudPlatform/gcsfuse/issues/28
-	entries, err = t.readDirUntil(2, t.mfs.Dir())
+	// Statting "foo\n" should yield the file.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo\n"))
 	AssertEq(nil, err)
-	AssertEq(2, len(entries))
 
-	ExpectEq("foo", entries[0].Name())
-	ExpectEq("foo", entries[1].Name())
-
-	ExpectEq(0, entries[0].Size())
-	ExpectEq(0, entries[1].Size())
-
-	ExpectTrue(entries[0].IsDir())
-	ExpectTrue(entries[1].IsDir())
+	ExpectEq("foo\n", fi.Name())
+	ExpectEq(len("taco"), fi.Size())
+	ExpectFalse(fi.IsDir())
 }
 
 func (t *implicitDirsTest) StatUnknownName_NoOtherContents() {
