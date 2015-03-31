@@ -43,6 +43,8 @@ type FileInode struct {
 	// Mutable state
 	/////////////////////////
 
+	lc lookupCount
+
 	// A mutex that must be held when calling certain methods. See documentation
 	// for each method.
 	mu syncutil.InvariantMutex
@@ -57,7 +59,8 @@ type FileInode struct {
 
 var _ Inode = &FileInode{}
 
-// Create a file inode for the given object in GCS.
+// Create a file inode for the given object in GCS. The initial lookup count is
+// one.
 //
 // REQUIRES: o != nil
 // REQUIRES: o.Generation > 0
@@ -72,6 +75,11 @@ func NewFileInode(
 	f = &FileInode{
 		bucket: bucket,
 		id:     id,
+	}
+
+	f.lc = lookupCount{
+		count:   1,
+		destroy: func() error { return f.proxy.Destroy() },
 	}
 
 	// Set up the proxy.
@@ -130,6 +138,17 @@ func (f *FileInode) Name() string {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SourceGeneration() int64 {
 	return f.proxy.SourceGeneration()
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) IncrementLookupCount() {
+	f.lc.Inc()
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) DecrementLookupCount(n uint64) (destroyed bool) {
+	destroyed = f.lc.Dec(n)
+	return
 }
 
 // LOCKS_REQUIRED(f.mu)

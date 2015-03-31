@@ -331,8 +331,10 @@ func (fs *fileSystem) lookUpOrCreateInode(
 		gen:  o.Generation,
 	}
 
-	// Do we already have an inode for this (name, generation) pair?
+	// Do we already have an inode for this (name, generation) pair? If so,
+	// increase its lookup count and return it.
 	if in = fs.inodeIndex[nandg]; in != nil {
+		in.IncrementLookupCount()
 		return
 	}
 
@@ -496,6 +498,36 @@ func (fs *fileSystem) SetInodeAttributes(
 	op.Attributes, err = fs.getAttributes(op.Context(), in)
 	if err != nil {
 		return
+	}
+
+	return
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) ForgetInode(
+	op *fuseops.ForgetInodeOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Find the inode.
+	in := fs.inodes[op.Inode]
+
+	in.Lock()
+	defer in.Unlock()
+
+	// Decrement the lookup count. If destroyed, we should remove it from the
+	// index.
+	nandg := nameAndGen{
+		name: in.Name(),
+		gen:  in.SourceGeneration(),
+	}
+
+	if in.DecrementLookupCount(op.N) {
+		delete(fs.inodes, op.Inode)
+		delete(fs.inodeIndex, nandg)
 	}
 
 	return

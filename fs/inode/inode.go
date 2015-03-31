@@ -35,6 +35,15 @@ type Inode interface {
 	// Return the generation number from which this inode was branched.
 	SourceGeneration() int64
 
+	// Increment the lookup count for the inode. For use in fuse operations where
+	// the kernel expects us to remember the inode.
+	IncrementLookupCount()
+
+	// Decrement the lookup count for the inode by the given amount. If this
+	// method returns true, the lookup count has hit zero and the inode has been
+	// destroyed. The inode must not be used further.
+	DecrementLookupCount(n uint64) (destroyed bool)
+
 	// Return up to date attributes for this inode.
 	Attributes(ctx context.Context) (fuseops.InodeAttributes, error)
 }
