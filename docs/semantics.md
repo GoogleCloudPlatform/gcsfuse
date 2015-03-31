@@ -283,26 +283,18 @@ another object named `foo/`:
 
 Traditional file systems did not allow multiple directory entries with the same
 name, so all tools and kernel code are structured around this assumption.
-Therefore it's not possible for gcsfuse to faithfully show both the file and
-the directory in this case.
+Therefore it's not possible for gcsfuse to faithfully preserve both the file
+and the directory in this case.
 
-The current behavior of gcsfuse for this situation is as follows:
+Instead, when a conflicting pair of `foo` and `foo/` objects both exist, it
+appears in the gcsfuse file system as if there is a directory named `foo` and a
+file named `foo\n` (i.e. `foo` followed by U+000A, line feed). This is what
+will appear when the parent's directory entries are read, and gcsfuse will
+respond to requests to look up the inode named `foo\n` by returning the file
+inode. `\n` in particular is chosen because it is [not legal][object-names] in
+GCS object names, and therefore is not ambiguous.
 
-*   When the kernel asks to look up the inode named "foo", the directory inode
-    is returned. Therefore direct interaction with the name (e.g. `mv foo bar`)
-    will manipulate the directory.
-
-*   When the kernel asks to read the parent directory, both entries are
-    returned. So `ls` will show the name "foo" twice.
-
-Because `ls -l` stats the entries it finds, and statting results in the kernel
-lookup operation discussed above, that command will simply show a duplicate
-entry for the directory.
-
-This behavior is not ideal, and is liable to change soon. See
-[issue #28][issue-28] for more information.
-
-[issue-28]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/28
+[object-names]: https://cloud.google.com/storage/docs/bucket-naming#objectnames
 
 
 ## Missing features
