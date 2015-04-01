@@ -69,14 +69,18 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		gid:          gid,
 		inodes:       make(map[fuseops.InodeID]inode.Inode),
 		nextInodeID:  fuseops.RootInodeID + 1,
-		inodeIndex:   make(map[nameAndGen]inode.Inode),
+		inodeIndex:   make(map[string]cachedGen),
 		handles:      make(map[fuseops.HandleID]interface{}),
 	}
 
 	// Set up the root inode.
 	root := inode.NewRootInode(cfg.Bucket, fs.implicitDirs)
+
+	root.Lock()
+	root.IncrementLookupCount()
 	fs.inodes[fuseops.RootInodeID] = root
-	fs.inodeIndex[nameAndGen{root.Name(), root.SourceGeneration()}] = root
+	fs.inodeIndex[root.Name()] = cachedGen{root, root.SourceGeneration()}
+	root.Unlock()
 
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
@@ -135,15 +139,24 @@ type fileSystem struct {
 	// GUARDED_BY(mu)
 	inodes map[fuseops.InodeID]inode.Inode
 
-	// An index of all inodes by (Name(), SourceGeneration()) pairs.
+	// A map from object name to an inode I backed by that object, where I has
+	// the largest generation number we've yet observed for that name (possibly
+	// since forgetting an inode for the name), and the generation number that we
+	// most recently observed for I.
 	//
-	// INVARIANT: For each key k, inodeIndex[k].Name() == k.name
-	// INVARIANT: For each key k, inodeIndex[k].SourceGeneration() == k.gen
-	// INVARIANT: For each key k, k.gen == ImplicitDirGen only if implicitDirs
-	// INVARIANT: The values are all and only the values of the inodes map
+	// In order to replace an entry in this map, you must hold in hand a
+	// gcs.Object record whose generation number is larger than I's current
+	// generation number (not the cached one, which may be out of date if I has
+	// recently been sync'd or flushed). Note that in order to find I's current
+	// generation number you must lock I, excluding concurrent syncs or flushes.
+	//
+	// INVARIANT: For each k/v, v.in.Name() == k
+	// INVARIANT: For each value v, v.gen == inode.ImplicitDirGen => implicitDirs
+	// INVARIANT: For each value v, inodes[v.in.ID()] == v.in
+	// INVARIANT: For each value v, v.gen <= v.in.SourceGeneration()
 	//
 	// GUARDED_BY(mu)
-	inodeIndex map[nameAndGen]inode.Inode
+	inodeIndex map[string]cachedGen
 
 	// The collection of live handles, keyed by handle ID.
 	//
@@ -160,9 +173,9 @@ type fileSystem struct {
 	nextHandleID fuseops.HandleID
 }
 
-type nameAndGen struct {
-	name string
-	gen  int64
+type cachedGen struct {
+	in  inode.Inode
+	gen int64
 }
 
 func getUser() (uid uint32, gid uint32, err error) {
@@ -201,6 +214,10 @@ func isDirName(name string) bool {
 }
 
 func (fs *fileSystem) checkInvariants() {
+	//////////////////////////////////
+	// inodes
+	//////////////////////////////////
+
 	// INVARIANT: For all keys k, fuseops.RootInodeID <= k < nextInodeID
 	for id, _ := range fs.inodes {
 		if id < fuseops.RootInodeID || id >= fs.nextInodeID {
@@ -252,45 +269,60 @@ func (fs *fileSystem) checkInvariants() {
 		}
 	}
 
-	// INVARIANT: For each key k, inodeIndex[k].Name() == k.name
-	for k, in := range fs.inodeIndex {
-		if in.Name() != k.name {
-			panic(fmt.Sprintf("Name mismatch: %v vs. %v", in.Name(), k.name))
-		}
-	}
+	//////////////////////////////////
+	// inodeIndex
+	//////////////////////////////////
 
-	// INVARIANT: For each key k, inodeIndex[k].SourceGeneration() == k.gen
-	for k, in := range fs.inodeIndex {
-		if in.SourceGeneration() != k.gen {
+	// INVARIANT: For each k/v, v.in.Name() == k
+	for k, v := range fs.inodeIndex {
+		if !(v.in.Name() == k) {
 			panic(fmt.Sprintf(
-				"Generation mismatch: %v vs. %v",
-				in.SourceGeneration(),
-				k.gen))
+				"Unexpected name: \"%s\" vs. \"%s\"",
+				v.in.Name(),
+				k))
 		}
 	}
 
-	// INVARIANT: For each key k, k.gen == ImplicitDirGen only if implicitDirs
-	for k, in := range fs.inodeIndex {
-		if k.gen == inode.ImplicitDirGen && !fs.implicitDirs {
-			panic(fmt.Sprintf("Unexpected implicit generation: %s", in.Name()))
+	// INVARIANT: For each value v, v.gen == inode.ImplicitDirGen => implicitDirs
+	for _, v := range fs.inodeIndex {
+		if v.gen == inode.ImplicitDirGen && !fs.implicitDirs {
+			panic("Unexpected implicit directory")
 		}
 	}
 
-	// INVARIANT: The values are all and only the values of the inodes map
-	for id, in := range fs.inodes {
-		if in != fs.inodes[id] {
-			panic("inodeIndex is not a subset of inodes")
+	// INVARIANT: For each value v, inodes[v.in.ID()] == v.in
+	for _, v := range fs.inodeIndex {
+		if fs.inodes[v.in.ID()] != v.in {
+			panic(fmt.Sprintf(
+				"Mismatch for ID %v: %p %p",
+				v.in.ID(),
+				fs.inodes[v.in.ID()],
+				v.in))
 		}
 	}
 
-	if len(fs.inodeIndex) != len(fs.inodes) {
-		panic("inodeIndex values are not the same set as inodes")
+	// INVARIANT: For each value v, v.gen <= v.in.SourceGeneration()
+	for _, v := range fs.inodeIndex {
+		if !(v.gen <= v.in.SourceGeneration()) {
+			panic(fmt.Sprintf(
+				"Generation weirdness: %v vs. %v",
+				v.gen,
+				v.in.SourceGeneration()))
+		}
 	}
+
+	//////////////////////////////////
+	// handles
+	//////////////////////////////////
 
 	// INVARIANT: All values are of type *dirHandle
 	for _, h := range fs.handles {
 		_ = h.(*dirHandle)
 	}
+
+	//////////////////////////////////
+	// nextHandleID
+	//////////////////////////////////
 
 	// INVARIANT: For all keys k in handles, k < nextHandleID
 	for k, _ := range fs.handles {
@@ -318,48 +350,155 @@ func (fs *fileSystem) getAttributes(
 	return
 }
 
-// Find an inode for the given object record. Create one if there isn't already
-// one available. Return the inode locked.
+// Implementation detail of lookUpOrCreateInodeIfNotStale; do not use outside
+// of that function.
 //
 // LOCKS_REQUIRED(fs.mu)
-// LOCK_FUNCTION(in)
-func (fs *fileSystem) lookUpOrCreateInode(
-	o *gcs.Object) (in inode.Inode) {
-	// Make sure to return the inode locked.
-	defer func() {
-		if in != nil {
-			in.Lock()
-		}
-	}()
-
-	// Build the index key.
-	nandg := nameAndGen{
-		name: o.Name,
-		gen:  o.Generation,
-	}
-
-	// Do we already have an inode for this (name, generation) pair? If so,
-	// increase its lookup count and return it.
-	if in = fs.inodeIndex[nandg]; in != nil {
-		in.IncrementLookupCount()
-		return
-	}
-
-	// Mint an ID.
+func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
+	// Choose an ID.
 	id := fs.nextInodeID
 	fs.nextInodeID++
 
-	// Create an inode.
+	// Create the inode.
 	if isDirName(o.Name) {
 		in = inode.NewDirInode(fs.bucket, id, o, fs.implicitDirs)
 	} else {
 		in = inode.NewFileInode(fs.clock, fs.bucket, id, o)
 	}
 
-	// Index the inode.
-	fs.inodes[id] = in
-	fs.inodeIndex[nandg] = in
+	// Place it in our map of IDs to inodes.
+	fs.inodes[in.ID()] = in
 
+	return
+}
+
+// Attempt to find an inode for the given object record.
+//
+// There are four possibilities:
+//
+//  *  We have no existing inode for the object's name. In this case, create an
+//     inode, place it in the index, and return it.
+//
+//  *  We have an existing inode for the object's name, but its generation
+//     number is less than that of the record. The inode is stale. Create a new
+//     inode, place it in the index, and return it.
+//
+//     Special case: we always treat implicit directories as authoritative,
+//     even though they would otherwise appear to be stale when an explicit
+//     placeholder object has once been seen (since the implicit generation is
+//     negative). This saves from an infinite loop when a placeholder object is
+//     deleted but the directory still implicitly exists.
+//
+//  *  We have an existing inode for the object's name, and its current
+//     generation number matches the record. Return it, locked.
+//
+//  *  We have an existing inode for the object's name, and its current
+//     generation number exceeds that of the record. Return nil, because the
+//     record is stale.
+//
+// In other words, if this method returns nil, the caller should obtain a fresh
+// record and try again. If the method returns non-nil, the inode is locked.
+//
+// TODO(jacobsa): We will need to replace this primitive if we want to
+// parallelize with long-running operations holding the inode lock (issue #23).
+// Instead we'll want to return the cachedGen record when present, without
+// locking the inode, and let the caller deal with waiting on the lock and then
+// going around if they've grabbed the wrong inode, replacing if they observe
+// they've beaten out the inode once they have its lock.
+//
+// LOCKS_REQUIRED(fs.mu)
+// LOCK_FUNCTION(in)
+func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
+	o *gcs.Object) (in inode.Inode) {
+	// Ensure that no matter what we return, we increase its lookup count on
+	// the way out.
+	defer func() {
+		if in != nil {
+			in.IncrementLookupCount()
+		}
+	}()
+
+	// Look for the current index entry.
+	cg, ok := fs.inodeIndex[o.Name]
+	existingInode := cg.in
+
+	// If we have no existing record for this name, mint an inode and return it.
+	if !ok {
+		in = fs.mintInode(o)
+		in.Lock()
+
+		fs.inodeIndex[in.Name()] = cachedGen{in, in.SourceGeneration()}
+		return
+	}
+
+	// Otherwise, we need the lock for the existing inode below.
+	existingInode.Lock()
+
+	shouldUnlock := true
+	defer func() {
+		if shouldUnlock {
+			existingInode.Unlock()
+		}
+	}()
+
+	// Have we beaten out the existing inode? If so, mint a new inode and replace
+	// the index entry.
+	//
+	// Special case: implicit directories always win. See the note above.
+	isImplicit := o.Generation == inode.ImplicitDirGen
+	if existingInode.SourceGeneration() < o.Generation || isImplicit {
+		in = fs.mintInode(o)
+		in.Lock()
+
+		fs.inodeIndex[in.Name()] = cachedGen{in, in.SourceGeneration()}
+		return
+	}
+
+	// If the generations match, we've found our inode.
+	if existingInode.SourceGeneration() == o.Generation {
+		in = existingInode
+		shouldUnlock = false
+		return
+	}
+
+	// Otherwise, the object record is stale. Return nil.
+	return
+}
+
+// Given a function that returns a "fresh" object record, implement the calling
+// loop documented for lookUpOrCreateInodeIfNotStale. Call the function once to
+// begin with, and again each time it returns a stale record.
+//
+// Return ENOENT if the function ever returns a nil record. Never return a nil
+// inode with a nil error.
+//
+// LOCKS_REQUIRED(fs.mu)
+// LOCK_FUNCTION(in)
+func (fs *fileSystem) lookUpOrCreateInode(
+	f func() (*gcs.Object, error)) (in inode.Inode, err error) {
+	const maxTries = 3
+	for n := 0; n < maxTries; n++ {
+		var o *gcs.Object
+
+		// Create a record.
+		o, err = f()
+		if err != nil {
+			return
+		}
+
+		if o == nil {
+			err = fuse.ENOENT
+			return
+		}
+
+		// Attempt to create the inode. Return if successful.
+		in = fs.lookUpOrCreateInodeIfNotStale(o)
+		if in != nil {
+			return
+		}
+	}
+
+	err = fmt.Errorf("Did not converge after %v tries", maxTries)
 	return
 }
 
@@ -371,7 +510,6 @@ func (fs *fileSystem) lookUpOrCreateInode(
 func (fs *fileSystem) syncFile(
 	ctx context.Context,
 	f *inode.FileInode) (err error) {
-	oldGen := f.SourceGeneration()
 
 	// Sync the inode.
 	err = f.Sync(ctx)
@@ -380,12 +518,8 @@ func (fs *fileSystem) syncFile(
 		return
 	}
 
-	// Update the index if necessary.
-	newGen := f.SourceGeneration()
-	if oldGen != newGen {
-		delete(fs.inodeIndex, nameAndGen{f.Name(), oldGen})
-		fs.inodeIndex[nameAndGen{f.Name(), newGen}] = f
-	}
+	// Update the index.
+	fs.inodeIndex[f.Name()] = cachedGen{f, f.SourceGeneration()}
 
 	return
 }
@@ -415,20 +549,24 @@ func (fs *fileSystem) LookUpInode(
 	// Find the parent directory in question.
 	parent := fs.inodes[op.Parent].(*inode.DirInode)
 
-	// Find a record for the child with the given name.
-	o, err := parent.LookUpChild(op.Context(), op.Name)
+	// Set up a function taht will find a record for the child with the given
+	// name, or nil if none.
+	f := func() (o *gcs.Object, err error) {
+		o, err = parent.LookUpChild(op.Context(), op.Name)
+		if err != nil {
+			err = fmt.Errorf("LookUpChild: %v", err)
+			return
+		}
+
+		return
+	}
+
+	// Use that function to find or mint an inode.
+	in, err := fs.lookUpOrCreateInode(f)
 	if err != nil {
-		err = fmt.Errorf("LookUpChild: %v", err)
 		return
 	}
 
-	if o == nil {
-		err = fuse.ENOENT
-		return
-	}
-
-	// Find or mint an inode.
-	in := fs.lookUpOrCreateInode(o)
 	defer in.Unlock()
 
 	// Fill out the response.
@@ -523,16 +661,16 @@ func (fs *fileSystem) ForgetInode(
 	in.Lock()
 	defer in.Unlock()
 
-	// Decrement the lookup count. If destroyed, we should remove it from the
-	// index.
-	nandg := nameAndGen{
-		name: in.Name(),
-		gen:  in.SourceGeneration(),
-	}
-
+	// Decrement the lookup count. If destroyed, we should remove it from our
+	// maps.
+	name := in.Name()
 	if in.DecrementLookupCount(op.N) {
 		delete(fs.inodes, op.Inode)
-		delete(fs.inodeIndex, nandg)
+
+		// Is this the latest entry for the name?
+		if cg := fs.inodeIndex[name]; cg.in == in {
+			delete(fs.inodeIndex, name)
+		}
 	}
 
 	return
@@ -568,8 +706,15 @@ func (fs *fileSystem) MkDir(
 		return
 	}
 
-	// Create and index a child inode.
-	child := fs.lookUpOrCreateInode(o)
+	// Attempt to create a child inode using the object we created. If we fail to
+	// do so, it means someone beat us to the punch with a newer generation
+	// (unlikely, so we're probably okay with failing here).
+	child := fs.lookUpOrCreateInodeIfNotStale(o)
+	if child == nil {
+		err = fmt.Errorf("Newly-created record is already stale")
+		return
+	}
+
 	defer child.Unlock()
 
 	// Fill out the response.
@@ -614,8 +759,15 @@ func (fs *fileSystem) CreateFile(
 		return
 	}
 
-	// Create and index a child inode.
-	child := fs.lookUpOrCreateInode(o)
+	// Attempt to create a child inode using the object we created. If we fail to
+	// do so, it means someone beat us to the punch with a newer generation
+	// (unlikely, so we're probably okay with failing here).
+	child := fs.lookUpOrCreateInodeIfNotStale(o)
+	if child == nil {
+		err = fmt.Errorf("Newly-created record is already stale")
+		return
+	}
+
 	defer child.Unlock()
 
 	// Fill out the response.

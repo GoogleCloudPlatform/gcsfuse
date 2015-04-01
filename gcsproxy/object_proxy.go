@@ -19,6 +19,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
@@ -35,7 +36,7 @@ import (
 // object is created.
 //
 // This type is not safe for concurrent access. The user must provide external
-// synchronization.
+// synchronization around the methods where it is not otherwise noted.
 type ObjectProxy struct {
 	/////////////////////////
 	// Dependencies
@@ -52,6 +53,11 @@ type ObjectProxy struct {
 	// state is branched. If we have no local state, the contents of this
 	// generation are exactly our contents.
 	src gcs.Object
+
+	// The current generation number. Must be accessed using sync/atomic.
+	//
+	// INVARIANT: atomic.LoadInt64(&sourceGeneration) == src.Generation
+	sourceGeneration int64
 
 	// A local temporary file containing our current contents. When non-nil, this
 	// is the authority on our contents. When nil, our contents are defined by
@@ -96,9 +102,10 @@ func NewObjectProxy(
 	o *gcs.Object) (op *ObjectProxy) {
 	// Set up the basic struct.
 	op = &ObjectProxy{
-		clock:  clock,
-		bucket: bucket,
-		src:    *o,
+		clock:            clock,
+		bucket:           bucket,
+		src:              *o,
+		sourceGeneration: o.Generation,
 	}
 
 	return
@@ -107,6 +114,8 @@ func NewObjectProxy(
 // Return the name of the proxied object. This may or may not be an object that
 // currently exists in the bucket, depending on whether the backing object has
 // been deleted.
+//
+// May be called concurrently with any method.
 func (op *ObjectProxy) Name() string {
 	return op.src.Name
 }
@@ -115,14 +124,25 @@ func (op *ObjectProxy) Name() string {
 // proxy were branched. If Sync has been successfully called, this is the
 // generation most recently returned by Sync. Otherwise it is the generation
 // from which the proxy was created.
+//
+// May be called concurrently with any method, but note that without excluding
+// concurrent calls to Sync this may change spontaneously.
 func (op *ObjectProxy) SourceGeneration() int64 {
-	return op.src.Generation
+	return atomic.LoadInt64(&op.sourceGeneration)
 }
 
 // Panic if any internal invariants are violated. Careful users can call this
 // at appropriate times to help debug weirdness. Consider using
 // syncutil.InvariantMutex to automate the process.
 func (op *ObjectProxy) CheckInvariants() {
+	// INVARIANT: atomic.LoadInt64(&sourceGeneration) == src.Generation
+	{
+		g := atomic.LoadInt64(&op.sourceGeneration)
+		if g != op.src.Generation {
+			panic(fmt.Sprintf("Generation mismatch: %v vs. %v", g, op.src.Generation))
+		}
+	}
+
 	// INVARIANT: If dirty, then localFile != nil
 	if op.dirty && op.localFile == nil {
 		panic("Expected non-nil localFile.")
@@ -326,6 +346,7 @@ func (op *ObjectProxy) Sync(ctx context.Context) (err error) {
 	// Update our state.
 	op.src = *o
 	op.dirty = false
+	atomic.StoreInt64(&op.sourceGeneration, op.src.Generation)
 
 	return
 }

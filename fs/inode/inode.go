@@ -22,17 +22,24 @@ import (
 )
 
 type Inode interface {
-	// All methods below require the lock to be held.
+	// All methods below require the lock to be held unless otherwise documented.
 	sync.Locker
 
 	// Return the ID assigned to the inode.
+	//
+	// Does not require the lock to be held.
 	ID() fuseops.InodeID
 
 	// Return the name of the GCS object backing the inode. This may be "foo/bar"
 	// for a file, or "foo/bar/" for a directory.
+	//
+	// Does not require the lock to be held.
 	Name() string
 
 	// Return the generation number from which this inode was branched.
+	//
+	// Does not require the lock to be held, but may spontaneously change if the
+	// lock is not held.
 	SourceGeneration() int64
 
 	// Increment the lookup count for the inode. For use in fuse operations where

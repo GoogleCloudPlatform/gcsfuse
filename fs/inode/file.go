@@ -43,11 +43,12 @@ type FileInode struct {
 	// Mutable state
 	/////////////////////////
 
-	lc lookupCount
-
 	// A mutex that must be held when calling certain methods. See documentation
 	// for each method.
 	mu syncutil.InvariantMutex
+
+	// GUARDED_BY(mu)
+	lc lookupCount
 
 	// A proxy for the backing object in GCS.
 	//
@@ -60,7 +61,7 @@ type FileInode struct {
 var _ Inode = &FileInode{}
 
 // Create a file inode for the given object in GCS. The initial lookup count is
-// one.
+// zero.
 //
 // REQUIRES: o != nil
 // REQUIRES: o.Generation > 0
@@ -79,7 +80,6 @@ func NewFileInode(
 	}
 
 	f.lc = lookupCount{
-		count:   1,
 		destroy: func() error { return f.proxy.Destroy() },
 	}
 
@@ -121,15 +121,10 @@ func (f *FileInode) ID() fuseops.InodeID {
 	return f.id
 }
 
-// LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Name() string {
 	return f.proxy.Name()
 }
 
-// Return the generation number from which this inode was branched. This is
-// used as a precondition in object write requests.
-//
-// LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SourceGeneration() int64 {
 	return f.proxy.SourceGeneration()
 }

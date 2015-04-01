@@ -45,26 +45,37 @@ type DirInode struct {
 	// prefix when listing. Special case: the empty string means this is the root
 	// inode.
 	//
-	// INVARIANT: src != nil
 	// INVARIANT: src.Name == "" || src.Name[len(name)-1] == '/'
+	// INVARIANT: src.Generation == RootGen iff id == fuseops.RootInodeID
+	// INVARIANT: src.Generation<=0 => src.Generation in {RootGen, ImplicitDirGen}
 	src gcs.Object
 
 	/////////////////////////
 	// Mutable state
 	/////////////////////////
 
+	// A mutex that must be held when calling certain methods. See documentation
+	// for each method.
+	mu syncutil.InvariantMutex
+
+	// GUARDED_BY(mu)
 	lc lookupCount
 }
 
 var _ Inode = &DirInode{}
 
-// Set notes on NewRootInode.
+// A source generation number used by the root inode, and no other inode. Set
+// notes on NewRootInode.
 const RootGen int64 = 0
+
+// A source generation number that indicates an implicit directory. Never used
+// otherwise. See notes on DirInode.LookUpChild.
+const ImplicitDirGen int64 = -1
 
 // Create a directory inode for the root of the file system. For this inode,
 // the result of SourceGeneration() is guaranteed to be RootGen.
 //
-// The initial lookup count is one.
+// The initial lookup count is zero.
 func NewRootInode(
 	bucket gcs.Bucket,
 	implicitDirs bool) (d *DirInode) {
@@ -86,7 +97,7 @@ func NewRootInode(
 // descendents. For example, if there is an object named "foo/bar/baz" and this
 // is the directory "foo", a child directory named "bar" will be implied.
 //
-// The initial lookup count is one.
+// The initial lookup count is zero.
 //
 // REQUIRES: o != nil
 // REQUIRES: o.Name == "" || o.Name[len(o.Name)-1] == '/'
@@ -108,9 +119,11 @@ func NewDirInode(
 	}
 
 	d.lc = lookupCount{
-		count:   1,
 		destroy: func() error { return nil },
 	}
+
+	// Set up invariant checking.
+	d.mu = syncutil.NewInvariantMutex(d.checkInvariants)
 
 	return
 }
@@ -123,6 +136,20 @@ func (d *DirInode) checkInvariants() {
 	// INVARIANT: src.Name == "" || src.Name[len(name)-1] == '/'
 	if !(d.src.Name == "" || d.src.Name[len(d.src.Name)-1] == '/') {
 		panic(fmt.Sprintf("Unexpected name: %s", d.src.Name))
+	}
+
+	// INVARIANT: src.Generation == RootGen iff id == fuseops.RootInodeID
+	if (d.src.Generation == RootGen) != (d.id == fuseops.RootInodeID) {
+		panic("Unexpected root generation number, or lack thereof")
+	}
+
+	// INVARIANT: src.Generation<=0 => src.Generation in {RootGen, ImplicitDirGen}
+	switch {
+	case d.src.Generation > 0:
+	case d.src.Generation == RootGen:
+	case d.src.Generation == ImplicitDirGen:
+	default:
+		panic(fmt.Sprintf("Unexpected generation: %v", d.src.Generation))
 	}
 }
 
@@ -308,14 +335,13 @@ func statObjectMayNotExist(
 ////////////////////////////////////////////////////////////////////////
 
 func (d *DirInode) Lock() {
-	// We don't require locks.
+	d.mu.Lock()
 }
 
 func (d *DirInode) Unlock() {
-	// We don't require locks.
+	d.mu.Unlock()
 }
 
-// Return the ID of this inode.
 func (d *DirInode) ID() fuseops.InodeID {
 	return d.id
 }
@@ -326,7 +352,6 @@ func (d *DirInode) Name() string {
 	return d.src.Name
 }
 
-// Return the generation number from which this inode was branched.
 func (d *DirInode) SourceGeneration() int64 {
 	return d.src.Generation
 }
@@ -363,9 +388,6 @@ func (d *DirInode) Attributes(
 
 	return
 }
-
-// See notes on DirInode.LookUpChild.
-const ImplicitDirGen int64 = -1
 
 // A suffix that can be used to unambiguously tag a file system name.
 // (Unambiguous because U+000A is not allowed in GCS object names.) This is
