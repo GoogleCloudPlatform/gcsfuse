@@ -64,10 +64,12 @@ type DirInode struct {
 
 var _ Inode = &DirInode{}
 
-// Set notes on NewRootInode.
+// A source generation number used by the root inode, and no other inode. Set
+// notes on NewRootInode.
 const RootGen int64 = 0
 
-// See notes on DirInode.LookUpChild.
+// A source generation number that indicates an implicit directory. Never used
+// otherwise. See notes on DirInode.LookUpChild.
 const ImplicitDirGen int64 = -1
 
 // Create a directory inode for the root of the file system. For this inode,
