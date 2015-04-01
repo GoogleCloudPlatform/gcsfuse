@@ -383,7 +383,8 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 	return
 }
 
-// Attempt to find an inode for the given object record.
+// Attempt to find an inode for the given object record. Return nil, or the
+// inode with the lock held. Release the file system lock.
 //
 // There are four possibilities:
 //
@@ -401,7 +402,7 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 //     deleted but the directory still implicitly exists.
 //
 //  *  We have an existing inode for the object's name, and its current
-//     generation number matches the record. Return it, locked.
+//     generation number matches the record. Return it.
 //
 //  *  We have an existing inode for the object's name, and its current
 //     generation number exceeds that of the record. Return nil, because the
@@ -409,15 +410,9 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 //
 // In other words, if this method returns nil, the caller should obtain a fresh
 // record and try again. If the method returns non-nil, the inode is locked.
+// Either way, the file system is unlocked.
 //
-// TODO(jacobsa): We will need to replace this primitive if we want to
-// parallelize with long-running operations holding the inode lock (issue #23).
-// Instead we'll want to return the cachedGen record when present, without
-// locking the inode, and let the caller deal with waiting on the lock and then
-// going around if they've grabbed the wrong inode, replacing if they observe
-// they've beaten out the inode once they have its lock.
-//
-// LOCKS_REQUIRED(fs.mu)
+// UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	o *gcs.Object) (in inode.Inode) {
