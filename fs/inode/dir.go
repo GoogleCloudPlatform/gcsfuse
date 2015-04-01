@@ -47,6 +47,7 @@ type DirInode struct {
 	//
 	// INVARIANT: src.Name == "" || src.Name[len(name)-1] == '/'
 	// INVARIANT: src.Generation == RootGen iff id == fuseops.RootInodeID
+	// INVARIANT: src.Generation<=0 => src.Generation in {RootGen, ImplicitDirGen}
 	src gcs.Object
 
 	/////////////////////////
@@ -65,6 +66,9 @@ var _ Inode = &DirInode{}
 
 // Set notes on NewRootInode.
 const RootGen int64 = 0
+
+// See notes on DirInode.LookUpChild.
+const ImplicitDirGen int64 = -1
 
 // Create a directory inode for the root of the file system. For this inode,
 // the result of SourceGeneration() is guaranteed to be RootGen.
@@ -136,6 +140,15 @@ func (d *DirInode) checkInvariants() {
 	// INVARIANT: src.Generation == RootGen iff id == fuseops.RootInodeID
 	if (d.src.Generation == RootGen) != (d.id == fuseops.RootInodeID) {
 		panic("Unexpected root generation number, or lack thereof")
+	}
+
+	// INVARIANT: src.Generation<=0 => src.Generation in {RootGen, ImplicitDirGen}
+	switch {
+	case d.src.Generation > 0:
+	case d.src.Generation == RootGen:
+	case d.src.Generation == ImplicitDirGen:
+	default:
+		panic(fmt.Sprintf("Unexpected generation: %v", d.src.Generation))
 	}
 }
 
@@ -374,9 +387,6 @@ func (d *DirInode) Attributes(
 
 	return
 }
-
-// See notes on DirInode.LookUpChild.
-const ImplicitDirGen int64 = -1
 
 // A suffix that can be used to unambiguously tag a file system name.
 // (Unambiguous because U+000A is not allowed in GCS object names.) This is
