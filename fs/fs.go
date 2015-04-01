@@ -149,9 +149,9 @@ type fileSystem struct {
 	// generation number you must lock I, excluding concurrent syncs or flushes.
 	//
 	// INVARIANT: For each k/v, v.in.Name() == k
-	// INVARIANT: For each value v, v.gen == ImplicitDirGen only if implicitDirs
-	// INVARIANT: For each value v, inodes[v.ID()] == v
-	// INVARIANT: For each value v, v.gen <= v.SourceGeneration()
+	// INVARIANT: For each value v, v.gen == inode.ImplicitDirGen => implicitDirs
+	// INVARIANT: For each value v, inodes[v.in.ID()] == v.in
+	// INVARIANT: For each value v, v.gen <= v.in.SourceGeneration()
 	//
 	// GUARDED_BY(mu)
 	inodeIndex map[string]cachedGen
@@ -286,27 +286,27 @@ func (fs *fileSystem) checkInvariants() {
 		}
 	}
 
-	// INVARIANT: For each value v, v.gen == ImplicitDirGen only if implicitDirs
+	// INVARIANT: For each value v, v.gen == inode.ImplicitDirGen => implicitDirs
 	for _, v := range fs.inodeIndex {
-		if v.gen == ImplicitDirGen && !implicitDirs {
+		if v.gen == inode.ImplicitDirGen && !fs.implicitDirs {
 			panic("Unexpected implicit directory")
 		}
 	}
 
-	// INVARIANT: For each value v, inodes[v.ID()] == v
+	// INVARIANT: For each value v, inodes[v.in.ID()] == v.in
 	for _, v := range fs.inodeIndex {
-		if fs.inodes[v.ID()] != v {
-			panic(fmt.Sprintf("Mismatch for ID %v", v.ID()))
+		if fs.inodes[v.in.ID()] != v.in {
+			panic(fmt.Sprintf("Mismatch for ID %v", v.in.ID()))
 		}
 	}
 
-	// INVARIANT: For each value v, v.gen <= v.SourceGeneration()
+	// INVARIANT: For each value v, v.gen <= v.in.SourceGeneration()
 	for _, v := range fs.inodeIndex {
-		if !(v.gen <= v.SourceGeneration()) {
+		if !(v.gen <= v.in.SourceGeneration()) {
 			panic(fmt.Sprintf(
 				"Generation weirdness: %v vs. %v",
 				v.gen,
-				v.SourceGeneration()))
+				v.in.SourceGeneration()))
 		}
 	}
 
