@@ -148,10 +148,10 @@ type fileSystem struct {
 	// recently been sync'd or flushed). Note that in order to find I's current
 	// generation number you must lock I, excluding concurrent syncs or flushes.
 	//
-	// INVARIANT: For each key k, inodeIndex[k].in.Name() == k
+	// INVARIANT: For each k/v, v.in.Name() == k
 	// INVARIANT: For each value v, v.gen == ImplicitDirGen only if implicitDirs
-	// INVARIANT: For each value v, v.in != nil
 	// INVARIANT: For each value v, inodes[v.ID()] == v
+	// INVARIANT: For each value v, v.gen <= v.SourceGeneration()
 	//
 	// GUARDED_BY(mu)
 	inodeIndex map[string]cachedGen
@@ -217,6 +217,10 @@ func isDirName(name string) bool {
 }
 
 func (fs *fileSystem) checkInvariants() {
+	//////////////////////////////////
+	// inodes
+	//////////////////////////////////
+
 	// INVARIANT: For all keys k, fuseops.RootInodeID <= k < nextInodeID
 	for id, _ := range fs.inodes {
 		if id < fuseops.RootInodeID || id >= fs.nextInodeID {
@@ -268,45 +272,56 @@ func (fs *fileSystem) checkInvariants() {
 		}
 	}
 
-	// INVARIANT: For each key k, inodeIndex[k].Name() == k.name
-	for k, in := range fs.inodeIndex {
-		if in.Name() != k.name {
-			panic(fmt.Sprintf("Name mismatch: %v vs. %v", in.Name(), k.name))
-		}
-	}
+	//////////////////////////////////
+	// inodeIndex
+	//////////////////////////////////
 
-	// INVARIANT: For each key k, inodeIndex[k].SourceGeneration() == k.gen
-	for k, in := range fs.inodeIndex {
-		if in.SourceGeneration() != k.gen {
+	// INVARIANT: For each k/v, v.in.Name() == k
+	for k, v := range fs.inodeIndex {
+		if !(v.in.Name() == k) {
 			panic(fmt.Sprintf(
-				"Generation mismatch: %v vs. %v",
-				in.SourceGeneration(),
-				k.gen))
+				"Unexpected name: \"%s\" vs. \"%s\"",
+				v.in.Name(),
+				k))
 		}
 	}
 
-	// INVARIANT: For each key k, k.gen == ImplicitDirGen only if implicitDirs
-	for k, in := range fs.inodeIndex {
-		if k.gen == inode.ImplicitDirGen && !fs.implicitDirs {
-			panic(fmt.Sprintf("Unexpected implicit generation: %s", in.Name()))
+	// INVARIANT: For each value v, v.gen == ImplicitDirGen only if implicitDirs
+	for _, v := range fs.inodeIndex {
+		if v.gen == ImplicitDirGen && !implicitDirs {
+			panic("Unexpected implicit directory")
 		}
 	}
 
-	// INVARIANT: The values are all and only the values of the inodes map
-	for id, in := range fs.inodes {
-		if in != fs.inodes[id] {
-			panic("inodeIndex is not a subset of inodes")
+	// INVARIANT: For each value v, inodes[v.ID()] == v
+	for _, v := range fs.inodeIndex {
+		if fs.inodes[v.ID()] != v {
+			panic(fmt.Sprintf("Mismatch for ID %v", v.ID()))
 		}
 	}
 
-	if len(fs.inodeIndex) != len(fs.inodes) {
-		panic("inodeIndex values are not the same set as inodes")
+	// INVARIANT: For each value v, v.gen <= v.SourceGeneration()
+	for _, v := range fs.inodeIndex {
+		if !(v.gen <= v.SourceGeneration()) {
+			panic(fmt.Sprintf(
+				"Generation weirdness: %v vs. %v",
+				v.gen,
+				v.SourceGeneration()))
+		}
 	}
+
+	//////////////////////////////////
+	// handles
+	//////////////////////////////////
 
 	// INVARIANT: All values are of type *dirHandle
 	for _, h := range fs.handles {
 		_ = h.(*dirHandle)
 	}
+
+	//////////////////////////////////
+	// nextHandleID
+	//////////////////////////////////
 
 	// INVARIANT: For all keys k in handles, k < nextHandleID
 	for k, _ := range fs.handles {
