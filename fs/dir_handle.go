@@ -194,24 +194,13 @@ func filterMissingDirectories(
 		if e.Type == fuseutil.DT_Directory {
 			var o *gcs.Object
 			o, err = in.LookUpChild(ctx, e.Name)
-
-			// Skip this entry if we failed to find anything.
-			//
-			// TODO(jacobsa): Return nil, nil from LookUpChild in this case and
-			// simplify calling code.
-			if err == fuse.ENOENT {
-				err = nil
-				continue
-			}
-
-			// Propagate other errors.
 			if err != nil {
 				err = fmt.Errorf("LookUpChild: %v", err)
 				return
 			}
 
-			// Skip this entry if the result is not a directory.
-			if !isDirName(o.Name) {
+			// Skip this entry if the result is not an extant directory.
+			if o == nil || !isDirName(o.Name) {
 				continue
 			}
 		}
