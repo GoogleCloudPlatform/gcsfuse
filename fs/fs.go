@@ -347,6 +347,25 @@ func (fs *fileSystem) getAttributes(
 	return
 }
 
+// Implementation detail of lookUpOrCreateInode; do not use outside of that
+// function.
+//
+// LOCKS_REQUIRED(fs.mu)
+func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
+	// Choose an ID.
+	id := fs.nextInodeID
+	fs.nextInodeID++
+
+	// Create the inode.
+	if isDirName(o.Name) {
+		in = inode.NewDirInode(fs.bucket, id, o, fs.implicitDirs)
+	} else {
+		in = inode.NewFileInode(fs.clock, fs.bucket, id, o)
+	}
+
+	return
+}
+
 // Attempt to find an inode for the given object record.
 //
 // There are four possibilities:
@@ -368,6 +387,22 @@ func (fs *fileSystem) getAttributes(
 // In other words, if this method returns nil, the caller should obtain a fresh
 // record and try again. If the method returns non-nil, the inode is locked.
 //
+// TODO(jacobsa): This logic should result in an infinite loop when we unlink a
+// directory with a placeholder object, transitioning to an implicit directory.
+// Make sure there is a test that shows this, then switch to math.MaxInt64 for
+// placeholder directory generation numbers. I believe this should resolve the
+// issue: placeholder inodes will be preferred over explicit ones, but so way.
+// Name resolution will still check for the "existence" of the placeholder
+// directories and return ENOENT if they no longer exist, and the kernel will
+// eventually forget them.
+//
+// Oh shit, but this will just cause the issue in the other direction: when a
+// directory transitions from implicit to explicit, we will loop forever trying
+// to get an "up to date" record that beats the sticky implicit one. I think we
+// will need to special case implicit directories, sigh. Perhaps never require
+// beating an implicit directory, instead just returning its inode when
+// present.
+//
 // TODO(jacobsa): We will need to replace this primitive if we want to
 // parallelize with long-running operations holding the inode lock (issue #23).
 // Instead we'll want to return the cachedGen record when present, without
@@ -379,41 +414,46 @@ func (fs *fileSystem) getAttributes(
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInode(
 	o *gcs.Object) (in inode.Inode) {
-	// Make sure to return the inode locked.
-	defer func() {
-		if in != nil {
-			in.Lock()
-		}
-	}()
+	cg, ok := fs.inodeIndex[o.Name]
+	existingInode := cg.in
 
-	// Build the index key.
-	nandg := nameAndGen{
-		name: o.Name,
-		gen:  o.Generation,
-	}
+	// If we have no existing record for this name, mint an inode and return it.
+	if !ok {
+		in = fs.mintInode(o)
+		in.Lock()
 
-	// Do we already have an inode for this (name, generation) pair? If so,
-	// increase its lookup count and return it.
-	if in = fs.inodeIndex[nandg]; in != nil {
-		in.IncrementLookupCount()
+		fs.inodeIndex[in.Name()] = cachedGen{in, in.SourceGeneration()}
 		return
 	}
 
-	// Mint an ID.
-	id := fs.nextInodeID
-	fs.nextInodeID++
+	// Otherwise, we need the lock for the existing inode below.
+	existingInode.Lock()
 
-	// Create an inode.
-	if isDirName(o.Name) {
-		in = inode.NewDirInode(fs.bucket, id, o, fs.implicitDirs)
-	} else {
-		in = inode.NewFileInode(fs.clock, fs.bucket, id, o)
+	shouldUnlock := true
+	defer func() {
+		if shouldUnlock {
+			existingInode.Unlock()
+		}
+	}()
+
+	// Have we beaten out the existing inode? If so, mint a new inode and replace
+	// the index entry.
+	if existingInode.SourceGeneration() < o.Generation {
+		in = fs.mintInode(o)
+		in.Lock()
+
+		fs.inodeIndex[in.Name()] = cachedGen{in, in.SourceGeneration()}
+		return
 	}
 
-	// Index the inode.
-	fs.inodes[id] = in
-	fs.inodeIndex[nandg] = in
+	// If the generations match, we've found our inode.
+	if existingInode.SourceGeneration() == o.Generation {
+		in = existingInode
+		shouldUnlock = false
+		return
+	}
 
+	// Otherwise, the object record is stale. Return nil.
 	return
 }
 
