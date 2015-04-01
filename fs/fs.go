@@ -346,8 +346,8 @@ func (fs *fileSystem) getAttributes(
 	return
 }
 
-// Implementation detail of lookUpOrCreateInode; do not use outside of that
-// function.
+// Implementation detail of lookUpOrCreateInodeIfNotStale; do not use outside
+// of that function.
 //
 // LOCKS_REQUIRED(fs.mu)
 func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
@@ -417,7 +417,7 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 //
 // LOCKS_REQUIRED(fs.mu)
 // LOCK_FUNCTION(in)
-func (fs *fileSystem) lookUpOrCreateInode(
+func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	o *gcs.Object) (in inode.Inode) {
 	// Ensure that no matter what we return, we increase its lookup count on
 	// the way out.
@@ -471,6 +471,23 @@ func (fs *fileSystem) lookUpOrCreateInode(
 	return
 }
 
+// Given a function that returns a "fresh" object record, implement the calling
+// loop documented for lookUpOrCreateInodeIfNotStale. Call the function once to
+// begin with, and again each time it returns a stale record.
+//
+// Return ENOENT if the function ever returns a nil record. Never return a nil
+// inode.
+//
+// LOCKS_REQUIRED(fs.mu)
+// LOCK_FUNCTION(in)
+func (fs *fileSystem) lookUpOrCreateInode(
+	f func() (*gcs.Object, error)) (in inode.Inode, err error) {
+	// TODO(jacobsa): Make sure to terminate the loop with an error if it's
+	// going on forever, to be robust.
+	err = fmt.Errorf("TODO: lookUpOrCreateInode")
+	return
+}
+
 // Synchronize the supplied file inode to GCS, updating the index as
 // appropriate.
 //
@@ -518,20 +535,25 @@ func (fs *fileSystem) LookUpInode(
 	// Find the parent directory in question.
 	parent := fs.inodes[op.Parent].(*inode.DirInode)
 
-	// Find a record for the child with the given name.
-	o, err := parent.LookUpChild(op.Context(), op.Name)
+	// Set up a function taht will find a record for the child with the given
+	// name, or nil if none.
+	f := func() (o *gcs.Object, err error) {
+		o, err = parent.LookUpChild(op.Context(), op.Name)
+		if err != nil {
+			err = fmt.Errorf("LookUpChild: %v", err)
+			return
+		}
+
+		return
+	}
+
+	// Use that function to find or mint an inode.
+	in, err := fs.lookUpOrCreateInode(f)
 	if err != nil {
-		err = fmt.Errorf("LookUpChild: %v", err)
+		err = fmt.Errorf("lookUpOrCreateInode: %v", err)
 		return
 	}
 
-	if o == nil {
-		err = fuse.ENOENT
-		return
-	}
-
-	// Find or mint an inode.
-	in := fs.lookUpOrCreateInode(o)
 	defer in.Unlock()
 
 	// Fill out the response.
@@ -671,8 +693,15 @@ func (fs *fileSystem) MkDir(
 		return
 	}
 
-	// Create and index a child inode.
-	child := fs.lookUpOrCreateInode(o)
+	// Attempt to create a child inode using the object we created. If we fail to
+	// do so, it means someone beat us to the punch with a newer generation
+	// (unlikely, so we're probably okay with failing here).
+	child := fs.lookUpOrCreateInodeIfNotStale(o)
+	if child == nil {
+		err = fmt.Errorf("Newly-created record is already stale")
+		return
+	}
+
 	defer child.Unlock()
 
 	// Fill out the response.
@@ -717,8 +746,15 @@ func (fs *fileSystem) CreateFile(
 		return
 	}
 
-	// Create and index a child inode.
-	child := fs.lookUpOrCreateInode(o)
+	// Attempt to create a child inode using the object we created. If we fail to
+	// do so, it means someone beat us to the punch with a newer generation
+	// (unlikely, so we're probably okay with failing here).
+	child := fs.lookUpOrCreateInodeIfNotStale(o)
+	if child == nil {
+		err = fmt.Errorf("Newly-created record is already stale")
+		return
+	}
+
 	defer child.Unlock()
 
 	// Fill out the response.
