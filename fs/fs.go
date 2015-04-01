@@ -324,7 +324,6 @@ func (fs *fileSystem) getAttributes(
 // LOCKS_REQUIRED(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInode(
-	ctx context.Context,
 	o *gcs.Object) (in inode.Inode, err error) {
 	// Make sure to return the inode locked.
 	defer func() {
@@ -434,7 +433,7 @@ func (fs *fileSystem) LookUpInode(
 
 	// Find or mint an inode.
 	var in inode.Inode
-	if in, err = fs.lookUpOrCreateInode(op.Context(), o); err != nil {
+	if in, err = fs.lookUpOrCreateInode(o); err != nil {
 		return
 	}
 
@@ -578,7 +577,7 @@ func (fs *fileSystem) MkDir(
 	}
 
 	// Create and index a child inode.
-	child, err := fs.lookUpOrCreateInode(op.Context(), o)
+	child, err := fs.lookUpOrCreateInode(o)
 	if err != nil {
 		return
 	}
@@ -628,7 +627,7 @@ func (fs *fileSystem) CreateFile(
 	}
 
 	// Create and index a child inode.
-	child, err := fs.lookUpOrCreateInode(op.Context(), o)
+	child, err := fs.lookUpOrCreateInode(o)
 	if err != nil {
 		return
 	}
