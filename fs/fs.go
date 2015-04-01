@@ -324,7 +324,7 @@ func (fs *fileSystem) getAttributes(
 // LOCKS_REQUIRED(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInode(
-	o *gcs.Object) (in inode.Inode, err error) {
+	o *gcs.Object) (in inode.Inode) {
 	// Make sure to return the inode locked.
 	defer func() {
 		if in != nil {
@@ -353,11 +353,7 @@ func (fs *fileSystem) lookUpOrCreateInode(
 	if isDirName(o.Name) {
 		in = inode.NewDirInode(fs.bucket, id, o, fs.implicitDirs)
 	} else {
-		in, err = inode.NewFileInode(fs.clock, fs.bucket, id, o)
-		if err != nil {
-			err = fmt.Errorf("NewFileInode: %v", err)
-			return
-		}
+		in = inode.NewFileInode(fs.clock, fs.bucket, id, o)
 	}
 
 	// Index the inode.
@@ -432,11 +428,7 @@ func (fs *fileSystem) LookUpInode(
 	}
 
 	// Find or mint an inode.
-	var in inode.Inode
-	if in, err = fs.lookUpOrCreateInode(o); err != nil {
-		return
-	}
-
+	in := fs.lookUpOrCreateInode(o)
 	defer in.Unlock()
 
 	// Fill out the response.
@@ -577,11 +569,7 @@ func (fs *fileSystem) MkDir(
 	}
 
 	// Create and index a child inode.
-	child, err := fs.lookUpOrCreateInode(o)
-	if err != nil {
-		return
-	}
-
+	child := fs.lookUpOrCreateInode(o)
 	defer child.Unlock()
 
 	// Fill out the response.
@@ -627,11 +615,7 @@ func (fs *fileSystem) CreateFile(
 	}
 
 	// Create and index a child inode.
-	child, err := fs.lookUpOrCreateInode(o)
-	if err != nil {
-		return
-	}
-
+	child := fs.lookUpOrCreateInode(o)
 	defer child.Unlock()
 
 	// Fill out the response.

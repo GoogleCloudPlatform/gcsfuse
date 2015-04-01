@@ -70,23 +70,17 @@ func NewFileInode(
 	clock timeutil.Clock,
 	bucket gcs.Bucket,
 	id fuseops.InodeID,
-	o *gcs.Object) (f *FileInode, err error) {
+	o *gcs.Object) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
 		bucket: bucket,
 		id:     id,
+		proxy:  gcsproxy.NewObjectProxy(clock, bucket, o),
 	}
 
 	f.lc = lookupCount{
 		count:   1,
 		destroy: func() error { return f.proxy.Destroy() },
-	}
-
-	// Set up the proxy.
-	f.proxy, err = gcsproxy.NewObjectProxy(clock, bucket, o)
-	if err != nil {
-		err = fmt.Errorf("NewObjectProxy: %v", err)
-		return
 	}
 
 	// Set up invariant checking.
