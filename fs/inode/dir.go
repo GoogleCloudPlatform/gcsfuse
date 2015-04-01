@@ -45,14 +45,19 @@ type DirInode struct {
 	// prefix when listing. Special case: the empty string means this is the root
 	// inode.
 	//
-	// INVARIANT: src != nil
 	// INVARIANT: src.Name == "" || src.Name[len(name)-1] == '/'
+	// INVARIANT: src.Generation == RootGen implies id == fuseops.RootInodeID
 	src gcs.Object
 
 	/////////////////////////
 	// Mutable state
 	/////////////////////////
 
+	// A mutex that must be held when calling certain methods. See documentation
+	// for each method.
+	mu syncutil.InvariantMutex
+
+	// GUARDED_BY(mu)
 	lc lookupCount
 }
 
@@ -112,6 +117,9 @@ func NewDirInode(
 		destroy: func() error { return nil },
 	}
 
+	// Set up invariant checking.
+	d.mu = syncutil.NewInvariantMutex(d.checkInvariants)
+
 	return
 }
 
@@ -123,6 +131,11 @@ func (d *DirInode) checkInvariants() {
 	// INVARIANT: src.Name == "" || src.Name[len(name)-1] == '/'
 	if !(d.src.Name == "" || d.src.Name[len(d.src.Name)-1] == '/') {
 		panic(fmt.Sprintf("Unexpected name: %s", d.src.Name))
+	}
+
+	// INVARIANT: src.Generation == RootGen implies id == fuseops.RootInodeID
+	if src.Generation == RootGen && id != fuseops.RootInodeID {
+		panic("Unexpected root generation number")
 	}
 }
 
@@ -308,11 +321,11 @@ func statObjectMayNotExist(
 ////////////////////////////////////////////////////////////////////////
 
 func (d *DirInode) Lock() {
-	// We don't require locks.
+	d.mu.Lock()
 }
 
 func (d *DirInode) Unlock() {
-	// We don't require locks.
+	d.mu.Unlock()
 }
 
 func (d *DirInode) ID() fuseops.InodeID {
