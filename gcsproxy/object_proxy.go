@@ -93,7 +93,7 @@ type StatResult struct {
 func NewObjectProxy(
 	clock timeutil.Clock,
 	bucket gcs.Bucket,
-	o *gcs.Object) (op *ObjectProxy, err error) {
+	o *gcs.Object) (op *ObjectProxy) {
 	// Set up the basic struct.
 	op = &ObjectProxy{
 		clock:  clock,
