@@ -347,8 +347,33 @@ func (fs *fileSystem) getAttributes(
 	return
 }
 
-// Find an inode for the given object record. Create one if there isn't already
-// one available. Return the inode locked.
+// Attempt to find an inode for the given object record.
+//
+// There are four possibilities:
+//
+//  *  We have no existing inode for the object's name. In this case, create an
+//     inode, place it in the index, and return it.
+//
+//  *  We have an existing inode for the object's name, but its generation
+//     number is less than that of the record. The inode is stale. Create a new
+//     inode, place it in the index, and return it.
+//
+//  *  We have an existing inode for the object's name, and its current
+//     generation number matches the record. Return it, locked.
+//
+//  *  We have an existing inode for the object's name, and its current
+//     generation number exceeds that of the record. Return nil, because the
+//     record is stale.
+//
+// In other words, if this method returns nil, the caller should obtain a fresh
+// record and try again. If the method returns non-nil, the inode is locked.
+//
+// TODO(jacobsa): We will need to replace this primitive if we want to
+// parallelize with long-running operations holding the inode lock (issue #23).
+// Instead we'll want to return the cachedGen record when present, without
+// locking the inode, and let the caller deal with waiting on the lock and then
+// going around if they've grabbed the wrong inode, replacing if they observe
+// they've beaten out the inode once they have its lock.
 //
 // LOCKS_REQUIRED(fs.mu)
 // LOCK_FUNCTION(in)
