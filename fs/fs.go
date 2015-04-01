@@ -476,15 +476,35 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 // begin with, and again each time it returns a stale record.
 //
 // Return ENOENT if the function ever returns a nil record. Never return a nil
-// inode.
+// inode with a nil error.
 //
 // LOCKS_REQUIRED(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInode(
 	f func() (*gcs.Object, error)) (in inode.Inode, err error) {
-	// TODO(jacobsa): Make sure to terminate the loop with an error if it's
-	// going on forever, to be robust.
-	err = fmt.Errorf("TODO: lookUpOrCreateInode")
+	const maxTries = 3
+	for n := 0; n < maxTries; n++ {
+		var o *gcs.Object
+
+		// Create a record.
+		o, err = f()
+		if err != nil {
+			return
+		}
+
+		if o == nil {
+			err = fuse.ENOENT
+			return
+		}
+
+		// Attempt to create the inode. Return if successful.
+		in = fs.lookUpOrCreateInodeIfNotStale(o)
+		if in != nil {
+			return
+		}
+	}
+
+	err = fmt.Errorf("Did not converge after %v tries", maxTries)
 	return
 }
 
