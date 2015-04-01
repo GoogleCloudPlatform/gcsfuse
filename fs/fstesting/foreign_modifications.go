@@ -964,5 +964,32 @@ func (t *implicitDirsTest) ImplicitBecomesExplicit() {
 }
 
 func (t *implicitDirsTest) ExplicitBecomesImplicit() {
-	AssertTrue(false, "TODO")
+	var fi os.FileInfo
+	var err error
+
+	// Set up an explicit directory.
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				"foo/":    "",
+				"foo/bar": "",
+			}))
+
+	// Stat it.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+
+	// Remove the explicit placeholder.
+	AssertEq(nil, t.bucket.DeleteObject(t.ctx, "foo/"))
+
+	// Stat the directory again.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
 }
