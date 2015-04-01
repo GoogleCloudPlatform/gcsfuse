@@ -405,6 +405,9 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 // beating an implicit directory, instead just returning its inode when
 // present.
 //
+// Note for the above: FakeGCS.ImplicitDirsTest.ExplicitBecomesImplicit (and
+// the inverse case) are those tests.
+//
 // TODO(jacobsa): We will need to replace this primitive if we want to
 // parallelize with long-running operations holding the inode lock (issue #23).
 // Instead we'll want to return the cachedGen record when present, without
