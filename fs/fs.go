@@ -560,7 +560,6 @@ func (fs *fileSystem) LookUpInode(
 	// Use that function to find or mint an inode.
 	in, err := fs.lookUpOrCreateInode(f)
 	if err != nil {
-		err = fmt.Errorf("lookUpOrCreateInode: %v", err)
 		return
 	}
 
