@@ -127,8 +127,8 @@ type fileSystem struct {
 	// Mutable state
 	/////////////////////////
 
-	// When acquiring this lock, the caller must hold no inode or dir handle
-	// locks.
+	// A lock protecting the state of the file system struct itself (distinct
+	// from per-inode locks). Make sure to see the notes on lock ordering above.
 	mu syncutil.InvariantMutex
 
 	// The next inode ID to hand out. We assume that this will never overflow,
