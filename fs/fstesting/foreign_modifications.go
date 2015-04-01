@@ -927,3 +927,11 @@ func (t *implicitDirsTest) StatUnknownName_PrefixOfActualNames() {
 	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
+
+func (t *implicitDirsTest) ImplicitBecomesExplicit() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *implicitDirsTest) ExplicitBecomesImplicit() {
+	AssertTrue(false, "TODO")
+}
