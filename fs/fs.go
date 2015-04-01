@@ -289,7 +289,11 @@ func (fs *fileSystem) checkInvariants() {
 	// INVARIANT: For each value v, inodes[v.in.ID()] == v.in
 	for _, v := range fs.inodeIndex {
 		if fs.inodes[v.in.ID()] != v.in {
-			panic(fmt.Sprintf("Mismatch for ID %v", v.in.ID()))
+			panic(fmt.Sprintf(
+				"Mismatch for ID %v: %p %p",
+				v.in.ID(),
+				fs.inodes[v.in.ID()],
+				v.in))
 		}
 	}
 
@@ -357,6 +361,9 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 	} else {
 		in = inode.NewFileInode(fs.clock, fs.bucket, id, o)
 	}
+
+	// Place it in our map of IDs to inodes.
+	fs.inodes[in.ID()] = in
 
 	return
 }
