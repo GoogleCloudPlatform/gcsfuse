@@ -416,6 +416,15 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInode(
 	o *gcs.Object) (in inode.Inode) {
+	// Ensure that no matter what we return, we increase its lookup count on
+	// the way out.
+	defer func() {
+		if in != nil {
+			in.IncrementLookupCount()
+		}
+	}()
+
+	// Look for the current index entry.
 	cg, ok := fs.inodeIndex[o.Name]
 	existingInode := cg.in
 

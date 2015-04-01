@@ -61,7 +61,7 @@ type FileInode struct {
 var _ Inode = &FileInode{}
 
 // Create a file inode for the given object in GCS. The initial lookup count is
-// one.
+// zero.
 //
 // REQUIRES: o != nil
 // REQUIRES: o.Generation > 0
@@ -80,7 +80,6 @@ func NewFileInode(
 	}
 
 	f.lc = lookupCount{
-		count:   1,
 		destroy: func() error { return f.proxy.Destroy() },
 	}
 
