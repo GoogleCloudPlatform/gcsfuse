@@ -297,6 +297,30 @@ GCS object names, and therefore is not ambiguous.
 [object-names]: https://cloud.google.com/storage/docs/bucket-naming#objectnames
 
 
+## Memory-mapped files
+
+gcsfuse files can be memory-mapped for reading and writing using mmap(2). If
+you make modifications to such a file and want to ensure that they are durable,
+you must do the following:
+
+*   Keep the file descriptor you supplied to mmap(2) open while you make your
+    modifications.
+
+*   When you are finished modifying the mapping, call msync(2) and check for
+    errors.
+
+*   Call munmap(2) and check for errors.
+
+*   Call close(2) on the original file descriptor and check for errors.
+
+If none of the calls returns an error, the modifications have been made durable
+in GCS, according to the usual rules documented above.
+
+See the notes on [fuseops.FlushFileOp][flush-op] for more details.
+
+[flush-op]: http://godoc.org/github.com/jacobsa/fuse/fuseops#FlushFileOp
+
+
 ## Missing features
 
 Not all of the usual file system features are supported. Most prominently:
