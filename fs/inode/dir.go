@@ -46,7 +46,7 @@ type DirInode struct {
 	// inode.
 	//
 	// INVARIANT: src.Name == "" || src.Name[len(name)-1] == '/'
-	// INVARIANT: src.Generation == RootGen implies id == fuseops.RootInodeID
+	// INVARIANT: src.Generation == RootGen iff id == fuseops.RootInodeID
 	src gcs.Object
 
 	/////////////////////////
@@ -133,9 +133,9 @@ func (d *DirInode) checkInvariants() {
 		panic(fmt.Sprintf("Unexpected name: %s", d.src.Name))
 	}
 
-	// INVARIANT: src.Generation == RootGen implies id == fuseops.RootInodeID
-	if src.Generation == RootGen && id != fuseops.RootInodeID {
-		panic("Unexpected root generation number")
+	// INVARIANT: src.Generation == RootGen iff id == fuseops.RootInodeID
+	if (d.src.Generation == RootGen) != (d.id == fuseops.RootInodeID) {
+		panic("Unexpected root generation number, or lack thereof")
 	}
 }
 
