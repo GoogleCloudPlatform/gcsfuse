@@ -379,6 +379,12 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 //     number is less than that of the record. The inode is stale. Create a new
 //     inode, place it in the index, and return it.
 //
+//     Special case: we always treat implicit directories as authoritative,
+//     even though they would otherwise appear to be stale when an explicit
+//     placeholder object has once been seen (since the implicit generation is
+//     negative). This saves from an infinite loop when a placeholder object is
+//     deleted but the directory still implicitly exists.
+//
 //  *  We have an existing inode for the object's name, and its current
 //     generation number matches the record. Return it, locked.
 //
@@ -388,25 +394,6 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 //
 // In other words, if this method returns nil, the caller should obtain a fresh
 // record and try again. If the method returns non-nil, the inode is locked.
-//
-// TODO(jacobsa): This logic should result in an infinite loop when we unlink a
-// directory with a placeholder object, transitioning to an implicit directory.
-// Make sure there is a test that shows this, then switch to math.MaxInt64 for
-// placeholder directory generation numbers. I believe this should resolve the
-// issue: placeholder inodes will be preferred over explicit ones, but so way.
-// Name resolution will still check for the "existence" of the placeholder
-// directories and return ENOENT if they no longer exist, and the kernel will
-// eventually forget them.
-//
-// Oh shit, but this will just cause the issue in the other direction: when a
-// directory transitions from implicit to explicit, we will loop forever trying
-// to get an "up to date" record that beats the sticky implicit one. I think we
-// will need to special case implicit directories, sigh. Perhaps never require
-// beating an implicit directory, instead just returning its inode when
-// present.
-//
-// Note for the above: FakeGCS.ImplicitDirsTest.ExplicitBecomesImplicit (and
-// the inverse case) are those tests.
 //
 // TODO(jacobsa): We will need to replace this primitive if we want to
 // parallelize with long-running operations holding the inode lock (issue #23).
@@ -452,7 +439,10 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 
 	// Have we beaten out the existing inode? If so, mint a new inode and replace
 	// the index entry.
-	if existingInode.SourceGeneration() < o.Generation {
+	//
+	// Special case: implicit directories always win. See the note above.
+	isImplicit := o.Generation == inode.ImplicitDirGen
+	if existingInode.SourceGeneration() < o.Generation || isImplicit {
 		in = fs.mintInode(o)
 		in.Lock()
 
