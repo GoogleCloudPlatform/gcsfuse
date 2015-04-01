@@ -73,7 +73,7 @@ const ImplicitDirGen int64 = -1
 // Create a directory inode for the root of the file system. For this inode,
 // the result of SourceGeneration() is guaranteed to be RootGen.
 //
-// The initial lookup count is one.
+// The initial lookup count is zero.
 func NewRootInode(
 	bucket gcs.Bucket,
 	implicitDirs bool) (d *DirInode) {
@@ -95,7 +95,7 @@ func NewRootInode(
 // descendents. For example, if there is an object named "foo/bar/baz" and this
 // is the directory "foo", a child directory named "bar" will be implied.
 //
-// The initial lookup count is one.
+// The initial lookup count is zero.
 //
 // REQUIRES: o != nil
 // REQUIRES: o.Name == "" || o.Name[len(o.Name)-1] == '/'
@@ -117,7 +117,6 @@ func NewDirInode(
 	}
 
 	d.lc = lookupCount{
-		count:   1,
 		destroy: func() error { return nil },
 	}
 
