@@ -929,7 +929,38 @@ func (t *implicitDirsTest) StatUnknownName_PrefixOfActualNames() {
 }
 
 func (t *implicitDirsTest) ImplicitBecomesExplicit() {
-	AssertTrue(false, "TODO")
+	var fi os.FileInfo
+	var err error
+
+	// Set up an implicit directory.
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				"foo/bar": "",
+			}))
+
+	// Stat it.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+
+	// Set up an explicit placeholder.
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				"foo/": "",
+			}))
+
+	// Stat the directory again.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
 }
 
 func (t *implicitDirsTest) ExplicitBecomesImplicit() {
