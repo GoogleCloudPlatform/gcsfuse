@@ -174,11 +174,6 @@ type cachedGen struct {
 	gen int64
 }
 
-type nameAndGen struct {
-	name string
-	gen  int64
-}
-
 func getUser() (uid uint32, gid uint32, err error) {
 	// Ask for the current user.
 	user, err := user.Current()
@@ -465,7 +460,6 @@ func (fs *fileSystem) lookUpOrCreateInode(
 func (fs *fileSystem) syncFile(
 	ctx context.Context,
 	f *inode.FileInode) (err error) {
-	oldGen := f.SourceGeneration()
 
 	// Sync the inode.
 	err = f.Sync(ctx)
@@ -613,16 +607,16 @@ func (fs *fileSystem) ForgetInode(
 	in.Lock()
 	defer in.Unlock()
 
-	// Decrement the lookup count. If destroyed, we should remove it from the
-	// index.
-	nandg := nameAndGen{
-		name: in.Name(),
-		gen:  in.SourceGeneration(),
-	}
-
+	// Decrement the lookup count. If destroyed, we should remove it from our
+	// maps.
+	name := in.Name()
 	if in.DecrementLookupCount(op.N) {
 		delete(fs.inodes, op.Inode)
-		delete(fs.inodeIndex, nandg)
+
+		// Is this the latest entry for the name?
+		if cg := fs.inodeIndex[name]; cg.in == in {
+			delete(fs.inodeIndex, name)
+		}
 	}
 
 	return
