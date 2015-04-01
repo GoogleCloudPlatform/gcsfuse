@@ -474,12 +474,8 @@ func (fs *fileSystem) syncFile(
 		return
 	}
 
-	// Update the index if necessary.
-	newGen := f.SourceGeneration()
-	if oldGen != newGen {
-		delete(fs.inodeIndex, nameAndGen{f.Name(), oldGen})
-		fs.inodeIndex[nameAndGen{f.Name(), newGen}] = f
-	}
+	// Update the index.
+	fs.inodeIndex[f.Name()] = cachedGen{f, f.SourceGeneration()}
 
 	return
 }
