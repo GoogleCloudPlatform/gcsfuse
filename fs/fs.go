@@ -69,14 +69,16 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		gid:          gid,
 		inodes:       make(map[fuseops.InodeID]inode.Inode),
 		nextInodeID:  fuseops.RootInodeID + 1,
-		inodeIndex:   make(map[nameAndGen]inode.Inode),
+		inodeIndex:   make(map[string]cachedGen),
 		handles:      make(map[fuseops.HandleID]interface{}),
 	}
 
 	// Set up the root inode.
 	root := inode.NewRootInode(cfg.Bucket, fs.implicitDirs)
+	root.Lock()
 	fs.inodes[fuseops.RootInodeID] = root
-	fs.inodeIndex[nameAndGen{root.Name(), root.SourceGeneration()}] = root
+	fs.inodeIndex[root.Name()] = cachedGen{root, root.SourceGeneration()}
+	root.Unlock()
 
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
