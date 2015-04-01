@@ -315,7 +315,6 @@ func (d *DirInode) Unlock() {
 	// We don't require locks.
 }
 
-// Return the ID of this inode.
 func (d *DirInode) ID() fuseops.InodeID {
 	return d.id
 }
@@ -326,7 +325,6 @@ func (d *DirInode) Name() string {
 	return d.src.Name
 }
 
-// Return the generation number from which this inode was branched.
 func (d *DirInode) SourceGeneration() int64 {
 	return d.src.Generation
 }
