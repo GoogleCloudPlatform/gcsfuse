@@ -135,15 +135,24 @@ type fileSystem struct {
 	// GUARDED_BY(mu)
 	inodes map[fuseops.InodeID]inode.Inode
 
-	// An index of all inodes by (Name(), SourceGeneration()) pairs.
+	// A map from object name to an inode I backed by that object, where I has
+	// the largest generation number we've yet observed for that name (possibly
+	// since forgetting an inode for the name), and the generation number that we
+	// most recently observed for I.
 	//
-	// INVARIANT: For each key k, inodeIndex[k].Name() == k.name
-	// INVARIANT: For each key k, inodeIndex[k].SourceGeneration() == k.gen
-	// INVARIANT: For each key k, k.gen == ImplicitDirGen only if implicitDirs
-	// INVARIANT: The values are all and only the values of the inodes map
+	// In order to replace an entry in this map, you must hold in hand a
+	// gcs.Object record whose generation number is larger than I's current
+	// generation number (not the cached one, which may be out of date if I has
+	// recently been sync'd or flushed). Note that in order to find I's current
+	// generation number you must lock I, excluding concurrent syncs or flushes.
+	//
+	// INVARIANT: For each key k, inodeIndex[k].in.Name() == k
+	// INVARIANT: For each value v, v.gen == ImplicitDirGen only if implicitDirs
+	// INVARIANT: For each value v, v.in != nil
+	// INVARIANT: For each value v, inodes[v.ID()] == v
 	//
 	// GUARDED_BY(mu)
-	inodeIndex map[nameAndGen]inode.Inode
+	inodeIndex map[string]cachedGen
 
 	// The collection of live handles, keyed by handle ID.
 	//
@@ -158,6 +167,11 @@ type fileSystem struct {
 	//
 	// GUARDED_BY(mu)
 	nextHandleID fuseops.HandleID
+}
+
+type cachedGen struct {
+	in  inode.Inode
+	gen int64
 }
 
 type nameAndGen struct {
