@@ -93,14 +93,20 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 // fileSystem type
 ////////////////////////////////////////////////////////////////////////
 
-// Two simple rules about lock ordering:
+// LOCK ORDERING
 //
-//  1. No two inode locks may be held at the same time.
-//  2. No inode lock may be acquired while holding the file system lock.
+// Let FS be the file system lock. Define a strict partial order < as follows:
 //
-// In other words, we follow the rule "if you acquire A then B, it must be the
-// case that A < B" for the strict partial order < defined by all pairs (I,
-// FS), where I is any inode lock and FS is the file system lock.
+//  1. For any inode lock I, I < FS.
+//  2. For any directory handle lock DH, DH < FS.
+//
+// We follow the rule "acquire A then B only if A < B".
+//
+// In other words, don't hold any combination of multiple inode/directory
+// handle locks at the same time, and don't attempt to acquire either kind
+// while holding the file system lock. The intuition is that we hold inode and
+// directory handle locks for long-running operations, and we don't want to
+// block the entire file system on those.
 //
 // See http://goo.gl/rDxxlG for more discussion, including an informal proof
 // that a strict partial order is sufficient.
@@ -878,7 +884,10 @@ func (fs *fileSystem) ReadDir(
 	defer fuseutil.RespondToOp(op, &err)
 
 	// Find the handle.
+	fs.mu.Lock()
 	dh := fs.handles[op.Handle].(*dirHandle)
+	fs.mu.Unlock()
+
 	dh.Mu.Lock()
 	defer dh.Mu.Unlock()
 
