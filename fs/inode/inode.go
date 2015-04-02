@@ -36,12 +36,6 @@ type Inode interface {
 	// Does not require the lock to be held.
 	Name() string
 
-	// Return the generation number from which this inode was branched.
-	//
-	// Does not require the lock to be held, but may spontaneously change if the
-	// lock is not held.
-	SourceGeneration() int64
-
 	// Increment the lookup count for the inode. For use in fuse operations where
 	// the kernel expects us to remember the inode.
 	IncrementLookupCount()
