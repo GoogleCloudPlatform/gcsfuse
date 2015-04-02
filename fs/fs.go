@@ -390,6 +390,24 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 	return
 }
 
+// Implementation detail of lookUpOrCreateInodeIfNotStale; do not use outside
+// of that function.
+//
+// Return true if o should be treated as stale in comparison to an inode with
+// the given source generation.
+//
+// Special case: we always treat implicit directories as authoritative, even
+// though they would otherwise appear to be stale when an explicit placeholder
+// object has once been seen (since the implicit generation is negative). This
+// saves from an infinite loop when a placeholder object is deleted but the
+// directory still implicitly exists -- the caller would otherwise attempt over
+// and over again to get a fresh record and simply find the implicit record
+// each time.
+func staleComparedTo(o *gcs.Object, gen int64) bool {
+	isImplicit := o.Generation == inode.ImplicitDirGen
+	return o.Generation < gen && !isImplicit
+}
+
 // Attempt to find an inode for the given object record, or create one if one
 // has never yet existed and the record is newer than any inode we've yet
 // recorded.
@@ -433,7 +451,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// TODO(jacobsa): Can we drop the cached generation and just use
 		// existingInode.SourceGeneration()? If so, will want to document the
 		// non-decreasing nature of calls to that function.
-		if o.Generation < cg.gen {
+		if staleComparedTo(o, cg.gen) {
 			fs.mu.Unlock()
 			return
 		}
@@ -451,13 +469,14 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		fs.mu.Unlock()
 		existingInode.Lock()
 
-		// Can we tell that we're exactly right or stale?
+		// Can we tell that we're exactly right?
 		if o.Generation == existingInode.SourceGeneration() {
 			in = existingInode
 			return
 		}
 
-		if o.Generation < existingInode.SourceGeneration() {
+		// Are we stale?
+		if staleComparedTo(o, existingInode.SourceGeneration()) {
 			existingInode.Unlock()
 			return
 		}
@@ -471,8 +490,6 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// Re-acquire the file system lock. If the cache entry still points at
 		// existingInode, we have proven we can replace it with an entry for a a
 		// newly-minted inode.
-		//
-		// TODO(jacobsa): There probably lurk implicit directory problems here!
 		fs.mu.Lock()
 		if fs.inodeIndex[o.Name].in == existingInode {
 			in = fs.mintInode(o)
