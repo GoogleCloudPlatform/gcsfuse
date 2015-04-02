@@ -447,6 +447,10 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 
 		// Since we never re-use generations, if the cached generation is equal to
 		// the record's generation, we know we've found our inode.
+		//
+		// TODO(jacobsa): Can we drop the cached generation and just use
+		// existingInode.SourceGeneration()? If so, will want to document the
+		// non-decreasing nature of calls to that function.
 		if o.Generation == cg.gen {
 			in = existingInode
 			in.Lock()
