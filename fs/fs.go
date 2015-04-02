@@ -528,12 +528,11 @@ func (fs *fileSystem) lookUpOrCreateInode(
 // Synchronize the supplied file inode to GCS, updating the index as
 // appropriate.
 //
-// LOCKS_REQUIRED(fs.mu)
-// LOCKS_REQUIRED(f.mu)
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_REQUIRED(f)
 func (fs *fileSystem) syncFile(
 	ctx context.Context,
 	f *inode.FileInode) (err error) {
-
 	// Sync the inode.
 	err = f.Sync(ctx)
 	if err != nil {
@@ -541,8 +540,14 @@ func (fs *fileSystem) syncFile(
 		return
 	}
 
-	// Update the index.
-	fs.inodeIndex[f.Name()] = cachedGen{f, f.SourceGeneration()}
+	// Update the index, unless we've been beaten out.
+	fs.mu.Lock()
+
+	if fs.inodeIndex[f.Name()].gen < f.SourceGeneration() {
+		fs.inodeIndex[f.Name()] = cachedGen{f, f.SourceGeneration()}
+	}
+
+	fs.mu.Unlock()
 
 	return
 }
