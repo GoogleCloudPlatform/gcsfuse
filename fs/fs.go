@@ -836,14 +836,10 @@ func (fs *fileSystem) Unlink(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the parent.
+	fs.mu.Lock()
 	parent := fs.inodes[op.Parent]
-
-	parent.Lock()
-	defer parent.Unlock()
+	fs.mu.Unlock()
 
 	// Delete the backing object.
 	err = fs.bucket.DeleteObject(op.Context(), path.Join(parent.Name(), op.Name))
