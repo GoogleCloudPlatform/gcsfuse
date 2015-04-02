@@ -441,39 +441,38 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 			return
 		}
 
-		// Otherwise, we will probably need to acquire the inode lock below. Drop the
-		// file system lock now.
-		fs.mu.Unlock()
-
-		// Since we never re-use generations, if the cached generation is equal to
-		// the record's generation, we know we've found our inode.
+		// If the cached generation is newer than our source generation, we know we
+		// are stale.
 		//
 		// TODO(jacobsa): Can we drop the cached generation and just use
 		// existingInode.SourceGeneration()? If so, will want to document the
 		// non-decreasing nature of calls to that function.
-		if o.Generation == cg.gen {
-			in = existingInode
-			in.Lock()
-			return
-		}
-
-		// If the cached generation is newer than our source generation, we know we
-		// are stale.
 		if o.Generation < cg.gen {
+			fs.mu.Unlock()
 			return
 		}
 
-		// Otherwise it appears we are newer than the inode. Lock the inode so we can
-		// attempt to prove it.
+		// Otherwise we'll need to grab the inode lock no matter what:
+		//
+		//  *  If the cached generation is equal to o.Generation then we know we've
+		//     got our inode, and we lock when we return it.
+		//
+		//  *  If not, we need to determine whether we're actually newer than the
+		//     inode or not. We must exclude concurrent actions on the inode to do
+		//     so.
+		//
+		// So drop the file system lock and acquire the inode lock.
+		fs.mu.Unlock()
 		existingInode.Lock()
 
-		// Again, are we exactly right or stale?
+		// Can we tell that we're exactly right or stale?
 		if o.Generation == existingInode.SourceGeneration() {
 			in = existingInode
 			return
 		}
 
 		if o.Generation < existingInode.SourceGeneration() {
+			existingInode.Unlock()
 			return
 		}
 
