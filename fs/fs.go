@@ -421,7 +421,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// If we have no existing record for this name, mint an inode and return it.
 		if !ok {
 			in = fs.mintInode(o)
-			fs.fileIndex[in.Name()] = in
+			fs.fileIndex[in.Name()] = in.(*inode.FileInode)
 
 			fs.mu.Unlock()
 			in.Lock()
@@ -462,7 +462,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		fs.mu.Lock()
 		if fs.fileIndex[o.Name] == existingInode {
 			in = fs.mintInode(o)
-			fs.fileIndex[in.Name()] = in
+			fs.fileIndex[in.Name()] = in.(*inode.FileInode)
 
 			fs.mu.Unlock()
 			existingInode.Unlock()
