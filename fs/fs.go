@@ -384,34 +384,12 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 	return
 }
 
-// Attempt to find an inode for the given object record. Return nil, or the
-// inode with the lock held. Release the file system lock.
+// Attempt to find an inode for the given object record, or create one if one
+// has never yet existed and the record is newer than any inode we've yet
+// recorded.
 //
-// There are four possibilities:
-//
-//  *  We have no existing inode for the object's name. In this case, create an
-//     inode, place it in the index, and return it.
-//
-//  *  We have an existing inode for the object's name, but its generation
-//     number is less than that of the record. The inode is stale. Create a new
-//     inode, place it in the index, and return it.
-//
-//     Special case: we always treat implicit directories as authoritative,
-//     even though they would otherwise appear to be stale when an explicit
-//     placeholder object has once been seen (since the implicit generation is
-//     negative). This saves from an infinite loop when a placeholder object is
-//     deleted but the directory still implicitly exists.
-//
-//  *  We have an existing inode for the object's name, and its current
-//     generation number matches the record. Return it.
-//
-//  *  We have an existing inode for the object's name, and its current
-//     generation number exceeds that of the record. Return nil, because the
-//     record is stale.
-//
-// In other words, if this method returns nil, the caller should obtain a fresh
-// record and try again. If the method returns non-nil, the inode is locked.
-// Either way, the file system is unlocked.
+// If the record is stale (i.e. some newer inode exists), return nil. In this
+// case, the caller may obtain a fresh record and try again.
 //
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
