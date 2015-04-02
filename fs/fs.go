@@ -491,6 +491,9 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 // loop documented for lookUpOrCreateInodeIfNotStale. Call the function once to
 // begin with, and again each time it returns a stale record.
 //
+// For each call, do not hold the file system mutex or any inode locks. The
+// caller must not hold any inode locks.
+//
 // Return ENOENT if the function ever returns a nil record. Never return a nil
 // inode with a nil error.
 //
@@ -571,15 +574,17 @@ func (fs *fileSystem) LookUpInode(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the parent directory in question.
+	fs.mu.Lock()
 	parent := fs.inodes[op.Parent].(*inode.DirInode)
+	fs.mu.Unlock()
 
-	// Set up a function taht will find a record for the child with the given
+	// Set up a function that will find a record for the child with the given
 	// name, or nil if none.
 	f := func() (o *gcs.Object, err error) {
+		parent.Lock()
+		defer parent.Unlock()
+
 		o, err = parent.LookUpChild(op.Context(), op.Name)
 		if err != nil {
 			err = fmt.Errorf("LookUpChild: %v", err)

@@ -412,6 +412,8 @@ const ConflictingFileNameSuffix = "\n"
 // "foo/bar/baz" and this is the directory "foo", a child directory named "bar"
 // will be implied. In this case, the child's generation will be the sentinel
 // value ImplicitDirGen.
+//
+// LOCKS_REQUIRED(d)
 func (d *DirInode) LookUpChild(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
