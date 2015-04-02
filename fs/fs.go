@@ -815,14 +815,11 @@ func (fs *fileSystem) RmDir(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the parent. We assume that it exists because otherwise the kernel has
 	// done something mildly concerning.
+	fs.mu.Lock()
 	parent := fs.inodes[op.Parent]
-	parent.Lock()
-	defer parent.Unlock()
+	fs.mu.Unlock()
 
 	// Delete the backing object. Unfortunately we have no way to precondition
 	// this on the directory being empty.
