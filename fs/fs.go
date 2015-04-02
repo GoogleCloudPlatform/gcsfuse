@@ -860,8 +860,6 @@ func (fs *fileSystem) OpenDir(
 	// screwed up because the VFS layer shouldn't have let us forget the inode
 	// before opening it.
 	in := fs.inodes[op.Inode].(*inode.DirInode)
-	in.Lock()
-	defer in.Unlock()
 
 	// Allocate a handle.
 	handleID := fs.nextHandleID
