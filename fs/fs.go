@@ -683,11 +683,10 @@ func (fs *fileSystem) ForgetInode(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the inode.
+	fs.mu.Lock()
 	in := fs.inodes[op.Inode]
+	defer fs.mu.Unlock()
 
 	in.Lock()
 	defer in.Unlock()
@@ -696,12 +695,15 @@ func (fs *fileSystem) ForgetInode(
 	// maps.
 	name := in.Name()
 	if in.DecrementLookupCount(op.N) {
+		fs.mu.Lock()
 		delete(fs.inodes, op.Inode)
 
 		// Is this the latest entry for the name?
 		if cg := fs.inodeIndex[name]; cg.in == in {
 			delete(fs.inodeIndex, name)
 		}
+
+		fs.mu.Unlock()
 	}
 
 	return
