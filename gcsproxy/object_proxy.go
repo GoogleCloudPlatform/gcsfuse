@@ -15,6 +15,7 @@
 package gcsproxy
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"math"
@@ -27,6 +28,11 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
+
+var fTempDir = flag.String(
+	"gcsproxy.temp_dir", "",
+	"The temporary directory in which to store local copies of GCS objects. "+
+		"If empty, the system default (probably /tmp) will be used.")
 
 // A view on a particular generation of an object in GCS that allows random
 // access reads and writes.
@@ -363,7 +369,7 @@ func makeLocalFile(
 	name string,
 	generation int64) (f *os.File, err error) {
 	// Create the file.
-	f, err = fsutil.AnonymousFile("")
+	f, err = fsutil.AnonymousFile(*fTempDir)
 	if err != nil {
 		err = fmt.Errorf("AnonymousFile: %v", err)
 		return
