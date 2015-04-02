@@ -424,7 +424,8 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		}
 	}()
 
-	// Retry loop for the stale index entry case below.
+	// Retry loop for the stale index entry case below. On entry, we hold fs.mu
+	// but no inode lock.
 	for {
 		// Look for the current index entry.
 		cg, ok := fs.inodeIndex[o.Name]
@@ -489,7 +490,18 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// there's a new inode we have to contend with. Start over.
 		//
 		// TODO(jacobsa): There probably lurk implicit directory problems here!
-		panic("TODO")
+		existingInode.Unlock()
+		fs.mu.Lock()
+
+		if fs.inodeIndex[o.Name] == cg {
+			in = fs.mintInode(o)
+			fs.inodeIndex[in.Name()] = cachedGen{in, in.SourceGeneration()}
+
+			fs.mu.Unlock()
+			in.Lock()
+
+			return
+		}
 	}
 }
 
