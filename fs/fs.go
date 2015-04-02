@@ -416,59 +416,78 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	o *gcs.Object) (in inode.Inode) {
-	// Ensure that no matter what we return, we increase its lookup count on
-	// the way out.
+	// Ensure that no matter which inode we return, we increase its lookup count
+	// on the way out.
 	defer func() {
 		if in != nil {
 			in.IncrementLookupCount()
 		}
 	}()
 
-	// Look for the current index entry.
-	cg, ok := fs.inodeIndex[o.Name]
-	existingInode := cg.in
+	// Retry loop for the stale index entry case below.
+	for {
+		// Look for the current index entry.
+		cg, ok := fs.inodeIndex[o.Name]
+		existingInode := cg.in
 
-	// If we have no existing record for this name, mint an inode and return it.
-	if !ok {
-		in = fs.mintInode(o)
-		in.Lock()
+		// If we have no existing record for this name, mint an inode and return it.
+		if !ok {
+			in = fs.mintInode(o)
+			fs.inodeIndex[in.Name()] = cachedGen{in, in.SourceGeneration()}
 
-		fs.inodeIndex[in.Name()] = cachedGen{in, in.SourceGeneration()}
-		return
-	}
+			fs.mu.Unlock()
+			in.Lock()
 
-	// Otherwise, we need the lock for the existing inode below.
-	existingInode.Lock()
-
-	shouldUnlock := true
-	defer func() {
-		if shouldUnlock {
-			existingInode.Unlock()
+			return
 		}
-	}()
 
-	// Have we beaten out the existing inode? If so, mint a new inode and replace
-	// the index entry.
-	//
-	// Special case: implicit directories always win. See the note above.
-	isImplicit := o.Generation == inode.ImplicitDirGen
-	if existingInode.SourceGeneration() < o.Generation || isImplicit {
-		in = fs.mintInode(o)
-		in.Lock()
+		// Otherwise, we will probably need to acquire the inode lock below. Drop the
+		// file system lock now.
+		fs.mu.Unlock()
 
-		fs.inodeIndex[in.Name()] = cachedGen{in, in.SourceGeneration()}
-		return
+		// Since we never re-use generations, if the cached generation is equal to
+		// the record's generation, we know we've found our inode.
+		if o.Generation == cg.gen {
+			in = existingInode
+			in.Lock()
+			return
+		}
+
+		// If the cached generation is newer than our source generation, we know we
+		// are stale.
+		if o.Generation < cg.gen {
+			return
+		}
+
+		// Otherwise it appears we are newer than the inode. Lock the inode so we can
+		// attempt to prove it.
+		existingInode.Lock()
+
+		// Again, are we exactly right or stale?
+		if o.Generation == existingInode.SourceGeneration() {
+			in = existingInode
+			return
+		}
+
+		if o.Generation < existingInode.SourceGeneration() {
+			return
+		}
+
+		// We've observed that the record is newer than the existing inode, while
+		// holding the inode lock, excluding concurrent actions by the inode (in
+		// particular concurrent calls to Sync). This means we've proven that the
+		// record cannot have been caused by the inode's actions, and therefore it is
+		// not the inode we want.
+		//
+		// Re-acquire the file system lock. If nobody has updated the index entry in
+		// the meantime, replace the entry, mint an inode, and return it. (There is
+		// no ABA problem here because the entry's generation is strictly
+		// increasing.) If it has been changed in the meantime, it's possible that
+		// there's a new inode we have to contend with. Start over.
+		//
+		// TODO(jacobsa): There probably lurk implicit directory problems here!
+		panic("TODO")
 	}
-
-	// If the generations match, we've found our inode.
-	if existingInode.SourceGeneration() == o.Generation {
-		in = existingInode
-		shouldUnlock = false
-		return
-	}
-
-	// Otherwise, the object record is stale. Return nil.
-	return
 }
 
 // Given a function that returns a "fresh" object record, implement the calling
