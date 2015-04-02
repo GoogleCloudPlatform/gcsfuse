@@ -93,6 +93,24 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 // fileSystem type
 ////////////////////////////////////////////////////////////////////////
 
+// LOCK ORDERING
+//
+// Let FS be the file system lock. Define a strict partial order < as follows:
+//
+//  1. For any inode lock I, I < FS.
+//  2. For any directory handle lock DH, DH < FS.
+//
+// We follow the rule "acquire A then B only if A < B".
+//
+// In other words, don't hold any combination of multiple inode/directory
+// handle locks at the same time, and don't attempt to acquire either kind
+// while holding the file system lock. The intuition is that we hold inode and
+// directory handle locks for long-running operations, and we don't want to
+// block the entire file system on those.
+//
+// See http://goo.gl/rDxxlG for more discussion, including an informal proof
+// that a strict partial order is sufficient.
+
 type fileSystem struct {
 	fuseutil.NotImplementedFileSystem
 
@@ -116,8 +134,8 @@ type fileSystem struct {
 	// Mutable state
 	/////////////////////////
 
-	// When acquiring this lock, the caller must hold no inode or dir handle
-	// locks.
+	// A lock protecting the state of the file system struct itself (distinct
+	// from per-inode locks). Make sure to see the notes on lock ordering above.
 	mu syncutil.InvariantMutex
 
 	// The next inode ID to hand out. We assume that this will never overflow,
@@ -334,7 +352,7 @@ func (fs *fileSystem) checkInvariants() {
 
 // Get attributes for the inode, fixing up ownership information.
 //
-// LOCKS_REQUIRED(fs.mu)
+// LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(in)
 func (fs *fileSystem) getAttributes(
 	ctx context.Context,
@@ -372,116 +390,147 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 	return
 }
 
-// Attempt to find an inode for the given object record.
+// Implementation detail of lookUpOrCreateInodeIfNotStale; do not use outside
+// of that function.
 //
-// There are four possibilities:
+// Return true if o should be treated as stale in comparison to an inode with
+// the given source generation.
 //
-//  *  We have no existing inode for the object's name. In this case, create an
-//     inode, place it in the index, and return it.
+// Special case: we always treat implicit directories as authoritative, even
+// though they would otherwise appear to be stale when an explicit placeholder
+// object has once been seen (since the implicit generation is negative). This
+// saves from an infinite loop when a placeholder object is deleted but the
+// directory still implicitly exists -- the caller would otherwise attempt over
+// and over again to get a fresh record and simply find the implicit record
+// each time.
+func staleComparedTo(o *gcs.Object, gen int64) bool {
+	isImplicit := o.Generation == inode.ImplicitDirGen
+	return o.Generation < gen && !isImplicit
+}
+
+// Attempt to find an inode for the given object record, or create one if one
+// has never yet existed and the record is newer than any inode we've yet
+// recorded.
 //
-//  *  We have an existing inode for the object's name, but its generation
-//     number is less than that of the record. The inode is stale. Create a new
-//     inode, place it in the index, and return it.
+// If the record is stale (i.e. some newer inode exists), return nil. In this
+// case, the caller may obtain a fresh record and try again.
 //
-//     Special case: we always treat implicit directories as authoritative,
-//     even though they would otherwise appear to be stale when an explicit
-//     placeholder object has once been seen (since the implicit generation is
-//     negative). This saves from an infinite loop when a placeholder object is
-//     deleted but the directory still implicitly exists.
-//
-//  *  We have an existing inode for the object's name, and its current
-//     generation number matches the record. Return it, locked.
-//
-//  *  We have an existing inode for the object's name, and its current
-//     generation number exceeds that of the record. Return nil, because the
-//     record is stale.
-//
-// In other words, if this method returns nil, the caller should obtain a fresh
-// record and try again. If the method returns non-nil, the inode is locked.
-//
-// TODO(jacobsa): We will need to replace this primitive if we want to
-// parallelize with long-running operations holding the inode lock (issue #23).
-// Instead we'll want to return the cachedGen record when present, without
-// locking the inode, and let the caller deal with waiting on the lock and then
-// going around if they've grabbed the wrong inode, replacing if they observe
-// they've beaten out the inode once they have its lock.
-//
-// LOCKS_REQUIRED(fs.mu)
+// UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	o *gcs.Object) (in inode.Inode) {
-	// Ensure that no matter what we return, we increase its lookup count on
-	// the way out.
+	// Ensure that no matter which inode we return, we increase its lookup count
+	// on the way out.
 	defer func() {
 		if in != nil {
 			in.IncrementLookupCount()
 		}
 	}()
 
-	// Look for the current index entry.
-	cg, ok := fs.inodeIndex[o.Name]
-	existingInode := cg.in
+	// Retry loop for the stale index entry case below. On entry, we hold fs.mu
+	// but no inode lock.
+	for {
+		// Look for the current index entry.
+		cg, ok := fs.inodeIndex[o.Name]
+		existingInode := cg.in
 
-	// If we have no existing record for this name, mint an inode and return it.
-	if !ok {
-		in = fs.mintInode(o)
-		in.Lock()
+		// If we have no existing record for this name, mint an inode and return it.
+		if !ok {
+			in = fs.mintInode(o)
+			fs.inodeIndex[in.Name()] = cachedGen{in, in.SourceGeneration()}
 
-		fs.inodeIndex[in.Name()] = cachedGen{in, in.SourceGeneration()}
-		return
-	}
+			fs.mu.Unlock()
+			in.Lock()
 
-	// Otherwise, we need the lock for the existing inode below.
-	existingInode.Lock()
-
-	shouldUnlock := true
-	defer func() {
-		if shouldUnlock {
-			existingInode.Unlock()
+			return
 		}
-	}()
 
-	// Have we beaten out the existing inode? If so, mint a new inode and replace
-	// the index entry.
-	//
-	// Special case: implicit directories always win. See the note above.
-	isImplicit := o.Generation == inode.ImplicitDirGen
-	if existingInode.SourceGeneration() < o.Generation || isImplicit {
-		in = fs.mintInode(o)
-		in.Lock()
+		// If the cached generation is newer than our source generation, we know we
+		// are stale.
+		//
+		// TODO(jacobsa): Can we drop the cached generation and just use
+		// existingInode.SourceGeneration()? If so, will want to document the
+		// non-decreasing nature of calls to that function.
+		if staleComparedTo(o, cg.gen) {
+			fs.mu.Unlock()
+			return
+		}
 
-		fs.inodeIndex[in.Name()] = cachedGen{in, in.SourceGeneration()}
-		return
+		// Otherwise we'll need to grab the inode lock no matter what:
+		//
+		//  *  If the cached generation is equal to o.Generation then we know we've
+		//     got our inode, and we lock when we return it.
+		//
+		//  *  If not, we need to determine whether we're actually newer than the
+		//     inode or not. We must exclude concurrent actions on the inode to do
+		//     so.
+		//
+		// So drop the file system lock and acquire the inode lock.
+		fs.mu.Unlock()
+		existingInode.Lock()
+
+		// Can we tell that we're exactly right?
+		if o.Generation == existingInode.SourceGeneration() {
+			in = existingInode
+			return
+		}
+
+		// Are we stale?
+		if staleComparedTo(o, existingInode.SourceGeneration()) {
+			existingInode.Unlock()
+			return
+		}
+
+		// We've observed that the record is newer than the existing inode, while
+		// holding the inode lock, excluding concurrent actions by the inode (in
+		// particular concurrent calls to Sync, which changes generation numbers).
+		// This means we've proven that the record cannot have been caused by the
+		// inode's actions, and therefore it is not the inode we want.
+		//
+		// Re-acquire the file system lock. If the cache entry still points at
+		// existingInode, we have proven we can replace it with an entry for a a
+		// newly-minted inode.
+		fs.mu.Lock()
+		if fs.inodeIndex[o.Name].in == existingInode {
+			in = fs.mintInode(o)
+			fs.inodeIndex[in.Name()] = cachedGen{in, in.SourceGeneration()}
+
+			fs.mu.Unlock()
+			existingInode.Unlock()
+			in.Lock()
+
+			return
+		}
+
+		// The cache entry has been changed in the meantime, so there may be a new
+		// inode that we have to contend with. Go around and try again.
+		//
+		// TODO(jacobsa): Optimization: when going around, we can keep the FS lock
+		// and new cache entry.
+		existingInode.Unlock()
 	}
-
-	// If the generations match, we've found our inode.
-	if existingInode.SourceGeneration() == o.Generation {
-		in = existingInode
-		shouldUnlock = false
-		return
-	}
-
-	// Otherwise, the object record is stale. Return nil.
-	return
 }
 
 // Given a function that returns a "fresh" object record, implement the calling
 // loop documented for lookUpOrCreateInodeIfNotStale. Call the function once to
 // begin with, and again each time it returns a stale record.
 //
+// For each call, do not hold the file system mutex or any inode locks. The
+// caller must not hold any inode locks.
+//
 // Return ENOENT if the function ever returns a nil record. Never return a nil
 // inode with a nil error.
 //
-// LOCKS_REQUIRED(fs.mu)
+// LOCKS_EXCLUDED(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInode(
 	f func() (*gcs.Object, error)) (in inode.Inode, err error) {
 	const maxTries = 3
 	for n := 0; n < maxTries; n++ {
-		var o *gcs.Object
-
 		// Create a record.
+		var o *gcs.Object
 		o, err = f()
+
 		if err != nil {
 			return
 		}
@@ -492,6 +541,7 @@ func (fs *fileSystem) lookUpOrCreateInode(
 		}
 
 		// Attempt to create the inode. Return if successful.
+		fs.mu.Lock()
 		in = fs.lookUpOrCreateInodeIfNotStale(o)
 		if in != nil {
 			return
@@ -505,12 +555,11 @@ func (fs *fileSystem) lookUpOrCreateInode(
 // Synchronize the supplied file inode to GCS, updating the index as
 // appropriate.
 //
-// LOCKS_REQUIRED(fs.mu)
-// LOCKS_REQUIRED(f.mu)
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_REQUIRED(f)
 func (fs *fileSystem) syncFile(
 	ctx context.Context,
 	f *inode.FileInode) (err error) {
-
 	// Sync the inode.
 	err = f.Sync(ctx)
 	if err != nil {
@@ -518,8 +567,14 @@ func (fs *fileSystem) syncFile(
 		return
 	}
 
-	// Update the index.
-	fs.inodeIndex[f.Name()] = cachedGen{f, f.SourceGeneration()}
+	// Update the index, unless we've been beaten out.
+	fs.mu.Lock()
+
+	if fs.inodeIndex[f.Name()].gen < f.SourceGeneration() {
+		fs.inodeIndex[f.Name()] = cachedGen{f, f.SourceGeneration()}
+	}
+
+	fs.mu.Unlock()
 
 	return
 }
@@ -543,15 +598,17 @@ func (fs *fileSystem) LookUpInode(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the parent directory in question.
+	fs.mu.Lock()
 	parent := fs.inodes[op.Parent].(*inode.DirInode)
+	fs.mu.Unlock()
 
-	// Set up a function taht will find a record for the child with the given
+	// Set up a function that will find a record for the child with the given
 	// name, or nil if none.
 	f := func() (o *gcs.Object, err error) {
+		parent.Lock()
+		defer parent.Unlock()
+
 		o, err = parent.LookUpChild(op.Context(), op.Name)
 		if err != nil {
 			err = fmt.Errorf("LookUpChild: %v", err)
@@ -584,11 +641,10 @@ func (fs *fileSystem) GetInodeAttributes(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the inode.
+	fs.mu.Lock()
 	in := fs.inodes[op.Inode]
+	fs.mu.Unlock()
 
 	in.Lock()
 	defer in.Unlock()
@@ -608,11 +664,10 @@ func (fs *fileSystem) SetInodeAttributes(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the inode.
+	fs.mu.Lock()
 	in := fs.inodes[op.Inode]
+	fs.mu.Unlock()
 
 	in.Lock()
 	defer in.Unlock()
@@ -652,14 +707,19 @@ func (fs *fileSystem) ForgetInode(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the inode.
+	fs.mu.Lock()
 	in := fs.inodes[op.Inode]
+	fs.mu.Unlock()
 
+	// Lock the inode and re-acquire the file system lock. We must hold it below
+	// to avoid a concurrent lookup for this inode's name finding the
+	// post-destruction inode.
 	in.Lock()
 	defer in.Unlock()
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Decrement the lookup count. If destroyed, we should remove it from our
 	// maps.
@@ -682,14 +742,10 @@ func (fs *fileSystem) MkDir(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the parent.
+	fs.mu.Lock()
 	parent := fs.inodes[op.Parent]
-
-	parent.Lock()
-	defer parent.Unlock()
+	fs.mu.Unlock()
 
 	// Create an empty backing object for the child, failing if it already
 	// exists.
@@ -709,6 +765,7 @@ func (fs *fileSystem) MkDir(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
+	fs.mu.Lock()
 	child := fs.lookUpOrCreateInodeIfNotStale(o)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
@@ -735,14 +792,10 @@ func (fs *fileSystem) CreateFile(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the parent.
+	fs.mu.Lock()
 	parent := fs.inodes[op.Parent]
-
-	parent.Lock()
-	defer parent.Unlock()
+	fs.mu.Unlock()
 
 	// Create an empty backing object for the child, failing if it already
 	// exists.
@@ -762,6 +815,7 @@ func (fs *fileSystem) CreateFile(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
+	fs.mu.Lock()
 	child := fs.lookUpOrCreateInodeIfNotStale(o)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
@@ -788,14 +842,11 @@ func (fs *fileSystem) RmDir(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the parent. We assume that it exists because otherwise the kernel has
 	// done something mildly concerning.
+	fs.mu.Lock()
 	parent := fs.inodes[op.Parent]
-	parent.Lock()
-	defer parent.Unlock()
+	fs.mu.Unlock()
 
 	// Delete the backing object. Unfortunately we have no way to precondition
 	// this on the directory being empty.
@@ -812,14 +863,10 @@ func (fs *fileSystem) Unlink(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the parent.
+	fs.mu.Lock()
 	parent := fs.inodes[op.Parent]
-
-	parent.Lock()
-	defer parent.Unlock()
+	fs.mu.Unlock()
 
 	// Delete the backing object.
 	err = fs.bucket.DeleteObject(op.Context(), path.Join(parent.Name(), op.Name))
@@ -840,8 +887,6 @@ func (fs *fileSystem) OpenDir(
 	// screwed up because the VFS layer shouldn't have let us forget the inode
 	// before opening it.
 	in := fs.inodes[op.Inode].(*inode.DirInode)
-	in.Lock()
-	defer in.Unlock()
 
 	// Allocate a handle.
 	handleID := fs.nextHandleID
@@ -860,7 +905,10 @@ func (fs *fileSystem) ReadDir(
 	defer fuseutil.RespondToOp(op, &err)
 
 	// Find the handle.
+	fs.mu.Lock()
 	dh := fs.handles[op.Handle].(*dirHandle)
+	fs.mu.Unlock()
+
 	dh.Mu.Lock()
 	defer dh.Mu.Unlock()
 
@@ -909,11 +957,11 @@ func (fs *fileSystem) ReadFile(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the inode.
+	fs.mu.Lock()
 	in := fs.inodes[op.Inode].(*inode.FileInode)
+	fs.mu.Unlock()
+
 	in.Lock()
 	defer in.Unlock()
 
@@ -929,11 +977,11 @@ func (fs *fileSystem) WriteFile(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the inode.
+	fs.mu.Lock()
 	in := fs.inodes[op.Inode].(*inode.FileInode)
+	fs.mu.Unlock()
+
 	in.Lock()
 	defer in.Unlock()
 
@@ -949,11 +997,11 @@ func (fs *fileSystem) SyncFile(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the inode.
+	fs.mu.Lock()
 	in := fs.inodes[op.Inode].(*inode.FileInode)
+	fs.mu.Unlock()
+
 	in.Lock()
 	defer in.Unlock()
 
@@ -969,11 +1017,11 @@ func (fs *fileSystem) FlushFile(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the inode.
+	fs.mu.Lock()
 	in := fs.inodes[op.Inode].(*inode.FileInode)
+	fs.mu.Unlock()
+
 	in.Lock()
 	defer in.Unlock()
 

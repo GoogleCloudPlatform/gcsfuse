@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -115,6 +116,9 @@ func registerTestSuite(
 // should be something like "RealGCS" or "FakeGCS".
 func RegisterFSTests(conditionName string, makeConfig func() FSTestConfig) {
 	ensureSignalHandler()
+
+	// Make sure to exercise real parallelism, if possible.
+	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// A list of empty instances of the test suites we want to register.
 	suitePrototypes := []fsTestInterface{
