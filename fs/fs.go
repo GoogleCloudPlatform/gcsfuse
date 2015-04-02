@@ -480,29 +480,32 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 
 		// We've observed that the record is newer than the existing inode, while
 		// holding the inode lock, excluding concurrent actions by the inode (in
-		// particular concurrent calls to Sync). This means we've proven that the
-		// record cannot have been caused by the inode's actions, and therefore it is
-		// not the inode we want.
+		// particular concurrent calls to Sync, which changes generation numbers).
+		// This means we've proven that the record cannot have been caused by the
+		// inode's actions, and therefore it is not the inode we want.
 		//
-		// Re-acquire the file system lock. If nobody has updated the index entry in
-		// the meantime, replace the entry, mint an inode, and return it. (There is
-		// no ABA problem here because the entry's generation is strictly
-		// increasing.) If it has been changed in the meantime, it's possible that
-		// there's a new inode we have to contend with. Start over.
+		// Re-acquire the file system lock. If the cache entry still points at
+		// existingInode, we have proven we can replace it with an entry for a a
+		// newly-minted inode.
 		//
 		// TODO(jacobsa): There probably lurk implicit directory problems here!
-		existingInode.Unlock()
-		fs.mu.Lock()
-
-		if fs.inodeIndex[o.Name] == cg {
+		if fs.inodeIndex[o.Name].in == existingInode {
 			in = fs.mintInode(o)
 			fs.inodeIndex[in.Name()] = cachedGen{in, in.SourceGeneration()}
 
 			fs.mu.Unlock()
+			existingInode.Unlock()
 			in.Lock()
 
 			return
 		}
+
+		// The cache entry has been changed in the meantime, so there may be a new
+		// inode that we have to contend with. Go around and try again.
+		//
+		// TODO(jacobsa): Optimization: when going around, we can keep the FS lock
+		// and new cache entry.
+		existingInode.Unlock()
 	}
 }
 
