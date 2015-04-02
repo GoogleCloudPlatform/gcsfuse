@@ -374,14 +374,6 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 	return
 }
 
-// Implementation detail of lookUpOrCreateInodeIfNotStale; do not use outside
-// of that function.
-//
-// TODO(jacobsa): Inline and delete this.
-func staleComparedTo(o *gcs.Object, gen int64) bool {
-	return o.Generation < gen
-}
-
 // Attempt to find an inode for the given object record, or create one if one
 // has never yet existed and the record is newer than any inode we've yet
 // recorded.
@@ -445,7 +437,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		}
 
 		// Are we stale?
-		if staleComparedTo(o, existingInode.SourceGeneration()) {
+		if o.Generation < existingInode.SourceGeneration() {
 			existingInode.Unlock()
 			return
 		}
