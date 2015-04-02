@@ -692,7 +692,7 @@ func (fs *fileSystem) ForgetInode(
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodes[op.Inode]
-	defer fs.mu.Unlock()
+	fs.mu.Unlock()
 
 	in.Lock()
 	defer in.Unlock()
