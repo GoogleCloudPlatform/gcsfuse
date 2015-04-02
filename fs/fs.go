@@ -69,7 +69,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		gid:          gid,
 		inodes:       make(map[fuseops.InodeID]inode.Inode),
 		nextInodeID:  fuseops.RootInodeID + 1,
-		inodeIndex:   make(map[string]inode.Inode),
+		inodeIndex:   make(map[string]*inode.FileInode),
 		handles:      make(map[fuseops.HandleID]interface{}),
 	}
 
@@ -79,7 +79,6 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	root.Lock()
 	root.IncrementLookupCount()
 	fs.inodes[fuseops.RootInodeID] = root
-	fs.inodeIndex[root.Name()] = root
 	root.Unlock()
 
 	// Set up invariant checking.
@@ -181,7 +180,7 @@ type fileSystem struct {
 	// INVARIANT: For each value v, inodes[v.ID()] == v
 	//
 	// GUARDED_BY(mu)
-	inodeIndex map[string]*inode.FileInode
+	fileIndex map[string]*inode.FileInode
 
 	// The collection of live handles, keyed by handle ID.
 	//
