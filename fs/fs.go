@@ -69,7 +69,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		gid:          gid,
 		inodes:       make(map[fuseops.InodeID]inode.Inode),
 		nextInodeID:  fuseops.RootInodeID + 1,
-		inodeIndex:   make(map[string]inode.Inode),
+		fileIndex:    make(map[string]*inode.FileInode),
 		handles:      make(map[fuseops.HandleID]interface{}),
 	}
 
@@ -79,7 +79,6 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	root.Lock()
 	root.IncrementLookupCount()
 	fs.inodes[fuseops.RootInodeID] = root
-	fs.inodeIndex[root.Name()] = root
 	root.Unlock()
 
 	// Set up invariant checking.
@@ -153,14 +152,13 @@ type fileSystem struct {
 	// INVARIANT: inodes[fuseops.RootInodeID] is missing or of type *inode.DirInode
 	// INVARIANT: For all v, if isDirName(v.Name()) then v is *inode.DirInode
 	// INVARIANT: For all v, if !isDirName(v.Name()) then v is *inode.FileInode
-	// INVARIANT: For all v, v.SourceGeneration() == ImplicitDirGen => implicitDirs
 	//
 	// GUARDED_BY(mu)
 	inodes map[fuseops.InodeID]inode.Inode
 
-	// A map from object name to the inode that represents that name. Populated
-	// during the name -> inode lookup process, cleared during the forget inode
-	// process.
+	// A map from object name to the file inode that represents that name.
+	// Populated during the name -> inode lookup process, cleared during the
+	// forget inode process.
 	//
 	// Entries may be stale for two reasons:
 	//
@@ -182,7 +180,7 @@ type fileSystem struct {
 	// INVARIANT: For each value v, inodes[v.ID()] == v
 	//
 	// GUARDED_BY(mu)
-	inodeIndex map[string]inode.Inode
+	fileIndex map[string]*inode.FileInode
 
 	// The collection of live handles, keyed by handle ID.
 	//
@@ -290,19 +288,12 @@ func (fs *fileSystem) checkInvariants() {
 		}
 	}
 
-	// INVARIANT: For all v, v.SourceGeneration() == ImplicitDirGen => implicitDirs
-	for _, v := range fs.inodes {
-		if v.SourceGeneration() == inode.ImplicitDirGen && !fs.implicitDirs {
-			panic(fmt.Sprintf("Unexpected implicit dir: %v", v.ID()))
-		}
-	}
-
 	//////////////////////////////////
-	// inodeIndex
+	// fileIndex
 	//////////////////////////////////
 
 	// INVARIANT: For each k/v, v.Name() == k
-	for k, v := range fs.inodeIndex {
+	for k, v := range fs.fileIndex {
 		if !(v.Name() == k) {
 			panic(fmt.Sprintf(
 				"Unexpected name: \"%s\" vs. \"%s\"",
@@ -312,7 +303,7 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	// INVARIANT: For each value v, inodes[v.ID()] == v
-	for _, v := range fs.inodeIndex {
+	for _, v := range fs.fileIndex {
 		if fs.inodes[v.ID()] != v {
 			panic(fmt.Sprintf(
 				"Mismatch for ID %v: %p %p",
@@ -386,19 +377,9 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 // Implementation detail of lookUpOrCreateInodeIfNotStale; do not use outside
 // of that function.
 //
-// Return true if o should be treated as stale in comparison to an inode with
-// the given source generation.
-//
-// Special case: we always treat implicit directories as authoritative, even
-// though they would otherwise appear to be stale when an explicit placeholder
-// object has once been seen (since the implicit generation is negative). This
-// saves from an infinite loop when a placeholder object is deleted but the
-// directory still implicitly exists -- the caller would otherwise attempt over
-// and over again to get a fresh record and simply find the implicit record
-// each time.
+// TODO(jacobsa): Inline and delete this.
 func staleComparedTo(o *gcs.Object, gen int64) bool {
-	isImplicit := o.Generation == inode.ImplicitDirGen
-	return o.Generation < gen && !isImplicit
+	return o.Generation < gen
 }
 
 // Attempt to find an inode for the given object record, or create one if one
@@ -420,16 +401,27 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		}
 	}()
 
+	// We do not assign any form of identity to directories (cf. semantics.md).
+	// It is legal for us to simply return a new one each time.
+	if isDirName(o.Name) {
+		in = fs.mintInode(o)
+
+		fs.mu.Unlock()
+		in.Lock()
+
+		return
+	}
+
 	// Retry loop for the stale index entry case below. On entry, we hold fs.mu
 	// but no inode lock.
 	for {
 		// Look at the current index entry.
-		existingInode, ok := fs.inodeIndex[o.Name]
+		existingInode, ok := fs.fileIndex[o.Name]
 
 		// If we have no existing record for this name, mint an inode and return it.
 		if !ok {
 			in = fs.mintInode(o)
-			fs.inodeIndex[in.Name()] = in
+			fs.fileIndex[in.Name()] = in.(*inode.FileInode)
 
 			fs.mu.Unlock()
 			in.Lock()
@@ -468,9 +460,9 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// existingInode, we have proven we can replace it with an entry for a a
 		// newly-minted inode.
 		fs.mu.Lock()
-		if fs.inodeIndex[o.Name] == existingInode {
+		if fs.fileIndex[o.Name] == existingInode {
 			in = fs.mintInode(o)
-			fs.inodeIndex[in.Name()] = in
+			fs.fileIndex[in.Name()] = in.(*inode.FileInode)
 
 			fs.mu.Unlock()
 			existingInode.Unlock()
@@ -541,7 +533,7 @@ func (fs *fileSystem) syncFile(
 		return
 	}
 
-	// We need not update inodeIndex:
+	// We need not update fileIndex:
 	//
 	// We've held the inode lock the whole time, so there's no way that this
 	// inode could have been booted from the index. Therefore if it's not in the
@@ -703,8 +695,8 @@ func (fs *fileSystem) ForgetInode(
 		delete(fs.inodes, op.Inode)
 
 		// Is this the current entry for the name?
-		if fs.inodeIndex[name] == in {
-			delete(fs.inodeIndex, name)
+		if fs.fileIndex[name] == in {
+			delete(fs.fileIndex, name)
 		}
 	}
 
