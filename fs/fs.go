@@ -416,12 +416,12 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	// but no inode lock.
 	for {
 		// Look at the current index entry.
-		existingInode, ok := fs.inodeIndex[o.Name]
+		existingInode, ok := fs.fileIndex[o.Name]
 
 		// If we have no existing record for this name, mint an inode and return it.
 		if !ok {
 			in = fs.mintInode(o)
-			fs.inodeIndex[in.Name()] = in
+			fs.fileIndex[in.Name()] = in
 
 			fs.mu.Unlock()
 			in.Lock()
@@ -460,9 +460,9 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// existingInode, we have proven we can replace it with an entry for a a
 		// newly-minted inode.
 		fs.mu.Lock()
-		if fs.inodeIndex[o.Name] == existingInode {
+		if fs.fileIndex[o.Name] == existingInode {
 			in = fs.mintInode(o)
-			fs.inodeIndex[in.Name()] = in
+			fs.fileIndex[in.Name()] = in
 
 			fs.mu.Unlock()
 			existingInode.Unlock()
@@ -533,7 +533,7 @@ func (fs *fileSystem) syncFile(
 		return
 	}
 
-	// We need not update inodeIndex:
+	// We need not update fileIndex:
 	//
 	// We've held the inode lock the whole time, so there's no way that this
 	// inode could have been booted from the index. Therefore if it's not in the
@@ -695,8 +695,8 @@ func (fs *fileSystem) ForgetInode(
 		delete(fs.inodes, op.Inode)
 
 		// Is this the current entry for the name?
-		if fs.inodeIndex[name] == in {
-			delete(fs.inodeIndex, name)
+		if fs.fileIndex[name] == in {
+			delete(fs.fileIndex, name)
 		}
 	}
 
