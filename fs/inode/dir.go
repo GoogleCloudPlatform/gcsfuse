@@ -118,9 +118,9 @@ func NewDirInode(
 		src:          *o,
 	}
 
-	d.lc = lookupCount{
-		destroy: func() error { return nil },
-	}
+	d.lc.Init(
+		id,
+		func() error { return nil })
 
 	// Set up invariant checking.
 	d.mu = syncutil.NewInvariantMutex(d.checkInvariants)
