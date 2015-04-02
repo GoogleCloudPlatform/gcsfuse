@@ -765,14 +765,10 @@ func (fs *fileSystem) CreateFile(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the parent.
+	fs.mu.Lock()
 	parent := fs.inodes[op.Parent]
-
-	parent.Lock()
-	defer parent.Unlock()
+	fs.mu.Unlock()
 
 	// Create an empty backing object for the child, failing if it already
 	// exists.
@@ -792,6 +788,7 @@ func (fs *fileSystem) CreateFile(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
+	fs.mu.Lock()
 	child := fs.lookUpOrCreateInodeIfNotStale(o)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
