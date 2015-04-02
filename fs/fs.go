@@ -153,14 +153,13 @@ type fileSystem struct {
 	// INVARIANT: inodes[fuseops.RootInodeID] is missing or of type *inode.DirInode
 	// INVARIANT: For all v, if isDirName(v.Name()) then v is *inode.DirInode
 	// INVARIANT: For all v, if !isDirName(v.Name()) then v is *inode.FileInode
-	// INVARIANT: For all v, v.SourceGeneration() == ImplicitDirGen => implicitDirs
 	//
 	// GUARDED_BY(mu)
 	inodes map[fuseops.InodeID]inode.Inode
 
-	// A map from object name to the inode that represents that name. Populated
-	// during the name -> inode lookup process, cleared during the forget inode
-	// process.
+	// A map from object name to the file inode that represents that name.
+	// Populated during the name -> inode lookup process, cleared during the
+	// forget inode process.
 	//
 	// Entries may be stale for two reasons:
 	//
@@ -182,7 +181,7 @@ type fileSystem struct {
 	// INVARIANT: For each value v, inodes[v.ID()] == v
 	//
 	// GUARDED_BY(mu)
-	inodeIndex map[string]inode.Inode
+	inodeIndex map[string]*inode.FileInode
 
 	// The collection of live handles, keyed by handle ID.
 	//
