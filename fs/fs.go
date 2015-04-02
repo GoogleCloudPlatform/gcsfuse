@@ -494,16 +494,16 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 // Return ENOENT if the function ever returns a nil record. Never return a nil
 // inode with a nil error.
 //
-// LOCKS_REQUIRED(fs.mu)
+// LOCKS_EXCLUDED(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInode(
 	f func() (*gcs.Object, error)) (in inode.Inode, err error) {
 	const maxTries = 3
 	for n := 0; n < maxTries; n++ {
-		var o *gcs.Object
-
 		// Create a record.
+		var o *gcs.Object
 		o, err = f()
+
 		if err != nil {
 			return
 		}
@@ -514,6 +514,7 @@ func (fs *fileSystem) lookUpOrCreateInode(
 		}
 
 		// Attempt to create the inode. Return if successful.
+		fs.mu.Lock()
 		in = fs.lookUpOrCreateInodeIfNotStale(o)
 		if in != nil {
 			return
