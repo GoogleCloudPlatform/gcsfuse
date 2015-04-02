@@ -98,8 +98,9 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 //  1. No two inode locks may be held at the same time.
 //  2. No inode lock may be acquired while holding the file system lock.
 //
-// In other words, the strict partial order is defined by all pairs (I, FS)
-// where I is any inode lock and FS is the file system lock.
+// In other words, we follow the rule "if you acquire A then B, it must be the
+// case that A < B" for the strict partial order < defined by all pairs (I,
+// FS), where I is any inode lock and FS is the file system lock.
 //
 // See http://goo.gl/rDxxlG for more discussion, including an informal proof
 // that a strict partial order is sufficient.
