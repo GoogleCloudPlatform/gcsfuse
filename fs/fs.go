@@ -936,11 +936,11 @@ func (fs *fileSystem) ReadFile(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the inode.
+	fs.mu.Lock()
 	in := fs.inodes[op.Inode].(*inode.FileInode)
+	fs.mu.Unlock()
+
 	in.Lock()
 	defer in.Unlock()
 
@@ -956,11 +956,11 @@ func (fs *fileSystem) WriteFile(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the inode.
+	fs.mu.Lock()
 	in := fs.inodes[op.Inode].(*inode.FileInode)
+	fs.mu.Unlock()
+
 	in.Lock()
 	defer in.Unlock()
 
@@ -976,11 +976,11 @@ func (fs *fileSystem) SyncFile(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the inode.
+	fs.mu.Lock()
 	in := fs.inodes[op.Inode].(*inode.FileInode)
+	fs.mu.Unlock()
+
 	in.Lock()
 	defer in.Unlock()
 
@@ -996,11 +996,11 @@ func (fs *fileSystem) FlushFile(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the inode.
+	fs.mu.Lock()
 	in := fs.inodes[op.Inode].(*inode.FileInode)
+	fs.mu.Unlock()
+
 	in.Lock()
 	defer in.Unlock()
 
