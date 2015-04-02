@@ -473,6 +473,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// newly-minted inode.
 		//
 		// TODO(jacobsa): There probably lurk implicit directory problems here!
+		fs.mu.Lock()
 		if fs.inodeIndex[o.Name].in == existingInode {
 			in = fs.mintInode(o)
 			fs.inodeIndex[in.Name()] = cachedGen{in, in.SourceGeneration()}
