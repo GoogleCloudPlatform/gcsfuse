@@ -79,9 +79,9 @@ func NewFileInode(
 		proxy:  gcsproxy.NewObjectProxy(clock, bucket, o),
 	}
 
-	f.lc = lookupCount{
-		destroy: func() error { return f.proxy.Destroy() },
-	}
+	f.lc.Init(
+		id,
+		func() error { return f.proxy.Destroy() })
 
 	// Set up invariant checking.
 	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
