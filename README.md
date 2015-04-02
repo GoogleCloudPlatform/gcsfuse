@@ -67,6 +67,11 @@ gcsfuse --key_file /path/to/key.json --bucket my-bucket /path/to/mount/point
 The directory onto which you are mounting the file system
 (`/path/to/mount/point` in the above example) must already exist.
 
+The gcsfuse tool will run until the file system is unmounted. By default little
+is printed, but you can use the `--fuse.debug` flag to turn on debugging output
+to stderr. If the tool should happen to crash, crash logs will also be written
+to stderr.
+
 If you are mounting a bucket that was populated with objects by some other means
 besides gcsfuse, you may be interested in the `--implicit_dirs` flag. See the
 notes in [semantics.md][] for more information.
