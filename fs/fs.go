@@ -640,11 +640,10 @@ func (fs *fileSystem) SetInodeAttributes(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the inode.
+	fs.mu.Lock()
 	in := fs.inodes[op.Inode]
+	fs.mu.Unlock()
 
 	in.Lock()
 	defer in.Unlock()
