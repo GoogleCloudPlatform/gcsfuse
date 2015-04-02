@@ -346,7 +346,7 @@ func (fs *fileSystem) checkInvariants() {
 
 // Get attributes for the inode, fixing up ownership information.
 //
-// LOCKS_REQUIRED(fs.mu)
+// LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(in)
 func (fs *fileSystem) getAttributes(
 	ctx context.Context,
@@ -705,14 +705,10 @@ func (fs *fileSystem) MkDir(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	// Find the parent.
+	fs.mu.Lock()
 	parent := fs.inodes[op.Parent]
-
-	parent.Lock()
-	defer parent.Unlock()
+	fs.mu.Unlock()
 
 	// Create an empty backing object for the child, failing if it already
 	// exists.
@@ -732,6 +728,7 @@ func (fs *fileSystem) MkDir(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
+	fs.mu.Lock()
 	child := fs.lookUpOrCreateInodeIfNotStale(o)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
