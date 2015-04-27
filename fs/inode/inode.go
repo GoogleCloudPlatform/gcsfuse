@@ -51,6 +51,7 @@ type Inode interface {
 	DecrementLookupCount(n uint64) (destroy bool)
 
 	// Clean up any local resources used by the inode, putting it into an
-	// indeterminate state. Errors are for logging purposes only.
+	// indeterminate state. This method may block. Errors are for logging
+	// purposes only.
 	Destroy() (err error)
 }
