@@ -79,9 +79,7 @@ func NewFileInode(
 		proxy:  gcsproxy.NewObjectProxy(clock, bucket, o),
 	}
 
-	f.lc.Init(
-		id,
-		func() error { return f.proxy.Destroy() })
+	f.lc.Init(id)
 
 	// Set up invariant checking.
 	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
@@ -139,8 +137,14 @@ func (f *FileInode) IncrementLookupCount() {
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) DecrementLookupCount(n uint64) (destroyed bool) {
-	destroyed = f.lc.Dec(n)
+func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
+	destroy = f.lc.Dec(n)
+	return
+}
+
+// LOCKS_REQUIRED
+func (f *FileInode) Destroy() (err error) {
+	err = f.proxy.Destroy()
 	return
 }
 
