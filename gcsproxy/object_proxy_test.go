@@ -212,15 +212,10 @@ func (t *ObjectProxyTest) SetUp(ti *TestInfo) {
 	// Set up a fixed, non-zero time.
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 
-	var err error
-	t.op.wrapped, err = gcsproxy.NewObjectProxy(
+	t.op.wrapped = gcsproxy.NewObjectProxy(
 		&t.clock,
 		t.bucket,
 		&t.src)
-
-	if err != nil {
-		panic(err)
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////
