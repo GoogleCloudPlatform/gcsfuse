@@ -16,27 +16,22 @@ package inode
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/jacobsa/fuse/fuseops"
 )
 
-// A helper struct for implementing lookup counts. destroy will be called when
-// the count hits zero, with errors logged but otherwise ignored. External
-// synchronization is required.
+// A helper struct for implementing lookup counts. The only value added is some
+// paranoid panics. External synchronization is required.
 //
 // May be embedded within a larger struct. Use Init to initialize.
 type lookupCount struct {
-	id      fuseops.InodeID
-	destroy func() error
-
+	id        fuseops.InodeID
 	count     uint64
 	destroyed bool
 }
 
-func (lc *lookupCount) Init(id fuseops.InodeID, destroy func() error) {
+func (lc *lookupCount) Init(id fuseops.InodeID) {
 	lc.id = id
-	lc.destroy = destroy
 }
 
 func (lc *lookupCount) Inc() {
@@ -47,7 +42,7 @@ func (lc *lookupCount) Inc() {
 	lc.count++
 }
 
-func (lc *lookupCount) Dec(n uint64) (destroyed bool) {
+func (lc *lookupCount) Dec(n uint64) (destroy bool) {
 	if lc.destroyed {
 		panic(fmt.Sprintf("Inode %v has already been destroyed", lc.id))
 	}
@@ -60,18 +55,9 @@ func (lc *lookupCount) Dec(n uint64) (destroyed bool) {
 			lc.count))
 	}
 
-	// Decrement and destroy if necessary.
+	// Decrement.
 	lc.count -= n
 
-	if lc.count == 0 {
-		err := lc.destroy()
-		if err != nil {
-			log.Printf("Error destroying: %v", err)
-		}
-
-		destroyed = true
-		lc.destroyed = true
-	}
-
+	destroy = lc.count == 0
 	return
 }
