@@ -46,8 +46,6 @@ type DirInode struct {
 	// inode.
 	//
 	// INVARIANT: src.Name == "" || src.Name[len(name)-1] == '/'
-	// INVARIANT: src.Generation == RootGen iff id == fuseops.RootInodeID
-	// INVARIANT: src.Generation<=0 => src.Generation in {RootGen, ImplicitDirGen}
 	src gcs.Object
 
 	/////////////////////////
@@ -64,24 +62,13 @@ type DirInode struct {
 
 var _ Inode = &DirInode{}
 
-// A source generation number used by the root inode, and no other inode. Set
-// notes on NewRootInode.
-const RootGen int64 = 0
-
-// A source generation number that indicates an implicit directory. Never used
-// otherwise. See notes on DirInode.LookUpChild.
-const ImplicitDirGen int64 = -1
-
-// Create a directory inode for the root of the file system. For this inode,
-// the result of SourceGeneration() is guaranteed to be RootGen.
-//
-// The initial lookup count is zero.
+// Create a directory inode for the root of the file system. The initial lookup
+// count is zero.
 func NewRootInode(
 	bucket gcs.Bucket,
 	implicitDirs bool) (d *DirInode) {
 	dummy := &gcs.Object{
-		Name:       "",
-		Generation: RootGen,
+		Name: "",
 	}
 
 	d = NewDirInode(bucket, fuseops.RootInodeID, dummy, implicitDirs)
@@ -118,9 +105,7 @@ func NewDirInode(
 		src:          *o,
 	}
 
-	d.lc = lookupCount{
-		destroy: func() error { return nil },
-	}
+	d.lc.Init(id)
 
 	// Set up invariant checking.
 	d.mu = syncutil.NewInvariantMutex(d.checkInvariants)
@@ -136,20 +121,6 @@ func (d *DirInode) checkInvariants() {
 	// INVARIANT: src.Name == "" || src.Name[len(name)-1] == '/'
 	if !(d.src.Name == "" || d.src.Name[len(d.src.Name)-1] == '/') {
 		panic(fmt.Sprintf("Unexpected name: %s", d.src.Name))
-	}
-
-	// INVARIANT: src.Generation == RootGen iff id == fuseops.RootInodeID
-	if (d.src.Generation == RootGen) != (d.id == fuseops.RootInodeID) {
-		panic("Unexpected root generation number, or lack thereof")
-	}
-
-	// INVARIANT: src.Generation<=0 => src.Generation in {RootGen, ImplicitDirGen}
-	switch {
-	case d.src.Generation > 0:
-	case d.src.Generation == RootGen:
-	case d.src.Generation == ImplicitDirGen:
-	default:
-		panic(fmt.Sprintf("Unexpected generation: %v", d.src.Generation))
 	}
 }
 
@@ -180,7 +151,7 @@ func (d *DirInode) clobbered(ctx context.Context) (clobbered bool, err error) {
 	}
 
 	// We are clobbered if the generation number has changed.
-	clobbered = o.Generation != d.SourceGeneration()
+	clobbered = o.Generation != d.src.Generation
 
 	return
 }
@@ -242,8 +213,7 @@ func (d *DirInode) lookUpChildDir(
 	// object.
 	if o == nil && implicitlyDefined {
 		o = &gcs.Object{
-			Name:       d.Name() + name + "/",
-			Generation: ImplicitDirGen,
+			Name: d.Name() + name + "/",
 		}
 	}
 
@@ -352,18 +322,20 @@ func (d *DirInode) Name() string {
 	return d.src.Name
 }
 
-func (d *DirInode) SourceGeneration() int64 {
-	return d.src.Generation
-}
-
 // LOCKS_REQUIRED(d.mu)
 func (d *DirInode) IncrementLookupCount() {
 	d.lc.Inc()
 }
 
 // LOCKS_REQUIRED(d.mu)
-func (d *DirInode) DecrementLookupCount(n uint64) (destroyed bool) {
-	destroyed = d.lc.Dec(n)
+func (d *DirInode) DecrementLookupCount(n uint64) (destroy bool) {
+	destroy = d.lc.Dec(n)
+	return
+}
+
+// LOCKS_REQUIRED(d.mu)
+func (d *DirInode) Destroy() (err error) {
+	// Nothing interesting to do.
 	return
 }
 
@@ -410,8 +382,9 @@ const ConflictingFileNameSuffix = "\n"
 // ListObjects to find child directories that are "implicitly" defined by the
 // existence of their own descendents. For example, if there is an object named
 // "foo/bar/baz" and this is the directory "foo", a child directory named "bar"
-// will be implied. In this case, the child's generation will be the sentinel
-// value ImplicitDirGen.
+// will be implied.
+//
+// No lock is required.
 func (d *DirInode) LookUpChild(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {

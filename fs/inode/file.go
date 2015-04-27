@@ -79,9 +79,7 @@ func NewFileInode(
 		proxy:  gcsproxy.NewObjectProxy(clock, bucket, o),
 	}
 
-	f.lc = lookupCount{
-		destroy: func() error { return f.proxy.Destroy() },
-	}
+	f.lc.Init(id)
 
 	// Set up invariant checking.
 	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
@@ -125,6 +123,10 @@ func (f *FileInode) Name() string {
 	return f.proxy.Name()
 }
 
+// Return the object generation number from which this inode was branched.
+//
+// Does not require the lock to be held, but may spontaneously increase if the
+// lock is not held.
 func (f *FileInode) SourceGeneration() int64 {
 	return f.proxy.SourceGeneration()
 }
@@ -135,8 +137,14 @@ func (f *FileInode) IncrementLookupCount() {
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) DecrementLookupCount(n uint64) (destroyed bool) {
-	destroyed = f.lc.Dec(n)
+func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
+	destroy = f.lc.Dec(n)
+	return
+}
+
+// LOCKS_REQUIRED
+func (f *FileInode) Destroy() (err error) {
+	err = f.proxy.Destroy()
 	return
 }
 

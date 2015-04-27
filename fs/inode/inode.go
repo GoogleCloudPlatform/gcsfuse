@@ -36,21 +36,22 @@ type Inode interface {
 	// Does not require the lock to be held.
 	Name() string
 
-	// Return the generation number from which this inode was branched.
-	//
-	// Does not require the lock to be held, but may spontaneously change if the
-	// lock is not held.
-	SourceGeneration() int64
-
 	// Increment the lookup count for the inode. For use in fuse operations where
 	// the kernel expects us to remember the inode.
 	IncrementLookupCount()
 
-	// Decrement the lookup count for the inode by the given amount. If this
-	// method returns true, the lookup count has hit zero and the inode has been
-	// destroyed. The inode must not be used further.
-	DecrementLookupCount(n uint64) (destroyed bool)
-
 	// Return up to date attributes for this inode.
 	Attributes(ctx context.Context) (fuseops.InodeAttributes, error)
+
+	// Decrement the lookup count for the inode by the given amount.
+	//
+	// If this method returns true, the lookup count has hit zero and the
+	// Destroy() method should be called to release any local resources, perhaps
+	// after releasing locks that should not be held while blocking.
+	DecrementLookupCount(n uint64) (destroy bool)
+
+	// Clean up any local resources used by the inode, putting it into an
+	// indeterminate state. This method may block. Errors are for logging
+	// purposes only.
+	Destroy() (err error)
 }
