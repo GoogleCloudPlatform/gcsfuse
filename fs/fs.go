@@ -671,24 +671,37 @@ func (fs *fileSystem) ForgetInode(
 	in := fs.inodes[op.Inode]
 	fs.mu.Unlock()
 
-	// Lock the inode and re-acquire the file system lock. We must hold it below
-	// to avoid a concurrent lookup for this inode's name finding the
-	// post-destruction inode.
+	// Acquire the inode lock without holding the file system lock.
 	in.Lock()
 	defer in.Unlock()
 
+	// Re-acquire the file system lock to exclude concurrent lookups (which may
+	// otherwise find an inode whose lookup count has gone to zero), then
+	// decrement the lookup count.
+	//
+	// If we're told to destroy the inode, remove it from the file system
+	// immediately to make it inaccessible, then destroy it without holding the
+	// file system lock (since doing so may block).
 	fs.mu.Lock()
-	defer fs.mu.Unlock()
 
-	// Decrement the lookup count. If destroyed, we should remove it from our
-	// maps.
 	name := in.Name()
-	if in.DecrementLookupCount(op.N) {
+	shouldDestroy := in.DecrementLookupCount(op.N)
+	if shouldDestroy {
 		delete(fs.inodes, op.Inode)
 
 		// Is this the current entry for the name?
 		if fs.fileIndex[name] == in {
 			delete(fs.fileIndex, name)
+		}
+	}
+
+	fs.mu.Unlock()
+
+	if shouldDestroy {
+		err = in.Destroy()
+		if err != nil {
+			err = fmt.Errorf("Destroy: %v", err)
+			return
 		}
 	}
 
