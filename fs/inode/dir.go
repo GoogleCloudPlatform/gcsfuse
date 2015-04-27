@@ -105,9 +105,7 @@ func NewDirInode(
 		src:          *o,
 	}
 
-	d.lc.Init(
-		id,
-		func() error { return nil })
+	d.lc.Init(id)
 
 	// Set up invariant checking.
 	d.mu = syncutil.NewInvariantMutex(d.checkInvariants)
@@ -330,8 +328,14 @@ func (d *DirInode) IncrementLookupCount() {
 }
 
 // LOCKS_REQUIRED(d.mu)
-func (d *DirInode) DecrementLookupCount(n uint64) (destroyed bool) {
-	destroyed = d.lc.Dec(n)
+func (d *DirInode) DecrementLookupCount(n uint64) (destroy bool) {
+	destroy = d.lc.Dec(n)
+	return
+}
+
+// LOCKS_REQUIRED(d.mu)
+func (d *DirInode) Destroy() (err error) {
+	// Nothing interesting to do.
 	return
 }
 
