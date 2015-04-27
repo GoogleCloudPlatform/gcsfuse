@@ -40,6 +40,9 @@ type Inode interface {
 	// the kernel expects us to remember the inode.
 	IncrementLookupCount()
 
+	// Return up to date attributes for this inode.
+	Attributes(ctx context.Context) (fuseops.InodeAttributes, error)
+
 	// Decrement the lookup count for the inode by the given amount.
 	//
 	// If this method returns true, the lookup count has hit zero and the
@@ -50,7 +53,4 @@ type Inode interface {
 	// Clean up any local resources used by the inode, putting it into an
 	// indeterminate state. Errors are for logging purposes only.
 	Destroy() (err error)
-
-	// Return up to date attributes for this inode.
-	Attributes(ctx context.Context) (fuseops.InodeAttributes, error)
 }
