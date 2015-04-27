@@ -384,7 +384,7 @@ const ConflictingFileNameSuffix = "\n"
 // "foo/bar/baz" and this is the directory "foo", a child directory named "bar"
 // will be implied.
 //
-// LOCKS_REQUIRED(d)
+// No lock is required.
 func (d *DirInode) LookUpChild(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {

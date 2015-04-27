@@ -565,9 +565,7 @@ func (fs *fileSystem) LookUpInode(
 	// Set up a function that will find a record for the child with the given
 	// name, or nil if none.
 	f := func() (o *gcs.Object, err error) {
-		parent.Lock()
-		defer parent.Unlock()
-
+		// We need not hold a lock for LookUpChild.
 		o, err = parent.LookUpChild(op.Context(), op.Name)
 		if err != nil {
 			err = fmt.Errorf("LookUpChild: %v", err)
