@@ -50,6 +50,14 @@ type ServerConfig struct {
 	//
 	// See docs/semantics.md for more info.
 	ImplicitDirectories bool
+
+	// By default, the file system will always show nlink == 1 for every inode,
+	// regardless of whether its backing object has been deleted or overwritten.
+	//
+	// Setting SupportNlink to true causes the file system to respond to fuse
+	// getattr requests with nlink == 0 in the cases mentioned above. This
+	// requires a round trip to GCS for every getattr, which can be quite slow.
+	SupportNlink bool
 }
 
 // Create a fuse file system server according to the supplied configuration.
