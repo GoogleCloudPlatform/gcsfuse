@@ -82,7 +82,11 @@ func registerTestSuite(
 		// SetUp should create a bucket and then initialize the suite object,
 		// remembering that the suite implements fsTestInterface.
 		tf.SetUp = func(*ogletest.TestInfo) {
-			instance.Interface().(fsTestInterface).setUpFSTest(makeConfig())
+			// Tests assume SupportNlink is enabled.
+			cfg := makeConfig()
+			cfg.ServerConfig.SupportNlink = true
+
+			instance.Interface().(fsTestInterface).setUpFSTest(cfg)
 		}
 
 		// The test function itself should simply invoke the method.
