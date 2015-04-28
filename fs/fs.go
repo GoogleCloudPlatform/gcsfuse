@@ -117,13 +117,14 @@ type fileSystem struct {
 	// Dependencies
 	/////////////////////////
 
-	clock        timeutil.Clock
-	bucket       gcs.Bucket
-	implicitDirs bool
+	clock  timeutil.Clock
+	bucket gcs.Bucket
 
 	/////////////////////////
 	// Constant data
 	/////////////////////////
+
+	implicitDirs bool
 
 	// The user and group owning everything in the file system.
 	uid uint32
