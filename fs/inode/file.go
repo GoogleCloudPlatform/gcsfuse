@@ -37,7 +37,8 @@ type FileInode struct {
 	// Constant data
 	/////////////////////////
 
-	id fuseops.InodeID
+	id           fuseops.InodeID
+	supportNlink bool
 
 	/////////////////////////
 	// Mutable state
@@ -63,6 +64,10 @@ var _ Inode = &FileInode{}
 // Create a file inode for the given object in GCS. The initial lookup count is
 // zero.
 //
+// If supportNlink is set, Attributes will use bucket.StatObject to find out
+// whether the backing objet has been clobbered. Otherwise, Attributes will
+// always show Nlink == 1.
+//
 // REQUIRES: o != nil
 // REQUIRES: o.Generation > 0
 // REQUIRES: len(o.Name) > 0
@@ -71,12 +76,14 @@ func NewFileInode(
 	clock timeutil.Clock,
 	bucket gcs.Bucket,
 	id fuseops.InodeID,
+	supportNlink bool,
 	o *gcs.Object) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
-		bucket: bucket,
-		id:     id,
-		proxy:  gcsproxy.NewObjectProxy(clock, bucket, o),
+		bucket:       bucket,
+		id:           id,
+		supportNlink: supportNlink,
+		proxy:        gcsproxy.NewObjectProxy(clock, bucket, o),
 	}
 
 	f.lc.Init(id)
@@ -152,7 +159,7 @@ func (f *FileInode) Destroy() (err error) {
 func (f *FileInode) Attributes(
 	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
 	// Stat the object.
-	sr, err := f.proxy.Stat(ctx)
+	sr, err := f.proxy.Stat(ctx, f.supportNlink)
 	if err != nil {
 		err = fmt.Errorf("Stat: %v", err)
 		return
