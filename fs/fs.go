@@ -73,6 +73,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		clock:        cfg.Clock,
 		bucket:       cfg.Bucket,
 		implicitDirs: cfg.ImplicitDirectories,
+		supportNlink: cfg.SupportNlink,
 		uid:          uid,
 		gid:          gid,
 		inodes:       make(map[fuseops.InodeID]inode.Inode),
@@ -82,7 +83,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	}
 
 	// Set up the root inode.
-	root := inode.NewRootInode(cfg.Bucket, fs.implicitDirs)
+	root := inode.NewRootInode(cfg.Bucket, fs.implicitDirs, fs.supportNlink)
 
 	root.Lock()
 	root.IncrementLookupCount()
@@ -133,6 +134,7 @@ type fileSystem struct {
 	/////////////////////////
 
 	implicitDirs bool
+	supportNlink bool
 
 	// The user and group owning everything in the file system.
 	uid uint32
@@ -372,9 +374,9 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 
 	// Create the inode.
 	if isDirName(o.Name) {
-		in = inode.NewDirInode(fs.bucket, id, o, fs.implicitDirs)
+		in = inode.NewDirInode(fs.bucket, id, o, fs.implicitDirs, fs.supportNlink)
 	} else {
-		in = inode.NewFileInode(fs.clock, fs.bucket, id, o)
+		in = inode.NewFileInode(fs.clock, fs.bucket, id, fs.supportNlink, o)
 	}
 
 	// Place it in our map of IDs to inodes.
