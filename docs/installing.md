@@ -113,10 +113,10 @@ sudo apt-get update && sudo apt-get install git-core
 
 # Installation
 
-To install gcsfuse, run:
+To install or update gcsfuse, run:
 
 ```
-go get github.com/googlecloudplatform/gcsfuse
+go get -u github.com/googlecloudplatform/gcsfuse
 ```
 
 This will fetch the gcsfuse sources, build them, and install a binary named
