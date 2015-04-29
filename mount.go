@@ -20,11 +20,13 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/gcs/gcscaching"
 	"golang.org/x/net/context"
 )
 
@@ -45,6 +47,12 @@ var fSupportNlink = flag.Bool(
 	"support_nlink",
 	false,
 	"Return meaningful values for nlink from fstat(2). See docs/semantics.md.")
+
+var fStatCacheTTL = flag.String(
+	"stat_cache_ttl",
+	"",
+	"If non-empty, a duration specifying how long to cache StatObject results "+
+		"from GCS, e.g. \"2s\" or \"15ms\". See docs/semantics.md for more.")
 
 func getBucketName() string {
 	s := *fBucketName
@@ -88,6 +96,22 @@ func getBucket() (b gcs.Bucket) {
 
 	// Extract the appropriate bucket.
 	b = conn.GetBucket(getBucketName())
+
+	// Enable cached StatObject results, if appropriate.
+	if *fStatCacheTTL != "" {
+		ttl, err := time.ParseDuration(*fStatCacheTTL)
+		if err != nil {
+			log.Fatalf("Invalid --stat_cache_ttl: %v", err)
+			return
+		}
+
+		const cacheCapacity = 4096
+		b = gcscaching.NewFastStatBucket(
+			ttl,
+			gcscaching.NewStatCache(cacheCapacity),
+			timeutil.RealClock(),
+			b)
+	}
 
 	return
 }
