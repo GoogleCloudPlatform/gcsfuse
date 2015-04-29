@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/fs"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
 
@@ -77,6 +78,20 @@ func registerSIGINTHandler(mountPoint string) {
 	}()
 }
 
+func getBucket() (b gcs.Bucket) {
+	// Set up a GCS connection.
+	log.Println("Initializing GCS connection.")
+	conn, err := getConn()
+	if err != nil {
+		log.Fatal("Couldn't get GCS connection: ", err)
+	}
+
+	// Extract the appropriate bucket.
+	b = conn.GetBucket(getBucketName())
+
+	return
+}
+
 func main() {
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
@@ -93,17 +108,10 @@ func main() {
 
 	mountPoint := flag.Arg(0)
 
-	// Set up a GCS connection.
-	log.Println("Initializing GCS connection.")
-	conn, err := getConn()
-	if err != nil {
-		log.Fatal("Couldn't get GCS connection: ", err)
-	}
-
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{
 		Clock:               timeutil.RealClock(),
-		Bucket:              conn.GetBucket(getBucketName()),
+		Bucket:              getBucket(),
 		ImplicitDirectories: *fImplicitDirs,
 		SupportNlink:        *fSupportNlink,
 	}
