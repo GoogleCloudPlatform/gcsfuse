@@ -20,70 +20,17 @@
 package fs_test
 
 import (
-	"flag"
-	"log"
-	"net/http"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/fstesting"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
-	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/gcs/gcstesting"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
-	"github.com/jacobsa/gcloud/oauthutil"
 	"github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
-	storagev1 "google.golang.org/api/storage/v1"
 )
 
 func TestIntegrationTest(t *testing.T) { ogletest.RunTests(t) }
-
-////////////////////////////////////////////////////////////////////////
-// Wiring code
-////////////////////////////////////////////////////////////////////////
-
-var fKeyFile = flag.String("key_file", "", "Path to a JSON key for a service account created on the Google Developers Console.")
-var fBucket = flag.String("bucket", "", "Empty bucket to use for storage.")
-
-func getHttpClientOrDie() *http.Client {
-	if *fKeyFile == "" {
-		panic("You must set --key_file.")
-	}
-
-	const scope = storagev1.DevstorageRead_writeScope
-	httpClient, err := oauthutil.NewJWTHttpClient(*fKeyFile, []string{scope})
-	if err != nil {
-		panic("oauthutil.NewJWTHttpClient: " + err.Error())
-	}
-
-	return httpClient
-}
-
-func getBucketNameOrDie() string {
-	s := *fBucket
-	if s == "" {
-		log.Fatalln("You must set --bucket.")
-	}
-
-	return s
-}
-
-// Return a bucket based on the contents of command-line flags, exiting the
-// process if misconfigured.
-func getBucketOrDie() gcs.Bucket {
-	// Set up a GCS connection.
-	cfg := &gcs.ConnConfig{
-		HTTPClient: getHttpClientOrDie(),
-		UserAgent:  "gcsfuse-integration-test",
-	}
-
-	conn, err := gcs.NewConn(cfg)
-	if err != nil {
-		log.Fatalf("gcs.NewConn: %v", err)
-	}
-
-	// Open the bucket.
-	return conn.GetBucket(getBucketNameOrDie())
-}
 
 ////////////////////////////////////////////////////////////////////////
 // Registration
@@ -93,7 +40,7 @@ func init() {
 	fstesting.RegisterFSTests(
 		"RealGCS",
 		func() (cfg fstesting.FSTestConfig) {
-			cfg.ServerConfig.Bucket = getBucketOrDie()
+			cfg.ServerConfig.Bucket = gcstesting.IntegrationTestBucketOrDie()
 			cfg.ServerConfig.Clock = timeutil.RealClock()
 
 			err := gcsutil.DeleteAllObjects(
