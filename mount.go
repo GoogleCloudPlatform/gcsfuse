@@ -40,7 +40,7 @@ var fImplicitDirs = flag.Bool(
 	false,
 	"Implicitly define directories based on their content. See docs/semantics.md.")
 
-var fSupprtNlink = flag.Bool(
+var fSupportNlink = flag.Bool(
 	"support_nlink",
 	false,
 	"Return meaningful values for nlink from fstat(2). See docs/semantics.md.")
@@ -102,7 +102,7 @@ func main() {
 		Clock:               timeutil.RealClock(),
 		Bucket:              conn.GetBucket(getBucketName()),
 		ImplicitDirectories: *fImplicitDirs,
-		SupportNlink:        *fSupprtNlink,
+		SupportNlink:        *fSupportNlink,
 	}
 
 	server, err := fs.NewServer(serverCfg)
