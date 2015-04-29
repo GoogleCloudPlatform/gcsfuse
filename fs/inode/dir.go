@@ -40,6 +40,7 @@ type DirInode struct {
 
 	id           fuseops.InodeID
 	implicitDirs bool
+	supportNlink bool
 
 	// The the GCS object backing the inode. The object's name is used as a
 	// prefix when listing. Special case: the empty string means this is the root
@@ -66,12 +67,13 @@ var _ Inode = &DirInode{}
 // count is zero.
 func NewRootInode(
 	bucket gcs.Bucket,
-	implicitDirs bool) (d *DirInode) {
+	implicitDirs bool,
+	supportNlink bool) (d *DirInode) {
 	dummy := &gcs.Object{
 		Name: "",
 	}
 
-	d = NewDirInode(bucket, fuseops.RootInodeID, dummy, implicitDirs)
+	d = NewDirInode(bucket, fuseops.RootInodeID, dummy, implicitDirs, supportNlink)
 	return
 }
 
@@ -84,6 +86,10 @@ func NewRootInode(
 // descendents. For example, if there is an object named "foo/bar/baz" and this
 // is the directory "foo", a child directory named "bar" will be implied.
 //
+// If supportNlink is set, Attributes will use bucket.StatObject to find out
+// whether the backing objet has been clobbered. Otherwise, Attributes will
+// always show Nlink == 1.
+//
 // The initial lookup count is zero.
 //
 // REQUIRES: o != nil
@@ -92,7 +98,8 @@ func NewDirInode(
 	bucket gcs.Bucket,
 	id fuseops.InodeID,
 	o *gcs.Object,
-	implicitDirs bool) (d *DirInode) {
+	implicitDirs bool,
+	supportNlink bool) (d *DirInode) {
 	if o.Name != "" && o.Name[len(o.Name)-1] != '/' {
 		panic(fmt.Sprintf("Unexpected name: %s", o.Name))
 	}
@@ -102,6 +109,7 @@ func NewDirInode(
 		bucket:       bucket,
 		id:           id,
 		implicitDirs: implicitDirs,
+		supportNlink: supportNlink,
 		src:          *o,
 	}
 
@@ -341,21 +349,25 @@ func (d *DirInode) Destroy() (err error) {
 
 func (d *DirInode) Attributes(
 	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
-	// Find out whether the backing object has been clobbered in GCS.
-	clobbered, err := d.clobbered(ctx)
-	if err != nil {
-		err = fmt.Errorf("clobbered: %v", err)
-		return
-	}
-
 	// Set up basic attributes.
 	attrs = fuseops.InodeAttributes{
-		Mode: 0700 | os.ModeDir,
+		Mode:  0700 | os.ModeDir,
+		Nlink: 1,
 	}
 
-	// Modify Nlink as appropriate.
-	if !clobbered {
-		attrs.Nlink = 1
+	// If enabled, find out whether the backing object has been clobbered in GCS
+	// in order to set the Nlink field properly.
+	if d.supportNlink {
+		var clobbered bool
+		clobbered, err = d.clobbered(ctx)
+		if err != nil {
+			err = fmt.Errorf("clobbered: %v", err)
+			return
+		}
+
+		if clobbered {
+			attrs.Nlink = 0
+		}
 	}
 
 	return
