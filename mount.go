@@ -78,6 +78,9 @@ func registerSIGINTHandler(mountPoint string) {
 }
 
 func main() {
+	// Make logging output better.
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
+
 	// Set up flags.
 	flag.Usage = usage
 	flag.Parse()
