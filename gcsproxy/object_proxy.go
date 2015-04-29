@@ -186,7 +186,12 @@ func (op *ObjectProxy) Destroy() (err error) {
 // Return the current size in bytes of the content and an indication of whether
 // the proxied object has changed out from under us (in which case Sync will
 // fail).
-func (op *ObjectProxy) Stat(ctx context.Context) (sr StatResult, err error) {
+//
+// sr.Clobbered will be set only if needClobbered is true. Otherwise a round
+// trip to GCS can be saved.
+func (op *ObjectProxy) Stat(
+	ctx context.Context,
+	needClobbered bool) (sr StatResult, err error) {
 	// If we have ever been modified, our mtime field is authoritative (even if
 	// we've been Sync'd, because Sync is not supposed to affect the mtime).
 	// Otherwise our source object's creation time is our mtime.
@@ -210,25 +215,14 @@ func (op *ObjectProxy) Stat(ctx context.Context) (sr StatResult, err error) {
 		sr.Size = int64(op.src.Size)
 	}
 
-	// Stat the object in GCS.
-	req := &gcs.StatObjectRequest{Name: op.Name()}
-	o, err := op.bucket.StatObject(ctx, req)
-
-	// Special case: "not found" means we have been clobbered.
-	if _, ok := err.(*gcs.NotFoundError); ok {
-		err = nil
-		sr.Clobbered = true
-		return
+	// Figure out whether we were clobbered iff the user asked us to.
+	if needClobbered {
+		sr.Clobbered, err = op.clobbered(ctx)
+		if err != nil {
+			err = fmt.Errorf("clobbered: %v", err)
+			return
+		}
 	}
-
-	// Propagate other errors.
-	if err != nil {
-		err = fmt.Errorf("StatObject: %v", err)
-		return
-	}
-
-	// We are clobbered iff the generation doesn't match our source generation.
-	sr.Clobbered = (o.Generation != op.src.Generation)
 
 	return
 }
@@ -426,5 +420,30 @@ func (op *ObjectProxy) ensureLocalFile(ctx context.Context) (err error) {
 	}
 
 	op.localFile = f
+	return
+}
+
+func (op *ObjectProxy) clobbered(
+	ctx context.Context) (clobbered bool, err error) {
+	// Stat the object in GCS.
+	req := &gcs.StatObjectRequest{Name: op.Name()}
+	o, err := op.bucket.StatObject(ctx, req)
+
+	// Special case: "not found" means we have been clobbered.
+	if _, ok := err.(*gcs.NotFoundError); ok {
+		err = nil
+		clobbered = true
+		return
+	}
+
+	// Propagate other errors.
+	if err != nil {
+		err = fmt.Errorf("StatObject: %v", err)
+		return
+	}
+
+	// We are clobbered iff the generation doesn't match our source generation.
+	clobbered = (o.Generation != op.src.Generation)
+
 	return
 }
