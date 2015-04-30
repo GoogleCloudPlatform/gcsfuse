@@ -14,7 +14,7 @@ The careful user should be sure to read [semantics.md][] for information on how
 gcsfuse maps file system operations to GCS operations, and especially on
 surprising behaviors. The list of [open issues][issues] may also be of interest.
 
-[semantics.md]: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md
+[semantics.md]: docs/semantics.md
 [issues]: https://github.com/GoogleCloudPlatform/gcsfuse/issues
 
 
@@ -74,9 +74,9 @@ to stderr.
 
 If you are mounting a bucket that was populated with objects by some other means
 besides gcsfuse, you may be interested in the `--implicit_dirs` flag. See the
-notes in [semantics.md][] for more information.
+notes in [semantics.md][semantics-implicit-dirs] for more information.
 
-[semantics.md]: docs/semantics.md
+[semantics-implicit-dirs]: docs/semantics.md#implicit-dirs
 
 
 # Performance
