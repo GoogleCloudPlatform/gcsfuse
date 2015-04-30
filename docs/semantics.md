@@ -349,4 +349,8 @@ Not all of the usual file system features are supported. Most prominently:
 <a name="relax-for-performance"></a>
 # Relaxing guarantees for performance
 
-TODO
+The cost of the consistency guarantees discussed above is that gcsfuse must
+frequently send stat object requests to GCS in order to get the freshest
+possible answer for the kernel when it asks about a particular name or inode,
+which it does often. This can make what appear to the user to be simple
+operations, like `ls -l`, take quite a long time.
