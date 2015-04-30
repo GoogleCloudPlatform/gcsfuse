@@ -347,7 +347,7 @@ Not all of the usual file system features are supported. Most prominently:
 
 
 <a name="relax-for-performance"></a>
-# Relaxing guarantees for performance
+# Relaxing guarantees for higher performance
 
 The cost of the consistency guarantees discussed above is that gcsfuse must
 frequently send stat object requests to GCS in order to get the freshest
