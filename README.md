@@ -76,7 +76,7 @@ If you are mounting a bucket that was populated with objects by some other means
 besides gcsfuse, you may be interested in the `--implicit_dirs` flag. See the
 notes in [semantics.md][semantics-implicit-dirs] for more information.
 
-[semantics-implicit-dirs]: docs/semantics.md#implicit-dirs
+[semantics-implicit-dirs]: docs/semantics.md#implicit-directories
 
 
 # Performance
