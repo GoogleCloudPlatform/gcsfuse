@@ -81,6 +81,16 @@ notes in [semantics.md][semantics-implicit-dirs] for more information.
 
 # Performance
 
+## GCS round trips
+
+The consistency guarantees gcsfuse gives you by default have a significant
+latency cost due to GCS round trips. If you are confident you don't need them,
+you can opt out using the `--stat_cache_ttl` flag. Please be sure to read the
+[relevant section](docs/semantics.md#relax-for-performance) of semantics.md
+before setting this flag.
+
+## Downloading file contents
+
 Behind the scenes, when a newly-opened file is first read or modified, gcsfuse
 downloads the entire backing object's contents from GCS. (Unless it is a
 newly-created file, of course.) The contents are stored in a local temporary
@@ -98,6 +108,9 @@ file, as discussed above.
 
 [issue-22]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/22
 
-If you notice unreasonable performance, please [file an issue][issues].
+## Other performance issues
+
+If you notice otherwise unreasonable performance, please [file an
+issue][issues].
 
 [issues]: https://github.com/googlecloudplatform/gcsfuse/issues
