@@ -354,3 +354,17 @@ frequently send stat object requests to GCS in order to get the freshest
 possible answer for the kernel when it asks about a particular name or inode,
 which it does often. This can make what appear to the user to be simple
 operations, like `ls -l`, take quite a long time.
+
+To alleviate this slowness, gcsfuse supports using cached data where it would
+otherwise send a stat object request to GCS, saving some round trips. To enable
+this behavior, set the flag `--stat_cache_ttl` to a value like `10s` or `1.5h`.
+Positive and negative stat results will be cached for the given amount of time.
+
+**Warning**: Setting `--stat_cache_ttl` breaks the consistency guarantees
+discussed in this document. It is safe in the following situations:
+
+ *  The mounted bucket is never modified.
+ *  The mounted bucket is only modified on a single machine, via a single
+    gcsfuse mount.
+ *  You are otherwise confident that you do not need the guarantees discussed
+    in this document.
