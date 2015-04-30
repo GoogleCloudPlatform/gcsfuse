@@ -81,6 +81,14 @@ notes in [semantics.md][semantics-implicit-dirs] for more information.
 
 # Performance
 
+## GCS round trips
+
+The consistency guarantees gcsfuse gives you by default have a significant
+latency cost due to GCS round trips. If you are confident you don't need them,
+you can opt out using the `--stat_cache_ttl` flag. Please be sure to read the
+[relevant section](docs/semantics.md#relax-for-performance) of semantics.md
+before setting this flag.
+
 ## Downloading file contents
 
 Behind the scenes, when a newly-opened file is first read or modified, gcsfuse
