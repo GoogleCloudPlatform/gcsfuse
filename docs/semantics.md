@@ -45,6 +45,7 @@ of the file system:
              nachos
      taco
 
+<a name="implicit-dirs"></a>
 ## Implicit directories
 
 As mentioned above, by default there is no allowance for the implicit existence
@@ -343,3 +344,9 @@ Not all of the usual file system features are supported. Most prominently:
 
 [issue-11]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/11
 [issue-12]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/12
+
+
+<a name="relax-for-performance"></a>
+# Relaxing guarantees for performance
+
+TODO
