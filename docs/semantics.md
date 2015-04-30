@@ -361,10 +361,10 @@ this behavior, set the flag `--stat_cache_ttl` to a value like `10s` or `1.5h`.
 Positive and negative stat results will be cached for the given amount of time.
 
 **Warning**: Setting `--stat_cache_ttl` breaks the consistency guarantees
-discussed in this document. It is safe in the following situations:
+discussed in this document. It is safe only in the following situations:
 
  *  The mounted bucket is never modified.
  *  The mounted bucket is only modified on a single machine, via a single
     gcsfuse mount.
- *  You are otherwise confident that you do not need the guarantees discussed
-    in this document.
+ *  The mounted bucket is modified by multiple actors, but the user is
+    confident that they don't need the guarantees discussed in this document.
