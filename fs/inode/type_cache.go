@@ -105,11 +105,6 @@ func (tc *typeCache) NoteDir(now time.Time, name string) {
 
 // Erase all information about the supplied name.
 func (tc *typeCache) Erase(name string) {
-	// Are we disabled?
-	if tc.ttl == 0 {
-		return
-	}
-
 	tc.files.Erase(name)
 	tc.dirs.Erase(name)
 }
