@@ -111,8 +111,23 @@ func (tc *typeCache) Erase(name string) {
 
 // Do we currently think the given name is a file?
 func (tc *typeCache) IsFile(now time.Time, name string) (res bool) {
-	// TODO
-	res = false
+	// Is there an entry?
+	val := tc.files.LookUp(name)
+	if val == nil {
+		res = false
+		return
+	}
+
+	expiration := val.(time.Time)
+
+	// Has the entry expired?
+	if expiration.Before(now) {
+		tc.files.Erase(name)
+		res = false
+		return
+	}
+
+	res = true
 	return
 }
 
