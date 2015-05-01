@@ -506,3 +506,21 @@ func (d *DirInode) DeleteChildFile(
 
 	return
 }
+
+// Delete the backing object for the child directory with the given (relative)
+// name.
+//
+// No lock is required.
+func (d *DirInode) DeleteChildDir(
+	ctx context.Context,
+	name string) (err error) {
+	// Delete the backing object. Unfortunately we have no way to precondition
+	// this on the directory being empty.
+	err = d.bucket.DeleteObject(ctx, path.Join(d.Name(), name)+"/")
+	if err != nil {
+		err = fmt.Errorf("DeleteObject: %v", err)
+		return
+	}
+
+	return
+}

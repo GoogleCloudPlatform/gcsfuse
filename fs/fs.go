@@ -17,7 +17,6 @@ package fs
 import (
 	"fmt"
 	"os/user"
-	"path"
 	"reflect"
 	"strconv"
 
@@ -891,14 +890,17 @@ func (fs *fileSystem) RmDir(
 	// Find the parent. We assume that it exists because otherwise the kernel has
 	// done something mildly concerning.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent]
+	parent := fs.inodes[op.Parent].(*inode.DirInode)
 	fs.mu.Unlock()
 
-	// Delete the backing object. Unfortunately we have no way to precondition
-	// this on the directory being empty.
-	err = fs.bucket.DeleteObject(
-		op.Context(),
-		path.Join(parent.Name(), op.Name)+"/")
+	// Delete the backing object.
+	//
+	// No lock is required.
+	err = parent.DeleteChildDir(op.Context(), op.Name)
+	if err != nil {
+		err = fmt.Errorf("DeleteChildDir: %v", err)
+		return
+	}
 
 	return
 }
