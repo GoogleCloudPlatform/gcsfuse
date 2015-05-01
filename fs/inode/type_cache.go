@@ -105,7 +105,8 @@ func (tc *typeCache) Erase(name string) {
 		return
 	}
 
-	// TODO
+	tc.files.Erase(name)
+	tc.dirs.Erase(name)
 }
 
 // Do we currently think the given name is a file?
