@@ -320,6 +320,7 @@ func (d *DirInode) Destroy() (err error) {
 	return
 }
 
+// LOCKS_REQUIRED(d.mu)
 func (d *DirInode) Attributes(
 	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
 	// Set up basic attributes.
@@ -354,7 +355,7 @@ const ConflictingFileNameSuffix = "\n"
 // "foo/bar/baz" and this is the directory "foo", a child directory named "bar"
 // will be implied.
 //
-// No lock is required.
+// LOCKS_REQUIRED(d.mu)
 func (d *DirInode) LookUpChild(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
@@ -412,6 +413,8 @@ func (d *DirInode) LookUpChild(
 // regardless of how the inode was configured. If you want to ensure that
 // directories actually exist it non-implicit mode, you must call LookUpChild
 // to do so.
+//
+// LOCKS_REQUIRED(d.mu)
 func (d *DirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
@@ -464,8 +467,7 @@ func (d *DirInode) ReadEntries(
 // Create an empty child file with the supplied (relative) name, failing if a
 // backing object already exists in GCS.
 //
-// No lock is required.
-// TODO(jacobsa): Do we really need a lock on dir inodes?
+// LOCKS_REQUIRED(d.mu)
 func (d *DirInode) CreateChildFile(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
@@ -480,7 +482,7 @@ func (d *DirInode) CreateChildFile(
 // Create a backing object for a child directory with the supplied (relative)
 // name, failing if a backing object already exists in GCS.
 //
-// No lock is required.
+// LOCKS_REQUIRED(d.mu)
 func (d *DirInode) CreateChildDir(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
@@ -494,7 +496,7 @@ func (d *DirInode) CreateChildDir(
 
 // Delete the backing object for the child file with the given (relative) name.
 //
-// No lock is required.
+// LOCKS_REQUIRED(d.mu)
 func (d *DirInode) DeleteChildFile(
 	ctx context.Context,
 	name string) (err error) {
@@ -510,7 +512,7 @@ func (d *DirInode) DeleteChildFile(
 // Delete the backing object for the child directory with the given (relative)
 // name.
 //
-// No lock is required.
+// LOCKS_REQUIRED(d.mu)
 func (d *DirInode) DeleteChildDir(
 	ctx context.Context,
 	name string) (err error) {

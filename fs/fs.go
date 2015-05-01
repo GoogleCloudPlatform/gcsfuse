@@ -107,15 +107,20 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 // Let FS be the file system lock. Define a strict partial order < as follows:
 //
 //  1. For any inode lock I, I < FS.
-//  2. For any directory handle lock DH, DH < FS.
+//  2. For any directory handle lock DH and inode lock I, DH < I.
 //
 // We follow the rule "acquire A then B only if A < B".
 //
-// In other words, don't hold any combination of multiple inode/directory
-// handle locks at the same time, and don't attempt to acquire either kind
-// while holding the file system lock. The intuition is that we hold inode and
-// directory handle locks for long-running operations, and we don't want to
-// block the entire file system on those.
+// In other words:
+//
+//  *  Don't hold multiple directory handle locks at the same time.
+//  *  Don't hold multiple inode locks at the same time.
+//  *  Don't acquire inode locks before directory handle locks.
+//  *  Don't acquire file system locks before either.
+//
+// The intuition is that we hold inode and directory handle locks for
+// long-running operations, and we don't want to block the entire file system
+// on those.
 //
 // See http://goo.gl/rDxxlG for more discussion, including an informal proof
 // that a strict partial order is sufficient.
@@ -554,8 +559,8 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 // loop documented for lookUpOrCreateInodeIfNotStale. Call the function once to
 // begin with, and again each time it returns a stale record.
 //
-// For each call, do not hold the file system mutex or any inode locks. The
-// caller must not hold any inode locks.
+// For each call to f, neither the file system mutex nor any inode locks will
+// be held. The caller of this function must also not hold any inode locks.
 //
 // Return ENOENT if the function ever returns a nil record. Never return a nil
 // inode with a nil error.
@@ -646,6 +651,9 @@ func (fs *fileSystem) LookUpInode(
 	// Set up a function that will find a record for the child with the given
 	// name, or nil if none.
 	f := func() (o *gcs.Object, err error) {
+		parent.Lock()
+		defer parent.Unlock()
+
 		// We need not hold a lock for LookUpChild.
 		o, err = parent.LookUpChild(op.Context(), op.Name)
 		if err != nil {
@@ -804,9 +812,9 @@ func (fs *fileSystem) MkDir(
 
 	// Create an empty backing object for the child, failing if it already
 	// exists.
-	//
-	// No lock is required here.
+	parent.Lock()
 	o, err := parent.CreateChildDir(op.Context(), op.Name)
+	parent.Unlock()
 	if err != nil {
 		err = fmt.Errorf("CreateChildDir: %v", err)
 		return
@@ -849,9 +857,9 @@ func (fs *fileSystem) CreateFile(
 
 	// Create an empty backing object for the child, failing if it already
 	// exists.
-	//
-	// No lock is required here.
+	parent.Lock()
 	o, err := parent.CreateChildFile(op.Context(), op.Name)
+	parent.Unlock()
 	if err != nil {
 		err = fmt.Errorf("CreateChildFile: %v", err)
 		return
@@ -896,7 +904,9 @@ func (fs *fileSystem) RmDir(
 	// Delete the backing object.
 	//
 	// No lock is required.
+	parent.Lock()
 	err = parent.DeleteChildDir(op.Context(), op.Name)
+	parent.Unlock()
 	if err != nil {
 		err = fmt.Errorf("DeleteChildDir: %v", err)
 		return
@@ -919,7 +929,9 @@ func (fs *fileSystem) Unlink(
 	// Delete the backing object.
 	//
 	// No lock is required here.
+	parent.Lock()
 	err = parent.DeleteChildFile(op.Context(), op.Name)
+	parent.Unlock()
 	if err != nil {
 		err = fmt.Errorf("DeleteChildFile: %v", err)
 		return
