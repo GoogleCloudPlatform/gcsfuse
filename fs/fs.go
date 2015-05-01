@@ -857,9 +857,9 @@ func (fs *fileSystem) CreateFile(
 
 	// Create an empty backing object for the child, failing if it already
 	// exists.
-	//
-	// No lock is required here.
+	parent.Lock()
 	o, err := parent.CreateChildFile(op.Context(), op.Name)
+	parent.Unlock()
 	if err != nil {
 		err = fmt.Errorf("CreateChildFile: %v", err)
 		return
