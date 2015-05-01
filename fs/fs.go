@@ -167,7 +167,7 @@ type fileSystem struct {
 	// GUARDED_BY(mu)
 	inodes map[fuseops.InodeID]inode.Inode
 
-	// A map from object name to the file inode that represents that name.
+	// A map from object name to a file inode that represents that name.
 	// Populated during the name -> inode lookup process, cleared during the
 	// forget inode process.
 	//
@@ -186,6 +186,12 @@ type fileSystem struct {
 	// Crucially, we never replace an up to date entry with a stale one. If the
 	// name lookup process sees that the stat result is older than the inode, it
 	// starts over, statting again.
+	//
+	// Note that there is no invariant that says *all* of the file inodes are
+	// represented here because we may have multiple distinct inodes for a given
+	// name existing concurrently if we observe an object generation that was not
+	// caused by our existing inode (e.g. if the file is clobbered remotely). We
+	// must retain the old inode until the kernel tells us to forget it.
 	//
 	// INVARIANT: For each k/v, v.Name() == k
 	// INVARIANT: For each value v, inodes[v.ID()] == v
