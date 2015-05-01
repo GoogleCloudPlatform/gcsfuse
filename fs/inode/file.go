@@ -40,6 +40,10 @@ type FileInode struct {
 	id           fuseops.InodeID
 	supportNlink bool
 
+	// Redundant with proxy.Name(), but stored separately so that it can be
+	// accessed without a lock.
+	name string
+
 	/////////////////////////
 	// Mutable state
 	/////////////////////////
@@ -54,6 +58,7 @@ type FileInode struct {
 	// A proxy for the backing object in GCS.
 	//
 	// INVARIANT: proxy.CheckInvariants() does not panic
+	// INVARIANT: proxy.Name() == name
 	//
 	// GUARDED_BY(mu)
 	proxy *gcsproxy.ObjectProxy
@@ -82,6 +87,7 @@ func NewFileInode(
 	f = &FileInode{
 		bucket:       bucket,
 		id:           id,
+		name:         o.Name,
 		supportNlink: supportNlink,
 		proxy:        gcsproxy.NewObjectProxy(clock, bucket, o),
 	}
@@ -101,13 +107,18 @@ func NewFileInode(
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) checkInvariants() {
 	// Make sure the name is legal.
-	name := f.proxy.Name()
+	name := f.Name()
 	if len(name) == 0 || name[len(name)-1] == '/' {
 		panic("Illegal file name: " + name)
 	}
 
 	// INVARIANT: proxy.CheckInvariants() does not panic
 	f.proxy.CheckInvariants()
+
+	// INVARIANT: proxy.Name() == name
+	if f.proxy.Name() != f.name {
+		panic(fmt.Sprintf("Name mismatch: %q %q", f.proxy.Name(), f.name))
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -127,7 +138,7 @@ func (f *FileInode) ID() fuseops.InodeID {
 }
 
 func (f *FileInode) Name() string {
-	return f.proxy.Name()
+	return f.name
 }
 
 // Return the object generation number from which this inode was branched.
