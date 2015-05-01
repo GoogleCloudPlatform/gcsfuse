@@ -95,7 +95,7 @@ func (tc *typeCache) NoteDir(now time.Time, name string) {
 		return
 	}
 
-	// TODO
+	tc.dirs.Insert(name, now.Add(tc.ttl))
 }
 
 // Erase all information about the supplied name.
