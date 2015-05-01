@@ -338,24 +338,24 @@ func (d *DirInode) Name() string {
 	return d.name
 }
 
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) IncrementLookupCount() {
 	d.lc.Inc()
 }
 
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) DecrementLookupCount(n uint64) (destroy bool) {
 	destroy = d.lc.Dec(n)
 	return
 }
 
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) Destroy() (err error) {
 	// Nothing interesting to do.
 	return
 }
 
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) Attributes(
 	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
 	// Set up basic attributes.
@@ -390,7 +390,7 @@ const ConflictingFileNameSuffix = "\n"
 // "foo/bar/baz" and this is the directory "foo", a child directory named "bar"
 // will be implied.
 //
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) LookUpChild(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
@@ -453,7 +453,7 @@ func (d *DirInode) LookUpChild(
 // directories actually exist it non-implicit mode, you must call LookUpChild
 // to do so.
 //
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
@@ -509,7 +509,7 @@ func (d *DirInode) ReadEntries(
 // Create an empty child file with the supplied (relative) name, failing if a
 // backing object already exists in GCS.
 //
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) CreateChildFile(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
@@ -526,7 +526,7 @@ func (d *DirInode) CreateChildFile(
 // Create a backing object for a child directory with the supplied (relative)
 // name, failing if a backing object already exists in GCS.
 //
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) CreateChildDir(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
@@ -542,7 +542,7 @@ func (d *DirInode) CreateChildDir(
 
 // Delete the backing object for the child file with the given (relative) name.
 //
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) DeleteChildFile(
 	ctx context.Context,
 	name string) (err error) {
@@ -560,7 +560,7 @@ func (d *DirInode) DeleteChildFile(
 // Delete the backing object for the child directory with the given (relative)
 // name.
 //
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) DeleteChildDir(
 	ctx context.Context,
 	name string) (err error) {
