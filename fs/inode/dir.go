@@ -259,6 +259,28 @@ func statObjectMayNotExist(
 	return
 }
 
+// Fail if the name already exists.
+func (d *DirInode) createNewObject(
+	ctx context.Context,
+	name string) (o *gcs.Object, err error) {
+	// Create an empty backing object for the child, failing if it already
+	// exists.
+	var precond int64
+	createReq := &gcs.CreateObjectRequest{
+		Name:                   name,
+		Contents:               strings.NewReader(""),
+		GenerationPrecondition: &precond,
+	}
+
+	o, err = d.bucket.CreateObject(ctx, createReq)
+	if err != nil {
+		err = fmt.Errorf("CreateObject: %v", err)
+		return
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -447,18 +469,8 @@ func (d *DirInode) ReadEntries(
 func (d *DirInode) CreateChildFile(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
-	// Create an empty backing object for the child, failing if it already
-	// exists.
-	var precond int64
-	createReq := &gcs.CreateObjectRequest{
-		Name:                   path.Join(d.Name(), name),
-		Contents:               strings.NewReader(""),
-		GenerationPrecondition: &precond,
-	}
-
-	o, err = d.bucket.CreateObject(ctx, createReq)
+	o, err = d.createNewObject(ctx, path.Join(d.Name(), name))
 	if err != nil {
-		err = fmt.Errorf("CreateObject: %v", err)
 		return
 	}
 
@@ -472,18 +484,8 @@ func (d *DirInode) CreateChildFile(
 func (d *DirInode) CreateChildDir(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
-	// Create an empty backing object for the child, failing if it already
-	// exists.
-	var precond int64
-	createReq := &gcs.CreateObjectRequest{
-		Name:                   path.Join(d.Name(), name) + "/",
-		Contents:               strings.NewReader(""),
-		GenerationPrecondition: &precond,
-	}
-
-	o, err = d.bucket.CreateObject(ctx, createReq)
+	o, err = d.createNewObject(ctx, path.Join(d.Name(), name)+"/")
 	if err != nil {
-		err = fmt.Errorf("CreateObject: %v", err)
 		return
 	}
 
