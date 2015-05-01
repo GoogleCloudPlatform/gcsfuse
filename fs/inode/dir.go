@@ -259,6 +259,28 @@ func statObjectMayNotExist(
 	return
 }
 
+// Fail if the name already exists.
+func (d *DirInode) createNewObject(
+	ctx context.Context,
+	name string) (o *gcs.Object, err error) {
+	// Create an empty backing object for the child, failing if it already
+	// exists.
+	var precond int64
+	createReq := &gcs.CreateObjectRequest{
+		Name:                   name,
+		Contents:               strings.NewReader(""),
+		GenerationPrecondition: &precond,
+	}
+
+	o, err = d.bucket.CreateObject(ctx, createReq)
+	if err != nil {
+		err = fmt.Errorf("CreateObject: %v", err)
+		return
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -435,6 +457,70 @@ func (d *DirInode) ReadEntries(
 
 	// Return an appropriate continuation token, if any.
 	newTok = listing.ContinuationToken
+
+	return
+}
+
+// Create an empty child file with the supplied (relative) name, failing if a
+// backing object already exists in GCS.
+//
+// No lock is required.
+// TODO(jacobsa): Do we really need a lock on dir inodes?
+func (d *DirInode) CreateChildFile(
+	ctx context.Context,
+	name string) (o *gcs.Object, err error) {
+	o, err = d.createNewObject(ctx, path.Join(d.Name(), name))
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+// Create a backing object for a child directory with the supplied (relative)
+// name, failing if a backing object already exists in GCS.
+//
+// No lock is required.
+func (d *DirInode) CreateChildDir(
+	ctx context.Context,
+	name string) (o *gcs.Object, err error) {
+	o, err = d.createNewObject(ctx, path.Join(d.Name(), name)+"/")
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+// Delete the backing object for the child file with the given (relative) name.
+//
+// No lock is required.
+func (d *DirInode) DeleteChildFile(
+	ctx context.Context,
+	name string) (err error) {
+	err = d.bucket.DeleteObject(ctx, path.Join(d.Name(), name))
+	if err != nil {
+		err = fmt.Errorf("DeleteObject: %v", err)
+		return
+	}
+
+	return
+}
+
+// Delete the backing object for the child directory with the given (relative)
+// name.
+//
+// No lock is required.
+func (d *DirInode) DeleteChildDir(
+	ctx context.Context,
+	name string) (err error) {
+	// Delete the backing object. Unfortunately we have no way to precondition
+	// this on the directory being empty.
+	err = d.bucket.DeleteObject(ctx, path.Join(d.Name(), name)+"/")
+	if err != nil {
+		err = fmt.Errorf("DeleteObject: %v", err)
+		return
+	}
 
 	return
 }

@@ -17,10 +17,8 @@ package fs
 import (
 	"fmt"
 	"os/user"
-	"path"
 	"reflect"
 	"strconv"
-	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
@@ -801,21 +799,16 @@ func (fs *fileSystem) MkDir(
 
 	// Find the parent.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent]
+	parent := fs.inodes[op.Parent].(*inode.DirInode)
 	fs.mu.Unlock()
 
 	// Create an empty backing object for the child, failing if it already
 	// exists.
-	var precond int64
-	createReq := &gcs.CreateObjectRequest{
-		Name:                   path.Join(parent.Name(), op.Name) + "/",
-		Contents:               strings.NewReader(""),
-		GenerationPrecondition: &precond,
-	}
-
-	o, err := fs.bucket.CreateObject(op.Context(), createReq)
+	//
+	// No lock is required here.
+	o, err := parent.CreateChildDir(op.Context(), op.Name)
 	if err != nil {
-		err = fmt.Errorf("CreateObject: %v", err)
+		err = fmt.Errorf("CreateChildDir: %v", err)
 		return
 	}
 
@@ -851,21 +844,16 @@ func (fs *fileSystem) CreateFile(
 
 	// Find the parent.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent]
+	parent := fs.inodes[op.Parent].(*inode.DirInode)
 	fs.mu.Unlock()
 
 	// Create an empty backing object for the child, failing if it already
 	// exists.
-	var precond int64
-	createReq := &gcs.CreateObjectRequest{
-		Name:                   path.Join(parent.Name(), op.Name),
-		Contents:               strings.NewReader(""),
-		GenerationPrecondition: &precond,
-	}
-
-	o, err := fs.bucket.CreateObject(op.Context(), createReq)
+	//
+	// No lock is required here.
+	o, err := parent.CreateChildFile(op.Context(), op.Name)
 	if err != nil {
-		err = fmt.Errorf("CreateObject: %v", err)
+		err = fmt.Errorf("CreateChildFile: %v", err)
 		return
 	}
 
@@ -902,14 +890,17 @@ func (fs *fileSystem) RmDir(
 	// Find the parent. We assume that it exists because otherwise the kernel has
 	// done something mildly concerning.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent]
+	parent := fs.inodes[op.Parent].(*inode.DirInode)
 	fs.mu.Unlock()
 
-	// Delete the backing object. Unfortunately we have no way to precondition
-	// this on the directory being empty.
-	err = fs.bucket.DeleteObject(
-		op.Context(),
-		path.Join(parent.Name(), op.Name)+"/")
+	// Delete the backing object.
+	//
+	// No lock is required.
+	err = parent.DeleteChildDir(op.Context(), op.Name)
+	if err != nil {
+		err = fmt.Errorf("DeleteChildDir: %v", err)
+		return
+	}
 
 	return
 }
@@ -922,11 +913,17 @@ func (fs *fileSystem) Unlink(
 
 	// Find the parent.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent]
+	parent := fs.inodes[op.Parent].(*inode.DirInode)
 	fs.mu.Unlock()
 
 	// Delete the backing object.
-	err = fs.bucket.DeleteObject(op.Context(), path.Join(parent.Name(), op.Name))
+	//
+	// No lock is required here.
+	err = parent.DeleteChildFile(op.Context(), op.Name)
+	if err != nil {
+		err = fmt.Errorf("DeleteChildFile: %v", err)
+		return
+	}
 
 	return
 }
