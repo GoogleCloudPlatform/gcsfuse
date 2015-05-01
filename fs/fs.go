@@ -431,7 +431,13 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 
 	// Create the inode.
 	if isDirName(o.Name) {
-		d := inode.NewDirInode(fs.bucket, id, o, fs.implicitDirs, fs.supportNlink)
+		d := inode.NewDirInode(
+			fs.bucket,
+			id,
+			o.Name,
+			fs.implicitDirs,
+			fs.supportNlink)
+
 		fs.dirIndex[d.Name()] = d
 		in = d
 	} else {
