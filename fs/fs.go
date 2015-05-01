@@ -812,9 +812,9 @@ func (fs *fileSystem) MkDir(
 
 	// Create an empty backing object for the child, failing if it already
 	// exists.
-	//
-	// No lock is required here.
+	parent.Lock()
 	o, err := parent.CreateChildDir(op.Context(), op.Name)
+	parent.Unlock()
 	if err != nil {
 		err = fmt.Errorf("CreateChildDir: %v", err)
 		return
@@ -904,7 +904,9 @@ func (fs *fileSystem) RmDir(
 	// Delete the backing object.
 	//
 	// No lock is required.
+	parent.Lock()
 	err = parent.DeleteChildDir(op.Context(), op.Name)
+	parent.Unlock()
 	if err != nil {
 		err = fmt.Errorf("DeleteChildDir: %v", err)
 		return
@@ -927,7 +929,9 @@ func (fs *fileSystem) Unlink(
 	// Delete the backing object.
 	//
 	// No lock is required here.
+	parent.Lock()
 	err = parent.DeleteChildFile(op.Context(), op.Name)
+	parent.Unlock()
 	if err != nil {
 		err = fmt.Errorf("DeleteChildFile: %v", err)
 		return
