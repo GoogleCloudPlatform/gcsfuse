@@ -451,6 +451,8 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 // If the record is stale (i.e. some newer inode exists), return nil. In this
 // case, the caller may obtain a fresh record and try again.
 //
+// Special case: We don't care about generation numbers for directories.
+//
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
@@ -463,10 +465,15 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		}
 	}()
 
-	// We do not assign any form of identity to directories (cf. semantics.md).
-	// It is legal for us to simply return a new one each time.
+	// Handle directories.
 	if isDirName(o.Name) {
-		in = fs.mintInode(o)
+		var ok bool
+
+		// If we don't have an entry, create one.
+		in, ok = fs.dirIndex[o.Name]
+		if !ok {
+			in = fs.mintInode(o)
+		}
 
 		fs.mu.Unlock()
 		in.Lock()
