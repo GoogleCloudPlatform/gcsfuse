@@ -199,6 +199,17 @@ type fileSystem struct {
 	// GUARDED_BY(mu)
 	fileIndex map[string]*inode.FileInode
 
+	// A map from object name to the directory inode that represents that name,
+	// if any. There can be at most one inode for a given name accessible to us
+	// at any given time.
+	//
+	// INVARIANT: For each k/v, v.Name() == k
+	// INVARIANT: For each value v, inodes[v.ID()] == v
+	// INVARIANT: For each *inode.DirInode d in inodes, dirIndex[d.Name()] == d
+	//
+	// GUARDED_BY(mu)
+	dirIndex map[string]*inode.DirInode
+
 	// The collection of live handles, keyed by handle ID.
 	//
 	// INVARIANT: All values are of type *dirHandle
