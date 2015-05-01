@@ -42,12 +42,8 @@ type DirInode struct {
 	implicitDirs bool
 	supportNlink bool
 
-	// The the GCS object backing the inode. The object's name is used as a
-	// prefix when listing. Special case: the empty string means this is the root
-	// inode.
-	//
-	// INVARIANT: src.Name == "" || src.Name[len(name)-1] == '/'
-	src gcs.Object
+	// INVARIANT: name == "" || name[len(name)-1] == '/'
+	name string
 
 	/////////////////////////
 	// Mutable state
@@ -69,17 +65,13 @@ func NewRootInode(
 	bucket gcs.Bucket,
 	implicitDirs bool,
 	supportNlink bool) (d *DirInode) {
-	dummy := &gcs.Object{
-		Name: "",
-	}
-
-	d = NewDirInode(bucket, fuseops.RootInodeID, dummy, implicitDirs, supportNlink)
+	d = NewDirInode(bucket, fuseops.RootInodeID, "", implicitDirs, supportNlink)
 	return
 }
 
-// Create a directory inode for the supplied source object. The object's name
-// must end with a slash unless this is the root directory, in which case it
-// must be empty.
+// Create a directory inode for the supplied object name. The name must end
+// with a slash unless this is the root directory, in which case it must be
+// empty.
 //
 // If implicitDirs is set, LookUpChild will use ListObjects to find child
 // directories that are "implicitly" defined by the existence of their own
@@ -92,16 +84,15 @@ func NewRootInode(
 //
 // The initial lookup count is zero.
 //
-// REQUIRES: o != nil
-// REQUIRES: o.Name == "" || o.Name[len(o.Name)-1] == '/'
+// REQUIRES: name == "" || name[len(name)-1] == '/'
 func NewDirInode(
 	bucket gcs.Bucket,
 	id fuseops.InodeID,
-	o *gcs.Object,
+	name string,
 	implicitDirs bool,
 	supportNlink bool) (d *DirInode) {
-	if o.Name != "" && o.Name[len(o.Name)-1] != '/' {
-		panic(fmt.Sprintf("Unexpected name: %s", o.Name))
+	if name != "" && name[len(name)-1] != '/' {
+		panic(fmt.Sprintf("Unexpected name: %s", name))
 	}
 
 	// Set up the struct.
@@ -110,7 +101,7 @@ func NewDirInode(
 		id:           id,
 		implicitDirs: implicitDirs,
 		supportNlink: supportNlink,
-		src:          *o,
+		name:         name,
 	}
 
 	d.lc.Init(id)
@@ -126,9 +117,9 @@ func NewDirInode(
 ////////////////////////////////////////////////////////////////////////
 
 func (d *DirInode) checkInvariants() {
-	// INVARIANT: src.Name == "" || src.Name[len(name)-1] == '/'
-	if !(d.src.Name == "" || d.src.Name[len(d.src.Name)-1] == '/') {
-		panic(fmt.Sprintf("Unexpected name: %s", d.src.Name))
+	// INVARIANT: name == "" || name[len(name)-1] == '/'
+	if !(d.name == "" || d.name[len(d.name)-1] == '/') {
+		panic(fmt.Sprintf("Unexpected name: %s", d.name))
 	}
 }
 
@@ -143,7 +134,7 @@ func (d *DirInode) clobbered(ctx context.Context) (clobbered bool, err error) {
 		Name: d.Name(),
 	}
 
-	o, err := d.bucket.StatObject(ctx, req)
+	_, err = d.bucket.StatObject(ctx, req)
 
 	// "Not found" means clobbered.
 	if _, ok := err.(*gcs.NotFoundError); ok {
@@ -157,9 +148,6 @@ func (d *DirInode) clobbered(ctx context.Context) (clobbered bool, err error) {
 		err = fmt.Errorf("StatObject: %v", err)
 		return
 	}
-
-	// We are clobbered if the generation number has changed.
-	clobbered = o.Generation != d.src.Generation
 
 	return
 }
@@ -327,7 +315,7 @@ func (d *DirInode) ID() fuseops.InodeID {
 // Return the full name of the directory object in GCS, including the trailing
 // slash (e.g. "foo/bar/").
 func (d *DirInode) Name() string {
-	return d.src.Name
+	return d.name
 }
 
 // LOCKS_REQUIRED(d.mu)
