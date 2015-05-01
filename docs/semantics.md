@@ -192,6 +192,9 @@ look up child inodes. Unlike file inodes:
     directories. There are no guarantees for the contents of `stat::st_mtime`
     or equivalent.
 
+*   There are no guarantees about `stat::st_nlink`, even if `--support_nlink`
+    is set.
+
 ### Reading
 
 Unlike reads for a particular object, listing operations in GCS are
