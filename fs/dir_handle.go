@@ -110,10 +110,15 @@ func (dh *dirHandle) checkInvariants() {
 // The contents of the entries' Offset fields are undefined. This function
 // always behaves as if implicit directories are defined; see notes on
 // DirInode.ReadEntries.
+//
+// LOCKS_EXCLUDED(in)
 func readSomeEntries(
 	ctx context.Context,
 	in *inode.DirInode,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
+	in.Lock()
+	defer in.Unlock()
+
 	entries, newTok, err = in.ReadEntries(ctx, tok)
 	if err != nil {
 		err = fmt.Errorf("ReadEntries: %v", err)
@@ -146,6 +151,8 @@ func readSomeEntries(
 //
 // Write entries to the supplied channel, without closing. Entry Offset fields
 // have unspecified contents.
+//
+// LOCKS_EXCLUDED(in)
 func readEntries(
 	ctx context.Context,
 	in *inode.DirInode,
@@ -184,6 +191,8 @@ func readEntries(
 // return a directory. This can be used to implicit directories without a
 // matching backing object from the output of DirInode.ReadDir, which always
 // behaves as if implicit directories are enabled.
+//
+// LOCKS_EXCLUDED(in)
 func filterMissingDirectories(
 	ctx context.Context,
 	in *inode.DirInode,
@@ -193,7 +202,9 @@ func filterMissingDirectories(
 		// If this is a directory, confirm it actually exists.
 		if e.Type == fuseutil.DT_Directory {
 			var o *gcs.Object
+			in.Lock()
 			o, err = in.LookUpChild(ctx, e.Name)
+			defer in.Unlock()
 			if err != nil {
 				err = fmt.Errorf("LookUpChild: %v", err)
 				return
@@ -261,6 +272,7 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 	return
 }
 
+// LOCKS_EXCLUDED(dh.in)
 func (dh *dirHandle) readAllEntries(
 	ctx context.Context) (entries []fuseutil.Dirent, err error) {
 	b := syncutil.NewBundle(ctx)
@@ -334,6 +346,24 @@ func (dh *dirHandle) readAllEntries(
 	return
 }
 
+// LOCKS_REQUIRED(dh.Mu)
+// LOCKS_EXCLUDED(dh.in)
+func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
+	// Read entries.
+	var entries []fuseutil.Dirent
+	entries, err = dh.readAllEntries(ctx)
+	if err != nil {
+		err = fmt.Errorf("readAllEntries: %v", err)
+		return
+	}
+
+	// Update state.
+	dh.entries = entries
+	dh.entriesValid = true
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -345,6 +375,7 @@ func (dh *dirHandle) readAllEntries(
 // start the listing process over again.
 //
 // LOCKS_REQUIRED(dh.Mu)
+// LOCKS_EXCLUDED(du.in)
 func (dh *dirHandle) ReadDir(
 	op *fuseops.ReadDirOp) (err error) {
 	// If the request is for offset zero, we assume that either this is the first
@@ -356,17 +387,10 @@ func (dh *dirHandle) ReadDir(
 
 	// Do we need to read entries from GCS?
 	if !dh.entriesValid {
-		// Read entries.
-		var entries []fuseutil.Dirent
-		entries, err = dh.readAllEntries(op.Context())
+		err = dh.ensureEntries(op.Context())
 		if err != nil {
-			err = fmt.Errorf("readAllEntries: %v", err)
 			return
 		}
-
-		// Update state.
-		dh.entries = entries
-		dh.entriesValid = true
 	}
 
 	// Is the offset past the end of what we have buffered? If so, this must be

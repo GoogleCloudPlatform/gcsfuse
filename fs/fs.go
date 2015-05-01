@@ -107,15 +107,20 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 // Let FS be the file system lock. Define a strict partial order < as follows:
 //
 //  1. For any inode lock I, I < FS.
-//  2. For any directory handle lock DH, DH < FS.
+//  2. For any directory handle lock DH and inode lock I, DH < I.
 //
 // We follow the rule "acquire A then B only if A < B".
 //
-// In other words, don't hold any combination of multiple inode/directory
-// handle locks at the same time, and don't attempt to acquire either kind
-// while holding the file system lock. The intuition is that we hold inode and
-// directory handle locks for long-running operations, and we don't want to
-// block the entire file system on those.
+// In other words:
+//
+//  *  Don't hold multiple directory handle locks at the same time.
+//  *  Don't hold multiple inode locks at the same time.
+//  *  Don't acquire inode locks before directory handle locks.
+//  *  Don't acquire file system locks before either.
+//
+// The intuition is that we hold inode and directory handle locks for
+// long-running operations, and we don't want to block the entire file system
+// on those.
 //
 // See http://goo.gl/rDxxlG for more discussion, including an informal proof
 // that a strict partial order is sufficient.
