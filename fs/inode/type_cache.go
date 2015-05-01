@@ -133,7 +133,22 @@ func (tc *typeCache) IsFile(now time.Time, name string) (res bool) {
 
 // Do we currently think the given name is a directory?
 func (tc *typeCache) IsDir(now time.Time, name string) (res bool) {
-	// TODO
-	res = false
+	// Is there an entry?
+	val := tc.dirs.LookUp(name)
+	if val == nil {
+		res = false
+		return
+	}
+
+	expiration := val.(time.Time)
+
+	// Has the entry expired?
+	if expiration.Before(now) {
+		tc.dirs.Erase(name)
+		res = false
+		return
+	}
+
+	res = true
 	return
 }
