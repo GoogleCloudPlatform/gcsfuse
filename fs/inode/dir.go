@@ -40,7 +40,6 @@ type DirInode struct {
 
 	id           fuseops.InodeID
 	implicitDirs bool
-	supportNlink bool
 
 	// INVARIANT: name == "" || name[len(name)-1] == '/'
 	name string
@@ -63,9 +62,8 @@ var _ Inode = &DirInode{}
 // count is zero.
 func NewRootInode(
 	bucket gcs.Bucket,
-	implicitDirs bool,
-	supportNlink bool) (d *DirInode) {
-	d = NewDirInode(bucket, fuseops.RootInodeID, "", implicitDirs, supportNlink)
+	implicitDirs bool) (d *DirInode) {
+	d = NewDirInode(bucket, fuseops.RootInodeID, "", implicitDirs)
 	return
 }
 
@@ -78,10 +76,6 @@ func NewRootInode(
 // descendents. For example, if there is an object named "foo/bar/baz" and this
 // is the directory "foo", a child directory named "bar" will be implied.
 //
-// If supportNlink is set, Attributes will use bucket.StatObject to find out
-// whether the backing objet has been clobbered. Otherwise, Attributes will
-// always show Nlink == 1.
-//
 // The initial lookup count is zero.
 //
 // REQUIRES: name == "" || name[len(name)-1] == '/'
@@ -89,8 +83,7 @@ func NewDirInode(
 	bucket gcs.Bucket,
 	id fuseops.InodeID,
 	name string,
-	implicitDirs bool,
-	supportNlink bool) (d *DirInode) {
+	implicitDirs bool) (d *DirInode) {
 	if name != "" && name[len(name)-1] != '/' {
 		panic(fmt.Sprintf("Unexpected name: %s", name))
 	}
@@ -100,7 +93,6 @@ func NewDirInode(
 		bucket:       bucket,
 		id:           id,
 		implicitDirs: implicitDirs,
-		supportNlink: supportNlink,
 		name:         name,
 	}
 
@@ -121,35 +113,6 @@ func (d *DirInode) checkInvariants() {
 	if !(d.name == "" || d.name[len(d.name)-1] == '/') {
 		panic(fmt.Sprintf("Unexpected name: %s", d.name))
 	}
-}
-
-func (d *DirInode) clobbered(ctx context.Context) (clobbered bool, err error) {
-	// Special case: the root is never clobbered.
-	if d.ID() == fuseops.RootInodeID {
-		return
-	}
-
-	// Stat the backing object.
-	req := &gcs.StatObjectRequest{
-		Name: d.Name(),
-	}
-
-	_, err = d.bucket.StatObject(ctx, req)
-
-	// "Not found" means clobbered.
-	if _, ok := err.(*gcs.NotFoundError); ok {
-		clobbered = true
-		err = nil
-		return
-	}
-
-	// Propagate other errors.
-	if err != nil {
-		err = fmt.Errorf("StatObject: %v", err)
-		return
-	}
-
-	return
 }
 
 func (d *DirInode) lookUpChildFile(
@@ -341,21 +304,6 @@ func (d *DirInode) Attributes(
 	attrs = fuseops.InodeAttributes{
 		Mode:  0700 | os.ModeDir,
 		Nlink: 1,
-	}
-
-	// If enabled, find out whether the backing object has been clobbered in GCS
-	// in order to set the Nlink field properly.
-	if d.supportNlink {
-		var clobbered bool
-		clobbered, err = d.clobbered(ctx)
-		if err != nil {
-			err = fmt.Errorf("clobbered: %v", err)
-			return
-		}
-
-		if clobbered {
-			attrs.Nlink = 0
-		}
 	}
 
 	return

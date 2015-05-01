@@ -621,12 +621,12 @@ func (t *foreignModsTest) ObjectIsDeleted_Directory() {
 	// Delete the object.
 	AssertEq(nil, t.bucket.DeleteObject(t.ctx, "dir/"))
 
-	// The inode should appear to be unlinked, but otherwise be okay.
+	// The inode should still be fstat'able.
 	fi, err := t.f1.Stat()
 
 	AssertEq(nil, err)
+	ExpectEq("dir", fi.Name())
 	ExpectTrue(fi.IsDir())
-	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Opening again should not work.
 	t.f2, err = os.Open(path.Join(t.mfs.Dir(), "dir"))
@@ -860,7 +860,6 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 	ExpectEq(0, fi.Size())
 	ExpectEq(0700|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
-	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	fi = entries[1]
 	ExpectEq("foo\n", fi.Name())
