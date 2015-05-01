@@ -136,11 +136,18 @@ func (d *DirInode) checkInvariants() {
 func (d *DirInode) lookUpChildFile(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
+	// TODO(jacobsa): Bail out early here with o == nil if the cache says yes
+	// to the other type but not to this one.
+	panic("TODO")
+
 	o, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name)
 	if err != nil {
 		err = fmt.Errorf("statObjectMayNotExist: %v", err)
 		return
 	}
+
+	// TODO(jacobsa): Update the cache to say file here if o != nil
+	panic("TODO")
 
 	return
 }
@@ -148,6 +155,10 @@ func (d *DirInode) lookUpChildFile(
 func (d *DirInode) lookUpChildDir(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
+	// TODO(jacobsa): Bail out early here with o == nil if the cache says yes
+	// to the other type but not to this one.
+	panic("TODO")
+
 	b := syncutil.NewBundle(ctx)
 
 	// Stat the placeholder object.
@@ -193,6 +204,9 @@ func (d *DirInode) lookUpChildDir(
 			Name: d.Name() + name + "/",
 		}
 	}
+
+	// TODO(jacobsa): Update the cache to say directory here if o != nil
+	panic("TODO")
 
 	return
 }
@@ -482,6 +496,9 @@ func (d *DirInode) ReadEntries(
 
 	// Return an appropriate continuation token, if any.
 	newTok = listing.ContinuationToken
+
+	// TODO(jacobsa): Put entries in the cache here.
+	panic("TODO")
 
 	return
 }
