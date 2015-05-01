@@ -342,6 +342,44 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	//////////////////////////////////
+	// dirIndex
+	//////////////////////////////////
+
+	// INVARIANT: For each k/v, v.Name() == k
+	for k, v := range fs.dirIndex {
+		if !(v.Name() == k) {
+			panic(fmt.Sprintf(
+				"Unexpected name: \"%s\" vs. \"%s\"",
+				v.Name(),
+				k))
+		}
+	}
+
+	// INVARIANT: For each value v, inodes[v.ID()] == v
+	for _, v := range fs.dirIndex {
+		if fs.inodes[v.ID()] != v {
+			panic(fmt.Sprintf(
+				"Mismatch for ID %v: %p %p",
+				v.ID(),
+				fs.inodes[v.ID()],
+				v))
+		}
+	}
+
+	// INVARIANT: For each *inode.DirInode d in inodes, dirIndex[d.Name()] == d
+	for _, in := range fs.inodes {
+		if d, ok := in.(*inode.DirInode); ok {
+			if !(fs.dirIndex[d.Name()] == d) {
+				panic(fmt.Sprintf(
+					"dirIndex mismatch: %q %p %p",
+					d.Name(),
+					fs.dirIndex[d.Name()],
+					d))
+			}
+		}
+	}
+
+	//////////////////////////////////
 	// handles
 	//////////////////////////////////
 
