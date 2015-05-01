@@ -85,7 +85,7 @@ func (tc *typeCache) NoteFile(now time.Time, name string) {
 		return
 	}
 
-	// TODO
+	tc.files.Insert(name, now.Add(tc.ttl))
 }
 
 // Record that the supplied name is a directory. It may still also be a file.
