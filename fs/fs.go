@@ -79,6 +79,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		inodes:       make(map[fuseops.InodeID]inode.Inode),
 		nextInodeID:  fuseops.RootInodeID + 1,
 		fileIndex:    make(map[string]*inode.FileInode),
+		dirIndex:     make(map[string]*inode.DirInode),
 		handles:      make(map[fuseops.HandleID]interface{}),
 	}
 
@@ -88,6 +89,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	root.Lock()
 	root.IncrementLookupCount()
 	fs.inodes[fuseops.RootInodeID] = root
+	fs.dirIndex[root.Name()] = root
 	root.Unlock()
 
 	// Set up invariant checking.
@@ -429,7 +431,9 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 
 	// Create the inode.
 	if isDirName(o.Name) {
-		in = inode.NewDirInode(fs.bucket, id, o, fs.implicitDirs, fs.supportNlink)
+		d := inode.NewDirInode(fs.bucket, id, o, fs.implicitDirs, fs.supportNlink)
+		fs.dirIndex[d.Name()] = d
+		in = d
 	} else {
 		in = inode.NewFileInode(fs.clock, fs.bucket, id, fs.supportNlink, o)
 	}
@@ -753,9 +757,13 @@ func (fs *fileSystem) ForgetInode(
 	if shouldDestroy {
 		delete(fs.inodes, op.Inode)
 
-		// Is this the current entry for the name?
+		// Update indexes if necessary.
 		if fs.fileIndex[name] == in {
 			delete(fs.fileIndex, name)
+		}
+
+		if fs.dirIndex[name] == in {
+			delete(fs.dirIndex, name)
 		}
 	}
 
