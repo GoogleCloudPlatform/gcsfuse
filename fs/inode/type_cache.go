@@ -60,7 +60,12 @@ type typeCache struct {
 func newTypeCache(
 	perTypeCapacity int,
 	ttl time.Duration) (tc typeCache) {
-	// TODO
+	tc = typeCache{
+		ttl:   ttl,
+		files: lrucache.New(perTypeCapacity),
+		dirs:  lrucache.New(perTypeCapacity),
+	}
+
 	return
 }
 
