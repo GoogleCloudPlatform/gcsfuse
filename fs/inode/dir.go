@@ -359,6 +359,10 @@ const ConflictingFileNameSuffix = "\n"
 func (d *DirInode) LookUpChild(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
+	// TODO(jacobsa): We probably shouldn't return early below. Require bundles
+	// to be joined in the documentation, consider adding a finalizer that
+	// crashes if not, set up the bundle to call the context's cancel function in
+	// Join, make sure this method fails, then fix this method.
 	b := syncutil.NewBundle(ctx)
 
 	// Is this a conflict marker name?
