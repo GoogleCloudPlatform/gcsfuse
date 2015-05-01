@@ -477,7 +477,7 @@ func (d *DirInode) CreateChildFile(
 	return
 }
 
-// Create a backing objet for a child directory with the supplied (relative)
+// Create a backing object for a child directory with the supplied (relative)
 // name, failing if a backing object already exists in GCS.
 //
 // No lock is required.
@@ -486,6 +486,21 @@ func (d *DirInode) CreateChildDir(
 	name string) (o *gcs.Object, err error) {
 	o, err = d.createNewObject(ctx, path.Join(d.Name(), name)+"/")
 	if err != nil {
+		return
+	}
+
+	return
+}
+
+// Delete the backing object for the child file with the given (relative) name.
+//
+// No lock is required.
+func (d *DirInode) DeleteChildFile(
+	ctx context.Context,
+	name string) (err error) {
+	err = d.bucket.DeleteObject(ctx, path.Join(d.Name(), name))
+	if err != nil {
+		err = fmt.Errorf("DeleteObject: %v", err)
 		return
 	}
 

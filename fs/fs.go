@@ -911,11 +911,17 @@ func (fs *fileSystem) Unlink(
 
 	// Find the parent.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent]
+	parent := fs.inodes[op.Parent].(*inode.DirInode)
 	fs.mu.Unlock()
 
 	// Delete the backing object.
-	err = fs.bucket.DeleteObject(op.Context(), path.Join(parent.Name(), op.Name))
+	//
+	// No lock is required here.
+	err = parent.DeleteChildFile(op.Context(), op.Name)
+	if err != nil {
+		err = fmt.Errorf("DeleteChildFile: %v", err)
+		return
+	}
 
 	return
 }
