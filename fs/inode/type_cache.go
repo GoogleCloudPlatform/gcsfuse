@@ -14,7 +14,11 @@
 
 package inode
 
-import "time"
+import (
+	"time"
+
+	"github.com/jacobsa/util/lrucache"
+)
 
 // A cache that maps from a name to information about the type of the object
 // with that name. Each name N is in one of the following states:
@@ -27,12 +31,35 @@ import "time"
 // Must be created with newTypeCache. May be contained in a larger struct.
 // External synchronization is required.
 type typeCache struct {
+	/////////////////////////
+	// Constant data
+	/////////////////////////
+
 	ttl time.Duration
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
+	// A cache mapping file names to the time at which the entry should expire.
+	//
+	// INVARIANT: files.CheckInvariants() does not panic
+	// INVARIANT: Each value is of type time.Time
+	files lrucache.Cache
+
+	// A cache mapping directory names to the time at which the entry should
+	// expire.
+	//
+	// INVARIANT: dirs.CheckInvariants() does not panic
+	// INVARIANT: Each value is of type time.Time
+	dirs lrucache.Cache
 }
 
 // Create a cache whose information expires with the supplied TTL. If the TTL
 // is zero, nothing will ever be cached.
-func newTypeCache(ttl time.Duration) (tc typeCache) {
+func newTypeCache(
+	perTypeCapacity int,
+	ttl time.Duration) (tc typeCache) {
 	// TODO
 	return
 }
@@ -40,6 +67,12 @@ func newTypeCache(ttl time.Duration) (tc typeCache) {
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
+
+// Panic if any internal invariants have been violated. The careful user can
+// arrange to call this at crucial moments.
+func (tc *typeCache) CheckInvariants() {
+	// TODO
+}
 
 // Record that the supplied name is a file. It may still also be a directory.
 func (tc *typeCache) NoteFile(now time.Time, name string) {
