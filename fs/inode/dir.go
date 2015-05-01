@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -40,6 +41,7 @@ type DirInode struct {
 
 	id           fuseops.InodeID
 	implicitDirs bool
+	typeCacheTTL time.Duration
 
 	// INVARIANT: name == "" || name[len(name)-1] == '/'
 	name string
@@ -62,8 +64,15 @@ var _ Inode = &DirInode{}
 // count is zero.
 func NewRootInode(
 	bucket gcs.Bucket,
-	implicitDirs bool) (d *DirInode) {
-	d = NewDirInode(bucket, fuseops.RootInodeID, "", implicitDirs)
+	implicitDirs bool,
+	typeCacheTTL time.Duration) (d *DirInode) {
+	d = NewDirInode(
+		bucket,
+		fuseops.RootInodeID,
+		"",
+		implicitDirs,
+		typeCacheTTL)
+
 	return
 }
 
@@ -76,6 +85,13 @@ func NewRootInode(
 // descendents. For example, if there is an object named "foo/bar/baz" and this
 // is the directory "foo", a child directory named "bar" will be implied.
 //
+// If typeCacheTTL is non-zero, a cache from child name to information about
+// whether that name exists as a file and/or directory will be maintained. This
+// may speed up calls to LookUpChild, especially when combined with a
+// stat-caching GCS bucket, but comes at the cost of consistency: if the child
+// is removed and recreated with a different type before the expiration, we may
+// fail to find it.
+//
 // The initial lookup count is zero.
 //
 // REQUIRES: name == "" || name[len(name)-1] == '/'
@@ -83,7 +99,8 @@ func NewDirInode(
 	bucket gcs.Bucket,
 	id fuseops.InodeID,
 	name string,
-	implicitDirs bool) (d *DirInode) {
+	implicitDirs bool,
+	typeCacheTTL time.Duration) (d *DirInode) {
 	if name != "" && name[len(name)-1] != '/' {
 		panic(fmt.Sprintf("Unexpected name: %s", name))
 	}
@@ -93,6 +110,7 @@ func NewDirInode(
 		bucket:       bucket,
 		id:           id,
 		implicitDirs: implicitDirs,
+		typeCacheTTL: typeCacheTTL,
 		name:         name,
 	}
 
