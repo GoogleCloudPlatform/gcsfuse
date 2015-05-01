@@ -72,10 +72,10 @@ func newTypeCache(
 // arrange to call this at crucial moments.
 func (tc *typeCache) CheckInvariants() {
 	// INVARIANT: files.CheckInvariants() does not panic
-	files.CheckInvariants()
+	tc.files.CheckInvariants()
 
 	// INVARIANT: dirs.CheckInvariants() does not panic
-	dirs.CheckInvariants()
+	tc.dirs.CheckInvariants()
 }
 
 // Record that the supplied name is a file. It may still also be a directory.
