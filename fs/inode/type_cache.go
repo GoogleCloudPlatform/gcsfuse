@@ -1,0 +1,86 @@
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package inode
+
+import "time"
+
+// A cache that maps from a name to information about the type of the object
+// with that name. Each name N is in one of the following states:
+//
+//  *  Nothing is known about N.
+//  *  We have recorded that N is a file.
+//  *  We have recorded that N is a directory.
+//  *  We have recorded that N is both a file and a directory.
+//
+// Must be created with newTypeCache. May be contained in a larger struct.
+// External synchronization is required.
+type typeCache struct {
+	ttl time.Duration
+}
+
+// Create a cache whose information expires with the supplied TTL. If the TTL
+// is zero, nothing will ever be cached.
+func newTypeCache(ttl time.Duration) (tc typeCache) {
+	// TODO
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// Public interface
+////////////////////////////////////////////////////////////////////////
+
+// Record that the supplied name is a file. It may still also be a directory.
+func (tc *typeCache) NoteFile(now time.Time, name string) {
+	// Are we disabled?
+	if tc.ttl == 0 {
+		return
+	}
+
+	// TODO
+}
+
+// Record that the supplied name is a directory. It may still also be a file.
+func (tc *typeCache) NoteDir(now time.Time, name string) {
+	// Are we disabled?
+	if tc.ttl == 0 {
+		return
+	}
+
+	// TODO
+}
+
+// Erase all information about the supplied name.
+func (tc *typeCache) Erase(name string) {
+	// Are we disabled?
+	if tc.ttl == 0 {
+		return
+	}
+
+	// TODO
+}
+
+// Do we currently think the given name is a file?
+func (tc *typeCache) IsFile(now time.Time, name string) (res bool) {
+	// TODO
+	res = false
+	return
+}
+
+// Do we currently think the given name is a directory?
+func (tc *typeCache) IsDir(now time.Time, name string) (res bool) {
+	// TODO
+	res = false
+	return
+}
