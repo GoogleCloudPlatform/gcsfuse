@@ -55,8 +55,9 @@ type ServerConfig struct {
 	// regardless of whether its backing object has been deleted or overwritten.
 	//
 	// Setting SupportNlink to true causes the file system to respond to fuse
-	// getattr requests with nlink == 0 in the cases mentioned above. This
-	// requires a round trip to GCS for every getattr, which can be quite slow.
+	// getattr requests with nlink == 0 for file inodes in the cases mentioned
+	// above. This requires a round trip to GCS for every getattr, which can be
+	// quite slow.
 	SupportNlink bool
 }
 
@@ -84,7 +85,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	}
 
 	// Set up the root inode.
-	root := inode.NewRootInode(cfg.Bucket, fs.implicitDirs, fs.supportNlink)
+	root := inode.NewRootInode(cfg.Bucket, fs.implicitDirs)
 
 	root.Lock()
 	root.IncrementLookupCount()
@@ -435,8 +436,7 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 			fs.bucket,
 			id,
 			o.Name,
-			fs.implicitDirs,
-			fs.supportNlink)
+			fs.implicitDirs)
 
 		fs.dirIndex[d.Name()] = d
 		in = d
