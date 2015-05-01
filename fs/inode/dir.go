@@ -498,6 +498,8 @@ func (d *DirInode) CreateChildFile(
 		return
 	}
 
+	panic("TODO: Update the type cache.")
+
 	return
 }
 
@@ -513,6 +515,8 @@ func (d *DirInode) CreateChildDir(
 		return
 	}
 
+	panic("TODO: Update the type cache.")
+
 	return
 }
 
@@ -527,6 +531,8 @@ func (d *DirInode) DeleteChildFile(
 		err = fmt.Errorf("DeleteObject: %v", err)
 		return
 	}
+
+	panic("TODO: Update the type cache.")
 
 	return
 }
@@ -545,6 +551,8 @@ func (d *DirInode) DeleteChildDir(
 		err = fmt.Errorf("DeleteObject: %v", err)
 		return
 	}
+
+	panic("TODO: Update the type cache.")
 
 	return
 }
