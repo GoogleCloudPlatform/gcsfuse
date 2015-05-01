@@ -917,12 +917,9 @@ func (t *directoryTest) Rmdir_OpenedForReading() {
 	err = os.MkdirAll(path.Join(t.mfs.Dir(), "dir/baz"), 0700)
 	AssertEq(nil, err)
 
-	// We should still be able to stat the open file handle. It should show up as
-	// unlinked.
+	// We should still be able to stat the open file handle.
 	fi, err := t.f1.Stat()
-
 	ExpectEq("dir", fi.Name())
-	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Attempt to read from the directory. Unfortunately we can't implement the
 	// guarantee that no new entries are returned, but nothing crazy should
