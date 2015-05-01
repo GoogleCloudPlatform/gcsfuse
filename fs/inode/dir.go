@@ -41,7 +41,6 @@ type DirInode struct {
 
 	id           fuseops.InodeID
 	implicitDirs bool
-	typeCacheTTL time.Duration
 
 	// INVARIANT: name == "" || name[len(name)-1] == '/'
 	name string
@@ -56,6 +55,9 @@ type DirInode struct {
 
 	// GUARDED_BY(mu)
 	lc lookupCount
+
+	// GUARDED_BY(mu)
+	cache typeCache
 }
 
 var _ Inode = &DirInode{}
@@ -106,12 +108,13 @@ func NewDirInode(
 	}
 
 	// Set up the struct.
+	const typeCacheCapacity = 1 << 16
 	d = &DirInode{
 		bucket:       bucket,
 		id:           id,
 		implicitDirs: implicitDirs,
-		typeCacheTTL: typeCacheTTL,
 		name:         name,
+		cache:        newTypeCache(typeCacheCapacity/2, typeCacheTTL),
 	}
 
 	d.lc.Init(id)
