@@ -139,18 +139,11 @@ func (d *DirInode) checkInvariants() {
 func (d *DirInode) lookUpChildFile(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
-	// TODO(jacobsa): Bail out early here with o == nil if the cache says yes
-	// to the other type but not to this one.
-	panic("TODO")
-
 	o, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name)
 	if err != nil {
 		err = fmt.Errorf("statObjectMayNotExist: %v", err)
 		return
 	}
-
-	// TODO(jacobsa): Update the cache to say file here if o != nil
-	panic("TODO")
 
 	return
 }
@@ -158,10 +151,6 @@ func (d *DirInode) lookUpChildFile(
 func (d *DirInode) lookUpChildDir(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
-	// TODO(jacobsa): Bail out early here with o == nil if the cache says yes
-	// to the other type but not to this one.
-	panic("TODO")
-
 	b := syncutil.NewBundle(ctx)
 
 	// Stat the placeholder object.
@@ -207,9 +196,6 @@ func (d *DirInode) lookUpChildDir(
 			Name: d.Name() + name + "/",
 		}
 	}
-
-	// TODO(jacobsa): Update the cache to say directory here if o != nil
-	panic("TODO")
 
 	return
 }
@@ -394,6 +380,12 @@ const ConflictingFileNameSuffix = "\n"
 func (d *DirInode) LookUpChild(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
+	// TODO(jacobsa): See what the cache says here, then avoid looking up as a
+	// dir below if the cache says file but not dir, and vice versa. We have to
+	// put the logic here instead of the leaf methods because we hold the lock
+	// for *this* goroutine and they are running concurrently.
+	panic("TODO")
+
 	// TODO(jacobsa): We probably shouldn't return early below. Require bundles
 	// to be joined in the documentation, consider adding a finalizer that
 	// crashes if not, set up the bundle to call the context's cancel function in
@@ -433,6 +425,12 @@ func (d *DirInode) LookUpChild(
 	case fileRecord != nil:
 		o = fileRecord
 	}
+
+	// TODO(jacobsa): Update the cache to say file here if fileRecord != nil
+	panic("TODO")
+
+	// TODO(jacobsa): Update the cache to say dir here if dirRecord != nil
+	panic("TODO")
 
 	return
 }
