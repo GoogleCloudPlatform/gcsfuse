@@ -438,3 +438,30 @@ func (d *DirInode) ReadEntries(
 
 	return
 }
+
+// Create an empty child file with the supplied (relative) name, failing if a
+// backing object already exists in GCS. Return the backing object for the new
+// file.
+//
+// No lock is required.
+// TODO(jacobsa): Do we really need a lock on dir inodes?
+func (d *DirInode) CreateChildFile(
+	ctx context.Context,
+	name string) (o *gcs.Object, err error) {
+	// Create an empty backing object for the child, failing if it already
+	// exists.
+	var precond int64
+	createReq := &gcs.CreateObjectRequest{
+		Name:                   path.Join(d.Name(), name),
+		Contents:               strings.NewReader(""),
+		GenerationPrecondition: &precond,
+	}
+
+	o, err = d.bucket.CreateObject(ctx, createReq)
+	if err != nil {
+		err = fmt.Errorf("CreateObject: %v", err)
+		return
+	}
+
+	return
+}
