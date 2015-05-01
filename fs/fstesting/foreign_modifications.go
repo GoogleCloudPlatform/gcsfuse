@@ -564,12 +564,12 @@ func (t *foreignModsTest) ObjectIsOverwritten_Directory() {
 	// Overwrite the object.
 	AssertEq(nil, t.createWithContents("dir/", ""))
 
-	// The inode should appear to be unlinked, but otherwise be okay.
+	// The inode should still be accessible.
 	fi, err := t.f1.Stat()
 
 	AssertEq(nil, err)
+	ExpectEq("dir", fi.Name())
 	ExpectTrue(fi.IsDir())
-	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
 func (t *foreignModsTest) ObjectIsDeleted_File() {
