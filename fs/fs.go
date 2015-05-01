@@ -55,8 +55,9 @@ type ServerConfig struct {
 	// regardless of whether its backing object has been deleted or overwritten.
 	//
 	// Setting SupportNlink to true causes the file system to respond to fuse
-	// getattr requests with nlink == 0 in the cases mentioned above. This
-	// requires a round trip to GCS for every getattr, which can be quite slow.
+	// getattr requests with nlink == 0 for file inodes in the cases mentioned
+	// above. This requires a round trip to GCS for every getattr, which can be
+	// quite slow.
 	SupportNlink bool
 }
 
@@ -79,15 +80,17 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		inodes:       make(map[fuseops.InodeID]inode.Inode),
 		nextInodeID:  fuseops.RootInodeID + 1,
 		fileIndex:    make(map[string]*inode.FileInode),
+		dirIndex:     make(map[string]*inode.DirInode),
 		handles:      make(map[fuseops.HandleID]interface{}),
 	}
 
 	// Set up the root inode.
-	root := inode.NewRootInode(cfg.Bucket, fs.implicitDirs, fs.supportNlink)
+	root := inode.NewRootInode(cfg.Bucket, fs.implicitDirs)
 
 	root.Lock()
 	root.IncrementLookupCount()
 	fs.inodes[fuseops.RootInodeID] = root
+	fs.dirIndex[root.Name()] = root
 	root.Unlock()
 
 	// Set up invariant checking.
@@ -167,7 +170,7 @@ type fileSystem struct {
 	// GUARDED_BY(mu)
 	inodes map[fuseops.InodeID]inode.Inode
 
-	// A map from object name to the file inode that represents that name.
+	// A map from object name to a file inode that represents that name.
 	// Populated during the name -> inode lookup process, cleared during the
 	// forget inode process.
 	//
@@ -187,11 +190,28 @@ type fileSystem struct {
 	// name lookup process sees that the stat result is older than the inode, it
 	// starts over, statting again.
 	//
+	// Note that there is no invariant that says *all* of the file inodes are
+	// represented here because we may have multiple distinct inodes for a given
+	// name existing concurrently if we observe an object generation that was not
+	// caused by our existing inode (e.g. if the file is clobbered remotely). We
+	// must retain the old inode until the kernel tells us to forget it.
+	//
 	// INVARIANT: For each k/v, v.Name() == k
 	// INVARIANT: For each value v, inodes[v.ID()] == v
 	//
 	// GUARDED_BY(mu)
 	fileIndex map[string]*inode.FileInode
+
+	// A map from object name to the directory inode that represents that name,
+	// if any. There can be at most one inode for a given name accessible to us
+	// at any given time.
+	//
+	// INVARIANT: For each k/v, v.Name() == k
+	// INVARIANT: For each value v, inodes[v.ID()] == v
+	// INVARIANT: For each *inode.DirInode d in inodes, dirIndex[d.Name()] == d
+	//
+	// GUARDED_BY(mu)
+	dirIndex map[string]*inode.DirInode
 
 	// The collection of live handles, keyed by handle ID.
 	//
@@ -325,6 +345,44 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	//////////////////////////////////
+	// dirIndex
+	//////////////////////////////////
+
+	// INVARIANT: For each k/v, v.Name() == k
+	for k, v := range fs.dirIndex {
+		if !(v.Name() == k) {
+			panic(fmt.Sprintf(
+				"Unexpected name: \"%s\" vs. \"%s\"",
+				v.Name(),
+				k))
+		}
+	}
+
+	// INVARIANT: For each value v, inodes[v.ID()] == v
+	for _, v := range fs.dirIndex {
+		if fs.inodes[v.ID()] != v {
+			panic(fmt.Sprintf(
+				"Mismatch for ID %v: %p %p",
+				v.ID(),
+				fs.inodes[v.ID()],
+				v))
+		}
+	}
+
+	// INVARIANT: For each *inode.DirInode d in inodes, dirIndex[d.Name()] == d
+	for _, in := range fs.inodes {
+		if d, ok := in.(*inode.DirInode); ok {
+			if !(fs.dirIndex[d.Name()] == d) {
+				panic(fmt.Sprintf(
+					"dirIndex mismatch: %q %p %p",
+					d.Name(),
+					fs.dirIndex[d.Name()],
+					d))
+			}
+		}
+	}
+
+	//////////////////////////////////
 	// handles
 	//////////////////////////////////
 
@@ -374,7 +432,14 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 
 	// Create the inode.
 	if isDirName(o.Name) {
-		in = inode.NewDirInode(fs.bucket, id, o, fs.implicitDirs, fs.supportNlink)
+		d := inode.NewDirInode(
+			fs.bucket,
+			id,
+			o.Name,
+			fs.implicitDirs)
+
+		fs.dirIndex[d.Name()] = d
+		in = d
 	} else {
 		in = inode.NewFileInode(fs.clock, fs.bucket, id, fs.supportNlink, o)
 	}
@@ -392,6 +457,8 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 // If the record is stale (i.e. some newer inode exists), return nil. In this
 // case, the caller may obtain a fresh record and try again.
 //
+// Special case: We don't care about generation numbers for directories.
+//
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
@@ -404,10 +471,15 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		}
 	}()
 
-	// We do not assign any form of identity to directories (cf. semantics.md).
-	// It is legal for us to simply return a new one each time.
+	// Handle directories.
 	if isDirName(o.Name) {
-		in = fs.mintInode(o)
+		var ok bool
+
+		// If we don't have an entry, create one.
+		in, ok = fs.dirIndex[o.Name]
+		if !ok {
+			in = fs.mintInode(o)
+		}
 
 		fs.mu.Unlock()
 		in.Lock()
@@ -698,9 +770,13 @@ func (fs *fileSystem) ForgetInode(
 	if shouldDestroy {
 		delete(fs.inodes, op.Inode)
 
-		// Is this the current entry for the name?
+		// Update indexes if necessary.
 		if fs.fileIndex[name] == in {
 			delete(fs.fileIndex, name)
+		}
+
+		if fs.dirIndex[name] == in {
+			delete(fs.dirIndex, name)
 		}
 	}
 
