@@ -20,7 +20,6 @@ import (
 	"path"
 	"reflect"
 	"strconv"
-	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
@@ -801,21 +800,16 @@ func (fs *fileSystem) MkDir(
 
 	// Find the parent.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent]
+	parent := fs.inodes[op.Parent].(*inode.DirInode)
 	fs.mu.Unlock()
 
 	// Create an empty backing object for the child, failing if it already
 	// exists.
-	var precond int64
-	createReq := &gcs.CreateObjectRequest{
-		Name:                   path.Join(parent.Name(), op.Name) + "/",
-		Contents:               strings.NewReader(""),
-		GenerationPrecondition: &precond,
-	}
-
-	o, err := fs.bucket.CreateObject(op.Context(), createReq)
+	//
+	// No lock is required here.
+	o, err := parent.CreateChildDir(op.Context(), op.Name)
 	if err != nil {
-		err = fmt.Errorf("CreateObject: %v", err)
+		err = fmt.Errorf("CreateChildDir: %v", err)
 		return
 	}
 
