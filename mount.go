@@ -54,6 +54,13 @@ var fStatCacheTTL = flag.String(
 	"If non-empty, a duration specifying how long to cache StatObject results "+
 		"from GCS, e.g. \"2s\" or \"15ms\". See docs/semantics.md for more.")
 
+var fTypeCacheTTL = flag.String(
+	"type_cache_ttl",
+	"",
+	"If non-empty, a duration specifying how long to cache name -> file/dir type "+
+		"mappings in directory inodes, e.g. \"2s\" or \"15ms\". "+
+		"See docs/semantics.md.")
+
 func getBucketName() string {
 	s := *fBucketName
 	if s == "" {
@@ -132,12 +139,24 @@ func main() {
 
 	mountPoint := flag.Arg(0)
 
+	// Parse --type_cache_ttl
+	var typeCacheTTL time.Duration
+	if *fTypeCacheTTL != "" {
+		var err error
+		typeCacheTTL, err = time.ParseDuration(*fTypeCacheTTL)
+		if err != nil {
+			log.Fatalf("Invalid --type_cache_ttl: %v", err)
+			return
+		}
+	}
+
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{
 		Clock:               timeutil.RealClock(),
 		Bucket:              getBucket(),
 		ImplicitDirectories: *fImplicitDirs,
 		SupportNlink:        *fSupportNlink,
+		DirTypeCacheTTL:     typeCacheTTL,
 	}
 
 	server, err := fs.NewServer(serverCfg)
