@@ -299,7 +299,7 @@ func (dh *dirHandle) readAllEntries(
 			return filterMissingDirectories(ctx, dh.in, unfiltered, filtered)
 		}
 
-		// Bound the parallelism with which we call the bucket.
+		// Bound the parallelism with which we call the inode.
 		const filterWorkers = 32
 		for i := 0; i < filterWorkers; i++ {
 			wg.Add(1)

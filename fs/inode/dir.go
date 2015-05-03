@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -54,6 +55,11 @@ type DirInode struct {
 
 	// GUARDED_BY(mu)
 	lc lookupCount
+
+	// cache.CheckInvariants() does not panic.
+	//
+	// GUARDED_BY(mu)
+	cache typeCache
 }
 
 var _ Inode = &DirInode{}
@@ -62,8 +68,15 @@ var _ Inode = &DirInode{}
 // count is zero.
 func NewRootInode(
 	bucket gcs.Bucket,
-	implicitDirs bool) (d *DirInode) {
-	d = NewDirInode(bucket, fuseops.RootInodeID, "", implicitDirs)
+	implicitDirs bool,
+	typeCacheTTL time.Duration) (d *DirInode) {
+	d = NewDirInode(
+		bucket,
+		fuseops.RootInodeID,
+		"",
+		implicitDirs,
+		typeCacheTTL)
+
 	return
 }
 
@@ -76,6 +89,13 @@ func NewRootInode(
 // descendents. For example, if there is an object named "foo/bar/baz" and this
 // is the directory "foo", a child directory named "bar" will be implied.
 //
+// If typeCacheTTL is non-zero, a cache from child name to information about
+// whether that name exists as a file and/or directory will be maintained. This
+// may speed up calls to LookUpChild, especially when combined with a
+// stat-caching GCS bucket, but comes at the cost of consistency: if the child
+// is removed and recreated with a different type before the expiration, we may
+// fail to find it.
+//
 // The initial lookup count is zero.
 //
 // REQUIRES: name == "" || name[len(name)-1] == '/'
@@ -83,17 +103,20 @@ func NewDirInode(
 	bucket gcs.Bucket,
 	id fuseops.InodeID,
 	name string,
-	implicitDirs bool) (d *DirInode) {
+	implicitDirs bool,
+	typeCacheTTL time.Duration) (d *DirInode) {
 	if name != "" && name[len(name)-1] != '/' {
 		panic(fmt.Sprintf("Unexpected name: %s", name))
 	}
 
 	// Set up the struct.
+	const typeCacheCapacity = 1 << 16
 	d = &DirInode{
 		bucket:       bucket,
 		id:           id,
 		implicitDirs: implicitDirs,
 		name:         name,
+		cache:        newTypeCache(typeCacheCapacity/2, typeCacheTTL),
 	}
 
 	d.lc.Init(id)
@@ -113,6 +136,9 @@ func (d *DirInode) checkInvariants() {
 	if !(d.name == "" || d.name[len(d.name)-1] == '/') {
 		panic(fmt.Sprintf("Unexpected name: %s", d.name))
 	}
+
+	// cache.CheckInvariants() does not panic.
+	d.cache.CheckInvariants()
 }
 
 func (d *DirInode) lookUpChildFile(
@@ -303,24 +329,24 @@ func (d *DirInode) Name() string {
 	return d.name
 }
 
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) IncrementLookupCount() {
 	d.lc.Inc()
 }
 
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) DecrementLookupCount(n uint64) (destroy bool) {
 	destroy = d.lc.Dec(n)
 	return
 }
 
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) Destroy() (err error) {
 	// Nothing interesting to do.
 	return
 }
 
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) Attributes(
 	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
 	// Set up basic attributes.
@@ -355,10 +381,16 @@ const ConflictingFileNameSuffix = "\n"
 // "foo/bar/baz" and this is the directory "foo", a child directory named "bar"
 // will be implied.
 //
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) LookUpChild(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
+	// Consult the cache about the type of the child. This may save us work
+	// below.
+	now := time.Now()
+	cacheSaysFile := d.cache.IsFile(now, name)
+	cacheSaysDir := d.cache.IsDir(now, name)
+
 	// TODO(jacobsa): We probably shouldn't return early below. Require bundles
 	// to be joined in the documentation, consider adding a finalizer that
 	// crashes if not, set up the bundle to call the context's cancel function in
@@ -371,19 +403,25 @@ func (d *DirInode) LookUpChild(
 		return
 	}
 
-	// Stat the child as a file.
+	// Stat the child as a file, unless the cache has told us it's a directory
+	// but not a file.
 	var fileRecord *gcs.Object
-	b.Add(func(ctx context.Context) (err error) {
-		fileRecord, err = d.lookUpChildFile(ctx, name)
-		return
-	})
+	if !(cacheSaysDir && !cacheSaysFile) {
+		b.Add(func(ctx context.Context) (err error) {
+			fileRecord, err = d.lookUpChildFile(ctx, name)
+			return
+		})
+	}
 
-	// Stat the child as a directory.
+	// Stat the child as a directory, unless the cache has told us it's a file
+	// but not a directory.
 	var dirRecord *gcs.Object
-	b.Add(func(ctx context.Context) (err error) {
-		dirRecord, err = d.lookUpChildDir(ctx, name)
-		return
-	})
+	if !(cacheSaysFile && !cacheSaysDir) {
+		b.Add(func(ctx context.Context) (err error) {
+			dirRecord, err = d.lookUpChildDir(ctx, name)
+			return
+		})
+	}
 
 	// Wait for both.
 	err = b.Join()
@@ -397,6 +435,16 @@ func (d *DirInode) LookUpChild(
 		o = dirRecord
 	case fileRecord != nil:
 		o = fileRecord
+	}
+
+	// Update the cache.
+	now = time.Now()
+	if fileRecord != nil {
+		d.cache.NoteFile(now, name)
+	}
+
+	if dirRecord != nil {
+		d.cache.NoteDir(now, name)
 	}
 
 	return
@@ -418,7 +466,7 @@ func (d *DirInode) LookUpChild(
 // directories actually exist it non-implicit mode, you must call LookUpChild
 // to do so.
 //
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
@@ -465,13 +513,25 @@ func (d *DirInode) ReadEntries(
 	// Return an appropriate continuation token, if any.
 	newTok = listing.ContinuationToken
 
+	// Update the type cache with everything we learned.
+	now := time.Now()
+	for _, e := range entries {
+		switch e.Type {
+		case fuseutil.DT_File:
+			d.cache.NoteFile(now, e.Name)
+
+		case fuseutil.DT_Directory:
+			d.cache.NoteDir(now, e.Name)
+		}
+	}
+
 	return
 }
 
 // Create an empty child file with the supplied (relative) name, failing if a
 // backing object already exists in GCS.
 //
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) CreateChildFile(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
@@ -480,13 +540,15 @@ func (d *DirInode) CreateChildFile(
 		return
 	}
 
+	d.cache.NoteFile(time.Now(), name)
+
 	return
 }
 
 // Create a backing object for a child directory with the supplied (relative)
 // name, failing if a backing object already exists in GCS.
 //
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) CreateChildDir(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
@@ -495,15 +557,19 @@ func (d *DirInode) CreateChildDir(
 		return
 	}
 
+	d.cache.NoteDir(time.Now(), name)
+
 	return
 }
 
 // Delete the backing object for the child file with the given (relative) name.
 //
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) DeleteChildFile(
 	ctx context.Context,
 	name string) (err error) {
+	d.cache.Erase(name)
+
 	err = d.bucket.DeleteObject(ctx, path.Join(d.Name(), name))
 	if err != nil {
 		err = fmt.Errorf("DeleteObject: %v", err)
@@ -516,10 +582,12 @@ func (d *DirInode) DeleteChildFile(
 // Delete the backing object for the child directory with the given (relative)
 // name.
 //
-// LOCKS_REQUIRED(d.mu)
+// LOCKS_REQUIRED(d)
 func (d *DirInode) DeleteChildDir(
 	ctx context.Context,
 	name string) (err error) {
+	d.cache.Erase(name)
+
 	// Delete the backing object. Unfortunately we have no way to precondition
 	// this on the directory being empty.
 	err = d.bucket.DeleteObject(ctx, path.Join(d.Name(), name)+"/")

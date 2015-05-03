@@ -19,6 +19,7 @@ import (
 	"os/user"
 	"reflect"
 	"strconv"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
@@ -57,6 +58,14 @@ type ServerConfig struct {
 	// above. This requires a round trip to GCS for every getattr, which can be
 	// quite slow.
 	SupportNlink bool
+
+	// If non-zero, each directory will maintain a cache from child name to
+	// information about whether that name exists as a file and/or directory.
+	// This may speed up calls to look up and stat inodes, especially when
+	// combined with a stat-caching GCS bucket, but comes at the cost of
+	// consistency: if the child is removed and recreated with a different type
+	// before the expiration, we may fail to find it.
+	DirTypeCacheTTL time.Duration
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -69,21 +78,25 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 
 	// Set up the basic struct.
 	fs := &fileSystem{
-		clock:        cfg.Clock,
-		bucket:       cfg.Bucket,
-		implicitDirs: cfg.ImplicitDirectories,
-		supportNlink: cfg.SupportNlink,
-		uid:          uid,
-		gid:          gid,
-		inodes:       make(map[fuseops.InodeID]inode.Inode),
-		nextInodeID:  fuseops.RootInodeID + 1,
-		fileIndex:    make(map[string]*inode.FileInode),
-		dirIndex:     make(map[string]*inode.DirInode),
-		handles:      make(map[fuseops.HandleID]interface{}),
+		clock:           cfg.Clock,
+		bucket:          cfg.Bucket,
+		implicitDirs:    cfg.ImplicitDirectories,
+		supportNlink:    cfg.SupportNlink,
+		dirTypeCacheTTL: cfg.DirTypeCacheTTL,
+		uid:             uid,
+		gid:             gid,
+		inodes:          make(map[fuseops.InodeID]inode.Inode),
+		nextInodeID:     fuseops.RootInodeID + 1,
+		fileIndex:       make(map[string]*inode.FileInode),
+		dirIndex:        make(map[string]*inode.DirInode),
+		handles:         make(map[fuseops.HandleID]interface{}),
 	}
 
 	// Set up the root inode.
-	root := inode.NewRootInode(cfg.Bucket, fs.implicitDirs)
+	root := inode.NewRootInode(
+		cfg.Bucket,
+		fs.implicitDirs,
+		fs.dirTypeCacheTTL)
 
 	root.Lock()
 	root.IncrementLookupCount()
@@ -139,8 +152,9 @@ type fileSystem struct {
 	// Constant data
 	/////////////////////////
 
-	implicitDirs bool
-	supportNlink bool
+	implicitDirs    bool
+	supportNlink    bool
+	dirTypeCacheTTL time.Duration
 
 	// The user and group owning everything in the file system.
 	uid uint32
@@ -439,7 +453,8 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 			fs.bucket,
 			id,
 			o.Name,
-			fs.implicitDirs)
+			fs.implicitDirs,
+			fs.dirTypeCacheTTL)
 
 		fs.dirIndex[d.Name()] = d
 		in = d
