@@ -385,11 +385,11 @@ const ConflictingFileNameSuffix = "\n"
 func (d *DirInode) LookUpChild(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
-	// TODO(jacobsa): See what the cache says here, then avoid looking up as a
-	// dir below if the cache says file but not dir, and vice versa. We have to
-	// put the logic here instead of the leaf methods because we hold the lock
-	// for *this* goroutine and they are running concurrently.
-	panic("TODO")
+	// Consult the cache about the type of the child. This may save us work
+	// below.
+	now := time.Now()
+	cacheSaysFile := d.cache.IsFile(now, name)
+	cacheSaysDir := d.cache.IsDir(now, name)
 
 	// TODO(jacobsa): We probably shouldn't return early below. Require bundles
 	// to be joined in the documentation, consider adding a finalizer that
@@ -403,19 +403,25 @@ func (d *DirInode) LookUpChild(
 		return
 	}
 
-	// Stat the child as a file.
+	// Stat the child as a file, unless the cache has told us it's a directory
+	// but not a file.
 	var fileRecord *gcs.Object
-	b.Add(func(ctx context.Context) (err error) {
-		fileRecord, err = d.lookUpChildFile(ctx, name)
-		return
-	})
+	if !(cacheSaysDir && !cacheSaysFile) {
+		b.Add(func(ctx context.Context) (err error) {
+			fileRecord, err = d.lookUpChildFile(ctx, name)
+			return
+		})
+	}
 
-	// Stat the child as a directory.
+	// Stat the child as a directory, unless the cache has told us it's a file
+	// but not a directory.
 	var dirRecord *gcs.Object
-	b.Add(func(ctx context.Context) (err error) {
-		dirRecord, err = d.lookUpChildDir(ctx, name)
-		return
-	})
+	if !(cacheSaysFile && !cacheSaysDir) {
+		b.Add(func(ctx context.Context) (err error) {
+			dirRecord, err = d.lookUpChildDir(ctx, name)
+			return
+		})
+	}
 
 	// Wait for both.
 	err = b.Join()
