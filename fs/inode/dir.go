@@ -437,11 +437,15 @@ func (d *DirInode) LookUpChild(
 		o = fileRecord
 	}
 
-	// TODO(jacobsa): Update the cache to say file here if fileRecord != nil
-	panic("TODO")
+	// Update the cache.
+	now = time.Now()
+	if fileRecord != nil {
+		d.cache.NoteFile(now, name)
+	}
 
-	// TODO(jacobsa): Update the cache to say dir here if dirRecord != nil
-	panic("TODO")
+	if dirRecord != nil {
+		d.cache.NoteDir(now, name)
+	}
 
 	return
 }
