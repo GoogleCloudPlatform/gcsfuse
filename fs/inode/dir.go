@@ -540,7 +540,7 @@ func (d *DirInode) CreateChildFile(
 		return
 	}
 
-	panic("TODO: Update the type cache.")
+	d.cache.NoteFile(time.Now(), name)
 
 	return
 }
@@ -557,7 +557,7 @@ func (d *DirInode) CreateChildDir(
 		return
 	}
 
-	panic("TODO: Update the type cache.")
+	d.cache.NoteDir(time.Now(), name)
 
 	return
 }
@@ -568,13 +568,13 @@ func (d *DirInode) CreateChildDir(
 func (d *DirInode) DeleteChildFile(
 	ctx context.Context,
 	name string) (err error) {
+	d.cache.Erase(name)
+
 	err = d.bucket.DeleteObject(ctx, path.Join(d.Name(), name))
 	if err != nil {
 		err = fmt.Errorf("DeleteObject: %v", err)
 		return
 	}
-
-	panic("TODO: Update the type cache.")
 
 	return
 }
@@ -586,6 +586,8 @@ func (d *DirInode) DeleteChildFile(
 func (d *DirInode) DeleteChildDir(
 	ctx context.Context,
 	name string) (err error) {
+	d.cache.Erase(name)
+
 	// Delete the backing object. Unfortunately we have no way to precondition
 	// this on the directory being empty.
 	err = d.bucket.DeleteObject(ctx, path.Join(d.Name(), name)+"/")
@@ -593,8 +595,6 @@ func (d *DirInode) DeleteChildDir(
 		err = fmt.Errorf("DeleteObject: %v", err)
 		return
 	}
-
-	panic("TODO: Update the type cache.")
 
 	return
 }
