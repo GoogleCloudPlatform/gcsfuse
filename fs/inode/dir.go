@@ -56,6 +56,8 @@ type DirInode struct {
 	// GUARDED_BY(mu)
 	lc lookupCount
 
+	// cache.CheckInvariants() does not panic.
+	//
 	// GUARDED_BY(mu)
 	cache typeCache
 }
@@ -134,6 +136,9 @@ func (d *DirInode) checkInvariants() {
 	if !(d.name == "" || d.name[len(d.name)-1] == '/') {
 		panic(fmt.Sprintf("Unexpected name: %s", d.name))
 	}
+
+	// cache.CheckInvariants() does not panic.
+	d.cache.CheckInvariants()
 }
 
 func (d *DirInode) lookUpChildFile(
