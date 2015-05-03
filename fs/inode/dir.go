@@ -513,8 +513,17 @@ func (d *DirInode) ReadEntries(
 	// Return an appropriate continuation token, if any.
 	newTok = listing.ContinuationToken
 
-	// TODO(jacobsa): Put entries in the cache here.
-	panic("TODO")
+	// Update the type cache with everything we learned.
+	now := time.Now()
+	for _, e := range entries {
+		switch e.Type {
+		case fuseutil.DT_File:
+			d.cache.NoteFile(now, e.Name)
+
+		case fuseutil.DT_Directory:
+			d.cache.NoteDir(now, e.Name)
+		}
+	}
 
 	return
 }
