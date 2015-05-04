@@ -204,7 +204,7 @@ func filterMissingDirectories(
 			var o *gcs.Object
 			in.Lock()
 			o, err = in.LookUpChild(ctx, e.Name)
-			defer in.Unlock()
+			in.Unlock()
 			if err != nil {
 				err = fmt.Errorf("LookUpChild: %v", err)
 				return
