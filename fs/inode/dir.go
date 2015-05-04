@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jacobsa/fuse/fuseops"
@@ -307,6 +308,14 @@ func (d *DirInode) createNewObject(
 	return
 }
 
+// An implementation detail fo filterMissingChildDirs.
+func filterMissingNames(
+	ctx context.Context,
+	bucket gcs.Bucket,
+	dirName string,
+	unfiltered <-chan string,
+	filtered chan<- string) (err error)
+
 // Given a list of child names that appear to be directories according to
 // d.bucket.ListObjects (which always behaves as if implicit directories are
 // enabled), filter out the ones for which a placeholder object does not
@@ -314,10 +323,68 @@ func (d *DirInode) createNewObject(
 //
 // LOCKS_REQUIRED(d)
 func (d *DirInode) filterMissingChildDirs(
+	ctx context.Context,
 	in []string) (out []string, err error) {
-	// TODO(jacobsa): Stat in parallel, avoiding if cache says dir is present,
-	// update cache when returning.
-	err = fmt.Errorf("TODO: filterMissingChildDirs")
+	// Do we need to do anything?
+	if d.implicitDirs {
+		out = in
+		return
+	}
+
+	b := syncutil.NewBundle(ctx)
+
+	// Feed names into a channel.
+	unfiltered := make(chan string, 100)
+	b.Add(func(ctx context.Context) (err error) {
+		for _, name := range in {
+			select {
+			case <-ctx.Done():
+				err = ctx.Err()
+				return
+
+			case unfiltered <- name:
+			}
+		}
+
+		return
+	})
+
+	// Stat the placeholder object for each, filtering out placeholders that are
+	// not found. Use some parallelism.
+	const statWorkers = 32
+	filtered := make(chan string, 100)
+	var wg sync.WaitGroup
+	for i := 0; i < statWorkers; i++ {
+		wg.Add(1)
+		b.Add(func(ctx context.Context) (err error) {
+			err = filterMissingNames(
+				ctx,
+				d.bucket,
+				d.Name(),
+				unfiltered,
+				filtered)
+
+			return
+		})
+	}
+
+	go func() {
+		wg.Wait()
+		close(filtered)
+	}()
+
+	// Accumulate into the output.
+	b.Add(func(ctx context.Context) (err error) {
+		for name := range filtered {
+			out = append(out, name)
+		}
+
+		return
+	})
+
+	// Wait for everything to complete.
+	err = b.Join()
+
 	return
 }
 
@@ -516,7 +583,7 @@ func (d *DirInode) ReadEntries(
 	}
 
 	// Filter the directory names according to our implicit directory settings.
-	dirNames, err = d.filterMissingChildDirs(dirNames)
+	dirNames, err = d.filterMissingChildDirs(ctx, dirNames)
 	if err != nil {
 		err = fmt.Errorf("filterMissingChildDirs: %v", err)
 		return
