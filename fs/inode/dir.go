@@ -359,6 +359,20 @@ func (d *DirInode) filterMissingChildDirs(
 
 	b := syncutil.NewBundle(ctx)
 
+	// First add any names that we already know are directories according to our
+	// cache, removing them from the input.
+	now := time.Now()
+	var tmp []string
+	for _, name := range in {
+		if d.cache.IsDir(now, name) {
+			out = append(out, name)
+		} else {
+			tmp = append(tmp, name)
+		}
+	}
+
+	in = tmp
+
 	// Feed names into a channel.
 	unfiltered := make(chan string, 100)
 	b.Add(func(ctx context.Context) (err error) {
@@ -402,10 +416,11 @@ func (d *DirInode) filterMissingChildDirs(
 		close(filtered)
 	}()
 
-	// Accumulate into the output.
+	// Accumulate into a slice.
+	var filteredSlice []string
 	b.Add(func(ctx context.Context) (err error) {
 		for name := range filtered {
-			out = append(out, name)
+			filteredSlice = append(filteredSlice, name)
 		}
 
 		return
@@ -413,6 +428,15 @@ func (d *DirInode) filterMissingChildDirs(
 
 	// Wait for everything to complete.
 	err = b.Join()
+
+	// Update the cache with everything we learned.
+	now = time.Now()
+	for _, name := range filteredSlice {
+		d.cache.NoteDir(now, name)
+	}
+
+	// Return everything we learned.
+	out = append(out, filteredSlice...)
 
 	return
 }
