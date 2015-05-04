@@ -101,87 +101,6 @@ func (dh *dirHandle) checkInvariants() {
 	}
 }
 
-// Read some entries from the directory inode. Return newTok == "" (possibly
-// with a non-empty list of entries) when the end of the directory has been
-// hit.
-//
-// TODO(jacobsa): Collapse all of this junk.
-//
-// LOCKS_EXCLUDED(in)
-func readSomeEntries(
-	ctx context.Context,
-	in *inode.DirInode,
-	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
-	in.Lock()
-	defer in.Unlock()
-
-	entries, newTok, err = in.ReadEntries(ctx, tok)
-	if err != nil {
-		err = fmt.Errorf("ReadEntries: %v", err)
-		return
-	}
-
-	// Return a bogus inode ID for each entry, but not the root inode ID.
-	//
-	// NOTE(jacobsa): As far as I can tell this is harmless. Minting and
-	// returning a real inode ID is difficult because fuse does not count
-	// readdir as an operation that increases the inode ID's lookup count and
-	// we therefore don't get a forget for it later, but we would like to not
-	// have to remember every inode ID that we've ever minted for readdir.
-	//
-	// If it turns out this is not harmless, we'll need to switch to something
-	// like inode IDs based on (object name, generation) hashes. But then what
-	// about the birthday problem? And more importantly, what about our
-	// semantic of not minting a new inode ID when the generation changes due
-	// to a local action?
-	for i, _ := range entries {
-		entries[i].Inode = fuseops.RootInodeID + 1
-	}
-
-	return
-}
-
-// Read all entries for the directory, making no effort to deal with
-// conflicting names.
-//
-// Write entries to the supplied channel, without closing. Entry Offset fields
-// have unspecified contents.
-//
-// LOCKS_EXCLUDED(in)
-func readEntries(
-	ctx context.Context,
-	in *inode.DirInode,
-	entries chan<- fuseutil.Dirent) (err error) {
-	var tok string
-	for {
-		// Read a batch.
-		var batch []fuseutil.Dirent
-
-		batch, tok, err = readSomeEntries(ctx, in, tok)
-		if err != nil {
-			return
-		}
-
-		// Write each to the channel.
-		for _, e := range batch {
-			select {
-			case <-ctx.Done():
-				err = ctx.Err()
-				return
-
-			case entries <- e:
-			}
-		}
-
-		// Are we done?
-		if tok == "" {
-			break
-		}
-	}
-
-	return
-}
-
 // Resolve name conflicts between file objects and directory objects (e.g. the
 // objects "foo/bar" and "foo/bar/") by appending U+000A, which is illegal in
 // GCS object names, to conflicting file names.
@@ -225,32 +144,32 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 	return
 }
 
-// LOCKS_EXCLUDED(dh.in)
-func (dh *dirHandle) readAllEntries(
-	ctx context.Context) (entries []fuseutil.Dirent, err error) {
-	b := syncutil.NewBundle(ctx)
+// Read all entries for the directory, fix up conflicting names, and fill in
+// offset fields.
+//
+// LOCKS_REQUIRED(in)
+func readAllEntries(
+	ctx context.Context,
+	in *inode.DirInode) (entries []fuseutil.Dirent, err error) {
+	// Read one batch at a time.
+	var tok string
+	for {
+		// Read a batch.
+		var batch []fuseutil.Dirent
 
-	// Read entries into a channel.
-	entriesChan := make(chan fuseutil.Dirent, 100)
-	b.Add(func(ctx context.Context) (err error) {
-		defer close(entriesChan)
-		err = readEntries(ctx, dh.in, entriesChan)
-		return
-	})
-
-	// Accumulate entries into the slice.
-	b.Add(func(ctx context.Context) (err error) {
-		for e := range entriesChan {
-			entries = append(entries, e)
+		batch, tok, err = in.ReadEntries(ctx, tok)
+		if err != nil {
+			err = fmt.Errorf("ReadEntries: %v", err)
+			return
 		}
 
-		return
-	})
+		// Accumulate.
+		entries = append(entries, batch...)
 
-	// Wait.
-	err = b.Join()
-	if err != nil {
-		return
+		// Are we done?
+		if tok == "" {
+			break
+		}
 	}
 
 	// Ensure that the entries are sorted, for use in fixConflictingNames
@@ -269,15 +188,35 @@ func (dh *dirHandle) readAllEntries(
 		entries[i].Offset = fuseops.DirOffset(i) + 1
 	}
 
+	// Return a bogus inode ID for each entry, but not the root inode ID.
+	//
+	// NOTE(jacobsa): As far as I can tell this is harmless. Minting and
+	// returning a real inode ID is difficult because fuse does not count
+	// readdir as an operation that increases the inode ID's lookup count and
+	// we therefore don't get a forget for it later, but we would like to not
+	// have to remember every inode ID that we've ever minted for readdir.
+	//
+	// If it turns out this is not harmless, we'll need to switch to something
+	// like inode IDs based on (object name, generation) hashes. But then what
+	// about the birthday problem? And more importantly, what about our
+	// semantic of not minting a new inode ID when the generation changes due
+	// to a local action?
+	for i, _ := range entries {
+		entries[i].Inode = fuseops.RootInodeID + 1
+	}
+
 	return
 }
 
 // LOCKS_REQUIRED(dh.Mu)
 // LOCKS_EXCLUDED(dh.in)
 func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
+	dh.in.Lock()
+	defer dh.in.Unlock()
+
 	// Read entries.
 	var entries []fuseutil.Dirent
-	entries, err = dh.readAllEntries(ctx)
+	entries, err = readAllEntries(ctx, dh.in)
 	if err != nil {
 		err = fmt.Errorf("readAllEntries: %v", err)
 		return
