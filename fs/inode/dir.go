@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jacobsa/fuse/fuseops"
@@ -307,6 +308,115 @@ func (d *DirInode) createNewObject(
 	return
 }
 
+// An implementation detail fo filterMissingChildDirs.
+func filterMissingChildDirNames(
+	ctx context.Context,
+	bucket gcs.Bucket,
+	dirName string,
+	unfiltered <-chan string,
+	filtered chan<- string) (err error) {
+	for name := range unfiltered {
+		var o *gcs.Object
+
+		// Stat the placeholder.
+		o, err = statObjectMayNotExist(ctx, bucket, dirName+name+"/")
+		if err != nil {
+			err = fmt.Errorf("statObjectMayNotExist: %v", err)
+			return
+		}
+
+		// Should we pass on this name?
+		if o == nil {
+			continue
+		}
+
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+
+		case filtered <- name:
+		}
+	}
+
+	return
+}
+
+// Given a list of child names that appear to be directories according to
+// d.bucket.ListObjects (which always behaves as if implicit directories are
+// enabled), filter out the ones for which a placeholder object does not
+// actually exist. If implicit directories are enabled, simply return them all.
+//
+// LOCKS_REQUIRED(d)
+func (d *DirInode) filterMissingChildDirs(
+	ctx context.Context,
+	in []string) (out []string, err error) {
+	// Do we need to do anything?
+	if d.implicitDirs {
+		out = in
+		return
+	}
+
+	b := syncutil.NewBundle(ctx)
+
+	// Feed names into a channel.
+	unfiltered := make(chan string, 100)
+	b.Add(func(ctx context.Context) (err error) {
+		defer close(unfiltered)
+
+		for _, name := range in {
+			select {
+			case <-ctx.Done():
+				err = ctx.Err()
+				return
+
+			case unfiltered <- name:
+			}
+		}
+
+		return
+	})
+
+	// Stat the placeholder object for each, filtering out placeholders that are
+	// not found. Use some parallelism.
+	const statWorkers = 32
+	filtered := make(chan string, 100)
+	var wg sync.WaitGroup
+	for i := 0; i < statWorkers; i++ {
+		wg.Add(1)
+		b.Add(func(ctx context.Context) (err error) {
+			defer wg.Done()
+			err = filterMissingChildDirNames(
+				ctx,
+				d.bucket,
+				d.Name(),
+				unfiltered,
+				filtered)
+
+			return
+		})
+	}
+
+	go func() {
+		wg.Wait()
+		close(filtered)
+	}()
+
+	// Accumulate into the output.
+	b.Add(func(ctx context.Context) (err error) {
+		for name := range filtered {
+			out = append(out, name)
+		}
+
+		return
+	})
+
+	// Wait for everything to complete.
+	err = b.Join()
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -461,11 +571,6 @@ func (d *DirInode) LookUpChild(
 // The contents of the Offset and Inode fields for returned entries is
 // undefined.
 //
-// Warning: This method always behaves as if implicit directories are enabled,
-// regardless of how the inode was configured. If you want to ensure that
-// directories actually exist it non-implicit mode, you must call LookUpChild
-// to do so.
-//
 // LOCKS_REQUIRED(d)
 func (d *DirInode) ReadEntries(
 	ctx context.Context,
@@ -500,10 +605,23 @@ func (d *DirInode) ReadEntries(
 		entries = append(entries, e)
 	}
 
-	// Convert runs to entries for directories.
+	// Extract directory names from the collapsed runs.
+	var dirNames []string
 	for _, p := range listing.CollapsedRuns {
+		dirNames = append(dirNames, path.Base(p))
+	}
+
+	// Filter the directory names according to our implicit directory settings.
+	dirNames, err = d.filterMissingChildDirs(ctx, dirNames)
+	if err != nil {
+		err = fmt.Errorf("filterMissingChildDirs: %v", err)
+		return
+	}
+
+	// Return entries for directories.
+	for _, name := range dirNames {
 		e := fuseutil.Dirent{
-			Name: path.Base(p),
+			Name: name,
 			Type: fuseutil.DT_Directory,
 		}
 

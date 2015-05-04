@@ -17,13 +17,11 @@ package fs
 import (
 	"fmt"
 	"sort"
-	"sync"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
 )
@@ -107,9 +105,7 @@ func (dh *dirHandle) checkInvariants() {
 // with a non-empty list of entries) when the end of the directory has been
 // hit.
 //
-// The contents of the entries' Offset fields are undefined. This function
-// always behaves as if implicit directories are defined; see notes on
-// DirInode.ReadEntries.
+// TODO(jacobsa): Collapse all of this junk.
 //
 // LOCKS_EXCLUDED(in)
 func readSomeEntries(
@@ -146,8 +142,7 @@ func readSomeEntries(
 }
 
 // Read all entries for the directory, making no effort to deal with
-// conflicting names or the lack of implicit directories (see notes on
-// DirInode.ReadEntries).
+// conflicting names.
 //
 // Write entries to the supplied channel, without closing. Entry Offset fields
 // have unspecified contents.
@@ -181,48 +176,6 @@ func readEntries(
 		// Are we done?
 		if tok == "" {
 			break
-		}
-	}
-
-	return
-}
-
-// Filter out entries with type DT_Directory for which in.LookUpChild does not
-// return a directory. This can be used to implicit directories without a
-// matching backing object from the output of DirInode.ReadDir, which always
-// behaves as if implicit directories are enabled.
-//
-// LOCKS_EXCLUDED(in)
-func filterMissingDirectories(
-	ctx context.Context,
-	in *inode.DirInode,
-	entriesIn <-chan fuseutil.Dirent,
-	entriesOut chan<- fuseutil.Dirent) (err error) {
-	for e := range entriesIn {
-		// If this is a directory, confirm it actually exists.
-		if e.Type == fuseutil.DT_Directory {
-			var o *gcs.Object
-			in.Lock()
-			o, err = in.LookUpChild(ctx, e.Name)
-			in.Unlock()
-			if err != nil {
-				err = fmt.Errorf("LookUpChild: %v", err)
-				return
-			}
-
-			// Skip this entry if the result is not an extant directory.
-			if o == nil || !isDirName(o.Name) {
-				continue
-			}
-		}
-
-		// Pass on the entry.
-		select {
-		case <-ctx.Done():
-			err = ctx.Err()
-			return
-
-		case entriesOut <- e:
 		}
 	}
 
@@ -278,43 +231,16 @@ func (dh *dirHandle) readAllEntries(
 	b := syncutil.NewBundle(ctx)
 
 	// Read entries into a channel.
-	unfiltered := make(chan fuseutil.Dirent, 100)
+	entriesChan := make(chan fuseutil.Dirent, 100)
 	b.Add(func(ctx context.Context) (err error) {
-		defer close(unfiltered)
-		err = readEntries(ctx, dh.in, unfiltered)
+		defer close(entriesChan)
+		err = readEntries(ctx, dh.in, entriesChan)
 		return
 	})
 
-	// If implicit directories are disabled, filter out entries for
-	// sub-directories without a matching backing object.
-	var filtered chan fuseutil.Dirent
-	if dh.implicitDirs {
-		filtered = unfiltered
-	} else {
-		filtered = make(chan fuseutil.Dirent, 100)
-
-		var wg sync.WaitGroup
-		f := func(ctx context.Context) error {
-			defer wg.Done()
-			return filterMissingDirectories(ctx, dh.in, unfiltered, filtered)
-		}
-
-		// Bound the parallelism with which we call the inode.
-		const filterWorkers = 32
-		for i := 0; i < filterWorkers; i++ {
-			wg.Add(1)
-			b.Add(f)
-		}
-
-		go func() {
-			wg.Wait()
-			close(filtered)
-		}()
-	}
-
 	// Accumulate entries into the slice.
 	b.Add(func(ctx context.Context) (err error) {
-		for e := range filtered {
+		for e := range entriesChan {
 			entries = append(entries, e)
 		}
 
