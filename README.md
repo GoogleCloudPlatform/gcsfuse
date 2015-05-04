@@ -85,9 +85,10 @@ notes in [semantics.md][semantics-implicit-dirs] for more information.
 
 The consistency guarantees gcsfuse gives you by default have a significant
 latency cost due to GCS round trips. If you are confident you don't need them,
-you can opt out using the `--stat_cache_ttl` flag. Please be sure to read the
+you can opt out using the `--stat_cache_ttl` and `--type_cache_ttl` flags.
+Please be sure to read the
 [relevant section](docs/semantics.md#relax-for-performance) of semantics.md
-before setting this flag.
+before setting these flags.
 
 ## Downloading file contents
 
