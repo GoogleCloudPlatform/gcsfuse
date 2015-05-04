@@ -272,6 +272,7 @@ call from the kernel to gcsfuse to look up the inode by name. For example, a
 call to readdir(3) may return names for which fstat(2) returns `ENOENT`.
 
 
+<a name="name-conflicts"></a>
 ## Name conflicts
 
 It is possible to have a GCS bucket containing an object named `foo` and
@@ -352,6 +353,8 @@ Not all of the usual file system features are supported. Most prominently:
 <a name="relax-for-performance"></a>
 # Relaxing guarantees for higher performance
 
+## Stat caching
+
 The cost of the consistency guarantees discussed above is that gcsfuse must
 frequently send stat object requests to GCS in order to get the freshest
 possible answer for the kernel when it asks about a particular name or inode,
@@ -371,3 +374,40 @@ discussed in this document. It is safe only in the following situations:
     gcsfuse mount.
  *  The mounted bucket is modified by multiple actors, but the user is
     confident that they don't need the guarantees discussed in this document.
+
+## Type caching
+
+Because GCS does not forbid an object named `foo` from existing next to an
+object named `foo/` (see the [Name conflicts](#name-conflicts) section above),
+when gcsfuse is asked to look up the name "foo" it must stat both objects.
+
+The stat cache enabled with `--stat_cache_ttl` can help with this, but it does
+not help fully until after the first request. For example, assume that there is
+an object named `foo` but not one named `foo/`, and the stat cache is enabled.
+When the user runs `ls -l`, the following happens:
+
+ *  The objects in the bucket are listed. This causes a stat cache entry for
+    `foo` to be created.
+
+ *  `ls` asks to stat the name "foo", causing a lookup request to be sent for
+    that name.
+
+ *  gcsfuse sends GCS stat requests for the object named `foo` and the object
+    named `foo/`. The first will hit in the stat cache, but the second will
+    have to go all the way to GCS to receive a negative result.
+
+The negative result for `foo/` will be cached, but that only helps with the
+second invocation of `ls -l`.
+
+To alleviate this, gcsfuse supports a "type cache" on directory inodes. When
+`--type_cache_ttl` is set, each directory inode will maintain a mapping from
+the name of its children to whether those children are known to be files or
+directories or both. When a child is looked up, if the parent's cache says that
+the child is a file but not a directory, only one GCS object will need to be
+statted. Similarly if the child is a directory but not a file.
+
+**Warning**: Setting `--type_cache_ttl` breaks the consistency guarantees
+discussed in this document. It is safe only in the following situations:
+
+ *  The mounted bucket is never modified.
+ *  The type (file or directory) for any given path never changes.
