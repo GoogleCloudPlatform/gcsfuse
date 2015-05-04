@@ -307,6 +307,20 @@ func (d *DirInode) createNewObject(
 	return
 }
 
+// Given a list of child names that appear to be directories according to
+// d.bucket.ListObjects (which always behaves as if implicit directories are
+// enabled), filter out the ones for which a placeholder object does not
+// actually exist. If implicit directories are enabled, simply return them all.
+//
+// LOCKS_REQUIRED(d)
+func (d *DirInode) filterMissingChildDirs(
+	in []string) (out []string, err error) {
+	// TODO(jacobsa): Stat in parallel, avoiding if cache says dir is present,
+	// update cache when returning.
+	err = fmt.Errorf("TODO: filterMissingChildDirs")
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -461,11 +475,6 @@ func (d *DirInode) LookUpChild(
 // The contents of the Offset and Inode fields for returned entries is
 // undefined.
 //
-// Warning: This method always behaves as if implicit directories are enabled,
-// regardless of how the inode was configured. If you want to ensure that
-// directories actually exist it non-implicit mode, you must call LookUpChild
-// to do so.
-//
 // LOCKS_REQUIRED(d)
 func (d *DirInode) ReadEntries(
 	ctx context.Context,
@@ -500,10 +509,23 @@ func (d *DirInode) ReadEntries(
 		entries = append(entries, e)
 	}
 
-	// Convert runs to entries for directories.
+	// Extract directory names from the collapsed runs.
+	var dirNames []string
 	for _, p := range listing.CollapsedRuns {
+		dirNames = append(dirNames, path.Base(p))
+	}
+
+	// Filter the directory names according to our implicit directory settings.
+	dirNames, err = d.filterMissingChildDirs(dirNames)
+	if err != nil {
+		err = fmt.Errorf("filterMissingChildDirs: %v", err)
+		return
+	}
+
+	// Return entries for directories.
+	for _, name := range dirNames {
 		e := fuseutil.Dirent{
-			Name: path.Base(p),
+			Name: name,
 			Type: fuseutil.DT_Directory,
 		}
 
