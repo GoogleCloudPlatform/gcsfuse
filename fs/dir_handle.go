@@ -141,47 +141,6 @@ func readSomeEntries(
 	return
 }
 
-// Read all entries for the directory, making no effort to deal with
-// conflicting names.
-//
-// Write entries to the supplied channel, without closing. Entry Offset fields
-// have unspecified contents.
-//
-// LOCKS_EXCLUDED(in)
-func readEntries(
-	ctx context.Context,
-	in *inode.DirInode,
-	entries chan<- fuseutil.Dirent) (err error) {
-	var tok string
-	for {
-		// Read a batch.
-		var batch []fuseutil.Dirent
-
-		batch, tok, err = readSomeEntries(ctx, in, tok)
-		if err != nil {
-			return
-		}
-
-		// Write each to the channel.
-		for _, e := range batch {
-			select {
-			case <-ctx.Done():
-				err = ctx.Err()
-				return
-
-			case entries <- e:
-			}
-		}
-
-		// Are we done?
-		if tok == "" {
-			break
-		}
-	}
-
-	return
-}
-
 // Resolve name conflicts between file objects and directory objects (e.g. the
 // objects "foo/bar" and "foo/bar/") by appending U+000A, which is illegal in
 // GCS object names, to conflicting file names.
@@ -225,32 +184,30 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 	return
 }
 
+// Read all entries for the directory, fix up conflicting names, and fill in
+// offset fields.
+//
 // LOCKS_EXCLUDED(dh.in)
 func (dh *dirHandle) readAllEntries(
 	ctx context.Context) (entries []fuseutil.Dirent, err error) {
-	b := syncutil.NewBundle(ctx)
+	// Read one batch at a time.
+	var tok string
+	for {
+		// Read a batch.
+		var batch []fuseutil.Dirent
 
-	// Read entries into a channel.
-	entriesChan := make(chan fuseutil.Dirent, 100)
-	b.Add(func(ctx context.Context) (err error) {
-		defer close(entriesChan)
-		err = readEntries(ctx, dh.in, entriesChan)
-		return
-	})
-
-	// Accumulate entries into the slice.
-	b.Add(func(ctx context.Context) (err error) {
-		for e := range entriesChan {
-			entries = append(entries, e)
+		batch, tok, err = readSomeEntries(ctx, dh.in, tok)
+		if err != nil {
+			return
 		}
 
-		return
-	})
+		// Accumulate.
+		entries = append(entries, batch...)
 
-	// Wait.
-	err = b.Join()
-	if err != nil {
-		return
+		// Are we done?
+		if tok == "" {
+			break
+		}
 	}
 
 	// Ensure that the entries are sorted, for use in fixConflictingNames
