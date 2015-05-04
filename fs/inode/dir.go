@@ -309,12 +309,38 @@ func (d *DirInode) createNewObject(
 }
 
 // An implementation detail fo filterMissingChildDirs.
-func filterMissingNames(
+func filterMissingChildDirNames(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	dirName string,
 	unfiltered <-chan string,
-	filtered chan<- string) (err error)
+	filtered chan<- string) (err error) {
+	for name := range unfiltered {
+		var o *gcs.Object
+
+		// Stat the placeholder.
+		o, err = statObjectMayNotExist(ctx, bucket, dirName+name+"/")
+		if err != nil {
+			err = fmt.Errorf("statObjectMayNotExist: %v", err)
+			return
+		}
+
+		// Should we pass on this name?
+		if o == nil {
+			continue
+		}
+
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+
+		case filtered <- name:
+		}
+	}
+
+	return
+}
 
 // Given a list of child names that appear to be directories according to
 // d.bucket.ListObjects (which always behaves as if implicit directories are
@@ -357,7 +383,7 @@ func (d *DirInode) filterMissingChildDirs(
 	for i := 0; i < statWorkers; i++ {
 		wg.Add(1)
 		b.Add(func(ctx context.Context) (err error) {
-			err = filterMissingNames(
+			err = filterMissingChildDirNames(
 				ctx,
 				d.bucket,
 				d.Name(),
