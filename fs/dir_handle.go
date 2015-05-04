@@ -105,8 +105,6 @@ func (dh *dirHandle) checkInvariants() {
 // with a non-empty list of entries) when the end of the directory has been
 // hit.
 //
-// TODO(jacobsa): Collapse all of this junk.
-//
 // LOCKS_REQUIRED(in)
 func readSomeEntries(
 	ctx context.Context,
