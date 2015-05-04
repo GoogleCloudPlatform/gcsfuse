@@ -187,16 +187,17 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 // Read all entries for the directory, fix up conflicting names, and fill in
 // offset fields.
 //
-// LOCKS_EXCLUDED(dh.in)
-func (dh *dirHandle) readAllEntries(
-	ctx context.Context) (entries []fuseutil.Dirent, err error) {
+// LOCKS_EXCLUDED(in)
+func readAllEntries(
+	ctx context.Context,
+	in *inode.DirInode) (entries []fuseutil.Dirent, err error) {
 	// Read one batch at a time.
 	var tok string
 	for {
 		// Read a batch.
 		var batch []fuseutil.Dirent
 
-		batch, tok, err = readSomeEntries(ctx, dh.in, tok)
+		batch, tok, err = readSomeEntries(ctx, in, tok)
 		if err != nil {
 			return
 		}
@@ -234,7 +235,7 @@ func (dh *dirHandle) readAllEntries(
 func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
 	// Read entries.
 	var entries []fuseutil.Dirent
-	entries, err = dh.readAllEntries(ctx)
+	entries, err = readAllEntries(ctx, dh.in)
 	if err != nil {
 		err = fmt.Errorf("readAllEntries: %v", err)
 		return
