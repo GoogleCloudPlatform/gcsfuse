@@ -107,14 +107,11 @@ func (dh *dirHandle) checkInvariants() {
 //
 // TODO(jacobsa): Collapse all of this junk.
 //
-// LOCKS_EXCLUDED(in)
+// LOCKS_REQUIRED(in)
 func readSomeEntries(
 	ctx context.Context,
 	in *inode.DirInode,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
-	in.Lock()
-	defer in.Unlock()
-
 	entries, newTok, err = in.ReadEntries(ctx, tok)
 	if err != nil {
 		err = fmt.Errorf("ReadEntries: %v", err)
@@ -187,7 +184,7 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 // Read all entries for the directory, fix up conflicting names, and fill in
 // offset fields.
 //
-// LOCKS_EXCLUDED(in)
+// LOCKS_REQUIRED(in)
 func readAllEntries(
 	ctx context.Context,
 	in *inode.DirInode) (entries []fuseutil.Dirent, err error) {
@@ -233,6 +230,9 @@ func readAllEntries(
 // LOCKS_REQUIRED(dh.Mu)
 // LOCKS_EXCLUDED(dh.in)
 func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
+	dh.in.Lock()
+	defer dh.in.Unlock()
+
 	// Read entries.
 	var entries []fuseutil.Dirent
 	entries, err = readAllEntries(ctx, dh.in)
