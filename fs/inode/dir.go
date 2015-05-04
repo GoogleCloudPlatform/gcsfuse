@@ -525,12 +525,6 @@ func (d *DirInode) LookUpChild(
 	cacheSaysFile := d.cache.IsFile(now, name)
 	cacheSaysDir := d.cache.IsDir(now, name)
 
-	// TODO(jacobsa): We probably shouldn't return early below. Require bundles
-	// to be joined in the documentation, consider adding a finalizer that
-	// crashes if not, set up the bundle to call the context's cancel function in
-	// Join, make sure this method fails, then fix this method.
-	b := syncutil.NewBundle(ctx)
-
 	// Is this a conflict marker name?
 	if strings.HasSuffix(name, ConflictingFileNameSuffix) {
 		o, err = d.lookUpConflicting(ctx, name)
@@ -539,6 +533,8 @@ func (d *DirInode) LookUpChild(
 
 	// Stat the child as a file, unless the cache has told us it's a directory
 	// but not a file.
+	b := syncutil.NewBundle(ctx)
+
 	var fileRecord *gcs.Object
 	if !(cacheSaysDir && !cacheSaysFile) {
 		b.Add(func(ctx context.Context) (err error) {
