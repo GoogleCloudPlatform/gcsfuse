@@ -362,6 +362,8 @@ func (d *DirInode) filterMissingChildDirs(
 	// Feed names into a channel.
 	unfiltered := make(chan string, 100)
 	b.Add(func(ctx context.Context) (err error) {
+		defer close(unfiltered)
+
 		for _, name := range in {
 			select {
 			case <-ctx.Done():
@@ -383,6 +385,7 @@ func (d *DirInode) filterMissingChildDirs(
 	for i := 0; i < statWorkers; i++ {
 		wg.Add(1)
 		b.Add(func(ctx context.Context) (err error) {
+			defer wg.Done()
 			err = filterMissingChildDirNames(
 				ctx,
 				d.bucket,
