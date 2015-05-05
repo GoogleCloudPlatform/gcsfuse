@@ -18,11 +18,23 @@ import (
 	"os"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/jacobsa/fuse/fsutil"
 	. "github.com/jacobsa/ogletest"
 )
 
 func TestReadLease(t *testing.T) { RunTests(t) }
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func doNothingForRevoke() {
+}
+
+func panicForUpgrade(f *os.File) *lease.WriteLease {
+	panic("panicForUpgrade should not be called")
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -55,7 +67,17 @@ func (t *ReadLeaseTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *ReadLeaseTest) ReadWhileAvailable() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create the lease.
+	rl := lease.NewReadLease(t.f, doNothingForRevoke, panicForUpgrade)
+
+	// Read from it.
+	buf := make([]byte, 2)
+	_, err = rl.ReadAt(buf, 1)
+
+	AssertEq(nil, err)
+	ExpectEq(fileContents[1:3], string(buf))
 }
 
 func (t *ReadLeaseTest) Revoke() {
