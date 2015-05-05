@@ -102,3 +102,32 @@ func (fl *FileLeaser) New() (rwl ReadWriteLease) {
 func (fl *FileLeaser) checkInvariants() {
 	panic("TODO")
 }
+
+// Add the supplied delta to the leaser's view of outstanding read/write lease
+// bytes, then revoke read leases until we're under limit or we run out of
+// leases to revoke.
+//
+// Called by readWriteLease.
+//
+// LOCKS_EXCLUDED(fl.mu)
+func (fl *FileLeaser) addReadWriteByteDelta(delta int64) {
+	// TODO(jacobsa): When evicting, repeatedly:
+	// 1. Find least recently used read lease.
+	// 2. Drop leaser lock.
+	// 3. Acquire read lease lock.
+	// 4. Reacquire leaser lock.
+	// 5. If under limit now, drop both locks and return.
+	// 6. If lease already evicted, drop its lock and go to #1.
+	// 7. Evict lease, drop both locks. If still above limit, start over.
+	panic("TODO")
+}
+
+// Note the fact that a write lease of the supplied size has transmogrified
+// into the supplied read lease.
+//
+// Called by readWriteLease.
+//
+// LOCKS_EXCLUDED(fl.mu)
+func (fl *FileLeaser) noteDowngrade(size int64, rl *readLease) {
+	panic("TODO")
+}
