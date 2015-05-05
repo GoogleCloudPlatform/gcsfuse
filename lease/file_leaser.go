@@ -14,7 +14,11 @@
 
 package lease
 
-import "github.com/jacobsa/gcloud/syncutil"
+import (
+	"container/list"
+
+	"github.com/jacobsa/gcloud/syncutil"
+)
 
 // A type that manages read and read/write leases for anonymous temporary files.
 //
@@ -39,8 +43,8 @@ type FileLeaser struct {
 	//
 	// Define our strict partial order < as follows:
 	//
-	//  1. For any two leases L1 and L2 with L1.Id < L2.Id, L1.mu < L2.mu.
-	//  2. For any lease L, L.mu < leaser.mu
+	//  1. For any two leases L1 and L2 with L1.Id < L2.Id, L1.Mu < L2.Mu.
+	//  2. For any lease L, L.Mu < leaser.mu
 	//
 	mu syncutil.InvariantMutex
 
@@ -52,6 +56,18 @@ type FileLeaser struct {
 	// updater drops the lock, acquires the FS lock, then adds the delta here.
 	// This saves us from needed to serialize I/O through distinct files.
 	readWriteOutstanding int64
+
+	// All outstanding read leases, ordered by recency of use.
+	//
+	// INVARIANT: Each element is of type *readLease
+	// INVARIANT: For each x, x.Id < nextID
+	readLeases list.List
+
+	// Index of read leases by ID.
+	//
+	// INVARIANT: For each k, v: v.Value.(*readLease) == k
+	// INVARIANT: Contains all and only the lements of readLeases
+	readLeasesIndex map[*readLease]*list.Element
 }
 
 // Create a new file leaser that uses the supplied directory for temporary
@@ -85,4 +101,5 @@ func (fl *FileLeaser) New() (rwl ReadWriteLease) {
 ////////////////////////////////////////////////////////////////////////
 
 func (fl *FileLeaser) checkInvariants() {
+	panic("TODO")
 }
