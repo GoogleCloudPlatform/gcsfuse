@@ -41,6 +41,22 @@ func (t *FileLeaserTest) SetUp(ti *TestInfo) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *FileLeaserTest) DoesFoo() {
+func (t *FileLeaserTest) ModifyThenObserveReadWriteLease() {
+	AssertFalse(true, "TODO")
+}
+
+func (t *FileLeaserTest) DowngradeThenObserve() {
+	AssertFalse(true, "TODO")
+}
+
+func (t *FileLeaserTest) DowngradeThenUpgradeThenObserve() {
+	AssertFalse(true, "TODO")
+}
+
+func (t *FileLeaserTest) DowngradeAboveCapacity() {
+	AssertFalse(true, "TODO")
+}
+
+func (t *FileLeaserTest) ReadLeaseEviction() {
 	AssertFalse(true, "TODO")
 }
