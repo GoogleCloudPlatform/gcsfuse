@@ -24,7 +24,7 @@ type ReadLease struct {
 }
 
 // Create a read lease wrapping the supplied file. The lease "owns" this file
-// until it is upgraded, if ever.
+// until it is revoked or upgraded, if ever.
 //
 // If the lease is revoked, the file will be closed and the supplied function
 // will be notified (at most once).
