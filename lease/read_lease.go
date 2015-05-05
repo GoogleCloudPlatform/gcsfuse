@@ -23,7 +23,10 @@ import (
 // A sentinel error used when a lease has been revoked. See notes on particular
 // methods.
 type RevokedError struct {
-	Err error
+}
+
+func (re *RevokedError) Error() string {
+	return "Lease revoked"
 }
 
 // A read-only wrapper around a file that may be revoked, when e.g. there is
@@ -69,7 +72,18 @@ func NewReadLease(
 // Attempt to read within the wrapped file, returning an error of type
 // *RevokedError if the lease has been revoked.
 func (rl *ReadLease) ReadAt(p []byte, off int64) (n int, err error) {
-	err = errors.New("TODO")
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	// Do we still have a file?
+	if rl.f == nil {
+		err = &RevokedError{}
+		return
+	}
+
+	// Read via the file.
+	n, err = rl.f.ReadAt(p, off)
+
 	return
 }
 
