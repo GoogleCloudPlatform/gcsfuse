@@ -57,7 +57,7 @@ var _ fsTestInterface = &fsTest{}
 func (t *fsTest) setUpFSTest(cfg FSTestConfig) {
 	var err error
 
-	t.ctx = context.Background()
+	t.ctx = cfg.ctx
 	t.clock = cfg.ServerConfig.Clock
 	t.bucket = cfg.ServerConfig.Bucket
 

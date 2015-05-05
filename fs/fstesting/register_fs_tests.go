@@ -23,6 +23,8 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/net/context"
+
 	"github.com/googlecloudplatform/gcsfuse/fs"
 	"github.com/jacobsa/ogletest"
 	"github.com/jacobsa/ogletest/srcutil"
@@ -33,6 +35,9 @@ import (
 type FSTestConfig struct {
 	// Configuration for the fuse server to be created.
 	ServerConfig fs.ServerConfig
+
+	// A context to use for the test.
+	ctx context.Context
 }
 
 // An interface that all FS tests must implement.
@@ -81,9 +86,12 @@ func registerTestSuite(
 
 		// SetUp should create a bucket and then initialize the suite object,
 		// remembering that the suite implements fsTestInterface.
-		tf.SetUp = func(*ogletest.TestInfo) {
-			// Tests assume SupportNlink is enabled.
+		tf.SetUp = func(ti *ogletest.TestInfo) {
+			// Set up test configuration.
 			cfg := makeConfig()
+			cfg.ctx = ti.Ctx
+
+			// Tests assume SupportNlink is enabled.
 			cfg.ServerConfig.SupportNlink = true
 
 			instance.Interface().(fsTestInterface).setUpFSTest(cfg)
