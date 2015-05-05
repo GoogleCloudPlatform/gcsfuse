@@ -32,6 +32,10 @@ type RevokedError struct {
 // All methods are safe for concurrent access. Must be created with
 // NewReadLease.
 type ReadLease struct {
+	// Functions injected by the user.
+	revoked func()
+	upgrade func(*os.File) *WriteLease
+
 	mu sync.Mutex
 
 	// The wrapped file. If the lease has been revoked, this will be nil.
@@ -53,8 +57,11 @@ func NewReadLease(
 	f *os.File,
 	revoked func(),
 	upgrade func(f *os.File) *WriteLease) (rl *ReadLease) {
-	// TODO
-	rl = &ReadLease{}
+	rl = &ReadLease{
+		f:       f,
+		revoked: revoked,
+		upgrade: upgrade,
+	}
 
 	return
 }
