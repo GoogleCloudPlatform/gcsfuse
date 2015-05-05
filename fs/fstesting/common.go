@@ -74,7 +74,11 @@ func (t *fsTest) setUpFSTest(cfg FSTestConfig) {
 	}
 
 	// Mount the file system.
-	t.mfs, err = fuse.Mount(t.Dir, server, &fuse.MountConfig{})
+	mountCfg := &fuse.MountConfig{
+		OpContext: t.ctx,
+	}
+
+	t.mfs, err = fuse.Mount(t.Dir, server, mountCfg)
 	if err != nil {
 		panic("Mount: " + err.Error())
 	}
