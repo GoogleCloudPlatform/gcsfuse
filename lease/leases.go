@@ -34,10 +34,10 @@ type ReadLease interface {
 	// Reads for an expired lease will return an error of type *RevokedError.
 	io.ReaderAt
 
-	// Attempt to upgrade the lease to a write lease, returning an error of type
-	// *RevokedError if the lease has been revoked. After upgrading, it is as if
-	// the lease has been revoked.
-	Upgrade() (wl WriteLease, err error)
+	// Attempt to upgrade the lease to a read/write lease, returning an error of
+	// type *RevokedError if the lease has been revoked. After upgrading, it is
+	// as if the lease has been revoked.
+	Upgrade() (rwl ReadWriteLease, err error)
 
 	// Cause the lease to be revoked and any associated resources to be cleaned
 	// up, if it has not already been revoked.
