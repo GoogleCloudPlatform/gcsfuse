@@ -15,7 +15,6 @@
 package lease
 
 import (
-	"errors"
 	"os"
 	"sync"
 )
@@ -118,6 +117,27 @@ func (rl *ReadLease) Revoke() (err error) {
 // *RevokedError if the lease has been revoked. After upgrading, it is as if
 // the lease has been revoked.
 func (rl *ReadLease) Upgrade() (wl *WriteLease, err error) {
-	err = errors.New("TODO")
+	// Call the user outside of the lock, if appropriate.
+	var toUpgrade *os.File
+	defer func() {
+		if toUpgrade != nil {
+			wl = rl.upgrade(toUpgrade)
+			return
+		}
+	}()
+
+	// Already revoked?
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	if rl.f == nil {
+		err = &RevokedError{}
+		return
+	}
+
+	// Grab the file for upgrading.
+	toUpgrade = rl.f
+	rl.f = nil
+
 	return
 }
