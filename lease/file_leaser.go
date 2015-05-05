@@ -18,6 +18,12 @@ package lease
 //
 // Safe for concurrent access. Must be created with NewFileLeaser.
 type FileLeaser struct {
+	/////////////////////////
+	// Constant data
+	/////////////////////////
+
+	dir   string
+	limit int64
 }
 
 // Create a new file leaser that uses the supplied directory for temporary
@@ -29,7 +35,12 @@ type FileLeaser struct {
 func NewFileLeaser(
 	dir string,
 	limitBytes int64) (fl *FileLeaser) {
-	panic("TODO")
+	fl = &FileLeaser{
+		dir:   dir,
+		limit: limitBytes,
+	}
+
+	return
 }
 
 // Create a new anonymous file, and return a read/write lease for it. The
