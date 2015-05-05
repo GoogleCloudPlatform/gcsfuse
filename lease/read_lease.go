@@ -90,7 +90,27 @@ func (rl *ReadLease) ReadAt(p []byte, off int64) (n int, err error) {
 // Attempt to revoke the lease, freeing any resources associated with it. It is
 // an error to revoke more than once.
 func (rl *ReadLease) Revoke() (err error) {
-	err = errors.New("TODO")
+	// Notify the user outside of the lock, if appropriate.
+	shouldNotify := false
+	defer func() {
+		if shouldNotify {
+			rl.revoked()
+		}
+	}()
+
+	// Already revoked?
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	if rl.f == nil {
+		err = &RevokedError{}
+		return
+	}
+
+	// Revoke and notify.
+	rl.f = nil
+	shouldNotify = true
+
 	return
 }
 
