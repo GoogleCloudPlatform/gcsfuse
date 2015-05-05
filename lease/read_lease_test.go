@@ -33,6 +33,10 @@ func TestReadLease(t *testing.T) { RunTests(t) }
 func doNothingForRevoke() {
 }
 
+func panicForRevoke() {
+	panic("panicForRevoke should not be called")
+}
+
 func panicForUpgrade(f *os.File) *lease.WriteLease {
 	panic("panicForUpgrade should not be called")
 }
@@ -101,11 +105,11 @@ func (t *ReadLeaseTest) Revoke() {
 
 	// Revoking a second time should not work.
 	err = rl.Revoke()
-	ExpectThat(err, Error(HasSubstr("already revoked")))
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 
 	// Upgrading should not work.
 	_, err = rl.Upgrade()
-	ExpectThat(err, Error(HasSubstr("revoked")))
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 
 	// Reading should not work.
 	buf := make([]byte, 2)
@@ -115,5 +119,39 @@ func (t *ReadLeaseTest) Revoke() {
 }
 
 func (t *ReadLeaseTest) Upgrade() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Set up an upgrade function.
+	upgradeCalled := false
+	expected := &lease.WriteLease{}
+	upgrade := func(f *os.File) (wl *lease.WriteLease) {
+		AssertFalse(upgradeCalled)
+		AssertEq(t.f, f)
+		upgradeCalled = true
+
+		wl = expected
+		return
+	}
+
+	// Create the lease.
+	rl := lease.NewReadLease(t.f, panicForRevoke, upgrade)
+
+	// Upgrade.
+	wl, err := rl.Upgrade()
+	AssertEq(nil, err)
+	ExpectEq(expected, wl)
+
+	// Upgrading a second time should not work.
+	_, err = rl.Upgrade()
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	// Revoking should not work.
+	err = rl.Revoke()
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	// Reading should not work.
+	buf := make([]byte, 2)
+	_, err = rl.ReadAt(buf, 1)
+
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 }

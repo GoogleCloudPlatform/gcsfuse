@@ -66,8 +66,8 @@ func (rl *ReadLease) Revoke() (err error) {
 }
 
 // Attempt to upgrade the lease to a write lease, returning an error of type
-// *Revoke if the lease has been revoked. It is an error to use the lease in
-// any manner after upgrading.
+// *RevokedError if the lease has been revoked. After upgrading, it is as if
+// the lease has been revoked.
 func (rl *ReadLease) Upgrade() (wl *WriteLease, err error) {
 	err = errors.New("TODO")
 	return
