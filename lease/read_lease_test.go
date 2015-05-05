@@ -15,8 +15,10 @@
 package lease_test
 
 import (
+	"os"
 	"testing"
 
+	"github.com/jacobsa/fuse/fsutil"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -26,10 +28,27 @@ func TestReadLease(t *testing.T) { RunTests(t) }
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
+const fileContents = "taco"
+
 type ReadLeaseTest struct {
+	f *os.File
 }
 
+var _ SetUpInterface = &ReadLeaseTest{}
+
 func init() { RegisterTestSuite(&ReadLeaseTest{}) }
+
+func (t *ReadLeaseTest) SetUp(ti *TestInfo) {
+	var err error
+
+	// Set up a temporary file.
+	t.f, err = fsutil.AnonymousFile("")
+	AssertEq(nil, err)
+
+	// Write the initial contents to it.
+	_, err = t.f.Write([]byte(fileContents))
+	AssertEq(nil, err)
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
