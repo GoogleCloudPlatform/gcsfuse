@@ -52,9 +52,8 @@ type FileLeaser struct {
 	nextID uint64
 
 	// The current estimated total size of outstanding read/write leases. This is
-	// only an estimate because each time a read/write lease is updated, the
-	// updater drops the lock, acquires the FS lock, then adds the delta here.
-	// This saves us from needed to serialize I/O through distinct files.
+	// only an estimate because we can't synchronize its update with a call to
+	// the wrapped file to e.g. write or truncate.
 	readWriteOutstanding int64
 
 	// All outstanding read leases, ordered by recency of use.
