@@ -14,6 +14,8 @@
 
 package lease
 
+import "github.com/jacobsa/gcloud/syncutil"
+
 // A type that manages read and read/write leases for anonymous temporary files.
 //
 // Safe for concurrent access. Must be created with NewFileLeaser.
@@ -24,6 +26,12 @@ type FileLeaser struct {
 
 	dir   string
 	limit int64
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
+	mu syncutil.InvariantMutex
 }
 
 // Create a new file leaser that uses the supplied directory for temporary
@@ -40,6 +48,8 @@ func NewFileLeaser(
 		limit: limitBytes,
 	}
 
+	fl.mu = syncutil.NewInvariantMutex(fl.checkInvariants)
+
 	return
 }
 
@@ -48,4 +58,11 @@ func NewFileLeaser(
 // not be called if the process is exiting.
 func (fl *FileLeaser) New() (rwl ReadWriteLease) {
 	panic("TODO")
+}
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func (fl *FileLeaser) checkInvariants() {
 }
