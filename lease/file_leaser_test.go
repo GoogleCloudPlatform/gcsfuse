@@ -17,6 +17,7 @@ package lease_test
 import (
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/lease"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -26,7 +27,10 @@ func TestFileLeaser(t *testing.T) { RunTests(t) }
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
+const limitBytes = 17
+
 type FileLeaserTest struct {
+	fl *lease.FileLeaser
 }
 
 var _ SetUpInterface = &FileLeaserTest{}
@@ -34,12 +38,16 @@ var _ SetUpInterface = &FileLeaserTest{}
 func init() { RegisterTestSuite(&FileLeaserTest{}) }
 
 func (t *FileLeaserTest) SetUp(ti *TestInfo) {
-	panic("TODO")
+	t.fl = lease.NewFileLeaser("", limitBytes)
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
+
+func (t *FileLeaserTest) ReadWriteLeaseInitialState() {
+	AssertFalse(true, "TODO")
+}
 
 func (t *FileLeaserTest) ModifyThenObserveReadWriteLease() {
 	AssertFalse(true, "TODO")

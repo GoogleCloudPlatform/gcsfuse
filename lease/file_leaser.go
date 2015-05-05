@@ -22,7 +22,7 @@ type FileLeaser struct {
 
 // Create a new file leaser that uses the supplied directory for temporary
 // files (before unlinking them) and attempts to keep usage in bytes below the
-// given limit.
+// given limit. If dir is empty, the system default will be used.
 //
 // Usage may exceed the given limit if there are read/write leases whose total
 // size exceeds the limit, since such leases cannot be revoked.
