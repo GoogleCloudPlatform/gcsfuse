@@ -20,6 +20,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/jacobsa/fuse/fsutil"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -81,7 +82,36 @@ func (t *ReadLeaseTest) ReadWhileAvailable() {
 }
 
 func (t *ReadLeaseTest) Revoke() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Set up a revoke function.
+	revokeCalled := false
+	revoke := func() {
+		AssertFalse(revokeCalled)
+		revokeCalled = true
+	}
+
+	// Create the lease.
+	rl := lease.NewReadLease(t.f, revoke, panicForUpgrade)
+
+	// Revoke.
+	err = rl.Revoke()
+	AssertEq(nil, err)
+	AssertTrue(revokeCalled)
+
+	// Revoking a second time should not work.
+	err = rl.Revoke()
+	ExpectThat(err, Error(HasSubstr("already revoked")))
+
+	// Upgrading should not work.
+	_, err = rl.Upgrade()
+	ExpectThat(err, Error(HasSubstr("revoked")))
+
+	// Reading should not work.
+	buf := make([]byte, 2)
+	_, err = rl.ReadAt(buf, 1)
+
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 }
 
 func (t *ReadLeaseTest) Upgrade() {
