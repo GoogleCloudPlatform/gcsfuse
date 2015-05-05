@@ -38,6 +38,10 @@ type ReadLease interface {
 	// *RevokedError if the lease has been revoked. After upgrading, it is as if
 	// the lease has been revoked.
 	Upgrade() (wl WriteLease, err error)
+
+	// Cause the lease to be revoked and any associated resources to be cleaned
+	// up, if it has not already been revoked.
+	Revoke()
 }
 
 // A read-write wrapper around a file. Unlike a read lease, this cannot be
