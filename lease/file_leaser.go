@@ -31,6 +31,12 @@ type FileLeaser struct {
 	// Mutable state
 	/////////////////////////
 
+	// A lock that guards the mutable state in this struct and in all of the
+	// leases it manages.
+	//
+	// NOTE(jacobsa): This implies that there can be no I/O parallelism when
+	// accessing multiple files concurrently. That stinks, but it's not clear
+	// what the alternative is if we want to keep our limit up to date.
 	mu syncutil.InvariantMutex
 }
 
