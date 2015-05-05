@@ -14,7 +14,16 @@
 
 package lease
 
-import "os"
+import (
+	"errors"
+	"os"
+)
+
+// A sentinel error used when a lease has been revoked. See notes on particular
+// methods.
+type RevokedError struct {
+	Err error
+}
 
 // A read-only wrapper around a file that may be revoked, when e.g. there is
 // temporary disk space pressure.
@@ -35,17 +44,31 @@ type ReadLease struct {
 func NewReadLease(
 	f *os.File,
 	revoked func(),
-	upgrade func(f *os.File) *WriteLease) (rl *ReadLease)
+	upgrade func(f *os.File) *WriteLease) (rl *ReadLease) {
+	// TODO
+	rl = &ReadLease{}
+
+	return
+}
 
 // Attempt to read within the wrapped file, returning an error of type
 // *RevokedError if the lease has been revoked.
-func (rl *ReadLease) ReadAt(p []byte, off int64) (n int, err error)
+func (rl *ReadLease) ReadAt(p []byte, off int64) (n int, err error) {
+	err = errors.New("TODO")
+	return
+}
 
 // Attempt to revoke the lease, freeing any resources associated with it. It is
 // an error to revoke more than once.
-func (rl *ReadLease) Revoke() (err error)
+func (rl *ReadLease) Revoke() (err error) {
+	err = errors.New("TODO")
+	return
+}
 
 // Attempt to upgrade the lease to a write lease, returning an error of type
 // *Revoke if the lease has been revoked. It is an error to use the lease in
 // any manner after upgrading.
-func (rl *ReadLease) Upgrade() (wl *WriteLease, err error)
+func (rl *ReadLease) Upgrade() (wl *WriteLease, err error) {
+	err = errors.New("TODO")
+	return
+}
