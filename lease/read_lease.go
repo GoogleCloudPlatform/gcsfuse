@@ -17,6 +17,7 @@ package lease
 import (
 	"errors"
 	"os"
+	"sync"
 )
 
 // A sentinel error used when a lease has been revoked. See notes on particular
@@ -28,8 +29,15 @@ type RevokedError struct {
 // A read-only wrapper around a file that may be revoked, when e.g. there is
 // temporary disk space pressure.
 //
-// All methods are safe for concurrent access.
+// All methods are safe for concurrent access. Must be created with
+// NewReadLease.
 type ReadLease struct {
+	mu sync.Mutex
+
+	// The wrapped file. If the lease has been revoked, this will be nil.
+	//
+	// GUARDED_BY(mu)
+	f *os.File
 }
 
 // Create a read lease wrapping the supplied file. The lease "owns" this file
