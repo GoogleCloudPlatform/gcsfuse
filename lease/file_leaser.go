@@ -28,9 +28,13 @@ type FileLeaser struct {
 // size exceeds the limit, since such leases cannot be revoked.
 func NewFileLeaser(
 	dir string,
-	limitBytes int64) (fl *FileLeaser)
+	limitBytes int64) (fl *FileLeaser) {
+	panic("TODO")
+}
 
 // Create a new anonymous file, and return a read/write lease for it. The
 // read/write lease will pin resources until rwl.Downgrade is called. It need
 // not be called if the process is exiting.
-func (fl *FileLeaser) New() (rwl ReadWriteLease)
+func (fl *FileLeaser) New() (rwl ReadWriteLease) {
+	panic("TODO")
+}
