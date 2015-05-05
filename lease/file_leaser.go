@@ -31,13 +31,27 @@ type FileLeaser struct {
 	// Mutable state
 	/////////////////////////
 
-	// A lock that guards the mutable state in this struct and in all of the
-	// leases it manages.
+	// A lock that guards the mutable state in this struct, which must not be
+	// held for any blocking operation.
 	//
-	// NOTE(jacobsa): This implies that there can be no I/O parallelism when
-	// accessing multiple files concurrently. That stinks, but it's not clear
-	// what the alternative is if we want to keep our limit up to date.
+	// LOCK ORDERING
+	// -------------
+	//
+	// Define our strict partial order < as follows:
+	//
+	//  1. For any two leases L1 and L2 with L1.Id < L2.Id, L1.mu < L2.mu.
+	//  2. For any lease L, L.mu < leaser.mu
+	//
 	mu syncutil.InvariantMutex
+
+	// The unique ID to hand out for the next lease issued.
+	nextID uint64
+
+	// The current estimated total size of outstanding read/write leases. This is
+	// only an estimate because each time a read/write lease is updated, the
+	// updater drops the lock, acquires the FS lock, then adds the delta here.
+	// This saves us from needed to serialize I/O through distinct files.
+	readWriteOutstanding int64
 }
 
 // Create a new file leaser that uses the supplied directory for temporary
