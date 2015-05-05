@@ -57,7 +57,7 @@ var _ fsTestInterface = &fsTest{}
 func (t *fsTest) setUpFSTest(cfg FSTestConfig) {
 	var err error
 
-	t.ctx = context.Background()
+	t.ctx = cfg.ctx
 	t.clock = cfg.ServerConfig.Clock
 	t.bucket = cfg.ServerConfig.Bucket
 
@@ -74,7 +74,11 @@ func (t *fsTest) setUpFSTest(cfg FSTestConfig) {
 	}
 
 	// Mount the file system.
-	t.mfs, err = fuse.Mount(t.Dir, server, &fuse.MountConfig{})
+	mountCfg := &fuse.MountConfig{
+		OpContext: t.ctx,
+	}
+
+	t.mfs, err = fuse.Mount(t.Dir, server, mountCfg)
 	if err != nil {
 		panic("Mount: " + err.Error())
 	}
