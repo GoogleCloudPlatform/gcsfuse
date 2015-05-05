@@ -25,14 +25,6 @@ func (re *RevokedError) Error() string {
 	return "Lease revoked"
 }
 
-// A collection of methods with semantics matching *os.File.
-type File interface {
-	io.ReaderAt
-	io.WriterAt
-	Seek(offset int64, whence int) (ret int64, err error)
-	Truncate(size int64) error
-}
-
 // A read-only wrapper around a file that may be revoked, when e.g. there is
 // temporary disk space pressure. A read lease may also be upgraded to a write
 // lease, if it is still valid.
@@ -53,7 +45,11 @@ type ReadLease interface {
 //
 // All methods are safe for concurrent access.
 type ReadWriteLease interface {
-	File
+	// Methods with semantics matching *os.File.
+	io.ReaderAt
+	io.WriterAt
+	Seek(offset int64, whence int) (ret int64, err error)
+	Truncate(size int64) error
 
 	// Downgrade to a read lease, releasing any resources pinned by this lease to
 	// the pool that may be revoked, as with any read lease. After downgrading,
