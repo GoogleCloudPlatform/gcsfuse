@@ -35,6 +35,14 @@ func init() { RegisterTestSuite(&ReadLeaseTest{}) }
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ReadLeaseTest) DoesFoo() {
+func (t *ReadLeaseTest) ReadWhileAvailable() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ReadLeaseTest) Revoke() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ReadLeaseTest) Upgrade() {
 	AssertTrue(false, "TODO")
 }
