@@ -15,7 +15,6 @@
 package lease
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -159,7 +158,20 @@ func (rwl *readWriteLease) Size() (size int64, err error) {
 
 // LOCKS_EXCLUDED(rwl.mu)
 func (rwl *readWriteLease) Downgrade() (rl ReadLease, err error) {
-	err = errors.New("TODO")
+	rwl.mu.Lock()
+	defer rwl.mu.Unlock()
+
+	// Find the current size under the lock.
+	size, err := rwl.sizeLocked()
+	if err != nil {
+		err = fmt.Errorf("sizeLocked: %v", err)
+		return
+	}
+
+	// Call the leaser.
+	rl = rwl.leaser.downgrade(rwl, size, rwl.file)
+
+	// TODO(jacobsa): Destroy local state.
 	return
 }
 

@@ -17,6 +17,7 @@ package lease
 import (
 	"container/list"
 	"fmt"
+	"os"
 
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/gcloud/syncutil"
@@ -141,7 +142,8 @@ func (fl *FileLeaser) addReadWriteByteDelta(delta int64) {
 	panic("TODO")
 }
 
-// Downgrade the supplied read/write lease, given its current size.
+// Downgrade the supplied read/write lease, given its current size and the
+// underlying file.
 //
 // Called by readWriteLease.
 //
@@ -149,6 +151,7 @@ func (fl *FileLeaser) addReadWriteByteDelta(delta int64) {
 // LOCKS_EXCLUDED(fl.mu)
 func (fl *FileLeaser) downgrade(
 	rwl *readWriteLease,
-	size int64) (rl *readLease) {
+	size int64,
+	file *os.File) (rl ReadLease) {
 	panic("TODO")
 }
