@@ -38,14 +38,17 @@ type FileLeaser struct {
 	// A lock that guards the mutable state in this struct, which must not be
 	// held for any blocking operation.
 	//
-	// LOCK ORDERING
+	// Lock ordering
 	// -------------
 	//
 	// Define our strict partial order < as follows:
 	//
-	//  1. For any two leases L1 and L2 with L1.Id < L2.Id, L1.Mu < L2.Mu.
-	//  2. For any lease L, L.Mu < leaser.mu
+	//  1. For any read/write lease W, W < leaser.
+	//  2. For any read lease R, R < leaser.
+	//  3. For any read/write lease W and read lease R, W < R.
 	//
+	// In other words: read/write before read before leaser, and never hold two
+	// locks from the same category together.
 	mu syncutil.InvariantMutex
 
 	// The unique ID to hand out for the next lease issued.
