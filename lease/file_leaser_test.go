@@ -249,7 +249,7 @@ func (t *FileLeaserTest) DowngradeThenUpgradeThenObserve() {
 	ExpectEq("ac", string(buf[0:2]))
 }
 
-func (t *FileLeaserTest) DowngradeAboveCapacity() {
+func (t *FileLeaserTest) DowngradeFileWhoseSizeIsAboveCapacity() {
 	AssertFalse(true, "TODO")
 }
 
