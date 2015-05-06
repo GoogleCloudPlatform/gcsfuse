@@ -74,8 +74,7 @@ type FileLeaser struct {
 
 	// Index of read leases by pointer.
 	//
-	// INVARIANT: For each k, v: v.Value.(*readLease) == k
-	// INVARIANT: Contains all and only the lements of readLeases
+	// INVARIANT: Is an index of exactly the elements of readLeases
 	readLeasesIndex map[*readLease]*list.Element
 }
 
@@ -119,6 +118,14 @@ func (fl *FileLeaser) NewFile() (rwl ReadWriteLease, err error) {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+func maxInt64(a int64, b int64) int64 {
+	if a > b {
+		return a
+	}
+
+	return b
+}
+
 // LOCKS_REQUIRED(fl.mu)
 func (fl *FileLeaser) checkInvariants() {
 	// INVARIANT: Each element is of type *readLease
@@ -130,7 +137,47 @@ func (fl *FileLeaser) checkInvariants() {
 		}
 	}
 
-	panic("TODO")
+	// INVARIANT: Equal to the sum over readLeases sizes.
+	var sum int64
+	for e := fl.readLeases.Front(); e != nil; e = e.Next() {
+		rl := e.Value.(*readLease)
+		sum += rl.Size()
+	}
+
+	if fl.readOutstanding != sum {
+		panic(fmt.Sprintf(
+			"readOutstanding mismatch: %v vs. %v",
+			fl.readOutstanding,
+			sum))
+	}
+
+	// INVARIANT: 0 <= readOutstanding
+	if !(0 <= fl.readOutstanding) {
+		panic(fmt.Sprintf("Unexpected readOutstanding: %v", fl.readOutstanding))
+	}
+
+	// INVARIANT: readOutstanding <= max(0, limit - readWriteOutstanding)
+	if !(fl.readOutstanding <= maxInt64(0, fl.limit-fl.readWriteOutstanding)) {
+		panic(fmt.Sprintf(
+			"Unexpected readOutstanding: %v. limit: %v, readWriteOutstanding: %v",
+			fl.readOutstanding,
+			fl.limit,
+			fl.readWriteOutstanding))
+	}
+
+	// INVARIANT: Is an index of exactly the elements of readLeases
+	if len(fl.readLeasesIndex) != fl.readLeases.Len() {
+		panic(fmt.Sprintf(
+			"readLeasesIndex length mismatch: %v vs. %v",
+			len(fl.readLeasesIndex),
+			fl.readLeases.Len()))
+	}
+
+	for e := fl.readLeases.Front(); e != nil; e = e.Next() {
+		if fl.readLeasesIndex[e.Value.(*readLease)] != e {
+			panic("Mismatch in readLeasesIndex")
+		}
+	}
 }
 
 // Add the supplied delta to the leaser's view of outstanding read/write lease
