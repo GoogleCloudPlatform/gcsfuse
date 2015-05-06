@@ -37,8 +37,9 @@ type ReadLease interface {
 	io.ReadSeeker
 	io.ReaderAt
 
-	// Return the size of the underlying file.
-	Size() (size int64, err error)
+	// Return the size of the underlying file, or what the size used to be if the
+	// lease has been revoked.
+	Size() (size int64)
 
 	// Attempt to upgrade the lease to a read/write lease, returning nil if the
 	// lease has been revoked. After upgrading, it is as if the lease has been
@@ -57,9 +58,6 @@ type readLease struct {
 	// Constant data
 	/////////////////////////
 
-	// The size, to be used only when file != nil. This is redundant with file
-	// because file.Stat() may fail, and we want FileLeaser to be able to depend
-	// on Size() never failing for non-revoked leases.
 	size int64
 
 	/////////////////////////
@@ -144,19 +142,8 @@ func (rl *readLease) ReadAt(p []byte, off int64) (n int, err error) {
 	return
 }
 
-// Guaranteed not to fail if the lease is still valid.
-//
-// LOCKS_EXCLUDED(rl.mu)
-func (rl *readLease) Size() (size int64, err error) {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
-	// Have we been revoked?
-	if rl.revoked() {
-		err = &RevokedError{}
-		return
-	}
-
+// No lock necessary.
+func (rl *readLease) Size() (size int64) {
 	size = rl.size
 	return
 }

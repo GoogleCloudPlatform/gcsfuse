@@ -174,8 +174,7 @@ func (t *FileLeaserTest) DowngradeThenObserve() {
 	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 
 	// Observing via the read lease should work fine.
-	size, err = rl.Size()
-	AssertEq(nil, err)
+	size = rl.Size()
 	ExpectEq(len("taco"), size)
 
 	off, err = rl.Seek(-4, 2)
@@ -221,9 +220,6 @@ func (t *FileLeaserTest) DowngradeThenUpgradeThenObserve() {
 	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 
 	_, err = rl.ReadAt(buf, 0)
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
-
-	_, err = rl.Size()
 	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 
 	tmp := rl.Upgrade()
@@ -273,9 +269,6 @@ func (t *FileLeaserTest) DowngradeFileWhoseSizeIsAboveLimit() {
 	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 
 	_, err = rl.ReadAt(buf, 0)
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
-
-	_, err = rl.Size()
 	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 
 	tmp := rl.Upgrade()
