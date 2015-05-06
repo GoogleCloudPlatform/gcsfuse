@@ -160,7 +160,21 @@ func (rl *readLease) Size() (size int64, err error) {
 
 // LOCKS_EXCLUDED(rl.mu)
 func (rl *readLease) Upgrade() (rwl ReadWriteLease) {
-	panic("TODO")
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	// Have we been revoked?
+	if rl.file == nil {
+		return
+	}
+
+	// Call the leaser.
+	rwl = rl.leaser.upgrade(rl, rl.size, rl.file)
+
+	// Note that we've been revoked.
+	rl.file = nil
+
+	return
 }
 
 // LOCKS_EXCLUDED(rl.mu)

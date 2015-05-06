@@ -145,9 +145,8 @@ func (fl *FileLeaser) addReadWriteByteDelta(delta int64) {
 // Downgrade the supplied read/write lease, given its current size and the
 // underlying file.
 //
-// Called by readWriteLease.
+// Called by readWriteLease with its lock held.
 //
-// LOCKS_REQUIRED(rwl)
 // LOCKS_EXCLUDED(fl.mu)
 func (fl *FileLeaser) downgrade(
 	rwl *readWriteLease,
@@ -155,7 +154,25 @@ func (fl *FileLeaser) downgrade(
 	file *os.File) (rl ReadLease) {
 	rl = newReadLease(size, fl, file)
 
-	// TODO(jacobsa): Update fl's maps, too. Don't forget to take the lock.
+	// TODO(jacobsa): Update fl's state, too. Don't forget to take the lock.
+
+	return
+}
+
+// Upgrade the supplied read lease, given its size and the underlying file.
+//
+// Called by readLease with its lock held.
+//
+// LOCKS_EXCLUDED(fl.mu)
+func (fl *FileLeaser) upgrade(
+	rl *readLease,
+	size int64,
+	file *os.File) (rwl ReadWriteLease) {
+	// TODO(jacobsa): This should take a size parameter, telling the read/write
+	// lease that we already know its initial size.
+	rwl = newReadWriteLease(fl, file)
+
+	// TODO(jacobsa): Update fl's state, too. Don't forget to take the lock.
 
 	return
 }
