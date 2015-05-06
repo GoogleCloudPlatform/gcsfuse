@@ -219,7 +219,9 @@ func (rwl *readWriteLease) Downgrade() (rl ReadLease, err error) {
 	// Call the leaser.
 	rl = rwl.leaser.downgrade(rwl, size, rwl.file)
 
-	// TODO(jacobsa): Destroy local state.
+	// Note that we have been revoked.
+	rwl.file = nil
+
 	return
 }
 
