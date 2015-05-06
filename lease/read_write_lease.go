@@ -17,6 +17,8 @@ package lease
 import (
 	"errors"
 	"io"
+	"os"
+	"sync"
 )
 
 // A read-write wrapper around a file. Unlike a read lease, this cannot be
@@ -44,11 +46,35 @@ type ReadWriteLease interface {
 ////////////////////////////////////////////////////////////////////////
 
 type readWriteLease struct {
+	/////////////////////////
+	// Dependencies
+	/////////////////////////
+
+	// The leaser that issued this lease.
+	leaser *FileLeaser
+
+	// The underlying file.
+	file *os.File
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
+	mu sync.Mutex
+
+	// The cumulative number of bytes we have reported to the leaser using
+	// FileLeaser.addReadWriteByteDelta. When the size changes, we report the
+	// difference between the new size and this value.
+	//
+	// GUARDED_BY(mu)
+	reportedSize int64
 }
 
 var _ ReadWriteLease = &readWriteLease{}
 
-func newReadWriteLease() (rwl *readWriteLease) {
+func newReadWriteLease(
+	leaser *FileLeaser,
+	file *os.File) (rwl *readWriteLease) {
 	// TODO
 	rwl = &readWriteLease{}
 	return
