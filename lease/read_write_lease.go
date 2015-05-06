@@ -25,8 +25,7 @@ import (
 // A read-write wrapper around a file. Unlike a read lease, this cannot be
 // revoked.
 //
-// All methods are safe for concurrent access. All may return errors of type
-// *RevokedError.
+// All methods are safe for concurrent access.
 type ReadWriteLease interface {
 	// Methods with semantics matching *os.File.
 	io.ReadWriteSeeker

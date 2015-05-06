@@ -173,7 +173,8 @@ func (t *FileLeaserTest) DowngradeThenObserve() {
 	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 
 	// Observing via the read lease should work fine.
-	size = rl.Size()
+	size, err = rl.Size()
+	AssertEq(nil, err)
 	ExpectEq(len("taco"), size)
 
 	off, err = rl.Seek(-4, 2)
