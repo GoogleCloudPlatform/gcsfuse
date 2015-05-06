@@ -130,7 +130,63 @@ func (t *FileLeaserTest) ModifyThenObserveReadWriteLease() {
 }
 
 func (t *FileLeaserTest) DowngradeThenObserve() {
-	AssertFalse(true, "TODO")
+	var n int
+	var off int64
+	var size int64
+	var err error
+	buf := make([]byte, 1024)
+
+	// Create and write some data.
+	rwl, err := t.fl.NewFile()
+	AssertEq(nil, err)
+
+	n, err = rwl.Write([]byte("taco"))
+	AssertEq(nil, err)
+
+	// Downgrade.
+	rl, err := rwl.Downgrade()
+	AssertEq(nil, err)
+
+	// Interactive with the read/write lease should no longer work.
+	_, err = rwl.Read(buf)
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	_, err = rwl.Write(buf)
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	_, err = rwl.Seek(0, 0)
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	_, err = rwl.ReadAt(buf, 0)
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	_, err = rwl.WriteAt(buf, 0)
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	err = rwl.Truncate(0)
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	_, err = rwl.Size()
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	_, err = rwl.Downgrade()
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	// Observing via the read lease should work fine.
+	size = rl.Size()
+	ExpectEq(len("taco"), size)
+
+	off, err = rl.Seek(-4, 2)
+	AssertEq(nil, err)
+	ExpectEq(0, off)
+
+	n, err = rl.Read(buf)
+	ExpectThat(err, AnyOf(nil, io.EOF))
+	ExpectEq("taco", string(buf[0:n]))
+
+	n, err = rl.ReadAt(buf[0:2], 1)
+	AssertEq(nil, err)
+	ExpectEq("ac", buf[0:2])
 }
 
 func (t *FileLeaserTest) DowngradeThenUpgradeThenObserve() {
