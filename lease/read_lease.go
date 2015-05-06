@@ -16,8 +16,7 @@ package lease
 
 import "io"
 
-// A sentinel error used when a lease has been revoked. See notes on particular
-// methods.
+// A sentinel error used when a lease has been revoked.
 type RevokedError struct {
 }
 
@@ -31,12 +30,11 @@ func (re *RevokedError) Error() string {
 //
 // All methods are safe for concurrent access.
 type ReadLease interface {
-	// Reads for an expired lease will return an error of type *RevokedError.
 	io.ReadSeeker
 	io.ReaderAt
 
 	// Return the size of the underlying file.
-	Size() (size int64)
+	Size() (size int64, err error)
 
 	// Attempt to upgrade the lease to a read/write lease, returning nil if the
 	// lease has been revoked. After upgrading, it is as if the lease has been
