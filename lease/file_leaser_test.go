@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/lease"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -124,7 +125,7 @@ func (t *FileLeaserTest) ModifyThenObserveReadWriteLease() {
 	ExpectEq(0, off)
 
 	n, err = rwl.Read(buf)
-	ExpectEq(io.EOF, err)
+	ExpectThat(err, AnyOf(nil, io.EOF))
 	ExpectEq("taco", string(buf[0:n]))
 }
 
