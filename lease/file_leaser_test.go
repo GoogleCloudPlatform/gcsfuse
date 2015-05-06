@@ -78,7 +78,54 @@ func (t *FileLeaserTest) ReadWriteLeaseInitialState() {
 }
 
 func (t *FileLeaserTest) ModifyThenObserveReadWriteLease() {
-	AssertFalse(true, "TODO")
+	var n int
+	var off int64
+	var size int64
+	var err error
+	buf := make([]byte, 1024)
+
+	// Create
+	rwl, err := t.fl.NewFile()
+	AssertEq(nil, err)
+
+	// Write, then check size and offset.
+	n, err = rwl.Write([]byte("tacoburrito"))
+	AssertEq(nil, err)
+	ExpectEq(len("tacoburrito"), n)
+
+	size, err = rwl.Size()
+	AssertEq(nil, err)
+	ExpectEq(len("tacoburrito"), size)
+
+	off, err = rwl.Seek(0, 1)
+	AssertEq(nil, err)
+	ExpectEq(len("tacoburrito"), off)
+
+	// Pwrite, then check size.
+	n, err = rwl.WriteAt([]byte("enchilada"), 4)
+	AssertEq(nil, err)
+	ExpectEq(len("enchilada"), n)
+
+	size, err = rwl.Size()
+	AssertEq(nil, err)
+	ExpectEq(len("tacoenchilada"), size)
+
+	// Truncate downward, then check size.
+	err = rwl.Truncate(4)
+	AssertEq(nil, err)
+
+	size, err = rwl.Size()
+	AssertEq(nil, err)
+	ExpectEq(len("taco"), size)
+
+	// Seek, then read everything.
+	off, err = rwl.Seek(0, 0)
+	AssertEq(nil, err)
+	ExpectEq(0, off)
+
+	n, err = rwl.Read(buf)
+	ExpectEq(io.EOF, err)
+	ExpectEq("taco", string(buf[0:n]))
 }
 
 func (t *FileLeaserTest) DowngradeThenObserve() {
