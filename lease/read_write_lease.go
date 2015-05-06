@@ -51,7 +51,7 @@ type readWriteLease struct {
 	// The leaser that issued this lease.
 	leaser *FileLeaser
 
-	// The underlying file. We serialize access using the mutex.
+	// The underlying file, set to nil once revoked.
 	//
 	// GUARDED_BY(mu)
 	file *os.File
