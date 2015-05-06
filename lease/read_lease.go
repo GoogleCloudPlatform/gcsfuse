@@ -17,6 +17,8 @@ package lease
 import (
 	"errors"
 	"io"
+	"os"
+	"sync"
 )
 
 // A sentinel error used when a lease has been revoked.
@@ -50,7 +52,22 @@ type ReadLease interface {
 }
 
 type readLease struct {
+	mu sync.Mutex
+
+	/////////////////////////
+	// Dependencies
+	/////////////////////////
+
+	// The leaser that issued this lease.
+	leaser *FileLeaser
+
+	// The underlying file, set to nil once revoked.
+	//
+	// GUARDED_BY(mu)
+	file *os.File
 }
+
+var _ ReadLease = &readLease{}
 
 ////////////////////////////////////////////////////////////////////////
 // Public interface
