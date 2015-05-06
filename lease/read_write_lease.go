@@ -95,6 +95,7 @@ func (rwl *readWriteLease) Read(p []byte) (n int, err error) {
 	return
 }
 
+// LOCKS_EXCLUDED(rwl.mu)
 func (rwl *readWriteLease) Write(p []byte) (n int, err error) {
 	err = errors.New("TODO")
 	return
@@ -120,11 +121,13 @@ func (rwl *readWriteLease) ReadAt(p []byte, off int64) (n int, err error) {
 	return
 }
 
+// LOCKS_EXCLUDED(rwl.mu)
 func (rwl *readWriteLease) WriteAt(p []byte, off int64) (n int, err error) {
 	err = errors.New("TODO")
 	return
 }
 
+// LOCKS_EXCLUDED(rwl.mu)
 func (rwl *readWriteLease) Truncate(size int64) (err error) {
 	err = errors.New("TODO")
 	return
@@ -146,6 +149,7 @@ func (rwl *readWriteLease) Size() (size int64, err error) {
 	return
 }
 
+// LOCKS_EXCLUDED(rwl.mu)
 func (rwl *readWriteLease) Downgrade() (rl ReadLease, err error) {
 	err = errors.New("TODO")
 	return
