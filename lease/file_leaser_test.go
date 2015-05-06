@@ -65,6 +65,22 @@ func (t *FileLeaserTest) DowngradeAboveCapacity() {
 	AssertFalse(true, "TODO")
 }
 
-func (t *FileLeaserTest) ReadLeaseEviction() {
+func (t *FileLeaserTest) WriteCausesEviction() {
+	AssertFalse(true, "TODO")
+}
+
+func (t *FileLeaserTest) WriteAtCausesEviction() {
+	AssertFalse(true, "TODO")
+}
+
+func (t *FileLeaserTest) TruncateCausesEviction() {
+	AssertFalse(true, "TODO")
+}
+
+func (t *FileLeaserTest) EvictionIsLRU() {
+	AssertFalse(true, "TODO")
+}
+
+func (t *FileLeaserTest) NothingAvailableToEvict() {
 	AssertFalse(true, "TODO")
 }
