@@ -15,6 +15,7 @@
 package lease_test
 
 import (
+	"io"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/lease"
@@ -46,7 +47,32 @@ func (t *FileLeaserTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *FileLeaserTest) ReadWriteLeaseInitialState() {
-	AssertFalse(true, "TODO")
+	rwl := t.fl.NewFile()
+	buf := make([]byte, 1024)
+
+	var n int
+	var off int64
+	var err error
+
+	// Size
+	size, err := rwl.Size()
+	AssertEq(nil, err)
+	ExpectEq(0, size)
+
+	// Seek
+	off, err = rwl.Seek(0, 2)
+	AssertEq(nil, err)
+	ExpectEq(0, off)
+
+	// Read
+	n, err = rwl.Read(buf)
+	ExpectEq(io.EOF, err)
+	ExpectEq(0, n)
+
+	// ReadAt
+	n, err = rwl.ReadAt(buf, 0)
+	ExpectEq(io.EOF, err)
+	ExpectEq(0, n)
 }
 
 func (t *FileLeaserTest) ModifyThenObserveReadWriteLease() {
