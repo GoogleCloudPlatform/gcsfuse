@@ -114,7 +114,7 @@ func (fl *FileLeaser) checkInvariants() {
 // bytes, then revoke read leases until we're under limit or we run out of
 // leases to revoke.
 //
-// Called by readWriteLease.
+// Called by readWriteLease while holding its lock.
 //
 // LOCKS_EXCLUDED(fl.mu)
 func (fl *FileLeaser) addReadWriteByteDelta(delta int64) {
@@ -129,12 +129,14 @@ func (fl *FileLeaser) addReadWriteByteDelta(delta int64) {
 	panic("TODO")
 }
 
-// Note the fact that a write lease of the supplied size has transmogrified
-// into the supplied read lease.
+// Downgrade the supplied read/write lease, given its current size.
 //
 // Called by readWriteLease.
 //
+// LOCKS_REQUIRED(rwl)
 // LOCKS_EXCLUDED(fl.mu)
-func (fl *FileLeaser) noteDowngrade(size int64, rl *readLease) {
+func (fl *FileLeaser) downgrade(
+	rwl *readWriteLease,
+	size int64) (rl *readLease) {
 	panic("TODO")
 }
