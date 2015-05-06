@@ -99,7 +99,8 @@ func NewFileLeaser(
 // read/write lease will pin resources until rwl.Downgrade is called. It need
 // not be called if the process is exiting.
 func (fl *FileLeaser) NewFile() (rwl ReadWriteLease, err error) {
-	panic("TODO")
+	rwl = newReadWriteLease()
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
