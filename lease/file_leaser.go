@@ -119,7 +119,17 @@ func (fl *FileLeaser) NewFile() (rwl ReadWriteLease, err error) {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+// LOCKS_REQUIRED(fl.mu)
 func (fl *FileLeaser) checkInvariants() {
+	// INVARIANT: Each element is of type *readLease
+	// INVARIANT: No element has been revoked.
+	for e := fl.readLeases.Front(); e != nil; e = e.Next() {
+		rl := e.Value.(*readLease)
+		if rl.revoked() {
+			panic("Found revoked read lease")
+		}
+	}
+
 	panic("TODO")
 }
 
