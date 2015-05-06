@@ -51,9 +51,6 @@ type FileLeaser struct {
 	// locks from the same category together.
 	mu syncutil.InvariantMutex
 
-	// The unique ID to hand out for the next lease issued.
-	nextID uint64
-
 	// The current estimated total size of outstanding read/write leases. This is
 	// only an estimate because we can't synchronize its update with a call to
 	// the wrapped file to e.g. write or truncate.
@@ -62,10 +59,17 @@ type FileLeaser struct {
 	// All outstanding read leases, ordered by recency of use.
 	//
 	// INVARIANT: Each element is of type *readLease
-	// INVARIANT: For each x, x.Id < nextID
+	// INVARIANT: No element has been revoked.
 	readLeases list.List
 
-	// Index of read leases by ID.
+	// The sum of all outstanding read lease sizes.
+	//
+	// INVARIANT: Equal to the sum over readLeases sizes.
+	// INVARIANT: 0 <= readOutstanding
+	// INVARIANT: readOutstanding <= max(0, limit - readWriteOutstanding)
+	readOutstanding int64
+
+	// Index of read leases by pointer.
 	//
 	// INVARIANT: For each k, v: v.Value.(*readLease) == k
 	// INVARIANT: Contains all and only the lements of readLeases
