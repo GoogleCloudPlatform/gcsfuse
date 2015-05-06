@@ -70,12 +70,15 @@ type readWriteLease struct {
 
 var _ ReadWriteLease = &readWriteLease{}
 
+// size is the size that the leaser has already recorded for us.
 func newReadWriteLease(
 	leaser *FileLeaser,
+	size int64,
 	file *os.File) (rwl *readWriteLease) {
 	rwl = &readWriteLease{
-		leaser: leaser,
-		file:   file,
+		leaser:       leaser,
+		file:         file,
+		reportedSize: size,
 	}
 
 	return
