@@ -14,7 +14,10 @@
 
 package lease
 
-import "io"
+import (
+	"errors"
+	"io"
+)
 
 // A read-write wrapper around a file. Unlike a read lease, this cannot be
 // revoked.
@@ -25,7 +28,7 @@ type ReadWriteLease interface {
 	io.ReadWriteSeeker
 	io.ReaderAt
 	io.WriterAt
-	Truncate(size int64) error
+	Truncate(size int64) (err error)
 
 	// Return the current size of the underlying file.
 	Size() (size int64, err error)
@@ -36,5 +39,59 @@ type ReadWriteLease interface {
 	Downgrade() (rl ReadLease, err error)
 }
 
+////////////////////////////////////////////////////////////////////////
+// Implementation
+////////////////////////////////////////////////////////////////////////
+
 type readWriteLease struct {
+}
+
+var _ ReadWriteLease = &readWriteLease{}
+
+func newReadWriteLease() (rwl *readWriteLease) {
+	// TODO
+	rwl = &readWriteLease{}
+	return
+}
+
+func (rwl *readWriteLease) Read(p []byte) (n int, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (rwl *readWriteLease) Write(p []byte) (n int, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (rwl *readWriteLease) Seek(
+	offset int64,
+	whence int) (off int64, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (rwl *readWriteLease) ReadAt(p []byte, off int64) (n int, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (rwl *readWriteLease) WriteAt(p []byte, off int64) (n int, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (rwl *readWriteLease) Truncate(size int64) (err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (rwl *readWriteLease) Size() (size int64, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (rwl *readWriteLease) Downgrade() (rl ReadLease, err error) {
+	err = errors.New("TODO")
+	return
 }
