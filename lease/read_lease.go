@@ -47,3 +47,6 @@ type ReadLease interface {
 	// up, if it has not already been revoked.
 	Revoke()
 }
+
+type readLease struct {
+}

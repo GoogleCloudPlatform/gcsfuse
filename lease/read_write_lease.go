@@ -35,3 +35,6 @@ type ReadWriteLease interface {
 	// downgrading, this lease must not be used again.
 	Downgrade() (rl ReadLease, err error)
 }
+
+type readWriteLease struct {
+}
