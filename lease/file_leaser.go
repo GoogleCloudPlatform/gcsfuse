@@ -199,6 +199,13 @@ func (fl *FileLeaser) addReadWriteByteDelta(delta int64) {
 	panic("TODO")
 }
 
+// Revoke read leases until we're under limit or we run out of things to revoke.
+//
+// LOCKS_REQUIRED(fl.mu)
+func (fl *FileLeaser) evict() {
+	panic("TODO")
+}
+
 // Downgrade the supplied read/write lease, given its current size and the
 // underlying file.
 //
@@ -209,9 +216,23 @@ func (fl *FileLeaser) downgrade(
 	rwl *readWriteLease,
 	size int64,
 	file *os.File) (rl ReadLease) {
-	rl = newReadLease(size, fl, file)
+	// Create the read lease.
+	rlTyped := newReadLease(size, fl, file)
+	rl = rlTyped
 
-	// TODO(jacobsa): Update fl's state, too. Don't forget to take the lock.
+	// Update the leaser's state, noting the new read lease and that the
+	// read/write lease has gone away.
+	fl.mu.Lock()
+	defer fl.mu.Unlock()
+
+	fl.readWriteOutstanding -= size
+	fl.readOutstanding += size
+
+	e := fl.readLeases.PushFront(rl)
+	fl.readLeasesIndex[rlTyped] = e
+
+	// Ensure that we're not now over capacity.
+	fl.evict()
 
 	return
 }
