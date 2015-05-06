@@ -86,8 +86,12 @@ func newReadWriteLease(
 	return
 }
 
+// LOCKS_EXCLUDED(rwl.mu)
 func (rwl *readWriteLease) Read(p []byte) (n int, err error) {
-	err = errors.New("TODO")
+	rwl.mu.Lock()
+	defer rwl.mu.Unlock()
+
+	n, err = rwl.file.Read(p)
 	return
 }
 
