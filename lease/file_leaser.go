@@ -176,3 +176,15 @@ func (fl *FileLeaser) upgrade(
 
 	return
 }
+
+// Called by the read lease when the user wants to manually revoke it.
+//
+// LOCKS_REQUIRED(rl)
+// LOCKS_EXCLUDED(fl.mu)
+func (fl *FileLeaser) revokeVoluntarily(rl *readLease) {
+	// TODO(jacobsa): Acquire file leaser lock, update file leaser state, call
+	// rl.destroy. Later we can factor all but acquiring the lock out into a
+	// separate helper that is shared by the revoke-for-capacity logic, which
+	// will already have the lock.
+	panic("TODO")
+}

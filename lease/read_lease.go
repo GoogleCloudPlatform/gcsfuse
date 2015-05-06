@@ -179,5 +179,27 @@ func (rl *readLease) Upgrade() (rwl ReadWriteLease) {
 
 // LOCKS_EXCLUDED(rl.mu)
 func (rl *readLease) Revoke() {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	// Have we already been revoked?
+	if rl.file == nil {
+		return
+	}
+
+	rl.leaser.revokeVoluntarily(rl)
+}
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+// Close the file and note that the lease has been revoked. Called by the file
+// leaser.
+//
+// REQUIRES: Not yet revoked.
+//
+// LOCKS_REQUIRED(rl.mu)
+func (rl *readLease) destroy() {
 	panic("TODO")
 }
