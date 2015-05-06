@@ -16,6 +16,7 @@ package lease
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"sync"
@@ -46,6 +47,8 @@ type ReadWriteLease interface {
 ////////////////////////////////////////////////////////////////////////
 
 type readWriteLease struct {
+	mu sync.Mutex
+
 	/////////////////////////
 	// Dependencies
 	/////////////////////////
@@ -53,14 +56,14 @@ type readWriteLease struct {
 	// The leaser that issued this lease.
 	leaser *FileLeaser
 
-	// The underlying file.
+	// The underlying file. We serialize access using the mutex.
+	//
+	// GUARDED_BY(mu)
 	file *os.File
 
 	/////////////////////////
 	// Mutable state
 	/////////////////////////
-
-	mu sync.Mutex
 
 	// The cumulative number of bytes we have reported to the leaser using
 	// FileLeaser.addReadWriteByteDelta. When the size changes, we report the
@@ -112,8 +115,19 @@ func (rwl *readWriteLease) Truncate(size int64) (err error) {
 	return
 }
 
+// LOCKS_EXCLUDED(rwl.mu)
 func (rwl *readWriteLease) Size() (size int64, err error) {
-	err = errors.New("TODO")
+	rwl.mu.Lock()
+	defer rwl.mu.Unlock()
+
+	// Stat the file to get its size.
+	fi, err := rwl.file.Stat()
+	if err != nil {
+		err = fmt.Errorf("Stat: %v", err)
+		return
+	}
+
+	size = fi.Size()
 	return
 }
 
