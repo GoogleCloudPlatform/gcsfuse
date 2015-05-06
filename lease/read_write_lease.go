@@ -139,7 +139,12 @@ func (rwl *readWriteLease) WriteAt(p []byte, off int64) (n int, err error) {
 
 // LOCKS_EXCLUDED(rwl.mu)
 func (rwl *readWriteLease) Truncate(size int64) (err error) {
-	err = errors.New("TODO")
+	rwl.mu.Lock()
+	defer rwl.mu.Unlock()
+
+	// TODO(jacobsa): Notify the leaser afterward.
+	err = rwl.file.Truncate(size)
+
 	return
 }
 
