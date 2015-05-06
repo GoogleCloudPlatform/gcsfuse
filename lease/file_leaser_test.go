@@ -187,7 +187,7 @@ func (t *FileLeaserTest) DowngradeThenObserve() {
 
 	n, err = rl.ReadAt(buf[0:2], 1)
 	AssertEq(nil, err)
-	ExpectEq("ac", buf[0:2])
+	ExpectEq("ac", string(buf[0:2]))
 }
 
 func (t *FileLeaserTest) DowngradeThenUpgradeThenObserve() {
