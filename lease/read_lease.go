@@ -47,23 +47,3 @@ type ReadLease interface {
 	// up, if it has not already been revoked.
 	Revoke()
 }
-
-// A read-write wrapper around a file. Unlike a read lease, this cannot be
-// revoked.
-//
-// All methods are safe for concurrent access.
-type ReadWriteLease interface {
-	// Methods with semantics matching *os.File.
-	io.ReadWriteSeeker
-	io.ReaderAt
-	io.WriterAt
-	Truncate(size int64) error
-
-	// Return the current size of the underlying file.
-	Size() (size int64, err error)
-
-	// Downgrade to a read lease, releasing any resources pinned by this lease to
-	// the pool that may be revoked, as with any read lease. After successfully
-	// downgrading, this lease must not be used again.
-	Downgrade() (rl ReadLease, err error)
-}
