@@ -15,6 +15,7 @@
 package lease_test
 
 import (
+	"bytes"
 	"io"
 	"testing"
 
@@ -249,8 +250,36 @@ func (t *FileLeaserTest) DowngradeThenUpgradeThenObserve() {
 	ExpectEq("ac", string(buf[0:2]))
 }
 
-func (t *FileLeaserTest) DowngradeFileWhoseSizeIsAboveCapacity() {
-	AssertFalse(true, "TODO")
+func (t *FileLeaserTest) DowngradeFileWhoseSizeIsAboveLimit() {
+	var err error
+	buf := make([]byte, 1024)
+
+	// Create and write data larger than the capacity.
+	rwl, err := t.fl.NewFile()
+	AssertEq(nil, err)
+
+	_, err = rwl.Write(bytes.Repeat([]byte("a"), limitBytes+1))
+	AssertEq(nil, err)
+
+	// Downgrade.
+	rl, err := rwl.Downgrade()
+	AssertEq(nil, err)
+
+	// The read lease should be revoked on arrival.
+	_, err = rl.Read(buf)
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	_, err = rl.Seek(0, 0)
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	_, err = rl.ReadAt(buf, 0)
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	_, err = rl.Size()
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	tmp := rl.Upgrade()
+	ExpectEq(nil, tmp)
 }
 
 func (t *FileLeaserTest) WriteCausesEviction() {
