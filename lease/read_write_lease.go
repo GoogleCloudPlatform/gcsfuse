@@ -111,8 +111,12 @@ func (rwl *readWriteLease) Seek(
 	return
 }
 
+// LOCKS_EXCLUDED(rwl.mu)
 func (rwl *readWriteLease) ReadAt(p []byte, off int64) (n int, err error) {
-	err = errors.New("TODO")
+	rwl.mu.Lock()
+	defer rwl.mu.Unlock()
+
+	n, err = rwl.file.ReadAt(p, off)
 	return
 }
 
