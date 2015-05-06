@@ -168,11 +168,13 @@ func (fl *FileLeaser) upgrade(
 	rl *readLease,
 	size int64,
 	file *os.File) (rwl ReadWriteLease) {
+	// TODO(jacobsa): Remove read lease from the map, our size counter, etc. Then
+	// drop the lock.
+	panic("TODO")
+
 	// TODO(jacobsa): This should take a size parameter, telling the read/write
 	// lease that we already know its initial size.
 	rwl = newReadWriteLease(fl, file)
-
-	// TODO(jacobsa): Update fl's state, too. Don't forget to take the lock.
 
 	return
 }
