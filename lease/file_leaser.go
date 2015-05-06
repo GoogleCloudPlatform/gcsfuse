@@ -16,7 +16,9 @@ package lease
 
 import (
 	"container/list"
+	"fmt"
 
+	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/gcloud/syncutil"
 )
 
@@ -99,7 +101,16 @@ func NewFileLeaser(
 // read/write lease will pin resources until rwl.Downgrade is called. It need
 // not be called if the process is exiting.
 func (fl *FileLeaser) NewFile() (rwl ReadWriteLease, err error) {
-	rwl = newReadWriteLease()
+	// Create an anonymous file.
+	f, err := fsutil.AnonymousFile(fl.dir)
+	if err != nil {
+		err = fmt.Errorf("AnonymousFile: %v", err)
+		return
+	}
+
+	// Wrap a lease around it.
+	rwl = newReadWriteLease(fl, f)
+
 	return
 }
 
