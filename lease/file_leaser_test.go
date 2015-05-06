@@ -47,12 +47,14 @@ func (t *FileLeaserTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *FileLeaserTest) ReadWriteLeaseInitialState() {
-	rwl := t.fl.NewFile()
-	buf := make([]byte, 1024)
-
 	var n int
 	var off int64
 	var err error
+	buf := make([]byte, 1024)
+
+	// Create
+	rwl, err := t.fl.NewFile()
+	AssertEq(nil, err)
 
 	// Size
 	size, err := rwl.Size()
