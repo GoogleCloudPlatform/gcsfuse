@@ -32,7 +32,11 @@ func (re *RevokedError) Error() string {
 // All methods are safe for concurrent access.
 type ReadLease interface {
 	// Reads for an expired lease will return an error of type *RevokedError.
+	io.ReadSeeker
 	io.ReaderAt
+
+	// Return the size of the underlying file.
+	Size() (size int64)
 
 	// Attempt to upgrade the lease to a read/write lease, returning nil if the
 	// lease has been revoked. After upgrading, it is as if the lease has been
@@ -50,13 +54,16 @@ type ReadLease interface {
 // All methods are safe for concurrent access.
 type ReadWriteLease interface {
 	// Methods with semantics matching *os.File.
+	io.ReadWriteSeeker
 	io.ReaderAt
 	io.WriterAt
-	Seek(offset int64, whence int) (ret int64, err error)
 	Truncate(size int64) error
 
+	// Return the current size of the underlying file.
+	Size() (size int64, err error)
+
 	// Downgrade to a read lease, releasing any resources pinned by this lease to
-	// the pool that may be revoked, as with any read lease. After downgrading,
-	// this lease must not be used again.
-	Downgrade() (rl ReadLease)
+	// the pool that may be revoked, as with any read lease. After successfully
+	// downgrading, this lease must not be used again.
+	Downgrade() (rl ReadLease, err error)
 }
