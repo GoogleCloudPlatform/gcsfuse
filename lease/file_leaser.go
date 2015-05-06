@@ -110,7 +110,7 @@ func (fl *FileLeaser) NewFile() (rwl ReadWriteLease, err error) {
 	}
 
 	// Wrap a lease around it.
-	rwl = newReadWriteLease(fl, f)
+	rwl = newReadWriteLease(fl, 0, f)
 
 	return
 }
@@ -283,13 +283,20 @@ func (fl *FileLeaser) upgrade(
 	rl *readLease,
 	size int64,
 	file *os.File) (rwl ReadWriteLease) {
-	// TODO(jacobsa): Remove read lease from the map, our size counter, etc. Then
-	// drop the lock.
-	panic("TODO")
+	fl.mu.Lock()
+	defer fl.mu.Unlock()
 
-	// TODO(jacobsa): This should take a size parameter, telling the read/write
-	// lease that we already know its initial size.
-	rwl = newReadWriteLease(fl, file)
+	// Update leaser state.
+	fl.readWriteOutstanding += size
+	fl.readOutstanding -= size
+
+	e := fl.readLeasesIndex[rl]
+	delete(fl.readLeasesIndex, rl)
+	fl.readLeases.Remove(e)
+
+	// Crearte the read/write lease, telling it that we already know its initial
+	// size.
+	rwl = newReadWriteLease(fl, size, file)
 
 	return
 }
