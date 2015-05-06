@@ -88,8 +88,9 @@ func NewFileLeaser(
 	dir string,
 	limitBytes int64) (fl *FileLeaser) {
 	fl = &FileLeaser{
-		dir:   dir,
-		limit: limitBytes,
+		dir:             dir,
+		limit:           limitBytes,
+		readLeasesIndex: make(map[*readLease]*list.Element),
 	}
 
 	fl.mu = syncutil.NewInvariantMutex(fl.checkInvariants)
