@@ -71,7 +71,10 @@ type readLease struct {
 
 	// The underlying file, set to nil once revoked.
 	//
-	// GUARDED_BY(mu)
+	// Writing requires holding both mu and leaser.mu. Therefore reading is
+	// allowed while holding either.
+	//
+	// GUARDED_BY([see above])
 	file *os.File
 }
 
@@ -100,7 +103,7 @@ func (rl *readLease) Read(p []byte) (n int, err error) {
 	defer rl.mu.Unlock()
 
 	// Have we been revoked?
-	if rl.file == nil {
+	if rl.revoked() {
 		err = &RevokedError{}
 		return
 	}
@@ -117,7 +120,7 @@ func (rl *readLease) Seek(
 	defer rl.mu.Unlock()
 
 	// Have we been revoked?
-	if rl.file == nil {
+	if rl.revoked() {
 		err = &RevokedError{}
 		return
 	}
@@ -132,7 +135,7 @@ func (rl *readLease) ReadAt(p []byte, off int64) (n int, err error) {
 	defer rl.mu.Unlock()
 
 	// Have we been revoked?
-	if rl.file == nil {
+	if rl.revoked() {
 		err = &RevokedError{}
 		return
 	}
@@ -149,7 +152,7 @@ func (rl *readLease) Size() (size int64, err error) {
 	defer rl.mu.Unlock()
 
 	// Have we been revoked?
-	if rl.file == nil {
+	if rl.revoked() {
 		err = &RevokedError{}
 		return
 	}
@@ -164,7 +167,7 @@ func (rl *readLease) Upgrade() (rwl ReadWriteLease) {
 	defer rl.mu.Unlock()
 
 	// Have we been revoked?
-	if rl.file == nil {
+	if rl.revoked() {
 		return
 	}
 
@@ -183,7 +186,7 @@ func (rl *readLease) Revoke() {
 	defer rl.mu.Unlock()
 
 	// Have we already been revoked?
-	if rl.file == nil {
+	if rl.revoked() {
 		return
 	}
 
@@ -194,12 +197,20 @@ func (rl *readLease) Revoke() {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+// Has the lease been revoked?
+//
+// LOCKS_REQUIRED(rl.mu || rl.leaser.mu)
+func (rl *readLease) revoked() bool {
+	return rl.file == nil
+}
+
 // Close the file and note that the lease has been revoked. Called by the file
 // leaser.
 //
 // REQUIRES: Not yet revoked.
 //
 // LOCKS_REQUIRED(rl.mu)
+// LOCKS_REQUIRED(rl.leaser.mu)
 func (rl *readLease) destroy() {
 	panic("TODO")
 }
