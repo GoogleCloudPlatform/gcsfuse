@@ -69,6 +69,17 @@ type readLease struct {
 
 var _ ReadLease = &readLease{}
 
+func newReadLease(
+	leaser *FileLeaser,
+	file *os.File) (rl *readLease) {
+	rl = &readLease{
+		leaser: leaser,
+		file:   file,
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
