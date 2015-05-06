@@ -42,10 +42,6 @@ type ReadWriteLease interface {
 	Downgrade() (rl ReadLease, err error)
 }
 
-////////////////////////////////////////////////////////////////////////
-// Implementation
-////////////////////////////////////////////////////////////////////////
-
 type readWriteLease struct {
 	mu sync.Mutex
 
@@ -85,6 +81,10 @@ func newReadWriteLease(
 
 	return
 }
+
+////////////////////////////////////////////////////////////////////////
+// Public interface
+////////////////////////////////////////////////////////////////////////
 
 // LOCKS_EXCLUDED(rwl.mu)
 func (rwl *readWriteLease) Read(p []byte) (n int, err error) {
@@ -153,6 +153,22 @@ func (rwl *readWriteLease) Size() (size int64, err error) {
 	rwl.mu.Lock()
 	defer rwl.mu.Unlock()
 
+	size, err = rwl.sizeLocked()
+	return
+}
+
+// LOCKS_EXCLUDED(rwl.mu)
+func (rwl *readWriteLease) Downgrade() (rl ReadLease, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+// LOCKS_REQUIRED(rwl.mu)
+func (rwl *readWriteLease) sizeLocked() (size int64, err error) {
 	// Stat the file to get its size.
 	fi, err := rwl.file.Stat()
 	if err != nil {
@@ -161,11 +177,5 @@ func (rwl *readWriteLease) Size() (size int64, err error) {
 	}
 
 	size = fi.Size()
-	return
-}
-
-// LOCKS_EXCLUDED(rwl.mu)
-func (rwl *readWriteLease) Downgrade() (rl ReadLease, err error) {
-	err = errors.New("TODO")
 	return
 }
