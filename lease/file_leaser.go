@@ -200,11 +200,47 @@ func (fl *FileLeaser) addReadWriteByteDelta(delta int64) {
 	panic("TODO")
 }
 
+// LOCKS_REQUIRED(fl.mu)
+func (fl *FileLeaser) overLimit() bool {
+	return fl.readOutstanding+fl.readWriteOutstanding > fl.limit
+}
+
 // Revoke read leases until we're under limit or we run out of things to revoke.
 //
 // LOCKS_REQUIRED(fl.mu)
 func (fl *FileLeaser) evict() {
-	panic("TODO")
+	for fl.overLimit() {
+		// Do we have anything to revoke?
+		lru := fl.readLeases.Back()
+		if lru == nil {
+			return
+		}
+
+		rl := lru.Value.(*readLease)
+
+		// We must acquire the read lease's lock, which requires us to first drop
+		// the leaser's lock, then reacquire it.
+		fl.mu.Unlock()
+		rl.Mu.Lock()
+		fl.mu.Lock()
+
+		// Now we have both locks, but the lease may have already been revoked. If
+		// so, start over.
+		if rl.revoked() {
+			rl.Mu.Unlock()
+			continue
+		}
+
+		// Also no need to over-evict if someone has already done our job for us.
+		if !fl.overLimit() {
+			rl.Mu.Unlock()
+			return
+		}
+
+		// Revoke the lease, then let go of its lock.
+		fl.revoke(rl)
+		rl.Mu.Unlock()
+	}
 }
 
 // Downgrade the supplied read/write lease, given its current size and the
@@ -256,6 +292,13 @@ func (fl *FileLeaser) upgrade(
 	rwl = newReadWriteLease(fl, file)
 
 	return
+}
+
+// Forcibly revoke the supplied read lease.
+//
+// LOCKS_REQUIRED(rl, fl.mu)
+func (fl *FileLeaser) revoke(rl *readLease) {
+	panic("TODO")
 }
 
 // Called by the read lease when the user wants to manually revoke it.
