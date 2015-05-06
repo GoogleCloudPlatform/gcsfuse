@@ -153,5 +153,9 @@ func (fl *FileLeaser) downgrade(
 	rwl *readWriteLease,
 	size int64,
 	file *os.File) (rl ReadLease) {
-	panic("TODO")
+	rl = newReadLease(size, fl, file)
+
+	// TODO(jacobsa): Update fl's maps, too. Don't forget to take the lock.
+
+	return
 }
