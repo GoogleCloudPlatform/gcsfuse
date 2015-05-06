@@ -78,8 +78,11 @@ var _ ReadWriteLease = &readWriteLease{}
 func newReadWriteLease(
 	leaser *FileLeaser,
 	file *os.File) (rwl *readWriteLease) {
-	// TODO
-	rwl = &readWriteLease{}
+	rwl = &readWriteLease{
+		leaser: leaser,
+		file:   file,
+	}
+
 	return
 }
 
