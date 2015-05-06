@@ -14,7 +14,10 @@
 
 package lease
 
-import "io"
+import (
+	"errors"
+	"io"
+)
 
 // A sentinel error used when a lease has been revoked.
 type RevokedError struct {
@@ -47,4 +50,71 @@ type ReadLease interface {
 }
 
 type readLease struct {
+}
+
+////////////////////////////////////////////////////////////////////////
+// Public interface
+////////////////////////////////////////////////////////////////////////
+
+// LOCKS_EXCLUDED(rl.mu)
+func (rl *readLease) Read(p []byte) (n int, err error) {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	// Have we been revoked?
+	if rl.file == nil {
+		err = &RevokedError{}
+		return
+	}
+
+	n, err = rl.file.Read(p)
+	return
+}
+
+// LOCKS_EXCLUDED(rl.mu)
+func (rl *readLease) Seek(
+	offset int64,
+	whence int) (off int64, err error) {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	// Have we been revoked?
+	if rl.file == nil {
+		err = &RevokedError{}
+		return
+	}
+
+	off, err = rl.file.Seek(offset, whence)
+	return
+}
+
+// LOCKS_EXCLUDED(rl.mu)
+func (rl *readLease) ReadAt(p []byte, off int64) (n int, err error) {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	// Have we been revoked?
+	if rl.file == nil {
+		err = &RevokedError{}
+		return
+	}
+
+	n, err = rl.file.ReadAt(p, off)
+	return
+}
+
+// LOCKS_EXCLUDED(rl.mu)
+func (rl *readLease) Size() (size int64, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+// LOCKS_EXCLUDED(rl.mu)
+func (rl *readLease) Upgrade() (rwl ReadWriteLease) {
+	panic("TODO")
+}
+
+// LOCKS_EXCLUDED(rl.mu)
+func (rl *readLease) Revoke() {
+	panic("TODO")
 }
