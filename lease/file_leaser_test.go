@@ -272,3 +272,9 @@ func (t *FileLeaserTest) EvictionIsLRU() {
 func (t *FileLeaserTest) NothingAvailableToEvict() {
 	AssertFalse(true, "TODO")
 }
+
+func (t *FileLeaserTest) RevokeVoluntarily() {
+	// TODO(jacobsa): Test that methods return RevokedError and that capacity in
+	// the leaser is freed up.
+	AssertFalse(true, "TODO")
+}
