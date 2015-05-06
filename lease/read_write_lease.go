@@ -96,10 +96,14 @@ func (rwl *readWriteLease) Write(p []byte) (n int, err error) {
 	return
 }
 
+// LOCKS_EXCLUDED(rwl.mu)
 func (rwl *readWriteLease) Seek(
 	offset int64,
 	whence int) (off int64, err error) {
-	err = errors.New("TODO")
+	rwl.mu.Lock()
+	defer rwl.mu.Unlock()
+
+	off, err = rwl.file.Seek(offset, whence)
 	return
 }
 
