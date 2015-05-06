@@ -15,7 +15,6 @@
 package lease
 
 import (
-	"errors"
 	"io"
 	"os"
 	"sync"
@@ -55,6 +54,15 @@ type readLease struct {
 	mu sync.Mutex
 
 	/////////////////////////
+	// Constant data
+	/////////////////////////
+
+	// The size, to be used only when file != nil. This is redundant with file
+	// because file.Stat() may fail, and we want FileLeaser to be able to depend
+	// on Size() never failing for non-revoked leases.
+	size int64
+
+	/////////////////////////
 	// Dependencies
 	/////////////////////////
 
@@ -70,9 +78,11 @@ type readLease struct {
 var _ ReadLease = &readLease{}
 
 func newReadLease(
+	size int64,
 	leaser *FileLeaser,
 	file *os.File) (rl *readLease) {
 	rl = &readLease{
+		size:   size,
 		leaser: leaser,
 		file:   file,
 	}
@@ -131,9 +141,20 @@ func (rl *readLease) ReadAt(p []byte, off int64) (n int, err error) {
 	return
 }
 
+// Guaranteed not to fail if the lease is still valid.
+//
 // LOCKS_EXCLUDED(rl.mu)
 func (rl *readLease) Size() (size int64, err error) {
-	err = errors.New("TODO")
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	// Have we been revoked?
+	if rl.file == nil {
+		err = &RevokedError{}
+		return
+	}
+
+	size = rl.size
 	return
 }
 
