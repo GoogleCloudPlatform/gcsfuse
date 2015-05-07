@@ -358,5 +358,6 @@ func (fl *FileLeaser) revokeVoluntarily(rl *readLease) {
 		return
 	}
 
-	panic("TODO")
+	// Revoke it.
+	fl.revoke(rl)
 }
