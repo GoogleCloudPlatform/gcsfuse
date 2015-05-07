@@ -17,6 +17,7 @@ package lease
 import (
 	"container/list"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/jacobsa/fuse/fsutil"
@@ -298,10 +299,29 @@ func (fl *FileLeaser) upgrade(rl *readLease) (rwl ReadWriteLease) {
 
 // Forcibly revoke the supplied read lease.
 //
+// REQUIRES: !rl.revoked()
+//
 // LOCKS_REQUIRED(fl.mu)
 // LOCKS_REQUIRED(rl.Mu)
 func (fl *FileLeaser) revoke(rl *readLease) {
-	panic("TODO")
+	if rl.revoked() {
+		panic("Already revoked")
+	}
+
+	size := rl.Size()
+
+	// Update leaser state.
+	fl.readOutstanding -= size
+
+	e := fl.readLeasesIndex[rl]
+	delete(fl.readLeasesIndex, rl)
+	fl.readLeases.Remove(e)
+
+	// Kill the lease and close its file.
+	file := rl.release()
+	if err := file.Close(); err != nil {
+		log.Println("Error closing file for revoked lease:", err)
+	}
 }
 
 // Called by the read lease when the user wants to manually revoke it.
