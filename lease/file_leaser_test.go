@@ -361,7 +361,32 @@ func (t *FileLeaserTest) WriteCausesEviction() {
 }
 
 func (t *FileLeaserTest) WriteAtCausesEviction() {
-	AssertFalse(true, "TODO")
+	var err error
+	AssertLt(3, limitBytes)
+
+	// Set up a read lease whose size is three bytes below the limit.
+	rl := downgrade(newFileOfLength(t.fl, limitBytes-3))
+	AssertFalse(isRevoked(rl))
+
+	// Set up a new read/write lease. The read lease should still be unrevoked.
+	rwl, err := t.fl.NewFile()
+	AssertEq(nil, err)
+
+	// Write in three bytes. Everything should be fine.
+	_, err = rwl.Write([]byte("foo"))
+	AssertEq(nil, err)
+
+	// Overwriting a byte shouldn't cause trouble.
+	_, err = rwl.WriteAt([]byte("p"), 0)
+	AssertEq(nil, err)
+
+	AssertFalse(isRevoked(rl))
+
+	// But extending the file by one byte should.
+	_, err = rwl.WriteAt([]byte("taco"), 0)
+	AssertEq(nil, err)
+
+	ExpectTrue(isRevoked(rl))
 }
 
 func (t *FileLeaserTest) TruncateCausesEviction() {
