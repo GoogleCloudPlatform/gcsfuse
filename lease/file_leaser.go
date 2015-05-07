@@ -273,17 +273,25 @@ func (fl *FileLeaser) downgrade(
 	return
 }
 
-// Upgrade the supplied read lease, given its size and the underlying file.
+// Upgrade the supplied read lease.
 //
-// Called by readLease with its lock held.
+// Called by readLease with no lock held.
 //
-// LOCKS_EXCLUDED(fl.mu)
-func (fl *FileLeaser) upgrade(
-	rl *readLease,
-	size int64,
-	file *os.File) (rwl ReadWriteLease) {
+// LOCKS_EXCLUDED(fl.mu, rl.Mu)
+func (fl *FileLeaser) upgrade(rl *readLease) (rwl ReadWriteLease) {
+	// Grab each lock in turn.
 	fl.mu.Lock()
 	defer fl.mu.Unlock()
+
+	rl.Mu.Lock()
+	defer rl.Mu.Unlock()
+
+	// Has the lease already been revoked?
+	if rl.revoked() {
+		return
+	}
+
+	size := rl.Size()
 
 	// Update leaser state.
 	fl.readWriteOutstanding += size
@@ -293,7 +301,11 @@ func (fl *FileLeaser) upgrade(
 	delete(fl.readLeasesIndex, rl)
 	fl.readLeases.Remove(e)
 
-	// Crearte the read/write lease, telling it that we already know its initial
+	// Extract the interesting information from the read lease, leaving it an
+	// empty husk.
+	file := rl.release()
+
+	// Create the read/write lease, telling it that we already know its initial
 	// size.
 	rwl = newReadWriteLease(fl, size, file)
 
