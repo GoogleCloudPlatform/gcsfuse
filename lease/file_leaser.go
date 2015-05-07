@@ -301,5 +301,17 @@ func (fl *FileLeaser) revoke(rl *readLease) {
 // LOCKS_EXCLUDED(fl.mu)
 // LOCKS_EXCLUDED(rl.Mu)
 func (fl *FileLeaser) revokeVoluntarily(rl *readLease) {
+	// Grab each lock in turn.
+	fl.mu.Lock()
+	defer fl.mu.Unlock()
+
+	rl.Mu.Lock()
+	defer rl.Mu.Unlock()
+
+	// Has the lease already been revoked?
+	if rl.revoked() {
+		return
+	}
+
 	panic("TODO")
 }
