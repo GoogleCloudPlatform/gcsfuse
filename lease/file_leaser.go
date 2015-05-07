@@ -134,9 +134,13 @@ func (fl *FileLeaser) checkInvariants() {
 	// INVARIANT: No element has been revoked.
 	for e := fl.readLeases.Front(); e != nil; e = e.Next() {
 		rl := e.Value.(*readLease)
+		rl.Mu.Lock()
+
 		if rl.revoked() {
 			panic("Found revoked read lease")
 		}
+
+		rl.Mu.Unlock()
 	}
 
 	// INVARIANT: Equal to the sum over readLeases sizes.
@@ -199,33 +203,6 @@ func (fl *FileLeaser) overLimit() bool {
 	return fl.readOutstanding+fl.readWriteOutstanding > fl.limit
 }
 
-// An implementation detail of FileLeaser.evict.
-//
-// LOCKS_REQUIRED(fl.mu)
-// LOCKS_EXCLUDED(rl.Mu)
-func (fl *FileLeaser) evictOne(rl *readLease) {
-	// We must acquire the read lease's lock, which requires us to first drop
-	// the leaser's lock, then reacquire it.
-	fl.mu.Unlock()
-	rl.Mu.Lock()
-	defer rl.Mu.Unlock()
-	fl.mu.Lock()
-
-	// Now we have both locks, but the lease may have already been revoked. If
-	// so, there's nothing to do and we should start the process over.
-	if rl.revoked() {
-		return
-	}
-
-	// Also no need to over-evict if someone has already done our job for us.
-	if !fl.overLimit() {
-		return
-	}
-
-	// Revoke the lease while holding its lock.
-	fl.revoke(rl)
-}
-
 // Revoke read leases until we're under limit or we run out of things to revoke.
 //
 // LOCKS_REQUIRED(fl.mu)
@@ -237,8 +214,8 @@ func (fl *FileLeaser) evict() {
 			return
 		}
 
-		rl := lru.Value.(*readLease)
-		fl.evictOne(rl)
+		_ = lru.Value.(*readLease)
+		panic("TODO")
 	}
 }
 
