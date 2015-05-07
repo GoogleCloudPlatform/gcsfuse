@@ -201,6 +201,7 @@ func (fl *FileLeaser) overLimit() bool {
 // An implementation detail of FileLeaser.evict.
 //
 // LOCKS_REQUIRED(fl.mu)
+// LOCKS_EXCLUDED(rl.Mu)
 func (fl *FileLeaser) evictOne(rl *readLease) {
 	// We must acquire the read lease's lock, which requires us to first drop
 	// the leaser's lock, then reacquire it.
