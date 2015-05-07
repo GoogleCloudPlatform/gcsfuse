@@ -39,18 +39,17 @@ type FileLeaser struct {
 	/////////////////////////
 
 	// A lock that guards the mutable state in this struct, which must not be
-	// held for any blocking operation.
+	// held during any blocking operation.
 	//
 	// Lock ordering
 	// -------------
 	//
-	// Define our strict partial order < as follows:
+	// Define < to be the minimum strict partial order satisfying:
 	//
 	//  1. For any read/write lease W, W < leaser.
-	//  2. For any read lease R, R < leaser.
-	//  3. For any read/write lease W and read lease R, W < R.
+	//  2. For any read lease R, leaser < R.
 	//
-	// In other words: read/write before read before leaser, and never hold two
+	// In other words: read/write before leaser before read, and never hold two
 	// locks from the same category together.
 	mu syncutil.InvariantMutex
 
