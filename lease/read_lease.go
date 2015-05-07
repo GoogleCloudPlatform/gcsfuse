@@ -146,22 +146,11 @@ func (rl *readLease) Size() (size int64) {
 	return
 }
 
+// LOCKS_EXCLUDED(rl.leaser.mu)
 // LOCKS_EXCLUDED(rl.Mu)
 func (rl *readLease) Upgrade() (rwl ReadWriteLease) {
-	rl.Mu.Lock()
-	defer rl.Mu.Unlock()
-
-	// Have we been revoked?
-	if rl.revoked() {
-		return
-	}
-
-	// Call the leaser.
-	rwl = rl.leaser.upgrade(rl, rl.size, rl.file)
-
-	// Note that we've been revoked.
-	rl.file = nil
-
+	// Let the leaser do the heavy lifting.
+	rwl = rl.leaser.upgrade(rl)
 	return
 }
 
@@ -189,13 +178,18 @@ func (rl *readLease) revoked() bool {
 	return rl.file == nil
 }
 
-// Close the file and note that the lease has been revoked. Called by the file
-// leaser.
+// Relinquish control of the file, marking the lease as revoked.
 //
 // REQUIRES: Not yet revoked.
 //
 // LOCKS_REQUIRED(rl.Mu)
-// LOCKS_REQUIRED(rl.leaser.mu)
-func (rl *readLease) destroy() {
-	panic("TODO")
+func (rl *readLease) release() (file *os.File) {
+	if rl.revoked() {
+		panic("Already revoked")
+	}
+
+	file = rl.file
+	rl.file = nil
+
+	return
 }
