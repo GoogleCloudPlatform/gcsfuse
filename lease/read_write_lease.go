@@ -263,6 +263,11 @@ func (rwl *readWriteLease) sizeLocked() (size int64, err error) {
 func (rwl *readWriteLease) reconcileSize() {
 	var err error
 
+	// If we have been revoked, there is nothing to do.
+	if rwl.file == nil {
+		return
+	}
+
 	// Find our size.
 	size, err := rwl.sizeLocked()
 	if err != nil {
