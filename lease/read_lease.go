@@ -154,16 +154,10 @@ func (rl *readLease) Upgrade() (rwl ReadWriteLease) {
 	return
 }
 
+// LOCKS_EXCLUDED(rl.leaser.mu)
 // LOCKS_EXCLUDED(rl.Mu)
 func (rl *readLease) Revoke() {
-	rl.Mu.Lock()
-	defer rl.Mu.Unlock()
-
-	// Have we already been revoked?
-	if rl.revoked() {
-		return
-	}
-
+	// Let the leaser do the heavy lifting.
 	rl.leaser.revokeVoluntarily(rl)
 }
 
