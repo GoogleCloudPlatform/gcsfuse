@@ -87,14 +87,6 @@ func isRevoked(rl lease.ReadLease) (revoked bool) {
 	return
 }
 
-func touchWithRead(r io.Reader) {
-	panic("TODO")
-}
-
-func touchWithReadAt(r io.ReaderAt) {
-	panic("TODO")
-}
-
 func growBy(w io.WriteSeeker, n int) {
 	panic("TODO")
 }
@@ -446,10 +438,10 @@ func (t *FileLeaserTest) EvictionIsLRU() {
 	rl2 := downgrade(newFileOfLength(t.fl, 1))
 	rl3 := downgrade(newFileOfLength(t.fl, 1))
 
-	touchWithRead(rl0)                         // Least recent
+	rl0.Read([]byte{})                         // Least recent
 	rl1 := downgrade(newFileOfLength(t.fl, 1)) // Second least recent
-	touchWithRead(rl2)                         // Third least recent
-	touchWithReadAt(rl3)                       // Fourth least recent
+	rl2.Read([]byte{})                         // Third least recent
+	rl3.ReadAt([]byte{}, 0)                    // Fourth least recent
 
 	// Fill up the remaining space. All read leases should still be valid.
 	rwl := newFileOfLength(t.fl, limitBytes-4)
