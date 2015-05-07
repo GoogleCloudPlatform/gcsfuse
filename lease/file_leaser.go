@@ -17,6 +17,7 @@ package lease
 import (
 	"container/list"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/jacobsa/fuse/fsutil"
@@ -38,19 +39,20 @@ type FileLeaser struct {
 	// Mutable state
 	/////////////////////////
 
-	// A lock that guards the mutable state in this struct, which must not be
-	// held for any blocking operation.
+	// A lock that guards the mutable state in this struct. Usually this is used
+	// only for light weight operations, but while evicting it may require
+	// waiting on a goroutine that is holding a read lease lock while reading
+	// from a file.
 	//
 	// Lock ordering
 	// -------------
 	//
-	// Define our strict partial order < as follows:
+	// Define < to be the minimum strict partial order satisfying:
 	//
 	//  1. For any read/write lease W, W < leaser.
-	//  2. For any read lease R, R < leaser.
-	//  3. For any read/write lease W and read lease R, W < R.
+	//  2. For any read lease R, leaser < R.
 	//
-	// In other words: read/write before read before leaser, and never hold two
+	// In other words: read/write before leaser before read, and never hold two
 	// locks from the same category together.
 	mu syncutil.InvariantMutex
 
@@ -133,9 +135,14 @@ func (fl *FileLeaser) checkInvariants() {
 	// INVARIANT: No element has been revoked.
 	for e := fl.readLeases.Front(); e != nil; e = e.Next() {
 		rl := e.Value.(*readLease)
-		if rl.revoked() {
-			panic("Found revoked read lease")
-		}
+		func() {
+			rl.Mu.Lock()
+			defer rl.Mu.Unlock()
+
+			if rl.revoked() {
+				panic("Found revoked read lease")
+			}
+		}()
 	}
 
 	// INVARIANT: Equal to the sum over readLeases sizes.
@@ -198,33 +205,6 @@ func (fl *FileLeaser) overLimit() bool {
 	return fl.readOutstanding+fl.readWriteOutstanding > fl.limit
 }
 
-// An implementation detail of FileLeaser.evict.
-//
-// LOCKS_REQUIRED(fl.mu)
-// LOCKS_EXCLUDED(rl.Mu)
-func (fl *FileLeaser) evictOne(rl *readLease) {
-	// We must acquire the read lease's lock, which requires us to first drop
-	// the leaser's lock, then reacquire it.
-	fl.mu.Unlock()
-	rl.Mu.Lock()
-	defer rl.Mu.Unlock()
-	fl.mu.Lock()
-
-	// Now we have both locks, but the lease may have already been revoked. If
-	// so, there's nothing to do and we should start the process over.
-	if rl.revoked() {
-		return
-	}
-
-	// Also no need to over-evict if someone has already done our job for us.
-	if !fl.overLimit() {
-		return
-	}
-
-	// Revoke the lease while holding its lock.
-	fl.revoke(rl)
-}
-
 // Revoke read leases until we're under limit or we run out of things to revoke.
 //
 // LOCKS_REQUIRED(fl.mu)
@@ -236,8 +216,14 @@ func (fl *FileLeaser) evict() {
 			return
 		}
 
+		// Revoke it.
 		rl := lru.Value.(*readLease)
-		fl.evictOne(rl)
+		func() {
+			rl.Mu.Lock()
+			defer rl.Mu.Unlock()
+
+			fl.revoke(rl)
+		}()
 	}
 }
 
@@ -272,17 +258,25 @@ func (fl *FileLeaser) downgrade(
 	return
 }
 
-// Upgrade the supplied read lease, given its size and the underlying file.
+// Upgrade the supplied read lease.
 //
-// Called by readLease with its lock held.
+// Called by readLease with no lock held.
 //
-// LOCKS_EXCLUDED(fl.mu)
-func (fl *FileLeaser) upgrade(
-	rl *readLease,
-	size int64,
-	file *os.File) (rwl ReadWriteLease) {
+// LOCKS_EXCLUDED(fl.mu, rl.Mu)
+func (fl *FileLeaser) upgrade(rl *readLease) (rwl ReadWriteLease) {
+	// Grab each lock in turn.
 	fl.mu.Lock()
 	defer fl.mu.Unlock()
+
+	rl.Mu.Lock()
+	defer rl.Mu.Unlock()
+
+	// Has the lease already been revoked?
+	if rl.revoked() {
+		return
+	}
+
+	size := rl.Size()
 
 	// Update leaser state.
 	fl.readWriteOutstanding += size
@@ -292,7 +286,11 @@ func (fl *FileLeaser) upgrade(
 	delete(fl.readLeasesIndex, rl)
 	fl.readLeases.Remove(e)
 
-	// Crearte the read/write lease, telling it that we already know its initial
+	// Extract the interesting information from the read lease, leaving it an
+	// empty husk.
+	file := rl.release()
+
+	// Create the read/write lease, telling it that we already know its initial
 	// size.
 	rwl = newReadWriteLease(fl, size, file)
 
@@ -301,19 +299,47 @@ func (fl *FileLeaser) upgrade(
 
 // Forcibly revoke the supplied read lease.
 //
-// LOCKS_REQUIRED(rl, fl.mu)
+// REQUIRES: !rl.revoked()
+//
+// LOCKS_REQUIRED(fl.mu)
+// LOCKS_REQUIRED(rl.Mu)
 func (fl *FileLeaser) revoke(rl *readLease) {
-	panic("TODO")
+	if rl.revoked() {
+		panic("Already revoked")
+	}
+
+	size := rl.Size()
+
+	// Update leaser state.
+	fl.readOutstanding -= size
+
+	e := fl.readLeasesIndex[rl]
+	delete(fl.readLeasesIndex, rl)
+	fl.readLeases.Remove(e)
+
+	// Kill the lease and close its file.
+	file := rl.release()
+	if err := file.Close(); err != nil {
+		log.Println("Error closing file for revoked lease:", err)
+	}
 }
 
 // Called by the read lease when the user wants to manually revoke it.
 //
-// LOCKS_REQUIRED(rl)
 // LOCKS_EXCLUDED(fl.mu)
+// LOCKS_EXCLUDED(rl.Mu)
 func (fl *FileLeaser) revokeVoluntarily(rl *readLease) {
-	// TODO(jacobsa): Acquire file leaser lock, update file leaser state, call
-	// rl.destroy. Later we can factor all but acquiring the lock out into a
-	// separate helper that is shared by the revoke-for-capacity logic, which
-	// will already have the lock.
+	// Grab each lock in turn.
+	fl.mu.Lock()
+	defer fl.mu.Unlock()
+
+	rl.Mu.Lock()
+	defer rl.Mu.Unlock()
+
+	// Has the lease already been revoked?
+	if rl.revoked() {
+		return
+	}
+
 	panic("TODO")
 }
