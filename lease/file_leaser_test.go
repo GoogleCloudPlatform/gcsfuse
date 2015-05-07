@@ -16,6 +16,7 @@ package lease_test
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"testing"
 
@@ -25,6 +26,66 @@ import (
 )
 
 func TestFileLeaser(t *testing.T) { RunTests(t) }
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func panicIf(err *error) {
+	if *err != nil {
+		panic(*err)
+	}
+}
+
+// Create a read/write lease and fill it in with data of the specified length.
+// Panic on failure.
+func newFileOfLength(
+	fl *lease.FileLeaser,
+	length int) (rwl lease.ReadWriteLease) {
+	var err error
+	defer panicIf(&err)
+
+	// Create the lease.
+	rwl, err = fl.NewFile()
+	if err != nil {
+		err = fmt.Errorf("NewFile: %v", err)
+		return
+	}
+
+	// Write the contents.
+	_, err = rwl.Write(bytes.Repeat([]byte("a"), length))
+	if err != nil {
+		err = fmt.Errorf("Write: %v", err)
+		return
+	}
+
+	return
+}
+
+// Downgrade the supplied lease or panic.
+func downgrade(rwl lease.ReadWriteLease) (rl lease.ReadLease) {
+	var err error
+	defer panicIf(&err)
+
+	// Attempt to downgrade.
+	rl, err = rwl.Downgrade()
+
+	return
+}
+
+// Check whether the lease has been revoked. Note the inherent race here.
+func isRevoked(rl lease.ReadLease) (revoked bool) {
+	var err error
+	defer panicIf(&err)
+
+	_, err = rl.ReadAt([]byte{}, 0)
+	if _, ok := err.(*lease.RevokedError); ok {
+		err = nil
+		revoked = true
+	}
+
+	return
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -276,7 +337,27 @@ func (t *FileLeaserTest) DowngradeFileWhoseSizeIsAboveLimit() {
 }
 
 func (t *FileLeaserTest) WriteCausesEviction() {
-	AssertFalse(true, "TODO")
+	var err error
+
+	// Set up a read lease whose size is right at the limit.
+	rl := downgrade(newFileOfLength(t.fl, limitBytes))
+	AssertFalse(isRevoked(rl))
+
+	// Set up a new read/write lease. The read lease should still be unrevoked.
+	rwl, err := t.fl.NewFile()
+	AssertEq(nil, err)
+
+	// Writing zero bytes shouldn't cause trouble.
+	_, err = rwl.Write([]byte(""))
+	AssertEq(nil, err)
+
+	AssertFalse(isRevoked(rl))
+
+	// But the next byte should.
+	_, err = rwl.Write([]byte("a"))
+	AssertEq(nil, err)
+
+	ExpectTrue(isRevoked(rl))
 }
 
 func (t *FileLeaserTest) WriteAtCausesEviction() {
