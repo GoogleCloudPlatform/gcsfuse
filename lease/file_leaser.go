@@ -189,15 +189,8 @@ func (fl *FileLeaser) checkInvariants() {
 //
 // LOCKS_EXCLUDED(fl.mu)
 func (fl *FileLeaser) addReadWriteByteDelta(delta int64) {
-	// TODO(jacobsa): When evicting, repeatedly:
-	// 1. Find least recently used read lease.
-	// 2. Drop leaser lock.
-	// 3. Acquire read lease lock.
-	// 4. Reacquire leaser lock.
-	// 5. If under limit now, drop both locks and return.
-	// 6. If lease already evicted, drop its lock and go to #1.
-	// 7. Evict lease, drop both locks. If still above limit, start over.
-	panic("TODO")
+	fl.readWriteOutstanding += delta
+	fl.evict()
 }
 
 // LOCKS_REQUIRED(fl.mu)
