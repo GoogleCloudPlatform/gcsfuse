@@ -134,13 +134,14 @@ func (fl *FileLeaser) checkInvariants() {
 	// INVARIANT: No element has been revoked.
 	for e := fl.readLeases.Front(); e != nil; e = e.Next() {
 		rl := e.Value.(*readLease)
-		rl.Mu.Lock()
+		func() {
+			rl.Mu.Lock()
+			defer rl.Mu.Unlock()
 
-		if rl.revoked() {
-			panic("Found revoked read lease")
-		}
-
-		rl.Mu.Unlock()
+			if rl.revoked() {
+				panic("Found revoked read lease")
+			}
+		}()
 	}
 
 	// INVARIANT: Equal to the sum over readLeases sizes.
@@ -214,8 +215,14 @@ func (fl *FileLeaser) evict() {
 			return
 		}
 
-		_ = lru.Value.(*readLease)
-		panic("TODO")
+		// Revoke it.
+		rl := lru.Value.(*readLease)
+		func() {
+			rl.Mu.Lock()
+			defer rl.Mu.Unlock()
+
+			fl.revoke(rl)
+		}()
 	}
 }
 
@@ -291,7 +298,8 @@ func (fl *FileLeaser) upgrade(rl *readLease) (rwl ReadWriteLease) {
 
 // Forcibly revoke the supplied read lease.
 //
-// LOCKS_REQUIRED(rl, fl.mu)
+// LOCKS_REQUIRED(fl.mu)
+// LOCKS_REQUIRED(rl.Mu)
 func (fl *FileLeaser) revoke(rl *readLease) {
 	panic("TODO")
 }
