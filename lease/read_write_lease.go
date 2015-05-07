@@ -17,6 +17,7 @@ package lease
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"sync"
 )
@@ -108,13 +109,16 @@ func (rwl *readWriteLease) Write(p []byte) (n int, err error) {
 	rwl.mu.Lock()
 	defer rwl.mu.Unlock()
 
+	// Ensure that we reconcile our size when we're done.
+	defer rwl.reconcileSize()
+
 	// Have we been revoked?
 	if rwl.file == nil {
 		err = &RevokedError{}
 		return
 	}
 
-	// TODO(jacobsa): Notify the leaser afterward.
+	// Call through.
 	n, err = rwl.file.Write(p)
 
 	return
@@ -157,13 +161,16 @@ func (rwl *readWriteLease) WriteAt(p []byte, off int64) (n int, err error) {
 	rwl.mu.Lock()
 	defer rwl.mu.Unlock()
 
+	// Ensure that we reconcile our size when we're done.
+	defer rwl.reconcileSize()
+
 	// Have we been revoked?
 	if rwl.file == nil {
 		err = &RevokedError{}
 		return
 	}
 
-	// TODO(jacobsa): Notify the leaser afterward.
+	// Call through.
 	n, err = rwl.file.WriteAt(p, off)
 
 	return
@@ -174,13 +181,16 @@ func (rwl *readWriteLease) Truncate(size int64) (err error) {
 	rwl.mu.Lock()
 	defer rwl.mu.Unlock()
 
+	// Ensure that we reconcile our size when we're done.
+	defer rwl.reconcileSize()
+
 	// Have we been revoked?
 	if rwl.file == nil {
 		err = &RevokedError{}
 		return
 	}
 
-	// TODO(jacobsa): Notify the leaser afterward.
+	// Call through.
 	err = rwl.file.Truncate(size)
 
 	return
@@ -243,4 +253,27 @@ func (rwl *readWriteLease) sizeLocked() (size int64, err error) {
 
 	size = fi.Size()
 	return
+}
+
+// Notify the leaser if our size has changed. Log errors when we fail to find
+// our size.
+//
+// LOCKS_REQUIRED(rwl.mu)
+// LOCKS_EXCLUDED(rwl.leaser.mu)
+func (rwl *readWriteLease) reconcileSize() {
+	var err error
+
+	// Find our size.
+	size, err := rwl.sizeLocked()
+	if err != nil {
+		log.Println("Error getting size for reconciliation:", err)
+		return
+	}
+
+	// Let the leaser know about any change.
+	delta := size - rwl.reportedSize
+	if delta != 0 {
+		rwl.leaser.addReadWriteByteDelta(delta)
+		rwl.reportedSize = size
+	}
 }
