@@ -297,6 +297,23 @@ func (fl *FileLeaser) upgrade(rl *readLease) (rwl ReadWriteLease) {
 	return
 }
 
+// Promote the given read lease to most recently used, if we still know it.
+// Because our lock order forbids us from acquiring the leaser lock while
+// holding a read lease lock, this of course races with other promotions.
+//
+// Called by readLease without holding a lock.
+//
+// LOCKS_EXCLUDED(fl.mu)
+func (fl *FileLeaser) promoteToMostRecent(rl *readLease) {
+	fl.mu.Lock()
+	defer fl.mu.Unlock()
+
+	e := fl.readLeasesIndex[rl]
+	if e != nil {
+		fl.readLeases.MoveToFront(e)
+	}
+}
+
 // Forcibly revoke the supplied read lease.
 //
 // REQUIRES: !rl.revoked()

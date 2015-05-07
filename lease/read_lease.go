@@ -100,6 +100,8 @@ func newReadLease(
 
 // LOCKS_EXCLUDED(rl.Mu)
 func (rl *readLease) Read(p []byte) (n int, err error) {
+	rl.leaser.promoteToMostRecent(rl)
+
 	rl.Mu.Lock()
 	defer rl.Mu.Unlock()
 
@@ -132,6 +134,8 @@ func (rl *readLease) Seek(
 
 // LOCKS_EXCLUDED(rl.Mu)
 func (rl *readLease) ReadAt(p []byte, off int64) (n int, err error) {
+	rl.leaser.promoteToMostRecent(rl)
+
 	rl.Mu.Lock()
 	defer rl.Mu.Unlock()
 
