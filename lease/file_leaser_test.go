@@ -87,6 +87,18 @@ func isRevoked(rl lease.ReadLease) (revoked bool) {
 	return
 }
 
+func touchWithRead(r io.Reader) {
+	panic("TODO")
+}
+
+func touchWithReadAt(r io.ReaderAt) {
+	panic("TODO")
+}
+
+func growBy(w io.WriteSeeker, n int) {
+	panic("TODO")
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
@@ -427,7 +439,60 @@ func (t *FileLeaserTest) TruncateCausesEviction() {
 }
 
 func (t *FileLeaserTest) EvictionIsLRU() {
-	AssertFalse(true, "TODO")
+	AssertLt(4, limitBytes)
+
+	// Arrange for four read leases, with a known order of recency of usage.
+	rl0 := downgrade(newFileOfLength(t.fl, 1))
+	rl2 := downgrade(newFileOfLength(t.fl, 1))
+	rl3 := downgrade(newFileOfLength(t.fl, 1))
+
+	touchWithRead(rl0)                         // Least recent
+	rl1 := downgrade(newFileOfLength(t.fl, 1)) // Second least recent
+	touchWithRead(rl2)                         // Third least recent
+	touchWithReadAt(rl3)                       // Fourth least recent
+
+	// Fill up the remaining space. All read leases should still be valid.
+	rwl := newFileOfLength(t.fl, limitBytes-4)
+
+	panic("TODO: isRevoked should not change recency of use")
+
+	AssertFalse(isRevoked(rl0))
+	AssertFalse(isRevoked(rl1))
+	AssertFalse(isRevoked(rl2))
+	AssertFalse(isRevoked(rl3))
+
+	// Use up one more byte. The least recently used lease should be revoked.
+	growBy(rwl, 1)
+
+	AssertTrue(isRevoked(rl0))
+	AssertFalse(isRevoked(rl1))
+	AssertFalse(isRevoked(rl2))
+	AssertFalse(isRevoked(rl3))
+
+	// Two more bytes. Now the next two should go.
+	growBy(rwl, 2)
+
+	AssertTrue(isRevoked(rl0))
+	AssertTrue(isRevoked(rl1))
+	AssertTrue(isRevoked(rl2))
+	AssertFalse(isRevoked(rl3))
+
+	// Downgrading and upgrading the read/write lease should change nothing.
+	rwl = downgrade(rwl).Upgrade()
+	AssertNe(nil, rwl)
+
+	AssertTrue(isRevoked(rl0))
+	AssertTrue(isRevoked(rl1))
+	AssertTrue(isRevoked(rl2))
+	AssertFalse(isRevoked(rl3))
+
+	// But writing one more byte should boot the last one.
+	growBy(rwl, 1)
+
+	AssertTrue(isRevoked(rl0))
+	AssertTrue(isRevoked(rl1))
+	AssertTrue(isRevoked(rl2))
+	AssertTrue(isRevoked(rl3))
 }
 
 func (t *FileLeaserTest) NothingAvailableToEvict() {
