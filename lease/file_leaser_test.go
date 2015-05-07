@@ -88,7 +88,24 @@ func isRevoked(rl lease.ReadLease) (revoked bool) {
 }
 
 func growBy(w io.WriteSeeker, n int) {
-	panic("TODO")
+	var err error
+	defer panicIf(&err)
+
+	// Seek to the end.
+	_, err = w.Seek(0, 2)
+	if err != nil {
+		err = fmt.Errorf("Seek: %v", err)
+		return
+	}
+
+	// Write.
+	_, err = w.Write(bytes.Repeat([]byte("a"), n))
+	if err != nil {
+		err = fmt.Errorf("Write: %v", err)
+		return
+	}
+
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
