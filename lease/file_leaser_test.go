@@ -347,6 +347,8 @@ func (t *FileLeaserTest) WriteCausesEviction() {
 	rwl, err := t.fl.NewFile()
 	AssertEq(nil, err)
 
+	AssertFalse(isRevoked(rl))
+
 	// Writing zero bytes shouldn't cause trouble.
 	_, err = rwl.Write([]byte(""))
 	AssertEq(nil, err)
@@ -372,6 +374,8 @@ func (t *FileLeaserTest) WriteAtCausesEviction() {
 	rwl, err := t.fl.NewFile()
 	AssertEq(nil, err)
 
+	AssertFalse(isRevoked(rl))
+
 	// Write in three bytes. Everything should be fine.
 	_, err = rwl.Write([]byte("foo"))
 	AssertEq(nil, err)
@@ -390,7 +394,36 @@ func (t *FileLeaserTest) WriteAtCausesEviction() {
 }
 
 func (t *FileLeaserTest) TruncateCausesEviction() {
-	AssertFalse(true, "TODO")
+	var err error
+	AssertLt(3, limitBytes)
+
+	// Set up a read lease whose size is three bytes below the limit.
+	rl := downgrade(newFileOfLength(t.fl, limitBytes-3))
+	AssertFalse(isRevoked(rl))
+
+	// Set up a new read/write lease. The read lease should still be unrevoked.
+	rwl, err := t.fl.NewFile()
+	AssertEq(nil, err)
+
+	AssertFalse(isRevoked(rl))
+
+	// Truncate up to the limit. Nothing should happen.
+	err = rwl.Truncate(3)
+	AssertEq(nil, err)
+
+	AssertFalse(isRevoked(rl))
+
+	// Truncate downward. Again, nothing should happen.
+	err = rwl.Truncate(2)
+	AssertEq(nil, err)
+
+	AssertFalse(isRevoked(rl))
+
+	// But extending to four bytes should cause revocation.
+	err = rwl.Truncate(4)
+	AssertEq(nil, err)
+
+	ExpectTrue(isRevoked(rl))
 }
 
 func (t *FileLeaserTest) EvictionIsLRU() {
