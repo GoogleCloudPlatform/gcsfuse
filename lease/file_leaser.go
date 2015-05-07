@@ -38,8 +38,10 @@ type FileLeaser struct {
 	// Mutable state
 	/////////////////////////
 
-	// A lock that guards the mutable state in this struct, which must not be
-	// held during any blocking operation.
+	// A lock that guards the mutable state in this struct. Usually this is used
+	// only for light weight operations, but while evicting it may require
+	// waiting on a goroutine that is holding a read lease lock while reading
+	// from a file.
 	//
 	// Lock ordering
 	// -------------

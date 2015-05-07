@@ -70,10 +70,7 @@ type readLease struct {
 
 	// The underlying file, set to nil once revoked.
 	//
-	// Writing requires holding both Mu and leaser.mu. Therefore reading is
-	// allowed while holding either.
-	//
-	// GUARDED_BY([see above])
+	// GUARDED_BY(Mu)
 	file *os.File
 }
 
