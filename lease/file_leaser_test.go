@@ -73,20 +73,6 @@ func downgrade(rwl lease.ReadWriteLease) (rl lease.ReadLease) {
 	return
 }
 
-// Check whether the lease has been revoked. Note the inherent race here.
-func isRevoked(rl lease.ReadLease) (revoked bool) {
-	var err error
-	defer panicIf(&err)
-
-	_, err = rl.ReadAt([]byte{}, 0)
-	if _, ok := err.(*lease.RevokedError); ok {
-		err = nil
-		revoked = true
-	}
-
-	return
-}
-
 func growBy(w io.WriteSeeker, n int) {
 	var err error
 	defer panicIf(&err)
@@ -504,12 +490,48 @@ func (t *FileLeaserTest) EvictionIsLRU() {
 	AssertTrue(rl3.Revoked())
 }
 
-func (t *FileLeaserTest) NothingAvailableToEvict() {
-	AssertFalse(true, "TODO")
-}
-
 func (t *FileLeaserTest) RevokeVoluntarily() {
-	// TODO(jacobsa): Test that methods return RevokedError and that capacity in
-	// the leaser is freed up.
-	AssertFalse(true, "TODO")
+	var err error
+	buf := make([]byte, 1024)
+
+	AssertLt(3, limitBytes)
+
+	// Set up two read leases, together occupying all space, and an empty
+	// read/write lease.
+	rl0 := downgrade(newFileOfLength(t.fl, 3))
+	rl1 := downgrade(newFileOfLength(t.fl, limitBytes-3))
+	rwl := newFileOfLength(t.fl, 0)
+
+	AssertFalse(rl0.Revoked())
+	AssertFalse(rl1.Revoked())
+
+	// Voluntarily revoke the first. Nothing should work anymore.
+	rl0.Revoke()
+	AssertTrue(rl0.Revoked())
+
+	_, err = rl0.Read(buf)
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	_, err = rl0.Seek(0, 0)
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	_, err = rl0.ReadAt(buf, 0)
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	// Calling Revoke more times should be harmless.
+	rl0.Revoke()
+	rl0.Revoke()
+	rl0.Revoke()
+
+	// The other lease should be fine.
+	AssertFalse(rl1.Revoked())
+
+	// The revocation should have freed up credit that can be used by the
+	// read/write lease without booting the other read lease.
+	growBy(rwl, 3)
+	ExpectFalse(rl1.Revoked())
+
+	// But one more byte should evict it, as usual.
+	growBy(rwl, 1)
+	ExpectTrue(rl1.Revoked())
 }
