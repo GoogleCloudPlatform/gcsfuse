@@ -450,7 +450,9 @@ func (t *FileLeaserTest) TruncateCausesEviction() {
 func (t *FileLeaserTest) EvictionIsLRU() {
 	AssertLt(4, limitBytes)
 
-	// Arrange for four read leases, with a known order of recency of usage.
+	// Arrange for four read leases, with a known order of recency of usage. Make
+	// each the most recent in turn using different methods that we expect to
+	// promote to most recent.
 	rl0 := downgrade(newFileOfLength(t.fl, 1))
 	rl2 := downgrade(newFileOfLength(t.fl, 1))
 	rl3 := downgrade(newFileOfLength(t.fl, 1))
