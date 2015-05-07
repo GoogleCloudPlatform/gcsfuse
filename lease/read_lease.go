@@ -41,6 +41,11 @@ type ReadLease interface {
 	// lease has been revoked.
 	Size() (size int64)
 
+	// Has the lease been revoked? Note that this is completely racy in the
+	// absence of external synchronization on all leases and the file leaser, so
+	// is suitable only for testing purposes.
+	Revoked() (revoked bool)
+
 	// Attempt to upgrade the lease to a read/write lease, returning nil if the
 	// lease has been revoked. After upgrading, it is as if the lease has been
 	// revoked.
@@ -143,6 +148,15 @@ func (rl *readLease) ReadAt(p []byte, off int64) (n int, err error) {
 // No lock necessary.
 func (rl *readLease) Size() (size int64) {
 	size = rl.size
+	return
+}
+
+// LOCKS_EXCLUDED(rl.Mu)
+func (rl *readLease) Revoked() (revoked bool) {
+	rl.Mu.Lock()
+	defer rl.Mu.Unlock()
+
+	revoked = rl.revoked()
 	return
 }
 
