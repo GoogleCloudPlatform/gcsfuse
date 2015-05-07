@@ -52,7 +52,7 @@ instructions [here][create-key] to create a service account, generate a private
 key, and download a JSON file containing the private key. Place the JSON file on
 the machine that will be mounting the bucket.
 
-[console]: console.developers.google.com
+[console]: https://console.developers.google.com
 [service account]: https://cloud.google.com/storage/docs/authentication#service_accounts
 [create-key]: https://cloud.google.com/storage/docs/authentication#generating-a-private-key
 
