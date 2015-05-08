@@ -15,12 +15,27 @@
 package lease_test
 
 import (
+	"io"
+	"io/ioutil"
+	"strings"
 	"testing"
 
 	. "github.com/jacobsa/ogletest"
 )
 
 func TestAutoRefreshingReadLease(t *testing.T) { RunTests(t) }
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+const contents = "taco"
+
+// A function that always successfully returns our contents constant.
+func returnContents() (rc io.ReadCloser, err error) {
+	rc = ioutil.NopCloser(strings.NewReader(contents))
+	return
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
