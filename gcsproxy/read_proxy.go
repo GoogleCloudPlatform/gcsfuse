@@ -15,6 +15,7 @@
 package gcsproxy
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/lease"
@@ -43,8 +44,8 @@ func NewReadProxy(
 	rl := lease.NewAutoRefreshingReadLease(
 		leaser,
 		int64(o.Size),
-		func() (rc io.ReadCloser, err error) {
-			rc, err = getObjectContents(o)
+		func(ctx context.Context) (rc io.ReadCloser, err error) {
+			rc, err = getObjectContents(ctx, bucket, o)
 			return
 		})
 
@@ -94,6 +95,20 @@ func (rp *ReadProxy) ReadAt(
 ////////////////////////////////////////////////////////////////////////
 
 // For use with NewAutoRefreshingReadLease.
-func getObjectContents(o *gcs.Object) (rc io.ReadCloser, err error) {
-	panic("TODO")
+func getObjectContents(
+	ctx context.Context,
+	bucket gcs.Bucket,
+	o *gcs.Object) (rc io.ReadCloser, err error) {
+	req := &gcs.ReadObjectRequest{
+		Name:       o.Name,
+		Generation: o.Generation,
+	}
+
+	rc, err = bucket.NewReader(ctx, req)
+	if err != nil {
+		err = fmt.Errorf("NewReader: %v", err)
+		return
+	}
+
+	return
 }
