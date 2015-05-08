@@ -23,9 +23,11 @@ import "io"
 // first time and whenever the supplied file leaser decides to expire the
 // temporary copy thus obtained. It must return the same contents every time,
 // and the contents must be of the given size.
+//
+// This magic is not preserved after the lease is upgraded.
 func NewAutoRefreshingReadLease(
 	fl FileLeaser,
 	size int64,
-	f func() (io.Reader, error)) (rl ReadLease) {
+	f func() (io.ReadCloser, error)) (rl ReadLease) {
 	panic("TODO")
 }
