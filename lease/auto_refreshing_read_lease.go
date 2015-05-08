@@ -72,6 +72,9 @@ type autoRefreshingReadLease struct {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+// Attempt to clean up after the supplied read/write lease.
+func destroyReadWriteLease(rwl ReadWriteLease)
+
 // Set up a read/write lease and fill in our contents.
 //
 // REQUIRES: The caller has observed that rl.lease has expired.
@@ -79,6 +82,20 @@ type autoRefreshingReadLease struct {
 // LOCKS_REQUIRED(rl.mu)
 func (rl *autoRefreshingReadLease) getContents() (
 	rwl ReadWriteLease, err error) {
+	// Obtain some space to write the contents.
+	rwl, err = rl.leaser.NewFile()
+	if err != nil {
+		err = fmt.Errorf("NewFile: %v", err)
+		return
+	}
+
+	// Attempt to clean up if we exit early.
+	defer func() {
+		if err != nil {
+			destroyReadWriteLease(rwl)
+		}
+	}()
+
 	panic("TODO")
 }
 
