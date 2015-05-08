@@ -20,6 +20,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/lease"
+	"github.com/googlecloudplatform/gcsfuse/lease/mock_lease"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -42,6 +44,12 @@ func returnContents() (rc io.ReadCloser, err error) {
 ////////////////////////////////////////////////////////////////////////
 
 type AutoRefreshingReadLeaseTest struct {
+	// A function that will be invoked for each call to the function given to
+	// NewAutoRefreshingReadLease.
+	f func() (io.ReadCloser, error)
+
+	leaser mock_lease.MockFileLeaser
+	lease  lease.ReadLease
 }
 
 var _ SetUpInterface = &AutoRefreshingReadLeaseTest{}
@@ -49,7 +57,21 @@ var _ SetUpInterface = &AutoRefreshingReadLeaseTest{}
 func init() { RegisterTestSuite(&AutoRefreshingReadLeaseTest{}) }
 
 func (t *AutoRefreshingReadLeaseTest) SetUp(ti *TestInfo) {
-	// TODO
+	// Set up a function that defers to whatever is currently set as t.f.
+	f := func() (rc io.ReadCloser, err error) {
+		AssertNe(nil, t.f)
+		rc, err = t.f()
+		return
+	}
+
+	// Set up the leaser.
+	t.leaser = mock_lease.NewMockFileLeaser(ti.MockController, "leaser")
+
+	// Set up the lease.
+	t.lease = lease.NewAutoRefreshingReadLease(
+		t.leaser,
+		int64(len(contents)),
+		f)
 }
 
 ////////////////////////////////////////////////////////////////////////
