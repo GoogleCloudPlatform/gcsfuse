@@ -318,7 +318,42 @@ func (t *AutoRefreshingReadLeaseTest) Read_Error() {
 }
 
 func (t *AutoRefreshingReadLeaseTest) Read_Successful() {
-	AssertTrue(false, "TODO")
+	const readLength = 3
+	AssertLt(readLength, len(contents))
+
+	// NewFile
+	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
+	ExpectCall(t.leaser, "NewFile")().
+		WillOnce(Return(rwl, nil))
+
+	// Write
+	ExpectCall(rwl, "Write")(Any()).
+		WillRepeatedly(Invoke(successfulWrite))
+
+	// Read
+	ExpectCall(rwl, "Read")(Any()).
+		WillOnce(Invoke(func(p []byte) (n int, err error) {
+		n = copy(p, []byte(contents[0:readLength]))
+		return
+	}))
+
+	// Downgrade
+	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+
+	// Function
+	t.f = func() (rc io.ReadCloser, err error) {
+		rc = ioutil.NopCloser(strings.NewReader(contents))
+		return
+	}
+
+	// Attempt to read.
+	buf := make([]byte, readLength)
+	n, err := t.lease.Read(buf)
+
+	AssertEq(nil, err)
+	AssertEq(readLength, n)
+	ExpectEq(contents[0:n], string(buf[0:n]))
 }
 
 func (t *AutoRefreshingReadLeaseTest) DowngradesAfterReadAt() {
