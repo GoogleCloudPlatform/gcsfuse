@@ -46,10 +46,9 @@ type ReadLease interface {
 	// is suitable only for testing purposes.
 	Revoked() (revoked bool)
 
-	// Attempt to upgrade the lease to a read/write lease, returning nil if the
-	// lease has been revoked. After upgrading, it is as if the lease has been
-	// revoked.
-	Upgrade() (rwl ReadWriteLease)
+	// Attempt to upgrade the lease to a read/write lease. After successfully
+	// upgrading, it is as if the lease has been revoked.
+	Upgrade() (rwl ReadWriteLease, err error)
 
 	// Cause the lease to be revoked and any associated resources to be cleaned
 	// up, if it has not already been revoked.
@@ -166,9 +165,9 @@ func (rl *readLease) Revoked() (revoked bool) {
 
 // LOCKS_EXCLUDED(rl.leaser.mu)
 // LOCKS_EXCLUDED(rl.Mu)
-func (rl *readLease) Upgrade() (rwl ReadWriteLease) {
+func (rl *readLease) Upgrade() (rwl ReadWriteLease, err error) {
 	// Let the leaser do the heavy lifting.
-	rwl = rl.leaser.upgrade(rl)
+	rwl, err = rl.leaser.upgrade(rl)
 	return
 }
 

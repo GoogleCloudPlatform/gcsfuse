@@ -268,7 +268,7 @@ func (fl *fileLeaser) downgrade(
 // Called by readLease with no lock held.
 //
 // LOCKS_EXCLUDED(fl.mu, rl.Mu)
-func (fl *fileLeaser) upgrade(rl *readLease) (rwl ReadWriteLease) {
+func (fl *fileLeaser) upgrade(rl *readLease) (rwl ReadWriteLease, err error) {
 	// Grab each lock in turn.
 	fl.mu.Lock()
 	defer fl.mu.Unlock()
@@ -278,6 +278,7 @@ func (fl *fileLeaser) upgrade(rl *readLease) (rwl ReadWriteLease) {
 
 	// Has the lease already been revoked?
 	if rl.revoked() {
+		err = &RevokedError{}
 		return
 	}
 
