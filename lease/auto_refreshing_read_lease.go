@@ -171,6 +171,12 @@ func (rl *autoRefreshingReadLease) Read(p []byte) (n int, err error) {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
+	// Special case: have we been permanently revoked?
+	if rl.revoked {
+		err = &RevokedError{}
+		return
+	}
+
 	// Common case: is the existing lease still valid?
 	if rl.wrapped != nil {
 		panic("TODO")
@@ -197,6 +203,12 @@ func (rl *autoRefreshingReadLease) Seek(
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
+	// Special case: have we been permanently revoked?
+	if rl.revoked {
+		err = &RevokedError{}
+		return
+	}
+
 	// Common case: is the existing lease still valid?
 	if rl.wrapped != nil {
 		panic("TODO")
@@ -222,6 +234,12 @@ func (rl *autoRefreshingReadLease) ReadAt(
 	off int64) (n int, err error) {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
+
+	// Special case: have we been permanently revoked?
+	if rl.revoked {
+		err = &RevokedError{}
+		return
+	}
 
 	// Common case: is the existing lease still valid?
 	if rl.wrapped != nil {
