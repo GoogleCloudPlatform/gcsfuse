@@ -255,6 +255,38 @@ func (t *AutoRefreshingReadLeaseTest) ContentsAreWrongLength() {
 }
 
 func (t *AutoRefreshingReadLeaseTest) WritesCorrectData() {
+	AssertEq(4, len(contents))
+
+	// NewFile
+	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
+	ExpectCall(t.leaser, "NewFile")().
+		WillOnce(Return(rwl, nil))
+
+	// Write
+	var written []byte
+	ExpectCall(rwl, "Write")(Any()).
+		WillRepeatedly(Invoke(func(p []byte) (int, error) {
+		written = append(written, p...)
+		return len(p), nil
+	}))
+
+	// Downgrade and Revoke
+	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rl, "Revoke")()
+
+	// Function
+	t.f = func() (rc io.ReadCloser, err error) {
+		rc = ioutil.NopCloser(strings.NewReader(contents))
+		return
+	}
+
+	// Attempt to read.
+	t.lease.Read([]byte{})
+	ExpectEq(contents, string(written))
+}
+
+func (t *AutoRefreshingReadLeaseTest) WriteError() {
 	AssertTrue(false, "TODO")
 }
 
