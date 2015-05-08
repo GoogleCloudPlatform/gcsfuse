@@ -17,6 +17,7 @@ package lease
 import (
 	"fmt"
 	"io"
+	"log"
 	"sync"
 )
 
@@ -73,7 +74,24 @@ type autoRefreshingReadLease struct {
 ////////////////////////////////////////////////////////////////////////
 
 // Attempt to clean up after the supplied read/write lease.
-func destroyReadWriteLease(rwl ReadWriteLease)
+func destroyReadWriteLease(rwl ReadWriteLease) {
+	var err error
+	defer func() {
+		if err != nil {
+			log.Printf("Error destroying read/write lease: %v", err)
+		}
+	}()
+
+	// Downgrade to a read lease.
+	rl, err := rwl.Downgrade()
+	if err != nil {
+		err = fmt.Errorf("Downgrade: %v", err)
+		return
+	}
+
+	// Revoke the read lease.
+	rl.Revoke()
+}
 
 // Set up a read/write lease and fill in our contents.
 //
