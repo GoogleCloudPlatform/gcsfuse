@@ -17,8 +17,8 @@ package gcsproxy
 import (
 	"io"
 
+	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcsfuse/lease"
 	"golang.org/x/net/context"
 )
 
@@ -42,7 +42,7 @@ func NewReadProxy(
 	// Set up a read lease.
 	rl := lease.NewAutoRefreshingReadLease(
 		leaser,
-		o.Size,
+		int64(o.Size),
 		func() (rc io.ReadCloser, err error) {
 			rc, err = getObjectContents(o)
 			return
