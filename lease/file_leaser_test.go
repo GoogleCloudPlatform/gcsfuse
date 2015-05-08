@@ -40,7 +40,7 @@ func panicIf(err *error) {
 // Create a read/write lease and fill it in with data of the specified length.
 // Panic on failure.
 func newFileOfLength(
-	fl *lease.FileLeaser,
+	fl lease.FileLeaser,
 	length int) (rwl lease.ReadWriteLease) {
 	var err error
 	defer panicIf(&err)
@@ -101,7 +101,7 @@ func growBy(w io.WriteSeeker, n int) {
 const limitBytes = 17
 
 type FileLeaserTest struct {
-	fl *lease.FileLeaser
+	fl lease.FileLeaser
 }
 
 var _ SetUpInterface = &FileLeaserTest{}
