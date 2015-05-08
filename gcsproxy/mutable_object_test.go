@@ -35,7 +35,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestObjectProxy(t *testing.T) { RunTests(t) }
+func TestMutableObject(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -133,53 +133,53 @@ func (ec *errorReadCloser) Close() error {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Invariant-checking object proxy
+// Invariant-checking mutable object
 ////////////////////////////////////////////////////////////////////////
 
 // A wrapper around MutableObject that calls CheckInvariants whenever
 // invariants should hold. For catching logic errors early in the test.
-type checkingObjectProxy struct {
+type checkingMutableObject struct {
 	wrapped *gcsproxy.MutableObject
 }
 
-func (mo *checkingObjectProxy) Name() string {
+func (mo *checkingMutableObject) Name() string {
 	mo.wrapped.CheckInvariants()
 	defer mo.wrapped.CheckInvariants()
 	return mo.wrapped.Name()
 }
 
-func (mo *checkingObjectProxy) SourceGeneration() int64 {
+func (mo *checkingMutableObject) SourceGeneration() int64 {
 	mo.wrapped.CheckInvariants()
 	defer mo.wrapped.CheckInvariants()
 	return mo.wrapped.SourceGeneration()
 }
 
-func (mo *checkingObjectProxy) Stat(
+func (mo *checkingMutableObject) Stat(
 	needClobbered bool) (gcsproxy.StatResult, error) {
 	mo.wrapped.CheckInvariants()
 	defer mo.wrapped.CheckInvariants()
 	return mo.wrapped.Stat(context.Background(), needClobbered)
 }
 
-func (mo *checkingObjectProxy) ReadAt(b []byte, o int64) (int, error) {
+func (mo *checkingMutableObject) ReadAt(b []byte, o int64) (int, error) {
 	mo.wrapped.CheckInvariants()
 	defer mo.wrapped.CheckInvariants()
 	return mo.wrapped.ReadAt(context.Background(), b, o)
 }
 
-func (mo *checkingObjectProxy) WriteAt(b []byte, o int64) (int, error) {
+func (mo *checkingMutableObject) WriteAt(b []byte, o int64) (int, error) {
 	mo.wrapped.CheckInvariants()
 	defer mo.wrapped.CheckInvariants()
 	return mo.wrapped.WriteAt(context.Background(), b, o)
 }
 
-func (mo *checkingObjectProxy) Truncate(n int64) error {
+func (mo *checkingMutableObject) Truncate(n int64) error {
 	mo.wrapped.CheckInvariants()
 	defer mo.wrapped.CheckInvariants()
 	return mo.wrapped.Truncate(context.Background(), n)
 }
 
-func (mo *checkingObjectProxy) Sync() error {
+func (mo *checkingMutableObject) Sync() error {
 	mo.wrapped.CheckInvariants()
 	defer mo.wrapped.CheckInvariants()
 	return mo.wrapped.Sync(context.Background())
@@ -193,7 +193,7 @@ type MutableObjectTest struct {
 	src    gcs.Object
 	clock  timeutil.SimulatedClock
 	bucket mock_gcs.MockBucket
-	mo     checkingObjectProxy
+	mo     checkingMutableObject
 }
 
 var _ SetUpInterface = &MutableObjectTest{}
@@ -213,7 +213,7 @@ func (t *MutableObjectTest) SetUp(ti *TestInfo) {
 	// Set up a fixed, non-zero time.
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 
-	t.mo.wrapped = gcsproxy.NewObjectProxy(
+	t.mo.wrapped = gcsproxy.NewMutableObject(
 		&t.clock,
 		t.bucket,
 		&t.src)
