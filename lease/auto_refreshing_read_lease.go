@@ -189,7 +189,27 @@ func (rl *autoRefreshingReadLease) Read(p []byte) (n int, err error) {
 func (rl *autoRefreshingReadLease) Seek(
 	offset int64,
 	whence int) (off int64, err error) {
-	panic("TODO")
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	// Common case: is the existing lease still valid?
+	if rl.wrapped != nil {
+		panic("TODO")
+	}
+
+	// Get hold of a read/write lease containing our contents.
+	rwl, err := rl.getContents()
+	if err != nil {
+		err = fmt.Errorf("getContents: %v", err)
+		return
+	}
+
+	defer rl.saveContents(rwl)
+
+	// Serve from the read/write lease.
+	off, err = rwl.Seek(offset, whence)
+
+	return
 }
 
 func (rl *autoRefreshingReadLease) ReadAt(
