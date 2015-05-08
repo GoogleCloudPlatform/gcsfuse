@@ -42,15 +42,16 @@ type FileLeaser interface {
 // size exceeds the limit, since such leases cannot be revoked.
 func NewFileLeaser(
 	dir string,
-	limitBytes int64) (fl *FileLeaser) {
-	fl = &FileLeaser{
+	limitBytes int64) (fl FileLeaser) {
+	typed := &fileLeaser{
 		dir:             dir,
 		limit:           limitBytes,
 		readLeasesIndex: make(map[*readLease]*list.Element),
 	}
 
-	fl.mu = syncutil.NewInvariantMutex(fl.checkInvariants)
+	typed.mu = syncutil.NewInvariantMutex(typed.checkInvariants)
 
+	fl = typed
 	return
 }
 
@@ -107,7 +108,7 @@ type fileLeaser struct {
 	readLeasesIndex map[*readLease]*list.Element
 }
 
-func (fl *FileLeaser) NewFile() (rwl ReadWriteLease, err error) {
+func (fl *fileLeaser) NewFile() (rwl ReadWriteLease, err error) {
 	// Create an anonymous file.
 	f, err := fsutil.AnonymousFile(fl.dir)
 	if err != nil {
@@ -134,7 +135,7 @@ func maxInt64(a int64, b int64) int64 {
 }
 
 // LOCKS_REQUIRED(fl.mu)
-func (fl *FileLeaser) checkInvariants() {
+func (fl *fileLeaser) checkInvariants() {
 	// INVARIANT: Each element is of type *readLease
 	// INVARIANT: No element has been revoked.
 	for e := fl.readLeases.Front(); e != nil; e = e.Next() {
@@ -199,20 +200,20 @@ func (fl *FileLeaser) checkInvariants() {
 // Called by readWriteLease while holding its lock.
 //
 // LOCKS_EXCLUDED(fl.mu)
-func (fl *FileLeaser) addReadWriteByteDelta(delta int64) {
+func (fl *fileLeaser) addReadWriteByteDelta(delta int64) {
 	fl.readWriteOutstanding += delta
 	fl.evict()
 }
 
 // LOCKS_REQUIRED(fl.mu)
-func (fl *FileLeaser) overLimit() bool {
+func (fl *fileLeaser) overLimit() bool {
 	return fl.readOutstanding+fl.readWriteOutstanding > fl.limit
 }
 
 // Revoke read leases until we're under limit or we run out of things to revoke.
 //
 // LOCKS_REQUIRED(fl.mu)
-func (fl *FileLeaser) evict() {
+func (fl *fileLeaser) evict() {
 	for fl.overLimit() {
 		// Do we have anything to revoke?
 		lru := fl.readLeases.Back()
@@ -237,7 +238,7 @@ func (fl *FileLeaser) evict() {
 // Called by readWriteLease with its lock held.
 //
 // LOCKS_EXCLUDED(fl.mu)
-func (fl *FileLeaser) downgrade(
+func (fl *fileLeaser) downgrade(
 	rwl *readWriteLease,
 	size int64,
 	file *os.File) (rl ReadLease) {
@@ -267,7 +268,7 @@ func (fl *FileLeaser) downgrade(
 // Called by readLease with no lock held.
 //
 // LOCKS_EXCLUDED(fl.mu, rl.Mu)
-func (fl *FileLeaser) upgrade(rl *readLease) (rwl ReadWriteLease) {
+func (fl *fileLeaser) upgrade(rl *readLease) (rwl ReadWriteLease) {
 	// Grab each lock in turn.
 	fl.mu.Lock()
 	defer fl.mu.Unlock()
@@ -308,7 +309,7 @@ func (fl *FileLeaser) upgrade(rl *readLease) (rwl ReadWriteLease) {
 // Called by readLease without holding a lock.
 //
 // LOCKS_EXCLUDED(fl.mu)
-func (fl *FileLeaser) promoteToMostRecent(rl *readLease) {
+func (fl *fileLeaser) promoteToMostRecent(rl *readLease) {
 	fl.mu.Lock()
 	defer fl.mu.Unlock()
 
@@ -324,7 +325,7 @@ func (fl *FileLeaser) promoteToMostRecent(rl *readLease) {
 //
 // LOCKS_REQUIRED(fl.mu)
 // LOCKS_REQUIRED(rl.Mu)
-func (fl *FileLeaser) revoke(rl *readLease) {
+func (fl *fileLeaser) revoke(rl *readLease) {
 	if rl.revoked() {
 		panic("Already revoked")
 	}
@@ -349,7 +350,7 @@ func (fl *FileLeaser) revoke(rl *readLease) {
 //
 // LOCKS_EXCLUDED(fl.mu)
 // LOCKS_EXCLUDED(rl.Mu)
-func (fl *FileLeaser) revokeVoluntarily(rl *readLease) {
+func (fl *fileLeaser) revokeVoluntarily(rl *readLease) {
 	// Grab each lock in turn.
 	fl.mu.Lock()
 	defer fl.mu.Unlock()

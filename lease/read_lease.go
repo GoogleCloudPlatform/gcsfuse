@@ -57,7 +57,7 @@ type ReadLease interface {
 }
 
 type readLease struct {
-	// Used internally and by FileLeaser eviction logic.
+	// Used internally and by fileLeaser eviction logic.
 	Mu sync.Mutex
 
 	/////////////////////////
@@ -71,7 +71,7 @@ type readLease struct {
 	/////////////////////////
 
 	// The leaser that issued this lease.
-	leaser *FileLeaser
+	leaser *fileLeaser
 
 	// The underlying file, set to nil once revoked.
 	//
@@ -83,7 +83,7 @@ var _ ReadLease = &readLease{}
 
 func newReadLease(
 	size int64,
-	leaser *FileLeaser,
+	leaser *fileLeaser,
 	file *os.File) (rl *readLease) {
 	rl = &readLease{
 		size:   size,

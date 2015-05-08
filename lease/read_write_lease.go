@@ -50,7 +50,7 @@ type readWriteLease struct {
 	/////////////////////////
 
 	// The leaser that issued this lease.
-	leaser *FileLeaser
+	leaser *fileLeaser
 
 	// The underlying file, set to nil once revoked.
 	//
@@ -62,7 +62,7 @@ type readWriteLease struct {
 	/////////////////////////
 
 	// The cumulative number of bytes we have reported to the leaser using
-	// FileLeaser.addReadWriteByteDelta. When the size changes, we report the
+	// fileLeaser.addReadWriteByteDelta. When the size changes, we report the
 	// difference between the new size and this value.
 	//
 	// GUARDED_BY(mu)
@@ -73,7 +73,7 @@ var _ ReadWriteLease = &readWriteLease{}
 
 // size is the size that the leaser has already recorded for us.
 func newReadWriteLease(
-	leaser *FileLeaser,
+	leaser *fileLeaser,
 	size int64,
 	file *os.File) (rwl *readWriteLease) {
 	rwl = &readWriteLease{
