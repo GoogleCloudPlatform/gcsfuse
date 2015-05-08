@@ -186,7 +186,7 @@ func (rl *autoRefreshingReadLease) Read(p []byte) (n int, err error) {
 	if rl.wrapped != nil {
 		n, err = rl.wrapped.Read(p)
 		if !isRevokedErr(err) {
-			panic("TODO")
+			return
 		}
 
 		// Clear the revoked error.
