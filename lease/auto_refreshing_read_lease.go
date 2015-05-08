@@ -307,9 +307,22 @@ func (rl *autoRefreshingReadLease) Upgrade() (rwl ReadWriteLease, err error) {
 		return
 	}
 
+	// If we succeed, we are now revoked.
+	defer func() {
+		if err == nil {
+			rl.revoked = true
+		}
+	}()
+
 	// Common case: is the existing lease still valid?
 	if rl.wrapped != nil {
-		panic("TODO")
+		rwl, err = rl.wrapped.Upgrade()
+		if !isRevokedErr(err) {
+			return
+		}
+
+		// Clear the revoked error.
+		err = nil
 	}
 
 	// Build the read/write lease anew.
@@ -318,9 +331,6 @@ func (rl *autoRefreshingReadLease) Upgrade() (rwl ReadWriteLease, err error) {
 		err = fmt.Errorf("getContents: %v", err)
 		return
 	}
-
-	// We are now revoked.
-	rl.revoked = true
 
 	return
 }
