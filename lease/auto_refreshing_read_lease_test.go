@@ -659,7 +659,7 @@ func (t *AutoRefreshingReadLeaseTest) WrappedRevoked() {
 	t.lease.ReadAt([]byte{}, 0)
 }
 
-func (t *AutoRefreshingReadLeaseTest) WrappedStillValid_Read() {
+func (t *AutoRefreshingReadLeaseTest) WrappedStillValid() {
 	var err error
 
 	// Arrange a successful wrapped read lease.
@@ -683,7 +683,7 @@ func (t *AutoRefreshingReadLeaseTest) WrappedStillValid_Read() {
 
 	t.lease.ReadAt([]byte{}, 0)
 
-	// It should be called for future invocations.
+	// Read
 	ExpectCall(rl, "Read")(Any()).
 		WillOnce(Return(0, errors.New("taco"))).
 		WillOnce(Return(17, nil))
@@ -693,14 +693,28 @@ func (t *AutoRefreshingReadLeaseTest) WrappedStillValid_Read() {
 
 	n, err := t.lease.Read([]byte{})
 	ExpectEq(17, n)
-}
 
-func (t *AutoRefreshingReadLeaseTest) WrappedStillValid_Seek() {
-	AssertTrue(false, "TODO")
-}
+	// Seek
+	ExpectCall(rl, "Seek")(11, 2).
+		WillOnce(Return(0, errors.New("taco"))).
+		WillOnce(Return(17, nil))
 
-func (t *AutoRefreshingReadLeaseTest) WrappedStillValid_ReadAt() {
-	AssertTrue(false, "TODO")
+	_, err = t.lease.Seek(11, 2)
+	ExpectThat(err, Error(HasSubstr("taco")))
+
+	off, err := t.lease.Seek(11, 2)
+	ExpectEq(17, off)
+
+	// ReadAt
+	ExpectCall(rl, "ReadAt")(Any(), 11).
+		WillOnce(Return(0, errors.New("taco"))).
+		WillOnce(Return(17, nil))
+
+	_, err = t.lease.ReadAt([]byte{}, 11)
+	ExpectThat(err, Error(HasSubstr("taco")))
+
+	n, err = t.lease.ReadAt([]byte{}, 11)
+	ExpectEq(17, n)
 }
 
 func (t *AutoRefreshingReadLeaseTest) Revoke() {
