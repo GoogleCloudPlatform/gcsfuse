@@ -383,11 +383,19 @@ func (t *AutoRefreshingReadLeaseTest) Read_Successful() {
 	ExpectEq(contents[0:n], string(buf[0:n]))
 }
 
-func (t *AutoRefreshingReadLeaseTest) DowngradesAfterReadAt() {
+func (t *AutoRefreshingReadLeaseTest) ReadAt_Error() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *AutoRefreshingReadLeaseTest) DowngradesAfterSeek() {
+func (t *AutoRefreshingReadLeaseTest) ReadAt_Successful() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) Seek_Error() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) Seek_Successful() {
 	AssertTrue(false, "TODO")
 }
 
