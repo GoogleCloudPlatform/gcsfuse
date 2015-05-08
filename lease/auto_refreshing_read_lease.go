@@ -222,7 +222,13 @@ func (rl *autoRefreshingReadLease) Seek(
 
 	// Common case: is the existing lease still valid?
 	if rl.wrapped != nil {
-		panic("TODO")
+		off, err = rl.wrapped.Seek(offset, whence)
+		if !isRevokedErr(err) {
+			return
+		}
+
+		// Clear the revoked error.
+		err = nil
 	}
 
 	// Get hold of a read/write lease containing our contents.
@@ -254,7 +260,13 @@ func (rl *autoRefreshingReadLease) ReadAt(
 
 	// Common case: is the existing lease still valid?
 	if rl.wrapped != nil {
-		panic("TODO")
+		n, err = rl.wrapped.ReadAt(p, off)
+		if !isRevokedErr(err) {
+			return
+		}
+
+		// Clear the revoked error.
+		err = nil
 	}
 
 	// Get hold of a read/write lease containing our contents.
