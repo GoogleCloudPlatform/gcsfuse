@@ -565,14 +565,27 @@ func (t *AutoRefreshingReadLeaseTest) ReadAt_Successful() {
 }
 
 func (t *AutoRefreshingReadLeaseTest) Upgrade_Error() {
-	AssertTrue(false, "TODO")
+	// NewFile
+	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
+	ExpectCall(t.leaser, "NewFile")().
+		WillOnce(Return(rwl, nil))
+
+	// Write
+	ExpectCall(rwl, "Write")(Any()).
+		WillRepeatedly(Return(0, errors.New("taco")))
+
+	// Function
+	t.f = func() (rc io.ReadCloser, err error) {
+		rc = ioutil.NopCloser(strings.NewReader(contents))
+		return
+	}
+
+	// Call.
+	_, err := t.lease.Upgrade()
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *AutoRefreshingReadLeaseTest) Upgrade_Success() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *AutoRefreshingReadLeaseTest) Upgrade_Failure() {
+func (t *AutoRefreshingReadLeaseTest) Upgrade_Successful() {
 	AssertTrue(false, "TODO")
 }
 
