@@ -114,7 +114,34 @@ func (rl *autoRefreshingReadLease) getContents() (
 		}
 	}()
 
-	panic("TODO")
+	// Obtain the reader for our contents.
+	rc, err := rl.f()
+	if err != nil {
+		err = fmt.Errorf("User function: %v", err)
+		return
+	}
+
+	defer func() {
+		closeErr := rc.Close()
+		if err == nil {
+			err = fmt.Errorf("Close: %v", closeErr)
+		}
+	}()
+
+	// Copy into the read/write lease.
+	copied, err := io.Copy(rwl, rc)
+	if err != nil {
+		err = fmt.Errorf("Copy: %v", err)
+		return
+	}
+
+	// Did the user lie about the size?
+	if copied != rl.Size() {
+		err = fmt.Errorf("Copied %v bytes; expected %v", copied, rl.Size())
+		return
+	}
+
+	return
 }
 
 // Downgrade and save the supplied read/write lease obtained with getContents
