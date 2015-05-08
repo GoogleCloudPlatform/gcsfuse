@@ -637,14 +637,14 @@ func (t *AutoRefreshingReadLeaseTest) Revoke() {
 
 	// Further calls to all of our methods should return RevokedError.
 	_, err = t.lease.Read([]byte{})
-	ExpectThat(err, Error(HasSameTypeAs(&lease.RevokedError{})))
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 
 	_, err = t.lease.Seek(0, 0)
-	ExpectThat(err, Error(HasSameTypeAs(&lease.RevokedError{})))
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 
 	_, err = t.lease.ReadAt([]byte{}, 0)
-	ExpectThat(err, Error(HasSameTypeAs(&lease.RevokedError{})))
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 
 	_, err = t.lease.Upgrade()
-	ExpectThat(err, Error(HasSameTypeAs(&lease.RevokedError{})))
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 }
