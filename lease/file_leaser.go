@@ -26,8 +26,35 @@ import (
 
 // A type that manages read and read/write leases for anonymous temporary files.
 //
-// Safe for concurrent access. Must be created with NewFileLeaser.
-type FileLeaser struct {
+// Safe for concurrent access.
+type FileLeaser interface {
+	// Create a new anonymous file, and return a read/write lease for it. The
+	// read/write lease will pin resources until rwl.Downgrade is called. It need
+	// not be called if the process is exiting.
+	NewFile() (rwl ReadWriteLease, err error)
+}
+
+// Create a new file leaser that uses the supplied directory for temporary
+// files (before unlinking them) and attempts to keep usage in bytes below the
+// given limit. If dir is empty, the system default will be used.
+//
+// Usage may exceed the given limit if there are read/write leases whose total
+// size exceeds the limit, since such leases cannot be revoked.
+func NewFileLeaser(
+	dir string,
+	limitBytes int64) (fl *FileLeaser) {
+	fl = &FileLeaser{
+		dir:             dir,
+		limit:           limitBytes,
+		readLeasesIndex: make(map[*readLease]*list.Element),
+	}
+
+	fl.mu = syncutil.NewInvariantMutex(fl.checkInvariants)
+
+	return
+}
+
+type fileLeaser struct {
 	/////////////////////////
 	// Constant data
 	/////////////////////////
@@ -80,29 +107,6 @@ type FileLeaser struct {
 	readLeasesIndex map[*readLease]*list.Element
 }
 
-// Create a new file leaser that uses the supplied directory for temporary
-// files (before unlinking them) and attempts to keep usage in bytes below the
-// given limit. If dir is empty, the system default will be used.
-//
-// Usage may exceed the given limit if there are read/write leases whose total
-// size exceeds the limit, since such leases cannot be revoked.
-func NewFileLeaser(
-	dir string,
-	limitBytes int64) (fl *FileLeaser) {
-	fl = &FileLeaser{
-		dir:             dir,
-		limit:           limitBytes,
-		readLeasesIndex: make(map[*readLease]*list.Element),
-	}
-
-	fl.mu = syncutil.NewInvariantMutex(fl.checkInvariants)
-
-	return
-}
-
-// Create a new anonymous file, and return a read/write lease for it. The
-// read/write lease will pin resources until rwl.Downgrade is called. It need
-// not be called if the process is exiting.
 func (fl *FileLeaser) NewFile() (rwl ReadWriteLease, err error) {
 	// Create an anonymous file.
 	f, err := fsutil.AnonymousFile(fl.dir)
