@@ -14,7 +14,10 @@
 
 package lease
 
-import "io"
+import (
+	"io"
+	"sync"
+)
 
 // Create a ReadLease that never expires, unless voluntarily revoked or
 // upgraded.
@@ -39,9 +42,29 @@ func NewAutoRefreshingReadLease(
 }
 
 type autoRefreshingReadLease struct {
+	mu sync.Mutex
+
+	/////////////////////////
+	// Constant data
+	/////////////////////////
+
+	size int64
+
+	/////////////////////////
+	// Dependencies
+	/////////////////////////
+
 	leaser FileLeaser
-	size   int64
 	f      func() (io.ReadCloser, error)
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
+	// The current wrapped lease, or nil if one has never been issued.
+	//
+	// GUARDED_BY(mu)
+	wrapped ReadLease
 }
 
 ////////////////////////////////////////////////////////////////////////
