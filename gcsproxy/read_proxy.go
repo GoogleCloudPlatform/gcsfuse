@@ -15,6 +15,8 @@
 package gcsproxy
 
 import (
+	"io"
+
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcsfuse/lease"
 	"golang.org/x/net/context"
@@ -34,17 +36,28 @@ type ReadProxy struct {
 
 // Create a view on the given GCS object generation.
 func NewReadProxy(
+	leaser lease.FileLeaser,
 	bucket gcs.Bucket,
 	o *gcs.Object) (rp *ReadProxy) {
-	// TODO(jacobsa): Call NewReadProxyForLease with a function that calls
-	// bucket.NewReader.
-	panic("TODO")
+	// Set up a read lease.
+	rl := lease.NewAutoRefreshingReadLease(
+		leaser,
+		o.Size,
+		func() (rc io.ReadCloser, err error) {
+			rc, err = getObjectContents(o)
+			return
+		})
+
+	// Serve from that.
+	rp = NewReadProxyForLease(rl)
+
+	return
 }
 
 // Create a read proxy using a read lease, which is expected to never be
 // spontaneously revoked. For use in testing; most users will want NewReadProxy.
 func NewReadProxyForLease(
-	lease lease.ReadLease) (rp *ReadProxy) {
+	rl lease.ReadLease) (rp *ReadProxy) {
 	panic("TODO")
 }
 
@@ -73,5 +86,14 @@ func (rp *ReadProxy) ReadAt(
 	ctx context.Context,
 	buf []byte,
 	offset int64) (n int, err error) {
+	panic("TODO")
+}
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+// For use with NewAutoRefreshingReadLease.
+func getObjectContents(o *gcs.Object) (rc io.ReadCloser, err error) {
 	panic("TODO")
 }
