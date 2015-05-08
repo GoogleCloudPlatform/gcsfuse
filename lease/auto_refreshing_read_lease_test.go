@@ -657,13 +657,17 @@ func (t *AutoRefreshingReadLeaseTest) WrappedRevoked() {
 	ExpectCall(rl, "ReadAt")(Any(), Any()).
 		WillOnce(Return(0, &lease.RevokedError{}))
 
+	ExpectCall(rl, "Upgrade")().
+		WillOnce(Return(nil, &lease.RevokedError{}))
+
 	ExpectCall(t.leaser, "NewFile")().
-		Times(3).
+		Times(4).
 		WillRepeatedly(Return(nil, errors.New("")))
 
 	t.lease.Read([]byte{})
 	t.lease.Seek(0, 0)
 	t.lease.ReadAt([]byte{}, 0)
+	t.lease.Upgrade()
 }
 
 func (t *AutoRefreshingReadLeaseTest) WrappedStillValid() {
@@ -722,6 +726,17 @@ func (t *AutoRefreshingReadLeaseTest) WrappedStillValid() {
 
 	n, err = t.lease.ReadAt([]byte{}, 11)
 	ExpectEq(17, n)
+
+	// Upgrade
+	ExpectCall(rl, "Upgrade")().
+		WillOnce(Return(nil, errors.New("taco"))).
+		WillOnce(Return(rwl, nil))
+
+	_, err = t.lease.Upgrade()
+	ExpectThat(err, Error(HasSubstr("taco")))
+
+	tmp, _ := t.lease.Upgrade()
+	ExpectEq(rwl, tmp)
 }
 
 func (t *AutoRefreshingReadLeaseTest) Revoke() {
