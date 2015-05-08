@@ -41,6 +41,70 @@ func (t *AutoRefreshingReadLeaseTest) SetUp(ti *TestInfo) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *AutoRefreshingReadLeaseTest) DoesFoo() {
+func (t *AutoRefreshingReadLeaseTest) Size() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) LeaserReturnsError() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) CallsFunc() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) FuncReturnsError() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) ContentsReturnReadError() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) ContentsReturnCloseError() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) ContentsAreWrongLength() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) DowngradesAfterRead() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) DowngradesAfterReadAt() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) DowngradesAfterSeek() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) Upgrade_Error() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) Upgrade_Success() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) Upgrade_Failure() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) SecondRead_StillValid() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) SecondRead_Revoked_ErrorReading() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) SecondRead_Revoked_Successful() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) Revoke() {
 	AssertTrue(false, "TODO")
 }
