@@ -576,30 +576,75 @@ func (t *AutoRefreshingReadLeaseTest) Upgrade_Failure() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *AutoRefreshingReadLeaseTest) Revoked_Read() {
+func (t *AutoRefreshingReadLeaseTest) WrappedRevoked_Read() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *AutoRefreshingReadLeaseTest) Revoked_Seek() {
+func (t *AutoRefreshingReadLeaseTest) WrappedRevoked_Seek() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *AutoRefreshingReadLeaseTest) Revoked_ReadAt() {
+func (t *AutoRefreshingReadLeaseTest) WrappedRevoked_ReadAt() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *AutoRefreshingReadLeaseTest) StillValid_Read() {
+func (t *AutoRefreshingReadLeaseTest) WrappedStillValid_Read() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *AutoRefreshingReadLeaseTest) StillValid_Seek() {
+func (t *AutoRefreshingReadLeaseTest) WrappedStillValid_Seek() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *AutoRefreshingReadLeaseTest) StillValid_ReadAt() {
+func (t *AutoRefreshingReadLeaseTest) WrappedStillValid_ReadAt() {
 	AssertTrue(false, "TODO")
 }
 
 func (t *AutoRefreshingReadLeaseTest) Revoke() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Arrange a successful wrapped read lease.
+	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
+	ExpectCall(t.leaser, "NewFile")().
+		WillOnce(Return(rwl, nil))
+
+	ExpectCall(rwl, "Write")(Any()).
+		WillRepeatedly(Invoke(successfulWrite))
+
+	ExpectCall(rwl, "ReadAt")(Any(), Any()).
+		WillOnce(Return(0, errors.New("taco")))
+
+	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+
+	t.f = func() (rc io.ReadCloser, err error) {
+		rc = ioutil.NopCloser(strings.NewReader(contents))
+		return
+	}
+
+	_, err = t.lease.ReadAt([]byte{}, 0)
+
+	// Before revoking, Revoked should return false without needing to call
+	// through.
+	ExpectFalse(t.lease.Revoked())
+
+	// When we revoke our lease, the wrapped should be revoked as well.
+	ExpectCall(rl, "Revoke")()
+	t.lease.Revoke()
+
+	// Revoked should reflect this.
+	ExpectTrue(t.lease.Revoked())
+
+	// Further calls to all of our methods should return RevokedError.
+	_, err = t.lease.Read([]byte{})
+	ExpectThat(err, Error(HasSameTypeAs(&lease.RevokedError{})))
+
+	_, err = t.lease.Seek(0, 0)
+	ExpectThat(err, Error(HasSameTypeAs(&lease.RevokedError{})))
+
+	_, err = t.lease.ReadAt([]byte{}, 0)
+	ExpectThat(err, Error(HasSameTypeAs(&lease.RevokedError{})))
+
+	_, err = t.lease.Upgrade()
+	ExpectThat(err, Error(HasSameTypeAs(&lease.RevokedError{})))
 }
