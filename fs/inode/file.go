@@ -61,7 +61,7 @@ type FileInode struct {
 	// INVARIANT: proxy.Name() == name
 	//
 	// GUARDED_BY(mu)
-	proxy *gcsproxy.ObjectProxy
+	proxy *gcsproxy.MutableObject
 }
 
 var _ Inode = &FileInode{}
@@ -89,7 +89,7 @@ func NewFileInode(
 		id:           id,
 		name:         o.Name,
 		supportNlink: supportNlink,
-		proxy:        gcsproxy.NewObjectProxy(clock, bucket, o),
+		proxy:        gcsproxy.NewMutableObject(clock, bucket, o),
 	}
 
 	f.lc.Init(id)

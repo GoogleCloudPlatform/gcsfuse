@@ -43,7 +43,7 @@ var fTempDir = flag.String(
 //
 // This type is not safe for concurrent access. The user must provide external
 // synchronization around the methods where it is not otherwise noted.
-type ObjectProxy struct {
+type MutableObject struct {
 	/////////////////////////
 	// Dependencies
 	/////////////////////////
@@ -102,12 +102,12 @@ type StatResult struct {
 // Create a view on the given GCS object generation.
 //
 // REQUIRES: o != nil
-func NewObjectProxy(
+func NewMutableObject(
 	clock timeutil.Clock,
 	bucket gcs.Bucket,
-	o *gcs.Object) (op *ObjectProxy) {
+	o *gcs.Object) (mo *MutableObject) {
 	// Set up the basic struct.
-	op = &ObjectProxy{
+	mo = &MutableObject{
 		clock:            clock,
 		bucket:           bucket,
 		src:              *o,
@@ -122,8 +122,8 @@ func NewObjectProxy(
 // been deleted.
 //
 // May be called concurrently with any method.
-func (op *ObjectProxy) Name() string {
-	return op.src.Name
+func (mo *MutableObject) Name() string {
+	return mo.src.Name
 }
 
 // Return the generation of the object from which the current contents of this
@@ -133,49 +133,49 @@ func (op *ObjectProxy) Name() string {
 //
 // May be called concurrently with any method, but note that without excluding
 // concurrent calls to Sync this may change spontaneously.
-func (op *ObjectProxy) SourceGeneration() int64 {
-	return atomic.LoadInt64(&op.sourceGeneration)
+func (mo *MutableObject) SourceGeneration() int64 {
+	return atomic.LoadInt64(&mo.sourceGeneration)
 }
 
 // Panic if any internal invariants are violated. Careful users can call this
 // at appropriate times to help debug weirdness. Consider using
 // syncutil.InvariantMutex to automate the process.
-func (op *ObjectProxy) CheckInvariants() {
+func (mo *MutableObject) CheckInvariants() {
 	// INVARIANT: atomic.LoadInt64(&sourceGeneration) == src.Generation
 	{
-		g := atomic.LoadInt64(&op.sourceGeneration)
-		if g != op.src.Generation {
-			panic(fmt.Sprintf("Generation mismatch: %v vs. %v", g, op.src.Generation))
+		g := atomic.LoadInt64(&mo.sourceGeneration)
+		if g != mo.src.Generation {
+			panic(fmt.Sprintf("Generation mismatch: %v vs. %v", g, mo.src.Generation))
 		}
 	}
 
 	// INVARIANT: If dirty, then localFile != nil
-	if op.dirty && op.localFile == nil {
+	if mo.dirty && mo.localFile == nil {
 		panic("Expected non-nil localFile.")
 	}
 
 	// INVARIANT: If dirty, then mtime != nil
-	if op.dirty && op.mtime == nil {
+	if mo.dirty && mo.mtime == nil {
 		panic("Expected non-nil mtime.")
 	}
 }
 
 // Destroy any local file caches, putting the proxy into an indeterminate
 // state. Should be used before dropping the final reference to the proxy.
-func (op *ObjectProxy) Destroy() (err error) {
+func (mo *MutableObject) Destroy() (err error) {
 	// Make sure that when we exit no invariants are violated.
 	defer func() {
-		op.localFile = nil
-		op.dirty = false
+		mo.localFile = nil
+		mo.dirty = false
 	}()
 
 	// If we have no local file, there's nothing to do.
-	if op.localFile == nil {
+	if mo.localFile == nil {
 		return
 	}
 
 	// Close the local file.
-	if err = op.localFile.Close(); err != nil {
+	if err = mo.localFile.Close(); err != nil {
 		err = fmt.Errorf("Close: %v", err)
 		return
 	}
@@ -189,35 +189,35 @@ func (op *ObjectProxy) Destroy() (err error) {
 //
 // sr.Clobbered will be set only if needClobbered is true. Otherwise a round
 // trip to GCS can be saved.
-func (op *ObjectProxy) Stat(
+func (mo *MutableObject) Stat(
 	ctx context.Context,
 	needClobbered bool) (sr StatResult, err error) {
 	// If we have ever been modified, our mtime field is authoritative (even if
 	// we've been Sync'd, because Sync is not supposed to affect the mtime).
 	// Otherwise our source object's creation time is our mtime.
-	if op.mtime != nil {
-		sr.Mtime = *op.mtime
+	if mo.mtime != nil {
+		sr.Mtime = *mo.mtime
 	} else {
-		sr.Mtime = op.src.Updated
+		sr.Mtime = mo.src.Updated
 	}
 
 	// If we have a file, it is authoritative for our size. Otherwise our source
 	// size is authoritative.
-	if op.localFile != nil {
+	if mo.localFile != nil {
 		var fi os.FileInfo
-		if fi, err = op.localFile.Stat(); err != nil {
+		if fi, err = mo.localFile.Stat(); err != nil {
 			err = fmt.Errorf("Stat: %v", err)
 			return
 		}
 
 		sr.Size = fi.Size()
 	} else {
-		sr.Size = int64(op.src.Size)
+		sr.Size = int64(mo.src.Size)
 	}
 
 	// Figure out whether we were clobbered iff the user asked us to.
 	if needClobbered {
-		sr.Clobbered, err = op.clobbered(ctx)
+		sr.Clobbered, err = mo.clobbered(ctx)
 		if err != nil {
 			err = fmt.Errorf("clobbered: %v", err)
 			return
@@ -231,18 +231,18 @@ func (op *ObjectProxy) Stat(
 // network access.
 //
 // Guarantees that err != nil if n < len(buf)
-func (op *ObjectProxy) ReadAt(
+func (mo *MutableObject) ReadAt(
 	ctx context.Context,
 	buf []byte,
 	offset int64) (n int, err error) {
 	// Make sure we have a local file.
-	if err = op.ensureLocalFile(ctx); err != nil {
+	if err = mo.ensureLocalFile(ctx); err != nil {
 		err = fmt.Errorf("ensureLocalFile: %v", err)
 		return
 	}
 
 	// Serve the read from the file.
-	n, err = op.localFile.ReadAt(buf, offset)
+	n, err = mo.localFile.ReadAt(buf, offset)
 
 	return
 }
@@ -252,21 +252,21 @@ func (op *ObjectProxy) ReadAt(
 // called successfully.
 //
 // Guarantees that err != nil if n < len(buf)
-func (op *ObjectProxy) WriteAt(
+func (mo *MutableObject) WriteAt(
 	ctx context.Context,
 	buf []byte,
 	offset int64) (n int, err error) {
 	// Make sure we have a local file.
-	if err = op.ensureLocalFile(ctx); err != nil {
+	if err = mo.ensureLocalFile(ctx); err != nil {
 		err = fmt.Errorf("ensureLocalFile: %v", err)
 		return
 	}
 
-	newMtime := op.clock.Now()
+	newMtime := mo.clock.Now()
 
-	op.dirty = true
-	op.mtime = &newMtime
-	n, err = op.localFile.WriteAt(buf, offset)
+	mo.dirty = true
+	mo.mtime = &newMtime
+	n, err = mo.localFile.WriteAt(buf, offset)
 
 	return
 }
@@ -274,9 +274,9 @@ func (op *ObjectProxy) WriteAt(
 // Truncate our view of the content to the given number of bytes, extending if
 // n is greater than the current size. May block for network access. Not
 // guaranteed to be reflected remotely until after Sync is called successfully.
-func (op *ObjectProxy) Truncate(ctx context.Context, n int64) (err error) {
+func (mo *MutableObject) Truncate(ctx context.Context, n int64) (err error) {
 	// Make sure we have a local file.
-	if err = op.ensureLocalFile(ctx); err != nil {
+	if err = mo.ensureLocalFile(ctx); err != nil {
 		err = fmt.Errorf("ensureLocalFile: %v", err)
 		return
 	}
@@ -287,11 +287,11 @@ func (op *ObjectProxy) Truncate(ctx context.Context, n int64) (err error) {
 		return
 	}
 
-	newMtime := op.clock.Now()
+	newMtime := mo.clock.Now()
 
-	op.dirty = true
-	op.mtime = &newMtime
-	err = op.localFile.Truncate(int64(n))
+	mo.dirty = true
+	mo.mtime = &newMtime
+	err = mo.localFile.Truncate(int64(n))
 
 	return
 }
@@ -304,15 +304,15 @@ func (op *ObjectProxy) Truncate(ctx context.Context, n int64) (err error) {
 //
 // After this method successfully returns, SourceGeneration returns the
 // generation at which the contents are current.
-func (op *ObjectProxy) Sync(ctx context.Context) (err error) {
+func (mo *MutableObject) Sync(ctx context.Context) (err error) {
 	// Do we need to do anything?
-	if !op.dirty {
+	if !mo.dirty {
 		return
 	}
 
 	// Seek the file to the start so that it can be used as a reader for its full
 	// contents below.
-	_, err = op.localFile.Seek(0, 0)
+	_, err = mo.localFile.Seek(0, 0)
 	if err != nil {
 		err = fmt.Errorf("Seek: %v", err)
 		return
@@ -321,12 +321,12 @@ func (op *ObjectProxy) Sync(ctx context.Context) (err error) {
 	// Write a new generation of the object with the appropriate contents, using
 	// an appropriate precondition.
 	req := &gcs.CreateObjectRequest{
-		Name:                   op.src.Name,
-		Contents:               op.localFile,
-		GenerationPrecondition: &op.src.Generation,
+		Name:                   mo.src.Name,
+		Contents:               mo.localFile,
+		GenerationPrecondition: &mo.src.Generation,
 	}
 
-	o, err := op.bucket.CreateObject(ctx, req)
+	o, err := mo.bucket.CreateObject(ctx, req)
 
 	// Special case: handle precondition errors.
 	if _, ok := err.(*gcs.PreconditionError); ok {
@@ -344,9 +344,9 @@ func (op *ObjectProxy) Sync(ctx context.Context) (err error) {
 	}
 
 	// Update our state.
-	op.src = *o
-	op.dirty = false
-	atomic.StoreInt64(&op.sourceGeneration, op.src.Generation)
+	mo.src = *o
+	mo.dirty = false
+	atomic.StoreInt64(&mo.sourceGeneration, mo.src.Generation)
 
 	return
 }
@@ -404,30 +404,30 @@ func makeLocalFile(
 	return
 }
 
-// Ensure that op.localFile is non-nil with an authoritative view of op's
+// Ensure that mo.localFile is non-nil with an authoritative view of mo's
 // contents.
-func (op *ObjectProxy) ensureLocalFile(ctx context.Context) (err error) {
+func (mo *MutableObject) ensureLocalFile(ctx context.Context) (err error) {
 	// Is there anything to do?
-	if op.localFile != nil {
+	if mo.localFile != nil {
 		return
 	}
 
 	// Set up the file.
-	f, err := makeLocalFile(ctx, op.bucket, op.Name(), op.src.Generation)
+	f, err := makeLocalFile(ctx, mo.bucket, mo.Name(), mo.src.Generation)
 	if err != nil {
 		err = fmt.Errorf("makeLocalFile: %v", err)
 		return
 	}
 
-	op.localFile = f
+	mo.localFile = f
 	return
 }
 
-func (op *ObjectProxy) clobbered(
+func (mo *MutableObject) clobbered(
 	ctx context.Context) (clobbered bool, err error) {
 	// Stat the object in GCS.
-	req := &gcs.StatObjectRequest{Name: op.Name()}
-	o, err := op.bucket.StatObject(ctx, req)
+	req := &gcs.StatObjectRequest{Name: mo.Name()}
+	o, err := mo.bucket.StatObject(ctx, req)
 
 	// Special case: "not found" means we have been clobbered.
 	if _, ok := err.(*gcs.NotFoundError); ok {
@@ -443,7 +443,7 @@ func (op *ObjectProxy) clobbered(
 	}
 
 	// We are clobbered iff the generation doesn't match our source generation.
-	clobbered = (o.Generation != op.src.Generation)
+	clobbered = (o.Generation != mo.src.Generation)
 
 	return
 }
