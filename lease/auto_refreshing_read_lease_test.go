@@ -79,7 +79,7 @@ func (t *AutoRefreshingReadLeaseTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *AutoRefreshingReadLeaseTest) Size() {
-	AssertTrue(false, "TODO")
+	ExpectEq(len(contents), t.lease.Size())
 }
 
 func (t *AutoRefreshingReadLeaseTest) LeaserReturnsError() {
