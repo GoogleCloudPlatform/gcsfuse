@@ -29,5 +29,51 @@ func NewAutoRefreshingReadLease(
 	fl FileLeaser,
 	size int64,
 	f func() (io.ReadCloser, error)) (rl ReadLease) {
+	rl = &autoRefreshingReadLease{
+		leaser: fl,
+		size:   size,
+		f:      f,
+	}
+
+	return
+}
+
+type autoRefreshingReadLease struct {
+	leaser FileLeaser
+	size   int64
+	f      func() (io.ReadCloser, error)
+}
+
+////////////////////////////////////////////////////////////////////////
+// Public interface
+////////////////////////////////////////////////////////////////////////
+
+func (rl *autoRefreshingReadLease) Read(p []byte) (n int, err error) {
+	panic("TODO")
+}
+
+func (rl *autoRefreshingReadLease) Seek(
+	offset int64,
+	whence int) (off int64, err error) {
+	panic("TODO")
+}
+
+func (rl *autoRefreshingReadLease) ReadAt(p []byte, off int64) (n int, err error) {
+	panic("TODO")
+}
+
+func (rl *autoRefreshingReadLease) Size() (size int64) {
+	panic("TODO")
+}
+
+func (rl *autoRefreshingReadLease) Revoked() (revoked bool) {
+	panic("TODO")
+}
+
+func (rl *autoRefreshingReadLease) Upgrade() (rwl ReadWriteLease, err error) {
+	panic("TODO")
+}
+
+func (rl *autoRefreshingReadLease) Revoke() {
 	panic("TODO")
 }
