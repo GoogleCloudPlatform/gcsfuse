@@ -618,7 +618,7 @@ func (t *AutoRefreshingReadLeaseTest) Upgrade_Successful() {
 	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 }
 
-func (t *AutoRefreshingReadLeaseTest) WrappedRevoked_Read() {
+func (t *AutoRefreshingReadLeaseTest) WrappedRevoked() {
 	// Arrange a successful wrapped read lease.
 	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
 	ExpectCall(t.leaser, "NewFile")().
@@ -644,18 +644,19 @@ func (t *AutoRefreshingReadLeaseTest) WrappedRevoked_Read() {
 	ExpectCall(rl, "Read")(Any()).
 		WillOnce(Return(0, &lease.RevokedError{}))
 
+	ExpectCall(rl, "Seek")(Any(), Any()).
+		WillOnce(Return(0, &lease.RevokedError{}))
+
+	ExpectCall(rl, "ReadAt")(Any(), Any()).
+		WillOnce(Return(0, &lease.RevokedError{}))
+
 	ExpectCall(t.leaser, "NewFile")().
-		WillOnce(Return(nil, errors.New("")))
+		Times(3).
+		WillRepeatedly(Return(nil, errors.New("")))
 
 	t.lease.Read([]byte{})
-}
-
-func (t *AutoRefreshingReadLeaseTest) WrappedRevoked_Seek() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *AutoRefreshingReadLeaseTest) WrappedRevoked_ReadAt() {
-	AssertTrue(false, "TODO")
+	t.lease.Seek(0, 0)
+	t.lease.ReadAt([]byte{}, 0)
 }
 
 func (t *AutoRefreshingReadLeaseTest) WrappedStillValid_Read() {
