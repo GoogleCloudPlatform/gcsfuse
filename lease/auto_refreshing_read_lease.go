@@ -261,5 +261,11 @@ func (rl *autoRefreshingReadLease) Upgrade() (rwl ReadWriteLease, err error) {
 }
 
 func (rl *autoRefreshingReadLease) Revoke() {
-	panic("TODO")
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	rl.revoked = true
+	if rl.wrapped != nil {
+		rl.wrapped.Revoke()
+	}
 }
