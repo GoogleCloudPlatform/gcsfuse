@@ -296,6 +296,9 @@ func (rl *autoRefreshingReadLease) Upgrade() (rwl ReadWriteLease, err error) {
 		return
 	}
 
+	// We are now revoked.
+	rl.revoked = true
+
 	return
 }
 
