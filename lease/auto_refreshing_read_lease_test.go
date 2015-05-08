@@ -574,6 +574,11 @@ func (t *AutoRefreshingReadLeaseTest) Upgrade_Error() {
 	ExpectCall(rwl, "Write")(Any()).
 		WillRepeatedly(Return(0, errors.New("taco")))
 
+	// Downgrade and Revoke
+	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rl, "Revoke")()
+
 	// Function
 	t.f = func() (rc io.ReadCloser, err error) {
 		rc = ioutil.NopCloser(strings.NewReader(contents))
