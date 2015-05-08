@@ -86,7 +86,8 @@ func (rl *autoRefreshingReadLease) ReadAt(p []byte, off int64) (n int, err error
 }
 
 func (rl *autoRefreshingReadLease) Size() (size int64) {
-	panic("TODO")
+	size = rl.size
+	return
 }
 
 func (rl *autoRefreshingReadLease) Revoked() (revoked bool) {
