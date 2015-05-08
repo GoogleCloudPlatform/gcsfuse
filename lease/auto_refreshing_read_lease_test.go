@@ -15,6 +15,7 @@
 package lease_test
 
 import (
+	"errors"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -22,6 +23,8 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/lease/mock_lease"
+	. "github.com/jacobsa/oglematchers"
+	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -83,7 +86,15 @@ func (t *AutoRefreshingReadLeaseTest) Size() {
 }
 
 func (t *AutoRefreshingReadLeaseTest) LeaserReturnsError() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// NewFile
+	ExpectCall(t.leaser, "NewFile")().
+		WillOnce(Return(nil, errors.New("taco")))
+
+	// Attempt to read.
+	_, err = t.lease.Read([]byte{})
+	ExpectThat(err, HasSubstr("taco"))
 }
 
 func (t *AutoRefreshingReadLeaseTest) CallsFunc() {
