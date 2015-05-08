@@ -471,15 +471,27 @@ func (t *AutoRefreshingReadLeaseTest) Upgrade_Failure() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *AutoRefreshingReadLeaseTest) SecondRead_StillValid() {
+func (t *AutoRefreshingReadLeaseTest) Revoked_Read() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *AutoRefreshingReadLeaseTest) SecondRead_Revoked_ErrorReading() {
+func (t *AutoRefreshingReadLeaseTest) Revoked_Seek() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *AutoRefreshingReadLeaseTest) SecondRead_Revoked_Successful() {
+func (t *AutoRefreshingReadLeaseTest) Revoked_ReadAt() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) StillValid_Read() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) StillValid_Seek() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) StillValid_ReadAt() {
 	AssertTrue(false, "TODO")
 }
 
