@@ -73,6 +73,17 @@ func downgrade(rwl lease.ReadWriteLease) (rl lease.ReadLease) {
 	return
 }
 
+// Upgrade the supplied lease or panic.
+func upgrade(rl lease.ReadLease) (rwl lease.ReadWriteLease) {
+	var err error
+	defer panicIf(&err)
+
+	// Attempt to upgrade.
+	rwl, err = rl.Upgrade()
+
+	return
+}
+
 func growBy(w io.WriteSeeker, n int) {
 	var err error
 	defer panicIf(&err)
@@ -277,8 +288,8 @@ func (t *FileLeaserTest) DowngradeThenUpgradeThenObserve() {
 	AssertEq(nil, err)
 
 	// Upgrade again.
-	rwl = rl.Upgrade()
-	AssertNe(nil, rwl)
+	rwl, err = rl.Upgrade()
+	AssertEq(nil, err)
 
 	// Interacting with the read lease should no longer work.
 	_, err = rl.Read(buf)
@@ -290,7 +301,8 @@ func (t *FileLeaserTest) DowngradeThenUpgradeThenObserve() {
 	_, err = rl.ReadAt(buf, 0)
 	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 
-	tmp := rl.Upgrade()
+	tmp, err := rl.Upgrade()
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 	ExpectEq(nil, tmp)
 
 	// Calling Revoke should cause nothing nasty to happen.
@@ -339,7 +351,8 @@ func (t *FileLeaserTest) DowngradeFileWhoseSizeIsAboveLimit() {
 	_, err = rl.ReadAt(buf, 0)
 	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 
-	tmp := rl.Upgrade()
+	tmp, err := rl.Upgrade()
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 	ExpectEq(nil, tmp)
 }
 
@@ -473,7 +486,7 @@ func (t *FileLeaserTest) EvictionIsLRU() {
 	AssertFalse(rl3.Revoked())
 
 	// Downgrading and upgrading the read/write lease should change nothing.
-	rwl = downgrade(rwl).Upgrade()
+	rwl = upgrade(downgrade(rwl))
 	AssertNe(nil, rwl)
 
 	AssertTrue(rl0.Revoked())
