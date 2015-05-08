@@ -268,12 +268,19 @@ func (t *AutoRefreshingReadLeaseTest) WritesCorrectData() {
 	// Write
 	var written []byte
 	ExpectCall(rwl, "Write")(Any()).
-		WillRepeatedly(Invoke(successfulWrite))
+		WillRepeatedly(Invoke(func(p []byte) (n int, err error) {
+		written = append(written, p...)
+		n = len(p)
+		return
+	}))
 
-	// Downgrade and Revoke
+	// Read
+	ExpectCall(rwl, "Read")(Any()).
+		WillRepeatedly(Return(0, errors.New("")))
+
+	// Downgrade
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
 	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
-	ExpectCall(rl, "Revoke")()
 
 	// Function
 	t.f = func() (rc io.ReadCloser, err error) {
@@ -281,7 +288,7 @@ func (t *AutoRefreshingReadLeaseTest) WritesCorrectData() {
 		return
 	}
 
-	// Attempt to read.
+	// Call.
 	t.lease.Read([]byte{})
 	ExpectEq(contents, string(written))
 }
