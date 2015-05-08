@@ -384,7 +384,34 @@ func (t *AutoRefreshingReadLeaseTest) Read_Successful() {
 }
 
 func (t *AutoRefreshingReadLeaseTest) Seek_CallsWrapped() {
-	AssertTrue(false, "TODO")
+	const offset = 17
+	const whence = 2
+
+	// NewFile
+	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
+	ExpectCall(t.leaser, "NewFile")().
+		WillOnce(Return(rwl, nil))
+
+	// Write
+	ExpectCall(rwl, "Write")(Any()).
+		WillRepeatedly(Invoke(successfulWrite))
+
+	// Seek
+	ExpectCall(rwl, "Seek")(offset, whence).
+		WillOnce(Return(0, errors.New("")))
+
+	// Downgrade
+	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+
+	// Function
+	t.f = func() (rc io.ReadCloser, err error) {
+		rc = ioutil.NopCloser(strings.NewReader(contents))
+		return
+	}
+
+	// Call.
+	t.lease.Seek(offset, whence)
 }
 
 func (t *AutoRefreshingReadLeaseTest) Seek_Error() {
@@ -407,7 +434,7 @@ func (t *AutoRefreshingReadLeaseTest) ReadAt_CallsWrapped() {
 	ExpectCall(rwl, "Write")(Any()).
 		WillRepeatedly(Invoke(successfulWrite))
 
-	// Read
+	// ReadAt
 	ExpectCall(rwl, "ReadAt")(Any(), 17).
 		WillOnce(Return(0, errors.New("")))
 
@@ -435,7 +462,7 @@ func (t *AutoRefreshingReadLeaseTest) ReadAt_Error() {
 	ExpectCall(rwl, "Write")(Any()).
 		WillRepeatedly(Invoke(successfulWrite))
 
-	// Read
+	// ReadAt
 	ExpectCall(rwl, "ReadAt")(Any(), Any()).
 		WillOnce(Return(0, errors.New("taco")))
 
