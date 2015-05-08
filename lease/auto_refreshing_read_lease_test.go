@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"testing"
+	"testing/iotest"
 
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/lease/mock_lease"
@@ -147,7 +148,34 @@ func (t *AutoRefreshingReadLeaseTest) FuncReturnsError() {
 }
 
 func (t *AutoRefreshingReadLeaseTest) ContentsReturnReadError() {
-	AssertTrue(false, "TODO")
+	// NewFile
+	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
+	ExpectCall(t.leaser, "NewFile")().
+		WillOnce(Return(rwl, nil))
+
+	// Write
+	ExpectCall(rwl, "Write")(Any()).
+		WillRepeatedly(Invoke(func(p []byte) (int, error) { return len(p), nil }))
+
+	// Downgrade and Revoke
+	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rl, "Revoke")()
+
+	// Function
+	t.f = func() (rc io.ReadCloser, err error) {
+		rc = ioutil.NopCloser(
+			iotest.TimeoutReader(
+				iotest.OneByteReader(
+					strings.NewReader(contents))))
+
+		return
+	}
+
+	// Attempt to read.
+	_, err := t.lease.Read([]byte{})
+	ExpectThat(err, Error(HasSubstr("Copy")))
+	ExpectThat(err, Error(HasSubstr("timeout")))
 }
 
 func (t *AutoRefreshingReadLeaseTest) ContentsReturnCloseError() {
