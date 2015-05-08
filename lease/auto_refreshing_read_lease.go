@@ -123,7 +123,7 @@ func (rl *autoRefreshingReadLease) getContents() (
 
 	defer func() {
 		closeErr := rc.Close()
-		if err == nil {
+		if closeErr != nil && err == nil {
 			err = fmt.Errorf("Close: %v", closeErr)
 		}
 	}()

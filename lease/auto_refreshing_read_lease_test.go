@@ -43,6 +43,11 @@ func returnContents() (rc io.ReadCloser, err error) {
 	return
 }
 
+func successfulWrite(p []byte) (n int, err error) {
+	n = len(p)
+	return
+}
+
 // A ReadCloser that returns the supplied error when closing.
 type closeErrorReader struct {
 	Wrapped io.Reader
@@ -171,7 +176,7 @@ func (t *AutoRefreshingReadLeaseTest) ContentsReturnReadError() {
 
 	// Write
 	ExpectCall(rwl, "Write")(Any()).
-		WillRepeatedly(Invoke(func(p []byte) (int, error) { return len(p), nil }))
+		WillRepeatedly(Invoke(successfulWrite))
 
 	// Downgrade and Revoke
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
@@ -202,7 +207,7 @@ func (t *AutoRefreshingReadLeaseTest) ContentsReturnCloseError() {
 
 	// Write
 	ExpectCall(rwl, "Write")(Any()).
-		WillRepeatedly(Invoke(func(p []byte) (int, error) { return len(p), nil }))
+		WillRepeatedly(Invoke(successfulWrite))
 
 	// Downgrade and Revoke
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
@@ -235,7 +240,7 @@ func (t *AutoRefreshingReadLeaseTest) ContentsAreWrongLength() {
 
 	// Write
 	ExpectCall(rwl, "Write")(Any()).
-		WillRepeatedly(Invoke(func(p []byte) (int, error) { return len(p), nil }))
+		WillRepeatedly(Invoke(successfulWrite))
 
 	// Downgrade and Revoke
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
@@ -263,10 +268,7 @@ func (t *AutoRefreshingReadLeaseTest) WritesCorrectData() {
 	// Write
 	var written []byte
 	ExpectCall(rwl, "Write")(Any()).
-		WillRepeatedly(Invoke(func(p []byte) (int, error) {
-		written = append(written, p...)
-		return len(p), nil
-	}))
+		WillRepeatedly(Invoke(successfulWrite))
 
 	// Downgrade and Revoke
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
@@ -311,7 +313,11 @@ func (t *AutoRefreshingReadLeaseTest) WriteError() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *AutoRefreshingReadLeaseTest) DowngradesAfterRead() {
+func (t *AutoRefreshingReadLeaseTest) Read_Error() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) Read_Successful() {
 	AssertTrue(false, "TODO")
 }
 
