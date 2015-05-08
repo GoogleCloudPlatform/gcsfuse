@@ -106,10 +106,14 @@ func (t *AutoRefreshingReadLeaseTest) CallsFunc() {
 	ExpectCall(t.leaser, "NewFile")().
 		WillOnce(Return(rwl, nil))
 
+	// Downgrade
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(nil, errors.New("")))
+
 	// Function
 	var called bool
 	t.f = func() (rc io.ReadCloser, err error) {
 		AssertFalse(called)
+		called = true
 
 		err = errors.New("")
 		return
