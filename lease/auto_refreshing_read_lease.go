@@ -15,6 +15,7 @@
 package lease
 
 import (
+	"fmt"
 	"io"
 	"sync"
 )
@@ -68,11 +69,53 @@ type autoRefreshingReadLease struct {
 }
 
 ////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+// Set up a read/write lease and fill in our contents.
+//
+// REQUIRES: The caller has observed that rl.lease has expired.
+//
+// LOCKS_REQUIRED(rl.mu)
+func (rl *autoRefreshingReadLease) getContents() (
+	rwl ReadWriteLease, err error) {
+	panic("TODO")
+}
+
+// Downgrade and save the supplied read/write lease obtained with getContents
+// for later use.
+//
+// LOCKS_REQUIRED(rl.mu)
+func (rl *autoRefreshingReadLease) saveContents(rwl ReadWriteLease) {
+	panic("TODO")
+}
+
+////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
 func (rl *autoRefreshingReadLease) Read(p []byte) (n int, err error) {
-	panic("TODO")
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	// Common case: is the existing lease still valid?
+	if rl.wrapped != nil {
+		panic("TODO")
+	}
+
+	// Get hold of a read/write lease containing our contents.
+	rwl, err := rl.getContents()
+	if err != nil {
+		err = fmt.Errorf("getContents: %v", err)
+		return
+	}
+
+	defer rl.saveContents(rwl)
+
+	// Serve from the read/write lease.
+	n, err = rwl.Read(p)
+
+	return
 }
 
 func (rl *autoRefreshingReadLease) Seek(
