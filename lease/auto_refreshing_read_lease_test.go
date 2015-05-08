@@ -255,8 +255,6 @@ func (t *AutoRefreshingReadLeaseTest) ContentsAreWrongLength() {
 }
 
 func (t *AutoRefreshingReadLeaseTest) WritesCorrectData() {
-	AssertEq(4, len(contents))
-
 	// NewFile
 	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
 	ExpectCall(t.leaser, "NewFile")().
@@ -287,7 +285,30 @@ func (t *AutoRefreshingReadLeaseTest) WritesCorrectData() {
 }
 
 func (t *AutoRefreshingReadLeaseTest) WriteError() {
-	AssertTrue(false, "TODO")
+	// NewFile
+	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
+	ExpectCall(t.leaser, "NewFile")().
+		WillOnce(Return(rwl, nil))
+
+	// Write
+	ExpectCall(rwl, "Write")(Any()).
+		WillOnce(Return(0, errors.New("taco")))
+
+	// Downgrade and Revoke
+	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rl, "Revoke")()
+
+	// Function
+	t.f = func() (rc io.ReadCloser, err error) {
+		rc = ioutil.NopCloser(strings.NewReader(contents))
+		return
+	}
+
+	// Attempt to read.
+	_, err := t.lease.Read([]byte{})
+	ExpectThat(err, Error(HasSubstr("Copy")))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *AutoRefreshingReadLeaseTest) DowngradesAfterRead() {
