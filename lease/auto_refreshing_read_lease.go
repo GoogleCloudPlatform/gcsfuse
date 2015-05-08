@@ -63,6 +63,11 @@ type autoRefreshingReadLease struct {
 	// Mutable state
 	/////////////////////////
 
+	// Set to true when we've been revoked for good.
+	//
+	// GUARDED_BY(mu)
+	revoked bool
+
 	// The current wrapped lease, or nil if one has never been issued.
 	//
 	// GUARDED_BY(mu)
@@ -244,7 +249,11 @@ func (rl *autoRefreshingReadLease) Size() (size int64) {
 }
 
 func (rl *autoRefreshingReadLease) Revoked() (revoked bool) {
-	panic("TODO")
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	revoked = rl.revoked
+	return
 }
 
 func (rl *autoRefreshingReadLease) Upgrade() (rwl ReadWriteLease, err error) {
