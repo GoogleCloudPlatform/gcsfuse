@@ -51,8 +51,9 @@ type AutoRefreshingReadLeaseTest struct {
 	// NewAutoRefreshingReadLease.
 	f func() (io.ReadCloser, error)
 
-	leaser mock_lease.MockFileLeaser
-	lease  lease.ReadLease
+	mockController Controller
+	leaser         mock_lease.MockFileLeaser
+	lease          lease.ReadLease
 }
 
 var _ SetUpInterface = &AutoRefreshingReadLeaseTest{}
@@ -60,6 +61,8 @@ var _ SetUpInterface = &AutoRefreshingReadLeaseTest{}
 func init() { RegisterTestSuite(&AutoRefreshingReadLeaseTest{}) }
 
 func (t *AutoRefreshingReadLeaseTest) SetUp(ti *TestInfo) {
+	t.mockController = ti.MockController
+
 	// Set up a function that defers to whatever is currently set as t.f.
 	f := func() (rc io.ReadCloser, err error) {
 		AssertNe(nil, t.f)
@@ -98,7 +101,23 @@ func (t *AutoRefreshingReadLeaseTest) LeaserReturnsError() {
 }
 
 func (t *AutoRefreshingReadLeaseTest) CallsFunc() {
-	AssertTrue(false, "TODO")
+	// NewFile
+	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
+	ExpectCall(t.leaser, "NewFile")().
+		WillOnce(Return(rwl, nil))
+
+	// Function
+	var called bool
+	t.f = func() (rc io.ReadCloser, err error) {
+		AssertFalse(called)
+
+		err = errors.New("")
+		return
+	}
+
+	// Attempt to read.
+	t.lease.Read([]byte{})
+	ExpectTrue(called)
 }
 
 func (t *AutoRefreshingReadLeaseTest) FuncReturnsError() {
