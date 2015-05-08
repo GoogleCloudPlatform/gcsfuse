@@ -125,7 +125,25 @@ func (t *AutoRefreshingReadLeaseTest) CallsFunc() {
 }
 
 func (t *AutoRefreshingReadLeaseTest) FuncReturnsError() {
-	AssertTrue(false, "TODO")
+	// NewFile
+	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
+	ExpectCall(t.leaser, "NewFile")().
+		WillOnce(Return(rwl, nil))
+
+	// Downgrade and Revoke
+	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rl, "Revoke")()
+
+	// Function
+	t.f = func() (rc io.ReadCloser, err error) {
+		err = errors.New("taco")
+		return
+	}
+
+	// Attempt to read.
+	_, err := t.lease.Read([]byte{})
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *AutoRefreshingReadLeaseTest) ContentsReturnReadError() {
