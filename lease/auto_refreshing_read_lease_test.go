@@ -383,6 +383,36 @@ func (t *AutoRefreshingReadLeaseTest) Read_Successful() {
 	ExpectEq(contents[0:n], string(buf[0:n]))
 }
 
+func (t *AutoRefreshingReadLeaseTest) ReadAt_CallsWrapped() {
+	const offset = 17
+
+	// NewFile
+	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
+	ExpectCall(t.leaser, "NewFile")().
+		WillOnce(Return(rwl, nil))
+
+	// Write
+	ExpectCall(rwl, "Write")(Any()).
+		WillRepeatedly(Invoke(successfulWrite))
+
+	// Read
+	ExpectCall(rwl, "ReadAt")(Any(), 17).
+		WillOnce(Return(0, errors.New("")))
+
+	// Downgrade
+	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+
+	// Function
+	t.f = func() (rc io.ReadCloser, err error) {
+		rc = ioutil.NopCloser(strings.NewReader(contents))
+		return
+	}
+
+	// Call.
+	t.lease.ReadAt([]byte{}, offset)
+}
+
 func (t *AutoRefreshingReadLeaseTest) ReadAt_Error() {
 	// NewFile
 	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
@@ -408,13 +438,16 @@ func (t *AutoRefreshingReadLeaseTest) ReadAt_Error() {
 	}
 
 	// Call.
-	buf := make([]byte, 1)
-	_, err := t.lease.ReadAt(buf, 0)
+	_, err := t.lease.ReadAt([]byte{}, 0)
 
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *AutoRefreshingReadLeaseTest) ReadAt_Successful() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AutoRefreshingReadLeaseTest) Seek_CallsWrapped() {
 	AssertTrue(false, "TODO")
 }
 
