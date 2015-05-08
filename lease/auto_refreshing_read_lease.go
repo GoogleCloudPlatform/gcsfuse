@@ -275,7 +275,28 @@ func (rl *autoRefreshingReadLease) Revoked() (revoked bool) {
 }
 
 func (rl *autoRefreshingReadLease) Upgrade() (rwl ReadWriteLease, err error) {
-	panic("TODO")
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	// Special case: have we been permanently revoked?
+	if rl.revoked {
+		err = &RevokedError{}
+		return
+	}
+
+	// Common case: is the existing lease still valid?
+	if rl.wrapped != nil {
+		panic("TODO")
+	}
+
+	// Build the read/write lease anew.
+	rwl, err = rl.getContents()
+	if err != nil {
+		err = fmt.Errorf("getContents: %v", err)
+		return
+	}
+
+	return
 }
 
 func (rl *autoRefreshingReadLease) Revoke() {

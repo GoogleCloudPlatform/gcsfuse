@@ -605,6 +605,12 @@ func (t *AutoRefreshingReadLeaseTest) Upgrade_Successful() {
 	rwl, err := t.lease.Upgrade()
 	AssertEq(nil, err)
 	ExpectEq(expected, rwl)
+
+	// The read lease should now be revoked.
+	ExpectTrue(t.lease.Revoked())
+
+	_, err = t.lease.Upgrade()
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 }
 
 func (t *AutoRefreshingReadLeaseTest) WrappedRevoked_Read() {
