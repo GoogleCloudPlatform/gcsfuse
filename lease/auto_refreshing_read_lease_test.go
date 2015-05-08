@@ -94,7 +94,7 @@ func (t *AutoRefreshingReadLeaseTest) LeaserReturnsError() {
 
 	// Attempt to read.
 	_, err = t.lease.Read([]byte{})
-	ExpectThat(err, HasSubstr("taco"))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *AutoRefreshingReadLeaseTest) CallsFunc() {
