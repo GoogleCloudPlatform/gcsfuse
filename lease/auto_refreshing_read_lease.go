@@ -149,7 +149,13 @@ func (rl *autoRefreshingReadLease) getContents() (
 //
 // LOCKS_REQUIRED(rl.mu)
 func (rl *autoRefreshingReadLease) saveContents(rwl ReadWriteLease) {
-	panic("TODO")
+	downgraded, err := rwl.Downgrade()
+	if err != nil {
+		log.Printf("Failed to downgrade write lease (%q); abandoning.", err.Error())
+		return
+	}
+
+	rl.wrapped = downgraded
 }
 
 ////////////////////////////////////////////////////////////////////////
