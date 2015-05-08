@@ -98,6 +98,11 @@ func destroyReadWriteLease(rwl ReadWriteLease) {
 	rl.Revoke()
 }
 
+func isRevokedErr(err error) bool {
+	_, ok := err.(*RevokedError)
+	return ok
+}
+
 // Set up a read/write lease and fill in our contents.
 //
 // REQUIRES: The caller has observed that rl.lease has expired.
@@ -179,7 +184,13 @@ func (rl *autoRefreshingReadLease) Read(p []byte) (n int, err error) {
 
 	// Common case: is the existing lease still valid?
 	if rl.wrapped != nil {
-		panic("TODO")
+		n, err = rl.wrapped.Read(p)
+		if !isRevokedErr(err) {
+			panic("TODO")
+		}
+
+		// Clear the revoked error.
+		err = nil
 	}
 
 	// Get hold of a read/write lease containing our contents.
