@@ -43,6 +43,22 @@ func returnContents() (rc io.ReadCloser, err error) {
 	return
 }
 
+// A ReadCloser that returns the supplied error when closing.
+type closeErrorReader struct {
+	Wrapped io.Reader
+	Err     error
+}
+
+func (rc *closeErrorReader) Read(p []byte) (n int, err error) {
+	n, err = rc.Wrapped.Read(p)
+	return
+}
+
+func (rc *closeErrorReader) Close() (err error) {
+	err = rc.Err
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
@@ -179,7 +195,34 @@ func (t *AutoRefreshingReadLeaseTest) ContentsReturnReadError() {
 }
 
 func (t *AutoRefreshingReadLeaseTest) ContentsReturnCloseError() {
-	AssertTrue(false, "TODO")
+	// NewFile
+	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
+	ExpectCall(t.leaser, "NewFile")().
+		WillOnce(Return(rwl, nil))
+
+	// Write
+	ExpectCall(rwl, "Write")(Any()).
+		WillRepeatedly(Invoke(func(p []byte) (int, error) { return len(p), nil }))
+
+	// Downgrade and Revoke
+	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rl, "Revoke")()
+
+	// Function
+	t.f = func() (rc io.ReadCloser, err error) {
+		rc = &closeErrorReader{
+			Wrapped: strings.NewReader(contents),
+			Err:     errors.New("taco"),
+		}
+
+		return
+	}
+
+	// Attempt to read.
+	_, err := t.lease.Read([]byte{})
+	ExpectThat(err, Error(HasSubstr("Close")))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *AutoRefreshingReadLeaseTest) ContentsAreWrongLength() {
