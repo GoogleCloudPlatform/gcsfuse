@@ -48,6 +48,8 @@ type MutableObject struct {
 	// Mutable state
 	/////////////////////////
 
+	destroyed bool
+
 	// A record for the specific generation of the object from which our local
 	// state is branched.
 	src gcs.Object
@@ -139,6 +141,10 @@ func (mo *MutableObject) SourceGeneration() int64 {
 // at appropriate times to help debug weirdness. Consider using
 // syncutil.InvariantMutex to automate the process.
 func (mo *MutableObject) CheckInvariants() {
+	if mo.destroyed {
+		return
+	}
+
 	// INVARIANT: atomic.LoadInt64(&sourceGeneration) == src.Generation
 	{
 		g := atomic.LoadInt64(&mo.sourceGeneration)
@@ -166,6 +172,8 @@ func (mo *MutableObject) CheckInvariants() {
 // state. The MutableObject must not be used after calling this method,
 // regardless of outcome.
 func (mo *MutableObject) Destroy() (err error) {
+	mo.destroyed = true
+
 	// If we have no read/write lease, there's nothing to do.
 	if mo.readWriteLease == nil {
 		return
