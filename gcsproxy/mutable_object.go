@@ -422,6 +422,10 @@ func makeLocalFile(
 	return
 }
 
+func (mo *MutableObject) dirty() bool {
+	return mo.localFile != nil
+}
+
 // Ensure that mo.localFile is non-nil with an authoritative view of mo's
 // contents.
 func (mo *MutableObject) ensureLocalFile(ctx context.Context) (err error) {
