@@ -148,7 +148,7 @@ func (rp *ReadProxy) getContents(
 
 	// Did the user lie about the size?
 	if copied != rp.Size() {
-		err = fmt.Errorf("Copied %v bytes; expected %v", copied, rl.Size())
+		err = fmt.Errorf("Copied %v bytes; expected %v", copied, rp.Size())
 		return
 	}
 
@@ -172,18 +172,12 @@ func (rp *ReadProxy) saveContents(rwl ReadWriteLease) {
 ////////////////////////////////////////////////////////////////////////
 
 // Semantics matching io.Reader, except with context support.
-func (rl *autoRefreshingReadLease) Read(
+func (rp *ReadProxy) Read(
 	ctx context.Context,
 	p []byte) (n int, err error) {
-	// Special case: have we been permanently revoked?
-	if rl.revoked {
-		err = &RevokedError{}
-		return
-	}
-
 	// Common case: is the existing lease still valid?
-	if rl.wrapped != nil {
-		n, err = rl.wrapped.Read(p)
+	if rp.lease != nil {
+		n, err = rp.lease.Read(p)
 		if !isRevokedErr(err) {
 			return
 		}
@@ -193,13 +187,13 @@ func (rl *autoRefreshingReadLease) Read(
 	}
 
 	// Get hold of a read/write lease containing our contents.
-	rwl, err := rl.getContents()
+	rwl, err := rp.getContents(ctx)
 	if err != nil {
 		err = fmt.Errorf("getContents: %v", err)
 		return
 	}
 
-	defer rl.saveContents(rwl)
+	defer rp.saveContents(rwl)
 
 	// Serve from the read/write lease.
 	n, err = rwl.Read(p)
