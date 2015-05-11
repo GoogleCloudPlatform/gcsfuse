@@ -269,11 +269,6 @@ func (rp *ReadProxy) Size() (size int64) {
 	return
 }
 
-// For testing use only; do not touch.
-func (rp *ReadProxy) Destroyed() (destroyed bool) {
-	panic("TODO")
-}
-
 // Return a read/write lease for the proxied contents. The read proxy must not
 // be used after calling this method.
 func (rp *ReadProxy) Upgrade(
