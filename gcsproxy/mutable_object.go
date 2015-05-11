@@ -56,8 +56,7 @@ type MutableObject struct {
 	/////////////////////////
 
 	// A record for the specific generation of the object from which our local
-	// state is branched. If we have no local state, the contents of this
-	// generation are exactly our contents.
+	// state is branched.
 	src gcs.Object
 
 	// The current generation number. Must be accessed using sync/atomic.
@@ -65,21 +64,23 @@ type MutableObject struct {
 	// INVARIANT: atomic.LoadInt64(&sourceGeneration) == src.Generation
 	sourceGeneration int64
 
-	// A local temporary file containing our current contents. When non-nil, this
-	// is the authority on our contents. When nil, our contents are defined by
-	// 'src' above.
+	// When clean, a read proxy around src. When dirty, nil.
+	readProxy *ReadProxy
+
+	// When dirty, a local temporary file containing our current contents. When
+	// clean, nil.
+	//
+	// TODO(jacobsa): Use a read/write lease here, and make it possible to
+	// "downgrade" directly to a read proxy by adding a variant of
+	// gcsproxy.NewReadProxy that takes an existing read/write lease, then ditto
+	// with lease.NewReadProxy  in addition to the refresh function.
+	//
+	// INVARIANT: (readProxy == nil) != (localFile == nil)
 	localFile *os.File
 
 	// The time at which a method that modifies our contents was last called, or
 	// nil if never.
 	mtime *time.Time
-
-	// true if localFile is present but its contents may be different from the
-	// contents of our source generation. Sync needs to do work iff this is true.
-	//
-	// INVARIANT: If dirty, then localFile != nil
-	// INVARIANT: If dirty, then mtime != nil
-	dirty bool
 }
 
 type StatResult struct {
