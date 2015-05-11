@@ -15,6 +15,9 @@
 package gcsproxy_test
 
 import (
+	"fmt"
+	"io"
+	"math"
 	"testing"
 	"time"
 
@@ -79,12 +82,55 @@ func (t *IntegrationTest) create(o *gcs.Object) {
 	}
 }
 
+// Return the object generation, or -1 if non-existent. Panic on error.
+func (t *IntegrationTest) objectGeneration(name string) (gen int64) {
+	// Stat.
+	req := &gcs.StatObjectRequest{Name: name}
+	o, err := t.bucket.StatObject(t.ctx, req)
+
+	if _, ok := err.(*gcs.NotFoundError); ok {
+		gen = -1
+		return
+	}
+
+	if err != nil {
+		panic(err)
+	}
+
+	// Check the result.
+	if o.Generation > math.MaxInt64 {
+		panic(fmt.Sprintf("Out of range: %v", o.Generation))
+	}
+
+	gen = o.Generation
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
 func (t *IntegrationTest) ReadThenSync() {
-	AssertTrue(false, "TODO")
+	// Create.
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	AssertEq(nil, err)
+
+	t.create(o)
+
+	// Read the contents.
+	buf := make([]byte, 1024)
+	n, err := t.mo.ReadAt(buf, 0)
+
+	AssertThat(err, AnyOf(io.EOF, nil))
+	ExpectEq(len("taco"), n)
+	ExpectEq("taco", string(buf[:n]))
+
+	// Sync doesn't need to do anything.
+	err = t.mo.Sync()
+	ExpectEq(nil, err)
+
+	ExpectEq(o.Generation, t.mo.SourceGeneration())
+	ExpectEq(o.Generation, t.objectGeneration("foo"))
 }
 
 func (t *IntegrationTest) WriteThenSync() {
