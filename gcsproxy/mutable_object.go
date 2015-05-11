@@ -112,7 +112,7 @@ func NewMutableObject(
 		clock:            clock,
 		src:              *o,
 		sourceGeneration: o.Generation,
-		readProxy:        NewReadProxy(leaser, bucket, o),
+		readProxy:        NewReadProxy(leaser, bucket, o, nil),
 	}
 
 	return
@@ -346,7 +346,7 @@ func (mo *MutableObject) Sync(ctx context.Context) (err error) {
 
 	// Update our state.
 	mo.src = *o
-	mo.readProxy = NewReadProxy(mo.leaser, mo.bucket, o)
+	mo.readProxy = NewReadProxy(mo.leaser, mo.bucket, o, nil)
 	atomic.StoreInt64(&mo.sourceGeneration, mo.src.Generation)
 
 	rwl := mo.readWriteLease
