@@ -681,6 +681,7 @@ func (t *MutableObjectTest) WriteThenSyncThenWriteThenSync() {
 	o := &gcs.Object{
 		Name:       t.src.Name,
 		Generation: 1,
+		Size:       uint64(len("taco")),
 	}
 
 	ExpectCall(t.bucket, "CreateObject")(Any(), contentsAre("taco")).
@@ -689,7 +690,11 @@ func (t *MutableObjectTest) WriteThenSyncThenWriteThenSync() {
 	err = t.mo.Sync()
 	AssertEq(nil, err)
 
-	// Write some more data at the end.
+	// Write some more data at the end. The new object contents should be
+	// fetched.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("taco")), nil))
+
 	n, err = t.mo.WriteAt([]byte("burrito"), 4)
 	AssertEq(nil, err)
 	AssertEq(len("burrito"), n)
