@@ -95,8 +95,8 @@ before setting these flags.
 Behind the scenes, when a newly-opened file is first read or modified, gcsfuse
 downloads the entire backing object's contents from GCS. (Unless it is a
 newly-created file, of course.) The contents are stored in a local temporary
-file (whose location is controlled by the flag `--fs.temp_dir`), which is used
-to serve reads and modifications. Later, when the file is closed or fsync'd,
+file (whose location is controlled by the flag `--temp_dir`), which is used to
+serve reads and modifications. Later, when the file is closed or fsync'd,
 gcsfuse writes the contents of the local file back to GCS as a new object
 generation.
 

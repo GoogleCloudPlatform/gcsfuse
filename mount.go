@@ -38,6 +38,11 @@ func usage() {
 
 var fBucketName = flag.String("bucket", "", "Name of GCS bucket to mount.")
 
+var fTempDir = flag.String(
+	"temp_dir", "",
+	"The temporary directory in which to store local copies of GCS objects. "+
+		"If empty, the system default (probably /tmp) will be used.")
+
 var fImplicitDirs = flag.Bool(
 	"implicit_dirs",
 	false,
@@ -154,6 +159,7 @@ func main() {
 	serverCfg := &fs.ServerConfig{
 		Clock:               timeutil.RealClock(),
 		Bucket:              getBucket(),
+		TempDir:             *fTempDir,
 		ImplicitDirectories: *fImplicitDirs,
 		SupportNlink:        *fSupportNlink,
 		DirTypeCacheTTL:     typeCacheTTL,

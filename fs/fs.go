@@ -15,7 +15,6 @@
 package fs
 
 import (
-	"flag"
 	"fmt"
 	"math"
 	"os/user"
@@ -34,17 +33,16 @@ import (
 	"golang.org/x/net/context"
 )
 
-var fTempDir = flag.String(
-	"fs.temp_dir", "",
-	"The temporary directory in which to store local copies of GCS objects. "+
-		"If empty, the system default (probably /tmp) will be used.")
-
 type ServerConfig struct {
 	// A clock used for modification times.
 	Clock timeutil.Clock
 
 	// The bucket that the file system is to export.
 	Bucket gcs.Bucket
+
+	// The temporary directory to use for local caching, or the empty string to
+	// use the system default.
+	TempDir string
 
 	// By default, if a bucket contains the object "foo/bar" but no object named
 	// "foo/", it's as if the directory doesn't exist. This allows us to have
@@ -89,7 +87,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		clock:  cfg.Clock,
 		bucket: cfg.Bucket,
 		// TODO(jacobsa): Use a useful limit here.
-		leaser:          lease.NewFileLeaser(*fTempDir, math.MaxInt64),
+		leaser:          lease.NewFileLeaser(cfg.TempDir, math.MaxInt64),
 		implicitDirs:    cfg.ImplicitDirectories,
 		supportNlink:    cfg.SupportNlink,
 		dirTypeCacheTTL: cfg.DirTypeCacheTTL,
