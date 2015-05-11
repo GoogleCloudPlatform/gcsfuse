@@ -314,7 +314,7 @@ func (mo *MutableObject) Truncate(ctx context.Context, n int64) (err error) {
 // generation at which the contents are current.
 func (mo *MutableObject) Sync(ctx context.Context) (err error) {
 	// Do we need to do anything?
-	if !mo.dirty {
+	if !mo.dirty() {
 		return
 	}
 
@@ -353,8 +353,18 @@ func (mo *MutableObject) Sync(ctx context.Context) (err error) {
 
 	// Update our state.
 	mo.src = *o
-	mo.dirty = false
+	mo.readProxy = NewReadProxy(mo.leaser, mo.bucket, *o)
 	atomic.StoreInt64(&mo.sourceGeneration, mo.src.Generation)
+
+	f := mo.localFile
+	mo.localFile = nil
+
+	// Close the local file, which we no longer need.
+	err = f.Close()
+	if err != nil {
+		err = fmt.Errorf("Close: %v", err)
+		return
+	}
 
 	return
 }
