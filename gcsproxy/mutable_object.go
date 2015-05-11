@@ -177,14 +177,8 @@ func (mo *MutableObject) CheckInvariants() {
 }
 
 // Destroy any local file caches, putting the proxy into an indeterminate
-// state. Should be used before dropping the final reference to the proxy.
+// state.
 func (mo *MutableObject) Destroy() (err error) {
-	// Make sure that when we exit no invariants are violated.
-	defer func() {
-		mo.localFile = nil
-		mo.dirty = false
-	}()
-
 	// If we have no local file, there's nothing to do.
 	if mo.localFile == nil {
 		return
