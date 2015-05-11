@@ -88,9 +88,8 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 
 	// Set up the basic struct.
 	fs := &fileSystem{
-		clock:  cfg.Clock,
-		bucket: cfg.Bucket,
-		// TODO(jacobsa): Use a useful limit here.
+		clock:           cfg.Clock,
+		bucket:          cfg.Bucket,
 		leaser:          lease.NewFileLeaser(cfg.TempDir, cfg.TempDirLimit),
 		implicitDirs:    cfg.ImplicitDirectories,
 		supportNlink:    cfg.SupportNlink,
