@@ -264,8 +264,8 @@ func (rp *ReadProxy) ReadAt(
 }
 
 // Return the size of the proxied content. Guarantees to not block.
-func (rl *autoRefreshingReadLease) Size() (size int64) {
-	size = rl.size
+func (rp *ReadProxy) Size() (size int64) {
+	size = rp.size
 	return
 }
 
