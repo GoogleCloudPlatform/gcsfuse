@@ -405,13 +405,8 @@ func (t *MutableObjectTest) WriteWithinObjectThenRead() {
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
-	// Write several bytes to extend the object.
-	n, err = t.mo.WriteAt([]byte("00000"), 0)
-	AssertEq(nil, err)
-	AssertEq(len("00000"), n)
-
-	// Overwrite some in the middle.
-	n, err = t.mo.WriteAt([]byte("11"), 1)
+	// Overwrite some data in the middle.
+	n, err = t.mo.WriteAt([]byte("11"), 2)
 	AssertEq(nil, err)
 	AssertEq(len("11"), n)
 
@@ -420,8 +415,8 @@ func (t *MutableObjectTest) WriteWithinObjectThenRead() {
 	n, err = t.mo.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
-	ExpectEq(len("01100"), n)
-	ExpectEq("01100", string(buf[:n]))
+	ExpectEq(initialContentsLen, n)
+	ExpectEq(initialContents[0:2]+"11"+initialContents[4:], string(buf[:n]))
 }
 
 func (t *MutableObjectTest) Truncate_CallsNewReader() {
