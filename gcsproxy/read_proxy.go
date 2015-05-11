@@ -29,6 +29,7 @@ import (
 // This type is not safe for concurrent access. The user must provide external
 // synchronization around the methods where it is not otherwise noted.
 type ReadProxy struct {
+	wrapped *lease.ReadProxy
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -41,7 +42,7 @@ func NewReadProxy(
 	bucket gcs.Bucket,
 	o *gcs.Object) (rp *ReadProxy) {
 	// Set up a lease.ReadProxy.
-	_ = lease.NewReadProxy(
+	wrapped := lease.NewReadProxy(
 		leaser,
 		int64(o.Size),
 		func(ctx context.Context) (rc io.ReadCloser, err error) {
@@ -50,7 +51,9 @@ func NewReadProxy(
 		})
 
 	// Serve from that.
-	panic("TODO")
+	rp = &ReadProxy{
+		wrapped: wrapped,
+	}
 
 	return
 }
