@@ -175,8 +175,9 @@ func (rwl *readWriteLease) Downgrade() (rl ReadLease) {
 	defer rwl.mu.Unlock()
 
 	// Ensure that we will crash if used again.
-	f := rwl.file
-	rwl.file = nil
+	defer func() {
+		rwl.file = nil
+	}()
 
 	// On error, log an error then return a read lease that looks like it was
 	// born revoked.
@@ -196,7 +197,7 @@ func (rwl *readWriteLease) Downgrade() (rl ReadLease) {
 	}
 
 	// Call the leaser.
-	rl = rwl.leaser.downgrade(rwl, size, f)
+	rl = rwl.leaser.downgrade(rwl, size, rwl.file)
 
 	return
 }
