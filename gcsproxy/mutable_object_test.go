@@ -187,6 +187,12 @@ func (mo *checkingMutableObject) Sync() error {
 	return mo.wrapped.Sync(context.Background())
 }
 
+func (mo *checkingMutableObject) Destroy() {
+	mo.wrapped.CheckInvariants()
+	defer mo.wrapped.CheckInvariants()
+	mo.wrapped.Destroy()
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////

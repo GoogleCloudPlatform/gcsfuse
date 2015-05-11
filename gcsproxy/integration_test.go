@@ -38,6 +38,8 @@ type IntegrationTest struct {
 	bucket gcs.Bucket
 	leaser lease.FileLeaser
 	clock  timeutil.SimulatedClock
+
+	mo *checkingMutableObject
 }
 
 var _ SetUpInterface = &IntegrationTest{}
@@ -54,23 +56,20 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 }
 
 func (t *IntegrationTest) TearDown() {
-	// TODO(jacobsa): Call Destroy to make sure nothing weird happens. Make sure
-	// checkingMutableObject checks around Destroy, too.
-	panic("TODO")
+	if t.mo != nil {
+		t.mo.Destroy()
+	}
 }
 
-func (t *IntegrationTest) createMutableObject(
-	o *gcs.Object) (mo *checkingMutableObject) {
+func (t *IntegrationTest) create(o *gcs.Object) {
 	// Ensure invariants are checked.
-	mo = &checkingMutableObject{
+	t.mo = &checkingMutableObject{
 		wrapped: gcsproxy.NewMutableObject(
 			o,
 			t.bucket,
 			t.leaser,
 			&t.clock),
 	}
-
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
