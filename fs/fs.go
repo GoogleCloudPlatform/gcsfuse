@@ -470,7 +470,13 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 		fs.dirIndex[d.Name()] = d
 		in = d
 	} else {
-		in = inode.NewFileInode(fs.clock, fs.bucket, id, fs.supportNlink, o)
+		in = inode.NewFileInode(
+			id,
+			o,
+			fs.supportNlink,
+			fs.bucket,
+			fs.leaser,
+			fs.clock)
 	}
 
 	// Place it in our map of IDs to inodes.
