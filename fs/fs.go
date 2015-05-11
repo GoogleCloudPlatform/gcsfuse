@@ -16,7 +16,6 @@ package fs
 
 import (
 	"fmt"
-	"math"
 	"os/user"
 	"reflect"
 	"strconv"
@@ -43,6 +42,11 @@ type ServerConfig struct {
 	// The temporary directory to use for local caching, or the empty string to
 	// use the system default.
 	TempDir string
+
+	// A desired limit on temporary space usage, in bytes. May not be obeyed if
+	// there is a large volume of dirtied files that have not been flushed or
+	// closed.
+	TempDirLimit int64
 
 	// By default, if a bucket contains the object "foo/bar" but no object named
 	// "foo/", it's as if the directory doesn't exist. This allows us to have
@@ -84,10 +88,9 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 
 	// Set up the basic struct.
 	fs := &fileSystem{
-		clock:  cfg.Clock,
-		bucket: cfg.Bucket,
-		// TODO(jacobsa): Use a useful limit here.
-		leaser:          lease.NewFileLeaser(cfg.TempDir, math.MaxInt64),
+		clock:           cfg.Clock,
+		bucket:          cfg.Bucket,
+		leaser:          lease.NewFileLeaser(cfg.TempDir, cfg.TempDirLimit),
 		implicitDirs:    cfg.ImplicitDirectories,
 		supportNlink:    cfg.SupportNlink,
 		dirTypeCacheTTL: cfg.DirTypeCacheTTL,

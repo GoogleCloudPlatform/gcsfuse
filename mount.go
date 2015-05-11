@@ -43,6 +43,11 @@ var fTempDir = flag.String(
 	"The temporary directory in which to store local copies of GCS objects. "+
 		"If empty, the system default (probably /tmp) will be used.")
 
+var fTempDirLimit = flag.Int64(
+	"temp_dir_bytes", "",
+	"A desired limit on the number of bytes used in --temp_dir. May be exceeded "+
+		"for dirty files that have not been flushed or closed.")
+
 var fImplicitDirs = flag.Bool(
 	"implicit_dirs",
 	false,
@@ -160,6 +165,7 @@ func main() {
 		Clock:               timeutil.RealClock(),
 		Bucket:              getBucket(),
 		TempDir:             *fTempDir,
+		TempDirLimit:        *fTempDirLimit,
 		ImplicitDirectories: *fImplicitDirs,
 		SupportNlink:        *fSupportNlink,
 		DirTypeCacheTTL:     typeCacheTTL,
