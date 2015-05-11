@@ -22,6 +22,8 @@ import (
 	"testing"
 	"testing/iotest"
 
+	"golang.org/x/net/context"
+
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/lease/mock_lease"
 	. "github.com/jacobsa/oglematchers"
@@ -29,7 +31,7 @@ import (
 	. "github.com/jacobsa/ogletest"
 )
 
-func TestAutoRefreshingReadLease(t *testing.T) { RunTests(t) }
+func TestReadProxy(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -68,25 +70,25 @@ func (rc *closeErrorReader) Close() (err error) {
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type AutoRefreshingReadLeaseTest struct {
+type ReadProxyTest struct {
 	// A function that will be invoked for each call to the function given to
-	// NewAutoRefreshingReadLease.
+	// NewReadProxy.
 	f func() (io.ReadCloser, error)
 
 	mockController Controller
 	leaser         mock_lease.MockFileLeaser
-	lease          lease.ReadLease
+	proxy          *lease.ReadProxy
 }
 
-var _ SetUpInterface = &AutoRefreshingReadLeaseTest{}
+var _ SetUpInterface = &ReadProxyTest{}
 
-func init() { RegisterTestSuite(&AutoRefreshingReadLeaseTest{}) }
+func init() { RegisterTestSuite(&ReadProxyTest{}) }
 
-func (t *AutoRefreshingReadLeaseTest) SetUp(ti *TestInfo) {
+func (t *ReadProxyTest) SetUp(ti *TestInfo) {
 	t.mockController = ti.MockController
 
 	// Set up a function that defers to whatever is currently set as t.f.
-	f := func() (rc io.ReadCloser, err error) {
+	f := func(ctx context.Context) (rc io.ReadCloser, err error) {
 		AssertNe(nil, t.f)
 		rc, err = t.f()
 		return
@@ -96,7 +98,7 @@ func (t *AutoRefreshingReadLeaseTest) SetUp(ti *TestInfo) {
 	t.leaser = mock_lease.NewMockFileLeaser(ti.MockController, "leaser")
 
 	// Set up the lease.
-	t.lease = lease.NewAutoRefreshingReadLease(
+	t.proxy = lease.NewReadProxy(
 		t.leaser,
 		int64(len(contents)),
 		f)
@@ -106,11 +108,11 @@ func (t *AutoRefreshingReadLeaseTest) SetUp(ti *TestInfo) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *AutoRefreshingReadLeaseTest) Size() {
-	ExpectEq(len(contents), t.lease.Size())
+func (t *ReadProxyTest) Size() {
+	ExpectEq(len(contents), t.proxy.Size())
 }
 
-func (t *AutoRefreshingReadLeaseTest) LeaserReturnsError() {
+func (t *ReadProxyTest) LeaserReturnsError() {
 	var err error
 
 	// NewFile
@@ -118,11 +120,11 @@ func (t *AutoRefreshingReadLeaseTest) LeaserReturnsError() {
 		WillOnce(Return(nil, errors.New("taco")))
 
 	// Attempt to read.
-	_, err = t.lease.Read([]byte{})
+	_, err = t.proxy.Read(context.Background(), []byte{})
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *AutoRefreshingReadLeaseTest) CallsFunc() {
+func (t *ReadProxyTest) CallsFunc() {
 	// NewFile
 	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
 	ExpectCall(t.leaser, "NewFile")().
@@ -142,11 +144,11 @@ func (t *AutoRefreshingReadLeaseTest) CallsFunc() {
 	}
 
 	// Attempt to read.
-	t.lease.Read([]byte{})
+	t.proxy.Read(context.Background(), []byte{})
 	ExpectTrue(called)
 }
 
-func (t *AutoRefreshingReadLeaseTest) FuncReturnsError() {
+func (t *ReadProxyTest) FuncReturnsError() {
 	// NewFile
 	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
 	ExpectCall(t.leaser, "NewFile")().
@@ -164,11 +166,11 @@ func (t *AutoRefreshingReadLeaseTest) FuncReturnsError() {
 	}
 
 	// Attempt to read.
-	_, err := t.lease.Read([]byte{})
+	_, err := t.proxy.Read(context.Background(), []byte{})
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *AutoRefreshingReadLeaseTest) ContentsReturnReadError() {
+func (t *ReadProxyTest) ContentsReturnReadError() {
 	// NewFile
 	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
 	ExpectCall(t.leaser, "NewFile")().
@@ -194,12 +196,12 @@ func (t *AutoRefreshingReadLeaseTest) ContentsReturnReadError() {
 	}
 
 	// Attempt to read.
-	_, err := t.lease.Read([]byte{})
+	_, err := t.proxy.Read(context.Background(), []byte{})
 	ExpectThat(err, Error(HasSubstr("Copy")))
 	ExpectThat(err, Error(HasSubstr("timeout")))
 }
 
-func (t *AutoRefreshingReadLeaseTest) ContentsReturnCloseError() {
+func (t *ReadProxyTest) ContentsReturnCloseError() {
 	// NewFile
 	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
 	ExpectCall(t.leaser, "NewFile")().
@@ -225,12 +227,12 @@ func (t *AutoRefreshingReadLeaseTest) ContentsReturnCloseError() {
 	}
 
 	// Attempt to read.
-	_, err := t.lease.Read([]byte{})
+	_, err := t.proxy.Read(context.Background(), []byte{})
 	ExpectThat(err, Error(HasSubstr("Close")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *AutoRefreshingReadLeaseTest) ContentsAreWrongLength() {
+func (t *ReadProxyTest) ContentsAreWrongLength() {
 	AssertEq(4, len(contents))
 
 	// NewFile
@@ -254,12 +256,12 @@ func (t *AutoRefreshingReadLeaseTest) ContentsAreWrongLength() {
 	}
 
 	// Attempt to read.
-	_, err := t.lease.Read([]byte{})
+	_, err := t.proxy.Read(context.Background(), []byte{})
 	ExpectThat(err, Error(HasSubstr("Copied 3")))
 	ExpectThat(err, Error(HasSubstr("expected 4")))
 }
 
-func (t *AutoRefreshingReadLeaseTest) WritesCorrectData() {
+func (t *ReadProxyTest) WritesCorrectData() {
 	// NewFile
 	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
 	ExpectCall(t.leaser, "NewFile")().
@@ -289,11 +291,11 @@ func (t *AutoRefreshingReadLeaseTest) WritesCorrectData() {
 	}
 
 	// Call.
-	t.lease.Read([]byte{})
+	t.proxy.Read(context.Background(), []byte{})
 	ExpectEq(contents, string(written))
 }
 
-func (t *AutoRefreshingReadLeaseTest) WriteError() {
+func (t *ReadProxyTest) WriteError() {
 	// NewFile
 	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
 	ExpectCall(t.leaser, "NewFile")().
@@ -315,12 +317,12 @@ func (t *AutoRefreshingReadLeaseTest) WriteError() {
 	}
 
 	// Attempt to read.
-	_, err := t.lease.Read([]byte{})
+	_, err := t.proxy.Read(context.Background(), []byte{})
 	ExpectThat(err, Error(HasSubstr("Copy")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *AutoRefreshingReadLeaseTest) Read_Error() {
+func (t *ReadProxyTest) Read_Error() {
 	// NewFile
 	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
 	ExpectCall(t.leaser, "NewFile")().
@@ -346,12 +348,12 @@ func (t *AutoRefreshingReadLeaseTest) Read_Error() {
 
 	// Attempt to read.
 	buf := make([]byte, 1)
-	_, err := t.lease.Read(buf)
+	_, err := t.proxy.Read(context.Background(), buf)
 
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *AutoRefreshingReadLeaseTest) Read_Successful() {
+func (t *ReadProxyTest) Read_Successful() {
 	const readLength = 3
 	AssertLt(readLength, len(contents))
 
@@ -383,14 +385,14 @@ func (t *AutoRefreshingReadLeaseTest) Read_Successful() {
 
 	// Attempt to read.
 	buf := make([]byte, readLength)
-	n, err := t.lease.Read(buf)
+	n, err := t.proxy.Read(context.Background(), buf)
 
 	AssertEq(nil, err)
 	AssertEq(readLength, n)
 	ExpectEq(contents[0:n], string(buf[0:n]))
 }
 
-func (t *AutoRefreshingReadLeaseTest) Seek_CallsWrapped() {
+func (t *ReadProxyTest) Seek_CallsWrapped() {
 	const offset = 17
 	const whence = 2
 
@@ -418,10 +420,10 @@ func (t *AutoRefreshingReadLeaseTest) Seek_CallsWrapped() {
 	}
 
 	// Call.
-	t.lease.Seek(offset, whence)
+	t.proxy.Seek(context.Background(), offset, whence)
 }
 
-func (t *AutoRefreshingReadLeaseTest) Seek_Error() {
+func (t *ReadProxyTest) Seek_Error() {
 	// NewFile
 	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
 	ExpectCall(t.leaser, "NewFile")().
@@ -446,11 +448,11 @@ func (t *AutoRefreshingReadLeaseTest) Seek_Error() {
 	}
 
 	// Call.
-	_, err := t.lease.Seek(0, 0)
+	_, err := t.proxy.Seek(context.Background(), 0, 0)
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *AutoRefreshingReadLeaseTest) Seek_Successful() {
+func (t *ReadProxyTest) Seek_Successful() {
 	const expected = 17
 
 	// NewFile
@@ -477,12 +479,12 @@ func (t *AutoRefreshingReadLeaseTest) Seek_Successful() {
 	}
 
 	// Call.
-	off, err := t.lease.Seek(0, 0)
+	off, err := t.proxy.Seek(context.Background(), 0, 0)
 	AssertEq(nil, err)
 	ExpectEq(expected, off)
 }
 
-func (t *AutoRefreshingReadLeaseTest) ReadAt_CallsWrapped() {
+func (t *ReadProxyTest) ReadAt_CallsWrapped() {
 	const offset = 17
 
 	// NewFile
@@ -509,10 +511,10 @@ func (t *AutoRefreshingReadLeaseTest) ReadAt_CallsWrapped() {
 	}
 
 	// Call.
-	t.lease.ReadAt([]byte{}, offset)
+	t.proxy.ReadAt(context.Background(), []byte{}, offset)
 }
 
-func (t *AutoRefreshingReadLeaseTest) ReadAt_Error() {
+func (t *ReadProxyTest) ReadAt_Error() {
 	// NewFile
 	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
 	ExpectCall(t.leaser, "NewFile")().
@@ -537,12 +539,12 @@ func (t *AutoRefreshingReadLeaseTest) ReadAt_Error() {
 	}
 
 	// Call.
-	_, err := t.lease.ReadAt([]byte{}, 0)
+	_, err := t.proxy.ReadAt(context.Background(), []byte{}, 0)
 
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *AutoRefreshingReadLeaseTest) ReadAt_Successful() {
+func (t *ReadProxyTest) ReadAt_Successful() {
 	// NewFile
 	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
 	ExpectCall(t.leaser, "NewFile")().
@@ -567,11 +569,11 @@ func (t *AutoRefreshingReadLeaseTest) ReadAt_Successful() {
 	}
 
 	// Call.
-	_, err := t.lease.ReadAt([]byte{}, 0)
+	_, err := t.proxy.ReadAt(context.Background(), []byte{}, 0)
 	ExpectEq(nil, err)
 }
 
-func (t *AutoRefreshingReadLeaseTest) Upgrade_Error() {
+func (t *ReadProxyTest) Upgrade_Error() {
 	// NewFile
 	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
 	ExpectCall(t.leaser, "NewFile")().
@@ -593,11 +595,11 @@ func (t *AutoRefreshingReadLeaseTest) Upgrade_Error() {
 	}
 
 	// Call.
-	_, err := t.lease.Upgrade()
+	_, err := t.proxy.Upgrade(context.Background())
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *AutoRefreshingReadLeaseTest) Upgrade_Successful() {
+func (t *ReadProxyTest) Upgrade_Successful() {
 	// NewFile
 	expected := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
 	ExpectCall(t.leaser, "NewFile")().
@@ -614,18 +616,12 @@ func (t *AutoRefreshingReadLeaseTest) Upgrade_Successful() {
 	}
 
 	// Call.
-	rwl, err := t.lease.Upgrade()
+	rwl, err := t.proxy.Upgrade(context.Background())
 	AssertEq(nil, err)
 	ExpectEq(expected, rwl)
-
-	// The read lease should now be revoked.
-	ExpectTrue(t.lease.Revoked())
-
-	_, err = t.lease.Upgrade()
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 }
 
-func (t *AutoRefreshingReadLeaseTest) WrappedRevoked() {
+func (t *ReadProxyTest) WrappedRevoked() {
 	// Arrange a successful wrapped read lease.
 	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
 	ExpectCall(t.leaser, "NewFile")().
@@ -645,7 +641,7 @@ func (t *AutoRefreshingReadLeaseTest) WrappedRevoked() {
 		return
 	}
 
-	t.lease.ReadAt([]byte{}, 0)
+	t.proxy.ReadAt(context.Background(), []byte{}, 0)
 
 	// Simulate it being revoked for all methods.
 	ExpectCall(rl, "Read")(Any()).
@@ -664,13 +660,13 @@ func (t *AutoRefreshingReadLeaseTest) WrappedRevoked() {
 		Times(4).
 		WillRepeatedly(Return(nil, errors.New("")))
 
-	t.lease.Read([]byte{})
-	t.lease.Seek(0, 0)
-	t.lease.ReadAt([]byte{}, 0)
-	t.lease.Upgrade()
+	t.proxy.Read(context.Background(), []byte{})
+	t.proxy.Seek(context.Background(), 0, 0)
+	t.proxy.ReadAt(context.Background(), []byte{}, 0)
+	t.proxy.Upgrade(context.Background())
 }
 
-func (t *AutoRefreshingReadLeaseTest) WrappedStillValid() {
+func (t *ReadProxyTest) WrappedStillValid() {
 	var err error
 
 	// Arrange a successful wrapped read lease.
@@ -692,17 +688,17 @@ func (t *AutoRefreshingReadLeaseTest) WrappedStillValid() {
 		return
 	}
 
-	t.lease.ReadAt([]byte{}, 0)
+	t.proxy.ReadAt(context.Background(), []byte{}, 0)
 
 	// Read
 	ExpectCall(rl, "Read")(Any()).
 		WillOnce(Return(0, errors.New("taco"))).
 		WillOnce(Return(17, nil))
 
-	_, err = t.lease.Read([]byte{})
+	_, err = t.proxy.Read(context.Background(), []byte{})
 	ExpectThat(err, Error(HasSubstr("taco")))
 
-	n, err := t.lease.Read([]byte{})
+	n, err := t.proxy.Read(context.Background(), []byte{})
 	ExpectEq(17, n)
 
 	// Seek
@@ -710,10 +706,10 @@ func (t *AutoRefreshingReadLeaseTest) WrappedStillValid() {
 		WillOnce(Return(0, errors.New("taco"))).
 		WillOnce(Return(17, nil))
 
-	_, err = t.lease.Seek(11, 2)
+	_, err = t.proxy.Seek(context.Background(), 11, 2)
 	ExpectThat(err, Error(HasSubstr("taco")))
 
-	off, err := t.lease.Seek(11, 2)
+	off, err := t.proxy.Seek(context.Background(), 11, 2)
 	ExpectEq(17, off)
 
 	// ReadAt
@@ -721,27 +717,26 @@ func (t *AutoRefreshingReadLeaseTest) WrappedStillValid() {
 		WillOnce(Return(0, errors.New("taco"))).
 		WillOnce(Return(17, nil))
 
-	_, err = t.lease.ReadAt([]byte{}, 11)
+	_, err = t.proxy.ReadAt(context.Background(), []byte{}, 11)
 	ExpectThat(err, Error(HasSubstr("taco")))
 
-	n, err = t.lease.ReadAt([]byte{}, 11)
+	n, err = t.proxy.ReadAt(context.Background(), []byte{}, 11)
 	ExpectEq(17, n)
 
 	// Upgrade
+	ExpectCall(rl, "Revoke")()
 	ExpectCall(rl, "Upgrade")().
 		WillOnce(Return(nil, errors.New("taco"))).
 		WillOnce(Return(rwl, nil))
 
-	_, err = t.lease.Upgrade()
+	_, err = t.proxy.Upgrade(context.Background())
 	ExpectThat(err, Error(HasSubstr("taco")))
 
-	tmp, _ := t.lease.Upgrade()
+	tmp, _ := t.proxy.Upgrade(context.Background())
 	ExpectEq(rwl, tmp)
 }
 
-func (t *AutoRefreshingReadLeaseTest) Revoke() {
-	var err error
-
+func (t *ReadProxyTest) Destroy() {
 	// Arrange a successful wrapped read lease.
 	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
 	ExpectCall(t.leaser, "NewFile")().
@@ -761,29 +756,9 @@ func (t *AutoRefreshingReadLeaseTest) Revoke() {
 		return
 	}
 
-	_, err = t.lease.ReadAt([]byte{}, 0)
+	t.proxy.ReadAt(context.Background(), []byte{}, 0)
 
-	// Before revoking, Revoked should return false without needing to call
-	// through.
-	ExpectFalse(t.lease.Revoked())
-
-	// When we revoke our lease, the wrapped should be revoked as well.
+	// When we destroy our lease, the wrapped should be revoked.
 	ExpectCall(rl, "Revoke")()
-	t.lease.Revoke()
-
-	// Revoked should reflect this.
-	ExpectTrue(t.lease.Revoked())
-
-	// Further calls to all of our methods should return RevokedError.
-	_, err = t.lease.Read([]byte{})
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
-
-	_, err = t.lease.Seek(0, 0)
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
-
-	_, err = t.lease.ReadAt([]byte{}, 0)
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
-
-	_, err = t.lease.Upgrade()
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+	t.proxy.Destroy()
 }
