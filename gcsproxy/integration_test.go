@@ -356,7 +356,50 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_BeforeReading() {
 }
 
 func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
-	AssertTrue(false, "TODO")
+	// Create.
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	AssertEq(nil, err)
+
+	t.create(o)
+
+	// Fault in the contents.
+	_, err = t.mo.ReadAt([]byte{}, 0)
+	AssertEq(nil, err)
+
+	// Delete the backing object.
+	err = t.bucket.DeleteObject(t.ctx, o.Name)
+	AssertEq(nil, err)
+
+	// Reading and modications should still work.
+	ExpectEq(o.Name, t.mo.Name())
+	ExpectEq(o.Generation, t.mo.SourceGeneration())
+
+	_, err = t.mo.ReadAt([]byte{}, 0)
+	AssertEq(nil, err)
+
+	_, err = t.mo.WriteAt([]byte("a"), 0)
+	AssertEq(nil, err)
+
+	truncateTime := t.clock.Now()
+	err = t.mo.Truncate(1)
+	AssertEq(nil, err)
+	t.clock.AdvanceTime(time.Second)
+
+	// Stat should see the current state, and see that the object has been
+	// clobbered.
+	sr, err := t.mo.Stat(true)
+	AssertEq(nil, err)
+	ExpectEq(1, sr.Size)
+	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
+	ExpectTrue(sr.Clobbered)
+
+	// Sync should fail with a precondition error.
+	err = t.mo.Sync()
+	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+
+	// Nothing should have been created.
+	_, err = gcsutil.ReadObject(t.ctx, t.bucket, o.Name)
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
 func (t *IntegrationTest) BackingObjectHasBeenOverwritten_BeforeReading() {
