@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/gcloud/gcs"
@@ -57,7 +58,18 @@ func (t *IntegrationTest) TearDown() {
 }
 
 func (t *IntegrationTest) createMutableObject(
-	o *gcs.Object) (mo *checkingMutableObject)
+	o *gcs.Object) (mo *checkingMutableObject) {
+	// Ensure invariants are checked.
+	mo = &checkingMutableObject{
+		wrapped: gcsproxy.NewMutableObject(
+			o,
+			t.bucket,
+			t.leaser,
+			&t.clock),
+	}
+
+	return
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
