@@ -307,9 +307,14 @@ func (rp *ReadProxy) Upgrade(
 }
 
 // Destroy any resources in use by the read proxy. It must not be used further.
-func (rl *autoRefreshingReadLease) Destroy() {
-	rl.revoked = true
-	if rl.wrapped != nil {
-		rl.wrapped.Revoke()
+func (rp *ReadProxy) Destroy() {
+	if rp.lease != nil {
+		rp.lease.Revoke()
 	}
+
+	// Make use-after-destroy errors obvious.
+	rp.size = 0
+	rp.leaser = nil
+	rp.refresh = nil
+	rp.lease = nil
 }
