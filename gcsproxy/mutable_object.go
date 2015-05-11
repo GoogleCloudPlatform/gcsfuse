@@ -23,6 +23,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/gcloud/gcs"
@@ -49,6 +50,7 @@ type MutableObject struct {
 	/////////////////////////
 
 	bucket gcs.Bucket
+	leaser lease.FileLeaser
 	clock  timeutil.Clock
 
 	/////////////////////////
@@ -56,8 +58,7 @@ type MutableObject struct {
 	/////////////////////////
 
 	// A record for the specific generation of the object from which our local
-	// state is branched. If we have no local state, the contents of this
-	// generation are exactly our contents.
+	// state is branched.
 	src gcs.Object
 
 	// The current generation number. Must be accessed using sync/atomic.
@@ -65,21 +66,25 @@ type MutableObject struct {
 	// INVARIANT: atomic.LoadInt64(&sourceGeneration) == src.Generation
 	sourceGeneration int64
 
-	// A local temporary file containing our current contents. When non-nil, this
-	// is the authority on our contents. When nil, our contents are defined by
-	// 'src' above.
+	// When clean, a read proxy around src. When dirty, nil.
+	readProxy *ReadProxy
+
+	// When dirty, a local temporary file containing our current contents. When
+	// clean, nil.
+	//
+	// TODO(jacobsa): Use a read/write lease here, and make it possible to
+	// "downgrade" directly to a read proxy by adding a variant of
+	// gcsproxy.NewReadProxy that takes an existing read/write lease, then ditto
+	// with lease.NewReadProxy  in addition to the refresh function.
+	//
+	// INVARIANT: (readProxy == nil) != (localFile == nil)
 	localFile *os.File
 
 	// The time at which a method that modifies our contents was last called, or
 	// nil if never.
-	mtime *time.Time
-
-	// true if localFile is present but its contents may be different from the
-	// contents of our source generation. Sync needs to do work iff this is true.
 	//
-	// INVARIANT: If dirty, then localFile != nil
-	// INVARIANT: If dirty, then mtime != nil
-	dirty bool
+	// INVARIANT: If dirty(), then mtime != nil
+	mtime *time.Time
 }
 
 type StatResult struct {
@@ -99,19 +104,23 @@ type StatResult struct {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-// Create a view on the given GCS object generation.
+// Create a view on the given GCS object generation, using the supplied leaser
+// to mediate temporary space usage.
 //
 // REQUIRES: o != nil
 func NewMutableObject(
-	clock timeutil.Clock,
+	o *gcs.Object,
 	bucket gcs.Bucket,
-	o *gcs.Object) (mo *MutableObject) {
+	leaser lease.FileLeaser,
+	clock timeutil.Clock) (mo *MutableObject) {
 	// Set up the basic struct.
 	mo = &MutableObject{
-		clock:            clock,
 		bucket:           bucket,
+		leaser:           leaser,
+		clock:            clock,
 		src:              *o,
 		sourceGeneration: o.Generation,
+		readProxy:        NewReadProxy(leaser, bucket, o),
 	}
 
 	return
@@ -152,26 +161,24 @@ func (mo *MutableObject) CheckInvariants() {
 		}
 	}
 
-	// INVARIANT: If dirty, then localFile != nil
-	if mo.dirty && mo.localFile == nil {
-		panic("Expected non-nil localFile.")
+	// INVARIANT: (readProxy == nil) != (localFile == nil)
+	if mo.readProxy == nil && mo.localFile == nil {
+		panic("Both readProxy and localFile are nil")
 	}
 
-	// INVARIANT: If dirty, then mtime != nil
-	if mo.dirty && mo.mtime == nil {
+	if mo.readProxy != nil && mo.localFile != nil {
+		panic("Both readProxy and localFile are non-nil")
+	}
+
+	// INVARIANT: If dirty(), then mtime != nil
+	if mo.dirty() && mo.mtime == nil {
 		panic("Expected non-nil mtime.")
 	}
 }
 
 // Destroy any local file caches, putting the proxy into an indeterminate
-// state. Should be used before dropping the final reference to the proxy.
+// state.
 func (mo *MutableObject) Destroy() (err error) {
-	// Make sure that when we exit no invariants are violated.
-	defer func() {
-		mo.localFile = nil
-		mo.dirty = false
-	}()
-
 	// If we have no local file, there's nothing to do.
 	if mo.localFile == nil {
 		return
@@ -204,8 +211,8 @@ func (mo *MutableObject) Stat(
 		sr.Mtime = mo.src.Updated
 	}
 
-	// If we have a file, it is authoritative for our size. Otherwise our source
-	// size is authoritative.
+	// If we have a file, it is authoritative for our size. Otherwise the read
+	// proxy is authoritative.
 	if mo.localFile != nil {
 		var fi os.FileInfo
 		if fi, err = mo.localFile.Stat(); err != nil {
@@ -215,7 +222,7 @@ func (mo *MutableObject) Stat(
 
 		sr.Size = fi.Size()
 	} else {
-		sr.Size = int64(mo.src.Size)
+		sr.Size = mo.readProxy.Size()
 	}
 
 	// Figure out whether we were clobbered iff the user asked us to.
@@ -238,14 +245,12 @@ func (mo *MutableObject) ReadAt(
 	ctx context.Context,
 	buf []byte,
 	offset int64) (n int, err error) {
-	// Make sure we have a local file.
-	if err = mo.ensureLocalFile(ctx); err != nil {
-		err = fmt.Errorf("ensureLocalFile: %v", err)
-		return
+	// Serve from the read proxy or the local file.
+	if mo.dirty() {
+		n, err = mo.localFile.ReadAt(buf, offset)
+	} else {
+		n, err = mo.readProxy.ReadAt(ctx, buf, offset)
 	}
-
-	// Serve the read from the file.
-	n, err = mo.localFile.ReadAt(buf, offset)
 
 	return
 }
@@ -266,8 +271,6 @@ func (mo *MutableObject) WriteAt(
 	}
 
 	newMtime := mo.clock.Now()
-
-	mo.dirty = true
 	mo.mtime = &newMtime
 	n, err = mo.localFile.WriteAt(buf, offset)
 
@@ -291,8 +294,6 @@ func (mo *MutableObject) Truncate(ctx context.Context, n int64) (err error) {
 	}
 
 	newMtime := mo.clock.Now()
-
-	mo.dirty = true
 	mo.mtime = &newMtime
 	err = mo.localFile.Truncate(int64(n))
 
@@ -309,7 +310,7 @@ func (mo *MutableObject) Truncate(ctx context.Context, n int64) (err error) {
 // generation at which the contents are current.
 func (mo *MutableObject) Sync(ctx context.Context) (err error) {
 	// Do we need to do anything?
-	if !mo.dirty {
+	if !mo.dirty() {
 		return
 	}
 
@@ -348,8 +349,18 @@ func (mo *MutableObject) Sync(ctx context.Context) (err error) {
 
 	// Update our state.
 	mo.src = *o
-	mo.dirty = false
+	mo.readProxy = NewReadProxy(mo.leaser, mo.bucket, o)
 	atomic.StoreInt64(&mo.sourceGeneration, mo.src.Generation)
+
+	f := mo.localFile
+	mo.localFile = nil
+
+	// Close the local file, which we no longer need.
+	err = f.Close()
+	if err != nil {
+		err = fmt.Errorf("Close: %v", err)
+		return
+	}
 
 	return
 }
@@ -407,6 +418,10 @@ func makeLocalFile(
 	return
 }
 
+func (mo *MutableObject) dirty() bool {
+	return mo.localFile != nil
+}
+
 // Ensure that mo.localFile is non-nil with an authoritative view of mo's
 // contents.
 func (mo *MutableObject) ensureLocalFile(ctx context.Context) (err error) {
@@ -423,6 +438,17 @@ func (mo *MutableObject) ensureLocalFile(ctx context.Context) (err error) {
 	}
 
 	mo.localFile = f
+
+	// Throw away the read proxy.
+	rp := mo.readProxy
+	mo.readProxy = nil
+
+	err = rp.Destroy()
+	if err != nil {
+		err = fmt.Errorf("Destroy: %v", err)
+		return
+	}
+
 	return
 }
 

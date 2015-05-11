@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"reflect"
 	"strings"
 	"testing"
@@ -26,6 +27,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
+	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
@@ -214,9 +216,10 @@ func (t *MutableObjectTest) SetUp(ti *TestInfo) {
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 
 	t.mo.wrapped = gcsproxy.NewMutableObject(
-		&t.clock,
+		&t.src,
 		t.bucket,
-		&t.src)
+		lease.NewFileLeaser("", math.MaxInt64),
+		&t.clock)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -270,7 +273,7 @@ func (t *MutableObjectTest) Read_ReadError() {
 func (t *MutableObjectTest) Read_CloseError() {
 	// NewReader -- return a ReadCloser that will fail to close.
 	rc := &errorReadCloser{
-		wrapped: strings.NewReader(""),
+		wrapped: strings.NewReader(strings.Repeat("a", int(t.src.Size))),
 		err:     errors.New("taco"),
 	}
 
@@ -285,7 +288,7 @@ func (t *MutableObjectTest) Read_CloseError() {
 }
 
 func (t *MutableObjectTest) Read_NewReaderSucceeds() {
-	const contents = "tacoburrito"
+	contents := strings.Repeat("tacoburrito", int(t.src.Size))[:t.src.Size]
 	buf := make([]byte, 1024)
 	var n int
 	var err error
@@ -480,7 +483,7 @@ func (t *MutableObjectTest) Sync_NoInteractions() {
 }
 
 func (t *MutableObjectTest) Sync_AfterReading() {
-	const contents = "tacoburrito"
+	contents := strings.Repeat("taco", int(t.src.Size))[:t.src.Size]
 	buf := make([]byte, 1024)
 	var n int
 	var err error
@@ -625,8 +628,9 @@ func (t *MutableObjectTest) Sync_Successful() {
 	var err error
 
 	// Dirty the proxy.
+	contents := strings.Repeat("a", int(t.src.Size))
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(contents)), nil))
 
 	n, err = t.mo.WriteAt([]byte("taco"), 0)
 	AssertEq(nil, err)
@@ -653,12 +657,11 @@ func (t *MutableObjectTest) Sync_Successful() {
 	AssertEq(nil, err)
 	ExpectEq(17, t.mo.SourceGeneration())
 
-	// The data we wrote before should still be present.
-	buf := make([]byte, 1024)
-	n, err = t.mo.ReadAt(buf, 0)
+	// Further calls to read should fetch the new object from the bucket.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, errors.New("")))
 
-	AssertEq(io.EOF, err)
-	ExpectEq("taco", string(buf[:n]))
+	t.mo.ReadAt([]byte{}, 0)
 }
 
 func (t *MutableObjectTest) WriteThenSyncThenWriteThenSync() {
@@ -678,6 +681,7 @@ func (t *MutableObjectTest) WriteThenSyncThenWriteThenSync() {
 	o := &gcs.Object{
 		Name:       t.src.Name,
 		Generation: 1,
+		Size:       uint64(len("taco")),
 	}
 
 	ExpectCall(t.bucket, "CreateObject")(Any(), contentsAre("taco")).
@@ -686,7 +690,11 @@ func (t *MutableObjectTest) WriteThenSyncThenWriteThenSync() {
 	err = t.mo.Sync()
 	AssertEq(nil, err)
 
-	// Write some more data at the end.
+	// Write some more data at the end. The new object contents should be
+	// fetched.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("taco")), nil))
+
 	n, err = t.mo.WriteAt([]byte("burrito"), 4)
 	AssertEq(nil, err)
 	AssertEq(len("burrito"), n)

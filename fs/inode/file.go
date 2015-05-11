@@ -17,8 +17,10 @@ package inode
 import (
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
+	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/gcs"
@@ -83,13 +85,16 @@ func NewFileInode(
 	id fuseops.InodeID,
 	supportNlink bool,
 	o *gcs.Object) (f *FileInode) {
+	// TODO(jacobsa): Use a shared file leaser with a sensible limit.
+	leaser := lease.NewFileLeaser("", math.MaxInt64)
+
 	// Set up the basic struct.
 	f = &FileInode{
 		bucket:       bucket,
 		id:           id,
 		name:         o.Name,
 		supportNlink: supportNlink,
-		proxy:        gcsproxy.NewMutableObject(clock, bucket, o),
+		proxy:        gcsproxy.NewMutableObject(o, bucket, leaser, clock),
 	}
 
 	f.lc.Init(id)
