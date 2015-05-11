@@ -181,7 +181,24 @@ func (t *IntegrationTest) TruncateThenSync() {
 	ExpectEq("ta", contents)
 }
 
-func (t *IntegrationTest) Stat_Clean() {
+func (t *IntegrationTest) Stat_InitialState() {
+	// Create.
+	createTime := t.clock.Now()
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	AssertEq(nil, err)
+	t.clock.AdvanceTime(time.Second)
+
+	t.create(o)
+
+	// Stat.
+	sr, err := t.mo.Stat(true)
+	AssertEq(nil, err)
+	ExpectEq(o.Size, sr.Size)
+	ExpectThat(sr.Mtime, timeutil.TimeEq(createTime))
+	ExpectFalse(sr.Clobbered)
+}
+
+func (t *IntegrationTest) Stat_Synced() {
 	AssertTrue(false, "TODO")
 }
 
