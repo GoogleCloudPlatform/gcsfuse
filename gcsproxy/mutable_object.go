@@ -15,25 +15,17 @@
 package gcsproxy
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"math"
-	"os"
 	"sync/atomic"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
-	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
-
-var fTempDir = flag.String(
-	"gcsproxy.temp_dir", "",
-	"The temporary directory in which to store local copies of GCS objects. "+
-		"If empty, the system default (probably /tmp) will be used.")
 
 // A view on a particular generation of an object in GCS that allows random
 // access reads and writes.
@@ -69,16 +61,16 @@ type MutableObject struct {
 	// When clean, a read proxy around src. When dirty, nil.
 	readProxy *ReadProxy
 
-	// When dirty, a local temporary file containing our current contents. When
+	// When dirty, a read/write lease containing our current contents. When
 	// clean, nil.
 	//
-	// TODO(jacobsa): Use a read/write lease here, and make it possible to
-	// "downgrade" directly to a read proxy by adding a variant of
-	// gcsproxy.NewReadProxy that takes an existing read/write lease, then ditto
-	// with lease.NewReadProxy  in addition to the refresh function.
+	// TODO(jacobsa): Make it possible to "downgrade" directly to a read proxy by
+	// adding a variant of gcsproxy.NewReadProxy that takes an existing
+	// read/write lease, then ditto with lease.NewReadProxy  in addition to the
+	// refresh function.
 	//
-	// INVARIANT: (readProxy == nil) != (localFile == nil)
-	localFile *os.File
+	// INVARIANT: (readProxy == nil) != (readWriteLease == nil)
+	readWriteLease lease.ReadWriteLease
 
 	// The time at which a method that modifies our contents was last called, or
 	// nil if never.
@@ -161,13 +153,13 @@ func (mo *MutableObject) CheckInvariants() {
 		}
 	}
 
-	// INVARIANT: (readProxy == nil) != (localFile == nil)
-	if mo.readProxy == nil && mo.localFile == nil {
-		panic("Both readProxy and localFile are nil")
+	// INVARIANT: (readProxy == nil) != (readWriteLease == nil)
+	if mo.readProxy == nil && mo.readWriteLease == nil {
+		panic("Both readProxy and readWriteLease are nil")
 	}
 
-	if mo.readProxy != nil && mo.localFile != nil {
-		panic("Both readProxy and localFile are non-nil")
+	if mo.readProxy != nil && mo.readWriteLease != nil {
+		panic("Both readProxy and readWriteLease are non-nil")
 	}
 
 	// INVARIANT: If dirty(), then mtime != nil
@@ -177,18 +169,25 @@ func (mo *MutableObject) CheckInvariants() {
 }
 
 // Destroy any local file caches, putting the proxy into an indeterminate
-// state.
+// state. The MutableObject must not be used after calling this method,
+// regardless of outcome.
 func (mo *MutableObject) Destroy() (err error) {
-	// If we have no local file, there's nothing to do.
-	if mo.localFile == nil {
+	// If we have no read/write lease, there's nothing to do.
+	if mo.readWriteLease == nil {
 		return
 	}
 
-	// Close the local file.
-	if err = mo.localFile.Close(); err != nil {
-		err = fmt.Errorf("Close: %v", err)
+	// Downgrade to a read lease.
+	rl, err := mo.readWriteLease.Downgrade()
+	if err != nil {
+		err = fmt.Errorf("Downgrade: %v", err)
 		return
 	}
+
+	mo.readWriteLease = nil
+
+	// Revoke the read lease.
+	rl.Revoke()
 
 	return
 }
@@ -211,16 +210,14 @@ func (mo *MutableObject) Stat(
 		sr.Mtime = mo.src.Updated
 	}
 
-	// If we have a file, it is authoritative for our size. Otherwise the read
-	// proxy is authoritative.
-	if mo.localFile != nil {
-		var fi os.FileInfo
-		if fi, err = mo.localFile.Stat(); err != nil {
-			err = fmt.Errorf("Stat: %v", err)
+	// If we have a read/write lease, it is authoritative for our size. Otherwise
+	// the read proxy is authoritative.
+	if mo.readWriteLease != nil {
+		sr.Size, err = mo.readWriteLease.Size()
+		if err != nil {
+			err = fmt.Errorf("Size: %v", err)
 			return
 		}
-
-		sr.Size = fi.Size()
 	} else {
 		sr.Size = mo.readProxy.Size()
 	}
@@ -245,9 +242,9 @@ func (mo *MutableObject) ReadAt(
 	ctx context.Context,
 	buf []byte,
 	offset int64) (n int, err error) {
-	// Serve from the read proxy or the local file.
+	// Serve from the read proxy or the read/write lease.
 	if mo.dirty() {
-		n, err = mo.localFile.ReadAt(buf, offset)
+		n, err = mo.readWriteLease.ReadAt(buf, offset)
 	} else {
 		n, err = mo.readProxy.ReadAt(ctx, buf, offset)
 	}
@@ -264,15 +261,15 @@ func (mo *MutableObject) WriteAt(
 	ctx context.Context,
 	buf []byte,
 	offset int64) (n int, err error) {
-	// Make sure we have a local file.
-	if err = mo.ensureLocalFile(ctx); err != nil {
-		err = fmt.Errorf("ensureLocalFile: %v", err)
+	// Make sure we have a read/write lease.
+	if err = mo.ensureReadWriteLease(ctx); err != nil {
+		err = fmt.Errorf("ensureReadWriteLease: %v", err)
 		return
 	}
 
 	newMtime := mo.clock.Now()
 	mo.mtime = &newMtime
-	n, err = mo.localFile.WriteAt(buf, offset)
+	n, err = mo.readWriteLease.WriteAt(buf, offset)
 
 	return
 }
@@ -281,13 +278,13 @@ func (mo *MutableObject) WriteAt(
 // n is greater than the current size. May block for network access. Not
 // guaranteed to be reflected remotely until after Sync is called successfully.
 func (mo *MutableObject) Truncate(ctx context.Context, n int64) (err error) {
-	// Make sure we have a local file.
-	if err = mo.ensureLocalFile(ctx); err != nil {
-		err = fmt.Errorf("ensureLocalFile: %v", err)
+	// Make sure we have a read/write lease.
+	if err = mo.ensureReadWriteLease(ctx); err != nil {
+		err = fmt.Errorf("ensureReadWriteLease: %v", err)
 		return
 	}
 
-	// Convert to signed, which is what os.File wants.
+	// Convert to signed, which is what lease.ReadWriteLease wants.
 	if n > math.MaxInt64 {
 		err = fmt.Errorf("Illegal offset: %v", n)
 		return
@@ -295,7 +292,7 @@ func (mo *MutableObject) Truncate(ctx context.Context, n int64) (err error) {
 
 	newMtime := mo.clock.Now()
 	mo.mtime = &newMtime
-	err = mo.localFile.Truncate(int64(n))
+	err = mo.readWriteLease.Truncate(int64(n))
 
 	return
 }
@@ -314,9 +311,9 @@ func (mo *MutableObject) Sync(ctx context.Context) (err error) {
 		return
 	}
 
-	// Seek the file to the start so that it can be used as a reader for its full
-	// contents below.
-	_, err = mo.localFile.Seek(0, 0)
+	// Seek the read/write lease to the start so that it can be used as a reader
+	// for its full contents below.
+	_, err = mo.readWriteLease.Seek(0, 0)
 	if err != nil {
 		err = fmt.Errorf("Seek: %v", err)
 		return
@@ -326,7 +323,7 @@ func (mo *MutableObject) Sync(ctx context.Context) (err error) {
 	// an appropriate precondition.
 	req := &gcs.CreateObjectRequest{
 		Name:                   mo.src.Name,
-		Contents:               mo.localFile,
+		Contents:               mo.readWriteLease,
 		GenerationPrecondition: &mo.src.Generation,
 	}
 
@@ -352,15 +349,19 @@ func (mo *MutableObject) Sync(ctx context.Context) (err error) {
 	mo.readProxy = NewReadProxy(mo.leaser, mo.bucket, o)
 	atomic.StoreInt64(&mo.sourceGeneration, mo.src.Generation)
 
-	f := mo.localFile
-	mo.localFile = nil
+	rwl := mo.readWriteLease
+	mo.readWriteLease = nil
 
-	// Close the local file, which we no longer need.
-	err = f.Close()
+	// Destroy the read/write lease, which we no longer need.
+	//
+	// TODO(jacobsa): Update this. See the TODO on MutableObject.readWriteLease.
+	rl, err := rwl.Downgrade()
 	if err != nil {
-		err = fmt.Errorf("Close: %v", err)
+		err = fmt.Errorf("Downgrade: %v", err)
 		return
 	}
+
+	rl.Revoke()
 
 	return
 }
@@ -369,25 +370,26 @@ func (mo *MutableObject) Sync(ctx context.Context) (err error) {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-// Set up an unlinked local temporary file for the given generation of the
-// given object.
-func makeLocalFile(
+// Set up a read/write lease containing the given generation of the given
+// object.
+func makeReadWriteLease(
 	ctx context.Context,
 	bucket gcs.Bucket,
+	leaser lease.FileLeaser,
 	name string,
-	generation int64) (f *os.File, err error) {
-	// Create the file.
-	f, err = fsutil.AnonymousFile(*fTempDir)
+	generation int64) (rwl lease.ReadWriteLease, err error) {
+	// Create the read/write lease.
+	rwl, err = leaser.NewFile()
 	if err != nil {
-		err = fmt.Errorf("AnonymousFile: %v", err)
+		err = fmt.Errorf("NewFile: %v", err)
 		return
 	}
 
-	// Ensure that we clean up the file if we return in error from this method.
+	// Ensure that we clean up the lease if we return in error from this method.
 	defer func() {
 		if err != nil {
-			f.Close()
-			f = nil
+			rwl.Downgrade()
+			rwl = nil
 		}
 	}()
 
@@ -403,8 +405,8 @@ func makeLocalFile(
 		return
 	}
 
-	// Copy to the file.
-	if _, err = io.Copy(f, rc); err != nil {
+	// Copy to the read/write lease.
+	if _, err = io.Copy(rwl, rc); err != nil {
 		err = fmt.Errorf("Copy: %v", err)
 		return
 	}
@@ -419,25 +421,31 @@ func makeLocalFile(
 }
 
 func (mo *MutableObject) dirty() bool {
-	return mo.localFile != nil
+	return mo.readWriteLease != nil
 }
 
-// Ensure that mo.localFile is non-nil with an authoritative view of mo's
+// Ensure that mo.readWriteLease is non-nil with an authoritative view of mo's
 // contents.
-func (mo *MutableObject) ensureLocalFile(ctx context.Context) (err error) {
+func (mo *MutableObject) ensureReadWriteLease(ctx context.Context) (err error) {
 	// Is there anything to do?
-	if mo.localFile != nil {
+	if mo.readWriteLease != nil {
 		return
 	}
 
-	// Set up the file.
-	f, err := makeLocalFile(ctx, mo.bucket, mo.Name(), mo.src.Generation)
+	// Set up the read/write lease.
+	rwl, err := makeReadWriteLease(
+		ctx,
+		mo.bucket,
+		mo.leaser,
+		mo.Name(),
+		mo.src.Generation)
+
 	if err != nil {
-		err = fmt.Errorf("makeLocalFile: %v", err)
+		err = fmt.Errorf("makeReadWriteLease: %v", err)
 		return
 	}
 
-	mo.localFile = f
+	mo.readWriteLease = rwl
 
 	// Throw away the read proxy.
 	rp := mo.readProxy
