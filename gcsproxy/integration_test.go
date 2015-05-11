@@ -134,7 +134,28 @@ func (t *IntegrationTest) ReadThenSync() {
 }
 
 func (t *IntegrationTest) WriteThenSync() {
-	AssertTrue(false, "TODO")
+	// Create.
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	AssertEq(nil, err)
+
+	t.create(o)
+
+	// Overwrite the first byte.
+	n, err := t.mo.WriteAt([]byte("p"), 0)
+
+	AssertEq(nil, err)
+	ExpectEq(1, n)
+
+	// Sync should save out the new generation.
+	err = t.mo.Sync()
+	ExpectEq(nil, err)
+
+	ExpectNe(o.Generation, t.mo.SourceGeneration())
+	ExpectEq(t.objectGeneration("foo"), t.mo.SourceGeneration())
+
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	AssertEq(nil, err)
+	ExpectEq("paco", contents)
 }
 
 func (t *IntegrationTest) TruncateThenSync() {
