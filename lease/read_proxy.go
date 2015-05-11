@@ -233,19 +233,13 @@ func (rp *ReadProxy) Seek(
 }
 
 // Semantics matching io.ReaderAt, except with context support.
-func (rl *autoRefreshingReadLease) ReadAt(
+func (rp *ReadProxy) ReadAt(
 	ctx context.Context,
 	p []byte,
 	off int64) (n int, err error) {
-	// Special case: have we been permanently revoked?
-	if rl.revoked {
-		err = &RevokedError{}
-		return
-	}
-
 	// Common case: is the existing lease still valid?
-	if rl.wrapped != nil {
-		n, err = rl.wrapped.ReadAt(p, off)
+	if rp.lease != nil {
+		n, err = rp.lease.ReadAt(p, off)
 		if !isRevokedErr(err) {
 			return
 		}
@@ -255,13 +249,13 @@ func (rl *autoRefreshingReadLease) ReadAt(
 	}
 
 	// Get hold of a read/write lease containing our contents.
-	rwl, err := rl.getContents()
+	rwl, err := rp.getContents(ctx)
 	if err != nil {
 		err = fmt.Errorf("getContents: %v", err)
 		return
 	}
 
-	defer rl.saveContents(rwl)
+	defer rp.saveContents(rwl)
 
 	// Serve from the read/write lease.
 	n, err = rwl.ReadAt(p, off)
