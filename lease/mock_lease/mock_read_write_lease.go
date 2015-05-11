@@ -41,7 +41,7 @@ func (m *mockReadWriteLease) Oglemock_Description() string {
 	return m.description
 }
 
-func (m *mockReadWriteLease) Downgrade() (o0 lease.ReadLease, o1 error) {
+func (m *mockReadWriteLease) Downgrade() (o0 lease.ReadLease) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -53,18 +53,13 @@ func (m *mockReadWriteLease) Downgrade() (o0 lease.ReadLease, o1 error) {
 		line,
 		[]interface{}{})
 
-	if len(retVals) != 2 {
+	if len(retVals) != 1 {
 		panic(fmt.Sprintf("mockReadWriteLease.Downgrade: invalid return values: %v", retVals))
 	}
 
 	// o0 lease.ReadLease
 	if retVals[0] != nil {
 		o0 = retVals[0].(lease.ReadLease)
-	}
-
-	// o1 error
-	if retVals[1] != nil {
-		o1 = retVals[1].(error)
 	}
 
 	return
