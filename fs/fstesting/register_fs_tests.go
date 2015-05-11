@@ -91,6 +91,9 @@ func registerTestSuite(
 			cfg := makeConfig()
 			cfg.ctx = ti.Ctx
 
+			// Use temporary space to speed tests.
+			cfg.ServerConfig.TempDirLimit = 1 << 27 // 128 MiB
+
 			// Tests assume SupportNlink is enabled.
 			cfg.ServerConfig.SupportNlink = true
 
