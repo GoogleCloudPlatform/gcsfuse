@@ -15,13 +15,16 @@
 package fs
 
 import (
+	"flag"
 	"fmt"
+	"math"
 	"os/user"
 	"reflect"
 	"strconv"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
@@ -30,6 +33,11 @@ import (
 	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
 )
+
+var fTempDir = flag.String(
+	"fs.temp_dir", "",
+	"The temporary directory in which to store local copies of GCS objects. "+
+		"If empty, the system default (probably /tmp) will be used.")
 
 type ServerConfig struct {
 	// A clock used for modification times.
@@ -78,8 +86,10 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 
 	// Set up the basic struct.
 	fs := &fileSystem{
-		clock:           cfg.Clock,
-		bucket:          cfg.Bucket,
+		clock:  cfg.Clock,
+		bucket: cfg.Bucket,
+		// TODO(jacobsa): Use a useful limit here.
+		leaser:          lease.NewFileLeaser(*fTempDir, math.MaxInt64),
 		implicitDirs:    cfg.ImplicitDirectories,
 		supportNlink:    cfg.SupportNlink,
 		dirTypeCacheTTL: cfg.DirTypeCacheTTL,
@@ -147,6 +157,7 @@ type fileSystem struct {
 
 	clock  timeutil.Clock
 	bucket gcs.Bucket
+	leaser lease.FileLeaser
 
 	/////////////////////////
 	// Constant data

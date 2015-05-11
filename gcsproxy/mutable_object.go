@@ -15,7 +15,6 @@
 package gcsproxy
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"math"
@@ -27,12 +26,6 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
-
-// TODO(jacobsa): Move this to the wiring code for the file leaser.
-var fTempDir = flag.String(
-	"gcsproxy.temp_dir", "",
-	"The temporary directory in which to store local copies of GCS objects. "+
-		"If empty, the system default (probably /tmp) will be used.")
 
 // A view on a particular generation of an object in GCS that allows random
 // access reads and writes.
