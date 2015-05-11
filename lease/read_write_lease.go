@@ -52,7 +52,7 @@ type readWriteLease struct {
 	// The leaser that issued this lease.
 	leaser *fileLeaser
 
-	// The underlying file, set to nil once revoked.
+	// The underlying file, set to nil once downgraded.
 	//
 	// GUARDED_BY(mu)
 	file *os.File
@@ -94,12 +94,6 @@ func (rwl *readWriteLease) Read(p []byte) (n int, err error) {
 	rwl.mu.Lock()
 	defer rwl.mu.Unlock()
 
-	// Have we been revoked?
-	if rwl.file == nil {
-		err = &RevokedError{}
-		return
-	}
-
 	n, err = rwl.file.Read(p)
 	return
 }
@@ -111,12 +105,6 @@ func (rwl *readWriteLease) Write(p []byte) (n int, err error) {
 
 	// Ensure that we reconcile our size when we're done.
 	defer rwl.reconcileSize()
-
-	// Have we been revoked?
-	if rwl.file == nil {
-		err = &RevokedError{}
-		return
-	}
 
 	// Call through.
 	n, err = rwl.file.Write(p)
@@ -131,12 +119,6 @@ func (rwl *readWriteLease) Seek(
 	rwl.mu.Lock()
 	defer rwl.mu.Unlock()
 
-	// Have we been revoked?
-	if rwl.file == nil {
-		err = &RevokedError{}
-		return
-	}
-
 	off, err = rwl.file.Seek(offset, whence)
 	return
 }
@@ -145,12 +127,6 @@ func (rwl *readWriteLease) Seek(
 func (rwl *readWriteLease) ReadAt(p []byte, off int64) (n int, err error) {
 	rwl.mu.Lock()
 	defer rwl.mu.Unlock()
-
-	// Have we been revoked?
-	if rwl.file == nil {
-		err = &RevokedError{}
-		return
-	}
 
 	n, err = rwl.file.ReadAt(p, off)
 	return
@@ -163,12 +139,6 @@ func (rwl *readWriteLease) WriteAt(p []byte, off int64) (n int, err error) {
 
 	// Ensure that we reconcile our size when we're done.
 	defer rwl.reconcileSize()
-
-	// Have we been revoked?
-	if rwl.file == nil {
-		err = &RevokedError{}
-		return
-	}
 
 	// Call through.
 	n, err = rwl.file.WriteAt(p, off)
@@ -184,12 +154,6 @@ func (rwl *readWriteLease) Truncate(size int64) (err error) {
 	// Ensure that we reconcile our size when we're done.
 	defer rwl.reconcileSize()
 
-	// Have we been revoked?
-	if rwl.file == nil {
-		err = &RevokedError{}
-		return
-	}
-
 	// Call through.
 	err = rwl.file.Truncate(size)
 
@@ -201,12 +165,6 @@ func (rwl *readWriteLease) Size() (size int64, err error) {
 	rwl.mu.Lock()
 	defer rwl.mu.Unlock()
 
-	// Have we been revoked?
-	if rwl.file == nil {
-		err = &RevokedError{}
-		return
-	}
-
 	size, err = rwl.sizeLocked()
 	return
 }
@@ -215,12 +173,6 @@ func (rwl *readWriteLease) Size() (size int64, err error) {
 func (rwl *readWriteLease) Downgrade() (rl ReadLease, err error) {
 	rwl.mu.Lock()
 	defer rwl.mu.Unlock()
-
-	// Have we been revoked?
-	if rwl.file == nil {
-		err = &RevokedError{}
-		return
-	}
 
 	// Find the current size under the lock.
 	size, err := rwl.sizeLocked()
@@ -232,7 +184,7 @@ func (rwl *readWriteLease) Downgrade() (rl ReadLease, err error) {
 	// Call the leaser.
 	rl = rwl.leaser.downgrade(rwl, size, rwl.file)
 
-	// Note that we have been revoked.
+	// Ensure that we will crash if used again.
 	rwl.file = nil
 
 	return
@@ -262,11 +214,6 @@ func (rwl *readWriteLease) sizeLocked() (size int64, err error) {
 // LOCKS_EXCLUDED(rwl.leaser.mu)
 func (rwl *readWriteLease) reconcileSize() {
 	var err error
-
-	// If we have been revoked, there is nothing to do.
-	if rwl.file == nil {
-		return
-	}
 
 	// Find our size.
 	size, err := rwl.sizeLocked()
