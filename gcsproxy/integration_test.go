@@ -18,11 +18,15 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
+	"github.com/jacobsa/gcloud/gcs/gcsutil"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -35,6 +39,7 @@ func TestIntegration(t *testing.T) { RunTests(t) }
 const fileLeaserLimit = 1 << 10
 
 type IntegrationTest struct {
+	ctx    context.Context
 	bucket gcs.Bucket
 	leaser lease.FileLeaser
 	clock  timeutil.SimulatedClock
@@ -48,6 +53,7 @@ var _ TearDownInterface = &IntegrationTest{}
 func init() { RegisterTestSuite(&IntegrationTest{}) }
 
 func (t *IntegrationTest) SetUp(ti *TestInfo) {
+	t.ctx = ti.Ctx
 	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
 	t.leaser = lease.NewFileLeaser("", fileLeaserLimit)
 
@@ -64,6 +70,7 @@ func (t *IntegrationTest) TearDown() {
 func (t *IntegrationTest) create(o *gcs.Object) {
 	// Ensure invariants are checked.
 	t.mo = &checkingMutableObject{
+		ctx: t.ctx,
 		wrapped: gcsproxy.NewMutableObject(
 			o,
 			t.bucket,
@@ -77,7 +84,41 @@ func (t *IntegrationTest) create(o *gcs.Object) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *IntegrationTest) NonExistentBackingObjectName() {
-	AssertTrue(false, "TODO")
+	// Create an object to obtain a record, then delete it.
+	createTime := t.clock.Now()
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	AssertEq(nil, err)
+	t.clock.AdvanceTime(time.Second)
+
+	err = t.bucket.DeleteObject(t.ctx, o.Name)
+	AssertEq(nil, err)
+
+	// Create a mutable object around it.
+	t.create(o)
+
+	// Synchronously-available things should work.
+	ExpectEq(o.Name, t.mo.Name())
+	ExpectEq(o.Generation, t.mo.SourceGeneration())
+
+	sr, err := t.mo.Stat(true)
+	AssertEq(nil, err)
+	ExpectEq(o.Size, sr.Size)
+	ExpectThat(sr.Mtime, timeutil.TimeEq(createTime))
+	ExpectTrue(sr.Clobbered)
+
+	// Sync doesn't need to do anything.
+	err = t.mo.Sync()
+	ExpectEq(nil, err)
+
+	// Anything that needs to fault in the contents should fail.
+	_, err = t.mo.ReadAt([]byte{}, 0)
+	ExpectThat(err, Error(HasSubstr("not found")))
+
+	err = t.mo.Truncate(10)
+	ExpectThat(err, Error(HasSubstr("not found")))
+
+	_, err = t.mo.WriteAt([]byte{}, 0)
+	ExpectThat(err, Error(HasSubstr("not found")))
 }
 
 func (t *IntegrationTest) BackingObjectHasBeenClobbered_BeforeReading() {

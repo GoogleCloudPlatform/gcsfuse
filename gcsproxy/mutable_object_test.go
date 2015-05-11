@@ -141,6 +141,7 @@ func (ec *errorReadCloser) Close() error {
 // A wrapper around MutableObject that calls CheckInvariants whenever
 // invariants should hold. For catching logic errors early in the test.
 type checkingMutableObject struct {
+	ctx     context.Context
 	wrapped *gcsproxy.MutableObject
 }
 
@@ -160,31 +161,31 @@ func (mo *checkingMutableObject) Stat(
 	needClobbered bool) (gcsproxy.StatResult, error) {
 	mo.wrapped.CheckInvariants()
 	defer mo.wrapped.CheckInvariants()
-	return mo.wrapped.Stat(context.Background(), needClobbered)
+	return mo.wrapped.Stat(mo.ctx, needClobbered)
 }
 
 func (mo *checkingMutableObject) ReadAt(b []byte, o int64) (int, error) {
 	mo.wrapped.CheckInvariants()
 	defer mo.wrapped.CheckInvariants()
-	return mo.wrapped.ReadAt(context.Background(), b, o)
+	return mo.wrapped.ReadAt(mo.ctx, b, o)
 }
 
 func (mo *checkingMutableObject) WriteAt(b []byte, o int64) (int, error) {
 	mo.wrapped.CheckInvariants()
 	defer mo.wrapped.CheckInvariants()
-	return mo.wrapped.WriteAt(context.Background(), b, o)
+	return mo.wrapped.WriteAt(mo.ctx, b, o)
 }
 
 func (mo *checkingMutableObject) Truncate(n int64) error {
 	mo.wrapped.CheckInvariants()
 	defer mo.wrapped.CheckInvariants()
-	return mo.wrapped.Truncate(context.Background(), n)
+	return mo.wrapped.Truncate(mo.ctx, n)
 }
 
 func (mo *checkingMutableObject) Sync() error {
 	mo.wrapped.CheckInvariants()
 	defer mo.wrapped.CheckInvariants()
-	return mo.wrapped.Sync(context.Background())
+	return mo.wrapped.Sync(mo.ctx)
 }
 
 func (mo *checkingMutableObject) Destroy() {
@@ -225,6 +226,7 @@ func (t *MutableObjectTest) SetUp(ti *TestInfo) {
 	// Set up a fixed, non-zero time.
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 
+	t.mo.ctx = ti.Ctx
 	t.mo.wrapped = gcsproxy.NewMutableObject(
 		&t.src,
 		t.bucket,
