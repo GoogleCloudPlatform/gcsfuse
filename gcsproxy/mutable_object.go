@@ -114,18 +114,6 @@ func NewMutableObject(
 	return
 }
 
-// Return the name of the proxied object. This may or may not be an object that
-// currently exists in the bucket, depending on whether the backing object has
-// been deleted.
-//
-// May be called concurrently with any method.
-//
-// TODO(jacobsa): I think there is a race on reading src.Name with the write in
-// Sync. Do we actually need this guarantee?
-func (mo *MutableObject) Name() string {
-	return mo.src.Name
-}
-
 // Return the generation of the object from which the current contents of this
 // proxy were branched. If Sync has been successfully called, this is the
 // generation most recently returned by Sync. Otherwise it is the generation
@@ -382,7 +370,7 @@ func (mo *MutableObject) ensureReadWriteLease(ctx context.Context) (err error) {
 func (mo *MutableObject) clobbered(
 	ctx context.Context) (clobbered bool, err error) {
 	// Stat the object in GCS.
-	req := &gcs.StatObjectRequest{Name: mo.Name()}
+	req := &gcs.StatObjectRequest{Name: mo.src.Name}
 	o, err := mo.bucket.StatObject(ctx, req)
 
 	// Special case: "not found" means we have been clobbered.

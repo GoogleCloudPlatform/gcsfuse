@@ -40,10 +40,7 @@ type FileInode struct {
 
 	id           fuseops.InodeID
 	supportNlink bool
-
-	// Redundant with proxy.Name(), but stored separately so that it can be
-	// accessed without a lock.
-	name string
+	name         string
 
 	/////////////////////////
 	// Mutable state
@@ -59,7 +56,6 @@ type FileInode struct {
 	// A proxy for the backing object in GCS.
 	//
 	// INVARIANT: proxy.CheckInvariants() does not panic
-	// INVARIANT: proxy.Name() == name
 	//
 	// GUARDED_BY(mu)
 	proxy *gcsproxy.MutableObject
@@ -125,11 +121,6 @@ func (f *FileInode) checkInvariants() {
 
 	// INVARIANT: proxy.CheckInvariants() does not panic
 	f.proxy.CheckInvariants()
-
-	// INVARIANT: proxy.Name() == name
-	if f.proxy.Name() != f.name {
-		panic(fmt.Sprintf("Name mismatch: %q %q", f.proxy.Name(), f.name))
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////

@@ -145,12 +145,6 @@ type checkingMutableObject struct {
 	wrapped *gcsproxy.MutableObject
 }
 
-func (mo *checkingMutableObject) Name() string {
-	mo.wrapped.CheckInvariants()
-	defer mo.wrapped.CheckInvariants()
-	return mo.wrapped.Name()
-}
-
 func (mo *checkingMutableObject) SourceGeneration() int64 {
 	mo.wrapped.CheckInvariants()
 	defer mo.wrapped.CheckInvariants()

@@ -331,7 +331,6 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_BeforeReading() {
 	t.create(o)
 
 	// Synchronously-available things should work.
-	ExpectEq(o.Name, t.mo.Name())
 	ExpectEq(o.Generation, t.mo.SourceGeneration())
 
 	sr, err := t.mo.Stat(true)
@@ -371,7 +370,6 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 	AssertEq(nil, err)
 
 	// Reading and modications should still work.
-	ExpectEq(o.Name, t.mo.Name())
 	ExpectEq(o.Generation, t.mo.SourceGeneration())
 
 	_, err = t.mo.ReadAt([]byte{}, 0)
@@ -416,7 +414,6 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_BeforeReading() {
 	AssertEq(nil, err)
 
 	// Synchronously-available things should work.
-	ExpectEq(o.Name, t.mo.Name())
 	ExpectEq(o.Generation, t.mo.SourceGeneration())
 
 	sr, err := t.mo.Stat(true)
@@ -456,7 +453,6 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 	AssertEq(nil, err)
 
 	// Reading and modications should still work.
-	ExpectEq(o.Name, t.mo.Name())
 	ExpectEq(o.Generation, t.mo.SourceGeneration())
 
 	_, err = t.mo.ReadAt([]byte{}, 0)
