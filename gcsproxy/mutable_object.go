@@ -171,17 +171,9 @@ func (mo *MutableObject) Destroy() (err error) {
 		return
 	}
 
-	// Downgrade to a read lease.
-	rl, err := mo.readWriteLease.Downgrade()
-	if err != nil {
-		err = fmt.Errorf("Downgrade: %v", err)
-		return
-	}
-
+	// Downgrade to a read lease, then revoke it.
+	mo.readWriteLease.Downgrade().Revoke()
 	mo.readWriteLease = nil
-
-	// Revoke the read lease.
-	rl.Revoke()
 
 	return
 }
@@ -341,24 +333,10 @@ func (mo *MutableObject) Sync(ctx context.Context) (err error) {
 	mo.src = *o
 	atomic.StoreInt64(&mo.sourceGeneration, mo.src.Generation)
 
-	// Attempt to downgrade the read/write lease to a read lease, and use that to
-	// prime the new read proxy. But whether or not that pans out, ensure that a
-	// read proxy is set up.
-	defer func() {
-		if mo.readProxy == nil {
-			mo.readProxy = NewReadProxy(mo.leaser, mo.bucket, o, nil)
-		}
-	}()
-
-	rwl := mo.readWriteLease
+	// Downgrade the read/write lease to a read lease, and use that to prime the
+	// new read proxy.
+	rl := mo.readWriteLease.Downgrade()
 	mo.readWriteLease = nil
-
-	rl, err := rwl.Downgrade()
-	if err != nil {
-		err = fmt.Errorf("Downgrade: %v", err)
-		return
-	}
-
 	mo.readProxy = NewReadProxy(mo.leaser, mo.bucket, o, rl)
 
 	return
