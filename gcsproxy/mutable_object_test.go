@@ -191,6 +191,8 @@ func (mo *checkingMutableObject) Sync() error {
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
+var initialContents = strings.Repeat("a", 11)
+
 type MutableObjectTest struct {
 	src    gcs.Object
 	clock  timeutil.SimulatedClock
@@ -206,7 +208,7 @@ func (t *MutableObjectTest) SetUp(ti *TestInfo) {
 	t.src = gcs.Object{
 		Name:       "some/object",
 		Generation: 123,
-		Size:       456,
+		Size:       uint64(len(initialContents)),
 		Updated:    time.Date(2001, 2, 3, 4, 5, 0, 0, time.Local),
 	}
 
@@ -273,7 +275,7 @@ func (t *MutableObjectTest) Read_ReadError() {
 func (t *MutableObjectTest) Read_CloseError() {
 	// NewReader -- return a ReadCloser that will fail to close.
 	rc := &errorReadCloser{
-		wrapped: strings.NewReader(strings.Repeat("a", int(t.src.Size))),
+		wrapped: strings.NewReader(initialContents),
 		err:     errors.New("taco"),
 	}
 
@@ -288,7 +290,7 @@ func (t *MutableObjectTest) Read_CloseError() {
 }
 
 func (t *MutableObjectTest) Read_NewReaderSucceeds() {
-	contents := strings.Repeat("tacoburrito", int(t.src.Size))[:t.src.Size]
+	contents := "tacoburrito" + initialContents[len("tacoburrito"):]
 	buf := make([]byte, 1024)
 	var n int
 	var err error
@@ -434,12 +436,12 @@ func (t *MutableObjectTest) GrowByTruncating() {
 	var buf []byte
 
 	// NewReader
-	s := strings.Repeat("a", int(t.src.Size))
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	// Truncate
-	err = t.mo.Truncate(int64(t.src.Size + 4))
+	err = t.mo.Truncate(int64(len(initialContents) + 4))
 	AssertEq(nil, err)
 
 	// Read the whole thing.
@@ -447,7 +449,7 @@ func (t *MutableObjectTest) GrowByTruncating() {
 	n, err = t.mo.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
-	ExpectEq(t.src.Size+4, n)
+	ExpectEq(len(initialContents)+4, n)
 	ExpectEq(s+"\x00\x00\x00\x00", string(buf[:n]))
 }
 
@@ -457,12 +459,12 @@ func (t *MutableObjectTest) ShrinkByTruncating() {
 	var buf []byte
 
 	// NewReader
-	s := strings.Repeat("a", int(t.src.Size))
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	// Truncate
-	err = t.mo.Truncate(int64(t.src.Size - 4))
+	err = t.mo.Truncate(int64(len(initialContents) - 4))
 	AssertEq(nil, err)
 
 	// Read the whole thing.
@@ -470,8 +472,8 @@ func (t *MutableObjectTest) ShrinkByTruncating() {
 	n, err = t.mo.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
-	ExpectEq(t.src.Size-4, n)
-	ExpectEq(s[:t.src.Size-4], string(buf[:n]))
+	ExpectEq(len(initialContents)-4, n)
+	ExpectEq(s[:len(initialContents)-4], string(buf[:n]))
 }
 
 func (t *MutableObjectTest) Sync_NoInteractions() {
@@ -483,7 +485,7 @@ func (t *MutableObjectTest) Sync_NoInteractions() {
 }
 
 func (t *MutableObjectTest) Sync_AfterReading() {
-	contents := strings.Repeat("taco", int(t.src.Size))[:t.src.Size]
+	contents := "taco" + initialContents[len("taco"):]
 	buf := make([]byte, 1024)
 	var n int
 	var err error
@@ -628,9 +630,9 @@ func (t *MutableObjectTest) Sync_Successful() {
 	var err error
 
 	// Dirty the proxy.
-	contents := strings.Repeat("a", int(t.src.Size))
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(contents)), nil))
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	n, err = t.mo.WriteAt([]byte("taco"), 0)
 	AssertEq(nil, err)
@@ -866,7 +868,7 @@ func (t *MutableObjectTest) Stat_AfterReading() {
 	var err error
 
 	// Read
-	s := strings.Repeat("a", int(t.src.Size))
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
@@ -896,7 +898,7 @@ func (t *MutableObjectTest) Stat_AfterWriting() {
 	var err error
 
 	// Extend by writing.
-	s := strings.Repeat("a", int(t.src.Size))
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
