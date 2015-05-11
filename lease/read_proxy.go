@@ -18,34 +18,44 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"sync"
+
+	"golang.org/x/net/context"
 )
 
-// Create a ReadLease that never expires, unless voluntarily revoked or
-// upgraded.
+// A function used by read proxies to refresh their contents. See notes on
+// NewReadProxy.
+type RefreshContentsFunc func(context.Context) (io.ReadCloser, error)
+
+// Create a read proxy.
 //
-// The supplied function will be used to obtain the read lease contents, the
-// first time and whenever the supplied file leaser decides to expire the
-// temporary copy thus obtained. It must return the same contents every time,
-// and the contents must be of the given size.
-//
-// This magic is not preserved after the lease is upgraded.
-func NewAutoRefreshingReadLease(
+// The supplied function will be used to obtain the proxy's contents, the first
+// time they're needed and whenever the supplied file leaser decides to expire
+// the temporary copy thus obtained. It must return the same contents every
+// time, and the contents must be of the given size.
+func NewReadProxy(
 	fl FileLeaser,
 	size int64,
-	f func() (io.ReadCloser, error)) (rl ReadLease) {
-	rl = &autoRefreshingReadLease{
-		leaser: fl,
-		size:   size,
-		f:      f,
+	refresh RefreshContentsFunc) (rp *ReadProxy) {
+	rp = &ReadProxy{
+		leaser:  fl,
+		size:    size,
+		refresh: refresh,
 	}
 
 	return
 }
 
-type autoRefreshingReadLease struct {
-	mu sync.Mutex
-
+// A wrapper around a read lease, exposing a similar interface with the
+// following differences:
+//
+//  *  Contents are fetched and re-fetched automatically when needed. Therefore
+//     the user need not worry about lease expiration.
+//
+//  *  Methods that may involve fetching the contents (reading, seeking) accept
+//     context arguments, so as to be cancellable.
+//
+// External synchronization is required.
+type ReadProxy struct {
 	/////////////////////////
 	// Constant data
 	/////////////////////////
@@ -56,22 +66,15 @@ type autoRefreshingReadLease struct {
 	// Dependencies
 	/////////////////////////
 
-	leaser FileLeaser
-	f      func() (io.ReadCloser, error)
+	leaser  FileLeaser
+	refresh RefreshContentsFunc
 
 	/////////////////////////
 	// Mutable state
 	/////////////////////////
 
-	// Set to true when we've been revoked for good.
-	//
-	// GUARDED_BY(mu)
-	revoked bool
-
 	// The current wrapped lease, or nil if one has never been issued.
-	//
-	// GUARDED_BY(mu)
-	wrapped ReadLease
+	lease ReadLease
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -105,13 +108,11 @@ func isRevokedErr(err error) bool {
 
 // Set up a read/write lease and fill in our contents.
 //
-// REQUIRES: The caller has observed that rl.lease has expired.
-//
-// LOCKS_REQUIRED(rl.mu)
-func (rl *autoRefreshingReadLease) getContents() (
-	rwl ReadWriteLease, err error) {
+// REQUIRES: The caller has observed that rp.lease has expired.
+func (rp *ReadProxy) getContents(
+	ctx context.Context) (rwl ReadWriteLease, err error) {
 	// Obtain some space to write the contents.
-	rwl, err = rl.leaser.NewFile()
+	rwl, err = rp.leaser.NewFile()
 	if err != nil {
 		err = fmt.Errorf("NewFile: %v", err)
 		return
@@ -125,7 +126,7 @@ func (rl *autoRefreshingReadLease) getContents() (
 	}()
 
 	// Obtain the reader for our contents.
-	rc, err := rl.f()
+	rc, err := rp.refresh(ctx)
 	if err != nil {
 		err = fmt.Errorf("User function: %v", err)
 		return
@@ -146,8 +147,8 @@ func (rl *autoRefreshingReadLease) getContents() (
 	}
 
 	// Did the user lie about the size?
-	if copied != rl.Size() {
-		err = fmt.Errorf("Copied %v bytes; expected %v", copied, rl.Size())
+	if copied != rp.Size() {
+		err = fmt.Errorf("Copied %v bytes; expected %v", copied, rp.Size())
 		return
 	}
 
@@ -156,35 +157,27 @@ func (rl *autoRefreshingReadLease) getContents() (
 
 // Downgrade and save the supplied read/write lease obtained with getContents
 // for later use.
-//
-// LOCKS_REQUIRED(rl.mu)
-func (rl *autoRefreshingReadLease) saveContents(rwl ReadWriteLease) {
+func (rp *ReadProxy) saveContents(rwl ReadWriteLease) {
 	downgraded, err := rwl.Downgrade()
 	if err != nil {
 		log.Printf("Failed to downgrade write lease (%q); abandoning.", err.Error())
 		return
 	}
 
-	rl.wrapped = downgraded
+	rp.lease = downgraded
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-func (rl *autoRefreshingReadLease) Read(p []byte) (n int, err error) {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
-	// Special case: have we been permanently revoked?
-	if rl.revoked {
-		err = &RevokedError{}
-		return
-	}
-
+// Semantics matching io.Reader, except with context support.
+func (rp *ReadProxy) Read(
+	ctx context.Context,
+	p []byte) (n int, err error) {
 	// Common case: is the existing lease still valid?
-	if rl.wrapped != nil {
-		n, err = rl.wrapped.Read(p)
+	if rp.lease != nil {
+		n, err = rp.lease.Read(p)
 		if !isRevokedErr(err) {
 			return
 		}
@@ -194,13 +187,13 @@ func (rl *autoRefreshingReadLease) Read(p []byte) (n int, err error) {
 	}
 
 	// Get hold of a read/write lease containing our contents.
-	rwl, err := rl.getContents()
+	rwl, err := rp.getContents(ctx)
 	if err != nil {
 		err = fmt.Errorf("getContents: %v", err)
 		return
 	}
 
-	defer rl.saveContents(rwl)
+	defer rp.saveContents(rwl)
 
 	// Serve from the read/write lease.
 	n, err = rwl.Read(p)
@@ -208,21 +201,14 @@ func (rl *autoRefreshingReadLease) Read(p []byte) (n int, err error) {
 	return
 }
 
-func (rl *autoRefreshingReadLease) Seek(
+// Semantics matching io.Seeker, except with context support.
+func (rp *ReadProxy) Seek(
+	ctx context.Context,
 	offset int64,
 	whence int) (off int64, err error) {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
-	// Special case: have we been permanently revoked?
-	if rl.revoked {
-		err = &RevokedError{}
-		return
-	}
-
 	// Common case: is the existing lease still valid?
-	if rl.wrapped != nil {
-		off, err = rl.wrapped.Seek(offset, whence)
+	if rp.lease != nil {
+		off, err = rp.lease.Seek(offset, whence)
 		if !isRevokedErr(err) {
 			return
 		}
@@ -232,13 +218,13 @@ func (rl *autoRefreshingReadLease) Seek(
 	}
 
 	// Get hold of a read/write lease containing our contents.
-	rwl, err := rl.getContents()
+	rwl, err := rp.getContents(ctx)
 	if err != nil {
 		err = fmt.Errorf("getContents: %v", err)
 		return
 	}
 
-	defer rl.saveContents(rwl)
+	defer rp.saveContents(rwl)
 
 	// Serve from the read/write lease.
 	off, err = rwl.Seek(offset, whence)
@@ -246,21 +232,14 @@ func (rl *autoRefreshingReadLease) Seek(
 	return
 }
 
-func (rl *autoRefreshingReadLease) ReadAt(
+// Semantics matching io.ReaderAt, except with context support.
+func (rp *ReadProxy) ReadAt(
+	ctx context.Context,
 	p []byte,
 	off int64) (n int, err error) {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
-	// Special case: have we been permanently revoked?
-	if rl.revoked {
-		err = &RevokedError{}
-		return
-	}
-
 	// Common case: is the existing lease still valid?
-	if rl.wrapped != nil {
-		n, err = rl.wrapped.ReadAt(p, off)
+	if rp.lease != nil {
+		n, err = rp.lease.ReadAt(p, off)
 		if !isRevokedErr(err) {
 			return
 		}
@@ -270,13 +249,13 @@ func (rl *autoRefreshingReadLease) ReadAt(
 	}
 
 	// Get hold of a read/write lease containing our contents.
-	rwl, err := rl.getContents()
+	rwl, err := rp.getContents(ctx)
 	if err != nil {
 		err = fmt.Errorf("getContents: %v", err)
 		return
 	}
 
-	defer rl.saveContents(rwl)
+	defer rp.saveContents(rwl)
 
 	// Serve from the read/write lease.
 	n, err = rwl.ReadAt(p, off)
@@ -284,39 +263,31 @@ func (rl *autoRefreshingReadLease) ReadAt(
 	return
 }
 
-func (rl *autoRefreshingReadLease) Size() (size int64) {
-	size = rl.size
+// Return the size of the proxied content. Guarantees to not block.
+func (rp *ReadProxy) Size() (size int64) {
+	size = rp.size
 	return
 }
 
-func (rl *autoRefreshingReadLease) Revoked() (revoked bool) {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
-	revoked = rl.revoked
-	return
+// For testing use only; do not touch.
+func (rp *ReadProxy) Destroyed() (destroyed bool) {
+	panic("TODO")
 }
 
-func (rl *autoRefreshingReadLease) Upgrade() (rwl ReadWriteLease, err error) {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
-	// Special case: have we been permanently revoked?
-	if rl.revoked {
-		err = &RevokedError{}
-		return
-	}
-
-	// If we succeed, we are now revoked.
+// Return a read/write lease for the proxied contents. The read proxy must not
+// be used after calling this method.
+func (rp *ReadProxy) Upgrade(
+	ctx context.Context) (rwl ReadWriteLease, err error) {
+	// If we succeed, we are now destroyed.
 	defer func() {
 		if err == nil {
-			rl.revoked = true
+			rp.Destroy()
 		}
 	}()
 
 	// Common case: is the existing lease still valid?
-	if rl.wrapped != nil {
-		rwl, err = rl.wrapped.Upgrade()
+	if rp.lease != nil {
+		rwl, err = rp.lease.Upgrade()
 		if !isRevokedErr(err) {
 			return
 		}
@@ -326,7 +297,7 @@ func (rl *autoRefreshingReadLease) Upgrade() (rwl ReadWriteLease, err error) {
 	}
 
 	// Build the read/write lease anew.
-	rwl, err = rl.getContents()
+	rwl, err = rp.getContents(ctx)
 	if err != nil {
 		err = fmt.Errorf("getContents: %v", err)
 		return
@@ -335,12 +306,15 @@ func (rl *autoRefreshingReadLease) Upgrade() (rwl ReadWriteLease, err error) {
 	return
 }
 
-func (rl *autoRefreshingReadLease) Revoke() {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
-	rl.revoked = true
-	if rl.wrapped != nil {
-		rl.wrapped.Revoke()
+// Destroy any resources in use by the read proxy. It must not be used further.
+func (rp *ReadProxy) Destroy() {
+	if rp.lease != nil {
+		rp.lease.Revoke()
 	}
+
+	// Make use-after-destroy errors obvious.
+	rp.size = 0
+	rp.leaser = nil
+	rp.refresh = nil
+	rp.lease = nil
 }
