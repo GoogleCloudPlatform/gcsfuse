@@ -87,13 +87,6 @@ func init() { RegisterTestSuite(&ReadProxyTest{}) }
 func (t *ReadProxyTest) SetUp(ti *TestInfo) {
 	t.mockController = ti.MockController
 
-	// Set up a function that defers to whatever is currently set as t.f.
-	f := func(ctx context.Context) (rc io.ReadCloser, err error) {
-		AssertNe(nil, t.f)
-		rc, err = t.f()
-		return
-	}
-
 	// Set up the leaser.
 	t.leaser = mock_lease.NewMockFileLeaser(ti.MockController, "leaser")
 
@@ -101,8 +94,14 @@ func (t *ReadProxyTest) SetUp(ti *TestInfo) {
 	t.proxy = lease.NewReadProxy(
 		t.leaser,
 		int64(len(contents)),
-		f,
+		t.callF,
 		nil)
+}
+
+// Defer to whatever is currently set as t.f.
+func (t *ReadProxyTest) callF(ctx context.Context) (io.ReadCloser, error) {
+	AssertNe(nil, t.f)
+	return t.f()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -738,7 +737,35 @@ func (t *ReadProxyTest) WrappedStillValid() {
 }
 
 func (t *ReadProxyTest) InitialReadLease_Revoked() {
-	AssertTrue(false, "TODO")
+	// Set up an initial lease.
+	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
+	t.proxy = lease.NewReadProxy(
+		t.leaser,
+		int64(len(contents)),
+		t.callF,
+		rl)
+
+	// Simulate it being revoked for all methods.
+	ExpectCall(rl, "Read")(Any()).
+		WillOnce(Return(0, &lease.RevokedError{}))
+
+	ExpectCall(rl, "Seek")(Any(), Any()).
+		WillOnce(Return(0, &lease.RevokedError{}))
+
+	ExpectCall(rl, "ReadAt")(Any(), Any()).
+		WillOnce(Return(0, &lease.RevokedError{}))
+
+	ExpectCall(rl, "Upgrade")().
+		WillOnce(Return(nil, &lease.RevokedError{}))
+
+	ExpectCall(t.leaser, "NewFile")().
+		Times(4).
+		WillRepeatedly(Return(nil, errors.New("")))
+
+	t.proxy.Read(context.Background(), []byte{})
+	t.proxy.Seek(context.Background(), 0, 0)
+	t.proxy.ReadAt(context.Background(), []byte{}, 0)
+	t.proxy.Upgrade(context.Background())
 }
 
 func (t *ReadProxyTest) InitialReadLease_Valid() {
