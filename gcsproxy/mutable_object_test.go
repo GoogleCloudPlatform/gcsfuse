@@ -191,6 +191,10 @@ func (mo *checkingMutableObject) Sync() error {
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
+const initialContentsLen = 11
+
+var initialContents = strings.Repeat("a", initialContentsLen)
+
 type MutableObjectTest struct {
 	src    gcs.Object
 	clock  timeutil.SimulatedClock
@@ -206,7 +210,7 @@ func (t *MutableObjectTest) SetUp(ti *TestInfo) {
 	t.src = gcs.Object{
 		Name:       "some/object",
 		Generation: 123,
-		Size:       456,
+		Size:       uint64(initialContentsLen),
 		Updated:    time.Date(2001, 2, 3, 4, 5, 0, 0, time.Local),
 	}
 
@@ -273,7 +277,7 @@ func (t *MutableObjectTest) Read_ReadError() {
 func (t *MutableObjectTest) Read_CloseError() {
 	// NewReader -- return a ReadCloser that will fail to close.
 	rc := &errorReadCloser{
-		wrapped: strings.NewReader(strings.Repeat("a", int(t.src.Size))),
+		wrapped: strings.NewReader(initialContents),
 		err:     errors.New("taco"),
 	}
 
@@ -288,7 +292,7 @@ func (t *MutableObjectTest) Read_CloseError() {
 }
 
 func (t *MutableObjectTest) Read_NewReaderSucceeds() {
-	contents := strings.Repeat("tacoburrito", int(t.src.Size))[:t.src.Size]
+	contents := "tacoburrito" + initialContents[len("tacoburrito"):]
 	buf := make([]byte, 1024)
 	var n int
 	var err error
@@ -329,8 +333,9 @@ func (t *MutableObjectTest) WriteToEndOfObjectThenRead() {
 	var err error
 
 	// NewReader
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	// Extend the object by writing twice.
 	n, err = t.mo.WriteAt([]byte("taco"), 0)
@@ -364,11 +369,12 @@ func (t *MutableObjectTest) WritePastEndOfObjectThenRead() {
 	var buf []byte
 
 	// NewReader
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	// Extend the object by writing past its end.
-	n, err = t.mo.WriteAt([]byte("taco"), 2)
+	n, err = t.mo.WriteAt([]byte("taco"), initialContentsLen+2)
 	AssertEq(nil, err)
 	AssertEq(len("taco"), n)
 
@@ -377,12 +383,12 @@ func (t *MutableObjectTest) WritePastEndOfObjectThenRead() {
 	n, err = t.mo.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
-	ExpectEq(2+len("taco"), n)
-	ExpectEq("\x00\x00taco", string(buf[:n]))
+	ExpectEq(initialContentsLen+2+len("taco"), n)
+	ExpectEq(initialContents+"\x00\x00taco", string(buf[:n]))
 
 	// Read a range in the middle.
 	buf = make([]byte, 4)
-	n, err = t.mo.ReadAt(buf, 1)
+	n, err = t.mo.ReadAt(buf, initialContentsLen+1)
 
 	AssertEq(nil, err)
 	ExpectEq(4, n)
@@ -395,16 +401,12 @@ func (t *MutableObjectTest) WriteWithinObjectThenRead() {
 	var buf []byte
 
 	// NewReader
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
-	// Write several bytes to extend the object.
-	n, err = t.mo.WriteAt([]byte("00000"), 0)
-	AssertEq(nil, err)
-	AssertEq(len("00000"), n)
-
-	// Overwrite some in the middle.
-	n, err = t.mo.WriteAt([]byte("11"), 1)
+	// Overwrite some data in the middle.
+	n, err = t.mo.WriteAt([]byte("11"), 2)
 	AssertEq(nil, err)
 	AssertEq(len("11"), n)
 
@@ -413,8 +415,8 @@ func (t *MutableObjectTest) WriteWithinObjectThenRead() {
 	n, err = t.mo.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
-	ExpectEq(len("01100"), n)
-	ExpectEq("01100", string(buf[:n]))
+	ExpectEq(initialContentsLen, n)
+	ExpectEq(initialContents[0:2]+"11"+initialContents[4:], string(buf[:n]))
 }
 
 func (t *MutableObjectTest) Truncate_CallsNewReader() {
@@ -434,12 +436,12 @@ func (t *MutableObjectTest) GrowByTruncating() {
 	var buf []byte
 
 	// NewReader
-	s := strings.Repeat("a", int(t.src.Size))
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	// Truncate
-	err = t.mo.Truncate(int64(t.src.Size + 4))
+	err = t.mo.Truncate(int64(initialContentsLen + 4))
 	AssertEq(nil, err)
 
 	// Read the whole thing.
@@ -447,7 +449,7 @@ func (t *MutableObjectTest) GrowByTruncating() {
 	n, err = t.mo.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
-	ExpectEq(t.src.Size+4, n)
+	ExpectEq(initialContentsLen+4, n)
 	ExpectEq(s+"\x00\x00\x00\x00", string(buf[:n]))
 }
 
@@ -457,12 +459,12 @@ func (t *MutableObjectTest) ShrinkByTruncating() {
 	var buf []byte
 
 	// NewReader
-	s := strings.Repeat("a", int(t.src.Size))
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	// Truncate
-	err = t.mo.Truncate(int64(t.src.Size - 4))
+	err = t.mo.Truncate(int64(initialContentsLen - 4))
 	AssertEq(nil, err)
 
 	// Read the whole thing.
@@ -470,8 +472,8 @@ func (t *MutableObjectTest) ShrinkByTruncating() {
 	n, err = t.mo.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
-	ExpectEq(t.src.Size-4, n)
-	ExpectEq(s[:t.src.Size-4], string(buf[:n]))
+	ExpectEq(initialContentsLen-4, n)
+	ExpectEq(s[:initialContentsLen-4], string(buf[:n]))
 }
 
 func (t *MutableObjectTest) Sync_NoInteractions() {
@@ -483,7 +485,7 @@ func (t *MutableObjectTest) Sync_NoInteractions() {
 }
 
 func (t *MutableObjectTest) Sync_AfterReading() {
-	contents := strings.Repeat("taco", int(t.src.Size))[:t.src.Size]
+	contents := "taco" + initialContents[len("taco"):]
 	buf := make([]byte, 1024)
 	var n int
 	var err error
@@ -509,9 +511,10 @@ func (t *MutableObjectTest) Sync_AfterWriting() {
 	var n int
 	var err error
 
-	// Successfully write a fiew bytes.
+	// Successfully write a few bytes.
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	n, err = t.mo.WriteAt([]byte("taco"), 0)
 
@@ -529,8 +532,9 @@ func (t *MutableObjectTest) Sync_AfterTruncating() {
 	var err error
 
 	// Successfully truncate.
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	err = t.mo.Truncate(17)
 	AssertEq(nil, err)
@@ -546,8 +550,9 @@ func (t *MutableObjectTest) Sync_CallsCreateObject() {
 	var err error
 
 	// Dirty the object by truncating.
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	err = t.mo.Truncate(1)
 	AssertEq(nil, err)
@@ -557,7 +562,7 @@ func (t *MutableObjectTest) Sync_CallsCreateObject() {
 		Any(),
 		AllOf(
 			nameIs(t.src.Name),
-			contentsAre("\x00"),
+			contentsAre(initialContents[:1]),
 			generationIs(t.src.Generation))).
 		WillOnce(oglemock.Return(nil, errors.New("")))
 
@@ -567,8 +572,9 @@ func (t *MutableObjectTest) Sync_CallsCreateObject() {
 
 func (t *MutableObjectTest) Sync_CreateObjectFails() {
 	// Dirty the proxy.
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	t.mo.Truncate(0)
 
@@ -596,8 +602,9 @@ func (t *MutableObjectTest) Sync_CreateObjectFails() {
 
 func (t *MutableObjectTest) Sync_CreateObjectSaysPreconditionFailed() {
 	// Dirty the proxy.
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	t.mo.Truncate(0)
 
@@ -628,9 +635,9 @@ func (t *MutableObjectTest) Sync_Successful() {
 	var err error
 
 	// Dirty the proxy.
-	contents := strings.Repeat("a", int(t.src.Size))
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(contents)), nil))
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	n, err = t.mo.WriteAt([]byte("taco"), 0)
 	AssertEq(nil, err)
@@ -670,39 +677,37 @@ func (t *MutableObjectTest) WriteThenSyncThenWriteThenSync() {
 	var err error
 
 	// NewReader
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	// Dirty the proxy.
-	n, err = t.mo.WriteAt([]byte("taco"), 0)
+	err = t.mo.Truncate(2)
 	AssertEq(nil, err)
-	AssertEq(len("taco"), n)
 
 	// Sync -- should cause the contents so far to be written out.
 	o := &gcs.Object{
 		Name:       t.src.Name,
 		Generation: 1,
-		Size:       uint64(len("taco")),
+		Size:       2,
 	}
 
-	ExpectCall(t.bucket, "CreateObject")(Any(), contentsAre("taco")).
+	ExpectCall(t.bucket, "CreateObject")(Any(), contentsAre(initialContents[:2])).
 		WillOnce(oglemock.Return(o, nil))
 
 	err = t.mo.Sync()
 	AssertEq(nil, err)
 
-	// Write some more data at the end. The new object contents should be
-	// fetched.
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("taco")), nil))
-
-	n, err = t.mo.WriteAt([]byte("burrito"), 4)
+	// Write some more data at the end. The pre-Sync contents from before should
+	// be re-used, so NewReader should not be called.
+	n, err = t.mo.WriteAt([]byte("burrito"), 1)
 	AssertEq(nil, err)
 	AssertEq(len("burrito"), n)
 
 	// Sync -- should cause the full contents to be written out.
+	expected := initialContents[:1] + "burrito"
 	o.Generation = 2
-	ExpectCall(t.bucket, "CreateObject")(Any(), contentsAre("tacoburrito")).
+	ExpectCall(t.bucket, "CreateObject")(Any(), contentsAre(expected)).
 		WillOnce(oglemock.Return(o, nil))
 
 	err = t.mo.Sync()
@@ -748,8 +753,9 @@ func (t *MutableObjectTest) Stat_BucketSaysNotFound_Dirty() {
 	var err error
 
 	// Dirty the object by truncating.
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	t.clock.AdvanceTime(time.Second)
 	truncateTime := t.clock.Now()
@@ -798,8 +804,9 @@ func (t *MutableObjectTest) Stat_AfterShortening() {
 	var err error
 
 	// Truncate
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	t.clock.AdvanceTime(time.Second)
 	truncateTime := t.clock.Now()
@@ -832,8 +839,9 @@ func (t *MutableObjectTest) Stat_AfterGrowing() {
 	var err error
 
 	// Truncate
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	t.clock.AdvanceTime(time.Second)
 	truncateTime := t.clock.Now()
@@ -866,7 +874,7 @@ func (t *MutableObjectTest) Stat_AfterReading() {
 	var err error
 
 	// Read
-	s := strings.Repeat("a", int(t.src.Size))
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
@@ -896,7 +904,7 @@ func (t *MutableObjectTest) Stat_AfterWriting() {
 	var err error
 
 	// Extend by writing.
-	s := strings.Repeat("a", int(t.src.Size))
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
@@ -951,8 +959,9 @@ func (t *MutableObjectTest) Stat_ClobberedByNewGeneration_Dirty() {
 	var err error
 
 	// Truncate
+	s := initialContents
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	t.clock.AdvanceTime(time.Second)
 	truncateTime := t.clock.Now()

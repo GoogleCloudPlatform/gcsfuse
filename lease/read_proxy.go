@@ -274,8 +274,8 @@ func (rp *ReadProxy) Size() (size int64) {
 	return
 }
 
-// Return a read/write lease for the proxied contents. The read proxy must not
-// be used after calling this method.
+// Return a read/write lease for the proxied contents, destroying the read
+// proxy. The read proxy must not be used after calling this method.
 func (rp *ReadProxy) Upgrade(
 	ctx context.Context) (rwl ReadWriteLease, err error) {
 	// If we succeed, we are now destroyed.
