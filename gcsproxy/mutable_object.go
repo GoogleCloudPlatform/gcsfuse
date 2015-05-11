@@ -177,18 +177,25 @@ func (mo *MutableObject) CheckInvariants() {
 }
 
 // Destroy any local file caches, putting the proxy into an indeterminate
-// state.
+// state. The MutableObject must not be used after calling this method,
+// regardless of outcome.
 func (mo *MutableObject) Destroy() (err error) {
-	// If we have no local file, there's nothing to do.
-	if mo.localFile == nil {
+	// If we have no read/write lease, there's nothing to do.
+	if mo.readWriteLease == nil {
 		return
 	}
 
-	// Close the local file.
-	if err = mo.localFile.Close(); err != nil {
-		err = fmt.Errorf("Close: %v", err)
+	// Downgrade to a read lease.
+	rl, err := mo.readWriteLease.Downgrade()
+	if err != nil {
+		err = fmt.Errorf("Downgrade: %v", err)
 		return
 	}
+
+	mo.readWriteLease = nil
+
+	// Revoke the read lease.
+	rl.Revoke()
 
 	return
 }
