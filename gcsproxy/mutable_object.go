@@ -432,6 +432,8 @@ func (mo *MutableObject) ensureReadWriteLease(ctx context.Context) (err error) {
 	}
 
 	// Set up the read/write lease.
+	//
+	// TODO(jacobsa): Upgrade the read proxy when possible.
 	rwl, err := makeReadWriteLease(
 		ctx,
 		mo.bucket,
