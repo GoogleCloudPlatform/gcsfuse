@@ -61,18 +61,22 @@ func NewReadProxy(
 // Destroy any local file caches, putting the proxy into an indeterminate
 // state. Should be used before dropping the final reference to the proxy.
 func (rp *ReadProxy) Destroy() (err error) {
-	panic("TODO")
+	rp.wrapped.Destroy()
+	return
 }
 
 // Return a read/write lease for the contents of the object. This implicitly
 // destroys the proxy, which must not be used further.
-func (rp *ReadProxy) Upgrade() (rwl lease.ReadWriteLease, err error) {
-	panic("TODO")
+func (rp *ReadProxy) Upgrade(
+	ctx context.Context) (rwl lease.ReadWriteLease, err error) {
+	rwl, err = rp.wrapped.Upgrade(ctx)
+	return
 }
 
 // Return the size of the object generation in bytes.
 func (rp *ReadProxy) Size() (size int64) {
-	panic("TODO")
+	size = rp.wrapped.Size()
+	return
 }
 
 // Make a random access read into our view of the content. May block for
@@ -83,7 +87,8 @@ func (rp *ReadProxy) ReadAt(
 	ctx context.Context,
 	buf []byte,
 	offset int64) (n int, err error) {
-	panic("TODO")
+	n, err = rp.wrapped.ReadAt(ctx, buf, offset)
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
