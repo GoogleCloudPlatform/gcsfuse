@@ -199,11 +199,55 @@ func (t *IntegrationTest) Stat_InitialState() {
 }
 
 func (t *IntegrationTest) Stat_Synced() {
-	AssertTrue(false, "TODO")
+	// Create.
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	AssertEq(nil, err)
+
+	t.create(o)
+
+	// Dirty.
+	err = t.mo.Truncate(2)
+	AssertEq(nil, err)
+
+	// Sync.
+	t.clock.AdvanceTime(time.Second)
+	syncTime := t.clock.Now()
+
+	err = t.mo.Sync()
+	AssertEq(nil, err)
+
+	t.clock.AdvanceTime(time.Second)
+
+	// Stat.
+	sr, err := t.mo.Stat(true)
+	AssertEq(nil, err)
+	ExpectEq(2, sr.Size)
+	ExpectThat(sr.Mtime, timeutil.TimeEq(syncTime))
+	ExpectFalse(sr.Clobbered)
 }
 
 func (t *IntegrationTest) Stat_Dirty() {
-	AssertTrue(false, "TODO")
+	// Create.
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	AssertEq(nil, err)
+
+	t.create(o)
+
+	// Dirty.
+	t.clock.AdvanceTime(time.Second)
+	truncateTime := t.clock.Now()
+
+	err = t.mo.Truncate(2)
+	AssertEq(nil, err)
+
+	t.clock.AdvanceTime(time.Second)
+
+	// Stat.
+	sr, err := t.mo.Stat(true)
+	AssertEq(nil, err)
+	ExpectEq(2, sr.Size)
+	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
+	ExpectFalse(sr.Clobbered)
 }
 
 func (t *IntegrationTest) SmallerThanLeaserLimit() {
