@@ -250,8 +250,34 @@ func (t *IntegrationTest) Stat_Dirty() {
 	ExpectFalse(sr.Clobbered)
 }
 
-func (t *IntegrationTest) SmallerThanLeaserLimit() {
-	AssertTrue(false, "TODO")
+func (t *IntegrationTest) WithinLeaserLimit() {
+	AssertLt(len("taco"), fileLeaserLimit)
+
+	// Create.
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	AssertEq(nil, err)
+
+	t.create(o)
+
+	// Extend to be up against the leaser limit, then write out to GCS, which
+	// should downgrade to a read proxy.
+	err = t.mo.Truncate(fileLeaserLimit)
+	AssertEq(nil, err)
+
+	err = t.mo.Sync()
+	AssertEq(nil, err)
+
+	// Delete the backing object.
+	err = t.bucket.DeleteObject(t.ctx, o.Name)
+	AssertEq(nil, err)
+
+	// We should still be able to read the contents, because the read lease
+	// should still be valid.
+	buf := make([]byte, 4)
+	n, err := t.mo.ReadAt(buf, 0)
+
+	AssertEq(nil, err)
+	ExpectEq("taco", string(buf[0:n]))
 }
 
 func (t *IntegrationTest) LargerThanLeaserLimit() {
