@@ -225,32 +225,8 @@ func (t *FileLeaserTest) DowngradeThenObserve() {
 
 	// Downgrade.
 	rl, err := rwl.Downgrade()
+	rwl = nil
 	AssertEq(nil, err)
-
-	// Interacting with the read/write lease should no longer work.
-	_, err = rwl.Read(buf)
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
-
-	_, err = rwl.Write(buf)
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
-
-	_, err = rwl.Seek(0, 0)
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
-
-	_, err = rwl.ReadAt(buf, 0)
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
-
-	_, err = rwl.WriteAt(buf, 0)
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
-
-	err = rwl.Truncate(0)
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
-
-	_, err = rwl.Size()
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
-
-	_, err = rwl.Downgrade()
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 
 	// Observing via the read lease should work fine.
 	size = rl.Size()
@@ -285,6 +261,7 @@ func (t *FileLeaserTest) DowngradeThenUpgradeThenObserve() {
 
 	// Downgrade.
 	rl, err := rwl.Downgrade()
+	rwl = nil
 	AssertEq(nil, err)
 
 	// Upgrade again.
@@ -339,6 +316,7 @@ func (t *FileLeaserTest) DowngradeFileWhoseSizeIsAboveLimit() {
 
 	// Downgrade.
 	rl, err := rwl.Downgrade()
+	rwl = nil
 	AssertEq(nil, err)
 
 	// The read lease should be revoked on arrival.
