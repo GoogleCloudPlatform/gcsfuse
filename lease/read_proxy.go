@@ -184,7 +184,10 @@ func (rl *autoRefreshingReadLease) saveContents(rwl ReadWriteLease) {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-func (rl *autoRefreshingReadLease) Read(p []byte) (n int, err error) {
+// Semantics matching io.Reader, except with context support.
+func (rl *autoRefreshingReadLease) Read(
+	ctx context.Context,
+	p []byte) (n int, err error) {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
@@ -220,7 +223,9 @@ func (rl *autoRefreshingReadLease) Read(p []byte) (n int, err error) {
 	return
 }
 
+// Semantics matching io.Seeker, except with context support.
 func (rl *autoRefreshingReadLease) Seek(
+	ctx context.Context,
 	offset int64,
 	whence int) (off int64, err error) {
 	rl.mu.Lock()
@@ -258,7 +263,9 @@ func (rl *autoRefreshingReadLease) Seek(
 	return
 }
 
+// Semantics matching io.ReaderAt, except with context support.
 func (rl *autoRefreshingReadLease) ReadAt(
+	ctx context.Context,
 	p []byte,
 	off int64) (n int, err error) {
 	rl.mu.Lock()
@@ -296,19 +303,19 @@ func (rl *autoRefreshingReadLease) ReadAt(
 	return
 }
 
+// Return the size of the proxied content. Guarantees to not block.
 func (rl *autoRefreshingReadLease) Size() (size int64) {
 	size = rl.size
 	return
 }
 
-func (rl *autoRefreshingReadLease) Revoked() (revoked bool) {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
-	revoked = rl.revoked
-	return
+// For testing use only; do not touch.
+func (rl *autoRefreshingReadLease) Destroyed() (destroyed bool) {
+	panic("TODO")
 }
 
+// Return a read/write lease for the proxied contents. The read proxy must not
+// be used after calling this method.
 func (rl *autoRefreshingReadLease) Upgrade() (rwl ReadWriteLease, err error) {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
@@ -347,7 +354,8 @@ func (rl *autoRefreshingReadLease) Upgrade() (rwl ReadWriteLease, err error) {
 	return
 }
 
-func (rl *autoRefreshingReadLease) Revoke() {
+// Destroy any resources in use by the read proxy. It must not be used further.
+func (rl *autoRefreshingReadLease) Destroy() {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
