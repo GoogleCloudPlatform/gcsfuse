@@ -130,8 +130,10 @@ func (t *ReadProxyTest) CallsFunc() {
 	ExpectCall(t.leaser, "NewFile")().
 		WillOnce(Return(rwl, nil))
 
-	// Downgrade
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(nil, errors.New("")))
+	// Downgrade and Revoke
+	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
+	ExpectCall(rl, "Revoke")()
 
 	// Function
 	var called bool
@@ -156,7 +158,7 @@ func (t *ReadProxyTest) FuncReturnsError() {
 
 	// Downgrade and Revoke
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
 	ExpectCall(rl, "Revoke")()
 
 	// Function
@@ -182,7 +184,7 @@ func (t *ReadProxyTest) ContentsReturnReadError() {
 
 	// Downgrade and Revoke
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
 	ExpectCall(rl, "Revoke")()
 
 	// Function
@@ -213,7 +215,7 @@ func (t *ReadProxyTest) ContentsReturnCloseError() {
 
 	// Downgrade and Revoke
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
 	ExpectCall(rl, "Revoke")()
 
 	// Function
@@ -246,7 +248,7 @@ func (t *ReadProxyTest) ContentsAreWrongLength() {
 
 	// Downgrade and Revoke
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
 	ExpectCall(rl, "Revoke")()
 
 	// Function
@@ -282,7 +284,7 @@ func (t *ReadProxyTest) WritesCorrectData() {
 
 	// Downgrade
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
 
 	// Function
 	t.f = func() (rc io.ReadCloser, err error) {
@@ -307,7 +309,7 @@ func (t *ReadProxyTest) WriteError() {
 
 	// Downgrade and Revoke
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
 	ExpectCall(rl, "Revoke")()
 
 	// Function
@@ -338,7 +340,7 @@ func (t *ReadProxyTest) Read_Error() {
 
 	// Downgrade
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
 
 	// Function
 	t.f = func() (rc io.ReadCloser, err error) {
@@ -375,7 +377,7 @@ func (t *ReadProxyTest) Read_Successful() {
 
 	// Downgrade
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
 
 	// Function
 	t.f = func() (rc io.ReadCloser, err error) {
@@ -411,7 +413,7 @@ func (t *ReadProxyTest) Seek_CallsWrapped() {
 
 	// Downgrade
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
 
 	// Function
 	t.f = func() (rc io.ReadCloser, err error) {
@@ -439,7 +441,7 @@ func (t *ReadProxyTest) Seek_Error() {
 
 	// Downgrade
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
 
 	// Function
 	t.f = func() (rc io.ReadCloser, err error) {
@@ -470,7 +472,7 @@ func (t *ReadProxyTest) Seek_Successful() {
 
 	// Downgrade
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
 
 	// Function
 	t.f = func() (rc io.ReadCloser, err error) {
@@ -502,7 +504,7 @@ func (t *ReadProxyTest) ReadAt_CallsWrapped() {
 
 	// Downgrade
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
 
 	// Function
 	t.f = func() (rc io.ReadCloser, err error) {
@@ -530,7 +532,7 @@ func (t *ReadProxyTest) ReadAt_Error() {
 
 	// Downgrade
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
 
 	// Function
 	t.f = func() (rc io.ReadCloser, err error) {
@@ -560,7 +562,7 @@ func (t *ReadProxyTest) ReadAt_Successful() {
 
 	// Downgrade
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
 
 	// Function
 	t.f = func() (rc io.ReadCloser, err error) {
@@ -585,7 +587,7 @@ func (t *ReadProxyTest) Upgrade_Error() {
 
 	// Downgrade and Revoke
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
 	ExpectCall(rl, "Revoke")()
 
 	// Function
@@ -634,7 +636,7 @@ func (t *ReadProxyTest) WrappedRevoked() {
 		WillOnce(Return(0, errors.New("taco")))
 
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
 
 	t.f = func() (rc io.ReadCloser, err error) {
 		rc = ioutil.NopCloser(strings.NewReader(contents))
@@ -681,7 +683,7 @@ func (t *ReadProxyTest) WrappedStillValid() {
 		WillOnce(Return(0, errors.New("taco")))
 
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
 
 	t.f = func() (rc io.ReadCloser, err error) {
 		rc = ioutil.NopCloser(strings.NewReader(contents))
@@ -840,7 +842,7 @@ func (t *ReadProxyTest) Destroy() {
 		WillOnce(Return(0, errors.New("taco")))
 
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl, nil))
+	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
 
 	t.f = func() (rc io.ReadCloser, err error) {
 		rc = ioutil.NopCloser(strings.NewReader(contents))
