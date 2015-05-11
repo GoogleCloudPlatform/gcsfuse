@@ -19,7 +19,13 @@ import (
 	"io"
 	"log"
 	"sync"
+
+	"golang.org/x/net/context"
 )
+
+// A function used by leases returned from NewAutoRefreshingReadLease to
+// refresh the contents of the read lease. See the notes on that function.
+type RefreshContentsFunc func(context.Context) (io.ReadCloser, error)
 
 // Create a ReadLease that never expires, unless voluntarily revoked or
 // upgraded.
@@ -33,11 +39,11 @@ import (
 func NewAutoRefreshingReadLease(
 	fl FileLeaser,
 	size int64,
-	f func() (io.ReadCloser, error)) (rl ReadLease) {
+	refresh RefreshContentsFunc) (rl ReadLease) {
 	rl = &autoRefreshingReadLease{
-		leaser: fl,
-		size:   size,
-		f:      f,
+		leaser:  fl,
+		size:    size,
+		refresh: refresh,
 	}
 
 	return
