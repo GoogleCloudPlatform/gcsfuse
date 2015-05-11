@@ -628,8 +628,9 @@ func (t *MutableObjectTest) Sync_Successful() {
 	var err error
 
 	// Dirty the proxy.
+	contents := strings.Repeat("a", int(t.src.Size))
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("")), nil))
+		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(contents)), nil))
 
 	n, err = t.mo.WriteAt([]byte("taco"), 0)
 	AssertEq(nil, err)
@@ -656,12 +657,11 @@ func (t *MutableObjectTest) Sync_Successful() {
 	AssertEq(nil, err)
 	ExpectEq(17, t.mo.SourceGeneration())
 
-	// The data we wrote before should still be present.
-	buf := make([]byte, 1024)
-	n, err = t.mo.ReadAt(buf, 0)
+	// Further calls to read should fetch the new object from the bucket.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(oglemock.Return(nil, errors.New("")))
 
-	AssertEq(io.EOF, err)
-	ExpectEq("taco", string(buf[:n]))
+	t.mo.ReadAt([]byte{}, 0)
 }
 
 func (t *MutableObjectTest) WriteThenSyncThenWriteThenSync() {
