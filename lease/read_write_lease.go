@@ -177,7 +177,7 @@ func (rwl *readWriteLease) Downgrade() (rl ReadLease) {
 	// Find the current size under the lock.
 	size, err := rwl.sizeLocked()
 	if err != nil {
-		err = fmt.Errorf("sizeLocked: %v", err)
+		log.Printf("Error obtaining size while downgrading: %v", err)
 		return
 	}
 
