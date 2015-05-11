@@ -240,3 +240,47 @@ func (rwl *readWriteLease) reconcileSize() {
 		rwl.reportedSize = size
 	}
 }
+
+////////////////////////////////////////////////////////////////////////
+// alwaysRevokedReadLease
+////////////////////////////////////////////////////////////////////////
+
+type alwaysRevokedReadLease struct {
+	size int64
+}
+
+func (rl *alwaysRevokedReadLease) Read(p []byte) (n int, err error) {
+	err = &RevokedError{}
+	return
+}
+
+func (rl *alwaysRevokedReadLease) Seek(
+	offset int64,
+	whence int) (off int64, err error) {
+	err = &RevokedError{}
+	return
+}
+
+func (rl *alwaysRevokedReadLease) ReadAt(
+	p []byte, off int64) (n int, err error) {
+	err = &RevokedError{}
+	return
+}
+
+func (rl *alwaysRevokedReadLease) Size() (size int64) {
+	size = rl.size
+	return
+}
+
+func (rl *alwaysRevokedReadLease) Revoked() (revoked bool) {
+	revoked = true
+	return
+}
+
+func (rl *alwaysRevokedReadLease) Upgrade() (rwl ReadWriteLease, err error) {
+	err = &RevokedError{}
+	return
+}
+
+func (rl *alwaysRevokedReadLease) Revoke() {
+}
