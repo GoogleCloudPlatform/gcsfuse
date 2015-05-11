@@ -273,7 +273,7 @@ func (t *MutableObjectTest) Read_ReadError() {
 func (t *MutableObjectTest) Read_CloseError() {
 	// NewReader -- return a ReadCloser that will fail to close.
 	rc := &errorReadCloser{
-		wrapped: strings.NewReader(""),
+		wrapped: strings.NewReader(strings.Repeat("a", int(t.src.Size))),
 		err:     errors.New("taco"),
 	}
 
@@ -288,7 +288,7 @@ func (t *MutableObjectTest) Read_CloseError() {
 }
 
 func (t *MutableObjectTest) Read_NewReaderSucceeds() {
-	const contents = "tacoburrito"
+	contents := strings.Repeat("tacoburrito", int(t.src.Size))[:t.src.Size]
 	buf := make([]byte, 1024)
 	var n int
 	var err error
@@ -483,7 +483,7 @@ func (t *MutableObjectTest) Sync_NoInteractions() {
 }
 
 func (t *MutableObjectTest) Sync_AfterReading() {
-	const contents = "tacoburrito"
+	contents := strings.Repeat("taco", int(t.src.Size))[:t.src.Size]
 	buf := make([]byte, 1024)
 	var n int
 	var err error
