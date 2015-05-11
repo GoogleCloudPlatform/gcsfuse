@@ -64,6 +64,11 @@ type FileInode struct {
 	//
 	// GUARDED_BY(mu)
 	proxy *gcsproxy.MutableObject
+
+	// Has Destroy been called?
+	//
+	// GUARDED_BY(mu)
+	destroyed bool
 }
 
 var _ Inode = &FileInode{}
@@ -111,6 +116,10 @@ func NewFileInode(
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) checkInvariants() {
+	if f.destroyed {
+		return
+	}
+
 	// Make sure the name is legal.
 	name := f.Name()
 	if len(name) == 0 || name[len(name)-1] == '/' {
@@ -165,8 +174,10 @@ func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
 	return
 }
 
-// LOCKS_REQUIRED
+// LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Destroy() (err error) {
+	f.destroyed = true
+
 	err = f.proxy.Destroy()
 	return
 }
