@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"reflect"
 	"strings"
 	"testing"
@@ -26,6 +27,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
+	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
@@ -214,9 +216,10 @@ func (t *MutableObjectTest) SetUp(ti *TestInfo) {
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 
 	t.mo.wrapped = gcsproxy.NewMutableObject(
-		&t.clock,
+		&t.src,
 		t.bucket,
-		&t.src)
+		lease.NewFileLeaser("", math.MaxInt64),
+		&t.clock)
 }
 
 ////////////////////////////////////////////////////////////////////////
