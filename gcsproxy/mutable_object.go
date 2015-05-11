@@ -271,8 +271,6 @@ func (mo *MutableObject) WriteAt(
 	}
 
 	newMtime := mo.clock.Now()
-
-	mo.dirty = true
 	mo.mtime = &newMtime
 	n, err = mo.localFile.WriteAt(buf, offset)
 
@@ -296,8 +294,6 @@ func (mo *MutableObject) Truncate(ctx context.Context, n int64) (err error) {
 	}
 
 	newMtime := mo.clock.Now()
-
-	mo.dirty = true
 	mo.mtime = &newMtime
 	err = mo.localFile.Truncate(int64(n))
 
@@ -353,7 +349,7 @@ func (mo *MutableObject) Sync(ctx context.Context) (err error) {
 
 	// Update our state.
 	mo.src = *o
-	mo.readProxy = NewReadProxy(mo.leaser, mo.bucket, *o)
+	mo.readProxy = NewReadProxy(mo.leaser, mo.bucket, o)
 	atomic.StoreInt64(&mo.sourceGeneration, mo.src.Generation)
 
 	f := mo.localFile
