@@ -567,7 +567,7 @@ func (t *MutableObjectTest) Sync_CallsCreateObject() {
 		Any(),
 		AllOf(
 			nameIs(t.src.Name),
-			contentsAre("\x00"),
+			contentsAre(initialContents[:1]),
 			generationIs(t.src.Generation))).
 		WillOnce(oglemock.Return(nil, errors.New("")))
 
