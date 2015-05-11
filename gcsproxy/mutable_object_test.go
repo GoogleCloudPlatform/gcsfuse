@@ -191,7 +191,9 @@ func (mo *checkingMutableObject) Sync() error {
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-var initialContents = strings.Repeat("a", 11)
+const initialContentsLen = 11
+
+var initialContents = strings.Repeat("a", initialContentsLen)
 
 type MutableObjectTest struct {
 	src    gcs.Object
@@ -208,7 +210,7 @@ func (t *MutableObjectTest) SetUp(ti *TestInfo) {
 	t.src = gcs.Object{
 		Name:       "some/object",
 		Generation: 123,
-		Size:       uint64(len(initialContents)),
+		Size:       uint64(initialContentsLen),
 		Updated:    time.Date(2001, 2, 3, 4, 5, 0, 0, time.Local),
 	}
 
@@ -372,7 +374,7 @@ func (t *MutableObjectTest) WritePastEndOfObjectThenRead() {
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	// Extend the object by writing past its end.
-	n, err = t.mo.WriteAt([]byte("taco"), 2)
+	n, err = t.mo.WriteAt([]byte("taco"), initialContentsLen+2)
 	AssertEq(nil, err)
 	AssertEq(len("taco"), n)
 
@@ -381,12 +383,12 @@ func (t *MutableObjectTest) WritePastEndOfObjectThenRead() {
 	n, err = t.mo.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
-	ExpectEq(2+len("taco"), n)
-	ExpectEq("\x00\x00taco", string(buf[:n]))
+	ExpectEq(initialContentsLen+2+len("taco"), n)
+	ExpectEq(initialContents+"\x00\x00taco", string(buf[:n]))
 
 	// Read a range in the middle.
 	buf = make([]byte, 4)
-	n, err = t.mo.ReadAt(buf, 1)
+	n, err = t.mo.ReadAt(buf, initialContentsLen+1)
 
 	AssertEq(nil, err)
 	ExpectEq(4, n)
@@ -444,7 +446,7 @@ func (t *MutableObjectTest) GrowByTruncating() {
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	// Truncate
-	err = t.mo.Truncate(int64(len(initialContents) + 4))
+	err = t.mo.Truncate(int64(initialContentsLen + 4))
 	AssertEq(nil, err)
 
 	// Read the whole thing.
@@ -452,7 +454,7 @@ func (t *MutableObjectTest) GrowByTruncating() {
 	n, err = t.mo.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
-	ExpectEq(len(initialContents)+4, n)
+	ExpectEq(initialContentsLen+4, n)
 	ExpectEq(s+"\x00\x00\x00\x00", string(buf[:n]))
 }
 
@@ -467,7 +469,7 @@ func (t *MutableObjectTest) ShrinkByTruncating() {
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	// Truncate
-	err = t.mo.Truncate(int64(len(initialContents) - 4))
+	err = t.mo.Truncate(int64(initialContentsLen - 4))
 	AssertEq(nil, err)
 
 	// Read the whole thing.
@@ -475,8 +477,8 @@ func (t *MutableObjectTest) ShrinkByTruncating() {
 	n, err = t.mo.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
-	ExpectEq(len(initialContents)-4, n)
-	ExpectEq(s[:len(initialContents)-4], string(buf[:n]))
+	ExpectEq(initialContentsLen-4, n)
+	ExpectEq(s[:initialContentsLen-4], string(buf[:n]))
 }
 
 func (t *MutableObjectTest) Sync_NoInteractions() {
