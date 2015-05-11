@@ -101,7 +101,8 @@ func (t *ReadProxyTest) SetUp(ti *TestInfo) {
 	t.proxy = lease.NewReadProxy(
 		t.leaser,
 		int64(len(contents)),
-		f)
+		f,
+		nil)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -734,6 +735,14 @@ func (t *ReadProxyTest) WrappedStillValid() {
 
 	tmp, _ := t.proxy.Upgrade(context.Background())
 	ExpectEq(rwl, tmp)
+}
+
+func (t *ReadProxyTest) InitialReadLease_Revoked() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ReadProxyTest) InitialReadLease_Valid() {
+	AssertTrue(false, "TODO")
 }
 
 func (t *ReadProxyTest) Destroy() {
