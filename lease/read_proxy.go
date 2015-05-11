@@ -27,16 +27,13 @@ import (
 // NewReadProxy.
 type RefreshContentsFunc func(context.Context) (io.ReadCloser, error)
 
-// Create a ReadLease that never expires, unless voluntarily revoked or
-// upgraded.
+// Create a read proxy.
 //
-// The supplied function will be used to obtain the read lease contents, the
-// first time and whenever the supplied file leaser decides to expire the
-// temporary copy thus obtained. It must return the same contents every time,
-// and the contents must be of the given size.
-//
-// This magic is not preserved after the lease is upgraded.
-func NewAutoRefreshingReadLease(
+// The supplied function will be used to obtain the proxy's contents, the first
+// time they're needed and whenever the supplied file leaser decides to expire
+// the temporary copy thus obtained. It must return the same contents every
+// time, and the contents must be of the given size.
+func NewReadProxy(
 	fl FileLeaser,
 	size int64,
 	refresh RefreshContentsFunc) (rl ReadLease) {
