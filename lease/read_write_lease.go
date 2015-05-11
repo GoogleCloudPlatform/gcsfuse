@@ -81,7 +81,8 @@ type readWriteLease struct {
 
 var _ ReadWriteLease = &readWriteLease{}
 
-// size is the size that the leaser has already recorded for us.
+// size is the size that the leaser has already recorded for us. It must match
+// the file's size.
 func newReadWriteLease(
 	leaser *fileLeaser,
 	size int64,
@@ -90,6 +91,7 @@ func newReadWriteLease(
 		leaser:       leaser,
 		file:         file,
 		reportedSize: size,
+		fileSize:     size,
 	}
 
 	rwl.mu = syncutil.NewInvariantMutex(rwl.checkInvariants)
