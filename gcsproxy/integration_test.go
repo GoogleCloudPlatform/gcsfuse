@@ -22,6 +22,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -45,7 +46,8 @@ var _ TearDownInterface = &IntegrationTest{}
 func init() { RegisterTestSuite(&IntegrationTest{}) }
 
 func (t *IntegrationTest) SetUp(ti *TestInfo) {
-	panic("TODO")
+	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
+	t.leaser = lease.NewFileLeaser("", fileLeaserLimit)
 
 	// Set up a fixed, non-zero time.
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
