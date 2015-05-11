@@ -44,6 +44,7 @@ func NewReadProxy(
 		leaser:  fl,
 		size:    size,
 		refresh: refresh,
+		lease:   rl,
 	}
 
 	return
