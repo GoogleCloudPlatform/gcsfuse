@@ -69,16 +69,16 @@ type MutableObject struct {
 	// When clean, a read proxy around src. When dirty, nil.
 	readProxy *ReadProxy
 
-	// When dirty, a local temporary file containing our current contents. When
+	// When dirty, a read/write lease containing our current contents. When
 	// clean, nil.
 	//
-	// TODO(jacobsa): Use a read/write lease here, and make it possible to
-	// "downgrade" directly to a read proxy by adding a variant of
-	// gcsproxy.NewReadProxy that takes an existing read/write lease, then ditto
-	// with lease.NewReadProxy  in addition to the refresh function.
+	// TODO(jacobsa): Make it possible to "downgrade" directly to a read proxy by
+	// adding a variant of gcsproxy.NewReadProxy that takes an existing
+	// read/write lease, then ditto with lease.NewReadProxy  in addition to the
+	// refresh function.
 	//
-	// INVARIANT: (readProxy == nil) != (localFile == nil)
-	localFile *os.File
+	// INVARIANT: (readProxy == nil) != (readWriteLease == nil)
+	readWriteLease lease.ReadWriteLease
 
 	// The time at which a method that modifies our contents was last called, or
 	// nil if never.
@@ -161,13 +161,13 @@ func (mo *MutableObject) CheckInvariants() {
 		}
 	}
 
-	// INVARIANT: (readProxy == nil) != (localFile == nil)
-	if mo.readProxy == nil && mo.localFile == nil {
-		panic("Both readProxy and localFile are nil")
+	// INVARIANT: (readProxy == nil) != (readWriteLease == nil)
+	if mo.readProxy == nil && mo.readWriteLease == nil {
+		panic("Both readProxy and readWriteLease are nil")
 	}
 
-	if mo.readProxy != nil && mo.localFile != nil {
-		panic("Both readProxy and localFile are non-nil")
+	if mo.readProxy != nil && mo.readWriteLease != nil {
+		panic("Both readProxy and readWriteLease are non-nil")
 	}
 
 	// INVARIANT: If dirty(), then mtime != nil
