@@ -769,7 +769,62 @@ func (t *ReadProxyTest) InitialReadLease_Revoked() {
 }
 
 func (t *ReadProxyTest) InitialReadLease_Valid() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Set up an initial lease.
+	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
+	t.proxy = lease.NewReadProxy(
+		t.leaser,
+		int64(len(contents)),
+		t.callF,
+		rl)
+
+	// Read
+	ExpectCall(rl, "Read")(Any()).
+		WillOnce(Return(0, errors.New("taco"))).
+		WillOnce(Return(17, nil))
+
+	_, err = t.proxy.Read(context.Background(), []byte{})
+	ExpectThat(err, Error(HasSubstr("taco")))
+
+	n, err := t.proxy.Read(context.Background(), []byte{})
+	ExpectEq(17, n)
+
+	// Seek
+	ExpectCall(rl, "Seek")(11, 2).
+		WillOnce(Return(0, errors.New("taco"))).
+		WillOnce(Return(17, nil))
+
+	_, err = t.proxy.Seek(context.Background(), 11, 2)
+	ExpectThat(err, Error(HasSubstr("taco")))
+
+	off, err := t.proxy.Seek(context.Background(), 11, 2)
+	ExpectEq(17, off)
+
+	// ReadAt
+	ExpectCall(rl, "ReadAt")(Any(), 11).
+		WillOnce(Return(0, errors.New("taco"))).
+		WillOnce(Return(17, nil))
+
+	_, err = t.proxy.ReadAt(context.Background(), []byte{}, 11)
+	ExpectThat(err, Error(HasSubstr("taco")))
+
+	n, err = t.proxy.ReadAt(context.Background(), []byte{}, 11)
+	ExpectEq(17, n)
+
+	// Upgrade
+	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
+
+	ExpectCall(rl, "Revoke")()
+	ExpectCall(rl, "Upgrade")().
+		WillOnce(Return(nil, errors.New("taco"))).
+		WillOnce(Return(rwl, nil))
+
+	_, err = t.proxy.Upgrade(context.Background())
+	ExpectThat(err, Error(HasSubstr("taco")))
+
+	tmp, _ := t.proxy.Upgrade(context.Background())
+	ExpectEq(rwl, tmp)
 }
 
 func (t *ReadProxyTest) Destroy() {
