@@ -83,7 +83,7 @@ func (t *IntegrationTest) create(o *gcs.Object) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *IntegrationTest) NonExistentBackingObjectName() {
+func (t *IntegrationTest) BackingObjectHasBeenDeleted_BeforeReading() {
 	// Create an object to obtain a record, then delete it.
 	createTime := t.clock.Now()
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
@@ -121,11 +121,49 @@ func (t *IntegrationTest) NonExistentBackingObjectName() {
 	ExpectThat(err, Error(HasSubstr("not found")))
 }
 
-func (t *IntegrationTest) BackingObjectHasBeenClobbered_BeforeReading() {
+func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *IntegrationTest) BackingObjectHasBeenClobbered_AfterReading() {
+func (t *IntegrationTest) BackingObjectHasBeenOverwritten_BeforeReading() {
+	// Create an object, then create the mutable object wrapper around it.
+	createTime := t.clock.Now()
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	AssertEq(nil, err)
+	t.clock.AdvanceTime(time.Second)
+
+	t.create(o)
+
+	// Overwrite the GCS object.
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, "foo", "burrito")
+	AssertEq(nil, err)
+
+	// Synchronously-available things should work.
+	ExpectEq(o.Name, t.mo.Name())
+	ExpectEq(o.Generation, t.mo.SourceGeneration())
+
+	sr, err := t.mo.Stat(true)
+	AssertEq(nil, err)
+	ExpectEq(o.Size, sr.Size)
+	ExpectThat(sr.Mtime, timeutil.TimeEq(createTime))
+	ExpectTrue(sr.Clobbered)
+
+	// Sync doesn't need to do anything.
+	err = t.mo.Sync()
+	ExpectEq(nil, err)
+
+	// Anything that needs to fault in the contents should fail.
+	_, err = t.mo.ReadAt([]byte{}, 0)
+	ExpectThat(err, Error(HasSubstr("not found")))
+
+	err = t.mo.Truncate(10)
+	ExpectThat(err, Error(HasSubstr("not found")))
+
+	_, err = t.mo.WriteAt([]byte{}, 0)
+	ExpectThat(err, Error(HasSubstr("not found")))
+}
+
+func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 	AssertTrue(false, "TODO")
 }
 
