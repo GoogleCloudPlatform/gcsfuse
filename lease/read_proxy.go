@@ -23,8 +23,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-// A function used by leases returned from NewAutoRefreshingReadLease to
-// refresh the contents of the read lease. See the notes on that function.
+// A function used by read proxies to refresh their contents. See notes on
+// NewReadProxy.
 type RefreshContentsFunc func(context.Context) (io.ReadCloser, error)
 
 // Create a ReadLease that never expires, unless voluntarily revoked or
@@ -49,7 +49,16 @@ func NewAutoRefreshingReadLease(
 	return
 }
 
-type autoRefreshingReadLease struct {
+// A wrapper around a read lease, exposing a similar interface with the
+// following differences:
+//
+//  *  Contents are fetched and re-fetched automatically when needed. Therefore
+//     the user need not worry about lease expiration.
+//
+//  *  Methods that may involve fetching the contents (reading, seeking) accept
+//     context arguments, so as to be cancellable.
+//
+type ReadProxy struct {
 	mu sync.Mutex
 
 	/////////////////////////
