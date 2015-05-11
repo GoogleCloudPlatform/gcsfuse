@@ -170,7 +170,7 @@ func (rwl *readWriteLease) Size() (size int64, err error) {
 }
 
 // LOCKS_EXCLUDED(rwl.mu)
-func (rwl *readWriteLease) Downgrade() (rl ReadLease, err error) {
+func (rwl *readWriteLease) Downgrade() (rl ReadLease) {
 	rwl.mu.Lock()
 	defer rwl.mu.Unlock()
 
