@@ -267,6 +267,11 @@ func (t *IntegrationTest) WithinLeaserLimit() {
 	err = t.mo.Sync()
 	AssertEq(nil, err)
 
+	// The backing object should be present and contain the correct contents.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, o.Name)
+	AssertEq(nil, err)
+	ExpectEq(fileLeaserLimit, len(contents))
+
 	// Delete the backing object.
 	err = t.bucket.DeleteObject(t.ctx, o.Name)
 	AssertEq(nil, err)
@@ -281,7 +286,35 @@ func (t *IntegrationTest) WithinLeaserLimit() {
 }
 
 func (t *IntegrationTest) LargerThanLeaserLimit() {
-	AssertTrue(false, "TODO")
+	AssertLt(len("taco"), fileLeaserLimit)
+
+	// Create.
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	AssertEq(nil, err)
+
+	t.create(o)
+
+	// Extend to be past the leaser limit, then write out to GCS, which should
+	// downgrade to a read proxy.
+	err = t.mo.Truncate(fileLeaserLimit + 1)
+	AssertEq(nil, err)
+
+	err = t.mo.Sync()
+	AssertEq(nil, err)
+
+	// The backing object should be present and contain the correct contents.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, o.Name)
+	AssertEq(nil, err)
+	ExpectEq(fileLeaserLimit+1, len(contents))
+
+	// Delete the backing object.
+	err = t.bucket.DeleteObject(t.ctx, o.Name)
+	AssertEq(nil, err)
+
+	// The contents should be lost, because the leaser should have revoked the
+	// read lease.
+	_, err = t.mo.ReadAt([]byte{}, 0)
+	ExpectThat(err, Error(HasSubstr("not found")))
 }
 
 func (t *IntegrationTest) BackingObjectHasBeenDeleted_BeforeReading() {
