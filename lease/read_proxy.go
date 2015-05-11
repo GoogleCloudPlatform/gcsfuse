@@ -270,29 +270,24 @@ func (rp *ReadProxy) Size() (size int64) {
 }
 
 // For testing use only; do not touch.
-func (rl *autoRefreshingReadLease) Destroyed() (destroyed bool) {
+func (rp *ReadProxy) Destroyed() (destroyed bool) {
 	panic("TODO")
 }
 
 // Return a read/write lease for the proxied contents. The read proxy must not
 // be used after calling this method.
-func (rl *autoRefreshingReadLease) Upgrade() (rwl ReadWriteLease, err error) {
-	// Special case: have we been permanently revoked?
-	if rl.revoked {
-		err = &RevokedError{}
-		return
-	}
-
-	// If we succeed, we are now revoked.
+func (rp *ReadProxy) Upgrade(
+	ctx context.Context) (rwl ReadWriteLease, err error) {
+	// If we succeed, we are now destroyed.
 	defer func() {
 		if err == nil {
-			rl.revoked = true
+			rp.Destroy()
 		}
 	}()
 
 	// Common case: is the existing lease still valid?
-	if rl.wrapped != nil {
-		rwl, err = rl.wrapped.Upgrade()
+	if rp.lease != nil {
+		rwl, err = rp.lease.Upgrade()
 		if !isRevokedErr(err) {
 			return
 		}
@@ -302,7 +297,7 @@ func (rl *autoRefreshingReadLease) Upgrade() (rwl ReadWriteLease, err error) {
 	}
 
 	// Build the read/write lease anew.
-	rwl, err = rl.getContents()
+	rwl, err = rp.getContents(ctx)
 	if err != nil {
 		err = fmt.Errorf("getContents: %v", err)
 		return
