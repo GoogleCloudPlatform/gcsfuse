@@ -82,6 +82,8 @@ type MutableObject struct {
 
 	// The time at which a method that modifies our contents was last called, or
 	// nil if never.
+	//
+	// INVARIANT: If dirty(), then mtime != nil
 	mtime *time.Time
 }
 
@@ -159,13 +161,17 @@ func (mo *MutableObject) CheckInvariants() {
 		}
 	}
 
-	// INVARIANT: If dirty, then localFile != nil
-	if mo.dirty && mo.localFile == nil {
-		panic("Expected non-nil localFile.")
+	// INVARIANT: (readProxy == nil) != (localFile == nil)
+	if mo.readProxy == nil && mo.localFile == nil {
+		panic("Both readProxy and localFile are nil")
 	}
 
-	// INVARIANT: If dirty, then mtime != nil
-	if mo.dirty && mo.mtime == nil {
+	if mo.readProxy != nil && mo.localFile != nil {
+		panic("Both readProxy and localFile are non-nil")
+	}
+
+	// INVARIANT: If dirty(), then mtime != nil
+	if mo.dirty() && mo.mtime == nil {
 		panic("Expected non-nil mtime.")
 	}
 }
