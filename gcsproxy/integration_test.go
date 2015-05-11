@@ -83,6 +83,34 @@ func (t *IntegrationTest) create(o *gcs.Object) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
+func (t *IntegrationTest) ReadThenSync() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *IntegrationTest) WriteThenSync() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *IntegrationTest) TruncateThenSync() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *IntegrationTest) Stat_Clean() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *IntegrationTest) Stat_Dirty() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *IntegrationTest) SmallerThanLeaserLimit() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *IntegrationTest) LargerThanLeaserLimit() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *IntegrationTest) BackingObjectHasBeenDeleted_BeforeReading() {
 	// Create an object to obtain a record, then delete it.
 	createTime := t.clock.Now()
@@ -164,37 +192,5 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_BeforeReading() {
 }
 
 func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *IntegrationTest) Name() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *IntegrationTest) ReadThenSync() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *IntegrationTest) WriteThenSync() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *IntegrationTest) TruncateThenSync() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *IntegrationTest) Stat_Clean() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *IntegrationTest) Stat_Dirty() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *IntegrationTest) SmallerThanLeaserLimit() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *IntegrationTest) LargerThanLeaserLimit() {
 	AssertTrue(false, "TODO")
 }
