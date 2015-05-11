@@ -108,11 +108,11 @@ func isRevokedErr(err error) bool {
 
 // Set up a read/write lease and fill in our contents.
 //
-// REQUIRES: The caller has observed that rl.lease has expired.
-func (rl *autoRefreshingReadLease) getContents() (
-	rwl ReadWriteLease, err error) {
+// REQUIRES: The caller has observed that rp.lease has expired.
+func (rp *ReadProxy) getContents(
+	ctx context.Context) (rwl ReadWriteLease, err error) {
 	// Obtain some space to write the contents.
-	rwl, err = rl.leaser.NewFile()
+	rwl, err = rp.leaser.NewFile()
 	if err != nil {
 		err = fmt.Errorf("NewFile: %v", err)
 		return
@@ -126,7 +126,7 @@ func (rl *autoRefreshingReadLease) getContents() (
 	}()
 
 	// Obtain the reader for our contents.
-	rc, err := rl.f()
+	rc, err := rp.refresh()
 	if err != nil {
 		err = fmt.Errorf("User function: %v", err)
 		return
@@ -147,7 +147,7 @@ func (rl *autoRefreshingReadLease) getContents() (
 	}
 
 	// Did the user lie about the size?
-	if copied != rl.Size() {
+	if copied != rp.Size() {
 		err = fmt.Errorf("Copied %v bytes; expected %v", copied, rl.Size())
 		return
 	}
