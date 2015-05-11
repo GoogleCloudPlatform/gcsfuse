@@ -19,7 +19,8 @@ import (
 	"io"
 	"log"
 	"os"
-	"sync"
+
+	"github.com/jacobsa/gcloud/syncutil"
 )
 
 // A read-write wrapper around a file. Unlike a read lease, this cannot be
@@ -43,7 +44,7 @@ type ReadWriteLease interface {
 }
 
 type readWriteLease struct {
-	mu sync.Mutex
+	mu syncutil.InvariantMutex
 
 	/////////////////////////
 	// Dependencies
@@ -67,6 +68,15 @@ type readWriteLease struct {
 	//
 	// GUARDED_BY(mu)
 	reportedSize int64
+
+	// Our current view of the file's size, or a negative value if we dirtied the
+	// file but then failed to find its size.
+	//
+	// INVARIANT: If fileSize >= 0, fileSize agrees with file.Stat()
+	// INVARIANT: fileSize < 0 || fileSize == reportedSize
+	//
+	// GUARDED_BY(mu)
+	fileSize int64
 }
 
 var _ ReadWriteLease = &readWriteLease{}
