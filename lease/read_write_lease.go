@@ -207,7 +207,7 @@ func (rwl *readWriteLease) Downgrade() (rl ReadLease) {
 	}
 
 	// Call the leaser.
-	rl = rwl.leaser.downgrade(rwl, size, rwl.file)
+	rl = rwl.leaser.downgrade(size, rwl.file)
 
 	return
 }
