@@ -39,6 +39,7 @@ type IntegrationTest struct {
 }
 
 var _ SetUpInterface = &IntegrationTest{}
+var _ TearDownInterface = &IntegrationTest{}
 
 func init() { RegisterTestSuite(&IntegrationTest{}) }
 
@@ -49,10 +50,59 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 }
 
+func (t *IntegrationTest) TearDown() {
+	// TODO(jacobsa): Call Destroy to make sure nothing weird happens. Make sure
+	// checkingMutableObject checks around Destroy, too.
+	panic("TODO")
+}
+
+func (t *IntegrationTest) createMutableObject(
+	o *gcs.Object) (mo *checkingMutableObject)
+
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *IntegrationTest) DoesFoo() {
+func (t *IntegrationTest) NonExistentBackingObjectName() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *IntegrationTest) BackingObjectHasBeenClobbered_BeforeReading() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *IntegrationTest) BackingObjectHasBeenClobbered_AfterReading() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *IntegrationTest) Name() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *IntegrationTest) ReadThenSync() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *IntegrationTest) WriteThenSync() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *IntegrationTest) TruncateThenSync() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *IntegrationTest) Stat_Clean() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *IntegrationTest) Stat_Dirty() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *IntegrationTest) SmallerThanLeaserLimit() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *IntegrationTest) LargerThanLeaserLimit() {
 	AssertTrue(false, "TODO")
 }
