@@ -126,7 +126,7 @@ func (rp *ReadProxy) getContents(
 	}()
 
 	// Obtain the reader for our contents.
-	rc, err := rp.refresh()
+	rc, err := rp.refresh(ctx)
 	if err != nil {
 		err = fmt.Errorf("User function: %v", err)
 		return
@@ -157,14 +157,14 @@ func (rp *ReadProxy) getContents(
 
 // Downgrade and save the supplied read/write lease obtained with getContents
 // for later use.
-func (rl *autoRefreshingReadLease) saveContents(rwl ReadWriteLease) {
+func (rp *ReadProxy) saveContents(rwl ReadWriteLease) {
 	downgraded, err := rwl.Downgrade()
 	if err != nil {
 		log.Printf("Failed to downgrade write lease (%q); abandoning.", err.Error())
 		return
 	}
 
-	rl.wrapped = downgraded
+	rp.lease = downgraded
 }
 
 ////////////////////////////////////////////////////////////////////////
