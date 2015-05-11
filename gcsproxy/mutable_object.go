@@ -64,11 +64,6 @@ type MutableObject struct {
 	// When dirty, a read/write lease containing our current contents. When
 	// clean, nil.
 	//
-	// TODO(jacobsa): Make it possible to "downgrade" directly to a read proxy by
-	// adding a variant of gcsproxy.NewReadProxy that takes an existing
-	// read/write lease, then ditto with lease.NewReadProxy  in addition to the
-	// refresh function.
-	//
 	// INVARIANT: (readProxy == nil) != (readWriteLease == nil)
 	readWriteLease lease.ReadWriteLease
 
@@ -112,7 +107,7 @@ func NewMutableObject(
 		clock:            clock,
 		src:              *o,
 		sourceGeneration: o.Generation,
-		readProxy:        NewReadProxy(leaser, bucket, o),
+		readProxy:        NewReadProxy(leaser, bucket, o, nil),
 	}
 
 	return
@@ -344,24 +339,28 @@ func (mo *MutableObject) Sync(ctx context.Context) (err error) {
 		return
 	}
 
-	// Update our state.
 	mo.src = *o
-	mo.readProxy = NewReadProxy(mo.leaser, mo.bucket, o)
 	atomic.StoreInt64(&mo.sourceGeneration, mo.src.Generation)
+
+	// Attempt to downgrade the read/write lease to a read lease, and use that to
+	// prime the new read proxy. But whether or not that pans out, ensure that a
+	// read proxy is set up.
+	defer func() {
+		if mo.readProxy == nil {
+			mo.readProxy = NewReadProxy(mo.leaser, mo.bucket, o, nil)
+		}
+	}()
 
 	rwl := mo.readWriteLease
 	mo.readWriteLease = nil
 
-	// Destroy the read/write lease, which we no longer need.
-	//
-	// TODO(jacobsa): Update this. See the TODO on MutableObject.readWriteLease.
 	rl, err := rwl.Downgrade()
 	if err != nil {
 		err = fmt.Errorf("Downgrade: %v", err)
 		return
 	}
 
-	rl.Revoke()
+	mo.readProxy = NewReadProxy(mo.leaser, mo.bucket, o, rl)
 
 	return
 }
@@ -433,6 +432,8 @@ func (mo *MutableObject) ensureReadWriteLease(ctx context.Context) (err error) {
 	}
 
 	// Set up the read/write lease.
+	//
+	// TODO(jacobsa): Upgrade the read proxy when possible.
 	rwl, err := makeReadWriteLease(
 		ctx,
 		mo.bucket,

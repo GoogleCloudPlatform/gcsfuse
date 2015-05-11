@@ -87,13 +87,6 @@ func init() { RegisterTestSuite(&ReadProxyTest{}) }
 func (t *ReadProxyTest) SetUp(ti *TestInfo) {
 	t.mockController = ti.MockController
 
-	// Set up a function that defers to whatever is currently set as t.f.
-	f := func(ctx context.Context) (rc io.ReadCloser, err error) {
-		AssertNe(nil, t.f)
-		rc, err = t.f()
-		return
-	}
-
 	// Set up the leaser.
 	t.leaser = mock_lease.NewMockFileLeaser(ti.MockController, "leaser")
 
@@ -101,7 +94,14 @@ func (t *ReadProxyTest) SetUp(ti *TestInfo) {
 	t.proxy = lease.NewReadProxy(
 		t.leaser,
 		int64(len(contents)),
-		f)
+		t.callF,
+		nil)
+}
+
+// Defer to whatever is currently set as t.f.
+func (t *ReadProxyTest) callF(ctx context.Context) (io.ReadCloser, error) {
+	AssertNe(nil, t.f)
+	return t.f()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -724,6 +724,97 @@ func (t *ReadProxyTest) WrappedStillValid() {
 	ExpectEq(17, n)
 
 	// Upgrade
+	ExpectCall(rl, "Revoke")()
+	ExpectCall(rl, "Upgrade")().
+		WillOnce(Return(nil, errors.New("taco"))).
+		WillOnce(Return(rwl, nil))
+
+	_, err = t.proxy.Upgrade(context.Background())
+	ExpectThat(err, Error(HasSubstr("taco")))
+
+	tmp, _ := t.proxy.Upgrade(context.Background())
+	ExpectEq(rwl, tmp)
+}
+
+func (t *ReadProxyTest) InitialReadLease_Revoked() {
+	// Set up an initial lease.
+	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
+	t.proxy = lease.NewReadProxy(
+		t.leaser,
+		int64(len(contents)),
+		t.callF,
+		rl)
+
+	// Simulate it being revoked for all methods.
+	ExpectCall(rl, "Read")(Any()).
+		WillOnce(Return(0, &lease.RevokedError{}))
+
+	ExpectCall(rl, "Seek")(Any(), Any()).
+		WillOnce(Return(0, &lease.RevokedError{}))
+
+	ExpectCall(rl, "ReadAt")(Any(), Any()).
+		WillOnce(Return(0, &lease.RevokedError{}))
+
+	ExpectCall(rl, "Upgrade")().
+		WillOnce(Return(nil, &lease.RevokedError{}))
+
+	ExpectCall(t.leaser, "NewFile")().
+		Times(4).
+		WillRepeatedly(Return(nil, errors.New("")))
+
+	t.proxy.Read(context.Background(), []byte{})
+	t.proxy.Seek(context.Background(), 0, 0)
+	t.proxy.ReadAt(context.Background(), []byte{}, 0)
+	t.proxy.Upgrade(context.Background())
+}
+
+func (t *ReadProxyTest) InitialReadLease_Valid() {
+	var err error
+
+	// Set up an initial lease.
+	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
+	t.proxy = lease.NewReadProxy(
+		t.leaser,
+		int64(len(contents)),
+		t.callF,
+		rl)
+
+	// Read
+	ExpectCall(rl, "Read")(Any()).
+		WillOnce(Return(0, errors.New("taco"))).
+		WillOnce(Return(17, nil))
+
+	_, err = t.proxy.Read(context.Background(), []byte{})
+	ExpectThat(err, Error(HasSubstr("taco")))
+
+	n, err := t.proxy.Read(context.Background(), []byte{})
+	ExpectEq(17, n)
+
+	// Seek
+	ExpectCall(rl, "Seek")(11, 2).
+		WillOnce(Return(0, errors.New("taco"))).
+		WillOnce(Return(17, nil))
+
+	_, err = t.proxy.Seek(context.Background(), 11, 2)
+	ExpectThat(err, Error(HasSubstr("taco")))
+
+	off, err := t.proxy.Seek(context.Background(), 11, 2)
+	ExpectEq(17, off)
+
+	// ReadAt
+	ExpectCall(rl, "ReadAt")(Any(), 11).
+		WillOnce(Return(0, errors.New("taco"))).
+		WillOnce(Return(17, nil))
+
+	_, err = t.proxy.ReadAt(context.Background(), []byte{}, 11)
+	ExpectThat(err, Error(HasSubstr("taco")))
+
+	n, err = t.proxy.ReadAt(context.Background(), []byte{}, 11)
+	ExpectEq(17, n)
+
+	// Upgrade
+	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
+
 	ExpectCall(rl, "Revoke")()
 	ExpectCall(rl, "Upgrade")().
 		WillOnce(Return(nil, errors.New("taco"))).

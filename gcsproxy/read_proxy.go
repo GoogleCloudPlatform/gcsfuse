@@ -36,11 +36,14 @@ type ReadProxy struct {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-// Create a view on the given GCS object generation.
+// Create a view on the given GCS object generation. If rl is non-nil, it must
+// contain a lease for the contents of the object and will be used when
+// possible instead of re-reading the object.
 func NewReadProxy(
 	leaser lease.FileLeaser,
 	bucket gcs.Bucket,
-	o *gcs.Object) (rp *ReadProxy) {
+	o *gcs.Object,
+	rl lease.ReadLease) (rp *ReadProxy) {
 	// Set up a lease.ReadProxy.
 	wrapped := lease.NewReadProxy(
 		leaser,
@@ -48,7 +51,8 @@ func NewReadProxy(
 		func(ctx context.Context) (rc io.ReadCloser, err error) {
 			rc, err = getObjectContents(ctx, bucket, o)
 			return
-		})
+		},
+		rl)
 
 	// Serve from that.
 	rp = &ReadProxy{

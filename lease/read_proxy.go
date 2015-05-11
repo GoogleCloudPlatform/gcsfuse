@@ -28,18 +28,23 @@ type RefreshContentsFunc func(context.Context) (io.ReadCloser, error)
 
 // Create a read proxy.
 //
-// The supplied function will be used to obtain the proxy's contents, the first
-// time they're needed and whenever the supplied file leaser decides to expire
-// the temporary copy thus obtained. It must return the same contents every
-// time, and the contents must be of the given size.
+// The supplied function will be used to obtain the proxy's contents whenever
+// the supplied file leaser decides to expire the temporary copy thus obtained.
+// It must return the same contents every time, and the contents must be of the
+// given size.
+//
+// If rl is non-nil, it will be used as the first temporary copy of the
+// contents, and must match what refresh returns.
 func NewReadProxy(
 	fl FileLeaser,
 	size int64,
-	refresh RefreshContentsFunc) (rp *ReadProxy) {
+	refresh RefreshContentsFunc,
+	rl ReadLease) (rp *ReadProxy) {
 	rp = &ReadProxy{
 		leaser:  fl,
 		size:    size,
 		refresh: refresh,
+		lease:   rl,
 	}
 
 	return

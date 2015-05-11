@@ -657,11 +657,12 @@ func (t *MutableObjectTest) Sync_Successful() {
 	AssertEq(nil, err)
 	ExpectEq(17, t.mo.SourceGeneration())
 
-	// Further calls to read should fetch the new object from the bucket.
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(nil, errors.New("")))
+	// Further calls to read should see the contents we wrote.
+	buf := make([]byte, 4)
+	n, _ = t.mo.ReadAt(buf, 0)
 
-	t.mo.ReadAt([]byte{}, 0)
+	ExpectEq(4, n)
+	ExpectEq("taco", string(buf[:n]))
 }
 
 func (t *MutableObjectTest) WriteThenSyncThenWriteThenSync() {
