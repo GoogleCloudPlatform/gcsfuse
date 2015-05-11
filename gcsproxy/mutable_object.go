@@ -23,6 +23,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/gcloud/gcs"
@@ -49,6 +50,7 @@ type MutableObject struct {
 	/////////////////////////
 
 	bucket gcs.Bucket
+	leaser lease.FileLeaser
 	clock  timeutil.Clock
 
 	/////////////////////////
@@ -100,19 +102,23 @@ type StatResult struct {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-// Create a view on the given GCS object generation.
+// Create a view on the given GCS object generation, using the supplied leaser
+// to mediate temporary space usage.
 //
 // REQUIRES: o != nil
 func NewMutableObject(
-	clock timeutil.Clock,
+	o *gcs.Object,
 	bucket gcs.Bucket,
-	o *gcs.Object) (mo *MutableObject) {
+	leaser lease.FileLeaser,
+	clock timeutil.Clock) (mo *MutableObject) {
 	// Set up the basic struct.
 	mo = &MutableObject{
-		clock:            clock,
 		bucket:           bucket,
+		leaser:           leaser,
+		clock:            clock,
 		src:              *o,
 		sourceGeneration: o.Generation,
+		readProxy:        NewReadProxy(leaser, bucket, o),
 	}
 
 	return
