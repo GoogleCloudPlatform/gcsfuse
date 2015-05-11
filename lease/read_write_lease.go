@@ -174,18 +174,29 @@ func (rwl *readWriteLease) Downgrade() (rl ReadLease) {
 	rwl.mu.Lock()
 	defer rwl.mu.Unlock()
 
+	// Ensure that we will crash if used again.
+	f := rwl.file
+	rwl.file = nil
+
+	// On error, log an error then return a read lease that looks like it was
+	// born revoked.
+	var err error
+	defer func() {
+		if err != nil {
+			log.Printf("Error downgrading: %v", err)
+			rl = &alwaysRevokedReadLease{}
+		}
+	}()
+
 	// Find the current size under the lock.
 	size, err := rwl.sizeLocked()
 	if err != nil {
-		log.Printf("Error obtaining size while downgrading: %v", err)
+		err = fmt.Errorf("sizeLocked: %v", err)
 		return
 	}
 
 	// Call the leaser.
-	rl = rwl.leaser.downgrade(rwl, size, rwl.file)
-
-	// Ensure that we will crash if used again.
-	rwl.file = nil
+	rl = rwl.leaser.downgrade(rwl, size, f)
 
 	return
 }
