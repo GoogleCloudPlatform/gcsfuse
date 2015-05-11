@@ -191,25 +191,22 @@ func (rwl *readWriteLease) Downgrade() (rl ReadLease) {
 		rwl.file = nil
 	}()
 
-	// On error, log an error then return a read lease that looks like it was
-	// born revoked.
-	var err error
-	defer func() {
-		if err != nil {
-			log.Printf("Error downgrading: %v", err)
-			rl = &alwaysRevokedReadLease{}
-		}
-	}()
-
-	// Find the current size under the lock.
-	size, err := rwl.sizeLocked()
-	if err != nil {
-		err = fmt.Errorf("sizeLocked: %v", err)
+	// Special case: if we don't know the file's current size, we can't reliably
+	// create a read lease wrapping the file, since we might be lying about its
+	// size.
+	//
+	// In this case, return a lease whose ostensible  size matches our state last
+	// time we succeeded to modify the file, but whose contents cannot be read.
+	// Throw away our file, and report to the file leaser that we've done so.
+	if rwl.fileSize < 0 {
+		rl = &alwaysRevokedReadLease{size: rwl.reportedSize}
+		rwl.file.Close()
+		rwl.leaser.addReadWriteByteDelta(-rwl.reportedSize)
 		return
 	}
 
-	// Call the leaser.
-	rl = rwl.leaser.downgrade(size, rwl.file)
+	// Otherwise, just call through to the leaser.
+	rl = rwl.leaser.downgrade(rwl.fileSize, rwl.file)
 
 	return
 }
@@ -264,6 +261,13 @@ func (rwl *readWriteLease) sizeLocked() (size int64, err error) {
 func (rwl *readWriteLease) reconcileSize() {
 	var err error
 
+	// If we fail to find the size, we must note that this happened.
+	defer func() {
+		if err != nil {
+			rwl.fileSize = -1
+		}
+	}()
+
 	// Find our size.
 	size, err := rwl.sizeLocked()
 	if err != nil {
@@ -277,6 +281,9 @@ func (rwl *readWriteLease) reconcileSize() {
 		rwl.leaser.addReadWriteByteDelta(delta)
 		rwl.reportedSize = size
 	}
+
+	// Update our view of the file's size.
+	rwl.fileSize = size
 }
 
 ////////////////////////////////////////////////////////////////////////
