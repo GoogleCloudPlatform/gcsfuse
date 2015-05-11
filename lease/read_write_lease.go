@@ -92,6 +92,8 @@ func newReadWriteLease(
 		reportedSize: size,
 	}
 
+	rwl.mu = syncutil.NewInvariantMutex(rwl.checkInvariants)
+
 	return
 }
 
@@ -215,6 +217,31 @@ func (rwl *readWriteLease) Downgrade() (rl ReadLease) {
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
+
+// LOCKS_REQUIRED(rwl.mu)
+func (rwl *readWriteLease) checkInvariants() {
+	// Have we been dowgraded?
+	if rwl.file == nil {
+		return
+	}
+
+	// INVARIANT: If fileSize >= 0, fileSize agrees with file.Stat()
+	if rwl.fileSize >= 0 {
+		fi, err := rwl.file.Stat()
+		if err != nil {
+			panic(fmt.Sprintf("Failed to stat file: %v", err))
+		}
+
+		if rwl.fileSize != fi.Size() {
+			panic(fmt.Sprintf("Size mismatch: %v vs. %v", rwl.fileSize, fi.Size()))
+		}
+	}
+
+	// INVARIANT: fileSize < 0 || fileSize == reportedSize
+	if !(rwl.fileSize < 0 || rwl.fileSize == rwl.reportedSize) {
+		panic(fmt.Sprintf("Size mismatch: %v vs. %v", rwl.fileSize, rwl.reportedSize))
+	}
+}
 
 // LOCKS_REQUIRED(rwl.mu)
 func (rwl *readWriteLease) sizeLocked() (size int64, err error) {
