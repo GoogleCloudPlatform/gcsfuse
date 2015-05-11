@@ -724,6 +724,7 @@ func (t *ReadProxyTest) WrappedStillValid() {
 	ExpectEq(17, n)
 
 	// Upgrade
+	ExpectCall(rl, "Revoke")()
 	ExpectCall(rl, "Upgrade")().
 		WillOnce(Return(nil, errors.New("taco"))).
 		WillOnce(Return(rwl, nil))
