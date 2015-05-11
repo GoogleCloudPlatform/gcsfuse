@@ -438,6 +438,17 @@ func (mo *MutableObject) ensureLocalFile(ctx context.Context) (err error) {
 	}
 
 	mo.localFile = f
+
+	// Throw away the read proxy.
+	rp := mo.readProxy
+	mo.readProxy = nil
+
+	err = rp.Destroy()
+	if err != nil {
+		err = fmt.Errorf("Destroy: %v", err)
+		return
+	}
+
 	return
 }
 
