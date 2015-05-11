@@ -44,7 +44,7 @@ var fTempDir = flag.String(
 		"If empty, the system default (probably /tmp) will be used.")
 
 var fTempDirLimit = flag.Int64(
-	"temp_dir_bytes", "",
+	"temp_dir_bytes", 1<<31,
 	"A desired limit on the number of bytes used in --temp_dir. May be exceeded "+
 		"for dirty files that have not been flushed or closed.")
 
