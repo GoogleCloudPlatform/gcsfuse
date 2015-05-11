@@ -37,9 +37,9 @@ type ReadWriteLease interface {
 	Size() (size int64, err error)
 
 	// Downgrade to a read lease, releasing any resources pinned by this lease to
-	// the pool that may be revoked, as with any read lease. After successfully
-	// downgrading, this lease must not be used again.
-	Downgrade() (rl ReadLease, err error)
+	// the pool that may be revoked, as with any read lease. After downgrading,
+	// this lease must not be used again.
+	Downgrade() (rl ReadLease)
 }
 
 type readWriteLease struct {
