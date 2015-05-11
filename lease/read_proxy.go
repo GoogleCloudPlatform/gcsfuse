@@ -35,8 +35,8 @@ type RefreshContentsFunc func(context.Context) (io.ReadCloser, error)
 func NewReadProxy(
 	fl FileLeaser,
 	size int64,
-	refresh RefreshContentsFunc) (rl ReadLease) {
-	rl = &autoRefreshingReadLease{
+	refresh RefreshContentsFunc) (rp *ReadProxy) {
+	rp = &ReadProxy{
 		leaser:  fl,
 		size:    size,
 		refresh: refresh,
@@ -66,18 +66,15 @@ type ReadProxy struct {
 	// Dependencies
 	/////////////////////////
 
-	leaser FileLeaser
-	f      func() (io.ReadCloser, error)
+	leaser  FileLeaser
+	refresh RefreshContentsFunc
 
 	/////////////////////////
 	// Mutable state
 	/////////////////////////
 
-	// Set to true when we've been revoked for good.
-	revoked bool
-
 	// The current wrapped lease, or nil if one has never been issued.
-	wrapped ReadLease
+	lease ReadLease
 }
 
 ////////////////////////////////////////////////////////////////////////
