@@ -40,8 +40,8 @@ func NewReadProxy(
 	leaser lease.FileLeaser,
 	bucket gcs.Bucket,
 	o *gcs.Object) (rp *ReadProxy) {
-	// Set up a read lease.
-	rl := lease.NewAutoRefreshingReadLease(
+	// Set up a lease.ReadProxy.
+	_ = lease.NewReadProxy(
 		leaser,
 		int64(o.Size),
 		func(ctx context.Context) (rc io.ReadCloser, err error) {
@@ -50,16 +50,9 @@ func NewReadProxy(
 		})
 
 	// Serve from that.
-	rp = NewReadProxyForLease(rl)
+	panic("TODO")
 
 	return
-}
-
-// Create a read proxy using a read lease, which is expected to never be
-// spontaneously revoked. For use in testing; most users will want NewReadProxy.
-func NewReadProxyForLease(
-	rl lease.ReadLease) (rp *ReadProxy) {
-	panic("TODO")
 }
 
 // Destroy any local file caches, putting the proxy into an indeterminate
@@ -69,7 +62,7 @@ func (rp *ReadProxy) Destroy() (err error) {
 }
 
 // Return a read/write lease for the contents of the object. This implicitly
-// destroys the proxy.
+// destroys the proxy, which must not be used further.
 func (rp *ReadProxy) Upgrade() (rwl lease.ReadWriteLease, err error) {
 	panic("TODO")
 }
@@ -94,7 +87,7 @@ func (rp *ReadProxy) ReadAt(
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-// For use with NewAutoRefreshingReadLease.
+// For use with lease.NewReadProxy.
 func getObjectContents(
 	ctx context.Context,
 	bucket gcs.Bucket,
