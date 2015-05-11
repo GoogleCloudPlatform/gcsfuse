@@ -211,8 +211,8 @@ func (mo *MutableObject) Stat(
 		sr.Mtime = mo.src.Updated
 	}
 
-	// If we have a file, it is authoritative for our size. Otherwise our source
-	// size is authoritative.
+	// If we have a file, it is authoritative for our size. Otherwise the read
+	// proxy is authoritative.
 	if mo.localFile != nil {
 		var fi os.FileInfo
 		if fi, err = mo.localFile.Stat(); err != nil {
@@ -222,7 +222,7 @@ func (mo *MutableObject) Stat(
 
 		sr.Size = fi.Size()
 	} else {
-		sr.Size = int64(mo.src.Size)
+		sr.Size = mo.readProxy.Size()
 	}
 
 	// Figure out whether we were clobbered iff the user asked us to.
@@ -245,14 +245,12 @@ func (mo *MutableObject) ReadAt(
 	ctx context.Context,
 	buf []byte,
 	offset int64) (n int, err error) {
-	// Make sure we have a local file.
-	if err = mo.ensureLocalFile(ctx); err != nil {
-		err = fmt.Errorf("ensureLocalFile: %v", err)
-		return
+	// Serve from the read proxy or the local file.
+	if mo.dirty() {
+		n, err = mo.localFile.ReadAt(buf, offset)
+	} else {
+		n, err = mo.readProxy.ReadAt(ctx, buf, offset)
 	}
-
-	// Serve the read from the file.
-	n, err = mo.localFile.ReadAt(buf, offset)
 
 	return
 }
