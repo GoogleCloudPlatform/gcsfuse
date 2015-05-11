@@ -16,7 +16,6 @@ package gcsproxy
 
 import (
 	"fmt"
-	"io"
 	"math"
 	"sync/atomic"
 	"time"
@@ -369,56 +368,6 @@ func (mo *MutableObject) Sync(ctx context.Context) (err error) {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-// Set up a read/write lease containing the given generation of the given
-// object.
-func makeReadWriteLease(
-	ctx context.Context,
-	bucket gcs.Bucket,
-	leaser lease.FileLeaser,
-	name string,
-	generation int64) (rwl lease.ReadWriteLease, err error) {
-	// Create the read/write lease.
-	rwl, err = leaser.NewFile()
-	if err != nil {
-		err = fmt.Errorf("NewFile: %v", err)
-		return
-	}
-
-	// Ensure that we clean up the lease if we return in error from this method.
-	defer func() {
-		if err != nil {
-			rwl.Downgrade()
-			rwl = nil
-		}
-	}()
-
-	// Open the object for reading.
-	req := &gcs.ReadObjectRequest{
-		Name:       name,
-		Generation: generation,
-	}
-
-	var rc io.ReadCloser
-	if rc, err = bucket.NewReader(ctx, req); err != nil {
-		err = fmt.Errorf("NewReader: %v", err)
-		return
-	}
-
-	// Copy to the read/write lease.
-	if _, err = io.Copy(rwl, rc); err != nil {
-		err = fmt.Errorf("Copy: %v", err)
-		return
-	}
-
-	// Close.
-	if err = rc.Close(); err != nil {
-		err = fmt.Errorf("Close: %v", err)
-		return
-	}
-
-	return
-}
-
 func (mo *MutableObject) dirty() bool {
 	return mo.readWriteLease != nil
 }
@@ -432,31 +381,14 @@ func (mo *MutableObject) ensureReadWriteLease(ctx context.Context) (err error) {
 	}
 
 	// Set up the read/write lease.
-	//
-	// TODO(jacobsa): Upgrade the read proxy when possible.
-	rwl, err := makeReadWriteLease(
-		ctx,
-		mo.bucket,
-		mo.leaser,
-		mo.Name(),
-		mo.src.Generation)
-
+	rwl, err := mo.readProxy.Upgrade(ctx)
 	if err != nil {
-		err = fmt.Errorf("makeReadWriteLease: %v", err)
+		err = fmt.Errorf("readProxy.Upgrade: %v", err)
 		return
 	}
 
 	mo.readWriteLease = rwl
-
-	// Throw away the read proxy.
-	rp := mo.readProxy
 	mo.readProxy = nil
-
-	err = rp.Destroy()
-	if err != nil {
-		err = fmt.Errorf("Destroy: %v", err)
-		return
-	}
 
 	return
 }
