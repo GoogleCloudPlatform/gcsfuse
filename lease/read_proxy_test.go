@@ -77,7 +77,7 @@ type ReadProxyTest struct {
 
 	mockController Controller
 	leaser         mock_lease.MockFileLeaser
-	proxy          lease.ReadProxy
+	proxy          *lease.ReadProxy
 }
 
 var _ SetUpInterface = &ReadProxyTest{}
@@ -120,7 +120,7 @@ func (t *ReadProxyTest) LeaserReturnsError() {
 		WillOnce(Return(nil, errors.New("taco")))
 
 	// Attempt to read.
-	_, err = t.proxy.Read([]byte{})
+	_, err = t.proxy.Read(context.Background(), []byte{})
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
@@ -144,7 +144,7 @@ func (t *ReadProxyTest) CallsFunc() {
 	}
 
 	// Attempt to read.
-	t.proxy.Read([]byte{})
+	t.proxy.Read(context.Background(), []byte{})
 	ExpectTrue(called)
 }
 
@@ -166,7 +166,7 @@ func (t *ReadProxyTest) FuncReturnsError() {
 	}
 
 	// Attempt to read.
-	_, err := t.proxy.Read([]byte{})
+	_, err := t.proxy.Read(context.Background(), []byte{})
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
@@ -196,7 +196,7 @@ func (t *ReadProxyTest) ContentsReturnReadError() {
 	}
 
 	// Attempt to read.
-	_, err := t.proxy.Read([]byte{})
+	_, err := t.proxy.Read(context.Background(), []byte{})
 	ExpectThat(err, Error(HasSubstr("Copy")))
 	ExpectThat(err, Error(HasSubstr("timeout")))
 }
@@ -227,7 +227,7 @@ func (t *ReadProxyTest) ContentsReturnCloseError() {
 	}
 
 	// Attempt to read.
-	_, err := t.proxy.Read([]byte{})
+	_, err := t.proxy.Read(context.Background(), []byte{})
 	ExpectThat(err, Error(HasSubstr("Close")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
@@ -256,7 +256,7 @@ func (t *ReadProxyTest) ContentsAreWrongLength() {
 	}
 
 	// Attempt to read.
-	_, err := t.proxy.Read([]byte{})
+	_, err := t.proxy.Read(context.Background(), []byte{})
 	ExpectThat(err, Error(HasSubstr("Copied 3")))
 	ExpectThat(err, Error(HasSubstr("expected 4")))
 }
@@ -291,7 +291,7 @@ func (t *ReadProxyTest) WritesCorrectData() {
 	}
 
 	// Call.
-	t.proxy.Read([]byte{})
+	t.proxy.Read(context.Background(), []byte{})
 	ExpectEq(contents, string(written))
 }
 
@@ -317,7 +317,7 @@ func (t *ReadProxyTest) WriteError() {
 	}
 
 	// Attempt to read.
-	_, err := t.proxy.Read([]byte{})
+	_, err := t.proxy.Read(context.Background(), []byte{})
 	ExpectThat(err, Error(HasSubstr("Copy")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
@@ -348,7 +348,7 @@ func (t *ReadProxyTest) Read_Error() {
 
 	// Attempt to read.
 	buf := make([]byte, 1)
-	_, err := t.proxy.Read(buf)
+	_, err := t.proxy.Read(context.Background(), buf)
 
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
@@ -385,7 +385,7 @@ func (t *ReadProxyTest) Read_Successful() {
 
 	// Attempt to read.
 	buf := make([]byte, readLength)
-	n, err := t.proxy.Read(buf)
+	n, err := t.proxy.Read(context.Background(), buf)
 
 	AssertEq(nil, err)
 	AssertEq(readLength, n)
@@ -420,7 +420,7 @@ func (t *ReadProxyTest) Seek_CallsWrapped() {
 	}
 
 	// Call.
-	t.proxy.Seek(offset, whence)
+	t.proxy.Seek(context.Background(), offset, whence)
 }
 
 func (t *ReadProxyTest) Seek_Error() {
@@ -448,7 +448,7 @@ func (t *ReadProxyTest) Seek_Error() {
 	}
 
 	// Call.
-	_, err := t.proxy.Seek(0, 0)
+	_, err := t.proxy.Seek(context.Background(), 0, 0)
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
@@ -479,7 +479,7 @@ func (t *ReadProxyTest) Seek_Successful() {
 	}
 
 	// Call.
-	off, err := t.proxy.Seek(0, 0)
+	off, err := t.proxy.Seek(context.Background(), 0, 0)
 	AssertEq(nil, err)
 	ExpectEq(expected, off)
 }
@@ -511,7 +511,7 @@ func (t *ReadProxyTest) ReadAt_CallsWrapped() {
 	}
 
 	// Call.
-	t.proxy.ReadAt([]byte{}, offset)
+	t.proxy.ReadAt(context.Background(), []byte{}, offset)
 }
 
 func (t *ReadProxyTest) ReadAt_Error() {
@@ -539,7 +539,7 @@ func (t *ReadProxyTest) ReadAt_Error() {
 	}
 
 	// Call.
-	_, err := t.proxy.ReadAt([]byte{}, 0)
+	_, err := t.proxy.ReadAt(context.Background(), []byte{}, 0)
 
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
@@ -569,7 +569,7 @@ func (t *ReadProxyTest) ReadAt_Successful() {
 	}
 
 	// Call.
-	_, err := t.proxy.ReadAt([]byte{}, 0)
+	_, err := t.proxy.ReadAt(context.Background(), []byte{}, 0)
 	ExpectEq(nil, err)
 }
 
@@ -647,7 +647,7 @@ func (t *ReadProxyTest) WrappedRevoked() {
 		return
 	}
 
-	t.proxy.ReadAt([]byte{}, 0)
+	t.proxy.ReadAt(context.Background(), []byte{}, 0)
 
 	// Simulate it being revoked for all methods.
 	ExpectCall(rl, "Read")(Any()).
@@ -666,9 +666,9 @@ func (t *ReadProxyTest) WrappedRevoked() {
 		Times(4).
 		WillRepeatedly(Return(nil, errors.New("")))
 
-	t.proxy.Read([]byte{})
-	t.proxy.Seek(0, 0)
-	t.proxy.ReadAt([]byte{}, 0)
+	t.proxy.Read(context.Background(), []byte{})
+	t.proxy.Seek(context.Background(), 0, 0)
+	t.proxy.ReadAt(context.Background(), []byte{}, 0)
 	t.proxy.Upgrade()
 }
 
@@ -694,17 +694,17 @@ func (t *ReadProxyTest) WrappedStillValid() {
 		return
 	}
 
-	t.proxy.ReadAt([]byte{}, 0)
+	t.proxy.ReadAt(context.Background(), []byte{}, 0)
 
 	// Read
 	ExpectCall(rl, "Read")(Any()).
 		WillOnce(Return(0, errors.New("taco"))).
 		WillOnce(Return(17, nil))
 
-	_, err = t.proxy.Read([]byte{})
+	_, err = t.proxy.Read(context.Background(), []byte{})
 	ExpectThat(err, Error(HasSubstr("taco")))
 
-	n, err := t.proxy.Read([]byte{})
+	n, err := t.proxy.Read(context.Background(), []byte{})
 	ExpectEq(17, n)
 
 	// Seek
@@ -712,10 +712,10 @@ func (t *ReadProxyTest) WrappedStillValid() {
 		WillOnce(Return(0, errors.New("taco"))).
 		WillOnce(Return(17, nil))
 
-	_, err = t.proxy.Seek(11, 2)
+	_, err = t.proxy.Seek(context.Background(), 11, 2)
 	ExpectThat(err, Error(HasSubstr("taco")))
 
-	off, err := t.proxy.Seek(11, 2)
+	off, err := t.proxy.Seek(context.Background(), 11, 2)
 	ExpectEq(17, off)
 
 	// ReadAt
@@ -723,10 +723,10 @@ func (t *ReadProxyTest) WrappedStillValid() {
 		WillOnce(Return(0, errors.New("taco"))).
 		WillOnce(Return(17, nil))
 
-	_, err = t.proxy.ReadAt([]byte{}, 11)
+	_, err = t.proxy.ReadAt(context.Background(), []byte{}, 11)
 	ExpectThat(err, Error(HasSubstr("taco")))
 
-	n, err = t.proxy.ReadAt([]byte{}, 11)
+	n, err = t.proxy.ReadAt(context.Background(), []byte{}, 11)
 	ExpectEq(17, n)
 
 	// Upgrade
@@ -763,7 +763,7 @@ func (t *ReadProxyTest) Revoke() {
 		return
 	}
 
-	_, err = t.proxy.ReadAt([]byte{}, 0)
+	_, err = t.proxy.ReadAt(context.Background(), []byte{}, 0)
 
 	// Before revoking, Revoked should return false without needing to call
 	// through.
@@ -777,13 +777,13 @@ func (t *ReadProxyTest) Revoke() {
 	ExpectTrue(t.proxy.Revoked())
 
 	// Further calls to all of our methods should return RevokedError.
-	_, err = t.proxy.Read([]byte{})
+	_, err = t.proxy.Read(context.Background(), []byte{})
 	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 
-	_, err = t.proxy.Seek(0, 0)
+	_, err = t.proxy.Seek(context.Background(), 0, 0)
 	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 
-	_, err = t.proxy.ReadAt([]byte{}, 0)
+	_, err = t.proxy.ReadAt(context.Background(), []byte{}, 0)
 	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 
 	_, err = t.proxy.Upgrade()
