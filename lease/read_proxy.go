@@ -202,19 +202,13 @@ func (rp *ReadProxy) Read(
 }
 
 // Semantics matching io.Seeker, except with context support.
-func (rl *autoRefreshingReadLease) Seek(
+func (rp *ReadProxy) Seek(
 	ctx context.Context,
 	offset int64,
 	whence int) (off int64, err error) {
-	// Special case: have we been permanently revoked?
-	if rl.revoked {
-		err = &RevokedError{}
-		return
-	}
-
 	// Common case: is the existing lease still valid?
-	if rl.wrapped != nil {
-		off, err = rl.wrapped.Seek(offset, whence)
+	if rp.lease != nil {
+		off, err = rp.lease.Seek(offset, whence)
 		if !isRevokedErr(err) {
 			return
 		}
@@ -224,13 +218,13 @@ func (rl *autoRefreshingReadLease) Seek(
 	}
 
 	// Get hold of a read/write lease containing our contents.
-	rwl, err := rl.getContents()
+	rwl, err := rp.getContents(ctx)
 	if err != nil {
 		err = fmt.Errorf("getContents: %v", err)
 		return
 	}
 
-	defer rl.saveContents(rwl)
+	defer rp.saveContents(rwl)
 
 	// Serve from the read/write lease.
 	off, err = rwl.Seek(offset, whence)
