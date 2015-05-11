@@ -206,23 +206,23 @@ func (t *IntegrationTest) Stat_Synced() {
 	t.create(o)
 
 	// Dirty.
+	t.clock.AdvanceTime(time.Second)
+	truncateTime := t.clock.Now()
+
 	err = t.mo.Truncate(2)
 	AssertEq(nil, err)
 
-	// Sync.
 	t.clock.AdvanceTime(time.Second)
-	syncTime := t.clock.Now()
 
+	// Sync.
 	err = t.mo.Sync()
 	AssertEq(nil, err)
-
-	t.clock.AdvanceTime(time.Second)
 
 	// Stat.
 	sr, err := t.mo.Stat(true)
 	AssertEq(nil, err)
 	ExpectEq(2, sr.Size)
-	ExpectThat(sr.Mtime, timeutil.TimeEq(syncTime))
+	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
 	ExpectFalse(sr.Clobbered)
 }
 
