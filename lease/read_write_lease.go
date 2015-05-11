@@ -19,7 +19,8 @@ import (
 	"io"
 	"log"
 	"os"
-	"sync"
+
+	"github.com/jacobsa/gcloud/syncutil"
 )
 
 // A read-write wrapper around a file. Unlike a read lease, this cannot be
@@ -37,13 +38,13 @@ type ReadWriteLease interface {
 	Size() (size int64, err error)
 
 	// Downgrade to a read lease, releasing any resources pinned by this lease to
-	// the pool that may be revoked, as with any read lease. After successfully
-	// downgrading, this lease must not be used again.
-	Downgrade() (rl ReadLease, err error)
+	// the pool that may be revoked, as with any read lease. After downgrading,
+	// this lease must not be used again.
+	Downgrade() (rl ReadLease)
 }
 
 type readWriteLease struct {
-	mu sync.Mutex
+	mu syncutil.InvariantMutex
 
 	/////////////////////////
 	// Dependencies
@@ -67,11 +68,21 @@ type readWriteLease struct {
 	//
 	// GUARDED_BY(mu)
 	reportedSize int64
+
+	// Our current view of the file's size, or a negative value if we dirtied the
+	// file but then failed to find its size.
+	//
+	// INVARIANT: If fileSize >= 0, fileSize agrees with file.Stat()
+	// INVARIANT: fileSize < 0 || fileSize == reportedSize
+	//
+	// GUARDED_BY(mu)
+	fileSize int64
 }
 
 var _ ReadWriteLease = &readWriteLease{}
 
-// size is the size that the leaser has already recorded for us.
+// size is the size that the leaser has already recorded for us. It must match
+// the file's size.
 func newReadWriteLease(
 	leaser *fileLeaser,
 	size int64,
@@ -80,7 +91,10 @@ func newReadWriteLease(
 		leaser:       leaser,
 		file:         file,
 		reportedSize: size,
+		fileSize:     size,
 	}
+
+	rwl.mu = syncutil.NewInvariantMutex(rwl.checkInvariants)
 
 	return
 }
@@ -170,22 +184,31 @@ func (rwl *readWriteLease) Size() (size int64, err error) {
 }
 
 // LOCKS_EXCLUDED(rwl.mu)
-func (rwl *readWriteLease) Downgrade() (rl ReadLease, err error) {
+func (rwl *readWriteLease) Downgrade() (rl ReadLease) {
 	rwl.mu.Lock()
 	defer rwl.mu.Unlock()
 
-	// Find the current size under the lock.
-	size, err := rwl.sizeLocked()
-	if err != nil {
-		err = fmt.Errorf("sizeLocked: %v", err)
+	// Ensure that we will crash if used again.
+	defer func() {
+		rwl.file = nil
+	}()
+
+	// Special case: if we don't know the file's current size, we can't reliably
+	// create a read lease wrapping the file, since we might be lying about its
+	// size.
+	//
+	// In this case, return a lease whose ostensible  size matches our state last
+	// time we succeeded to modify the file, but whose contents cannot be read.
+	// Throw away our file, and report to the file leaser that we've done so.
+	if rwl.fileSize < 0 {
+		rl = &alwaysRevokedReadLease{size: rwl.reportedSize}
+		rwl.file.Close()
+		rwl.leaser.addReadWriteByteDelta(-rwl.reportedSize)
 		return
 	}
 
-	// Call the leaser.
-	rl = rwl.leaser.downgrade(rwl, size, rwl.file)
-
-	// Ensure that we will crash if used again.
-	rwl.file = nil
+	// Otherwise, just call through to the leaser.
+	rl = rwl.leaser.downgrade(rwl.fileSize, rwl.file)
 
 	return
 }
@@ -193,6 +216,31 @@ func (rwl *readWriteLease) Downgrade() (rl ReadLease, err error) {
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
+
+// LOCKS_REQUIRED(rwl.mu)
+func (rwl *readWriteLease) checkInvariants() {
+	// Have we been dowgraded?
+	if rwl.file == nil {
+		return
+	}
+
+	// INVARIANT: If fileSize >= 0, fileSize agrees with file.Stat()
+	if rwl.fileSize >= 0 {
+		fi, err := rwl.file.Stat()
+		if err != nil {
+			panic(fmt.Sprintf("Failed to stat file: %v", err))
+		}
+
+		if rwl.fileSize != fi.Size() {
+			panic(fmt.Sprintf("Size mismatch: %v vs. %v", rwl.fileSize, fi.Size()))
+		}
+	}
+
+	// INVARIANT: fileSize < 0 || fileSize == reportedSize
+	if !(rwl.fileSize < 0 || rwl.fileSize == rwl.reportedSize) {
+		panic(fmt.Sprintf("Size mismatch: %v vs. %v", rwl.fileSize, rwl.reportedSize))
+	}
+}
 
 // LOCKS_REQUIRED(rwl.mu)
 func (rwl *readWriteLease) sizeLocked() (size int64, err error) {
@@ -215,6 +263,13 @@ func (rwl *readWriteLease) sizeLocked() (size int64, err error) {
 func (rwl *readWriteLease) reconcileSize() {
 	var err error
 
+	// If we fail to find the size, we must note that this happened.
+	defer func() {
+		if err != nil {
+			rwl.fileSize = -1
+		}
+	}()
+
 	// Find our size.
 	size, err := rwl.sizeLocked()
 	if err != nil {
@@ -228,4 +283,51 @@ func (rwl *readWriteLease) reconcileSize() {
 		rwl.leaser.addReadWriteByteDelta(delta)
 		rwl.reportedSize = size
 	}
+
+	// Update our view of the file's size.
+	rwl.fileSize = size
+}
+
+////////////////////////////////////////////////////////////////////////
+// alwaysRevokedReadLease
+////////////////////////////////////////////////////////////////////////
+
+type alwaysRevokedReadLease struct {
+	size int64
+}
+
+func (rl *alwaysRevokedReadLease) Read(p []byte) (n int, err error) {
+	err = &RevokedError{}
+	return
+}
+
+func (rl *alwaysRevokedReadLease) Seek(
+	offset int64,
+	whence int) (off int64, err error) {
+	err = &RevokedError{}
+	return
+}
+
+func (rl *alwaysRevokedReadLease) ReadAt(
+	p []byte, off int64) (n int, err error) {
+	err = &RevokedError{}
+	return
+}
+
+func (rl *alwaysRevokedReadLease) Size() (size int64) {
+	size = rl.size
+	return
+}
+
+func (rl *alwaysRevokedReadLease) Revoked() (revoked bool) {
+	revoked = true
+	return
+}
+
+func (rl *alwaysRevokedReadLease) Upgrade() (rwl ReadWriteLease, err error) {
+	err = &RevokedError{}
+	return
+}
+
+func (rl *alwaysRevokedReadLease) Revoke() {
 }

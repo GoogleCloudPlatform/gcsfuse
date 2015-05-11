@@ -232,14 +232,14 @@ func (fl *fileLeaser) evict() {
 	}
 }
 
-// Downgrade the supplied read/write lease, given its current size and the
-// underlying file.
+// Note that a read/write lease of the given size is destroying itself, and
+// turn it into a read lease of the supplied size wrapped around the given
+// file.
 //
 // Called by readWriteLease with its lock held.
 //
 // LOCKS_EXCLUDED(fl.mu)
 func (fl *fileLeaser) downgrade(
-	rwl *readWriteLease,
 	size int64,
 	file *os.File) (rl ReadLease) {
 	// Create the read lease.

@@ -17,7 +17,6 @@ package lease
 import (
 	"fmt"
 	"io"
-	"log"
 
 	"golang.org/x/net/context"
 )
@@ -86,26 +85,6 @@ type ReadProxy struct {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-// Attempt to clean up after the supplied read/write lease.
-func destroyReadWriteLease(rwl ReadWriteLease) {
-	var err error
-	defer func() {
-		if err != nil {
-			log.Printf("Error destroying read/write lease: %v", err)
-		}
-	}()
-
-	// Downgrade to a read lease.
-	rl, err := rwl.Downgrade()
-	if err != nil {
-		err = fmt.Errorf("Downgrade: %v", err)
-		return
-	}
-
-	// Revoke the read lease.
-	rl.Revoke()
-}
-
 func isRevokedErr(err error) bool {
 	_, ok := err.(*RevokedError)
 	return ok
@@ -123,10 +102,10 @@ func (rp *ReadProxy) getContents(
 		return
 	}
 
-	// Attempt to clean up if we exit early.
+	// Clean up if we exit early.
 	defer func() {
 		if err != nil {
-			destroyReadWriteLease(rwl)
+			rwl.Downgrade().Revoke()
 		}
 	}()
 
@@ -163,13 +142,7 @@ func (rp *ReadProxy) getContents(
 // Downgrade and save the supplied read/write lease obtained with getContents
 // for later use.
 func (rp *ReadProxy) saveContents(rwl ReadWriteLease) {
-	downgraded, err := rwl.Downgrade()
-	if err != nil {
-		log.Printf("Failed to downgrade write lease (%q); abandoning.", err.Error())
-		return
-	}
-
-	rp.lease = downgraded
+	rp.lease = rwl.Downgrade()
 }
 
 ////////////////////////////////////////////////////////////////////////

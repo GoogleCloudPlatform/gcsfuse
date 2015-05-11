@@ -62,17 +62,6 @@ func newFileOfLength(
 	return
 }
 
-// Downgrade the supplied lease or panic.
-func downgrade(rwl lease.ReadWriteLease) (rl lease.ReadLease) {
-	var err error
-	defer panicIf(&err)
-
-	// Attempt to downgrade.
-	rl, err = rwl.Downgrade()
-
-	return
-}
-
 // Upgrade the supplied lease or panic.
 func upgrade(rl lease.ReadLease) (rwl lease.ReadWriteLease) {
 	var err error
@@ -224,9 +213,8 @@ func (t *FileLeaserTest) DowngradeThenObserve() {
 	AssertEq(nil, err)
 
 	// Downgrade.
-	rl, err := rwl.Downgrade()
+	rl := rwl.Downgrade()
 	rwl = nil
-	AssertEq(nil, err)
 
 	// Observing via the read lease should work fine.
 	size = rl.Size()
@@ -260,9 +248,8 @@ func (t *FileLeaserTest) DowngradeThenUpgradeThenObserve() {
 	AssertEq(nil, err)
 
 	// Downgrade.
-	rl, err := rwl.Downgrade()
+	rl := rwl.Downgrade()
 	rwl = nil
-	AssertEq(nil, err)
 
 	// Upgrade again.
 	rwl, err = rl.Upgrade()
@@ -315,9 +302,8 @@ func (t *FileLeaserTest) DowngradeFileWhoseSizeIsAboveLimit() {
 	AssertEq(nil, err)
 
 	// Downgrade.
-	rl, err := rwl.Downgrade()
+	rl := rwl.Downgrade()
 	rwl = nil
-	AssertEq(nil, err)
 
 	// The read lease should be revoked on arrival.
 	_, err = rl.Read(buf)
@@ -338,7 +324,7 @@ func (t *FileLeaserTest) WriteCausesEviction() {
 	var err error
 
 	// Set up a read lease whose size is right at the limit.
-	rl := downgrade(newFileOfLength(t.fl, limitBytes))
+	rl := newFileOfLength(t.fl, limitBytes).Downgrade()
 	AssertFalse(rl.Revoked())
 
 	// Set up a new read/write lease. The read lease should still be unrevoked.
@@ -365,7 +351,7 @@ func (t *FileLeaserTest) WriteAtCausesEviction() {
 	AssertLt(3, limitBytes)
 
 	// Set up a read lease whose size is three bytes below the limit.
-	rl := downgrade(newFileOfLength(t.fl, limitBytes-3))
+	rl := newFileOfLength(t.fl, limitBytes-3).Downgrade()
 	AssertFalse(rl.Revoked())
 
 	// Set up a new read/write lease. The read lease should still be unrevoked.
@@ -396,7 +382,7 @@ func (t *FileLeaserTest) TruncateCausesEviction() {
 	AssertLt(3, limitBytes)
 
 	// Set up a read lease whose size is three bytes below the limit.
-	rl := downgrade(newFileOfLength(t.fl, limitBytes-3))
+	rl := newFileOfLength(t.fl, limitBytes-3).Downgrade()
 	AssertFalse(rl.Revoked())
 
 	// Set up a new read/write lease. The read lease should still be unrevoked.
@@ -430,14 +416,14 @@ func (t *FileLeaserTest) EvictionIsLRU() {
 	// Arrange for four read leases, with a known order of recency of usage. Make
 	// each the most recent in turn using different methods that we expect to
 	// promote to most recent.
-	rl0 := downgrade(newFileOfLength(t.fl, 1))
-	rl2 := downgrade(newFileOfLength(t.fl, 1))
-	rl3 := downgrade(newFileOfLength(t.fl, 1))
+	rl0 := newFileOfLength(t.fl, 1).Downgrade()
+	rl2 := newFileOfLength(t.fl, 1).Downgrade()
+	rl3 := newFileOfLength(t.fl, 1).Downgrade()
 
-	rl0.Read([]byte{})                         // Least recent
-	rl1 := downgrade(newFileOfLength(t.fl, 1)) // Second least recent
-	rl2.Read([]byte{})                         // Third least recent
-	rl3.ReadAt([]byte{}, 0)                    // Fourth least recent
+	rl0.Read([]byte{})                          // Least recent
+	rl1 := newFileOfLength(t.fl, 1).Downgrade() // Second least recent
+	rl2.Read([]byte{})                          // Third least recent
+	rl3.ReadAt([]byte{}, 0)                     // Fourth least recent
 
 	// Fill up the remaining space. All read leases should still be valid.
 	rwl := newFileOfLength(t.fl, limitBytes-4)
@@ -464,7 +450,7 @@ func (t *FileLeaserTest) EvictionIsLRU() {
 	AssertFalse(rl3.Revoked())
 
 	// Downgrading and upgrading the read/write lease should change nothing.
-	rwl = upgrade(downgrade(rwl))
+	rwl = upgrade(rwl.Downgrade())
 	AssertNe(nil, rwl)
 
 	AssertTrue(rl0.Revoked())
@@ -489,8 +475,8 @@ func (t *FileLeaserTest) RevokeVoluntarily() {
 
 	// Set up two read leases, together occupying all space, and an empty
 	// read/write lease.
-	rl0 := downgrade(newFileOfLength(t.fl, 3))
-	rl1 := downgrade(newFileOfLength(t.fl, limitBytes-3))
+	rl0 := newFileOfLength(t.fl, 3).Downgrade()
+	rl1 := newFileOfLength(t.fl, limitBytes-3).Downgrade()
 	rwl := newFileOfLength(t.fl, 0)
 
 	AssertFalse(rl0.Revoked())
