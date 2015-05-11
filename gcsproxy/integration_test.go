@@ -159,7 +159,26 @@ func (t *IntegrationTest) WriteThenSync() {
 }
 
 func (t *IntegrationTest) TruncateThenSync() {
-	AssertTrue(false, "TODO")
+	// Create.
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	AssertEq(nil, err)
+
+	t.create(o)
+
+	// Truncate.
+	err = t.mo.Truncate(2)
+	AssertEq(nil, err)
+
+	// Sync should save out the new generation.
+	err = t.mo.Sync()
+	ExpectEq(nil, err)
+
+	ExpectNe(o.Generation, t.mo.SourceGeneration())
+	ExpectEq(t.objectGeneration("foo"), t.mo.SourceGeneration())
+
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	AssertEq(nil, err)
+	ExpectEq("ta", contents)
 }
 
 func (t *IntegrationTest) Stat_Clean() {
