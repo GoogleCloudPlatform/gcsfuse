@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"sync"
 
 	"golang.org/x/net/context"
 )
@@ -55,9 +54,8 @@ func NewReadProxy(
 //  *  Methods that may involve fetching the contents (reading, seeking) accept
 //     context arguments, so as to be cancellable.
 //
+// External synchronization is required.
 type ReadProxy struct {
-	mu sync.Mutex
-
 	/////////////////////////
 	// Constant data
 	/////////////////////////
@@ -76,13 +74,9 @@ type ReadProxy struct {
 	/////////////////////////
 
 	// Set to true when we've been revoked for good.
-	//
-	// GUARDED_BY(mu)
 	revoked bool
 
 	// The current wrapped lease, or nil if one has never been issued.
-	//
-	// GUARDED_BY(mu)
 	wrapped ReadLease
 }
 
@@ -118,8 +112,6 @@ func isRevokedErr(err error) bool {
 // Set up a read/write lease and fill in our contents.
 //
 // REQUIRES: The caller has observed that rl.lease has expired.
-//
-// LOCKS_REQUIRED(rl.mu)
 func (rl *autoRefreshingReadLease) getContents() (
 	rwl ReadWriteLease, err error) {
 	// Obtain some space to write the contents.
@@ -168,8 +160,6 @@ func (rl *autoRefreshingReadLease) getContents() (
 
 // Downgrade and save the supplied read/write lease obtained with getContents
 // for later use.
-//
-// LOCKS_REQUIRED(rl.mu)
 func (rl *autoRefreshingReadLease) saveContents(rwl ReadWriteLease) {
 	downgraded, err := rwl.Downgrade()
 	if err != nil {
@@ -188,9 +178,6 @@ func (rl *autoRefreshingReadLease) saveContents(rwl ReadWriteLease) {
 func (rl *autoRefreshingReadLease) Read(
 	ctx context.Context,
 	p []byte) (n int, err error) {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
 	// Special case: have we been permanently revoked?
 	if rl.revoked {
 		err = &RevokedError{}
@@ -228,9 +215,6 @@ func (rl *autoRefreshingReadLease) Seek(
 	ctx context.Context,
 	offset int64,
 	whence int) (off int64, err error) {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
 	// Special case: have we been permanently revoked?
 	if rl.revoked {
 		err = &RevokedError{}
@@ -268,9 +252,6 @@ func (rl *autoRefreshingReadLease) ReadAt(
 	ctx context.Context,
 	p []byte,
 	off int64) (n int, err error) {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
 	// Special case: have we been permanently revoked?
 	if rl.revoked {
 		err = &RevokedError{}
@@ -317,9 +298,6 @@ func (rl *autoRefreshingReadLease) Destroyed() (destroyed bool) {
 // Return a read/write lease for the proxied contents. The read proxy must not
 // be used after calling this method.
 func (rl *autoRefreshingReadLease) Upgrade() (rwl ReadWriteLease, err error) {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
 	// Special case: have we been permanently revoked?
 	if rl.revoked {
 		err = &RevokedError{}
@@ -356,9 +334,6 @@ func (rl *autoRefreshingReadLease) Upgrade() (rwl ReadWriteLease, err error) {
 
 // Destroy any resources in use by the read proxy. It must not be used further.
 func (rl *autoRefreshingReadLease) Destroy() {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
 	rl.revoked = true
 	if rl.wrapped != nil {
 		rl.wrapped.Revoke()
