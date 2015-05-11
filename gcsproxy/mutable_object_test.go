@@ -687,35 +687,32 @@ func (t *MutableObjectTest) WriteThenSyncThenWriteThenSync() {
 		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader(s)), nil))
 
 	// Dirty the proxy.
-	n, err = t.mo.WriteAt([]byte("taco"), 0)
+	err = t.mo.Truncate(2)
 	AssertEq(nil, err)
-	AssertEq(len("taco"), n)
 
 	// Sync -- should cause the contents so far to be written out.
 	o := &gcs.Object{
 		Name:       t.src.Name,
 		Generation: 1,
-		Size:       uint64(len("taco")),
+		Size:       2,
 	}
 
-	ExpectCall(t.bucket, "CreateObject")(Any(), contentsAre("taco")).
+	ExpectCall(t.bucket, "CreateObject")(Any(), contentsAre(initialContents[:2])).
 		WillOnce(oglemock.Return(o, nil))
 
 	err = t.mo.Sync()
 	AssertEq(nil, err)
 
-	// Write some more data at the end. The new object contents should be
-	// fetched.
-	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(oglemock.Return(ioutil.NopCloser(strings.NewReader("taco")), nil))
-
-	n, err = t.mo.WriteAt([]byte("burrito"), 4)
+	// Write some more data at the end. The pre-Sync contents from before should
+	// be re-used, so NewReader should not be called.
+	n, err = t.mo.WriteAt([]byte("burrito"), 1)
 	AssertEq(nil, err)
 	AssertEq(len("burrito"), n)
 
 	// Sync -- should cause the full contents to be written out.
+	expected := initialContents[:1] + "burrito"
 	o.Generation = 2
-	ExpectCall(t.bucket, "CreateObject")(Any(), contentsAre("tacoburrito")).
+	ExpectCall(t.bucket, "CreateObject")(Any(), contentsAre(expected)).
 		WillOnce(oglemock.Return(o, nil))
 
 	err = t.mo.Sync()
