@@ -122,6 +122,9 @@ func NewMutableObject(
 // been deleted.
 //
 // May be called concurrently with any method.
+//
+// TODO(jacobsa): I think there is a race on reading src.Name with the write in
+// Sync. Do we actually need this guarantee?
 func (mo *MutableObject) Name() string {
 	return mo.src.Name
 }
