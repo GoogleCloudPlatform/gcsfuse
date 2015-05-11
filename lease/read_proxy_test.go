@@ -595,7 +595,7 @@ func (t *ReadProxyTest) Upgrade_Error() {
 	}
 
 	// Call.
-	_, err := t.proxy.Upgrade()
+	_, err := t.proxy.Upgrade(context.Background())
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
@@ -616,15 +616,9 @@ func (t *ReadProxyTest) Upgrade_Successful() {
 	}
 
 	// Call.
-	rwl, err := t.proxy.Upgrade()
+	rwl, err := t.proxy.Upgrade(context.Background())
 	AssertEq(nil, err)
 	ExpectEq(expected, rwl)
-
-	// The read lease should now be revoked.
-	ExpectTrue(t.proxy.Revoked())
-
-	_, err = t.proxy.Upgrade()
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
 }
 
 func (t *ReadProxyTest) WrappedRevoked() {
@@ -669,7 +663,7 @@ func (t *ReadProxyTest) WrappedRevoked() {
 	t.proxy.Read(context.Background(), []byte{})
 	t.proxy.Seek(context.Background(), 0, 0)
 	t.proxy.ReadAt(context.Background(), []byte{}, 0)
-	t.proxy.Upgrade()
+	t.proxy.Upgrade(context.Background())
 }
 
 func (t *ReadProxyTest) WrappedStillValid() {
@@ -734,16 +728,14 @@ func (t *ReadProxyTest) WrappedStillValid() {
 		WillOnce(Return(nil, errors.New("taco"))).
 		WillOnce(Return(rwl, nil))
 
-	_, err = t.proxy.Upgrade()
+	_, err = t.proxy.Upgrade(context.Background())
 	ExpectThat(err, Error(HasSubstr("taco")))
 
-	tmp, _ := t.proxy.Upgrade()
+	tmp, _ := t.proxy.Upgrade(context.Background())
 	ExpectEq(rwl, tmp)
 }
 
-func (t *ReadProxyTest) Revoke() {
-	var err error
-
+func (t *ReadProxyTest) Destroy() {
 	// Arrange a successful wrapped read lease.
 	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
 	ExpectCall(t.leaser, "NewFile")().
@@ -763,29 +755,9 @@ func (t *ReadProxyTest) Revoke() {
 		return
 	}
 
-	_, err = t.proxy.ReadAt(context.Background(), []byte{}, 0)
+	t.proxy.ReadAt(context.Background(), []byte{}, 0)
 
-	// Before revoking, Revoked should return false without needing to call
-	// through.
-	ExpectFalse(t.proxy.Revoked())
-
-	// When we revoke our lease, the wrapped should be revoked as well.
+	// When we destroy our lease, the wrapped should be revoked.
 	ExpectCall(rl, "Revoke")()
-	t.proxy.Revoke()
-
-	// Revoked should reflect this.
-	ExpectTrue(t.proxy.Revoked())
-
-	// Further calls to all of our methods should return RevokedError.
-	_, err = t.proxy.Read(context.Background(), []byte{})
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
-
-	_, err = t.proxy.Seek(context.Background(), 0, 0)
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
-
-	_, err = t.proxy.ReadAt(context.Background(), []byte{}, 0)
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
-
-	_, err = t.proxy.Upgrade()
-	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+	t.proxy.Destroy()
 }
