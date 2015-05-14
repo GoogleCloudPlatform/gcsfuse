@@ -44,6 +44,7 @@ func NewReadProxy(
 	r Refresher,
 	rl ReadLease) (rp *ReadProxy) {
 	rp = &ReadProxy{
+		size:      r.Size(),
 		leaser:    fl,
 		refresher: r,
 		lease:     rl,
