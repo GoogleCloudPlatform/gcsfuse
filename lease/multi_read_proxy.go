@@ -85,6 +85,8 @@ type multiReadProxy struct {
 	//
 	// INVARIANT: If lease != nil, size == lease.Size()
 	lease ReadLease
+
+	destroyed bool
 }
 
 func (mrp *multiReadProxy) Size() (size int64) {
@@ -191,9 +193,14 @@ func (mrp *multiReadProxy) Destroy() {
 	// Crash early if called again.
 	mrp.rps = nil
 	mrp.lease = nil
+	mrp.destroyed = true
 }
 
 func (mrp *multiReadProxy) CheckInvariants() {
+	if mrp.destroyed {
+		panic("Use after destroyed")
+	}
+
 	// INVARIANT: If len(rps) != 0, rps[0].off == 0
 	if len(mrp.rps) != 0 && mrp.rps[0].off != 0 {
 		panic(fmt.Sprintf("Unexpected starting point: %v", mrp.rps[0].off))
