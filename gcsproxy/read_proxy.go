@@ -47,10 +47,9 @@ func NewReadProxy(
 	// Set up a lease.ReadProxy.
 	wrapped := lease.NewReadProxy(
 		leaser,
-		int64(o.Size),
-		func(ctx context.Context) (rc io.ReadCloser, err error) {
-			rc, err = getObjectContents(ctx, bucket, o)
-			return
+		&objectRefresher{
+			Bucket: bucket,
+			O:      o,
 		},
 		rl)
 
@@ -99,17 +98,26 @@ func (rp *ReadProxy) ReadAt(
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-// For use with lease.NewReadProxy.
-func getObjectContents(
-	ctx context.Context,
-	bucket gcs.Bucket,
-	o *gcs.Object) (rc io.ReadCloser, err error) {
+// A refresher that returns the contents of a particular generation of a GCS
+// object.
+type objectRefresher struct {
+	Bucket gcs.Bucket
+	O      *gcs.Object
+}
+
+func (r *objectRefresher) Size() (size int64) {
+	size = int64(r.O.Size)
+	return
+}
+
+func (r *objectRefresher) Refresh(
+	ctx context.Context) (rc io.ReadCloser, err error) {
 	req := &gcs.ReadObjectRequest{
-		Name:       o.Name,
-		Generation: o.Generation,
+		Name:       r.O.Name,
+		Generation: r.O.Generation,
 	}
 
-	rc, err = bucket.NewReader(ctx, req)
+	rc, err = r.Bucket.NewReader(ctx, req)
 	if err != nil {
 		err = fmt.Errorf("NewReader: %v", err)
 		return

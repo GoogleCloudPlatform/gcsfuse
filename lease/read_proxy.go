@@ -21,29 +21,33 @@ import (
 	"golang.org/x/net/context"
 )
 
-// A function used by read proxies to refresh their contents. See notes on
+// A type used by read proxies to refresh their contents. See notes on
 // NewReadProxy.
-type RefreshContentsFunc func(context.Context) (io.ReadCloser, error)
+type Refresher interface {
+	// Return the size of the underlying contents.
+	Size() (size int64)
+
+	// Return a read-closer for the contents. The same contents will always be
+	// returned, and they will always be of length Size().
+	Refresh(ctx context.Context) (rc io.ReadCloser, err error)
+}
 
 // Create a read proxy.
 //
-// The supplied function will be used to obtain the proxy's contents whenever
-// the supplied file leaser decides to expire the temporary copy thus obtained.
-// It must return the same contents every time, and the contents must be of the
-// given size.
+// The supplied refresher will be used to obtain the proxy's contents whenever
+// the file leaser decides to expire the temporary copy thus obtained.
 //
 // If rl is non-nil, it will be used as the first temporary copy of the
-// contents, and must match what refresh returns.
+// contents, and must match what the refresher returns.
 func NewReadProxy(
 	fl FileLeaser,
-	size int64,
-	refresh RefreshContentsFunc,
+	r Refresher,
 	rl ReadLease) (rp *ReadProxy) {
 	rp = &ReadProxy{
-		leaser:  fl,
-		size:    size,
-		refresh: refresh,
-		lease:   rl,
+		size:      r.Size(),
+		leaser:    fl,
+		refresher: r,
+		lease:     rl,
 	}
 
 	return
@@ -70,8 +74,8 @@ type ReadProxy struct {
 	// Dependencies
 	/////////////////////////
 
-	leaser  FileLeaser
-	refresh RefreshContentsFunc
+	leaser    FileLeaser
+	refresher Refresher
 
 	/////////////////////////
 	// Mutable state
@@ -110,7 +114,7 @@ func (rp *ReadProxy) getContents(
 	}()
 
 	// Obtain the reader for our contents.
-	rc, err := rp.refresh(ctx)
+	rc, err := rp.refresher.Refresh(ctx)
 	if err != nil {
 		err = fmt.Errorf("User function: %v", err)
 		return
@@ -288,6 +292,6 @@ func (rp *ReadProxy) Destroy() {
 	// Make use-after-destroy errors obvious.
 	rp.size = 0
 	rp.leaser = nil
-	rp.refresh = nil
+	rp.refresher = nil
 	rp.lease = nil
 }
