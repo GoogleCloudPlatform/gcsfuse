@@ -79,12 +79,12 @@ func (crp *checkingReadProxy) CheckInvariants() {
 	crp.Wrapped.CheckInvariants()
 }
 
-// A range to read, the contents we expect to get back, and an error we expect
-// to be included as a substring in the returned error, if any.
+// A range to read, the contents we expect to get back, and a matcher for the
+// returned error. Special case: a nil matcher means Equals(nil).
 type readAtTestCase struct {
 	start            int64
 	limit            int64
-	expectedErr      error
+	errMatcher       Matcher
 	expectedContents string
 }
 
@@ -100,10 +100,10 @@ func runReadAtTestCases(
 		n, err := rp.ReadAt(context.Background(), buf, tc.start)
 		AssertEq(tc.expectedContents, string(buf[:n]), "%s", desc)
 
-		if tc.expectedErr == nil {
+		if tc.errMatcher == nil {
 			AssertEq(nil, err, "%s", desc)
 		} else {
-			AssertThat(err, Error(HasSubstr(tc.expectedErr.Error())))
+			ExpectThat(err, tc.errMatcher, desc)
 		}
 	}
 }
@@ -216,7 +216,9 @@ func (t *MultiReadProxyTest) ReadAt_OneRefresherReturnsError() {
 	t.refresherErrors[1] = someErr
 
 	// Test cases.
-	// error we expect to see, if any.
+	someErrMatcher := Error(HasSubstr(someErr.Error()))
+	eofMatcher := Equals(io.EOF)
+
 	testCases := []readAtTestCase{
 		// First read lease only.
 		readAtTestCase{0, 0, nil, ""},
@@ -226,36 +228,36 @@ func (t *MultiReadProxyTest) ReadAt_OneRefresherReturnsError() {
 		readAtTestCase{4, 4, nil, ""},
 
 		// First and second read leases.
-		readAtTestCase{0, 5, someErr, "taco"},
-		readAtTestCase{1, 11, someErr, "aco"},
+		readAtTestCase{0, 5, someErrMatcher, "taco"},
+		readAtTestCase{1, 11, someErrMatcher, "aco"},
 
 		// All read leases.
-		readAtTestCase{0, 20, someErr, "taco"},
-		readAtTestCase{1, 20, someErr, "aco"},
-		readAtTestCase{1, 100, someErr, "aco"},
+		readAtTestCase{0, 20, someErrMatcher, "taco"},
+		readAtTestCase{1, 20, someErrMatcher, "aco"},
+		readAtTestCase{1, 100, someErrMatcher, "aco"},
 
 		// Second read lease only.
 		readAtTestCase{4, 4, nil, ""},
-		readAtTestCase{4, 5, someErr, ""},
-		readAtTestCase{4, 11, someErr, ""},
+		readAtTestCase{4, 5, someErrMatcher, ""},
+		readAtTestCase{4, 11, someErrMatcher, ""},
 
 		// Second and third read leases.
-		readAtTestCase{4, 12, someErr, ""},
-		readAtTestCase{4, 20, someErr, ""},
-		readAtTestCase{5, 100, someErr, ""},
+		readAtTestCase{4, 12, someErrMatcher, ""},
+		readAtTestCase{4, 20, someErrMatcher, ""},
+		readAtTestCase{5, 100, someErrMatcher, ""},
 
 		// Third read lease only.
 		readAtTestCase{11, 20, nil, "enchilada"},
-		readAtTestCase{11, 100, io.EOF, "enchilada"},
+		readAtTestCase{11, 100, eofMatcher, "enchilada"},
 		readAtTestCase{12, 20, nil, "nchilada"},
 		readAtTestCase{19, 20, nil, "a"},
-		readAtTestCase{20, 20, io.EOF, ""},
+		readAtTestCase{20, 20, eofMatcher, ""},
 
 		// Past end.
-		readAtTestCase{21, 21, io.EOF, ""},
-		readAtTestCase{21, 22, io.EOF, ""},
-		readAtTestCase{21, 100, io.EOF, ""},
-		readAtTestCase{100, 1000, io.EOF, ""},
+		readAtTestCase{21, 21, eofMatcher, ""},
+		readAtTestCase{21, 22, eofMatcher, ""},
+		readAtTestCase{21, 100, eofMatcher, ""},
+		readAtTestCase{100, 1000, eofMatcher, ""},
 	}
 
 	runReadAtTestCases(t.proxy, testCases)
@@ -274,8 +276,8 @@ func (t *MultiReadProxyTest) ReadAt_AllSuccessful() {
 	AssertEq(7, len(refresherContents[1]))
 	AssertEq(9, len(refresherContents[2]))
 
-	// Various ranges to read, the contents we expect to get back, and the
-	// error we expect to see, if any.
+	// Test cases.
+	eofMatcher := Equals(io.EOF)
 	testCases := []readAtTestCase{
 		// First read lease only.
 		readAtTestCase{0, 0, nil, ""},
@@ -301,20 +303,20 @@ func (t *MultiReadProxyTest) ReadAt_AllSuccessful() {
 		// Second and third read leases.
 		readAtTestCase{4, 12, nil, "burritoe"},
 		readAtTestCase{4, 20, nil, "burritoenchilada"},
-		readAtTestCase{5, 100, io.EOF, "urritoenchilada"},
+		readAtTestCase{5, 100, eofMatcher, "urritoenchilada"},
 
 		// Third read lease only.
 		readAtTestCase{11, 20, nil, "enchilada"},
-		readAtTestCase{11, 100, io.EOF, "enchilada"},
+		readAtTestCase{11, 100, eofMatcher, "enchilada"},
 		readAtTestCase{12, 20, nil, "nchilada"},
 		readAtTestCase{19, 20, nil, "a"},
-		readAtTestCase{20, 20, io.EOF, ""},
+		readAtTestCase{20, 20, eofMatcher, ""},
 
 		// Past end.
-		readAtTestCase{21, 21, io.EOF, ""},
-		readAtTestCase{21, 22, io.EOF, ""},
-		readAtTestCase{21, 100, io.EOF, ""},
-		readAtTestCase{100, 1000, io.EOF, ""},
+		readAtTestCase{21, 21, eofMatcher, ""},
+		readAtTestCase{21, 22, eofMatcher, ""},
+		readAtTestCase{21, 100, eofMatcher, ""},
+		readAtTestCase{100, 1000, eofMatcher, ""},
 	}
 
 	runReadAtTestCases(t.proxy, testCases)
