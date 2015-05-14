@@ -167,7 +167,11 @@ func (t *MultiReadProxyTest) makeRefreshers() (refreshers []lease.Refresher) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *MultiReadProxyTest) NoRefreshers() {
+func (t *MultiReadProxyTest) SizeZero_NoRefreshers() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MultiReadProxyTest) SizeZero_WithRefreshers() {
 	AssertTrue(false, "TODO")
 }
 
@@ -178,6 +182,10 @@ func (t *MultiReadProxyTest) Size() {
 	}
 
 	ExpectEq(expected, t.proxy.Size())
+}
+
+func (t *MultiReadProxyTest) ReadAt_NegativeOffset() {
+	AssertTrue(false, "TODO")
 }
 
 func (t *MultiReadProxyTest) ReadAt_OneRefresherReturnsError() {
