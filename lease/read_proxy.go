@@ -181,67 +181,6 @@ func (rp *readProxy) saveContents(rwl ReadWriteLease) {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-// Semantics matching io.Reader, except with context support.
-func (rp *readProxy) Read(
-	ctx context.Context,
-	p []byte) (n int, err error) {
-	// Common case: is the existing lease still valid?
-	if rp.lease != nil {
-		n, err = rp.lease.Read(p)
-		if !isRevokedErr(err) {
-			return
-		}
-
-		// Clear the revoked error.
-		err = nil
-	}
-
-	// Get hold of a read/write lease containing our contents.
-	rwl, err := rp.getContents(ctx)
-	if err != nil {
-		err = fmt.Errorf("getContents: %v", err)
-		return
-	}
-
-	defer rp.saveContents(rwl)
-
-	// Serve from the read/write lease.
-	n, err = rwl.Read(p)
-
-	return
-}
-
-// Semantics matching io.Seeker, except with context support.
-func (rp *readProxy) Seek(
-	ctx context.Context,
-	offset int64,
-	whence int) (off int64, err error) {
-	// Common case: is the existing lease still valid?
-	if rp.lease != nil {
-		off, err = rp.lease.Seek(offset, whence)
-		if !isRevokedErr(err) {
-			return
-		}
-
-		// Clear the revoked error.
-		err = nil
-	}
-
-	// Get hold of a read/write lease containing our contents.
-	rwl, err := rp.getContents(ctx)
-	if err != nil {
-		err = fmt.Errorf("getContents: %v", err)
-		return
-	}
-
-	defer rp.saveContents(rwl)
-
-	// Serve from the read/write lease.
-	off, err = rwl.Seek(offset, whence)
-
-	return
-}
-
 // Semantics matching io.ReaderAt, except with context support.
 func (rp *readProxy) ReadAt(
 	ctx context.Context,
