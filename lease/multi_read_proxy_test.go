@@ -79,8 +79,8 @@ func (crp *checkingReadProxy) CheckInvariants() {
 	crp.Wrapped.CheckInvariants()
 }
 
-// A range to read, the contents we expect to get back, and the error we expect
-// to see, if any.
+// A range to read, the contents we expect to get back, and an error we expect
+// to be included as a substring in the returned error, if any.
 type readAtTestCase struct {
 	start            int64
 	limit            int64
@@ -98,8 +98,13 @@ func runReadAtTestCases(
 		buf := make([]byte, tc.limit-tc.start)
 
 		n, err := rp.ReadAt(context.Background(), buf, tc.start)
-		AssertEq(tc.expectedErr, err, "%s", desc)
 		AssertEq(tc.expectedContents, string(buf[:n]), "%s", desc)
+
+		if tc.expectedErr == nil {
+			AssertEq(nil, err, "%s", desc)
+		} else {
+			AssertThat(err, Error(HasSubstr(tc.expectedErr.Error())))
+		}
 	}
 }
 
