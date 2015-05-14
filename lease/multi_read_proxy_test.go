@@ -16,6 +16,7 @@ package lease_test
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
@@ -90,13 +91,15 @@ type readAtTestCase struct {
 func runReadAtTestCases(
 	rp lease.ReadProxy,
 	cases []readAtTestCase) {
-	for _, tc := range cases {
+	for i, tc := range cases {
+		desc := fmt.Sprintf("Test case %d: [%d, %d)", i, tc.start, tc.limit)
+
 		AssertLe(tc.start, tc.limit)
 		buf := make([]byte, tc.limit-tc.start)
 
 		n, err := rp.ReadAt(context.Background(), buf, tc.start)
-		AssertEq(tc.expectedErr, err)
-		AssertEq(tc.expectedContents, string(buf[:n]))
+		AssertEq(tc.expectedErr, err, "%s", desc)
+		AssertEq(tc.expectedContents, string(buf[:n]), "%s", desc)
 	}
 }
 
