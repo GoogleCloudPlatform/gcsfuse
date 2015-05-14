@@ -35,9 +35,18 @@ type refresherInfo struct {
 	err      error
 }
 
-// A ReadProxy that wraps another, calling CheckInvariants after each action.
+// A ReadProxy that wraps another, calling CheckInvariants before and after
+// each action.
 type checkingReadProxy struct {
+	ctx     context.Context
 	wrapped lease.ReadProxy
+}
+
+func (crp *checkingReadProxy) Destroy() {
+	crp.wrapped.CheckInvariants()
+	defer crp.wrapped.CheckInvariants()
+
+	crp.wrapped.Destroy()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -50,10 +59,12 @@ type MultiReadProxyTest struct {
 	// Canned info returned by the refreshers.
 	info []refresherInfo
 
-	proxy *checkingReadProxy
+	leaser lease.FileLeaser
+	proxy  *checkingReadProxy
 }
 
 var _ SetUpInterface = &MultiReadProxyTest{}
+var _ TearDownInterface = &MultiReadProxyTest{}
 
 func init() { RegisterTestSuite(&MultiReadProxyTest{}) }
 
@@ -62,10 +73,51 @@ func (t *MultiReadProxyTest) SetUp(ti *TestInfo) {
 	panic("TODO")
 }
 
+func (t *MultiReadProxyTest) TearDown() {
+	// Make sure nothing goes crazy.
+	t.proxy.Destroy()
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *MultiReadProxyTest) DoesFoo() {
+func (t *MultiReadProxyTest) NoRefreshers() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MultiReadProxyTest) Size() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MultiReadProxyTest) ReadAt_OneRefresherReturnsError() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MultiReadProxyTest) ReadAt_AllSuccessful() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MultiReadProxyTest) ReadAt_ContentAlreadyCached() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MultiReadProxyTest) Upgrade_OneRefresherReturnsError() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MultiReadProxyTest) Upgrade_AllSuccessful() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MultiReadProxyTest) Upgrade_ContentAlreadyCached() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MultiReadProxyTest) InitialReadLeaseValid() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MultiReadProxyTest) InitialReadLeaseRevoked() {
 	AssertTrue(false, "TODO")
 }
