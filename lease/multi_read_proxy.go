@@ -15,6 +15,7 @@
 package lease
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -138,7 +139,8 @@ func (mrp *multiReadProxy) ReadAt(
 
 func (mrp *multiReadProxy) Upgrade(
 	ctx context.Context) (rwl ReadWriteLease, err error) {
-	panic("TODO")
+	err = errors.New("TODO: Upgrade")
+	return
 }
 
 func (mrp *multiReadProxy) Destroy() {
