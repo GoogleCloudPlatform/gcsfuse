@@ -138,6 +138,22 @@ func (mrp *multiReadProxy) ReadAt(
 		wrappedN, err = wrapped.ReadAt(ctx, buf, translatedOff)
 		n += wrappedN
 
+		// Skip EOF errors, assuming that wrapped proxies don't lie about their
+		// sizes.
+		if err == io.EOF {
+			if wrappedN != len(buf) {
+				panic(fmt.Sprintf(
+					"Proxy %d: requested %d bytes from offset %d, but got %d and EOF.",
+					wrappedIndex,
+					len(buf),
+					translatedOff,
+					wrappedN))
+			}
+
+			err = nil
+		}
+
+		// Propagate other errors.
 		if err != nil {
 			return
 		}
@@ -145,6 +161,7 @@ func (mrp *multiReadProxy) ReadAt(
 		// Advance and continue.
 		p = p[wrappedN:]
 		off += int64(wrappedN)
+		wrappedIndex++
 	}
 
 	return
