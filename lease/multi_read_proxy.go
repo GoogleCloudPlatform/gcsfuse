@@ -251,3 +251,17 @@ func (mrp *multiReadProxy) upperBound(off int64) (index int) {
 
 	return sort.Search(len(mrp.rps), pred)
 }
+
+// Serve a read from the wrapped proxy at the given index.
+//
+// Guarantees:
+//
+//  *  If err == nil, either n == len(p) or n == wrapped.Size().
+//  *  Never returns err == io.EOF.
+//
+// REQUIRES: index < len(mrp.rps)
+func (mrp *multiReadProxy) readFromOne(
+	ctx context.Context,
+	index int,
+	p []byte,
+	off int64) (n int, err error)
