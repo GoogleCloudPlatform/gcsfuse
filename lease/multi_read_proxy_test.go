@@ -64,8 +64,6 @@ func (crp *checkingReadProxy) ReadAt(
 func (crp *checkingReadProxy) Upgrade(
 	ctx context.Context) (rwl lease.ReadWriteLease, err error) {
 	crp.Wrapped.CheckInvariants()
-	defer crp.Wrapped.CheckInvariants()
-
 	rwl, err = crp.Wrapped.Upgrade(ctx)
 	return
 }
@@ -146,7 +144,9 @@ func (t *MultiReadProxyTest) SetUp(ti *TestInfo) {
 
 func (t *MultiReadProxyTest) TearDown() {
 	// Make sure nothing goes crazy.
-	t.proxy.Destroy()
+	if t.proxy != nil {
+		t.proxy.Destroy()
+	}
 }
 
 // Recreate refreshers using makeRefreshers and reset the proxy.
@@ -411,9 +411,10 @@ func (t *MultiReadProxyTest) Upgrade_AllSuccessful() {
 
 	// Upgrade
 	rwl, err := t.proxy.Upgrade(context.Background())
+	t.proxy = nil
 	AssertEq(nil, err)
 
-	defer rwl.Downgrade().Revoke()
+	defer func() { rwl.Downgrade().Revoke() }()
 
 	// Check the contents of the read/write lease.
 	_, err = rwl.Seek(0, 0)
