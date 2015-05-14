@@ -71,7 +71,8 @@ type multiReadProxy struct {
 }
 
 func (mrp *multiReadProxy) Size() (size int64) {
-	panic("TODO")
+	size = mrp.size
+	return
 }
 
 func (mrp *multiReadProxy) ReadAt(
