@@ -58,6 +58,8 @@ type multiReadProxy struct {
 
 	// The wrapped read proxies, indexed by their logical starting offset.
 	//
+	// INVARIANT: If len(rps) != 0, rps[0].off == 0
+	// INVARIANT: For each x, x.rp.Size() >= 0
 	// INVARIANT: For each i>0, rps[i].off == rps[i-i].off + rps[i-i].rp.Size()
 	// INVARIANT: size is the sum over the wrapped proxy sizes.
 	rps []readProxyAndOffset
@@ -104,6 +106,18 @@ func (mrp *multiReadProxy) Destroy() {
 }
 
 func (mrp *multiReadProxy) CheckInvariants() {
+	// INVARIANT: If len(rps) != 0, rps[0].off == 0
+	if len(mrp.rps) != 0 && mrp.rps[0].off != 0 {
+		panic(fmt.Sprintf("Unexpected starting point: %v", mrp.rps[0].off))
+	}
+
+	// INVARIANT: For each x, x.rp.Size() >= 0
+	for _, x := range mrp.rps {
+		if x.rp.Size() < 0 {
+			panic(fmt.Sprintf("Negative size: %v", x.rp.Size()))
+		}
+	}
+
 	// INVARIANT: For each i>0, rps[i].off == rps[i-i].off + rps[i-i].rp.Size()
 	for i := range mrp.rps {
 		if i > 0 && !(mrp.rps[i].off == mrp.rps[i-1].off+mrp.rps[i-1].rp.Size()) {
@@ -134,4 +148,10 @@ func (mrp *multiReadProxy) CheckInvariants() {
 type readProxyAndOffset struct {
 	off int64
 	rp  ReadProxy
+}
+
+// Return the index within mrp.rps of the first read proxy whose logical offset
+// is greater than off. If there is none, return len(mrp.rps).
+func (mrp *multiReadProxy) upperBound(off int64) (index int) {
+	panic("TODO")
 }
