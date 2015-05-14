@@ -26,7 +26,19 @@ func NewMultiReadProxy(
 	fl FileLeaser,
 	refreshers []Refresher,
 	rl ReadLease) (rp ReadProxy) {
-	rp = &multiReadProxy{}
+	// Create one wrapped read proxy per refresher.
+	var wrappedProxies []readProxyAndOffset
+	var off int64
+	for _, r := range refreshers {
+		wrapped := NewReadProxy(fl, r, nil)
+		wrappedProxies = append(wrappedProxies, readProxyAndOffset{off, wrapped})
+		off += wrapped.Size()
+	}
+
+	rp = &multiReadProxy{
+		rps: wrappedProxies,
+	}
+
 	return
 }
 
@@ -35,6 +47,10 @@ func NewMultiReadProxy(
 ////////////////////////////////////////////////////////////////////////
 
 type multiReadProxy struct {
+	// The wrapped read proxies, indexed by their logical starting offset.
+	//
+	// INVARIANT: For each i>0, rps[i].off == rps[i-i].off + rps[i-i].rp.Size()
+	rps []readProxyAndOffset
 }
 
 func (mrp *multiReadProxy) Size() (size int64) {
@@ -58,4 +74,19 @@ func (mrp *multiReadProxy) Destroy() {
 }
 
 func (mrp *multiReadProxy) CheckInvariants() {
+	// INVARIANT: For each i>0, rps[i].off == rps[i-i].off + rps[i-i].rp.Size()
+	for i := range mrp.rps {
+		if i > 0 && !(mrp.rps[i].off == mrp.rps[i-1].off+mrp.rps[i-1].rp.Size()) {
+			panic("Offsets are not indexed correctly.")
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+type readProxyAndOffset struct {
+	off int64
+	rp  ReadProxy
 }
