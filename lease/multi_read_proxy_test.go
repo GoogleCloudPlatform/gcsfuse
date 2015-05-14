@@ -42,8 +42,6 @@ type checkingReadProxy struct {
 
 func (crp *checkingReadProxy) Destroy() {
 	crp.Wrapped.CheckInvariants()
-	defer crp.Wrapped.CheckInvariants()
-
 	crp.Wrapped.Destroy()
 }
 
