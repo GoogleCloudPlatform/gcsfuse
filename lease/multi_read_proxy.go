@@ -218,7 +218,7 @@ func (mrp *multiReadProxy) upperBound(off int64) (index int) {
 //
 // Guarantees, letting wrapped be mrp.rps[i].rp:
 //
-//  *  If err == nil, either n == len(p) or n == wrapped.Size().
+//  *  If err == nil, n == len(p) || n == wrapped.Size().
 //  *  Never returns err == io.EOF.
 //
 // REQUIRES: index < len(mrp.rps)
@@ -245,7 +245,17 @@ func (mrp *multiReadProxy) readFromOne(
 
 	// Check guarantees on return.
 	defer func() {
-		panic("TODO")
+		if err == nil && !(n == len(p) || int64(n) == wrapped.Size()) {
+			panic(fmt.Sprintf(
+				"Failed to serve full read. n: %v, len(p): %v, wrapped size: %v",
+				n,
+				len(p),
+				wrapped.Size()))
+		}
+
+		if err == io.EOF {
+			panic("Unexpected EOF.")
+		}
 	}()
 
 	panic("TODO")
