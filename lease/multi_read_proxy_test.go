@@ -15,7 +15,10 @@
 package lease_test
 
 import (
+	"io"
+	"io/ioutil"
 	"math"
+	"strings"
 	"testing"
 
 	"golang.org/x/net/context"
@@ -29,12 +32,6 @@ func TestMultiReadProxy(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
-
-// Information returned by our fake refreshers.
-type refresherInfo struct {
-	contents string
-	err      error
-}
 
 // A ReadProxy that wraps another, calling CheckInvariants before and after
 // each action.
@@ -54,11 +51,18 @@ func (crp *checkingReadProxy) Destroy() {
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
+// Canned contents returned by the refreshers.
+var refresherContents = []string{
+	"taco",
+	"burrito",
+	"enchilada",
+}
+
 type MultiReadProxyTest struct {
 	ctx context.Context
 
-	// Canned info returned by the refreshers.
-	info []refresherInfo
+	// Canned errors returned by the refreshers.
+	refresherErrors []error
 
 	leaser lease.FileLeaser
 	proxy  *checkingReadProxy
@@ -72,6 +76,7 @@ func init() { RegisterTestSuite(&MultiReadProxyTest{}) }
 func (t *MultiReadProxyTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 	t.leaser = lease.NewFileLeaser("", math.MaxInt64)
+	t.refresherErrors = make([]error, len(refresherContents))
 
 	// Create the proxy.
 	t.proxy = &checkingReadProxy{
@@ -89,7 +94,21 @@ func (t *MultiReadProxyTest) TearDown() {
 }
 
 func (t *MultiReadProxyTest) makeRefreshers() (refreshers []lease.Refresher) {
-	panic("TODO")
+	for i, contents := range refresherContents {
+		iCopy := i
+		r := &funcRefresher{
+			N: int64(len(contents)),
+			F: func(ctx context.Context) (rc io.ReadCloser, err error) {
+				rc = ioutil.NopCloser(strings.NewReader(contents))
+				err = t.refresherErrors[iCopy]
+				return
+			},
+		}
+
+		refreshers = append(refreshers, r)
+	}
+
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
