@@ -246,11 +246,11 @@ func (mrp *multiReadProxy) readFromOne(
 	// Check guarantees on return.
 	defer func() {
 		if err == nil && !(n == len(p) || int64(n) == wrapped.Size()) {
-			err = fmt.Errorf(
+			panic(fmt.Sprintf(
 				"Failed to serve full read. n: %v, len(p): %v, wrapped size: %v",
 				n,
 				len(p),
-				wrapped.Size())
+				wrapped.Size()))
 
 			return
 		}
@@ -262,10 +262,39 @@ func (mrp *multiReadProxy) readFromOne(
 
 	// Read from the wrapped reader, translating the offset. We rely on the
 	// wrapped reader to properly implement ReadAt, not returning a short read.
-	n, err = wrapped.ReadAt(ctx, p, off-wrappedStart)
+	wrappedOff := off - wrappedStart
+	n, err = wrapped.ReadAt(ctx, p, wrappedOff)
+
+	// Sanity check: the wrapped read proxy is supposed to return err == nil only
+	// if the entire read was satisfied.
+	if err == nil && n != len(p) {
+		err = fmt.Errorf(
+			"Wrapped proxy %d returned only %d bytes for a %d-byte read "+
+				"starting at wrapped offset %d",
+			index,
+			n,
+			len(p),
+			wrappedOff)
+
+		return
+	}
 
 	// Don't return io.EOF, as guaranteed.
 	if err == io.EOF {
+		// Sanity check: if we hit EOF, that should mean that we read up to the end
+		// of the wrapped range.
+		if int64(n) != wrapped.Size()-wrappedOff {
+			err = fmt.Errorf(
+				"Wrapped proxy %d returned unexpected EOF. n: %d, wrapped size: %d, "+
+					"wrapped offset: %d",
+				index,
+				n,
+				wrapped.Size(),
+				wrappedOff)
+
+			return
+		}
+
 		err = nil
 	}
 
