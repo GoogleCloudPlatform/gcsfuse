@@ -249,10 +249,10 @@ func (t *MultiReadProxyTest) ReadAt_OneRefresherReturnsError() {
 		readAtTestCase{11, 100, io.EOF, "enchilada"},
 		readAtTestCase{12, 20, nil, "nchilada"},
 		readAtTestCase{19, 20, nil, "a"},
-		readAtTestCase{20, 20, nil, ""},
+		readAtTestCase{20, 20, io.EOF, ""},
 
 		// Past end.
-		readAtTestCase{21, 21, nil, ""},
+		readAtTestCase{21, 21, io.EOF, ""},
 		readAtTestCase{21, 22, io.EOF, ""},
 		readAtTestCase{21, 100, io.EOF, ""},
 		readAtTestCase{100, 1000, io.EOF, ""},
