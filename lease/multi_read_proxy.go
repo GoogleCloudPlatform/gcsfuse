@@ -129,7 +129,7 @@ func (mrp *multiReadProxy) ReadAt(
 
 		// If the translated offset is out of range, something screwy is happening,
 		// because we should be at the next proxy.
-		if translatedOff > wrapped.Size() {
+		if translatedOff >= wrapped.Size() {
 			panic(fmt.Sprintf(
 				"Unexpected translated offset: %d, size %d",
 				translatedOff,
