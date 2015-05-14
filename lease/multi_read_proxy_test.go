@@ -90,7 +90,14 @@ type readAtTestCase struct {
 func runReadAtTestCases(
 	rp lease.ReadProxy,
 	cases []readAtTestCase) {
-	AssertTrue(false, "TODO")
+	for _, tc := range cases {
+		AssertLe(tc.start, tc.limit)
+		buf := make([]byte, tc.limit-tc.start)
+
+		n, err := rp.ReadAt(context.Background(), buf, tc.start)
+		AssertEq(tc.expectedErr, err)
+		AssertEq(tc.expectedContents, string(buf[:n]))
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
