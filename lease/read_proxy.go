@@ -73,8 +73,8 @@ type ReadProxy struct {
 	// Dependencies
 	/////////////////////////
 
-	leaser  FileLeaser
-	refresh RefreshContentsFunc
+	leaser    FileLeaser
+	refresher Refresher
 
 	/////////////////////////
 	// Mutable state
@@ -113,7 +113,7 @@ func (rp *ReadProxy) getContents(
 	}()
 
 	// Obtain the reader for our contents.
-	rc, err := rp.refresh(ctx)
+	rc, err := rp.refresher.Refresh(ctx)
 	if err != nil {
 		err = fmt.Errorf("User function: %v", err)
 		return
@@ -291,6 +291,6 @@ func (rp *ReadProxy) Destroy() {
 	// Make use-after-destroy errors obvious.
 	rp.size = 0
 	rp.leaser = nil
-	rp.refresh = nil
+	rp.refresher = nil
 	rp.lease = nil
 }
