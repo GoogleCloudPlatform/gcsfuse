@@ -29,6 +29,7 @@ import (
 // This type is not safe for concurrent access. The user must provide external
 // synchronization around the methods where it is not otherwise noted.
 type ReadProxy struct {
+	// INVARIANT: wrapped.CheckInvariants does not panic.
 	wrapped lease.ReadProxy
 }
 
@@ -59,6 +60,12 @@ func NewReadProxy(
 	}
 
 	return
+}
+
+// Panic if any internal invariants are violated.
+func (rp *ReadProxy) CheckInvariants() {
+	// INVARIANT: wrapped.CheckInvariants does not panic.
+	rp.wrapped.CheckInvariants()
 }
 
 // Destroy any local file caches, putting the proxy into an indeterminate

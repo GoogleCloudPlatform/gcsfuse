@@ -58,6 +58,9 @@ type ReadProxy interface {
 	// Destroy any resources in use by the read proxy. It must not be used
 	// further.
 	Destroy()
+
+	// Panic if any internal invariants are violated.
+	CheckInvariants()
 }
 
 // Create a read proxy.
@@ -180,6 +183,9 @@ func (rp *readProxy) saveContents(rwl ReadWriteLease) {
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
+
+func (rp *readProxy) CheckInvariants() {
+}
 
 // Semantics matching io.ReaderAt, except with context support.
 func (rp *readProxy) ReadAt(
