@@ -15,6 +15,7 @@
 package lease_test
 
 import (
+	"math"
 	"testing"
 
 	"golang.org/x/net/context"
@@ -38,15 +39,15 @@ type refresherInfo struct {
 // A ReadProxy that wraps another, calling CheckInvariants before and after
 // each action.
 type checkingReadProxy struct {
-	ctx     context.Context
-	wrapped lease.ReadProxy
+	Ctx     context.Context
+	Wrapped lease.ReadProxy
 }
 
 func (crp *checkingReadProxy) Destroy() {
-	crp.wrapped.CheckInvariants()
-	defer crp.wrapped.CheckInvariants()
+	crp.Wrapped.CheckInvariants()
+	defer crp.Wrapped.CheckInvariants()
 
-	crp.wrapped.Destroy()
+	crp.Wrapped.Destroy()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -70,12 +71,25 @@ func init() { RegisterTestSuite(&MultiReadProxyTest{}) }
 
 func (t *MultiReadProxyTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
-	panic("TODO")
+	t.leaser = lease.NewFileLeaser("", math.MaxInt64)
+
+	// Create the proxy.
+	t.proxy = &checkingReadProxy{
+		Ctx: t.ctx,
+		Wrapped: lease.NewMultiReadProxy(
+			t.leaser,
+			t.makeRefreshers(),
+			nil),
+	}
 }
 
 func (t *MultiReadProxyTest) TearDown() {
 	// Make sure nothing goes crazy.
 	t.proxy.Destroy()
+}
+
+func (t *MultiReadProxyTest) makeRefreshers() (refreshers []lease.Refresher) {
+	panic("TODO")
 }
 
 ////////////////////////////////////////////////////////////////////////
