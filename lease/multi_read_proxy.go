@@ -103,9 +103,47 @@ func (mrp *multiReadProxy) ReadAt(
 	// Because we handled the special cases above, this must be in range.
 	wrappedIndex := mrp.upperBound(off) - 1
 
+	if wrappedIndex < 0 || wrappedIndex >= len(mrp.rps) {
+		panic(fmt.Sprintf("Unexpected index: %v", wrappedIndex))
+	}
+
 	// Keep going until we've got nothing left to do.
 	for len(p) > 0 {
-		panic("TODO")
+		// Have we run out of wrapped read proxies?
+		if wrappedIndex == len(mrp.rps) {
+			err = io.EOF
+			return
+		}
+
+		// Grab the next one.
+		wrapped := mrp.rps[wrappedIndex].rp
+		wrappedStart := mrp.rps[wrappedIndex].off
+
+		// Translate to the wrapped read proxy's notion of offsets.
+		if wrappedStart > off {
+			panic(fmt.Sprintf("Unexpected offsets: %v, %v", wrappedStart, off))
+		}
+
+		translatedOff := off - wrappedStart
+
+		// Clip the read if appropriate.
+		buf := p
+		if len(buf) > int(wrapped.Size()) {
+			buf = buf[:wrapped.Size()]
+		}
+
+		// Read.
+		var wrappedN int
+		wrappedN, err = wrapped.ReadAt(ctx, buf, translatedOff)
+		n += wrappedN
+
+		if err != nil {
+			return
+		}
+
+		// Advance and continue.
+		p = p[wrappedN:]
+		off += int64(wrappedN)
 	}
 
 	return
