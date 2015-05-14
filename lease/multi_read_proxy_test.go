@@ -205,7 +205,22 @@ func (t *MultiReadProxyTest) SizeZero_NoRefreshers() {
 }
 
 func (t *MultiReadProxyTest) SizeZero_WithRefreshers() {
-	AssertTrue(false, "TODO")
+	t.refresherContents = []string{"", "", "", ""}
+	t.refresherErrors = make([]error, len(t.refresherContents))
+	t.resetProxy()
+
+	// Size
+	ExpectEq(0, t.proxy.Size())
+
+	// ReadAt
+	eofMatcher := Equals(io.EOF)
+	testCases := []readAtTestCase{
+		readAtTestCase{0, 0, eofMatcher, ""},
+		readAtTestCase{0, 10, eofMatcher, ""},
+		readAtTestCase{5, 10, eofMatcher, ""},
+	}
+
+	runReadAtTestCases(t.proxy, testCases)
 }
 
 func (t *MultiReadProxyTest) Size() {
