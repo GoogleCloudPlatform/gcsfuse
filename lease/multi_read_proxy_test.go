@@ -429,9 +429,11 @@ func (t *MultiReadProxyTest) Upgrade_ContentAlreadyCached() {
 }
 
 func (t *MultiReadProxyTest) InitialReadLeaseValid() {
+	// TODO(jacobsa): Test both ReadAt and Upgrade.
 	AssertTrue(false, "TODO")
 }
 
 func (t *MultiReadProxyTest) InitialReadLeaseRevoked() {
+	// TODO(jacobsa): Test both ReadAt and Upgrade.
 	AssertTrue(false, "TODO")
 }
