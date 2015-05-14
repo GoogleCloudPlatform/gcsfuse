@@ -153,6 +153,9 @@ func (mrp *multiReadProxy) ReadAt(
 
 func (mrp *multiReadProxy) Upgrade(
 	ctx context.Context) (rwl ReadWriteLease, err error) {
+	// This function is destructive; the user is not allowed to call us again.
+	mrp.destroyed = true
+
 	// Create a new read/write lease to return to the user. Ensure that it is
 	// destroyed if we return in error.
 	rwl, err = mrp.leaser.NewFile()
