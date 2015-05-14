@@ -29,7 +29,7 @@ import (
 // This type is not safe for concurrent access. The user must provide external
 // synchronization around the methods where it is not otherwise noted.
 type ReadProxy struct {
-	wrapped *lease.ReadProxy
+	wrapped lease.ReadProxy
 }
 
 ////////////////////////////////////////////////////////////////////////

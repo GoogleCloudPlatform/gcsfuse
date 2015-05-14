@@ -93,7 +93,7 @@ type ReadProxyTest struct {
 
 	mockController Controller
 	leaser         mock_lease.MockFileLeaser
-	proxy          *lease.ReadProxy
+	proxy          lease.ReadProxy
 }
 
 var _ SetUpInterface = &ReadProxyTest{}
@@ -144,7 +144,7 @@ func (t *ReadProxyTest) LeaserReturnsError() {
 		WillOnce(Return(nil, errors.New("taco")))
 
 	// Attempt to read.
-	_, err = t.proxy.Read(context.Background(), []byte{})
+	_, err = t.proxy.ReadAt(context.Background(), []byte{}, 0)
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
@@ -170,7 +170,7 @@ func (t *ReadProxyTest) CallsFunc() {
 	}
 
 	// Attempt to read.
-	t.proxy.Read(context.Background(), []byte{})
+	t.proxy.ReadAt(context.Background(), []byte{}, 0)
 	ExpectTrue(called)
 }
 
@@ -192,7 +192,7 @@ func (t *ReadProxyTest) FuncReturnsError() {
 	}
 
 	// Attempt to read.
-	_, err := t.proxy.Read(context.Background(), []byte{})
+	_, err := t.proxy.ReadAt(context.Background(), []byte{}, 0)
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
@@ -222,7 +222,7 @@ func (t *ReadProxyTest) ContentsReturnReadError() {
 	}
 
 	// Attempt to read.
-	_, err := t.proxy.Read(context.Background(), []byte{})
+	_, err := t.proxy.ReadAt(context.Background(), []byte{}, 0)
 	ExpectThat(err, Error(HasSubstr("Copy")))
 	ExpectThat(err, Error(HasSubstr("timeout")))
 }
@@ -253,7 +253,7 @@ func (t *ReadProxyTest) ContentsReturnCloseError() {
 	}
 
 	// Attempt to read.
-	_, err := t.proxy.Read(context.Background(), []byte{})
+	_, err := t.proxy.ReadAt(context.Background(), []byte{}, 0)
 	ExpectThat(err, Error(HasSubstr("Close")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
@@ -282,7 +282,7 @@ func (t *ReadProxyTest) ContentsAreWrongLength() {
 	}
 
 	// Attempt to read.
-	_, err := t.proxy.Read(context.Background(), []byte{})
+	_, err := t.proxy.ReadAt(context.Background(), []byte{}, 0)
 	ExpectThat(err, Error(HasSubstr("Copied 3")))
 	ExpectThat(err, Error(HasSubstr("expected 4")))
 }
@@ -303,7 +303,7 @@ func (t *ReadProxyTest) WritesCorrectData() {
 	}))
 
 	// Read
-	ExpectCall(rwl, "Read")(Any()).
+	ExpectCall(rwl, "ReadAt")(Any(), Any()).
 		WillRepeatedly(Return(0, errors.New("")))
 
 	// Downgrade
@@ -317,7 +317,7 @@ func (t *ReadProxyTest) WritesCorrectData() {
 	}
 
 	// Call.
-	t.proxy.Read(context.Background(), []byte{})
+	t.proxy.ReadAt(context.Background(), []byte{}, 0)
 	ExpectEq(contents, string(written))
 }
 
@@ -343,171 +343,9 @@ func (t *ReadProxyTest) WriteError() {
 	}
 
 	// Attempt to read.
-	_, err := t.proxy.Read(context.Background(), []byte{})
+	_, err := t.proxy.ReadAt(context.Background(), []byte{}, 0)
 	ExpectThat(err, Error(HasSubstr("Copy")))
 	ExpectThat(err, Error(HasSubstr("taco")))
-}
-
-func (t *ReadProxyTest) Read_Error() {
-	// NewFile
-	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
-	ExpectCall(t.leaser, "NewFile")().
-		WillOnce(Return(rwl, nil))
-
-	// Write
-	ExpectCall(rwl, "Write")(Any()).
-		WillRepeatedly(Invoke(successfulWrite))
-
-	// Read
-	ExpectCall(rwl, "Read")(Any()).
-		WillOnce(Return(0, errors.New("taco")))
-
-	// Downgrade
-	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
-
-	// Function
-	t.f = func() (rc io.ReadCloser, err error) {
-		rc = ioutil.NopCloser(strings.NewReader(contents))
-		return
-	}
-
-	// Attempt to read.
-	buf := make([]byte, 1)
-	_, err := t.proxy.Read(context.Background(), buf)
-
-	ExpectThat(err, Error(HasSubstr("taco")))
-}
-
-func (t *ReadProxyTest) Read_Successful() {
-	const readLength = 3
-	AssertLt(readLength, len(contents))
-
-	// NewFile
-	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
-	ExpectCall(t.leaser, "NewFile")().
-		WillOnce(Return(rwl, nil))
-
-	// Write
-	ExpectCall(rwl, "Write")(Any()).
-		WillRepeatedly(Invoke(successfulWrite))
-
-	// Read
-	ExpectCall(rwl, "Read")(Any()).
-		WillOnce(Invoke(func(p []byte) (n int, err error) {
-		n = copy(p, []byte(contents[0:readLength]))
-		return
-	}))
-
-	// Downgrade
-	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
-
-	// Function
-	t.f = func() (rc io.ReadCloser, err error) {
-		rc = ioutil.NopCloser(strings.NewReader(contents))
-		return
-	}
-
-	// Attempt to read.
-	buf := make([]byte, readLength)
-	n, err := t.proxy.Read(context.Background(), buf)
-
-	AssertEq(nil, err)
-	AssertEq(readLength, n)
-	ExpectEq(contents[0:n], string(buf[0:n]))
-}
-
-func (t *ReadProxyTest) Seek_CallsWrapped() {
-	const offset = 17
-	const whence = 2
-
-	// NewFile
-	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
-	ExpectCall(t.leaser, "NewFile")().
-		WillOnce(Return(rwl, nil))
-
-	// Write
-	ExpectCall(rwl, "Write")(Any()).
-		WillRepeatedly(Invoke(successfulWrite))
-
-	// Seek
-	ExpectCall(rwl, "Seek")(offset, whence).
-		WillOnce(Return(0, errors.New("")))
-
-	// Downgrade
-	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
-
-	// Function
-	t.f = func() (rc io.ReadCloser, err error) {
-		rc = ioutil.NopCloser(strings.NewReader(contents))
-		return
-	}
-
-	// Call.
-	t.proxy.Seek(context.Background(), offset, whence)
-}
-
-func (t *ReadProxyTest) Seek_Error() {
-	// NewFile
-	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
-	ExpectCall(t.leaser, "NewFile")().
-		WillOnce(Return(rwl, nil))
-
-	// Write
-	ExpectCall(rwl, "Write")(Any()).
-		WillRepeatedly(Invoke(successfulWrite))
-
-	// Seek
-	ExpectCall(rwl, "Seek")(Any(), Any()).
-		WillOnce(Return(0, errors.New("taco")))
-
-	// Downgrade
-	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
-
-	// Function
-	t.f = func() (rc io.ReadCloser, err error) {
-		rc = ioutil.NopCloser(strings.NewReader(contents))
-		return
-	}
-
-	// Call.
-	_, err := t.proxy.Seek(context.Background(), 0, 0)
-	ExpectThat(err, Error(HasSubstr("taco")))
-}
-
-func (t *ReadProxyTest) Seek_Successful() {
-	const expected = 17
-
-	// NewFile
-	rwl := mock_lease.NewMockReadWriteLease(t.mockController, "rwl")
-	ExpectCall(t.leaser, "NewFile")().
-		WillOnce(Return(rwl, nil))
-
-	// Write
-	ExpectCall(rwl, "Write")(Any()).
-		WillRepeatedly(Invoke(successfulWrite))
-
-	// Seek
-	ExpectCall(rwl, "Seek")(Any(), Any()).
-		WillOnce(Return(expected, nil))
-
-	// Downgrade
-	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
-	ExpectCall(rwl, "Downgrade")().WillOnce(Return(rl))
-
-	// Function
-	t.f = func() (rc io.ReadCloser, err error) {
-		rc = ioutil.NopCloser(strings.NewReader(contents))
-		return
-	}
-
-	// Call.
-	off, err := t.proxy.Seek(context.Background(), 0, 0)
-	AssertEq(nil, err)
-	ExpectEq(expected, off)
 }
 
 func (t *ReadProxyTest) ReadAt_CallsWrapped() {
@@ -670,12 +508,6 @@ func (t *ReadProxyTest) WrappedRevoked() {
 	t.proxy.ReadAt(context.Background(), []byte{}, 0)
 
 	// Simulate it being revoked for all methods.
-	ExpectCall(rl, "Read")(Any()).
-		WillOnce(Return(0, &lease.RevokedError{}))
-
-	ExpectCall(rl, "Seek")(Any(), Any()).
-		WillOnce(Return(0, &lease.RevokedError{}))
-
 	ExpectCall(rl, "ReadAt")(Any(), Any()).
 		WillOnce(Return(0, &lease.RevokedError{}))
 
@@ -683,11 +515,9 @@ func (t *ReadProxyTest) WrappedRevoked() {
 		WillOnce(Return(nil, &lease.RevokedError{}))
 
 	ExpectCall(t.leaser, "NewFile")().
-		Times(4).
+		Times(2).
 		WillRepeatedly(Return(nil, errors.New("")))
 
-	t.proxy.Read(context.Background(), []byte{})
-	t.proxy.Seek(context.Background(), 0, 0)
 	t.proxy.ReadAt(context.Background(), []byte{}, 0)
 	t.proxy.Upgrade(context.Background())
 }
@@ -716,28 +546,6 @@ func (t *ReadProxyTest) WrappedStillValid() {
 
 	t.proxy.ReadAt(context.Background(), []byte{}, 0)
 
-	// Read
-	ExpectCall(rl, "Read")(Any()).
-		WillOnce(Return(0, errors.New("taco"))).
-		WillOnce(Return(17, nil))
-
-	_, err = t.proxy.Read(context.Background(), []byte{})
-	ExpectThat(err, Error(HasSubstr("taco")))
-
-	n, err := t.proxy.Read(context.Background(), []byte{})
-	ExpectEq(17, n)
-
-	// Seek
-	ExpectCall(rl, "Seek")(11, 2).
-		WillOnce(Return(0, errors.New("taco"))).
-		WillOnce(Return(17, nil))
-
-	_, err = t.proxy.Seek(context.Background(), 11, 2)
-	ExpectThat(err, Error(HasSubstr("taco")))
-
-	off, err := t.proxy.Seek(context.Background(), 11, 2)
-	ExpectEq(17, off)
-
 	// ReadAt
 	ExpectCall(rl, "ReadAt")(Any(), 11).
 		WillOnce(Return(0, errors.New("taco"))).
@@ -746,7 +554,7 @@ func (t *ReadProxyTest) WrappedStillValid() {
 	_, err = t.proxy.ReadAt(context.Background(), []byte{}, 11)
 	ExpectThat(err, Error(HasSubstr("taco")))
 
-	n, err = t.proxy.ReadAt(context.Background(), []byte{}, 11)
+	n, err := t.proxy.ReadAt(context.Background(), []byte{}, 11)
 	ExpectEq(17, n)
 
 	// Upgrade
@@ -771,12 +579,6 @@ func (t *ReadProxyTest) InitialReadLease_Revoked() {
 		rl)
 
 	// Simulate it being revoked for all methods.
-	ExpectCall(rl, "Read")(Any()).
-		WillOnce(Return(0, &lease.RevokedError{}))
-
-	ExpectCall(rl, "Seek")(Any(), Any()).
-		WillOnce(Return(0, &lease.RevokedError{}))
-
 	ExpectCall(rl, "ReadAt")(Any(), Any()).
 		WillOnce(Return(0, &lease.RevokedError{}))
 
@@ -784,11 +586,9 @@ func (t *ReadProxyTest) InitialReadLease_Revoked() {
 		WillOnce(Return(nil, &lease.RevokedError{}))
 
 	ExpectCall(t.leaser, "NewFile")().
-		Times(4).
+		Times(2).
 		WillRepeatedly(Return(nil, errors.New("")))
 
-	t.proxy.Read(context.Background(), []byte{})
-	t.proxy.Seek(context.Background(), 0, 0)
 	t.proxy.ReadAt(context.Background(), []byte{}, 0)
 	t.proxy.Upgrade(context.Background())
 }
@@ -803,28 +603,6 @@ func (t *ReadProxyTest) InitialReadLease_Valid() {
 		t.makeRefresher(),
 		rl)
 
-	// Read
-	ExpectCall(rl, "Read")(Any()).
-		WillOnce(Return(0, errors.New("taco"))).
-		WillOnce(Return(17, nil))
-
-	_, err = t.proxy.Read(context.Background(), []byte{})
-	ExpectThat(err, Error(HasSubstr("taco")))
-
-	n, err := t.proxy.Read(context.Background(), []byte{})
-	ExpectEq(17, n)
-
-	// Seek
-	ExpectCall(rl, "Seek")(11, 2).
-		WillOnce(Return(0, errors.New("taco"))).
-		WillOnce(Return(17, nil))
-
-	_, err = t.proxy.Seek(context.Background(), 11, 2)
-	ExpectThat(err, Error(HasSubstr("taco")))
-
-	off, err := t.proxy.Seek(context.Background(), 11, 2)
-	ExpectEq(17, off)
-
 	// ReadAt
 	ExpectCall(rl, "ReadAt")(Any(), 11).
 		WillOnce(Return(0, errors.New("taco"))).
@@ -833,7 +611,7 @@ func (t *ReadProxyTest) InitialReadLease_Valid() {
 	_, err = t.proxy.ReadAt(context.Background(), []byte{}, 11)
 	ExpectThat(err, Error(HasSubstr("taco")))
 
-	n, err = t.proxy.ReadAt(context.Background(), []byte{}, 11)
+	n, err := t.proxy.ReadAt(context.Background(), []byte{}, 11)
 	ExpectEq(17, n)
 
 	// Upgrade
