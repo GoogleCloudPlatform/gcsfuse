@@ -56,7 +56,7 @@ func (crp *checkingReadProxy) ReadAt(
 	crp.Wrapped.CheckInvariants()
 	defer crp.Wrapped.CheckInvariants()
 
-	n, err = crp.ReadAt(ctx, p, off)
+	n, err = crp.Wrapped.ReadAt(ctx, p, off)
 	return
 }
 
