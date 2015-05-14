@@ -401,7 +401,27 @@ func (t *MultiReadProxyTest) Upgrade_OneRefresherReturnsError() {
 }
 
 func (t *MultiReadProxyTest) Upgrade_AllSuccessful() {
-	AssertTrue(false, "TODO")
+	AssertThat(
+		t.refresherContents,
+		ElementsAre(
+			"taco",
+			"burrito",
+			"enchilada",
+		))
+
+	// Upgrade
+	rwl, err := t.proxy.Upgrade(context.Background())
+	AssertEq(nil, err)
+
+	defer rwl.Downgrade().Revoke()
+
+	// Check the contents of the read/write lease.
+	_, err = rwl.Seek(0, 0)
+	AssertEq(nil, err)
+
+	contents, err := ioutil.ReadAll(rwl)
+	AssertEq(nil, err)
+	ExpectEq("tacoburritoenchilada", string(contents))
 }
 
 func (t *MultiReadProxyTest) Upgrade_ContentAlreadyCached() {
