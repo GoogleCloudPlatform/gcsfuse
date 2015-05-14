@@ -118,7 +118,7 @@ func (mrp *multiReadProxy) ReadAt(
 
 		// Read from the wrapped proxy, accumulating into our total before checking
 		// for a read error.
-		wrappedN, wrappedErr := mrp.readFromOne(ctx, index, p, off)
+		wrappedN, wrappedErr := mrp.readFromOne(ctx, wrappedIndex, p, off)
 		n += wrappedN
 		if wrappedErr != nil {
 			err = wrappedErr
