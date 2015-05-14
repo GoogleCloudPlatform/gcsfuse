@@ -45,15 +45,15 @@ type Refresher interface {
 //
 // External synchronization is required.
 type ReadProxy interface {
-	// Semantics matching io.ReaderAt, except with context support.
-	ReadAt(ctx context.Context, p []byte, off int64) (n int, err error)
-
 	// Return the size of the proxied content. Guarantees to not block.
 	Size() (size int64)
 
+	// Semantics matching io.ReaderAt, except with context support.
+	ReadAt(ctx context.Context, p []byte, off int64) (n int, err error)
+
 	// Return a read/write lease for the proxied contents, destroying the read
 	// proxy. The read proxy must not be used after calling this method.
-	Upgrade() (rwl ReadWriteLease, err error)
+	Upgrade(ctx context.Context) (rwl ReadWriteLease, err error)
 
 	// Destroy any resources in use by the read proxy. It must not be used
 	// further.
