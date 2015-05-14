@@ -303,7 +303,7 @@ func (t *ReadProxyTest) WritesCorrectData() {
 	}))
 
 	// Read
-	ExpectCall(rwl, "Read")(Any()).
+	ExpectCall(rwl, "ReadAt")(Any(), Any()).
 		WillRepeatedly(Return(0, errors.New("")))
 
 	// Downgrade
