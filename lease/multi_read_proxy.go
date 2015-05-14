@@ -216,9 +216,10 @@ func (mrp *multiReadProxy) upperBound(off int64) (index int) {
 // wrapped proxies. The offset is relative to the start of the multiReadProxy,
 // not the wrapped proxy.
 //
-// Guarantees, letting wrapped be mrp.rps[i].rp:
+// Guarantees, letting wrapped be mrp.rps[i].rp and wrappedStart be
+// mrp.rps[i].off:
 //
-//  *  If err == nil, n == len(p) || n == wrapped.Size().
+//  *  If err == nil, n == len(p) || off + n == wrappedStart + wrapped.Size().
 //  *  Never returns err == io.EOF.
 //
 // REQUIRES: index < len(mrp.rps)
@@ -235,22 +236,28 @@ func (mrp *multiReadProxy) readFromOne(
 
 	wrapped := mrp.rps[index].rp
 	wrappedStart := mrp.rps[index].off
-	if !(wrappedStart <= off && off < wrappedStart+wrapped.Size()) {
+	wrappedSize := wrapped.Size()
+
+	if !(wrappedStart <= off && off < wrappedStart+wrappedSize) {
 		panic(fmt.Sprintf(
 			"Offset %v not in range [%v, %v)",
 			off,
 			wrappedStart,
-			wrappedStart+wrapped.Size()))
+			wrappedStart+wrappedSize))
 	}
 
 	// Check guarantees on return.
 	defer func() {
-		if err == nil && !(n == len(p) || int64(n) == wrapped.Size()) {
+		if err == nil &&
+			!(n == len(p) || off+int64(n) == wrappedStart+wrappedSize) {
 			panic(fmt.Sprintf(
-				"Failed to serve full read. n: %v, len(p): %v, wrapped size: %v",
+				"Failed to serve full read. "+
+					"off: %d n: %d, len(p): %d, wrapped start: %d, wrapped size: %d",
+				off,
 				n,
 				len(p),
-				wrapped.Size()))
+				wrappedStart,
+				wrappedSize))
 
 			return
 		}
@@ -283,13 +290,13 @@ func (mrp *multiReadProxy) readFromOne(
 	if err == io.EOF {
 		// Sanity check: if we hit EOF, that should mean that we read up to the end
 		// of the wrapped range.
-		if int64(n) != wrapped.Size()-wrappedOff {
+		if int64(n) != wrappedSize-wrappedOff {
 			err = fmt.Errorf(
 				"Wrapped proxy %d returned unexpected EOF. n: %d, wrapped size: %d, "+
 					"wrapped offset: %d",
 				index,
 				n,
-				wrapped.Size(),
+				wrappedSize,
 				wrappedOff)
 
 			return
