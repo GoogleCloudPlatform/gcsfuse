@@ -62,6 +62,8 @@ type multiReadProxy struct {
 	// INVARIANT: If lease != nil, lease.Size() is the sum over wrapped proxy
 	// sizes.
 	lease ReadLease
+
+	destroyed bool
 }
 
 func (mrp *multiReadProxy) Size() (size int64) {
@@ -81,7 +83,19 @@ func (mrp *multiReadProxy) Upgrade(
 }
 
 func (mrp *multiReadProxy) Destroy() {
-	panic("TODO")
+	// Destroy all of the wrapped proxies.
+	for _, entry := range mrp.rps {
+		entry.rp.Destroy()
+	}
+
+	// Destroy the lease for the entire contents, if any.
+	if mrp.lease != nil {
+		mrp.lease.Revoke()
+	}
+
+	// Crash early if called again.
+	mrp.rps = nil
+	mrp.lease = nil
 }
 
 func (mrp *multiReadProxy) CheckInvariants() {
