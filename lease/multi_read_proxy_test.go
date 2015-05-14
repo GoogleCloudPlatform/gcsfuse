@@ -40,6 +40,14 @@ type checkingReadProxy struct {
 	Wrapped lease.ReadProxy
 }
 
+func (crp *checkingReadProxy) Size() (size int64) {
+	crp.Wrapped.CheckInvariants()
+	defer crp.Wrapped.CheckInvariants()
+
+	size = crp.Wrapped.Size()
+	return
+}
+
 func (crp *checkingReadProxy) Destroy() {
 	crp.Wrapped.CheckInvariants()
 	crp.Wrapped.Destroy()
@@ -118,7 +126,12 @@ func (t *MultiReadProxyTest) NoRefreshers() {
 }
 
 func (t *MultiReadProxyTest) Size() {
-	AssertTrue(false, "TODO")
+	var expected int64
+	for _, contents := range refresherContents {
+		expected += int64(len(contents))
+	}
+
+	ExpectEq(expected, t.proxy.Size())
 }
 
 func (t *MultiReadProxyTest) ReadAt_OneRefresherReturnsError() {
