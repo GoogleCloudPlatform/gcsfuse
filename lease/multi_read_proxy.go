@@ -138,8 +138,8 @@ func (mrp *multiReadProxy) ReadAt(
 
 		// Clip the read if appropriate.
 		buf := p
-		if len(buf) > int(wrapped.Size()) {
-			buf = buf[:wrapped.Size()]
+		if len(buf) > int(wrapped.Size()-translatedOff) {
+			buf = buf[:wrapped.Size()-translatedOff]
 		}
 
 		// Read.
