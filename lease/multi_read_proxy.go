@@ -96,7 +96,19 @@ func (mrp *multiReadProxy) ReadAt(
 		return
 	}
 
-	panic("TODO")
+	// The read proxy that contains off is the *last* read proxy
+	// whose start offset is less than or equal to off. Find the first that is
+	// greater and move back one.
+	//
+	// Because we handled the special cases above, this must be in range.
+	wrappedIndex := mrp.upperBound(off) - 1
+
+	// Keep going until we've got nothing left to do.
+	for len(p) > 0 {
+		panic("TODO")
+	}
+
+	return
 }
 
 func (mrp *multiReadProxy) Upgrade(
