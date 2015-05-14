@@ -17,6 +17,7 @@ package lease
 import (
 	"fmt"
 	"io"
+	"sort"
 
 	"golang.org/x/net/context"
 )
@@ -218,5 +219,9 @@ type readProxyAndOffset struct {
 // Return the index within mrp.rps of the first read proxy whose logical offset
 // is greater than off. If there is none, return len(mrp.rps).
 func (mrp *multiReadProxy) upperBound(off int64) (index int) {
-	panic("TODO")
+	pred := func(i int) bool {
+		return mrp.rps[i].off > off
+	}
+
+	return sort.Search(len(mrp.rps), pred)
 }
