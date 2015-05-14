@@ -141,17 +141,22 @@ func (t *MultiReadProxyTest) SetUp(ti *TestInfo) {
 	t.refresherErrors = make([]error, len(t.refresherContents))
 
 	// Create the proxy.
+	t.resetProxy()
+}
+
+func (t *MultiReadProxyTest) TearDown() {
+	// Make sure nothing goes crazy.
+	t.proxy.Destroy()
+}
+
+// Recreate refreshers using makeRefreshers and reset the proxy.
+func (t *MultiReadProxyTest) resetProxy() {
 	t.proxy = &checkingReadProxy{
 		Wrapped: lease.NewMultiReadProxy(
 			t.leaser,
 			t.makeRefreshers(),
 			nil),
 	}
-}
-
-func (t *MultiReadProxyTest) TearDown() {
-	// Make sure nothing goes crazy.
-	t.proxy.Destroy()
 }
 
 // Create refreshers based on the current contents of t.refresherContents.
@@ -181,7 +186,22 @@ func (t *MultiReadProxyTest) makeRefreshers() (refreshers []lease.Refresher) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *MultiReadProxyTest) SizeZero_NoRefreshers() {
-	AssertTrue(false, "TODO")
+	t.refresherContents = []string{}
+	t.refresherErrors = []error{}
+	t.resetProxy()
+
+	// Size
+	ExpectEq(0, t.proxy.Size())
+
+	// ReadAt
+	eofMatcher := Equals(io.EOF)
+	testCases := []readAtTestCase{
+		readAtTestCase{0, 0, eofMatcher, ""},
+		readAtTestCase{0, 10, eofMatcher, ""},
+		readAtTestCase{5, 10, eofMatcher, ""},
+	}
+
+	runReadAtTestCases(t.proxy, testCases)
 }
 
 func (t *MultiReadProxyTest) SizeZero_WithRefreshers() {
