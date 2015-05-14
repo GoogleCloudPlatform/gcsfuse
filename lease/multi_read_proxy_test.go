@@ -195,7 +195,14 @@ func (t *MultiReadProxyTest) Size() {
 }
 
 func (t *MultiReadProxyTest) ReadAt_NegativeOffset() {
-	AssertTrue(false, "TODO")
+	// Test cases.
+	m := Error(HasSubstr("Invalid offset"))
+	testCases := []readAtTestCase{
+		readAtTestCase{-1, 0, m, ""},
+		readAtTestCase{-1, 1, m, ""},
+	}
+
+	runReadAtTestCases(t.proxy, testCases)
 }
 
 func (t *MultiReadProxyTest) ReadAt_OneRefresherReturnsError() {
