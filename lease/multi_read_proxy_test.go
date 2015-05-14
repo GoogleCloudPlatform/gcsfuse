@@ -149,8 +149,10 @@ func (t *MultiReadProxyTest) TearDown() {
 }
 
 func (t *MultiReadProxyTest) makeRefreshers() (refreshers []lease.Refresher) {
-	for i, contents := range refresherContents {
+	for i := range refresherContents {
 		iCopy := i
+		contents := refresherContents[i]
+
 		r := &funcRefresher{
 			N: int64(len(contents)),
 			F: func(ctx context.Context) (rc io.ReadCloser, err error) {
