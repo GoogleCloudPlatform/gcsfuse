@@ -515,7 +515,7 @@ func (t *ReadProxyTest) WrappedRevoked() {
 		WillOnce(Return(nil, &lease.RevokedError{}))
 
 	ExpectCall(t.leaser, "NewFile")().
-		Times(4).
+		Times(2).
 		WillRepeatedly(Return(nil, errors.New("")))
 
 	t.proxy.ReadAt(context.Background(), []byte{}, 0)
@@ -586,7 +586,7 @@ func (t *ReadProxyTest) InitialReadLease_Revoked() {
 		WillOnce(Return(nil, &lease.RevokedError{}))
 
 	ExpectCall(t.leaser, "NewFile")().
-		Times(4).
+		Times(2).
 		WillRepeatedly(Return(nil, errors.New("")))
 
 	t.proxy.ReadAt(context.Background(), []byte{}, 0)
