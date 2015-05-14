@@ -32,6 +32,34 @@ type Refresher interface {
 	Refresh(ctx context.Context) (rc io.ReadCloser, err error)
 }
 
+// A wrapper around a read lease, exposing a similar interface with the
+// following differences:
+//
+//  *  Contents are fetched and re-fetched automatically when needed. Therefore
+//     the user need not worry about lease expiration.
+//
+//  *  Methods that may involve fetching the contents (reading, seeking) accept
+//     context arguments, so as to be cancellable.
+//
+//  *  Only random access reading is supported.
+//
+// External synchronization is required.
+type ReadProxy interface {
+	// Semantics matching io.ReaderAt, except with context support.
+	ReadAt(ctx context.Context, p []byte, off int64) (n int, err error)
+
+	// Return the size of the proxied content. Guarantees to not block.
+	Size() (size int64)
+
+	// Return a read/write lease for the proxied contents, destroying the read
+	// proxy. The read proxy must not be used after calling this method.
+	Upgrade() (rwl ReadWriteLease, err error)
+
+	// Destroy any resources in use by the read proxy. It must not be used
+	// further.
+	Destroy()
+}
+
 // Create a read proxy.
 //
 // The supplied refresher will be used to obtain the proxy's contents whenever
