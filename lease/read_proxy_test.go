@@ -66,12 +66,28 @@ func (rc *closeErrorReader) Close() (err error) {
 	return
 }
 
+// A refresher that defers to a function.
+type funcRefresher struct {
+	N int64
+	F func(context.Context) (io.ReadCloser, error)
+}
+
+func (r *funcRefresher) Size() (size int64) {
+	return r.N
+}
+
+func (r *funcRefresher) Refresh(
+	ctx context.Context) (rc io.ReadCloser, err error) {
+	rc, err = r.F(ctx)
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
 type ReadProxyTest struct {
-	// A function that will be invoked for each call to the function given to
+	// A function that will be invoked for each call to the refresher given to
 	// NewReadProxy.
 	f func() (io.ReadCloser, error)
 
@@ -93,9 +109,17 @@ func (t *ReadProxyTest) SetUp(ti *TestInfo) {
 	// Set up the lease.
 	t.proxy = lease.NewReadProxy(
 		t.leaser,
-		int64(len(contents)),
-		t.callF,
+		t.makeRefresher(),
 		nil)
+}
+
+func (t *ReadProxyTest) makeRefresher() (r lease.Refresher) {
+	r = &funcRefresher{
+		N: int64(len(contents)),
+		F: t.callF,
+	}
+
+	return
 }
 
 // Defer to whatever is currently set as t.f.
@@ -743,8 +767,7 @@ func (t *ReadProxyTest) InitialReadLease_Revoked() {
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
 	t.proxy = lease.NewReadProxy(
 		t.leaser,
-		int64(len(contents)),
-		t.callF,
+		t.makeRefresher(),
 		rl)
 
 	// Simulate it being revoked for all methods.
@@ -777,8 +800,7 @@ func (t *ReadProxyTest) InitialReadLease_Valid() {
 	rl := mock_lease.NewMockReadLease(t.mockController, "rl")
 	t.proxy = lease.NewReadProxy(
 		t.leaser,
-		int64(len(contents)),
-		t.callF,
+		t.makeRefresher(),
 		rl)
 
 	// Read
