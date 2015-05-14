@@ -229,7 +229,19 @@ func (mrp *multiReadProxy) readFromOne(
 	p []byte,
 	off int64) (n int, err error) {
 	// Check input requirements.
-	panic("TODO")
+	if !(index < len(mrp.rps)) {
+		panic(fmt.Sprintf("Out of range wrapped index: %v", index))
+	}
+
+	wrapped := mrp.rps[index].rp
+	wrappedStart := mrp.rps[index].off
+	if !(wrappedStart <= off && off < wrappedStart+wrapped.Size()) {
+		panic(fmt.Sprintf(
+			"Offset %v not in range [%v, %v)",
+			off,
+			wrappedStart,
+			wrappedStart+wrapped.Size()))
+	}
 
 	// Check guarantees on return.
 	defer func() {
