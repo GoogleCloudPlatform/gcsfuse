@@ -70,8 +70,8 @@ type ReadProxy interface {
 func NewReadProxy(
 	fl FileLeaser,
 	r Refresher,
-	rl ReadLease) (rp *ReadProxy) {
-	rp = &ReadProxy{
+	rl ReadLease) (rp ReadProxy) {
+	rp = &readProxy{
 		size:      r.Size(),
 		leaser:    fl,
 		refresher: r,
@@ -91,7 +91,7 @@ func NewReadProxy(
 //     context arguments, so as to be cancellable.
 //
 // External synchronization is required.
-type ReadProxy struct {
+type readProxy struct {
 	/////////////////////////
 	// Constant data
 	/////////////////////////
@@ -125,7 +125,7 @@ func isRevokedErr(err error) bool {
 // Set up a read/write lease and fill in our contents.
 //
 // REQUIRES: The caller has observed that rp.lease has expired.
-func (rp *ReadProxy) getContents(
+func (rp *readProxy) getContents(
 	ctx context.Context) (rwl ReadWriteLease, err error) {
 	// Obtain some space to write the contents.
 	rwl, err = rp.leaser.NewFile()
@@ -173,7 +173,7 @@ func (rp *ReadProxy) getContents(
 
 // Downgrade and save the supplied read/write lease obtained with getContents
 // for later use.
-func (rp *ReadProxy) saveContents(rwl ReadWriteLease) {
+func (rp *readProxy) saveContents(rwl ReadWriteLease) {
 	rp.lease = rwl.Downgrade()
 }
 
@@ -182,7 +182,7 @@ func (rp *ReadProxy) saveContents(rwl ReadWriteLease) {
 ////////////////////////////////////////////////////////////////////////
 
 // Semantics matching io.Reader, except with context support.
-func (rp *ReadProxy) Read(
+func (rp *readProxy) Read(
 	ctx context.Context,
 	p []byte) (n int, err error) {
 	// Common case: is the existing lease still valid?
@@ -212,7 +212,7 @@ func (rp *ReadProxy) Read(
 }
 
 // Semantics matching io.Seeker, except with context support.
-func (rp *ReadProxy) Seek(
+func (rp *readProxy) Seek(
 	ctx context.Context,
 	offset int64,
 	whence int) (off int64, err error) {
@@ -243,7 +243,7 @@ func (rp *ReadProxy) Seek(
 }
 
 // Semantics matching io.ReaderAt, except with context support.
-func (rp *ReadProxy) ReadAt(
+func (rp *readProxy) ReadAt(
 	ctx context.Context,
 	p []byte,
 	off int64) (n int, err error) {
@@ -274,14 +274,14 @@ func (rp *ReadProxy) ReadAt(
 }
 
 // Return the size of the proxied content. Guarantees to not block.
-func (rp *ReadProxy) Size() (size int64) {
+func (rp *readProxy) Size() (size int64) {
 	size = rp.size
 	return
 }
 
 // Return a read/write lease for the proxied contents, destroying the read
 // proxy. The read proxy must not be used after calling this method.
-func (rp *ReadProxy) Upgrade(
+func (rp *readProxy) Upgrade(
 	ctx context.Context) (rwl ReadWriteLease, err error) {
 	// If we succeed, we are now destroyed.
 	defer func() {
@@ -312,7 +312,7 @@ func (rp *ReadProxy) Upgrade(
 }
 
 // Destroy any resources in use by the read proxy. It must not be used further.
-func (rp *ReadProxy) Destroy() {
+func (rp *readProxy) Destroy() {
 	if rp.lease != nil {
 		rp.lease.Revoke()
 	}
