@@ -112,18 +112,12 @@ func runReadAtTestCases(
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-// Canned contents returned by the refreshers.
-var refresherContents = []string{
-	"taco",
-	"burrito",
-	"enchilada",
-}
-
 type MultiReadProxyTest struct {
 	ctx context.Context
 
-	// Canned errors returned by the refreshers.
-	refresherErrors []error
+	// Canned content and errors returned by the refreshers.
+	refresherContents []string
+	refresherErrors   []error
 
 	leaser lease.FileLeaser
 	proxy  *checkingReadProxy
@@ -137,7 +131,14 @@ func init() { RegisterTestSuite(&MultiReadProxyTest{}) }
 func (t *MultiReadProxyTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 	t.leaser = lease.NewFileLeaser("", math.MaxInt64)
-	t.refresherErrors = make([]error, len(refresherContents))
+
+	// Set up default refresher contents and nil errors.
+	t.refresherContents = []string{
+		"taco",
+		"burrito",
+		"enchilada",
+	}
+	t.refresherErrors = make([]error, len(t.refresherContents))
 
 	// Create the proxy.
 	t.proxy = &checkingReadProxy{
@@ -153,10 +154,12 @@ func (t *MultiReadProxyTest) TearDown() {
 	t.proxy.Destroy()
 }
 
+// Create refreshers based on the current contents of t.refresherContents.
+// t.refresherErrors will be inspected only when Refresh is called.
 func (t *MultiReadProxyTest) makeRefreshers() (refreshers []lease.Refresher) {
-	for i := range refresherContents {
+	for i := range t.refresherContents {
 		iCopy := i
-		contents := refresherContents[i]
+		contents := t.refresherContents[i]
 
 		r := &funcRefresher{
 			N: int64(len(contents)),
@@ -187,7 +190,7 @@ func (t *MultiReadProxyTest) SizeZero_WithRefreshers() {
 
 func (t *MultiReadProxyTest) Size() {
 	var expected int64
-	for _, contents := range refresherContents {
+	for _, contents := range t.refresherContents {
 		expected += int64(len(contents))
 	}
 
@@ -207,16 +210,16 @@ func (t *MultiReadProxyTest) ReadAt_NegativeOffset() {
 
 func (t *MultiReadProxyTest) ReadAt_OneRefresherReturnsError() {
 	AssertThat(
-		refresherContents,
+		t.refresherContents,
 		ElementsAre(
 			"taco",
 			"burrito",
 			"enchilada",
 		))
 
-	AssertEq(4, len(refresherContents[0]))
-	AssertEq(7, len(refresherContents[1]))
-	AssertEq(9, len(refresherContents[2]))
+	AssertEq(4, len(t.refresherContents[0]))
+	AssertEq(7, len(t.refresherContents[1]))
+	AssertEq(9, len(t.refresherContents[2]))
 
 	// Configure an error for the middle read lease.
 	someErr := errors.New("foobar")
@@ -272,16 +275,16 @@ func (t *MultiReadProxyTest) ReadAt_OneRefresherReturnsError() {
 
 func (t *MultiReadProxyTest) ReadAt_AllSuccessful() {
 	AssertThat(
-		refresherContents,
+		t.refresherContents,
 		ElementsAre(
 			"taco",
 			"burrito",
 			"enchilada",
 		))
 
-	AssertEq(4, len(refresherContents[0]))
-	AssertEq(7, len(refresherContents[1]))
-	AssertEq(9, len(refresherContents[2]))
+	AssertEq(4, len(t.refresherContents[0]))
+	AssertEq(7, len(t.refresherContents[1]))
+	AssertEq(9, len(t.refresherContents[2]))
 
 	// Test cases.
 	eofMatcher := Equals(io.EOF)
@@ -331,7 +334,7 @@ func (t *MultiReadProxyTest) ReadAt_AllSuccessful() {
 
 func (t *MultiReadProxyTest) ReadAt_ContentAlreadyCached() {
 	AssertThat(
-		refresherContents,
+		t.refresherContents,
 		ElementsAre(
 			"taco",
 			"burrito",
