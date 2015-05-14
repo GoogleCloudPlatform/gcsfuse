@@ -97,9 +97,9 @@ func (mrp *multiReadProxy) ReadAt(
 		return
 	}
 
-	// The read proxy that contains off is the *last* read proxy
-	// whose start offset is less than or equal to off. Find the first that is
-	// greater and move back one.
+	// The read proxy that contains off is the *last* read proxy whose start
+	// offset is less than or equal to off. Find the first that is greater and
+	// move back one.
 	//
 	// Because we handled the special cases above, this must be in range.
 	wrappedIndex := mrp.upperBound(off) - 1
@@ -116,58 +116,18 @@ func (mrp *multiReadProxy) ReadAt(
 			return
 		}
 
-		// Grab the next one.
-		wrapped := mrp.rps[wrappedIndex].rp
-		wrappedStart := mrp.rps[wrappedIndex].off
-
-		// Translate to the wrapped read proxy's notion of offsets.
-		if wrappedStart > off {
-			panic(fmt.Sprintf("Unexpected offsets: %v, %v", wrappedStart, off))
-		}
-
-		translatedOff := off - wrappedStart
-
-		// If the translated offset is out of range, something screwy is happening,
-		// because we should be at the next proxy.
-		if translatedOff >= wrapped.Size() {
-			panic(fmt.Sprintf(
-				"Unexpected translated offset: %d, size %d",
-				translatedOff,
-				wrapped.Size()))
-		}
-
-		// Clip the read if appropriate.
-		buf := p
-		if len(buf) > int(wrapped.Size()-translatedOff) {
-			buf = buf[:wrapped.Size()-translatedOff]
-		}
-
-		// Read.
-		var wrappedN int
-		wrappedN, err = wrapped.ReadAt(ctx, buf, translatedOff)
+		// Read from the wrapped proxy, accumulating into our total before checking
+		// for a read error.
+		wrappedN, wrappedErr := mrp.readFromOne(ctx, index, p, off)
 		n += wrappedN
-
-		// Skip EOF errors, assuming that wrapped proxies don't lie about their
-		// sizes.
-		if err == io.EOF {
-			if wrappedN != len(buf) {
-				panic(fmt.Sprintf(
-					"Proxy %d: requested %d bytes from offset %d, but got %d and EOF.",
-					wrappedIndex,
-					len(buf),
-					translatedOff,
-					wrappedN))
-			}
-
-			err = nil
-		}
-
-		// Propagate other errors.
-		if err != nil {
+		if wrappedErr != nil {
+			err = wrappedErr
 			return
 		}
 
-		// Advance and continue.
+		// readFromOne guarantees to either fill our buffer or exhaust the wrapped
+		// proxy. So advance the buffer, the offset, and the wrapped proxy index
+		// and go again.
 		p = p[wrappedN:]
 		off += int64(wrappedN)
 		wrappedIndex++
@@ -252,7 +212,9 @@ func (mrp *multiReadProxy) upperBound(off int64) (index int) {
 	return sort.Search(len(mrp.rps), pred)
 }
 
-// Serve a read from the wrapped proxy at the given index.
+// Serve a read from the wrapped proxy at the given index within our array of
+// wrapped proxies. The offset is relative to the start of the multiReadProxy,
+// not the wrapped proxy.
 //
 // Guarantees:
 //
@@ -260,6 +222,7 @@ func (mrp *multiReadProxy) upperBound(off int64) (index int) {
 //  *  Never returns err == io.EOF.
 //
 // REQUIRES: index < len(mrp.rps)
+// REQUIRES: mrp.rps[i].off <= off < mrp.rps[i].off + wrapped.Size()
 func (mrp *multiReadProxy) readFromOne(
 	ctx context.Context,
 	index int,
