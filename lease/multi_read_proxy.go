@@ -32,14 +32,15 @@ func NewMultiReadProxy(
 	rl ReadLease) (rp ReadProxy) {
 	// Create one wrapped read proxy per refresher.
 	var wrappedProxies []readProxyAndOffset
-	var off int64
+	var size int64
 	for _, r := range refreshers {
 		wrapped := NewReadProxy(fl, r, nil)
-		wrappedProxies = append(wrappedProxies, readProxyAndOffset{off, wrapped})
-		off += wrapped.Size()
+		wrappedProxies = append(wrappedProxies, readProxyAndOffset{size, wrapped})
+		size += wrapped.Size()
 	}
 
 	rp = &multiReadProxy{
+		size:  size,
 		rps:   wrappedProxies,
 		lease: rl,
 	}
@@ -52,15 +53,18 @@ func NewMultiReadProxy(
 ////////////////////////////////////////////////////////////////////////
 
 type multiReadProxy struct {
+	// The size of the proxied content.
+	size int64
+
 	// The wrapped read proxies, indexed by their logical starting offset.
 	//
 	// INVARIANT: For each i>0, rps[i].off == rps[i-i].off + rps[i-i].rp.Size()
+	// INVARIANT: size is the sum over the wrapped proxy sizes.
 	rps []readProxyAndOffset
 
 	// A read lease for the entire contents. May be nil.
 	//
-	// INVARIANT: If lease != nil, lease.Size() is the sum over wrapped proxy
-	// sizes.
+	// INVARIANT: If lease != nil, size == lease.Size()
 	lease ReadLease
 
 	destroyed bool
@@ -106,17 +110,19 @@ func (mrp *multiReadProxy) CheckInvariants() {
 		}
 	}
 
-	// INVARIANT: If lease != nil, lease.Size() is the sum over wrapped proxy
-	// sizes.
-	if mrp.lease != nil {
-		var sum int64
-		for _, wrapped := range mrp.rps {
-			sum += wrapped.rp.Size()
-		}
+	// INVARIANT: size is the sum over the wrapped proxy sizes.
+	var sum int64
+	for _, wrapped := range mrp.rps {
+		sum += wrapped.rp.Size()
+	}
 
-		if sum != mrp.lease.Size() {
-			panic(fmt.Sprintf("Size mismatch: %v vs. %v", sum, mrp.lease.Size()))
-		}
+	if sum != mrp.size {
+		panic(fmt.Sprintf("Size mismatch: %v vs. %v", sum, mrp.size))
+	}
+
+	// INVARIANT: If lease != nil, size == lease.Size()
+	if mrp.lease != nil && mrp.size != mrp.lease.Size() {
+		panic(fmt.Sprintf("Size mismatch: %v vs. %v", mrp.size, mrp.lease.Size()))
 	}
 }
 
