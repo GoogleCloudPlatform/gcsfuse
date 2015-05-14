@@ -16,6 +16,7 @@ package lease
 
 import (
 	"fmt"
+	"io"
 
 	"golang.org/x/net/context"
 )
@@ -81,6 +82,20 @@ func (mrp *multiReadProxy) ReadAt(
 	ctx context.Context,
 	p []byte,
 	off int64) (n int, err error) {
+	// Special case: we don't support negative offsets, silly user.
+	if off < 0 {
+		err = fmt.Errorf("Invalid offset: %v", off)
+		return
+	}
+
+	// Special case: offsets at or beyond the end of our content can never yield
+	// any content, and the io.ReaderAt spec allows us to return EOF. Knock them
+	// out here so we know off is in range when we start below.
+	if off >= mrp.Size() {
+		err = io.EOF
+		return
+	}
+
 	panic("TODO")
 }
 
