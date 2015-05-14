@@ -48,7 +48,8 @@ type ReadProxy interface {
 	// Return the size of the proxied content. Guarantees to not block.
 	Size() (size int64)
 
-	// Semantics matching io.ReaderAt, except with context support.
+	// Semantics matching io.ReaderAt, except with context support and without
+	// the guarantee of being thread-safe.
 	ReadAt(ctx context.Context, p []byte, off int64) (n int, err error)
 
 	// Return a read/write lease for the proxied contents, destroying the read

@@ -38,7 +38,6 @@ func TestMultiReadProxy(t *testing.T) { RunTests(t) }
 // A ReadProxy that wraps another, calling CheckInvariants before and after
 // each action.
 type checkingReadProxy struct {
-	Ctx     context.Context
 	Wrapped lease.ReadProxy
 }
 
@@ -50,9 +49,48 @@ func (crp *checkingReadProxy) Size() (size int64) {
 	return
 }
 
+func (crp *checkingReadProxy) ReadAt(
+	ctx context.Context,
+	p []byte,
+	off int64) (n int, err error) {
+	crp.Wrapped.CheckInvariants()
+	defer crp.Wrapped.CheckInvariants()
+
+	n, err = crp.ReadAt(ctx, p, off)
+	return
+}
+
+func (crp *checkingReadProxy) Upgrade(
+	ctx context.Context) (rwl lease.ReadWriteLease, err error) {
+	crp.Wrapped.CheckInvariants()
+	defer crp.Wrapped.CheckInvariants()
+
+	rwl, err = crp.Wrapped.Upgrade(ctx)
+	return
+}
+
 func (crp *checkingReadProxy) Destroy() {
 	crp.Wrapped.CheckInvariants()
 	crp.Wrapped.Destroy()
+}
+
+func (crp *checkingReadProxy) CheckInvariants() {
+	crp.Wrapped.CheckInvariants()
+}
+
+// A range to read, the contents we expect to get back, and the error we expect
+// to see, if any.
+type readAtTestCase struct {
+	start            int64
+	limit            int64
+	expectedErr      error
+	expectedContents string
+}
+
+func runReadAtTestCases(
+	rp lease.ReadProxy,
+	cases []readAtTestCase) {
+	AssertTrue(false, "TODO")
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -88,7 +126,6 @@ func (t *MultiReadProxyTest) SetUp(ti *TestInfo) {
 
 	// Create the proxy.
 	t.proxy = &checkingReadProxy{
-		Ctx: t.ctx,
 		Wrapped: lease.NewMultiReadProxy(
 			t.leaser,
 			t.makeRefreshers(),
@@ -153,55 +190,50 @@ func (t *MultiReadProxyTest) ReadAt_OneRefresherReturnsError() {
 	someErr := errors.New("foobar")
 	t.refresherErrors[1] = someErr
 
-	// Various ranges to read, the contents we expect to get back, and the
+	// Test cases.
 	// error we expect to see, if any.
-	testCases := []struct {
-		start            int64
-		limit            int64
-		expectedErr      error
-		expectedContents string
-	}{
+	testCases := []readAtTestCase{
 		// First read lease only.
-		{0, 0, nil, ""},
-		{0, 1, nil, "t"},
-		{0, 4, nil, "taco"},
-		{1, 4, nil, "aco"},
-		{4, 4, nil, ""},
+		readAtTestCase{0, 0, nil, ""},
+		readAtTestCase{0, 1, nil, "t"},
+		readAtTestCase{0, 4, nil, "taco"},
+		readAtTestCase{1, 4, nil, "aco"},
+		readAtTestCase{4, 4, nil, ""},
 
 		// First and second read leases.
-		{0, 5, someErr, "taco"},
-		{1, 11, someErr, "aco"},
+		readAtTestCase{0, 5, someErr, "taco"},
+		readAtTestCase{1, 11, someErr, "aco"},
 
 		// All read leases.
-		{0, 20, someErr, "taco"},
-		{1, 20, someErr, "aco"},
-		{1, 100, someErr, "aco"},
+		readAtTestCase{0, 20, someErr, "taco"},
+		readAtTestCase{1, 20, someErr, "aco"},
+		readAtTestCase{1, 100, someErr, "aco"},
 
 		// Second read lease only.
-		{4, 4, nil, ""},
-		{4, 5, someErr, ""},
-		{4, 11, someErr, ""},
+		readAtTestCase{4, 4, nil, ""},
+		readAtTestCase{4, 5, someErr, ""},
+		readAtTestCase{4, 11, someErr, ""},
 
 		// Second and third read leases.
-		{4, 12, someErr, ""},
-		{4, 20, someErr, ""},
-		{5, 100, someErr, ""},
+		readAtTestCase{4, 12, someErr, ""},
+		readAtTestCase{4, 20, someErr, ""},
+		readAtTestCase{5, 100, someErr, ""},
 
 		// Third read lease only.
-		{11, 20, nil, "enchilada"},
-		{11, 100, io.EOF, "enchilada"},
-		{12, 20, nil, "nchilada"},
-		{19, 20, nil, "a"},
-		{20, 20, nil, ""},
+		readAtTestCase{11, 20, nil, "enchilada"},
+		readAtTestCase{11, 100, io.EOF, "enchilada"},
+		readAtTestCase{12, 20, nil, "nchilada"},
+		readAtTestCase{19, 20, nil, "a"},
+		readAtTestCase{20, 20, nil, ""},
 
 		// Past end.
-		{21, 21, nil, ""},
-		{21, 22, io.EOF, ""},
-		{21, 100, io.EOF, ""},
-		{100, 1000, io.EOF, ""},
+		readAtTestCase{21, 21, nil, ""},
+		readAtTestCase{21, 22, io.EOF, ""},
+		readAtTestCase{21, 100, io.EOF, ""},
+		readAtTestCase{100, 1000, io.EOF, ""},
 	}
 
-	AssertTrue(false, "TODO")
+	runReadAtTestCases(t.proxy, testCases)
 }
 
 func (t *MultiReadProxyTest) ReadAt_AllSuccessful() {
@@ -219,53 +251,48 @@ func (t *MultiReadProxyTest) ReadAt_AllSuccessful() {
 
 	// Various ranges to read, the contents we expect to get back, and the
 	// error we expect to see, if any.
-	testCases := []struct {
-		start            int64
-		limit            int64
-		expectedErr      error
-		expectedContents string
-	}{
+	testCases := []readAtTestCase{
 		// First read lease only.
-		{0, 0, nil, ""},
-		{0, 1, nil, "t"},
-		{0, 4, nil, "taco"},
-		{1, 4, nil, "aco"},
-		{4, 4, nil, ""},
+		readAtTestCase{0, 0, nil, ""},
+		readAtTestCase{0, 1, nil, "t"},
+		readAtTestCase{0, 4, nil, "taco"},
+		readAtTestCase{1, 4, nil, "aco"},
+		readAtTestCase{4, 4, nil, ""},
 
 		// First and second read leases.
-		{0, 5, nil, "tacob"},
-		{1, 11, nil, "acoburrito"},
+		readAtTestCase{0, 5, nil, "tacob"},
+		readAtTestCase{1, 11, nil, "acoburrito"},
 
 		// All read leases.
-		{0, 20, nil, "tacoburritoenchilada"},
-		{1, 19, nil, "acoburritoenchilad"},
-		{3, 17, nil, "oburritoenchil"},
+		readAtTestCase{0, 20, nil, "tacoburritoenchilada"},
+		readAtTestCase{1, 19, nil, "acoburritoenchilad"},
+		readAtTestCase{3, 17, nil, "oburritoenchil"},
 
 		// Second read lease only.
-		{4, 4, nil, ""},
-		{4, 5, nil, "b"},
-		{4, 11, nil, "burrito"},
+		readAtTestCase{4, 4, nil, ""},
+		readAtTestCase{4, 5, nil, "b"},
+		readAtTestCase{4, 11, nil, "burrito"},
 
 		// Second and third read leases.
-		{4, 12, nil, "burritoe"},
-		{4, 20, nil, "burritoenchilada"},
-		{5, 100, io.EOF, "urritoenchilada"},
+		readAtTestCase{4, 12, nil, "burritoe"},
+		readAtTestCase{4, 20, nil, "burritoenchilada"},
+		readAtTestCase{5, 100, io.EOF, "urritoenchilada"},
 
 		// Third read lease only.
-		{11, 20, nil, "enchilada"},
-		{11, 100, io.EOF, "enchilada"},
-		{12, 20, nil, "nchilada"},
-		{19, 20, nil, "a"},
-		{20, 20, nil, ""},
+		readAtTestCase{11, 20, nil, "enchilada"},
+		readAtTestCase{11, 100, io.EOF, "enchilada"},
+		readAtTestCase{12, 20, nil, "nchilada"},
+		readAtTestCase{19, 20, nil, "a"},
+		readAtTestCase{20, 20, nil, ""},
 
 		// Past end.
-		{21, 21, nil, ""},
-		{21, 22, io.EOF, ""},
-		{21, 100, io.EOF, ""},
-		{100, 1000, io.EOF, ""},
+		readAtTestCase{21, 21, nil, ""},
+		readAtTestCase{21, 22, io.EOF, ""},
+		readAtTestCase{21, 100, io.EOF, ""},
+		readAtTestCase{100, 1000, io.EOF, ""},
 	}
 
-	AssertTrue(false, "TODO")
+	runReadAtTestCases(t.proxy, testCases)
 }
 
 func (t *MultiReadProxyTest) ReadAt_ContentAlreadyCached() {
