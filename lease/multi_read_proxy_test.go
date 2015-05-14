@@ -397,7 +397,16 @@ func (t *MultiReadProxyTest) ReadAt_ContentAlreadyCached() {
 }
 
 func (t *MultiReadProxyTest) Upgrade_OneRefresherReturnsError() {
-	AssertTrue(false, "TODO")
+	AssertEq(3, len(t.refresherErrors))
+
+	// Configure an error for the middle read lease.
+	t.refresherErrors[1] = errors.New("foobar")
+
+	// Upgrade
+	_, err := t.proxy.Upgrade(context.Background())
+	t.proxy = nil
+
+	ExpectThat(err, Error(HasSubstr("foobar")))
 }
 
 func (t *MultiReadProxyTest) Upgrade_AllSuccessful() {
