@@ -216,15 +216,25 @@ func (mrp *multiReadProxy) upperBound(off int64) (index int) {
 // wrapped proxies. The offset is relative to the start of the multiReadProxy,
 // not the wrapped proxy.
 //
-// Guarantees:
+// Guarantees, letting wrapped be mrp.rps[i].rp:
 //
 //  *  If err == nil, either n == len(p) or n == wrapped.Size().
 //  *  Never returns err == io.EOF.
 //
 // REQUIRES: index < len(mrp.rps)
-// REQUIRES: mrp.rps[i].off <= off < mrp.rps[i].off + wrapped.Size()
+// REQUIRES: mrp.rps[index].off <= off < mrp.rps[index].off + wrapped.Size()
 func (mrp *multiReadProxy) readFromOne(
 	ctx context.Context,
 	index int,
 	p []byte,
-	off int64) (n int, err error)
+	off int64) (n int, err error) {
+	// Check input requirements.
+	panic("TODO")
+
+	// Check guarantees on return.
+	defer func() {
+		panic("TODO")
+	}()
+
+	panic("TODO")
+}
