@@ -330,7 +330,32 @@ func (t *MultiReadProxyTest) ReadAt_AllSuccessful() {
 }
 
 func (t *MultiReadProxyTest) ReadAt_ContentAlreadyCached() {
-	AssertTrue(false, "TODO")
+	AssertThat(
+		refresherContents,
+		ElementsAre(
+			"taco",
+			"burrito",
+			"enchilada",
+		))
+
+	// Read the entire contents, causing read leases to be issued for each
+	// sub-proxy.
+	buf := make([]byte, 1024)
+	n, err := t.proxy.ReadAt(context.Background(), buf, 0)
+
+	AssertThat(err, AnyOf(nil, io.EOF))
+	AssertEq("tacoburritoenchilada", string(buf[:n]))
+
+	// Set up all refreshers to return errors when invoked.
+	for i, _ := range t.refresherErrors {
+		t.refresherErrors[i] = errors.New("foo")
+	}
+
+	// Despite this, the content should still be available.
+	n, err = t.proxy.ReadAt(context.Background(), buf, 0)
+
+	AssertThat(err, AnyOf(nil, io.EOF))
+	AssertEq("tacoburritoenchilada", string(buf[:n]))
 }
 
 func (t *MultiReadProxyTest) Upgrade_OneRefresherReturnsError() {
