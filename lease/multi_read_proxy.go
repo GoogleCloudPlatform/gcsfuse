@@ -15,7 +15,6 @@
 package lease
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -43,9 +42,10 @@ func NewMultiReadProxy(
 	}
 
 	rp = &multiReadProxy{
-		size:  size,
-		rps:   wrappedProxies,
-		lease: rl,
+		size:   size,
+		leaser: fl,
+		rps:    wrappedProxies,
+		lease:  rl,
 	}
 
 	return
@@ -56,8 +56,18 @@ func NewMultiReadProxy(
 ////////////////////////////////////////////////////////////////////////
 
 type multiReadProxy struct {
+	/////////////////////////
+	// Constant data
+	/////////////////////////
+
 	// The size of the proxied content.
 	size int64
+
+	/////////////////////////
+	// Dependencies
+	/////////////////////////
+
+	leaser FileLeaser
 
 	// The wrapped read proxies, indexed by their logical starting offset.
 	//
@@ -67,12 +77,14 @@ type multiReadProxy struct {
 	// INVARIANT: size is the sum over the wrapped proxy sizes.
 	rps []readProxyAndOffset
 
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
 	// A read lease for the entire contents. May be nil.
 	//
 	// INVARIANT: If lease != nil, size == lease.Size()
 	lease ReadLease
-
-	destroyed bool
 }
 
 func (mrp *multiReadProxy) Size() (size int64) {
@@ -139,7 +151,29 @@ func (mrp *multiReadProxy) ReadAt(
 
 func (mrp *multiReadProxy) Upgrade(
 	ctx context.Context) (rwl ReadWriteLease, err error) {
-	err = errors.New("TODO: Upgrade")
+	// Create a new read/write lease to return to the user. Ensure that it is
+	// destroyed if we return in error.
+	rwl, err = mrp.leaser.NewFile()
+	if err != nil {
+		err = fmt.Errorf("NewFile: %v", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			rwl.Downgrade().Revoke()
+		}
+	}()
+
+	// Accumulate each wrapped read proxy in turn.
+	for i, entry := range mrp.rps {
+		err = mrp.upgradeOne(ctx, rwl, entry.rp)
+		if err != nil {
+			err = fmt.Errorf("upgradeOne(%d): %v", i, err)
+			return
+		}
+	}
+
 	return
 }
 
@@ -305,6 +339,39 @@ func (mrp *multiReadProxy) readFromOne(
 		}
 
 		err = nil
+	}
+
+	return
+}
+
+// Upgrade the read proxy and copy its contents into the supplied read/write
+// lease, then destroy it.
+func (mrp *multiReadProxy) upgradeOne(
+	ctx context.Context,
+	dst ReadWriteLease,
+	rp ReadProxy) (err error) {
+	// Upgrade.
+	src, err := rp.Upgrade(ctx)
+	if err != nil {
+		err = fmt.Errorf("Upgrade: %v", err)
+		return
+	}
+
+	defer func() {
+		src.Downgrade().Revoke()
+	}()
+
+	// Seek to the start and copy.
+	_, err = src.Seek(0, 0)
+	if err != nil {
+		err = fmt.Errorf("Seek: %v", err)
+		return
+	}
+
+	_, err = io.Copy(dst, src)
+	if err != nil {
+		err = fmt.Errorf("Copy: %v", err)
+		return
 	}
 
 	return
