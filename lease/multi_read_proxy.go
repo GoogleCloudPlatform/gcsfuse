@@ -14,6 +14,8 @@
 
 package lease
 
+import "golang.org/x/net/context"
+
 // Create a read proxy consisting of the contents defined by the supplied
 // refreshers concatenated. See NewReadProxy for more.
 //
@@ -24,5 +26,36 @@ func NewMultiReadProxy(
 	fl FileLeaser,
 	refreshers []Refresher,
 	rl ReadLease) (rp ReadProxy) {
+	rp = &multiReadProxy{}
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// Implementation
+////////////////////////////////////////////////////////////////////////
+
+type multiReadProxy struct {
+}
+
+func (mrp *multiReadProxy) Size() (size int64) {
 	panic("TODO")
+}
+
+func (mrp *multiReadProxy) ReadAt(
+	ctx context.Context,
+	p []byte,
+	off int64) (n int, err error) {
+	panic("TODO")
+}
+
+func (mrp *multiReadProxy) Upgrade(
+	ctx context.Context) (rwl ReadWriteLease, err error) {
+	panic("TODO")
+}
+
+func (mrp *multiReadProxy) Destroy() {
+	panic("TODO")
+}
+
+func (mrp *multiReadProxy) CheckInvariants() {
 }
