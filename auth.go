@@ -21,7 +21,6 @@ import (
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/oauthutil"
-	storagev1 "google.golang.org/api/storage/v1"
 )
 
 var fKeyFile = flag.String(
@@ -37,7 +36,7 @@ func getAuthenticatedHttpClient() (*http.Client, error) {
 		log.Fatalln("You must set --key_file.")
 	}
 
-	const scope = storagev1.DevstorageRead_writeScope
+	const scope = gcs.Scope_FullControl
 	return oauthutil.NewJWTHttpClient(*fKeyFile, []string{scope})
 }
 
