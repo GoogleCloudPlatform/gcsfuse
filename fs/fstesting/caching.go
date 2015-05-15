@@ -32,20 +32,18 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////
-// Caching
+// Common
 ////////////////////////////////////////////////////////////////////////
 
 const ttl = 10 * time.Minute
 
-type cachingTest struct {
+type cachingTestCommon struct {
 	fsTest
 	uncachedBucket gcs.Bucket
 	simulatedClock *timeutil.SimulatedClock
 }
 
-func init() { registerSuitePrototype(&cachingTest{}) }
-
-func (t *cachingTest) setUpFSTest(cfg FSTestConfig) {
+func (t *cachingTestCommon) setUpFSTest(cfg FSTestConfig) {
 	// Wrap the bucket in a stat caching layer, saving the original.
 	t.uncachedBucket = cfg.ServerConfig.Bucket
 
@@ -66,6 +64,16 @@ func (t *cachingTest) setUpFSTest(cfg FSTestConfig) {
 	// Is the clock simulated?
 	t.simulatedClock, _ = t.clock.(*timeutil.SimulatedClock)
 }
+
+////////////////////////////////////////////////////////////////////////
+// Caching
+////////////////////////////////////////////////////////////////////////
+
+type cachingTest struct {
+	cachingTestCommon
+}
+
+func init() { registerSuitePrototype(&cachingTest{}) }
 
 func (t *cachingTest) EmptyBucket() {
 	// ReadDir
@@ -204,7 +212,7 @@ func (t *cachingTest) CreateNewDirectory() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *cachingTest) ImplicitDirectories() {
+func (t *cachingTest) ImplicitDirectory_DefinedByDirectory() {
 	AssertTrue(false, "TODO")
 }
 
@@ -313,4 +321,40 @@ func (t *cachingTest) TypeOfNameChanges_RemoteModifier() {
 	fi, err = os.Stat(path.Join(t.Dir, name))
 	AssertEq(nil, err)
 	ExpectFalse(fi.IsDir())
+}
+
+////////////////////////////////////////////////////////////////////////
+// Caching with implicit directories
+///////////////////////////////////////////////////////////////////////
+
+type cachingWithImplicitDirsTest struct {
+	cachingTestCommon
+}
+
+func init() { registerSuitePrototype(&cachingWithImplicitDirsTest{}) }
+
+func (t *cachingWithImplicitDirsTest) setUpFSTest(cfg FSTestConfig) {
+	cfg.ServerConfig.ImplicitDirectories = true
+	t.cachingTestCommon.setUpFSTest(cfg)
+}
+
+func (t *cachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
+	var fi os.FileInfo
+	var err error
+
+	// Set up a file object implicitly defining a directory in GCS.
+	_, err = gcsutil.CreateObject(
+		t.ctx,
+		t.uncachedBucket,
+		"foo/bar",
+		"")
+
+	AssertEq(nil, err)
+
+	// The directory should appear to exist.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
 }
