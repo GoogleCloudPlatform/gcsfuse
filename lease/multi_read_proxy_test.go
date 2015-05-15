@@ -117,8 +117,9 @@ type MultiReadProxyTest struct {
 	refresherContents []string
 	refresherErrors   []error
 
-	leaser lease.FileLeaser
-	proxy  *checkingReadProxy
+	leaser       lease.FileLeaser
+	initialLease lease.ReadLease
+	proxy        *checkingReadProxy
 }
 
 var _ SetUpInterface = &MultiReadProxyTest{}
@@ -149,13 +150,14 @@ func (t *MultiReadProxyTest) TearDown() {
 	}
 }
 
-// Recreate refreshers using makeRefreshers and reset the proxy.
+// Recreate refreshers using makeRefreshers and reset the proxy to use them and
+// t.initialLease.
 func (t *MultiReadProxyTest) resetProxy() {
 	t.proxy = &checkingReadProxy{
 		Wrapped: lease.NewMultiReadProxy(
 			t.leaser,
 			t.makeRefreshers(),
-			nil),
+			t.initialLease),
 	}
 }
 
@@ -472,8 +474,52 @@ func (t *MultiReadProxyTest) Upgrade_ContentAlreadyCached() {
 }
 
 func (t *MultiReadProxyTest) InitialReadLeaseValid() {
-	// TODO(jacobsa): Test both ReadAt and Upgrade.
-	AssertTrue(false, "TODO")
+	AssertThat(
+		t.refresherContents,
+		ElementsAre(
+			"taco",
+			"burrito",
+			"enchilada",
+		))
+
+	// Set up an initial read lease.
+	rwl, err := t.leaser.NewFile()
+	AssertEq(nil, err)
+
+	_, err = rwl.Write([]byte("tacoburritoenchilada"))
+	AssertEq(nil, err)
+
+	t.initialLease = rwl.Downgrade()
+	rwl = nil
+
+	// Recreate the proxy using that lease.
+	t.resetProxy()
+
+	// Set up all refreshers to return errors when invoked.
+	for i, _ := range t.refresherErrors {
+		t.refresherErrors[i] = errors.New("foo")
+	}
+
+	// Despite this, the content should still be available for reading.
+	buf := make([]byte, 1024)
+	n, err := t.proxy.ReadAt(context.Background(), buf, 0)
+
+	AssertThat(err, AnyOf(nil, io.EOF))
+	AssertEq("tacoburritoenchilada", string(buf[:n]))
+
+	// And for upgrading.
+	rwl, err = t.proxy.Upgrade(context.Background())
+	t.proxy = nil
+	AssertEq(nil, err)
+
+	defer func() { rwl.Downgrade().Revoke() }()
+
+	_, err = rwl.Seek(0, 0)
+	AssertEq(nil, err)
+
+	contents, err := ioutil.ReadAll(rwl)
+	AssertEq(nil, err)
+	ExpectEq("tacoburritoenchilada", string(contents))
 }
 
 func (t *MultiReadProxyTest) InitialReadLeaseRevoked() {
