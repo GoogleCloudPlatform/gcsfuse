@@ -3,8 +3,16 @@ bucket, including how files and directories map to object names, what
 consistency guarantees are made, etc.
 
 
-<a name="relax-for-performance"></a>
-# Relaxing guarantees for higher performance
+# Caching
+
+By default, gcsfuse has two forms of caching enabled that reduce consistency
+guarantees. They are discussed in this section, along with their trade-offs and
+the situations in which they are and are not safe to use.
+
+**Important**: The rest of this document assumes that caching is disabled (by
+setting `--stat_cache_ttl 0` and `--type_cache_ttl 0`. This is not the default.
+If you want the consistency guarantees discussed in this document, you must set
+these flags to disable caching.
 
 ## Stat caching
 
