@@ -16,6 +16,7 @@ package fs
 
 import (
 	"fmt"
+	"math"
 	"os/user"
 	"reflect"
 	"strconv"
@@ -47,6 +48,13 @@ type ServerConfig struct {
 	// there is a large volume of dirtied files that have not been flushed or
 	// closed.
 	TempDirLimit int64
+
+	// If set to a non-zero value N, the file system will read objects from GCS a
+	// chunk at a time with a maximum read size of N, caching each chunk
+	// independently. The part about separate caching does not apply to dirty
+	// files, for which the entire contents will be in the temporary directory
+	// regardless of this setting.
+	GCSChunkSize uint64
 
 	// By default, if a bucket contains the object "foo/bar" but no object named
 	// "foo/", it's as if the directory doesn't exist. This allows us to have
@@ -86,11 +94,18 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		return
 	}
 
+	// Disable chunking if set to zero.
+	gcsChunkSize := cfg.GCSChunkSize
+	if gcsChunkSize == 0 {
+		gcsChunkSize = math.MaxUint64
+	}
+
 	// Set up the basic struct.
 	fs := &fileSystem{
 		clock:           cfg.Clock,
 		bucket:          cfg.Bucket,
 		leaser:          lease.NewFileLeaser(cfg.TempDir, cfg.TempDirLimit),
+		gcsChunkSize:    gcsChunkSize,
 		implicitDirs:    cfg.ImplicitDirectories,
 		supportNlink:    cfg.SupportNlink,
 		dirTypeCacheTTL: cfg.DirTypeCacheTTL,
@@ -164,6 +179,7 @@ type fileSystem struct {
 	// Constant data
 	/////////////////////////
 
+	gcsChunkSize    uint64
 	implicitDirs    bool
 	supportNlink    bool
 	dirTypeCacheTTL time.Duration
@@ -474,6 +490,7 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 		in = inode.NewFileInode(
 			id,
 			o,
+			fs.gcsChunkSize,
 			fs.supportNlink,
 			fs.bucket,
 			fs.leaser,
