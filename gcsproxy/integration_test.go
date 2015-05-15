@@ -63,8 +63,8 @@ func randBytes(n int) (b []byte) {
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-const chunkSize = 1<<16 + 3
-const fileLeaserLimit = 1 << 25
+const chunkSize = 1<<18 + 3
+const fileLeaserLimit = 1 << 21
 
 type IntegrationTest struct {
 	ctx    context.Context
