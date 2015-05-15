@@ -3,6 +3,7 @@ bucket, including how files and directories map to object names, what
 consistency guarantees are made, etc.
 
 
+<a name="caching"></a>
 # Caching
 
 By default, gcsfuse has two forms of caching enabled that reduce consistency
