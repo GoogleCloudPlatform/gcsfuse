@@ -39,6 +39,7 @@ func TestIntegration(t *testing.T) { RunTests(t) }
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
+const chunkSize = 1<<16 + 3
 const fileLeaserLimit = 1 << 10
 
 type IntegrationTest struct {
@@ -75,6 +76,7 @@ func (t *IntegrationTest) create(o *gcs.Object) {
 	t.mo = &checkingMutableObject{
 		ctx: t.ctx,
 		wrapped: gcsproxy.NewMutableObject(
+			chunkSize,
 			o,
 			t.bucket,
 			t.leaser,
