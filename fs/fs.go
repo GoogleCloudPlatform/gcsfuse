@@ -34,7 +34,7 @@ import (
 )
 
 type ServerConfig struct {
-	// A clock used for modification times.
+	// A clock used for modification times and cache expiration.
 	Clock timeutil.Clock
 
 	// The bucket that the file system is to export.
