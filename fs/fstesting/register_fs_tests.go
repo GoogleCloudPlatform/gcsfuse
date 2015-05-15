@@ -126,6 +126,14 @@ func registerTestSuite(
 	ogletest.Register(ts)
 }
 
+// A list of empty instances of the test suites we want to register.
+var gSuitePrototypes []fsTestInterface
+
+func registerSuitePrototype(
+	p fsTestInterface) {
+	gSuitePrototypes = append(gSuitePrototypes, p)
+}
+
 // Given a function that returns appropriate test config, register test suites
 // that exercise a file system created from that config. The condition name
 // should be something like "RealGCS" or "FakeGCS".
@@ -135,18 +143,8 @@ func RegisterFSTests(conditionName string, makeConfig func() FSTestConfig) {
 	// Make sure to exercise real parallelism, if possible.
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	// A list of empty instances of the test suites we want to register.
-	suitePrototypes := []fsTestInterface{
-		&foreignModsTest{},
-		&implicitDirsTest{},
-		&openTest{},
-		&modesTest{},
-		&directoryTest{},
-		&fileTest{},
-	}
-
-	// Register each.
-	for _, suitePrototype := range suitePrototypes {
+	// Register each suite prototype.
+	for _, suitePrototype := range gSuitePrototypes {
 		registerTestSuite(conditionName, makeConfig, suitePrototype)
 	}
 }

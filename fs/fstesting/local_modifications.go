@@ -54,6 +54,8 @@ type openTest struct {
 	fsTest
 }
 
+func init() { registerSuitePrototype(&openTest{}) }
+
 func (t *openTest) NonExistent_CreateFlagNotSet() {
 	var err error
 	t.f1, err = os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0700)
@@ -239,6 +241,8 @@ func (t *openTest) AlreadyOpenedFile() {
 type modesTest struct {
 	fsTest
 }
+
+func init() { registerSuitePrototype(&modesTest{}) }
 
 func (t *modesTest) ReadOnlyMode() {
 	var err error
@@ -593,6 +597,8 @@ func (t *modesTest) WriteToReadOnlyFile() {
 type directoryTest struct {
 	fsTest
 }
+
+func init() { registerSuitePrototype(&modesTest{}) }
 
 func (t *directoryTest) Mkdir_OneLevel() {
 	var err error
@@ -995,6 +1001,8 @@ func (t *directoryTest) CreateSymlink() {
 type fileTest struct {
 	fsTest
 }
+
+func init() { registerSuitePrototype(&fileTest{}) }
 
 func (t *fileTest) WriteOverlapsEndOfFile() {
 	var err error

@@ -43,6 +43,8 @@ type foreignModsTest struct {
 	fsTest
 }
 
+func init() { registerSuitePrototype(&foreignModsTest{}) }
+
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
@@ -640,6 +642,8 @@ func (t *foreignModsTest) ObjectIsDeleted_Directory() {
 type implicitDirsTest struct {
 	fsTest
 }
+
+func init() { registerSuitePrototype(&implicitDirsTest{}) }
 
 func (t *implicitDirsTest) setUpFSTest(cfg FSTestConfig) {
 	cfg.ServerConfig.ImplicitDirectories = true
