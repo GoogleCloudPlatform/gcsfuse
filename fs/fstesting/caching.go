@@ -83,10 +83,6 @@ func (t *cachingTest) EmptyBucket() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *cachingTest) InteractWithNewFile() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *cachingTest) FileCreatedRemotely() {
 	const name = "foo"
 	const contents = "taco"
@@ -174,10 +170,6 @@ func (t *cachingTest) FileChangedRemotely() {
 	ExpectEq("burrito", string(b))
 }
 
-func (t *cachingTest) InteractWithExistingDirectory() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *cachingTest) DirectoryRemovedRemotely() {
 	const name = "foo"
 	var fi os.FileInfo
@@ -206,10 +198,6 @@ func (t *cachingTest) DirectoryRemovedRemotely() {
 
 	_, err = os.Stat(path.Join(t.Dir, name))
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
-}
-
-func (t *cachingTest) CreateNewDirectory() {
-	AssertTrue(false, "TODO")
 }
 
 func (t *cachingTest) ConflictingNames_RemoteModifier() {
