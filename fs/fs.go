@@ -120,9 +120,10 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 
 	// Set up the root inode.
 	root := inode.NewRootInode(
-		cfg.Bucket,
 		fs.implicitDirs,
-		fs.dirTypeCacheTTL)
+		fs.dirTypeCacheTTL,
+		cfg.Bucket,
+		fs.clock)
 
 	root.Lock()
 	root.IncrementLookupCount()
@@ -478,11 +479,12 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 	// Create the inode.
 	if isDirName(o.Name) {
 		d := inode.NewDirInode(
-			fs.bucket,
 			id,
 			o.Name,
 			fs.implicitDirs,
-			fs.dirTypeCacheTTL)
+			fs.dirTypeCacheTTL,
+			fs.bucket,
+			fs.clock)
 
 		fs.dirIndex[d.Name()] = d
 		in = d
