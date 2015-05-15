@@ -113,13 +113,19 @@ func (rp *ReadProxy) ReadAt(
 ////////////////////////////////////////////////////////////////////////
 
 // A refresher that returns the contents of a particular generation of a GCS
-// object.
+// object. Optionally, only a particular range is returned.
 type objectRefresher struct {
 	Bucket gcs.Bucket
 	O      *gcs.Object
+	Range  *gcs.ByteRange
 }
 
 func (r *objectRefresher) Size() (size int64) {
+	if r.Range != nil {
+		size = int64(r.Range.Limit - r.Range.Start)
+		return
+	}
+
 	size = int64(r.O.Size)
 	return
 }
@@ -129,6 +135,7 @@ func (r *objectRefresher) Refresh(
 	req := &gcs.ReadObjectRequest{
 		Name:       r.O.Name,
 		Generation: r.O.Generation,
+		Range:      r.Range,
 	}
 
 	rc, err = r.Bucket.NewReader(ctx, req)
