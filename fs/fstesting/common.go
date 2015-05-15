@@ -166,9 +166,7 @@ func (t *fsTest) matchesStartTime(start time.Time) oglematchers.Matcher {
 }
 
 // Repeatedly call fusetesting.ReadDirPicky until an error is encountered or
-// until the result has the given length. After each successful call with the
-// wrong length, advance the clock by more than the directory listing cache TTL
-// in order to flush the cache before the next call.
+// until the result has the given length.
 //
 // This is a hacky workaround for the lack of list-after-write consistency in
 // GCS that must be used when interacting with GCS through a side channel
