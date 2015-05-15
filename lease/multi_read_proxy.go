@@ -175,6 +175,25 @@ func (mrp *multiReadProxy) Upgrade(
 	// This function is destructive; the user is not allowed to call us again.
 	mrp.destroyed = true
 
+	// Special case: can we upgrade directly from our initial read lease?
+	if mrp.lease != nil {
+		rwl, err = mrp.lease.Upgrade()
+
+		// Successful?
+		if err == nil {
+			return
+		}
+
+		// Revoked?
+		if _, ok := err.(*RevokedError); ok {
+			mrp.lease = nil
+			err = nil
+		} else {
+			// Propagate other errors
+			return
+		}
+	}
+
 	// Create a new read/write lease to return to the user. Ensure that it is
 	// destroyed if we return in error.
 	rwl, err = mrp.leaser.NewFile()
