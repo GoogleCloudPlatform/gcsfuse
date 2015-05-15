@@ -512,3 +512,33 @@ func (t *FileLeaserTest) RevokeVoluntarily() {
 	growBy(rwl, 1)
 	ExpectTrue(rl1.Revoked())
 }
+
+func (t *FileLeaserTest) RevokeAllReadLeases() {
+	var err error
+	buf := make([]byte, 1024)
+
+	AssertLt(3, limitBytes)
+
+	// Set up two read leases, together occupying all space.
+	rl0 := newFileOfLength(t.fl, 3).Downgrade()
+	rl1 := newFileOfLength(t.fl, limitBytes-3).Downgrade()
+
+	AssertFalse(rl0.Revoked())
+	AssertFalse(rl1.Revoked())
+
+	// Revoke all read leases. None of them should work anymore.
+	t.fl.RevokeReadLeases()
+
+	AssertTrue(rl0.Revoked())
+	AssertTrue(rl1.Revoked())
+
+	_, err = rl0.Read(buf)
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	_, err = rl1.Read(buf)
+	ExpectThat(err, HasSameTypeAs(&lease.RevokedError{}))
+
+	// Calling Revoke more times should be harmless.
+	rl0.Revoke()
+	rl1.Revoke()
+}
