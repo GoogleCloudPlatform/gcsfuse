@@ -15,6 +15,9 @@
 package fstesting
 
 import (
+	"time"
+
+	"github.com/jacobsa/gcloud/gcs/gcscaching"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -22,11 +25,30 @@ import (
 // Caching
 ////////////////////////////////////////////////////////////////////////
 
+const ttl = 10 * time.Minute
+
 type cachingTest struct {
 	fsTest
 }
 
 func init() { registerSuitePrototype(&cachingTest{}) }
+
+func (t *cachingTest) setUpFSTest(cfg FSTestConfig) {
+	// Wrap the bucket in a stat caching layer.
+	const statCacheCapacity = 1000
+	statCache := gcscaching.NewStatCache(statCacheCapacity)
+	cfg.ServerConfig.Bucket = gcscaching.NewFastStatBucket(
+		ttl,
+		statCache,
+		cfg.ServerConfig.Clock,
+		cfg.ServerConfig.Bucket)
+
+	// Enable directory type caching.
+	cfg.ServerConfig.DirTypeCacheTTL = ttl
+
+	// Call through
+	t.fsTest.setUpFSTest(cfg)
+}
 
 func (t *cachingTest) EmptyBucket() {
 	AssertTrue(false, "TODO")
