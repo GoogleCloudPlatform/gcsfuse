@@ -28,6 +28,34 @@ type cachingTest struct {
 
 func init() { registerSuitePrototype(&cachingTest{}) }
 
-func (t *cachingTest) DoesFoo() {
+func (t *cachingTest) EmptyBucket() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *cachingTest) InteractWithExistingFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *cachingTest) InteractWithNewFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *cachingTest) FileChangedRemotely() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *cachingTest) InteractWithExistingDirectory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *cachingTest) DirectoryChangedRemotely() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *cachingTest) CreateNewDirectory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *cachingTest) ImplicitDirectories() {
 	AssertTrue(false, "TODO")
 }
