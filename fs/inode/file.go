@@ -17,7 +17,6 @@ package inode
 import (
 	"fmt"
 	"io"
-	"math"
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/lease"
@@ -72,6 +71,9 @@ var _ Inode = &FileInode{}
 // Create a file inode for the given object in GCS. The initial lookup count is
 // zero.
 //
+// gcsChunkSize controls the maximum size of each individual read request made
+// to GCS.
+//
 // If supportNlink is set, Attributes will use bucket.StatObject to find out
 // whether the backing objet has been clobbered. Otherwise, Attributes will
 // always show Nlink == 1.
@@ -83,20 +85,23 @@ var _ Inode = &FileInode{}
 func NewFileInode(
 	id fuseops.InodeID,
 	o *gcs.Object,
+	gcsChunkSize uint64,
 	supportNlink bool,
 	bucket gcs.Bucket,
 	leaser lease.FileLeaser,
 	clock timeutil.Clock) (f *FileInode) {
-	// TODO(jacobsa): Allow configuring this.
-	const chunkSize = math.MaxUint64
-
 	// Set up the basic struct.
 	f = &FileInode{
 		bucket:       bucket,
 		id:           id,
 		name:         o.Name,
 		supportNlink: supportNlink,
-		proxy:        gcsproxy.NewMutableObject(chunkSize, o, bucket, leaser, clock),
+		proxy: gcsproxy.NewMutableObject(
+			gcsChunkSize,
+			o,
+			bucket,
+			leaser,
+			clock),
 	}
 
 	f.lc.Init(id)
