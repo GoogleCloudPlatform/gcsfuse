@@ -32,6 +32,9 @@ type FileLeaser interface {
 	// read/write lease will pin resources until rwl.Downgrade is called. It need
 	// not be called if the process is exiting.
 	NewFile() (rwl ReadWriteLease, err error)
+
+	// Revoke all read leases that have been issued. For testing use only.
+	RevokeReadLeases()
 }
 
 // Create a new file leaser that uses the supplied directory for temporary
@@ -120,6 +123,10 @@ func (fl *fileLeaser) NewFile() (rwl ReadWriteLease, err error) {
 	rwl = newReadWriteLease(fl, 0, f)
 
 	return
+}
+
+func (fl *fileLeaser) RevokeReadLeases() {
+	panic("TODO")
 }
 
 ////////////////////////////////////////////////////////////////////////

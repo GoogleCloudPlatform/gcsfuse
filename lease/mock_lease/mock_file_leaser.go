@@ -69,3 +69,22 @@ func (m *mockFileLeaser) NewFile() (o0 lease.ReadWriteLease, o1 error) {
 
 	return
 }
+
+func (m *mockFileLeaser) RevokeReadLeases() {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"RevokeReadLeases",
+		file,
+		line,
+		[]interface{}{})
+
+	if len(retVals) != 0 {
+		panic(fmt.Sprintf("mockFileLeaser.RevokeReadLeases: invalid return values: %v", retVals))
+	}
+
+	return
+}
