@@ -169,8 +169,34 @@ func (t *cachingTest) InteractWithExistingDirectory() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *cachingTest) DirectoryChangedRemotely() {
-	AssertTrue(false, "TODO")
+func (t *cachingTest) DirectoryRemovedRemotely() {
+	const name = "foo"
+	var fi os.FileInfo
+	var err error
+
+	if t.simulatedClock == nil {
+		log.Println("Test requires a simulated clock; skipping.")
+		return
+	}
+
+	// Create a directory via the file system.
+	err = os.Mkdir(path.Join(t.Dir, name), 0700)
+	AssertEq(nil, err)
+
+	// Remove the backing object in GCS.
+	err = t.uncachedBucket.DeleteObject(t.ctx, name+"/")
+	AssertEq(nil, err)
+
+	// Because we are caching, the directory should still appear to exist.
+	fi, err = os.Stat(path.Join(t.Dir, name))
+	AssertEq(nil, err)
+	ExpectTrue(fi.IsDir())
+
+	// After the TTL elapses, we should see it disappear.
+	t.simulatedClock.AdvanceTime(ttl + time.Millisecond)
+
+	_, err = os.Stat(path.Join(t.Dir, name))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
 func (t *cachingTest) CreateNewDirectory() {
