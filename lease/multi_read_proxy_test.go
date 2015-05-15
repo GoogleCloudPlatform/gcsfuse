@@ -523,10 +523,19 @@ func (t *MultiReadProxyTest) InitialReadLeaseValid() {
 }
 
 func (t *MultiReadProxyTest) InitialReadLeaseRevoked() {
-	AssertEq(3, len(t.refresherErrors))
+	AssertThat(
+		t.refresherContents,
+		ElementsAre(
+			"taco",
+			"burrito",
+			"enchilada",
+		))
 
-	// Set up an initial read lease that has been revoked.
+	// Set up an initial read lease with the correct length that has been revoked.
 	rwl, err := t.leaser.NewFile()
+	AssertEq(nil, err)
+
+	_, err = rwl.Write([]byte("tacoburritoenchilada"))
 	AssertEq(nil, err)
 
 	t.initialLease = rwl.Downgrade()
