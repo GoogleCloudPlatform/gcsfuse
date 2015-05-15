@@ -23,6 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse/fusetesting"
+	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
@@ -37,20 +38,23 @@ const ttl = 10 * time.Minute
 
 type cachingTest struct {
 	fsTest
+	uncachedBucket gcs.Bucket
 	simulatedClock *timeutil.SimulatedClock
 }
 
 func init() { registerSuitePrototype(&cachingTest{}) }
 
 func (t *cachingTest) setUpFSTest(cfg FSTestConfig) {
-	// Wrap the bucket in a stat caching layer.
+	// Wrap the bucket in a stat caching layer, saving the original.
+	t.uncachedBucket = cfg.ServerConfig.Bucket
+
 	const statCacheCapacity = 1000
 	statCache := gcscaching.NewStatCache(statCacheCapacity)
 	cfg.ServerConfig.Bucket = gcscaching.NewFastStatBucket(
 		ttl,
 		statCache,
 		cfg.ServerConfig.Clock,
-		cfg.ServerConfig.Bucket)
+		t.uncachedBucket)
 
 	// Enable directory type caching.
 	cfg.ServerConfig.DirTypeCacheTTL = ttl
@@ -83,7 +87,7 @@ func (t *cachingTest) FileCreatedRemotely() {
 	// Create an object in GCS.
 	_, err := gcsutil.CreateObject(
 		t.ctx,
-		t.bucket,
+		t.uncachedBucket,
 		name,
 		contents)
 
@@ -136,7 +140,7 @@ func (t *cachingTest) FileChangedRemotely() {
 	// Overwrite the object in GCS.
 	_, err = gcsutil.CreateObject(
 		t.ctx,
-		t.bucket,
+		t.uncachedBucket,
 		name,
 		"burrito")
 
