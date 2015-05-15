@@ -261,11 +261,6 @@ func (t *cachingTest) TypeOfNameChanges_LocalModifier() {
 	var fi os.FileInfo
 	var err error
 
-	if t.simulatedClock == nil {
-		log.Println("Test requires a simulated clock; skipping.")
-		return
-	}
-
 	// Create a directory via the file system.
 	err = os.Mkdir(path.Join(t.Dir, name), 0700)
 	AssertEq(nil, err)
