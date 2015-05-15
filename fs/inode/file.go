@@ -71,6 +71,9 @@ var _ Inode = &FileInode{}
 // Create a file inode for the given object in GCS. The initial lookup count is
 // zero.
 //
+// gcsChunkSize controls the maximum size of each individual read request made
+// to GCS.
+//
 // If supportNlink is set, Attributes will use bucket.StatObject to find out
 // whether the backing objet has been clobbered. Otherwise, Attributes will
 // always show Nlink == 1.
@@ -82,6 +85,7 @@ var _ Inode = &FileInode{}
 func NewFileInode(
 	id fuseops.InodeID,
 	o *gcs.Object,
+	gcsChunkSize uint64,
 	supportNlink bool,
 	bucket gcs.Bucket,
 	leaser lease.FileLeaser,
@@ -92,7 +96,12 @@ func NewFileInode(
 		id:           id,
 		name:         o.Name,
 		supportNlink: supportNlink,
-		proxy:        gcsproxy.NewMutableObject(o, bucket, leaser, clock),
+		proxy: gcsproxy.NewMutableObject(
+			gcsChunkSize,
+			o,
+			bucket,
+			leaser,
+			clock),
 	}
 
 	f.lc.Init(id)

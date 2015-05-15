@@ -37,6 +37,12 @@ import (
 // synchronization around the methods where it is not otherwise noted.
 type MutableObject struct {
 	/////////////////////////
+	// Constant data
+	/////////////////////////
+
+	chunkSize uint64
+
+	/////////////////////////
 	// Dependencies
 	/////////////////////////
 
@@ -97,20 +103,24 @@ type StatResult struct {
 // Create a view on the given GCS object generation, using the supplied leaser
 // to mediate temporary space usage.
 //
+// chunkSize is used when reading contents from GCS. See notes on NewReadProxy.
+//
 // REQUIRES: o != nil
 func NewMutableObject(
+	chunkSize uint64,
 	o *gcs.Object,
 	bucket gcs.Bucket,
 	leaser lease.FileLeaser,
 	clock timeutil.Clock) (mo *MutableObject) {
 	// Set up the basic struct.
 	mo = &MutableObject{
+		chunkSize:        chunkSize,
 		bucket:           bucket,
 		leaser:           leaser,
 		clock:            clock,
 		src:              *o,
 		sourceGeneration: o.Generation,
-		readProxy:        NewReadProxy(leaser, bucket, o, nil),
+		readProxy:        NewReadProxy(chunkSize, leaser, bucket, o, nil),
 	}
 
 	return
@@ -340,7 +350,7 @@ func (mo *MutableObject) Sync(ctx context.Context) (err error) {
 	// new read proxy.
 	rl := mo.readWriteLease.Downgrade()
 	mo.readWriteLease = nil
-	mo.readProxy = NewReadProxy(mo.leaser, mo.bucket, o, rl)
+	mo.readProxy = NewReadProxy(mo.chunkSize, mo.leaser, mo.bucket, o, rl)
 
 	return
 }

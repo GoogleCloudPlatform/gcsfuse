@@ -15,9 +15,11 @@
 package gcsproxy_test
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"math"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -39,7 +41,30 @@ func TestIntegration(t *testing.T) { RunTests(t) }
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-const fileLeaserLimit = 1 << 10
+// Create random content of the given length, which must be a multiple of 4.
+func randBytes(n int) (b []byte) {
+	if n%4 != 0 {
+		panic(fmt.Sprintf("Invalid n: %d", n))
+	}
+
+	b = make([]byte, n)
+	for i := 0; i < n; i += 4 {
+		w := rand.Uint32()
+		b[i] = byte(w >> 24)
+		b[i+1] = byte(w >> 16)
+		b[i+2] = byte(w >> 8)
+		b[i+3] = byte(w >> 0)
+	}
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// Boilerplate
+////////////////////////////////////////////////////////////////////////
+
+const chunkSize = 1<<16 + 3
+const fileLeaserLimit = 1 << 25
 
 type IntegrationTest struct {
 	ctx    context.Context
@@ -75,6 +100,7 @@ func (t *IntegrationTest) create(o *gcs.Object) {
 	t.mo = &checkingMutableObject{
 		ctx: t.ctx,
 		wrapped: gcsproxy.NewMutableObject(
+			chunkSize,
 			o,
 			t.bucket,
 			t.leaser,
@@ -482,4 +508,129 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, o.Name)
 	AssertEq(nil, err)
 	ExpectEq("burrito", contents)
+}
+
+func (t *IntegrationTest) MultipleInteractions() {
+	// We will run through the script below for multiple interesting object
+	// sizes.
+	sizes := []int{
+		0,
+		1,
+		chunkSize - 1,
+		chunkSize,
+		chunkSize + 1,
+		3*chunkSize - 1,
+		3 * chunkSize,
+		3*chunkSize + 1,
+		fileLeaserLimit - 1,
+		fileLeaserLimit,
+		fileLeaserLimit + 1,
+		((fileLeaserLimit / chunkSize) - 1) * chunkSize,
+		(fileLeaserLimit / chunkSize) * chunkSize,
+		((fileLeaserLimit / chunkSize) + 1) * chunkSize,
+	}
+
+	// Generate random contents for the maximum size.
+	var maxSize int
+	for _, size := range sizes {
+		if size > maxSize {
+			maxSize = size
+		}
+	}
+
+	randData := randBytes(maxSize)
+
+	// Transition the mutable object in and out of the dirty state. Make sure
+	// everything stays consistent.
+	for i, size := range sizes {
+		desc := fmt.Sprintf("test case %d (size %d)", i, size)
+		name := fmt.Sprintf("obj_%d", i)
+		buf := make([]byte, size)
+
+		// Create the backing object with random initial contents.
+		expectedContents := make([]byte, size)
+		copy(expectedContents, randData)
+
+		o, err := gcsutil.CreateObject(
+			t.ctx,
+			t.bucket,
+			name,
+			string(expectedContents))
+
+		AssertEq(nil, err)
+
+		// Create a mutable object around it.
+		t.create(o)
+
+		// Read the contents of the mutable object.
+		_, err = t.mo.ReadAt(buf, 0)
+
+		AssertEq(nil, err)
+		if !bytes.Equal(buf, expectedContents) {
+			AddFailure("Contents mismatch for %s", desc)
+			AbortTest()
+		}
+
+		// Modify some bytes.
+		if size > 0 {
+			expectedContents[0] = 17
+			expectedContents[size/2] = 19
+			expectedContents[size-1] = 23
+
+			_, err = t.mo.WriteAt([]byte{17}, 0)
+			AssertEq(nil, err)
+
+			_, err = t.mo.WriteAt([]byte{19}, int64(size/2))
+			AssertEq(nil, err)
+
+			_, err = t.mo.WriteAt([]byte{23}, int64(size-1))
+			AssertEq(nil, err)
+		}
+
+		// Compare contents again.
+		_, err = t.mo.ReadAt(buf, 0)
+
+		AssertEq(nil, err)
+		if !bytes.Equal(buf, expectedContents) {
+			AddFailure("Contents mismatch for %s", desc)
+			AbortTest()
+		}
+
+		// Sync and check the backing object's contents.
+		err = t.mo.Sync()
+		AssertEq(nil, err)
+
+		objContents, err := gcsutil.ReadObject(t.ctx, t.bucket, name)
+		AssertEq(nil, err)
+		if !bytes.Equal([]byte(objContents), expectedContents) {
+			AddFailure("Contents mismatch for %s", desc)
+			AbortTest()
+		}
+
+		// Compare contents again.
+		_, err = t.mo.ReadAt(buf, 0)
+
+		AssertEq(nil, err)
+		if !bytes.Equal(buf, expectedContents) {
+			AddFailure("Contents mismatch for %s", desc)
+			AbortTest()
+		}
+
+		// Dirty again.
+		if size > 0 {
+			expectedContents[0] = 29
+
+			_, err = t.mo.WriteAt([]byte{29}, 0)
+			AssertEq(nil, err)
+		}
+
+		// Compare contents again.
+		_, err = t.mo.ReadAt(buf, 0)
+
+		AssertEq(nil, err)
+		if !bytes.Equal(buf, expectedContents) {
+			AddFailure("Contents mismatch for %s", desc)
+			AbortTest()
+		}
+	}
 }

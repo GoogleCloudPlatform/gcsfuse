@@ -40,12 +40,19 @@ type ReadProxy struct {
 // Create a view on the given GCS object generation. If rl is non-nil, it must
 // contain a lease for the contents of the object and will be used when
 // possible instead of re-reading the object.
+//
+// If the object is larger than the given chunk size, we will only read
+// and cache portions of it at a time.
 func NewReadProxy(
+	chunkSize uint64,
 	leaser lease.FileLeaser,
 	bucket gcs.Bucket,
 	o *gcs.Object,
 	rl lease.ReadLease) (rp *ReadProxy) {
 	// Set up a lease.ReadProxy.
+	//
+	// TODO(jacobsa): Branch on chunkSize and use lease.NewMultiReadProxy if
+	// necessary.
 	wrapped := lease.NewReadProxy(
 		leaser,
 		&objectRefresher{
