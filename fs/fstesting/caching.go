@@ -212,10 +212,6 @@ func (t *cachingTest) CreateNewDirectory() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *cachingTest) ImplicitDirectory_DefinedByDirectory() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *cachingTest) ConflictingNames_RemoteModifier() {
 	const name = "foo"
 	var fi os.FileInfo
@@ -347,6 +343,27 @@ func (t *cachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
 		t.ctx,
 		t.uncachedBucket,
 		"foo/bar",
+		"")
+
+	AssertEq(nil, err)
+
+	// The directory should appear to exist.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+}
+
+func (t *cachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
+	var fi os.FileInfo
+	var err error
+
+	// Set up a directory object implicitly defining a directory in GCS.
+	_, err = gcsutil.CreateObject(
+		t.ctx,
+		t.uncachedBucket,
+		"foo/bar/",
 		"")
 
 	AssertEq(nil, err)
