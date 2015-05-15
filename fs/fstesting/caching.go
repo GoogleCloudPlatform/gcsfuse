@@ -207,7 +207,11 @@ func (t *cachingTest) ImplicitDirectories() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *cachingTest) ConflictingNames() {
+func (t *cachingTest) ConflictingNames_LocalModifier() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *cachingTest) ConflictingNames_RemoteModifier() {
 	AssertTrue(false, "TODO")
 }
 
@@ -216,5 +220,41 @@ func (t *cachingTest) TypeOfNameChanges_LocalModifier() {
 }
 
 func (t *cachingTest) TypeOfNameChanges_RemoteModifier() {
-	AssertTrue(false, "TODO")
+	const name = "foo"
+	var fi os.FileInfo
+	var err error
+
+	if t.simulatedClock == nil {
+		log.Println("Test requires a simulated clock; skipping.")
+		return
+	}
+
+	// Create a directory via the file system.
+	err = os.Mkdir(path.Join(t.Dir, name), 0700)
+	AssertEq(nil, err)
+
+	// Remove the backing object in GCS, updating the bucket cache (but not the
+	// file system type cache)
+	err = t.bucket.DeleteObject(t.ctx, name+"/")
+	AssertEq(nil, err)
+
+	// Create a file with the same name via GCS, again updating the bucket cache.
+	_, err = gcsutil.CreateObject(
+		t.ctx,
+		t.bucket,
+		name,
+		"taco")
+
+	AssertEq(nil, err)
+
+	// Because the file system is caching types, it will fail to find the name.
+	_, err = os.Stat(path.Join(t.Dir, name))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	// After the TTL elapses, we should see it turn into a file.
+	t.simulatedClock.AdvanceTime(ttl + time.Millisecond)
+
+	fi, err = os.Stat(path.Join(t.Dir, name))
+	AssertEq(nil, err)
+	ExpectFalse(fi.IsDir())
 }
