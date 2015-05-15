@@ -74,6 +74,15 @@ func NewReadProxy(
 	bucket gcs.Bucket,
 	o *gcs.Object,
 	rl lease.ReadLease) (rp *ReadProxy) {
+	// Sanity check: the read lease's size should match the object's size if it
+	// is present.
+	if rl != nil && uint64(rl.Size()) != o.Size {
+		panic(fmt.Sprintf(
+			"Read lease size %d doesn't match object size %d",
+			rl.Size(),
+			o.Size))
+	}
+
 	// Set up a lease.ReadProxy.
 	//
 	// Special case: don't bring in the complication of a multi-read proxy if we
