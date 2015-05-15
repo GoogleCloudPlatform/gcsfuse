@@ -11,24 +11,25 @@ the situations in which they are and are not safe to use.
 
 **Important**: The rest of this document assumes that caching is disabled (by
 setting `--stat_cache_ttl 0` and `--type_cache_ttl 0`. This is not the default.
-If you want the consistency guarantees discussed in this document, you must set
-these flags to disable caching.
+If you want the consistency guarantees discussed in this document, you must use
+these options to disable caching.
 
 ## Stat caching
 
-The cost of the consistency guarantees discussed above is that gcsfuse must
-frequently send stat object requests to GCS in order to get the freshest
-possible answer for the kernel when it asks about a particular name or inode,
-which it does often. This can make what appear to the user to be simple
-operations, like `ls -l`, take quite a long time.
+The cost of the consistency guarantees discussed in the rest of this document
+is that gcsfuse must frequently send stat object requests to GCS in order to
+get the freshest possible answer for the kernel when it asks about a particular
+name or inode, which happens frequently. This can make what appear to the user
+to be simple operations, like `ls -l`, take quite a long time.
 
 To alleviate this slowness, gcsfuse supports using cached data where it would
-otherwise send a stat object request to GCS, saving some round trips. To enable
-this behavior, set the flag `--stat_cache_ttl` to a value like `10s` or `1.5h`.
-Positive and negative stat results will be cached for the given amount of time.
+otherwise send a stat object request to GCS, saving some round trips. This
+behavior is controlled by the `--stat_cache_ttl` flag, which can be set to a
+value like `10s` or `1.5h`. (The default is one minute.) Positive and negative
+stat results will be cached for the specified amount of time.
 
-**Warning**: Setting `--stat_cache_ttl` breaks the consistency guarantees
-discussed in this document. It is safe only in the following situations:
+**Warning**: Using stat caching breaks the consistency guarantees discussed in
+this document. It is safe only in the following situations:
 
  *  The mounted bucket is never modified.
  *  The mounted bucket is only modified on a single machine, via a single
