@@ -208,10 +208,6 @@ func (t *cachingTest) ImplicitDirectories() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *cachingTest) ConflictingNames_LocalModifier() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *cachingTest) ConflictingNames_RemoteModifier() {
 	const name = "foo"
 	var fi os.FileInfo
