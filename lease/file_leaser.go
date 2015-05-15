@@ -32,6 +32,9 @@ type FileLeaser interface {
 	// read/write lease will pin resources until rwl.Downgrade is called. It need
 	// not be called if the process is exiting.
 	NewFile() (rwl ReadWriteLease, err error)
+
+	// Revoke all read leases that have been issued. For testing use only.
+	RevokeReadLeases()
 }
 
 // Create a new file leaser that uses the supplied directory for temporary
@@ -122,6 +125,14 @@ func (fl *fileLeaser) NewFile() (rwl ReadWriteLease, err error) {
 	return
 }
 
+// LOCKS_EXCLUDED(fl.mu)
+func (fl *fileLeaser) RevokeReadLeases() {
+	fl.mu.Lock()
+	defer fl.mu.Unlock()
+
+	fl.evict(0)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
@@ -202,19 +213,20 @@ func (fl *fileLeaser) checkInvariants() {
 // LOCKS_EXCLUDED(fl.mu)
 func (fl *fileLeaser) addReadWriteByteDelta(delta int64) {
 	fl.readWriteOutstanding += delta
-	fl.evict()
+	fl.evict(fl.limit)
 }
 
 // LOCKS_REQUIRED(fl.mu)
-func (fl *fileLeaser) overLimit() bool {
-	return fl.readOutstanding+fl.readWriteOutstanding > fl.limit
+func (fl *fileLeaser) overLimit(limit int64) bool {
+	return fl.readOutstanding+fl.readWriteOutstanding > limit
 }
 
-// Revoke read leases until we're under limit or we run out of things to revoke.
+// Revoke read leases until we're within the given limit or we run out of
+// things to revoke.
 //
 // LOCKS_REQUIRED(fl.mu)
-func (fl *fileLeaser) evict() {
-	for fl.overLimit() {
+func (fl *fileLeaser) evict(limit int64) {
+	for fl.overLimit(limit) {
 		// Do we have anything to revoke?
 		lru := fl.readLeases.Back()
 		if lru == nil {
@@ -258,7 +270,7 @@ func (fl *fileLeaser) downgrade(
 	fl.readLeasesIndex[rlTyped] = e
 
 	// Ensure that we're not now over capacity.
-	fl.evict()
+	fl.evict(fl.limit)
 
 	return
 }

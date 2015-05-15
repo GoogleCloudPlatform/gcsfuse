@@ -60,6 +60,8 @@ type MutableObject struct {
 	sourceGeneration int64
 
 	// When clean, a read proxy around src. When dirty, nil.
+	//
+	// INVARIANT: When non-nil, readProxy.CheckInvariants() does not panic.
 	readProxy *ReadProxy
 
 	// When dirty, a read/write lease containing our current contents. When
@@ -131,6 +133,11 @@ func (mo *MutableObject) SourceGeneration() int64 {
 func (mo *MutableObject) CheckInvariants() {
 	if mo.destroyed {
 		return
+	}
+
+	// INVARIANT: When non-nil, readProxy.CheckInvariants() does not panic.
+	if mo.readProxy != nil {
+		mo.readProxy.CheckInvariants()
 	}
 
 	// INVARIANT: atomic.LoadInt64(&sourceGeneration) == src.Generation
