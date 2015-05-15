@@ -48,6 +48,11 @@ var fTempDirLimit = flag.Int64(
 	"A desired limit on the number of bytes used in --temp_dir. May be exceeded "+
 		"for dirty files that have not been flushed or closed.")
 
+var fGCSChunkSize = flag.Uint64(
+	"gcs_chunk_size", 1<<24,
+	"If set to a non-zero value N, split up GCS objects into multiple chunks of "+
+		"size at most N when reading, and do not read or cache unnecessary chunks.")
+
 var fImplicitDirs = flag.Bool(
 	"implicit_dirs",
 	false,
@@ -166,6 +171,7 @@ func main() {
 		Bucket:              getBucket(),
 		TempDir:             *fTempDir,
 		TempDirLimit:        *fTempDirLimit,
+		GCSChunkSize:        *fGCSChunkSize,
 		ImplicitDirectories: *fImplicitDirs,
 		SupportNlink:        *fSupportNlink,
 		DirTypeCacheTTL:     typeCacheTTL,
