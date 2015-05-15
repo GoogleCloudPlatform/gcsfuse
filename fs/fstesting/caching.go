@@ -21,6 +21,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/gcloud/gcs"
@@ -212,7 +213,47 @@ func (t *cachingTest) ConflictingNames_LocalModifier() {
 }
 
 func (t *cachingTest) ConflictingNames_RemoteModifier() {
-	AssertTrue(false, "TODO")
+	const name = "foo"
+	var fi os.FileInfo
+	var err error
+
+	if t.simulatedClock == nil {
+		log.Println("Test requires a simulated clock; skipping.")
+		return
+	}
+
+	// Create a directory via the file system.
+	err = os.Mkdir(path.Join(t.Dir, name), 0700)
+	AssertEq(nil, err)
+
+	// Create a file with the same name via GCS.
+	_, err = gcsutil.CreateObject(
+		t.ctx,
+		t.uncachedBucket,
+		name,
+		"taco")
+
+	AssertEq(nil, err)
+
+	// Because the file system is caching types, it will fail to find the file
+	// when statting.
+	fi, err = os.Stat(path.Join(t.Dir, name))
+	AssertEq(nil, err)
+	ExpectTrue(fi.IsDir())
+
+	_, err = os.Stat(path.Join(t.Dir, name+inode.ConflictingFileNameSuffix))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	// After the TTL elapses, we should see both.
+	t.simulatedClock.AdvanceTime(ttl + time.Millisecond)
+
+	fi, err = os.Stat(path.Join(t.Dir, name))
+	AssertEq(nil, err)
+	ExpectTrue(fi.IsDir())
+
+	fi, err = os.Stat(path.Join(t.Dir, name+inode.ConflictingFileNameSuffix))
+	AssertEq(nil, err)
+	ExpectFalse(fi.IsDir())
 }
 
 func (t *cachingTest) TypeOfNameChanges_LocalModifier() {
