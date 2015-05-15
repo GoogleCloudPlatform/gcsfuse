@@ -15,6 +15,7 @@
 package gcsproxy_test
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"io"
@@ -518,6 +519,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 
 		// Create the backing object with random initial contents.
 		expectedContents := make([]byte, size)
+
 		_, err = io.ReadFull(rand.Reader, expectedContents)
 		AssertEq(nil, err)
 
@@ -536,7 +538,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		_, err = t.mo.ReadAt(buf, 0)
 
 		AssertEq(nil, err)
-		if string(buf) != string(expectedContents) {
+		if !bytes.Equal(buf, expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)
 			AbortTest()
 		}
@@ -561,7 +563,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		_, err = t.mo.ReadAt(buf, 0)
 
 		AssertEq(nil, err)
-		if string(buf) != string(expectedContents) {
+		if !bytes.Equal(buf, expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)
 			AbortTest()
 		}
@@ -572,7 +574,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 
 		objContents, err := gcsutil.ReadObject(t.ctx, t.bucket, name)
 		AssertEq(nil, err)
-		if objContents != string(expectedContents) {
+		if !bytes.Equal([]byte(objContents), expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)
 			AbortTest()
 		}
@@ -581,7 +583,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		_, err = t.mo.ReadAt(buf, 0)
 
 		AssertEq(nil, err)
-		if string(buf) != string(expectedContents) {
+		if !bytes.Equal(buf, expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)
 			AbortTest()
 		}
@@ -598,7 +600,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		_, err = t.mo.ReadAt(buf, 0)
 
 		AssertEq(nil, err)
-		if string(buf) != string(expectedContents) {
+		if !bytes.Equal(buf, expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)
 			AbortTest()
 		}
