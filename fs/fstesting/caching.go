@@ -17,7 +17,9 @@ package fstesting
 import (
 	"time"
 
+	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -51,7 +53,11 @@ func (t *cachingTest) setUpFSTest(cfg FSTestConfig) {
 }
 
 func (t *cachingTest) EmptyBucket() {
-	AssertTrue(false, "TODO")
+	// ReadDir
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+
+	ExpectThat(entries, ElementsAre())
 }
 
 func (t *cachingTest) InteractWithExistingFile() {
