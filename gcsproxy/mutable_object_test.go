@@ -650,6 +650,7 @@ func (t *MutableObjectTest) Sync_Successful() {
 	o := &gcs.Object{
 		Name:       t.src.Name,
 		Generation: 17,
+		Size:       uint64(len(s)),
 	}
 
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
