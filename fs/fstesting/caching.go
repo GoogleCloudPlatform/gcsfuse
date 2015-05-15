@@ -16,10 +16,12 @@ package fstesting
 
 import (
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
@@ -35,6 +37,7 @@ const ttl = 10 * time.Minute
 
 type cachingTest struct {
 	fsTest
+	simulatedClock *timeutil.SimulatedClock
 }
 
 func init() { registerSuitePrototype(&cachingTest{}) }
@@ -52,8 +55,11 @@ func (t *cachingTest) setUpFSTest(cfg FSTestConfig) {
 	// Enable directory type caching.
 	cfg.ServerConfig.DirTypeCacheTTL = ttl
 
-	// Call through
+	// Call through.
 	t.fsTest.setUpFSTest(cfg)
+
+	// Is the clock simulated?
+	t.simulatedClock, _ = t.clock.(*timeutil.SimulatedClock)
 }
 
 func (t *cachingTest) EmptyBucket() {
@@ -114,7 +120,45 @@ func (t *cachingTest) FileCreatedRemotely() {
 }
 
 func (t *cachingTest) FileChangedRemotely() {
-	AssertTrue(false, "TODO")
+	const name = "foo"
+	var fi os.FileInfo
+	var err error
+
+	if t.simulatedClock == nil {
+		log.Println("Test requires a simulated clock; skipping.")
+		return
+	}
+
+	// Create a file via the file system.
+	err = ioutil.WriteFile(path.Join(t.Dir, name), []byte("taco"), 0500)
+	AssertEq(nil, err)
+
+	// Overwrite the object in GCS.
+	_, err = gcsutil.CreateObject(
+		t.ctx,
+		t.bucket,
+		name,
+		"burrito")
+
+	AssertEq(nil, err)
+
+	// Because we are caching, the file should still appear to be the local
+	// version.
+	fi, err = os.Stat(path.Join(t.Dir, name))
+	AssertEq(nil, err)
+	ExpectEq(len("taco"), fi.Size())
+
+	// After the TTL elapses, we should see the new version.
+	t.simulatedClock.AdvanceTime(ttl + time.Millisecond)
+
+	fi, err = os.Stat(path.Join(t.Dir, name))
+	AssertEq(nil, err)
+	ExpectEq(len("burrito"), fi.Size())
+
+	// Reading should work as expected.
+	b, err := ioutil.ReadFile(path.Join(t.Dir, name))
+	AssertEq(nil, err)
+	ExpectEq("burrito", string(b))
 }
 
 func (t *cachingTest) InteractWithExistingDirectory() {
