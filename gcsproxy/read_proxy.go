@@ -37,6 +37,11 @@ type ReadProxy struct {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
+func makeRefreshers(
+	chunkSize uint64,
+	o *gcs.Object,
+	bucket gcs.Bucket) (refreshers []lease.Refresher)
+
 // Create a view on the given GCS object generation. If rl is non-nil, it must
 // contain a lease for the contents of the object and will be used when
 // possible instead of re-reading the object.
@@ -51,15 +56,15 @@ func NewReadProxy(
 	rl lease.ReadLease) (rp *ReadProxy) {
 	// Set up a lease.ReadProxy.
 	//
-	// TODO(jacobsa): Branch on chunkSize and use lease.NewMultiReadProxy if
-	// necessary.
-	wrapped := lease.NewReadProxy(
-		leaser,
-		&objectRefresher{
-			Bucket: bucket,
-			O:      o,
-		},
-		rl)
+	// Special case: don't bring in the complication of a multi-read proxy if we
+	// have only one refresher.
+	var wrapped lease.ReadProxy
+	refreshers := makeRefreshers(chunkSize, o, bucket)
+	if len(refreshers) == 1 {
+		wrapped = lease.NewReadProxy(leaser, refreshers[0], rl)
+	} else {
+		wrapped = lease.NewMultiReadProxy(leaser, refreshers, rl)
+	}
 
 	// Serve from that.
 	rp = &ReadProxy{
