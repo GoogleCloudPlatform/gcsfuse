@@ -257,7 +257,31 @@ func (t *cachingTest) ConflictingNames_RemoteModifier() {
 }
 
 func (t *cachingTest) TypeOfNameChanges_LocalModifier() {
-	AssertTrue(false, "TODO")
+	const name = "foo"
+	var fi os.FileInfo
+	var err error
+
+	if t.simulatedClock == nil {
+		log.Println("Test requires a simulated clock; skipping.")
+		return
+	}
+
+	// Create a directory via the file system.
+	err = os.Mkdir(path.Join(t.Dir, name), 0700)
+	AssertEq(nil, err)
+
+	// Delete it and recreate as a file.
+	err = os.Remove(path.Join(t.Dir, name))
+	AssertEq(nil, err)
+
+	err = ioutil.WriteFile(path.Join(t.Dir, name), []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	// All caches should have been updated.
+	fi, err = os.Stat(path.Join(t.Dir, name))
+	AssertEq(nil, err)
+	ExpectFalse(fi.IsDir())
+	ExpectEq(len("taco"), fi.Size())
 }
 
 func (t *cachingTest) TypeOfNameChanges_RemoteModifier() {
