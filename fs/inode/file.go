@@ -17,6 +17,7 @@ package inode
 import (
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/lease"
@@ -86,13 +87,16 @@ func NewFileInode(
 	bucket gcs.Bucket,
 	leaser lease.FileLeaser,
 	clock timeutil.Clock) (f *FileInode) {
+	// TODO(jacobsa): Allow configuring this.
+	const chunkSize = math.MaxUint64
+
 	// Set up the basic struct.
 	f = &FileInode{
 		bucket:       bucket,
 		id:           id,
 		name:         o.Name,
 		supportNlink: supportNlink,
-		proxy:        gcsproxy.NewMutableObject(o, bucket, leaser, clock),
+		proxy:        gcsproxy.NewMutableObject(chunkSize, o, bucket, leaser, clock),
 	}
 
 	f.lc.Init(id)
