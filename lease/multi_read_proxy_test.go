@@ -523,6 +523,34 @@ func (t *MultiReadProxyTest) InitialReadLeaseValid() {
 }
 
 func (t *MultiReadProxyTest) InitialReadLeaseRevoked() {
-	// TODO(jacobsa): Test both ReadAt and Upgrade.
-	AssertTrue(false, "TODO")
+	AssertEq(3, len(t.refresherErrors))
+
+	// Set up an initial read lease that has been revoked.
+	rwl, err := t.leaser.NewFile()
+	AssertEq(nil, err)
+
+	t.initialLease = rwl.Downgrade()
+	rwl = nil
+
+	t.leaser.RevokeReadLeases()
+
+	// Recreate the proxy using that lease.
+	t.resetProxy()
+
+	// Set up all refreshers to return errors when invoked.
+	for i, _ := range t.refresherErrors {
+		t.refresherErrors[i] = errors.New("foobar")
+	}
+
+	// Reading should fall through to the refreshers, and fail.
+	buf := make([]byte, 1024)
+	_, err = t.proxy.ReadAt(context.Background(), buf, 0)
+
+	ExpectThat(err, Error(HasSubstr("foobar")))
+
+	// Ditto upgrading.
+	_, err = t.proxy.Upgrade(context.Background())
+	t.proxy = nil
+
+	ExpectThat(err, Error(HasSubstr("foobar")))
 }
