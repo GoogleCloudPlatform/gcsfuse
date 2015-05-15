@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
@@ -35,6 +36,7 @@ type DirInode struct {
 	/////////////////////////
 
 	bucket gcs.Bucket
+	clock  timeutil.Clock
 
 	/////////////////////////
 	// Constant data
@@ -68,15 +70,17 @@ var _ Inode = &DirInode{}
 // Create a directory inode for the root of the file system. The initial lookup
 // count is zero.
 func NewRootInode(
-	bucket gcs.Bucket,
 	implicitDirs bool,
-	typeCacheTTL time.Duration) (d *DirInode) {
+	typeCacheTTL time.Duration,
+	bucket gcs.Bucket,
+	clock timeutil.Clock) (d *DirInode) {
 	d = NewDirInode(
-		bucket,
 		fuseops.RootInodeID,
 		"",
 		implicitDirs,
-		typeCacheTTL)
+		typeCacheTTL,
+		bucket,
+		clock)
 
 	return
 }
@@ -101,11 +105,12 @@ func NewRootInode(
 //
 // REQUIRES: name == "" || name[len(name)-1] == '/'
 func NewDirInode(
-	bucket gcs.Bucket,
 	id fuseops.InodeID,
 	name string,
 	implicitDirs bool,
-	typeCacheTTL time.Duration) (d *DirInode) {
+	typeCacheTTL time.Duration,
+	bucket gcs.Bucket,
+	clock timeutil.Clock) (d *DirInode) {
 	if name != "" && name[len(name)-1] != '/' {
 		panic(fmt.Sprintf("Unexpected name: %s", name))
 	}
@@ -114,6 +119,7 @@ func NewDirInode(
 	const typeCacheCapacity = 1 << 16
 	d = &DirInode{
 		bucket:       bucket,
+		clock:        clock,
 		id:           id,
 		implicitDirs: implicitDirs,
 		name:         name,
