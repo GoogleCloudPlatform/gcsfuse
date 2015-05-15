@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
@@ -35,6 +36,7 @@ type DirInode struct {
 	/////////////////////////
 
 	bucket gcs.Bucket
+	clock  timeutil.Clock
 
 	/////////////////////////
 	// Constant data
@@ -68,15 +70,17 @@ var _ Inode = &DirInode{}
 // Create a directory inode for the root of the file system. The initial lookup
 // count is zero.
 func NewRootInode(
-	bucket gcs.Bucket,
 	implicitDirs bool,
-	typeCacheTTL time.Duration) (d *DirInode) {
+	typeCacheTTL time.Duration,
+	bucket gcs.Bucket,
+	clock timeutil.Clock) (d *DirInode) {
 	d = NewDirInode(
-		bucket,
 		fuseops.RootInodeID,
 		"",
 		implicitDirs,
-		typeCacheTTL)
+		typeCacheTTL,
+		bucket,
+		clock)
 
 	return
 }
@@ -101,11 +105,12 @@ func NewRootInode(
 //
 // REQUIRES: name == "" || name[len(name)-1] == '/'
 func NewDirInode(
-	bucket gcs.Bucket,
 	id fuseops.InodeID,
 	name string,
 	implicitDirs bool,
-	typeCacheTTL time.Duration) (d *DirInode) {
+	typeCacheTTL time.Duration,
+	bucket gcs.Bucket,
+	clock timeutil.Clock) (d *DirInode) {
 	if name != "" && name[len(name)-1] != '/' {
 		panic(fmt.Sprintf("Unexpected name: %s", name))
 	}
@@ -114,6 +119,7 @@ func NewDirInode(
 	const typeCacheCapacity = 1 << 16
 	d = &DirInode{
 		bucket:       bucket,
+		clock:        clock,
 		id:           id,
 		implicitDirs: implicitDirs,
 		name:         name,
@@ -361,7 +367,7 @@ func (d *DirInode) filterMissingChildDirs(
 
 	// First add any names that we already know are directories according to our
 	// cache, removing them from the input.
-	now := time.Now()
+	now := d.clock.Now()
 	var tmp []string
 	for _, name := range in {
 		if d.cache.IsDir(now, name) {
@@ -430,7 +436,7 @@ func (d *DirInode) filterMissingChildDirs(
 	err = b.Join()
 
 	// Update the cache with everything we learned.
-	now = time.Now()
+	now = d.clock.Now()
 	for _, name := range filteredSlice {
 		d.cache.NoteDir(now, name)
 	}
@@ -521,7 +527,7 @@ func (d *DirInode) LookUpChild(
 	name string) (o *gcs.Object, err error) {
 	// Consult the cache about the type of the child. This may save us work
 	// below.
-	now := time.Now()
+	now := d.clock.Now()
 	cacheSaysFile := d.cache.IsFile(now, name)
 	cacheSaysDir := d.cache.IsDir(now, name)
 
@@ -568,7 +574,7 @@ func (d *DirInode) LookUpChild(
 	}
 
 	// Update the cache.
-	now = time.Now()
+	now = d.clock.Now()
 	if fileRecord != nil {
 		d.cache.NoteFile(now, name)
 	}
@@ -652,7 +658,7 @@ func (d *DirInode) ReadEntries(
 	newTok = listing.ContinuationToken
 
 	// Update the type cache with everything we learned.
-	now := time.Now()
+	now := d.clock.Now()
 	for _, e := range entries {
 		switch e.Type {
 		case fuseutil.DT_File:
@@ -678,7 +684,7 @@ func (d *DirInode) CreateChildFile(
 		return
 	}
 
-	d.cache.NoteFile(time.Now(), name)
+	d.cache.NoteFile(d.clock.Now(), name)
 
 	return
 }
@@ -695,7 +701,7 @@ func (d *DirInode) CreateChildDir(
 		return
 	}
 
-	d.cache.NoteDir(time.Now(), name)
+	d.cache.NoteDir(d.clock.Now(), name)
 
 	return
 }
