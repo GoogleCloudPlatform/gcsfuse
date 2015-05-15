@@ -339,7 +339,7 @@ func (t *IntegrationTest) LargerThanLeaserLimit() {
 
 	// The contents should be lost, because the leaser should have revoked the
 	// read lease.
-	_, err = t.mo.ReadAt([]byte{}, 0)
+	_, err = t.mo.ReadAt(make([]byte, len(contents)), 0)
 	ExpectThat(err, Error(HasSubstr("not found")))
 }
 
