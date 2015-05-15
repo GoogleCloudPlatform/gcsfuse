@@ -98,6 +98,25 @@ func (mrp *multiReadProxy) ReadAt(
 	ctx context.Context,
 	p []byte,
 	off int64) (n int, err error) {
+	// Special case: can we read directly from our initial read lease?
+	if mrp.lease != nil {
+		n, err = mrp.lease.ReadAt(p, off)
+
+		// Successful?
+		if err == nil {
+			return
+		}
+
+		// Revoked?
+		if _, ok := err.(*RevokedError); ok {
+			mrp.lease = nil
+			err = nil
+		} else {
+			// Propagate other errors
+			return
+		}
+	}
+
 	// Special case: we don't support negative offsets, silly user.
 	if off < 0 {
 		err = fmt.Errorf("Invalid offset: %v", off)
