@@ -565,7 +565,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		// Read the contents of the mutable object.
 		_, err = t.mo.ReadAt(buf, 0)
 
-		AssertEq(nil, err)
+		AssertThat(err, AnyOf(nil, io.EOF))
 		if !bytes.Equal(buf, expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)
 			AbortTest()
@@ -590,7 +590,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		// Compare contents again.
 		_, err = t.mo.ReadAt(buf, 0)
 
-		AssertEq(nil, err)
+		AssertThat(err, AnyOf(nil, io.EOF))
 		if !bytes.Equal(buf, expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)
 			AbortTest()
@@ -610,7 +610,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		// Compare contents again.
 		_, err = t.mo.ReadAt(buf, 0)
 
-		AssertEq(nil, err)
+		AssertThat(err, AnyOf(nil, io.EOF))
 		if !bytes.Equal(buf, expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)
 			AbortTest()
@@ -627,7 +627,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		// Compare contents again.
 		_, err = t.mo.ReadAt(buf, 0)
 
-		AssertEq(nil, err)
+		AssertThat(err, AnyOf(nil, io.EOF))
 		if !bytes.Equal(buf, expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)
 			AbortTest()
