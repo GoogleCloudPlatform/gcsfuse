@@ -37,6 +37,31 @@ type ReadProxy struct {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
+func makeRefreshers(
+	chunkSize uint64,
+	o *gcs.Object,
+	bucket gcs.Bucket) (refreshers []lease.Refresher) {
+	// Iterate over each chunk of the object.
+	for startOff := uint64(0); startOff < o.Size; startOff += chunkSize {
+		r := gcs.ByteRange{startOff, startOff + chunkSize}
+
+		// Clip the range so that objectRefresher can report the correct size.
+		if r.Limit > o.Size {
+			r.Limit = o.Size
+		}
+
+		refresher := &objectRefresher{
+			O:      o,
+			Bucket: bucket,
+			Range:  &r,
+		}
+
+		refreshers = append(refreshers, refresher)
+	}
+
+	return
+}
+
 // Create a view on the given GCS object generation. If rl is non-nil, it must
 // contain a lease for the contents of the object and will be used when
 // possible instead of re-reading the object.
@@ -49,17 +74,26 @@ func NewReadProxy(
 	bucket gcs.Bucket,
 	o *gcs.Object,
 	rl lease.ReadLease) (rp *ReadProxy) {
+	// Sanity check: the read lease's size should match the object's size if it
+	// is present.
+	if rl != nil && uint64(rl.Size()) != o.Size {
+		panic(fmt.Sprintf(
+			"Read lease size %d doesn't match object size %d",
+			rl.Size(),
+			o.Size))
+	}
+
 	// Set up a lease.ReadProxy.
 	//
-	// TODO(jacobsa): Branch on chunkSize and use lease.NewMultiReadProxy if
-	// necessary.
-	wrapped := lease.NewReadProxy(
-		leaser,
-		&objectRefresher{
-			Bucket: bucket,
-			O:      o,
-		},
-		rl)
+	// Special case: don't bring in the complication of a multi-read proxy if we
+	// have only one refresher.
+	var wrapped lease.ReadProxy
+	refreshers := makeRefreshers(chunkSize, o, bucket)
+	if len(refreshers) == 1 {
+		wrapped = lease.NewReadProxy(leaser, refreshers[0], rl)
+	} else {
+		wrapped = lease.NewMultiReadProxy(leaser, refreshers, rl)
+	}
 
 	// Serve from that.
 	rp = &ReadProxy{
@@ -113,13 +147,19 @@ func (rp *ReadProxy) ReadAt(
 ////////////////////////////////////////////////////////////////////////
 
 // A refresher that returns the contents of a particular generation of a GCS
-// object.
+// object. Optionally, only a particular range is returned.
 type objectRefresher struct {
 	Bucket gcs.Bucket
 	O      *gcs.Object
+	Range  *gcs.ByteRange
 }
 
 func (r *objectRefresher) Size() (size int64) {
+	if r.Range != nil {
+		size = int64(r.Range.Limit - r.Range.Start)
+		return
+	}
+
 	size = int64(r.O.Size)
 	return
 }
@@ -129,6 +169,7 @@ func (r *objectRefresher) Refresh(
 	req := &gcs.ReadObjectRequest{
 		Name:       r.O.Name,
 		Generation: r.O.Generation,
+		Range:      r.Range,
 	}
 
 	rc, err = r.Bucket.NewReader(ctx, req)

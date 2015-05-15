@@ -35,12 +35,24 @@ func NewMultiReadProxy(
 	// Create one wrapped read proxy per refresher.
 	var wrappedProxies []readProxyAndOffset
 	var size int64
+
 	for _, r := range refreshers {
 		wrapped := NewReadProxy(fl, r, nil)
 		wrappedProxies = append(wrappedProxies, readProxyAndOffset{size, wrapped})
 		size += wrapped.Size()
 	}
 
+	// Check that the lease the user gave us, if any, is consistent.
+	if rl != nil && rl.Size() != size {
+		panic(fmt.Sprintf(
+			"Provided read lease of size %d bytes doesn't match combined size "+
+				"%d bytes for %d refreshers",
+			rl.Size(),
+			size,
+			len(refreshers)))
+	}
+
+	// Create the multi-read proxy.
 	rp = &multiReadProxy{
 		size:   size,
 		leaser: fl,

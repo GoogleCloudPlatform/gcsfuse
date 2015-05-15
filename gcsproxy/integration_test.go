@@ -63,8 +63,8 @@ func randBytes(n int) (b []byte) {
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-const chunkSize = 1<<16 + 3
-const fileLeaserLimit = 1 << 25
+const chunkSize = 1<<18 + 3
+const fileLeaserLimit = 1 << 21
 
 type IntegrationTest struct {
 	ctx    context.Context
@@ -339,7 +339,7 @@ func (t *IntegrationTest) LargerThanLeaserLimit() {
 
 	// The contents should be lost, because the leaser should have revoked the
 	// read lease.
-	_, err = t.mo.ReadAt([]byte{}, 0)
+	_, err = t.mo.ReadAt(make([]byte, len(contents)), 0)
 	ExpectThat(err, Error(HasSubstr("not found")))
 }
 
@@ -565,7 +565,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		// Read the contents of the mutable object.
 		_, err = t.mo.ReadAt(buf, 0)
 
-		AssertEq(nil, err)
+		AssertThat(err, AnyOf(nil, io.EOF))
 		if !bytes.Equal(buf, expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)
 			AbortTest()
@@ -590,7 +590,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		// Compare contents again.
 		_, err = t.mo.ReadAt(buf, 0)
 
-		AssertEq(nil, err)
+		AssertThat(err, AnyOf(nil, io.EOF))
 		if !bytes.Equal(buf, expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)
 			AbortTest()
@@ -610,7 +610,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		// Compare contents again.
 		_, err = t.mo.ReadAt(buf, 0)
 
-		AssertEq(nil, err)
+		AssertThat(err, AnyOf(nil, io.EOF))
 		if !bytes.Equal(buf, expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)
 			AbortTest()
@@ -627,7 +627,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		// Compare contents again.
 		_, err = t.mo.ReadAt(buf, 0)
 
-		AssertEq(nil, err)
+		AssertThat(err, AnyOf(nil, io.EOF))
 		if !bytes.Equal(buf, expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)
 			AbortTest()
