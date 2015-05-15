@@ -15,10 +15,14 @@
 package fstesting
 
 import (
+	"io/ioutil"
+	"os"
+	"path"
 	"time"
 
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
+	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
@@ -60,12 +64,53 @@ func (t *cachingTest) EmptyBucket() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *cachingTest) InteractWithExistingFile() {
+func (t *cachingTest) InteractWithNewFile() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *cachingTest) InteractWithNewFile() {
-	AssertTrue(false, "TODO")
+func (t *cachingTest) FileCreatedRemotely() {
+	const name = "foo"
+	const contents = "taco"
+
+	var fi os.FileInfo
+
+	// Create an object in GCS.
+	_, err := gcsutil.CreateObject(
+		t.ctx,
+		t.bucket,
+		name,
+		contents)
+
+	AssertEq(nil, err)
+
+	// It should immediately show up in a listing.
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq(name, fi.Name())
+	ExpectEq(len(contents), fi.Size())
+
+	// And we should be able to stat it.
+	fi, err = os.Stat(path.Join(t.Dir, name))
+	AssertEq(nil, err)
+
+	ExpectEq(name, fi.Name())
+	ExpectEq(len(contents), fi.Size())
+
+	// And read it.
+	b, err := ioutil.ReadFile(path.Join(t.Dir, name))
+	AssertEq(nil, err)
+	ExpectEq(contents, string(b))
+
+	// And overwrite it, and read it back again.
+	err = ioutil.WriteFile(path.Join(t.Dir, name), []byte("burrito"), 0500)
+	AssertEq(nil, err)
+
+	b, err = ioutil.ReadFile(path.Join(t.Dir, name))
+	AssertEq(nil, err)
+	ExpectEq("burrito", string(b))
 }
 
 func (t *cachingTest) FileChangedRemotely() {
@@ -85,5 +130,17 @@ func (t *cachingTest) CreateNewDirectory() {
 }
 
 func (t *cachingTest) ImplicitDirectories() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *cachingTest) ConflictingNames() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *cachingTest) TypeOfNameChanges_LocalModifier() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *cachingTest) TypeOfNameChanges_RemoteModifier() {
 	AssertTrue(false, "TODO")
 }
