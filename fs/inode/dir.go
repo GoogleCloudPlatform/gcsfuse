@@ -367,7 +367,7 @@ func (d *DirInode) filterMissingChildDirs(
 
 	// First add any names that we already know are directories according to our
 	// cache, removing them from the input.
-	now := time.Now()
+	now := d.clock.Now()
 	var tmp []string
 	for _, name := range in {
 		if d.cache.IsDir(now, name) {
@@ -436,7 +436,7 @@ func (d *DirInode) filterMissingChildDirs(
 	err = b.Join()
 
 	// Update the cache with everything we learned.
-	now = time.Now()
+	now = d.clock.Now()
 	for _, name := range filteredSlice {
 		d.cache.NoteDir(now, name)
 	}
@@ -527,7 +527,7 @@ func (d *DirInode) LookUpChild(
 	name string) (o *gcs.Object, err error) {
 	// Consult the cache about the type of the child. This may save us work
 	// below.
-	now := time.Now()
+	now := d.clock.Now()
 	cacheSaysFile := d.cache.IsFile(now, name)
 	cacheSaysDir := d.cache.IsDir(now, name)
 
@@ -574,7 +574,7 @@ func (d *DirInode) LookUpChild(
 	}
 
 	// Update the cache.
-	now = time.Now()
+	now = d.clock.Now()
 	if fileRecord != nil {
 		d.cache.NoteFile(now, name)
 	}
@@ -658,7 +658,7 @@ func (d *DirInode) ReadEntries(
 	newTok = listing.ContinuationToken
 
 	// Update the type cache with everything we learned.
-	now := time.Now()
+	now := d.clock.Now()
 	for _, e := range entries {
 		switch e.Type {
 		case fuseutil.DT_File:
@@ -684,7 +684,7 @@ func (d *DirInode) CreateChildFile(
 		return
 	}
 
-	d.cache.NoteFile(time.Now(), name)
+	d.cache.NoteFile(d.clock.Now(), name)
 
 	return
 }
@@ -701,7 +701,7 @@ func (d *DirInode) CreateChildDir(
 		return
 	}
 
-	d.cache.NoteDir(time.Now(), name)
+	d.cache.NoteDir(d.clock.Now(), name)
 
 	return
 }
