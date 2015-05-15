@@ -510,6 +510,18 @@ func (t *IntegrationTest) MultipleInteractions() {
 		((fileLeaserLimit / chunkSize) + 1) * chunkSize,
 	}
 
+	// Generate random contents for the maximum size.
+	var maxSize int
+	for _, size := range sizes {
+		if size > maxSize {
+			maxSize = size
+		}
+	}
+
+	randData := make([]byte, maxSize)
+	_, err = io.ReadFull(rand.Reader, randData)
+	AssertEq(nil, err)
+
 	// Transition the mutable object in and out of the dirty state. Make sure
 	// everything stays consistent.
 	for i, size := range sizes {
@@ -519,9 +531,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 
 		// Create the backing object with random initial contents.
 		expectedContents := make([]byte, size)
-
-		_, err = io.ReadFull(rand.Reader, expectedContents)
-		AssertEq(nil, err)
+		copy(expectedContents, randData)
 
 		o, err := gcsutil.CreateObject(
 			t.ctx,
