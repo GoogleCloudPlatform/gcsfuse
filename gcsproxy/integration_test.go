@@ -16,10 +16,10 @@ package gcsproxy_test
 
 import (
 	"bytes"
-	"crypto/rand"
 	"fmt"
 	"io"
 	"math"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -36,6 +36,28 @@ import (
 )
 
 func TestIntegration(t *testing.T) { RunTests(t) }
+
+////////////////////////////////////////////////////////////////////////
+// Boilerplate
+////////////////////////////////////////////////////////////////////////
+
+// Create random content of the given length, which must be a multiple of 4.
+func randBytes(n int) (b []byte) {
+	if n%4 != 0 {
+		panic(fmt.Sprintf("Invalid n: %d", n))
+	}
+
+	b = make([]byte, n)
+	for i := 0; i < n; i += 4 {
+		w := rand.Uint32()
+		b[i] = byte(w >> 24)
+		b[i+1] = byte(w >> 16)
+		b[i+2] = byte(w >> 8)
+		b[i+3] = byte(w >> 0)
+	}
+
+	return
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -489,8 +511,6 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 }
 
 func (t *IntegrationTest) MultipleInteractions() {
-	var err error
-
 	// We will run through the script below for multiple interesting object
 	// sizes.
 	sizes := []int{
@@ -518,9 +538,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		}
 	}
 
-	randData := make([]byte, maxSize)
-	_, err = io.ReadFull(rand.Reader, randData)
-	AssertEq(nil, err)
+	randData := randBytes(maxSize)
 
 	// Transition the mutable object in and out of the dirty state. Make sure
 	// everything stays consistent.
