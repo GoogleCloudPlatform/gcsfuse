@@ -65,13 +65,13 @@ var fSupportNlink = flag.Bool(
 
 var fStatCacheTTL = flag.String(
 	"stat_cache_ttl",
-	"",
+	"1m",
 	"If non-empty, a duration specifying how long to cache StatObject results "+
 		"from GCS, e.g. \"2s\" or \"15ms\". See docs/semantics.md for more.")
 
 var fTypeCacheTTL = flag.String(
 	"type_cache_ttl",
-	"",
+	"1m",
 	"If non-empty, a duration specifying how long to cache name -> file/dir type "+
 		"mappings in directory inodes, e.g. \"2s\" or \"15ms\". "+
 		"See docs/semantics.md.")
