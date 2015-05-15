@@ -711,6 +711,7 @@ func (t *MutableObjectTest) WriteThenSyncThenWriteThenSync() {
 	// Sync -- should cause the full contents to be written out.
 	expected := initialContents[:1] + "burrito"
 	o.Generation = 2
+	o.Size = uint64(len(expected))
 	ExpectCall(t.bucket, "CreateObject")(Any(), contentsAre(expected)).
 		WillOnce(oglemock.Return(o, nil))
 
