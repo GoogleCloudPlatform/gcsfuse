@@ -74,8 +74,8 @@ directories or both. When a child is looked up, if the parent's cache says that
 the child is a file but not a directory, only one GCS object will need to be
 statted. Similarly if the child is a directory but not a file.
 
-**Warning**: Setting `--type_cache_ttl` breaks the consistency guarantees
-discussed in this document. It is safe only in the following situations:
+**Warning**: Using type caching breaks the consistency guarantees discussed in
+this document. It is safe only in the following situations:
 
  *  The mounted bucket is never modified.
  *  The type (file or directory) for any given path never changes.
