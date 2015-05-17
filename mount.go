@@ -56,7 +56,8 @@ var fGCSChunkSize = flag.Uint64(
 var fImplicitDirs = flag.Bool(
 	"implicit_dirs",
 	false,
-	"Implicitly define directories based on their content. See docs/semantics.md.")
+	"Implicitly define directories based on their content. See "+
+		"docs/semantics.md.")
 
 var fSupportNlink = flag.Bool(
 	"support_nlink",
@@ -72,8 +73,8 @@ var fStatCacheTTL = flag.String(
 var fTypeCacheTTL = flag.String(
 	"type_cache_ttl",
 	"1m",
-	"If non-empty, a duration specifying how long to cache name -> file/dir type "+
-		"mappings in directory inodes, e.g. \"2s\" or \"15ms\". "+
+	"If non-empty, a duration specifying how long to cache name -> file/dir "+
+		"type mappings in directory inodes, e.g. \"2s\" or \"15ms\". "+
 		"See docs/semantics.md.")
 
 func getBucketName() string {
