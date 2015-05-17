@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/fs"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
 	"golang.org/x/net/context"
@@ -163,6 +164,21 @@ func main() {
 		if err != nil {
 			log.Fatalf("Invalid --type_cache_ttl: %v", err)
 			return
+		}
+	}
+
+	// Sanity check: make sure the temporary directory exists and is writable
+	// currently. This gives a better user experience than harder to debug EIO
+	// errors when reading files in the future.
+	if *fTempDir != "" {
+		f, err := fsutil.AnonymousFile(*fTempDir)
+		f.Close()
+
+		if err != nil {
+			log.Fatalf(
+				"Error writing to temporary directory (%q); are you sure it exists "+
+					"with the correct permissions?",
+				err.Error())
 		}
 	}
 
