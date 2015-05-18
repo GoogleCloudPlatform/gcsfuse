@@ -31,12 +31,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-func usage() {
-	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	fmt.Fprintf(os.Stderr, "  %s [flags] <mount-point>\n", os.Args[0])
-	flag.PrintDefaults()
-}
-
 var fBucketName = flag.String("bucket", "", "Name of GCS bucket to mount.")
 var fMountPoint = flag.String("mount_point", "", "File system location.")
 var fReadOnly = flag.Bool("read_only", false, "Mount in read-only mode.")
@@ -147,7 +141,6 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
 	// Set up flags.
-	flag.Usage = usage
 	flag.Parse()
 
 	// Check --mount_point.
