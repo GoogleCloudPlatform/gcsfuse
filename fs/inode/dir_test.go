@@ -92,7 +92,14 @@ func (t *DirTest) Name() {
 }
 
 func (t *DirTest) LookupCount() {
-	AssertTrue(false, "TODO")
+	// Increment thrice. The count should now be three.
+	t.in.IncrementLookupCount()
+	t.in.IncrementLookupCount()
+	t.in.IncrementLookupCount()
+
+	// Decrementing twice shouldn't cause destruction. But one more should.
+	AssertFalse(t.in.DecrementLookupCount(2))
+	ExpectTrue(t.in.DecrementLookupCount(1))
 }
 
 func (t *DirTest) Attributes() {
