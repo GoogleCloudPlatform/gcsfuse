@@ -4,9 +4,9 @@
 # compatibility with the `mount` command. Edit the variables below, then install
 # as /sbin/mount_gcsfuse on OS X or /sbin/mount.gcsfuse on Linux.
 
-# Path to the mount_gcsfuse binary obtained by running
-#     go install github.com/googlecloudplatform/gcsfuse/mount_gcsfuse
-MOUNT_GCSFUSE=/Users/jacobsa/go/bin/mount_gcsfuse
+# Path to the gcsfuse_mount_helper binary obtained by running
+#     go install github.com/googlecloudplatform/gcsfuse/gcsfuse_mount_helper
+HELPER=/Users/jacobsa/go/bin/gcsfuse_mount_helper
 
 # A $PATH-like string containing the gcsfuse binary and (on Linux) the
 # fusermount binary.
@@ -17,5 +17,5 @@ WRAPPED_PATH=/Users/jacobsa/go/bin
 OUTPUT=/tmp/gcsfuse.output
 
 # Run under daemon so that we return to mount(8) immediately.
-daemon --env="PATH=$WRAPPED_PATH" --output $OUTPUT -- $MOUNT_GCSFUSE "$@"
+daemon --env="PATH=$WRAPPED_PATH" --output $OUTPUT -- $HELPER "$@"
 exit

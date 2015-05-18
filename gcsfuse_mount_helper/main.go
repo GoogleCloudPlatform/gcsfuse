@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// mount_gcsfuse is a small helper for using gcsfuse with mount(8).
+// A small helper for using gcsfuse with mount(8).
 //
-// mount_gcsfuse can be invoked using a command-line of the form expected for
-// mount helpers. It calls the gcsfuse binary, which must be in $PATH, and
-// waits for it to complete. The device is passed as --bucket, and other known
-// options are converted to appropriate flags.
+// Can be invoked using a command-line of the form expected for mount helpers.
+// Calls the gcsfuse binary, which must be in $PATH, and waits for it to
+// complete. The device is passed as --bucket, and other known options are
+// converted to appropriate flags.
 //
-// mount_gcsfuse does not daemonize, and therefore must be used with a wrapper
+// This binary does not daemonize, and therefore must be used with a wrapper
 // that performs daemonization if it is to be used directly with mount(8).
 package main
 
@@ -71,7 +71,7 @@ func parseArgs() (device string, mountPoint string, opts []Option, err error) {
 	//
 	// becomes the following arguments:
 	//
-	//     Arg 0: "/path/to/mount_gcsfuse"
+	//     Arg 0: "/path/to/gcsfuse_mount_helper"
 	//     Arg 1: "-o"
 	//     Arg 2: "key_file=/some file.json"
 	//     Arg 3: "-o"
@@ -87,7 +87,7 @@ func parseArgs() (device string, mountPoint string, opts []Option, err error) {
 	//
 	// becomes
 	//
-	//     Arg 0: "/path/to/mount_gcsfuse"
+	//     Arg 0: "/path/to/gcsfuse_mount_helper"
 	//     Arg 1: "bucket"
 	//     Arg 2: "/path/to/mp"
 	//     Arg 3: "-o"
