@@ -171,6 +171,14 @@ func makeGcsfuseArgs(
 		case "ro":
 			args = append(args, "--read_only")
 
+		// Ignore arguments for default and unsupported behavior automatically
+		// added by mount(8) on Linux.
+		case "rw":
+		case "noexec":
+		case "nosuid":
+		case "nodev":
+		case "user":
+
 		default:
 			err = fmt.Errorf(
 				"Unrecognized mount option: %q (value %q)",
