@@ -15,6 +15,7 @@
 package inode_test
 
 import (
+	"fmt"
 	"math"
 	"os"
 	"testing"
@@ -119,9 +120,46 @@ func (t *FileTest) InitialAttributes() {
 }
 
 func (t *FileTest) Read() {
-	// TODO(jacobsa): Test various ranges in a table-driven test. Make sure no
-	// EOF.
-	AssertTrue(false, "TODO")
+	AssertEq("taco", t.initialContents)
+
+	// Make several reads, checking the expected contents. We should never get an
+	// EOF error, since fuseops.ReadFileOp is not supposed to see those.
+	testCases := []struct {
+		offset   int64
+		size     int
+		expected string
+	}{
+		{0, 1, "t"},
+		{0, 2, "ta"},
+		{0, 3, "tac"},
+		{0, 4, "taco"},
+		{0, 5, "taco"},
+
+		{1, 1, "a"},
+		{1, 2, "ac"},
+		{1, 3, "aco"},
+		{1, 4, "aco"},
+
+		{3, 1, "o"},
+		{3, 2, "o"},
+
+		// Empty ranges
+		{0, 0, ""},
+		{3, 0, ""},
+		{4, 0, ""},
+		{4, 1, ""},
+		{5, 0, ""},
+		{5, 1, ""},
+		{5, 2, ""},
+	}
+
+	for _, tc := range testCases {
+		desc := fmt.Sprintf("offset: %d, size: %d", tc.offset, tc.size)
+
+		data, err := t.in.Read(t.ctx, tc.offset, tc.size)
+		AssertEq(nil, err, "%s", desc)
+		ExpectEq(tc.expected, string(data), "%s", desc)
+	}
 }
 
 func (t *FileTest) Write() {
