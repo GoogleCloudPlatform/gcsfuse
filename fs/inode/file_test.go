@@ -104,7 +104,7 @@ func (t *FileTest) Name() {
 }
 
 func (t *FileTest) InitialSourceGeneration() {
-	AssertTrue(false, "TODO")
+	ExpectEq(t.backingObj.Generation, t.in.SourceGeneration())
 }
 
 func (t *FileTest) InitialAttributes() {
