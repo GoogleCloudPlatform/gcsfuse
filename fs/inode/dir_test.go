@@ -193,7 +193,32 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Disabled() {
 }
 
 func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
-	AssertTrue(false, "TODO")
+	const name = "qux"
+	objName := path.Join(inodeName, name) + "/"
+
+	var o *gcs.Object
+	var err error
+
+	// Enable implicit dirs.
+	t.resetInode(true)
+
+	// Create an object that implicitly defines the directory.
+	otherObjName := path.Join(objName, "asdf")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, "")
+	AssertEq(nil, err)
+
+	// Looking up the name should work.
+	o, err = t.in.LookUpChild(t.ctx, name)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(objName, o.Name)
+	ExpectEq(0, o.Generation)
+
+	// A conflict marker should not work.
+	o, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	AssertEq(nil, err)
+	ExpectEq(nil, o)
 }
 
 func (t *DirTest) LookUpChild_FileAndDir() {
