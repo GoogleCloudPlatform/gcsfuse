@@ -15,6 +15,7 @@
 package fstesting
 
 import (
+	"io/ioutil"
 	"os"
 	"path"
 
@@ -43,7 +44,8 @@ func (t *readOnlyTest) setUpFSTest(cfg FSTestConfig) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *readOnlyTest) CreateFile() {
-	AssertTrue(false, "TODO")
+	err := ioutil.WriteFile(path.Join(t.Dir, "foo"), []byte{}, 0700)
+	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
 func (t *readOnlyTest) ModifyFile() {
