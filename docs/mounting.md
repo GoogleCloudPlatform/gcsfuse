@@ -78,7 +78,8 @@ command like the following:
 
     mount -t gcsfuse -o key_file=/path/to/key.json my-bucket /path/to/mount/point
 
-Similarly, a line like the following can be added to `/etc/fstab`:
+Similarly, a line like the following can be added to `/etc/fstab` (on Linux you
+may need to add the `user` option to allow non-root users):
 
     my-bucket /path/to/mount/point gcsfuse key_file=/path/to/key.json
 
