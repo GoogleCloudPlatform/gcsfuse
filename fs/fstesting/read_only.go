@@ -42,15 +42,23 @@ func (t *readOnlyTest) setUpFSTest(cfg FSTestConfig) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *readOnlyTest) CreateObject() {
+func (t *readOnlyTest) CreateFile() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readOnlyTest) ModifyObject() {
-	AssertTrue(false, "TODO")
+func (t *readOnlyTest) ModifyFile() {
+	// Create an object in the bucket.
+	_, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	AssertEq(nil, err)
+
+	// Opening it for writing should fail.
+	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	f.Close()
+
+	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
-func (t *readOnlyTest) DeleteObject() {
+func (t *readOnlyTest) DeleteFile() {
 	// Create an object in the bucket.
 	_, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
 	AssertEq(nil, err)
