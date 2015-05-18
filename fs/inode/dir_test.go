@@ -72,6 +72,122 @@ func (t *DirTest) resetInode(implicitDirs bool) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *DirTest) DoesFoo() {
+func (t *DirTest) ID() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) Name() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) LookupCount() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) Attributes() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) LookUpChild_NonExistent() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) LookUpChild_FileOnly() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) LookUpChild_DirOnly() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) LookUpChild_ImplicitDirOnly_Disabled() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) LookUpChild_FileAndDir() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) LookUpChild_TypeCaching() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) ReadEntries_Empty() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) ReadEntries_LotsOfEntries() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) ReadEntries_TypeCaching() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) CreateChildFile_DoesntExist() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) CreateChildFile_Exists() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) CreateChildFile_TypeCaching() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) CreateChildDir_DoesntExist() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) CreateChildDir_Exists() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) CreateChildDir_TypeCaching() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) DeleteChildFile_DoesntExist() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) DeleteChildFile_Exists() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) DeleteChildFile_TypeCaching() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) DeleteChildDir_DoesntExist() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) DeleteChildDir_Exists() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) DeleteChildDir_TypeCaching() {
 	AssertTrue(false, "TODO")
 }
