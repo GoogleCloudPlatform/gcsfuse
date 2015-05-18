@@ -72,3 +72,14 @@ a daemonizing wrapper program to start gcsfuse.
 [gcsfuse_mount_helper/sample.sh][] contains an example that uses `daemon`.
 
 [gcsfuse_mount_helper/sample.sh]: /gcsfuse_mount_helper/sample.sh
+
+Once this helper is installed, you should be able to mount a bucket with a
+command like the following:
+
+    mount -t gcsfuse -o key_file=/path/to/key.json my-bucket /path/to/mount/point
+
+Similarly, a line like the following can be added to `/etc/fstab`:
+
+    my-bucket /path/to/mount/point gcsfuse key_file=/path/to/key.json
+
+Afterward, you can run simply `mount my-bucket`.
