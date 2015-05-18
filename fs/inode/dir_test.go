@@ -46,6 +46,7 @@ type DirTest struct {
 }
 
 var _ SetUpInterface = &DirTest{}
+var _ TearDownInterface = &DirTest{}
 
 func init() { RegisterTestSuite(&DirTest{}) }
 
@@ -58,7 +59,15 @@ func (t *DirTest) SetUp(ti *TestInfo) {
 	t.resetInode(false)
 }
 
+func (t *DirTest) TearDown() {
+	t.in.Unlock()
+}
+
 func (t *DirTest) resetInode(implicitDirs bool) {
+	if t.in != nil {
+		t.in.Unlock()
+	}
+
 	t.in = inode.NewDirInode(
 		inodeID,
 		inodeName,
@@ -66,6 +75,8 @@ func (t *DirTest) resetInode(implicitDirs bool) {
 		typeCacheTTL,
 		t.bucket,
 		&t.clock)
+
+	t.in.Lock()
 }
 
 ////////////////////////////////////////////////////////////////////////
