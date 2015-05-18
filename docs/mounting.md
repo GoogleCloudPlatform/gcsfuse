@@ -39,3 +39,11 @@ include [daemon][], [daemonize][], [daemontools][], [systemd][], and
 [daemontools]: http://cr.yp.to/daemontools.html
 [systemd]: http://www.freedesktop.org/wiki/Software/systemd/
 [upstart]: http://upstart.ubuntu.com/
+
+For example, `daemon` can be installed using `sudo apt-get install daemon` on
+Ubuntu or `brew install daemon` with [homebrew][] on OS X. Afterward, gcsfuse
+can be run with:
+
+    daemon -- gcsfuse --key_file /key.json --bucket [...]
+
+[homebrew]: http://brew.sh/
