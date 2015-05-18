@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 )
 
@@ -191,7 +192,6 @@ func main() {
 	device, mountPoint, opts, err := parseArgs()
 	if err != nil {
 		log.Fatalf("parseArgs: %v", err)
-		return
 	}
 
 	// Print what we gleaned.
@@ -205,12 +205,22 @@ func main() {
 	gcsfuseArgs, err := makeGcsfuseArgs(opts)
 	if err != nil {
 		log.Fatalf("makeGcsfuseArgs: %v", err)
-		return
 	}
 
 	for _, a := range gcsfuseArgs {
 		log.Printf("gcsfuse arg: %q", a)
 	}
 
-	os.Exit(1)
+	// Run gcsfuse and wait for it to complete.
+	cmd := exec.Command("gcsfuse", gcsfuseArgs...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err = cmd.Run()
+	if err != nil {
+		log.Fatalf("gcsfuse failed or failed to run: %v", err)
+	}
+
+	log.Println("gcsfuse completed successfully.")
 }
