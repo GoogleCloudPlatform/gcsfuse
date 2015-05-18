@@ -20,6 +20,10 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/googlecloudplatform/gcsfuse/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/timeutil"
+	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -30,11 +34,15 @@ func TestDir(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 
 const inodeID = 17
-const inodeName = "foo/bar"
+const inodeName = "foo/bar/"
 const typeCacheTTL = time.Second
 
 type DirTest struct {
-	ctx context.Context
+	ctx    context.Context
+	bucket gcs.Bucket
+	clock  timeutil.SimulatedClock
+
+	in *inode.DirInode
 }
 
 var _ SetUpInterface = &DirTest{}
@@ -43,7 +51,21 @@ func init() { RegisterTestSuite(&DirTest{}) }
 
 func (t *DirTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
-	AssertTrue(false, "TODO")
+	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
+	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
+
+	// Create the inode. No implicit dirs by default.
+	t.resetInode(false)
+}
+
+func (t *DirTest) resetInode(implicitDirs bool) {
+	t.in = inode.NewDirInode(
+		inodeID,
+		inodeName,
+		implicitDirs,
+		typeCacheTTL,
+		t.bucket,
+		&t.clock)
 }
 
 ////////////////////////////////////////////////////////////////////////
