@@ -26,6 +26,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/fs"
+	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/ogletest"
 	"github.com/jacobsa/ogletest/srcutil"
 )
@@ -35,6 +36,9 @@ import (
 type FSTestConfig struct {
 	// Configuration for the fuse server to be created.
 	ServerConfig fs.ServerConfig
+
+	// Configuration to use when mounting.
+	MountConfig fuse.MountConfig
 
 	// A context to use for the test.
 	ctx context.Context
