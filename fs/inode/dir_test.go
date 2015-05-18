@@ -24,9 +24,11 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
+	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -66,6 +68,10 @@ func (t *DirTest) TearDown() {
 	t.in.Unlock()
 }
 
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
 func (t *DirTest) resetInode(implicitDirs bool) {
 	if t.in != nil {
 		t.in.Unlock()
@@ -80,6 +86,22 @@ func (t *DirTest) resetInode(implicitDirs bool) {
 		&t.clock)
 
 	t.in.Lock()
+}
+
+func (t *DirTest) readAllEntries() (entries []fuseutil.Dirent, err error) {
+	tok := ""
+	for {
+		var tmp []fuseutil.Dirent
+		tmp, tok, err = t.in.ReadEntries(t.ctx, tok)
+		entries = append(entries, tmp...)
+		if err != nil {
+			return
+		}
+
+		if tok == "" {
+			return
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -378,7 +400,10 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 }
 
 func (t *DirTest) ReadEntries_Empty() {
-	AssertTrue(false, "TODO")
+	entries, err := t.readAllEntries()
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
 }
 
 func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
