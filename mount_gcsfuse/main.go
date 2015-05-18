@@ -195,11 +195,11 @@ func makeGcsfuseArgs(
 		}
 	}
 
-	// Set up the bucket.
+	// Set the bucket.
 	args = append(args, "--bucket="+device)
 
-	// Include the mount point last.
-	args = append(args, mountPoint)
+	// Set the mount point.
+	args = append(args, "--mount_point="+mountPoint)
 
 	return
 }
