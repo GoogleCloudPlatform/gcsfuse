@@ -453,7 +453,45 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 }
 
 func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
-	AssertTrue(false, "TODO")
+	var err error
+	var entry fuseutil.Dirent
+
+	// Enable implicit dirs.
+	t.resetInode(true)
+
+	// Set up contents.
+	objs := []string{
+		inodeName + "backed_dir_empty/",
+		inodeName + "backed_dir_nonempty/",
+		inodeName + "backed_dir_nonempty/blah",
+		inodeName + "file",
+		inodeName + "implicit_dir/blah",
+	}
+
+	err = gcsutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+	AssertEq(nil, err)
+
+	// Read entries.
+	entries, err := t.readAllEntries()
+
+	AssertEq(nil, err)
+	AssertEq(4, len(entries))
+
+	entry = entries[0]
+	ExpectEq("backed_dir_empty", entry.Name)
+	ExpectEq(fuseutil.DT_Directory, entry.Type)
+
+	entry = entries[1]
+	ExpectEq("backed_dir_nonempty", entry.Name)
+	ExpectEq(fuseutil.DT_Directory, entry.Type)
+
+	entry = entries[2]
+	ExpectEq("file", entry.Name)
+	ExpectEq(fuseutil.DT_File, entry.Type)
+
+	entry = entries[3]
+	ExpectEq("implicit_dir", entry.Name)
+	ExpectEq(fuseutil.DT_Directory, entry.Type)
 }
 
 func (t *DirTest) ReadEntries_LotsOfEntries() {
