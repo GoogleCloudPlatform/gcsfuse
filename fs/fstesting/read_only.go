@@ -29,8 +29,13 @@ type readOnlyTest struct {
 func init() { registerSuitePrototype(&readOnlyTest{}) }
 
 func (t *readOnlyTest) setUpFSTest(cfg FSTestConfig) {
-	panic("TODO")
+	cfg.MountConfig.ReadOnly = true
+	t.fsTest.setUpFSTest(cfg)
 }
+
+////////////////////////////////////////////////////////////////////////
+// Tests
+////////////////////////////////////////////////////////////////////////
 
 func (t *readOnlyTest) DeleteObject() {
 	AssertTrue(false, "TODO")
