@@ -71,4 +71,4 @@ final step is to install an external mount helper with a system-specific name
 a daemonizing wrapper program to start gcsfuse.
 [gcsfuse_mount_helper/sample.sh][] contains an example that uses `daemon`.
 
-[gcsfuse_mount_helper/sample.sh]: gcsfuse_mount_helper/sample.sh
+[gcsfuse_mount_helper/sample.sh]: /gcsfuse_mount_helper/sample.sh
