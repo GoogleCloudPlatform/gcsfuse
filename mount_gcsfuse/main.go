@@ -15,24 +15,55 @@
 // mount_gcsfuse is a small helper for using gcsfuse with mount(8).
 //
 // mount_gcsfuse can be invoked using a command-line of the form expected for
-// mount helpers. It simply calls the gcsfuse binary, which must be in $PATH,
-// and waits for it to complete.
+// mount helpers. It calls the gcsfuse binary, which must be in $PATH, and
+// waits for it to complete. The device is passed as --bucket, and other known
+// options are converted to appropriate flags.
 //
 // mount_gcsfuse does not daemonize, and therefore must be used with a wrapper
 // that performs daemonization if it is to be used directly with mount(8).
 package main
 
 import (
+	"errors"
 	"log"
 	"os"
 )
 
+// A 'name=value' mount option. If '=value' is not present, only the name will
+// be filled in.
+type Option struct {
+	Name  string
+	Value string
+}
+
+// Attempt to parse the terrible undocumented format that mount(8) gives us.
+// Return the 'device' (aka 'special' on OS X), the mount point, and a list of
+// mount options encountered.
+func parseArgs() (device string, mountPoint string, opts []Option, err error) {
+	err = errors.New("TODO: parseArgs")
+	return
+}
+
 func main() {
 	// Print out each argument.
 	//
-	// TODO(jacobsa): Get rid of this.
+	// TODO(jacobsa): Get rid of some or all of the debug logging.
 	for i, arg := range os.Args {
 		log.Printf("Arg %d: %q", i, arg)
+	}
+
+	// Attempt to parse arguments.
+	device, mountPoint, opts, err := parseArgs()
+	if err != nil {
+		log.Fatalf("parseArgs: %v", err)
+		return
+	}
+
+	// Print what we gleaned.
+	log.Printf("Device: %q", device)
+	log.Printf("Mount point: %q", mountPoint)
+	for _, opt := range opts {
+		log.Printf("Option %q: %q", opt.Name, opt.Value)
 	}
 
 	os.Exit(1)
