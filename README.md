@@ -78,6 +78,11 @@ notes in [semantics.md][semantics-implicit-dirs] for more information.
 
 [semantics-implicit-dirs]: docs/semantics.md#implicit-directories
 
+See [mounting.md][] for more detail, including notes on running as a daemon and
+fstab compatiblity.
+
+[mounting.md]: /docs/mounting.md
+
 
 # Performance
 
