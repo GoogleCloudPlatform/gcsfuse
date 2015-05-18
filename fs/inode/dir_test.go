@@ -295,7 +295,45 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 }
 
 func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
-	AssertTrue(false, "TODO")
+	const name = "qux"
+	fileObjName := path.Join(inodeName, name)
+	dirObjName := path.Join(inodeName, name) + "/"
+
+	var o *gcs.Object
+	var err error
+
+	// Enable implicit dirs.
+	t.resetInode(true)
+
+	// Create backing objects.
+	fileObj, err := gcsutil.CreateObject(t.ctx, t.bucket, fileObjName, "taco")
+	AssertEq(nil, err)
+
+	dirObj, err := gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, "")
+	AssertEq(nil, err)
+
+	// Create an object that implicitly defines the directory.
+	otherObjName := path.Join(inodeName, name) + "/asdf"
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, "")
+	AssertEq(nil, err)
+
+	// Look up with the proper name.
+	o, err = t.in.LookUpChild(t.ctx, name)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(dirObjName, o.Name)
+	ExpectEq(dirObj.Generation, o.Generation)
+	ExpectEq(dirObj.Size, o.Size)
+
+	// Look up with the conflict marker name.
+	o, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(fileObjName, o.Name)
+	ExpectEq(fileObj.Generation, o.Generation)
+	ExpectEq(fileObj.Size, o.Size)
 }
 
 func (t *DirTest) LookUpChild_TypeCaching() {
