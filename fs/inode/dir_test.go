@@ -713,7 +713,3 @@ func (t *DirTest) DeleteChildDir_Exists() {
 	_, err = gcsutil.ReadObject(t.ctx, t.bucket, objName)
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
-
-func (t *DirTest) DeleteChildDir_TypeCaching() {
-	AssertTrue(false, "TODO")
-}
