@@ -628,16 +628,27 @@ func (t *DirTest) CreateChildDir_Exists() {
 	ExpectThat(err, Error(HasSubstr("exists")))
 }
 
-func (t *DirTest) CreateChildDir_TypeCaching() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *DirTest) DeleteChildFile_DoesntExist() {
 	AssertTrue(false, "TODO")
 }
 
 func (t *DirTest) DeleteChildFile_Exists() {
-	AssertTrue(false, "TODO")
+	const name = "qux"
+	objName := path.Join(inodeName, name)
+
+	var err error
+
+	// Create a backing object.
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, "taco")
+	AssertEq(nil, err)
+
+	// Call the inode.
+	err = t.in.DeleteChildFile(t.ctx, name)
+	AssertEq(nil, err)
+
+	// Check the bucket.
+	_, err = gcsutil.ReadObject(t.ctx, t.bucket, objName)
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
 func (t *DirTest) DeleteChildFile_TypeCaching() {
