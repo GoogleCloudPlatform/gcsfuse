@@ -15,6 +15,11 @@
 package fstesting
 
 import (
+	"os"
+	"path"
+
+	"github.com/jacobsa/gcloud/gcs/gcsutil"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -37,7 +42,7 @@ func (t *readOnlyTest) setUpFSTest(cfg FSTestConfig) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *readOnlyTest) DeleteObject() {
+func (t *readOnlyTest) CreateObject() {
 	AssertTrue(false, "TODO")
 }
 
@@ -45,6 +50,18 @@ func (t *readOnlyTest) ModifyObject() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *readOnlyTest) CreateObject() {
-	AssertTrue(false, "TODO")
+func (t *readOnlyTest) DeleteObject() {
+	// Create an object in the bucket.
+	_, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	AssertEq(nil, err)
+
+	// Attempt to delete it via the file system.
+	err = os.Remove(path.Join(t.Dir, "foo"))
+	ExpectThat(err, Error(HasSubstr("read-only")))
+
+	// the bucket should not have been modified.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+
+	AssertEq(nil, err)
+	ExpectEq("taco", contents)
 }
