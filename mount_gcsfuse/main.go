@@ -21,3 +21,17 @@
 // mount_gcsfuse does not daemonize, and therefore must be used with a wrapper
 // that performs daemonization if it is to be used directly with mount(8).
 package main
+
+import (
+	"log"
+	"os"
+)
+
+func main() {
+	// Print out each argument.
+	for i, arg := range os.Args {
+		log.Printf("Arg %d: %q", i, arg)
+	}
+
+	os.Exit(1)
+}
