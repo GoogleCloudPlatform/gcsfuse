@@ -38,6 +38,7 @@ func usage() {
 }
 
 var fBucketName = flag.String("bucket", "", "Name of GCS bucket to mount.")
+var fReadOnly = flag.Bool("read_only", false, "Mount in read-only mode.")
 
 var fTempDir = flag.String(
 	"temp_dir", "",
@@ -200,7 +201,11 @@ func main() {
 	}
 
 	// Mount the file system.
-	mountedFS, err := fuse.Mount(mountPoint, server, &fuse.MountConfig{})
+	mountCfg := &fuse.MountConfig{
+		ReadOnly: *fReadOnly,
+	}
+
+	mountedFS, err := fuse.Mount(mountPoint, server, mountCfg)
 	if err != nil {
 		log.Fatal("Mount:", err)
 	}
