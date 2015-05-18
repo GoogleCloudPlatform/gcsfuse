@@ -206,14 +206,17 @@ func (f *FileInode) Attributes(
 	return
 }
 
-// Serve a read op for this file, without responding.
+// Serve a read for this file with semantics matching fuseops.ReadFileOp.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Read(
-	op *fuseops.ReadFileOp) (err error) {
+	ctx context.Context,
+	offset int64,
+	size int) (data []byte, err error) {
 	// Read from the proxy.
-	buf := make([]byte, op.Size)
-	n, err := f.proxy.ReadAt(op.Context(), buf, op.Offset)
+	data = make([]byte, size)
+	n, err := f.proxy.ReadAt(ctx, data, offset)
+	data = data[:n]
 
 	// We don't return errors for EOF. Otherwise, propagate errors.
 	if err == io.EOF {
@@ -223,20 +226,19 @@ func (f *FileInode) Read(
 		return
 	}
 
-	// Fill in the response.
-	op.Data = buf[:n]
-
 	return
 }
 
-// Serve a write op for this file, without responding.
+// Serve a write for this file with semantics matching fuseops.WriteFileOp.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Write(
-	op *fuseops.WriteFileOp) (err error) {
+	ctx context.Context,
+	data []byte,
+	offset int64) (err error) {
 	// Write to the proxy. Note that the proxy guarantees that it returns an
 	// error for short writes.
-	_, err = f.proxy.WriteAt(op.Context(), op.Data, op.Offset)
+	_, err = f.proxy.WriteAt(ctx, data, offset)
 
 	return
 }

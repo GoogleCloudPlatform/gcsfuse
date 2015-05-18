@@ -1084,7 +1084,7 @@ func (fs *fileSystem) ReadFile(
 	defer in.Unlock()
 
 	// Serve the request.
-	err = in.Read(op)
+	op.Data, err = in.Read(op.Context(), op.Offset, op.Size)
 
 	return
 }
@@ -1104,7 +1104,7 @@ func (fs *fileSystem) WriteFile(
 	defer in.Unlock()
 
 	// Serve the request.
-	err = in.Write(op)
+	err = in.Write(op.Context(), op.Data, op.Offset)
 
 	return
 }
