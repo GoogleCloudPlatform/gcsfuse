@@ -216,8 +216,9 @@ number of the inode. (It may not if there have been modifications from another
 actor in the meantime.) There are no guarantees about whether local
 modifications are reflected in GCS after writing but before syncing or closing.
 
-Modification time (`stat::st_mtime` on Linux) is tracked for file inodes. No
-other times are tracked.
+Modification time (`stat::st_mtime` on Linux) is tracked for file inodes, but
+only for modifications to contents (not, for example, by utimes(2)). No other
+times are tracked.
 
 ### Identity
 
