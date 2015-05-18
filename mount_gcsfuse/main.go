@@ -29,6 +29,8 @@ import (
 
 func main() {
 	// Print out each argument.
+	//
+	// TODO(jacobsa): Get rid of this.
 	for i, arg := range os.Args {
 		log.Printf("Arg %d: %q", i, arg)
 	}
