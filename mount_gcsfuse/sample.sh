@@ -17,5 +17,5 @@ WRAPPED_PATH=/Users/jacobsa/go/bin
 OUTPUT=/tmp/gcsfuse.output
 
 # Run under daemon so that we return to mount(8) immediately.
-daemon -f --env="PATH=$WRAPPED_PATH" --output $OUTPUT -- $MOUNT_GCSFUSE "$@"
+daemon --env="PATH=$WRAPPED_PATH" --output $OUTPUT -- $MOUNT_GCSFUSE "$@"
 exit
