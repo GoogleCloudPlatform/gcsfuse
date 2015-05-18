@@ -168,6 +168,12 @@ func makeGcsfuseArgs(
 		case "key_file":
 			args = append(args, "--key_file="+opt.Value)
 
+		case "fuse_debug":
+			args = append(args, "--fuse.debug")
+
+		case "gcs_debug":
+			args = append(args, "--gcs.debug")
+
 		case "ro":
 			args = append(args, "--read_only")
 
