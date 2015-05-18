@@ -206,8 +206,6 @@ func makeGcsfuseArgs(
 
 func main() {
 	// Print out each argument.
-	//
-	// TODO(jacobsa): Get rid of some or all of the debug logging.
 	for i, arg := range os.Args {
 		log.Printf("Arg %d: %q", i, arg)
 	}
