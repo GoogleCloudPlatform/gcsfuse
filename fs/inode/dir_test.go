@@ -17,6 +17,7 @@ package inode_test
 import (
 	"os"
 	"path"
+	"sort"
 	"testing"
 	"time"
 
@@ -72,6 +73,12 @@ func (t *DirTest) TearDown() {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+type DirentSlice []fuseutil.Dirent
+
+func (p DirentSlice) Len() int           { return len(p) }
+func (p DirentSlice) Less(i, j int) bool { return p[i].Name < p[j].Name }
+func (p DirentSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
 func (t *DirTest) resetInode(implicitDirs bool) {
 	if t.in != nil {
 		t.in.Unlock()
@@ -88,6 +95,7 @@ func (t *DirTest) resetInode(implicitDirs bool) {
 	t.in.Lock()
 }
 
+// Read all of the entries and sort them by name.
 func (t *DirTest) readAllEntries() (entries []fuseutil.Dirent, err error) {
 	tok := ""
 	for {
@@ -99,9 +107,12 @@ func (t *DirTest) readAllEntries() (entries []fuseutil.Dirent, err error) {
 		}
 
 		if tok == "" {
-			return
+			break
 		}
 	}
+
+	sort.Sort(DirentSlice(entries))
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -407,7 +418,38 @@ func (t *DirTest) ReadEntries_Empty() {
 }
 
 func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
-	AssertTrue(false, "TODO")
+	var err error
+	var entry fuseutil.Dirent
+
+	// Set up contents.
+	objs := []string{
+		inodeName + "backed_dir_empty/",
+		inodeName + "backed_dir_nonempty/",
+		inodeName + "backed_dir_nonempty/blah",
+		inodeName + "file",
+		inodeName + "implicit_dir/blah",
+	}
+
+	err = gcsutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+	AssertEq(nil, err)
+
+	// Read entries.
+	entries, err := t.readAllEntries()
+
+	AssertEq(nil, err)
+	AssertEq(3, len(entries))
+
+	entry = entries[0]
+	ExpectEq("backed_dir_empty", entry.Name)
+	ExpectEq(fuseutil.DT_Directory, entry.Type)
+
+	entry = entries[1]
+	ExpectEq("backed_dir_nonempty", entry.Name)
+	ExpectEq(fuseutil.DT_Directory, entry.Type)
+
+	entry = entries[2]
+	ExpectEq("file", entry.Name)
+	ExpectEq(fuseutil.DT_File, entry.Type)
 }
 
 func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
