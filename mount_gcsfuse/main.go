@@ -158,7 +158,11 @@ func parseArgs() (device string, mountPoint string, opts []Option, err error) {
 // the mount command gives us.
 //
 // The result of this function should be appended to exec.Command.Args.
-func makeGcsfuseArgs(opts []Option) (args []string, err error) {
+func makeGcsfuseArgs(
+	device string,
+	mountPoint string,
+	opts []Option) (args []string, err error) {
+	// Deal with options.
 	for _, opt := range opts {
 		switch opt.Name {
 		case "key_file":
@@ -176,6 +180,12 @@ func makeGcsfuseArgs(opts []Option) (args []string, err error) {
 			return
 		}
 	}
+
+	// Set up the bucket.
+	args = append(args, "--bucket="+device)
+
+	// Include the mount point last.
+	args = append(args, mountPoint)
 
 	return
 }
@@ -202,7 +212,7 @@ func main() {
 	}
 
 	// Choose gcsfuse args.
-	gcsfuseArgs, err := makeGcsfuseArgs(opts)
+	gcsfuseArgs, err := makeGcsfuseArgs(device, mountPoint, opts)
 	if err != nil {
 		log.Fatalf("makeGcsfuseArgs: %v", err)
 	}
