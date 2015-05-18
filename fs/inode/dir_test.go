@@ -598,7 +598,18 @@ func (t *DirTest) CreateChildFile_TypeCaching() {
 }
 
 func (t *DirTest) CreateChildDir_DoesntExist() {
-	AssertTrue(false, "TODO")
+	const name = "qux"
+	objName := path.Join(inodeName, name) + "/"
+
+	var o *gcs.Object
+	var err error
+
+	// Call the inode.
+	o, err = t.in.CreateChildDir(t.ctx, name)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(objName, o.Name)
 }
 
 func (t *DirTest) CreateChildDir_Exists() {
