@@ -16,6 +16,7 @@ package inode_test
 
 import (
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
+	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -117,7 +119,29 @@ func (t *DirTest) LookUpChild_NonExistent() {
 }
 
 func (t *DirTest) LookUpChild_FileOnly() {
-	AssertTrue(false, "TODO")
+	const name = "qux"
+	fullName := path.Join(inodeName, name)
+
+	var o *gcs.Object
+	var err error
+
+	// Create a backing object.
+	createObj, err := gcsutil.CreateObject(t.ctx, t.bucket, fullName, "taco")
+	AssertEq(nil, err)
+
+	// Look up with the proper name.
+	o, err = t.in.LookUpChild(t.ctx, name)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(fullName, o.Name)
+	ExpectEq(createObj.Generation, o.Generation)
+	ExpectEq(createObj.Size, o.Size)
+
+	// A conflict marker name shouldn't work.
+	o, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	AssertEq(nil, err)
+	ExpectEq(nil, o)
 }
 
 func (t *DirTest) LookUpChild_DirOnly() {
