@@ -88,7 +88,7 @@ func (t *DirTest) ID() {
 }
 
 func (t *DirTest) Name() {
-	AssertTrue(false, "TODO")
+	ExpectEq(inodeName, t.in.Name())
 }
 
 func (t *DirTest) LookupCount() {
