@@ -337,7 +337,44 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 }
 
 func (t *DirTest) LookUpChild_TypeCaching() {
-	AssertTrue(false, "TODO")
+	const name = "qux"
+	fileObjName := path.Join(inodeName, name)
+	dirObjName := path.Join(inodeName, name) + "/"
+
+	var o *gcs.Object
+	var err error
+
+	// Create a backing object for a file.
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, fileObjName, "taco")
+	AssertEq(nil, err)
+
+	// Look up; we should get the file.
+	o, err = t.in.LookUpChild(t.ctx, name)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(fileObjName, o.Name)
+
+	// Create a backing object for a directory.
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, "taco")
+	AssertEq(nil, err)
+
+	// Look up again. Even though the directory should shadow the file, because
+	// we've cached only seeing the file that's what we should get back.
+	o, err = t.in.LookUpChild(t.ctx, name)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(fileObjName, o.Name)
+
+	// But after the TTL expires, the behavior should flip.
+	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
+
+	o, err = t.in.LookUpChild(t.ctx, name)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(dirObjName, o.Name)
 }
 
 func (t *DirTest) ReadEntries_Empty() {
