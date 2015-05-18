@@ -225,8 +225,41 @@ func (t *FileTest) Truncate() {
 }
 
 func (t *FileTest) Sync_NotClobbered() {
-	// TODO(jacobsa): Check generation and bucket afterward.
-	AssertTrue(false, "TODO")
+	var attrs fuseops.InodeAttributes
+	var err error
+
+	AssertEq("taco", t.initialContents)
+
+	// Truncate downward.
+	t.clock.AdvanceTime(time.Second)
+	truncateTime := t.clock.Now()
+
+	err = t.in.Truncate(t.ctx, 2)
+	AssertEq(nil, err)
+
+	t.clock.AdvanceTime(time.Second)
+
+	// Sync.
+	err = t.in.Sync(t.ctx)
+	AssertEq(nil, err)
+
+	// The generation should have advanced.
+	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration())
+
+	// Stat the current object in the bucket.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	o, err := t.bucket.StatObject(t.ctx, statReq)
+
+	AssertEq(nil, err)
+	ExpectEq(t.in.SourceGeneration(), o.Generation)
+	ExpectEq(2, o.Size)
+
+	// Check attributes.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+
+	ExpectEq(2, attrs.Size)
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(truncateTime))
 }
 
 func (t *FileTest) Sync_Clobbered() {
