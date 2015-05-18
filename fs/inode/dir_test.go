@@ -548,7 +548,19 @@ func (t *DirTest) CreateChildFile_DoesntExist() {
 }
 
 func (t *DirTest) CreateChildFile_Exists() {
-	AssertTrue(false, "TODO")
+	const name = "qux"
+	objName := path.Join(inodeName, name)
+
+	var err error
+
+	// Create an existing backing object.
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, "taco")
+	AssertEq(nil, err)
+
+	// Call the inode.
+	_, err = t.in.CreateChildFile(t.ctx, name)
+	ExpectThat(err, Error(HasSubstr("Precondition")))
+	ExpectThat(err, Error(HasSubstr("exists")))
 }
 
 func (t *DirTest) CreateChildFile_TypeCaching() {
