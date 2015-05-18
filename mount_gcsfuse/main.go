@@ -24,10 +24,10 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 )
 
 // A 'name=value' mount option. If '=value' is not present, only the name will
@@ -39,7 +39,24 @@ type Option struct {
 
 // Parse a single comma-separated list of mount options.
 func parseOpts(s string) (opts []Option, err error) {
-	err = errors.New("TODO: parseOpts")
+	// NOTE(jacobsa): The man pages don't define how escaping works, and as far
+	// as I can tell there is no way to properly escape or quote a comma in the
+	// options list for an fstab entry. So put our fingers in our ears and hope
+	// that nobody needs a comma.
+	for _, p := range strings.Split(s, ",") {
+		var opt Option
+
+		// Split on the first equals sign.
+		if equalsIndex := strings.IndexByte(p, '='); equalsIndex != -1 {
+			opt.Name = p[:equalsIndex]
+			opt.Value = p[equalsIndex+1:]
+		} else {
+			opt.Name = p
+		}
+
+		opts = append(opts, opt)
+	}
+
 	return
 }
 
@@ -128,7 +145,6 @@ func parseArgs() (device string, mountPoint string, opts []Option, err error) {
 		err = fmt.Errorf("Expected 2 non-option arguments; got %d", rawArgs)
 	}
 
-	err = errors.New("TODO: parseArgs")
 	return
 }
 
