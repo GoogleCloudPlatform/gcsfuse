@@ -103,6 +103,35 @@ func (t *FileTest) Name() {
 	ExpectEq(fileInodeName, t.in.Name())
 }
 
-func (t *FileTest) DoesFoo() {
+func (t *FileTest) InitialSourceGeneration() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FileTest) InitialAttributes() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FileTest) Read() {
+	// TODO(jacobsa): Test various ranges in a table-driven test. Make sure no
+	// EOF.
+	AssertTrue(false, "TODO")
+}
+
+func (t *FileTest) Write() {
+	// TODO(jacobsa): Check attributes and read afterward.
+	AssertTrue(false, "TODO")
+}
+
+func (t *FileTest) Truncate() {
+	// TODO(jacobsa): Check attributes and read afterward.
+	AssertTrue(false, "TODO")
+}
+
+func (t *FileTest) Sync_NotClobbered() {
+	// TODO(jacobsa): Check generation and bucket afterward.
+	AssertTrue(false, "TODO")
+}
+
+func (t *FileTest) Sync_Clobbered() {
 	AssertTrue(false, "TODO")
 }
