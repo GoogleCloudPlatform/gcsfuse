@@ -102,7 +102,12 @@ func parseArgs() (device string, mountPoint string, opts []Option, err error) {
 	//  *  Treat all arguments following "-o" as comma-separated options lists.
 	//
 	rawArgs := 0
-	for i, arg := range os.Args[1:] {
+	for i, arg := range os.Args {
+		// Skip the binary name.
+		if i == 0 {
+			continue
+		}
+
 		// Skip "-o"; we will look back on the next iteration.
 		if arg == "-o" {
 			continue
@@ -121,11 +126,7 @@ func parseArgs() (device string, mountPoint string, opts []Option, err error) {
 			continue
 		}
 
-		// Otherwise, have we found too many arguments?
-		if rawArgs > 2 {
-			break
-		}
-
+		// Otherwise this is a non-option argument.
 		switch rawArgs {
 		case 0:
 			device = arg
@@ -134,7 +135,11 @@ func parseArgs() (device string, mountPoint string, opts []Option, err error) {
 			mountPoint = arg
 
 		default:
-			break
+			err = fmt.Errorf(
+				"Too many non-option arguments. The straw that broke the "+
+					"camel's back: %q",
+				arg)
+			return
 		}
 
 		rawArgs++
