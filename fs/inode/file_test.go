@@ -83,6 +83,8 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 		t.bucket,
 		t.leaser,
 		&t.clock)
+
+	t.in.Lock()
 }
 
 func (t *FileTest) TearDown() {
