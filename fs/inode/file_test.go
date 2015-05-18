@@ -16,6 +16,7 @@ package inode_test
 
 import (
 	"math"
+	"os"
 	"testing"
 	"time"
 
@@ -108,7 +109,13 @@ func (t *FileTest) InitialSourceGeneration() {
 }
 
 func (t *FileTest) InitialAttributes() {
-	AssertTrue(false, "TODO")
+	attrs, err := t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+
+	ExpectEq(len(t.initialContents), attrs.Size)
+	ExpectEq(1, attrs.Nlink)
+	ExpectEq(os.FileMode(0700), attrs.Mode)
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(t.backingObj.Updated))
 }
 
 func (t *FileTest) Read() {
