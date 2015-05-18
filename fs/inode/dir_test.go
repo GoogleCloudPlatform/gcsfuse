@@ -84,7 +84,7 @@ func (t *DirTest) resetInode(implicitDirs bool) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *DirTest) ID() {
-	AssertTrue(false, "TODO")
+	ExpectEq(inodeID, t.in.ID())
 }
 
 func (t *DirTest) Name() {
