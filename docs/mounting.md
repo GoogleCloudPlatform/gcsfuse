@@ -22,7 +22,7 @@ process with a SIGINT or run `umount /path/to/mount/point`. (On Linux, you may
 need to replace `umount` with `fusermount -u`.)
 
 
-# Daemonization
+# Running as a daemon
 
 gcsfuse runs as a foreground process, writing log messages to stderr. This
 makes it easy to test out and terminate by pressing Ctrl-C, and to redirect its
