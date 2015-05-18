@@ -184,9 +184,10 @@ func main() {
 	}
 
 	// Create a file system server.
+	bucket := getBucket()
 	serverCfg := &fs.ServerConfig{
 		Clock:               timeutil.RealClock(),
-		Bucket:              getBucket(),
+		Bucket:              bucket,
 		TempDir:             *fTempDir,
 		TempDirLimit:        *fTempDirLimit,
 		GCSChunkSize:        *fGCSChunkSize,
@@ -202,6 +203,7 @@ func main() {
 
 	// Mount the file system.
 	mountCfg := &fuse.MountConfig{
+		FSName:   bucket.Name(),
 		ReadOnly: *fReadOnly,
 	}
 
