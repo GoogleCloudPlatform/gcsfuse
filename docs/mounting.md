@@ -20,3 +20,22 @@ You should be able to see your bucket contents if you run `ls
 /path/to/mount/point`. To later unmount the bucket, either kill the gcsfuse
 process with a SIGINT or run `umount /path/to/mount/point`. (On Linux, you may
 need to replace `umount` with `fusermount -u`.)
+
+
+# Daemonization
+
+gcsfuse runs as a foreground process, writing log messages to stderr. This
+makes it easy to test out and terminate by pressing Ctrl-C, and to redirect its
+output to where you like. However, it is common to want to put gcsfuse into the
+background, detaching it from the terminal that started it. Advanced users also
+want to manage gcsfuse log output, perhaps sending it to syslog.
+
+In order to do this, use your preferred daemonization wrapper. Common choices
+include [daemon][], [daemonize][], [daemontools][], [systemd][], and
+[upstart][].
+
+[daemon]: http://libslack.org/daemon/
+[daemonize]: http://software.clapper.org/daemonize/
+[daemontools]: http://cr.yp.to/daemontools.html
+[systemd]: http://www.freedesktop.org/wiki/Software/systemd/
+[upstart]: http://upstart.ubuntu.com/
