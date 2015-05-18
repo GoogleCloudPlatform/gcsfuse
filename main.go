@@ -38,6 +38,7 @@ func usage() {
 }
 
 var fBucketName = flag.String("bucket", "", "Name of GCS bucket to mount.")
+var fMountPoint = flag.String("mount_point", "", "File system location.")
 var fReadOnly = flag.Bool("read_only", false, "Mount in read-only mode.")
 
 var fTempDir = flag.String(
@@ -149,13 +150,12 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	// Grab the mount point.
-	if flag.NArg() != 1 {
-		usage()
-		os.Exit(1)
+	// Check --mount_point.
+	if *fMountPoint == "" {
+		log.Fatalf("You must set --mount_point.")
 	}
 
-	mountPoint := flag.Arg(0)
+	mountPoint := *fMountPoint
 
 	// Parse --type_cache_ttl
 	var typeCacheTTL time.Duration
