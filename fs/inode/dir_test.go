@@ -629,7 +629,10 @@ func (t *DirTest) CreateChildDir_Exists() {
 }
 
 func (t *DirTest) DeleteChildFile_DoesntExist() {
-	AssertTrue(false, "TODO")
+	const name = "qux"
+
+	err := t.in.DeleteChildFile(t.ctx, name)
+	ExpectEq(nil, err)
 }
 
 func (t *DirTest) DeleteChildFile_Exists() {
