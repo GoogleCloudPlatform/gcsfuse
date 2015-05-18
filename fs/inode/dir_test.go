@@ -15,6 +15,7 @@
 package inode_test
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -103,7 +104,9 @@ func (t *DirTest) LookupCount() {
 }
 
 func (t *DirTest) Attributes() {
-	AssertTrue(false, "TODO")
+	attrs, err := t.in.Attributes(context.Background())
+	AssertEq(nil, err)
+	ExpectEq(os.FileMode(0700)|os.ModeDir, attrs.Mode)
 }
 
 func (t *DirTest) LookUpChild_NonExistent() {
