@@ -40,6 +40,31 @@ type Option struct {
 // Return the 'device' (aka 'special' on OS X), the mount point, and a list of
 // mount options encountered.
 func parseArgs() (device string, mountPoint string, opts []Option, err error) {
+	// Example invocation on OS X:
+	//
+	//     mount -t porp -o key_file=/some\ file.json bucket ~/tmp/mp
+	//
+	// becomes the following arguments:
+	//
+	//     Arg 0: "/path/to/mount_gcsfuse"
+	//     Arg 1: "-o"
+	//     Arg 2: "key_file=/some file.json"
+	//     Arg 3: "bucket"
+	//     Arg 4: "/Users/jacobsa/tmp/mp"
+	//
+	// On Linux, the fstab entry
+	//
+	//     bucket /path/to/mp porp user,key_file=/some\040file.json
+	//
+	// becomes
+	//
+	//     Arg 0: "/path/to/mount_gcsfuse"
+	//     Arg 1: "bucket"
+	//     Arg 2: "/path/to/mp"
+	//     Arg 3: "-o"
+	//     Arg 4: "rw,noexec,nosuid,nodev,user,key_file=/some file.json"
+	//
+
 	err = errors.New("TODO: parseArgs")
 	return
 }
