@@ -47,3 +47,28 @@ can be run with:
     daemon -- gcsfuse --key_file /key.json --bucket [...]
 
 [homebrew]: http://brew.sh/
+
+
+# fstab compatibility
+
+It is possible to set up entries for gcsfuse file systems in your `/etc/fstab`
+file, such that file systems can be mounted at boot or on demand based on path
+or name.
+
+In order to do this, gcsfuse must be made compatible with the (underdocumented
+and platform-specific) protocol spoken by [`mount`][] when calling its external
+helpers. The gcsfuse repo contains a tool to help with this, which you can
+install with:
+
+    go install github.com/googlecloudplatform/gcsfuse/gcsfuse_mount_helper
+
+[mount]: http://linux.die.net/man/8/mount
+
+The helper accepts arguments in the form supplied by `mount`, but as discussed
+above does not automatically daemonize, which is expected by `mount`. So the
+final step is to install an external mount helper with a system-specific name
+(e.g. `/sbin/mount_gcsfuse` on OS X, `/sbin/mount.gcsfuse` on Linux) that uses
+a daemonizing wrapper program to start gcsfuse.
+[gcsfuse_mount_helper/sample.sh][] contains an example that uses `daemon`.
+
+[gcsfuse_mount_helper/sample.sh]: gcsfuse_mount_helper/sample.sh
