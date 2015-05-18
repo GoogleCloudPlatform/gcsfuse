@@ -655,7 +655,37 @@ func (t *DirTest) DeleteChildFile_Exists() {
 }
 
 func (t *DirTest) DeleteChildFile_TypeCaching() {
-	AssertTrue(false, "TODO")
+	const name = "qux"
+	fileObjName := path.Join(inodeName, name)
+	dirObjName := path.Join(inodeName, name) + "/"
+
+	var o *gcs.Object
+	var err error
+
+	// Create the name, priming the type cache.
+	_, err = t.in.CreateChildFile(t.ctx, name)
+	AssertEq(nil, err)
+
+	// Create a backing object for a directory. It should be shadowed by the
+	// file.
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, "taco")
+	AssertEq(nil, err)
+
+	o, err = t.in.LookUpChild(t.ctx, name)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+	AssertEq(fileObjName, o.Name)
+
+	// But after deleting the file via the inode, the directory should be
+	// revealed.
+	err = t.in.DeleteChildFile(t.ctx, name)
+	AssertEq(nil, err)
+
+	o, err = t.in.LookUpChild(t.ctx, name)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(dirObjName, o.Name)
 }
 
 func (t *DirTest) DeleteChildDir_DoesntExist() {
