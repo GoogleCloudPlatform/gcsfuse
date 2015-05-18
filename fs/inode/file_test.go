@@ -228,8 +228,6 @@ func (t *FileTest) Sync_NotClobbered() {
 	var attrs fuseops.InodeAttributes
 	var err error
 
-	AssertEq("taco", t.initialContents)
-
 	// Truncate downward.
 	t.clock.AdvanceTime(time.Second)
 	truncateTime := t.clock.Now()
@@ -263,5 +261,27 @@ func (t *FileTest) Sync_NotClobbered() {
 }
 
 func (t *FileTest) Sync_Clobbered() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Truncate downward.
+	err = t.in.Truncate(t.ctx, 2)
+	AssertEq(nil, err)
+
+	// Clobber the backing object.
+	newObj, err := gcsutil.CreateObject(t.ctx, t.bucket, t.in.Name(), "burrito")
+	AssertEq(nil, err)
+
+	// Sync. The call should succeed, but nothing should change.
+	err = t.in.Sync(t.ctx)
+
+	AssertEq(nil, err)
+	ExpectEq(t.backingObj.Generation, t.in.SourceGeneration())
+
+	// The object in the bucket should not have been changed.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	o, err := t.bucket.StatObject(t.ctx, statReq)
+
+	AssertEq(nil, err)
+	ExpectEq(newObj.Generation, o.Generation)
+	ExpectEq(newObj.Size, o.Size)
 }
