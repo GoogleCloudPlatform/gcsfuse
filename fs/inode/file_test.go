@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
@@ -163,7 +164,9 @@ func (t *FileTest) Read() {
 }
 
 func (t *FileTest) Write() {
+	var data []byte
 	var err error
+
 	AssertEq("taco", t.initialContents)
 
 	// Overwite a byte.
@@ -180,9 +183,9 @@ func (t *FileTest) Write() {
 	t.clock.AdvanceTime(time.Second)
 
 	// Read back the content.
-	contents, err := t.in.Read(t.ctx, 0, 1024)
+	data, err = t.in.Read(t.ctx, 0, 1024)
 	AssertEq(nil, err)
-	ExpectEq("pacoburrito", string(contents))
+	ExpectEq("pacoburrito", string(data))
 
 	// Check attributes.
 	attrs, err := t.in.Attributes(t.ctx)
@@ -193,8 +196,32 @@ func (t *FileTest) Write() {
 }
 
 func (t *FileTest) Truncate() {
-	// TODO(jacobsa): Check attributes and read afterward.
-	AssertTrue(false, "TODO")
+	var attrs fuseops.InodeAttributes
+	var data []byte
+	var err error
+
+	AssertEq("taco", t.initialContents)
+
+	// Truncate downward.
+	t.clock.AdvanceTime(time.Second)
+	truncateTime := t.clock.Now()
+
+	err = t.in.Truncate(t.ctx, 2)
+	AssertEq(nil, err)
+
+	t.clock.AdvanceTime(time.Second)
+
+	// Read the contents.
+	data, err = t.in.Read(t.ctx, 0, 1024)
+	AssertEq(nil, err)
+	ExpectEq("ta", string(data))
+
+	// Check attributes.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+
+	ExpectEq(len("ta"), attrs.Size)
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(truncateTime))
 }
 
 func (t *FileTest) Sync_NotClobbered() {
