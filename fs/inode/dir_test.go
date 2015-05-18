@@ -104,13 +104,16 @@ func (t *DirTest) LookupCount() {
 }
 
 func (t *DirTest) Attributes() {
-	attrs, err := t.in.Attributes(context.Background())
+	attrs, err := t.in.Attributes(t.ctx)
 	AssertEq(nil, err)
 	ExpectEq(os.FileMode(0700)|os.ModeDir, attrs.Mode)
 }
 
 func (t *DirTest) LookUpChild_NonExistent() {
-	AssertTrue(false, "TODO")
+	o, err := t.in.LookUpChild(t.ctx, "qux")
+
+	AssertEq(nil, err)
+	ExpectEq(nil, o)
 }
 
 func (t *DirTest) LookUpChild_FileOnly() {
