@@ -163,8 +163,33 @@ func (t *FileTest) Read() {
 }
 
 func (t *FileTest) Write() {
-	// TODO(jacobsa): Check attributes and read afterward.
-	AssertTrue(false, "TODO")
+	var err error
+	AssertEq("taco", t.initialContents)
+
+	// Overwite a byte.
+	err = t.in.Write(t.ctx, []byte("p"), 0)
+	AssertEq(nil, err)
+
+	// Add some data at the end.
+	t.clock.AdvanceTime(time.Second)
+	writeTime := t.clock.Now()
+
+	err = t.in.Write(t.ctx, []byte("burrito"), 4)
+	AssertEq(nil, err)
+
+	t.clock.AdvanceTime(time.Second)
+
+	// Read back the content.
+	contents, err := t.in.Read(t.ctx, 0, 1024)
+	AssertEq(nil, err)
+	ExpectEq("pacoburrito", string(contents))
+
+	// Check attributes.
+	attrs, err := t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+
+	ExpectEq(len("pacoburrito"), attrs.Size)
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(writeTime))
 }
 
 func (t *FileTest) Truncate() {
