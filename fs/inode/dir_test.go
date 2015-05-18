@@ -120,13 +120,13 @@ func (t *DirTest) LookUpChild_NonExistent() {
 
 func (t *DirTest) LookUpChild_FileOnly() {
 	const name = "qux"
-	fullName := path.Join(inodeName, name)
+	objName := path.Join(inodeName, name)
 
 	var o *gcs.Object
 	var err error
 
 	// Create a backing object.
-	createObj, err := gcsutil.CreateObject(t.ctx, t.bucket, fullName, "taco")
+	createObj, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, "taco")
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -134,7 +134,7 @@ func (t *DirTest) LookUpChild_FileOnly() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
-	ExpectEq(fullName, o.Name)
+	ExpectEq(objName, o.Name)
 	ExpectEq(createObj.Generation, o.Generation)
 	ExpectEq(createObj.Size, o.Size)
 
@@ -145,7 +145,29 @@ func (t *DirTest) LookUpChild_FileOnly() {
 }
 
 func (t *DirTest) LookUpChild_DirOnly() {
-	AssertTrue(false, "TODO")
+	const name = "qux"
+	objName := path.Join(inodeName, name) + "/"
+
+	var o *gcs.Object
+	var err error
+
+	// Create a backing object.
+	createObj, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, "")
+	AssertEq(nil, err)
+
+	// Look up with the proper name.
+	o, err = t.in.LookUpChild(t.ctx, name)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(objName, o.Name)
+	ExpectEq(createObj.Generation, o.Generation)
+	ExpectEq(createObj.Size, o.Size)
+
+	// A conflict marker name shouldn't work.
+	o, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	AssertEq(nil, err)
+	ExpectEq(nil, o)
 }
 
 func (t *DirTest) LookUpChild_ImplicitDirOnly_Disabled() {
