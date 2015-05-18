@@ -56,9 +56,9 @@ file, such that file systems can be mounted at boot or on demand based on path
 or name.
 
 In order to do this, gcsfuse must be made compatible with the (underdocumented
-and platform-specific) protocol spoken by [`mount`][] when calling its external
-helpers. The gcsfuse repo contains a tool to help with this, which you can
-install with:
+and platform-specific) protocol spoken by [`mount`][mount] when calling its
+external helpers. The gcsfuse repo contains a tool to help with this, which you
+can install with:
 
     go install github.com/googlecloudplatform/gcsfuse/gcsfuse_mount_helper
 
