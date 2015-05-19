@@ -41,11 +41,14 @@ import (
 //     "qux": "",
 //
 func OptionFlag(
-	options map[string]string,
 	name string,
-	usage string) {
-	of := optionFlag{options}
+	usage string) (m map[string]string) {
+	m = make(map[string]string)
+
+	of := optionFlag{m}
 	flag.Var(&of, name, usage)
+
+	return
 }
 
 type optionFlag struct {
