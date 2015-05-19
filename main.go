@@ -39,9 +39,6 @@ var fMountOptions = mount.OptionFlag(
 	"o",
 	"Additional system-specific mount options. Be careful!")
 
-// TODO(jacobsa): Kill this in favor of "-o ro".
-var fReadOnly = flag.Bool("read_only", false, "Mount in read-only mode.")
-
 var fTempDir = flag.String(
 	"temp_dir", "",
 	"The temporary directory in which to store local copies of GCS objects. "+
@@ -183,9 +180,8 @@ func main() {
 
 	// Mount the file system.
 	mountCfg := &fuse.MountConfig{
-		FSName:   bucket.Name(),
-		ReadOnly: *fReadOnly,
-		Options:  fMountOptions,
+		FSName:  bucket.Name(),
+		Options: fMountOptions,
 	}
 
 	mountedFS, err := fuse.Mount(mountPoint, server, mountCfg)
