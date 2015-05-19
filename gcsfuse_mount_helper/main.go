@@ -23,8 +23,36 @@
 // that performs daemonization if it is to be used directly with mount(8).
 package main
 
+// Example invocation on OS X:
+//
+//     mount -t porp -o key_file=/some\ file.json -o ro,blah bucket ~/tmp/mp
+//
+// becomes the following arguments:
+//
+//     Arg 0: "/path/to/gcsfuse_mount_helper"
+//     Arg 1: "-o"
+//     Arg 2: "key_file=/some file.json"
+//     Arg 3: "-o"
+//     Arg 4: "ro"
+//     Arg 5: "-o"
+//     Arg 6: "blah"
+//     Arg 7: "bucket"
+//     Arg 8: "/path/to/mp"
+//
+// On Linux, the fstab entry
+//
+//     bucket /path/to/mp porp user,key_file=/some\040file.json
+//
+// becomes
+//
+//     Arg 0: "/path/to/gcsfuse_mount_helper"
+//     Arg 1: "bucket"
+//     Arg 2: "/path/to/mp"
+//     Arg 3: "-o"
+//     Arg 4: "rw,noexec,nosuid,nodev,user,key_file=/some file.json"
+//
+
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -55,12 +83,6 @@ func (os *OptionSlice) String() string {
 }
 
 func (os *OptionSlice) Set(s string) (err error) {
-	err = errors.New("TODO: Set")
-	return
-}
-
-// Parse a single comma-separated list of mount options.
-func parseOpts(s string) (opts []Option, err error) {
 	// NOTE(jacobsa): The man pages don't define how escaping works, and as far
 	// as I can tell there is no way to properly escape or quote a comma in the
 	// options list for an fstab entry. So put our fingers in our ears and hope
@@ -76,7 +98,7 @@ func parseOpts(s string) (opts []Option, err error) {
 			opt.Name = p
 		}
 
-		opts = append(opts, opt)
+		*os = append(*os, opt)
 	}
 
 	return
