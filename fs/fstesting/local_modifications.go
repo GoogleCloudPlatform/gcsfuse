@@ -1711,9 +1711,58 @@ type symlinkTest struct {
 func init() { registerSuitePrototype(&symlinkTest{}) }
 
 func (t *symlinkTest) CreateLink() {
-	// TODO(jacobsa): Create, look at object in bucket, read link, read parent
-	// dir, stat link, stat target.
-	AssertTrue(false, "TODO")
+	var fi os.FileInfo
+	var err error
+
+	// Create a file.
+	fileName := path.Join(t.Dir, "foo")
+	const contents = "taco"
+
+	err = ioutil.WriteFile(fileName, []byte(contents), 0400)
+	AssertEq(nil, err)
+
+	// Create a symlink to it.
+	symlinkName := path.Join(t.Dir, "bar")
+	err = os.Symlink("foo", symlinkName)
+	AssertEq(nil, err)
+
+	// Check the object in the bucket.
+	o, err := t.bucket.StatObject(t.ctx, &gcs.StatObjectRequest{Name: "bar"})
+
+	AssertEq(nil, err)
+	ExpectEq(0, o.Size)
+	ExpectEq("foo", o.Metadata["gcsfuse_symlink_target"])
+
+	// Read the link.
+	target, err := os.Readlink(symlinkName)
+	AssertEq(nil, err)
+	ExpectEq("foo", target)
+
+	// Stat the link.
+	fi, err = os.Lstat(symlinkName)
+	AssertEq(nil, err)
+
+	ExpectEq("bar", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
+
+	// Read the parent directory.
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+
+	fi = entries[0]
+	ExpectEq("bar", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
+
+	// Stat the target via the link.
+	fi, err = os.Stat(symlinkName)
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(len(contents), fi.Size())
+	ExpectEq(filePerms, fi.Mode())
 }
 
 func (t *symlinkTest) CreateLink_Exists() {
