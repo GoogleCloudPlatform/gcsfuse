@@ -24,6 +24,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -31,12 +32,22 @@ import (
 	"strings"
 )
 
+var fOptions OptionSlice
+
+func init() {
+	flag.Var(&fOptions, "o", "Mount options. May be repeated.")
+}
+
 // A 'name=value' mount option. If '=value' is not present, only the name will
 // be filled in.
 type Option struct {
 	Name  string
 	Value string
 }
+
+// A slice of options that knows how to parse command-line flags into the
+// slice, implementing flag.Value.
+type OptionSlice []Option
 
 // Parse a single comma-separated list of mount options.
 func parseOpts(s string) (opts []Option, err error) {
