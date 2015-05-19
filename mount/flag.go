@@ -15,6 +15,12 @@
 // Helper functions for dealing with mount(8)-style flags.
 package mount
 
+import (
+	"flag"
+	"fmt"
+	"strings"
+)
+
 // Set up a flag with the given name and usage string that can be used to
 // receive options in the format accepted by mount(8) and generated for its
 // external mount helpers.
@@ -38,5 +44,37 @@ func OptionFlag(
 	options map[string]string,
 	name string,
 	usage string) {
-	panic("TODO")
+	of := optionFlag{options}
+	flag.Var(&of, name, usage)
+}
+
+type optionFlag struct {
+	opts map[string]string
+}
+
+func (of *optionFlag) String() string {
+	return fmt.Sprint(of.opts)
+}
+
+func (of *optionFlag) Set(s string) (err error) {
+	// NOTE(jacobsa): The man pages don't define how escaping works, and as far
+	// as I can tell there is no way to properly escape or quote a comma in the
+	// options list for an fstab entry. So put our fingers in our ears and hope
+	// that nobody needs a comma.
+	for _, p := range strings.Split(s, ",") {
+		var name string
+		var value string
+
+		// Split on the first equals sign.
+		if equalsIndex := strings.IndexByte(p, '='); equalsIndex != -1 {
+			name = p[:equalsIndex]
+			value = p[equalsIndex+1:]
+		} else {
+			name = p
+		}
+
+		of.opts[name] = value
+	}
+
+	return
 }
