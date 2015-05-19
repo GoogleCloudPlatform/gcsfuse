@@ -1796,6 +1796,18 @@ func (t *symlinkTest) CreateLink_Exists() {
 }
 
 func (t *symlinkTest) RemoveLink() {
-	// TODO(jacobsa): Check gone from bucket, too.
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create the link.
+	symlinkName := path.Join(t.Dir, "foo")
+	err = os.Symlink("blah", symlinkName)
+	AssertEq(nil, err)
+
+	// Remove it.
+	err = os.Remove(symlinkName)
+	AssertEq(nil, err)
+
+	// It should be gone from the bucket.
+	_, err = gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
