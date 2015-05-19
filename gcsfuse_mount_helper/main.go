@@ -24,6 +24,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -48,6 +49,15 @@ type Option struct {
 // A slice of options that knows how to parse command-line flags into the
 // slice, implementing flag.Value.
 type OptionSlice []Option
+
+func (os *OptionSlice) String() string {
+	return fmt.Sprint(*os)
+}
+
+func (os *OptionSlice) Set(s string) (err error) {
+	err = errors.New("TODO: Set")
+	return
+}
 
 // Parse a single comma-separated list of mount options.
 func parseOpts(s string) (opts []Option, err error) {
