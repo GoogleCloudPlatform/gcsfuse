@@ -226,6 +226,8 @@ func makeGcsfuseArgs(
 }
 
 func main() {
+	flag.Parse()
+
 	// Print out each argument.
 	for i, arg := range os.Args {
 		log.Printf("Arg %d: %q", i, arg)
