@@ -308,18 +308,31 @@ created by machine A.
 
 # Permissions and ownership
 
-All inodes in a gcsfuse file system show up as being owned by the UID and GID
-of the gcsfuse process itself (i.e. the user who mounted the file system). All
-inodes have permission bits `0700`, i.e. read-write-execute permission for the
-owner but no one else.
+## Inodes
 
-Rationale: the FUSE kernel layer restricts file system access to the mounting
-user (cf. [fuse.txt][allow_other]), so it is not worth supporting arbitrary
-inode owners. Additionally, posix permissions bits are not nearly as expressive
-as GCS object/bucket ACLs, so we cannot faithfully represent the latter and to
-do so would be misleading since it would not necessarily offer any security.
+By default, all inodes in a gcsfuse file system show up as being owned by the
+UID and GID of the gcsfuse process itself, i.e. the user who mounted the file
+system. All files have permission bits `0644`, and all directories have
+permission bits `0755` (but see below for issues with use by other users).
+Changing permission bits is not supported.
+
+These defaults can be overriden with the `--uid`, `--gid`, `--file_mode`, and
+`--dir_mode` flags.
+
+## Fuse
+
+The fuse kernel layer itself restricts file system access to the mounting user
+(cf. [fuse.txt][allow_other]). So no matter what the configured inode
+permissions, by default other users will receive "permission denied" errors
+when attempting to access the file system. This includes the root user.
 
 [allow_other]: https://github.com/torvalds/linux/blob/a33f32244d8550da8b4a26e277ce07d5c6d158b5/Documentation/filesystems/fuse.txt##L102-L105
+
+This can be overridden by setting `-o allow_root` to allow only the mounting
+user and the root user to access the file system, or `-o allow_other` to allow
+all users. Be careful! There may be [security implications][fuse-security].
+
+[fuse-security]: https://github.com/torvalds/linux/blob/a33f32244d8550da8b4a26e277ce07d5c6d158b5/Documentation/filesystems/fuse.txt#L218-L310
 
 
 # Surprising behaviors
