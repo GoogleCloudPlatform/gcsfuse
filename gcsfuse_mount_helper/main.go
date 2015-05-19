@@ -97,6 +97,12 @@ func makeGcsfuseArgs(
 		case "gcs_debug":
 			args = append(args, "--gcs.debug")
 
+		case "uid":
+			args = append(args, "--uid="+value)
+
+		case "gid":
+			args = append(args, "--gid="+value)
+
 		case "file_mode":
 			args = append(args, "--file_mode="+value)
 
