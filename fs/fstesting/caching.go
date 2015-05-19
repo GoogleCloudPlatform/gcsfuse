@@ -398,8 +398,46 @@ func (t *cachingWithImplicitDirsTest) SymlinksWork() {
 }
 
 func (t *cachingWithImplicitDirsTest) SymlinksAreTypeCached() {
-	// TODO(jacobsa): Get symlink in type cache by creating it, then create
-	// directory remotely via uncached bucket. Should not see it until TTL
-	// elapses.
-	AssertTrue(false, "TODO")
+	var fi os.FileInfo
+	var err error
+
+	if t.simulatedClock == nil {
+		log.Println("Test requires a simulated clock; skipping.")
+		return
+	}
+
+	// Create a symlink.
+	symlinkName := path.Join(t.Dir, "foo")
+	err = os.Symlink("blah", symlinkName)
+	AssertEq(nil, err)
+
+	// Create a directory object out of band, so the root inode doesn't notice.
+	_, err = gcsutil.CreateObject(
+		t.ctx,
+		t.uncachedBucket,
+		"foo/",
+		"")
+
+	AssertEq(nil, err)
+
+	// The directory should not yet be visible, because the root inode should
+	// have cached that the symlink is present under the name "foo".
+	fi, err = os.Lstat(path.Join(t.Dir, "foo"))
+
+	AssertEq(nil, err)
+	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
+
+	// After the TTL elapses, we should see the directory.
+	t.simulatedClock.AdvanceTime(ttl + time.Millisecond)
+	fi, err = os.Stat(path.Join(t.Dir, "foo"))
+
+	AssertEq(nil, err)
+	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
+
+	// And should be able to stat the symlink under the alternative name.
+	fi, err = os.Stat(path.Join(t.Dir, "foo"+inode.ConflictingFileNameSuffix))
+
+	AssertEq(nil, err)
+	ExpectEq("foo", fi.Name())
+	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
 }
