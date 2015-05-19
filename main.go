@@ -24,6 +24,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/fs"
 	"github.com/googlecloudplatform/gcsfuse/mount"
+	"github.com/googlecloudplatform/gcsfuse/perms"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
@@ -38,6 +39,18 @@ var fMountPoint = flag.String("mount_point", "", "File system location.")
 var fMountOptions = mount.OptionFlag(
 	"o",
 	"Additional system-specific mount options. Be careful!")
+
+var fUid = flag.Int64(
+	"uid",
+	-1,
+	"If non-negative, the UID that owns all inodes. The default is the UID of "+
+		"the gcsfuse process.")
+
+var fGid = flag.Int64(
+	"gid",
+	-1,
+	"If non-negative, the GID that owns all inodes. The default is the GID of "+
+		"the gcsfuse process.")
 
 var fFileMode = flag.Uint(
 	"file_mode",
@@ -170,6 +183,21 @@ func main() {
 		}
 	}
 
+	// Choose UID and GID.
+	uid, gid, err := perms.MyUserAndGroup()
+	if err != nil {
+		err = fmt.Errorf("MyUserAndGroup: %v", err)
+		return
+	}
+
+	if *fUid >= 0 {
+		uid = uint32(*fUid)
+	}
+
+	if *fGid >= 0 {
+		gid = uint32(*fGid)
+	}
+
 	// Create a file system server.
 	bucket := getBucket()
 	serverCfg := &fs.ServerConfig{
@@ -181,6 +209,8 @@ func main() {
 		ImplicitDirectories: *fImplicitDirs,
 		SupportNlink:        *fSupportNlink,
 		DirTypeCacheTTL:     *fTypeCacheTTL,
+		Uid:                 uid,
+		Gid:                 gid,
 		FilePerms:           os.FileMode(*fFileMode),
 		DirPerms:            os.FileMode(*fDirMode),
 	}

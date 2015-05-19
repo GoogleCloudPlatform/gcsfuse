@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs"
+	"github.com/googlecloudplatform/gcsfuse/perms"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
@@ -65,6 +66,10 @@ func (t *fsTest) setUpFSTest(cfg FSTestConfig) {
 	t.ctx = cfg.ctx
 	t.clock = cfg.ServerConfig.Clock
 	t.bucket = cfg.ServerConfig.Bucket
+
+	// Set up ownership.
+	cfg.ServerConfig.Uid, cfg.ServerConfig.Gid, err = perms.MyUserAndGroup()
+	AssertEq(nil, err)
 
 	// Set up permissions.
 	cfg.ServerConfig.FilePerms = filePerms

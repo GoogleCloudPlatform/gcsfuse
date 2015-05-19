@@ -18,9 +18,7 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"os/user"
 	"reflect"
-	"strconv"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
@@ -86,6 +84,10 @@ type ServerConfig struct {
 	// before the expiration, we may fail to find it.
 	DirTypeCacheTTL time.Duration
 
+	// The UID and GID that owns all inodes in the file system.
+	Uid uint32
+	Gid uint32
+
 	// Permissions bits to use for files and directories. No bits outside of
 	// os.ModePerm may be set.
 	FilePerms os.FileMode
@@ -94,12 +96,6 @@ type ServerConfig struct {
 
 // Create a fuse file system server according to the supplied configuration.
 func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
-	// Get ownership information.
-	uid, gid, err := getUser()
-	if err != nil {
-		return
-	}
-
 	// Check permissions bits.
 	if cfg.FilePerms&^os.ModePerm != 0 {
 		err = fmt.Errorf("Illegal file perms: %v", cfg.FilePerms)
@@ -126,8 +122,8 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		implicitDirs:    cfg.ImplicitDirectories,
 		supportNlink:    cfg.SupportNlink,
 		dirTypeCacheTTL: cfg.DirTypeCacheTTL,
-		uid:             uid,
-		gid:             gid,
+		uid:             cfg.Uid,
+		gid:             cfg.Gid,
 		fileMode:        cfg.FilePerms,
 		dirMode:         cfg.DirPerms | os.ModeDir,
 		inodes:          make(map[fuseops.InodeID]inode.Inode),
@@ -298,33 +294,6 @@ type fileSystem struct {
 	//
 	// GUARDED_BY(mu)
 	nextHandleID fuseops.HandleID
-}
-
-func getUser() (uid uint32, gid uint32, err error) {
-	// Ask for the current user.
-	user, err := user.Current()
-	if err != nil {
-		panic(err)
-	}
-
-	// Parse UID.
-	uid64, err := strconv.ParseUint(user.Uid, 10, 32)
-	if err != nil {
-		err = fmt.Errorf("Parsing UID (%s): %v", user.Uid, err)
-		return
-	}
-
-	// Parse GID.
-	gid64, err := strconv.ParseUint(user.Gid, 10, 32)
-	if err != nil {
-		err = fmt.Errorf("Parsing GID (%s): %v", user.Gid, err)
-		return
-	}
-
-	uid = uint32(uid64)
-	gid = uint32(gid64)
-
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
