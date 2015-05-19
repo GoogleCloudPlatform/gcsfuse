@@ -39,6 +39,11 @@ import (
 	"golang.org/x/net/context"
 )
 
+const (
+	filePerms os.FileMode = 0640
+	dirPerms              = 0754
+)
+
 // A struct that can be embedded to inherit common file system test behaviors.
 type fsTest struct {
 	ctx    context.Context

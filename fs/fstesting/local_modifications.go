@@ -617,7 +617,7 @@ func (t *directoryTest) Mkdir_OneLevel() {
 	AssertEq(nil, err)
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
-	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -637,7 +637,7 @@ func (t *directoryTest) Mkdir_OneLevel() {
 
 	fi = entries[0]
 	ExpectEq("dir", fi.Name())
-	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 }
 
 func (t *directoryTest) Mkdir_TwoLevels() {
@@ -659,7 +659,7 @@ func (t *directoryTest) Mkdir_TwoLevels() {
 	AssertEq(nil, err)
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
-	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -679,7 +679,7 @@ func (t *directoryTest) Mkdir_TwoLevels() {
 
 	fi = entries[0]
 	ExpectEq("dir", fi.Name())
-	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 }
 
 func (t *directoryTest) Mkdir_AlreadyExists() {
@@ -730,7 +730,7 @@ func (t *directoryTest) Stat_Root() {
 
 	ExpectEq(path.Base(t.mfs.Dir()), fi.Name())
 	ExpectEq(0, fi.Size())
-	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -750,7 +750,7 @@ func (t *directoryTest) Stat_FirstLevelDirectory() {
 
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
-	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -770,7 +770,7 @@ func (t *directoryTest) Stat_SecondLevelDirectory() {
 
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
-	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -802,7 +802,7 @@ func (t *directoryTest) ReadDir_Root() {
 	fi = entries[0]
 	ExpectEq("bar", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectEq(filePerms, fi.Mode())
 	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
@@ -813,7 +813,7 @@ func (t *directoryTest) ReadDir_Root() {
 	fi = entries[1]
 	ExpectEq("foo", fi.Name())
 	ExpectEq(0, fi.Size())
-	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -850,7 +850,7 @@ func (t *directoryTest) ReadDir_SubDirectory() {
 	fi = entries[0]
 	ExpectEq("bar", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectEq(filePerms, fi.Mode())
 	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
@@ -861,7 +861,7 @@ func (t *directoryTest) ReadDir_SubDirectory() {
 	fi = entries[1]
 	ExpectEq("foo", fi.Name())
 	ExpectEq(0, fi.Size())
-	ExpectEq(os.ModeDir|0700, fi.Mode())
+	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -1294,7 +1294,7 @@ func (t *fileTest) Stat() {
 
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectEq(filePerms, fi.Mode())
 	ExpectThat(fi.ModTime(), t.matchesStartTime(writeTime))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
@@ -1320,7 +1320,7 @@ func (t *fileTest) StatUnopenedFile() {
 
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectEq(filePerms, fi.Mode())
 	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
@@ -1346,7 +1346,7 @@ func (t *fileTest) LstatUnopenedFile() {
 
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectEq(filePerms, fi.Mode())
 	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
