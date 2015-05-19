@@ -1766,7 +1766,33 @@ func (t *symlinkTest) CreateLink() {
 }
 
 func (t *symlinkTest) CreateLink_Exists() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create a file and a directory.
+	fileName := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(fileName, []byte{}, 0400)
+	AssertEq(nil, err)
+
+	dirName := path.Join(t.Dir, "bar")
+	err = os.Mkdir(dirName, 0700)
+	AssertEq(nil, err)
+
+	// Create an existing symlink.
+	symlinkName := path.Join(t.Dir, "baz")
+	err = os.Symlink("blah", symlinkName)
+	AssertEq(nil, err)
+
+	// Symlinking on top of any of them should fail.
+	names := []string{
+		fileName,
+		dirName,
+		symlinkName,
+	}
+
+	for _, n := range names {
+		err = os.Symlink("blah", n)
+		ExpectThat(err, Error(HasSubstr("exists")))
+	}
 }
 
 func (t *symlinkTest) RemoveLink() {
