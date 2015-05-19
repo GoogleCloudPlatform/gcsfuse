@@ -104,95 +104,15 @@ func (os *OptionSlice) Set(s string) (err error) {
 	return
 }
 
-// Attempt to parse the terrible undocumented format that mount(8) gives us.
-// Return the 'device' (aka 'special' on OS X), the mount point, and a list of
-// mount options encountered.
-func parseArgs() (device string, mountPoint string, opts []Option, err error) {
-	// Example invocation on OS X:
-	//
-	//     mount -t porp -o key_file=/some\ file.json -o ro,blah bucket ~/tmp/mp
-	//
-	// becomes the following arguments:
-	//
-	//     Arg 0: "/path/to/gcsfuse_mount_helper"
-	//     Arg 1: "-o"
-	//     Arg 2: "key_file=/some file.json"
-	//     Arg 3: "-o"
-	//     Arg 4: "ro"
-	//     Arg 5: "-o"
-	//     Arg 6: "blah"
-	//     Arg 7: "bucket"
-	//     Arg 8: "/path/to/mp"
-	//
-	// On Linux, the fstab entry
-	//
-	//     bucket /path/to/mp porp user,key_file=/some\040file.json
-	//
-	// becomes
-	//
-	//     Arg 0: "/path/to/gcsfuse_mount_helper"
-	//     Arg 1: "bucket"
-	//     Arg 2: "/path/to/mp"
-	//     Arg 3: "-o"
-	//     Arg 4: "rw,noexec,nosuid,nodev,user,key_file=/some file.json"
-	//
-
-	// Linux and OS X differ on the position of the options. So scan all
-	// arguments (aside from the name of the binary), and:
-	//
-	//  *  Treat the first argument not following "-o" as the device name.
-	//  *  Treat the second argument not following "-o" as the mount point.
-	//  *  Treat the third argument not following "-o" as an error.
-	//  *  Treat all arguments following "-o" as comma-separated options lists.
-	//
-	rawArgs := 0
-	for i, arg := range os.Args {
-		// Skip the binary name.
-		if i == 0 {
-			continue
-		}
-
-		// Skip "-o"; we will look back on the next iteration.
-		if arg == "-o" {
-			continue
-		}
-
-		// If the previous argument was "-o", this is a list of options.
-		if os.Args[i-1] == "-o" {
-			var tmp []Option
-			tmp, err = parseOpts(arg)
-			if err != nil {
-				err = fmt.Errorf("parseOpts(%q): %v", arg, err)
-				return
-			}
-
-			opts = append(opts, tmp...)
-			continue
-		}
-
-		// Otherwise this is a non-option argument.
-		switch rawArgs {
-		case 0:
-			device = arg
-
-		case 1:
-			mountPoint = arg
-
-		default:
-			err = fmt.Errorf(
-				"Too many non-option arguments. The straw that broke the "+
-					"camel's back: %q",
-				arg)
-			return
-		}
-
-		rawArgs++
+// Parse positional arguments.
+func parseArgs(args []string) (device string, mountPoint string, err error) {
+	if len(args) != 2 {
+		err = fmt.Errorf("Expected two positional arguments, but got %d", len(args))
+		return
 	}
 
-	// Did we see all of the raw arguments we expected?
-	if rawArgs != 2 {
-		err = fmt.Errorf("Expected 2 non-option arguments; got %d", rawArgs)
-	}
+	device = args[0]
+	mountPoint = args[1]
 
 	return
 }
@@ -251,12 +171,13 @@ func main() {
 	flag.Parse()
 
 	// Print out each argument.
-	for i, arg := range os.Args {
+	args := flag.Args()
+	for i, arg := range args {
 		log.Printf("Arg %d: %q", i, arg)
 	}
 
 	// Attempt to parse arguments.
-	device, mountPoint, opts, err := parseArgs()
+	device, mountPoint, err := parseArgs(args)
 	if err != nil {
 		log.Fatalf("parseArgs: %v", err)
 	}
@@ -264,12 +185,12 @@ func main() {
 	// Print what we gleaned.
 	log.Printf("Device: %q", device)
 	log.Printf("Mount point: %q", mountPoint)
-	for _, opt := range opts {
+	for _, opt := range fOptions {
 		log.Printf("Option %q: %q", opt.Name, opt.Value)
 	}
 
 	// Choose gcsfuse args.
-	gcsfuseArgs, err := makeGcsfuseArgs(device, mountPoint, opts)
+	gcsfuseArgs, err := makeGcsfuseArgs(device, mountPoint, fOptions)
 	if err != nil {
 		log.Fatalf("makeGcsfuseArgs: %v", err)
 	}
