@@ -97,7 +97,13 @@ func makeGcsfuseArgs(
 		case "gcs_debug":
 			args = append(args, "--gcs.debug")
 
-			// Pass through everything else.
+		case "file_mode":
+			args = append(args, "--file_mode="+value)
+
+		case "dir_mode":
+			args = append(args, "--dir_mode="+value)
+
+		// Pass through everything else.
 		default:
 			var formatted string
 			if value == "" {

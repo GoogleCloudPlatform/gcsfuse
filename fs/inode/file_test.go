@@ -39,8 +39,12 @@ func TestFile(t *testing.T) { RunTests(t) }
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
+const uid = 123
+const gid = 456
+
 const fileInodeID = 17
 const fileInodeName = "foo/bar"
+const fileMode os.FileMode = 0641
 
 type FileTest struct {
 	ctx    context.Context
@@ -81,6 +85,9 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 	t.in = inode.NewFileInode(
 		fileInodeID,
 		t.backingObj,
+		uid,
+		gid,
+		fileMode,
 		math.MaxUint64, // GCS chunk size
 		false,          // Support nlink
 		t.bucket,
@@ -116,7 +123,9 @@ func (t *FileTest) InitialAttributes() {
 
 	ExpectEq(len(t.initialContents), attrs.Size)
 	ExpectEq(1, attrs.Nlink)
-	ExpectEq(os.FileMode(0700), attrs.Mode)
+	ExpectEq(uid, attrs.Uid)
+	ExpectEq(gid, attrs.Gid)
+	ExpectEq(fileMode, attrs.Mode)
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(t.backingObj.Updated))
 }
 

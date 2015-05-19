@@ -48,6 +48,10 @@ type DirInode struct {
 	// INVARIANT: name == "" || name[len(name)-1] == '/'
 	name string
 
+	uid  uint32
+	gid  uint32
+	mode os.FileMode
+
 	/////////////////////////
 	// Mutable state
 	/////////////////////////
@@ -70,6 +74,9 @@ var _ Inode = &DirInode{}
 // Create a directory inode for the root of the file system. The initial lookup
 // count is zero.
 func NewRootInode(
+	uid uint32,
+	gid uint32,
+	mode os.FileMode,
 	implicitDirs bool,
 	typeCacheTTL time.Duration,
 	bucket gcs.Bucket,
@@ -77,6 +84,9 @@ func NewRootInode(
 	d = NewDirInode(
 		fuseops.RootInodeID,
 		"",
+		uid,
+		gid,
+		mode,
 		implicitDirs,
 		typeCacheTTL,
 		bucket,
@@ -107,6 +117,9 @@ func NewRootInode(
 func NewDirInode(
 	id fuseops.InodeID,
 	name string,
+	uid uint32,
+	gid uint32,
+	mode os.FileMode,
 	implicitDirs bool,
 	typeCacheTTL time.Duration,
 	bucket gcs.Bucket,
@@ -123,6 +136,9 @@ func NewDirInode(
 		id:           id,
 		implicitDirs: implicitDirs,
 		name:         name,
+		uid:          uid,
+		gid:          gid,
+		mode:         mode,
 		cache:        newTypeCache(typeCacheCapacity/2, typeCacheTTL),
 	}
 
@@ -491,7 +507,9 @@ func (d *DirInode) Attributes(
 	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
 	// Set up basic attributes.
 	attrs = fuseops.InodeAttributes{
-		Mode:  0700 | os.ModeDir,
+		Uid:   d.uid,
+		Gid:   d.gid,
+		Mode:  d.mode,
 		Nlink: 1,
 	}
 

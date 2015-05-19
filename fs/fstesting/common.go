@@ -35,8 +35,13 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	"github.com/jacobsa/oglematchers"
-	"github.com/jacobsa/ogletest"
+	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
+)
+
+const (
+	filePerms os.FileMode = 0740
+	dirPerms              = 0754
 )
 
 // A struct that can be embedded to inherit common file system test behaviors.
@@ -61,26 +66,24 @@ func (t *fsTest) setUpFSTest(cfg FSTestConfig) {
 	t.clock = cfg.ServerConfig.Clock
 	t.bucket = cfg.ServerConfig.Bucket
 
+	// Set up permissions.
+	cfg.ServerConfig.FilePerms = filePerms
+	cfg.ServerConfig.DirPerms = dirPerms
+
 	// Set up a temporary directory for mounting.
 	t.Dir, err = ioutil.TempDir("", "fs_test")
-	if err != nil {
-		panic("ioutil.TempDir: " + err.Error())
-	}
+	AssertEq(nil, err)
 
 	// Create a file system server.
 	server, err := fs.NewServer(&cfg.ServerConfig)
-	if err != nil {
-		panic("NewServer: " + err.Error())
-	}
+	AssertEq(nil, err)
 
 	// Mount the file system.
 	mountCfg := cfg.MountConfig
 	mountCfg.OpContext = t.ctx
 
 	t.mfs, err = fuse.Mount(t.Dir, server, &mountCfg)
-	if err != nil {
-		panic("Mount: " + err.Error())
-	}
+	AssertEq(nil, err)
 }
 
 func (t *fsTest) tearDownFsTest() {
@@ -88,11 +91,11 @@ func (t *fsTest) tearDownFsTest() {
 
 	// Close any files we opened.
 	if t.f1 != nil {
-		ogletest.ExpectEq(nil, t.f1.Close())
+		ExpectEq(nil, t.f1.Close())
 	}
 
 	if t.f2 != nil {
-		ogletest.ExpectEq(nil, t.f2.Close())
+		ExpectEq(nil, t.f2.Close())
 	}
 
 	// Unmount the file system. Try again on "resource busy" errors.
@@ -110,11 +113,12 @@ func (t *fsTest) tearDownFsTest() {
 			continue
 		}
 
-		panic("MountedFileSystem.Unmount: " + err.Error())
+		AddFailure("MountedFileSystem.Unmount: %v", err)
+		AbortTest()
 	}
 
 	if err := t.mfs.Join(t.ctx); err != nil {
-		panic("MountedFileSystem.Join: " + err.Error())
+		AssertEq(nil, err)
 	}
 
 	// Unlink the mount point.
@@ -254,28 +258,20 @@ func readRange(r io.ReadSeeker, offset int64, n int) (s string, err error) {
 
 func currentUid() uint32 {
 	user, err := user.Current()
-	if err != nil {
-		panic(err)
-	}
+	AssertEq(nil, err)
 
 	uid, err := strconv.ParseUint(user.Uid, 10, 32)
-	if err != nil {
-		panic(err)
-	}
+	AssertEq(nil, err)
 
 	return uint32(uid)
 }
 
 func currentGid() uint32 {
 	user, err := user.Current()
-	if err != nil {
-		panic(err)
-	}
+	AssertEq(nil, err)
 
 	gid, err := strconv.ParseUint(user.Gid, 10, 32)
-	if err != nil {
-		panic(err)
-	}
+	AssertEq(nil, err)
 
 	return uint32(gid)
 }

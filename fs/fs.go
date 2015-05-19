@@ -17,6 +17,7 @@ package fs
 import (
 	"fmt"
 	"math"
+	"os"
 	"os/user"
 	"reflect"
 	"strconv"
@@ -84,6 +85,11 @@ type ServerConfig struct {
 	// consistency: if the child is removed and recreated with a different type
 	// before the expiration, we may fail to find it.
 	DirTypeCacheTTL time.Duration
+
+	// Permissions bits to use for files and directories. No bits outside of
+	// os.ModePerm may be set.
+	FilePerms os.FileMode
+	DirPerms  os.FileMode
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -91,6 +97,17 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	// Get ownership information.
 	uid, gid, err := getUser()
 	if err != nil {
+		return
+	}
+
+	// Check permissions bits.
+	if cfg.FilePerms&^os.ModePerm != 0 {
+		err = fmt.Errorf("Illegal file perms: %v", cfg.FilePerms)
+		return
+	}
+
+	if cfg.DirPerms&^os.ModePerm != 0 {
+		err = fmt.Errorf("Illegal dir perms: %v", cfg.FilePerms)
 		return
 	}
 
@@ -111,6 +128,8 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		dirTypeCacheTTL: cfg.DirTypeCacheTTL,
 		uid:             uid,
 		gid:             gid,
+		fileMode:        cfg.FilePerms,
+		dirMode:         cfg.DirPerms | os.ModeDir,
 		inodes:          make(map[fuseops.InodeID]inode.Inode),
 		nextInodeID:     fuseops.RootInodeID + 1,
 		fileIndex:       make(map[string]*inode.FileInode),
@@ -120,6 +139,9 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 
 	// Set up the root inode.
 	root := inode.NewRootInode(
+		fs.uid,
+		fs.gid,
+		fs.dirMode,
 		fs.implicitDirs,
 		fs.dirTypeCacheTTL,
 		cfg.Bucket,
@@ -188,6 +210,10 @@ type fileSystem struct {
 	// The user and group owning everything in the file system.
 	uid uint32
 	gid uint32
+
+	// Mode bits for all inodes.
+	fileMode os.FileMode
+	dirMode  os.FileMode
 
 	/////////////////////////
 	// Mutable state
@@ -481,6 +507,9 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 		d := inode.NewDirInode(
 			id,
 			o.Name,
+			fs.uid,
+			fs.gid,
+			fs.dirMode,
 			fs.implicitDirs,
 			fs.dirTypeCacheTTL,
 			fs.bucket,
@@ -492,6 +521,9 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 		in = inode.NewFileInode(
 			id,
 			o,
+			fs.uid,
+			fs.gid,
+			fs.fileMode,
 			fs.gcsChunkSize,
 			fs.supportNlink,
 			fs.bucket,

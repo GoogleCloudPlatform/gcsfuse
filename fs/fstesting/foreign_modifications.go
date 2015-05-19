@@ -55,7 +55,7 @@ func (t *foreignModsTest) StatRoot() {
 
 	ExpectEq(path.Base(t.mfs.Dir()), fi.Name())
 	ExpectEq(0, fi.Size())
-	ExpectEq(0700|os.ModeDir, fi.Mode())
+	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -104,7 +104,7 @@ func (t *foreignModsTest) ReadDir_ContentsInRoot() {
 	e = entries[0]
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
-	ExpectEq(0700|os.ModeDir, e.Mode())
+	ExpectEq(dirPerms|os.ModeDir, e.Mode())
 	ExpectTrue(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
@@ -114,7 +114,7 @@ func (t *foreignModsTest) ReadDir_ContentsInRoot() {
 	e = entries[1]
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
-	ExpectEq(os.FileMode(0700), e.Mode())
+	ExpectEq(filePerms, e.Mode())
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
@@ -125,7 +125,7 @@ func (t *foreignModsTest) ReadDir_ContentsInRoot() {
 	e = entries[2]
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
-	ExpectEq(os.FileMode(0700), e.Mode())
+	ExpectEq(filePerms, e.Mode())
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
@@ -186,7 +186,7 @@ func (t *foreignModsTest) ReadDir_ContentsInSubDirectory() {
 	e = entries[0]
 	ExpectEq("bar", e.Name())
 	ExpectEq(0, e.Size())
-	ExpectEq(0700|os.ModeDir, e.Mode())
+	ExpectEq(dirPerms|os.ModeDir, e.Mode())
 	ExpectTrue(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
@@ -196,7 +196,7 @@ func (t *foreignModsTest) ReadDir_ContentsInSubDirectory() {
 	e = entries[1]
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
-	ExpectEq(os.FileMode(0700), e.Mode())
+	ExpectEq(filePerms, e.Mode())
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
@@ -207,7 +207,7 @@ func (t *foreignModsTest) ReadDir_ContentsInSubDirectory() {
 	e = entries[2]
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
-	ExpectEq(os.FileMode(0700), e.Mode())
+	ExpectEq(filePerms, e.Mode())
 	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
@@ -244,7 +244,7 @@ func (t *foreignModsTest) UnreachableObjects() {
 
 	fi = entries[0]
 	ExpectEq("foo", fi.Name())
-	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectEq(filePerms, fi.Mode())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Statting the conflicting name should give the file.
@@ -252,7 +252,7 @@ func (t *foreignModsTest) UnreachableObjects() {
 	AssertEq(nil, err)
 
 	ExpectEq("foo", fi.Name())
-	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectEq(filePerms, fi.Mode())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Statting the other name shouldn't work at all.
@@ -290,14 +290,14 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 	fi = entries[0]
 	ExpectEq("foo", fi.Name())
 	ExpectEq(0, fi.Size())
-	ExpectEq(0700|os.ModeDir, fi.Mode())
+	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	fi = entries[1]
 	ExpectEq("foo\n", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectEq(filePerms, fi.Mode())
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 
@@ -324,7 +324,7 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 	fi = entries[0]
 	ExpectEq("bar", fi.Name())
 	ExpectEq(len("burrito"), fi.Size())
-	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectEq(filePerms, fi.Mode())
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
@@ -808,7 +808,7 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderPresent() {
 	fi = entries[0]
 	ExpectEq("foo", fi.Name())
 	ExpectEq(0, fi.Size())
-	ExpectEq(0700|os.ModeDir, fi.Mode())
+	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 
@@ -816,7 +816,7 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderPresent() {
 	ExpectEq("foo\n", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectEq(filePerms, fi.Mode())
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 
@@ -862,14 +862,14 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 	fi = entries[0]
 	ExpectEq("foo", fi.Name())
 	ExpectEq(0, fi.Size())
-	ExpectEq(0700|os.ModeDir, fi.Mode())
+	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 
 	fi = entries[1]
 	ExpectEq("foo\n", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(os.FileMode(0700), fi.Mode())
+	ExpectEq(filePerms, fi.Mode())
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 

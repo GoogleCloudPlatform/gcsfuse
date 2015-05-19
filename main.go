@@ -39,6 +39,16 @@ var fMountOptions = mount.OptionFlag(
 	"o",
 	"Additional system-specific mount options. Be careful!")
 
+var fFileMode = flag.Uint(
+	"file_mode",
+	0644,
+	"Permissions bits for files. Default is 0644.")
+
+var fDirMode = flag.Uint(
+	"dir_mode",
+	0755,
+	"Permissions bits for directories. Default is 0755.")
+
 var fTempDir = flag.String(
 	"temp_dir", "",
 	"The temporary directory in which to store local copies of GCS objects. "+
@@ -171,6 +181,8 @@ func main() {
 		ImplicitDirectories: *fImplicitDirs,
 		SupportNlink:        *fSupportNlink,
 		DirTypeCacheTTL:     *fTypeCacheTTL,
+		FilePerms:           os.FileMode(*fFileMode),
+		DirPerms:            os.FileMode(*fDirMode),
 	}
 
 	server, err := fs.NewServer(serverCfg)

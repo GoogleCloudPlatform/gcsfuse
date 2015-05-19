@@ -39,8 +39,9 @@ func TestDir(t *testing.T) { RunTests(t) }
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-const inodeID = 17
-const inodeName = "foo/bar/"
+const dirInodeID = 17
+const dirInodeName = "foo/bar/"
+const dirMode os.FileMode = 0712 | os.ModeDir
 const typeCacheTTL = time.Second
 
 type DirTest struct {
@@ -85,8 +86,11 @@ func (t *DirTest) resetInode(implicitDirs bool) {
 	}
 
 	t.in = inode.NewDirInode(
-		inodeID,
-		inodeName,
+		dirInodeID,
+		dirInodeName,
+		uid,
+		gid,
+		dirMode,
 		implicitDirs,
 		typeCacheTTL,
 		t.bucket,
@@ -120,11 +124,11 @@ func (t *DirTest) readAllEntries() (entries []fuseutil.Dirent, err error) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *DirTest) ID() {
-	ExpectEq(inodeID, t.in.ID())
+	ExpectEq(dirInodeID, t.in.ID())
 }
 
 func (t *DirTest) Name() {
-	ExpectEq(inodeName, t.in.Name())
+	ExpectEq(dirInodeName, t.in.Name())
 }
 
 func (t *DirTest) LookupCount() {
@@ -141,7 +145,9 @@ func (t *DirTest) LookupCount() {
 func (t *DirTest) Attributes() {
 	attrs, err := t.in.Attributes(t.ctx)
 	AssertEq(nil, err)
-	ExpectEq(os.FileMode(0700)|os.ModeDir, attrs.Mode)
+	ExpectEq(uid, attrs.Uid)
+	ExpectEq(gid, attrs.Gid)
+	ExpectEq(dirMode|os.ModeDir, attrs.Mode)
 }
 
 func (t *DirTest) LookUpChild_NonExistent() {
@@ -153,7 +159,7 @@ func (t *DirTest) LookUpChild_NonExistent() {
 
 func (t *DirTest) LookUpChild_FileOnly() {
 	const name = "qux"
-	objName := path.Join(inodeName, name)
+	objName := path.Join(dirInodeName, name)
 
 	var o *gcs.Object
 	var err error
@@ -179,7 +185,7 @@ func (t *DirTest) LookUpChild_FileOnly() {
 
 func (t *DirTest) LookUpChild_DirOnly() {
 	const name = "qux"
-	objName := path.Join(inodeName, name) + "/"
+	objName := path.Join(dirInodeName, name) + "/"
 
 	var o *gcs.Object
 	var err error
@@ -210,7 +216,7 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Disabled() {
 	var err error
 
 	// Create an object that implicitly defines the directory.
-	otherObjName := path.Join(inodeName, name) + "/asdf"
+	otherObjName := path.Join(dirInodeName, name) + "/asdf"
 	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, "")
 	AssertEq(nil, err)
 
@@ -227,7 +233,7 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Disabled() {
 
 func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 	const name = "qux"
-	objName := path.Join(inodeName, name) + "/"
+	objName := path.Join(dirInodeName, name) + "/"
 
 	var o *gcs.Object
 	var err error
@@ -256,8 +262,8 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 
 func (t *DirTest) LookUpChild_FileAndDir() {
 	const name = "qux"
-	fileObjName := path.Join(inodeName, name)
-	dirObjName := path.Join(inodeName, name) + "/"
+	fileObjName := path.Join(dirInodeName, name)
+	dirObjName := path.Join(dirInodeName, name) + "/"
 
 	var o *gcs.Object
 	var err error
@@ -290,8 +296,8 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 
 func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 	const name = "qux"
-	fileObjName := path.Join(inodeName, name)
-	dirObjName := path.Join(inodeName, name) + "/"
+	fileObjName := path.Join(dirInodeName, name)
+	dirObjName := path.Join(dirInodeName, name) + "/"
 
 	var o *gcs.Object
 	var err error
@@ -304,7 +310,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 	AssertEq(nil, err)
 
 	// Create an object that implicitly defines the directory.
-	otherObjName := path.Join(inodeName, name) + "/asdf"
+	otherObjName := path.Join(dirInodeName, name) + "/asdf"
 	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, "")
 	AssertEq(nil, err)
 
@@ -329,8 +335,8 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 
 func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	const name = "qux"
-	fileObjName := path.Join(inodeName, name)
-	dirObjName := path.Join(inodeName, name) + "/"
+	fileObjName := path.Join(dirInodeName, name)
+	dirObjName := path.Join(dirInodeName, name) + "/"
 
 	var o *gcs.Object
 	var err error
@@ -346,7 +352,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	AssertEq(nil, err)
 
 	// Create an object that implicitly defines the directory.
-	otherObjName := path.Join(inodeName, name) + "/asdf"
+	otherObjName := path.Join(dirInodeName, name) + "/asdf"
 	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, "")
 	AssertEq(nil, err)
 
@@ -371,8 +377,8 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 
 func (t *DirTest) LookUpChild_TypeCaching() {
 	const name = "qux"
-	fileObjName := path.Join(inodeName, name)
-	dirObjName := path.Join(inodeName, name) + "/"
+	fileObjName := path.Join(dirInodeName, name)
+	dirObjName := path.Join(dirInodeName, name) + "/"
 
 	var o *gcs.Object
 	var err error
@@ -423,11 +429,11 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 
 	// Set up contents.
 	objs := []string{
-		inodeName + "backed_dir_empty/",
-		inodeName + "backed_dir_nonempty/",
-		inodeName + "backed_dir_nonempty/blah",
-		inodeName + "file",
-		inodeName + "implicit_dir/blah",
+		dirInodeName + "backed_dir_empty/",
+		dirInodeName + "backed_dir_nonempty/",
+		dirInodeName + "backed_dir_nonempty/blah",
+		dirInodeName + "file",
+		dirInodeName + "implicit_dir/blah",
 	}
 
 	err = gcsutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
@@ -461,11 +467,11 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 
 	// Set up contents.
 	objs := []string{
-		inodeName + "backed_dir_empty/",
-		inodeName + "backed_dir_nonempty/",
-		inodeName + "backed_dir_nonempty/blah",
-		inodeName + "file",
-		inodeName + "implicit_dir/blah",
+		dirInodeName + "backed_dir_empty/",
+		dirInodeName + "backed_dir_nonempty/",
+		dirInodeName + "backed_dir_nonempty/blah",
+		dirInodeName + "file",
+		dirInodeName + "implicit_dir/blah",
 	}
 
 	err = gcsutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
@@ -496,8 +502,8 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 
 func (t *DirTest) ReadEntries_TypeCaching() {
 	const name = "qux"
-	fileObjName := path.Join(inodeName, name)
-	dirObjName := path.Join(inodeName, name) + "/"
+	fileObjName := path.Join(dirInodeName, name)
+	dirObjName := path.Join(dirInodeName, name) + "/"
 
 	var o *gcs.Object
 	var err error
@@ -534,7 +540,7 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 
 func (t *DirTest) CreateChildFile_DoesntExist() {
 	const name = "qux"
-	objName := path.Join(inodeName, name)
+	objName := path.Join(dirInodeName, name)
 
 	var o *gcs.Object
 	var err error
@@ -549,7 +555,7 @@ func (t *DirTest) CreateChildFile_DoesntExist() {
 
 func (t *DirTest) CreateChildFile_Exists() {
 	const name = "qux"
-	objName := path.Join(inodeName, name)
+	objName := path.Join(dirInodeName, name)
 
 	var err error
 
@@ -565,8 +571,8 @@ func (t *DirTest) CreateChildFile_Exists() {
 
 func (t *DirTest) CreateChildFile_TypeCaching() {
 	const name = "qux"
-	fileObjName := path.Join(inodeName, name)
-	dirObjName := path.Join(inodeName, name) + "/"
+	fileObjName := path.Join(dirInodeName, name)
+	dirObjName := path.Join(dirInodeName, name) + "/"
 
 	var o *gcs.Object
 	var err error
@@ -599,7 +605,7 @@ func (t *DirTest) CreateChildFile_TypeCaching() {
 
 func (t *DirTest) CreateChildDir_DoesntExist() {
 	const name = "qux"
-	objName := path.Join(inodeName, name) + "/"
+	objName := path.Join(dirInodeName, name) + "/"
 
 	var o *gcs.Object
 	var err error
@@ -614,7 +620,7 @@ func (t *DirTest) CreateChildDir_DoesntExist() {
 
 func (t *DirTest) CreateChildDir_Exists() {
 	const name = "qux"
-	objName := path.Join(inodeName, name) + "/"
+	objName := path.Join(dirInodeName, name) + "/"
 
 	var err error
 
@@ -637,7 +643,7 @@ func (t *DirTest) DeleteChildFile_DoesntExist() {
 
 func (t *DirTest) DeleteChildFile_Exists() {
 	const name = "qux"
-	objName := path.Join(inodeName, name)
+	objName := path.Join(dirInodeName, name)
 
 	var err error
 
@@ -656,8 +662,8 @@ func (t *DirTest) DeleteChildFile_Exists() {
 
 func (t *DirTest) DeleteChildFile_TypeCaching() {
 	const name = "qux"
-	fileObjName := path.Join(inodeName, name)
-	dirObjName := path.Join(inodeName, name) + "/"
+	fileObjName := path.Join(dirInodeName, name)
+	dirObjName := path.Join(dirInodeName, name) + "/"
 
 	var o *gcs.Object
 	var err error
@@ -697,7 +703,7 @@ func (t *DirTest) DeleteChildDir_DoesntExist() {
 
 func (t *DirTest) DeleteChildDir_Exists() {
 	const name = "qux"
-	objName := path.Join(inodeName, name) + "/"
+	objName := path.Join(dirInodeName, name) + "/"
 
 	var err error
 
