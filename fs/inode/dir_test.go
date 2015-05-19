@@ -41,6 +41,7 @@ func TestDir(t *testing.T) { RunTests(t) }
 
 const dirInodeID = 17
 const dirInodeName = "foo/bar/"
+const dirMode os.FileMode = 0712 | os.ModeDir
 const typeCacheTTL = time.Second
 
 type DirTest struct {
@@ -87,6 +88,9 @@ func (t *DirTest) resetInode(implicitDirs bool) {
 	t.in = inode.NewDirInode(
 		dirInodeID,
 		dirInodeName,
+		uid,
+		gid,
+		dirMode,
 		implicitDirs,
 		typeCacheTTL,
 		t.bucket,
@@ -141,7 +145,9 @@ func (t *DirTest) LookupCount() {
 func (t *DirTest) Attributes() {
 	attrs, err := t.in.Attributes(t.ctx)
 	AssertEq(nil, err)
-	ExpectEq(os.FileMode(0700)|os.ModeDir, attrs.Mode)
+	ExpectEq(uid, attrs.Uid)
+	ExpectEq(gid, attrs.Gid)
+	ExpectEq(dirMode|os.ModeDir, attrs.Mode)
 }
 
 func (t *DirTest) LookUpChild_NonExistent() {
