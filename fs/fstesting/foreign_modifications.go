@@ -30,6 +30,7 @@ import (
 	"syscall"
 
 	"github.com/jacobsa/fuse/fusetesting"
+	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -636,7 +637,32 @@ func (t *foreignModsTest) ObjectIsDeleted_Directory() {
 }
 
 func (t *foreignModsTest) Symlink() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create an object that looks like a symlink.
+	req := &gcs.CreateObjectRequest{
+		Name: "foo",
+		Metadata: map[string]string{
+			"gcsfuse_symlink_target": "bar/baz",
+		},
+		Contents: ioutil.NopCloser(strings.NewReader("")),
+	}
+
+	_, err = t.bucket.CreateObject(t.ctx, req)
+	AssertEq(nil, err)
+
+	// Stat the link.
+	fi, err := os.Lstat(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
+
+	// Read the link.
+	target, err := os.Readlink(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+	ExpectEq("bar/baz", target)
 }
 
 ////////////////////////////////////////////////////////////////////////
