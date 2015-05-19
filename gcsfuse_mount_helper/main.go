@@ -97,24 +97,16 @@ func makeGcsfuseArgs(
 		case "gcs_debug":
 			args = append(args, "--gcs.debug")
 
-		case "ro":
-			args = append(args, "--read_only")
-
-		// Ignore arguments for default and unsupported behavior automatically
-		// added by mount(8) on Linux.
-		case "rw":
-		case "noexec":
-		case "nosuid":
-		case "nodev":
-		case "user":
-
+			// Pass through everything else.
 		default:
-			err = fmt.Errorf(
-				"Unrecognized mount option: %q (value %q)",
-				name,
-				value)
+			var formatted string
+			if value == "" {
+				formatted = name
+			} else {
+				formatted = fmt.Sprintf("%s=%s", name, value)
+			}
 
-			return
+			args = append(args, "-o", formatted)
 		}
 	}
 

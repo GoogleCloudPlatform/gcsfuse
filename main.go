@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs"
+	"github.com/googlecloudplatform/gcsfuse/mount"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
@@ -33,6 +34,12 @@ import (
 
 var fBucketName = flag.String("bucket", "", "Name of GCS bucket to mount.")
 var fMountPoint = flag.String("mount_point", "", "File system location.")
+
+var fMountOptions = mount.OptionFlag(
+	"o",
+	"Additional system-specific mount options. Be careful!")
+
+// TODO(jacobsa): Kill this in favor of "-o ro".
 var fReadOnly = flag.Bool("read_only", false, "Mount in read-only mode.")
 
 var fTempDir = flag.String(
@@ -178,6 +185,7 @@ func main() {
 	mountCfg := &fuse.MountConfig{
 		FSName:   bucket.Name(),
 		ReadOnly: *fReadOnly,
+		Options:  fMountOptions,
 	}
 
 	mountedFS, err := fuse.Mount(mountPoint, server, mountCfg)
