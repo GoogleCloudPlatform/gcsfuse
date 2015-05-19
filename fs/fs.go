@@ -18,13 +18,12 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"os/user"
 	"reflect"
-	"strconv"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/lease"
+	"github.com/googlecloudplatform/gcsfuse/perms"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
@@ -95,8 +94,9 @@ type ServerConfig struct {
 // Create a fuse file system server according to the supplied configuration.
 func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	// Get ownership information.
-	uid, gid, err := getUser()
+	uid, gid, err := perms.MyUserAndGroup()
 	if err != nil {
+		err = fmt.Errorf("MyUserAndGroup: %v", err)
 		return
 	}
 
@@ -298,33 +298,6 @@ type fileSystem struct {
 	//
 	// GUARDED_BY(mu)
 	nextHandleID fuseops.HandleID
-}
-
-func getUser() (uid uint32, gid uint32, err error) {
-	// Ask for the current user.
-	user, err := user.Current()
-	if err != nil {
-		panic(err)
-	}
-
-	// Parse UID.
-	uid64, err := strconv.ParseUint(user.Uid, 10, 32)
-	if err != nil {
-		err = fmt.Errorf("Parsing UID (%s): %v", user.Uid, err)
-		return
-	}
-
-	// Parse GID.
-	gid64, err := strconv.ParseUint(user.Gid, 10, 32)
-	if err != nil {
-		err = fmt.Errorf("Parsing GID (%s): %v", user.Gid, err)
-		return
-	}
-
-	uid = uint32(uid64)
-	gid = uint32(gid64)
-
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
