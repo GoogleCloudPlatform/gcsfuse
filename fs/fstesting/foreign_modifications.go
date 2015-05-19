@@ -845,7 +845,6 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderPresent() {
 	fi = entries[1]
 	ExpectEq("foo\n", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
@@ -920,7 +919,58 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 }
 
 func (t *implicitDirsTest) ConflictingNames_OneIsSymlink() {
-	AssertTrue(false, "TODO")
+	var fi os.FileInfo
+	var entries []os.FileInfo
+	var err error
+
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				// Symlink
+				"foo": "",
+
+				// Directory
+				"foo/": "",
+			}))
+
+	// Cause "foo" to look like a symlink.
+	AssertTrue(false, "TODO: UpdateObject")
+
+	// A listing of the parent should contain a directory named "foo" and a
+	// symlink named "foo\n".
+	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+
+	fi = entries[0]
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	fi = entries[1]
+	ExpectEq("foo\n", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	// Statting "foo" should yield the directory.
+	fi, err = os.Lstat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+
+	// Statting "foo\n" should yield the symlink.
+	fi, err = os.Lstat(path.Join(t.mfs.Dir(), "foo\n"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo\n", fi.Name())
+	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
 }
 
 func (t *implicitDirsTest) StatUnknownName_NoOtherContents() {
