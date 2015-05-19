@@ -61,18 +61,15 @@ var fSupportNlink = flag.Bool(
 	false,
 	"Return meaningful values for nlink from fstat(2). See docs/semantics.md.")
 
-var fStatCacheTTL = flag.String(
+var fStatCacheTTL = flag.Duration(
 	"stat_cache_ttl",
-	"1m",
-	"If non-empty, a duration specifying how long to cache StatObject results "+
-		"from GCS, e.g. \"2s\" or \"15ms\". See docs/semantics.md for more.")
+	time.Minute,
+	"How long to cache StatObject results from GCS.")
 
-var fTypeCacheTTL = flag.String(
+var fTypeCacheTTL = flag.Duration(
 	"type_cache_ttl",
-	"1m",
-	"If non-empty, a duration specifying how long to cache name -> file/dir "+
-		"type mappings in directory inodes, e.g. \"2s\" or \"15ms\". "+
-		"See docs/semantics.md.")
+	time.Minute,
+	"How long to cache name -> file/dir type mappings in directory inodes.")
 
 func getBucketName() string {
 	s := *fBucketName
@@ -118,16 +115,10 @@ func getBucket() (b gcs.Bucket) {
 	b = conn.GetBucket(getBucketName())
 
 	// Enable cached StatObject results, if appropriate.
-	if *fStatCacheTTL != "" {
-		ttl, err := time.ParseDuration(*fStatCacheTTL)
-		if err != nil {
-			log.Fatalf("Invalid --stat_cache_ttl: %v", err)
-			return
-		}
-
+	if *fStatCacheTTL != 0 {
 		const cacheCapacity = 4096
 		b = gcscaching.NewFastStatBucket(
-			ttl,
+			*fStatCacheTTL,
 			gcscaching.NewStatCache(cacheCapacity),
 			timeutil.RealClock(),
 			b)
@@ -149,17 +140,6 @@ func main() {
 	}
 
 	mountPoint := *fMountPoint
-
-	// Parse --type_cache_ttl
-	var typeCacheTTL time.Duration
-	if *fTypeCacheTTL != "" {
-		var err error
-		typeCacheTTL, err = time.ParseDuration(*fTypeCacheTTL)
-		if err != nil {
-			log.Fatalf("Invalid --type_cache_ttl: %v", err)
-			return
-		}
-	}
 
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
@@ -186,7 +166,7 @@ func main() {
 		GCSChunkSize:        *fGCSChunkSize,
 		ImplicitDirectories: *fImplicitDirs,
 		SupportNlink:        *fSupportNlink,
-		DirTypeCacheTTL:     typeCacheTTL,
+		DirTypeCacheTTL:     *fTypeCacheTTL,
 	}
 
 	server, err := fs.NewServer(serverCfg)
