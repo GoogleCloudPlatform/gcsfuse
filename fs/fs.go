@@ -17,6 +17,7 @@ package fs
 import (
 	"fmt"
 	"math"
+	"os"
 	"os/user"
 	"reflect"
 	"strconv"
@@ -84,6 +85,11 @@ type ServerConfig struct {
 	// consistency: if the child is removed and recreated with a different type
 	// before the expiration, we may fail to find it.
 	DirTypeCacheTTL time.Duration
+
+	// Permissions bits to use for files and directories. No bits outside of
+	// os.ModePerm may be set.
+	FilePerms os.FileMode
+	DirPerms  os.FileMode
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -91,6 +97,17 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	// Get ownership information.
 	uid, gid, err := getUser()
 	if err != nil {
+		return
+	}
+
+	// Check permissions bits.
+	if cfg.FilePerms&os.ModePerm != 0 {
+		err = fmt.Errorf("Illegal file perms: %v", cfg.FilePerms)
+		return
+	}
+
+	if cfg.DirPerms&os.ModePerm != 0 {
+		err = fmt.Errorf("Illegal dir perms: %v", cfg.FilePerms)
 		return
 	}
 
@@ -111,6 +128,8 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		dirTypeCacheTTL: cfg.DirTypeCacheTTL,
 		uid:             uid,
 		gid:             gid,
+		filePerms:       cfg.FilePerms,
+		dirPerms:        cfg.DirPerms,
 		inodes:          make(map[fuseops.InodeID]inode.Inode),
 		nextInodeID:     fuseops.RootInodeID + 1,
 		fileIndex:       make(map[string]*inode.FileInode),
@@ -188,6 +207,10 @@ type fileSystem struct {
 	// The user and group owning everything in the file system.
 	uid uint32
 	gid uint32
+
+	// Permissions bits for all inodes.
+	filePerms os.FileMode
+	dirPerms  os.FileMode
 
 	/////////////////////////
 	// Mutable state
