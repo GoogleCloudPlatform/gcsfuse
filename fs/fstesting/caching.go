@@ -365,8 +365,36 @@ func (t *cachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 }
 
 func (t *cachingWithImplicitDirsTest) SymlinksWork() {
-	// TODO(jacobsa): Mostly like symlinkTest.CreateLink.
-	AssertTrue(false, "TODO")
+	var fi os.FileInfo
+	var err error
+
+	// Create a file.
+	fileName := path.Join(t.Dir, "foo")
+	const contents = "taco"
+
+	err = ioutil.WriteFile(fileName, []byte(contents), 0400)
+	AssertEq(nil, err)
+
+	// Create a symlink to it.
+	symlinkName := path.Join(t.Dir, "bar")
+	err = os.Symlink("foo", symlinkName)
+	AssertEq(nil, err)
+
+	// Stat the link.
+	fi, err = os.Lstat(symlinkName)
+	AssertEq(nil, err)
+
+	ExpectEq("bar", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
+
+	// Stat the target via the link.
+	fi, err = os.Stat(symlinkName)
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(len(contents), fi.Size())
+	ExpectEq(filePerms, fi.Mode())
 }
 
 func (t *cachingWithImplicitDirsTest) SymlinksAreTypeCached() {
