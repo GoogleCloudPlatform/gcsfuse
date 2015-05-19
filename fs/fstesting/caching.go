@@ -363,3 +363,15 @@ func (t *cachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 }
+
+func (t *cachingWithImplicitDirsTest) SymlinksWork() {
+	// TODO(jacobsa): Mostly like symlinkTest.CreateLink.
+	AssertTrue(false, "TODO")
+}
+
+func (t *cachingWithImplicitDirsTest) SymlinksAreTypeCached() {
+	// TODO(jacobsa): Get symlink in type cache by creating it, then create
+	// directory remotely via uncached bucket. Should not see it until TTL
+	// elapses.
+	AssertTrue(false, "TODO")
+}

@@ -598,7 +598,7 @@ type directoryTest struct {
 	fsTest
 }
 
-func init() { registerSuitePrototype(&modesTest{}) }
+func init() { registerSuitePrototype(&directoryTest{}) }
 
 func (t *directoryTest) Mkdir_OneLevel() {
 	var err error
@@ -1698,4 +1698,29 @@ func (t *fileTest) Close_Clobbered() {
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("foobar", contents)
+}
+
+////////////////////////////////////////////////////////////////////////
+// Symlinks
+////////////////////////////////////////////////////////////////////////
+
+type symlinkTest struct {
+	fsTest
+}
+
+func init() { registerSuitePrototype(&symlinkTest{}) }
+
+func (t *symlinkTest) CreateLink() {
+	// TODO(jacobsa): Create, look at object in bucket, read link, read parent
+	// dir, stat link, stat target.
+	AssertTrue(false, "TODO")
+}
+
+func (t *symlinkTest) CreateLink_Exists() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *symlinkTest) RemoveLink() {
+	// TODO(jacobsa): Check gone from bucket, too.
+	AssertTrue(false, "TODO")
 }

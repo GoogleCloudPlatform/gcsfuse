@@ -635,6 +635,10 @@ func (t *foreignModsTest) ObjectIsDeleted_Directory() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
+func (t *foreignModsTest) Symlink() {
+	AssertTrue(false, "TODO")
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Implicit directories
 ////////////////////////////////////////////////////////////////////////
