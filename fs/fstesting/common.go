@@ -40,7 +40,7 @@ import (
 )
 
 const (
-	filePerms os.FileMode = 0640
+	filePerms os.FileMode = 0740
 	dirPerms              = 0754
 )
 
@@ -65,6 +65,10 @@ func (t *fsTest) setUpFSTest(cfg FSTestConfig) {
 	t.ctx = cfg.ctx
 	t.clock = cfg.ServerConfig.Clock
 	t.bucket = cfg.ServerConfig.Bucket
+
+	// Set up permissions.
+	cfg.ServerConfig.FilePerms = filePerms
+	cfg.ServerConfig.DirPerms = dirPerms
 
 	// Set up a temporary directory for mounting.
 	t.Dir, err = ioutil.TempDir("", "fs_test")
