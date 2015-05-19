@@ -919,6 +919,10 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 	ExpectFalse(fi.IsDir())
 }
 
+func (t *implicitDirsTest) ConflictingNames_OneIsSymlink() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *implicitDirsTest) StatUnknownName_NoOtherContents() {
 	var err error
 

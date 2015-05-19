@@ -396,11 +396,11 @@ and the directory in this case.
 
 Instead, when a conflicting pair of `foo` and `foo/` objects both exist, it
 appears in the gcsfuse file system as if there is a directory named `foo` and a
-file named `foo\n` (i.e. `foo` followed by U+000A, line feed). This is what
-will appear when the parent's directory entries are read, and gcsfuse will
-respond to requests to look up the inode named `foo\n` by returning the file
-inode. `\n` in particular is chosen because it is [not legal][object-names] in
-GCS object names, and therefore is not ambiguous.
+file or symlink named `foo\n` (i.e. `foo` followed by U+000A, line feed). This
+is what will appear when the parent's directory entries are read, and gcsfuse
+will respond to requests to look up the inode named `foo\n` by returning the
+file inode. `\n` in particular is chosen because it is [not
+legal][object-names] in GCS object names, and therefore is not ambiguous.
 
 [object-names]: https://cloud.google.com/storage/docs/bucket-naming#objectnames
 
