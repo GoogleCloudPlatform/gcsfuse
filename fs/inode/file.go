@@ -17,6 +17,7 @@ package inode
 import (
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/lease"
@@ -41,6 +42,10 @@ type FileInode struct {
 	id           fuseops.InodeID
 	supportNlink bool
 	name         string
+
+	uid  uint32
+	gid  uint32
+	mode os.FileMode
 
 	/////////////////////////
 	// Mutable state
@@ -85,6 +90,9 @@ var _ Inode = &FileInode{}
 func NewFileInode(
 	id fuseops.InodeID,
 	o *gcs.Object,
+	uid uint32,
+	gid uint32,
+	mode os.FileMode,
 	gcsChunkSize uint64,
 	supportNlink bool,
 	bucket gcs.Bucket,
@@ -95,6 +103,9 @@ func NewFileInode(
 		bucket:       bucket,
 		id:           id,
 		name:         o.Name,
+		uid:          uid,
+		gid:          gid,
+		mode:         mode,
 		supportNlink: supportNlink,
 		proxy: gcsproxy.NewMutableObject(
 			gcsChunkSize,
@@ -193,7 +204,9 @@ func (f *FileInode) Attributes(
 	attrs = fuseops.InodeAttributes{
 		Nlink: 1,
 		Size:  uint64(sr.Size),
-		Mode:  0700,
+		Uid:   f.uid,
+		Gid:   f.gid,
+		Mode:  f.mode,
 		Mtime: sr.Mtime,
 	}
 
