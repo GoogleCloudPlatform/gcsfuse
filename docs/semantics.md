@@ -288,6 +288,14 @@ the user level to commands like `ls`, and to the posix interfaces they use like
 [consistency]: https://cloud.google.com/storage/docs/concepts-techniques#consistency
 
 
+# Symlink inodes
+
+gcsfuse represents symlinks with empty GCS objects that contain the custom
+metadata key `gcsfuse_symlink_target`, with the value giving the target of a
+symlink. In other respects they work like a file inode, including receiving the
+same permissions.
+
+
 # Write/read consistency
 
 gcsfuse offers close-to-open and fsync-to-open consistency. As discussed above,
@@ -438,7 +446,5 @@ overwritten will then show a value of zero for `stat::st_nlink`.
 Not all of the usual file system features are supported. Most prominently:
 
 *   Renaming is not currently supported. See [issue #11][issue-11].
-*   Symlinks are not currently supported. See [issue #12][issue-12].
 
 [issue-11]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/11
-[issue-12]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/12
