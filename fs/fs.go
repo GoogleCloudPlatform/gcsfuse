@@ -23,7 +23,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/lease"
-	"github.com/googlecloudplatform/gcsfuse/perms"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
@@ -85,6 +84,10 @@ type ServerConfig struct {
 	// before the expiration, we may fail to find it.
 	DirTypeCacheTTL time.Duration
 
+	// The UID and GID that owns all inodes in the file system.
+	Uid uint32
+	Gid uint32
+
 	// Permissions bits to use for files and directories. No bits outside of
 	// os.ModePerm may be set.
 	FilePerms os.FileMode
@@ -93,13 +96,6 @@ type ServerConfig struct {
 
 // Create a fuse file system server according to the supplied configuration.
 func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
-	// Get ownership information.
-	uid, gid, err := perms.MyUserAndGroup()
-	if err != nil {
-		err = fmt.Errorf("MyUserAndGroup: %v", err)
-		return
-	}
-
 	// Check permissions bits.
 	if cfg.FilePerms&^os.ModePerm != 0 {
 		err = fmt.Errorf("Illegal file perms: %v", cfg.FilePerms)
@@ -126,8 +122,8 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		implicitDirs:    cfg.ImplicitDirectories,
 		supportNlink:    cfg.SupportNlink,
 		dirTypeCacheTTL: cfg.DirTypeCacheTTL,
-		uid:             uid,
-		gid:             gid,
+		uid:             cfg.Uid,
+		gid:             cfg.Gid,
 		fileMode:        cfg.FilePerms,
 		dirMode:         cfg.DirPerms | os.ModeDir,
 		inodes:          make(map[fuseops.InodeID]inode.Inode),
