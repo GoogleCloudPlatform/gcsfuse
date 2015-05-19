@@ -128,8 +128,8 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		dirTypeCacheTTL: cfg.DirTypeCacheTTL,
 		uid:             uid,
 		gid:             gid,
-		filePerms:       cfg.FilePerms,
-		dirPerms:        cfg.DirPerms,
+		fileMode:        cfg.FilePerms,
+		dirMode:         cfg.DirPerms | os.ModeDir,
 		inodes:          make(map[fuseops.InodeID]inode.Inode),
 		nextInodeID:     fuseops.RootInodeID + 1,
 		fileIndex:       make(map[string]*inode.FileInode),
@@ -139,6 +139,9 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 
 	// Set up the root inode.
 	root := inode.NewRootInode(
+		fs.uid,
+		fs.gid,
+		fs.dirMode,
 		fs.implicitDirs,
 		fs.dirTypeCacheTTL,
 		cfg.Bucket,
@@ -208,9 +211,9 @@ type fileSystem struct {
 	uid uint32
 	gid uint32
 
-	// Permissions bits for all inodes.
-	filePerms os.FileMode
-	dirPerms  os.FileMode
+	// Mode bits for all inodes.
+	fileMode os.FileMode
+	dirMode  os.FileMode
 
 	/////////////////////////
 	// Mutable state
@@ -504,6 +507,9 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 		d := inode.NewDirInode(
 			id,
 			o.Name,
+			fs.uid,
+			fs.gid,
+			fs.dirMode,
 			fs.implicitDirs,
 			fs.dirTypeCacheTTL,
 			fs.bucket,
@@ -515,6 +521,9 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 		in = inode.NewFileInode(
 			id,
 			o,
+			fs.uid,
+			fs.gid,
+			fs.fileMode,
 			fs.gcsChunkSize,
 			fs.supportNlink,
 			fs.bucket,
