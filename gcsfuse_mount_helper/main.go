@@ -58,51 +58,11 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"strings"
+
+	"github.com/googlecloudplatform/gcsfuse/mount"
 )
 
-var fOptions OptionSlice
-
-func init() {
-	flag.Var(&fOptions, "o", "Mount options. May be repeated.")
-}
-
-// A 'name=value' mount option. If '=value' is not present, only the name will
-// be filled in.
-type Option struct {
-	Name  string
-	Value string
-}
-
-// A slice of options that knows how to parse command-line flags into the
-// slice, implementing flag.Value.
-type OptionSlice []Option
-
-func (os *OptionSlice) String() string {
-	return fmt.Sprint(*os)
-}
-
-func (os *OptionSlice) Set(s string) (err error) {
-	// NOTE(jacobsa): The man pages don't define how escaping works, and as far
-	// as I can tell there is no way to properly escape or quote a comma in the
-	// options list for an fstab entry. So put our fingers in our ears and hope
-	// that nobody needs a comma.
-	for _, p := range strings.Split(s, ",") {
-		var opt Option
-
-		// Split on the first equals sign.
-		if equalsIndex := strings.IndexByte(p, '='); equalsIndex != -1 {
-			opt.Name = p[:equalsIndex]
-			opt.Value = p[equalsIndex+1:]
-		} else {
-			opt.Name = p
-		}
-
-		*os = append(*os, opt)
-	}
-
-	return
-}
+var fOptions = mount.OptionFlag("o", "Mount options. May be repeated.")
 
 // Parse positional arguments.
 func parseArgs(args []string) (device string, mountPoint string, err error) {
@@ -124,12 +84,12 @@ func parseArgs(args []string) (device string, mountPoint string, err error) {
 func makeGcsfuseArgs(
 	device string,
 	mountPoint string,
-	opts []Option) (args []string, err error) {
+	opts map[string]string) (args []string, err error) {
 	// Deal with options.
-	for _, opt := range opts {
-		switch opt.Name {
+	for name, value := range opts {
+		switch name {
 		case "key_file":
-			args = append(args, "--key_file="+opt.Value)
+			args = append(args, "--key_file="+value)
 
 		case "fuse_debug":
 			args = append(args, "--fuse.debug")
@@ -151,8 +111,8 @@ func makeGcsfuseArgs(
 		default:
 			err = fmt.Errorf(
 				"Unrecognized mount option: %q (value %q)",
-				opt.Name,
-				opt.Value)
+				name,
+				value)
 
 			return
 		}
@@ -185,8 +145,8 @@ func main() {
 	// Print what we gleaned.
 	log.Printf("Device: %q", device)
 	log.Printf("Mount point: %q", mountPoint)
-	for _, opt := range fOptions {
-		log.Printf("Option %q: %q", opt.Name, opt.Value)
+	for name, value := range fOptions {
+		log.Printf("Option %q: %q", name, value)
 	}
 
 	// Choose gcsfuse args.
