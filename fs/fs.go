@@ -101,12 +101,12 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	}
 
 	// Check permissions bits.
-	if cfg.FilePerms&os.ModePerm != 0 {
+	if cfg.FilePerms&^os.ModePerm != 0 {
 		err = fmt.Errorf("Illegal file perms: %v", cfg.FilePerms)
 		return
 	}
 
-	if cfg.DirPerms&os.ModePerm != 0 {
+	if cfg.DirPerms&^os.ModePerm != 0 {
 		err = fmt.Errorf("Illegal dir perms: %v", cfg.FilePerms)
 		return
 	}
