@@ -269,7 +269,18 @@ func (t *OpenTest) LegalNames() {
 		ExpectEq(len(n), entries[i].Size(), "Name: %q", n)
 	}
 
-	AssertTrue(false, "TODO")
+	// We should be able to read them all.
+	for _, n := range names {
+		contents, err := ioutil.ReadFile(path.Join(t.Dir, n))
+		AssertEq(nil, err, "Name: %q", n)
+		ExpectEq(n, string(contents), "Name: %q", n)
+	}
+
+	// And delete each.
+	for _, n := range names {
+		err = os.Remove(path.Join(t.Dir, n))
+		AssertEq(nil, err, "Name: %q", n)
+	}
 }
 
 func (t *OpenTest) IllegalNames() {
