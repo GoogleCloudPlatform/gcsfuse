@@ -64,17 +64,17 @@ func setSymlinkTarget(
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type foreignModsTest struct {
+type ForeignModsTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&foreignModsTest{}) }
+func init() { RegisterTestSuite(&ForeignModsTest{}) }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *foreignModsTest) StatRoot() {
+func (t *ForeignModsTest) StatRoot() {
 	fi, err := os.Stat(t.mfs.Dir())
 	AssertEq(nil, err)
 
@@ -87,7 +87,7 @@ func (t *foreignModsTest) StatRoot() {
 	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *foreignModsTest) ReadDir_EmptyRoot() {
+func (t *ForeignModsTest) ReadDir_EmptyRoot() {
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
@@ -95,7 +95,7 @@ func (t *foreignModsTest) ReadDir_EmptyRoot() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *foreignModsTest) ReadDir_ContentsInRoot() {
+func (t *ForeignModsTest) ReadDir_ContentsInRoot() {
 	// Set up contents.
 	createTime := t.clock.Now()
 	AssertEq(
@@ -158,7 +158,7 @@ func (t *foreignModsTest) ReadDir_ContentsInRoot() {
 	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *foreignModsTest) ReadDir_EmptySubDirectory() {
+func (t *ForeignModsTest) ReadDir_EmptySubDirectory() {
 	// Set up an empty directory placeholder called 'bar'.
 	AssertEq(nil, t.createEmptyObjects([]string{"bar/"}))
 
@@ -173,7 +173,7 @@ func (t *foreignModsTest) ReadDir_EmptySubDirectory() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *foreignModsTest) ReadDir_ContentsInSubDirectory() {
+func (t *ForeignModsTest) ReadDir_ContentsInSubDirectory() {
 	// Set up contents.
 	createTime := t.clock.Now()
 	AssertEq(
@@ -240,7 +240,7 @@ func (t *foreignModsTest) ReadDir_ContentsInSubDirectory() {
 	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *foreignModsTest) UnreachableObjects() {
+func (t *ForeignModsTest) UnreachableObjects() {
 	var fi os.FileInfo
 	var err error
 
@@ -285,7 +285,7 @@ func (t *foreignModsTest) UnreachableObjects() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
+func (t *ForeignModsTest) FileAndDirectoryWithConflictingName() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
@@ -354,7 +354,7 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
-func (t *foreignModsTest) SymlinkAndDirectoryWithConflictingName() {
+func (t *ForeignModsTest) SymlinkAndDirectoryWithConflictingName() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
@@ -425,7 +425,7 @@ func (t *foreignModsTest) SymlinkAndDirectoryWithConflictingName() {
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
-func (t *foreignModsTest) StatTrailingNewlineName_NoConflictingNames() {
+func (t *ForeignModsTest) StatTrailingNewlineName_NoConflictingNames() {
 	var err error
 
 	// Set up an object named "foo".
@@ -442,7 +442,7 @@ func (t *foreignModsTest) StatTrailingNewlineName_NoConflictingNames() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *foreignModsTest) Inodes() {
+func (t *ForeignModsTest) Inodes() {
 	// Set up two files and a directory placeholder.
 	AssertEq(
 		nil,
@@ -473,7 +473,7 @@ func (t *foreignModsTest) Inodes() {
 	}
 }
 
-func (t *foreignModsTest) OpenNonExistentFile() {
+func (t *ForeignModsTest) OpenNonExistentFile() {
 	_, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertNe(nil, err)
@@ -481,7 +481,7 @@ func (t *foreignModsTest) OpenNonExistentFile() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
-func (t *foreignModsTest) ReadFromFile_Small() {
+func (t *ForeignModsTest) ReadFromFile_Small() {
 	const contents = "tacoburritoenchilada"
 	const contentLen = len(contents)
 
@@ -518,7 +518,7 @@ func (t *foreignModsTest) ReadFromFile_Small() {
 	ExpectEq("enchilada", s)
 }
 
-func (t *foreignModsTest) ReadFromFile_Large() {
+func (t *ForeignModsTest) ReadFromFile_Large() {
 	const contentLen = 1 << 20
 	contents := randString(contentLen)
 
@@ -567,7 +567,7 @@ func (t *foreignModsTest) ReadFromFile_Large() {
 	}
 }
 
-func (t *foreignModsTest) ReadBeyondEndOfFile() {
+func (t *ForeignModsTest) ReadBeyondEndOfFile() {
 	const contents = "tacoburritoenchilada"
 	const contentLen = len(contents)
 
@@ -598,7 +598,7 @@ func (t *foreignModsTest) ReadBeyondEndOfFile() {
 	}
 }
 
-func (t *foreignModsTest) ObjectIsOverwritten_File() {
+func (t *ForeignModsTest) ObjectIsOverwritten_File() {
 	// Create an object.
 	AssertEq(nil, t.createWithContents("foo", "taco"))
 
@@ -649,7 +649,7 @@ func (t *foreignModsTest) ObjectIsOverwritten_File() {
 	ExpectEq("burrito", string(contents))
 }
 
-func (t *foreignModsTest) ObjectIsOverwritten_Directory() {
+func (t *ForeignModsTest) ObjectIsOverwritten_Directory() {
 	var err error
 
 	// Create a directory placeholder.
@@ -670,7 +670,7 @@ func (t *foreignModsTest) ObjectIsOverwritten_Directory() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *foreignModsTest) ObjectIsDeleted_File() {
+func (t *ForeignModsTest) ObjectIsDeleted_File() {
 	// Create an object.
 	AssertEq(nil, t.createWithContents("foo", "taco"))
 
@@ -706,7 +706,7 @@ func (t *foreignModsTest) ObjectIsDeleted_File() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *foreignModsTest) ObjectIsDeleted_Directory() {
+func (t *ForeignModsTest) ObjectIsDeleted_Directory() {
 	var err error
 
 	// Create a directory placeholder.
@@ -731,7 +731,7 @@ func (t *foreignModsTest) ObjectIsDeleted_Directory() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *foreignModsTest) Symlink() {
+func (t *ForeignModsTest) Symlink() {
 	var err error
 
 	// Create an object that looks like a symlink.
@@ -764,18 +764,18 @@ func (t *foreignModsTest) Symlink() {
 // Implicit directories
 ////////////////////////////////////////////////////////////////////////
 
-type implicitDirsTest struct {
+type ImplicitDirsTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&implicitDirsTest{}) }
+func init() { RegisterTestSuite(&ImplicitDirsTest{}) }
 
-func (t *implicitDirsTest) SetUp(ti *TestInfo) {
+func (t *ImplicitDirsTest) SetUp(ti *TestInfo) {
 	t.serverCfg.ImplicitDirectories = true
 	t.fsTest.SetUp(ti)
 }
 
-func (t *implicitDirsTest) NothingPresent() {
+func (t *ImplicitDirsTest) NothingPresent() {
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
@@ -783,7 +783,7 @@ func (t *implicitDirsTest) NothingPresent() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *implicitDirsTest) FileObjectPresent() {
+func (t *ImplicitDirsTest) FileObjectPresent() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
@@ -816,7 +816,7 @@ func (t *implicitDirsTest) FileObjectPresent() {
 	ExpectFalse(fi.IsDir())
 }
 
-func (t *implicitDirsTest) DirectoryObjectPresent() {
+func (t *ImplicitDirsTest) DirectoryObjectPresent() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
@@ -847,7 +847,7 @@ func (t *implicitDirsTest) DirectoryObjectPresent() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *implicitDirsTest) ImplicitDirectory_DefinedByFile() {
+func (t *ImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
@@ -877,7 +877,7 @@ func (t *implicitDirsTest) ImplicitDirectory_DefinedByFile() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *implicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
+func (t *ImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
@@ -907,7 +907,7 @@ func (t *implicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *implicitDirsTest) ConflictingNames_PlaceholderPresent() {
+func (t *ImplicitDirsTest) ConflictingNames_PlaceholderPresent() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
@@ -960,7 +960,7 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderPresent() {
 	ExpectFalse(fi.IsDir())
 }
 
-func (t *implicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
+func (t *ImplicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
@@ -1013,7 +1013,7 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 	ExpectFalse(fi.IsDir())
 }
 
-func (t *implicitDirsTest) ConflictingNames_OneIsSymlink() {
+func (t *ImplicitDirsTest) ConflictingNames_OneIsSymlink() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
@@ -1069,7 +1069,7 @@ func (t *implicitDirsTest) ConflictingNames_OneIsSymlink() {
 	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
 }
 
-func (t *implicitDirsTest) StatUnknownName_NoOtherContents() {
+func (t *ImplicitDirsTest) StatUnknownName_NoOtherContents() {
 	var err error
 
 	// Stat an unknown name.
@@ -1077,7 +1077,7 @@ func (t *implicitDirsTest) StatUnknownName_NoOtherContents() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *implicitDirsTest) StatUnknownName_UnrelatedContents() {
+func (t *ImplicitDirsTest) StatUnknownName_UnrelatedContents() {
 	var err error
 
 	// Set up contents.
@@ -1094,7 +1094,7 @@ func (t *implicitDirsTest) StatUnknownName_UnrelatedContents() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *implicitDirsTest) StatUnknownName_PrefixOfActualNames() {
+func (t *ImplicitDirsTest) StatUnknownName_PrefixOfActualNames() {
 	var err error
 
 	// Set up contents.
@@ -1111,7 +1111,7 @@ func (t *implicitDirsTest) StatUnknownName_PrefixOfActualNames() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *implicitDirsTest) ImplicitBecomesExplicit() {
+func (t *ImplicitDirsTest) ImplicitBecomesExplicit() {
 	var fi os.FileInfo
 	var err error
 
@@ -1146,7 +1146,7 @@ func (t *implicitDirsTest) ImplicitBecomesExplicit() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *implicitDirsTest) ExplicitBecomesImplicit() {
+func (t *ImplicitDirsTest) ExplicitBecomesImplicit() {
 	var fi os.FileInfo
 	var err error
 

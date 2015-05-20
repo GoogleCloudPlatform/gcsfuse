@@ -49,13 +49,13 @@ func getFileOffset(f *os.File) (offset int64, err error) {
 // Open
 ////////////////////////////////////////////////////////////////////////
 
-type openTest struct {
+type OpenTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&openTest{}) }
+func init() { RegisterTestSuite(&OpenTest{}) }
 
-func (t *openTest) NonExistent_CreateFlagNotSet() {
+func (t *OpenTest) NonExistent_CreateFlagNotSet() {
 	var err error
 	t.f1, err = os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0700)
 
@@ -67,7 +67,7 @@ func (t *openTest) NonExistent_CreateFlagNotSet() {
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
-func (t *openTest) NonExistent_CreateFlagSet() {
+func (t *OpenTest) NonExistent_CreateFlagSet() {
 	var err error
 
 	// Open the file.
@@ -108,7 +108,7 @@ func (t *openTest) NonExistent_CreateFlagSet() {
 	ExpectEq("012", string(fileContents))
 }
 
-func (t *openTest) ExistingFile() {
+func (t *OpenTest) ExistingFile() {
 	var err error
 
 	// Create a file.
@@ -149,7 +149,7 @@ func (t *openTest) ExistingFile() {
 	ExpectEq("012oburritoenchilada", string(fileContents))
 }
 
-func (t *openTest) ExistingFile_Truncate() {
+func (t *OpenTest) ExistingFile_Truncate() {
 	var err error
 
 	// Create a file.
@@ -196,7 +196,7 @@ func (t *openTest) ExistingFile_Truncate() {
 	ExpectEq("012", string(fileContents))
 }
 
-func (t *openTest) AlreadyOpenedFile() {
+func (t *OpenTest) AlreadyOpenedFile() {
 	var err error
 	var n int
 	buf := make([]byte, 1024)
@@ -237,13 +237,13 @@ func (t *openTest) AlreadyOpenedFile() {
 // Modes
 ////////////////////////////////////////////////////////////////////////
 
-type modesTest struct {
+type ModesTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&modesTest{}) }
+func init() { RegisterTestSuite(&ModesTest{}) }
 
-func (t *modesTest) ReadOnlyMode() {
+func (t *ModesTest) ReadOnlyMode() {
 	var err error
 
 	// Create a file.
@@ -272,7 +272,7 @@ func (t *modesTest) ReadOnlyMode() {
 	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 }
 
-func (t *modesTest) WriteOnlyMode() {
+func (t *ModesTest) WriteOnlyMode() {
 	var err error
 
 	// Create a file.
@@ -325,7 +325,7 @@ func (t *modesTest) WriteOnlyMode() {
 	ExpectEq("000o111ritoenchilada222", string(fileContents))
 }
 
-func (t *modesTest) ReadWriteMode() {
+func (t *ModesTest) ReadWriteMode() {
 	var err error
 
 	// Create a file.
@@ -389,7 +389,7 @@ func (t *modesTest) ReadWriteMode() {
 	ExpectEq("000o111ritoenchilada222", string(fileContents))
 }
 
-func (t *modesTest) AppendMode_SeekAndWrite() {
+func (t *ModesTest) AppendMode_SeekAndWrite() {
 	var err error
 
 	// Create a file.
@@ -437,7 +437,7 @@ func (t *modesTest) AppendMode_SeekAndWrite() {
 	ExpectEq(contents+"222", string(fileContents))
 }
 
-func (t *modesTest) AppendMode_WriteAt() {
+func (t *ModesTest) AppendMode_WriteAt() {
 	var err error
 
 	// Linux's support for pwrite is buggy; the pwrite(2) man page says this:
@@ -507,7 +507,7 @@ func (t *modesTest) AppendMode_WriteAt() {
 	}
 }
 
-func (t *modesTest) AppendMode_WriteAt_PastEOF() {
+func (t *ModesTest) AppendMode_WriteAt_PastEOF() {
 	var err error
 
 	// Linux's support for pwrite is buggy; the pwrite(2) man page says this:
@@ -553,7 +553,7 @@ func (t *modesTest) AppendMode_WriteAt_PastEOF() {
 	}
 }
 
-func (t *modesTest) ReadFromWriteOnlyFile() {
+func (t *ModesTest) ReadFromWriteOnlyFile() {
 	var err error
 
 	// Create and open a file for writing.
@@ -571,7 +571,7 @@ func (t *modesTest) ReadFromWriteOnlyFile() {
 	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 }
 
-func (t *modesTest) WriteToReadOnlyFile() {
+func (t *ModesTest) WriteToReadOnlyFile() {
 	var err error
 
 	// Create and open a file for reading.
@@ -593,13 +593,13 @@ func (t *modesTest) WriteToReadOnlyFile() {
 // Directory interaction
 ////////////////////////////////////////////////////////////////////////
 
-type directoryTest struct {
+type DirectoryTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&directoryTest{}) }
+func init() { RegisterTestSuite(&DirectoryTest{}) }
 
-func (t *directoryTest) Mkdir_OneLevel() {
+func (t *DirectoryTest) Mkdir_OneLevel() {
 	var err error
 	var fi os.FileInfo
 	var entries []os.FileInfo
@@ -639,7 +639,7 @@ func (t *directoryTest) Mkdir_OneLevel() {
 	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 }
 
-func (t *directoryTest) Mkdir_TwoLevels() {
+func (t *DirectoryTest) Mkdir_TwoLevels() {
 	var err error
 	var fi os.FileInfo
 	var entries []os.FileInfo
@@ -681,7 +681,7 @@ func (t *directoryTest) Mkdir_TwoLevels() {
 	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 }
 
-func (t *directoryTest) Mkdir_AlreadyExists() {
+func (t *DirectoryTest) Mkdir_AlreadyExists() {
 	var err error
 	dirName := path.Join(t.mfs.Dir(), "dir")
 
@@ -696,7 +696,7 @@ func (t *directoryTest) Mkdir_AlreadyExists() {
 	ExpectThat(err, Error(HasSubstr("exists")))
 }
 
-func (t *directoryTest) Mkdir_IntermediateIsFile() {
+func (t *DirectoryTest) Mkdir_IntermediateIsFile() {
 	var err error
 
 	// Create a file.
@@ -712,7 +712,7 @@ func (t *directoryTest) Mkdir_IntermediateIsFile() {
 	ExpectThat(err, Error(HasSubstr("not a directory")))
 }
 
-func (t *directoryTest) Mkdir_IntermediateIsNonExistent() {
+func (t *DirectoryTest) Mkdir_IntermediateIsNonExistent() {
 	var err error
 
 	// Attempt to create a sub-directory of a non-existent sub-directory.
@@ -723,7 +723,7 @@ func (t *directoryTest) Mkdir_IntermediateIsNonExistent() {
 	ExpectThat(err, Error(HasSubstr("no such file or directory")))
 }
 
-func (t *directoryTest) Stat_Root() {
+func (t *DirectoryTest) Stat_Root() {
 	fi, err := os.Stat(t.mfs.Dir())
 	AssertEq(nil, err)
 
@@ -736,7 +736,7 @@ func (t *directoryTest) Stat_Root() {
 	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *directoryTest) Stat_FirstLevelDirectory() {
+func (t *DirectoryTest) Stat_FirstLevelDirectory() {
 	var err error
 
 	// Create a sub-directory.
@@ -756,7 +756,7 @@ func (t *directoryTest) Stat_FirstLevelDirectory() {
 	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *directoryTest) Stat_SecondLevelDirectory() {
+func (t *DirectoryTest) Stat_SecondLevelDirectory() {
 	var err error
 
 	// Create two levels of directories.
@@ -776,7 +776,7 @@ func (t *directoryTest) Stat_SecondLevelDirectory() {
 	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *directoryTest) ReadDir_Root() {
+func (t *DirectoryTest) ReadDir_Root() {
 	var err error
 	var fi os.FileInfo
 
@@ -819,7 +819,7 @@ func (t *directoryTest) ReadDir_Root() {
 	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *directoryTest) ReadDir_SubDirectory() {
+func (t *DirectoryTest) ReadDir_SubDirectory() {
 	var err error
 	var fi os.FileInfo
 
@@ -867,7 +867,7 @@ func (t *directoryTest) ReadDir_SubDirectory() {
 	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *directoryTest) Rmdir_Empty() {
+func (t *DirectoryTest) Rmdir_Empty() {
 	var err error
 	var entries []os.FileInfo
 
@@ -896,7 +896,7 @@ func (t *directoryTest) Rmdir_Empty() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *directoryTest) Rmdir_OpenedForReading() {
+func (t *DirectoryTest) Rmdir_OpenedForReading() {
 	var err error
 
 	// Create a directory.
@@ -935,7 +935,7 @@ func (t *directoryTest) Rmdir_OpenedForReading() {
 	}
 }
 
-func (t *directoryTest) Rmdir_ThenRecreateWithSameName() {
+func (t *DirectoryTest) Rmdir_ThenRecreateWithSameName() {
 	var err error
 
 	// Create a directory.
@@ -961,7 +961,7 @@ func (t *directoryTest) Rmdir_ThenRecreateWithSameName() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *directoryTest) CreateHardLink() {
+func (t *DirectoryTest) CreateHardLink() {
 	var err error
 
 	// Write a file.
@@ -981,13 +981,13 @@ func (t *directoryTest) CreateHardLink() {
 // File interaction
 ////////////////////////////////////////////////////////////////////////
 
-type fileTest struct {
+type FileTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&fileTest{}) }
+func init() { RegisterTestSuite(&FileTest{}) }
 
-func (t *fileTest) WriteOverlapsEndOfFile() {
+func (t *FileTest) WriteOverlapsEndOfFile() {
 	var err error
 	var n int
 
@@ -1010,7 +1010,7 @@ func (t *fileTest) WriteOverlapsEndOfFile() {
 	ExpectEq("\x00\x00taco", string(contents))
 }
 
-func (t *fileTest) WriteStartsAtEndOfFile() {
+func (t *FileTest) WriteStartsAtEndOfFile() {
 	var err error
 	var n int
 
@@ -1033,7 +1033,7 @@ func (t *fileTest) WriteStartsAtEndOfFile() {
 	ExpectEq("\x00\x00taco", string(contents))
 }
 
-func (t *fileTest) WriteStartsPastEndOfFile() {
+func (t *FileTest) WriteStartsPastEndOfFile() {
 	var err error
 	var n int
 
@@ -1052,7 +1052,7 @@ func (t *fileTest) WriteStartsPastEndOfFile() {
 	ExpectEq("\x00\x00taco", string(contents))
 }
 
-func (t *fileTest) WriteAtDoesntChangeOffset_NotAppendMode() {
+func (t *FileTest) WriteAtDoesntChangeOffset_NotAppendMode() {
 	var err error
 	var n int
 
@@ -1079,7 +1079,7 @@ func (t *fileTest) WriteAtDoesntChangeOffset_NotAppendMode() {
 	ExpectEq(4, offset)
 }
 
-func (t *fileTest) WriteAtDoesntChangeOffset_AppendMode() {
+func (t *FileTest) WriteAtDoesntChangeOffset_AppendMode() {
 	var err error
 	var n int
 
@@ -1110,7 +1110,7 @@ func (t *fileTest) WriteAtDoesntChangeOffset_AppendMode() {
 	ExpectEq(4, offset)
 }
 
-func (t *fileTest) ReadsPastEndOfFile() {
+func (t *FileTest) ReadsPastEndOfFile() {
 	var err error
 	var n int
 	buf := make([]byte, 1024)
@@ -1143,7 +1143,7 @@ func (t *fileTest) ReadsPastEndOfFile() {
 	ExpectEq("", string(buf[:n]))
 }
 
-func (t *fileTest) Truncate_Smaller() {
+func (t *FileTest) Truncate_Smaller() {
 	var err error
 	fileName := path.Join(t.mfs.Dir(), "foo")
 
@@ -1170,7 +1170,7 @@ func (t *fileTest) Truncate_Smaller() {
 	ExpectEq("ta", string(contents))
 }
 
-func (t *fileTest) Truncate_SameSize() {
+func (t *FileTest) Truncate_SameSize() {
 	var err error
 	fileName := path.Join(t.mfs.Dir(), "foo")
 
@@ -1197,7 +1197,7 @@ func (t *fileTest) Truncate_SameSize() {
 	ExpectEq("taco", string(contents))
 }
 
-func (t *fileTest) Truncate_Larger() {
+func (t *FileTest) Truncate_Larger() {
 	var err error
 	fileName := path.Join(t.mfs.Dir(), "foo")
 
@@ -1224,7 +1224,7 @@ func (t *fileTest) Truncate_Larger() {
 	ExpectEq("taco\x00\x00", string(contents))
 }
 
-func (t *fileTest) Seek() {
+func (t *FileTest) Seek() {
 	var err error
 	var n int
 	buf := make([]byte, 1024)
@@ -1253,7 +1253,7 @@ func (t *fileTest) Seek() {
 	ExpectEq("txxo", string(buf[:n]))
 }
 
-func (t *fileTest) Stat() {
+func (t *FileTest) Stat() {
 	var err error
 	var n int
 
@@ -1285,7 +1285,7 @@ func (t *fileTest) Stat() {
 	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *fileTest) StatUnopenedFile() {
+func (t *FileTest) StatUnopenedFile() {
 	var err error
 
 	// Create and close a file.
@@ -1311,7 +1311,7 @@ func (t *fileTest) StatUnopenedFile() {
 	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *fileTest) LstatUnopenedFile() {
+func (t *FileTest) LstatUnopenedFile() {
 	var err error
 
 	// Create and close a file.
@@ -1337,7 +1337,7 @@ func (t *fileTest) LstatUnopenedFile() {
 	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *fileTest) UnlinkFile_Exists() {
+func (t *FileTest) UnlinkFile_Exists() {
 	var err error
 
 	// Write a file.
@@ -1361,14 +1361,14 @@ func (t *fileTest) UnlinkFile_Exists() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *fileTest) UnlinkFile_NonExistent() {
+func (t *FileTest) UnlinkFile_NonExistent() {
 	err := os.Remove(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
-func (t *fileTest) UnlinkFile_StillOpen() {
+func (t *FileTest) UnlinkFile_StillOpen() {
 	var err error
 
 	fileName := path.Join(t.mfs.Dir(), "foo")
@@ -1413,7 +1413,7 @@ func (t *fileTest) UnlinkFile_StillOpen() {
 	AssertEq(len("burrito"), n)
 }
 
-func (t *fileTest) UnlinkFile_NoLongerInBucket() {
+func (t *FileTest) UnlinkFile_NoLongerInBucket() {
 	var err error
 
 	// Write a file.
@@ -1432,7 +1432,7 @@ func (t *fileTest) UnlinkFile_NoLongerInBucket() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *fileTest) UnlinkFile_FromSubDirectory() {
+func (t *FileTest) UnlinkFile_FromSubDirectory() {
 	var err error
 
 	// Create a sub-directory.
@@ -1461,7 +1461,7 @@ func (t *fileTest) UnlinkFile_FromSubDirectory() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *fileTest) UnlinkFile_ThenRecreateWithSameName() {
+func (t *FileTest) UnlinkFile_ThenRecreateWithSameName() {
 	var err error
 
 	// Write a file.
@@ -1487,7 +1487,7 @@ func (t *fileTest) UnlinkFile_ThenRecreateWithSameName() {
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
-func (t *fileTest) Chmod() {
+func (t *FileTest) Chmod() {
 	var err error
 
 	// Write a file.
@@ -1502,7 +1502,7 @@ func (t *fileTest) Chmod() {
 	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
-func (t *fileTest) Chtimes() {
+func (t *FileTest) Chtimes() {
 	var err error
 
 	// Write a file.
@@ -1517,7 +1517,7 @@ func (t *fileTest) Chtimes() {
 	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
-func (t *fileTest) Sync_Dirty() {
+func (t *FileTest) Sync_Dirty() {
 	var err error
 	var n int
 
@@ -1541,7 +1541,7 @@ func (t *fileTest) Sync_Dirty() {
 	ExpectEq("taco", contents)
 }
 
-func (t *fileTest) Sync_NotDirty() {
+func (t *FileTest) Sync_NotDirty() {
 	var err error
 
 	// Create a file.
@@ -1568,7 +1568,7 @@ func (t *fileTest) Sync_NotDirty() {
 	ExpectEq(o1.Generation, o2.Generation)
 }
 
-func (t *fileTest) Sync_Clobbered() {
+func (t *FileTest) Sync_Clobbered() {
 	var err error
 	var n int
 
@@ -1599,7 +1599,7 @@ func (t *fileTest) Sync_Clobbered() {
 	ExpectEq("foobar", contents)
 }
 
-func (t *fileTest) Close_Dirty() {
+func (t *FileTest) Close_Dirty() {
 	var err error
 	var n int
 
@@ -1623,7 +1623,7 @@ func (t *fileTest) Close_Dirty() {
 	ExpectEq("taco", contents)
 }
 
-func (t *fileTest) Close_NotDirty() {
+func (t *FileTest) Close_NotDirty() {
 	var err error
 
 	// Create a file.
@@ -1651,7 +1651,7 @@ func (t *fileTest) Close_NotDirty() {
 	ExpectEq(o1.Generation, o2.Generation)
 }
 
-func (t *fileTest) Close_Clobbered() {
+func (t *FileTest) Close_Clobbered() {
 	var err error
 	var n int
 
@@ -1687,13 +1687,13 @@ func (t *fileTest) Close_Clobbered() {
 // Symlinks
 ////////////////////////////////////////////////////////////////////////
 
-type symlinkTest struct {
+type SymlinkTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&symlinkTest{}) }
+func init() { RegisterTestSuite(&SymlinkTest{}) }
 
-func (t *symlinkTest) CreateLink() {
+func (t *SymlinkTest) CreateLink() {
 	var fi os.FileInfo
 	var err error
 
@@ -1748,7 +1748,7 @@ func (t *symlinkTest) CreateLink() {
 	ExpectEq(filePerms, fi.Mode())
 }
 
-func (t *symlinkTest) CreateLink_Exists() {
+func (t *SymlinkTest) CreateLink_Exists() {
 	var err error
 
 	// Create a file and a directory.
@@ -1778,7 +1778,7 @@ func (t *symlinkTest) CreateLink_Exists() {
 	}
 }
 
-func (t *symlinkTest) RemoveLink() {
+func (t *SymlinkTest) RemoveLink() {
 	var err error
 
 	// Create the link.
