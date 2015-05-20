@@ -121,6 +121,7 @@ type fileLeaser struct {
 	readLeasesIndex map[*readLease]*list.Element
 }
 
+// LOCKS_EXCLUDED(fl.mu)
 func (fl *fileLeaser) NewFile() (rwl ReadWriteLease, err error) {
 	// Create an anonymous file.
 	f, err := fsutil.AnonymousFile(fl.dir)
@@ -133,7 +134,10 @@ func (fl *fileLeaser) NewFile() (rwl ReadWriteLease, err error) {
 	rwl = newReadWriteLease(fl, 0, f)
 
 	// Update state.
+	fl.mu.Lock()
 	fl.readWriteCount++
+	fl.evict(fl.limitNumFiles, fl.limitBytes)
+	fl.mu.Unlock()
 
 	return
 }
