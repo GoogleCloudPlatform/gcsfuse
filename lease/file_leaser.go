@@ -92,7 +92,7 @@ type fileLeaser struct {
 	mu syncutil.InvariantMutex
 
 	// The number of outstanding read/write leases.
-	readWriteCount int64
+	readWriteCount int
 
 	// The current estimated total size of outstanding read/write leases. This is
 	// only an estimate because we can't synchronize its update with a call to
@@ -145,6 +145,14 @@ func (fl *fileLeaser) RevokeReadLeases() {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+func maxInt(a int, b int) int {
+	if a > b {
+		return a
+	}
+
+	return b
+}
+
 func maxInt64(a int64, b int64) int64 {
 	if a > b {
 		return a
@@ -171,7 +179,7 @@ func (fl *fileLeaser) checkInvariants() {
 
 	// INVARIANT: 0 <= readLeases.Len() <= max(0, limitNumFiles - readWriteCount)
 	if !(0 <= fl.readLeases.Len() &&
-		fl.readLeases.Len() <= maxInt64(0, fl.limitNumFiles-fl.readWriteCount)) {
+		fl.readLeases.Len() <= maxInt(0, fl.limitNumFiles-fl.readWriteCount)) {
 		panic(fmt.Sprintf(
 			"Out of range read lease count: %d, limitNumFiles: %d, readWriteCount: %d",
 			fl.readLeases.Len(),
