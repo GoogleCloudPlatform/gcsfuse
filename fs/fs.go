@@ -963,6 +963,50 @@ func (fs *fileSystem) CreateFile(
 }
 
 // LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) CreateSymlink(
+	op *fuseops.CreateSymlinkOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	// Find the parent.
+	fs.mu.Lock()
+	parent := fs.inodes[op.Parent].(*inode.DirInode)
+	fs.mu.Unlock()
+
+	// Create the object in GCS, failing if it already exists.
+	parent.Lock()
+	o, err := parent.CreateChildSymlink(op.Context(), op.Name, op.Target)
+	parent.Unlock()
+	if err != nil {
+		err = fmt.Errorf("CreateChildSymlink: %v", err)
+		return
+	}
+
+	// Attempt to create a child inode using the object we created. If we fail to
+	// do so, it means someone beat us to the punch with a newer generation
+	// (unlikely, so we're probably okay with failing here).
+	fs.mu.Lock()
+	child := fs.lookUpOrCreateInodeIfNotStale(o)
+	if child == nil {
+		err = fmt.Errorf("Newly-created record is already stale")
+		return
+	}
+
+	defer child.Unlock()
+
+	// Fill out the response.
+	op.Entry.Child = child.ID()
+	op.Entry.Attributes, err = child.Attributes(op.Context())
+
+	if err != nil {
+		err = fmt.Errorf("Attributes: %v", err)
+		return
+	}
+
+	return
+}
+
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) RmDir(
 	op *fuseops.RmDirOp) {
 	var err error
