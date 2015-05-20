@@ -15,7 +15,6 @@
 package inode
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -312,7 +311,8 @@ func statObjectMayNotExist(
 // Fail if the name already exists.
 func (d *DirInode) createNewObject(
 	ctx context.Context,
-	name string) (o *gcs.Object, err error) {
+	name string,
+	metadata map[string]string) (o *gcs.Object, err error) {
 	// Create an empty backing object for the child, failing if it already
 	// exists.
 	var precond int64
@@ -320,6 +320,7 @@ func (d *DirInode) createNewObject(
 		Name:                   name,
 		Contents:               strings.NewReader(""),
 		GenerationPrecondition: &precond,
+		Metadata:               metadata,
 	}
 
 	o, err = d.bucket.CreateObject(ctx, createReq)
@@ -701,7 +702,7 @@ func (d *DirInode) ReadEntries(
 func (d *DirInode) CreateChildFile(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
-	o, err = d.createNewObject(ctx, path.Join(d.Name(), name))
+	o, err = d.createNewObject(ctx, path.Join(d.Name(), name), nil)
 	if err != nil {
 		return
 	}
@@ -719,7 +720,17 @@ func (d *DirInode) CreateChildSymlink(
 	ctx context.Context,
 	name string,
 	target string) (o *gcs.Object, err error) {
-	err = errors.New("TODO: CreateChildSymlink")
+	metadata := map[string]string{
+		SymlinkMetadataKey: target,
+	}
+
+	o, err = d.createNewObject(ctx, path.Join(d.Name(), name), metadata)
+	if err != nil {
+		return
+	}
+
+	d.cache.NoteFile(d.clock.Now(), name)
+
 	return
 }
 
@@ -730,7 +741,7 @@ func (d *DirInode) CreateChildSymlink(
 func (d *DirInode) CreateChildDir(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
-	o, err = d.createNewObject(ctx, path.Join(d.Name(), name)+"/")
+	o, err = d.createNewObject(ctx, path.Join(d.Name(), name)+"/", nil)
 	if err != nil {
 		return
 	}
