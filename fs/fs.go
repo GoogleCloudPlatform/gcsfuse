@@ -115,9 +115,13 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 
 	// Set up the basic struct.
 	fs := &fileSystem{
-		clock:               cfg.Clock,
-		bucket:              cfg.Bucket,
-		leaser:              lease.NewFileLeaser(cfg.TempDir, cfg.TempDirLimit),
+		clock:  cfg.Clock,
+		bucket: cfg.Bucket,
+		// TODO(jacobsa): Derive count limit from getrlimit.
+		leaser: lease.NewFileLeaser(
+			cfg.TempDir,
+			math.MaxInt32,
+			cfg.TempDirLimit),
 		gcsChunkSize:        gcsChunkSize,
 		implicitDirs:        cfg.ImplicitDirectories,
 		supportNlink:        cfg.SupportNlink,
