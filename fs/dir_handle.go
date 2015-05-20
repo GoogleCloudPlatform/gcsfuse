@@ -129,15 +129,25 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 			continue
 		}
 
-		// Repair whichever is the file, remembering that there's no way to get any
-		// other type in the mix.
-		if e.Type == fuseutil.DT_File {
-			e.Name += inode.ConflictingFileNameSuffix
-		} else {
-			if prev.Type != fuseutil.DT_File {
-				panic(fmt.Sprintf("Unexpected type for entry: %v", prev))
-			}
+		// We expect exactly one to be a directory.
+		eIsDir := e.Type == fuseutil.DT_Directory
+		prevIsDir := prev.Type == fuseutil.DT_Directory
+
+		if eIsDir == prevIsDir {
+			err = fmt.Errorf(
+				"Weird dirent type pair for name %q: %v, %v",
+				e.Name,
+				e.Type,
+				prev.Type)
+
+			return
+		}
+
+		// Repair whichever is not the directory.
+		if eIsDir {
 			prev.Name += inode.ConflictingFileNameSuffix
+		} else {
+			e.Name += inode.ConflictingFileNameSuffix
 		}
 	}
 
