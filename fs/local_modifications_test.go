@@ -364,19 +364,23 @@ func (t *OpenTest) LegalNames() {
 func (t *OpenTest) IllegalNames() {
 	var err error
 
-	// A collection of interesting names that are illegal to use.
-	names := []string{
+	// A collection of interesting names that are illegal to use, and a string we
+	// expect to see in the associated error.
+	testCases := []struct {
+		name string
+		err  string
+	}{
 		// Too long
-		strings.Repeat("a", fuseMaxNameLen+1),
+		{strings.Repeat("a", fuseMaxNameLen+1), "name too long"},
 
-		// Invalid UTF-8
-		"\x80",
+		// Invalid UTF-8, rejected by GCS
+		{"\x80", "input/output"},
 	}
 
 	// We should not be able to create any of these names.
-	for _, n := range names {
-		err = ioutil.WriteFile(path.Join(t.Dir, n), []byte{}, 0400)
-		ExpectThat(err, Error(HasSubstr("too long")), "Name: %q", n)
+	for _, tc := range testCases {
+		err = ioutil.WriteFile(path.Join(t.Dir, tc.name), []byte{}, 0400)
+		ExpectThat(err, Error(HasSubstr(tc.err)), "Name: %q", tc.name)
 	}
 }
 
