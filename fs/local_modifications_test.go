@@ -18,7 +18,7 @@
 //
 // These tests are registered by RegisterFSTests.
 
-package fstesting
+package fs_test
 
 import (
 	"io"
