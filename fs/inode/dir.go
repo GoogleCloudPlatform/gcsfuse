@@ -633,7 +633,7 @@ func (d *DirInode) ReadEntries(
 		return
 	}
 
-	// Convert objects to entries for files.
+	// Convert objects to entries for files or symlinks.
 	for _, o := range listing.Objects {
 		// Skip the entry for the backing object itself, which of course has its
 		// own name as a prefix but which we don't wan to appear to contain itself.
@@ -644,6 +644,10 @@ func (d *DirInode) ReadEntries(
 		e := fuseutil.Dirent{
 			Name: path.Base(o.Name),
 			Type: fuseutil.DT_File,
+		}
+
+		if IsSymlink(o) {
+			e.Type = fuseutil.DT_Link
 		}
 
 		entries = append(entries, e)
