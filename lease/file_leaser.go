@@ -92,6 +92,8 @@ type fileLeaser struct {
 	mu syncutil.InvariantMutex
 
 	// The number of outstanding read/write leases.
+	//
+	// INVARIANT: readWriteCount >= 0
 	readWriteCount int
 
 	// The current estimated total size of outstanding read/write leases. This is
@@ -163,6 +165,11 @@ func maxInt64(a int64, b int64) int64 {
 
 // LOCKS_REQUIRED(fl.mu)
 func (fl *fileLeaser) checkInvariants() {
+	// INVARIANT: readWriteCount >= 0
+	if fl.readWriteCount < 0 {
+		panic(fmt.Sprintf("Unexpected read/write count: %d", fl.readWriteCount))
+	}
+
 	// INVARIANT: Each element is of type *readLease
 	// INVARIANT: No element has been revoked.
 	for e := fl.readLeases.Front(); e != nil; e = e.Next() {
@@ -238,6 +245,7 @@ func (fl *fileLeaser) checkInvariants() {
 //
 // LOCKS_EXCLUDED(fl.mu)
 func (fl *fileLeaser) addReadWriteByteDelta(delta int64) {
+	fl.readWriteCount++
 	fl.readWriteBytes += delta
 	fl.evict(fl.limitBytes)
 }
@@ -289,6 +297,7 @@ func (fl *fileLeaser) downgrade(
 	fl.mu.Lock()
 	defer fl.mu.Unlock()
 
+	fl.readWriteCount--
 	fl.readWriteBytes -= size
 	fl.readOutstanding += size
 
