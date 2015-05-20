@@ -38,17 +38,20 @@ type FileLeaser interface {
 }
 
 // Create a new file leaser that uses the supplied directory for temporary
-// files (before unlinking them) and attempts to keep usage in bytes below the
-// given limit. If dir is empty, the system default will be used.
+// files (before unlinking them) and attempts to keep usage in number of files
+// and bytes below the given limits. If dir is empty, the system default will be
+// used.
 //
-// Usage may exceed the given limit if there are read/write leases whose total
-// size exceeds the limit, since such leases cannot be revoked.
+// Usage may exceed the given limits if there are read/write leases whose total
+// size exceeds the limits, since such leases cannot be revoked.
 func NewFileLeaser(
 	dir string,
+	limitNumFiles int,
 	limitBytes int64) (fl FileLeaser) {
 	typed := &fileLeaser{
 		dir:             dir,
-		limit:           limitBytes,
+		limitNumFiles:   limitNumFiles,
+		limitBytes:      limitBytes,
 		readLeasesIndex: make(map[*readLease]*list.Element),
 	}
 
@@ -63,8 +66,9 @@ type fileLeaser struct {
 	// Constant data
 	/////////////////////////
 
-	dir   string
-	limit int64
+	dir           string
+	limitNumFiles int
+	limitBytes    int64
 
 	/////////////////////////
 	// Mutable state
@@ -102,7 +106,7 @@ type fileLeaser struct {
 	//
 	// INVARIANT: Equal to the sum over readLeases sizes.
 	// INVARIANT: 0 <= readOutstanding
-	// INVARIANT: readOutstanding <= max(0, limit - readWriteOutstanding)
+	// INVARIANT: readOutstanding <= max(0, limitBytes - readWriteOutstanding)
 	readOutstanding int64
 
 	// Index of read leases by pointer.
@@ -180,12 +184,12 @@ func (fl *fileLeaser) checkInvariants() {
 		panic(fmt.Sprintf("Unexpected readOutstanding: %v", fl.readOutstanding))
 	}
 
-	// INVARIANT: readOutstanding <= max(0, limit - readWriteOutstanding)
-	if !(fl.readOutstanding <= maxInt64(0, fl.limit-fl.readWriteOutstanding)) {
+	// INVARIANT: readOutstanding <= max(0, limitBytes - readWriteOutstanding)
+	if !(fl.readOutstanding <= maxInt64(0, fl.limitBytes-fl.readWriteOutstanding)) {
 		panic(fmt.Sprintf(
-			"Unexpected readOutstanding: %v. limit: %v, readWriteOutstanding: %v",
+			"Unexpected readOutstanding: %v. limitBytes: %v, readWriteOutstanding: %v",
 			fl.readOutstanding,
-			fl.limit,
+			fl.limitBytes,
 			fl.readWriteOutstanding))
 	}
 
@@ -205,7 +209,7 @@ func (fl *fileLeaser) checkInvariants() {
 }
 
 // Add the supplied delta to the leaser's view of outstanding read/write lease
-// bytes, then revoke read leases until we're under limit or we run out of
+// bytes, then revoke read leases until we're under limitBytes or we run out of
 // leases to revoke.
 //
 // Called by readWriteLease while holding its lock.
@@ -213,20 +217,20 @@ func (fl *fileLeaser) checkInvariants() {
 // LOCKS_EXCLUDED(fl.mu)
 func (fl *fileLeaser) addReadWriteByteDelta(delta int64) {
 	fl.readWriteOutstanding += delta
-	fl.evict(fl.limit)
+	fl.evict(fl.limitBytes)
 }
 
 // LOCKS_REQUIRED(fl.mu)
-func (fl *fileLeaser) overLimit(limit int64) bool {
-	return fl.readOutstanding+fl.readWriteOutstanding > limit
+func (fl *fileLeaser) overLimit(limitBytes int64) bool {
+	return fl.readOutstanding+fl.readWriteOutstanding > limitBytes
 }
 
-// Revoke read leases until we're within the given limit or we run out of
+// Revoke read leases until we're within the given limitBytes or we run out of
 // things to revoke.
 //
 // LOCKS_REQUIRED(fl.mu)
-func (fl *fileLeaser) evict(limit int64) {
-	for fl.overLimit(limit) {
+func (fl *fileLeaser) evict(limitBytes int64) {
+	for fl.overLimit(limitBytes) {
 		// Do we have anything to revoke?
 		lru := fl.readLeases.Back()
 		if lru == nil {
@@ -270,7 +274,7 @@ func (fl *fileLeaser) downgrade(
 	fl.readLeasesIndex[rlTyped] = e
 
 	// Ensure that we're not now over capacity.
-	fl.evict(fl.limit)
+	fl.evict(fl.limitBytes)
 
 	return
 }
