@@ -119,6 +119,21 @@ func (t *DirTest) readAllEntries() (entries []fuseutil.Dirent, err error) {
 	return
 }
 
+func (t *DirTest) setSymlinkTarget(
+	objName string,
+	target string) (err error) {
+	_, err = t.bucket.UpdateObject(
+		t.ctx,
+		&gcs.UpdateObjectRequest{
+			Name: objName,
+			Metadata: map[string]*string{
+				inode.SymlinkMetadataKey: &target,
+			},
+		})
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
@@ -294,6 +309,43 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 	ExpectEq(fileObj.Size, o.Size)
 }
 
+func (t *DirTest) LookUpChild_SymlinkAndDir() {
+	const name = "qux"
+	linkObjName := path.Join(dirInodeName, name)
+	dirObjName := path.Join(dirInodeName, name) + "/"
+
+	var o *gcs.Object
+	var err error
+
+	// Create backing objects.
+	linkObj, err := gcsutil.CreateObject(t.ctx, t.bucket, linkObjName, "taco")
+	AssertEq(nil, err)
+
+	err = t.setSymlinkTarget(linkObjName, "blah")
+	AssertEq(nil, err)
+
+	dirObj, err := gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, "")
+	AssertEq(nil, err)
+
+	// Look up with the proper name.
+	o, err = t.in.LookUpChild(t.ctx, name)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(dirObjName, o.Name)
+	ExpectEq(dirObj.Generation, o.Generation)
+	ExpectEq(dirObj.Size, o.Size)
+
+	// Look up with the conflict marker name.
+	o, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(linkObjName, o.Name)
+	ExpectEq(linkObj.Generation, o.Generation)
+	ExpectEq(linkObj.Size, o.Size)
+}
+
 func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 	const name = "qux"
 	fileObjName := path.Join(dirInodeName, name)
@@ -434,47 +486,14 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 		dirInodeName + "backed_dir_nonempty/blah",
 		dirInodeName + "file",
 		dirInodeName + "implicit_dir/blah",
+		dirInodeName + "symlink",
 	}
 
 	err = gcsutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
 	AssertEq(nil, err)
 
-	// Read entries.
-	entries, err := t.readAllEntries()
-
-	AssertEq(nil, err)
-	AssertEq(3, len(entries))
-
-	entry = entries[0]
-	ExpectEq("backed_dir_empty", entry.Name)
-	ExpectEq(fuseutil.DT_Directory, entry.Type)
-
-	entry = entries[1]
-	ExpectEq("backed_dir_nonempty", entry.Name)
-	ExpectEq(fuseutil.DT_Directory, entry.Type)
-
-	entry = entries[2]
-	ExpectEq("file", entry.Name)
-	ExpectEq(fuseutil.DT_File, entry.Type)
-}
-
-func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
-	var err error
-	var entry fuseutil.Dirent
-
-	// Enable implicit dirs.
-	t.resetInode(true)
-
-	// Set up contents.
-	objs := []string{
-		dirInodeName + "backed_dir_empty/",
-		dirInodeName + "backed_dir_nonempty/",
-		dirInodeName + "backed_dir_nonempty/blah",
-		dirInodeName + "file",
-		dirInodeName + "implicit_dir/blah",
-	}
-
-	err = gcsutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+	// Set up the symlink target.
+	err = t.setSymlinkTarget(dirInodeName+"symlink", "blah")
 	AssertEq(nil, err)
 
 	// Read entries.
@@ -496,8 +515,59 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	ExpectEq(fuseutil.DT_File, entry.Type)
 
 	entry = entries[3]
+	ExpectEq("symlink", entry.Name)
+	ExpectEq(fuseutil.DT_Link, entry.Type)
+}
+
+func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
+	var err error
+	var entry fuseutil.Dirent
+
+	// Enable implicit dirs.
+	t.resetInode(true)
+
+	// Set up contents.
+	objs := []string{
+		dirInodeName + "backed_dir_empty/",
+		dirInodeName + "backed_dir_nonempty/",
+		dirInodeName + "backed_dir_nonempty/blah",
+		dirInodeName + "file",
+		dirInodeName + "implicit_dir/blah",
+		dirInodeName + "symlink",
+	}
+
+	err = gcsutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+	AssertEq(nil, err)
+
+	// Set up the symlink target.
+	err = t.setSymlinkTarget(dirInodeName+"symlink", "blah")
+	AssertEq(nil, err)
+
+	// Read entries.
+	entries, err := t.readAllEntries()
+
+	AssertEq(nil, err)
+	AssertEq(5, len(entries))
+
+	entry = entries[0]
+	ExpectEq("backed_dir_empty", entry.Name)
+	ExpectEq(fuseutil.DT_Directory, entry.Type)
+
+	entry = entries[1]
+	ExpectEq("backed_dir_nonempty", entry.Name)
+	ExpectEq(fuseutil.DT_Directory, entry.Type)
+
+	entry = entries[2]
+	ExpectEq("file", entry.Name)
+	ExpectEq(fuseutil.DT_File, entry.Type)
+
+	entry = entries[3]
 	ExpectEq("implicit_dir", entry.Name)
 	ExpectEq(fuseutil.DT_Directory, entry.Type)
+
+	entry = entries[4]
+	ExpectEq("symlink", entry.Name)
+	ExpectEq(fuseutil.DT_Link, entry.Type)
 }
 
 func (t *DirTest) ReadEntries_TypeCaching() {
@@ -592,6 +662,75 @@ func (t *DirTest) CreateChildFile_TypeCaching() {
 	AssertNe(nil, o)
 
 	ExpectEq(fileObjName, o.Name)
+
+	// But after the TTL expires, the behavior should flip.
+	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
+
+	o, err = t.in.LookUpChild(t.ctx, name)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(dirObjName, o.Name)
+}
+
+func (t *DirTest) CreateChildSymlink_DoesntExist() {
+	const name = "qux"
+	const target = "taco"
+	objName := path.Join(dirInodeName, name)
+
+	var o *gcs.Object
+	var err error
+
+	// Call the inode.
+	o, err = t.in.CreateChildSymlink(t.ctx, name, target)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(objName, o.Name)
+	ExpectEq(target, o.Metadata[inode.SymlinkMetadataKey])
+}
+
+func (t *DirTest) CreateChildSymlink_Exists() {
+	const name = "qux"
+	const target = "taco"
+	objName := path.Join(dirInodeName, name)
+
+	var err error
+
+	// Create an existing backing object.
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, "")
+	AssertEq(nil, err)
+
+	// Call the inode.
+	_, err = t.in.CreateChildSymlink(t.ctx, name, target)
+	ExpectThat(err, Error(HasSubstr("Precondition")))
+	ExpectThat(err, Error(HasSubstr("exists")))
+}
+
+func (t *DirTest) CreateChildSymlink_TypeCaching() {
+	const name = "qux"
+	linkObjName := path.Join(dirInodeName, name)
+	dirObjName := path.Join(dirInodeName, name) + "/"
+
+	var o *gcs.Object
+	var err error
+
+	// Create the name.
+	_, err = t.in.CreateChildSymlink(t.ctx, name, "")
+	AssertEq(nil, err)
+
+	// Create a backing object for a directory.
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, "taco")
+	AssertEq(nil, err)
+
+	// Look up the name. Even though the directory should shadow the symlink,
+	// because we've cached only seeing the symlink that's what we should get
+	// back.
+	o, err = t.in.LookUpChild(t.ctx, name)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(linkObjName, o.Name)
 
 	// But after the TTL expires, the behavior should flip.
 	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)

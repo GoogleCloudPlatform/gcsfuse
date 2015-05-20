@@ -330,6 +330,10 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
+func (t *foreignModsTest) SymlinkAndDirectoryWithConflictingName() {
+	AssertEq(nil, err)
+}
+
 func (t *foreignModsTest) StatTrailingNewlineName_NoConflictingNames() {
 	var err error
 
