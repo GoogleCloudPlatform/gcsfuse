@@ -238,13 +238,13 @@ func (fl *fileLeaser) checkInvariants() {
 //
 // LOCKS_EXCLUDED(fl.mu)
 func (fl *fileLeaser) addReadWriteByteDelta(delta int64) {
-	fl.readWriteOutstanding += delta
+	fl.readWriteBytes += delta
 	fl.evict(fl.limitBytes)
 }
 
 // LOCKS_REQUIRED(fl.mu)
 func (fl *fileLeaser) overLimit(limitBytes int64) bool {
-	return fl.readOutstanding+fl.readWriteOutstanding > limitBytes
+	return fl.readOutstanding+fl.readWriteBytes > limitBytes
 }
 
 // Revoke read leases until we're within the given limitBytes or we run out of
@@ -289,7 +289,7 @@ func (fl *fileLeaser) downgrade(
 	fl.mu.Lock()
 	defer fl.mu.Unlock()
 
-	fl.readWriteOutstanding -= size
+	fl.readWriteBytes -= size
 	fl.readOutstanding += size
 
 	e := fl.readLeases.PushFront(rl)
@@ -323,7 +323,7 @@ func (fl *fileLeaser) upgrade(rl *readLease) (rwl ReadWriteLease, err error) {
 	size := rl.Size()
 
 	// Update leaser state.
-	fl.readWriteOutstanding += size
+	fl.readWriteBytes += size
 	fl.readOutstanding -= size
 
 	e := fl.readLeasesIndex[rl]
