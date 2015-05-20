@@ -336,11 +336,11 @@ func (t *FileLeaserTest) NewFileCausesEviction() {
 	// Creating two more write leases should cause two to be revoked.
 	rwl0, err := t.fl.NewFile()
 	AssertEq(nil, err)
-	defer rwl0.Downgrade().Revoke()
+	defer func() { rwl0.Downgrade().Revoke() }()
 
 	rwl1, err := t.fl.NewFile()
 	AssertEq(nil, err)
-	defer rwl1.Downgrade().Revoke()
+	defer func() { rwl1.Downgrade().Revoke() }()
 
 	revoked := 0
 	for _, rl := range rls {
