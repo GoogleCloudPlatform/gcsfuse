@@ -98,6 +98,7 @@ func growBy(w io.WriteSeeker, n int) {
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
+const limitNumFiles = 5
 const limitBytes = 17
 
 type FileLeaserTest struct {
@@ -109,7 +110,7 @@ var _ SetUpInterface = &FileLeaserTest{}
 func init() { RegisterTestSuite(&FileLeaserTest{}) }
 
 func (t *FileLeaserTest) SetUp(ti *TestInfo) {
-	t.fl = lease.NewFileLeaser("", limitBytes)
+	t.fl = lease.NewFileLeaser("", limitNumFiles, limitBytes)
 }
 
 ////////////////////////////////////////////////////////////////////////
