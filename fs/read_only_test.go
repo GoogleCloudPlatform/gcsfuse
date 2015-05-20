@@ -32,11 +32,11 @@ type readOnlyTest struct {
 	fsTest
 }
 
-func init() { registerSuitePrototype(&readOnlyTest{}) }
+func init() { RegisterTestSuite(&readOnlyTest{}) }
 
-func (t *readOnlyTest) setUpFSTest(cfg FSTestConfig) {
-	cfg.MountConfig.ReadOnly = true
-	t.fsTest.setUpFSTest(cfg)
+func (t *readOnlyTest) SetUp(ti *TestInfo) {
+	t.mountCfg.ReadOnly = true
+	t.fsTest.SetUp(ti)
 }
 
 ////////////////////////////////////////////////////////////////////////
