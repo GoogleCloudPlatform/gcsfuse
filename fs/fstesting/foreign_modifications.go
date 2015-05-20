@@ -29,6 +29,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
@@ -684,6 +685,21 @@ func (t *implicitDirsTest) setUpFSTest(cfg FSTestConfig) {
 	t.fsTest.setUpFSTest(cfg)
 }
 
+func (t *implicitDirsTest) setSymlinkTarget(
+	objName string,
+	target string) (err error) {
+	_, err = t.bucket.UpdateObject(
+		t.ctx,
+		&gcs.UpdateObjectRequest{
+			Name: objName,
+			Metadata: map[string]*string{
+				inode.SymlinkMetadataKey: &target,
+			},
+		})
+
+	return
+}
+
 func (t *implicitDirsTest) NothingPresent() {
 	// ReadDir
 	entries, err := t.readDirUntil(0, t.mfs.Dir())
@@ -940,7 +956,8 @@ func (t *implicitDirsTest) ConflictingNames_OneIsSymlink() {
 			}))
 
 	// Cause "foo" to look like a symlink.
-	AssertTrue(false, "TODO: UpdateObject")
+	err = t.setSymlinkTarget("foo", "blah")
+	AssertEq(nil, err)
 
 	// A listing of the parent should contain a directory named "foo" and a
 	// symlink named "foo\n".
