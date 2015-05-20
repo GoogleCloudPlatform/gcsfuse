@@ -31,6 +31,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
 	"golang.org/x/net/context"
+	"golang.org/x/sys/unix"
 )
 
 var fBucketName = flag.String("bucket", "", "Name of GCS bucket to mount.")
@@ -180,6 +181,23 @@ func main() {
 				"Error writing to temporary directory (%q); are you sure it exists "+
 					"with the correct permissions?",
 				err.Error())
+		}
+	}
+
+	// The file leaser used by the file system sizes its limit on number of
+	// temporary files based on the process's rlimit. If this is too low, we'll
+	// throw away cached content unnecessarily often. This is particularly a
+	// problem on OS X, which has a crazy low default limit (256 as of OS X
+	// 10.10.3). So print a warning if the limit is low.
+	var rlimit unix.Rlimit
+	if err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rlimit); err == nil {
+		const reasonableLimit = 4096
+
+		if rlimit.Cur < reasonableLimit {
+			log.Printf(
+				"Warning: low file rlimit of %d will cause cached content to be "+
+					"frequently evicted. Consider raising with `ulimit -n`.",
+				rlimit.Cur)
 		}
 	}
 
