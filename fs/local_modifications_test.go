@@ -249,8 +249,35 @@ func (t *OpenTest) LegalNames() {
 
 	// A collection of interesting names that should be legal to use.
 	names := []string{
+		// Non-Roman scripts
+		"타코",
+		"世界",
+
+		// Characters special to the shell
+		"*![]&&||;",
+
 		// Longest legal name
 		strings.Repeat("a", fuseMaxNameLen),
+
+		// Angstrom symbol singleton and normalized forms.
+		// Cf. http://unicode.org/reports/tr15/
+		"foo \u212b bar",
+		"foo \u0041\u030a bar",
+		"foo \u00c5 bar",
+
+		// Hangul separating jamo
+		// Cf. http://www.unicode.org/versions/Unicode7.0.0/ch18.pdf (Table 18-10)
+		"foo \u3131\u314f bar",
+		"foo \u1100\u1161 bar",
+		"foo \uac00 bar",
+
+		// Unicode specials
+		// Cf. http://en.wikipedia.org/wiki/Specials_%28Unicode_block%29
+		"foo \ufff9 bar",
+		"foo \ufffa bar",
+		"foo \ufffb bar",
+		"foo \ufffc bar",
+		"foo \ufffd bar",
 	}
 
 	// Most single-byte UTF-8 strings.
