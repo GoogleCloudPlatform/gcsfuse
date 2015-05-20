@@ -12,20 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fstesting
+package fs_test
 
 import (
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
+	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -40,42 +39,39 @@ const ttl = 10 * time.Minute
 type cachingTestCommon struct {
 	fsTest
 	uncachedBucket gcs.Bucket
-	simulatedClock *timeutil.SimulatedClock
 }
 
-func (t *cachingTestCommon) setUpFSTest(cfg FSTestConfig) {
-	// Wrap the bucket in a stat caching layer, saving the original.
-	t.uncachedBucket = cfg.ServerConfig.Bucket
+func (t *cachingTestCommon) SetUp(ti *TestInfo) {
+	// Wrap the bucket in a stat caching layer for the purposes of the file
+	// system.
+	t.uncachedBucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
 
 	const statCacheCapacity = 1000
 	statCache := gcscaching.NewStatCache(statCacheCapacity)
-	cfg.ServerConfig.Bucket = gcscaching.NewFastStatBucket(
+	t.bucket = gcscaching.NewFastStatBucket(
 		ttl,
 		statCache,
-		cfg.ServerConfig.Clock,
+		&t.clock,
 		t.uncachedBucket)
 
 	// Enable directory type caching.
-	cfg.ServerConfig.DirTypeCacheTTL = ttl
+	t.serverCfg.DirTypeCacheTTL = ttl
 
 	// Call through.
-	t.fsTest.setUpFSTest(cfg)
-
-	// Is the clock simulated?
-	t.simulatedClock, _ = t.clock.(*timeutil.SimulatedClock)
+	t.fsTest.SetUp(ti)
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Caching
 ////////////////////////////////////////////////////////////////////////
 
-type cachingTest struct {
+type CachingTest struct {
 	cachingTestCommon
 }
 
-func init() { registerSuitePrototype(&cachingTest{}) }
+func init() { RegisterTestSuite(&CachingTest{}) }
 
-func (t *cachingTest) EmptyBucket() {
+func (t *CachingTest) EmptyBucket() {
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(t.Dir)
 	AssertEq(nil, err)
@@ -83,7 +79,7 @@ func (t *cachingTest) EmptyBucket() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *cachingTest) FileCreatedRemotely() {
+func (t *CachingTest) FileCreatedRemotely() {
 	const name = "foo"
 	const contents = "taco"
 
@@ -128,15 +124,10 @@ func (t *cachingTest) FileCreatedRemotely() {
 	ExpectEq("burrito", string(b))
 }
 
-func (t *cachingTest) FileChangedRemotely() {
+func (t *CachingTest) FileChangedRemotely() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
-
-	if t.simulatedClock == nil {
-		log.Println("Test requires a simulated clock; skipping.")
-		return
-	}
 
 	// Create a file via the file system.
 	err = ioutil.WriteFile(path.Join(t.Dir, name), []byte("taco"), 0500)
@@ -158,7 +149,7 @@ func (t *cachingTest) FileChangedRemotely() {
 	ExpectEq(len("taco"), fi.Size())
 
 	// After the TTL elapses, we should see the new version.
-	t.simulatedClock.AdvanceTime(ttl + time.Millisecond)
+	t.clock.AdvanceTime(ttl + time.Millisecond)
 
 	fi, err = os.Stat(path.Join(t.Dir, name))
 	AssertEq(nil, err)
@@ -170,15 +161,10 @@ func (t *cachingTest) FileChangedRemotely() {
 	ExpectEq("burrito", string(b))
 }
 
-func (t *cachingTest) DirectoryRemovedRemotely() {
+func (t *CachingTest) DirectoryRemovedRemotely() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
-
-	if t.simulatedClock == nil {
-		log.Println("Test requires a simulated clock; skipping.")
-		return
-	}
 
 	// Create a directory via the file system.
 	err = os.Mkdir(path.Join(t.Dir, name), 0700)
@@ -194,21 +180,16 @@ func (t *cachingTest) DirectoryRemovedRemotely() {
 	ExpectTrue(fi.IsDir())
 
 	// After the TTL elapses, we should see it disappear.
-	t.simulatedClock.AdvanceTime(ttl + time.Millisecond)
+	t.clock.AdvanceTime(ttl + time.Millisecond)
 
 	_, err = os.Stat(path.Join(t.Dir, name))
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *cachingTest) ConflictingNames_RemoteModifier() {
+func (t *CachingTest) ConflictingNames_RemoteModifier() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
-
-	if t.simulatedClock == nil {
-		log.Println("Test requires a simulated clock; skipping.")
-		return
-	}
 
 	// Create a directory via the file system.
 	err = os.Mkdir(path.Join(t.Dir, name), 0700)
@@ -233,7 +214,7 @@ func (t *cachingTest) ConflictingNames_RemoteModifier() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 
 	// After the TTL elapses, we should see both.
-	t.simulatedClock.AdvanceTime(ttl + time.Millisecond)
+	t.clock.AdvanceTime(ttl + time.Millisecond)
 
 	fi, err = os.Stat(path.Join(t.Dir, name))
 	AssertEq(nil, err)
@@ -244,7 +225,7 @@ func (t *cachingTest) ConflictingNames_RemoteModifier() {
 	ExpectFalse(fi.IsDir())
 }
 
-func (t *cachingTest) TypeOfNameChanges_LocalModifier() {
+func (t *CachingTest) TypeOfNameChanges_LocalModifier() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
@@ -267,15 +248,10 @@ func (t *cachingTest) TypeOfNameChanges_LocalModifier() {
 	ExpectEq(len("taco"), fi.Size())
 }
 
-func (t *cachingTest) TypeOfNameChanges_RemoteModifier() {
+func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
-
-	if t.simulatedClock == nil {
-		log.Println("Test requires a simulated clock; skipping.")
-		return
-	}
 
 	// Create a directory via the file system.
 	err = os.Mkdir(path.Join(t.Dir, name), 0700)
@@ -300,7 +276,7 @@ func (t *cachingTest) TypeOfNameChanges_RemoteModifier() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 
 	// After the TTL elapses, we should see it turn into a file.
-	t.simulatedClock.AdvanceTime(ttl + time.Millisecond)
+	t.clock.AdvanceTime(ttl + time.Millisecond)
 
 	fi, err = os.Stat(path.Join(t.Dir, name))
 	AssertEq(nil, err)
@@ -309,20 +285,20 @@ func (t *cachingTest) TypeOfNameChanges_RemoteModifier() {
 
 ////////////////////////////////////////////////////////////////////////
 // Caching with implicit directories
-///////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
 
-type cachingWithImplicitDirsTest struct {
+type CachingWithImplicitDirsTest struct {
 	cachingTestCommon
 }
 
-func init() { registerSuitePrototype(&cachingWithImplicitDirsTest{}) }
+func init() { RegisterTestSuite(&CachingWithImplicitDirsTest{}) }
 
-func (t *cachingWithImplicitDirsTest) setUpFSTest(cfg FSTestConfig) {
-	cfg.ServerConfig.ImplicitDirectories = true
-	t.cachingTestCommon.setUpFSTest(cfg)
+func (t *CachingWithImplicitDirsTest) SetUp(ti *TestInfo) {
+	t.serverCfg.ImplicitDirectories = true
+	t.cachingTestCommon.SetUp(ti)
 }
 
-func (t *cachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
+func (t *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
 	var fi os.FileInfo
 	var err error
 
@@ -343,7 +319,7 @@ func (t *cachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *cachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
+func (t *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 	var fi os.FileInfo
 	var err error
 
@@ -364,7 +340,7 @@ func (t *cachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *cachingWithImplicitDirsTest) SymlinksWork() {
+func (t *CachingWithImplicitDirsTest) SymlinksWork() {
 	var fi os.FileInfo
 	var err error
 
@@ -397,14 +373,9 @@ func (t *cachingWithImplicitDirsTest) SymlinksWork() {
 	ExpectEq(filePerms, fi.Mode())
 }
 
-func (t *cachingWithImplicitDirsTest) SymlinksAreTypeCached() {
+func (t *CachingWithImplicitDirsTest) SymlinksAreTypeCached() {
 	var fi os.FileInfo
 	var err error
-
-	if t.simulatedClock == nil {
-		log.Println("Test requires a simulated clock; skipping.")
-		return
-	}
 
 	// Create a symlink.
 	symlinkName := path.Join(t.Dir, "foo")
@@ -428,7 +399,7 @@ func (t *cachingWithImplicitDirsTest) SymlinksAreTypeCached() {
 	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
 
 	// After the TTL elapses, we should see the directory.
-	t.simulatedClock.AdvanceTime(ttl + time.Millisecond)
+	t.clock.AdvanceTime(ttl + time.Millisecond)
 	fi, err = os.Lstat(path.Join(t.Dir, "foo"))
 
 	AssertEq(nil, err)

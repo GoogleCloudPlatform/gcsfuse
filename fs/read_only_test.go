@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fstesting
+package fs_test
 
 import (
 	"io/ioutil"
@@ -28,27 +28,27 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type readOnlyTest struct {
+type ReadOnlyTest struct {
 	fsTest
 }
 
-func init() { registerSuitePrototype(&readOnlyTest{}) }
+func init() { RegisterTestSuite(&ReadOnlyTest{}) }
 
-func (t *readOnlyTest) setUpFSTest(cfg FSTestConfig) {
-	cfg.MountConfig.ReadOnly = true
-	t.fsTest.setUpFSTest(cfg)
+func (t *ReadOnlyTest) SetUp(ti *TestInfo) {
+	t.mountCfg.ReadOnly = true
+	t.fsTest.SetUp(ti)
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *readOnlyTest) CreateFile() {
+func (t *ReadOnlyTest) CreateFile() {
 	err := ioutil.WriteFile(path.Join(t.Dir, "foo"), []byte{}, 0700)
 	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
-func (t *readOnlyTest) ModifyFile() {
+func (t *ReadOnlyTest) ModifyFile() {
 	// Create an object in the bucket.
 	_, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
 	AssertEq(nil, err)
@@ -60,7 +60,7 @@ func (t *readOnlyTest) ModifyFile() {
 	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
-func (t *readOnlyTest) DeleteFile() {
+func (t *ReadOnlyTest) DeleteFile() {
 	// Create an object in the bucket.
 	_, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
 	AssertEq(nil, err)
