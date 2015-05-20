@@ -19,6 +19,7 @@
 package fs_test
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -28,6 +29,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode/utf8"
 
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse/fusetesting"
@@ -251,9 +253,23 @@ func (t *OpenTest) LegalNames() {
 		strings.Repeat("a", fuseMaxNameLen),
 	}
 
-	sort.Strings(names)
+	// Most single-byte UTF-8 strings.
+	for b := byte(0); b < utf8.RuneSelf; b++ {
+		switch b {
+		// NULL and '/' are not legal in file names.
+		case 0, '/':
+			continue
+
+		// U+000A and U+000D are not legal in GCS.
+		case '\u000a', '\u000d':
+			continue
+		}
+
+		names = append(names, fmt.Sprintf("foo %c bar", b))
+	}
 
 	// We should be able to create each name.
+	sort.Strings(names)
 	for _, n := range names {
 		err = ioutil.WriteFile(path.Join(t.Dir, n), []byte(n), 0400)
 		AssertEq(nil, err, "Name: %q", n)
