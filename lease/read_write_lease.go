@@ -189,7 +189,12 @@ func (rwl *readWriteLease) Downgrade() (rl ReadLease) {
 	defer rwl.mu.Unlock()
 
 	// Ensure that we will crash if used again.
+	if rwl.leaser == nil {
+		panic("Nil leaser; already downgraded?")
+	}
+
 	defer func() {
+		rwl.leaser = nil
 		rwl.file = nil
 	}()
 
