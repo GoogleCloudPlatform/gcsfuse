@@ -80,11 +80,14 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 
 	// Set up the clock.
 	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
+	t.serverCfg.Clock = &t.clock
 
 	// And the bucket.
 	if t.bucket == nil {
 		t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
 	}
+
+	t.serverCfg.Bucket = t.bucket
 
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
