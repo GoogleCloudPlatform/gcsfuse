@@ -444,24 +444,6 @@ func (fs *fileSystem) checkInvariants() {
 	}
 }
 
-// Get attributes for the inode, fixing up ownership information.
-//
-// LOCKS_EXCLUDED(fs.mu)
-// LOCKS_REQUIRED(in)
-func (fs *fileSystem) getAttributes(
-	ctx context.Context,
-	in inode.Inode) (attrs fuseops.InodeAttributes, err error) {
-	attrs, err = in.Attributes(ctx)
-	if err != nil {
-		return
-	}
-
-	attrs.Uid = fs.uid
-	attrs.Gid = fs.gid
-
-	return
-}
-
 // Implementation detail of lookUpOrCreateInodeIfNotStale; do not use outside
 // of that function.
 //
@@ -727,7 +709,7 @@ func (fs *fileSystem) LookUpInode(
 
 	// Fill out the response.
 	op.Entry.Child = in.ID()
-	if op.Entry.Attributes, err = fs.getAttributes(op.Context(), in); err != nil {
+	if op.Entry.Attributes, err = in.Attributes(op.Context()); err != nil {
 		return
 	}
 
@@ -749,7 +731,7 @@ func (fs *fileSystem) GetInodeAttributes(
 	defer in.Unlock()
 
 	// Grab its attributes.
-	op.Attributes, err = fs.getAttributes(op.Context(), in)
+	op.Attributes, err = in.Attributes(op.Context())
 	if err != nil {
 		return
 	}
@@ -792,7 +774,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	}
 
 	// Fill in the response.
-	op.Attributes, err = fs.getAttributes(op.Context(), in)
+	op.Attributes, err = in.Attributes(op.Context())
 	if err != nil {
 		return
 	}
@@ -887,10 +869,10 @@ func (fs *fileSystem) MkDir(
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
-	op.Entry.Attributes, err = fs.getAttributes(op.Context(), child)
+	op.Entry.Attributes, err = child.Attributes(op.Context())
 
 	if err != nil {
-		err = fmt.Errorf("getAttributes: %v", err)
+		err = fmt.Errorf("Attributes: %v", err)
 		return
 	}
 
@@ -932,10 +914,10 @@ func (fs *fileSystem) CreateFile(
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
-	op.Entry.Attributes, err = fs.getAttributes(op.Context(), child)
+	op.Entry.Attributes, err = child.Attributes(op.Context())
 
 	if err != nil {
-		err = fmt.Errorf("getAttributes: %v", err)
+		err = fmt.Errorf("Attributes: %v", err)
 		return
 	}
 
