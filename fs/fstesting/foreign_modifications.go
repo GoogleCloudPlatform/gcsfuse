@@ -393,7 +393,7 @@ func (t *foreignModsTest) SymlinkAndDirectoryWithConflictingName() {
 
 	fi = entries[1]
 	ExpectEq("foo\n", fi.Name())
-	ExpectEq(len("taco"), fi.Size())
+	ExpectEq(0, fi.Size())
 	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
