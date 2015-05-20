@@ -140,7 +140,7 @@ func (fl *fileLeaser) RevokeReadLeases() {
 	fl.mu.Lock()
 	defer fl.mu.Unlock()
 
-	fl.evict(0)
+	fl.evict(0, 0)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -247,20 +247,21 @@ func (fl *fileLeaser) checkInvariants() {
 func (fl *fileLeaser) addReadWriteByteDelta(delta int64) {
 	fl.readWriteCount++
 	fl.readWriteBytes += delta
-	fl.evict(fl.limitBytes)
+	fl.evict(fl.limitNumFiles, fl.limitBytes)
 }
 
 // LOCKS_REQUIRED(fl.mu)
-func (fl *fileLeaser) overLimit(limitBytes int64) bool {
-	return fl.readOutstanding+fl.readWriteBytes > limitBytes
+func (fl *fileLeaser) overLimit(limitNumFiles int, limitBytes int64) bool {
+	return fl.readLeases.Len()+fl.readWriteCount > limitNumFiles ||
+		fl.readOutstanding+fl.readWriteBytes > limitBytes
 }
 
 // Revoke read leases until we're within the given limitBytes or we run out of
 // things to revoke.
 //
 // LOCKS_REQUIRED(fl.mu)
-func (fl *fileLeaser) evict(limitBytes int64) {
-	for fl.overLimit(limitBytes) {
+func (fl *fileLeaser) evict(limitNumFiles int, limitBytes int64) {
+	for fl.overLimit(limitNumFiles, limitBytes) {
 		// Do we have anything to revoke?
 		lru := fl.readLeases.Back()
 		if lru == nil {
@@ -305,7 +306,7 @@ func (fl *fileLeaser) downgrade(
 	fl.readLeasesIndex[rlTyped] = e
 
 	// Ensure that we're not now over capacity.
-	fl.evict(fl.limitBytes)
+	fl.evict(fl.limitNumFiles, fl.limitBytes)
 
 	return
 }
