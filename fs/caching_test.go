@@ -65,13 +65,13 @@ func (t *cachingTestCommon) SetUp(ti *TestInfo) {
 // Caching
 ////////////////////////////////////////////////////////////////////////
 
-type cachingTest struct {
+type CachingTest struct {
 	cachingTestCommon
 }
 
-func init() { RegisterTestSuite(&cachingTest{}) }
+func init() { RegisterTestSuite(&CachingTest{}) }
 
-func (t *cachingTest) EmptyBucket() {
+func (t *CachingTest) EmptyBucket() {
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(t.Dir)
 	AssertEq(nil, err)
@@ -79,7 +79,7 @@ func (t *cachingTest) EmptyBucket() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *cachingTest) FileCreatedRemotely() {
+func (t *CachingTest) FileCreatedRemotely() {
 	const name = "foo"
 	const contents = "taco"
 
@@ -124,7 +124,7 @@ func (t *cachingTest) FileCreatedRemotely() {
 	ExpectEq("burrito", string(b))
 }
 
-func (t *cachingTest) FileChangedRemotely() {
+func (t *CachingTest) FileChangedRemotely() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
@@ -161,7 +161,7 @@ func (t *cachingTest) FileChangedRemotely() {
 	ExpectEq("burrito", string(b))
 }
 
-func (t *cachingTest) DirectoryRemovedRemotely() {
+func (t *CachingTest) DirectoryRemovedRemotely() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
@@ -186,7 +186,7 @@ func (t *cachingTest) DirectoryRemovedRemotely() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *cachingTest) ConflictingNames_RemoteModifier() {
+func (t *CachingTest) ConflictingNames_RemoteModifier() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
@@ -225,7 +225,7 @@ func (t *cachingTest) ConflictingNames_RemoteModifier() {
 	ExpectFalse(fi.IsDir())
 }
 
-func (t *cachingTest) TypeOfNameChanges_LocalModifier() {
+func (t *CachingTest) TypeOfNameChanges_LocalModifier() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
@@ -248,7 +248,7 @@ func (t *cachingTest) TypeOfNameChanges_LocalModifier() {
 	ExpectEq(len("taco"), fi.Size())
 }
 
-func (t *cachingTest) TypeOfNameChanges_RemoteModifier() {
+func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
@@ -287,18 +287,18 @@ func (t *cachingTest) TypeOfNameChanges_RemoteModifier() {
 // Caching with implicit directories
 ////////////////////////////////////////////////////////////////////////
 
-type cachingWithImplicitDirsTest struct {
+type CachingWithImplicitDirsTest struct {
 	cachingTestCommon
 }
 
-func init() { RegisterTestSuite(&cachingWithImplicitDirsTest{}) }
+func init() { RegisterTestSuite(&CachingWithImplicitDirsTest{}) }
 
-func (t *cachingWithImplicitDirsTest) SetUp(ti *TestInfo) {
+func (t *CachingWithImplicitDirsTest) SetUp(ti *TestInfo) {
 	t.serverCfg.ImplicitDirectories = true
 	t.cachingTestCommon.SetUp(ti)
 }
 
-func (t *cachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
+func (t *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
 	var fi os.FileInfo
 	var err error
 
@@ -319,7 +319,7 @@ func (t *cachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *cachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
+func (t *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 	var fi os.FileInfo
 	var err error
 
@@ -340,7 +340,7 @@ func (t *cachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *cachingWithImplicitDirsTest) SymlinksWork() {
+func (t *CachingWithImplicitDirsTest) SymlinksWork() {
 	var fi os.FileInfo
 	var err error
 
@@ -373,7 +373,7 @@ func (t *cachingWithImplicitDirsTest) SymlinksWork() {
 	ExpectEq(filePerms, fi.Mode())
 }
 
-func (t *cachingWithImplicitDirsTest) SymlinksAreTypeCached() {
+func (t *CachingWithImplicitDirsTest) SymlinksAreTypeCached() {
 	var fi os.FileInfo
 	var err error
 

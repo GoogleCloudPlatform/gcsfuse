@@ -24,6 +24,7 @@ import (
 	"os/user"
 	"strconv"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs"
@@ -41,6 +42,8 @@ const (
 	filePerms os.FileMode = 0740
 	dirPerms              = 0754
 )
+
+func TestFS(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
