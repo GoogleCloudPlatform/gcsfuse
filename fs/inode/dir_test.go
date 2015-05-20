@@ -119,6 +119,21 @@ func (t *DirTest) readAllEntries() (entries []fuseutil.Dirent, err error) {
 	return
 }
 
+func (t *DirTest) setSymlinkTarget(
+	objName string,
+	target string) (err error) {
+	_, err = t.bucket.UpdateObject(
+		t.ctx,
+		&gcs.UpdateObjectRequest{
+			Name: objName,
+			Metadata: map[string]*string{
+				inode.SymlinkMetadataKey: &target,
+			},
+		})
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
@@ -444,17 +459,8 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 	err = gcsutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
 	AssertEq(nil, err)
 
-	// Set up symlink targets.
-	target := "blah"
-	_, err = t.bucket.UpdateObject(
-		t.ctx,
-		&gcs.UpdateObjectRequest{
-			Name: dirInodeName + "symlink",
-			Metadata: map[string]*string{
-				inode.SymlinkMetadataKey: &target,
-			},
-		})
-
+	// Set up the symlink target.
+	t.setSymlinkTarget(dirInodeName+"symlink", "blah")
 	AssertEq(nil, err)
 
 	// Read entries.
@@ -494,17 +500,21 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 		dirInodeName + "backed_dir_nonempty/blah",
 		dirInodeName + "file",
 		dirInodeName + "implicit_dir/blah",
+		dirInodeName + "symlink",
 	}
-	AssertTrue(false, "TODO: Add a symlink in here.")
 
 	err = gcsutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+	AssertEq(nil, err)
+
+	// Set up the symlink target.
+	t.setSymlinkTarget(dirInodeName+"symlink", "blah")
 	AssertEq(nil, err)
 
 	// Read entries.
 	entries, err := t.readAllEntries()
 
 	AssertEq(nil, err)
-	AssertEq(4, len(entries))
+	AssertEq(5, len(entries))
 
 	entry = entries[0]
 	ExpectEq("backed_dir_empty", entry.Name)
@@ -521,6 +531,10 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	entry = entries[3]
 	ExpectEq("implicit_dir", entry.Name)
 	ExpectEq(fuseutil.DT_Directory, entry.Type)
+
+	entry = entries[4]
+	ExpectEq("symlink", entry.Name)
+	ExpectEq(fuseutil.DT_Link, entry.Type)
 }
 
 func (t *DirTest) ReadEntries_NameConflicts() {
