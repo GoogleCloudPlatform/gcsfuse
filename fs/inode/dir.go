@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -703,6 +704,18 @@ func (d *DirInode) CreateChildFile(
 
 	d.cache.NoteFile(d.clock.Now(), name)
 
+	return
+}
+
+// Create a symlink object with the supplied (relative) name and the supplied
+// target, failing if a backing object already exists in GCS.
+//
+// LOCKS_REQUIRED(d)
+func (d *DirInode) CreateChildSymlink(
+	ctx context.Context,
+	name string,
+	target string) (o *gcs.Object, err error) {
+	err = errors.New("TODO: CreateChildSymlink")
 	return
 }
 
