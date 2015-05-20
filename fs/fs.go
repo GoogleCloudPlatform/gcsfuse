@@ -16,6 +16,7 @@ package fs
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"reflect"
@@ -43,6 +44,13 @@ type ServerConfig struct {
 	// The temporary directory to use for local caching, or the empty string to
 	// use the system default.
 	TempDir string
+
+	// A desired limit on the number of open files used for storing temporary
+	// object contents. May not be obeyed if there is a large number of dirtied
+	// files that have not been flushed or closed.
+	//
+	// Most users will want to use ChooseTempDirLimitNumFiles to choose this.
+	TempDirLimitNumFiles int
 
 	// A desired limit on temporary space usage, in bytes. May not be obeyed if
 	// there is a large volume of dirtied files that have not been flushed or
@@ -115,15 +123,9 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	}
 
 	// Create the file leaser.
-	leaserLimitNumFiles, err := chooseNumFileLimit()
-	if err != nil {
-		err = fmt.Errorf("chooseNumFileLimit: %v", err)
-		return
-	}
-
 	leaser := lease.NewFileLeaser(
 		cfg.TempDir,
-		leaserLimitNumFiles,
+		cfg.TempDirLimitNumFiles,
 		cfg.TempDirLimitBytes)
 
 	// Set up the basic struct.
@@ -169,27 +171,33 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	return
 }
 
-// Choose a limit on the number of files for the leaser based on the process's
-// limits.
-func chooseNumFileLimit() (n int, err error) {
-	// Ask what our limit is.
+// Choose a reasonable value for ServerConfig.TempDirLimitNumFiles based on
+// process limits.
+func ChooseTempDirLimitNumFiles() (limit int) {
+	// Ask what the process's limit on open files is. Use a default on error.
 	var rlimit unix.Rlimit
-	err = unix.Getrlimit(unix.RLIMIT_NOFILE, &rlimit)
+	err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rlimit)
 	if err != nil {
-		err = fmt.Errorf("Getrlimit: %v", err)
+		const defaultLimit = 512
+		log.Println(
+			"Warning: failed to query RLIMIT_NOFILE. Using default "+
+				"file count limit of %d",
+			defaultLimit)
+
+		limit = defaultLimit
 		return
 	}
 
-	// Heuristic: Use about 75% of it.
-	n64 := rlimit.Cur/2 + rlimit.Cur/4
+	// Heuristic: Use about 75% of the limit.
+	limit64 := rlimit.Cur/2 + rlimit.Cur/4
 
-	const MaxUint = ^uint(0)
-	const MaxInt = int(MaxUint >> 1)
-	if n64 <= uint64(MaxInt) {
-		n = int(n64)
-	} else {
-		n = MaxInt
+	// But not too large.
+	const reasonableLimit = 1 << 15
+	if limit64 > reasonableLimit {
+		limit64 = reasonableLimit
 	}
+
+	limit = int(limit64)
 
 	return
 }

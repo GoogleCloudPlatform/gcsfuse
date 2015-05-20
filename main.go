@@ -219,18 +219,19 @@ func main() {
 	// Create a file system server.
 	bucket := getBucket()
 	serverCfg := &fs.ServerConfig{
-		Clock:               timeutil.RealClock(),
-		Bucket:              bucket,
-		TempDir:             *fTempDir,
-		TempDirLimitBytes:   *fTempDirLimit,
-		GCSChunkSize:        *fGCSChunkSize,
-		ImplicitDirectories: *fImplicitDirs,
-		SupportNlink:        *fSupportNlink,
-		DirTypeCacheTTL:     *fTypeCacheTTL,
-		Uid:                 uid,
-		Gid:                 gid,
-		FilePerms:           os.FileMode(*fFileMode),
-		DirPerms:            os.FileMode(*fDirMode),
+		Clock:                timeutil.RealClock(),
+		Bucket:               bucket,
+		TempDir:              *fTempDir,
+		TempDirLimitNumFiles: fs.ChooseTempDirLimitNumFiles(),
+		TempDirLimitBytes:    *fTempDirLimit,
+		GCSChunkSize:         *fGCSChunkSize,
+		ImplicitDirectories:  *fImplicitDirs,
+		SupportNlink:         *fSupportNlink,
+		DirTypeCacheTTL:      *fTypeCacheTTL,
+		Uid:                  uid,
+		Gid:                  gid,
+		FilePerms:            os.FileMode(*fFileMode),
+		DirPerms:             os.FileMode(*fDirMode),
 	}
 
 	server, err := fs.NewServer(serverCfg)
