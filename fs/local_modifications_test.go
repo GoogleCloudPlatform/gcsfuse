@@ -29,6 +29,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
@@ -293,6 +294,34 @@ func (t *OpenTest) LegalNames() {
 		}
 
 		names = append(names, fmt.Sprintf("foo %c bar", b))
+	}
+
+	// All codepoints in Unicode general categories C* (control and special) and
+	// Z* (space), except for:
+	//
+	//  *  Cn (non-character and reserved), which is not included in unicode.C.
+	//  *  Co (private usage), which is large.
+	//  *  Cs (surrages), which is large.
+	//  *  U+000A and U+000D, which are forbidden by the docs.
+	//
+	for r := rune(0); r <= unicode.MaxRune; r++ {
+		if !unicode.In(r, unicode.C) && !unicode.In(r, unicode.Z) {
+			continue
+		}
+
+		if unicode.In(r, unicode.Co) {
+			continue
+		}
+
+		if unicode.In(r, unicode.Cs) {
+			continue
+		}
+
+		if r == 0x0a || r == 0x0d {
+			continue
+		}
+
+		names = append(names, fmt.Sprintf("baz %s qux", string(r)))
 	}
 
 	// We should be able to create each name.
