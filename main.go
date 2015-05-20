@@ -191,8 +191,7 @@ func main() {
 	// 10.10.3). So print a warning if the limit is low.
 	var rlimit unix.Rlimit
 	if err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rlimit); err == nil {
-		// This appears to be the maximum that `ulimit -n` will accept on OS X.
-		const reasonableLimit = 10240
+		const reasonableLimit = 4096
 
 		if rlimit.Cur < reasonableLimit {
 			log.Printf(
