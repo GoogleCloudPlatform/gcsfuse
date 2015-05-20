@@ -91,22 +91,26 @@ type fileLeaser struct {
 	// locks from the same category together.
 	mu syncutil.InvariantMutex
 
+	// The number of outstanding read/write leases.
+	readWriteCount int64
+
 	// The current estimated total size of outstanding read/write leases. This is
 	// only an estimate because we can't synchronize its update with a call to
 	// the wrapped file to e.g. write or truncate.
-	readWriteOutstanding int64
+	readWriteBytes int64
 
 	// All outstanding read leases, ordered by recency of use.
 	//
 	// INVARIANT: Each element is of type *readLease
 	// INVARIANT: No element has been revoked.
+	// INVARIANT: 0 <= readLeases.Len() <= max(0, limitNumFiles - readWriteCount)
 	readLeases list.List
 
 	// The sum of all outstanding read lease sizes.
 	//
 	// INVARIANT: Equal to the sum over readLeases sizes.
 	// INVARIANT: 0 <= readOutstanding
-	// INVARIANT: readOutstanding <= max(0, limitBytes - readWriteOutstanding)
+	// INVARIANT: readOutstanding <= max(0, limitBytes - readWriteBytes)
 	readOutstanding int64
 
 	// Index of read leases by pointer.
@@ -165,6 +169,16 @@ func (fl *fileLeaser) checkInvariants() {
 		}()
 	}
 
+	// INVARIANT: 0 <= readLeases.Len() <= max(0, limitNumFiles - readWriteCount)
+	if !(0 <= fl.readLeases.Len() &&
+		fl.readLeases.Len() <= maxInt64(0, fl.limitNumFiles-fl.readWriteCount)) {
+		panic(fmt.Sprintf(
+			"Out of range read lease count: %d, limitNumFiles: %d, readWriteCount: %d",
+			fl.readLeases.Len(),
+			fl.limitNumFiles,
+			fl.readWriteCount))
+	}
+
 	// INVARIANT: Equal to the sum over readLeases sizes.
 	var sum int64
 	for e := fl.readLeases.Front(); e != nil; e = e.Next() {
@@ -184,13 +198,13 @@ func (fl *fileLeaser) checkInvariants() {
 		panic(fmt.Sprintf("Unexpected readOutstanding: %v", fl.readOutstanding))
 	}
 
-	// INVARIANT: readOutstanding <= max(0, limitBytes - readWriteOutstanding)
-	if !(fl.readOutstanding <= maxInt64(0, fl.limitBytes-fl.readWriteOutstanding)) {
+	// INVARIANT: readOutstanding <= max(0, limitBytes - readWriteBytes)
+	if !(fl.readOutstanding <= maxInt64(0, fl.limitBytes-fl.readWriteBytes)) {
 		panic(fmt.Sprintf(
-			"Unexpected readOutstanding: %v. limitBytes: %v, readWriteOutstanding: %v",
+			"Unexpected readOutstanding: %v. limitBytes: %v, readWriteBytes: %v",
 			fl.readOutstanding,
 			fl.limitBytes,
-			fl.readWriteOutstanding))
+			fl.readWriteBytes))
 	}
 
 	// INVARIANT: Is an index of exactly the elements of readLeases
