@@ -50,6 +50,11 @@ const (
 type fsTest struct {
 	ctx context.Context
 
+	// A function that will be called to create the bucket used by the test, or
+	// nil if makeBucket() should be used. Tests can override this to inject a
+	// different kind of bucket into fsTest.SetUp.
+	bucketFactory func() gcs.Bucket
+
 	// Configuration
 	serverCfg fs.ServerConfig
 	mountCfg  fuse.MountConfig
@@ -78,7 +83,11 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 
 	// And the bucket.
-	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
+	if t.bucketFactory == nil {
+		t.bucket = t.makeBucket()
+	} else {
+		t.bucket = t.bucketFactory()
+	}
 
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
@@ -150,6 +159,10 @@ func (t *fsTest) TearDown() {
 		err = fmt.Errorf("Unlinking mount point: %v", err)
 		return
 	}
+}
+
+func (t *fsTest) makeBucket() gcs.Bucket {
+	return gcsfake.NewFakeBucket(&t.clock, "some_bucket")
 }
 
 func (t *fsTest) createWithContents(name string, contents string) error {
