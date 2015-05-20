@@ -52,6 +52,13 @@ func newFileOfLength(
 		return
 	}
 
+	defer func() {
+		if err != nil {
+			rwl.Downgrade().Revoke()
+			rwl = nil
+		}
+	}()
+
 	// Write the contents.
 	_, err = rwl.Write(bytes.Repeat([]byte("a"), length))
 	if err != nil {
@@ -98,6 +105,7 @@ func growBy(w io.WriteSeeker, n int) {
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
+const limitNumFiles = 5
 const limitBytes = 17
 
 type FileLeaserTest struct {
@@ -109,7 +117,7 @@ var _ SetUpInterface = &FileLeaserTest{}
 func init() { RegisterTestSuite(&FileLeaserTest{}) }
 
 func (t *FileLeaserTest) SetUp(ti *TestInfo) {
-	t.fl = lease.NewFileLeaser("", limitBytes)
+	t.fl = lease.NewFileLeaser("", limitNumFiles, limitBytes)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -125,6 +133,7 @@ func (t *FileLeaserTest) ReadWriteLeaseInitialState() {
 	// Create
 	rwl, err := t.fl.NewFile()
 	AssertEq(nil, err)
+	defer func() { rwl.Downgrade().Revoke() }()
 
 	// Size
 	size, err := rwl.Size()
@@ -157,6 +166,7 @@ func (t *FileLeaserTest) ModifyThenObserveReadWriteLease() {
 	// Create
 	rwl, err := t.fl.NewFile()
 	AssertEq(nil, err)
+	defer func() { rwl.Downgrade().Revoke() }()
 
 	// Write, then check size and offset.
 	n, err = rwl.Write([]byte("tacoburrito"))
@@ -254,6 +264,7 @@ func (t *FileLeaserTest) DowngradeThenUpgradeThenObserve() {
 	// Upgrade again.
 	rwl, err = rl.Upgrade()
 	AssertEq(nil, err)
+	defer func() { rwl.Downgrade().Revoke() }()
 
 	// Interacting with the read lease should no longer work.
 	_, err = rl.Read(buf)
@@ -320,6 +331,37 @@ func (t *FileLeaserTest) DowngradeFileWhoseSizeIsAboveLimit() {
 	ExpectEq(nil, tmp)
 }
 
+func (t *FileLeaserTest) NewFileCausesEviction() {
+	// Set up limitNumFiles read leases.
+	var rls []lease.ReadLease
+	for i := 0; i < limitNumFiles; i++ {
+		rls = append(rls, newFileOfLength(t.fl, 0).Downgrade())
+	}
+
+	// All should still be good.
+	for _, rl := range rls {
+		AssertFalse(rl.Revoked())
+	}
+
+	// Creating two more write leases should cause two to be revoked.
+	rwl0, err := t.fl.NewFile()
+	AssertEq(nil, err)
+	defer func() { rwl0.Downgrade().Revoke() }()
+
+	rwl1, err := t.fl.NewFile()
+	AssertEq(nil, err)
+	defer func() { rwl1.Downgrade().Revoke() }()
+
+	revoked := 0
+	for _, rl := range rls {
+		if rl.Revoked() {
+			revoked++
+		}
+	}
+
+	ExpectEq(2, revoked)
+}
+
 func (t *FileLeaserTest) WriteCausesEviction() {
 	var err error
 
@@ -330,6 +372,7 @@ func (t *FileLeaserTest) WriteCausesEviction() {
 	// Set up a new read/write lease. The read lease should still be unrevoked.
 	rwl, err := t.fl.NewFile()
 	AssertEq(nil, err)
+	defer func() { rwl.Downgrade().Revoke() }()
 
 	AssertFalse(rl.Revoked())
 
@@ -357,6 +400,7 @@ func (t *FileLeaserTest) WriteAtCausesEviction() {
 	// Set up a new read/write lease. The read lease should still be unrevoked.
 	rwl, err := t.fl.NewFile()
 	AssertEq(nil, err)
+	defer func() { rwl.Downgrade().Revoke() }()
 
 	AssertFalse(rl.Revoked())
 
@@ -388,6 +432,7 @@ func (t *FileLeaserTest) TruncateCausesEviction() {
 	// Set up a new read/write lease. The read lease should still be unrevoked.
 	rwl, err := t.fl.NewFile()
 	AssertEq(nil, err)
+	defer func() { rwl.Downgrade().Revoke() }()
 
 	AssertFalse(rl.Revoked())
 
@@ -452,6 +497,7 @@ func (t *FileLeaserTest) EvictionIsLRU() {
 	// Downgrading and upgrading the read/write lease should change nothing.
 	rwl = upgrade(rwl.Downgrade())
 	AssertNe(nil, rwl)
+	defer func() { rwl.Downgrade().Revoke() }()
 
 	AssertTrue(rl0.Revoked())
 	AssertTrue(rl1.Revoked())
@@ -478,6 +524,7 @@ func (t *FileLeaserTest) RevokeVoluntarily() {
 	rl0 := newFileOfLength(t.fl, 3).Downgrade()
 	rl1 := newFileOfLength(t.fl, limitBytes-3).Downgrade()
 	rwl := newFileOfLength(t.fl, 0)
+	defer func() { rwl.Downgrade().Revoke() }()
 
 	AssertFalse(rl0.Revoked())
 	AssertFalse(rl1.Revoked())

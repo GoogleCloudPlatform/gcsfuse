@@ -30,6 +30,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
+	"golang.org/x/sys/unix"
 )
 
 type ServerConfig struct {
@@ -113,11 +114,23 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		gcsChunkSize = math.MaxUint64
 	}
 
+	// Create the file leaser.
+	leaserLimitNumFiles, err := chooseNumFileLimit()
+	if err != nil {
+		err = fmt.Errorf("chooseNumFileLimit: %v", err)
+		return
+	}
+
+	leaser := lease.NewFileLeaser(
+		cfg.TempDir,
+		leaserLimitNumFiles,
+		cfg.TempDirLimit)
+
 	// Set up the basic struct.
 	fs := &fileSystem{
 		clock:               cfg.Clock,
 		bucket:              cfg.Bucket,
-		leaser:              lease.NewFileLeaser(cfg.TempDir, cfg.TempDirLimit),
+		leaser:              leaser,
 		gcsChunkSize:        gcsChunkSize,
 		implicitDirs:        cfg.ImplicitDirectories,
 		supportNlink:        cfg.SupportNlink,
@@ -153,6 +166,31 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
 
 	server = fuseutil.NewFileSystemServer(fs)
+	return
+}
+
+// Choose a limit on the number of files for the leaser based on the process's
+// limits.
+func chooseNumFileLimit() (n int, err error) {
+	// Ask what our limit is.
+	var rlimit unix.Rlimit
+	err = unix.Getrlimit(unix.RLIMIT_NOFILE, &rlimit)
+	if err != nil {
+		err = fmt.Errorf("Getrlimit: %v", err)
+		return
+	}
+
+	// Heuristic: Use about 75% of it.
+	n64 := rlimit.Cur/2 + rlimit.Cur/4
+
+	const MaxUint = ^uint(0)
+	const MaxInt = int(MaxUint >> 1)
+	if n64 <= uint64(MaxInt) {
+		n = int(n64)
+	} else {
+		n = MaxInt
+	}
+
 	return
 }
 

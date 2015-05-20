@@ -189,7 +189,12 @@ func (rwl *readWriteLease) Downgrade() (rl ReadLease) {
 	defer rwl.mu.Unlock()
 
 	// Ensure that we will crash if used again.
+	if rwl.leaser == nil {
+		panic("Nil leaser; already downgraded?")
+	}
+
 	defer func() {
+		rwl.leaser = nil
 		rwl.file = nil
 	}()
 
@@ -197,13 +202,12 @@ func (rwl *readWriteLease) Downgrade() (rl ReadLease) {
 	// create a read lease wrapping the file, since we might be lying about its
 	// size.
 	//
-	// In this case, return a lease whose ostensible  size matches our state last
-	// time we succeeded to modify the file, but whose contents cannot be read.
-	// Throw away our file, and report to the file leaser that we've done so.
+	// In this case, call through to the leaser as normal so it can update its
+	// bookkeeping, but discard its result in favor of a lease that ostensibly
+	// has the right size but whose contents cannot be read.
 	if rwl.fileSize < 0 {
+		rwl.leaser.downgrade(rwl.reportedSize, rwl.file)
 		rl = &alwaysRevokedReadLease{size: rwl.reportedSize}
-		rwl.file.Close()
-		rwl.leaser.addReadWriteByteDelta(-rwl.reportedSize)
 		return
 	}
 

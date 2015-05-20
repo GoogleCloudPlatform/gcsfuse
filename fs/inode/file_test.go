@@ -66,7 +66,7 @@ func init() { RegisterTestSuite(&FileTest{}) }
 func (t *FileTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
-	t.leaser = lease.NewFileLeaser("", math.MaxInt64)
+	t.leaser = lease.NewFileLeaser("", math.MaxInt32, math.MaxInt64)
 	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
 
 	// Set up the backing object.

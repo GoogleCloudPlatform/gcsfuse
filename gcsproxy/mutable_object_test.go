@@ -225,7 +225,7 @@ func (t *MutableObjectTest) SetUp(ti *TestInfo) {
 		math.MaxUint64, // Disable chunking
 		&t.src,
 		t.bucket,
-		lease.NewFileLeaser("", math.MaxInt64),
+		lease.NewFileLeaser("", math.MaxInt32, math.MaxInt64),
 		&t.clock)
 }
 

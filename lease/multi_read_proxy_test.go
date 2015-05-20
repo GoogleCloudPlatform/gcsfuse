@@ -129,7 +129,7 @@ func init() { RegisterTestSuite(&MultiReadProxyTest{}) }
 
 func (t *MultiReadProxyTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
-	t.leaser = lease.NewFileLeaser("", math.MaxInt64)
+	t.leaser = lease.NewFileLeaser("", math.MaxInt32, math.MaxInt64)
 
 	// Set up default refresher contents and nil errors.
 	t.refresherContents = []string{
