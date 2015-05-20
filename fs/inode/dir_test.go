@@ -438,17 +438,30 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 		dirInodeName + "backed_dir_nonempty/blah",
 		dirInodeName + "file",
 		dirInodeName + "implicit_dir/blah",
+		dirInodeName + "symlink",
 	}
-	AssertTrue(false, "TODO: Add a symlink in here.")
 
 	err = gcsutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+	AssertEq(nil, err)
+
+	// Set up symlink targets.
+	target := "blah"
+	_, err = t.bucket.UpdateObject(
+		t.ctx,
+		&gcs.UpdateObjectRequest{
+			Name: dirInodeName + "symlink",
+			Metadata: map[string]*string{
+				inode.SymlinkMetadataKey: &target,
+			},
+		})
+
 	AssertEq(nil, err)
 
 	// Read entries.
 	entries, err := t.readAllEntries()
 
 	AssertEq(nil, err)
-	AssertEq(3, len(entries))
+	AssertEq(4, len(entries))
 
 	entry = entries[0]
 	ExpectEq("backed_dir_empty", entry.Name)
@@ -461,6 +474,10 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 	entry = entries[2]
 	ExpectEq("file", entry.Name)
 	ExpectEq(fuseutil.DT_File, entry.Type)
+
+	entry = entries[3]
+	ExpectEq("symlink", entry.Name)
+	ExpectEq(fuseutil.DT_Link, entry.Type)
 }
 
 func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
@@ -478,6 +495,7 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 		dirInodeName + "file",
 		dirInodeName + "implicit_dir/blah",
 	}
+	AssertTrue(false, "TODO: Add a symlink in here.")
 
 	err = gcsutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
 	AssertEq(nil, err)
@@ -503,6 +521,10 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	entry = entries[3]
 	ExpectEq("implicit_dir", entry.Name)
 	ExpectEq(fuseutil.DT_Directory, entry.Type)
+}
+
+func (t *DirTest) ReadEntries_NameConflicts() {
+	AssertTrue(false, "TODO")
 }
 
 func (t *DirTest) ReadEntries_TypeCaching() {
