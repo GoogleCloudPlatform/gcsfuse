@@ -64,7 +64,8 @@ func randBytes(n int) (b []byte) {
 ////////////////////////////////////////////////////////////////////////
 
 const chunkSize = 1<<18 + 3
-const fileLeaserLimit = 1 << 21
+const fileLeaserLimitNumFiles = math.MaxInt32
+const fileLeaserLimitBytes = 1 << 21
 
 type IntegrationTest struct {
 	ctx    context.Context
@@ -83,7 +84,10 @@ func init() { RegisterTestSuite(&IntegrationTest{}) }
 func (t *IntegrationTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
-	t.leaser = lease.NewFileLeaser("", fileLeaserLimit)
+	t.leaser = lease.NewFileLeaser(
+		"",
+		fileLeaserLimitNumFiles,
+		fileLeaserLimitBytes)
 
 	// Set up a fixed, non-zero time.
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
@@ -277,7 +281,7 @@ func (t *IntegrationTest) Stat_Dirty() {
 }
 
 func (t *IntegrationTest) WithinLeaserLimit() {
-	AssertLt(len("taco"), fileLeaserLimit)
+	AssertLt(len("taco"), fileLeaserLimitBytes)
 
 	// Create.
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
@@ -287,7 +291,7 @@ func (t *IntegrationTest) WithinLeaserLimit() {
 
 	// Extend to be up against the leaser limit, then write out to GCS, which
 	// should downgrade to a read proxy.
-	err = t.mo.Truncate(fileLeaserLimit)
+	err = t.mo.Truncate(fileLeaserLimitBytes)
 	AssertEq(nil, err)
 
 	err = t.mo.Sync()
@@ -296,7 +300,7 @@ func (t *IntegrationTest) WithinLeaserLimit() {
 	// The backing object should be present and contain the correct contents.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, o.Name)
 	AssertEq(nil, err)
-	ExpectEq(fileLeaserLimit, len(contents))
+	ExpectEq(fileLeaserLimitBytes, len(contents))
 
 	// Delete the backing object.
 	err = t.bucket.DeleteObject(t.ctx, o.Name)
@@ -312,7 +316,7 @@ func (t *IntegrationTest) WithinLeaserLimit() {
 }
 
 func (t *IntegrationTest) LargerThanLeaserLimit() {
-	AssertLt(len("taco"), fileLeaserLimit)
+	AssertLt(len("taco"), fileLeaserLimitBytes)
 
 	// Create.
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
@@ -322,7 +326,7 @@ func (t *IntegrationTest) LargerThanLeaserLimit() {
 
 	// Extend to be past the leaser limit, then write out to GCS, which should
 	// downgrade to a read proxy.
-	err = t.mo.Truncate(fileLeaserLimit + 1)
+	err = t.mo.Truncate(fileLeaserLimitBytes + 1)
 	AssertEq(nil, err)
 
 	err = t.mo.Sync()
@@ -331,7 +335,7 @@ func (t *IntegrationTest) LargerThanLeaserLimit() {
 	// The backing object should be present and contain the correct contents.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, o.Name)
 	AssertEq(nil, err)
-	ExpectEq(fileLeaserLimit+1, len(contents))
+	ExpectEq(fileLeaserLimitBytes+1, len(contents))
 
 	// Delete the backing object.
 	err = t.bucket.DeleteObject(t.ctx, o.Name)
@@ -522,12 +526,12 @@ func (t *IntegrationTest) MultipleInteractions() {
 		3*chunkSize - 1,
 		3 * chunkSize,
 		3*chunkSize + 1,
-		fileLeaserLimit - 1,
-		fileLeaserLimit,
-		fileLeaserLimit + 1,
-		((fileLeaserLimit / chunkSize) - 1) * chunkSize,
-		(fileLeaserLimit / chunkSize) * chunkSize,
-		((fileLeaserLimit / chunkSize) + 1) * chunkSize,
+		fileLeaserLimitBytes - 1,
+		fileLeaserLimitBytes,
+		fileLeaserLimitBytes + 1,
+		((fileLeaserLimitBytes / chunkSize) - 1) * chunkSize,
+		(fileLeaserLimitBytes / chunkSize) * chunkSize,
+		((fileLeaserLimitBytes / chunkSize) + 1) * chunkSize,
 	}
 
 	// Generate random contents for the maximum size.
