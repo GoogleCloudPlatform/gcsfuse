@@ -115,22 +115,22 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 
 	// Set up the basic struct.
 	fs := &fileSystem{
-		clock:           cfg.Clock,
-		bucket:          cfg.Bucket,
-		leaser:          lease.NewFileLeaser(cfg.TempDir, cfg.TempDirLimit),
-		gcsChunkSize:    gcsChunkSize,
-		implicitDirs:    cfg.ImplicitDirectories,
-		supportNlink:    cfg.SupportNlink,
-		dirTypeCacheTTL: cfg.DirTypeCacheTTL,
-		uid:             cfg.Uid,
-		gid:             cfg.Gid,
-		fileMode:        cfg.FilePerms,
-		dirMode:         cfg.DirPerms | os.ModeDir,
-		inodes:          make(map[fuseops.InodeID]inode.Inode),
-		nextInodeID:     fuseops.RootInodeID + 1,
-		fileIndex:       make(map[string]*inode.FileInode),
-		dirIndex:        make(map[string]*inode.DirInode),
-		handles:         make(map[fuseops.HandleID]interface{}),
+		clock:               cfg.Clock,
+		bucket:              cfg.Bucket,
+		leaser:              lease.NewFileLeaser(cfg.TempDir, cfg.TempDirLimit),
+		gcsChunkSize:        gcsChunkSize,
+		implicitDirs:        cfg.ImplicitDirectories,
+		supportNlink:        cfg.SupportNlink,
+		dirTypeCacheTTL:     cfg.DirTypeCacheTTL,
+		uid:                 cfg.Uid,
+		gid:                 cfg.Gid,
+		fileMode:            cfg.FilePerms,
+		dirMode:             cfg.DirPerms | os.ModeDir,
+		inodes:              make(map[fuseops.InodeID]inode.Inode),
+		nextInodeID:         fuseops.RootInodeID + 1,
+		fileAndSymlinkIndex: make(map[string]GenerationBackedInode),
+		dirIndex:            make(map[string]*inode.DirInode),
+		handles:             make(map[fuseops.HandleID]interface{}),
 	}
 
 	// Set up the root inode.
@@ -233,14 +233,15 @@ type fileSystem struct {
 	// INVARIANT: For all keys k, inodes[k].ID() == k
 	// INVARIANT: inodes[fuseops.RootInodeID] is missing or of type *inode.DirInode
 	// INVARIANT: For all v, if isDirName(v.Name()) then v is *inode.DirInode
-	// INVARIANT: For all v, if !isDirName(v.Name()) then v is *inode.FileInode
+	// INVARIANT: For all v, if !isDirName(v.Name()) then v implements
+	// GenerationBackedInode
 	//
 	// GUARDED_BY(mu)
 	inodes map[fuseops.InodeID]inode.Inode
 
-	// A map from object name to a file inode that represents that name.
-	// Populated during the name -> inode lookup process, cleared during the
-	// forget inode process.
+	// A map from object name to a file or symlink inode that represents that
+	// name. Populated during the name -> inode lookup process, cleared during
+	// the forget inode process.
 	//
 	// Entries may be stale for two reasons:
 	//
@@ -258,17 +259,18 @@ type fileSystem struct {
 	// name lookup process sees that the stat result is older than the inode, it
 	// starts over, statting again.
 	//
-	// Note that there is no invariant that says *all* of the file inodes are
-	// represented here because we may have multiple distinct inodes for a given
-	// name existing concurrently if we observe an object generation that was not
-	// caused by our existing inode (e.g. if the file is clobbered remotely). We
-	// must retain the old inode until the kernel tells us to forget it.
+	// Note that there is no invariant that says *all* of the file or symlink
+	// inodes are represented here because we may have multiple distinct inodes
+	// for a given name existing concurrently if we observe an object generation
+	// that was not caused by our existing inode (e.g. if the file is clobbered
+	// remotely). We must retain the old inode until the kernel tells us to
+	// forget it.
 	//
 	// INVARIANT: For each k/v, v.Name() == k
 	// INVARIANT: For each value v, inodes[v.ID()] == v
 	//
 	// GUARDED_BY(mu)
-	fileIndex map[string]*inode.FileInode
+	fileAndSymlinkIndex map[string]GenerationBackedInode
 
 	// A map from object name to the directory inode that represents that name,
 	// if any. There can be at most one inode for a given name accessible to us
@@ -294,6 +296,13 @@ type fileSystem struct {
 	//
 	// GUARDED_BY(mu)
 	nextHandleID fuseops.HandleID
+}
+
+// A common interface for inodes backed by particular object generations.
+// Implemented by FileInode and SymlinkInode.
+type GenerationBackedInode interface {
+	inode.Inode
+	SourceGeneration() int64
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -347,13 +356,14 @@ func (fs *fileSystem) checkInvariants() {
 		}
 	}
 
-	// INVARIANT: For all v, if !isDirName(v.Name()) then v is *inode.FileInode
+	// INVARIANT: For all v, if !isDirName(v.Name()) then v implements
+	// GenerationBackedInode
 	for _, in := range fs.inodes {
 		if !isDirName(in.Name()) {
-			_, ok := in.(*inode.FileInode)
+			_, ok := in.(GenerationBackedInode)
 			if !ok {
 				panic(fmt.Sprintf(
-					"Unexpected inode type for name \"%s\": %v",
+					"Unexpected inode type for name %q: %v",
 					in.Name(),
 					reflect.TypeOf(in)))
 			}
@@ -361,11 +371,11 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	//////////////////////////////////
-	// fileIndex
+	// fileAndSymlinkIndex
 	//////////////////////////////////
 
 	// INVARIANT: For each k/v, v.Name() == k
-	for k, v := range fs.fileIndex {
+	for k, v := range fs.fileAndSymlinkIndex {
 		if !(v.Name() == k) {
 			panic(fmt.Sprintf(
 				"Unexpected name: \"%s\" vs. \"%s\"",
@@ -375,7 +385,7 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	// INVARIANT: For each value v, inodes[v.ID()] == v
-	for _, v := range fs.fileIndex {
+	for _, v := range fs.fileAndSymlinkIndex {
 		if fs.inodes[v.ID()] != v {
 			panic(fmt.Sprintf(
 				"Mismatch for ID %v: %p %p",
