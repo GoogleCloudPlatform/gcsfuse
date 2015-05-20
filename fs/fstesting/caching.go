@@ -429,15 +429,15 @@ func (t *cachingWithImplicitDirsTest) SymlinksAreTypeCached() {
 
 	// After the TTL elapses, we should see the directory.
 	t.simulatedClock.AdvanceTime(ttl + time.Millisecond)
-	fi, err = os.Stat(path.Join(t.Dir, "foo"))
+	fi, err = os.Lstat(path.Join(t.Dir, "foo"))
 
 	AssertEq(nil, err)
 	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 
 	// And should be able to stat the symlink under the alternative name.
-	fi, err = os.Stat(path.Join(t.Dir, "foo"+inode.ConflictingFileNameSuffix))
+	fi, err = os.Lstat(path.Join(t.Dir, "foo"+inode.ConflictingFileNameSuffix))
 
 	AssertEq(nil, err)
-	ExpectEq("foo", fi.Name())
+	ExpectEq("foo"+inode.ConflictingFileNameSuffix, fi.Name())
 	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
 }
