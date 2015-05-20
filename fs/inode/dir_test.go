@@ -621,6 +621,7 @@ func (t *DirTest) CreateChildFile_DoesntExist() {
 	AssertNe(nil, o)
 
 	ExpectEq(objName, o.Name)
+	ExpectFalse(inode.IsSymlink(o))
 }
 
 func (t *DirTest) CreateChildFile_Exists() {
@@ -755,6 +756,7 @@ func (t *DirTest) CreateChildDir_DoesntExist() {
 	AssertNe(nil, o)
 
 	ExpectEq(objName, o.Name)
+	ExpectFalse(inode.IsSymlink(o))
 }
 
 func (t *DirTest) CreateChildDir_Exists() {
