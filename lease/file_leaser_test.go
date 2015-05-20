@@ -321,6 +321,10 @@ func (t *FileLeaserTest) DowngradeFileWhoseSizeIsAboveLimit() {
 	ExpectEq(nil, tmp)
 }
 
+func (t *FileLeaserTest) NewFileCausesEviction() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *FileLeaserTest) WriteCausesEviction() {
 	var err error
 
