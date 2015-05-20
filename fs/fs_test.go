@@ -106,7 +106,7 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	AssertEq(nil, err)
 
 	// Mount the file system.
-	mountCfg := t.MountConfig
+	mountCfg := t.mountCfg
 	mountCfg.OpContext = t.ctx
 
 	t.mfs, err = fuse.Mount(t.Dir, server, &mountCfg)
