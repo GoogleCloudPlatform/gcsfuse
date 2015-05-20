@@ -567,12 +567,12 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	// but no inode lock.
 	for {
 		// Look at the current index entry.
-		existingInode, ok := fs.fileIndex[o.Name]
+		existingInode, ok := fs.fileAndSymlinkIndex[o.Name]
 
 		// If we have no existing record for this name, mint an inode and return it.
 		if !ok {
 			in = fs.mintInode(o)
-			fs.fileIndex[in.Name()] = in.(*inode.FileInode)
+			fs.fileAndSymlinkIndex[in.Name()] = in.(GenerationBackedInode)
 
 			fs.mu.Unlock()
 			in.Lock()
@@ -611,9 +611,9 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// existingInode, we have proven we can replace it with an entry for a a
 		// newly-minted inode.
 		fs.mu.Lock()
-		if fs.fileIndex[o.Name] == existingInode {
+		if fs.fileAndSymlinkIndex[o.Name] == existingInode {
 			in = fs.mintInode(o)
-			fs.fileIndex[in.Name()] = in.(*inode.FileInode)
+			fs.fileAndSymlinkIndex[in.Name()] = in.(GenerationBackedInode)
 
 			fs.mu.Unlock()
 			existingInode.Unlock()
