@@ -97,9 +97,9 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	t.serverCfg.FilePerms = filePerms
 	t.serverCfg.DirPerms = dirPerms
 
-	// Use temporary space to speed tests.
-	t.serverCfg.TempDirLimitNumFiles = fs.ChooseTempDirLimitNumFiles()
-	t.serverCfg.TempDirLimitBytes = 1 << 27 // 128 MiB
+	// Use some temporary space to speed tests.
+	t.serverCfg.TempDirLimitNumFiles = 16
+	t.serverCfg.TempDirLimitBytes = 1 << 22 // 4 MiB
 
 	// Tests assume SupportNlink is enabled.
 	t.serverCfg.SupportNlink = true
