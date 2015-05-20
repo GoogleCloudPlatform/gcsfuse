@@ -22,10 +22,10 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
+	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -40,29 +40,26 @@ const ttl = 10 * time.Minute
 type cachingTestCommon struct {
 	fsTest
 	uncachedBucket gcs.Bucket
-	simulatedClock *timeutil.SimulatedClock
 }
 
-func (t *cachingTestCommon) setUpFSTest(cfg FSTestConfig) {
-	// Wrap the bucket in a stat caching layer, saving the original.
-	t.uncachedBucket = cfg.ServerConfig.Bucket
+func (t *cachingTestCommon) SetUp(ti *TestInfo) {
+	// Wrap the bucket in a stat caching layer for the purposes of the file
+	// system.
+	t.uncachedBucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
 
 	const statCacheCapacity = 1000
 	statCache := gcscaching.NewStatCache(statCacheCapacity)
-	cfg.ServerConfig.Bucket = gcscaching.NewFastStatBucket(
+	t.bucket = gcscaching.NewFastStatBucket(
 		ttl,
 		statCache,
-		cfg.ServerConfig.Clock,
+		&t.clock,
 		t.uncachedBucket)
 
 	// Enable directory type caching.
-	cfg.ServerConfig.DirTypeCacheTTL = ttl
+	t.serverCfg.DirTypeCacheTTL = ttl
 
 	// Call through.
-	t.fsTest.setUpFSTest(cfg)
-
-	// Is the clock simulated?
-	t.simulatedClock, _ = t.clock.(*timeutil.SimulatedClock)
+	t.fsTest.SetUp(ti)
 }
 
 ////////////////////////////////////////////////////////////////////////
