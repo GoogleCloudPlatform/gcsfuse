@@ -218,7 +218,6 @@ func (t *FileLeaserTest) DowngradeThenObserve() {
 	// Create and write some data.
 	rwl, err := t.fl.NewFile()
 	AssertEq(nil, err)
-	defer func() { rwl.Downgrade().Revoke() }()
 
 	n, err = rwl.Write([]byte("taco"))
 	AssertEq(nil, err)
