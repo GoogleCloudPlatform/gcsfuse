@@ -259,6 +259,16 @@ func (t *OpenTest) LegalNames() {
 		AssertEq(nil, err, "Name: %q", n)
 	}
 
+	// A listing should contain them all.
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+
+	AssertEq(len(names), len(entries))
+	for i, n := range names {
+		ExpectEq(n, entries[i].Name(), "Name: %q", n)
+		ExpectEq(len(n), entries[i].Size(), "Name: %q", n)
+	}
+
 	AssertTrue(false, "TODO")
 }
 
