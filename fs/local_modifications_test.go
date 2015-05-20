@@ -24,6 +24,8 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"sort"
+	"strings"
 	"syscall"
 	"time"
 
@@ -44,6 +46,13 @@ func getFileOffset(f *os.File) (offset int64, err error) {
 	offset, err = f.Seek(0, relativeToCurrent)
 	return
 }
+
+// FUSE_MAXNAMELEN is used on OS X in the kernel to limit the max length of a
+// name that readdir needs to process (cf. https://goo.gl/eega7V).
+//
+// NOTE(jacobsa): I can't find where this is defined, but this appears to be
+// its value.
+const fuseMaxNameLen = 255
 
 ////////////////////////////////////////////////////////////////////////
 // Open
@@ -231,6 +240,42 @@ func (t *OpenTest) AlreadyOpenedFile() {
 	contents, err := ioutil.ReadFile(t.f2.Name())
 	AssertEq(nil, err)
 	ExpectEq("tank", string(contents))
+}
+
+func (t *OpenTest) LegalNames() {
+	var err error
+
+	// A collection of interesting names that should be legal to use.
+	names := []string{
+		// Longest legal name
+		strings.Repeat("a", fuseMaxNameLen),
+	}
+
+	sort.Strings(names)
+
+	// We should be able to create each name.
+	for _, n := range names {
+		err = ioutil.WriteFile(path.Join(t.Dir, n), []byte(n), 0400)
+		AssertEq(nil, err, "Name: %q", n)
+	}
+
+	AssertTrue(false, "TODO")
+}
+
+func (t *OpenTest) IllegalNames() {
+	var err error
+
+	// A collection of interesting names that are illegal to use.
+	names := []string{
+		// Too long
+		strings.Repeat("a", fuseMaxNameLen+1),
+	}
+
+	// We should not be able to create any of these names.
+	for _, n := range names {
+		err = ioutil.WriteFile(path.Join(t.Dir, n), []byte{}, 0400)
+		ExpectThat(err, Error(HasSubstr("too long")), "Name: %q", n)
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
