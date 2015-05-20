@@ -1155,6 +1155,26 @@ func (fs *fileSystem) ReadFile(
 }
 
 // LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) ReadSymlink(
+	op *fuseops.ReadSymlinkOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	// Find the inode.
+	fs.mu.Lock()
+	in := fs.inodes[op.Inode].(*inode.SymlinkInode)
+	fs.mu.Unlock()
+
+	in.Lock()
+	defer in.Unlock()
+
+	// Serve the request.
+	op.Target = in.Target()
+
+	return
+}
+
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) WriteFile(
 	op *fuseops.WriteFileOp) {
 	var err error
