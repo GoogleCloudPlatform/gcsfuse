@@ -15,6 +15,11 @@
 package fs_test
 
 import (
+	"fmt"
+	"io/ioutil"
+	"path"
+	"runtime"
+
 	"golang.org/x/net/context"
 
 	. "github.com/jacobsa/ogletest"
@@ -24,9 +29,8 @@ import (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-// Run the supplied function for each name, with parallelism. Fail the test if
-// an error is returned for any name.
-func forEachName(names []string, f func(context.Context, string) error) {
+// Run the supplied function for each name, with parallelism.
+func forEachName(names []string, f func(context.Context, string)) {
 	panic("TODO")
 }
 
@@ -40,6 +44,40 @@ type StressTest struct {
 
 func init() { RegisterTestSuite(&StressTest{}) }
 
-func (t *StressTest) DoesFoo() {
+func (t *StressTest) CreateAndReadManyFilesInParallel() {
+	const numFiles = 1024
+
+	// Ensure that we get parallelism for this test.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
+
+	// Choose a bunch of file names.
+	var names []string
+	for i := 0; i < numFiles; i++ {
+		names = append(names, fmt.Sprintf("%d", i))
+	}
+
+	// Create a file for each name with concurrent workers.
+	forEachName(
+		names,
+		func(ctx context.Context, n string) {
+			err := ioutil.WriteFile(path.Join(t.Dir, n), []byte(n), 0400)
+			AssertEq(nil, err)
+		})
+
+	// Read each back.
+	forEachName(
+		names,
+		func(ctx context.Context, n string) {
+			contents, err := ioutil.ReadFile(path.Join(t.Dir, n))
+			AssertEq(nil, err)
+			AssertEq(n, string(contents))
+		})
+}
+
+func (t *StressTest) LinkAndUnlinkFileManyTimesInParallel() {
+	AssertFalse(true, "TODO")
+}
+
+func (t *StressTest) TruncateFileManyTimesInParallel() {
 	AssertFalse(true, "TODO")
 }
