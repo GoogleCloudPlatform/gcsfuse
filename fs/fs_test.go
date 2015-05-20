@@ -15,12 +15,10 @@
 package fs_test
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
-	"math"
 	"math/rand"
 	"os"
 	"os/user"
@@ -32,10 +30,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/perms"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
-	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
-	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
@@ -45,53 +42,75 @@ const (
 	dirPerms              = 0754
 )
 
+////////////////////////////////////////////////////////////////////////
+// Boilerplate
+////////////////////////////////////////////////////////////////////////
+
 // A struct that can be embedded to inherit common file system test behaviors.
 type fsTest struct {
-	ctx    context.Context
-	clock  timeutil.Clock
+	ctx context.Context
+
+	// Configuration
+	serverCfg fs.ServerConfig
+	mountCfg  fuse.MountConfig
+
+	// Dependencies
+	clock  timeutil.SimulatedClock
 	bucket gcs.Bucket
-	mfs    *fuse.MountedFileSystem
-	Dir    string
+
+	// Mount information
+	mfs *fuse.MountedFileSystem
+	Dir string
 
 	// Files to close when tearing down. Nil entries are skipped.
 	f1 *os.File
 	f2 *os.File
 }
 
-var _ fsTestInterface = &fsTest{}
+var _ SetUpInterface = &fsTest{}
+var _ TearDownInterface = &fsTest{}
 
-func (t *fsTest) setUpFSTest(cfg FSTestConfig) {
+func (t *fsTest) SetUp(ti *TestInfo) {
 	var err error
+	t.ctx = ti.Ctx
 
-	t.ctx = cfg.ctx
-	t.clock = cfg.ServerConfig.Clock
-	t.bucket = cfg.ServerConfig.Bucket
+	// Set up the clock.
+	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
+
+	// And the bucket.
+	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
 
 	// Set up ownership.
-	cfg.ServerConfig.Uid, cfg.ServerConfig.Gid, err = perms.MyUserAndGroup()
+	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
 	AssertEq(nil, err)
 
 	// Set up permissions.
-	cfg.ServerConfig.FilePerms = filePerms
-	cfg.ServerConfig.DirPerms = dirPerms
+	t.serverCfg.FilePerms = filePerms
+	t.serverCfg.DirPerms = dirPerms
+
+	// Use temporary space to speed tests.
+	t.serverCfg.TempDirLimit = 1 << 27 // 128 MiB
+
+	// Tests assume SupportNlink is enabled.
+	t.serverCfg.SupportNlink = true
 
 	// Set up a temporary directory for mounting.
 	t.Dir, err = ioutil.TempDir("", "fs_test")
 	AssertEq(nil, err)
 
 	// Create a file system server.
-	server, err := fs.NewServer(&cfg.ServerConfig)
+	server, err := fs.NewServer(&t.serverCfg)
 	AssertEq(nil, err)
 
 	// Mount the file system.
-	mountCfg := cfg.MountConfig
+	mountCfg := t.MountConfig
 	mountCfg.OpContext = t.ctx
 
 	t.mfs, err = fuse.Mount(t.Dir, server, &mountCfg)
 	AssertEq(nil, err)
 }
 
-func (t *fsTest) tearDownFsTest() {
+func (t *fsTest) TearDown() {
 	var err error
 
 	// Close any files we opened.
@@ -145,80 +164,6 @@ func (t *fsTest) createObjects(in map[string]string) error {
 func (t *fsTest) createEmptyObjects(names []string) error {
 	err := gcsutil.CreateEmptyObjects(t.ctx, t.bucket, names)
 	return err
-}
-
-// Ensure that the clock will report a different time after returning.
-func (t *fsTest) advanceTime() {
-	// For simulated clocks, we can just advance the time.
-	if c, ok := t.clock.(*timeutil.SimulatedClock); ok {
-		c.AdvanceTime(time.Second)
-		return
-	}
-
-	// Otherwise, sleep a moment.
-	time.Sleep(time.Millisecond)
-}
-
-// Return a matcher that matches event times as reported by the bucket
-// corresponding to the supplied start time as measured by the test.
-func (t *fsTest) matchesStartTime(start time.Time) oglematchers.Matcher {
-	// For simulated clocks we can use exact equality.
-	if _, ok := t.clock.(*timeutil.SimulatedClock); ok {
-		return timeutil.TimeEq(start)
-	}
-
-	// Otherwise, we need to take into account latency between the start of our
-	// call and the time the server actually executed the operation.
-	const slop = 60 * time.Second
-	return timeutil.TimeNear(start, slop)
-}
-
-// Repeatedly call fusetesting.ReadDirPicky until an error is encountered or
-// until the result has the given length.
-//
-// This is a hacky workaround for the lack of list-after-write consistency in
-// GCS that must be used when interacting with GCS through a side channel
-// rather than through the file system. We set up some objects through a back
-// door, then list repeatedly until we see the state we hope to see.
-func (t *fsTest) readDirUntil(
-	desiredLen int,
-	dir string) (entries []os.FileInfo, err error) {
-	startTime := time.Now()
-	endTime := startTime.Add(5 * time.Second)
-
-	for i := 0; ; i++ {
-		entries, err = fusetesting.ReadDirPicky(dir)
-		if err != nil || len(entries) == desiredLen {
-			return
-		}
-
-		// Should we stop?
-		if time.Now().After(endTime) {
-			err = errors.New("Timeout waiting for the given length.")
-			break
-		}
-
-		// Sleep for awhile.
-		const baseDelay = 10 * time.Millisecond
-		time.Sleep(time.Duration(math.Pow(1.3, float64(i)) * float64(baseDelay)))
-
-		// If this is taking awhile, log that fact so that the user can tell why
-		// the test is hanging.
-		if time.Since(startTime) > time.Second {
-			var names []string
-			for _, fi := range entries {
-				names = append(names, fi.Name())
-			}
-
-			log.Printf(
-				"readDirUntil waiting for length %v. Current: %v, names: %v",
-				desiredLen,
-				len(entries),
-				names)
-		}
-	}
-
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
