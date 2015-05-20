@@ -132,6 +132,9 @@ func (fl *fileLeaser) NewFile() (rwl ReadWriteLease, err error) {
 	// Wrap a lease around it.
 	rwl = newReadWriteLease(fl, 0, f)
 
+	// Update state.
+	fl.readWriteCount++
+
 	return
 }
 
@@ -245,7 +248,6 @@ func (fl *fileLeaser) checkInvariants() {
 //
 // LOCKS_EXCLUDED(fl.mu)
 func (fl *fileLeaser) addReadWriteByteDelta(delta int64) {
-	fl.readWriteCount++
 	fl.readWriteBytes += delta
 	fl.evict(fl.limitNumFiles, fl.limitBytes)
 }
