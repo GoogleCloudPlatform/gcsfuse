@@ -15,8 +15,6 @@
 // A collection of tests for a file system where we do not attempt to write to
 // the file system at all. Rather we set up contents in a GCS bucket out of
 // band, wait for them to be available, and then read them via the file system.
-//
-// These tests are registered by RegisterFSTests.
 
 package fs_test
 

@@ -15,8 +15,6 @@
 // A collection of tests for a file system backed by a GCS bucket, where we
 // interact with the file system directly for creating and modifying files
 // (rather than through the side channel of the GCS bucket itself).
-//
-// These tests are registered by RegisterFSTests.
 
 package fs_test
 
@@ -29,6 +27,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
@@ -54,7 +53,7 @@ type openTest struct {
 	fsTest
 }
 
-func init() { registerSuitePrototype(&openTest{}) }
+func init() { RegisterTestSuite(&openTest{}) }
 
 func (t *openTest) NonExistent_CreateFlagNotSet() {
 	var err error
@@ -242,7 +241,7 @@ type modesTest struct {
 	fsTest
 }
 
-func init() { registerSuitePrototype(&modesTest{}) }
+func init() { RegisterTestSuite(&modesTest{}) }
 
 func (t *modesTest) ReadOnlyMode() {
 	var err error
@@ -598,7 +597,7 @@ type directoryTest struct {
 	fsTest
 }
 
-func init() { registerSuitePrototype(&directoryTest{}) }
+func init() { RegisterTestSuite(&directoryTest{}) }
 
 func (t *directoryTest) Mkdir_OneLevel() {
 	var err error
@@ -782,7 +781,7 @@ func (t *directoryTest) ReadDir_Root() {
 	var fi os.FileInfo
 
 	// Create a file and a directory.
-	t.advanceTime()
+	t.clock.AdvanceTime(time.Second)
 	createTime := t.clock.Now()
 
 	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "bar"), []byte("taco"), 0700)
@@ -791,7 +790,7 @@ func (t *directoryTest) ReadDir_Root() {
 	err = os.Mkdir(path.Join(t.mfs.Dir(), "foo"), 0700)
 	AssertEq(nil, err)
 
-	t.advanceTime()
+	t.clock.AdvanceTime(time.Second)
 
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(t.mfs.Dir())
@@ -803,7 +802,7 @@ func (t *directoryTest) ReadDir_Root() {
 	ExpectEq("bar", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
-	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
+	ExpectThat(fi.ModTime(), timeutil.TimeEq(createTime))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -830,7 +829,7 @@ func (t *directoryTest) ReadDir_SubDirectory() {
 	AssertEq(nil, err)
 
 	// Create a file and a directory within it.
-	t.advanceTime()
+	t.clock.AdvanceTime(time.Second)
 	createTime := t.clock.Now()
 
 	err = ioutil.WriteFile(path.Join(parent, "bar"), []byte("taco"), 0700)
@@ -839,7 +838,7 @@ func (t *directoryTest) ReadDir_SubDirectory() {
 	err = os.Mkdir(path.Join(parent, "foo"), 0700)
 	AssertEq(nil, err)
 
-	t.advanceTime()
+	t.clock.AdvanceTime(time.Second)
 
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(parent)
@@ -851,7 +850,7 @@ func (t *directoryTest) ReadDir_SubDirectory() {
 	ExpectEq("bar", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
-	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
+	ExpectThat(fi.ModTime(), timeutil.TimeEq(createTime))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -986,7 +985,7 @@ type fileTest struct {
 	fsTest
 }
 
-func init() { registerSuitePrototype(&fileTest{}) }
+func init() { RegisterTestSuite(&fileTest{}) }
 
 func (t *fileTest) WriteOverlapsEndOfFile() {
 	var err error
@@ -1263,14 +1262,14 @@ func (t *fileTest) Stat() {
 	AssertEq(nil, err)
 
 	// Give it some contents.
-	t.advanceTime()
+	t.clock.AdvanceTime(time.Second)
 	writeTime := t.clock.Now()
 
 	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
-	t.advanceTime()
+	t.clock.AdvanceTime(time.Second)
 
 	// Stat it.
 	fi, err := t.f1.Stat()
@@ -1279,7 +1278,7 @@ func (t *fileTest) Stat() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
-	ExpectThat(fi.ModTime(), t.matchesStartTime(writeTime))
+	ExpectThat(fi.ModTime(), timeutil.TimeEq(writeTime))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -1290,13 +1289,13 @@ func (t *fileTest) StatUnopenedFile() {
 	var err error
 
 	// Create and close a file.
-	t.advanceTime()
+	t.clock.AdvanceTime(time.Second)
 	createTime := t.clock.Now()
 
 	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "foo"), []byte("taco"), 0700)
 	AssertEq(nil, err)
 
-	t.advanceTime()
+	t.clock.AdvanceTime(time.Second)
 
 	// Stat it.
 	fi, err := os.Stat(path.Join(t.mfs.Dir(), "foo"))
@@ -1305,7 +1304,7 @@ func (t *fileTest) StatUnopenedFile() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
-	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
+	ExpectThat(fi.ModTime(), timeutil.TimeEq(createTime))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -1316,13 +1315,13 @@ func (t *fileTest) LstatUnopenedFile() {
 	var err error
 
 	// Create and close a file.
-	t.advanceTime()
+	t.clock.AdvanceTime(time.Second)
 	createTime := t.clock.Now()
 
 	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "foo"), []byte("taco"), 0700)
 	AssertEq(nil, err)
 
-	t.advanceTime()
+	t.clock.AdvanceTime(time.Second)
 
 	// Lstat it.
 	fi, err := os.Lstat(path.Join(t.mfs.Dir(), "foo"))
@@ -1331,7 +1330,7 @@ func (t *fileTest) LstatUnopenedFile() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
-	ExpectThat(fi.ModTime(), t.matchesStartTime(createTime))
+	ExpectThat(fi.ModTime(), timeutil.TimeEq(createTime))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -1692,7 +1691,7 @@ type symlinkTest struct {
 	fsTest
 }
 
-func init() { registerSuitePrototype(&symlinkTest{}) }
+func init() { RegisterTestSuite(&symlinkTest{}) }
 
 func (t *symlinkTest) CreateLink() {
 	var fi os.FileInfo
