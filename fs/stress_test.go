@@ -65,7 +65,8 @@ type StressTest struct {
 func init() { RegisterTestSuite(&StressTest{}) }
 
 func (t *StressTest) CreateAndReadManyFilesInParallel() {
-	const numFiles = 1024
+	// Exercise lease revocation logic.
+	numFiles := 2 * t.serverCfg.TempDirLimitNumFiles
 
 	// Ensure that we get parallelism for this test.
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
