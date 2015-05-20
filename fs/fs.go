@@ -482,7 +482,8 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 	fs.nextInodeID++
 
 	// Create the inode.
-	if isDirName(o.Name) {
+	switch {
+	case isDirName(o.Name):
 		d := inode.NewDirInode(
 			id,
 			o.Name,
@@ -496,7 +497,16 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 
 		fs.dirIndex[d.Name()] = d
 		in = d
-	} else {
+
+	case inode.IsSymlink(o):
+		in = inode.NewSymlinkInode(
+			id,
+			o,
+			fs.uid,
+			fs.gid,
+			fs.fileMode)
+
+	default:
 		in = inode.NewFileInode(
 			id,
 			o,
