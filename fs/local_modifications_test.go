@@ -306,6 +306,9 @@ func (t *OpenTest) IllegalNames() {
 	names := []string{
 		// Too long
 		strings.Repeat("a", fuseMaxNameLen+1),
+
+		// Invalid UTF-8
+		"\x80",
 	}
 
 	// We should not be able to create any of these names.
