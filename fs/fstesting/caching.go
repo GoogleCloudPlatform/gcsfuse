@@ -392,7 +392,7 @@ func (t *cachingWithImplicitDirsTest) SymlinksWork() {
 	fi, err = os.Stat(symlinkName)
 	AssertEq(nil, err)
 
-	ExpectEq("foo", fi.Name())
+	ExpectEq("bar", fi.Name())
 	ExpectEq(len(contents), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
 }
