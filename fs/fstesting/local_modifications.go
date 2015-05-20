@@ -978,22 +978,6 @@ func (t *directoryTest) CreateHardLink() {
 	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
-func (t *directoryTest) CreateSymlink() {
-	var err error
-
-	// Write a file.
-	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "foo"), []byte(""), 0700)
-	AssertEq(nil, err)
-
-	// Attempt to symlink it. We don't support doing so.
-	err = os.Symlink(
-		path.Join(t.mfs.Dir(), "foo"),
-		path.Join(t.mfs.Dir(), "bar"))
-
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("not implemented")))
-}
-
 ////////////////////////////////////////////////////////////////////////
 // File interaction
 ////////////////////////////////////////////////////////////////////////
@@ -1760,7 +1744,7 @@ func (t *symlinkTest) CreateLink() {
 	fi, err = os.Stat(symlinkName)
 	AssertEq(nil, err)
 
-	ExpectEq("foo", fi.Name())
+	ExpectEq("bar", fi.Name())
 	ExpectEq(len(contents), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
 }
