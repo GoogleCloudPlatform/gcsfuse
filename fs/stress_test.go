@@ -19,8 +19,7 @@ import (
 	"io/ioutil"
 	"path"
 	"runtime"
-
-	"golang.org/x/net/context"
+	"sync"
 
 	. "github.com/jacobsa/ogletest"
 )
@@ -30,8 +29,29 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 // Run the supplied function for each name, with parallelism.
-func forEachName(names []string, f func(context.Context, string)) {
-	panic("TODO")
+func forEachName(names []string, f func(string)) {
+	const parallelism = 8
+
+	// Fill a channel.
+	c := make(chan string, len(names))
+	for _, n := range names {
+		c <- n
+	}
+	close(c)
+
+	// Run workers.
+	var wg sync.WaitGroup
+	for i := 0; i < parallelism; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for n := range c {
+				f(n)
+			}
+		}()
+	}
+
+	wg.Wait()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -59,7 +79,7 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 	// Create a file for each name with concurrent workers.
 	forEachName(
 		names,
-		func(ctx context.Context, n string) {
+		func(n string) {
 			err := ioutil.WriteFile(path.Join(t.Dir, n), []byte(n), 0400)
 			AssertEq(nil, err)
 		})
@@ -67,7 +87,7 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 	// Read each back.
 	forEachName(
 		names,
-		func(ctx context.Context, n string) {
+		func(n string) {
 			contents, err := ioutil.ReadFile(path.Join(t.Dir, n))
 			AssertEq(nil, err)
 			AssertEq(n, string(contents))
