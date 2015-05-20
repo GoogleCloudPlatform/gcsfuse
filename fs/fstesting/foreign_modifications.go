@@ -331,7 +331,7 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 }
 
 func (t *foreignModsTest) SymlinkAndDirectoryWithConflictingName() {
-	AssertEq(nil, err)
+	AssertTrue(false, "TODO")
 }
 
 func (t *foreignModsTest) StatTrailingNewlineName_NoConflictingNames() {
