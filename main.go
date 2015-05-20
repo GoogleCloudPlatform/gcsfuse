@@ -154,6 +154,9 @@ func getBucket() (b gcs.Bucket) {
 	return
 }
 
+// Attempt to raise the rlimit for the number of open files to a decent value.
+func raiseRlimit() (err error)
+
 func main() {
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
@@ -181,6 +184,14 @@ func main() {
 					"with the correct permissions?",
 				err.Error())
 		}
+	}
+
+	// Give the process as much latitude as possible for keeping around temporary
+	// files by raising the rlimit. This is necessary especially on OS X, which
+	// has a crazy low default limit (256 as of OS X 10.10.3).
+	err := raiseRlimit()
+	if err != nil {
+		log.Fatalf("raiseRlimit: %v", err)
 	}
 
 	// Choose UID and GID.
