@@ -674,7 +674,20 @@ func (t *DirTest) CreateChildFile_TypeCaching() {
 }
 
 func (t *DirTest) CreateChildSymlink_DoesntExist() {
-	AssertTrue(false, "TODO")
+	const name = "qux"
+	const target = "taco"
+	objName := path.Join(dirInodeName, name)
+
+	var o *gcs.Object
+	var err error
+
+	// Call the inode.
+	o, err = t.in.CreateChildSymlink(t.ctx, name, target)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(objName, o.Name)
+	ExpectEq(target, o.Metadata[inode.SymlinkMetadataKey])
 }
 
 func (t *DirTest) CreateChildSymlink_Exists() {
