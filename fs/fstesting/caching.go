@@ -363,3 +363,81 @@ func (t *cachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 }
+
+func (t *cachingWithImplicitDirsTest) SymlinksWork() {
+	var fi os.FileInfo
+	var err error
+
+	// Create a file.
+	fileName := path.Join(t.Dir, "foo")
+	const contents = "taco"
+
+	err = ioutil.WriteFile(fileName, []byte(contents), 0400)
+	AssertEq(nil, err)
+
+	// Create a symlink to it.
+	symlinkName := path.Join(t.Dir, "bar")
+	err = os.Symlink("foo", symlinkName)
+	AssertEq(nil, err)
+
+	// Stat the link.
+	fi, err = os.Lstat(symlinkName)
+	AssertEq(nil, err)
+
+	ExpectEq("bar", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
+
+	// Stat the target via the link.
+	fi, err = os.Stat(symlinkName)
+	AssertEq(nil, err)
+
+	ExpectEq("bar", fi.Name())
+	ExpectEq(len(contents), fi.Size())
+	ExpectEq(filePerms, fi.Mode())
+}
+
+func (t *cachingWithImplicitDirsTest) SymlinksAreTypeCached() {
+	var fi os.FileInfo
+	var err error
+
+	if t.simulatedClock == nil {
+		log.Println("Test requires a simulated clock; skipping.")
+		return
+	}
+
+	// Create a symlink.
+	symlinkName := path.Join(t.Dir, "foo")
+	err = os.Symlink("blah", symlinkName)
+	AssertEq(nil, err)
+
+	// Create a directory object out of band, so the root inode doesn't notice.
+	_, err = gcsutil.CreateObject(
+		t.ctx,
+		t.uncachedBucket,
+		"foo/",
+		"")
+
+	AssertEq(nil, err)
+
+	// The directory should not yet be visible, because the root inode should
+	// have cached that the symlink is present under the name "foo".
+	fi, err = os.Lstat(path.Join(t.Dir, "foo"))
+
+	AssertEq(nil, err)
+	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
+
+	// After the TTL elapses, we should see the directory.
+	t.simulatedClock.AdvanceTime(ttl + time.Millisecond)
+	fi, err = os.Lstat(path.Join(t.Dir, "foo"))
+
+	AssertEq(nil, err)
+	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
+
+	// And should be able to stat the symlink under the alternative name.
+	fi, err = os.Lstat(path.Join(t.Dir, "foo"+inode.ConflictingFileNameSuffix))
+
+	AssertEq(nil, err)
+	ExpectEq("foo"+inode.ConflictingFileNameSuffix, fi.Name())
+	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
+}

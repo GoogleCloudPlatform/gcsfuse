@@ -105,11 +105,11 @@ func NewRootInode(
 // is the directory "foo", a child directory named "bar" will be implied.
 //
 // If typeCacheTTL is non-zero, a cache from child name to information about
-// whether that name exists as a file and/or directory will be maintained. This
-// may speed up calls to LookUpChild, especially when combined with a
-// stat-caching GCS bucket, but comes at the cost of consistency: if the child
-// is removed and recreated with a different type before the expiration, we may
-// fail to find it.
+// whether that name exists as a file/symlink and/or directory will be
+// maintained. This may speed up calls to LookUpChild, especially when combined
+// with a stat-caching GCS bucket, but comes at the cost of consistency: if the
+// child is removed and recreated with a different type before the expiration,
+// we may fail to find it.
 //
 // The initial lookup count is zero.
 //
@@ -311,7 +311,8 @@ func statObjectMayNotExist(
 // Fail if the name already exists.
 func (d *DirInode) createNewObject(
 	ctx context.Context,
-	name string) (o *gcs.Object, err error) {
+	name string,
+	metadata map[string]string) (o *gcs.Object, err error) {
 	// Create an empty backing object for the child, failing if it already
 	// exists.
 	var precond int64
@@ -319,6 +320,7 @@ func (d *DirInode) createNewObject(
 		Name:                   name,
 		Contents:               strings.NewReader(""),
 		GenerationPrecondition: &precond,
+		Metadata:               metadata,
 	}
 
 	o, err = d.bucket.CreateObject(ctx, createReq)
@@ -518,20 +520,20 @@ func (d *DirInode) Attributes(
 
 // A suffix that can be used to unambiguously tag a file system name.
 // (Unambiguous because U+000A is not allowed in GCS object names.) This is
-// used to refer to the file in a (file, directory) pair with conflicting
-// object names.
+// used to refer to the file/symlink in a (file/symlink, directory) pair with
+// conflicting object names.
 //
 // See also the notes on DirInode.LookUpChild.
 const ConflictingFileNameSuffix = "\n"
 
 // Look up the direct child with the given relative name, returning a record
-// for the current object of that name in the GCS bucket. If both a file and a
-// directory with the given name exist, the directory is preferred. Return a
-// nil record with a nil error if neither is found.
+// for the current object of that name in the GCS bucket. If both a
+// file/symlink and a directory with the given name exist, the directory is
+// preferred. Return a nil record with a nil error if neither is found.
 //
 // Special case: if the name ends in ConflictingFileNameSuffix, we strip the
 // suffix, confirm that a conflicting directory exists, then return a record
-// for the file.
+// for the file/symlink.
 //
 // If this inode was created with implicitDirs is set, this method will use
 // ListObjects to find child directories that are "implicitly" defined by the
@@ -632,7 +634,7 @@ func (d *DirInode) ReadEntries(
 		return
 	}
 
-	// Convert objects to entries for files.
+	// Convert objects to entries for files or symlinks.
 	for _, o := range listing.Objects {
 		// Skip the entry for the backing object itself, which of course has its
 		// own name as a prefix but which we don't wan to appear to contain itself.
@@ -643,6 +645,10 @@ func (d *DirInode) ReadEntries(
 		e := fuseutil.Dirent{
 			Name: path.Base(o.Name),
 			Type: fuseutil.DT_File,
+		}
+
+		if IsSymlink(o) {
+			e.Type = fuseutil.DT_Link
 		}
 
 		entries = append(entries, e)
@@ -696,7 +702,29 @@ func (d *DirInode) ReadEntries(
 func (d *DirInode) CreateChildFile(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
-	o, err = d.createNewObject(ctx, path.Join(d.Name(), name))
+	o, err = d.createNewObject(ctx, path.Join(d.Name(), name), nil)
+	if err != nil {
+		return
+	}
+
+	d.cache.NoteFile(d.clock.Now(), name)
+
+	return
+}
+
+// Create a symlink object with the supplied (relative) name and the supplied
+// target, failing if a backing object already exists in GCS.
+//
+// LOCKS_REQUIRED(d)
+func (d *DirInode) CreateChildSymlink(
+	ctx context.Context,
+	name string,
+	target string) (o *gcs.Object, err error) {
+	metadata := map[string]string{
+		SymlinkMetadataKey: target,
+	}
+
+	o, err = d.createNewObject(ctx, path.Join(d.Name(), name), metadata)
 	if err != nil {
 		return
 	}
@@ -713,7 +741,7 @@ func (d *DirInode) CreateChildFile(
 func (d *DirInode) CreateChildDir(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
-	o, err = d.createNewObject(ctx, path.Join(d.Name(), name)+"/")
+	o, err = d.createNewObject(ctx, path.Join(d.Name(), name)+"/", nil)
 	if err != nil {
 		return
 	}

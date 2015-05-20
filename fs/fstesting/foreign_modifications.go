@@ -29,11 +29,36 @@ import (
 	"strings"
 	"syscall"
 
+	"golang.org/x/net/context"
+
+	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/jacobsa/fuse/fusetesting"
+	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func setSymlinkTarget(
+	ctx context.Context,
+	bucket gcs.Bucket,
+	objName string,
+	target string) (err error) {
+	_, err = bucket.UpdateObject(
+		ctx,
+		&gcs.UpdateObjectRequest{
+			Name: objName,
+			Metadata: map[string]*string{
+				inode.SymlinkMetadataKey: &target,
+			},
+		})
+
+	return
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -314,6 +339,77 @@ func (t *foreignModsTest) FileAndDirectoryWithConflictingName() {
 
 	ExpectEq("foo\n", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
+	ExpectFalse(fi.IsDir())
+
+	// Listing the directory should yield the sole child file.
+	entries, err = fusetesting.ReadDirPicky(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("bar", fi.Name())
+	ExpectEq(len("burrito"), fi.Size())
+	ExpectEq(filePerms, fi.Mode())
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+}
+
+func (t *foreignModsTest) SymlinkAndDirectoryWithConflictingName() {
+	var fi os.FileInfo
+	var entries []os.FileInfo
+	var err error
+
+	// Set up an object named "foo" and one named "foo/", plus a child for the
+	// latter.
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				// Symlink
+				"foo": "",
+
+				// Directory
+				"foo/": "",
+
+				// Directory child
+				"foo/bar": "burrito",
+			}))
+
+	err = setSymlinkTarget(t.ctx, t.bucket, "foo", "")
+	AssertEq(nil, err)
+
+	// A listing of the parent should contain a directory named "foo" and a
+	// symlink named "foo\n".
+	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+
+	fi = entries[0]
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	fi = entries[1]
+	ExpectEq("foo\n", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	// Statting "foo" should yield the directory.
+	fi, err = os.Lstat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+
+	// Statting "foo\n" should yield the symlink.
+	fi, err = os.Lstat(path.Join(t.mfs.Dir(), "foo\n"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo\n", fi.Name())
 	ExpectFalse(fi.IsDir())
 
 	// Listing the directory should yield the sole child file.
@@ -635,6 +731,35 @@ func (t *foreignModsTest) ObjectIsDeleted_Directory() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
+func (t *foreignModsTest) Symlink() {
+	var err error
+
+	// Create an object that looks like a symlink.
+	req := &gcs.CreateObjectRequest{
+		Name: "foo",
+		Metadata: map[string]string{
+			"gcsfuse_symlink_target": "bar/baz",
+		},
+		Contents: ioutil.NopCloser(strings.NewReader("")),
+	}
+
+	_, err = t.bucket.CreateObject(t.ctx, req)
+	AssertEq(nil, err)
+
+	// Stat the link.
+	fi, err := os.Lstat(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
+
+	// Read the link.
+	target, err := os.Readlink(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+	ExpectEq("bar/baz", target)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Implicit directories
 ////////////////////////////////////////////////////////////////////////
@@ -815,7 +940,6 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderPresent() {
 	fi = entries[1]
 	ExpectEq("foo\n", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
@@ -887,6 +1011,62 @@ func (t *implicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 	ExpectEq("foo\n", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectFalse(fi.IsDir())
+}
+
+func (t *implicitDirsTest) ConflictingNames_OneIsSymlink() {
+	var fi os.FileInfo
+	var entries []os.FileInfo
+	var err error
+
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				// Symlink
+				"foo": "",
+
+				// Directory
+				"foo/": "",
+			}))
+
+	// Cause "foo" to look like a symlink.
+	err = setSymlinkTarget(t.ctx, t.bucket, "foo", "")
+	AssertEq(nil, err)
+
+	// A listing of the parent should contain a directory named "foo" and a
+	// symlink named "foo\n".
+	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+
+	fi = entries[0]
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	fi = entries[1]
+	ExpectEq("foo\n", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	// Statting "foo" should yield the directory.
+	fi, err = os.Lstat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+
+	// Statting "foo\n" should yield the symlink.
+	fi, err = os.Lstat(path.Join(t.mfs.Dir(), "foo\n"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo\n", fi.Name())
+	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
 }
 
 func (t *implicitDirsTest) StatUnknownName_NoOtherContents() {

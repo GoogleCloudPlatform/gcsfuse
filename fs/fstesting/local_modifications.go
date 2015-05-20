@@ -598,7 +598,7 @@ type directoryTest struct {
 	fsTest
 }
 
-func init() { registerSuitePrototype(&modesTest{}) }
+func init() { registerSuitePrototype(&directoryTest{}) }
 
 func (t *directoryTest) Mkdir_OneLevel() {
 	var err error
@@ -971,22 +971,6 @@ func (t *directoryTest) CreateHardLink() {
 
 	// Attempt to hard link it. We don't support doing so.
 	err = os.Link(
-		path.Join(t.mfs.Dir(), "foo"),
-		path.Join(t.mfs.Dir(), "bar"))
-
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("not implemented")))
-}
-
-func (t *directoryTest) CreateSymlink() {
-	var err error
-
-	// Write a file.
-	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "foo"), []byte(""), 0700)
-	AssertEq(nil, err)
-
-	// Attempt to symlink it. We don't support doing so.
-	err = os.Symlink(
 		path.Join(t.mfs.Dir(), "foo"),
 		path.Join(t.mfs.Dir(), "bar"))
 
@@ -1698,4 +1682,116 @@ func (t *fileTest) Close_Clobbered() {
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("foobar", contents)
+}
+
+////////////////////////////////////////////////////////////////////////
+// Symlinks
+////////////////////////////////////////////////////////////////////////
+
+type symlinkTest struct {
+	fsTest
+}
+
+func init() { registerSuitePrototype(&symlinkTest{}) }
+
+func (t *symlinkTest) CreateLink() {
+	var fi os.FileInfo
+	var err error
+
+	// Create a file.
+	fileName := path.Join(t.Dir, "foo")
+	const contents = "taco"
+
+	err = ioutil.WriteFile(fileName, []byte(contents), 0400)
+	AssertEq(nil, err)
+
+	// Create a symlink to it.
+	symlinkName := path.Join(t.Dir, "bar")
+	err = os.Symlink("foo", symlinkName)
+	AssertEq(nil, err)
+
+	// Check the object in the bucket.
+	o, err := t.bucket.StatObject(t.ctx, &gcs.StatObjectRequest{Name: "bar"})
+
+	AssertEq(nil, err)
+	ExpectEq(0, o.Size)
+	ExpectEq("foo", o.Metadata["gcsfuse_symlink_target"])
+
+	// Read the link.
+	target, err := os.Readlink(symlinkName)
+	AssertEq(nil, err)
+	ExpectEq("foo", target)
+
+	// Stat the link.
+	fi, err = os.Lstat(symlinkName)
+	AssertEq(nil, err)
+
+	ExpectEq("bar", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
+
+	// Read the parent directory.
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+
+	fi = entries[0]
+	ExpectEq("bar", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
+
+	// Stat the target via the link.
+	fi, err = os.Stat(symlinkName)
+	AssertEq(nil, err)
+
+	ExpectEq("bar", fi.Name())
+	ExpectEq(len(contents), fi.Size())
+	ExpectEq(filePerms, fi.Mode())
+}
+
+func (t *symlinkTest) CreateLink_Exists() {
+	var err error
+
+	// Create a file and a directory.
+	fileName := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(fileName, []byte{}, 0400)
+	AssertEq(nil, err)
+
+	dirName := path.Join(t.Dir, "bar")
+	err = os.Mkdir(dirName, 0700)
+	AssertEq(nil, err)
+
+	// Create an existing symlink.
+	symlinkName := path.Join(t.Dir, "baz")
+	err = os.Symlink("blah", symlinkName)
+	AssertEq(nil, err)
+
+	// Symlinking on top of any of them should fail.
+	names := []string{
+		fileName,
+		dirName,
+		symlinkName,
+	}
+
+	for _, n := range names {
+		err = os.Symlink("blah", n)
+		ExpectThat(err, Error(HasSubstr("exists")))
+	}
+}
+
+func (t *symlinkTest) RemoveLink() {
+	var err error
+
+	// Create the link.
+	symlinkName := path.Join(t.Dir, "foo")
+	err = os.Symlink("blah", symlinkName)
+	AssertEq(nil, err)
+
+	// Remove it.
+	err = os.Remove(symlinkName)
+	AssertEq(nil, err)
+
+	// It should be gone from the bucket.
+	_, err = gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
