@@ -339,6 +339,7 @@ func (fl *fileLeaser) upgrade(rl *readLease) (rwl ReadWriteLease, err error) {
 	size := rl.Size()
 
 	// Update leaser state.
+	fl.readWriteCount++
 	fl.readWriteBytes += size
 	fl.readOutstanding -= size
 
