@@ -294,6 +294,10 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 	ExpectEq(fileObj.Size, o.Size)
 }
 
+func (t *DirTest) LookUpChild_SymlinkAndDir() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 	const name = "qux"
 	fileObjName := path.Join(dirInodeName, name)
@@ -435,6 +439,7 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 		dirInodeName + "file",
 		dirInodeName + "implicit_dir/blah",
 	}
+	AssertTrue(false, "TODO: Add a symlink in here.")
 
 	err = gcsutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
 	AssertEq(nil, err)
@@ -601,6 +606,18 @@ func (t *DirTest) CreateChildFile_TypeCaching() {
 	AssertNe(nil, o)
 
 	ExpectEq(dirObjName, o.Name)
+}
+
+func (t *DirTest) CreateChildSymlink_DoesntExist() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) CreateChildSymlink_Exists() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) CreateChildSymlink_TypeCaching() {
+	AssertTrue(false, "TODO")
 }
 
 func (t *DirTest) CreateChildDir_DoesntExist() {
