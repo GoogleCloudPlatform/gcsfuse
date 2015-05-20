@@ -252,6 +252,9 @@ func (fl *fileLeaser) checkInvariants() {
 //
 // LOCKS_EXCLUDED(fl.mu)
 func (fl *fileLeaser) addReadWriteByteDelta(delta int64) {
+	fl.mu.Lock()
+	defer fl.mu.Unlock()
+
 	fl.readWriteBytes += delta
 	fl.evict(fl.limitNumFiles, fl.limitBytes)
 }
