@@ -537,10 +537,6 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	ExpectEq(fuseutil.DT_Link, entry.Type)
 }
 
-func (t *DirTest) ReadEntries_NameConflicts() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *DirTest) ReadEntries_TypeCaching() {
 	const name = "qux"
 	fileObjName := path.Join(dirInodeName, name)
