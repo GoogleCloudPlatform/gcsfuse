@@ -222,7 +222,7 @@ func main() {
 		Clock:               timeutil.RealClock(),
 		Bucket:              bucket,
 		TempDir:             *fTempDir,
-		TempDirLimit:        *fTempDirLimit,
+		TempDirLimitBytes:   *fTempDirLimit,
 		GCSChunkSize:        *fGCSChunkSize,
 		ImplicitDirectories: *fImplicitDirs,
 		SupportNlink:        *fSupportNlink,

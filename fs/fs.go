@@ -47,7 +47,7 @@ type ServerConfig struct {
 	// A desired limit on temporary space usage, in bytes. May not be obeyed if
 	// there is a large volume of dirtied files that have not been flushed or
 	// closed.
-	TempDirLimit int64
+	TempDirLimitBytes int64
 
 	// If set to a non-zero value N, the file system will read objects from GCS a
 	// chunk at a time with a maximum read size of N, caching each chunk
@@ -124,7 +124,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	leaser := lease.NewFileLeaser(
 		cfg.TempDir,
 		leaserLimitNumFiles,
-		cfg.TempDirLimit)
+		cfg.TempDirLimitBytes)
 
 	// Set up the basic struct.
 	fs := &fileSystem{
