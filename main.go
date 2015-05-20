@@ -31,6 +31,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
 	"golang.org/x/net/context"
+	"golang.org/x/sys/unix"
 )
 
 var fBucketName = flag.String("bucket", "", "Name of GCS bucket to mount.")
@@ -154,9 +155,6 @@ func getBucket() (b gcs.Bucket) {
 	return
 }
 
-// Attempt to raise the rlimit for the number of open files to a decent value.
-func raiseRlimit() (err error)
-
 func main() {
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
@@ -186,12 +184,22 @@ func main() {
 		}
 	}
 
-	// Give the process as much latitude as possible for keeping around temporary
-	// files by raising the rlimit. This is necessary especially on OS X, which
-	// has a crazy low default limit (256 as of OS X 10.10.3).
-	err := raiseRlimit()
-	if err != nil {
-		log.Fatalf("raiseRlimit: %v", err)
+	// The file leaser used by the file system sizes its limit on number of
+	// temporary files based on the process's rlimit. If this is too low, we'll
+	// throw away cached content unnecessarily often. This is particularly a
+	// problem on OS X, which has a crazy low default limit (256 as of OS X
+	// 10.10.3). So print a warning if the limit is low.
+	var rlimit unix.Rlimit
+	if err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rlimit); err == nil {
+		// This appears to be the maximum that `ulimit -n` will accept on OS X.
+		const reasonableLimit = 10240
+
+		if rlimit.Cur < reasonableLimit {
+			log.Printf(
+				"Warning: low file rlimit of %d will cause cached content to be "+
+					"frequently evicted. Consider raising with `ulimit -n`.",
+				rlimit.Cur)
+		}
 	}
 
 	// Choose UID and GID.
