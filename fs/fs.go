@@ -850,8 +850,8 @@ func (fs *fileSystem) ForgetInode(
 		delete(fs.inodes, op.Inode)
 
 		// Update indexes if necessary.
-		if fs.fileIndex[name] == in {
-			delete(fs.fileIndex, name)
+		if fs.fileAndSymlinkIndex[name] == in {
+			delete(fs.fileAndSymlinkIndex, name)
 		}
 
 		if fs.dirIndex[name] == in {
