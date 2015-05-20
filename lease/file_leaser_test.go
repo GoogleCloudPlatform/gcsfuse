@@ -322,7 +322,34 @@ func (t *FileLeaserTest) DowngradeFileWhoseSizeIsAboveLimit() {
 }
 
 func (t *FileLeaserTest) NewFileCausesEviction() {
-	AssertTrue(false, "TODO")
+	// Set up limitNumFiles read leases.
+	var rls []lease.ReadLease
+	for i := 0; i < limitNumFiles; i++ {
+		rls = append(rls, newFileOfLength(t.fl, 0).Downgrade())
+	}
+
+	// All should still be good.
+	for _, rl := range rls {
+		AssertFalse(rl.Revoked())
+	}
+
+	// Creating two more write leases should cause two to be revoked.
+	rwl0, err := t.fl.NewFile()
+	AssertEq(nil, err)
+	defer rwl0.Downgrade().Revoke()
+
+	rwl1, err := t.fl.NewFile()
+	AssertEq(nil, err)
+	defer rwl1.Downgrade().Revoke()
+
+	revoked := 0
+	for _, rl := range rls {
+		if rl.Revoked() {
+			revoked++
+		}
+	}
+
+	ExpectEq(2, revoked)
 }
 
 func (t *FileLeaserTest) WriteCausesEviction() {
