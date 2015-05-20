@@ -310,7 +310,40 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 }
 
 func (t *DirTest) LookUpChild_SymlinkAndDir() {
-	AssertTrue(false, "TODO")
+	const name = "qux"
+	linkObjName := path.Join(dirInodeName, name)
+	dirObjName := path.Join(dirInodeName, name) + "/"
+
+	var o *gcs.Object
+	var err error
+
+	// Create backing objects.
+	linkObj, err := gcsutil.CreateObject(t.ctx, t.bucket, linkObjName, "taco")
+	AssertEq(nil, err)
+
+	err = t.setSymlinkTarget(linkObjName, "blah")
+	AssertEq(nil, err)
+
+	dirObj, err := gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, "")
+	AssertEq(nil, err)
+
+	// Look up with the proper name.
+	o, err = t.in.LookUpChild(t.ctx, name)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(dirObjName, o.Name)
+	ExpectEq(dirObj.Generation, o.Generation)
+	ExpectEq(dirObj.Size, o.Size)
+
+	// Look up with the conflict marker name.
+	o, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(linkObjName, o.Name)
+	ExpectEq(linkObj.Generation, o.Generation)
+	ExpectEq(linkObj.Size, o.Size)
 }
 
 func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
