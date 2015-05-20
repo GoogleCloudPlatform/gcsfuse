@@ -28,10 +28,12 @@ import (
 	"path"
 	"strings"
 	"syscall"
+	"time"
 
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
@@ -68,7 +70,7 @@ type foreignModsTest struct {
 	fsTest
 }
 
-func init() { registerSuitePrototype(&foreignModsTest{}) }
+func init() { RegisterTestSuite(&foreignModsTest{}) }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
@@ -89,7 +91,7 @@ func (t *foreignModsTest) StatRoot() {
 
 func (t *foreignModsTest) ReadDir_EmptyRoot() {
 	// ReadDir
-	entries, err := t.readDirUntil(0, t.mfs.Dir())
+	entries, err := fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
 
 	ExpectThat(entries, ElementsAre())
@@ -113,13 +115,13 @@ func (t *foreignModsTest) ReadDir_ContentsInRoot() {
 			}))
 
 	// Make sure the time below doesn't match.
-	t.advanceTime()
+	t.clock.AdvanceTime(time.Second)
 
 	/////////////////////////
 	// ReadDir
 	/////////////////////////
 
-	entries, err := t.readDirUntil(3, t.mfs.Dir())
+	entries, err := fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
 
 	AssertEq(3, len(entries), "Names: %v", getFileNames(entries))
@@ -140,7 +142,7 @@ func (t *foreignModsTest) ReadDir_ContentsInRoot() {
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
 	ExpectEq(filePerms, e.Mode())
-	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
+	ExpectThat(e.ModTime(), timeutil.TimeEq(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
@@ -151,7 +153,7 @@ func (t *foreignModsTest) ReadDir_ContentsInRoot() {
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
 	ExpectEq(filePerms, e.Mode())
-	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
+	ExpectThat(e.ModTime(), timeutil.TimeEq(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
@@ -163,11 +165,11 @@ func (t *foreignModsTest) ReadDir_EmptySubDirectory() {
 	AssertEq(nil, t.createEmptyObjects([]string{"bar/"}))
 
 	// ReadDir
-	entries, err := t.readDirUntil(1, t.mfs.Dir())
+	entries, err := fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
 
-	entries, err = t.readDirUntil(0, path.Join(t.mfs.Dir(), "bar"))
+	entries, err = fusetesting.ReadDirPicky(path.Join(t.mfs.Dir(), "bar"))
 	AssertEq(nil, err)
 
 	ExpectThat(entries, ElementsAre())
@@ -194,14 +196,14 @@ func (t *foreignModsTest) ReadDir_ContentsInSubDirectory() {
 			}))
 
 	// Make sure the time below doesn't match.
-	t.advanceTime()
+	t.clock.AdvanceTime(time.Second)
 
 	// Wait for the directory to show up in the file system.
-	_, err := t.readDirUntil(1, path.Join(t.mfs.Dir()))
+	_, err := fusetesting.ReadDirPicky(path.Join(t.mfs.Dir()))
 	AssertEq(nil, err)
 
 	// ReadDir
-	entries, err := t.readDirUntil(3, path.Join(t.mfs.Dir(), "dir"))
+	entries, err := fusetesting.ReadDirPicky(path.Join(t.mfs.Dir(), "dir"))
 	AssertEq(nil, err)
 
 	AssertEq(3, len(entries), "Names: %v", getFileNames(entries))
@@ -222,7 +224,7 @@ func (t *foreignModsTest) ReadDir_ContentsInSubDirectory() {
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
 	ExpectEq(filePerms, e.Mode())
-	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
+	ExpectThat(e.ModTime(), timeutil.TimeEq(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
@@ -233,7 +235,7 @@ func (t *foreignModsTest) ReadDir_ContentsInSubDirectory() {
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
 	ExpectEq(filePerms, e.Mode())
-	ExpectThat(e.ModTime(), t.matchesStartTime(createTime))
+	ExpectThat(e.ModTime(), timeutil.TimeEq(createTime))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
@@ -263,7 +265,7 @@ func (t *foreignModsTest) UnreachableObjects() {
 	AssertEq(nil, err)
 
 	// Only the conflicitng file name should show up in the root.
-	entries, err := t.readDirUntil(1, t.Dir)
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
 
@@ -453,7 +455,7 @@ func (t *foreignModsTest) Inodes() {
 		}))
 
 	// List.
-	entries, err := t.readDirUntil(3, t.mfs.Dir())
+	entries, err := fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
 
 	AssertEq(3, len(entries), "Names: %v", getFileNames(entries))
@@ -489,7 +491,7 @@ func (t *foreignModsTest) ReadFromFile_Small() {
 	AssertEq(nil, t.createWithContents("foo", contents))
 
 	// Wait for it to show up in the file system.
-	_, err := t.readDirUntil(1, t.mfs.Dir())
+	_, err := fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
 
 	// Attempt to open it.
@@ -526,7 +528,7 @@ func (t *foreignModsTest) ReadFromFile_Large() {
 	AssertEq(nil, t.createWithContents("foo", contents))
 
 	// Wait for it to show up in the file system.
-	_, err := t.readDirUntil(1, t.mfs.Dir())
+	_, err := fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
 
 	// Attempt to open it.
@@ -575,7 +577,7 @@ func (t *foreignModsTest) ReadBeyondEndOfFile() {
 	AssertEq(nil, t.createWithContents("foo", contents))
 
 	// Wait for it to show up in the file system.
-	_, err := t.readDirUntil(1, t.mfs.Dir())
+	_, err := fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
 
 	// Attempt to open it.
@@ -768,16 +770,16 @@ type implicitDirsTest struct {
 	fsTest
 }
 
-func init() { registerSuitePrototype(&implicitDirsTest{}) }
+func init() { RegisterTestSuite(&implicitDirsTest{}) }
 
-func (t *implicitDirsTest) setUpFSTest(cfg FSTestConfig) {
-	cfg.ServerConfig.ImplicitDirectories = true
-	t.fsTest.setUpFSTest(cfg)
+func (t *implicitDirsTest) SetUp(ti *TestInfo) {
+	t.serverCfg.ImplicitDirectories = true
+	t.fsTest.SetUp(ti)
 }
 
 func (t *implicitDirsTest) NothingPresent() {
 	// ReadDir
-	entries, err := t.readDirUntil(0, t.mfs.Dir())
+	entries, err := fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
 
 	ExpectThat(entries, ElementsAre())
@@ -806,7 +808,7 @@ func (t *implicitDirsTest) FileObjectPresent() {
 	ExpectFalse(fi.IsDir())
 
 	// ReadDir should show the file.
-	entries, err = t.readDirUntil(1, t.mfs.Dir())
+	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
 
@@ -838,7 +840,7 @@ func (t *implicitDirsTest) DirectoryObjectPresent() {
 	ExpectTrue(fi.IsDir())
 
 	// ReadDir should show the directory.
-	entries, err = t.readDirUntil(1, t.mfs.Dir())
+	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
 
@@ -868,7 +870,7 @@ func (t *implicitDirsTest) ImplicitDirectory_DefinedByFile() {
 	ExpectTrue(fi.IsDir())
 
 	// ReadDir should show the directory.
-	entries, err = t.readDirUntil(1, t.mfs.Dir())
+	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
 
@@ -898,7 +900,7 @@ func (t *implicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 	ExpectTrue(fi.IsDir())
 
 	// ReadDir should show the directory.
-	entries, err = t.readDirUntil(1, t.mfs.Dir())
+	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
 
