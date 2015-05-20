@@ -460,7 +460,7 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 	AssertEq(nil, err)
 
 	// Set up the symlink target.
-	t.setSymlinkTarget(dirInodeName+"symlink", "blah")
+	err = t.setSymlinkTarget(dirInodeName+"symlink", "blah")
 	AssertEq(nil, err)
 
 	// Read entries.
@@ -507,7 +507,7 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	AssertEq(nil, err)
 
 	// Set up the symlink target.
-	t.setSymlinkTarget(dirInodeName+"symlink", "blah")
+	err = t.setSymlinkTarget(dirInodeName+"symlink", "blah")
 	AssertEq(nil, err)
 
 	// Read entries.
