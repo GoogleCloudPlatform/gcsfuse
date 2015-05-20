@@ -24,8 +24,15 @@ import (
 )
 
 // When this custom metadata key is present in an object record, it is to be
-// treated as a symlink.
+// treated as a symlink. For use in testing only; other users should detect
+// this with IsSymlink.
 const SymlinkMetadataKey = "gcsfuse_symlink_target"
+
+// Does the supplied object represent a symlink inode?
+func IsSymlink(o *gcs.Object) bool {
+	_, ok := o.Metadata[SymlinkMetadataKey]
+	return ok
+}
 
 type SymlinkInode struct {
 	/////////////////////////
@@ -52,7 +59,7 @@ var _ Inode = &SymlinkInode{}
 
 // Create a symlink inode for the supplied object record.
 //
-// REQUIRES: o.Metada contains SymlinkMetadataKey
+// REQUIRES: IsSymlink(o)
 func NewSymlinkInode(
 	id fuseops.InodeID,
 	o *gcs.Object,
