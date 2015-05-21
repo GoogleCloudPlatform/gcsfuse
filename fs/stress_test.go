@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -216,4 +217,24 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 	}
 
 	ExpectTrue(found, "Unexpected size: %d", fi.Size())
+}
+
+func (t *StressTest) CreateInParallel_NoTruncate() {
+	fusetesting.RunCreateInParallelTest_NoTruncate(t.ctx, t.Dir)
+}
+
+func (t *StressTest) CreateInParallel_Truncate() {
+	fusetesting.RunCreateInParallelTest_Truncate(t.ctx, t.Dir)
+}
+
+func (t *StressTest) CreateInParallel_Exclusive() {
+	fusetesting.RunCreateInParallelTest_Exclusive(t.ctx, t.Dir)
+}
+
+func (t *StressTest) MkdirInParallel() {
+	fusetesting.RunMkdirInParallelTest(t.ctx, t.Dir)
+}
+
+func (t *StressTest) SymlinkInParallel() {
+	fusetesting.RunSymlinkInParallelTest(t.ctx, t.Dir)
 }
