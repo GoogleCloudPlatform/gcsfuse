@@ -115,21 +115,33 @@ func (t *StressTest) LinkAndUnlinkFileNameManyTimesInParallel() {
 		for time.Since(startTime) < desiredDuration {
 			// Remove.
 			err = os.Remove(file)
-			if err != nil {
-				AssertTrue(os.IsNotExist(err), "Unexpected error: %v", err)
+			if err != nil && !os.IsNotExist(err) {
+				AddFailure("Unexpected error: %v", err)
+				return
 			}
 
 			// Create/truncate.
 			f, err := os.Create(file)
-			AssertEq(nil, err)
+			if err != nil {
+				f.Close()
+				AddFailure("Create error: %v", err)
+				return
+			}
 
 			// Write.
 			_, err = f.Write([]byte("taco"))
-			AssertEq(nil, err)
+			if err != nil {
+				f.Close()
+				AddFailure("Write error: %v", err)
+				return
+			}
 
 			// Close.
 			err = f.Close()
-			AssertEq(nil, err)
+			if err != nil {
+				AddFailure("Close error: %v", err)
+				return
+			}
 		}
 	}
 
