@@ -21,6 +21,7 @@ setting `--stat_cache_ttl 0` and `--type_cache_ttl 0`. This is not the default.
 If you want the consistency guarantees discussed in this document, you must use
 these options to disable caching.
 
+<a name="stat-caching"></a>
 ## Stat caching
 
 The cost of the consistency guarantees discussed in the rest of this document
@@ -44,6 +45,7 @@ this document. It is safe only in the following situations:
  *  The mounted bucket is modified by multiple actors, but the user is
     confident that they don't need the guarantees discussed in this document.
 
+<a name="type-caching"></a>
 ## Type caching
 
 Because GCS does not forbid an object named `foo` from existing next to an
@@ -82,6 +84,7 @@ this document. It is safe only in the following situations:
  *  The type (file or directory) for any given path never changes.
 
 
+<a name="buckets"></a>
 # Buckets
 
 GCS has a feature called [object versioning][versioning] that allows buckets to
@@ -93,6 +96,7 @@ behavior for such buckets is undefined.
 [versioning]: https://cloud.google.com/storage/docs/object-versioning
 
 
+<a name="files-and-dirs"></a>
 # Files and directories
 
 GCS object names map directly to file paths using the separator '/'. Object
@@ -178,6 +182,7 @@ more thorough discussion):
 [issue-7]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/7
 
 
+<a name="generations"></a>
 # Generations
 
 GCS has a notion of an [object generation number][generations] associated with
@@ -198,6 +203,7 @@ The discussion below uses the term "generation" in this manner.
 [generations]: https://cloud.google.com/storage/docs/generations-preconditions
 
 
+<a name="file-inodes"></a>
 # File inodes
 
 As in any file system, file inodes in a gcsfuse file system logically contain
@@ -205,6 +211,7 @@ file contents and metadata. A file inode is initialized with a particular
 generation of a particular object within GCS (the "source generation"), and its
 contents are initially exactly the contents of that generation.
 
+<a name="file-inode-modifications"></a>
 ### Modifications
 
 Inodes may be opened for writing. Modifications are reflected immediately in
@@ -220,6 +227,7 @@ Modification time (`stat::st_mtime` on Linux) is tracked for file inodes, but
 only for modifications to contents (not, for example, by utimes(2)). No other
 times are tracked.
 
+<a name="file-inode-identity"></a>
 ### Identity
 
 If a new generation number is assigned to a GCS object due to a flush from an
@@ -230,6 +238,7 @@ an inode distinct from any other inode already created for the object name.
 Inode IDs are local to a single gcsfuse process, and there are no guarantees
 about their stability across machines or invocations on a single machine.
 
+<a name="file-inode-lookups"></a>
 ### Lookups
 
 One of the fundamental operations in the VFS layer of the kernel is looking up
@@ -242,6 +251,7 @@ lookups as follows:
     for this name with source generation number N, return it.
 4.  Create a new inode for this name with source generation number N.
 
+<a name="file-inode-semantics"></a>
 ### User-visible semantics
 
 The intent of these conventions is to make it appear as though local writes to
@@ -259,6 +269,7 @@ Process A continues to have a consistent view of the file's contents until it
 closes the file handle, at which point the contents are lost.
 
 
+<a name="dir-inodes"></a>
 # Directory inodes
 
 gcsfuse directory inodes exist simply to satisfy the kernel and export a way to
@@ -276,6 +287,7 @@ look up child inodes. Unlike file inodes:
 *   There are no guarantees about `stat::st_nlink`, even if `--support_nlink`
     is set.
 
+<a name="dir-inode-reading"></a>
 ### Reading
 
 Unlike reads for a particular object, listing operations in GCS are
@@ -288,6 +300,7 @@ the user level to commands like `ls`, and to the posix interfaces they use like
 [consistency]: https://cloud.google.com/storage/docs/concepts-techniques#consistency
 
 
+<a name="symlink-inodes"></a>
 # Symlink inodes
 
 gcsfuse represents symlinks with empty GCS objects that contain the custom
@@ -296,6 +309,7 @@ symlink. In other respects they work like a file inode, including receiving the
 same permissions.
 
 
+<a name="write-read-consistency"></a>
 # Write/read consistency
 
 gcsfuse offers close-to-open and fsync-to-open consistency. As discussed above,
@@ -314,8 +328,10 @@ then machine B will observe a version of the file at least as new as the one
 created by machine A.
 
 
+<a name="permissions"></a>
 # Permissions and ownership
 
+<a name="permissions-inodes"></a>
 ## Inodes
 
 By default, all inodes in a gcsfuse file system show up as being owned by the
@@ -327,6 +343,7 @@ Changing permission bits is not supported.
 These defaults can be overriden with the `--uid`, `--gid`, `--file_mode`, and
 `--dir_mode` flags.
 
+<a name="permissions-fuse"></a>
 ## Fuse
 
 The fuse kernel layer itself restricts file system access to the mounting user
@@ -343,8 +360,10 @@ all users. Be careful! There may be [security implications][fuse-security].
 [fuse-security]: https://github.com/torvalds/linux/blob/a33f32244d8550da8b4a26e277ce07d5c6d158b5/Documentation/filesystems/fuse.txt#L218-L310
 
 
+<a name="surprising-behaviors"></a>
 # Surprising behaviors
 
+<a name="unlinking-dirs"></a>
 ## Unlinking directories
 
 Because GCS offers no way to delete an object conditional on the non-existence
@@ -356,6 +375,7 @@ placeholder object for the unlinked directory is simply removed. (Unless
 `--implicit_dirs` is set; see the section on implicit directories above.)
 
 
+<a name="reading-dirs"></a>
 ## Reading directories
 
 gcsfuse implements requests from the kernel to read the contents of a directory
@@ -405,6 +425,7 @@ legal][object-names] in GCS object names, and therefore is not ambiguous.
 [object-names]: https://cloud.google.com/storage/docs/bucket-naming#objectnames
 
 
+<a name="mmaped-files"></a>
 ## Memory-mapped files
 
 gcsfuse files can be memory-mapped for reading and writing using mmap(2). If
@@ -429,6 +450,7 @@ See the notes on [fuseops.FlushFileOp][flush-op] for more details.
 [flush-op]: http://godoc.org/github.com/jacobsa/fuse/fuseops#FlushFileOp
 
 
+<a name="link-counts"></a>
 ## Inode link counts
 
 By default, fstat(2) always shows a value of one for `stat::st_nlink` for any
@@ -441,6 +463,7 @@ a stat request to be sent to GCS. Inodes for names that have been deleted or
 overwritten will then show a value of zero for `stat::st_nlink`.
 
 
+<a name="missing-features"></a>
 ## Missing features
 
 Not all of the usual file system features are supported. Most prominently:
