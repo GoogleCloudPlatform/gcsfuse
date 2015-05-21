@@ -308,7 +308,7 @@ func statObjectMayNotExist(
 	return
 }
 
-// Fail if the name already exists.
+// Fail if the name already exists. Pass on errors directly.
 func (d *DirInode) createNewObject(
 	ctx context.Context,
 	name string,
@@ -325,7 +325,6 @@ func (d *DirInode) createNewObject(
 
 	o, err = d.bucket.CreateObject(ctx, createReq)
 	if err != nil {
-		err = fmt.Errorf("CreateObject: %v", err)
 		return
 	}
 
@@ -695,8 +694,8 @@ func (d *DirInode) ReadEntries(
 	return
 }
 
-// Create an empty child file with the supplied (relative) name, failing if a
-// backing object already exists in GCS.
+// Create an empty child file with the supplied (relative) name, failing with
+// *gcs.PreconditionError if a backing object already exists in GCS.
 //
 // LOCKS_REQUIRED(d)
 func (d *DirInode) CreateChildFile(
@@ -713,7 +712,8 @@ func (d *DirInode) CreateChildFile(
 }
 
 // Create a symlink object with the supplied (relative) name and the supplied
-// target, failing if a backing object already exists in GCS.
+// target, failing with *gcs.PreconditionError if a backing object already
+// exists in GCS.
 //
 // LOCKS_REQUIRED(d)
 func (d *DirInode) CreateChildSymlink(
@@ -735,7 +735,8 @@ func (d *DirInode) CreateChildSymlink(
 }
 
 // Create a backing object for a child directory with the supplied (relative)
-// name, failing if a backing object already exists in GCS.
+// name, failing with *gcs.PreconditionError if a backing object already exists
+// in GCS.
 //
 // LOCKS_REQUIRED(d)
 func (d *DirInode) CreateChildDir(
