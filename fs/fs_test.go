@@ -21,6 +21,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"os/signal"
 	"os/user"
 	"strconv"
 	"strings"
@@ -44,6 +45,20 @@ const (
 )
 
 func TestFS(t *testing.T) { RunTests(t) }
+
+// Install a SIGINT handler that exits gracefully once the current test is
+// finished. It's not safe to exit in the middle of a test because closing any
+// open files may require the fuse daemon to still be responsive.
+func init() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+
+	go func() {
+		<-c
+		log.Println("Received SIGINT; exiting after this test completes.")
+		StopRunningTests()
+	}()
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
