@@ -99,7 +99,53 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 }
 
 func (t *StressTest) LinkAndUnlinkFileNameManyTimesInParallel() {
-	AssertFalse(true, "TODO")
+	file := path.Join(t.Dir, "foo")
+
+	// Ensure that we get parallelism for this test.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
+
+	// Set up a function that repeatedly unlinks the file (ignoring ENOENT),
+	// opens the file name (creating if it doesn't exist), writes some data, then
+	// closes. We expect nothing to blow up when we do this in parallel.
+	worker := func() {
+		const desiredDuration = 500 * time.Millisecond
+		var err error
+
+		startTime := time.Now()
+		for time.Since(startTime) < desiredDuration {
+			// Remove.
+			err = os.Remove(file)
+			if err != nil {
+				AssertTrue(os.IsNotExist(err), "Unexpected error: %v", err)
+			}
+
+			// Create/truncate.
+			f, err := os.Create(file)
+			AssertEq(nil, err)
+
+			// Write.
+			_, err = f.Write([]byte("taco"))
+			AssertEq(nil, err)
+
+			// Close.
+			err = f.Close()
+			AssertEq(nil, err)
+		}
+	}
+
+	// Run several workers.
+	const numWorkers = 16
+
+	var wg sync.WaitGroup
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			worker()
+		}()
+	}
+
+	wg.Wait()
 }
 
 func (t *StressTest) TruncateFileManyTimesInParallel() {
