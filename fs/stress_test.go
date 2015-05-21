@@ -17,10 +17,14 @@ package fs_test
 import (
 	"fmt"
 	"io/ioutil"
+	"math/rand"
+	"os"
 	"path"
 	"runtime"
 	"sync"
+	"time"
 
+	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -65,11 +69,11 @@ type StressTest struct {
 func init() { RegisterTestSuite(&StressTest{}) }
 
 func (t *StressTest) CreateAndReadManyFilesInParallel() {
-	// Exercise lease revocation logic.
-	numFiles := 2 * t.serverCfg.TempDirLimitNumFiles
-
 	// Ensure that we get parallelism for this test.
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
+
+	// Exercise lease revocation logic.
+	numFiles := 2 * t.serverCfg.TempDirLimitNumFiles
 
 	// Choose a bunch of file names.
 	var names []string
@@ -95,10 +99,142 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 		})
 }
 
-func (t *StressTest) LinkAndUnlinkFileManyTimesInParallel() {
-	AssertFalse(true, "TODO")
+func (t *StressTest) LinkAndUnlinkFileNameManyTimesInParallel() {
+	file := path.Join(t.Dir, "foo")
+
+	// Ensure that we get parallelism for this test.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
+
+	// Set up a function that repeatedly unlinks the file (ignoring ENOENT),
+	// opens the file name (creating if it doesn't exist), writes some data, then
+	// closes. We expect nothing to blow up when we do this in parallel.
+	worker := func() {
+		const desiredDuration = 500 * time.Millisecond
+		var err error
+
+		startTime := time.Now()
+		for time.Since(startTime) < desiredDuration {
+			// Remove.
+			err = os.Remove(file)
+			if err != nil && !os.IsNotExist(err) {
+				AddFailure("Unexpected error: %v", err)
+				return
+			}
+
+			// Create/truncate.
+			f, err := os.Create(file)
+			if err != nil {
+				f.Close()
+				AddFailure("Create error: %v", err)
+				return
+			}
+
+			// Write.
+			_, err = f.Write([]byte("taco"))
+			if err != nil {
+				f.Close()
+				AddFailure("Write error: %v", err)
+				return
+			}
+
+			// Close.
+			err = f.Close()
+			if err != nil {
+				AddFailure("Close error: %v", err)
+				return
+			}
+		}
+	}
+
+	// Run several workers.
+	const numWorkers = 16
+
+	var wg sync.WaitGroup
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			worker()
+		}()
+	}
+
+	wg.Wait()
 }
 
 func (t *StressTest) TruncateFileManyTimesInParallel() {
-	AssertFalse(true, "TODO")
+	// Ensure that we get parallelism for this test.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+	defer f.Close()
+
+	// Set up a function that repeatedly truncates the file to random lengths,
+	// writing the final size to a channel.
+	worker := func(finalSize chan<- int64) {
+		const desiredDuration = 500 * time.Millisecond
+
+		var size int64
+		startTime := time.Now()
+		for time.Since(startTime) < desiredDuration {
+			for i := 0; i < 10; i++ {
+				size = rand.Int63n(1 << 14)
+				err := f.Truncate(size)
+				AssertEq(nil, err)
+			}
+		}
+
+		finalSize <- size
+	}
+
+	// Run several workers.
+	const numWorkers = 16
+	finalSizes := make(chan int64, numWorkers)
+
+	var wg sync.WaitGroup
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			worker(finalSizes)
+		}()
+	}
+
+	wg.Wait()
+	close(finalSizes)
+
+	// The final size should be consistent.
+	fi, err := f.Stat()
+	AssertEq(nil, err)
+
+	var found = false
+	for s := range finalSizes {
+		if s == fi.Size() {
+			found = true
+			break
+		}
+	}
+
+	ExpectTrue(found, "Unexpected size: %d", fi.Size())
+}
+
+func (t *StressTest) CreateInParallel_NoTruncate() {
+	fusetesting.RunCreateInParallelTest_NoTruncate(t.ctx, t.Dir)
+}
+
+func (t *StressTest) CreateInParallel_Truncate() {
+	fusetesting.RunCreateInParallelTest_Truncate(t.ctx, t.Dir)
+}
+
+func (t *StressTest) CreateInParallel_Exclusive() {
+	fusetesting.RunCreateInParallelTest_Exclusive(t.ctx, t.Dir)
+}
+
+func (t *StressTest) MkdirInParallel() {
+	fusetesting.RunMkdirInParallelTest(t.ctx, t.Dir)
+}
+
+func (t *StressTest) SymlinkInParallel() {
+	fusetesting.RunSymlinkInParallelTest(t.ctx, t.Dir)
 }
