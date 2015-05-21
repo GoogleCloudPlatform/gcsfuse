@@ -62,7 +62,14 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/mount"
 )
 
-var fOptions = mount.OptionFlag("o", "Mount options. May be repeated.")
+var fOptions = make(map[string]string)
+
+func init() {
+	flag.Var(
+		mount.OptionValue(fOptions),
+		"o",
+		"Mount options. May be repeated.")
+}
 
 // Parse positional arguments.
 func parseArgs(args []string) (device string, mountPoint string, err error) {

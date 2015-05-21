@@ -21,9 +21,8 @@ import (
 	"strings"
 )
 
-// Set up a flag with the given name and usage string that can be used to
-// receive options in the format accepted by mount(8) and generated for its
-// external mount helpers.
+// Return a flag.Value that can be used to receive options in the format
+// accepted by mount(8) and generated for its external mount helpers.
 //
 // It is assumed that option name and values do not contain commas, and that
 // the first equals sign in an option is the name/value separator. There is no
@@ -40,14 +39,12 @@ import (
 //     "foo": "bar=baz",
 //     "qux": "",
 //
-func OptionFlag(
-	name string,
-	usage string) (m map[string]string) {
-	m = make(map[string]string)
+func OptionValue(m map[string]string) (v flag.Value) {
+	if m == nil {
+		panic("m must be non-nil.")
+	}
 
-	of := optionFlag{m}
-	flag.Var(&of, name, usage)
-
+	v = &optionFlag{m}
 	return
 }
 
