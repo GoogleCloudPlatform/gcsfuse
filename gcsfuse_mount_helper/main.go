@@ -53,7 +53,6 @@ package main
 //
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -61,15 +60,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/mount"
 )
-
-var fOptions = make(map[string]string)
-
-func init() {
-	flag.Var(
-		mount.OptionValue(fOptions),
-		"o",
-		"Mount options. May be repeated.")
-}
 
 // Turn mount-style options into gcsfuse arguments. Skip known detritus that
 // the mount command gives us.
@@ -173,16 +163,14 @@ func parseArgs(
 }
 
 func main() {
-	flag.Parse()
-
 	// Print out each argument.
-	args := flag.Args()
+	args := os.Args
 	for i, arg := range args {
 		log.Printf("Arg %d: %q", i, arg)
 	}
 
 	// Attempt to parse arguments.
-	device, mountPoint, err := parseArgs(args)
+	device, mountPoint, opts, err := parseArgs(args[1:])
 	if err != nil {
 		log.Fatalf("parseArgs: %v", err)
 	}
@@ -190,12 +178,12 @@ func main() {
 	// Print what we gleaned.
 	log.Printf("Device: %q", device)
 	log.Printf("Mount point: %q", mountPoint)
-	for name, value := range fOptions {
+	for name, value := range opts {
 		log.Printf("Option %q: %q", name, value)
 	}
 
 	// Choose gcsfuse args.
-	gcsfuseArgs, err := makeGcsfuseArgs(device, mountPoint, fOptions)
+	gcsfuseArgs, err := makeGcsfuseArgs(device, mountPoint, opts)
 	if err != nil {
 		log.Fatalf("makeGcsfuseArgs: %v", err)
 	}
