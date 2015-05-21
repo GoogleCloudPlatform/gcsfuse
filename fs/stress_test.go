@@ -17,9 +17,12 @@ package fs_test
 import (
 	"fmt"
 	"io/ioutil"
+	"math/rand"
+	"os"
 	"path"
 	"runtime"
 	"sync"
+	"time"
 
 	. "github.com/jacobsa/ogletest"
 )
@@ -65,11 +68,11 @@ type StressTest struct {
 func init() { RegisterTestSuite(&StressTest{}) }
 
 func (t *StressTest) CreateAndReadManyFilesInParallel() {
-	// Exercise lease revocation logic.
-	numFiles := 2 * t.serverCfg.TempDirLimitNumFiles
-
 	// Ensure that we get parallelism for this test.
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
+
+	// Exercise lease revocation logic.
+	numFiles := 2 * t.serverCfg.TempDirLimitNumFiles
 
 	// Choose a bunch of file names.
 	var names []string
@@ -95,10 +98,64 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 		})
 }
 
-func (t *StressTest) LinkAndUnlinkFileManyTimesInParallel() {
+func (t *StressTest) LinkAndUnlinkFileNameManyTimesInParallel() {
 	AssertFalse(true, "TODO")
 }
 
 func (t *StressTest) TruncateFileManyTimesInParallel() {
-	AssertFalse(true, "TODO")
+	// Ensure that we get parallelism for this test.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+	defer f.Close()
+
+	// Set up a function that repeatedly truncates the file to random lengths,
+	// writing the final size to a channel.
+	worker := func(finalSize chan<- int64) {
+		const desiredDuration = 500 * time.Millisecond
+
+		var size int64
+		startTime := time.Now()
+		for time.Since(startTime) < desiredDuration {
+			for i := 0; i < 10; i++ {
+				size = rand.Int63n(1 << 14)
+				err := f.Truncate(size)
+				AssertEq(nil, err)
+			}
+		}
+
+		finalSize <- size
+	}
+
+	// Run several workers.
+	const numWorkers = 16
+	finalSizes := make(chan int64, numWorkers)
+
+	var wg sync.WaitGroup
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			worker(finalSizes)
+		}()
+	}
+
+	wg.Wait()
+	close(finalSizes)
+
+	// The final size should be consistent.
+	fi, err := f.Stat()
+	AssertEq(nil, err)
+
+	var found = false
+	for s := range finalSizes {
+		if s == fi.Size() {
+			found = true
+			break
+		}
+	}
+
+	ExpectTrue(found, "Unexpected size: %d", fi.Size())
 }
