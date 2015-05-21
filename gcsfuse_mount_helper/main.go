@@ -136,8 +136,15 @@ func parseArgs(
 	opts = make(map[string]string)
 
 	// Process each argument in turn.
+	positionalCount := 0
 	for i, s := range args {
 		switch {
+		// "-o" is illegal only when at the end. We handle its argument in the case
+		// below.
+		case s == "-o" && i == len(args)-1:
+			err = fmt.Errorf("Unexpected -o at end of args.")
+			return
+
 		// Is this an options string following a "-o"?
 		case i > 0 && args[i-1] == "-o":
 			err = mount.ParseOptions(opts, s)
@@ -146,11 +153,23 @@ func parseArgs(
 				return
 			}
 
+		// Is this the device?
+		case positionalCount == 0:
+			device = s
+			positionalCount++
+
+		// Is this the mount point?
+		case positionalCount == 1:
+			mountPoint = s
+			positionalCount++
+
 		default:
 			err = fmt.Errorf("Unexpected arg: %q", s)
 			return
 		}
 	}
+
+	return
 }
 
 func main() {
