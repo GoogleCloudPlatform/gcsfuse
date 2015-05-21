@@ -916,6 +916,14 @@ func (fs *fileSystem) MkDir(
 	parent.Lock()
 	o, err := parent.CreateChildDir(op.Context(), op.Name)
 	parent.Unlock()
+
+	// Special case: *gcs.PreconditionError means the name already exists.
+	if _, ok := err.(*gcs.PreconditionError); ok {
+		err = fuse.EEXIST
+		return
+	}
+
+	// Propagate other errors.
 	if err != nil {
 		err = fmt.Errorf("CreateChildDir: %v", err)
 		return
@@ -961,6 +969,14 @@ func (fs *fileSystem) CreateFile(
 	parent.Lock()
 	o, err := parent.CreateChildFile(op.Context(), op.Name)
 	parent.Unlock()
+
+	// Special case: *gcs.PreconditionError means the name already exists.
+	if _, ok := err.(*gcs.PreconditionError); ok {
+		err = fuse.EEXIST
+		return
+	}
+
+	// Propagate other errors.
 	if err != nil {
 		err = fmt.Errorf("CreateChildFile: %v", err)
 		return
@@ -1005,6 +1021,14 @@ func (fs *fileSystem) CreateSymlink(
 	parent.Lock()
 	o, err := parent.CreateChildSymlink(op.Context(), op.Name, op.Target)
 	parent.Unlock()
+
+	// Special case: *gcs.PreconditionError means the name already exists.
+	if _, ok := err.(*gcs.PreconditionError); ok {
+		err = fuse.EEXIST
+		return
+	}
+
+	// Propagate other errors.
 	if err != nil {
 		err = fmt.Errorf("CreateChildSymlink: %v", err)
 		return
