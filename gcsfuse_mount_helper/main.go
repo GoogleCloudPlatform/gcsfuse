@@ -141,15 +141,15 @@ func parseArgs(
 		// Is this an options string following a "-o"?
 		case i > 0 && args[i-1] == "-o":
 			err = mount.ParseOptions(opts, s)
-	if err != nil {
-		err = fmt.Errorf("ParseOptions(%q): %v", s, err)
-		return
-	}
-		}
+			if err != nil {
+				err = fmt.Errorf("ParseOptions(%q): %v", s, err)
+				return
+			}
 
-	default:
-		err = fmt.Errorf("Unexpected arg: %q", s)
-		return
+		default:
+			err = fmt.Errorf("Unexpected arg: %q", s)
+			return
+		}
 	}
 }
 
