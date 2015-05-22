@@ -230,8 +230,8 @@ func (d *dirInode) checkInvariants() {
 
 func (d *dirInode) lookUpChildFile(
 	ctx context.Context,
-	name string) (o *gcs.Object, err error) {
-	o, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name)
+	name string) (result LookUpResult, err error) {
+	result.Object, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name)
 	if err != nil {
 		err = fmt.Errorf("statObjectMayNotExist: %v", err)
 		return
@@ -242,12 +242,12 @@ func (d *dirInode) lookUpChildFile(
 
 func (d *dirInode) lookUpChildDir(
 	ctx context.Context,
-	name string) (o *gcs.Object, err error) {
+	name string) (result LookUpResult, err error) {
 	b := syncutil.NewBundle(ctx)
 
 	// Stat the placeholder object.
 	b.Add(func(ctx context.Context) (err error) {
-		o, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name+"/")
+		result.Object, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name+"/")
 		if err != nil {
 			err = fmt.Errorf("statObjectMayNotExist: %v", err)
 			return
@@ -258,10 +258,9 @@ func (d *dirInode) lookUpChildDir(
 
 	// If implicit directories are enabled, find out whether the child name is
 	// implicitly defined.
-	var implicitlyDefined bool
 	if d.implicitDirs {
 		b.Add(func(ctx context.Context) (err error) {
-			implicitlyDefined, err = objectNamePrefixNonEmpty(
+			result.ImplicitDir, err = objectNamePrefixNonEmpty(
 				ctx,
 				d.bucket,
 				d.Name()+name+"/")
@@ -279,14 +278,6 @@ func (d *dirInode) lookUpChildDir(
 	err = b.Join()
 	if err != nil {
 		return
-	}
-
-	// If statting failed by the directory is implicitly defined, fake a source
-	// object.
-	if o == nil && implicitlyDefined {
-		o = &gcs.Object{
-			Name: d.Name() + name + "/",
-		}
 	}
 
 	return
