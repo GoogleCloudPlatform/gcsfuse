@@ -17,7 +17,6 @@ package gcsproxy
 import (
 	"fmt"
 	"math"
-	"sync/atomic"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/lease"
@@ -59,11 +58,6 @@ type MutableObject struct {
 	// A record for the specific generation of the object from which our local
 	// state is branched.
 	src gcs.Object
-
-	// The current generation number. Must be accessed using sync/atomic.
-	//
-	// INVARIANT: atomic.LoadInt64(&sourceGeneration) == src.Generation
-	sourceGeneration int64
 
 	// When clean, a read proxy around src. When dirty, nil.
 	//
@@ -114,13 +108,12 @@ func NewMutableObject(
 	clock timeutil.Clock) (mo *MutableObject) {
 	// Set up the basic struct.
 	mo = &MutableObject{
-		chunkSize:        chunkSize,
-		bucket:           bucket,
-		leaser:           leaser,
-		clock:            clock,
-		src:              *o,
-		sourceGeneration: o.Generation,
-		readProxy:        NewReadProxy(chunkSize, leaser, bucket, o, nil),
+		chunkSize: chunkSize,
+		bucket:    bucket,
+		leaser:    leaser,
+		clock:     clock,
+		src:       *o,
+		readProxy: NewReadProxy(chunkSize, leaser, bucket, o, nil),
 	}
 
 	return
@@ -130,11 +123,8 @@ func NewMutableObject(
 // proxy were branched. If Sync has been successfully called, this is the
 // generation most recently returned by Sync. Otherwise it is the generation
 // from which the proxy was created.
-//
-// May be called concurrently with any method, but note that without excluding
-// concurrent calls to Sync this may change spontaneously.
 func (mo *MutableObject) SourceGeneration() int64 {
-	return atomic.LoadInt64(&mo.sourceGeneration)
+	return mo.src.Generation
 }
 
 // Panic if any internal invariants are violated. Careful users can call this
@@ -148,14 +138,6 @@ func (mo *MutableObject) CheckInvariants() {
 	// INVARIANT: When non-nil, readProxy.CheckInvariants() does not panic.
 	if mo.readProxy != nil {
 		mo.readProxy.CheckInvariants()
-	}
-
-	// INVARIANT: atomic.LoadInt64(&sourceGeneration) == src.Generation
-	{
-		g := atomic.LoadInt64(&mo.sourceGeneration)
-		if g != mo.src.Generation {
-			panic(fmt.Sprintf("Generation mismatch: %v vs. %v", g, mo.src.Generation))
-		}
 	}
 
 	// INVARIANT: (readProxy == nil) != (readWriteLease == nil)
@@ -344,7 +326,6 @@ func (mo *MutableObject) Sync(ctx context.Context) (err error) {
 	}
 
 	mo.src = *o
-	atomic.StoreInt64(&mo.sourceGeneration, mo.src.Generation)
 
 	// Downgrade the read/write lease to a read lease, and use that to prime the
 	// new read proxy.

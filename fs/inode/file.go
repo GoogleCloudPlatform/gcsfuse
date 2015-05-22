@@ -157,8 +157,7 @@ func (f *FileInode) Name() string {
 
 // Return the object generation number from which this inode was branched.
 //
-// Does not require the lock to be held, but may spontaneously increase if the
-// lock is not held.
+// LOCKS_REQUIRED(f)
 func (f *FileInode) SourceGeneration() int64 {
 	return f.proxy.SourceGeneration()
 }

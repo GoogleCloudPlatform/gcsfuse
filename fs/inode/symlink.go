@@ -106,7 +106,7 @@ func (s *SymlinkInode) Name() string {
 
 // Return the object generation number from which this inode was branched.
 //
-// Does not require the lock to be held.
+// LOCKS_REQUIRED(s)
 func (s *SymlinkInode) SourceGeneration() int64 {
 	return s.sourceGeneration
 }
