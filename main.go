@@ -160,16 +160,11 @@ func getBucket() (b gcs.Bucket) {
 	return
 }
 
-func main() {
-	// Make logging output better.
-	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
-
-	// Set up flags.
-	flag.Parse()
-
+func run() (err error) {
 	// Check --mount_point.
 	if *fMountPoint == "" {
-		log.Fatalf("You must set --mount_point.")
+		err = fmt.Errorf("You must set --mount_point.")
+		return
 	}
 
 	mountPoint := *fMountPoint
@@ -178,14 +173,16 @@ func main() {
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
 	if *fTempDir != "" {
-		f, err := fsutil.AnonymousFile(*fTempDir)
+		var f *os.File
+		f, err = fsutil.AnonymousFile(*fTempDir)
 		f.Close()
 
 		if err != nil {
-			log.Fatalf(
+			err = fmt.Errorf(
 				"Error writing to temporary directory (%q); are you sure it exists "+
 					"with the correct permissions?",
 				err.Error())
+			return
 		}
 	}
 
@@ -241,7 +238,8 @@ func main() {
 
 	server, err := fs.NewServer(serverCfg)
 	if err != nil {
-		log.Fatal("fs.NewServer:", err)
+		err = fmt.Errorf("fs.NewServer: %v", err)
+		return
 	}
 
 	// Mount the file system.
@@ -252,7 +250,8 @@ func main() {
 
 	mountedFS, err := fuse.Mount(mountPoint, server, mountCfg)
 	if err != nil {
-		log.Fatal("Mount:", err)
+		err = fmt.Errorf("Mount: %v", err)
+		return
 	}
 
 	log.Println("File system has been successfully mounted.")
@@ -261,8 +260,25 @@ func main() {
 	registerSIGINTHandler(mountedFS.Dir())
 
 	// Wait for it to be unmounted.
-	if err := mountedFS.Join(context.Background()); err != nil {
-		log.Fatal("MountedFileSystem.Join:", err)
+	err = mountedFS.Join(context.Background())
+	if err != nil {
+		err = fmt.Errorf("MountedFileSystem.Join: %v", err)
+		return
+	}
+
+	return
+}
+
+func main() {
+	flag.Parse()
+
+	// Make logging output better.
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
+
+	// Run.
+	err := run()
+	if err != nil {
+		log.Fatalf("run: %v", err)
 	}
 
 	log.Println("Successfully exiting.")
