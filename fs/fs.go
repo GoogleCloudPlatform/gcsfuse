@@ -150,9 +150,11 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 
 	// Set up the root inode.
 	root := inode.NewRootInode(
-		fs.uid,
-		fs.gid,
-		fs.dirMode,
+		fuseops.InodeAttributes{
+			Uid:  fs.uid,
+			Gid:  fs.gid,
+			Mode: fs.dirMode,
+		},
 		fs.implicitDirs,
 		fs.dirTypeCacheTTL,
 		cfg.Bucket,
@@ -515,9 +517,11 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 		d := inode.NewDirInode(
 			id,
 			o.Name,
-			fs.uid,
-			fs.gid,
-			fs.dirMode,
+			fuseops.InodeAttributes{
+				Uid:  fs.uid,
+				Gid:  fs.gid,
+				Mode: fs.dirMode,
+			},
 			fs.implicitDirs,
 			fs.dirTypeCacheTTL,
 			fs.bucket,
@@ -530,17 +534,21 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 		in = inode.NewSymlinkInode(
 			id,
 			o,
-			fs.uid,
-			fs.gid,
-			fs.fileMode)
+			fuseops.InodeAttributes{
+				Uid:  fs.uid,
+				Gid:  fs.gid,
+				Mode: fs.fileMode | os.ModeSymlink,
+			})
 
 	default:
 		in = inode.NewFileInode(
 			id,
 			o,
-			fs.uid,
-			fs.gid,
-			fs.fileMode,
+			fuseops.InodeAttributes{
+				Uid:  fs.uid,
+				Gid:  fs.gid,
+				Mode: fs.fileMode,
+			},
 			fs.gcsChunkSize,
 			fs.supportNlink,
 			fs.bucket,
