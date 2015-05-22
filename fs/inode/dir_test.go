@@ -50,7 +50,7 @@ type DirTest struct {
 	bucket gcs.Bucket
 	clock  timeutil.SimulatedClock
 
-	in *inode.DirInode
+	in inode.DirInode
 }
 
 var _ SetUpInterface = &DirTest{}

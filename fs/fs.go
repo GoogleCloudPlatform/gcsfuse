@@ -144,7 +144,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		inodes:              make(map[fuseops.InodeID]inode.Inode),
 		nextInodeID:         fuseops.RootInodeID + 1,
 		fileAndSymlinkIndex: make(map[string]GenerationBackedInode),
-		dirIndex:            make(map[string]*inode.DirInode),
+		dirIndex:            make(map[string]inode.DirInode),
 		handles:             make(map[fuseops.HandleID]interface{}),
 	}
 
@@ -279,8 +279,8 @@ type fileSystem struct {
 	//
 	// INVARIANT: For all keys k, fuseops.RootInodeID <= k < nextInodeID
 	// INVARIANT: For all keys k, inodes[k].ID() == k
-	// INVARIANT: inodes[fuseops.RootInodeID] is missing or of type *inode.DirInode
-	// INVARIANT: For all v, if isDirName(v.Name()) then v is *inode.DirInode
+	// INVARIANT: inodes[fuseops.RootInodeID] is missing or of type inode.DirInode
+	// INVARIANT: For all v, if isDirName(v.Name()) then v is inode.DirInode
 	// INVARIANT: For all v, if !isDirName(v.Name()) then v implements
 	// GenerationBackedInode
 	//
@@ -326,10 +326,10 @@ type fileSystem struct {
 	//
 	// INVARIANT: For each k/v, v.Name() == k
 	// INVARIANT: For each value v, inodes[v.ID()] == v
-	// INVARIANT: For each *inode.DirInode d in inodes, dirIndex[d.Name()] == d
+	// INVARIANT: For each inode.DirInode d in inodes, dirIndex[d.Name()] == d
 	//
 	// GUARDED_BY(mu)
-	dirIndex map[string]*inode.DirInode
+	dirIndex map[string]inode.DirInode
 
 	// The collection of live handles, keyed by handle ID.
 	//
@@ -380,21 +380,21 @@ func (fs *fileSystem) checkInvariants() {
 		}
 	}
 
-	// INVARIANT: inodes[fuseops.RootInodeID] is missing or of type *inode.DirInode
+	// INVARIANT: inodes[fuseops.RootInodeID] is missing or of type inode.DirInode
 	//
 	// The missing case is when we've received a forget request for the root
 	// inode, while unmounting.
 	switch in := fs.inodes[fuseops.RootInodeID].(type) {
 	case nil:
-	case *inode.DirInode:
+	case inode.DirInode:
 	default:
 		panic(fmt.Sprintf("Unexpected type for root: %v", reflect.TypeOf(in)))
 	}
 
-	// INVARIANT: For all v, if isDirName(v.Name()) then v is *inode.DirInode
+	// INVARIANT: For all v, if isDirName(v.Name()) then v is inode.DirInode
 	for _, in := range fs.inodes {
 		if isDirName(in.Name()) {
-			_, ok := in.(*inode.DirInode)
+			_, ok := in.(inode.DirInode)
 			if !ok {
 				panic(fmt.Sprintf(
 					"Unexpected inode type for name \"%s\": %v",
@@ -468,9 +468,9 @@ func (fs *fileSystem) checkInvariants() {
 		}
 	}
 
-	// INVARIANT: For each *inode.DirInode d in inodes, dirIndex[d.Name()] == d
+	// INVARIANT: For each inode.DirInode d in inodes, dirIndex[d.Name()] == d
 	for _, in := range fs.inodes {
-		if d, ok := in.(*inode.DirInode); ok {
+		if d, ok := in.(inode.DirInode); ok {
 			if !(fs.dirIndex[d.Name()] == d) {
 				panic(fmt.Sprintf(
 					"dirIndex mismatch: %q %p %p",
@@ -754,7 +754,7 @@ func (fs *fileSystem) LookUpInode(
 
 	// Find the parent directory in question.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent].(*inode.DirInode)
+	parent := fs.inodes[op.Parent].(inode.DirInode)
 	fs.mu.Unlock()
 
 	// Set up a function that will find a record for the child with the given
@@ -916,7 +916,7 @@ func (fs *fileSystem) MkDir(
 
 	// Find the parent.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent].(*inode.DirInode)
+	parent := fs.inodes[op.Parent].(inode.DirInode)
 	fs.mu.Unlock()
 
 	// Create an empty backing object for the child, failing if it already
@@ -969,7 +969,7 @@ func (fs *fileSystem) CreateFile(
 
 	// Find the parent.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent].(*inode.DirInode)
+	parent := fs.inodes[op.Parent].(inode.DirInode)
 	fs.mu.Unlock()
 
 	// Create an empty backing object for the child, failing if it already
@@ -1022,7 +1022,7 @@ func (fs *fileSystem) CreateSymlink(
 
 	// Find the parent.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent].(*inode.DirInode)
+	parent := fs.inodes[op.Parent].(inode.DirInode)
 	fs.mu.Unlock()
 
 	// Create the object in GCS, failing if it already exists.
@@ -1075,7 +1075,7 @@ func (fs *fileSystem) RmDir(
 	// Find the parent. We assume that it exists because otherwise the kernel has
 	// done something mildly concerning.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent].(*inode.DirInode)
+	parent := fs.inodes[op.Parent].(inode.DirInode)
 	fs.mu.Unlock()
 
 	// Delete the backing object.
@@ -1100,7 +1100,7 @@ func (fs *fileSystem) Unlink(
 
 	// Find the parent.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent].(*inode.DirInode)
+	parent := fs.inodes[op.Parent].(inode.DirInode)
 	fs.mu.Unlock()
 
 	// Delete the backing object.
@@ -1129,7 +1129,7 @@ func (fs *fileSystem) OpenDir(
 	// Make sure the inode still exists and is a directory. If not, something has
 	// screwed up because the VFS layer shouldn't have let us forget the inode
 	// before opening it.
-	in := fs.inodes[op.Inode].(*inode.DirInode)
+	in := fs.inodes[op.Inode].(inode.DirInode)
 
 	// Allocate a handle.
 	handleID := fs.nextHandleID
