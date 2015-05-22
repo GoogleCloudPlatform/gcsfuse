@@ -135,9 +135,11 @@ func parseArgs(
 
 		// "-o" is illegal only when at the end. We handle its argument in the case
 		// below.
-		case s == "-o" && i == len(args)-1:
-			err = fmt.Errorf("Unexpected -o at end of args.")
-			return
+		case s == "-o":
+			if i == len(args)-1 {
+				err = fmt.Errorf("Unexpected -o at end of args.")
+				return
+			}
 
 		// Is this an options string following a "-o"?
 		case i > 0 && args[i-1] == "-o":
