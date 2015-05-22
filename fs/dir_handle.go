@@ -32,7 +32,7 @@ type dirHandle struct {
 	// Constant data
 	/////////////////////////
 
-	in           *inode.DirInode
+	in           inode.DirInode
 	implicitDirs bool
 
 	/////////////////////////
@@ -58,7 +58,7 @@ type dirHandle struct {
 
 // Create a directory handle that obtains listings from the supplied inode.
 func newDirHandle(
-	in *inode.DirInode,
+	in inode.DirInode,
 	implicitDirs bool) (dh *dirHandle) {
 	// Set up the basic struct.
 	dh = &dirHandle{
@@ -160,7 +160,7 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 // LOCKS_REQUIRED(in)
 func readAllEntries(
 	ctx context.Context,
-	in *inode.DirInode) (entries []fuseutil.Dirent, err error) {
+	in inode.DirInode) (entries []fuseutil.Dirent, err error) {
 	// Read one batch at a time.
 	var tok string
 	for {
