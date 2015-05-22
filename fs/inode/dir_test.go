@@ -25,6 +25,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
@@ -88,9 +89,11 @@ func (t *DirTest) resetInode(implicitDirs bool) {
 	t.in = inode.NewDirInode(
 		dirInodeID,
 		dirInodeName,
-		uid,
-		gid,
-		dirMode,
+		fuseops.InodeAttributes{
+			Uid:  uid,
+			Gid:  gid,
+			Mode: dirMode,
+		},
 		implicitDirs,
 		typeCacheTTL,
 		t.bucket,
