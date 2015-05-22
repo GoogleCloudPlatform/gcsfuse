@@ -41,6 +41,8 @@ type LookUpResult struct {
 	// For both object-backed children and implicit directories, the full
 	// canonical name of the child. For example, if the parent inode is "foo/"
 	// and the child is a directory, then this is "foo/bar/".
+	//
+	// Guaranteed to be present only if Exists().
 	FullName string
 
 	// The backing object for the child, if any. If the child is not found or
