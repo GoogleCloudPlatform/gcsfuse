@@ -255,7 +255,6 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 	const name = "qux"
 	objName := path.Join(dirInodeName, name) + "/"
 
-	var o *gcs.Object
 	var err error
 
 	// Enable implicit dirs.
@@ -268,13 +267,10 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 
 	// Looking up the name should work.
 	result, err := t.in.LookUpChild(t.ctx, name)
-	o = result.Object
 
 	AssertEq(nil, err)
-	AssertNe(nil, o)
-
-	ExpectEq(objName, o.Name)
-	ExpectEq(0, o.Generation)
+	ExpectEq(nil, result.Object)
+	ExpectTrue(result.ImplicitDir)
 
 	// A conflict marker should not work.
 	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
