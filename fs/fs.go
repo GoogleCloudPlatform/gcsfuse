@@ -528,7 +528,7 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 
 	// Implicit directories
 	case inode.IsDirName(name):
-		d := inode.NewDirInode(
+		in = inode.NewDirInode(
 			id,
 			name,
 			fuseops.InodeAttributes{
@@ -540,9 +540,6 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 			fs.dirTypeCacheTTL,
 			fs.bucket,
 			fs.clock)
-
-		fs.implicitDirInodes[d.Name()] = d
-		in = d
 
 	case inode.IsSymlink(o):
 		in = inode.NewSymlinkInode(
@@ -613,6 +610,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		in, ok = fs.implicitDirInodes[name]
 		if !ok {
 			in = fs.mintInode(name, nil)
+			fs.implicitDirInodes[in.Name()] = in.(inode.DirInode)
 		}
 
 		fs.mu.Unlock()
