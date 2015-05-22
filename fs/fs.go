@@ -504,17 +504,17 @@ func (fs *fileSystem) checkInvariants() {
 // of that function.
 //
 // LOCKS_REQUIRED(fs.mu)
-func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
+func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 	// Choose an ID.
 	id := fs.nextInodeID
 	fs.nextInodeID++
 
 	// Create the inode.
 	switch {
-	case inode.IsDirName(o.Name):
+	case inode.IsDirName(name):
 		d := inode.NewDirInode(
 			id,
-			o.Name,
+			name,
 			fuseops.InodeAttributes{
 				Uid:  fs.uid,
 				Gid:  fs.gid,
@@ -560,19 +560,24 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 	return
 }
 
-// Attempt to find an inode for the given object record, or create one if one
-// has never yet existed and the record is newer than any inode we've yet
-// recorded.
+// Attempt to find an inode for the given name, backed by the supplied object
+// record (or nil for implicit directories). Create one if one has never yet
+// existed and, if the record is non-nil, the record is newer than any inode
+// we've yet recorded.
 //
 // If the record is stale (i.e. some newer inode exists), return nil. In this
 // case, the caller may obtain a fresh record and try again.
 //
-// Special case: We don't care about generation numbers for directories.
-//
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
+	name string,
 	o *gcs.Object) (in inode.Inode) {
+	// Sanity check.
+	if o != nil && name != o.Name {
+		panic(fmt.Sprintf("Name mismatch: %q vs. %q", name, o.Name))
+	}
+
 	// Ensure that no matter which inode we return, we increase its lookup count
 	// on the way out.
 	defer func() {
@@ -582,19 +587,30 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	}()
 
 	// Handle directories.
-	if inode.IsDirName(o.Name) {
+	//
+	// TODO(jacobsa): This special case should be `o == nil`. See issue #57.
+	if inode.IsDirName(name) {
 		var ok bool
 
 		// If we don't have an entry, create one.
 		in, ok = fs.dirIndex[o.Name]
 		if !ok {
-			in = fs.mintInode(o)
+			in = fs.mintInode(name, o)
 		}
 
 		fs.mu.Unlock()
 		in.Lock()
 
 		return
+	}
+
+	// We shouldn't have a non-nil object record for anything but implicit
+	// directories.
+	//
+	// TODO(jacobsa): Remove this when the condition above changes to be its
+	// inverse. See issue #57.
+	if o == nil {
+		panic(fmt.Sprintf("Unexpected nil object for name %q", name))
 	}
 
 	// Retry loop for the stale index entry case below. On entry, we hold fs.mu
@@ -605,7 +621,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 
 		// If we have no existing record for this name, mint an inode and return it.
 		if !ok {
-			in = fs.mintInode(o)
+			in = fs.mintInode(o.Name, o)
 			fs.fileAndSymlinkIndex[in.Name()] = in.(GenerationBackedInode)
 
 			fs.mu.Unlock()
@@ -646,7 +662,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// newly-minted inode.
 		fs.mu.Lock()
 		if fs.fileAndSymlinkIndex[o.Name] == existingInode {
-			in = fs.mintInode(o)
+			in = fs.mintInode(o.Name, o)
 			fs.fileAndSymlinkIndex[in.Name()] = in.(GenerationBackedInode)
 
 			fs.mu.Unlock()
@@ -662,7 +678,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	}
 }
 
-// Given a function that returns a "fresh" object record, implement the calling
+// Given a function that returns a "fresh" lookup result, implement the calling
 // loop documented for lookUpOrCreateInodeIfNotStale. Call the function once to
 // begin with, and again each time it returns a stale record.
 //
@@ -675,25 +691,26 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 // LOCKS_EXCLUDED(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInode(
-	f func() (*gcs.Object, error)) (in inode.Inode, err error) {
+	name string,
+	f func() (inode.LookUpResult, error)) (in inode.Inode, err error) {
 	const maxTries = 3
 	for n := 0; n < maxTries; n++ {
 		// Create a record.
-		var o *gcs.Object
-		o, err = f()
+		var result inode.LookUpResult
+		result, err = f()
 
 		if err != nil {
 			return
 		}
 
-		if o == nil {
+		if !result.Exists() {
 			err = fuse.ENOENT
 			return
 		}
 
 		// Attempt to create the inode. Return if successful.
 		fs.mu.Lock()
-		in = fs.lookUpOrCreateInodeIfNotStale(o)
+		in = fs.lookUpOrCreateInodeIfNotStale(name, result.Object)
 		if in != nil {
 			return
 		}
@@ -755,14 +772,13 @@ func (fs *fileSystem) LookUpInode(
 	parent := fs.inodes[op.Parent].(inode.DirInode)
 	fs.mu.Unlock()
 
-	// Set up a function that will find a record for the child with the given
-	// name, or nil if none.
-	f := func() (o *gcs.Object, err error) {
+	// Set up a function that will find a lookup result for the child with the
+	// given name.
+	f := func() (r inode.LookUpResult, err error) {
 		parent.Lock()
 		defer parent.Unlock()
 
-		// We need not hold a lock for LookUpChild.
-		o, err = parent.LookUpChild(op.Context(), op.Name)
+		r, err = parent.LookUpChild(op.Context(), op.Name)
 		if err != nil {
 			err = fmt.Errorf("LookUpChild: %v", err)
 			return
@@ -772,7 +788,7 @@ func (fs *fileSystem) LookUpInode(
 	}
 
 	// Use that function to find or mint an inode.
-	in, err := fs.lookUpOrCreateInode(f)
+	in, err := fs.lookUpOrCreateInode(op.Name, f)
 	if err != nil {
 		return
 	}
@@ -939,7 +955,7 @@ func (fs *fileSystem) MkDir(
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
 	fs.mu.Lock()
-	child := fs.lookUpOrCreateInodeIfNotStale(o)
+	child := fs.lookUpOrCreateInodeIfNotStale(o.Name, o)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
 		return
@@ -992,7 +1008,7 @@ func (fs *fileSystem) CreateFile(
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
 	fs.mu.Lock()
-	child := fs.lookUpOrCreateInodeIfNotStale(o)
+	child := fs.lookUpOrCreateInodeIfNotStale(o.Name, o)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
 		return
@@ -1044,7 +1060,7 @@ func (fs *fileSystem) CreateSymlink(
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
 	fs.mu.Lock()
-	child := fs.lookUpOrCreateInodeIfNotStale(o)
+	child := fs.lookUpOrCreateInodeIfNotStale(o.Name, o)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
 		return
