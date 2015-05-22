@@ -17,7 +17,6 @@ package inode
 import (
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/lease"
@@ -42,10 +41,7 @@ type FileInode struct {
 	id           fuseops.InodeID
 	supportNlink bool
 	name         string
-
-	uid  uint32
-	gid  uint32
-	mode os.FileMode
+	attrs        fuseops.InodeAttributes
 
 	/////////////////////////
 	// Mutable state
@@ -90,9 +86,7 @@ var _ Inode = &FileInode{}
 func NewFileInode(
 	id fuseops.InodeID,
 	o *gcs.Object,
-	uid uint32,
-	gid uint32,
-	mode os.FileMode,
+	attrs fuseops.InodeAttributes,
 	gcsChunkSize uint64,
 	supportNlink bool,
 	bucket gcs.Bucket,
@@ -103,9 +97,7 @@ func NewFileInode(
 		bucket:       bucket,
 		id:           id,
 		name:         o.Name,
-		uid:          uid,
-		gid:          gid,
-		mode:         mode,
+		attrs:        attrs,
 		supportNlink: supportNlink,
 		proxy: gcsproxy.NewMutableObject(
 			gcsChunkSize,
@@ -201,19 +193,16 @@ func (f *FileInode) Attributes(
 	}
 
 	// Fill out the struct.
-	attrs = fuseops.InodeAttributes{
-		Nlink: 1,
-		Size:  uint64(sr.Size),
-		Uid:   f.uid,
-		Gid:   f.gid,
-		Mode:  f.mode,
-		Mtime: sr.Mtime,
-	}
+	attrs = f.attrs
+	attrs.Size = uint64(sr.Size)
+	attrs.Mtime = sr.Mtime
 
 	// If the object has been clobbered, we reflect that as the inode being
 	// unlinked.
 	if sr.Clobbered {
 		attrs.Nlink = 0
+	} else {
+		attrs.Nlink = 1
 	}
 
 	return
