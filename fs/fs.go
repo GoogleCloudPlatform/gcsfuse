@@ -593,7 +593,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		var ok bool
 
 		// If we don't have an entry, create one.
-		in, ok = fs.dirIndex[o.Name]
+		in, ok = fs.dirIndex[name]
 		if !ok {
 			in = fs.mintInode(name, o)
 		}
