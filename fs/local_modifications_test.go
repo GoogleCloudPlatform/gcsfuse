@@ -19,13 +19,18 @@
 package fs_test
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
+	"sort"
+	"strings"
 	"syscall"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse/fusetesting"
@@ -35,6 +40,28 @@ import (
 	. "github.com/jacobsa/ogletest"
 )
 
+var fuseMaxNameLen int
+
+func init() {
+	switch runtime.GOOS {
+	case "darwin":
+		// FUSE_MAXNAMELEN is used on OS X in the kernel to limit the max length of
+		// a name that readdir needs to process (cf. https://goo.gl/eega7V).
+		//
+		// NOTE(jacobsa): I can't find where this is defined, but this appears to
+		// be its value.
+		fuseMaxNameLen = 255
+
+	case "linux":
+		// On Linux, we're looking at FUSE_NAME_MAX (https://goo.gl/qd8G0f), used
+		// in e.g. fuse_lookup_name (https://goo.gl/FHSAhy).
+		fuseMaxNameLen = 1024
+
+	default:
+		panic(fmt.Sprintf("Unknown runtime.GOOS: %s", runtime.GOOS))
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
@@ -42,6 +69,86 @@ import (
 func getFileOffset(f *os.File) (offset int64, err error) {
 	const relativeToCurrent = 1
 	offset, err = f.Seek(0, relativeToCurrent)
+	return
+}
+
+// Return a collection of interesting names that should be legal to use.
+func interestingLegalNames() (names []string) {
+	names = []string{
+		// Non-Roman scripts
+		"타코",
+		"世界",
+
+		// Characters special to the shell
+		"*![]&&||;",
+
+		// Longest legal name
+		strings.Repeat("a", fuseMaxNameLen),
+
+		// Angstrom symbol singleton and normalized forms.
+		// Cf. http://unicode.org/reports/tr15/
+		"foo \u212b bar",
+		"foo \u0041\u030a bar",
+		"foo \u00c5 bar",
+
+		// Hangul separating jamo
+		// Cf. http://www.unicode.org/versions/Unicode7.0.0/ch18.pdf (Table 18-10)
+		"foo \u3131\u314f bar",
+		"foo \u1100\u1161 bar",
+		"foo \uac00 bar",
+
+		// Unicode specials
+		// Cf. http://en.wikipedia.org/wiki/Specials_%28Unicode_block%29
+		"foo \ufff9 bar",
+		"foo \ufffa bar",
+		"foo \ufffb bar",
+		"foo \ufffc bar",
+		"foo \ufffd bar",
+	}
+
+	// Most single-byte UTF-8 strings.
+	for b := byte(0); b < utf8.RuneSelf; b++ {
+		switch b {
+		// NULL and '/' are not legal in file names.
+		case 0, '/':
+			continue
+
+		// U+000A and U+000D are not legal in GCS.
+		case '\u000a', '\u000d':
+			continue
+		}
+
+		names = append(names, fmt.Sprintf("foo %c bar", b))
+	}
+
+	// All codepoints in Unicode general categories C* (control and special) and
+	// Z* (space), except for:
+	//
+	//  *  Cn (non-character and reserved), which is not included in unicode.C.
+	//  *  Co (private usage), which is large.
+	//  *  Cs (surrages), which is large.
+	//  *  U+000A and U+000D, which are forbidden by the docs.
+	//
+	for r := rune(0); r <= unicode.MaxRune; r++ {
+		if !unicode.In(r, unicode.C) && !unicode.In(r, unicode.Z) {
+			continue
+		}
+
+		if unicode.In(r, unicode.Co) {
+			continue
+		}
+
+		if unicode.In(r, unicode.Cs) {
+			continue
+		}
+
+		if r == 0x0a || r == 0x0d {
+			continue
+		}
+
+		names = append(names, fmt.Sprintf("baz %s qux", string(r)))
+	}
+
 	return
 }
 
@@ -231,6 +338,65 @@ func (t *OpenTest) AlreadyOpenedFile() {
 	contents, err := ioutil.ReadFile(t.f2.Name())
 	AssertEq(nil, err)
 	ExpectEq("tank", string(contents))
+}
+
+func (t *OpenTest) LegalNames() {
+	var err error
+
+	names := interestingLegalNames()
+	sort.Strings(names)
+
+	// We should be able to create each name.
+	for _, n := range names {
+		err = ioutil.WriteFile(path.Join(t.Dir, n), []byte(n), 0400)
+		AssertEq(nil, err, "Name: %q", n)
+	}
+
+	// A listing should contain them all.
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+
+	AssertEq(len(names), len(entries))
+	for i, n := range names {
+		ExpectEq(n, entries[i].Name(), "Name: %q", n)
+		ExpectEq(len(n), entries[i].Size(), "Name: %q", n)
+	}
+
+	// We should be able to read them all.
+	for _, n := range names {
+		contents, err := ioutil.ReadFile(path.Join(t.Dir, n))
+		AssertEq(nil, err, "Name: %q", n)
+		ExpectEq(n, string(contents), "Name: %q", n)
+	}
+
+	// And delete each.
+	for _, n := range names {
+		err = os.Remove(path.Join(t.Dir, n))
+		AssertEq(nil, err, "Name: %q", n)
+	}
+}
+
+func (t *OpenTest) IllegalNames() {
+	var err error
+
+	// A collection of interesting names that are illegal to use, and a string we
+	// expect to see in the associated error.
+	testCases := []struct {
+		name string
+		err  string
+	}{
+		// Too long
+		{strings.Repeat("a", fuseMaxNameLen+1), "name too long"},
+
+		// Invalid UTF-8, rejected by GCS
+		{"\x80", "input/output"},
+	}
+
+	// We should not be able to create any of these names.
+	for _, tc := range testCases {
+		err = ioutil.WriteFile(path.Join(t.Dir, tc.name), []byte{}, 0400)
+		ExpectThat(err, Error(HasSubstr(tc.err)), "Name: %q", tc.name)
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
