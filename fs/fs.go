@@ -280,8 +280,8 @@ type fileSystem struct {
 	// INVARIANT: For all keys k, fuseops.RootInodeID <= k < nextInodeID
 	// INVARIANT: For all keys k, inodes[k].ID() == k
 	// INVARIANT: inodes[fuseops.RootInodeID] is missing or of type inode.DirInode
-	// INVARIANT: For all v, if isDirName(v.Name()) then v is inode.DirInode
-	// INVARIANT: For all v, if !isDirName(v.Name()) then v implements
+	// INVARIANT: For all v, if IsDirName(v.Name()) then v is inode.DirInode
+	// INVARIANT: For all v, if !IsDirName(v.Name()) then v implements
 	// GenerationBackedInode
 	//
 	// GUARDED_BY(mu)
@@ -357,10 +357,6 @@ type GenerationBackedInode interface {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func isDirName(name string) bool {
-	return name == "" || name[len(name)-1] == '/'
-}
-
 func (fs *fileSystem) checkInvariants() {
 	//////////////////////////////////
 	// inodes
@@ -391,9 +387,9 @@ func (fs *fileSystem) checkInvariants() {
 		panic(fmt.Sprintf("Unexpected type for root: %v", reflect.TypeOf(in)))
 	}
 
-	// INVARIANT: For all v, if isDirName(v.Name()) then v is inode.DirInode
+	// INVARIANT: For all v, if IsDirName(v.Name()) then v is inode.DirInode
 	for _, in := range fs.inodes {
-		if isDirName(in.Name()) {
+		if inode.IsDirName(in.Name()) {
 			_, ok := in.(inode.DirInode)
 			if !ok {
 				panic(fmt.Sprintf(
@@ -404,10 +400,10 @@ func (fs *fileSystem) checkInvariants() {
 		}
 	}
 
-	// INVARIANT: For all v, if !isDirName(v.Name()) then v implements
+	// INVARIANT: For all v, if !IsDirName(v.Name()) then v implements
 	// GenerationBackedInode
 	for _, in := range fs.inodes {
-		if !isDirName(in.Name()) {
+		if !inode.IsDirName(in.Name()) {
 			_, ok := in.(GenerationBackedInode)
 			if !ok {
 				panic(fmt.Sprintf(
@@ -513,7 +509,7 @@ func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
 
 	// Create the inode.
 	switch {
-	case isDirName(o.Name):
+	case inode.IsDirName(o.Name):
 		d := inode.NewDirInode(
 			id,
 			o.Name,
@@ -584,7 +580,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	}()
 
 	// Handle directories.
-	if isDirName(o.Name) {
+	if inode.IsDirName(o.Name) {
 		var ok bool
 
 		// If we don't have an entry, create one.

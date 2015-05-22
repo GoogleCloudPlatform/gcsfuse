@@ -29,6 +29,12 @@ import (
 	"golang.org/x/net/context"
 )
 
+// Does the supplied object name represent a directory (as opposed to a file or
+// symlink)?
+func IsDirName(name string) bool {
+	return name == "" || name[len(name)-1] == '/'
+}
+
 // An inode representing a directory, with facilities for listing entries,
 // looking up children, and creating and deleting children. Must be locked for
 // any method additional to the Inode interface.
@@ -179,7 +185,7 @@ func NewRootInode(
 //
 // The initial lookup count is zero.
 //
-// REQUIRES: name == "" || name[len(name)-1] == '/'
+// REQUIRES: IsDirName(name)
 func NewDirInode(
 	id fuseops.InodeID,
 	name string,
@@ -188,7 +194,7 @@ func NewDirInode(
 	typeCacheTTL time.Duration,
 	bucket gcs.Bucket,
 	clock timeutil.Clock) (d DirInode) {
-	if name != "" && name[len(name)-1] != '/' {
+	if !IsDirName(name) {
 		panic(fmt.Sprintf("Unexpected name: %s", name))
 	}
 
