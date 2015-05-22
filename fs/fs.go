@@ -662,7 +662,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	}
 }
 
-// Given a function that returns a "fresh" object record, implement the calling
+// Given a function that returns a "fresh" lookup result, implement the calling
 // loop documented for lookUpOrCreateInodeIfNotStale. Call the function once to
 // begin with, and again each time it returns a stale record.
 //
@@ -675,25 +675,26 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 // LOCKS_EXCLUDED(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInode(
-	f func() (*gcs.Object, error)) (in inode.Inode, err error) {
+	name string,
+	f func() (inode.LookUpResult, error)) (in inode.Inode, err error) {
 	const maxTries = 3
 	for n := 0; n < maxTries; n++ {
 		// Create a record.
-		var o *gcs.Object
-		o, err = f()
+		var result inode.LookUpResult
+		result, err = f()
 
 		if err != nil {
 			return
 		}
 
-		if o == nil {
+		if !result.Exists() {
 			err = fuse.ENOENT
 			return
 		}
 
 		// Attempt to create the inode. Return if successful.
 		fs.mu.Lock()
-		in = fs.lookUpOrCreateInodeIfNotStale(o)
+		in = fs.lookUpOrCreateInodeIfNotStale(name, result.Object)
 		if in != nil {
 			return
 		}
@@ -755,13 +756,13 @@ func (fs *fileSystem) LookUpInode(
 	parent := fs.inodes[op.Parent].(inode.DirInode)
 	fs.mu.Unlock()
 
-	// Set up a function that will find a record for the child with the given
-	// name, or nil if none.
-	f := func() (o *gcs.Object, err error) {
+	// Set up a function that will find a lookup result for the child with the
+	// given name.
+	f := func() (r inode.LookUpResult, err error) {
 		parent.Lock()
 		defer parent.Unlock()
 
-		o, err = parent.LookUpChild(op.Context(), op.Name)
+		r, err = parent.LookUpChild(op.Context(), op.Name)
 		if err != nil {
 			err = fmt.Errorf("LookUpChild: %v", err)
 			return
@@ -771,7 +772,7 @@ func (fs *fileSystem) LookUpInode(
 	}
 
 	// Use that function to find or mint an inode.
-	in, err := fs.lookUpOrCreateInode(f)
+	in, err := fs.lookUpOrCreateInode(op.Name, f)
 	if err != nil {
 		return
 	}
