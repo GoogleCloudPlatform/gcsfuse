@@ -40,12 +40,27 @@ import (
 	. "github.com/jacobsa/ogletest"
 )
 
-// FUSE_MAXNAMELEN is used on OS X in the kernel to limit the max length of a
-// name that readdir needs to process (cf. https://goo.gl/eega7V).
-//
-// NOTE(jacobsa): I can't find where this is defined, but this appears to be
-// its value.
-const fuseMaxNameLen = 255
+var fuseMaxNameLen int
+
+func init() {
+	switch runtime.GOOS {
+	case "darwin":
+		// FUSE_MAXNAMELEN is used on OS X in the kernel to limit the max length of
+		// a name that readdir needs to process (cf. https://goo.gl/eega7V).
+		//
+		// NOTE(jacobsa): I can't find where this is defined, but this appears to
+		// be its value.
+		fuseMaxNameLen = 255
+
+	case "linux":
+		// On Linux, we're looking at FUSE_NAME_MAX (https://goo.gl/qd8G0f), used
+		// in e.g. fuse_lookup_name (https://goo.gl/FHSAhy).
+		fuseMaxNameLen = 1024
+
+	default:
+		panic(fmt.Sprintf("Unknown runtime.GOOS: %s", runtime.GOOS))
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
