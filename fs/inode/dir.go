@@ -29,6 +29,79 @@ import (
 	"golang.org/x/net/context"
 )
 
+// An inode representing a directory, with facilities for listing entries,
+// looking up children, and creating and deleting children. Must be locked for
+// any method additional to the Inode interface.
+type DirInode interface {
+	Inode
+
+	// Look up the direct child with the given relative name, returning a record
+	// for the current object of that name in the GCS bucket. If both a
+	// file/symlink and a directory with the given name exist, the directory is
+	// preferred. Return a nil record with a nil error if neither is found.
+	//
+	// Special case: if the name ends in ConflictingFileNameSuffix, we strip the
+	// suffix, confirm that a conflicting directory exists, then return a record
+	// for the file/symlink.
+	//
+	// If this inode was created with implicitDirs is set, this method will use
+	// ListObjects to find child directories that are "implicitly" defined by the
+	// existence of their own descendents. For example, if there is an object
+	// named "foo/bar/baz" and this is the directory "foo", a child directory
+	// named "bar" will be implied.
+	LookUpChild(
+		ctx context.Context,
+		name string) (o *gcs.Object, err error)
+
+	// Read some number of entries from the directory, returning a continuation
+	// token that can be used to pick up the read operation where it left off.
+	// Supply the empty token on the first call.
+	//
+	// At the end of the directory, the returned continuation token will be
+	// empty. Otherwise it will be non-empty. There is no guarantee about the
+	// number of entries returned; it may be zero even with a non-empty
+	// continuation token.
+	//
+	// The contents of the Offset and Inode fields for returned entries is
+	// undefined.
+	ReadEntries(
+		ctx context.Context,
+		tok string) (entries []fuseutil.Dirent, newTok string, err error)
+
+	// Create an empty child file with the supplied (relative) name, failing with
+	// *gcs.PreconditionError if a backing object already exists in GCS.
+	CreateChildFile(
+		ctx context.Context,
+		name string) (o *gcs.Object, err error)
+
+	// Create a symlink object with the supplied (relative) name and the supplied
+	// target, failing with *gcs.PreconditionError if a backing object already
+	// exists in GCS.
+	CreateChildSymlink(
+		ctx context.Context,
+		name string,
+		target string) (o *gcs.Object, err error)
+
+	// Create a backing object for a child directory with the supplied (relative)
+	// name, failing with *gcs.PreconditionError if a backing object already
+	// exists in GCS.
+	CreateChildDir(
+		ctx context.Context,
+		name string) (o *gcs.Object, err error)
+
+	// Delete the backing object for the child file or symlink with the given
+	// (relative) name.
+	DeleteChildFile(
+		ctx context.Context,
+		name string) (err error)
+
+	// Delete the backing object for the child directory with the given
+	// (relative) name.
+	DeleteChildDir(
+		ctx context.Context,
+		name string) (err error)
+}
+
 type DirInode struct {
 	/////////////////////////
 	// Dependencies
