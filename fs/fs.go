@@ -130,22 +130,22 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 
 	// Set up the basic struct.
 	fs := &fileSystem{
-		clock:               cfg.Clock,
-		bucket:              cfg.Bucket,
-		leaser:              leaser,
-		gcsChunkSize:        gcsChunkSize,
-		implicitDirs:        cfg.ImplicitDirectories,
-		supportNlink:        cfg.SupportNlink,
-		dirTypeCacheTTL:     cfg.DirTypeCacheTTL,
-		uid:                 cfg.Uid,
-		gid:                 cfg.Gid,
-		fileMode:            cfg.FilePerms,
-		dirMode:             cfg.DirPerms | os.ModeDir,
-		inodes:              make(map[fuseops.InodeID]inode.Inode),
-		nextInodeID:         fuseops.RootInodeID + 1,
-		fileAndSymlinkIndex: make(map[string]GenerationBackedInode),
-		dirIndex:            make(map[string]inode.DirInode),
-		handles:             make(map[fuseops.HandleID]interface{}),
+		clock:                  cfg.Clock,
+		bucket:                 cfg.Bucket,
+		leaser:                 leaser,
+		gcsChunkSize:           gcsChunkSize,
+		implicitDirs:           cfg.ImplicitDirectories,
+		supportNlink:           cfg.SupportNlink,
+		dirTypeCacheTTL:        cfg.DirTypeCacheTTL,
+		uid:                    cfg.Uid,
+		gid:                    cfg.Gid,
+		fileMode:               cfg.FilePerms,
+		dirMode:                cfg.DirPerms | os.ModeDir,
+		inodes:                 make(map[fuseops.InodeID]inode.Inode),
+		nextInodeID:            fuseops.RootInodeID + 1,
+		generationBackedInodes: make(map[string]GenerationBackedInode),
+		implicitDirs:           make(map[string]inode.DirInode),
+		handles:                make(map[fuseops.HandleID]interface{}),
 	}
 
 	// Set up the root inode.
@@ -165,7 +165,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	root.Lock()
 	root.IncrementLookupCount()
 	fs.inodes[fuseops.RootInodeID] = root
-	fs.dirIndex[root.Name()] = root
+	fs.implicitDirs[root.Name()] = root
 	root.Unlock()
 
 	// Set up invariant checking.
@@ -403,11 +403,11 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	//////////////////////////////////
-	// fileAndSymlinkIndex
+	// generationBackedInodes
 	//////////////////////////////////
 
 	// INVARIANT: For each k/v, v.Name() == k
-	for k, v := range fs.fileAndSymlinkIndex {
+	for k, v := range fs.generationBackedInodes {
 		if !(v.Name() == k) {
 			panic(fmt.Sprintf(
 				"Unexpected name: \"%s\" vs. \"%s\"",
@@ -417,7 +417,7 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	// INVARIANT: For each value v, inodes[v.ID()] == v
-	for _, v := range fs.fileAndSymlinkIndex {
+	for _, v := range fs.generationBackedInodes {
 		if fs.inodes[v.ID()] != v {
 			panic(fmt.Sprintf(
 				"Mismatch for ID %v: %p %p",
@@ -428,11 +428,11 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	//////////////////////////////////
-	// dirIndex
+	// implicitDirs
 	//////////////////////////////////
 
 	// INVARIANT: For each k/v, v.Name() == k
-	for k, v := range fs.dirIndex {
+	for k, v := range fs.implicitDirs {
 		if !(v.Name() == k) {
 			panic(fmt.Sprintf(
 				"Unexpected name: \"%s\" vs. \"%s\"",
@@ -442,7 +442,7 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	// INVARIANT: For each value v, inodes[v.ID()] == v
-	for _, v := range fs.dirIndex {
+	for _, v := range fs.implicitDirs {
 		if fs.inodes[v.ID()] != v {
 			panic(fmt.Sprintf(
 				"Mismatch for ID %v: %p %p",
@@ -473,7 +473,7 @@ func (fs *fileSystem) checkInvariants() {
 				panic(fmt.Sprintf(
 					"implicitDirs mismatch: %q %p %p",
 					d.Name(),
-					fs.dirIndex[d.Name()],
+					fs.implicitDirs[d.Name()],
 					d))
 			}
 		}
@@ -617,12 +617,12 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	// but no inode lock.
 	for {
 		// Look at the current index entry.
-		existingInode, ok := fs.fileAndSymlinkIndex[o.Name]
+		existingInode, ok := fs.generationBackedInodes[o.Name]
 
 		// If we have no existing record for this name, mint an inode and return it.
 		if !ok {
 			in = fs.mintInode(o.Name, o)
-			fs.fileAndSymlinkIndex[in.Name()] = in.(GenerationBackedInode)
+			fs.generationBackedInodes[in.Name()] = in.(GenerationBackedInode)
 
 			fs.mu.Unlock()
 			in.Lock()
@@ -661,9 +661,9 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// existingInode, we have proven we can replace it with an entry for a a
 		// newly-minted inode.
 		fs.mu.Lock()
-		if fs.fileAndSymlinkIndex[o.Name] == existingInode {
+		if fs.generationBackedInodes[o.Name] == existingInode {
 			in = fs.mintInode(o.Name, o)
-			fs.fileAndSymlinkIndex[in.Name()] = in.(GenerationBackedInode)
+			fs.generationBackedInodes[in.Name()] = in.(GenerationBackedInode)
 
 			fs.mu.Unlock()
 			existingInode.Unlock()
@@ -899,8 +899,8 @@ func (fs *fileSystem) ForgetInode(
 		delete(fs.inodes, op.Inode)
 
 		// Update indexes if necessary.
-		if fs.fileAndSymlinkIndex[name] == in {
-			delete(fs.fileAndSymlinkIndex, name)
+		if fs.generationBackedInodes[name] == in {
+			delete(fs.generationBackedInodes, name)
 		}
 
 		if fs.dirIndex[name] == in {
