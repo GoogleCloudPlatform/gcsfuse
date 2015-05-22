@@ -48,6 +48,12 @@ type LookUpResult struct {
 	ImplicitDir bool
 }
 
+// Return true iff the result indicates that the child exists, explicitly or
+// implicitly.
+func (lr *LookUpResult) Exists() bool {
+	return lr.Object != nil || lr.ImplicitDir
+}
+
 // An inode representing a directory, with facilities for listing entries,
 // looking up children, and creating and deleting children. Must be locked for
 // any method additional to the Inode interface.
@@ -302,7 +308,7 @@ func (d *dirInode) lookUpConflicting(
 		return
 	}
 
-	if dirResult.Object == nil && !dirResult.ImplicitDir {
+	if !dirResult.Exists() {
 		return
 	}
 
@@ -577,7 +583,7 @@ const ConflictingFileNameSuffix = "\n"
 // LOCKS_REQUIRED(d)
 func (d *dirInode) LookUpChild(
 	ctx context.Context,
-	name string) (o *gcs.Object, err error) {
+	name string) (result LookUpResult, err error) {
 	// Consult the cache about the type of the child. This may save us work
 	// below.
 	now := d.clock.Now()
@@ -586,7 +592,7 @@ func (d *dirInode) LookUpChild(
 
 	// Is this a conflict marker name?
 	if strings.HasSuffix(name, ConflictingFileNameSuffix) {
-		o, err = d.lookUpConflicting(ctx, name)
+		result, err = d.lookUpConflicting(ctx, name)
 		return
 	}
 
@@ -594,20 +600,20 @@ func (d *dirInode) LookUpChild(
 	// but not a file.
 	b := syncutil.NewBundle(ctx)
 
-	var fileRecord *gcs.Object
+	var fileResult LookUpResult
 	if !(cacheSaysDir && !cacheSaysFile) {
 		b.Add(func(ctx context.Context) (err error) {
-			fileRecord, err = d.lookUpChildFile(ctx, name)
+			fileResult, err = d.lookUpChildFile(ctx, name)
 			return
 		})
 	}
 
 	// Stat the child as a directory, unless the cache has told us it's a file
 	// but not a directory.
-	var dirRecord *gcs.Object
+	var dirResult LookUpResult
 	if !(cacheSaysFile && !cacheSaysDir) {
 		b.Add(func(ctx context.Context) (err error) {
-			dirRecord, err = d.lookUpChildDir(ctx, name)
+			dirResult, err = d.lookUpChildDir(ctx, name)
 			return
 		})
 	}
@@ -620,19 +626,19 @@ func (d *dirInode) LookUpChild(
 
 	// Prefer directories over files.
 	switch {
-	case dirRecord != nil:
-		o = dirRecord
-	case fileRecord != nil:
-		o = fileRecord
+	case dirResult.Exists():
+		result = dirResult
+	case fileResult.Exists():
+		result = fileResult
 	}
 
 	// Update the cache.
 	now = d.clock.Now()
-	if fileRecord != nil {
+	if fileResult.Exists() {
 		d.cache.NoteFile(now, name)
 	}
 
-	if dirRecord != nil {
+	if dirResult.Exists() {
 		d.cache.NoteDir(now, name)
 	}
 
