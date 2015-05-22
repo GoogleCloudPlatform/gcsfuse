@@ -761,7 +761,6 @@ func (fs *fileSystem) LookUpInode(
 		parent.Lock()
 		defer parent.Unlock()
 
-		// We need not hold a lock for LookUpChild.
 		o, err = parent.LookUpChild(op.Context(), op.Name)
 		if err != nil {
 			err = fmt.Errorf("LookUpChild: %v", err)
