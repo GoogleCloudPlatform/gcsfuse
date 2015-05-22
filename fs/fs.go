@@ -573,6 +573,11 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	name string,
 	o *gcs.Object) (in inode.Inode) {
+	// Sanity check.
+	if o != nil && name != o.Name {
+		panic(fmt.Sprintf("Name mismatch: %q vs. %q", name, o.Name))
+	}
+
 	// Ensure that no matter which inode we return, we increase its lookup count
 	// on the way out.
 	defer func() {
