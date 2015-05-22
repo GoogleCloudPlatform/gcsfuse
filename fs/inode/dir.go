@@ -244,7 +244,8 @@ func (d *dirInode) checkInvariants() {
 func (d *dirInode) lookUpChildFile(
 	ctx context.Context,
 	name string) (result LookUpResult, err error) {
-	result.Object, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name)
+	result.FullName = d.Name() + name
+	result.Object, err = statObjectMayNotExist(ctx, d.bucket, result.FullName)
 	if err != nil {
 		err = fmt.Errorf("statObjectMayNotExist: %v", err)
 		return
@@ -260,7 +261,8 @@ func (d *dirInode) lookUpChildDir(
 
 	// Stat the placeholder object.
 	b.Add(func(ctx context.Context) (err error) {
-		result.Object, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name+"/")
+		result.FullName = d.Name() + name + "/"
+		result.Object, err = statObjectMayNotExist(ctx, d.bucket, result.FullName)
 		if err != nil {
 			err = fmt.Errorf("statObjectMayNotExist: %v", err)
 			return
