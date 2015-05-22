@@ -147,29 +147,9 @@ type dirInode struct {
 
 var _ DirInode = &dirInode{}
 
-// Create a directory inode for the root of the file system. The initial lookup
-// count is zero.
-func NewRootInode(
-	attrs fuseops.InodeAttributes,
-	implicitDirs bool,
-	typeCacheTTL time.Duration,
-	bucket gcs.Bucket,
-	clock timeutil.Clock) (d DirInode) {
-	d = NewDirInode(
-		fuseops.RootInodeID,
-		"",
-		attrs,
-		implicitDirs,
-		typeCacheTTL,
-		bucket,
-		clock)
-
-	return
-}
-
-// Create a directory inode for the supplied object name. The name must end
-// with a slash unless this is the root directory, in which case it must be
-// empty.
+// Create a directory inode for the name, representing the directory containing
+// the objects for which it is an immediate prefix. For the root directory,
+// this is the empty string.
 //
 // If implicitDirs is set, LookUpChild will use ListObjects to find child
 // directories that are "implicitly" defined by the existence of their own

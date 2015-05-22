@@ -149,7 +149,9 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	}
 
 	// Set up the root inode.
-	root := inode.NewRootInode(
+	root := inode.NewDirInode(
+		fuseops.RootInodeID,
+		"", // name
 		fuseops.InodeAttributes{
 			Uid:  fs.uid,
 			Gid:  fs.gid,
