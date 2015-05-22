@@ -53,7 +53,6 @@ package main
 //
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -61,21 +60,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/mount"
 )
-
-var fOptions = mount.OptionFlag("o", "Mount options. May be repeated.")
-
-// Parse positional arguments.
-func parseArgs(args []string) (device string, mountPoint string, err error) {
-	if len(args) != 2 {
-		err = fmt.Errorf("Expected two positional arguments, but got %d", len(args))
-		return
-	}
-
-	device = args[0]
-	mountPoint = args[1]
-
-	return
-}
 
 // Turn mount-style options into gcsfuse arguments. Skip known detritus that
 // the mount command gives us.
@@ -131,17 +115,68 @@ func makeGcsfuseArgs(
 	return
 }
 
-func main() {
-	flag.Parse()
+// Parse the supplied command-line arguments from a mount(8) invocation on OS X
+// or Linux.
+func parseArgs(
+	args []string) (
+	device string,
+	mountPoint string,
+	opts map[string]string,
+	err error) {
+	opts = make(map[string]string)
 
+	// Process each argument in turn.
+	positionalCount := 0
+	for i, s := range args {
+		switch {
+		// Skip the program name.
+		case i == 0:
+			continue
+
+		// "-o" is illegal only when at the end. We handle its argument in the case
+		// below.
+		case s == "-o":
+			if i == len(args)-1 {
+				err = fmt.Errorf("Unexpected -o at end of args.")
+				return
+			}
+
+		// Is this an options string following a "-o"?
+		case i > 0 && args[i-1] == "-o":
+			err = mount.ParseOptions(opts, s)
+			if err != nil {
+				err = fmt.Errorf("ParseOptions(%q): %v", s, err)
+				return
+			}
+
+		// Is this the device?
+		case positionalCount == 0:
+			device = s
+			positionalCount++
+
+		// Is this the mount point?
+		case positionalCount == 1:
+			mountPoint = s
+			positionalCount++
+
+		default:
+			err = fmt.Errorf("Unexpected arg %d: %q", i, s)
+			return
+		}
+	}
+
+	return
+}
+
+func main() {
 	// Print out each argument.
-	args := flag.Args()
+	args := os.Args
 	for i, arg := range args {
 		log.Printf("Arg %d: %q", i, arg)
 	}
 
 	// Attempt to parse arguments.
-	device, mountPoint, err := parseArgs(args)
+	device, mountPoint, opts, err := parseArgs(args)
 	if err != nil {
 		log.Fatalf("parseArgs: %v", err)
 	}
@@ -149,12 +184,12 @@ func main() {
 	// Print what we gleaned.
 	log.Printf("Device: %q", device)
 	log.Printf("Mount point: %q", mountPoint)
-	for name, value := range fOptions {
+	for name, value := range opts {
 		log.Printf("Option %q: %q", name, value)
 	}
 
 	// Choose gcsfuse args.
-	gcsfuseArgs, err := makeGcsfuseArgs(device, mountPoint, fOptions)
+	gcsfuseArgs, err := makeGcsfuseArgs(device, mountPoint, opts)
 	if err != nil {
 		log.Fatalf("makeGcsfuseArgs: %v", err)
 	}

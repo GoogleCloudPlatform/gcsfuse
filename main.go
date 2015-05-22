@@ -37,9 +37,14 @@ import (
 var fBucketName = flag.String("bucket", "", "Name of GCS bucket to mount.")
 var fMountPoint = flag.String("mount_point", "", "File system location.")
 
-var fMountOptions = mount.OptionFlag(
-	"o",
-	"Additional system-specific mount options. Be careful!")
+var fMountOptions = make(map[string]string)
+
+func init() {
+	flag.Var(
+		mount.OptionValue(fMountOptions),
+		"o",
+		"Additional system-specific mount options. Be careful!")
+}
 
 var fUid = flag.Int64(
 	"uid",
