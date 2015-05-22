@@ -14,6 +14,14 @@
 
 package inode
 
+import (
+	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/timeutil"
+	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/gcloud/gcs"
+)
+
 // An inode representing a directory backed by an object in GCS with a specific
 // generation.
 type ExplicitDirInode interface {
@@ -21,4 +29,41 @@ type ExplicitDirInode interface {
 
 	// Return the object generation number from which this inode was branched.
 	SourceGeneration() int64
+}
+
+// Create an explicit dir inode backed by the supplied object. See notes on
+// NewDirInode for more.
+func NewExplicitDirInode(
+	id fuseops.InodeID,
+	o *gcs.Object,
+	attrs fuseops.InodeAttributes,
+	implicitDirs bool,
+	typeCacheTTL time.Duration,
+	bucket gcs.Bucket,
+	clock timeutil.Clock) (d ExplicitDirInode) {
+	wrapped := NewDirInode(
+		id,
+		o.Name,
+		attrs,
+		implicitDirs,
+		typeCacheTTL,
+		bucket,
+		clock)
+
+	d = &explicitDirInode{
+		dirInode:   wrapped.(*dirInode),
+		generation: o.Generation,
+	}
+
+	return
+}
+
+type explicitDirInode struct {
+	*dirInode
+	generation int64
+}
+
+func (d *explicitDirInode) SourceGeneration() (gen int64) {
+	gen = d.generation
+	return
 }
