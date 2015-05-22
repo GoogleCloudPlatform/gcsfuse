@@ -15,7 +15,6 @@
 package inode
 
 import (
-	"os"
 	"sync"
 
 	"github.com/jacobsa/fuse/fuseops"
@@ -63,9 +62,7 @@ var _ Inode = &SymlinkInode{}
 func NewSymlinkInode(
 	id fuseops.InodeID,
 	o *gcs.Object,
-	uid uint32,
-	gid uint32,
-	permissions os.FileMode) (s *SymlinkInode) {
+	attrs fuseops.InodeAttributes) (s *SymlinkInode) {
 	// Create the inode.
 	s = &SymlinkInode{
 		id:               id,
@@ -73,9 +70,9 @@ func NewSymlinkInode(
 		sourceGeneration: o.Generation,
 		attrs: fuseops.InodeAttributes{
 			Nlink: 1,
-			Uid:   uid,
-			Gid:   gid,
-			Mode:  permissions | os.ModeSymlink,
+			Uid:   attrs.Uid,
+			Gid:   attrs.Gid,
+			Mode:  attrs.Mode,
 			Mtime: o.Updated,
 		},
 		target: o.Metadata[SymlinkMetadataKey],
