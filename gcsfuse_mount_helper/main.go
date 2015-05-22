@@ -129,6 +129,10 @@ func parseArgs(
 	positionalCount := 0
 	for i, s := range args {
 		switch {
+		// Skip the program name.
+		case i == 0:
+			continue
+
 		// "-o" is illegal only when at the end. We handle its argument in the case
 		// below.
 		case s == "-o" && i == len(args)-1:
@@ -154,7 +158,7 @@ func parseArgs(
 			positionalCount++
 
 		default:
-			err = fmt.Errorf("Unexpected arg: %q", s)
+			err = fmt.Errorf("Unexpected arg %d: %q", i, s)
 			return
 		}
 	}
@@ -170,7 +174,7 @@ func main() {
 	}
 
 	// Attempt to parse arguments.
-	device, mountPoint, opts, err := parseArgs(args[1:])
+	device, mountPoint, opts, err := parseArgs(args)
 	if err != nil {
 		log.Fatalf("parseArgs: %v", err)
 	}
