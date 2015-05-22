@@ -290,24 +290,24 @@ func (d *dirInode) lookUpChildDir(
 // REQUIRES: strings.HasSuffix(name, ConflictingFileNameSuffix)
 func (d *dirInode) lookUpConflicting(
 	ctx context.Context,
-	name string) (o *gcs.Object, err error) {
+	name string) (result LookUpResult, err error) {
 	strippedName := strings.TrimSuffix(name, ConflictingFileNameSuffix)
 
 	// In order to a marked name to be accepted, we require the conflicting
 	// directory to exist.
-	var dir *gcs.Object
-	dir, err = d.lookUpChildDir(ctx, strippedName)
+	var dirResult LookUpResult
+	dirResult, err = d.lookUpChildDir(ctx, strippedName)
 	if err != nil {
 		err = fmt.Errorf("lookUpChildDir for stripped name: %v", err)
 		return
 	}
 
-	if dir == nil {
+	if dirResult.Object == nil && !dirResult.ImplicitDir {
 		return
 	}
 
 	// The directory name exists. Find the conflicting file.
-	o, err = d.lookUpChildFile(ctx, strippedName)
+	result, err = d.lookUpChildFile(ctx, strippedName)
 	if err != nil {
 		err = fmt.Errorf("lookUpChildFile for stripped name: %v", err)
 		return
