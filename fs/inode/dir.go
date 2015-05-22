@@ -16,7 +16,6 @@ package inode
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"strings"
 	"sync"
@@ -48,9 +47,7 @@ type DirInode struct {
 	// INVARIANT: name == "" || name[len(name)-1] == '/'
 	name string
 
-	uid  uint32
-	gid  uint32
-	mode os.FileMode
+	attrs fuseops.InodeAttributes
 
 	/////////////////////////
 	// Mutable state
@@ -74,9 +71,7 @@ var _ Inode = &DirInode{}
 // Create a directory inode for the root of the file system. The initial lookup
 // count is zero.
 func NewRootInode(
-	uid uint32,
-	gid uint32,
-	mode os.FileMode,
+	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
 	typeCacheTTL time.Duration,
 	bucket gcs.Bucket,
@@ -84,9 +79,7 @@ func NewRootInode(
 	d = NewDirInode(
 		fuseops.RootInodeID,
 		"",
-		uid,
-		gid,
-		mode,
+		attrs,
 		implicitDirs,
 		typeCacheTTL,
 		bucket,
@@ -117,9 +110,7 @@ func NewRootInode(
 func NewDirInode(
 	id fuseops.InodeID,
 	name string,
-	uid uint32,
-	gid uint32,
-	mode os.FileMode,
+	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
 	typeCacheTTL time.Duration,
 	bucket gcs.Bucket,
@@ -136,9 +127,7 @@ func NewDirInode(
 		id:           id,
 		implicitDirs: implicitDirs,
 		name:         name,
-		uid:          uid,
-		gid:          gid,
-		mode:         mode,
+		attrs:        attrs,
 		cache:        newTypeCache(typeCacheCapacity/2, typeCacheTTL),
 	}
 
@@ -507,12 +496,8 @@ func (d *DirInode) Destroy() (err error) {
 func (d *DirInode) Attributes(
 	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
 	// Set up basic attributes.
-	attrs = fuseops.InodeAttributes{
-		Uid:   d.uid,
-		Gid:   d.gid,
-		Mode:  d.mode,
-		Nlink: 1,
-	}
+	attrs = d.attrs
+	attrs.Nlink = 1
 
 	return
 }

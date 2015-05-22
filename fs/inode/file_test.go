@@ -85,9 +85,11 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 	t.in = inode.NewFileInode(
 		fileInodeID,
 		t.backingObj,
-		uid,
-		gid,
-		fileMode,
+		fuseops.InodeAttributes{
+			Uid:  uid,
+			Gid:  gid,
+			Mode: fileMode,
+		},
 		math.MaxUint64, // GCS chunk size
 		false,          // Support nlink
 		t.bucket,
