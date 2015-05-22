@@ -616,7 +616,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 
 		// If we have no existing record for this name, mint an inode and return it.
 		if !ok {
-			in = fs.mintInode(o)
+			in = fs.mintInode(o.Name, o)
 			fs.fileAndSymlinkIndex[in.Name()] = in.(GenerationBackedInode)
 
 			fs.mu.Unlock()
@@ -657,7 +657,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// newly-minted inode.
 		fs.mu.Lock()
 		if fs.fileAndSymlinkIndex[o.Name] == existingInode {
-			in = fs.mintInode(o)
+			in = fs.mintInode(o.Name, o)
 			fs.fileAndSymlinkIndex[in.Name()] = in.(GenerationBackedInode)
 
 			fs.mu.Unlock()
