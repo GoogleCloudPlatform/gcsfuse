@@ -35,6 +35,19 @@ func IsDirName(name string) bool {
 	return name == "" || name[len(name)-1] == '/'
 }
 
+// The result of looking up a child within a directory inode. See notes on
+// DirInode.LookUpChild for more info.
+type LookUpResult struct {
+	// The backing object for the child, if any. If the child is not found or
+	// exists only as an implicit directory, this is nil.
+	Object *gcs.Object
+
+	// Does the child exist as a directory implicitly defined by its own
+	// descendents? Meaningful only if Object is nil and implicit directories are
+	// enabled for the parent inode.
+	ImplicitDir bool
+}
+
 // An inode representing a directory, with facilities for listing entries,
 // looking up children, and creating and deleting children. Must be locked for
 // any method additional to the Inode interface.
@@ -42,9 +55,10 @@ type DirInode interface {
 	Inode
 
 	// Look up the direct child with the given relative name, returning a record
-	// for the current object of that name in the GCS bucket. If both a
-	// file/symlink and a directory with the given name exist, the directory is
-	// preferred. Return a nil record with a nil error if neither is found.
+	// for the the GCS object backing that child or an indication that the child
+	// exists as an empty directory. If a file/symlink and a directory with the
+	// given name both exist, the directory is preferred. Return a nil record
+	// with a nil error if neither is found.
 	//
 	// Special case: if the name ends in ConflictingFileNameSuffix, we strip the
 	// suffix, confirm that a conflicting directory exists, then return a record
@@ -54,10 +68,11 @@ type DirInode interface {
 	// ListObjects to find child directories that are "implicitly" defined by the
 	// existence of their own descendents. For example, if there is an object
 	// named "foo/bar/baz" and this is the directory "foo", a child directory
-	// named "bar" will be implied.
+	// named "bar" will be implied. In this case, result.ImplicitDir will be
+	// true.
 	LookUpChild(
 		ctx context.Context,
-		name string) (o *gcs.Object, err error)
+		name string) (result LookUpResult, err error)
 
 	// Read some number of entries from the directory, returning a continuation
 	// token that can be used to pick up the read operation where it left off.
