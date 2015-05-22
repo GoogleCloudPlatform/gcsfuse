@@ -511,6 +511,22 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 
 	// Create the inode.
 	switch {
+	// Explicit directories
+	case o != nil && inode.IsDirName(o.Name):
+		in = inode.NewExplicitDirInode(
+			id,
+			o,
+			fuseops.InodeAttributes{
+				Uid:  fs.uid,
+				Gid:  fs.gid,
+				Mode: fs.dirMode,
+			},
+			fs.implicitDirs,
+			fs.dirTypeCacheTTL,
+			fs.bucket,
+			fs.clock)
+
+	// Implicit directories
 	case inode.IsDirName(name):
 		d := inode.NewDirInode(
 			id,
@@ -525,7 +541,7 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 			fs.bucket,
 			fs.clock)
 
-		fs.dirIndex[d.Name()] = d
+		fs.implicitDirInodes[d.Name()] = d
 		in = d
 
 	case inode.IsSymlink(o):
@@ -586,31 +602,23 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		}
 	}()
 
-	// Handle directories.
-	//
-	// TODO(jacobsa): This special case should be `o == nil`. See issue #57.
-	if inode.IsDirName(name) {
-		var ok bool
+	// Handle implicit directories.
+	if o == nil {
+		if !inode.IsDirName(name) {
+			panic(fmt.Sprintf("Unexpected name for an implicit directory: %q", name))
+		}
 
 		// If we don't have an entry, create one.
-		in, ok = fs.dirIndex[name]
+		var ok bool
+		in, ok = fs.implicitDirInodes[name]
 		if !ok {
-			in = fs.mintInode(name, o)
+			in = fs.mintInode(name, nil)
 		}
 
 		fs.mu.Unlock()
 		in.Lock()
 
 		return
-	}
-
-	// We shouldn't have a non-nil object record for anything but implicit
-	// directories.
-	//
-	// TODO(jacobsa): Remove this when the condition above changes to be its
-	// inverse. See issue #57.
-	if o == nil {
-		panic(fmt.Sprintf("Unexpected nil object for name %q", name))
 	}
 
 	// Retry loop for the stale index entry case below. On entry, we hold fs.mu
@@ -903,8 +911,8 @@ func (fs *fileSystem) ForgetInode(
 			delete(fs.generationBackedInodes, name)
 		}
 
-		if fs.dirIndex[name] == in {
-			delete(fs.dirIndex, name)
+		if fs.implicitDirInodes[name] == in {
+			delete(fs.implicitDirInodes, name)
 		}
 	}
 
