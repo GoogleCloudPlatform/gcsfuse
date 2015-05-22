@@ -144,7 +144,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		inodes:                 make(map[fuseops.InodeID]inode.Inode),
 		nextInodeID:            fuseops.RootInodeID + 1,
 		generationBackedInodes: make(map[string]GenerationBackedInode),
-		implicitDirs:           make(map[string]inode.DirInode),
+		implicitDirInodes:      make(map[string]inode.DirInode),
 		handles:                make(map[fuseops.HandleID]interface{}),
 	}
 
@@ -165,7 +165,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	root.Lock()
 	root.IncrementLookupCount()
 	fs.inodes[fuseops.RootInodeID] = root
-	fs.implicitDirs[root.Name()] = root
+	fs.implicitDirInodes[root.Name()] = root
 	root.Unlock()
 
 	// Set up invariant checking.
@@ -328,10 +328,10 @@ type fileSystem struct {
 	// INVARIANT: For each value v, inodes[v.ID()] == v
 	// INVARIANT: For each value v, v is not ExplicitDirInode
 	// INVARIANT: For each in in inodes such that in is DirInode but not
-	//            ExplicitDirInode, implicitDirs[d.Name()] == d
+	//            ExplicitDirInode, implicitDirInodes[d.Name()] == d
 	//
 	// GUARDED_BY(mu)
-	implicitDirs map[string]inode.DirInode
+	implicitDirInodes map[string]inode.DirInode
 
 	// The collection of live handles, keyed by handle ID.
 	//
@@ -428,11 +428,11 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	//////////////////////////////////
-	// implicitDirs
+	// implicitDirInodes
 	//////////////////////////////////
 
 	// INVARIANT: For each k/v, v.Name() == k
-	for k, v := range fs.implicitDirs {
+	for k, v := range fs.implicitDirInodes {
 		if !(v.Name() == k) {
 			panic(fmt.Sprintf(
 				"Unexpected name: \"%s\" vs. \"%s\"",
@@ -442,7 +442,7 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	// INVARIANT: For each value v, inodes[v.ID()] == v
-	for _, v := range fs.implicitDirs {
+	for _, v := range fs.implicitDirInodes {
 		if fs.inodes[v.ID()] != v {
 			panic(fmt.Sprintf(
 				"Mismatch for ID %v: %p %p",
@@ -453,7 +453,7 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	// INVARIANT: For each value v, v is not ExplicitDirInode
-	for _, v := range fs.implicitDirs {
+	for _, v := range fs.implicitDirInodes {
 		if _, ok := v.(inode.ExplicitDirInode); ok {
 			panic(fmt.Sprintf(
 				"Unexpected implicit dir inode %d, type %T",
@@ -463,18 +463,18 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	// INVARIANT: For each in in inodes such that in is DirInode but not
-	//            ExplicitDirInode, implicitDirs[d.Name()] == d
+	//            ExplicitDirInode, implicitDirInodes[d.Name()] == d
 	for _, in := range fs.inodes {
 		_, dir := in.(inode.DirInode)
 		_, edir := in.(inode.ExplicitDirInode)
 
 		if dir && !edir {
-			if !(fs.implicitDirs[d.Name()] == d) {
+			if !(fs.implicitDirInodes[in.Name()] == in) {
 				panic(fmt.Sprintf(
-					"implicitDirs mismatch: %q %p %p",
-					d.Name(),
-					fs.implicitDirs[d.Name()],
-					d))
+					"implicitDirInodes mismatch: %q %p %p",
+					in.Name(),
+					fs.implicitDirInodes[in.Name()],
+					in))
 			}
 		}
 	}
