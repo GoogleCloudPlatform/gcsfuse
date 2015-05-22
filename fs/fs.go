@@ -691,7 +691,6 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 // LOCKS_EXCLUDED(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInode(
-	name string,
 	f func() (inode.LookUpResult, error)) (in inode.Inode, err error) {
 	const maxTries = 3
 	for n := 0; n < maxTries; n++ {
@@ -710,7 +709,7 @@ func (fs *fileSystem) lookUpOrCreateInode(
 
 		// Attempt to create the inode. Return if successful.
 		fs.mu.Lock()
-		in = fs.lookUpOrCreateInodeIfNotStale(name, result.Object)
+		in = fs.lookUpOrCreateInodeIfNotStale(result.FullName, result.Object)
 		if in != nil {
 			return
 		}
@@ -788,7 +787,7 @@ func (fs *fileSystem) LookUpInode(
 	}
 
 	// Use that function to find or mint an inode.
-	in, err := fs.lookUpOrCreateInode(op.Name, f)
+	in, err := fs.lookUpOrCreateInode(f)
 	if err != nil {
 		return
 	}

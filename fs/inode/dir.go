@@ -38,6 +38,13 @@ func IsDirName(name string) bool {
 // The result of looking up a child within a directory inode. See notes on
 // DirInode.LookUpChild for more info.
 type LookUpResult struct {
+	// For both object-backed children and implicit directories, the full
+	// canonical name of the child. For example, if the parent inode is "foo/"
+	// and the child is a directory, then this is "foo/bar/".
+	//
+	// Guaranteed to be present only if Exists().
+	FullName string
+
 	// The backing object for the child, if any. If the child is not found or
 	// exists only as an implicit directory, this is nil.
 	Object *gcs.Object
@@ -237,7 +244,8 @@ func (d *dirInode) checkInvariants() {
 func (d *dirInode) lookUpChildFile(
 	ctx context.Context,
 	name string) (result LookUpResult, err error) {
-	result.Object, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name)
+	result.FullName = d.Name() + name
+	result.Object, err = statObjectMayNotExist(ctx, d.bucket, result.FullName)
 	if err != nil {
 		err = fmt.Errorf("statObjectMayNotExist: %v", err)
 		return
@@ -253,7 +261,8 @@ func (d *dirInode) lookUpChildDir(
 
 	// Stat the placeholder object.
 	b.Add(func(ctx context.Context) (err error) {
-		result.Object, err = statObjectMayNotExist(ctx, d.bucket, d.Name()+name+"/")
+		result.FullName = d.Name() + name + "/"
+		result.Object, err = statObjectMayNotExist(ctx, d.bucket, result.FullName)
 		if err != nil {
 			err = fmt.Errorf("statObjectMayNotExist: %v", err)
 			return

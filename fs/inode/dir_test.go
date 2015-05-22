@@ -193,6 +193,7 @@ func (t *DirTest) LookUpChild_FileOnly() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(objName, result.FullName)
 	ExpectEq(objName, o.Name)
 	ExpectEq(createObj.Generation, o.Generation)
 	ExpectEq(createObj.Size, o.Size)
@@ -221,6 +222,7 @@ func (t *DirTest) LookUpChild_DirOnly() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(objName, result.FullName)
 	ExpectEq(objName, o.Name)
 	ExpectEq(createObj.Generation, o.Generation)
 	ExpectEq(createObj.Size, o.Size)
@@ -270,6 +272,8 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 
 	AssertEq(nil, err)
 	ExpectEq(nil, result.Object)
+
+	ExpectEq(objName, result.FullName)
 	ExpectTrue(result.ImplicitDir)
 
 	// A conflict marker should not work.
@@ -300,6 +304,7 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(dirObjName, result.FullName)
 	ExpectEq(dirObjName, o.Name)
 	ExpectEq(dirObj.Generation, o.Generation)
 	ExpectEq(dirObj.Size, o.Size)
@@ -311,6 +316,7 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(fileObjName, result.FullName)
 	ExpectEq(fileObjName, o.Name)
 	ExpectEq(fileObj.Generation, o.Generation)
 	ExpectEq(fileObj.Size, o.Size)
@@ -341,6 +347,7 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(dirObjName, result.FullName)
 	ExpectEq(dirObjName, o.Name)
 	ExpectEq(dirObj.Generation, o.Generation)
 	ExpectEq(dirObj.Size, o.Size)
@@ -352,6 +359,7 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(linkObjName, result.FullName)
 	ExpectEq(linkObjName, o.Name)
 	ExpectEq(linkObj.Generation, o.Generation)
 	ExpectEq(linkObj.Size, o.Size)
@@ -384,6 +392,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(dirObjName, result.FullName)
 	ExpectEq(dirObjName, o.Name)
 	ExpectEq(dirObj.Generation, o.Generation)
 	ExpectEq(dirObj.Size, o.Size)
@@ -395,6 +404,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(fileObjName, result.FullName)
 	ExpectEq(fileObjName, o.Name)
 	ExpectEq(fileObj.Generation, o.Generation)
 	ExpectEq(fileObj.Size, o.Size)
@@ -430,6 +440,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(dirObjName, result.FullName)
 	ExpectEq(dirObjName, o.Name)
 	ExpectEq(dirObj.Generation, o.Generation)
 	ExpectEq(dirObj.Size, o.Size)
@@ -441,6 +452,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(fileObjName, result.FullName)
 	ExpectEq(fileObjName, o.Name)
 	ExpectEq(fileObj.Generation, o.Generation)
 	ExpectEq(fileObj.Size, o.Size)
