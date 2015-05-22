@@ -194,7 +194,7 @@ func NewDirInode(
 
 	// Set up the struct.
 	const typeCacheCapacity = 1 << 16
-	d = &dirInode{
+	typed := &dirInode{
 		bucket:       bucket,
 		clock:        clock,
 		id:           id,
@@ -204,11 +204,12 @@ func NewDirInode(
 		cache:        newTypeCache(typeCacheCapacity/2, typeCacheTTL),
 	}
 
-	d.lc.Init(id)
+	typed.lc.Init(id)
 
 	// Set up invariant checking.
-	d.mu = syncutil.NewInvariantMutex(d.checkInvariants)
+	typed.mu = syncutil.NewInvariantMutex(typed.checkInvariants)
 
+	d = typed
 	return
 }
 
