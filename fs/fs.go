@@ -504,17 +504,17 @@ func (fs *fileSystem) checkInvariants() {
 // of that function.
 //
 // LOCKS_REQUIRED(fs.mu)
-func (fs *fileSystem) mintInode(o *gcs.Object) (in inode.Inode) {
+func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 	// Choose an ID.
 	id := fs.nextInodeID
 	fs.nextInodeID++
 
 	// Create the inode.
 	switch {
-	case inode.IsDirName(o.Name):
+	case inode.IsDirName(name):
 		d := inode.NewDirInode(
 			id,
-			o.Name,
+			name,
 			fuseops.InodeAttributes{
 				Uid:  fs.uid,
 				Gid:  fs.gid,
