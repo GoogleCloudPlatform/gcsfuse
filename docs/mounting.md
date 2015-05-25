@@ -14,12 +14,16 @@ Next, create the directory into which you want to mount the gcsfuse bucket:
 In order to mount the bucket named `my-bucket`, invoke the gcsfuse binary
 as follows:
 
-    gcsfuse --key_file /path/to/key.json --bucket my-bucket --mount_point /path/to/mount/point
+    gcsfuse --bucket my-bucket --mount_point /path/to/mount/point
 
 You should be able to see your bucket contents if you run `ls
 /path/to/mount/point`. To later unmount the bucket, either kill the gcsfuse
 process with a SIGINT or run `umount /path/to/mount/point`. (On Linux, you may
-need to replace `umount` with `fusermount -u`.)
+need to replace `umount` with `fusermount -u`.) Credentials for use with GCS
+will automatically be loaded using [Google application default
+credentials][app-default-credentials].
+
+[app-default-credentials]: https://developers.google.com/identity/protocols/application-default-credentials#howtheywork
 
 
 # Running as a daemon
@@ -44,7 +48,7 @@ For example, `daemon` can be installed using `sudo apt-get install daemon` on
 Ubuntu or `brew install daemon` with [homebrew][] on OS X. Afterward, gcsfuse
 can be run with:
 
-    daemon -- gcsfuse --key_file /key.json --bucket [...]
+    daemon -- gcsfuse --bucket my-bucket --mount_point /path/to/mount/point
 
 [homebrew]: http://brew.sh/
 
@@ -76,11 +80,11 @@ a daemonizing wrapper program to start gcsfuse.
 Once this helper is installed, you should be able to mount a bucket with a
 command like the following:
 
-    mount -t gcsfuse -o key_file=/path/to/key.json my-bucket /path/to/mount/point
+    mount -t gcsfuse -o rw my-bucket /path/to/mount/point
 
 Similarly, a line like the following can be added to `/etc/fstab` (on Linux you
 may need to add the `user` option to allow non-root users):
 
-    my-bucket /path/to/mount/point gcsfuse key_file=/path/to/key.json
+    my-bucket /path/to/mount/point gcsfuse rw
 
 Afterward, you can run simply `mount my-bucket`.
