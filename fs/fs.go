@@ -1133,12 +1133,11 @@ func (fs *fileSystem) Unlink(
 	parent := fs.inodes[op.Parent].(inode.DirInode)
 	fs.mu.Unlock()
 
-	// Delete the backing object.
-	//
-	// No lock is required here.
 	parent.Lock()
+	defer parent.Unlock()
+
+	// Delete the backing object.
 	err = parent.DeleteChildFile(op.Context(), op.Name)
-	parent.Unlock()
 	if err != nil {
 		err = fmt.Errorf("DeleteChildFile: %v", err)
 		return
