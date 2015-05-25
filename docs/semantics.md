@@ -468,6 +468,14 @@ overwritten will then show a value of zero for `stat::st_nlink`.
 
 Not all of the usual file system features are supported. Most prominently:
 
-*   Renaming is not currently supported. See [issue #11][issue-11].
+*   Renaming is not supported because it cannot be performed atomically in GCS.
+    The posix [guarantee][posix-rename] of atomic renames is widely relied upon,
+    so doing it non-atomically would be an invitation for bugs.
 
-[issue-11]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/11
+*   File and directory permissions and ownership cannot be changed. See the
+    [section](#permissions-and-ownership) above.
+
+*   Modification times cannot be changed. See the
+    [section](#modifications) above.
+
+[posix-rename]: http://en.wikipedia.org/wiki/Rename_(computing)
