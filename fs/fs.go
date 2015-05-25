@@ -1097,12 +1097,23 @@ func (fs *fileSystem) RmDir(
 	parent := fs.inodes[op.Parent].(inode.DirInode)
 	fs.mu.Unlock()
 
-	// Delete the backing object.
-	//
-	// No lock is required.
 	parent.Lock()
+	defer parent.Unlock()
+
+	// Ensure that the directory is empty.
+	//
+	// Yes, this is not atomic with the delete below. See here for discussion:
+	//
+	//     https://github.com/GoogleCloudPlatform/gcsfuse/issues/9
+	//
+	var tok string
+	for {
+		var entries []fuseutil.Dirent
+		entries, tok, err = parent.
+	}
+
+	// Delete the backing object.
 	err = parent.DeleteChildDir(op.Context(), op.Name)
-	parent.Unlock()
 	if err != nil {
 		err = fmt.Errorf("DeleteChildDir: %v", err)
 		return
