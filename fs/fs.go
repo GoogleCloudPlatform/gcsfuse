@@ -1106,6 +1106,9 @@ func (fs *fileSystem) RmDir(
 	//
 	//     https://github.com/GoogleCloudPlatform/gcsfuse/issues/9
 	//
+	//
+	// TODO(jacobsa): Argh, duh, we should be listing the child here, not the
+	// parent.
 	var tok string
 	for {
 		var entries []fuseutil.Dirent
