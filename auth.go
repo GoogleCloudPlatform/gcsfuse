@@ -15,29 +15,18 @@
 package main
 
 import (
-	"log"
-	"net/http"
+	"golang.org/x/net/context"
+	"golang.org/x/oauth2/google"
 
 	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/oauthutil"
 )
-
-// Return an HTTP client configured with OAuth credentials from command-line
-// flags. May block on network traffic.
-func getAuthenticatedHttpClient() (*http.Client, error) {
-	if *fKeyFile == "" {
-		log.Fatalln("You must set --key_file.")
-	}
-
-	const scope = gcs.Scope_FullControl
-	return oauthutil.NewJWTHttpClient(*fKeyFile, []string{scope})
-}
 
 // Return a GCS connection pre-bound with authentication parameters derived
 // from command-line flags. May block on network traffic.
 func getConn() (gcs.Conn, error) {
-	// Create the HTTP client.
-	httpClient, err := getAuthenticatedHttpClient()
+	// Create the authenticated HTTP client.
+	const scope = gcs.Scope_FullControl
+	httpClient, err := google.DefaultClient(context.Background(), scope)
 	if err != nil {
 		return nil, err
 	}
