@@ -501,5 +501,36 @@ func (t *ImplicitDirsTest) Rmdir_NotEmpty_ImplicitAndExplicit() {
 }
 
 func (t *ImplicitDirsTest) Rmdir_Empty() {
-	AssertTrue(false, "TODO")
+	var err error
+	var entries []os.FileInfo
+
+	// Create two levels of directories. We can't make an empty implicit dir, so
+	// there must be a backing object for each.
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				"foo/":     "",
+				"foo/bar/": "",
+			}))
+
+	// Remove the leaf.
+	err = os.Remove(path.Join(t.Dir, "foo/bar"))
+	AssertEq(nil, err)
+
+	// There should be nothing left in the parent.
+	entries, err = fusetesting.ReadDirPicky(path.Join(t.Dir, "foo"))
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
+
+	// Remove the parent.
+	err = os.Remove(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	// Now the root directory should be empty, too.
+	entries, err = fusetesting.ReadDirPicky(t.Dir)
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
 }
