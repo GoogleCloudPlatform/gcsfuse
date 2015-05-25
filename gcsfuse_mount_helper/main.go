@@ -25,13 +25,13 @@ package main
 
 // Example invocation on OS X:
 //
-//     mount -t porp -o key_file=/some\ file.json -o ro,blah bucket ~/tmp/mp
+//     mount -t porp -o foo=bar\ baz -o ro,blah bucket ~/tmp/mp
 //
 // becomes the following arguments:
 //
 //     Arg 0: "/path/to/gcsfuse_mount_helper"
 //     Arg 1: "-o"
-//     Arg 2: "key_file=/some file.json"
+//     Arg 2: "foo=bar baz"
 //     Arg 3: "-o"
 //     Arg 4: "ro"
 //     Arg 5: "-o"
@@ -41,7 +41,7 @@ package main
 //
 // On Linux, the fstab entry
 //
-//     bucket /path/to/mp porp user,key_file=/some\040file.json
+//     bucket /path/to/mp porp user,foo=bar\040baz
 //
 // becomes
 //
@@ -49,7 +49,7 @@ package main
 //     Arg 1: "bucket"
 //     Arg 2: "/path/to/mp"
 //     Arg 3: "-o"
-//     Arg 4: "rw,noexec,nosuid,nodev,user,key_file=/some file.json"
+//     Arg 4: "rw,noexec,nosuid,nodev,user,foo=bar baz"
 //
 
 import (
@@ -72,9 +72,6 @@ func makeGcsfuseArgs(
 	// Deal with options.
 	for name, value := range opts {
 		switch name {
-		case "key_file":
-			args = append(args, "--key_file="+value)
-
 		case "fuse_debug":
 			args = append(args, "--fuse.debug")
 
