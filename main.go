@@ -244,8 +244,9 @@ func run() (err error) {
 
 	// Mount the file system.
 	mountCfg := &fuse.MountConfig{
-		FSName:  bucket.Name(),
-		Options: fMountOptions,
+		FSName:      bucket.Name(),
+		Options:     fMountOptions,
+		ErrorLogger: log.New(os.Stderr, "fuse: ", log.Flags()),
 	}
 
 	mountedFS, err := fuse.Mount(mountPoint, server, mountCfg)
