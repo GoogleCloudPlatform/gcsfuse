@@ -500,10 +500,6 @@ func (t *ImplicitDirsTest) Rmdir_NotEmpty_ImplicitAndExplicit() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) Rmdir_Empty_OnlyImplicit() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *ImplicitDirsTest) Rmdir_Empty_ImplicitAndExplicit() {
+func (t *ImplicitDirsTest) Rmdir_Empty() {
 	AssertTrue(false, "TODO")
 }

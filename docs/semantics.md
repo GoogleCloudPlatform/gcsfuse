@@ -313,8 +313,8 @@ deletes the backing object. Because listing operations in GCS are only
 error when unlinking an empty directory, and may sometimes mean that a
 non-empty directory is successfully unlinked.
 
-Unlinking an empty [implicit directory](#implicit-directories) fails with
-`ENOENT`.
+Note that by their definition, [implicit directories](#implicit-directories)
+cannot be empty.
 
 
 <a name="symlink-inodes"></a>
