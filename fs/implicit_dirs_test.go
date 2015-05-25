@@ -448,3 +448,19 @@ func (t *ImplicitDirsTest) ExplicitBecomesImplicit() {
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 }
+
+func (t *ImplicitDirsTest) Rmdir_NotEmpty_OnlyImplicit() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ImplicitDirsTest) Rmdir_NotEmpty_ImplicitAndExplicit() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ImplicitDirsTest) Rmdir_Empty_OnlyImplicit() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ImplicitDirsTest) Rmdir_Empty_ImplicitAndExplicit() {
+	AssertTrue(false, "TODO")
+}
