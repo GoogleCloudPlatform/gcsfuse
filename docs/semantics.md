@@ -353,9 +353,9 @@ when attempting to access the file system. This includes the root user.
 
 [allow_other]: https://github.com/torvalds/linux/blob/a33f32244d8550da8b4a26e277ce07d5c6d158b5/Documentation/filesystems/fuse.txt##L102-L105
 
-This can be overridden by setting `-o allow_root` to allow only the mounting
-user and the root user to access the file system, or `-o allow_other` to allow
-all users. Be careful! There may be [security implications][fuse-security].
+This can be overridden by setting `-o allow_other` to allow other users to
+access the file system. Be careful! There may be [security
+implications][fuse-security].
 
 [fuse-security]: https://github.com/torvalds/linux/blob/a33f32244d8550da8b4a26e277ce07d5c6d158b5/Documentation/filesystems/fuse.txt#L218-L310
 
