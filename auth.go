@@ -15,19 +15,12 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"net/http"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/oauthutil"
 )
-
-var fKeyFile = flag.String(
-	"key_file",
-	"",
-	"Path to a JSON key for a service account created on the Google "+
-		"Developers Console.")
 
 // Return an HTTP client configured with OAuth credentials from command-line
 // flags. May block on network traffic.
