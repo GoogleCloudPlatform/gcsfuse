@@ -475,7 +475,29 @@ func (t *ImplicitDirsTest) Rmdir_NotEmpty_OnlyImplicit() {
 }
 
 func (t *ImplicitDirsTest) Rmdir_NotEmpty_ImplicitAndExplicit() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Set up an implicit directory that also has a backing object.
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				"foo/":    "",
+				"foo/bar": "",
+			}))
+
+	// Attempt to remove it.
+	err = os.Remove(path.Join(t.Dir, "foo"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("not empty")))
+
+	// It should still be there.
+	fi, err := os.Lstat(path.Join(t.Dir, "foo"))
+
+	AssertEq(nil, err)
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
 }
 
 func (t *ImplicitDirsTest) Rmdir_Empty_OnlyImplicit() {
