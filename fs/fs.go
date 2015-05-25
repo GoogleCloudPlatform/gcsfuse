@@ -1109,7 +1109,22 @@ func (fs *fileSystem) RmDir(
 	var tok string
 	for {
 		var entries []fuseutil.Dirent
-		entries, tok, err = parent.
+		entries, tok, err = parent.ReadEntries(op.Context(), tok)
+		if err != nil {
+			err = fmt.Errorf("ReadEntries: %v", err)
+			return
+		}
+
+		// Are there any entries?
+		if len(entries) != 0 {
+			err = fuse.ENOTEMPTY
+			return
+		}
+
+		// Are we done listing?
+		if tok == "" {
+			break
+		}
 	}
 
 	// Delete the backing object.
