@@ -118,3 +118,17 @@ If you notice otherwise unreasonable performance, please [file an
 issue][issues].
 
 [issues]: https://github.com/googlecloudplatform/gcsfuse/issues
+
+
+<a name="support">
+# Support
+
+gcsfuse is open source software, released under the [Apache license](LICENSE).
+It is distributed as-is, without warranties or conditions of any kind. Best
+effort community support is available on [StackExchange][se] with the
+`google-cloud-platform` and `google-cloud-storage` tags. Please be sure to look
+at [previous questions and answers][qna] before asking a new one. For bugs and
+feature requests, please [file an issue][issues].
+
+[se]: http://serverfault.com/questions/ask?tags=google-cloud-platform+google-cloud-storage
+[qna]: http://serverfault.com/questions/tagged/google-cloud-platform+google-cloud-storage
