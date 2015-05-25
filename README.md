@@ -112,9 +112,23 @@ file, as discussed above.
 
 [issue-22]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/22
 
-## Other performance issues
+# Support
 
-If you notice otherwise unreasonable performance, please [file an
+gcsfuse is an Open Source software released under the [Apache license][LICENSE]
+distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND.
+Best effort community support is available on StackExchange with 
+[google-cloud-platform and google-cloud-storage tags][ask] Please look at
+[previous questions and answers][qna] before asking a new one.
+
+[LICENSE]: LICENSE
+[ask]: http://serverfault.com/questions/ask?tags=google-cloud-platform+google-cloud-storage
+[qna]: http://serverfault.com/questions/tagged/google-cloud-platform+google-cloud-storage
+[issues]: https://github.com/GoogleCloudPlatform/gcsfuse/issues
+
+## Reporting issues
+
+Please check the performance section above for caching options and explanation
+of what is expected. If you notice otherwise unreasonable performance, please [file an
 issue][issues].
 
 [issues]: https://github.com/googlecloudplatform/gcsfuse/issues
