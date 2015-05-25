@@ -1033,6 +1033,10 @@ func (t *DirectoryTest) ReadDir_SubDirectory() {
 	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
+func (t *DirectoryTest) Rmdir_NotEmpty() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *DirectoryTest) Rmdir_Empty() {
 	var err error
 	var entries []os.FileInfo
