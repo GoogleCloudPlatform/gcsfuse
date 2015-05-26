@@ -14,7 +14,7 @@ Next, create the directory into which you want to mount the gcsfuse bucket:
 In order to mount the bucket named `my-bucket`, invoke the gcsfuse binary
 as follows:
 
-    gcsfuse --bucket my-bucket --mount_point /path/to/mount/point
+    gcsfuse my-bucket /path/to/mount/point
 
 You should be able to see your bucket contents if you run `ls
 /path/to/mount/point`. To later unmount the bucket, either kill the gcsfuse
@@ -48,7 +48,7 @@ For example, `daemon` can be installed using `sudo apt-get install daemon` on
 Ubuntu or `brew install daemon` with [homebrew][] on OS X. Afterward, gcsfuse
 can be run with:
 
-    daemon -- gcsfuse --bucket my-bucket --mount_point /path/to/mount/point
+    daemon -- gcsfuse my-bucket /path/to/mount/point
 
 [homebrew]: http://brew.sh/
 
