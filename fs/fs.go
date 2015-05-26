@@ -754,6 +754,51 @@ func (fs *fileSystem) syncFile(
 	return
 }
 
+// Decrement the supplied inode's lookup count, destroying it if the inode says
+// that it has hit zero.
+//
+// We require the file system lock to exclude concurrent lookups, which might
+// otherwise find an inode whose lookup count has gone to zero.
+//
+// UNLOCK_FUNCTION(fs.mu)
+// UNLOCK_FUNCTION(in)
+func (fs *fileSystem) unlockAndDecrementLookupCount(
+	in inode.Inode,
+	N uint64) {
+	name := in.Name()
+
+	// Decrement the lookup count.
+	shouldDestroy := in.DecrementLookupCount(N)
+
+	// Update file system state, orphaning the inode if we're going to destroy it
+	// below.
+	if shouldDestroy {
+		delete(fs.inodes, in.ID())
+
+		// Update indexes if necessary.
+		if fs.generationBackedInodes[name] == in {
+			delete(fs.generationBackedInodes, name)
+		}
+
+		if fs.implicitDirInodes[name] == in {
+			delete(fs.implicitDirInodes, name)
+		}
+	}
+
+	// We are done with the file system.
+	fs.mu.Unlock()
+
+	// Now we can destroy the inode if necessary.
+	if shouldDestroy {
+		destroyErr := in.Destroy()
+		if destroyErr != nil {
+			log.Printf("Error destroying inode %q: %v", name, destroyErr)
+		}
+	}
+
+	in.Unlock()
+}
+
 // A helper function for use after incrementing an inode's lookup count.
 // Ensures that the lookup count is decremented again if the caller is going to
 // return in error (in which case the kernel and gcsfuse would otherwise
@@ -914,45 +959,12 @@ func (fs *fileSystem) ForgetInode(
 	in := fs.inodes[op.Inode]
 	fs.mu.Unlock()
 
-	// Acquire the inode lock without holding the file system lock.
+	// Acquire both locks in the correct order.
 	in.Lock()
-	defer in.Unlock()
-
-	// Re-acquire the file system lock to exclude concurrent lookups (which may
-	// otherwise find an inode whose lookup count has gone to zero), then
-	// decrement the lookup count.
-	//
-	// If we're told to destroy the inode, remove it from the file system
-	// immediately to make it inaccessible, then destroy it without holding the
-	// file system lock (since doing so may block).
 	fs.mu.Lock()
 
-	name := in.Name()
-	shouldDestroy := in.DecrementLookupCount(op.N)
-	if shouldDestroy {
-		delete(fs.inodes, op.Inode)
-
-		// Update indexes if necessary.
-		if fs.generationBackedInodes[name] == in {
-			delete(fs.generationBackedInodes, name)
-		}
-
-		if fs.implicitDirInodes[name] == in {
-			delete(fs.implicitDirInodes, name)
-		}
-	}
-
-	fs.mu.Unlock()
-
-	if shouldDestroy {
-		err = in.Destroy()
-		if err != nil {
-			err = fmt.Errorf("Destroy: %v", err)
-			return
-		}
-	}
-
-	return
+	// Decrement and unlock.
+	fs.unlockAndDecrementLookupCount(in, op.N)
 }
 
 // LOCKS_EXCLUDED(fs.mu)
