@@ -828,6 +828,7 @@ func (fs *fileSystem) LookUpInode(
 	}
 
 	defer in.Unlock()
+	defer fs.decrementLookupCountIfError(in, &err)
 
 	// Fill out the response.
 	op.Entry.Child = in.ID()
@@ -996,6 +997,7 @@ func (fs *fileSystem) MkDir(
 	}
 
 	defer child.Unlock()
+	defer fs.decrementLookupCountIfError(child, &err)
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
@@ -1049,6 +1051,7 @@ func (fs *fileSystem) CreateFile(
 	}
 
 	defer child.Unlock()
+	defer fs.decrementLookupCountIfError(child, &err)
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
@@ -1101,6 +1104,7 @@ func (fs *fileSystem) CreateSymlink(
 	}
 
 	defer child.Unlock()
+	defer fs.decrementLookupCountIfError(child, &err)
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
