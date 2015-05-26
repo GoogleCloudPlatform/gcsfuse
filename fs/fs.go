@@ -1152,16 +1152,19 @@ func (fs *fileSystem) RmDir(
 		return
 	}
 
-	// Ensure that we don't leak the child or its lock.
+	// Set up a function that throws away the lookup count increment that we
+	// implicitly did above (since we're not handing the child back to the
+	// kernel) and unlocks the child, but only once. Ensure it is called at least
+	// once in case we exit early.
 	childCleanedUp := false
-	defer func() {
+	cleanUpAndUnlockChild := func() {
 		if !childCleanedUp {
-			// We don't use the usual unlockAndMaybeDisposeOfInode helper here
-			// because we are not handing the lookup count back to the kernel -- we
-			// want to unconditionally throw away the increment we did above.
+			childCleanedUp = true
 			fs.unlockAndDecrementLookupCount(child, 1)
 		}
-	}()
+	}
+
+	defer cleanUpAndUnlockChild()
 
 	// Ensure that the child directory is empty.
 	//
@@ -1191,8 +1194,14 @@ func (fs *fileSystem) RmDir(
 		}
 	}
 
+	// We are done with the child.
+	cleanUpAndUnlockChild()
+
 	// Delete the backing object.
+	parent.Lock()
 	err = parent.DeleteChildDir(op.Context(), op.Name)
+	parent.Unlock()
+
 	if err != nil {
 		err = fmt.Errorf("DeleteChildDir: %v", err)
 		return
