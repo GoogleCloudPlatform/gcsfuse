@@ -1160,6 +1160,7 @@ func (fs *fileSystem) RmDir(
 	cleanUpAndUnlockChild := func() {
 		if !childCleanedUp {
 			childCleanedUp = true
+			fs.mu.Lock()
 			fs.unlockAndDecrementLookupCount(child, 1)
 		}
 	}
