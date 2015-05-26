@@ -813,22 +813,26 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(
 //         return
 //       }
 //
-//       defer fs.unlockAndMaybeDecrement(in, &err)
+//       defer fs.unlockAndMaybeDisposeOfInode(in, &err)
 //
 //       ...
 //     }
 //
 // LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(in)
-func (fs *fileSystem) unlockAndMaybeDecrement(
+func (fs *fileSystem) unlockAndMaybeDisposeOfInode(
 	in inode.Inode,
 	err *error) {
-	var n uint64
-	if *err != nil {
-		n = 1
+	// If there is no error, just unlock.
+	if *err == nil {
+		in.Unlock()
+		return
 	}
 
-	fs.unlockAndDecrementLookupCount(in, n)
+	// Otherwise, go through the decrement helper, which requires the file system
+	// lock.
+	fs.mu.Lock()
+	fs.unlockAndDecrementLookupCount(in, 1)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -876,7 +880,7 @@ func (fs *fileSystem) LookUpInode(
 		return
 	}
 
-	defer fs.unlockAndMaybeDecrement(in, &err)
+	defer fs.unlockAndMaybeDisposeOfInode(in, &err)
 
 	// Fill out the response.
 	op.Entry.Child = in.ID()
@@ -1011,7 +1015,7 @@ func (fs *fileSystem) MkDir(
 		return
 	}
 
-	defer fs.unlockAndMaybeDecrement(child, &err)
+	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
@@ -1064,7 +1068,7 @@ func (fs *fileSystem) CreateFile(
 		return
 	}
 
-	defer fs.unlockAndMaybeDecrement(child, &err)
+	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
@@ -1116,7 +1120,7 @@ func (fs *fileSystem) CreateSymlink(
 		return
 	}
 
-	defer fs.unlockAndMaybeDecrement(child, &err)
+	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
