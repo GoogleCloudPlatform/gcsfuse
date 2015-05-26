@@ -16,8 +16,8 @@
 //
 // Can be invoked using a command-line of the form expected for mount helpers.
 // Calls the gcsfuse binary, which must be in $PATH, and waits for it to
-// complete. The device is passed as --bucket, and other known options are
-// converted to appropriate flags.
+// complete. The device and mount point are passed on as positional arguments,
+// and other known options are converted to appropriate flags.
 //
 // This binary does not daemonize, and therefore must be used with a wrapper
 // that performs daemonization if it is to be used directly with mount(8).
@@ -111,11 +111,8 @@ func makeGcsfuseArgs(
 		}
 	}
 
-	// Set the bucket.
-	args = append(args, "--bucket="+device)
-
-	// Set the mount point.
-	args = append(args, "--mount_point="+mountPoint)
+	// Set the bucket and mount point.
+	args = append(args, device, mountPoint)
 
 	return
 }

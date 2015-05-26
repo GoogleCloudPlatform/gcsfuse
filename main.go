@@ -34,9 +34,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var fBucketName = flag.String("bucket", "", "Name of GCS bucket to mount.")
-var fMountPoint = flag.String("mount_point", "", "File system location.")
-
 var fMountOptions = make(map[string]string)
 
 func init() {
@@ -104,15 +101,37 @@ var fTypeCacheTTL = flag.Duration(
 	time.Minute,
 	"How long to cache name -> file/dir type mappings in directory inodes.")
 
-func getBucketName() string {
-	s := *fBucketName
-	if s == "" {
-		fmt.Println("You must set --bucket.")
-		os.Exit(1)
+////////////////////////////////////////////////////////////////////////
+// Wiring
+////////////////////////////////////////////////////////////////////////
+
+func getBucket(bucketName string) (b gcs.Bucket) {
+	// Set up a GCS connection.
+	log.Println("Initializing GCS connection.")
+	conn, err := getConn()
+	if err != nil {
+		log.Fatal("Couldn't get GCS connection: ", err)
 	}
 
-	return s
+	// Extract the appropriate bucket.
+	b = conn.GetBucket(bucketName)
+
+	// Enable cached StatObject results, if appropriate.
+	if *fStatCacheTTL != 0 {
+		const cacheCapacity = 4096
+		b = gcscaching.NewFastStatBucket(
+			*fStatCacheTTL,
+			gcscaching.NewStatCache(cacheCapacity),
+			timeutil.RealClock(),
+			b)
+	}
+
+	return
 }
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
 
 func registerSIGINTHandler(mountPoint string) {
 	// Register for SIGINT.
@@ -136,39 +155,11 @@ func registerSIGINTHandler(mountPoint string) {
 	}()
 }
 
-func getBucket() (b gcs.Bucket) {
-	// Set up a GCS connection.
-	log.Println("Initializing GCS connection.")
-	conn, err := getConn()
-	if err != nil {
-		log.Fatal("Couldn't get GCS connection: ", err)
-	}
+////////////////////////////////////////////////////////////////////////
+// main function
+////////////////////////////////////////////////////////////////////////
 
-	// Extract the appropriate bucket.
-	b = conn.GetBucket(getBucketName())
-
-	// Enable cached StatObject results, if appropriate.
-	if *fStatCacheTTL != 0 {
-		const cacheCapacity = 4096
-		b = gcscaching.NewFastStatBucket(
-			*fStatCacheTTL,
-			gcscaching.NewStatCache(cacheCapacity),
-			timeutil.RealClock(),
-			b)
-	}
-
-	return
-}
-
-func run() (err error) {
-	// Check --mount_point.
-	if *fMountPoint == "" {
-		err = fmt.Errorf("You must set --mount_point.")
-		return
-	}
-
-	mountPoint := *fMountPoint
-
+func run(bucketName string, mountPoint string) (err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
@@ -219,7 +210,7 @@ func run() (err error) {
 	}
 
 	// Create a file system server.
-	bucket := getBucket()
+	bucket := getBucket(bucketName)
 	serverCfg := &fs.ServerConfig{
 		Clock:                timeutil.RealClock(),
 		Bucket:               bucket,
@@ -271,13 +262,35 @@ func run() (err error) {
 }
 
 func main() {
-	flag.Parse()
-
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
+	// Set up a custom usage function, then parse flags.
+	flag.Usage = func() {
+		fmt.Fprintf(
+			os.Stderr,
+			"Usage: %s [flags] bucket_name mount_point\n",
+			os.Args[0])
+
+		fmt.Fprintf(os.Stderr, "\n")
+		fmt.Fprintf(os.Stderr, "Flags:\n")
+		flag.PrintDefaults()
+	}
+
+	flag.Parse()
+
+	// Extract positional arguments.
+	args := flag.Args()
+	if len(args) != 2 {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	bucketName := args[0]
+	mountPoint := args[1]
+
 	// Run.
-	err := run()
+	err := run(bucketName, mountPoint)
 	if err != nil {
 		log.Fatalf("run: %v", err)
 	}

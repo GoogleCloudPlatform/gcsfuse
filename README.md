@@ -61,7 +61,7 @@ the machine that will be mounting the bucket.
 To mount a bucket using gcsfuse, invoke it like this:
 
 ```
-gcsfuse --bucket my-bucket --mount_point /path/to/mount/point
+gcsfuse my-bucket /path/to/mount/point
 ```
 
 The directory onto which you are mounting the file system
