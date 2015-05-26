@@ -34,9 +34,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var fBucketName = flag.String("bucket", "", "Name of GCS bucket to mount.")
-var fMountPoint = flag.String("mount_point", "", "File system location.")
-
 var fMountOptions = make(map[string]string)
 
 func init() {
@@ -108,17 +105,7 @@ var fTypeCacheTTL = flag.Duration(
 // Wiring
 ////////////////////////////////////////////////////////////////////////
 
-func getBucketName() string {
-	s := *fBucketName
-	if s == "" {
-		fmt.Println("You must set --bucket.")
-		os.Exit(1)
-	}
-
-	return s
-}
-
-func getBucket() (b gcs.Bucket) {
+func getBucket(bucketName string) (b gcs.Bucket) {
 	// Set up a GCS connection.
 	log.Println("Initializing GCS connection.")
 	conn, err := getConn()
@@ -127,7 +114,7 @@ func getBucket() (b gcs.Bucket) {
 	}
 
 	// Extract the appropriate bucket.
-	b = conn.GetBucket(getBucketName())
+	b = conn.GetBucket(bucketName)
 
 	// Enable cached StatObject results, if appropriate.
 	if *fStatCacheTTL != 0 {
@@ -172,15 +159,7 @@ func registerSIGINTHandler(mountPoint string) {
 // main function
 ////////////////////////////////////////////////////////////////////////
 
-func run() (err error) {
-	// Check --mount_point.
-	if *fMountPoint == "" {
-		err = fmt.Errorf("You must set --mount_point.")
-		return
-	}
-
-	mountPoint := *fMountPoint
-
+func run(bucketName string, mountPoint string) (err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
@@ -231,7 +210,7 @@ func run() (err error) {
 	}
 
 	// Create a file system server.
-	bucket := getBucket()
+	bucket := getBucket(bucketName)
 	serverCfg := &fs.ServerConfig{
 		Clock:                timeutil.RealClock(),
 		Bucket:               bucket,
@@ -283,6 +262,9 @@ func run() (err error) {
 }
 
 func main() {
+	// Make logging output better.
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
+
 	// Set up a custom usage function, then parse flags.
 	flag.Usage = func() {
 		fmt.Fprintf(
@@ -297,11 +279,18 @@ func main() {
 
 	flag.Parse()
 
-	// Make logging output better.
-	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
+	// Extract positional arguments.
+	args := flag.Args()
+	if len(args) != 2 {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	bucketName := args[0]
+	mountPoint := args[1]
 
 	// Run.
-	err := run()
+	err := run(bucketName, mountPoint)
 	if err != nil {
 		log.Fatalf("run: %v", err)
 	}
