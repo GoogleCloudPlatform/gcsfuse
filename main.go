@@ -104,6 +104,10 @@ var fTypeCacheTTL = flag.Duration(
 	time.Minute,
 	"How long to cache name -> file/dir type mappings in directory inodes.")
 
+////////////////////////////////////////////////////////////////////////
+// Wiring
+////////////////////////////////////////////////////////////////////////
+
 func getBucketName() string {
 	s := *fBucketName
 	if s == "" {
@@ -112,28 +116,6 @@ func getBucketName() string {
 	}
 
 	return s
-}
-
-func registerSIGINTHandler(mountPoint string) {
-	// Register for SIGINT.
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-
-	// Start a goroutine that will unmount when the signal is received.
-	go func() {
-		for {
-			<-signalChan
-			log.Println("Received SIGINT, attempting to unmount...")
-
-			err := fuse.Unmount(mountPoint)
-			if err != nil {
-				log.Printf("Failed to unmount in response to SIGINT: %v", err)
-			} else {
-				log.Printf("Successfully unmounted in response to SIGINT.")
-				return
-			}
-		}
-	}()
 }
 
 func getBucket() (b gcs.Bucket) {
@@ -159,6 +141,36 @@ func getBucket() (b gcs.Bucket) {
 
 	return
 }
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func registerSIGINTHandler(mountPoint string) {
+	// Register for SIGINT.
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt)
+
+	// Start a goroutine that will unmount when the signal is received.
+	go func() {
+		for {
+			<-signalChan
+			log.Println("Received SIGINT, attempting to unmount...")
+
+			err := fuse.Unmount(mountPoint)
+			if err != nil {
+				log.Printf("Failed to unmount in response to SIGINT: %v", err)
+			} else {
+				log.Printf("Successfully unmounted in response to SIGINT.")
+				return
+			}
+		}
+	}()
+}
+
+////////////////////////////////////////////////////////////////////////
+// main function
+////////////////////////////////////////////////////////////////////////
 
 func run() (err error) {
 	// Check --mount_point.
