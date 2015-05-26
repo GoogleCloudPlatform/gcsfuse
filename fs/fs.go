@@ -1146,29 +1146,34 @@ func (fs *fileSystem) RmDir(
 	parent := fs.inodes[op.Parent].(inode.DirInode)
 	fs.mu.Unlock()
 
-	// Attempt to look up the child within the parent.
-	parent.Lock()
-	childResult, err := parent.LookUpChild(op.Context(), op.Name)
-	parent.Unlock()
-
+	// Find or create the child inode.
+	child, err := fs.lookUpOrCreateChildInode(op.Context(), parent, op.Name)
 	if err != nil {
-		err = fmt.Errorf("LookUpChild: %v", err)
 		return
 	}
 
-	// Ensure that the directory is empty.
+	// Ensure that we don't leak the child or its lock.
+	childCleanedUp := false
+	defer func() {
+		if !childCleanedUp {
+			// We don't use the usual unlockAndMaybeDisposeOfInode helper here
+			// because we are not handing the lookup count back to the kernel -- we
+			// want to unconditionally throw away the increment we did above.
+			fs.unlockAndDecrementLookupCount(child, 1)
+		}
+	}()
+
+	// Ensure that the child directory is empty.
 	//
 	// Yes, this is not atomic with the delete below. See here for discussion:
 	//
 	//     https://github.com/GoogleCloudPlatform/gcsfuse/issues/9
 	//
 	//
-	// TODO(jacobsa): Argh, duh, we should be listing the child here, not the
-	// parent.
 	var tok string
 	for {
 		var entries []fuseutil.Dirent
-		entries, tok, err = parent.ReadEntries(op.Context(), tok)
+		entries, tok, err = child.ReadEntries(op.Context(), tok)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %v", err)
 			return
