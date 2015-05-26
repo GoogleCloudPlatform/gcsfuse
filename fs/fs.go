@@ -579,7 +579,8 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 // we've yet recorded.
 //
 // If the record is stale (i.e. some newer inode exists), return nil. In this
-// case, the caller may obtain a fresh record and try again.
+// case, the caller may obtain a fresh record and try again. Otherwise,
+// increment the inode's lookup count and return it locked.
 //
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
@@ -753,6 +754,87 @@ func (fs *fileSystem) syncFile(
 	return
 }
 
+// Decrement the supplied inode's lookup count, destroying it if the inode says
+// that it has hit zero.
+//
+// We require the file system lock to exclude concurrent lookups, which might
+// otherwise find an inode whose lookup count has gone to zero.
+//
+// UNLOCK_FUNCTION(fs.mu)
+// UNLOCK_FUNCTION(in)
+func (fs *fileSystem) unlockAndDecrementLookupCount(
+	in inode.Inode,
+	N uint64) {
+	name := in.Name()
+
+	// Decrement the lookup count.
+	shouldDestroy := in.DecrementLookupCount(N)
+
+	// Update file system state, orphaning the inode if we're going to destroy it
+	// below.
+	if shouldDestroy {
+		delete(fs.inodes, in.ID())
+
+		// Update indexes if necessary.
+		if fs.generationBackedInodes[name] == in {
+			delete(fs.generationBackedInodes, name)
+		}
+
+		if fs.implicitDirInodes[name] == in {
+			delete(fs.implicitDirInodes, name)
+		}
+	}
+
+	// We are done with the file system.
+	fs.mu.Unlock()
+
+	// Now we can destroy the inode if necessary.
+	if shouldDestroy {
+		destroyErr := in.Destroy()
+		if destroyErr != nil {
+			log.Printf("Error destroying inode %q: %v", name, destroyErr)
+		}
+	}
+
+	in.Unlock()
+}
+
+// A helper function for use after incrementing an inode's lookup count.
+// Ensures that the lookup count is decremented again if the caller is going to
+// return in error (in which case the kernel and gcsfuse would otherwise
+// disagree about the lookup count for the inode's ID), so that the inode isn't
+// leaked.
+//
+// Typical usage:
+//
+//     func (fs *fileSystem) doFoo() (err error) {
+//       in, err := fs.lookUpOrCreateInodeIfNotStale(...)
+//       if err != nil {
+//         return
+//       }
+//
+//       defer fs.unlockAndMaybeDisposeOfInode(in, &err)
+//
+//       ...
+//     }
+//
+// LOCKS_EXCLUDED(fs.mu)
+// UNLOCK_FUNCTION(in)
+func (fs *fileSystem) unlockAndMaybeDisposeOfInode(
+	in inode.Inode,
+	err *error) {
+	// If there is no error, just unlock.
+	if *err == nil {
+		in.Unlock()
+		return
+	}
+
+	// Otherwise, go through the decrement helper, which requires the file system
+	// lock.
+	fs.mu.Lock()
+	fs.unlockAndDecrementLookupCount(in, 1)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // fuse.FileSystem methods
 ////////////////////////////////////////////////////////////////////////
@@ -798,7 +880,7 @@ func (fs *fileSystem) LookUpInode(
 		return
 	}
 
-	defer in.Unlock()
+	defer fs.unlockAndMaybeDisposeOfInode(in, &err)
 
 	// Fill out the response.
 	op.Entry.Child = in.ID()
@@ -886,45 +968,12 @@ func (fs *fileSystem) ForgetInode(
 	in := fs.inodes[op.Inode]
 	fs.mu.Unlock()
 
-	// Acquire the inode lock without holding the file system lock.
+	// Acquire both locks in the correct order.
 	in.Lock()
-	defer in.Unlock()
-
-	// Re-acquire the file system lock to exclude concurrent lookups (which may
-	// otherwise find an inode whose lookup count has gone to zero), then
-	// decrement the lookup count.
-	//
-	// If we're told to destroy the inode, remove it from the file system
-	// immediately to make it inaccessible, then destroy it without holding the
-	// file system lock (since doing so may block).
 	fs.mu.Lock()
 
-	name := in.Name()
-	shouldDestroy := in.DecrementLookupCount(op.N)
-	if shouldDestroy {
-		delete(fs.inodes, op.Inode)
-
-		// Update indexes if necessary.
-		if fs.generationBackedInodes[name] == in {
-			delete(fs.generationBackedInodes, name)
-		}
-
-		if fs.implicitDirInodes[name] == in {
-			delete(fs.implicitDirInodes, name)
-		}
-	}
-
-	fs.mu.Unlock()
-
-	if shouldDestroy {
-		err = in.Destroy()
-		if err != nil {
-			err = fmt.Errorf("Destroy: %v", err)
-			return
-		}
-	}
-
-	return
+	// Decrement and unlock.
+	fs.unlockAndDecrementLookupCount(in, op.N)
 }
 
 // LOCKS_EXCLUDED(fs.mu)
@@ -966,7 +1015,7 @@ func (fs *fileSystem) MkDir(
 		return
 	}
 
-	defer child.Unlock()
+	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
@@ -1019,7 +1068,7 @@ func (fs *fileSystem) CreateFile(
 		return
 	}
 
-	defer child.Unlock()
+	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
@@ -1071,7 +1120,7 @@ func (fs *fileSystem) CreateSymlink(
 		return
 	}
 
-	defer child.Unlock()
+	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
