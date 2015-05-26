@@ -283,6 +283,18 @@ func run() (err error) {
 }
 
 func main() {
+	// Set up a custom usage function, then parse flags.
+	flag.Usage = func() {
+		fmt.Fprintf(
+			os.Stderr,
+			"Usage: %s [flags] bucket_name mount_point\n",
+			os.Args[0])
+
+		fmt.Fprintf(os.Stderr, "\n")
+		fmt.Fprintf(os.Stderr, "Flags:\n")
+		flag.PrintDefaults()
+	}
+
 	flag.Parse()
 
 	// Make logging output better.
