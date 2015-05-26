@@ -760,6 +760,20 @@ func (fs *fileSystem) syncFile(
 // disagree about the lookup count for the inode's ID), so that the inode isn't
 // leaked.
 //
+// Typical usage:
+//
+//     func (fs *fileSystem) doFoo() (err error) {
+//       in, err := fs.lookUpOrCreateInodeIfNotStale(...)
+//       if err != nil {
+//         return
+//       }
+//
+//       defer in.Unlock()
+//       defer fs.decrementLookupCountIfError(in, &err)
+//
+//       ...
+//     }
+//
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(in)
 func (fs *fileSystem) decrementLookupCountIfError(
