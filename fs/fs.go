@@ -768,18 +768,17 @@ func (fs *fileSystem) syncFile(
 //         return
 //       }
 //
-//       defer in.Unlock()
-//       defer fs.decrementLookupCountIfError(in, &err)
+//       defer fs.unlockAndDecrementLookupCountOnError(in, &err)
 //
 //       ...
 //     }
 //
 // LOCKS_EXCLUDED(fs.mu)
-// LOCKS_REQUIRED(in)
-func (fs *fileSystem) decrementLookupCountIfError(
+// UNLOCK_FUNCTION(in)
+func (fs *fileSystem) unlockAndDecrementLookupCountOnError(
 	in inode.Inode,
 	err *error) {
-	panic("TODO")
+	log.Println("TODO: unlockAndDecrementLookupCountOnError")
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -827,8 +826,7 @@ func (fs *fileSystem) LookUpInode(
 		return
 	}
 
-	defer in.Unlock()
-	defer fs.decrementLookupCountIfError(in, &err)
+	defer fs.unlockAndDecrementLookupCountOnError(in, &err)
 
 	// Fill out the response.
 	op.Entry.Child = in.ID()
@@ -996,8 +994,7 @@ func (fs *fileSystem) MkDir(
 		return
 	}
 
-	defer child.Unlock()
-	defer fs.decrementLookupCountIfError(child, &err)
+	defer fs.unlockAndDecrementLookupCountOnError(child, &err)
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
@@ -1050,8 +1047,7 @@ func (fs *fileSystem) CreateFile(
 		return
 	}
 
-	defer child.Unlock()
-	defer fs.decrementLookupCountIfError(child, &err)
+	defer fs.unlockAndDecrementLookupCountOnError(child, &err)
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
@@ -1103,8 +1099,7 @@ func (fs *fileSystem) CreateSymlink(
 		return
 	}
 
-	defer child.Unlock()
-	defer fs.decrementLookupCountIfError(child, &err)
+	defer fs.unlockAndDecrementLookupCountOnError(child, &err)
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
