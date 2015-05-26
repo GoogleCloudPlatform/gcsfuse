@@ -579,7 +579,8 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 // we've yet recorded.
 //
 // If the record is stale (i.e. some newer inode exists), return nil. In this
-// case, the caller may obtain a fresh record and try again.
+// case, the caller may obtain a fresh record and try again. Otherwise,
+// increment the inode's lookup count and return it locked.
 //
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
