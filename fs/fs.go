@@ -1146,8 +1146,15 @@ func (fs *fileSystem) RmDir(
 	parent := fs.inodes[op.Parent].(inode.DirInode)
 	fs.mu.Unlock()
 
+	// Attempt to look up the child within the parent.
 	parent.Lock()
-	defer parent.Unlock()
+	childResult, err := parent.LookUpChild(op.Context, op.Name)
+	parent.Unlock()
+
+	if err != nil {
+		err = fmt.Errorf("LookUpChild: %v", err)
+		return
+	}
 
 	// Ensure that the directory is empty.
 	//
