@@ -448,3 +448,89 @@ func (t *ImplicitDirsTest) ExplicitBecomesImplicit() {
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 }
+
+func (t *ImplicitDirsTest) Rmdir_NotEmpty_OnlyImplicit() {
+	var err error
+
+	// Set up an implicit directory.
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				"foo/bar": "",
+			}))
+
+	// Attempt to remove it.
+	err = os.Remove(path.Join(t.Dir, "foo"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("not empty")))
+
+	// It should still be there.
+	fi, err := os.Lstat(path.Join(t.Dir, "foo"))
+
+	AssertEq(nil, err)
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+}
+
+func (t *ImplicitDirsTest) Rmdir_NotEmpty_ImplicitAndExplicit() {
+	var err error
+
+	// Set up an implicit directory that also has a backing object.
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				"foo/":    "",
+				"foo/bar": "",
+			}))
+
+	// Attempt to remove it.
+	err = os.Remove(path.Join(t.Dir, "foo"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("not empty")))
+
+	// It should still be there.
+	fi, err := os.Lstat(path.Join(t.Dir, "foo"))
+
+	AssertEq(nil, err)
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+}
+
+func (t *ImplicitDirsTest) Rmdir_Empty() {
+	var err error
+	var entries []os.FileInfo
+
+	// Create two levels of directories. We can't make an empty implicit dir, so
+	// there must be a backing object for each.
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				"foo/":     "",
+				"foo/bar/": "",
+			}))
+
+	// Remove the leaf.
+	err = os.Remove(path.Join(t.Dir, "foo/bar"))
+	AssertEq(nil, err)
+
+	// There should be nothing left in the parent.
+	entries, err = fusetesting.ReadDirPicky(path.Join(t.Dir, "foo"))
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
+
+	// Remove the parent.
+	err = os.Remove(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	// Now the root directory should be empty, too.
+	entries, err = fusetesting.ReadDirPicky(t.Dir)
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
+}

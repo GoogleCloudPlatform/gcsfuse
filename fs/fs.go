@@ -685,25 +685,40 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	}
 }
 
-// Given a function that returns a "fresh" lookup result, implement the calling
-// loop documented for lookUpOrCreateInodeIfNotStale. Call the function once to
-// begin with, and again each time it returns a stale record.
+// Look up the child with the given name within the parent, then return an
+// existing inode for that child or create a new one if necessary. Return
+// ENOENT if the child doesn't exist.
 //
-// For each call to f, neither the file system mutex nor any inode locks will
-// be held. The caller of this function must also not hold any inode locks.
-//
-// Return ENOENT if the function ever returns a nil record. Never return a nil
-// inode with a nil error.
+// Return the child locked, incrementing its lookup count.
 //
 // LOCKS_EXCLUDED(fs.mu)
-// LOCK_FUNCTION(in)
-func (fs *fileSystem) lookUpOrCreateInode(
-	f func() (inode.LookUpResult, error)) (in inode.Inode, err error) {
+// LOCKS_EXCLUDED(parent)
+// LOCK_FUNCTION(child)
+func (fs *fileSystem) lookUpOrCreateChildInode(
+	ctx context.Context,
+	parent inode.DirInode,
+	childName string) (child inode.Inode, err error) {
+	// Set up a function that will find a lookup result for the child with the
+	// given name. Expects no locks to be held.
+	getLookupResult := func() (r inode.LookUpResult, err error) {
+		parent.Lock()
+		defer parent.Unlock()
+
+		r, err = parent.LookUpChild(ctx, childName)
+		if err != nil {
+			err = fmt.Errorf("LookUpChild: %v", err)
+			return
+		}
+
+		return
+	}
+
+	// Run a retry loop around lookUpOrCreateInodeIfNotStale.
 	const maxTries = 3
 	for n := 0; n < maxTries; n++ {
 		// Create a record.
 		var result inode.LookUpResult
-		result, err = f()
+		result, err = getLookupResult()
 
 		if err != nil {
 			return
@@ -716,8 +731,8 @@ func (fs *fileSystem) lookUpOrCreateInode(
 
 		// Attempt to create the inode. Return if successful.
 		fs.mu.Lock()
-		in = fs.lookUpOrCreateInodeIfNotStale(result.FullName, result.Object)
-		if in != nil {
+		child = fs.lookUpOrCreateInodeIfNotStale(result.FullName, result.Object)
+		if child != nil {
 			return
 		}
 	}
@@ -859,32 +874,17 @@ func (fs *fileSystem) LookUpInode(
 	parent := fs.inodes[op.Parent].(inode.DirInode)
 	fs.mu.Unlock()
 
-	// Set up a function that will find a lookup result for the child with the
-	// given name.
-	f := func() (r inode.LookUpResult, err error) {
-		parent.Lock()
-		defer parent.Unlock()
-
-		r, err = parent.LookUpChild(op.Context(), op.Name)
-		if err != nil {
-			err = fmt.Errorf("LookUpChild: %v", err)
-			return
-		}
-
-		return
-	}
-
-	// Use that function to find or mint an inode.
-	in, err := fs.lookUpOrCreateInode(f)
+	// Find or create the child inode.
+	child, err := fs.lookUpOrCreateChildInode(op.Context(), parent, op.Name)
 	if err != nil {
 		return
 	}
 
-	defer fs.unlockAndMaybeDisposeOfInode(in, &err)
+	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
 
 	// Fill out the response.
-	op.Entry.Child = in.ID()
-	if op.Entry.Attributes, err = in.Attributes(op.Context()); err != nil {
+	op.Entry.Child = child.ID()
+	if op.Entry.Attributes, err = child.Attributes(op.Context()); err != nil {
 		return
 	}
 
@@ -1146,11 +1146,70 @@ func (fs *fileSystem) RmDir(
 	parent := fs.inodes[op.Parent].(inode.DirInode)
 	fs.mu.Unlock()
 
-	parent.Lock()
-	defer parent.Unlock()
+	// Find or create the child inode.
+	child, err := fs.lookUpOrCreateChildInode(op.Context(), parent, op.Name)
+	if err != nil {
+		return
+	}
+
+	// Set up a function that throws away the lookup count increment that we
+	// implicitly did above (since we're not handing the child back to the
+	// kernel) and unlocks the child, but only once. Ensure it is called at least
+	// once in case we exit early.
+	childCleanedUp := false
+	cleanUpAndUnlockChild := func() {
+		if !childCleanedUp {
+			childCleanedUp = true
+			fs.mu.Lock()
+			fs.unlockAndDecrementLookupCount(child, 1)
+		}
+	}
+
+	defer cleanUpAndUnlockChild()
+
+	// Is the child a directory?
+	childDir, ok := child.(inode.DirInode)
+	if !ok {
+		err = fuse.ENOTDIR
+		return
+	}
+
+	// Ensure that the child directory is empty.
+	//
+	// Yes, this is not atomic with the delete below. See here for discussion:
+	//
+	//     https://github.com/GoogleCloudPlatform/gcsfuse/issues/9
+	//
+	//
+	var tok string
+	for {
+		var entries []fuseutil.Dirent
+		entries, tok, err = childDir.ReadEntries(op.Context(), tok)
+		if err != nil {
+			err = fmt.Errorf("ReadEntries: %v", err)
+			return
+		}
+
+		// Are there any entries?
+		if len(entries) != 0 {
+			err = fuse.ENOTEMPTY
+			return
+		}
+
+		// Are we done listing?
+		if tok == "" {
+			break
+		}
+	}
+
+	// We are done with the child.
+	cleanUpAndUnlockChild()
 
 	// Delete the backing object.
+	parent.Lock()
 	err = parent.DeleteChildDir(op.Context(), op.Name)
+	parent.Unlock()
+
 	if err != nil {
 		err = fmt.Errorf("DeleteChildDir: %v", err)
 		return

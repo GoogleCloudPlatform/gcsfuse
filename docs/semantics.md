@@ -299,6 +299,23 @@ the user level to commands like `ls`, and to the posix interfaces they use like
 
 [consistency]: https://cloud.google.com/storage/docs/concepts-techniques#consistency
 
+<a name="dir-inode-unlinking"></a>
+### Unlinking
+
+GCS offers no way to delete an object if and only if other objects don't exist.
+It is therefore impossible to atomically check whether a directory is empty and
+delete its backing object.
+
+gcsfuse does the pragmatic thing here: it lists objects with the directory's
+name as a prefix, returning `ENOTEMPTY` if anything shows up, and otherwise
+deletes the backing object. Because listing operations in GCS are only
+[eventually consistent][consistency], this may sometimes cause an `ENOTEMPTY`
+error when unlinking an empty directory, and may sometimes mean that a
+non-empty directory is successfully unlinked.
+
+Note that by their definition, [implicit directories](#implicit-directories)
+cannot be empty.
+
 
 <a name="symlink-inodes"></a>
 # Symlink inodes
