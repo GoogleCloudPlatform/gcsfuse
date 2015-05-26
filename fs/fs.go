@@ -1166,6 +1166,13 @@ func (fs *fileSystem) RmDir(
 
 	defer cleanUpAndUnlockChild()
 
+	// Is the child a directory?
+	childDir, ok := child.(inode.DirInode)
+	if !ok {
+		err = fuse.ENOTDIR
+		return
+	}
+
 	// Ensure that the child directory is empty.
 	//
 	// Yes, this is not atomic with the delete below. See here for discussion:
@@ -1176,7 +1183,7 @@ func (fs *fileSystem) RmDir(
 	var tok string
 	for {
 		var entries []fuseutil.Dirent
-		entries, tok, err = child.ReadEntries(op.Context(), tok)
+		entries, tok, err = childDir.ReadEntries(op.Context(), tok)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %v", err)
 			return
