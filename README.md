@@ -6,8 +6,8 @@ Storage][gcs].
 
 # Current status
 
-Please treat gcsfuse as alpha-quality software. Use it for whatever you like,
-but be aware that bugs may lurk, and that we reserve the right to make
+Please treat gcsfuse as beta-quality software. Use it for whatever you like, but
+be aware that bugs may lurk, and that we reserve the right to make small
 backwards-incompatible changes.
 
 The careful user should be sure to read [semantics.md][] for information on how
