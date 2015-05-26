@@ -823,7 +823,12 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(
 func (fs *fileSystem) unlockAndMaybeDecrement(
 	in inode.Inode,
 	err *error) {
-	log.Println("TODO: unlockAndMaybeDecrement")
+	var n uint64
+	if *err != nil {
+		n = 1
+	}
+
+	fs.unlockAndDecrementLookupCount(in, n)
 }
 
 ////////////////////////////////////////////////////////////////////////
