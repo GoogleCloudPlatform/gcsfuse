@@ -754,6 +754,20 @@ func (fs *fileSystem) syncFile(
 	return
 }
 
+// A helper function for use after incrementing an inode's lookup count.
+// Ensures that the lookup count is decremented again if the caller is going to
+// return in error (in which case the kernel and gcsfuse would otherwise
+// disagree about the lookup count for the inode's ID), so that the inode isn't
+// leaked.
+//
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_REQUIRED(in)
+func (fs *fileSystem) decrementLookupCountIfError(
+	in inode.Inode,
+	err *error) {
+	panic("TODO")
+}
+
 ////////////////////////////////////////////////////////////////////////
 // fuse.FileSystem methods
 ////////////////////////////////////////////////////////////////////////
