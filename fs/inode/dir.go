@@ -67,14 +67,14 @@ func (lr *LookUpResult) Exists() bool {
 type DirInode interface {
 	Inode
 
-	// Look up the direct child with the given relative name, returning a record
-	// for the the GCS object backing that child or an indication that the child
-	// exists as an empty directory. If a file/symlink and a directory with the
-	// given name both exist, the directory is preferred. Return a nil record
-	// with a nil error if neither is found.
+	// Look up the direct child with the given relative name, returning
+	// information about the object backing the child or whether it exists as an
+	// implicit directory. If a file/symlink and a directory with the given name
+	// both exist, the directory is preferred. Return a result with
+	// !result.Exists() and a nil error if neither is found.
 	//
 	// Special case: if the name ends in ConflictingFileNameSuffix, we strip the
-	// suffix, confirm that a conflicting directory exists, then return a record
+	// suffix, confirm that a conflicting directory exists, then return a result
 	// for the file/symlink.
 	//
 	// If this inode was created with implicitDirs is set, this method will use
