@@ -34,6 +34,11 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+var fHelp = flag.Bool(
+	"help",
+	false,
+	"If set, print usage and exit successfully.")
+
 var fMountOptions = make(map[string]string)
 
 func init() {
@@ -278,6 +283,12 @@ func main() {
 	}
 
 	flag.Parse()
+
+	// Help mode?
+	if *fHelp {
+		flag.Usage()
+		os.Exit(0)
+	}
 
 	// Extract positional arguments.
 	args := flag.Args()

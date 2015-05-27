@@ -171,8 +171,20 @@ func parseArgs(
 }
 
 func main() {
-	// Print out each argument.
 	args := os.Args
+
+	// If invoked with a single "--help" argument, print a usage message and exit
+	// successfully.
+	if len(args) == 2 && args[1] == "--help" {
+		fmt.Fprintf(
+			os.Stderr,
+			"Usage: %s [-o options] bucket_name mount_point\n",
+			os.Args[0])
+
+		os.Exit(0)
+	}
+
+	// Print out each argument.
 	for i, arg := range args {
 		log.Printf("Arg %d: %q", i, arg)
 	}
