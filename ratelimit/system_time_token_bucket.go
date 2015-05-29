@@ -17,18 +17,18 @@ package syncutil
 import "time"
 
 // TODO(jacobsa): Comments.
-type TimeBasedTokenBucket struct {
+type SystemTimeTokenBucket struct {
 	Bucket    TokenBucket
 	StartTime time.Time
 }
 
 // TODO(jacobsa): Comments.
-func (tb *TimeBasedTokenBucket) Capacity(c uint64) {
+func (tb *SystemTimeTokenBucket) Capacity(c uint64) {
 	panic("TODO")
 }
 
 // TODO(jacobsa): Comments.
-func (tb *TimeBasedTokenBucket) Remove(
+func (tb *SystemTimeTokenBucket) Remove(
 	now time.Time,
 	tokens uint64) (sleepUntil time.Time) {
 	panic("TODO")

@@ -25,7 +25,7 @@ import "time"
 //
 // Instead we reckon in terms of a monotonic measurement of time elapsed since
 // the bucket was initialized, and leave it up to the user to provide this. See
-// TimeBasedTokenBucket for a convenience in doing so.
+// SystemTimeTokenBucket for a convenience in doing so.
 type MonotonicTime time.Duration
 
 // TODO(jacobsa): Comments.
