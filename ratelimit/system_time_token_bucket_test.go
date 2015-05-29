@@ -187,7 +187,11 @@ func (t *SystemTimeTokenBucketTest) IntegrationTest() {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				processed := processArrivals(tb, tc.arrivalRateHz, perCaseDuration)
+				processed := processArrivals(
+					tb,
+					tc.arrivalRateHz/float64(tc.numActors),
+					perCaseDuration)
+
 				atomic.AddUint64(&totalProcessed, processed)
 			}()
 		}
