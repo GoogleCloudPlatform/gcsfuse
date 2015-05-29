@@ -16,18 +16,27 @@ package syncutil
 
 import "time"
 
-// TODO(jacobsa): Comments.
+// A simple wrapper around TokenBucket that groks time.Time. Time values are
+// converted into MonotonicTime by subtracting StartTime.
+//
+// If you use this with time.Now, be aware of the monotonicity issues. In
+// particular:
+//
+//  *  If the system clock jumps into the future, the token bucket will let
+//     through a burst of traffic.
+//
+//  *  If the system clock jumps into the past, it will halt all traffic for
+//     a potentially very long amount of time.
+//
 type SystemTimeTokenBucket struct {
 	Bucket    TokenBucket
 	StartTime time.Time
 }
 
-// TODO(jacobsa): Comments.
 func (tb *SystemTimeTokenBucket) Capacity(c uint64) {
 	panic("TODO")
 }
 
-// TODO(jacobsa): Comments.
 func (tb *SystemTimeTokenBucket) Remove(
 	now time.Time,
 	tokens uint64) (sleepUntil time.Time) {
