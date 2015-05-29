@@ -131,5 +131,30 @@ func ChooseTokenBucketCapacity(
 func NewTokenBucket(
 	rateHz float64,
 	capacity uint64) (tb TokenBucket) {
+	tb = &tokenBucket{
+		rateHz:   rateHz,
+		capacity: capacity,
+	}
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// Implementation
+////////////////////////////////////////////////////////////////////////
+
+type tokenBucket struct {
+	rateHz   float64
+	capacity uint64
+}
+
+func (tb *tokenBucket) Capacity() (c uint64) {
+	c = tb.capacity
+	return
+}
+
+func (tb *tokenBucket) Remove(
+	now MonotonicTime,
+	tokens uint64) (sleepUntil MonotonicTime) {
 	panic("TODO")
 }
