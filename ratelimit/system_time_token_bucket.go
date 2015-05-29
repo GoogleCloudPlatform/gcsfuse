@@ -40,5 +40,10 @@ func (tb *SystemTimeTokenBucket) Capacity(c uint64) {
 func (tb *SystemTimeTokenBucket) Remove(
 	now time.Time,
 	tokens uint64) (sleepUntil time.Time) {
-	panic("TODO")
+	d := tb.Bucket.Remove(
+		MonotonicTime(now.Sub(tb.StartTime)),
+		tokens)
+
+	sleepUntil = tb.StartTime.Add(time.Duration(d))
+	return
 }
