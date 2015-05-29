@@ -15,6 +15,9 @@
 package ratelimit_test
 
 import (
+	cryptorand "crypto/rand"
+	"io"
+	"math/rand"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -32,11 +35,87 @@ func TestSystemTimeTokenBucket(t *testing.T) { RunTests(t) }
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+func makeSeed() (seed int64) {
+	var buf [8]byte
+	_, err := io.ReadFull(cryptorand.Reader, buf[:])
+	if err != nil {
+		panic(err)
+	}
+
+	seed = (int64(buf[0])>>1)<<56 |
+		int64(buf[1])<<48 |
+		int64(buf[2])<<40 |
+		int64(buf[3])<<32 |
+		int64(buf[4])<<24 |
+		int64(buf[5])<<16 |
+		int64(buf[6])<<8 |
+		int64(buf[7])<<0
+
+	return
+}
+
 func processArrivals(
 	tb *ratelimit.SystemTimeTokenBucket,
 	arrivalRateHz float64,
 	d time.Duration) (processed uint64) {
-	panic("TODO")
+	// Set up an independent source of randomness.
+	randSrc := rand.New(rand.NewSource(makeSeed()))
+
+	// Set up a channel that will have an element when we are supposed to stop.
+	shouldStop := time.After(d)
+
+	// Tick into a channel at a steady rate, buffering over delays caused by the
+	// token bucket.
+	arrivalPeriod := time.Duration((1.0 / arrivalRateHz) * float64(time.Second))
+	ticks := make(chan struct{}, 3*int(float64(d)/float64(arrivalPeriod)))
+
+	go func() {
+		ticker := time.NewTicker(arrivalPeriod)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-shouldStop:
+				return
+
+			case <-ticker.C:
+				select {
+				case ticks <- struct{}{}:
+				default:
+					panic("Buffer exceeded?")
+				}
+			}
+		}
+	}()
+
+	// Simulate until we're supposed to stop.
+	for {
+		// Accumulate a few packets.
+		toAccumulate := uint64(randSrc.Int63n(5))
+
+		var accumulated uint64
+		for accumulated < toAccumulate {
+			select {
+			case <-shouldStop:
+				return
+
+			case <-ticks:
+				accumulated++
+			}
+		}
+
+		// Grab the corresponding number of tokens, and sleep until we're told to
+		// wake.
+		now := time.Now()
+		wakeTime := tb.Remove(now, accumulated)
+		processed += accumulated
+
+		select {
+		case <-time.After(wakeTime.Sub(now)):
+		case <-shouldStop:
+			return
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
