@@ -15,7 +15,8 @@
 package ratelimit
 
 import (
-	"errors"
+	"fmt"
+	"math"
 	"time"
 )
 
@@ -65,7 +66,59 @@ type TokenBucket interface {
 func ChooseTokenBucketCapacity(
 	rateHz float64,
 	window time.Duration) (capacity uint64, err error) {
-	err = errors.New("TODO: ChooseTokenBucketCapacity")
+	// Check that the input is reasonable.
+	if rateHz <= 0 || math.IsInf(rateHz, 0) {
+		err = fmt.Errorf("Illegal rate: %f", rateHz)
+		return
+	}
+
+	if window <= 0 {
+		err = fmt.Errorf("Illegal window: %v", window)
+		return
+	}
+
+	// We cannot help but allow the rate to exceed the configured maximum by some
+	// factor in an arbitrary window, no matter how small we scale the max
+	// accumulated credit -- the bucket may be full at the start of the window,
+	// be immediately exhausted, then be repeatedly exhausted just before filling
+	// throughout the window.
+	//
+	// For example: let the window W = 10 seconds, and the bandwidth B = 20 MiB/s.
+	// Set the max accumulated credit C = W*B/2 = 100 MiB. Then this
+	// sequence of events is allowed:
+	//
+	//  *  T=0:        Allow through 100 MiB.
+	//  *  T=4.999999: Allow through nearly 100 MiB.
+	//  *  T=9.999999: Allow through nearly 100 MiB.
+	//
+	// Therefore we exceed the allowed bytes for the window by nearly 50%. Note
+	// however that this trend cannot continue into the next window, so this must
+	// be a transient spike.
+	//
+	// In general if we set C <= W*B/N, then we're off by no more than a factor
+	// of (N+1)/N within any window of size W.
+	//
+	// Choose a reasonable N.
+	const N = 50
+
+	capacityFloat := math.Floor(rateHz * (float64(window) / float64(time.Second)))
+	if !(capacityFloat > 0 && capacityFloat < float64(math.MaxUint64)) {
+		err = fmt.Errorf(
+			"Can't use a token bucket to limit to %f Hz over a window of %v "+
+				"(result is a capacity of %f)",
+			rateHz,
+			window,
+			capacityFloat)
+	}
+
+	capacity = uint64(capacityFloat)
+	if capacity == 0 {
+		panic(fmt.Sprintf(
+			"Calculated a zero capacity for inputs %f, %v",
+			rateHz,
+			window))
+	}
+
 	return
 }
 
