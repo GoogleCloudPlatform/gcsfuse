@@ -131,7 +131,15 @@ func init() { RegisterTestSuite(&SystemTimeTokenBucketTest{}) }
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *SystemTimeTokenBucketTest) LimitsSuccessfully() {
+func (t *SystemTimeTokenBucketTest) AllowsBurstsOfLegalSize() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SystemTimeTokenBucketTest) DoesntAllowBurstsOfIllegalSize() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SystemTimeTokenBucketTest) IntegrationTest() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	const perCaseDuration = time.Second
 
@@ -199,12 +207,4 @@ func (t *SystemTimeTokenBucketTest) LimitsSuccessfully() {
 			i,
 			expected)
 	}
-}
-
-func (t *SystemTimeTokenBucketTest) AllowsBurstsOfLegalSize() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *SystemTimeTokenBucketTest) DoesntAllowBurstsOfIllegalSize() {
-	AssertTrue(false, "TODO")
 }
