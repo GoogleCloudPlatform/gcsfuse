@@ -48,3 +48,13 @@ type TokenBucket interface {
 		now MonotonicTime,
 		tokens uint64) (sleepUntil MonotonicTime)
 }
+
+// TODO(jacobsa): Comments.
+func ChooseTokenBucketDepth(
+	rateHz float64,
+	window time.Duration) (depth uint64, err error)
+
+// TODO(jacobsa): Comments.
+func NewTokenBucket(
+	rateHz float64,
+	depth uint64) (tb TokenBucket)
