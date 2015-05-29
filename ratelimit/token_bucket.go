@@ -16,9 +16,19 @@ package syncutil
 
 import "time"
 
-// TODO(jacobsa): Comments.
+// A measurement of the amount of real time since some fixed epoch.
+//
+// TokenBucket doesn't care about calendar time, time of day, etc.
+// Unfortunately time.Time takes these things into account, and in particular
+// time.Now() is not monotonic -- it may jump arbitrarily far into the future
+// or past when the system's wall time is changed.
+//
+// Instead we reckon in terms of a monotonic measurement of time elapsed since
+// the bucket was initialized, and leave it up to the user to provide this. See
+// TimeBasedTokenBucket for a convenience in doing so.
 type MonotonicTime time.Duration
 
+// TODO(jacobsa): Comments.
 type TokenBucket interface {
 	// The maximum number of tokens that the bucket can hold.
 	Capacity() (c uint64)
@@ -26,5 +36,5 @@ type TokenBucket interface {
 	// TODO(jacobsa): Comments.
 	Remove(
 		now MonotonicTime,
-		tokens uint64) (d time.Duration)
+		tokens uint64) (sleepUntil MonotonicTime)
 }
