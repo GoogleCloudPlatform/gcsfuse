@@ -14,7 +14,10 @@
 
 package syncutil
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // A measurement of the amount of real time since some fixed epoch.
 //
@@ -54,7 +57,10 @@ type TokenBucket interface {
 // TODO(jacobsa): Comments.
 func ChooseTokenBucketCapacity(
 	rateHz float64,
-	window time.Duration) (capacity uint64, err error)
+	window time.Duration) (capacity uint64, err error) {
+	err = errors.New("TODO: ChooseTokenBucketCapacity")
+	return
+}
 
 // Create a token bucket that fills at the given rate in tokens per second, up
 // to the given capacity.
@@ -63,4 +69,6 @@ func ChooseTokenBucketCapacity(
 // REQUIRES: capacity > 0
 func NewTokenBucket(
 	rateHz float64,
-	capacity uint64) (tb TokenBucket)
+	capacity uint64) (tb TokenBucket) {
+	panic("TODO")
+}
