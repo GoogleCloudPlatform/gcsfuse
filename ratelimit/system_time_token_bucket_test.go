@@ -135,17 +135,9 @@ func init() { RegisterTestSuite(&SystemTimeTokenBucketTest{}) }
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *SystemTimeTokenBucketTest) AllowsBurstsOfLegalSize() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *SystemTimeTokenBucketTest) DoesntAllowBurstsOfIllegalSize() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *SystemTimeTokenBucketTest) IntegrationTest() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	const perCaseDuration = time.Second
+	const perCaseDuration = 1 * time.Second
 
 	// Set up several test cases where we have N goroutines simulating arrival of
 	// packets at a given rate, asking a token bucket when to admit them.
@@ -155,14 +147,14 @@ func (t *SystemTimeTokenBucketTest) IntegrationTest() {
 		limitRateHz   float64
 	}{
 		// Single actor
-		{1, 50, 100},
-		{1, 100, 100},
-		{1, 150, 100},
+		{1, 150, 200},
+		{1, 200, 200},
+		{1, 250, 200},
 
 		// Multiple actors
-		{4, 50, 100},
-		{4, 100, 100},
-		{4, 150, 100},
+		{4, 150, 200},
+		{4, 200, 200},
+		{4, 250, 200},
 	}
 
 	// Run each test case.
@@ -209,8 +201,8 @@ func (t *SystemTimeTokenBucketTest) IntegrationTest() {
 		ExpectThat(
 			totalProcessed,
 			AllOf(
-				GreaterThan(expected*0.95),
-				LessThan(expected*1.05)),
+				GreaterThan(expected*0.90),
+				LessThan(expected*1.10)),
 			"Test case %d. expected: %f",
 			i,
 			expected)
