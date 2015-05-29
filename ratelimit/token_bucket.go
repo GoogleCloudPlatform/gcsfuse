@@ -38,23 +38,29 @@ type MonotonicTime time.Duration
 //
 // Cf. http://en.wikipedia.org/wiki/Token_bucket
 type TokenBucket interface {
-	// The maximum number of tokens that the bucket can hold.
+	// Return the maximum number of tokens that the bucket can hold.
 	Capacity() (c uint64)
 
 	// Remove the specified number of tokens from the token bucket at the given
 	// time. The user should wait until sleepUntil before proceeding in order to
 	// obey the rate limit.
+	//
+	// REQUIRES: tokens <= Capacity()
 	Remove(
 		now MonotonicTime,
 		tokens uint64) (sleepUntil MonotonicTime)
 }
 
 // TODO(jacobsa): Comments.
-func ChooseTokenBucketDepth(
+func ChooseTokenBucketCapacity(
 	rateHz float64,
-	window time.Duration) (depth uint64, err error)
+	window time.Duration) (capacity uint64, err error)
 
-// TODO(jacobsa): Comments.
+// Create a token bucket that fills at the given rate in tokens per second, up
+// to the given capacity.
+//
+// REQUIRES: rateHz > 0
+// REQUIRES: capacity > 0
 func NewTokenBucket(
 	rateHz float64,
-	depth uint64) (tb TokenBucket)
+	capacity uint64) (tb TokenBucket)
