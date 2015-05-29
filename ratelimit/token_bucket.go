@@ -39,6 +39,8 @@ type MonotonicTime time.Duration
 // as told by the token bucket, the overall action rate will be limited to the
 // token bucket's fill rate.
 //
+// Safe for concurrent access.
+//
 // Cf. http://en.wikipedia.org/wiki/Token_bucket
 type TokenBucket interface {
 	// Return the maximum number of tokens that the bucket can hold.
