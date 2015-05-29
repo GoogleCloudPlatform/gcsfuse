@@ -200,3 +200,11 @@ func (t *SystemTimeTokenBucketTest) LimitsSuccessfully() {
 			expected)
 	}
 }
+
+func (t *SystemTimeTokenBucketTest) AllowsBurstsOfLegalSize() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SystemTimeTokenBucketTest) DoesntAllowBurstsOfIllegalSize() {
+	AssertTrue(false, "TODO")
+}

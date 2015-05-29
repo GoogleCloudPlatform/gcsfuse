@@ -161,10 +161,30 @@ type tokenBucket struct {
 	/////////////////////////
 
 	mu syncutil.InvariantMutex
+
+	// The time that we last updated the bucket's credit. Only moves forward.
+	//
+	// GUARDED_BY(mu)
+	creditTime MonotonicTime
+
+	// The number of credits that were available at creditTime.
+	//
+	// INVARIANT: 0 <= credit
+	// INVARIANT: credit <= float64(capacity)
+	//
+	// GUARDED_BY(mu)
+	credit float64
 }
 
 func (tb *tokenBucket) checkInvariants() {
-	panic("TODO")
+	// INVARIANT: 0 <= credit
+	// INVARIANT: credit <= float64(capacity)
+	if !(0 <= tb.credit && tb.credit <= float64(tb.capacity)) {
+		panic(fmt.Sprintf(
+			"Illegal credit: %f, capacity: %d",
+			tb.credit,
+			tb.capacity))
+	}
 }
 
 func (tb *tokenBucket) Capacity() (c uint64) {
