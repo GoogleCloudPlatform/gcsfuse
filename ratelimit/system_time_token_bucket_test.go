@@ -61,8 +61,12 @@ func processArrivals(
 	// Set up an independent source of randomness.
 	randSrc := rand.New(rand.NewSource(makeSeed()))
 
-	// Set up a channel that will have an element when we are supposed to stop.
-	shouldStop := time.After(d)
+	// Set up a channel that will be closed when we are supposed to stop.
+	shouldStop := make(chan struct{})
+	go func() {
+		time.Sleep(d)
+		close(shouldStop)
+	}()
 
 	// Tick into a channel at a steady rate, buffering over delays caused by the
 	// token bucket.
