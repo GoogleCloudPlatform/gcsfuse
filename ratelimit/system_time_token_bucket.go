@@ -34,7 +34,8 @@ type SystemTimeTokenBucket struct {
 }
 
 func (tb *SystemTimeTokenBucket) Capacity(c uint64) {
-	panic("TODO")
+	c = tb.Bucket.Capacity()
+	return
 }
 
 func (tb *SystemTimeTokenBucket) Remove(
