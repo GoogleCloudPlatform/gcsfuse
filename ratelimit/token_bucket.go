@@ -133,13 +133,14 @@ func ChooseTokenBucketCapacity(
 func NewTokenBucket(
 	rateHz float64,
 	capacity uint64) (tb TokenBucket) {
-	tb = &tokenBucket{
+	typed := &tokenBucket{
 		rateHz:   rateHz,
 		capacity: capacity,
 	}
 
-	tb.mu = syncutil.NewInvariantMutex(tb.checkInvariants)
+	typed.mu = syncutil.NewInvariantMutex(typed.checkInvariants)
 
+	tb = typed
 	return
 }
 
