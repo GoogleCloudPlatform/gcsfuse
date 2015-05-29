@@ -54,7 +54,12 @@ type TokenBucket interface {
 		tokens uint64) (sleepUntil MonotonicTime)
 }
 
-// TODO(jacobsa): Comments.
+// Choose a token bucket capacity that ensures that the action gated by the
+// token bucket will be limited to within a few percent of `rateHz * window`
+// for any window of the given size.
+//
+// This is not be possible for all rates and windows. In that case, an error
+// will be returned.
 func ChooseTokenBucketCapacity(
 	rateHz float64,
 	window time.Duration) (capacity uint64, err error) {
@@ -63,7 +68,8 @@ func ChooseTokenBucketCapacity(
 }
 
 // Create a token bucket that fills at the given rate in tokens per second, up
-// to the given capacity.
+// to the given capacity. ChooseTokenBucketCapacity may help you decide on a
+// capacity.
 //
 // REQUIRES: rateHz > 0
 // REQUIRES: capacity > 0
