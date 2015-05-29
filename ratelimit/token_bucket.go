@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"math"
 	"time"
+
+	"github.com/jacobsa/gcloud/syncutil"
 )
 
 // A measurement of the amount of real time since some fixed epoch.
@@ -136,6 +138,8 @@ func NewTokenBucket(
 		capacity: capacity,
 	}
 
+	tb.mu = syncutil.NewInvariantMutex(tb.checkInvariants)
+
 	return
 }
 
@@ -144,8 +148,22 @@ func NewTokenBucket(
 ////////////////////////////////////////////////////////////////////////
 
 type tokenBucket struct {
+	/////////////////////////
+	// Constant data
+	/////////////////////////
+
 	rateHz   float64
 	capacity uint64
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
+	mu syncutil.InvariantMutex
+}
+
+func (tb *tokenBucket) checkInvariants() {
+	panic("TODO")
 }
 
 func (tb *tokenBucket) Capacity() (c uint64) {
