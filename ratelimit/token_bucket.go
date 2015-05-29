@@ -169,7 +169,6 @@ type tokenBucket struct {
 
 	// The number of credits that were available at creditTime.
 	//
-	// INVARIANT: 0 <= credit
 	// INVARIANT: credit <= float64(capacity)
 	//
 	// GUARDED_BY(mu)
@@ -177,9 +176,8 @@ type tokenBucket struct {
 }
 
 func (tb *tokenBucket) checkInvariants() {
-	// INVARIANT: 0 <= credit
 	// INVARIANT: credit <= float64(capacity)
-	if !(0 <= tb.credit && tb.credit <= float64(tb.capacity)) {
+	if !(tb.credit <= float64(tb.capacity)) {
 		panic(fmt.Sprintf(
 			"Illegal credit: %f, capacity: %d",
 			tb.credit,
@@ -195,5 +193,39 @@ func (tb *tokenBucket) Capacity() (c uint64) {
 func (tb *tokenBucket) Remove(
 	now MonotonicTime,
 	tokens uint64) (sleepUntil MonotonicTime) {
-	panic("TODO")
+	if tokens > tb.capacity {
+		panic(fmt.Sprintf(
+			"Token count %d out of range; capacity is %d",
+			tokens,
+			tb.capacity))
+	}
+
+	tb.mu.Lock()
+	defer tb.mu.Unlock()
+
+	// First play the clock forward until now, crediting any tokens that have
+	// accumulated in the meantime, up to the bucket's capacity.
+	if tb.creditTime < now {
+		diff := now - tb.creditTime
+
+		// Don't forget to cap at the capacity.
+		tb.credit += tb.rateHz * float64(diff) / float64(time.Second)
+		if !(tb.credit <= float64(tb.capacity)) {
+			tb.credit = float64(tb.capacity)
+		}
+
+		tb.creditTime = now
+	}
+
+	// Deduct the requested tokens. The user will need to wait until it makes it
+	// back to zero, which is when it would have otherwise made it to `tokens`.
+	tb.credit -= float64(tokens)
+
+	sleepUntil = tb.creditTime
+	if tb.credit < 0 {
+		seconds := -tb.credit / tb.rateHz
+		sleepUntil = tb.creditTime + MonotonicTime(seconds*float64(time.Second))
+	}
+
+	return
 }
