@@ -110,7 +110,7 @@ func (t *SystemTimeTokenBucketTest) LimitsSuccessfully() {
 			smallerRateHz = tc.limitRateHz
 		}
 
-		expected := smallerRateHz * float64(perCaseDuration/time.Second)
+		expected := smallerRateHz * (float64(perCaseDuration) / float64(time.Second))
 		ExpectThat(
 			totalProcessed,
 			AllOf(
