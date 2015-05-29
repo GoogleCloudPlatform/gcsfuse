@@ -28,12 +28,22 @@ import "time"
 // SystemTimeTokenBucket for a convenience in doing so.
 type MonotonicTime time.Duration
 
-// TODO(jacobsa): Comments.
+// A bucket of tokens that refills at a specific rate up to a particular
+// capacity. Users can remove tokens in sizes up to that capacity, can are told
+// how long they should wait before proceeding.
+//
+// If users cooperate by waiting to take whatever action they are rate limiting
+// as told by the token bucket, the overall action rate will be limited to the
+// token bucket's fill rate.
+//
+// Cf. http://en.wikipedia.org/wiki/Token_bucket
 type TokenBucket interface {
 	// The maximum number of tokens that the bucket can hold.
 	Capacity() (c uint64)
 
-	// TODO(jacobsa): Comments.
+	// Remove the specified number of tokens from the token bucket at the given
+	// time. The user should wait until sleepUntil before proceeding in order to
+	// obey the rate limit.
 	Remove(
 		now MonotonicTime,
 		tokens uint64) (sleepUntil MonotonicTime)
