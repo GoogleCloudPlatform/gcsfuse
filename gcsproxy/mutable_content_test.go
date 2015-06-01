@@ -333,7 +333,15 @@ func (t *DirtyTest) Stat_LeaseSucceeds() {
 }
 
 func (t *DirtyTest) WriteAt_CallsLease() {
-	AssertTrue(false, "TODO")
+	buf := make([]byte, 4)
+	const offset = 17
+
+	// Lease
+	ExpectCall(t.rwl, "WriteAt")(bufferIs(buf), offset).
+		WillOnce(Return(0, errors.New("")))
+
+	// Call
+	t.mc.WriteAt(buf, offset)
 }
 
 func (t *DirtyTest) WriteAt_LeaseFails() {
