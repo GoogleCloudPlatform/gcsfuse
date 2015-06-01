@@ -280,8 +280,29 @@ func (t *ThrottledReaderTest) WrappedReturnsShortRead_SecondReturnsEOF() {
 	ExpectEq(io.EOF, err)
 }
 
-func (t *ThrottledReaderTest) WrappedReturnsShortRead_SecondSucceeds() {
-	AssertTrue(false, "TODO")
+func (t *ThrottledReaderTest) WrappedReturnsShortRead_SecondSucceedsInFull() {
+	// Wrapped
+	var callCount int
+	t.wrapped.f = func(p []byte) (n int, err error) {
+		AssertLt(callCount, 2)
+		switch callCount {
+		case 0:
+			callCount++
+			n = 2
+
+		case 1:
+			callCount++
+			n = len(p)
+		}
+
+		return
+	}
+
+	// Call
+	n, err := t.reader.Read(make([]byte, 16))
+
+	ExpectEq(16, n)
+	ExpectEq(nil, err)
 }
 
 func (t *ThrottledReaderTest) ReadSizeIsAboveThrottleCapacity() {
