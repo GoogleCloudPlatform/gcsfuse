@@ -1,3 +1,20 @@
+# OS X fast track
+
+If you already have the [Homebrew package manager][homebrew] installed, you can
+do the following to install gcsfuse:
+
+[homebrew]: http://brew.sh/
+
+*   Download and install [osxfuse][]. (In modern versions of OS X you cannot do
+    this via Homebrew because of Apple's requirements for kernel extension
+    signatures.)
+
+*   Run `brew install gcsfuse`.
+
+Otherwise, or if you want to install a pre-release version of gcsfuse, read the
+remainder of this document.
+
+
 # Prerequisites
 
 ## Operating system
