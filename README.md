@@ -119,7 +119,6 @@ your GCS spending on behalf of gcsfuse, you can do so:
 
 *   The flag `--op_rate_limit_hz` controls the rate at which gcsfuse will send
     requests to GCS.
-
 *   The flag `--egress_bandwidth_limit_bytes_per_second` controls the egress
     bandwidth from gcsfuse to GCS.
 
