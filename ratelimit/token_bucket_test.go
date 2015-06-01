@@ -69,11 +69,3 @@ func (t *TokenBucketTest) CarefulAccounting() {
 	AssertEq(300, tb.Remove(0, 3))
 	AssertEq(302, tb.Remove(301, 2))
 }
-
-func (t *TokenBucketTest) AllowsBurstsOfLegalSize() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *TokenBucketTest) DoesntAllowBurstsOfIllegalSize() {
-	AssertTrue(false, "TODO")
-}
