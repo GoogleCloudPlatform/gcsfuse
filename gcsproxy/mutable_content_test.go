@@ -145,17 +145,10 @@ type checkingMutableContent struct {
 	wrapped *gcsproxy.MutableContent
 }
 
-func (mc *checkingMutableContent) SourceGeneration() int64 {
+func (mc *checkingMutableContent) Stat() (gcsproxy.StatResult, error) {
 	mc.wrapped.CheckInvariants()
 	defer mc.wrapped.CheckInvariants()
-	return mc.wrapped.SourceGeneration()
-}
-
-func (mc *checkingMutableContent) Stat(
-	needClobbered bool) (gcsproxy.StatResult, error) {
-	mc.wrapped.CheckInvariants()
-	defer mc.wrapped.CheckInvariants()
-	return mc.wrapped.Stat(mc.ctx, needClobbered)
+	return mc.wrapped.Stat(mc.ctx)
 }
 
 func (mc *checkingMutableContent) ReadAt(b []byte, o int64) (int, error) {
@@ -174,12 +167,6 @@ func (mc *checkingMutableContent) Truncate(n int64) error {
 	mc.wrapped.CheckInvariants()
 	defer mc.wrapped.CheckInvariants()
 	return mc.wrapped.Truncate(mc.ctx, n)
-}
-
-func (mc *checkingMutableContent) Sync() error {
-	mc.wrapped.CheckInvariants()
-	defer mc.wrapped.CheckInvariants()
-	return mc.wrapped.Sync(mc.ctx)
 }
 
 func (mc *checkingMutableContent) Destroy() {
