@@ -21,6 +21,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/ratelimit"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -113,7 +114,17 @@ func (t *ThrottledReaderTest) CallsThrottle() {
 }
 
 func (t *ThrottledReaderTest) ThrottleSaysCancelled() {
-	AssertTrue(false, "TODO")
+	// Throttle
+	t.throttle.f = func(ctx context.Context, tokens uint64) (ok bool) {
+		return
+	}
+
+	// Call
+	n, err := t.reader.Read(make([]byte, 1))
+
+	ExpectEq(0, n)
+	ExpectThat(err, Error(HasSubstr("throttle")))
+	ExpectThat(err, Error(HasSubstr("cancel")))
 }
 
 func (t *ThrottledReaderTest) CallsWrapped() {
