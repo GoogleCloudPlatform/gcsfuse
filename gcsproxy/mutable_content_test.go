@@ -79,8 +79,10 @@ type mutableContentTest struct {
 	ctx context.Context
 
 	initialContent mock_lease.MockReadProxy
+	rwl            mock_lease.MockReadWriteLease
 	clock          timeutil.SimulatedClock
-	mc             checkingMutableContent
+
+	mc checkingMutableContent
 }
 
 var _ SetUpInterface = &mutableContentTest{}
@@ -96,6 +98,11 @@ func (t *mutableContentTest) SetUp(ti *TestInfo) {
 	const initialContentSize = 11
 	ExpectCall(t.initialContent, "Size")().
 		WillRepeatedly(Return(initialContentSize))
+
+	// Set up a mock read/write lease.
+	t.rwl = mock_lease.NewMockReadWriteLease(
+		ti.MockController,
+		"rwl")
 
 	// Ignore uninteresting calls.
 	ExpectCall(t.initialContent, "CheckInvariants")().
@@ -146,7 +153,7 @@ func (t *CleanTest) WriteAt_UpgradeSucceeds() {
 }
 
 func (t *CleanTest) Truncate_UpgradeFails() {
-	// Lease
+	// Upgrade
 	ExpectCall(t.initialContent, "Upgrade")(Any()).
 		WillOnce(Return(nil, errors.New("taco")))
 
@@ -158,7 +165,22 @@ func (t *CleanTest) Truncate_UpgradeFails() {
 }
 
 func (t *CleanTest) Truncate_UpgradeSucceeds() {
-	AssertTrue(false, "TODO")
+	// Upgrade -- succeed.
+	ExpectCall(t.initialContent, "Upgrade")(Any()).
+		WillOnce(Return(t.rwl, nil))
+
+	// The read/write lease should be called.
+	ExpectCall(t.rwl, "Truncate")(17).
+		WillOnce(Return(errors.New("")))
+
+	// Call.
+	t.mc.Truncate(17)
+
+	// A further call should go right through to the read/write lease again.
+	ExpectCall(t.rwl, "Truncate")(19).
+		WillOnce(Return(errors.New("")))
+
+	t.mc.Truncate(19)
 }
 
 ////////////////////////////////////////////////////////////////////////
