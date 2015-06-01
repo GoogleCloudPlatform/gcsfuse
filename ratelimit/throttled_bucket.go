@@ -38,6 +38,10 @@ func NewThrottledBucket(
 	return
 }
 
+////////////////////////////////////////////////////////////////////////
+// throttledBucket
+////////////////////////////////////////////////////////////////////////
+
 type throttledBucket struct {
 	opThrottle     Throttle
 	egressThrottle Throttle
@@ -65,7 +69,7 @@ func (b *throttledBucket) NewReader(
 
 	// Wrap the result in a throttled layer.
 	rc = &readerCloser{
-		Reader: ThrottledReader(rc, b.egressThrottle),
+		Reader: ThrottledReader(ctx, rc, b.egressThrottle),
 		Closer: rc,
 	}
 
@@ -111,5 +115,26 @@ func (b *throttledBucket) DeleteObject(
 	ctx context.Context,
 	name string) (err error) {
 	err = errors.New("TODO")
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// readerCloser
+////////////////////////////////////////////////////////////////////////
+
+// An io.ReadCloser that forwards read requests to an io.Reader and close
+// requests to an io.Closer.
+type readerCloser struct {
+	Reader io.Reader
+	Closer io.Closer
+}
+
+func (rc *readerCloser) Read(p []byte) (n int, err error) {
+	n, err = rc.Reader.Read(p)
+	return
+}
+
+func (rc *readerCloser) Close() (err error) {
+	err = rc.Closer.Close()
 	return
 }
