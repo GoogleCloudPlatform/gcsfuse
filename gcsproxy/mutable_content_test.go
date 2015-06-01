@@ -271,12 +271,15 @@ func (t *CleanTest) Truncate_UpgradeSucceeds() {
 
 type DirtyTest struct {
 	mutableContentTest
+
+	setUpTime time.Time
 }
 
 func init() { RegisterTestSuite(&DirtyTest{}) }
 
 func (t *DirtyTest) SetUp(ti *TestInfo) {
 	t.mutableContentTest.SetUp(ti)
+	t.setUpTime = t.clock.Now()
 
 	// Simulate a successful upgrade.
 	ExpectCall(t.initialContent, "Upgrade")(Any()).
@@ -287,6 +290,9 @@ func (t *DirtyTest) SetUp(ti *TestInfo) {
 
 	err := t.mc.Truncate(initialContentSize)
 	AssertEq(nil, err)
+
+	// Change the time.
+	t.clock.AdvanceTime(time.Second)
 }
 
 func (t *DirtyTest) ReadAt_CallsLease() {
@@ -312,7 +318,18 @@ func (t *DirtyTest) Stat_LeaseFails() {
 }
 
 func (t *DirtyTest) Stat_LeaseSucceeds() {
-	AssertTrue(false, "TODO")
+	// Lease
+	ExpectCall(t.rwl, "Size")().
+		WillOnce(Return(17, nil))
+
+	// Call
+	sr, err := t.mc.Stat()
+	AssertEq(nil, err)
+
+	// Check the initial state.
+	ExpectEq(17, sr.Size)
+	ExpectEq(initialContentSize, sr.DirtyThreshold)
+	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(t.setUpTime)))
 }
 
 func (t *DirtyTest) WriteAt_CallsLease() {
