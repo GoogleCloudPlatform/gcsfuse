@@ -281,6 +281,9 @@ func (t *DirtyTest) SetUp(ti *TestInfo) {
 	ExpectCall(t.initialContent, "Upgrade")(Any()).
 		WillOnce(Return(t.rwl, nil))
 
+	ExpectCall(t.rwl, "Truncate")(Any()).
+		WillOnce(Return(nil))
+
 	err := t.mc.Truncate(t.initialContent.Size())
 	AssertEq(nil, err)
 }
@@ -314,7 +317,12 @@ func (t *DirtyTest) WriteAt_DirtyThreshold() {
 }
 
 func (t *DirtyTest) Truncate_CallsLease() {
-	AssertTrue(false, "TODO")
+	// Lease
+	ExpectCall(t.rwl, "Truncate")(17).
+		WillOnce(Return(errors.New("")))
+
+	// Call
+	t.mc.Truncate(17)
 }
 
 func (t *DirtyTest) Truncate_LeaseFails() {
