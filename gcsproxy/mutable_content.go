@@ -77,7 +77,14 @@ type StatResult struct {
 // supplied read proxy.
 func NewMutableContent(
 	initialContents lease.ReadProxy,
-	clock timeutil.Clock) (mc *MutableContent)
+	clock timeutil.Clock) (mc *MutableContent) {
+	mc = &MutableContent{
+		clock:           clock,
+		initialContents: initialContents,
+	}
+
+	return
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Public interface
