@@ -138,7 +138,8 @@ func (t *ThrottledReaderTest) CallsWrapped() {
 		AssertFalse(readCalled)
 		readCalled = true
 
-		AssertEq(buf, p)
+		AssertEq(&buf[0], &p[0])
+		AssertEq(len(buf), len(p))
 
 		err = errors.New("")
 		return
@@ -214,6 +215,7 @@ func (t *ThrottledReaderTest) WrappedReturnsShortRead_CallsAgain() {
 		case 1:
 			callCount++
 			AssertEq(&buf[2], &p[0])
+			AssertEq(len(buf)-2, len(p))
 			err = errors.New("")
 		}
 
