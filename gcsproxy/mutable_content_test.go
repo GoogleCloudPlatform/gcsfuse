@@ -275,7 +275,14 @@ func (t *CleanTest) Release_CallsProxy() {
 }
 
 func (t *CleanTest) Release_ProxyFails() {
-	AssertTrue(false, "TODO")
+	// Proxy
+	ExpectCall(t.initialContent, "Upgrade")(Any()).
+		WillOnce(Return(nil, errors.New("taco")))
+
+	// Call
+	_, err := t.mc.Release()
+
+	ExpectThat(err, HasSubstr("taco"))
 }
 
 func (t *CleanTest) Release_ProxySucceeds() {
