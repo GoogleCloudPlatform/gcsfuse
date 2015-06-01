@@ -91,7 +91,25 @@ func (t *ThrottledReaderTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *ThrottledReaderTest) CallsThrottle() {
-	AssertTrue(false, "TODO")
+	const readSize = 17
+	AssertLe(readSize, t.throttle.Capacity())
+
+	// Throttle
+	var throttleCalled bool
+	t.throttle.f = func(ctx context.Context, tokens uint64) (ok bool) {
+		AssertFalse(throttleCalled)
+		throttleCalled = true
+
+		AssertEq(t.ctx, ctx)
+		AssertEq(readSize, tokens)
+
+		return
+	}
+
+	// Call
+	t.reader.Read(make([]byte, readSize))
+
+	AssertTrue(throttleCalled)
 }
 
 func (t *ThrottledReaderTest) ThrottleSaysCancelled() {
