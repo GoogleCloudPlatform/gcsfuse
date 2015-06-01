@@ -42,6 +42,27 @@ type throttledReader struct {
 }
 
 func (tr *throttledReader) Read(p []byte) (n int, err error) {
-	err = errors.New("TODO")
+	// We can't serve a read larger than the throttle's capacity.
+	if uint64(len(p)) > tr.throttle.Capacity() {
+		p = p[:int(tr.throttle.Capacity())]
+	}
+
+	// Wait for permission to continue.
+	ok := tr.throttle.Wait(tr.ctx, uint64(len(p)))
+	if !ok {
+		err = errors.New("Cancelled while waiting for throttle.")
+		return
+	}
+
+	// Serve the full amount we acquired from the token (unless we hit an early
+	// error, including EOF).
+	for len(p) > 0 && err == nil {
+		var tmp int
+		tmp, err = tr.wrapped.Read(p)
+
+		n += tmp
+		p = p[tmp:]
+	}
+
 	return
 }
