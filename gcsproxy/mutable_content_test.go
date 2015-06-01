@@ -265,6 +265,18 @@ func (t *CleanTest) Truncate_UpgradeSucceeds() {
 	t.mc.Truncate(19)
 }
 
+func (t *CleanTest) Release_CallsProxy() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *CleanTest) Release_ProxyFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *CleanTest) Release_ProxySucceeds() {
+	AssertTrue(false, "TODO")
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Dirty state
 ////////////////////////////////////////////////////////////////////////
@@ -532,4 +544,8 @@ func (t *DirtyTest) Truncate_DirtyThreshold() {
 	sr, err = t.mc.Stat()
 	AssertEq(nil, err)
 	ExpectEq(initialContentSize-1, sr.DirtyThreshold)
+}
+
+func (t *DirtyTest) Release() {
+	AssertTrue(false, "TODO")
 }
