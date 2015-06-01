@@ -124,8 +124,8 @@ func (t *ThrottledReaderTest) ThrottleSaysCancelled() {
 	n, err := t.reader.Read(make([]byte, 1))
 
 	ExpectEq(0, n)
+	ExpectThat(err, Error(HasSubstr("Cancelled")))
 	ExpectThat(err, Error(HasSubstr("throttle")))
-	ExpectThat(err, Error(HasSubstr("cancel")))
 }
 
 func (t *ThrottledReaderTest) CallsWrapped() {
