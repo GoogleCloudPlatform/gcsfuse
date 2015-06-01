@@ -391,7 +391,40 @@ func (t *DirtyTest) WriteAt_LeaseSucceeds() {
 }
 
 func (t *DirtyTest) WriteAt_DirtyThreshold() {
-	AssertTrue(false, "TODO")
+	var sr gcsproxy.StatResult
+	var err error
+
+	// Simulate successful writes and size requests.
+	ExpectCall(t.rwl, "WriteAt")(Any(), Any()).
+		WillRepeatedly(Return(0, nil))
+
+	ExpectCall(t.rwl, "Size")().
+		WillRepeatedly(Return(100, nil))
+
+	// Writing at the end of the initial content should not affect the dirty
+	// threshold.
+	_, err = t.mc.WriteAt([]byte{}, initialContentSize)
+	AssertEq(nil, err)
+
+	sr, err = t.mc.Stat()
+	AssertEq(nil, err)
+	ExpectEq(initialContentSize, sr.DirtyThreshold)
+
+	// Nor should writing past the end.
+	_, err = t.mc.WriteAt([]byte{}, initialContentSize+100)
+	AssertEq(nil, err)
+
+	sr, err = t.mc.Stat()
+	AssertEq(nil, err)
+	ExpectEq(initialContentSize, sr.DirtyThreshold)
+
+	// But writing before the end should.
+	_, err = t.mc.WriteAt([]byte{}, initialContentSize-1)
+	AssertEq(nil, err)
+
+	sr, err = t.mc.Stat()
+	AssertEq(nil, err)
+	ExpectEq(initialContentSize-1, sr.DirtyThreshold)
 }
 
 func (t *DirtyTest) Truncate_CallsLease() {
