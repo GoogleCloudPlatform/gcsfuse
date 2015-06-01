@@ -27,9 +27,9 @@ type Throttle interface {
 	// Wait.
 	Capacity() (c uint64)
 
-	// Block until the supplied number of tokens can be secured from the
-	// underlying token bucket, returning early with false if the context is
-	// cancelled before then.
+	// Acquire the given number of tokens from the underlying token bucket, then
+	// sleep until when it says to wake, returning early with false if the
+	// context is cancelled before then.
 	//
 	// REQUIRES: tokens <= capacity
 	Wait(ctx context.Context, tokens uint64) (ok bool)
@@ -70,5 +70,15 @@ func (t *throttle) Capacity() (c uint64) {
 func (t *throttle) Wait(
 	ctx context.Context,
 	tokens uint64) (ok bool) {
-	panic("TODO: Wait")
+	now := MonotonicTime(time.Now().Sub(t.startTime))
+	sleepUntil := t.bucket.Remove(now, tokens)
+
+	select {
+	case <-ctx.Done():
+		return
+
+	case <-time.After(time.Duration(sleepUntil - now)):
+		ok = true
+		return
+	}
 }
