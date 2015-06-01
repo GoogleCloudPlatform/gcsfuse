@@ -137,7 +137,16 @@ func (mc *MutableContent) Destroy() {
 func (mc *MutableContent) ReadAt(
 	ctx context.Context,
 	buf []byte,
-	offset int64) (n int, err error)
+	offset int64) (n int, err error) {
+	// Serve from the appropriate place.
+	if mc.dirty() {
+		n, err = mc.readWriteLease.ReadAt(buf, offset)
+	} else {
+		n, err = mc.initialContents.ReadAt(ctx, buf, offset)
+	}
+
+	return
+}
 
 // Return information about the current state of the content.
 func (mc *MutableContent) Stat(ctx context.Context) (sr StatResult, err error)
