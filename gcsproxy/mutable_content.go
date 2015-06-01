@@ -122,7 +122,6 @@ type mutableContent struct {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-// Panic if any internal invariants are violated.
 func (mc *mutableContent) CheckInvariants() {
 	if mc.destroyed {
 		panic("Use of destroyed mutableContent object.")
@@ -158,8 +157,6 @@ func (mc *mutableContent) CheckInvariants() {
 	}
 }
 
-// Destroy any state used by the object, putting it into an indeterminate
-// state. The object must not be used again.
 func (mc *mutableContent) Destroy() {
 	mc.destroyed = true
 
@@ -174,8 +171,6 @@ func (mc *mutableContent) Destroy() {
 	}
 }
 
-// Read part of the content, with semantics equivalent to io.ReaderAt aside
-// from context support.
 func (mc *mutableContent) ReadAt(
 	ctx context.Context,
 	buf []byte,
@@ -190,7 +185,6 @@ func (mc *mutableContent) ReadAt(
 	return
 }
 
-// Return information about the current state of the content.
 func (mc *mutableContent) Stat(
 	ctx context.Context) (sr StatResult, err error) {
 	sr.DirtyThreshold = mc.dirtyThreshold
@@ -209,8 +203,6 @@ func (mc *mutableContent) Stat(
 	return
 }
 
-// Write into the content, with semantics equivalent to io.WriterAt aside from
-// context support.
 func (mc *mutableContent) WriteAt(
 	ctx context.Context,
 	buf []byte,
@@ -233,8 +225,6 @@ func (mc *mutableContent) WriteAt(
 	return
 }
 
-// Truncate our the content to the given number of bytes, extending if n is
-// greater than the current size.
 func (mc *mutableContent) Truncate(
 	ctx context.Context,
 	n int64) (err error) {
