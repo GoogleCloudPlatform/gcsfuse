@@ -151,7 +151,19 @@ func (t *ThrottledReaderTest) CallsWrapped() {
 }
 
 func (t *ThrottledReaderTest) WrappedReturnsError() {
-	AssertTrue(false, "TODO")
+	// Wrapped
+	expectedErr := errors.New("taco")
+	t.wrapped.f = func(p []byte) (n int, err error) {
+		n = 11
+		err = expectedErr
+		return
+	}
+
+	// Call
+	n, err := t.reader.Read(make([]byte, 16))
+
+	ExpectEq(11, n)
+	ExpectEq(expectedErr, err)
 }
 
 func (t *ThrottledReaderTest) WrappedReturnsEOF() {
