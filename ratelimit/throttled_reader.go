@@ -15,6 +15,7 @@
 package ratelimit
 
 import (
+	"errors"
 	"io"
 
 	"golang.org/x/net/context"
@@ -27,5 +28,20 @@ func ThrottledReader(
 	ctx context.Context,
 	r io.Reader,
 	throttle Throttle) io.Reader {
-	panic("TODO")
+	return &throttledReader{
+		ctx:      ctx,
+		wrapped:  r,
+		throttle: throttle,
+	}
+}
+
+type throttledReader struct {
+	ctx      context.Context
+	wrapped  io.Reader
+	throttle Throttle
+}
+
+func (tr *throttledReader) Read(p []byte) (n int, err error) {
+	err = errors.New("TODO")
+	return
 }
