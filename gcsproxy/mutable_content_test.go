@@ -18,20 +18,17 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
-	"math"
 	"strings"
 	"testing"
 	"testing/iotest"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
-	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/lease/mock_lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	. "github.com/jacobsa/oglematchers"
-	"github.com/jacobsa/oglemock"
+	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
@@ -83,9 +80,9 @@ func (mc *checkingMutableContent) Destroy() {
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-const initialContentSize = 11
-
 type MutableContentTest struct {
+	ctx context.Context
+
 	initialContent mock_lease.MockReadProxy
 	clock          timeutil.SimulatedClock
 	mc             checkingMutableContent
@@ -96,24 +93,20 @@ var _ SetUpInterface = &MutableContentTest{}
 func init() { RegisterTestSuite(&MutableContentTest{}) }
 
 func (t *MutableContentTest) SetUp(ti *TestInfo) {
-	t.src = gcs.Object{
-		Name:       "some/object",
-		Generation: 123,
-		Size:       uint64(initialContentsLen),
-		Updated:    time.Date(2001, 2, 3, 4, 5, 0, 0, time.Local),
-	}
+	t.ctx = ti.Ctx
 
-	t.bucket = mock_gcs.NewMockBucket(ti.MockController, "bucket")
+	// Set up the mock initial contents, including a default size.
+	const initialContentSize = 11
+	ExpectCall(t.initialContent, "Size")().
+		WillRepeatedly(Return(initialContentSize))
 
-	// Set up a fixed, non-zero time.
+	// Set up the clock.
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 
+	// And the mutable content.
 	t.mc.ctx = ti.Ctx
 	t.mc.wrapped = gcsproxy.NewMutableContent(
-		math.MaxUint64, // Disable chunking
-		&t.src,
-		t.bucket,
-		lease.NewFileLeaser("", math.MaxInt32, math.MaxInt64),
+		t.initialContent,
 		&t.clock)
 }
 
