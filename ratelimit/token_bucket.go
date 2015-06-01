@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"math"
 	"time"
-
-	"github.com/jacobsa/gcloud/syncutil"
 )
 
 // A measurement of the amount of real time since some fixed epoch.
@@ -42,10 +40,12 @@ type MonotonicTime time.Duration
 // as told by the token bucket, the overall action rate will be limited to the
 // token bucket's fill rate.
 //
-// Safe for concurrent access.
+// Not safe for concurrent access; requires external synchronization.
 //
 // Cf. http://en.wikipedia.org/wiki/Token_bucket
 type TokenBucket interface {
+	CheckInvariants()
+
 	// Return the maximum number of tokens that the bucket can hold.
 	Capacity() (c uint64)
 
@@ -133,14 +133,11 @@ func ChooseTokenBucketCapacity(
 func NewTokenBucket(
 	rateHz float64,
 	capacity uint64) (tb TokenBucket) {
-	typed := &tokenBucket{
+	tb = &tokenBucket{
 		rateHz:   rateHz,
 		capacity: capacity,
 	}
 
-	typed.mu = syncutil.NewInvariantMutex(typed.checkInvariants)
-
-	tb = typed
 	return
 }
 
@@ -160,22 +157,16 @@ type tokenBucket struct {
 	// Mutable state
 	/////////////////////////
 
-	mu syncutil.InvariantMutex
-
 	// The time that we last updated the bucket's credit. Only moves forward.
-	//
-	// GUARDED_BY(mu)
 	creditTime MonotonicTime
 
 	// The number of credits that were available at creditTime.
 	//
 	// INVARIANT: credit <= float64(capacity)
-	//
-	// GUARDED_BY(mu)
 	credit float64
 }
 
-func (tb *tokenBucket) checkInvariants() {
+func (tb *tokenBucket) CheckInvariants() {
 	// INVARIANT: credit <= float64(capacity)
 	if !(tb.credit <= float64(tb.capacity)) {
 		panic(fmt.Sprintf(
@@ -199,9 +190,6 @@ func (tb *tokenBucket) Remove(
 			tokens,
 			tb.capacity))
 	}
-
-	tb.mu.Lock()
-	defer tb.mu.Unlock()
 
 	// First play the clock forward until now, crediting any tokens that have
 	// accumulated in the meantime, up to the bucket's capacity.

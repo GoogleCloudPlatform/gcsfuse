@@ -17,11 +17,15 @@ package ratelimit
 import (
 	"time"
 
+	"github.com/jacobsa/gcloud/syncutil"
+
 	"golang.org/x/net/context"
 )
 
 // A simple interface for limiting the rate of some event. Unlike TokenBucket,
 // does not allow the user control over what time means.
+//
+// Safe for concurrent access.
 type Throttle interface {
 	// Return the maximum number of tokens that can be requested in a call to
 	// Wait.
@@ -49,29 +53,60 @@ type Throttle interface {
 func NewThrottle(
 	rateHz float64,
 	capacity uint64) (t Throttle) {
-	t = &throttle{
-		bucket:    NewTokenBucket(rateHz, capacity),
+	typed := &throttle{
 		startTime: time.Now(),
+		bucket:    NewTokenBucket(rateHz, capacity),
 	}
 
+	typed.mu = syncutil.NewInvariantMutex(typed.checkInvariants)
+
+	t = typed
 	return
 }
 
 type throttle struct {
-	bucket    TokenBucket
+	/////////////////////////
+	// Constant data
+	/////////////////////////
+
 	startTime time.Time
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
+	mu syncutil.InvariantMutex
+
+	// INVARIANT: bucket.CheckInvariants()
+	//
+	// GUARDED_BY(mu)
+	bucket TokenBucket
 }
 
+// LOCKS_REQUIRED(t.mu)
+func (t *throttle) checkInvariants() {
+	// INVARIANT: bucket.CheckInvariants()
+	t.bucket.CheckInvariants()
+}
+
+// LOCKS_EXCLUDED(t.mu)
 func (t *throttle) Capacity() (c uint64) {
+	t.mu.Lock()
 	c = t.bucket.Capacity()
+	t.mu.Unlock()
+
 	return
 }
 
+// LOCKS_EXCLUDED(t.mu)
 func (t *throttle) Wait(
 	ctx context.Context,
 	tokens uint64) (ok bool) {
 	now := MonotonicTime(time.Now().Sub(t.startTime))
+
+	t.mu.Lock()
 	sleepUntil := t.bucket.Remove(now, tokens)
+	t.mu.Unlock()
 
 	select {
 	case <-ctx.Done():
