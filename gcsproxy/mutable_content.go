@@ -15,6 +15,7 @@
 package gcsproxy
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -36,6 +37,10 @@ type MutableContent interface {
 	// Destroy any state used by the object, putting it into an indeterminate
 	// state. The object must not be used again.
 	Destroy()
+
+	// Return a read/write lease for the current content. This implicitly
+	// destroys the object, which must not be used again.
+	Release(ctx context.Context) (rwl lease.ReadWriteLease, err error)
 
 	// Read part of the content, with semantics equivalent to io.ReaderAt aside
 	// from context support.
@@ -169,6 +174,12 @@ func (mc *mutableContent) Destroy() {
 		mc.readWriteLease.Downgrade().Revoke()
 		mc.readWriteLease = nil
 	}
+}
+
+func (mc *mutableContent) Release(
+	ctx context.Context) (rwl lease.ReadWriteLease, err error) {
+	err = errors.New("TODO")
+	return
 }
 
 func (mc *mutableContent) ReadAt(
