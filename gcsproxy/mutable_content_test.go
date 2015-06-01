@@ -105,6 +105,8 @@ func (mc *checkingMutableContent) Destroy() {
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
+const initialContentSize = 11
+
 type mutableContentTest struct {
 	ctx context.Context
 
@@ -125,7 +127,6 @@ func (t *mutableContentTest) SetUp(ti *TestInfo) {
 		ti.MockController,
 		"initialContent")
 
-	const initialContentSize = 11
 	ExpectCall(t.initialContent, "Size")().
 		WillRepeatedly(Return(initialContentSize))
 
@@ -197,8 +198,8 @@ func (t *CleanTest) Stat() {
 	sr, err := t.mc.Stat()
 
 	AssertEq(nil, err)
-	ExpectEq(t.initialContent.Size(), sr.Size)
-	ExpectEq(t.initialContent.Size(), sr.DirtyThreshold)
+	ExpectEq(initialContentSize, sr.Size)
+	ExpectEq(initialContentSize, sr.DirtyThreshold)
 	ExpectEq(nil, sr.Mtime)
 }
 
@@ -284,7 +285,7 @@ func (t *DirtyTest) SetUp(ti *TestInfo) {
 	ExpectCall(t.rwl, "Truncate")(Any()).
 		WillOnce(Return(nil))
 
-	err := t.mc.Truncate(t.initialContent.Size())
+	err := t.mc.Truncate(initialContentSize)
 	AssertEq(nil, err)
 }
 
@@ -326,7 +327,21 @@ func (t *DirtyTest) Truncate_CallsLease() {
 }
 
 func (t *DirtyTest) Truncate_LeaseFails() {
-	AssertTrue(false, "TODO")
+	const newSize = initialContentSize - 2
+
+	// Lease
+	ExpectCall(t.rwl, "Truncate")(Any()).
+		WillOnce(Return(errors.New("taco")))
+
+	// Call
+	err := t.mc.Truncate(newSize)
+	ExpectThat(err, Error(HasSubstr("taco")))
+
+	// The dirty threshold should have been updated pessimistically.
+	sr, err := t.mc.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq(newSize, sr.DirtyThreshold)
 }
 
 func (t *DirtyTest) Truncate_LeaseSucceeds() {
