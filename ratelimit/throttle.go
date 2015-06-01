@@ -14,20 +14,42 @@
 
 package ratelimit
 
-import "time"
+import (
+	"time"
 
-// A simple wrapper around TokenBucket that groks time.Time. Time values are
-// converted into MonotonicTime by subtracting StartTime.
+	"golang.org/x/net/context"
+)
+
+// A simple interface for limiting the rate of some event. Unlike TokenBucket,
+// does not allow the user control over what time means.
+type Throttle interface {
+	// Return the maximum number of tokens that can be requested in a call to
+	// Wait.
+	Capacity() (c uint64)
+
+	// Block until the supplied number of tokens can be secured from the
+	// underlying token bucket, returning early with false if the context is
+	// cancelled before then.
+	//
+	// REQUIRES: tokens <= capacity
+	Wait(ctx context.Context, tokens uint64) (ok bool)
+}
+
+// Create a throttle that uses time.Now to judge the time given to the
+// underlying token bucket.
 //
-// If you use this with time.Now, be aware of the monotonicity issues. In
-// particular:
+// Be aware of the monotonicity issues. In particular:
 //
-//  *  If the system clock jumps into the future, the token bucket will let
-//     through a burst of traffic.
+//  *  If the system clock jumps into the future, the throttle will let through
+//     a burst of traffic.
 //
 //  *  If the system clock jumps into the past, it will halt all traffic for
 //     a potentially very long amount of time.
 //
+func NewThrottle(
+	rateHz float64,
+	capacity uint64) (t Throttle)
+
 type SystemTimeTokenBucket struct {
 	Bucket    TokenBucket
 	StartTime time.Time
