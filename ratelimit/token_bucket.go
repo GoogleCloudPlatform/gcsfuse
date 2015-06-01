@@ -217,8 +217,9 @@ func (tb *tokenBucket) Remove(
 		tb.creditTime = now
 	}
 
-	// Deduct the requested tokens. The user will need to wait until it makes it
-	// back to zero, which is when it would have otherwise made it to `tokens`.
+	// Deduct the requested tokens. The user will need to wait until the credit
+	// makes it back to zero, which is when it would have otherwise made it to
+	// `tokens`.
 	tb.credit -= float64(tokens)
 
 	sleepUntil = tb.creditTime
