@@ -170,7 +170,15 @@ func (t *CleanTest) ReadAt_CallsProxy() {
 }
 
 func (t *CleanTest) ReadAt_ProxyFails() {
-	AssertTrue(false, "TODO")
+	// Proxy
+	ExpectCall(t.initialContent, "ReadAt")(Any(), Any(), Any()).
+		WillOnce(Return(17, errors.New("taco")))
+
+	// Call
+	n, err := t.mc.ReadAt(make([]byte, 1), 0)
+
+	ExpectEq(17, n)
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *CleanTest) ReadAt_ProxySuceeds() {
