@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
+	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/lease/mock_lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	. "github.com/jacobsa/oglematchers"
@@ -95,10 +96,11 @@ func (mc *checkingMutableContent) Truncate(n int64) error {
 	return mc.wrapped.Truncate(mc.ctx, n)
 }
 
-func (mc *checkingMutableContent) Release() {
+func (mc *checkingMutableContent) Release() (
+	rwl lease.ReadWriteLease, err error) {
 	mc.wrapped.CheckInvariants()
 	defer mc.wrapped.CheckInvariants()
-	mc.wrapped.Release(mc.ctx)
+	return mc.wrapped.Release(mc.ctx)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -286,7 +288,15 @@ func (t *CleanTest) Release_ProxyFails() {
 }
 
 func (t *CleanTest) Release_ProxySucceeds() {
-	AssertTrue(false, "TODO")
+	// Proxy
+	ExpectCall(t.initialContent, "Upgrade")(Any()).
+		WillOnce(Return(t.rwl, nil))
+
+	// Call
+	rwl, err := t.mc.Release()
+
+	AssertEq(nil, err)
+	ExpectEq(t.rwl, rwl)
 }
 
 ////////////////////////////////////////////////////////////////////////
