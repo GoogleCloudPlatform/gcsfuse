@@ -15,21 +15,76 @@
 package ratelimit_test
 
 import (
+	"io"
 	"testing"
 
+	"golang.org/x/net/context"
+
+	"github.com/googlecloudplatform/gcsfuse/ratelimit"
 	. "github.com/jacobsa/ogletest"
 )
 
 func TestThrottledReader(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+// An io.Reader that defers to a function.
+type funcReader struct {
+	f func([]byte) (int, error)
+}
+
+func (fr *funcReader) Read(p []byte) (n int, err error) {
+	n, err = fr.f(p)
+	return
+}
+
+// A throttler that defers to a function.
+type funcThrottle struct {
+	f func(context.Context, uint64) bool
+}
+
+func (ft *funcThrottle) Capacity() (c uint64) {
+	return 1024
+}
+
+func (ft *funcThrottle) Wait(
+	ctx context.Context,
+	tokens uint64) (ok bool) {
+	ok = ft.f(ctx, tokens)
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
 type ThrottledReaderTest struct {
+	ctx context.Context
+
+	wrapped  funcReader
+	throttle funcThrottle
+
+	reader io.Reader
 }
 
+var _ SetUpInterface = &ThrottledReaderTest{}
+
 func init() { RegisterTestSuite(&ThrottledReaderTest{}) }
+
+func (t *ThrottledReaderTest) SetUp(ti *TestInfo) {
+	t.ctx = ti.Ctx
+
+	// Set up the default throttle function.
+	t.throttle.f = func(ctx context.Context, tokens uint64) (ok bool) {
+		ok = true
+		return
+	}
+
+	// Set up the reader.
+	t.reader = ratelimit.ThrottledReader(t.ctx, &t.wrapped, &t.throttle)
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
