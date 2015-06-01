@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
+	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/lease/mock_lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	. "github.com/jacobsa/oglematchers"
@@ -95,10 +96,10 @@ func (mc *checkingMutableContent) Truncate(n int64) error {
 	return mc.wrapped.Truncate(mc.ctx, n)
 }
 
-func (mc *checkingMutableContent) Destroy() {
+func (mc *checkingMutableContent) Release() (
+	rwl lease.ReadWriteLease, err error) {
 	mc.wrapped.CheckInvariants()
-	defer mc.wrapped.CheckInvariants()
-	mc.wrapped.Destroy()
+	return mc.wrapped.Release(mc.ctx)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -263,6 +264,38 @@ func (t *CleanTest) Truncate_UpgradeSucceeds() {
 		WillOnce(Return(errors.New("")))
 
 	t.mc.Truncate(19)
+}
+
+func (t *CleanTest) Release_CallsProxy() {
+	// Proxy
+	ExpectCall(t.initialContent, "Upgrade")(t.ctx).
+		WillOnce(Return(nil, errors.New("")))
+
+	// Call
+	t.mc.Release()
+}
+
+func (t *CleanTest) Release_ProxyFails() {
+	// Proxy
+	ExpectCall(t.initialContent, "Upgrade")(Any()).
+		WillOnce(Return(nil, errors.New("taco")))
+
+	// Call
+	_, err := t.mc.Release()
+
+	ExpectThat(err, Error(HasSubstr("taco")))
+}
+
+func (t *CleanTest) Release_ProxySucceeds() {
+	// Proxy
+	ExpectCall(t.initialContent, "Upgrade")(Any()).
+		WillOnce(Return(t.rwl, nil))
+
+	// Call
+	rwl, err := t.mc.Release()
+
+	AssertEq(nil, err)
+	ExpectEq(t.rwl, rwl)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -532,4 +565,11 @@ func (t *DirtyTest) Truncate_DirtyThreshold() {
 	sr, err = t.mc.Stat()
 	AssertEq(nil, err)
 	ExpectEq(initialContentSize-1, sr.DirtyThreshold)
+}
+
+func (t *DirtyTest) Release() {
+	rwl, err := t.mc.Release()
+
+	AssertEq(nil, err)
+	ExpectEq(t.rwl, rwl)
 }

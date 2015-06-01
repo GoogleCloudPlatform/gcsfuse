@@ -37,6 +37,10 @@ type MutableContent interface {
 	// state. The object must not be used again.
 	Destroy()
 
+	// Return a read/write lease for the current content. This implicitly
+	// destroys the object, which must not be used again.
+	Release(ctx context.Context) (rwl lease.ReadWriteLease, err error)
+
 	// Read part of the content, with semantics equivalent to io.ReaderAt aside
 	// from context support.
 	ReadAt(ctx context.Context, buf []byte, offset int64) (n int, err error)
@@ -169,6 +173,21 @@ func (mc *mutableContent) Destroy() {
 		mc.readWriteLease.Downgrade().Revoke()
 		mc.readWriteLease = nil
 	}
+}
+
+func (mc *mutableContent) Release(
+	ctx context.Context) (rwl lease.ReadWriteLease, err error) {
+	if mc.dirty() {
+		rwl = mc.readWriteLease
+		mc.readWriteLease = nil
+	} else {
+		rwl, err = mc.initialContent.Upgrade(ctx)
+		mc.initialContent = nil
+	}
+
+	mc.Destroy()
+
+	return
 }
 
 func (mc *mutableContent) ReadAt(
