@@ -35,6 +35,42 @@ func init() { RegisterTestSuite(&ThrottledReaderTest{}) }
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ThrottledReaderTest) DoesFoo() {
+func (t *ThrottledReaderTest) CallsThrottle() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ThrottledReaderTest) ThrottleSaysCancelled() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ThrottledReaderTest) CallsWrapped() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ThrottledReaderTest) WrappedReturnsError() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ThrottledReaderTest) WrappedReturnsEOF() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ThrottledReaderTest) WrappedReturnsFullRead() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ThrottledReaderTest) WrappedReturnsShortRead_CallsAgain() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ThrottledReaderTest) WrappedReturnsShortRead_SecondFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ThrottledReaderTest) WrappedReturnsShortRead_SecondSuceeds() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ThrottledReaderTest) ReadSizeIsAboveThrottleCapacity() {
 	AssertTrue(false, "TODO")
 }

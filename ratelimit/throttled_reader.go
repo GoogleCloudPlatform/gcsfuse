@@ -14,11 +14,17 @@
 
 package ratelimit
 
-import "io"
+import (
+	"io"
+
+	"golang.org/x/net/context"
+)
 
 // Create a reader that limits the bandwidth of reads made from r according to
-// the supplied throttler.
+// the supplied throttler. Reads are assumed to be made under the supplied
+// context.
 func ThrottledReader(
+	ctx context.Context,
 	r io.Reader,
 	throttle Throttle) io.Reader {
 	panic("TODO")
