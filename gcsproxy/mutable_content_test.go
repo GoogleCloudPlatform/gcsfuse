@@ -145,7 +145,15 @@ func (t *CleanTest) Stat() {
 }
 
 func (t *CleanTest) WriteAt_UpgradeFails() {
-	AssertTrue(false, "TODO")
+	// Upgrade
+	ExpectCall(t.initialContent, "Upgrade")(Any()).
+		WillOnce(Return(nil, errors.New("taco")))
+
+	// Call
+	_, err := t.mc.WriteAt(make([]byte, 1), 0)
+
+	ExpectThat(err, Error(HasSubstr("Upgrade")))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *CleanTest) WriteAt_UpgradeSucceeds() {
