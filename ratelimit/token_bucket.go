@@ -111,6 +111,8 @@ func ChooseTokenBucketCapacity(
 			rateHz,
 			window,
 			capacityFloat)
+
+		return
 	}
 
 	capacity = uint64(capacityFloat)
