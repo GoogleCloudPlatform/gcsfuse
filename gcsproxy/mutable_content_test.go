@@ -16,11 +16,9 @@ package gcsproxy_test
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
-	"reflect"
 	"strings"
 	"testing"
 	"testing/iotest"
@@ -40,102 +38,7 @@ import (
 func TestMutableContent(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
-
-func nameIs(name string) Matcher {
-	return NewMatcher(
-		func(candidate interface{}) error {
-			var actual string
-			switch typed := candidate.(type) {
-			case *gcs.CreateObjectRequest:
-				actual = typed.Name
-
-			case *gcs.StatObjectRequest:
-				actual = typed.Name
-
-			case *gcs.ReadObjectRequest:
-				actual = typed.Name
-
-			default:
-				panic(fmt.Sprintf("Unhandled type: %v", reflect.TypeOf(candidate)))
-			}
-
-			if actual != name {
-				return fmt.Errorf("which has name %v", actual)
-			}
-
-			return nil
-		},
-		fmt.Sprintf("Name is: %s", name))
-}
-
-func contentsAre(s string) Matcher {
-	return NewMatcher(
-		func(candidate interface{}) error {
-			// Snarf the contents.
-			req := candidate.(*gcs.CreateObjectRequest)
-			contents, err := ioutil.ReadAll(req.Contents)
-			if err != nil {
-				panic(err)
-			}
-
-			// Compare
-			if string(contents) != s {
-				return errors.New("")
-			}
-
-			return nil
-		},
-		fmt.Sprintf("Object contents are: %s", s))
-}
-
-func generationIs(g int64) Matcher {
-	pred := func(c interface{}) error {
-		switch req := c.(type) {
-		case *gcs.CreateObjectRequest:
-			if req.GenerationPrecondition == nil {
-				return errors.New("which has a nil GenerationPrecondition field.")
-			}
-
-			if *req.GenerationPrecondition != g {
-				return fmt.Errorf(
-					"which has *GenerationPrecondition == %v",
-					*req.GenerationPrecondition)
-			}
-
-		case *gcs.ReadObjectRequest:
-			if req.Generation != g {
-				return fmt.Errorf("which has Generation == %v", req.Generation)
-			}
-
-		default:
-			panic(fmt.Sprintf("Unknown type: %v", reflect.TypeOf(c)))
-		}
-
-		return nil
-	}
-
-	return NewMatcher(
-		pred,
-		fmt.Sprintf("*GenerationPrecondition == %v", g))
-}
-
-type errorReadCloser struct {
-	wrapped io.Reader
-	err     error
-}
-
-func (ec *errorReadCloser) Read(p []byte) (n int, err error) {
-	return ec.wrapped.Read(p)
-}
-
-func (ec *errorReadCloser) Close() error {
-	return ec.err
-}
-
-////////////////////////////////////////////////////////////////////////
-// Invariant-checking mutable object
+// Invariant-checking mutable content
 ////////////////////////////////////////////////////////////////////////
 
 // A wrapper around MutableContent that calls CheckInvariants whenever
@@ -179,15 +82,12 @@ func (mc *checkingMutableContent) Destroy() {
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-const initialContentsLen = 11
-
-var initialContents = strings.Repeat("a", initialContentsLen)
+const initialContentSize = 11
 
 type MutableContentTest struct {
-	src    gcs.Object
-	clock  timeutil.SimulatedClock
-	bucket mock_gcs.MockBucket
-	mc     checkingMutableContent
+	initialContent mock_lease.MockReadProxy
+	clock          timeutil.SimulatedClock
+	mc             checkingMutableContent
 }
 
 var _ SetUpInterface = &MutableContentTest{}
