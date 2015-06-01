@@ -359,5 +359,37 @@ func (t *DirtyTest) Truncate_LeaseSucceeds() {
 }
 
 func (t *DirtyTest) Truncate_DirtyThreshold() {
-	AssertTrue(false, "TODO")
+	var sr gcsproxy.StatResult
+	var err error
+
+	// Simulate successful truncations and size requests.
+	ExpectCall(t.rwl, "Truncate")(Any()).
+		WillRepeatedly(Return(nil))
+
+	ExpectCall(t.rwl, "Size")().
+		WillRepeatedly(Return(100, nil))
+
+	// Truncating to the same size should not affect the dirty threshold.
+	err = t.mc.Truncate(initialContentSize)
+	AssertEq(nil, err)
+
+	sr, err = t.mc.Stat()
+	AssertEq(nil, err)
+	ExpectEq(initialContentSize, sr.DirtyThreshold)
+
+	// Nor should truncating upward.
+	err = t.mc.Truncate(initialContentSize + 100)
+	AssertEq(nil, err)
+
+	sr, err = t.mc.Stat()
+	AssertEq(nil, err)
+	ExpectEq(initialContentSize, sr.DirtyThreshold)
+
+	// But truncating downward should.
+	err = t.mc.Truncate(initialContentSize - 1)
+	AssertEq(nil, err)
+
+	sr, err = t.mc.Stat()
+	AssertEq(nil, err)
+	ExpectEq(initialContentSize-1, sr.DirtyThreshold)
 }
