@@ -28,6 +28,35 @@ import (
 //
 // External synchronization is required.
 type MutableContent struct {
+	/////////////////////////
+	// Dependencies
+	/////////////////////////
+
+	clock timeutil.Clock
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
+	destroyed bool
+
+	// The initial contents with which this object was created, or nil if it has
+	// been dirtied.
+	//
+	// INVARIANT: When non-nil, initialContents.CheckInvariants() does not panic.
+	initialContents lease.ReadProxy
+
+	// When dirty, a read/write lease containing our current contents. When
+	// clean, nil.
+	//
+	// INVARIANT: (initialContents == nil) != (readWriteLease == nil)
+	readWriteLease lease.ReadWriteLease
+
+	// The time at which a method that modifies our contents was last called, or
+	// nil if never.
+	//
+	// INVARIANT: If dirty(), then mtime != nil
+	mtime *time.Time
 }
 
 type StatResult struct {
@@ -85,3 +114,11 @@ func (mc *MutableContent) WriteAt(
 func (mc *MutableContent) Truncate(
 	ctx context.Context,
 	n int64) (err error)
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func (mc *MutableContent) dirty() bool {
+	return mc.readWriteLease != nil
+}
