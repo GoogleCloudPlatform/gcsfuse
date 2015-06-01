@@ -99,7 +99,6 @@ func (mc *checkingMutableContent) Truncate(n int64) error {
 func (mc *checkingMutableContent) Release() (
 	rwl lease.ReadWriteLease, err error) {
 	mc.wrapped.CheckInvariants()
-	defer mc.wrapped.CheckInvariants()
 	return mc.wrapped.Release(mc.ctx)
 }
 

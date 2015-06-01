@@ -15,7 +15,6 @@
 package gcsproxy
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -178,7 +177,16 @@ func (mc *mutableContent) Destroy() {
 
 func (mc *mutableContent) Release(
 	ctx context.Context) (rwl lease.ReadWriteLease, err error) {
-	err = errors.New("TODO")
+	if mc.dirty() {
+		rwl = mc.readWriteLease
+		mc.readWriteLease = nil
+	} else {
+		rwl, err = mc.initialContent.Upgrade(ctx)
+		mc.initialContent = nil
+	}
+
+	mc.Destroy()
+
 	return
 }
 
