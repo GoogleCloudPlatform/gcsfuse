@@ -296,7 +296,15 @@ func (t *DirtyTest) SetUp(ti *TestInfo) {
 }
 
 func (t *DirtyTest) ReadAt_CallsLease() {
-	AssertTrue(false, "TODO")
+	buf := make([]byte, 4)
+	const offset = 17
+
+	// Lease
+	ExpectCall(t.rwl, "ReadAt")(bufferIs(buf), offset).
+		WillOnce(Return(0, errors.New("")))
+
+	// Call
+	t.mc.ReadAt(buf, offset)
 }
 
 func (t *DirtyTest) ReadAt_LeaseFails() {
