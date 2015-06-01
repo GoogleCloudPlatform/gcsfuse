@@ -16,6 +16,7 @@ package gcsproxy
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/lease"
@@ -162,7 +163,19 @@ func (mc *MutableContent) Stat(
 func (mc *MutableContent) WriteAt(
 	ctx context.Context,
 	buf []byte,
-	offset int64) (n int, err error)
+	offset int64) (n int, err error) {
+	// Make sure we have a read/write lease.
+	if err = mc.ensureReadWriteLease(ctx); err != nil {
+		err = fmt.Errorf("ensureReadWriteLease: %v", err)
+		return
+	}
+
+	newMtime := mc.clock.Now()
+	mc.mtime = &newMtime
+	n, err = mc.readWriteLease.WriteAt(buf, offset)
+
+	return
+}
 
 // Truncate our the content to the given number of bytes, extending if n is
 // greater than the current size.
@@ -176,4 +189,26 @@ func (mc *MutableContent) Truncate(
 
 func (mc *MutableContent) dirty() bool {
 	return mc.readWriteLease != nil
+}
+
+// Ensure that mc.readWriteLease is non-nil with an authoritative view of mc's
+// contents.
+func (mc *MutableContent) ensureReadWriteLease(
+	ctx context.Context) (err error) {
+	// Is there anything to do?
+	if mc.readWriteLease != nil {
+		return
+	}
+
+	// Set up the read/write lease.
+	rwl, err := mc.initialContents.Upgrade(ctx)
+	if err != nil {
+		err = fmt.Errorf("initialContents.Upgrade: %v", err)
+		return
+	}
+
+	mc.readWriteLease = rwl
+	mc.initialContents = nil
+
+	return
 }
