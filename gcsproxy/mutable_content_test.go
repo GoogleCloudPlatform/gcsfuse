@@ -95,10 +95,10 @@ func (mc *checkingMutableContent) Truncate(n int64) error {
 	return mc.wrapped.Truncate(mc.ctx, n)
 }
 
-func (mc *checkingMutableContent) Destroy() {
+func (mc *checkingMutableContent) Release() {
 	mc.wrapped.CheckInvariants()
 	defer mc.wrapped.CheckInvariants()
-	mc.wrapped.Destroy()
+	mc.wrapped.Release(mc.ctx)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -266,7 +266,12 @@ func (t *CleanTest) Truncate_UpgradeSucceeds() {
 }
 
 func (t *CleanTest) Release_CallsProxy() {
-	AssertTrue(false, "TODO")
+	// Proxy
+	ExpectCall(t.initialContent, "Upgrade")(t.ctx).
+		WillOnce(Return(nil, errors.New("")))
+
+	// Call
+	t.mc.Release()
 }
 
 func (t *CleanTest) Release_ProxyFails() {
