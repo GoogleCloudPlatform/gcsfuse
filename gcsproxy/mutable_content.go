@@ -15,6 +15,7 @@
 package gcsproxy
 
 import (
+	"errors"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/lease"
@@ -149,7 +150,12 @@ func (mc *MutableContent) ReadAt(
 }
 
 // Return information about the current state of the content.
-func (mc *MutableContent) Stat(ctx context.Context) (sr StatResult, err error)
+func (mc *MutableContent) Stat(
+	ctx context.Context) (sr StatResult, err error) {
+	err = errors.New(
+		"TODO: Make sure Stat tests are up to date with new interface.")
+	return
+}
 
 // Write into the content, with semantics equivalent to io.WriterAt aside from
 // context support.
