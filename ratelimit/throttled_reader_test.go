@@ -15,6 +15,7 @@
 package ratelimit_test
 
 import (
+	"errors"
 	"io"
 	"testing"
 
@@ -110,7 +111,7 @@ func (t *ThrottledReaderTest) CallsThrottle() {
 	// Call
 	t.reader.Read(make([]byte, readSize))
 
-	AssertTrue(throttleCalled)
+	ExpectTrue(throttleCalled)
 }
 
 func (t *ThrottledReaderTest) ThrottleSaysCancelled() {
@@ -128,7 +129,25 @@ func (t *ThrottledReaderTest) ThrottleSaysCancelled() {
 }
 
 func (t *ThrottledReaderTest) CallsWrapped() {
-	AssertTrue(false, "TODO")
+	buf := make([]byte, 16)
+	AssertLe(len(buf), t.throttle.Capacity())
+
+	// Wrapped
+	var readCalled bool
+	t.wrapped.f = func(p []byte) (n int, err error) {
+		AssertFalse(readCalled)
+		readCalled = true
+
+		AssertEq(buf, p)
+
+		err = errors.New("")
+		return
+	}
+
+	// Call
+	t.reader.Read(buf)
+
+	ExpectTrue(readCalled)
 }
 
 func (t *ThrottledReaderTest) WrappedReturnsError() {
