@@ -283,7 +283,7 @@ func (t *CleanTest) Release_ProxyFails() {
 	// Call
 	_, err := t.mc.Release()
 
-	ExpectThat(err, HasSubstr("taco"))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *CleanTest) Release_ProxySucceeds() {
