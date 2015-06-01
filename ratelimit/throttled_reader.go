@@ -15,7 +15,6 @@
 package ratelimit
 
 import (
-	"errors"
 	"io"
 
 	"golang.org/x/net/context"
@@ -48,9 +47,8 @@ func (tr *throttledReader) Read(p []byte) (n int, err error) {
 	}
 
 	// Wait for permission to continue.
-	ok := tr.throttle.Wait(tr.ctx, uint64(len(p)))
-	if !ok {
-		err = errors.New("Cancelled while waiting for throttle.")
+	err = tr.throttle.Wait(tr.ctx, uint64(len(p)))
+	if err != nil {
 		return
 	}
 

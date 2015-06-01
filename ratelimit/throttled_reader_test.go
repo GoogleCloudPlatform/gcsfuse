@@ -22,7 +22,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/ratelimit"
-	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -44,7 +43,7 @@ func (fr *funcReader) Read(p []byte) (n int, err error) {
 
 // A throttler that defers to a function.
 type funcThrottle struct {
-	f func(context.Context, uint64) bool
+	f func(context.Context, uint64) error
 }
 
 func (ft *funcThrottle) Capacity() (c uint64) {
@@ -53,8 +52,8 @@ func (ft *funcThrottle) Capacity() (c uint64) {
 
 func (ft *funcThrottle) Wait(
 	ctx context.Context,
-	tokens uint64) (ok bool) {
-	ok = ft.f(ctx, tokens)
+	tokens uint64) (err error) {
+	err = ft.f(ctx, tokens)
 	return
 }
 
@@ -79,8 +78,7 @@ func (t *ThrottledReaderTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 
 	// Set up the default throttle function.
-	t.throttle.f = func(ctx context.Context, tokens uint64) (ok bool) {
-		ok = true
+	t.throttle.f = func(ctx context.Context, tokens uint64) (err error) {
 		return
 	}
 
@@ -98,13 +96,14 @@ func (t *ThrottledReaderTest) CallsThrottle() {
 
 	// Throttle
 	var throttleCalled bool
-	t.throttle.f = func(ctx context.Context, tokens uint64) (ok bool) {
+	t.throttle.f = func(ctx context.Context, tokens uint64) (err error) {
 		AssertFalse(throttleCalled)
 		throttleCalled = true
 
 		AssertEq(t.ctx, ctx)
 		AssertEq(readSize, tokens)
 
+		err = errors.New("")
 		return
 	}
 
@@ -114,9 +113,11 @@ func (t *ThrottledReaderTest) CallsThrottle() {
 	ExpectTrue(throttleCalled)
 }
 
-func (t *ThrottledReaderTest) ThrottleSaysCancelled() {
+func (t *ThrottledReaderTest) ThrottleReturnsError() {
 	// Throttle
-	t.throttle.f = func(ctx context.Context, tokens uint64) (ok bool) {
+	expectedErr := errors.New("taco")
+	t.throttle.f = func(ctx context.Context, tokens uint64) (err error) {
+		err = expectedErr
 		return
 	}
 
@@ -124,8 +125,7 @@ func (t *ThrottledReaderTest) ThrottleSaysCancelled() {
 	n, err := t.reader.Read(make([]byte, 1))
 
 	ExpectEq(0, n)
-	ExpectThat(err, Error(HasSubstr("Cancelled")))
-	ExpectThat(err, Error(HasSubstr("throttle")))
+	ExpectEq(expectedErr, err)
 }
 
 func (t *ThrottledReaderTest) CallsWrapped() {
