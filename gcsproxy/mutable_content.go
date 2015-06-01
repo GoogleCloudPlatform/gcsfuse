@@ -46,13 +46,13 @@ type MutableContent struct {
 	// The initial contents with which this object was created, or nil if it has
 	// been dirtied.
 	//
-	// INVARIANT: When non-nil, initialContents.CheckInvariants() does not panic.
-	initialContents lease.ReadProxy
+	// INVARIANT: When non-nil, initialContent.CheckInvariants() does not panic.
+	initialContent lease.ReadProxy
 
 	// When dirty, a read/write lease containing our current contents. When
 	// clean, nil.
 	//
-	// INVARIANT: (initialContents == nil) != (readWriteLease == nil)
+	// INVARIANT: (initialContent == nil) != (readWriteLease == nil)
 	readWriteLease lease.ReadWriteLease
 
 	// The time at which a method that modifies our contents was last called, or
@@ -79,11 +79,11 @@ type StatResult struct {
 // Create a mutable content object whose initial contents are given by the
 // supplied read proxy.
 func NewMutableContent(
-	initialContents lease.ReadProxy,
+	initialContent lease.ReadProxy,
 	clock timeutil.Clock) (mc *MutableContent) {
 	mc = &MutableContent{
-		clock:           clock,
-		initialContents: initialContents,
+		clock:          clock,
+		initialContent: initialContent,
 	}
 
 	return
@@ -99,18 +99,18 @@ func (mc *MutableContent) CheckInvariants() {
 		panic("Use of destroyed MutableContent object.")
 	}
 
-	// INVARIANT: When non-nil, initialContents.CheckInvariants() does not panic.
-	if mc.initialContents != nil {
-		mc.initialContents.CheckInvariants()
+	// INVARIANT: When non-nil, initialContent.CheckInvariants() does not panic.
+	if mc.initialContent != nil {
+		mc.initialContent.CheckInvariants()
 	}
 
-	// INVARIANT: (initialContents == nil) != (readWriteLease == nil)
-	if mc.initialContents == nil && mc.readWriteLease == nil {
-		panic("Both initialContents and readWriteLease are nil")
+	// INVARIANT: (initialContent == nil) != (readWriteLease == nil)
+	if mc.initialContent == nil && mc.readWriteLease == nil {
+		panic("Both initialContent and readWriteLease are nil")
 	}
 
-	if mc.initialContents != nil && mc.readWriteLease != nil {
-		panic("Both initialContents and readWriteLease are non-nil")
+	if mc.initialContent != nil && mc.readWriteLease != nil {
+		panic("Both initialContent and readWriteLease are non-nil")
 	}
 
 	// INVARIANT: If dirty(), then mtime != nil
@@ -124,9 +124,9 @@ func (mc *MutableContent) CheckInvariants() {
 func (mc *MutableContent) Destroy() {
 	mc.destroyed = true
 
-	if mc.initialContents != nil {
-		mc.initialContents.Destroy()
-		mc.initialContents = nil
+	if mc.initialContent != nil {
+		mc.initialContent.Destroy()
+		mc.initialContent = nil
 	}
 
 	if mc.readWriteLease != nil {
@@ -145,7 +145,7 @@ func (mc *MutableContent) ReadAt(
 	if mc.dirty() {
 		n, err = mc.readWriteLease.ReadAt(buf, offset)
 	} else {
-		n, err = mc.initialContents.ReadAt(ctx, buf, offset)
+		n, err = mc.initialContent.ReadAt(ctx, buf, offset)
 	}
 
 	return
@@ -220,14 +220,14 @@ func (mc *MutableContent) ensureReadWriteLease(
 	}
 
 	// Set up the read/write lease.
-	rwl, err := mc.initialContents.Upgrade(ctx)
+	rwl, err := mc.initialContent.Upgrade(ctx)
 	if err != nil {
-		err = fmt.Errorf("initialContents.Upgrade: %v", err)
+		err = fmt.Errorf("initialContent.Upgrade: %v", err)
 		return
 	}
 
 	mc.readWriteLease = rwl
-	mc.initialContents = nil
+	mc.initialContent = nil
 
 	return
 }
