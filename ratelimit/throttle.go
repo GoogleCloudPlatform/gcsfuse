@@ -32,11 +32,11 @@ type Throttle interface {
 	Capacity() (c uint64)
 
 	// Acquire the given number of tokens from the underlying token bucket, then
-	// sleep until when it says to wake, returning early with false if the
-	// context is cancelled before then.
+	// sleep until when it says to wake. If the context is cancelled before then,
+	// return early with an error.
 	//
 	// REQUIRES: tokens <= capacity
-	Wait(ctx context.Context, tokens uint64) (ok bool)
+	Wait(ctx context.Context, tokens uint64) (err error)
 }
 
 // Create a throttle that uses time.Now to judge the time given to the
