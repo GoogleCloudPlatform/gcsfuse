@@ -157,7 +157,22 @@ func (t *CleanTest) WriteAt_UpgradeFails() {
 }
 
 func (t *CleanTest) WriteAt_UpgradeSucceeds() {
-	AssertTrue(false, "TODO")
+	// Upgrade -- succeed.
+	ExpectCall(t.initialContent, "Upgrade")(Any()).
+		WillOnce(Return(t.rwl, nil))
+
+	// The read/write lease should be called.
+	ExpectCall(t.rwl, "WriteAt")(Any(), 17).
+		WillOnce(Return(0, errors.New("")))
+
+	// Call.
+	t.mc.WriteAt(make([]byte, 1), 17)
+
+	// A further call should go right through to the read/write lease again.
+	ExpectCall(t.rwl, "WriteAt")(Any(), 19).
+		WillOnce(Return(0, errors.New("")))
+
+	t.mc.WriteAt(make([]byte, 1), 19)
 }
 
 func (t *CleanTest) Truncate_UpgradeFails() {
