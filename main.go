@@ -106,6 +106,18 @@ var fTypeCacheTTL = flag.Duration(
 	time.Minute,
 	"How long to cache name -> file/dir type mappings in directory inodes.")
 
+var fOpRateLimitHz = flag.Float64(
+	"op_rate_limit_hz",
+	-1,
+	"If positive, a limit on the rate at which we send requests to GCS, "+
+		"measured over a 30-second window.")
+
+var fEgressBandwidthLimitBytesPerSecond = flag.Float64(
+	"egress_bandwidth_limit_bytes_per_second",
+	-1,
+	"If positive, a limit on the GCS -> gcsfuse bandwidth for reading objects, "+
+		"measured over a 30-second window.")
+
 ////////////////////////////////////////////////////////////////////////
 // Wiring
 ////////////////////////////////////////////////////////////////////////
