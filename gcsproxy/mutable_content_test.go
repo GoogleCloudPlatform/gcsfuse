@@ -274,6 +274,17 @@ type DirtyTest struct {
 
 func init() { RegisterTestSuite(&DirtyTest{}) }
 
+func (t *DirtyTest) SetUp(ti *TestInfo) {
+	t.mutableContentTest.SetUp(ti)
+
+	// Simulate a successful upgrade.
+	ExpectCall(t.initialContent, "Upgrade")(Any()).
+		WillOnce(Return(t.rwl, nil))
+
+	err := t.mc.Truncate(t.initialContent.Size())
+	AssertEq(nil, err)
+}
+
 func (t *DirtyTest) ReadAt_CallsLease() {
 	AssertTrue(false, "TODO")
 }
