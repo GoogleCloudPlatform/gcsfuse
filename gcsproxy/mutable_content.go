@@ -90,10 +90,31 @@ func NewMutableContent(
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-// Panic if any internal invariants are violated. Careful users can call this
-// at appropriate times to help debug weirdness. Consider using
-// syncutil.InvariantMutex to automate the process.
-func (mc *MutableContent) CheckInvariants()
+// Panic if any internal invariants are violated.
+func (mc *MutableContent) CheckInvariants() {
+	if mc.destroyed {
+		panic("Use of destroyted MutableContent object.")
+	}
+
+	// INVARIANT: When non-nil, initialContents.CheckInvariants() does not panic.
+	if mc.initialContents != nil {
+		mc.initialContents.CheckInvariants()
+	}
+
+	// INVARIANT: (initialContents == nil) != (readWriteLease == nil)
+	if mc.initialContents == nil && mc.readWriteLease == nil {
+		panic("Both initialContents and readWriteLease are nil")
+	}
+
+	if mc.initialContents != nil && mc.readWriteLease != nil {
+		panic("Both initialContents and readWriteLease are non-nil")
+	}
+
+	// INVARIANT: If dirty(), then mtime != nil
+	if mc.dirty() && mc.mtime == nil {
+		panic("Expected non-nil mtime.")
+	}
+}
 
 // Destroy any state used by the object, putting it into an indeterminate
 // state. The object must not be used again.
