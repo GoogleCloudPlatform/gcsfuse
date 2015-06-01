@@ -101,7 +101,7 @@ func (t *throttle) Capacity() (c uint64) {
 // LOCKS_EXCLUDED(t.mu)
 func (t *throttle) Wait(
 	ctx context.Context,
-	tokens uint64) (ok bool) {
+	tokens uint64) (err error) {
 	now := MonotonicTime(time.Now().Sub(t.startTime))
 
 	t.mu.Lock()
@@ -110,10 +110,10 @@ func (t *throttle) Wait(
 
 	select {
 	case <-ctx.Done():
+		err = ctx.Err()
 		return
 
 	case <-time.After(time.Duration(sleepUntil - now)):
-		ok = true
 		return
 	}
 }
