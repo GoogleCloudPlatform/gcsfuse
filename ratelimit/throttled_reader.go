@@ -54,8 +54,8 @@ func (tr *throttledReader) Read(p []byte) (n int, err error) {
 		return
 	}
 
-	// Serve the full amount we acquired from the token (unless we hit an early
-	// error, including EOF).
+	// Serve the full amount we acquired from the throttle (unless we hit an
+	// early error, including EOF).
 	for len(p) > 0 && err == nil {
 		var tmp int
 		tmp, err = tr.wrapped.Read(p)
