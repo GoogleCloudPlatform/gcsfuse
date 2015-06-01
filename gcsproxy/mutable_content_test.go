@@ -15,12 +15,14 @@
 package gcsproxy_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/lease/mock_lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
@@ -95,6 +97,10 @@ func (t *mutableContentTest) SetUp(ti *TestInfo) {
 	ExpectCall(t.initialContent, "Size")().
 		WillRepeatedly(Return(initialContentSize))
 
+	// Ignore uninteresting calls.
+	ExpectCall(t.initialContent, "CheckInvariants")().
+		WillRepeatedly(Return())
+
 	// Set up the clock.
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 
@@ -131,10 +137,6 @@ func (t *CleanTest) Stat() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *CleanTest) WriteAt_CallsUpgrade() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *CleanTest) WriteAt_UpgradeFails() {
 	AssertTrue(false, "TODO")
 }
@@ -143,12 +145,16 @@ func (t *CleanTest) WriteAt_UpgradeSucceeds() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *CleanTest) Truncate_CallsUpgrade() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *CleanTest) Truncate_UpgradeFails() {
-	AssertTrue(false, "TODO")
+	// Lease
+	ExpectCall(t.initialContent, "Upgrade")(Any()).
+		WillOnce(Return(nil, errors.New("taco")))
+
+	// Call
+	err := t.mc.Truncate(0)
+
+	ExpectThat(err, Error(HasSubstr("Upgrade")))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *CleanTest) Truncate_UpgradeSucceeds() {
