@@ -51,7 +51,24 @@ func (b *throttledBucket) Name() string {
 func (b *throttledBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
-	err = errors.New("TODO")
+	// Wait for permission to call through.
+	err = b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return
+	}
+
+	// Call through.
+	rc, err = b.wrapped.NewReader(ctx, req)
+	if err != nil {
+		return
+	}
+
+	// Wrap the result in a throttled layer.
+	rc = &readerCloser{
+		Reader: ThrottledReader(rc, b.egressThrottle),
+		Closer: rc,
+	}
+
 	return
 }
 
