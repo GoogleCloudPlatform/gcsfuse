@@ -112,13 +112,6 @@ file, as discussed above.
 
 [issue-22]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/22
 
-## Other performance issues
-
-If you notice otherwise unreasonable performance, please [file an
-issue][issues].
-
-[issues]: https://github.com/googlecloudplatform/gcsfuse/issues
-
 ## Rate limiting
 
 If you would like to rate limit traffic to/from GCS in order to set limits on
@@ -131,6 +124,13 @@ your GCS spending on behalf of gcsfuse, you can do so:
     bandwidth from gcsfuse to GCS.
 
 All rate limiting is approximate, and is performed over a 30-second window.
+
+## Other performance issues
+
+If you notice otherwise unreasonable performance, please [file an
+issue][issues].
+
+[issues]: https://github.com/googlecloudplatform/gcsfuse/issues
 
 
 <a name="support">
