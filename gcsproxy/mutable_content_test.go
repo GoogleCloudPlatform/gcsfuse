@@ -26,6 +26,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/lease"
+	"github.com/googlecloudplatform/gcsfuse/lease/mock_lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
