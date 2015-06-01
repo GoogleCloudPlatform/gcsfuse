@@ -16,6 +16,7 @@ package gcsproxy_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -29,6 +30,35 @@ import (
 )
 
 func TestMutableContent(t *testing.T) { RunTests(t) }
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func bufferIs(buf []byte) Matcher {
+	return NewMatcher(
+		func(candidate interface{}) error {
+			p := candidate.([]byte)
+
+			// Compare.
+			if &buf[0] != &p[0] {
+				return fmt.Errorf(
+					"Differing first bytes: %p vs. %p",
+					&buf[0],
+					&p[0])
+			}
+
+			if len(buf) != len(p) {
+				return fmt.Errorf(
+					"Differing lengths: %d vs. %d",
+					len(buf),
+					len(p))
+			}
+
+			return nil
+		},
+		fmt.Sprintf("Buffer matches"))
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Invariant-checking mutable content
@@ -129,7 +159,14 @@ type CleanTest struct {
 func init() { RegisterTestSuite(&CleanTest{}) }
 
 func (t *CleanTest) ReadAt_CallsProxy() {
-	AssertTrue(false, "TODO")
+	buf := make([]byte, 1)
+
+	// Proxy
+	ExpectCall(t.initialContent, "ReadAt")(t.ctx, bufferIs(buf), 17).
+		WillOnce(Return(0, errors.New("")))
+
+	// Call
+	t.mc.ReadAt(buf, 17)
 }
 
 func (t *CleanTest) ReadAt_ProxyFails() {
