@@ -27,31 +27,6 @@ import (
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-func makeRefreshers(
-	chunkSize uint64,
-	o *gcs.Object,
-	bucket gcs.Bucket) (refreshers []lease.Refresher) {
-	// Iterate over each chunk of the object.
-	for startOff := uint64(0); startOff < o.Size; startOff += chunkSize {
-		r := gcs.ByteRange{startOff, startOff + chunkSize}
-
-		// Clip the range so that objectRefresher can report the correct size.
-		if r.Limit > o.Size {
-			r.Limit = o.Size
-		}
-
-		refresher := &objectRefresher{
-			O:      o,
-			Bucket: bucket,
-			Range:  &r,
-		}
-
-		refreshers = append(refreshers, refresher)
-	}
-
-	return
-}
-
 // Create a view on the given GCS object generation. If rl is non-nil, it must
 // contain a lease for the contents of the object and will be used when
 // possible instead of re-reading the object.
@@ -88,6 +63,31 @@ func NewReadProxy(
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
+
+func makeRefreshers(
+	chunkSize uint64,
+	o *gcs.Object,
+	bucket gcs.Bucket) (refreshers []lease.Refresher) {
+	// Iterate over each chunk of the object.
+	for startOff := uint64(0); startOff < o.Size; startOff += chunkSize {
+		r := gcs.ByteRange{startOff, startOff + chunkSize}
+
+		// Clip the range so that objectRefresher can report the correct size.
+		if r.Limit > o.Size {
+			r.Limit = o.Size
+		}
+
+		refresher := &objectRefresher{
+			O:      o,
+			Bucket: bucket,
+			Range:  &r,
+		}
+
+		refreshers = append(refreshers, refresher)
+	}
+
+	return
+}
 
 // A refresher that returns the contents of a particular generation of a GCS
 // object. Optionally, only a particular range is returned.
