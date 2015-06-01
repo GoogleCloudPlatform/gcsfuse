@@ -64,11 +64,11 @@ func bufferIs(buf []byte) Matcher {
 // Invariant-checking mutable content
 ////////////////////////////////////////////////////////////////////////
 
-// A wrapper around MutableContent that calls CheckInvariants whenever
+// A wrapper around a MutableContent that calls CheckInvariants whenever
 // invariants should hold. For catching logic errors early in the test.
 type checkingMutableContent struct {
 	ctx     context.Context
-	wrapped *gcsproxy.MutableContent
+	wrapped gcsproxy.MutableContent
 }
 
 func (mc *checkingMutableContent) Stat() (gcsproxy.StatResult, error) {
