@@ -15,7 +15,6 @@
 package ratelimit
 
 import (
-	"errors"
 	"io"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -79,42 +78,90 @@ func (b *throttledBucket) NewReader(
 func (b *throttledBucket) CreateObject(
 	ctx context.Context,
 	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
-	err = errors.New("TODO")
+	// Wait for permission to call through.
+	err = b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return
+	}
+
+	// Call through.
+	o, err = b.wrapped.CreateObject(ctx, req)
+
 	return
 }
 
 func (b *throttledBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
-	err = errors.New("TODO")
+	// Wait for permission to call through.
+	err = b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return
+	}
+
+	// Call through.
+	o, err = b.wrapped.CopyObject(ctx, req)
+
 	return
 }
 
 func (b *throttledBucket) StatObject(
 	ctx context.Context,
 	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
-	err = errors.New("TODO")
+	// Wait for permission to call through.
+	err = b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return
+	}
+
+	// Call through.
+	o, err = b.wrapped.StatObject(ctx, req)
+
 	return
 }
 
 func (b *throttledBucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
-	err = errors.New("TODO")
+	// Wait for permission to call through.
+	err = b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return
+	}
+
+	// Call through.
+	listing, err = b.wrapped.ListObjects(ctx, req)
+
 	return
 }
 
 func (b *throttledBucket) UpdateObject(
 	ctx context.Context,
 	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
-	err = errors.New("TODO")
+	// Wait for permission to call through.
+	err = b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return
+	}
+
+	// Call through.
+	o, err = b.wrapped.UpdateObject(ctx, req)
+
 	return
 }
 
 func (b *throttledBucket) DeleteObject(
 	ctx context.Context,
 	name string) (err error) {
-	err = errors.New("TODO")
+	// Wait for permission to call through.
+	err = b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return
+	}
+
+	// Call through.
+	err = b.wrapped.DeleteObject(ctx, name)
+
 	return
 }
 
