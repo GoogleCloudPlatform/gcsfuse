@@ -306,5 +306,24 @@ func (t *ThrottledReaderTest) WrappedReturnsShortRead_SecondSucceedsInFull() {
 }
 
 func (t *ThrottledReaderTest) ReadSizeIsAboveThrottleCapacity() {
-	AssertTrue(false, "TODO")
+	buf := make([]byte, 2048)
+	AssertGt(len(buf), t.throttle.Capacity())
+
+	// Wrapped
+	var readCalled bool
+	t.wrapped.f = func(p []byte) (n int, err error) {
+		AssertFalse(readCalled)
+		readCalled = true
+
+		AssertEq(&buf[0], &p[0])
+		ExpectEq(t.throttle.Capacity(), len(p))
+
+		err = errors.New("")
+		return
+	}
+
+	// Call
+	t.reader.Read(buf)
+
+	ExpectTrue(readCalled)
 }
