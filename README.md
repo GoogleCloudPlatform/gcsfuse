@@ -112,6 +112,19 @@ file, as discussed above.
 
 [issue-22]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/22
 
+## Rate limiting
+
+If you would like to rate limit traffic to/from GCS in order to set limits on
+your GCS spending on behalf of gcsfuse, you can do so:
+
+*   The flag `--op_rate_limit_hz` controls the rate at which gcsfuse will send
+    requests to GCS.
+*   The flag `--egress_bandwidth_limit_bytes_per_second` controls the egress
+    bandwidth from gcsfuse to GCS.
+
+All rate limiting is approximate, and is performed over a 30-second window. Rate
+limiting is disabled by default.
+
 ## Other performance issues
 
 If you notice otherwise unreasonable performance, please [file an

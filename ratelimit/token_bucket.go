@@ -111,14 +111,17 @@ func ChooseTokenBucketCapacity(
 			rateHz,
 			window,
 			capacityFloat)
+
+		return
 	}
 
 	capacity = uint64(capacityFloat)
 	if capacity == 0 {
 		panic(fmt.Sprintf(
-			"Calculated a zero capacity for inputs %f, %v",
+			"Calculated a zero capacity for inputs %f, %v. Float version: %f",
 			rateHz,
-			window))
+			window,
+			capacityFloat))
 	}
 
 	return

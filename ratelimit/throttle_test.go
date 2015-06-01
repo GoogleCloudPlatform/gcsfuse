@@ -105,8 +105,8 @@ func processArrivals(
 		}
 
 		// Wait.
-		ok := throttle.Wait(ctx, accumulated)
-		if !ok {
+		err := throttle.Wait(ctx, accumulated)
+		if err != nil {
 			return
 		}
 
