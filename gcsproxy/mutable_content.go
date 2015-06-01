@@ -29,7 +29,59 @@ import (
 // portion of the content has been dirtied.
 //
 // External synchronization is required.
-type MutableContent struct {
+type MutableContent interface {
+	// Panic if any internal invariants are violated.
+	CheckInvariants()
+
+	// Destroy any state used by the object, putting it into an indeterminate
+	// state. The object must not be used again.
+	Destroy()
+
+	// Read part of the content, with semantics equivalent to io.ReaderAt aside
+	// from context support.
+	ReadAt(ctx context.Context, buf []byte, offset int64) (n int, err error)
+
+	// Return information about the current state of the content.
+	Stat(ctx context.Context) (sr StatResult, err error)
+
+	// Write into the content, with semantics equivalent to io.WriterAt aside from
+	// context support.
+	WriteAt(ctx context.Context, buf []byte, offset int64) (n int, err error)
+
+	// Truncate our the content to the given number of bytes, extending if n is
+	// greater than the current size.
+	Truncate(ctx context.Context, n int64) (err error)
+}
+
+type StatResult struct {
+	// The current size in bytes of the content.
+	Size int64
+
+	// It is guaranteed that all bytes in the range [0, DirtyThreshold) are
+	// unmodified from the original content with which the mutable content object
+	// was created.
+	DirtyThreshold int64
+
+	// The time at which the content was last updated, or nil if we've never
+	// changed it.
+	Mtime *time.Time
+}
+
+// Create a mutable content object whose initial contents are given by the
+// supplied read proxy.
+func NewMutableContent(
+	initialContent lease.ReadProxy,
+	clock timeutil.Clock) (mc MutableContent) {
+	mc = &mutableContent{
+		clock:          clock,
+		initialContent: initialContent,
+		dirtyThreshold: initialContent.Size(),
+	}
+
+	return
+}
+
+type mutableContent struct {
 	/////////////////////////
 	// Dependencies
 	/////////////////////////
@@ -66,42 +118,14 @@ type MutableContent struct {
 	mtime *time.Time
 }
 
-type StatResult struct {
-	// The current size in bytes of the content.
-	Size int64
-
-	// It is guaranteed that all bytes in the range [0, DirtyThreshold) are
-	// unmodified from the original content with which the mutable content object
-	// was created.
-	DirtyThreshold int64
-
-	// The time at which the content was last updated, or nil if we've never
-	// changed it.
-	Mtime *time.Time
-}
-
-// Create a mutable content object whose initial contents are given by the
-// supplied read proxy.
-func NewMutableContent(
-	initialContent lease.ReadProxy,
-	clock timeutil.Clock) (mc *MutableContent) {
-	mc = &MutableContent{
-		clock:          clock,
-		initialContent: initialContent,
-		dirtyThreshold: initialContent.Size(),
-	}
-
-	return
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
 // Panic if any internal invariants are violated.
-func (mc *MutableContent) CheckInvariants() {
+func (mc *mutableContent) CheckInvariants() {
 	if mc.destroyed {
-		panic("Use of destroyed MutableContent object.")
+		panic("Use of destroyed mutableContent object.")
 	}
 
 	// INVARIANT: When non-nil, initialContent.CheckInvariants() does not panic.
@@ -136,7 +160,7 @@ func (mc *MutableContent) CheckInvariants() {
 
 // Destroy any state used by the object, putting it into an indeterminate
 // state. The object must not be used again.
-func (mc *MutableContent) Destroy() {
+func (mc *mutableContent) Destroy() {
 	mc.destroyed = true
 
 	if mc.initialContent != nil {
@@ -152,7 +176,7 @@ func (mc *MutableContent) Destroy() {
 
 // Read part of the content, with semantics equivalent to io.ReaderAt aside
 // from context support.
-func (mc *MutableContent) ReadAt(
+func (mc *mutableContent) ReadAt(
 	ctx context.Context,
 	buf []byte,
 	offset int64) (n int, err error) {
@@ -167,7 +191,7 @@ func (mc *MutableContent) ReadAt(
 }
 
 // Return information about the current state of the content.
-func (mc *MutableContent) Stat(
+func (mc *mutableContent) Stat(
 	ctx context.Context) (sr StatResult, err error) {
 	sr.DirtyThreshold = mc.dirtyThreshold
 	sr.Mtime = mc.mtime
@@ -187,7 +211,7 @@ func (mc *MutableContent) Stat(
 
 // Write into the content, with semantics equivalent to io.WriterAt aside from
 // context support.
-func (mc *MutableContent) WriteAt(
+func (mc *mutableContent) WriteAt(
 	ctx context.Context,
 	buf []byte,
 	offset int64) (n int, err error) {
@@ -211,7 +235,7 @@ func (mc *MutableContent) WriteAt(
 
 // Truncate our the content to the given number of bytes, extending if n is
 // greater than the current size.
-func (mc *MutableContent) Truncate(
+func (mc *mutableContent) Truncate(
 	ctx context.Context,
 	n int64) (err error) {
 	// Make sure we have a read/write lease.
@@ -250,13 +274,13 @@ func minInt64(a int64, b int64) int64 {
 	return b
 }
 
-func (mc *MutableContent) dirty() bool {
+func (mc *mutableContent) dirty() bool {
 	return mc.readWriteLease != nil
 }
 
 // Ensure that mc.readWriteLease is non-nil with an authoritative view of mc's
 // contents.
-func (mc *MutableContent) ensureReadWriteLease(
+func (mc *mutableContent) ensureReadWriteLease(
 	ctx context.Context) (err error) {
 	// Is there anything to do?
 	if mc.readWriteLease != nil {
