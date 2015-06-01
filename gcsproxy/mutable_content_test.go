@@ -301,6 +301,18 @@ func (t *DirtyTest) ReadAt_LeaseSuceeds() {
 	AssertTrue(false, "TODO")
 }
 
+func (t *DirtyTest) Stat_CallsLease() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirtyTest) Stat_LeaseFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirtyTest) Stat_LeaseSucceeds() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *DirtyTest) WriteAt_CallsLease() {
 	AssertTrue(false, "TODO")
 }
@@ -327,25 +339,23 @@ func (t *DirtyTest) Truncate_CallsLease() {
 }
 
 func (t *DirtyTest) Truncate_LeaseFails() {
-	const newSize = initialContentSize - 2
-
 	// Lease
 	ExpectCall(t.rwl, "Truncate")(Any()).
 		WillOnce(Return(errors.New("taco")))
 
 	// Call
-	err := t.mc.Truncate(newSize)
+	err := t.mc.Truncate(0)
 	ExpectThat(err, Error(HasSubstr("taco")))
-
-	// The dirty threshold should have been updated pessimistically.
-	sr, err := t.mc.Stat()
-
-	AssertEq(nil, err)
-	ExpectEq(newSize, sr.DirtyThreshold)
 }
 
 func (t *DirtyTest) Truncate_LeaseSucceeds() {
-	AssertTrue(false, "TODO")
+	// Lease
+	ExpectCall(t.rwl, "Truncate")(Any()).
+		WillOnce(Return(nil))
+
+	// Call
+	err := t.mc.Truncate(0)
+	ExpectEq(nil, err)
 }
 
 func (t *DirtyTest) Truncate_DirtyThreshold() {
