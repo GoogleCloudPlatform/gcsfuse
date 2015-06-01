@@ -93,7 +93,7 @@ func NewMutableContent(
 // Panic if any internal invariants are violated.
 func (mc *MutableContent) CheckInvariants() {
 	if mc.destroyed {
-		panic("Use of destroyted MutableContent object.")
+		panic("Use of destroyed MutableContent object.")
 	}
 
 	// INVARIANT: When non-nil, initialContents.CheckInvariants() does not panic.
@@ -118,7 +118,19 @@ func (mc *MutableContent) CheckInvariants() {
 
 // Destroy any state used by the object, putting it into an indeterminate
 // state. The object must not be used again.
-func (mc *MutableContent) Destroy()
+func (mc *MutableContent) Destroy() {
+	mc.destroyed = true
+
+	if mc.initialContents != nil {
+		mc.initialContents.Destroy()
+		mc.initialContents = nil
+	}
+
+	if mc.readWriteLease != nil {
+		mc.readWriteLease.Downgrade().Revoke()
+		mc.readWriteLease = nil
+	}
+}
 
 // Read part of the content, with semantics equivalent to io.ReaderAt aside
 // from context support.
