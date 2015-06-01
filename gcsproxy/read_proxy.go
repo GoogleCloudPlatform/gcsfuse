@@ -23,16 +23,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-// A read-only view on a particular generation of an object in GCS. Reads may
-// involve reading from a local cache.
-//
-// This type is not safe for concurrent access. The user must provide external
-// synchronization around the methods where it is not otherwise noted.
-type ReadProxy struct {
-	// INVARIANT: wrapped.CheckInvariants does not panic.
-	wrapped lease.ReadProxy
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -69,11 +59,11 @@ func makeRefreshers(
 // If the object is larger than the given chunk size, we will only read
 // and cache portions of it at a time.
 func NewReadProxy(
+	o *gcs.Object,
+	rl lease.ReadLease,
 	chunkSize uint64,
 	leaser lease.FileLeaser,
-	bucket gcs.Bucket,
-	o *gcs.Object,
-	rl lease.ReadLease) (rp *ReadProxy) {
+	bucket gcs.Bucket) (rp lease.ReadProxy) {
 	// Sanity check: the read lease's size should match the object's size if it
 	// is present.
 	if rl != nil && uint64(rl.Size()) != o.Size {
@@ -83,62 +73,15 @@ func NewReadProxy(
 			o.Size))
 	}
 
-	// Set up a lease.ReadProxy.
-	//
 	// Special case: don't bring in the complication of a multi-read proxy if we
 	// have only one refresher.
-	var wrapped lease.ReadProxy
 	refreshers := makeRefreshers(chunkSize, o, bucket)
 	if len(refreshers) == 1 {
-		wrapped = lease.NewReadProxy(leaser, refreshers[0], rl)
+		rp = lease.NewReadProxy(leaser, refreshers[0], rl)
 	} else {
-		wrapped = lease.NewMultiReadProxy(leaser, refreshers, rl)
+		rp = lease.NewMultiReadProxy(leaser, refreshers, rl)
 	}
 
-	// Serve from that.
-	rp = &ReadProxy{
-		wrapped: wrapped,
-	}
-
-	return
-}
-
-// Panic if any internal invariants are violated.
-func (rp *ReadProxy) CheckInvariants() {
-	// INVARIANT: wrapped.CheckInvariants does not panic.
-	rp.wrapped.CheckInvariants()
-}
-
-// Destroy any local file caches, putting the proxy into an indeterminate
-// state. Should be used before dropping the final reference to the proxy.
-func (rp *ReadProxy) Destroy() (err error) {
-	rp.wrapped.Destroy()
-	return
-}
-
-// Return a read/write lease for the contents of the object. This implicitly
-// destroys the proxy, which must not be used further.
-func (rp *ReadProxy) Upgrade(
-	ctx context.Context) (rwl lease.ReadWriteLease, err error) {
-	rwl, err = rp.wrapped.Upgrade(ctx)
-	return
-}
-
-// Return the size of the object generation in bytes.
-func (rp *ReadProxy) Size() (size int64) {
-	size = rp.wrapped.Size()
-	return
-}
-
-// Make a random access read into our view of the content. May block for
-// network access.
-//
-// Guarantees that err != nil if n < len(buf)
-func (rp *ReadProxy) ReadAt(
-	ctx context.Context,
-	buf []byte,
-	offset int64) (n int, err error) {
-	n, err = rp.wrapped.ReadAt(ctx, buf, offset)
 	return
 }
 

@@ -62,7 +62,7 @@ type MutableObject struct {
 	// When clean, a read proxy around src. When dirty, nil.
 	//
 	// INVARIANT: When non-nil, readProxy.CheckInvariants() does not panic.
-	readProxy *ReadProxy
+	readProxy lease.ReadProxy
 
 	// When dirty, a read/write lease containing our current contents. When
 	// clean, nil.
@@ -113,7 +113,7 @@ func NewMutableObject(
 		leaser:    leaser,
 		clock:     clock,
 		src:       *o,
-		readProxy: NewReadProxy(chunkSize, leaser, bucket, o, nil),
+		readProxy: NewReadProxy(o, nil, chunkSize, leaser, bucket),
 	}
 
 	return
@@ -331,7 +331,7 @@ func (mo *MutableObject) Sync(ctx context.Context) (err error) {
 	// new read proxy.
 	rl := mo.readWriteLease.Downgrade()
 	mo.readWriteLease = nil
-	mo.readProxy = NewReadProxy(mo.chunkSize, mo.leaser, mo.bucket, o, rl)
+	mo.readProxy = NewReadProxy(o, rl, mo.chunkSize, mo.leaser, mo.bucket)
 
 	return
 }
