@@ -15,7 +15,6 @@
 package gcsproxy
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -170,8 +169,19 @@ func (mc *MutableContent) ReadAt(
 // Return information about the current state of the content.
 func (mc *MutableContent) Stat(
 	ctx context.Context) (sr StatResult, err error) {
-	err = errors.New(
-		"TODO: Make sure Stat tests are up to date with new interface.")
+	sr.DirtyThreshold = mc.dirtyThreshold
+	sr.Mtime = mc.mtime
+
+	// Get the size from the appropriate place.
+	if mc.dirty() {
+		sr.Size, err = mc.readWriteLease.Size()
+		if err != nil {
+			return
+		}
+	} else {
+		sr.Size = mc.initialContent.Size()
+	}
+
 	return
 }
 
