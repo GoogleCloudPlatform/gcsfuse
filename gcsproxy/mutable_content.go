@@ -89,6 +89,7 @@ func NewMutableContent(
 	mc = &MutableContent{
 		clock:          clock,
 		initialContent: initialContent,
+		dirtyThreshold: initialContent.Size(),
 	}
 
 	return
@@ -186,8 +187,13 @@ func (mc *MutableContent) WriteAt(
 		return
 	}
 
+	// Update our state regarding being dirty.
+	mc.dirtyThreshold = minInt64(mc.dirtyThreshold, offset)
+
 	newMtime := mc.clock.Now()
 	mc.mtime = &newMtime
+
+	// Call through.
 	n, err = mc.readWriteLease.WriteAt(buf, offset)
 
 	return
@@ -210,8 +216,13 @@ func (mc *MutableContent) Truncate(
 		return
 	}
 
+	// Update our state regarding being dirty.
+	mc.dirtyThreshold = minInt64(mc.dirtyThreshold, n)
+
 	newMtime := mc.clock.Now()
 	mc.mtime = &newMtime
+
+	// Call through.
 	err = mc.readWriteLease.Truncate(int64(n))
 
 	return
@@ -220,6 +231,14 @@ func (mc *MutableContent) Truncate(
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
+
+func minInt64(a int64, b int64) int64 {
+	if a < b {
+		return a
+	}
+
+	return b
+}
 
 func (mc *MutableContent) dirty() bool {
 	return mc.readWriteLease != nil
