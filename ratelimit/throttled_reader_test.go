@@ -103,6 +103,7 @@ func (t *ThrottledReaderTest) CallsThrottle() {
 		AssertEq(t.ctx, ctx)
 		AssertEq(readSize, tokens)
 
+		err = errors.New("")
 		return
 	}
 
