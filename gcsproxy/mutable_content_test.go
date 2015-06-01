@@ -308,11 +308,27 @@ func (t *DirtyTest) ReadAt_CallsLease() {
 }
 
 func (t *DirtyTest) ReadAt_LeaseFails() {
-	AssertTrue(false, "TODO")
+	// Lease
+	ExpectCall(t.rwl, "ReadAt")(Any(), Any()).
+		WillOnce(Return(13, errors.New("taco")))
+
+	// Call
+	n, err := t.mc.ReadAt([]byte{}, 0)
+
+	ExpectEq(13, n)
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *DirtyTest) ReadAt_LeaseSuceeds() {
-	AssertTrue(false, "TODO")
+	// Lease
+	ExpectCall(t.rwl, "ReadAt")(Any(), Any()).
+		WillOnce(Return(13, nil))
+
+	// Call
+	n, err := t.mc.ReadAt([]byte{}, 0)
+
+	ExpectEq(13, n)
+	ExpectEq(nil, err)
 }
 
 func (t *DirtyTest) Stat_LeaseFails() {
