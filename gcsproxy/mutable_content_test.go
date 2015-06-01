@@ -363,8 +363,17 @@ func (t *DirtyTest) Truncate_LeaseFails() {
 		WillOnce(Return(errors.New("taco")))
 
 	// Call
-	err := t.mc.Truncate(0)
+	err := t.mc.Truncate(1)
 	ExpectThat(err, Error(HasSubstr("taco")))
+
+	// The dirty threshold and mtime should have been updated.
+	ExpectCall(t.rwl, "Size")().
+		WillRepeatedly(Return(0, nil))
+
+	sr, err := t.mc.Stat()
+	AssertEq(nil, err)
+	ExpectEq(1, sr.DirtyThreshold)
+	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(t.clock.Now())))
 }
 
 func (t *DirtyTest) Truncate_LeaseSucceeds() {
@@ -373,8 +382,17 @@ func (t *DirtyTest) Truncate_LeaseSucceeds() {
 		WillOnce(Return(nil))
 
 	// Call
-	err := t.mc.Truncate(0)
+	err := t.mc.Truncate(1)
 	ExpectEq(nil, err)
+
+	// The dirty threshold and mtime should have been updated.
+	ExpectCall(t.rwl, "Size")().
+		WillRepeatedly(Return(0, nil))
+
+	sr, err := t.mc.Stat()
+	AssertEq(nil, err)
+	ExpectEq(1, sr.DirtyThreshold)
+	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(t.clock.Now())))
 }
 
 func (t *DirtyTest) Truncate_DirtyThreshold() {
