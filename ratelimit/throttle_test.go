@@ -24,12 +24,14 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/googlecloudplatform/gcsfuse/ratelimit"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
-func TestSystemTimeTokenBucket(t *testing.T) { RunTests(t) }
+func TestThrottle(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -55,18 +57,12 @@ func makeSeed() (seed int64) {
 }
 
 func processArrivals(
-	tb *ratelimit.SystemTimeTokenBucket,
+	ctx context.Context,
+	throttle ratelimit.Throttle,
 	arrivalRateHz float64,
 	d time.Duration) (processed uint64) {
 	// Set up an independent source of randomness.
 	randSrc := rand.New(rand.NewSource(makeSeed()))
-
-	// Set up a channel that will be closed when we are supposed to stop.
-	shouldStop := make(chan struct{})
-	go func() {
-		time.Sleep(d)
-		close(shouldStop)
-	}()
 
 	// Tick into a channel at a steady rate, buffering over delays caused by the
 	// token bucket.
@@ -79,7 +75,7 @@ func processArrivals(
 
 		for {
 			select {
-			case <-shouldStop:
+			case <-ctx.Done():
 				return
 
 			case <-ticker.C:
@@ -100,7 +96,7 @@ func processArrivals(
 		var accumulated uint64
 		for accumulated < toAccumulate {
 			select {
-			case <-shouldStop:
+			case <-ctx.Done():
 				return
 
 			case <-ticks:
@@ -108,17 +104,13 @@ func processArrivals(
 			}
 		}
 
-		// Grab the corresponding number of tokens, and sleep until we're told to
-		// wake.
-		now := time.Now()
-		wakeTime := tb.Remove(now, accumulated)
-		processed += accumulated
-
-		select {
-		case <-time.After(wakeTime.Sub(now)):
-		case <-shouldStop:
+		// Wait.
+		ok := throttle.Wait(ctx, accumulated)
+		if !ok {
 			return
 		}
+
+		processed += accumulated
 	}
 }
 
@@ -126,16 +118,16 @@ func processArrivals(
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type SystemTimeTokenBucketTest struct {
+type ThrottleTest struct {
 }
 
-func init() { RegisterTestSuite(&SystemTimeTokenBucketTest{}) }
+func init() { RegisterTestSuite(&ThrottleTest{}) }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *SystemTimeTokenBucketTest) IntegrationTest() {
+func (t *ThrottleTest) IntegrationTest() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	const perCaseDuration = 1 * time.Second
 
@@ -159,28 +151,30 @@ func (t *SystemTimeTokenBucketTest) IntegrationTest() {
 
 	// Run each test case.
 	for i, tc := range testCases {
-		// Create a token bucket.
+		// Create a throttle.
 		capacity, err := ratelimit.ChooseTokenBucketCapacity(
 			tc.limitRateHz,
 			perCaseDuration)
 
 		AssertEq(nil, err)
 
-		tb := &ratelimit.SystemTimeTokenBucket{
-			Bucket:    ratelimit.NewTokenBucket(tc.limitRateHz, capacity),
-			StartTime: time.Now(),
-		}
+		throttle := ratelimit.NewThrottle(tc.limitRateHz, capacity)
 
 		// Start workers.
 		var wg sync.WaitGroup
 		var totalProcessed uint64
+
+		ctx, _ := context.WithDeadline(
+			context.Background(),
+			time.Now().Add(perCaseDuration))
 
 		for i := 0; i < tc.numActors; i++ {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				processed := processArrivals(
-					tb,
+					ctx,
+					throttle,
 					tc.arrivalRateHz/float64(tc.numActors),
 					perCaseDuration)
 
