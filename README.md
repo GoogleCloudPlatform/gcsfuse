@@ -46,15 +46,7 @@ Before invoking gcsfuse, you must have a GCS bucket that you want to mount. If
 your bucket doesn't yet exist, create one using the
 [Google Developers Console][console].
 
-In order to be permitted by GCS to access your bucket, gcsfuse requires
-appropriate credentials in the form of a [service account][]. Follow the
-instructions [here][create-key] to create a service account, generate a private
-key, and download a JSON file containing the private key. Place the JSON file on
-the machine that will be mounting the bucket.
-
 [console]: https://console.developers.google.com
-[service account]: https://cloud.google.com/storage/docs/authentication#service_accounts
-[create-key]: https://cloud.google.com/storage/docs/authentication#generating-a-private-key
 
 ## Invoking gcsfuse
 
