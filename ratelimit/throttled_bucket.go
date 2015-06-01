@@ -14,7 +14,13 @@
 
 package ratelimit
 
-import "github.com/jacobsa/gcloud/gcs"
+import (
+	"errors"
+	"io"
+
+	"github.com/jacobsa/gcloud/gcs"
+	"golang.org/x/net/context"
+)
 
 // Create a bucket that limits the rate at which it calls the wrapped bucket
 // using opThrottle, and limits the bandwidth with which it reads from the
@@ -23,5 +29,70 @@ func NewThrottledBucket(
 	opThrottle Throttle,
 	egressThrottle Throttle,
 	wrapped gcs.Bucket) (b gcs.Bucket) {
-	panic("TODO")
+	b = &throttledBucket{
+		opThrottle:     opThrottle,
+		egressThrottle: egressThrottle,
+		wrapped:        wrapped,
+	}
+
+	return
+}
+
+type throttledBucket struct {
+	opThrottle     Throttle
+	egressThrottle Throttle
+	wrapped        gcs.Bucket
+}
+
+func (b *throttledBucket) Name() string {
+	return b.wrapped.Name()
+}
+
+func (b *throttledBucket) NewReader(
+	ctx context.Context,
+	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (b *throttledBucket) CreateObject(
+	ctx context.Context,
+	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (b *throttledBucket) CopyObject(
+	ctx context.Context,
+	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (b *throttledBucket) StatObject(
+	ctx context.Context,
+	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (b *throttledBucket) ListObjects(
+	ctx context.Context,
+	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (b *throttledBucket) UpdateObject(
+	ctx context.Context,
+	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (b *throttledBucket) DeleteObject(
+	ctx context.Context,
+	name string) (err error) {
+	err = errors.New("TODO")
+	return
 }
