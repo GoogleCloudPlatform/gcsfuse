@@ -301,12 +301,14 @@ func (t *DirtyTest) ReadAt_LeaseSuceeds() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *DirtyTest) Stat_CallsLease() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *DirtyTest) Stat_LeaseFails() {
-	AssertTrue(false, "TODO")
+	// Lease
+	ExpectCall(t.rwl, "Size")().
+		WillOnce(Return(0, errors.New("taco")))
+
+	// Call
+	_, err := t.mc.Stat()
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *DirtyTest) Stat_LeaseSucceeds() {
