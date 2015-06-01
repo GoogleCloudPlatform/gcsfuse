@@ -199,7 +199,31 @@ func (t *ThrottledReaderTest) WrappedReturnsFullRead() {
 }
 
 func (t *ThrottledReaderTest) WrappedReturnsShortRead_CallsAgain() {
-	AssertTrue(false, "TODO")
+	buf := make([]byte, 16)
+	AssertLe(len(buf), t.throttle.Capacity())
+
+	// Wrapped
+	var callCount int
+	t.wrapped.f = func(p []byte) (n int, err error) {
+		AssertLt(callCount, 2)
+		switch callCount {
+		case 0:
+			callCount++
+			n = 2
+
+		case 1:
+			callCount++
+			AssertEq(&buf[2], &p[0])
+			err = errors.New("")
+		}
+
+		return
+	}
+
+	// Call
+	t.reader.Read(buf)
+
+	ExpectEq(2, callCount)
 }
 
 func (t *ThrottledReaderTest) WrappedReturnsShortRead_SecondFails() {
