@@ -29,6 +29,30 @@ import (
 // portion of the content has been dirtied.
 //
 // External synchronization is required.
+type MutableContent interface {
+	// Panic if any internal invariants are violated.
+	CheckInvariants()
+
+	// Destroy any state used by the object, putting it into an indeterminate
+	// state. The object must not be used again.
+	Destroy()
+
+	// Read part of the content, with semantics equivalent to io.ReaderAt aside
+	// from context support.
+	ReadAt(ctx context.Context, buf []byte, offset int64) (n int, err error)
+
+	// Return information about the current state of the content.
+	Stat(ctx context.Context)
+
+	// Write into the content, with semantics equivalent to io.WriterAt aside from
+	// context support.
+	WriteAt(ctx context.Context, buf []byte, offset int64) (n int, err error)
+
+	// Truncate our the content to the given number of bytes, extending if n is
+	// greater than the current size.
+	Truncate(ctx context.Context, n int64) (err error)
+}
+
 type MutableContent struct {
 	/////////////////////////
 	// Dependencies
