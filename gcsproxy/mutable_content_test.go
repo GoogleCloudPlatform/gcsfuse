@@ -141,7 +141,12 @@ func (t *CleanTest) ReadAt_ProxySuceeds() {
 }
 
 func (t *CleanTest) Stat() {
-	AssertTrue(false, "TODO")
+	sr, err := t.mc.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq(t.initialContent.Size(), sr.Size)
+	ExpectEq(t.initialContent.Size(), sr.DirtyThreshold)
+	ExpectEq(nil, sr.Mtime)
 }
 
 func (t *CleanTest) WriteAt_UpgradeFails() {
