@@ -569,5 +569,8 @@ func (t *DirtyTest) Truncate_DirtyThreshold() {
 }
 
 func (t *DirtyTest) Release() {
-	AssertTrue(false, "TODO")
+	rwl, err := t.mc.Release()
+
+	AssertEq(nil, err)
+	ExpectEq(t.rwl, rwl)
 }
