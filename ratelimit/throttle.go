@@ -48,25 +48,27 @@ type Throttle interface {
 //
 func NewThrottle(
 	rateHz float64,
-	capacity uint64) (t Throttle)
+	capacity uint64) (t Throttle) {
+	t = &throttle{
+		bucket:    NewTokenBucket(rateHz, capacity),
+		startTime: time.Now(),
+	}
 
-type SystemTimeTokenBucket struct {
-	Bucket    TokenBucket
-	StartTime time.Time
-}
-
-func (tb *SystemTimeTokenBucket) Capacity(c uint64) {
-	c = tb.Bucket.Capacity()
 	return
 }
 
-func (tb *SystemTimeTokenBucket) Remove(
-	now time.Time,
-	tokens uint64) (sleepUntil time.Time) {
-	d := tb.Bucket.Remove(
-		MonotonicTime(now.Sub(tb.StartTime)),
-		tokens)
+type throttle struct {
+	bucket    TokenBucket
+	startTime time.Time
+}
 
-	sleepUntil = tb.StartTime.Add(time.Duration(d))
+func (t *throttle) Capacity() (c uint64) {
+	c = t.bucket.Capacity()
 	return
+}
+
+func (t *throttle) Wait(
+	ctx context.Context,
+	tokens uint64) (ok bool) {
+	panic("TODO: Wait")
 }
