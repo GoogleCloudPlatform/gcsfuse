@@ -55,6 +55,11 @@ type MutableContent struct {
 	// INVARIANT: (initialContent == nil) != (readWriteLease == nil)
 	readWriteLease lease.ReadWriteLease
 
+	// The lowest byte index that has been modified from the initial contents.
+	//
+	// INVARIANT: initialContent != nil => dirtyThreshold == initialContent.Size()
+	dirtyThreshold int64
+
 	// The time at which a method that modifies our contents was last called, or
 	// nil if never.
 	//
@@ -116,6 +121,16 @@ func (mc *MutableContent) CheckInvariants() {
 	// INVARIANT: If dirty(), then mtime != nil
 	if mc.dirty() && mc.mtime == nil {
 		panic("Expected non-nil mtime.")
+	}
+
+	// INVARIANT: initialContent != nil => dirtyThreshold == initialContent.Size()
+	if mc.initialContent != nil {
+		if mc.dirtyThreshold != mc.initialContent.Size() {
+			panic(fmt.Sprintf(
+				"Dirty threshold mismatch: %d vs. %d",
+				mc.dirtyThreshold,
+				mc.initialContent.Size()))
+		}
 	}
 }
 
