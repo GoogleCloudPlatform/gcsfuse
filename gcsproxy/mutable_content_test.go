@@ -345,7 +345,26 @@ func (t *DirtyTest) WriteAt_CallsLease() {
 }
 
 func (t *DirtyTest) WriteAt_LeaseFails() {
-	AssertTrue(false, "TODO")
+	const offset = initialContentSize - 2
+
+	// Lease
+	ExpectCall(t.rwl, "WriteAt")(Any(), Any()).
+		WillOnce(Return(13, errors.New("taco")))
+
+	// Call
+	n, err := t.mc.WriteAt([]byte{}, offset)
+
+	ExpectEq(13, n)
+	ExpectThat(err, Error(HasSubstr("taco")))
+
+	// The dirty threshold and mtime should have been updated.
+	ExpectCall(t.rwl, "Size")().
+		WillRepeatedly(Return(initialContentSize, nil))
+
+	sr, err := t.mc.Stat()
+	AssertEq(nil, err)
+	ExpectEq(offset, sr.DirtyThreshold)
+	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(t.clock.Now())))
 }
 
 func (t *DirtyTest) WriteAt_LeaseSucceeds() {
