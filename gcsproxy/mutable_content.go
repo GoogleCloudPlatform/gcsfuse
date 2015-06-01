@@ -17,6 +17,7 @@ package gcsproxy
 import (
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/lease"
@@ -181,7 +182,25 @@ func (mc *MutableContent) WriteAt(
 // greater than the current size.
 func (mc *MutableContent) Truncate(
 	ctx context.Context,
-	n int64) (err error)
+	n int64) (err error) {
+	// Make sure we have a read/write lease.
+	if err = mc.ensureReadWriteLease(ctx); err != nil {
+		err = fmt.Errorf("ensureReadWriteLease: %v", err)
+		return
+	}
+
+	// Convert to signed, which is what lease.ReadWriteLease wants.
+	if n > math.MaxInt64 {
+		err = fmt.Errorf("Illegal offset: %v", n)
+		return
+	}
+
+	newMtime := mc.clock.Now()
+	mc.mtime = &newMtime
+	err = mc.readWriteLease.Truncate(int64(n))
+
+	return
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
