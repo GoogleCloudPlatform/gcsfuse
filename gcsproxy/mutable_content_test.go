@@ -96,10 +96,9 @@ func (mc *checkingMutableContent) Truncate(n int64) error {
 	return mc.wrapped.Truncate(mc.ctx, n)
 }
 
-func (mc *checkingMutableContent) Release() (
-	rwl lease.ReadWriteLease, err error) {
+func (mc *checkingMutableContent) Release() (rwl lease.ReadWriteLease) {
 	mc.wrapped.CheckInvariants()
-	return mc.wrapped.Release(mc.ctx)
+	return mc.wrapped.Release()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -266,36 +265,9 @@ func (t *CleanTest) Truncate_UpgradeSucceeds() {
 	t.mc.Truncate(19)
 }
 
-func (t *CleanTest) Release_CallsProxy() {
-	// Proxy
-	ExpectCall(t.initialContent, "Upgrade")(t.ctx).
-		WillOnce(Return(nil, errors.New("")))
-
-	// Call
-	t.mc.Release()
-}
-
-func (t *CleanTest) Release_ProxyFails() {
-	// Proxy
-	ExpectCall(t.initialContent, "Upgrade")(Any()).
-		WillOnce(Return(nil, errors.New("taco")))
-
-	// Call
-	_, err := t.mc.Release()
-
-	ExpectThat(err, Error(HasSubstr("taco")))
-}
-
-func (t *CleanTest) Release_ProxySucceeds() {
-	// Proxy
-	ExpectCall(t.initialContent, "Upgrade")(Any()).
-		WillOnce(Return(t.rwl, nil))
-
-	// Call
-	rwl, err := t.mc.Release()
-
-	AssertEq(nil, err)
-	ExpectEq(t.rwl, rwl)
+func (t *CleanTest) Release() {
+	rwl := t.mc.Release()
+	ExpectEq(nil, rwl)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -568,8 +540,6 @@ func (t *DirtyTest) Truncate_DirtyThreshold() {
 }
 
 func (t *DirtyTest) Release() {
-	rwl, err := t.mc.Release()
-
-	AssertEq(nil, err)
+	rwl := t.mc.Release()
 	ExpectEq(t.rwl, rwl)
 }
