@@ -252,35 +252,6 @@ func (t *IntegrationTest) Stat_InitialState() {
 	ExpectThat(sr.Mtime, timeutil.TimeEq(createTime))
 }
 
-func (t *IntegrationTest) Stat_Synced() {
-	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
-	AssertEq(nil, err)
-
-	t.create(o)
-
-	// Dirty.
-	t.clock.AdvanceTime(time.Second)
-	truncateTime := t.clock.Now()
-
-	err = t.mc.Truncate(2)
-	AssertEq(nil, err)
-
-	t.clock.AdvanceTime(time.Second)
-
-	// Sync.
-	err = t.mc.Sync()
-	AssertEq(nil, err)
-
-	// Stat.
-	sr, err := t.mc.Stat()
-	AssertEq(nil, err)
-
-	ExpectEq(2, sr.Size)
-	ExpectEq(2, sr.DirtyThreshold)
-	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
-}
-
 func (t *IntegrationTest) Stat_Dirty() {
 	// Create.
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
@@ -316,11 +287,11 @@ func (t *IntegrationTest) WithinLeaserLimit() {
 	t.create(o)
 
 	// Extend to be up against the leaser limit, then write out to GCS, which
-	// should downgrade to a read proxy.
+	// should downgrade to a read lease.
 	err = t.mc.Truncate(fileLeaserLimitBytes)
 	AssertEq(nil, err)
 
-	err = t.mc.Sync()
+	rl, _, err := t.mc.Sync()
 	AssertEq(nil, err)
 
 	// The backing object should be present and contain the correct contents.
@@ -335,7 +306,7 @@ func (t *IntegrationTest) WithinLeaserLimit() {
 	// We should still be able to read the contents, because the read lease
 	// should still be valid.
 	buf := make([]byte, 4)
-	n, err := t.mc.ReadAt(buf, 0)
+	n, err := rl.ReadAt(buf, 0)
 
 	AssertEq(nil, err)
 	ExpectEq("taco", string(buf[0:n]))
