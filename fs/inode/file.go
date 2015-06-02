@@ -15,7 +15,6 @@
 package inode
 
 import (
-	"errors"
 	"fmt"
 	"io"
 
@@ -152,7 +151,26 @@ func (f *FileInode) checkInvariants() {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
-	err = errors.New("TODO")
+	// Stat the object in GCS.
+	req := &gcs.StatObjectRequest{Name: f.name}
+	o, err := f.bucket.StatObject(ctx, req)
+
+	// Special case: "not found" means we have been clobbered.
+	if _, ok := err.(*gcs.NotFoundError); ok {
+		err = nil
+		b = true
+		return
+	}
+
+	// Propagate other errors.
+	if err != nil {
+		err = fmt.Errorf("StatObject: %v", err)
+		return
+	}
+
+	// We are clobbered iff the generation doesn't match our source generation.
+	b = (o.Generation != f.src.Generation)
+
 	return
 }
 
