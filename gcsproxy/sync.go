@@ -25,12 +25,12 @@ import (
 // Given an object record and content that was originally derived from that
 // object's contents (and potentially modified):
 //
-// *   If the content has not been modified, return a nil read proxy and a nil
+// *   If the content has not been modified, return a nil read lease and a nil
 //     new object.
 //
 // *   Otherwise, write out a new generation in the bucket (failing with
 //     *gcs.PreconditionError if the source generation is no longer current)
-//     and return a read proxy for that object's contents.
+//     and return a read lease for that object's contents.
 //
 // In the second case, the MutableContent is destroyed. Otherwise, including
 // when this function fails, it is guaranteed to still be valid.
@@ -38,7 +38,7 @@ func Sync(
 	ctx context.Context,
 	srcObject *gcs.Object,
 	content MutableContent,
-	bucket gcs.Bucket) (rp lease.ReadProxy, o *gcs.Object, err error) {
+	bucket gcs.Bucket) (rl lease.ReadLease, o *gcs.Object, err error) {
 	// Stat the content.
 	sr, err := content.Stat(ctx)
 	if err != nil {
@@ -82,6 +82,9 @@ func Sync(
 		err = fmt.Errorf("CreateObject: %v", err)
 		return
 	}
+
+	// Yank out the contents.
+	rl = content.Release().Downgrade()
 
 	return
 }

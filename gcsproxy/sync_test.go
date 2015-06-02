@@ -95,8 +95,8 @@ func (t *SyncTest) SetUp(ti *TestInfo) {
 		WillRepeatedly(Return(rwl))
 }
 
-func (t *SyncTest) call() (rp lease.ReadProxy, o *gcs.Object, err error) {
-	rp, o, err = gcsproxy.Sync(
+func (t *SyncTest) call() (rl lease.ReadLease, o *gcs.Object, err error) {
+	rl, o, err = gcsproxy.Sync(
 		t.ctx,
 		&t.srcObject,
 		t.content,
@@ -169,10 +169,10 @@ func (t *SyncTest) StatSaysNotDirty() {
 		WillOnce(Return(sr, nil))
 
 	// Call
-	rp, o, err := t.call()
+	rl, o, err := t.call()
 
 	AssertEq(nil, err)
-	ExpectEq(nil, rp)
+	ExpectEq(nil, rl)
 	ExpectEq(nil, o)
 }
 
@@ -225,14 +225,15 @@ func (t *SyncTest) BucketSucceeds() {
 		WillOnce(Return(expected, nil))
 
 	// Call
-	rp, o, err := t.call()
+	rl, o, err := t.call()
 
 	AssertEq(nil, err)
 	ExpectEq(expected, o)
 
-	buf := make([]byte, 1024)
-	n, err := rp.ReadAt(t.ctx, buf, 0)
-
+	_, err = rl.Seek(0, 0)
 	AssertEq(nil, err)
-	ExpectEq(string(t.simulatedContents), string(buf[:n]))
+
+	b, err := ioutil.ReadAll(rl)
+	AssertEq(nil, err)
+	ExpectEq(string(t.simulatedContents), string(b))
 }
