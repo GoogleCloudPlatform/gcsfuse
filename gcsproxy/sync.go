@@ -15,6 +15,9 @@
 package gcsproxy
 
 import (
+	"errors"
+
+	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
@@ -29,11 +32,14 @@ import (
 //     *gcs.PreconditionError if the source generation is no longer current)
 //     and return a read proxy for that object's contents.
 //
-//     In this case the MutableObject is destroyed and must not be used again.
+//     In this case the MutableContent is destroyed and must not be used again.
 //
 func Sync(
 	ctx context.Context,
 	sourceObject *gcs.Object,
-	newContent MutableObject,
+	newContent MutableContent,
 	bucket gcs.Bucket) (
-	newProxy ReadProxy, newObject *gcs.Object, err error)
+	newProxy lease.ReadProxy, newObject *gcs.Object, err error) {
+	err = errors.New("TODO")
+	return
+}
