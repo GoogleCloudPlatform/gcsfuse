@@ -15,11 +15,16 @@
 package gcsproxy_test
 
 import (
+	"errors"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy/mock"
+	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
+	. "github.com/jacobsa/oglematchers"
+	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
@@ -33,9 +38,9 @@ func TestSync(t *testing.T) { RunTests(t) }
 type SyncTest struct {
 	ctx context.Context
 
-	srcObject  gcs.Object
-	newContent mock_gcsproxy.MockMutableContent
-	bucket     mock_gcs.MockBucket
+	srcObject gcs.Object
+	content   mock_gcsproxy.MockMutableContent
+	bucket    mock_gcs.MockBucket
 }
 
 var _ SetUpInterface = &SyncTest{}
@@ -50,13 +55,23 @@ func (t *SyncTest) SetUp(ti *TestInfo) {
 	t.srcObject.Name = "foo"
 
 	// Set up dependencies.
-	t.newContent = mock_gcsproxy.NewMockMutableContent(
+	t.content = mock_gcsproxy.NewMockMutableContent(
 		ti.MockController,
-		"newContent")
+		"content")
 
 	t.bucket = mock_gcs.NewMockBucket(
 		ti.MockController,
 		"bucket")
+}
+
+func (t *SyncTest) call() (rp lease.ReadProxy, o *gcs.Object, err error) {
+	rp, o, err = gcsproxy.Sync(
+		t.ctx,
+		&t.srcObject,
+		t.content,
+		t.bucket)
+
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -64,7 +79,15 @@ func (t *SyncTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *SyncTest) StatFails() {
-	AssertTrue(false, "TODO")
+	// Stat
+	ExpectCall(t.content, "Stat")(Any()).
+		WillOnce(Return(gcsproxy.StatResult{}, errors.New("taco")))
+
+	// Call
+	_, _, err := t.call()
+
+	ExpectThat(err, Error(HasSubstr("Stat")))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *SyncTest) StatReturnsWackyDirtyThreshold() {

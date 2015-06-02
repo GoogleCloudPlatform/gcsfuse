@@ -37,7 +37,7 @@ import (
 func Sync(
 	ctx context.Context,
 	srcObject *gcs.Object,
-	newContent MutableContent,
+	content MutableContent,
 	bucket gcs.Bucket) (
 	newProxy lease.ReadProxy, newObject *gcs.Object, err error) {
 	err = errors.New("TODO")
