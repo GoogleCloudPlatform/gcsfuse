@@ -56,8 +56,11 @@ func Sync(
 		return
 	}
 
-	// If the content hasn't been dirtied, we're done.
-	if sr.DirtyThreshold == int64(srcObject.Size) {
+	// If the content hasn't been dirtied (i.e. it is the same size as the source
+	// object, and no bytes within the source object have been dirtied), we're
+	// done.
+	if sr.Size == int64(srcObject.Size) &&
+		sr.DirtyThreshold == sr.Size {
 		return
 	}
 
