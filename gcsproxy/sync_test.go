@@ -17,6 +17,8 @@ package gcsproxy_test
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"math"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
@@ -42,6 +44,8 @@ type SyncTest struct {
 	srcObject gcs.Object
 	content   mock_gcsproxy.MockMutableContent
 	bucket    mock_gcs.MockBucket
+
+	contents []byte
 }
 
 var _ SetUpInterface = &SyncTest{}
@@ -72,6 +76,19 @@ func (t *SyncTest) SetUp(ti *TestInfo) {
 
 	ExpectCall(t.content, "Stat")(Any()).
 		WillRepeatedly(Return(sr, nil))
+
+	// Set up fake contents.
+	t.contents = []byte("taco")
+
+	leaser := lease.NewFileLeaser("", math.MaxInt32, math.MaxInt32)
+	rwl, err := leaser.NewFile()
+	AssertEq(nil, err)
+
+	_, err = rwl.Write(t.contents)
+	AssertEq(nil, err)
+
+	ExpectCall(t.content, "Release")().
+		WillRepeatedly(Return(rwl))
 }
 
 func (t *SyncTest) call() (rp lease.ReadProxy, o *gcs.Object, err error) {
@@ -135,16 +152,22 @@ func (t *SyncTest) StatSaysNotDirty() {
 	ExpectEq(nil, o)
 }
 
-func (t *SyncTest) CallsUpgrade() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *SyncTest) UpgradeFails() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *SyncTest) CallsBucket() {
-	AssertTrue(false, "TODO")
+	// CreateObject
+	var req *gcs.CreateObjectRequest
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
+
+	// Call
+	t.call()
+
+	AssertNe(nil, req)
+	ExpectEq(t.srcObject.Name, req.Name)
+	ExpectThat(req.GenerationPrecondition, Pointee(Equals(t.srcObject.Generation)))
+
+	b, err := ioutil.ReadAll(req.Contents)
+	AssertEq(nil, err)
+	ExpectEq(string(t.contents), string(b))
 }
 
 func (t *SyncTest) BucketFails() {
