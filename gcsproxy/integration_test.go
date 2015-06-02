@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math"
 	"math/rand"
 	"testing"
@@ -161,11 +162,11 @@ func (t *IntegrationTest) ReadThenSync() {
 	ExpectEq("taco", string(buf[:n]))
 
 	// Sync doesn't need to do anything.
-	err = t.mc.Sync()
-	ExpectEq(nil, err)
+	rl, newObj, err := gcsproxy.Sync(t.ctx, o, t.mc.wrapped, t.bucket)
 
-	ExpectEq(o.Generation, t.mc.SourceGeneration())
-	ExpectEq(o.Generation, t.objectGeneration("foo"))
+	AssertEq(nil, err)
+	ExpectEq(nil, rl)
+	ExpectEq(nil, newObj)
 }
 
 func (t *IntegrationTest) WriteThenSync() {
@@ -182,13 +183,22 @@ func (t *IntegrationTest) WriteThenSync() {
 	ExpectEq(1, n)
 
 	// Sync should save out the new generation.
-	err = t.mc.Sync()
-	ExpectEq(nil, err)
+	rl, newObj, err := gcsproxy.Sync(t.ctx, o, t.mc.wrapped, t.bucket)
+	AssertEq(nil, err)
 
-	ExpectNe(o.Generation, t.mc.SourceGeneration())
-	ExpectEq(t.objectGeneration("foo"), t.mc.SourceGeneration())
+	ExpectNe(o.Generation, newObj.Generation)
+	ExpectEq(t.objectGeneration("foo"), newObj.Generation)
 
+	// Read via the bucket.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	AssertEq(nil, err)
+	ExpectEq("paco", string(contents))
+
+	// Read via the lease.
+	_, err = rl.Seek(0, 0)
+	AssertEq(nil, err)
+
+	contents, err = ioutil.ReadAll(rl)
 	AssertEq(nil, err)
 	ExpectEq("paco", string(contents))
 }
