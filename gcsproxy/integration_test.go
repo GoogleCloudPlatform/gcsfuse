@@ -100,14 +100,19 @@ func (t *IntegrationTest) TearDown() {
 }
 
 func (t *IntegrationTest) create(o *gcs.Object) {
-	// Ensure invariants are checked.
+	// Set up the read proxy.
+	rp := gcsproxy.NewReadProxy(
+		o,
+		nil,
+		chunkSize,
+		t.leaser,
+		t.bucket)
+
+	// Use it to create the mutable content.
 	t.mc = &checkingMutableContent{
 		ctx: t.ctx,
 		wrapped: gcsproxy.NewMutableContent(
-			chunkSize,
-			o,
-			t.bucket,
-			t.leaser,
+			rp,
 			&t.clock),
 	}
 }
