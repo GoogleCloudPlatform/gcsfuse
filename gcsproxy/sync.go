@@ -15,7 +15,6 @@
 package gcsproxy
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/lease"
@@ -39,8 +38,7 @@ func Sync(
 	ctx context.Context,
 	srcObject *gcs.Object,
 	content MutableContent,
-	bucket gcs.Bucket) (
-	newProxy lease.ReadProxy, newObject *gcs.Object, err error) {
+	bucket gcs.Bucket) (rp lease.ReadProxy, o *gcs.Object, err error) {
 	// Stat the content.
 	sr, err := content.Stat(ctx)
 	if err != nil {
@@ -51,7 +49,7 @@ func Sync(
 	// Make sure the dirty threshold makes sense.
 	if sr.DirtyThreshold > int64(srcObject.Size) {
 		err = fmt.Errorf(
-			"Weird DirtyThreshold field: %d vs. %d",
+			"Stat returned weird DirtyThreshold field: %d vs. %d",
 			sr.DirtyThreshold,
 			srcObject.Size)
 
@@ -64,7 +62,44 @@ func Sync(
 	}
 
 	// Otherwise, we need to create a new generation.
-	err = errors.New("TODO")
+	o, err = bucket.CreateObject(
+		ctx,
+		&gcs.CreateObjectRequest{
+			Name: srcObject.Name,
+			Contents: &mutableContentReader{
+				Ctx:     ctx,
+				Content: content,
+			},
+			GenerationPrecondition: &srcObject.Generation,
+		})
 
+	if err != nil {
+		// Special case: don't mess with precondition errors.
+		if _, ok := err.(*gcs.PreconditionError); ok {
+			return
+		}
+
+		err = fmt.Errorf("CreateObject: %v", err)
+		return
+	}
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// mutableContentReader
+////////////////////////////////////////////////////////////////////////
+
+// An io.Reader that wraps a MutableContent object, reading starting from a
+// base offset.
+type mutableContentReader struct {
+	Ctx     context.Context
+	Content MutableContent
+	Offset  int64
+}
+
+func (mcr *mutableContentReader) Read(p []byte) (n int, err error) {
+	n, err = mcr.Content.ReadAt(mcr.Ctx, p, mcr.Offset)
+	mcr.Offset += int64(n)
 	return
 }
