@@ -17,6 +17,7 @@ package gcsproxy_test
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math"
 	"testing"
@@ -79,7 +80,10 @@ func (t *SyncTest) SetUp(ti *TestInfo) {
 
 	// Set up fake contents.
 	t.simulatedContents = []byte("taco")
+	ExpectCall(t.content, "ReadAt")(Any(), Any(), Any()).
+		WillRepeatedly(Invoke(t.serveReadAt))
 
+	// And for the released read/write lease.
 	leaser := lease.NewFileLeaser("", math.MaxInt32, math.MaxInt32)
 	rwl, err := leaser.NewFile()
 	AssertEq(nil, err)
@@ -97,6 +101,26 @@ func (t *SyncTest) call() (rp lease.ReadProxy, o *gcs.Object, err error) {
 		&t.srcObject,
 		t.content,
 		t.bucket)
+
+	return
+}
+
+func (t *SyncTest) serveReadAt(
+	ctx context.Context,
+	p []byte,
+	offset int64) (n int, err error) {
+	// Handle out of range reads.
+	if offset > int64(len(t.simulatedContents)) {
+		err = io.EOF
+		return
+	}
+
+	// Copy into the buffer.
+	n = copy(p, t.simulatedContents[int(offset):])
+	if n < len(p) {
+		err = io.EOF
+		return
+	}
 
 	return
 }
