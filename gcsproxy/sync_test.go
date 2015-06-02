@@ -171,7 +171,15 @@ func (t *SyncTest) CallsBucket() {
 }
 
 func (t *SyncTest) BucketFails() {
-	AssertTrue(false, "TODO")
+	// CreateObject
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(Return(nil, errors.New("taco")))
+
+	// Call
+	_, _, err := t.call()
+
+	ExpectThat(err, Error(HasSubstr("CreateObject")))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *SyncTest) BucketSucceeds() {
