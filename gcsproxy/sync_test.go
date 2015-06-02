@@ -183,5 +183,20 @@ func (t *SyncTest) BucketFails() {
 }
 
 func (t *SyncTest) BucketSucceeds() {
-	AssertTrue(false, "TODO")
+	// CreateObject
+	expected := &gcs.Object{}
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(Return(expected, nil))
+
+	// Call
+	rp, o, err := t.call()
+
+	AssertEq(nil, err)
+	ExpectEq(expected, o)
+
+	buf := make([]byte, 1024)
+	n, err := rp.ReadAt(t.ctx, buf, 0)
+
+	AssertEq(nil, err)
+	ExpectEq(string(t.contents), string(buf[:n]))
 }
