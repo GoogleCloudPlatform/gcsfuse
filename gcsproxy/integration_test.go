@@ -585,11 +585,13 @@ func (t *IntegrationTest) MultipleInteractions() {
 			AbortTest()
 		}
 
-		// Sync and recreate.
+		// Sync and recreate if necessary.
 		_, newObj, err := t.sync(o)
 		AssertEq(nil, err)
 
-		t.create(newObj)
+		if newObj != nil {
+			t.create(newObj)
+		}
 
 		// Check the new backing object's contents.
 		objContents, err := gcsutil.ReadObject(t.ctx, t.bucket, name)
