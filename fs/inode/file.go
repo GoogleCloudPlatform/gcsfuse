@@ -34,14 +34,17 @@ type FileInode struct {
 	/////////////////////////
 
 	bucket gcs.Bucket
+	leaser lease.FileLeaser
+	clock  timeutil.Clock
 
 	/////////////////////////
 	// Constant data
 	/////////////////////////
 
-	id    fuseops.InodeID
-	name  string
-	attrs fuseops.InodeAttributes
+	id           fuseops.InodeID
+	name         string
+	attrs        fuseops.InodeAttributes
+	gcsChunkSize uint64
 
 	/////////////////////////
 	// Mutable state
@@ -96,11 +99,14 @@ func NewFileInode(
 	clock timeutil.Clock) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
-		bucket: bucket,
-		id:     id,
-		name:   o.Name,
-		attrs:  attrs,
-		src:    *o,
+		bucket:       bucket,
+		leaser:       leaser,
+		clock:        clock,
+		id:           id,
+		name:         o.Name,
+		attrs:        attrs,
+		gcsChunkSize: gcsChunkSize,
+		src:          *o,
 		content: gcsproxy.NewMutableContent(
 			gcsproxy.NewReadProxy(
 				o,
@@ -278,8 +284,12 @@ func (f *FileInode) Write(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Sync(ctx context.Context) (err error) {
-	// Write out the proxy's contents if it is dirty.
-	err = f.proxy.Sync(ctx)
+	// Write out the contents if they are dirty.
+	rl, newObj, err := gcsproxy.Sync(
+		ctx,
+		&f.src,
+		f.content,
+		f.bucket)
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.
@@ -289,8 +299,21 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 
 	// Propagate other errors.
 	if err != nil {
-		err = fmt.Errorf("ObjectProxy.Sync: %v", err)
+		err = fmt.Errorf("gcsproxy.Sync: %v", err)
 		return
+	}
+
+	// If we wrote out a new object, we need to update our state.
+	if newObj != nil {
+		f.src = *newObj
+		f.content = gcsproxy.NewMutableContent(
+			gcsproxy.NewReadProxy(
+				newObj,
+				rl,
+				f.gcsChunkSize,
+				f.leaser,
+				f.bucket),
+			f.clock)
 	}
 
 	return
