@@ -111,7 +111,20 @@ func (t *SyncTest) StatReturnsWackyDirtyThreshold() {
 }
 
 func (t *SyncTest) StatSaysNotDirty() {
-	AssertTrue(false, "TODO")
+	// Stat
+	sr := gcsproxy.StatResult{
+		DirtyThreshold: int64(t.srcObject.Size),
+	}
+
+	ExpectCall(t.content, "Stat")(Any()).
+		WillOnce(Return(sr, nil))
+
+	// Call
+	rp, o, err := t.call()
+
+	AssertEq(nil, err)
+	ExpectEq(nil, rp)
+	ExpectEq(nil, o)
 }
 
 func (t *SyncTest) CallsUpgrade() {
