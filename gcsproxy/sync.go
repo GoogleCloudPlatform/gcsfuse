@@ -42,12 +42,29 @@ func Sync(
 	bucket gcs.Bucket) (
 	newProxy lease.ReadProxy, newObject *gcs.Object, err error) {
 	// Stat the content.
-	sr, err := content.Stat()
+	sr, err := content.Stat(ctx)
 	if err != nil {
 		err = fmt.Errorf("Stat: %v", err)
 		return
 	}
 
+	// Make sure the dirty threshold makes sense.
+	if sr.DirtyThreshold > int64(srcObject.Size) {
+		err = fmt.Errorf(
+			"Weird DirtyThreshold field: %d vs. %d",
+			sr.DirtyThreshold,
+			srcObject.Size)
+
+		return
+	}
+
+	// If the content hasn't been dirtied, we're done.
+	if sr.DirtyThreshold == int64(srcObject.Size) {
+		return
+	}
+
+	// Otherwise, we need to create a new generation.
 	err = errors.New("TODO")
+
 	return
 }
