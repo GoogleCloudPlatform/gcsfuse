@@ -53,12 +53,19 @@ type FileInode struct {
 	// GUARDED_BY(mu)
 	lc lookupCount
 
-	// A proxy for the backing object in GCS.
+	// The source object from which this inode derives.
 	//
-	// INVARIANT: proxy.CheckInvariants() does not panic
+	// INVARIANT: src.Name == name
 	//
 	// GUARDED_BY(mu)
-	proxy *gcsproxy.MutableObject
+	src gcs.Object
+
+	// The current content of this inode, branched from the source object.
+	//
+	// INVARIANT: content.CheckInvariants() does not panic
+	//
+	// GUARDED_BY(mu)
+	content gcsproxy.MutableContent
 
 	// Has Destroy been called?
 	//
@@ -124,8 +131,13 @@ func (f *FileInode) checkInvariants() {
 		panic("Illegal file name: " + name)
 	}
 
-	// INVARIANT: proxy.CheckInvariants() does not panic
-	f.proxy.CheckInvariants()
+	// INVARIANT: src.Name == name
+	if f.src.Name != name {
+		panic(fmt.Sprintf("Name mismatch: %q vs. %q", f.src.Name, name))
+	}
+
+	// INVARIANT: content.CheckInvariants() does not panic
+	f.content.CheckInvariants()
 }
 
 ////////////////////////////////////////////////////////////////////////
