@@ -246,9 +246,10 @@ func (t *IntegrationTest) Stat_InitialState() {
 	// Stat.
 	sr, err := t.mc.Stat()
 	AssertEq(nil, err)
+
 	ExpectEq(o.Size, sr.Size)
+	ExpectEq(o.Size, sr.DirtyThreshold)
 	ExpectThat(sr.Mtime, timeutil.TimeEq(createTime))
-	ExpectFalse(sr.Clobbered)
 }
 
 func (t *IntegrationTest) Stat_Synced() {
@@ -274,9 +275,10 @@ func (t *IntegrationTest) Stat_Synced() {
 	// Stat.
 	sr, err := t.mc.Stat()
 	AssertEq(nil, err)
+
 	ExpectEq(2, sr.Size)
+	ExpectEq(2, sr.DirtyThreshold)
 	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
-	ExpectFalse(sr.Clobbered)
 }
 
 func (t *IntegrationTest) Stat_Dirty() {
@@ -298,9 +300,10 @@ func (t *IntegrationTest) Stat_Dirty() {
 	// Stat.
 	sr, err := t.mc.Stat()
 	AssertEq(nil, err)
+
 	ExpectEq(2, sr.Size)
+	ExpectEq(2, sr.DirtyThreshold)
 	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
-	ExpectFalse(sr.Clobbered)
 }
 
 func (t *IntegrationTest) WithinLeaserLimit() {
@@ -388,9 +391,10 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_BeforeReading() {
 
 	sr, err := t.mc.Stat()
 	AssertEq(nil, err)
+
 	ExpectEq(o.Size, sr.Size)
+	ExpectEq(o.Size, sr.DirtyThreshold)
 	ExpectThat(sr.Mtime, timeutil.TimeEq(createTime))
-	ExpectTrue(sr.Clobbered)
 
 	// Sync doesn't need to do anything.
 	err = t.mc.Sync()
@@ -440,9 +444,10 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 	// clobbered.
 	sr, err := t.mc.Stat()
 	AssertEq(nil, err)
+
 	ExpectEq(1, sr.Size)
+	ExpectEq(1, sr.DirtyThreshold)
 	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
-	ExpectTrue(sr.Clobbered)
 
 	// Sync should fail with a precondition error.
 	err = t.mc.Sync()
@@ -471,9 +476,10 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_BeforeReading() {
 
 	sr, err := t.mc.Stat()
 	AssertEq(nil, err)
+
 	ExpectEq(o.Size, sr.Size)
+	ExpectEq(o.Size, sr.DirtyThreshold)
 	ExpectThat(sr.Mtime, timeutil.TimeEq(createTime))
-	ExpectTrue(sr.Clobbered)
 
 	// Sync doesn't need to do anything.
 	err = t.mc.Sync()
@@ -523,9 +529,10 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 	// clobbered.
 	sr, err := t.mc.Stat()
 	AssertEq(nil, err)
+
 	ExpectEq(3, sr.Size)
+	ExpectEq(3, sr.DirtyThreshold)
 	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
-	ExpectTrue(sr.Clobbered)
 
 	// Sync should fail with a precondition error.
 	err = t.mc.Sync()
