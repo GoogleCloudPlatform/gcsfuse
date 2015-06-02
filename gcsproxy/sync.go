@@ -16,6 +16,7 @@ package gcsproxy
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/jacobsa/gcloud/gcs"
@@ -40,6 +41,13 @@ func Sync(
 	content MutableContent,
 	bucket gcs.Bucket) (
 	newProxy lease.ReadProxy, newObject *gcs.Object, err error) {
+	// Stat the content.
+	sr, err := content.Stat()
+	if err != nil {
+		err = fmt.Errorf("Stat: %v", err)
+		return
+	}
+
 	err = errors.New("TODO")
 	return
 }
