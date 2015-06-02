@@ -16,6 +16,7 @@ package gcsproxy_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
@@ -53,6 +54,7 @@ func (t *SyncTest) SetUp(ti *TestInfo) {
 	// Set up the source object.
 	t.srcObject.Generation = 1234
 	t.srcObject.Name = "foo"
+	t.srcObject.Size = 17
 
 	// Set up dependencies.
 	t.content = mock_gcsproxy.NewMockMutableContent(
@@ -91,7 +93,21 @@ func (t *SyncTest) StatFails() {
 }
 
 func (t *SyncTest) StatReturnsWackyDirtyThreshold() {
-	AssertTrue(false, "TODO")
+	// Stat
+	sr := gcsproxy.StatResult{
+		DirtyThreshold: int64(t.srcObject.Size + 1),
+	}
+
+	ExpectCall(t.content, "Stat")(Any()).
+		WillOnce(Return(sr, nil))
+
+	// Call
+	_, _, err := t.call()
+
+	ExpectThat(err, Error(HasSubstr("Stat")))
+	ExpectThat(err, Error(HasSubstr("DirtyThreshold")))
+	ExpectThat(err, Error(HasSubstr(fmt.Sprint(t.srcObject.Size))))
+	ExpectThat(err, Error(HasSubstr(fmt.Sprint(t.srcObject.Size+1))))
 }
 
 func (t *SyncTest) StatSaysNotDirty() {
