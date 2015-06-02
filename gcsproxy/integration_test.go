@@ -246,10 +246,8 @@ func (t *IntegrationTest) TruncateThenSync() {
 
 func (t *IntegrationTest) Stat_InitialState() {
 	// Create.
-	createTime := t.clock.Now()
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
 	AssertEq(nil, err)
-	t.clock.AdvanceTime(time.Second)
 
 	t.create(o)
 
@@ -259,7 +257,7 @@ func (t *IntegrationTest) Stat_InitialState() {
 
 	ExpectEq(o.Size, sr.Size)
 	ExpectEq(o.Size, sr.DirtyThreshold)
-	ExpectThat(sr.Mtime, timeutil.TimeEq(createTime))
+	ExpectEq(nil, sr.Mtime)
 }
 
 func (t *IntegrationTest) Stat_Dirty() {
@@ -284,7 +282,7 @@ func (t *IntegrationTest) Stat_Dirty() {
 
 	ExpectEq(2, sr.Size)
 	ExpectEq(2, sr.DirtyThreshold)
-	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
+	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(truncateTime)))
 }
 
 func (t *IntegrationTest) WithinLeaserLimit() {
@@ -416,7 +414,7 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 
 	ExpectEq(1, sr.Size)
 	ExpectEq(1, sr.DirtyThreshold)
-	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
+	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(truncateTime)))
 
 	// Sync should fail with a precondition error.
 	_, _, err = t.sync(o)
@@ -489,7 +487,7 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 
 	ExpectEq(3, sr.Size)
 	ExpectEq(3, sr.DirtyThreshold)
-	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
+	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(truncateTime)))
 
 	// Sync should fail with a precondition error.
 	_, _, err = t.sync(o)
