@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -143,6 +144,12 @@ func (f *FileInode) checkInvariants() {
 	f.content.CheckInvariants()
 }
 
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
+	err = errors.New("TODO")
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -185,7 +192,7 @@ func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
 func (f *FileInode) Destroy() (err error) {
 	f.destroyed = true
 
-	err = f.content.Destroy()
+	f.content.Destroy()
 	return
 }
 
@@ -202,7 +209,12 @@ func (f *FileInode) Attributes(
 	// Fill out the struct.
 	attrs = f.attrs
 	attrs.Size = uint64(sr.Size)
-	attrs.Mtime = sr.Mtime
+
+	if sr.Mtime != nil {
+		attrs.Mtime = *sr.Mtime
+	} else {
+		attrs.Mtime = f.src.Updated
+	}
 
 	// If the object has been clobbered, we reflect that as the inode being
 	// unlinked.
@@ -226,9 +238,9 @@ func (f *FileInode) Read(
 	ctx context.Context,
 	offset int64,
 	size int) (data []byte, err error) {
-	// Read from the proxy.
+	// Read from the mutable content.
 	data = make([]byte, size)
-	n, err := f.proxy.ReadAt(ctx, data, offset)
+	n, err := f.content.ReadAt(ctx, data, offset)
 	data = data[:n]
 
 	// We don't return errors for EOF. Otherwise, propagate errors.
@@ -249,9 +261,9 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) (err error) {
-	// Write to the proxy. Note that the proxy guarantees that it returns an
-	// error for short writes.
-	_, err = f.proxy.WriteAt(ctx, data, offset)
+	// Write to the mutable content. Note that the mutable content guarantees
+	// that it returns an error for short writes.
+	_, err = f.content.WriteAt(ctx, data, offset)
 
 	return
 }
@@ -290,6 +302,6 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 func (f *FileInode) Truncate(
 	ctx context.Context,
 	size int64) (err error) {
-	err = f.proxy.Truncate(ctx, size)
+	err = f.content.Truncate(ctx, size)
 	return
 }
