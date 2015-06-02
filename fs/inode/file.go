@@ -38,10 +38,9 @@ type FileInode struct {
 	// Constant data
 	/////////////////////////
 
-	id           fuseops.InodeID
-	supportNlink bool
-	name         string
-	attrs        fuseops.InodeAttributes
+	id    fuseops.InodeID
+	name  string
+	attrs fuseops.InodeAttributes
 
 	/////////////////////////
 	// Mutable state
@@ -75,10 +74,6 @@ var _ Inode = &FileInode{}
 // gcsChunkSize controls the maximum size of each individual read request made
 // to GCS.
 //
-// If supportNlink is set, Attributes will use bucket.StatObject to find out
-// whether the backing objet has been clobbered. Otherwise, Attributes will
-// always show Nlink == 1.
-//
 // REQUIRES: o != nil
 // REQUIRES: o.Generation > 0
 // REQUIRES: len(o.Name) > 0
@@ -88,17 +83,15 @@ func NewFileInode(
 	o *gcs.Object,
 	attrs fuseops.InodeAttributes,
 	gcsChunkSize uint64,
-	supportNlink bool,
 	bucket gcs.Bucket,
 	leaser lease.FileLeaser,
 	clock timeutil.Clock) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
-		bucket:       bucket,
-		id:           id,
-		name:         o.Name,
-		attrs:        attrs,
-		supportNlink: supportNlink,
+		bucket: bucket,
+		id:     id,
+		name:   o.Name,
+		attrs:  attrs,
 		proxy: gcsproxy.NewMutableObject(
 			gcsChunkSize,
 			o,
@@ -185,7 +178,7 @@ func (f *FileInode) Destroy() (err error) {
 func (f *FileInode) Attributes(
 	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
 	// Stat the object.
-	sr, err := f.proxy.Stat(ctx, f.supportNlink)
+	sr, err := f.proxy.Stat(ctx)
 	if err != nil {
 		err = fmt.Errorf("Stat: %v", err)
 		return

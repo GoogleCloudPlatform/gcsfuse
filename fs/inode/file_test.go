@@ -91,7 +91,6 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 			Mode: fileMode,
 		},
 		math.MaxUint64, // GCS chunk size
-		false,          // Support nlink
 		t.bucket,
 		t.leaser,
 		&t.clock)

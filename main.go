@@ -92,11 +92,6 @@ var fImplicitDirs = flag.Bool(
 	"Implicitly define directories based on their content. See "+
 		"docs/semantics.md.")
 
-var fSupportNlink = flag.Bool(
-	"support_nlink",
-	false,
-	"Return meaningful values for nlink from fstat(2). See docs/semantics.md.")
-
 var fStatCacheTTL = flag.Duration(
 	"stat_cache_ttl",
 	time.Minute,
@@ -300,7 +295,6 @@ func run(bucketName string, mountPoint string) (err error) {
 		TempDirLimitBytes:    *fTempDirLimit,
 		GCSChunkSize:         *fGCSChunkSize,
 		ImplicitDirectories:  *fImplicitDirs,
-		SupportNlink:         *fSupportNlink,
 		DirTypeCacheTTL:      *fTypeCacheTTL,
 		Uid:                  uid,
 		Gid:                  gid,
