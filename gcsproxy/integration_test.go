@@ -332,11 +332,11 @@ func (t *IntegrationTest) LargerThanLeaserLimit() {
 	t.create(o)
 
 	// Extend to be past the leaser limit, then write out to GCS, which should
-	// downgrade to a read proxy.
+	// downgrade to a read lease.
 	err = t.mc.Truncate(fileLeaserLimitBytes + 1)
 	AssertEq(nil, err)
 
-	err = t.mc.Sync()
+	rl, _, err := t.sync(o)
 	AssertEq(nil, err)
 
 	// The backing object should be present and contain the correct contents.
@@ -350,16 +350,14 @@ func (t *IntegrationTest) LargerThanLeaserLimit() {
 
 	// The contents should be lost, because the leaser should have revoked the
 	// read lease.
-	_, err = t.mc.ReadAt(make([]byte, len(contents)), 0)
+	_, err = rl.ReadAt(make([]byte, len(contents)), 0)
 	ExpectThat(err, Error(HasSubstr("not found")))
 }
 
 func (t *IntegrationTest) BackingObjectHasBeenDeleted_BeforeReading() {
 	// Create an object to obtain a record, then delete it.
-	createTime := t.clock.Now()
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
 	AssertEq(nil, err)
-	t.clock.AdvanceTime(time.Second)
 
 	err = t.bucket.DeleteObject(t.ctx, o.Name)
 	AssertEq(nil, err)
@@ -367,19 +365,12 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_BeforeReading() {
 	// Create a mutable object around it.
 	t.create(o)
 
-	// Synchronously-available things should work.
-	ExpectEq(o.Generation, t.mc.SourceGeneration())
-
-	sr, err := t.mc.Stat()
-	AssertEq(nil, err)
-
-	ExpectEq(o.Size, sr.Size)
-	ExpectEq(o.Size, sr.DirtyThreshold)
-	ExpectThat(sr.Mtime, timeutil.TimeEq(createTime))
-
 	// Sync doesn't need to do anything.
-	err = t.mc.Sync()
-	ExpectEq(nil, err)
+	rl, newObj, err := t.sync(o)
+
+	AssertEq(nil, err)
+	ExpectEq(nil, rl)
+	ExpectEq(nil, newObj)
 
 	// Anything that needs to fault in the contents should fail.
 	_, err = t.mc.ReadAt([]byte{}, 0)
@@ -408,8 +399,6 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 	AssertEq(nil, err)
 
 	// Reading and modications should still work.
-	ExpectEq(o.Generation, t.mc.SourceGeneration())
-
 	_, err = t.mc.ReadAt([]byte{}, 0)
 	AssertEq(nil, err)
 
@@ -421,8 +410,7 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 	AssertEq(nil, err)
 	t.clock.AdvanceTime(time.Second)
 
-	// Stat should see the current state, and see that the object has been
-	// clobbered.
+	// Stat should see the current state.
 	sr, err := t.mc.Stat()
 	AssertEq(nil, err)
 
@@ -431,7 +419,7 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
 
 	// Sync should fail with a precondition error.
-	err = t.mc.Sync()
+	_, _, err = t.sync(o)
 	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
 
 	// Nothing should have been created.
@@ -441,10 +429,8 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 
 func (t *IntegrationTest) BackingObjectHasBeenOverwritten_BeforeReading() {
 	// Create an object, then create the mutable object wrapper around it.
-	createTime := t.clock.Now()
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
 	AssertEq(nil, err)
-	t.clock.AdvanceTime(time.Second)
 
 	t.create(o)
 
@@ -452,19 +438,12 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_BeforeReading() {
 	_, err = gcsutil.CreateObject(t.ctx, t.bucket, "foo", "burrito")
 	AssertEq(nil, err)
 
-	// Synchronously-available things should work.
-	ExpectEq(o.Generation, t.mc.SourceGeneration())
-
-	sr, err := t.mc.Stat()
-	AssertEq(nil, err)
-
-	ExpectEq(o.Size, sr.Size)
-	ExpectEq(o.Size, sr.DirtyThreshold)
-	ExpectThat(sr.Mtime, timeutil.TimeEq(createTime))
-
 	// Sync doesn't need to do anything.
-	err = t.mc.Sync()
-	ExpectEq(nil, err)
+	rl, newObj, err := t.sync(o)
+
+	AssertEq(nil, err)
+	ExpectEq(nil, rl)
+	ExpectEq(nil, newObj)
 
 	// Anything that needs to fault in the contents should fail.
 	_, err = t.mc.ReadAt([]byte{}, 0)
@@ -493,8 +472,6 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 	AssertEq(nil, err)
 
 	// Reading and modications should still work.
-	ExpectEq(o.Generation, t.mc.SourceGeneration())
-
 	_, err = t.mc.ReadAt([]byte{}, 0)
 	AssertEq(nil, err)
 
@@ -506,8 +483,7 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 	AssertEq(nil, err)
 	t.clock.AdvanceTime(time.Second)
 
-	// Stat should see the current state, and see that the object has been
-	// clobbered.
+	// Stat should see the current state.
 	sr, err := t.mc.Stat()
 	AssertEq(nil, err)
 
@@ -516,7 +492,7 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
 
 	// Sync should fail with a precondition error.
-	err = t.mc.Sync()
+	_, _, err = t.sync(o)
 	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
 
 	// The newer version should still be present.
@@ -611,10 +587,13 @@ func (t *IntegrationTest) MultipleInteractions() {
 			AbortTest()
 		}
 
-		// Sync and check the backing object's contents.
-		err = t.mc.Sync()
+		// Sync and recreate.
+		_, newObj, err := t.sync(o)
 		AssertEq(nil, err)
 
+		t.create(newObj)
+
+		// Check the new backing object's contents.
 		objContents, err := gcsutil.ReadObject(t.ctx, t.bucket, name)
 		AssertEq(nil, err)
 		if !bytes.Equal(objContents, expectedContents) {
