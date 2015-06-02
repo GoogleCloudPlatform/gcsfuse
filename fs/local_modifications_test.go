@@ -188,7 +188,7 @@ func (t *OpenTest) NonExistent_CreateFlagSet() {
 	// The object should now be present in the bucket, with empty contents.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
-	ExpectEq("", contents)
+	ExpectEq("", string(contents))
 
 	// Write some contents.
 	_, err = t.f1.Write([]byte("012"))
@@ -1725,7 +1725,7 @@ func (t *FileTest) Sync_Dirty() {
 	// the file.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
-	ExpectEq("taco", contents)
+	ExpectEq("taco", string(contents))
 }
 
 func (t *FileTest) Sync_NotDirty() {
@@ -1783,7 +1783,7 @@ func (t *FileTest) Sync_Clobbered() {
 	// Check that the new generation was not replaced.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
-	ExpectEq("foobar", contents)
+	ExpectEq("foobar", string(contents))
 }
 
 func (t *FileTest) Close_Dirty() {
@@ -1807,7 +1807,7 @@ func (t *FileTest) Close_Dirty() {
 	// The contents should now be in the bucket.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
-	ExpectEq("taco", contents)
+	ExpectEq("taco", string(contents))
 }
 
 func (t *FileTest) Close_NotDirty() {
@@ -1867,7 +1867,7 @@ func (t *FileTest) Close_Clobbered() {
 	// Check that the new generation was not replaced.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
-	ExpectEq("foobar", contents)
+	ExpectEq("foobar", string(contents))
 }
 
 ////////////////////////////////////////////////////////////////////////
