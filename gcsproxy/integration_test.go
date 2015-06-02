@@ -142,6 +142,16 @@ func (t *IntegrationTest) objectGeneration(name string) (gen int64) {
 	return
 }
 
+func (t *IntegrationTest) sync(src *gcs.Object) (
+	rl lease.ReadLease, o *gcs.Object, err error) {
+	rl, o, err = gcsproxy.Sync(t.ctx, src, t.mc.wrapped, t.bucket)
+	if err == nil && rl != nil {
+		t.mc = nil
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
@@ -162,7 +172,7 @@ func (t *IntegrationTest) ReadThenSync() {
 	ExpectEq("taco", string(buf[:n]))
 
 	// Sync doesn't need to do anything.
-	rl, newObj, err := gcsproxy.Sync(t.ctx, o, t.mc.wrapped, t.bucket)
+	rl, newObj, err := t.sync(o)
 
 	AssertEq(nil, err)
 	ExpectEq(nil, rl)
@@ -183,7 +193,7 @@ func (t *IntegrationTest) WriteThenSync() {
 	ExpectEq(1, n)
 
 	// Sync should save out the new generation.
-	rl, newObj, err := gcsproxy.Sync(t.ctx, o, t.mc.wrapped, t.bucket)
+	rl, newObj, err := t.sync(o)
 	AssertEq(nil, err)
 
 	ExpectNe(o.Generation, newObj.Generation)
@@ -215,7 +225,7 @@ func (t *IntegrationTest) TruncateThenSync() {
 	AssertEq(nil, err)
 
 	// Sync should save out the new generation.
-	rl, newObj, err := gcsproxy.Sync(t.ctx, o, t.mc.wrapped, t.bucket)
+	rl, newObj, err := t.sync(o)
 	AssertEq(nil, err)
 
 	ExpectNe(o.Generation, newObj.Generation)
@@ -291,7 +301,7 @@ func (t *IntegrationTest) WithinLeaserLimit() {
 	err = t.mc.Truncate(fileLeaserLimitBytes)
 	AssertEq(nil, err)
 
-	rl, _, err := t.mc.Sync()
+	rl, _, err := t.sync(o)
 	AssertEq(nil, err)
 
 	// The backing object should be present and contain the correct contents.
