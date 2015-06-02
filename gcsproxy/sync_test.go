@@ -17,6 +17,9 @@ package gcsproxy_test
 import (
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/gcsproxy/mock"
+	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
@@ -29,6 +32,10 @@ func TestSync(t *testing.T) { RunTests(t) }
 
 type SyncTest struct {
 	ctx context.Context
+
+	srcObject  gcs.Object
+	newContent mock_gcsproxy.MockMutableContent
+	bucket     mock_gcs.MockBucket
 }
 
 var _ SetUpInterface = &SyncTest{}
@@ -37,7 +44,19 @@ func init() { RegisterTestSuite(&SyncTest{}) }
 
 func (t *SyncTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
-	AssertTrue(false, "TODO")
+
+	// Set up the source object.
+	t.srcObject.Generation = 1234
+	t.srcObject.Name = "foo"
+
+	// Set up dependencies.
+	t.newContent = mock_gcsproxy.NewMockMutableContent(
+		ti.MockController,
+		"newContent")
+
+	t.bucket = mock_gcs.NewMockBucket(
+		ti.MockController,
+		"bucket")
 }
 
 ////////////////////////////////////////////////////////////////////////

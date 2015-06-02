@@ -36,7 +36,7 @@ import (
 // when this function fails, it is guaranteed to still be valid.
 func Sync(
 	ctx context.Context,
-	sourceObject *gcs.Object,
+	srcObject *gcs.Object,
 	newContent MutableContent,
 	bucket gcs.Bucket) (
 	newProxy lease.ReadProxy, newObject *gcs.Object, err error) {
