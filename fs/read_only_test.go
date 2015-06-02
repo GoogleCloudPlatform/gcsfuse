@@ -73,5 +73,5 @@ func (t *ReadOnlyTest) DeleteFile() {
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
 
 	AssertEq(nil, err)
-	ExpectEq("taco", contents)
+	ExpectEq("taco", string(contents))
 }

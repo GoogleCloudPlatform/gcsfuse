@@ -188,7 +188,7 @@ func (t *IntegrationTest) WriteThenSync() {
 
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
-	ExpectEq("paco", contents)
+	ExpectEq("paco", string(contents))
 }
 
 func (t *IntegrationTest) TruncateThenSync() {
@@ -211,7 +211,7 @@ func (t *IntegrationTest) TruncateThenSync() {
 
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
-	ExpectEq("ta", contents)
+	ExpectEq("ta", string(contents))
 }
 
 func (t *IntegrationTest) Stat_InitialState() {
@@ -514,7 +514,7 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 	// The newer version should still be present.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, o.Name)
 	AssertEq(nil, err)
-	ExpectEq("burrito", contents)
+	ExpectEq("burrito", string(contents))
 }
 
 func (t *IntegrationTest) MultipleInteractions() {
@@ -609,7 +609,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 
 		objContents, err := gcsutil.ReadObject(t.ctx, t.bucket, name)
 		AssertEq(nil, err)
-		if !bytes.Equal([]byte(objContents), expectedContents) {
+		if !bytes.Equal(objContents, expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)
 			AbortTest()
 		}
