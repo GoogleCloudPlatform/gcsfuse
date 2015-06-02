@@ -162,6 +162,7 @@ func (t *SyncTest) StatReturnsWackyDirtyThreshold() {
 func (t *SyncTest) StatSaysNotDirty() {
 	// Stat
 	sr := gcsproxy.StatResult{
+		Size:           int64(t.srcObject.Size),
 		DirtyThreshold: int64(t.srcObject.Size),
 	}
 
@@ -174,6 +175,60 @@ func (t *SyncTest) StatSaysNotDirty() {
 	AssertEq(nil, err)
 	ExpectEq(nil, rl)
 	ExpectEq(nil, o)
+}
+
+func (t *SyncTest) StatSaysDirty_SameSizeAsSource() {
+	// Stat
+	sr := gcsproxy.StatResult{
+		Size:           int64(t.srcObject.Size),
+		DirtyThreshold: int64(t.srcObject.Size - 1),
+	}
+
+	ExpectCall(t.content, "Stat")(Any()).
+		WillOnce(Return(sr, nil))
+
+	// CreateObject
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(Return(nil, errors.New("")))
+
+	// Call
+	t.call()
+}
+
+func (t *SyncTest) StatSaysDirty_SmallerThanSource() {
+	// Stat
+	sr := gcsproxy.StatResult{
+		Size:           int64(t.srcObject.Size - 1),
+		DirtyThreshold: int64(t.srcObject.Size - 1),
+	}
+
+	ExpectCall(t.content, "Stat")(Any()).
+		WillOnce(Return(sr, nil))
+
+	// CreateObject
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(Return(nil, errors.New("")))
+
+	// Call
+	t.call()
+}
+
+func (t *SyncTest) StatSaysDirty_LargerThanSource() {
+	// Stat
+	sr := gcsproxy.StatResult{
+		Size:           int64(t.srcObject.Size + 1),
+		DirtyThreshold: int64(t.srcObject.Size),
+	}
+
+	ExpectCall(t.content, "Stat")(Any()).
+		WillOnce(Return(sr, nil))
+
+	// CreateObject
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(Return(nil, errors.New("")))
+
+	// Call
+	t.call()
 }
 
 func (t *SyncTest) CallsBucket() {

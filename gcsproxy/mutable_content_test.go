@@ -96,6 +96,11 @@ func (mc *checkingMutableContent) Truncate(n int64) error {
 	return mc.wrapped.Truncate(mc.ctx, n)
 }
 
+func (mc *checkingMutableContent) Destroy() {
+	mc.wrapped.CheckInvariants()
+	mc.wrapped.Destroy()
+}
+
 func (mc *checkingMutableContent) Release() (rwl lease.ReadWriteLease) {
 	mc.wrapped.CheckInvariants()
 	return mc.wrapped.Release()
