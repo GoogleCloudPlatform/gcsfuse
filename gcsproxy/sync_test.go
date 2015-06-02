@@ -48,6 +48,10 @@ func (t *SyncTest) StatFails() {
 	AssertTrue(false, "TODO")
 }
 
+func (t *SyncTest) StatReturnsWackyDirtyThreshold() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *SyncTest) StatSaysNotDirty() {
 	AssertTrue(false, "TODO")
 }
