@@ -99,11 +99,14 @@ func NewFileInode(
 		id:     id,
 		name:   o.Name,
 		attrs:  attrs,
-		proxy: gcsproxy.NewMutableObject(
-			gcsChunkSize,
-			o,
-			bucket,
-			leaser,
+		src:    *o,
+		content: gcsproxy.NewMutableContent(
+			gcsproxy.NewReadProxy(
+				o,
+				nil, // Initial read lease
+				gcsChunkSize,
+				leaser,
+				bucket),
 			clock),
 	}
 
@@ -164,7 +167,7 @@ func (f *FileInode) Name() string {
 //
 // LOCKS_REQUIRED(f)
 func (f *FileInode) SourceGeneration() int64 {
-	return f.proxy.SourceGeneration()
+	return f.src.Generation
 }
 
 // LOCKS_REQUIRED(f.mu)
@@ -182,15 +185,15 @@ func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
 func (f *FileInode) Destroy() (err error) {
 	f.destroyed = true
 
-	err = f.proxy.Destroy()
+	err = f.content.Destroy()
 	return
 }
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
 	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
-	// Stat the object.
-	sr, err := f.proxy.Stat(ctx)
+	// Stat the content.
+	sr, err := f.content.Stat(ctx)
 	if err != nil {
 		err = fmt.Errorf("Stat: %v", err)
 		return
@@ -203,9 +206,13 @@ func (f *FileInode) Attributes(
 
 	// If the object has been clobbered, we reflect that as the inode being
 	// unlinked.
-	if sr.Clobbered {
-		attrs.Nlink = 0
-	} else {
+	clobbered, err := f.clobbered(ctx)
+	if err != nil {
+		err = fmt.Errorf("clobbered: %v", err)
+		return
+	}
+
+	if !clobbered {
 		attrs.Nlink = 1
 	}
 
