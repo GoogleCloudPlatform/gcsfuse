@@ -64,6 +64,14 @@ func (t *SyncTest) SetUp(ti *TestInfo) {
 	t.bucket = mock_gcs.NewMockBucket(
 		ti.MockController,
 		"bucket")
+
+	// By default, show the content as dirty.
+	sr := gcsproxy.StatResult{
+		DirtyThreshold: int64(t.srcObject.Size - 1),
+	}
+
+	ExpectCall(t.content, "Stat")(Any()).
+		WillRepeatedly(Return(sr, nil))
 }
 
 func (t *SyncTest) call() (rp lease.ReadProxy, o *gcs.Object, err error) {
