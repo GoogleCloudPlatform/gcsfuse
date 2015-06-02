@@ -240,7 +240,6 @@ func (t *FileTest) Sync_NotClobbered() {
 
 	// Truncate downward.
 	t.clock.AdvanceTime(time.Second)
-	truncateTime := t.clock.Now()
 
 	err = t.in.Truncate(t.ctx, 2)
 	AssertEq(nil, err)
@@ -267,7 +266,7 @@ func (t *FileTest) Sync_NotClobbered() {
 	AssertEq(nil, err)
 
 	ExpectEq(2, attrs.Size)
-	ExpectThat(attrs.Mtime, timeutil.TimeEq(truncateTime))
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(o.Updated))
 }
 
 func (t *FileTest) Sync_Clobbered() {

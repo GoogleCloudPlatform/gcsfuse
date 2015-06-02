@@ -33,14 +33,17 @@ type FileInode struct {
 	/////////////////////////
 
 	bucket gcs.Bucket
+	leaser lease.FileLeaser
+	clock  timeutil.Clock
 
 	/////////////////////////
 	// Constant data
 	/////////////////////////
 
-	id    fuseops.InodeID
-	name  string
-	attrs fuseops.InodeAttributes
+	id           fuseops.InodeID
+	name         string
+	attrs        fuseops.InodeAttributes
+	gcsChunkSize uint64
 
 	/////////////////////////
 	// Mutable state
@@ -53,12 +56,19 @@ type FileInode struct {
 	// GUARDED_BY(mu)
 	lc lookupCount
 
-	// A proxy for the backing object in GCS.
+	// The source object from which this inode derives.
 	//
-	// INVARIANT: proxy.CheckInvariants() does not panic
+	// INVARIANT: src.Name == name
 	//
 	// GUARDED_BY(mu)
-	proxy *gcsproxy.MutableObject
+	src gcs.Object
+
+	// The current content of this inode, branched from the source object.
+	//
+	// INVARIANT: content.CheckInvariants() does not panic
+	//
+	// GUARDED_BY(mu)
+	content gcsproxy.MutableContent
 
 	// Has Destroy been called?
 	//
@@ -88,15 +98,21 @@ func NewFileInode(
 	clock timeutil.Clock) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
-		bucket: bucket,
-		id:     id,
-		name:   o.Name,
-		attrs:  attrs,
-		proxy: gcsproxy.NewMutableObject(
-			gcsChunkSize,
-			o,
-			bucket,
-			leaser,
+		bucket:       bucket,
+		leaser:       leaser,
+		clock:        clock,
+		id:           id,
+		name:         o.Name,
+		attrs:        attrs,
+		gcsChunkSize: gcsChunkSize,
+		src:          *o,
+		content: gcsproxy.NewMutableContent(
+			gcsproxy.NewReadProxy(
+				o,
+				nil, // Initial read lease
+				gcsChunkSize,
+				leaser,
+				bucket),
 			clock),
 	}
 
@@ -124,8 +140,38 @@ func (f *FileInode) checkInvariants() {
 		panic("Illegal file name: " + name)
 	}
 
-	// INVARIANT: proxy.CheckInvariants() does not panic
-	f.proxy.CheckInvariants()
+	// INVARIANT: src.Name == name
+	if f.src.Name != name {
+		panic(fmt.Sprintf("Name mismatch: %q vs. %q", f.src.Name, name))
+	}
+
+	// INVARIANT: content.CheckInvariants() does not panic
+	f.content.CheckInvariants()
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
+	// Stat the object in GCS.
+	req := &gcs.StatObjectRequest{Name: f.name}
+	o, err := f.bucket.StatObject(ctx, req)
+
+	// Special case: "not found" means we have been clobbered.
+	if _, ok := err.(*gcs.NotFoundError); ok {
+		err = nil
+		b = true
+		return
+	}
+
+	// Propagate other errors.
+	if err != nil {
+		err = fmt.Errorf("StatObject: %v", err)
+		return
+	}
+
+	// We are clobbered iff the generation doesn't match our source generation.
+	b = (o.Generation != f.src.Generation)
+
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -152,7 +198,7 @@ func (f *FileInode) Name() string {
 //
 // LOCKS_REQUIRED(f)
 func (f *FileInode) SourceGeneration() int64 {
-	return f.proxy.SourceGeneration()
+	return f.src.Generation
 }
 
 // LOCKS_REQUIRED(f.mu)
@@ -170,15 +216,15 @@ func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
 func (f *FileInode) Destroy() (err error) {
 	f.destroyed = true
 
-	err = f.proxy.Destroy()
+	f.content.Destroy()
 	return
 }
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
 	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
-	// Stat the object.
-	sr, err := f.proxy.Stat(ctx)
+	// Stat the content.
+	sr, err := f.content.Stat(ctx)
 	if err != nil {
 		err = fmt.Errorf("Stat: %v", err)
 		return
@@ -187,13 +233,22 @@ func (f *FileInode) Attributes(
 	// Fill out the struct.
 	attrs = f.attrs
 	attrs.Size = uint64(sr.Size)
-	attrs.Mtime = sr.Mtime
+
+	if sr.Mtime != nil {
+		attrs.Mtime = *sr.Mtime
+	} else {
+		attrs.Mtime = f.src.Updated
+	}
 
 	// If the object has been clobbered, we reflect that as the inode being
 	// unlinked.
-	if sr.Clobbered {
-		attrs.Nlink = 0
-	} else {
+	clobbered, err := f.clobbered(ctx)
+	if err != nil {
+		err = fmt.Errorf("clobbered: %v", err)
+		return
+	}
+
+	if !clobbered {
 		attrs.Nlink = 1
 	}
 
@@ -207,9 +262,9 @@ func (f *FileInode) Read(
 	ctx context.Context,
 	offset int64,
 	size int) (data []byte, err error) {
-	// Read from the proxy.
+	// Read from the mutable content.
 	data = make([]byte, size)
-	n, err := f.proxy.ReadAt(ctx, data, offset)
+	n, err := f.content.ReadAt(ctx, data, offset)
 	data = data[:n]
 
 	// We don't return errors for EOF. Otherwise, propagate errors.
@@ -230,9 +285,9 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) (err error) {
-	// Write to the proxy. Note that the proxy guarantees that it returns an
-	// error for short writes.
-	_, err = f.proxy.WriteAt(ctx, data, offset)
+	// Write to the mutable content. Note that the mutable content guarantees
+	// that it returns an error for short writes.
+	_, err = f.content.WriteAt(ctx, data, offset)
 
 	return
 }
@@ -247,8 +302,12 @@ func (f *FileInode) Write(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Sync(ctx context.Context) (err error) {
-	// Write out the proxy's contents if it is dirty.
-	err = f.proxy.Sync(ctx)
+	// Write out the contents if they are dirty.
+	rl, newObj, err := gcsproxy.Sync(
+		ctx,
+		&f.src,
+		f.content,
+		f.bucket)
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.
@@ -258,8 +317,21 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 
 	// Propagate other errors.
 	if err != nil {
-		err = fmt.Errorf("ObjectProxy.Sync: %v", err)
+		err = fmt.Errorf("gcsproxy.Sync: %v", err)
 		return
+	}
+
+	// If we wrote out a new object, we need to update our state.
+	if newObj != nil {
+		f.src = *newObj
+		f.content = gcsproxy.NewMutableContent(
+			gcsproxy.NewReadProxy(
+				newObj,
+				rl,
+				f.gcsChunkSize,
+				f.leaser,
+				f.bucket),
+			f.clock)
 	}
 
 	return
@@ -271,6 +343,6 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 func (f *FileInode) Truncate(
 	ctx context.Context,
 	size int64) (err error) {
-	err = f.proxy.Truncate(ctx, size)
+	err = f.content.Truncate(ctx, size)
 	return
 }
