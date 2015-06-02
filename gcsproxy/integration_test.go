@@ -349,7 +349,7 @@ func (t *IntegrationTest) LargerThanLeaserLimit() {
 	// The contents should be lost, because the leaser should have revoked the
 	// read lease.
 	_, err = rl.ReadAt(make([]byte, len(contents)), 0)
-	ExpectThat(err, Error(HasSubstr("not found")))
+	ExpectThat(err, Error(HasSubstr("revoked")))
 }
 
 func (t *IntegrationTest) BackingObjectHasBeenDeleted_BeforeReading() {
@@ -413,7 +413,7 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 	AssertEq(nil, err)
 
 	ExpectEq(1, sr.Size)
-	ExpectEq(1, sr.DirtyThreshold)
+	ExpectEq(0, sr.DirtyThreshold)
 	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(truncateTime)))
 
 	// Sync should fail with a precondition error.
@@ -486,7 +486,7 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 	AssertEq(nil, err)
 
 	ExpectEq(3, sr.Size)
-	ExpectEq(3, sr.DirtyThreshold)
+	ExpectEq(0, sr.DirtyThreshold)
 	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(truncateTime)))
 
 	// Sync should fail with a precondition error.
