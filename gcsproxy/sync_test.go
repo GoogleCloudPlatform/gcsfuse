@@ -182,6 +182,18 @@ func (t *SyncTest) BucketFails() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
+func (t *SyncTest) BucketReturnsPreconditionError() {
+	// CreateObject
+	expected := &gcs.PreconditionError{}
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(Return(nil, expected))
+
+	// Call
+	_, _, err := t.call()
+
+	ExpectEq(expected, err)
+}
+
 func (t *SyncTest) BucketSucceeds() {
 	// CreateObject
 	expected := &gcs.Object{}
