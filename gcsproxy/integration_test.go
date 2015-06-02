@@ -215,13 +215,21 @@ func (t *IntegrationTest) TruncateThenSync() {
 	AssertEq(nil, err)
 
 	// Sync should save out the new generation.
-	err = t.mc.Sync()
-	ExpectEq(nil, err)
+	rl, newObj, err := gcsproxy.Sync(t.ctx, o, t.mc.wrapped, t.bucket)
+	AssertEq(nil, err)
 
-	ExpectNe(o.Generation, t.mc.SourceGeneration())
-	ExpectEq(t.objectGeneration("foo"), t.mc.SourceGeneration())
+	ExpectNe(o.Generation, newObj.Generation)
+	ExpectEq(t.objectGeneration("foo"), newObj.Generation)
 
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	AssertEq(nil, err)
+	ExpectEq("ta", string(contents))
+
+	// Read via the lease.
+	_, err = rl.Seek(0, 0)
+	AssertEq(nil, err)
+
+	contents, err = ioutil.ReadAll(rl)
 	AssertEq(nil, err)
 	ExpectEq("ta", string(contents))
 }
