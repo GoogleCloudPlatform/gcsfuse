@@ -116,9 +116,6 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	t.serverCfg.TempDirLimitNumFiles = 16
 	t.serverCfg.TempDirLimitBytes = 1 << 22 // 4 MiB
 
-	// Tests assume SupportNlink is enabled.
-	t.serverCfg.SupportNlink = true
-
 	// Set up a temporary directory for mounting.
 	t.Dir, err = ioutil.TempDir("", "fs_test")
 	AssertEq(nil, err)

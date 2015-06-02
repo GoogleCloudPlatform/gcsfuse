@@ -221,7 +221,7 @@ func (t *IntegrationTest) Stat_InitialState() {
 	t.create(o)
 
 	// Stat.
-	sr, err := t.mo.Stat(true)
+	sr, err := t.mo.Stat()
 	AssertEq(nil, err)
 	ExpectEq(o.Size, sr.Size)
 	ExpectThat(sr.Mtime, timeutil.TimeEq(createTime))
@@ -249,7 +249,7 @@ func (t *IntegrationTest) Stat_Synced() {
 	AssertEq(nil, err)
 
 	// Stat.
-	sr, err := t.mo.Stat(true)
+	sr, err := t.mo.Stat()
 	AssertEq(nil, err)
 	ExpectEq(2, sr.Size)
 	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
@@ -273,7 +273,7 @@ func (t *IntegrationTest) Stat_Dirty() {
 	t.clock.AdvanceTime(time.Second)
 
 	// Stat.
-	sr, err := t.mo.Stat(true)
+	sr, err := t.mo.Stat()
 	AssertEq(nil, err)
 	ExpectEq(2, sr.Size)
 	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
@@ -363,7 +363,7 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_BeforeReading() {
 	// Synchronously-available things should work.
 	ExpectEq(o.Generation, t.mo.SourceGeneration())
 
-	sr, err := t.mo.Stat(true)
+	sr, err := t.mo.Stat()
 	AssertEq(nil, err)
 	ExpectEq(o.Size, sr.Size)
 	ExpectThat(sr.Mtime, timeutil.TimeEq(createTime))
@@ -415,7 +415,7 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 
 	// Stat should see the current state, and see that the object has been
 	// clobbered.
-	sr, err := t.mo.Stat(true)
+	sr, err := t.mo.Stat()
 	AssertEq(nil, err)
 	ExpectEq(1, sr.Size)
 	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
@@ -446,7 +446,7 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_BeforeReading() {
 	// Synchronously-available things should work.
 	ExpectEq(o.Generation, t.mo.SourceGeneration())
 
-	sr, err := t.mo.Stat(true)
+	sr, err := t.mo.Stat()
 	AssertEq(nil, err)
 	ExpectEq(o.Size, sr.Size)
 	ExpectThat(sr.Mtime, timeutil.TimeEq(createTime))
@@ -498,7 +498,7 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 
 	// Stat should see the current state, and see that the object has been
 	// clobbered.
-	sr, err := t.mo.Stat(true)
+	sr, err := t.mo.Stat()
 	AssertEq(nil, err)
 	ExpectEq(3, sr.Size)
 	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))

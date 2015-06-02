@@ -151,11 +151,10 @@ func (mo *checkingMutableObject) SourceGeneration() int64 {
 	return mo.wrapped.SourceGeneration()
 }
 
-func (mo *checkingMutableObject) Stat(
-	needClobbered bool) (gcsproxy.StatResult, error) {
+func (mo *checkingMutableObject) Stat() (gcsproxy.StatResult, error) {
 	mo.wrapped.CheckInvariants()
 	defer mo.wrapped.CheckInvariants()
-	return mo.wrapped.Stat(mo.ctx, needClobbered)
+	return mo.wrapped.Stat(mo.ctx)
 }
 
 func (mo *checkingMutableObject) ReadAt(b []byte, o int64) (int, error) {
@@ -725,7 +724,7 @@ func (t *MutableObjectTest) Stat_CallsBucket() {
 		WillOnce(oglemock.Return(nil, errors.New("")))
 
 	// Stat
-	t.mo.Stat(true)
+	t.mo.Stat()
 }
 
 func (t *MutableObjectTest) Stat_BucketFails() {
@@ -734,7 +733,7 @@ func (t *MutableObjectTest) Stat_BucketFails() {
 		WillOnce(oglemock.Return(nil, errors.New("taco")))
 
 	// Stat
-	_, err := t.mo.Stat(true)
+	_, err := t.mo.Stat()
 
 	ExpectThat(err, Error(HasSubstr("StatObject")))
 	ExpectThat(err, Error(HasSubstr("taco")))
@@ -746,7 +745,7 @@ func (t *MutableObjectTest) Stat_BucketSaysNotFound_NotDirty() {
 		WillOnce(oglemock.Return(nil, &gcs.NotFoundError{}))
 
 	// Stat
-	sr, err := t.mo.Stat(true)
+	sr, err := t.mo.Stat()
 
 	AssertEq(nil, err)
 	ExpectEq(t.src.Size, sr.Size)
@@ -775,7 +774,7 @@ func (t *MutableObjectTest) Stat_BucketSaysNotFound_Dirty() {
 		WillOnce(oglemock.Return(nil, &gcs.NotFoundError{}))
 
 	// Stat
-	sr, err := t.mo.Stat(true)
+	sr, err := t.mo.Stat()
 
 	AssertEq(nil, err)
 	ExpectEq(17, sr.Size)
@@ -797,7 +796,7 @@ func (t *MutableObjectTest) Stat_InitialState() {
 		WillOnce(oglemock.Return(o, nil))
 
 	// Stat
-	sr, err := t.mo.Stat(true)
+	sr, err := t.mo.Stat()
 
 	AssertEq(nil, err)
 	ExpectEq(t.src.Size, sr.Size)
@@ -832,7 +831,7 @@ func (t *MutableObjectTest) Stat_AfterShortening() {
 		WillOnce(oglemock.Return(o, nil))
 
 	// Stat
-	sr, err := t.mo.Stat(true)
+	sr, err := t.mo.Stat()
 
 	AssertEq(nil, err)
 	ExpectEq(t.src.Size-1, sr.Size)
@@ -867,7 +866,7 @@ func (t *MutableObjectTest) Stat_AfterGrowing() {
 		WillOnce(oglemock.Return(o, nil))
 
 	// Stat
-	sr, err := t.mo.Stat(true)
+	sr, err := t.mo.Stat()
 
 	AssertEq(nil, err)
 	ExpectEq(t.src.Size+17, sr.Size)
@@ -897,7 +896,7 @@ func (t *MutableObjectTest) Stat_AfterReading() {
 		WillOnce(oglemock.Return(o, nil))
 
 	// Stat
-	sr, err := t.mo.Stat(true)
+	sr, err := t.mo.Stat()
 
 	AssertEq(nil, err)
 	ExpectEq(t.src.Size, sr.Size)
@@ -932,7 +931,7 @@ func (t *MutableObjectTest) Stat_AfterWriting() {
 		WillOnce(oglemock.Return(o, nil))
 
 	// Stat
-	sr, err := t.mo.Stat(true)
+	sr, err := t.mo.Stat()
 
 	AssertEq(nil, err)
 	ExpectEq(int(t.src.Size)+len("taco"), sr.Size)
@@ -952,7 +951,7 @@ func (t *MutableObjectTest) Stat_ClobberedByNewGeneration_NotDirty() {
 		WillOnce(oglemock.Return(o, nil))
 
 	// Stat
-	sr, err := t.mo.Stat(true)
+	sr, err := t.mo.Stat()
 
 	AssertEq(nil, err)
 	ExpectEq(t.src.Size, sr.Size)
@@ -987,22 +986,10 @@ func (t *MutableObjectTest) Stat_ClobberedByNewGeneration_Dirty() {
 		WillOnce(oglemock.Return(o, nil))
 
 	// Stat
-	sr, err := t.mo.Stat(true)
+	sr, err := t.mo.Stat()
 
 	AssertEq(nil, err)
 	ExpectEq(t.src.Size+17, sr.Size)
 	ExpectThat(sr.Mtime, timeutil.TimeEq(truncateTime))
 	ExpectTrue(sr.Clobbered)
-}
-
-func (t *MutableObjectTest) Stat_DontNeedClobberedInfo() {
-	var err error
-
-	// Stat
-	sr, err := t.mo.Stat(false)
-
-	AssertEq(nil, err)
-	ExpectEq(t.src.Size, sr.Size)
-	ExpectThat(sr.Mtime, timeutil.TimeEq(t.src.Updated))
-	ExpectFalse(sr.Clobbered)
 }

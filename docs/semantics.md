@@ -258,8 +258,7 @@ The intent of these conventions is to make it appear as though local writes to
 a file are in-place modifications as with a traditional file system, whereas
 remote overwrites of a GCS object appear as some other process unlinking the
 file from its directory and then linking a distinct file using the same name.
-The `st_nlink` field will reflect this when using fstat(2) if `--support_nlink`
-is set; see below.
+The `st_nlink` field will reflect this when using fstat(2).
 
 Note the following consequence: if machine A opens a file and writes to it,
 then machine B deletes or replaces its backing object, then machine A closes
@@ -284,8 +283,7 @@ look up child inodes. Unlike file inodes:
     directories. There are no guarantees for the contents of `stat::st_mtime`
     or equivalent.
 
-*   There are no guarantees about `stat::st_nlink`, even if `--support_nlink`
-    is set.
+*   There are no guarantees about `stat::st_nlink`.
 
 <a name="dir-inode-reading"></a>
 ### Reading
@@ -465,19 +463,6 @@ in GCS, according to the usual rules documented above.
 See the notes on [fuseops.FlushFileOp][flush-op] for more details.
 
 [flush-op]: http://godoc.org/github.com/jacobsa/fuse/fuseops#FlushFileOp
-
-
-<a name="link-counts"></a>
-## Inode link counts
-
-By default, fstat(2) always shows a value of one for `stat::st_nlink` for any
-gcsfuse inode. This saves a round trip to GCS for getattr requests, which can
-add up to significant time savings when e.g. doing `ls -l` on a large
-directory.
-
-This behavior can be changed with the `--support_nlink` flag, which will cause
-a stat request to be sent to GCS. Inodes for names that have been deleted or
-overwritten will then show a value of zero for `stat::st_nlink`.
 
 
 <a name="missing-features"></a>

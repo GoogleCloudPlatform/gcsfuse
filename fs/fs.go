@@ -76,15 +76,6 @@ type ServerConfig struct {
 	// See docs/semantics.md for more info.
 	ImplicitDirectories bool
 
-	// By default, the file system will always show nlink == 1 for every inode,
-	// regardless of whether its backing object has been deleted or overwritten.
-	//
-	// Setting SupportNlink to true causes the file system to respond to fuse
-	// getattr requests with nlink == 0 for file inodes in the cases mentioned
-	// above. This requires a round trip to GCS for every getattr, which can be
-	// quite slow.
-	SupportNlink bool
-
 	// If non-zero, each directory will maintain a cache from child name to
 	// information about whether that name exists as a file and/or directory.
 	// This may speed up calls to look up and stat inodes, especially when
@@ -135,7 +126,6 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		leaser:                 leaser,
 		gcsChunkSize:           gcsChunkSize,
 		implicitDirs:           cfg.ImplicitDirectories,
-		supportNlink:           cfg.SupportNlink,
 		dirTypeCacheTTL:        cfg.DirTypeCacheTTL,
 		uid:                    cfg.Uid,
 		gid:                    cfg.Gid,
@@ -250,7 +240,6 @@ type fileSystem struct {
 
 	gcsChunkSize    uint64
 	implicitDirs    bool
-	supportNlink    bool
 	dirTypeCacheTTL time.Duration
 
 	// The user and group owning everything in the file system.
@@ -561,7 +550,6 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 				Mode: fs.fileMode,
 			},
 			fs.gcsChunkSize,
-			fs.supportNlink,
 			fs.bucket,
 			fs.leaser,
 			fs.clock)
