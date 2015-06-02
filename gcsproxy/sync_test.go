@@ -45,7 +45,7 @@ type SyncTest struct {
 	content   mock_gcsproxy.MockMutableContent
 	bucket    mock_gcs.MockBucket
 
-	contents []byte
+	simulatedContents []byte
 }
 
 var _ SetUpInterface = &SyncTest{}
@@ -78,13 +78,13 @@ func (t *SyncTest) SetUp(ti *TestInfo) {
 		WillRepeatedly(Return(sr, nil))
 
 	// Set up fake contents.
-	t.contents = []byte("taco")
+	t.simulatedContents = []byte("taco")
 
 	leaser := lease.NewFileLeaser("", math.MaxInt32, math.MaxInt32)
 	rwl, err := leaser.NewFile()
 	AssertEq(nil, err)
 
-	_, err = rwl.Write(t.contents)
+	_, err = rwl.Write(t.simulatedContents)
 	AssertEq(nil, err)
 
 	ExpectCall(t.content, "Release")().
@@ -167,7 +167,7 @@ func (t *SyncTest) CallsBucket() {
 
 	b, err := ioutil.ReadAll(req.Contents)
 	AssertEq(nil, err)
-	ExpectEq(string(t.contents), string(b))
+	ExpectEq(string(t.simulatedContents), string(b))
 }
 
 func (t *SyncTest) BucketFails() {
@@ -198,5 +198,5 @@ func (t *SyncTest) BucketSucceeds() {
 	n, err := rp.ReadAt(t.ctx, buf, 0)
 
 	AssertEq(nil, err)
-	ExpectEq(string(t.contents), string(buf[:n]))
+	ExpectEq(string(t.simulatedContents), string(buf[:n]))
 }
