@@ -176,12 +176,8 @@ func (mo *MutableObject) Destroy() (err error) {
 // Return the current size in bytes of the content and an indication of whether
 // the proxied object has changed out from under us (in which case Sync will
 // fail).
-//
-// sr.Clobbered will be set only if needClobbered is true. Otherwise a round
-// trip to GCS can be saved.
 func (mo *MutableObject) Stat(
-	ctx context.Context,
-	needClobbered bool) (sr StatResult, err error) {
+	ctx context.Context) (sr StatResult, err error) {
 	// If we have ever been modified, our mtime field is authoritative (even if
 	// we've been Sync'd, because Sync is not supposed to affect the mtime).
 	// Otherwise our source object's creation time is our mtime.
@@ -203,13 +199,11 @@ func (mo *MutableObject) Stat(
 		sr.Size = mo.readProxy.Size()
 	}
 
-	// Figure out whether we were clobbered iff the user asked us to.
-	if needClobbered {
-		sr.Clobbered, err = mo.clobbered(ctx)
-		if err != nil {
-			err = fmt.Errorf("clobbered: %v", err)
-			return
-		}
+	// Figure out whether we were clobbered.
+	sr.Clobbered, err = mo.clobbered(ctx)
+	if err != nil {
+		err = fmt.Errorf("clobbered: %v", err)
+		return
 	}
 
 	return
