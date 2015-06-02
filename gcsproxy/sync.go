@@ -32,8 +32,8 @@ import (
 //     *gcs.PreconditionError if the source generation is no longer current)
 //     and return a read proxy for that object's contents.
 //
-//     In this case the MutableContent is destroyed and must not be used again.
-//
+// In the second case, the MutableContent is destroyed. Otherwise, including
+// when this function fails, it is guaranteed to still be valid.
 func Sync(
 	ctx context.Context,
 	sourceObject *gcs.Object,

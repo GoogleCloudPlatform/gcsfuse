@@ -44,6 +44,30 @@ func (t *SyncTest) SetUp(ti *TestInfo) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *SyncTest) DoesFoo() {
+func (t *SyncTest) StatFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SyncTest) StatSaysNotDirty() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SyncTest) CallsUpgrade() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SyncTest) UpgradeFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SyncTest) CallsBucket() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SyncTest) BucketFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *SyncTest) BucketSucceeds() {
 	AssertTrue(false, "TODO")
 }
