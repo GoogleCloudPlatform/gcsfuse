@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/lease"
+	"github.com/googlecloudplatform/gcsfuse/mutable"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
@@ -32,12 +33,12 @@ import (
 //     *gcs.PreconditionError if the source generation is no longer current)
 //     and return a read lease for that object's contents.
 //
-// In the second case, the MutableContent is destroyed. Otherwise, including
+// In the second case, the mutable.Content is destroyed. Otherwise, including
 // when this function fails, it is guaranteed to still be valid.
 func Sync(
 	ctx context.Context,
 	srcObject *gcs.Object,
-	content MutableContent,
+	content mutable.Content,
 	bucket gcs.Bucket) (rl lease.ReadLease, o *gcs.Object, err error) {
 	// Stat the content.
 	sr, err := content.Stat(ctx)
@@ -96,11 +97,11 @@ func Sync(
 // mutableContentReader
 ////////////////////////////////////////////////////////////////////////
 
-// An io.Reader that wraps a MutableContent object, reading starting from a
+// An io.Reader that wraps a mutable.Content object, reading starting from a
 // base offset.
 type mutableContentReader struct {
 	Ctx     context.Context
-	Content MutableContent
+	Content mutable.Content
 	Offset  int64
 }
 
