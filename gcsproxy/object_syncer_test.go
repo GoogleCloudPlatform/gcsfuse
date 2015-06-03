@@ -338,5 +338,25 @@ func (t *ObjectSyncerTest) AppendCreatorReturnsPreconditionError() {
 }
 
 func (t *ObjectSyncerTest) AppendCreatorSucceeds() {
-	AssertTrue(false, "TODO")
+	var err error
+	t.appendCreator.o = &gcs.Object{}
+	t.appendCreator.err = nil
+
+	// Append some data.
+	_, err = t.content.WriteAt(t.ctx, []byte("burrito"), int64(t.srcObject.Size))
+	AssertEq(nil, err)
+
+	// Call
+	rl, o, err := t.call()
+
+	AssertEq(nil, err)
+	ExpectEq(t.appendCreator.o, o)
+
+	// Check the read lease.
+	_, err = rl.Seek(0, 0)
+	AssertEq(nil, err)
+
+	buf, err := ioutil.ReadAll(rl)
+	AssertEq(nil, err)
+	ExpectEq(srcObjectContents+"burrito", string(buf))
 }
