@@ -24,23 +24,30 @@ import (
 	"golang.org/x/net/context"
 )
 
+// An implementation detail of stattingObjectSyncer. See notes on
+// createStattingObjectSyncer.
+type objectCreator interface {
+	Create(
+		ctx context.Context,
+		srcObject *gcs.Object,
+		r io.Reader) (o *gcs.Object, err error)
+}
+
 // Create an object syncer that stats the mutable content to see if it's dirty
-// before calling through to one of two functions that handle creating the
-// underlying object if the content is dirty:
+// before calling through to one of two object creators if the content is dirty:
 //
-// *   syncFull accepts the source object and the full contents with which it
+// *   fullCreator accepts the source object and the full contents with which it
 //     should be overwritten.
 //
-// *   syncAppend accepts the source object and the contents that should be
+// *   appendCreator accepts the source object and the contents that should be
 //     "appended" to it.
 //
 func createStattingObjectSyncer(
-	syncFull func(context.Context, *gcs.Object, io.Reader) (*gcs.Object, error),
-	syncAppend func(context.Context, *gcs.Object, io.Reader) (*gcs.Object, error)) (
-	os ObjectSyncer) {
+	fullCreator objectCreator,
+	appendCreator objectCreator) (os ObjectSyncer) {
 	os = &stattingObjectSyncer{
-		syncFull:   syncFull,
-		syncAppend: syncAppend,
+		fullCreator:   fullCreator,
+		appendCreator: appendCreator,
 	}
 
 	return
@@ -51,8 +58,8 @@ func createStattingObjectSyncer(
 ////////////////////////////////////////////////////////////////////////
 
 type stattingObjectSyncer struct {
-	syncFull   func(context.Context, *gcs.Object, io.Reader) (*gcs.Object, error)
-	syncAppend func(context.Context, *gcs.Object, io.Reader) (*gcs.Object, error)
+	fullCreator   objectCreator
+	appendCreator objectCreator
 }
 
 func (os *stattingObjectSyncer) SyncObject(
