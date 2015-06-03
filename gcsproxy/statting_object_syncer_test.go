@@ -116,7 +116,12 @@ func (t *StattingObjectSyncerTest) serveSyncAppend(
 ////////////////////////////////////////////////////////////////////////
 
 func (t *StattingObjectSyncerTest) NotDirty() {
-	AssertTrue(false, "TODO")
+	// Call
+	rl, o, err := t.call()
+
+	AssertEq(nil, err)
+	ExpectEq(nil, rl)
+	ExpectEq(nil, o)
 }
 
 func (t *StattingObjectSyncerTest) SmallerThanSource() {
