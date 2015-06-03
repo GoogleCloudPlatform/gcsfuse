@@ -94,15 +94,12 @@ func (os *stattingObjectSyncer) SyncObject(
 	}
 
 	// Otherwise, we need to create a new generation.
-	o, err = os.bucket.CreateObject(
+	o, err = os.fullCreator.Create(
 		ctx,
-		&gcs.CreateObjectRequest{
-			Name: srcObject.Name,
-			Contents: &mutableContentReader{
-				Ctx:     ctx,
-				Content: content,
-			},
-			GenerationPrecondition: &srcObject.Generation,
+		srcObject,
+		&mutableContentReader{
+			Ctx:     ctx,
+			Content: content,
 		})
 
 	if err != nil {
@@ -111,7 +108,7 @@ func (os *stattingObjectSyncer) SyncObject(
 			return
 		}
 
-		err = fmt.Errorf("CreateObject: %v", err)
+		err = fmt.Errorf("fullCreator.Create: %v", err)
 		return
 	}
 
