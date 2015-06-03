@@ -168,11 +168,19 @@ func (t *StattingObjectSyncerTest) SyncFullFails() {
 	AssertTrue(false, "TODO")
 }
 
+func (t *StattingObjectSyncerTest) SyncFullReturnsPreconditionError() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *StattingObjectSyncerTest) SyncFullSucceeds() {
 	AssertTrue(false, "TODO")
 }
 
 func (t *StattingObjectSyncerTest) SyncAppendFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *StattingObjectSyncerTest) SyncAppendReturnsPreconditionError() {
 	AssertTrue(false, "TODO")
 }
 
