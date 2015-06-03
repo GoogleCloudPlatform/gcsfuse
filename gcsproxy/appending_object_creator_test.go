@@ -31,8 +31,9 @@ func TestAppendObjectCreator(t *testing.T) { RunTests(t) }
 const prefix = ".gcsfuse_tmp/"
 
 type AppendObjectCreatorTest struct {
-	ctx    context.Context
-	bucket mock_gcs.MockBucket
+	ctx     context.Context
+	bucket  mock_gcs.MockBucket
+	creator objectCreator
 }
 
 var _ SetUpInterface = &AppendObjectCreatorTest{}
@@ -41,7 +42,12 @@ func init() { RegisterTestSuite(&AppendObjectCreatorTest{}) }
 
 func (t *AppendObjectCreatorTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
-	AssertTrue(false, "TODO")
+
+	// Create the bucket.
+	t.bucket = mock_gcs.NewMockBucket(ti.MockController, "bucket")
+
+	// Create the creator.
+	t.creator = newAppendObjectCreator(prefix, t.bucket)
 }
 
 ////////////////////////////////////////////////////////////////////////
