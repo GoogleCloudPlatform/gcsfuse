@@ -24,6 +24,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/lease"
+	"github.com/googlecloudplatform/gcsfuse/mutable"
 	"github.com/googlecloudplatform/gcsfuse/mutable/mock"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
@@ -71,7 +72,7 @@ func (t *SyncTest) SetUp(ti *TestInfo) {
 		"bucket")
 
 	// By default, show the content as dirty.
-	sr := gcsproxy.StatResult{
+	sr := mutable.StatResult{
 		DirtyThreshold: int64(t.srcObject.Size - 1),
 	}
 
@@ -132,7 +133,7 @@ func (t *SyncTest) serveReadAt(
 func (t *SyncTest) StatFails() {
 	// Stat
 	ExpectCall(t.content, "Stat")(Any()).
-		WillOnce(Return(gcsproxy.StatResult{}, errors.New("taco")))
+		WillOnce(Return(mutable.StatResult{}, errors.New("taco")))
 
 	// Call
 	_, _, err := t.call()
@@ -143,7 +144,7 @@ func (t *SyncTest) StatFails() {
 
 func (t *SyncTest) StatReturnsWackyDirtyThreshold() {
 	// Stat
-	sr := gcsproxy.StatResult{
+	sr := mutable.StatResult{
 		DirtyThreshold: int64(t.srcObject.Size + 1),
 	}
 
@@ -161,7 +162,7 @@ func (t *SyncTest) StatReturnsWackyDirtyThreshold() {
 
 func (t *SyncTest) StatSaysNotDirty() {
 	// Stat
-	sr := gcsproxy.StatResult{
+	sr := mutable.StatResult{
 		Size:           int64(t.srcObject.Size),
 		DirtyThreshold: int64(t.srcObject.Size),
 	}
@@ -179,7 +180,7 @@ func (t *SyncTest) StatSaysNotDirty() {
 
 func (t *SyncTest) StatSaysDirty_SameSizeAsSource() {
 	// Stat
-	sr := gcsproxy.StatResult{
+	sr := mutable.StatResult{
 		Size:           int64(t.srcObject.Size),
 		DirtyThreshold: int64(t.srcObject.Size - 1),
 	}
@@ -197,7 +198,7 @@ func (t *SyncTest) StatSaysDirty_SameSizeAsSource() {
 
 func (t *SyncTest) StatSaysDirty_SmallerThanSource() {
 	// Stat
-	sr := gcsproxy.StatResult{
+	sr := mutable.StatResult{
 		Size:           int64(t.srcObject.Size - 1),
 		DirtyThreshold: int64(t.srcObject.Size - 1),
 	}
@@ -215,7 +216,7 @@ func (t *SyncTest) StatSaysDirty_SmallerThanSource() {
 
 func (t *SyncTest) StatSaysDirty_LargerThanSource() {
 	// Stat
-	sr := gcsproxy.StatResult{
+	sr := mutable.StatResult{
 		Size:           int64(t.srcObject.Size + 1),
 		DirtyThreshold: int64(t.srcObject.Size),
 	}
