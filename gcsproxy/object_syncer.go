@@ -40,3 +40,9 @@ type ObjectSyncer interface {
 		srcObject *gcs.Object,
 		content mutable.Content) (rl lease.ReadLease, o *gcs.Object, err error)
 }
+
+// Create an object syncer that syncs into the supplied bucket.
+func NewObjectSyncer(
+	bucket gcs.Bucket) (os ObjectSyncer) {
+	panic("TODO")
+}
