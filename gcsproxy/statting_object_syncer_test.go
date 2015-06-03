@@ -159,6 +159,10 @@ func (t *StattingObjectSyncerTest) NotDirty() {
 	AssertEq(nil, err)
 	ExpectEq(nil, rl)
 	ExpectEq(nil, o)
+
+	// Neither creater should have been called.
+	ExpectFalse(t.fullCreator.called)
+	ExpectFalse(t.appendCreator.called)
 }
 
 func (t *StattingObjectSyncerTest) SmallerThanSource() {
