@@ -24,6 +24,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse/fuseops"
@@ -93,6 +94,7 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 		math.MaxUint64, // GCS chunk size
 		t.bucket,
 		t.leaser,
+		gcsproxy.NewObjectSyncer(t.bucket),
 		&t.clock)
 
 	t.in.Lock()
