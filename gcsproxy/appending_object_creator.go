@@ -14,17 +14,44 @@
 
 package gcsproxy
 
-import "github.com/jacobsa/gcloud/gcs"
+import (
+	"errors"
+	"io"
+
+	"github.com/jacobsa/gcloud/gcs"
+	"golang.org/x/net/context"
+)
 
 // Create an objectCreator that accepts a source object and the contents that
 // should be "appended" to it, storing temporary objects using the supplied
 // prefix.
+//
+// Note that the Create method will attempt to remove any temporary junk left
+// behind, but it may fail to do so. Users should arrange for garbage collection.
 func newAppendObjectCreator(
 	prefix string,
 	bucket gcs.Bucket) (oc objectCreator) {
-	// TODO(jacobsa): Add units tests that use a mock bucket.
-	//
-	// TODO(jacobsa): Figure out what to do about garbage collection. Probably
-	// hoist that all the way to main.go.
-	panic("TODO")
+	oc = &appendObjectCreator{
+		prefix: prefix,
+		bucket: bucket,
+	}
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// Implementation
+////////////////////////////////////////////////////////////////////////
+
+type appendObjectCreator struct {
+	prefix string
+	bucket gcs.Bucket
+}
+
+func (oc *appendObjectCreator) Create(
+	ctx context.Context,
+	srcObject *gcs.Object,
+	r io.Reader) (o *gcs.Object, err error) {
+	err = errors.New("TODO")
+	return
 }
