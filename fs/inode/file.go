@@ -20,6 +20,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/lease"
+	"github.com/googlecloudplatform/gcsfuse/mutable"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/gcs"
@@ -68,7 +69,7 @@ type FileInode struct {
 	// INVARIANT: content.CheckInvariants() does not panic
 	//
 	// GUARDED_BY(mu)
-	content gcsproxy.MutableContent
+	content mutable.Content
 
 	// Has Destroy been called?
 	//
@@ -106,7 +107,7 @@ func NewFileInode(
 		attrs:        attrs,
 		gcsChunkSize: gcsChunkSize,
 		src:          *o,
-		content: gcsproxy.NewMutableContent(
+		content: mutable.NewContent(
 			gcsproxy.NewReadProxy(
 				o,
 				nil, // Initial read lease
@@ -324,7 +325,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// If we wrote out a new object, we need to update our state.
 	if newObj != nil {
 		f.src = *newObj
-		f.content = gcsproxy.NewMutableContent(
+		f.content = mutable.NewContent(
 			gcsproxy.NewReadProxy(
 				newObj,
 				rl,

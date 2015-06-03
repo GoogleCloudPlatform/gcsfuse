@@ -4,46 +4,46 @@
 //     https://github.com/jacobsa/oglemock
 //
 
-package mock_gcsproxy
+package mock_mutable
 
 import (
 	fmt "fmt"
-	gcsproxy "github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	lease "github.com/googlecloudplatform/gcsfuse/lease"
+	mutable "github.com/googlecloudplatform/gcsfuse/mutable"
 	oglemock "github.com/jacobsa/oglemock"
 	context "golang.org/x/net/context"
 	runtime "runtime"
 	unsafe "unsafe"
 )
 
-type MockMutableContent interface {
-	gcsproxy.MutableContent
+type MockContent interface {
+	mutable.Content
 	oglemock.MockObject
 }
 
-type mockMutableContent struct {
+type mockContent struct {
 	controller  oglemock.Controller
 	description string
 }
 
-func NewMockMutableContent(
+func NewMockContent(
 	c oglemock.Controller,
-	desc string) MockMutableContent {
-	return &mockMutableContent{
+	desc string) MockContent {
+	return &mockContent{
 		controller:  c,
 		description: desc,
 	}
 }
 
-func (m *mockMutableContent) Oglemock_Id() uintptr {
+func (m *mockContent) Oglemock_Id() uintptr {
 	return uintptr(unsafe.Pointer(m))
 }
 
-func (m *mockMutableContent) Oglemock_Description() string {
+func (m *mockContent) Oglemock_Description() string {
 	return m.description
 }
 
-func (m *mockMutableContent) CheckInvariants() {
+func (m *mockContent) CheckInvariants() {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -56,13 +56,13 @@ func (m *mockMutableContent) CheckInvariants() {
 		[]interface{}{})
 
 	if len(retVals) != 0 {
-		panic(fmt.Sprintf("mockMutableContent.CheckInvariants: invalid return values: %v", retVals))
+		panic(fmt.Sprintf("mockContent.CheckInvariants: invalid return values: %v", retVals))
 	}
 
 	return
 }
 
-func (m *mockMutableContent) Destroy() {
+func (m *mockContent) Destroy() {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -75,13 +75,13 @@ func (m *mockMutableContent) Destroy() {
 		[]interface{}{})
 
 	if len(retVals) != 0 {
-		panic(fmt.Sprintf("mockMutableContent.Destroy: invalid return values: %v", retVals))
+		panic(fmt.Sprintf("mockContent.Destroy: invalid return values: %v", retVals))
 	}
 
 	return
 }
 
-func (m *mockMutableContent) ReadAt(p0 context.Context, p1 []uint8, p2 int64) (o0 int, o1 error) {
+func (m *mockContent) ReadAt(p0 context.Context, p1 []uint8, p2 int64) (o0 int, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -94,7 +94,7 @@ func (m *mockMutableContent) ReadAt(p0 context.Context, p1 []uint8, p2 int64) (o
 		[]interface{}{p0, p1, p2})
 
 	if len(retVals) != 2 {
-		panic(fmt.Sprintf("mockMutableContent.ReadAt: invalid return values: %v", retVals))
+		panic(fmt.Sprintf("mockContent.ReadAt: invalid return values: %v", retVals))
 	}
 
 	// o0 int
@@ -110,7 +110,7 @@ func (m *mockMutableContent) ReadAt(p0 context.Context, p1 []uint8, p2 int64) (o
 	return
 }
 
-func (m *mockMutableContent) Release() (o0 lease.ReadWriteLease) {
+func (m *mockContent) Release() (o0 lease.ReadWriteLease) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -123,7 +123,7 @@ func (m *mockMutableContent) Release() (o0 lease.ReadWriteLease) {
 		[]interface{}{})
 
 	if len(retVals) != 1 {
-		panic(fmt.Sprintf("mockMutableContent.Release: invalid return values: %v", retVals))
+		panic(fmt.Sprintf("mockContent.Release: invalid return values: %v", retVals))
 	}
 
 	// o0 lease.ReadWriteLease
@@ -134,7 +134,7 @@ func (m *mockMutableContent) Release() (o0 lease.ReadWriteLease) {
 	return
 }
 
-func (m *mockMutableContent) Stat(p0 context.Context) (o0 gcsproxy.StatResult, o1 error) {
+func (m *mockContent) Stat(p0 context.Context) (o0 mutable.StatResult, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -147,12 +147,12 @@ func (m *mockMutableContent) Stat(p0 context.Context) (o0 gcsproxy.StatResult, o
 		[]interface{}{p0})
 
 	if len(retVals) != 2 {
-		panic(fmt.Sprintf("mockMutableContent.Stat: invalid return values: %v", retVals))
+		panic(fmt.Sprintf("mockContent.Stat: invalid return values: %v", retVals))
 	}
 
-	// o0 gcsproxy.StatResult
+	// o0 mutable.StatResult
 	if retVals[0] != nil {
-		o0 = retVals[0].(gcsproxy.StatResult)
+		o0 = retVals[0].(mutable.StatResult)
 	}
 
 	// o1 error
@@ -163,7 +163,7 @@ func (m *mockMutableContent) Stat(p0 context.Context) (o0 gcsproxy.StatResult, o
 	return
 }
 
-func (m *mockMutableContent) Truncate(p0 context.Context, p1 int64) (o0 error) {
+func (m *mockContent) Truncate(p0 context.Context, p1 int64) (o0 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -176,7 +176,7 @@ func (m *mockMutableContent) Truncate(p0 context.Context, p1 int64) (o0 error) {
 		[]interface{}{p0, p1})
 
 	if len(retVals) != 1 {
-		panic(fmt.Sprintf("mockMutableContent.Truncate: invalid return values: %v", retVals))
+		panic(fmt.Sprintf("mockContent.Truncate: invalid return values: %v", retVals))
 	}
 
 	// o0 error
@@ -187,7 +187,7 @@ func (m *mockMutableContent) Truncate(p0 context.Context, p1 int64) (o0 error) {
 	return
 }
 
-func (m *mockMutableContent) WriteAt(p0 context.Context, p1 []uint8, p2 int64) (o0 int, o1 error) {
+func (m *mockContent) WriteAt(p0 context.Context, p1 []uint8, p2 int64) (o0 int, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -200,7 +200,7 @@ func (m *mockMutableContent) WriteAt(p0 context.Context, p1 []uint8, p2 int64) (
 		[]interface{}{p0, p1, p2})
 
 	if len(retVals) != 2 {
-		panic(fmt.Sprintf("mockMutableContent.WriteAt: invalid return values: %v", retVals))
+		panic(fmt.Sprintf("mockContent.WriteAt: invalid return values: %v", retVals))
 	}
 
 	// o0 int

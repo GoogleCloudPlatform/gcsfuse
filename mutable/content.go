@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsproxy
+package mutable
 
 import (
 	"fmt"
@@ -29,7 +29,7 @@ import (
 // portion of the content has been dirtied.
 //
 // External synchronization is required.
-type MutableContent interface {
+type Content interface {
 	// Panic if any internal invariants are violated.
 	CheckInvariants()
 
@@ -40,7 +40,7 @@ type MutableContent interface {
 	// If the content has been dirtied from its initial state, return a
 	// read/write lease for the current content. Otherwise return nil.
 	//
-	// If this method returns a non-nil read/write lease, the MutableContent is
+	// If this method returns a non-nil read/write lease, the Content is
 	// implicitly destroyed and must not be used again.
 	Release() (rwl lease.ReadWriteLease)
 
@@ -76,9 +76,9 @@ type StatResult struct {
 
 // Create a mutable content object whose initial contents are given by the
 // supplied read proxy.
-func NewMutableContent(
+func NewContent(
 	initialContent lease.ReadProxy,
-	clock timeutil.Clock) (mc MutableContent) {
+	clock timeutil.Clock) (mc Content) {
 	mc = &mutableContent{
 		clock:          clock,
 		initialContent: initialContent,
