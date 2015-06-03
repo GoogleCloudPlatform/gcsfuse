@@ -204,12 +204,27 @@ func (t *StattingObjectSyncerTest) LargerThanSource_ThresholdInSource() {
 	ExpectFalse(t.appendCreator.called)
 }
 
-func (t *StattingObjectSyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
+func (t *StattingObjectSyncerTest) SourceTooShortForAppend() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *StattingObjectSyncerTest) SourceTooShortForAppend() {
+func (t *StattingObjectSyncerTest) SourceComponentCountTooHigh() {
 	AssertTrue(false, "TODO")
+}
+
+func (t *StattingObjectSyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
+	var err error
+	t.fullCreator.err = errors.New("")
+
+	// Extend the length of the content.
+	err = t.content.Truncate(t.ctx, int64(len(srcObjectContents)+1))
+	AssertEq(nil, err)
+
+	// The append creator should be called.
+	t.call()
+
+	ExpectFalse(t.fullCreator.called)
+	ExpectTrue(t.appendCreator.called)
 }
 
 func (t *StattingObjectSyncerTest) SyncFullFails() {
