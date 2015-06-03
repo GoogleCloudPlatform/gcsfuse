@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
@@ -260,10 +261,11 @@ func (t *ObjectSyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
 }
 
 func (t *ObjectSyncerTest) CallsFullCreator() {
+	var err error
 	AssertLt(2, t.srcObject.Size)
 
 	// Truncate downward.
-	err := t.content.Truncate(t.ctx, 2)
+	err = t.content.Truncate(t.ctx, 2)
 	AssertEq(nil, err)
 
 	// Call
@@ -275,7 +277,18 @@ func (t *ObjectSyncerTest) CallsFullCreator() {
 }
 
 func (t *ObjectSyncerTest) FullCreatorFails() {
-	AssertTrue(false, "TODO")
+	var err error
+	t.fullCreator.err = errors.New("taco")
+
+	// Truncate downward.
+	err = t.content.Truncate(t.ctx, 2)
+	AssertEq(nil, err)
+
+	// Call
+	_, _, err = t.call()
+
+	ExpectThat(err, Error(HasSubstr("fullCreator.Create")))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *ObjectSyncerTest) FullCreatorReturnsPreconditionError() {
