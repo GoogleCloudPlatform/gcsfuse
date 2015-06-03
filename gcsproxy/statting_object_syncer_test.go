@@ -227,26 +227,26 @@ func (t *StattingObjectSyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
 	ExpectTrue(t.appendCreator.called)
 }
 
-func (t *StattingObjectSyncerTest) SyncFullFails() {
+func (t *StattingObjectSyncerTest) FullCreatorFails() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *StattingObjectSyncerTest) SyncFullReturnsPreconditionError() {
+func (t *StattingObjectSyncerTest) FullCreatorReturnsPreconditionError() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *StattingObjectSyncerTest) SyncFullSucceeds() {
+func (t *StattingObjectSyncerTest) FullCreatorSucceeds() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *StattingObjectSyncerTest) SyncAppendFails() {
+func (t *StattingObjectSyncerTest) AppendCreatorFails() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *StattingObjectSyncerTest) SyncAppendReturnsPreconditionError() {
+func (t *StattingObjectSyncerTest) AppendCreatorReturnsPreconditionError() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *StattingObjectSyncerTest) SyncAppendSucceeds() {
+func (t *StattingObjectSyncerTest) AppendCreatorSucceeds() {
 	AssertTrue(false, "TODO")
 }
