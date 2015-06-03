@@ -16,18 +16,17 @@ package gcsproxy
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"math"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/mutable"
-	"github.com/googlecloudplatform/gcsfuse/mutable/mock"
+	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/mock_gcs"
-	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/oglemock"
+	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
@@ -38,16 +37,18 @@ func TestStattingObjectSyncer(t *testing.T) { RunTests(t) }
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
+const srcObjectContents = "taco"
+
 type StattingObjectSyncerTest struct {
 	ctx context.Context
 
-	srcObject gcs.Object
-	content   mock_mutable.MockContent
-	bucket    mock_gcs.MockBucket
-
+	bucket gcs.Bucket
+	leaser lease.FileLeaser
 	syncer ObjectSyncer
+	clock  timeutil.SimulatedClock
 
-	simulatedContents []byte
+	srcObject *gcs.Object
+	content   mutable.Content
 }
 
 var _ SetUpInterface = &StattingObjectSyncerTest{}
@@ -55,40 +56,37 @@ var _ SetUpInterface = &StattingObjectSyncerTest{}
 func init() { RegisterTestSuite(&StattingObjectSyncerTest{}) }
 
 func (t *StattingObjectSyncerTest) SetUp(ti *TestInfo) {
+	var err error
 	t.ctx = ti.Ctx
 
-	// Set up the source object.
-	t.srcObject.Generation = 1234
-	t.srcObject.Name = "foo"
-	t.srcObject.Size = 17
-
 	// Set up dependencies.
-	t.content = mock_mutable.NewMockContent(
-		ti.MockController,
-		"content")
+	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
+	t.leaser = lease.NewFileLeaser("", math.MaxInt32, math.MaxInt32)
+	t.syncer = createStattingObjectSyncer(
+		t.serveSyncFull,
+		t.serveSyncAppend)
 
-	t.bucket = mock_gcs.NewMockBucket(
-		ti.MockController,
-		"bucket")
+	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 
-	// Set up the syncer.
-	t.syncer = NewObjectSyncer(t.bucket)
+	// Set up a source object.
+	t.srcObject, err = t.bucket.CreateObject(
+		t.ctx,
+		&gcs.CreateObjectRequest{
+			Name:     "foo",
+			Contents: strings.NewReader(srcObjectContents),
+		})
 
-	// Set up fake contents.
-	t.simulatedContents = []byte("taco")
-	ExpectCall(t.content, "ReadAt")(Any(), Any(), Any()).
-		WillRepeatedly(Invoke(t.serveReadAt))
-
-	// And for the released read/write lease.
-	leaser := lease.NewFileLeaser("", math.MaxInt32, math.MaxInt32)
-	rwl, err := leaser.NewFile()
 	AssertEq(nil, err)
 
-	_, err = rwl.Write(t.simulatedContents)
-	AssertEq(nil, err)
-
-	ExpectCall(t.content, "Release")().
-		WillRepeatedly(Return(rwl))
+	// Wrap a mutable.Content around it.
+	t.content = mutable.NewContent(
+		NewReadProxy(
+			t.srcObject,
+			nil,            // Initial read lease
+			math.MaxUint64, // Chunk size
+			t.leaser,
+			t.bucket),
+		&t.clock)
 }
 
 func (t *StattingObjectSyncerTest) call() (
@@ -97,23 +95,19 @@ func (t *StattingObjectSyncerTest) call() (
 	return
 }
 
-func (t *StattingObjectSyncerTest) serveReadAt(
+func (t *StattingObjectSyncerTest) serveSyncFull(
 	ctx context.Context,
-	p []byte,
-	offset int64) (n int, err error) {
-	// Handle out of range reads.
-	if offset > int64(len(t.simulatedContents)) {
-		err = io.EOF
-		return
-	}
+	srcObject *gcs.Object,
+	r io.Reader) (o *gcs.Object, err error) {
+	err = errors.New("TODO: serveSyncFull")
+	return
+}
 
-	// Copy into the buffer.
-	n = copy(p, t.simulatedContents[int(offset):])
-	if n < len(p) {
-		err = io.EOF
-		return
-	}
-
+func (t *StattingObjectSyncerTest) serveSyncAppend(
+	ctx context.Context,
+	srcObject *gcs.Object,
+	r io.Reader) (o *gcs.Object, err error) {
+	err = errors.New("TODO: serveSyncAppend")
 	return
 }
 
@@ -121,52 +115,8 @@ func (t *StattingObjectSyncerTest) serveReadAt(
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *StattingObjectSyncerTest) StatFails() {
-	// Stat
-	ExpectCall(t.content, "Stat")(Any()).
-		WillOnce(Return(mutable.StatResult{}, errors.New("taco")))
-
-	// Call
-	_, _, err := t.call()
-
-	ExpectThat(err, Error(HasSubstr("Stat")))
-	ExpectThat(err, Error(HasSubstr("taco")))
-}
-
-func (t *StattingObjectSyncerTest) StatReturnsWackyDirtyThreshold() {
-	// Stat
-	sr := mutable.StatResult{
-		DirtyThreshold: int64(t.srcObject.Size + 1),
-	}
-
-	ExpectCall(t.content, "Stat")(Any()).
-		WillOnce(Return(sr, nil))
-
-	// Call
-	_, _, err := t.call()
-
-	ExpectThat(err, Error(HasSubstr("Stat")))
-	ExpectThat(err, Error(HasSubstr("DirtyThreshold")))
-	ExpectThat(err, Error(HasSubstr(fmt.Sprint(t.srcObject.Size))))
-	ExpectThat(err, Error(HasSubstr(fmt.Sprint(t.srcObject.Size+1))))
-}
-
-func (t *StattingObjectSyncerTest) StatSaysNotDirty() {
-	// Stat
-	sr := mutable.StatResult{
-		Size:           int64(t.srcObject.Size),
-		DirtyThreshold: int64(t.srcObject.Size),
-	}
-
-	ExpectCall(t.content, "Stat")(Any()).
-		WillOnce(Return(sr, nil))
-
-	// Call
-	rl, o, err := t.call()
-
-	AssertEq(nil, err)
-	ExpectEq(nil, rl)
-	ExpectEq(nil, o)
+func (t *StattingObjectSyncerTest) NotDirty() {
+	AssertTrue(false, "TODO")
 }
 
 func (t *StattingObjectSyncerTest) SmallerThanSource() {
