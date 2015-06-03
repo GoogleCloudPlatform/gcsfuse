@@ -94,6 +94,11 @@ func (oc *appendObjectCreator) Create(
 		})
 
 	if err != nil {
+		// Don't mangle precondition errors.
+		if _, ok := err.(*gcs.PreconditionError); ok {
+			return
+		}
+
 		err = fmt.Errorf("CreateObject: %v", err)
 		return
 	}
