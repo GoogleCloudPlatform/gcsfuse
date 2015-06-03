@@ -292,7 +292,17 @@ func (t *ObjectSyncerTest) FullCreatorFails() {
 }
 
 func (t *ObjectSyncerTest) FullCreatorReturnsPreconditionError() {
-	AssertTrue(false, "TODO")
+	var err error
+	t.fullCreator.err = &gcs.PreconditionError{}
+
+	// Truncate downward.
+	err = t.content.Truncate(t.ctx, 2)
+	AssertEq(nil, err)
+
+	// Call
+	_, _, err = t.call()
+
+	ExpectEq(t.fullCreator.err, err)
 }
 
 func (t *ObjectSyncerTest) FullCreatorSucceeds() {
