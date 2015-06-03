@@ -187,7 +187,27 @@ func (t *AppendObjectCreatorTest) ComposeObjectsFails() {
 }
 
 func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
-	AssertTrue(false, "TODO")
+	// CreateObject
+	tmpObject := &gcs.Object{
+		Name: "bar",
+	}
+
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(Return(&tmpObject, nil))
+
+	// ComposeObjects
+	expected := &gcs.PreconditionError{}
+	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
+		WillOnce(Return(nil, expected))
+
+	// DeleteObject
+	ExpectCall(t.bucket, "DeleteObject")(Any(), tmpObject.Name).
+		WillOnce(Return(errors.New("")))
+
+	// Call
+	_, err := t.call()
+
+	ExpectEq(expected, err)
 }
 
 func (t *AppendObjectCreatorTest) CallsDeleteObject() {
