@@ -96,7 +96,13 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 
 	// Set up the object syncer.
-	t.syncer = gcsproxy.NewObjectSyncer(t.bucket)
+	const appendThreshold = 0
+	const tmpObjectPrefix = ".gcsfuse_tmp/"
+
+	t.syncer = gcsproxy.NewObjectSyncer(
+		appendThreshold,
+		tmpObjectPrefix,
+		t.bucket)
 }
 
 func (t *IntegrationTest) TearDown() {

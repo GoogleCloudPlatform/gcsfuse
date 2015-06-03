@@ -45,9 +45,63 @@ type ObjectSyncer interface {
 }
 
 // Create an object syncer that syncs into the supplied bucket.
+//
+// When the source object has been changed only by appending, and the source
+// object's size is at least appendThreshold, we will "append" to it by writing
+// out a temporary blob and composing it with the source object.
+//
+// Temporary blobs have names beginning with tmpObjectPrefix. We make an effort
+// to delete them, but if we are interrupted for some reason we may not be able
+// to do so. Therefore the user should arrange for garbage collection.
 func NewObjectSyncer(
+	appendThreshold int64,
+	tmpObjectPrefix string,
 	bucket gcs.Bucket) (os ObjectSyncer) {
-	panic("TODO")
+	// Create the object creators.
+	fullCreator := &fullObjectCreator{
+		bucket: bucket,
+	}
+
+	appendCreator := newAppendObjectCreator(
+		tmpObjectPrefix,
+		bucket)
+
+	// And the object syncer.
+	os = newObjectSyncer(appendThreshold, fullCreator, appendCreator)
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// fullObjectCreator
+////////////////////////////////////////////////////////////////////////
+
+type fullObjectCreator struct {
+	bucket gcs.Bucket
+}
+
+func (oc *fullObjectCreator) Create(
+	ctx context.Context,
+	srcObject *gcs.Object,
+	r io.Reader) (o *gcs.Object, err error) {
+	req := &gcs.CreateObjectRequest{
+		Name: srcObject.Name,
+		GenerationPrecondition: &srcObject.Generation,
+		Contents:               r,
+	}
+
+	o, err = oc.bucket.CreateObject(ctx, req)
+	if err != nil {
+		// Don't mangle precondition errors.
+		if _, ok := err.(*gcs.PreconditionError); ok {
+			return
+		}
+
+		err = fmt.Errorf("CreateObject: %v", err)
+		return
+	}
+
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
