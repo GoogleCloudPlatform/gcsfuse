@@ -94,7 +94,10 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 		math.MaxUint64, // GCS chunk size
 		t.bucket,
 		t.leaser,
-		gcsproxy.NewObjectSyncer(t.bucket),
+		gcsproxy.NewObjectSyncer(
+			1, // Append threshold
+			".gcsfuse_tmp/",
+			t.bucket),
 		&t.clock)
 
 	t.in.Lock()
