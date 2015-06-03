@@ -239,7 +239,15 @@ func (t *FileTest) Truncate() {
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(truncateTime))
 }
 
-func (t *FileTest) Sync_NotClobbered() {
+func (t *FileTest) WriteThenSync() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FileTest) AppendThenSync() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FileTest) TruncateDownwardThenSync() {
 	var attrs fuseops.InodeAttributes
 	var err error
 
@@ -272,6 +280,10 @@ func (t *FileTest) Sync_NotClobbered() {
 
 	ExpectEq(2, attrs.Size)
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(o.Updated))
+}
+
+func (t *FileTest) TruncateUpwardThenSync() {
+	AssertTrue(false, "TODO")
 }
 
 func (t *FileTest) Sync_Clobbered() {
