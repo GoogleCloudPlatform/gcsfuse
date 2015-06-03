@@ -132,22 +132,6 @@ func (t *StattingObjectSyncerTest) call() (
 	return
 }
 
-func (t *StattingObjectSyncerTest) serveSyncFull(
-	ctx context.Context,
-	srcObject *gcs.Object,
-	r io.Reader) (o *gcs.Object, err error) {
-	err = errors.New("TODO: serveSyncFull")
-	return
-}
-
-func (t *StattingObjectSyncerTest) serveSyncAppend(
-	ctx context.Context,
-	srcObject *gcs.Object,
-	r io.Reader) (o *gcs.Object, err error) {
-	err = errors.New("TODO: serveSyncAppend")
-	return
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
