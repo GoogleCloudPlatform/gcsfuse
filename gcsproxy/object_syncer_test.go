@@ -329,6 +329,21 @@ func (t *ObjectSyncerTest) FullCreatorSucceeds() {
 	ExpectEq(srcObjectContents[:2], string(buf))
 }
 
+func (t *ObjectSyncerTest) CallsAppendCreator() {
+	var err error
+
+	// Append some data.
+	_, err = t.content.WriteAt(t.ctx, []byte("burrito"), int64(t.srcObject.Size))
+	AssertEq(nil, err)
+
+	// Call
+	t.call()
+
+	AssertTrue(t.appendCreator.called)
+	ExpectEq(t.srcObject, t.appendCreator.srcObject)
+	ExpectEq("burrito", string(t.appendCreator.contents))
+}
+
 func (t *ObjectSyncerTest) AppendCreatorFails() {
 	var err error
 	t.appendCreator.err = errors.New("taco")
