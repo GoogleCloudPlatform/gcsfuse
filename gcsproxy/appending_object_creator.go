@@ -15,6 +15,7 @@
 package gcsproxy
 
 import (
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -49,19 +50,46 @@ type appendObjectCreator struct {
 	bucket gcs.Bucket
 }
 
-func (oc *appendObjectCreator) chooseTemporaryObjectName() (name string) {
-	panic("TODO")
+func (oc *appendObjectCreator) chooseName() (name string, err error) {
+	// Generate a good 64-bit random number.
+	var buf [8]byte
+	_, err = io.ReadFull(rand.Reader, buf[:])
+	if err != nil {
+		err = fmt.Errorf("ReadFull: %v", err)
+		return
+	}
+
+	x := uint64(buf[0])<<0 |
+		uint64(buf[1])<<8 |
+		uint64(buf[2])<<16 |
+		uint64(buf[3])<<24 |
+		uint64(buf[4])<<32 |
+		uint64(buf[5])<<40 |
+		uint64(buf[6])<<48 |
+		uint64(buf[7])<<56
+
+	// Turn it into a name.
+	name = fmt.Sprintf("%s%016x", oc.prefix, x)
+
+	return
 }
 
 func (oc *appendObjectCreator) Create(
 	ctx context.Context,
 	srcObject *gcs.Object,
 	r io.Reader) (o *gcs.Object, err error) {
+	// Choose a name for a temporary object.
+	tmpName, err := oc.chooseName()
+	if err != nil {
+		err = fmt.Errorf("chooseName: %v", err)
+		return
+	}
+
 	// Create a temporary object containing the additional contents.
 	_, err = oc.bucket.CreateObject(
 		ctx,
 		&gcs.CreateObjectRequest{
-			Name:     oc.chooseTemporaryObjectName(),
+			Name:     tmpName,
 			Contents: r,
 		})
 
