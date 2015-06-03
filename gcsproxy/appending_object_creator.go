@@ -16,7 +16,6 @@ package gcsproxy
 
 import (
 	"crypto/rand"
-	"errors"
 	"fmt"
 	"io"
 
@@ -86,11 +85,13 @@ func (oc *appendObjectCreator) Create(
 	}
 
 	// Create a temporary object containing the additional contents.
+	var zero int64
 	tmp, err := oc.bucket.CreateObject(
 		ctx,
 		&gcs.CreateObjectRequest{
-			Name:     tmpName,
-			Contents: r,
+			Name: tmpName,
+			GenerationPrecondition: &zero,
+			Contents:               r,
 		})
 
 	if err != nil {
@@ -111,6 +112,34 @@ func (oc *appendObjectCreator) Create(
 		}
 	}()
 
-	err = errors.New("TODO")
+	// Compose the old contents plus the new over the old.
+	o, err = oc.bucket.ComposeObjects(
+		ctx,
+		&gcs.ComposeObjectsRequest{
+			DstName:                   srcObject.Name,
+			DstGenerationPrecondition: &srcObject.Generation,
+			Sources: []gcs.ComposeSource{
+				gcs.ComposeSource{
+					Name:       srcObject.Name,
+					Generation: srcObject.Generation,
+				},
+
+				gcs.ComposeSource{
+					Name:       tmp.Name,
+					Generation: tmp.Generation,
+				},
+			},
+		})
+
+	if err != nil {
+		// Don't mangle precondition errors.
+		if _, ok := err.(*gcs.PreconditionError); ok {
+			return
+		}
+
+		err = fmt.Errorf("ComposeObjects: %v", err)
+		return
+	}
+
 	return
 }

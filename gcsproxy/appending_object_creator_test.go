@@ -85,6 +85,7 @@ func (t *AppendObjectCreatorTest) CallsCreateObject() {
 
 	AssertNe(nil, req)
 	ExpectTrue(strings.HasPrefix(req.Name, prefix), "Name: %s", req.Name)
+	ExpectThat(req.GenerationPrecondition, Pointee(Equals(0)))
 
 	b, err := ioutil.ReadAll(req.Contents)
 	AssertEq(nil, err)
