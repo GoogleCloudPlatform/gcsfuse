@@ -16,6 +16,7 @@ package gcsproxy
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/mutable"
@@ -46,25 +47,60 @@ type ObjectSyncer interface {
 // Create an object syncer that syncs into the supplied bucket.
 func NewObjectSyncer(
 	bucket gcs.Bucket) (os ObjectSyncer) {
-	os = &objectSyncer{
-		bucket: bucket,
-	}
-
-	return
+	panic("TODO")
 }
 
 ////////////////////////////////////////////////////////////////////////
 // objectSyncer
 ////////////////////////////////////////////////////////////////////////
 
+// An implementation detail of objectSyncer. See notes on
+// newObjectSyncer.
+type objectCreator interface {
+	Create(
+		ctx context.Context,
+		srcObject *gcs.Object,
+		r io.Reader) (o *gcs.Object, err error)
+}
+
+// Create an object syncer that stats the mutable content to see if it's dirty
+// before calling through to one of two object creators if the content is dirty:
+//
+// *   fullCreator accepts the source object and the full contents with which it
+//     should be overwritten.
+//
+// *   appendCreator accepts the source object and the contents that should be
+//     "appended" to it.
+//
+// appendThreshold controls the source object length at which we consider it
+// worthwhile to make the append optimization. It should be set to a value on
+// the order of the bandwidth to GCS times three times the round trip latency
+// to GCS (for a small create, a compose, and a delete).
+func newObjectSyncer(
+	appendThreshold int64,
+	fullCreator objectCreator,
+	appendCreator objectCreator) (os ObjectSyncer) {
+	os = &objectSyncer{
+		appendThreshold: appendThreshold,
+		fullCreator:     fullCreator,
+		appendCreator:   appendCreator,
+	}
+
+	return
+}
+
 type objectSyncer struct {
-	bucket gcs.Bucket
+	appendThreshold int64
+	fullCreator     objectCreator
+	appendCreator   objectCreator
 }
 
 func (os *objectSyncer) SyncObject(
 	ctx context.Context,
 	srcObject *gcs.Object,
 	content mutable.Content) (rl lease.ReadLease, o *gcs.Object, err error) {
+	// TODO(jacobsa): Make use of appendCreator. See issue #68.
+
 	// Stat the content.
 	sr, err := content.Stat(ctx)
 	if err != nil {
@@ -73,7 +109,8 @@ func (os *objectSyncer) SyncObject(
 	}
 
 	// Make sure the dirty threshold makes sense.
-	if sr.DirtyThreshold > int64(srcObject.Size) {
+	srcSize := int64(srcObject.Size)
+	if sr.DirtyThreshold > srcSize {
 		err = fmt.Errorf(
 			"Stat returned weird DirtyThreshold field: %d vs. %d",
 			sr.DirtyThreshold,
@@ -85,30 +122,42 @@ func (os *objectSyncer) SyncObject(
 	// If the content hasn't been dirtied (i.e. it is the same size as the source
 	// object, and no bytes within the source object have been dirtied), we're
 	// done.
-	if sr.Size == int64(srcObject.Size) &&
-		sr.DirtyThreshold == sr.Size {
+	if sr.Size == srcSize && sr.DirtyThreshold == srcSize {
 		return
 	}
 
-	// Otherwise, we need to create a new generation.
-	o, err = os.bucket.CreateObject(
-		ctx,
-		&gcs.CreateObjectRequest{
-			Name: srcObject.Name,
-			Contents: &mutableContentReader{
+	// Otherwise, we need to create a new generation. If the source object is
+	// long enough, hasn't been dirtied, and has a low enough component count,
+	// then we can make the optimization of not rewriting its contents.
+	if srcSize >= os.appendThreshold &&
+		sr.DirtyThreshold == srcSize &&
+		srcObject.ComponentCount < gcs.MaxComponentCount {
+		o, err = os.appendCreator.Create(
+			ctx,
+			srcObject,
+			&mutableContentReader{
 				Ctx:     ctx,
 				Content: content,
-			},
-			GenerationPrecondition: &srcObject.Generation,
-		})
+				Offset:  srcSize,
+			})
+	} else {
+		o, err = os.fullCreator.Create(
+			ctx,
+			srcObject,
+			&mutableContentReader{
+				Ctx:     ctx,
+				Content: content,
+			})
+	}
 
+	// Deal with errors.
 	if err != nil {
 		// Special case: don't mess with precondition errors.
 		if _, ok := err.(*gcs.PreconditionError); ok {
 			return
 		}
 
-		err = fmt.Errorf("CreateObject: %v", err)
+		err = fmt.Errorf("Create: %v", err)
 		return
 	}
 

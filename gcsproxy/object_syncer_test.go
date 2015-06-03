@@ -12,24 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsproxy_test
+package gcsproxy
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
+	"strings"
 	"testing"
+	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/mutable"
-	"github.com/googlecloudplatform/gcsfuse/mutable/mock"
+	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/mock_gcs"
+	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
@@ -37,19 +36,61 @@ import (
 func TestObjectSyncer(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
+// fakeObjectCreator
+////////////////////////////////////////////////////////////////////////
+
+// An objectCreator that records the arguments it is called with, returning
+// canned results.
+type fakeObjectCreator struct {
+	called bool
+
+	// Supplied arguments
+	srcObject *gcs.Object
+	contents  []byte
+
+	// Canned results
+	o   *gcs.Object
+	err error
+}
+
+func (oc *fakeObjectCreator) Create(
+	ctx context.Context,
+	srcObject *gcs.Object,
+	r io.Reader) (o *gcs.Object, err error) {
+	// Have we been called more than once?
+	AssertFalse(oc.called)
+	oc.called = true
+
+	// Record args.
+	oc.srcObject = srcObject
+	oc.contents, err = ioutil.ReadAll(r)
+	AssertEq(nil, err)
+
+	// Return results.
+	o, err = oc.o, oc.err
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
+
+const srcObjectContents = "taco"
+const appendThreshold = int64(len(srcObjectContents))
 
 type ObjectSyncerTest struct {
 	ctx context.Context
 
-	srcObject gcs.Object
-	content   mock_mutable.MockContent
-	bucket    mock_gcs.MockBucket
+	fullCreator   fakeObjectCreator
+	appendCreator fakeObjectCreator
 
-	syncer gcsproxy.ObjectSyncer
+	bucket gcs.Bucket
+	leaser lease.FileLeaser
+	syncer ObjectSyncer
+	clock  timeutil.SimulatedClock
 
-	simulatedContents []byte
+	srcObject *gcs.Object
+	content   mutable.Content
 }
 
 var _ SetUpInterface = &ObjectSyncerTest{}
@@ -57,76 +98,47 @@ var _ SetUpInterface = &ObjectSyncerTest{}
 func init() { RegisterTestSuite(&ObjectSyncerTest{}) }
 
 func (t *ObjectSyncerTest) SetUp(ti *TestInfo) {
+	var err error
 	t.ctx = ti.Ctx
 
-	// Set up the source object.
-	t.srcObject.Generation = 1234
-	t.srcObject.Name = "foo"
-	t.srcObject.Size = 17
-
 	// Set up dependencies.
-	t.content = mock_mutable.NewMockContent(
-		ti.MockController,
-		"content")
+	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
+	t.leaser = lease.NewFileLeaser("", math.MaxInt32, math.MaxInt32)
+	t.syncer = newObjectSyncer(
+		appendThreshold,
+		&t.fullCreator,
+		&t.appendCreator)
 
-	t.bucket = mock_gcs.NewMockBucket(
-		ti.MockController,
-		"bucket")
+	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 
-	// Set up the syncer.
-	t.syncer = gcsproxy.NewObjectSyncer(t.bucket)
-
-	// By default, show the content as dirty.
-	sr := mutable.StatResult{
-		DirtyThreshold: int64(t.srcObject.Size - 1),
-	}
-
-	ExpectCall(t.content, "Stat")(Any()).
-		WillRepeatedly(Return(sr, nil))
-
-	// Set up fake contents.
-	t.simulatedContents = []byte("taco")
-	ExpectCall(t.content, "ReadAt")(Any(), Any(), Any()).
-		WillRepeatedly(Invoke(t.serveReadAt))
-
-	// And for the released read/write lease.
-	leaser := lease.NewFileLeaser("", math.MaxInt32, math.MaxInt32)
-	rwl, err := leaser.NewFile()
-	AssertEq(nil, err)
-
-	_, err = rwl.Write(t.simulatedContents)
-	AssertEq(nil, err)
-
-	ExpectCall(t.content, "Release")().
-		WillRepeatedly(Return(rwl))
-}
-
-func (t *ObjectSyncerTest) call() (rl lease.ReadLease, o *gcs.Object, err error) {
-	rl, o, err = t.syncer.SyncObject(
+	// Set up a source object.
+	t.srcObject, err = t.bucket.CreateObject(
 		t.ctx,
-		&t.srcObject,
-		t.content)
+		&gcs.CreateObjectRequest{
+			Name:     "foo",
+			Contents: strings.NewReader(srcObjectContents),
+		})
 
-	return
+	AssertEq(nil, err)
+
+	// Wrap a mutable.Content around it.
+	t.content = mutable.NewContent(
+		NewReadProxy(
+			t.srcObject,
+			nil,            // Initial read lease
+			math.MaxUint64, // Chunk size
+			t.leaser,
+			t.bucket),
+		&t.clock)
+
+	// Return errors from the fakes by default.
+	t.fullCreator.err = errors.New("Fake error")
+	t.appendCreator.err = errors.New("Fake error")
 }
 
-func (t *ObjectSyncerTest) serveReadAt(
-	ctx context.Context,
-	p []byte,
-	offset int64) (n int, err error) {
-	// Handle out of range reads.
-	if offset > int64(len(t.simulatedContents)) {
-		err = io.EOF
-		return
-	}
-
-	// Copy into the buffer.
-	n = copy(p, t.simulatedContents[int(offset):])
-	if n < len(p) {
-		err = io.EOF
-		return
-	}
-
+func (t *ObjectSyncerTest) call() (
+	rl lease.ReadLease, o *gcs.Object, err error) {
+	rl, o, err = t.syncer.SyncObject(t.ctx, t.srcObject, t.content)
 	return
 }
 
@@ -134,166 +146,253 @@ func (t *ObjectSyncerTest) serveReadAt(
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ObjectSyncerTest) StatFails() {
-	// Stat
-	ExpectCall(t.content, "Stat")(Any()).
-		WillOnce(Return(mutable.StatResult{}, errors.New("taco")))
-
-	// Call
-	_, _, err := t.call()
-
-	ExpectThat(err, Error(HasSubstr("Stat")))
-	ExpectThat(err, Error(HasSubstr("taco")))
-}
-
-func (t *ObjectSyncerTest) StatReturnsWackyDirtyThreshold() {
-	// Stat
-	sr := mutable.StatResult{
-		DirtyThreshold: int64(t.srcObject.Size + 1),
-	}
-
-	ExpectCall(t.content, "Stat")(Any()).
-		WillOnce(Return(sr, nil))
-
-	// Call
-	_, _, err := t.call()
-
-	ExpectThat(err, Error(HasSubstr("Stat")))
-	ExpectThat(err, Error(HasSubstr("DirtyThreshold")))
-	ExpectThat(err, Error(HasSubstr(fmt.Sprint(t.srcObject.Size))))
-	ExpectThat(err, Error(HasSubstr(fmt.Sprint(t.srcObject.Size+1))))
-}
-
-func (t *ObjectSyncerTest) StatSaysNotDirty() {
-	// Stat
-	sr := mutable.StatResult{
-		Size:           int64(t.srcObject.Size),
-		DirtyThreshold: int64(t.srcObject.Size),
-	}
-
-	ExpectCall(t.content, "Stat")(Any()).
-		WillOnce(Return(sr, nil))
-
+func (t *ObjectSyncerTest) NotDirty() {
 	// Call
 	rl, o, err := t.call()
 
 	AssertEq(nil, err)
 	ExpectEq(nil, rl)
 	ExpectEq(nil, o)
+
+	// Neither creater should have been called.
+	ExpectFalse(t.fullCreator.called)
+	ExpectFalse(t.appendCreator.called)
 }
 
-func (t *ObjectSyncerTest) StatSaysDirty_SameSizeAsSource() {
-	// Stat
-	sr := mutable.StatResult{
-		Size:           int64(t.srcObject.Size),
-		DirtyThreshold: int64(t.srcObject.Size - 1),
-	}
-
-	ExpectCall(t.content, "Stat")(Any()).
-		WillOnce(Return(sr, nil))
-
-	// CreateObject
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(nil, errors.New("")))
-
-	// Call
-	t.call()
-}
-
-func (t *ObjectSyncerTest) StatSaysDirty_SmallerThanSource() {
-	// Stat
-	sr := mutable.StatResult{
-		Size:           int64(t.srcObject.Size - 1),
-		DirtyThreshold: int64(t.srcObject.Size - 1),
-	}
-
-	ExpectCall(t.content, "Stat")(Any()).
-		WillOnce(Return(sr, nil))
-
-	// CreateObject
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(nil, errors.New("")))
-
-	// Call
-	t.call()
-}
-
-func (t *ObjectSyncerTest) StatSaysDirty_LargerThanSource() {
-	// Stat
-	sr := mutable.StatResult{
-		Size:           int64(t.srcObject.Size + 1),
-		DirtyThreshold: int64(t.srcObject.Size),
-	}
-
-	ExpectCall(t.content, "Stat")(Any()).
-		WillOnce(Return(sr, nil))
-
-	// CreateObject
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(nil, errors.New("")))
-
-	// Call
-	t.call()
-}
-
-func (t *ObjectSyncerTest) CallsBucket() {
-	// CreateObject
-	var req *gcs.CreateObjectRequest
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
-
-	// Call
-	t.call()
-
-	AssertNe(nil, req)
-	ExpectEq(t.srcObject.Name, req.Name)
-	ExpectThat(req.GenerationPrecondition, Pointee(Equals(t.srcObject.Generation)))
-
-	b, err := ioutil.ReadAll(req.Contents)
+func (t *ObjectSyncerTest) SmallerThanSource() {
+	// Truncate downward.
+	err := t.content.Truncate(t.ctx, int64(len(srcObjectContents)-1))
 	AssertEq(nil, err)
-	ExpectEq(string(t.simulatedContents), string(b))
+
+	// The full creator should be called.
+	t.call()
+
+	ExpectTrue(t.fullCreator.called)
+	ExpectFalse(t.appendCreator.called)
 }
 
-func (t *ObjectSyncerTest) BucketFails() {
-	// CreateObject
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(nil, errors.New("taco")))
+func (t *ObjectSyncerTest) SameSizeAsSource() {
+	// Dirty a byte without changing the length.
+	_, err := t.content.WriteAt(
+		t.ctx,
+		[]byte("a"),
+		int64(len(srcObjectContents)-1))
+
+	AssertEq(nil, err)
+
+	// The full creator should be called.
+	t.call()
+
+	ExpectTrue(t.fullCreator.called)
+	ExpectFalse(t.appendCreator.called)
+}
+
+func (t *ObjectSyncerTest) LargerThanSource_ThresholdInSource() {
+	var err error
+
+	// Extend the length of the content.
+	err = t.content.Truncate(t.ctx, int64(len(srcObjectContents)+100))
+	AssertEq(nil, err)
+
+	// But dirty a byte within the initial content.
+	_, err = t.content.WriteAt(
+		t.ctx,
+		[]byte("a"),
+		int64(len(srcObjectContents)-1))
+
+	AssertEq(nil, err)
+
+	// The full creator should be called.
+	t.call()
+
+	ExpectTrue(t.fullCreator.called)
+	ExpectFalse(t.appendCreator.called)
+}
+
+func (t *ObjectSyncerTest) SourceTooShortForAppend() {
+	var err error
+
+	// Recreate the syncer with a higher append threshold.
+	t.syncer = newObjectSyncer(
+		int64(len(srcObjectContents)+1),
+		&t.fullCreator,
+		&t.appendCreator)
+
+	// Extend the length of the content.
+	err = t.content.Truncate(t.ctx, int64(len(srcObjectContents)+1))
+	AssertEq(nil, err)
+
+	// The full creator should be called.
+	t.call()
+
+	ExpectTrue(t.fullCreator.called)
+	ExpectFalse(t.appendCreator.called)
+}
+
+func (t *ObjectSyncerTest) SourceComponentCountTooHigh() {
+	var err error
+
+	// Simulate a large component count.
+	t.srcObject.ComponentCount = gcs.MaxComponentCount
+
+	// Extend the length of the content.
+	err = t.content.Truncate(t.ctx, int64(len(srcObjectContents)+1))
+	AssertEq(nil, err)
+
+	// The full creator should be called.
+	t.call()
+
+	ExpectTrue(t.fullCreator.called)
+	ExpectFalse(t.appendCreator.called)
+}
+
+func (t *ObjectSyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
+	var err error
+
+	// Extend the length of the content.
+	err = t.content.Truncate(t.ctx, int64(len(srcObjectContents)+1))
+	AssertEq(nil, err)
+
+	// The append creator should be called.
+	t.call()
+
+	ExpectFalse(t.fullCreator.called)
+	ExpectTrue(t.appendCreator.called)
+}
+
+func (t *ObjectSyncerTest) CallsFullCreator() {
+	var err error
+	AssertLt(2, t.srcObject.Size)
+
+	// Truncate downward.
+	err = t.content.Truncate(t.ctx, 2)
+	AssertEq(nil, err)
 
 	// Call
-	_, _, err := t.call()
+	t.call()
 
-	ExpectThat(err, Error(HasSubstr("CreateObject")))
+	AssertTrue(t.fullCreator.called)
+	ExpectEq(t.srcObject, t.fullCreator.srcObject)
+	ExpectEq(srcObjectContents[:2], string(t.fullCreator.contents))
+}
+
+func (t *ObjectSyncerTest) FullCreatorFails() {
+	var err error
+	t.fullCreator.err = errors.New("taco")
+
+	// Truncate downward.
+	err = t.content.Truncate(t.ctx, 2)
+	AssertEq(nil, err)
+
+	// Call
+	_, _, err = t.call()
+
+	ExpectThat(err, Error(HasSubstr("Create")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *ObjectSyncerTest) BucketReturnsPreconditionError() {
-	// CreateObject
-	expected := &gcs.PreconditionError{}
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(nil, expected))
+func (t *ObjectSyncerTest) FullCreatorReturnsPreconditionError() {
+	var err error
+	t.fullCreator.err = &gcs.PreconditionError{}
+
+	// Truncate downward.
+	err = t.content.Truncate(t.ctx, 2)
+	AssertEq(nil, err)
 
 	// Call
-	_, _, err := t.call()
+	_, _, err = t.call()
 
-	ExpectEq(expected, err)
+	ExpectEq(t.fullCreator.err, err)
 }
 
-func (t *ObjectSyncerTest) BucketSucceeds() {
-	// CreateObject
-	expected := &gcs.Object{}
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(expected, nil))
+func (t *ObjectSyncerTest) FullCreatorSucceeds() {
+	var err error
+	t.fullCreator.o = &gcs.Object{}
+	t.fullCreator.err = nil
+
+	// Truncate downward.
+	err = t.content.Truncate(t.ctx, 2)
+	AssertEq(nil, err)
 
 	// Call
 	rl, o, err := t.call()
 
 	AssertEq(nil, err)
-	ExpectEq(expected, o)
+	ExpectEq(t.fullCreator.o, o)
 
+	// Check the read lease.
 	_, err = rl.Seek(0, 0)
 	AssertEq(nil, err)
 
-	b, err := ioutil.ReadAll(rl)
+	buf, err := ioutil.ReadAll(rl)
 	AssertEq(nil, err)
-	ExpectEq(string(t.simulatedContents), string(b))
+	ExpectEq(srcObjectContents[:2], string(buf))
+}
+
+func (t *ObjectSyncerTest) CallsAppendCreator() {
+	var err error
+
+	// Append some data.
+	_, err = t.content.WriteAt(t.ctx, []byte("burrito"), int64(t.srcObject.Size))
+	AssertEq(nil, err)
+
+	// Call
+	t.call()
+
+	AssertTrue(t.appendCreator.called)
+	ExpectEq(t.srcObject, t.appendCreator.srcObject)
+	ExpectEq("burrito", string(t.appendCreator.contents))
+}
+
+func (t *ObjectSyncerTest) AppendCreatorFails() {
+	var err error
+	t.appendCreator.err = errors.New("taco")
+
+	// Append some data.
+	_, err = t.content.WriteAt(t.ctx, []byte("burrito"), int64(t.srcObject.Size))
+	AssertEq(nil, err)
+
+	// Call
+	_, _, err = t.call()
+
+	ExpectThat(err, Error(HasSubstr("Create")))
+	ExpectThat(err, Error(HasSubstr("taco")))
+}
+
+func (t *ObjectSyncerTest) AppendCreatorReturnsPreconditionError() {
+	var err error
+	t.appendCreator.err = &gcs.PreconditionError{}
+
+	// Append some data.
+	_, err = t.content.WriteAt(t.ctx, []byte("burrito"), int64(t.srcObject.Size))
+	AssertEq(nil, err)
+
+	// Call
+	_, _, err = t.call()
+
+	ExpectEq(t.appendCreator.err, err)
+}
+
+func (t *ObjectSyncerTest) AppendCreatorSucceeds() {
+	var err error
+	t.appendCreator.o = &gcs.Object{}
+	t.appendCreator.err = nil
+
+	// Append some data.
+	_, err = t.content.WriteAt(t.ctx, []byte("burrito"), int64(t.srcObject.Size))
+	AssertEq(nil, err)
+
+	// Call
+	rl, o, err := t.call()
+
+	AssertEq(nil, err)
+	ExpectEq(t.appendCreator.o, o)
+
+	// Check the read lease.
+	_, err = rl.Seek(0, 0)
+	AssertEq(nil, err)
+
+	buf, err := ioutil.ReadAll(rl)
+	AssertEq(nil, err)
+	ExpectEq(srcObjectContents+"burrito", string(buf))
 }
