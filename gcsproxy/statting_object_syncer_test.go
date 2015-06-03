@@ -182,7 +182,26 @@ func (t *StattingObjectSyncerTest) SameSizeAsSource() {
 }
 
 func (t *StattingObjectSyncerTest) LargerThanSource_ThresholdInSource() {
-	AssertTrue(false, "TODO")
+	var err error
+	t.fullCreator.err = errors.New("")
+
+	// Extend the length of the content.
+	err = t.content.Truncate(t.ctx, int64(len(srcObjectContents)+100))
+	AssertEq(nil, err)
+
+	// But dirty a byte within the initial content.
+	_, err = t.content.WriteAt(
+		t.ctx,
+		[]byte("a"),
+		int64(len(srcObjectContents)-1))
+
+	AssertEq(nil, err)
+
+	// The full creator should be called.
+	t.call()
+
+	ExpectTrue(t.fullCreator.called)
+	ExpectFalse(t.appendCreator.called)
 }
 
 func (t *StattingObjectSyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
