@@ -129,6 +129,10 @@ func (t *ObjectSyncerTest) SetUp(ti *TestInfo) {
 			t.leaser,
 			t.bucket),
 		&t.clock)
+
+	// Return errors from the fakes by default.
+	t.fullCreator.err = errors.New("Fake error")
+	t.appendCreator.err = errors.New("Fake error")
 }
 
 func (t *ObjectSyncerTest) call() (
@@ -155,8 +159,6 @@ func (t *ObjectSyncerTest) NotDirty() {
 }
 
 func (t *ObjectSyncerTest) SmallerThanSource() {
-	t.fullCreator.err = errors.New("")
-
 	// Truncate downward.
 	err := t.content.Truncate(t.ctx, int64(len(srcObjectContents)-1))
 	AssertEq(nil, err)
@@ -169,8 +171,6 @@ func (t *ObjectSyncerTest) SmallerThanSource() {
 }
 
 func (t *ObjectSyncerTest) SameSizeAsSource() {
-	t.fullCreator.err = errors.New("")
-
 	// Dirty a byte without changing the length.
 	_, err := t.content.WriteAt(
 		t.ctx,
@@ -188,7 +188,6 @@ func (t *ObjectSyncerTest) SameSizeAsSource() {
 
 func (t *ObjectSyncerTest) LargerThanSource_ThresholdInSource() {
 	var err error
-	t.fullCreator.err = errors.New("")
 
 	// Extend the length of the content.
 	err = t.content.Truncate(t.ctx, int64(len(srcObjectContents)+100))
@@ -219,7 +218,6 @@ func (t *ObjectSyncerTest) SourceComponentCountTooHigh() {
 
 func (t *ObjectSyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
 	var err error
-	t.fullCreator.err = errors.New("")
 
 	// Extend the length of the content.
 	err = t.content.Truncate(t.ctx, int64(len(srcObjectContents)+1))
