@@ -48,6 +48,38 @@ func (t *AppendObjectCreatorTest) SetUp(ti *TestInfo) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *AppendObjectCreatorTest) DoesFoo() {
+func (t *AppendObjectCreatorTest) CallsCreateObject() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AppendObjectCreatorTest) CreateObjectFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AppendObjectCreatorTest) CreateObjectReturnsPreconditionError() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AppendObjectCreatorTest) CallsComposeObjects() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AppendObjectCreatorTest) ComposeObjectsFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AppendObjectCreatorTest) CallsDeleteObject() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AppendObjectCreatorTest) DeleteObjectFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *AppendObjectCreatorTest) DeleteObjectSucceeds() {
 	AssertTrue(false, "TODO")
 }
