@@ -131,7 +131,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjects() {
 	}
 
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(&tmpObject, nil))
+		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
 	var req *gcs.ComposeObjectsRequest
@@ -170,7 +170,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsFails() {
 	}
 
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(&tmpObject, nil))
+		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
@@ -194,7 +194,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 	}
 
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(&tmpObject, nil))
+		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
 	expected := &gcs.PreconditionError{}
@@ -218,7 +218,7 @@ func (t *AppendObjectCreatorTest) CallsDeleteObject() {
 	}
 
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(&tmpObject, nil))
+		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
 	composed := &gcs.Object{}
@@ -240,7 +240,7 @@ func (t *AppendObjectCreatorTest) DeleteObjectFails() {
 	}
 
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(&tmpObject, nil))
+		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
 	composed := &gcs.Object{}
@@ -265,7 +265,7 @@ func (t *AppendObjectCreatorTest) DeleteObjectSucceeds() {
 	}
 
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(&tmpObject, nil))
+		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
 	composed := &gcs.Object{}
