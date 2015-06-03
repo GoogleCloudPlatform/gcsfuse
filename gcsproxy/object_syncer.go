@@ -54,7 +54,7 @@ func NewObjectSyncer(
 }
 
 ////////////////////////////////////////////////////////////////////////
-// objectSyncer
+// Implementation
 ////////////////////////////////////////////////////////////////////////
 
 type objectSyncer struct {
@@ -115,23 +115,5 @@ func (os *objectSyncer) SyncObject(
 	// Yank out the contents.
 	rl = content.Release().Downgrade()
 
-	return
-}
-
-////////////////////////////////////////////////////////////////////////
-// mutableContentReader
-////////////////////////////////////////////////////////////////////////
-
-// An io.Reader that wraps a mutable.Content object, reading starting from a
-// base offset.
-type mutableContentReader struct {
-	Ctx     context.Context
-	Content mutable.Content
-	Offset  int64
-}
-
-func (mcr *mutableContentReader) Read(p []byte) (n int, err error) {
-	n, err = mcr.Content.ReadAt(mcr.Ctx, p, mcr.Offset)
-	mcr.Offset += int64(n)
 	return
 }

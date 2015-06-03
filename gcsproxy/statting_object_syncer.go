@@ -66,6 +66,26 @@ func (os *stattingObjectSyncer) SyncObject(
 	ctx context.Context,
 	srcObject *gcs.Object,
 	content mutable.Content) (rl lease.ReadLease, o *gcs.Object, err error) {
+	// TODO(jacobsa): Make use of appendCreator. See issue #68.
+
 	err = errors.New("TODO")
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// mutableContentReader
+////////////////////////////////////////////////////////////////////////
+
+// An io.Reader that wraps a mutable.Content object, reading starting from a
+// base offset.
+type mutableContentReader struct {
+	Ctx     context.Context
+	Content mutable.Content
+	Offset  int64
+}
+
+func (mcr *mutableContentReader) Read(p []byte) (n int, err error) {
+	n, err = mcr.Content.ReadAt(mcr.Ctx, p, mcr.Offset)
+	mcr.Offset += int64(n)
 	return
 }
