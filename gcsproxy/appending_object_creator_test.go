@@ -15,9 +15,15 @@
 package gcsproxy
 
 import (
+	"errors"
+	"io/ioutil"
+	"strings"
 	"testing"
 
+	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
+	. "github.com/jacobsa/oglematchers"
+	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
@@ -34,6 +40,9 @@ type AppendObjectCreatorTest struct {
 	ctx     context.Context
 	bucket  mock_gcs.MockBucket
 	creator objectCreator
+
+	srcObject   gcs.Object
+	srcContents string
 }
 
 var _ SetUpInterface = &AppendObjectCreatorTest{}
@@ -50,12 +59,36 @@ func (t *AppendObjectCreatorTest) SetUp(ti *TestInfo) {
 	t.creator = newAppendObjectCreator(prefix, t.bucket)
 }
 
+func (t *AppendObjectCreatorTest) call() (o *gcs.Object, err error) {
+	o, err = t.creator.Create(
+		t.ctx,
+		&t.srcObject,
+		strings.NewReader(t.srcContents))
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
 func (t *AppendObjectCreatorTest) CallsCreateObject() {
-	AssertTrue(false, "TODO")
+	t.srcContents = "taco"
+
+	// CreateObject
+	var req *gcs.CreateObjectRequest
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
+
+	// Call
+	t.call()
+
+	AssertNe(nil, req)
+	ExpectTrue(strings.HasPrefix(req.Name, prefix), "Name: %s", req.Name)
+
+	b, err := ioutil.ReadAll(req.Contents)
+	AssertEq(nil, err)
+	ExpectEq(t.srcContents, string(b))
 }
 
 func (t *AppendObjectCreatorTest) CreateObjectFails() {
