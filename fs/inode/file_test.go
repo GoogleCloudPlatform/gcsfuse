@@ -281,7 +281,44 @@ func (t *FileTest) WriteThenSync() {
 }
 
 func (t *FileTest) AppendThenSync() {
-	AssertTrue(false, "TODO")
+	var attrs fuseops.InodeAttributes
+	var err error
+
+	AssertEq("taco", t.initialContents)
+
+	// Append some data.
+	err = t.in.Write(t.ctx, []byte("burrito"), int64(len("taco")))
+	AssertEq(nil, err)
+
+	t.clock.AdvanceTime(time.Second)
+
+	// Sync.
+	err = t.in.Sync(t.ctx)
+	AssertEq(nil, err)
+
+	// The generation should have advanced.
+	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration())
+
+	// Stat the current object in the bucket.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	o, err := t.bucket.StatObject(t.ctx, statReq)
+
+	AssertEq(nil, err)
+	ExpectEq(t.in.SourceGeneration(), o.Generation)
+	ExpectEq(len("tacoburrito"), o.Size)
+
+	// Read the object's contents.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name())
+
+	AssertEq(nil, err)
+	ExpectEq("tacoburrito", string(contents))
+
+	// Check attributes.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+
+	ExpectEq(len("tacoburrito"), attrs.Size)
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(o.Updated))
 }
 
 func (t *FileTest) TruncateDownwardThenSync() {
