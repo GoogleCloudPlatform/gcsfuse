@@ -15,6 +15,8 @@
 package gcsproxy
 
 import (
+	"fmt"
+
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/mutable"
 	"github.com/jacobsa/gcloud/gcs"
@@ -44,5 +46,92 @@ type ObjectSyncer interface {
 // Create an object syncer that syncs into the supplied bucket.
 func NewObjectSyncer(
 	bucket gcs.Bucket) (os ObjectSyncer) {
-	panic("TODO")
+	os = &objectSyncer{
+		bucket: bucket,
+	}
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// objectSyncer
+////////////////////////////////////////////////////////////////////////
+
+type objectSyncer struct {
+	bucket gcs.Bucket
+}
+
+func (os *objectSyncer) SyncObject(
+	ctx context.Context,
+	srcObject *gcs.Object,
+	content mutable.Content) (rl lease.ReadLease, o *gcs.Object, err error) {
+	// Stat the content.
+	sr, err := content.Stat(ctx)
+	if err != nil {
+		err = fmt.Errorf("Stat: %v", err)
+		return
+	}
+
+	// Make sure the dirty threshold makes sense.
+	if sr.DirtyThreshold > int64(srcObject.Size) {
+		err = fmt.Errorf(
+			"Stat returned weird DirtyThreshold field: %d vs. %d",
+			sr.DirtyThreshold,
+			srcObject.Size)
+
+		return
+	}
+
+	// If the content hasn't been dirtied (i.e. it is the same size as the source
+	// object, and no bytes within the source object have been dirtied), we're
+	// done.
+	if sr.Size == int64(srcObject.Size) &&
+		sr.DirtyThreshold == sr.Size {
+		return
+	}
+
+	// Otherwise, we need to create a new generation.
+	o, err = os.bucket.CreateObject(
+		ctx,
+		&gcs.CreateObjectRequest{
+			Name: srcObject.Name,
+			Contents: &mutableContentReader{
+				Ctx:     ctx,
+				Content: content,
+			},
+			GenerationPrecondition: &srcObject.Generation,
+		})
+
+	if err != nil {
+		// Special case: don't mess with precondition errors.
+		if _, ok := err.(*gcs.PreconditionError); ok {
+			return
+		}
+
+		err = fmt.Errorf("CreateObject: %v", err)
+		return
+	}
+
+	// Yank out the contents.
+	rl = content.Release().Downgrade()
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// mutableContentReader
+////////////////////////////////////////////////////////////////////////
+
+// An io.Reader that wraps a mutable.Content object, reading starting from a
+// base offset.
+type mutableContentReader struct {
+	Ctx     context.Context
+	Content mutable.Content
+	Offset  int64
+}
+
+func (mcr *mutableContentReader) Read(p []byte) (n int, err error) {
+	n, err = mcr.Content.ReadAt(mcr.Ctx, p, mcr.Offset)
+	mcr.Offset += int64(n)
+	return
 }
