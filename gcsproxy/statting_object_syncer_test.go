@@ -16,9 +16,11 @@ package gcsproxy
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/lease"
+	"github.com/googlecloudplatform/gcsfuse/mutable"
 	"github.com/jacobsa/gcloud/gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
@@ -55,6 +57,82 @@ func (t *StattingObjectSyncerTest) call() (
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *StattingObjectSyncerTest) DoesFoo() {
+func (t *StattingObjectSyncerTest) StatFails() {
+	// Stat
+	ExpectCall(t.content, "Stat")(Any()).
+		WillOnce(Return(mutable.StatResult{}, errors.New("taco")))
+
+	// Call
+	_, _, err := t.call()
+
+	ExpectThat(err, Error(HasSubstr("Stat")))
+	ExpectThat(err, Error(HasSubstr("taco")))
+}
+
+func (t *StattingObjectSyncerTest) StatReturnsWackyDirtyThreshold() {
+	// Stat
+	sr := mutable.StatResult{
+		DirtyThreshold: int64(t.srcObject.Size + 1),
+	}
+
+	ExpectCall(t.content, "Stat")(Any()).
+		WillOnce(Return(sr, nil))
+
+	// Call
+	_, _, err := t.call()
+
+	ExpectThat(err, Error(HasSubstr("Stat")))
+	ExpectThat(err, Error(HasSubstr("DirtyThreshold")))
+	ExpectThat(err, Error(HasSubstr(fmt.Sprint(t.srcObject.Size))))
+	ExpectThat(err, Error(HasSubstr(fmt.Sprint(t.srcObject.Size+1))))
+}
+
+func (t *StattingObjectSyncerTest) StatSaysNotDirty() {
+	// Stat
+	sr := mutable.StatResult{
+		Size:           int64(t.srcObject.Size),
+		DirtyThreshold: int64(t.srcObject.Size),
+	}
+
+	ExpectCall(t.content, "Stat")(Any()).
+		WillOnce(Return(sr, nil))
+
+	// Call
+	rl, o, err := t.call()
+
+	AssertEq(nil, err)
+	ExpectEq(nil, rl)
+	ExpectEq(nil, o)
+}
+
+func (t *StattingObjectSyncerTest) SmallerThanSource() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *StattingObjectSyncerTest) SameSizeAsSource() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *StattingObjectSyncerTest) LargerThanSource_ThresholdInSource() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *StattingObjectSyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ObjectSyncerTest) SyncFullFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ObjectSyncerTest) SyncFullSucceeds() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ObjectSyncerTest) SyncAppendFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ObjectSyncerTest) SyncAppendSucceeds() {
 	AssertTrue(false, "TODO")
 }

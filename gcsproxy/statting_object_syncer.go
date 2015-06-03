@@ -26,7 +26,7 @@ import (
 
 // Create an object syncer that stats the mutable content to see if it's dirty
 // before calling through to one of two functions that handle creating the
-// underlying object:
+// underlying object if the content is dirty:
 //
 // *   syncFull accepts the source object and the full contents with which it
 //     should be overwritten.
