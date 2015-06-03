@@ -287,7 +287,7 @@ func (t *ObjectSyncerTest) FullCreatorFails() {
 	// Call
 	_, _, err = t.call()
 
-	ExpectThat(err, Error(HasSubstr("fullCreator.Create")))
+	ExpectThat(err, Error(HasSubstr("Create")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
@@ -355,7 +355,7 @@ func (t *ObjectSyncerTest) AppendCreatorFails() {
 	// Call
 	_, _, err = t.call()
 
-	ExpectThat(err, Error(HasSubstr("appendCreator.Create")))
+	ExpectThat(err, Error(HasSubstr("Create")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
