@@ -355,7 +355,38 @@ func (t *FileTest) TruncateDownwardThenSync() {
 }
 
 func (t *FileTest) TruncateUpwardThenSync() {
-	AssertTrue(false, "TODO")
+	var attrs fuseops.InodeAttributes
+	var err error
+
+	AssertEq(4, len(t.initialContents))
+
+	// Truncate upward.
+	err = t.in.Truncate(t.ctx, 6)
+	AssertEq(nil, err)
+
+	t.clock.AdvanceTime(time.Second)
+
+	// Sync.
+	err = t.in.Sync(t.ctx)
+	AssertEq(nil, err)
+
+	// The generation should have advanced.
+	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration())
+
+	// Stat the current object in the bucket.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	o, err := t.bucket.StatObject(t.ctx, statReq)
+
+	AssertEq(nil, err)
+	ExpectEq(t.in.SourceGeneration(), o.Generation)
+	ExpectEq(6, o.Size)
+
+	// Check attributes.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+
+	ExpectEq(6, attrs.Size)
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(o.Updated))
 }
 
 func (t *FileTest) Sync_Clobbered() {
