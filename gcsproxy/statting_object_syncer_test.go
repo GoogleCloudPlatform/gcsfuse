@@ -74,14 +74,6 @@ func (t *StattingObjectSyncerTest) SetUp(ti *TestInfo) {
 	// Set up the syncer.
 	t.syncer = NewObjectSyncer(t.bucket)
 
-	// By default, show the content as dirty.
-	sr := mutable.StatResult{
-		DirtyThreshold: int64(t.srcObject.Size - 1),
-	}
-
-	ExpectCall(t.content, "Stat")(Any()).
-		WillRepeatedly(Return(sr, nil))
-
 	// Set up fake contents.
 	t.simulatedContents = []byte("taco")
 	ExpectCall(t.content, "ReadAt")(Any(), Any(), Any()).
