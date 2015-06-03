@@ -330,11 +330,32 @@ func (t *ObjectSyncerTest) FullCreatorSucceeds() {
 }
 
 func (t *ObjectSyncerTest) AppendCreatorFails() {
-	AssertTrue(false, "TODO")
+	var err error
+	t.appendCreator.err = errors.New("taco")
+
+	// Append some data.
+	_, err = t.content.WriteAt(t.ctx, []byte("burrito"), int64(t.srcObject.Size))
+	AssertEq(nil, err)
+
+	// Call
+	_, _, err = t.call()
+
+	ExpectThat(err, Error(HasSubstr("appendCreator.Create")))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *ObjectSyncerTest) AppendCreatorReturnsPreconditionError() {
-	AssertTrue(false, "TODO")
+	var err error
+	t.appendCreator.err = &gcs.PreconditionError{}
+
+	// Append some data.
+	_, err = t.content.WriteAt(t.ctx, []byte("burrito"), int64(t.srcObject.Size))
+	AssertEq(nil, err)
+
+	// Call
+	_, _, err = t.call()
+
+	ExpectEq(t.appendCreator.err, err)
 }
 
 func (t *ObjectSyncerTest) AppendCreatorSucceeds() {
