@@ -207,6 +207,66 @@ func (t *IntegrationTest) WriteThenSync() {
 	contents, err = ioutil.ReadAll(rl)
 	AssertEq(nil, err)
 	ExpectEq("paco", string(contents))
+
+	// There should be no junk left over in the bucket besides the object of
+	// interest.
+	objects, runs, err := gcsutil.ListAll(
+		t.ctx,
+		t.bucket,
+		&gcs.ListObjectsRequest{})
+
+	AssertEq(nil, err)
+	AssertEq(1, len(objects))
+	AssertEq(0, len(runs))
+
+	ExpectEq("foo", objects[0].Name)
+}
+
+func (t *IntegrationTest) AppendThenSync() {
+	// Create.
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	AssertEq(nil, err)
+
+	t.create(o)
+
+	// Append some data.
+	n, err := t.mc.WriteAt(t.ctx, []byte("burrito"), 4)
+
+	AssertEq(nil, err)
+	ExpectEq(len("burrito"), n)
+
+	// Sync should save out the new generation.
+	rl, newObj, err := t.sync(o)
+	AssertEq(nil, err)
+
+	ExpectNe(o.Generation, newObj.Generation)
+	ExpectEq(t.objectGeneration("foo"), newObj.Generation)
+
+	// Read via the bucket.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	AssertEq(nil, err)
+	ExpectEq("tacoburrito", string(contents))
+
+	// Read via the lease.
+	_, err = rl.Seek(0, 0)
+	AssertEq(nil, err)
+
+	contents, err = ioutil.ReadAll(rl)
+	AssertEq(nil, err)
+	ExpectEq("tacoburrito", string(contents))
+
+	// There should be no junk left over in the bucket besides the object of
+	// interest.
+	objects, runs, err := gcsutil.ListAll(
+		t.ctx,
+		t.bucket,
+		&gcs.ListObjectsRequest{})
+
+	AssertEq(nil, err)
+	AssertEq(1, len(objects))
+	AssertEq(0, len(runs))
+
+	ExpectEq("foo", objects[0].Name)
 }
 
 func (t *IntegrationTest) TruncateThenSync() {
