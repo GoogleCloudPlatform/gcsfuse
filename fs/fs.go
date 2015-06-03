@@ -15,6 +15,7 @@
 package fs
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -110,7 +111,7 @@ type ServerConfig struct {
 	// Note that if the process fails or is interrupted the temporary object will
 	// not be cleaned up, so the user must ensure that TmpObjectPrefix is
 	// periodically garbage collected.
-	AppendThreshold uint64
+	AppendThreshold int64
 	TmpObjectPrefix string
 }
 
@@ -140,7 +141,16 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		cfg.TempDirLimitBytes)
 
 	// Create the object syncer.
-	objectSyncer := gcsproxy.NewObjectSyncer(cfg.Bucket)
+	// Check TmpObjectPrefix.
+	if cfg.TmpObjectPrefix == "" {
+		err = errors.New("You must set TmpObjectPrefix.")
+		return
+	}
+
+	objectSyncer := gcsproxy.NewObjectSyncer(
+		cfg.AppendThreshold,
+		cfg.TmpObjectPrefix,
+		cfg.Bucket)
 
 	// Set up the basic struct.
 	fs := &fileSystem{
