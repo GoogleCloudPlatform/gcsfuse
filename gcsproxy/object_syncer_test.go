@@ -34,27 +34,29 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestSync(t *testing.T) { RunTests(t) }
+func TestObjectSyncer(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type SyncTest struct {
+type ObjectSyncerTest struct {
 	ctx context.Context
 
 	srcObject gcs.Object
 	content   mock_mutable.MockContent
 	bucket    mock_gcs.MockBucket
 
+	syncer gcsproxy.ObjectSyncer
+
 	simulatedContents []byte
 }
 
-var _ SetUpInterface = &SyncTest{}
+var _ SetUpInterface = &ObjectSyncerTest{}
 
-func init() { RegisterTestSuite(&SyncTest{}) }
+func init() { RegisterTestSuite(&ObjectSyncerTest{}) }
 
-func (t *SyncTest) SetUp(ti *TestInfo) {
+func (t *ObjectSyncerTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 
 	// Set up the source object.
@@ -70,6 +72,9 @@ func (t *SyncTest) SetUp(ti *TestInfo) {
 	t.bucket = mock_gcs.NewMockBucket(
 		ti.MockController,
 		"bucket")
+
+	// Set up the syncer.
+	t.syncer = gcsproxy.NewObjectSyncer(t.bucket)
 
 	// By default, show the content as dirty.
 	sr := mutable.StatResult{
@@ -96,17 +101,16 @@ func (t *SyncTest) SetUp(ti *TestInfo) {
 		WillRepeatedly(Return(rwl))
 }
 
-func (t *SyncTest) call() (rl lease.ReadLease, o *gcs.Object, err error) {
-	rl, o, err = gcsproxy.Sync(
+func (t *ObjectSyncerTest) call() (rl lease.ReadLease, o *gcs.Object, err error) {
+	rl, o, err = t.syncer.SyncObject(
 		t.ctx,
 		&t.srcObject,
-		t.content,
-		t.bucket)
+		t.content)
 
 	return
 }
 
-func (t *SyncTest) serveReadAt(
+func (t *ObjectSyncerTest) serveReadAt(
 	ctx context.Context,
 	p []byte,
 	offset int64) (n int, err error) {
@@ -130,7 +134,7 @@ func (t *SyncTest) serveReadAt(
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *SyncTest) StatFails() {
+func (t *ObjectSyncerTest) StatFails() {
 	// Stat
 	ExpectCall(t.content, "Stat")(Any()).
 		WillOnce(Return(mutable.StatResult{}, errors.New("taco")))
@@ -142,7 +146,7 @@ func (t *SyncTest) StatFails() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *SyncTest) StatReturnsWackyDirtyThreshold() {
+func (t *ObjectSyncerTest) StatReturnsWackyDirtyThreshold() {
 	// Stat
 	sr := mutable.StatResult{
 		DirtyThreshold: int64(t.srcObject.Size + 1),
@@ -160,7 +164,7 @@ func (t *SyncTest) StatReturnsWackyDirtyThreshold() {
 	ExpectThat(err, Error(HasSubstr(fmt.Sprint(t.srcObject.Size+1))))
 }
 
-func (t *SyncTest) StatSaysNotDirty() {
+func (t *ObjectSyncerTest) StatSaysNotDirty() {
 	// Stat
 	sr := mutable.StatResult{
 		Size:           int64(t.srcObject.Size),
@@ -178,7 +182,7 @@ func (t *SyncTest) StatSaysNotDirty() {
 	ExpectEq(nil, o)
 }
 
-func (t *SyncTest) StatSaysDirty_SameSizeAsSource() {
+func (t *ObjectSyncerTest) StatSaysDirty_SameSizeAsSource() {
 	// Stat
 	sr := mutable.StatResult{
 		Size:           int64(t.srcObject.Size),
@@ -196,7 +200,7 @@ func (t *SyncTest) StatSaysDirty_SameSizeAsSource() {
 	t.call()
 }
 
-func (t *SyncTest) StatSaysDirty_SmallerThanSource() {
+func (t *ObjectSyncerTest) StatSaysDirty_SmallerThanSource() {
 	// Stat
 	sr := mutable.StatResult{
 		Size:           int64(t.srcObject.Size - 1),
@@ -214,7 +218,7 @@ func (t *SyncTest) StatSaysDirty_SmallerThanSource() {
 	t.call()
 }
 
-func (t *SyncTest) StatSaysDirty_LargerThanSource() {
+func (t *ObjectSyncerTest) StatSaysDirty_LargerThanSource() {
 	// Stat
 	sr := mutable.StatResult{
 		Size:           int64(t.srcObject.Size + 1),
@@ -232,7 +236,7 @@ func (t *SyncTest) StatSaysDirty_LargerThanSource() {
 	t.call()
 }
 
-func (t *SyncTest) CallsBucket() {
+func (t *ObjectSyncerTest) CallsBucket() {
 	// CreateObject
 	var req *gcs.CreateObjectRequest
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
@@ -250,7 +254,7 @@ func (t *SyncTest) CallsBucket() {
 	ExpectEq(string(t.simulatedContents), string(b))
 }
 
-func (t *SyncTest) BucketFails() {
+func (t *ObjectSyncerTest) BucketFails() {
 	// CreateObject
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
 		WillOnce(Return(nil, errors.New("taco")))
@@ -262,7 +266,7 @@ func (t *SyncTest) BucketFails() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *SyncTest) BucketReturnsPreconditionError() {
+func (t *ObjectSyncerTest) BucketReturnsPreconditionError() {
 	// CreateObject
 	expected := &gcs.PreconditionError{}
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
@@ -274,7 +278,7 @@ func (t *SyncTest) BucketReturnsPreconditionError() {
 	ExpectEq(expected, err)
 }
 
-func (t *SyncTest) BucketSucceeds() {
+func (t *ObjectSyncerTest) BucketSucceeds() {
 	// CreateObject
 	expected := &gcs.Object{}
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).

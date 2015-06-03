@@ -33,9 +33,10 @@ type FileInode struct {
 	// Dependencies
 	/////////////////////////
 
-	bucket gcs.Bucket
-	leaser lease.FileLeaser
-	clock  timeutil.Clock
+	bucket       gcs.Bucket
+	leaser       lease.FileLeaser
+	objectSyncer gcsproxy.ObjectSyncer
+	clock        timeutil.Clock
 
 	/////////////////////////
 	// Constant data
@@ -96,11 +97,13 @@ func NewFileInode(
 	gcsChunkSize uint64,
 	bucket gcs.Bucket,
 	leaser lease.FileLeaser,
+	objectSyncer gcsproxy.ObjectSyncer,
 	clock timeutil.Clock) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
 		bucket:       bucket,
 		leaser:       leaser,
+		objectSyncer: objectSyncer,
 		clock:        clock,
 		id:           id,
 		name:         o.Name,
@@ -304,11 +307,10 @@ func (f *FileInode) Write(
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// Write out the contents if they are dirty.
-	rl, newObj, err := gcsproxy.Sync(
+	rl, newObj, err := f.objectSyncer.SyncObject(
 		ctx,
 		&f.src,
-		f.content,
-		f.bucket)
+		f.content)
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.

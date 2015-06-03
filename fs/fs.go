@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
@@ -119,11 +120,15 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		cfg.TempDirLimitNumFiles,
 		cfg.TempDirLimitBytes)
 
+	// Create the object syncer.
+	objectSyncer := gcsproxy.NewObjectSyncer(cfg.Bucket)
+
 	// Set up the basic struct.
 	fs := &fileSystem{
 		clock:                  cfg.Clock,
 		bucket:                 cfg.Bucket,
 		leaser:                 leaser,
+		objectSyncer:           objectSyncer,
 		gcsChunkSize:           gcsChunkSize,
 		implicitDirs:           cfg.ImplicitDirectories,
 		dirTypeCacheTTL:        cfg.DirTypeCacheTTL,
@@ -230,9 +235,10 @@ type fileSystem struct {
 	// Dependencies
 	/////////////////////////
 
-	clock  timeutil.Clock
-	bucket gcs.Bucket
-	leaser lease.FileLeaser
+	clock        timeutil.Clock
+	bucket       gcs.Bucket
+	objectSyncer gcsproxy.ObjectSyncer
+	leaser       lease.FileLeaser
 
 	/////////////////////////
 	// Constant data
@@ -552,6 +558,7 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 			fs.gcsChunkSize,
 			fs.bucket,
 			fs.leaser,
+			fs.objectSyncer,
 			fs.clock)
 	}
 

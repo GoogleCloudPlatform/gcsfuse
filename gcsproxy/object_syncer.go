@@ -23,23 +23,48 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Given an object record and content that was originally derived from that
-// object's contents (and potentially modified):
-//
-// *   If the content has not been modified, return a nil read lease and a nil
-//     new object.
-//
-// *   Otherwise, write out a new generation in the bucket (failing with
-//     *gcs.PreconditionError if the source generation is no longer current)
-//     and return a read lease for that object's contents.
-//
-// In the second case, the mutable.Content is destroyed. Otherwise, including
-// when this function fails, it is guaranteed to still be valid.
-func Sync(
+// Safe for concurrent access.
+type ObjectSyncer interface {
+	// Given an object record and content that was originally derived from that
+	// object's contents (and potentially modified):
+	//
+	// *   If the content has not been modified, return a nil read lease and a
+	//     nil new object.
+	//
+	// *   Otherwise, write out a new generation in the bucket (failing with
+	//     *gcs.PreconditionError if the source generation is no longer current)
+	//     and return a read lease for that object's contents.
+	//
+	// In the second case, the mutable.Content is destroyed. Otherwise, including
+	// when this function fails, it is guaranteed to still be valid.
+	SyncObject(
+		ctx context.Context,
+		srcObject *gcs.Object,
+		content mutable.Content) (rl lease.ReadLease, o *gcs.Object, err error)
+}
+
+// Create an object syncer that syncs into the supplied bucket.
+func NewObjectSyncer(
+	bucket gcs.Bucket) (os ObjectSyncer) {
+	os = &objectSyncer{
+		bucket: bucket,
+	}
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// objectSyncer
+////////////////////////////////////////////////////////////////////////
+
+type objectSyncer struct {
+	bucket gcs.Bucket
+}
+
+func (os *objectSyncer) SyncObject(
 	ctx context.Context,
 	srcObject *gcs.Object,
-	content mutable.Content,
-	bucket gcs.Bucket) (rl lease.ReadLease, o *gcs.Object, err error) {
+	content mutable.Content) (rl lease.ReadLease, o *gcs.Object, err error) {
 	// Stat the content.
 	sr, err := content.Stat(ctx)
 	if err != nil {
@@ -66,7 +91,7 @@ func Sync(
 	}
 
 	// Otherwise, we need to create a new generation.
-	o, err = bucket.CreateObject(
+	o, err = os.bucket.CreateObject(
 		ctx,
 		&gcs.CreateObjectRequest{
 			Name: srcObject.Name,
