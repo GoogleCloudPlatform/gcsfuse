@@ -75,6 +75,7 @@ func (oc *fakeObjectCreator) Create(
 ////////////////////////////////////////////////////////////////////////
 
 const srcObjectContents = "taco"
+const appendThreshold = uint64(len(srcObjectContents))
 
 type StattingObjectSyncerTest struct {
 	ctx context.Context
@@ -102,7 +103,11 @@ func (t *StattingObjectSyncerTest) SetUp(ti *TestInfo) {
 	// Set up dependencies.
 	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
 	t.leaser = lease.NewFileLeaser("", math.MaxInt32, math.MaxInt32)
-	t.syncer = createStattingObjectSyncer(&t.fullCreator, &t.appendCreator)
+	t.syncer = createStattingObjectSyncer(
+		appendThreshold,
+		&t.fullCreator,
+		&t.appendCreator)
+
 	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 
 	// Set up a source object.

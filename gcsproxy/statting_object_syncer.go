@@ -42,12 +42,18 @@ type objectCreator interface {
 // *   appendCreator accepts the source object and the contents that should be
 //     "appended" to it.
 //
+// appendThreshold controls the source object length at which we consider it
+// worthwhile to make the append optimization. It should be set to a value on
+// the order of the bandwidth to GCS times three times the round trip latency
+// to GCS (for a small create, a compose, and a delete).
 func createStattingObjectSyncer(
+	appendThreshold uint64,
 	fullCreator objectCreator,
 	appendCreator objectCreator) (os ObjectSyncer) {
 	os = &stattingObjectSyncer{
-		fullCreator:   fullCreator,
-		appendCreator: appendCreator,
+		appendThreshold: appendThreshold,
+		fullCreator:     fullCreator,
+		appendCreator:   appendCreator,
 	}
 
 	return
@@ -58,8 +64,9 @@ func createStattingObjectSyncer(
 ////////////////////////////////////////////////////////////////////////
 
 type stattingObjectSyncer struct {
-	fullCreator   objectCreator
-	appendCreator objectCreator
+	appendThreshold uint64
+	fullCreator     objectCreator
+	appendCreator   objectCreator
 }
 
 func (os *stattingObjectSyncer) SyncObject(
