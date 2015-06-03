@@ -74,6 +74,7 @@ type IntegrationTest struct {
 	bucket gcs.Bucket
 	leaser lease.FileLeaser
 	clock  timeutil.SimulatedClock
+	syncer gcsproxy.ObjectSyncer
 
 	mc mutable.Content
 }
@@ -93,6 +94,9 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 
 	// Set up a fixed, non-zero time.
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
+
+	// Set up the object syncer.
+	t.syncer = gcsproxy.NewObjectSyncer(t.bucket)
 }
 
 func (t *IntegrationTest) TearDown() {
@@ -140,7 +144,7 @@ func (t *IntegrationTest) objectGeneration(name string) (gen int64) {
 
 func (t *IntegrationTest) sync(src *gcs.Object) (
 	rl lease.ReadLease, o *gcs.Object, err error) {
-	rl, o, err = gcsproxy.Sync(t.ctx, src, t.mc, t.bucket)
+	rl, o, err = t.syncer.SyncObject(t.ctx, src, t.mc)
 	if err == nil && rl != nil {
 		t.mc = nil
 	}
