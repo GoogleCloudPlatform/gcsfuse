@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsproxy_test
+package mutable_test
 
 import (
 	"errors"
@@ -20,9 +20,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/lease/mock_lease"
+	"github.com/googlecloudplatform/gcsfuse/mutable"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
@@ -69,10 +69,10 @@ func bufferIs(buf []byte) Matcher {
 // invariants should hold. For catching logic errors early in the test.
 type checkingMutableContent struct {
 	ctx     context.Context
-	wrapped gcsproxy.MutableContent
+	wrapped mutable.MutableContent
 }
 
-func (mc *checkingMutableContent) Stat() (gcsproxy.StatResult, error) {
+func (mc *checkingMutableContent) Stat() (mutable.StatResult, error) {
 	mc.wrapped.CheckInvariants()
 	defer mc.wrapped.CheckInvariants()
 	return mc.wrapped.Stat(mc.ctx)
@@ -149,7 +149,7 @@ func (t *mutableContentTest) SetUp(ti *TestInfo) {
 
 	// And the mutable content.
 	t.mc.ctx = ti.Ctx
-	t.mc.wrapped = gcsproxy.NewMutableContent(
+	t.mc.wrapped = mutable.NewMutableContent(
 		t.initialContent,
 		&t.clock)
 }
@@ -425,7 +425,7 @@ func (t *DirtyTest) WriteAt_LeaseSucceeds() {
 }
 
 func (t *DirtyTest) WriteAt_DirtyThreshold() {
-	var sr gcsproxy.StatResult
+	var sr mutable.StatResult
 	var err error
 
 	// Simulate successful writes and size requests.
@@ -509,7 +509,7 @@ func (t *DirtyTest) Truncate_LeaseSucceeds() {
 }
 
 func (t *DirtyTest) Truncate_DirtyThreshold() {
-	var sr gcsproxy.StatResult
+	var sr mutable.StatResult
 	var err error
 
 	// Simulate successful truncations and size requests.
