@@ -21,4 +21,10 @@ import "github.com/jacobsa/gcloud/gcs"
 // prefix.
 func newAppendObjectCreator(
 	prefix string,
-	bucket gcs.Bucket) (oc objectCreator)
+	bucket gcs.Bucket) (oc objectCreator) {
+	// TODO(jacobsa): Add units tests that use a mock bucket.
+	//
+	// TODO(jacobsa): Figure out what to do about garbage collection. Probably
+	// hoist that all the way to main.go.
+	panic("TODO")
+}
