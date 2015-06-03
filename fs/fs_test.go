@@ -116,6 +116,10 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	t.serverCfg.TempDirLimitNumFiles = 16
 	t.serverCfg.TempDirLimitBytes = 1 << 22 // 4 MiB
 
+	// Set up the append optimization.
+	t.serverCfg.AppendThreshold = 0
+	t.serverCfg.TmpObjectPrefix = ".gcsfuse_tmp/"
+
 	// Set up a temporary directory for mounting.
 	t.Dir, err = ioutil.TempDir("", "fs_test")
 	AssertEq(nil, err)
