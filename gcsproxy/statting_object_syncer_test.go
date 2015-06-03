@@ -164,7 +164,21 @@ func (t *StattingObjectSyncerTest) SmallerThanSource() {
 }
 
 func (t *StattingObjectSyncerTest) SameSizeAsSource() {
-	AssertTrue(false, "TODO")
+	t.fullCreator.err = errors.New("")
+
+	// Dirty a byte without changing the length.
+	_, err := t.content.WriteAt(
+		t.ctx,
+		[]byte("a"),
+		int64(len(srcObjectContents)-1))
+
+	AssertEq(nil, err)
+
+	// The full creator should be called.
+	t.call()
+
+	ExpectTrue(t.fullCreator.called)
+	ExpectFalse(t.appendCreator.called)
 }
 
 func (t *StattingObjectSyncerTest) LargerThanSource_ThresholdInSource() {
