@@ -16,6 +16,7 @@ package gcsproxy
 
 import (
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -48,10 +49,27 @@ type appendObjectCreator struct {
 	bucket gcs.Bucket
 }
 
+func (oc *appendObjectCreator) chooseTemporaryObjectName() (name string) {
+	panic("TODO")
+}
+
 func (oc *appendObjectCreator) Create(
 	ctx context.Context,
 	srcObject *gcs.Object,
 	r io.Reader) (o *gcs.Object, err error) {
+	// Create a temporary object containing the additional contents.
+	_, err = oc.bucket.CreateObject(
+		ctx,
+		&gcs.CreateObjectRequest{
+			Name:     oc.chooseTemporaryObjectName(),
+			Contents: r,
+		})
+
+	if err != nil {
+		err = fmt.Errorf("CreateObject: %v", err)
+		return
+	}
+
 	err = errors.New("TODO")
 	return
 }
