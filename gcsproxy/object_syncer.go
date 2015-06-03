@@ -99,8 +99,6 @@ func (os *objectSyncer) SyncObject(
 	ctx context.Context,
 	srcObject *gcs.Object,
 	content mutable.Content) (rl lease.ReadLease, o *gcs.Object, err error) {
-	// TODO(jacobsa): Make use of appendCreator. See issue #68.
-
 	// Stat the content.
 	sr, err := content.Stat(ctx)
 	if err != nil {
