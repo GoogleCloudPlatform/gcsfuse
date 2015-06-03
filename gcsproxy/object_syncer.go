@@ -127,9 +127,11 @@ func (os *objectSyncer) SyncObject(
 	}
 
 	// Otherwise, we need to create a new generation. If the source object is
-	// long enough and hasn't been dirtied, we can make the optimization of not
-	// rewriting its contents.
-	if srcSize >= os.appendThreshold && sr.DirtyThreshold == srcSize {
+	// long enough, hasn't been dirtied, and has a low enough component count,
+	// then we can make the optimization of not rewriting its contents.
+	if srcSize >= os.appendThreshold &&
+		sr.DirtyThreshold == srcSize &&
+		srcObject.ComponentCount < gcs.MaxComponentCount {
 		o, err = os.appendCreator.Create(
 			ctx,
 			srcObject,
