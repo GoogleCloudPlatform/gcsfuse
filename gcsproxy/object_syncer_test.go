@@ -34,7 +34,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestSync(t *testing.T) { RunTests(t) }
+func TestObjectSyncer(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
