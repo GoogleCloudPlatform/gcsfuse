@@ -209,6 +209,10 @@ func (t *IntegrationTest) WriteThenSync() {
 	ExpectEq("paco", string(contents))
 }
 
+func (t *IntegrationTest) AppendThenSync() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *IntegrationTest) TruncateThenSync() {
 	// Create.
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
