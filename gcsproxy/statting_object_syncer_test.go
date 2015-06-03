@@ -15,6 +15,7 @@
 package gcsproxy
 
 import (
+	"errors"
 	"io"
 	"io/ioutil"
 	"math"
@@ -149,7 +150,17 @@ func (t *StattingObjectSyncerTest) NotDirty() {
 }
 
 func (t *StattingObjectSyncerTest) SmallerThanSource() {
-	AssertTrue(false, "TODO")
+	t.fullCreator.err = errors.New("")
+
+	// Truncate downward.
+	err := t.content.Truncate(t.ctx, int64(len(srcObjectContents)-1))
+	AssertEq(nil, err)
+
+	// The full creator should be called.
+	t.call()
+
+	ExpectTrue(t.fullCreator.called)
+	ExpectFalse(t.appendCreator.called)
 }
 
 func (t *StattingObjectSyncerTest) SameSizeAsSource() {
@@ -161,6 +172,10 @@ func (t *StattingObjectSyncerTest) LargerThanSource_ThresholdInSource() {
 }
 
 func (t *StattingObjectSyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *StattingObjectSyncerTest) SourceTooShortForAppend() {
 	AssertTrue(false, "TODO")
 }
 
