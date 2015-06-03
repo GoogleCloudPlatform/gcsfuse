@@ -77,7 +77,7 @@ type objectCreator interface {
 // the order of the bandwidth to GCS times three times the round trip latency
 // to GCS (for a small create, a compose, and a delete).
 func newObjectSyncer(
-	appendThreshold uint64,
+	appendThreshold int64,
 	fullCreator objectCreator,
 	appendCreator objectCreator) (os ObjectSyncer) {
 	os = &objectSyncer{
@@ -90,7 +90,7 @@ func newObjectSyncer(
 }
 
 type objectSyncer struct {
-	appendThreshold uint64
+	appendThreshold int64
 	fullCreator     objectCreator
 	appendCreator   objectCreator
 }
@@ -109,7 +109,8 @@ func (os *objectSyncer) SyncObject(
 	}
 
 	// Make sure the dirty threshold makes sense.
-	if sr.DirtyThreshold > int64(srcObject.Size) {
+	srcSize := int64(srcObject.Size)
+	if sr.DirtyThreshold > srcSize {
 		err = fmt.Errorf(
 			"Stat returned weird DirtyThreshold field: %d vs. %d",
 			sr.DirtyThreshold,
@@ -121,27 +122,40 @@ func (os *objectSyncer) SyncObject(
 	// If the content hasn't been dirtied (i.e. it is the same size as the source
 	// object, and no bytes within the source object have been dirtied), we're
 	// done.
-	if sr.Size == int64(srcObject.Size) &&
-		sr.DirtyThreshold == sr.Size {
+	if sr.Size == srcSize && sr.DirtyThreshold == srcSize {
 		return
 	}
 
-	// Otherwise, we need to create a new generation.
-	o, err = os.fullCreator.Create(
-		ctx,
-		srcObject,
-		&mutableContentReader{
-			Ctx:     ctx,
-			Content: content,
-		})
+	// Otherwise, we need to create a new generation. If the source object is
+	// long enough and hasn't been dirtied, we can make the optimization of not
+	// rewriting its contents.
+	if srcSize >= os.appendThreshold && sr.DirtyThreshold == srcSize {
+		o, err = os.appendCreator.Create(
+			ctx,
+			srcObject,
+			&mutableContentReader{
+				Ctx:     ctx,
+				Content: content,
+				Offset:  srcSize,
+			})
+	} else {
+		o, err = os.fullCreator.Create(
+			ctx,
+			srcObject,
+			&mutableContentReader{
+				Ctx:     ctx,
+				Content: content,
+			})
+	}
 
+	// Deal with errors.
 	if err != nil {
 		// Special case: don't mess with precondition errors.
 		if _, ok := err.(*gcs.PreconditionError); ok {
 			return
 		}
 
-		err = fmt.Errorf("fullCreator.Create: %v", err)
+		err = fmt.Errorf("Create: %v", err)
 		return
 	}
 

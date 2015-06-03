@@ -76,7 +76,7 @@ func (oc *fakeObjectCreator) Create(
 ////////////////////////////////////////////////////////////////////////
 
 const srcObjectContents = "taco"
-const appendThreshold = uint64(len(srcObjectContents))
+const appendThreshold = int64(len(srcObjectContents))
 
 type ObjectSyncerTest struct {
 	ctx context.Context
@@ -214,7 +214,7 @@ func (t *ObjectSyncerTest) SourceTooShortForAppend() {
 
 	// Recreate the syncer with a higher append threshold.
 	t.syncer = newObjectSyncer(
-		uint64(len(srcObjectContents)+1),
+		int64(len(srcObjectContents)+1),
 		&t.fullCreator,
 		&t.appendCreator)
 
