@@ -57,12 +57,46 @@ func NewObjectSyncer(
 	appendThreshold int64,
 	tmpObjectPrefix string,
 	bucket gcs.Bucket) (os ObjectSyncer) {
-	// Create the append object creator.
+	// Create the object creators.
+	fullCreator := &fullObjectCreator{
+		bucket: bucket,
+	}
+
 	appendCreator := newAppendObjectCreator(
 		tmpObjectPrefix,
 		bucket)
 
-	panic("TODO")
+	// And the object syncer.
+	os = newObjectSyncer(appendThreshold, fullCreator, appendCreator)
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// fullObjectCreator
+////////////////////////////////////////////////////////////////////////
+
+type fullObjectCreator struct {
+	bucket gcs.Bucket
+}
+
+func (oc *fullObjectCreator) Create(
+	ctx context.Context,
+	srcObject *gcs.Object,
+	r io.Reader) (o *gcs.Object, err error) {
+	req := &gcs.CreateObjectRequest{
+		Name: srcObject.Name,
+		GenerationPrecondition: &srcObject.Generation,
+		Contents:               r,
+	}
+
+	o, err = oc.bucket.CreateObject(ctx, req)
+	if err != nil {
+		err = fmt.Errorf("CreateObject: %v", err)
+		return
+	}
+
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
