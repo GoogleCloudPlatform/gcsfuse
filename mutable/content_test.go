@@ -30,7 +30,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestMutableContent(t *testing.T) { RunTests(t) }
+func TestContent(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -65,43 +65,43 @@ func bufferIs(buf []byte) Matcher {
 // Invariant-checking mutable content
 ////////////////////////////////////////////////////////////////////////
 
-// A wrapper around a MutableContent that calls CheckInvariants whenever
-// invariants should hold. For catching logic errors early in the test.
-type checkingMutableContent struct {
+// A wrapper around a Content that calls CheckInvariants whenever invariants
+// should hold. For catching logic errors early in the test.
+type checkingContent struct {
 	ctx     context.Context
-	wrapped mutable.MutableContent
+	wrapped mutable.Content
 }
 
-func (mc *checkingMutableContent) Stat() (mutable.StatResult, error) {
+func (mc *checkingContent) Stat() (mutable.StatResult, error) {
 	mc.wrapped.CheckInvariants()
 	defer mc.wrapped.CheckInvariants()
 	return mc.wrapped.Stat(mc.ctx)
 }
 
-func (mc *checkingMutableContent) ReadAt(b []byte, o int64) (int, error) {
+func (mc *checkingContent) ReadAt(b []byte, o int64) (int, error) {
 	mc.wrapped.CheckInvariants()
 	defer mc.wrapped.CheckInvariants()
 	return mc.wrapped.ReadAt(mc.ctx, b, o)
 }
 
-func (mc *checkingMutableContent) WriteAt(b []byte, o int64) (int, error) {
+func (mc *checkingContent) WriteAt(b []byte, o int64) (int, error) {
 	mc.wrapped.CheckInvariants()
 	defer mc.wrapped.CheckInvariants()
 	return mc.wrapped.WriteAt(mc.ctx, b, o)
 }
 
-func (mc *checkingMutableContent) Truncate(n int64) error {
+func (mc *checkingContent) Truncate(n int64) error {
 	mc.wrapped.CheckInvariants()
 	defer mc.wrapped.CheckInvariants()
 	return mc.wrapped.Truncate(mc.ctx, n)
 }
 
-func (mc *checkingMutableContent) Destroy() {
+func (mc *checkingContent) Destroy() {
 	mc.wrapped.CheckInvariants()
 	mc.wrapped.Destroy()
 }
 
-func (mc *checkingMutableContent) Release() (rwl lease.ReadWriteLease) {
+func (mc *checkingContent) Release() (rwl lease.ReadWriteLease) {
 	mc.wrapped.CheckInvariants()
 	return mc.wrapped.Release()
 }
@@ -119,7 +119,7 @@ type mutableContentTest struct {
 	rwl            mock_lease.MockReadWriteLease
 	clock          timeutil.SimulatedClock
 
-	mc checkingMutableContent
+	mc checkingContent
 }
 
 var _ SetUpInterface = &mutableContentTest{}
@@ -149,7 +149,7 @@ func (t *mutableContentTest) SetUp(ti *TestInfo) {
 
 	// And the mutable content.
 	t.mc.ctx = ti.Ctx
-	t.mc.wrapped = mutable.NewMutableContent(
+	t.mc.wrapped = mutable.NewContent(
 		t.initialContent,
 		&t.clock)
 }
