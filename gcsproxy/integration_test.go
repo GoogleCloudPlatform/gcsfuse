@@ -207,6 +207,19 @@ func (t *IntegrationTest) WriteThenSync() {
 	contents, err = ioutil.ReadAll(rl)
 	AssertEq(nil, err)
 	ExpectEq("paco", string(contents))
+
+	// There should be no junk left over in the bucket besides the object of
+	// interest.
+	objects, runs, err := gcsutil.ListAll(
+		t.ctx,
+		t.bucket,
+		&gcs.ListObjectsRequest{})
+
+	AssertEq(nil, err)
+	AssertEq(1, len(objects))
+	AssertEq(0, len(runs))
+
+	ExpectEq("foo", objects[0].Name)
 }
 
 func (t *IntegrationTest) AppendThenSync() {
