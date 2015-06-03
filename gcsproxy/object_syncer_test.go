@@ -306,7 +306,27 @@ func (t *ObjectSyncerTest) FullCreatorReturnsPreconditionError() {
 }
 
 func (t *ObjectSyncerTest) FullCreatorSucceeds() {
-	AssertTrue(false, "TODO")
+	var err error
+	t.fullCreator.o = &gcs.Object{}
+	t.fullCreator.err = nil
+
+	// Truncate downward.
+	err = t.content.Truncate(t.ctx, 2)
+	AssertEq(nil, err)
+
+	// Call
+	rl, o, err := t.call()
+
+	AssertEq(nil, err)
+	ExpectEq(t.fullCreator.o, o)
+
+	// Check the read lease.
+	_, err = rl.Seek(0, 0)
+	AssertEq(nil, err)
+
+	buf, err := ioutil.ReadAll(rl)
+	AssertEq(nil, err)
+	ExpectEq(srcObjectContents[:2], string(buf))
 }
 
 func (t *ObjectSyncerTest) AppendCreatorFails() {
