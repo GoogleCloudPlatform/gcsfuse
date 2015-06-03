@@ -211,13 +211,73 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 }
 
 func (t *AppendObjectCreatorTest) CallsDeleteObject() {
-	AssertTrue(false, "TODO")
+	// CreateObject
+	tmpObject := &gcs.Object{
+		Name: "bar",
+	}
+
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(Return(&tmpObject, nil))
+
+	// ComposeObjects
+	composed := &gcs.Object{}
+	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
+		WillOnce(Return(composed, nil))
+
+	// DeleteObject
+	ExpectCall(t.bucket, "DeleteObject")(Any(), tmpObject.Name).
+		WillOnce(Return(errors.New("")))
+
+	// Call
+	t.call()
 }
 
 func (t *AppendObjectCreatorTest) DeleteObjectFails() {
-	AssertTrue(false, "TODO")
+	// CreateObject
+	tmpObject := &gcs.Object{
+		Name: "bar",
+	}
+
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(Return(&tmpObject, nil))
+
+	// ComposeObjects
+	composed := &gcs.Object{}
+	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
+		WillOnce(Return(composed, nil))
+
+	// DeleteObject
+	ExpectCall(t.bucket, "DeleteObject")(Any(), Any()).
+		WillOnce(Return(errors.New("taco")))
+
+	// Call
+	_, err := t.call()
+
+	ExpectThat(err, Error(HasSubstr("DeleteObject")))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *AppendObjectCreatorTest) DeleteObjectSucceeds() {
-	AssertTrue(false, "TODO")
+	// CreateObject
+	tmpObject := &gcs.Object{
+		Name: "bar",
+	}
+
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(Return(&tmpObject, nil))
+
+	// ComposeObjects
+	composed := &gcs.Object{}
+	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
+		WillOnce(Return(composed, nil))
+
+	// DeleteObject
+	ExpectCall(t.bucket, "DeleteObject")(Any(), Any()).
+		WillOnce(Return(nil))
+
+	// Call
+	o, err := t.call()
+
+	AssertEq(nil, err)
+	ExpectEq(composed, o)
 }
