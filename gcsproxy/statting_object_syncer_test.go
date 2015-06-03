@@ -15,7 +15,6 @@
 package gcsproxy
 
 import (
-	"errors"
 	"io"
 	"io/ioutil"
 	"math"
@@ -128,7 +127,7 @@ func (t *StattingObjectSyncerTest) SetUp(ti *TestInfo) {
 
 func (t *StattingObjectSyncerTest) call() (
 	rl lease.ReadLease, o *gcs.Object, err error) {
-	err = errors.New("TODO")
+	rl, o, err = t.syncer.SyncObject(t.ctx, t.srcObject, t.content)
 	return
 }
 
