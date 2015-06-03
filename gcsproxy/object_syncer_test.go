@@ -47,6 +47,8 @@ type ObjectSyncerTest struct {
 	content   mock_mutable.MockContent
 	bucket    mock_gcs.MockBucket
 
+	syncer gcsproxy.ObjectSyncer
+
 	simulatedContents []byte
 }
 
@@ -70,6 +72,9 @@ func (t *ObjectSyncerTest) SetUp(ti *TestInfo) {
 	t.bucket = mock_gcs.NewMockBucket(
 		ti.MockController,
 		"bucket")
+
+	// Set up the syncer.
+	t.syncer = gcsproxy.NewObjectSyncer(t.bucket)
 
 	// By default, show the content as dirty.
 	sr := mutable.StatResult{
@@ -97,11 +102,10 @@ func (t *ObjectSyncerTest) SetUp(ti *TestInfo) {
 }
 
 func (t *ObjectSyncerTest) call() (rl lease.ReadLease, o *gcs.Object, err error) {
-	rl, o, err = gcsproxy.Sync(
+	rl, o, err = t.syncer.SyncObject(
 		t.ctx,
 		&t.srcObject,
-		t.content,
-		t.bucket)
+		t.content)
 
 	return
 }
