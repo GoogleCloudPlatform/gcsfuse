@@ -23,8 +23,8 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
-	"github.com/googlecloudplatform/gcsfuse/gcsproxy/mock"
 	"github.com/googlecloudplatform/gcsfuse/lease"
+	"github.com/googlecloudplatform/gcsfuse/mutable/mock"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	. "github.com/jacobsa/oglematchers"
@@ -43,7 +43,7 @@ type SyncTest struct {
 	ctx context.Context
 
 	srcObject gcs.Object
-	content   mock_gcsproxy.MockMutableContent
+	content   mock_mutable.MockContent
 	bucket    mock_gcs.MockBucket
 
 	simulatedContents []byte
@@ -62,7 +62,7 @@ func (t *SyncTest) SetUp(ti *TestInfo) {
 	t.srcObject.Size = 17
 
 	// Set up dependencies.
-	t.content = mock_gcsproxy.NewMockMutableContent(
+	t.content = mock_mutable.NewMockContent(
 		ti.MockController,
 		"content")
 
