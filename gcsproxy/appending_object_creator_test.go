@@ -92,7 +92,17 @@ func (t *AppendObjectCreatorTest) CallsCreateObject() {
 }
 
 func (t *AppendObjectCreatorTest) CreateObjectFails() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// CreateObject
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(Return(nil, errors.New("taco")))
+
+	// Call
+	_, err = t.call()
+
+	ExpectThat(err, Error(HasSubstr("CreateObject")))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *AppendObjectCreatorTest) CreateObjectReturnsPreconditionError() {
