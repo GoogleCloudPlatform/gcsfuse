@@ -16,6 +16,7 @@ package gcsproxy
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/mutable"
@@ -46,25 +47,60 @@ type ObjectSyncer interface {
 // Create an object syncer that syncs into the supplied bucket.
 func NewObjectSyncer(
 	bucket gcs.Bucket) (os ObjectSyncer) {
+	panic("TODO")
+}
+
+////////////////////////////////////////////////////////////////////////
+// objectSyncer
+////////////////////////////////////////////////////////////////////////
+
+// An implementation detail of objectSyncer. See notes on
+// newObjectSyncer.
+type objectCreator interface {
+	Create(
+		ctx context.Context,
+		srcObject *gcs.Object,
+		r io.Reader) (o *gcs.Object, err error)
+}
+
+// Create an object syncer that stats the mutable content to see if it's dirty
+// before calling through to one of two object creators if the content is dirty:
+//
+// *   fullCreator accepts the source object and the full contents with which it
+//     should be overwritten.
+//
+// *   appendCreator accepts the source object and the contents that should be
+//     "appended" to it.
+//
+// appendThreshold controls the source object length at which we consider it
+// worthwhile to make the append optimization. It should be set to a value on
+// the order of the bandwidth to GCS times three times the round trip latency
+// to GCS (for a small create, a compose, and a delete).
+func newObjectSyncer(
+	appendThreshold uint64,
+	fullCreator objectCreator,
+	appendCreator objectCreator) (os ObjectSyncer) {
 	os = &objectSyncer{
-		bucket: bucket,
+		appendThreshold: appendThreshold,
+		fullCreator:     fullCreator,
+		appendCreator:   appendCreator,
 	}
 
 	return
 }
 
-////////////////////////////////////////////////////////////////////////
-// Implementation
-////////////////////////////////////////////////////////////////////////
-
 type objectSyncer struct {
-	bucket gcs.Bucket
+	appendThreshold uint64
+	fullCreator     objectCreator
+	appendCreator   objectCreator
 }
 
 func (os *objectSyncer) SyncObject(
 	ctx context.Context,
 	srcObject *gcs.Object,
 	content mutable.Content) (rl lease.ReadLease, o *gcs.Object, err error) {
+	// TODO(jacobsa): Make use of appendCreator. See issue #68.
+
 	// Stat the content.
 	sr, err := content.Stat(ctx)
 	if err != nil {
@@ -91,15 +127,12 @@ func (os *objectSyncer) SyncObject(
 	}
 
 	// Otherwise, we need to create a new generation.
-	o, err = os.bucket.CreateObject(
+	o, err = os.fullCreator.Create(
 		ctx,
-		&gcs.CreateObjectRequest{
-			Name: srcObject.Name,
-			Contents: &mutableContentReader{
-				Ctx:     ctx,
-				Content: content,
-			},
-			GenerationPrecondition: &srcObject.Generation,
+		srcObject,
+		&mutableContentReader{
+			Ctx:     ctx,
+			Content: content,
 		})
 
 	if err != nil {
@@ -108,12 +141,30 @@ func (os *objectSyncer) SyncObject(
 			return
 		}
 
-		err = fmt.Errorf("CreateObject: %v", err)
+		err = fmt.Errorf("fullCreator.Create: %v", err)
 		return
 	}
 
 	// Yank out the contents.
 	rl = content.Release().Downgrade()
 
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// mutableContentReader
+////////////////////////////////////////////////////////////////////////
+
+// An io.Reader that wraps a mutable.Content object, reading starting from a
+// base offset.
+type mutableContentReader struct {
+	Ctx     context.Context
+	Content mutable.Content
+	Offset  int64
+}
+
+func (mcr *mutableContentReader) Read(p []byte) (n int, err error) {
+	n, err = mcr.Content.ReadAt(mcr.Ctx, p, mcr.Offset)
+	mcr.Offset += int64(n)
 	return
 }
