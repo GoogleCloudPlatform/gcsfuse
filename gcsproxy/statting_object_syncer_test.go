@@ -17,6 +17,7 @@ package gcsproxy
 import (
 	"errors"
 	"io"
+	"io/ioutil"
 	"math"
 	"strings"
 	"testing"
@@ -34,6 +35,42 @@ import (
 func TestStattingObjectSyncer(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
+// fakeObjectCreator
+////////////////////////////////////////////////////////////////////////
+
+// An objectCreator that records the arguments it is called with, returning
+// canned results.
+type fakeObjectCreator struct {
+	called bool
+
+	// Supplied arguments
+	srcObject *gcs.Object
+	contents  []byte
+
+	// Canned results
+	o   *gcs.Object
+	err error
+}
+
+func (oc *fakeObjectCreator) Create(
+	ctx context.Context,
+	srcObject *gcs.Object,
+	r io.Reader) (o *gcs.Object, err error) {
+	// Have we been called more than once?
+	AssertFalse(oc.called)
+	oc.called = true
+
+	// Record args.
+	oc.srcObject = srcObject
+	oc.contents, err = ioutil.ReadAll(r)
+	AssertEq(nil, err)
+
+	// Return results.
+	o, err = oc.o, oc.err
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
@@ -41,6 +78,9 @@ const srcObjectContents = "taco"
 
 type StattingObjectSyncerTest struct {
 	ctx context.Context
+
+	fullCreator   fakeObjectCreator
+	appendCreator fakeObjectCreator
 
 	bucket gcs.Bucket
 	leaser lease.FileLeaser
@@ -62,10 +102,7 @@ func (t *StattingObjectSyncerTest) SetUp(ti *TestInfo) {
 	// Set up dependencies.
 	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
 	t.leaser = lease.NewFileLeaser("", math.MaxInt32, math.MaxInt32)
-	t.syncer = createStattingObjectSyncer(
-		t.serveSyncFull,
-		t.serveSyncAppend)
-
+	t.syncer = createStattingObjectSyncer(&t.fullCreator, &t.appendCreator)
 	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 
 	// Set up a source object.
