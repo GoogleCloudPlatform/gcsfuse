@@ -106,7 +106,17 @@ func (t *AppendObjectCreatorTest) CreateObjectFails() {
 }
 
 func (t *AppendObjectCreatorTest) CreateObjectReturnsPreconditionError() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// CreateObject
+	expected := &gcs.PreconditionError{}
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(Return(nil, expected))
+
+	// Call
+	_, err = t.call()
+
+	ExpectEq(expected, err)
 }
 
 func (t *AppendObjectCreatorTest) CallsComposeObjects() {
