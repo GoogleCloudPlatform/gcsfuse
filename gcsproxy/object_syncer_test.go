@@ -259,6 +259,21 @@ func (t *ObjectSyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
 	ExpectTrue(t.appendCreator.called)
 }
 
+func (t *ObjectSyncerTest) CallsFullCreator() {
+	AssertLt(2, t.srcObject.Size)
+
+	// Truncate downward.
+	err := t.content.Truncate(t.ctx, 2)
+	AssertEq(nil, err)
+
+	// Call
+	t.call()
+
+	AssertTrue(t.fullCreator.called)
+	ExpectEq(t.srcObject, t.fullCreator.srcObject)
+	ExpectEq(srcObjectContents[:2], string(t.fullCreator.contents))
+}
+
 func (t *ObjectSyncerTest) FullCreatorFails() {
 	AssertTrue(false, "TODO")
 }
