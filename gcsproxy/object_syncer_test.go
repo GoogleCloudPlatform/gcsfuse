@@ -229,7 +229,20 @@ func (t *ObjectSyncerTest) SourceTooShortForAppend() {
 }
 
 func (t *ObjectSyncerTest) SourceComponentCountTooHigh() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Simulate a large component count.
+	t.srcObject.ComponentCount = gcs.MaxComponentCount
+
+	// Extend the length of the content.
+	err = t.content.Truncate(t.ctx, int64(len(srcObjectContents)+1))
+	AssertEq(nil, err)
+
+	// The full creator should be called.
+	t.call()
+
+	ExpectTrue(t.fullCreator.called)
+	ExpectFalse(t.appendCreator.called)
 }
 
 func (t *ObjectSyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
