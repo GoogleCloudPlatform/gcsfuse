@@ -86,7 +86,7 @@ func (oc *appendObjectCreator) Create(
 	}
 
 	// Create a temporary object containing the additional contents.
-	_, err = oc.bucket.CreateObject(
+	tmp, err := oc.bucket.CreateObject(
 		ctx,
 		&gcs.CreateObjectRequest{
 			Name:     tmpName,
@@ -105,7 +105,7 @@ func (oc *appendObjectCreator) Create(
 
 	// Attempt to delete the temporary object when we're done.
 	defer func() {
-		deleteErr := oc.bucket.DeleteObject(ctx, tmpName)
+		deleteErr := oc.bucket.DeleteObject(ctx, tmp.Name)
 		if err == nil && deleteErr != nil {
 			err = fmt.Errorf("DeleteObject: %v", deleteErr)
 		}

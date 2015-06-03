@@ -120,7 +120,46 @@ func (t *AppendObjectCreatorTest) CreateObjectReturnsPreconditionError() {
 }
 
 func (t *AppendObjectCreatorTest) CallsComposeObjects() {
-	AssertTrue(false, "TODO")
+	t.srcObject.Name = "foo"
+	t.srcObject.Generation = 17
+
+	// CreateObject
+	tmpObject := &gcs.Object{
+		Name:       "bar",
+		Generation: 19,
+	}
+
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(Return(&tmpObject, nil))
+
+	// ComposeObjects
+	var req *gcs.ComposeObjectsRequest
+	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
+
+	// DeleteObject
+	ExpectCall(t.bucket, "DeleteObject")(Any(), tmpObject.Name).
+		WillOnce(Return(nil))
+
+	// Call
+	t.call()
+
+	AssertNe(nil, req)
+	ExpectEq(t.srcObject.Name, req.DstName)
+	ExpectThat(
+		req.DstGenerationPrecondition,
+		Pointee(Equals(t.srcObject.Generation)))
+
+	AssertEq(2, len(req.Sources))
+	var src gcs.ComposeSource
+
+	src = req.Sources[0]
+	ExpectEq(t.srcObject.Name, src.Name)
+	ExpectEq(t.srcObject.Generation, src.Generation)
+
+	src = req.Sources[1]
+	ExpectEq(tmpObject.Name, src.Name)
+	ExpectEq(tmpObject.Generation, src.Generation)
 }
 
 func (t *AppendObjectCreatorTest) ComposeObjectsFails() {
