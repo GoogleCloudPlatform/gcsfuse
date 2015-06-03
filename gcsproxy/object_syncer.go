@@ -92,6 +92,11 @@ func (oc *fullObjectCreator) Create(
 
 	o, err = oc.bucket.CreateObject(ctx, req)
 	if err != nil {
+		// Don't mangle precondition errors.
+		if _, ok := err.(*gcs.PreconditionError); ok {
+			return
+		}
+
 		err = fmt.Errorf("CreateObject: %v", err)
 		return
 	}
