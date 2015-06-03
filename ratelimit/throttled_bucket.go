@@ -105,6 +105,21 @@ func (b *throttledBucket) CopyObject(
 	return
 }
 
+func (b *throttledBucket) ComposeObjects(
+	ctx context.Context,
+	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+	// Wait for permission to call through.
+	err = b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return
+	}
+
+	// Call through.
+	o, err = b.wrapped.ComposeObjects(ctx, req)
+
+	return
+}
+
 func (b *throttledBucket) StatObject(
 	ctx context.Context,
 	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
