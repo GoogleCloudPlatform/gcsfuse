@@ -15,6 +15,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -125,13 +126,27 @@ func setUpBucket(
 // run
 ////////////////////////////////////////////////////////////////////////
 
-func run(bucketName string, mountPoint string) (err error) {
+// In main, set flagSet to flag.CommandLine and pass in os.Args[1:]. In a test,
+// pass in a virgin flag set and test arguments.
+func run(
+	args []string,
+	flagSet *flag.FlagSet,
+	handleSIGINT func(mountPoint string)) (err error) {
+	// Populate the flag set and then parse flags.
+	flags := populateFlagSet(flagSet)
+
+	err = flagSet.Parse(args)
+	if err != nil {
+		err = fmt.Errorf("Parsing flags: %v", err)
+		return
+	}
+
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
-	if *fTempDir != "" {
+	if flags.TempDir != "" {
 		var f *os.File
-		f, err = fsutil.AnonymousFile(*fTempDir)
+		f, err = fsutil.AnonymousFile(flags.TempDir)
 		f.Close()
 
 		if err != nil {
@@ -167,29 +182,39 @@ func run(bucketName string, mountPoint string) (err error) {
 		return
 	}
 
-	if *fUid >= 0 {
-		uid = uint32(*fUid)
+	if flags.Uid >= 0 {
+		uid = uint32(flags.Uid)
 	}
 
-	if *fGid >= 0 {
-		gid = uint32(*fGid)
+	if flags.Gid >= 0 {
+		gid = uint32(flags.Gid)
+	}
+
+	// Set up the bucket.
+	bucket, err := setUpBucket(
+		flags,
+		conn,
+		bucketName)
+
+	if err != nil {
+		err = fmt.Errorf("setUpBucket: %v", err)
+		return
 	}
 
 	// Create a file system server.
-	bucket := getBucket(bucketName)
 	serverCfg := &fs.ServerConfig{
 		Clock:                timeutil.RealClock(),
 		Bucket:               bucket,
-		TempDir:              *fTempDir,
+		TempDir:              flags.TempDir,
 		TempDirLimitNumFiles: fs.ChooseTempDirLimitNumFiles(),
-		TempDirLimitBytes:    *fTempDirLimit,
-		GCSChunkSize:         *fGCSChunkSize,
-		ImplicitDirectories:  *fImplicitDirs,
-		DirTypeCacheTTL:      *fTypeCacheTTL,
+		TempDirLimitBytes:    flags.TempDirLimit,
+		GCSChunkSize:         flags.GCSChunkSize,
+		ImplicitDirectories:  flags.ImplicitDirs,
+		DirTypeCacheTTL:      flags.TypeCacheTTL,
 		Uid:                  uid,
 		Gid:                  gid,
-		FilePerms:            os.FileMode(*fFileMode),
-		DirPerms:             os.FileMode(*fDirMode),
+		FilePerms:            os.FileMode(flags.FileMode),
+		DirPerms:             os.FileMode(flags.DirMode),
 	}
 
 	server, err := fs.NewServer(serverCfg)
@@ -201,7 +226,7 @@ func run(bucketName string, mountPoint string) (err error) {
 	// Mount the file system.
 	mountCfg := &fuse.MountConfig{
 		FSName:      bucket.Name(),
-		Options:     fMountOptions,
+		Options:     flags.MountOptions,
 		ErrorLogger: log.New(os.Stderr, "fuse: ", log.Flags()),
 	}
 
@@ -213,8 +238,9 @@ func run(bucketName string, mountPoint string) (err error) {
 
 	log.Println("File system has been successfully mounted.")
 
-	// Let the user unmount with Ctrl-C (SIGINT).
-	registerSIGINTHandler(mountedFS.Dir())
+	// Call the SIGINT handler as appropriate until this function returns.
+	stopSIGINTHandler := registerSIGINTHandler(handleSIGINT)
+	defer func() { stopSIGINTHandler <- struct{}{} }()
 
 	// Wait for it to be unmounted.
 	err = mountedFS.Join(context.Background())
