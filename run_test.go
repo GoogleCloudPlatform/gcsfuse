@@ -41,6 +41,6 @@ func (t *RunTest) SetUp(ti *TestInfo) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *RunTest) DoesFoo() {
+func (t *RunTest) BasicUsage() {
 	AssertTrue(false, "TODO")
 }
