@@ -49,6 +49,7 @@ func populateFlagSet(fs *flag.FlagSet) (flags *flagStorage) {
 		false,
 		"If set, print usage and exit successfully.")
 
+	flags.MountOptions = make(map[string]string)
 	flag.Var(
 		mount.OptionValue(flags.MountOptions),
 		"o",
