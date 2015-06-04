@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
 
 	"github.com/jacobsa/fuse"
 )
@@ -28,26 +27,16 @@ import (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func registerSIGINTHandler(mountPoint string) {
-	// Register for SIGINT.
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
+func handleSIGINT(mountPoint string) {
+	log.Println("Received SIGINT, attempting to unmount...")
 
-	// Start a goroutine that will unmount when the signal is received.
-	go func() {
-		for {
-			<-signalChan
-			log.Println("Received SIGINT, attempting to unmount...")
-
-			err := fuse.Unmount(mountPoint)
-			if err != nil {
-				log.Printf("Failed to unmount in response to SIGINT: %v", err)
-			} else {
-				log.Printf("Successfully unmounted in response to SIGINT.")
-				return
-			}
-		}
-	}()
+	err := fuse.Unmount(mountPoint)
+	if err != nil {
+		log.Printf("Failed to unmount in response to SIGINT: %v", err)
+	} else {
+		log.Printf("Successfully unmounted in response to SIGINT.")
+		return
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
