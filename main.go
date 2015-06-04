@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs"
-	"github.com/googlecloudplatform/gcsfuse/mount"
 	"github.com/googlecloudplatform/gcsfuse/perms"
 	"github.com/googlecloudplatform/gcsfuse/ratelimit"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
@@ -34,85 +33,6 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 )
-
-var fHelp = flag.Bool(
-	"help",
-	false,
-	"If set, print usage and exit successfully.")
-
-var fMountOptions = make(map[string]string)
-
-func init() {
-	flag.Var(
-		mount.OptionValue(fMountOptions),
-		"o",
-		"Additional system-specific mount options. Be careful!")
-}
-
-var fUid = flag.Int64(
-	"uid",
-	-1,
-	"If non-negative, the UID that owns all inodes. The default is the UID of "+
-		"the gcsfuse process.")
-
-var fGid = flag.Int64(
-	"gid",
-	-1,
-	"If non-negative, the GID that owns all inodes. The default is the GID of "+
-		"the gcsfuse process.")
-
-var fFileMode = flag.Uint(
-	"file_mode",
-	0644,
-	"Permissions bits for files. Default is 0644.")
-
-var fDirMode = flag.Uint(
-	"dir_mode",
-	0755,
-	"Permissions bits for directories. Default is 0755.")
-
-var fTempDir = flag.String(
-	"temp_dir", "",
-	"The temporary directory in which to store local copies of GCS objects. "+
-		"If empty, the system default (probably /tmp) will be used.")
-
-var fTempDirLimit = flag.Int64(
-	"temp_dir_bytes", 1<<31,
-	"A desired limit on the number of bytes used in --temp_dir. May be exceeded "+
-		"for dirty files that have not been flushed or closed.")
-
-var fGCSChunkSize = flag.Uint64(
-	"gcs_chunk_size", 1<<24,
-	"If set to a non-zero value N, split up GCS objects into multiple chunks of "+
-		"size at most N when reading, and do not read or cache unnecessary chunks.")
-
-var fImplicitDirs = flag.Bool(
-	"implicit_dirs",
-	false,
-	"Implicitly define directories based on their content. See "+
-		"docs/semantics.md.")
-
-var fStatCacheTTL = flag.Duration(
-	"stat_cache_ttl",
-	time.Minute,
-	"How long to cache StatObject results from GCS.")
-
-var fTypeCacheTTL = flag.Duration(
-	"type_cache_ttl",
-	time.Minute,
-	"How long to cache name -> file/dir type mappings in directory inodes.")
-
-var fOpRateLimitHz = flag.Float64(
-	"op_rate_limit_hz",
-	-1,
-	"If positive, a limit on the rate at which we send requests to GCS, "+
-		"measured over a 30-second window.")
-
-var fEgressBandwidthLimitBytesPerSecond = flag.Float64(
-	"egress_bandwidth_limit_bytes_per_second",
-	-1,
-	"If positive, a limit on the GCS -> gcsfuse bandwidth for reading objects, "+
-		"measured over a 30-second window.")
 
 ////////////////////////////////////////////////////////////////////////
 // Wiring
