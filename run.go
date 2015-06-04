@@ -30,6 +30,17 @@ import (
 	"github.com/jacobsa/fuse/fsutil"
 )
 
+// Set up a SIGINT handler that will invoke the supplied function for each
+// SIGINT signal received. (Signals may be dropped while the handler is
+// running.)
+//
+// Stop future calls to the handler by writing an element to the channel. Once
+// the write proceeds, it is guaranteed that the handler will not be called
+// again.
+func registerSIGINTHandler(f func()) (stop chan<- struct{}) {
+	panic("TODO")
+}
+
 // In main, set flagSet to flag.CommandLine and pass in os.Args[1:]. In a test,
 // pass in a virgin flag set and test arguments.
 func run(
@@ -143,7 +154,10 @@ func run(
 	log.Println("File system has been successfully mounted.")
 
 	// Call the SIGINT handler as appropriate until this function returns.
-	stopSIGINTHandler := registerSIGINTHandler(handleSIGINT)
+	stopSIGINTHandler := registerSIGINTHandler(func() {
+		handleSIGINT(mountPoint)
+	})
+
 	defer func() { stopSIGINTHandler <- struct{}{} }()
 
 	// Wait for it to be unmounted.
