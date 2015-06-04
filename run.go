@@ -15,6 +15,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -69,6 +70,22 @@ func run(
 		err = fmt.Errorf("Parsing flags: %v", err)
 		return
 	}
+
+	// Help mode?
+	if flags.Help {
+		flagSet.Usage()
+		return
+	}
+
+	// Extract positional arguments.
+	if flagSet.NArg() != 2 {
+		flagSet.Usage()
+		err = errors.New("")
+		return
+	}
+
+	bucketName := flagSet.Arg(0)
+	mountPoint := flagSet.Arg(1)
 
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
