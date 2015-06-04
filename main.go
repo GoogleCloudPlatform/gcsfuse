@@ -21,6 +21,7 @@ import (
 	"os"
 
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/gcloud/gcs"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -39,6 +40,8 @@ func handleSIGINT(mountPoint string) {
 	}
 }
 
+func getConn() (c gcs.Conn, err error)
+
 ////////////////////////////////////////////////////////////////////////
 // main function
 ////////////////////////////////////////////////////////////////////////
@@ -47,40 +50,22 @@ func main() {
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
-	// Set up a custom usage function, then parse flags.
-	flag.Usage = func() {
-		fmt.Fprintf(
-			os.Stderr,
-			"Usage: %s [flags] bucket_name mount_point\n",
-			os.Args[0])
-
-		fmt.Fprintf(os.Stderr, "\n")
-		fmt.Fprintf(os.Stderr, "Flags:\n")
-		flag.PrintDefaults()
+	// Grab the connection.
+	conn, err := getConn()
+	if err != nil {
+		log.Fatalf("getConn: %v", err)
 	}
-
-	flag.Parse()
-
-	// Help mode?
-	if *fHelp {
-		flag.Usage()
-		os.Exit(0)
-	}
-
-	// Extract positional arguments.
-	args := flag.Args()
-	if len(args) != 2 {
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	bucketName := args[0]
-	mountPoint := args[1]
 
 	// Run.
-	err := run(bucketName, mountPoint)
+	err = run(
+		os.Args[1:],
+		flag.CommandLine,
+		conn,
+		handleSIGINT)
+
 	if err != nil {
-		log.Fatalf("run: %v", err)
+		fmt.Fprintf(os.Stderr, err.Error())
+		os.Exit(1)
 	}
 
 	log.Println("Successfully exiting.")
