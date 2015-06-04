@@ -93,14 +93,15 @@ func populateFlagSet(fs *flag.FlagSet) (flags *flagStorage) {
 	flag.Int64Var(
 		&flags.TempDirLimit,
 		"temp_dir_bytes", 1<<31,
-		"A desired limit on the number of bytes used in --temp_dir. May be exceeded "+
-			"for dirty files that have not been flushed or closed.")
+		"A desired limit on the number of bytes used in --temp_dir. May be "+
+			"exceeded for dirty files that have not been flushed or closed.")
 
 	flag.Uint64Var(
 		&flags.GCSChunkSize,
 		"gcs_chunk_size", 1<<24,
-		"If set to a non-zero value N, split up GCS objects into multiple chunks of "+
-			"size at most N when reading, and do not read or cache unnecessary chunks.")
+		"If set to a non-zero value N, split up GCS objects into multiple "+
+			"chunks of size at most N when reading, and do not read or cache "+
+			"unnecessary chunks.")
 
 	flag.BoolVar(
 		&flags.ImplicitDirs,
@@ -132,8 +133,8 @@ func populateFlagSet(fs *flag.FlagSet) (flags *flagStorage) {
 		&flags.EgressBandwidthLimitBytesPerSecond,
 		"egress_bandwidth_limit_bytes_per_second",
 		-1,
-		"If positive, a limit on the GCS -> gcsfuse bandwidth for reading objects, "+
-			"measured over a 30-second window.")
+		"If positive, a limit on the GCS -> gcsfuse bandwidth for reading "+
+			"objects, measured over a 30-second window.")
 
 	return
 }
