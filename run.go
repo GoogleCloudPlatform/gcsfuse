@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
+	"github.com/jacobsa/gcloud/gcs"
 )
 
 // Set up a SIGINT handler that will invoke the supplied function for each
@@ -46,8 +47,21 @@ func registerSIGINTHandler(f func()) (stop chan<- struct{}) {
 func run(
 	args []string,
 	flagSet *flag.FlagSet,
+	conn gcs.Conn,
 	handleSIGINT func(mountPoint string)) (err error) {
-	// Populate the flag set and then parse flags.
+	// Set up a custom usage function.
+	flagSet.Usage = func() {
+		fmt.Fprintf(
+			os.Stderr,
+			"Usage: %s [flags] bucket_name mount_point\n",
+			os.Args[0])
+
+		fmt.Fprintf(os.Stderr, "\n")
+		fmt.Fprintf(os.Stderr, "Flags:\n")
+		flagSet.PrintDefaults()
+	}
+
+	// Populate and parse flags.
 	flags := populateFlagSet(flagSet)
 
 	err = flagSet.Parse(args)
