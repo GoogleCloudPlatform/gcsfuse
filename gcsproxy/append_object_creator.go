@@ -29,6 +29,9 @@ import (
 //
 // Note that the Create method will attempt to remove any temporary junk left
 // behind, but it may fail to do so. Users should arrange for garbage collection.
+//
+// Create guarantees to return *gcs.PreconditionError when the source object
+// has been clobbered.
 func newAppendObjectCreator(
 	prefix string,
 	bucket gcs.Bucket) (oc objectCreator) {
@@ -94,12 +97,17 @@ func (oc *appendObjectCreator) Create(
 			Contents:               r,
 		})
 
-	if err != nil {
-		// Don't mangle precondition errors.
-		if _, ok := err.(*gcs.PreconditionError); ok {
-			return
-		}
+	// Don't mangle precondition errors.
+	switch typed := err.(type) {
+	case nil:
 
+	case *gcs.PreconditionError:
+		err = &gcs.PreconditionError{
+			Err: fmt.Errorf("CreateObject: %v", typed.Err),
+		}
+		return
+
+	default:
 		err = fmt.Errorf("CreateObject: %v", err)
 		return
 	}
@@ -131,12 +139,27 @@ func (oc *appendObjectCreator) Create(
 			},
 		})
 
-	if err != nil {
-		// Don't mangle precondition errors.
-		if _, ok := err.(*gcs.PreconditionError); ok {
-			return
-		}
+	switch typed := err.(type) {
+	case nil:
 
+	case *gcs.PreconditionError:
+		err = &gcs.PreconditionError{
+			Err: fmt.Errorf("ComposeObjects: %v", typed.Err),
+		}
+		return
+
+	// A not found error means that either the source object was clobbered or the
+	// temporary object was. The latter is unlikely, so we signal a precondition
+	// error.
+	case *gcs.NotFoundError:
+		err = &gcs.PreconditionError{
+			Err: fmt.Errorf(
+				"Synthesized precondition error for ComposeObjects. Original: %v",
+				err),
+		}
+		return
+
+	default:
 		err = fmt.Errorf("ComposeObjects: %v", err)
 		return
 	}

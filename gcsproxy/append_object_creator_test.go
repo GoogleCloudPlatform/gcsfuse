@@ -110,14 +110,15 @@ func (t *AppendObjectCreatorTest) CreateObjectReturnsPreconditionError() {
 	var err error
 
 	// CreateObject
-	expected := &gcs.PreconditionError{}
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(nil, expected))
+		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("taco")}))
 
 	// Call
 	_, err = t.call()
 
-	ExpectEq(expected, err)
+	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	ExpectThat(err, Error(HasSubstr("CreateObject")))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *AppendObjectCreatorTest) CallsComposeObjects() {
@@ -197,9 +198,8 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
-	expected := &gcs.PreconditionError{}
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
-		WillOnce(Return(nil, expected))
+		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("taco")}))
 
 	// DeleteObject
 	ExpectCall(t.bucket, "DeleteObject")(Any(), tmpObject.Name).
@@ -208,7 +208,35 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 	// Call
 	_, err := t.call()
 
-	ExpectEq(expected, err)
+	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	ExpectThat(err, Error(HasSubstr("ComposeObjects")))
+	ExpectThat(err, Error(HasSubstr("taco")))
+}
+
+func (t *AppendObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
+	// CreateObject
+	tmpObject := &gcs.Object{
+		Name: "bar",
+	}
+
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(Return(tmpObject, nil))
+
+	// ComposeObjects
+	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
+		WillOnce(Return(nil, &gcs.NotFoundError{Err: errors.New("taco")}))
+
+	// DeleteObject
+	ExpectCall(t.bucket, "DeleteObject")(Any(), tmpObject.Name).
+		WillOnce(Return(errors.New("")))
+
+	// Call
+	_, err := t.call()
+
+	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	ExpectThat(err, Error(HasSubstr("Synthesized")))
+	ExpectThat(err, Error(HasSubstr("ComposeObjects")))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *AppendObjectCreatorTest) CallsDeleteObject() {
