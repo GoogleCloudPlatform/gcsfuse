@@ -21,10 +21,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/mount"
 )
 
-////////////////////////////////////////////////////////////////////////
-// Flags
-////////////////////////////////////////////////////////////////////////
-
 type flagStorage struct {
 	Help                               bool
 	MountOptions                       map[string]string
