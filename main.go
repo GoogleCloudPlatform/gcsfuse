@@ -20,6 +20,9 @@ import (
 	"log"
 	"os"
 
+	"golang.org/x/net/context"
+	"golang.org/x/oauth2/google"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 )
@@ -40,7 +43,23 @@ func handleSIGINT(mountPoint string) {
 	}
 }
 
-func getConn() (c gcs.Conn, err error)
+func getConn() (c gcs.Conn, err error) {
+	// Create the authenticated HTTP client.
+	const scope = gcs.Scope_FullControl
+	httpClient, err := google.DefaultClient(context.Background(), scope)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the connection.
+	const userAgent = "gcsfuse/0.0"
+	cfg := &gcs.ConnConfig{
+		HTTPClient: httpClient,
+		UserAgent:  userAgent,
+	}
+
+	return gcs.NewConn(cfg)
+}
 
 ////////////////////////////////////////////////////////////////////////
 // main function
