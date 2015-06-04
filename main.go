@@ -20,110 +20,15 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs"
 	"github.com/googlecloudplatform/gcsfuse/perms"
-	"github.com/googlecloudplatform/gcsfuse/ratelimit"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
-	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/gcscaching"
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 )
-
-////////////////////////////////////////////////////////////////////////
-// Wiring
-////////////////////////////////////////////////////////////////////////
-
-func setUpRateLimiting(
-	in gcs.Bucket,
-	opRateLimitHz float64,
-	egressBandwidthLimit float64) (out gcs.Bucket, err error) {
-	// If no rate limiting has been requested, just return the bucket.
-	if !(opRateLimitHz > 0 || egressBandwidthLimit > 0) {
-		out = in
-		return
-	}
-
-	// Treat a disabled limit as a very large one.
-	if !(opRateLimitHz > 0) {
-		opRateLimitHz = 1e15
-	}
-
-	if !(egressBandwidthLimit > 0) {
-		egressBandwidthLimit = 1e15
-	}
-
-	// Choose token bucket capacities.
-	const window = 30 * time.Second
-
-	opCapacity, err := ratelimit.ChooseTokenBucketCapacity(
-		opRateLimitHz,
-		window)
-
-	if err != nil {
-		err = fmt.Errorf("Choosing operation token bucket capacity: %v", err)
-		return
-	}
-
-	egressCapacity, err := ratelimit.ChooseTokenBucketCapacity(
-		egressBandwidthLimit,
-		window)
-
-	if err != nil {
-		err = fmt.Errorf("Choosing egress bandwidth token bucket capacity: %v", err)
-		return
-	}
-
-	// Create the throttles.
-	opThrottle := ratelimit.NewThrottle(opRateLimitHz, opCapacity)
-	egressThrottle := ratelimit.NewThrottle(egressBandwidthLimit, egressCapacity)
-
-	// And the bucket.
-	out = ratelimit.NewThrottledBucket(
-		opThrottle,
-		egressThrottle,
-		in)
-
-	return
-}
-
-func getBucket(bucketName string) (b gcs.Bucket) {
-	// Set up a GCS connection.
-	log.Println("Initializing GCS connection.")
-	conn, err := getConn()
-	if err != nil {
-		log.Fatal("Couldn't get GCS connection: ", err)
-	}
-
-	// Extract the appropriate bucket.
-	b = conn.GetBucket(bucketName)
-
-	// Enable rate limiting, if requested.
-	b, err = setUpRateLimiting(
-		b,
-		*fOpRateLimitHz,
-		*fEgressBandwidthLimitBytesPerSecond)
-
-	if err != nil {
-		log.Fatalf("setUpRateLimiting: %v", err)
-	}
-
-	// Enable cached StatObject results, if appropriate.
-	if *fStatCacheTTL != 0 {
-		const cacheCapacity = 4096
-		b = gcscaching.NewFastStatBucket(
-			*fStatCacheTTL,
-			gcscaching.NewStatCache(cacheCapacity),
-			timeutil.RealClock(),
-			b)
-	}
-
-	return
-}
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
