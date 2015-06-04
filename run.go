@@ -19,112 +19,16 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 
 	"github.com/googlecloudplatform/gcsfuse/fs"
 	"github.com/googlecloudplatform/gcsfuse/perms"
-	"github.com/googlecloudplatform/gcsfuse/ratelimit"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
-	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/gcscaching"
 )
-
-////////////////////////////////////////////////////////////////////////
-// Wiring
-////////////////////////////////////////////////////////////////////////
-
-func setUpRateLimiting(
-	in gcs.Bucket,
-	opRateLimitHz float64,
-	egressBandwidthLimit float64) (out gcs.Bucket, err error) {
-	// If no rate limiting has been requested, just return the bucket.
-	if !(opRateLimitHz > 0 || egressBandwidthLimit > 0) {
-		out = in
-		return
-	}
-
-	// Treat a disabled limit as a very large one.
-	if !(opRateLimitHz > 0) {
-		opRateLimitHz = 1e15
-	}
-
-	if !(egressBandwidthLimit > 0) {
-		egressBandwidthLimit = 1e15
-	}
-
-	// Choose token bucket capacities.
-	const window = 30 * time.Second
-
-	opCapacity, err := ratelimit.ChooseTokenBucketCapacity(
-		opRateLimitHz,
-		window)
-
-	if err != nil {
-		err = fmt.Errorf("Choosing operation token bucket capacity: %v", err)
-		return
-	}
-
-	egressCapacity, err := ratelimit.ChooseTokenBucketCapacity(
-		egressBandwidthLimit,
-		window)
-
-	if err != nil {
-		err = fmt.Errorf("Choosing egress bandwidth token bucket capacity: %v", err)
-		return
-	}
-
-	// Create the throttles.
-	opThrottle := ratelimit.NewThrottle(opRateLimitHz, opCapacity)
-	egressThrottle := ratelimit.NewThrottle(egressBandwidthLimit, egressCapacity)
-
-	// And the bucket.
-	out = ratelimit.NewThrottledBucket(
-		opThrottle,
-		egressThrottle,
-		in)
-
-	return
-}
-
-func setUpBucket(
-	flags *flagStorage,
-	conn gcs.Conn,
-	name string) (b gcs.Bucket, err error) {
-	// Extract the appropriate bucket.
-	b = conn.GetBucket(name)
-
-	// Enable rate limiting, if requested.
-	b, err = setUpRateLimiting(
-		b,
-		flags.OpRateLimitHz,
-		flags.EgressBandwidthLimitBytesPerSecond)
-
-	if err != nil {
-		err = fmt.Errorf("setUpRateLimiting: %v", err)
-		return
-	}
-
-	// Enable cached StatObject results, if appropriate.
-	if flags.StatCacheTTL != 0 {
-		const cacheCapacity = 4096
-		b = gcscaching.NewFastStatBucket(
-			flags.StatCacheTTL,
-			gcscaching.NewStatCache(cacheCapacity),
-			timeutil.RealClock(),
-			b)
-	}
-
-	return
-}
-
-////////////////////////////////////////////////////////////////////////
-// run
-////////////////////////////////////////////////////////////////////////
 
 // In main, set flagSet to flag.CommandLine and pass in os.Args[1:]. In a test,
 // pass in a virgin flag set and test arguments.
