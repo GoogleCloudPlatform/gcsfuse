@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
@@ -40,7 +41,25 @@ import (
 // the write proceeds, it is guaranteed that the handler will not be called
 // again.
 func registerSIGINTHandler(f func()) (stop chan<- struct{}) {
-	panic("TODO")
+	stopChan := make(chan struct{})
+	stop = stopChan
+
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt)
+
+	go func() {
+		for {
+			select {
+			case <-stopChan:
+				return
+
+			case <-signalChan:
+				f()
+			}
+		}
+	}()
+
+	return
 }
 
 // In main, set flagSet to flag.CommandLine and pass in os.Args[1:]. In a test,
