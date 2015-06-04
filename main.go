@@ -21,13 +21,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/googlecloudplatform/gcsfuse/fs"
-	"github.com/googlecloudplatform/gcsfuse/perms"
-	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
-	"github.com/jacobsa/fuse/fsutil"
-	"golang.org/x/net/context"
-	"golang.org/x/sys/unix"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -59,107 +53,6 @@ func registerSIGINTHandler(mountPoint string) {
 ////////////////////////////////////////////////////////////////////////
 // main function
 ////////////////////////////////////////////////////////////////////////
-
-func run(bucketName string, mountPoint string) (err error) {
-	// Sanity check: make sure the temporary directory exists and is writable
-	// currently. This gives a better user experience than harder to debug EIO
-	// errors when reading files in the future.
-	if *fTempDir != "" {
-		var f *os.File
-		f, err = fsutil.AnonymousFile(*fTempDir)
-		f.Close()
-
-		if err != nil {
-			err = fmt.Errorf(
-				"Error writing to temporary directory (%q); are you sure it exists "+
-					"with the correct permissions?",
-				err.Error())
-			return
-		}
-	}
-
-	// The file leaser used by the file system sizes its limit on number of
-	// temporary files based on the process's rlimit. If this is too low, we'll
-	// throw away cached content unnecessarily often. This is particularly a
-	// problem on OS X, which has a crazy low default limit (256 as of OS X
-	// 10.10.3). So print a warning if the limit is low.
-	var rlimit unix.Rlimit
-	if err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rlimit); err == nil {
-		const reasonableLimit = 4096
-
-		if rlimit.Cur < reasonableLimit {
-			log.Printf(
-				"Warning: low file rlimit of %d will cause cached content to be "+
-					"frequently evicted. Consider raising with `ulimit -n`.",
-				rlimit.Cur)
-		}
-	}
-
-	// Choose UID and GID.
-	uid, gid, err := perms.MyUserAndGroup()
-	if err != nil {
-		err = fmt.Errorf("MyUserAndGroup: %v", err)
-		return
-	}
-
-	if *fUid >= 0 {
-		uid = uint32(*fUid)
-	}
-
-	if *fGid >= 0 {
-		gid = uint32(*fGid)
-	}
-
-	// Create a file system server.
-	bucket := getBucket(bucketName)
-	serverCfg := &fs.ServerConfig{
-		Clock:                timeutil.RealClock(),
-		Bucket:               bucket,
-		TempDir:              *fTempDir,
-		TempDirLimitNumFiles: fs.ChooseTempDirLimitNumFiles(),
-		TempDirLimitBytes:    *fTempDirLimit,
-		GCSChunkSize:         *fGCSChunkSize,
-		ImplicitDirectories:  *fImplicitDirs,
-		DirTypeCacheTTL:      *fTypeCacheTTL,
-		Uid:                  uid,
-		Gid:                  gid,
-		FilePerms:            os.FileMode(*fFileMode),
-		DirPerms:             os.FileMode(*fDirMode),
-	}
-
-	server, err := fs.NewServer(serverCfg)
-	if err != nil {
-		err = fmt.Errorf("fs.NewServer: %v", err)
-		return
-	}
-
-	// Mount the file system.
-	mountCfg := &fuse.MountConfig{
-		FSName:      bucket.Name(),
-		Options:     fMountOptions,
-		ErrorLogger: log.New(os.Stderr, "fuse: ", log.Flags()),
-	}
-
-	mountedFS, err := fuse.Mount(mountPoint, server, mountCfg)
-	if err != nil {
-		err = fmt.Errorf("Mount: %v", err)
-		return
-	}
-
-	log.Println("File system has been successfully mounted.")
-
-	// Let the user unmount with Ctrl-C (SIGINT).
-	registerSIGINTHandler(mountedFS.Dir())
-
-	// Wait for it to be unmounted.
-	err = mountedFS.Join(context.Background())
-	if err != nil {
-		err = fmt.Errorf("MountedFileSystem.Join: %v", err)
-		return
-	}
-
-	return
-}
 
 func main() {
 	// Make logging output better.
