@@ -16,15 +16,20 @@ package main
 
 import (
 	"flag"
+	"io/ioutil"
 	"log"
+	"os"
+	"path"
 	"testing"
 	"time"
 
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
+	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
+	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -38,16 +43,33 @@ type RunTest struct {
 	ctx   context.Context
 	clock timeutil.SimulatedClock
 	conn  gcs.Conn
+
+	// A temporary directory that is cleaned up at the end of the test run.
+	dir string
 }
 
 var _ SetUpInterface = &RunTest{}
+var _ TearDownInterface = &RunTest{}
 
 func init() { RegisterTestSuite(&RunTest{}) }
 
 func (t *RunTest) SetUp(ti *TestInfo) {
+	var err error
+
 	t.ctx = ti.Ctx
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 	t.conn = gcsfake.NewConn(&t.clock)
+
+	// Set up the temporary directory.
+	t.dir, err = ioutil.TempDir("", "run_test")
+	AssertEq(nil, err)
+}
+
+func (t *RunTest) TearDown() {
+	var err error
+
+	err = os.RemoveAll(t.dir)
+	AssertEq(nil, err)
 }
 
 func (t *RunTest) start(args []string) (join <-chan struct{}) {
@@ -78,5 +100,34 @@ func (t *RunTest) handleSIGINT(mountPoint string) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *RunTest) BasicUsage() {
-	AssertTrue(false, "TODO")
+	var err error
+	const fileName = "foo"
+
+	// Grab a bucket.
+	bucket := t.conn.GetBucket("some_bucket")
+
+	// Mount that bucket.
+	join := t.start([]string{
+		bucket.Name(),
+		t.dir,
+	})
+
+	// Create a file.
+	err = ioutil.WriteFile(path.Join(t.dir, fileName), []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	// Read the object from the bucket.
+	contents, err := gcsutil.ReadObject(t.ctx, bucket, fileName)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
+
+	// Read the file.
+	contents, err = ioutil.ReadFile(path.Join(t.dir, fileName))
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
+
+	// Unmount and join.
+	err = fuse.Unmount(t.dir)
+	AssertEq(nil, err)
+	<-join
 }
