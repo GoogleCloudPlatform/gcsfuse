@@ -36,7 +36,7 @@ import (
 //
 // In main, set flagSet to flag.CommandLine and pass in os.Args[1:]. In a test,
 // pass in a virgin flag set and test arguments.
-func run(
+func mount(
 	args []string,
 	flagSet *flag.FlagSet,
 	conn gcs.Conn) (mfs *fuse.MountedFileSystem, err error) {

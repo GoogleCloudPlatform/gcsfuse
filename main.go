@@ -87,13 +87,13 @@ func main() {
 	}
 
 	// Mount the file system.
-	mfs, err := run(
+	mfs, err := mount(
 		os.Args[1:],
 		flag.CommandLine,
 		conn)
 
 	if err != nil {
-		log.Fatalf("run: %v", err)
+		log.Fatalf("mount: %v", err)
 	}
 
 	log.Println("File system has been successfully mounted.")

@@ -18,7 +18,7 @@ import (
 	"flag"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/mount"
+	mountpkg "github.com/googlecloudplatform/gcsfuse/mount"
 )
 
 type flagStorage struct {
@@ -51,7 +51,7 @@ func populateFlagSet(fs *flag.FlagSet) (flags *flagStorage) {
 
 	flags.MountOptions = make(map[string]string)
 	flag.Var(
-		mount.OptionValue(flags.MountOptions),
+		mountpkg.OptionValue(flags.MountOptions),
 		"o",
 		"Additional system-specific mount options. Be careful!")
 
