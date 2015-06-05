@@ -17,7 +17,6 @@ package main
 import (
 	"flag"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"testing"
@@ -72,27 +71,14 @@ func (t *MountTest) TearDown() {
 	AssertEq(nil, err)
 }
 
-func (t *MountTest) start(args []string) (join <-chan struct{}) {
-	joinChan := make(chan struct{})
-	join = joinChan
-
-	go func() {
-		err := run(
-			args,
-			new(flag.FlagSet),
-			t.conn,
-			t.handleSIGINT)
-
-		ExpectEq(nil, err)
-		close(joinChan)
-	}()
+func (t *MountTest) mount(
+	args []string) (mfs *fuse.MountedFileSystem, err error) {
+	mfs, err = mount(
+		args,
+		new(flag.FlagSet),
+		t.conn)
 
 	return
-}
-
-func (t *MountTest) handleSIGINT(mountPoint string) {
-	log.Println("Received SIGINT; exiting after this test completes.")
-	StopRunningTests()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -107,10 +93,12 @@ func (t *MountTest) BasicUsage() {
 	bucket := t.conn.GetBucket("some_bucket")
 
 	// Mount that bucket.
-	join := t.start([]string{
+	mfs, err := t.mount([]string{
 		bucket.Name(),
 		t.dir,
 	})
+
+	AssertEq(nil, err)
 
 	// Create a file.
 	err = ioutil.WriteFile(path.Join(t.dir, fileName), []byte("taco"), 0400)
@@ -129,5 +117,7 @@ func (t *MountTest) BasicUsage() {
 	// Unmount and join.
 	err = fuse.Unmount(t.dir)
 	AssertEq(nil, err)
-	<-join
+
+	err = mfs.Join(t.ctx)
+	AssertEq(nil, err)
 }
