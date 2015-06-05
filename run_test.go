@@ -15,6 +15,7 @@
 package main_test
 
 import (
+	"flag"
 	"testing"
 
 	. "github.com/jacobsa/ogletest"
@@ -37,7 +38,23 @@ func (t *RunTest) SetUp(ti *TestInfo) {
 	AssertTrue(false, "TODO")
 }
 
-func (t *RunTest) start(args []string) (err chan<- error)
+func (t *RunTest) start(args []string) (join <-chan struct{}) {
+	joinChan := make(chan struct{})
+	join = joinChan
+
+	go func() {
+		err := run(
+			args,
+			new(flag.FlagSet),
+			t.conn,
+			t.handleSIGINT)
+
+		ExpectEq(nil, err)
+		close(joinChan)
+	}()
+
+	return
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
