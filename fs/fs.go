@@ -844,19 +844,13 @@ func (fs *fileSystem) unlockAndMaybeDisposeOfInode(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) Init(
-	op *fuseops.InitOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.InitOp) (err error) {
 	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) LookUpInode(
-	op *fuseops.LookUpInodeOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.LookUpInodeOp) (err error) {
 	// Find the parent directory in question.
 	fs.mu.Lock()
 	parent := fs.inodes[op.Parent].(inode.DirInode)
@@ -881,10 +875,7 @@ func (fs *fileSystem) LookUpInode(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) GetInodeAttributes(
-	op *fuseops.GetInodeAttributesOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.GetInodeAttributesOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodes[op.Inode]
@@ -904,10 +895,7 @@ func (fs *fileSystem) GetInodeAttributes(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) SetInodeAttributes(
-	op *fuseops.SetInodeAttributesOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.SetInodeAttributesOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodes[op.Inode]
@@ -947,10 +935,7 @@ func (fs *fileSystem) SetInodeAttributes(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ForgetInode(
-	op *fuseops.ForgetInodeOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.ForgetInodeOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodes[op.Inode]
@@ -962,14 +947,13 @@ func (fs *fileSystem) ForgetInode(
 
 	// Decrement and unlock.
 	fs.unlockAndDecrementLookupCount(in, op.N)
+
+	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) MkDir(
-	op *fuseops.MkDirOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.MkDirOp) (err error) {
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.inodes[op.Parent].(inode.DirInode)
@@ -1019,10 +1003,7 @@ func (fs *fileSystem) MkDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) CreateFile(
-	op *fuseops.CreateFileOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.CreateFileOp) (err error) {
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.inodes[op.Parent].(inode.DirInode)
@@ -1072,10 +1053,7 @@ func (fs *fileSystem) CreateFile(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) CreateSymlink(
-	op *fuseops.CreateSymlinkOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.CreateSymlinkOp) (err error) {
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.inodes[op.Parent].(inode.DirInode)
@@ -1124,10 +1102,7 @@ func (fs *fileSystem) CreateSymlink(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) RmDir(
-	op *fuseops.RmDirOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.RmDirOp) (err error) {
 	// Find the parent. We assume that it exists because otherwise the kernel has
 	// done something mildly concerning.
 	fs.mu.Lock()
@@ -1208,10 +1183,7 @@ func (fs *fileSystem) RmDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) Unlink(
-	op *fuseops.UnlinkOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.UnlinkOp) (err error) {
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.inodes[op.Parent].(inode.DirInode)
@@ -1232,10 +1204,7 @@ func (fs *fileSystem) Unlink(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) OpenDir(
-	op *fuseops.OpenDirOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.OpenDirOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -1256,10 +1225,7 @@ func (fs *fileSystem) OpenDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadDir(
-	op *fuseops.ReadDirOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.ReadDirOp) (err error) {
 	// Find the handle.
 	fs.mu.Lock()
 	dh := fs.handles[op.Handle].(*dirHandle)
@@ -1276,10 +1242,7 @@ func (fs *fileSystem) ReadDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReleaseDirHandle(
-	op *fuseops.ReleaseDirHandleOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.ReleaseDirHandleOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -1294,10 +1257,7 @@ func (fs *fileSystem) ReleaseDirHandle(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) OpenFile(
-	op *fuseops.OpenFileOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.OpenFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -1309,10 +1269,7 @@ func (fs *fileSystem) OpenFile(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadFile(
-	op *fuseops.ReadFileOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.ReadFileOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodes[op.Inode].(*inode.FileInode)
@@ -1329,10 +1286,7 @@ func (fs *fileSystem) ReadFile(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadSymlink(
-	op *fuseops.ReadSymlinkOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.ReadSymlinkOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodes[op.Inode].(*inode.SymlinkInode)
@@ -1349,10 +1303,7 @@ func (fs *fileSystem) ReadSymlink(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) WriteFile(
-	op *fuseops.WriteFileOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.WriteFileOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodes[op.Inode].(*inode.FileInode)
@@ -1369,10 +1320,7 @@ func (fs *fileSystem) WriteFile(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) SyncFile(
-	op *fuseops.SyncFileOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.SyncFileOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodes[op.Inode].(*inode.FileInode)
@@ -1389,10 +1337,7 @@ func (fs *fileSystem) SyncFile(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) FlushFile(
-	op *fuseops.FlushFileOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.FlushFileOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodes[op.Inode].(*inode.FileInode)
