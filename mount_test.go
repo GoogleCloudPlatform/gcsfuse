@@ -33,13 +33,13 @@ import (
 	. "github.com/jacobsa/ogletest"
 )
 
-func TestRun(t *testing.T) { RunTests(t) }
+func TestMount(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type RunTest struct {
+type MountTest struct {
 	ctx   context.Context
 	clock timeutil.SimulatedClock
 	conn  gcs.Conn
@@ -48,12 +48,12 @@ type RunTest struct {
 	dir string
 }
 
-var _ SetUpInterface = &RunTest{}
-var _ TearDownInterface = &RunTest{}
+var _ SetUpInterface = &MountTest{}
+var _ TearDownInterface = &MountTest{}
 
-func init() { RegisterTestSuite(&RunTest{}) }
+func init() { RegisterTestSuite(&MountTest{}) }
 
-func (t *RunTest) SetUp(ti *TestInfo) {
+func (t *MountTest) SetUp(ti *TestInfo) {
 	var err error
 
 	t.ctx = ti.Ctx
@@ -65,14 +65,14 @@ func (t *RunTest) SetUp(ti *TestInfo) {
 	AssertEq(nil, err)
 }
 
-func (t *RunTest) TearDown() {
+func (t *MountTest) TearDown() {
 	var err error
 
 	err = os.RemoveAll(t.dir)
 	AssertEq(nil, err)
 }
 
-func (t *RunTest) start(args []string) (join <-chan struct{}) {
+func (t *MountTest) start(args []string) (join <-chan struct{}) {
 	joinChan := make(chan struct{})
 	join = joinChan
 
@@ -90,7 +90,7 @@ func (t *RunTest) start(args []string) (join <-chan struct{}) {
 	return
 }
 
-func (t *RunTest) handleSIGINT(mountPoint string) {
+func (t *MountTest) handleSIGINT(mountPoint string) {
 	log.Println("Received SIGINT; exiting after this test completes.")
 	StopRunningTests()
 }
@@ -99,7 +99,7 @@ func (t *RunTest) handleSIGINT(mountPoint string) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *RunTest) BasicUsage() {
+func (t *MountTest) BasicUsage() {
 	var err error
 	const fileName = "foo"
 
