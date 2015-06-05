@@ -16,6 +16,7 @@ package main
 
 import (
 	"flag"
+	"log"
 	"testing"
 	"time"
 
@@ -67,7 +68,10 @@ func (t *RunTest) start(args []string) (join <-chan struct{}) {
 	return
 }
 
-func (t *RunTest) handleSIGINT(mountPoint string)
+func (t *RunTest) handleSIGINT(mountPoint string) {
+	log.Println("Received SIGINT; exiting after this test completes.")
+	StopRunningTests()
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
