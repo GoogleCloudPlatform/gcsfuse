@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
@@ -31,16 +32,26 @@ import (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func handleSIGINT(mountPoint string) {
-	log.Println("Received SIGINT, attempting to unmount...")
+func registerSIGINTHandler(mountPoint string) {
+	// Register for SIGINT.
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt)
 
-	err := fuse.Unmount(mountPoint)
-	if err != nil {
-		log.Printf("Failed to unmount in response to SIGINT: %v", err)
-	} else {
-		log.Printf("Successfully unmounted in response to SIGINT.")
-		return
-	}
+	// Start a goroutine that will unmount when the signal is received.
+	go func() {
+		for {
+			<-signalChan
+			log.Println("Received SIGINT, attempting to unmount...")
+
+			err := fuse.Unmount(mountPoint)
+			if err != nil {
+				log.Printf("Failed to unmount in response to SIGINT: %v", err)
+			} else {
+				log.Printf("Successfully unmounted in response to SIGINT.")
+				return
+			}
+		}
+	}()
 }
 
 func getConn() (c gcs.Conn, err error) {
@@ -75,16 +86,26 @@ func main() {
 		log.Fatalf("getConn: %v", err)
 	}
 
-	// Run.
-	err = run(
+	// Mount the file system.
+	mfs, err := run(
 		os.Args[1:],
 		flag.CommandLine,
-		conn,
-		handleSIGINT)
+		conn)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, err.Error())
-		os.Exit(1)
+		log.Fatalf("run: %v", err)
+	}
+
+	log.Println("File system has been successfully mounted.")
+
+	// Let the user unmount with Ctrl-C (SIGINT).
+	registerSIGINTHandler(mfs.Dir())
+
+	// Wait for the file system to be unmounted.
+	err = mfs.Join(context.Background())
+	if err != nil {
+		err = fmt.Errorf("MountedFileSystem.Join: %v", err)
+		return
 	}
 
 	log.Println("Successfully exiting.")

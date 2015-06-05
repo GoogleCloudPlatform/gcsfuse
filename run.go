@@ -20,9 +20,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
 
-	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 
 	"github.com/googlecloudplatform/gcsfuse/fs"
@@ -33,42 +31,15 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 )
 
-// Set up a SIGINT handler that will invoke the supplied function for each
-// SIGINT signal received. (Signals may be dropped while the handler is
-// running.)
+// Mount the file system based on the supplied arguments, returning a
+// fuse.MountedFileSystem that can be joined to wait for unmounting.
 //
-// Stop future calls to the handler by writing an element to the channel. Once
-// the write proceeds, it is guaranteed that the handler will not be called
-// again.
-func registerSIGINTHandler(f func()) (stop chan<- struct{}) {
-	stopChan := make(chan struct{})
-	stop = stopChan
-
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-
-	go func() {
-		for {
-			select {
-			case <-stopChan:
-				return
-
-			case <-signalChan:
-				f()
-			}
-		}
-	}()
-
-	return
-}
-
 // In main, set flagSet to flag.CommandLine and pass in os.Args[1:]. In a test,
 // pass in a virgin flag set and test arguments.
 func run(
 	args []string,
 	flagSet *flag.FlagSet,
-	conn gcs.Conn,
-	handleSIGINT func(mountPoint string)) (err error) {
+	conn gcs.Conn) (mfs *fuse.MountedFileSystem, err error) {
 	// Set up a custom usage function.
 	flagSet.Usage = func() {
 		fmt.Fprintf(
@@ -195,25 +166,9 @@ func run(
 		ErrorLogger: log.New(os.Stderr, "fuse: ", log.Flags()),
 	}
 
-	mountedFS, err := fuse.Mount(mountPoint, server, mountCfg)
+	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
 	if err != nil {
 		err = fmt.Errorf("Mount: %v", err)
-		return
-	}
-
-	log.Println("File system has been successfully mounted.")
-
-	// Call the SIGINT handler as appropriate until this function returns.
-	stopSIGINTHandler := registerSIGINTHandler(func() {
-		handleSIGINT(mountPoint)
-	})
-
-	defer func() { stopSIGINTHandler <- struct{}{} }()
-
-	// Wait for it to be unmounted.
-	err = mountedFS.Join(context.Background())
-	if err != nil {
-		err = fmt.Errorf("MountedFileSystem.Join: %v", err)
 		return
 	}
 
