@@ -16,9 +16,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
@@ -81,6 +84,27 @@ func (t *MountTest) mount(
 	return
 }
 
+// Unmount the file system. Try again on "resource busy" errors.
+func (t *MountTest) unmount() (err error) {
+	delay := 10 * time.Millisecond
+	for {
+		err = fuse.Unmount(t.dir)
+		if err == nil {
+			return
+		}
+
+		if strings.Contains(err.Error(), "resource busy") {
+			log.Println("Resource busy error while unmounting; trying again")
+			time.Sleep(delay)
+			delay = time.Duration(1.3 * float64(delay))
+			continue
+		}
+
+		err = fmt.Errorf("Unmount: %v", err)
+		return
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
@@ -115,7 +139,7 @@ func (t *MountTest) BasicUsage() {
 	ExpectEq("taco", string(contents))
 
 	// Unmount and join.
-	err = fuse.Unmount(t.dir)
+	err = t.unmount()
 	AssertEq(nil, err)
 
 	err = mfs.Join(t.ctx)
