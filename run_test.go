@@ -12,12 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main_test
+package main
 
 import (
 	"flag"
 	"testing"
+	"time"
 
+	"golang.org/x/net/context"
+
+	"github.com/googlecloudplatform/gcsfuse/timeutil"
+	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -28,6 +34,9 @@ func TestRun(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 
 type RunTest struct {
+	ctx   context.Context
+	clock timeutil.SimulatedClock
+	conn  gcs.Conn
 }
 
 var _ SetUpInterface = &RunTest{}
@@ -35,7 +44,9 @@ var _ SetUpInterface = &RunTest{}
 func init() { RegisterTestSuite(&RunTest{}) }
 
 func (t *RunTest) SetUp(ti *TestInfo) {
-	AssertTrue(false, "TODO")
+	t.ctx = ti.Ctx
+	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
+	t.conn = gcsfake.NewConn(&t.clock)
 }
 
 func (t *RunTest) start(args []string) (join <-chan struct{}) {
@@ -55,6 +66,8 @@ func (t *RunTest) start(args []string) (join <-chan struct{}) {
 
 	return
 }
+
+func (t *RunTest) handleSIGINT(mountPoint string)
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
