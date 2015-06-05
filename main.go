@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"time"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
@@ -70,6 +71,31 @@ func getConn() (c gcs.Conn, err error) {
 	}
 
 	return gcs.NewConn(cfg)
+}
+
+func garbageCollectOnce(
+	bucket gcs.Bucket) (err error) {
+	const stalenessThreshold = 30 * time.Minute
+	panic("TODO")
+}
+
+// Periodically delete stale temporary objects from the supplied bucket.
+func garbageCollect(bucket gcs.Bucket) {
+	const period = 10 * time.Minute
+	for _ := range time.Tick(period) {
+		log.Println("Starting a garbage collection run.")
+
+		startTime := time.Now()
+		err := garbageCollectOnce(bucket)
+		if err != nil {
+			log.Printf(
+				"Garbage collection failed after %v with error: %v",
+				time.Since(startTime),
+				err)
+		} else {
+			log.Printf("Garbage collection succeeded in %v.", time.Since(startTime))
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
