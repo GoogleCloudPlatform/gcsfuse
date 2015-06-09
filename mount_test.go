@@ -109,6 +109,16 @@ func (t *MountTest) unmount() (err error) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
+func (t *MountTest) HelpFlags() {
+	var err error
+
+	_, err = t.mount([]string{"-h"})
+	ExpectEq(flag.ErrHelp, err)
+
+	_, err = t.mount([]string{"--help"})
+	ExpectEq(flag.ErrHelp, err)
+}
+
 func (t *MountTest) BasicUsage() {
 	var err error
 	const fileName = "foo"
