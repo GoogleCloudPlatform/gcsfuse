@@ -147,3 +147,12 @@ feature requests, please [file an issue][issues].
 
 [se]: http://serverfault.com/questions/ask?tags=google-cloud-platform+google-cloud-storage
 [qna]: http://serverfault.com/questions/tagged/google-cloud-platform+google-cloud-storage
+
+
+# Versioning
+
+gcsfuse version numbers are assigned according to [Semantic
+Versioning][semver]. Note that the current major version is `0`, which means
+that we reserve the right to make backwards-incompatible changes.
+
+[semver]: http://semver.org/
