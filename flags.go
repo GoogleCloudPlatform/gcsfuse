@@ -22,7 +22,6 @@ import (
 )
 
 type flagStorage struct {
-	Help                               bool
 	MountOptions                       map[string]string
 	Uid                                int64
 	Gid                                int64
@@ -42,12 +41,6 @@ type flagStorage struct {
 // variables into which the flags will parse.
 func populateFlagSet(fs *flag.FlagSet) (flags *flagStorage) {
 	flags = new(flagStorage)
-
-	fs.BoolVar(
-		&flags.Help,
-		"help",
-		false,
-		"If set, print usage and exit successfully.")
 
 	flags.MountOptions = make(map[string]string)
 	fs.Var(

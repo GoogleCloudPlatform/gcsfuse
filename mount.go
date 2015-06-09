@@ -55,12 +55,6 @@ func mount(
 		return
 	}
 
-	// Help mode?
-	if flags.Help {
-		flagSet.Usage()
-		return
-	}
-
 	// Extract positional arguments.
 	if flagSet.NArg() != 2 {
 		flagSet.Usage()
