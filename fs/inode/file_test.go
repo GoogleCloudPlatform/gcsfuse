@@ -24,6 +24,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse/fuseops"
@@ -93,6 +94,10 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 		math.MaxUint64, // GCS chunk size
 		t.bucket,
 		t.leaser,
+		gcsproxy.NewObjectSyncer(
+			1, // Append threshold
+			".gcsfuse_tmp/",
+			t.bucket),
 		&t.clock)
 
 	t.in.Lock()
@@ -234,13 +239,93 @@ func (t *FileTest) Truncate() {
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(truncateTime))
 }
 
-func (t *FileTest) Sync_NotClobbered() {
+func (t *FileTest) WriteThenSync() {
+	var attrs fuseops.InodeAttributes
+	var err error
+
+	AssertEq("taco", t.initialContents)
+
+	// Overwite a byte.
+	err = t.in.Write(t.ctx, []byte("p"), 0)
+	AssertEq(nil, err)
+
+	t.clock.AdvanceTime(time.Second)
+
+	// Sync.
+	err = t.in.Sync(t.ctx)
+	AssertEq(nil, err)
+
+	// The generation should have advanced.
+	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration())
+
+	// Stat the current object in the bucket.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	o, err := t.bucket.StatObject(t.ctx, statReq)
+
+	AssertEq(nil, err)
+	ExpectEq(t.in.SourceGeneration(), o.Generation)
+	ExpectEq(len("paco"), o.Size)
+
+	// Read the object's contents.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name())
+
+	AssertEq(nil, err)
+	ExpectEq("paco", string(contents))
+
+	// Check attributes.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+
+	ExpectEq(len("paco"), attrs.Size)
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(o.Updated))
+}
+
+func (t *FileTest) AppendThenSync() {
+	var attrs fuseops.InodeAttributes
+	var err error
+
+	AssertEq("taco", t.initialContents)
+
+	// Append some data.
+	err = t.in.Write(t.ctx, []byte("burrito"), int64(len("taco")))
+	AssertEq(nil, err)
+
+	t.clock.AdvanceTime(time.Second)
+
+	// Sync.
+	err = t.in.Sync(t.ctx)
+	AssertEq(nil, err)
+
+	// The generation should have advanced.
+	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration())
+
+	// Stat the current object in the bucket.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	o, err := t.bucket.StatObject(t.ctx, statReq)
+
+	AssertEq(nil, err)
+	ExpectEq(t.in.SourceGeneration(), o.Generation)
+	ExpectEq(len("tacoburrito"), o.Size)
+
+	// Read the object's contents.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name())
+
+	AssertEq(nil, err)
+	ExpectEq("tacoburrito", string(contents))
+
+	// Check attributes.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+
+	ExpectEq(len("tacoburrito"), attrs.Size)
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(o.Updated))
+}
+
+func (t *FileTest) TruncateDownwardThenSync() {
 	var attrs fuseops.InodeAttributes
 	var err error
 
 	// Truncate downward.
-	t.clock.AdvanceTime(time.Second)
-
 	err = t.in.Truncate(t.ctx, 2)
 	AssertEq(nil, err)
 
@@ -266,6 +351,41 @@ func (t *FileTest) Sync_NotClobbered() {
 	AssertEq(nil, err)
 
 	ExpectEq(2, attrs.Size)
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(o.Updated))
+}
+
+func (t *FileTest) TruncateUpwardThenSync() {
+	var attrs fuseops.InodeAttributes
+	var err error
+
+	AssertEq(4, len(t.initialContents))
+
+	// Truncate upward.
+	err = t.in.Truncate(t.ctx, 6)
+	AssertEq(nil, err)
+
+	t.clock.AdvanceTime(time.Second)
+
+	// Sync.
+	err = t.in.Sync(t.ctx)
+	AssertEq(nil, err)
+
+	// The generation should have advanced.
+	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration())
+
+	// Stat the current object in the bucket.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	o, err := t.bucket.StatObject(t.ctx, statReq)
+
+	AssertEq(nil, err)
+	ExpectEq(t.in.SourceGeneration(), o.Generation)
+	ExpectEq(6, o.Size)
+
+	// Check attributes.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+
+	ExpectEq(6, attrs.Size)
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(o.Updated))
 }
 

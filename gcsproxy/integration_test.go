@@ -28,6 +28,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/lease"
+	"github.com/googlecloudplatform/gcsfuse/mutable"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
@@ -73,8 +74,9 @@ type IntegrationTest struct {
 	bucket gcs.Bucket
 	leaser lease.FileLeaser
 	clock  timeutil.SimulatedClock
+	syncer gcsproxy.ObjectSyncer
 
-	mc *checkingMutableContent
+	mc mutable.Content
 }
 
 var _ SetUpInterface = &IntegrationTest{}
@@ -92,6 +94,15 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 
 	// Set up a fixed, non-zero time.
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
+
+	// Set up the object syncer.
+	const appendThreshold = 0
+	const tmpObjectPrefix = ".gcsfuse_tmp/"
+
+	t.syncer = gcsproxy.NewObjectSyncer(
+		appendThreshold,
+		tmpObjectPrefix,
+		t.bucket)
 }
 
 func (t *IntegrationTest) TearDown() {
@@ -110,12 +121,7 @@ func (t *IntegrationTest) create(o *gcs.Object) {
 		t.bucket)
 
 	// Use it to create the mutable content.
-	t.mc = &checkingMutableContent{
-		ctx: t.ctx,
-		wrapped: gcsproxy.NewMutableContent(
-			rp,
-			&t.clock),
-	}
+	t.mc = mutable.NewContent(rp, &t.clock)
 }
 
 // Return the object generation, or -1 if non-existent. Panic on error.
@@ -144,7 +150,7 @@ func (t *IntegrationTest) objectGeneration(name string) (gen int64) {
 
 func (t *IntegrationTest) sync(src *gcs.Object) (
 	rl lease.ReadLease, o *gcs.Object, err error) {
-	rl, o, err = gcsproxy.Sync(t.ctx, src, t.mc.wrapped, t.bucket)
+	rl, o, err = t.syncer.SyncObject(t.ctx, src, t.mc)
 	if err == nil && rl != nil {
 		t.mc = nil
 	}
@@ -165,7 +171,7 @@ func (t *IntegrationTest) ReadThenSync() {
 
 	// Read the contents.
 	buf := make([]byte, 1024)
-	n, err := t.mc.ReadAt(buf, 0)
+	n, err := t.mc.ReadAt(t.ctx, buf, 0)
 
 	AssertThat(err, AnyOf(io.EOF, nil))
 	ExpectEq(len("taco"), n)
@@ -187,7 +193,7 @@ func (t *IntegrationTest) WriteThenSync() {
 	t.create(o)
 
 	// Overwrite the first byte.
-	n, err := t.mc.WriteAt([]byte("p"), 0)
+	n, err := t.mc.WriteAt(t.ctx, []byte("p"), 0)
 
 	AssertEq(nil, err)
 	ExpectEq(1, n)
@@ -211,6 +217,66 @@ func (t *IntegrationTest) WriteThenSync() {
 	contents, err = ioutil.ReadAll(rl)
 	AssertEq(nil, err)
 	ExpectEq("paco", string(contents))
+
+	// There should be no junk left over in the bucket besides the object of
+	// interest.
+	objects, runs, err := gcsutil.ListAll(
+		t.ctx,
+		t.bucket,
+		&gcs.ListObjectsRequest{})
+
+	AssertEq(nil, err)
+	AssertEq(1, len(objects))
+	AssertEq(0, len(runs))
+
+	ExpectEq("foo", objects[0].Name)
+}
+
+func (t *IntegrationTest) AppendThenSync() {
+	// Create.
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	AssertEq(nil, err)
+
+	t.create(o)
+
+	// Append some data.
+	n, err := t.mc.WriteAt(t.ctx, []byte("burrito"), 4)
+
+	AssertEq(nil, err)
+	ExpectEq(len("burrito"), n)
+
+	// Sync should save out the new generation.
+	rl, newObj, err := t.sync(o)
+	AssertEq(nil, err)
+
+	ExpectNe(o.Generation, newObj.Generation)
+	ExpectEq(t.objectGeneration("foo"), newObj.Generation)
+
+	// Read via the bucket.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	AssertEq(nil, err)
+	ExpectEq("tacoburrito", string(contents))
+
+	// Read via the lease.
+	_, err = rl.Seek(0, 0)
+	AssertEq(nil, err)
+
+	contents, err = ioutil.ReadAll(rl)
+	AssertEq(nil, err)
+	ExpectEq("tacoburrito", string(contents))
+
+	// There should be no junk left over in the bucket besides the object of
+	// interest.
+	objects, runs, err := gcsutil.ListAll(
+		t.ctx,
+		t.bucket,
+		&gcs.ListObjectsRequest{})
+
+	AssertEq(nil, err)
+	AssertEq(1, len(objects))
+	AssertEq(0, len(runs))
+
+	ExpectEq("foo", objects[0].Name)
 }
 
 func (t *IntegrationTest) TruncateThenSync() {
@@ -221,7 +287,7 @@ func (t *IntegrationTest) TruncateThenSync() {
 	t.create(o)
 
 	// Truncate.
-	err = t.mc.Truncate(2)
+	err = t.mc.Truncate(t.ctx, 2)
 	AssertEq(nil, err)
 
 	// Sync should save out the new generation.
@@ -252,7 +318,7 @@ func (t *IntegrationTest) Stat_InitialState() {
 	t.create(o)
 
 	// Stat.
-	sr, err := t.mc.Stat()
+	sr, err := t.mc.Stat(t.ctx)
 	AssertEq(nil, err)
 
 	ExpectEq(o.Size, sr.Size)
@@ -271,13 +337,13 @@ func (t *IntegrationTest) Stat_Dirty() {
 	t.clock.AdvanceTime(time.Second)
 	truncateTime := t.clock.Now()
 
-	err = t.mc.Truncate(2)
+	err = t.mc.Truncate(t.ctx, 2)
 	AssertEq(nil, err)
 
 	t.clock.AdvanceTime(time.Second)
 
 	// Stat.
-	sr, err := t.mc.Stat()
+	sr, err := t.mc.Stat(t.ctx)
 	AssertEq(nil, err)
 
 	ExpectEq(2, sr.Size)
@@ -296,7 +362,7 @@ func (t *IntegrationTest) WithinLeaserLimit() {
 
 	// Extend to be up against the leaser limit, then write out to GCS, which
 	// should downgrade to a read lease.
-	err = t.mc.Truncate(fileLeaserLimitBytes)
+	err = t.mc.Truncate(t.ctx, fileLeaserLimitBytes)
 	AssertEq(nil, err)
 
 	rl, _, err := t.sync(o)
@@ -331,7 +397,7 @@ func (t *IntegrationTest) LargerThanLeaserLimit() {
 
 	// Extend to be past the leaser limit, then write out to GCS, which should
 	// downgrade to a read lease.
-	err = t.mc.Truncate(fileLeaserLimitBytes + 1)
+	err = t.mc.Truncate(t.ctx, fileLeaserLimitBytes+1)
 	AssertEq(nil, err)
 
 	rl, _, err := t.sync(o)
@@ -371,13 +437,13 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_BeforeReading() {
 	ExpectEq(nil, newObj)
 
 	// Anything that needs to fault in the contents should fail.
-	_, err = t.mc.ReadAt([]byte{}, 0)
+	_, err = t.mc.ReadAt(t.ctx, []byte{}, 0)
 	ExpectThat(err, Error(HasSubstr("not found")))
 
-	err = t.mc.Truncate(10)
+	err = t.mc.Truncate(t.ctx, 10)
 	ExpectThat(err, Error(HasSubstr("not found")))
 
-	_, err = t.mc.WriteAt([]byte{}, 0)
+	_, err = t.mc.WriteAt(t.ctx, []byte{}, 0)
 	ExpectThat(err, Error(HasSubstr("not found")))
 }
 
@@ -389,7 +455,7 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 	t.create(o)
 
 	// Fault in the contents.
-	_, err = t.mc.ReadAt([]byte{}, 0)
+	_, err = t.mc.ReadAt(t.ctx, []byte{}, 0)
 	AssertEq(nil, err)
 
 	// Delete the backing object.
@@ -397,19 +463,19 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 	AssertEq(nil, err)
 
 	// Reading and modications should still work.
-	_, err = t.mc.ReadAt([]byte{}, 0)
+	_, err = t.mc.ReadAt(t.ctx, []byte{}, 0)
 	AssertEq(nil, err)
 
-	_, err = t.mc.WriteAt([]byte("a"), 0)
+	_, err = t.mc.WriteAt(t.ctx, []byte("a"), 0)
 	AssertEq(nil, err)
 
 	truncateTime := t.clock.Now()
-	err = t.mc.Truncate(1)
+	err = t.mc.Truncate(t.ctx, 1)
 	AssertEq(nil, err)
 	t.clock.AdvanceTime(time.Second)
 
 	// Stat should see the current state.
-	sr, err := t.mc.Stat()
+	sr, err := t.mc.Stat(t.ctx)
 	AssertEq(nil, err)
 
 	ExpectEq(1, sr.Size)
@@ -444,13 +510,13 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_BeforeReading() {
 	ExpectEq(nil, newObj)
 
 	// Anything that needs to fault in the contents should fail.
-	_, err = t.mc.ReadAt([]byte{}, 0)
+	_, err = t.mc.ReadAt(t.ctx, []byte{}, 0)
 	ExpectThat(err, Error(HasSubstr("not found")))
 
-	err = t.mc.Truncate(10)
+	err = t.mc.Truncate(t.ctx, 10)
 	ExpectThat(err, Error(HasSubstr("not found")))
 
-	_, err = t.mc.WriteAt([]byte{}, 0)
+	_, err = t.mc.WriteAt(t.ctx, []byte{}, 0)
 	ExpectThat(err, Error(HasSubstr("not found")))
 }
 
@@ -462,7 +528,7 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 	t.create(o)
 
 	// Fault in the contents.
-	_, err = t.mc.ReadAt([]byte{}, 0)
+	_, err = t.mc.ReadAt(t.ctx, []byte{}, 0)
 	AssertEq(nil, err)
 
 	// Overwrite the backing object.
@@ -470,19 +536,19 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 	AssertEq(nil, err)
 
 	// Reading and modications should still work.
-	_, err = t.mc.ReadAt([]byte{}, 0)
+	_, err = t.mc.ReadAt(t.ctx, []byte{}, 0)
 	AssertEq(nil, err)
 
-	_, err = t.mc.WriteAt([]byte("a"), 0)
+	_, err = t.mc.WriteAt(t.ctx, []byte("a"), 0)
 	AssertEq(nil, err)
 
 	truncateTime := t.clock.Now()
-	err = t.mc.Truncate(3)
+	err = t.mc.Truncate(t.ctx, 3)
 	AssertEq(nil, err)
 	t.clock.AdvanceTime(time.Second)
 
 	// Stat should see the current state.
-	sr, err := t.mc.Stat()
+	sr, err := t.mc.Stat(t.ctx)
 	AssertEq(nil, err)
 
 	ExpectEq(3, sr.Size)
@@ -552,7 +618,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		t.create(o)
 
 		// Read the contents of the mutable object.
-		_, err = t.mc.ReadAt(buf, 0)
+		_, err = t.mc.ReadAt(t.ctx, buf, 0)
 
 		AssertThat(err, AnyOf(nil, io.EOF))
 		if !bytes.Equal(buf, expectedContents) {
@@ -566,18 +632,18 @@ func (t *IntegrationTest) MultipleInteractions() {
 			expectedContents[size/2] = 19
 			expectedContents[size-1] = 23
 
-			_, err = t.mc.WriteAt([]byte{17}, 0)
+			_, err = t.mc.WriteAt(t.ctx, []byte{17}, 0)
 			AssertEq(nil, err)
 
-			_, err = t.mc.WriteAt([]byte{19}, int64(size/2))
+			_, err = t.mc.WriteAt(t.ctx, []byte{19}, int64(size/2))
 			AssertEq(nil, err)
 
-			_, err = t.mc.WriteAt([]byte{23}, int64(size-1))
+			_, err = t.mc.WriteAt(t.ctx, []byte{23}, int64(size-1))
 			AssertEq(nil, err)
 		}
 
 		// Compare contents again.
-		_, err = t.mc.ReadAt(buf, 0)
+		_, err = t.mc.ReadAt(t.ctx, buf, 0)
 
 		AssertThat(err, AnyOf(nil, io.EOF))
 		if !bytes.Equal(buf, expectedContents) {
@@ -602,7 +668,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		}
 
 		// Compare contents again.
-		_, err = t.mc.ReadAt(buf, 0)
+		_, err = t.mc.ReadAt(t.ctx, buf, 0)
 
 		AssertThat(err, AnyOf(nil, io.EOF))
 		if !bytes.Equal(buf, expectedContents) {
@@ -614,12 +680,12 @@ func (t *IntegrationTest) MultipleInteractions() {
 		if size > 0 {
 			expectedContents[0] = 29
 
-			_, err = t.mc.WriteAt([]byte{29}, 0)
+			_, err = t.mc.WriteAt(t.ctx, []byte{29}, 0)
 			AssertEq(nil, err)
 		}
 
 		// Compare contents again.
-		_, err = t.mc.ReadAt(buf, 0)
+		_, err = t.mc.ReadAt(t.ctx, buf, 0)
 
 		AssertThat(err, AnyOf(nil, io.EOF))
 		if !bytes.Equal(buf, expectedContents) {

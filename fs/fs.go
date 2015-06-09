@@ -15,6 +15,7 @@
 package fs
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -23,6 +24,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
@@ -92,6 +94,25 @@ type ServerConfig struct {
 	// os.ModePerm may be set.
 	FilePerms os.FileMode
 	DirPerms  os.FileMode
+
+	// Files backed by on object of length at least AppendThreshold that have
+	// only been appended to (i.e. none of the object's contents have been
+	// dirtied) will be written out by "appending" to the object in GCS with this
+	// process:
+	//
+	// 1. Write out a temporary object containing the appended contents whose
+	//    name begins with TmpObjectPrefix.
+	//
+	// 2. Compose the original object and the temporary object on top of the
+	//    original object.
+	//
+	// 3. Delete the temporary object.
+	//
+	// Note that if the process fails or is interrupted the temporary object will
+	// not be cleaned up, so the user must ensure that TmpObjectPrefix is
+	// periodically garbage collected.
+	AppendThreshold int64
+	TmpObjectPrefix string
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -119,11 +140,24 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		cfg.TempDirLimitNumFiles,
 		cfg.TempDirLimitBytes)
 
+	// Create the object syncer.
+	// Check TmpObjectPrefix.
+	if cfg.TmpObjectPrefix == "" {
+		err = errors.New("You must set TmpObjectPrefix.")
+		return
+	}
+
+	objectSyncer := gcsproxy.NewObjectSyncer(
+		cfg.AppendThreshold,
+		cfg.TmpObjectPrefix,
+		cfg.Bucket)
+
 	// Set up the basic struct.
 	fs := &fileSystem{
 		clock:                  cfg.Clock,
 		bucket:                 cfg.Bucket,
 		leaser:                 leaser,
+		objectSyncer:           objectSyncer,
 		gcsChunkSize:           gcsChunkSize,
 		implicitDirs:           cfg.ImplicitDirectories,
 		dirTypeCacheTTL:        cfg.DirTypeCacheTTL,
@@ -160,6 +194,11 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
+
+	// Periodically garbage collect temporary objects.
+	var gcCtx context.Context
+	gcCtx, fs.stopGarbageCollecting = context.WithCancel(context.Background())
+	go garbageCollect(gcCtx, cfg.TmpObjectPrefix, fs.bucket)
 
 	server = fuseutil.NewFileSystemServer(fs)
 	return
@@ -230,9 +269,10 @@ type fileSystem struct {
 	// Dependencies
 	/////////////////////////
 
-	clock  timeutil.Clock
-	bucket gcs.Bucket
-	leaser lease.FileLeaser
+	clock        timeutil.Clock
+	bucket       gcs.Bucket
+	objectSyncer gcsproxy.ObjectSyncer
+	leaser       lease.FileLeaser
 
 	/////////////////////////
 	// Constant data
@@ -249,6 +289,9 @@ type fileSystem struct {
 	// Mode bits for all inodes.
 	fileMode os.FileMode
 	dirMode  os.FileMode
+
+	// A function that shuts down the garbage collector.
+	stopGarbageCollecting func()
 
 	/////////////////////////
 	// Mutable state
@@ -552,6 +595,7 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 			fs.gcsChunkSize,
 			fs.bucket,
 			fs.leaser,
+			fs.objectSyncer,
 			fs.clock)
 	}
 
@@ -841,6 +885,10 @@ func (fs *fileSystem) unlockAndMaybeDisposeOfInode(
 ////////////////////////////////////////////////////////////////////////
 // fuse.FileSystem methods
 ////////////////////////////////////////////////////////////////////////
+
+func (fs *fileSystem) Destroy() {
+	fs.stopGarbageCollecting()
+}
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) Init(
