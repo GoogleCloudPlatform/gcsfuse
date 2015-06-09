@@ -195,6 +195,11 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
 
+	// Periodically garbage collect temporary objects.
+	var gcCtx context.Context
+	gcCtx, fs.stopGarbageCollecting = context.WithCancel(context.Background())
+	go garbageCollect(gcCtx, cfg.TmpObjectPrefix, fs.bucket)
+
 	server = fuseutil.NewFileSystemServer(fs)
 	return
 }
@@ -284,6 +289,9 @@ type fileSystem struct {
 	// Mode bits for all inodes.
 	fileMode os.FileMode
 	dirMode  os.FileMode
+
+	// A function that shuts down the garbage collector.
+	stopGarbageCollecting func()
 
 	/////////////////////////
 	// Mutable state
