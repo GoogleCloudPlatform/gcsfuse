@@ -76,11 +76,12 @@ func (t *MountTest) TearDown() {
 
 func (t *MountTest) mount(
 	args []string) (mfs *fuse.MountedFileSystem, err error) {
-	mfs, err = mount(
-		args,
-		new(flag.FlagSet),
-		t.conn)
+	fs := new(flag.FlagSet)
 
+	// Don't spam the console on error.
+	fs.Usage = func() {}
+
+	mfs, err = mount(args, fs, t.conn)
 	return
 }
 

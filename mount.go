@@ -42,18 +42,6 @@ func mount(
 	args []string,
 	flagSet *flag.FlagSet,
 	conn gcs.Conn) (mfs *fuse.MountedFileSystem, err error) {
-	// Set up a custom usage function.
-	flagSet.Usage = func() {
-		fmt.Fprintf(
-			os.Stderr,
-			"Usage: %s [flags] bucket_name mount_point\n",
-			os.Args[0])
-
-		fmt.Fprintf(os.Stderr, "\n")
-		fmt.Fprintf(os.Stderr, "Flags:\n")
-		flagSet.PrintDefaults()
-	}
-
 	// Populate and parse flags.
 	flags := populateFlagSet(flagSet)
 

@@ -80,6 +80,18 @@ func main() {
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
+	// Set up a custom usage function.
+	flag.Usage = func() {
+		fmt.Fprintf(
+			os.Stderr,
+			"Usage: %s [flags] bucket_name mount_point\n",
+			os.Args[0])
+
+		fmt.Fprintf(os.Stderr, "\n")
+		fmt.Fprintf(os.Stderr, "Flags:\n")
+		flag.PrintDefaults()
+	}
+
 	// Grab the connection.
 	conn, err := getConn()
 	if err != nil {
