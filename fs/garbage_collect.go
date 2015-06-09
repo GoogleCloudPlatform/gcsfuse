@@ -27,10 +27,9 @@ import (
 	"github.com/jacobsa/gcloud/syncutil"
 )
 
-const tmpObjectPrefix = ".gcsfuse_tmp/"
-
 func garbageCollectOnce(
 	ctx context.Context,
+	tmpObjectPrefix string,
 	bucket gcs.Bucket) (objectsDeleted uint64, err error) {
 	const stalenessThreshold = 30 * time.Minute
 	b := syncutil.NewBundle(ctx)
@@ -93,6 +92,7 @@ func garbageCollectOnce(
 // the context is cancelled.
 func garbageCollect(
 	ctx context.Context,
+	tmpObjectPrefix string,
 	bucket gcs.Bucket) {
 	const period = 10 * time.Minute
 	ticker := time.NewTicker(period)
@@ -109,7 +109,7 @@ func garbageCollect(
 		log.Println("Starting a garbage collection run.")
 
 		startTime := time.Now()
-		objectsDeleted, err := garbageCollectOnce(ctx, bucket)
+		objectsDeleted, err := garbageCollectOnce(ctx, tmpObjectPrefix, bucket)
 
 		if err != nil {
 			log.Printf(
