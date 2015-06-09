@@ -81,7 +81,7 @@ func (t *MountTest) mount(
 	// Don't spam the console on error.
 	fs.Usage = func() {}
 
-	mfs, err = mount(args, fs, t.conn)
+	mfs, err = mount(t.ctx, args, fs, t.conn)
 	return
 }
 
@@ -125,7 +125,8 @@ func (t *MountTest) BasicUsage() {
 	const fileName = "foo"
 
 	// Grab a bucket.
-	bucket := t.conn.GetBucket("some_bucket")
+	bucket, err := t.conn.OpenBucket(t.ctx, "some_bucket")
+	AssertEq(nil, err)
 
 	// Mount that bucket.
 	mfs, err := t.mount([]string{

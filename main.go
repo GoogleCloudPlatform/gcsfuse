@@ -55,9 +55,9 @@ func registerSIGINTHandler(mountPoint string) {
 }
 
 func getConn() (c gcs.Conn, err error) {
-	// Create the authenticated HTTP client.
+	// Create the oauth2 token source.
 	const scope = gcs.Scope_FullControl
-	httpClient, err := google.DefaultClient(context.Background(), scope)
+	tokenSrc, err := google.DefaultTokenSource(context.Background(), scope)
 	if err != nil {
 		return nil, err
 	}
@@ -65,8 +65,8 @@ func getConn() (c gcs.Conn, err error) {
 	// Create the connection.
 	const userAgent = "gcsfuse/0.0"
 	cfg := &gcs.ConnConfig{
-		HTTPClient: httpClient,
-		UserAgent:  userAgent,
+		TokenSource: tokenSrc,
+		UserAgent:   userAgent,
 	}
 
 	return gcs.NewConn(cfg)
@@ -103,6 +103,7 @@ func main() {
 
 	// Mount the file system.
 	mfs, err := mount(
+		context.Background(),
 		os.Args[1:],
 		flag.CommandLine,
 		conn)

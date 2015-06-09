@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/googlecloudplatform/gcsfuse/ratelimit"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/gcloud/gcs"
@@ -78,11 +80,16 @@ func setUpRateLimiting(
 }
 
 func setUpBucket(
+	ctx context.Context,
 	flags *flagStorage,
 	conn gcs.Conn,
 	name string) (b gcs.Bucket, err error) {
 	// Extract the appropriate bucket.
-	b = conn.GetBucket(name)
+	b, err = conn.OpenBucket(ctx, name)
+	if err != nil {
+		err = fmt.Errorf("OpenBucket: %v", err)
+		return
+	}
 
 	// Enable rate limiting, if requested.
 	b, err = setUpRateLimiting(

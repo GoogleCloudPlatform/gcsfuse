@@ -21,6 +21,7 @@ import (
 	"log"
 	"os"
 
+	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 
 	"github.com/googlecloudplatform/gcsfuse/fs"
@@ -39,6 +40,7 @@ import (
 //
 // Promises to pass on flag.ErrHelp from FlagSet.Parse.
 func mount(
+	ctx context.Context,
 	args []string,
 	flagSet *flag.FlagSet,
 	conn gcs.Conn) (mfs *fuse.MountedFileSystem, err error) {
@@ -116,6 +118,7 @@ func mount(
 
 	// Set up the bucket.
 	bucket, err := setUpBucket(
+		ctx,
 		flags,
 		conn,
 		bucketName)
