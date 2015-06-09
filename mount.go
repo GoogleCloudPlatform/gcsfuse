@@ -60,7 +60,7 @@ func mount(
 	// Extract positional arguments.
 	if flagSet.NArg() != 2 {
 		flagSet.Usage()
-		err = errors.New("")
+		err = errors.New("Incorrect usage")
 		return
 	}
 

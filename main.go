@@ -81,7 +81,7 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
 	// Set up a custom usage function.
-	flag.Usage = func() {
+	flag.CommandLine.Usage = func() {
 		fmt.Fprintf(
 			os.Stderr,
 			"Usage: %s [flags] bucket_name mount_point\n",
