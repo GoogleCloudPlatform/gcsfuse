@@ -36,34 +36,22 @@ import (
 //
 // In main, set flagSet to flag.CommandLine and pass in os.Args[1:]. In a test,
 // pass in a virgin flag set and test arguments.
+//
+// Promises to pass on flag.ErrHelp from FlagSet.Parse.
 func mount(
 	args []string,
 	flagSet *flag.FlagSet,
 	conn gcs.Conn) (mfs *fuse.MountedFileSystem, err error) {
-	// Set up a custom usage function.
-	flagSet.Usage = func() {
-		fmt.Fprintf(
-			os.Stderr,
-			"Usage: %s [flags] bucket_name mount_point\n",
-			os.Args[0])
-
-		fmt.Fprintf(os.Stderr, "\n")
-		fmt.Fprintf(os.Stderr, "Flags:\n")
-		flagSet.PrintDefaults()
-	}
-
 	// Populate and parse flags.
 	flags := populateFlagSet(flagSet)
 
 	err = flagSet.Parse(args)
 	if err != nil {
-		err = fmt.Errorf("Parsing flags: %v", err)
-		return
-	}
+		// Special case: don't mangle ErrHelp.
+		if err != flag.ErrHelp {
+			err = fmt.Errorf("Parsing flags: %v", err)
+		}
 
-	// Help mode?
-	if flags.Help {
-		flagSet.Usage()
 		return
 	}
 

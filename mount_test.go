@@ -76,11 +76,12 @@ func (t *MountTest) TearDown() {
 
 func (t *MountTest) mount(
 	args []string) (mfs *fuse.MountedFileSystem, err error) {
-	mfs, err = mount(
-		args,
-		new(flag.FlagSet),
-		t.conn)
+	fs := new(flag.FlagSet)
 
+	// Don't spam the console on error.
+	fs.Usage = func() {}
+
+	mfs, err = mount(args, fs, t.conn)
 	return
 }
 
@@ -108,6 +109,16 @@ func (t *MountTest) unmount() (err error) {
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
+
+func (t *MountTest) HelpFlags() {
+	var err error
+
+	_, err = t.mount([]string{"-h"})
+	ExpectEq(flag.ErrHelp, err)
+
+	_, err = t.mount([]string{"--help"})
+	ExpectEq(flag.ErrHelp, err)
+}
 
 func (t *MountTest) BasicUsage() {
 	var err error

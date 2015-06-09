@@ -22,7 +22,6 @@ import (
 )
 
 type flagStorage struct {
-	Help                               bool
 	MountOptions                       map[string]string
 	Uid                                int64
 	Gid                                int64
@@ -43,90 +42,84 @@ type flagStorage struct {
 func populateFlagSet(fs *flag.FlagSet) (flags *flagStorage) {
 	flags = new(flagStorage)
 
-	flag.BoolVar(
-		&flags.Help,
-		"help",
-		false,
-		"If set, print usage and exit successfully.")
-
 	flags.MountOptions = make(map[string]string)
-	flag.Var(
+	fs.Var(
 		mountpkg.OptionValue(flags.MountOptions),
 		"o",
 		"Additional system-specific mount options. Be careful!")
 
-	flag.Int64Var(
+	fs.Int64Var(
 		&flags.Uid,
 		"uid",
 		-1,
 		"If non-negative, the UID that owns all inodes. The default is the UID of "+
 			"the gcsfuse process.")
 
-	flag.Int64Var(
+	fs.Int64Var(
 		&flags.Gid,
 		"gid",
 		-1,
 		"If non-negative, the GID that owns all inodes. The default is the GID of "+
 			"the gcsfuse process.")
 
-	flag.UintVar(
+	fs.UintVar(
 		&flags.FileMode,
 		"file_mode",
 		0644,
 		"Permissions bits for files. Default is 0644.")
 
-	flag.UintVar(
+	fs.UintVar(
 		&flags.DirMode,
 		"dir_mode",
 		0755,
 		"Permissions bits for directories. Default is 0755.")
 
-	flag.StringVar(
+	fs.StringVar(
 		&flags.TempDir,
 		"temp_dir", "",
 		"The temporary directory in which to store local copies of GCS objects. "+
 			"If empty, the system default (probably /tmp) will be used.")
 
-	flag.Int64Var(
+	fs.Int64Var(
 		&flags.TempDirLimit,
 		"temp_dir_bytes", 1<<31,
 		"A desired limit on the number of bytes used in --temp_dir. May be "+
 			"exceeded for dirty files that have not been flushed or closed.")
 
-	flag.Uint64Var(
+	fs.Uint64Var(
 		&flags.GCSChunkSize,
 		"gcs_chunk_size", 1<<24,
 		"If set to a non-zero value N, split up GCS objects into multiple "+
 			"chunks of size at most N when reading, and do not read or cache "+
 			"unnecessary chunks.")
 
-	flag.BoolVar(
+	fs.BoolVar(
 		&flags.ImplicitDirs,
 		"implicit_dirs",
 		false,
 		"Implicitly define directories based on their content. See "+
 			"docs/semantics.md.")
 
-	flag.DurationVar(
+	fs.DurationVar(
 		&flags.StatCacheTTL,
 		"stat_cache_ttl",
 		time.Minute,
 		"How long to cache StatObject results from GCS.")
 
-	flag.DurationVar(
+	fs.DurationVar(
 		&flags.TypeCacheTTL,
 		"type_cache_ttl",
 		time.Minute,
 		"How long to cache name -> file/dir type mappings in directory inodes.")
 
-	flag.Float64Var(
+	fs.Float64Var(
 		&flags.OpRateLimitHz,
 		"op_rate_limit_hz",
 		-1,
 		"If positive, a limit on the rate at which we send requests to GCS, "+
 			"measured over a 30-second window.")
 
-	flag.Float64Var(
+	fs.Float64Var(
 		&flags.EgressBandwidthLimitBytesPerSecond,
 		"egress_bandwidth_limit_bytes_per_second",
 		-1,
