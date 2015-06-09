@@ -50,7 +50,7 @@ your bucket doesn't yet exist, create one using the
 
 GCS credentials are automatically be loaded using [Google application default
 credentials][app-default-credentials]. If you haven't already done so, the
-easiest way to set up your credentials is to run the [gcloud tool][]
+easiest way to set up your credentials is to run the [gcloud tool][]:
 
     gcloud auth login
 
