@@ -89,12 +89,23 @@ func garbageCollectOnce(
 	return
 }
 
-// Periodically delete stale temporary objects from the supplied bucket.
+// Periodically delete stale temporary objects from the supplied bucket until
+// the context is cancelled.
 func garbageCollect(
 	ctx context.Context,
 	bucket gcs.Bucket) {
 	const period = 10 * time.Minute
-	for _ = range time.Tick(period) {
+	ticker := time.NewTicker(period)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case <-ticker.C:
+		}
+
 		log.Println("Starting a garbage collection run.")
 
 		startTime := time.Now()
