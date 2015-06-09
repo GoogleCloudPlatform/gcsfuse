@@ -886,6 +886,10 @@ func (fs *fileSystem) unlockAndMaybeDisposeOfInode(
 // fuse.FileSystem methods
 ////////////////////////////////////////////////////////////////////////
 
+func (fs *fileSystem) Destroy() {
+	fs.stopGarbageCollecting()
+}
+
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) Init(
 	op *fuseops.InitOp) (err error) {
