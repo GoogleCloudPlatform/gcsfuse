@@ -9,7 +9,7 @@ do the following to install gcsfuse:
     this via Homebrew because of Apple's requirements for kernel extension
     signatures.)
 
-*   Run `brew install gcsfuse`.
+*   Run `brew tap homebrew/fuse && brew install gcsfuse`.
 
 Otherwise, or if you want to install a pre-release version of gcsfuse, read the
 remainder of this document.
