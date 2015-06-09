@@ -36,6 +36,8 @@ import (
 //
 // In main, set flagSet to flag.CommandLine and pass in os.Args[1:]. In a test,
 // pass in a virgin flag set and test arguments.
+//
+// Promises to pass on flag.ErrHelp from FlagSet.Parse.
 func mount(
 	args []string,
 	flagSet *flag.FlagSet,
