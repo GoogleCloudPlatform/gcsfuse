@@ -1,3 +1,21 @@
+# Credentials
+
+Credentials for use with GCS will automatically be loaded using [Google
+application default credentials][app-default-credentials]. The easiest way to
+set this up is using the [gcloud tool][]:
+
+    gcloud auth login
+
+Alternatively, you can set the `GOOGLE_APPLICATION_CREDENTIALS` environment
+variable to the path to a JSON key file downloaded from the Google Developers
+Console:
+
+    GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json gcsfuse [...]
+
+[gcloud tool]: https://cloud.google.com/sdk/gcloud/
+[app-default-credentials]: https://developers.google.com/identity/protocols/application-default-credentials#howtheywork
+
+
 # Basic usage
 
 Create the directory into which you want to mount the gcsfuse bucket:
@@ -12,11 +30,7 @@ as follows:
 You should be able to see your bucket contents if you run `ls
 /path/to/mount/point`. To later unmount the bucket, either kill the gcsfuse
 process with a SIGINT or run `umount /path/to/mount/point`. (On Linux, you may
-need to replace `umount` with `fusermount -u`.) Credentials for use with GCS
-will automatically be loaded using [Google application default
-credentials][app-default-credentials].
-
-[app-default-credentials]: https://developers.google.com/identity/protocols/application-default-credentials#howtheywork
+need to replace `umount` with `fusermount -u`.)
 
 
 # Running as a daemon
