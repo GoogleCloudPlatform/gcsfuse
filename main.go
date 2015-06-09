@@ -92,6 +92,9 @@ func main() {
 		flag.PrintDefaults()
 	}
 
+	// Don't die on flag parsing errors; we watch for them below.
+	flag.CommandLine.Init("", flag.ContinueOnError)
+
 	// Grab the connection.
 	conn, err := getConn()
 	if err != nil {
@@ -105,6 +108,12 @@ func main() {
 		conn)
 
 	if err != nil {
+		// Special case: if the user requested help, the flag package has already
+		// called Usage for us. Exit cleanly.
+		if err == flag.ErrHelp {
+			return
+		}
+
 		log.Fatalf("mount: %v", err)
 	}
 
