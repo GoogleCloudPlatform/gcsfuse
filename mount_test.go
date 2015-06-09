@@ -32,6 +32,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -109,6 +110,23 @@ func (t *MountTest) unmount() (err error) {
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
+
+func (t *MountTest) IncorrectUsage() {
+	var err error
+
+	// No args
+	_, err = t.mount([]string{})
+	log.Printf("FOO: %T %q", err, err.Error())
+	ExpectThat(err, Error(HasSubstr("usage")))
+
+	// One arg
+	_, err = t.mount([]string{"foo"})
+	ExpectThat(err, Error(HasSubstr("usage")))
+
+	// Three args
+	_, err = t.mount([]string{"foo", "bar", "baz"})
+	ExpectThat(err, Error(HasSubstr("usage")))
+}
 
 func (t *MountTest) HelpFlags() {
 	var err error
