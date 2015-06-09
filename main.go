@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/net/context"
@@ -27,7 +28,11 @@ import (
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/gcs/gcsutil"
+	"github.com/jacobsa/gcloud/syncutil"
 )
+
+const tmpObjectPrefix = ".gcsfuse_tmp/"
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -74,26 +79,88 @@ func getConn() (c gcs.Conn, err error) {
 }
 
 func garbageCollectOnce(
-	bucket gcs.Bucket) (err error) {
+	ctx context.Context,
+	bucket gcs.Bucket) (objectsDeleted uint64, err error) {
 	const stalenessThreshold = 30 * time.Minute
-	panic("TODO")
+	b := syncutil.NewBundle(ctx)
+
+	// List all objects with the temporary prefix.
+	objects := make(chan *gcs.Object, 100)
+	b.Add(func(ctx context.Context) (err error) {
+		defer close(objects)
+		err = gcsutil.ListPrefix(ctx, bucket, tmpObjectPrefix, objects)
+		if err != nil {
+			err = fmt.Errorf("ListPrefix: %v", err)
+			return
+		}
+
+		return
+	})
+
+	// Filter to the names of objects that are stale.
+	now := time.Now()
+	staleNames := make(chan string, 100)
+	b.Add(func(ctx context.Context) (err error) {
+		defer close(staleNames)
+		for o := range objects {
+			if now.Sub(o.Updated) < stalenessThreshold {
+				continue
+			}
+
+			select {
+			case <-ctx.Done():
+				err = ctx.Err()
+				return
+
+			case staleNames <- o.Name:
+			}
+		}
+
+		return
+	})
+
+	// Delete those objects.
+	b.Add(func(ctx context.Context) (err error) {
+		for name := range staleNames {
+			err = bucket.DeleteObject(ctx, name)
+			if err != nil {
+				err = fmt.Errorf("DeleteObject(%q): %v", name, err)
+				return
+			}
+
+			atomic.AddUint64(&objectsDeleted, 1)
+		}
+
+		return
+	})
+
+	err = b.Join()
+	return
 }
 
 // Periodically delete stale temporary objects from the supplied bucket.
-func garbageCollect(bucket gcs.Bucket) {
+func garbageCollect(
+	ctx context.Context,
+	bucket gcs.Bucket) {
 	const period = 10 * time.Minute
-	for _ := range time.Tick(period) {
+	for _ = range time.Tick(period) {
 		log.Println("Starting a garbage collection run.")
 
 		startTime := time.Now()
-		err := garbageCollectOnce(bucket)
+		objectsDeleted, err := garbageCollectOnce(ctx, bucket)
+
 		if err != nil {
 			log.Printf(
-				"Garbage collection failed after %v with error: %v",
+				"Garbage collection failed after deleting %d objects in %v, "+
+					"with error: %v",
+				objectsDeleted,
 				time.Since(startTime),
 				err)
 		} else {
-			log.Printf("Garbage collection succeeded in %v.", time.Since(startTime))
+			log.Printf(
+				"Garbage collection succeeded after deleted %d objects in %v.",
+				objectsDeleted,
+				time.Since(startTime))
 		}
 	}
 }
