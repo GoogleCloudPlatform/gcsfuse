@@ -47,7 +47,11 @@ func mount(
 
 	err = flagSet.Parse(args)
 	if err != nil {
-		err = fmt.Errorf("Parsing flags: %v", err)
+		// Special case: don't mangle ErrHelp.
+		if err != flag.ErrHelp {
+			err = fmt.Errorf("Parsing flags: %v", err)
+		}
+
 		return
 	}
 
