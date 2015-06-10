@@ -21,7 +21,7 @@ import (
 
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/ogletest"
+	"github.com/jacobsa/ogletest"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -32,46 +32,46 @@ type ReadOnlyTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&ReadOnlyTest{}) }
+func init() { ogletest.RegisterTestSuite(&ReadOnlyTest{}) }
 
-func (t *ReadOnlyTest) SetUp(ti *TestInfo) {
-	t.mountCfg.ReadOnly = true
-	t.fsTest.SetUp(ti)
+func (s *ReadOnlyTest) SetUp(t *ogletest.T) {
+	s.mountCfg.ReadOnly = true
+	s.fsTest.SetUp(t)
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ReadOnlyTest) CreateFile() {
-	err := ioutil.WriteFile(path.Join(t.Dir, "foo"), []byte{}, 0700)
-	ExpectThat(err, Error(HasSubstr("read-only")))
+func (s *ReadOnlyTest) CreateFile(t *ogletest.T) {
+	err := ioutil.WriteFile(path.Join(s.Dir, "foo"), []byte{}, 0700)
+	t.ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
-func (t *ReadOnlyTest) ModifyFile() {
+func (s *ReadOnlyTest) ModifyFile(t *ogletest.T) {
 	// Create an object in the bucket.
-	_, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
-	AssertEq(nil, err)
+	_, err := gcsutil.CreateObject(t.Ctx, s.bucket, "foo", "taco")
+	t.AssertEq(nil, err)
 
 	// Opening it for writing should fail.
-	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	f, err := os.OpenFile(path.Join(s.Dir, "foo"), os.O_RDWR, 0)
 	f.Close()
 
-	ExpectThat(err, Error(HasSubstr("read-only")))
+	t.ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
-func (t *ReadOnlyTest) DeleteFile() {
+func (s *ReadOnlyTest) DeleteFile(t *ogletest.T) {
 	// Create an object in the bucket.
-	_, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
-	AssertEq(nil, err)
+	_, err := gcsutil.CreateObject(t.Ctx, s.bucket, "foo", "taco")
+	t.AssertEq(nil, err)
 
 	// Attempt to delete it via the file system.
-	err = os.Remove(path.Join(t.Dir, "foo"))
-	ExpectThat(err, Error(HasSubstr("read-only")))
+	err = os.Remove(path.Join(s.Dir, "foo"))
+	t.ExpectThat(err, Error(HasSubstr("read-only")))
 
-	// the bucket should not have been modified.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	// The bucket should not have been modified.
+	contents, err := gcsutil.ReadObject(t.Ctx, s.bucket, "foo")
 
-	AssertEq(nil, err)
-	ExpectEq("taco", string(contents))
+	t.AssertEq(nil, err)
+	t.ExpectEq("taco", string(contents))
 }
