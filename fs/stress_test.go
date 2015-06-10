@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/jacobsa/fuse/fusetesting"
-	. "github.com/jacobsa/ogletest"
+	"github.com/jacobsa/ogletest"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -66,14 +66,14 @@ type StressTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&StressTest{}) }
+func init() { ogletest.RegisterTestSuite(&StressTest{}) }
 
-func (t *StressTest) CreateAndReadManyFilesInParallel() {
+func (s *StressTest) CreateAndReadManyFilesInParallel(t *ogletest.T) {
 	// Ensure that we get parallelism for this test.
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
 
 	// Exercise lease revocation logic.
-	numFiles := 2 * t.serverCfg.TempDirLimitNumFiles
+	numFiles := 2 * s.serverCfg.TempDirLimitNumFiles
 
 	// Choose a bunch of file names.
 	var names []string
@@ -85,27 +85,27 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 	forEachName(
 		names,
 		func(n string) {
-			err := ioutil.WriteFile(path.Join(t.Dir, n), []byte(n), 0400)
-			AssertEq(nil, err)
+			err := ioutil.WriteFile(path.Join(s.Dir, n), []byte(n), 0400)
+			t.AssertEq(nil, err)
 		})
 
 	// Read each back.
 	forEachName(
 		names,
 		func(n string) {
-			contents, err := ioutil.ReadFile(path.Join(t.Dir, n))
-			AssertEq(nil, err)
-			AssertEq(n, string(contents))
+			contents, err := ioutil.ReadFile(path.Join(s.Dir, n))
+			t.AssertEq(nil, err)
+			t.AssertEq(n, string(contents))
 		})
 }
 
-func (t *StressTest) TruncateFileManyTimesInParallel() {
+func (s *StressTest) TruncateFileManyTimesInParallel(t *ogletest.T) {
 	// Ensure that we get parallelism for this test.
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
 
 	// Create a file.
-	f, err := os.Create(path.Join(t.Dir, "foo"))
-	AssertEq(nil, err)
+	f, err := os.Create(path.Join(s.Dir, "foo"))
+	t.AssertEq(nil, err)
 	defer f.Close()
 
 	// Set up a function that repeatedly truncates the file to random lengths,
@@ -119,7 +119,7 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 			for i := 0; i < 10; i++ {
 				size = rand.Int63n(1 << 14)
 				err := f.Truncate(size)
-				AssertEq(nil, err)
+				t.AssertEq(nil, err)
 			}
 		}
 
@@ -144,7 +144,7 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 
 	// The final size should be consistent.
 	fi, err := f.Stat()
-	AssertEq(nil, err)
+	t.AssertEq(nil, err)
 
 	var found = false
 	for s := range finalSizes {
@@ -154,25 +154,25 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 		}
 	}
 
-	ExpectTrue(found, "Unexpected size: %d", fi.Size())
+	t.ExpectTrue(found, "Unexpected size: %d", fi.Size())
 }
 
-func (t *StressTest) CreateInParallel_NoTruncate() {
-	fusetesting.RunCreateInParallelTest_NoTruncate(t.ctx, t.Dir)
+func (s *StressTest) CreateInParallel_NoTruncate(t *ogletest.T) {
+	fusetesting.RunCreateInParallelTest_NoTruncate(t, s.Dir)
 }
 
-func (t *StressTest) CreateInParallel_Truncate() {
-	fusetesting.RunCreateInParallelTest_Truncate(t.ctx, t.Dir)
+func (s *StressTest) CreateInParallel_Truncate(t *ogletest.T) {
+	fusetesting.RunCreateInParallelTest_Truncate(t, s.Dir)
 }
 
-func (t *StressTest) CreateInParallel_Exclusive() {
-	fusetesting.RunCreateInParallelTest_Exclusive(t.ctx, t.Dir)
+func (s *StressTest) CreateInParallel_Exclusive(t *ogletest.T) {
+	fusetesting.RunCreateInParallelTest_Exclusive(t, s.Dir)
 }
 
-func (t *StressTest) MkdirInParallel() {
-	fusetesting.RunMkdirInParallelTest(t.ctx, t.Dir)
+func (s *StressTest) MkdirInParallel(t *ogletest.T) {
+	fusetesting.RunMkdirInParallelTest(t, s.Dir)
 }
 
-func (t *StressTest) SymlinkInParallel() {
-	fusetesting.RunSymlinkInParallelTest(t.ctx, t.Dir)
+func (s *StressTest) SymlinkInParallel(t *ogletest.T) {
+	fusetesting.RunSymlinkInParallelTest(t, s.Dir)
 }
