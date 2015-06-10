@@ -298,7 +298,8 @@ func (s *CachingWithImplicitDirsTest) SetUp(t *ogletest.T) {
 	s.cachingTestCommon.SetUp(t)
 }
 
-func (s *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile(t *ogletest.T) {
+func (s *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile(
+	t *ogletest.T) {
 	var fi os.FileInfo
 	var err error
 
@@ -319,7 +320,8 @@ func (s *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile(t *ogletes
 	t.ExpectTrue(fi.IsDir())
 }
 
-func (s *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory(t *ogletest.T) {
+func (s *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory(
+	t *ogletest.T) {
 	var fi os.FileInfo
 	var err error
 
