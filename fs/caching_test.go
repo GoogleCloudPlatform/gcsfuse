@@ -87,7 +87,7 @@ func (s *CachingTest) FileCreatedRemotely(t *ogletest.T) {
 
 	// Create an object in GCS.
 	_, err := gcsutil.CreateObject(
-		s.ctx,
+		t.Ctx,
 		s.uncachedBucket,
 		name,
 		contents)
@@ -135,7 +135,7 @@ func (s *CachingTest) FileChangedRemotely(t *ogletest.T) {
 
 	// Overwrite the object in GCS.
 	_, err = gcsutil.CreateObject(
-		s.ctx,
+		t.Ctx,
 		s.uncachedBucket,
 		name,
 		"burrito")
@@ -171,7 +171,7 @@ func (s *CachingTest) DirectoryRemovedRemotely(t *ogletest.T) {
 	t.AssertEq(nil, err)
 
 	// Remove the backing object in GCS.
-	err = s.uncachedBucket.DeleteObject(s.ctx, name+"/")
+	err = s.uncachedBucket.DeleteObject(t.Ctx, name+"/")
 	t.AssertEq(nil, err)
 
 	// Because we are caching, the directory should still appear to exist.
@@ -197,7 +197,7 @@ func (s *CachingTest) ConflictingNames_RemoteModifier(t *ogletest.T) {
 
 	// Create a file with the same name via GCS.
 	_, err = gcsutil.CreateObject(
-		s.ctx,
+		t.Ctx,
 		s.uncachedBucket,
 		name,
 		"taco")
@@ -259,12 +259,12 @@ func (s *CachingTest) TypeOfNameChanges_RemoteModifier(t *ogletest.T) {
 
 	// Remove the backing object in GCS, updating the bucket cache (but not the
 	// file system type cache)
-	err = s.bucket.DeleteObject(s.ctx, name+"/")
+	err = s.bucket.DeleteObject(t.Ctx, name+"/")
 	t.AssertEq(nil, err)
 
 	// Create a file with the same name via GCS, again updating the bucket cache.
 	_, err = gcsutil.CreateObject(
-		s.ctx,
+		t.Ctx,
 		s.bucket,
 		name,
 		"taco")
@@ -305,7 +305,7 @@ func (s *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile(
 
 	// Set up a file object implicitly defining a directory in GCS.
 	_, err = gcsutil.CreateObject(
-		s.ctx,
+		t.Ctx,
 		s.uncachedBucket,
 		"foo/bar",
 		"")
@@ -327,7 +327,7 @@ func (s *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory(
 
 	// Set up a directory object implicitly defining a directory in GCS.
 	_, err = gcsutil.CreateObject(
-		s.ctx,
+		t.Ctx,
 		s.uncachedBucket,
 		"foo/bar/",
 		"")
@@ -386,7 +386,7 @@ func (s *CachingWithImplicitDirsTest) SymlinksAreTypeCached(t *ogletest.T) {
 
 	// Create a directory object out of band, so the root inode doesn's notice.
 	_, err = gcsutil.CreateObject(
-		s.ctx,
+		t.Ctx,
 		s.uncachedBucket,
 		"foo/",
 		"")

@@ -248,7 +248,7 @@ func (s *ForeignModsTest) UnreachableObjects(t *ogletest.T) {
 	// is no directory placeholder object. We don's have implicit directories
 	// enabled, so these should be unreachable.
 	err = gcsutil.CreateEmptyObjects(
-		s.ctx,
+		t.Ctx,
 		s.bucket,
 		[]string{
 			// Implicit directory contents, conflicting file name.
@@ -375,7 +375,7 @@ func (s *ForeignModsTest) SymlinkAndDirectoryWithConflictingName(t *ogletest.T) 
 				"foo/bar": "burrito",
 			}))
 
-	err = setSymlinkTarget(s.ctx, s.bucket, "foo", "")
+	err = setSymlinkTarget(t.Ctx, s.bucket, "foo", "")
 	t.AssertEq(nil, err)
 
 	// A listing of the parent should contain a directory named "foo" and a
@@ -685,7 +685,7 @@ func (s *ForeignModsTest) ObjectIsDeleted_File(t *ogletest.T) {
 	t.AssertEq(nil, err)
 
 	// Delete the object.
-	t.AssertEq(nil, s.bucket.DeleteObject(s.ctx, "foo"))
+	t.AssertEq(nil, s.bucket.DeleteObject(t.Ctx, "foo"))
 
 	// The file should appear to be unlinked, but with the previous contents.
 	fi, err := f1.Stat()
@@ -717,7 +717,7 @@ func (s *ForeignModsTest) ObjectIsDeleted_Directory(t *ogletest.T) {
 	t.AssertEq(nil, err)
 
 	// Delete the object.
-	t.AssertEq(nil, s.bucket.DeleteObject(s.ctx, "dir/"))
+	t.AssertEq(nil, s.bucket.DeleteObject(t.Ctx, "dir/"))
 
 	// The inode should still be fstat'able.
 	fi, err := s.f1.Stat()
@@ -743,7 +743,7 @@ func (s *ForeignModsTest) Symlink(t *ogletest.T) {
 		Contents: ioutil.NopCloser(strings.NewReader("")),
 	}
 
-	_, err = s.bucket.CreateObject(s.ctx, req)
+	_, err = s.bucket.CreateObject(t.Ctx, req)
 	t.AssertEq(nil, err)
 
 	// Stat the link.
