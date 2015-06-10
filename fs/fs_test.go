@@ -153,7 +153,7 @@ func (s *fsTest) TearDown(t *ogletest.T) {
 		}
 
 		if strings.Contains(err.Error(), "resource busy") {
-			log.Println("Resource busy error while unmounting; trying again")
+			t.Logf("Resource busy error while unmounting; trying again")
 			time.Sleep(delay)
 			delay = time.Duration(1.3 * float64(delay))
 			continue
