@@ -25,7 +25,7 @@ import (
 
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/ogletest"
+	"github.com/jacobsa/ogletest"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -36,158 +36,163 @@ type ImplicitDirsTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&ImplicitDirsTest{}) }
+func init() { ogletest.RegisterTestSuite(&ImplicitDirsTest{}) }
 
-func (t *ImplicitDirsTest) SetUp(ti *TestInfo) {
-	t.serverCfg.ImplicitDirectories = true
-	t.fsTest.SetUp(ti)
+func (s *ImplicitDirsTest) SetUp(t *ogletest.T) {
+	s.serverCfg.ImplicitDirectories = true
+	s.fsTest.SetUp(t)
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ImplicitDirsTest) NothingPresent() {
+func (s *ImplicitDirsTest) NothingPresent(t *ogletest.T) {
 	// ReadDir
-	entries, err := fusetesting.ReadDirPicky(t.mfs.Dir())
-	AssertEq(nil, err)
+	entries, err := fusetesting.ReadDirPicky(s.mfs.Dir())
+	t.AssertEq(nil, err)
 
-	ExpectThat(entries, ElementsAre())
+	t.ExpectThat(entries, ElementsAre())
 }
 
-func (t *ImplicitDirsTest) FileObjectPresent() {
+func (s *ImplicitDirsTest) FileObjectPresent(t *ogletest.T) {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
 
 	// Set up contents.
-	AssertEq(
+	t.AssertEq(
 		nil,
-		t.createObjects(
+		s.createObjects(
+			t,
 			map[string]string{
 				// File
 				"foo": "taco",
 			}))
 
 	// Statting the name should return an entry for the file.
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
-	AssertEq(nil, err)
+	fi, err = os.Stat(path.Join(s.mfs.Dir(), "foo"))
+	t.AssertEq(nil, err)
 
-	ExpectEq("foo", fi.Name())
-	ExpectEq(4, fi.Size())
-	ExpectFalse(fi.IsDir())
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectEq(4, fi.Size())
+	t.ExpectFalse(fi.IsDir())
 
 	// ReadDir should show the file.
-	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
-	AssertEq(nil, err)
-	AssertEq(1, len(entries))
+	entries, err = fusetesting.ReadDirPicky(s.mfs.Dir())
+	t.AssertEq(nil, err)
+	t.AssertEq(1, len(entries))
 
 	fi = entries[0]
-	ExpectEq("foo", fi.Name())
-	ExpectEq(4, fi.Size())
-	ExpectFalse(fi.IsDir())
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectEq(4, fi.Size())
+	t.ExpectFalse(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) DirectoryObjectPresent() {
+func (s *ImplicitDirsTest) DirectoryObjectPresent(t *ogletest.T) {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
 
 	// Set up contents.
-	AssertEq(
+	t.AssertEq(
 		nil,
-		t.createObjects(
+		s.createObjects(
+			t,
 			map[string]string{
 				// Directory
 				"foo/": "",
 			}))
 
 	// Statting the name should return an entry for the directory.
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
-	AssertEq(nil, err)
+	fi, err = os.Stat(path.Join(s.mfs.Dir(), "foo"))
+	t.AssertEq(nil, err)
 
-	ExpectEq("foo", fi.Name())
-	ExpectTrue(fi.IsDir())
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectTrue(fi.IsDir())
 
 	// ReadDir should show the directory.
-	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
-	AssertEq(nil, err)
-	AssertEq(1, len(entries))
+	entries, err = fusetesting.ReadDirPicky(s.mfs.Dir())
+	t.AssertEq(nil, err)
+	t.AssertEq(1, len(entries))
 
 	fi = entries[0]
-	ExpectEq("foo", fi.Name())
-	ExpectTrue(fi.IsDir())
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectTrue(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
+func (s *ImplicitDirsTest) ImplicitDirectory_DefinedByFile(t *ogletest.T) {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
 
 	// Set up contents.
-	AssertEq(
+	t.AssertEq(
 		nil,
-		t.createObjects(
+		s.createObjects(
+			t,
 			map[string]string{
 				"foo/bar": "",
 			}))
 
 	// Statting the name should return an entry for the directory.
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
-	AssertEq(nil, err)
+	fi, err = os.Stat(path.Join(s.mfs.Dir(), "foo"))
+	t.AssertEq(nil, err)
 
-	ExpectEq("foo", fi.Name())
-	ExpectTrue(fi.IsDir())
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectTrue(fi.IsDir())
 
 	// ReadDir should show the directory.
-	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
-	AssertEq(nil, err)
-	AssertEq(1, len(entries))
+	entries, err = fusetesting.ReadDirPicky(s.mfs.Dir())
+	t.AssertEq(nil, err)
+	t.AssertEq(1, len(entries))
 
 	fi = entries[0]
-	ExpectEq("foo", fi.Name())
-	ExpectTrue(fi.IsDir())
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectTrue(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
+func (s *ImplicitDirsTest) ImplicitDirectory_DefinedByDirectory(t *ogletest.T) {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
 
 	// Set up contents.
-	AssertEq(
+	t.AssertEq(
 		nil,
-		t.createObjects(
+		s.createObjects(
+			t,
 			map[string]string{
 				"foo/bar/": "",
 			}))
 
 	// Statting the name should return an entry for the directory.
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
-	AssertEq(nil, err)
+	fi, err = os.Stat(path.Join(s.mfs.Dir(), "foo"))
+	t.AssertEq(nil, err)
 
-	ExpectEq("foo", fi.Name())
-	ExpectTrue(fi.IsDir())
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectTrue(fi.IsDir())
 
 	// ReadDir should show the directory.
-	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
-	AssertEq(nil, err)
-	AssertEq(1, len(entries))
+	entries, err = fusetesting.ReadDirPicky(s.mfs.Dir())
+	t.AssertEq(nil, err)
+	t.AssertEq(1, len(entries))
 
 	fi = entries[0]
-	ExpectEq("foo", fi.Name())
-	ExpectTrue(fi.IsDir())
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectTrue(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) ConflictingNames_PlaceholderPresent() {
+func (s *ImplicitDirsTest) ConflictingNames_PlaceholderPresent(t *ogletest.T) {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
 
 	// Set up contents.
-	AssertEq(
+	t.AssertEq(
 		nil,
-		t.createObjects(
+		s.createObjects(
+			t,
 			map[string]string{
 				// File
 				"foo": "taco",
@@ -198,49 +203,50 @@ func (t *ImplicitDirsTest) ConflictingNames_PlaceholderPresent() {
 
 	// A listing of the parent should contain a directory named "foo" and a
 	// file named "foo\n".
-	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
-	AssertEq(nil, err)
-	AssertEq(2, len(entries))
+	entries, err = fusetesting.ReadDirPicky(s.mfs.Dir())
+	t.AssertEq(nil, err)
+	t.AssertEq(2, len(entries))
 
 	fi = entries[0]
-	ExpectEq("foo", fi.Name())
-	ExpectEq(0, fi.Size())
-	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
-	ExpectTrue(fi.IsDir())
-	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectEq(0, fi.Size())
+	t.ExpectEq(dirPerms|os.ModeDir, fi.Mode())
+	t.ExpectTrue(fi.IsDir())
+	t.ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	fi = entries[1]
-	ExpectEq("foo\n", fi.Name())
-	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(filePerms, fi.Mode())
-	ExpectFalse(fi.IsDir())
-	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	t.ExpectEq("foo\n", fi.Name())
+	t.ExpectEq(len("taco"), fi.Size())
+	t.ExpectEq(filePerms, fi.Mode())
+	t.ExpectFalse(fi.IsDir())
+	t.ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Statting "foo" should yield the directory.
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
-	AssertEq(nil, err)
+	fi, err = os.Stat(path.Join(s.mfs.Dir(), "foo"))
+	t.AssertEq(nil, err)
 
-	ExpectEq("foo", fi.Name())
-	ExpectTrue(fi.IsDir())
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectTrue(fi.IsDir())
 
 	// Statting "foo\n" should yield the file.
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo\n"))
-	AssertEq(nil, err)
+	fi, err = os.Stat(path.Join(s.mfs.Dir(), "foo\n"))
+	t.AssertEq(nil, err)
 
-	ExpectEq("foo\n", fi.Name())
-	ExpectEq(len("taco"), fi.Size())
-	ExpectFalse(fi.IsDir())
+	t.ExpectEq("foo\n", fi.Name())
+	t.ExpectEq(len("taco"), fi.Size())
+	t.ExpectFalse(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
+func (s *ImplicitDirsTest) ConflictingNames_PlaceholderNotPresent(t *ogletest.T) {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
 
 	// Set up contents.
-	AssertEq(
+	t.AssertEq(
 		nil,
-		t.createObjects(
+		s.createObjects(
+			t,
 			map[string]string{
 				// File
 				"foo": "taco",
@@ -251,49 +257,50 @@ func (t *ImplicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 
 	// A listing of the parent should contain a directory named "foo" and a
 	// file named "foo\n".
-	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
-	AssertEq(nil, err)
-	AssertEq(2, len(entries))
+	entries, err = fusetesting.ReadDirPicky(s.mfs.Dir())
+	t.AssertEq(nil, err)
+	t.AssertEq(2, len(entries))
 
 	fi = entries[0]
-	ExpectEq("foo", fi.Name())
-	ExpectEq(0, fi.Size())
-	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
-	ExpectTrue(fi.IsDir())
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectEq(0, fi.Size())
+	t.ExpectEq(dirPerms|os.ModeDir, fi.Mode())
+	t.ExpectTrue(fi.IsDir())
 
 	fi = entries[1]
-	ExpectEq("foo\n", fi.Name())
-	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(filePerms, fi.Mode())
-	ExpectFalse(fi.IsDir())
-	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	t.ExpectEq("foo\n", fi.Name())
+	t.ExpectEq(len("taco"), fi.Size())
+	t.ExpectEq(len("taco"), fi.Size())
+	t.ExpectEq(filePerms, fi.Mode())
+	t.ExpectFalse(fi.IsDir())
+	t.ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Statting "foo" should yield the directory.
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
-	AssertEq(nil, err)
+	fi, err = os.Stat(path.Join(s.mfs.Dir(), "foo"))
+	t.AssertEq(nil, err)
 
-	ExpectEq("foo", fi.Name())
-	ExpectTrue(fi.IsDir())
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectTrue(fi.IsDir())
 
 	// Statting "foo\n" should yield the file.
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo\n"))
-	AssertEq(nil, err)
+	fi, err = os.Stat(path.Join(s.mfs.Dir(), "foo\n"))
+	t.AssertEq(nil, err)
 
-	ExpectEq("foo\n", fi.Name())
-	ExpectEq(len("taco"), fi.Size())
-	ExpectFalse(fi.IsDir())
+	t.ExpectEq("foo\n", fi.Name())
+	t.ExpectEq(len("taco"), fi.Size())
+	t.ExpectFalse(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) ConflictingNames_OneIsSymlink() {
+func (s *ImplicitDirsTest) ConflictingNames_OneIsSymlink(t *ogletest.T) {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
 
 	// Set up contents.
-	AssertEq(
+	t.AssertEq(
 		nil,
-		t.createObjects(
+		s.createObjects(
+			t,
 			map[string]string{
 				// Symlink
 				"foo": "",
@@ -303,234 +310,242 @@ func (t *ImplicitDirsTest) ConflictingNames_OneIsSymlink() {
 			}))
 
 	// Cause "foo" to look like a symlink.
-	err = setSymlinkTarget(t.ctx, t.bucket, "foo", "")
-	AssertEq(nil, err)
+	err = setSymlinkTarget(t.Ctx, s.bucket, "foo", "")
+	t.AssertEq(nil, err)
 
 	// A listing of the parent should contain a directory named "foo" and a
 	// symlink named "foo\n".
-	entries, err = fusetesting.ReadDirPicky(t.mfs.Dir())
-	AssertEq(nil, err)
-	AssertEq(2, len(entries))
+	entries, err = fusetesting.ReadDirPicky(s.mfs.Dir())
+	t.AssertEq(nil, err)
+	t.AssertEq(2, len(entries))
 
 	fi = entries[0]
-	ExpectEq("foo", fi.Name())
-	ExpectEq(0, fi.Size())
-	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
-	ExpectTrue(fi.IsDir())
-	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectEq(0, fi.Size())
+	t.ExpectEq(dirPerms|os.ModeDir, fi.Mode())
+	t.ExpectTrue(fi.IsDir())
+	t.ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	fi = entries[1]
-	ExpectEq("foo\n", fi.Name())
-	ExpectEq(0, fi.Size())
-	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
-	ExpectFalse(fi.IsDir())
-	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+	t.ExpectEq("foo\n", fi.Name())
+	t.ExpectEq(0, fi.Size())
+	t.ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
+	t.ExpectFalse(fi.IsDir())
+	t.ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Statting "foo" should yield the directory.
-	fi, err = os.Lstat(path.Join(t.mfs.Dir(), "foo"))
-	AssertEq(nil, err)
+	fi, err = os.Lstat(path.Join(s.mfs.Dir(), "foo"))
+	t.AssertEq(nil, err)
 
-	ExpectEq("foo", fi.Name())
-	ExpectTrue(fi.IsDir())
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectTrue(fi.IsDir())
 
 	// Statting "foo\n" should yield the symlink.
-	fi, err = os.Lstat(path.Join(t.mfs.Dir(), "foo\n"))
-	AssertEq(nil, err)
+	fi, err = os.Lstat(path.Join(s.mfs.Dir(), "foo\n"))
+	t.AssertEq(nil, err)
 
-	ExpectEq("foo\n", fi.Name())
-	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
+	t.ExpectEq("foo\n", fi.Name())
+	t.ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
 }
 
-func (t *ImplicitDirsTest) StatUnknownName_NoOtherContents() {
+func (s *ImplicitDirsTest) StatUnknownName_NoOtherContents(t *ogletest.T) {
 	var err error
 
 	// Stat an unknown name.
-	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
-	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+	_, err = os.Stat(path.Join(s.mfs.Dir(), "foo"))
+	t.ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *ImplicitDirsTest) StatUnknownName_UnrelatedContents() {
+func (s *ImplicitDirsTest) StatUnknownName_UnrelatedContents(t *ogletest.T) {
 	var err error
 
 	// Set up contents.
-	AssertEq(
+	t.AssertEq(
 		nil,
-		t.createObjects(
+		s.createObjects(
+			t,
 			map[string]string{
 				"bar": "",
 				"baz": "",
 			}))
 
 	// Stat an unknown name.
-	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
-	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+	_, err = os.Stat(path.Join(s.mfs.Dir(), "foo"))
+	t.ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *ImplicitDirsTest) StatUnknownName_PrefixOfActualNames() {
+func (s *ImplicitDirsTest) StatUnknownName_PrefixOfActualNames(t *ogletest.T) {
 	var err error
 
 	// Set up contents.
-	AssertEq(
+	t.AssertEq(
 		nil,
-		t.createObjects(
+		s.createObjects(
+			t,
 			map[string]string{
 				"foop":  "",
 				"fooq/": "",
 			}))
 
 	// Stat an unknown name.
-	_, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
-	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+	_, err = os.Stat(path.Join(s.mfs.Dir(), "foo"))
+	t.ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *ImplicitDirsTest) ImplicitBecomesExplicit() {
+func (s *ImplicitDirsTest) ImplicitBecomesExplicit(t *ogletest.T) {
 	var fi os.FileInfo
 	var err error
 
 	// Set up an implicit directory.
-	AssertEq(
+	t.AssertEq(
 		nil,
-		t.createObjects(
+		s.createObjects(
+			t,
 			map[string]string{
 				"foo/bar": "",
 			}))
 
 	// Stat it.
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
-	AssertEq(nil, err)
+	fi, err = os.Stat(path.Join(s.mfs.Dir(), "foo"))
+	t.AssertEq(nil, err)
 
-	ExpectEq("foo", fi.Name())
-	ExpectTrue(fi.IsDir())
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectTrue(fi.IsDir())
 
 	// Set up an explicit placeholder.
-	AssertEq(
+	t.AssertEq(
 		nil,
-		t.createObjects(
+		s.createObjects(
+			t,
 			map[string]string{
 				"foo/": "",
 			}))
 
 	// Stat the directory again.
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
-	AssertEq(nil, err)
+	fi, err = os.Stat(path.Join(s.mfs.Dir(), "foo"))
+	t.AssertEq(nil, err)
 
-	ExpectEq("foo", fi.Name())
-	ExpectTrue(fi.IsDir())
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectTrue(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) ExplicitBecomesImplicit() {
+func (s *ImplicitDirsTest) ExplicitBecomesImplicit(t *ogletest.T) {
 	var fi os.FileInfo
 	var err error
 
 	// Set up an explicit directory.
-	AssertEq(
+	t.AssertEq(
 		nil,
-		t.createObjects(
+		s.createObjects(
+			t,
 			map[string]string{
 				"foo/":    "",
 				"foo/bar": "",
 			}))
 
 	// Stat it.
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
-	AssertEq(nil, err)
+	fi, err = os.Stat(path.Join(s.mfs.Dir(), "foo"))
+	t.AssertEq(nil, err)
 
-	ExpectEq("foo", fi.Name())
-	ExpectTrue(fi.IsDir())
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectTrue(fi.IsDir())
 
 	// Remove the explicit placeholder.
-	AssertEq(nil, t.bucket.DeleteObject(t.ctx, "foo/"))
+	t.AssertEq(nil, s.bucket.DeleteObject(t.Ctx, "foo/"))
 
 	// Stat the directory again.
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
-	AssertEq(nil, err)
+	fi, err = os.Stat(path.Join(s.mfs.Dir(), "foo"))
+	t.AssertEq(nil, err)
 
-	ExpectEq("foo", fi.Name())
-	ExpectTrue(fi.IsDir())
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectTrue(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) Rmdir_NotEmpty_OnlyImplicit() {
+func (s *ImplicitDirsTest) Rmdir_NotEmpty_OnlyImplicit(t *ogletest.T) {
 	var err error
 
 	// Set up an implicit directory.
-	AssertEq(
+	t.AssertEq(
 		nil,
-		t.createObjects(
+		s.createObjects(
+			t,
 			map[string]string{
 				"foo/bar": "",
 			}))
 
 	// Attempt to remove it.
-	err = os.Remove(path.Join(t.Dir, "foo"))
+	err = os.Remove(path.Join(s.Dir, "foo"))
 
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("not empty")))
+	t.AssertNe(nil, err)
+	t.ExpectThat(err, Error(HasSubstr("not empty")))
 
 	// It should still be there.
-	fi, err := os.Lstat(path.Join(t.Dir, "foo"))
+	fi, err := os.Lstat(path.Join(s.Dir, "foo"))
 
-	AssertEq(nil, err)
-	ExpectEq("foo", fi.Name())
-	ExpectTrue(fi.IsDir())
+	t.AssertEq(nil, err)
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectTrue(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) Rmdir_NotEmpty_ImplicitAndExplicit() {
+func (s *ImplicitDirsTest) Rmdir_NotEmpty_ImplicitAndExplicit(t *ogletest.T) {
 	var err error
 
 	// Set up an implicit directory that also has a backing object.
-	AssertEq(
+	t.AssertEq(
 		nil,
-		t.createObjects(
+		s.createObjects(
+			t,
 			map[string]string{
 				"foo/":    "",
 				"foo/bar": "",
 			}))
 
 	// Attempt to remove it.
-	err = os.Remove(path.Join(t.Dir, "foo"))
+	err = os.Remove(path.Join(s.Dir, "foo"))
 
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("not empty")))
+	t.AssertNe(nil, err)
+	t.ExpectThat(err, Error(HasSubstr("not empty")))
 
 	// It should still be there.
-	fi, err := os.Lstat(path.Join(t.Dir, "foo"))
+	fi, err := os.Lstat(path.Join(s.Dir, "foo"))
 
-	AssertEq(nil, err)
-	ExpectEq("foo", fi.Name())
-	ExpectTrue(fi.IsDir())
+	t.AssertEq(nil, err)
+	t.ExpectEq("foo", fi.Name())
+	t.ExpectTrue(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) Rmdir_Empty() {
+func (s *ImplicitDirsTest) Rmdir_Empty(t *ogletest.T) {
 	var err error
 	var entries []os.FileInfo
 
-	// Create two levels of directories. We can't make an empty implicit dir, so
+	// Create two levels of directories. We can's make an empty implicit dir, so
 	// there must be a backing object for each.
-	AssertEq(
+	t.AssertEq(
 		nil,
-		t.createObjects(
+		s.createObjects(
+			t,
 			map[string]string{
 				"foo/":     "",
 				"foo/bar/": "",
 			}))
 
 	// Remove the leaf.
-	err = os.Remove(path.Join(t.Dir, "foo/bar"))
-	AssertEq(nil, err)
+	err = os.Remove(path.Join(s.Dir, "foo/bar"))
+	t.AssertEq(nil, err)
 
 	// There should be nothing left in the parent.
-	entries, err = fusetesting.ReadDirPicky(path.Join(t.Dir, "foo"))
+	entries, err = fusetesting.ReadDirPicky(path.Join(s.Dir, "foo"))
 
-	AssertEq(nil, err)
-	ExpectThat(entries, ElementsAre())
+	t.AssertEq(nil, err)
+	t.ExpectThat(entries, ElementsAre())
 
 	// Remove the parent.
-	err = os.Remove(path.Join(t.Dir, "foo"))
-	AssertEq(nil, err)
+	err = os.Remove(path.Join(s.Dir, "foo"))
+	t.AssertEq(nil, err)
 
 	// Now the root directory should be empty, too.
-	entries, err = fusetesting.ReadDirPicky(t.Dir)
+	entries, err = fusetesting.ReadDirPicky(s.Dir)
 
-	AssertEq(nil, err)
-	ExpectThat(entries, ElementsAre())
+	t.AssertEq(nil, err)
+	t.ExpectThat(entries, ElementsAre())
 }
