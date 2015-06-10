@@ -43,7 +43,7 @@ const (
 	dirPerms              = 0754
 )
 
-func TestFS(t *testing.T) { RunTests(t) }
+func TestFS(t *testing.T) { ogletest.RunTests(t) }
 
 // Install a SIGINT handler that exits gracefully once the current test is
 // finished. It's not safe to exit in the middle of a test because closing any
@@ -55,7 +55,7 @@ func init() {
 	go func() {
 		<-c
 		log.Println("Received SIGINT; exiting after this test completes.")
-		StopRunningTests()
+		ogletest.StopRunningTests()
 	}()
 }
 
@@ -102,7 +102,7 @@ func (s *fsTest) SetUp(t *ogletest.T) {
 
 	// Set up ownership.
 	s.serverCfg.Uid, s.serverCfg.Gid, err = perms.MyUserAndGroup()
-	AssertEq(nil, err)
+	t.AssertEq(nil, err)
 
 	// Set up permissions.
 	s.serverCfg.FilePerms = filePerms
@@ -118,30 +118,30 @@ func (s *fsTest) SetUp(t *ogletest.T) {
 
 	// Set up a temporary directory for mounting.
 	s.Dir, err = ioutil.TempDir("", "fs_test")
-	AssertEq(nil, err)
+	t.AssertEq(nil, err)
 
 	// Create a file system server.
 	server, err := fs.NewServer(&s.serverCfg)
-	AssertEq(nil, err)
+	t.AssertEq(nil, err)
 
 	// Mount the file system.
 	mountCfg := s.mountCfg
-	mountCfg.OpContext = s.ctx
+	mountCfg.OpContext = t.Ctx
 
 	s.mfs, err = fuse.Mount(s.Dir, server, &mountCfg)
-	AssertEq(nil, err)
+	t.AssertEq(nil, err)
 }
 
-func (s *fsTest) TearDown() {
+func (s *fsTest) TearDown(t *ogletest.T) {
 	var err error
 
 	// Close any files we opened.
 	if s.f1 != nil {
-		ExpectEq(nil, s.f1.Close())
+		t.ExpectEq(nil, s.f1.Close())
 	}
 
 	if s.f2 != nil {
-		ExpectEq(nil, s.f2.Close())
+		t.ExpectEq(nil, s.f2.Close())
 	}
 
 	// Unmount the file system. Try again on "resource busy" errors.
@@ -159,12 +159,12 @@ func (s *fsTest) TearDown() {
 			continue
 		}
 
-		AddFailure("MountedFileSystem.Unmount: %v", err)
-		AbortTest()
+		t.AddFailure("MountedFileSystem.Unmount: %v", err)
+		t.AbortTest()
 	}
 
-	if err := s.mfs.Join(s.ctx); err != nil {
-		AssertEq(nil, err)
+	if err := s.mfs.Join(t.Ctx); err != nil {
+		t.AssertEq(nil, err)
 	}
 
 	// Unlink the mount point.
@@ -174,17 +174,20 @@ func (s *fsTest) TearDown() {
 	}
 }
 
-func (s *fsTest) createWithContents(name string, contents string) error {
-	return s.createObjects(map[string]string{name: contents})
+func (s *fsTest) createWithContents(
+	t *ogletest.T,
+	name string,
+	contents string) error {
+	return s.createObjects(t, map[string]string{name: contents})
 }
 
-func (s *fsTest) createObjects(in map[string]string) error {
-	err := gcsutil.CreateObjects(s.ctx, s.bucket, in)
+func (s *fsTest) createObjects(t *ogletest.T, in map[string]string) error {
+	err := gcsutil.CreateObjects(t.Ctx, s.bucket, in)
 	return err
 }
 
-func (s *fsTest) createEmptyObjects(names []string) error {
-	err := gcsutil.CreateEmptyObjects(s.ctx, s.bucket, names)
+func (s *fsTest) createEmptyObjects(t *ogletest.T, names []string) error {
+	err := gcsutil.CreateEmptyObjects(t.Ctx, s.bucket, names)
 	return err
 }
 
@@ -228,22 +231,22 @@ func readRange(r io.ReadSeeker, offset int64, n int) (s string, err error) {
 	return
 }
 
-func currentUid() uint32 {
+func currentUid(t *ogletest.T) uint32 {
 	user, err := user.Current()
-	AssertEq(nil, err)
+	t.AssertEq(nil, err)
 
 	uid, err := strconv.ParseUint(user.Uid, 10, 32)
-	AssertEq(nil, err)
+	t.AssertEq(nil, err)
 
 	return uint32(uid)
 }
 
-func currentGid() uint32 {
+func currentGid(t *ogletest.T) uint32 {
 	user, err := user.Current()
-	AssertEq(nil, err)
+	t.AssertEq(nil, err)
 
 	gid, err := strconv.ParseUint(user.Gid, 10, 32)
-	AssertEq(nil, err)
+	t.AssertEq(nil, err)
 
 	return uint32(gid)
 }

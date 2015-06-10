@@ -83,8 +83,8 @@ func (s *ForeignModsTest) StatRoot(t *ogletest.T) {
 	t.ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	t.ExpectTrue(fi.IsDir())
 	t.ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
-	t.ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
-	t.ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+	t.ExpectEq(currentUid(t), fi.Sys().(*syscall.Stat_t).Uid)
+	t.ExpectEq(currentGid(t), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (s *ForeignModsTest) ReadDir_EmptyRoot(t *ogletest.T) {
@@ -101,6 +101,7 @@ func (s *ForeignModsTest) ReadDir_ContentsInRoot(t *ogletest.T) {
 	t.AssertEq(
 		nil,
 		s.createObjects(
+			t,
 			map[string]string{
 				// File
 				"foo": "taco",
@@ -132,8 +133,8 @@ func (s *ForeignModsTest) ReadDir_ContentsInRoot(t *ogletest.T) {
 	t.ExpectEq(dirPerms|os.ModeDir, e.Mode())
 	t.ExpectTrue(e.IsDir())
 	t.ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
-	t.ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
-	t.ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
+	t.ExpectEq(currentUid(t), e.Sys().(*syscall.Stat_t).Uid)
+	t.ExpectEq(currentGid(t), e.Sys().(*syscall.Stat_t).Gid)
 
 	// baz
 	e = entries[1]
@@ -143,8 +144,8 @@ func (s *ForeignModsTest) ReadDir_ContentsInRoot(t *ogletest.T) {
 	t.ExpectThat(e.ModTime(), timeutil.TimeEq(createTime))
 	t.ExpectFalse(e.IsDir())
 	t.ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
-	t.ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
-	t.ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
+	t.ExpectEq(currentUid(t), e.Sys().(*syscall.Stat_t).Uid)
+	t.ExpectEq(currentGid(t), e.Sys().(*syscall.Stat_t).Gid)
 
 	// foo
 	e = entries[2]
@@ -154,13 +155,13 @@ func (s *ForeignModsTest) ReadDir_ContentsInRoot(t *ogletest.T) {
 	t.ExpectThat(e.ModTime(), timeutil.TimeEq(createTime))
 	t.ExpectFalse(e.IsDir())
 	t.ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
-	t.ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
-	t.ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
+	t.ExpectEq(currentUid(t), e.Sys().(*syscall.Stat_t).Uid)
+	t.ExpectEq(currentGid(t), e.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (s *ForeignModsTest) ReadDir_EmptySubDirectory(t *ogletest.T) {
 	// Set up an empty directory placeholder called 'bar'.
-	t.AssertEq(nil, s.createEmptyObjects([]string{"bar/"}))
+	t.AssertEq(nil, s.createEmptyObjects(t, []string{"bar/"}))
 
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(s.mfs.Dir())
@@ -179,6 +180,7 @@ func (s *ForeignModsTest) ReadDir_ContentsInSubDirectory(t *ogletest.T) {
 	t.AssertEq(
 		nil,
 		s.createObjects(
+			t,
 			map[string]string{
 				// Placeholder
 				"dir/": "",
@@ -214,8 +216,8 @@ func (s *ForeignModsTest) ReadDir_ContentsInSubDirectory(t *ogletest.T) {
 	t.ExpectEq(dirPerms|os.ModeDir, e.Mode())
 	t.ExpectTrue(e.IsDir())
 	t.ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
-	t.ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
-	t.ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
+	t.ExpectEq(currentUid(t), e.Sys().(*syscall.Stat_t).Uid)
+	t.ExpectEq(currentGid(t), e.Sys().(*syscall.Stat_t).Gid)
 
 	// baz
 	e = entries[1]
@@ -225,8 +227,8 @@ func (s *ForeignModsTest) ReadDir_ContentsInSubDirectory(t *ogletest.T) {
 	t.ExpectThat(e.ModTime(), timeutil.TimeEq(createTime))
 	t.ExpectFalse(e.IsDir())
 	t.ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
-	t.ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
-	t.ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
+	t.ExpectEq(currentUid(t), e.Sys().(*syscall.Stat_t).Uid)
+	t.ExpectEq(currentGid(t), e.Sys().(*syscall.Stat_t).Gid)
 
 	// foo
 	e = entries[2]
@@ -236,8 +238,8 @@ func (s *ForeignModsTest) ReadDir_ContentsInSubDirectory(t *ogletest.T) {
 	t.ExpectThat(e.ModTime(), timeutil.TimeEq(createTime))
 	t.ExpectFalse(e.IsDir())
 	t.ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
-	t.ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
-	t.ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
+	t.ExpectEq(currentUid(t), e.Sys().(*syscall.Stat_t).Uid)
+	t.ExpectEq(currentGid(t), e.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (s *ForeignModsTest) UnreachableObjects(t *ogletest.T) {
@@ -295,6 +297,7 @@ func (s *ForeignModsTest) FileAndDirectoryWithConflictingName(t *ogletest.T) {
 	t.AssertEq(
 		nil,
 		s.createObjects(
+			t,
 			map[string]string{
 				// File
 				"foo": "taco",
@@ -364,6 +367,7 @@ func (s *ForeignModsTest) SymlinkAndDirectoryWithConflictingName(t *ogletest.T) 
 	t.AssertEq(
 		nil,
 		s.createObjects(
+			t,
 			map[string]string{
 				// Symlink
 				"foo": "",
@@ -432,6 +436,7 @@ func (s *ForeignModsTest) StatTrailingNewlineName_NoConflictingNames(t *ogletest
 	t.AssertEq(
 		nil,
 		s.createObjects(
+			t,
 			map[string]string{
 				"foo": "taco",
 			}))
@@ -446,11 +451,13 @@ func (s *ForeignModsTest) Inodes(t *ogletest.T) {
 	// Set up two files and a directory placeholder.
 	t.AssertEq(
 		nil,
-		s.createEmptyObjects([]string{
-			"foo",
-			"bar/",
-			"baz",
-		}))
+		s.createEmptyObjects(
+			t,
+			[]string{
+				"foo",
+				"bar/",
+				"baz",
+			}))
 
 	// List.
 	entries, err := fusetesting.ReadDirPicky(s.mfs.Dir())
@@ -486,7 +493,7 @@ func (s *ForeignModsTest) ReadFromFile_Small(t *ogletest.T) {
 	const contentLen = len(contents)
 
 	// Create an object.
-	t.AssertEq(nil, s.createWithContents("foo", contents))
+	t.AssertEq(nil, s.createWithContents(t, "foo", contents))
 
 	// Wait for it to show up in the file system.
 	_, err := fusetesting.ReadDirPicky(s.mfs.Dir())
@@ -523,7 +530,7 @@ func (s *ForeignModsTest) ReadFromFile_Large(t *ogletest.T) {
 	contents := randString(contentLen)
 
 	// Create an object.
-	t.AssertEq(nil, s.createWithContents("foo", contents))
+	t.AssertEq(nil, s.createWithContents(t, "foo", contents))
 
 	// Wait for it to show up in the file system.
 	_, err := fusetesting.ReadDirPicky(s.mfs.Dir())
@@ -572,7 +579,7 @@ func (s *ForeignModsTest) ReadBeyondEndOfFile(t *ogletest.T) {
 	const contentLen = len(contents)
 
 	// Create an object.
-	t.AssertEq(nil, s.createWithContents("foo", contents))
+	t.AssertEq(nil, s.createWithContents(t, "foo", contents))
 
 	// Wait for it to show up in the file system.
 	_, err := fusetesting.ReadDirPicky(s.mfs.Dir())
@@ -600,7 +607,7 @@ func (s *ForeignModsTest) ReadBeyondEndOfFile(t *ogletest.T) {
 
 func (s *ForeignModsTest) ObjectIsOverwritten_File(t *ogletest.T) {
 	// Create an object.
-	t.AssertEq(nil, s.createWithContents("foo", "taco"))
+	t.AssertEq(nil, s.createWithContents(t, "foo", "taco"))
 
 	// Open the corresponding file for reading.
 	f1, err := os.OpenFile(path.Join(s.mfs.Dir(), "foo"), os.O_RDONLY, 0)
@@ -614,7 +621,7 @@ func (s *ForeignModsTest) ObjectIsOverwritten_File(t *ogletest.T) {
 	t.AssertEq(nil, err)
 
 	// Overwrite the object.
-	t.AssertEq(nil, s.createWithContents("foo", "burrito"))
+	t.AssertEq(nil, s.createWithContents(t, "foo", "burrito"))
 
 	// The file should appear to be unlinked, but with the previous contents.
 	fi, err := f1.Stat()
@@ -653,14 +660,14 @@ func (s *ForeignModsTest) ObjectIsOverwritten_Directory(t *ogletest.T) {
 	var err error
 
 	// Create a directory placeholder.
-	t.AssertEq(nil, s.createWithContents("dir/", ""))
+	t.AssertEq(nil, s.createWithContents(t, "dir/", ""))
 
 	// Open the corresponding inode.
 	s.f1, err = os.Open(path.Join(s.mfs.Dir(), "dir"))
 	t.AssertEq(nil, err)
 
 	// Overwrite the object.
-	t.AssertEq(nil, s.createWithContents("dir/", ""))
+	t.AssertEq(nil, s.createWithContents(t, "dir/", ""))
 
 	// The inode should still be accessible.
 	fi, err := s.f1.Stat()
@@ -672,7 +679,7 @@ func (s *ForeignModsTest) ObjectIsOverwritten_Directory(t *ogletest.T) {
 
 func (s *ForeignModsTest) ObjectIsDeleted_File(t *ogletest.T) {
 	// Create an object.
-	t.AssertEq(nil, s.createWithContents("foo", "taco"))
+	t.AssertEq(nil, s.createWithContents(t, "foo", "taco"))
 
 	// Open the corresponding file for reading.
 	f1, err := os.Open(path.Join(s.mfs.Dir(), "foo"))
@@ -710,7 +717,7 @@ func (s *ForeignModsTest) ObjectIsDeleted_Directory(t *ogletest.T) {
 	var err error
 
 	// Create a directory placeholder.
-	t.AssertEq(nil, s.createWithContents("dir/", ""))
+	t.AssertEq(nil, s.createWithContents(t, "dir/", ""))
 
 	// Open the corresponding inode.
 	s.f1, err = os.Open(path.Join(s.mfs.Dir(), "dir"))
