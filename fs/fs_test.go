@@ -54,7 +54,7 @@ func init() {
 
 	go func() {
 		<-c
-		log.Println("Received SIGINT; exiting after this test completes.")
+		log.Println("Received SIGINT; exiting after running tests complete.")
 		ogletest.StopRunningTests()
 	}()
 }
