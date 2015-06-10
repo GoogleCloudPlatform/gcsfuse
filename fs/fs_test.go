@@ -34,9 +34,8 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
-	. "github.com/jacobsa/ogletest"
+	"github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -66,8 +65,6 @@ func init() {
 
 // A struct that can be embedded to inherit common file system test behaviors.
 type fsTest struct {
-	ctx context.Context
-
 	// Configuration
 	serverCfg fs.ServerConfig
 	mountCfg  fuse.MountConfig
@@ -86,72 +83,71 @@ type fsTest struct {
 	f2 *os.File
 }
 
-var _ SetUpInterface = &fsTest{}
-var _ TearDownInterface = &fsTest{}
+var _ ogletest.SetUpInterface = &fsTest{}
+var _ ogletest.TearDownInterface = &fsTest{}
 
-func (t *fsTest) SetUp(ti *TestInfo) {
+func (s *fsTest) SetUp(t *ogletest.T) {
 	var err error
-	t.ctx = ti.Ctx
 
 	// Set up the clock.
-	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
-	t.serverCfg.Clock = &t.clock
+	s.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
+	s.serverCfg.Clock = &s.clock
 
 	// And the bucket.
-	if t.bucket == nil {
-		t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
+	if s.bucket == nil {
+		s.bucket = gcsfake.NewFakeBucket(&s.clock, "some_bucket")
 	}
 
-	t.serverCfg.Bucket = t.bucket
+	s.serverCfg.Bucket = s.bucket
 
 	// Set up ownership.
-	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
+	s.serverCfg.Uid, s.serverCfg.Gid, err = perms.MyUserAndGroup()
 	AssertEq(nil, err)
 
 	// Set up permissions.
-	t.serverCfg.FilePerms = filePerms
-	t.serverCfg.DirPerms = dirPerms
+	s.serverCfg.FilePerms = filePerms
+	s.serverCfg.DirPerms = dirPerms
 
 	// Use some temporary space to speed tests.
-	t.serverCfg.TempDirLimitNumFiles = 16
-	t.serverCfg.TempDirLimitBytes = 1 << 22 // 4 MiB
+	s.serverCfg.TempDirLimitNumFiles = 16
+	s.serverCfg.TempDirLimitBytes = 1 << 22 // 4 MiB
 
 	// Set up the append optimization.
-	t.serverCfg.AppendThreshold = 0
-	t.serverCfg.TmpObjectPrefix = ".gcsfuse_tmp/"
+	s.serverCfg.AppendThreshold = 0
+	s.serverCfg.TmpObjectPrefix = ".gcsfuse_tmp/"
 
 	// Set up a temporary directory for mounting.
-	t.Dir, err = ioutil.TempDir("", "fs_test")
+	s.Dir, err = ioutil.TempDir("", "fs_test")
 	AssertEq(nil, err)
 
 	// Create a file system server.
-	server, err := fs.NewServer(&t.serverCfg)
+	server, err := fs.NewServer(&s.serverCfg)
 	AssertEq(nil, err)
 
 	// Mount the file system.
-	mountCfg := t.mountCfg
-	mountCfg.OpContext = t.ctx
+	mountCfg := s.mountCfg
+	mountCfg.OpContext = s.ctx
 
-	t.mfs, err = fuse.Mount(t.Dir, server, &mountCfg)
+	s.mfs, err = fuse.Mount(s.Dir, server, &mountCfg)
 	AssertEq(nil, err)
 }
 
-func (t *fsTest) TearDown() {
+func (s *fsTest) TearDown() {
 	var err error
 
 	// Close any files we opened.
-	if t.f1 != nil {
-		ExpectEq(nil, t.f1.Close())
+	if s.f1 != nil {
+		ExpectEq(nil, s.f1.Close())
 	}
 
-	if t.f2 != nil {
-		ExpectEq(nil, t.f2.Close())
+	if s.f2 != nil {
+		ExpectEq(nil, s.f2.Close())
 	}
 
 	// Unmount the file system. Try again on "resource busy" errors.
 	delay := 10 * time.Millisecond
 	for {
-		err := fuse.Unmount(t.mfs.Dir())
+		err := fuse.Unmount(s.mfs.Dir())
 		if err == nil {
 			break
 		}
@@ -167,28 +163,28 @@ func (t *fsTest) TearDown() {
 		AbortTest()
 	}
 
-	if err := t.mfs.Join(t.ctx); err != nil {
+	if err := s.mfs.Join(s.ctx); err != nil {
 		AssertEq(nil, err)
 	}
 
 	// Unlink the mount point.
-	if err = os.Remove(t.Dir); err != nil {
+	if err = os.Remove(s.Dir); err != nil {
 		err = fmt.Errorf("Unlinking mount point: %v", err)
 		return
 	}
 }
 
-func (t *fsTest) createWithContents(name string, contents string) error {
-	return t.createObjects(map[string]string{name: contents})
+func (s *fsTest) createWithContents(name string, contents string) error {
+	return s.createObjects(map[string]string{name: contents})
 }
 
-func (t *fsTest) createObjects(in map[string]string) error {
-	err := gcsutil.CreateObjects(t.ctx, t.bucket, in)
+func (s *fsTest) createObjects(in map[string]string) error {
+	err := gcsutil.CreateObjects(s.ctx, s.bucket, in)
 	return err
 }
 
-func (t *fsTest) createEmptyObjects(names []string) error {
-	err := gcsutil.CreateEmptyObjects(t.ctx, t.bucket, names)
+func (s *fsTest) createEmptyObjects(names []string) error {
+	err := gcsutil.CreateEmptyObjects(s.ctx, s.bucket, names)
 	return err
 }
 
