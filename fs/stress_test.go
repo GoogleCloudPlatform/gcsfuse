@@ -21,10 +21,12 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"sync"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/jacobsa/fuse/fusetesting"
+	"github.com/jacobsa/gcloud/syncutil"
 	"github.com/jacobsa/ogletest"
 )
 
@@ -33,7 +35,10 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 // Run the supplied function for each name, with parallelism.
-func forEachName(names []string, f func(string)) {
+func forEachName(
+	ctx context.Context,
+	names []string,
+	f func(string) error) (err error) {
 	const parallelism = 8
 
 	// Fill a channel.
@@ -44,18 +49,22 @@ func forEachName(names []string, f func(string)) {
 	close(c)
 
 	// Run workers.
-	var wg sync.WaitGroup
+	b := syncutil.NewBundle(ctx)
 	for i := 0; i < parallelism; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		b.Add(func(ctx context.Context) (err error) {
 			for n := range c {
-				f(n)
+				err = f(n)
+				if err != nil {
+					return
+				}
 			}
-		}()
+
+			return
+		})
 	}
 
-	wg.Wait()
+	err = b.Join()
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -69,6 +78,8 @@ type StressTest struct {
 func init() { ogletest.RegisterTestSuite(&StressTest{}) }
 
 func (s *StressTest) CreateAndReadManyFilesInParallel(t *ogletest.T) {
+	var err error
+
 	// Ensure that we get parallelism for this test.
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
 
@@ -82,21 +93,41 @@ func (s *StressTest) CreateAndReadManyFilesInParallel(t *ogletest.T) {
 	}
 
 	// Create a file for each name with concurrent workers.
-	forEachName(
+	err = forEachName(
+		t.Ctx,
 		names,
-		func(n string) {
-			err := ioutil.WriteFile(path.Join(s.Dir, n), []byte(n), 0400)
-			t.AssertEq(nil, err)
+		func(n string) (err error) {
+			err = ioutil.WriteFile(path.Join(s.Dir, n), []byte(n), 0400)
+			if err != nil {
+				err = fmt.Errorf("WriteFile(%q): %v", path.Join(s.Dir, n), err)
+				return
+			}
+
+			return
 		})
 
+	t.AssertEq(nil, err)
+
 	// Read each back.
-	forEachName(
+	err = forEachName(
+		t.Ctx,
 		names,
-		func(n string) {
+		func(n string) (err error) {
 			contents, err := ioutil.ReadFile(path.Join(s.Dir, n))
-			t.AssertEq(nil, err)
-			t.AssertEq(n, string(contents))
+			if err != nil {
+				err = fmt.Errorf("ReadFile(%q): %v", path.Join(s.Dir, n), err)
+				return
+			}
+
+			if string(contents) != n {
+				err = fmt.Errorf("Unexpected contents for name %q: %q", n, contents)
+				return
+			}
+
+			return
 		})
+
+	t.AssertEq(nil, err)
 }
 
 func (s *StressTest) TruncateFileManyTimesInParallel(t *ogletest.T) {
@@ -110,7 +141,7 @@ func (s *StressTest) TruncateFileManyTimesInParallel(t *ogletest.T) {
 
 	// Set up a function that repeatedly truncates the file to random lengths,
 	// writing the final size to a channel.
-	worker := func(finalSize chan<- int64) {
+	worker := func(finalSize chan<- int64) (err error) {
 		const desiredDuration = 500 * time.Millisecond
 
 		var size int64
@@ -118,28 +149,33 @@ func (s *StressTest) TruncateFileManyTimesInParallel(t *ogletest.T) {
 		for time.Since(startTime) < desiredDuration {
 			for i := 0; i < 10; i++ {
 				size = rand.Int63n(1 << 14)
-				err := f.Truncate(size)
-				t.AssertEq(nil, err)
+				err = f.Truncate(size)
+				if err != nil {
+					err = fmt.Errorf("Truncate(%d): %v", size, err)
+					return
+				}
 			}
 		}
 
 		finalSize <- size
+		return
 	}
 
 	// Run several workers.
 	const numWorkers = 16
 	finalSizes := make(chan int64, numWorkers)
 
-	var wg sync.WaitGroup
+	b := syncutil.NewBundle(t.Ctx)
 	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			worker(finalSizes)
-		}()
+		b.Add(func(ctx context.Context) (err error) {
+			err = worker(finalSizes)
+			return
+		})
 	}
 
-	wg.Wait()
+	err = b.Join()
+	t.AssertEq(nil, err)
+
 	close(finalSizes)
 
 	// The final size should be consistent.
