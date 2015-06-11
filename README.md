@@ -118,9 +118,9 @@ file, as discussed above.
 If you would like to rate limit traffic to/from GCS in order to set limits on
 your GCS spending on behalf of gcsfuse, you can do so:
 
-*   The flag `--op-rate-limit-hz` controls the rate at which gcsfuse will send
+*   The flag `--limit-ops-per-sec` controls the rate at which gcsfuse will send
     requests to GCS.
-*   The flag `--egress-bandwidth-limit-bytes-per-second` controls the egress
+*   The flag `--limit-bytes-per-sec` controls the egress
     bandwidth from gcsfuse to GCS.
 
 All rate limiting is approximate, and is performed over a 30-second window. By

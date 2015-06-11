@@ -114,14 +114,14 @@ func populateFlagSet(fs *flag.FlagSet) (flags *flagStorage) {
 
 	fs.Float64Var(
 		&flags.OpRateLimitHz,
-		"op-rate-limit-hz",
+		"limit-ops-per-sec",
 		5.0,
 		"If positive, a limit on the rate at which we send requests to GCS, "+
 			"measured over a 30-second window.")
 
 	fs.Float64Var(
 		&flags.EgressBandwidthLimitBytesPerSecond,
-		"egress-bandwidth-limit-bytes-per-second",
+		"limit-bytes-per-sec",
 		-1,
 		"If positive, a limit on the GCS -> gcsfuse bandwidth for reading "+
 			"objects, measured over a 30-second window.")
