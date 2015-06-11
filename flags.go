@@ -64,64 +64,64 @@ func populateFlagSet(fs *flag.FlagSet) (flags *flagStorage) {
 
 	fs.UintVar(
 		&flags.FileMode,
-		"file_mode",
+		"file-mode",
 		0644,
 		"Permissions bits for files. Default is 0644.")
 
 	fs.UintVar(
 		&flags.DirMode,
-		"dir_mode",
+		"dir-mode",
 		0755,
 		"Permissions bits for directories. Default is 0755.")
 
 	fs.StringVar(
 		&flags.TempDir,
-		"temp_dir", "",
+		"temp-dir", "",
 		"The temporary directory in which to store local copies of GCS objects. "+
 			"If empty, the system default (probably /tmp) will be used.")
 
 	fs.Int64Var(
 		&flags.TempDirLimit,
-		"temp_dir_bytes", 1<<31,
-		"A desired limit on the number of bytes used in --temp_dir. May be "+
+		"temp-dir-bytes", 1<<31,
+		"A desired limit on the number of bytes used in --temp-dir. May be "+
 			"exceeded for dirty files that have not been flushed or closed.")
 
 	fs.Uint64Var(
 		&flags.GCSChunkSize,
-		"gcs_chunk_size", 1<<24,
+		"gcs-chunk-size", 1<<24,
 		"If set to a non-zero value N, split up GCS objects into multiple "+
 			"chunks of size at most N when reading, and do not read or cache "+
 			"unnecessary chunks.")
 
 	fs.BoolVar(
 		&flags.ImplicitDirs,
-		"implicit_dirs",
+		"implicit-dirs",
 		false,
 		"Implicitly define directories based on their content. See "+
 			"docs/semantics.md.")
 
 	fs.DurationVar(
 		&flags.StatCacheTTL,
-		"stat_cache_ttl",
+		"stat-cache-ttl",
 		time.Minute,
 		"How long to cache StatObject results from GCS.")
 
 	fs.DurationVar(
 		&flags.TypeCacheTTL,
-		"type_cache_ttl",
+		"type-cache-ttl",
 		time.Minute,
 		"How long to cache name -> file/dir type mappings in directory inodes.")
 
 	fs.Float64Var(
 		&flags.OpRateLimitHz,
-		"op_rate_limit_hz",
+		"op-rate-limit-hz",
 		5.0,
 		"If positive, a limit on the rate at which we send requests to GCS, "+
 			"measured over a 30-second window.")
 
 	fs.Float64Var(
 		&flags.EgressBandwidthLimitBytesPerSecond,
-		"egress_bandwidth_limit_bytes_per_second",
+		"egress-bandwidth-limit-bytes-per-second",
 		-1,
 		"If positive, a limit on the GCS -> gcsfuse bandwidth for reading "+
 			"objects, measured over a 30-second window.")
