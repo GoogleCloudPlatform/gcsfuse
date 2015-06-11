@@ -85,10 +85,10 @@ func makeGcsfuseArgs(
 			args = append(args, "--gid="+value)
 
 		case "file_mode":
-			args = append(args, "--file_mode="+value)
+			args = append(args, "--file-mode="+value)
 
 		case "dir_mode":
-			args = append(args, "--dir_mode="+value)
+			args = append(args, "--dir-mode="+value)
 
 		// On Linux, option 'user' is necessary for mount(8) to let a non-root user
 		// mount a file system. It is passed through to us, but we don't want to

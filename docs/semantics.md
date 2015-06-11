@@ -17,7 +17,7 @@ will be modifying a bucket, be sure to read the rest of this section carefully
 and consider disabling caching.
 
 **Important**: The rest of this document assumes that caching is disabled (by
-setting `--stat_cache_ttl 0` and `--type_cache_ttl 0`. This is not the default.
+setting `--stat-cache-ttl 0` and `--type-cache-ttl 0`. This is not the default.
 If you want the consistency guarantees discussed in this document, you must use
 these options to disable caching.
 
@@ -32,7 +32,7 @@ to be simple operations, like `ls -l`, take quite a long time.
 
 To alleviate this slowness, gcsfuse supports using cached data where it would
 otherwise send a stat object request to GCS, saving some round trips. This
-behavior is controlled by the `--stat_cache_ttl` flag, which can be set to a
+behavior is controlled by the `--stat-cache-ttl` flag, which can be set to a
 value like `10s` or `1.5h`. (The default is one minute.) Positive and negative
 stat results will be cached for the specified amount of time.
 
@@ -52,7 +52,7 @@ Because GCS does not forbid an object named `foo` from existing next to an
 object named `foo/` (see the [Name conflicts](#name-conflicts) section above),
 when gcsfuse is asked to look up the name "foo" it must stat both objects.
 
-The stat cache enabled with `--stat_cache_ttl` can help with this, but it does
+The stat cache enabled with `--stat-cache-ttl` can help with this, but it does
 not help fully until after the first request. For example, assume that there is
 an object named `foo` but not one named `foo/`, and the stat cache is enabled.
 When the user runs `ls -l`, the following happens:
@@ -71,7 +71,7 @@ The negative result for `foo/` will be cached, but that only helps with the
 second invocation of `ls -l`.
 
 To alleviate this, gcsfuse supports a "type cache" on directory inodes. When
-`--type_cache_ttl` is set, each directory inode will maintain a mapping from
+`--type-cache-ttl` is set, each directory inode will maintain a mapping from
 the name of its children to whether those children are known to be files or
 directories or both. When a child is looked up, if the parent's cache says that
 the child is a file but not a directory, only one GCS object will need to be
@@ -146,13 +146,13 @@ will initially appear empty, since there is no "foo/" object. However if you
 subsequently run `mkdir foo`, you will now see a directory named "foo"
 containing a file named "bar".
 
-gcsfuse supports a flag called `--implicit_dirs` that changes the behavior.
+gcsfuse supports a flag called `--implicit-dirs` that changes the behavior.
 When this flag is enabled, name lookup requests from the kernel use the GCS
 API's Objects.list operation to search for objects that would implicitly define
 the existence of a directory with the name in question. So, in the example
 above, there would appear to be a directory named "foo".
 
-The use of `--implicit_dirs` has some drawbacks (see [issue #7][issue-7] for a
+The use of `--implicit-dirs` has some drawbacks (see [issue #7][issue-7] for a
 more thorough discussion):
 
 *   The feature requires an additional request to GCS for each name lookup,
@@ -355,8 +355,8 @@ system. All files have permission bits `0644`, and all directories have
 permission bits `0755` (but see below for issues with use by other users).
 Changing permission bits is not supported.
 
-These defaults can be overriden with the `--uid`, `--gid`, `--file_mode`, and
-`--dir_mode` flags.
+These defaults can be overriden with the `--uid`, `--gid`, `--file-mode`, and
+`--dir-mode` flags.
 
 <a name="permissions-fuse"></a>
 ## Fuse
@@ -387,7 +387,7 @@ if it is empty. So gcsfuse takes the simple route, and always allows a
 directory to be unlinked, even if non-empty. The contents of a non-empty
 directory that is unlinked are not deleted but simply become inaccessible—the
 placeholder object for the unlinked directory is simply removed. (Unless
-`--implicit_dirs` is set; see the section on implicit directories above.)
+`--implicit-dirs` is set; see the section on implicit directories above.)
 
 
 <a name="reading-dirs"></a>
@@ -403,7 +403,7 @@ sub-directories.
 
 However, with this implementation there is no way for gcsfuse to distinguish a
 child directory that actually exists (because its placeholder object is
-present) and one that is only implicitly defined. So when `--implicit_dirs` is
+present) and one that is only implicitly defined. So when `--implicit-dirs` is
 not set, directory listings may contain names that are inaccessible in a later
 call from the kernel to gcsfuse to look up the inode by name. For example, a
 call to readdir(3) may return names for which fstat(2) returns `ENOENT`.

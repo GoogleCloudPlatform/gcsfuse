@@ -74,7 +74,7 @@ to stderr. If the tool should happen to crash, crash logs will also be written
 to stderr.
 
 If you are mounting a bucket that was populated with objects by some other means
-besides gcsfuse, you may be interested in the `--implicit_dirs` flag. See the
+besides gcsfuse, you may be interested in the `--implicit-dirs` flag. See the
 notes in [semantics.md][semantics-implicit-dirs] for more information.
 
 [semantics-implicit-dirs]: docs/semantics.md#implicit-directories
@@ -91,7 +91,7 @@ fstab compatiblity.
 
 By default, gcsfuse uses two forms of caching to save round trips to GCS, at the
 cost of consistency guarantees. These caching behaviors can be controlled with
-the flags `--stat_cache_ttl` and `--type_cache_ttl`. See
+the flags `--stat-cache-ttl` and `--type-cache-ttl`. See
 [semantics.md](docs/semantics.md#caching) for more information.
 
 ## Downloading file contents
@@ -99,8 +99,8 @@ the flags `--stat_cache_ttl` and `--type_cache_ttl`. See
 Behind the scenes, when a newly-opened file is first read or modified, gcsfuse
 downloads the entire backing object's contents from GCS. (Unless it is a
 newly-created file, of course.) The contents are stored in a local temporary
-file whose location is controlled by the flag `--temp_dir` and whose size is
-controlled with `--temp_dir_limit`, which is used to serve reads and
+file whose location is controlled by the flag `--temp-dir` and whose size is
+controlled with `--temp-dir-bytes`, which is used to serve reads and
 modifications. Later, when the file is closed or fsync'd, gcsfuse writes the
 contents of the local file back to GCS as a new object generation.
 
@@ -118,9 +118,9 @@ file, as discussed above.
 If you would like to rate limit traffic to/from GCS in order to set limits on
 your GCS spending on behalf of gcsfuse, you can do so:
 
-*   The flag `--op_rate_limit_hz` controls the rate at which gcsfuse will send
+*   The flag `--op-rate-limit-hz` controls the rate at which gcsfuse will send
     requests to GCS.
-*   The flag `--egress_bandwidth_limit_bytes_per_second` controls the egress
+*   The flag `--egress-bandwidth-limit-bytes-per-second` controls the egress
     bandwidth from gcsfuse to GCS.
 
 All rate limiting is approximate, and is performed over a 30-second window. By
