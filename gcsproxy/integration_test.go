@@ -29,12 +29,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/mutable"
-	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
+	"github.com/jacobsa/timeutil"
 )
 
 func TestIntegration(t *testing.T) { RunTests(t) }

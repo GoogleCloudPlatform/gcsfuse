@@ -23,10 +23,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/lease/mock_lease"
 	"github.com/googlecloudplatform/gcsfuse/mutable"
-	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
+	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 )
 

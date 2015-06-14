@@ -21,9 +21,9 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/ratelimit"
-	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
+	"github.com/jacobsa/timeutil"
 )
 
 func setUpRateLimiting(
