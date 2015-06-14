@@ -17,7 +17,7 @@ package ratelimit
 import (
 	"time"
 
-	"github.com/jacobsa/gcloud/syncutil"
+	"github.com/jacobsa/syncutil"
 
 	"golang.org/x/net/context"
 )

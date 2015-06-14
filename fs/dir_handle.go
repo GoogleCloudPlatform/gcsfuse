@@ -22,7 +22,7 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"github.com/jacobsa/gcloud/syncutil"
+	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
 

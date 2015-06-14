@@ -21,7 +21,7 @@ import (
 	"os"
 
 	"github.com/jacobsa/fuse/fsutil"
-	"github.com/jacobsa/gcloud/syncutil"
+	"github.com/jacobsa/syncutil"
 )
 
 // A type that manages read and read/write leases for anonymous temporary files.

@@ -20,7 +20,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/jacobsa/gcloud/syncutil"
+	"github.com/jacobsa/syncutil"
 )
 
 // A read-write wrapper around a file. Unlike a read lease, this cannot be
