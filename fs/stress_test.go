@@ -26,8 +26,8 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/jacobsa/fuse/fusetesting"
-	"github.com/jacobsa/gcloud/syncutil"
 	"github.com/jacobsa/ogletest"
+	"github.com/jacobsa/syncutil"
 )
 
 ////////////////////////////////////////////////////////////////////////
