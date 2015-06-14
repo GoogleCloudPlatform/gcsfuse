@@ -26,10 +26,10 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/fs"
 	"github.com/googlecloudplatform/gcsfuse/perms"
-	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/timeutil"
 )
 
 // Mount the file system based on the supplied arguments, returning a
