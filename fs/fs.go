@@ -1393,3 +1393,11 @@ func (fs *fileSystem) FlushFile(
 
 	return
 }
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) ReleaseFileHandle(
+	op *fuseops.ReleaseFileHandleOp) (err error) {
+	// We implement this only to keep it from appearing in the log of fuse
+	// errors. There's nothing we need to actually do.
+	return
+}
