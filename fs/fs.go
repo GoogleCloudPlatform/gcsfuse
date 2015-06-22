@@ -891,12 +891,6 @@ func (fs *fileSystem) Destroy() {
 }
 
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *fileSystem) Init(
-	op *fuseops.InitOp) (err error) {
-	return
-}
-
-// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) LookUpInode(
 	op *fuseops.LookUpInodeOp) (err error) {
 	// Find the parent directory in question.
