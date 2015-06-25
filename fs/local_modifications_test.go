@@ -1997,7 +1997,7 @@ type RenameTest struct {
 
 func init() { RegisterTestSuite(&RenameTest{}) }
 
-func (t *MemFSTest) RenameWithinDir_File() {
+func (t *RenameTest) WithinDir_File() {
 	var err error
 
 	// Create a parent directory.
@@ -2045,7 +2045,7 @@ func (t *MemFSTest) RenameWithinDir_File() {
 	ExpectEq(os.FileMode(0400), fi.Mode())
 }
 
-func (t *MemFSTest) RenameWithinDir_Directory() {
+func (t *RenameTest) WithinDir_Directory() {
 	var err error
 
 	// Create a parent directory.
@@ -2094,7 +2094,7 @@ func (t *MemFSTest) RenameWithinDir_Directory() {
 	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
 }
 
-func (t *MemFSTest) RenameWithinDir_SameName() {
+func (t *RenameTest) WithinDir_SameName() {
 	var err error
 
 	// Create a parent directory.
@@ -2128,7 +2128,7 @@ func (t *MemFSTest) RenameWithinDir_SameName() {
 	ExpectEq(os.FileMode(0400), fi.Mode())
 }
 
-func (t *MemFSTest) RenameAcrossDirs_File() {
+func (t *RenameTest) AcrossDirs_File() {
 	var err error
 
 	// Create two parent directories.
@@ -2185,7 +2185,7 @@ func (t *MemFSTest) RenameAcrossDirs_File() {
 	ExpectEq(os.FileMode(0400), fi.Mode())
 }
 
-func (t *MemFSTest) RenameAcrossDirs_Directory() {
+func (t *RenameTest) AcrossDirs_Directory() {
 	var err error
 
 	// Create two parent directories.
@@ -2243,7 +2243,7 @@ func (t *MemFSTest) RenameAcrossDirs_Directory() {
 	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
 }
 
-func (t *MemFSTest) RenameOutOfFileSystem() {
+func (t *RenameTest) OutOfFileSystem() {
 	var err error
 
 	// Create a file.
@@ -2261,7 +2261,7 @@ func (t *MemFSTest) RenameOutOfFileSystem() {
 	ExpectThat(err, Error(HasSubstr("cross-device")))
 }
 
-func (t *MemFSTest) RenameIntoFileSystem() {
+func (t *RenameTest) IntoFileSystem() {
 	var err error
 
 	// Create a file outside of our file system.
@@ -2277,7 +2277,7 @@ func (t *MemFSTest) RenameIntoFileSystem() {
 	ExpectThat(err, Error(HasSubstr("cross-device")))
 }
 
-func (t *MemFSTest) RenameOverExistingFile() {
+func (t *RenameTest) OverExistingFile() {
 	var err error
 
 	// Create two files.
@@ -2309,7 +2309,7 @@ func (t *MemFSTest) RenameOverExistingFile() {
 	ExpectEq(len("taco"), fi.Size())
 }
 
-func (t *MemFSTest) RenameOverExistingDirectory() {
+func (t *RenameTest) OverExistingDirectory() {
 	var err error
 
 	// Create two directories, the first non-empty.
@@ -2347,7 +2347,7 @@ func (t *MemFSTest) RenameOverExistingDirectory() {
 	ExpectEq("child", fi.Name())
 }
 
-func (t *MemFSTest) RenameOverExisting_WrongType() {
+func (t *RenameTest) OverExisting_WrongType() {
 	var err error
 
 	// Create a file and a directory.
@@ -2367,7 +2367,7 @@ func (t *MemFSTest) RenameOverExisting_WrongType() {
 	ExpectThat(err, Error(HasSubstr("not a directory")))
 }
 
-func (t *MemFSTest) RenameNonExistentFile() {
+func (t *RenameTest) NonExistentFile() {
 	var err error
 
 	err = os.Rename(path.Join(t.Dir, "foo"), path.Join(t.Dir, "bar"))
