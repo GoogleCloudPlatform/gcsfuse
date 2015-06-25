@@ -1986,3 +1986,17 @@ func (t *SymlinkTest) RemoveLink() {
 	_, err = gcsutil.ReadObject(t.ctx, t.bucket, "foo")
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
+
+////////////////////////////////////////////////////////////////////////
+// Rename
+////////////////////////////////////////////////////////////////////////
+
+type RenameTest struct {
+	fsTest
+}
+
+func init() { RegisterTestSuite(&RenameTest{}) }
+
+func (t *RenameTest) DoesFoo() {
+	AssertTrue(false, "TODO")
+}
