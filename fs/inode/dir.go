@@ -108,6 +108,13 @@ type DirInode interface {
 		ctx context.Context,
 		name string) (o *gcs.Object, err error)
 
+	// Like CreateChildFile, except clone the supplied source object instead of
+	// creating an empty object.
+	CloneToChildFile(
+		ctx context.Context,
+		name string,
+		src *gcs.Object) (o *gcs.Object, err error)
+
 	// Create a symlink object with the supplied (relative) name and the supplied
 	// target, failing with *gcs.PreconditionError if a backing object already
 	// exists in GCS.
