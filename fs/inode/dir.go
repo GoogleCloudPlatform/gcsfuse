@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"strings"
@@ -750,6 +751,15 @@ func (d *dirInode) CreateChildFile(
 
 	d.cache.NoteFile(d.clock.Now(), name)
 
+	return
+}
+
+// LOCKS_REQUIRED(d)
+func (d *dirInode) CloneToChildFile(
+	ctx context.Context,
+	name string,
+	src *gcs.Object) (o *gcs.Object, err error) {
+	err = errors.New("TODO")
 	return
 }
 
