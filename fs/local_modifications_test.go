@@ -1997,6 +1997,379 @@ type RenameTest struct {
 
 func init() { RegisterTestSuite(&RenameTest{}) }
 
-func (t *RenameTest) DoesFoo() {
-	AssertTrue(false, "TODO")
+func (t *MemFSTest) RenameWithinDir_File() {
+	var err error
+
+	// Create a parent directory.
+	parentPath := path.Join(t.Dir, "parent")
+
+	err = os.Mkdir(parentPath, 0700)
+	AssertEq(nil, err)
+
+	// And a file within it.
+	oldPath := path.Join(parentPath, "foo")
+
+	err = ioutil.WriteFile(oldPath, []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	// Rename it.
+	newPath := path.Join(parentPath, "bar")
+
+	err = os.Rename(oldPath, newPath)
+	AssertEq(nil, err)
+
+	// The old name shouldn't work.
+	_, err = os.Stat(oldPath)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	_, err = ioutil.ReadFile(oldPath)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	// The new name should.
+	fi, err := os.Stat(newPath)
+	AssertEq(nil, err)
+	ExpectEq(len("taco"), fi.Size())
+	ExpectEq(os.FileMode(0400), fi.Mode())
+
+	contents, err := ioutil.ReadFile(newPath)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
+
+	// There should only be the new entry in the directory.
+	entries, err := fusetesting.ReadDirPicky(parentPath)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+	fi = entries[0]
+
+	ExpectEq(path.Base(newPath), fi.Name())
+	ExpectEq(os.FileMode(0400), fi.Mode())
+}
+
+func (t *MemFSTest) RenameWithinDir_Directory() {
+	var err error
+
+	// Create a parent directory.
+	parentPath := path.Join(t.Dir, "parent")
+
+	err = os.Mkdir(parentPath, 0700)
+	AssertEq(nil, err)
+
+	// And a non-empty directory within it.
+	oldPath := path.Join(parentPath, "foo")
+
+	err = os.MkdirAll(path.Join(oldPath, "child"), 0700)
+	AssertEq(nil, err)
+
+	// Rename it.
+	newPath := path.Join(parentPath, "bar")
+
+	err = os.Rename(oldPath, newPath)
+	AssertEq(nil, err)
+
+	// The old name shouldn't work.
+	_, err = os.Stat(oldPath)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	// The new name should.
+	fi, err := os.Stat(newPath)
+	AssertEq(nil, err)
+	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
+
+	// There should only be the new entry in the parent.
+	entries, err := fusetesting.ReadDirPicky(parentPath)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+	fi = entries[0]
+
+	ExpectEq(path.Base(newPath), fi.Name())
+	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
+
+	// And the child should still be present.
+	entries, err = fusetesting.ReadDirPicky(newPath)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+	fi = entries[0]
+
+	ExpectEq("child", fi.Name())
+	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
+}
+
+func (t *MemFSTest) RenameWithinDir_SameName() {
+	var err error
+
+	// Create a parent directory.
+	parentPath := path.Join(t.Dir, "parent")
+
+	err = os.Mkdir(parentPath, 0700)
+	AssertEq(nil, err)
+
+	// And a file within it.
+	filePath := path.Join(parentPath, "foo")
+
+	err = ioutil.WriteFile(filePath, []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	// Attempt to rename it.
+	err = os.Rename(filePath, filePath)
+	AssertEq(nil, err)
+
+	// The file should still exist.
+	contents, err := ioutil.ReadFile(filePath)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
+
+	// There should only be the one entry in the directory.
+	entries, err := fusetesting.ReadDirPicky(parentPath)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+	fi := entries[0]
+
+	ExpectEq(path.Base(filePath), fi.Name())
+	ExpectEq(os.FileMode(0400), fi.Mode())
+}
+
+func (t *MemFSTest) RenameAcrossDirs_File() {
+	var err error
+
+	// Create two parent directories.
+	oldParentPath := path.Join(t.Dir, "old")
+	newParentPath := path.Join(t.Dir, "new")
+
+	err = os.Mkdir(oldParentPath, 0700)
+	AssertEq(nil, err)
+
+	err = os.Mkdir(newParentPath, 0700)
+	AssertEq(nil, err)
+
+	// And a file within the first.
+	oldPath := path.Join(oldParentPath, "foo")
+
+	err = ioutil.WriteFile(oldPath, []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	// Rename it.
+	newPath := path.Join(newParentPath, "bar")
+
+	err = os.Rename(oldPath, newPath)
+	AssertEq(nil, err)
+
+	// The old name shouldn't work.
+	_, err = os.Stat(oldPath)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	_, err = ioutil.ReadFile(oldPath)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	// The new name should.
+	fi, err := os.Stat(newPath)
+	AssertEq(nil, err)
+	ExpectEq(len("taco"), fi.Size())
+	ExpectEq(os.FileMode(0400), fi.Mode())
+
+	contents, err := ioutil.ReadFile(newPath)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
+
+	// Check the old parent.
+	entries, err := fusetesting.ReadDirPicky(oldParentPath)
+	AssertEq(nil, err)
+	AssertEq(0, len(entries))
+
+	// And the new one.
+	entries, err = fusetesting.ReadDirPicky(newParentPath)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+	fi = entries[0]
+
+	ExpectEq(path.Base(newPath), fi.Name())
+	ExpectEq(os.FileMode(0400), fi.Mode())
+}
+
+func (t *MemFSTest) RenameAcrossDirs_Directory() {
+	var err error
+
+	// Create two parent directories.
+	oldParentPath := path.Join(t.Dir, "old")
+	newParentPath := path.Join(t.Dir, "new")
+
+	err = os.Mkdir(oldParentPath, 0700)
+	AssertEq(nil, err)
+
+	err = os.Mkdir(newParentPath, 0700)
+	AssertEq(nil, err)
+
+	// And a non-empty directory within the first.
+	oldPath := path.Join(oldParentPath, "foo")
+
+	err = os.MkdirAll(path.Join(oldPath, "child"), 0700)
+	AssertEq(nil, err)
+
+	// Rename it.
+	newPath := path.Join(newParentPath, "bar")
+
+	err = os.Rename(oldPath, newPath)
+	AssertEq(nil, err)
+
+	// The old name shouldn't work.
+	_, err = os.Stat(oldPath)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	// The new name should.
+	fi, err := os.Stat(newPath)
+	AssertEq(nil, err)
+	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
+
+	// And the child should still be present.
+	entries, err := fusetesting.ReadDirPicky(newPath)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+	fi = entries[0]
+
+	ExpectEq("child", fi.Name())
+	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
+
+	// Check the old parent.
+	entries, err = fusetesting.ReadDirPicky(oldParentPath)
+	AssertEq(nil, err)
+	AssertEq(0, len(entries))
+
+	// And the new one.
+	entries, err = fusetesting.ReadDirPicky(newParentPath)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+	fi = entries[0]
+
+	ExpectEq(path.Base(newPath), fi.Name())
+	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
+}
+
+func (t *MemFSTest) RenameOutOfFileSystem() {
+	var err error
+
+	// Create a file.
+	oldPath := path.Join(t.Dir, "foo")
+
+	err = ioutil.WriteFile(oldPath, []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	// Attempt to move it out of the file system.
+	tempDir, err := ioutil.TempDir("", "memfs_test")
+	AssertEq(nil, err)
+	defer os.RemoveAll(tempDir)
+
+	err = os.Rename(oldPath, path.Join(tempDir, "bar"))
+	ExpectThat(err, Error(HasSubstr("cross-device")))
+}
+
+func (t *MemFSTest) RenameIntoFileSystem() {
+	var err error
+
+	// Create a file outside of our file system.
+	f, err := ioutil.TempFile("", "memfs_test")
+	AssertEq(nil, err)
+	defer f.Close()
+
+	oldPath := f.Name()
+	defer os.Remove(oldPath)
+
+	// Attempt to move it into the file system.
+	err = os.Rename(oldPath, path.Join(t.Dir, "bar"))
+	ExpectThat(err, Error(HasSubstr("cross-device")))
+}
+
+func (t *MemFSTest) RenameOverExistingFile() {
+	var err error
+
+	// Create two files.
+	oldPath := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(oldPath, []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	newPath := path.Join(t.Dir, "bar")
+	err = ioutil.WriteFile(newPath, []byte("burrito"), 0600)
+	AssertEq(nil, err)
+
+	// Rename one over the other.
+	err = os.Rename(oldPath, newPath)
+	AssertEq(nil, err)
+
+	// Check the file contents.
+	contents, err := ioutil.ReadFile(newPath)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
+
+	// And the parent listing.
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+	fi := entries[0]
+
+	ExpectEq(path.Base(newPath), fi.Name())
+	ExpectEq(os.FileMode(0400), fi.Mode())
+	ExpectEq(len("taco"), fi.Size())
+}
+
+func (t *MemFSTest) RenameOverExistingDirectory() {
+	var err error
+
+	// Create two directories, the first non-empty.
+	oldPath := path.Join(t.Dir, "foo")
+	err = os.MkdirAll(path.Join(oldPath, "child"), 0700)
+	AssertEq(nil, err)
+
+	newPath := path.Join(t.Dir, "bar")
+	err = os.Mkdir(newPath, 0600)
+	AssertEq(nil, err)
+
+	// Renaming over the non-empty one shouldn't work.
+	err = os.Rename(newPath, oldPath)
+	ExpectThat(err, Error(HasSubstr("not empty")))
+
+	// But the other way around should.
+	err = os.Rename(oldPath, newPath)
+	AssertEq(nil, err)
+
+	// Check the parent listing.
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+	fi := entries[0]
+
+	ExpectEq(path.Base(newPath), fi.Name())
+	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
+
+	// And the directory itself.
+	entries, err = fusetesting.ReadDirPicky(newPath)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+	fi = entries[0]
+
+	ExpectEq("child", fi.Name())
+}
+
+func (t *MemFSTest) RenameOverExisting_WrongType() {
+	var err error
+
+	// Create a file and a directory.
+	filePath := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(filePath, []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	dirPath := path.Join(t.Dir, "bar")
+	err = os.Mkdir(dirPath, 0700)
+	AssertEq(nil, err)
+
+	// Renaming one over the other shouldn't work.
+	err = os.Rename(filePath, dirPath)
+	ExpectThat(err, Error(HasSubstr("is a directory")))
+
+	err = os.Rename(dirPath, filePath)
+	ExpectThat(err, Error(HasSubstr("not a directory")))
+}
+
+func (t *MemFSTest) RenameNonExistentFile() {
+	var err error
+
+	err = os.Rename(path.Join(t.Dir, "foo"), path.Join(t.Dir, "bar"))
+	ExpectThat(err, Error(HasSubstr("no such file")))
 }
