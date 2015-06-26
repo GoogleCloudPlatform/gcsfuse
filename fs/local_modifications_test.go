@@ -2033,7 +2033,6 @@ func (t *RenameTest) WithinDir() {
 	fi, err := os.Stat(newPath)
 	AssertEq(nil, err)
 	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(os.FileMode(0400), fi.Mode())
 
 	contents, err := ioutil.ReadFile(newPath)
 	AssertEq(nil, err)
@@ -2046,7 +2045,7 @@ func (t *RenameTest) WithinDir() {
 	fi = entries[0]
 
 	ExpectEq(path.Base(newPath), fi.Name())
-	ExpectEq(os.FileMode(0400), fi.Mode())
+	ExpectEq(len("taco"), fi.Size())
 }
 
 func (t *RenameTest) AcrossDirs() {
@@ -2085,7 +2084,6 @@ func (t *RenameTest) AcrossDirs() {
 	fi, err := os.Stat(newPath)
 	AssertEq(nil, err)
 	ExpectEq(len("taco"), fi.Size())
-	ExpectEq(os.FileMode(0400), fi.Mode())
 
 	contents, err := ioutil.ReadFile(newPath)
 	AssertEq(nil, err)
@@ -2103,7 +2101,7 @@ func (t *RenameTest) AcrossDirs() {
 	fi = entries[0]
 
 	ExpectEq(path.Base(newPath), fi.Name())
-	ExpectEq(os.FileMode(0400), fi.Mode())
+	ExpectEq(len("taco"), fi.Size())
 }
 
 func (t *RenameTest) OutOfFileSystem() {
