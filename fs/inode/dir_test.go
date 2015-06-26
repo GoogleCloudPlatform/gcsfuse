@@ -729,7 +729,10 @@ func (t *DirTest) CloneToChildFile_SourceDoesntExist() {
 	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, "")
 	AssertEq(nil, err)
 
-	err = t.bucket.DeleteObject(t.ctx, srcName)
+	err = t.bucket.DeleteObject(
+		t.ctx,
+		&gcs.DeleteObjectRequest{Name: srcName})
+
 	AssertEq(nil, err)
 
 	// Call the inode.
