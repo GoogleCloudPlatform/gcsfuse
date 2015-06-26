@@ -131,7 +131,8 @@ type DirInode interface {
 		name string) (o *gcs.Object, err error)
 
 	// Delete the backing object for the child file or symlink with the given
-	// (relative) name and generation, where zero means the latest generation.
+	// (relative) name and generation, where zero means the latest generation. If
+	// the object/generation doesn't exist, no error is returned.
 	DeleteChildFile(
 		ctx context.Context,
 		name string,

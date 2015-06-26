@@ -959,9 +959,14 @@ func (t *DirTest) DeleteChildFile_WrongGeneration() {
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, "taco")
 	AssertEq(nil, err)
 
-	// Call the inode with the wrong generation.
+	// Call the inode with the wrong generation. No error should be returned.
 	err = t.in.DeleteChildFile(t.ctx, name, o.Generation+1)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	AssertEq(nil, err)
+
+	// The original generation should still be there.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, objName)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
 }
 
 func (t *DirTest) DeleteChildFile_LatestGeneration() {
