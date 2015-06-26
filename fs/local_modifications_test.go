@@ -1997,7 +1997,11 @@ type RenameTest struct {
 
 func init() { RegisterTestSuite(&RenameTest{}) }
 
-func (t *RenameTest) WithinDir_File() {
+func (t *RenameTest) Directory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *RenameTest) WithinDir() {
 	var err error
 
 	// Create a parent directory.
@@ -2045,90 +2049,7 @@ func (t *RenameTest) WithinDir_File() {
 	ExpectEq(os.FileMode(0400), fi.Mode())
 }
 
-func (t *RenameTest) WithinDir_Directory() {
-	var err error
-
-	// Create a parent directory.
-	parentPath := path.Join(t.Dir, "parent")
-
-	err = os.Mkdir(parentPath, 0700)
-	AssertEq(nil, err)
-
-	// And a non-empty directory within it.
-	oldPath := path.Join(parentPath, "foo")
-
-	err = os.MkdirAll(path.Join(oldPath, "child"), 0700)
-	AssertEq(nil, err)
-
-	// Rename it.
-	newPath := path.Join(parentPath, "bar")
-
-	err = os.Rename(oldPath, newPath)
-	AssertEq(nil, err)
-
-	// The old name shouldn't work.
-	_, err = os.Stat(oldPath)
-	ExpectTrue(os.IsNotExist(err), "err: %v", err)
-
-	// The new name should.
-	fi, err := os.Stat(newPath)
-	AssertEq(nil, err)
-	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
-
-	// There should only be the new entry in the parent.
-	entries, err := fusetesting.ReadDirPicky(parentPath)
-	AssertEq(nil, err)
-	AssertEq(1, len(entries))
-	fi = entries[0]
-
-	ExpectEq(path.Base(newPath), fi.Name())
-	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
-
-	// And the child should still be present.
-	entries, err = fusetesting.ReadDirPicky(newPath)
-	AssertEq(nil, err)
-	AssertEq(1, len(entries))
-	fi = entries[0]
-
-	ExpectEq("child", fi.Name())
-	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
-}
-
-func (t *RenameTest) WithinDir_SameName() {
-	var err error
-
-	// Create a parent directory.
-	parentPath := path.Join(t.Dir, "parent")
-
-	err = os.Mkdir(parentPath, 0700)
-	AssertEq(nil, err)
-
-	// And a file within it.
-	filePath := path.Join(parentPath, "foo")
-
-	err = ioutil.WriteFile(filePath, []byte("taco"), 0400)
-	AssertEq(nil, err)
-
-	// Attempt to rename it.
-	err = os.Rename(filePath, filePath)
-	AssertEq(nil, err)
-
-	// The file should still exist.
-	contents, err := ioutil.ReadFile(filePath)
-	AssertEq(nil, err)
-	ExpectEq("taco", string(contents))
-
-	// There should only be the one entry in the directory.
-	entries, err := fusetesting.ReadDirPicky(parentPath)
-	AssertEq(nil, err)
-	AssertEq(1, len(entries))
-	fi := entries[0]
-
-	ExpectEq(path.Base(filePath), fi.Name())
-	ExpectEq(os.FileMode(0400), fi.Mode())
-}
-
-func (t *RenameTest) AcrossDirs_File() {
+func (t *RenameTest) AcrossDirs() {
 	var err error
 
 	// Create two parent directories.
@@ -2183,64 +2104,6 @@ func (t *RenameTest) AcrossDirs_File() {
 
 	ExpectEq(path.Base(newPath), fi.Name())
 	ExpectEq(os.FileMode(0400), fi.Mode())
-}
-
-func (t *RenameTest) AcrossDirs_Directory() {
-	var err error
-
-	// Create two parent directories.
-	oldParentPath := path.Join(t.Dir, "old")
-	newParentPath := path.Join(t.Dir, "new")
-
-	err = os.Mkdir(oldParentPath, 0700)
-	AssertEq(nil, err)
-
-	err = os.Mkdir(newParentPath, 0700)
-	AssertEq(nil, err)
-
-	// And a non-empty directory within the first.
-	oldPath := path.Join(oldParentPath, "foo")
-
-	err = os.MkdirAll(path.Join(oldPath, "child"), 0700)
-	AssertEq(nil, err)
-
-	// Rename it.
-	newPath := path.Join(newParentPath, "bar")
-
-	err = os.Rename(oldPath, newPath)
-	AssertEq(nil, err)
-
-	// The old name shouldn't work.
-	_, err = os.Stat(oldPath)
-	ExpectTrue(os.IsNotExist(err), "err: %v", err)
-
-	// The new name should.
-	fi, err := os.Stat(newPath)
-	AssertEq(nil, err)
-	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
-
-	// And the child should still be present.
-	entries, err := fusetesting.ReadDirPicky(newPath)
-	AssertEq(nil, err)
-	AssertEq(1, len(entries))
-	fi = entries[0]
-
-	ExpectEq("child", fi.Name())
-	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
-
-	// Check the old parent.
-	entries, err = fusetesting.ReadDirPicky(oldParentPath)
-	AssertEq(nil, err)
-	AssertEq(0, len(entries))
-
-	// And the new one.
-	entries, err = fusetesting.ReadDirPicky(newParentPath)
-	AssertEq(nil, err)
-	AssertEq(1, len(entries))
-	fi = entries[0]
-
-	ExpectEq(path.Base(newPath), fi.Name())
-	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
 }
 
 func (t *RenameTest) OutOfFileSystem() {
@@ -2307,44 +2170,6 @@ func (t *RenameTest) OverExistingFile() {
 	ExpectEq(path.Base(newPath), fi.Name())
 	ExpectEq(os.FileMode(0400), fi.Mode())
 	ExpectEq(len("taco"), fi.Size())
-}
-
-func (t *RenameTest) OverExistingDirectory() {
-	var err error
-
-	// Create two directories, the first non-empty.
-	oldPath := path.Join(t.Dir, "foo")
-	err = os.MkdirAll(path.Join(oldPath, "child"), 0700)
-	AssertEq(nil, err)
-
-	newPath := path.Join(t.Dir, "bar")
-	err = os.Mkdir(newPath, 0600)
-	AssertEq(nil, err)
-
-	// Renaming over the non-empty one shouldn't work.
-	err = os.Rename(newPath, oldPath)
-	ExpectThat(err, Error(HasSubstr("not empty")))
-
-	// But the other way around should.
-	err = os.Rename(oldPath, newPath)
-	AssertEq(nil, err)
-
-	// Check the parent listing.
-	entries, err := fusetesting.ReadDirPicky(t.Dir)
-	AssertEq(nil, err)
-	AssertEq(1, len(entries))
-	fi := entries[0]
-
-	ExpectEq(path.Base(newPath), fi.Name())
-	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
-
-	// And the directory itself.
-	entries, err = fusetesting.ReadDirPicky(newPath)
-	AssertEq(nil, err)
-	AssertEq(1, len(entries))
-	fi = entries[0]
-
-	ExpectEq("child", fi.Name())
 }
 
 func (t *RenameTest) OverExisting_WrongType() {
