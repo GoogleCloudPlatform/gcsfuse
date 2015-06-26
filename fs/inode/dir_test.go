@@ -720,7 +720,21 @@ func (t *DirTest) CreateChildFile_TypeCaching() {
 }
 
 func (t *DirTest) CloneToChildFile_SourceDoesntExist() {
-	AssertTrue(false, "TODO")
+	const srcName = "blah/baz"
+	dstName := path.Join(dirInodeName, "qux")
+
+	var err error
+
+	// Create and then delete the source.
+	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, "")
+	AssertEq(nil, err)
+
+	err = t.bucket.DeleteObject(t.ctx, srcName)
+	AssertEq(nil, err)
+
+	// Call the inode.
+	_, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
 func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
