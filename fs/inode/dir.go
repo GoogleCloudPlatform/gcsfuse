@@ -825,7 +825,8 @@ func (d *dirInode) DeleteChildFile(
 	err = d.bucket.DeleteObject(
 		ctx,
 		&gcs.DeleteObjectRequest{
-			Name: path.Join(d.Name(), name),
+			Name:       path.Join(d.Name(), name),
+			Generation: generation,
 		})
 
 	if err != nil {
