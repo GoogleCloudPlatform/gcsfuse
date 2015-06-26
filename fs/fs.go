@@ -1235,7 +1235,11 @@ func (fs *fileSystem) Unlink(
 	defer parent.Unlock()
 
 	// Delete the backing object.
-	err = parent.DeleteChildFile(op.Context(), op.Name)
+	err = parent.DeleteChildFile(
+		op.Context(),
+		op.Name,
+		0) // Latest generation
+
 	if err != nil {
 		err = fmt.Errorf("DeleteChildFile: %v", err)
 		return
