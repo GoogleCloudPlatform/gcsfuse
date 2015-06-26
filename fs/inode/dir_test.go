@@ -793,7 +793,45 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 }
 
 func (t *DirTest) CloneToChildFile_TypeCaching() {
-	AssertTrue(false, "TODO")
+	const srcName = "blah/baz"
+	dstName := path.Join(dirInodeName, "qux")
+
+	var o *gcs.Object
+	var err error
+
+	// Create the source.
+	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, "")
+	AssertEq(nil, err)
+
+	// Clone to the destination.
+	_, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
+	AssertEq(nil, err)
+
+	// Create a backing object for a directory.
+	dirObjName := dstName + "/"
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, "")
+	AssertEq(nil, err)
+
+	// Look up the name. Even though the directory should shadow the file,
+	// because we've cached only seeing the file that's what we should get back.
+	result, err := t.in.LookUpChild(t.ctx, path.Base(dstName))
+	o = result.Object
+
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(dstName, o.Name)
+
+	// But after the TTL expires, the behavior should flip.
+	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
+
+	result, err = t.in.LookUpChild(t.ctx, path.Base(dstName))
+	o = result.Object
+
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(dirObjName, o.Name)
 }
 
 func (t *DirTest) CreateChildSymlink_DoesntExist() {
