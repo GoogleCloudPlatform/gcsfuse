@@ -2166,7 +2166,6 @@ func (t *RenameTest) OverExistingFile() {
 	fi := entries[0]
 
 	ExpectEq(path.Base(newPath), fi.Name())
-	ExpectEq(os.FileMode(0400), fi.Mode())
 	ExpectEq(len("taco"), fi.Size())
 }
 
