@@ -945,11 +945,15 @@ func (t *DirTest) CreateChildDir_Exists() {
 func (t *DirTest) DeleteChildFile_DoesntExist() {
 	const name = "qux"
 
-	err := t.in.DeleteChildFile(t.ctx, name)
+	err := t.in.DeleteChildFile(t.ctx, name, 0)
 	ExpectEq(nil, err)
 }
 
-func (t *DirTest) DeleteChildFile_Exists() {
+func (t *DirTest) DeleteChildFile_WrongGeneration() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) DeleteChildFile_LatestGeneration() {
 	const name = "qux"
 	objName := path.Join(dirInodeName, name)
 
@@ -960,12 +964,16 @@ func (t *DirTest) DeleteChildFile_Exists() {
 	AssertEq(nil, err)
 
 	// Call the inode.
-	err = t.in.DeleteChildFile(t.ctx, name)
+	err = t.in.DeleteChildFile(t.ctx, name, 0)
 	AssertEq(nil, err)
 
 	// Check the bucket.
 	_, err = gcsutil.ReadObject(t.ctx, t.bucket, objName)
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+}
+
+func (t *DirTest) DeleteChildFile_ParticularGeneration() {
+	AssertTrue(false, "TODO")
 }
 
 func (t *DirTest) DeleteChildFile_TypeCaching() {
@@ -994,7 +1002,7 @@ func (t *DirTest) DeleteChildFile_TypeCaching() {
 
 	// But after deleting the file via the inode, the directory should be
 	// revealed.
-	err = t.in.DeleteChildFile(t.ctx, name)
+	err = t.in.DeleteChildFile(t.ctx, name, 0)
 	AssertEq(nil, err)
 
 	result, err = t.in.LookUpChild(t.ctx, name)
