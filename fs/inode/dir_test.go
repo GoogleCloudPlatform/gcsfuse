@@ -950,7 +950,18 @@ func (t *DirTest) DeleteChildFile_DoesntExist() {
 }
 
 func (t *DirTest) DeleteChildFile_WrongGeneration() {
-	AssertTrue(false, "TODO")
+	const name = "qux"
+	objName := path.Join(dirInodeName, name)
+
+	var err error
+
+	// Create a backing object.
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, "taco")
+	AssertEq(nil, err)
+
+	// Call the inode with the wrong generation.
+	err = t.in.DeleteChildFile(t.ctx, name, o.Generation+1)
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
 func (t *DirTest) DeleteChildFile_LatestGeneration() {
