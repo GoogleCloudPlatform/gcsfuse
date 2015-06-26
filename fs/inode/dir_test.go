@@ -744,7 +744,7 @@ func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
 	var o *gcs.Object
 	var err error
 
-	// Create and the source.
+	// Create the source.
 	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, "taco")
 	AssertEq(nil, err)
 
@@ -755,10 +755,41 @@ func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
 
 	ExpectEq(dstName, o.Name)
 	ExpectFalse(inode.IsSymlink(o))
+
+	// Check resulting contents.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, dstName)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
 }
 
 func (t *DirTest) CloneToChildFile_DestinationExists() {
-	AssertTrue(false, "TODO")
+	const srcName = "blah/baz"
+	dstName := path.Join(dirInodeName, "qux")
+
+	var o *gcs.Object
+	var err error
+
+	// Create the source.
+	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, "taco")
+	AssertEq(nil, err)
+
+	// And a destination object that will be overwritten.
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, srcName, "")
+	AssertEq(nil, err)
+
+	// Call the inode.
+	o, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(dstName, o.Name)
+	ExpectFalse(inode.IsSymlink(o))
+	ExpectEq(len("taco"), o.Size)
+
+	// Check resulting contents.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, dstName)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
 }
 
 func (t *DirTest) CloneToChildFile_TypeCaching() {
