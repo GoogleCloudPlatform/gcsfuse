@@ -719,6 +719,22 @@ func (t *DirTest) CreateChildFile_TypeCaching() {
 	ExpectEq(dirObjName, o.Name)
 }
 
+func (t *DirTest) CloneToChildFile_SourceDoesntExist() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) CloneToChildFile_DestinationExists() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DirTest) CloneToChildFile_TypeCaching() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *DirTest) CreateChildSymlink_DoesntExist() {
 	const name = "qux"
 	const target = "taco"
