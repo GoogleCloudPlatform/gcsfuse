@@ -1228,7 +1228,7 @@ func (fs *fileSystem) Rename(
 	op *fuseops.RenameOp) (err error) {
 	// Find the old and new parents.
 	fs.mu.Lock()
-	oldParent := fs.inodes[op.NewParent].(inode.DirInode)
+	oldParent := fs.inodes[op.OldParent].(inode.DirInode)
 	newParent := fs.inodes[op.NewParent].(inode.DirInode)
 	fs.mu.Unlock()
 
