@@ -774,7 +774,7 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 	AssertEq(nil, err)
 
 	// And a destination object that will be overwritten.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, srcName, "")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dstName, "")
 	AssertEq(nil, err)
 
 	// Call the inode.
