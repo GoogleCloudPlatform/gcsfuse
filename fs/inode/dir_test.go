@@ -738,7 +738,23 @@ func (t *DirTest) CloneToChildFile_SourceDoesntExist() {
 }
 
 func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
-	AssertTrue(false, "TODO")
+	const srcName = "blah/baz"
+	dstName := path.Join(dirInodeName, "qux")
+
+	var o *gcs.Object
+	var err error
+
+	// Create and the source.
+	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, "taco")
+	AssertEq(nil, err)
+
+	// Call the inode.
+	o, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(dstName, o.Name)
+	ExpectFalse(inode.IsSymlink(o))
 }
 
 func (t *DirTest) CloneToChildFile_DestinationExists() {
