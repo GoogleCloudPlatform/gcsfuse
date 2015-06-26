@@ -1998,7 +1998,18 @@ type RenameTest struct {
 func init() { RegisterTestSuite(&RenameTest{}) }
 
 func (t *RenameTest) Directory() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create a directory.
+	oldPath := path.Join(t.Dir, "foo")
+	err = os.Mkdir(oldPath, 0700)
+	AssertEq(nil, err)
+
+	// Attempt to rename it.
+	newPath := path.Join(t.Dir, "bar")
+
+	err = os.Rename(oldPath, newPath)
+	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
 func (t *RenameTest) WithinDir() {
