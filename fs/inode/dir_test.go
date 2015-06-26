@@ -973,7 +973,22 @@ func (t *DirTest) DeleteChildFile_LatestGeneration() {
 }
 
 func (t *DirTest) DeleteChildFile_ParticularGeneration() {
-	AssertTrue(false, "TODO")
+	const name = "qux"
+	objName := path.Join(dirInodeName, name)
+
+	var err error
+
+	// Create a backing object.
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, "taco")
+	AssertEq(nil, err)
+
+	// Call the inode.
+	err = t.in.DeleteChildFile(t.ctx, name, o.Generation)
+	AssertEq(nil, err)
+
+	// Check the bucket.
+	_, err = gcsutil.ReadObject(t.ctx, t.bucket, objName)
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
 func (t *DirTest) DeleteChildFile_TypeCaching() {
