@@ -15,7 +15,6 @@
 package inode
 
 import (
-	"errors"
 	"fmt"
 	"path"
 	"strings"
@@ -759,7 +758,25 @@ func (d *dirInode) CloneToChildFile(
 	ctx context.Context,
 	name string,
 	src *gcs.Object) (o *gcs.Object, err error) {
-	err = errors.New("TODO")
+	// Erase any existing type information for this name.
+	d.cache.Erase(name)
+
+	// Clone over anything that might already exist for the name.
+	o, err = d.bucket.CopyObject(
+		ctx,
+		&gcs.CopyObjectRequest{
+			SrcName:       src.Name,
+			SrcGeneration: src.Generation,
+			DstName:       path.Join(d.Name(), name),
+		})
+
+	if err != nil {
+		return
+	}
+
+	// Update the type cache.
+	d.cache.NoteFile(d.clock.Now(), name)
+
 	return
 }
 
