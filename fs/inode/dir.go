@@ -108,6 +108,13 @@ type DirInode interface {
 		ctx context.Context,
 		name string) (o *gcs.Object, err error)
 
+	// Like CreateChildFile, except clone the supplied source object instead of
+	// creating an empty object.
+	CloneToChildFile(
+		ctx context.Context,
+		name string,
+		src *gcs.Object) (o *gcs.Object, err error)
+
 	// Create a symlink object with the supplied (relative) name and the supplied
 	// target, failing with *gcs.PreconditionError if a backing object already
 	// exists in GCS.
@@ -741,6 +748,33 @@ func (d *dirInode) CreateChildFile(
 		return
 	}
 
+	d.cache.NoteFile(d.clock.Now(), name)
+
+	return
+}
+
+// LOCKS_REQUIRED(d)
+func (d *dirInode) CloneToChildFile(
+	ctx context.Context,
+	name string,
+	src *gcs.Object) (o *gcs.Object, err error) {
+	// Erase any existing type information for this name.
+	d.cache.Erase(name)
+
+	// Clone over anything that might already exist for the name.
+	o, err = d.bucket.CopyObject(
+		ctx,
+		&gcs.CopyObjectRequest{
+			SrcName:       src.Name,
+			SrcGeneration: src.Generation,
+			DstName:       path.Join(d.Name(), name),
+		})
+
+	if err != nil {
+		return
+	}
+
+	// Update the type cache.
 	d.cache.NoteFile(d.clock.Now(), name)
 
 	return
