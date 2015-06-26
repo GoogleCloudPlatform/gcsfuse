@@ -1224,6 +1224,66 @@ func (fs *fileSystem) RmDir(
 }
 
 // LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) Rename(
+	op *fuseops.RenameOp) (err error) {
+	// Find the old and new parents.
+	fs.mu.Lock()
+	oldParent := fs.inodes[op.OldParent].(inode.DirInode)
+	newParent := fs.inodes[op.NewParent].(inode.DirInode)
+	fs.mu.Unlock()
+
+	// Find the object in the old location.
+	oldParent.Lock()
+	lr, err := oldParent.LookUpChild(op.Context(), op.OldName)
+	oldParent.Unlock()
+
+	if err != nil {
+		err = fmt.Errorf("LookUpChild: %v", err)
+		return
+	}
+
+	if !lr.Exists() {
+		err = fuse.ENOENT
+		return
+	}
+
+	// We don't support renaming directories.
+	if inode.IsDirName(lr.FullName) {
+		err = fuse.ENOSYS
+		return
+	}
+
+	// Clone into the new location.
+	newParent.Lock()
+	_, err = newParent.CloneToChildFile(
+		op.Context(),
+		op.NewName,
+		lr.Object)
+	newParent.Unlock()
+
+	if err != nil {
+		err = fmt.Errorf("CloneToChildFile: %v", err)
+		return
+	}
+
+	// Delete behind. Make sure to delete exactly the generation we cloned, in
+	// case the referent of the name has changed in the meantime.
+	oldParent.Lock()
+	err = oldParent.DeleteChildFile(
+		op.Context(),
+		op.OldName,
+		lr.Object.Generation)
+	oldParent.Unlock()
+
+	if err != nil {
+		err = fmt.Errorf("DeleteChildFile: %v", err)
+		return
+	}
+
+	return
+}
+
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) Unlink(
 	op *fuseops.UnlinkOp) (err error) {
 	// Find the parent.
@@ -1235,7 +1295,11 @@ func (fs *fileSystem) Unlink(
 	defer parent.Unlock()
 
 	// Delete the backing object.
-	err = parent.DeleteChildFile(op.Context(), op.Name)
+	err = parent.DeleteChildFile(
+		op.Context(),
+		op.Name,
+		0) // Latest generation
+
 	if err != nil {
 		err = fmt.Errorf("DeleteChildFile: %v", err)
 		return

@@ -719,6 +719,124 @@ func (t *DirTest) CreateChildFile_TypeCaching() {
 	ExpectEq(dirObjName, o.Name)
 }
 
+func (t *DirTest) CloneToChildFile_SourceDoesntExist() {
+	const srcName = "blah/baz"
+	dstName := path.Join(dirInodeName, "qux")
+
+	var err error
+
+	// Create and then delete the source.
+	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, "")
+	AssertEq(nil, err)
+
+	err = t.bucket.DeleteObject(
+		t.ctx,
+		&gcs.DeleteObjectRequest{Name: srcName})
+
+	AssertEq(nil, err)
+
+	// Call the inode.
+	_, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+}
+
+func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
+	const srcName = "blah/baz"
+	dstName := path.Join(dirInodeName, "qux")
+
+	var o *gcs.Object
+	var err error
+
+	// Create the source.
+	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, "taco")
+	AssertEq(nil, err)
+
+	// Call the inode.
+	o, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(dstName, o.Name)
+	ExpectFalse(inode.IsSymlink(o))
+
+	// Check resulting contents.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, dstName)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
+}
+
+func (t *DirTest) CloneToChildFile_DestinationExists() {
+	const srcName = "blah/baz"
+	dstName := path.Join(dirInodeName, "qux")
+
+	var o *gcs.Object
+	var err error
+
+	// Create the source.
+	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, "taco")
+	AssertEq(nil, err)
+
+	// And a destination object that will be overwritten.
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dstName, "")
+	AssertEq(nil, err)
+
+	// Call the inode.
+	o, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(dstName, o.Name)
+	ExpectFalse(inode.IsSymlink(o))
+	ExpectEq(len("taco"), o.Size)
+
+	// Check resulting contents.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, dstName)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
+}
+
+func (t *DirTest) CloneToChildFile_TypeCaching() {
+	const srcName = "blah/baz"
+	dstName := path.Join(dirInodeName, "qux")
+
+	var o *gcs.Object
+	var err error
+
+	// Create the source.
+	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, "")
+	AssertEq(nil, err)
+
+	// Clone to the destination.
+	_, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
+	AssertEq(nil, err)
+
+	// Create a backing object for a directory.
+	dirObjName := dstName + "/"
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, "")
+	AssertEq(nil, err)
+
+	// Look up the name. Even though the directory should shadow the file,
+	// because we've cached only seeing the file that's what we should get back.
+	result, err := t.in.LookUpChild(t.ctx, path.Base(dstName))
+	o = result.Object
+
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(dstName, o.Name)
+
+	// But after the TTL expires, the behavior should flip.
+	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
+
+	result, err = t.in.LookUpChild(t.ctx, path.Base(dstName))
+	o = result.Object
+
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
+	ExpectEq(dirObjName, o.Name)
+}
+
 func (t *DirTest) CreateChildSymlink_DoesntExist() {
 	const name = "qux"
 	const target = "taco"
@@ -827,11 +945,31 @@ func (t *DirTest) CreateChildDir_Exists() {
 func (t *DirTest) DeleteChildFile_DoesntExist() {
 	const name = "qux"
 
-	err := t.in.DeleteChildFile(t.ctx, name)
+	err := t.in.DeleteChildFile(t.ctx, name, 0)
 	ExpectEq(nil, err)
 }
 
-func (t *DirTest) DeleteChildFile_Exists() {
+func (t *DirTest) DeleteChildFile_WrongGeneration() {
+	const name = "qux"
+	objName := path.Join(dirInodeName, name)
+
+	var err error
+
+	// Create a backing object.
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, "taco")
+	AssertEq(nil, err)
+
+	// Call the inode with the wrong generation. No error should be returned.
+	err = t.in.DeleteChildFile(t.ctx, name, o.Generation+1)
+	AssertEq(nil, err)
+
+	// The original generation should still be there.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, objName)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
+}
+
+func (t *DirTest) DeleteChildFile_LatestGeneration() {
 	const name = "qux"
 	objName := path.Join(dirInodeName, name)
 
@@ -842,7 +980,26 @@ func (t *DirTest) DeleteChildFile_Exists() {
 	AssertEq(nil, err)
 
 	// Call the inode.
-	err = t.in.DeleteChildFile(t.ctx, name)
+	err = t.in.DeleteChildFile(t.ctx, name, 0)
+	AssertEq(nil, err)
+
+	// Check the bucket.
+	_, err = gcsutil.ReadObject(t.ctx, t.bucket, objName)
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+}
+
+func (t *DirTest) DeleteChildFile_ParticularGeneration() {
+	const name = "qux"
+	objName := path.Join(dirInodeName, name)
+
+	var err error
+
+	// Create a backing object.
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, "taco")
+	AssertEq(nil, err)
+
+	// Call the inode.
+	err = t.in.DeleteChildFile(t.ctx, name, o.Generation)
 	AssertEq(nil, err)
 
 	// Check the bucket.
@@ -876,7 +1033,7 @@ func (t *DirTest) DeleteChildFile_TypeCaching() {
 
 	// But after deleting the file via the inode, the directory should be
 	// revealed.
-	err = t.in.DeleteChildFile(t.ctx, name)
+	err = t.in.DeleteChildFile(t.ctx, name, 0)
 	AssertEq(nil, err)
 
 	result, err = t.in.LookUpChild(t.ctx, name)

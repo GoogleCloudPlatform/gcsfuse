@@ -108,6 +108,13 @@ type DirInode interface {
 		ctx context.Context,
 		name string) (o *gcs.Object, err error)
 
+	// Like CreateChildFile, except clone the supplied source object instead of
+	// creating an empty object.
+	CloneToChildFile(
+		ctx context.Context,
+		name string,
+		src *gcs.Object) (o *gcs.Object, err error)
+
 	// Create a symlink object with the supplied (relative) name and the supplied
 	// target, failing with *gcs.PreconditionError if a backing object already
 	// exists in GCS.
@@ -124,10 +131,12 @@ type DirInode interface {
 		name string) (o *gcs.Object, err error)
 
 	// Delete the backing object for the child file or symlink with the given
-	// (relative) name.
+	// (relative) name and generation, where zero means the latest generation. If
+	// the object/generation doesn't exist, no error is returned.
 	DeleteChildFile(
 		ctx context.Context,
-		name string) (err error)
+		name string,
+		generation int64) (err error)
 
 	// Delete the backing object for the child directory with the given
 	// (relative) name.
@@ -747,6 +756,33 @@ func (d *dirInode) CreateChildFile(
 }
 
 // LOCKS_REQUIRED(d)
+func (d *dirInode) CloneToChildFile(
+	ctx context.Context,
+	name string,
+	src *gcs.Object) (o *gcs.Object, err error) {
+	// Erase any existing type information for this name.
+	d.cache.Erase(name)
+
+	// Clone over anything that might already exist for the name.
+	o, err = d.bucket.CopyObject(
+		ctx,
+		&gcs.CopyObjectRequest{
+			SrcName:       src.Name,
+			SrcGeneration: src.Generation,
+			DstName:       path.Join(d.Name(), name),
+		})
+
+	if err != nil {
+		return
+	}
+
+	// Update the type cache.
+	d.cache.NoteFile(d.clock.Now(), name)
+
+	return
+}
+
+// LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildSymlink(
 	ctx context.Context,
 	name string,
@@ -782,13 +818,15 @@ func (d *dirInode) CreateChildDir(
 // LOCKS_REQUIRED(d)
 func (d *dirInode) DeleteChildFile(
 	ctx context.Context,
-	name string) (err error) {
+	name string,
+	generation int64) (err error) {
 	d.cache.Erase(name)
 
 	err = d.bucket.DeleteObject(
 		ctx,
 		&gcs.DeleteObjectRequest{
-			Name: path.Join(d.Name(), name),
+			Name:       path.Join(d.Name(), name),
+			Generation: generation,
 		})
 
 	if err != nil {

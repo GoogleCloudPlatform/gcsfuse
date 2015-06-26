@@ -470,14 +470,14 @@ See the notes on [fuseops.FlushFileOp][flush-op] for more details.
 
 Not all of the usual file system features are supported. Most prominently:
 
-*   Renaming is not supported because it cannot be performed atomically in GCS.
-    The posix [guarantee][posix-rename] of atomic renames is widely relied upon,
-    so doing it non-atomically would be an invitation for bugs.
+*   Renaming directories is not supported. A directory rename cannot be
+    performed atomically in GCS and would therefore be arbitrarily expensive in
+    terms of GCS operations, and for large directories would have high
+    probability of failure, leaving the two directories in an inconsistent
+    state.
 
 *   File and directory permissions and ownership cannot be changed. See the
     [section](#permissions-and-ownership) above.
 
 *   Modification times cannot be changed. See the
     [section](#modifications) above.
-
-[posix-rename]: http://en.wikipedia.org/wiki/Rename_(computing)
