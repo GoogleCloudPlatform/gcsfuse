@@ -1609,7 +1609,12 @@ func (t *FileTest) UnlinkFile_NoLongerInBucket() {
 	AssertEq(nil, err)
 
 	// Delete it from the bucket through the back door.
-	err = t.bucket.DeleteObject(t.ctx, "foo")
+	AssertEq(
+		nil,
+		t.bucket.DeleteObject(
+			t.ctx,
+			&gcs.DeleteObjectRequest{Name: "foo"}))
+
 	AssertEq(nil, err)
 
 	// Attempt to unlink it.

@@ -72,7 +72,12 @@ func garbageCollectOnce(
 	// Delete those objects.
 	b.Add(func(ctx context.Context) (err error) {
 		for name := range staleNames {
-			err = bucket.DeleteObject(ctx, name)
+			err = bucket.DeleteObject(
+				ctx,
+				&gcs.DeleteObjectRequest{
+					Name: name,
+				})
+
 			if err != nil {
 				err = fmt.Errorf("DeleteObject(%q): %v", name, err)
 				return

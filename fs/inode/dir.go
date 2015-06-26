@@ -785,7 +785,12 @@ func (d *dirInode) DeleteChildFile(
 	name string) (err error) {
 	d.cache.Erase(name)
 
-	err = d.bucket.DeleteObject(ctx, path.Join(d.Name(), name))
+	err = d.bucket.DeleteObject(
+		ctx,
+		&gcs.DeleteObjectRequest{
+			Name: path.Join(d.Name(), name),
+		})
+
 	if err != nil {
 		err = fmt.Errorf("DeleteObject: %v", err)
 		return
@@ -802,7 +807,12 @@ func (d *dirInode) DeleteChildDir(
 
 	// Delete the backing object. Unfortunately we have no way to precondition
 	// this on the directory being empty.
-	err = d.bucket.DeleteObject(ctx, path.Join(d.Name(), name)+"/")
+	err = d.bucket.DeleteObject(
+		ctx,
+		&gcs.DeleteObjectRequest{
+			Name: path.Join(d.Name(), name) + "/",
+		})
+
 	if err != nil {
 		err = fmt.Errorf("DeleteObject: %v", err)
 		return

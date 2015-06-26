@@ -24,6 +24,7 @@ import (
 	"syscall"
 
 	"github.com/jacobsa/fuse/fusetesting"
+	"github.com/jacobsa/gcloud/gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
@@ -439,7 +440,11 @@ func (t *ImplicitDirsTest) ExplicitBecomesImplicit() {
 	ExpectTrue(fi.IsDir())
 
 	// Remove the explicit placeholder.
-	AssertEq(nil, t.bucket.DeleteObject(t.ctx, "foo/"))
+	AssertEq(
+		nil,
+		t.bucket.DeleteObject(
+			t.ctx,
+			&gcs.DeleteObjectRequest{Name: "foo/"}))
 
 	// Stat the directory again.
 	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))

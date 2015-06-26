@@ -16,6 +16,7 @@ package gcsproxy
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"strings"
 	"testing"
@@ -29,6 +30,31 @@ import (
 )
 
 func TestAppendObjectCreator(t *testing.T) { RunTests(t) }
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func deleteReqName(expected string) (m Matcher) {
+	m = NewMatcher(
+		func(c interface{}) (err error) {
+			req, ok := c.(*gcs.DeleteObjectRequest)
+			if !ok {
+				err = fmt.Errorf("which has type %T", c)
+				return
+			}
+
+			if req.Name != expected {
+				err = fmt.Errorf("which is for name %q", req.Name)
+				return
+			}
+
+			return
+		},
+		fmt.Sprintf("Delete request for name %q", expected))
+
+	return
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -140,7 +166,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjects() {
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
 	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), tmpObject.Name).
+	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
 		WillOnce(Return(nil))
 
 	// Call
@@ -178,7 +204,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsFails() {
 		WillOnce(Return(nil, errors.New("taco")))
 
 	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), tmpObject.Name).
+	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
 		WillOnce(Return(errors.New("")))
 
 	// Call
@@ -202,7 +228,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("taco")}))
 
 	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), tmpObject.Name).
+	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
 		WillOnce(Return(errors.New("")))
 
 	// Call
@@ -227,7 +253,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
 		WillOnce(Return(nil, &gcs.NotFoundError{Err: errors.New("taco")}))
 
 	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), tmpObject.Name).
+	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
 		WillOnce(Return(errors.New("")))
 
 	// Call
@@ -254,7 +280,7 @@ func (t *AppendObjectCreatorTest) CallsDeleteObject() {
 		WillOnce(Return(composed, nil))
 
 	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), tmpObject.Name).
+	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
 		WillOnce(Return(errors.New("")))
 
 	// Call

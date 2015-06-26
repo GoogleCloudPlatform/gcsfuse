@@ -171,7 +171,10 @@ func (t *CachingTest) DirectoryRemovedRemotely() {
 	AssertEq(nil, err)
 
 	// Remove the backing object in GCS.
-	err = t.uncachedBucket.DeleteObject(t.ctx, name+"/")
+	err = t.uncachedBucket.DeleteObject(
+		t.ctx,
+		&gcs.DeleteObjectRequest{Name: name + "/"})
+
 	AssertEq(nil, err)
 
 	// Because we are caching, the directory should still appear to exist.
@@ -259,7 +262,10 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 
 	// Remove the backing object in GCS, updating the bucket cache (but not the
 	// file system type cache)
-	err = t.bucket.DeleteObject(t.ctx, name+"/")
+	err = t.bucket.DeleteObject(
+		t.ctx,
+		&gcs.DeleteObjectRequest{Name: name + "/"})
+
 	AssertEq(nil, err)
 
 	// Create a file with the same name via GCS, again updating the bucket cache.

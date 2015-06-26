@@ -167,7 +167,7 @@ func (b *throttledBucket) UpdateObject(
 
 func (b *throttledBucket) DeleteObject(
 	ctx context.Context,
-	name string) (err error) {
+	req *gcs.DeleteObjectRequest) (err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {
@@ -175,7 +175,7 @@ func (b *throttledBucket) DeleteObject(
 	}
 
 	// Call through.
-	err = b.wrapped.DeleteObject(ctx, name)
+	err = b.wrapped.DeleteObject(ctx, req)
 
 	return
 }

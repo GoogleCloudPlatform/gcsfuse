@@ -114,7 +114,12 @@ func (oc *appendObjectCreator) Create(
 
 	// Attempt to delete the temporary object when we're done.
 	defer func() {
-		deleteErr := oc.bucket.DeleteObject(ctx, tmp.Name)
+		deleteErr := oc.bucket.DeleteObject(
+			ctx,
+			&gcs.DeleteObjectRequest{
+				Name: tmp.Name,
+			})
+
 		if err == nil && deleteErr != nil {
 			err = fmt.Errorf("DeleteObject: %v", deleteErr)
 		}

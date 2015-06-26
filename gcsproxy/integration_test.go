@@ -374,7 +374,7 @@ func (t *IntegrationTest) WithinLeaserLimit() {
 	ExpectEq(fileLeaserLimitBytes, len(contents))
 
 	// Delete the backing object.
-	err = t.bucket.DeleteObject(t.ctx, o.Name)
+	err = t.bucket.DeleteObject(t.ctx, &gcs.DeleteObjectRequest{Name: o.Name})
 	AssertEq(nil, err)
 
 	// We should still be able to read the contents, because the read lease
@@ -409,7 +409,7 @@ func (t *IntegrationTest) LargerThanLeaserLimit() {
 	ExpectEq(fileLeaserLimitBytes+1, len(contents))
 
 	// Delete the backing object.
-	err = t.bucket.DeleteObject(t.ctx, o.Name)
+	err = t.bucket.DeleteObject(t.ctx, &gcs.DeleteObjectRequest{Name: o.Name})
 	AssertEq(nil, err)
 
 	// The contents should be lost, because the leaser should have revoked the
@@ -423,7 +423,7 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_BeforeReading() {
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
 	AssertEq(nil, err)
 
-	err = t.bucket.DeleteObject(t.ctx, o.Name)
+	err = t.bucket.DeleteObject(t.ctx, &gcs.DeleteObjectRequest{Name: o.Name})
 	AssertEq(nil, err)
 
 	// Create a mutable object around it.
@@ -459,7 +459,7 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 	AssertEq(nil, err)
 
 	// Delete the backing object.
-	err = t.bucket.DeleteObject(t.ctx, o.Name)
+	err = t.bucket.DeleteObject(t.ctx, &gcs.DeleteObjectRequest{Name: o.Name})
 	AssertEq(nil, err)
 
 	// Reading and modications should still work.

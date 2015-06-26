@@ -685,7 +685,11 @@ func (t *ForeignModsTest) ObjectIsDeleted_File() {
 	AssertEq(nil, err)
 
 	// Delete the object.
-	AssertEq(nil, t.bucket.DeleteObject(t.ctx, "foo"))
+	AssertEq(
+		nil,
+		t.bucket.DeleteObject(
+			t.ctx,
+			&gcs.DeleteObjectRequest{Name: "foo"}))
 
 	// The file should appear to be unlinked, but with the previous contents.
 	fi, err := f1.Stat()
@@ -717,7 +721,11 @@ func (t *ForeignModsTest) ObjectIsDeleted_Directory() {
 	AssertEq(nil, err)
 
 	// Delete the object.
-	AssertEq(nil, t.bucket.DeleteObject(t.ctx, "dir/"))
+	AssertEq(
+		nil,
+		t.bucket.DeleteObject(
+			t.ctx,
+			&gcs.DeleteObjectRequest{Name: "dir/"}))
 
 	// The inode should still be fstat'able.
 	fi, err := t.f1.Stat()
