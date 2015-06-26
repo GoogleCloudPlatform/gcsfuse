@@ -96,20 +96,22 @@ the flags `--stat-cache-ttl` and `--type-cache-ttl`. See
 
 ## Downloading file contents
 
-Behind the scenes, when a newly-opened file is first read or modified, gcsfuse
-downloads the entire backing object's contents from GCS. (Unless it is a
-newly-created file, of course.) The contents are stored in a local temporary
-file whose location is controlled by the flag `--temp-dir` and whose size is
-controlled with `--temp-dir-bytes`, which is used to serve reads and
-modifications. Later, when the file is closed or fsync'd, gcsfuse writes the
-contents of the local file back to GCS as a new object generation.
+Behind the scenes, when a newly-opened file is first modified, gcsfuse downloads
+the entire backing object's contents from GCS. The contents are stored in a
+local temporary file whose location is controlled by the flag `--temp-dir`.
+Later, when the file is closed or fsync'd, gcsfuse writes the contents of the
+local file back to GCS as a new object generation.
+
+Files that are not modified are read chunk by chunk on demand. Such non-dirty
+content is cached in the temporary directory, with a size limit defined by
+`--temp-dir-bytes`. The chunk size is controlled by `--gcs-chunk-size`.
 
 The consequence of this is that gcsfuse is relatively efficient when reading or
 writing entire large files, but will not be particularly fast for small numbers
-of random reads or writes within larger files. Performance when copying large
-files into GCS is comparable to gsutil (see [issue #22][issue-22] for testing
-notes). There is some overhead due to the staging of data in a local temporary
-file, as discussed above.
+of random writes within larger files, and to a lesser extent the same is true of
+small random reads. Performance when copying large files into GCS is comparable
+to gsutil (see [issue #22][issue-22] for testing notes). There is some overhead
+due to the staging of data in a local temporary file, as discussed above.
 
 [issue-22]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/22
 
