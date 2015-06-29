@@ -41,7 +41,7 @@ gcsfuse, you can do so with:
 go get -u github.com/googlecloudplatform/gcsfuse
 ```
 
-[installing.md]: https://github.com/googlecloudplatform/gcsfuse/blob/master/docs/installing.md
+[installing.md]: docs/installing.md
 
 # Mounting
 
