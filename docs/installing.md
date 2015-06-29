@@ -7,7 +7,7 @@ gcsfuse has been tested successfully with the following operating systems:
 *   OS X (minimum version 10.10.2)
 
 It may or may not work correctly with other operating systems and older versions.
-___
+
 ### OS X fast track
 
 If you already have the [Homebrew package manager][homebrew] installed, you can
@@ -23,7 +23,6 @@ do the following to install gcsfuse:
 
 Otherwise, or if you want to install a pre-release version of gcsfuse, read the
 remainder of this document.
-___
 
 # Prerequisites
 
