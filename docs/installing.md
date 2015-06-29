@@ -1,4 +1,14 @@
-# OS X fast track
+
+# Operating systems
+
+gcsfuse has been tested successfully with the following operating systems:
+
+*   Linux (minimum kernel version 3.10)
+*   OS X (minimum version 10.10.2)
+
+It may or may not work correctly with other operating systems and older versions.
+
+### OS X fast track
 
 If you already have the [Homebrew package manager][homebrew] installed, you can
 do the following to install gcsfuse:
@@ -14,20 +24,9 @@ do the following to install gcsfuse:
 Otherwise, or if you want to install a pre-release version of gcsfuse, read the
 remainder of this document.
 
-
 # Prerequisites
 
-## Operating system
-
-gcsfuse has been tested successfully with the following operating systems:
-
-*   Linux (minimum kernel version 3.10)
-*   OS X (minimum version 10.10.2)
-
-It may or may not work correctly with other operating systems and older versions.
-
-
-## Go
+## Install Go
 
 gcsfuse is distributed as source code in the [Go][go] language. If you already
 have a working Go environment at the latest version, you can skip this section.
@@ -49,7 +48,7 @@ export PATH=$PATH:$GOPATH/bin
 [go-setup]: http://golang.org/doc/code.html
 
 
-## Fuse
+## Install Fuse
 
 ### Linux
 
@@ -112,7 +111,7 @@ OS X users must install [osxfuse][] before running gcsfuse.
 [osxfuse]: https://osxfuse.github.io/
 
 
-## Git
+## Install Git
 
 The `go get` command below will need to fetch source code from GitHub, which
 requires [Git][git]. If the `git` binary is not installed on your system,
@@ -128,7 +127,7 @@ sudo apt-get update && sudo apt-get install git-core
 
 
 
-# Installation
+# Install gcsfuse
 
 To install or update gcsfuse, run:
 
