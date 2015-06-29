@@ -3,7 +3,6 @@ Storage][gcs].
 
 [gcs]: https://cloud.google.com/storage/
 
-
 # Current status
 
 Please treat gcsfuse as beta-quality software. Use it for whatever you like, but
@@ -20,10 +19,15 @@ surprising behaviors. The list of [open issues][issues] may also be of interest.
 
 # Installing
 
-See [installing.md][] for full installation instructions. The summary is that if
-you already have Go, fuse, and Git installed, you need only run:
+See [installing.md][] for full installation instructions for Linux and Mac OS X.
 
-[installing.md]: https://github.com/googlecloudplatform/gcsfuse/blob/master/docs/installing.md
+The basic installation steps are:
+
+1. Install Go
+1. Install fuse
+1. Install git
+
+and then:
 
 ```
 go get github.com/googlecloudplatform/gcsfuse
@@ -37,6 +41,7 @@ gcsfuse, you can do so with:
 go get -u github.com/googlecloudplatform/gcsfuse
 ```
 
+[installing.md]: https://github.com/googlecloudplatform/gcsfuse/blob/master/docs/installing.md
 
 # Mounting
 
