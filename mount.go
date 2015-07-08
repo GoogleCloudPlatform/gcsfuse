@@ -15,7 +15,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -39,16 +38,6 @@ func mount(
 	mountPoint string,
 	flags *flagStorage,
 	conn gcs.Conn) (mfs *fuse.MountedFileSystem, err error) {
-	// Extract positional arguments.
-	if len(args) != 2 {
-		flagSet.Usage()
-		err = errors.New("Incorrect usage")
-		return
-	}
-
-	bucketName := flagSet.Arg(0)
-	mountPoint := flagSet.Arg(1)
-
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
