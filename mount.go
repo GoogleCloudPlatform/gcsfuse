@@ -16,7 +16,6 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -34,14 +33,14 @@ import (
 
 // Mount the file system based on the supplied arguments, returning a
 // fuse.MountedFileSystem that can be joined to wait for unmounting.
-//
-// flagSet should already be parsed.
 func mount(
 	ctx context.Context,
-	flagSet *flag.FlagSet,
+	bucketName string,
+	mountPoint string,
+	flags *flagStorage,
 	conn gcs.Conn) (mfs *fuse.MountedFileSystem, err error) {
 	// Extract positional arguments.
-	if flagSet.NArg() != 2 {
+	if len(args) != 2 {
 		flagSet.Usage()
 		err = errors.New("Incorrect usage")
 		return

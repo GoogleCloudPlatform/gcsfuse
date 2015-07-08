@@ -77,11 +77,14 @@ func getConn() (c gcs.Conn, err error) {
 ////////////////////////////////////////////////////////////////////////
 
 func main() {
+	var err error
+	flagSet := flag.CommandLine
+
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
 	// Set up a custom usage function.
-	flag.CommandLine.Usage = func() {
+	flagSet.Usage = func() {
 		fmt.Fprintf(
 			os.Stderr,
 			"Usage: %s [flags] bucket_name mount_point\n",
@@ -92,8 +95,28 @@ func main() {
 		flag.PrintDefaults()
 	}
 
-	// Don't die on flag parsing errors; we watch for them below.
-	flag.CommandLine.Init("", flag.ContinueOnError)
+	// Populate and parse flags, exiting cleanly on a request for help.
+	flagSet.Init("", flag.ContinueOnError)
+
+	flags := populateFlagSet(flagSet)
+
+	err = flagSet.Parse(os.Args[1:])
+	switch {
+	case err == flag.ErrHelp:
+		return
+
+	case err != nil:
+		log.Fatalf("Parsing flags: %v", err)
+	}
+
+	// Extract positional arguments.
+	if flagSet.NArg() != 2 {
+		flagSet.Usage()
+		os.Exit(1)
+	}
+
+	bucketName := flagSet.Arg(0)
+	mountPoint := flagSet.Arg(1)
 
 	// Grab the connection.
 	conn, err := getConn()
@@ -104,19 +127,10 @@ func main() {
 	// Mount the file system.
 	mfs, err := mount(
 		context.Background(),
-		os.Args[1:],
-		flag.CommandLine,
+		bucketName,
+		mountPoint,
+		flags,
 		conn)
-
-	if err != nil {
-		// Special case: if the user requested help, the flag package has already
-		// called Usage for us. Exit cleanly.
-		if err == flag.ErrHelp {
-			return
-		}
-
-		log.Fatalf("mount: %v", err)
-	}
 
 	log.Println("File system has been successfully mounted.")
 
