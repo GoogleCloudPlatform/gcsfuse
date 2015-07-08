@@ -132,6 +132,10 @@ func main() {
 		flags,
 		conn)
 
+	if err != nil {
+		log.Fatalf("Mounting file system: %v", err)
+	}
+
 	log.Println("File system has been successfully mounted.")
 
 	// Let the user unmount with Ctrl-C (SIGINT).
