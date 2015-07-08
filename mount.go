@@ -15,8 +15,6 @@
 package main
 
 import (
-	"errors"
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -34,39 +32,12 @@ import (
 
 // Mount the file system based on the supplied arguments, returning a
 // fuse.MountedFileSystem that can be joined to wait for unmounting.
-//
-// In main, set flagSet to flag.CommandLine and pass in os.Args[1:]. In a test,
-// pass in a virgin flag set and test arguments.
-//
-// Promises to pass on flag.ErrHelp from FlagSet.Parse.
 func mount(
 	ctx context.Context,
-	args []string,
-	flagSet *flag.FlagSet,
+	bucketName string,
+	mountPoint string,
+	flags *flagStorage,
 	conn gcs.Conn) (mfs *fuse.MountedFileSystem, err error) {
-	// Populate and parse flags.
-	flags := populateFlagSet(flagSet)
-
-	err = flagSet.Parse(args)
-	if err != nil {
-		// Special case: don't mangle ErrHelp.
-		if err != flag.ErrHelp {
-			err = fmt.Errorf("Parsing flags: %v", err)
-		}
-
-		return
-	}
-
-	// Extract positional arguments.
-	if flagSet.NArg() != 2 {
-		flagSet.Usage()
-		err = errors.New("Incorrect usage")
-		return
-	}
-
-	bucketName := flagSet.Arg(0)
-	mountPoint := flagSet.Arg(1)
-
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.

@@ -31,7 +31,6 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
-	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 )
@@ -76,13 +75,11 @@ func (t *MountTest) TearDown() {
 }
 
 func (t *MountTest) mount(
-	args []string) (mfs *fuse.MountedFileSystem, err error) {
-	fs := new(flag.FlagSet)
+	bucketName string,
+	mountPoint string) (mfs *fuse.MountedFileSystem, err error) {
+	flags := populateFlagSet(new(flag.FlagSet))
 
-	// Don't spam the console on error.
-	fs.Usage = func() {}
-
-	mfs, err = mount(t.ctx, args, fs, t.conn)
+	mfs, err = mount(t.ctx, bucketName, mountPoint, flags, t.conn)
 	return
 }
 
@@ -111,33 +108,6 @@ func (t *MountTest) unmount() (err error) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *MountTest) IncorrectUsage() {
-	var err error
-
-	// No args
-	_, err = t.mount([]string{})
-	log.Printf("FOO: %T %q", err, err.Error())
-	ExpectThat(err, Error(HasSubstr("usage")))
-
-	// One arg
-	_, err = t.mount([]string{"foo"})
-	ExpectThat(err, Error(HasSubstr("usage")))
-
-	// Three args
-	_, err = t.mount([]string{"foo", "bar", "baz"})
-	ExpectThat(err, Error(HasSubstr("usage")))
-}
-
-func (t *MountTest) HelpFlags() {
-	var err error
-
-	_, err = t.mount([]string{"-h"})
-	ExpectEq(flag.ErrHelp, err)
-
-	_, err = t.mount([]string{"--help"})
-	ExpectEq(flag.ErrHelp, err)
-}
-
 func (t *MountTest) BasicUsage() {
 	var err error
 	const fileName = "foo"
@@ -147,11 +117,7 @@ func (t *MountTest) BasicUsage() {
 	AssertEq(nil, err)
 
 	// Mount that bucket.
-	mfs, err := t.mount([]string{
-		bucket.Name(),
-		t.dir,
-	})
-
+	mfs, err := t.mount(bucket.Name(), t.dir)
 	AssertEq(nil, err)
 
 	// Create a file.
