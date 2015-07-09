@@ -120,6 +120,11 @@ due to the staging of data in a local temporary file, as discussed above.
 
 [issue-22]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/22
 
+Note that new and modified files are also fully staged in the local temporary
+directory until they are written out to GCS due to being closed or fsync'd.
+Therefore the user must ensure that there is enough free space available to
+handle staged content when writing large files.
+
 ## Rate limiting
 
 If you would like to rate limit traffic to/from GCS in order to set limits on
