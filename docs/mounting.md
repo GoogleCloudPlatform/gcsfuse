@@ -18,6 +18,8 @@ Console:
 
 # Basic usage
 
+## Mounting
+
 As the user that will mount and use the file system, create the directory into
 which you want to mount the gcsfuse bucket:
 
@@ -29,7 +31,11 @@ as follows:
     gcsfuse my-bucket /path/to/mount/point
 
 You should be able to see your bucket contents if you run `ls
-/path/to/mount/point`. To later unmount the bucket, either kill the gcsfuse
+/path/to/mount/point`.
+
+## Unmounting
+
+To later unmount the bucket, either kill the gcsfuse
 process with a SIGINT or run `umount /path/to/mount/point`. (On Linux, you may
 need to replace `umount` with `fusermount -u`.)
 
