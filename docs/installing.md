@@ -43,6 +43,9 @@ export PATH=$PATH:/usr/local/go/bin
 export PATH=$PATH:$GOPATH/bin
 ```
 
+Note that these settings do not persist from session to session, so you'll need
+to place them in your `.profile` file or similar to make them permanent.
+
 [go]: http://golang.org/
 [go-install]: http://golang.org/doc/install
 [go-setup]: http://golang.org/doc/code.html
@@ -81,6 +84,9 @@ commands:
 sudo chmod g+rw /dev/fuse
 sudo chgrp fuse /dev/fuse
 ```
+
+Note that the operating system appears to periodically lose these changes, so
+you may need to run the workaround above repeatedly.
 
 [stackexchange]: http://superuser.com/a/800016/429161
 

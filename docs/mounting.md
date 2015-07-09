@@ -1,8 +1,16 @@
 # Credentials
 
 Credentials for use with GCS will automatically be loaded using [Google
-application default credentials][app-default-credentials]. The easiest way to
-set this up is using the [gcloud tool][]:
+application default credentials][app-default-credentials].
+
+The easiest way to set this up when running on [Google Compute Engine][gce] is
+to create your VM with a service account using the `storage-full` access scope.
+(See [here][gce-service-accounts] for details on VM service accounts.) When
+gcsfuse is run from such a VM, it automatically has access to buckets owned by
+the same project as the VM.
+
+When testing, especially on a developer machine, credentials can also be
+configured using the [gcloud tool][]:
 
     gcloud auth login
 
@@ -12,13 +20,18 @@ Console:
 
     GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json gcsfuse [...]
 
+[gce]: https://cloud.google.com/compute/
+[gce-service-accounts]: https://cloud.google.com/compute/docs/authentication
 [gcloud tool]: https://cloud.google.com/sdk/gcloud/
 [app-default-credentials]: https://developers.google.com/identity/protocols/application-default-credentials#howtheywork
 
 
 # Basic usage
 
-Create the directory into which you want to mount the gcsfuse bucket:
+## Mounting
+
+As the user that will mount and use the file system, create the directory into
+which you want to mount the gcsfuse bucket:
 
     mkdir /path/to/mount/point
 
@@ -28,9 +41,20 @@ as follows:
     gcsfuse my-bucket /path/to/mount/point
 
 You should be able to see your bucket contents if you run `ls
-/path/to/mount/point`. To later unmount the bucket, either kill the gcsfuse
-process with a SIGINT or run `umount /path/to/mount/point`. (On Linux, you may
-need to replace `umount` with `fusermount -u`.)
+/path/to/mount/point`.
+
+## Unmounting
+
+On Linux, unmount using fuse's `fusermount` tool:
+
+    fusermount -u /path/to/mount/point
+
+On OS X, unmount like any other file system:
+
+    umount /path/to/mount/point
+
+On both systems, you can also unmount by sending `SIGINT` to the gcsfuse
+process (usually by pressing Ctrl-C in the controlling terminal).
 
 
 # Running as a daemon
@@ -89,9 +113,12 @@ command like the following:
 
     mount -t gcsfuse -o rw my-bucket /path/to/mount/point
 
-Similarly, a line like the following can be added to `/etc/fstab` (on Linux you
-may need to add the `user` option to allow non-root users):
+Similarly, a line like the following can be added to `/etc/fstab` (the `user`
+option is required on Linux in order to allow non-root users):
 
-    my-bucket /path/to/mount/point gcsfuse rw
+    my-bucket /mount/point gcsfuse rw,noauto,user
 
-Afterward, you can run simply `mount my-bucket`.
+Afterward, you can run `mount /mount/point`. The `noauto` option specifies that
+the file system should not be mounted at boot time. If you want this, remove
+the option and modify your mount helper to tell the daemonizing program to run
+gcsfuse as your desired user.
