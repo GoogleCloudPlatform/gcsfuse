@@ -1,8 +1,16 @@
 # Credentials
 
 Credentials for use with GCS will automatically be loaded using [Google
-application default credentials][app-default-credentials]. The easiest way to
-set this up is using the [gcloud tool][]:
+application default credentials][app-default-credentials].
+
+The easiest way to set this up when running on [Google Compute Engine][gce] is
+to create your VM with a service account using the `storage-full` access scope.
+(See [here][gce-service-accounts] for details on VM service accounts.) When
+gcsfuse is run from such a VM, it automatically has access to buckets owned by
+the same project as the VM.
+
+When testing, especially on a developer machine, credentials can also be
+configured using the [gcloud tool][]:
 
     gcloud auth login
 
@@ -12,6 +20,8 @@ Console:
 
     GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json gcsfuse [...]
 
+[gce]: https://cloud.google.com/compute/
+[gce-service-accounts]: https://cloud.google.com/compute/docs/authentication
 [gcloud tool]: https://cloud.google.com/sdk/gcloud/
 [app-default-credentials]: https://developers.google.com/identity/protocols/application-default-credentials#howtheywork
 
