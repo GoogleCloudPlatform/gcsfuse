@@ -85,6 +85,9 @@ sudo chmod g+rw /dev/fuse
 sudo chgrp fuse /dev/fuse
 ```
 
+Note that the operating system appears to periodically lose these changes, so
+you may need to run the workaround above repeatedly.
+
 [stackexchange]: http://superuser.com/a/800016/429161
 
 
