@@ -35,9 +35,16 @@ You should be able to see your bucket contents if you run `ls
 
 ## Unmounting
 
-To later unmount the bucket, either kill the gcsfuse
-process with a SIGINT or run `umount /path/to/mount/point`. (On Linux, you may
-need to replace `umount` with `fusermount -u`.)
+On Linux, unmount using fuse's `fusermount` tool:
+
+    fusermount -u /path/to/mount/point
+
+On OS X, unmount like any other file system:
+
+    umount /path/to/mount/point
+
+On both systems, you can also unmount by sending `SIGINT` to the gcsfuse
+process (usually by pressing Ctrl-C in the controlling terminal).
 
 
 # Running as a daemon
