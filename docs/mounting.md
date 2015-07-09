@@ -18,7 +18,8 @@ Console:
 
 # Basic usage
 
-Create the directory into which you want to mount the gcsfuse bucket:
+As the user that will mount and use the file system, create the directory into
+which you want to mount the gcsfuse bucket:
 
     mkdir /path/to/mount/point
 
