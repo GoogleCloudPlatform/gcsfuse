@@ -15,11 +15,100 @@
 package main
 
 import (
-	"flag"
 	"time"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/mount"
+	"github.com/jgeewax/cli"
 )
+
+func getApp() (app *cli.App) {
+	app = cli.NewApp()
+	app.Name = "gcsfuse"
+	app.Usage = "Mount a GCS bucket locally"
+	app.ArgumentUsage = "bucket mountpoint"
+	app.HideHelp = true
+	app.Version = "0.1.0"
+	app.Flags = []cli.Flag{
+		cli.IntFlag{
+			Name: "dir-mode, d",
+			Usage: "Permissions bits for directories. (default: 0755)",
+			HideDefault: true,
+		},
+		cli.IntFlag{
+			Name: "file-mode, f",
+			Value: 0644,
+			Usage: "Permission bits for files (default: 0644)",
+			HideDefault: true,
+		},
+		cli.IntFlag{
+			Name: "gcs-chunk-size",
+			Value: 1<<24,
+			Usage: "Max chunk size for loading GCS objects.",
+		},
+		cli.IntFlag{
+			Name: "gid",
+			Value: -1,
+			HideDefault: true,
+			Usage: "GID owner of all inodes.",
+		},
+		cli.BoolFlag{
+			Name: "implicit-dirs",
+			Usage: "Implicitly define directories based on content. See" +
+			"docs/semantics.md",
+		},
+		cli.Float64Flag{
+			Name: "limit-bytes-per-sec",
+			Value: -1,
+			Usage: "Bandwidth limit for reading data, measured over a 30-second " +
+			"window. (use -1 for no limit)",
+		},
+		cli.Float64Flag{
+			Name: "limit-ops-per-sec",
+			Value: 5.0,
+			Usage: "Operations per second limit, measured over a 30-second window " +
+			"(use -1 for no limit)",
+		},
+		cli.StringFlag{
+			Name: "mount-options, o",
+			HideDefault: true,
+			Usage: "Additional system-specific mount options. Be careful!",
+		},
+		cli.DurationFlag{
+			Name: "stat-cache-ttl",
+			Value: time.Minute,
+			Usage: "How long to cache StatObject results from GCS.",
+		},
+		cli.DurationFlag{
+			Name: "type-cache-ttl",
+			Value: time.Minute,
+			Usage: "How long to cache name -> file/dir mappings in directory " +
+			"inodes.",
+		},
+		cli.StringFlag{
+			Name: "temp-dir, t",
+			Value: "",
+			HideDefault: true,
+			Usage: "Temporary directory for local GCS object copies. " +
+			"(default: system default, likely /tmp)",
+		},
+		cli.IntFlag{
+			Name: "temp-dir-bytes",
+			Value: 1<<31,
+			Usage: "Size limit of the temporary directory.",
+		},
+		cli.IntFlag{
+			Name: "uid",
+			Value: -1,
+			HideDefault: true,
+			Usage: "UID owner of all inodes.",
+		},
+		cli.BoolFlag{
+			Name: "help, h",
+			Usage: "print this help text",
+		},
+	}
+	return app
+}
 
 type flagStorage struct {
 	MountOptions                       map[string]string
@@ -39,92 +128,21 @@ type flagStorage struct {
 
 // Add the flags accepted by run to the supplied flag set, returning the
 // variables into which the flags will parse.
-func populateFlagSet(fs *flag.FlagSet) (flags *flagStorage) {
+func populateFlags(c *cli.Context) (flags *flagStorage) {
 	flags = new(flagStorage)
-
 	flags.MountOptions = make(map[string]string)
-	fs.Var(
-		mountpkg.OptionValue(flags.MountOptions),
-		"o",
-		"Additional system-specific mount options. Be careful!")
-
-	fs.Int64Var(
-		&flags.Uid,
-		"uid",
-		-1,
-		"If non-negative, the UID that owns all inodes. The default is the UID of "+
-			"the gcsfuse process.")
-
-	fs.Int64Var(
-		&flags.Gid,
-		"gid",
-		-1,
-		"If non-negative, the GID that owns all inodes. The default is the GID of "+
-			"the gcsfuse process.")
-
-	fs.UintVar(
-		&flags.FileMode,
-		"file-mode",
-		0644,
-		"Permissions bits for files. Default is 0644.")
-
-	fs.UintVar(
-		&flags.DirMode,
-		"dir-mode",
-		0755,
-		"Permissions bits for directories. Default is 0755.")
-
-	fs.StringVar(
-		&flags.TempDir,
-		"temp-dir", "",
-		"The temporary directory in which to store local copies of GCS objects. "+
-			"If empty, the system default (probably /tmp) will be used.")
-
-	fs.Int64Var(
-		&flags.TempDirLimit,
-		"temp-dir-bytes", 1<<31,
-		"A desired limit on the number of bytes used in --temp-dir. May be "+
-			"exceeded for dirty files that have not been flushed or closed.")
-
-	fs.Uint64Var(
-		&flags.GCSChunkSize,
-		"gcs-chunk-size", 1<<24,
-		"If set to a non-zero value N, split up GCS objects into multiple "+
-			"chunks of size at most N when reading, and do not read or cache "+
-			"unnecessary chunks.")
-
-	fs.BoolVar(
-		&flags.ImplicitDirs,
-		"implicit-dirs",
-		false,
-		"Implicitly define directories based on their content. See "+
-			"docs/semantics.md.")
-
-	fs.DurationVar(
-		&flags.StatCacheTTL,
-		"stat-cache-ttl",
-		time.Minute,
-		"How long to cache StatObject results from GCS.")
-
-	fs.DurationVar(
-		&flags.TypeCacheTTL,
-		"type-cache-ttl",
-		time.Minute,
-		"How long to cache name -> file/dir type mappings in directory inodes.")
-
-	fs.Float64Var(
-		&flags.OpRateLimitHz,
-		"limit-ops-per-sec",
-		5.0,
-		"If positive, a limit on the rate at which we send requests to GCS, "+
-			"measured over a 30-second window.")
-
-	fs.Float64Var(
-		&flags.EgressBandwidthLimitBytesPerSecond,
-		"limit-bytes-per-sec",
-		-1,
-		"If positive, a limit on the GCS -> gcsfuse bandwidth for reading "+
-			"objects, measured over a 30-second window.")
-
+	mountpkg.OptionValue(flags.MountOptions).Set(c.String("mount-options"))
+	flags.Uid = int64(c.Int("uid"))
+	flags.Gid = int64(c.Int("gid"))
+	flags.FileMode = uint(c.Int("file-mode"))
+	flags.DirMode = uint(c.Int("dir-mode"))
+	flags.TempDir = c.String("temp-dir")
+	flags.TempDirLimit = int64(c.Int("temp-dir-bytes"))
+	flags.GCSChunkSize = uint64(c.Int("gcs-chunk-size"))
+	flags.ImplicitDirs = c.Bool("implicit-dirs")
+	flags.StatCacheTTL = c.Duration("stat-cache-ttl")
+	flags.TypeCacheTTL = c.Duration("type-cache-ttl")
+	flags.OpRateLimitHz = c.Float64("limit-ops-per-sec")
+	flags.EgressBandwidthLimitBytesPerSecond = c.Float64("limit-bytes-per-sec")
 	return
 }

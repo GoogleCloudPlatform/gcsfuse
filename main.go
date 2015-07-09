@@ -15,7 +15,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -26,6 +25,7 @@ import (
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jgeewax/cli"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -77,76 +77,61 @@ func getConn() (c gcs.Conn, err error) {
 ////////////////////////////////////////////////////////////////////////
 
 func main() {
-	var err error
-	flagSet := flag.CommandLine
 
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
-	// Set up a custom usage function.
-	flagSet.Usage = func() {
-		fmt.Fprintf(
-			os.Stderr,
-			"Usage: %s [flags] bucket_name mount_point\n",
-			os.Args[0])
+	app := getApp()
+	app.Action = func(c *cli.Context) {
+		var err error
 
-		fmt.Fprintf(os.Stderr, "\n")
-		fmt.Fprintf(os.Stderr, "Flags:\n")
-		flag.PrintDefaults()
-	}
+		// We should get two arguments exactly. Otherwise error out.
+		if len(c.Args()) != 2 {
+			fmt.Fprintf(
+				os.Stderr,
+				"Error: %s takes exactly two arguments.\n",
+				app.Name)
+				cli.ShowAppHelp(c)
+				os.Exit(1)
+			}
 
-	// Populate and parse flags, exiting cleanly on a request for help.
-	flagSet.Init("", flag.ContinueOnError)
+			// Populate and parse flags.
+			bucketName := c.Args()[0]
+			mountPoint := c.Args()[1]
+			flags := populateFlags(c)
 
-	flags := populateFlagSet(flagSet)
+			// Grab the connection.
+			conn, err := getConn()
+			if err != nil {
+				log.Fatalf("getConn: %v", err)
+			}
 
-	err = flagSet.Parse(os.Args[1:])
-	switch {
-	case err == flag.ErrHelp:
-		return
+			// Mount the file system.
+			mfs, err := mount(
+				context.Background(),
+				bucketName,
+				mountPoint,
+				flags,
+				conn)
 
-	case err != nil:
-		log.Fatalf("Parsing flags: %v", err)
-	}
+				if err != nil {
+					log.Fatalf("Mounting file system: %v", err)
+				}
 
-	// Extract positional arguments.
-	if flagSet.NArg() != 2 {
-		flagSet.Usage()
-		os.Exit(1)
-	}
+				log.Println("File system has been successfully mounted.")
 
-	bucketName := flagSet.Arg(0)
-	mountPoint := flagSet.Arg(1)
+				// Let the user unmount with Ctrl-C (SIGINT).
+				registerSIGINTHandler(mfs.Dir())
 
-	// Grab the connection.
-	conn, err := getConn()
-	if err != nil {
-		log.Fatalf("getConn: %v", err)
-	}
+				// Wait for the file system to be unmounted.
+				err = mfs.Join(context.Background())
+				if err != nil {
+					err = fmt.Errorf("MountedFileSystem.Join: %v", err)
+					return
+				}
 
-	// Mount the file system.
-	mfs, err := mount(
-		context.Background(),
-		bucketName,
-		mountPoint,
-		flags,
-		conn)
+				log.Println("Successfully exiting.")
+			}
 
-	if err != nil {
-		log.Fatalf("Mounting file system: %v", err)
-	}
-
-	log.Println("File system has been successfully mounted.")
-
-	// Let the user unmount with Ctrl-C (SIGINT).
-	registerSIGINTHandler(mfs.Dir())
-
-	// Wait for the file system to be unmounted.
-	err = mfs.Join(context.Background())
-	if err != nil {
-		err = fmt.Errorf("MountedFileSystem.Join: %v", err)
-		return
-	}
-
-	log.Println("Successfully exiting.")
-}
+			app.Run(os.Args)
+		}
