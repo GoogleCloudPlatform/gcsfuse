@@ -103,9 +103,12 @@ command like the following:
 
     mount -t gcsfuse -o rw my-bucket /path/to/mount/point
 
-Similarly, a line like the following can be added to `/etc/fstab` (on Linux you
-may need to add the `user` option to allow non-root users):
+Similarly, a line like the following can be added to `/etc/fstab` (the `user`
+option is required on Linux in order to allow non-root users):
 
-    my-bucket /path/to/mount/point gcsfuse rw
+    my-bucket /mount/point gcsfuse rw,noauto,user
 
-Afterward, you can run simply `mount my-bucket`.
+Afterward, you can run `mount /mount/point`. The `noauto` option specifies that
+the file system should not be mounted at boot time. If you want this, remove
+the option and modify your mount helper to tell the daemonizing program to run
+gcsfuse as your desired user.
