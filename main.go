@@ -17,11 +17,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
 
 	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
 	"github.com/jacobsa/fuse"
@@ -54,12 +56,47 @@ func registerSIGINTHandler(mountPoint string) {
 	}()
 }
 
-func getConn() (c gcs.Conn, err error) {
+// Create token source from the JSON file at the supplide path.
+func newTokenSourceFromPath(
+	path string,
+	scope string) (ts oauth2.TokenSource, err error) {
+	// Read the file.
+	contents, err := ioutil.ReadFile(path)
+	if err != nil {
+		err = fmt.Errorf("ReadFile(%q): %v", path, err)
+		return
+	}
+
+	// Create a config struct based on its contents.
+	jwtConfig, err := google.JWTConfigFromJSON(contents, scope)
+	if err != nil {
+		err = fmt.Errorf("JWTConfigFromJSON: %v", err)
+		return
+	}
+
+	// Create the token source.
+	ts = jwtConfig.TokenSource(context.Background())
+
+	return
+}
+
+func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 	// Create the oauth2 token source.
 	const scope = gcs.Scope_FullControl
-	tokenSrc, err := google.DefaultTokenSource(context.Background(), scope)
-	if err != nil {
-		return nil, err
+
+	var tokenSrc oauth2.TokenSource
+	if flags.KeyFile != "" {
+		tokenSrc, err = newTokenSourceFromPath(flags.KeyFile, scope)
+		if err != nil {
+			err = fmt.Errorf("newTokenSourceFromPath: %v", err)
+			return
+		}
+	} else {
+		tokenSrc, err = google.DefaultTokenSource(context.Background(), scope)
+		if err != nil {
+			err = fmt.Errorf("DefaultTokenSource: %v", err)
+			return
+		}
 	}
 
 	// Create the connection.
@@ -119,7 +156,7 @@ func main() {
 	mountPoint := flagSet.Arg(1)
 
 	// Grab the connection.
-	conn, err := getConn()
+	conn, err := getConn(flags)
 	if err != nil {
 		log.Fatalf("getConn: %v", err)
 	}

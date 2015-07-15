@@ -53,14 +53,18 @@ your bucket doesn't yet exist, create one using the
 
 [console]: https://console.developers.google.com
 
-GCS credentials are automatically be loaded using [Google application default
-credentials][app-default-credentials]. If you haven't already done so, the
-easiest way to set up your credentials is to run the [gcloud tool][]:
+GCS credentials are automatically loaded using [Google application default
+credentials][app-default-credentials], or a JSON key file can be specified
+explicitly using `--key-file`. If you haven't already done so, the easiest way
+to set up your credentials for testing is to run the [gcloud tool][]:
 
     gcloud auth login
 
+See [mounting.md][] for more information on credentials.
+
 [gcloud tool]: https://cloud.google.com/sdk/gcloud/
 [app-default-credentials]: https://developers.google.com/identity/protocols/application-default-credentials#howtheywork
+[mounting.md]: /docs/mounting.md
 
 ## Invoking gcsfuse
 

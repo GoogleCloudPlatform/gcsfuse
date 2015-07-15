@@ -35,6 +35,7 @@ type flagStorage struct {
 	TypeCacheTTL                       time.Duration
 	OpRateLimitHz                      float64
 	EgressBandwidthLimitBytesPerSecond float64
+	KeyFile                            string
 }
 
 // Add the flags accepted by run to the supplied flag set, returning the
@@ -125,6 +126,14 @@ func populateFlagSet(fs *flag.FlagSet) (flags *flagStorage) {
 		-1,
 		"If positive, a limit on the GCS -> gcsfuse bandwidth for reading "+
 			"objects, measured over a 30-second window.")
+
+	fs.StringVar(
+		&flags.KeyFile,
+		"key-file",
+		"",
+		"If non-empty, path to a JSON key file downloaded from the Google "+
+			"Developers Console that will be used for GCS authentication. "+
+			"Otherwise, Google application default credentials will be used.")
 
 	return
 }
