@@ -32,12 +32,12 @@ func getApp() (app *cli.App) {
 		Writer:        os.Stderr,
 		Flags: []cli.Flag{
 			cli.IntFlag{
-				Name:        "dir-mode, d",
+				Name:        "dir-mode",
 				Usage:       "Permissions bits for directories. (default: 0755)",
 				HideDefault: true,
 			},
 			cli.IntFlag{
-				Name:        "file-mode, f",
+				Name:        "file-mode",
 				Value:       0644,
 				Usage:       "Permission bits for files (default: 0644)",
 				HideDefault: true,
@@ -94,7 +94,7 @@ func getApp() (app *cli.App) {
 					"inodes.",
 			},
 			cli.StringFlag{
-				Name:        "temp-dir, t",
+				Name:        "temp-dir",
 				Value:       "",
 				HideDefault: true,
 				Usage: "Temporary directory for local GCS object copies. " +
