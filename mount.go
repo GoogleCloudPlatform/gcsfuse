@@ -131,6 +131,10 @@ func mount(
 		ErrorLogger: log.New(os.Stderr, "fuse: ", log.Flags()),
 	}
 
+	if flags.DebugFuse {
+		mountCfg.DebugLogger = log.New(os.Stderr, "fuse_debug: ", 0)
+	}
+
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
 	if err != nil {
 		err = fmt.Errorf("Mount: %v", err)

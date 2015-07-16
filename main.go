@@ -27,6 +27,7 @@ import (
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/syncutil"
 	"github.com/jgeewax/cli"
 )
 
@@ -106,6 +107,14 @@ func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 		UserAgent:   userAgent,
 	}
 
+	if flags.DebugHTTP {
+		cfg.HTTPDebugLogger = log.New(os.Stderr, "http: ", 0)
+	}
+
+	if flags.DebugGCS {
+		cfg.GCSDebugLogger = log.New(os.Stderr, "gcs: ", 0)
+	}
+
 	return gcs.NewConn(cfg)
 }
 
@@ -135,6 +144,11 @@ func main() {
 		bucketName := c.Args()[0]
 		mountPoint := c.Args()[1]
 		flags := populateFlags(c)
+
+		// Enable invariant checking if requested.
+		if flags.DebugInvariants {
+			syncutil.EnableInvariantChecking()
+		}
 
 		// Grab the connection.
 		conn, err := getConn(flags)

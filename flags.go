@@ -112,6 +112,22 @@ func getApp() (app *cli.App) {
 				Usage:       "UID owner of all inodes.",
 			},
 			cli.BoolFlag{
+				Name:  "debug_fuse",
+				Usage: "Enable fuse-related debugging output.",
+			},
+			cli.BoolFlag{
+				Name:  "debug_gcs",
+				Usage: "Print GCS request and timing information.",
+			},
+			cli.BoolFlag{
+				Name:  "debug_http",
+				Usage: "Dump HTTP requests and responses to/from GCS.",
+			},
+			cli.BoolFlag{
+				Name:  "debug_invariants",
+				Usage: "Panic when internal invariants are violated.",
+			},
+			cli.BoolFlag{
 				Name:  "help, h",
 				Usage: "Print this help text and exit successfuly.",
 			},
@@ -136,6 +152,10 @@ type flagStorage struct {
 	OpRateLimitHz                      float64
 	EgressBandwidthLimitBytesPerSecond float64
 	KeyFile                            string
+	DebugFuse                          bool
+	DebugGCS                           bool
+	DebugHTTP                          bool
+	DebugInvariants                    bool
 }
 
 // Add the flags accepted by run to the supplied flag set, returning the
@@ -157,5 +177,9 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 	flags.OpRateLimitHz = c.Float64("limit-ops-per-sec")
 	flags.EgressBandwidthLimitBytesPerSecond = c.Float64("limit-bytes-per-sec")
 	flags.KeyFile = c.String("key-file")
+	flags.DebugFuse = c.Bool("debug_fuse")
+	flags.DebugGCS = c.Bool("debug_gcs")
+	flags.DebugHTTP = c.Bool("debug_http")
+	flags.DebugInvariants = c.Bool("debug_invariants")
 	return
 }
