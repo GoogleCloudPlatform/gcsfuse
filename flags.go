@@ -30,80 +30,80 @@ func getApp() (app *cli.App) {
 	app.Version = "0.1.0"
 	app.Flags = []cli.Flag{
 		cli.IntFlag{
-			Name: "dir-mode, d",
-			Usage: "Permissions bits for directories. (default: 0755)",
+			Name:        "dir-mode, d",
+			Usage:       "Permissions bits for directories. (default: 0755)",
 			HideDefault: true,
 		},
 		cli.IntFlag{
-			Name: "file-mode, f",
-			Value: 0644,
-			Usage: "Permission bits for files (default: 0644)",
+			Name:        "file-mode, f",
+			Value:       0644,
+			Usage:       "Permission bits for files (default: 0644)",
 			HideDefault: true,
 		},
 		cli.IntFlag{
-			Name: "gcs-chunk-size",
-			Value: 1<<24,
+			Name:  "gcs-chunk-size",
+			Value: 1 << 24,
 			Usage: "Max chunk size for loading GCS objects.",
 		},
 		cli.IntFlag{
-			Name: "gid",
-			Value: -1,
+			Name:        "gid",
+			Value:       -1,
 			HideDefault: true,
-			Usage: "GID owner of all inodes.",
+			Usage:       "GID owner of all inodes.",
 		},
 		cli.BoolFlag{
 			Name: "implicit-dirs",
 			Usage: "Implicitly define directories based on content. See" +
-			"docs/semantics.md",
+				"docs/semantics.md",
 		},
 		cli.Float64Flag{
-			Name: "limit-bytes-per-sec",
+			Name:  "limit-bytes-per-sec",
 			Value: -1,
 			Usage: "Bandwidth limit for reading data, measured over a 30-second " +
-			"window. (use -1 for no limit)",
+				"window. (use -1 for no limit)",
 		},
 		cli.Float64Flag{
-			Name: "limit-ops-per-sec",
+			Name:  "limit-ops-per-sec",
 			Value: 5.0,
 			Usage: "Operations per second limit, measured over a 30-second window " +
-			"(use -1 for no limit)",
+				"(use -1 for no limit)",
 		},
 		cli.StringFlag{
-			Name: "mount-options, o",
+			Name:        "mount-options, o",
 			HideDefault: true,
-			Usage: "Additional system-specific mount options. Be careful!",
+			Usage:       "Additional system-specific mount options. Be careful!",
 		},
 		cli.DurationFlag{
-			Name: "stat-cache-ttl",
+			Name:  "stat-cache-ttl",
 			Value: time.Minute,
 			Usage: "How long to cache StatObject results from GCS.",
 		},
 		cli.DurationFlag{
-			Name: "type-cache-ttl",
+			Name:  "type-cache-ttl",
 			Value: time.Minute,
 			Usage: "How long to cache name -> file/dir mappings in directory " +
-			"inodes.",
+				"inodes.",
 		},
 		cli.StringFlag{
-			Name: "temp-dir, t",
-			Value: "",
+			Name:        "temp-dir, t",
+			Value:       "",
 			HideDefault: true,
 			Usage: "Temporary directory for local GCS object copies. " +
-			"(default: system default, likely /tmp)",
+				"(default: system default, likely /tmp)",
 		},
 		cli.IntFlag{
-			Name: "temp-dir-bytes",
-			Value: 1<<31,
+			Name:  "temp-dir-bytes",
+			Value: 1 << 31,
 			Usage: "Size limit of the temporary directory.",
 		},
 		cli.IntFlag{
-			Name: "uid",
-			Value: -1,
+			Name:        "uid",
+			Value:       -1,
 			HideDefault: true,
-			Usage: "UID owner of all inodes.",
+			Usage:       "UID owner of all inodes.",
 		},
 		cli.BoolFlag{
-			Name: "help, h",
+			Name:  "help, h",
 			Usage: "print this help text",
 		},
 	}

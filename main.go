@@ -91,47 +91,47 @@ func main() {
 				os.Stderr,
 				"Error: %s takes exactly two arguments.\n",
 				app.Name)
-				cli.ShowAppHelp(c)
-				os.Exit(1)
-			}
-
-			// Populate and parse flags.
-			bucketName := c.Args()[0]
-			mountPoint := c.Args()[1]
-			flags := populateFlags(c)
-
-			// Grab the connection.
-			conn, err := getConn()
-			if err != nil {
-				log.Fatalf("getConn: %v", err)
-			}
-
-			// Mount the file system.
-			mfs, err := mount(
-				context.Background(),
-				bucketName,
-				mountPoint,
-				flags,
-				conn)
-
-				if err != nil {
-					log.Fatalf("Mounting file system: %v", err)
-				}
-
-				log.Println("File system has been successfully mounted.")
-
-				// Let the user unmount with Ctrl-C (SIGINT).
-				registerSIGINTHandler(mfs.Dir())
-
-				// Wait for the file system to be unmounted.
-				err = mfs.Join(context.Background())
-				if err != nil {
-					err = fmt.Errorf("MountedFileSystem.Join: %v", err)
-					return
-				}
-
-				log.Println("Successfully exiting.")
-			}
-
-			app.Run(os.Args)
+			cli.ShowAppHelp(c)
+			os.Exit(1)
 		}
+
+		// Populate and parse flags.
+		bucketName := c.Args()[0]
+		mountPoint := c.Args()[1]
+		flags := populateFlags(c)
+
+		// Grab the connection.
+		conn, err := getConn()
+		if err != nil {
+			log.Fatalf("getConn: %v", err)
+		}
+
+		// Mount the file system.
+		mfs, err := mount(
+			context.Background(),
+			bucketName,
+			mountPoint,
+			flags,
+			conn)
+
+		if err != nil {
+			log.Fatalf("Mounting file system: %v", err)
+		}
+
+		log.Println("File system has been successfully mounted.")
+
+		// Let the user unmount with Ctrl-C (SIGINT).
+		registerSIGINTHandler(mfs.Dir())
+
+		// Wait for the file system to be unmounted.
+		err = mfs.Join(context.Background())
+		if err != nil {
+			err = fmt.Errorf("MountedFileSystem.Join: %v", err)
+			return
+		}
+
+		log.Println("Successfully exiting.")
+	}
+
+	app.Run(os.Args)
+}
