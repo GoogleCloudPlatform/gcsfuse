@@ -125,7 +125,7 @@ func main() {
 		if len(c.Args()) != 2 {
 			fmt.Fprintf(
 				os.Stderr,
-				"Error: %s takes exactly two arguments.\n",
+				"Error: %s takes exactly two arguments.\n\n",
 				app.Name)
 			cli.ShowAppHelp(c)
 			os.Exit(1)
