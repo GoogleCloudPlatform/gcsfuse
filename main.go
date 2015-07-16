@@ -114,7 +114,6 @@ func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 ////////////////////////////////////////////////////////////////////////
 
 func main() {
-
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
@@ -170,5 +169,8 @@ func main() {
 		log.Println("Successfully exiting.")
 	}
 
-	app.Run(os.Args)
+	err := app.Run(os.Args)
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
