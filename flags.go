@@ -113,7 +113,7 @@ func getApp() (app *cli.App) {
 			},
 			cli.BoolFlag{
 				Name:  "help, h",
-				Usage: "print this help text",
+				Usage: "Print this help text and exit successfuly.",
 			},
 		},
 	}
