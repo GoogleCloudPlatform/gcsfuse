@@ -28,7 +28,7 @@ func getApp() (app *cli.App) {
 		Usage:         "Mount a GCS bucket locally",
 		ArgumentUsage: "bucket mountpoint",
 		HideHelp:      true,
-		Version:       "0.1.0",
+		HideVersion:   true,
 		Writer:        os.Stderr,
 		Flags: []cli.Flag{
 			cli.IntFlag{
