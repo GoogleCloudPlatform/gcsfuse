@@ -126,7 +126,7 @@ func main() {
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
-	app := getApp()
+	app := newApp()
 	app.Action = func(c *cli.Context) {
 		var err error
 

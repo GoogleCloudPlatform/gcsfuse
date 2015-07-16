@@ -22,7 +22,7 @@ import (
 	"github.com/jgeewax/cli"
 )
 
-func getApp() (app *cli.App) {
+func newApp() (app *cli.App) {
 	app = &cli.App{
 		Name:          "gcsfuse",
 		Usage:         "Mount a GCS bucket locally",
@@ -33,6 +33,7 @@ func getApp() (app *cli.App) {
 		Flags: []cli.Flag{
 			cli.IntFlag{
 				Name:        "dir-mode",
+				Value:       0755,
 				Usage:       "Permissions bits for directories. (default: 0755)",
 				HideDefault: true,
 			},

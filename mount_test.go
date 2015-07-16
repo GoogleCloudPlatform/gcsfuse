@@ -15,7 +15,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -33,6 +32,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"github.com/jgeewax/cli"
 )
 
 func TestMount(t *testing.T) { RunTests(t) }
@@ -77,9 +77,20 @@ func (t *MountTest) TearDown() {
 func (t *MountTest) mount(
 	bucketName string,
 	mountPoint string) (mfs *fuse.MountedFileSystem, err error) {
-	flags := populateFlagSet(new(flag.FlagSet))
+	// Create a CLI app, and abuse it to populate flag defaults.
+	app := newApp()
+	var flags *flagStorage
+	app.Action = func(appCtx *cli.Context) {
+		flags = populateFlags(appCtx)
+	}
 
+	err = app.Run([]string{"mount_test"})
+	AssertEq(nil, err)
+	AssertNe(nil, flags)
+
+	// Mount.
 	mfs, err = mount(t.ctx, bucketName, mountPoint, flags, t.conn)
+
 	return
 }
 
