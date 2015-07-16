@@ -22,7 +22,7 @@ import (
 	"github.com/jgeewax/cli"
 )
 
-func getApp() (app *cli.App) {
+func newApp() (app *cli.App) {
 	app = &cli.App{
 		Name:          "gcsfuse",
 		Usage:         "Mount a GCS bucket locally",
