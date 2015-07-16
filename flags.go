@@ -33,6 +33,7 @@ func newApp() (app *cli.App) {
 		Flags: []cli.Flag{
 			cli.IntFlag{
 				Name:        "dir-mode",
+				Value:       0755,
 				Usage:       "Permissions bits for directories. (default: 0755)",
 				HideDefault: true,
 			},
