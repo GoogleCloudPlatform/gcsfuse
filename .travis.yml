@@ -6,3 +6,7 @@ language: go
 go:
   - 1.4.2
   - tip
+
+# Use the virtualized Trusty beta Travis is running in order to get fuse support.
+# Cf. Personal communication from support@travis-ci.com.
+dist: trusty
