@@ -7,9 +7,12 @@ go:
   - 1.4.2
   - tip
 
-before_install:
-  - sudo apt-get install -qq fuse
-
-# Use the virtualized Trusty beta Travis is running in order to get fuse support.
+# Use the virtualized Trusty beta Travis is running in order to get support for
+# installing fuse.
+#
 # Cf. Personal communication from support@travis-ci.com.
 dist: trusty
+
+# Install fuse before installing our code.
+before_install:
+  - sudo apt-get install -qq fuse
