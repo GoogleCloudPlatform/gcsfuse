@@ -20,9 +20,9 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/googlecloudplatform/gcsfuse/ratelimit"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
+	"github.com/jacobsa/ratelimit"
 	"github.com/jacobsa/timeutil"
 )
 
