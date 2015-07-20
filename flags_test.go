@@ -35,6 +35,26 @@ func init() { RegisterTestSuite(&FlagsTest{}) }
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *FlagsTest) DoesFoo() {
+func (t *FlagsTest) Defaults() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlagsTest) Bools() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlagsTest) Integers() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlagsTest) Strings() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlagsTest) Durations() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlagsTest) Maps() {
 	AssertTrue(false, "TODO")
 }
