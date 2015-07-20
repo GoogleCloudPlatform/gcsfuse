@@ -176,8 +176,8 @@ func newApp() (app *cli.App) {
 type flagStorage struct {
 	// File system
 	MountOptions map[string]string
-	DirMode      uint
-	FileMode     uint
+	DirMode      os.FileMode
+	FileMode     os.FileMode
 	Uid          int64
 	Gid          int64
 	ImplicitDirs bool
@@ -207,8 +207,8 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 	flags = &flagStorage{
 		// File system
 		MountOptions: make(map[string]string),
-		DirMode:      uint(c.Int("dir-mode")),
-		FileMode:     uint(c.Int("file-mode")),
+		DirMode:      os.FileMode(c.Int("dir-mode")),
+		FileMode:     os.FileMode(c.Int("file-mode")),
 		Uid:          int64(c.Int("uid")),
 		Gid:          int64(c.Int("gid")),
 
