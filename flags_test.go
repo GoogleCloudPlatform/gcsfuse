@@ -172,7 +172,14 @@ func (t *FlagsTest) Strings() {
 }
 
 func (t *FlagsTest) Durations() {
-	AssertTrue(false, "TODO")
+	args := []string{
+		"--stat-cache-ttl", "1m17s",
+		"--type-cache-ttl", "19ns",
+	}
+
+	f := parseArgs(args)
+	ExpectEq(77*time.Second, f.StatCacheTTL)
+	ExpectEq(19*time.Nanosecond, f.TypeCacheTTL)
 }
 
 func (t *FlagsTest) Maps() {
