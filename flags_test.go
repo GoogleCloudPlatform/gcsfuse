@@ -137,8 +137,27 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugInvariants)
 }
 
-func (t *FlagsTest) Integers() {
-	AssertTrue(false, "TODO")
+func (t *FlagsTest) Numbers() {
+	args := []string{
+		"--dir-mode=0711",
+		"--file-mode", "0611",
+		"--uid=17",
+		"--gid=19",
+		"--limit-bytes-per-sec=123.4",
+		"--limit-ops-per-sec=56.78",
+		"--gcs-chunk-size=1000",
+		"--temp-dir-bytes=2000",
+	}
+
+	f := parseArgs(args)
+	ExpectEq(os.FileMode(0711), f.DirMode)
+	ExpectEq(os.FileMode(0611), f.FileMode)
+	ExpectEq(17, f.Uid)
+	ExpectEq(19, f.Gid)
+	ExpectEq(123.4, f.EgressBandwidthLimitBytesPerSecond)
+	ExpectEq(56.78, f.OpRateLimitHz)
+	ExpectEq(1000, f.GCSChunkSize)
+	ExpectEq(2000, f.TempDirLimit)
 }
 
 func (t *FlagsTest) Strings() {
