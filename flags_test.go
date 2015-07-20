@@ -17,9 +17,11 @@ package main
 import (
 	"fmt"
 	"os"
+	"sort"
 	"testing"
 	"time"
 
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jgeewax/cli"
 )
@@ -59,7 +61,9 @@ func (t *FlagsTest) Defaults() {
 	f := parseArgs([]string{})
 
 	// File system
+	ExpectNe(nil, f.MountOptions)
 	ExpectEq(0, len(f.MountOptions), "Options: %v", f.MountOptions)
+
 	ExpectEq(os.FileMode(0755), f.DirMode)
 	ExpectEq(os.FileMode(0644), f.FileMode)
 	ExpectEq(-1, f.Uid)
@@ -183,5 +187,23 @@ func (t *FlagsTest) Durations() {
 }
 
 func (t *FlagsTest) Maps() {
-	AssertTrue(false, "TODO")
+	args := []string{
+		"-o", "rw,nodev",
+		"-o", "user=jacobsa,noauto",
+	}
+
+	f := parseArgs(args)
+
+	var keys sort.StringSlice
+	for k := range f.MountOptions {
+		keys = append(keys, k)
+	}
+
+	sort.Sort(keys)
+	AssertThat(keys, ElementsAre("noauto", "nodev", "rw", "user"))
+
+	ExpectEq("", f.MountOptions["noauto"])
+	ExpectEq("", f.MountOptions["nodev"])
+	ExpectEq("", f.MountOptions["rw"])
+	ExpectEq("jacobsa", f.MountOptions["user"])
 }
