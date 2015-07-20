@@ -15,6 +15,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -85,7 +86,55 @@ func (t *FlagsTest) Defaults() {
 }
 
 func (t *FlagsTest) Bools() {
-	AssertTrue(false, "TODO")
+	names := []string{
+		"implicit-dirs",
+		"debug_fuse",
+		"debug_gcs",
+		"debug_http",
+		"debug_invariants",
+	}
+
+	var args []string
+	var f *flagStorage
+
+	// --foo form
+	args = nil
+	for _, n := range names {
+		args = append(args, fmt.Sprintf("-%s", n))
+	}
+
+	f = parseArgs(args)
+	ExpectTrue(f.ImplicitDirs)
+	ExpectTrue(f.DebugFuse)
+	ExpectTrue(f.DebugGCS)
+	ExpectTrue(f.DebugHTTP)
+	ExpectTrue(f.DebugInvariants)
+
+	// --foo=false form
+	args = nil
+	for _, n := range names {
+		args = append(args, fmt.Sprintf("-%s=false", n))
+	}
+
+	f = parseArgs(args)
+	ExpectFalse(f.ImplicitDirs)
+	ExpectFalse(f.DebugFuse)
+	ExpectFalse(f.DebugGCS)
+	ExpectFalse(f.DebugHTTP)
+	ExpectFalse(f.DebugInvariants)
+
+	// --foo=true form
+	args = nil
+	for _, n := range names {
+		args = append(args, fmt.Sprintf("-%s=true", n))
+	}
+
+	f = parseArgs(args)
+	ExpectTrue(f.ImplicitDirs)
+	ExpectTrue(f.DebugFuse)
+	ExpectTrue(f.DebugGCS)
+	ExpectTrue(f.DebugHTTP)
+	ExpectTrue(f.DebugInvariants)
 }
 
 func (t *FlagsTest) Integers() {
