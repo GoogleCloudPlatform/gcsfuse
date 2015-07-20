@@ -19,19 +19,19 @@ Debian and Ubuntu:
 
     sudo apt-get install wget fuse
     wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.3.0/gcsfuse_v0.3.0_linux_amd64.tar.gz
-    sudo tar -C /usr/local/bin zxvf gcsfuse_v0.3.0_linux_amd64.tar.gz
+    sudo tar -C /usr/local/bin -zxvf gcsfuse_v0.3.0_linux_amd64.tar.gz
 
 CentOS and Red Hat:
 
     sudo yum install wget fuse
     wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.3.0/gcsfuse_v0.3.0_linux_amd64.tar.gz
-    sudo tar -C /usr/local/bin zxvf gcsfuse_v0.3.0_linux_amd64.tar.gz
+    sudo tar -C /usr/local/bin -zxvf gcsfuse_v0.3.0_linux_amd64.tar.gz
 
 SUSE:
 
     sudo zypper install wget fuse
     wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.3.0/gcsfuse_v0.3.0_linux_amd64.tar.gz
-    sudo tar -C /usr/local/bin zxvf gcsfuse_v0.3.0_linux_amd64.tar.gz
+    sudo tar -C /usr/local/bin -zxvf gcsfuse_v0.3.0_linux_amd64.tar.gz
 
 
 ### OS X fast track
