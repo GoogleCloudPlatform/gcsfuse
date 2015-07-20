@@ -17,6 +17,7 @@ package main
 import (
 	"os"
 	"testing"
+	"time"
 
 	. "github.com/jacobsa/ogletest"
 	"github.com/jgeewax/cli"
@@ -57,7 +58,7 @@ func (t *FlagsTest) Defaults() {
 	f := parseArgs([]string{})
 
 	// File system
-	ExpectEq(0, len(f.MountOptions))
+	ExpectEq(0, len(f.MountOptions), "Options: %v", f.MountOptions)
 	ExpectEq(os.FileMode(0755), f.DirMode)
 	ExpectEq(os.FileMode(0644), f.FileMode)
 	ExpectEq(-1, f.Uid)
@@ -66,15 +67,15 @@ func (t *FlagsTest) Defaults() {
 
 	// GCS
 	ExpectEq("", f.KeyFile)
-	ExpectEq(0, f.EgressBandwidthLimitBytesPerSecond)
-	ExpectEq(0, f.OpRateLimitHz)
+	ExpectEq(-1, f.EgressBandwidthLimitBytesPerSecond)
+	ExpectEq(5, f.OpRateLimitHz)
 
 	// Tuning
-	ExpectEq(0, f.StatCacheTTL)
-	ExpectEq(0, f.TypeCacheTTL)
+	ExpectEq(time.Minute, f.StatCacheTTL)
+	ExpectEq(time.Minute, f.TypeCacheTTL)
 	ExpectEq(1<<24, f.GCSChunkSize)
 	ExpectEq("", f.TempDir)
-	ExpectEq(1<<30, f.TempDirLimit)
+	ExpectEq(1<<31, f.TempDirLimit)
 
 	// Debugging
 	ExpectFalse(f.DebugFuse)
