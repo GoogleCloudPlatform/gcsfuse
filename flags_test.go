@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	. "github.com/jacobsa/ogletest"
+	"github.com/jgeewax/cli"
 )
 
 func TestFlags(t *testing.T) { RunTests(t) }
@@ -33,7 +34,19 @@ type FlagsTest struct {
 func init() { RegisterTestSuite(&FlagsTest{}) }
 
 func parseArgs(args []string) (flags *flagStorage) {
-	panic("TODO")
+	// Create a CLI app, and abuse it to snoop on the flags.
+	app := newApp()
+	app.Action = func(appCtx *cli.Context) {
+		flags = populateFlags(appCtx)
+	}
+
+	// Simulate argv.
+	fullArgs := append([]string{"some_app"}, args...)
+
+	err := app.Run(fullArgs)
+	AssertEq(nil, err)
+
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
