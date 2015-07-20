@@ -61,6 +61,8 @@ do the following to install gcsfuse:
 
 *   Run `brew tap homebrew/fuse && brew install gcsfuse`.
 
+[osxfuse]: https://osxfuse.github.io/
+
 Otherwise, or if you want to install a pre-release version of gcsfuse, read the
 remainder of this document.
 
