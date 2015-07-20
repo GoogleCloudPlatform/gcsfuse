@@ -145,11 +145,7 @@ func parseArgs(
 
 		// Is this an options string following a "-o"?
 		case i > 0 && args[i-1] == "-o":
-			err = mount.ParseOptions(opts, s)
-			if err != nil {
-				err = fmt.Errorf("ParseOptions(%q): %v", s, err)
-				return
-			}
+			mount.ParseOptions(opts, s)
 
 		// Is this the device?
 		case positionalCount == 0:
