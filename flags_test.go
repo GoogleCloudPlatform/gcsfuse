@@ -15,6 +15,7 @@
 package main
 
 import (
+	"os"
 	"testing"
 
 	. "github.com/jacobsa/ogletest"
@@ -31,12 +32,42 @@ type FlagsTest struct {
 
 func init() { RegisterTestSuite(&FlagsTest{}) }
 
+func parseArgs(args []string) (flags *flagStorage) {
+	panic("TODO")
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
 func (t *FlagsTest) Defaults() {
-	AssertTrue(false, "TODO")
+	f := parseArgs([]string{})
+
+	// File system
+	ExpectEq(0, len(f.MountOptions))
+	ExpectEq(os.FileMode(0755), f.DirMode)
+	ExpectEq(os.FileMode(0644), f.FileMode)
+	ExpectEq(-1, f.Uid)
+	ExpectEq(-1, f.Gid)
+	ExpectFalse(f.ImplicitDirs)
+
+	// GCS
+	ExpectEq("", f.KeyFile)
+	ExpectEq(0, f.EgressBandwidthLimitBytesPerSecond)
+	ExpectEq(0, f.OpRateLimitHz)
+
+	// Tuning
+	ExpectEq(0, f.StatCacheTTL)
+	ExpectEq(0, f.TypeCacheTTL)
+	ExpectEq(1<<24, f.GCSChunkSize)
+	ExpectEq("", f.TempDir)
+	ExpectEq(1<<30, f.TempDirLimit)
+
+	// Debugging
+	ExpectFalse(f.DebugFuse)
+	ExpectFalse(f.DebugGCS)
+	ExpectFalse(f.DebugHTTP)
+	ExpectFalse(f.DebugInvariants)
 }
 
 func (t *FlagsTest) Bools() {
