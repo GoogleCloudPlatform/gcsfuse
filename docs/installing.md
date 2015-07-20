@@ -73,6 +73,9 @@ Prerequisites:
 *   Fuse. See the instructions for the binary release above.
 *   Git. This is probably available as `git` in your package manager.
 
+[go]: http://golang.org/
+[go-setup]: http://golang.org/doc/code.html
+
 To install or update gcsfuse, run:
 
     go get -u github.com/googlecloudplatform/gcsfuse
