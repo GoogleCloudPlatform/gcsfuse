@@ -41,10 +41,9 @@ func newApp() (app *cli.App) {
 			// File system
 			/////////////////////////
 
-			cli.StringFlag{
-				Name:        "o",
-				HideDefault: true,
-				Usage:       "Additional system-specific mount options. Be careful!",
+			cli.StringSliceFlag{
+				Name:  "o",
+				Usage: "Additional system-specific mount options. Be careful!",
 			},
 
 			cli.IntFlag{
@@ -232,7 +231,10 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		DebugInvariants: c.Bool("debug_invariants"),
 	}
 
-	mountpkg.OptionValue(flags.MountOptions).Set(c.String("mount-options"))
+	// Handle the repeated "-o" flag.
+	for _, o := range c.StringSlice("o") {
+		mountpkg.ParseOptions(flags.MountOptions, o)
+	}
 
 	return
 }
