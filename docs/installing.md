@@ -8,6 +8,32 @@ gcsfuse has been tested successfully with the following operating systems:
 
 It may or may not work correctly with other operating systems and older versions.
 
+
+### Linux fast track
+
+If you want to install the latest release of gcsfuse as a pre-built binary, you
+need only do the following to install its prerequisites and then fetch and
+extract `gcsfuse` and `gcsfuse_mount_helper`.
+
+Debian and Ubuntu:
+
+    sudo apt-get install wget fuse
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.3.0/gcsfuse_v0.3.0_linux_amd64.tar.gz
+    sudo tar -C /usr/local/bin zxvf gcsfuse_v0.3.0_linux_amd64.tar.gz
+
+CentOS and Red Hat:
+
+    sudo yum install wget fuse
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.3.0/gcsfuse_v0.3.0_linux_amd64.tar.gz
+    sudo tar -C /usr/local/bin zxvf gcsfuse_v0.3.0_linux_amd64.tar.gz
+
+SUSE:
+
+    sudo zypper install wget fuse
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.3.0/gcsfuse_v0.3.0_linux_amd64.tar.gz
+    sudo tar -C /usr/local/bin zxvf gcsfuse_v0.3.0_linux_amd64.tar.gz
+
+
 ### OS X fast track
 
 If you already have the [Homebrew package manager][homebrew] installed, you can
