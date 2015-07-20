@@ -174,24 +174,31 @@ func newApp() (app *cli.App) {
 }
 
 type flagStorage struct {
-	MountOptions                       map[string]string
-	Uid                                int64
-	Gid                                int64
-	FileMode                           uint
-	DirMode                            uint
-	TempDir                            string
-	TempDirLimit                       int64
-	GCSChunkSize                       uint64
-	ImplicitDirs                       bool
-	StatCacheTTL                       time.Duration
-	TypeCacheTTL                       time.Duration
-	OpRateLimitHz                      float64
-	EgressBandwidthLimitBytesPerSecond float64
+	// File system
+	MountOptions map[string]string
+	DirMode      uint
+	FileMode     uint
+	Uid          int64
+	Gid          int64
+	ImplicitDirs bool
+
+	// GCS
 	KeyFile                            string
-	DebugFuse                          bool
-	DebugGCS                           bool
-	DebugHTTP                          bool
-	DebugInvariants                    bool
+	EgressBandwidthLimitBytesPerSecond float64
+	OpRateLimitHz                      float64
+
+	// Tuning
+	StatCacheTTL time.Duration
+	TypeCacheTTL time.Duration
+	GCSChunkSize uint64
+	TempDir      string
+	TempDirLimit int64
+
+	// Debugging
+	DebugFuse       bool
+	DebugGCS        bool
+	DebugHTTP       bool
+	DebugInvariants bool
 }
 
 // Add the flags accepted by run to the supplied flag set, returning the
