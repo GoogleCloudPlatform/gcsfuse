@@ -205,24 +205,33 @@ type flagStorage struct {
 // variables into which the flags will parse.
 func populateFlags(c *cli.Context) (flags *flagStorage) {
 	flags = new(flagStorage)
+
+	// File system
 	flags.MountOptions = make(map[string]string)
 	mountpkg.OptionValue(flags.MountOptions).Set(c.String("mount-options"))
+	flags.DirMode = uint(c.Int("dir-mode"))
+	flags.FileMode = uint(c.Int("file-mode"))
 	flags.Uid = int64(c.Int("uid"))
 	flags.Gid = int64(c.Int("gid"))
-	flags.FileMode = uint(c.Int("file-mode"))
-	flags.DirMode = uint(c.Int("dir-mode"))
-	flags.TempDir = c.String("temp-dir")
-	flags.TempDirLimit = int64(c.Int("temp-dir-bytes"))
-	flags.GCSChunkSize = uint64(c.Int("gcs-chunk-size"))
-	flags.ImplicitDirs = c.Bool("implicit-dirs")
+
+	// GCS
+	flags.KeyFile = c.String("key-file")
+	flags.EgressBandwidthLimitBytesPerSecond = c.Float64("limit-bytes-per-sec")
+	flags.OpRateLimitHz = c.Float64("limit-ops-per-sec")
+
+	// Tuning
 	flags.StatCacheTTL = c.Duration("stat-cache-ttl")
 	flags.TypeCacheTTL = c.Duration("type-cache-ttl")
-	flags.OpRateLimitHz = c.Float64("limit-ops-per-sec")
-	flags.EgressBandwidthLimitBytesPerSecond = c.Float64("limit-bytes-per-sec")
-	flags.KeyFile = c.String("key-file")
+	flags.GCSChunkSize = uint64(c.Int("gcs-chunk-size"))
+	flags.TempDir = c.String("temp-dir")
+	flags.TempDirLimit = int64(c.Int("temp-dir-bytes"))
+	flags.ImplicitDirs = c.Bool("implicit-dirs")
+
+	// Debugging
 	flags.DebugFuse = c.Bool("debug_fuse")
 	flags.DebugGCS = c.Bool("debug_gcs")
 	flags.DebugHTTP = c.Bool("debug_http")
 	flags.DebugInvariants = c.Bool("debug_invariants")
+
 	return
 }
