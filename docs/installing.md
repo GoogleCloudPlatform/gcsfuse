@@ -1,6 +1,4 @@
 
-# Operating systems
-
 gcsfuse has been tested successfully with the following operating systems:
 
 *   Linux (minimum kernel version 3.10)
@@ -9,32 +7,48 @@ gcsfuse has been tested successfully with the following operating systems:
 It may or may not work correctly with other operating systems and older versions.
 
 
-### Linux fast track
+# Linux
 
-If you want to install the latest release of gcsfuse as a pre-built binary, you
-need only do the following to install its prerequisites and then fetch and
-extract `gcsfuse` and `gcsfuse_mount_helper`.
+If you are running Linux on a 64-bit x86 machine and are happy to install
+pre-built binaries (i.e. you don't want to build from source), you need only
+ensure fuse is installed and then download and extract the latest release. The
+instructions slightly vary by distribution.
 
-Debian and Ubuntu:
+## Debian and Ubuntu
 
     sudo apt-get install wget fuse
     wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.3.0/gcsfuse_v0.3.0_linux_amd64.tar.gz
     sudo tar -C /usr/local/bin -zxf gcsfuse_v0.3.0_linux_amd64.tar.gz
 
-CentOS and Red Hat:
+On old versions of Debian, including the one in the Google Compute Engine image
+`debian-7` as of 2015-07-20, `/dev/fuse` has incorrect permissions (cf.
+[this][stackexchange] StackExchange answer). Fix this with the following
+commands:
+
+```
+sudo chmod g+rw /dev/fuse
+sudo chgrp fuse /dev/fuse
+```
+
+Note that the operating system appears to periodically lose these changes, so
+you may need to run the workaround above repeatedly.
+
+[stackexchange]: http://superuser.com/a/800016/429161
+
+## CentOS and Red Hat
 
     sudo yum install wget fuse
     wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.3.0/gcsfuse_v0.3.0_linux_amd64.tar.gz
     sudo tar -C /usr/local/bin -zxf gcsfuse_v0.3.0_linux_amd64.tar.gz
 
-SUSE:
+## SUSE
 
     sudo zypper install wget fuse
     wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.3.0/gcsfuse_v0.3.0_linux_amd64.tar.gz
     sudo tar -C /usr/local/bin -zxf gcsfuse_v0.3.0_linux_amd64.tar.gz
 
 
-### OS X fast track
+# OS X
 
 If you already have the [Homebrew package manager][homebrew] installed, you can
 do the following to install gcsfuse:
