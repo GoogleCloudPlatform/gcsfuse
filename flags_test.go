@@ -161,7 +161,14 @@ func (t *FlagsTest) Numbers() {
 }
 
 func (t *FlagsTest) Strings() {
-	AssertTrue(false, "TODO")
+	args := []string{
+		"--key-file", "-asdf",
+		"--temp-dir=foobar",
+	}
+
+	f := parseArgs(args)
+	ExpectEq("-asdf", f.KeyFile)
+	ExpectEq("foobar", f.TempDir)
 }
 
 func (t *FlagsTest) Durations() {
