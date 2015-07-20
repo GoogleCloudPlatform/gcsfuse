@@ -42,7 +42,7 @@ func newApp() (app *cli.App) {
 			/////////////////////////
 
 			cli.StringFlag{
-				Name:        "mount-options, o",
+				Name:        "o",
 				HideDefault: true,
 				Usage:       "Additional system-specific mount options. Be careful!",
 			},
