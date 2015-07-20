@@ -204,34 +204,35 @@ type flagStorage struct {
 // Add the flags accepted by run to the supplied flag set, returning the
 // variables into which the flags will parse.
 func populateFlags(c *cli.Context) (flags *flagStorage) {
-	flags = new(flagStorage)
+	flags = &flagStorage{
+		// File system
+		MountOptions: make(map[string]string),
+		DirMode:      uint(c.Int("dir-mode")),
+		FileMode:     uint(c.Int("file-mode")),
+		Uid:          int64(c.Int("uid")),
+		Gid:          int64(c.Int("gid")),
 
-	// File system
-	flags.MountOptions = make(map[string]string)
+		// GCS,
+		KeyFile: c.String("key-file"),
+		EgressBandwidthLimitBytesPerSecond: c.Float64("limit-bytes-per-sec"),
+		OpRateLimitHz:                      c.Float64("limit-ops-per-sec"),
+
+		// Tuning,
+		StatCacheTTL: c.Duration("stat-cache-ttl"),
+		TypeCacheTTL: c.Duration("type-cache-ttl"),
+		GCSChunkSize: uint64(c.Int("gcs-chunk-size")),
+		TempDir:      c.String("temp-dir"),
+		TempDirLimit: int64(c.Int("temp-dir-bytes")),
+		ImplicitDirs: c.Bool("implicit-dirs"),
+
+		// Debugging,
+		DebugFuse:       c.Bool("debug_fuse"),
+		DebugGCS:        c.Bool("debug_gcs"),
+		DebugHTTP:       c.Bool("debug_http"),
+		DebugInvariants: c.Bool("debug_invariants"),
+	}
+
 	mountpkg.OptionValue(flags.MountOptions).Set(c.String("mount-options"))
-	flags.DirMode = uint(c.Int("dir-mode"))
-	flags.FileMode = uint(c.Int("file-mode"))
-	flags.Uid = int64(c.Int("uid"))
-	flags.Gid = int64(c.Int("gid"))
-
-	// GCS
-	flags.KeyFile = c.String("key-file")
-	flags.EgressBandwidthLimitBytesPerSecond = c.Float64("limit-bytes-per-sec")
-	flags.OpRateLimitHz = c.Float64("limit-ops-per-sec")
-
-	// Tuning
-	flags.StatCacheTTL = c.Duration("stat-cache-ttl")
-	flags.TypeCacheTTL = c.Duration("type-cache-ttl")
-	flags.GCSChunkSize = uint64(c.Int("gcs-chunk-size"))
-	flags.TempDir = c.String("temp-dir")
-	flags.TempDirLimit = int64(c.Int("temp-dir-bytes"))
-	flags.ImplicitDirs = c.Bool("implicit-dirs")
-
-	// Debugging
-	flags.DebugFuse = c.Bool("debug_fuse")
-	flags.DebugGCS = c.Bool("debug_gcs")
-	flags.DebugHTTP = c.Bool("debug_http")
-	flags.DebugInvariants = c.Bool("debug_invariants")
 
 	return
 }
