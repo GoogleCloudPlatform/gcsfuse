@@ -15,36 +15,7 @@
 // Helper functions for dealing with mount(8)-style flags.
 package mount
 
-import (
-	"flag"
-	"fmt"
-	"strings"
-)
-
-// Return a flag.Value that can be used to receive options in the format
-// accepted by mount(8) and generated for its external mount helpers, using
-// ParseOptions to parse and insert into the supplied map.
-func OptionValue(m map[string]string) (v flag.Value) {
-	if m == nil {
-		panic("m must be non-nil.")
-	}
-
-	v = &optionFlag{m}
-	return
-}
-
-type optionFlag struct {
-	opts map[string]string
-}
-
-func (of *optionFlag) String() string {
-	return fmt.Sprint(of.opts)
-}
-
-func (of *optionFlag) Set(s string) (err error) {
-	err = ParseOptions(of.opts, s)
-	return
-}
+import "strings"
 
 // Parse an option string in the format accepted by mount(8) and generated for
 // its external mount helpers.
@@ -63,7 +34,7 @@ func (of *optionFlag) Set(s string) (err error) {
 //     "foo": "bar=baz",
 //     "qux": "",
 //
-func ParseOptions(m map[string]string, s string) (err error) {
+func ParseOptions(m map[string]string, s string) {
 	// NOTE(jacobsa): The man pages don't define how escaping works, and as far
 	// as I can tell there is no way to properly escape or quote a comma in the
 	// options list for an fstab entry. So put our fingers in our ears and hope
