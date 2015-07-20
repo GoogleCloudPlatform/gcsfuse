@@ -21,27 +21,8 @@ surprising behaviors. The list of [open issues][issues] may also be of interest.
 
 See [installing.md][] for full installation instructions for Linux and Mac OS X.
 
-The basic installation steps are:
-
-1. Install Go
-1. Install fuse
-1. Install git
-
-and then:
-
-```
-go get github.com/googlecloudplatform/gcsfuse
-```
-
-This will fetch the gcsfuse sources, build them, and install a binary named
-`gcsfuse` to `$GOPATH/bin`. If you ever need to update to the latest version of
-gcsfuse, you can do so with:
-
-```
-go get -u github.com/googlecloudplatform/gcsfuse
-```
-
 [installing.md]: docs/installing.md
+
 
 # Mounting
 
