@@ -72,7 +72,19 @@ func percentile(
 }
 
 func formatBytes(v float64) string {
-	return "TODO"
+	switch {
+	case v >= 1<<30:
+		return fmt.Sprintf("%.2f GiB", v/(1<<30))
+
+	case v >= 1<<20:
+		return fmt.Sprintf("%.2f MiB", v/(1<<20))
+
+	case v >= 1<<10:
+		return fmt.Sprintf("%.2f KiB", v/(1<<10))
+
+	default:
+		return fmt.Sprintf("%.2f bytes", v)
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
