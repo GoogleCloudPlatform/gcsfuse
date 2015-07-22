@@ -83,19 +83,23 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq(1<<31, f.TempDirLimit)
 
 	// Debugging
+	ExpectFalse(f.DebugCPUProfile)
 	ExpectFalse(f.DebugFuse)
 	ExpectFalse(f.DebugGCS)
 	ExpectFalse(f.DebugHTTP)
 	ExpectFalse(f.DebugInvariants)
+	ExpectFalse(f.DebugMemProfile)
 }
 
 func (t *FlagsTest) Bools() {
 	names := []string{
 		"implicit-dirs",
+		"debug_cpu_profile",
 		"debug_fuse",
 		"debug_gcs",
 		"debug_http",
 		"debug_invariants",
+		"debug_mem_profile",
 	}
 
 	var args []string
@@ -109,10 +113,12 @@ func (t *FlagsTest) Bools() {
 
 	f = parseArgs(args)
 	ExpectTrue(f.ImplicitDirs)
+	ExpectTrue(f.DebugCPUProfile)
 	ExpectTrue(f.DebugFuse)
 	ExpectTrue(f.DebugGCS)
 	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
+	ExpectTrue(f.DebugMemProfile)
 
 	// --foo=false form
 	args = nil

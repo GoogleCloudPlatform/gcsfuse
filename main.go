@@ -20,6 +20,9 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime/pprof"
+	"syscall"
+	"time"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -52,6 +55,87 @@ func registerSIGINTHandler(mountPoint string) {
 			} else {
 				log.Printf("Successfully unmounted in response to SIGINT.")
 				return
+			}
+		}
+	}()
+}
+
+// Dump profiles on SIGHUP, if enabled.
+func registerSIGHUPHandler(cpu bool, mem bool) {
+	var desc string
+	switch {
+	case cpu && mem:
+		desc = "CPU and memory profiles"
+
+	case cpu:
+		desc = "CPU profile"
+
+	case mem:
+		desc = "memory profile"
+
+	default:
+		return
+	}
+
+	const duration = 10 * time.Second
+	profileOnce := func() (err error) {
+		// CPU
+		if cpu {
+			var f *os.File
+			f, err = os.Create("/tmp/cpu.pprof")
+			if err != nil {
+				err = fmt.Errorf("Create: %v", err)
+				return
+			}
+
+			defer func() {
+				closeErr := f.Close()
+				if err == nil {
+					err = closeErr
+				}
+			}()
+
+			pprof.StartCPUProfile(f)
+			defer pprof.StopCPUProfile()
+		}
+
+		// Memory
+		if mem {
+			var f *os.File
+			f, err = os.Create("/tmp/mem.pprof")
+			if err != nil {
+				err = fmt.Errorf("Create: %v", err)
+				return
+			}
+
+			defer func() {
+				closeErr := f.Close()
+				if err == nil {
+					err = closeErr
+				}
+			}()
+
+			defer func() {
+				pprof.Lookup("heap").WriteTo(f, 0)
+			}()
+		}
+
+		time.Sleep(duration)
+		return
+	}
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGHUP)
+
+	// Wait for SIGHUP in the background.
+	go func() {
+		for {
+			<-c
+			log.Printf("Received SIGHUP. Dumping %s to /tmp...", desc)
+			if err := profileOnce(); err != nil {
+				log.Printf("Error profiling: %v", err)
+			} else {
+				log.Println("Done profiling.")
 			}
 		}
 	}()
@@ -149,6 +233,9 @@ func main() {
 		if flags.DebugInvariants {
 			syncutil.EnableInvariantChecking()
 		}
+
+		// Enable profiling if requested.
+		registerSIGHUPHandler(flags.DebugCPUProfile, flags.DebugMemProfile)
 
 		// Grab the connection.
 		conn, err := getConn(flags)

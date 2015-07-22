@@ -148,6 +148,11 @@ func newApp() (app *cli.App) {
 			/////////////////////////
 
 			cli.BoolFlag{
+				Name:  "debug_cpu_profile",
+				Usage: "Write a 10-second CPU profile to /tmp on SIGHUP.",
+			},
+
+			cli.BoolFlag{
 				Name:  "debug_fuse",
 				Usage: "Enable fuse-related debugging output.",
 			},
@@ -165,6 +170,11 @@ func newApp() (app *cli.App) {
 			cli.BoolFlag{
 				Name:  "debug_invariants",
 				Usage: "Panic when internal invariants are violated.",
+			},
+
+			cli.BoolFlag{
+				Name:  "debug_mem_profile",
+				Usage: "Write a 10-second memory profile to /tmp on SIGHUP.",
 			},
 		},
 	}
@@ -194,10 +204,12 @@ type flagStorage struct {
 	TempDirLimit int64
 
 	// Debugging
+	DebugCPUProfile bool
 	DebugFuse       bool
 	DebugGCS        bool
 	DebugHTTP       bool
 	DebugInvariants bool
+	DebugMemProfile bool
 }
 
 // Add the flags accepted by run to the supplied flag set, returning the
@@ -225,10 +237,12 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		ImplicitDirs: c.Bool("implicit-dirs"),
 
 		// Debugging,
+		DebugCPUProfile: c.Bool("debug_cpu_profile"),
 		DebugFuse:       c.Bool("debug_fuse"),
 		DebugGCS:        c.Bool("debug_gcs"),
 		DebugHTTP:       c.Bool("debug_http"),
 		DebugInvariants: c.Bool("debug_invariants"),
+		DebugMemProfile: c.Bool("debug_mem_profile"),
 	}
 
 	// Handle the repeated "-o" flag.
