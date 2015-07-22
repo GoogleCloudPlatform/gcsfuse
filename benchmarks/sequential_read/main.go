@@ -16,9 +16,25 @@
 // reading sequentially within it.
 package main
 
-import "os"
+import (
+	"errors"
+	"flag"
+	"fmt"
+	"os"
+)
+
+var fFileSize = flag.Int("file_size", 1<<20, "Size of file to use.")
+var fReadSize = flag.Int("read_size", 1<<14, "Size of each call to read(2).")
+
+func run() (err error) {
+	err = errors.New("TODO")
+	return
+}
 
 func main() {
-	// TODO
-	os.Exit(1)
+	err := run()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }
