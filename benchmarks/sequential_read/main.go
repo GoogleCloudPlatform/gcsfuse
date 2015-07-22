@@ -29,12 +29,55 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"sort"
 	"time"
 )
 
 var fDir = flag.String("dir", "", "Directory within which to write the file.")
 var fFileSize = flag.Int64("file_size", 1<<20, "Size of file to use.")
 var fReadSize = flag.Int("read_size", 1<<14, "Size of each call to read(2).")
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+type DurationSlice []time.Duration
+
+func (p DurationSlice) Len() int           { return len(p) }
+func (p DurationSlice) Less(i, j int) bool { return p[i] < p[j] }
+func (p DurationSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
+// REQUIRES: vals is sorted.
+// REQUIRES: len(vals) > 0
+// REQUIRES: 0 <= n <= 100
+func percentile(
+	vals DurationSlice,
+	n int) (x time.Duration) {
+	// Special cases.
+	switch {
+	case n == 0:
+		x = vals[0]
+		return
+
+	case n == 100:
+		x = vals[len(vals)-1]
+		return
+	}
+
+	// Find the nearest, truncating (why not).
+	index := int((float64(n) / 100) * float64(len(vals)))
+	x = vals[index]
+
+	return
+}
+
+func formatBytes(v float64) string {
+	return "TODO"
+}
+
+////////////////////////////////////////////////////////////////////////
+// main logic
+////////////////////////////////////////////////////////////////////////
 
 func run() (err error) {
 	if *fDir == "" {
@@ -78,11 +121,11 @@ func run() (err error) {
 	const duration = 5 * time.Second
 	log.Printf("Measuring for %v...", duration)
 
-	var observations []time.Duration
+	var observations DurationSlice
 	buf := make([]byte, *fReadSize)
 
 	overallStartTime := time.Now()
-	for time.Since(overallStartTime) < duration {
+	for len(observations) == 0 || time.Since(overallStartTime) < duration {
 		// Open the file for reading.
 		f, err = os.Open(path)
 		if err != nil {
@@ -116,7 +159,24 @@ func run() (err error) {
 		}
 	}
 
-	err = errors.New("TODO")
+	sort.Sort(observations)
+
+	// Report.
+	fmt.Println("Full-file read times:")
+
+	ptiles := []int{50, 90, 98}
+	for _, ptile := range ptiles {
+		d := percentile(observations, ptile)
+		seconds := float64(d) / float64(time.Second)
+		bandwidthBytesPerSec := float64(*fFileSize) / seconds
+
+		fmt.Printf(
+			"  %02dth ptile: %8v (%s/s)\n",
+			ptile,
+			d,
+			formatBytes(bandwidthBytesPerSec))
+	}
+
 	return
 }
 
