@@ -12,26 +12,118 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Write out a file, close it, re-open it, then measure the performance of
-// reading sequentially within it.
+// Write out a file of a certain size, close it, then measure the performance
+// of doing the following:
+//
+// 1.  Open the file.
+// 2.  Read it from start to end with a configurable buffer size.
+//
 package main
 
 import (
+	"crypto/rand"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
 	"os"
+	"time"
 )
 
-var fFileSize = flag.Int("file_size", 1<<20, "Size of file to use.")
+var fDir = flag.String("dir", "", "Directory within which to write the file.")
+var fFileSize = flag.Int64("file_size", 1<<20, "Size of file to use.")
 var fReadSize = flag.Int("read_size", 1<<14, "Size of each call to read(2).")
 
 func run() (err error) {
+	if *fDir == "" {
+		err = errors.New("You must set --dir.")
+		return
+	}
+
+	// Create a temporary file.
+	log.Printf("Creating a temporary file in %s.", *fDir)
+
+	f, err := ioutil.TempFile(*fDir, "sequential_read")
+	if err != nil {
+		err = fmt.Errorf("TempFile: %v", err)
+		return
+	}
+
+	path := f.Name()
+
+	// Make sure we clean it up later.
+	defer func() {
+		log.Printf("Deleting %s.", path)
+		os.Remove(path)
+	}()
+
+	// Fill it with random content.
+	log.Printf("Writing %d random bytes.", *fFileSize)
+	_, err = io.Copy(f, io.LimitReader(rand.Reader, *fFileSize))
+	if err != nil {
+		err = fmt.Errorf("Copying random bytes: %v", err)
+		return
+	}
+
+	// Finish off the file.
+	err = f.Close()
+	if err != nil {
+		err = fmt.Errorf("Closing file: %v", err)
+		return
+	}
+
+	// Run several iterations.
+	const duration = 5 * time.Second
+	log.Printf("Measuring for %v...", duration)
+
+	var observations []time.Duration
+	buf := make([]byte, *fReadSize)
+
+	overallStartTime := time.Now()
+	for time.Since(overallStartTime) < duration {
+		// Open the file for reading.
+		f, err = os.Open(path)
+		if err != nil {
+			err = fmt.Errorf("Opening file: %v", err)
+			return
+		}
+
+		// Read the whole thing.
+		readStartTime := time.Now()
+		for err == nil {
+			_, err = f.Read(buf)
+		}
+
+		readDuration := time.Since(readStartTime)
+		observations = append(observations, readDuration)
+
+		switch {
+		case err == io.EOF:
+			err = nil
+
+		case err != nil:
+			err = fmt.Errorf("Reading: %v", err)
+			return
+		}
+
+		// Close the file.
+		err = f.Close()
+		if err != nil {
+			err = fmt.Errorf("Closing file after reading: %v", err)
+			return
+		}
+	}
+
 	err = errors.New("TODO")
 	return
 }
 
 func main() {
+	log.SetFlags(log.Lmicroseconds | log.Lshortfile)
+	flag.Parse()
+
 	err := run()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
