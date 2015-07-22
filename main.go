@@ -131,7 +131,7 @@ func registerSIGHUPHandler(cpu bool, mem bool) {
 	go func() {
 		for {
 			<-c
-			log.Println("Received SIGHUP. Dumping %s to /tmp...", desc)
+			log.Printf("Received SIGHUP. Dumping %s to /tmp...", desc)
 			if err := profileOnce(); err != nil {
 				log.Printf("Error profiling: %v", err)
 			} else {
