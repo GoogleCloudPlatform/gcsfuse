@@ -176,6 +176,11 @@ func run() (err error) {
 	sort.Sort(fullFileRead)
 	sort.Sort(singleReadCall)
 
+	log.Printf(
+		"Read the file %d times, using %d calls to read(2).",
+		len(fullFileRead),
+		len(singleReadCall))
+
 	// Report.
 	ptiles := []int{50, 90, 98}
 
