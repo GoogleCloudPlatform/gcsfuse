@@ -133,11 +133,12 @@ func run() (err error) {
 	const duration = 5 * time.Second
 	log.Printf("Measuring for %v...", duration)
 
-	var observations DurationSlice
+	var fullFileRead DurationSlice
+	var singleReadCall DurationSlice
 	buf := make([]byte, *fReadSize)
 
 	overallStartTime := time.Now()
-	for len(observations) == 0 || time.Since(overallStartTime) < duration {
+	for len(fullFileRead) == 0 || time.Since(overallStartTime) < duration {
 		// Open the file for reading.
 		f, err = os.Open(path)
 		if err != nil {
@@ -146,13 +147,14 @@ func run() (err error) {
 		}
 
 		// Read the whole thing.
-		readStartTime := time.Now()
+		fileStartTime := time.Now()
 		for err == nil {
+			readStartTime := time.Now()
 			_, err = f.Read(buf)
+			singleReadCall = append(singleReadCall, time.Since(readStartTime))
 		}
 
-		readDuration := time.Since(readStartTime)
-		observations = append(observations, readDuration)
+		fullFileRead = append(fullFileRead, time.Since(fileStartTime))
 
 		switch {
 		case err == io.EOF:
@@ -171,23 +173,31 @@ func run() (err error) {
 		}
 	}
 
-	sort.Sort(observations)
+	sort.Sort(fullFileRead)
+	sort.Sort(singleReadCall)
 
 	// Report.
-	fmt.Println("Full-file read times:")
-
 	ptiles := []int{50, 90, 98}
-	for _, ptile := range ptiles {
-		d := percentile(observations, ptile)
-		seconds := float64(d) / float64(time.Second)
-		bandwidthBytesPerSec := float64(*fFileSize) / seconds
 
-		fmt.Printf(
-			"  %02dth ptile: %10v (%s/s)\n",
-			ptile,
-			d,
-			formatBytes(bandwidthBytesPerSec))
+	reportSlice := func(name string, observations DurationSlice) {
+		fmt.Printf("\n%s:\n", name)
+		for _, ptile := range ptiles {
+			d := percentile(observations, ptile)
+			seconds := float64(d) / float64(time.Second)
+			bandwidthBytesPerSec := float64(*fFileSize) / seconds
+
+			fmt.Printf(
+				"  %02dth ptile: %10v (%s/s)\n",
+				ptile,
+				d,
+				formatBytes(bandwidthBytesPerSec))
+		}
 	}
+
+	reportSlice("Full-file read times", fullFileRead)
+	reportSlice("read(2) latencies", singleReadCall)
+
+	fmt.Println()
 
 	return
 }
