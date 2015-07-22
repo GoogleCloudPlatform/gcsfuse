@@ -34,6 +34,7 @@ import (
 )
 
 var fDir = flag.String("dir", "", "Directory within which to write the file.")
+var fDuration = flag.Duration("duration", 5*time.Second, "How long to run.")
 var fFileSize = flag.Int64("file_size", 1<<20, "Size of file to use.")
 var fReadSize = flag.Int64("read_size", 1<<14, "Size of each call to read(2).")
 
@@ -130,15 +131,14 @@ func run() (err error) {
 	}
 
 	// Run several iterations.
-	const duration = 5 * time.Second
-	log.Printf("Measuring for %v...", duration)
+	log.Printf("Measuring for %v...", *fDuration)
 
 	var fullFileRead DurationSlice
 	var singleReadCall DurationSlice
 	buf := make([]byte, *fReadSize)
 
 	overallStartTime := time.Now()
-	for len(fullFileRead) == 0 || time.Since(overallStartTime) < duration {
+	for len(fullFileRead) == 0 || time.Since(overallStartTime) < *fDuration {
 		// Open the file for reading.
 		f, err = os.Open(path)
 		if err != nil {
