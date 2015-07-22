@@ -35,7 +35,7 @@ import (
 
 var fDir = flag.String("dir", "", "Directory within which to write the file.")
 var fFileSize = flag.Int64("file_size", 1<<20, "Size of file to use.")
-var fReadSize = flag.Int("read_size", 1<<14, "Size of each call to read(2).")
+var fReadSize = flag.Int64("read_size", 1<<14, "Size of each call to read(2).")
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -179,12 +179,15 @@ func run() (err error) {
 	// Report.
 	ptiles := []int{50, 90, 98}
 
-	reportSlice := func(name string, observations DurationSlice) {
+	reportSlice := func(
+		name string,
+		bytesPerObservation int64,
+		observations DurationSlice) {
 		fmt.Printf("\n%s:\n", name)
 		for _, ptile := range ptiles {
 			d := percentile(observations, ptile)
 			seconds := float64(d) / float64(time.Second)
-			bandwidthBytesPerSec := float64(*fFileSize) / seconds
+			bandwidthBytesPerSec := float64(bytesPerObservation) / seconds
 
 			fmt.Printf(
 				"  %02dth ptile: %10v (%s/s)\n",
@@ -194,8 +197,8 @@ func run() (err error) {
 		}
 	}
 
-	reportSlice("Full-file read times", fullFileRead)
-	reportSlice("read(2) latencies", singleReadCall)
+	reportSlice("Full-file read times", *fFileSize, fullFileRead)
+	reportSlice("read(2) latencies", *fReadSize, singleReadCall)
 
 	fmt.Println()
 
