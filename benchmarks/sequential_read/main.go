@@ -171,7 +171,7 @@ func run() (err error) {
 		bandwidthBytesPerSec := float64(*fFileSize) / seconds
 
 		fmt.Printf(
-			"  %02dth ptile: %8v (%s/s)\n",
+			"  %02dth ptile: %10v (%s/s)\n",
 			ptile,
 			d,
 			formatBytes(bandwidthBytesPerSec))
