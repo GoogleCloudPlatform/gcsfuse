@@ -71,12 +71,15 @@ remainder of this document.
 
 Prerequisites:
 
-*   A working [Go][go] installation. See the Go [setup instructions][go-setup].
+*   A working [Go][go] installation at least as new as [commit
+    183cc0c][183cc0c]. See [Installing Go from source][go-setup].
 *   Fuse. See the instructions for the binary release above.
 *   Git. This is probably available as `git` in your package manager.
 
-[go]: http://golang.org/
-[go-setup]: http://golang.org/doc/code.html
+Because we use the [Go 1.5 vendoring support][183cc0c], you must ensure that
+the appropriate variable is set in your environment:
+
+    export GO15VENDOREXPERIMENT=1
 
 To install or update gcsfuse, run:
 
@@ -85,3 +88,7 @@ To install or update gcsfuse, run:
 This will fetch the gcsfuse sources to
 `$GOPATH/src/github.com/googlecloudplatform/gcsfuse`, build them, and install a
 binary named `gcsfuse` to `$GOPATH/bin`.
+
+[go]: http://tip.golang.org/doc/install/source
+[183cc0c]: https://github.com/golang/go/commit/183cc0c
+[go-setup]: http://golang.org/doc/code.html
