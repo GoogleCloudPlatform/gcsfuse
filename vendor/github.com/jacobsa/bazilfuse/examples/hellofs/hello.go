@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/jacobsa/bazilfuse"
+	fuse "github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/bazilfuse/fs"
 	_ "github.com/jacobsa/bazilfuse/fs/fstestutil"
 	"golang.org/x/net/context"

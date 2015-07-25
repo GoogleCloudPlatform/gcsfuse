@@ -4,7 +4,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/jacobsa/bazilfuse"
+	fuse "github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/bazilfuse/fs"
 	"golang.org/x/net/context"
 )
