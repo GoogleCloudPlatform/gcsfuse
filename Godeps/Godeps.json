@@ -1,0 +1,87 @@
+{
+	"ImportPath": "github.com/googlecloudplatform/gcsfuse",
+	"GoVersion": "devel",
+	"Deps": [
+		{
+			"ImportPath": "github.com/jacobsa/bazilfuse",
+			"Rev": "acdff6392cccfe82c90be21caecd7a8d615035fa"
+		},
+		{
+			"ImportPath": "github.com/jacobsa/fuse",
+			"Rev": "3755e07da2a399b3468b895c087047a23d5df488"
+		},
+		{
+			"ImportPath": "github.com/jacobsa/gcloud/gcs",
+			"Rev": "0f22d36b0bb5233dd3fb50a46edd610c3a8287d6"
+		},
+		{
+			"ImportPath": "github.com/jacobsa/gcloud/httputil",
+			"Rev": "0f22d36b0bb5233dd3fb50a46edd610c3a8287d6"
+		},
+		{
+			"ImportPath": "github.com/jacobsa/oglematchers",
+			"Rev": "141901ea67cd4769c6800aa7bfdfc558fa22bda5"
+		},
+		{
+			"ImportPath": "github.com/jacobsa/oglemock",
+			"Rev": "b320e9d68125bec1159ac587792648ff06eaa2cc"
+		},
+		{
+			"ImportPath": "github.com/jacobsa/ogletest",
+			"Rev": "4e03a8595ea739995b62c031bf15e228fd1ee4ed"
+		},
+		{
+			"ImportPath": "github.com/jacobsa/ratelimit",
+			"Rev": "2ca5e0c92d8ad1dbcd55e6fefab799e28ee2558c"
+		},
+		{
+			"ImportPath": "github.com/jacobsa/reqtrace",
+			"Rev": "245c9e0234cb2ad542483a336324e982f1a22934"
+		},
+		{
+			"ImportPath": "github.com/jacobsa/syncutil",
+			"Rev": "bcec119027cd5d9dba5061cc3180e382f608ef47"
+		},
+		{
+			"ImportPath": "github.com/jacobsa/timeutil",
+			"Rev": "1999930e87ddbd73a184f26ed202ec52d5a7c4aa"
+		},
+		{
+			"ImportPath": "github.com/jacobsa/util/lrucache",
+			"Rev": "459ffc8a6aae5c79645c04b6b78a6a4d7b194897"
+		},
+		{
+			"ImportPath": "github.com/jgeewax/cli",
+			"Comment": "1.2.0-137-g0f30958",
+			"Rev": "0f30958b14cb460d9d387a88726d95318e367c21"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "b71143c25f0aad5f54981684b715686d34c56d25"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2",
+			"Rev": "8914e5017ca260f2a3a1575b1e6868874050d95e"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/unix",
+			"Rev": "2c41184ab06eccc97422cbfe2bdc670baee1f10b"
+		},
+		{
+			"ImportPath": "google.golang.org/api/googleapi",
+			"Rev": "a0c5ebc6c9ab3c0233f7450ac275e9159d50ddd3"
+		},
+		{
+			"ImportPath": "google.golang.org/api/storage/v1",
+			"Rev": "a0c5ebc6c9ab3c0233f7450ac275e9159d50ddd3"
+		},
+		{
+			"ImportPath": "google.golang.org/cloud/compute/metadata",
+			"Rev": "ba8c164c61c2272593e43e88d33d5e7b6be4133b"
+		},
+		{
+			"ImportPath": "google.golang.org/cloud/internal",
+			"Rev": "ba8c164c61c2272593e43e88d33d5e7b6be4133b"
+		}
+	]
+}
