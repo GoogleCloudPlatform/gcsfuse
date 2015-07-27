@@ -892,6 +892,7 @@ func (fs *fileSystem) Destroy() {
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) LookUpInode(
+	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
 	// Find the parent directory in question.
 	fs.mu.Lock()
@@ -899,7 +900,7 @@ func (fs *fileSystem) LookUpInode(
 	fs.mu.Unlock()
 
 	// Find or create the child inode.
-	child, err := fs.lookUpOrCreateChildInode(op.Context(), parent, op.Name)
+	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
 	if err != nil {
 		return
 	}
@@ -908,7 +909,7 @@ func (fs *fileSystem) LookUpInode(
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
-	if op.Entry.Attributes, err = child.Attributes(op.Context()); err != nil {
+	if op.Entry.Attributes, err = child.Attributes(ctx); err != nil {
 		return
 	}
 
@@ -917,6 +918,7 @@ func (fs *fileSystem) LookUpInode(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) GetInodeAttributes(
+	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
@@ -927,7 +929,7 @@ func (fs *fileSystem) GetInodeAttributes(
 	defer in.Unlock()
 
 	// Grab its attributes.
-	op.Attributes, err = in.Attributes(op.Context())
+	op.Attributes, err = in.Attributes(ctx)
 	if err != nil {
 		return
 	}
@@ -937,6 +939,7 @@ func (fs *fileSystem) GetInodeAttributes(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) SetInodeAttributes(
+	ctx context.Context,
 	op *fuseops.SetInodeAttributesOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
@@ -960,14 +963,14 @@ func (fs *fileSystem) SetInodeAttributes(
 
 	// Set the size, if specified.
 	if op.Size != nil {
-		if err = file.Truncate(op.Context(), int64(*op.Size)); err != nil {
+		if err = file.Truncate(ctx, int64(*op.Size)); err != nil {
 			err = fmt.Errorf("Truncate: %v", err)
 			return
 		}
 	}
 
 	// Fill in the response.
-	op.Attributes, err = in.Attributes(op.Context())
+	op.Attributes, err = in.Attributes(ctx)
 	if err != nil {
 		return
 	}
@@ -977,6 +980,7 @@ func (fs *fileSystem) SetInodeAttributes(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ForgetInode(
+	ctx context.Context,
 	op *fuseops.ForgetInodeOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
@@ -995,6 +999,7 @@ func (fs *fileSystem) ForgetInode(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) MkDir(
+	ctx context.Context,
 	op *fuseops.MkDirOp) (err error) {
 	// Find the parent.
 	fs.mu.Lock()
@@ -1004,7 +1009,7 @@ func (fs *fileSystem) MkDir(
 	// Create an empty backing object for the child, failing if it already
 	// exists.
 	parent.Lock()
-	o, err := parent.CreateChildDir(op.Context(), op.Name)
+	o, err := parent.CreateChildDir(ctx, op.Name)
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
@@ -1033,7 +1038,7 @@ func (fs *fileSystem) MkDir(
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
-	op.Entry.Attributes, err = child.Attributes(op.Context())
+	op.Entry.Attributes, err = child.Attributes(ctx)
 
 	if err != nil {
 		err = fmt.Errorf("Attributes: %v", err)
@@ -1045,6 +1050,7 @@ func (fs *fileSystem) MkDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) CreateFile(
+	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {
 	// Find the parent.
 	fs.mu.Lock()
@@ -1054,7 +1060,7 @@ func (fs *fileSystem) CreateFile(
 	// Create an empty backing object for the child, failing if it already
 	// exists.
 	parent.Lock()
-	o, err := parent.CreateChildFile(op.Context(), op.Name)
+	o, err := parent.CreateChildFile(ctx, op.Name)
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
@@ -1083,7 +1089,7 @@ func (fs *fileSystem) CreateFile(
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
-	op.Entry.Attributes, err = child.Attributes(op.Context())
+	op.Entry.Attributes, err = child.Attributes(ctx)
 
 	if err != nil {
 		err = fmt.Errorf("Attributes: %v", err)
@@ -1095,6 +1101,7 @@ func (fs *fileSystem) CreateFile(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) CreateSymlink(
+	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) (err error) {
 	// Find the parent.
 	fs.mu.Lock()
@@ -1103,7 +1110,7 @@ func (fs *fileSystem) CreateSymlink(
 
 	// Create the object in GCS, failing if it already exists.
 	parent.Lock()
-	o, err := parent.CreateChildSymlink(op.Context(), op.Name, op.Target)
+	o, err := parent.CreateChildSymlink(ctx, op.Name, op.Target)
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
@@ -1132,7 +1139,7 @@ func (fs *fileSystem) CreateSymlink(
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
-	op.Entry.Attributes, err = child.Attributes(op.Context())
+	op.Entry.Attributes, err = child.Attributes(ctx)
 
 	if err != nil {
 		err = fmt.Errorf("Attributes: %v", err)
@@ -1144,6 +1151,7 @@ func (fs *fileSystem) CreateSymlink(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) RmDir(
+	ctx context.Context,
 	op *fuseops.RmDirOp) (err error) {
 	// Find the parent. We assume that it exists because otherwise the kernel has
 	// done something mildly concerning.
@@ -1152,7 +1160,7 @@ func (fs *fileSystem) RmDir(
 	fs.mu.Unlock()
 
 	// Find or create the child inode.
-	child, err := fs.lookUpOrCreateChildInode(op.Context(), parent, op.Name)
+	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
 	if err != nil {
 		return
 	}
@@ -1189,7 +1197,7 @@ func (fs *fileSystem) RmDir(
 	var tok string
 	for {
 		var entries []fuseutil.Dirent
-		entries, tok, err = childDir.ReadEntries(op.Context(), tok)
+		entries, tok, err = childDir.ReadEntries(ctx, tok)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %v", err)
 			return
@@ -1212,7 +1220,7 @@ func (fs *fileSystem) RmDir(
 
 	// Delete the backing object.
 	parent.Lock()
-	err = parent.DeleteChildDir(op.Context(), op.Name)
+	err = parent.DeleteChildDir(ctx, op.Name)
 	parent.Unlock()
 
 	if err != nil {
@@ -1225,6 +1233,7 @@ func (fs *fileSystem) RmDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) Rename(
+	ctx context.Context,
 	op *fuseops.RenameOp) (err error) {
 	// Find the old and new parents.
 	fs.mu.Lock()
@@ -1234,7 +1243,7 @@ func (fs *fileSystem) Rename(
 
 	// Find the object in the old location.
 	oldParent.Lock()
-	lr, err := oldParent.LookUpChild(op.Context(), op.OldName)
+	lr, err := oldParent.LookUpChild(ctx, op.OldName)
 	oldParent.Unlock()
 
 	if err != nil {
@@ -1256,7 +1265,7 @@ func (fs *fileSystem) Rename(
 	// Clone into the new location.
 	newParent.Lock()
 	_, err = newParent.CloneToChildFile(
-		op.Context(),
+		ctx,
 		op.NewName,
 		lr.Object)
 	newParent.Unlock()
@@ -1270,7 +1279,7 @@ func (fs *fileSystem) Rename(
 	// case the referent of the name has changed in the meantime.
 	oldParent.Lock()
 	err = oldParent.DeleteChildFile(
-		op.Context(),
+		ctx,
 		op.OldName,
 		lr.Object.Generation)
 	oldParent.Unlock()
@@ -1285,6 +1294,7 @@ func (fs *fileSystem) Rename(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) Unlink(
+	ctx context.Context,
 	op *fuseops.UnlinkOp) (err error) {
 	// Find the parent.
 	fs.mu.Lock()
@@ -1296,7 +1306,7 @@ func (fs *fileSystem) Unlink(
 
 	// Delete the backing object.
 	err = parent.DeleteChildFile(
-		op.Context(),
+		ctx,
 		op.Name,
 		0) // Latest generation
 
@@ -1310,6 +1320,7 @@ func (fs *fileSystem) Unlink(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) OpenDir(
+	ctx context.Context,
 	op *fuseops.OpenDirOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -1331,6 +1342,7 @@ func (fs *fileSystem) OpenDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadDir(
+	ctx context.Context,
 	op *fuseops.ReadDirOp) (err error) {
 	// Find the handle.
 	fs.mu.Lock()
@@ -1341,13 +1353,14 @@ func (fs *fileSystem) ReadDir(
 	defer dh.Mu.Unlock()
 
 	// Serve the request.
-	err = dh.ReadDir(op)
+	err = dh.ReadDir(ctx, op)
 
 	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReleaseDirHandle(
+	ctx context.Context,
 	op *fuseops.ReleaseDirHandleOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -1363,6 +1376,7 @@ func (fs *fileSystem) ReleaseDirHandle(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) OpenFile(
+	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -1375,6 +1389,7 @@ func (fs *fileSystem) OpenFile(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadFile(
+	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
@@ -1385,13 +1400,14 @@ func (fs *fileSystem) ReadFile(
 	defer in.Unlock()
 
 	// Serve the request.
-	op.Data, err = in.Read(op.Context(), op.Offset, op.Size)
+	op.Data, err = in.Read(ctx, op.Offset, op.Size)
 
 	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadSymlink(
+	ctx context.Context,
 	op *fuseops.ReadSymlinkOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
@@ -1409,6 +1425,7 @@ func (fs *fileSystem) ReadSymlink(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) WriteFile(
+	ctx context.Context,
 	op *fuseops.WriteFileOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
@@ -1419,13 +1436,14 @@ func (fs *fileSystem) WriteFile(
 	defer in.Unlock()
 
 	// Serve the request.
-	err = in.Write(op.Context(), op.Data, op.Offset)
+	err = in.Write(ctx, op.Data, op.Offset)
 
 	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) SyncFile(
+	ctx context.Context,
 	op *fuseops.SyncFileOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
@@ -1436,13 +1454,14 @@ func (fs *fileSystem) SyncFile(
 	defer in.Unlock()
 
 	// Sync it.
-	err = fs.syncFile(op.Context(), in)
+	err = fs.syncFile(ctx, in)
 
 	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) FlushFile(
+	ctx context.Context,
 	op *fuseops.FlushFileOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
@@ -1453,13 +1472,14 @@ func (fs *fileSystem) FlushFile(
 	defer in.Unlock()
 
 	// Sync it.
-	err = fs.syncFile(op.Context(), in)
+	err = fs.syncFile(ctx, in)
 
 	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReleaseFileHandle(
+	ctx context.Context,
 	op *fuseops.ReleaseFileHandleOp) (err error) {
 	// We implement this only to keep it from appearing in the log of fuse
 	// errors. There's nothing we need to actually do.
