@@ -3,6 +3,11 @@
 	"GoVersion": "devel",
 	"Deps": [
 		{
+			"ImportPath": "github.com/codegangsta/cli",
+			"Comment": "1.2.0-137-gbca61c4",
+			"Rev": "bca61c476e3c752594983e4c9bcd5f62fb09f157"
+		},
+		{
 			"ImportPath": "github.com/jacobsa/fuse",
 			"Rev": "c968295acdae6a4a78ff485a543a04ef9ac04c3e"
 		},
@@ -45,11 +50,6 @@
 		{
 			"ImportPath": "github.com/jacobsa/util/lrucache",
 			"Rev": "459ffc8a6aae5c79645c04b6b78a6a4d7b194897"
-		},
-		{
-			"ImportPath": "github.com/jgeewax/cli",
-			"Comment": "1.2.0-137-g0f30958",
-			"Rev": "0f30958b14cb460d9d387a88726d95318e367c21"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",

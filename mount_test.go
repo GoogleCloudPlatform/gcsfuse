@@ -26,13 +26,13 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/codegangsta/cli"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
-	"github.com/jgeewax/cli"
 )
 
 func TestMount(t *testing.T) { RunTests(t) }

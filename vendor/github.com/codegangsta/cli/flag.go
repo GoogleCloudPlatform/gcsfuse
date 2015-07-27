@@ -67,18 +67,13 @@ type GenericFlag struct {
 	Value  Generic
 	Usage  string
 	EnvVar string
-	HideDefault bool
 }
 
 // String returns the string representation of the generic flag to display the
 // help text to the user (uses the String() method of the generic flag to show
 // the value)
 func (f GenericFlag) String() string {
-	if f.HideDefault {
-		return withEnvHint(f.EnvVar, fmt.Sprintf("%s%s\t%v", prefixFor(f.Name), f.Name, f.Usage))
-	} else {
-		return withEnvHint(f.EnvVar, fmt.Sprintf("%s%s \t%v (default: \"%v\")", prefixFor(f.Name), f.Name, f.Usage, f.Value))
-	}
+	return withEnvHint(f.EnvVar, fmt.Sprintf("%s%s \"%v\"\t%v", prefixFor(f.Name), f.Name, f.Value, f.Usage))
 }
 
 // Apply takes the flagset and calls Set on the generic flag with the value
@@ -321,16 +316,20 @@ type StringFlag struct {
 	Value  string
 	Usage  string
 	EnvVar string
-	HideDefault bool
 }
 
 // String returns the usage
 func (f StringFlag) String() string {
-	if f.HideDefault {
-		return withEnvHint(f.EnvVar, fmt.Sprintf("%s \t%v", prefixedNames(f.Name), f.Usage))
+	var fmtString string
+	fmtString = "%s %v\t%v"
+
+	if len(f.Value) > 0 {
+		fmtString = "%s \"%v\"\t%v"
 	} else {
-		return withEnvHint(f.EnvVar, fmt.Sprintf("%s \t%v (default: \"%v\")", prefixedNames(f.Name), f.Usage, f.Value))
+		fmtString = "%s %v\t%v"
 	}
+
+	return withEnvHint(f.EnvVar, fmt.Sprintf(fmtString, prefixedNames(f.Name), f.Value, f.Usage))
 }
 
 // Apply populates the flag given the flag set and environment
@@ -361,16 +360,11 @@ type IntFlag struct {
 	Value  int
 	Usage  string
 	EnvVar string
-	HideDefault bool
 }
 
 // String returns the usage
 func (f IntFlag) String() string {
-	if f.HideDefault {
-		return withEnvHint(f.EnvVar, fmt.Sprintf("%s \t%v", prefixedNames(f.Name), f.Usage))
-	} else {
-		return withEnvHint(f.EnvVar, fmt.Sprintf("%s \t%v (default: %v)", prefixedNames(f.Name), f.Usage, f.Value))
-	}
+	return withEnvHint(f.EnvVar, fmt.Sprintf("%s \"%v\"\t%v", prefixedNames(f.Name), f.Value, f.Usage))
 }
 
 // Apply populates the flag given the flag set and environment
@@ -404,16 +398,11 @@ type DurationFlag struct {
 	Value  time.Duration
 	Usage  string
 	EnvVar string
-	HideDefault bool
 }
 
 // String returns a readable representation of this value (for usage defaults)
 func (f DurationFlag) String() string {
-	if f.HideDefault {
-		return withEnvHint(f.EnvVar, fmt.Sprintf("%s \t%v", prefixedNames(f.Name), f.Usage))
-	} else {
-		return withEnvHint(f.EnvVar, fmt.Sprintf("%s \t%v (default: \"%v\")", prefixedNames(f.Name), f.Usage, f.Value))
-	}
+	return withEnvHint(f.EnvVar, fmt.Sprintf("%s \"%v\"\t%v", prefixedNames(f.Name), f.Value, f.Usage))
 }
 
 // Apply populates the flag given the flag set and environment
@@ -447,16 +436,11 @@ type Float64Flag struct {
 	Value  float64
 	Usage  string
 	EnvVar string
-	HideDefault bool
 }
 
 // String returns the usage
 func (f Float64Flag) String() string {
-	if f.HideDefault {
-		return withEnvHint(f.EnvVar, fmt.Sprintf("%s \t%v", prefixedNames(f.Name), f.Usage))
-	} else {
-		return withEnvHint(f.EnvVar, fmt.Sprintf("%s \t%v (default: %v)", prefixedNames(f.Name), f.Usage, f.Value))
-	}
+	return withEnvHint(f.EnvVar, fmt.Sprintf("%s \"%v\"\t%v", prefixedNames(f.Name), f.Value, f.Usage))
 }
 
 // Apply populates the flag given the flag set and environment

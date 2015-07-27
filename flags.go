@@ -18,18 +18,43 @@ import (
 	"os"
 	"time"
 
+	"github.com/codegangsta/cli"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/mount"
-	"github.com/jgeewax/cli"
 )
+
+// Set up custom help text for gcsfuse; in particular the usage section.
+func init() {
+	cli.AppHelpTemplate = `NAME:
+   {{.Name}} - {{.Usage}}
+
+USAGE:
+   {{.Name}} {{if .Flags}}[global options]{{end}} bucket mountpoint
+   {{if .Version}}
+VERSION:
+   {{.Version}}
+   {{end}}{{if len .Authors}}
+AUTHOR(S):
+   {{range .Authors}}{{ . }}{{end}}
+   {{end}}{{if .Commands}}
+COMMANDS:
+   {{range .Commands}}{{join .Names ", "}}{{ "\t" }}{{.Usage}}
+   {{end}}{{end}}{{if .Flags}}
+GLOBAL OPTIONS:
+   {{range .Flags}}{{.}}
+   {{end}}{{end}}{{if .Copyright }}
+COPYRIGHT:
+   {{.Copyright}}
+   {{end}}
+`
+}
 
 func newApp() (app *cli.App) {
 	app = &cli.App{
-		Name:          "gcsfuse",
-		Usage:         "Mount a GCS bucket locally",
-		ArgumentUsage: "bucket mountpoint",
-		HideHelp:      true,
-		HideVersion:   true,
-		Writer:        os.Stderr,
+		Name:        "gcsfuse",
+		Usage:       "Mount a GCS bucket locally",
+		HideHelp:    true,
+		HideVersion: true,
+		Writer:      os.Stderr,
 		Flags: []cli.Flag{
 
 			cli.BoolFlag{
@@ -47,31 +72,27 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.IntFlag{
-				Name:        "dir-mode",
-				Value:       0755,
-				Usage:       "Permissions bits for directories. (default: 0755)",
-				HideDefault: true,
+				Name:  "dir-mode",
+				Value: 0755,
+				Usage: "Permissions bits for directories. (default: 0755)",
 			},
 
 			cli.IntFlag{
-				Name:        "file-mode",
-				Value:       0644,
-				Usage:       "Permission bits for files (default: 0644)",
-				HideDefault: true,
+				Name:  "file-mode",
+				Value: 0644,
+				Usage: "Permission bits for files (default: 0644)",
 			},
 
 			cli.IntFlag{
-				Name:        "uid",
-				Value:       -1,
-				HideDefault: true,
-				Usage:       "UID owner of all inodes.",
+				Name:  "uid",
+				Value: -1,
+				Usage: "UID owner of all inodes.",
 			},
 
 			cli.IntFlag{
-				Name:        "gid",
-				Value:       -1,
-				HideDefault: true,
-				Usage:       "GID owner of all inodes.",
+				Name:  "gid",
+				Value: -1,
+				Usage: "GID owner of all inodes.",
 			},
 
 			cli.BoolFlag{
@@ -85,9 +106,8 @@ func newApp() (app *cli.App) {
 			/////////////////////////
 
 			cli.StringFlag{
-				Name:        "key-file",
-				Value:       "",
-				HideDefault: true,
+				Name:  "key-file",
+				Value: "",
 				Usage: "Path to JSON key file for use with GCS. " +
 					"(default: none, Google application default credentials used)",
 			},
@@ -130,9 +150,8 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.StringFlag{
-				Name:        "temp-dir",
-				Value:       "",
-				HideDefault: true,
+				Name:  "temp-dir",
+				Value: "",
 				Usage: "Temporary directory for local GCS object copies. " +
 					"(default: system default, likely /tmp)",
 			},

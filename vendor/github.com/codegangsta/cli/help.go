@@ -15,7 +15,7 @@ var AppHelpTemplate = `NAME:
    {{.Name}} - {{.Usage}}
 
 USAGE:
-   {{.Name}} {{if .Flags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} {{if .ArgumentUsage}}{{.ArgumentUsage}}{{else}}[arguments...]{{end}}
+   {{.Name}} {{if .Flags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} [arguments...]
    {{if .Version}}
 VERSION:
    {{.Version}}
@@ -38,10 +38,10 @@ COPYRIGHT:
 // cli.go uses text/template to render templates. You can
 // render custom help text by setting this variable.
 var CommandHelpTemplate = `NAME:
-   {{.Name}} - {{.Usage}}
+   {{.FullName}} - {{.Usage}}
 
 USAGE:
-   command {{.Name}}{{if .Flags}} [command options]{{end}} [arguments...]{{if .Description}}
+   command {{.FullName}}{{if .Flags}} [command options]{{end}} [arguments...]{{if .Description}}
 
 DESCRIPTION:
    {{.Description}}{{end}}{{if .Flags}}
