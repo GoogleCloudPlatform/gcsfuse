@@ -212,7 +212,7 @@ func initMount(c *Conn, conf *mountConfig) error {
 	s := &InitResponse{
 		Library:      proto,
 		MaxReadahead: conf.maxReadahead,
-		MaxWrite:     128 * 1024,
+		MaxWrite:     maxWrite,
 		Flags:        InitBigWrites | conf.initFlags,
 	}
 	r.Respond(s)
@@ -367,9 +367,6 @@ func (h *Header) RespondError(err error) {
 	hOut.Error = -int32(errno)
 	h.respond(buf)
 }
-
-// Maximum file write size we are prepared to receive from the kernel.
-const maxWrite = 16 * 1024 * 1024
 
 // All requests read from the kernel, without data, are shorter than
 // this.

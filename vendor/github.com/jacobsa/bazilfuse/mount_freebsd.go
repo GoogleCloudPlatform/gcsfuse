@@ -7,6 +7,9 @@ import (
 	"strings"
 )
 
+// Maximum file write size we are prepared to receive from the kernel.
+const maxWrite = 128 * 1024
+
 func mount(dir string, conf *mountConfig, ready chan<- struct{}, errp *error) (*os.File, error) {
 	for k, v := range conf.options {
 		if strings.Contains(k, ",") || strings.Contains(v, ",") {

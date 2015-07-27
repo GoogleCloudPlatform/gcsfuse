@@ -11,6 +11,11 @@ import (
 	"syscall"
 )
 
+// OS X appears to cap the size of writes to 1 MiB. This constant is also used
+// for sizing receive buffers, so make it as small as it can be without
+// limiting write sizes.
+const maxWrite = 1 << 20
+
 var errNoAvail = errors.New("no available fuse devices")
 
 var errNotLoaded = errors.New("osxfusefs is not loaded")

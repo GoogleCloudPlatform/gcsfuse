@@ -12,6 +12,10 @@ import (
 	"syscall"
 )
 
+// Maximum file write size we are prepared to receive from the kernel. Linux
+// appears to limit writes to 128 KiB.
+const maxWrite = 128 * 1024
+
 func lineLogger(wg *sync.WaitGroup, prefix string, r io.ReadCloser) {
 	defer wg.Done()
 
