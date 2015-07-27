@@ -75,27 +75,23 @@ func newApp() (app *cli.App) {
 				Name:  "dir-mode",
 				Value: 0755,
 				Usage: "Permissions bits for directories. (default: 0755)",
-				// TODO(jacobsa): HideDefault: true,
 			},
 
 			cli.IntFlag{
 				Name:  "file-mode",
 				Value: 0644,
 				Usage: "Permission bits for files (default: 0644)",
-				// TODO(jacobsa): HideDefault: true,
 			},
 
 			cli.IntFlag{
 				Name:  "uid",
 				Value: -1,
-				// TODO(jacobsa): HideDefault: true,
 				Usage: "UID owner of all inodes.",
 			},
 
 			cli.IntFlag{
 				Name:  "gid",
 				Value: -1,
-				// TODO(jacobsa): HideDefault: true,
 				Usage: "GID owner of all inodes.",
 			},
 
@@ -112,7 +108,6 @@ func newApp() (app *cli.App) {
 			cli.StringFlag{
 				Name:  "key-file",
 				Value: "",
-				// TODO(jacobsa): HideDefault: true,
 				Usage: "Path to JSON key file for use with GCS. " +
 					"(default: none, Google application default credentials used)",
 			},
@@ -157,7 +152,6 @@ func newApp() (app *cli.App) {
 			cli.StringFlag{
 				Name:  "temp-dir",
 				Value: "",
-				// TODO(jacobsa): HideDefault: true,
 				Usage: "Temporary directory for local GCS object copies. " +
 					"(default: system default, likely /tmp)",
 			},
