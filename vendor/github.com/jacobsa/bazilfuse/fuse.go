@@ -381,18 +381,31 @@ var bufSize = maxRequestSize + maxWrite
 //
 // Messages in the pool are guaranteed to have conn and off zeroed,
 // buf allocated and len==bufSize, and hdr set.
-var reqPool = sync.Pool{
-	New: allocMessage,
+var reqPool struct {
+	Mu       sync.Mutex
+	Freelist []*message
 }
 
-func allocMessage() interface{} {
+func allocMessage() *message {
 	m := &message{buf: make([]byte, bufSize)}
 	m.hdr = (*inHeader)(unsafe.Pointer(&m.buf[0]))
 	return m
 }
 
-func getMessage(c *Conn) *message {
-	m := reqPool.Get().(*message)
+func getMessage(c *Conn) (m *message) {
+	reqPool.Mu.Lock()
+	l := len(reqPool.Freelist)
+	if l != 0 {
+		m = reqPool.Freelist[l-1]
+		reqPool.Freelist = reqPool.Freelist[:l-1]
+	}
+
+	reqPool.Mu.Unlock()
+
+	if m == nil {
+		m = allocMessage()
+	}
+
 	m.conn = c
 	return m
 }
@@ -401,7 +414,10 @@ func putMessage(m *message) {
 	m.buf = m.buf[:bufSize]
 	m.conn = nil
 	m.off = 0
-	reqPool.Put(m)
+
+	reqPool.Mu.Lock()
+	reqPool.Freelist = append(reqPool.Freelist, m)
+	reqPool.Mu.Unlock()
 }
 
 // a message represents the bytes of a single FUSE message

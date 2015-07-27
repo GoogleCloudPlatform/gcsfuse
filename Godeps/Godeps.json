@@ -4,7 +4,7 @@
 	"Deps": [
 		{
 			"ImportPath": "github.com/jacobsa/bazilfuse",
-			"Rev": "3556245b58d638e81d7c73f9d89c65517675f820"
+			"Rev": "b378951ee44bdb7faf80b7ab1e08157b19ca7050"
 		},
 		{
 			"ImportPath": "github.com/jacobsa/fuse",
