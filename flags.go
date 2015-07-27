@@ -22,11 +22,36 @@ import (
 	mountpkg "github.com/googlecloudplatform/gcsfuse/mount"
 )
 
+// Set up custom help text for gcsfuse; in particular the usage section.
+func init() {
+	cli.AppHelpTemplate = `NAME:
+   {{.Name}} - {{.Usage}}
+
+USAGE:
+   {{.Name}} {{if .Flags}}[global options]{{end}} bucket mountpoint
+   {{if .Version}}
+VERSION:
+   {{.Version}}
+   {{end}}{{if len .Authors}}
+AUTHOR(S):
+   {{range .Authors}}{{ . }}{{end}}
+   {{end}}{{if .Commands}}
+COMMANDS:
+   {{range .Commands}}{{join .Names ", "}}{{ "\t" }}{{.Usage}}
+   {{end}}{{end}}{{if .Flags}}
+GLOBAL OPTIONS:
+   {{range .Flags}}{{.}}
+   {{end}}{{end}}{{if .Copyright }}
+COPYRIGHT:
+   {{.Copyright}}
+   {{end}}
+`
+}
+
 func newApp() (app *cli.App) {
 	app = &cli.App{
-		Name:  "gcsfuse",
-		Usage: "Mount a GCS bucket locally",
-		// TODO(jacobsa): ArgumentUsage: "bucket mountpoint",
+		Name:        "gcsfuse",
+		Usage:       "Mount a GCS bucket locally",
 		HideHelp:    true,
 		HideVersion: true,
 		Writer:      os.Stderr,
