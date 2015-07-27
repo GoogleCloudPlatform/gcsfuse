@@ -3,16 +3,56 @@
 
 language: go
 
-go:
-  - 1.4.2
-  - tip
-
 # Use the virtualized Trusty beta Travis is running in order to get support for
 # installing fuse.
 #
 # Cf. Personal communication from support@travis-ci.com.
 dist: trusty
 
+# We can't build with 1.4.2 (the default as of 2015-07-27), because it doesn't
+# support vendoring.
+go:
+  - tip
+
+# Ensure that we get vendoring support in `go test`.
+env:
+  - GO15VENDOREXPERIMENT=1
+
 # Install fuse before installing our code.
 before_install:
   - sudo apt-get install -qq fuse
+
+# All of our dependencies are in the repo, so we don't need to run `go get`.
+# Doing so is actually harmful as of 2015-07-27, because of
+# http://golang.org/issue/11864. So use the `true` command to do nothing for
+# the install step.
+install: true
+
+# HACK(jacobsa): Here is how Travis fetches our code:
+#
+#  *  Clone the git repo into a temporary location.
+#  *  Check out the commit of interest.
+#  *  rsync the git repo to $GOPATH/src/github.com/GoogleCloudPlatform/gcsfuse
+#
+# Note that the directory name is camel case, instead of `googlecloudplatform`,
+# as used in our code to import sub-packages.
+#
+# Normally this is papered over by the fact that the default `install` step for
+# go does `go get -v ./...` from within  that directory. That winds up fetching
+# another copy into `$GOPATH/src/github.com/googlecloudplatform/gcsfuse`, so
+# the imports resolve correctly. (But this is bad! We get the wrong versions if
+# commits are pushed quickly.)
+#
+# However we disabled the install step above, so this doesn't happen and
+# instead we get errors like the following:
+#
+#     mount.go:25:2: cannot find package "github.com/googlecloudplatform/gcsfuse/fs" in any of:
+#             /home/travis/gopath/src/github.com/GoogleCloudPlatform/gcsfuse/vendor/github.com/googlecloudplatform/gcsfuse/fs (vendor tree)
+#             /home/travis/.gimme/versions/go/src/github.com/googlecloudplatform/gcsfuse/fs (from $GOROOT)
+#             /home/travis/gopath/src/github.com/googlecloudplatform/gcsfuse/fs (from $GOPATH)
+#
+# Fix this by renaming the directory before testing.
+script:
+  - cd $GOPATH/src/github.com/
+  - mv GoogleCloudPlatform googlecloudplatform
+  - go test -v github.com/googlecloudplatform/gcsfuse/...
