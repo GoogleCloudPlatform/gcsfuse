@@ -24,12 +24,12 @@ import (
 
 func newApp() (app *cli.App) {
 	app = &cli.App{
-		Name:          "gcsfuse",
-		Usage:         "Mount a GCS bucket locally",
-		ArgumentUsage: "bucket mountpoint",
-		HideHelp:      true,
-		HideVersion:   true,
-		Writer:        os.Stderr,
+		Name:  "gcsfuse",
+		Usage: "Mount a GCS bucket locally",
+		// TODO(jacobsa): ArgumentUsage: "bucket mountpoint",
+		HideHelp:    true,
+		HideVersion: true,
+		Writer:      os.Stderr,
 		Flags: []cli.Flag{
 
 			cli.BoolFlag{
@@ -47,31 +47,31 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.IntFlag{
-				Name:        "dir-mode",
-				Value:       0755,
-				Usage:       "Permissions bits for directories. (default: 0755)",
-				HideDefault: true,
+				Name:  "dir-mode",
+				Value: 0755,
+				Usage: "Permissions bits for directories. (default: 0755)",
+				// TODO(jacobsa): HideDefault: true,
 			},
 
 			cli.IntFlag{
-				Name:        "file-mode",
-				Value:       0644,
-				Usage:       "Permission bits for files (default: 0644)",
-				HideDefault: true,
+				Name:  "file-mode",
+				Value: 0644,
+				Usage: "Permission bits for files (default: 0644)",
+				// TODO(jacobsa): HideDefault: true,
 			},
 
 			cli.IntFlag{
-				Name:        "uid",
-				Value:       -1,
-				HideDefault: true,
-				Usage:       "UID owner of all inodes.",
+				Name:  "uid",
+				Value: -1,
+				// TODO(jacobsa): HideDefault: true,
+				Usage: "UID owner of all inodes.",
 			},
 
 			cli.IntFlag{
-				Name:        "gid",
-				Value:       -1,
-				HideDefault: true,
-				Usage:       "GID owner of all inodes.",
+				Name:  "gid",
+				Value: -1,
+				// TODO(jacobsa): HideDefault: true,
+				Usage: "GID owner of all inodes.",
 			},
 
 			cli.BoolFlag{
@@ -85,9 +85,9 @@ func newApp() (app *cli.App) {
 			/////////////////////////
 
 			cli.StringFlag{
-				Name:        "key-file",
-				Value:       "",
-				HideDefault: true,
+				Name:  "key-file",
+				Value: "",
+				// TODO(jacobsa): HideDefault: true,
 				Usage: "Path to JSON key file for use with GCS. " +
 					"(default: none, Google application default credentials used)",
 			},
@@ -130,9 +130,9 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.StringFlag{
-				Name:        "temp-dir",
-				Value:       "",
-				HideDefault: true,
+				Name:  "temp-dir",
+				Value: "",
+				// TODO(jacobsa): HideDefault: true,
 				Usage: "Temporary directory for local GCS object copies. " +
 					"(default: system default, likely /tmp)",
 			},
