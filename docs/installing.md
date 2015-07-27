@@ -17,8 +17,8 @@ instructions slightly vary by distribution.
 ## Debian and Ubuntu
 
     sudo apt-get install wget fuse
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.3.1/gcsfuse_v0.3.1_linux_amd64.tar.gz
-    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.3.1_linux_amd64.tar.gz
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.5.0/gcsfuse_v0.5.0_linux_amd64.tar.gz
+    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.5.0_linux_amd64.tar.gz
 
 On old versions of Debian, including the one in the Google Compute Engine image
 `debian-7` as of 2015-07-20, `/dev/fuse` has incorrect permissions (cf.
@@ -38,14 +38,14 @@ you may need to run the workaround above repeatedly.
 ## CentOS and Red Hat
 
     sudo yum install wget fuse
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.3.1/gcsfuse_v0.3.1_linux_amd64.tar.gz
-    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.3.1_linux_amd64.tar.gz
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.5.0/gcsfuse_v0.5.0_linux_amd64.tar.gz
+    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.5.0_linux_amd64.tar.gz
 
 ## SUSE
 
     sudo zypper install wget fuse
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.3.1/gcsfuse_v0.3.1_linux_amd64.tar.gz
-    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.3.1_linux_amd64.tar.gz
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.5.0/gcsfuse_v0.5.0_linux_amd64.tar.gz
+    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.5.0_linux_amd64.tar.gz
 
 
 # OS X
