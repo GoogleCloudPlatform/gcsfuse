@@ -4,7 +4,7 @@
 	"Deps": [
 		{
 			"ImportPath": "github.com/jacobsa/fuse",
-			"Rev": "cd7e6b6dd937845a030ba14462a4cda5290693c5"
+			"Rev": "41dd5f04f5c40411710b3fee7d64a64dbb5ca86d"
 		},
 		{
 			"ImportPath": "github.com/jacobsa/gcloud/gcs",

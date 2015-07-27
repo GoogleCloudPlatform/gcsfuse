@@ -68,6 +68,13 @@ type Connection struct {
 
 	mu sync.Mutex
 
+	// A freelist of InMessage structs, the allocation of which can be a hot spot
+	// for CPU usage. Each element is in an undefined state, and must be
+	// re-initialized.
+	//
+	// GUARDED_BY(mu)
+	messageFreelist []*buffer.InMessage
+
 	// A map from fuse "unique" request ID (*not* the op ID for logging used
 	// above) to a function that cancel's its associated context.
 	//
@@ -283,14 +290,31 @@ func (c *Connection) handleInterrupt(fuseID uint64) {
 	cancel()
 }
 
+// m.Init must be called.
 func (c *Connection) allocateInMessage() (m *buffer.InMessage) {
-	// TODO(jacobsa): Use a freelist.
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Can we pull from the freelist?
+	l := len(c.messageFreelist)
+	if l != 0 {
+		m = c.messageFreelist[l-1]
+		c.messageFreelist = c.messageFreelist[:l-1]
+		return
+	}
+
+	// Otherwise, allocate a new one.
 	m = new(buffer.InMessage)
+
 	return
 }
 
 func (c *Connection) destroyInMessage(m *buffer.InMessage) {
-	// TODO(jacobsa): Use a freelist.
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Stick it on the freelist.
+	c.messageFreelist = append(c.messageFreelist, m)
 }
 
 // Read the next message from the kernel. The message must later be destroyed
