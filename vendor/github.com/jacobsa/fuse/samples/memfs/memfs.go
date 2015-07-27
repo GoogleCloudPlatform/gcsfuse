@@ -20,6 +20,8 @@ import (
 	"os"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -190,6 +192,7 @@ func (fs *memFS) deallocateInode(id fuseops.InodeID) {
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *memFS) LookUpInode(
+	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -220,6 +223,7 @@ func (fs *memFS) LookUpInode(
 }
 
 func (fs *memFS) GetInodeAttributes(
+	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -238,6 +242,7 @@ func (fs *memFS) GetInodeAttributes(
 }
 
 func (fs *memFS) SetInodeAttributes(
+	ctx context.Context,
 	op *fuseops.SetInodeAttributesOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -259,6 +264,7 @@ func (fs *memFS) SetInodeAttributes(
 }
 
 func (fs *memFS) MkDir(
+	ctx context.Context,
 	op *fuseops.MkDirOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -301,6 +307,7 @@ func (fs *memFS) MkDir(
 }
 
 func (fs *memFS) CreateFile(
+	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -350,6 +357,7 @@ func (fs *memFS) CreateFile(
 }
 
 func (fs *memFS) CreateSymlink(
+	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -400,6 +408,7 @@ func (fs *memFS) CreateSymlink(
 }
 
 func (fs *memFS) Rename(
+	ctx context.Context,
 	op *fuseops.RenameOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -440,6 +449,7 @@ func (fs *memFS) Rename(
 }
 
 func (fs *memFS) RmDir(
+	ctx context.Context,
 	op *fuseops.RmDirOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -473,6 +483,7 @@ func (fs *memFS) RmDir(
 }
 
 func (fs *memFS) Unlink(
+	ctx context.Context,
 	op *fuseops.UnlinkOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -500,6 +511,7 @@ func (fs *memFS) Unlink(
 }
 
 func (fs *memFS) OpenDir(
+	ctx context.Context,
 	op *fuseops.OpenDirOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -517,6 +529,7 @@ func (fs *memFS) OpenDir(
 }
 
 func (fs *memFS) ReadDir(
+	ctx context.Context,
 	op *fuseops.ReadDirOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -531,6 +544,7 @@ func (fs *memFS) ReadDir(
 }
 
 func (fs *memFS) OpenFile(
+	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -548,6 +562,7 @@ func (fs *memFS) OpenFile(
 }
 
 func (fs *memFS) ReadFile(
+	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -569,6 +584,7 @@ func (fs *memFS) ReadFile(
 }
 
 func (fs *memFS) WriteFile(
+	ctx context.Context,
 	op *fuseops.WriteFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -583,6 +599,7 @@ func (fs *memFS) WriteFile(
 }
 
 func (fs *memFS) ReadSymlink(
+	ctx context.Context,
 	op *fuseops.ReadSymlinkOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()

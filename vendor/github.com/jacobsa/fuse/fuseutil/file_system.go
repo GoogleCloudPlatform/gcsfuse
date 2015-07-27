@@ -18,6 +18,8 @@ import (
 	"io"
 	"sync"
 
+	"golang.org/x/net/context"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 )
@@ -27,32 +29,32 @@ import (
 // loop" that switches on op types, instead receiving typed method calls
 // directly.
 //
-// The FileSystem implementation should not call Op.Respond, instead returning
-// the error with which the caller should respond.
+// The FileSystem implementation should not call Connection.Reply, instead
+// returning the error with which the caller should respond.
 //
 // See NotImplementedFileSystem for a convenient way to embed default
 // implementations for methods you don't care about.
 type FileSystem interface {
-	LookUpInode(*fuseops.LookUpInodeOp) error
-	GetInodeAttributes(*fuseops.GetInodeAttributesOp) error
-	SetInodeAttributes(*fuseops.SetInodeAttributesOp) error
-	ForgetInode(*fuseops.ForgetInodeOp) error
-	MkDir(*fuseops.MkDirOp) error
-	CreateFile(*fuseops.CreateFileOp) error
-	CreateSymlink(*fuseops.CreateSymlinkOp) error
-	Rename(*fuseops.RenameOp) error
-	RmDir(*fuseops.RmDirOp) error
-	Unlink(*fuseops.UnlinkOp) error
-	OpenDir(*fuseops.OpenDirOp) error
-	ReadDir(*fuseops.ReadDirOp) error
-	ReleaseDirHandle(*fuseops.ReleaseDirHandleOp) error
-	OpenFile(*fuseops.OpenFileOp) error
-	ReadFile(*fuseops.ReadFileOp) error
-	WriteFile(*fuseops.WriteFileOp) error
-	SyncFile(*fuseops.SyncFileOp) error
-	FlushFile(*fuseops.FlushFileOp) error
-	ReleaseFileHandle(*fuseops.ReleaseFileHandleOp) error
-	ReadSymlink(*fuseops.ReadSymlinkOp) error
+	LookUpInode(context.Context, *fuseops.LookUpInodeOp) error
+	GetInodeAttributes(context.Context, *fuseops.GetInodeAttributesOp) error
+	SetInodeAttributes(context.Context, *fuseops.SetInodeAttributesOp) error
+	ForgetInode(context.Context, *fuseops.ForgetInodeOp) error
+	MkDir(context.Context, *fuseops.MkDirOp) error
+	CreateFile(context.Context, *fuseops.CreateFileOp) error
+	CreateSymlink(context.Context, *fuseops.CreateSymlinkOp) error
+	Rename(context.Context, *fuseops.RenameOp) error
+	RmDir(context.Context, *fuseops.RmDirOp) error
+	Unlink(context.Context, *fuseops.UnlinkOp) error
+	OpenDir(context.Context, *fuseops.OpenDirOp) error
+	ReadDir(context.Context, *fuseops.ReadDirOp) error
+	ReleaseDirHandle(context.Context, *fuseops.ReleaseDirHandleOp) error
+	OpenFile(context.Context, *fuseops.OpenFileOp) error
+	ReadFile(context.Context, *fuseops.ReadFileOp) error
+	WriteFile(context.Context, *fuseops.WriteFileOp) error
+	SyncFile(context.Context, *fuseops.SyncFileOp) error
+	FlushFile(context.Context, *fuseops.FlushFileOp) error
+	ReleaseFileHandle(context.Context, *fuseops.ReleaseFileHandleOp) error
+	ReadSymlink(context.Context, *fuseops.ReadSymlinkOp) error
 
 	// Regard all inodes (including the root inode) as having their lookup counts
 	// decremented to zero, and clean up any resources associated with the file
@@ -91,7 +93,7 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 	}()
 
 	for {
-		op, err := c.ReadOp()
+		ctx, op, err := c.ReadOp()
 		if err == io.EOF {
 			break
 		}
@@ -101,11 +103,14 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 		}
 
 		s.opsInFlight.Add(1)
-		go s.handleOp(op)
+		go s.handleOp(c, ctx, op)
 	}
 }
 
-func (s *fileSystemServer) handleOp(op fuseops.Op) {
+func (s *fileSystemServer) handleOp(
+	c *fuse.Connection,
+	ctx context.Context,
+	op interface{}) {
 	defer s.opsInFlight.Done()
 
 	// Dispatch to the appropriate method.
@@ -115,65 +120,65 @@ func (s *fileSystemServer) handleOp(op fuseops.Op) {
 		err = fuse.ENOSYS
 
 	case *fuseops.LookUpInodeOp:
-		err = s.fs.LookUpInode(typed)
+		err = s.fs.LookUpInode(ctx, typed)
 
 	case *fuseops.GetInodeAttributesOp:
-		err = s.fs.GetInodeAttributes(typed)
+		err = s.fs.GetInodeAttributes(ctx, typed)
 
 	case *fuseops.SetInodeAttributesOp:
-		err = s.fs.SetInodeAttributes(typed)
+		err = s.fs.SetInodeAttributes(ctx, typed)
 
 	case *fuseops.ForgetInodeOp:
-		err = s.fs.ForgetInode(typed)
+		err = s.fs.ForgetInode(ctx, typed)
 
 	case *fuseops.MkDirOp:
-		err = s.fs.MkDir(typed)
+		err = s.fs.MkDir(ctx, typed)
 
 	case *fuseops.CreateFileOp:
-		err = s.fs.CreateFile(typed)
+		err = s.fs.CreateFile(ctx, typed)
 
 	case *fuseops.CreateSymlinkOp:
-		err = s.fs.CreateSymlink(typed)
+		err = s.fs.CreateSymlink(ctx, typed)
 
 	case *fuseops.RenameOp:
-		err = s.fs.Rename(typed)
+		err = s.fs.Rename(ctx, typed)
 
 	case *fuseops.RmDirOp:
-		err = s.fs.RmDir(typed)
+		err = s.fs.RmDir(ctx, typed)
 
 	case *fuseops.UnlinkOp:
-		err = s.fs.Unlink(typed)
+		err = s.fs.Unlink(ctx, typed)
 
 	case *fuseops.OpenDirOp:
-		err = s.fs.OpenDir(typed)
+		err = s.fs.OpenDir(ctx, typed)
 
 	case *fuseops.ReadDirOp:
-		err = s.fs.ReadDir(typed)
+		err = s.fs.ReadDir(ctx, typed)
 
 	case *fuseops.ReleaseDirHandleOp:
-		err = s.fs.ReleaseDirHandle(typed)
+		err = s.fs.ReleaseDirHandle(ctx, typed)
 
 	case *fuseops.OpenFileOp:
-		err = s.fs.OpenFile(typed)
+		err = s.fs.OpenFile(ctx, typed)
 
 	case *fuseops.ReadFileOp:
-		err = s.fs.ReadFile(typed)
+		err = s.fs.ReadFile(ctx, typed)
 
 	case *fuseops.WriteFileOp:
-		err = s.fs.WriteFile(typed)
+		err = s.fs.WriteFile(ctx, typed)
 
 	case *fuseops.SyncFileOp:
-		err = s.fs.SyncFile(typed)
+		err = s.fs.SyncFile(ctx, typed)
 
 	case *fuseops.FlushFileOp:
-		err = s.fs.FlushFile(typed)
+		err = s.fs.FlushFile(ctx, typed)
 
 	case *fuseops.ReleaseFileHandleOp:
-		err = s.fs.ReleaseFileHandle(typed)
+		err = s.fs.ReleaseFileHandle(ctx, typed)
 
 	case *fuseops.ReadSymlinkOp:
-		err = s.fs.ReadSymlink(typed)
+		err = s.fs.ReadSymlink(ctx, typed)
 	}
 
-	op.Respond(err)
+	c.Reply(ctx, err)
 }

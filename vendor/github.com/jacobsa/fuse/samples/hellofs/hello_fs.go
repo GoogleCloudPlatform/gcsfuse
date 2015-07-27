@@ -19,6 +19,8 @@ import (
 	"os"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -147,7 +149,9 @@ func (fs *helloFS) patchAttributes(
 	attr.Crtime = now
 }
 
-func (fs *helloFS) LookUpInode(op *fuseops.LookUpInodeOp) (err error) {
+func (fs *helloFS) LookUpInode(
+	ctx context.Context,
+	op *fuseops.LookUpInodeOp) (err error) {
 	// Find the info for the parent.
 	parentInfo, ok := gInodeInfo[op.Parent]
 	if !ok {
@@ -172,6 +176,7 @@ func (fs *helloFS) LookUpInode(op *fuseops.LookUpInodeOp) (err error) {
 }
 
 func (fs *helloFS) GetInodeAttributes(
+	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) (err error) {
 	// Find the info for this inode.
 	info, ok := gInodeInfo[op.Inode]
@@ -190,12 +195,14 @@ func (fs *helloFS) GetInodeAttributes(
 }
 
 func (fs *helloFS) OpenDir(
+	ctx context.Context,
 	op *fuseops.OpenDirOp) (err error) {
 	// Allow opening any directory.
 	return
 }
 
 func (fs *helloFS) ReadDir(
+	ctx context.Context,
 	op *fuseops.ReadDirOp) (err error) {
 	// Find the info for this inode.
 	info, ok := gInodeInfo[op.Inode]
@@ -232,12 +239,14 @@ func (fs *helloFS) ReadDir(
 }
 
 func (fs *helloFS) OpenFile(
+	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
 	// Allow opening any file.
 	return
 }
 
 func (fs *helloFS) ReadFile(
+	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
 	// Let io.ReaderAt deal with the semantics.
 	reader := strings.NewReader("Hello, world!")

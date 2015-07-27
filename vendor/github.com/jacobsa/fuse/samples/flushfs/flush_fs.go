@@ -19,6 +19,8 @@ import (
 	"os"
 	"sync"
 
+	"golang.org/x/net/context"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -93,6 +95,7 @@ func (fs *flushFS) barAttributes() fuseops.InodeAttributes {
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *flushFS) LookUpInode(
+	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -126,6 +129,7 @@ func (fs *flushFS) LookUpInode(
 }
 
 func (fs *flushFS) GetInodeAttributes(
+	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -150,6 +154,7 @@ func (fs *flushFS) GetInodeAttributes(
 }
 
 func (fs *flushFS) OpenFile(
+	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -164,6 +169,7 @@ func (fs *flushFS) OpenFile(
 }
 
 func (fs *flushFS) ReadFile(
+	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -181,6 +187,7 @@ func (fs *flushFS) ReadFile(
 }
 
 func (fs *flushFS) WriteFile(
+	ctx context.Context,
 	op *fuseops.WriteFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -204,6 +211,7 @@ func (fs *flushFS) WriteFile(
 }
 
 func (fs *flushFS) SyncFile(
+	ctx context.Context,
 	op *fuseops.SyncFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -213,6 +221,7 @@ func (fs *flushFS) SyncFile(
 }
 
 func (fs *flushFS) FlushFile(
+	ctx context.Context,
 	op *fuseops.FlushFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -222,6 +231,7 @@ func (fs *flushFS) FlushFile(
 }
 
 func (fs *flushFS) OpenDir(
+	ctx context.Context,
 	op *fuseops.OpenDirOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -240,6 +250,7 @@ func (fs *flushFS) OpenDir(
 }
 
 func (fs *flushFS) ReadDir(
+	ctx context.Context,
 	op *fuseops.ReadDirOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()

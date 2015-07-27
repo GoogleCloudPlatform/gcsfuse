@@ -19,6 +19,8 @@ import (
 	"os"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -240,6 +242,7 @@ func (fs *cachingFS) SetMtime(mtime time.Time) {
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *cachingFS) LookUpInode(
+	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -294,6 +297,7 @@ func (fs *cachingFS) LookUpInode(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *cachingFS) GetInodeAttributes(
+	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -323,11 +327,13 @@ func (fs *cachingFS) GetInodeAttributes(
 }
 
 func (fs *cachingFS) OpenDir(
+	ctx context.Context,
 	op *fuseops.OpenDirOp) (err error) {
 	return
 }
 
 func (fs *cachingFS) OpenFile(
+	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
 	return
 }

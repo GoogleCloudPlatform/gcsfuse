@@ -61,7 +61,7 @@ type InodeAttributes struct {
 	Size uint64
 
 	// The number of incoming hard links to this inode.
-	Nlink uint64
+	Nlink uint32
 
 	// The mode of the inode. This is exposed to the user in e.g. the result of
 	// fstat(2).

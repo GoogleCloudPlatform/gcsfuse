@@ -17,6 +17,7 @@ package fuseutil
 import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
+	"golang.org/x/net/context"
 )
 
 // A FileSystem that responds to all ops with fuse.ENOSYS. Embed this in your
@@ -29,120 +30,140 @@ type NotImplementedFileSystem struct {
 var _ FileSystem = &NotImplementedFileSystem{}
 
 func (fs *NotImplementedFileSystem) LookUpInode(
+	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) GetInodeAttributes(
+	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) SetInodeAttributes(
+	ctx context.Context,
 	op *fuseops.SetInodeAttributesOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) ForgetInode(
+	ctx context.Context,
 	op *fuseops.ForgetInodeOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) MkDir(
+	ctx context.Context,
 	op *fuseops.MkDirOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) CreateFile(
+	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) CreateSymlink(
+	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) Rename(
+	ctx context.Context,
 	op *fuseops.RenameOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) RmDir(
+	ctx context.Context,
 	op *fuseops.RmDirOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) Unlink(
+	ctx context.Context,
 	op *fuseops.UnlinkOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) OpenDir(
+	ctx context.Context,
 	op *fuseops.OpenDirOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) ReadDir(
+	ctx context.Context,
 	op *fuseops.ReadDirOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) ReleaseDirHandle(
+	ctx context.Context,
 	op *fuseops.ReleaseDirHandleOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) OpenFile(
+	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) ReadFile(
+	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) WriteFile(
+	ctx context.Context,
 	op *fuseops.WriteFileOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) SyncFile(
+	ctx context.Context,
 	op *fuseops.SyncFileOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) FlushFile(
+	ctx context.Context,
 	op *fuseops.FlushFileOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) ReleaseFileHandle(
+	ctx context.Context,
 	op *fuseops.ReleaseFileHandleOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (fs *NotImplementedFileSystem) ReadSymlink(
+	ctx context.Context,
 	op *fuseops.ReadSymlinkOp) (err error) {
 	err = fuse.ENOSYS
 	return

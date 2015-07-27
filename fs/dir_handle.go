@@ -252,6 +252,7 @@ func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
 // LOCKS_REQUIRED(dh.Mu)
 // LOCKS_EXCLUDED(du.in)
 func (dh *dirHandle) ReadDir(
+	ctx context.Context,
 	op *fuseops.ReadDirOp) (err error) {
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
@@ -262,7 +263,7 @@ func (dh *dirHandle) ReadDir(
 
 	// Do we need to read entries from GCS?
 	if !dh.entriesValid {
-		err = dh.ensureEntries(op.Context())
+		err = dh.ensureEntries(ctx)
 		if err != nil {
 			return
 		}
