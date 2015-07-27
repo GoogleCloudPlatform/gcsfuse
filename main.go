@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime"
 	"runtime/pprof"
 	"syscall"
 	"time"
@@ -60,85 +61,90 @@ func registerSIGINTHandler(mountPoint string) {
 	}()
 }
 
-// Dump profiles on SIGHUP, if enabled.
-func registerSIGHUPHandler(cpu bool, mem bool) {
-	var desc string
-	switch {
-	case cpu && mem:
-		desc = "CPU and memory profiles"
-
-	case cpu:
-		desc = "CPU profile"
-
-	case mem:
-		desc = "memory profile"
-
-	default:
-		return
-	}
-
-	const duration = 10 * time.Second
-	profileOnce := func() (err error) {
-		// CPU
-		if cpu {
-			var f *os.File
-			f, err = os.Create("/tmp/cpu.pprof")
-			if err != nil {
-				err = fmt.Errorf("Create: %v", err)
-				return
-			}
-
-			defer func() {
-				closeErr := f.Close()
-				if err == nil {
-					err = closeErr
-				}
-			}()
-
-			pprof.StartCPUProfile(f)
-			defer pprof.StopCPUProfile()
+func handleCPUProfileSignals() {
+	profileOnce := func(duration time.Duration, path string) (err error) {
+		// Set up the file.
+		var f *os.File
+		f, err = os.Create(path)
+		if err != nil {
+			err = fmt.Errorf("Create: %v", err)
+			return
 		}
 
-		// Memory
-		if mem {
-			var f *os.File
-			f, err = os.Create("/tmp/mem.pprof")
-			if err != nil {
-				err = fmt.Errorf("Create: %v", err)
-				return
+		defer func() {
+			closeErr := f.Close()
+			if err == nil {
+				err = closeErr
 			}
+		}()
 
-			defer func() {
-				closeErr := f.Close()
-				if err == nil {
-					err = closeErr
-				}
-			}()
-
-			defer func() {
-				pprof.Lookup("heap").WriteTo(f, 0)
-			}()
-		}
-
+		// Profile.
+		pprof.StartCPUProfile(f)
 		time.Sleep(duration)
+		pprof.StopCPUProfile()
 		return
 	}
 
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGHUP)
+	signal.Notify(c, syscall.SIGUSR1)
+	for range c {
+		const path = "/tmp/cpu.pprof"
+		const duration = 10 * time.Second
 
-	// Wait for SIGHUP in the background.
-	go func() {
-		for {
-			<-c
-			log.Printf("Received SIGHUP. Dumping %s to /tmp...", desc)
-			if err := profileOnce(); err != nil {
-				log.Printf("Error profiling: %v", err)
-			} else {
-				log.Println("Done profiling.")
-			}
+		log.Printf("Writing %v CPU profile to %s...", duration, path)
+
+		err := profileOnce(duration, path)
+		if err == nil {
+			log.Printf("Done writing CPU profile to %s.", path)
+		} else {
+			log.Printf("Error writing CPU profile: %v", err)
 		}
-	}()
+	}
+}
+
+func handleMemoryProfileSignals() {
+	profileOnce := func(path string) (err error) {
+		// Trigger a garbage collection to get up to date information (cf.
+		// https://goo.gl/aXVQfL).
+		runtime.GC()
+
+		// Open the file.
+		var f *os.File
+		f, err = os.Create(path)
+		if err != nil {
+			err = fmt.Errorf("Create: %v", err)
+			return
+		}
+
+		defer func() {
+			closeErr := f.Close()
+			if err == nil {
+				err = closeErr
+			}
+		}()
+
+		// Dump to the file.
+		err = pprof.Lookup("heap").WriteTo(f, 0)
+		if err != nil {
+			err = fmt.Errorf("WriteTo: %v", err)
+			return
+		}
+
+		return
+	}
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGUSR2)
+	for range c {
+		const path = "/tmp/mem.pprof"
+
+		err := profileOnce(path)
+		if err == nil {
+			log.Printf("Wrote memory profile to %s.", path)
+		} else {
+			log.Printf("Error writing memory profile: %v", err)
+		}
+	}
 }
 
 // Create token source from the JSON file at the supplide path.
@@ -210,6 +216,10 @@ func main() {
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
+	// Set up profiling handlers.
+	go handleCPUProfileSignals()
+	go handleMemoryProfileSignals()
+
 	app := newApp()
 	app.Action = func(c *cli.Context) {
 		var err error
@@ -233,9 +243,6 @@ func main() {
 		if flags.DebugInvariants {
 			syncutil.EnableInvariantChecking()
 		}
-
-		// Enable profiling if requested.
-		registerSIGHUPHandler(flags.DebugCPUProfile, flags.DebugMemProfile)
 
 		// Grab the connection.
 		conn, err := getConn(flags)
