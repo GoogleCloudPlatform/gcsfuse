@@ -18,7 +18,7 @@ import "syscall"
 
 const (
 	// Errors corresponding to kernel error numbers. These may be treated
-	// specially by fuseops.Op.Respond methods.
+	// specially by Connection.Reply.
 	EEXIST    = syscall.EEXIST
 	EINVAL    = syscall.EINVAL
 	EIO       = syscall.EIO

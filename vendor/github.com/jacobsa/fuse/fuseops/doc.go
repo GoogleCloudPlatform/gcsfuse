@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package fuseops contains implementations of the fuse.Op interface that may
-// be returned by fuse.Connection.ReadOp. See documentation in that package for
-// more.
+// Package fuseops contains ops that may be returned by fuse.Connection.ReadOp.
+// See documentation in that package for more.
 package fuseops

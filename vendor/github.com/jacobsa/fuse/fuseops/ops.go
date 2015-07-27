@@ -15,42 +15,9 @@
 package fuseops
 
 import (
-	"fmt"
 	"os"
 	"time"
-	"unsafe"
-
-	"github.com/jacobsa/fuse/internal/buffer"
-	"github.com/jacobsa/fuse/internal/fusekernel"
-	"golang.org/x/net/context"
 )
-
-// A common interface implemented by all ops in this package. Use a type switch
-// to find particular concrete types, responding with fuse.ENOSYS if a type is
-// not supported.
-type Op interface {
-	// A short description of the op, to be used in logging.
-	ShortDesc() string
-
-	// A long description of the op, to be used in debug logging.
-	DebugString() string
-
-	// A context that can be used for long-running operations.
-	Context() context.Context
-
-	// Repond to the operation with the supplied error. If there is no error, set
-	// any necessary output fields and then call Respond(nil). The user must not
-	// call with a nil error for unrecognized ops; instead, use ENOSYS.
-	//
-	// Once this is invoked, the user must exclude any further calls to any
-	// method of this op.
-	Respond(error)
-
-	// Log information tied to this operation, with semantics equivalent to
-	// log.Printf, except that the format is different and logging is suppressed
-	// if no debug logger was set when mounting.
-	Logf(format string, v ...interface{})
-}
 
 ////////////////////////////////////////////////////////////////////////
 // Inodes
@@ -59,9 +26,6 @@ type Op interface {
 // Look up a child by name within a parent directory. The kernel sends this
 // when resolving user paths to dentry structs, which are then cached.
 type LookUpInodeOp struct {
-	commonOp
-	protocol fusekernel.Protocol
-
 	// The ID of the directory inode to which the child belongs.
 	Parent InodeID
 
@@ -83,28 +47,11 @@ type LookUpInodeOp struct {
 	Entry ChildInodeEntry
 }
 
-func (o *LookUpInodeOp) ShortDesc() (desc string) {
-	desc = fmt.Sprintf("LookUpInode(parent=%v, name=%q)", o.Parent, o.Name)
-	return
-}
-
-func (o *LookUpInodeOp) kernelResponse() (b buffer.OutMessage) {
-	size := fusekernel.EntryOutSize(o.protocol)
-	b = buffer.NewOutMessage(size)
-	out := (*fusekernel.EntryOut)(b.Grow(size))
-	convertChildInodeEntry(&o.Entry, out)
-
-	return
-}
-
 // Refresh the attributes for an inode whose ID was previously returned in a
 // LookUpInodeOp. The kernel sends this when the FUSE VFS layer's cache of
 // inode attributes is stale. This is controlled by the AttributesExpiration
 // field of ChildInodeEntry, etc.
 type GetInodeAttributesOp struct {
-	commonOp
-	protocol fusekernel.Protocol
-
 	// The inode of interest.
 	Inode InodeID
 
@@ -115,32 +62,11 @@ type GetInodeAttributesOp struct {
 	AttributesExpiration time.Time
 }
 
-func (o *GetInodeAttributesOp) DebugString() string {
-	return fmt.Sprintf(
-		"Inode: %d, Exp: %v, Attr: %s",
-		o.Inode,
-		o.AttributesExpiration,
-		o.Attributes.DebugString())
-}
-
-func (o *GetInodeAttributesOp) kernelResponse() (b buffer.OutMessage) {
-	size := fusekernel.AttrOutSize(o.protocol)
-	b = buffer.NewOutMessage(size)
-	out := (*fusekernel.AttrOut)(b.Grow(size))
-	out.AttrValid, out.AttrValidNsec = convertExpirationTime(o.AttributesExpiration)
-	convertAttributes(o.Inode, &o.Attributes, &out.Attr)
-
-	return
-}
-
 // Change attributes for an inode.
 //
 // The kernel sends this for obvious cases like chmod(2), and for less obvious
 // cases like ftrunctate(2).
 type SetInodeAttributesOp struct {
-	commonOp
-	protocol fusekernel.Protocol
-
 	// The inode of interest.
 	Inode InodeID
 
@@ -155,16 +81,6 @@ type SetInodeAttributesOp struct {
 	// ChildInodeEntry.AttributesExpiration for more.
 	Attributes           InodeAttributes
 	AttributesExpiration time.Time
-}
-
-func (o *SetInodeAttributesOp) kernelResponse() (b buffer.OutMessage) {
-	size := fusekernel.AttrOutSize(o.protocol)
-	b = buffer.NewOutMessage(size)
-	out := (*fusekernel.AttrOut)(b.Grow(size))
-	out.AttrValid, out.AttrValidNsec = convertExpirationTime(o.AttributesExpiration)
-	convertAttributes(o.Inode, &o.Attributes, &out.Attr)
-
-	return
 }
 
 // Decrement the reference count for an inode ID previously issued by the file
@@ -207,18 +123,11 @@ func (o *SetInodeAttributesOp) kernelResponse() (b buffer.OutMessage) {
 // Rather they should take fuse.Connection.ReadOp returning io.EOF as
 // implicitly decrementing all lookup counts to zero.
 type ForgetInodeOp struct {
-	commonOp
-
 	// The inode whose reference count should be decremented.
 	Inode InodeID
 
 	// The amount to decrement the reference count.
 	N uint64
-}
-
-func (o *ForgetInodeOp) kernelResponse() (b buffer.OutMessage) {
-	// No response.
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -237,9 +146,6 @@ func (o *ForgetInodeOp) kernelResponse() (b buffer.OutMessage) {
 //
 // Therefore the file system should return EEXIST if the name already exists.
 type MkDirOp struct {
-	commonOp
-	protocol fusekernel.Protocol
-
 	// The ID of parent directory inode within which to create the child.
 	Parent InodeID
 
@@ -254,20 +160,6 @@ type MkDirOp struct {
 	Entry ChildInodeEntry
 }
 
-func (o *MkDirOp) ShortDesc() (desc string) {
-	desc = fmt.Sprintf("MkDir(parent=%v, name=%q)", o.Parent, o.Name)
-	return
-}
-
-func (o *MkDirOp) kernelResponse() (b buffer.OutMessage) {
-	size := fusekernel.EntryOutSize(o.protocol)
-	b = buffer.NewOutMessage(size)
-	out := (*fusekernel.EntryOut)(b.Grow(size))
-	convertChildInodeEntry(&o.Entry, out)
-
-	return
-}
-
 // Create a file inode and open it.
 //
 // The kernel sends this when the user asks to open a file with the O_CREAT
@@ -279,9 +171,6 @@ func (o *MkDirOp) kernelResponse() (b buffer.OutMessage) {
 //
 // Therefore the file system should return EEXIST if the name already exists.
 type CreateFileOp struct {
-	commonOp
-	protocol fusekernel.Protocol
-
 	// The ID of parent directory inode within which to create the child file.
 	Parent InodeID
 
@@ -306,30 +195,9 @@ type CreateFileOp struct {
 	Handle HandleID
 }
 
-func (o *CreateFileOp) ShortDesc() (desc string) {
-	desc = fmt.Sprintf("CreateFile(parent=%v, name=%q)", o.Parent, o.Name)
-	return
-}
-
-func (o *CreateFileOp) kernelResponse() (b buffer.OutMessage) {
-	eSize := fusekernel.EntryOutSize(o.protocol)
-	b = buffer.NewOutMessage(eSize + unsafe.Sizeof(fusekernel.OpenOut{}))
-
-	e := (*fusekernel.EntryOut)(b.Grow(eSize))
-	convertChildInodeEntry(&o.Entry, e)
-
-	oo := (*fusekernel.OpenOut)(b.Grow(unsafe.Sizeof(fusekernel.OpenOut{})))
-	oo.Fh = uint64(o.Handle)
-
-	return
-}
-
 // Create a symlink inode. If the name already exists, the file system should
 // return EEXIST (cf. the notes on CreateFileOp and MkDirOp).
 type CreateSymlinkOp struct {
-	commonOp
-	protocol fusekernel.Protocol
-
 	// The ID of parent directory inode within which to create the child symlink.
 	Parent InodeID
 
@@ -345,25 +213,6 @@ type CreateSymlinkOp struct {
 	// The lookup count for the inode is implicitly incremented. See notes on
 	// ForgetInodeOp for more information.
 	Entry ChildInodeEntry
-}
-
-func (o *CreateSymlinkOp) ShortDesc() (desc string) {
-	desc = fmt.Sprintf(
-		"CreateSymlink(parent=%v, name=%q, target=%q)",
-		o.Parent,
-		o.Name,
-		o.Target)
-
-	return
-}
-
-func (o *CreateSymlinkOp) kernelResponse() (b buffer.OutMessage) {
-	size := fusekernel.EntryOutSize(o.protocol)
-	b = buffer.NewOutMessage(size)
-	out := (*fusekernel.EntryOut)(b.Grow(size))
-	convertChildInodeEntry(&o.Entry, out)
-
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -405,8 +254,6 @@ func (o *CreateSymlinkOp) kernelResponse() (b buffer.OutMessage) {
 //     about this.
 //
 type RenameOp struct {
-	commonOp
-
 	// The old parent directory, and the name of the entry within it to be
 	// relocated.
 	OldParent InodeID
@@ -418,11 +265,6 @@ type RenameOp struct {
 	NewName   string
 }
 
-func (o *RenameOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(0)
-	return
-}
-
 // Unlink a directory from its parent. Because directories cannot have a link
 // count above one, this means the directory inode should be deleted as well
 // once the kernel sends ForgetInodeOp.
@@ -431,17 +273,10 @@ func (o *RenameOp) kernelResponse() (b buffer.OutMessage) {
 //
 // Sample implementation in ext2: ext2_rmdir (http://goo.gl/B9QmFf)
 type RmDirOp struct {
-	commonOp
-
 	// The ID of parent directory inode, and the name of the directory being
 	// removed within it.
 	Parent InodeID
 	Name   string
-}
-
-func (o *RmDirOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(0)
-	return
 }
 
 // Unlink a file or symlink from its parent. If this brings the inode's link
@@ -451,17 +286,10 @@ func (o *RmDirOp) kernelResponse() (b buffer.OutMessage) {
 //
 // Sample implementation in ext2: ext2_unlink (http://goo.gl/hY6r6C)
 type UnlinkOp struct {
-	commonOp
-
 	// The ID of parent directory inode, and the name of the entry being removed
 	// within it.
 	Parent InodeID
 	Name   string
-}
-
-func (o *UnlinkOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(0)
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -475,8 +303,6 @@ func (o *UnlinkOp) kernelResponse() (b buffer.OutMessage) {
 // user-space process. On OS X it may not be sent for every open(2) (cf.
 // https://github.com/osxfuse/osxfuse/issues/199).
 type OpenDirOp struct {
-	commonOp
-
 	// The ID of the inode to be opened.
 	Inode InodeID
 
@@ -491,18 +317,8 @@ type OpenDirOp struct {
 	Handle HandleID
 }
 
-func (o *OpenDirOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.OpenOut{}))
-	out := (*fusekernel.OpenOut)(b.Grow(unsafe.Sizeof(fusekernel.OpenOut{})))
-	out.Fh = uint64(o.Handle)
-
-	return
-}
-
 // Read entries from a directory previously opened with OpenDir.
 type ReadDirOp struct {
-	commonOp
-
 	// The directory inode that we are reading, and the handle previously
 	// returned by OpenDir when opening that inode.
 	Inode  InodeID
@@ -589,12 +405,6 @@ type ReadDirOp struct {
 	Data []byte
 }
 
-func (o *ReadDirOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(uintptr(len(o.Data)))
-	b.Append(o.Data)
-	return
-}
-
 // Release a previously-minted directory handle. The kernel sends this when
 // there are no more references to an open directory: all file descriptors are
 // closed and all memory mappings are unmapped.
@@ -604,17 +414,10 @@ func (o *ReadDirOp) kernelResponse() (b buffer.OutMessage) {
 //
 // Errors from this op are ignored by the kernel (cf. http://goo.gl/RL38Do).
 type ReleaseDirHandleOp struct {
-	commonOp
-
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
 	Handle HandleID
-}
-
-func (o *ReleaseDirHandleOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(0)
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -628,8 +431,6 @@ func (o *ReleaseDirHandleOp) kernelResponse() (b buffer.OutMessage) {
 // process. On OS X it may not be sent for every open(2)
 // (cf.https://github.com/osxfuse/osxfuse/issues/199).
 type OpenFileOp struct {
-	commonOp
-
 	// The ID of the inode to be opened.
 	Inode InodeID
 
@@ -643,22 +444,12 @@ type OpenFileOp struct {
 	Handle HandleID
 }
 
-func (o *OpenFileOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.OpenOut{}))
-	out := (*fusekernel.OpenOut)(b.Grow(unsafe.Sizeof(fusekernel.OpenOut{})))
-	out.Fh = uint64(o.Handle)
-
-	return
-}
-
 // Read data from a file previously opened with CreateFile or OpenFile.
 //
 // Note that this op is not sent for every call to read(2) by the end user;
 // some reads may be served by the page cache. See notes on WriteFileOp for
 // more.
 type ReadFileOp struct {
-	commonOp
-
 	// The file inode that we are reading, and the handle previously returned by
 	// CreateFile or OpenFile when opening that inode.
 	Inode  InodeID
@@ -678,12 +469,6 @@ type ReadFileOp struct {
 	// Set by the file system: the data read. If this is less than the requested
 	// size, it indicates EOF. An error should not be returned in this case.
 	Data []byte
-}
-
-func (o *ReadFileOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(uintptr(len(o.Data)))
-	b.Append(o.Data)
-	return
 }
 
 // Write data to a file previously opened with CreateFile or OpenFile.
@@ -718,8 +503,6 @@ func (o *ReadFileOp) kernelResponse() (b buffer.OutMessage) {
 // (See also http://goo.gl/ocdTdM, fuse-devel thread "Fuse guarantees on
 // concurrent requests".)
 type WriteFileOp struct {
-	commonOp
-
 	// The file inode that we are modifying, and the handle previously returned
 	// by CreateFile or OpenFile when opening that inode.
 	Inode  InodeID
@@ -756,14 +539,6 @@ type WriteFileOp struct {
 	Data []byte
 }
 
-func (o *WriteFileOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.WriteOut{}))
-	out := (*fusekernel.WriteOut)(b.Grow(unsafe.Sizeof(fusekernel.WriteOut{})))
-	out.Size = uint32(len(o.Data))
-
-	return
-}
-
 // Synchronize the current contents of an open file to storage.
 //
 // vfs.txt documents this as being called for by the fsync(2) system call
@@ -781,16 +556,9 @@ func (o *WriteFileOp) kernelResponse() (b buffer.OutMessage) {
 // See also: FlushFileOp, which may perform a similar function when closing a
 // file (but which is not used in "real" file systems).
 type SyncFileOp struct {
-	commonOp
-
 	// The file and handle being sync'd.
 	Inode  InodeID
 	Handle HandleID
-}
-
-func (o *SyncFileOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(0)
-	return
 }
 
 // Flush the current state of an open file to storage upon closing a file
@@ -841,16 +609,9 @@ func (o *SyncFileOp) kernelResponse() (b buffer.OutMessage) {
 // to at least schedule a real flush, and maybe do it immediately in order to
 // return any errors that occur.
 type FlushFileOp struct {
-	commonOp
-
 	// The file and handle being flushed.
 	Inode  InodeID
 	Handle HandleID
-}
-
-func (o *FlushFileOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(0)
-	return
 }
 
 // Release a previously-minted file handle. The kernel calls this when there
@@ -862,34 +623,10 @@ func (o *FlushFileOp) kernelResponse() (b buffer.OutMessage) {
 //
 // Errors from this op are ignored by the kernel (cf. http://goo.gl/RL38Do).
 type ReleaseFileHandleOp struct {
-	commonOp
-
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
 	Handle HandleID
-}
-
-func (o *ReleaseFileHandleOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(0)
-	return
-}
-
-// A sentinel used for unknown ops. The user is expected to respond with a
-// non-nil error.
-type unknownOp struct {
-	commonOp
-	opCode uint32
-	inode  InodeID
-}
-
-func (o *unknownOp) ShortDesc() (desc string) {
-	desc = fmt.Sprintf("<opcode %d>(inode=%v)", o.opCode, o.inode)
-	return
-}
-
-func (o *unknownOp) kernelResponse() (b buffer.OutMessage) {
-	panic(fmt.Sprintf("Should never get here for unknown op: %s", o.ShortDesc()))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -898,77 +635,9 @@ func (o *unknownOp) kernelResponse() (b buffer.OutMessage) {
 
 // Read the target of a symlink inode.
 type ReadSymlinkOp struct {
-	commonOp
-
 	// The symlink inode that we are reading.
 	Inode InodeID
 
 	// Set by the file system: the target of the symlink.
 	Target string
-}
-
-func (o *ReadSymlinkOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(uintptr(len(o.Target)))
-	b.AppendString(o.Target)
-	return
-}
-
-////////////////////////////////////////////////////////////////////////
-// Internal
-////////////////////////////////////////////////////////////////////////
-
-// TODO(jacobsa): Untangle the way ops work and move these to an internal
-// package, along with Convert. I think all of the behavior wants to be on
-// Connection. Ops have only String methods. Connection.ReadOp returns an
-// interace{} and a context. If we must restore debug logging later, we can
-// stuff an op ID in that context and add a Connection.Logf method. Connection
-// has a Reply method that takes a descendent context and an error.
-
-// Do not use this struct directly. See the TODO in fuseops/ops.go.
-type InternalStatFSOp struct {
-	commonOp
-}
-
-func (o *InternalStatFSOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.StatfsOut{}))
-	b.Grow(unsafe.Sizeof(fusekernel.StatfsOut{}))
-
-	return
-}
-
-// Do not use this struct directly. See the TODO in fuseops/ops.go.
-type InternalInterruptOp struct {
-	commonOp
-	FuseID uint64
-}
-
-func (o *InternalInterruptOp) kernelResponse() (b buffer.OutMessage) {
-	panic("Shouldn't get here.")
-}
-
-// Do not use this struct directly. See the TODO in fuseops/ops.go.
-type InternalInitOp struct {
-	commonOp
-
-	// In
-	Kernel fusekernel.Protocol
-
-	// Out
-	Library      fusekernel.Protocol
-	MaxReadahead uint32
-	Flags        fusekernel.InitFlags
-	MaxWrite     uint32
-}
-
-func (o *InternalInitOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.InitOut{}))
-	out := (*fusekernel.InitOut)(b.Grow(unsafe.Sizeof(fusekernel.InitOut{})))
-
-	out.Major = o.Library.Major
-	out.Minor = o.Library.Minor
-	out.MaxReadahead = o.MaxReadahead
-	out.Flags = uint32(o.Flags)
-	out.MaxWrite = o.MaxWrite
-
-	return
 }

@@ -12,41 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fuseops
+package fuse
 
 import (
 	"bytes"
 	"errors"
-	"log"
+	"fmt"
 	"os"
 	"syscall"
 	"time"
 	"unsafe"
 
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/internal/buffer"
 	"github.com/jacobsa/fuse/internal/fusekernel"
-	"golang.org/x/net/context"
 )
 
-// This function is an implementation detail of the fuse package, and must not
-// be called by anyone else.
-//
-// Convert the supplied fuse kernel message to an Op. sendReply will be used to
-// send the reply back to the kernel once the user calls o.Respond. If the op
-// is unknown, a special unexported type will be used.
-//
-// The debug logging function and error logger may be nil. The caller is
-// responsible for arranging for the message to be destroyed.
-func Convert(
-	opCtx context.Context,
-	m *buffer.InMessage,
-	protocol fusekernel.Protocol,
-	debugLogForOp func(int, string, ...interface{}),
-	errorLogger *log.Logger,
-	sendReply replyFunc) (o Op, err error) {
-	var co *commonOp
+////////////////////////////////////////////////////////////////////////
+// Incoming messages
+////////////////////////////////////////////////////////////////////////
 
-	var io internalOp
+// Convert a kernel message to an appropriate op. If the op is unknown, a
+// special unexported type will be used.
+//
+// The caller is responsible for arranging for the message to be destroyed.
+func convertInMessage(
+	m *buffer.InMessage,
+	protocol fusekernel.Protocol) (o interface{}, err error) {
 	switch m.Header().Opcode {
 	case fusekernel.OpLookup:
 		buf := m.ConsumeBytes(m.Len())
@@ -56,21 +48,15 @@ func Convert(
 			return
 		}
 
-		to := &LookUpInodeOp{
-			protocol: protocol,
-			Parent:   InodeID(m.Header().Nodeid),
-			Name:     string(buf[:n-1]),
+		o = &fuseops.LookUpInodeOp{
+			Parent: fuseops.InodeID(m.Header().Nodeid),
+			Name:   string(buf[:n-1]),
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpGetattr:
-		to := &GetInodeAttributesOp{
-			protocol: protocol,
-			Inode:    InodeID(m.Header().Nodeid),
+		o = &fuseops.GetInodeAttributesOp{
+			Inode: fuseops.InodeID(m.Header().Nodeid),
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpSetattr:
 		type input fusekernel.SetattrIn
@@ -80,10 +66,10 @@ func Convert(
 			return
 		}
 
-		to := &SetInodeAttributesOp{
-			protocol: protocol,
-			Inode:    InodeID(m.Header().Nodeid),
+		to := &fuseops.SetInodeAttributesOp{
+			Inode: fuseops.InodeID(m.Header().Nodeid),
 		}
+		o = to
 
 		valid := fusekernel.SetattrValid(in.Valid)
 		if valid&fusekernel.SetattrSize != 0 {
@@ -105,9 +91,6 @@ func Convert(
 			to.Mtime = &t
 		}
 
-		io = to
-		co = &to.commonOp
-
 	case fusekernel.OpForget:
 		type input fusekernel.ForgetIn
 		in := (*input)(m.Consume(unsafe.Sizeof(input{})))
@@ -116,12 +99,10 @@ func Convert(
 			return
 		}
 
-		to := &ForgetInodeOp{
-			Inode: InodeID(m.Header().Nodeid),
+		o = &fuseops.ForgetInodeOp{
+			Inode: fuseops.InodeID(m.Header().Nodeid),
 			N:     in.Nlookup,
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpMkdir:
 		in := (*fusekernel.MkdirIn)(m.Consume(fusekernel.MkdirInSize(protocol)))
@@ -138,10 +119,9 @@ func Convert(
 		}
 		name = name[:i]
 
-		to := &MkDirOp{
-			protocol: protocol,
-			Parent:   InodeID(m.Header().Nodeid),
-			Name:     string(name),
+		o = &fuseops.MkDirOp{
+			Parent: fuseops.InodeID(m.Header().Nodeid),
+			Name:   string(name),
 
 			// On Linux, vfs_mkdir calls through to the inode with at most
 			// permissions and sticky bits set (cf. https://goo.gl/WxgQXk), and fuse
@@ -151,9 +131,6 @@ func Convert(
 			// that os.ModeDir is set.
 			Mode: convertFileMode(in.Mode) | os.ModeDir,
 		}
-
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpCreate:
 		in := (*fusekernel.CreateIn)(m.Consume(fusekernel.CreateInSize(protocol)))
@@ -170,14 +147,11 @@ func Convert(
 		}
 		name = name[:i]
 
-		to := &CreateFileOp{
-			protocol: protocol,
-			Parent:   InodeID(m.Header().Nodeid),
-			Name:     string(name),
-			Mode:     convertFileMode(in.Mode),
+		o = &fuseops.CreateFileOp{
+			Parent: fuseops.InodeID(m.Header().Nodeid),
+			Name:   string(name),
+			Mode:   convertFileMode(in.Mode),
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpSymlink:
 		// The message is "newName\0target\0".
@@ -193,14 +167,11 @@ func Convert(
 		}
 		newName, target := names[0:i], names[i+1:len(names)-1]
 
-		to := &CreateSymlinkOp{
-			protocol: protocol,
-			Parent:   InodeID(m.Header().Nodeid),
-			Name:     string(newName),
-			Target:   string(target),
+		o = &fuseops.CreateSymlinkOp{
+			Parent: fuseops.InodeID(m.Header().Nodeid),
+			Name:   string(newName),
+			Target: string(target),
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpRename:
 		type input fusekernel.RenameIn
@@ -227,14 +198,12 @@ func Convert(
 		}
 		oldName, newName := names[:i], names[i+1:len(names)-1]
 
-		to := &RenameOp{
-			OldParent: InodeID(m.Header().Nodeid),
+		o = &fuseops.RenameOp{
+			OldParent: fuseops.InodeID(m.Header().Nodeid),
 			OldName:   string(oldName),
-			NewParent: InodeID(in.Newdir),
+			NewParent: fuseops.InodeID(in.Newdir),
 			NewName:   string(newName),
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpUnlink:
 		buf := m.ConsumeBytes(m.Len())
@@ -244,12 +213,10 @@ func Convert(
 			return
 		}
 
-		to := &UnlinkOp{
-			Parent: InodeID(m.Header().Nodeid),
+		o = &fuseops.UnlinkOp{
+			Parent: fuseops.InodeID(m.Header().Nodeid),
 			Name:   string(buf[:n-1]),
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpRmdir:
 		buf := m.ConsumeBytes(m.Len())
@@ -259,26 +226,20 @@ func Convert(
 			return
 		}
 
-		to := &RmDirOp{
-			Parent: InodeID(m.Header().Nodeid),
+		o = &fuseops.RmDirOp{
+			Parent: fuseops.InodeID(m.Header().Nodeid),
 			Name:   string(buf[:n-1]),
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpOpen:
-		to := &OpenFileOp{
-			Inode: InodeID(m.Header().Nodeid),
+		o = &fuseops.OpenFileOp{
+			Inode: fuseops.InodeID(m.Header().Nodeid),
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpOpendir:
-		to := &OpenDirOp{
-			Inode: InodeID(m.Header().Nodeid),
+		o = &fuseops.OpenDirOp{
+			Inode: fuseops.InodeID(m.Header().Nodeid),
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpRead:
 		in := (*fusekernel.ReadIn)(m.Consume(fusekernel.ReadInSize(protocol)))
@@ -287,14 +248,12 @@ func Convert(
 			return
 		}
 
-		to := &ReadFileOp{
-			Inode:  InodeID(m.Header().Nodeid),
-			Handle: HandleID(in.Fh),
+		o = &fuseops.ReadFileOp{
+			Inode:  fuseops.InodeID(m.Header().Nodeid),
+			Handle: fuseops.HandleID(in.Fh),
 			Offset: int64(in.Offset),
 			Size:   int(in.Size),
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpReaddir:
 		in := (*fusekernel.ReadIn)(m.Consume(fusekernel.ReadInSize(protocol)))
@@ -303,14 +262,12 @@ func Convert(
 			return
 		}
 
-		to := &ReadDirOp{
-			Inode:  InodeID(m.Header().Nodeid),
-			Handle: HandleID(in.Fh),
-			Offset: DirOffset(in.Offset),
+		o = &fuseops.ReadDirOp{
+			Inode:  fuseops.InodeID(m.Header().Nodeid),
+			Handle: fuseops.HandleID(in.Fh),
+			Offset: fuseops.DirOffset(in.Offset),
 			Size:   int(in.Size),
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpRelease:
 		type input fusekernel.ReleaseIn
@@ -320,11 +277,9 @@ func Convert(
 			return
 		}
 
-		to := &ReleaseFileHandleOp{
-			Handle: HandleID(in.Fh),
+		o = &fuseops.ReleaseFileHandleOp{
+			Handle: fuseops.HandleID(in.Fh),
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpReleasedir:
 		type input fusekernel.ReleaseIn
@@ -334,11 +289,9 @@ func Convert(
 			return
 		}
 
-		to := &ReleaseDirHandleOp{
-			Handle: HandleID(in.Fh),
+		o = &fuseops.ReleaseDirHandleOp{
+			Handle: fuseops.HandleID(in.Fh),
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpWrite:
 		in := (*fusekernel.WriteIn)(m.Consume(fusekernel.WriteInSize(protocol)))
@@ -353,14 +306,12 @@ func Convert(
 			return
 		}
 
-		to := &WriteFileOp{
-			Inode:  InodeID(m.Header().Nodeid),
-			Handle: HandleID(in.Fh),
+		o = &fuseops.WriteFileOp{
+			Inode:  fuseops.InodeID(m.Header().Nodeid),
+			Handle: fuseops.HandleID(in.Fh),
 			Data:   buf,
 			Offset: int64(in.Offset),
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpFsync:
 		type input fusekernel.FsyncIn
@@ -370,12 +321,10 @@ func Convert(
 			return
 		}
 
-		to := &SyncFileOp{
-			Inode:  InodeID(m.Header().Nodeid),
-			Handle: HandleID(in.Fh),
+		o = &fuseops.SyncFileOp{
+			Inode:  fuseops.InodeID(m.Header().Nodeid),
+			Handle: fuseops.HandleID(in.Fh),
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpFlush:
 		type input fusekernel.FlushIn
@@ -385,24 +334,18 @@ func Convert(
 			return
 		}
 
-		to := &FlushFileOp{
-			Inode:  InodeID(m.Header().Nodeid),
-			Handle: HandleID(in.Fh),
+		o = &fuseops.FlushFileOp{
+			Inode:  fuseops.InodeID(m.Header().Nodeid),
+			Handle: fuseops.HandleID(in.Fh),
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpReadlink:
-		to := &ReadSymlinkOp{
-			Inode: InodeID(m.Header().Nodeid),
+		o = &fuseops.ReadSymlinkOp{
+			Inode: fuseops.InodeID(m.Header().Nodeid),
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpStatfs:
-		to := &InternalStatFSOp{}
-		io = to
-		co = &to.commonOp
+		o = &statFSOp{}
 
 	case fusekernel.OpInterrupt:
 		type input fusekernel.InterruptIn
@@ -412,11 +355,9 @@ func Convert(
 			return
 		}
 
-		to := &InternalInterruptOp{
+		o = &interruptOp{
 			FuseID: in.Unique,
 		}
-		io = to
-		co = &to.commonOp
 
 	case fusekernel.OpInit:
 		type input fusekernel.InitIn
@@ -426,34 +367,189 @@ func Convert(
 			return
 		}
 
-		to := &InternalInitOp{
+		o = &initOp{
 			Kernel:       fusekernel.Protocol{in.Major, in.Minor},
 			MaxReadahead: in.MaxReadahead,
 			Flags:        fusekernel.InitFlags(in.Flags),
 		}
-		io = to
-		co = &to.commonOp
 
 	default:
-		to := &unknownOp{
+		o = &unknownOp{
 			opCode: m.Header().Opcode,
-			inode:  InodeID(m.Header().Nodeid),
+			inode:  fuseops.InodeID(m.Header().Nodeid),
 		}
-		io = to
-		co = &to.commonOp
 	}
 
-	co.init(
-		opCtx,
-		io,
-		m.Header().Unique,
-		sendReply,
-		debugLogForOp,
-		errorLogger)
-
-	o = io
 	return
 }
+
+////////////////////////////////////////////////////////////////////////
+// Outgoing messages
+////////////////////////////////////////////////////////////////////////
+
+// Return the response that should be sent to the kernel. If the op requires no
+// response, return a nil response.
+func kernelResponse(
+	fuseID uint64,
+	op interface{},
+	opErr error,
+	protocol fusekernel.Protocol) (msg []byte) {
+	// If the user replied with an error, create room enough just for the result
+	// header and fill it in with an error. Otherwise create an appropriate
+	// response.
+	var b buffer.OutMessage
+	if opErr != nil {
+		b = buffer.NewOutMessage(0)
+		if errno, ok := opErr.(syscall.Errno); ok {
+			b.OutHeader().Error = -int32(errno)
+		} else {
+			b.OutHeader().Error = -int32(syscall.EIO)
+		}
+	} else {
+		b = kernelResponseForOp(op, protocol)
+	}
+
+	msg = b.Bytes()
+
+	// Fill in the rest of the header, if a response is required.
+	if msg != nil {
+		h := b.OutHeader()
+		h.Unique = fuseID
+		h.Len = uint32(len(msg))
+	}
+
+	return
+}
+
+// Like kernelResponse, but assumes the user replied with a nil error to the
+// op. Returns a nil response if no response is required.
+func kernelResponseForOp(
+	op interface{},
+	protocol fusekernel.Protocol) (b buffer.OutMessage) {
+	// Create the appropriate output message
+	switch o := op.(type) {
+	case *fuseops.LookUpInodeOp:
+		size := fusekernel.EntryOutSize(protocol)
+		b = buffer.NewOutMessage(size)
+		out := (*fusekernel.EntryOut)(b.Grow(size))
+		convertChildInodeEntry(&o.Entry, out)
+
+	case *fuseops.GetInodeAttributesOp:
+		size := fusekernel.AttrOutSize(protocol)
+		b = buffer.NewOutMessage(size)
+		out := (*fusekernel.AttrOut)(b.Grow(size))
+		out.AttrValid, out.AttrValidNsec = convertExpirationTime(
+			o.AttributesExpiration)
+		convertAttributes(o.Inode, &o.Attributes, &out.Attr)
+
+	case *fuseops.SetInodeAttributesOp:
+		size := fusekernel.AttrOutSize(protocol)
+		b = buffer.NewOutMessage(size)
+		out := (*fusekernel.AttrOut)(b.Grow(size))
+		out.AttrValid, out.AttrValidNsec = convertExpirationTime(
+			o.AttributesExpiration)
+		convertAttributes(o.Inode, &o.Attributes, &out.Attr)
+
+	case *fuseops.ForgetInodeOp:
+		// No response.
+
+	case *fuseops.MkDirOp:
+		size := fusekernel.EntryOutSize(protocol)
+		b = buffer.NewOutMessage(size)
+		out := (*fusekernel.EntryOut)(b.Grow(size))
+		convertChildInodeEntry(&o.Entry, out)
+
+	case *fuseops.CreateFileOp:
+		eSize := fusekernel.EntryOutSize(protocol)
+		b = buffer.NewOutMessage(eSize + unsafe.Sizeof(fusekernel.OpenOut{}))
+
+		e := (*fusekernel.EntryOut)(b.Grow(eSize))
+		convertChildInodeEntry(&o.Entry, e)
+
+		oo := (*fusekernel.OpenOut)(b.Grow(unsafe.Sizeof(fusekernel.OpenOut{})))
+		oo.Fh = uint64(o.Handle)
+
+	case *fuseops.CreateSymlinkOp:
+		size := fusekernel.EntryOutSize(protocol)
+		b = buffer.NewOutMessage(size)
+		out := (*fusekernel.EntryOut)(b.Grow(size))
+		convertChildInodeEntry(&o.Entry, out)
+
+	case *fuseops.RenameOp:
+		b = buffer.NewOutMessage(0)
+
+	case *fuseops.RmDirOp:
+		b = buffer.NewOutMessage(0)
+
+	case *fuseops.UnlinkOp:
+		b = buffer.NewOutMessage(0)
+
+	case *fuseops.OpenDirOp:
+		b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.OpenOut{}))
+		out := (*fusekernel.OpenOut)(b.Grow(unsafe.Sizeof(fusekernel.OpenOut{})))
+		out.Fh = uint64(o.Handle)
+
+	case *fuseops.ReadDirOp:
+		b = buffer.NewOutMessage(uintptr(len(o.Data)))
+		b.Append(o.Data)
+
+	case *fuseops.ReleaseDirHandleOp:
+		b = buffer.NewOutMessage(0)
+
+	case *fuseops.OpenFileOp:
+		b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.OpenOut{}))
+		out := (*fusekernel.OpenOut)(b.Grow(unsafe.Sizeof(fusekernel.OpenOut{})))
+		out.Fh = uint64(o.Handle)
+
+	case *fuseops.ReadFileOp:
+		b = buffer.NewOutMessage(uintptr(len(o.Data)))
+		b.Append(o.Data)
+
+	case *fuseops.WriteFileOp:
+		b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.WriteOut{}))
+		out := (*fusekernel.WriteOut)(b.Grow(unsafe.Sizeof(fusekernel.WriteOut{})))
+		out.Size = uint32(len(o.Data))
+
+	case *fuseops.SyncFileOp:
+		b = buffer.NewOutMessage(0)
+
+	case *fuseops.FlushFileOp:
+		b = buffer.NewOutMessage(0)
+
+	case *fuseops.ReleaseFileHandleOp:
+		b = buffer.NewOutMessage(0)
+
+	case *fuseops.ReadSymlinkOp:
+		b = buffer.NewOutMessage(uintptr(len(o.Target)))
+		b.AppendString(o.Target)
+
+	case *statFSOp:
+		b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.StatfsOut{}))
+		b.Grow(unsafe.Sizeof(fusekernel.StatfsOut{}))
+
+	case *interruptOp:
+		// No response.
+
+	case *initOp:
+		b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.InitOut{}))
+		out := (*fusekernel.InitOut)(b.Grow(unsafe.Sizeof(fusekernel.InitOut{})))
+
+		out.Major = o.Library.Major
+		out.Minor = o.Library.Minor
+		out.MaxReadahead = o.MaxReadahead
+		out.Flags = uint32(o.Flags)
+		out.MaxWrite = o.MaxWrite
+
+	default:
+		panic(fmt.Sprintf("Unknown op: %#v", op))
+	}
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// General conversions
+////////////////////////////////////////////////////////////////////////
 
 func convertTime(t time.Time) (secs uint64, nsec uint32) {
 	totalNano := t.UnixNano()
@@ -463,8 +559,8 @@ func convertTime(t time.Time) (secs uint64, nsec uint32) {
 }
 
 func convertAttributes(
-	inodeID InodeID,
-	in *InodeAttributes,
+	inodeID fuseops.InodeID,
+	in *fuseops.InodeAttributes,
 	out *fusekernel.Attr) {
 	out.Ino = uint64(inodeID)
 	out.Size = in.Size
@@ -472,7 +568,7 @@ func convertAttributes(
 	out.Mtime, out.MtimeNsec = convertTime(in.Mtime)
 	out.Ctime, out.CtimeNsec = convertTime(in.Ctime)
 	out.SetCrtime(convertTime(in.Crtime))
-	out.Nlink = uint32(in.Nlink) // TODO(jacobsa): Make the public field uint32?
+	out.Nlink = in.Nlink
 	out.Uid = in.Uid
 	out.Gid = in.Gid
 
@@ -515,7 +611,7 @@ func convertExpirationTime(t time.Time) (secs uint64, nsecs uint32) {
 }
 
 func convertChildInodeEntry(
-	in *ChildInodeEntry,
+	in *fuseops.ChildInodeEntry,
 	out *fusekernel.EntryOut) {
 	out.Nodeid = uint64(in.Child)
 	out.Generation = uint64(in.Generation)

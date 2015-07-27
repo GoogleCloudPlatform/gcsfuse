@@ -19,6 +19,8 @@ import (
 	"os"
 	"sync"
 
+	"golang.org/x/net/context"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -78,6 +80,7 @@ func (fs *InterruptFS) WaitForReadInFlight() {
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *InterruptFS) LookUpInode(
+	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
 	// We support only one parent.
 	if op.Parent != fuseops.RootInodeID {
@@ -99,6 +102,7 @@ func (fs *InterruptFS) LookUpInode(
 }
 
 func (fs *InterruptFS) GetInodeAttributes(
+	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) (err error) {
 	switch op.Inode {
 	case fuseops.RootInodeID:
@@ -116,11 +120,13 @@ func (fs *InterruptFS) GetInodeAttributes(
 }
 
 func (fs *InterruptFS) OpenFile(
+	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
 	return
 }
 
 func (fs *InterruptFS) ReadFile(
+	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
 	// Signal that a read has been received.
 	fs.mu.Lock()
@@ -129,7 +135,7 @@ func (fs *InterruptFS) ReadFile(
 	fs.mu.Unlock()
 
 	// Wait for cancellation.
-	done := op.Context().Done()
+	done := ctx.Done()
 	if done == nil {
 		panic("Expected non-nil channel.")
 	}
@@ -137,7 +143,7 @@ func (fs *InterruptFS) ReadFile(
 	<-done
 
 	// Return the context's error.
-	err = op.Context().Err()
+	err = ctx.Err()
 
 	return
 }
