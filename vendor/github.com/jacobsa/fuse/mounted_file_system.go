@@ -16,7 +16,6 @@ package fuse
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"runtime"
 
@@ -193,12 +192,6 @@ func Mount(
 	dir string,
 	server Server,
 	config *MountConfig) (mfs *MountedFileSystem, err error) {
-	// Arrange for a non-nil debug logger.
-	debugLogger := config.DebugLogger
-	if debugLogger == nil {
-		debugLogger = log.New(ioutil.Discard, "", 0)
-	}
-
 	// Initialize the struct.
 	mfs = &MountedFileSystem{
 		dir:                 dir,
@@ -206,7 +199,6 @@ func Mount(
 	}
 
 	// Open a bazilfuse connection.
-	debugLogger.Println("Opening a bazilfuse connection.")
 	bfConn, err := bazilfuse.Mount(mfs.dir, config.bazilfuseOptions()...)
 	if err != nil {
 		err = fmt.Errorf("bazilfuse.Mount: %v", err)
@@ -219,17 +211,11 @@ func Mount(
 		opContext = context.Background()
 	}
 
-	// Create a /dev/null error logger if necessary.
-	errorLogger := config.ErrorLogger
-	if errorLogger == nil {
-		errorLogger = log.New(ioutil.Discard, "", 0)
-	}
-
 	// Create our own Connection object wrapping it.
 	connection, err := newConnection(
 		opContext,
-		debugLogger,
-		errorLogger,
+		config.DebugLogger,
+		config.ErrorLogger,
 		bfConn)
 
 	if err != nil {

@@ -50,6 +50,8 @@ type Connection struct {
 
 // Responsibility for closing the wrapped connection is transferred to the
 // result. You must call c.close() eventually.
+//
+// The loggers may be nil.
 func newConnection(
 	parentCtx context.Context,
 	debugLogger *log.Logger,
@@ -73,6 +75,10 @@ func (c *Connection) debugLog(
 	calldepth int,
 	format string,
 	v ...interface{}) {
+	if c.debugLogger == nil {
+		return
+	}
+
 	// Get file:line info.
 	var file string
 	var line int
@@ -239,8 +245,11 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 		// Set up op dependencies.
 		opCtx := c.beginOp(bfReq)
 
-		debugLogForOp := func(calldepth int, format string, v ...interface{}) {
-			c.debugLog(opID, calldepth+1, format, v...)
+		var debugLogForOp func(int, string, ...interface{})
+		if c.debugLogger != nil {
+			debugLogForOp = func(calldepth int, format string, v ...interface{}) {
+				c.debugLog(opID, calldepth+1, format, v...)
+			}
 		}
 
 		finished := func(err error) { c.finishOp(bfReq) }
