@@ -16,10 +16,7 @@ package fuse
 
 import (
 	"fmt"
-	"log"
-	"runtime"
 
-	"github.com/jacobsa/bazilfuse"
 	"golang.org/x/net/context"
 )
 
@@ -62,129 +59,6 @@ func (mfs *MountedFileSystem) Join(ctx context.Context) error {
 	}
 }
 
-// Optional configuration accepted by Mount.
-type MountConfig struct {
-	// The context from which every op read from the connetion by the sever
-	// should inherit. If nil, context.Background() will be used.
-	OpContext context.Context
-
-	// If non-empty, the name of the file system as displayed by e.g. `mount`.
-	// This is important because the `umount` command requires root privileges if
-	// it doesn't agree with /etc/fstab.
-	FSName string
-
-	// Mount the file system in read-only mode. File modes will appear as normal,
-	// but opening a file for writing and metadata operations like chmod,
-	// chtimes, etc. will fail.
-	ReadOnly bool
-
-	// A logger to use for logging errors. All errors are logged, with the
-	// exception of a few blacklisted errors that are expected. If nil, no error
-	// logging is performed.
-	ErrorLogger *log.Logger
-
-	// A logger to use for logging debug information. If nil, no debug logging is
-	// performed.
-	DebugLogger *log.Logger
-
-	// OS X only.
-	//
-	// Normally on OS X we mount with the novncache option
-	// (cf. http://goo.gl/1pTjuk), which disables entry caching in the kernel.
-	// This is because osxfuse does not honor the entry expiration values we
-	// return to it, instead caching potentially forever (cf.
-	// http://goo.gl/8yR0Ie), and it is probably better to fail to cache than to
-	// cache for too long, since the latter is more likely to hide consistency
-	// bugs that are difficult to detect and diagnose.
-	//
-	// This field disables the use of novncache, restoring entry caching. Beware:
-	// the value of ChildInodeEntry.EntryExpiration is ignored by the kernel, and
-	// entries will be cached for an arbitrarily long time.
-	EnableVnodeCaching bool
-
-	// Additional key=value options to pass unadulterated to the underlying mount
-	// command. See `man 8 mount`, the fuse documentation, etc. for
-	// system-specific information.
-	//
-	// For expert use only! May invalidate other guarantees made in the
-	// documentation for this package.
-	Options map[string]string
-}
-
-// Convert to mount options to be passed to package bazilfuse.
-func (c *MountConfig) bazilfuseOptions() (opts []bazilfuse.MountOption) {
-	isDarwin := runtime.GOOS == "darwin"
-
-	// Enable permissions checking in the kernel. See the comments on
-	// InodeAttributes.Mode.
-	opts = append(opts, bazilfuse.SetOption("default_permissions", ""))
-
-	// HACK(jacobsa): Work around what appears to be a bug in systemd v219, as
-	// shipped in Ubuntu 15.04, where it automatically unmounts any file system
-	// that doesn't set an explicit name.
-	//
-	// When Ubuntu contains systemd v220, this workaround should be removed and
-	// the systemd bug reopened if the problem persists.
-	//
-	// Cf. https://github.com/bazil/fuse/issues/89
-	// Cf. https://bugs.freedesktop.org/show_bug.cgi?id=90907
-	fsname := c.FSName
-	if runtime.GOOS == "linux" && fsname == "" {
-		fsname = "some_fuse_file_system"
-	}
-
-	// Special file system name?
-	if fsname != "" {
-		opts = append(opts, bazilfuse.FSName(fsname))
-	}
-
-	// Read only?
-	if c.ReadOnly {
-		opts = append(opts, bazilfuse.ReadOnly())
-	}
-
-	// OS X: set novncache when appropriate.
-	if isDarwin && !c.EnableVnodeCaching {
-		opts = append(opts, bazilfuse.SetOption("novncache", ""))
-	}
-
-	// OS X: disable the use of "Apple Double" (._foo and .DS_Store) files, which
-	// just add noise to debug output and can have significant cost on
-	// network-based file systems.
-	//
-	// Cf. https://github.com/osxfuse/osxfuse/wiki/Mount-options
-	if isDarwin {
-		opts = append(opts, bazilfuse.SetOption("noappledouble", ""))
-	}
-
-	// Ask the Linux kernel for larger read requests.
-	//
-	// As of 2015-03-26, the behavior in the kernel is:
-	//
-	//  *  (http://goo.gl/bQ1f1i, http://goo.gl/HwBrR6) Set the local variable
-	//     ra_pages to be init_response->max_readahead divided by the page size.
-	//
-	//  *  (http://goo.gl/gcIsSh, http://goo.gl/LKV2vA) Set
-	//     backing_dev_info::ra_pages to the min of that value and what was sent
-	//     in the request's max_readahead field.
-	//
-	//  *  (http://goo.gl/u2SqzH) Use backing_dev_info::ra_pages when deciding
-	//     how much to read ahead.
-	//
-	//  *  (http://goo.gl/JnhbdL) Don't read ahead at all if that field is zero.
-	//
-	// Reading a page at a time is a drag. Ask for a larger size.
-	const maxReadahead = 1 << 20
-	opts = append(opts, bazilfuse.MaxReadahead(maxReadahead))
-
-	// Last but not least: other user-supplied options.
-	for k, v := range c.Options {
-		opts = append(opts, bazilfuse.SetOption(k, v))
-	}
-
-	return
-}
-
 // Attempt to mount a file system on the given directory, using the supplied
 // Server to serve connection requests. This function blocks until the file
 // system is successfully mounted.
@@ -198,10 +72,11 @@ func Mount(
 		joinStatusAvailable: make(chan struct{}),
 	}
 
-	// Open a bazilfuse connection.
-	bfConn, err := bazilfuse.Mount(mfs.dir, config.bazilfuseOptions()...)
+	// Begin the mounting process, which will continue in the background.
+	ready := make(chan error, 1)
+	dev, err := mount(dir, config, ready)
 	if err != nil {
-		err = fmt.Errorf("bazilfuse.Mount: %v", err)
+		err = fmt.Errorf("mount: %v", err)
 		return
 	}
 
@@ -211,15 +86,14 @@ func Mount(
 		opContext = context.Background()
 	}
 
-	// Create our own Connection object wrapping it.
+	// Create a Connection object wrapping the device.
 	connection, err := newConnection(
 		opContext,
 		config.DebugLogger,
 		config.ErrorLogger,
-		bfConn)
+		dev)
 
 	if err != nil {
-		bfConn.Close()
 		err = fmt.Errorf("newConnection: %v", err)
 		return
 	}
@@ -231,9 +105,9 @@ func Mount(
 		close(mfs.joinStatusAvailable)
 	}()
 
-	// Wait for the connection to say it is ready.
-	if err = connection.waitForReady(); err != nil {
-		err = fmt.Errorf("WaitForReady: %v", err)
+	// Wait for the mount process to complete.
+	if err = <-ready; err != nil {
+		err = fmt.Errorf("mount (background): %v", err)
 		return
 	}
 
