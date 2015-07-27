@@ -30,6 +30,10 @@ import (
 type memFS struct {
 	fuseutil.NotImplementedFileSystem
 
+	// The UID and GID that every inode receives.
+	uid uint32
+	gid uint32
+
 	/////////////////////////
 	// Dependencies
 	/////////////////////////
@@ -74,6 +78,8 @@ func NewMemFS(
 	fs := &memFS{
 		clock:  clock,
 		inodes: make([]*inode, fuseops.RootInodeID+1),
+		uid:    uid,
+		gid:    gid,
 	}
 
 	// Set up the root inode.
@@ -268,13 +274,12 @@ func (fs *memFS) MkDir(
 		return
 	}
 
-	// Set up attributes from the child, using the credentials of the calling
-	// process as owner (matching inode_init_owner, cf. http://goo.gl/5qavg8).
+	// Set up attributes from the child.
 	childAttrs := fuseops.InodeAttributes{
 		Nlink: 1,
 		Mode:  op.Mode,
-		Uid:   op.Header().Uid,
-		Gid:   op.Header().Gid,
+		Uid:   fs.uid,
+		Gid:   fs.gid,
 	}
 
 	// Allocate a child.
@@ -311,8 +316,7 @@ func (fs *memFS) CreateFile(
 		return
 	}
 
-	// Set up attributes from the child, using the credentials of the calling
-	// process as owner (matching inode_init_owner, cf. http://goo.gl/5qavg8).
+	// Set up attributes from the child.
 	now := fs.clock.Now()
 	childAttrs := fuseops.InodeAttributes{
 		Nlink:  1,
@@ -321,8 +325,8 @@ func (fs *memFS) CreateFile(
 		Mtime:  now,
 		Ctime:  now,
 		Crtime: now,
-		Uid:    op.Header().Uid,
-		Gid:    op.Header().Gid,
+		Uid:    fs.uid,
+		Gid:    fs.gid,
 	}
 
 	// Allocate a child.
@@ -361,8 +365,7 @@ func (fs *memFS) CreateSymlink(
 		return
 	}
 
-	// Set up attributes from the child, using the credentials of the calling
-	// process as owner (matching inode_init_owner, cf. http://goo.gl/5qavg8).
+	// Set up attributes from the child.
 	now := fs.clock.Now()
 	childAttrs := fuseops.InodeAttributes{
 		Nlink:  1,
@@ -371,8 +374,8 @@ func (fs *memFS) CreateSymlink(
 		Mtime:  now,
 		Ctime:  now,
 		Crtime: now,
-		Uid:    op.Header().Uid,
-		Gid:    op.Header().Gid,
+		Uid:    fs.uid,
+		Gid:    fs.gid,
 	}
 
 	// Allocate a child.

@@ -19,7 +19,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/jacobsa/bazilfuse"
+	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
 // A 64-bit number used to uniquely identify a file or directory in the file
@@ -38,7 +38,7 @@ const RootInodeID = 1
 
 func init() {
 	// Make sure the constant above is correct. We do this at runtime rather than
-	// defining the constant in terms of bazilfuse.RootID for two reasons:
+	// defining the constant in terms of fusekernel.RootID for two reasons:
 	//
 	//  1. Users can more clearly see that the root ID is low and can therefore
 	//     be used as e.g. an array index, with space reserved up to the root.
@@ -46,12 +46,12 @@ func init() {
 	//  2. The constant can be untyped and can therefore more easily be used as
 	//     an array index.
 	//
-	if RootInodeID != bazilfuse.RootID {
+	if RootInodeID != fusekernel.RootID {
 		panic(
 			fmt.Sprintf(
 				"Oops, RootInodeID is wrong: %v vs. %v",
 				RootInodeID,
-				bazilfuse.RootID))
+				fusekernel.RootID))
 	}
 }
 
@@ -97,6 +97,16 @@ type InodeAttributes struct {
 	Gid uint32
 }
 
+func (a *InodeAttributes) DebugString() string {
+	return fmt.Sprintf(
+		"%d %d %v %d %d",
+		a.Size,
+		a.Nlink,
+		a.Mode,
+		a.Uid,
+		a.Gid)
+}
+
 // A generation number for an inode. Irrelevant for file systems that won't be
 // exported over NFS. For those that will and that reuse inode IDs when they
 // become free, the generation number must change when an ID is reused.
@@ -124,13 +134,6 @@ type HandleID uint64
 // used for whatever purpose the file system desires. See notes on
 // ReadDirOp.Offset for details.
 type DirOffset uint64
-
-// A header that is included with every op.
-type OpHeader struct {
-	// Credentials information for the process making the request.
-	Uid uint32
-	Gid uint32
-}
 
 // Information about a child inode within its parent directory. Shared by
 // LookUpInodeOp, MkDirOp, CreateFileOp, etc. Consumed by the kernel in order
