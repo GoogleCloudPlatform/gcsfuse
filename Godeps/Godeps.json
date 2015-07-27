@@ -3,10 +3,6 @@
 	"GoVersion": "devel",
 	"Deps": [
 		{
-			"ImportPath": "github.com/jacobsa/bazilfuse",
-			"Rev": "b378951ee44bdb7faf80b7ab1e08157b19ca7050"
-		},
-		{
 			"ImportPath": "github.com/jacobsa/fuse",
 			"Rev": "641f7b756d882442554e1308c12665e20aa30545"
 		},
