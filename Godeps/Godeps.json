@@ -51,11 +51,6 @@
 			"Rev": "459ffc8a6aae5c79645c04b6b78a6a4d7b194897"
 		},
 		{
-			"ImportPath": "github.com/jgeewax/cli",
-			"Comment": "1.2.0-137-g0f30958",
-			"Rev": "0f30958b14cb460d9d387a88726d95318e367c21"
-		},
-		{
 			"ImportPath": "golang.org/x/net/context",
 			"Rev": "b71143c25f0aad5f54981684b715686d34c56d25"
 		},
