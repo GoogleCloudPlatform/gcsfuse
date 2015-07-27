@@ -473,7 +473,7 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 
 	// Error logging
 	if opErr != nil && c.errorLogger != nil {
-		c.errorLogger.Printf("(%#v) error: %v", op, opErr)
+		c.errorLogger.Printf("%T error: %v", op, opErr)
 	}
 
 	// Send the reply to the kernel.
