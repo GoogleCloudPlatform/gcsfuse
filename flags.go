@@ -18,8 +18,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/codegangsta/cli"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/mount"
-	"github.com/jgeewax/cli"
 )
 
 func newApp() (app *cli.App) {

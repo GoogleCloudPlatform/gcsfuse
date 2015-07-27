@@ -21,9 +21,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/codegangsta/cli"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
-	"github.com/jgeewax/cli"
 )
 
 func TestFlags(t *testing.T) { RunTests(t) }

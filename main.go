@@ -28,10 +28,10 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
+	"github.com/codegangsta/cli"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
-	"github.com/jgeewax/cli"
 )
 
 ////////////////////////////////////////////////////////////////////////
