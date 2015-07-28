@@ -34,29 +34,26 @@ func (p DurationSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 func Duration(
 	vals DurationSlice,
 	p int) (x time.Duration) {
-	// We use the NIST method:
+	// We perform linear interpolation between the two closest observations based
+	// on the fractional part of the rank. This happens to match PERCENTIL in
+	// Microsoft Excel:
 	//
-	//     https://en.wikipedia.org/wiki/Percentile#NIST_method
+	//     https://en.wikipedia.org/wiki/Percentile#Microsoft_Excel_method
 	//
-	// Begin by computing the rank.
 	N := len(vals)
-	rank := (float64(p) / 100) * float64(N+1)
+	rank := (float64(p) / 100) * float64(N-1)
 	kFloat, d := math.Modf(rank)
 	k := int(kFloat)
 
-	// Handle each case.
 	switch {
-	case k == 0:
-		x = vals[0]
+	case 0 <= k && k < N-1:
+		vk := float64(vals[k])
+		vk1 := float64(vals[k+1])
+		x = time.Duration(vk + d*(vk1-vk))
 		return
 
-	case k >= N:
+	case k == N-1:
 		x = vals[N-1]
-		return
-
-	case 0 < k && k < N:
-		xFloat := float64(vals[k-1]) + d*float64(vals[k]-vals[k-1])
-		x = time.Duration(xFloat)
 		return
 
 	default:
