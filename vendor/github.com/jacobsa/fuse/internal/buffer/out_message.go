@@ -15,70 +15,112 @@
 package buffer
 
 import (
+	"fmt"
+	"log"
 	"reflect"
 	"unsafe"
 
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
+const outHeaderSize = unsafe.Sizeof(fusekernel.OutHeader{})
+
+// We size out messages to be large enough to hold a header for the response
+// plus the largest read that may come in.
+const outMessageSize = outHeaderSize + MaxReadSize
+
 // OutMessage provides a mechanism for constructing a single contiguous fuse
 // message from multiple segments, where the first segment is always a
 // fusekernel.OutHeader message.
 //
-// Must be created with NewOutMessage. Exception: the zero value has
-// Bytes() == nil.
+// Must be initialized with Reset.
 type OutMessage struct {
-	slice []byte
+	offset  uintptr
+	storage [outMessageSize]byte
 }
 
-// Create a new buffer whose initial contents are a zeroed fusekernel.OutHeader
-// message, and with room enough to grow by extra bytes.
-func NewOutMessage(extra uintptr) (b OutMessage) {
-	const headerSize = unsafe.Sizeof(fusekernel.OutHeader{})
-	b.slice = make([]byte, headerSize, headerSize+extra)
-	return
+// Make sure alignment works out correctly, at least for the header.
+func init() {
+	a := unsafe.Alignof(OutMessage{})
+	o := unsafe.Offsetof(OutMessage{}.storage)
+	e := unsafe.Alignof(fusekernel.OutHeader{})
+
+	if a%e != 0 || o%e != 0 {
+		log.Panicf("Bad alignment or offset: %d, %d, need %d", a, o, e)
+	}
 }
 
-// Return a pointer to the header at the start of the buffer.
+// Reset the message so that it is ready to be used again. Afterward, the
+// contents are solely a zeroed header.
+func (m *OutMessage) Reset() {
+	m.offset = outHeaderSize
+	memclr(unsafe.Pointer(&m.storage), outHeaderSize)
+}
+
+// Return a pointer to the header at the start of the message.
 func (b *OutMessage) OutHeader() (h *fusekernel.OutHeader) {
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&b.slice))
-	h = (*fusekernel.OutHeader)(unsafe.Pointer(sh.Data))
+	h = (*fusekernel.OutHeader)(unsafe.Pointer(&b.storage))
 	return
 }
 
 // Grow the buffer by the supplied number of bytes, returning a pointer to the
-// start of the new segment. The sum of the arguments given to Grow must not
-// exceed the argument given to New when creating the buffer.
+// start of the new segment, which is zeroed. If there is no space left, return
+// the nil pointer.
 func (b *OutMessage) Grow(size uintptr) (p unsafe.Pointer) {
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&b.slice))
-	p = unsafe.Pointer(sh.Data + uintptr(sh.Len))
-	b.slice = b.slice[:len(b.slice)+int(size)]
+	p = b.GrowNoZero(size)
+	if p != nil {
+		memclr(p, size)
+	}
+
 	return
 }
 
-// Equivalent to growing by the length of p, then copying p into the new segment.
-func (b *OutMessage) Append(p []byte) {
-	sh := reflect.SliceHeader{
-		Data: uintptr(b.Grow(uintptr(len(p)))),
-		Len:  len(p),
-		Cap:  len(p),
+// Equivalent to Grow, except the new segment is not zeroed. Use with caution!
+func (b *OutMessage) GrowNoZero(size uintptr) (p unsafe.Pointer) {
+	if outMessageSize-b.offset < size {
+		return
 	}
 
-	copy(*(*[]byte)(unsafe.Pointer(&sh)), p)
+	p = unsafe.Pointer(uintptr(unsafe.Pointer(&b.storage)) + b.offset)
+	b.offset += size
+
+	return
 }
 
-// Equivalent to growing by the length of s, then copying s into the new segment.
-func (b *OutMessage) AppendString(s string) {
-	sh := reflect.SliceHeader{
-		Data: uintptr(b.Grow(uintptr(len(s)))),
-		Len:  len(s),
-		Cap:  len(s),
+// Equivalent to growing by the length of p, then copying p over the new
+// segment. Panics if there is not enough room available.
+func (b *OutMessage) Append(src []byte) {
+	p := b.GrowNoZero(uintptr(len(src)))
+	if p == nil {
+		panic(fmt.Sprintf("Can't grow %d bytes", len(src)))
 	}
 
-	copy(*(*[]byte)(unsafe.Pointer(&sh)), s)
+	sh := (*reflect.SliceHeader)(unsafe.Pointer(&src))
+	memmove(p, unsafe.Pointer(sh.Data), uintptr(sh.Len))
+
+	return
+}
+
+// Equivalent to growing by the length of s, then copying s over the new
+// segment. Panics if there is not enough room available.
+func (b *OutMessage) AppendString(src string) {
+	p := b.GrowNoZero(uintptr(len(src)))
+	if p == nil {
+		panic(fmt.Sprintf("Can't grow %d bytes", len(src)))
+	}
+
+	sh := (*reflect.StringHeader)(unsafe.Pointer(&src))
+	memmove(p, unsafe.Pointer(sh.Data), uintptr(sh.Len))
+
+	return
+}
+
+// Return the current size of the buffer.
+func (b *OutMessage) Len() int {
+	return int(b.offset)
 }
 
 // Return a reference to the current contents of the buffer.
 func (b *OutMessage) Bytes() []byte {
-	return b.slice
+	return b.storage[:int(b.offset)]
 }

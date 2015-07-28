@@ -79,7 +79,8 @@ type Connection struct {
 	cancelFuncs map[uint64]func()
 
 	// Freelists, serviced by freelists.go.
-	inMessages freelist.Freelist // GUARDED_BY(mu)
+	inMessages  freelist.Freelist // GUARDED_BY(mu)
+	outMessages freelist.Freelist // GUARDED_BY(mu)
 }
 
 // State that is maintained for each in-flight op. This is stuffed into the
@@ -448,17 +449,15 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 		c.errorLogger.Printf("%T error: %v", op, opErr)
 	}
 
-	// Send the reply to the kernel.
-	replyMsg := kernelResponse(m.Header().Unique, op, opErr, c.protocol)
-	if replyMsg != nil {
-		if err := c.writeMessage(replyMsg); err != nil {
-			if c.errorLogger != nil {
-				c.errorLogger.Printf("writeMessage: %v", err)
-			}
+	// Send the reply to the kernel, if one is required.
+	outMsg := c.kernelResponse(m.Header().Unique, op, opErr)
+	if outMsg != nil {
+		err := c.writeMessage(outMsg.Bytes())
+		c.putOutMessage(outMsg)
 
-			return
+		if err != nil && c.errorLogger != nil {
+			c.errorLogger.Printf("writeMessage: %v", err)
 		}
-
 	}
 }
 

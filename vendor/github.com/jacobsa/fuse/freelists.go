@@ -20,14 +20,20 @@ import (
 	"github.com/jacobsa/fuse/internal/buffer"
 )
 
+////////////////////////////////////////////////////////////////////////
+// buffer.InMessage
+////////////////////////////////////////////////////////////////////////
+
 // LOCKS_EXCLUDED(c.mu)
-func (c *Connection) getInMessage() (m *buffer.InMessage) {
+func (c *Connection) getInMessage() (x *buffer.InMessage) {
 	c.mu.Lock()
-	m = (*buffer.InMessage)(c.inMessages.Get())
-	if m == nil {
-		m = new(buffer.InMessage)
-	}
+	x = (*buffer.InMessage)(c.inMessages.Get())
 	c.mu.Unlock()
+
+	if x == nil {
+		x = new(buffer.InMessage)
+	}
+
 	return
 }
 
@@ -35,5 +41,30 @@ func (c *Connection) getInMessage() (m *buffer.InMessage) {
 func (c *Connection) putInMessage(x *buffer.InMessage) {
 	c.mu.Lock()
 	c.inMessages.Put(unsafe.Pointer(x))
+	c.mu.Unlock()
+}
+
+////////////////////////////////////////////////////////////////////////
+// buffer.OutMessage
+////////////////////////////////////////////////////////////////////////
+
+// LOCKS_EXCLUDED(c.mu)
+func (c *Connection) getOutMessage() (x *buffer.OutMessage) {
+	c.mu.Lock()
+	x = (*buffer.OutMessage)(c.outMessages.Get())
+	c.mu.Unlock()
+
+	if x == nil {
+		x = new(buffer.OutMessage)
+	}
+	x.Reset()
+
+	return
+}
+
+// LOCKS_EXCLUDED(c.mu)
+func (c *Connection) putOutMessage(x *buffer.OutMessage) {
+	c.mu.Lock()
+	c.outMessages.Put(unsafe.Pointer(x))
 	c.mu.Unlock()
 }
