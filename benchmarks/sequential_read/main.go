@@ -31,6 +31,8 @@ import (
 	"os"
 	"sort"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/benchmarks/internal/percentile"
 )
 
 var fDir = flag.String("dir", "", "Directory within which to write the file.")
@@ -41,36 +43,6 @@ var fReadSize = flag.Int64("read_size", 1<<14, "Size of each call to read(2).")
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
-
-type DurationSlice []time.Duration
-
-func (p DurationSlice) Len() int           { return len(p) }
-func (p DurationSlice) Less(i, j int) bool { return p[i] < p[j] }
-func (p DurationSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-
-// REQUIRES: vals is sorted.
-// REQUIRES: len(vals) > 0
-// REQUIRES: 0 <= n <= 100
-func percentile(
-	vals DurationSlice,
-	n int) (x time.Duration) {
-	// Special cases.
-	switch {
-	case n == 0:
-		x = vals[0]
-		return
-
-	case n == 100:
-		x = vals[len(vals)-1]
-		return
-	}
-
-	// Find the nearest, truncating (why not).
-	index := int((float64(n) / 100) * float64(len(vals)))
-	x = vals[index]
-
-	return
-}
 
 func formatBytes(v float64) string {
 	switch {
@@ -133,8 +105,8 @@ func run() (err error) {
 	// Run several iterations.
 	log.Printf("Measuring for %v...", *fDuration)
 
-	var fullFileRead DurationSlice
-	var singleReadCall DurationSlice
+	var fullFileRead percentile.DurationSlice
+	var singleReadCall percentile.DurationSlice
 	buf := make([]byte, *fReadSize)
 
 	overallStartTime := time.Now()
@@ -187,10 +159,10 @@ func run() (err error) {
 	reportSlice := func(
 		name string,
 		bytesPerObservation int64,
-		observations DurationSlice) {
+		observations percentile.DurationSlice) {
 		fmt.Printf("\n%s:\n", name)
 		for _, ptile := range ptiles {
-			d := percentile(observations, ptile)
+			d := percentile.Duration(observations, ptile)
 			seconds := float64(d) / float64(time.Second)
 			bandwidthBytesPerSec := float64(bytesPerObservation) / seconds
 
