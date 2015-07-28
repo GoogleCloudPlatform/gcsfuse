@@ -28,6 +28,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math"
 	"os"
 	"sort"
 	"time"
@@ -50,26 +51,38 @@ func (p DurationSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 // REQUIRES: vals is sorted.
 // REQUIRES: len(vals) > 0
-// REQUIRES: 0 <= n <= 100
+// REQUIRES: 0 <= p <= 100
 func percentile(
 	vals DurationSlice,
-	n int) (x time.Duration) {
-	// Special cases.
+	p int) (x time.Duration) {
+	// We use the NIST method:
+	//
+	//     https://en.wikipedia.org/wiki/Percentile#NIST_method
+	//
+	// Begin by computing the rank.
+	N := len(vals)
+	rank := (float64(p) / 100) * float64(N+1)
+	kFloat, d := math.Modf(rank)
+	k := int(kFloat)
+
+	// Handle each case.
 	switch {
-	case n == 0:
+	case k == 0:
 		x = vals[0]
 		return
 
-	case n == 100:
-		x = vals[len(vals)-1]
+	case k >= N:
+		x = vals[N-1]
 		return
+
+	case 0 < k && k < N:
+		xFloat := float64(vals[k-1]) + d*float64(vals[k]-vals[k-1])
+		x = time.Duration(xFloat)
+		return
+
+	default:
+		panic("Invalid input")
 	}
-
-	// Find the nearest, truncating (why not).
-	index := int((float64(n) / 100) * float64(len(vals)))
-	x = vals[index]
-
-	return
 }
 
 func formatBytes(v float64) string {
