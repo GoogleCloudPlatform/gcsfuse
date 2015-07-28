@@ -90,6 +90,34 @@ func (t *DurationTest) TwoObservations() {
 	}
 }
 
+func (t *DurationTest) ThreeObservations() {
+	vals := []time.Duration{
+		100,
+		200,
+		300,
+	}
+
+	testCases := []struct {
+		p        int
+		expected time.Duration
+	}{
+		{0, 100},
+		{1, 102},
+		{10, 120},
+		{50, 200},
+		{90, 280},
+		{99, 298},
+		{100, 300},
+	}
+
+	for _, tc := range testCases {
+		ExpectEq(
+			tc.expected,
+			percentile.Duration(vals, tc.p),
+			"p: %d", tc.p)
+	}
+}
+
 func (t *DurationTest) SeveralObservations_Even() {
 	AssertTrue(false, "TODO")
 }
