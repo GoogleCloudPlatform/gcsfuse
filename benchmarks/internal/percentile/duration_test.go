@@ -16,7 +16,9 @@ package percentile_test
 
 import (
 	"testing"
+	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/benchmarks/internal/percentile"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -36,7 +38,29 @@ func init() { RegisterTestSuite(&DurationTest{}) }
 ////////////////////////////////////////////////////////////////////////
 
 func (t *DurationTest) OneObservation() {
-	AssertTrue(false, "TODO")
+	vals := []time.Duration{
+		17,
+	}
+
+	testCases := []struct {
+		p        int
+		expected time.Duration
+	}{
+		{0, 17},
+		{1, 17},
+		{10, 17},
+		{50, 17},
+		{90, 17},
+		{99, 17},
+		{100, 17},
+	}
+
+	for _, tc := range testCases {
+		ExpectEq(
+			tc.expected,
+			percentile.Duration(vals, tc.p),
+			"p: %d", tc.p)
+	}
 }
 
 func (t *DurationTest) TwoObservations() {
