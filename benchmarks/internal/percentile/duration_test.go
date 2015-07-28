@@ -35,6 +35,18 @@ func init() { RegisterTestSuite(&DurationTest{}) }
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *DurationTest) DoesFoo() {
+func (t *DurationTest) OneObservation() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DurationTest) TwoObservations() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DurationTest) SeveralObservations_Even() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *DurationTest) SeveralObservations_Odd() {
 	AssertTrue(false, "TODO")
 }
