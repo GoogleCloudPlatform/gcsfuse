@@ -27,12 +27,13 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/jacobsa/fuse/internal/buffer"
+	"github.com/jacobsa/fuse/internal/freelist"
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
 type contextKeyType uint64
 
-const contextKey contextKeyType = 0
+var contextKey interface{} = contextKeyType(0)
 
 // Ask the Linux kernel for larger read requests.
 //
@@ -71,18 +72,14 @@ type Connection struct {
 
 	mu sync.Mutex
 
-	// A freelist of InMessage structs, the allocation of which can be a hot spot
-	// for CPU usage. Each element is in an undefined state, and must be
-	// re-initialized.
-	//
-	// GUARDED_BY(mu)
-	messageFreelist []*buffer.InMessage
-
 	// A map from fuse "unique" request ID (*not* the op ID for logging used
 	// above) to a function that cancel's its associated context.
 	//
 	// GUARDED_BY(mu)
 	cancelFuncs map[uint64]func()
+
+	// Freelists, serviced by freelists.go.
+	inMessages freelist.Freelist // GUARDED_BY(mu)
 }
 
 // State that is maintained for each in-flight op. This is stuffed into the
@@ -302,38 +299,11 @@ func (c *Connection) handleInterrupt(fuseID uint64) {
 	cancel()
 }
 
-// m.Init must be called.
-func (c *Connection) allocateInMessage() (m *buffer.InMessage) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	// Can we pull from the freelist?
-	l := len(c.messageFreelist)
-	if l != 0 {
-		m = c.messageFreelist[l-1]
-		c.messageFreelist = c.messageFreelist[:l-1]
-		return
-	}
-
-	// Otherwise, allocate a new one.
-	m = new(buffer.InMessage)
-
-	return
-}
-
-func (c *Connection) destroyInMessage(m *buffer.InMessage) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	// Stick it on the freelist.
-	c.messageFreelist = append(c.messageFreelist, m)
-}
-
 // Read the next message from the kernel. The message must later be destroyed
 // using destroyInMessage.
 func (c *Connection) readMessage() (m *buffer.InMessage, err error) {
 	// Allocate a message.
-	m = c.allocateInMessage()
+	m = c.getInMessage()
 
 	// Loop past transient errors.
 	for {
@@ -359,7 +329,7 @@ func (c *Connection) readMessage() (m *buffer.InMessage, err error) {
 		}
 
 		if err != nil {
-			c.destroyInMessage(m)
+			c.putInMessage(m)
 			m = nil
 			return
 		}
@@ -447,7 +417,9 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) Reply(ctx context.Context, opErr error) {
 	// Extract the state we stuffed in earlier.
-	state, ok := ctx.Value(contextKey).(opState)
+	var key interface{} = contextKey
+	foo := ctx.Value(key)
+	state, ok := foo.(opState)
 	if !ok {
 		panic(fmt.Sprintf("Reply called with invalid context: %#v", ctx))
 	}
@@ -457,7 +429,7 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 	opID := state.opID
 
 	// Make sure we destroy the message when we're done.
-	defer c.destroyInMessage(m)
+	defer c.putInMessage(m)
 
 	// Clean up state for this op.
 	c.finishOp(m.Header().Opcode, m.Header().Unique)
