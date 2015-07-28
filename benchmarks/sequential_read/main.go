@@ -32,6 +32,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/benchmarks/internal/format"
 	"github.com/googlecloudplatform/gcsfuse/benchmarks/internal/percentile"
 )
 
@@ -39,26 +40,6 @@ var fDir = flag.String("dir", "", "Directory within which to write the file.")
 var fDuration = flag.Duration("duration", 5*time.Second, "How long to run.")
 var fFileSize = flag.Int64("file_size", 1<<20, "Size of file to use.")
 var fReadSize = flag.Int64("read_size", 1<<14, "Size of each call to read(2).")
-
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
-
-func formatBytes(v float64) string {
-	switch {
-	case v >= 1<<30:
-		return fmt.Sprintf("%.2f GiB", v/(1<<30))
-
-	case v >= 1<<20:
-		return fmt.Sprintf("%.2f MiB", v/(1<<20))
-
-	case v >= 1<<10:
-		return fmt.Sprintf("%.2f KiB", v/(1<<10))
-
-	default:
-		return fmt.Sprintf("%.2f bytes", v)
-	}
-}
 
 ////////////////////////////////////////////////////////////////////////
 // main logic
@@ -170,7 +151,7 @@ func run() (err error) {
 				"  %02dth ptile: %10v (%s/s)\n",
 				ptile,
 				d,
-				formatBytes(bandwidthBytesPerSec))
+				format.Bytes(bandwidthBytesPerSec))
 		}
 	}
 
