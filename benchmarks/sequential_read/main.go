@@ -32,6 +32,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/benchmarks/internal/format"
 	"github.com/googlecloudplatform/gcsfuse/benchmarks/internal/percentile"
 )
 
@@ -150,7 +151,7 @@ func run() (err error) {
 				"  %02dth ptile: %10v (%s/s)\n",
 				ptile,
 				d,
-				bytes.Format(bandwidthBytesPerSec))
+				format.Bytes(bandwidthBytesPerSec))
 		}
 	}
 
