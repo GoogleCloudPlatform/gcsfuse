@@ -391,7 +391,9 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 		}
 
 		// Choose an ID for this operation for the purposes of logging, and log it.
-		c.debugLog(inMsg.Header().Unique, 1, "<- %s", describeRequest(op))
+		if c.debugLogger != nil {
+			c.debugLog(inMsg.Header().Unique, 1, "<- %s", describeRequest(op))
+		}
 
 		// Special case: handle interrupt requests inline.
 		if interruptOp, ok := op.(*interruptOp); ok {
