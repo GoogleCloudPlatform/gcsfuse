@@ -279,11 +279,12 @@ func (dh *dirHandle) ReadDir(
 
 	// We copy out entries until we run out of entries or space.
 	for i := index; i < len(dh.entries); i++ {
-		op.Data = fuseutil.AppendDirent(op.Data, dh.entries[i])
-		if len(op.Data) > op.Size {
-			op.Data = op.Data[:op.Size]
+		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], dh.entries[i])
+		if n == 0 {
 			break
 		}
+
+		op.BytesRead += n
 	}
 
 	return
