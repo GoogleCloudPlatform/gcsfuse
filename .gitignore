@@ -1,5 +1,6 @@
 /gcsfuse
 /sequential_read
+Godeps/_workspace/
 vendor/**/*_test.go
 
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
