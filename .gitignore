@@ -1,5 +1,5 @@
 /gcsfuse
-/sequential_read
+/read_full_file
 Godeps/_workspace/
 vendor/**/*_test.go
 
