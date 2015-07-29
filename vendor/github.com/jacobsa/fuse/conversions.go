@@ -254,7 +254,6 @@ func convertInMessage(
 			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
 			Handle: fuseops.HandleID(in.Fh),
 			Offset: int64(in.Offset),
-			Dst:    make([]byte, in.Size),
 		}
 		o = to
 
