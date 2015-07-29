@@ -228,11 +228,12 @@ func (fs *helloFS) ReadDir(
 
 	// Resume at the specified offset into the array.
 	for _, e := range entries {
-		op.Data = fuseutil.AppendDirent(op.Data, e)
-		if len(op.Data) > op.Size {
-			op.Data = op.Data[:op.Size]
+		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], e)
+		if n == 0 {
 			break
 		}
+
+		op.BytesRead += n
 	}
 
 	return
@@ -251,9 +252,7 @@ func (fs *helloFS) ReadFile(
 	// Let io.ReaderAt deal with the semantics.
 	reader := strings.NewReader("Hello, world!")
 
-	op.Data = make([]byte, op.Size)
-	n, err := reader.ReadAt(op.Data, op.Offset)
-	op.Data = op.Data[:n]
+	op.BytesRead, err = reader.ReadAt(op.Dst, op.Offset)
 
 	// Special case: FUSE doesn't expect us to return io.EOF.
 	if err == io.EOF {

@@ -278,7 +278,7 @@ func (in *inode) RemoveChild(name string) {
 // Serve a ReadDir request.
 //
 // REQUIRES: in.isDir()
-func (in *inode) ReadDir(offset int, size int) (data []byte) {
+func (in *inode) ReadDir(p []byte, offset int) (n int) {
 	if !in.isDir() {
 		panic("ReadDir called on non-directory.")
 	}
@@ -291,13 +291,12 @@ func (in *inode) ReadDir(offset int, size int) (data []byte) {
 			continue
 		}
 
-		data = fuseutil.AppendDirent(data, in.entries[i])
-
-		// Trim and stop early if we've exceeded the requested size.
-		if len(data) > size {
-			data = data[:size]
+		tmp := fuseutil.WriteDirent(p[n:], in.entries[i])
+		if tmp == 0 {
 			break
 		}
+
+		n += tmp
 	}
 
 	return

@@ -86,9 +86,10 @@ type Connection struct {
 // State that is maintained for each in-flight op. This is stuffed into the
 // context that the user uses to reply to the op.
 type opState struct {
-	inMsg *buffer.InMessage
-	op    interface{}
-	opID  uint32 // For logging
+	inMsg  *buffer.InMessage
+	outMsg *buffer.OutMessage
+	op     interface{}
+	opID   uint32 // For logging
 }
 
 // Create a connection wrapping the supplied file descriptor connected to the
@@ -370,15 +371,17 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 	// Keep going until we find a request we know how to convert.
 	for {
 		// Read the next message from the kernel.
-		var m *buffer.InMessage
-		m, err = c.readMessage()
+		var inMsg *buffer.InMessage
+		inMsg, err = c.readMessage()
 		if err != nil {
 			return
 		}
 
 		// Convert the message to an op.
-		op, err = convertInMessage(m, c.protocol)
+		outMsg := c.getOutMessage()
+		op, err = convertInMessage(inMsg, outMsg, c.protocol)
 		if err != nil {
+			c.putOutMessage(outMsg)
 			err = fmt.Errorf("convertInMessage: %v", err)
 			return
 		}
@@ -396,8 +399,8 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 		}
 
 		// Set up a context that remembers information about this op.
-		ctx = c.beginOp(m.Header().Opcode, m.Header().Unique)
-		ctx = context.WithValue(ctx, contextKey, opState{m, op, opID})
+		ctx = c.beginOp(inMsg.Header().Opcode, inMsg.Header().Unique)
+		ctx = context.WithValue(ctx, contextKey, opState{inMsg, outMsg, op, opID})
 
 		// Special case: responding to statfs is required to make mounting work on
 		// OS X. We don't currently expose the capability for the file system to
@@ -426,14 +429,16 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 	}
 
 	op := state.op
-	m := state.inMsg
+	inMsg := state.inMsg
+	outMsg := state.outMsg
 	opID := state.opID
 
-	// Make sure we destroy the message when we're done.
-	defer c.putInMessage(m)
+	// Make sure we destroy the messages when we're done.
+	defer c.putInMessage(inMsg)
+	defer c.putOutMessage(outMsg)
 
 	// Clean up state for this op.
-	c.finishOp(m.Header().Opcode, m.Header().Unique)
+	c.finishOp(inMsg.Header().Opcode, inMsg.Header().Unique)
 
 	// Debug logging
 	if c.debugLogger != nil {
@@ -450,11 +455,10 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 	}
 
 	// Send the reply to the kernel, if one is required.
-	outMsg := c.kernelResponse(m.Header().Unique, op, opErr)
-	if outMsg != nil {
-		err := c.writeMessage(outMsg.Bytes())
-		c.putOutMessage(outMsg)
+	noResponse := c.kernelResponse(outMsg, inMsg.Header().Unique, op, opErr)
 
+	if !noResponse {
+		err := c.writeMessage(outMsg.Bytes())
 		if err != nil && c.errorLogger != nil {
 			c.errorLogger.Printf("writeMessage: %v", err)
 		}

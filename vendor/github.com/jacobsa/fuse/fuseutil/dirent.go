@@ -35,7 +35,7 @@ const (
 )
 
 // A struct representing an entry within a directory file, describing a child.
-// See notes on fuseops.ReadDirOp and on AppendDirent for details.
+// See notes on fuseops.ReadDirOp and on WriteDirent for details.
 type Dirent struct {
 	// The (opaque) offset within the directory file of the entry following this
 	// one. See notes on fuseops.ReadDirOp.Offset for details.
@@ -50,10 +50,11 @@ type Dirent struct {
 	Type DirentType
 }
 
-// Append the supplied directory entry to the given buffer in the format
-// expected in fuseops.ReadFileOp.Data, returning the resulting buffer.
-func AppendDirent(input []byte, d Dirent) (output []byte) {
-	// We want to append bytes with the layout of fuse_dirent
+// Write the supplied directory entry intto the given buffer in the format
+// expected in fuseops.ReadFileOp.Data, returning the number of bytes written.
+// Return zero if the entry would not fit.
+func WriteDirent(buf []byte, d Dirent) (n int) {
+	// We want to write bytes with the layout of fuse_dirent
 	// (http://goo.gl/BmFxob) in host order. The struct must be aligned according
 	// to FUSE_DIRENT_ALIGN (http://goo.gl/UziWvH), which dictates 8-byte
 	// alignment.
@@ -65,10 +66,23 @@ func AppendDirent(input []byte, d Dirent) (output []byte) {
 		name    [0]byte
 	}
 
-	const alignment = 8
-	const nameOffset = 8 + 8 + 4 + 4
+	const direntAlignment = 8
+	const direntSize = 8 + 8 + 4 + 4
 
-	// Write the header into the buffer.
+	// Compute the number of bytes of padding we'll need to maintain alignment
+	// for the next entry.
+	var padLen int
+	if len(d.Name)%direntAlignment != 0 {
+		padLen = direntAlignment - (len(d.Name) % direntAlignment)
+	}
+
+	// Do we have enough room?
+	totalLen := direntSize + len(d.Name) + padLen
+	if totalLen > len(buf) {
+		return
+	}
+
+	// Write the header.
 	de := fuse_dirent{
 		ino:     uint64(d.Inode),
 		off:     uint64(d.Offset),
@@ -76,17 +90,15 @@ func AppendDirent(input []byte, d Dirent) (output []byte) {
 		type_:   uint32(d.Type),
 	}
 
-	output = append(input, (*[nameOffset]byte)(unsafe.Pointer(&de))[:]...)
+	n += copy(buf[n:], (*[direntSize]byte)(unsafe.Pointer(&de))[:])
 
 	// Write the name afterward.
-	output = append(output, d.Name...)
+	n += copy(buf[n:], d.Name)
 
 	// Add any necessary padding.
-	if len(d.Name)%alignment != 0 {
-		padLen := alignment - (len(d.Name) % alignment)
-
-		var padding [alignment]byte
-		output = append(output, padding[:padLen]...)
+	if padLen != 0 {
+		var padding [direntAlignment]byte
+		n += copy(buf[n:], padding[:padLen])
 	}
 
 	return

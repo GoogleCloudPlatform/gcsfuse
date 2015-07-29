@@ -264,12 +264,10 @@ func (f *FileInode) Attributes(
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Read(
 	ctx context.Context,
-	offset int64,
-	size int) (data []byte, err error) {
+	dst []byte,
+	offset int64) (n int, err error) {
 	// Read from the mutable content.
-	data = make([]byte, size)
-	n, err := f.content.ReadAt(ctx, data, offset)
-	data = data[:n]
+	n, err = f.content.ReadAt(ctx, dst, offset)
 
 	// We don't return errors for EOF. Otherwise, propagate errors.
 	if err == io.EOF {

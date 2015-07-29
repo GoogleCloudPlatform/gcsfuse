@@ -1400,7 +1400,7 @@ func (fs *fileSystem) ReadFile(
 	defer in.Unlock()
 
 	// Serve the request.
-	op.Data, err = in.Read(ctx, op.Offset, op.Size)
+	op.BytesRead, err = in.Read(ctx, op.Dst, op.Offset)
 
 	return
 }
