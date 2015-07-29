@@ -172,14 +172,16 @@ func (t *FileTest) Read() {
 	for _, tc := range testCases {
 		desc := fmt.Sprintf("offset: %d, size: %d", tc.offset, tc.size)
 
-		data, err := t.in.Read(t.ctx, tc.offset, tc.size)
+		data := make([]byte, tc.size)
+		n, err := t.in.Read(t.ctx, data, tc.offset)
+		data = data[:n]
+
 		AssertEq(nil, err, "%s", desc)
 		ExpectEq(tc.expected, string(data), "%s", desc)
 	}
 }
 
 func (t *FileTest) Write() {
-	var data []byte
 	var err error
 
 	AssertEq("taco", t.initialContents)
@@ -198,9 +200,10 @@ func (t *FileTest) Write() {
 	t.clock.AdvanceTime(time.Second)
 
 	// Read back the content.
-	data, err = t.in.Read(t.ctx, 0, 1024)
+	var buf [1024]byte
+	n, err := t.in.Read(t.ctx, buf[:], 0)
 	AssertEq(nil, err)
-	ExpectEq("pacoburrito", string(data))
+	ExpectEq("pacoburrito", string(buf[:n]))
 
 	// Check attributes.
 	attrs, err := t.in.Attributes(t.ctx)
@@ -212,7 +215,6 @@ func (t *FileTest) Write() {
 
 func (t *FileTest) Truncate() {
 	var attrs fuseops.InodeAttributes
-	var data []byte
 	var err error
 
 	AssertEq("taco", t.initialContents)
@@ -227,9 +229,10 @@ func (t *FileTest) Truncate() {
 	t.clock.AdvanceTime(time.Second)
 
 	// Read the contents.
-	data, err = t.in.Read(t.ctx, 0, 1024)
+	var buf [1024]byte
+	n, err := t.in.Read(t.ctx, buf[:], 0)
 	AssertEq(nil, err)
-	ExpectEq("ta", string(data))
+	ExpectEq("ta", string(buf[:n]))
 
 	// Check attributes.
 	attrs, err = t.in.Attributes(t.ctx)
