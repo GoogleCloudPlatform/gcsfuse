@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Write out a file of a certain size, close it, then measure the performance
-// of doing the following:
-//
-// 1.  Open the file.
-// 2.  Read it from start to end with a configurable buffer size.
-//
 package main
 
 import (
@@ -36,10 +30,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/benchmarks/internal/percentile"
 )
 
-var fDir = flag.String("dir", "", "Directory within which to write the file.")
-var fDuration = flag.Duration("duration", 5*time.Second, "How long to run.")
-var fFileSize = flag.Int64("file_size", 1<<20, "Size of file to use.")
-var fReadSize = flag.Int64("read_size", 1<<14, "Size of each call to read(2).")
+var fFile = flag.String("file", "", "Path to file to read.")
+var fRandom = flag.Bool("random", false, "Read randomly? Otherwise sequentially.")
+var fDuration = flag.Duration("duration", 10*time.Second, "How long to run.")
+var fReadSize = flag.Int64("read_size", 1<<20, "Size of each call to read(2).")
 
 ////////////////////////////////////////////////////////////////////////
 // main logic
