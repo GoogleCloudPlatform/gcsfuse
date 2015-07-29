@@ -35,6 +35,7 @@ var fReadSize = flag.Int("read_size", 1<<20, "Size of each call to read(2).")
 
 func readRandom(
 	r io.ReaderAt,
+	fileSize int64,
 	readSize int,
 	d time.Duration) (bytesRead int64, err error)
 
@@ -64,7 +65,7 @@ func run() (err error) {
 
 	var bytesRead int64
 	if *fRandom {
-		bytesRead, err = readRandom(f, *fReadSize, *fDuration)
+		bytesRead, err = readRandom(f, size, *fReadSize, *fDuration)
 		if err != nil {
 			err = fmt.Errorf("readRandom: %v", err)
 			return
