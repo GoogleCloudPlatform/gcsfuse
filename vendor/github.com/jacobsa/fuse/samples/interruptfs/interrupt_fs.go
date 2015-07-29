@@ -39,22 +39,29 @@ var fooAttrs = fuseops.InodeAttributes{
 	Size:  1234,
 }
 
-// A file system containing exactly one file, named "foo". Reads to the file
-// always hang until interrupted. Exposes a method for synchronizing with the
-// arrival of a read.
+// A file system containing exactly one file, named "foo". ReadFile and
+// FlushFile ops can be made to hang until interrupted. Exposes a method for
+// synchronizing with the arrival of a read or a flush.
 //
 // Must be created with New.
 type InterruptFS struct {
 	fuseutil.NotImplementedFileSystem
 
-	mu                  sync.Mutex
-	readInFlight        bool
-	readInFlightChanged sync.Cond
+	mu sync.Mutex
+
+	blockForReads   bool // GUARDED_BY(mu)
+	blockForFlushes bool // GUARDED_BY(mu)
+
+	// Must hold the mutex when closing these.
+	readReceived  chan struct{}
+	flushReceived chan struct{}
 }
 
 func New() (fs *InterruptFS) {
-	fs = &InterruptFS{}
-	fs.readInFlightChanged.L = &fs.mu
+	fs = &InterruptFS{
+		readReceived:  make(chan struct{}),
+		flushReceived: make(chan struct{}),
+	}
 
 	return
 }
@@ -64,15 +71,29 @@ func New() (fs *InterruptFS) {
 ////////////////////////////////////////////////////////////////////////
 
 // Block until the first read is received.
-//
-// LOCKS_EXCLUDED(fs.mu)
-func (fs *InterruptFS) WaitForReadInFlight() {
+func (fs *InterruptFS) WaitForFirstRead() {
+	<-fs.readReceived
+}
+
+// Block until the first flush is received.
+func (fs *InterruptFS) WaitForFirstFlush() {
+	<-fs.flushReceived
+}
+
+// Enable blocking until interrupted for the next (and subsequent) read ops.
+func (fs *InterruptFS) EnableReadBlocking() {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	for !fs.readInFlight {
-		fs.readInFlightChanged.Wait()
-	}
+	fs.blockForReads = true
+}
+
+// Enable blocking until interrupted for the next (and subsequent) flush ops.
+func (fs *InterruptFS) EnableFlushBlocking() {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	fs.blockForFlushes = true
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -128,22 +149,55 @@ func (fs *InterruptFS) OpenFile(
 func (fs *InterruptFS) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
-	// Signal that a read has been received.
 	fs.mu.Lock()
-	fs.readInFlight = true
-	fs.readInFlightChanged.Broadcast()
+	shouldBlock := fs.blockForReads
+
+	// Signal that a read has been received, if this is the first.
+	select {
+	case <-fs.readReceived:
+	default:
+		close(fs.readReceived)
+	}
 	fs.mu.Unlock()
 
-	// Wait for cancellation.
-	done := ctx.Done()
-	if done == nil {
-		panic("Expected non-nil channel.")
+	// Wait for cancellation if enabled.
+	if shouldBlock {
+		done := ctx.Done()
+		if done == nil {
+			panic("Expected non-nil channel.")
+		}
+
+		<-done
+		err = ctx.Err()
 	}
 
-	<-done
+	return
+}
 
-	// Return the context's error.
-	err = ctx.Err()
+func (fs *InterruptFS) FlushFile(
+	ctx context.Context,
+	op *fuseops.FlushFileOp) (err error) {
+	fs.mu.Lock()
+	shouldBlock := fs.blockForFlushes
+
+	// Signal that a flush has been received, if this is the first.
+	select {
+	case <-fs.flushReceived:
+	default:
+		close(fs.flushReceived)
+	}
+	fs.mu.Unlock()
+
+	// Wait for cancellation if enabled.
+	if shouldBlock {
+		done := ctx.Done()
+		if done == nil {
+			panic("Expected non-nil channel.")
+		}
+
+		<-done
+		err = ctx.Err()
+	}
 
 	return
 }

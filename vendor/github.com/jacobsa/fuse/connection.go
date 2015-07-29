@@ -67,9 +67,6 @@ type Connection struct {
 	// The context from which all op contexts inherit.
 	parentCtx context.Context
 
-	// For logging purposes only.
-	nextOpID uint32
-
 	mu sync.Mutex
 
 	// A map from fuse "unique" request ID (*not* the op ID for logging used
@@ -89,7 +86,6 @@ type opState struct {
 	inMsg  *buffer.InMessage
 	outMsg *buffer.OutMessage
 	op     interface{}
-	opID   uint32 // For logging
 }
 
 // Create a connection wrapping the supplied file descriptor connected to the
@@ -162,7 +158,15 @@ func (c *Connection) Init() (err error) {
 	initOp.Library = c.protocol
 	initOp.MaxReadahead = maxReadahead
 	initOp.MaxWrite = buffer.MaxWriteSize
-	initOp.Flags = fusekernel.InitBigWrites
+
+	initOp.Flags = 0
+
+	// Tell the kernel not to use pitifully small 4 KiB writes.
+	initOp.Flags |= fusekernel.InitBigWrites
+
+	// Tell the kernel it is free to send further requests while a read request
+	// is in flight.
+	initOp.Flags |= fusekernel.InitAsyncRead
 
 	c.Reply(ctx, nil)
 	return
@@ -171,7 +175,7 @@ func (c *Connection) Init() (err error) {
 // Log information for an operation with the given ID. calldepth is the depth
 // to use when recovering file:line information with runtime.Caller.
 func (c *Connection) debugLog(
-	opID uint32,
+	fuseID uint64,
 	calldepth int,
 	format string,
 	v ...interface{}) {
@@ -194,7 +198,7 @@ func (c *Connection) debugLog(
 	// Format the actual message to be printed.
 	msg := fmt.Sprintf(
 		"Op 0x%08x %24s] %v",
-		opID,
+		fuseID,
 		fileLine,
 		fmt.Sprintf(format, v...))
 
@@ -387,10 +391,7 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 		}
 
 		// Choose an ID for this operation for the purposes of logging, and log it.
-		opID := c.nextOpID
-		c.nextOpID++
-
-		c.debugLog(opID, 1, "<- %s", describeRequest(op))
+		c.debugLog(inMsg.Header().Unique, 1, "<- %s", describeRequest(op))
 
 		// Special case: handle interrupt requests inline.
 		if interruptOp, ok := op.(*interruptOp); ok {
@@ -400,7 +401,7 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 
 		// Set up a context that remembers information about this op.
 		ctx = c.beginOp(inMsg.Header().Opcode, inMsg.Header().Unique)
-		ctx = context.WithValue(ctx, contextKey, opState{inMsg, outMsg, op, opID})
+		ctx = context.WithValue(ctx, contextKey, opState{inMsg, outMsg, op})
 
 		// Special case: responding to statfs is required to make mounting work on
 		// OS X. We don't currently expose the capability for the file system to
@@ -431,7 +432,7 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 	op := state.op
 	inMsg := state.inMsg
 	outMsg := state.outMsg
-	opID := state.opID
+	fuseID := inMsg.Header().Unique
 
 	// Make sure we destroy the messages when we're done.
 	defer c.putInMessage(inMsg)
@@ -443,9 +444,9 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 	// Debug logging
 	if c.debugLogger != nil {
 		if opErr == nil {
-			c.debugLog(opID, 1, "-> OK: %s", describeResponse(op))
+			c.debugLog(fuseID, 1, "-> OK: %s", describeResponse(op))
 		} else {
-			c.debugLog(opID, 1, "-> error: %v", opErr)
+			c.debugLog(fuseID, 1, "-> error: %v", opErr)
 		}
 	}
 

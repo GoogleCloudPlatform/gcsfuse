@@ -20,6 +20,13 @@ import (
 )
 
 func describeRequest(op interface{}) (s string) {
+	// Handle special cases with custom formatting.
+	switch typed := op.(type) {
+	case *interruptOp:
+		s = fmt.Sprintf("interruptOp(fuseid=0x%08x)", typed.FuseID)
+		return
+	}
+
 	v := reflect.ValueOf(op).Elem()
 	t := v.Type()
 

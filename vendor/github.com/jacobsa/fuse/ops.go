@@ -40,9 +40,11 @@ type initOp struct {
 	// In
 	Kernel fusekernel.Protocol
 
+	// In/out
+	Flags fusekernel.InitFlags
+
 	// Out
 	Library      fusekernel.Protocol
 	MaxReadahead uint32
-	Flags        fusekernel.InitFlags
 	MaxWrite     uint32
 }
