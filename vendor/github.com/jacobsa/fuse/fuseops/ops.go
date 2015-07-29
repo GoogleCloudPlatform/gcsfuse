@@ -446,6 +446,22 @@ type OpenFileOp struct {
 	// file handle. The file system must ensure this ID remains valid until a
 	// later call to ReleaseFileHandle.
 	Handle HandleID
+
+	// By default, fuse invalidates the kernel's page cache for an inode when a
+	// new file handle is opened for that inode (cf. https://goo.gl/2rZ9uk). The
+	// intent appears to be to allow users to "see" content that has changed
+	// remotely on a networked file system by re-opening the file.
+	//
+	// For file systems where this is not a concern because all modifications for
+	// a particular inode go through the kernel, set this field to true to
+	// disable this behavior.
+	//
+	// (More discussion: http://goo.gl/cafzWF)
+	//
+	// Note that on OS X it appears that the behavior is always as if this field
+	// is set to true, regardless of its value, at least for files opened in the
+	// same mode. (Cf. https://github.com/osxfuse/osxfuse/issues/223)
+	KeepPageCache bool
 }
 
 // Read data from a file previously opened with CreateFile or OpenFile.
