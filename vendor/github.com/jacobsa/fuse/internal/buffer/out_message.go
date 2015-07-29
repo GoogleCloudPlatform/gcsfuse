@@ -25,6 +25,9 @@ import (
 
 const outHeaderSize = unsafe.Sizeof(fusekernel.OutHeader{})
 
+// OutMessage structs begin life with Len() == OutMessageInitialSize.
+const OutMessageInitialSize = outHeaderSize
+
 // We size out messages to be large enough to hold a header for the response
 // plus the largest read that may come in.
 const outMessageSize = outHeaderSize + MaxReadSize
@@ -53,8 +56,8 @@ func init() {
 // Reset the message so that it is ready to be used again. Afterward, the
 // contents are solely a zeroed header.
 func (m *OutMessage) Reset() {
-	m.offset = outHeaderSize
-	memclr(unsafe.Pointer(&m.storage), outHeaderSize)
+	m.offset = OutMessageInitialSize
+	memclr(unsafe.Pointer(&m.storage), OutMessageInitialSize)
 }
 
 // Return a pointer to the header at the start of the message.
@@ -85,6 +88,15 @@ func (b *OutMessage) GrowNoZero(size uintptr) (p unsafe.Pointer) {
 	b.offset += size
 
 	return
+}
+
+// Throw away the last n bytes. Panics if n is out of range.
+func (b *OutMessage) Shrink(n uintptr) {
+	if n > b.offset-OutMessageInitialSize {
+		panic(fmt.Sprintf("Shrink(%d) out of range for offset %d", n, b.offset))
+	}
+
+	b.offset -= n
 }
 
 // Equivalent to growing by the length of p, then copying p over the new

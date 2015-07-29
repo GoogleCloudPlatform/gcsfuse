@@ -180,8 +180,7 @@ func (fs *flushFS) ReadFile(
 	}
 
 	// Read what we can.
-	op.Data = make([]byte, op.Size)
-	copy(op.Data, fs.fooContents[op.Offset:])
+	op.BytesRead = copy(op.Dst, fs.fooContents[op.Offset:])
 
 	return
 }
@@ -298,13 +297,15 @@ func (fs *flushFS) ReadDir(
 
 	// Fill in the listing.
 	for _, de := range dirents {
-		op.Data = fuseutil.AppendDirent(op.Data, de)
-	}
+		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], de)
 
-	// We don't support doing this in anything more than one shot.
-	if len(op.Data) > op.Size {
-		err = fmt.Errorf("Couldn't fit listing in %v bytes", op.Size)
-		return
+		// We don't support doing this in anything more than one shot.
+		if n == 0 {
+			err = fmt.Errorf("Couldn't fit listing in %v bytes", len(op.Dst))
+			return
+		}
+
+		op.BytesRead += n
 	}
 
 	return

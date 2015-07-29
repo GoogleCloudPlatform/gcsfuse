@@ -428,7 +428,9 @@ func (fs *memFS) Rename(
 	existingID, _, ok := newParent.LookUpChild(op.NewName)
 	if ok {
 		existing := fs.getInodeOrDie(existingID)
-		if existing.isDir() && len(existing.ReadDir(0, 1024)) > 0 {
+
+		var buf [4096]byte
+		if existing.isDir() && existing.ReadDir(buf[:], 0) > 0 {
 			err = fuse.ENOTEMPTY
 			return
 		}
@@ -538,7 +540,7 @@ func (fs *memFS) ReadDir(
 	inode := fs.getInodeOrDie(op.Inode)
 
 	// Serve the request.
-	op.Data = inode.ReadDir(int(op.Offset), op.Size)
+	op.BytesRead = inode.ReadDir(op.Dst, int(op.Offset))
 
 	return
 }
@@ -571,9 +573,7 @@ func (fs *memFS) ReadFile(
 	inode := fs.getInodeOrDie(op.Inode)
 
 	// Serve the request.
-	op.Data = make([]byte, op.Size)
-	n, err := inode.ReadAt(op.Data, op.Offset)
-	op.Data = op.Data[:n]
+	op.BytesRead, err = inode.ReadAt(op.Dst, op.Offset)
 
 	// Don't return EOF errors; we just indicate EOF to fuse using a short read.
 	if err == io.EOF {
