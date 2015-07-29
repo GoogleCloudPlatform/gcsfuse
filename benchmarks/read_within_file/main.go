@@ -15,143 +15,68 @@
 package main
 
 import (
-	"crypto/rand"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
-	"sort"
 	"time"
-
-	"github.com/googlecloudplatform/gcsfuse/benchmarks/internal/format"
-	"github.com/googlecloudplatform/gcsfuse/benchmarks/internal/percentile"
 )
 
 var fFile = flag.String("file", "", "Path to file to read.")
 var fRandom = flag.Bool("random", false, "Read randomly? Otherwise sequentially.")
 var fDuration = flag.Duration("duration", 10*time.Second, "How long to run.")
-var fReadSize = flag.Int64("read_size", 1<<20, "Size of each call to read(2).")
+var fReadSize = flag.Int("read_size", 1<<20, "Size of each call to read(2).")
 
 ////////////////////////////////////////////////////////////////////////
 // main logic
 ////////////////////////////////////////////////////////////////////////
 
+func readRandom(
+	r io.ReaderAt,
+	readSize int,
+	d time.Duration) (bytesRead int64, err error)
+
 func run() (err error) {
-	if *fDir == "" {
-		err = errors.New("You must set --dir.")
+	if *fFile == "" {
+		err = errors.New("You must set --file.")
 		return
 	}
 
-	// Create a temporary file.
-	log.Printf("Creating a temporary file in %s.", *fDir)
-
-	f, err := ioutil.TempFile(*fDir, "sequential_read")
+	// Open the file for reading.
+	f, err := os.Open(*fFile)
 	if err != nil {
-		err = fmt.Errorf("TempFile: %v", err)
 		return
 	}
 
-	path := f.Name()
-
-	// Make sure we clean it up later.
-	defer func() {
-		log.Printf("Deleting %s.", path)
-		os.Remove(path)
-	}()
-
-	// Fill it with random content.
-	log.Printf("Writing %d random bytes.", *fFileSize)
-	_, err = io.Copy(f, io.LimitReader(rand.Reader, *fFileSize))
+	// Find its size.
+	size, err := f.Seek(0, 2)
 	if err != nil {
-		err = fmt.Errorf("Copying random bytes: %v", err)
+		err = fmt.Errorf("Seek: %v", err)
 		return
 	}
 
-	// Finish off the file.
-	err = f.Close()
-	if err != nil {
-		err = fmt.Errorf("Closing file: %v", err)
-		return
-	}
+	log.Printf("%s has size %d.", f.Name(), size)
 
-	// Run several iterations.
-	log.Printf("Measuring for %v...", *fDuration)
+	// Perform reads.
+	start := time.Now()
 
-	var fullFileRead percentile.DurationSlice
-	var singleReadCall percentile.DurationSlice
-	buf := make([]byte, *fReadSize)
-
-	overallStartTime := time.Now()
-	for len(fullFileRead) == 0 || time.Since(overallStartTime) < *fDuration {
-		// Open the file for reading.
-		f, err = os.Open(path)
+	var bytesRead int64
+	if *fRandom {
+		bytesRead, err = readRandom(f, *fReadSize, *fDuration)
 		if err != nil {
-			err = fmt.Errorf("Opening file: %v", err)
+			err = fmt.Errorf("readRandom: %v", err)
 			return
 		}
-
-		// Read the whole thing.
-		fileStartTime := time.Now()
-		for err == nil {
-			readStartTime := time.Now()
-			_, err = f.Read(buf)
-			singleReadCall = append(singleReadCall, time.Since(readStartTime))
-		}
-
-		fullFileRead = append(fullFileRead, time.Since(fileStartTime))
-
-		switch {
-		case err == io.EOF:
-			err = nil
-
-		case err != nil:
-			err = fmt.Errorf("Reading: %v", err)
-			return
-		}
-
-		// Close the file.
-		err = f.Close()
-		if err != nil {
-			err = fmt.Errorf("Closing file after reading: %v", err)
-			return
-		}
+	} else {
+		panic("TODO")
 	}
 
-	sort.Sort(fullFileRead)
-	sort.Sort(singleReadCall)
+	d := time.Since(start)
+	bandwidthBytesPerSec := float64(bytesRead) / (float64(d) / float64(time.Second))
 
-	log.Printf(
-		"Read the file %d times, using %d calls to read(2).",
-		len(fullFileRead),
-		len(singleReadCall))
-
-	// Report.
-	ptiles := []int{50, 90, 98}
-
-	reportSlice := func(
-		name string,
-		bytesPerObservation int64,
-		observations percentile.DurationSlice) {
-		fmt.Printf("\n%s:\n", name)
-		for _, ptile := range ptiles {
-			d := percentile.Duration(observations, ptile)
-			seconds := float64(d) / float64(time.Second)
-			bandwidthBytesPerSec := float64(bytesPerObservation) / seconds
-
-			fmt.Printf(
-				"  %02dth ptile: %10v (%s/s)\n",
-				ptile,
-				d,
-				format.Bytes(bandwidthBytesPerSec))
-		}
-	}
-
-	reportSlice("Full-file read times", *fFileSize, fullFileRead)
-	reportSlice("read(2) latencies", *fReadSize, singleReadCall)
-
+	fmt.Printf("Read %d bytes in %v (%s/s)\n", bytesRead, d, bandwidthBytesPerSec)
 	fmt.Println()
 
 	return
