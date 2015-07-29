@@ -1384,6 +1384,12 @@ func (fs *fileSystem) OpenFile(
 	// Sanity check that this inode exists and is of the correct type.
 	_ = fs.inodes[op.Inode].(*inode.FileInode)
 
+	// When we observe object generations that we didn't create, we assign them
+	// new inode IDs. So for a given inode, all modifications go through the
+	// kernel. Therefore it's safe to tell the kernel to keep the page cache from
+	// open to open for a given inode.
+	op.KeepPageCache = true
+
 	return
 }
 
