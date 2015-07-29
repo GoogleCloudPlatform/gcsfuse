@@ -11,14 +11,18 @@ It may or may not work correctly with other operating systems and older versions
 
 If you are running Linux on a 64-bit x86 machine and are happy to install
 pre-built binaries (i.e. you don't want to build from source), you need only
-ensure fuse is installed and then download and extract the latest release. The
-instructions slightly vary by distribution.
+ensure fuse is installed and configured, then download and extract the latest
+release. The instructions slightly vary by distribution.
 
 ## Debian and Ubuntu
 
     sudo apt-get install wget fuse
+    sudo adduser $USER fuse
     wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.5.0/gcsfuse_v0.5.0_linux_amd64.tar.gz
     sudo tar -C /usr/local/bin -zxf gcsfuse_v0.5.0_linux_amd64.tar.gz
+
+You may need to log out and then log back in to make sure that the change to
+the `fuse` group takes effect.
 
 On old versions of Debian, including the one in the Google Compute Engine image
 `debian-7` as of 2015-07-20, `/dev/fuse` has incorrect permissions (cf.
@@ -38,14 +42,22 @@ you may need to run the workaround above repeatedly.
 ## CentOS and Red Hat
 
     sudo yum install wget fuse
+    sudo adduser $USER fuse
     wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.5.0/gcsfuse_v0.5.0_linux_amd64.tar.gz
     sudo tar -C /usr/local/bin -zxf gcsfuse_v0.5.0_linux_amd64.tar.gz
+
+You may need to log out and then log back in to make sure that the change to
+the `fuse` group takes effect.
 
 ## SUSE
 
     sudo zypper install wget fuse
+    sudo adduser $USER fuse
     wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.5.0/gcsfuse_v0.5.0_linux_amd64.tar.gz
     sudo tar -C /usr/local/bin -zxf gcsfuse_v0.5.0_linux_amd64.tar.gz
+
+You may need to log out and then log back in to make sure that the change to
+the `fuse` group takes effect.
 
 
 # OS X
