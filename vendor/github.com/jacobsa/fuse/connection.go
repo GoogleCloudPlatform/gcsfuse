@@ -390,7 +390,7 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 		opID := c.nextOpID
 		c.nextOpID++
 
-		c.debugLog(opID, 1, "<- %#v", op)
+		c.debugLog(opID, 1, "<- %s", describeRequest(op))
 
 		// Special case: handle interrupt requests inline.
 		if interruptOp, ok := op.(*interruptOp); ok {
@@ -443,7 +443,7 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 	// Debug logging
 	if c.debugLogger != nil {
 		if opErr == nil {
-			c.debugLog(opID, 1, "-> OK: %#v", op)
+			c.debugLog(opID, 1, "-> OK: %s", describeResponse(op))
 		} else {
 			c.debugLog(opID, 1, "-> error: %v", opErr)
 		}

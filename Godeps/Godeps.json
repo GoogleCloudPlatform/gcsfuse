@@ -9,7 +9,7 @@
 		},
 		{
 			"ImportPath": "github.com/jacobsa/fuse",
-			"Rev": "e157c6bc8d8287ce348b01667c87e2283083be15"
+			"Rev": "c80811a73539bd5e68962c05d39470beda869564"
 		},
 		{
 			"ImportPath": "github.com/jacobsa/gcloud/gcs",
