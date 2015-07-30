@@ -23,6 +23,8 @@ import (
 	"math/rand"
 	"os"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/benchmarks/internal/format"
 )
 
 var fFile = flag.String("file", "", "Path to file to read.")
@@ -112,7 +114,12 @@ func run() (err error) {
 
 	bandwidthBytesPerSec := float64(bytesRead) / (float64(d) / float64(time.Second))
 
-	fmt.Printf("Read %d bytes in %v (%s/s)\n", bytesRead, d, bandwidthBytesPerSec)
+	fmt.Printf(
+		"Read %s in %v (%s/s)\n",
+		format.Bytes(float64(bytesRead)),
+		d,
+		format.Bytes(bandwidthBytesPerSec))
+
 	fmt.Println()
 
 	return
