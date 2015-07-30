@@ -131,7 +131,7 @@ func run() (err error) {
 		return
 	}
 
-	log.Printf("%s has size %d.", f.Name(), size)
+	log.Printf("%s has size %s.", f.Name(), format.Bytes(float64(size)))
 
 	// Perform reads.
 	var bytesRead int64
