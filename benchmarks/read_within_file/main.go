@@ -33,7 +33,7 @@ var fDuration = flag.Duration("duration", 10*time.Second, "How long to run.")
 var fReadSize = flag.Int("read_size", 1<<20, "Size of each call to read(2).")
 
 ////////////////////////////////////////////////////////////////////////
-// main logic
+// Helpers
 ////////////////////////////////////////////////////////////////////////
 
 func readRandom(
@@ -78,6 +78,40 @@ func readRandom(
 	return
 }
 
+func readSequential(
+	r io.ReadSeeker,
+	readSize int,
+	desiredDuration time.Duration) (bytesRead int64, d time.Duration, err error) {
+	buf := make([]byte, readSize)
+	start := time.Now()
+
+	for time.Since(start) < desiredDuration {
+		var n int
+		n, err = r.Read(buf)
+
+		switch {
+		case err == io.EOF:
+			_, err = r.Seek(0, 0)
+			if err != nil {
+				err = fmt.Errorf("Seek: %v", err)
+				return
+			}
+
+		case err != nil:
+			err = fmt.Errorf("Read: %v", err)
+		}
+
+		bytesRead += int64(n)
+	}
+
+	d = time.Since(start)
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// main logic
+////////////////////////////////////////////////////////////////////////
+
 func run() (err error) {
 	if *fFile == "" {
 		err = errors.New("You must set --file.")
@@ -109,7 +143,11 @@ func run() (err error) {
 			return
 		}
 	} else {
-		panic("TODO")
+		bytesRead, d, err = readSequential(f, *fReadSize, *fDuration)
+		if err != nil {
+			err = fmt.Errorf("readSequential: %v", err)
+			return
+		}
 	}
 
 	bandwidthBytesPerSec := float64(bytesRead) / (float64(d) / float64(time.Second))
