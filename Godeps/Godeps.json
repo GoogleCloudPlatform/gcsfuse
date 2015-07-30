@@ -13,11 +13,11 @@
 		},
 		{
 			"ImportPath": "github.com/jacobsa/gcloud/gcs",
-			"Rev": "0f22d36b0bb5233dd3fb50a46edd610c3a8287d6"
+			"Rev": "c19e86190b550e204b4e37d28892991c1b8d8ff2"
 		},
 		{
 			"ImportPath": "github.com/jacobsa/gcloud/httputil",
-			"Rev": "0f22d36b0bb5233dd3fb50a46edd610c3a8287d6"
+			"Rev": "c19e86190b550e204b4e37d28892991c1b8d8ff2"
 		},
 		{
 			"ImportPath": "github.com/jacobsa/oglematchers",

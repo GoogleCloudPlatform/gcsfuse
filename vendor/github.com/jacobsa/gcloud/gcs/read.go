@@ -192,27 +192,59 @@ func makeRangeHeaderValue(br ByteRange) (hdr string, n int64) {
 	return
 }
 
-type separateReadCloser struct {
-	reader io.Reader
-	closer io.Closer
+type limitReadCloser struct {
+	n       int64
+	wrapped io.ReadCloser
 }
 
-func (rc *separateReadCloser) Read(p []byte) (n int, err error) {
-	n, err = rc.reader.Read(p)
+func (lrc *limitReadCloser) Read(p []byte) (n int, err error) {
+	// Clip the read to what's left to return.
+	if int64(len(p)) > lrc.n {
+		p = p[:lrc.n]
+	}
+
+	// If there's a read left to do, perform it.
+	//
+	// If the wrapped reader returns an error, we want to pass it through
+	// directly without monkeying around with draining it further. This includes
+	// the usual case of EOF, since we don't need to drain it in that case.
+	n, err = lrc.wrapped.Read(p)
+	lrc.n -= int64(n)
+
+	if err != nil {
+		return
+	}
+
+	// If we're not yet done with the range of interest, there's nothing further
+	// to do.
+	if lrc.n > 0 {
+		return
+	}
+
+	// Drain the rest of the contents from the wrapped reader and return EOF.
+	_, err = io.Copy(ioutil.Discard, lrc.wrapped)
+	if err != nil {
+		err = fmt.Errorf("Discarding additional contents: %v", err)
+		return
+	}
+
+	err = io.EOF
 	return
 }
 
-func (rc *separateReadCloser) Close() (err error) {
-	err = rc.closer.Close()
+func (lrc *limitReadCloser) Close() (err error) {
+	err = lrc.wrapped.Close()
 	return
 }
 
 // Create an io.ReadCloser that limits the amount of data returned by a wrapped
-// io.ReadCloser. Like io.LimitReader, but supports closing.
+// io.ReadCloser. Additional data is read up to EOF but discarded, making it
+// suitable for use with http.Response.Body which must be drained fully in
+// order to reuse the keep-alive connection.
 func newLimitReadCloser(wrapped io.ReadCloser, n int64) (rc io.ReadCloser) {
-	rc = &separateReadCloser{
-		reader: io.LimitReader(wrapped, n),
-		closer: wrapped,
+	rc = &limitReadCloser{
+		n:       n,
+		wrapped: wrapped,
 	}
 
 	return
