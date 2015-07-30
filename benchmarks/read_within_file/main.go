@@ -37,7 +37,10 @@ func readRandom(
 	r io.ReaderAt,
 	fileSize int64,
 	readSize int,
-	d time.Duration) (bytesRead int64, err error)
+	desiredDuration time.Duration) (bytesRead int64, d time.Duration, err error) {
+	err = errors.New("TODO")
+	return
+}
 
 func run() (err error) {
 	if *fFile == "" {
@@ -61,11 +64,10 @@ func run() (err error) {
 	log.Printf("%s has size %d.", f.Name(), size)
 
 	// Perform reads.
-	start := time.Now()
-
 	var bytesRead int64
+	var d time.Duration
 	if *fRandom {
-		bytesRead, err = readRandom(f, size, *fReadSize, *fDuration)
+		bytesRead, d, err = readRandom(f, size, *fReadSize, *fDuration)
 		if err != nil {
 			err = fmt.Errorf("readRandom: %v", err)
 			return
@@ -74,7 +76,6 @@ func run() (err error) {
 		panic("TODO")
 	}
 
-	d := time.Since(start)
 	bandwidthBytesPerSec := float64(bytesRead) / (float64(d) / float64(time.Second))
 
 	fmt.Printf("Read %d bytes in %v (%s/s)\n", bytesRead, d, bandwidthBytesPerSec)
