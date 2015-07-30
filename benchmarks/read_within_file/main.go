@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"time"
 )
@@ -38,7 +39,40 @@ func readRandom(
 	fileSize int64,
 	readSize int,
 	desiredDuration time.Duration) (bytesRead int64, d time.Duration, err error) {
-	err = errors.New("TODO")
+	// Make sure the logic below for choosing offsets works.
+	if fileSize < int64(readSize) {
+		err = fmt.Errorf(
+			"File size of %d bytes not large enough for reads of %d bytes",
+			fileSize,
+			readSize)
+		return
+	}
+
+	buf := make([]byte, readSize)
+
+	start := time.Now()
+	for time.Since(start) < desiredDuration {
+		// Choose a random offset at which to read.
+		off := rand.Int63n(fileSize - int64(readSize))
+
+		// Read, ignoring io.EOF which io.ReaderAt is allowed to return for reads
+		// that abut the end of the file.
+		var n int
+		n, err = r.ReadAt(buf, off)
+
+		switch {
+		case err == io.EOF && n == readSize:
+			err = nil
+
+		case err != nil:
+			err = fmt.Errorf("ReadAt: %v", err)
+			return
+		}
+
+		bytesRead += int64(n)
+	}
+
+	d = time.Since(start)
 	return
 }
 
