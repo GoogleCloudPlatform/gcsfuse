@@ -139,7 +139,7 @@ gcsfuse is open source software, released under the [Apache license](LICENSE).
 It is distributed as-is, without warranties or conditions of any kind.
 
 Best effort community support is available on [Server Fault][sf]. Please be sure
-to tag your questions with `gcsfuse` and `google-cloud-storage`, and to look at
+to tag your questions with `gcsfuse` and `google-cloud-platform`, and to look at
 [previous questions and answers][previous] before asking a new one. For bugs and
 feature requests, please [file an issue][issues].
 
