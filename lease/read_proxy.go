@@ -159,8 +159,10 @@ func (rp *readProxy) getContents(
 		}
 	}()
 
-	// Copy into the read/write lease.
-	copied, err := io.Copy(rwl, rc)
+	// Copy into the read/write lease. Use a large buffer to avoid spending a lot
+	// of CPU time on syscalls.
+	buf := make([]byte, 1<<20)
+	copied, err := io.CopyBuffer(rwl, rc, buf)
 	if err != nil {
 		err = fmt.Errorf("Copy: %v", err)
 		return
