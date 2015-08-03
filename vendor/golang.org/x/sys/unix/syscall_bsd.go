@@ -500,7 +500,10 @@ func SysctlUint32(name string) (value uint32, err error) {
 
 //sys	utimes(path string, timeval *[2]Timeval) (err error)
 
-func Utimes(path string, tv []Timeval) (err error) {
+func Utimes(path string, tv []Timeval) error {
+	if tv == nil {
+		return utimes(path, nil)
+	}
 	if len(tv) != 2 {
 		return EINVAL
 	}
@@ -508,6 +511,9 @@ func Utimes(path string, tv []Timeval) (err error) {
 }
 
 func UtimesNano(path string, ts []Timespec) error {
+	if ts == nil {
+		return utimes(path, nil)
+	}
 	// TODO: The BSDs can do utimensat with SYS_UTIMENSAT but it
 	// isn't supported by darwin so this uses utimes instead
 	if len(ts) != 2 {
@@ -524,7 +530,10 @@ func UtimesNano(path string, ts []Timespec) error {
 
 //sys	futimes(fd int, timeval *[2]Timeval) (err error)
 
-func Futimes(fd int, tv []Timeval) (err error) {
+func Futimes(fd int, tv []Timeval) error {
+	if tv == nil {
+		return futimes(fd, nil)
+	}
 	if len(tv) != 2 {
 		return EINVAL
 	}

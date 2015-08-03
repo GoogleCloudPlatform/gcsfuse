@@ -270,7 +270,10 @@ func Gethostname() (name string, err error) {
 	return name, err
 }
 
-func UtimesNano(path string, ts []Timespec) (err error) {
+func UtimesNano(path string, ts []Timespec) error {
+	if ts == nil {
+		return Utimes(path, nil)
+	}
 	if len(ts) != 2 {
 		return EINVAL
 	}
