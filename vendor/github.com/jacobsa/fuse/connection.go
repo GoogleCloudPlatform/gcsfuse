@@ -26,6 +26,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/internal/buffer"
 	"github.com/jacobsa/fuse/internal/freelist"
 	"github.com/jacobsa/fuse/internal/fusekernel"
@@ -418,6 +419,39 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 	}
 }
 
+// Skip errors that happen as a matter of course, since they spook users.
+func (c *Connection) shouldLogError(
+	op interface{},
+	err error) bool {
+	// We don't log non-errors.
+	if err == nil {
+		return false
+	}
+
+	// We can't log if there's nothing to log to.
+	if c.errorLogger == nil {
+		return false
+	}
+
+	switch op.(type) {
+	case *fuseops.LookUpInodeOp:
+		// It is totally normal for the kernel to ask to look up an inode by name
+		// and find the name doesn't exist. For example, this happens when linking
+		// a new file.
+		if err == syscall.ENOENT {
+			return false
+		}
+
+	case *unknownOp:
+		// Don't bother the user with methods we intentionally don't support.
+		if err == syscall.ENOSYS {
+			return false
+		}
+	}
+
+	return true
+}
+
 // Reply to an op previously read using ReadOp, with the supplied error (or nil
 // if successful). The context must be the context returned by ReadOp.
 //
@@ -453,7 +487,7 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 	}
 
 	// Error logging
-	if opErr != nil && c.errorLogger != nil {
+	if c.shouldLogError(op, opErr) {
 		c.errorLogger.Printf("%T error: %v", op, opErr)
 	}
 
