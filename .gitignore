@@ -4,6 +4,9 @@
 Godeps/_workspace/
 vendor/**/*_test.go
 
+# Vim detritus
+.*.swp
+
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
 *.o
 *.a
