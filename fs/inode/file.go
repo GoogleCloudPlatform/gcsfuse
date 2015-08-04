@@ -77,9 +77,6 @@ var _ Inode = &FileInode{}
 // Create a file inode for the given object in GCS. The initial lookup count is
 // zero.
 //
-// gcsChunkSize controls the maximum size of each individual read request made
-// to GCS.
-//
 // REQUIRES: o != nil
 // REQUIRES: o.Generation > 0
 // REQUIRES: len(o.Name) > 0
@@ -88,30 +85,18 @@ func NewFileInode(
 	id fuseops.InodeID,
 	o *gcs.Object,
 	attrs fuseops.InodeAttributes,
-	gcsChunkSize uint64,
 	bucket gcs.Bucket,
-	leaser lease.FileLeaser,
-	objectSyncer gcsproxy.ObjectSyncer,
+	syncer gcsx.Syncer,
 	clock timeutil.Clock) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
-		bucket:       bucket,
-		leaser:       leaser,
-		objectSyncer: objectSyncer,
-		clock:        clock,
-		id:           id,
-		name:         o.Name,
-		attrs:        attrs,
-		gcsChunkSize: gcsChunkSize,
-		src:          *o,
-		content: mutable.NewContent(
-			gcsproxy.NewReadProxy(
-				o,
-				nil, // Initial read lease
-				gcsChunkSize,
-				leaser,
-				bucket),
-			clock),
+		bucket: bucket,
+		syncer: syncer,
+		clock:  clock,
+		id:     id,
+		name:   o.Name,
+		attrs:  attrs,
+		src:    *o,
 	}
 
 	f.lc.Init(id)
