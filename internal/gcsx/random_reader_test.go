@@ -17,6 +17,7 @@ package gcsx
 import (
 	"testing"
 
+	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
@@ -30,7 +31,7 @@ func TestRandomReader(t *testing.T) { RunTests(t) }
 
 type checkingRandomReader struct {
 	ctx     context.Context
-	wrapped RandomReader
+	wrapped *randomReader
 }
 
 func (rr *checkingRandomReader) ReadAt(p []byte, offset int64) (int, error) {
@@ -49,6 +50,7 @@ func (rr *checkingRandomReader) Destroy() {
 ////////////////////////////////////////////////////////////////////////
 
 type RandomReaderTest struct {
+	object *gcs.Object
 	bucket mock_gcs.MockBucket
 	rr     checkingRandomReader
 }
@@ -59,7 +61,16 @@ var _ SetUpInterface = &RandomReaderTest{}
 var _ TearDownInterface = &RandomReaderTest{}
 
 func (t *RandomReaderTest) SetUp(ti *TestInfo) {
-	panic("TODO")
+	// Manufacture an object record.
+	t.object = &gcs.Object{Name: "foo", Generation: 17}
+
+	// Create the bucket.
+	t.bucket = mock_gcs.NewMockBucket(ti.MockController, "bucket")
+
+	// Set up the reader.
+	rr, err := NewRandomReader(t.object, t.bucket)
+	AssertEq(nil, err)
+	t.rr.wrapped = rr.(*randomReader)
 }
 
 func (t *RandomReaderTest) TearDown() {
