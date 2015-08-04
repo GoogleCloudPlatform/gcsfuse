@@ -423,15 +423,37 @@ func (c *Connection) kernelResponse(
 	h := m.OutHeader()
 	h.Unique = fuseID
 
-	// Did the user return an error? Otherwise, fill in the rest of the response.
+	// Special case: handle the ops for which the kernel expects no response.
+	// interruptOp .
+	switch op.(type) {
+	case *fuseops.ForgetInodeOp:
+		noResponse = true
+		return
+
+	case *interruptOp:
+		noResponse = true
+		return
+	}
+
+	// If the user returned the error, fill in the error field of the outgoing
+	// message header.
 	if opErr != nil {
+		m.OutHeader().Error = -int32(syscall.EIO)
 		if errno, ok := opErr.(syscall.Errno); ok {
 			m.OutHeader().Error = -int32(errno)
-		} else {
-			m.OutHeader().Error = -int32(syscall.EIO)
 		}
-	} else {
-		noResponse = c.kernelResponseForOp(m, op)
+
+		// Special case: for some types, convertInMessage grew the message in order
+		// to obtain a destination buffer. Make sure that we shrink back to just
+		// the header, because on OS X the kernel otherwise returns EINVAL when we
+		// attempt to write an error response with a length that extends beyond the
+		// header.
+		m.Shrink(uintptr(m.Len() - int(buffer.OutMessageInitialSize)))
+	}
+
+	// Otherwise, fill in the rest of the response.
+	if opErr == nil {
+		c.kernelResponseForOp(m, op)
 	}
 
 	h.Len = uint32(m.Len())
@@ -442,7 +464,7 @@ func (c *Connection) kernelResponse(
 // op.
 func (c *Connection) kernelResponseForOp(
 	m *buffer.OutMessage,
-	op interface{}) (noResponse bool) {
+	op interface{}) {
 	// Create the appropriate output message
 	switch o := op.(type) {
 	case *fuseops.LookUpInodeOp:
@@ -463,9 +485,6 @@ func (c *Connection) kernelResponseForOp(
 		out.AttrValid, out.AttrValidNsec = convertExpirationTime(
 			o.AttributesExpiration)
 		convertAttributes(o.Inode, &o.Attributes, &out.Attr)
-
-	case *fuseops.ForgetInodeOp:
-		noResponse = true
 
 	case *fuseops.MkDirOp:
 		size := fusekernel.EntryOutSize(c.protocol)
@@ -541,9 +560,6 @@ func (c *Connection) kernelResponseForOp(
 	case *statFSOp:
 		m.Grow(unsafe.Sizeof(fusekernel.StatfsOut{}))
 
-	case *interruptOp:
-		noResponse = true
-
 	case *initOp:
 		out := (*fusekernel.InitOut)(m.Grow(unsafe.Sizeof(fusekernel.InitOut{})))
 
@@ -554,7 +570,7 @@ func (c *Connection) kernelResponseForOp(
 		out.MaxWrite = o.MaxWrite
 
 	default:
-		panic(fmt.Sprintf("Unknown op: %#v", op))
+		panic(fmt.Sprintf("Unexpected op: %#v", op))
 	}
 
 	return
