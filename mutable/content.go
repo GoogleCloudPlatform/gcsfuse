@@ -169,14 +169,11 @@ func (mc *mutableContent) Stat(
 	sr.DirtyThreshold = mc.dirtyThreshold
 	sr.Mtime = mc.mtime
 
-	// Get the size from the appropriate place.
-	if mc.dirty() {
-		sr.Size, err = mc.readWriteLease.Size()
-		if err != nil {
-			return
-		}
-	} else {
-		sr.Size = mc.initialContent.Size()
+	// Get the size from the file.
+	sr.Size, err = mc.contents.Seek(0, 2)
+	if err != nil {
+		err = fmt.Errorf("Seek: %v", err)
+		return
 	}
 
 	return
