@@ -72,11 +72,19 @@ type StatResult struct {
 // anybody else.
 func NewContent(
 	initialContent *os.File,
-	clock timeutil.Clock) (mc Content) {
+	clock timeutil.Clock) (mc Content, err error) {
+	// Find the file's size.
+	size, err := initialContent.Seek(0, 2)
+	if err != nil {
+		err = fmt.Errorf("Seek: %v", err)
+		return
+	}
+
+	// Create the Content.
 	mc = &mutableContent{
 		clock:          clock,
-		initialContent: initialContent,
-		dirtyThreshold: initialContent.Size(),
+		contents:       initialContent,
+		dirtyThreshold: size,
 	}
 
 	return
@@ -103,13 +111,13 @@ type mutableContent struct {
 
 	// The lowest byte index that has been modified from the initial contents.
 	//
-	// INVARIANT: !dirty() => Stat().DirtyThreshold == Stat().Size
+	// INVARIANT: !dirty => Stat().DirtyThreshold == Stat().Size
 	dirtyThreshold int64
 
 	// The time at which a method that modifies our contents was last called, or
 	// nil if never.
 	//
-	// INVARIANT: dirty() => mtime != nil
+	// INVARIANT: dirty => mtime != nil
 	mtime *time.Time
 }
 
@@ -122,33 +130,21 @@ func (mc *mutableContent) CheckInvariants() {
 		panic("Use of destroyed mutableContent object.")
 	}
 
-	// INVARIANT: When non-nil, initialContent.CheckInvariants() does not panic.
-	if mc.initialContent != nil {
-		mc.initialContent.CheckInvariants()
-	}
-
-	// INVARIANT: (initialContent == nil) != (readWriteLease == nil)
-	if mc.initialContent == nil && mc.readWriteLease == nil {
-		panic("Both initialContent and readWriteLease are nil")
-	}
-
-	if mc.initialContent != nil && mc.readWriteLease != nil {
-		panic("Both initialContent and readWriteLease are non-nil")
-	}
-
-	// INVARIANT: If dirty(), then mtime != nil
-	if mc.dirty() && mc.mtime == nil {
-		panic("Expected non-nil mtime.")
-	}
-
-	// INVARIANT: initialContent != nil => dirtyThreshold == initialContent.Size()
-	if mc.initialContent != nil {
-		if mc.dirtyThreshold != mc.initialContent.Size() {
-			panic(fmt.Sprintf(
-				"Dirty threshold mismatch: %d vs. %d",
-				mc.dirtyThreshold,
-				mc.initialContent.Size()))
+	// INVARIANT: !dirty => Stat().DirtyThreshold == Stat().Size
+	if !mc.dirty {
+		sr, err := mc.Stat(context.Background())
+		if err != nil {
+			panic(fmt.Sprintf("Stat: %v", err))
 		}
+
+		if sr.DirtyThreshold != sr.Size {
+			panic(fmt.Sprintf("Mismatch: %d vs. %d", sr.DirtyThreshold, sr.Size))
+		}
+	}
+
+	// INVARIANT: dirty => mtime != nil
+	if mc.dirty && mc.mtime == nil {
+		panic("Expected a non-nil mtime")
 	}
 }
 
@@ -269,10 +265,6 @@ func minInt64(a int64, b int64) int64 {
 	}
 
 	return b
-}
-
-func (mc *mutableContent) dirty() bool {
-	return mc.readWriteLease != nil
 }
 
 // Ensure that mc.readWriteLease is non-nil with an authoritative view of mc's
