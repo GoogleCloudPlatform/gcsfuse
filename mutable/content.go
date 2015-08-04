@@ -19,7 +19,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 )
@@ -36,13 +35,6 @@ type Content interface {
 	// Destroy any state used by the object, putting it into an indeterminate
 	// state. The object must not be used again.
 	Destroy()
-
-	// If the content has been dirtied from its initial state, return a
-	// read/write lease for the current content. Otherwise return nil.
-	//
-	// If this method returns a non-nil read/write lease, the Content is
-	// implicitly destroyed and must not be used again.
-	Release() (rwl lease.ReadWriteLease)
 
 	// Read part of the content, with semantics equivalent to io.ReaderAt aside
 	// from context support.
