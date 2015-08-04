@@ -67,7 +67,7 @@ func NewTempFile(
 	return
 }
 
-type mutableContent struct {
+type tempFile struct {
 	/////////////////////////
 	// Dependencies
 	/////////////////////////
@@ -84,7 +84,7 @@ type mutableContent struct {
 	dirty bool
 
 	// A file containing our current contents.
-	contents *os.File
+	f *os.File
 
 	// The lowest byte index that has been modified from the initial contents.
 	//
@@ -102,9 +102,9 @@ type mutableContent struct {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-func (mc *mutableContent) CheckInvariants() {
+func (mc *tempFile) CheckInvariants() {
 	if mc.destroyed {
-		panic("Use of destroyed mutableContent object.")
+		panic("Use of destroyed tempFile object.")
 	}
 
 	// INVARIANT: !dirty => Stat().DirtyThreshold == Stat().Size
@@ -125,29 +125,29 @@ func (mc *mutableContent) CheckInvariants() {
 	}
 }
 
-func (mc *mutableContent) Destroy() {
+func (mc *tempFile) Destroy() {
 	mc.destroyed = true
 
 	// Throw away the file.
-	mc.contents.Close()
-	mc.contents = nil
+	mc.f.Close()
+	mc.f = nil
 }
 
-func (mc *mutableContent) ReadAt(
+func (mc *tempFile) ReadAt(
 	ctx context.Context,
 	buf []byte,
 	offset int64) (n int, err error) {
-	n, err = mc.contents.ReadAt(buf, offset)
+	n, err = mc.f.ReadAt(buf, offset)
 	return
 }
 
-func (mc *mutableContent) Stat(
+func (mc *tempFile) Stat(
 	ctx context.Context) (sr StatResult, err error) {
 	sr.DirtyThreshold = mc.dirtyThreshold
 	sr.Mtime = mc.mtime
 
 	// Get the size from the file.
-	sr.Size, err = mc.contents.Seek(0, 2)
+	sr.Size, err = mc.f.Seek(0, 2)
 	if err != nil {
 		err = fmt.Errorf("Seek: %v", err)
 		return
@@ -156,7 +156,7 @@ func (mc *mutableContent) Stat(
 	return
 }
 
-func (mc *mutableContent) WriteAt(
+func (mc *tempFile) WriteAt(
 	ctx context.Context,
 	buf []byte,
 	offset int64) (n int, err error) {
@@ -167,12 +167,12 @@ func (mc *mutableContent) WriteAt(
 	mc.mtime = &newMtime
 
 	// Call through.
-	n, err = mc.contents.WriteAt(buf, offset)
+	n, err = mc.f.WriteAt(buf, offset)
 
 	return
 }
 
-func (mc *mutableContent) Truncate(
+func (mc *tempFile) Truncate(
 	ctx context.Context,
 	n int64) (err error) {
 	// Update our state regarding being dirty.
@@ -182,7 +182,7 @@ func (mc *mutableContent) Truncate(
 	mc.mtime = &newMtime
 
 	// Call through.
-	err = mc.contents.Truncate(int64(n))
+	err = mc.f.Truncate(int64(n))
 
 	return
 }
