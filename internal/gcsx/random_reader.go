@@ -126,6 +126,7 @@ func (rr *randomReader) ReadAt(
 		n += tmp
 		p = p[tmp:]
 		rr.start += int64(tmp)
+		offset += int64(tmp)
 
 		// Sanity check.
 		if rr.start > rr.limit {
