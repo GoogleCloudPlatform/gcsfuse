@@ -22,7 +22,6 @@ import (
 
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 )
 
 // A temporary file that keeps track of the lowest offset at which it has been
@@ -122,14 +121,14 @@ type tempFile struct {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-func (mc *tempFile) CheckInvariants() {
-	if mc.destroyed {
+func (tf *tempFile) CheckInvariants() {
+	if tf.destroyed {
 		panic("Use of destroyed tempFile object.")
 	}
 
 	// INVARIANT: !dirty => Stat().DirtyThreshold == Stat().Size
-	if !mc.dirty {
-		sr, err := mc.Stat(context.Background())
+	if !tf.dirty {
+		sr, err := tf.Stat()
 		if err != nil {
 			panic(fmt.Sprintf("Stat: %v", err))
 		}
@@ -140,34 +139,37 @@ func (mc *tempFile) CheckInvariants() {
 	}
 
 	// INVARIANT: dirty => mtime != nil
-	if mc.dirty && mc.mtime == nil {
+	if tf.dirty && tf.mtime == nil {
 		panic("Expected a non-nil mtime")
 	}
 }
 
-func (mc *tempFile) Destroy() {
-	mc.destroyed = true
+func (tf *tempFile) Destroy() {
+	tf.destroyed = true
 
 	// Throw away the file.
-	mc.f.Close()
-	mc.f = nil
+	tf.f.Close()
+	tf.f = nil
 }
 
-func (mc *tempFile) ReadAt(
-	ctx context.Context,
-	buf []byte,
-	offset int64) (n int, err error) {
-	n, err = mc.f.ReadAt(buf, offset)
-	return
+func (tf *tempFile) Read(p []byte) (int, error) {
+	return tf.f.Read(p)
 }
 
-func (mc *tempFile) Stat(
-	ctx context.Context) (sr StatResult, err error) {
-	sr.DirtyThreshold = mc.dirtyThreshold
-	sr.Mtime = mc.mtime
+func (tf *tempFile) Seek(offset int64, whence int) (int64, error) {
+	return tf.f.Seek(offset, whence)
+}
+
+func (tf *tempFile) ReadAt(p []byte, offset int64) (int, error) {
+	return tf.f.ReadAt(p, offset)
+}
+
+func (tf *tempFile) Stat() (sr StatResult, err error) {
+	sr.DirtyThreshold = tf.dirtyThreshold
+	sr.Mtime = tf.mtime
 
 	// Get the size from the file.
-	sr.Size, err = mc.f.Seek(0, 2)
+	sr.Size, err = tf.f.Seek(0, 2)
 	if err != nil {
 		err = fmt.Errorf("Seek: %v", err)
 		return
@@ -176,35 +178,26 @@ func (mc *tempFile) Stat(
 	return
 }
 
-func (mc *tempFile) WriteAt(
-	ctx context.Context,
-	buf []byte,
-	offset int64) (n int, err error) {
+func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
 	// Update our state regarding being dirty.
-	mc.dirtyThreshold = minInt64(mc.dirtyThreshold, offset)
+	tf.dirtyThreshold = minInt64(tf.dirtyThreshold, offset)
 
-	newMtime := mc.clock.Now()
-	mc.mtime = &newMtime
+	newMtime := tf.clock.Now()
+	tf.mtime = &newMtime
 
 	// Call through.
-	n, err = mc.f.WriteAt(buf, offset)
-
-	return
+	return tf.f.WriteAt(p, offset)
 }
 
-func (mc *tempFile) Truncate(
-	ctx context.Context,
-	n int64) (err error) {
+func (tf *tempFile) Truncate(n int64) error {
 	// Update our state regarding being dirty.
-	mc.dirtyThreshold = minInt64(mc.dirtyThreshold, n)
+	tf.dirtyThreshold = minInt64(tf.dirtyThreshold, n)
 
-	newMtime := mc.clock.Now()
-	mc.mtime = &newMtime
+	newMtime := tf.clock.Now()
+	tf.mtime = &newMtime
 
 	// Call through.
-	err = mc.f.Truncate(int64(n))
-
-	return
+	return tf.f.Truncate(n)
 }
 
 ////////////////////////////////////////////////////////////////////////
