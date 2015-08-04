@@ -18,9 +18,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
-	"github.com/googlecloudplatform/gcsfuse/lease"
-	"github.com/googlecloudplatform/gcsfuse/mutable"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"

@@ -24,8 +24,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
-	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
