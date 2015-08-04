@@ -15,10 +15,13 @@
 package gcsx
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
+	. "github.com/jacobsa/oglematchers"
+	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
@@ -85,13 +88,18 @@ func (t *RandomReaderTest) EmptyRead() {
 	// Nothing should happen.
 	buf := make([]byte, 0)
 
-	n, err := t.rr.ReadAt(buf, 17)
+	n, err := t.rr.ReadAt(buf, 0)
 	ExpectEq(0, n)
 	ExpectEq(nil, err)
 }
 
 func (t *RandomReaderTest) NoExistingReader() {
-	AssertTrue(false, "TODO")
+	// The bucket should be called to set up a new reader.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(Return(nil, errors.New("")))
+
+	buf := make([]byte, 1)
+	t.rr.ReadAt(buf, 0)
 }
 
 func (t *RandomReaderTest) ExistingReader_WrongOffset() {
