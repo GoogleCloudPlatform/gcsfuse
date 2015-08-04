@@ -78,7 +78,7 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 		t.ctx,
 		t.bucket,
 		fileInodeName,
-		t.initialContents)
+		[]byte(t.initialContents))
 
 	AssertEq(nil, err)
 
@@ -400,7 +400,7 @@ func (t *FileTest) Sync_Clobbered() {
 	AssertEq(nil, err)
 
 	// Clobber the backing object.
-	newObj, err := gcsutil.CreateObject(t.ctx, t.bucket, t.in.Name(), "burrito")
+	newObj, err := gcsutil.CreateObject(t.ctx, t.bucket, t.in.Name(), []byte("burrito"))
 	AssertEq(nil, err)
 
 	// Sync. The call should succeed, but nothing should change.

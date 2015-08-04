@@ -90,7 +90,7 @@ func (t *CachingTest) FileCreatedRemotely() {
 		t.ctx,
 		t.uncachedBucket,
 		name,
-		contents)
+		[]byte(contents))
 
 	AssertEq(nil, err)
 
@@ -138,7 +138,7 @@ func (t *CachingTest) FileChangedRemotely() {
 		t.ctx,
 		t.uncachedBucket,
 		name,
-		"burrito")
+		[]byte("burrito"))
 
 	AssertEq(nil, err)
 
@@ -203,7 +203,7 @@ func (t *CachingTest) ConflictingNames_RemoteModifier() {
 		t.ctx,
 		t.uncachedBucket,
 		name,
-		"taco")
+		[]byte("taco"))
 
 	AssertEq(nil, err)
 
@@ -273,7 +273,7 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 		t.ctx,
 		t.bucket,
 		name,
-		"taco")
+		[]byte("taco"))
 
 	AssertEq(nil, err)
 
@@ -313,7 +313,7 @@ func (t *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
 		t.ctx,
 		t.uncachedBucket,
 		"foo/bar",
-		"")
+		[]byte(""))
 
 	AssertEq(nil, err)
 
@@ -334,7 +334,7 @@ func (t *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 		t.ctx,
 		t.uncachedBucket,
 		"foo/bar/",
-		"")
+		[]byte(""))
 
 	AssertEq(nil, err)
 
@@ -393,7 +393,7 @@ func (t *CachingWithImplicitDirsTest) SymlinksAreTypeCached() {
 		t.ctx,
 		t.uncachedBucket,
 		"foo/",
-		"")
+		[]byte(""))
 
 	AssertEq(nil, err)
 

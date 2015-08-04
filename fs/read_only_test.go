@@ -50,7 +50,7 @@ func (t *ReadOnlyTest) CreateFile() {
 
 func (t *ReadOnlyTest) ModifyFile() {
 	// Create an object in the bucket.
-	_, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	_, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	// Opening it for writing should fail.
@@ -62,7 +62,7 @@ func (t *ReadOnlyTest) ModifyFile() {
 
 func (t *ReadOnlyTest) DeleteFile() {
 	// Create an object in the bucket.
-	_, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	_, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	// Attempt to delete it via the file system.

@@ -183,7 +183,7 @@ func (t *DirTest) LookUpChild_FileOnly() {
 	var err error
 
 	// Create a backing object.
-	createObj, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, "taco")
+	createObj, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -212,7 +212,7 @@ func (t *DirTest) LookUpChild_DirOnly() {
 	var err error
 
 	// Create a backing object.
-	createObj, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, "")
+	createObj, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -239,7 +239,7 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Disabled() {
 
 	// Create an object that implicitly defines the directory.
 	otherObjName := path.Join(dirInodeName, name) + "/asdf"
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, "")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Looking up the name shouldn't work.
@@ -264,7 +264,7 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 
 	// Create an object that implicitly defines the directory.
 	otherObjName := path.Join(objName, "asdf")
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, "")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Looking up the name should work.
@@ -291,10 +291,10 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 	var err error
 
 	// Create backing objects.
-	fileObj, err := gcsutil.CreateObject(t.ctx, t.bucket, fileObjName, "taco")
+	fileObj, err := gcsutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
 	AssertEq(nil, err)
 
-	dirObj, err := gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, "")
+	dirObj, err := gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -331,13 +331,13 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 	var err error
 
 	// Create backing objects.
-	linkObj, err := gcsutil.CreateObject(t.ctx, t.bucket, linkObjName, "taco")
+	linkObj, err := gcsutil.CreateObject(t.ctx, t.bucket, linkObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	err = t.setSymlinkTarget(linkObjName, "blah")
 	AssertEq(nil, err)
 
-	dirObj, err := gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, "")
+	dirObj, err := gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -374,15 +374,15 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 	var err error
 
 	// Create backing objects.
-	fileObj, err := gcsutil.CreateObject(t.ctx, t.bucket, fileObjName, "taco")
+	fileObj, err := gcsutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
 	AssertEq(nil, err)
 
-	dirObj, err := gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, "")
+	dirObj, err := gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Create an object that implicitly defines the directory.
 	otherObjName := path.Join(dirInodeName, name) + "/asdf"
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, "")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -422,15 +422,15 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	t.resetInode(true)
 
 	// Create backing objects.
-	fileObj, err := gcsutil.CreateObject(t.ctx, t.bucket, fileObjName, "taco")
+	fileObj, err := gcsutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
 	AssertEq(nil, err)
 
-	dirObj, err := gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, "")
+	dirObj, err := gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Create an object that implicitly defines the directory.
 	otherObjName := path.Join(dirInodeName, name) + "/asdf"
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, "")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -467,7 +467,7 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 	var err error
 
 	// Create a backing object for a file.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, fileObjName, "taco")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Look up; we should get the file.
@@ -480,7 +480,7 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 	ExpectEq(fileObjName, o.Name)
 
 	// Create a backing object for a directory.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, "taco")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Look up again. Even though the directory should shadow the file, because
@@ -616,7 +616,7 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 	var err error
 
 	// Create a backing object for a file.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, fileObjName, "taco")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Read the directory, priming the type cache.
@@ -624,7 +624,7 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 	AssertEq(nil, err)
 
 	// Create a backing object for a directory.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, "taco")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Look up the name. Even though the directory should shadow the file,
@@ -672,7 +672,7 @@ func (t *DirTest) CreateChildFile_Exists() {
 	var err error
 
 	// Create an existing backing object.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, "taco")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -694,7 +694,7 @@ func (t *DirTest) CreateChildFile_TypeCaching() {
 	AssertEq(nil, err)
 
 	// Create a backing object for a directory.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, "taco")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Look up the name. Even though the directory should shadow the file,
@@ -726,7 +726,7 @@ func (t *DirTest) CloneToChildFile_SourceDoesntExist() {
 	var err error
 
 	// Create and then delete the source.
-	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, "")
+	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, []byte(""))
 	AssertEq(nil, err)
 
 	err = t.bucket.DeleteObject(
@@ -748,7 +748,7 @@ func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
 	var err error
 
 	// Create the source.
-	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, "taco")
+	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -773,11 +773,11 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 	var err error
 
 	// Create the source.
-	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, "taco")
+	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// And a destination object that will be overwritten.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dstName, "")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dstName, []byte(""))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -803,7 +803,7 @@ func (t *DirTest) CloneToChildFile_TypeCaching() {
 	var err error
 
 	// Create the source.
-	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, "")
+	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, []byte(""))
 	AssertEq(nil, err)
 
 	// Clone to the destination.
@@ -812,7 +812,7 @@ func (t *DirTest) CloneToChildFile_TypeCaching() {
 
 	// Create a backing object for a directory.
 	dirObjName := dstName + "/"
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, "")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up the name. Even though the directory should shadow the file,
@@ -862,7 +862,7 @@ func (t *DirTest) CreateChildSymlink_Exists() {
 	var err error
 
 	// Create an existing backing object.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, "")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -884,7 +884,7 @@ func (t *DirTest) CreateChildSymlink_TypeCaching() {
 	AssertEq(nil, err)
 
 	// Create a backing object for a directory.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, "taco")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Look up the name. Even though the directory should shadow the symlink,
@@ -933,7 +933,7 @@ func (t *DirTest) CreateChildDir_Exists() {
 	var err error
 
 	// Create an existing backing object.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, "taco")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -956,7 +956,7 @@ func (t *DirTest) DeleteChildFile_WrongGeneration() {
 	var err error
 
 	// Create a backing object.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, "taco")
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode with the wrong generation. No error should be returned.
@@ -976,7 +976,7 @@ func (t *DirTest) DeleteChildFile_LatestGeneration() {
 	var err error
 
 	// Create a backing object.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, "taco")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -995,7 +995,7 @@ func (t *DirTest) DeleteChildFile_ParticularGeneration() {
 	var err error
 
 	// Create a backing object.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, "taco")
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -1021,7 +1021,7 @@ func (t *DirTest) DeleteChildFile_TypeCaching() {
 
 	// Create a backing object for a directory. It should be shadowed by the
 	// file.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, "taco")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	result, err := t.in.LookUpChild(t.ctx, name)
@@ -1059,7 +1059,7 @@ func (t *DirTest) DeleteChildDir_Exists() {
 	var err error
 
 	// Create a backing object.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, "taco")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.

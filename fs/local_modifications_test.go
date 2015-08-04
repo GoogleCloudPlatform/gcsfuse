@@ -1778,7 +1778,7 @@ func (t *FileTest) Sync_Clobbered() {
 		t.ctx,
 		t.bucket,
 		"foo",
-		"foobar")
+		[]byte("foobar"))
 
 	// Sync the file. This should not result in an error, but the new generation
 	// should not be replaced.
@@ -1861,7 +1861,7 @@ func (t *FileTest) Close_Clobbered() {
 		t.ctx,
 		t.bucket,
 		"foo",
-		"foobar")
+		[]byte("foobar"))
 
 	// Close the file. This should not result in an error, but the new generation
 	// should not be replaced.
