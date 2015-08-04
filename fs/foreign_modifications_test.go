@@ -19,7 +19,8 @@
 package fs_test
 
 import (
-	"encoding/hex"
+	"bytes"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -519,51 +520,54 @@ func (t *ForeignModsTest) ReadFromFile_Small() {
 }
 
 func (t *ForeignModsTest) ReadFromFile_Large() {
-	const contentLen = 1 << 20
-	contents := randString(contentLen)
+	// Create some random contents.
+	const contentLen = 1 << 22
+	contents := randBytes(contentLen)
 
-	// Create an object.
-	AssertEq(nil, t.createWithContents("foo", contents))
+	// Repeatedly:
+	//
+	//  *  Create an object with the random contents.
+	//  *  Read a random range of it.
+	//  *  Verify the result.
+	//
+	var buf [contentLen]byte
+	runOnce := func() {
+		// Create an object.
+		_, err := gcsutil.CreateObject(
+			t.ctx,
+			t.bucket,
+			"foo",
+			contents)
 
-	// Wait for it to show up in the file system.
-	_, err := fusetesting.ReadDirPicky(t.mfs.Dir())
-	AssertEq(nil, err)
+		AssertEq(nil, err)
 
-	// Attempt to open it.
-	f, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
-	AssertEq(nil, err)
-	defer func() { AssertEq(nil, f.Close()) }()
+		// Attempt to open it.
+		f, err := os.Open(path.Join(t.mfs.Dir(), "foo"))
+		AssertEq(nil, err)
+		defer func() { AssertEq(nil, f.Close()) }()
 
-	// Read its entire contents.
-	slice, err := ioutil.ReadAll(f)
-	AssertEq(nil, err)
-	if contents != string(slice) {
-		ExpectTrue(
-			false,
-			"Expected:\n%v\n\nActual:\n%v",
-			hex.Dump([]byte(contents)),
-			hex.Dump(slice))
-	}
-
-	// Read from parts of it.
-	referenceReader := strings.NewReader(contents)
-	for trial := 0; trial < 1000; trial++ {
+		// Read part of it.
 		offset := rand.Int63n(contentLen + 1)
 		size := rand.Intn(int(contentLen - offset))
 
-		expected, err := readRange(referenceReader, offset, size)
-		AssertEq(nil, err)
-
-		actual, err := readRange(f, offset, size)
-		AssertEq(nil, err)
-
-		if expected != actual {
-			AssertTrue(
-				expected == actual,
-				"Expected:\n%s\nActual:\n%s",
-				hex.Dump([]byte(expected)),
-				hex.Dump([]byte(actual)))
+		n, err := f.ReadAt(buf[:size], offset)
+		if offset+int64(size) == contentLen && err == io.EOF {
+			err = nil
 		}
+
+		AssertEq(nil, err)
+		AssertEq(size, n)
+		AssertTrue(
+			bytes.Equal(contents[offset:offset+int64(size)], buf[:n]),
+			"offset: %d\n"+
+				"size:%d\n",
+			offset,
+			size)
+	}
+
+	start := time.Now()
+	for time.Since(start) < 2*time.Second {
+		runOnce()
 	}
 }
 

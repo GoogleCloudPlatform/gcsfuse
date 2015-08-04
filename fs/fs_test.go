@@ -210,17 +210,21 @@ func getFileNames(entries []os.FileInfo) (names []string) {
 }
 
 // REQUIRES: n % 4 == 0
-func randString(n int) string {
-	bytes := make([]byte, n)
-	for i := 0; i < n; i += 4 {
-		u32 := rand.Uint32()
-		bytes[i] = byte(u32 >> 0)
-		bytes[i+1] = byte(u32 >> 8)
-		bytes[i+2] = byte(u32 >> 16)
-		bytes[i+3] = byte(u32 >> 24)
+func randBytes(n int) (b []byte) {
+	if n%4 != 0 {
+		panic(fmt.Sprintf("Illegal size: %d", n))
 	}
 
-	return string(bytes)
+	b = make([]byte, n)
+	for i := 0; i < n; i += 4 {
+		u32 := rand.Uint32()
+		b[i] = byte(u32 >> 0)
+		b[i+1] = byte(u32 >> 8)
+		b[i+2] = byte(u32 >> 16)
+		b[i+3] = byte(u32 >> 24)
+	}
+
+	return
 }
 
 func readRange(r io.ReadSeeker, offset int64, n int) (s string, err error) {
