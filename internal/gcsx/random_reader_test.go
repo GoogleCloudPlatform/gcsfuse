@@ -450,6 +450,38 @@ func (t *RandomReaderTest) DoesntChangeReadsOfAppropriateSize() {
 	ExpectEq(1+readSize, t.rr.wrapped.limit)
 }
 
-func (t *RandomReaderTest) UpgradesSequentialReads() {
+func (t *RandomReaderTest) UpgradesSequentialReads_ExistingReader() {
+	t.object.Size = 1 << 40
+	const readSize = 10
+
+	// Simulate an existing reader at the correct offset, which will be exhausted
+	// by the read below.
+	const existingSize = 3
+	r := strings.NewReader(strings.Repeat("x", existingSize))
+
+	t.rr.wrapped.reader = ioutil.NopCloser(r)
+	t.rr.wrapped.cancel = func() {}
+	t.rr.wrapped.start = 1
+	t.rr.wrapped.limit = 1 + existingSize
+
+	// The bucket should be asked to read up to the end of the object.
+	r = strings.NewReader(strings.Repeat("x", readSize-existingSize))
+	rc := ioutil.NopCloser(r)
+
+	ExpectCall(t.bucket, "NewReader")(
+		Any(),
+		AllOf(rangeStartIs(1+existingSize), rangeLimitIs(t.object.Size))).
+		WillOnce(Return(rc, nil))
+
+	// Call through.
+	buf := make([]byte, readSize)
+	t.rr.ReadAt(buf, 1)
+
+	// Check the state now.
+	ExpectEq(1+readSize, t.rr.wrapped.start)
+	ExpectEq(t.object.Size, t.rr.wrapped.limit)
+}
+
+func (t *RandomReaderTest) UpgradesSequentialReads_NoExistingReader() {
 	AssertTrue(false, "TODO")
 }
