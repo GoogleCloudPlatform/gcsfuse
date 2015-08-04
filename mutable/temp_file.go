@@ -99,21 +99,18 @@ type tempFile struct {
 
 	destroyed bool
 
-	// Have we been dirtied since we were created?
-	dirty bool
-
 	// A file containing our current contents.
 	f *os.File
 
 	// The lowest byte index that has been modified from the initial contents.
 	//
-	// INVARIANT: !dirty => Stat().DirtyThreshold == Stat().Size
+	// INVARIANT: Stat().DirtyThreshold <= Stat().Size
 	dirtyThreshold int64
 
 	// The time at which a method that modifies our contents was last called, or
 	// nil if never.
 	//
-	// INVARIANT: dirty => mtime != nil
+	// INVARIANT: mtime == nil => Stat().DirtyThreshold == Stat().Size
 	mtime *time.Time
 }
 
@@ -126,21 +123,19 @@ func (tf *tempFile) CheckInvariants() {
 		panic("Use of destroyed tempFile object.")
 	}
 
-	// INVARIANT: !dirty => Stat().DirtyThreshold == Stat().Size
-	if !tf.dirty {
-		sr, err := tf.Stat()
-		if err != nil {
-			panic(fmt.Sprintf("Stat: %v", err))
-		}
-
-		if sr.DirtyThreshold != sr.Size {
-			panic(fmt.Sprintf("Mismatch: %d vs. %d", sr.DirtyThreshold, sr.Size))
-		}
+	// INVARIANT: Stat().DirtyThreshold <= Stat().Size
+	sr, err := tf.Stat()
+	if err != nil {
+		panic(fmt.Sprintf("Stat: %v", err))
 	}
 
-	// INVARIANT: dirty => mtime != nil
-	if tf.dirty && tf.mtime == nil {
-		panic("Expected a non-nil mtime")
+	if !(sr.DirtyThreshold <= sr.Size) {
+		panic(fmt.Sprintf("Mismatch: %d vs. %d", sr.DirtyThreshold, sr.Size))
+	}
+
+	// INVARIANT: mtime == nil => Stat().DirtyThreshold == Stat().Size
+	if tf.mtime == nil && sr.DirtyThreshold != sr.Size {
+		panic(fmt.Sprintf("Mismatch: %d vs. %d", sr.DirtyThreshold, sr.Size))
 	}
 }
 
