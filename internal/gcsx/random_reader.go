@@ -177,7 +177,12 @@ func (rr *randomReader) Object() (o *gcs.Object) {
 }
 
 func (rr *randomReader) Destroy() {
-	panic("TODO")
+	// Close out the reader, if we have one.
+	if rr.reader != nil {
+		rr.reader.Close()
+		rr.reader = nil
+		rr.cancel = nil
+	}
 }
 
 // Like io.ReadFull, but deals with the cancellation issues.
