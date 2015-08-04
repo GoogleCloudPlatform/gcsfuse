@@ -72,10 +72,9 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 	// Ensure that we get parallelism for this test.
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
 
-	// Exercise lease revocation logic.
-	numFiles := 2 * t.serverCfg.TempDirLimitNumFiles
-
 	// Choose a bunch of file names.
+	const numFiles = 32
+
 	var names []string
 	for i := 0; i < numFiles; i++ {
 		names = append(names, fmt.Sprintf("%d", i))
