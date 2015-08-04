@@ -16,6 +16,7 @@ package gcsx
 
 import (
 	"errors"
+	"io"
 	"io/ioutil"
 	"strings"
 	"testing"
@@ -49,6 +50,20 @@ func (rr *checkingRandomReader) ReadAt(p []byte, offset int64) (int, error) {
 func (rr *checkingRandomReader) Destroy() {
 	rr.wrapped.CheckInvariants()
 	rr.wrapped.Destroy()
+}
+
+////////////////////////////////////////////////////////////////////////
+// Counting closer
+////////////////////////////////////////////////////////////////////////
+
+type countingCloser struct {
+	io.Reader
+	closeCount int
+}
+
+func (cc *countingCloser) Close() (err error) {
+	cc.closeCount++
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -166,6 +181,31 @@ func (t *RandomReaderTest) ReaderOvershootsRange() {
 	_, err := t.rr.ReadAt(buf, 0)
 
 	ExpectThat(err, Error(HasSubstr("1 too many bytes")))
+}
+
+func (t *RandomReaderTest) ReaderNotExhausted() {
+	// Set up a reader that has three bytes left to give.
+	rc := &countingCloser{
+		Reader: strings.NewReader("abc"),
+	}
+
+	t.rr.wrapped.reader = rc
+	t.rr.wrapped.cancel = func() {}
+	t.rr.wrapped.start = 1
+	t.rr.wrapped.limit = 4
+
+	// Read two bytes.
+	buf := make([]byte, 2)
+	n, err := t.rr.ReadAt(buf, 1)
+
+	ExpectEq(2, n)
+	ExpectEq(nil, err)
+	ExpectEq("ab", string(buf[:n]))
+
+	ExpectEq(0, rc.closeCount)
+	ExpectEq(rc, t.rr.wrapped.reader)
+	ExpectEq(3, t.rr.wrapped.start)
+	ExpectEq(4, t.rr.wrapped.limit)
 }
 
 func (t *RandomReaderTest) ReaderExhausted_ReadFinished() {
