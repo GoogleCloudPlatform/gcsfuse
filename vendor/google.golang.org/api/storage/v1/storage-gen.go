@@ -149,7 +149,6 @@ type ObjectsService struct {
 	s *Service
 }
 
-// Bucket: A bucket.
 type Bucket struct {
 	// Acl: Access controls on the bucket.
 	Acl []*BucketAccessControl `json:"acl,omitempty"`
@@ -240,8 +239,6 @@ type BucketCors struct {
 	ResponseHeader []string `json:"responseHeader,omitempty"`
 }
 
-// BucketLifecycle: The bucket's lifecycle configuration. See lifecycle
-// management for more information.
 type BucketLifecycle struct {
 	// Rule: A lifecycle management rule, which is made of an action to take
 	// and the condition(s) under which the action will be taken.
@@ -256,14 +253,11 @@ type BucketLifecycleRule struct {
 	Condition *BucketLifecycleRuleCondition `json:"condition,omitempty"`
 }
 
-// BucketLifecycleRuleAction: The action to take.
 type BucketLifecycleRuleAction struct {
 	// Type: Type of the action. Currently, only Delete is supported.
 	Type string `json:"type,omitempty"`
 }
 
-// BucketLifecycleRuleCondition: The condition(s) under which the action
-// will be taken.
 type BucketLifecycleRuleCondition struct {
 	// Age: Age of an object (in days). This condition is satisfied when an
 	// object reaches the specified age.
@@ -285,9 +279,6 @@ type BucketLifecycleRuleCondition struct {
 	NumNewerVersions int64 `json:"numNewerVersions,omitempty"`
 }
 
-// BucketLogging: The bucket's logging configuration, which defines the
-// destination bucket and optional name prefix for the current bucket's
-// logs.
 type BucketLogging struct {
 	// LogBucket: The destination bucket where the current bucket's logs
 	// should be placed.
@@ -297,8 +288,6 @@ type BucketLogging struct {
 	LogObjectPrefix string `json:"logObjectPrefix,omitempty"`
 }
 
-// BucketOwner: The owner of the bucket. This is always the project
-// team's owner group.
 type BucketOwner struct {
 	// Entity: The entity, in the form project-owner-projectId.
 	Entity string `json:"entity,omitempty"`
@@ -307,14 +296,12 @@ type BucketOwner struct {
 	EntityId string `json:"entityId,omitempty"`
 }
 
-// BucketVersioning: The bucket's versioning configuration.
 type BucketVersioning struct {
 	// Enabled: While set to true, versioning is fully enabled for this
 	// bucket.
 	Enabled bool `json:"enabled,omitempty"`
 }
 
-// BucketWebsite: The bucket's website configuration.
 type BucketWebsite struct {
 	// MainPageSuffix: Behaves as the bucket's directory index where missing
 	// objects are treated as potential directories.
@@ -325,7 +312,6 @@ type BucketWebsite struct {
 	NotFoundPage string `json:"notFoundPage,omitempty"`
 }
 
-// BucketAccessControl: An access-control entry.
 type BucketAccessControl struct {
 	// Bucket: The name of the bucket.
 	Bucket string `json:"bucket,omitempty"`
@@ -377,8 +363,6 @@ type BucketAccessControl struct {
 	SelfLink string `json:"selfLink,omitempty"`
 }
 
-// BucketAccessControlProjectTeam: The project team associated with the
-// entity, if any.
 type BucketAccessControlProjectTeam struct {
 	// ProjectNumber: The project number.
 	ProjectNumber string `json:"projectNumber,omitempty"`
@@ -387,7 +371,6 @@ type BucketAccessControlProjectTeam struct {
 	Team string `json:"team,omitempty"`
 }
 
-// BucketAccessControls: An access-control list.
 type BucketAccessControls struct {
 	// Items: The list of items.
 	Items []*BucketAccessControl `json:"items,omitempty"`
@@ -397,7 +380,6 @@ type BucketAccessControls struct {
 	Kind string `json:"kind,omitempty"`
 }
 
-// Buckets: A list of buckets.
 type Buckets struct {
 	// Items: The list of items.
 	Items []*Bucket `json:"items,omitempty"`
@@ -412,7 +394,6 @@ type Buckets struct {
 	NextPageToken string `json:"nextPageToken,omitempty"`
 }
 
-// Channel: An notification channel used to watch for resource changes.
 type Channel struct {
 	// Address: The address where notifications are delivered for this
 	// channel.
@@ -452,7 +433,6 @@ type Channel struct {
 	Type string `json:"type,omitempty"`
 }
 
-// ComposeRequest: A Compose request.
 type ComposeRequest struct {
 	// Destination: Properties of the resulting object.
 	Destination *Object `json:"destination,omitempty"`
@@ -478,8 +458,6 @@ type ComposeRequestSourceObjects struct {
 	ObjectPreconditions *ComposeRequestSourceObjectsObjectPreconditions `json:"objectPreconditions,omitempty"`
 }
 
-// ComposeRequestSourceObjectsObjectPreconditions: Conditions that must
-// be met for this operation to execute.
 type ComposeRequestSourceObjectsObjectPreconditions struct {
 	// IfGenerationMatch: Only perform the composition if the generation of
 	// the source object that would be used matches this value. If this
@@ -488,7 +466,6 @@ type ComposeRequestSourceObjectsObjectPreconditions struct {
 	IfGenerationMatch int64 `json:"ifGenerationMatch,omitempty,string"`
 }
 
-// Object: An object.
 type Object struct {
 	// Acl: Access controls on the object.
 	Acl []*ObjectAccessControl `json:"acl,omitempty"`
@@ -580,8 +557,6 @@ type Object struct {
 	Updated string `json:"updated,omitempty"`
 }
 
-// ObjectOwner: The owner of the object. This will always be the
-// uploader of the object.
 type ObjectOwner struct {
 	// Entity: The entity, in the form user-userId.
 	Entity string `json:"entity,omitempty"`
@@ -590,7 +565,6 @@ type ObjectOwner struct {
 	EntityId string `json:"entityId,omitempty"`
 }
 
-// ObjectAccessControl: An access-control entry.
 type ObjectAccessControl struct {
 	// Bucket: The name of the bucket.
 	Bucket string `json:"bucket,omitempty"`
@@ -647,8 +621,6 @@ type ObjectAccessControl struct {
 	SelfLink string `json:"selfLink,omitempty"`
 }
 
-// ObjectAccessControlProjectTeam: The project team associated with the
-// entity, if any.
 type ObjectAccessControlProjectTeam struct {
 	// ProjectNumber: The project number.
 	ProjectNumber string `json:"projectNumber,omitempty"`
@@ -657,7 +629,6 @@ type ObjectAccessControlProjectTeam struct {
 	Team string `json:"team,omitempty"`
 }
 
-// ObjectAccessControls: An access-control list.
 type ObjectAccessControls struct {
 	// Items: The list of items.
 	Items []interface{} `json:"items,omitempty"`
@@ -667,7 +638,6 @@ type ObjectAccessControls struct {
 	Kind string `json:"kind,omitempty"`
 }
 
-// Objects: A list of objects.
 type Objects struct {
 	// Items: The list of items.
 	Items []*Object `json:"items,omitempty"`
@@ -686,7 +656,6 @@ type Objects struct {
 	Prefixes []string `json:"prefixes,omitempty"`
 }
 
-// RewriteResponse: A rewrite response.
 type RewriteResponse struct {
 	// Done: true if the copy is finished; otherwise, false if the copy is
 	// in progress. This property is always present in the response.

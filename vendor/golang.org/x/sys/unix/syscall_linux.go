@@ -104,18 +104,11 @@ func Utimes(path string, tv []Timeval) (err error) {
 
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error)
 
-func UtimesNano(path string, ts []Timespec) error {
-	if ts == nil {
-		err := utimensat(AT_FDCWD, path, nil, 0)
-		if err != ENOSYS {
-			return err
-		}
-		return utimes(path, nil)
-	}
+func UtimesNano(path string, ts []Timespec) (err error) {
 	if len(ts) != 2 {
 		return EINVAL
 	}
-	err := utimensat(AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
+	err = utimensat(AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
 	if err != ENOSYS {
 		return err
 	}
@@ -129,10 +122,7 @@ func UtimesNano(path string, ts []Timespec) error {
 	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 }
 
-func UtimesNanoAt(dirfd int, path string, ts []Timespec, flags int) error {
-	if ts == nil {
-		return utimensat(dirfd, path, nil, flags)
-	}
+func UtimesNanoAt(dirfd int, path string, ts []Timespec, flags int) (err error) {
 	if len(ts) != 2 {
 		return EINVAL
 	}
@@ -141,16 +131,13 @@ func UtimesNanoAt(dirfd int, path string, ts []Timespec, flags int) error {
 
 //sys	futimesat(dirfd int, path *byte, times *[2]Timeval) (err error)
 
-func Futimesat(dirfd int, path string, tv []Timeval) error {
+func Futimesat(dirfd int, path string, tv []Timeval) (err error) {
+	if len(tv) != 2 {
+		return EINVAL
+	}
 	pathp, err := BytePtrFromString(path)
 	if err != nil {
 		return err
-	}
-	if tv == nil {
-		return futimesat(dirfd, pathp, nil)
-	}
-	if len(tv) != 2 {
-		return EINVAL
 	}
 	return futimesat(dirfd, pathp, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 }
