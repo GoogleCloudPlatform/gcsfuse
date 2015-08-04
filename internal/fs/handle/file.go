@@ -52,7 +52,9 @@ func (fh *FileHandle) CheckInvariants() {
 // Destroy any resources associated with the handle, which must not be used
 // again.
 func (fh *FileHandle) Destroy() {
-	panic("TODO")
+	if fh.reader != nil {
+		fh.reader.Destroy()
+	}
 }
 
 // Return the inode backing this handle.
