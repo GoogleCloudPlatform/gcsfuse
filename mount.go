@@ -20,7 +20,6 @@ import (
 	"os"
 
 	"golang.org/x/net/context"
-	"golang.org/x/sys/unix"
 
 	"github.com/googlecloudplatform/gcsfuse/fs"
 	"github.com/googlecloudplatform/gcsfuse/perms"
@@ -55,23 +54,6 @@ func mount(
 		}
 	}
 
-	// The file leaser used by the file system sizes its limit on number of
-	// temporary files based on the process's rlimit. If this is too low, we'll
-	// throw away cached content unnecessarily often. This is particularly a
-	// problem on OS X, which has a crazy low default limit (256 as of OS X
-	// 10.10.3). So print a warning if the limit is low.
-	var rlimit unix.Rlimit
-	if err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rlimit); err == nil {
-		const reasonableLimit = 4096
-
-		if rlimit.Cur < reasonableLimit {
-			log.Printf(
-				"Warning: low file rlimit of %d will cause cached content to be "+
-					"frequently evicted. Consider raising with `ulimit -n`.",
-				rlimit.Cur)
-		}
-	}
-
 	// Choose UID and GID.
 	uid, gid, err := perms.MyUserAndGroup()
 	if err != nil {
@@ -101,18 +83,15 @@ func mount(
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{
-		Clock:                timeutil.RealClock(),
-		Bucket:               bucket,
-		TempDir:              flags.TempDir,
-		TempDirLimitNumFiles: fs.ChooseTempDirLimitNumFiles(),
-		TempDirLimitBytes:    flags.TempDirLimit,
-		GCSChunkSize:         flags.GCSChunkSize,
-		ImplicitDirectories:  flags.ImplicitDirs,
-		DirTypeCacheTTL:      flags.TypeCacheTTL,
-		Uid:                  uid,
-		Gid:                  gid,
-		FilePerms:            os.FileMode(flags.FileMode),
-		DirPerms:             os.FileMode(flags.DirMode),
+		Clock:               timeutil.RealClock(),
+		Bucket:              bucket,
+		TempDir:             flags.TempDir,
+		ImplicitDirectories: flags.ImplicitDirs,
+		DirTypeCacheTTL:     flags.TypeCacheTTL,
+		Uid:                 uid,
+		Gid:                 gid,
+		FilePerms:           os.FileMode(flags.FileMode),
+		DirPerms:            os.FileMode(flags.DirMode),
 
 		AppendThreshold: 1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix: ".gcsfuse_tmp/",

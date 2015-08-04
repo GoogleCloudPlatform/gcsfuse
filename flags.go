@@ -143,23 +143,11 @@ func newApp() (app *cli.App) {
 					"inodes.",
 			},
 
-			cli.IntFlag{
-				Name:  "gcs-chunk-size",
-				Value: 1 << 24,
-				Usage: "Max chunk size for loading GCS objects.",
-			},
-
 			cli.StringFlag{
 				Name:  "temp-dir",
 				Value: "",
 				Usage: "Temporary directory for local GCS object copies. " +
 					"(default: system default, likely /tmp)",
-			},
-
-			cli.IntFlag{
-				Name:  "temp-dir-bytes",
-				Value: 1 << 31,
-				Usage: "Size limit of the temporary directory.",
 			},
 
 			/////////////////////////
@@ -208,9 +196,7 @@ type flagStorage struct {
 	// Tuning
 	StatCacheTTL time.Duration
 	TypeCacheTTL time.Duration
-	GCSChunkSize uint64
 	TempDir      string
-	TempDirLimit int64
 
 	// Debugging
 	DebugFuse       bool
@@ -238,9 +224,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		// Tuning,
 		StatCacheTTL: c.Duration("stat-cache-ttl"),
 		TypeCacheTTL: c.Duration("type-cache-ttl"),
-		GCSChunkSize: uint64(c.Int("gcs-chunk-size")),
 		TempDir:      c.String("temp-dir"),
-		TempDirLimit: int64(c.Int("temp-dir-bytes")),
 		ImplicitDirs: c.Bool("implicit-dirs"),
 
 		// Debugging,
