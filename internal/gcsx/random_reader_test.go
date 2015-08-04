@@ -16,6 +16,8 @@ package gcsx
 
 import (
 	"errors"
+	"io/ioutil"
+	"strings"
 	"testing"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -103,7 +105,18 @@ func (t *RandomReaderTest) NoExistingReader() {
 }
 
 func (t *RandomReaderTest) ExistingReader_WrongOffset() {
-	AssertTrue(false, "TODO")
+	// Simulate an existing reader.
+	t.rr.wrapped.reader = ioutil.NopCloser(strings.NewReader("xxx"))
+	t.rr.wrapped.cancel = func() {}
+	t.rr.wrapped.start = 2
+	t.rr.wrapped.limit = 5
+
+	// The bucket should be called to set up a new reader.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(Return(nil, errors.New("")))
+
+	buf := make([]byte, 1)
+	t.rr.ReadAt(buf, 0)
 }
 
 func (t *RandomReaderTest) NewReaderReturnsError() {
