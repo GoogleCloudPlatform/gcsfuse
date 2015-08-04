@@ -18,10 +18,20 @@ import (
 	"errors"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"golang.org/x/net/context"
 )
 
 type FileHandle struct {
+	inode *inode.FileInode
+
+	// A random reader configured to some (potentially previous) generation of
+	// the object backing the inode, or nil.
+	//
+	// INVARIANT: If reader != nil, reader.CheckInvariants() doesn't panic.
+	//
+	// GUARDED_BY(inode)
+	reader gcsx.RandomReader
 }
 
 func NewFileHandle(inode *inode.FileInode) (fh *FileHandle, err error) {
@@ -33,7 +43,10 @@ func NewFileHandle(inode *inode.FileInode) (fh *FileHandle, err error) {
 //
 // LOCKS_REQUIRED(fh.inode)
 func (fh *FileHandle) CheckInvariants() {
-	panic("TODO")
+	// INVARIANT: If reader != nil, reader.CheckInvariants() doesn't panic.
+	if fh.reader != nil {
+		fh.reader.CheckInvariants()
+	}
 }
 
 // Destroy any resources associated with the handle, which must not be used
