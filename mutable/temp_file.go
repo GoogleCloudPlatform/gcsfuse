@@ -37,7 +37,7 @@ type TempFile interface {
 	Truncate(n int64) (err error)
 
 	// Return information about the current state of the content.
-	Stat(ctx context.Context) (sr StatResult, err error)
+	Stat() (sr StatResult, err error)
 
 	// Throw away the resources used by the temporary file. The object must not
 	// be used again.
