@@ -24,9 +24,9 @@ func CreateEmptyObjects(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	names []string) (err error) {
-	m := make(map[string]string)
+	m := make(map[string][]byte)
 	for _, name := range names {
-		m[name] = ""
+		m[name] = nil
 	}
 
 	err = CreateObjects(ctx, bucket, m)

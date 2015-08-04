@@ -183,7 +183,12 @@ func (t *fsTest) createWithContents(name string, contents string) error {
 }
 
 func (t *fsTest) createObjects(in map[string]string) error {
-	err := gcsutil.CreateObjects(t.ctx, t.bucket, in)
+	b := make(map[string][]byte)
+	for k, v := range in {
+		b[k] = []byte(v)
+	}
+
+	err := gcsutil.CreateObjects(t.ctx, t.bucket, b)
 	return err
 }
 

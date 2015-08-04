@@ -25,13 +25,13 @@ import (
 func CreateObjects(
 	ctx context.Context,
 	bucket gcs.Bucket,
-	input map[string]string) (err error) {
+	input map[string][]byte) (err error) {
 	bundle := syncutil.NewBundle(ctx)
 
 	// Feed ObjectInfo records into a channel.
 	type record struct {
 		name     string
-		contents string
+		contents []byte
 	}
 
 	recordChan := make(chan record, len(input))

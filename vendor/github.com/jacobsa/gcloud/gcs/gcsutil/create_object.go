@@ -15,7 +15,7 @@
 package gcsutil
 
 import (
-	"strings"
+	"bytes"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
@@ -27,10 +27,10 @@ func CreateObject(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	name string,
-	contents string) (*gcs.Object, error) {
+	contents []byte) (*gcs.Object, error) {
 	req := &gcs.CreateObjectRequest{
 		Name:     name,
-		Contents: strings.NewReader(contents),
+		Contents: bytes.NewReader(contents),
 	}
 
 	return bucket.CreateObject(ctx, req)

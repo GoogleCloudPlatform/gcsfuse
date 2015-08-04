@@ -164,7 +164,7 @@ func (t *IntegrationTest) sync(src *gcs.Object) (
 
 func (t *IntegrationTest) ReadThenSync() {
 	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
@@ -187,7 +187,7 @@ func (t *IntegrationTest) ReadThenSync() {
 
 func (t *IntegrationTest) WriteThenSync() {
 	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
@@ -234,7 +234,7 @@ func (t *IntegrationTest) WriteThenSync() {
 
 func (t *IntegrationTest) AppendThenSync() {
 	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
@@ -281,7 +281,7 @@ func (t *IntegrationTest) AppendThenSync() {
 
 func (t *IntegrationTest) TruncateThenSync() {
 	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
@@ -312,7 +312,7 @@ func (t *IntegrationTest) TruncateThenSync() {
 
 func (t *IntegrationTest) Stat_InitialState() {
 	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
@@ -328,7 +328,7 @@ func (t *IntegrationTest) Stat_InitialState() {
 
 func (t *IntegrationTest) Stat_Dirty() {
 	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
@@ -355,7 +355,7 @@ func (t *IntegrationTest) WithinLeaserLimit() {
 	AssertLt(len("taco"), fileLeaserLimitBytes)
 
 	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
@@ -390,7 +390,7 @@ func (t *IntegrationTest) LargerThanLeaserLimit() {
 	AssertLt(len("taco"), fileLeaserLimitBytes)
 
 	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
@@ -420,7 +420,7 @@ func (t *IntegrationTest) LargerThanLeaserLimit() {
 
 func (t *IntegrationTest) BackingObjectHasBeenDeleted_BeforeReading() {
 	// Create an object to obtain a record, then delete it.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	err = t.bucket.DeleteObject(t.ctx, &gcs.DeleteObjectRequest{Name: o.Name})
@@ -449,7 +449,7 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_BeforeReading() {
 
 func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
@@ -493,13 +493,13 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 
 func (t *IntegrationTest) BackingObjectHasBeenOverwritten_BeforeReading() {
 	// Create an object, then create the mutable object wrapper around it.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
 
 	// Overwrite the GCS object.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, "foo", "burrito")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("burrito"))
 	AssertEq(nil, err)
 
 	// Sync doesn't need to do anything.
@@ -522,7 +522,7 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_BeforeReading() {
 
 func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", "taco")
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
@@ -532,7 +532,7 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 	AssertEq(nil, err)
 
 	// Overwrite the backing object.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, "foo", "burrito")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("burrito"))
 	AssertEq(nil, err)
 
 	// Reading and modications should still work.
@@ -610,7 +610,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 			t.ctx,
 			t.bucket,
 			name,
-			string(expectedContents))
+			expectedContents)
 
 		AssertEq(nil, err)
 
