@@ -324,11 +324,13 @@ func (f *FileInode) Write(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Sync(ctx context.Context) (err error) {
+	// If we have not been dirtied, there is nothing to do.
+	if f.content == nil {
+		return
+	}
+
 	// Write out the contents if they are dirty.
-	rl, newObj, err := f.objectSyncer.SyncObject(
-		ctx,
-		&f.src,
-		f.content)
+	newObj, err := f.syncer.SyncObject(ctx, &f.src, f.content)
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.
@@ -338,21 +340,14 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 
 	// Propagate other errors.
 	if err != nil {
-		err = fmt.Errorf("gcsproxy.Sync: %v", err)
+		err = fmt.Errorf("SyncObject: %v", err)
 		return
 	}
 
 	// If we wrote out a new object, we need to update our state.
 	if newObj != nil {
 		f.src = *newObj
-		f.content = mutable.NewContent(
-			gcsproxy.NewReadProxy(
-				newObj,
-				rl,
-				f.gcsChunkSize,
-				f.leaser,
-				f.bucket),
-			f.clock)
+		f.content = nil
 	}
 
 	return
