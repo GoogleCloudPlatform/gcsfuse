@@ -59,7 +59,7 @@ func (fh *FileHandle) Destroy() {
 
 // Return the inode backing this handle.
 func (fh *FileHandle) Inode() *inode.FileInode {
-	panic("TODO")
+	return fh.inode
 }
 
 // Equivalent to locking fh.Inode() and calling fh.Inode().Read, but may be
