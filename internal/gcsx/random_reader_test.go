@@ -67,6 +67,8 @@ var _ SetUpInterface = &RandomReaderTest{}
 var _ TearDownInterface = &RandomReaderTest{}
 
 func (t *RandomReaderTest) SetUp(ti *TestInfo) {
+	t.rr.ctx = ti.Ctx
+
 	// Manufacture an object record.
 	t.object = &gcs.Object{Name: "foo", Generation: 17}
 
