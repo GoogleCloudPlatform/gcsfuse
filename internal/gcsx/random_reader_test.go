@@ -70,7 +70,11 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	t.rr.ctx = ti.Ctx
 
 	// Manufacture an object record.
-	t.object = &gcs.Object{Name: "foo", Generation: 17}
+	t.object = &gcs.Object{
+		Name:       "foo",
+		Size:       17,
+		Generation: 1234,
+	}
 
 	// Create the bucket.
 	t.bucket = mock_gcs.NewMockBucket(ti.MockController, "bucket")
@@ -145,7 +149,7 @@ func (t *RandomReaderTest) ReaderFails() {
 	buf := make([]byte, 3)
 	_, err := t.rr.ReadAt(buf, 0)
 
-	ExpectThat(err, Error(HasSubstr("ReadFull")))
+	ExpectThat(err, Error(HasSubstr("readFull")))
 	ExpectThat(err, Error(HasSubstr(iotest.ErrTimeout.Error())))
 }
 
