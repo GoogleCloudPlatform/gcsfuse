@@ -15,12 +15,12 @@
 package mutable
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"time"
 
+	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 )
@@ -63,7 +63,27 @@ type StatResult struct {
 func NewTempFile(
 	content io.Reader,
 	clock timeutil.Clock) (tf TempFile, err error) {
-	err = errors.New("TODO")
+	// Create an anonymous file to wrap. When we close it, its resources will be
+	// magically cleaned up.
+	f, err := fsutil.AnonymousFile("")
+	if err != nil {
+		err = fmt.Errorf("AnonymousFile: %v", err)
+		return
+	}
+
+	// Copy into the file.
+	size, err := io.Copy(f, content)
+	if err != nil {
+		err = fmt.Errorf("copy: %v", err)
+		return
+	}
+
+	tf = &tempFile{
+		clock:          clock,
+		f:              f,
+		dirtyThreshold: size,
+	}
+
 	return
 }
 
