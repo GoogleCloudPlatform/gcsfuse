@@ -184,6 +184,15 @@ func (f *FileInode) SourceGeneration() int64 {
 	return f.src.Generation
 }
 
+// If true, it is safe to serve reads directly from the object generation given
+// by f.SourceGeneration(), rather than calling f.ReadAt. Doing so may be more
+// efficient, because f.ReadAt may cause the entire object to be faulted in.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) SourceGenerationIsAuthoritative() bool {
+	return f.content == nil
+}
+
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) IncrementLookupCount() {
 	f.lc.Inc()
