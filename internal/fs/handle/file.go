@@ -16,6 +16,7 @@ package handle
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
@@ -70,6 +71,49 @@ func (fh *FileHandle) Read(
 	ctx context.Context,
 	dst []byte,
 	offset int64) (n int, err error) {
+	// Lock the inode and attempt to ensure that we have a reader for its current
+	// state, or clear fh.reader if it's not possible to create one (probably
+	// because the inode is dirty).
+	fh.inode.Lock()
+	err = fh.tryEnsureReader()
+	if err != nil {
+		fh.inode.Unlock()
+		err = fmt.Errorf("tryEnsureReader: %v", err)
+		return
+	}
+
+	// If we have an appropriate reader, unlock the inode and use that. This
+	// allows reads to proceed concurrently with other operations; in particular,
+	// multiple reads can run concurrently. It's safe because the user can't tell
+	// if a concurrent write started during or after a read.
+	if fh.reader != nil {
+		fh.inode.Unlock()
+
+		n, err = fh.reader.ReadAt(ctx, dst, offset)
+		if err != nil {
+			err = fmt.Errorf("fh.reader.ReadAt: %v", err)
+			return
+		}
+
+		return
+	}
+
+	// Otherwise we must fall through to the inode.
+	defer fh.inode.Unlock()
+	n, err = fh.inode.Read(ctx, dst, offset)
+	if err != nil {
+		err = fmt.Errorf("fh.inode.Read: %v", err)
+		return
+	}
+
+	return
+}
+
+// If possible, ensure that fh.reader is set to an appropriate random reader
+// for the current state of the inode. Otherwise set it to nil.
+//
+// LOCKS_REQUIRED(fh.inode)
+func (fh *FileHandle) tryEnsureReader() (err error) {
 	err = errors.New("TODO")
 	return
 }

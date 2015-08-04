@@ -16,7 +16,6 @@ package inode
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
@@ -293,7 +292,7 @@ func (f *FileInode) Attributes(
 	return
 }
 
-// Serve a read for this file with semantics matching fuseops.ReadFileOp.
+// Serve a read for this file with semantics matching io.ReaderAt.
 //
 // The caller may be better off reading directly from GCS when
 // f.SourceGenerationIsAuthoritative() is true.
@@ -312,12 +311,8 @@ func (f *FileInode) Read(
 
 	// Read from the local content.
 	n, err = f.content.ReadAt(dst, offset)
-
-	// We don't return errors for EOF. Otherwise, propagate errors.
-	if err == io.EOF {
-		err = nil
-	} else if err != nil {
-		err = fmt.Errorf("ReadAt: %v", err)
+	if err != nil {
+		err = fmt.Errorf("content.ReadAt: %v", err)
 		return
 	}
 
