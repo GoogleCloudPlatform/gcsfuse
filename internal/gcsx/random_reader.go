@@ -15,6 +15,8 @@
 package gcsx
 
 import (
+	"errors"
+
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
@@ -35,4 +37,13 @@ type RandomReader interface {
 	// Clean up any resources associated with the reader, which must not be used
 	// again.
 	Destroy()
+}
+
+// Create a random reader for the supplied object record that reads using the
+// given bucket.
+func NewRandomReader(
+	o *gcs.Object,
+	bucket gcs.Bucket) (rr RandomReader, err error) {
+	err = errors.New("TODO")
+	return
 }
