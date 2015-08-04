@@ -78,6 +78,23 @@ type randomReader struct {
 	limit int64
 }
 
+func (rr *randomReader) CheckInvariants() {
+	// INVARIANT: (reader == nil) == (cancel == nil)
+	if (rr.reader == nil) != (rr.cancel == nil) {
+		panic(fmt.Sprintf("Mismatch: %v vs. %v", rr.reader, rr.cancel))
+	}
+
+	// INVARIANT: start <= limit
+	if !(rr.start <= rr.limit) {
+		panic(fmt.Sprintf("Unexpected range: [%d, %d)", rr.start, rr.limit))
+	}
+
+	// INVARIANT: limit < 0 implies reader != nil
+	if rr.limit < 0 && rr.reader != nil {
+		panic(fmt.Sprintf("Unexpected non-nil reader with limit == %d", rr.limit))
+	}
+}
+
 func (rr *randomReader) ReadAt(
 	ctx context.Context,
 	p []byte,
