@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -157,6 +158,14 @@ func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
 	return
 }
 
+// Ensure that f.content != nil
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) ensureContent(ctx context.Context) (err error) {
+	err = errors.New("TODO")
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -186,7 +195,8 @@ func (f *FileInode) SourceGeneration() int64 {
 
 // If true, it is safe to serve reads directly from the object generation given
 // by f.SourceGeneration(), rather than calling f.ReadAt. Doing so may be more
-// efficient, because f.ReadAt may cause the entire object to be faulted in.
+// efficient, because f.ReadAt may cause the entire object to be faulted in and
+// requires the inode to be locked during the read.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SourceGenerationIsAuthoritative() bool {
@@ -254,13 +264,23 @@ func (f *FileInode) Attributes(
 
 // Serve a read for this file with semantics matching fuseops.ReadFileOp.
 //
+// The caller may be better off reading directly from GCS when
+// f.SourceGenerationIsAuthoritative() is true.
+//
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Read(
 	ctx context.Context,
 	dst []byte,
 	offset int64) (n int, err error) {
-	// Read from the mutable content.
-	n, err = f.content.ReadAt(ctx, dst, offset)
+	// Make sure f.content != nil.
+	err = f.ensureContent(ctx)
+	if err != nil {
+		err = fmt.Errorf("ensureContent: %v", err)
+		return
+	}
+
+	// Read from the local content.
+	n, err = f.content.ReadAt(dst, offset)
 
 	// We don't return errors for EOF. Otherwise, propagate errors.
 	if err == io.EOF {
