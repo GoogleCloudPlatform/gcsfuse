@@ -215,21 +215,26 @@ func (f *FileInode) Destroy() (err error) {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
 	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
-	// Stat the content.
-	sr, err := f.content.Stat(ctx)
-	if err != nil {
-		err = fmt.Errorf("Stat: %v", err)
-		return
-	}
-
-	// Fill out the struct.
 	attrs = f.attrs
-	attrs.Size = uint64(sr.Size)
 
-	if sr.Mtime != nil {
-		attrs.Mtime = *sr.Mtime
-	} else {
-		attrs.Mtime = f.src.Updated
+	// Obtain default information from the source object.
+	attrs.Mtime = f.src.Updated
+	attrs.Size = uint64(f.src.Size)
+
+	// If GCS is no longer authoritative, stat our local content to obtain size
+	// and mtime.
+	if f.content != nil {
+		var sr gcsx.StatResult
+		sr, err = f.content.Stat()
+		if err != nil {
+			err = fmt.Errorf("Stat: %v", err)
+			return
+		}
+
+		attrs.Size = uint64(sr.Size)
+		if sr.Mtime != nil {
+			attrs.Mtime = *sr.Mtime
+		}
 	}
 
 	// If the object has been clobbered, we reflect that as the inode being
