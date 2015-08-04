@@ -16,7 +16,6 @@ package mutable
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"time"
 
@@ -198,18 +197,6 @@ func (mc *mutableContent) WriteAt(
 func (mc *mutableContent) Truncate(
 	ctx context.Context,
 	n int64) (err error) {
-	// Make sure we have a read/write lease.
-	if err = mc.ensureReadWriteLease(ctx); err != nil {
-		err = fmt.Errorf("ensureReadWriteLease: %v", err)
-		return
-	}
-
-	// Convert to signed, which is what lease.ReadWriteLease wants.
-	if n > math.MaxInt64 {
-		err = fmt.Errorf("Illegal offset: %v", n)
-		return
-	}
-
 	// Update our state regarding being dirty.
 	mc.dirtyThreshold = minInt64(mc.dirtyThreshold, n)
 
@@ -217,7 +204,7 @@ func (mc *mutableContent) Truncate(
 	mc.mtime = &newMtime
 
 	// Call through.
-	err = mc.readWriteLease.Truncate(int64(n))
+	err = mc.contents.Truncate(int64(n))
 
 	return
 }
