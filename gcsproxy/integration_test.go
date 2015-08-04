@@ -321,35 +321,7 @@ func (t *IntegrationTest) Stat_Dirty() {
 	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(truncateTime)))
 }
 
-func (t *IntegrationTest) BackingObjectHasBeenDeleted_BeforeReading() {
-	// Create an object to obtain a record, then delete it.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
-	AssertEq(nil, err)
-
-	err = t.bucket.DeleteObject(t.ctx, &gcs.DeleteObjectRequest{Name: o.Name})
-	AssertEq(nil, err)
-
-	// Create a mutable object around it.
-	t.create(o)
-
-	// Sync doesn't need to do anything.
-	newObj, err := t.sync(o)
-
-	AssertEq(nil, err)
-	ExpectEq(nil, newObj)
-
-	// Anything that needs to fault in the contents should fail.
-	_, err = t.tf.ReadAt([]byte{}, 0)
-	ExpectThat(err, Error(HasSubstr("not found")))
-
-	err = t.tf.Truncate(10)
-	ExpectThat(err, Error(HasSubstr("not found")))
-
-	_, err = t.tf.WriteAt([]byte{}, 0)
-	ExpectThat(err, Error(HasSubstr("not found")))
-}
-
-func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
+func (t *IntegrationTest) BackingObjectHasBeenDeleted() {
 	// Create.
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
@@ -393,35 +365,7 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
-func (t *IntegrationTest) BackingObjectHasBeenOverwritten_BeforeReading() {
-	// Create an object, then create the mutable object wrapper around it.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
-	AssertEq(nil, err)
-
-	t.create(o)
-
-	// Overwrite the GCS object.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("burrito"))
-	AssertEq(nil, err)
-
-	// Sync doesn't need to do anything.
-	newObj, err := t.sync(o)
-
-	AssertEq(nil, err)
-	ExpectEq(nil, newObj)
-
-	// Anything that needs to fault in the contents should fail.
-	_, err = t.tf.ReadAt([]byte{}, 0)
-	ExpectThat(err, Error(HasSubstr("not found")))
-
-	err = t.tf.Truncate(10)
-	ExpectThat(err, Error(HasSubstr("not found")))
-
-	_, err = t.tf.WriteAt([]byte{}, 0)
-	ExpectThat(err, Error(HasSubstr("not found")))
-}
-
-func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
+func (t *IntegrationTest) BackingObjectHasBeenOverwritten() {
 	// Create.
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
