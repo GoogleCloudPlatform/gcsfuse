@@ -120,7 +120,14 @@ func (t *RandomReaderTest) ExistingReader_WrongOffset() {
 }
 
 func (t *RandomReaderTest) NewReaderReturnsError() {
-	AssertTrue(false, "TODO")
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(Return(nil, errors.New("taco")))
+
+	buf := make([]byte, 1)
+	_, err := t.rr.ReadAt(buf, 0)
+
+	ExpectThat(err, Error(HasSubstr("NewReader")))
+	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *RandomReaderTest) ReaderFails() {
