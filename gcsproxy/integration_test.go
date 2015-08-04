@@ -610,7 +610,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 			t.ctx,
 			t.bucket,
 			name,
-			string(expectedContents))
+			expectedContents)
 
 		AssertEq(nil, err)
 
