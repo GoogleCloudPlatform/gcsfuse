@@ -70,6 +70,50 @@ func (t *RandomReaderTest) TearDown() {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *RandomReaderTest) DoesFoo() {
+func (t *RandomReaderTest) EmptyRead() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *RandomReaderTest) NoExistingReader() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *RandomReaderTest) ExistingReader_WrongOffset() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *RandomReaderTest) NewReaderReturnsError() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *RandomReaderTest) ReaderFails() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *RandomReaderTest) ReaderOvershootsRange() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *RandomReaderTest) ReaderExhausted_ReadFinished() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *RandomReaderTest) ReaderExhausted_ReadNotFinished() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *RandomReaderTest) PropagatesCancellation() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *RandomReaderTest) DoesntPropagateCancellationAfterReturning() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *RandomReaderTest) UpgradesReadsToMinimumSize() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *RandomReaderTest) UpgradesSequentialReads() {
 	AssertTrue(false, "TODO")
 }
