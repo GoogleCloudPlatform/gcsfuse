@@ -191,7 +191,32 @@ func (rr *randomReader) Destroy() {
 func (rr *randomReader) readFull(
 	ctx context.Context,
 	p []byte) (n int, err error) {
-	err = errors.New("TODO")
+	// Start a goroutine that will cancel the read operation we block on below if
+	// the calling context is cancelled, but only if this method has not already
+	// returned (to avoid souring the reader for the next read if this one is
+	// successful, since the calling context will eventually be cancelled).
+	readDone := make(chan struct{})
+	defer close(readDone)
+
+	go func() {
+		select {
+		case <-readDone:
+			return
+
+		case <-ctx.Done():
+			select {
+			case <-readDone:
+				return
+
+			default:
+				rr.cancel()
+			}
+		}
+	}()
+
+	// Call through.
+	n, err = io.ReadFull(rr.reader, p)
+
 	return
 }
 
