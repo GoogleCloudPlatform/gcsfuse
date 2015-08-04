@@ -16,13 +16,14 @@ package mutable_test
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/mutable"
 	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
@@ -34,29 +35,20 @@ func TestTempFile(t *testing.T) { RunTests(t) }
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func bufferIs(buf []byte) Matcher {
-	return NewMatcher(
-		func(candidate interface{}) error {
-			p := candidate.([]byte)
+func readAll(rs io.ReadSeeker) (content []byte, err error) {
+	_, err = rs.Seek(0, 0)
+	if err != nil {
+		err = fmt.Errorf("Seek: %v", err)
+		return
+	}
 
-			// Compare.
-			if &buf[0] != &p[0] {
-				return fmt.Errorf(
-					"Differing first bytes: %p vs. %p",
-					&buf[0],
-					&p[0])
-			}
+	content, err = ioutil.ReadAll(rs)
+	if err != nil {
+		err = fmt.Errorf("ReadFull: %v", err)
+		return
+	}
 
-			if len(buf) != len(p) {
-				return fmt.Errorf(
-					"Differing lengths: %d vs. %d",
-					len(buf),
-					len(p))
-			}
-
-			return nil
-		},
-		fmt.Sprintf("Buffer matches"))
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -118,15 +110,18 @@ func init() { RegisterTestSuite(&TempFileTest{}) }
 var _ SetUpInterface = &TempFileTest{}
 
 func (t *TempFileTest) SetUp(ti *TestInfo) {
+	var err error
 	t.ctx = ti.Ctx
 
 	// Set up the clock.
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 
 	// And the temp file.
-	t.tf = mutable.NewTempFile(
-		strings.NewReader(t.initialContent),
+	t.tf.wrapped, err = mutable.NewTempFile(
+		strings.NewReader(initialContent),
 		&t.clock)
+
+	AssertEq(nil, err)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -145,11 +140,11 @@ func (t *TempFileTest) Stat() {
 func (t *TempFileTest) ReadAt() {
 	// Call
 	var buf [2]byte
-	n, err := t.tf.ReadAt(buf, 1)
+	n, err := t.tf.ReadAt(buf[:], 1)
 
 	ExpectEq(2, n)
 	ExpectEq(nil, err)
-	ExpectEq(initialContent[1:3], string(buf))
+	ExpectEq(initialContent[1:3], string(buf[:]))
 
 	// Check Stat.
 	sr, err := t.tf.Stat()
@@ -177,13 +172,13 @@ func (t *TempFileTest) WriteAt() {
 	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(t.clock.Now())))
 
 	// Read back.
-	expected := initialContent
+	expected := []byte(initialContent)
 	expected[1] = 'f'
 	expected[2] = 'o'
 
 	actual, err := readAll(t.tf)
 	AssertEq(nil, err)
-	ExpectEq(expected, string(actual))
+	ExpectEq(string(expected), string(actual))
 }
 
 func (t *TempFileTest) Truncate() {
