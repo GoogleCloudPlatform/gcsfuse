@@ -66,7 +66,7 @@ type IntegrationTest struct {
 	ctx    context.Context
 	bucket gcs.Bucket
 	clock  timeutil.SimulatedClock
-	syncer gcsx.ObjectSyncer
+	syncer gcsx.Syncer
 
 	tf gcsx.TempFile
 }
@@ -83,11 +83,11 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 	// Set up a fixed, non-zero time.
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 
-	// Set up the object syncer.
+	// Set up the syncer.
 	const appendThreshold = 0
 	const tmpObjectPrefix = ".gcsfuse_tmp/"
 
-	t.syncer = gcsx.NewObjectSyncer(
+	t.syncer = gcsx.NewSyncer(
 		appendThreshold,
 		tmpObjectPrefix,
 		t.bucket)
