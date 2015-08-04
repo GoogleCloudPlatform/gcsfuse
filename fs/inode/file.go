@@ -359,6 +359,15 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 func (f *FileInode) Truncate(
 	ctx context.Context,
 	size int64) (err error) {
-	err = f.content.Truncate(ctx, size)
+	// Make sure f.content != nil.
+	err = f.ensureContent(ctx)
+	if err != nil {
+		err = fmt.Errorf("ensureContent: %v", err)
+		return
+	}
+
+	// Call through.
+	err = f.content.Truncate(size)
+
 	return
 }
