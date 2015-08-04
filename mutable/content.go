@@ -156,29 +156,11 @@ func (mc *mutableContent) Destroy() {
 	mc.contents = nil
 }
 
-func (mc *mutableContent) Release() (rwl lease.ReadWriteLease) {
-	if !mc.dirty() {
-		return
-	}
-
-	rwl = mc.readWriteLease
-	mc.readWriteLease = nil
-	mc.Destroy()
-
-	return
-}
-
 func (mc *mutableContent) ReadAt(
 	ctx context.Context,
 	buf []byte,
 	offset int64) (n int, err error) {
-	// Serve from the appropriate place.
-	if mc.dirty() {
-		n, err = mc.readWriteLease.ReadAt(buf, offset)
-	} else {
-		n, err = mc.initialContent.ReadAt(ctx, buf, offset)
-	}
-
+	n, err = mc.contents.ReadAt(buf, offset)
 	return
 }
 
