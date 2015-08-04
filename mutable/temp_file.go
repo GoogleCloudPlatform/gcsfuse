@@ -26,6 +26,8 @@ import (
 
 // A temporary file that keeps track of the lowest offset at which it has been
 // modified.
+//
+// Not safe for concurrent access.
 type TempFile interface {
 	// Panic if any internal invariants are violated.
 	CheckInvariants()
@@ -36,7 +38,8 @@ type TempFile interface {
 	io.WriterAt
 	Truncate(n int64) (err error)
 
-	// Return information about the current state of the content.
+	// Return information about the current state of the content. May invalidate
+	// the seek position.
 	Stat() (sr StatResult, err error)
 
 	// Throw away the resources used by the temporary file. The object must not
@@ -122,6 +125,19 @@ func (tf *tempFile) CheckInvariants() {
 	if tf.destroyed {
 		panic("Use of destroyed tempFile object.")
 	}
+
+	// Restore the seek position after using Stat below.
+	pos, err := tf.Seek(0, 1)
+	if err != nil {
+		panic(fmt.Sprintf("Seek: %v", err))
+	}
+
+	defer func() {
+		_, err := tf.Seek(pos, 0)
+		if err != nil {
+			panic(fmt.Sprintf("Seek: %v", err))
+		}
+	}()
 
 	// INVARIANT: Stat().DirtyThreshold <= Stat().Size
 	sr, err := tf.Stat()
