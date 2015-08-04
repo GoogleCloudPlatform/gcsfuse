@@ -30,7 +30,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestObjectSyncer(t *testing.T) { RunTests(t) }
+func TestSyncer(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // fakeObjectCreator
@@ -75,31 +75,31 @@ func (oc *fakeObjectCreator) Create(
 const srcObjectContents = "taco"
 const appendThreshold = int64(len(srcObjectContents))
 
-type ObjectSyncerTest struct {
+type SyncerTest struct {
 	ctx context.Context
 
 	fullCreator   fakeObjectCreator
 	appendCreator fakeObjectCreator
 
 	bucket gcs.Bucket
-	syncer ObjectSyncer
+	syncer Syncer
 	clock  timeutil.SimulatedClock
 
 	srcObject *gcs.Object
 	content   TempFile
 }
 
-var _ SetUpInterface = &ObjectSyncerTest{}
+var _ SetUpInterface = &SyncerTest{}
 
-func init() { RegisterTestSuite(&ObjectSyncerTest{}) }
+func init() { RegisterTestSuite(&SyncerTest{}) }
 
-func (t *ObjectSyncerTest) SetUp(ti *TestInfo) {
+func (t *SyncerTest) SetUp(ti *TestInfo) {
 	var err error
 	t.ctx = ti.Ctx
 
 	// Set up dependencies.
 	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
-	t.syncer = newObjectSyncer(
+	t.syncer = newSyncer(
 		appendThreshold,
 		&t.fullCreator,
 		&t.appendCreator)
@@ -128,7 +128,7 @@ func (t *ObjectSyncerTest) SetUp(ti *TestInfo) {
 	t.appendCreator.err = errors.New("Fake error")
 }
 
-func (t *ObjectSyncerTest) call() (o *gcs.Object, err error) {
+func (t *SyncerTest) call() (o *gcs.Object, err error) {
 	o, err = t.syncer.SyncObject(t.ctx, t.srcObject, t.content)
 	return
 }
@@ -137,7 +137,7 @@ func (t *ObjectSyncerTest) call() (o *gcs.Object, err error) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ObjectSyncerTest) NotDirty() {
+func (t *SyncerTest) NotDirty() {
 	// Call
 	o, err := t.call()
 
@@ -149,7 +149,7 @@ func (t *ObjectSyncerTest) NotDirty() {
 	ExpectFalse(t.appendCreator.called)
 }
 
-func (t *ObjectSyncerTest) SmallerThanSource() {
+func (t *SyncerTest) SmallerThanSource() {
 	// Truncate downward.
 	err := t.content.Truncate(int64(len(srcObjectContents) - 1))
 	AssertEq(nil, err)
@@ -161,7 +161,7 @@ func (t *ObjectSyncerTest) SmallerThanSource() {
 	ExpectFalse(t.appendCreator.called)
 }
 
-func (t *ObjectSyncerTest) SameSizeAsSource() {
+func (t *SyncerTest) SameSizeAsSource() {
 	// Dirty a byte without changing the length.
 	_, err := t.content.WriteAt(
 		[]byte("a"),
@@ -176,7 +176,7 @@ func (t *ObjectSyncerTest) SameSizeAsSource() {
 	ExpectFalse(t.appendCreator.called)
 }
 
-func (t *ObjectSyncerTest) LargerThanSource_ThresholdInSource() {
+func (t *SyncerTest) LargerThanSource_ThresholdInSource() {
 	var err error
 
 	// Extend the length of the content.
@@ -197,11 +197,11 @@ func (t *ObjectSyncerTest) LargerThanSource_ThresholdInSource() {
 	ExpectFalse(t.appendCreator.called)
 }
 
-func (t *ObjectSyncerTest) SourceTooShortForAppend() {
+func (t *SyncerTest) SourceTooShortForAppend() {
 	var err error
 
 	// Recreate the syncer with a higher append threshold.
-	t.syncer = newObjectSyncer(
+	t.syncer = newSyncer(
 		int64(len(srcObjectContents)+1),
 		&t.fullCreator,
 		&t.appendCreator)
@@ -217,7 +217,7 @@ func (t *ObjectSyncerTest) SourceTooShortForAppend() {
 	ExpectFalse(t.appendCreator.called)
 }
 
-func (t *ObjectSyncerTest) SourceComponentCountTooHigh() {
+func (t *SyncerTest) SourceComponentCountTooHigh() {
 	var err error
 
 	// Simulate a large component count.
@@ -234,7 +234,7 @@ func (t *ObjectSyncerTest) SourceComponentCountTooHigh() {
 	ExpectFalse(t.appendCreator.called)
 }
 
-func (t *ObjectSyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
+func (t *SyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
 	var err error
 
 	// Extend the length of the content.
@@ -248,7 +248,7 @@ func (t *ObjectSyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
 	ExpectTrue(t.appendCreator.called)
 }
 
-func (t *ObjectSyncerTest) CallsFullCreator() {
+func (t *SyncerTest) CallsFullCreator() {
 	var err error
 	AssertLt(2, t.srcObject.Size)
 
@@ -264,7 +264,7 @@ func (t *ObjectSyncerTest) CallsFullCreator() {
 	ExpectEq(srcObjectContents[:2], string(t.fullCreator.contents))
 }
 
-func (t *ObjectSyncerTest) FullCreatorFails() {
+func (t *SyncerTest) FullCreatorFails() {
 	var err error
 	t.fullCreator.err = errors.New("taco")
 
@@ -279,7 +279,7 @@ func (t *ObjectSyncerTest) FullCreatorFails() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *ObjectSyncerTest) FullCreatorReturnsPreconditionError() {
+func (t *SyncerTest) FullCreatorReturnsPreconditionError() {
 	var err error
 	t.fullCreator.err = &gcs.PreconditionError{}
 
@@ -293,7 +293,7 @@ func (t *ObjectSyncerTest) FullCreatorReturnsPreconditionError() {
 	ExpectEq(t.fullCreator.err, err)
 }
 
-func (t *ObjectSyncerTest) FullCreatorSucceeds() {
+func (t *SyncerTest) FullCreatorSucceeds() {
 	var err error
 	t.fullCreator.o = &gcs.Object{}
 	t.fullCreator.err = nil
@@ -309,7 +309,7 @@ func (t *ObjectSyncerTest) FullCreatorSucceeds() {
 	ExpectEq(t.fullCreator.o, o)
 }
 
-func (t *ObjectSyncerTest) CallsAppendCreator() {
+func (t *SyncerTest) CallsAppendCreator() {
 	var err error
 
 	// Append some data.
@@ -324,7 +324,7 @@ func (t *ObjectSyncerTest) CallsAppendCreator() {
 	ExpectEq("burrito", string(t.appendCreator.contents))
 }
 
-func (t *ObjectSyncerTest) AppendCreatorFails() {
+func (t *SyncerTest) AppendCreatorFails() {
 	var err error
 	t.appendCreator.err = errors.New("taco")
 
@@ -339,7 +339,7 @@ func (t *ObjectSyncerTest) AppendCreatorFails() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *ObjectSyncerTest) AppendCreatorReturnsPreconditionError() {
+func (t *SyncerTest) AppendCreatorReturnsPreconditionError() {
 	var err error
 	t.appendCreator.err = &gcs.PreconditionError{}
 
@@ -353,7 +353,7 @@ func (t *ObjectSyncerTest) AppendCreatorReturnsPreconditionError() {
 	ExpectEq(t.appendCreator.err, err)
 }
 
-func (t *ObjectSyncerTest) AppendCreatorSucceeds() {
+func (t *SyncerTest) AppendCreatorSucceeds() {
 	var err error
 	t.appendCreator.o = &gcs.Object{}
 	t.appendCreator.err = nil

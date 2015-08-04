@@ -23,7 +23,7 @@ import (
 )
 
 // Safe for concurrent access.
-type ObjectSyncer interface {
+type Syncer interface {
 	// Given an object record and content that was originally derived from that
 	// object's contents (and potentially modified):
 	//
@@ -40,7 +40,7 @@ type ObjectSyncer interface {
 		content TempFile) (o *gcs.Object, err error)
 }
 
-// Create an object syncer that syncs into the supplied bucket.
+// Create a syncer that syncs into the supplied bucket.
 //
 // When the source object has been changed only by appending, and the source
 // object's size is at least appendThreshold, we will "append" to it by writing
@@ -49,10 +49,10 @@ type ObjectSyncer interface {
 // Temporary blobs have names beginning with tmpObjectPrefix. We make an effort
 // to delete them, but if we are interrupted for some reason we may not be able
 // to do so. Therefore the user should arrange for garbage collection.
-func NewObjectSyncer(
+func NewSyncer(
 	appendThreshold int64,
 	tmpObjectPrefix string,
-	bucket gcs.Bucket) (os ObjectSyncer) {
+	bucket gcs.Bucket) (os Syncer) {
 	// Create the object creators.
 	fullCreator := &fullObjectCreator{
 		bucket: bucket,
@@ -62,8 +62,8 @@ func NewObjectSyncer(
 		tmpObjectPrefix,
 		bucket)
 
-	// And the object syncer.
-	os = newObjectSyncer(appendThreshold, fullCreator, appendCreator)
+	// And the syncer.
+	os = newSyncer(appendThreshold, fullCreator, appendCreator)
 
 	return
 }
@@ -101,11 +101,10 @@ func (oc *fullObjectCreator) Create(
 }
 
 ////////////////////////////////////////////////////////////////////////
-// objectSyncer
+// syncer
 ////////////////////////////////////////////////////////////////////////
 
-// An implementation detail of objectSyncer. See notes on
-// newObjectSyncer.
+// An implementation detail of syncer. See notes on newSyncer.
 type objectCreator interface {
 	Create(
 		ctx context.Context,
@@ -113,8 +112,8 @@ type objectCreator interface {
 		r io.Reader) (o *gcs.Object, err error)
 }
 
-// Create an object syncer that stats the mutable content to see if it's dirty
-// before calling through to one of two object creators if the content is dirty:
+// Create a syncer that stats the mutable content to see if it's dirty before
+// calling through to one of two object creators if the content is dirty:
 //
 // *   fullCreator accepts the source object and the full contents with which it
 //     should be overwritten.
@@ -126,11 +125,11 @@ type objectCreator interface {
 // worthwhile to make the append optimization. It should be set to a value on
 // the order of the bandwidth to GCS times three times the round trip latency
 // to GCS (for a small create, a compose, and a delete).
-func newObjectSyncer(
+func newSyncer(
 	appendThreshold int64,
 	fullCreator objectCreator,
-	appendCreator objectCreator) (os ObjectSyncer) {
-	os = &objectSyncer{
+	appendCreator objectCreator) (os Syncer) {
+	os = &syncer{
 		appendThreshold: appendThreshold,
 		fullCreator:     fullCreator,
 		appendCreator:   appendCreator,
@@ -139,13 +138,13 @@ func newObjectSyncer(
 	return
 }
 
-type objectSyncer struct {
+type syncer struct {
 	appendThreshold int64
 	fullCreator     objectCreator
 	appendCreator   objectCreator
 }
 
-func (os *objectSyncer) SyncObject(
+func (os *syncer) SyncObject(
 	ctx context.Context,
 	srcObject *gcs.Object,
 	content TempFile) (o *gcs.Object, err error) {
