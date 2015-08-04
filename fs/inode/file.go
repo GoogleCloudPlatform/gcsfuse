@@ -300,9 +300,16 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) (err error) {
-	// Write to the mutable content. Note that the mutable content guarantees
-	// that it returns an error for short writes.
-	_, err = f.content.WriteAt(ctx, data, offset)
+	// Make sure f.content != nil.
+	err = f.ensureContent(ctx)
+	if err != nil {
+		err = fmt.Errorf("ensureContent: %v", err)
+		return
+	}
+
+	// Write to the mutable content. Note that io.WriterAt guarantees it returns
+	// an error for short writes.
+	_, err = f.content.WriteAt(data, offset)
 
 	return
 }
