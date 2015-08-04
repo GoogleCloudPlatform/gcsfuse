@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsproxy
+package gcsx
 
 import (
 	"errors"
@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/mutable"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	. "github.com/jacobsa/oglematchers"
@@ -87,7 +86,7 @@ type ObjectSyncerTest struct {
 	clock  timeutil.SimulatedClock
 
 	srcObject *gcs.Object
-	content   mutable.TempFile
+	content   TempFile
 }
 
 var _ SetUpInterface = &ObjectSyncerTest{}
@@ -117,8 +116,8 @@ func (t *ObjectSyncerTest) SetUp(ti *TestInfo) {
 
 	AssertEq(nil, err)
 
-	// Wrap a mutable.TempFile around it.
-	t.content, err = mutable.NewTempFile(
+	// Wrap a TempFile around it.
+	t.content, err = NewTempFile(
 		strings.NewReader(srcObjectContents),
 		&t.clock)
 

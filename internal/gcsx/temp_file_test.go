@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mutable_test
+package gcsx_test
 
 import (
 	"fmt"
@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/mutable"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
@@ -58,10 +58,10 @@ func readAll(rs io.ReadSeeker) (content []byte, err error) {
 // A wrapper around a TempFile that calls CheckInvariants whenever invariants
 // should hold. For catching logic errors early in the test.
 type checkingTempFile struct {
-	wrapped mutable.TempFile
+	wrapped gcsx.TempFile
 }
 
-func (tf *checkingTempFile) Stat() (mutable.StatResult, error) {
+func (tf *checkingTempFile) Stat() (gcsx.StatResult, error) {
 	tf.wrapped.CheckInvariants()
 	defer tf.wrapped.CheckInvariants()
 	return tf.wrapped.Stat()
@@ -129,7 +129,7 @@ func (t *TempFileTest) SetUp(ti *TestInfo) {
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 
 	// And the temp file.
-	t.tf.wrapped, err = mutable.NewTempFile(
+	t.tf.wrapped, err = gcsx.NewTempFile(
 		strings.NewReader(initialContent),
 		&t.clock)
 
