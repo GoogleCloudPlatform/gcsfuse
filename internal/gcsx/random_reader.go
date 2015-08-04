@@ -15,9 +15,9 @@
 package gcsx
 
 import (
-	"errors"
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
@@ -111,7 +111,7 @@ func (rr *randomReader) ReadAt(
 
 		// If we don't have a reader, start a read operation.
 		if rr.reader == nil {
-			err = rr.startRead(offset, len(p))
+			err = rr.startRead(offset, int64(len(p)))
 			if err != nil {
 				err = fmt.Errorf("startRead: %v", err)
 				return
@@ -224,7 +224,60 @@ func (rr *randomReader) readFull(
 // a prefix.
 func (rr *randomReader) startRead(
 	start int64,
-	size int) (err error) {
-	err = errors.New("TODO")
+	size int64) (err error) {
+	// Make sure start and size are legal.
+	if start < 0 || uint64(start) > rr.object.Size || size < 0 {
+		err = fmt.Errorf(
+			"Range [%d, %d) is illegal for %d-byte object",
+			start,
+			start+size,
+			rr.object.Size)
+		return
+	}
+
+	// We always read a decent amount from GCS, no matter how silly small the
+	// user's read is, because GCS requests are expensive.
+	actualSize := int64(size)
+	const minReadSize = 1 << 20
+	if actualSize < minReadSize {
+		actualSize = minReadSize
+	}
+
+	// If this read starts where the previous one left off, we take this as a
+	// sign that the user is reading sequentially within the object. It's
+	// probably worth it to just request the entire rest of the object, and let
+	// them sip from the fire house with each call to ReadAt.
+	if start == rr.limit {
+		actualSize = math.MaxInt64
+	}
+
+	// Clip to the end of the object.
+	if actualSize > int64(rr.object.Size)-start {
+		actualSize = int64(rr.object.Size) - start
+	}
+
+	// Begin the read.
+	ctx, cancel := context.WithCancel(context.Background())
+	rc, err := rr.bucket.NewReader(
+		ctx,
+		&gcs.ReadObjectRequest{
+			Name:       rr.object.Name,
+			Generation: rr.object.Generation,
+			Range: &gcs.ByteRange{
+				Start: uint64(start),
+				Limit: uint64(start + actualSize),
+			},
+		})
+
+	if err != nil {
+		err = fmt.Errorf("NewReader: %v", err)
+		return
+	}
+
+	rr.reader = rc
+	rr.cancel = cancel
+	rr.start = start
+	rr.limit = start + actualSize
+
 	return
 }
