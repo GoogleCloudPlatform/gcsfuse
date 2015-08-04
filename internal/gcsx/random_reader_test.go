@@ -154,7 +154,18 @@ func (t *RandomReaderTest) ReaderFails() {
 }
 
 func (t *RandomReaderTest) ReaderOvershootsRange() {
-	AssertTrue(false, "TODO")
+	// Simulate a reader that is supposed to return two more bytes, but actually
+	// returns three when asked to.
+	t.rr.wrapped.reader = ioutil.NopCloser(strings.NewReader("xxx"))
+	t.rr.wrapped.cancel = func() {}
+	t.rr.wrapped.start = 0
+	t.rr.wrapped.limit = 2
+
+	// Try to read three bytes.
+	buf := make([]byte, 3)
+	_, err := t.rr.ReadAt(buf, 0)
+
+	ExpectThat(err, Error(HasSubstr("1 too many bytes")))
 }
 
 func (t *RandomReaderTest) ReaderExhausted_ReadFinished() {
