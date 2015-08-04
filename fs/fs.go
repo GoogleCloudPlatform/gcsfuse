@@ -24,8 +24,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
-	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -46,25 +44,6 @@ type ServerConfig struct {
 	// The temporary directory to use for local caching, or the empty string to
 	// use the system default.
 	TempDir string
-
-	// A desired limit on the number of open files used for storing temporary
-	// object contents. May not be obeyed if there is a large number of dirtied
-	// files that have not been flushed or closed.
-	//
-	// Most users will want to use ChooseTempDirLimitNumFiles to choose this.
-	TempDirLimitNumFiles int
-
-	// A desired limit on temporary space usage, in bytes. May not be obeyed if
-	// there is a large volume of dirtied files that have not been flushed or
-	// closed.
-	TempDirLimitBytes int64
-
-	// If set to a non-zero value N, the file system will read objects from GCS a
-	// chunk at a time with a maximum read size of N, caching each chunk
-	// independently. The part about separate caching does not apply to dirty
-	// files, for which the entire contents will be in the temporary directory
-	// regardless of this setting.
-	GCSChunkSize uint64
 
 	// By default, if a bucket contains the object "foo/bar" but no object named
 	// "foo/", it's as if the directory doesn't exist. This allows us to have
