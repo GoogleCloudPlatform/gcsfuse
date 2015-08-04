@@ -120,10 +120,8 @@ func (rr *randomReader) ReadAt(
 
 		// Now we have a reader positioned at the correct place. Consume as much from
 		// it as possible.
-		//
-		// TODO(jacobsa): Propagate cancellation here.
 		var tmp int
-		tmp, err = io.ReadFull(rr.reader, p)
+		tmp, err = rr.readFull(ctx, p)
 
 		n += tmp
 		p = p[tmp:]
@@ -165,7 +163,7 @@ func (rr *randomReader) ReadAt(
 
 		case err != nil:
 			// Propagate other errors.
-			err = fmt.Errorf("Reading from wrapped reader: %v", err)
+			err = fmt.Errorf("readFull: %v", err)
 			return
 		}
 	}
@@ -180,6 +178,16 @@ func (rr *randomReader) Object() (o *gcs.Object) {
 
 func (rr *randomReader) Destroy() {
 	panic("TODO")
+}
+
+// Like io.ReadFull, but deals with the cancellation issues.
+//
+// REQUIRES: rr.reader != nil
+func (rr *randomReader) readFull(
+	ctx context.Context,
+	p []byte) (n int, err error) {
+	err = errors.New("TODO")
+	return
 }
 
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
