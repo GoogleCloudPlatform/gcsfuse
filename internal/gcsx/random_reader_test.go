@@ -22,6 +22,7 @@ import (
 	"strings"
 	"testing"
 	"testing/iotest"
+	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
@@ -64,6 +65,21 @@ type countingCloser struct {
 
 func (cc *countingCloser) Close() (err error) {
 	cc.closeCount++
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// Blocking reader
+////////////////////////////////////////////////////////////////////////
+
+// A reader that blocks until a channel is closed, then returns an error.
+type blockingReader struct {
+	c chan struct{}
+}
+
+func (br *blockingReader) Read(p []byte) (n int, err error) {
+	<-br.c
+	err = errors.New("blockingReader")
 	return
 }
 
@@ -287,7 +303,44 @@ func (t *RandomReaderTest) ReaderExhausted_ReadNotFinished() {
 }
 
 func (t *RandomReaderTest) PropagatesCancellation() {
-	AssertTrue(false, "TODO")
+	// Set up a reader that will block until we tell it to return.
+	finishRead := make(chan struct{})
+	rc := ioutil.NopCloser(&blockingReader{finishRead})
+
+	t.rr.wrapped.reader = rc
+	t.rr.wrapped.start = 1
+	t.rr.wrapped.limit = 4
+
+	// Snoop on when cancel is called.
+	cancelCalled := make(chan struct{})
+	t.rr.wrapped.cancel = func() { close(cancelCalled) }
+
+	// Start a read in the background using a context that we control. It should
+	// not yet return.
+	readReturned := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		buf := make([]byte, 2)
+		t.rr.wrapped.ReadAt(ctx, buf, 1)
+		close(readReturned)
+	}()
+
+	select {
+	case <-time.After(10 * time.Millisecond):
+	case <-readReturned:
+		AddFailure("Read returned early.")
+		AbortTest()
+	}
+
+	// When we cancel our context, the random reader should cancel the read
+	// context.
+	cancel()
+	<-cancelCalled
+
+	// Clean up.
+	close(finishRead)
+	<-readReturned
 }
 
 func (t *RandomReaderTest) DoesntPropagateCancellationAfterReturning() {
