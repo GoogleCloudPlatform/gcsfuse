@@ -17,6 +17,7 @@ package mutable
 import (
 	"fmt"
 	"math"
+	"os"
 	"time"
 
 	"github.com/jacobsa/timeutil"
@@ -67,9 +68,10 @@ type StatResult struct {
 }
 
 // Create a mutable content object whose initial contents are given by the
-// supplied read proxy.
+// supplied file. The caller must ensure that the file is not used further by
+// anybody else.
 func NewContent(
-	initialContent lease.ReadProxy,
+	initialContent *os.File,
 	clock timeutil.Clock) (mc Content) {
 	mc = &mutableContent{
 		clock:          clock,
@@ -93,27 +95,21 @@ type mutableContent struct {
 
 	destroyed bool
 
-	// The initial contents with which this object was created, or nil if it has
-	// been dirtied.
-	//
-	// INVARIANT: When non-nil, initialContent.CheckInvariants() does not panic.
-	initialContent lease.ReadProxy
+	// Have we been dirtied since we were created?
+	dirty bool
 
-	// When dirty, a read/write lease containing our current contents. When
-	// clean, nil.
-	//
-	// INVARIANT: (initialContent == nil) != (readWriteLease == nil)
-	readWriteLease lease.ReadWriteLease
+	// A file containing our current contents.
+	contents *os.File
 
 	// The lowest byte index that has been modified from the initial contents.
 	//
-	// INVARIANT: initialContent != nil => dirtyThreshold == initialContent.Size()
+	// INVARIANT: !dirty() => Stat().DirtyThreshold == Stat().Size
 	dirtyThreshold int64
 
 	// The time at which a method that modifies our contents was last called, or
 	// nil if never.
 	//
-	// INVARIANT: If dirty(), then mtime != nil
+	// INVARIANT: dirty() => mtime != nil
 	mtime *time.Time
 }
 
