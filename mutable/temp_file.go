@@ -32,6 +32,7 @@ type TempFile interface {
 	CheckInvariants()
 
 	// Semantics matching os.File.
+	io.ReadSeeker
 	io.ReaderAt
 	io.WriterAt
 	Truncate(n int64) (err error)

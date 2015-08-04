@@ -67,6 +67,18 @@ func (tf *checkingTempFile) Stat() (mutable.StatResult, error) {
 	return tf.wrapped.Stat()
 }
 
+func (tf *checkingTempFile) Read(b []byte) (int, error) {
+	tf.wrapped.CheckInvariants()
+	defer tf.wrapped.CheckInvariants()
+	return tf.wrapped.Read(b)
+}
+
+func (tf *checkingTempFile) Seek(offset int64, whence int) (int64, error) {
+	tf.wrapped.CheckInvariants()
+	defer tf.wrapped.CheckInvariants()
+	return tf.wrapped.Seek(offset, whence)
+}
+
 func (tf *checkingTempFile) ReadAt(b []byte, o int64) (int, error) {
 	tf.wrapped.CheckInvariants()
 	defer tf.wrapped.CheckInvariants()
@@ -176,7 +188,7 @@ func (t *TempFileTest) WriteAt() {
 	expected[1] = 'f'
 	expected[2] = 'o'
 
-	actual, err := readAll(t.tf)
+	actual, err := readAll(&t.tf)
 	AssertEq(nil, err)
 	ExpectEq(string(expected), string(actual))
 }
@@ -197,7 +209,7 @@ func (t *TempFileTest) Truncate() {
 	// Read back.
 	expected := initialContent[0:2]
 
-	actual, err := readAll(t.tf)
+	actual, err := readAll(&t.tf)
 	AssertEq(nil, err)
 	ExpectEq(expected, string(actual))
 }
