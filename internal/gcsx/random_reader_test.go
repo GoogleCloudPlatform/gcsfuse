@@ -209,7 +209,28 @@ func (t *RandomReaderTest) ReaderNotExhausted() {
 }
 
 func (t *RandomReaderTest) ReaderExhausted_ReadFinished() {
-	AssertTrue(false, "TODO")
+	// Set up a reader that has three bytes left to give.
+	rc := &countingCloser{
+		Reader: strings.NewReader("abc"),
+	}
+
+	t.rr.wrapped.reader = rc
+	t.rr.wrapped.cancel = func() {}
+	t.rr.wrapped.start = 1
+	t.rr.wrapped.limit = 4
+
+	// Read three bytes.
+	buf := make([]byte, 3)
+	n, err := t.rr.ReadAt(buf, 1)
+
+	ExpectEq(3, n)
+	ExpectEq(nil, err)
+	ExpectEq("abc", string(buf[:n]))
+
+	ExpectEq(1, rc.closeCount)
+	ExpectEq(nil, t.rr.wrapped.reader)
+	ExpectEq(nil, t.rr.wrapped.cancel)
+	ExpectEq(4, t.rr.wrapped.limit)
 }
 
 func (t *RandomReaderTest) ReaderExhausted_ReadNotFinished() {
