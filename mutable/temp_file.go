@@ -61,8 +61,9 @@ type StatResult struct {
 // Create a temp file whose initial contents are given by the supplied reader.
 func NewTempFile(
 	content io.Reader,
-	clock timeutil.Clock) (mc Content, err error) {
+	clock timeutil.Clock) (tf TempFile, err error) {
 	err = errors.New("TODO")
+	return
 }
 
 type mutableContent struct {
