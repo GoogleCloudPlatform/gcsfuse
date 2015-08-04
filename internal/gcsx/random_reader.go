@@ -16,6 +16,7 @@ package gcsx
 
 import (
 	"errors"
+	"io"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
@@ -44,6 +45,40 @@ type RandomReader interface {
 func NewRandomReader(
 	o *gcs.Object,
 	bucket gcs.Bucket) (rr RandomReader, err error) {
+	rr = &randomReader{
+		object: o,
+		bucket: bucket,
+	}
+
+	return
+}
+
+type randomReader struct {
+	object *gcs.Object
+	bucket gcs.Bucket
+
+	// If non-nil, an in-flight read request and the range of the object that we
+	// expect it to yield, along with a function for cancelling the in-flight
+	// request.
+	reader io.ReadCloser
+	start  int64
+	limit  int64
+	cancel func()
+}
+
+func (rr *randomReader) ReadAt(
+	ctx context.Context,
+	p []byte,
+	offset int64) (n int, err error) {
 	err = errors.New("TODO")
 	return
+}
+
+func (rr *randomReader) Object() (o *gcs.Object) {
+	o = rr.object
+	return
+}
+
+func (rr *randomReader) Destroy() {
+	panic("TODO")
 }
