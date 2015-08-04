@@ -220,25 +220,3 @@ func minInt64(a int64, b int64) int64 {
 
 	return b
 }
-
-// Ensure that mc.readWriteLease is non-nil with an authoritative view of mc's
-// contents.
-func (mc *mutableContent) ensureReadWriteLease(
-	ctx context.Context) (err error) {
-	// Is there anything to do?
-	if mc.readWriteLease != nil {
-		return
-	}
-
-	// Set up the read/write lease.
-	rwl, err := mc.initialContent.Upgrade(ctx)
-	if err != nil {
-		err = fmt.Errorf("initialContent.Upgrade: %v", err)
-		return
-	}
-
-	mc.readWriteLease = rwl
-	mc.initialContent = nil
-
-	return
-}
