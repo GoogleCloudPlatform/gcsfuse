@@ -16,7 +16,6 @@ package inode_test
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"testing"
 	"time"
@@ -24,8 +23,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
-	"github.com/googlecloudplatform/gcsfuse/lease"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
@@ -50,7 +48,6 @@ const fileMode os.FileMode = 0641
 type FileTest struct {
 	ctx    context.Context
 	bucket gcs.Bucket
-	leaser lease.FileLeaser
 	clock  timeutil.SimulatedClock
 
 	initialContents string
@@ -67,7 +64,6 @@ func init() { RegisterTestSuite(&FileTest{}) }
 func (t *FileTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
-	t.leaser = lease.NewFileLeaser("", math.MaxInt32, math.MaxInt64)
 	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
 
 	// Set up the backing object.
@@ -91,10 +87,8 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 			Gid:  gid,
 			Mode: fileMode,
 		},
-		math.MaxUint64, // GCS chunk size
 		t.bucket,
-		t.leaser,
-		gcsproxy.NewObjectSyncer(
+		gcsx.NewSyncer(
 			1, // Append threshold
 			".gcsfuse_tmp/",
 			t.bucket),
