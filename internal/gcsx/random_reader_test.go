@@ -344,7 +344,32 @@ func (t *RandomReaderTest) PropagatesCancellation() {
 }
 
 func (t *RandomReaderTest) DoesntPropagateCancellationAfterReturning() {
-	AssertTrue(false, "TODO")
+	// Set up a reader that will return three bytes.
+	t.rr.wrapped.reader = ioutil.NopCloser(strings.NewReader("xxx"))
+	t.rr.wrapped.start = 1
+	t.rr.wrapped.limit = 4
+
+	// Snoop on when cancel is called.
+	cancelCalled := make(chan struct{})
+	t.rr.wrapped.cancel = func() { close(cancelCalled) }
+
+	// Successfully read two bytes using a context whose cancellation we control.
+	ctx, cancel := context.WithCancel(context.Background())
+	buf := make([]byte, 2)
+	n, err := t.rr.wrapped.ReadAt(ctx, buf, 1)
+
+	AssertEq(nil, err)
+	AssertEq(2, n)
+
+	// If we cancel the calling context now, it should not cause the underlying
+	// read context to be cancelled.
+	cancel()
+	select {
+	case <-time.After(10 * time.Millisecond):
+	case <-cancelCalled:
+		AddFailure("Read context unexpectedly cancelled.")
+		AbortTest()
+	}
 }
 
 func (t *RandomReaderTest) UpgradesReadsToMinimumSize() {
