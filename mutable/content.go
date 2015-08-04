@@ -183,12 +183,6 @@ func (mc *mutableContent) WriteAt(
 	ctx context.Context,
 	buf []byte,
 	offset int64) (n int, err error) {
-	// Make sure we have a read/write lease.
-	if err = mc.ensureReadWriteLease(ctx); err != nil {
-		err = fmt.Errorf("ensureReadWriteLease: %v", err)
-		return
-	}
-
 	// Update our state regarding being dirty.
 	mc.dirtyThreshold = minInt64(mc.dirtyThreshold, offset)
 
@@ -196,7 +190,7 @@ func (mc *mutableContent) WriteAt(
 	mc.mtime = &newMtime
 
 	// Call through.
-	n, err = mc.readWriteLease.WriteAt(buf, offset)
+	n, err = mc.contents.WriteAt(buf, offset)
 
 	return
 }
