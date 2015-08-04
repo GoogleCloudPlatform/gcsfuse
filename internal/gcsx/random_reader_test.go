@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"testing"
+	"testing/iotest"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
@@ -131,7 +132,19 @@ func (t *RandomReaderTest) NewReaderReturnsError() {
 }
 
 func (t *RandomReaderTest) ReaderFails() {
-	AssertTrue(false, "TODO")
+	// Bucket
+	r := iotest.OneByteReader(iotest.TimeoutReader(strings.NewReader("xxx")))
+	rc := ioutil.NopCloser(r)
+
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(Return(rc, nil))
+
+	// Call
+	buf := make([]byte, 3)
+	_, err := t.rr.ReadAt(buf, 0)
+
+	ExpectThat(err, Error(HasSubstr("ReadFull")))
+	ExpectThat(err, Error(HasSubstr(iotest.ErrTimeout.Error())))
 }
 
 func (t *RandomReaderTest) ReaderOvershootsRange() {
