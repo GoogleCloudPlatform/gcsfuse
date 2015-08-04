@@ -15,7 +15,9 @@
 package mutable
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -23,33 +25,23 @@ import (
 	"golang.org/x/net/context"
 )
 
-// A mutable view on some content. Created with an initial read-only view,
-// which then can be modified by the user and read back. Keeps track of which
-// portion of the content has been dirtied.
-//
-// External synchronization is required.
-type Content interface {
+// A temporary file that keeps track of the lowest offset at which it has been
+// modified.
+type TempFile interface {
 	// Panic if any internal invariants are violated.
 	CheckInvariants()
 
-	// Destroy any state used by the object, putting it into an indeterminate
-	// state. The object must not be used again.
-	Destroy()
-
-	// Read part of the content, with semantics equivalent to io.ReaderAt aside
-	// from context support.
-	ReadAt(ctx context.Context, buf []byte, offset int64) (n int, err error)
+	// Semantics matching os.File.
+	io.ReaderAt
+	io.WriterAt
+	Truncate(n int64) (err error)
 
 	// Return information about the current state of the content.
 	Stat(ctx context.Context) (sr StatResult, err error)
 
-	// Write into the content, with semantics equivalent to io.WriterAt aside from
-	// context support.
-	WriteAt(ctx context.Context, buf []byte, offset int64) (n int, err error)
-
-	// Truncate our the content to the given number of bytes, extending if n is
-	// greater than the current size.
-	Truncate(ctx context.Context, n int64) (err error)
+	// Throw away the resources used by the temporary file. The object must not
+	// be used again.
+	Destroy()
 }
 
 type StatResult struct {
@@ -66,27 +58,11 @@ type StatResult struct {
 	Mtime *time.Time
 }
 
-// Create a mutable content object whose initial contents are given by the
-// supplied file. The caller must ensure that the file is not used further by
-// anybody else.
-func NewContent(
-	initialContent *os.File,
+// Create a temp file whose initial contents are given by the supplied reader.
+func NewTempFile(
+	content io.Reader,
 	clock timeutil.Clock) (mc Content, err error) {
-	// Find the file's size.
-	size, err := initialContent.Seek(0, 2)
-	if err != nil {
-		err = fmt.Errorf("Seek: %v", err)
-		return
-	}
-
-	// Create the Content.
-	mc = &mutableContent{
-		clock:          clock,
-		contents:       initialContent,
-		dirtyThreshold: size,
-	}
-
-	return
+	err = errors.New("TODO")
 }
 
 type mutableContent struct {
