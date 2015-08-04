@@ -15,7 +15,7 @@
 package gcsx
 
 import (
-	"errors"
+	"fmt"
 	"io"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -28,6 +28,9 @@ import (
 //
 // Not safe for concurrent access.
 type RandomReader interface {
+	// Panic if any internal invariants are violated.
+	CheckInvariants()
+
 	// Matches the semantics of io.ReaderAt, with the addition of context
 	// support.
 	ReadAt(ctx context.Context, p []byte, offset int64) (n int, err error)
@@ -48,6 +51,8 @@ func NewRandomReader(
 	rr = &randomReader{
 		object: o,
 		bucket: bucket,
+		start:  -1,
+		limit:  -1,
 	}
 
 	return
@@ -57,20 +62,89 @@ type randomReader struct {
 	object *gcs.Object
 	bucket gcs.Bucket
 
-	// If non-nil, an in-flight read request and the range of the object that we
-	// expect it to yield, along with a function for cancelling the in-flight
-	// request.
+	// If non-nil, an in-flight read request and a function for cancelling it.
+	//
+	// INVARIANT: (reader == nil) == (cancel == nil)
 	reader io.ReadCloser
-	start  int64
-	limit  int64
 	cancel func()
+
+	// The range of the object that we expect reader to yield, when reader is
+	// non-nil. When reader is nil, limit is the limit of the previous read
+	// operation, or -1 if there has never been one.
+	//
+	// INVARIANT: start <= limit
+	// INVARIANT: limit < 0 implies reader != nil
+	start int64
+	limit int64
 }
 
 func (rr *randomReader) ReadAt(
 	ctx context.Context,
 	p []byte,
 	offset int64) (n int, err error) {
-	err = errors.New("TODO")
+	for len(p) > 0 {
+		// If we have an existing reader but it's positioned at the wrong place,
+		// clean it up and throw it away.
+		if rr.reader != nil && rr.start != offset {
+			rr.reader.Close()
+			rr.reader = nil
+			rr.cancel = nil
+		}
+
+		panic("TODO: Ensure we have a reader.")
+
+		// Now we have a reader positioned at the correct place. Consume as much from
+		// it as possible.
+		//
+		// TODO(jacobsa): Propagate cancellation here.
+		var tmp int
+		tmp, err = io.ReadFull(rr.reader, p)
+
+		n += tmp
+		p = p[tmp:]
+		rr.start += int64(tmp)
+
+		// Sanity check.
+		if rr.start > rr.limit {
+			err = fmt.Errorf("Reader returned %d too many bytes", rr.start-rr.limit)
+
+			// Don't attempt to reuse the reader when it's behaving wackily.
+			rr.reader.Close()
+			rr.reader = nil
+			rr.cancel = nil
+			rr.start = -1
+			rr.limit = -1
+
+			return
+		}
+
+		// Are we finished with this reader now?
+		if rr.start == rr.limit {
+			rr.reader.Close()
+			rr.reader = nil
+			rr.cancel = nil
+		}
+
+		// Handle errors.
+		switch {
+		case err == io.EOF || err == io.ErrUnexpectedEOF:
+			// For a non-empty buffer, ReadFull returns EOF or ErrUnexpectedEOF only
+			// if the reader peters out early. That's fine, but it means we should
+			// have hit the limit above.
+			if rr.reader != nil {
+				err = fmt.Errorf("Reader returned %d too few bytes", rr.limit-rr.start)
+				return
+			}
+
+			err = nil
+
+		case err != nil:
+			// Propagate other errors.
+			err = fmt.Errorf("Reading from wrapped reader: %v", err)
+			return
+		}
+	}
+
 	return
 }
 
