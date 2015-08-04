@@ -18,12 +18,12 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"os"
 	"reflect"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -31,7 +31,6 @@ import (
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
-	"golang.org/x/sys/unix"
 )
 
 type ServerConfig struct {
@@ -107,26 +106,13 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		return
 	}
 
-	// Disable chunking if set to zero.
-	gcsChunkSize := cfg.GCSChunkSize
-	if gcsChunkSize == 0 {
-		gcsChunkSize = math.MaxUint64
-	}
-
-	// Create the file leaser.
-	leaser := lease.NewFileLeaser(
-		cfg.TempDir,
-		cfg.TempDirLimitNumFiles,
-		cfg.TempDirLimitBytes)
-
 	// Create the object syncer.
-	// Check TmpObjectPrefix.
 	if cfg.TmpObjectPrefix == "" {
 		err = errors.New("You must set TmpObjectPrefix.")
 		return
 	}
 
-	objectSyncer := gcsproxy.NewObjectSyncer(
+	syncer := gcsx.NewSyncer(
 		cfg.AppendThreshold,
 		cfg.TmpObjectPrefix,
 		cfg.Bucket)
@@ -135,9 +121,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	fs := &fileSystem{
 		clock:                  cfg.Clock,
 		bucket:                 cfg.Bucket,
-		leaser:                 leaser,
-		objectSyncer:           objectSyncer,
-		gcsChunkSize:           gcsChunkSize,
+		syncer:                 syncer,
 		implicitDirs:           cfg.ImplicitDirectories,
 		dirTypeCacheTTL:        cfg.DirTypeCacheTTL,
 		uid:                    cfg.Uid,
@@ -183,37 +167,6 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	return
 }
 
-// Choose a reasonable value for ServerConfig.TempDirLimitNumFiles based on
-// process limits.
-func ChooseTempDirLimitNumFiles() (limit int) {
-	// Ask what the process's limit on open files is. Use a default on error.
-	var rlimit unix.Rlimit
-	err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rlimit)
-	if err != nil {
-		const defaultLimit = 512
-		log.Println(
-			"Warning: failed to query RLIMIT_NOFILE. Using default "+
-				"file count limit of %d",
-			defaultLimit)
-
-		limit = defaultLimit
-		return
-	}
-
-	// Heuristic: Use about 75% of the limit.
-	limit64 := rlimit.Cur/2 + rlimit.Cur/4
-
-	// But not too large.
-	const reasonableLimit = 1 << 15
-	if limit64 > reasonableLimit {
-		limit64 = reasonableLimit
-	}
-
-	limit = int(limit64)
-
-	return
-}
-
 ////////////////////////////////////////////////////////////////////////
 // fileSystem type
 ////////////////////////////////////////////////////////////////////////
@@ -248,16 +201,14 @@ type fileSystem struct {
 	// Dependencies
 	/////////////////////////
 
-	clock        timeutil.Clock
-	bucket       gcs.Bucket
-	objectSyncer gcsproxy.ObjectSyncer
-	leaser       lease.FileLeaser
+	clock  timeutil.Clock
+	bucket gcs.Bucket
+	syncer gcsx.Syncer
 
 	/////////////////////////
 	// Constant data
 	/////////////////////////
 
-	gcsChunkSize    uint64
 	implicitDirs    bool
 	dirTypeCacheTTL time.Duration
 
@@ -571,10 +522,8 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 				Gid:  fs.gid,
 				Mode: fs.fileMode,
 			},
-			fs.gcsChunkSize,
 			fs.bucket,
-			fs.leaser,
-			fs.objectSyncer,
+			fs.syncer,
 			fs.clock)
 	}
 
