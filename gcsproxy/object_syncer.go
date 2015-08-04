@@ -149,7 +149,7 @@ type objectSyncer struct {
 func (os *objectSyncer) SyncObject(
 	ctx context.Context,
 	srcObject *gcs.Object,
-	content mutable.Content) (rl lease.ReadLease, o *gcs.Object, err error) {
+	content mutable.TempFile) (o *gcs.Object, err error) {
 	// Stat the content.
 	sr, err := content.Stat(ctx)
 	if err != nil {
@@ -181,22 +181,21 @@ func (os *objectSyncer) SyncObject(
 	if srcSize >= os.appendThreshold &&
 		sr.DirtyThreshold == srcSize &&
 		srcObject.ComponentCount < gcs.MaxComponentCount {
-		o, err = os.appendCreator.Create(
-			ctx,
-			srcObject,
-			&mutableContentReader{
-				Ctx:     ctx,
-				Content: content,
-				Offset:  srcSize,
-			})
+		_, err = content.Seek(srcSize, 0)
+		if err != nil {
+			err = fmt.Errorf("Seek: %v", err)
+			return
+		}
+
+		o, err = os.appendCreator.Create(ctx, srcObject, content)
 	} else {
-		o, err = os.fullCreator.Create(
-			ctx,
-			srcObject,
-			&mutableContentReader{
-				Ctx:     ctx,
-				Content: content,
-			})
+		_, err = content.Seek(0, 0)
+		if err != nil {
+			err = fmt.Errorf("Seek: %v", err)
+			return
+		}
+
+		o, err = os.fullCreator.Create(ctx, srcObject, content)
 	}
 
 	// Deal with errors.
@@ -210,26 +209,8 @@ func (os *objectSyncer) SyncObject(
 		return
 	}
 
-	// Yank out the contents.
-	rl = content.Release().Downgrade()
+	// Destroy the temp file.
+	content.Destroy()
 
-	return
-}
-
-////////////////////////////////////////////////////////////////////////
-// mutableContentReader
-////////////////////////////////////////////////////////////////////////
-
-// An io.Reader that wraps a mutable.Content object, reading starting from a
-// base offset.
-type mutableContentReader struct {
-	Ctx     context.Context
-	Content mutable.Content
-	Offset  int64
-}
-
-func (mcr *mutableContentReader) Read(p []byte) (n int, err error) {
-	n, err = mcr.Content.ReadAt(mcr.Ctx, p, mcr.Offset)
-	mcr.Offset += int64(n)
 	return
 }
