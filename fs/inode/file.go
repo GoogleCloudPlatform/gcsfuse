@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
@@ -30,10 +31,9 @@ type FileInode struct {
 	// Dependencies
 	/////////////////////////
 
-	bucket       gcs.Bucket
-	leaser       lease.FileLeaser
-	objectSyncer gcsproxy.ObjectSyncer
-	clock        timeutil.Clock
+	bucket gcs.Bucket
+	syncer gcsx.Syncer
+	clock  timeutil.Clock
 
 	/////////////////////////
 	// Constant data
@@ -62,12 +62,9 @@ type FileInode struct {
 	// GUARDED_BY(mu)
 	src gcs.Object
 
-	// The current content of this inode, branched from the source object.
-	//
-	// INVARIANT: content.CheckInvariants() does not panic
-	//
-	// GUARDED_BY(mu)
-	content mutable.Content
+	// The current content of this inode, or nil if the source object is still
+	// authoritative.
+	content gcsx.TempFile
 
 	// Has Destroy been called?
 	//
