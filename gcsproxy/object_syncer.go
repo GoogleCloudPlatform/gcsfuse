@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/googlecloudplatform/gcsfuse/lease"
 	"github.com/googlecloudplatform/gcsfuse/mutable"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
@@ -29,19 +28,17 @@ type ObjectSyncer interface {
 	// Given an object record and content that was originally derived from that
 	// object's contents (and potentially modified):
 	//
-	// *   If the content has not been modified, return a nil read lease and a
-	//     nil new object.
+	// *   If the temp file has not been modified, return a nil new object.
 	//
 	// *   Otherwise, write out a new generation in the bucket (failing with
-	//     *gcs.PreconditionError if the source generation is no longer current)
-	//     and return a read lease for that object's contents.
+	//     *gcs.PreconditionError if the source generation is no longer current).
 	//
-	// In the second case, the mutable.Content is destroyed. Otherwise, including
-	// when this function fails, it is guaranteed to still be valid.
+	// In the second case, the mutable.TempFile is destroyed. Otherwise,
+	// including when this function fails, it is guaranteed to still be valid.
 	SyncObject(
 		ctx context.Context,
 		srcObject *gcs.Object,
-		content mutable.Content) (rl lease.ReadLease, o *gcs.Object, err error)
+		content mutable.TempFile) (o *gcs.Object, err error)
 }
 
 // Create an object syncer that syncs into the supplied bucket.
