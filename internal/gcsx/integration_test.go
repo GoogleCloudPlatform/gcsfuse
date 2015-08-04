@@ -25,8 +25,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
-	"github.com/googlecloudplatform/gcsfuse/mutable"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
@@ -67,9 +66,9 @@ type IntegrationTest struct {
 	ctx    context.Context
 	bucket gcs.Bucket
 	clock  timeutil.SimulatedClock
-	syncer gcsproxy.ObjectSyncer
+	syncer gcsx.ObjectSyncer
 
-	tf mutable.TempFile
+	tf gcsx.TempFile
 }
 
 var _ SetUpInterface = &IntegrationTest{}
@@ -88,7 +87,7 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 	const appendThreshold = 0
 	const tmpObjectPrefix = ".gcsfuse_tmp/"
 
-	t.syncer = gcsproxy.NewObjectSyncer(
+	t.syncer = gcsx.NewObjectSyncer(
 		appendThreshold,
 		tmpObjectPrefix,
 		t.bucket)
@@ -112,7 +111,7 @@ func (t *IntegrationTest) create(o *gcs.Object) {
 	AssertEq(nil, err)
 
 	// Use it to create the temp file.
-	t.tf, err = mutable.NewTempFile(rc, &t.clock)
+	t.tf, err = gcsx.NewTempFile(rc, &t.clock)
 	AssertEq(nil, err)
 
 	// Close it.

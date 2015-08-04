@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/googlecloudplatform/gcsfuse/mutable"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
@@ -33,12 +32,12 @@ type ObjectSyncer interface {
 	// *   Otherwise, write out a new generation in the bucket (failing with
 	//     *gcs.PreconditionError if the source generation is no longer current).
 	//
-	// In the second case, the mutable.TempFile is destroyed. Otherwise,
-	// including when this function fails, it is guaranteed to still be valid.
+	// In the second case, the TempFile is destroyed. Otherwise, including when
+	// this function fails, it is guaranteed to still be valid.
 	SyncObject(
 		ctx context.Context,
 		srcObject *gcs.Object,
-		content mutable.TempFile) (o *gcs.Object, err error)
+		content TempFile) (o *gcs.Object, err error)
 }
 
 // Create an object syncer that syncs into the supplied bucket.
@@ -149,7 +148,7 @@ type objectSyncer struct {
 func (os *objectSyncer) SyncObject(
 	ctx context.Context,
 	srcObject *gcs.Object,
-	content mutable.TempFile) (o *gcs.Object, err error) {
+	content TempFile) (o *gcs.Object, err error) {
 	// Stat the content.
 	sr, err := content.Stat()
 	if err != nil {
