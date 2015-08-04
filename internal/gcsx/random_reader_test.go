@@ -82,7 +82,12 @@ func (t *RandomReaderTest) TearDown() {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *RandomReaderTest) EmptyRead() {
-	AssertTrue(false, "TODO")
+	// Nothing should happen.
+	buf := make([]byte, 0)
+
+	n, err := t.rr.ReadAt(buf, 17)
+	ExpectEq(0, n)
+	ExpectEq(nil, err)
 }
 
 func (t *RandomReaderTest) NoExistingReader() {
