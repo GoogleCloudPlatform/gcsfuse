@@ -23,6 +23,10 @@ import (
 	"golang.org/x/net/context"
 )
 
+// We will not send a request to GCS for less than this many bytes (unless the
+// end of the object comes first).
+const minReadSize = 1 << 20
+
 // An object that knows how to read ranges within a particular generation of a
 // particular GCS object. May make optimizations when it e.g. detects large
 // sequential reads.
@@ -239,7 +243,6 @@ func (rr *randomReader) startRead(
 	// We always read a decent amount from GCS, no matter how silly small the
 	// user's read is, because GCS requests are expensive.
 	actualSize := int64(size)
-	const minReadSize = 1 << 20
 	if actualSize < minReadSize {
 		actualSize = minReadSize
 	}

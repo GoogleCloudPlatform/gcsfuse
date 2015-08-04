@@ -107,6 +107,26 @@ func rangeStartIs(expected uint64) (m Matcher) {
 	return
 }
 
+func rangeLimitIs(expected uint64) (m Matcher) {
+	pred := func(c interface{}) (err error) {
+		req := c.(*gcs.ReadObjectRequest)
+		if req.Range == nil {
+			err = errors.New("which has a nil range")
+			return
+		}
+
+		if req.Range.Limit != expected {
+			err = fmt.Errorf("which has Limit == %d", req.Range.Limit)
+			return
+		}
+
+		return
+	}
+
+	m = NewMatcher(pred, fmt.Sprintf("has range limit %d", expected))
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
@@ -373,7 +393,31 @@ func (t *RandomReaderTest) DoesntPropagateCancellationAfterReturning() {
 }
 
 func (t *RandomReaderTest) UpgradesReadsToMinimumSize() {
-	AssertTrue(false, "TODO")
+	t.object.Size = 1 << 40
+
+	// Simulate an existing reader at a mismatched offset.
+	t.rr.wrapped.reader = ioutil.NopCloser(strings.NewReader("xxx"))
+	t.rr.wrapped.cancel = func() {}
+	t.rr.wrapped.start = 2
+	t.rr.wrapped.limit = 5
+
+	// The bucket should be asked to read minReadSize bytes, even though we only
+	// ask for a few bytes below.
+	r := strings.NewReader(strings.Repeat("x", minReadSize))
+	rc := ioutil.NopCloser(r)
+
+	ExpectCall(t.bucket, "NewReader")(
+		Any(),
+		AllOf(rangeStartIs(1), rangeLimitIs(1+minReadSize))).
+		WillOnce(Return(rc, nil))
+
+	// Call through.
+	buf := make([]byte, 10)
+	t.rr.ReadAt(buf, 1)
+
+	// Check the state now.
+	ExpectEq(1+10, t.rr.wrapped.start)
+	ExpectEq(1+minReadSize, t.rr.wrapped.limit)
 }
 
 func (t *RandomReaderTest) UpgradesSequentialReads() {
