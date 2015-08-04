@@ -275,9 +275,8 @@ func (t *RandomReaderTest) ReaderExhausted_ReadNotFinished() {
 
 	// Attempt to read four bytes.
 	buf := make([]byte, 4)
-	n, err := t.rr.ReadAt(buf, 1)
+	n, _ := t.rr.ReadAt(buf, 1)
 
-	ExpectEq(nil, err)
 	AssertGe(n, 3)
 	ExpectEq("abc", string(buf[:3]))
 
