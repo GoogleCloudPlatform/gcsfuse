@@ -28,7 +28,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestContent(t *testing.T) { RunTests(t) }
+func TestTempFile(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -60,48 +60,43 @@ func bufferIs(buf []byte) Matcher {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Invariant-checking mutable content
+// Invariant-checking temp file
 ////////////////////////////////////////////////////////////////////////
 
-// A wrapper around a Content that calls CheckInvariants whenever invariants
+// A wrapper around a TempFile that calls CheckInvariants whenever invariants
 // should hold. For catching logic errors early in the test.
-type checkingContent struct {
+type checkingTempFile struct {
 	ctx     context.Context
-	wrapped mutable.Content
+	wrapped mutable.TempFile
 }
 
-func (mc *checkingContent) Stat() (mutable.StatResult, error) {
+func (mc *checkingTempFile) Stat() (mutable.StatResult, error) {
 	mc.wrapped.CheckInvariants()
 	defer mc.wrapped.CheckInvariants()
 	return mc.wrapped.Stat(mc.ctx)
 }
 
-func (mc *checkingContent) ReadAt(b []byte, o int64) (int, error) {
+func (mc *checkingTempFile) ReadAt(b []byte, o int64) (int, error) {
 	mc.wrapped.CheckInvariants()
 	defer mc.wrapped.CheckInvariants()
 	return mc.wrapped.ReadAt(mc.ctx, b, o)
 }
 
-func (mc *checkingContent) WriteAt(b []byte, o int64) (int, error) {
+func (mc *checkingTempFile) WriteAt(b []byte, o int64) (int, error) {
 	mc.wrapped.CheckInvariants()
 	defer mc.wrapped.CheckInvariants()
 	return mc.wrapped.WriteAt(mc.ctx, b, o)
 }
 
-func (mc *checkingContent) Truncate(n int64) error {
+func (mc *checkingTempFile) Truncate(n int64) error {
 	mc.wrapped.CheckInvariants()
 	defer mc.wrapped.CheckInvariants()
 	return mc.wrapped.Truncate(mc.ctx, n)
 }
 
-func (mc *checkingContent) Destroy() {
+func (mc *checkingTempFile) Destroy() {
 	mc.wrapped.CheckInvariants()
 	mc.wrapped.Destroy()
-}
-
-func (mc *checkingContent) Release() (rwl lease.ReadWriteLease) {
-	mc.wrapped.CheckInvariants()
-	return mc.wrapped.Release()
 }
 
 ////////////////////////////////////////////////////////////////////////
