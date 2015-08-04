@@ -16,6 +16,7 @@ package gcsx
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -63,6 +64,30 @@ type countingCloser struct {
 
 func (cc *countingCloser) Close() (err error) {
 	cc.closeCount++
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func rangeStartIs(expected uint64) (m Matcher) {
+	pred := func(c interface{}) (err error) {
+		req := c.(*gcs.ReadObjectRequest)
+		if req.Range == nil {
+			err = errors.New("which has a nil range")
+			return
+		}
+
+		if req.Range.Start != expected {
+			err = fmt.Errorf("which has Start == %d", req.Range.Start)
+			return
+		}
+
+		return
+	}
+
+	m = NewMatcher(pred, fmt.Sprintf("has range start %d", expected))
 	return
 }
 
@@ -234,7 +259,32 @@ func (t *RandomReaderTest) ReaderExhausted_ReadFinished() {
 }
 
 func (t *RandomReaderTest) ReaderExhausted_ReadNotFinished() {
-	AssertTrue(false, "TODO")
+	// Set up a reader that has three bytes left to give.
+	rc := &countingCloser{
+		Reader: strings.NewReader("abc"),
+	}
+
+	t.rr.wrapped.reader = rc
+	t.rr.wrapped.cancel = func() {}
+	t.rr.wrapped.start = 1
+	t.rr.wrapped.limit = 4
+
+	// The bucket should be called at the previous limit to obtain a new reader.
+	ExpectCall(t.bucket, "NewReader")(Any(), rangeStartIs(4)).
+		WillOnce(Return(nil, errors.New("")))
+
+	// Attempt to read four bytes.
+	buf := make([]byte, 4)
+	n, err := t.rr.ReadAt(buf, 1)
+
+	ExpectEq(nil, err)
+	AssertGe(n, 3)
+	ExpectEq("abc", string(buf[:3]))
+
+	ExpectEq(1, rc.closeCount)
+	ExpectEq(nil, t.rr.wrapped.reader)
+	ExpectEq(nil, t.rr.wrapped.cancel)
+	ExpectEq(4, t.rr.wrapped.limit)
 }
 
 func (t *RandomReaderTest) PropagatesCancellation() {
