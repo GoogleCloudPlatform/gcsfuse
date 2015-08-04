@@ -15,7 +15,6 @@
 package inode
 
 import (
-	"errors"
 	"fmt"
 	"io"
 
@@ -162,7 +161,36 @@ func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) ensureContent(ctx context.Context) (err error) {
-	err = errors.New("TODO")
+	// Is there anything to do?
+	if f.content != nil {
+		return
+	}
+
+	// Open a reader for the generation we care about.
+	rc, err := f.bucket.NewReader(
+		ctx,
+		&gcs.ReadObjectRequest{
+			Name:       f.src.Name,
+			Generation: f.src.Generation,
+		})
+
+	if err != nil {
+		err = fmt.Errorf("NewReader: %v", err)
+		return
+	}
+
+	defer rc.Close()
+
+	// Create a temporary file with its contents.
+	tf, err := gcsx.NewTempFile(rc, f.clock)
+	if err != nil {
+		err = fmt.Errorf("NewTempFile: %v", err)
+		return
+	}
+
+	// Update state.
+	f.content = tf
+
 	return
 }
 
@@ -218,7 +246,10 @@ func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
 func (f *FileInode) Destroy() (err error) {
 	f.destroyed = true
 
-	f.content.Destroy()
+	if f.content != nil {
+		f.content.Destroy()
+	}
+
 	return
 }
 
