@@ -151,15 +151,9 @@ func (mc *mutableContent) CheckInvariants() {
 func (mc *mutableContent) Destroy() {
 	mc.destroyed = true
 
-	if mc.initialContent != nil {
-		mc.initialContent.Destroy()
-		mc.initialContent = nil
-	}
-
-	if mc.readWriteLease != nil {
-		mc.readWriteLease.Downgrade().Revoke()
-		mc.readWriteLease = nil
-	}
+	// Throw away the file.
+	mc.contents.Close()
+	mc.contents = nil
 }
 
 func (mc *mutableContent) Release() (rwl lease.ReadWriteLease) {
