@@ -15,7 +15,6 @@
 package mutable_test
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -105,16 +104,20 @@ func (tf *checkingTempFile) Destroy() {
 
 const initialContent = "tacoburrito"
 
-type mutableTempFileTest struct {
+const initialContentSize = len(initialContent)
+
+type TempFileTest struct {
 	ctx   context.Context
 	clock timeutil.SimulatedClock
 
 	tf checkingTempFile
 }
 
-var _ SetUpInterface = &mutableTempFileTest{}
+func init() { RegisterTestSuite(&TempFileTest{}) }
 
-func (t *mutableTempFileTest) SetUp(ti *TestInfo) {
+var _ SetUpInterface = &TempFileTest{}
+
+func (t *TempFileTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 
 	// Set up the clock.
@@ -127,51 +130,10 @@ func (t *mutableTempFileTest) SetUp(ti *TestInfo) {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Clean state
+// Tests
 ////////////////////////////////////////////////////////////////////////
 
-type CleanTest struct {
-	mutableContentTest
-}
-
-func init() { RegisterTestSuite(&CleanTest{}) }
-
-func (t *CleanTest) ReadAt_CallsProxy() {
-	buf := make([]byte, 1)
-
-	// Proxy
-	ExpectCall(t.initialContent, "ReadAt")(t.ctx, bufferIs(buf), 17).
-		WillOnce(Return(0, errors.New("")))
-
-	// Call
-	t.tf.ReadAt(buf, 17)
-}
-
-func (t *CleanTest) ReadAt_ProxyFails() {
-	// Proxy
-	ExpectCall(t.initialContent, "ReadAt")(Any(), Any(), Any()).
-		WillOnce(Return(17, errors.New("taco")))
-
-	// Call
-	n, err := t.tf.ReadAt(make([]byte, 1), 0)
-
-	ExpectEq(17, n)
-	ExpectThat(err, Error(HasSubstr("taco")))
-}
-
-func (t *CleanTest) ReadAt_ProxySuceeds() {
-	// Proxy
-	ExpectCall(t.initialContent, "ReadAt")(Any(), Any(), Any()).
-		WillOnce(Return(17, nil))
-
-	// Call
-	n, err := t.tf.ReadAt(make([]byte, 1), 0)
-
-	ExpectEq(17, n)
-	ExpectEq(nil, err)
-}
-
-func (t *CleanTest) Stat() {
+func (t *TempFileTest) Stat() {
 	sr, err := t.tf.Stat()
 
 	AssertEq(nil, err)
@@ -180,343 +142,67 @@ func (t *CleanTest) Stat() {
 	ExpectEq(nil, sr.Mtime)
 }
 
-func (t *CleanTest) WriteAt_UpgradeFails() {
-	// Upgrade
-	ExpectCall(t.initialContent, "Upgrade")(Any()).
-		WillOnce(Return(nil, errors.New("taco")))
-
+func (t *TempFileTest) ReadAt() {
 	// Call
-	_, err := t.tf.WriteAt(make([]byte, 1), 0)
+	var buf [2]byte
+	n, err := t.tf.ReadAt(buf, 1)
 
-	ExpectThat(err, Error(HasSubstr("Upgrade")))
-	ExpectThat(err, Error(HasSubstr("taco")))
-}
-
-func (t *CleanTest) WriteAt_UpgradeSucceeds() {
-	// Upgrade -- succeed.
-	ExpectCall(t.initialContent, "Upgrade")(Any()).
-		WillOnce(Return(t.rwl, nil))
-
-	// The read/write lease should be called.
-	ExpectCall(t.rwl, "WriteAt")(Any(), 17).
-		WillOnce(Return(0, errors.New("")))
-
-	// Call.
-	t.tf.WriteAt(make([]byte, 1), 17)
-
-	// A further call should go right through to the read/write lease again.
-	ExpectCall(t.rwl, "WriteAt")(Any(), 19).
-		WillOnce(Return(0, errors.New("")))
-
-	t.tf.WriteAt(make([]byte, 1), 19)
-}
-
-func (t *CleanTest) Truncate_UpgradeFails() {
-	// Upgrade
-	ExpectCall(t.initialContent, "Upgrade")(Any()).
-		WillOnce(Return(nil, errors.New("taco")))
-
-	// Call
-	err := t.tf.Truncate(0)
-
-	ExpectThat(err, Error(HasSubstr("Upgrade")))
-	ExpectThat(err, Error(HasSubstr("taco")))
-}
-
-func (t *CleanTest) Truncate_UpgradeSucceeds() {
-	// Upgrade -- succeed.
-	ExpectCall(t.initialContent, "Upgrade")(Any()).
-		WillOnce(Return(t.rwl, nil))
-
-	// The read/write lease should be called.
-	ExpectCall(t.rwl, "Truncate")(17).
-		WillOnce(Return(errors.New("")))
-
-	// Call.
-	t.tf.Truncate(17)
-
-	// A further call should go right through to the read/write lease again.
-	ExpectCall(t.rwl, "Truncate")(19).
-		WillOnce(Return(errors.New("")))
-
-	t.tf.Truncate(19)
-}
-
-func (t *CleanTest) Release() {
-	rwl := t.tf.Release()
-	ExpectEq(nil, rwl)
-}
-
-////////////////////////////////////////////////////////////////////////
-// Dirty state
-////////////////////////////////////////////////////////////////////////
-
-type DirtyTest struct {
-	mutableContentTest
-
-	setUpTime time.Time
-}
-
-func init() { RegisterTestSuite(&DirtyTest{}) }
-
-func (t *DirtyTest) SetUp(ti *TestInfo) {
-	t.mutableContentTest.SetUp(ti)
-	t.setUpTime = t.clock.Now()
-
-	// Simulate a successful upgrade.
-	ExpectCall(t.initialContent, "Upgrade")(Any()).
-		WillOnce(Return(t.rwl, nil))
-
-	ExpectCall(t.rwl, "Truncate")(Any()).
-		WillOnce(Return(nil))
-
-	err := t.tf.Truncate(initialContentSize)
-	AssertEq(nil, err)
-
-	// Change the time.
-	t.clock.AdvanceTime(time.Second)
-}
-
-func (t *DirtyTest) ReadAt_CallsLease() {
-	buf := make([]byte, 4)
-	const offset = 17
-
-	// Lease
-	ExpectCall(t.rwl, "ReadAt")(bufferIs(buf), offset).
-		WillOnce(Return(0, errors.New("")))
-
-	// Call
-	t.tf.ReadAt(buf, offset)
-}
-
-func (t *DirtyTest) ReadAt_LeaseFails() {
-	// Lease
-	ExpectCall(t.rwl, "ReadAt")(Any(), Any()).
-		WillOnce(Return(13, errors.New("taco")))
-
-	// Call
-	n, err := t.tf.ReadAt([]byte{}, 0)
-
-	ExpectEq(13, n)
-	ExpectThat(err, Error(HasSubstr("taco")))
-}
-
-func (t *DirtyTest) ReadAt_LeaseSuceeds() {
-	// Lease
-	ExpectCall(t.rwl, "ReadAt")(Any(), Any()).
-		WillOnce(Return(13, nil))
-
-	// Call
-	n, err := t.tf.ReadAt([]byte{}, 0)
-
-	ExpectEq(13, n)
+	ExpectEq(2, n)
 	ExpectEq(nil, err)
-}
+	ExpectEq(initialContent[1:3], string(buf))
 
-func (t *DirtyTest) Stat_LeaseFails() {
-	// Lease
-	ExpectCall(t.rwl, "Size")().
-		WillOnce(Return(0, errors.New("taco")))
-
-	// Call
-	_, err := t.tf.Stat()
-	ExpectThat(err, Error(HasSubstr("taco")))
-}
-
-func (t *DirtyTest) Stat_LeaseSucceeds() {
-	// Lease
-	ExpectCall(t.rwl, "Size")().
-		WillOnce(Return(17, nil))
-
-	// Call
+	// Check Stat.
 	sr, err := t.tf.Stat()
-	AssertEq(nil, err)
 
-	// Check the initial state.
-	ExpectEq(17, sr.Size)
+	AssertEq(nil, err)
+	ExpectEq(initialContentSize, sr.Size)
 	ExpectEq(initialContentSize, sr.DirtyThreshold)
-	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(t.setUpTime)))
+	ExpectEq(nil, sr.Mtime)
 }
 
-func (t *DirtyTest) WriteAt_CallsLease() {
-	buf := make([]byte, 4)
-	const offset = 17
-
-	// Lease
-	ExpectCall(t.rwl, "WriteAt")(bufferIs(buf), offset).
-		WillOnce(Return(0, errors.New("")))
-
+func (t *TempFileTest) WriteAt() {
 	// Call
-	t.tf.WriteAt(buf, offset)
-}
+	p := []byte("fo")
+	n, err := t.tf.WriteAt(p, 1)
 
-func (t *DirtyTest) WriteAt_LeaseFails() {
-	const offset = initialContentSize - 2
-
-	// Lease
-	ExpectCall(t.rwl, "WriteAt")(Any(), Any()).
-		WillOnce(Return(13, errors.New("taco")))
-
-	// Call
-	n, err := t.tf.WriteAt([]byte{}, offset)
-
-	ExpectEq(13, n)
-	ExpectThat(err, Error(HasSubstr("taco")))
-
-	// The dirty threshold and mtime should have been updated.
-	ExpectCall(t.rwl, "Size")().
-		WillRepeatedly(Return(initialContentSize, nil))
-
-	sr, err := t.tf.Stat()
-	AssertEq(nil, err)
-	ExpectEq(offset, sr.DirtyThreshold)
-	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(t.clock.Now())))
-}
-
-func (t *DirtyTest) WriteAt_LeaseSucceeds() {
-	const offset = initialContentSize - 2
-
-	// Lease
-	ExpectCall(t.rwl, "WriteAt")(Any(), Any()).
-		WillOnce(Return(13, nil))
-
-	// Call
-	n, err := t.tf.WriteAt([]byte{}, offset)
-
-	ExpectEq(13, n)
+	ExpectEq(2, n)
 	ExpectEq(nil, err)
 
-	// The dirty threshold and mtime should have been updated.
-	ExpectCall(t.rwl, "Size")().
-		WillRepeatedly(Return(initialContentSize, nil))
-
+	// Check Stat.
 	sr, err := t.tf.Stat()
+
 	AssertEq(nil, err)
-	ExpectEq(offset, sr.DirtyThreshold)
-	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(t.clock.Now())))
-}
-
-func (t *DirtyTest) WriteAt_DirtyThreshold() {
-	var sr mutable.StatResult
-	var err error
-
-	// Simulate successful writes and size requests.
-	ExpectCall(t.rwl, "WriteAt")(Any(), Any()).
-		WillRepeatedly(Return(0, nil))
-
-	ExpectCall(t.rwl, "Size")().
-		WillRepeatedly(Return(100, nil))
-
-	// Writing at the end of the initial content should not affect the dirty
-	// threshold.
-	_, err = t.tf.WriteAt([]byte{}, initialContentSize)
-	AssertEq(nil, err)
-
-	sr, err = t.tf.Stat()
-	AssertEq(nil, err)
-	ExpectEq(initialContentSize, sr.DirtyThreshold)
-
-	// Nor should writing past the end.
-	_, err = t.tf.WriteAt([]byte{}, initialContentSize+100)
-	AssertEq(nil, err)
-
-	sr, err = t.tf.Stat()
-	AssertEq(nil, err)
-	ExpectEq(initialContentSize, sr.DirtyThreshold)
-
-	// But writing before the end should.
-	_, err = t.tf.WriteAt([]byte{}, initialContentSize-1)
-	AssertEq(nil, err)
-
-	sr, err = t.tf.Stat()
-	AssertEq(nil, err)
-	ExpectEq(initialContentSize-1, sr.DirtyThreshold)
-}
-
-func (t *DirtyTest) Truncate_CallsLease() {
-	// Lease
-	ExpectCall(t.rwl, "Truncate")(17).
-		WillOnce(Return(errors.New("")))
-
-	// Call
-	t.tf.Truncate(17)
-}
-
-func (t *DirtyTest) Truncate_LeaseFails() {
-	// Lease
-	ExpectCall(t.rwl, "Truncate")(Any()).
-		WillOnce(Return(errors.New("taco")))
-
-	// Call
-	err := t.tf.Truncate(1)
-	ExpectThat(err, Error(HasSubstr("taco")))
-
-	// The dirty threshold and mtime should have been updated.
-	ExpectCall(t.rwl, "Size")().
-		WillRepeatedly(Return(0, nil))
-
-	sr, err := t.tf.Stat()
-	AssertEq(nil, err)
+	ExpectEq(initialContentSize, sr.Size)
 	ExpectEq(1, sr.DirtyThreshold)
 	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(t.clock.Now())))
+
+	// Read back.
+	expected := initialContent
+	expected[1] = 'f'
+	expected[2] = 'o'
+
+	actual, err := readAll(t.tf)
+	AssertEq(nil, err)
+	ExpectEq(expected, string(actual))
 }
 
-func (t *DirtyTest) Truncate_LeaseSucceeds() {
-	// Lease
-	ExpectCall(t.rwl, "Truncate")(Any()).
-		WillOnce(Return(nil))
-
+func (t *TempFileTest) Truncate() {
 	// Call
-	err := t.tf.Truncate(1)
+	err := t.tf.Truncate(2)
 	ExpectEq(nil, err)
 
-	// The dirty threshold and mtime should have been updated.
-	ExpectCall(t.rwl, "Size")().
-		WillRepeatedly(Return(0, nil))
-
+	// Check Stat.
 	sr, err := t.tf.Stat()
+
 	AssertEq(nil, err)
-	ExpectEq(1, sr.DirtyThreshold)
+	ExpectEq(2, sr.Size)
+	ExpectEq(2, sr.DirtyThreshold)
 	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(t.clock.Now())))
-}
 
-func (t *DirtyTest) Truncate_DirtyThreshold() {
-	var sr mutable.StatResult
-	var err error
+	// Read back.
+	expected := initialContent[0:2]
 
-	// Simulate successful truncations and size requests.
-	ExpectCall(t.rwl, "Truncate")(Any()).
-		WillRepeatedly(Return(nil))
-
-	ExpectCall(t.rwl, "Size")().
-		WillRepeatedly(Return(100, nil))
-
-	// Truncating to the same size should not affect the dirty threshold.
-	err = t.tf.Truncate(initialContentSize)
+	actual, err := readAll(t.tf)
 	AssertEq(nil, err)
-
-	sr, err = t.tf.Stat()
-	AssertEq(nil, err)
-	ExpectEq(initialContentSize, sr.DirtyThreshold)
-
-	// Nor should truncating upward.
-	err = t.tf.Truncate(initialContentSize + 100)
-	AssertEq(nil, err)
-
-	sr, err = t.tf.Stat()
-	AssertEq(nil, err)
-	ExpectEq(initialContentSize, sr.DirtyThreshold)
-
-	// But truncating downward should.
-	err = t.tf.Truncate(initialContentSize - 1)
-	AssertEq(nil, err)
-
-	sr, err = t.tf.Stat()
-	AssertEq(nil, err)
-	ExpectEq(initialContentSize-1, sr.DirtyThreshold)
-}
-
-func (t *DirtyTest) Release() {
-	rwl := t.tf.Release()
-	ExpectEq(t.rwl, rwl)
+	ExpectEq(expected, string(actual))
 }
