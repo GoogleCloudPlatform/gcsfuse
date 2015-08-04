@@ -15,6 +15,7 @@
 package gcsx
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -108,7 +109,14 @@ func (rr *randomReader) ReadAt(
 			rr.cancel = nil
 		}
 
-		panic("TODO: Ensure we have a reader.")
+		// If we don't have a reader, start a read operation.
+		if rr.reader == nil {
+			err = rr.startRead(offset, len(p))
+			if err != nil {
+				err = fmt.Errorf("startRead: %v", err)
+				return
+			}
+		}
 
 		// Now we have a reader positioned at the correct place. Consume as much from
 		// it as possible.
@@ -172,4 +180,13 @@ func (rr *randomReader) Object() (o *gcs.Object) {
 
 func (rr *randomReader) Destroy() {
 	panic("TODO")
+}
+
+// Ensure that rr.reader is set up for a range for which [start, start+size) is
+// a prefix.
+func (rr *randomReader) startRead(
+	start int64,
+	size int) (err error) {
+	err = errors.New("TODO")
+	return
 }
