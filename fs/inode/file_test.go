@@ -93,6 +93,7 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 			1, // Append threshold
 			".gcsfuse_tmp/",
 			t.bucket),
+		"",
 		&t.clock)
 
 	t.in.Lock()
