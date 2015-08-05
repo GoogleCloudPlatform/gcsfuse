@@ -17,6 +17,7 @@ package fs
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"reflect"
@@ -1335,6 +1336,11 @@ func (fs *fileSystem) ReadFile(
 
 	// Serve the request.
 	op.BytesRead, err = in.Read(ctx, op.Dst, op.Offset)
+
+	// As required by fuse, we don't treat EOF as an error.
+	if err == io.EOF {
+		err = nil
+	}
 
 	return
 }

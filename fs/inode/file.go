@@ -16,6 +16,7 @@ package inode
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
@@ -216,6 +217,8 @@ func (f *FileInode) Name() string {
 // Return a record for the GCS object generation from which this inode is
 // branched. The record is guaranteed not to be modified, and users must not
 // modify it.
+//
+// LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Source() *gcs.Object {
 	// Make a copy, since we modify f.src.
 	o := f.src
@@ -318,9 +321,13 @@ func (f *FileInode) Read(
 		return
 	}
 
-	// Read from the local content.
+	// Read from the local content, propagating io.EOF.
 	n, err = f.content.ReadAt(dst, offset)
-	if err != nil {
+	switch {
+	case err == io.EOF:
+		return
+
+	case err != nil:
 		err = fmt.Errorf("content.ReadAt: %v", err)
 		return
 	}
