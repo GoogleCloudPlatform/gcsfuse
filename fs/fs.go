@@ -1434,7 +1434,14 @@ func (fs *fileSystem) FlushFile(
 func (fs *fileSystem) ReleaseFileHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseFileHandleOp) (err error) {
-	// We implement this only to keep it from appearing in the log of fuse
-	// errors. There's nothing we need to actually do.
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Destroy the handke.
+	fs.handles[op.Handle].(*handle.FileHandle).Destroy()
+
+	// Update the map.
+	delete(fs.handles, op.Handle)
+
 	return
 }
