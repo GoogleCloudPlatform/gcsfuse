@@ -15,7 +15,6 @@
 package handle
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
@@ -40,7 +39,11 @@ type FileHandle struct {
 func NewFileHandle(
 	inode *inode.FileInode,
 	bucket gcs.Bucket) (fh *FileHandle, err error) {
-	err = errors.New("TODO")
+	fh = &FileHandle{
+		inode:  inode,
+		bucket: bucket,
+	}
+
 	return
 }
 
