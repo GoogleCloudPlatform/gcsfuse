@@ -1022,6 +1022,19 @@ func (fs *fileSystem) CreateFile(
 
 	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
 
+	// Allocate a handle.
+	fs.mu.Lock()
+
+	handleID := fs.nextHandleID
+	fs.nextHandleID++
+
+	fs.handles[handleID] = handle.NewFileHandle(
+		child.(*inode.FileInode),
+		fs.bucket)
+	op.Handle = handleID
+
+	fs.mu.Unlock()
+
 	// Fill out the response.
 	op.Entry.Child = child.ID()
 	op.Entry.Attributes, err = child.Attributes(ctx)
