@@ -79,7 +79,7 @@ type Bucket interface {
 		ctx context.Context,
 		req *CopyObjectRequest) (*Object, error)
 
-	// Compose zero or more source objects into a single destination object by
+	// Compose one or more source objects into a single destination object by
 	// concatenating. Any existing generation of the destination name will be
 	// overwritten.
 	//
@@ -181,14 +181,14 @@ func (b *bucket) ListObjects(
 	}
 
 	// Create an HTTP request.
-	httpReq, err := httputil.NewRequest("GET", url, nil, b.userAgent)
+	httpReq, err := httputil.NewRequest(ctx, "GET", url, nil, b.userAgent)
 	if err != nil {
 		err = fmt.Errorf("httputil.NewRequest: %v", err)
 		return
 	}
 
 	// Call the server.
-	httpRes, err := httputil.Do(ctx, b.client, httpReq)
+	httpRes, err := b.client.Do(httpReq)
 	if err != nil {
 		return
 	}
@@ -234,14 +234,14 @@ func (b *bucket) StatObject(
 	}
 
 	// Create an HTTP request.
-	httpReq, err := httputil.NewRequest("GET", url, nil, b.userAgent)
+	httpReq, err := httputil.NewRequest(ctx, "GET", url, nil, b.userAgent)
 	if err != nil {
 		err = fmt.Errorf("httputil.NewRequest: %v", err)
 		return
 	}
 
 	// Execute the HTTP request.
-	httpRes, err := httputil.Do(ctx, b.client, httpReq)
+	httpRes, err := b.client.Do(httpReq)
 	if err != nil {
 		return
 	}
@@ -297,14 +297,14 @@ func (b *bucket) DeleteObject(
 	}
 
 	// Create an HTTP request.
-	httpReq, err := httputil.NewRequest("DELETE", url, nil, b.userAgent)
+	httpReq, err := httputil.NewRequest(ctx, "DELETE", url, nil, b.userAgent)
 	if err != nil {
 		err = fmt.Errorf("httputil.NewRequest: %v", err)
 		return
 	}
 
 	// Execute the HTTP request.
-	httpRes, err := httputil.Do(ctx, b.client, httpReq)
+	httpRes, err := b.client.Do(httpReq)
 	if err != nil {
 		return
 	}

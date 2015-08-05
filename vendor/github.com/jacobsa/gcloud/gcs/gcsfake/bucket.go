@@ -586,8 +586,8 @@ func (b *bucket) ComposeObjects(
 	defer b.mu.Unlock()
 
 	// GCS doesn't like too few or too many sources.
-	if len(req.Sources) < 2 {
-		err = errors.New("You must provide at least two source components")
+	if len(req.Sources) < 1 {
+		err = errors.New("You must provide at least one source component")
 		return
 	}
 

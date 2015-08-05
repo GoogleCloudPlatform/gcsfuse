@@ -86,7 +86,7 @@ const MaxSourcesPerComposeRequest = 32
 // Cf. https://cloud.google.com/storage/docs/composite-objects#_Count
 const MaxComponentCount = 1024
 
-// A request to compose multiple objects into a single composite object.
+// A request to compose one or more objects into a single composite object.
 type ComposeObjectsRequest struct {
 	// The name of the destination composite object.
 	DstName string
@@ -99,7 +99,7 @@ type ComposeObjectsRequest struct {
 	// MaxComponentCount.
 	DstGenerationPrecondition *int64
 
-	// The source objects from which to compose.
+	// The source objects from which to compose. This must be non-empty.
 	Sources []ComposeSource
 }
 

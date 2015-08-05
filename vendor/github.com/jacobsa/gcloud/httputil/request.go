@@ -18,11 +18,16 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+
+	"golang.org/x/net/context"
 )
 
 // Create an HTTP request with the supplied information.
 //
 // Unlike http.NewRequest:
+//
+//  *  This function configures the request to be cancelled when the supplied
+//     context is.
 //
 //  *  This function doesn't mangle the supplied URL by round tripping it to a
 //     string. For example, the Opaque field will continue to differentiate
@@ -36,6 +41,7 @@ import (
 //     forget to set a user agent header.
 //
 func NewRequest(
+	ctx context.Context,
 	method string,
 	url *url.URL,
 	body io.ReadCloser,
@@ -50,6 +56,7 @@ func NewRequest(
 		Header:     make(http.Header),
 		Body:       body,
 		Host:       url.Host,
+		Cancel:     ctx.Done(),
 	}
 
 	// Set the User-Agent header.

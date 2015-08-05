@@ -1495,6 +1495,58 @@ func (t *composeTest) createSources(
 	return
 }
 
+func (t *composeTest) OneSimpleSource() {
+	// Create source objects.
+	sources, err := t.createSources([]string{
+		"taco",
+	})
+
+	AssertEq(nil, err)
+
+	// Compose them.
+	t.advanceTime()
+	composeTime := t.clock.Now()
+
+	o, err := t.bucket.ComposeObjects(
+		t.ctx,
+		&gcs.ComposeObjectsRequest{
+			DstName: "foo",
+			Sources: []gcs.ComposeSource{
+				gcs.ComposeSource{
+					Name: sources[0].Name,
+				},
+			},
+		})
+
+	t.advanceTime()
+	AssertEq(nil, err)
+
+	// Check the result.
+	ExpectEq("foo", o.Name)
+	ExpectEq("application/octet-stream", o.ContentType)
+	ExpectEq("", o.ContentLanguage)
+	ExpectEq("", o.CacheControl)
+	ExpectThat(o.Owner, MatchesRegexp("^user-.*"))
+	ExpectEq(len("taco"), o.Size)
+	ExpectEq("", o.ContentEncoding)
+	ExpectEq(1, o.ComponentCount)
+	ExpectEq(nil, o.MD5)
+	ExpectEq(computeCrc32C("taco"), o.CRC32C)
+	ExpectThat(o.MediaLink, MatchesRegexp("download/storage.*foo"))
+	ExpectEq(nil, o.Metadata)
+	ExpectLt(sources[0].Generation, o.Generation)
+	ExpectEq(1, o.MetaGeneration)
+	ExpectEq("STANDARD", o.StorageClass)
+	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
+	ExpectThat(o.Updated, t.matchesStartTime(composeTime))
+
+	// Check contents.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
+}
+
 func (t *composeTest) TwoSimpleSources() {
 	// Create source objects.
 	sources, err := t.createSources([]string{
@@ -2120,35 +2172,14 @@ func (t *composeTest) DestinationDoesntExist_PreconditionSatisfied() {
 	ExpectEq("tacoburrito", string(contents))
 }
 
-func (t *composeTest) TooFewSources() {
-	// Create an original object.
-	src, err := t.bucket.CreateObject(
-		t.ctx,
-		&gcs.CreateObjectRequest{
-			Name:     "src",
-			Contents: strings.NewReader(""),
-		})
-
-	AssertEq(nil, err)
-
+func (t *composeTest) ZeroSources() {
 	// GCS doesn't like zero-source requests (and so neither should our fake).
 	req := &gcs.ComposeObjectsRequest{
 		DstName: "foo",
 	}
 
-	_, err = t.bucket.ComposeObjects(t.ctx, req)
-	ExpectThat(err, Error(HasSubstr("at least two")))
-
-	// Ditto requests with one source.
-	req = &gcs.ComposeObjectsRequest{
-		DstName: "foo",
-		Sources: []gcs.ComposeSource{
-			gcs.ComposeSource{Name: src.Name},
-		},
-	}
-
-	_, err = t.bucket.ComposeObjects(t.ctx, req)
-	ExpectThat(err, Error(HasSubstr("at least two")))
+	_, err := t.bucket.ComposeObjects(t.ctx, req)
+	ExpectThat(err, Error(HasSubstr("at least one")))
 }
 
 func (t *composeTest) TooManySources() {
