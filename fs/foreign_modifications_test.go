@@ -560,9 +560,11 @@ func (t *ForeignModsTest) ReadFromFile_Large() {
 		AssertTrue(
 			bytes.Equal(contents[offset:offset+int64(size)], buf[:n]),
 			"offset: %d\n"+
-				"size:%d\n",
+				"size:   %d\n"+
+				"n:      %d",
 			offset,
-			size)
+			size,
+			n)
 	}
 
 	start := time.Now()
