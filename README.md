@@ -84,7 +84,7 @@ cost of consistency guarantees. These caching behaviors can be controlled with
 the flags `--stat-cache-ttl` and `--type-cache-ttl`. See
 [semantics.md](docs/semantics.md#caching) for more information.
 
-## Downloading file contents
+## Downloading object contents
 
 Behind the scenes, when a newly-opened file is first modified, gcsfuse downloads
 the entire backing object's contents from GCS. The contents are stored in a
@@ -92,9 +92,9 @@ local temporary file whose location is controlled by the flag `--temp-dir`.
 Later, when the file is closed or fsync'd, gcsfuse writes the contents of the
 local file back to GCS as a new object generation.
 
-Files that are not modified are read chunk by chunk on demand. Such non-dirty
-content is cached in the temporary directory, with a size limit defined by
-`--temp-dir-bytes`. The chunk size is controlled by `--gcs-chunk-size`.
+Files that are read but not been modified are read portion by portion on demand.
+gcsfuse uses a heuristic to detect when a file is being read sequentially, and
+will issue fewer, larger read requests to GCS in this case.
 
 The consequence of this is that gcsfuse is relatively efficient when reading or
 writing entire large files, but will not be particularly fast for small numbers
