@@ -37,9 +37,9 @@ import (
 )
 
 var fDir = flag.String("dir", "", "Directory within which to write the file.")
-var fDuration = flag.Duration("duration", 5*time.Second, "How long to run.")
-var fFileSize = flag.Int64("file_size", 1<<20, "Size of file to use.")
-var fReadSize = flag.Int64("read_size", 1<<14, "Size of each call to read(2).")
+var fDuration = flag.Duration("duration", 10*time.Second, "How long to run.")
+var fFileSize = flag.Int64("file_size", 1<<26, "Size of file to use.")
+var fReadSize = flag.Int64("read_size", 1<<20, "Size of each call to read(2).")
 
 ////////////////////////////////////////////////////////////////////////
 // main logic
