@@ -16,7 +16,7 @@ package inode_test
 
 import (
 	"fmt"
-	"math"
+	"io"
 	"os"
 	"testing"
 	"time"
@@ -24,8 +24,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
-	"github.com/googlecloudplatform/gcsfuse/lease"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
@@ -50,7 +49,6 @@ const fileMode os.FileMode = 0641
 type FileTest struct {
 	ctx    context.Context
 	bucket gcs.Bucket
-	leaser lease.FileLeaser
 	clock  timeutil.SimulatedClock
 
 	initialContents string
@@ -67,7 +65,6 @@ func init() { RegisterTestSuite(&FileTest{}) }
 func (t *FileTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
-	t.leaser = lease.NewFileLeaser("", math.MaxInt32, math.MaxInt64)
 	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
 
 	// Set up the backing object.
@@ -91,13 +88,12 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 			Gid:  gid,
 			Mode: fileMode,
 		},
-		math.MaxUint64, // GCS chunk size
 		t.bucket,
-		t.leaser,
-		gcsproxy.NewObjectSyncer(
+		gcsx.NewSyncer(
 			1, // Append threshold
 			".gcsfuse_tmp/",
 			t.bucket),
+		"",
 		&t.clock)
 
 	t.in.Lock()
@@ -138,8 +134,7 @@ func (t *FileTest) InitialAttributes() {
 func (t *FileTest) Read() {
 	AssertEq("taco", t.initialContents)
 
-	// Make several reads, checking the expected contents. We should never get an
-	// EOF error, since fuseops.ReadFileOp is not supposed to see those.
+	// Make several reads, checking the expected contents.
 	testCases := []struct {
 		offset   int64
 		size     int
@@ -176,6 +171,11 @@ func (t *FileTest) Read() {
 		n, err := t.in.Read(t.ctx, data, tc.offset)
 		data = data[:n]
 
+		// Ignore EOF.
+		if err == io.EOF {
+			err = nil
+		}
+
 		AssertEq(nil, err, "%s", desc)
 		ExpectEq(tc.expected, string(data), "%s", desc)
 	}
@@ -202,6 +202,11 @@ func (t *FileTest) Write() {
 	// Read back the content.
 	var buf [1024]byte
 	n, err := t.in.Read(t.ctx, buf[:], 0)
+
+	if err == io.EOF {
+		err = nil
+	}
+
 	AssertEq(nil, err)
 	ExpectEq("pacoburrito", string(buf[:n]))
 
@@ -231,6 +236,11 @@ func (t *FileTest) Truncate() {
 	// Read the contents.
 	var buf [1024]byte
 	n, err := t.in.Read(t.ctx, buf[:], 0)
+
+	if err == io.EOF {
+		err = nil
+	}
+
 	AssertEq(nil, err)
 	ExpectEq("ta", string(buf[:n]))
 

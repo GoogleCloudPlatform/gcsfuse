@@ -18,9 +18,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
-	"github.com/googlecloudplatform/gcsfuse/lease"
-	"github.com/googlecloudplatform/gcsfuse/mutable"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
@@ -33,19 +31,18 @@ type FileInode struct {
 	// Dependencies
 	/////////////////////////
 
-	bucket       gcs.Bucket
-	leaser       lease.FileLeaser
-	objectSyncer gcsproxy.ObjectSyncer
-	clock        timeutil.Clock
+	bucket gcs.Bucket
+	syncer gcsx.Syncer
+	clock  timeutil.Clock
 
 	/////////////////////////
 	// Constant data
 	/////////////////////////
 
-	id           fuseops.InodeID
-	name         string
-	attrs        fuseops.InodeAttributes
-	gcsChunkSize uint64
+	id      fuseops.InodeID
+	name    string
+	attrs   fuseops.InodeAttributes
+	tempDir string
 
 	/////////////////////////
 	// Mutable state
@@ -65,12 +62,9 @@ type FileInode struct {
 	// GUARDED_BY(mu)
 	src gcs.Object
 
-	// The current content of this inode, branched from the source object.
-	//
-	// INVARIANT: content.CheckInvariants() does not panic
-	//
-	// GUARDED_BY(mu)
-	content mutable.Content
+	// The current content of this inode, or nil if the source object is still
+	// authoritative.
+	content gcsx.TempFile
 
 	// Has Destroy been called?
 	//
@@ -83,9 +77,6 @@ var _ Inode = &FileInode{}
 // Create a file inode for the given object in GCS. The initial lookup count is
 // zero.
 //
-// gcsChunkSize controls the maximum size of each individual read request made
-// to GCS.
-//
 // REQUIRES: o != nil
 // REQUIRES: o.Generation > 0
 // REQUIRES: len(o.Name) > 0
@@ -94,30 +85,20 @@ func NewFileInode(
 	id fuseops.InodeID,
 	o *gcs.Object,
 	attrs fuseops.InodeAttributes,
-	gcsChunkSize uint64,
 	bucket gcs.Bucket,
-	leaser lease.FileLeaser,
-	objectSyncer gcsproxy.ObjectSyncer,
+	syncer gcsx.Syncer,
+	tempDir string,
 	clock timeutil.Clock) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
-		bucket:       bucket,
-		leaser:       leaser,
-		objectSyncer: objectSyncer,
-		clock:        clock,
-		id:           id,
-		name:         o.Name,
-		attrs:        attrs,
-		gcsChunkSize: gcsChunkSize,
-		src:          *o,
-		content: mutable.NewContent(
-			gcsproxy.NewReadProxy(
-				o,
-				nil, // Initial read lease
-				gcsChunkSize,
-				leaser,
-				bucket),
-			clock),
+		bucket:  bucket,
+		syncer:  syncer,
+		clock:   clock,
+		id:      id,
+		name:    o.Name,
+		attrs:   attrs,
+		tempDir: tempDir,
+		src:     *o,
 	}
 
 	f.lc.Init(id)
@@ -150,7 +131,9 @@ func (f *FileInode) checkInvariants() {
 	}
 
 	// INVARIANT: content.CheckInvariants() does not panic
-	f.content.CheckInvariants()
+	if f.content != nil {
+		f.content.CheckInvariants()
+	}
 }
 
 // LOCKS_REQUIRED(f.mu)
@@ -178,6 +161,43 @@ func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
 	return
 }
 
+// Ensure that f.content != nil
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) ensureContent(ctx context.Context) (err error) {
+	// Is there anything to do?
+	if f.content != nil {
+		return
+	}
+
+	// Open a reader for the generation we care about.
+	rc, err := f.bucket.NewReader(
+		ctx,
+		&gcs.ReadObjectRequest{
+			Name:       f.src.Name,
+			Generation: f.src.Generation,
+		})
+
+	if err != nil {
+		err = fmt.Errorf("NewReader: %v", err)
+		return
+	}
+
+	defer rc.Close()
+
+	// Create a temporary file with its contents.
+	tf, err := gcsx.NewTempFile(rc, f.tempDir, f.clock)
+	if err != nil {
+		err = fmt.Errorf("NewTempFile: %v", err)
+		return
+	}
+
+	// Update state.
+	f.content = tf
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -198,7 +218,28 @@ func (f *FileInode) Name() string {
 	return f.name
 }
 
-// Return the object generation number from which this inode was branched.
+// Return a record for the GCS object generation from which this inode is
+// branched. The record is guaranteed not to be modified, and users must not
+// modify it.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) Source() *gcs.Object {
+	// Make a copy, since we modify f.src.
+	o := f.src
+	return &o
+}
+
+// If true, it is safe to serve reads directly from the object generation given
+// by f.Source(), rather than calling f.ReadAt. Doing so may be more efficient,
+// because f.ReadAt may cause the entire object to be faulted in and requires
+// the inode to be locked during the read.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) SourceGenerationIsAuthoritative() bool {
+	return f.content == nil
+}
+
+// Equivalent to f.Source().Generation.
 //
 // LOCKS_REQUIRED(f)
 func (f *FileInode) SourceGeneration() int64 {
@@ -220,28 +261,36 @@ func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
 func (f *FileInode) Destroy() (err error) {
 	f.destroyed = true
 
-	f.content.Destroy()
+	if f.content != nil {
+		f.content.Destroy()
+	}
+
 	return
 }
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
 	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
-	// Stat the content.
-	sr, err := f.content.Stat(ctx)
-	if err != nil {
-		err = fmt.Errorf("Stat: %v", err)
-		return
-	}
-
-	// Fill out the struct.
 	attrs = f.attrs
-	attrs.Size = uint64(sr.Size)
 
-	if sr.Mtime != nil {
-		attrs.Mtime = *sr.Mtime
-	} else {
-		attrs.Mtime = f.src.Updated
+	// Obtain default information from the source object.
+	attrs.Mtime = f.src.Updated
+	attrs.Size = uint64(f.src.Size)
+
+	// If GCS is no longer authoritative, stat our local content to obtain size
+	// and mtime.
+	if f.content != nil {
+		var sr gcsx.StatResult
+		sr, err = f.content.Stat()
+		if err != nil {
+			err = fmt.Errorf("Stat: %v", err)
+			return
+		}
+
+		attrs.Size = uint64(sr.Size)
+		if sr.Mtime != nil {
+			attrs.Mtime = *sr.Mtime
+		}
 	}
 
 	// If the object has been clobbered, we reflect that as the inode being
@@ -259,21 +308,31 @@ func (f *FileInode) Attributes(
 	return
 }
 
-// Serve a read for this file with semantics matching fuseops.ReadFileOp.
+// Serve a read for this file with semantics matching io.ReaderAt.
+//
+// The caller may be better off reading directly from GCS when
+// f.SourceGenerationIsAuthoritative() is true.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Read(
 	ctx context.Context,
 	dst []byte,
 	offset int64) (n int, err error) {
-	// Read from the mutable content.
-	n, err = f.content.ReadAt(ctx, dst, offset)
+	// Make sure f.content != nil.
+	err = f.ensureContent(ctx)
+	if err != nil {
+		err = fmt.Errorf("ensureContent: %v", err)
+		return
+	}
 
-	// We don't return errors for EOF. Otherwise, propagate errors.
-	if err == io.EOF {
-		err = nil
-	} else if err != nil {
-		err = fmt.Errorf("ReadAt: %v", err)
+	// Read from the local content, propagating io.EOF.
+	n, err = f.content.ReadAt(dst, offset)
+	switch {
+	case err == io.EOF:
+		return
+
+	case err != nil:
+		err = fmt.Errorf("content.ReadAt: %v", err)
 		return
 	}
 
@@ -287,9 +346,16 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) (err error) {
-	// Write to the mutable content. Note that the mutable content guarantees
-	// that it returns an error for short writes.
-	_, err = f.content.WriteAt(ctx, data, offset)
+	// Make sure f.content != nil.
+	err = f.ensureContent(ctx)
+	if err != nil {
+		err = fmt.Errorf("ensureContent: %v", err)
+		return
+	}
+
+	// Write to the mutable content. Note that io.WriterAt guarantees it returns
+	// an error for short writes.
+	_, err = f.content.WriteAt(data, offset)
 
 	return
 }
@@ -304,11 +370,13 @@ func (f *FileInode) Write(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Sync(ctx context.Context) (err error) {
+	// If we have not been dirtied, there is nothing to do.
+	if f.content == nil {
+		return
+	}
+
 	// Write out the contents if they are dirty.
-	rl, newObj, err := f.objectSyncer.SyncObject(
-		ctx,
-		&f.src,
-		f.content)
+	newObj, err := f.syncer.SyncObject(ctx, &f.src, f.content)
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.
@@ -318,21 +386,14 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 
 	// Propagate other errors.
 	if err != nil {
-		err = fmt.Errorf("gcsproxy.Sync: %v", err)
+		err = fmt.Errorf("SyncObject: %v", err)
 		return
 	}
 
 	// If we wrote out a new object, we need to update our state.
 	if newObj != nil {
 		f.src = *newObj
-		f.content = mutable.NewContent(
-			gcsproxy.NewReadProxy(
-				newObj,
-				rl,
-				f.gcsChunkSize,
-				f.leaser,
-				f.bucket),
-			f.clock)
+		f.content = nil
 	}
 
 	return
@@ -344,6 +405,15 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 func (f *FileInode) Truncate(
 	ctx context.Context,
 	size int64) (err error) {
-	err = f.content.Truncate(ctx, size)
+	// Make sure f.content != nil.
+	err = f.ensureContent(ctx)
+	if err != nil {
+		err = fmt.Errorf("ensureContent: %v", err)
+		return
+	}
+
+	// Call through.
+	err = f.content.Truncate(size)
+
 	return
 }

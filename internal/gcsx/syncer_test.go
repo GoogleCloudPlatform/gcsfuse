@@ -12,19 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsproxy
+package gcsx
 
 import (
 	"errors"
 	"io"
 	"io/ioutil"
-	"math"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/lease"
-	"github.com/googlecloudplatform/gcsfuse/mutable"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	. "github.com/jacobsa/oglematchers"
@@ -33,7 +30,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestObjectSyncer(t *testing.T) { RunTests(t) }
+func TestSyncer(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // fakeObjectCreator
@@ -78,33 +75,31 @@ func (oc *fakeObjectCreator) Create(
 const srcObjectContents = "taco"
 const appendThreshold = int64(len(srcObjectContents))
 
-type ObjectSyncerTest struct {
+type SyncerTest struct {
 	ctx context.Context
 
 	fullCreator   fakeObjectCreator
 	appendCreator fakeObjectCreator
 
 	bucket gcs.Bucket
-	leaser lease.FileLeaser
-	syncer ObjectSyncer
+	syncer Syncer
 	clock  timeutil.SimulatedClock
 
 	srcObject *gcs.Object
-	content   mutable.Content
+	content   TempFile
 }
 
-var _ SetUpInterface = &ObjectSyncerTest{}
+var _ SetUpInterface = &SyncerTest{}
 
-func init() { RegisterTestSuite(&ObjectSyncerTest{}) }
+func init() { RegisterTestSuite(&SyncerTest{}) }
 
-func (t *ObjectSyncerTest) SetUp(ti *TestInfo) {
+func (t *SyncerTest) SetUp(ti *TestInfo) {
 	var err error
 	t.ctx = ti.Ctx
 
 	// Set up dependencies.
 	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
-	t.leaser = lease.NewFileLeaser("", math.MaxInt32, math.MaxInt32)
-	t.syncer = newObjectSyncer(
+	t.syncer = newSyncer(
 		appendThreshold,
 		&t.fullCreator,
 		&t.appendCreator)
@@ -121,24 +116,21 @@ func (t *ObjectSyncerTest) SetUp(ti *TestInfo) {
 
 	AssertEq(nil, err)
 
-	// Wrap a mutable.Content around it.
-	t.content = mutable.NewContent(
-		NewReadProxy(
-			t.srcObject,
-			nil,            // Initial read lease
-			math.MaxUint64, // Chunk size
-			t.leaser,
-			t.bucket),
+	// Wrap a TempFile around it.
+	t.content, err = NewTempFile(
+		strings.NewReader(srcObjectContents),
+		"",
 		&t.clock)
+
+	AssertEq(nil, err)
 
 	// Return errors from the fakes by default.
 	t.fullCreator.err = errors.New("Fake error")
 	t.appendCreator.err = errors.New("Fake error")
 }
 
-func (t *ObjectSyncerTest) call() (
-	rl lease.ReadLease, o *gcs.Object, err error) {
-	rl, o, err = t.syncer.SyncObject(t.ctx, t.srcObject, t.content)
+func (t *SyncerTest) call() (o *gcs.Object, err error) {
+	o, err = t.syncer.SyncObject(t.ctx, t.srcObject, t.content)
 	return
 }
 
@@ -146,12 +138,11 @@ func (t *ObjectSyncerTest) call() (
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ObjectSyncerTest) NotDirty() {
+func (t *SyncerTest) NotDirty() {
 	// Call
-	rl, o, err := t.call()
+	o, err := t.call()
 
 	AssertEq(nil, err)
-	ExpectEq(nil, rl)
 	ExpectEq(nil, o)
 
 	// Neither creater should have been called.
@@ -159,9 +150,9 @@ func (t *ObjectSyncerTest) NotDirty() {
 	ExpectFalse(t.appendCreator.called)
 }
 
-func (t *ObjectSyncerTest) SmallerThanSource() {
+func (t *SyncerTest) SmallerThanSource() {
 	// Truncate downward.
-	err := t.content.Truncate(t.ctx, int64(len(srcObjectContents)-1))
+	err := t.content.Truncate(int64(len(srcObjectContents) - 1))
 	AssertEq(nil, err)
 
 	// The full creator should be called.
@@ -171,10 +162,9 @@ func (t *ObjectSyncerTest) SmallerThanSource() {
 	ExpectFalse(t.appendCreator.called)
 }
 
-func (t *ObjectSyncerTest) SameSizeAsSource() {
+func (t *SyncerTest) SameSizeAsSource() {
 	// Dirty a byte without changing the length.
 	_, err := t.content.WriteAt(
-		t.ctx,
 		[]byte("a"),
 		int64(len(srcObjectContents)-1))
 
@@ -187,16 +177,15 @@ func (t *ObjectSyncerTest) SameSizeAsSource() {
 	ExpectFalse(t.appendCreator.called)
 }
 
-func (t *ObjectSyncerTest) LargerThanSource_ThresholdInSource() {
+func (t *SyncerTest) LargerThanSource_ThresholdInSource() {
 	var err error
 
 	// Extend the length of the content.
-	err = t.content.Truncate(t.ctx, int64(len(srcObjectContents)+100))
+	err = t.content.Truncate(int64(len(srcObjectContents) + 100))
 	AssertEq(nil, err)
 
 	// But dirty a byte within the initial content.
 	_, err = t.content.WriteAt(
-		t.ctx,
 		[]byte("a"),
 		int64(len(srcObjectContents)-1))
 
@@ -209,17 +198,17 @@ func (t *ObjectSyncerTest) LargerThanSource_ThresholdInSource() {
 	ExpectFalse(t.appendCreator.called)
 }
 
-func (t *ObjectSyncerTest) SourceTooShortForAppend() {
+func (t *SyncerTest) SourceTooShortForAppend() {
 	var err error
 
 	// Recreate the syncer with a higher append threshold.
-	t.syncer = newObjectSyncer(
+	t.syncer = newSyncer(
 		int64(len(srcObjectContents)+1),
 		&t.fullCreator,
 		&t.appendCreator)
 
 	// Extend the length of the content.
-	err = t.content.Truncate(t.ctx, int64(len(srcObjectContents)+1))
+	err = t.content.Truncate(int64(len(srcObjectContents) + 1))
 	AssertEq(nil, err)
 
 	// The full creator should be called.
@@ -229,14 +218,14 @@ func (t *ObjectSyncerTest) SourceTooShortForAppend() {
 	ExpectFalse(t.appendCreator.called)
 }
 
-func (t *ObjectSyncerTest) SourceComponentCountTooHigh() {
+func (t *SyncerTest) SourceComponentCountTooHigh() {
 	var err error
 
 	// Simulate a large component count.
 	t.srcObject.ComponentCount = gcs.MaxComponentCount
 
 	// Extend the length of the content.
-	err = t.content.Truncate(t.ctx, int64(len(srcObjectContents)+1))
+	err = t.content.Truncate(int64(len(srcObjectContents) + 1))
 	AssertEq(nil, err)
 
 	// The full creator should be called.
@@ -246,11 +235,11 @@ func (t *ObjectSyncerTest) SourceComponentCountTooHigh() {
 	ExpectFalse(t.appendCreator.called)
 }
 
-func (t *ObjectSyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
+func (t *SyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
 	var err error
 
 	// Extend the length of the content.
-	err = t.content.Truncate(t.ctx, int64(len(srcObjectContents)+1))
+	err = t.content.Truncate(int64(len(srcObjectContents) + 1))
 	AssertEq(nil, err)
 
 	// The append creator should be called.
@@ -260,12 +249,12 @@ func (t *ObjectSyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
 	ExpectTrue(t.appendCreator.called)
 }
 
-func (t *ObjectSyncerTest) CallsFullCreator() {
+func (t *SyncerTest) CallsFullCreator() {
 	var err error
 	AssertLt(2, t.srcObject.Size)
 
 	// Truncate downward.
-	err = t.content.Truncate(t.ctx, 2)
+	err = t.content.Truncate(2)
 	AssertEq(nil, err)
 
 	// Call
@@ -276,64 +265,56 @@ func (t *ObjectSyncerTest) CallsFullCreator() {
 	ExpectEq(srcObjectContents[:2], string(t.fullCreator.contents))
 }
 
-func (t *ObjectSyncerTest) FullCreatorFails() {
+func (t *SyncerTest) FullCreatorFails() {
 	var err error
 	t.fullCreator.err = errors.New("taco")
 
 	// Truncate downward.
-	err = t.content.Truncate(t.ctx, 2)
+	err = t.content.Truncate(2)
 	AssertEq(nil, err)
 
 	// Call
-	_, _, err = t.call()
+	_, err = t.call()
 
 	ExpectThat(err, Error(HasSubstr("Create")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *ObjectSyncerTest) FullCreatorReturnsPreconditionError() {
+func (t *SyncerTest) FullCreatorReturnsPreconditionError() {
 	var err error
 	t.fullCreator.err = &gcs.PreconditionError{}
 
 	// Truncate downward.
-	err = t.content.Truncate(t.ctx, 2)
+	err = t.content.Truncate(2)
 	AssertEq(nil, err)
 
 	// Call
-	_, _, err = t.call()
+	_, err = t.call()
 
 	ExpectEq(t.fullCreator.err, err)
 }
 
-func (t *ObjectSyncerTest) FullCreatorSucceeds() {
+func (t *SyncerTest) FullCreatorSucceeds() {
 	var err error
 	t.fullCreator.o = &gcs.Object{}
 	t.fullCreator.err = nil
 
 	// Truncate downward.
-	err = t.content.Truncate(t.ctx, 2)
+	err = t.content.Truncate(2)
 	AssertEq(nil, err)
 
 	// Call
-	rl, o, err := t.call()
+	o, err := t.call()
 
 	AssertEq(nil, err)
 	ExpectEq(t.fullCreator.o, o)
-
-	// Check the read lease.
-	_, err = rl.Seek(0, 0)
-	AssertEq(nil, err)
-
-	buf, err := ioutil.ReadAll(rl)
-	AssertEq(nil, err)
-	ExpectEq(srcObjectContents[:2], string(buf))
 }
 
-func (t *ObjectSyncerTest) CallsAppendCreator() {
+func (t *SyncerTest) CallsAppendCreator() {
 	var err error
 
 	// Append some data.
-	_, err = t.content.WriteAt(t.ctx, []byte("burrito"), int64(t.srcObject.Size))
+	_, err = t.content.WriteAt([]byte("burrito"), int64(t.srcObject.Size))
 	AssertEq(nil, err)
 
 	// Call
@@ -344,55 +325,47 @@ func (t *ObjectSyncerTest) CallsAppendCreator() {
 	ExpectEq("burrito", string(t.appendCreator.contents))
 }
 
-func (t *ObjectSyncerTest) AppendCreatorFails() {
+func (t *SyncerTest) AppendCreatorFails() {
 	var err error
 	t.appendCreator.err = errors.New("taco")
 
 	// Append some data.
-	_, err = t.content.WriteAt(t.ctx, []byte("burrito"), int64(t.srcObject.Size))
+	_, err = t.content.WriteAt([]byte("burrito"), int64(t.srcObject.Size))
 	AssertEq(nil, err)
 
 	// Call
-	_, _, err = t.call()
+	_, err = t.call()
 
 	ExpectThat(err, Error(HasSubstr("Create")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *ObjectSyncerTest) AppendCreatorReturnsPreconditionError() {
+func (t *SyncerTest) AppendCreatorReturnsPreconditionError() {
 	var err error
 	t.appendCreator.err = &gcs.PreconditionError{}
 
 	// Append some data.
-	_, err = t.content.WriteAt(t.ctx, []byte("burrito"), int64(t.srcObject.Size))
+	_, err = t.content.WriteAt([]byte("burrito"), int64(t.srcObject.Size))
 	AssertEq(nil, err)
 
 	// Call
-	_, _, err = t.call()
+	_, err = t.call()
 
 	ExpectEq(t.appendCreator.err, err)
 }
 
-func (t *ObjectSyncerTest) AppendCreatorSucceeds() {
+func (t *SyncerTest) AppendCreatorSucceeds() {
 	var err error
 	t.appendCreator.o = &gcs.Object{}
 	t.appendCreator.err = nil
 
 	// Append some data.
-	_, err = t.content.WriteAt(t.ctx, []byte("burrito"), int64(t.srcObject.Size))
+	_, err = t.content.WriteAt([]byte("burrito"), int64(t.srcObject.Size))
 	AssertEq(nil, err)
 
 	// Call
-	rl, o, err := t.call()
+	o, err := t.call()
 
 	AssertEq(nil, err)
 	ExpectEq(t.appendCreator.o, o)
-
-	// Check the read lease.
-	_, err = rl.Seek(0, 0)
-	AssertEq(nil, err)
-
-	buf, err := ioutil.ReadAll(rl)
-	AssertEq(nil, err)
-	ExpectEq(srcObjectContents+"burrito", string(buf))
 }

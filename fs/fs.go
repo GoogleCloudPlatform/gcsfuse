@@ -17,15 +17,15 @@ package fs
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
-	"math"
 	"os"
 	"reflect"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
-	"github.com/googlecloudplatform/gcsfuse/lease"
+	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -33,7 +33,6 @@ import (
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
-	"golang.org/x/sys/unix"
 )
 
 type ServerConfig struct {
@@ -46,25 +45,6 @@ type ServerConfig struct {
 	// The temporary directory to use for local caching, or the empty string to
 	// use the system default.
 	TempDir string
-
-	// A desired limit on the number of open files used for storing temporary
-	// object contents. May not be obeyed if there is a large number of dirtied
-	// files that have not been flushed or closed.
-	//
-	// Most users will want to use ChooseTempDirLimitNumFiles to choose this.
-	TempDirLimitNumFiles int
-
-	// A desired limit on temporary space usage, in bytes. May not be obeyed if
-	// there is a large volume of dirtied files that have not been flushed or
-	// closed.
-	TempDirLimitBytes int64
-
-	// If set to a non-zero value N, the file system will read objects from GCS a
-	// chunk at a time with a maximum read size of N, caching each chunk
-	// independently. The part about separate caching does not apply to dirty
-	// files, for which the entire contents will be in the temporary directory
-	// regardless of this setting.
-	GCSChunkSize uint64
 
 	// By default, if a bucket contains the object "foo/bar" but no object named
 	// "foo/", it's as if the directory doesn't exist. This allows us to have
@@ -128,26 +108,13 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		return
 	}
 
-	// Disable chunking if set to zero.
-	gcsChunkSize := cfg.GCSChunkSize
-	if gcsChunkSize == 0 {
-		gcsChunkSize = math.MaxUint64
-	}
-
-	// Create the file leaser.
-	leaser := lease.NewFileLeaser(
-		cfg.TempDir,
-		cfg.TempDirLimitNumFiles,
-		cfg.TempDirLimitBytes)
-
 	// Create the object syncer.
-	// Check TmpObjectPrefix.
 	if cfg.TmpObjectPrefix == "" {
 		err = errors.New("You must set TmpObjectPrefix.")
 		return
 	}
 
-	objectSyncer := gcsproxy.NewObjectSyncer(
+	syncer := gcsx.NewSyncer(
 		cfg.AppendThreshold,
 		cfg.TmpObjectPrefix,
 		cfg.Bucket)
@@ -156,9 +123,8 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	fs := &fileSystem{
 		clock:                  cfg.Clock,
 		bucket:                 cfg.Bucket,
-		leaser:                 leaser,
-		objectSyncer:           objectSyncer,
-		gcsChunkSize:           gcsChunkSize,
+		syncer:                 syncer,
+		tempDir:                cfg.TempDir,
 		implicitDirs:           cfg.ImplicitDirectories,
 		dirTypeCacheTTL:        cfg.DirTypeCacheTTL,
 		uid:                    cfg.Uid,
@@ -204,37 +170,6 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	return
 }
 
-// Choose a reasonable value for ServerConfig.TempDirLimitNumFiles based on
-// process limits.
-func ChooseTempDirLimitNumFiles() (limit int) {
-	// Ask what the process's limit on open files is. Use a default on error.
-	var rlimit unix.Rlimit
-	err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rlimit)
-	if err != nil {
-		const defaultLimit = 512
-		log.Println(
-			"Warning: failed to query RLIMIT_NOFILE. Using default "+
-				"file count limit of %d",
-			defaultLimit)
-
-		limit = defaultLimit
-		return
-	}
-
-	// Heuristic: Use about 75% of the limit.
-	limit64 := rlimit.Cur/2 + rlimit.Cur/4
-
-	// But not too large.
-	const reasonableLimit = 1 << 15
-	if limit64 > reasonableLimit {
-		limit64 = reasonableLimit
-	}
-
-	limit = int(limit64)
-
-	return
-}
-
 ////////////////////////////////////////////////////////////////////////
 // fileSystem type
 ////////////////////////////////////////////////////////////////////////
@@ -244,20 +179,19 @@ func ChooseTempDirLimitNumFiles() (limit int) {
 // Let FS be the file system lock. Define a strict partial order < as follows:
 //
 //  1. For any inode lock I, I < FS.
-//  2. For any directory handle lock DH and inode lock I, DH < I.
+//  2. For any handle lock H and inode lock I, H < I.
 //
 // We follow the rule "acquire A then B only if A < B".
 //
 // In other words:
 //
-//  *  Don't hold multiple directory handle locks at the same time.
+//  *  Don't hold multiple handle locks at the same time.
 //  *  Don't hold multiple inode locks at the same time.
-//  *  Don't acquire inode locks before directory handle locks.
+//  *  Don't acquire inode locks before handle locks.
 //  *  Don't acquire file system locks before either.
 //
-// The intuition is that we hold inode and directory handle locks for
-// long-running operations, and we don't want to block the entire file system
-// on those.
+// The intuition is that we hold inode and handle locks for long-running
+// operations, and we don't want to block the entire file system on those.
 //
 // See http://goo.gl/rDxxlG for more discussion, including an informal proof
 // that a strict partial order is sufficient.
@@ -269,16 +203,15 @@ type fileSystem struct {
 	// Dependencies
 	/////////////////////////
 
-	clock        timeutil.Clock
-	bucket       gcs.Bucket
-	objectSyncer gcsproxy.ObjectSyncer
-	leaser       lease.FileLeaser
+	clock  timeutil.Clock
+	bucket gcs.Bucket
+	syncer gcsx.Syncer
 
 	/////////////////////////
 	// Constant data
 	/////////////////////////
 
-	gcsChunkSize    uint64
+	tempDir         string
 	implicitDirs    bool
 	dirTypeCacheTTL time.Duration
 
@@ -367,7 +300,7 @@ type fileSystem struct {
 
 	// The collection of live handles, keyed by handle ID.
 	//
-	// INVARIANT: All values are of type *dirHandle
+	// INVARIANT: All values are of type *dirHandle or *handle.FileHandle
 	//
 	// GUARDED_BY(mu)
 	handles map[fuseops.HandleID]interface{}
@@ -515,9 +448,14 @@ func (fs *fileSystem) checkInvariants() {
 	// handles
 	//////////////////////////////////
 
-	// INVARIANT: All values are of type *dirHandle
+	// INVARIANT: All values are of type *dirHandle or *handle.FileHandle
 	for _, h := range fs.handles {
-		_ = h.(*dirHandle)
+		switch h.(type) {
+		case *dirHandle:
+		case *handle.FileHandle:
+		default:
+			panic(fmt.Sprintf("Unexpected handle type: %T", h))
+		}
 	}
 
 	//////////////////////////////////
@@ -592,10 +530,9 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 				Gid:  fs.gid,
 				Mode: fs.fileMode,
 			},
-			fs.gcsChunkSize,
 			fs.bucket,
-			fs.leaser,
-			fs.objectSyncer,
+			fs.syncer,
+			fs.tempDir,
 			fs.clock)
 	}
 
@@ -1087,6 +1024,19 @@ func (fs *fileSystem) CreateFile(
 
 	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
 
+	// Allocate a handle.
+	fs.mu.Lock()
+
+	handleID := fs.nextHandleID
+	fs.nextHandleID++
+
+	fs.handles[handleID] = handle.NewFileHandle(
+		child.(*inode.FileInode),
+		fs.bucket)
+	op.Handle = handleID
+
+	fs.mu.Unlock()
+
 	// Fill out the response.
 	op.Entry.Child = child.ID()
 	op.Entry.Attributes, err = child.Attributes(ctx)
@@ -1381,8 +1331,15 @@ func (fs *fileSystem) OpenFile(
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	// Sanity check that this inode exists and is of the correct type.
-	_ = fs.inodes[op.Inode].(*inode.FileInode)
+	// Find the inode.
+	in := fs.inodes[op.Inode].(*inode.FileInode)
+
+	// Allocate a handle.
+	handleID := fs.nextHandleID
+	fs.nextHandleID++
+
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.bucket)
+	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them
 	// new inode IDs. So for a given inode, all modifications go through the
@@ -1397,16 +1354,21 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
-	// Find the inode.
+	// Find the handle and lock it.
 	fs.mu.Lock()
-	in := fs.inodes[op.Inode].(*inode.FileInode)
+	fh := fs.handles[op.Handle].(*handle.FileHandle)
 	fs.mu.Unlock()
 
-	in.Lock()
-	defer in.Unlock()
+	fh.Lock()
+	defer fh.Unlock()
 
-	// Serve the request.
-	op.BytesRead, err = in.Read(ctx, op.Dst, op.Offset)
+	// Serve the read.
+	op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset)
+
+	// As required by fuse, we don't treat EOF as an error.
+	if err == io.EOF {
+		err = nil
+	}
 
 	return
 }
@@ -1487,7 +1449,14 @@ func (fs *fileSystem) FlushFile(
 func (fs *fileSystem) ReleaseFileHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseFileHandleOp) (err error) {
-	// We implement this only to keep it from appearing in the log of fuse
-	// errors. There's nothing we need to actually do.
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Destroy the handle.
+	fs.handles[op.Handle].(*handle.FileHandle).Destroy()
+
+	// Update the map.
+	delete(fs.handles, op.Handle)
+
 	return
 }

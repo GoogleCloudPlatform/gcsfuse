@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsproxy_test
+package gcsx_test
 
 import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"math/rand"
 	"testing"
@@ -26,9 +25,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/googlecloudplatform/gcsfuse/gcsproxy"
-	"github.com/googlecloudplatform/gcsfuse/lease"
-	"github.com/googlecloudplatform/gcsfuse/mutable"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
@@ -65,18 +62,13 @@ func randBytes(n int) (b []byte) {
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-const chunkSize = 1<<18 + 3
-const fileLeaserLimitNumFiles = math.MaxInt32
-const fileLeaserLimitBytes = 1 << 21
-
 type IntegrationTest struct {
 	ctx    context.Context
 	bucket gcs.Bucket
-	leaser lease.FileLeaser
 	clock  timeutil.SimulatedClock
-	syncer gcsproxy.ObjectSyncer
+	syncer gcsx.Syncer
 
-	mc mutable.Content
+	tf gcsx.TempFile
 }
 
 var _ SetUpInterface = &IntegrationTest{}
@@ -87,41 +79,44 @@ func init() { RegisterTestSuite(&IntegrationTest{}) }
 func (t *IntegrationTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
-	t.leaser = lease.NewFileLeaser(
-		"",
-		fileLeaserLimitNumFiles,
-		fileLeaserLimitBytes)
 
 	// Set up a fixed, non-zero time.
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 
-	// Set up the object syncer.
+	// Set up the syncer.
 	const appendThreshold = 0
 	const tmpObjectPrefix = ".gcsfuse_tmp/"
 
-	t.syncer = gcsproxy.NewObjectSyncer(
+	t.syncer = gcsx.NewSyncer(
 		appendThreshold,
 		tmpObjectPrefix,
 		t.bucket)
 }
 
 func (t *IntegrationTest) TearDown() {
-	if t.mc != nil {
-		t.mc.Destroy()
+	if t.tf != nil {
+		t.tf.Destroy()
 	}
 }
 
 func (t *IntegrationTest) create(o *gcs.Object) {
-	// Set up the read proxy.
-	rp := gcsproxy.NewReadProxy(
-		o,
-		nil,
-		chunkSize,
-		t.leaser,
-		t.bucket)
+	// Set up a reader.
+	rc, err := t.bucket.NewReader(
+		t.ctx,
+		&gcs.ReadObjectRequest{
+			Name:       o.Name,
+			Generation: o.Generation,
+		})
 
-	// Use it to create the mutable content.
-	t.mc = mutable.NewContent(rp, &t.clock)
+	AssertEq(nil, err)
+
+	// Use it to create the temp file.
+	t.tf, err = gcsx.NewTempFile(rc, "", &t.clock)
+	AssertEq(nil, err)
+
+	// Close it.
+	err = rc.Close()
+	AssertEq(nil, err)
 }
 
 // Return the object generation, or -1 if non-existent. Panic on error.
@@ -148,11 +143,10 @@ func (t *IntegrationTest) objectGeneration(name string) (gen int64) {
 	return
 }
 
-func (t *IntegrationTest) sync(src *gcs.Object) (
-	rl lease.ReadLease, o *gcs.Object, err error) {
-	rl, o, err = t.syncer.SyncObject(t.ctx, src, t.mc)
-	if err == nil && rl != nil {
-		t.mc = nil
+func (t *IntegrationTest) sync(src *gcs.Object) (o *gcs.Object, err error) {
+	o, err = t.syncer.SyncObject(t.ctx, src, t.tf)
+	if err == nil && o != nil {
+		t.tf = nil
 	}
 
 	return
@@ -171,17 +165,16 @@ func (t *IntegrationTest) ReadThenSync() {
 
 	// Read the contents.
 	buf := make([]byte, 1024)
-	n, err := t.mc.ReadAt(t.ctx, buf, 0)
+	n, err := t.tf.ReadAt(buf, 0)
 
 	AssertThat(err, AnyOf(io.EOF, nil))
 	ExpectEq(len("taco"), n)
 	ExpectEq("taco", string(buf[:n]))
 
 	// Sync doesn't need to do anything.
-	rl, newObj, err := t.sync(o)
+	newObj, err := t.sync(o)
 
 	AssertEq(nil, err)
-	ExpectEq(nil, rl)
 	ExpectEq(nil, newObj)
 }
 
@@ -193,13 +186,13 @@ func (t *IntegrationTest) WriteThenSync() {
 	t.create(o)
 
 	// Overwrite the first byte.
-	n, err := t.mc.WriteAt(t.ctx, []byte("p"), 0)
+	n, err := t.tf.WriteAt([]byte("p"), 0)
 
 	AssertEq(nil, err)
 	ExpectEq(1, n)
 
 	// Sync should save out the new generation.
-	rl, newObj, err := t.sync(o)
+	newObj, err := t.sync(o)
 	AssertEq(nil, err)
 
 	ExpectNe(o.Generation, newObj.Generation)
@@ -207,14 +200,6 @@ func (t *IntegrationTest) WriteThenSync() {
 
 	// Read via the bucket.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
-	AssertEq(nil, err)
-	ExpectEq("paco", string(contents))
-
-	// Read via the lease.
-	_, err = rl.Seek(0, 0)
-	AssertEq(nil, err)
-
-	contents, err = ioutil.ReadAll(rl)
 	AssertEq(nil, err)
 	ExpectEq("paco", string(contents))
 
@@ -240,13 +225,13 @@ func (t *IntegrationTest) AppendThenSync() {
 	t.create(o)
 
 	// Append some data.
-	n, err := t.mc.WriteAt(t.ctx, []byte("burrito"), 4)
+	n, err := t.tf.WriteAt([]byte("burrito"), 4)
 
 	AssertEq(nil, err)
 	ExpectEq(len("burrito"), n)
 
 	// Sync should save out the new generation.
-	rl, newObj, err := t.sync(o)
+	newObj, err := t.sync(o)
 	AssertEq(nil, err)
 
 	ExpectNe(o.Generation, newObj.Generation)
@@ -254,14 +239,6 @@ func (t *IntegrationTest) AppendThenSync() {
 
 	// Read via the bucket.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
-	AssertEq(nil, err)
-	ExpectEq("tacoburrito", string(contents))
-
-	// Read via the lease.
-	_, err = rl.Seek(0, 0)
-	AssertEq(nil, err)
-
-	contents, err = ioutil.ReadAll(rl)
 	AssertEq(nil, err)
 	ExpectEq("tacoburrito", string(contents))
 
@@ -287,25 +264,17 @@ func (t *IntegrationTest) TruncateThenSync() {
 	t.create(o)
 
 	// Truncate.
-	err = t.mc.Truncate(t.ctx, 2)
+	err = t.tf.Truncate(2)
 	AssertEq(nil, err)
 
 	// Sync should save out the new generation.
-	rl, newObj, err := t.sync(o)
+	newObj, err := t.sync(o)
 	AssertEq(nil, err)
 
 	ExpectNe(o.Generation, newObj.Generation)
 	ExpectEq(t.objectGeneration("foo"), newObj.Generation)
 
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
-	AssertEq(nil, err)
-	ExpectEq("ta", string(contents))
-
-	// Read via the lease.
-	_, err = rl.Seek(0, 0)
-	AssertEq(nil, err)
-
-	contents, err = ioutil.ReadAll(rl)
 	AssertEq(nil, err)
 	ExpectEq("ta", string(contents))
 }
@@ -318,7 +287,7 @@ func (t *IntegrationTest) Stat_InitialState() {
 	t.create(o)
 
 	// Stat.
-	sr, err := t.mc.Stat(t.ctx)
+	sr, err := t.tf.Stat()
 	AssertEq(nil, err)
 
 	ExpectEq(o.Size, sr.Size)
@@ -337,13 +306,13 @@ func (t *IntegrationTest) Stat_Dirty() {
 	t.clock.AdvanceTime(time.Second)
 	truncateTime := t.clock.Now()
 
-	err = t.mc.Truncate(t.ctx, 2)
+	err = t.tf.Truncate(2)
 	AssertEq(nil, err)
 
 	t.clock.AdvanceTime(time.Second)
 
 	// Stat.
-	sr, err := t.mc.Stat(t.ctx)
+	sr, err := t.tf.Stat()
 	AssertEq(nil, err)
 
 	ExpectEq(2, sr.Size)
@@ -351,103 +320,7 @@ func (t *IntegrationTest) Stat_Dirty() {
 	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(truncateTime)))
 }
 
-func (t *IntegrationTest) WithinLeaserLimit() {
-	AssertLt(len("taco"), fileLeaserLimitBytes)
-
-	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
-	AssertEq(nil, err)
-
-	t.create(o)
-
-	// Extend to be up against the leaser limit, then write out to GCS, which
-	// should downgrade to a read lease.
-	err = t.mc.Truncate(t.ctx, fileLeaserLimitBytes)
-	AssertEq(nil, err)
-
-	rl, _, err := t.sync(o)
-	AssertEq(nil, err)
-
-	// The backing object should be present and contain the correct contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, o.Name)
-	AssertEq(nil, err)
-	ExpectEq(fileLeaserLimitBytes, len(contents))
-
-	// Delete the backing object.
-	err = t.bucket.DeleteObject(t.ctx, &gcs.DeleteObjectRequest{Name: o.Name})
-	AssertEq(nil, err)
-
-	// We should still be able to read the contents, because the read lease
-	// should still be valid.
-	buf := make([]byte, 4)
-	n, err := rl.ReadAt(buf, 0)
-
-	AssertEq(nil, err)
-	ExpectEq("taco", string(buf[0:n]))
-}
-
-func (t *IntegrationTest) LargerThanLeaserLimit() {
-	AssertLt(len("taco"), fileLeaserLimitBytes)
-
-	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
-	AssertEq(nil, err)
-
-	t.create(o)
-
-	// Extend to be past the leaser limit, then write out to GCS, which should
-	// downgrade to a read lease.
-	err = t.mc.Truncate(t.ctx, fileLeaserLimitBytes+1)
-	AssertEq(nil, err)
-
-	rl, _, err := t.sync(o)
-	AssertEq(nil, err)
-
-	// The backing object should be present and contain the correct contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, o.Name)
-	AssertEq(nil, err)
-	ExpectEq(fileLeaserLimitBytes+1, len(contents))
-
-	// Delete the backing object.
-	err = t.bucket.DeleteObject(t.ctx, &gcs.DeleteObjectRequest{Name: o.Name})
-	AssertEq(nil, err)
-
-	// The contents should be lost, because the leaser should have revoked the
-	// read lease.
-	_, err = rl.ReadAt(make([]byte, len(contents)), 0)
-	ExpectThat(err, Error(HasSubstr("revoked")))
-}
-
-func (t *IntegrationTest) BackingObjectHasBeenDeleted_BeforeReading() {
-	// Create an object to obtain a record, then delete it.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
-	AssertEq(nil, err)
-
-	err = t.bucket.DeleteObject(t.ctx, &gcs.DeleteObjectRequest{Name: o.Name})
-	AssertEq(nil, err)
-
-	// Create a mutable object around it.
-	t.create(o)
-
-	// Sync doesn't need to do anything.
-	rl, newObj, err := t.sync(o)
-
-	AssertEq(nil, err)
-	ExpectEq(nil, rl)
-	ExpectEq(nil, newObj)
-
-	// Anything that needs to fault in the contents should fail.
-	_, err = t.mc.ReadAt(t.ctx, []byte{}, 0)
-	ExpectThat(err, Error(HasSubstr("not found")))
-
-	err = t.mc.Truncate(t.ctx, 10)
-	ExpectThat(err, Error(HasSubstr("not found")))
-
-	_, err = t.mc.WriteAt(t.ctx, []byte{}, 0)
-	ExpectThat(err, Error(HasSubstr("not found")))
-}
-
-func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
+func (t *IntegrationTest) BackingObjectHasBeenDeleted() {
 	// Create.
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
@@ -455,7 +328,7 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 	t.create(o)
 
 	// Fault in the contents.
-	_, err = t.mc.ReadAt(t.ctx, []byte{}, 0)
+	_, err = t.tf.ReadAt([]byte{}, 0)
 	AssertEq(nil, err)
 
 	// Delete the backing object.
@@ -463,19 +336,19 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 	AssertEq(nil, err)
 
 	// Reading and modications should still work.
-	_, err = t.mc.ReadAt(t.ctx, []byte{}, 0)
+	_, err = t.tf.ReadAt([]byte{}, 0)
 	AssertEq(nil, err)
 
-	_, err = t.mc.WriteAt(t.ctx, []byte("a"), 0)
+	_, err = t.tf.WriteAt([]byte("a"), 0)
 	AssertEq(nil, err)
 
 	truncateTime := t.clock.Now()
-	err = t.mc.Truncate(t.ctx, 1)
+	err = t.tf.Truncate(1)
 	AssertEq(nil, err)
 	t.clock.AdvanceTime(time.Second)
 
 	// Stat should see the current state.
-	sr, err := t.mc.Stat(t.ctx)
+	sr, err := t.tf.Stat()
 	AssertEq(nil, err)
 
 	ExpectEq(1, sr.Size)
@@ -483,7 +356,7 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(truncateTime)))
 
 	// Sync should fail with a precondition error.
-	_, _, err = t.sync(o)
+	_, err = t.sync(o)
 	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
 
 	// Nothing should have been created.
@@ -491,36 +364,7 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted_AfterReading() {
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
-func (t *IntegrationTest) BackingObjectHasBeenOverwritten_BeforeReading() {
-	// Create an object, then create the mutable object wrapper around it.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
-	AssertEq(nil, err)
-
-	t.create(o)
-
-	// Overwrite the GCS object.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("burrito"))
-	AssertEq(nil, err)
-
-	// Sync doesn't need to do anything.
-	rl, newObj, err := t.sync(o)
-
-	AssertEq(nil, err)
-	ExpectEq(nil, rl)
-	ExpectEq(nil, newObj)
-
-	// Anything that needs to fault in the contents should fail.
-	_, err = t.mc.ReadAt(t.ctx, []byte{}, 0)
-	ExpectThat(err, Error(HasSubstr("not found")))
-
-	err = t.mc.Truncate(t.ctx, 10)
-	ExpectThat(err, Error(HasSubstr("not found")))
-
-	_, err = t.mc.WriteAt(t.ctx, []byte{}, 0)
-	ExpectThat(err, Error(HasSubstr("not found")))
-}
-
-func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
+func (t *IntegrationTest) BackingObjectHasBeenOverwritten() {
 	// Create.
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
@@ -528,7 +372,7 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 	t.create(o)
 
 	// Fault in the contents.
-	_, err = t.mc.ReadAt(t.ctx, []byte{}, 0)
+	_, err = t.tf.ReadAt([]byte{}, 0)
 	AssertEq(nil, err)
 
 	// Overwrite the backing object.
@@ -536,19 +380,19 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 	AssertEq(nil, err)
 
 	// Reading and modications should still work.
-	_, err = t.mc.ReadAt(t.ctx, []byte{}, 0)
+	_, err = t.tf.ReadAt([]byte{}, 0)
 	AssertEq(nil, err)
 
-	_, err = t.mc.WriteAt(t.ctx, []byte("a"), 0)
+	_, err = t.tf.WriteAt([]byte("a"), 0)
 	AssertEq(nil, err)
 
 	truncateTime := t.clock.Now()
-	err = t.mc.Truncate(t.ctx, 3)
+	err = t.tf.Truncate(3)
 	AssertEq(nil, err)
 	t.clock.AdvanceTime(time.Second)
 
 	// Stat should see the current state.
-	sr, err := t.mc.Stat(t.ctx)
+	sr, err := t.tf.Stat()
 	AssertEq(nil, err)
 
 	ExpectEq(3, sr.Size)
@@ -556,7 +400,7 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten_AfterReading() {
 	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(truncateTime)))
 
 	// Sync should fail with a precondition error.
-	_, _, err = t.sync(o)
+	_, err = t.sync(o)
 	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
 
 	// The newer version should still be present.
@@ -571,18 +415,9 @@ func (t *IntegrationTest) MultipleInteractions() {
 	sizes := []int{
 		0,
 		1,
-		chunkSize - 1,
-		chunkSize,
-		chunkSize + 1,
-		3*chunkSize - 1,
-		3 * chunkSize,
-		3*chunkSize + 1,
-		fileLeaserLimitBytes - 1,
-		fileLeaserLimitBytes,
-		fileLeaserLimitBytes + 1,
-		((fileLeaserLimitBytes / chunkSize) - 1) * chunkSize,
-		(fileLeaserLimitBytes / chunkSize) * chunkSize,
-		((fileLeaserLimitBytes / chunkSize) + 1) * chunkSize,
+		1 << 19,
+		1 << 20,
+		1 << 21,
 	}
 
 	// Generate random contents for the maximum size.
@@ -614,11 +449,11 @@ func (t *IntegrationTest) MultipleInteractions() {
 
 		AssertEq(nil, err)
 
-		// Create a mutable object around it.
+		// Create a temp file around it.
 		t.create(o)
 
-		// Read the contents of the mutable object.
-		_, err = t.mc.ReadAt(t.ctx, buf, 0)
+		// Read the contents of the temp file.
+		_, err = t.tf.ReadAt(buf, 0)
 
 		AssertThat(err, AnyOf(nil, io.EOF))
 		if !bytes.Equal(buf, expectedContents) {
@@ -632,18 +467,18 @@ func (t *IntegrationTest) MultipleInteractions() {
 			expectedContents[size/2] = 19
 			expectedContents[size-1] = 23
 
-			_, err = t.mc.WriteAt(t.ctx, []byte{17}, 0)
+			_, err = t.tf.WriteAt([]byte{17}, 0)
 			AssertEq(nil, err)
 
-			_, err = t.mc.WriteAt(t.ctx, []byte{19}, int64(size/2))
+			_, err = t.tf.WriteAt([]byte{19}, int64(size/2))
 			AssertEq(nil, err)
 
-			_, err = t.mc.WriteAt(t.ctx, []byte{23}, int64(size-1))
+			_, err = t.tf.WriteAt([]byte{23}, int64(size-1))
 			AssertEq(nil, err)
 		}
 
 		// Compare contents again.
-		_, err = t.mc.ReadAt(t.ctx, buf, 0)
+		_, err = t.tf.ReadAt(buf, 0)
 
 		AssertThat(err, AnyOf(nil, io.EOF))
 		if !bytes.Equal(buf, expectedContents) {
@@ -652,7 +487,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		}
 
 		// Sync and recreate if necessary.
-		_, newObj, err := t.sync(o)
+		newObj, err := t.sync(o)
 		AssertEq(nil, err)
 
 		if newObj != nil {
@@ -668,7 +503,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		}
 
 		// Compare contents again.
-		_, err = t.mc.ReadAt(t.ctx, buf, 0)
+		_, err = t.tf.ReadAt(buf, 0)
 
 		AssertThat(err, AnyOf(nil, io.EOF))
 		if !bytes.Equal(buf, expectedContents) {
@@ -680,12 +515,12 @@ func (t *IntegrationTest) MultipleInteractions() {
 		if size > 0 {
 			expectedContents[0] = 29
 
-			_, err = t.mc.WriteAt(t.ctx, []byte{29}, 0)
+			_, err = t.tf.WriteAt([]byte{29}, 0)
 			AssertEq(nil, err)
 		}
 
 		// Compare contents again.
-		_, err = t.mc.ReadAt(t.ctx, buf, 0)
+		_, err = t.tf.ReadAt(buf, 0)
 
 		AssertThat(err, AnyOf(nil, io.EOF))
 		if !bytes.Equal(buf, expectedContents) {

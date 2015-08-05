@@ -78,9 +78,7 @@ func (t *FlagsTest) Defaults() {
 	// Tuning
 	ExpectEq(time.Minute, f.StatCacheTTL)
 	ExpectEq(time.Minute, f.TypeCacheTTL)
-	ExpectEq(1<<24, f.GCSChunkSize)
 	ExpectEq("", f.TempDir)
-	ExpectEq(1<<31, f.TempDirLimit)
 
 	// Debugging
 	ExpectFalse(f.DebugFuse)
@@ -149,8 +147,6 @@ func (t *FlagsTest) Numbers() {
 		"--gid=19",
 		"--limit-bytes-per-sec=123.4",
 		"--limit-ops-per-sec=56.78",
-		"--gcs-chunk-size=1000",
-		"--temp-dir-bytes=2000",
 	}
 
 	f := parseArgs(args)
@@ -160,8 +156,6 @@ func (t *FlagsTest) Numbers() {
 	ExpectEq(19, f.Gid)
 	ExpectEq(123.4, f.EgressBandwidthLimitBytesPerSecond)
 	ExpectEq(56.78, f.OpRateLimitHz)
-	ExpectEq(1000, f.GCSChunkSize)
-	ExpectEq(2000, f.TempDirLimit)
 }
 
 func (t *FlagsTest) Strings() {

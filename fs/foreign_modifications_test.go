@@ -520,6 +520,8 @@ func (t *ForeignModsTest) ReadFromFile_Small() {
 }
 
 func (t *ForeignModsTest) ReadFromFile_Large() {
+	randSrc := rand.New(rand.NewSource(0xdeadbeef))
+
 	// Create some random contents.
 	const contentLen = 1 << 22
 	contents := randBytes(contentLen)
@@ -547,8 +549,8 @@ func (t *ForeignModsTest) ReadFromFile_Large() {
 		defer func() { AssertEq(nil, f.Close()) }()
 
 		// Read part of it.
-		offset := rand.Int63n(contentLen + 1)
-		size := rand.Intn(int(contentLen - offset))
+		offset := randSrc.Int63n(contentLen + 1)
+		size := randSrc.Intn(int(contentLen - offset))
 
 		n, err := f.ReadAt(buf[:size], offset)
 		if offset+int64(size) == contentLen && err == io.EOF {
@@ -560,9 +562,11 @@ func (t *ForeignModsTest) ReadFromFile_Large() {
 		AssertTrue(
 			bytes.Equal(contents[offset:offset+int64(size)], buf[:n]),
 			"offset: %d\n"+
-				"size:%d\n",
+				"size:   %d\n"+
+				"n:      %d",
 			offset,
-			size)
+			size,
+			n)
 	}
 
 	start := time.Now()

@@ -15,6 +15,7 @@
 package fs_test
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -45,6 +46,8 @@ const (
 )
 
 func TestFS(t *testing.T) { RunTests(t) }
+
+var fDebug = flag.Bool("debug", false, "Print debugging output.")
 
 // Install a SIGINT handler that exits gracefully once the current test is
 // finished. It's not safe to exit in the middle of a test because closing any
@@ -112,10 +115,6 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	t.serverCfg.FilePerms = filePerms
 	t.serverCfg.DirPerms = dirPerms
 
-	// Use some temporary space to speed tests.
-	t.serverCfg.TempDirLimitNumFiles = 16
-	t.serverCfg.TempDirLimitBytes = 1 << 22 // 4 MiB
-
 	// Set up the append optimization.
 	t.serverCfg.AppendThreshold = 0
 	t.serverCfg.TmpObjectPrefix = ".gcsfuse_tmp/"
@@ -131,6 +130,10 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	// Mount the file system.
 	mountCfg := t.mountCfg
 	mountCfg.OpContext = t.ctx
+
+	if *fDebug {
+		mountCfg.DebugLogger = log.New(os.Stderr, "fuse: ", 0)
+	}
 
 	t.mfs, err = fuse.Mount(t.Dir, server, &mountCfg)
 	AssertEq(nil, err)
