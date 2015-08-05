@@ -39,7 +39,7 @@ type FileHandle struct {
 
 func NewFileHandle(
 	inode *inode.FileInode,
-	bucket gcs.Bucket) (fh *FileHandle, err error) {
+	bucket gcs.Bucket) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:  inode,
 		bucket: bucket,

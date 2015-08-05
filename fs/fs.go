@@ -1316,8 +1316,15 @@ func (fs *fileSystem) OpenFile(
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	// Sanity check that this inode exists and is of the correct type.
-	_ = fs.inodes[op.Inode].(*inode.FileInode)
+	// Find the inode.
+	in := fs.inodes[op.Inode].(*inode.FileInode)
+
+	// Allocate a handle.
+	handleID := fs.nextHandleID
+	fs.nextHandleID++
+
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.bucket)
+	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them
 	// new inode IDs. So for a given inode, all modifications go through the
