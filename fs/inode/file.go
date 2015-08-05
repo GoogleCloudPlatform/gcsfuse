@@ -129,7 +129,9 @@ func (f *FileInode) checkInvariants() {
 	}
 
 	// INVARIANT: content.CheckInvariants() does not panic
-	f.content.CheckInvariants()
+	if f.content != nil {
+		f.content.CheckInvariants()
+	}
 }
 
 // LOCKS_REQUIRED(f.mu)
