@@ -216,6 +216,8 @@ func (f *FileInode) Name() string {
 // Return a record for the GCS object generation from which this inode is
 // branched. The record is guaranteed not to be modified, and users must not
 // modify it.
+//
+// LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Source() *gcs.Object {
 	// Make a copy, since we modify f.src.
 	o := f.src
