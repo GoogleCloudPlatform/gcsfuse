@@ -16,6 +16,7 @@ package handle
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
@@ -97,7 +98,11 @@ func (fh *FileHandle) Read(
 		fh.inode.Unlock()
 
 		n, err = fh.reader.ReadAt(ctx, dst, offset)
-		if err != nil {
+		switch {
+		case err == io.EOF:
+			return
+
+		case err != nil:
 			err = fmt.Errorf("fh.reader.ReadAt: %v", err)
 			return
 		}
@@ -108,10 +113,6 @@ func (fh *FileHandle) Read(
 	// Otherwise we must fall through to the inode.
 	defer fh.inode.Unlock()
 	n, err = fh.inode.Read(ctx, dst, offset)
-	if err != nil {
-		err = fmt.Errorf("fh.inode.Read: %v", err)
-		return
-	}
 
 	return
 }

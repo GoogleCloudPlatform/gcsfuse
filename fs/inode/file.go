@@ -16,6 +16,7 @@ package inode
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
@@ -320,9 +321,13 @@ func (f *FileInode) Read(
 		return
 	}
 
-	// Read from the local content.
+	// Read from the local content, propagating io.EOF.
 	n, err = f.content.ReadAt(dst, offset)
-	if err != nil {
+	switch {
+	case err == io.EOF:
+		return
+
+	case err != nil:
 		err = fmt.Errorf("content.ReadAt: %v", err)
 		return
 	}
