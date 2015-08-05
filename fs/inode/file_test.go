@@ -16,6 +16,7 @@ package inode_test
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"testing"
 	"time"
@@ -132,8 +133,7 @@ func (t *FileTest) InitialAttributes() {
 func (t *FileTest) Read() {
 	AssertEq("taco", t.initialContents)
 
-	// Make several reads, checking the expected contents. We should never get an
-	// EOF error, since fuseops.ReadFileOp is not supposed to see those.
+	// Make several reads, checking the expected contents.
 	testCases := []struct {
 		offset   int64
 		size     int
@@ -170,6 +170,11 @@ func (t *FileTest) Read() {
 		n, err := t.in.Read(t.ctx, data, tc.offset)
 		data = data[:n]
 
+		// Ignore EOF.
+		if err == io.EOF {
+			err = nil
+		}
+
 		AssertEq(nil, err, "%s", desc)
 		ExpectEq(tc.expected, string(data), "%s", desc)
 	}
@@ -196,6 +201,11 @@ func (t *FileTest) Write() {
 	// Read back the content.
 	var buf [1024]byte
 	n, err := t.in.Read(t.ctx, buf[:], 0)
+
+	if err == io.EOF {
+		err = nil
+	}
+
 	AssertEq(nil, err)
 	ExpectEq("pacoburrito", string(buf[:n]))
 
@@ -225,6 +235,11 @@ func (t *FileTest) Truncate() {
 	// Read the contents.
 	var buf [1024]byte
 	n, err := t.in.Read(t.ctx, buf[:], 0)
+
+	if err == io.EOF {
+		err = nil
+	}
+
 	AssertEq(nil, err)
 	ExpectEq("ta", string(buf[:n]))
 
