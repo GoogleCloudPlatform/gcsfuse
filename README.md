@@ -92,9 +92,9 @@ local temporary file whose location is controlled by the flag `--temp-dir`.
 Later, when the file is closed or fsync'd, gcsfuse writes the contents of the
 local file back to GCS as a new object generation.
 
-Files that are read but not been modified are read portion by portion on demand.
-gcsfuse uses a heuristic to detect when a file is being read sequentially, and
-will issue fewer, larger read requests to GCS in this case.
+Files that have not been modified are read portion by portion on demand. gcsfuse
+uses a heuristic to detect when a file is being read sequentially, and will
+issue fewer, larger read requests to GCS in this case.
 
 The consequence of this is that gcsfuse is relatively efficient when reading or
 writing entire large files, but will not be particularly fast for small numbers
