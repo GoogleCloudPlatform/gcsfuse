@@ -178,6 +178,22 @@ func (t *RandomReaderTest) EmptyRead() {
 	ExpectEq(nil, err)
 }
 
+func (t *RandomReaderTest) ReadAtEndOfObject() {
+	buf := make([]byte, 1)
+
+	n, err := t.rr.ReadAt(buf, int64(t.object.Size))
+	ExpectEq(0, n)
+	ExpectEq(io.EOF, err)
+}
+
+func (t *RandomReaderTest) ReadPastEndOfObject() {
+	buf := make([]byte, 1)
+
+	n, err := t.rr.ReadAt(buf, int64(t.object.Size)+1)
+	ExpectEq(0, n)
+	ExpectEq(io.EOF, err)
+}
+
 func (t *RandomReaderTest) NoExistingReader() {
 	// The bucket should be called to set up a new reader.
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
