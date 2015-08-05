@@ -23,7 +23,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse"
