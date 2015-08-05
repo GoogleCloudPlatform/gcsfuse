@@ -213,21 +213,30 @@ func (f *FileInode) Name() string {
 	return f.name
 }
 
-// Return the object generation number from which this inode was branched.
-//
-// LOCKS_REQUIRED(f)
-func (f *FileInode) SourceGeneration() int64 {
-	return f.src.Generation
+// Return a record for the GCS object generation from which this inode is
+// branched. The record is guaranteed not to be modified, and users must not
+// modify it.
+func (f *FileInode) Source() *gcs.Object {
+	// Make a copy, since we modify f.src.
+	o := f.src
+	return &o
 }
 
 // If true, it is safe to serve reads directly from the object generation given
-// by f.SourceGeneration(), rather than calling f.ReadAt. Doing so may be more
-// efficient, because f.ReadAt may cause the entire object to be faulted in and
-// requires the inode to be locked during the read.
+// by f.Source(), rather than calling f.ReadAt. Doing so may be more efficient,
+// because f.ReadAt may cause the entire object to be faulted in and requires
+// the inode to be locked during the read.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 	return f.content == nil
+}
+
+// Equivalent to f.Source().Generation.
+//
+// LOCKS_REQUIRED(f)
+func (f *FileInode) SourceGeneration() int64 {
+	return f.src.Generation
 }
 
 // LOCKS_REQUIRED(f.mu)
