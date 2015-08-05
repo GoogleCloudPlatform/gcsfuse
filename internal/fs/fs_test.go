@@ -29,8 +29,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/fs"
-	"github.com/googlecloudplatform/gcsfuse/perms"
+	"github.com/googlecloudplatform/gcsfuse/internal/fs"
+	"github.com/googlecloudplatform/gcsfuse/internal/perms"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"

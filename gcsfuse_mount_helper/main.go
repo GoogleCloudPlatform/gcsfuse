@@ -58,7 +58,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/googlecloudplatform/gcsfuse/mount"
+	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 )
 
 // Turn mount-style options into gcsfuse arguments. Skip known detritus that
