@@ -39,10 +39,9 @@ type FileInode struct {
 	// Constant data
 	/////////////////////////
 
-	id           fuseops.InodeID
-	name         string
-	attrs        fuseops.InodeAttributes
-	gcsChunkSize uint64
+	id    fuseops.InodeID
+	name  string
+	attrs fuseops.InodeAttributes
 
 	/////////////////////////
 	// Mutable state
