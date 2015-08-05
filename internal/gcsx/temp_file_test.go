@@ -131,6 +131,7 @@ func (t *TempFileTest) SetUp(ti *TestInfo) {
 	// And the temp file.
 	t.tf.wrapped, err = gcsx.NewTempFile(
 		strings.NewReader(initialContent),
+		"",
 		&t.clock)
 
 	AssertEq(nil, err)

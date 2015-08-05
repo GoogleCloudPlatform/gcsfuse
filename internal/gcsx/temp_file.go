@@ -62,12 +62,15 @@ type StatResult struct {
 }
 
 // Create a temp file whose initial contents are given by the supplied reader.
+// dir is a directory on whose file system the inode will live, or the system
+// default temporary location if empty.
 func NewTempFile(
 	content io.Reader,
+	dir string,
 	clock timeutil.Clock) (tf TempFile, err error) {
 	// Create an anonymous file to wrap. When we close it, its resources will be
 	// magically cleaned up.
-	f, err := fsutil.AnonymousFile("")
+	f, err := fsutil.AnonymousFile(dir)
 	if err != nil {
 		err = fmt.Errorf("AnonymousFile: %v", err)
 		return

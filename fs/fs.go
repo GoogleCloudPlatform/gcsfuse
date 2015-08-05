@@ -124,6 +124,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		clock:                  cfg.Clock,
 		bucket:                 cfg.Bucket,
 		syncer:                 syncer,
+		tempDir:                cfg.TempDir,
 		implicitDirs:           cfg.ImplicitDirectories,
 		dirTypeCacheTTL:        cfg.DirTypeCacheTTL,
 		uid:                    cfg.Uid,
@@ -210,6 +211,7 @@ type fileSystem struct {
 	// Constant data
 	/////////////////////////
 
+	tempDir         string
 	implicitDirs    bool
 	dirTypeCacheTTL time.Duration
 
@@ -530,6 +532,7 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 			},
 			fs.bucket,
 			fs.syncer,
+			fs.tempDir,
 			fs.clock)
 	}
 
