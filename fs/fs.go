@@ -178,20 +178,19 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 // Let FS be the file system lock. Define a strict partial order < as follows:
 //
 //  1. For any inode lock I, I < FS.
-//  2. For any directory handle lock DH and inode lock I, DH < I.
+//  2. For any handle lock H and inode lock I, H < I.
 //
 // We follow the rule "acquire A then B only if A < B".
 //
 // In other words:
 //
-//  *  Don't hold multiple directory handle locks at the same time.
+//  *  Don't hold multiple handle locks at the same time.
 //  *  Don't hold multiple inode locks at the same time.
-//  *  Don't acquire inode locks before directory handle locks.
+//  *  Don't acquire inode locks before handle locks.
 //  *  Don't acquire file system locks before either.
 //
-// The intuition is that we hold inode and directory handle locks for
-// long-running operations, and we don't want to block the entire file system
-// on those.
+// The intuition is that we hold inode and handle locks for long-running
+// operations, and we don't want to block the entire file system on those.
 //
 // See http://goo.gl/rDxxlG for more discussion, including an informal proof
 // that a strict partial order is sufficient.
@@ -1352,11 +1351,15 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
-	// Find the handle and read through it.
+	// Find the handle and lock it.
 	fs.mu.Lock()
 	fh := fs.handles[op.Handle].(*handle.FileHandle)
 	fs.mu.Unlock()
 
+	fh.Lock()
+	defer fh.Unlock()
+
+	// Serve the read.
 	op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset)
 
 	// As required by fuse, we don't treat EOF as an error.
@@ -1446,7 +1449,7 @@ func (fs *fileSystem) ReleaseFileHandle(
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	// Destroy the handke.
+	// Destroy the handle.
 	fs.handles[op.Handle].(*handle.FileHandle).Destroy()
 
 	// Update the map.

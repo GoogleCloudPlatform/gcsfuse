@@ -21,6 +21,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
 
@@ -28,12 +29,14 @@ type FileHandle struct {
 	inode  *inode.FileInode
 	bucket gcs.Bucket
 
+	mu syncutil.InvariantMutex
+
 	// A random reader configured to some (potentially previous) generation of
 	// the object backing the inode, or nil.
 	//
 	// INVARIANT: If reader != nil, reader.CheckInvariants() doesn't panic.
 	//
-	// GUARDED_BY(inode)
+	// GUARDED_BY(mu)
 	reader gcsx.RandomReader
 }
 
@@ -45,17 +48,9 @@ func NewFileHandle(
 		bucket: bucket,
 	}
 
-	return
-}
+	fh.mu = syncutil.NewInvariantMutex(fh.checkInvariants)
 
-// Panic if any internal invariants are violated.
-//
-// LOCKS_REQUIRED(fh.inode)
-func (fh *FileHandle) CheckInvariants() {
-	// INVARIANT: If reader != nil, reader.CheckInvariants() doesn't panic.
-	if fh.reader != nil {
-		fh.reader.CheckInvariants()
-	}
+	return
 }
 
 // Destroy any resources associated with the handle, which must not be used
@@ -71,9 +66,18 @@ func (fh *FileHandle) Inode() *inode.FileInode {
 	return fh.inode
 }
 
+func (fh *FileHandle) Lock() {
+	fh.mu.Lock()
+}
+
+func (fh *FileHandle) Unlock() {
+	fh.mu.Unlock()
+}
+
 // Equivalent to locking fh.Inode() and calling fh.Inode().Read, but may be
 // more efficient.
 //
+// LOCKS_REQUIRED(fh)
 // LOCKS_EXCLUDED(fh.inode)
 func (fh *FileHandle) Read(
 	ctx context.Context,
@@ -117,9 +121,22 @@ func (fh *FileHandle) Read(
 	return
 }
 
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+// LOCKS_REQUIRED(fh.mu)
+func (fh *FileHandle) checkInvariants() {
+	// INVARIANT: If reader != nil, reader.CheckInvariants() doesn't panic.
+	if fh.reader != nil {
+		fh.reader.CheckInvariants()
+	}
+}
+
 // If possible, ensure that fh.reader is set to an appropriate random reader
 // for the current state of the inode. Otherwise set it to nil.
 //
+// LOCKS_REQUIRED(fh)
 // LOCKS_REQUIRED(fh.inode)
 func (fh *FileHandle) tryEnsureReader() (err error) {
 	// If the inode is dirty, there's nothing we can do. Throw away our reader if
