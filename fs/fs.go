@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
@@ -298,7 +299,7 @@ type fileSystem struct {
 
 	// The collection of live handles, keyed by handle ID.
 	//
-	// INVARIANT: All values are of type *dirHandle
+	// INVARIANT: All values are of type *dirHandle or *handle.FileHandle
 	//
 	// GUARDED_BY(mu)
 	handles map[fuseops.HandleID]interface{}
@@ -446,9 +447,14 @@ func (fs *fileSystem) checkInvariants() {
 	// handles
 	//////////////////////////////////
 
-	// INVARIANT: All values are of type *dirHandle
+	// INVARIANT: All values are of type *dirHandle or *handle.FileHandle
 	for _, h := range fs.handles {
-		_ = h.(*dirHandle)
+		switch h.(type) {
+		case *dirHandle:
+		case *handle.FileHandle:
+		default:
+			panic(fmt.Sprintf("Unexpected handle type: %T", h))
+		}
 	}
 
 	//////////////////////////////////
@@ -1016,6 +1022,19 @@ func (fs *fileSystem) CreateFile(
 
 	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
 
+	// Allocate a handle.
+	fs.mu.Lock()
+
+	handleID := fs.nextHandleID
+	fs.nextHandleID++
+
+	fs.handles[handleID] = handle.NewFileHandle(
+		child.(*inode.FileInode),
+		fs.bucket)
+	op.Handle = handleID
+
+	fs.mu.Unlock()
+
 	// Fill out the response.
 	op.Entry.Child = child.ID()
 	op.Entry.Attributes, err = child.Attributes(ctx)
@@ -1310,8 +1329,15 @@ func (fs *fileSystem) OpenFile(
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	// Sanity check that this inode exists and is of the correct type.
-	_ = fs.inodes[op.Inode].(*inode.FileInode)
+	// Find the inode.
+	in := fs.inodes[op.Inode].(*inode.FileInode)
+
+	// Allocate a handle.
+	handleID := fs.nextHandleID
+	fs.nextHandleID++
+
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.bucket)
+	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them
 	// new inode IDs. So for a given inode, all modifications go through the
@@ -1326,16 +1352,12 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
-	// Find the inode.
+	// Find the handle and read through it.
 	fs.mu.Lock()
-	in := fs.inodes[op.Inode].(*inode.FileInode)
+	fh := fs.handles[op.Handle].(*handle.FileHandle)
 	fs.mu.Unlock()
 
-	in.Lock()
-	defer in.Unlock()
-
-	// Serve the request.
-	op.BytesRead, err = in.Read(ctx, op.Dst, op.Offset)
+	op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset)
 
 	// As required by fuse, we don't treat EOF as an error.
 	if err == io.EOF {
@@ -1421,7 +1443,14 @@ func (fs *fileSystem) FlushFile(
 func (fs *fileSystem) ReleaseFileHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseFileHandleOp) (err error) {
-	// We implement this only to keep it from appearing in the log of fuse
-	// errors. There's nothing we need to actually do.
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Destroy the handke.
+	fs.handles[op.Handle].(*handle.FileHandle).Destroy()
+
+	// Update the map.
+	delete(fs.handles, op.Handle)
+
 	return
 }
