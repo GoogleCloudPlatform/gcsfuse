@@ -1352,16 +1352,12 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
-	// Find the inode.
+	// Find the handle and read through it.
 	fs.mu.Lock()
-	in := fs.inodes[op.Inode].(*inode.FileInode)
+	fh := fs.handles[op.Handle].(*handle.FileHandle)
 	fs.mu.Unlock()
 
-	in.Lock()
-	defer in.Unlock()
-
-	// Serve the request.
-	op.BytesRead, err = in.Read(ctx, op.Dst, op.Offset)
+	op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset)
 
 	// As required by fuse, we don't treat EOF as an error.
 	if err == io.EOF {
