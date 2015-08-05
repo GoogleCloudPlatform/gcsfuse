@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
@@ -298,7 +299,7 @@ type fileSystem struct {
 
 	// The collection of live handles, keyed by handle ID.
 	//
-	// INVARIANT: All values are of type *dirHandle
+	// INVARIANT: All values are of type *dirHandle or *handle.FileHandle
 	//
 	// GUARDED_BY(mu)
 	handles map[fuseops.HandleID]interface{}
@@ -446,9 +447,14 @@ func (fs *fileSystem) checkInvariants() {
 	// handles
 	//////////////////////////////////
 
-	// INVARIANT: All values are of type *dirHandle
+	// INVARIANT: All values are of type *dirHandle or *handle.FileHandle
 	for _, h := range fs.handles {
-		_ = h.(*dirHandle)
+		switch h.(type) {
+		case *dirHandle:
+		case *handle.FileHandle:
+		default:
+			panic(fmt.Sprintf("Unexpected handle type: %T", h))
+		}
 	}
 
 	//////////////////////////////////
