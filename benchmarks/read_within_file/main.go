@@ -40,7 +40,7 @@ func readRandom(
 	r io.ReaderAt,
 	fileSize int64,
 	readSize int,
-	desiredDuration time.Duration) (bytesRead int64, d time.Duration, err error) {
+	desiredDuration time.Duration) (err error) {
 	// Make sure the logic below for choosing offsets works.
 	if fileSize < int64(readSize) {
 		err = fmt.Errorf(
@@ -53,6 +53,8 @@ func readRandom(
 	buf := make([]byte, readSize)
 
 	start := time.Now()
+	var readCount int64
+	var bytesRead int64
 	for time.Since(start) < desiredDuration {
 		// Choose a random offset at which to read.
 		off := rand.Int63n(fileSize - int64(readSize))
@@ -71,20 +73,37 @@ func readRandom(
 			return
 		}
 
+		readCount++
 		bytesRead += int64(n)
 	}
 
-	d = time.Since(start)
+	d := time.Since(start)
+
+	// Report.
+	seconds := float64(d) / float64(time.Second)
+	readsPerSec := float64(readCount) / seconds
+
+	fmt.Printf(
+		"Read %d times (%s) in %v (%.1f Hz)\n",
+		readCount,
+		format.Bytes(float64(bytesRead)),
+		d,
+		readsPerSec)
+
+	fmt.Println()
+
 	return
 }
 
 func readSequential(
 	r io.ReadSeeker,
 	readSize int,
-	desiredDuration time.Duration) (bytesRead int64, d time.Duration, err error) {
+	desiredDuration time.Duration) (err error) {
 	buf := make([]byte, readSize)
 	start := time.Now()
 
+	var readCount int64
+	var bytesRead int64
 	for time.Since(start) < desiredDuration {
 		var n int
 		n, err = r.Read(buf)
@@ -102,9 +121,25 @@ func readSequential(
 		}
 
 		bytesRead += int64(n)
+		readCount++
 	}
 
-	d = time.Since(start)
+	d := time.Since(start)
+
+	// Report.
+	seconds := float64(d) / float64(time.Second)
+	readsPerSec := float64(readCount) / seconds
+	bytesPerSec := float64(bytesRead) / seconds
+
+	fmt.Printf(
+		"Read %d times (%s) in %v (%.1f Hz, %s/s)\n",
+		readCount,
+		format.Bytes(float64(bytesRead)),
+		d,
+		readsPerSec,
+		format.Bytes(bytesPerSec))
+
+	fmt.Println()
 	return
 }
 
@@ -134,31 +169,19 @@ func run() (err error) {
 	log.Printf("%s has size %s.", f.Name(), format.Bytes(float64(size)))
 
 	// Perform reads.
-	var bytesRead int64
-	var d time.Duration
 	if *fRandom {
-		bytesRead, d, err = readRandom(f, size, *fReadSize, *fDuration)
+		err = readRandom(f, size, *fReadSize, *fDuration)
 		if err != nil {
 			err = fmt.Errorf("readRandom: %v", err)
 			return
 		}
 	} else {
-		bytesRead, d, err = readSequential(f, *fReadSize, *fDuration)
+		err = readSequential(f, *fReadSize, *fDuration)
 		if err != nil {
 			err = fmt.Errorf("readSequential: %v", err)
 			return
 		}
 	}
-
-	bandwidthBytesPerSec := float64(bytesRead) / (float64(d) / float64(time.Second))
-
-	fmt.Printf(
-		"Read %s in %v (%s/s)\n",
-		format.Bytes(float64(bytesRead)),
-		d,
-		format.Bytes(bandwidthBytesPerSec))
-
-	fmt.Println()
 
 	return
 }
