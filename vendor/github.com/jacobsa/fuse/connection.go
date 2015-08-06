@@ -476,9 +476,9 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 	// Debug logging
 	if c.debugLogger != nil {
 		if opErr == nil {
-			c.debugLog(fuseID, 1, "-> OK: %s", describeResponse(op))
+			c.debugLog(fuseID, 1, "-> OK")
 		} else {
-			c.debugLog(fuseID, 1, "-> error: %v", opErr)
+			c.debugLog(fuseID, 1, "-> Error: %q", opErr.Error())
 		}
 	}
 
