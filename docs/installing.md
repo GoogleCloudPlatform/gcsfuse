@@ -14,7 +14,17 @@ pre-built binaries (i.e. you don't want to build from source), you need only
 ensure fuse is installed, then download and extract the latest release. The
 instructions slightly vary by distribution.
 
-## Debian and Ubuntu
+## Ubuntu
+
+    sudo apt-get install wget fuse
+    sudo adduser $USER fuse
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.6.0/gcsfuse_v0.6.0_linux_amd64.tar.gz
+    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.6.0_linux_amd64.tar.gz
+
+You may need to log out and then log back in to make sure that the change to
+the `fuse` group takes effect.
+
+## Debian
 
     sudo apt-get install wget fuse
     sudo adduser $USER fuse
