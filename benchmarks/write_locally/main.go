@@ -26,6 +26,8 @@ import (
 	"log"
 	"os"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/benchmarks/internal/format"
 )
 
 var fDir = flag.String("dir", "", "Directory within which to write the file.")
@@ -64,7 +66,69 @@ func run() (err error) {
 		os.Remove(path)
 	}()
 
-	err = errors.New("TODO")
+	// Extend to the initial size.
+	log.Printf("Truncating to %d bytes.", *fFileSize)
+
+	err = f.Truncate(*fFileSize)
+	if err != nil {
+		err = fmt.Errorf("Truncate: %v", err)
+		return
+	}
+
+	// Repeatedly overwrite the file with zeroes.
+	log.Println("Measuring...")
+
+	var bytesWritten int64
+	var writeCount int64
+
+	buf := make([]byte, *fWriteSize)
+	start := time.Now()
+
+	for time.Since(start) < *fDuration {
+		// Seek to the beginning.
+		_, err = f.Seek(0, 0)
+		if err != nil {
+			err = fmt.Errorf("Seek: %v", err)
+			return
+		}
+
+		// Overwrite.
+		var n int64
+		for n < *fFileSize && time.Since(start) < *fDuration {
+			toWrite := *fFileSize - n
+			if toWrite > *fWriteSize {
+				toWrite = *fWriteSize
+			}
+
+			var tmp int
+			tmp, err = f.Write(buf)
+			if err != nil {
+				err = fmt.Errorf("Write: %v", err)
+				return
+			}
+
+			n += int64(tmp)
+			bytesWritten += int64(tmp)
+			writeCount++
+		}
+	}
+
+	d := time.Since(start)
+
+	// Report.
+	seconds := float64(d) / float64(time.Second)
+	writesPerSec := float64(writeCount) / seconds
+	bytesPerSec := float64(bytesWritten) / seconds
+
+	fmt.Printf(
+		"Wrote %d times (%s) in %v (%.1f Hz, %s/s)\n",
+		writeCount,
+		format.Bytes(float64(bytesWritten)),
+		d,
+		writesPerSec,
+		format.Bytes(bytesPerSec))
+
+	fmt.Println()
 	return
 }
 
