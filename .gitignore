@@ -1,7 +1,6 @@
 /gcsfuse
 /read_full_file
 /read_within_file
-Godeps/_workspace/
 vendor/**/*_test.go
 
 # Vim detritus
