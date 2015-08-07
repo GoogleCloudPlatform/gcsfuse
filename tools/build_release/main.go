@@ -34,11 +34,6 @@ var fOutputDir = flag.String("output_dir", "", "Where to write outputs.")
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func checkForTools() (err error) {
-	err = errors.New("TODO")
-	return
-}
-
 func getSettings() (version, commit, osys, arch string, err error) {
 	if *fVersion == "" {
 		err = errors.New("You must set --version.")
@@ -111,7 +106,7 @@ func run() (err error) {
 }
 
 func main() {
-	log.SetFlags(log.Lmicroseconds | log.Lshortfile)
+	log.SetFlags(log.Lmicroseconds)
 	flag.Parse()
 
 	err := run()

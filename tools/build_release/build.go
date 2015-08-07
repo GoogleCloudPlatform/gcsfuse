@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Perform a hermetic build of gcsfuse at a particular version, producing
-// release binaries and packages.
 package main
 
 import (
@@ -28,7 +26,7 @@ func buildBinaries(
 	commit string,
 	osys string,
 	arch string) (dir string, err error) {
-	log.Printf("Building %s at %s for %s (%s)", version, commit, osys, arch)
+	log.Printf("Building %s at %s for %s (%s).", version, commit, osys, arch)
 	err = errors.New("TODO")
 	return
 }

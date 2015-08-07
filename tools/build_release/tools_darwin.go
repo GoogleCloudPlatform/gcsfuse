@@ -14,28 +14,30 @@
 
 package main
 
-import "errors"
+import (
+	"fmt"
+	"os/exec"
+)
 
-// Given a directory containing release binaries, create an appropriate .tar.gz
-// file.
-func packageTarball(
-	binDir string,
-	version string,
-	osys string,
-	arch string,
-	outputDir string) (err error) {
-	err = errors.New("TODO")
-	return
-}
+func checkForTools() (err error) {
+	// Make a list of tools necessary.
+	tools := []struct {
+		name         string
+		instructions string
+	}{
+		{"git", "brew install git"},
+		{"fpm", "brew install gnu-tar && sudo gem install fpm -V"},
+		{"go", "http://tip.golang.org/doc/install-source.html"},
+	}
 
-// Given a directory containing release binaries, create an appropriate .deb
-// file.
-func packageDeb(
-	binDir string,
-	version string,
-	osys string,
-	arch string,
-	outputDir string) (err error) {
-	err = errors.New("TODO")
+	// Check each.
+	for _, t := range tools {
+		_, err = exec.LookPath(t.name)
+		if err != nil {
+			err = fmt.Errorf("%s not found. Install it: %s", t.name, t.instructions)
+			return
+		}
+	}
+
 	return
 }
