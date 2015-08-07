@@ -33,9 +33,14 @@ Download and install the latest release package:
 
 ## Debian
 
+Ensure that dependencies are present:
+
     sudo apt-get install wget fuse
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_v0.8.0_linux_amd64.tar.gz
-    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.0_linux_amd64.tar.gz
+
+Download and install the latest release package:
+
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_0.8.0_amd64.deb
+    sudo dpkg --install gcsfuse_0.8.0_amd64.deb
 
 ### Old versions of Debian
 
