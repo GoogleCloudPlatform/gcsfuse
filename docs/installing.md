@@ -96,7 +96,7 @@ Download and extract the latest release tarball:
 Download and install [osxfuse][]. Afterward, download and extract the latest
 release tarball:
 
-    curl -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_v0.8.0_darwin_amd64.tar.gz
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_v0.8.0_darwin_amd64.tar.gz
     sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.0_darwin_amd64.tar.gz
 
 [osxfuse]: https://osxfuse.github.io/
