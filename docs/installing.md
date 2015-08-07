@@ -19,8 +19,8 @@ instructions slightly vary by distribution.
 
     sudo apt-get install wget fuse
     sudo adduser $USER fuse
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.7.0/gcsfuse_v0.7.0_linux_amd64.tar.gz
-    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.7.0_linux_amd64.tar.gz
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_v0.8.0_linux_amd64.tar.gz
+    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.0_linux_amd64.tar.gz
 
 You may need to log out and then log back in to make sure that the change to
 the `fuse` group takes effect.
@@ -29,8 +29,8 @@ the `fuse` group takes effect.
 ## Debian
 
     sudo apt-get install wget fuse
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.7.0/gcsfuse_v0.7.0_linux_amd64.tar.gz
-    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.7.0_linux_amd64.tar.gz
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_v0.8.0_linux_amd64.tar.gz
+    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.0_linux_amd64.tar.gz
 
 ### Old versions of Debian
 
@@ -59,15 +59,15 @@ you may need to run the workaround above repeatedly.
 ## CentOS and Red Hat
 
     sudo yum install wget fuse
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.7.0/gcsfuse_v0.7.0_linux_amd64.tar.gz
-    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.7.0_linux_amd64.tar.gz
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_v0.8.0_linux_amd64.tar.gz
+    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.0_linux_amd64.tar.gz
 
 
 ## SUSE
 
     sudo zypper install wget fuse
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.7.0/gcsfuse_v0.7.0_linux_amd64.tar.gz
-    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.7.0_linux_amd64.tar.gz
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_v0.8.0_linux_amd64.tar.gz
+    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.0_linux_amd64.tar.gz
 
 
 
