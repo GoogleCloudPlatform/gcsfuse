@@ -19,7 +19,7 @@ or tarball. The instructions vary by distribution.
 
 Ensure that dependencies are present and that fuse is configured:
 
-    sudo apt-get install wget fuse
+    sudo apt-get install wget fuse daemon
     sudo adduser $USER fuse
 
 You may need to log out and then log back in to make sure that the change to
@@ -27,20 +27,20 @@ the `fuse` group takes effect.
 
 Download and install the latest release package:
 
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.1/gcsfuse_0.8.1_amd64.deb
-    sudo dpkg --install gcsfuse_0.8.1_amd64.deb
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.0/gcsfuse_0.9.0_amd64.deb
+    sudo dpkg --install gcsfuse_0.9.0_amd64.deb
 
 
 ## Debian
 
 Ensure that dependencies are present:
 
-    sudo apt-get install wget fuse
+    sudo apt-get install wget fuse daemon
 
 Download and install the latest release package:
 
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.1/gcsfuse_0.8.1_amd64.deb
-    sudo dpkg --install gcsfuse_0.8.1_amd64.deb
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.0/gcsfuse_0.9.0_amd64.deb
+    sudo dpkg --install gcsfuse_0.9.0_amd64.deb
 
 ### Old versions of Debian
 
@@ -74,8 +74,17 @@ Ensure that dependencies are present:
 
 Download and install the latest release package:
 
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.1/gcsfuse-0.8.1-1.x86_64.rpm
-    sudo rpm --install -p gcsfuse-0.8.1-1.x86_64.rpm
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.0/gcsfuse-0.9.0-1.x86_64.rpm
+    sudo rpm --install -p gcsfuse-0.9.0-1.x86_64.rpm
+
+If you want [fstab support][fstab] using the built-in helper script, you should
+also install [daemon][daemon]:
+
+    wget http://libslack.org/daemon/download/daemon-0.6.4-1.x86_64.rpm
+    sudo rpm --install -p daemon-0.6.4-1.x86_64.rpm
+
+[fstab]: mounting.md
+[daemon]: http://libslack.org/daemon/
 
 
 ## SUSE
@@ -86,8 +95,8 @@ Ensure that dependencies are present:
 
 Download and extract the latest release tarball:
 
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.1/gcsfuse_v0.8.1_linux_amd64.tar.gz
-    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.1_linux_amd64.tar.gz
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.0/gcsfuse_v0.9.0_linux_amd64.tar.gz
+    sudo tar -o -C / -zxf gcsfuse_v0.9.0_linux_amd64.tar.gz
 
 
 
@@ -96,10 +105,20 @@ Download and extract the latest release tarball:
 Download and install [osxfuse][]. Afterward, download and extract the latest
 release tarball:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.1/gcsfuse_v0.8.1_darwin_amd64.tar.gz
-    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.1_darwin_amd64.tar.gz
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.0/gcsfuse_v0.9.0_darwin_amd64.tar.gz
+    sudo tar -o -C / -zxf gcsfuse_v0.9.0_darwin_amd64.tar.gz
 
 [osxfuse]: https://osxfuse.github.io/
+
+If you want [fstab support][fstab] using the built-in helper script, you should
+also install [daemon][daemon]. If you use [Homebrew][homebrew], you can do this
+with:
+
+    brew install daemon
+
+[fstab]: mounting.md
+[daemon]: http://libslack.org/daemon/
+[homebrew]: http://brew.sh/
 
 
 

@@ -1,6 +1,6 @@
 Building a gcsfuse release:
 
-1.  Note the current commit that `master` points to. Call it `123abcd`.
+1.  Choose the commit at which you want to build a release. Call it `123abcd`.
 
 2.  Use a viewer like [gitx](http://rowanj.github.io/gitx/) to examine the
     changes between the previous release and `123abcd`. Write up release notes.
@@ -8,8 +8,8 @@ Building a gcsfuse release:
 3.  Choose a new version number according to the rules of [semantic
     versioning][semver]. Call it `v1.2.3`.
 
-4.  Run `git tag -a v1.2.3`. Put the release notes in the tag, formatting
-    according to the standard set by [previous tags][tags].
+4.  Run `git tag -a v1.2.3 123abcd`. Put the release notes in the tag,
+    formatting according to the standard set by [previous tags][tags].
 
 5.  Push the tag with `git push origin v1.2.3`.
 

@@ -86,41 +86,35 @@ can be run with:
 [homebrew]: http://brew.sh/
 
 
-# fstab compatibility
+# mount(8) and fstab compatibility
 
-It is possible to set up entries for gcsfuse file systems in your `/etc/fstab`
-file, such that file systems can be mounted at boot or on demand based on path
-or name.
+The gcsfuse [installation process](installing.md) installed a helper understood
+by the `mount` command to your system at one of these two paths, depending on
+your operating system:
 
-In order to do this, gcsfuse must be made compatible with the (underdocumented
-and platform-specific) protocol spoken by [`mount`][mount] when calling its
-external helpers. The gcsfuse repo contains a tool to help with this, which you
-can install with:
+*   Linux: `/sbin/mount.gcsfuse`
+*   OS X: `/sbin/mount_gcsfuse`
 
-    go install github.com/googlecloudplatform/gcsfuse/gcsfuse_mount_helper
+These scripts contain reasonable defaults, but you may need to edit them to
+change details about your setup if you're doing anything special with regard to
+e.g. credentials or daemonization. In particular, they require [daemon][] to be
+installed.
 
-[mount]: http://linux.die.net/man/8/mount
+On OS X, these scripts allow you to mount buckets using the `mount` command.
+(On Linux, only root can do this.)
 
-The helper accepts arguments in the form supplied by `mount`, but as discussed
-above does not automatically daemonize, which is expected by `mount`. So the
-final step is to install an external mount helper with a system-specific name
-(e.g. `/sbin/mount_gcsfuse` on OS X, `/sbin/mount.gcsfuse` on Linux) that uses
-a daemonizing wrapper program to start gcsfuse.
-[gcsfuse_mount_helper/sample.sh][] contains an example that uses `daemon`.
+    mount -t gcsfuse -o rw,user my-bucket /path/to/mount/point
 
-[gcsfuse_mount_helper/sample.sh]: /gcsfuse_mount_helper/sample.sh
-
-Once this helper is installed, you should be able to mount a bucket with a
-command like the following:
-
-    mount -t gcsfuse -o rw my-bucket /path/to/mount/point
-
-Similarly, a line like the following can be added to `/etc/fstab` (the `user`
-option is required on Linux in order to allow non-root users):
+Because the `mount` command works, you can also add entries to your
+`/etc/fstab` file like the following:
 
     my-bucket /mount/point gcsfuse rw,noauto,user
 
-Afterward, you can run `mount /mount/point`. The `noauto` option specifies that
-the file system should not be mounted at boot time. If you want this, remove
-the option and modify your mount helper to tell the daemonizing program to run
-gcsfuse as your desired user.
+Afterward, you can run `mount /mount/point` as a non-root user.
+
+The `noauto` option above specifies that the file system should not be mounted
+at boot time. If you want this, remove the option and modify the mount helper
+script in `/sbin` to tell the daemonizing program to run gcsfuse as your
+desired user.
+
+[daemon]: http://libslack.org/daemon/
