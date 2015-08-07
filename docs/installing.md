@@ -110,6 +110,16 @@ release tarball:
 
 [osxfuse]: https://osxfuse.github.io/
 
+If you want [fstab support][fstab] using the built-in helper script, you should
+also install [daemon][daemon]. If you use [Homebrew][homebrew], you can do this
+with:
+
+    brew install daemon
+
+[fstab]: docs/mounting.md
+[daemon]: http://libslack.org/daemon/
+[homebrew]: http://brew.sh/
+
 
 
 # Building from source
