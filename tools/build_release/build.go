@@ -24,7 +24,8 @@ import (
 )
 
 // Build release binaries according to the supplied settings, returning the
-// path to a directory containing exactly the output binaries.
+// path to a directory containing exactly root-relative file system structure
+// we desire.
 func buildBinaries(
 	version string,
 	commit string,
@@ -44,6 +45,26 @@ func buildBinaries(
 			os.RemoveAll(dir)
 		}
 	}()
+
+	// Create the target structure.
+	var binDir string
+	switch osys {
+	case "darwin":
+		binDir = path.Join(dir, "usr/local/bin")
+
+	case "linux":
+		binDir = path.Join(dir, "usr/bin")
+
+	default:
+		err = fmt.Errorf("Don't know where to put binaries for %s", osys)
+		return
+	}
+
+	err = os.MkdirAll(binDir, 0700)
+	if err != nil {
+		err = fmt.Errorf("MkdirAll: %v", err)
+		return
+	}
 
 	// Create another directory to become GOPATH for our build below.
 	gopath, err := ioutil.TempDir("", "build_release_gopath")
@@ -116,7 +137,7 @@ func buildBinaries(
 			"go",
 			"build",
 			"-o",
-			path.Join(dir, path.Base(bin)),
+			path.Join(binDir, path.Base(bin)),
 			bin)
 
 		cmd.Env = []string{

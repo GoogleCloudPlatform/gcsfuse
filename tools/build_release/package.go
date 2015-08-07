@@ -86,7 +86,6 @@ func packageFpm(
 		"-C", binDir,
 		"-v", version,
 		"-d", "fuse >= 2.9.2",
-		"--prefix", "/usr/bin",
 		"--vendor", "",
 		"--maintainer", "Aaron Jacobs <jacobsa@google.com>",
 		"--url", "https://github.com/googlecloudplatform/gcsfuse",
