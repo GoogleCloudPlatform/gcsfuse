@@ -50,11 +50,11 @@ COPYRIGHT:
 
 func newApp() (app *cli.App) {
 	app = &cli.App{
-		Name:        "gcsfuse",
-		Usage:       "Mount a GCS bucket locally",
-		HideHelp:    true,
-		HideVersion: true,
-		Writer:      os.Stderr,
+		Name:     "gcsfuse",
+		Version:  gcsfuseVersion,
+		Usage:    "Mount a GCS bucket locally",
+		HideHelp: true,
+		Writer:   os.Stderr,
 		Flags: []cli.Flag{
 
 			cli.BoolFlag{
