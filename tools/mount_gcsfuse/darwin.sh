@@ -1,12 +1,11 @@
 #!/bin/bash
 
-# A sample "external helper" for mount(8) that can be used to set up
-# compatibility with the `mount` command. Edit the variables below, then install
-# as /sbin/mount_gcsfuse on OS X or /sbin/mount.gcsfuse on Linux.
+# An "external helper" for mount(8) that can be used to set up compatibility
+# with the `mount` command. Edit the variables below if necessary, then install
+# as /sbin/mount_gcsfuse.
 
-# Path to the gcsfuse_mount_helper binary obtained by running
-#     go install github.com/googlecloudplatform/gcsfuse/gcsfuse_mount_helper
-HELPER=/Users/jacobsa/go/bin/gcsfuse_mount_helper
+# Path to the mount_gcsfuse binary.
+MOUNT_GCSFUSE=/usr/local/bin/mount_gcsfuse
 
 # Path to a JSON key file downloaded from the Google Developers Console.
 #
@@ -16,13 +15,12 @@ HELPER=/Users/jacobsa/go/bin/gcsfuse_mount_helper
 # Google Cloud Engine VM that was created with the storage-full scope.
 KEY_FILE=
 
-# A $PATH-like string containing the gcsfuse binary and (on Linux) the
-# fusermount binary.
-WRAPPED_PATH=/Users/jacobsa/go/bin
+# The PATH to use for mount_gcsfuse, which must contain the gcsfuse binary.
+WRAPPED_PATH=/usr/local/bin
 
 # Set to an output file where you want stdout and stderr to go, or /dev/null, or
 # a syslog "facility.priority" spec. See `man 1 daemon` for more.
-OUTPUT=/tmp/gcsfuse.output
+OUTPUT=/dev/null
 
 # Run under daemon so that we return to mount(8) immediately.
 daemon \
