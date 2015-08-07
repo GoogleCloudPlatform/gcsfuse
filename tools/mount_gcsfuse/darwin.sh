@@ -28,6 +28,6 @@ daemon \
   --env="GOOGLE_APPLICATION_CREDENTIALS=$KEY_FILE" \
   --output $OUTPUT \
   -- \
-  $HELPER "$@"
+  $MOUNT_GCSFUSE "$@"
 
 exit
