@@ -77,6 +77,16 @@ func buildBinaries(
 		return
 	}
 
+	// Check out the appropriate commit.
+	cmd = exec.Command("git", "checkout", commit)
+	cmd.Dir = gitDir
+
+	output, err = cmd.CombinedOutput()
+	if err != nil {
+		err = fmt.Errorf("git checkout: %v\nOutput:\n%s", err, output)
+		return
+	}
+
 	// Overwrite version.go with a file containing the appropriate constant.
 	versionContents := fmt.Sprintf(
 		"package main\nconst gcsfuseVersion = \"%s (commit %s)\"",
