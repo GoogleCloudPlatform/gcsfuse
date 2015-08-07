@@ -105,9 +105,15 @@ func run() (err error) {
 		return
 	}
 
-	// Write out a .deb file if we're building for Linux.
+	// Write out .deb and .rpm files if we're building for Linux.
 	if osys == "linux" {
 		err = packageDeb(binDir, version, osys, arch, *fOutputDir)
+		if err != nil {
+			err = fmt.Errorf("packageDeb: %v", err)
+			return
+		}
+
+		err = packageRpm(binDir, version, osys, arch, *fOutputDir)
 		if err != nil {
 			err = fmt.Errorf("packageDeb: %v", err)
 			return
