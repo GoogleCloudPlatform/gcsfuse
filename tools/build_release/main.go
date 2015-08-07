@@ -29,7 +29,7 @@ var fCommit = flag.String("commit", "", "Commit at which to build.")
 var fOS = flag.String("os", "", "OS for which to build, e.g. linux or darwin.")
 var fArch = flag.String("arch", "amd64", "Architecture for which to build.")
 var fOutputDir = flag.String("output_dir", "", "Where to write outputs.")
-var fRPM = flag.Bool("rpm", true, "Build .rpm in addition to .deb.")
+var fRPM = flag.Bool("rpm", false, "Build .rpm in addition to .deb.")
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
