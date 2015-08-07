@@ -127,7 +127,7 @@ func buildBinaries(
 	// Build the binaries.
 	binaries := []string{
 		"github.com/googlecloudplatform/gcsfuse",
-		"github.com/googlecloudplatform/gcsfuse/gcsfuse_mount_helper",
+		"github.com/googlecloudplatform/gcsfuse/tools/mount_gcsfuse",
 	}
 
 	for _, bin := range binaries {
