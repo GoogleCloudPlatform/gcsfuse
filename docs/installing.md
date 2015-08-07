@@ -93,21 +93,14 @@ Download and extract the latest release tarball:
 
 # OS X
 
-If you already have the [Homebrew package manager][homebrew] installed, you can
-do the following to install gcsfuse:
+Download and install [osxfuse][]. Afterward, download and extract the latest
+release tarball:
 
-[homebrew]: http://brew.sh/
-
-*   Download and install [osxfuse][]. (In modern versions of OS X you cannot do
-    this via Homebrew because of Apple's requirements for kernel extension
-    signatures.)
-
-*   Run `brew tap homebrew/fuse && brew install gcsfuse`.
+    curl -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_v0.8.0_darwin_amd64.tar.gz
+    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.0_darwin_amd64.tar.gz
 
 [osxfuse]: https://osxfuse.github.io/
 
-Otherwise, or if you want to install a pre-release version of gcsfuse, read the
-remainder of this document.
 
 
 # Building from source
