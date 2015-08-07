@@ -7,7 +7,7 @@ Building a gcsfuse release:
 
 3.  Choose a new version number according to the rules of [semantic
     versioning][semver]. Call it `v1.2.3`.
- 
+
 4.  Run `git tag -a v1.2.3`. Put the release notes in the tag, formatting
     according to the standard set by [previous tags][tags].
 
