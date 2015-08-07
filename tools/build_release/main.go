@@ -34,7 +34,7 @@ var fOutputDir = flag.String("output_dir", "", "Where to write outputs.")
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func getSettings() (version, commit, osys, arch string, err error) {
+func getSettings() (version, commit, osys, arch, outputDir string, err error) {
 	if *fVersion == "" {
 		err = errors.New("You must set --version.")
 		return
@@ -59,6 +59,16 @@ func getSettings() (version, commit, osys, arch string, err error) {
 	}
 	arch = *fArch
 
+	// Output dir
+	outputDir = *fOutputDir
+	if outputDir == "" {
+		outputDir, err = os.Getwd()
+		if err != nil {
+			err = fmt.Errorf("Getwd: %v", err)
+			return
+		}
+	}
+
 	return
 }
 
@@ -74,7 +84,7 @@ func run() (err error) {
 	}
 
 	// Read flags.
-	version, commit, osys, arch, err := getSettings()
+	version, commit, osys, arch, outputDir, err := getSettings()
 	if err != nil {
 		return
 	}
@@ -89,7 +99,7 @@ func run() (err error) {
 	defer os.RemoveAll(binDir)
 
 	// Write out a tarball.
-	err = packageTarball(binDir, version, osys, arch, *fOutputDir)
+	err = packageTarball(binDir, version, osys, arch, outputDir)
 	if err != nil {
 		err = fmt.Errorf("packageTarball: %v", err)
 		return
