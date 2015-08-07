@@ -60,7 +60,7 @@ func buildBinaries(
 		return
 	}
 
-	err = os.MkdirAll(binDir, 0700)
+	err = os.MkdirAll(binDir, 0755)
 	if err != nil {
 		err = fmt.Errorf("MkdirAll: %v", err)
 		return
