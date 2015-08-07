@@ -31,6 +31,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 )
@@ -151,4 +152,13 @@ func (t *MountTest) BasicUsage() {
 
 	err = mfs.Join(t.ctx)
 	AssertEq(nil, err)
+}
+
+func (t *MountTest) NonExistentMountPoint() {
+	bucket, err := t.conn.OpenBucket(t.ctx, "some_bucket")
+	AssertEq(nil, err)
+
+	_, err = t.mount(bucket.Name(), path.Join(t.dir, "blahblah"))
+	ExpectThat(err, Error(HasSubstr("no such")))
+	ExpectThat(err, Error(HasSubstr("blahblah")))
 }
