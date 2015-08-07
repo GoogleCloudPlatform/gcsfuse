@@ -96,6 +96,8 @@ func packageDeb(
 	osys string,
 	arch string,
 	outputDir string) (err error) {
+	log.Println("Building a .deb package.")
+
 	err = packageFpm("deb", binDir, version, osys, arch, outputDir)
 	return
 }
@@ -108,6 +110,8 @@ func packageRpm(
 	osys string,
 	arch string,
 	outputDir string) (err error) {
+	log.Println("Building a .rpm package.")
+
 	err = packageFpm("rpm", binDir, version, osys, arch, outputDir)
 	return
 }
