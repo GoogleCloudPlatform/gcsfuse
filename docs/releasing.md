@@ -13,18 +13,22 @@ Building a gcsfuse release:
 
 5.  Push the tag with `git push origin v1.2.3`.
 
-6.  On a CentOS VM (where `rpm-build` is available), build Linux and OS X
-    release binaries and packages:
+6.  On a CentOS VM (where `rpm-build` is available), build a Linux release:
 
         mkdir -p ~/tmp/release
         go build github.com/googlecloudplatform/gcsfuse/tools/build_release
-        ./build_release --version 1.2.3 --commit 123abcd  --os linux --output_dir ~/tmp/release --rpm
-        ./build_release --version 1.2.3 --commit 123abcd  --os darwin --output_dir ~/tmp/release
+        ./build_release --version 1.2.3 --commit 123abcd --output_dir ~/tmp/release --rpm
 
-7.  [Create a new release][new-release] on GitHub. Paste in the release notes
-    and update the contents of `~/tmp/release` from the previous step.
+7.  On an OS X machine, build an OS X release:
 
-8.  Find and replace in `docs/installing.md` to reference the new version
+        mkdir -p ~/tmp/release
+        go build github.com/googlecloudplatform/gcsfuse/tools/build_release
+        ./build_release --version 1.2.3 --commit 123abcd --output_dir ~/tmp/release
+
+8.  [Create a new release][new-release] on GitHub. Paste in the release notes
+    and update the contents of `~/tmp/release` from the previous two steps.
+
+9.  Find and replace in `docs/installing.md` to reference the new version
     number. For example: `%s/1\.2\.2/1.2.3/gc`
 
 [semver]: http://semver.org/
