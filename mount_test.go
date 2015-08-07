@@ -162,3 +162,16 @@ func (t *MountTest) NonExistentMountPoint() {
 	ExpectThat(err, Error(HasSubstr("no such")))
 	ExpectThat(err, Error(HasSubstr("blahblah")))
 }
+
+func (t *MountTest) MountPointIsAFile() {
+	bucket, err := t.conn.OpenBucket(t.ctx, "some_bucket")
+	AssertEq(nil, err)
+
+	mp := path.Join(t.dir, "foo")
+	err = ioutil.WriteFile(mp, []byte{}, 0500)
+	AssertEq(nil, err)
+
+	_, err = t.mount(bucket.Name(), mp)
+	ExpectThat(err, Error(HasSubstr(mp)))
+	ExpectThat(err, Error(HasSubstr("not a directory")))
+}
