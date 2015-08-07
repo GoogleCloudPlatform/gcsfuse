@@ -2,10 +2,10 @@
 
 # An "external helper" for mount(8) that can be used to set up compatibility
 # with the `mount` command. Edit the variables below if necessary, then install
-# as /sbin/mount_gcsfuse.
+# as /sbin/mount.gcsfuse.
 
 # Path to the mount_gcsfuse binary.
-MOUNT_GCSFUSE=/usr/local/bin/mount_gcsfuse
+MOUNT_GCSFUSE=/usr/bin/mount_gcsfuse
 
 # Path to a JSON key file downloaded from the Google Developers Console.
 #
@@ -15,8 +15,9 @@ MOUNT_GCSFUSE=/usr/local/bin/mount_gcsfuse
 # Google Cloud Engine VM that was created with the storage-full scope.
 KEY_FILE=
 
-# The PATH to use for mount_gcsfuse, which must contain the gcsfuse binary.
-WRAPPED_PATH=/usr/local/bin
+# The PATH to use for mount_gcsfuse, which must contain the gcsfuse binary and
+# fusermount.
+WRAPPED_PATH=/usr/bin:/bin
 
 # Set to an output file where you want stdout and stderr to go, or /dev/null, or
 # a syslog "facility.priority" spec. See `man 1 daemon` for more.
