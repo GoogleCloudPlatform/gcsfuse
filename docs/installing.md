@@ -19,7 +19,7 @@ or tarball. The instructions vary by distribution.
 
 Ensure that dependencies are present and that fuse is configured:
 
-    sudo apt-get install wget fuse
+    sudo apt-get install wget fuse daemon
     sudo adduser $USER fuse
 
 You may need to log out and then log back in to make sure that the change to
@@ -35,7 +35,7 @@ Download and install the latest release package:
 
 Ensure that dependencies are present:
 
-    sudo apt-get install wget fuse
+    sudo apt-get install wget fuse daemon
 
 Download and install the latest release package:
 
