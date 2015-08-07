@@ -77,7 +77,21 @@ func buildBinaries(
 		return
 	}
 
-	// TODO(jacobsa): Overwrite version.go.
+	// Overwrite version.go with a file containing the appropriate constant.
+	versionContents := fmt.Sprintf(
+		"package main\nconst gcsfuseVersion = \"%s (commit %s)\"",
+		version,
+		commit)
+
+	err = ioutil.WriteFile(
+		path.Join(gitDir, "version.go"),
+		[]byte(versionContents),
+		0400)
+
+	if err != nil {
+		err = fmt.Errorf("WriteFile: %v", err)
+		return
+	}
 
 	// Build the binaries.
 	binaries := []string{
