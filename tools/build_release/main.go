@@ -28,9 +28,85 @@ var fVersion = flag.String("version", "", "Version number of the release.")
 var fCommit = flag.String("commit", "", "Commit at which to build.")
 var fOS = flag.String("os", "", "OS for which to build, e.g. linux or darwin.")
 var fArch = flag.String("arch", "amd64", "Architecture for which to build.")
+var fOutputDir = flag.String("output_dir", "", "Where to write outputs.")
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func checkForTools() (err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func getSettings() (version, commit, osys, arch string, err error) {
+	if *fVersion == "" {
+		err = errors.New("You must set --version.")
+		return
+	}
+	version = *fVersion
+
+	if *fCommit == "" {
+		err = errors.New("You must set --commit.")
+		return
+	}
+	commit = *fCommit
+
+	if *fOS == "" {
+		err = errors.New("You must set --os.")
+		return
+	}
+	osys = *fOS
+
+	if *fArch == "" {
+		err = errors.New("You must set --arch.")
+		return
+	}
+	arch = *fArch
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// main logic
+////////////////////////////////////////////////////////////////////////
 
 func run() (err error) {
-	err = errors.New("TODO")
+	// Ensure that all of the tools we need are present.
+	err = checkForTools()
+	if err != nil {
+		return
+	}
+
+	// Read flags.
+	version, commit, osys, arch, err := getSettings()
+	if err != nil {
+		return
+	}
+
+	// Build release binaries.
+	binDir, err := buildBinaries(version, commit, osys, arch)
+	if err != nil {
+		err = fmt.Errorf("buildBinaries: %v", err)
+		return
+	}
+
+	defer os.RemoveAll(binDir)
+
+	// Write out a tarball.
+	err = packageTarball(binDir, version, osys, arch, *fOutputDir)
+	if err != nil {
+		err = fmt.Errorf("packageTarball: %v", err)
+		return
+	}
+
+	// Write out a .deb file.
+	err = packageDeb(binDir, version, osys, arch, *fOutputDir)
+	if err != nil {
+		err = fmt.Errorf("packageDeb: %v", err)
+		return
+	}
+
 	return
 }
 
