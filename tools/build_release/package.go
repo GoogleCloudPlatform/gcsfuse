@@ -69,7 +69,7 @@ func packageFpm(
 		"-n", "gcsfuse",
 		"-C", binDir,
 		"-v", version,
-		"-d", "fuse (>= 2.9.2)",
+		"-d", "fuse >= 2.9.2",
 		"--prefix", "/usr/bin",
 		"--vendor", "",
 		"--maintainer", "Aaron Jacobs <jacobsa@google.com>",
