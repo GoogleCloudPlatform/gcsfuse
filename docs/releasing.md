@@ -17,13 +17,13 @@ Building a gcsfuse release:
 
         mkdir -p ~/tmp/release
         go build github.com/googlecloudplatform/gcsfuse/tools/build_release
-        ./build_release --version 1.2.3 --commit 123abcd  --os linux --output_dir ~/tmp/release --rpm
+        ./build_release --version 1.2.3 --commit 123abcd --output_dir ~/tmp/release --rpm
 
 7.  On an OS X machine, build an OS X release:
 
         mkdir -p ~/tmp/release
         go build github.com/googlecloudplatform/gcsfuse/tools/build_release
-        ./build_release --version 1.2.3 --commit 123abcd  --os darwin --output_dir ~/tmp/release
+        ./build_release --version 1.2.3 --commit 123abcd --output_dir ~/tmp/release
 
 8.  [Create a new release][new-release] on GitHub. Paste in the release notes
     and update the contents of `~/tmp/release` from the previous two steps.

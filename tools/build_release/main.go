@@ -20,14 +20,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/build"
 	"log"
 	"os"
 )
 
 var fVersion = flag.String("version", "", "Version number of the release.")
 var fCommit = flag.String("commit", "", "Commit at which to build.")
-var fOS = flag.String("os", "", "OS for which to build, e.g. linux or darwin.")
-var fArch = flag.String("arch", "amd64", "Architecture for which to build.")
 var fOutputDir = flag.String("output_dir", "", "Where to write outputs.")
 var fRPM = flag.Bool("rpm", false, "Build .rpm in addition to .deb.")
 
@@ -48,17 +47,10 @@ func getSettings() (version, commit, osys, arch, outputDir string, err error) {
 	}
 	commit = *fCommit
 
-	if *fOS == "" {
-		err = errors.New("You must set --os.")
-		return
-	}
-	osys = *fOS
-
-	if *fArch == "" {
-		err = errors.New("You must set --arch.")
-		return
-	}
-	arch = *fArch
+	// Use the compiled code's OS and architecture, allowing the user to override
+	// in the environment.
+	osys = build.Default.GOOS
+	arch = build.Default.GOARCH
 
 	// Output dir
 	outputDir = *fOutputDir
