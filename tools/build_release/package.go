@@ -15,7 +15,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os/exec"
@@ -63,6 +62,31 @@ func packageDeb(
 	osys string,
 	arch string,
 	outputDir string) (err error) {
-	err = errors.New("TODO")
+	log.Println("Building a .deb file")
+
+	// Call fpm.
+	cmd := exec.Command(
+		"fpm",
+		"-s", "dir",
+		"-t", "deb",
+		"-n", "gcsfuse",
+		"-C", binDir,
+		"-v", version,
+		"-d", "fuse (>= 2.9.2)",
+		"--prefix", "/usr/bin",
+		"--vendor", "",
+		"--maintainer", "Aaron Jacobs <jacobsa@google.com>",
+		"--url", "https://github.com/googlecloudplatform/gcsfuse",
+		"--description", "A user-space file system for interacting with Google Cloud Storage.",
+	)
+
+	cmd.Dir = outputDir
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		err = fmt.Errorf("fpm: %v\nOutput:\n%s", err, output)
+		return
+	}
+
 	return
 }
