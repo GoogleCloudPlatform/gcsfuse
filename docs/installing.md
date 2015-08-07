@@ -83,7 +83,7 @@ also install [daemon][daemon]:
     wget http://libslack.org/daemon/download/daemon-0.6.4-1.x86_64.rpm
     sudo rpm --install -p daemon-0.6.4-1.x86_64.rpm
 
-[fstab]: docs/mounting.md
+[fstab]: mounting.md
 [daemon]: http://libslack.org/daemon/
 
 
@@ -116,7 +116,7 @@ with:
 
     brew install daemon
 
-[fstab]: docs/mounting.md
+[fstab]: mounting.md
 [daemon]: http://libslack.org/daemon/
 [homebrew]: http://brew.sh/
 
