@@ -11,26 +11,36 @@ It may or may not work correctly with other operating systems and older versions
 
 If you are running Linux on a 64-bit x86 machine and are happy to install
 pre-built binaries (i.e. you don't want to build from source), you need only
-ensure fuse is installed, then download and extract the latest release. The
-instructions slightly vary by distribution.
+ensure fuse is installed, then download and install the latest release package
+or tarball. The instructions vary by distribution.
 
 
 ## Ubuntu
 
+Ensure that dependencies are present and that fuse is configured:
+
     sudo apt-get install wget fuse
     sudo adduser $USER fuse
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_v0.8.0_linux_amd64.tar.gz
-    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.0_linux_amd64.tar.gz
 
 You may need to log out and then log back in to make sure that the change to
 the `fuse` group takes effect.
 
+Download and install the latest release package:
+
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_0.8.0_amd64.deb
+    sudo dpkg --install gcsfuse_0.8.0_amd64.deb
+
 
 ## Debian
 
+Ensure that dependencies are present:
+
     sudo apt-get install wget fuse
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_v0.8.0_linux_amd64.tar.gz
-    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.0_linux_amd64.tar.gz
+
+Download and install the latest release package:
+
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_0.8.0_amd64.deb
+    sudo dpkg --install gcsfuse_0.8.0_amd64.deb
 
 ### Old versions of Debian
 
@@ -58,14 +68,24 @@ you may need to run the workaround above repeatedly.
 
 ## CentOS and Red Hat
 
+Ensure that dependencies are present:
+
     sudo yum install wget fuse
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_v0.8.0_linux_amd64.tar.gz
-    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.0_linux_amd64.tar.gz
+
+Download and install the latest release package:
+
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse-0.8.0-1.x86_64.rpm
+    sudo rpm --install -p gcsfuse-0.8.0-1.x86_64.rpm
 
 
 ## SUSE
 
+Ensure that dependencies are present:
+
     sudo zypper install wget fuse
+
+Download and extract the latest release tarball:
+
     wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_v0.8.0_linux_amd64.tar.gz
     sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.0_linux_amd64.tar.gz
 
@@ -73,21 +93,14 @@ you may need to run the workaround above repeatedly.
 
 # OS X
 
-If you already have the [Homebrew package manager][homebrew] installed, you can
-do the following to install gcsfuse:
+Download and install [osxfuse][]. Afterward, download and extract the latest
+release tarball:
 
-[homebrew]: http://brew.sh/
-
-*   Download and install [osxfuse][]. (In modern versions of OS X you cannot do
-    this via Homebrew because of Apple's requirements for kernel extension
-    signatures.)
-
-*   Run `brew tap homebrew/fuse && brew install gcsfuse`.
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_v0.8.0_darwin_amd64.tar.gz
+    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.0_darwin_amd64.tar.gz
 
 [osxfuse]: https://osxfuse.github.io/
 
-Otherwise, or if you want to install a pre-release version of gcsfuse, read the
-remainder of this document.
 
 
 # Building from source
