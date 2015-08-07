@@ -80,7 +80,12 @@ Download and install the latest release package:
 
 ## SUSE
 
+Ensure that dependencies are present:
+
     sudo zypper install wget fuse
+
+Download and extract the latest release tarball:
+
     wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_v0.8.0_linux_amd64.tar.gz
     sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.0_linux_amd64.tar.gz
 
