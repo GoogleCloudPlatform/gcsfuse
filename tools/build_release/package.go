@@ -54,25 +54,22 @@ func packageTarball(
 	return
 }
 
-// Given a directory containing release binaries, create an appropriate .deb
-// file.
-func packageDeb(
+func packageFpm(
+	packageType string,
 	binDir string,
 	version string,
 	osys string,
 	arch string,
 	outputDir string) (err error) {
-	log.Println("Building a .deb file")
-
 	// Call fpm.
 	cmd := exec.Command(
 		"fpm",
 		"-s", "dir",
-		"-t", "deb",
+		"-t", packageType,
 		"-n", "gcsfuse",
 		"-C", binDir,
 		"-v", version,
-		"-d", "fuse (>= 2.9.2)",
+		"-d", "fuse >= 2.9.2",
 		"--prefix", "/usr/bin",
 		"--vendor", "",
 		"--maintainer", "Aaron Jacobs <jacobsa@google.com>",
@@ -88,5 +85,33 @@ func packageDeb(
 		return
 	}
 
+	return
+}
+
+// Given a directory containing release binaries, create an appropriate .deb
+// file.
+func packageDeb(
+	binDir string,
+	version string,
+	osys string,
+	arch string,
+	outputDir string) (err error) {
+	log.Println("Building a .deb package.")
+
+	err = packageFpm("deb", binDir, version, osys, arch, outputDir)
+	return
+}
+
+// Given a directory containing release binaries, create an appropriate .rpm
+// file.
+func packageRpm(
+	binDir string,
+	version string,
+	osys string,
+	arch string,
+	outputDir string) (err error) {
+	log.Println("Building a .rpm package.")
+
+	err = packageFpm("rpm", binDir, version, osys, arch, outputDir)
 	return
 }
