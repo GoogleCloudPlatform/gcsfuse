@@ -14,7 +14,13 @@
 
 package main
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"log"
+	"os/exec"
+	"path"
+)
 
 // Given a directory containing release binaries, create an appropriate .tar.gz
 // file.
@@ -24,7 +30,28 @@ func packageTarball(
 	osys string,
 	arch string,
 	outputDir string) (err error) {
-	err = errors.New("TODO")
+	// Choose an output file name.
+	outputFile := path.Join(
+		outputDir,
+		fmt.Sprintf("gcsfuse_v%s_%s_%s.tar.gz", version, osys, arch))
+
+	log.Printf("Writing tarball to %s", outputFile)
+
+	// Run tar.
+	cmd := exec.Command(
+		"tar",
+		"zcvf",
+		outputFile,
+		".")
+
+	cmd.Dir = binDir
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		err = fmt.Errorf("tar: %v\nOutput:\n%s", err, output)
+		return
+	}
+
 	return
 }
 
