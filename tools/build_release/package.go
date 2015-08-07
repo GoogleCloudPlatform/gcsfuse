@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path"
 )
@@ -36,13 +37,28 @@ func packageTarball(
 
 	log.Printf("Writing tarball to %s", outputFile)
 
+	// Find the set of files to include.
+	f, err := os.Open(binDir)
+	if err != nil {
+		err = fmt.Errorf("Open: %v", err)
+		return
+	}
+
+	defer f.Close()
+
+	names, err := f.Readdirnames(0)
+	if err != nil {
+		err = fmt.Errorf("Readdirnames: %v", err)
+		return
+	}
+
 	// Run tar.
 	cmd := exec.Command(
 		"tar",
 		"zcvf",
-		outputFile,
-		".")
+		outputFile)
 
+	cmd.Args = append(cmd.Args, names...)
 	cmd.Dir = binDir
 
 	output, err := cmd.CombinedOutput()
