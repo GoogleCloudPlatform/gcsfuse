@@ -29,7 +29,7 @@ package main
 //
 // becomes the following arguments:
 //
-//     Arg 0: "/path/to/gcsfuse_mount_helper"
+//     Arg 0: "/sbin/mount_gcsfuse "
 //     Arg 1: "-o"
 //     Arg 2: "foo=bar baz"
 //     Arg 3: "-o"
@@ -45,7 +45,7 @@ package main
 //
 // becomes
 //
-//     Arg 0: "/path/to/gcsfuse_mount_helper"
+//     Arg 0: "/sbin/mount.gcsfuse"
 //     Arg 1: "bucket"
 //     Arg 2: "/path/to/mp"
 //     Arg 3: "-o"
