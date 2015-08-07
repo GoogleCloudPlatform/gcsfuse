@@ -75,7 +75,7 @@ Ensure that dependencies are present:
 Download and install the latest release package:
 
     wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse-0.8.0-1.x86_64.rpm
-    sudo --install -p gcsfuse-0.8.0-1.x86_64.rpm
+    sudo rpm --install -p gcsfuse-0.8.0-1.x86_64.rpm
 
 
 ## SUSE
