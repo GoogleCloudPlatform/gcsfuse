@@ -87,7 +87,7 @@ Ensure that dependencies are present:
 Download and extract the latest release tarball:
 
     wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.1/gcsfuse_v0.8.1_linux_amd64.tar.gz
-    sudo tar -o -C /usr/local/bin -zxf gcsfuse_v0.8.1_linux_amd64.tar.gz
+    sudo tar -o -C / -zxf gcsfuse_v0.8.1_linux_amd64.tar.gz
 
 
 
@@ -97,7 +97,7 @@ Download and install [osxfuse][]. Afterward, download and extract the latest
 release tarball:
 
     curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.1/gcsfuse_v0.8.1_darwin_amd64.tar.gz
-    sudo tar -o -C /usr/local/bin -zxf gcsfuse_v0.8.1_darwin_amd64.tar.gz
+    sudo tar -o -C / -zxf gcsfuse_v0.8.1_darwin_amd64.tar.gz
 
 [osxfuse]: https://osxfuse.github.io/
 
