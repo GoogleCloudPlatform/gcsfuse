@@ -27,8 +27,8 @@ the `fuse` group takes effect.
 
 Download and install the latest release package:
 
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_0.8.0_amd64.deb
-    sudo dpkg --install gcsfuse_0.8.0_amd64.deb
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.1/gcsfuse_0.8.1_amd64.deb
+    sudo dpkg --install gcsfuse_0.8.1_amd64.deb
 
 
 ## Debian
@@ -39,8 +39,8 @@ Ensure that dependencies are present:
 
 Download and install the latest release package:
 
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_0.8.0_amd64.deb
-    sudo dpkg --install gcsfuse_0.8.0_amd64.deb
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.1/gcsfuse_0.8.1_amd64.deb
+    sudo dpkg --install gcsfuse_0.8.1_amd64.deb
 
 ### Old versions of Debian
 
@@ -74,8 +74,8 @@ Ensure that dependencies are present:
 
 Download and install the latest release package:
 
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse-0.8.0-1.x86_64.rpm
-    sudo rpm --install -p gcsfuse-0.8.0-1.x86_64.rpm
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.1/gcsfuse-0.8.1-1.x86_64.rpm
+    sudo rpm --install -p gcsfuse-0.8.1-1.x86_64.rpm
 
 
 ## SUSE
@@ -86,8 +86,8 @@ Ensure that dependencies are present:
 
 Download and extract the latest release tarball:
 
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_v0.8.0_linux_amd64.tar.gz
-    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.0_linux_amd64.tar.gz
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.1/gcsfuse_v0.8.1_linux_amd64.tar.gz
+    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.1_linux_amd64.tar.gz
 
 
 
@@ -96,8 +96,8 @@ Download and extract the latest release tarball:
 Download and install [osxfuse][]. Afterward, download and extract the latest
 release tarball:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_v0.8.0_darwin_amd64.tar.gz
-    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.0_darwin_amd64.tar.gz
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.1/gcsfuse_v0.8.1_darwin_amd64.tar.gz
+    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.1_darwin_amd64.tar.gz
 
 [osxfuse]: https://osxfuse.github.io/
 
