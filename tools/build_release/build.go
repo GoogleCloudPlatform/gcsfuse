@@ -16,6 +16,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -47,22 +48,9 @@ func buildBinaries(
 	}()
 
 	// Create the target structure.
-	var binDir string
-	switch osys {
-	case "darwin":
-		binDir = path.Join(dir, "usr/local/bin")
-
-	case "linux":
-		binDir = path.Join(dir, "usr/bin")
-
-	default:
-		err = fmt.Errorf("Don't know where to put binaries for %s", osys)
-		return
-	}
-
-	err = os.MkdirAll(binDir, 0755)
+	binDir, helperPath, err := makeTarballDirs(osys, dir)
 	if err != nil {
-		err = fmt.Errorf("MkdirAll: %v", err)
+		err = fmt.Errorf("makeTarballDirs: %v", err)
 		return
 	}
 
@@ -152,6 +140,92 @@ func buildBinaries(
 			err = fmt.Errorf("Building %s: %v\nOutput:\n%s", bin, err, output)
 			return
 		}
+	}
+
+	// Copy the mount(8) helper script into place.
+	err = copyFile(
+		helperPath,
+		path.Join(
+			gopath,
+			fmt.Sprintf(
+				"src/github.com/googlecloudplatform/gcsfuse/tools/mount_gcsfuse/%s.sh",
+				osys)),
+		0755)
+
+	if err != nil {
+		err = fmt.Errorf("Copying mount(8) helper script: %v", err)
+		return
+	}
+
+	return
+}
+
+// Create the appropriate hierarchy for the tarball, returning the absolute
+// path of the directory to which the usual binaries should be written and the
+// absolute path to which the mount(8) external helper should be written.
+func makeTarballDirs(
+	osys string,
+	baseDir string) (binDir string, helperPath string, err error) {
+	// Fill out the return values.
+	switch osys {
+	case "darwin":
+		binDir = path.Join(baseDir, "usr/local/bin")
+		helperPath = path.Join(baseDir, "sbin/mount_gcsfuse")
+
+	case "linux":
+		binDir = path.Join(baseDir, "usr/bin")
+		helperPath = path.Join(baseDir, "sbin/mount.gcsfuse")
+
+	default:
+		err = fmt.Errorf("Don't know what directories to use for %s", osys)
+		return
+	}
+
+	// Create the appropriate directories.
+	dirs := []string{
+		binDir,
+		path.Dir(helperPath),
+	}
+
+	for _, d := range dirs {
+		err = os.MkdirAll(d, 0755)
+		if err != nil {
+			err = fmt.Errorf("MkdirAll: %v", err)
+			return
+		}
+	}
+
+	return
+}
+
+func copyFile(dst string, src string, perm os.FileMode) (err error) {
+	// Open the source.
+	s, err := os.Open(src)
+	if err != nil {
+		return
+	}
+
+	defer s.Close()
+
+	// Open the destination.
+	d, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, perm)
+	if err != nil {
+		return
+	}
+
+	defer d.Close()
+
+	// Copy contents.
+	_, err = io.Copy(d, s)
+	if err != nil {
+		err = fmt.Errorf("Copy: %v", err)
+		return
+	}
+
+	// Finish up.
+	err = d.Close()
+	if err != nil {
+		return
 	}
 
 	return
