@@ -68,9 +68,14 @@ you may need to run the workaround above repeatedly.
 
 ## CentOS and Red Hat
 
+Ensure that dependencies are present:
+
     sudo yum install wget fuse
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse_v0.8.0_linux_amd64.tar.gz
-    sudo tar -C /usr/local/bin -zxf gcsfuse_v0.8.0_linux_amd64.tar.gz
+
+Download and install the latest release package:
+
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.8.0/gcsfuse-0.8.0-1.x86_64.rpm
+    sudo --install -p gcsfuse-0.8.0-1.x86_64.rpm
 
 
 ## SUSE
