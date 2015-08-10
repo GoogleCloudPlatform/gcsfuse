@@ -99,6 +99,19 @@ Download and extract the latest release tarball:
     sudo tar -o -C / -zxf gcsfuse_v0.9.0_linux_amd64.tar.gz
 
 
+## Other distributions
+
+Ensure that dependencies are present:
+
+*   Install [wget](http://www.gnu.org/software/wget/).
+*   Install [fuse](http://fuse.sourceforge.net/).
+
+Download and extract the latest release tarball:
+
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.0/gcsfuse_v0.9.0_linux_amd64.tar.gz
+    sudo tar -o -C / -zxf gcsfuse_v0.9.0_linux_amd64.tar.gz
+
+
 
 # OS X
 
