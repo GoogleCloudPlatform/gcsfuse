@@ -35,21 +35,19 @@ for the **vivid** and **trusty** [releases][ubuntu-releases] of Ubuntu, and the
 your release codename.) Users of older releases should follow the instructions
 for [other distributions](#other-distributions) below.
 
-1.  Add the gcsfuse distribution URL as a package source:
+1.  Add the gcsfuse distribution URL as a package source and import its public
+    key:
 
         export GCSFUSE_REPO=gcsfuse-`lsb_release -c -s`
         echo "deb http://packages.cloud.google.com/apt $GCSFUSE_REPO main" | sudo tee /etc/apt/sources.list.d/gcsfuse.list
-
-2.  Import the Google Cloud public key:
-
         curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
 
-3.  Update the list of packages available and install gcsfuse.
+2.  Update the list of packages available and install gcsfuse.
 
         sudo apt-get update
         sudo apt-get install gcsfuse
 
-4.  (**Ubuntu only**) Add yourself to the `fuse` group, then log out and back
+3.  (**Ubuntu only**) Add yourself to the `fuse` group, then log out and back
     in:
 
         sudo usermod -a -G fuse $USER
