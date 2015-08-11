@@ -1,5 +1,3 @@
-vendor/**/*_test.go
-
 # Binary names.
 /build_release
 /gcsfuse

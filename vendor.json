@@ -1,6 +1,6 @@
 {
 	"comment": "",
-	"ignore": "",
+	"ignore": "appengine test",
 	"package": [
 		{
 			"canonical": "github.com/codegangsta/cli",
