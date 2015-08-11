@@ -33,6 +33,8 @@ Building a gcsfuse release:
 10. Find and replace in `docs/installing.md` to reference the new version
     number. For example: `%s/1\.2\.2/1.2.3/gc`
 
+11. Update the Google Cloud packages server for both `apt-get` and `yum`.
+
 [semver]: http://semver.org/
 [tags]: https://github.com/GoogleCloudPlatform/gcsfuse/tags
 [new-release]: https://github.com/GoogleCloudPlatform/gcsfuse/releases/new
