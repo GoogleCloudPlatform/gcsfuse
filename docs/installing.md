@@ -24,7 +24,7 @@ for the **vivid** and **trusty** [releases][ubuntu-releases] of Ubuntu, and the
 1.  Add the gcsfuse distribution URL as a package source:
 
         export GCSFUSE_REPO=gcsfuse-`lsb_release -c -s`
-        echo "deb http://packages.cloud.google.com/apt $GCSFUSE_REPO main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
+        echo "deb http://packages.cloud.google.com/apt $GCSFUSE_REPO main" | sudo tee /etc/apt/sources.list.d/gcsfuse.list
 
 2.  Import the Google Cloud public key:
 
