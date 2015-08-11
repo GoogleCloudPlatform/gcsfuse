@@ -48,7 +48,8 @@ out and back in to obtain permissions to mount fuse file systems.
 ## CentOS and Red Hat
 
 The following instructions set up `yum` to see updates to gcsfuse, and work
-for CentOS 7 and RHEL 7.
+for CentOS 7 and RHEL 7. Users of older releases should follow the instructions
+for [other distributions](#other-distributions) below.
 
 1.  Configure the gcsfuse repo:
 
