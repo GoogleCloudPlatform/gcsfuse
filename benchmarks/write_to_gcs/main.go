@@ -67,6 +67,8 @@ func run() (err error) {
 
 	// Write the configured number of zeroes to the file, measuing the time
 	// taken.
+	log.Println("Writing...")
+
 	buf := make([]byte, *fWriteSize)
 
 	var bytesWritten int64
@@ -92,6 +94,8 @@ func run() (err error) {
 	writeDuration := time.Since(start)
 
 	// Close the file, measuring the time taken.
+	log.Println("Flushing...")
+
 	start = time.Now()
 	err = f.Close()
 	closeDuration := time.Since(start)
