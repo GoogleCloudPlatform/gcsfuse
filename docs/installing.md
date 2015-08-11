@@ -6,6 +6,18 @@ gcsfuse has been tested successfully with the following operating systems:
 
 It may or may not work correctly with other operating systems and older versions.
 
+If you are running on [Google Compute Engine][], it is recommended that you use
+one of the following images with which it has been tested (preferring the
+latest version when possible):
+
+*   `ubuntu-15-04`, `ubuntu-14-04`
+*   `debian-8`, `debian-7`
+*   `centos-7`, `centos-6`
+*   `rhel-7`, `rhel-6`
+*   `sles-12`
+
+[Google Compute Engine]: https://cloud.google.com/compute/
+
 
 # Linux
 
