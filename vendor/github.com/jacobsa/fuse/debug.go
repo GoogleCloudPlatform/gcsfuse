@@ -50,6 +50,9 @@ func describeRequest(op interface{}) (s string) {
 	case *interruptOp:
 		addComponent("fuseid 0x%08x", typed.FuseID)
 
+	case *unknownOp:
+		addComponent("opcode %d", typed.OpCode)
+
 	case *fuseops.ReadFileOp:
 		addComponent("handle %d", typed.Handle)
 		addComponent("offset %d", typed.Offset)

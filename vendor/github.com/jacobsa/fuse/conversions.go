@@ -401,8 +401,8 @@ func convertInMessage(
 
 	default:
 		o = &unknownOp{
-			opCode: inMsg.Header().Opcode,
-			inode:  fuseops.InodeID(inMsg.Header().Nodeid),
+			OpCode: inMsg.Header().Opcode,
+			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
 		}
 	}
 
@@ -448,7 +448,7 @@ func (c *Connection) kernelResponse(
 		// the header, because on OS X the kernel otherwise returns EINVAL when we
 		// attempt to write an error response with a length that extends beyond the
 		// header.
-		m.Shrink(uintptr(m.Len() - int(buffer.OutMessageInitialSize)))
+		m.ShrinkTo(buffer.OutMessageInitialSize)
 	}
 
 	// Otherwise, fill in the rest of the response.
@@ -522,7 +522,7 @@ func (c *Connection) kernelResponseForOp(
 		// convertInMessage already set up the destination buffer to be at the end
 		// of the out message. We need only shrink to the right size based on how
 		// much the user read.
-		m.Shrink(uintptr(m.Len() - (int(buffer.OutMessageInitialSize) + o.BytesRead)))
+		m.ShrinkTo(buffer.OutMessageInitialSize + uintptr(o.BytesRead))
 
 	case *fuseops.ReleaseDirHandleOp:
 		// Empty response
@@ -539,7 +539,7 @@ func (c *Connection) kernelResponseForOp(
 		// convertInMessage already set up the destination buffer to be at the end
 		// of the out message. We need only shrink to the right size based on how
 		// much the user read.
-		m.Shrink(uintptr(m.Len() - (int(buffer.OutMessageInitialSize) + o.BytesRead)))
+		m.ShrinkTo(buffer.OutMessageInitialSize + uintptr(o.BytesRead))
 
 	case *fuseops.WriteFileOp:
 		out := (*fusekernel.WriteOut)(m.Grow(unsafe.Sizeof(fusekernel.WriteOut{})))
