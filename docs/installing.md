@@ -107,7 +107,7 @@ Download and extract the latest release tarball:
 On some systems it may be necessary to add the your user account to the `fuse`
 group in order to have permission to run `fusermount`:
 
-    sudo useradd -G fuse $USER
+    sudo usermod -a -G fuse $USER
 
 [fstab compatibility]: mounting.md#mount8-and-fstab-compatibility
 [daemon]: http://libslack.org/daemon/
