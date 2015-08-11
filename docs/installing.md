@@ -47,14 +47,29 @@ out and back in to obtain permissions to mount fuse file systems.
 
 ## CentOS and Red Hat
 
-Ensure that dependencies are present:
+The following instructions set up `yum` to see updates to gcsfuse, and work
+for CentOS 7 and RHEL 7.
 
-    sudo yum install wget fuse
+1.  Configure the gcsfuse repo:
 
-Download and install the latest release package:
+        sudo cat <<EOF > /etc/yum.repos.d/gcsfuse.repo
+        [gcsfuse]
+        name=gcsfuse (packages.cloud.google.com)
+        baseurl=https://packages.cloud.google.com/yum/repos/gcsfuse-el7-x86_64
+        enabled=1
+        gpgcheck=1
+        repo_gpgcheck=1
+        gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
+               https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+        EOF
 
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.0/gcsfuse-0.9.0-1.x86_64.rpm
-    sudo rpm --install -p gcsfuse-0.9.0-1.x86_64.rpm
+2.  Install gcsfuse:
+
+        sudo yum install gcsfuse
+
+    Be sure to answer "yes" to any questions about adding the GPG signing key.
+
+Future updates to gcsfuse will automatically show up when updating with `yum`.
 
 If you want [fstab support][fstab] using the built-in helper script, you should
 also install [daemon][daemon]:
