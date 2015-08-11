@@ -6,6 +6,18 @@ gcsfuse has been tested successfully with the following operating systems:
 
 It may or may not work correctly with other operating systems and older versions.
 
+If you are running on [Google Compute Engine][], it is recommended that you use
+one of the following images with which it has been tested (preferring the
+latest version when possible):
+
+*   `ubuntu-15-04`, `ubuntu-14-04`
+*   `debian-8`, `debian-7`
+*   `centos-7`, `centos-6`
+*   `rhel-7`, `rhel-6`
+*   `sles-12`
+
+[Google Compute Engine]: https://cloud.google.com/compute/
+
 
 # Linux
 
@@ -19,7 +31,9 @@ or tarball. The instructions vary by distribution.
 
 The following instructions set up `apt-get` to see updates to gcsfuse, and work
 for the **vivid** and **trusty** [releases][ubuntu-releases] of Ubuntu, and the
-**wheezy** [release][debian-releases] of Debian.
+**wheezy** [release][debian-releases] of Debian. (Run `lsb_release -c` to find
+your release codename.) Users of older releases should follow the instructions
+for [other distributions](#other-distributions) below.
 
 1.  Add the gcsfuse distribution URL as a package source:
 
@@ -35,11 +49,14 @@ for the **vivid** and **trusty** [releases][ubuntu-releases] of Ubuntu, and the
         sudo apt-get update
         sudo apt-get install gcsfuse
 
+4.  (**Ubuntu only**) Add yourself to the `fuse` group, then log out and back
+    in:
+
+        sudo usermod -a -G fuse $USER
+        exit
+
 Future updates to gcsfuse can be installed in the usual
 way: `sudo apt-get update && sudo apt-get upgrade`.
-
-Note that on Ubuntu you may need to run `sudo adduser $USER fuse` and then log
-out and back in to obtain permissions to mount fuse file systems.
 
 [ubuntu-releases]: https://wiki.ubuntu.com/Releases
 [debian-releases]: https://www.debian.org/releases/
@@ -48,7 +65,8 @@ out and back in to obtain permissions to mount fuse file systems.
 ## CentOS and Red Hat
 
 The following instructions set up `yum` to see updates to gcsfuse, and work
-for CentOS 7 and RHEL 7.
+for CentOS 7 and RHEL 7. Users of older releases should follow the instructions
+for [other distributions](#other-distributions) below.
 
 1.  Configure the gcsfuse repo:
 
@@ -81,13 +99,13 @@ Future updates to gcsfuse will automatically show up when updating with `yum`.
 
 Ensure that dependencies are present:
 
-    sudo zypper install wget fuse
-    wget http://libslack.org/daemon/download/daemon-0.6.4-1.x86_64.rpm
+    sudo zypper install curl fuse
+    curl -L -O http://libslack.org/daemon/download/daemon-0.6.4-1.x86_64.rpm
     sudo rpm --install -p daemon-0.6.4-1.x86_64.rpm
 
 Download and install the latest release package:
 
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.1/gcsfuse-0.9.1-1.x86_64.rpm
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.1/gcsfuse-0.9.1-1.x86_64.rpm
     sudo rpm --install -p gcsfuse-0.9.1-1.x86_64.rpm
 
 
@@ -95,14 +113,32 @@ Download and install the latest release package:
 
 Ensure that dependencies are present:
 
-*   Install [wget](http://www.gnu.org/software/wget/).
 *   Install [fuse](http://fuse.sourceforge.net/).
-*   Install [daemon](http://libslack.org/daemon/).
+*   (Optionally) For [fstab compatibility][], install [daemon][].
 
 Download and extract the latest release tarball:
 
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.1/gcsfuse_v0.9.1_linux_amd64.tar.gz
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.1/gcsfuse_v0.9.1_linux_amd64.tar.gz
     sudo tar -o -C / -zxf gcsfuse_v0.9.1_linux_amd64.tar.gz
+
+On some systems it may be necessary to add the your user account to the `fuse`
+group in order to have permission to run `fusermount` (don't forget to log out
+and back in afterward for the group membership change to take effect):
+
+    sudo usermod -a -G fuse $USER
+    exit
+
+Old versions of Debian contain a [bug][debian-bug] that causes `/dev/fuse` to
+repeatedly lose its permission settings. If you find that you receive
+permissions errors when mounting, even after running the `usermod` instruction
+above and logging out and back in, you may need to fix the permissions:
+
+    sudo chmod g+rw /dev/fuse
+    sudo chgrp fuse /dev/fuse
+
+[fstab compatibility]: mounting.md#mount8-and-fstab-compatibility
+[daemon]: http://libslack.org/daemon/
+[debian-bug]: http://superuser.com/a/800016/429161
 
 
 # OS X
