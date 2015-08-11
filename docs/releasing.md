@@ -19,17 +19,21 @@ Building a gcsfuse release:
         go build github.com/googlecloudplatform/gcsfuse/tools/build_release
         ./build_release --version 1.2.3 --commit 123abcd --output_dir ~/tmp/release --rpm
 
-7.  On an OS X machine, build an OS X release:
+7.  Sign the `.rpm` file generated in the previous step.
+
+8.  On an OS X machine, build an OS X release:
 
         mkdir -p ~/tmp/release
         go build github.com/googlecloudplatform/gcsfuse/tools/build_release
         ./build_release --version 1.2.3 --commit 123abcd --output_dir ~/tmp/release
 
-8.  [Create a new release][new-release] on GitHub. Paste in the release notes
+0.  [Create a new release][new-release] on GitHub. Paste in the release notes
     and update the contents of `~/tmp/release` from the previous two steps.
 
-9.  Find and replace in `docs/installing.md` to reference the new version
+10. Find and replace in `docs/installing.md` to reference the new version
     number. For example: `%s/1\.2\.2/1.2.3/gc`
+
+11. Update the Google Cloud packages server for both `apt-get` and `yum`.
 
 [semver]: http://semver.org/
 [tags]: https://github.com/GoogleCloudPlatform/gcsfuse/tags
