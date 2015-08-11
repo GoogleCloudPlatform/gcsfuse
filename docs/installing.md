@@ -97,12 +97,15 @@ Download and install the latest release package:
 Ensure that dependencies are present:
 
 *   Install [fuse](http://fuse.sourceforge.net/).
-*   Install [daemon](http://libslack.org/daemon/).
+*   (Optionally) For [fstab compatibility][], install [daemon][].
 
 Download and extract the latest release tarball:
 
     curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.1/gcsfuse_v0.9.1_linux_amd64.tar.gz
     sudo tar -o -C / -zxf gcsfuse_v0.9.1_linux_amd64.tar.gz
+
+[fstab compatibility]: mounting.md#mount8-and-fstab-compatibility
+[daemon]: http://libslack.org/daemon/
 
 
 # OS X
