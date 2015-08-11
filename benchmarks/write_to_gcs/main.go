@@ -25,6 +25,9 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/benchmarks/internal/format"
 )
 
 var fDir = flag.String("dir", "", "Directory within which to write the file.")
@@ -64,15 +67,64 @@ func run() (err error) {
 
 	// Write the configured number of zeroes to the file, measuing the time
 	// taken.
-	err = errors.New("TODO")
-	return
+	buf := make([]byte, *fWriteSize)
+
+	var bytesWritten int64
+	start := time.Now()
+
+	for bytesWritten < *fFileSize {
+		// Decide how many bytes to write.
+		toWrite := *fFileSize - bytesWritten
+		if toWrite > *fWriteSize {
+			toWrite = *fWriteSize
+		}
+
+		// Write them.
+		_, err = f.Write(buf)
+		if err != nil {
+			err = fmt.Errorf("Write: %v", err)
+			return
+		}
+
+		bytesWritten += toWrite
+	}
+
+	writeDuration := time.Since(start)
 
 	// Close the file, measuring the time taken.
-	err = errors.New("TODO")
-	return
+	start = time.Now()
+	err = f.Close()
+	closeDuration := time.Since(start)
+
+	if err != nil {
+		err = fmt.Errorf("Close: %v", err)
+		return
+	}
 
 	// Report.
-	err = errors.New("TODO")
+	{
+		seconds := float64(writeDuration) / float64(time.Second)
+		bytesPerSec := float64(bytesWritten) / seconds
+
+		fmt.Printf(
+			"Wrote %s in %v (%s/s)\n",
+			format.Bytes(float64(bytesWritten)),
+			writeDuration,
+			format.Bytes(bytesPerSec))
+	}
+
+	{
+		seconds := float64(closeDuration) / float64(time.Second)
+		bytesPerSec := float64(bytesWritten) / seconds
+
+		fmt.Printf(
+			"Flushed %s in %v (%s/s)\n",
+			format.Bytes(float64(bytesWritten)),
+			closeDuration,
+			format.Bytes(bytesPerSec))
+	}
+
+	fmt.Println()
 	return
 }
 
