@@ -69,43 +69,43 @@
 			"canonical": "github.com/jacobsa/gcloud/gcs",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/gcloud/gcs",
-			"revision": "d4a528abd8177be6e7532f177bbe202c601cd9b7",
-			"revisionTime": "2015-08-05T16:02:52+10:00"
+			"revision": "acc256f3e729b9704653b94ab90e326147b8feb2",
+			"revisionTime": "2015-08-05T16:28:48+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/gcloud/gcs/gcscaching",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/gcloud/gcs/gcscaching",
-			"revision": "d4a528abd8177be6e7532f177bbe202c601cd9b7",
-			"revisionTime": "2015-08-05T16:02:52+10:00"
+			"revision": "acc256f3e729b9704653b94ab90e326147b8feb2",
+			"revisionTime": "2015-08-05T16:28:48+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/gcloud/gcs/gcsfake",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/gcloud/gcs/gcsfake",
-			"revision": "d4a528abd8177be6e7532f177bbe202c601cd9b7",
-			"revisionTime": "2015-08-05T16:02:52+10:00"
+			"revision": "acc256f3e729b9704653b94ab90e326147b8feb2",
+			"revisionTime": "2015-08-05T16:28:48+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/gcloud/gcs/gcsutil",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/gcloud/gcs/gcsutil",
-			"revision": "d4a528abd8177be6e7532f177bbe202c601cd9b7",
-			"revisionTime": "2015-08-05T16:02:52+10:00"
+			"revision": "acc256f3e729b9704653b94ab90e326147b8feb2",
+			"revisionTime": "2015-08-05T16:28:48+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/gcloud/gcs/mock_gcs",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/gcloud/gcs/mock_gcs",
-			"revision": "d4a528abd8177be6e7532f177bbe202c601cd9b7",
-			"revisionTime": "2015-08-05T16:02:52+10:00"
+			"revision": "acc256f3e729b9704653b94ab90e326147b8feb2",
+			"revisionTime": "2015-08-05T16:28:48+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/gcloud/httputil",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/gcloud/httputil",
-			"revision": "d4a528abd8177be6e7532f177bbe202c601cd9b7",
-			"revisionTime": "2015-08-05T16:02:52+10:00"
+			"revision": "acc256f3e729b9704653b94ab90e326147b8feb2",
+			"revisionTime": "2015-08-05T16:28:48+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/oglematchers",
@@ -167,15 +167,15 @@
 			"canonical": "github.com/jacobsa/util/lrucache",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/util/lrucache",
-			"revision": "459ffc8a6aae5c79645c04b6b78a6a4d7b194897",
-			"revisionTime": "2015-07-20T10:05:42+10:00"
+			"revision": "976a6f4de67efb102394e2f91f43ec6f2579fe2f",
+			"revisionTime": "2015-08-10T14:08:48+10:00"
 		},
 		{
 			"canonical": "golang.org/x/net/context",
 			"comment": "",
 			"local": "vendor/golang.org/x/net/context",
-			"revision": "b71143c25f0aad5f54981684b715686d34c56d25",
-			"revisionTime": "2015-07-24T21:14:54+09:00"
+			"revision": "4a71d182556e05375344f3da665304f3d5784ab4",
+			"revisionTime": "2015-07-10T09:50:07-06:00"
 		},
 		{
 			"canonical": "golang.org/x/oauth2",
@@ -216,36 +216,36 @@
 			"canonical": "google.golang.org/api/googleapi",
 			"comment": "",
 			"local": "vendor/google.golang.org/api/googleapi",
-			"revision": "a0c5ebc6c9ab3c0233f7450ac275e9159d50ddd3",
-			"revisionTime": "2015-07-24T08:48:03-07:00"
+			"revision": "0a735f7ec81c85ce7ec31bf7a67e125ef62266ec",
+			"revisionTime": "2015-01-18T15:16:46-08:00"
 		},
 		{
 			"canonical": "google.golang.org/api/googleapi/internal/uritemplates",
 			"comment": "",
 			"local": "vendor/google.golang.org/api/googleapi/internal/uritemplates",
-			"revision": "a0c5ebc6c9ab3c0233f7450ac275e9159d50ddd3",
-			"revisionTime": "2015-07-24T08:48:03-07:00"
+			"revision": "0a735f7ec81c85ce7ec31bf7a67e125ef62266ec",
+			"revisionTime": "2015-01-18T15:16:46-08:00"
 		},
 		{
 			"canonical": "google.golang.org/api/storage/v1",
 			"comment": "",
 			"local": "vendor/google.golang.org/api/storage/v1",
-			"revision": "a0c5ebc6c9ab3c0233f7450ac275e9159d50ddd3",
-			"revisionTime": "2015-07-24T08:48:03-07:00"
+			"revision": "0a735f7ec81c85ce7ec31bf7a67e125ef62266ec",
+			"revisionTime": "2015-01-18T15:16:46-08:00"
 		},
 		{
 			"canonical": "google.golang.org/cloud/compute/metadata",
 			"comment": "",
 			"local": "vendor/google.golang.org/cloud/compute/metadata",
-			"revision": "ba8c164c61c2272593e43e88d33d5e7b6be4133b",
-			"revisionTime": "2015-07-24T15:42:49+10:00"
+			"revision": "e34a32f9b0ecbc0784865fb2d47f3818c09521d4",
+			"revisionTime": "2015-07-29T23:39:00-07:00"
 		},
 		{
 			"canonical": "google.golang.org/cloud/internal",
 			"comment": "",
 			"local": "vendor/google.golang.org/cloud/internal",
-			"revision": "ba8c164c61c2272593e43e88d33d5e7b6be4133b",
-			"revisionTime": "2015-07-24T15:42:49+10:00"
+			"revision": "e34a32f9b0ecbc0784865fb2d47f3818c09521d4",
+			"revisionTime": "2015-07-29T23:39:00-07:00"
 		}
 	]
 }
