@@ -37,11 +37,14 @@ for [other distributions](#other-distributions) below.
         sudo apt-get update
         sudo apt-get install gcsfuse
 
+4.  (**Ubuntu only**) Add yourself to the `fuse` group, then log out and back
+    in:
+
+        sudo usermod -a -G fuse $USER
+        exit
+
 Future updates to gcsfuse can be installed in the usual
 way: `sudo apt-get update && sudo apt-get upgrade`.
-
-Note that on Ubuntu you may need to run `sudo adduser $USER fuse` and then log
-out and back in to obtain permissions to mount fuse file systems.
 
 [ubuntu-releases]: https://wiki.ubuntu.com/Releases
 [debian-releases]: https://www.debian.org/releases/
@@ -111,6 +114,7 @@ group in order to have permission to run `fusermount` (don't forget to log out
 and back in afterward for the group membership change to take effect):
 
     sudo usermod -a -G fuse $USER
+    exit
 
 Old versions of Debian contain a [bug][debian-bug] that causes `/dev/fuse` to
 repeatedly lose its permission settings. If you find that you receive
