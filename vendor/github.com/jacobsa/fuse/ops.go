@@ -22,8 +22,8 @@ import (
 // A sentinel used for unknown ops. The user is expected to respond with a
 // non-nil error.
 type unknownOp struct {
-	opCode uint32
-	inode  fuseops.InodeID
+	OpCode uint32
+	Inode  fuseops.InodeID
 }
 
 // Required in order to mount on OS X.

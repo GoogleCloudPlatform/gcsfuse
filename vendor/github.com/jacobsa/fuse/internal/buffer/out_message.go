@@ -90,13 +90,14 @@ func (b *OutMessage) GrowNoZero(size uintptr) (p unsafe.Pointer) {
 	return
 }
 
-// Throw away the last n bytes. Panics if n is out of range.
-func (b *OutMessage) Shrink(n uintptr) {
-	if n > b.offset-OutMessageInitialSize {
-		panic(fmt.Sprintf("Shrink(%d) out of range for offset %d", n, b.offset))
+// Shrink to the supplied size. Panic if the size is greater than Len() or less
+// than OutMessageInitialSize.
+func (b *OutMessage) ShrinkTo(n uintptr) {
+	if n < OutMessageInitialSize || n > b.offset {
+		panic(fmt.Sprintf("ShrinkTo(%d) out of range for offset %d", n, b.offset))
 	}
 
-	b.offset -= n
+	b.offset = n
 }
 
 // Equivalent to growing by the length of p, then copying p over the new

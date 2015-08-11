@@ -1,5 +1,6 @@
 {
 	"comment": "",
+	"ignore": "",
 	"package": [
 		{
 			"canonical": "github.com/codegangsta/cli",
@@ -12,57 +13,57 @@
 			"canonical": "github.com/jacobsa/fuse",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/fuse",
-			"revision": "5711e18bd0f1d88c69225d049fd135a72721bed5",
-			"revisionTime": "2015-08-06T15:45:43+10:00"
+			"revision": "5348027205ba7a3565af455c3e6e94be57025215",
+			"revisionTime": "2015-08-11T10:55:48+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/fuse/fsutil",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/fuse/fsutil",
-			"revision": "5711e18bd0f1d88c69225d049fd135a72721bed5",
-			"revisionTime": "2015-08-06T15:45:43+10:00"
+			"revision": "5348027205ba7a3565af455c3e6e94be57025215",
+			"revisionTime": "2015-08-11T10:55:48+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/fuse/fuseops",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/fuse/fuseops",
-			"revision": "5711e18bd0f1d88c69225d049fd135a72721bed5",
-			"revisionTime": "2015-08-06T15:45:43+10:00"
+			"revision": "5348027205ba7a3565af455c3e6e94be57025215",
+			"revisionTime": "2015-08-11T10:55:48+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/fuse/fusetesting",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/fuse/fusetesting",
-			"revision": "5711e18bd0f1d88c69225d049fd135a72721bed5",
-			"revisionTime": "2015-08-06T15:45:43+10:00"
+			"revision": "5348027205ba7a3565af455c3e6e94be57025215",
+			"revisionTime": "2015-08-11T10:55:48+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/fuse/fuseutil",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/fuse/fuseutil",
-			"revision": "5711e18bd0f1d88c69225d049fd135a72721bed5",
-			"revisionTime": "2015-08-06T15:45:43+10:00"
+			"revision": "5348027205ba7a3565af455c3e6e94be57025215",
+			"revisionTime": "2015-08-11T10:55:48+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/fuse/internal/buffer",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/fuse/internal/buffer",
-			"revision": "5711e18bd0f1d88c69225d049fd135a72721bed5",
-			"revisionTime": "2015-08-06T15:45:43+10:00"
+			"revision": "5348027205ba7a3565af455c3e6e94be57025215",
+			"revisionTime": "2015-08-11T10:55:48+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/fuse/internal/freelist",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/fuse/internal/freelist",
-			"revision": "5711e18bd0f1d88c69225d049fd135a72721bed5",
-			"revisionTime": "2015-08-06T15:45:43+10:00"
+			"revision": "5348027205ba7a3565af455c3e6e94be57025215",
+			"revisionTime": "2015-08-11T10:55:48+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/fuse/internal/fusekernel",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/fuse/internal/fusekernel",
-			"revision": "5711e18bd0f1d88c69225d049fd135a72721bed5",
-			"revisionTime": "2015-08-06T15:45:43+10:00"
+			"revision": "5348027205ba7a3565af455c3e6e94be57025215",
+			"revisionTime": "2015-08-11T10:55:48+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/gcloud/gcs",
