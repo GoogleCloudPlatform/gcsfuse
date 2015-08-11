@@ -19,7 +19,8 @@ or tarball. The instructions vary by distribution.
 
 The following instructions set up `apt-get` to see updates to gcsfuse, and work
 for the **vivid** and **trusty** [releases][ubuntu-releases] of Ubuntu, and the
-**wheezy** [release][debian-releases] of Debian.
+**wheezy** [release][debian-releases] of Debian. Users of older releases should
+follow the instructions for [other distributions](#other-distributions) below.
 
 1.  Add the gcsfuse distribution URL as a package source:
 
