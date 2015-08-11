@@ -104,6 +104,11 @@ Download and extract the latest release tarball:
     curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.1/gcsfuse_v0.9.1_linux_amd64.tar.gz
     sudo tar -o -C / -zxf gcsfuse_v0.9.1_linux_amd64.tar.gz
 
+On some systems it may be necessary to add the your user account to the `fuse`
+group in order to have permission to run `fusermount`:
+
+    sudo useradd -G fuse $USER
+
 [fstab compatibility]: mounting.md#mount8-and-fstab-compatibility
 [daemon]: http://libslack.org/daemon/
 
