@@ -80,23 +80,9 @@
 			"revisionTime": "2015-08-05T16:02:52+10:00"
 		},
 		{
-			"canonical": "github.com/jacobsa/gcloud/gcs/gcscaching/mock_gcscaching",
-			"comment": "",
-			"local": "vendor/github.com/jacobsa/gcloud/gcs/gcscaching/mock_gcscaching",
-			"revision": "d4a528abd8177be6e7532f177bbe202c601cd9b7",
-			"revisionTime": "2015-08-05T16:02:52+10:00"
-		},
-		{
 			"canonical": "github.com/jacobsa/gcloud/gcs/gcsfake",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/gcloud/gcs/gcsfake",
-			"revision": "d4a528abd8177be6e7532f177bbe202c601cd9b7",
-			"revisionTime": "2015-08-05T16:02:52+10:00"
-		},
-		{
-			"canonical": "github.com/jacobsa/gcloud/gcs/gcstesting",
-			"comment": "",
-			"local": "vendor/github.com/jacobsa/gcloud/gcs/gcstesting",
 			"revision": "d4a528abd8177be6e7532f177bbe202c601cd9b7",
 			"revisionTime": "2015-08-05T16:02:52+10:00"
 		},
@@ -132,13 +118,6 @@
 			"canonical": "github.com/jacobsa/oglemock",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/oglemock",
-			"revision": "b320e9d68125bec1159ac587792648ff06eaa2cc",
-			"revisionTime": "2015-07-20T10:07:30+10:00"
-		},
-		{
-			"canonical": "github.com/jacobsa/oglemock/sample/mock_io",
-			"comment": "",
-			"local": "vendor/github.com/jacobsa/oglemock/sample/mock_io",
 			"revision": "b320e9d68125bec1159ac587792648ff06eaa2cc",
 			"revisionTime": "2015-07-20T10:07:30+10:00"
 		},
@@ -232,13 +211,6 @@
 			"local": "vendor/golang.org/x/oauth2/jwt",
 			"revision": "8914e5017ca260f2a3a1575b1e6868874050d95e",
 			"revisionTime": "2015-07-01T13:53:18+02:00"
-		},
-		{
-			"canonical": "golang.org/x/sys/unix",
-			"comment": "",
-			"local": "vendor/golang.org/x/sys/unix",
-			"revision": "2c41184ab06eccc97422cbfe2bdc670baee1f10b",
-			"revisionTime": "2015-07-24T17:09:24-04:00"
 		},
 		{
 			"canonical": "google.golang.org/api/googleapi",
