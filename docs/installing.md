@@ -106,15 +106,22 @@ Download and extract the latest release tarball:
     sudo tar -o -C / -zxf gcsfuse_v0.9.1_linux_amd64.tar.gz
 
 On some systems it may be necessary to add the your user account to the `fuse`
-group in order to have permission to run `fusermount`:
+group in order to have permission to run `fusermount` (don't forget to log out
+and back in afterward for the group membership change to take effect):
 
     sudo usermod -a -G fuse $USER
 
-Don't forget to log out and back in for the group membership change to take
-effect.
+Old versions of Debian contain a [bug][debian-bug] that causes `/dev/fuse` to
+lose its permission settings. If you find that you receive permissions errors
+when mounting, even after running the `usermod` instruction above and logging
+out and back in, you may need to fix the permissions:
+
+    sudo chmod g+rw /dev/fuse
+    sudo chgrp fuse /dev/fuse
 
 [fstab compatibility]: mounting.md#mount8-and-fstab-compatibility
 [daemon]: http://libslack.org/daemon/
+[debian-bug]: http://superuser.com/a/800016/429161
 
 
 # OS X
