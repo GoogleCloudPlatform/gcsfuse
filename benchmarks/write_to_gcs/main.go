@@ -57,10 +57,6 @@ func run() (err error) {
 
 	// Make sure we clean it up later.
 	defer func() {
-		log.Printf("Truncating and closing %s.", path)
-		f.Truncate(0)
-		f.Close()
-
 		log.Printf("Deleting %s.", path)
 		os.Remove(path)
 	}()
