@@ -114,6 +114,11 @@ Download and extract the latest release tarball:
     wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.0/gcsfuse_v0.9.0_linux_amd64.tar.gz
     sudo tar -o -C / -zxf gcsfuse_v0.9.0_linux_amd64.tar.gz
 
+If you want [fstab support][fstab] using the built-in helper script, you should
+also install [daemon][daemon].
+
+[fstab]: mounting.md
+[daemon]: http://libslack.org/daemon/
 
 
 # OS X
