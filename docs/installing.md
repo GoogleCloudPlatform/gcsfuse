@@ -87,13 +87,13 @@ Future updates to gcsfuse will automatically show up when updating with `yum`.
 
 Ensure that dependencies are present:
 
-    sudo zypper install wget fuse
-    wget http://libslack.org/daemon/download/daemon-0.6.4-1.x86_64.rpm
+    sudo zypper install curl fuse
+    curl -L -O http://libslack.org/daemon/download/daemon-0.6.4-1.x86_64.rpm
     sudo rpm --install -p daemon-0.6.4-1.x86_64.rpm
 
 Download and install the latest release package:
 
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.1/gcsfuse-0.9.1-1.x86_64.rpm
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.1/gcsfuse-0.9.1-1.x86_64.rpm
     sudo rpm --install -p gcsfuse-0.9.1-1.x86_64.rpm
 
 
