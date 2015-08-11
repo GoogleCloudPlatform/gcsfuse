@@ -112,9 +112,9 @@ and back in afterward for the group membership change to take effect):
     sudo usermod -a -G fuse $USER
 
 Old versions of Debian contain a [bug][debian-bug] that causes `/dev/fuse` to
-lose its permission settings. If you find that you receive permissions errors
-when mounting, even after running the `usermod` instruction above and logging
-out and back in, you may need to fix the permissions:
+repeatedly lose its permission settings. If you find that you receive
+permissions errors when mounting, even after running the `usermod` instruction
+above and logging out and back in, you may need to fix the permissions:
 
     sudo chmod g+rw /dev/fuse
     sudo chgrp fuse /dev/fuse
