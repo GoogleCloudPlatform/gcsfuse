@@ -15,55 +15,34 @@ ensure fuse is installed, then download and install the latest release package
 or tarball. The instructions vary by distribution.
 
 
-## Ubuntu
+## Ubuntu and Debian
 
-Ensure that dependencies are present and that fuse is configured:
+The following instructions set up `apt-get` to see updates to gcsfuse, and work
+for the **vivid** and **trusty** [releases][ubuntu-releases] of Ubuntu, and the
+**wheezy** [release][debian-releases] of Debian.
 
-    sudo apt-get install wget fuse daemon
-    sudo adduser $USER fuse
+1.  Add the gcsfuse distribution URL as a package source:
 
-You may need to log out and then log back in to make sure that the change to
-the `fuse` group takes effect.
+        export GCSFUSE_REPO=gcsfuse-`lsb_release -c -s`
+        echo "deb http://packages.cloud.google.com/apt $GCSFUSE_REPO main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
 
-Download and install the latest release package:
+2.  Import the Google Cloud public key:
 
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.0/gcsfuse_0.9.0_amd64.deb
-    sudo dpkg --install gcsfuse_0.9.0_amd64.deb
+        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
 
+3.  Update the list of packages available and install gcsfuse.
 
-## Debian
+        sudo apt-get update
+        sudo apt-get install gcsfuse
 
-Ensure that dependencies are present:
+Future updates to gcsfuse can be installed in the usual
+way: `sudo apt-get update && sudo apt-get upgrade`.
 
-    sudo apt-get install wget fuse daemon
+Note that on Ubuntu you may need to run `sudo adduser $USER fuse` and then log
+out and back in to obtain permissions to mount fuse file systems.
 
-Download and install the latest release package:
-
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.0/gcsfuse_0.9.0_amd64.deb
-    sudo dpkg --install gcsfuse_0.9.0_amd64.deb
-
-### Old versions of Debian
-
-On versions older than Debian 8, it is additionally necessary to add yourself
-to the [`fuse` group][fuse-group]:
-
-    sudo adduser $USER fuse
-
-You may need to log out and then log back in to make sure that the change to
-the group takes effect. Finally, on these old versions of Debian, there is a
-bug causing `/dev/fuse` to have incorrect permissions (cf. [this][debian-bug]
-StackExchange answer). Fix this with the following commands:
-
-```
-sudo chmod g+rw /dev/fuse
-sudo chgrp fuse /dev/fuse
-```
-
-Note that the operating system appears to periodically lose these changes, so
-you may need to run the workaround above repeatedly.
-
-[fuse-group]: https://wiki.debian.org/SystemGroups
-[debian-bug]: http://superuser.com/a/800016/429161
+[ubuntu-releases]: https://wiki.ubuntu.com/Releases
+[debian-releases]: https://www.debian.org/releases/
 
 
 ## CentOS and Red Hat
