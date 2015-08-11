@@ -109,6 +109,9 @@ group in order to have permission to run `fusermount`:
 
     sudo usermod -a -G fuse $USER
 
+Don't forget to log out and back in for the group membership change to take
+effect.
+
 [fstab compatibility]: mounting.md#mount8-and-fstab-compatibility
 [daemon]: http://libslack.org/daemon/
 
