@@ -87,8 +87,8 @@ Ensure that dependencies are present:
 
 Download and install the latest release package:
 
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.0/gcsfuse-0.9.0-1.x86_64.rpm
-    sudo rpm --install -p gcsfuse-0.9.0-1.x86_64.rpm
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.1/gcsfuse-0.9.1-1.x86_64.rpm
+    sudo rpm --install -p gcsfuse-0.9.1-1.x86_64.rpm
 
 
 ## Other distributions
@@ -101,8 +101,8 @@ Ensure that dependencies are present:
 
 Download and extract the latest release tarball:
 
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.0/gcsfuse_v0.9.0_linux_amd64.tar.gz
-    sudo tar -o -C / -zxf gcsfuse_v0.9.0_linux_amd64.tar.gz
+    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.1/gcsfuse_v0.9.1_linux_amd64.tar.gz
+    sudo tar -o -C / -zxf gcsfuse_v0.9.1_linux_amd64.tar.gz
 
 
 # OS X
@@ -110,8 +110,8 @@ Download and extract the latest release tarball:
 Download and install [osxfuse][]. Afterward, download and extract the latest
 release tarball:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.0/gcsfuse_v0.9.0_darwin_amd64.tar.gz
-    sudo tar -o -C / -zxf gcsfuse_v0.9.0_darwin_amd64.tar.gz
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.1/gcsfuse_v0.9.1_darwin_amd64.tar.gz
+    sudo tar -o -C / -zxf gcsfuse_v0.9.1_darwin_amd64.tar.gz
 
 [osxfuse]: https://osxfuse.github.io/
 
