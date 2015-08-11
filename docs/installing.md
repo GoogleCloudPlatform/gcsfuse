@@ -96,13 +96,12 @@ Download and install the latest release package:
 
 Ensure that dependencies are present:
 
-*   Install [wget](http://www.gnu.org/software/wget/).
 *   Install [fuse](http://fuse.sourceforge.net/).
 *   Install [daemon](http://libslack.org/daemon/).
 
 Download and extract the latest release tarball:
 
-    wget https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.1/gcsfuse_v0.9.1_linux_amd64.tar.gz
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.1/gcsfuse_v0.9.1_linux_amd64.tar.gz
     sudo tar -o -C / -zxf gcsfuse_v0.9.1_linux_amd64.tar.gz
 
 
