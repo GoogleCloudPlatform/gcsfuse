@@ -65,7 +65,7 @@ for CentOS 7 and RHEL 7.
 
 2.  Install [daemon][], used for [fstab support][fstab]:
 
-        wget http://libslack.org/daemon/download/daemon-0.6.4-1.x86_64.rpm
+        curl -L -O http://libslack.org/daemon/download/daemon-0.6.4-1.x86_64.rpm
         sudo rpm --install -p daemon-0.6.4-1.x86_64.rpm
 
 3.  Install gcsfuse:
