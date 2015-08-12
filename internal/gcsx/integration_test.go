@@ -178,6 +178,10 @@ func (t *IntegrationTest) ReadThenSync() {
 	ExpectEq(nil, newObj)
 }
 
+func (t *IntegrationTest) SetMtimeThenSync() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *IntegrationTest) WriteThenSync() {
 	// Create.
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
@@ -186,7 +190,10 @@ func (t *IntegrationTest) WriteThenSync() {
 	t.create(o)
 
 	// Overwrite the first byte.
+	t.clock.AdvanceTime(time.Second)
+	writeTime := t.clock.Now()
 	n, err := t.tf.WriteAt([]byte("p"), 0)
+	t.clock.AdvanceTime(time.Second)
 
 	AssertEq(nil, err)
 	ExpectEq(1, n)
@@ -197,6 +204,7 @@ func (t *IntegrationTest) WriteThenSync() {
 
 	ExpectNe(o.Generation, newObj.Generation)
 	ExpectEq(t.objectGeneration("foo"), newObj.Generation)
+	ExpectEq(writeTime.Format(time.RFC3339Nano), newObj.Metadata["gcsfuse_mtime"])
 
 	// Read via the bucket.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
@@ -225,7 +233,10 @@ func (t *IntegrationTest) AppendThenSync() {
 	t.create(o)
 
 	// Append some data.
+	t.clock.AdvanceTime(time.Second)
+	writeTime := t.clock.Now()
 	n, err := t.tf.WriteAt([]byte("burrito"), 4)
+	t.clock.AdvanceTime(time.Second)
 
 	AssertEq(nil, err)
 	ExpectEq(len("burrito"), n)
@@ -236,6 +247,7 @@ func (t *IntegrationTest) AppendThenSync() {
 
 	ExpectNe(o.Generation, newObj.Generation)
 	ExpectEq(t.objectGeneration("foo"), newObj.Generation)
+	ExpectEq(writeTime.Format(time.RFC3339Nano), newObj.Metadata["gcsfuse_mtime"])
 
 	// Read via the bucket.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
@@ -264,7 +276,11 @@ func (t *IntegrationTest) TruncateThenSync() {
 	t.create(o)
 
 	// Truncate.
+	t.clock.AdvanceTime(time.Second)
+	truncateTime := t.clock.Now()
 	err = t.tf.Truncate(2)
+	t.clock.AdvanceTime(time.Second)
+
 	AssertEq(nil, err)
 
 	// Sync should save out the new generation.
@@ -273,6 +289,9 @@ func (t *IntegrationTest) TruncateThenSync() {
 
 	ExpectNe(o.Generation, newObj.Generation)
 	ExpectEq(t.objectGeneration("foo"), newObj.Generation)
+	ExpectEq(
+		truncateTime.Format(time.RFC3339Nano),
+		newObj.Metadata["gcsfuse_mtime"])
 
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
