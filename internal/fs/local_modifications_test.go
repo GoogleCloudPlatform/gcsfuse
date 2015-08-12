@@ -1695,7 +1695,22 @@ func (t *FileTest) Chmod() {
 }
 
 func (t *FileTest) Chtimes_InactiveFile() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create a file.
+	p := path.Join(t.mfs.Dir(), "foo")
+	err = ioutil.WriteFile(p, []byte{}, 0600)
+	AssertEq(nil, err)
+
+	// Attempt to change its mtime.
+	newMtime := time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local)
+	err = os.Chtimes(p, time.Time{}, newMtime)
+	AssertEq(nil, err)
+
+	// Stat it and confirm that it worked.
+	fi, err := os.Stat(p)
+	AssertEq(nil, err)
+	ExpectThat(fi.ModTime(), timeutil.TimeEq(newMtime))
 }
 
 func (t *FileTest) Chtimes_OpenFile_Clean() {
@@ -1710,17 +1725,13 @@ func (t *FileTest) Chtimes_Directory() {
 	var err error
 
 	// Create a directory.
-	dir := path.Join(t.mfs.Dir(), "foo")
-	err = os.Mkdir(dir, 0700)
+	p := path.Join(t.mfs.Dir(), "foo")
+	err = os.Mkdir(p, 0700)
 	AssertEq(nil, err)
 
 	// Chtimes should fail; we don't support it for directories.
-	err = os.Chtimes(dir, time.Now(), time.Now())
+	err = os.Chtimes(p, time.Now(), time.Now())
 	ExpectThat(err, Error(HasSubstr("not implemented")))
-}
-
-func (t *FileTest) Chtimes_Symlink() {
-	AssertTrue(false, "TODO")
 }
 
 func (t *FileTest) Sync_Dirty() {
