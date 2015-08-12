@@ -1694,19 +1694,24 @@ func (t *FileTest) Chmod() {
 	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
-func (t *FileTest) Chtimes() {
-	var err error
+func (t *FileTest) Chtimes_InactiveFile() {
+	AssertTrue(false, "TODO")
+}
 
-	// Write a file.
-	fileName := path.Join(t.mfs.Dir(), "foo")
-	err = ioutil.WriteFile(fileName, []byte(""), 0700)
-	AssertEq(nil, err)
+func (t *FileTest) Chtimes_OpenFile_Clean() {
+	AssertTrue(false, "TODO")
+}
 
-	// Attempt to change its atime and mtime. We don't support doing so.
-	err = os.Chtimes(fileName, time.Now(), time.Now())
+func (t *FileTest) Chtimes_OpenFile_Dirty() {
+	AssertTrue(false, "TODO")
+}
 
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("not implemented")))
+func (t *FileTest) Chtimes_Directory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FileTest) Chtimes_Symlink() {
+	AssertTrue(false, "TODO")
 }
 
 func (t *FileTest) Sync_Dirty() {
