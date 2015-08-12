@@ -224,10 +224,12 @@ actor in the meantime.) There are no guarantees about whether local
 modifications are reflected in GCS after writing but before syncing or closing.
 
 Modification time (`stat::st_mtime` on Linux) is tracked for file inodes, but
-only for modifications to contents (not, for example, by utimes(2)).
-Additionally, modification time is only approximate—it is affected by the use of
-kernel writeback caching, and is reset to the time of creation of the backing
-GCS object when the file is flushed. No other times (ctime, etc.) are tracked.
+only for modifications to contents. For example, it cannot be updated by a call
+to `utimes(2)`. Additionally, modification time is only approximate—it is
+affected by the use of kernel writeback caching, and is reset to the time of
+creation of the backing GCS object when the file is flushed.
+
+No other times (atime, ctime, etc.) are tracked.
 
 <a name="file-inode-identity"></a>
 ### Identity
@@ -481,5 +483,5 @@ Not all of the usual file system features are supported. Most prominently:
 *   File and directory permissions and ownership cannot be changed. See the
     [section](#permissions-and-ownership) above.
 
-*   Modification times cannot be changed. See the
-    [section](#modifications) above.
+*   Modification times cannot be changed, and attempt to do so is simply
+    ignored. See the [section](#modifications) above.
