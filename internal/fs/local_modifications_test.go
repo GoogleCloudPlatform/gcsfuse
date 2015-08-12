@@ -1751,7 +1751,40 @@ func (t *FileTest) Chtimes_OpenFile_Clean() {
 }
 
 func (t *FileTest) Chtimes_OpenFile_Dirty() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create a file.
+	p := path.Join(t.mfs.Dir(), "foo")
+	f, err := os.Create(p)
+	AssertEq(nil, err)
+	defer f.Close()
+
+	// Dirty the file.
+	_, err = f.Write([]byte("taco"))
+	AssertEq(nil, err)
+
+	// Change its mtime.
+	newMtime := time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local)
+	err = os.Chtimes(p, time.Time{}, newMtime)
+	AssertEq(nil, err)
+
+	// Stat it by path.
+	fi, err := os.Stat(p)
+	AssertEq(nil, err)
+	ExpectThat(fi.ModTime(), timeutil.TimeEq(newMtime))
+
+	// Stat it by fd.
+	fi, err = f.Stat()
+	AssertEq(nil, err)
+	ExpectThat(fi.ModTime(), timeutil.TimeEq(newMtime))
+
+	// Close the file, then stat it by path again.
+	err = f.Close()
+	AssertEq(nil, err)
+
+	fi, err = os.Stat(p)
+	AssertEq(nil, err)
+	ExpectThat(fi.ModTime(), timeutil.TimeEq(newMtime))
 }
 
 func (t *FileTest) Chtimes_Directory() {
