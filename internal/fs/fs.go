@@ -886,14 +886,20 @@ func (fs *fileSystem) SetInodeAttributes(
 	in.Lock()
 	defer in.Unlock()
 
-	// The only thing we support changing is size, and then only for directories.
-	if op.Mode != nil || op.Atime != nil || op.Mtime != nil {
+	// We don't support changing attributes of anything but files.
+	file, ok := in.(*inode.FileInode)
+	if !ok {
 		err = fuse.ENOSYS
 		return
 	}
 
-	file, ok := in.(*inode.FileInode)
-	if !ok {
+	// The only thing we support changing is size. Return an error for attempts
+	// to change anything else.
+	//
+	// Special case: ignore changes to mtime which are sent by the Linux kernel
+	// before flushing a file that has been written to when writeback caching is
+	// enabled.
+	if op.Mode != nil || op.Atime != nil {
 		err = fuse.ENOSYS
 		return
 	}
