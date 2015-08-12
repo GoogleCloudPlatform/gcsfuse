@@ -223,9 +223,10 @@ number of the inode. (It may not if there have been modifications from another
 actor in the meantime.) There are no guarantees about whether local
 modifications are reflected in GCS after writing but before syncing or closing.
 
-Modification time (`stat::st_mtime` on Linux) is tracked for file inodes, but
-only for modifications to contents (not, for example, by utimes(2)). No other
-times are tracked.
+Modification time (`stat::st_mtime` on Linux) is tracked for file inodes, and
+can be updated in usual the usual way using `utimes(2)` or `futimens(2)`. When
+dirty inodes are written out to GCS objects, mtime is stored in the custom
+metadata key `gcsfuse_mtime` in an unspecified format.
 
 <a name="file-inode-identity"></a>
 ### Identity
@@ -479,5 +480,7 @@ Not all of the usual file system features are supported. Most prominently:
 *   File and directory permissions and ownership cannot be changed. See the
     [section](#permissions-and-ownership) above.
 
-*   Modification times cannot be changed. See the
-    [section](#modifications) above.
+*   Modification times are not tracked for any inodes except for files.
+
+*   No other times besides modification time are tracked. For example, ctime
+    and atime are not tracked.
