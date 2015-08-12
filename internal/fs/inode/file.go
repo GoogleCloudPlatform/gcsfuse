@@ -66,6 +66,16 @@ type FileInode struct {
 	// authoritative.
 	content gcsx.TempFile
 
+	// TODO(jacobsa): When setattr(mtime) comes in and content == nil, update the
+	// GCS source object's metadata (using a particular generation number). If
+	// content != nil, use a method on TempFile that sets mtime iff the content
+	// is dirty (i.e. mtime is alrady non-nil), and signals when it's not set. If
+	// it's not set, then fall back to updating GCS.
+	//
+	// This will have the effect of losing mtime updates if a file is opened and
+	// modified but never sync'd, but we already lose those entire writes anyway.
+	// It will save us from having to make an extra GCS write in the common case.
+
 	// Has Destroy been called?
 	//
 	// GUARDED_BY(mu)
