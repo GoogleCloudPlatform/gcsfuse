@@ -224,8 +224,10 @@ actor in the meantime.) There are no guarantees about whether local
 modifications are reflected in GCS after writing but before syncing or closing.
 
 Modification time (`stat::st_mtime` on Linux) is tracked for file inodes, but
-only for modifications to contents (not, for example, by utimes(2)). No other
-times are tracked.
+only for modifications to contents (not, for example, by utimes(2)).
+Additionally, modification time is only approximate -- it is affected by the use
+of kernel writeback caching, and is reset to the time of creation of the backing
+GCS object when the file is flushed. No other times (ctime, etc.) are tracked.
 
 <a name="file-inode-identity"></a>
 ### Identity
