@@ -483,4 +483,5 @@ Not all of the usual file system features are supported. Most prominently:
 *   Modification times are not tracked for any inodes except for files.
 
 *   No other times besides modification time are tracked. For example, ctime
-    and atime are not tracked.
+    and atime are not tracked. Requests to change them will appear to succeed,
+    but the results are unspecified.
