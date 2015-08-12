@@ -509,17 +509,8 @@ type ReadFileOp struct {
 //
 // Note that the kernel *will* ensure that writes are received and acknowledged
 // by the file system before sending a FlushFileOp when closing the file
-// descriptor to which they were written:
-//
-//  *  (http://goo.gl/PheZjf) fuse_flush calls write_inode_now, which appears
-//     to start a writeback in the background (it talks about a "flusher
-//     thread").
-//
-//  *  (http://goo.gl/1IiepM) fuse_flush then calls fuse_sync_writes, which
-//     "[waits] for all pending writepages on the inode to finish".
-//
-//  *  (http://goo.gl/zzvxWv) Only then does fuse_flush finally send the
-//     flush request.
+// descriptor to which they were written. Cf. the notes on
+// fuse.MountConfig.DisableWritebackCaching.
 //
 // (See also http://goo.gl/ocdTdM, fuse-devel thread "Fuse guarantees on
 // concurrent requests".)

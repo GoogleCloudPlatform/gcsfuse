@@ -57,6 +57,7 @@ const maxReadahead = 1 << 20
 
 // A connection to the fuse kernel process.
 type Connection struct {
+	cfg         MountConfig
 	debugLogger *log.Logger
 	errorLogger *log.Logger
 
@@ -64,9 +65,6 @@ type Connection struct {
 	// version that we're using to talk to it.
 	dev      *os.File
 	protocol fusekernel.Protocol
-
-	// The context from which all op contexts inherit.
-	parentCtx context.Context
 
 	mu sync.Mutex
 
@@ -94,15 +92,15 @@ type opState struct {
 //
 // The loggers may be nil.
 func newConnection(
-	parentCtx context.Context,
+	cfg MountConfig,
 	debugLogger *log.Logger,
 	errorLogger *log.Logger,
 	dev *os.File) (c *Connection, err error) {
 	c = &Connection{
+		cfg:         cfg,
 		debugLogger: debugLogger,
 		errorLogger: errorLogger,
 		dev:         dev,
-		parentCtx:   parentCtx,
 		cancelFuncs: make(map[uint64]func()),
 	}
 
@@ -164,6 +162,11 @@ func (c *Connection) Init() (err error) {
 
 	// Tell the kernel not to use pitifully small 4 KiB writes.
 	initOp.Flags |= fusekernel.InitBigWrites
+
+	// Enable writeback caching if the user hasn't asked us not to.
+	if !c.cfg.DisableWritebackCaching {
+		initOp.Flags |= fusekernel.InitWritebackCache
+	}
 
 	c.Reply(ctx, nil)
 	return
@@ -227,7 +230,7 @@ func (c *Connection) beginOp(
 	opCode uint32,
 	fuseID uint64) (ctx context.Context) {
 	// Start with the parent context.
-	ctx = c.parentCtx
+	ctx = c.cfg.OpContext
 
 	// Set up a cancellation function.
 	//

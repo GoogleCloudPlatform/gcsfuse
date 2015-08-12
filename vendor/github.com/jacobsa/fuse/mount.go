@@ -67,14 +67,14 @@ func Mount(
 	}
 
 	// Choose a parent context for ops.
-	opContext := config.OpContext
-	if opContext == nil {
-		opContext = context.Background()
+	cfgCopy := *config
+	if cfgCopy.OpContext == nil {
+		cfgCopy.OpContext = context.Background()
 	}
 
 	// Create a Connection object wrapping the device.
 	connection, err := newConnection(
-		opContext,
+		cfgCopy,
 		config.DebugLogger,
 		config.ErrorLogger,
 		dev)

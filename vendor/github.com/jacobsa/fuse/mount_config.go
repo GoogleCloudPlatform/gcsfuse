@@ -48,6 +48,71 @@ type MountConfig struct {
 	// performed.
 	DebugLogger *log.Logger
 
+	// Linux only. OS X always behaves as if writeback caching is disabled.
+	//
+	// By default on Linux we allow the kernel to perform writeback caching
+	// (cf. http://goo.gl/LdZzo1):
+	//
+	// *   When the user calls write(2), the kernel sticks the user's data into
+	//     its page cache. Only later does it call through to the file system,
+	//     potentially after coalescing multiple small user writes.
+	//
+	// *   The file system may receive multiple write ops from the kernel
+	//     concurrently if there is a lot of page cache data to flush.
+	//
+	// *   Write performance may be significantly improved due to the user and
+	//     the kernel not waiting for serial round trips to the file system. This
+	//     is especially true if the user makes tiny writes.
+	//
+	// *   close(2) (and anything else calling f_op->flush) causes all dirty
+	//     pages to be written out before it proceeds to send a FlushFileOp
+	//     (cf. https://goo.gl/TMrY6X).
+	//
+	// *   Similarly, close(2) causes the kernel to send a setattr request
+	//     filling in the mtime if any dirty pages were flushed, since the time
+	//     at which the pages were written to the file system can't be trusted.
+	//
+	// *   close(2) (and anything else calling f_op->flush) writes out all dirty
+	//     pages, then sends a setattr request with an appropriate mtime for
+	//     those writes if there were any, and only then proceeds to send a flush
+	//
+	//     Code walk:
+	//
+	//     *   (https://goo.gl/zTIZQ9) fuse_flush calls write_inode_now before
+	//         calling the file system. The latter eventually calls into
+	//         __writeback_single_inode.
+	//
+	//     *   (https://goo.gl/L7Z2w5) __writeback_single_inode calls
+	//         do_writepages, which writes out any dirty pages.
+	//
+	//     *   (https://goo.gl/DOPgla) __writeback_single_inode later calls
+	//         write_inode, which calls into the superblock op struct's write_inode
+	//         member. For fuse, this is fuse_write_inode
+	//         (cf. https://goo.gl/eDSKOX).
+	//
+	//     *   (https://goo.gl/PbkGA1) fuse_write_inode calls fuse_flush_times.
+	//
+	//     *   (https://goo.gl/ig8x9V) fuse_flush_times sends a setttr request
+	//         for setting the inode's mtime.
+	//
+	// However, this brings along some caveats:
+	//
+	// *   The file system must handle SetInodeAttributesOp or close(2) will fail,
+	//     due to the call chain into fuse_flush_times listed above.
+	//
+	// *   The kernel caches mtime and ctime regardless of whether the file
+	//     system tells it to do so, disregarding the result of further getattr
+	//     requests (cf. https://goo.gl/3ZZMUw, https://goo.gl/7WtQUp). It
+	//     appears this may be true of the file size, too. Writeback caching may
+	//     therefore not be suitable for file systems where these attributes can
+	//     spontaneously change for reasons the kernel doesn't observe. See
+	//     http://goo.gl/V5WQCN for more discussion.
+	//
+	// Setting DisableWritebackCaching disables this behavior. Instead the file
+	// system is called one or more times for each write(2), and the user's
+	// syscall doesn't return until the file system returns.
+	DisableWritebackCaching bool
+
 	// OS X only.
 	//
 	// Normally on OS X we mount with the novncache option
