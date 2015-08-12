@@ -1707,7 +1707,16 @@ func (t *FileTest) Chtimes_OpenFile_Dirty() {
 }
 
 func (t *FileTest) Chtimes_Directory() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create a directory.
+	dir := path.Join(t.mfs.Dir(), "foo")
+	err = os.Mkdir(dir, 0700)
+	AssertEq(nil, err)
+
+	// Chtimes should fail; we don't support it for directories.
+	err = os.Chtimes(dir, time.Now(), time.Now())
+	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
 func (t *FileTest) Chtimes_Symlink() {
