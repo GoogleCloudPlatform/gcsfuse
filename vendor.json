@@ -160,8 +160,8 @@
 			"canonical": "github.com/jacobsa/timeutil",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/timeutil",
-			"revision": "1999930e87ddbd73a184f26ed202ec52d5a7c4aa",
-			"revisionTime": "2015-07-20T10:05:28+10:00"
+			"revision": "7106ba3aceaa475584d7d2a68795027a5e080f2b",
+			"revisionTime": "2015-08-12T16:09:03+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/util/lrucache",
