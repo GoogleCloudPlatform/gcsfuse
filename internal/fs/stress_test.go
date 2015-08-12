@@ -24,8 +24,11 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/ogletest"
+	"github.com/jacobsa/syncutil"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -136,7 +139,7 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 
 	// Set up a function that repeatedly truncates the file to random lengths,
 	// writing the final size to a channel.
-	worker := func(finalSize chan<- int64) {
+	worker := func(finalSize chan<- int64) (err error) {
 		const desiredDuration = 500 * time.Millisecond
 
 		var size int64
@@ -144,28 +147,33 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 		for time.Since(startTime) < desiredDuration {
 			for i := 0; i < 10; i++ {
 				size = rand.Int63n(1 << 14)
-				err := f.Truncate(size)
-				AssertEq(nil, err)
+				err = f.Truncate(size)
+				if err != nil {
+					return
+				}
 			}
 		}
 
 		finalSize <- size
+		return
 	}
 
 	// Run several workers.
+	b := syncutil.NewBundle(t.ctx)
+
 	const numWorkers = 16
 	finalSizes := make(chan int64, numWorkers)
 
-	var wg sync.WaitGroup
 	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			worker(finalSizes)
-		}()
+		b.Add(func(ctx context.Context) (err error) {
+			err = worker(finalSizes)
+			return
+		})
 	}
 
-	wg.Wait()
+	err = b.Join()
+	AssertEq(nil, err)
+
 	close(finalSizes)
 
 	// The final size should be consistent.
