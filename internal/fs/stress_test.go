@@ -32,8 +32,9 @@ import (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-// Run the supplied function for each name, with parallelism.
-func forEachName(names []string, f func(string)) {
+// Run the supplied function for each name, with parallelism. Return an error
+// if any invocation does.
+func forEachName(names []string, f func(string) error) (err error) {
 	const parallelism = 8
 
 	// Fill a channel.
@@ -44,18 +45,29 @@ func forEachName(names []string, f func(string)) {
 	close(c)
 
 	// Run workers.
+	firstErr := make(chan error, 1)
+
 	var wg sync.WaitGroup
 	for i := 0; i < parallelism; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for n := range c {
-				f(n)
+				err := f(n)
+				if err != nil {
+					select {
+					case firstErr <- err:
+					default:
+					}
+				}
 			}
 		}()
 	}
 
 	wg.Wait()
+
+	err, _ = <-firstErr
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -69,6 +81,8 @@ type StressTest struct {
 func init() { RegisterTestSuite(&StressTest{}) }
 
 func (t *StressTest) CreateAndReadManyFilesInParallel() {
+	var err error
+
 	// Ensure that we get parallelism for this test.
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
 
@@ -81,21 +95,34 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 	}
 
 	// Create a file for each name with concurrent workers.
-	forEachName(
+	err = forEachName(
 		names,
-		func(n string) {
-			err := ioutil.WriteFile(path.Join(t.Dir, n), []byte(n), 0400)
-			AssertEq(nil, err)
+		func(n string) (err error) {
+			err = ioutil.WriteFile(path.Join(t.Dir, n), []byte(n), 0400)
+			return
 		})
 
+	AssertEq(nil, err)
+
 	// Read each back.
-	forEachName(
+	err = forEachName(
 		names,
-		func(n string) {
+		func(n string) (err error) {
 			contents, err := ioutil.ReadFile(path.Join(t.Dir, n))
-			AssertEq(nil, err)
-			AssertEq(n, string(contents))
+			if err != nil {
+				err = fmt.Errorf("ReadFile: %v", err)
+				return
+			}
+
+			if string(contents) != n {
+				err = fmt.Errorf("Contents mismatch: %q vs. %q", contents, n)
+				return
+			}
+
+			return
 		})
+
+	AssertEq(nil, err)
 }
 
 func (t *StressTest) TruncateFileManyTimesInParallel() {
