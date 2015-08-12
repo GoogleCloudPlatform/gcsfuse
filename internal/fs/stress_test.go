@@ -69,7 +69,10 @@ func forEachName(names []string, f func(string) error) (err error) {
 
 	wg.Wait()
 
+	// Read the first error, if any.
+	close(firstErr)
 	err, _ = <-firstErr
+
 	return
 }
 
