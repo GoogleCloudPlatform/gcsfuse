@@ -101,6 +101,13 @@ type ComposeObjectsRequest struct {
 
 	// The source objects from which to compose. This must be non-empty.
 	Sources []ComposeSource
+
+	// Optional information with which to create the object. See here for more
+	// information:
+	//
+	//     https://cloud.google.com/storage/docs/json_api/v1/objects#resource
+	//
+	Metadata map[string]string
 }
 
 type ComposeSource struct {
