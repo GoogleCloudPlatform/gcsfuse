@@ -1455,7 +1455,7 @@ func (t *FileTest) Stat() {
 
 	// Give it some contents.
 	time.Sleep(timeSlop + timeSlop/2)
-	writeTime := time.Now()
+	writeTime := t.mtimeClock.Now()
 
 	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
@@ -1482,7 +1482,7 @@ func (t *FileTest) StatUnopenedFile() {
 
 	// Create and close a file.
 	time.Sleep(timeSlop + timeSlop/2)
-	createTime := time.Now()
+	createTime := t.mtimeClock.Now()
 
 	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "foo"), []byte("taco"), 0700)
 	AssertEq(nil, err)
@@ -1508,7 +1508,7 @@ func (t *FileTest) LstatUnopenedFile() {
 
 	// Create and close a file.
 	time.Sleep(timeSlop + timeSlop/2)
-	createTime := time.Now()
+	createTime := t.mtimeClock.Now()
 
 	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "foo"), []byte("taco"), 0700)
 	AssertEq(nil, err)

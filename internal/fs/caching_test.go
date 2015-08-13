@@ -44,14 +44,14 @@ type cachingTestCommon struct {
 func (t *cachingTestCommon) SetUp(ti *TestInfo) {
 	// Wrap the bucket in a stat caching layer for the purposes of the file
 	// system.
-	t.uncachedBucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
+	t.uncachedBucket = gcsfake.NewFakeBucket(t.mtimeClock, "some_bucket")
 
 	const statCacheCapacity = 1000
 	statCache := gcscaching.NewStatCache(statCacheCapacity)
 	t.bucket = gcscaching.NewFastStatBucket(
 		ttl,
 		statCache,
-		&t.clock,
+		&t.cacheClock,
 		t.uncachedBucket)
 
 	// Enable directory type caching.
@@ -149,7 +149,7 @@ func (t *CachingTest) FileChangedRemotely() {
 	ExpectEq(len("taco"), fi.Size())
 
 	// After the TTL elapses, we should see the new version.
-	t.clock.AdvanceTime(ttl + time.Millisecond)
+	t.cacheClock.AdvanceTime(ttl + time.Millisecond)
 
 	fi, err = os.Stat(path.Join(t.Dir, name))
 	AssertEq(nil, err)
@@ -183,7 +183,7 @@ func (t *CachingTest) DirectoryRemovedRemotely() {
 	ExpectTrue(fi.IsDir())
 
 	// After the TTL elapses, we should see it disappear.
-	t.clock.AdvanceTime(ttl + time.Millisecond)
+	t.cacheClock.AdvanceTime(ttl + time.Millisecond)
 
 	_, err = os.Stat(path.Join(t.Dir, name))
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
@@ -217,7 +217,7 @@ func (t *CachingTest) ConflictingNames_RemoteModifier() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 
 	// After the TTL elapses, we should see both.
-	t.clock.AdvanceTime(ttl + time.Millisecond)
+	t.cacheClock.AdvanceTime(ttl + time.Millisecond)
 
 	fi, err = os.Stat(path.Join(t.Dir, name))
 	AssertEq(nil, err)
@@ -282,7 +282,7 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 
 	// After the TTL elapses, we should see it turn into a file.
-	t.clock.AdvanceTime(ttl + time.Millisecond)
+	t.cacheClock.AdvanceTime(ttl + time.Millisecond)
 
 	fi, err = os.Stat(path.Join(t.Dir, name))
 	AssertEq(nil, err)
@@ -405,7 +405,7 @@ func (t *CachingWithImplicitDirsTest) SymlinksAreTypeCached() {
 	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
 
 	// After the TTL elapses, we should see the directory.
-	t.clock.AdvanceTime(ttl + time.Millisecond)
+	t.cacheClock.AdvanceTime(ttl + time.Millisecond)
 	fi, err = os.Lstat(path.Join(t.Dir, "foo"))
 
 	AssertEq(nil, err)
