@@ -131,12 +131,13 @@ type DirInode interface {
 		name string) (o *gcs.Object, err error)
 
 	// Delete the backing object for the child file or symlink with the given
-	// (relative) name and generation, where zero means the latest generation. If
-	// the object/generation doesn't exist, no error is returned.
+	// (relative) name and generation numbers, where zero means the latest
+	// generation. If the object/generation doesn't exist, no error is returned.
 	DeleteChildFile(
 		ctx context.Context,
 		name string,
-		generation int64) (err error)
+		generation int64,
+		metaGeneration int64) (err error)
 
 	// Delete the backing object for the child directory with the given
 	// (relative) name.
@@ -774,9 +775,10 @@ func (d *dirInode) CloneToChildFile(
 	o, err = d.bucket.CopyObject(
 		ctx,
 		&gcs.CopyObjectRequest{
-			SrcName:       src.Name,
-			SrcGeneration: src.Generation,
-			DstName:       path.Join(d.Name(), name),
+			SrcName:                       src.Name,
+			SrcGeneration:                 src.Generation,
+			SrcMetaGenerationPrecondition: src.MetaGeneration,
+			DstName: path.Join(d.Name(), name),
 		})
 
 	if err != nil {
@@ -826,14 +828,16 @@ func (d *dirInode) CreateChildDir(
 func (d *dirInode) DeleteChildFile(
 	ctx context.Context,
 	name string,
-	generation int64) (err error) {
+	generation int64,
+	metaGeneration int64) (err error) {
 	d.cache.Erase(name)
 
 	err = d.bucket.DeleteObject(
 		ctx,
 		&gcs.DeleteObjectRequest{
-			Name:       path.Join(d.Name(), name),
-			Generation: generation,
+			Name:                       path.Join(d.Name(), name),
+			Generation:                 generation,
+			MetaGenerationPrecondition: metaGeneration,
 		})
 
 	if err != nil {

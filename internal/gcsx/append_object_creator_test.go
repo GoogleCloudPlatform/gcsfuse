@@ -153,6 +153,7 @@ func (t *AppendObjectCreatorTest) CreateObjectReturnsPreconditionError() {
 func (t *AppendObjectCreatorTest) CallsComposeObjects() {
 	t.srcObject.Name = "foo"
 	t.srcObject.Generation = 17
+	t.srcObject.MetaGeneration = 23
 	t.mtime = time.Now().Add(123 * time.Second).UTC()
 
 	// CreateObject
@@ -181,6 +182,9 @@ func (t *AppendObjectCreatorTest) CallsComposeObjects() {
 	ExpectThat(
 		req.DstGenerationPrecondition,
 		Pointee(Equals(t.srcObject.Generation)))
+	ExpectThat(
+		req.DstMetaGenerationPrecondition,
+		Pointee(Equals(t.srcObject.MetaGeneration)))
 
 	ExpectEq(1, len(req.Metadata))
 	ExpectEq(t.mtime.Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])

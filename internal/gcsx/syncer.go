@@ -88,8 +88,9 @@ func (oc *fullObjectCreator) Create(
 	r io.Reader) (o *gcs.Object, err error) {
 	req := &gcs.CreateObjectRequest{
 		Name: srcObject.Name,
-		GenerationPrecondition: &srcObject.Generation,
-		Contents:               r,
+		GenerationPrecondition:     &srcObject.Generation,
+		MetaGenerationPrecondition: &srcObject.MetaGeneration,
+		Contents:                   r,
 		Metadata: map[string]string{
 			MtimeMetadataKey: mtime.Format(time.RFC3339Nano),
 		},

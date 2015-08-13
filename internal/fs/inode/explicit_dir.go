@@ -26,9 +26,7 @@ import (
 // generation.
 type ExplicitDirInode interface {
 	DirInode
-
-	// Return the object generation number from which this inode was branched.
-	SourceGeneration() int64
+	GenerationBackedInode
 }
 
 // Create an explicit dir inode backed by the supplied object. See notes on
@@ -53,8 +51,11 @@ func NewExplicitDirInode(
 		cacheClock)
 
 	d = &explicitDirInode{
-		dirInode:   wrapped.(*dirInode),
-		generation: o.Generation,
+		dirInode: wrapped.(*dirInode),
+		generation: Generation{
+			Object:   o.Generation,
+			Metadata: o.MetaGeneration,
+		},
 	}
 
 	return
@@ -62,10 +63,10 @@ func NewExplicitDirInode(
 
 type explicitDirInode struct {
 	*dirInode
-	generation int64
+	generation Generation
 }
 
-func (d *explicitDirInode) SourceGeneration() (gen int64) {
+func (d *explicitDirInode) SourceGeneration() (gen Generation) {
 	gen = d.generation
 	return
 }
