@@ -80,6 +80,18 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 	AssertEq(nil, err)
 
 	// Create the inode.
+	t.createInode()
+}
+
+func (t *FileTest) TearDown() {
+	t.in.Unlock()
+}
+
+func (t *FileTest) createInode() {
+	if t.in != nil {
+		t.in.Unlock()
+	}
+
 	t.in = inode.NewFileInode(
 		fileInodeID,
 		t.backingObj,
@@ -97,10 +109,6 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 		&t.clock)
 
 	t.in.Lock()
-}
-
-func (t *FileTest) TearDown() {
-	t.in.Unlock()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -129,6 +137,24 @@ func (t *FileTest) InitialAttributes() {
 	ExpectEq(gid, attrs.Gid)
 	ExpectEq(fileMode, attrs.Mode)
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(t.backingObj.Updated))
+}
+
+func (t *FileTest) InitialAttributes_MtimeFromObjectMetadata() {
+	// Set up an explicit mtime on the backing object and re-create the inode.
+	if t.backingObj.Metadata == nil {
+		t.backingObj.Metadata = make(map[string]string)
+	}
+
+	mtime := time.Now().Add(123 * time.Second).UTC()
+	t.backingObj.Metadata["gcsfuse_mtime"] = mtime.Format(time.RFC3339Nano)
+
+	t.createInode()
+
+	// Ask it for its attributes.
+	attrs, err := t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(mtime))
 }
 
 func (t *FileTest) Read() {
@@ -259,6 +285,9 @@ func (t *FileTest) WriteThenSync() {
 	AssertEq("taco", t.initialContents)
 
 	// Overwite a byte.
+	t.clock.AdvanceTime(time.Second)
+	writeTime := t.clock.Now()
+
 	err = t.in.Write(t.ctx, []byte("p"), 0)
 	AssertEq(nil, err)
 
@@ -278,6 +307,9 @@ func (t *FileTest) WriteThenSync() {
 	AssertEq(nil, err)
 	ExpectEq(t.in.SourceGeneration(), o.Generation)
 	ExpectEq(len("paco"), o.Size)
+	ExpectEq(
+		writeTime.UTC().Format(time.RFC3339Nano),
+		o.Metadata["gcsfuse_mtime"])
 
 	// Read the object's contents.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name())
@@ -290,7 +322,7 @@ func (t *FileTest) WriteThenSync() {
 	AssertEq(nil, err)
 
 	ExpectEq(len("paco"), attrs.Size)
-	ExpectThat(attrs.Mtime, timeutil.TimeEq(o.Updated))
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(writeTime.UTC()))
 }
 
 func (t *FileTest) AppendThenSync() {
@@ -300,6 +332,9 @@ func (t *FileTest) AppendThenSync() {
 	AssertEq("taco", t.initialContents)
 
 	// Append some data.
+	t.clock.AdvanceTime(time.Second)
+	writeTime := t.clock.Now()
+
 	err = t.in.Write(t.ctx, []byte("burrito"), int64(len("taco")))
 	AssertEq(nil, err)
 
@@ -319,6 +354,9 @@ func (t *FileTest) AppendThenSync() {
 	AssertEq(nil, err)
 	ExpectEq(t.in.SourceGeneration(), o.Generation)
 	ExpectEq(len("tacoburrito"), o.Size)
+	ExpectEq(
+		writeTime.UTC().Format(time.RFC3339Nano),
+		o.Metadata["gcsfuse_mtime"])
 
 	// Read the object's contents.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name())
@@ -331,7 +369,7 @@ func (t *FileTest) AppendThenSync() {
 	AssertEq(nil, err)
 
 	ExpectEq(len("tacoburrito"), attrs.Size)
-	ExpectThat(attrs.Mtime, timeutil.TimeEq(o.Updated))
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(writeTime.UTC()))
 }
 
 func (t *FileTest) TruncateDownwardThenSync() {
@@ -339,6 +377,9 @@ func (t *FileTest) TruncateDownwardThenSync() {
 	var err error
 
 	// Truncate downward.
+	t.clock.AdvanceTime(time.Second)
+	truncateTime := t.clock.Now()
+
 	err = t.in.Truncate(t.ctx, 2)
 	AssertEq(nil, err)
 
@@ -358,13 +399,16 @@ func (t *FileTest) TruncateDownwardThenSync() {
 	AssertEq(nil, err)
 	ExpectEq(t.in.SourceGeneration(), o.Generation)
 	ExpectEq(2, o.Size)
+	ExpectEq(
+		truncateTime.UTC().Format(time.RFC3339Nano),
+		o.Metadata["gcsfuse_mtime"])
 
 	// Check attributes.
 	attrs, err = t.in.Attributes(t.ctx)
 	AssertEq(nil, err)
 
 	ExpectEq(2, attrs.Size)
-	ExpectThat(attrs.Mtime, timeutil.TimeEq(o.Updated))
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(truncateTime.UTC()))
 }
 
 func (t *FileTest) TruncateUpwardThenSync() {
@@ -374,6 +418,9 @@ func (t *FileTest) TruncateUpwardThenSync() {
 	AssertEq(4, len(t.initialContents))
 
 	// Truncate upward.
+	t.clock.AdvanceTime(time.Second)
+	truncateTime := t.clock.Now()
+
 	err = t.in.Truncate(t.ctx, 6)
 	AssertEq(nil, err)
 
@@ -389,6 +436,9 @@ func (t *FileTest) TruncateUpwardThenSync() {
 	// Stat the current object in the bucket.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
+	ExpectEq(
+		truncateTime.UTC().Format(time.RFC3339Nano),
+		o.Metadata["gcsfuse_mtime"])
 
 	AssertEq(nil, err)
 	ExpectEq(t.in.SourceGeneration(), o.Generation)
@@ -399,7 +449,7 @@ func (t *FileTest) TruncateUpwardThenSync() {
 	AssertEq(nil, err)
 
 	ExpectEq(6, attrs.Size)
-	ExpectThat(attrs.Mtime, timeutil.TimeEq(o.Updated))
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(truncateTime.UTC()))
 }
 
 func (t *FileTest) Sync_Clobbered() {
@@ -410,7 +460,12 @@ func (t *FileTest) Sync_Clobbered() {
 	AssertEq(nil, err)
 
 	// Clobber the backing object.
-	newObj, err := gcsutil.CreateObject(t.ctx, t.bucket, t.in.Name(), []byte("burrito"))
+	newObj, err := gcsutil.CreateObject(
+		t.ctx,
+		t.bucket,
+		t.in.Name(),
+		[]byte("burrito"))
+
 	AssertEq(nil, err)
 
 	// Sync. The call should succeed, but nothing should change.
