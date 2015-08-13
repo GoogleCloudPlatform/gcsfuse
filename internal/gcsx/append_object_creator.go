@@ -133,7 +133,7 @@ func (oc *appendObjectCreator) Create(
 		&gcs.ComposeObjectsRequest{
 			DstName:                       srcObject.Name,
 			DstGenerationPrecondition:     &srcObject.Generation,
-			DstMetaGenerationPrecondition: &srcObject.Generation,
+			DstMetaGenerationPrecondition: &srcObject.MetaGeneration,
 			Sources: []gcs.ComposeSource{
 				gcs.ComposeSource{
 					Name:       srcObject.Name,
