@@ -174,6 +174,12 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 // fileSystem type
 ////////////////////////////////////////////////////////////////////////
 
+// Any given object generation in GCS is immutable, and a new generation
+// results in a new inode number. So every update from a remote system results
+// in a new inode number, and it's therefore safe to allow the kernel to cache
+// inode attributes forever.
+const attrCacheDuration = 30 * 24 * time.Hour
+
 // LOCK ORDERING
 //
 // Let FS be the file system lock. Define a strict partial order < as follows:
@@ -846,7 +852,10 @@ func (fs *fileSystem) LookUpInode(
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
-	if op.Entry.Attributes, err = child.Attributes(ctx); err != nil {
+	op.Entry.AttributesExpiration = time.Now().Add(attrCacheDuration)
+	op.Entry.Attributes, err = child.Attributes(ctx)
+
+	if err != nil {
 		return
 	}
 
@@ -866,7 +875,9 @@ func (fs *fileSystem) GetInodeAttributes(
 	defer in.Unlock()
 
 	// Grab its attributes.
+	op.AttributesExpiration = time.Now().Add(attrCacheDuration)
 	op.Attributes, err = in.Attributes(ctx)
+
 	if err != nil {
 		return
 	}
@@ -919,7 +930,9 @@ func (fs *fileSystem) SetInodeAttributes(
 	}
 
 	// Fill in the response.
+	op.AttributesExpiration = time.Now().Add(attrCacheDuration)
 	op.Attributes, err = in.Attributes(ctx)
+
 	if err != nil {
 		err = fmt.Errorf("Attributes: %v", err)
 		return
@@ -988,6 +1001,7 @@ func (fs *fileSystem) MkDir(
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
+	op.Entry.AttributesExpiration = time.Now().Add(attrCacheDuration)
 	op.Entry.Attributes, err = child.Attributes(ctx)
 
 	if err != nil {
@@ -1052,6 +1066,7 @@ func (fs *fileSystem) CreateFile(
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
+	op.Entry.AttributesExpiration = time.Now().Add(attrCacheDuration)
 	op.Entry.Attributes, err = child.Attributes(ctx)
 
 	if err != nil {
@@ -1102,6 +1117,7 @@ func (fs *fileSystem) CreateSymlink(
 
 	// Fill out the response.
 	op.Entry.Child = child.ID()
+	op.Entry.AttributesExpiration = time.Now().Add(attrCacheDuration)
 	op.Entry.Attributes, err = child.Attributes(ctx)
 
 	if err != nil {
