@@ -69,7 +69,7 @@ func NewSymlinkInode(
 		name: o.Name,
 		sourceGeneration: Generation{
 			Object:   o.Generation,
-			Metadata: o.Metadata,
+			Metadata: o.MetaGeneration,
 		},
 		attrs: fuseops.InodeAttributes{
 			Nlink: 1,

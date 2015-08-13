@@ -162,8 +162,9 @@ func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
 	}
 
 	// We are clobbered iff the generation doesn't match our source generation.
+	fGen := f.SourceGeneration()
 	oGen := Generation{o.Generation, o.MetaGeneration}
-	b = oGen.Compare(f.SourceGeneration()) != 0
+	b = fGen.Compare(&oGen) != 0
 
 	return
 }
