@@ -322,7 +322,7 @@ func (t *FileTest) WriteThenSync() {
 	AssertEq(nil, err)
 
 	ExpectEq(len("paco"), attrs.Size)
-	ExpectThat(attrs.Mtime, timeutil.TimeEq(writeTime))
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(writeTime.UTC()))
 }
 
 func (t *FileTest) AppendThenSync() {
@@ -369,7 +369,7 @@ func (t *FileTest) AppendThenSync() {
 	AssertEq(nil, err)
 
 	ExpectEq(len("tacoburrito"), attrs.Size)
-	ExpectThat(attrs.Mtime, timeutil.TimeEq(writeTime))
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(writeTime.UTC()))
 }
 
 func (t *FileTest) TruncateDownwardThenSync() {
@@ -408,7 +408,7 @@ func (t *FileTest) TruncateDownwardThenSync() {
 	AssertEq(nil, err)
 
 	ExpectEq(2, attrs.Size)
-	ExpectThat(attrs.Mtime, timeutil.TimeEq(truncateTime))
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(truncateTime.UTC()))
 }
 
 func (t *FileTest) TruncateUpwardThenSync() {
@@ -449,7 +449,7 @@ func (t *FileTest) TruncateUpwardThenSync() {
 	AssertEq(nil, err)
 
 	ExpectEq(6, attrs.Size)
-	ExpectThat(attrs.Mtime, timeutil.TimeEq(truncateTime))
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(truncateTime.UTC()))
 }
 
 func (t *FileTest) Sync_Clobbered() {
