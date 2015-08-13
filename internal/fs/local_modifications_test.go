@@ -1704,7 +1704,7 @@ func (t *FileTest) Chtimes_InactiveFile() {
 
 	// Change its mtime.
 	newMtime := time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local)
-	err = os.Chtimes(p, time.Time{}, newMtime)
+	err = os.Chtimes(p, time.Now(), newMtime)
 	AssertEq(nil, err)
 
 	// Stat it and confirm that it worked.
@@ -1728,7 +1728,7 @@ func (t *FileTest) Chtimes_OpenFile_Clean() {
 
 	// Change its mtime.
 	newMtime := time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local)
-	err = os.Chtimes(p, time.Time{}, newMtime)
+	err = os.Chtimes(p, time.Now(), newMtime)
 	AssertEq(nil, err)
 
 	// Stat it by path.
@@ -1765,7 +1765,7 @@ func (t *FileTest) Chtimes_OpenFile_Dirty() {
 
 	// Change its mtime.
 	newMtime := time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local)
-	err = os.Chtimes(p, time.Time{}, newMtime)
+	err = os.Chtimes(p, time.Now(), newMtime)
 	AssertEq(nil, err)
 
 	// Stat it by path.
