@@ -56,3 +56,11 @@ type Inode interface {
 	// This method may block. Errors are for logging purposes only.
 	Destroy() (err error)
 }
+
+// An inode that is backed by a particular generation of a GCS object.
+type GenerationBackedInode interface {
+	Inode
+
+	// Requires the inode lock.
+	SourceGeneration() int64
+}

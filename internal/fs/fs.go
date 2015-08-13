@@ -148,7 +148,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		dirMode:                cfg.DirPerms | os.ModeDir,
 		inodes:                 make(map[fuseops.InodeID]inode.Inode),
 		nextInodeID:            fuseops.RootInodeID + 1,
-		generationBackedInodes: make(map[string]GenerationBackedInode),
+		generationBackedInodes: make(map[string]inode.GenerationBackedInode),
 		implicitDirInodes:      make(map[string]inode.DirInode),
 		handles:                make(map[fuseops.HandleID]interface{}),
 	}
@@ -301,7 +301,7 @@ type fileSystem struct {
 	// INVARIANT: For each value v, inodes[v.ID()] == v
 	//
 	// GUARDED_BY(mu)
-	generationBackedInodes map[string]GenerationBackedInode
+	generationBackedInodes map[string]inode.GenerationBackedInode
 
 	// A map from object name to the implicit directory inode that represents
 	// that name, if any. There can be at most one implicit directory inode for a
@@ -329,13 +329,6 @@ type fileSystem struct {
 	//
 	// GUARDED_BY(mu)
 	nextHandleID fuseops.HandleID
-}
-
-// A common interface for inodes backed by particular object generations.
-// Implemented by FileInode and SymlinkInode.
-type GenerationBackedInode interface {
-	inode.Inode
-	SourceGeneration() int64
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -618,7 +611,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// If we have no existing record for this name, mint an inode and return it.
 		if !ok {
 			in = fs.mintInode(o.Name, o)
-			fs.generationBackedInodes[in.Name()] = in.(GenerationBackedInode)
+			fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
 			fs.mu.Unlock()
 			in.Lock()
@@ -659,7 +652,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		fs.mu.Lock()
 		if fs.generationBackedInodes[o.Name] == existingInode {
 			in = fs.mintInode(o.Name, o)
-			fs.generationBackedInodes[in.Name()] = in.(GenerationBackedInode)
+			fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
 			fs.mu.Unlock()
 			existingInode.Unlock()
