@@ -482,3 +482,19 @@ func (t *FileTest) Sync_Clobbered() {
 	ExpectEq(newObj.Generation, o.Generation)
 	ExpectEq(newObj.Size, o.Size)
 }
+
+func (t *FileTest) SetMTime_ContentNotFaultedIn() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FileTest) SetMTime_ContentClean() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FileTest) SetMTime_ContentDirty() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FileTest) SetMTime_SourceObjectClobbered() {
+	AssertTrue(false, "TODO")
+}
