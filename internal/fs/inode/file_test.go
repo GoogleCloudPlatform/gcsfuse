@@ -540,7 +540,37 @@ func (t *FileTest) SetMtime_ContentClean() {
 }
 
 func (t *FileTest) SetMtime_ContentDirty() {
-	AssertTrue(false, "TODO")
+	var err error
+	var attrs fuseops.InodeAttributes
+
+	// Dirty the content.
+	err = t.in.Write(t.ctx, []byte("a"), 0)
+	AssertEq(nil, err)
+
+	// Set mtime.
+	mtime := time.Now().UTC().Add(123 * time.Second)
+
+	err = t.in.SetMtime(t.ctx, mtime)
+	AssertEq(nil, err)
+
+	// The inode should agree about the new mtime.
+	attrs, err = t.in.Attributes(t.ctx)
+
+	AssertEq(nil, err)
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(mtime))
+
+	// Sync.
+	err = t.in.Sync(t.ctx)
+	AssertEq(nil, err)
+
+	// Now the object in the bucket should have the appropriate mtime.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	o, err := t.bucket.StatObject(t.ctx, statReq)
+
+	AssertEq(nil, err)
+	ExpectEq(
+		mtime.UTC().Format(time.RFC3339Nano),
+		o.Metadata["gcsfuse_mtime"])
 }
 
 func (t *FileTest) SetMtime_SourceObjectClobbered() {
