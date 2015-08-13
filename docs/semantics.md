@@ -226,10 +226,11 @@ Inodes may be opened for writing. Modifications are reflected immediately in
 reads of the same inode by processes local to the machine using the same file
 system. After a successful `fsync` or a successful `close`, the contents of the
 inode are guaranteed to have been written to the GCS object with the matching
-name if the object's generation number still matches the source generation
-number of the inode. (It may not if there have been modifications from another
-actor in the meantime.) There are no guarantees about whether local
-modifications are reflected in GCS after writing but before syncing or closing.
+name if the object's generation and meta-generation numbers still matched the
+source generation of the inode. (They may not have if there had been
+modifications from another actor in the meantime.) There are no guarantees
+about whether local modifications are reflected in GCS after writing but before
+syncing or closing.
 
 Modification time (`stat::st_mtime` on Linux) is tracked for file inodes, and
 can be updated in usual the usual way using `utimes(2)` or `futimens(2)`. When
