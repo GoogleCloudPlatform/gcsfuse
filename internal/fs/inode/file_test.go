@@ -573,7 +573,7 @@ func (t *FileTest) SetMtime_ContentDirty() {
 		o.Metadata["gcsfuse_mtime"])
 }
 
-func (t *FileTest) SetMtime_SourceObjectClobbered() {
+func (t *FileTest) SetMtime_SourceObjectGenerationChanged() {
 	var err error
 
 	// Clobber the backing object.
@@ -597,4 +597,8 @@ func (t *FileTest) SetMtime_SourceObjectClobbered() {
 	AssertEq(nil, err)
 	ExpectEq(newObj.Generation, o.Generation)
 	ExpectEq(0, len(o.Metadata))
+}
+
+func (t *FileTest) SetMtime_SourceObjectMetaGenerationChanged() {
+	AssertTrue(false, "TODO")
 }

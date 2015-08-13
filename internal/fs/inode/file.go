@@ -84,6 +84,7 @@ var _ Inode = &FileInode{}
 //
 // REQUIRES: o != nil
 // REQUIRES: o.Generation > 0
+// REQUIRES: o.MetaGeneration > 0
 // REQUIRES: len(o.Name) > 0
 // REQUIRES: o.Name[len(o.Name)-1] != '/'
 func NewFileInode(
@@ -161,7 +162,8 @@ func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
 	}
 
 	// We are clobbered iff the generation doesn't match our source generation.
-	b = (o.Generation != f.src.Generation)
+	oGen := Generation{o.Generation, o.MetaGeneration}
+	b = oGen.Compare(f.SourceGeneration()) != 0
 
 	return
 }
@@ -223,9 +225,8 @@ func (f *FileInode) Name() string {
 	return f.name
 }
 
-// Return a record for the GCS object generation from which this inode is
-// branched. The record is guaranteed not to be modified, and users must not
-// modify it.
+// Return a record for the GCS object from which this inode is branched. The
+// record is guaranteed not to be modified, and users must not modify it.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Source() *gcs.Object {
@@ -234,8 +235,8 @@ func (f *FileInode) Source() *gcs.Object {
 	return &o
 }
 
-// If true, it is safe to serve reads directly from the object generation given
-// by f.Source(), rather than calling f.ReadAt. Doing so may be more efficient,
+// If true, it is safe to serve reads directly from the object given by
+// f.Source(), rather than calling f.ReadAt. Doing so may be more efficient,
 // because f.ReadAt may cause the entire object to be faulted in and requires
 // the inode to be locked during the read.
 //
@@ -244,11 +245,13 @@ func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 	return f.content == nil
 }
 
-// Equivalent to f.Source().Generation.
+// Equivalent to the generation returned by f.Source().
 //
 // LOCKS_REQUIRED(f)
-func (f *FileInode) SourceGeneration() int64 {
-	return f.src.Generation
+func (f *FileInode) SourceGeneration() (g Generation) {
+	g.Object = f.src.Generation
+	g.Metadata = f.src.MetaGeneration
+	return
 }
 
 // LOCKS_REQUIRED(f.mu)
@@ -403,9 +406,12 @@ func (f *FileInode) SetMtime(
 
 	// Otherwise, update the backing object's metadata.
 	formatted := mtime.UTC().Format(time.RFC3339Nano)
+	srcGen := f.SourceGeneration()
+
 	req := &gcs.UpdateObjectRequest{
-		Name:       f.src.Name,
-		Generation: f.src.Generation,
+		Name:                       f.src.Name,
+		Generation:                 srcGen.Object,
+		MetaGenerationPrecondition: &srcGen.Metadata,
 		Metadata: map[string]*string{
 			FileMtimeMetadataKey: &formatted,
 		},
@@ -420,6 +426,12 @@ func (f *FileInode) SetMtime(
 	case *gcs.NotFoundError:
 		// Special case: silently ignore not found errors, which mean the file has
 		// been unlinked.
+		err = nil
+		return
+
+	case *gcs.PreconditionError:
+		// Special case: silently ignore precondition errors, which we also take to
+		// mean the file has been unlinked.
 		err = nil
 		return
 

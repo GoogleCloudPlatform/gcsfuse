@@ -71,8 +71,8 @@ type GenerationBackedInode interface {
 //
 // Cf. https://cloud.google.com/storage/docs/generations-preconditions
 type Generation struct {
-	Object int64
-	Meta   int64
+	Object   int64
+	Metadata int64
 }
 
 // Return -1, 0, or 1 according to whether *g is less than, equal to, or
@@ -89,10 +89,10 @@ func (g *Generation) Compare(other *Generation) int {
 
 	// Break ties on meta-generation.
 	switch {
-	case g.Meta < other.Meta:
+	case g.Metadata < other.Metadata:
 		return -1
 
-	case g.Meta > other.Meta:
+	case g.Metadata > other.Metadata:
 		return 1
 	}
 
