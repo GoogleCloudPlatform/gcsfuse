@@ -282,14 +282,14 @@ The intent of these conventions is to make it appear as though local writes to
 a file are in-place modifications as with a traditional file system, whereas
 remote overwrites of a GCS object appear as some other process unlinking the
 file from its directory and then linking a distinct file using the same name.
-The `st_nlink` field will reflect this when using fstat(2).
+The `st_nlink` field will reflect this when using `fstat(2)`.
 
 Note the following consequence: if machine A opens a file and writes to it,
-then machine B deletes or replaces its backing object, then machine A closes
-the file, machine A's writes will be lost. This matches the behavior on a
-single machine when process A opens a file and then process B unlinks it.
-Process A continues to have a consistent view of the file's contents until it
-closes the file handle, at which point the contents are lost.
+then machine B deletes or replaces its backing object, or updates it metadata,
+then machine A closes the file, machine A's writes will be lost. This matches
+the behavior on a single machine when process A opens a file and then process B
+unlinks it. Process A continues to have a consistent view of the file's
+contents until it closes the file handle, at which point the contents are lost.
 
 
 <a name="dir-inodes"></a>
