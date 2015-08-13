@@ -178,10 +178,6 @@ func (t *IntegrationTest) ReadThenSync() {
 	ExpectEq(nil, newObj)
 }
 
-func (t *IntegrationTest) SetMtimeThenSync() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *IntegrationTest) WriteThenSync() {
 	// Create.
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
