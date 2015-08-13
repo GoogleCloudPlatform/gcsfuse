@@ -176,6 +176,15 @@ func (os *syncer) SyncObject(
 		return
 	}
 
+	// Sanity check: the branch above should ensure that by the time we get here,
+	// the stat result's mtime is non-nil.
+	if sr.Mtime == nil {
+		err = fmt.Errorf("Wacky stat result: %#v", sr)
+		return
+	}
+
+	mtime := *sr.Mtime
+
 	// Otherwise, we need to create a new generation. If the source object is
 	// long enough, hasn't been dirtied, and has a low enough component count,
 	// then we can make the optimization of not rewriting its contents.
@@ -188,7 +197,7 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		o, err = os.appendCreator.Create(ctx, srcObject, time.Now(), content)
+		o, err = os.appendCreator.Create(ctx, srcObject, mtime, content)
 	} else {
 		_, err = content.Seek(0, 0)
 		if err != nil {
@@ -196,7 +205,7 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		o, err = os.fullCreator.Create(ctx, srcObject, time.Now(), content)
+		o, err = os.fullCreator.Create(ctx, srcObject, mtime, content)
 	}
 
 	// Deal with errors.
