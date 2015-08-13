@@ -214,7 +214,7 @@ contents are initially exactly the contents and metadata of that generation.
 
 ### Creation
 
-When a file is created anew because it doesn't alrady exist and `open(2)` was
+When a file is created anew because it doesn't already exist and `open(2)` was
 called with `O_CREAT`, an empty object with the appropriate name is created in
 GCS. The resulting generation is used as the source generation for the inode,
 and it is as if that object had been pre-existing and was opened.
