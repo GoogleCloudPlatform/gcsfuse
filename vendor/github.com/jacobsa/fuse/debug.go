@@ -53,6 +53,27 @@ func describeRequest(op interface{}) (s string) {
 	case *unknownOp:
 		addComponent("opcode %d", typed.OpCode)
 
+	case *fuseops.LookUpInodeOp:
+		addComponent("parent %d", typed.Parent)
+		addComponent("name %q", typed.Name)
+
+	case *fuseops.SetInodeAttributesOp:
+		if typed.Size != nil {
+			addComponent("size %d", *typed.Size)
+		}
+
+		if typed.Mode != nil {
+			addComponent("mode %v", *typed.Mode)
+		}
+
+		if typed.Atime != nil {
+			addComponent("atime %v", *typed.Atime)
+		}
+
+		if typed.Mtime != nil {
+			addComponent("mtime %v", *typed.Mtime)
+		}
+
 	case *fuseops.ReadFileOp:
 		addComponent("handle %d", typed.Handle)
 		addComponent("offset %d", typed.Offset)

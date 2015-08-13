@@ -28,28 +28,32 @@ import (
 // also that it matches.
 func MtimeIs(expected time.Time) oglematchers.Matcher {
 	return oglematchers.NewMatcher(
-		func(c interface{}) error { return mtimeIs(c, expected) },
+		func(c interface{}) error { return mtimeIsWithin(c, expected, 0) },
 		fmt.Sprintf("mtime is %v", expected))
 }
 
-func mtimeIs(c interface{}, expected time.Time) error {
+// Like MtimeIs, but allows for a tolerance.
+func MtimeIsWithin(expected time.Time, d time.Duration) oglematchers.Matcher {
+	return oglematchers.NewMatcher(
+		func(c interface{}) error { return mtimeIsWithin(c, expected, d) },
+		fmt.Sprintf("mtime is within %v of %v", d, expected))
+}
+
+func mtimeIsWithin(c interface{}, expected time.Time, d time.Duration) error {
 	fi, ok := c.(os.FileInfo)
 	if !ok {
 		return fmt.Errorf("which is of type %v", reflect.TypeOf(c))
 	}
 
 	// Check ModTime().
-	if fi.ModTime() != expected {
-		d := fi.ModTime().Sub(expected)
-		return fmt.Errorf("which has mtime %v, off by %v", fi.ModTime(), d)
+	diff := fi.ModTime().Sub(expected)
+	absDiff := diff
+	if absDiff < 0 {
+		absDiff = -absDiff
 	}
 
-	// Check Sys().
-	if sysMtime, ok := extractMtime(fi.Sys()); ok {
-		if sysMtime != expected {
-			d := sysMtime.Sub(expected)
-			return fmt.Errorf("which has Sys() mtime %v, off by %v", sysMtime, d)
-		}
+	if !(absDiff < d) {
+		return fmt.Errorf("which has mtime %v, off by %v", fi.ModTime(), diff)
 	}
 
 	return nil

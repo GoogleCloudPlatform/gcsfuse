@@ -40,6 +40,11 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
+// The radius we use for "expect mtime is within"-style assertions. We can't
+// share a synchronized clock with the ultimate source of mtimes because with
+// writeback caching enabled the kernel manufactures them based on wall time.
+const timeSlop = 25 * time.Millisecond
+
 var fuseMaxNameLen int
 
 func init() {
@@ -947,16 +952,12 @@ func (t *DirectoryTest) ReadDir_Root() {
 	var fi os.FileInfo
 
 	// Create a file and a directory.
-	t.clock.AdvanceTime(time.Second)
-	createTime := t.clock.Now()
-
+	createTime := t.mtimeClock.Now()
 	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "bar"), []byte("taco"), 0700)
 	AssertEq(nil, err)
 
 	err = os.Mkdir(path.Join(t.mfs.Dir(), "foo"), 0700)
 	AssertEq(nil, err)
-
-	t.clock.AdvanceTime(time.Second)
 
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(t.mfs.Dir())
@@ -968,7 +969,7 @@ func (t *DirectoryTest) ReadDir_Root() {
 	ExpectEq("bar", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
-	ExpectThat(fi.ModTime(), timeutil.TimeEq(createTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -995,16 +996,12 @@ func (t *DirectoryTest) ReadDir_SubDirectory() {
 	AssertEq(nil, err)
 
 	// Create a file and a directory within it.
-	t.clock.AdvanceTime(time.Second)
-	createTime := t.clock.Now()
-
+	createTime := t.mtimeClock.Now()
 	err = ioutil.WriteFile(path.Join(parent, "bar"), []byte("taco"), 0700)
 	AssertEq(nil, err)
 
 	err = os.Mkdir(path.Join(parent, "foo"), 0700)
 	AssertEq(nil, err)
-
-	t.clock.AdvanceTime(time.Second)
 
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(parent)
@@ -1016,7 +1013,7 @@ func (t *DirectoryTest) ReadDir_SubDirectory() {
 	ExpectEq("bar", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
-	ExpectThat(fi.ModTime(), timeutil.TimeEq(createTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -1449,14 +1446,14 @@ func (t *FileTest) Stat() {
 	AssertEq(nil, err)
 
 	// Give it some contents.
-	t.clock.AdvanceTime(time.Second)
-	writeTime := t.clock.Now()
+	time.Sleep(timeSlop + timeSlop/2)
+	writeTime := t.mtimeClock.Now()
 
 	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
-	t.clock.AdvanceTime(time.Second)
+	time.Sleep(timeSlop + timeSlop/2)
 
 	// Stat it.
 	fi, err := t.f1.Stat()
@@ -1465,7 +1462,7 @@ func (t *FileTest) Stat() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
-	ExpectThat(fi.ModTime(), timeutil.TimeEq(writeTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(writeTime, timeSlop))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -1476,13 +1473,13 @@ func (t *FileTest) StatUnopenedFile() {
 	var err error
 
 	// Create and close a file.
-	t.clock.AdvanceTime(time.Second)
-	createTime := t.clock.Now()
+	time.Sleep(timeSlop + timeSlop/2)
+	createTime := t.mtimeClock.Now()
 
 	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "foo"), []byte("taco"), 0700)
 	AssertEq(nil, err)
 
-	t.clock.AdvanceTime(time.Second)
+	time.Sleep(timeSlop + timeSlop/2)
 
 	// Stat it.
 	fi, err := os.Stat(path.Join(t.mfs.Dir(), "foo"))
@@ -1491,7 +1488,7 @@ func (t *FileTest) StatUnopenedFile() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
-	ExpectThat(fi.ModTime(), timeutil.TimeEq(createTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -1502,13 +1499,13 @@ func (t *FileTest) LstatUnopenedFile() {
 	var err error
 
 	// Create and close a file.
-	t.clock.AdvanceTime(time.Second)
-	createTime := t.clock.Now()
+	time.Sleep(timeSlop + timeSlop/2)
+	createTime := t.mtimeClock.Now()
 
 	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "foo"), []byte("taco"), 0700)
 	AssertEq(nil, err)
 
-	t.clock.AdvanceTime(time.Second)
+	time.Sleep(timeSlop + timeSlop/2)
 
 	// Lstat it.
 	fi, err := os.Lstat(path.Join(t.mfs.Dir(), "foo"))
@@ -1517,7 +1514,7 @@ func (t *FileTest) LstatUnopenedFile() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
-	ExpectThat(fi.ModTime(), timeutil.TimeEq(createTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -1871,12 +1868,15 @@ func (t *FileTest) Sync_Clobbered() {
 		"foo",
 		[]byte("foobar"))
 
-	// Sync the file. This should not result in an error, but the new generation
-	// should not be replaced.
+	// Attempt to sync the file. This may result in an error if the OS has
+	// decided to hold back the writes from above until now (in which case the
+	// inode will fail to load the source object), or it may fail silently.
+	// Either way, this should not result in a new generation being created.
 	err = t.f1.Sync()
-	AssertEq(nil, err)
+	if err != nil {
+		ExpectThat(err, Error(HasSubstr("input/output error")))
+	}
 
-	// Check that the new generation was not replaced.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("foobar", string(contents))

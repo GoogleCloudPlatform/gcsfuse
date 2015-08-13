@@ -77,8 +77,9 @@ type fsTest struct {
 
 	// Dependencies. If bucket is set before SetUp is called, it will be used
 	// rather than creating a default one.
-	clock  timeutil.SimulatedClock
-	bucket gcs.Bucket
+	mtimeClock timeutil.Clock
+	cacheClock timeutil.SimulatedClock
+	bucket     gcs.Bucket
 
 	// Mount information
 	mfs *fuse.MountedFileSystem
@@ -96,13 +97,14 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	var err error
 	t.ctx = ti.Ctx
 
-	// Set up the clock.
-	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
-	t.serverCfg.Clock = &t.clock
+	// Set up the clocks.
+	t.mtimeClock = timeutil.RealClock()
+	t.cacheClock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
+	t.serverCfg.CacheClock = &t.cacheClock
 
 	// And the bucket.
 	if t.bucket == nil {
-		t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
+		t.bucket = gcsfake.NewFakeBucket(t.mtimeClock, "some_bucket")
 	}
 
 	t.serverCfg.Bucket = t.bucket
