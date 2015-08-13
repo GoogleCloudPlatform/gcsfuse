@@ -98,7 +98,7 @@ func (t *ForeignModsTest) ReadDir_EmptyRoot() {
 
 func (t *ForeignModsTest) ReadDir_ContentsInRoot() {
 	// Set up contents.
-	createTime := t.clock.Now()
+	createTime := t.mtimeClock.Now()
 	AssertEq(
 		nil,
 		t.createObjects(
@@ -112,9 +112,6 @@ func (t *ForeignModsTest) ReadDir_ContentsInRoot() {
 				// File
 				"baz": "burrito",
 			}))
-
-	// Make sure the time below doesn't match.
-	t.clock.AdvanceTime(time.Second)
 
 	/////////////////////////
 	// ReadDir
@@ -141,7 +138,7 @@ func (t *ForeignModsTest) ReadDir_ContentsInRoot() {
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
 	ExpectEq(filePerms, e.Mode())
-	ExpectThat(e.ModTime(), timeutil.TimeEq(createTime))
+	ExpectThat(e, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
@@ -152,7 +149,7 @@ func (t *ForeignModsTest) ReadDir_ContentsInRoot() {
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
 	ExpectEq(filePerms, e.Mode())
-	ExpectThat(e.ModTime(), timeutil.TimeEq(createTime))
+	ExpectThat(e, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
@@ -176,7 +173,7 @@ func (t *ForeignModsTest) ReadDir_EmptySubDirectory() {
 
 func (t *ForeignModsTest) ReadDir_ContentsInSubDirectory() {
 	// Set up contents.
-	createTime := t.clock.Now()
+	createTime := t.mtimeClock.Now()
 	AssertEq(
 		nil,
 		t.createObjects(
@@ -193,9 +190,6 @@ func (t *ForeignModsTest) ReadDir_ContentsInSubDirectory() {
 				// File
 				"dir/baz": "burrito",
 			}))
-
-	// Make sure the time below doesn't match.
-	t.clock.AdvanceTime(time.Second)
 
 	// Wait for the directory to show up in the file system.
 	_, err := fusetesting.ReadDirPicky(path.Join(t.mfs.Dir()))
@@ -223,7 +217,7 @@ func (t *ForeignModsTest) ReadDir_ContentsInSubDirectory() {
 	ExpectEq("baz", e.Name())
 	ExpectEq(len("burrito"), e.Size())
 	ExpectEq(filePerms, e.Mode())
-	ExpectThat(e.ModTime(), timeutil.TimeEq(createTime))
+	ExpectThat(e, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
@@ -234,7 +228,7 @@ func (t *ForeignModsTest) ReadDir_ContentsInSubDirectory() {
 	ExpectEq("foo", e.Name())
 	ExpectEq(len("taco"), e.Size())
 	ExpectEq(filePerms, e.Mode())
-	ExpectThat(e.ModTime(), timeutil.TimeEq(createTime))
+	ExpectThat(e, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
