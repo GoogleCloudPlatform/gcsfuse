@@ -55,16 +55,17 @@ type StatResult struct {
 	// The current size in bytes of the content.
 	Size int64
 
-	// It is guaranteed that all bytes in the range [0, DirtyThreshold) are
-	// unmodified from the original content with which the mutable content object
-	// was created.
+	// The largest value T such that we are sure that the range of bytes [0, T)
+	// is unmodified from the original content with which the temp file was
+	// created.
 	DirtyThreshold int64
 
 	// The mtime of the temp file is updated according to the temp file's clock
 	// with each call to a method that modified its content, and is also updated
 	// when the user explicitly calls SetMtime.
 	//
-	// If neither of those things has ever happened, it is nil.
+	// If neither of those things has ever happened, it is nil. This implies that
+	// DirtyThreshold == Size.
 	Mtime *time.Time
 }
 
