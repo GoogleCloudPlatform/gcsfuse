@@ -28,6 +28,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
+	"github.com/jacobsa/timeutil"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -44,7 +45,7 @@ type cachingTestCommon struct {
 func (t *cachingTestCommon) SetUp(ti *TestInfo) {
 	// Wrap the bucket in a stat caching layer for the purposes of the file
 	// system.
-	t.uncachedBucket = gcsfake.NewFakeBucket(t.mtimeClock, "some_bucket")
+	t.uncachedBucket = gcsfake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
 
 	const statCacheCapacity = 1000
 	statCache := gcscaching.NewStatCache(statCacheCapacity)
