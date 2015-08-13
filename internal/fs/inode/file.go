@@ -291,8 +291,7 @@ func (f *FileInode) Attributes(
 	attrs.Mtime = f.src.Updated
 	attrs.Size = uint64(f.src.Size)
 
-	// If GCS is no longer authoritative, stat our local content to obtain size
-	// and mtime.
+	// If we've got local content, its size and (maybe) mtime take precedence.
 	if f.content != nil {
 		var sr gcsx.StatResult
 		sr, err = f.content.Stat()
