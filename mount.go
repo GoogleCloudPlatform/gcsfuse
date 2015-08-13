@@ -83,7 +83,7 @@ func mount(
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{
-		Clock:               timeutil.RealClock(),
+		CacheClock:          timeutil.RealClock(),
 		Bucket:              bucket,
 		TempDir:             flags.TempDir,
 		ImplicitDirectories: flags.ImplicitDirs,
