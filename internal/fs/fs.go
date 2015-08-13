@@ -36,8 +36,9 @@ import (
 )
 
 type ServerConfig struct {
-	// A clock used for modification times and cache expiration.
-	Clock timeutil.Clock
+	// A clock used for cache expiration. It is *not* used for inode times, for
+	// which we use the wall clock.
+	CacheClock timeutil.Clock
 
 	// The bucket that the file system is to export.
 	Bucket gcs.Bucket
@@ -121,7 +122,8 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 
 	// Set up the basic struct.
 	fs := &fileSystem{
-		clock:                  cfg.Clock,
+		mtimeClock:             timeutil.RealClock(),
+		cacheClock:             cfg.CacheClock,
 		bucket:                 cfg.Bucket,
 		syncer:                 syncer,
 		tempDir:                cfg.TempDir,
@@ -150,7 +152,8 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		fs.implicitDirs,
 		fs.dirTypeCacheTTL,
 		cfg.Bucket,
-		fs.clock)
+		fs.mtimeClock,
+		fs.cacheClock)
 
 	root.Lock()
 	root.IncrementLookupCount()
@@ -203,9 +206,10 @@ type fileSystem struct {
 	// Dependencies
 	/////////////////////////
 
-	clock  timeutil.Clock
-	bucket gcs.Bucket
-	syncer gcsx.Syncer
+	mtimeClock timeutil.Clock
+	cacheClock timeutil.Clock
+	bucket     gcs.Bucket
+	syncer     gcsx.Syncer
 
 	/////////////////////////
 	// Constant data
@@ -494,7 +498,8 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 			fs.implicitDirs,
 			fs.dirTypeCacheTTL,
 			fs.bucket,
-			fs.clock)
+			fs.mtimeClock,
+			fs.cacheClock)
 
 	// Implicit directories
 	case inode.IsDirName(name):
@@ -509,7 +514,8 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 			fs.implicitDirs,
 			fs.dirTypeCacheTTL,
 			fs.bucket,
-			fs.clock)
+			fs.mtimeClock,
+			fs.cacheClock)
 
 	case inode.IsSymlink(o):
 		in = inode.NewSymlinkInode(
@@ -533,7 +539,7 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 			fs.bucket,
 			fs.syncer,
 			fs.tempDir,
-			fs.clock)
+			fs.mtimeClock)
 	}
 
 	// Place it in our map of IDs to inodes.
