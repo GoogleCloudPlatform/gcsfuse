@@ -97,6 +97,12 @@ func (tf *checkingTempFile) Truncate(n int64) error {
 	return tf.wrapped.Truncate(n)
 }
 
+func (tf *checkingTempFile) SetMtime(mtime time.Time) {
+	tf.wrapped.CheckInvariants()
+	defer tf.wrapped.CheckInvariants()
+	tf.wrapped.SetMtime(mtime)
+}
+
 func (tf *checkingTempFile) Destroy() {
 	tf.wrapped.CheckInvariants()
 	tf.wrapped.Destroy()
@@ -141,7 +147,7 @@ func (t *TempFileTest) SetUp(ti *TestInfo) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *TempFileTest) Stat() {
+func (t *TempFileTest) Stat_InitialState() {
 	sr, err := t.tf.Stat()
 
 	AssertEq(nil, err)
@@ -213,4 +219,18 @@ func (t *TempFileTest) Truncate() {
 	actual, err := readAll(&t.tf)
 	AssertEq(nil, err)
 	ExpectEq(expected, string(actual))
+}
+
+func (t *TempFileTest) SetMtime() {
+	mtime := time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local)
+	AssertThat(mtime, Not(timeutil.TimeEq(t.clock.Now())))
+
+	// Set.
+	t.tf.SetMtime(mtime)
+
+	// Check.
+	sr, err := t.tf.Stat()
+
+	AssertEq(nil, err)
+	ExpectThat(sr.Mtime, Pointee(timeutil.TimeEq(mtime)))
 }
