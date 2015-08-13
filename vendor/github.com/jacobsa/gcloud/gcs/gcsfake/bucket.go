@@ -714,6 +714,18 @@ func (b *bucket) UpdateObject(
 
 	var obj *gcs.Object = &b.objects[index].metadata
 
+	// Does the generation number match the request?
+	if req.Generation != 0 && obj.Generation != req.Generation {
+		err = &gcs.NotFoundError{
+			Err: fmt.Errorf(
+				"Object %q generation %d not found",
+				req.Name,
+				req.Generation),
+		}
+
+		return
+	}
+
 	// Update the entry's basic fields according to the request.
 	if req.ContentType != nil {
 		obj.ContentType = *req.ContentType

@@ -227,6 +227,9 @@ type UpdateObjectRequest struct {
 	// The name of the object to update. Must be specified.
 	Name string
 
+	// The generation of the object to update. Zero means the latest generation.
+	Generation int64
+
 	// String fields in the object to update (or not). The semantics are as
 	// follows, for a given field F:
 	//

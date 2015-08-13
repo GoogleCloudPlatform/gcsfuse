@@ -87,6 +87,9 @@ func (b *bucket) UpdateObject(
 
 	query := make(url.Values)
 	query.Set("projection", "full")
+	if req.Generation != 0 {
+		query.Set("generation", fmt.Sprintf("%d", req.Generation))
+	}
 
 	url := &url.URL{
 		Scheme:   "https",
