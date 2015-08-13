@@ -62,5 +62,15 @@ type GenerationBackedInode interface {
 	Inode
 
 	// Requires the inode lock.
-	SourceGeneration() int64
+	SourceGeneration() Generation
+}
+
+// A particular generation of a GCS object, consisting of both a GCS object
+// generation number and meta-generation number. Lexicographically ordered on
+// the two.
+//
+// Cf. https://cloud.google.com/storage/docs/generations-preconditions
+type Generation struct {
+	Object int64
+	Meta   int64
 }
