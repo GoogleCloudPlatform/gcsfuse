@@ -58,6 +58,18 @@ type ServerConfig struct {
 	// See docs/semantics.md for more info.
 	ImplicitDirectories bool
 
+	// How long to allow the kernel to cache inode attributes.
+	//
+	// Any given object generation in GCS is immutable, and a new generation
+	// results in a new inode number. So every update from a remote system results
+	// in a new inode number, and it's therefore safe to allow the kernel to cache
+	// inode attributes.
+	//
+	// The one exception to the above logic is that objects can be _deleted_, in
+	// which case stat::st_nlink changes. So choosing this value comes down to
+	// whether you care about that field being up to date.
+	InodeAttributeCacheTTL time.Duration
+
 	// If non-zero, each directory will maintain a cache from child name to
 	// information about whether that name exists as a file and/or directory.
 	// This may speed up calls to look up and stat inodes, especially when
@@ -126,6 +138,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		syncer:                 syncer,
 		tempDir:                cfg.TempDir,
 		implicitDirs:           cfg.ImplicitDirectories,
+		inodeAttributeCacheTTL: cfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:        cfg.DirTypeCacheTTL,
 		uid:                    cfg.Uid,
 		gid:                    cfg.Gid,
@@ -174,12 +187,6 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 // fileSystem type
 ////////////////////////////////////////////////////////////////////////
 
-// Any given object generation in GCS is immutable, and a new generation
-// results in a new inode number. So every update from a remote system results
-// in a new inode number, and it's therefore safe to allow the kernel to cache
-// inode attributes forever.
-const attrCacheDuration = 30 * 24 * time.Hour
-
 // LOCK ORDERING
 //
 // Let FS be the file system lock. Define a strict partial order < as follows:
@@ -217,9 +224,10 @@ type fileSystem struct {
 	// Constant data
 	/////////////////////////
 
-	tempDir         string
-	implicitDirs    bool
-	dirTypeCacheTTL time.Duration
+	tempDir                string
+	implicitDirs           bool
+	inodeAttributeCacheTTL time.Duration
+	dirTypeCacheTTL        time.Duration
 
 	// The user and group owning everything in the file system.
 	uid uint32
@@ -825,6 +833,30 @@ func (fs *fileSystem) unlockAndMaybeDisposeOfInode(
 	fs.unlockAndDecrementLookupCount(in, 1)
 }
 
+// Fetch attributes for the supplied inode and fill in an appropriate
+// expiration time for them.
+//
+// LOCKS_REQUIRED(in)
+func (fs *fileSystem) getAttributes(
+	ctx context.Context,
+	in inode.Inode) (
+	attr fuseops.InodeAttributes,
+	expiration time.Time,
+	err error) {
+	// Call through.
+	attr, err = in.Attributes(ctx)
+	if err != nil {
+		return
+	}
+
+	// Set up the expiration time.
+	if fs.inodeAttributeCacheTTL > 0 {
+		expiration = time.Now().Add(fs.inodeAttributeCacheTTL)
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // fuse.FileSystem methods
 ////////////////////////////////////////////////////////////////////////
@@ -851,9 +883,9 @@ func (fs *fileSystem) LookUpInode(
 	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
 
 	// Fill out the response.
-	op.Entry.Child = child.ID()
-	op.Entry.AttributesExpiration = time.Now().Add(attrCacheDuration)
-	op.Entry.Attributes, err = child.Attributes(ctx)
+	e := &op.Entry
+	e.Child = child.ID()
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
 
 	if err != nil {
 		return
@@ -875,9 +907,7 @@ func (fs *fileSystem) GetInodeAttributes(
 	defer in.Unlock()
 
 	// Grab its attributes.
-	op.AttributesExpiration = time.Now().Add(attrCacheDuration)
-	op.Attributes, err = in.Attributes(ctx)
-
+	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in)
 	if err != nil {
 		return
 	}
@@ -930,11 +960,9 @@ func (fs *fileSystem) SetInodeAttributes(
 	}
 
 	// Fill in the response.
-	op.AttributesExpiration = time.Now().Add(attrCacheDuration)
-	op.Attributes, err = in.Attributes(ctx)
-
+	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in)
 	if err != nil {
-		err = fmt.Errorf("Attributes: %v", err)
+		err = fmt.Errorf("getAttributes: %v", err)
 		return
 	}
 
@@ -1000,12 +1028,12 @@ func (fs *fileSystem) MkDir(
 	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
 
 	// Fill out the response.
-	op.Entry.Child = child.ID()
-	op.Entry.AttributesExpiration = time.Now().Add(attrCacheDuration)
-	op.Entry.Attributes, err = child.Attributes(ctx)
+	e := &op.Entry
+	e.Child = child.ID()
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
 
 	if err != nil {
-		err = fmt.Errorf("Attributes: %v", err)
+		err = fmt.Errorf("getAttributes: %v", err)
 		return
 	}
 
@@ -1065,12 +1093,12 @@ func (fs *fileSystem) CreateFile(
 	fs.mu.Unlock()
 
 	// Fill out the response.
-	op.Entry.Child = child.ID()
-	op.Entry.AttributesExpiration = time.Now().Add(attrCacheDuration)
-	op.Entry.Attributes, err = child.Attributes(ctx)
+	e := &op.Entry
+	e.Child = child.ID()
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
 
 	if err != nil {
-		err = fmt.Errorf("Attributes: %v", err)
+		err = fmt.Errorf("getAttributes: %v", err)
 		return
 	}
 
@@ -1116,12 +1144,12 @@ func (fs *fileSystem) CreateSymlink(
 	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
 
 	// Fill out the response.
-	op.Entry.Child = child.ID()
-	op.Entry.AttributesExpiration = time.Now().Add(attrCacheDuration)
-	op.Entry.Attributes, err = child.Attributes(ctx)
+	e := &op.Entry
+	e.Child = child.ID()
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
 
 	if err != nil {
-		err = fmt.Errorf("Attributes: %v", err)
+		err = fmt.Errorf("getAttributes: %v", err)
 		return
 	}
 
