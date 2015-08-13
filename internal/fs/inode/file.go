@@ -36,9 +36,9 @@ type FileInode struct {
 	// Dependencies
 	/////////////////////////
 
-	bucket gcs.Bucket
-	syncer gcsx.Syncer
-	clock  timeutil.Clock
+	bucket     gcs.Bucket
+	syncer     gcsx.Syncer
+	mtimeClock timeutil.Clock
 
 	/////////////////////////
 	// Constant data
@@ -93,17 +93,17 @@ func NewFileInode(
 	bucket gcs.Bucket,
 	syncer gcsx.Syncer,
 	tempDir string,
-	clock timeutil.Clock) (f *FileInode) {
+	mtimeClock timeutil.Clock) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
-		bucket:  bucket,
-		syncer:  syncer,
-		clock:   clock,
-		id:      id,
-		name:    o.Name,
-		attrs:   attrs,
-		tempDir: tempDir,
-		src:     *o,
+		bucket:     bucket,
+		syncer:     syncer,
+		mtimeClock: mtimeClock,
+		id:         id,
+		name:       o.Name,
+		attrs:      attrs,
+		tempDir:    tempDir,
+		src:        *o,
 	}
 
 	f.lc.Init(id)
@@ -191,7 +191,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 	defer rc.Close()
 
 	// Create a temporary file with its contents.
-	tf, err := gcsx.NewTempFile(rc, f.tempDir, f.clock)
+	tf, err := gcsx.NewTempFile(rc, f.tempDir, f.mtimeClock)
 	if err != nil {
 		err = fmt.Errorf("NewTempFile: %v", err)
 		return
