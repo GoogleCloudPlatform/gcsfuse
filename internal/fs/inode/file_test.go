@@ -124,7 +124,9 @@ func (t *FileTest) Name() {
 }
 
 func (t *FileTest) InitialSourceGeneration() {
-	ExpectEq(t.backingObj.Generation, t.in.SourceGeneration())
+	sg := t.in.SourceGeneration()
+	ExpectEq(t.backingObj.Generation, sg.Object)
+	ExpectEq(t.backingObj.MetaGeneration, sg.Metadata)
 }
 
 func (t *FileTest) InitialAttributes() {
@@ -298,14 +300,15 @@ func (t *FileTest) WriteThenSync() {
 	AssertEq(nil, err)
 
 	// The generation should have advanced.
-	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration())
+	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration().Object)
 
 	// Stat the current object in the bucket.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
-	ExpectEq(t.in.SourceGeneration(), o.Generation)
+	ExpectEq(t.in.SourceGeneration().Object, o.Generation)
+	ExpectEq(t.in.SourceGeneration().Metadata, o.MetaGeneration)
 	ExpectEq(len("paco"), o.Size)
 	ExpectEq(
 		writeTime.UTC().Format(time.RFC3339Nano),
@@ -345,14 +348,15 @@ func (t *FileTest) AppendThenSync() {
 	AssertEq(nil, err)
 
 	// The generation should have advanced.
-	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration())
+	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration().Object)
 
 	// Stat the current object in the bucket.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
-	ExpectEq(t.in.SourceGeneration(), o.Generation)
+	ExpectEq(t.in.SourceGeneration().Object, o.Generation)
+	ExpectEq(t.in.SourceGeneration().Metadata, o.MetaGeneration)
 	ExpectEq(len("tacoburrito"), o.Size)
 	ExpectEq(
 		writeTime.UTC().Format(time.RFC3339Nano),
@@ -390,14 +394,15 @@ func (t *FileTest) TruncateDownwardThenSync() {
 	AssertEq(nil, err)
 
 	// The generation should have advanced.
-	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration())
+	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration().Object)
 
 	// Stat the current object in the bucket.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
-	ExpectEq(t.in.SourceGeneration(), o.Generation)
+	ExpectEq(t.in.SourceGeneration().Object, o.Generation)
+	ExpectEq(t.in.SourceGeneration().Metadata, o.MetaGeneration)
 	ExpectEq(2, o.Size)
 	ExpectEq(
 		truncateTime.UTC().Format(time.RFC3339Nano),
@@ -431,7 +436,7 @@ func (t *FileTest) TruncateUpwardThenSync() {
 	AssertEq(nil, err)
 
 	// The generation should have advanced.
-	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration())
+	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration().Object)
 
 	// Stat the current object in the bucket.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
@@ -441,7 +446,8 @@ func (t *FileTest) TruncateUpwardThenSync() {
 		o.Metadata["gcsfuse_mtime"])
 
 	AssertEq(nil, err)
-	ExpectEq(t.in.SourceGeneration(), o.Generation)
+	ExpectEq(t.in.SourceGeneration().Object, o.Generation)
+	ExpectEq(t.in.SourceGeneration().Metadata, o.MetaGeneration)
 	ExpectEq(6, o.Size)
 
 	// Check attributes.
@@ -472,7 +478,8 @@ func (t *FileTest) Sync_Clobbered() {
 	err = t.in.Sync(t.ctx)
 
 	AssertEq(nil, err)
-	ExpectEq(t.backingObj.Generation, t.in.SourceGeneration())
+	ExpectEq(t.backingObj.Generation, t.in.SourceGeneration().Object)
+	ExpectEq(t.backingObj.MetaGeneration, t.in.SourceGeneration().Metadata)
 
 	// The object in the bucket should not have been changed.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
