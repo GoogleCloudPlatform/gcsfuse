@@ -26,7 +26,7 @@ import (
 // generation.
 type ExplicitDirInode interface {
 	DirInode
-	GenerationBackedInode
+	SourceGeneration() Generation
 }
 
 // Create an explicit dir inode backed by the supplied object. See notes on
