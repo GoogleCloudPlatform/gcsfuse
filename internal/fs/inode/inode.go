@@ -74,3 +74,27 @@ type Generation struct {
 	Object int64
 	Meta   int64
 }
+
+// Return -1, 0, or 1 according to whether *g is less than, equal to, or
+// greater than *other.
+func (g *Generation) Compare(other *Generation) int {
+	// Compare first on object generation number.
+	switch {
+	case g.Object < other.Object:
+		return -1
+
+	case g.Object > other.Object:
+		return 1
+	}
+
+	// Break ties on meta-generation.
+	switch {
+	case g.Meta < other.Meta:
+		return -1
+
+	case g.Meta > other.Meta:
+		return 1
+	}
+
+	return 0
+}
