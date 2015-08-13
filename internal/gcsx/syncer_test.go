@@ -324,11 +324,16 @@ func (t *SyncerTest) CallsAppendCreator() {
 	_, err = t.content.WriteAt([]byte("burrito"), int64(t.srcObject.Size))
 	AssertEq(nil, err)
 
+	// Set up an expected mtime.
+	mtime := time.Now().Add(123 * time.Second)
+	t.content.SetMtime(mtime)
+
 	// Call
 	t.call()
 
 	AssertTrue(t.appendCreator.called)
 	ExpectEq(t.srcObject, t.appendCreator.srcObject)
+	ExpectThat(t.appendCreator.mtime, timeutil.TimeEq(mtime))
 	ExpectEq("burrito", string(t.appendCreator.contents))
 }
 
