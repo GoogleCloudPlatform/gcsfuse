@@ -131,8 +131,9 @@ func (oc *appendObjectCreator) Create(
 	o, err = oc.bucket.ComposeObjects(
 		ctx,
 		&gcs.ComposeObjectsRequest{
-			DstName:                   srcObject.Name,
-			DstGenerationPrecondition: &srcObject.Generation,
+			DstName:                       srcObject.Name,
+			DstGenerationPrecondition:     &srcObject.Generation,
+			DstMetaGenerationPrecondition: &srcObject.Generation,
 			Sources: []gcs.ComposeSource{
 				gcs.ComposeSource{
 					Name:       srcObject.Name,
