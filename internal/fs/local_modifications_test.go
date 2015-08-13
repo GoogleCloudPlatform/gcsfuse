@@ -952,16 +952,12 @@ func (t *DirectoryTest) ReadDir_Root() {
 	var fi os.FileInfo
 
 	// Create a file and a directory.
-	t.clock.AdvanceTime(time.Second)
-	createTime := t.clock.Now()
-
+	createTime := t.mtimeClock.Now()
 	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "bar"), []byte("taco"), 0700)
 	AssertEq(nil, err)
 
 	err = os.Mkdir(path.Join(t.mfs.Dir(), "foo"), 0700)
 	AssertEq(nil, err)
-
-	t.clock.AdvanceTime(time.Second)
 
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(t.mfs.Dir())
@@ -973,7 +969,7 @@ func (t *DirectoryTest) ReadDir_Root() {
 	ExpectEq("bar", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
-	ExpectThat(fi.ModTime(), timeutil.TimeEq(createTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
@@ -1000,16 +996,12 @@ func (t *DirectoryTest) ReadDir_SubDirectory() {
 	AssertEq(nil, err)
 
 	// Create a file and a directory within it.
-	t.clock.AdvanceTime(time.Second)
-	createTime := t.clock.Now()
-
+	createTime := t.mtimeClock.Now()
 	err = ioutil.WriteFile(path.Join(parent, "bar"), []byte("taco"), 0700)
 	AssertEq(nil, err)
 
 	err = os.Mkdir(path.Join(parent, "foo"), 0700)
 	AssertEq(nil, err)
-
-	t.clock.AdvanceTime(time.Second)
 
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(parent)
@@ -1021,7 +1013,7 @@ func (t *DirectoryTest) ReadDir_SubDirectory() {
 	ExpectEq("bar", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
-	ExpectThat(fi.ModTime(), timeutil.TimeEq(createTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
