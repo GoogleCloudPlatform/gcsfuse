@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
@@ -69,6 +70,7 @@ type AppendObjectCreatorTest struct {
 
 	srcObject   gcs.Object
 	srcContents string
+	mtime       time.Time
 }
 
 var _ SetUpInterface = &AppendObjectCreatorTest{}
@@ -89,6 +91,7 @@ func (t *AppendObjectCreatorTest) call() (o *gcs.Object, err error) {
 	o, err = t.creator.Create(
 		t.ctx,
 		&t.srcObject,
+		t.mtime,
 		strings.NewReader(t.srcContents))
 
 	return
@@ -150,6 +153,7 @@ func (t *AppendObjectCreatorTest) CreateObjectReturnsPreconditionError() {
 func (t *AppendObjectCreatorTest) CallsComposeObjects() {
 	t.srcObject.Name = "foo"
 	t.srcObject.Generation = 17
+	t.mtime = time.Now().Add(123 * time.Second).UTC()
 
 	// CreateObject
 	tmpObject := &gcs.Object{
@@ -177,6 +181,9 @@ func (t *AppendObjectCreatorTest) CallsComposeObjects() {
 	ExpectThat(
 		req.DstGenerationPrecondition,
 		Pointee(Equals(t.srcObject.Generation)))
+
+	ExpectEq(1, len(req.Metadata))
+	ExpectEq(t.mtime.Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
 
 	AssertEq(2, len(req.Sources))
 	var src gcs.ComposeSource

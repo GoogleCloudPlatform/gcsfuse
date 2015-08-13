@@ -886,35 +886,42 @@ func (fs *fileSystem) SetInodeAttributes(
 	in.Lock()
 	defer in.Unlock()
 
-	// We don't support changing attributes of anything but files.
+	// We don't support changing non-files.
 	file, ok := in.(*inode.FileInode)
 	if !ok {
 		err = fuse.ENOSYS
 		return
 	}
 
-	// The only thing we support changing is size. Return an error for attempts
-	// to change anything else.
-	//
-	// Special case: ignore changes to mtime which are sent by the Linux kernel
-	// before flushing a file that has been written to when writeback caching is
-	// enabled.
-	if op.Mode != nil || op.Atime != nil {
-		err = fuse.ENOSYS
-		return
+	// Set the mtime, if requested.
+	if op.Mtime != nil {
+		err = file.SetMtime(ctx, *op.Mtime)
+		if err != nil {
+			err = fmt.Errorf("SetMtime: %v", err)
+			return
+		}
 	}
 
 	// Set the size, if specified.
 	if op.Size != nil {
-		if err = file.Truncate(ctx, int64(*op.Size)); err != nil {
+		err = file.Truncate(ctx, int64(*op.Size))
+		if err != nil {
 			err = fmt.Errorf("Truncate: %v", err)
 			return
 		}
 	}
 
+	// We don't support setting mode. (We silently ignore atime updates, as per
+	// docs/semantics.md.)
+	if op.Mode != nil {
+		err = fuse.ENOSYS
+		return
+	}
+
 	// Fill in the response.
 	op.Attributes, err = in.Attributes(ctx)
 	if err != nil {
+		err = fmt.Errorf("Attributes: %v", err)
 		return
 	}
 
