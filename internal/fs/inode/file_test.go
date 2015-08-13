@@ -80,6 +80,18 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 	AssertEq(nil, err)
 
 	// Create the inode.
+	t.createInode()
+}
+
+func (t *FileTest) TearDown() {
+	t.in.Unlock()
+}
+
+func (t *FileTest) createInode() {
+	if t.in != nil {
+		t.in.Unlock()
+	}
+
 	t.in = inode.NewFileInode(
 		fileInodeID,
 		t.backingObj,
@@ -97,10 +109,6 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 		&t.clock)
 
 	t.in.Lock()
-}
-
-func (t *FileTest) TearDown() {
-	t.in.Unlock()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -132,7 +140,21 @@ func (t *FileTest) InitialAttributes() {
 }
 
 func (t *FileTest) InitialAttributes_MtimeFromObjectMetadata() {
-	AssertTrue(false, "TODO")
+	// Set up an explicit mtime on the backing object and re-create the inode.
+	if t.backingObj.Metadata == nil {
+		t.backingObj.Metadata = make(map[string]string)
+	}
+
+	mtime := time.Now().Add(123 * time.Second).UTC()
+	t.backingObj.Metadata["gcsfuse_mtime"] = mtime.Format(time.RFC3339Nano)
+
+	t.createInode()
+
+	// Ask it for its attributes.
+	attrs, err := t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(mtime))
 }
 
 func (t *FileTest) Read() {
