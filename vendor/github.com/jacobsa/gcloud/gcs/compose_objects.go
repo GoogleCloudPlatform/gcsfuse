@@ -37,7 +37,8 @@ func (b *bucket) makeComposeObjectsBody(
 	// Create a request in the form expected by the API.
 	r := storagev1.ComposeRequest{
 		Destination: &storagev1.Object{
-			Name: req.DstName,
+			Name:     req.DstName,
+			Metadata: req.Metadata,
 
 			// We get an HTTP 400 if we don't set this.
 			// Cf. Google-internal bug 21588058.

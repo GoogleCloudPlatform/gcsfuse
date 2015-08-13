@@ -42,6 +42,10 @@ type TempFile interface {
 	// the seek position.
 	Stat() (sr StatResult, err error)
 
+	// Explicitly set the mtime that will return in stat results. This will stick
+	// until another method that modifies the file is called.
+	SetMtime(mtime time.Time)
+
 	// Throw away the resources used by the temporary file. The object must not
 	// be used again.
 	Destroy()
@@ -51,13 +55,17 @@ type StatResult struct {
 	// The current size in bytes of the content.
 	Size int64
 
-	// It is guaranteed that all bytes in the range [0, DirtyThreshold) are
-	// unmodified from the original content with which the mutable content object
-	// was created.
+	// The largest value T such that we are sure that the range of bytes [0, T)
+	// is unmodified from the original content with which the temp file was
+	// created.
 	DirtyThreshold int64
 
-	// The time at which the content was last updated, or nil if we've never
-	// changed it.
+	// The mtime of the temp file is updated according to the temp file's clock
+	// with each call to a method that modified its content, and is also updated
+	// when the user explicitly calls SetMtime.
+	//
+	// If neither of those things has ever happened, it is nil. This implies that
+	// DirtyThreshold == Size.
 	Mtime *time.Time
 }
 
@@ -212,6 +220,10 @@ func (tf *tempFile) Truncate(n int64) error {
 
 	// Call through.
 	return tf.f.Truncate(n)
+}
+
+func (tf *tempFile) SetMtime(mtime time.Time) {
+	tf.mtime = &mtime
 }
 
 ////////////////////////////////////////////////////////////////////////

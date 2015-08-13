@@ -69,36 +69,36 @@
 			"canonical": "github.com/jacobsa/gcloud/gcs",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/gcloud/gcs",
-			"revision": "acc256f3e729b9704653b94ab90e326147b8feb2",
-			"revisionTime": "2015-08-05T16:28:48+10:00"
+			"revision": "5b53deb7a2cbde72489e9a32691b11cd4ec4a07d",
+			"revisionTime": "2015-08-13T10:34:23+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/gcloud/gcs/gcscaching",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/gcloud/gcs/gcscaching",
-			"revision": "acc256f3e729b9704653b94ab90e326147b8feb2",
-			"revisionTime": "2015-08-05T16:28:48+10:00"
+			"revision": "5b53deb7a2cbde72489e9a32691b11cd4ec4a07d",
+			"revisionTime": "2015-08-13T10:34:23+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/gcloud/gcs/gcsfake",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/gcloud/gcs/gcsfake",
-			"revision": "acc256f3e729b9704653b94ab90e326147b8feb2",
-			"revisionTime": "2015-08-05T16:28:48+10:00"
+			"revision": "5b53deb7a2cbde72489e9a32691b11cd4ec4a07d",
+			"revisionTime": "2015-08-13T10:34:23+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/gcloud/gcs/gcsutil",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/gcloud/gcs/gcsutil",
-			"revision": "acc256f3e729b9704653b94ab90e326147b8feb2",
-			"revisionTime": "2015-08-05T16:28:48+10:00"
+			"revision": "5b53deb7a2cbde72489e9a32691b11cd4ec4a07d",
+			"revisionTime": "2015-08-13T10:34:23+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/gcloud/gcs/mock_gcs",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/gcloud/gcs/mock_gcs",
-			"revision": "acc256f3e729b9704653b94ab90e326147b8feb2",
-			"revisionTime": "2015-08-05T16:28:48+10:00"
+			"revision": "5b53deb7a2cbde72489e9a32691b11cd4ec4a07d",
+			"revisionTime": "2015-08-13T10:34:23+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/gcloud/httputil",
@@ -160,8 +160,8 @@
 			"canonical": "github.com/jacobsa/timeutil",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/timeutil",
-			"revision": "1999930e87ddbd73a184f26ed202ec52d5a7c4aa",
-			"revisionTime": "2015-07-20T10:05:28+10:00"
+			"revision": "7106ba3aceaa475584d7d2a68795027a5e080f2b",
+			"revisionTime": "2015-08-12T16:09:03+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/util/lrucache",

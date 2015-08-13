@@ -210,7 +210,7 @@ func (b *bucket) mintObject(
 		MD5:             &md5Sum,
 		CRC32C:          crc32.Checksum(contents, crc32cTable),
 		MediaLink:       "http://localhost/download/storage/fake/" + req.Name,
-		Metadata:        req.Metadata,
+		Metadata:        copyMetadata(req.Metadata),
 		Generation:      b.prevGeneration,
 		MetaGeneration:  1,
 		StorageClass:    "STANDARD",
@@ -389,6 +389,19 @@ func minInt(a, b int) int {
 	}
 
 	return b
+}
+
+func copyMetadata(in map[string]string) (out map[string]string) {
+	if in == nil {
+		return
+	}
+
+	out = make(map[string]string)
+	for k, v := range in {
+		out[k] = v
+	}
+
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -629,6 +642,7 @@ func (b *bucket) ComposeObjects(
 		Name: req.DstName,
 		GenerationPrecondition: req.DstGenerationPrecondition,
 		Contents:               io.MultiReader(srcReaders...),
+		Metadata:               req.Metadata,
 	}
 
 	_, err = b.createObjectLocked(createReq)
@@ -699,6 +713,18 @@ func (b *bucket) UpdateObject(
 	}
 
 	var obj *gcs.Object = &b.objects[index].metadata
+
+	// Does the generation number match the request?
+	if req.Generation != 0 && obj.Generation != req.Generation {
+		err = &gcs.NotFoundError{
+			Err: fmt.Errorf(
+				"Object %q generation %d not found",
+				req.Name,
+				req.Generation),
+		}
+
+		return
+	}
 
 	// Update the entry's basic fields according to the request.
 	if req.ContentType != nil {

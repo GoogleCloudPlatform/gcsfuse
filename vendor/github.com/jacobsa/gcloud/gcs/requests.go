@@ -101,6 +101,13 @@ type ComposeObjectsRequest struct {
 
 	// The source objects from which to compose. This must be non-empty.
 	Sources []ComposeSource
+
+	// Optional information with which to create the object. See here for more
+	// information:
+	//
+	//     https://cloud.google.com/storage/docs/json_api/v1/objects#resource
+	//
+	Metadata map[string]string
 }
 
 type ComposeSource struct {
@@ -219,6 +226,9 @@ type Listing struct {
 type UpdateObjectRequest struct {
 	// The name of the object to update. Must be specified.
 	Name string
+
+	// The generation of the object to update. Zero means the latest generation.
+	Generation int64
 
 	// String fields in the object to update (or not). The semantics are as
 	// follows, for a given field F:

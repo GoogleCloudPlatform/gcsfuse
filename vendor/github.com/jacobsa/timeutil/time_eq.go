@@ -28,14 +28,23 @@ func timeEq(expected time.Time, c interface{}) error {
 		return errors.New("which is not a time")
 	}
 
+	// Make sure the times are the same instant.
 	if diff := actual.Sub(expected); diff != 0 {
 		return fmt.Errorf("which is off by %v", diff)
+	}
+
+	// Compare using == to capture other equality semantics; in particular
+	// location.
+	if actual != expected {
+		return errors.New("")
 	}
 
 	return nil
 }
 
-// Return a matcher for times that are exactly equal to the given input time.
+// Return a matcher for times that are exactly equal to the given input time
+// according to the == operator, which compares on location as well as instant.
+// Canonicalize using UTC to ignore location.
 func TimeEq(t time.Time) oglematchers.Matcher {
 	return oglematchers.NewMatcher(
 		func(c interface{}) error { return timeEq(t, c) },

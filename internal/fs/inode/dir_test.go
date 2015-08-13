@@ -663,6 +663,11 @@ func (t *DirTest) CreateChildFile_DoesntExist() {
 
 	ExpectEq(objName, o.Name)
 	ExpectFalse(inode.IsSymlink(o))
+
+	ExpectEq(1, len(o.Metadata))
+	ExpectEq(
+		t.clock.Now().UTC().Format(time.RFC3339Nano),
+		o.Metadata["gcsfuse_mtime"])
 }
 
 func (t *DirTest) CreateChildFile_Exists() {

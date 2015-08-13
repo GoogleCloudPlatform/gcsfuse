@@ -747,6 +747,29 @@ func (t *ForeignModsTest) ObjectIsDeleted_Directory() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
+func (t *ForeignModsTest) Mtime() {
+	var err error
+
+	// Create an object that has an mtime set.
+	expected := time.Date(2001, 2, 3, 4, 5, 6, 7, time.Local)
+	req := &gcs.CreateObjectRequest{
+		Name: "foo",
+		Metadata: map[string]string{
+			"gcsfuse_mtime": expected.UTC().Format(time.RFC3339Nano),
+		},
+		Contents: ioutil.NopCloser(strings.NewReader("")),
+	}
+
+	_, err = t.bucket.CreateObject(t.ctx, req)
+	AssertEq(nil, err)
+
+	// Stat the file.
+	fi, err := os.Stat(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	ExpectThat(fi.ModTime(), timeutil.TimeEq(expected))
+}
+
 func (t *ForeignModsTest) Symlink() {
 	var err error
 
