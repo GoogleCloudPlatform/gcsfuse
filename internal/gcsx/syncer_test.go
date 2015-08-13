@@ -43,6 +43,7 @@ type fakeObjectCreator struct {
 
 	// Supplied arguments
 	srcObject *gcs.Object
+	mtime     time.Time
 	contents  []byte
 
 	// Canned results
@@ -61,6 +62,7 @@ func (oc *fakeObjectCreator) Create(
 
 	// Record args.
 	oc.srcObject = srcObject
+	oc.mtime = mtime
 	oc.contents, err = ioutil.ReadAll(r)
 	AssertEq(nil, err)
 
@@ -254,15 +256,19 @@ func (t *SyncerTest) CallsFullCreator() {
 	var err error
 	AssertLt(2, t.srcObject.Size)
 
-	// Truncate downward.
+	// Ready the content.
 	err = t.content.Truncate(2)
 	AssertEq(nil, err)
+
+	mtime := time.Now().Add(123 * time.Second)
+	t.content.SetMtime(mtime)
 
 	// Call
 	t.call()
 
 	AssertTrue(t.fullCreator.called)
 	ExpectEq(t.srcObject, t.fullCreator.srcObject)
+	ExpectThat(t.fullCreator.mtime, timeutil.TimeEq(mtime))
 	ExpectEq(srcObjectContents[:2], string(t.fullCreator.contents))
 }
 
