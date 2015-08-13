@@ -247,6 +247,11 @@ type UpdateObjectRequest struct {
 	// The generation of the object to update. Zero means the latest generation.
 	Generation int64
 
+	// If non-nil, the request will fail without effect if there is an object
+	// with the given name (and optionally generation), and its meta-generation
+	// is not equal to this value.
+	MetaGenerationPrecondition *int64
+
 	// String fields in the object to update (or not). The semantics are as
 	// follows, for a given field F:
 	//

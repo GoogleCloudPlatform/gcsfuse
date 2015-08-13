@@ -763,6 +763,19 @@ func (b *bucket) UpdateObject(
 		return
 	}
 
+	// Does the meta-generation precondition check out?
+	if req.MetaGenerationPrecondition != nil &&
+		obj.MetaGeneration != *req.MetaGenerationPrecondition {
+		err = &gcs.PreconditionError{
+			Err: fmt.Errorf(
+				"Object %q has meta-generation %d",
+				obj.Name,
+				obj.MetaGeneration),
+		}
+
+		return
+	}
+
 	// Update the entry's basic fields according to the request.
 	if req.ContentType != nil {
 		obj.ContentType = *req.ContentType
