@@ -620,9 +620,8 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		}
 
 		// Otherwise we need to grab the inode lock to find out if this is our
-		// inode, our record is stale, or the inode is stale. are stale compared to
-		// it. We must exclude concurrent actions on the inode to get a definitive
-		// answer.
+		// inode, our record is stale, or the inode is stale. We must exclude
+		// concurrent actions on the inode to get a definitive answer.
 		//
 		// Drop the file system lock and acquire the inode lock.
 		fs.mu.Unlock()
