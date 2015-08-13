@@ -190,20 +190,16 @@ more thorough discussion):
 <a name="generations"></a>
 # Generations
 
-GCS has a notion of an [object generation number][generations] associated with
-each object name. These provide a total order on requests to modify an object,
-compatible with causality. So if insert operation A happens before insert
-operation B, then the generation number resulting from A will be less than that
-resulting from B.
+With each record in GCS is stored object and metadata
+[generation numbers][generations]. These provide a total order on requests to
+modify an object's contents and metadata, compatible with causality. So if
+insert operation A happens before insert operation B, then the generation
+number resulting from A will be less than that resulting from B.
 
-Although the GCS documentation doesn't define it this way, it is convenient
-when discussing consistency to think of deletions as resulting in generations
-as well, with a number also assigned according to this total order in a way
-compatible with causality. Such a "tombstone" generation can be thought of as
-having empty contents. Additionally, it is convenient to think of the initial
-non-existent state of any object name as being generation number zero.
-
-The discussion below uses the term "generation" in this manner.
+In the discussion below, the term "generation" refers to both object generation
+and meta-generation numbers from GCS. In other words, what we call "generation"
+is a pair `(G, M)` of GCS object generation number `G` and associated
+meta-generation number `M`.
 
 [generations]: https://cloud.google.com/storage/docs/generations-preconditions
 
