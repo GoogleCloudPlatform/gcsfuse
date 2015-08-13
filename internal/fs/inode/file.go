@@ -17,6 +17,7 @@ package inode
 import (
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
@@ -290,6 +291,16 @@ func (f *FileInode) Attributes(
 	// Obtain default information from the source object.
 	attrs.Mtime = f.src.Updated
 	attrs.Size = uint64(f.src.Size)
+
+	// If the source object has an mtime metadata key, use that instead of its
+	// update time.
+	if formatted, ok := f.src.Metadata["gcsfuse_mtime"]; ok {
+		attrs.Mtime, err = time.Parse(time.RFC3339Nano, formatted)
+		if err != nil {
+			err = fmt.Errorf("time.Parse(%q): %v", formatted, err)
+			return
+		}
+	}
 
 	// If we've got local content, its size and (maybe) mtime take precedence.
 	if f.content != nil {
