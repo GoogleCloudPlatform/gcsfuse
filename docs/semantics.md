@@ -210,7 +210,14 @@ meta-generation number `M`.
 As in any file system, file inodes in a gcsfuse file system logically contain
 file contents and metadata. A file inode is initialized with a particular
 generation of a particular object within GCS (the "source generation"), and its
-contents are initially exactly the contents of that generation.
+contents are initially exactly the contents and metadata of that generation.
+
+### Creation
+
+When a file is created anew because it doesn't alrady exist and `open(2)` was
+called with `O_CREAT`, an empty object with the appropriate name is created in
+GCS. The resulting generation is used as the source generation for the inode,
+and it is as if that object had been pre-existing and was opened.
 
 <a name="file-inode-modifications"></a>
 ### Modifications
