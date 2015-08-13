@@ -23,6 +23,10 @@ import (
 	"golang.org/x/net/context"
 )
 
+// Objects created by Syncer.SyncObject will contain a metadata field with this
+// key and with a UTC mtime in the format defined by time.RFC3339Nano.
+const MtimeMetadataKey = "gcsfuse_mtime"
+
 // Safe for concurrent access.
 type Syncer interface {
 	// Given an object record and content that was originally derived from that
@@ -86,6 +90,9 @@ func (oc *fullObjectCreator) Create(
 		Name: srcObject.Name,
 		GenerationPrecondition: &srcObject.Generation,
 		Contents:               r,
+		Metadata: map[string]string{
+			MtimeMetadataKey: mtime.Format(time.RFC3339Nano),
+		},
 	}
 
 	o, err = oc.bucket.CreateObject(ctx, req)
