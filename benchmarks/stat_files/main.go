@@ -41,6 +41,12 @@ var fDuration = flag.Duration("duration", 10*time.Second, "How long to run.")
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+func closeAll(files []*os.File) {
+	for _, f := range files {
+		f.Close()
+	}
+}
+
 func createFiles(
 	dir string,
 	numFiles int) (files []*os.File, err error) {
@@ -98,6 +104,11 @@ func createFiles(
 	})
 
 	err = b.Join()
+	if err != nil {
+		closeAll(files)
+		files = nil
+	}
+
 	return
 }
 
@@ -125,11 +136,7 @@ func run() (err error) {
 		return
 	}
 
-	defer func() {
-		for _, f := range files {
-			f.Close()
-		}
-	}()
+	defer closeAll(files)
 
 	// Repeatedly stat the files.
 	log.Println("Measuring...")
