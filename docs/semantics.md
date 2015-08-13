@@ -36,6 +36,11 @@ behavior is controlled by the `--stat-cache-ttl` flag, which can be set to a
 value like `10s` or `1.5h`. (The default is one minute.) Positive and negative
 stat results will be cached for the specified amount of time.
 
+`--stat-cache-ttl` also controls the duration for which gcsfuse allows the
+kernel to cache inode attributes. Caching these can help with file system
+performance, since otherwise the kernel must send a request for inode attributes
+to gcsfuse for each call to `write(2)`, `stat(2)`, and others.
+
 **Warning**: Using stat caching breaks the consistency guarantees discussed in
 this document. It is safe only in the following situations:
 

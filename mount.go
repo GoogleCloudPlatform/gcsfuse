@@ -83,15 +83,16 @@ func mount(
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{
-		Clock:               timeutil.RealClock(),
-		Bucket:              bucket,
-		TempDir:             flags.TempDir,
-		ImplicitDirectories: flags.ImplicitDirs,
-		DirTypeCacheTTL:     flags.TypeCacheTTL,
-		Uid:                 uid,
-		Gid:                 gid,
-		FilePerms:           os.FileMode(flags.FileMode),
-		DirPerms:            os.FileMode(flags.DirMode),
+		Clock:                  timeutil.RealClock(),
+		Bucket:                 bucket,
+		TempDir:                flags.TempDir,
+		ImplicitDirectories:    flags.ImplicitDirs,
+		InodeAttributeCacheTTL: flags.StatCacheTTL,
+		DirTypeCacheTTL:        flags.TypeCacheTTL,
+		Uid:                    uid,
+		Gid:                    gid,
+		FilePerms:              os.FileMode(flags.FileMode),
+		DirPerms:               os.FileMode(flags.DirMode),
 
 		AppendThreshold: 1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix: ".gcsfuse_tmp/",
