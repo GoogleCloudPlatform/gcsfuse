@@ -745,7 +745,11 @@ func (d *dirInode) ReadEntries(
 func (d *dirInode) CreateChildFile(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
-	o, err = d.createNewObject(ctx, path.Join(d.Name(), name), nil)
+	metadata := map[string]string{
+		FileMtimeMetadataKey: d.clock.Now().UTC().Format(time.RFC3339Nano),
+	}
+
+	o, err = d.createNewObject(ctx, path.Join(d.Name(), name), metadata)
 	if err != nil {
 		return
 	}

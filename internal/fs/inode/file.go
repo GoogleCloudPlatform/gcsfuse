@@ -26,6 +26,10 @@ import (
 	"golang.org/x/net/context"
 )
 
+// A GCS object metadata key for file mtimes. mtimes are UTC, and are stored in
+// the format defined by time.RFC3339Nano.
+const FileMtimeMetadataKey = gcsx.MtimeMetadataKey
+
 type FileInode struct {
 	/////////////////////////
 	// Dependencies
