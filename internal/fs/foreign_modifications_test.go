@@ -755,7 +755,7 @@ func (t *ForeignModsTest) Mtime() {
 	req := &gcs.CreateObjectRequest{
 		Name: "foo",
 		Metadata: map[string]string{
-			"gcsfuse_mtime": expected.Format(time.RFC3339Nano),
+			"gcsfuse_mtime": expected.UTC().Format(time.RFC3339Nano),
 		},
 		Contents: ioutil.NopCloser(strings.NewReader("")),
 	}
@@ -767,7 +767,7 @@ func (t *ForeignModsTest) Mtime() {
 	fi, err := os.Stat(path.Join(t.Dir, "foo"))
 	AssertEq(nil, err)
 
-	ExpectThat(fi.ModTime(), timeutil.TimeEq(expected.UTC()))
+	ExpectThat(fi.ModTime(), timeutil.TimeEq(expected))
 }
 
 func (t *ForeignModsTest) Symlink() {
