@@ -150,8 +150,9 @@ type dirInode struct {
 	// Dependencies
 	/////////////////////////
 
-	bucket gcs.Bucket
-	clock  timeutil.Clock
+	bucket     gcs.Bucket
+	mtimeClock timeutil.Clock
+	cacheClock timeutil.Clock
 
 	/////////////////////////
 	// Constant data
@@ -210,7 +211,8 @@ func NewDirInode(
 	implicitDirs bool,
 	typeCacheTTL time.Duration,
 	bucket gcs.Bucket,
-	clock timeutil.Clock) (d DirInode) {
+	mtimeClock timeutil.Clock,
+	cacheClock timeutil.Clock) (d DirInode) {
 	if !IsDirName(name) {
 		panic(fmt.Sprintf("Unexpected name: %s", name))
 	}
@@ -219,7 +221,8 @@ func NewDirInode(
 	const typeCacheCapacity = 1 << 16
 	typed := &dirInode{
 		bucket:       bucket,
-		clock:        clock,
+		mtimeClock:   mtimeClock,
+		cacheClock:   cacheClock,
 		id:           id,
 		implicitDirs: implicitDirs,
 		name:         name,
@@ -463,7 +466,7 @@ func (d *dirInode) filterMissingChildDirs(
 
 	// First add any names that we already know are directories according to our
 	// cache, removing them from the input.
-	now := d.clock.Now()
+	now := d.cacheClock.Now()
 	var tmp []string
 	for _, name := range in {
 		if d.cache.IsDir(now, name) {
@@ -532,7 +535,7 @@ func (d *dirInode) filterMissingChildDirs(
 	err = b.Join()
 
 	// Update the cache with everything we learned.
-	now = d.clock.Now()
+	now = d.cacheClock.Now()
 	for _, name := range filteredSlice {
 		d.cache.NoteDir(now, name)
 	}
@@ -604,7 +607,7 @@ func (d *dirInode) LookUpChild(
 	name string) (result LookUpResult, err error) {
 	// Consult the cache about the type of the child. This may save us work
 	// below.
-	now := d.clock.Now()
+	now := d.cacheClock.Now()
 	cacheSaysFile := d.cache.IsFile(now, name)
 	cacheSaysDir := d.cache.IsDir(now, name)
 
@@ -651,7 +654,7 @@ func (d *dirInode) LookUpChild(
 	}
 
 	// Update the cache.
-	now = d.clock.Now()
+	now = d.cacheClock.Now()
 	if fileResult.Exists() {
 		d.cache.NoteFile(now, name)
 	}
@@ -727,7 +730,7 @@ func (d *dirInode) ReadEntries(
 	newTok = listing.ContinuationToken
 
 	// Update the type cache with everything we learned.
-	now := d.clock.Now()
+	now := d.cacheClock.Now()
 	for _, e := range entries {
 		switch e.Type {
 		case fuseutil.DT_File:
@@ -746,7 +749,7 @@ func (d *dirInode) CreateChildFile(
 	ctx context.Context,
 	name string) (o *gcs.Object, err error) {
 	metadata := map[string]string{
-		FileMtimeMetadataKey: d.clock.Now().UTC().Format(time.RFC3339Nano),
+		FileMtimeMetadataKey: d.mtimeClock.Now().UTC().Format(time.RFC3339Nano),
 	}
 
 	o, err = d.createNewObject(ctx, path.Join(d.Name(), name), metadata)
@@ -754,7 +757,7 @@ func (d *dirInode) CreateChildFile(
 		return
 	}
 
-	d.cache.NoteFile(d.clock.Now(), name)
+	d.cache.NoteFile(d.cacheClock.Now(), name)
 
 	return
 }
@@ -781,7 +784,7 @@ func (d *dirInode) CloneToChildFile(
 	}
 
 	// Update the type cache.
-	d.cache.NoteFile(d.clock.Now(), name)
+	d.cache.NoteFile(d.cacheClock.Now(), name)
 
 	return
 }
@@ -800,7 +803,7 @@ func (d *dirInode) CreateChildSymlink(
 		return
 	}
 
-	d.cache.NoteFile(d.clock.Now(), name)
+	d.cache.NoteFile(d.cacheClock.Now(), name)
 
 	return
 }
@@ -814,7 +817,7 @@ func (d *dirInode) CreateChildDir(
 		return
 	}
 
-	d.cache.NoteDir(d.clock.Now(), name)
+	d.cache.NoteDir(d.cacheClock.Now(), name)
 
 	return
 }
