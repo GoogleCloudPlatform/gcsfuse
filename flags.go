@@ -133,7 +133,7 @@ func newApp() (app *cli.App) {
 			cli.DurationFlag{
 				Name:  "stat-cache-ttl",
 				Value: time.Minute,
-				Usage: "How long to cache StatObject results from GCS.",
+				Usage: "How long to cache StatObject results and inode attributes.",
 			},
 
 			cli.DurationFlag{
