@@ -574,5 +574,27 @@ func (t *FileTest) SetMtime_ContentDirty() {
 }
 
 func (t *FileTest) SetMtime_SourceObjectClobbered() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Clobber the backing object.
+	newObj, err := gcsutil.CreateObject(
+		t.ctx,
+		t.bucket,
+		t.in.Name(),
+		[]byte("burrito"))
+
+	AssertEq(nil, err)
+
+	// Set mtime.
+	mtime := time.Now().UTC().Add(123 * time.Second)
+	err = t.in.SetMtime(t.ctx, mtime)
+	AssertEq(nil, err)
+
+	// The object in the bucket should not have been changed.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	o, err := t.bucket.StatObject(t.ctx, statReq)
+
+	AssertEq(nil, err)
+	ExpectEq(newObj.Generation, o.Generation)
+	ExpectEq(0, len(o.Metadata))
 }
