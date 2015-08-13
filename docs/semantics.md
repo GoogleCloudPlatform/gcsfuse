@@ -190,20 +190,16 @@ more thorough discussion):
 <a name="generations"></a>
 # Generations
 
-GCS has a notion of an [object generation number][generations] associated with
-each object name. These provide a total order on requests to modify an object,
-compatible with causality. So if insert operation A happens before insert
-operation B, then the generation number resulting from A will be less than that
-resulting from B.
+With each record in GCS is stored object and metadata
+[generation numbers][generations]. These provide a total order on requests to
+modify an object's contents and metadata, compatible with causality. So if
+insert operation A happens before insert operation B, then the generation
+number resulting from A will be less than that resulting from B.
 
-Although the GCS documentation doesn't define it this way, it is convenient
-when discussing consistency to think of deletions as resulting in generations
-as well, with a number also assigned according to this total order in a way
-compatible with causality. Such a "tombstone" generation can be thought of as
-having empty contents. Additionally, it is convenient to think of the initial
-non-existent state of any object name as being generation number zero.
-
-The discussion below uses the term "generation" in this manner.
+In the discussion below, the term "generation" refers to both object generation
+and meta-generation numbers from GCS. In other words, what we call "generation"
+is a pair `(G, M)` of GCS object generation number `G` and associated
+meta-generation number `M`.
 
 [generations]: https://cloud.google.com/storage/docs/generations-preconditions
 
@@ -214,7 +210,14 @@ The discussion below uses the term "generation" in this manner.
 As in any file system, file inodes in a gcsfuse file system logically contain
 file contents and metadata. A file inode is initialized with a particular
 generation of a particular object within GCS (the "source generation"), and its
-contents are initially exactly the contents of that generation.
+contents are initially exactly the contents and metadata of that generation.
+
+### Creation
+
+When a file is created anew because it doesn't already exist and `open(2)` was
+called with `O_CREAT`, an empty object with the appropriate name is created in
+GCS. The resulting generation is used as the source generation for the inode,
+and it is as if that object had been pre-existing and was opened.
 
 <a name="file-inode-modifications"></a>
 ### Modifications
@@ -223,34 +226,34 @@ Inodes may be opened for writing. Modifications are reflected immediately in
 reads of the same inode by processes local to the machine using the same file
 system. After a successful `fsync` or a successful `close`, the contents of the
 inode are guaranteed to have been written to the GCS object with the matching
-name if the object's generation number still matches the source generation
-number of the inode. (It may not if there have been modifications from another
-actor in the meantime.) There are no guarantees about whether local
-modifications are reflected in GCS after writing but before syncing or closing.
+name if the object's generation and meta-generation numbers still matched the
+source generation of the inode. (They may not have if there had been
+modifications from another actor in the meantime.) There are no guarantees
+about whether local modifications are reflected in GCS after writing but before
+syncing or closing.
 
 Modification time (`stat::st_mtime` on Linux) is tracked for file inodes, and
 can be updated in usual the usual way using `utimes(2)` or `futimens(2)`. When
 dirty inodes are written out to GCS objects, mtime is stored in the custom
 metadata key `gcsfuse_mtime` in an unspecified format.
 
-There are two special cases worth mentioning:
+There is one special case worth mentioning: mtime updates to unlinked inodes
+may be silently lost. (Of course content updates to these inodes will also be
+lost once the file is closed.)
 
-*   mtime updates to unlinked inodes may be silently lost. (Of course content
-    updates to these inodes will also be lost once the file is closed.)
-
-*   If an mtime update is made to a GCS object remotely (e.g. due to another
-    system running gcsfuse calling `utimes(2)`) and an inode has already been
-    assigned for that object locally, the mtime update will not be reflected
-    locally.
 
 <a name="file-inode-identity"></a>
 ### Identity
 
-If a new generation number is assigned to a GCS object due to a flush from an
-inode, the source generation number of the inode is updated and the inode ID
+If a new generation is assigned to a GCS object due to a flush of a file
+inode, the source generation of the inode is updated and the inode ID
 remains stable. Otherwise, if a new generation is created by another machine or
 in some other manner from the local machine, the new generation is treated as
 an inode distinct from any other inode already created for the object name.
+
+In other words: inode IDs don't change when the file system causes an update to
+GCS, but any update caused remotely will result in a new inode.
+
 Inode IDs are local to a single gcsfuse process, and there are no guarantees
 about their stability across machines or invocations on a single machine.
 
@@ -263,9 +266,9 @@ lookups as follows:
 
 1.  Stat the object with the given name within the GCS bucket.
 2.  If the object does not exist, return an error.
-3.  Call the generation number of the object N. If there is already an inode
-    for this name with source generation number N, return it.
-4.  Create a new inode for this name with source generation number N.
+3.  Call the generation of the object `(G, M)`. If there is already an inode
+    for this name with source generation `(G, M)`, return it.
+4.  Create a new inode for this name with source generation `(G, M`).
 
 <a name="file-inode-semantics"></a>
 ### User-visible semantics
@@ -274,14 +277,14 @@ The intent of these conventions is to make it appear as though local writes to
 a file are in-place modifications as with a traditional file system, whereas
 remote overwrites of a GCS object appear as some other process unlinking the
 file from its directory and then linking a distinct file using the same name.
-The `st_nlink` field will reflect this when using fstat(2).
+The `st_nlink` field will reflect this when using `fstat(2)`.
 
 Note the following consequence: if machine A opens a file and writes to it,
-then machine B deletes or replaces its backing object, then machine A closes
-the file, machine A's writes will be lost. This matches the behavior on a
-single machine when process A opens a file and then process B unlinks it.
-Process A continues to have a consistent view of the file's contents until it
-closes the file handle, at which point the contents are lost.
+then machine B deletes or replaces its backing object, or updates it metadata,
+then machine A closes the file, machine A's writes will be lost. This matches
+the behavior on a single machine when process A opens a file and then process B
+unlinks it. Process A continues to have a consistent view of the file's
+contents until it closes the file handle, at which point the contents are lost.
 
 
 <a name="dir-inodes"></a>

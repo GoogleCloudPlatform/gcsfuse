@@ -87,8 +87,15 @@ func (b *bucket) UpdateObject(
 
 	query := make(url.Values)
 	query.Set("projection", "full")
+
 	if req.Generation != 0 {
 		query.Set("generation", fmt.Sprintf("%d", req.Generation))
+	}
+
+	if req.MetaGenerationPrecondition != nil {
+		query.Set(
+			"ifMetagenerationMatch",
+			fmt.Sprintf("%d", *req.MetaGenerationPrecondition))
 	}
 
 	url := &url.URL{
@@ -128,6 +135,13 @@ func (b *bucket) UpdateObject(
 		if typed, ok := err.(*googleapi.Error); ok {
 			if typed.Code == http.StatusNotFound {
 				err = &NotFoundError{Err: typed}
+			}
+		}
+
+		// Special case: handle precondition errors.
+		if typed, ok := err.(*googleapi.Error); ok {
+			if typed.Code == http.StatusPreconditionFailed {
+				err = &PreconditionError{Err: typed}
 			}
 		}
 

@@ -62,6 +62,11 @@ type CreateObjectRequest struct {
 	// generation for the object name is equal to the given value. Zero means the
 	// object does not exist.
 	GenerationPrecondition *int64
+
+	// If non-nil, the object will be created/overwritten only if the current
+	// meta-generation for the object name is equal to the given value. This is
+	// only meaningful in conjunction with GenerationPrecondition.
+	MetaGenerationPrecondition *int64
 }
 
 // A request to copy an object to a new name, preserving all metadata.
@@ -72,6 +77,12 @@ type CopyObjectRequest struct {
 	// The generation of the source object to copy, or zero for the latest
 	// generation.
 	SrcGeneration int64
+
+	// If non-nil, the destination object will be created/overwritten only if the
+	// current meta-generation for the source object is equal to the given value.
+	//
+	// This is probably only meaningful in conjunction with SrcGeneration.
+	SrcMetaGenerationPrecondition *int64
 }
 
 // The maximum number of sources that a ComposeObjectsRequest may contain.
@@ -94,12 +105,18 @@ type ComposeObjectsRequest struct {
 	// If non-nil, the destination object will be created/overwritten only if the
 	// current generation for its name is equal to the given value. Zero means
 	// the object does not exist.
+	DstGenerationPrecondition *int64
+
+	// If non-nil, the destination object will be created/overwritten only if the
+	// current meta-generation for its name is equal to the given value.
+	//
+	// This is only meaningful if DstGenerationPrecondition is also specified.
+	DstMetaGenerationPrecondition *int64
+
+	// The source objects from which to compose. This must be non-empty.
 	//
 	// Make sure to see the notes on MaxSourcesPerComposeRequest and
 	// MaxComponentCount.
-	DstGenerationPrecondition *int64
-
-	// The source objects from which to compose. This must be non-empty.
 	Sources []ComposeSource
 
 	// Optional information with which to create the object. See here for more
@@ -230,6 +247,11 @@ type UpdateObjectRequest struct {
 	// The generation of the object to update. Zero means the latest generation.
 	Generation int64
 
+	// If non-nil, the request will fail without effect if there is an object
+	// with the given name (and optionally generation), and its meta-generation
+	// is not equal to this value.
+	MetaGenerationPrecondition *int64
+
 	// String fields in the object to update (or not). The semantics are as
 	// follows, for a given field F:
 	//
@@ -265,4 +287,9 @@ type DeleteObjectRequest struct {
 
 	// The generation of the object to delete. Zero means the latest generation.
 	Generation int64
+
+	// If non-nil, the request will fail without effect if there is an object
+	// with the given name (and optionally generation), and its meta-generation
+	// is not equal to this value.
+	MetaGenerationPrecondition *int64
 }

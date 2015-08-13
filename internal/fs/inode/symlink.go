@@ -40,7 +40,7 @@ type SymlinkInode struct {
 
 	id               fuseops.InodeID
 	name             string
-	sourceGeneration int64
+	sourceGeneration Generation
 	attrs            fuseops.InodeAttributes
 	target           string
 
@@ -65,9 +65,12 @@ func NewSymlinkInode(
 	attrs fuseops.InodeAttributes) (s *SymlinkInode) {
 	// Create the inode.
 	s = &SymlinkInode{
-		id:               id,
-		name:             o.Name,
-		sourceGeneration: o.Generation,
+		id:   id,
+		name: o.Name,
+		sourceGeneration: Generation{
+			Object:   o.Generation,
+			Metadata: o.MetaGeneration,
+		},
 		attrs: fuseops.InodeAttributes{
 			Nlink: 1,
 			Uid:   attrs.Uid,
@@ -104,10 +107,10 @@ func (s *SymlinkInode) Name() string {
 	return s.name
 }
 
-// Return the object generation number from which this inode was branched.
+// Return the object generation from which this inode was branched.
 //
 // LOCKS_REQUIRED(s)
-func (s *SymlinkInode) SourceGeneration() int64 {
+func (s *SymlinkInode) SourceGeneration() Generation {
 	return s.sourceGeneration
 }
 

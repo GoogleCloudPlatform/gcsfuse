@@ -148,7 +148,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		dirMode:                cfg.DirPerms | os.ModeDir,
 		inodes:                 make(map[fuseops.InodeID]inode.Inode),
 		nextInodeID:            fuseops.RootInodeID + 1,
-		generationBackedInodes: make(map[string]GenerationBackedInode),
+		generationBackedInodes: make(map[string]inode.GenerationBackedInode),
 		implicitDirInodes:      make(map[string]inode.DirInode),
 		handles:                make(map[fuseops.HandleID]interface{}),
 	}
@@ -301,7 +301,7 @@ type fileSystem struct {
 	// INVARIANT: For each value v, inodes[v.ID()] == v
 	//
 	// GUARDED_BY(mu)
-	generationBackedInodes map[string]GenerationBackedInode
+	generationBackedInodes map[string]inode.GenerationBackedInode
 
 	// A map from object name to the implicit directory inode that represents
 	// that name, if any. There can be at most one implicit directory inode for a
@@ -329,13 +329,6 @@ type fileSystem struct {
 	//
 	// GUARDED_BY(mu)
 	nextHandleID fuseops.HandleID
-}
-
-// A common interface for inodes backed by particular object generations.
-// Implemented by FileInode and SymlinkInode.
-type GenerationBackedInode interface {
-	inode.Inode
-	SourceGeneration() int64
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -609,6 +602,11 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		return
 	}
 
+	oGen := inode.Generation{
+		Object:   o.Generation,
+		Metadata: o.MetaGeneration,
+	}
+
 	// Retry loop for the stale index entry case below. On entry, we hold fs.mu
 	// but no inode lock.
 	for {
@@ -618,7 +616,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// If we have no existing record for this name, mint an inode and return it.
 		if !ok {
 			in = fs.mintInode(o.Name, o)
-			fs.generationBackedInodes[in.Name()] = in.(GenerationBackedInode)
+			fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
 			fs.mu.Unlock()
 			in.Lock()
@@ -627,22 +625,22 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		}
 
 		// Otherwise we need to grab the inode lock to find out if this is our
-		// inode, our record is stale, or the inode is stale. are stale compared to
-		// it. We must exclude concurrent actions on the inode to get a definitive
-		// answer.
+		// inode, our record is stale, or the inode is stale. We must exclude
+		// concurrent actions on the inode to get a definitive answer.
 		//
 		// Drop the file system lock and acquire the inode lock.
 		fs.mu.Unlock()
 		existingInode.Lock()
 
 		// Have we found the correct inode?
-		if o.Generation == existingInode.SourceGeneration() {
+		cmp := oGen.Compare(existingInode.SourceGeneration())
+		if cmp == 0 {
 			in = existingInode
 			return
 		}
 
 		// Are we stale?
-		if o.Generation < existingInode.SourceGeneration() {
+		if cmp == -1 {
 			existingInode.Unlock()
 			return
 		}
@@ -659,7 +657,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		fs.mu.Lock()
 		if fs.generationBackedInodes[o.Name] == existingInode {
 			in = fs.mintInode(o.Name, o)
-			fs.generationBackedInodes[in.Name()] = in.(GenerationBackedInode)
+			fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
 			fs.mu.Unlock()
 			existingInode.Unlock()
@@ -1294,7 +1292,8 @@ func (fs *fileSystem) Rename(
 	err = oldParent.DeleteChildFile(
 		ctx,
 		op.OldName,
-		lr.Object.Generation)
+		lr.Object.Generation,
+		&lr.Object.MetaGeneration)
 	oldParent.Unlock()
 
 	if err != nil {
@@ -1321,7 +1320,8 @@ func (fs *fileSystem) Unlink(
 	err = parent.DeleteChildFile(
 		ctx,
 		op.Name,
-		0) // Latest generation
+		0,   // Latest generation
+		nil) // No meta-generation precondition
 
 	if err != nil {
 		err = fmt.Errorf("DeleteChildFile: %v", err)

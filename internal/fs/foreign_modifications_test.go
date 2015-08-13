@@ -672,6 +672,69 @@ func (t *ForeignModsTest) ObjectIsOverwritten_Directory() {
 	ExpectTrue(fi.IsDir())
 }
 
+func (t *ForeignModsTest) ObjectMetadataChanged_File() {
+	// Create an object.
+	AssertEq(nil, t.createWithContents("foo", "taco"))
+
+	// Open the corresponding file for reading.
+	f1, err := os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDONLY, 0)
+	AssertEq(nil, err)
+	defer func() {
+		ExpectEq(nil, f1.Close())
+	}()
+
+	// Make sure that the contents are cached locally.
+	_, err = f1.ReadAt(make([]byte, 1), 0)
+	AssertEq(nil, err)
+
+	// Change the object's metadata, causing a new generation.
+	lang := "fr"
+	_, err = t.bucket.UpdateObject(
+		t.ctx,
+		&gcs.UpdateObjectRequest{
+			Name:            "foo",
+			ContentLanguage: &lang,
+		})
+
+	AssertEq(nil, err)
+
+	// The file should appear to be unlinked, but with the previous contents.
+	fi, err := f1.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq(len("taco"), fi.Size())
+	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
+}
+
+func (t *ForeignModsTest) ObjectMetadataChanged_Directory() {
+	var err error
+
+	// Create a directory placeholder.
+	AssertEq(nil, t.createWithContents("dir/", ""))
+
+	// Open the corresponding inode.
+	t.f1, err = os.Open(path.Join(t.mfs.Dir(), "dir"))
+	AssertEq(nil, err)
+
+	// Change the object's metadata, causing a new generation.
+	lang := "fr"
+	_, err = t.bucket.UpdateObject(
+		t.ctx,
+		&gcs.UpdateObjectRequest{
+			Name:            "dir/",
+			ContentLanguage: &lang,
+		})
+
+	AssertEq(nil, err)
+
+	// The inode should still be accessible.
+	fi, err := t.f1.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq("dir", fi.Name())
+	ExpectTrue(fi.IsDir())
+}
+
 func (t *ForeignModsTest) ObjectIsDeleted_File() {
 	// Create an object.
 	AssertEq(nil, t.createWithContents("foo", "taco"))
@@ -758,6 +821,48 @@ func (t *ForeignModsTest) Mtime() {
 	AssertEq(nil, err)
 
 	// Stat the file.
+	fi, err := os.Stat(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	ExpectThat(fi.ModTime(), timeutil.TimeEq(expected))
+}
+
+func (t *ForeignModsTest) RemoteMtimeChange() {
+	var err error
+
+	// Create an object that has an mtime set.
+	_, err = t.bucket.CreateObject(
+		t.ctx,
+		&gcs.CreateObjectRequest{
+			Name: "foo",
+			Metadata: map[string]string{
+				"gcsfuse_mtime": time.Now().UTC().Format(time.RFC3339Nano),
+			},
+			Contents: ioutil.NopCloser(strings.NewReader("")),
+		})
+
+	AssertEq(nil, err)
+
+	// Stat the object so that the file system assigns it an inode.
+	_, err = os.Stat(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	// Update the mtime.
+	expected := time.Date(2001, 2, 3, 4, 5, 6, 7, time.Local)
+	formatted := expected.UTC().Format(time.RFC3339Nano)
+
+	_, err = t.bucket.UpdateObject(
+		t.ctx,
+		&gcs.UpdateObjectRequest{
+			Name: "foo",
+			Metadata: map[string]*string{
+				"gcsfuse_mtime": &formatted,
+			},
+		})
+
+	AssertEq(nil, err)
+
+	// Stat the file again. We should see the new mtime.
 	fi, err := os.Stat(path.Join(t.Dir, "foo"))
 	AssertEq(nil, err)
 

@@ -80,6 +80,12 @@ func (b *bucket) startResumableUpload(
 		query.Set("ifGenerationMatch", fmt.Sprint(*req.GenerationPrecondition))
 	}
 
+	if req.MetaGenerationPrecondition != nil {
+		query.Set(
+			"ifMetagenerationMatch",
+			fmt.Sprint(*req.MetaGenerationPrecondition))
+	}
+
 	url := &url.URL{
 		Scheme:   "https",
 		Host:     "www.googleapis.com",

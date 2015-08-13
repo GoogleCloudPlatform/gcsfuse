@@ -27,7 +27,6 @@ func (nfe *NotFoundError) Error() string {
 }
 
 // A *PreconditionError value is an error that indicates a precondition failed.
-// See notes on the methods of Bucket.
 type PreconditionError struct {
 	Err error
 }

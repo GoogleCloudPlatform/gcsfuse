@@ -56,3 +56,45 @@ type Inode interface {
 	// This method may block. Errors are for logging purposes only.
 	Destroy() (err error)
 }
+
+// An inode that is backed by a particular generation of a GCS object.
+type GenerationBackedInode interface {
+	Inode
+
+	// Requires the inode lock.
+	SourceGeneration() Generation
+}
+
+// A particular generation of a GCS object, consisting of both a GCS object
+// generation number and meta-generation number. Lexicographically ordered on
+// the two.
+//
+// Cf. https://cloud.google.com/storage/docs/generations-preconditions
+type Generation struct {
+	Object   int64
+	Metadata int64
+}
+
+// Return -1, 0, or 1 according to whether g is less than, equal to, or greater
+// than other.
+func (g Generation) Compare(other Generation) int {
+	// Compare first on object generation number.
+	switch {
+	case g.Object < other.Object:
+		return -1
+
+	case g.Object > other.Object:
+		return 1
+	}
+
+	// Break ties on meta-generation.
+	switch {
+	case g.Metadata < other.Metadata:
+		return -1
+
+	case g.Metadata > other.Metadata:
+		return 1
+	}
+
+	return 0
+}
