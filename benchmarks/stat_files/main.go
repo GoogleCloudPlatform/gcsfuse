@@ -22,15 +22,84 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
+	"sync/atomic"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/benchmarks/internal/format"
 	"github.com/jacobsa/fuse/fsutil"
+	"github.com/jacobsa/syncutil"
 )
 
 var fDir = flag.String("dir", "", "Directory within which to create the files.")
 var fNumFiles = flag.Int("num_files", 256, "Number of files to create.")
 var fDuration = flag.Duration("duration", 10*time.Second, "How long to run.")
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func createFiles(
+	dir string,
+	numFiles int) (files []*os.File, err error) {
+	b := syncutil.NewBundle(context.Background())
+
+	// Create files in parallel, and write them to a channel.
+	const parallelism = 128
+
+	var counter uint64
+	fileChan := make(chan *os.File)
+	var wg sync.WaitGroup
+
+	for i := 0; i < parallelism; i++ {
+		wg.Add(1)
+		b.Add(func(ctx context.Context) (err error) {
+			defer wg.Done()
+			for {
+				// Should we create another?
+				count := atomic.AddUint64(&counter, 1)
+				if count > uint64(numFiles) {
+					return
+				}
+
+				// Create it.
+				var f *os.File
+				f, err = fsutil.AnonymousFile(dir)
+				if err != nil {
+					err = fmt.Errorf("AnonymousFile: %v", err)
+					return
+				}
+
+				// Write it to the channel.
+				select {
+				case fileChan <- f:
+				case <-ctx.Done():
+					err = ctx.Err()
+					return
+				}
+			}
+		})
+	}
+
+	go func() {
+		wg.Wait()
+		close(fileChan)
+	}()
+
+	// Accumulate into the slice.
+	b.Add(func(ctx context.Context) (err error) {
+		for f := range fileChan {
+			files = append(files, f)
+		}
+
+		return
+	})
+
+	err = b.Join()
+	return
+}
 
 ////////////////////////////////////////////////////////////////////////
 // main logic
@@ -50,18 +119,17 @@ func run() (err error) {
 	// Create the temporary files.
 	log.Printf("Creating %d temporary files...", *fNumFiles)
 
-	var files []*os.File
-	for i := 0; i < *fNumFiles; i++ {
-		var f *os.File
-		f, err = fsutil.AnonymousFile(*fDir)
-		if err != nil {
-			err = fmt.Errorf("AnonymousFile: %v", err)
-			return
-		}
-
-		defer f.Close()
-		files = append(files, f)
+	files, err := createFiles(*fDir, *fNumFiles)
+	if err != nil {
+		err = fmt.Errorf("ListBackups: %v", err)
+		return
 	}
+
+	defer func() {
+		for _, f := range files {
+			f.Close()
+		}
+	}()
 
 	// Repeatedly stat the files.
 	log.Println("Measuring...")
