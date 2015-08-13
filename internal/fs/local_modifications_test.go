@@ -40,6 +40,11 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
+// The radius we use for "expect mtime is within"-style assertions. We can't
+// share a synchronized clock with the ultimate source of mtimes because with
+// writeback caching enabled the kernel manufactures them based on wall time.
+const timeSlop = 25 * time.Millisecond
+
 var fuseMaxNameLen int
 
 func init() {
@@ -1449,14 +1454,14 @@ func (t *FileTest) Stat() {
 	AssertEq(nil, err)
 
 	// Give it some contents.
-	t.clock.AdvanceTime(time.Second)
-	writeTime := t.clock.Now()
+	time.Sleep(timeSlop + timeSlop/2)
+	writeTime := time.Now()
 
 	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
-	t.clock.AdvanceTime(time.Second)
+	time.Sleep(timeSlop + timeSlop/2)
 
 	// Stat it.
 	fi, err := t.f1.Stat()
@@ -1465,7 +1470,7 @@ func (t *FileTest) Stat() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
-	ExpectThat(fi.ModTime(), timeutil.TimeEq(writeTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(writeTime, timeSlop))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
