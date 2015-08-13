@@ -103,8 +103,8 @@ Ensure that dependencies are present:
 
 Download and install the latest release package:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.1/gcsfuse-0.9.1-1.x86_64.rpm
-    sudo rpm --install -p gcsfuse-0.9.1-1.x86_64.rpm
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.10.0/gcsfuse-0.10.0-1.x86_64.rpm
+    sudo rpm --install -p gcsfuse-0.10.0-1.x86_64.rpm
 
 
 ## Other distributions
@@ -116,8 +116,8 @@ Ensure that dependencies are present:
 
 Download and extract the latest release tarball:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.1/gcsfuse_v0.9.1_linux_amd64.tar.gz
-    sudo tar -o -C / -zxf gcsfuse_v0.9.1_linux_amd64.tar.gz
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.10.0/gcsfuse_v0.10.0_linux_amd64.tar.gz
+    sudo tar -o -C / -zxf gcsfuse_v0.10.0_linux_amd64.tar.gz
 
 On some systems it may be necessary to add the your user account to the `fuse`
 group in order to have permission to run `fusermount` (don't forget to log out
@@ -144,8 +144,8 @@ above and logging out and back in, you may need to fix the permissions:
 Download and install [osxfuse][]. Afterward, download and extract the latest
 release tarball:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.9.1/gcsfuse_v0.9.1_darwin_amd64.tar.gz
-    sudo tar -o -C / -zxf gcsfuse_v0.9.1_darwin_amd64.tar.gz
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.10.0/gcsfuse_v0.10.0_darwin_amd64.tar.gz
+    sudo tar -o -C / -zxf gcsfuse_v0.10.0_darwin_amd64.tar.gz
 
 [osxfuse]: https://osxfuse.github.io/
 
