@@ -144,6 +144,9 @@ func (oc *appendObjectCreator) Create(
 					Generation: tmp.Generation,
 				},
 			},
+			Metadata: map[string]string{
+				MtimeMetadataKey: mtime.Format(time.RFC3339Nano),
+			},
 		})
 
 	switch typed := err.(type) {
