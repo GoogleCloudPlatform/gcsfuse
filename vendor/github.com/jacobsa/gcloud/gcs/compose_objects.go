@@ -89,8 +89,15 @@ func (b *bucket) ComposeObjects(
 		objectSegment)
 
 	query := make(url.Values)
+
 	if req.DstGenerationPrecondition != nil {
 		query.Set("ifGenerationMatch", fmt.Sprint(*req.DstGenerationPrecondition))
+	}
+
+	if req.DstMetaGenerationPrecondition != nil {
+		query.Set(
+			"ifMetagenerationMatch",
+			fmt.Sprint(*req.DstMetaGenerationPrecondition))
 	}
 
 	url := &url.URL{

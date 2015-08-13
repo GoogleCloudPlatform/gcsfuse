@@ -56,9 +56,6 @@ type Bucket interface {
 	// eventually for listing) after this method returns a nil error. It is
 	// guaranteed not to exist before req.Contents returns io.EOF.
 	//
-	// If the request fails due to a precondition not being met, the error will
-	// be of type *PreconditionError.
-	//
 	// Official documentation:
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/insert
 	//     https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload
@@ -70,8 +67,6 @@ type Bucket interface {
 	// generation of the destination name will be overwritten.
 	//
 	// Returns a record for the new object.
-	//
-	// If the source object doesn't exist, err will be of type *NotFoundError.
 	//
 	// Official documentation:
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/copy
@@ -85,10 +80,6 @@ type Bucket interface {
 	//
 	// Returns a record for the new object.
 	//
-	// If any of the sources don't exist, err will be of type *NotFoundError. If
-	// the request fails due to a precondition not being met, the error will be
-	// of type *PreconditionError.
-	//
 	// Official documentation:
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/compose
 	ComposeObjects(
@@ -96,8 +87,6 @@ type Bucket interface {
 		req *ComposeObjectsRequest) (*Object, error)
 
 	// Return current information about the object with the given name.
-	//
-	// If the object doesn't exist, err will be of type *NotFoundError.
 	//
 	// Official documentation:
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/get
@@ -118,8 +107,6 @@ type Bucket interface {
 
 	// Update the object specified by newAttrs.Name, patching using the non-zero
 	// fields of newAttrs.
-	//
-	// If the object doesn't exist, err will be of type *NotFoundError.
 	//
 	// Official documentation:
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/patch
@@ -285,8 +272,15 @@ func (b *bucket) DeleteObject(
 		httputil.EncodePathSegment(req.Name))
 
 	query := make(url.Values)
+
 	if req.Generation != 0 {
 		query.Set("generation", fmt.Sprintf("%d", req.Generation))
+	}
+
+	if req.MetaGenerationPrecondition != nil {
+		query.Set(
+			"ifMetagenerationMatch",
+			fmt.Sprintf("%d", *req.MetaGenerationPrecondition))
 	}
 
 	url := &url.URL{
@@ -318,6 +312,13 @@ func (b *bucket) DeleteObject(
 	if typed, ok := err.(*googleapi.Error); ok {
 		if typed.Code == http.StatusNotFound {
 			err = nil
+		}
+	}
+
+	// Special case: handle precondition errors.
+	if typed, ok := err.(*googleapi.Error); ok {
+		if typed.Code == http.StatusPreconditionFailed {
+			err = &PreconditionError{Err: typed}
 		}
 	}
 

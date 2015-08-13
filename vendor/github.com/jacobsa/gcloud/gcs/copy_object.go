@@ -57,6 +57,12 @@ func (b *bucket) CopyObject(
 		query.Set("sourceGeneration", fmt.Sprintf("%d", req.SrcGeneration))
 	}
 
+	if req.SrcMetaGenerationPrecondition != nil {
+		query.Set(
+			"ifSourceMetagenerationMatch",
+			fmt.Sprintf("%d", *req.SrcMetaGenerationPrecondition))
+	}
+
 	url := &url.URL{
 		Scheme:   "https",
 		Host:     "www.googleapis.com",
@@ -90,6 +96,13 @@ func (b *bucket) CopyObject(
 		if typed, ok := err.(*googleapi.Error); ok {
 			if typed.Code == http.StatusNotFound {
 				err = &NotFoundError{Err: typed}
+			}
+		}
+
+		// Special case: handle precondition errors.
+		if typed, ok := err.(*googleapi.Error); ok {
+			if typed.Code == http.StatusPreconditionFailed {
+				err = &PreconditionError{Err: typed}
 			}
 		}
 
