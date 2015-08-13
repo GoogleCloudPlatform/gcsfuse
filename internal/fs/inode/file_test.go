@@ -607,5 +607,29 @@ func (t *FileTest) SetMtime_SourceObjectGenerationChanged() {
 }
 
 func (t *FileTest) SetMtime_SourceObjectMetaGenerationChanged() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Update the backing object.
+	lang := "fr"
+	newObj, err := t.bucket.UpdateObject(
+		t.ctx,
+		&gcs.UpdateObjectRequest{
+			Name:            t.in.Name(),
+			ContentLanguage: &lang,
+		})
+
+	AssertEq(nil, err)
+
+	// Set mtime.
+	mtime := time.Now().UTC().Add(123 * time.Second)
+	err = t.in.SetMtime(t.ctx, mtime)
+	AssertEq(nil, err)
+
+	// The object in the bucket should not have been changed.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	o, err := t.bucket.StatObject(t.ctx, statReq)
+
+	AssertEq(nil, err)
+	ExpectEq(newObj.Generation, o.Generation)
+	ExpectEq(newObj.MetaGeneration, o.MetaGeneration)
 }
