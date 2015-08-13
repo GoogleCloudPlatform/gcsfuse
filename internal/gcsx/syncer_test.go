@@ -43,6 +43,7 @@ type fakeObjectCreator struct {
 
 	// Supplied arguments
 	srcObject *gcs.Object
+	mtime     time.Time
 	contents  []byte
 
 	// Canned results
@@ -53,6 +54,7 @@ type fakeObjectCreator struct {
 func (oc *fakeObjectCreator) Create(
 	ctx context.Context,
 	srcObject *gcs.Object,
+	mtime time.Time,
 	r io.Reader) (o *gcs.Object, err error) {
 	// Have we been called more than once?
 	AssertFalse(oc.called)
@@ -60,6 +62,7 @@ func (oc *fakeObjectCreator) Create(
 
 	// Record args.
 	oc.srcObject = srcObject
+	oc.mtime = mtime
 	oc.contents, err = ioutil.ReadAll(r)
 	AssertEq(nil, err)
 
@@ -253,15 +256,19 @@ func (t *SyncerTest) CallsFullCreator() {
 	var err error
 	AssertLt(2, t.srcObject.Size)
 
-	// Truncate downward.
+	// Ready the content.
 	err = t.content.Truncate(2)
 	AssertEq(nil, err)
+
+	mtime := time.Now().Add(123 * time.Second)
+	t.content.SetMtime(mtime)
 
 	// Call
 	t.call()
 
 	AssertTrue(t.fullCreator.called)
 	ExpectEq(t.srcObject, t.fullCreator.srcObject)
+	ExpectThat(t.fullCreator.mtime, timeutil.TimeEq(mtime.UTC()))
 	ExpectEq(srcObjectContents[:2], string(t.fullCreator.contents))
 }
 
@@ -317,11 +324,16 @@ func (t *SyncerTest) CallsAppendCreator() {
 	_, err = t.content.WriteAt([]byte("burrito"), int64(t.srcObject.Size))
 	AssertEq(nil, err)
 
+	// Set up an expected mtime.
+	mtime := time.Now().Add(123 * time.Second)
+	t.content.SetMtime(mtime)
+
 	// Call
 	t.call()
 
 	AssertTrue(t.appendCreator.called)
 	ExpectEq(t.srcObject, t.appendCreator.srcObject)
+	ExpectThat(t.appendCreator.mtime, timeutil.TimeEq(mtime.UTC()))
 	ExpectEq("burrito", string(t.appendCreator.contents))
 }
 

@@ -17,10 +17,15 @@ package gcsx
 import (
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
+
+// Objects created by Syncer.SyncObject will contain a metadata field with this
+// key and with a UTC mtime in the format defined by time.RFC3339Nano.
+const MtimeMetadataKey = "gcsfuse_mtime"
 
 // Safe for concurrent access.
 type Syncer interface {
@@ -79,11 +84,15 @@ type fullObjectCreator struct {
 func (oc *fullObjectCreator) Create(
 	ctx context.Context,
 	srcObject *gcs.Object,
+	mtime time.Time,
 	r io.Reader) (o *gcs.Object, err error) {
 	req := &gcs.CreateObjectRequest{
 		Name: srcObject.Name,
 		GenerationPrecondition: &srcObject.Generation,
 		Contents:               r,
+		Metadata: map[string]string{
+			MtimeMetadataKey: mtime.Format(time.RFC3339Nano),
+		},
 	}
 
 	o, err = oc.bucket.CreateObject(ctx, req)
@@ -109,6 +118,7 @@ type objectCreator interface {
 	Create(
 		ctx context.Context,
 		srcObject *gcs.Object,
+		mtime time.Time,
 		r io.Reader) (o *gcs.Object, err error)
 }
 
@@ -173,6 +183,16 @@ func (os *syncer) SyncObject(
 		return
 	}
 
+	// Sanity check: the branch above should ensure that by the time we get here,
+	// the stat result's mtime is non-nil.
+	if sr.Mtime == nil {
+		err = fmt.Errorf("Wacky stat result: %#v", sr)
+		return
+	}
+
+	// Canonicalize to UTC.
+	mtime := sr.Mtime.UTC()
+
 	// Otherwise, we need to create a new generation. If the source object is
 	// long enough, hasn't been dirtied, and has a low enough component count,
 	// then we can make the optimization of not rewriting its contents.
@@ -185,7 +205,7 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		o, err = os.appendCreator.Create(ctx, srcObject, content)
+		o, err = os.appendCreator.Create(ctx, srcObject, mtime, content)
 	} else {
 		_, err = content.Seek(0, 0)
 		if err != nil {
@@ -193,7 +213,7 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		o, err = os.fullCreator.Create(ctx, srcObject, content)
+		o, err = os.fullCreator.Create(ctx, srcObject, mtime, content)
 	}
 
 	// Deal with errors.
