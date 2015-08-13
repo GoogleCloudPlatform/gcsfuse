@@ -975,6 +975,10 @@ func (t *DirTest) DeleteChildFile_WrongGeneration() {
 	ExpectEq("taco", string(contents))
 }
 
+func (t *DirTest) DeleteChildFile_WrongMetaGeneration() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *DirTest) DeleteChildFile_LatestGeneration() {
 	const name = "qux"
 	objName := path.Join(dirInodeName, name)
@@ -994,7 +998,7 @@ func (t *DirTest) DeleteChildFile_LatestGeneration() {
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
-func (t *DirTest) DeleteChildFile_ParticularGeneration() {
+func (t *DirTest) DeleteChildFile_ParticularGenerationAndMetaGeneration() {
 	const name = "qux"
 	objName := path.Join(dirInodeName, name)
 
