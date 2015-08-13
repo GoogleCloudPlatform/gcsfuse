@@ -250,11 +250,15 @@ There are two special cases worth mentioning:
 <a name="file-inode-identity"></a>
 ### Identity
 
-If a new generation number is assigned to a GCS object due to a flush from an
-inode, the source generation number of the inode is updated and the inode ID
+If a new generation is assigned to a GCS object due to a flush of a file
+inode, the source generation of the inode is updated and the inode ID
 remains stable. Otherwise, if a new generation is created by another machine or
 in some other manner from the local machine, the new generation is treated as
 an inode distinct from any other inode already created for the object name.
+
+In other words: inode IDs don't change when the file system causes an update to
+GCS, but any update caused remotely will result in a new inode.
+
 Inode IDs are local to a single gcsfuse process, and there are no guarantees
 about their stability across machines or invocations on a single machine.
 
