@@ -268,7 +268,7 @@ func (t *SyncerTest) CallsFullCreator() {
 
 	AssertTrue(t.fullCreator.called)
 	ExpectEq(t.srcObject, t.fullCreator.srcObject)
-	ExpectThat(t.fullCreator.mtime, timeutil.TimeEq(mtime))
+	ExpectThat(t.fullCreator.mtime, timeutil.TimeEq(mtime.UTC()))
 	ExpectEq(srcObjectContents[:2], string(t.fullCreator.contents))
 }
 
@@ -333,7 +333,7 @@ func (t *SyncerTest) CallsAppendCreator() {
 
 	AssertTrue(t.appendCreator.called)
 	ExpectEq(t.srcObject, t.appendCreator.srcObject)
-	ExpectThat(t.appendCreator.mtime, timeutil.TimeEq(mtime))
+	ExpectThat(t.appendCreator.mtime, timeutil.TimeEq(mtime.UTC()))
 	ExpectEq("burrito", string(t.appendCreator.contents))
 }
 

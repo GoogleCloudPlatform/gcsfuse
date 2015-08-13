@@ -190,7 +190,8 @@ func (os *syncer) SyncObject(
 		return
 	}
 
-	mtime := *sr.Mtime
+	// Canonicalize to UTC.
+	mtime := sr.Mtime.UTC()
 
 	// Otherwise, we need to create a new generation. If the source object is
 	// long enough, hasn't been dirtied, and has a low enough component count,
