@@ -271,9 +271,9 @@ lookups as follows:
 
 1.  Stat the object with the given name within the GCS bucket.
 2.  If the object does not exist, return an error.
-3.  Call the generation number of the object N. If there is already an inode
-    for this name with source generation number N, return it.
-4.  Create a new inode for this name with source generation number N.
+3.  Call the generation of the object `(G, M)`. If there is already an inode
+    for this name with source generation `(G, M)`, return it.
+4.  Create a new inode for this name with source generation `(G, M`).
 
 <a name="file-inode-semantics"></a>
 ### User-visible semantics
