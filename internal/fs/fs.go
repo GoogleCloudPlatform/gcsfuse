@@ -602,6 +602,11 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		return
 	}
 
+	oGen := inode.Generation{
+		Object:   o.Generation,
+		Metadata: o.MetaGeneration,
+	}
+
 	// Retry loop for the stale index entry case below. On entry, we hold fs.mu
 	// but no inode lock.
 	for {
@@ -628,13 +633,14 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		existingInode.Lock()
 
 		// Have we found the correct inode?
-		if o.Generation == existingInode.SourceGeneration() {
+		cmp := oGen.Compare(existingInode.SourceGeneration())
+		if cmp == 0 {
 			in = existingInode
 			return
 		}
 
 		// Are we stale?
-		if o.Generation < existingInode.SourceGeneration() {
+		if cmp == -1 {
 			existingInode.Unlock()
 			return
 		}
