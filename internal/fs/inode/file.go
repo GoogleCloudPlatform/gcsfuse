@@ -71,16 +71,6 @@ type FileInode struct {
 	// authoritative.
 	content gcsx.TempFile
 
-	// TODO(jacobsa): When setattr(mtime) comes in and content == nil, update the
-	// GCS source object's metadata (using a particular generation number). If
-	// content != nil, use a method on TempFile that sets mtime iff the content
-	// is dirty (i.e. mtime is alrady non-nil), and signals when it's not set. If
-	// it's not set, then fall back to updating GCS.
-	//
-	// This will have the effect of losing mtime updates if a file is opened and
-	// modified but never sync'd, but we already lose those entire writes anyway.
-	// It will save us from having to make an extra GCS write in the common case.
-
 	// Has Destroy been called?
 	//
 	// GUARDED_BY(mu)
@@ -382,6 +372,61 @@ func (f *FileInode) Write(
 	_, err = f.content.WriteAt(data, offset)
 
 	return
+}
+
+// Set the mtime for this file. May involve a round trip to GCS.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) SetMtime(
+	ctx context.Context,
+	mtime time.Time) (err error) {
+	// If we have a local temp file, stat it.
+	var sr gcsx.StatResult
+	if f.content != nil {
+		sr, err = f.content.Stat()
+		if err != nil {
+			err = fmt.Errorf("Stat: %v", err)
+			return
+		}
+	}
+
+	// If the local content is dirty, simply update its mtime and return. This
+	// will cause the object in the bucket to be updated once we sync. If we lose
+	// power or something the mtime update will be lost, but so will the file
+	// data modifications so this doesn't seem so bad. It's worth saving the
+	// round trip to GCS for the common case of Linux writeback caching, where we
+	// always receive a setattr request just before a flush of a dirty file.
+	if sr.Mtime != nil {
+		f.content.SetMtime(mtime)
+		return
+	}
+
+	// Otherwise, update the backing object's metadata.
+	formatted := mtime.UTC().Format(time.RFC3339Nano)
+	req := &gcs.UpdateObjectRequest{
+		Name:       f.src.Name,
+		Generation: f.src.Generation,
+		Metadata: map[string]*string{
+			FileMtimeMetadataKey: &formatted,
+		},
+	}
+
+	o, err := f.bucket.UpdateObject(ctx, req)
+	switch err.(type) {
+	case nil:
+		f.src = *o
+		return
+
+	case *gcs.NotFoundError:
+		// Special case: silently ignore not found errors, which mean the file has
+		// been unlinked.
+		err = nil
+		return
+
+	default:
+		err = fmt.Errorf("UpdateObject: %v", err)
+		return
+	}
 }
 
 // Write out contents to GCS. If this fails due to the generation having been
