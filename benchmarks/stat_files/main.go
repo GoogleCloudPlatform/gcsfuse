@@ -34,7 +34,7 @@ import (
 )
 
 var fDir = flag.String("dir", "", "Directory within which to create the files.")
-var fNumFiles = flag.Int("num_files", 256, "Number of files to create.")
+var fNumFiles = flag.Int("num_files", 4, "Number of files to create.")
 var fDuration = flag.Duration("duration", 10*time.Second, "How long to run.")
 
 ////////////////////////////////////////////////////////////////////////
