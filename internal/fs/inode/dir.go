@@ -777,7 +777,7 @@ func (d *dirInode) CloneToChildFile(
 		&gcs.CopyObjectRequest{
 			SrcName:                       src.Name,
 			SrcGeneration:                 src.Generation,
-			SrcMetaGenerationPrecondition: src.MetaGeneration,
+			SrcMetaGenerationPrecondition: &src.MetaGeneration,
 			DstName: path.Join(d.Name(), name),
 		})
 
@@ -837,7 +837,7 @@ func (d *dirInode) DeleteChildFile(
 		&gcs.DeleteObjectRequest{
 			Name:                       path.Join(d.Name(), name),
 			Generation:                 generation,
-			MetaGenerationPrecondition: metaGeneration,
+			MetaGenerationPrecondition: &metaGeneration,
 		})
 
 	if err != nil {
