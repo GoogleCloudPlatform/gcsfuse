@@ -1292,7 +1292,8 @@ func (fs *fileSystem) Rename(
 	err = oldParent.DeleteChildFile(
 		ctx,
 		op.OldName,
-		lr.Object.Generation)
+		lr.Object.Generation,
+		&lr.Object.MetaGeneration)
 	oldParent.Unlock()
 
 	if err != nil {
@@ -1319,7 +1320,8 @@ func (fs *fileSystem) Unlink(
 	err = parent.DeleteChildFile(
 		ctx,
 		op.Name,
-		0) // Latest generation
+		0,   // Latest generation
+		nil) // No meta-generation precondition
 
 	if err != nil {
 		err = fmt.Errorf("DeleteChildFile: %v", err)
