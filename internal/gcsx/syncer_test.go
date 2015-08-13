@@ -53,6 +53,7 @@ type fakeObjectCreator struct {
 func (oc *fakeObjectCreator) Create(
 	ctx context.Context,
 	srcObject *gcs.Object,
+	mtime time.Time,
 	r io.Reader) (o *gcs.Object, err error) {
 	// Have we been called more than once?
 	AssertFalse(oc.called)

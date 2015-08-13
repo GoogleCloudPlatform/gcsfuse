@@ -18,6 +18,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
@@ -79,6 +80,7 @@ func (oc *appendObjectCreator) chooseName() (name string, err error) {
 func (oc *appendObjectCreator) Create(
 	ctx context.Context,
 	srcObject *gcs.Object,
+	mtime time.Time,
 	r io.Reader) (o *gcs.Object, err error) {
 	// Choose a name for a temporary object.
 	tmpName, err := oc.chooseName()

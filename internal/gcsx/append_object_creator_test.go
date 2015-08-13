@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/mock_gcs"
@@ -69,6 +70,7 @@ type AppendObjectCreatorTest struct {
 
 	srcObject   gcs.Object
 	srcContents string
+	mtime       time.Time
 }
 
 var _ SetUpInterface = &AppendObjectCreatorTest{}
@@ -89,6 +91,7 @@ func (t *AppendObjectCreatorTest) call() (o *gcs.Object, err error) {
 	o, err = t.creator.Create(
 		t.ctx,
 		&t.srcObject,
+		t.mtime,
 		strings.NewReader(t.srcContents))
 
 	return

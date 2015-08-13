@@ -17,6 +17,7 @@ package gcsx
 import (
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
@@ -79,6 +80,7 @@ type fullObjectCreator struct {
 func (oc *fullObjectCreator) Create(
 	ctx context.Context,
 	srcObject *gcs.Object,
+	mtime time.Time,
 	r io.Reader) (o *gcs.Object, err error) {
 	req := &gcs.CreateObjectRequest{
 		Name: srcObject.Name,
@@ -109,6 +111,7 @@ type objectCreator interface {
 	Create(
 		ctx context.Context,
 		srcObject *gcs.Object,
+		mtime time.Time,
 		r io.Reader) (o *gcs.Object, err error)
 }
 
@@ -185,7 +188,7 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		o, err = os.appendCreator.Create(ctx, srcObject, content)
+		o, err = os.appendCreator.Create(ctx, srcObject, time.Now(), content)
 	} else {
 		_, err = content.Seek(0, 0)
 		if err != nil {
@@ -193,7 +196,7 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		o, err = os.fullCreator.Create(ctx, srcObject, content)
+		o, err = os.fullCreator.Create(ctx, srcObject, time.Now(), content)
 	}
 
 	// Deal with errors.
