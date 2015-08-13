@@ -224,10 +224,19 @@ actor in the meantime.) There are no guarantees about whether local
 modifications are reflected in GCS after writing but before syncing or closing.
 
 Modification time (`stat::st_mtime` on Linux) is tracked for file inodes, and
-can be updated in usual the usual way using `utimes(2)` or `futimens(2)`.
-(Special case: mtime updates may be silently lost for unlinked inodes.) When
+can be updated in usual the usual way using `utimes(2)` or `futimens(2)`. When
 dirty inodes are written out to GCS objects, mtime is stored in the custom
 metadata key `gcsfuse_mtime` in an unspecified format.
+
+There are two special cases worth mentioning:
+
+*   mtime updates to unlinked inodes may be silently lost. (Of course content
+    updates to these inodes will also be lost once the file is closed.)
+
+*   If an mtime update is made to a GCS object remotely (e.g. due to another
+    system running gcsfuse calling `utimes(2)`) and an inode has already been
+    assigned for that object locally, the mtime update will not be reflected
+    locally.
 
 <a name="file-inode-identity"></a>
 ### Identity
