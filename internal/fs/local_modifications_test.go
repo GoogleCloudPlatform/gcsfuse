@@ -1507,13 +1507,13 @@ func (t *FileTest) LstatUnopenedFile() {
 	var err error
 
 	// Create and close a file.
-	t.clock.AdvanceTime(time.Second)
-	createTime := t.clock.Now()
+	time.Sleep(timeSlop + timeSlop/2)
+	createTime := time.Now()
 
 	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "foo"), []byte("taco"), 0700)
 	AssertEq(nil, err)
 
-	t.clock.AdvanceTime(time.Second)
+	time.Sleep(timeSlop + timeSlop/2)
 
 	// Lstat it.
 	fi, err := os.Lstat(path.Join(t.mfs.Dir(), "foo"))
@@ -1522,7 +1522,7 @@ func (t *FileTest) LstatUnopenedFile() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
-	ExpectThat(fi.ModTime(), timeutil.TimeEq(createTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
