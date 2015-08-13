@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -70,16 +71,6 @@ type FileInode struct {
 	// The current content of this inode, or nil if the source object is still
 	// authoritative.
 	content gcsx.TempFile
-
-	// TODO(jacobsa): When setattr(mtime) comes in and content == nil, update the
-	// GCS source object's metadata (using a particular generation number). If
-	// content != nil, use a method on TempFile that sets mtime iff the content
-	// is dirty (i.e. mtime is alrady non-nil), and signals when it's not set. If
-	// it's not set, then fall back to updating GCS.
-	//
-	// This will have the effect of losing mtime updates if a file is opened and
-	// modified but never sync'd, but we already lose those entire writes anyway.
-	// It will save us from having to make an extra GCS write in the common case.
 
 	// Has Destroy been called?
 	//
@@ -381,6 +372,26 @@ func (f *FileInode) Write(
 	// an error for short writes.
 	_, err = f.content.WriteAt(data, offset)
 
+	return
+}
+
+// Set the mtime for this file. May involve a round trip to GCS.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) SetMtime(
+	ctx context.Context,
+	mtime time.Time) (err error) {
+	// TODO(jacobsa): When setattr(mtime) comes in and content == nil, update the
+	// GCS source object's metadata (using a particular generation number). If
+	// content != nil, use a method on TempFile that sets mtime iff the content
+	// is dirty (i.e. mtime is alrady non-nil), and signals when it's not set. If
+	// it's not set, then fall back to updating GCS.
+	//
+	// This will have the effect of losing mtime updates if a file is opened and
+	// modified but never sync'd, but we already lose those entire writes anyway.
+	// It will save us from having to make an extra GCS write in the common case.
+
+	err = errors.New("TODO")
 	return
 }
 
