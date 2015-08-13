@@ -976,7 +976,27 @@ func (t *DirTest) DeleteChildFile_WrongGeneration() {
 }
 
 func (t *DirTest) DeleteChildFile_WrongMetaGeneration() {
-	AssertTrue(false, "TODO")
+	const name = "qux"
+	objName := path.Join(dirInodeName, name)
+
+	var err error
+
+	// Create a backing object.
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	AssertEq(nil, err)
+
+	// Call the inode with the wrong meta-generation. No error should be
+	// returned.
+	precond := o.MetaGeneration + 1
+	err = t.in.DeleteChildFile(t.ctx, name, o.Generation, &precond)
+
+	ExpectThat(err, Error(HasSubstr("Precondition")))
+	ExpectThat(err, Error(HasSubstr("meta-generation")))
+
+	// The original generation should still be there.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, objName)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
 }
 
 func (t *DirTest) DeleteChildFile_LatestGeneration() {
