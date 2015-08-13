@@ -483,7 +483,7 @@ func (t *FileTest) Sync_Clobbered() {
 	ExpectEq(newObj.Size, o.Size)
 }
 
-func (t *FileTest) SetMTime_ContentNotFaultedIn() {
+func (t *FileTest) SetMtime_ContentNotFaultedIn() {
 	var err error
 	var attrs fuseops.InodeAttributes
 
@@ -509,14 +509,40 @@ func (t *FileTest) SetMTime_ContentNotFaultedIn() {
 		o.Metadata["gcsfuse_mtime"])
 }
 
-func (t *FileTest) SetMTime_ContentClean() {
+func (t *FileTest) SetMtime_ContentClean() {
+	var err error
+	var attrs fuseops.InodeAttributes
+
+	// Cause the content to be faulted in.
+	_, err = t.in.Read(t.ctx, make([]byte, 1), 0)
+	AssertEq(nil, err)
+
+	// Set mtime.
+	mtime := time.Now().UTC().Add(123 * time.Second)
+
+	err = t.in.SetMtime(t.ctx, mtime)
+	AssertEq(nil, err)
+
+	// The inode should agree about the new mtime.
+	attrs, err = t.in.Attributes(t.ctx)
+
+	AssertEq(nil, err)
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(mtime))
+
+	// The inode should have added the mtime to the backing object's metadata.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	o, err := t.bucket.StatObject(t.ctx, statReq)
+
+	AssertEq(nil, err)
+	ExpectEq(
+		mtime.UTC().Format(time.RFC3339Nano),
+		o.Metadata["gcsfuse_mtime"])
+}
+
+func (t *FileTest) SetMtime_ContentDirty() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *FileTest) SetMTime_ContentDirty() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *FileTest) SetMTime_SourceObjectClobbered() {
+func (t *FileTest) SetMtime_SourceObjectClobbered() {
 	AssertTrue(false, "TODO")
 }
