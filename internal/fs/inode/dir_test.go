@@ -951,7 +951,7 @@ func (t *DirTest) CreateChildDir_Exists() {
 func (t *DirTest) DeleteChildFile_DoesntExist() {
 	const name = "qux"
 
-	err := t.in.DeleteChildFile(t.ctx, name, 0)
+	err := t.in.DeleteChildFile(t.ctx, name, 0, nil)
 	ExpectEq(nil, err)
 }
 
@@ -966,7 +966,7 @@ func (t *DirTest) DeleteChildFile_WrongGeneration() {
 	AssertEq(nil, err)
 
 	// Call the inode with the wrong generation. No error should be returned.
-	err = t.in.DeleteChildFile(t.ctx, name, o.Generation+1)
+	err = t.in.DeleteChildFile(t.ctx, name, o.Generation+1, &o.MetaGeneration)
 	AssertEq(nil, err)
 
 	// The original generation should still be there.
@@ -990,7 +990,7 @@ func (t *DirTest) DeleteChildFile_LatestGeneration() {
 	AssertEq(nil, err)
 
 	// Call the inode.
-	err = t.in.DeleteChildFile(t.ctx, name, 0)
+	err = t.in.DeleteChildFile(t.ctx, name, 0, nil)
 	AssertEq(nil, err)
 
 	// Check the bucket.
@@ -1009,7 +1009,7 @@ func (t *DirTest) DeleteChildFile_ParticularGenerationAndMetaGeneration() {
 	AssertEq(nil, err)
 
 	// Call the inode.
-	err = t.in.DeleteChildFile(t.ctx, name, o.Generation)
+	err = t.in.DeleteChildFile(t.ctx, name, o.Generation, &o.MetaGeneration)
 	AssertEq(nil, err)
 
 	// Check the bucket.
@@ -1043,7 +1043,7 @@ func (t *DirTest) DeleteChildFile_TypeCaching() {
 
 	// But after deleting the file via the inode, the directory should be
 	// revealed.
-	err = t.in.DeleteChildFile(t.ctx, name, 0)
+	err = t.in.DeleteChildFile(t.ctx, name, 0, nil)
 	AssertEq(nil, err)
 
 	result, err = t.in.LookUpChild(t.ctx, name)
