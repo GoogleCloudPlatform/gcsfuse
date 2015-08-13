@@ -1871,12 +1871,15 @@ func (t *FileTest) Sync_Clobbered() {
 		"foo",
 		[]byte("foobar"))
 
-	// Sync the file. This should not result in an error, but the new generation
-	// should not be replaced.
+	// Attempt to sync the file. This may result in an error if the OS has
+	// decided to hold back the writes from above until now (in which case the
+	// inode will fail to load the source object), or it may fail silently.
+	// Either way, this should not result in a new generation being created.
 	err = t.f1.Sync()
-	AssertEq(nil, err)
+	if err != nil {
+		ExpectThat(err, Error(HasSubstr("input/output error")))
+	}
 
-	// Check that the new generation was not replaced.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("foobar", string(contents))
