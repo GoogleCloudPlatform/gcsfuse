@@ -48,7 +48,7 @@ func buildBinaries(
 	}()
 
 	// Create the target structure.
-	binDir, helperPath, err := makeTarballDirs(osys, dir)
+	binDir, helperPaths, err := makeTarballDirs(osys, dir)
 	if err != nil {
 		err = fmt.Errorf("makeTarballDirs: %v", err)
 		return
@@ -144,7 +144,7 @@ func buildBinaries(
 
 	// Copy the mount(8) helper script into place.
 	err = copyFile(
-		helperPath,
+		helperPaths[0],
 		path.Join(
 			gopath,
 			fmt.Sprintf(
@@ -157,24 +157,45 @@ func buildBinaries(
 		return
 	}
 
+	// Symlink any further mount(8) helpers to the first one.
+	for i := range helperPaths {
+		if i == 0 {
+			continue
+		}
+
+		err = os.Symlink(helperPaths[0], helperPaths[i])
+		if err != nil {
+			err = fmt.Errorf("Symlink: %v", err)
+			return
+		}
+	}
+
 	return
 }
 
 // Create the appropriate hierarchy for the tarball, returning the absolute
 // path of the directory to which the usual binaries should be written and the
-// absolute path to which the mount(8) external helper should be written.
+// absolute paths to which the mount(8) external helpers should be written.
 func makeTarballDirs(
 	osys string,
-	baseDir string) (binDir string, helperPath string, err error) {
+	baseDir string) (binDir string, helperPaths []string, err error) {
 	// Fill out the return values.
 	switch osys {
 	case "darwin":
 		binDir = path.Join(baseDir, "usr/local/bin")
-		helperPath = path.Join(baseDir, "sbin/mount_gcsfuse")
+		helperPaths = append(helperPaths, path.Join(baseDir, "sbin/mount_gcsfuse"))
 
 	case "linux":
 		binDir = path.Join(baseDir, "usr/bin")
-		helperPath = path.Join(baseDir, "sbin/mount.gcsfuse")
+		helperPaths = append(helperPaths, path.Join(baseDir, "sbin/mount.gcsfuse"))
+
+		// Also support `mount -t fuse.gcsfuse`. If there's no explicit helper for
+		// this type, /sbin/mount.fuse will call the gcsfuse executable directly,
+		// but it doesn't support the right argument format and doesn't daemonize.
+		// So we install an explicit helper.
+		helperPaths = append(
+			helperPaths,
+			path.Join(baseDir, "sbin/mount.fuse.gcsfuse"))
 
 	default:
 		err = fmt.Errorf("Don't know what directories to use for %s", osys)
@@ -184,7 +205,10 @@ func makeTarballDirs(
 	// Create the appropriate directories.
 	dirs := []string{
 		binDir,
-		path.Dir(helperPath),
+	}
+
+	for _, hp := range helperPaths {
+		dirs = append(dirs, path.Dir(hp))
 	}
 
 	for _, d := range dirs {
