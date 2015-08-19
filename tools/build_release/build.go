@@ -48,7 +48,7 @@ func buildBinaries(
 	}()
 
 	// Create the target structure.
-	binDir, helperPath, err := makeTarballDirs(osys, dir)
+	binDir, helperDir, err := makeTarballDirs(osys, dir)
 	if err != nil {
 		err = fmt.Errorf("makeTarballDirs: %v", err)
 		return
@@ -143,17 +143,9 @@ func buildBinaries(
 	}
 
 	// Copy the mount(8) helper script into place.
-	err = copyFile(
-		helperPath,
-		path.Join(
-			gopath,
-			fmt.Sprintf(
-				"src/github.com/googlecloudplatform/gcsfuse/tools/mount_gcsfuse/%s.sh",
-				osys)),
-		0755)
-
+	err = writeMountHelper(osys, gopath, helperDir)
 	if err != nil {
-		err = fmt.Errorf("Copying mount(8) helper script: %v", err)
+		err = fmt.Errorf("writeMountHelper: %v", err)
 		return
 	}
 
@@ -161,20 +153,20 @@ func buildBinaries(
 }
 
 // Create the appropriate hierarchy for the tarball, returning the absolute
-// path of the directory to which the usual binaries should be written and the
-// absolute path to which the mount(8) external helper should be written.
+// paths of the directories to which the usual binaries and the mount(8)
+// external helpers should be written.
 func makeTarballDirs(
 	osys string,
-	baseDir string) (binDir string, helperPath string, err error) {
+	baseDir string) (binDir string, helperDir string, err error) {
 	// Fill out the return values.
 	switch osys {
 	case "darwin":
 		binDir = path.Join(baseDir, "usr/local/bin")
-		helperPath = path.Join(baseDir, "sbin/mount_gcsfuse")
+		helperDir = path.Join(baseDir, "sbin")
 
 	case "linux":
 		binDir = path.Join(baseDir, "usr/bin")
-		helperPath = path.Join(baseDir, "sbin/mount.gcsfuse")
+		helperDir = path.Join(baseDir, "sbin")
 
 	default:
 		err = fmt.Errorf("Don't know what directories to use for %s", osys)
@@ -184,7 +176,7 @@ func makeTarballDirs(
 	// Create the appropriate directories.
 	dirs := []string{
 		binDir,
-		path.Dir(helperPath),
+		helperDir,
 	}
 
 	for _, d := range dirs {
@@ -226,6 +218,55 @@ func copyFile(dst string, src string, perm os.FileMode) (err error) {
 	err = d.Close()
 	if err != nil {
 		return
+	}
+
+	return
+}
+
+// Copy the mount(8) helper(s) into place from $GOPATH.
+func writeMountHelper(
+	osys string,
+	gopath string,
+	helperDir string) (err error) {
+	// Choose the filename.
+	var filename string
+	switch osys {
+	case "darwin":
+		filename = "mount_gcsfuse"
+
+	case "linux":
+		filename = "mount.gcsfuse"
+
+	default:
+		err = fmt.Errorf("Unsupported OS: %q", osys)
+		return
+	}
+
+	// Copy the file into place.
+	err = copyFile(
+		path.Join(helperDir, filename),
+		path.Join(
+			gopath,
+			fmt.Sprintf(
+				"src/github.com/googlecloudplatform/gcsfuse/tools/mount_gcsfuse/%s.sh",
+				osys)),
+		0755)
+
+	if err != nil {
+		err = fmt.Errorf("copyFile: %v", err)
+		return
+	}
+
+	// On Linux, also support `mount -t fuse.gcsfuse`. If there's no explicit
+	// helper for this type, /sbin/mount.fuse will call the gcsfuse executable
+	// directly, but it doesn't support the right argument format and doesn't
+	// daemonize. So we install an explicit helper.
+	if osys == "linux" {
+		err = os.Symlink("mount.gcsfuse", path.Join(helperDir, "mount.fuse.gcsfuse"))
+		if err != nil {
+			err = fmt.Errorf("Symlink: %v", err)
+			return
+		}
 	}
 
 	return
