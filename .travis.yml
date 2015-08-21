@@ -9,10 +9,6 @@ language: go
 # Cf. Personal communication from support@travis-ci.com.
 dist: trusty
 
-# We can't build with 1.4.2 (the default as of 2015-07-27), because it doesn't
-# support vendoring.
-go: 1.5rc1
-
 # Ensure that we get vendoring support in `go test`.
 env:
   - GO15VENDOREXPERIMENT=1
