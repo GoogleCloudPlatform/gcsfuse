@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -65,7 +64,7 @@ const prefix = ".gcsfuse_tmp/"
 
 type AppendObjectCreatorTest struct {
 	ctx     context.Context
-	bucket  mock_gcs.MockBucket
+	bucket  gcs.MockBucket
 	creator objectCreator
 
 	srcObject   gcs.Object
@@ -81,7 +80,7 @@ func (t *AppendObjectCreatorTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 
 	// Create the bucket.
-	t.bucket = mock_gcs.NewMockBucket(ti.MockController, "bucket")
+	t.bucket = gcs.NewMockBucket(ti.MockController, "bucket")
 
 	// Create the creator.
 	t.creator = newAppendObjectCreator(prefix, t.bucket)
