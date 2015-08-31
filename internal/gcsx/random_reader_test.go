@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/mock_gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -133,7 +132,7 @@ func rangeLimitIs(expected uint64) (m Matcher) {
 
 type RandomReaderTest struct {
 	object *gcs.Object
-	bucket mock_gcs.MockBucket
+	bucket gcs.MockBucket
 	rr     checkingRandomReader
 }
 
@@ -153,7 +152,7 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	}
 
 	// Create the bucket.
-	t.bucket = mock_gcs.NewMockBucket(ti.MockController, "bucket")
+	t.bucket = gcs.NewMockBucket(ti.MockController, "bucket")
 
 	// Set up the reader.
 	rr, err := NewRandomReader(t.object, t.bucket)
