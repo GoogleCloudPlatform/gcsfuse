@@ -49,19 +49,22 @@ See [mounting.md][] for more information on credentials.
 
 ## Invoking gcsfuse
 
-To mount a bucket using gcsfuse, invoke it like this:
+To mount a bucket using gcsfuse over an existing directory `/path/to/mount`,
+invoke it like this:
 
 ```
-gcsfuse my-bucket /path/to/mount/point
+gcsfuse my-bucket /path/to/mount
 ```
 
-The directory onto which you are mounting the file system
-(`/path/to/mount/point` in the above example) must already exist.
+**Important**: You should run gcsfuse as the user who will be using the file
+system, not as root. Do not use `sudo`.
 
-The gcsfuse tool will run until the file system is unmounted. By default little
-is printed, but you can use the `--fuse.debug` flag to turn on debugging output
-to stderr. If the tool should happen to crash, crash logs will also be written
-to stderr.
+The gcsfuse tool will run until the file system is unmounted. You can press
+Ctrl-C to make this happen cleanly, or unmount in the usual way for a fuse file
+system on your operating system:
+
+    umount /path/to/mount         # OS X
+    fusermount -u /path/to/mount  # Linux
 
 If you are mounting a bucket that was populated with objects by some other means
 besides gcsfuse, you may be interested in the `--implicit-dirs` flag. See the
