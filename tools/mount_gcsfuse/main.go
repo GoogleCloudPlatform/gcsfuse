@@ -90,13 +90,9 @@ func makeGcsfuseArgs(
 		case "dir_mode":
 			args = append(args, "--dir-mode="+value)
 
-		// On Linux, option 'user' is necessary for mount(8) to let a non-root user
-		// mount a file system. It is passed through to us, but we don't want to
-		// pass it on to gcsfuse because fusermount chokes on it with
-		//
-		//     fusermount: mount failed: Invalid argument
-		//
-		case "user":
+		// Don't pass through options that are relevant to mount(8) but not to
+		// gcsfuse, and that fusermount chokes on with "Invalid argument" on Linux.
+		case "user", "nouser", "auto", "noauto":
 
 		// Pass through everything else.
 		default:
