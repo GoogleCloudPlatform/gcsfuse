@@ -32,17 +32,18 @@ Console:
 
 ## Mounting
 
-As the user that will mount and use the file system, create the directory into
-which you want to mount the gcsfuse bucket:
+Say you want to mount the GCS bucket called `my-bucket`. First create the
+directory into which you want to mount the gcsfuse bucket, then run gcsfuse:
 
     mkdir /path/to/mount/point
-
-In order to mount the bucket named `my-bucket`, invoke the gcsfuse binary
-as follows:
-
     gcsfuse my-bucket /path/to/mount/point
 
-You should be able to see your bucket contents if you run `ls
+**Important**: You should run gcsfuse as the user who will be using the file
+system, not as root. Similarly, the directory should be owned by that user. Do
+not use `sudo` for either of the steps above or you will wind up with
+permissions issues.
+
+You should now be able to see your bucket contents if you run `ls
 /path/to/mount/point`.
 
 ## Unmounting
@@ -57,6 +58,23 @@ On OS X, unmount like any other file system:
 
 On both systems, you can also unmount by sending `SIGINT` to the gcsfuse
 process (usually by pressing Ctrl-C in the controlling terminal).
+
+
+# Access permissions
+
+As a security measure, fuse itself restricts file system access to the user who
+mounted the file system (cf. [fuse.txt][fuse-security]). For this reason,
+gcsfuse by default shows all files as owned by the invoking user. Therefore you
+should invoke gcsfuse as the user that will be using the file system, not as
+root.
+
+If you know what you are doing, you can override these behaviors with the
+[`allow_other`][allow_other] mount option supported by fuse and with the
+`--uid` and `--gid` flags supported by gcsfuse. Be careful, this may have
+security implications!
+
+[fuse-security]: https://github.com/torvalds/linux/blob/a33f32244/Documentation/filesystems/fuse.txt#L253-L300
+[allow_other]: https://github.com/torvalds/linux/blob/a33f32244/Documentation/filesystems/fuse.txt#L100-L105
 
 
 # Running as a daemon
