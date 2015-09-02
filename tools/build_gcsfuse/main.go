@@ -20,7 +20,15 @@
 //     build_gcsfuse src_dir dst_dir
 //
 // where src_dir is the root of the gcsfuse git repository (or a tarball
-// thereof). Writes the following to dst_dir:
+// thereof).
+//
+// For Linux, writes the following to dst_dir:
+//
+//     bin/gcsfuse
+//     bin/mount_gcsfuse
+//     sbin/mount.gcsfuse
+//
+// For OS X:
 //
 //     bin/gcsfuse
 //     bin/mount_gcsfuse
@@ -36,40 +44,39 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"runtime"
+	"strings"
 )
 
-// Build release binaries according to the supplied settings, returning the
-// path to a directory containing exactly root-relative file system structure
-// we desire.
+// Build release binaries according to the supplied settings, setting up the
+// the file system structure we desire (see package-level comments).
+//
+// version is the gcsfuse version being built (e.g. "0.11.1"), or the empty
+// string if this is not for an official release. commit is a short git commit
+// (e.g. "33cbefc"), or the empty string if unknown.
 func buildBinaries(
+	dstDir string,
+	srcDir string,
 	version string,
-	commit string,
-	osys string,
-	arch string) (dir string, err error) {
-	log.Printf("Building %s at %s for %s (%s).", version, commit, osys, arch)
-	// Create a directory to hold our outputs. Kill it if we later return in
-	// error.
-	dir, err = ioutil.TempDir("", "package_release_binaries")
-	if err != nil {
-		err = fmt.Errorf("TempDir: %v", err)
-		return
-	}
-
-	defer func() {
-		if err != nil {
-			os.RemoveAll(dir)
-		}
-	}()
-
+	commit string) (err error) {
 	// Create the target structure.
-	binDir, helperDir, err := makeTarballDirs(osys, dir)
-	if err != nil {
-		err = fmt.Errorf("makeTarballDirs: %v", err)
-		return
+	{
+		dirs := []string{
+			"bin",
+			"sbin",
+		}
+
+		for _, d := range dirs {
+			err = os.Mkdir(path.Join(dstDir, d), 0755)
+			if err != nil {
+				err = fmt.Errorf("Mkdir: %v", err)
+				return
+			}
+		}
 	}
 
-	// Create another directory to become GOPATH for our build below.
-	gopath, err := ioutil.TempDir("", "package_release_gopath")
+	// Create a directory to become GOPATH for our build below.
+	gopath, err := ioutil.TempDir("", "build_gcsfuse_gopath")
 	if err != nil {
 		err = fmt.Errorf("TempDir: %v", err)
 		return
@@ -77,52 +84,18 @@ func buildBinaries(
 
 	defer os.RemoveAll(gopath)
 
-	// Create a directory to store the source code.
-	gitDir := path.Join(gopath, "src/github.com/googlecloudplatform/gcsfuse")
-	err = os.MkdirAll(gitDir, 0700)
+	// Make it appear as if the source directory is at the appropriate position
+	// in $GOPATH.
+	gcsfuseDir := path.Join(gopath, "src/github.com/googlecloudplatform/gcsfuse")
+	err = os.MkdirAll(path.Dir(gcsfuseDir), 0700)
 	if err != nil {
 		err = fmt.Errorf("MkdirAll: %v", err)
 		return
 	}
 
-	// Clone the source code into that directory.
-	log.Printf("Cloning into %s", gitDir)
-
-	cmd := exec.Command(
-		"git",
-		"clone",
-		"https://github.com/GoogleCloudPlatform/gcsfuse.git",
-		gitDir)
-
-	output, err := cmd.CombinedOutput()
+	err = os.Symlink(srcDir, gcsfuseDir)
 	if err != nil {
-		err = fmt.Errorf("Cloning: %v\nOutput:\n%s", err, output)
-		return
-	}
-
-	// Check out the appropriate commit.
-	cmd = exec.Command("git", "checkout", commit)
-	cmd.Dir = gitDir
-
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		err = fmt.Errorf("git checkout: %v\nOutput:\n%s", err, output)
-		return
-	}
-
-	// Overwrite version.go with a file containing the appropriate constant.
-	versionContents := fmt.Sprintf(
-		"package main\nconst gcsfuseVersion = \"%s (commit %s)\"",
-		version,
-		commit)
-
-	err = ioutil.WriteFile(
-		path.Join(gitDir, "version.go"),
-		[]byte(versionContents),
-		0400)
-
-	if err != nil {
-		err = fmt.Errorf("WriteFile: %v", err)
+		err = fmt.Errorf("Symlink: %v", err)
 		return
 	}
 
@@ -135,20 +108,38 @@ func buildBinaries(
 	for _, bin := range binaries {
 		log.Printf("Building %s", bin)
 
-		cmd = exec.Command(
+		cmd := exec.Command(
 			"go",
 			"build",
 			"-o",
-			path.Join(binDir, path.Base(bin)),
+			path.Join(dstDir, "bin", path.Base(bin)),
 			bin)
 
 		cmd.Env = []string{
 			"GO15VENDOREXPERIMENT=1",
 			fmt.Sprintf("GOPATH=%s", gopath),
-			fmt.Sprintf("GOOS=%s", osys),
-			fmt.Sprintf("GOARCH=%s", arch),
 		}
 
+		if path.Base(bin) == "gcsfuse" {
+			var ldflags []string
+			if version != "" {
+				ldflags = append(
+					ldflags,
+					fmt.Sprintf("-X main.gcsfuseVersion=%s", version))
+			}
+
+			if commit != "" {
+				ldflags = append(
+					ldflags,
+					fmt.Sprintf("-X main.gcsfuseCommit=%s", commit))
+			}
+
+			if len(ldflags) > 0 {
+				cmd.Args = append(cmd.Args, "-ldflags", strings.Join(ldflags, " "))
+			}
+		}
+
+		var output []byte
 		output, err = cmd.CombinedOutput()
 		if err != nil {
 			err = fmt.Errorf("Building %s: %v\nOutput:\n%s", bin, err, output)
@@ -157,48 +148,10 @@ func buildBinaries(
 	}
 
 	// Copy the mount(8) helper script into place.
-	err = writeMountHelper(osys, gopath, helperDir)
+	err = writeMountHelper(runtime.GOOS, gopath, path.Join(dstDir, "sbin"))
 	if err != nil {
 		err = fmt.Errorf("writeMountHelper: %v", err)
 		return
-	}
-
-	return
-}
-
-// Create the appropriate hierarchy for the tarball, returning the absolute
-// paths of the directories to which the usual binaries and the mount(8)
-// external helpers should be written.
-func makeTarballDirs(
-	osys string,
-	baseDir string) (binDir string, helperDir string, err error) {
-	// Fill out the return values.
-	switch osys {
-	case "darwin":
-		binDir = path.Join(baseDir, "usr/local/bin")
-		helperDir = path.Join(baseDir, "sbin")
-
-	case "linux":
-		binDir = path.Join(baseDir, "usr/bin")
-		helperDir = path.Join(baseDir, "sbin")
-
-	default:
-		err = fmt.Errorf("Don't know what directories to use for %s", osys)
-		return
-	}
-
-	// Create the appropriate directories.
-	dirs := []string{
-		binDir,
-		helperDir,
-	}
-
-	for _, d := range dirs {
-		err = os.MkdirAll(d, 0755)
-		if err != nil {
-			err = fmt.Errorf("MkdirAll: %v", err)
-			return
-		}
 	}
 
 	return
