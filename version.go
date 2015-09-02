@@ -14,4 +14,20 @@
 
 package main
 
-const gcsfuseVersion = "devel"
+import (
+	"fmt"
+	"runtime"
+)
+
+// Set with `-ldflags -X main.gcsfuseVersion=1.2.3` by tools/build_gcsfuse. If
+// not defined, we use "unknown" in getVersion.
+var gcsfuseVersion string
+
+func getVersion() string {
+	v := gcsfuseVersion
+	if v == "" {
+		v = "unknown"
+	}
+
+	return fmt.Sprintf("%s (Go version %s)", v, runtime.Version())
+}

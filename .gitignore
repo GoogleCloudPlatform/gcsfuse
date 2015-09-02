@@ -1,7 +1,8 @@
 # Binary names.
-/build_release
+/build_gcsfuse
 /gcsfuse
 /mount_gcsfuse
+/package_gcsfuse
 /read_full_file
 /read_within_file
 /stat_files
