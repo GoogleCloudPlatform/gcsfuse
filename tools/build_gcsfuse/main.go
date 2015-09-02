@@ -12,6 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// A tool that builds gcsfuse binaries, assembles helper scripts, etc., and
+// writes them out to a destination directory with the correct hierarchy.
+//
+// Usage:
+//
+//     build_gcsfuse src_dir dst_dir
+//
+// where src_dir is the root of the gcsfuse git repository (or a tarball
+// thereof). Writes the following to dst_dir:
+//
+//     bin/gcsfuse
+//     bin/mount_gcsfuse
+//     sbin/mount_gcsfuse
+//
 package main
 
 import (
