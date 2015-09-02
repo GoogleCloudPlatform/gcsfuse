@@ -153,7 +153,7 @@ func build(
 			symlinks["sbin/mount.gcsfuse"] = "/usr/sbin/mount.gcsfuse"
 
 		case "darwin":
-			symlinks["sbin/mount_gcsfuse"] = "/usr/sbin/mount_gcsfuse"
+			symlinks["sbin/mount_gcsfuse"] = "/usr/local/sbin/mount_gcsfuse"
 
 		default:
 			err = fmt.Errorf("Unhandled OS: %q", osys)
