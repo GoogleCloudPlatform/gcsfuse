@@ -12,8 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Perform a hermetic build of gcsfuse at a particular version, producing
-// release binaries and packages.
+// Perform a hermetic build of gcsfuse at a particular git tag specifying the
+// version name, producing a release tarball. On Linux, also produce release
+// packages.
+//
+// Usage:
+//
+//     package_gcsfuse dst_dir version
+//
+// This will cause the gcsfuse git repo to be cloned to a temporary location
+// and a build performed at the given version tag. A tarball will be written to
+// dst_dir, along with .deb and .rpm files if building on Linux
 package main
 
 import (
