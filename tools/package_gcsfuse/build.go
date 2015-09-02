@@ -23,10 +23,14 @@ import (
 	"path"
 )
 
-// Build the supplied version, returning a path to a directory containing
-// exactly the root-relative file system structure we desire.
-func build(version string, osys string) (dir string, err error) {
-	log.Printf("Building version %s.", version)
+// Build at the supplied commit (or branch or tag), embedding the given version
+// name and returning a path to a directory containing exactly the
+// root-relative file system structure we desire.
+func build(
+	commit string,
+	version string,
+	osys string) (dir string, err error) {
+	log.Printf("Building version %s from %s.", version, commit)
 
 	// Create a directory to hold our outputs. Kill it if we later return in
 	// error.
@@ -84,7 +88,7 @@ func build(version string, osys string) (dir string, err error) {
 		cmd := exec.Command(
 			"git",
 			"clone",
-			"-b", fmt.Sprintf("v%s", version),
+			"-b", commit,
 			"https://github.com/GoogleCloudPlatform/gcsfuse.git",
 			gitDir)
 

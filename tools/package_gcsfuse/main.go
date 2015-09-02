@@ -18,11 +18,15 @@
 //
 // Usage:
 //
-//     package_gcsfuse dst_dir version
+//     package_gcsfuse dst_dir version [commit]
 //
 // This will cause the gcsfuse git repo to be cloned to a temporary location
-// and a build performed at the given version tag. A tarball will be written to
-// dst_dir, along with .deb and .rpm files if building on Linux
+// and a build performed, embedding the given version name. The build will be
+// performed at the given commit (or branch or tag), which defaults to
+// `v<version>`.
+//
+// A tarball will be written to dst_dir, along with .deb and .rpm files if
+// building on Linux
 package main
 
 import (
@@ -38,13 +42,23 @@ func run(args []string) (err error) {
 	arch := runtime.GOARCH
 
 	// Extract arguments.
-	if len(args) != 2 {
-		err = fmt.Errorf("Usage: %s dst_dir version", os.Args[0])
+	if len(args) < 2 || len(args) > 3 {
+		err = fmt.Errorf("Usage: %s dst_dir version [commit]", os.Args[0])
 		return
 	}
 
 	dstDir := args[0]
 	version := args[1]
+
+	commit := fmt.Sprintf("v%s", version)
+	if len(args) >= 3 {
+		commit = args[2]
+	}
+
+	log.Printf("Using settings:")
+	log.Printf("  dstDir:  %s", dstDir)
+	log.Printf("  commit:  %s", commit)
+	log.Printf("  version: %s", version)
 
 	// Ensure that all of the tools we need are present.
 	err = checkForTools()
@@ -53,7 +67,7 @@ func run(args []string) (err error) {
 	}
 
 	// Assemble binaries, mount(8) helper scripts, etc.
-	buildDir, err := build(version, osys)
+	buildDir, err := build(commit, version, osys)
 	if err != nil {
 		err = fmt.Errorf("build: %v", err)
 		return
