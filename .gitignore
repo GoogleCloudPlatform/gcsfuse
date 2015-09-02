@@ -1,4 +1,5 @@
 # Binary names.
+/build_gcsfuse
 /gcsfuse
 /mount_gcsfuse
 /package_release
