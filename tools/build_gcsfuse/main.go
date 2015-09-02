@@ -106,17 +106,12 @@ func buildBinaries(
 	for _, bin := range binaries {
 		log.Printf("Building %s", bin)
 
+		// Set up arguments.
 		cmd := exec.Command(
 			"go",
 			"build",
 			"-o",
-			path.Join(dstDir, "bin", path.Base(bin)),
-			bin)
-
-		cmd.Env = []string{
-			"GO15VENDOREXPERIMENT=1",
-			fmt.Sprintf("GOPATH=%s", gopath),
-		}
+			path.Join(dstDir, "bin", path.Base(bin)))
 
 		if path.Base(bin) == "gcsfuse" {
 			cmd.Args = append(
@@ -126,6 +121,15 @@ func buildBinaries(
 			)
 		}
 
+		cmd.Args = append(cmd.Args, bin)
+
+		// Set up environment.
+		cmd.Env = []string{
+			"GO15VENDOREXPERIMENT=1",
+			fmt.Sprintf("GOPATH=%s", gopath),
+		}
+
+		// Build.
 		var output []byte
 		output, err = cmd.CombinedOutput()
 		if err != nil {
