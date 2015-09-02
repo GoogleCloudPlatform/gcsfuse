@@ -100,14 +100,37 @@ func build(
 		}
 	}
 
+	// Build build_gcsfuse.
+	buildTool := path.Join(gitDir, "build_gcsfuse")
+	{
+		log.Printf("Building build_gcsfuse...")
+
+		cmd := exec.Command(
+			"go",
+			"build",
+			"-o", buildTool,
+		)
+
+		cmd.Dir = path.Join(gitDir, "tools/build_gcsfuse")
+		cmd.Env = []string{
+			"GO15VENDOREXPERIMENT=1",
+			"GOPATH=/does/not/exist",
+		}
+
+		var output []byte
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			err = fmt.Errorf("Building build_gcsfuse: %v\nOutput:\n%s", err, output)
+			return
+		}
+	}
+
 	// Run build_gcsfuse.
 	{
 		log.Printf("Running build_gcsfuse...")
 
 		cmd := exec.Command(
-			"go",
-			"run",
-			path.Join(gitDir, "tools/build_gcsfuse/*.go"),
+			buildTool,
 			gitDir,
 			buildDir,
 			version)
