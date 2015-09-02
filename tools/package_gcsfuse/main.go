@@ -34,11 +34,6 @@ import (
 	"os"
 )
 
-var fVersion = flag.String("version", "", "Version number of the release.")
-var fCommit = flag.String("commit", "", "Commit at which to build.")
-var fOutputDir = flag.String("output_dir", "", "Where to write outputs.")
-var fRPM = flag.Bool("rpm", false, "Build .rpm in addition to .deb.")
-
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
