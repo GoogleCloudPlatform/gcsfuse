@@ -17,7 +17,7 @@
 //
 // Usage:
 //
-//     build_gcsfuse src_dir dst_dir
+//     build_gcsfuse src_dir dst_dir version
 //
 // where src_dir is the root of the gcsfuse git repository (or a tarball
 // thereof).
@@ -37,6 +37,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -45,20 +46,17 @@ import (
 	"os/exec"
 	"path"
 	"runtime"
-	"strings"
 )
 
 // Build release binaries according to the supplied settings, setting up the
 // the file system structure we desire (see package-level comments).
 //
-// version is the gcsfuse version being built (e.g. "0.11.1"), or the empty
-// string if this is not for an official release. commit is a short git commit
-// (e.g. "33cbefc"), or the empty string if unknown.
+// version is the gcsfuse version being built (e.g. "0.11.1"), or a short git
+// commit name if this is not for an official release.
 func buildBinaries(
 	dstDir string,
 	srcDir string,
-	version string,
-	commit string) (err error) {
+	version string) (err error) {
 	// Create the target structure.
 	{
 		dirs := []string{
@@ -121,22 +119,11 @@ func buildBinaries(
 		}
 
 		if path.Base(bin) == "gcsfuse" {
-			var ldflags []string
-			if version != "" {
-				ldflags = append(
-					ldflags,
-					fmt.Sprintf("-X main.gcsfuseVersion=%s", version))
-			}
-
-			if commit != "" {
-				ldflags = append(
-					ldflags,
-					fmt.Sprintf("-X main.gcsfuseCommit=%s", commit))
-			}
-
-			if len(ldflags) > 0 {
-				cmd.Args = append(cmd.Args, "-ldflags", strings.Join(ldflags, " "))
-			}
+			cmd.Args = append(
+				cmd.Args,
+				"-ldflags",
+				fmt.Sprintf("-X main.gcsfuseVersion=%s", version),
+			)
 		}
 
 		var output []byte
@@ -237,4 +224,37 @@ func writeMountHelper(
 	}
 
 	return
+}
+
+func run() (err error) {
+	// Extract arguments.
+	args := flag.Args()
+	if len(args) != 3 {
+		err = fmt.Errorf("Usage: %s src_dir dst_dir version", os.Args[0])
+		return
+	}
+
+	srcDir := args[0]
+	dstDir := args[1]
+	version := args[2]
+
+	// Build.
+	err = buildBinaries(dstDir, srcDir, version)
+	if err != nil {
+		err = fmt.Errorf("buildBinaries: %v", err)
+		return
+	}
+
+	return
+}
+
+func main() {
+	log.SetFlags(log.Lmicroseconds)
+	flag.Parse()
+
+	err := run()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }
