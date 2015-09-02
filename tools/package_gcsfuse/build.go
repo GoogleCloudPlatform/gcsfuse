@@ -160,8 +160,16 @@ func build(
 			return
 		}
 
-		for src, target := range symlinks {
-			err = os.Symlink(target, path.Join(dir, src))
+		for relativeSrc, target := range symlinks {
+			src := path.Join(dir, relativeSrc)
+
+			err = os.MkdirAll(path.Dir(src), 0755)
+			if err != nil {
+				err = fmt.Errorf("MkdirAll: %v", err)
+				return
+			}
+
+			err = os.Symlink(target, src)
 			if err != nil {
 				err = fmt.Errorf("Symlink: %v", err)
 				return
