@@ -35,7 +35,7 @@ func buildBinaries(
 	log.Printf("Building %s at %s for %s (%s).", version, commit, osys, arch)
 	// Create a directory to hold our outputs. Kill it if we later return in
 	// error.
-	dir, err = ioutil.TempDir("", "package_release_binaries")
+	dir, err = ioutil.TempDir("", "package_gcsfuse_binaries")
 	if err != nil {
 		err = fmt.Errorf("TempDir: %v", err)
 		return
@@ -55,7 +55,7 @@ func buildBinaries(
 	}
 
 	// Create another directory to become GOPATH for our build below.
-	gopath, err := ioutil.TempDir("", "package_release_gopath")
+	gopath, err := ioutil.TempDir("", "package_gcsfuse_gopath")
 	if err != nil {
 		err = fmt.Errorf("TempDir: %v", err)
 		return
