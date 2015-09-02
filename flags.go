@@ -15,7 +15,9 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/codegangsta/cli"
@@ -49,9 +51,14 @@ COPYRIGHT:
 }
 
 func newApp() (app *cli.App) {
+	version := fmt.Sprintf(
+		"%s (built with Go version %s)",
+		gcsfuseVersion,
+		runtime.Version())
+
 	app = &cli.App{
 		Name:     "gcsfuse",
-		Version:  gcsfuseVersion,
+		Version:  version,
 		Usage:    "Mount a GCS bucket locally",
 		HideHelp: true,
 		Writer:   os.Stderr,
