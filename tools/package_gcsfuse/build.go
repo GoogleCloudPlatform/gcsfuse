@@ -16,7 +16,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -24,18 +23,14 @@ import (
 	"path"
 )
 
-// Build release binaries according to the supplied settings, returning the
-// path to a directory containing exactly root-relative file system structure
-// we desire.
-func buildBinaries(
-	version string,
-	commit string,
-	osys string,
-	arch string) (dir string, err error) {
-	log.Printf("Building %s at %s for %s (%s).", version, commit, osys, arch)
+// Build the supplied version, returning a path to a directory containing
+// exactly the root-relative file system structure we desire.
+func build(version string, osys string) (dir string, err error) {
+	log.Printf("Building version %s.", version)
+
 	// Create a directory to hold our outputs. Kill it if we later return in
 	// error.
-	dir, err = ioutil.TempDir("", "package_gcsfuse_binaries")
+	dir, err = ioutil.TempDir("", "package_gcsfuse_build")
 	if err != nil {
 		err = fmt.Errorf("TempDir: %v", err)
 		return
@@ -47,225 +42,103 @@ func buildBinaries(
 		}
 	}()
 
-	// Create the target structure.
-	binDir, helperDir, err := makeTarballDirs(osys, dir)
-	if err != nil {
-		err = fmt.Errorf("makeTarballDirs: %v", err)
+	// Set up the destination for a call to build_gcsfuse, which writes files
+	// like
+	//
+	//     bin/gcsfuse
+	//     sbin/mount.gcsfuse
+	//
+	// On Linux and OS X we want these to go into different places.
+	var buildDir string
+	switch osys {
+	case "linux":
+		buildDir = path.Join(dir, "usr")
+
+	case "darwin":
+		buildDir = path.Join(dir, "usr/local")
+
+	default:
+		err = fmt.Errorf("Unhandled OS: %q", osys)
 		return
 	}
 
-	// Create another directory to become GOPATH for our build below.
-	gopath, err := ioutil.TempDir("", "package_gcsfuse_gopath")
-	if err != nil {
-		err = fmt.Errorf("TempDir: %v", err)
-		return
-	}
-
-	defer os.RemoveAll(gopath)
-
-	// Create a directory to store the source code.
-	gitDir := path.Join(gopath, "src/github.com/googlecloudplatform/gcsfuse")
-	err = os.MkdirAll(gitDir, 0700)
+	err = os.MkdirAll(buildDir, 0755)
 	if err != nil {
 		err = fmt.Errorf("MkdirAll: %v", err)
 		return
 	}
 
-	// Clone the source code into that directory.
-	log.Printf("Cloning into %s", gitDir)
-
-	cmd := exec.Command(
-		"git",
-		"clone",
-		"https://github.com/GoogleCloudPlatform/gcsfuse.git",
-		gitDir)
-
-	output, err := cmd.CombinedOutput()
+	// Create another directory into which we will clone the git repo bloe.
+	gitDir, err := ioutil.TempDir("", "package_gcsfuse_git")
 	if err != nil {
-		err = fmt.Errorf("Cloning: %v\nOutput:\n%s", err, output)
+		err = fmt.Errorf("TempDir: %v", err)
 		return
 	}
 
-	// Check out the appropriate commit.
-	cmd = exec.Command("git", "checkout", commit)
-	cmd.Dir = gitDir
+	defer os.RemoveAll(gitDir)
 
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		err = fmt.Errorf("git checkout: %v\nOutput:\n%s", err, output)
-		return
-	}
+	// Clone the git repo, checking out the correct tag.
+	{
+		log.Printf("Cloning into %s", gitDir)
 
-	// Overwrite version.go with a file containing the appropriate constant.
-	versionContents := fmt.Sprintf(
-		"package main\nconst gcsfuseVersion = \"%s (commit %s)\"",
-		version,
-		commit)
+		cmd := exec.Command(
+			"git",
+			"clone",
+			"-b", fmt.Sprintf("v%s", version),
+			"https://github.com/GoogleCloudPlatform/gcsfuse.git",
+			gitDir)
 
-	err = ioutil.WriteFile(
-		path.Join(gitDir, "version.go"),
-		[]byte(versionContents),
-		0400)
-
-	if err != nil {
-		err = fmt.Errorf("WriteFile: %v", err)
-		return
-	}
-
-	// Build the binaries.
-	binaries := []string{
-		"github.com/googlecloudplatform/gcsfuse",
-		"github.com/googlecloudplatform/gcsfuse/tools/mount_gcsfuse",
-	}
-
-	for _, bin := range binaries {
-		log.Printf("Building %s", bin)
-
-		cmd = exec.Command(
-			"go",
-			"build",
-			"-o",
-			path.Join(binDir, path.Base(bin)),
-			bin)
-
-		cmd.Env = []string{
-			"GO15VENDOREXPERIMENT=1",
-			fmt.Sprintf("GOPATH=%s", gopath),
-			fmt.Sprintf("GOOS=%s", osys),
-			fmt.Sprintf("GOARCH=%s", arch),
-		}
-
+		var output []byte
 		output, err = cmd.CombinedOutput()
 		if err != nil {
-			err = fmt.Errorf("Building %s: %v\nOutput:\n%s", bin, err, output)
+			err = fmt.Errorf("Cloning: %v\nOutput:\n%s", err, output)
 			return
 		}
 	}
 
-	// Copy the mount(8) helper script into place.
-	err = writeMountHelper(osys, gopath, helperDir)
-	if err != nil {
-		err = fmt.Errorf("writeMountHelper: %v", err)
-		return
-	}
+	// Run build_gcsfuse.
+	{
+		log.Printf("Running build_gcsfuse...")
 
-	return
-}
+		cmd := exec.Command(
+			"go",
+			"run",
+			path.Join(gitDir, "tools/build_gcsfuse/*.go"),
+			gitDir,
+			buildDir,
+			version)
 
-// Create the appropriate hierarchy for the tarball, returning the absolute
-// paths of the directories to which the usual binaries and the mount(8)
-// external helpers should be written.
-func makeTarballDirs(
-	osys string,
-	baseDir string) (binDir string, helperDir string, err error) {
-	// Fill out the return values.
-	switch osys {
-	case "darwin":
-		binDir = path.Join(baseDir, "usr/local/bin")
-		helperDir = path.Join(baseDir, "sbin")
-
-	case "linux":
-		binDir = path.Join(baseDir, "usr/bin")
-		helperDir = path.Join(baseDir, "sbin")
-
-	default:
-		err = fmt.Errorf("Don't know what directories to use for %s", osys)
-		return
-	}
-
-	// Create the appropriate directories.
-	dirs := []string{
-		binDir,
-		helperDir,
-	}
-
-	for _, d := range dirs {
-		err = os.MkdirAll(d, 0755)
+		var output []byte
+		output, err = cmd.CombinedOutput()
 		if err != nil {
-			err = fmt.Errorf("MkdirAll: %v", err)
+			err = fmt.Errorf("go run build_gcsfuse: %v\nOutput:\n%s", err, output)
 			return
 		}
 	}
 
-	return
-}
+	// Add symlink(s) from /sbin to /usr/sbin or /usr/local/sbin, as the case may
+	// be.
+	{
+		symlinks := map[string]string{}
+		switch osys {
+		case "linux":
+			symlinks["sbin/mount.fuse.gcsfuse"] = "usr/sbin/mount.fuse.gcsfuse"
+			symlinks["sbin/mount.gcsfuse"] = "usr/sbin/mount.gcsfuse"
 
-func copyFile(dst string, src string, perm os.FileMode) (err error) {
-	// Open the source.
-	s, err := os.Open(src)
-	if err != nil {
-		return
-	}
+		case "darwin":
+			symlinks["sbin/mount_gcsfuse"] = "usr/sbin/mount_gcsfuse"
 
-	defer s.Close()
-
-	// Open the destination.
-	d, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, perm)
-	if err != nil {
-		return
-	}
-
-	defer d.Close()
-
-	// Copy contents.
-	_, err = io.Copy(d, s)
-	if err != nil {
-		err = fmt.Errorf("Copy: %v", err)
-		return
-	}
-
-	// Finish up.
-	err = d.Close()
-	if err != nil {
-		return
-	}
-
-	return
-}
-
-// Copy the mount(8) helper(s) into place from $GOPATH.
-func writeMountHelper(
-	osys string,
-	gopath string,
-	helperDir string) (err error) {
-	// Choose the filename.
-	var filename string
-	switch osys {
-	case "darwin":
-		filename = "mount_gcsfuse"
-
-	case "linux":
-		filename = "mount.gcsfuse"
-
-	default:
-		err = fmt.Errorf("Unsupported OS: %q", osys)
-		return
-	}
-
-	// Copy the file into place.
-	err = copyFile(
-		path.Join(helperDir, filename),
-		path.Join(
-			gopath,
-			fmt.Sprintf(
-				"src/github.com/googlecloudplatform/gcsfuse/tools/mount_gcsfuse/%s.sh",
-				osys)),
-		0755)
-
-	if err != nil {
-		err = fmt.Errorf("copyFile: %v", err)
-		return
-	}
-
-	// On Linux, also support `mount -t fuse.gcsfuse`. If there's no explicit
-	// helper for this type, /sbin/mount.fuse will call the gcsfuse executable
-	// directly, but it doesn't support the right argument format and doesn't
-	// daemonize. So we install an explicit helper.
-	if osys == "linux" {
-		err = os.Symlink("mount.gcsfuse", path.Join(helperDir, "mount.fuse.gcsfuse"))
-		if err != nil {
-			err = fmt.Errorf("Symlink: %v", err)
+		default:
+			err = fmt.Errorf("Unhandled OS: %q", osys)
 			return
+		}
+
+		for src, target := range symlinks {
+			err = os.Symlink(target, path.Join(dir, src))
+			if err != nil {
+				err = fmt.Errorf("Symlink: %v", err)
+				return
+			}
 		}
 	}
 
