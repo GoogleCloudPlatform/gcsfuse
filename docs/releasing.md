@@ -28,7 +28,7 @@ Building a gcsfuse release:
         ./build_release --version 1.2.3 --commit 123abcd --output_dir ~/tmp/release
 
 0.  [Create a new release][new-release] on GitHub. Paste in the release notes
-    and update the contents of `~/tmp/release` from the previous two steps.
+    and upload the contents of `~/tmp/release` from the previous two steps.
 
 10. Find and replace in `docs/installing.md` to reference the new version
     number. For example: `%s/1\.2\.2/1.2.3/gc`
