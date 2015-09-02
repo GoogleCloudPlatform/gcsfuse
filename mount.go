@@ -54,13 +54,24 @@ func mount(
 		}
 	}
 
-	// Choose UID and GID.
+	// Find the current process's UID and GID. If it was invoked as root and the
+	// user hasn't explicitly overridden --uid, everything is going to be owned
+	// by root. This is probably not what the user wants, so print a warning.
 	uid, gid, err := perms.MyUserAndGroup()
 	if err != nil {
 		err = fmt.Errorf("MyUserAndGroup: %v", err)
 		return
 	}
 
+	if uid == 0 && flags.Uid < 0 {
+		fmt.Fprintln(os.Stderr, `
+WARNING: gcsfuse invoked as root. This will cause all files to be owned by
+root. If this is not what you intended, invoke gcsfuse as the user that will
+be interacting with the file system.
+`)
+	}
+
+	// Choose UID and GID.
 	if flags.Uid >= 0 {
 		uid = uint32(flags.Uid)
 	}
