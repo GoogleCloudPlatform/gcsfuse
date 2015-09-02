@@ -26,96 +26,60 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
-	"go/build"
 	"log"
 	"os"
+	"runtime"
 )
 
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
+func run(args []string) (err error) {
+	osys := runtime.GOOS
+	arch := runtime.GOARCH
 
-func getSettings() (version, commit, osys, arch, outputDir string, err error) {
-	if *fVersion == "" {
-		err = errors.New("You must set --version.")
+	// Extract arguments.
+	if len(args) != 2 {
+		err = fmt.Errorf("Usage: %s dst_dir version", os.Args[0])
 		return
 	}
-	version = *fVersion
 
-	if *fCommit == "" {
-		err = errors.New("You must set --commit.")
-		return
-	}
-	commit = *fCommit
+	dstDir := args[0]
+	version := args[1]
 
-	// Use the compiled code's OS and architecture, allowing the user to override
-	// in the environment.
-	osys = build.Default.GOOS
-	arch = build.Default.GOARCH
-
-	// Output dir
-	outputDir = *fOutputDir
-	if outputDir == "" {
-		outputDir, err = os.Getwd()
-		if err != nil {
-			err = fmt.Errorf("Getwd: %v", err)
-			return
-		}
-	}
-
-	return
-}
-
-////////////////////////////////////////////////////////////////////////
-// main logic
-////////////////////////////////////////////////////////////////////////
-
-func run() (err error) {
 	// Ensure that all of the tools we need are present.
 	err = checkForTools()
 	if err != nil {
 		return
 	}
 
-	// Read flags.
-	version, commit, osys, arch, outputDir, err := getSettings()
+	// Assemble binaries, mount(8) helper scripts, etc.
+	buildDir, err := build(version, osys)
 	if err != nil {
+		err = fmt.Errorf("build: %v", err)
 		return
 	}
 
-	// Build release binaries.
-	binDir, err := buildBinaries(version, commit, osys, arch)
-	if err != nil {
-		err = fmt.Errorf("buildBinaries: %v", err)
-		return
-	}
-
-	defer os.RemoveAll(binDir)
+	defer os.RemoveAll(buildDir)
 
 	// Write out a tarball.
-	err = packageTarball(binDir, version, osys, arch, outputDir)
+	err = packageTarball(buildDir, version, osys, arch, dstDir)
 	if err != nil {
 		err = fmt.Errorf("packageTarball: %v", err)
 		return
 	}
 
-	// Write out .deb and maybe .rpm files if we're building for Linux.
+	// Write out .deb and .rpm files if we're building for Linux.
 	if osys == "linux" {
-		err = packageDeb(binDir, version, osys, arch, *fOutputDir)
+		err = packageDeb(buildDir, version, osys, arch, dstDir)
 		if err != nil {
 			err = fmt.Errorf("packageDeb: %v", err)
 			return
 		}
 
-		if *fRPM {
-			err = packageRpm(binDir, version, osys, arch, *fOutputDir)
-			if err != nil {
-				err = fmt.Errorf("packageDeb: %v", err)
-				return
-			}
+		err = packageRpm(buildDir, version, osys, arch, dstDir)
+		if err != nil {
+			err = fmt.Errorf("packageDeb: %v", err)
+			return
 		}
 	}
 
@@ -126,7 +90,7 @@ func main() {
 	log.SetFlags(log.Lmicroseconds)
 	flag.Parse()
 
-	err := run()
+	err := run(flag.Args())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
