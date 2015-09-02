@@ -26,6 +26,7 @@
 //
 //     bin/gcsfuse
 //     bin/mount_gcsfuse
+//     sbin/mount.fuse.gcsfuse
 //     sbin/mount.gcsfuse
 //
 // For OS X:
