@@ -117,7 +117,11 @@ Ensure that dependencies are present:
 Download and extract the latest release tarball:
 
     curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.11.1/gcsfuse_v0.11.1_linux_amd64.tar.gz
-    sudo tar -o -C / -zxf gcsfuse_v0.11.1_linux_amd64.tar.gz
+    mkdir gcsfuse-tmp
+    tar -C gcsfuse-tmp -zxf gcsfuse_v0.11.1_linux_amd64.tar.gz
+
+This will set up a directory called `gcsfuse-tmp` from which you can copy
+binaries into the appropriate location on your system.
 
 On some systems it may be necessary to add the your user account to the `fuse`
 group in order to have permission to run `fusermount` (don't forget to log out
