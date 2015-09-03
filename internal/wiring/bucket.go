@@ -15,7 +15,12 @@
 package wiring
 
 // MakeBucket will return a special fake bucket when it is given this name,
-// which is not a legal name.
+// which is not a legal name. The bucket contains the following canned objects:
+//
+//     Name       Contents
+//     ----       --------
+//     foo        "taco"
+//     bar/baz    "burrito"
 //
 // Cf. https://cloud.google.com/storage/docs/bucket-naming?hl=en
 const FakeBucket = "fake@bucket"
