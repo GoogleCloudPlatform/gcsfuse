@@ -1,0 +1,58 @@
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package integration_test
+
+import (
+	"errors"
+	"flag"
+	"io/ioutil"
+	"log"
+	"os"
+	"testing"
+)
+
+// A directory containing outputs created by build_gcsfuse, set up and deleted
+// in TestMain.
+var gBuildDir string
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+
+	// Set up a directory into which we will build.
+	gBuildDir, err := ioutil.TempDir("", "gcsfuse_integration_tests")
+	if err != nil {
+		log.Fatalf("TempDir: %v", err)
+		return
+	}
+
+	// Build into that directory.
+	err = build(gBuildDir)
+	if err != nil {
+		log.Fatalf("build: %v", err)
+		return
+	}
+
+	// Run tests.
+	code := m.Run()
+
+	// Clean up and exit.
+	os.RemoveAll(gBuildDir)
+	os.Exit(code)
+}
+
+func build(dstDir string) (err error) {
+	err = errors.New("TODO")
+	return
+}

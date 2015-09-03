@@ -29,18 +29,7 @@ func TestGcsfuse(t *testing.T) { RunTests(t) }
 type GcsfuseTest struct {
 }
 
-var _ SetUpTestSuiteInterface = &GcsfuseTest{}
-var _ TearDownTestSuiteInterface = &GcsfuseTest{}
-
 func init() { RegisterTestSuite(&GcsfuseTest{}) }
-
-func (_ *GcsfuseTest) SetUpTestSuite() {
-	AssertTrue(false, "TODO")
-}
-
-func (_ *GcsfuseTest) TearDownTestSuite() {
-	AssertTrue(false, "TODO")
-}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
