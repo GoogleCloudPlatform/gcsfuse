@@ -18,6 +18,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/build"
 	"io/ioutil"
 	"log"
 	"os"
@@ -79,7 +80,24 @@ func buildGcsfuse(dstDir string) (err error) {
 		}
 	}
 
-	// Use it to perform a build.
+	// Figure out where we can find the source code for gcsfuse.
+	var srcDir string
+	{
+		var pkg *build.Package
+		pkg, err = build.Import(
+			"github.com/googlecloudplatform/gcsfuse",
+			"",
+			build.FindOnly)
+
+		if err != nil {
+			err = fmt.Errorf("build.Import: %v", err)
+			return
+		}
+
+		srcDir = pkg.Dir
+	}
+
+	// Use build_gcsfuse to perform a build.
 	log.Printf("Building gcsfuse into %s", dstDir)
 
 	{
