@@ -145,24 +145,23 @@ above and logging out and back in, you may need to fix the permissions:
 
 # OS X
 
-Download and install [osxfuse][]. Afterward, download and extract the latest
-release tarball:
+First, handle prerequisites:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.11.1/gcsfuse_v0.11.1_darwin_amd64.tar.gz
-    sudo tar -o -C / -zxf gcsfuse_v0.11.1_darwin_amd64.tar.gz
+*   Install [osxfuse](https://osxfuse.github.io/).
+*   Install the [homebrew](http://brew.sh/) package manager.
 
-[osxfuse]: https://osxfuse.github.io/
+Afterward, gcsfuse can be installed with `brew`:
 
-If you want [fstab support][fstab] using the built-in helper script, you should
-also install [daemon][daemon]. If you use [Homebrew][homebrew], you can do this
-with:
+    brew install https://raw.githubusercontent.com/jacobsa/homebrew-fuse/b3d78efa83efd952d7349ec6b240dbb40fcb4069/Formula/gcsfuse.rb
+    sudo ln -s /usr/local/sbin/mount_gcsfuse /sbin  # For mount(8) support
 
-    brew install daemon
+The second command is only necessary if you want to use gcsfuse with the
+`mount` command or in your `/etc/fstab` file, as opposed to calling `gcsfuse`
+directly.
 
-[fstab]: mounting.md
-[daemon]: http://libslack.org/daemon/
-[homebrew]: http://brew.sh/
+In the future gcsfuse can be updated in the usual way for homebrew packages:
 
+    brew update && brew upgrade
 
 
 # Building from source
