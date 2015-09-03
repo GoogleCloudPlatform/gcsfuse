@@ -35,6 +35,38 @@ func init() { RegisterTestSuite(&GcsfuseTest{}) }
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *GcsfuseTest) DoesFoo() {
+func (t *GcsfuseTest) BadUsage() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *GcsfuseTest) ErrorOpeningBucket() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *GcsfuseTest) ReadOnlyMode() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *GcsfuseTest) ReadWriteMode() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *GcsfuseTest) FileAndDirModeFlags() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *GcsfuseTest) UidAndGidFlags() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *GcsfuseTest) ImplicitDirs() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *GcsfuseTest) VersionFlags() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *GcsfuseTest) HelpFlags() {
 	AssertTrue(false, "TODO")
 }
