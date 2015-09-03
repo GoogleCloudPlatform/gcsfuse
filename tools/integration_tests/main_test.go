@@ -32,9 +32,10 @@ var gBuildDir string
 
 func TestMain(m *testing.M) {
 	flag.Parse()
+	var err error
 
 	// Set up a directory into which we will build.
-	gBuildDir, err := ioutil.TempDir("", "gcsfuse_integration_tests")
+	gBuildDir, err = ioutil.TempDir("", "gcsfuse_integration_tests")
 	if err != nil {
 		log.Fatalf("TempDir: %v", err)
 		return

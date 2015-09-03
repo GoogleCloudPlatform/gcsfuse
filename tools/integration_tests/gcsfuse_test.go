@@ -15,8 +15,12 @@
 package integration_test
 
 import (
+	"os/exec"
+	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/wiring"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -27,16 +31,54 @@ func TestGcsfuse(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 
 type GcsfuseTest struct {
+	gcsfusePath string
 }
 
+var _ SetUpInterface = &GcsfuseTest{}
+
 func init() { RegisterTestSuite(&GcsfuseTest{}) }
+
+func (t *GcsfuseTest) SetUp(_ *TestInfo) {
+	t.gcsfusePath = path.Join(gBuildDir, "bin/gcsfuse")
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
 func (t *GcsfuseTest) BadUsage() {
-	AssertTrue(false, "TODO")
+	testCases := []struct {
+		args           []string
+		expectedOutput string
+	}{
+		// Too few args
+		0: {
+			[]string{wiring.FakeBucket},
+			"exactly two arguments",
+		},
+
+		// Too many args
+		1: {
+			[]string{wiring.FakeBucket, "a", "b"},
+			"exactly two arguments",
+		},
+
+		// Unknown flag
+		2: {
+			[]string{"--tweak_frobnicator", wiring.FakeBucket, "a"},
+			"not defined.*tweak_frobnicator",
+		},
+	}
+
+	// Run each test case.
+	for i, tc := range testCases {
+		cmd := exec.Command(t.gcsfusePath)
+		cmd.Args = append(cmd.Args, tc.args...)
+
+		output, err := cmd.CombinedOutput()
+		ExpectThat(err, Error(HasSubstr("exit status")), "case %d", i)
+		ExpectThat(string(output), MatchesRegexp(tc.expectedOutput), "case %d", i)
+	}
 }
 
 func (t *GcsfuseTest) ErrorOpeningBucket() {
