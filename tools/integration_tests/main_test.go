@@ -15,7 +15,6 @@
 package integration_test
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"go/build"
@@ -121,6 +120,41 @@ func buildGcsfuse(dstDir string) (err error) {
 
 // Build the build_gcsfuse tool, writing the binary to the supplied path.
 func buildBuildGcsfuse(dst string) (err error) {
-	err = errors.New("TODO")
+	// Figure out where we can find the source for build_gcsfuse.
+	var srcDir string
+	{
+		var pkg *build.Package
+		pkg, err = build.Import(
+			"github.com/googlecloudplatform/gcsfuse/tools/build_gcsfuse",
+			"",
+			build.FindOnly)
+
+		if err != nil {
+			err = fmt.Errorf("build.Import: %v", err)
+			return
+		}
+
+		srcDir = pkg.Dir
+	}
+
+	// Build within that directory with no GOPATH -- it should have no external
+	// dependencies besides the standard library.
+	{
+		cmd := exec.Command(
+			"go", "build",
+			"-o", dst,
+		)
+
+		cmd.Dir = srcDir
+		cmd.Env = []string{}
+
+		var output []byte
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			err = fmt.Errorf("go build build_gcsfuse: %v\nOutput:\n%s", err, output)
+			return
+		}
+	}
+
 	return
 }
