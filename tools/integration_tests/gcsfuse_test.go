@@ -224,7 +224,30 @@ func (t *GcsfuseTest) ReadOnlyMode() {
 }
 
 func (t *GcsfuseTest) ReadWriteMode() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Mount.
+	args := []string{fakeBucketName, t.dir}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// Check that the expected file is there (cf. the documentation on
+	// setUpBucket in bucket.go).
+	p := path.Join(t.dir, "foo")
+
+	contents, err := ioutil.ReadFile(p)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
+
+	// We should be able to overwrite it.
+	err = ioutil.WriteFile(p, []byte("enchilada"), 0400)
+	AssertEq(nil, err)
+
+	contents, err = ioutil.ReadFile(p)
+	AssertEq(nil, err)
+	ExpectEq("enchilada", string(contents))
 }
 
 func (t *GcsfuseTest) FileAndDirModeFlags() {
