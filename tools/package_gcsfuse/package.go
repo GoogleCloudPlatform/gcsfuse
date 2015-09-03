@@ -17,58 +17,8 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"os/exec"
-	"path"
 )
-
-// Given a directory containing release binaries, create an appropriate .tar.gz
-// file.
-func packageTarball(
-	binDir string,
-	version string,
-	osys string,
-	arch string,
-	outputDir string) (err error) {
-	// Choose an output file name.
-	outputFile := path.Join(
-		outputDir,
-		fmt.Sprintf("gcsfuse_v%s_%s_%s.tar.gz", version, osys, arch))
-
-	log.Printf("Writing tarball to %s", outputFile)
-
-	// Find the set of files to include.
-	f, err := os.Open(binDir)
-	if err != nil {
-		err = fmt.Errorf("Open: %v", err)
-		return
-	}
-
-	defer f.Close()
-
-	names, err := f.Readdirnames(0)
-	if err != nil {
-		err = fmt.Errorf("Readdirnames: %v", err)
-		return
-	}
-
-	// Run tar.
-	cmd := exec.Command(
-		"tar",
-		"zcvf",
-		outputFile)
-
-	cmd.Args = append(cmd.Args, names...)
-	cmd.Dir = binDir
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		err = fmt.Errorf("tar: %v\nOutput:\n%s", err, output)
-		return
-	}
-
-	return
-}
 
 func packageFpm(
 	packageType string,

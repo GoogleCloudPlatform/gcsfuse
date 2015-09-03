@@ -73,13 +73,6 @@ func run(args []string) (err error) {
 
 	defer os.RemoveAll(buildDir)
 
-	// Write out a tarball.
-	err = packageTarball(buildDir, version, osys, arch, dstDir)
-	if err != nil {
-		err = fmt.Errorf("packageTarball: %v", err)
-		return
-	}
-
 	// Write out .deb and .rpm files if we're building for Linux.
 	if osys == "linux" {
 		err = packageDeb(buildDir, version, osys, arch, dstDir)
