@@ -22,12 +22,14 @@ import (
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/wiring"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
 func TestGcsfuse(t *testing.T) { RunTests(t) }
+
+// Cf. bucket.go.
+const fakeBucketName = "fake@bucket"
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -140,19 +142,19 @@ func (t *GcsfuseTest) BadUsage() {
 	}{
 		// Too few args
 		0: {
-			[]string{wiring.FakeBucket},
+			[]string{fakeBucketName},
 			"exactly two arguments",
 		},
 
 		// Too many args
 		1: {
-			[]string{wiring.FakeBucket, "a", "b"},
+			[]string{fakeBucketName, "a", "b"},
 			"exactly two arguments",
 		},
 
 		// Unknown flag
 		2: {
-			[]string{"--tweak_frobnicator", wiring.FakeBucket, "a"},
+			[]string{"--tweak_frobnicator", fakeBucketName, "a"},
 			"not defined.*tweak_frobnicator",
 		},
 	}
@@ -172,13 +174,13 @@ func (t *GcsfuseTest) ReadOnlyMode() {
 	var err error
 
 	// Mount.
-	args := []string{"-o", "ro", wiring.FakeBucket, t.dir}
+	args := []string{"-o", "ro", fakeBucketName, t.dir}
 
 	err = t.mount(args)
 	AssertEq(nil, err)
 
 	// Check that the expected file is there (cf. the documentation on
-	// wiring.FakeBucket).
+	// setUpBucket in bucket.go).
 	contents, err := ioutil.ReadFile(path.Join(t.dir, "foo"))
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))

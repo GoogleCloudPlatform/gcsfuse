@@ -80,16 +80,30 @@ func setUpRateLimiting(
 	return
 }
 
+// Configure a bucket based on the supplied flags.
+//
+// Special case: if the bucket name is the illegal "fake@bucket", set up a fake
+// bucket containing the following canned objects for use in tests:
+//
+//     Name       Contents
+//     ----       --------
+//     foo        "taco"
+//     bar/baz    "burrito"
+//
 func setUpBucket(
 	ctx context.Context,
 	flags *flagStorage,
 	conn gcs.Conn,
 	name string) (b gcs.Bucket, err error) {
 	// Extract the appropriate bucket.
-	b, err = conn.OpenBucket(ctx, name)
-	if err != nil {
-		err = fmt.Errorf("OpenBucket: %v", err)
-		return
+	if bucketName == "fake@bucket" {
+		b = makeFakeBucket()
+	} else {
+		b, err = conn.OpenBucket(ctx, name)
+		if err != nil {
+			err = fmt.Errorf("OpenBucket: %v", err)
+			return
+		}
 	}
 
 	// Enable rate limiting, if requested.
@@ -115,3 +129,6 @@ func setUpBucket(
 
 	return
 }
+
+// See notes on setUpBucket.
+func makeFakeBucket() (b gcs.Bucket)
