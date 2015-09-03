@@ -17,10 +17,13 @@ package integration_test
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/jacobsa/fuse"
 	. "github.com/jacobsa/oglematchers"
@@ -132,6 +135,29 @@ func (t *GcsfuseTest) runGcsfuse(args []string, statusW *os.File) (err error) {
 	return
 }
 
+// Unmount the file system mounted at the supplied directory. Try again on
+// "resource busy" errors, which happen from time to time on OS X (due to weird
+// requests from the Finder).
+func unmount(dir string) (err error) {
+	delay := 10 * time.Millisecond
+	for {
+		err = fuse.Unmount(dir)
+		if err == nil {
+			return
+		}
+
+		if strings.Contains(err.Error(), "resource busy") {
+			log.Println("Resource busy error while unmounting; trying again")
+			time.Sleep(delay)
+			delay = time.Duration(1.3 * float64(delay))
+			continue
+		}
+
+		err = fmt.Errorf("Unmount: %v", err)
+		return
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
@@ -179,7 +205,7 @@ func (t *GcsfuseTest) ReadOnlyMode() {
 
 	err = t.mount(args)
 	AssertEq(nil, err)
-	defer fuse.Unmount(t.dir)
+	defer unmount(t.dir)
 
 	// Check that the expected file is there (cf. the documentation on
 	// setUpBucket in bucket.go).
