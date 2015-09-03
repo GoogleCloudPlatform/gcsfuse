@@ -12,6 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// A fuse file system for Google Cloud Storage buckets.
+//
+// Usage:
+//
+//     gcsfuse [flags] bucket mount_point
+//
+// The following environment variables are supported. These are subject to
+// change, and are for internal use only!
+//
+//     STATUS_PIPE: If set to a file descriptor number, gcsfuse will write a
+//                  single byte to that file when the file system has been
+//                  successfully mounted.
+//
 package main
 
 import (
@@ -22,6 +35,7 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/pprof"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -220,6 +234,18 @@ func main() {
 	go handleCPUProfileSignals()
 	go handleMemoryProfileSignals()
 
+	// Extract the status pipe that the user handed us, if any.
+	var statusPipe *os.File
+	if os.Getenv("STATUS_PIPE") != "" {
+		fd, err := strconv.Atoi(os.Getenv("STATUS_PIPE"))
+		if err != nil {
+			log.Fatalf("Atoi(%q): %v", os.Getenv("STATUS_PIPE"), err)
+		}
+
+		statusPipe = os.NewFile(uintptr(fd), "status_pipe")
+	}
+
+	// Set up the app.
 	app := newApp()
 	app.Action = func(c *cli.Context) {
 		var err error
@@ -263,6 +289,10 @@ func main() {
 		}
 
 		log.Println("File system has been successfully mounted.")
+
+		if statusPipe != nil {
+			statusPipe.Write([]byte("x"))
+		}
 
 		// Let the user unmount with Ctrl-C (SIGINT).
 		registerSIGINTHandler(mfs.Dir())
