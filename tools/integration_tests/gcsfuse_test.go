@@ -16,6 +16,7 @@ package integration_test
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -64,6 +65,55 @@ func (t *GcsfuseTest) TearDown() {
 // Call gcsfuse with the supplied args, waiting for it to mount. Return nil
 // only if it mounts successfully.
 func (t *GcsfuseTest) mount(args []string) (err error) {
+	// Set up a pipe that gcsfuse can write to to tell us when it has
+	// successfully mounted.
+	statusR, statusW, err := os.Pipe()
+	if err != nil {
+		err = fmt.Errorf("Pipe: %v", err)
+		return
+	}
+
+	// Run gcsfuse, writing the result of waiting for it to a channel.
+	gcsfuseErr := make(chan error, 1)
+	go func() {
+		gcsfuseErr <- runGcsfuse(args, statusW)
+	}()
+
+	// In the background, wait for something to be written to the pipe.
+	pipeErr := make(chan error, 1)
+	go func() {
+		defer statusR.Close()
+		n, err := statusR.Read(make([]byte, 1))
+		if n == 1 {
+			pipeErr <- nil
+			return
+		}
+
+		pipeErr <- fmt.Errorf("statusR.Read: %v", err)
+	}()
+
+	// Watch for a result from one of them.
+	select {
+	case err = <-gcsfuseErr:
+		err = fmt.Errorf("gcsfuse: %v", err)
+		return
+
+	case err = <-pipeErr:
+		if err == nil {
+			// All is good.
+			return
+		}
+
+		err = <-gcsfuseErr
+		err = fmt.Errorf("gcsfuse after pipe error: %v", err)
+		return
+	}
+}
+
+// Run gcsfuse and wait for it to return. Hand it the supplied pipe to write
+// into when it successfully mounts. This function takes responsibility for
+// closing the write end of the pipe locally.
+func runGcsfuse(args []string, statusW *os.File) (err error) {
 	err = errors.New("TODO")
 	return
 }
