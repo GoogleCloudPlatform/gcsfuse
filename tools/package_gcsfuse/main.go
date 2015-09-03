@@ -13,8 +13,7 @@
 // limitations under the License.
 
 // Perform a hermetic build of gcsfuse at a particular git tag specifying the
-// version name, producing a release tarball. On Linux, also produce release
-// packages.
+// version name, producing .deb and .rpm files for Linux.
 //
 // Usage:
 //
@@ -25,8 +24,7 @@
 // performed at the given commit (or branch or tag), which defaults to
 // `v<version>`.
 //
-// A tarball will be written to dst_dir, along with .deb and .rpm files if
-// building on Linux
+// .deb and .rpm files will be written to dst_dir.
 package main
 
 import (
