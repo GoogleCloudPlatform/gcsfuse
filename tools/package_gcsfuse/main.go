@@ -13,8 +13,7 @@
 // limitations under the License.
 
 // Perform a hermetic build of gcsfuse at a particular git tag specifying the
-// version name, producing a release tarball. On Linux, also produce release
-// packages.
+// version name, producing .deb and .rpm files for Linux.
 //
 // Usage:
 //
@@ -25,8 +24,7 @@
 // performed at the given commit (or branch or tag), which defaults to
 // `v<version>`.
 //
-// A tarball will be written to dst_dir, along with .deb and .rpm files if
-// building on Linux
+// .deb and .rpm files will be written to dst_dir.
 package main
 
 import (
@@ -74,13 +72,6 @@ func run(args []string) (err error) {
 	}
 
 	defer os.RemoveAll(buildDir)
-
-	// Write out a tarball.
-	err = packageTarball(buildDir, version, osys, arch, dstDir)
-	if err != nil {
-		err = fmt.Errorf("packageTarball: %v", err)
-		return
-	}
 
 	// Write out .deb and .rpm files if we're building for Linux.
 	if osys == "linux" {
