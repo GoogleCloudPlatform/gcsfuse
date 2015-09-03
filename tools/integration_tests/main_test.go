@@ -17,9 +17,12 @@ package integration_test
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
+	"path"
 	"testing"
 )
 
@@ -38,9 +41,9 @@ func TestMain(m *testing.M) {
 	}
 
 	// Build into that directory.
-	err = build(gBuildDir)
+	err = buildGcsfuse(gBuildDir)
 	if err != nil {
-		log.Fatalf("build: %v", err)
+		log.Fatalf("buildGcsfuse: %v", err)
 		return
 	}
 
@@ -52,7 +55,54 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func build(dstDir string) (err error) {
+// Build bin/gcsfuse, sbin/mount_gcsfuse, etc. into the supplied directory.
+func buildGcsfuse(dstDir string) (err error) {
+	// Ensure we have a copy of build_gcsfuse sitting around.
+	var toolPath string
+	{
+		var toolDir string
+		toolDir, err = ioutil.TempDir("", "gcsfuse_integration_tests")
+		if err != nil {
+			err = fmt.Errorf("TempDir: %v", err)
+			return
+		}
+
+		defer os.RemoveAll(toolDir)
+
+		toolPath = path.Join(toolDir, "build_gcsfuse")
+		log.Printf("Building build_gcsfuse at %s", toolPath)
+
+		err = buildBuildGcsfuse(toolPath)
+		if err != nil {
+			err = fmt.Errorf("buildBuildGcsfuse: %v", err)
+			return
+		}
+	}
+
+	// Use it to perform a build.
+	log.Printf("Building gcsfuse into %s", dstDir)
+
+	{
+		cmd := exec.Command(
+			toolPath,
+			srcDir,
+			dstDir,
+			"fake_version",
+		)
+
+		var output []byte
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			err = fmt.Errorf("build_gcsfuse: %v\nOutput:\n%s", err, output)
+			return
+		}
+	}
+
+	return
+}
+
+// Build the build_gcsfuse tool, writing the binary to the supplied path.
+func buildBuildGcsfuse(dst string) (err error) {
 	err = errors.New("TODO")
 	return
 }
