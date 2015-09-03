@@ -15,7 +15,6 @@
 package integration_test
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -76,7 +75,7 @@ func (t *GcsfuseTest) mount(args []string) (err error) {
 	// Run gcsfuse, writing the result of waiting for it to a channel.
 	gcsfuseErr := make(chan error, 1)
 	go func() {
-		gcsfuseErr <- runGcsfuse(args, statusW)
+		gcsfuseErr <- t.runGcsfuse(args, statusW)
 	}()
 
 	// In the background, wait for something to be written to the pipe.
@@ -113,8 +112,20 @@ func (t *GcsfuseTest) mount(args []string) (err error) {
 // Run gcsfuse and wait for it to return. Hand it the supplied pipe to write
 // into when it successfully mounts. This function takes responsibility for
 // closing the write end of the pipe locally.
-func runGcsfuse(args []string, statusW *os.File) (err error) {
-	err = errors.New("TODO")
+func (t *GcsfuseTest) runGcsfuse(args []string, statusW *os.File) (err error) {
+	defer statusW.Close()
+
+	cmd := exec.Command(t.gcsfusePath)
+	cmd.Args = append(cmd.Args, args...)
+	cmd.ExtraFiles = []*os.File{statusW}
+	cmd.Env = []string{"STATUS_PIPE=3"}
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		err = fmt.Errorf("%v\nOutput:\n%s", err, output)
+		return
+	}
+
 	return
 }
 
