@@ -23,8 +23,8 @@ latest version when possible):
 
 If you are running Linux on a 64-bit x86 machine and are happy to install
 pre-built binaries (i.e. you don't want to build from source), you need only
-ensure fuse is installed, then download and install the latest release package
-or tarball. The instructions vary by distribution.
+ensure fuse is installed, then download and install the latest release package.
+The instructions vary by distribution.
 
 
 ## Ubuntu and Debian
@@ -112,16 +112,19 @@ Download and install the latest release package:
 Ensure that dependencies are present:
 
 *   Install [fuse](http://fuse.sourceforge.net/).
-*   (Optionally) For [fstab compatibility][], install [daemon][].
+*   Install [daemon](http://libslack.org/daemon/).
+*   Install [curl](http://curl.haxx.se/) (or use a different program for
+    downloading below).
 
-Download and extract the latest release tarball:
+If you are on a distribution that uses `.rpm` files for package management:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.11.1/gcsfuse_v0.11.1_linux_amd64.tar.gz
-    mkdir gcsfuse-tmp
-    tar -C gcsfuse-tmp -zxf gcsfuse_v0.11.1_linux_amd64.tar.gz
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.11.1/gcsfuse-0.11.1-1.x86_64.rpm
+    sudo rpm --install -p gcsfuse-0.11.1-1.x86_64.rpm
 
-This will set up a directory called `gcsfuse-tmp` from which you can copy
-binaries into the appropriate location on your system.
+Or one that uses `.deb` files:
+
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.11.1/gcsfuse_0.11.1_amd64.deb
+    sudo dpkg --install gcsfuse_0.11.1_amd64.deb
 
 On some systems it may be necessary to add the your user account to the `fuse`
 group in order to have permission to run `fusermount` (don't forget to log out
@@ -139,7 +142,6 @@ above and logging out and back in, you may need to fix the permissions:
     sudo chgrp fuse /dev/fuse
 
 [fstab compatibility]: mounting.md#mount8-and-fstab-compatibility
-[daemon]: http://libslack.org/daemon/
 [debian-bug]: http://superuser.com/a/800016/429161
 
 
