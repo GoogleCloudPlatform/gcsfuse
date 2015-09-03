@@ -22,6 +22,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/jacobsa/fuse"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
@@ -178,6 +179,7 @@ func (t *GcsfuseTest) ReadOnlyMode() {
 
 	err = t.mount(args)
 	AssertEq(nil, err)
+	defer fuse.Unmount(t.dir)
 
 	// Check that the expected file is there (cf. the documentation on
 	// setUpBucket in bucket.go).
@@ -192,7 +194,7 @@ func (t *GcsfuseTest) ReadOnlyMode() {
 
 	// Writing to the file system should ail.
 	err = ioutil.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
-	ExpectThat(err, Error(HasSubstr("TODO")))
+	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
 func (t *GcsfuseTest) ReadWriteMode() {
