@@ -93,18 +93,19 @@ func ChooseTokenBucketCapacity(
 	//  *  T=4.999999: Allow through nearly 100 MiB.
 	//  *  T=9.999999: Allow through nearly 100 MiB.
 	//
-	// Therefore we exceed the allowed bytes for the window by nearly 50%. Note
-	// however that this trend cannot continue into the next window, so this must
-	// be a transient spike.
+	// Above we allow through nearly 300 MiB, exceeding the allowed bytes for the
+	// window by nearly 50%. Note however that this trend cannot continue into
+	// the next window, so this must be a transient spike.
 	//
 	// In general if we set C <= W*B/N, then we're off by no more than a factor
 	// of (N+1)/N within any window of size W.
 	//
 	// Choose a reasonable N.
-	const N = 50
+	const N = 50 // At most 2% error
 
-	capacityFloat := math.Floor(rateHz * (float64(window) / float64(time.Second)))
-	if !(capacityFloat > 0 && capacityFloat < float64(math.MaxUint64)) {
+	w := float64(window) / float64(time.Second)
+	capacityFloat := math.Floor(w * rateHz / N)
+	if !(capacityFloat >= 1 && capacityFloat < float64(math.MaxUint64)) {
 		err = fmt.Errorf(
 			"Can't use a token bucket to limit to %f Hz over a window of %v "+
 				"(result is a capacity of %f)",
@@ -131,6 +132,9 @@ func ChooseTokenBucketCapacity(
 // to the given capacity. ChooseTokenBucketCapacity may help you decide on a
 // capacity.
 //
+// The token bucket starts full at time zero. If you would like it to start
+// empty, call tb.Remove(0, capacity).
+//
 // REQUIRES: rateHz > 0
 // REQUIRES: capacity > 0
 func NewTokenBucket(
@@ -139,6 +143,9 @@ func NewTokenBucket(
 	tb = &tokenBucket{
 		rateHz:   rateHz,
 		capacity: capacity,
+
+		creditTime: 0,
+		credit:     float64(capacity),
 	}
 
 	return
