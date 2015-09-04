@@ -93,7 +93,8 @@ const fakeBucketName = "fake@bucket"
 //     Name       Contents
 //     ----       --------
 //     foo        "taco"
-//     bar/baz    "burrito"
+//     bar/       ""
+//     baz/qux    "burrito"
 //
 func setUpBucket(
 	ctx context.Context,
@@ -144,7 +145,8 @@ func makeFakeBucket(
 	// Set up contents.
 	contents := map[string]string{
 		"foo":     "taco",
-		"bar/baz": "burrito",
+		"bar/":    "",
+		"baz/qux": "burrito",
 	}
 
 	for k, v := range contents {

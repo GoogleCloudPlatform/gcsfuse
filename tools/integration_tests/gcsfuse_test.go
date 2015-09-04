@@ -197,6 +197,36 @@ func (t *GcsfuseTest) BadUsage() {
 	}
 }
 
+func (t *GcsfuseTest) CannedContents() {
+	var err error
+	var fi os.FileInfo
+
+	// Mount.
+	args := []string{fakeBucketName, t.dir}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// Check the expected contents of the file system (cf. bucket.go).
+	fi, err = os.Lstat(path.Join(t.dir, "foo"))
+	AssertEq(nil, err)
+	ExpectEq(os.FileMode(0644), fi.Mode())
+
+	contents, err := ioutil.ReadFile(path.Join(t.dir, "foo"))
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
+
+	fi, err = os.Lstat(path.Join(t.dir, "bar"))
+	AssertEq(nil, err)
+	ExpectEq(0755|os.ModeDir, fi.Mode())
+
+	// The implicit directory shouldn't be visible, since we don't have implicit
+	// directories enabled.
+	_, err = os.Lstat(path.Join(t.dir, "baz"))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+}
+
 func (t *GcsfuseTest) ReadOnlyMode() {
 	var err error
 
@@ -207,18 +237,7 @@ func (t *GcsfuseTest) ReadOnlyMode() {
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
-	// Check that the expected file is there (cf. the documentation on
-	// setUpBucket in bucket.go).
-	contents, err := ioutil.ReadFile(path.Join(t.dir, "foo"))
-	AssertEq(nil, err)
-	ExpectEq("taco", string(contents))
-
-	// The implicit directory shouldn't be visible, since we don't have implicit
-	// directories enabled.
-	_, err = os.Lstat(path.Join(t.dir, "bar"))
-	ExpectTrue(os.IsNotExist(err), "err: %v", err)
-
-	// Writing to the file system should ail.
+	// Writing to the file system should fail.
 	err = ioutil.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
 	ExpectThat(err, Error(HasSubstr("read-only")))
 }
@@ -233,19 +252,13 @@ func (t *GcsfuseTest) ReadWriteMode() {
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
-	// Check that the expected file is there (cf. the documentation on
-	// setUpBucket in bucket.go).
+	// Overwrite the canned file.
 	p := path.Join(t.dir, "foo")
 
-	contents, err := ioutil.ReadFile(p)
-	AssertEq(nil, err)
-	ExpectEq("taco", string(contents))
-
-	// We should be able to overwrite it.
 	err = ioutil.WriteFile(p, []byte("enchilada"), 0400)
 	AssertEq(nil, err)
 
-	contents, err = ioutil.ReadFile(p)
+	contents, err := ioutil.ReadFile(p)
 	AssertEq(nil, err)
 	ExpectEq("enchilada", string(contents))
 }
