@@ -132,8 +132,8 @@
 			"canonical": "github.com/jacobsa/ratelimit",
 			"comment": "",
 			"local": "vendor/github.com/jacobsa/ratelimit",
-			"revision": "2ca5e0c92d8ad1dbcd55e6fefab799e28ee2558c",
-			"revisionTime": "2015-07-23T13:02:15+10:00"
+			"revision": "f5e47030f3b0a6d33e2176e47adeab7f6140098e",
+			"revisionTime": "2015-09-04T10:18:04+10:00"
 		},
 		{
 			"canonical": "github.com/jacobsa/reqtrace",
