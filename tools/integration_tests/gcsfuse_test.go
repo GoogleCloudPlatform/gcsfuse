@@ -264,7 +264,29 @@ func (t *GcsfuseTest) ReadWriteMode() {
 }
 
 func (t *GcsfuseTest) FileAndDirModeFlags() {
-	AssertTrue(false, "TODO")
+	var err error
+	var fi os.FileInfo
+
+	// Mount with non-standard modes.
+	args := []string{
+		"--file-mode", "461",
+		"--dir-mode", "511",
+		fakeBucketName,
+		t.dir,
+	}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// Stat contents.
+	fi, err = os.Lstat(path.Join(t.dir, "foo"))
+	AssertEq(nil, err)
+	ExpectEq(os.FileMode(0461), fi.Mode())
+
+	fi, err = os.Lstat(path.Join(t.dir, "bar"))
+	AssertEq(nil, err)
+	ExpectEq(0511|os.ModeDir, fi.Mode())
 }
 
 func (t *GcsfuseTest) UidAndGidFlags() {
