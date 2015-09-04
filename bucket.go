@@ -45,8 +45,9 @@ func setUpRateLimiting(
 		egressBandwidthLimit = 1e15
 	}
 
-	// Choose token bucket capacities.
-	const window = 30 * time.Second
+	// Choose token bucket capacities, targeting only a few percent error in each
+	// window of the given size.
+	const window = 8 * time.Hour
 
 	opCapacity, err := ratelimit.ChooseTokenBucketCapacity(
 		opRateLimitHz,
