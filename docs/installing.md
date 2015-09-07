@@ -79,12 +79,7 @@ for [other distributions](#other-distributions) below.
                https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
         EOF
 
-2.  Install [daemon][], used for [fstab support][fstab]:
-
-        curl -L -O http://libslack.org/daemon/download/daemon-0.6.4-1.x86_64.rpm
-        sudo rpm --install -p daemon-0.6.4-1.x86_64.rpm
-
-3.  Install gcsfuse:
+2.  Install gcsfuse:
 
         sudo yum install gcsfuse
 
@@ -98,8 +93,6 @@ Future updates to gcsfuse will automatically show up when updating with `yum`.
 Ensure that dependencies are present:
 
     sudo zypper install curl fuse
-    curl -L -O http://libslack.org/daemon/download/daemon-0.6.4-1.x86_64.rpm
-    sudo rpm --install -p daemon-0.6.4-1.x86_64.rpm
 
 Download and install the latest release package:
 
@@ -112,7 +105,6 @@ Download and install the latest release package:
 Ensure that dependencies are present:
 
 *   Install [fuse](http://fuse.sourceforge.net/).
-*   Install [daemon](http://libslack.org/daemon/).
 *   Install [curl](http://curl.haxx.se/) (or use a different program for
     downloading below).
 
