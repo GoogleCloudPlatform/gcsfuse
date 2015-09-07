@@ -346,7 +346,21 @@ func (t *GcsfuseTest) ImplicitDirs() {
 }
 
 func (t *GcsfuseTest) VersionFlags() {
-	AssertTrue(false, "TODO")
+	testCases := []struct {
+		args []string
+	}{
+		0: {[]string{"-v"}},
+		1: {[]string{"--version"}},
+	}
+
+	// For each argument, gcsfuse should exist successfully.
+	for i, tc := range testCases {
+		cmd := exec.Command(t.gcsfusePath)
+		cmd.Args = append(cmd.Args, tc.args...)
+
+		output, err := cmd.CombinedOutput()
+		ExpectEq(nil, err, "case %d\nOutput:\n%s", i, output)
+	}
 }
 
 func (t *GcsfuseTest) HelpFlags() {
