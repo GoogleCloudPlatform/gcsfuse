@@ -127,6 +127,7 @@ func buildBinaries(
 		// Set up environment.
 		cmd.Env = []string{
 			"GO15VENDOREXPERIMENT=1",
+			fmt.Sprintf("GOROOT=%s", runtime.GOROOT()),
 			fmt.Sprintf("GOPATH=%s", gopath),
 		}
 

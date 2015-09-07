@@ -16,12 +16,15 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"strings"
 	"time"
 
 	"golang.org/x/net/context"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
+	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/ratelimit"
 	"github.com/jacobsa/timeutil"
 )
@@ -80,16 +83,33 @@ func setUpRateLimiting(
 	return
 }
 
+const fakeBucketName = "fake@bucket"
+
+// Configure a bucket based on the supplied flags.
+//
+// Special case: if the bucket name is the illegal fakeBucketName, set up a
+// fake bucket containing the following canned objects for use in tests:
+//
+//     Name       Contents
+//     ----       --------
+//     foo        "taco"
+//     bar/       ""
+//     baz/qux    "burrito"
+//
 func setUpBucket(
 	ctx context.Context,
 	flags *flagStorage,
 	conn gcs.Conn,
 	name string) (b gcs.Bucket, err error) {
 	// Extract the appropriate bucket.
-	b, err = conn.OpenBucket(ctx, name)
-	if err != nil {
-		err = fmt.Errorf("OpenBucket: %v", err)
-		return
+	if name == fakeBucketName {
+		b = makeFakeBucket(ctx, fakeBucketName)
+	} else {
+		b, err = conn.OpenBucket(ctx, name)
+		if err != nil {
+			err = fmt.Errorf("OpenBucket: %v", err)
+			return
+		}
 	}
 
 	// Enable rate limiting, if requested.
@@ -111,6 +131,35 @@ func setUpBucket(
 			gcscaching.NewStatCache(cacheCapacity),
 			timeutil.RealClock(),
 			b)
+	}
+
+	return
+}
+
+// See notes on setUpBucket.
+func makeFakeBucket(
+	ctx context.Context,
+	name string) (b gcs.Bucket) {
+	b = gcsfake.NewFakeBucket(timeutil.RealClock(), name)
+
+	// Set up contents.
+	contents := map[string]string{
+		"foo":     "taco",
+		"bar/":    "",
+		"baz/qux": "burrito",
+	}
+
+	for k, v := range contents {
+		_, err := b.CreateObject(
+			ctx,
+			&gcs.CreateObjectRequest{
+				Name:     k,
+				Contents: strings.NewReader(v),
+			})
+
+		if err != nil {
+			log.Panicf("CreateObject: %v", err)
+		}
 	}
 
 	return
