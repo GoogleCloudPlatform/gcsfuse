@@ -68,6 +68,8 @@ func (t *GcsfuseTest) TearDown() {
 
 // Call gcsfuse with the supplied args, waiting for it to mount. Return nil
 // only if it mounts successfully.
+//
+// TODO(jacobsa): Move this code into daemon.Mount, and call that.
 func (t *GcsfuseTest) mount(args []string) (err error) {
 	// Set up a pipe that gcsfuse can write to to tell us when it has
 	// successfully mounted.
