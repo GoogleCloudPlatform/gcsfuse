@@ -34,8 +34,7 @@ func SignalMounted() (err error) {
 // For use by gcsfuse: return a writer that should be used for logging status
 // messages while in the process of mounting.
 //
-// This function must not be called more than once. The returned writer must
-// not be written to after calling SignalMounted.
+// The returned writer must not be written to after calling SignalMounted.
 func StatusWriter() (w io.Writer) {
 	panic("TODO")
 }
