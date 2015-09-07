@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"runtime"
 )
 
 // Build at the supplied commit (or branch or tag), embedding the given version
@@ -114,6 +115,7 @@ func build(
 		cmd.Dir = path.Join(gitDir, "tools/build_gcsfuse")
 		cmd.Env = []string{
 			"GO15VENDOREXPERIMENT=1",
+			fmt.Sprintf("GOROOT=%s", runtime.GOROOT()),
 			"GOPATH=/does/not/exist",
 		}
 

@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"runtime"
 	"testing"
 )
 
@@ -30,9 +31,23 @@ import (
 // in TestMain.
 var gBuildDir string
 
+// On Linux, the directory containing fusermount, which must be in gcsfuse's
+// PATH variable in order to successfully mount. Set by TestMain.
+var gFusermountDir string
+
 func TestMain(m *testing.M) {
 	flag.Parse()
 	var err error
+
+	// Find fusermount if we're running on Linux.
+	if runtime.GOOS == "linux" {
+		fusermountPath, err := exec.LookPath("fusermount")
+		if err != nil {
+			log.Fatalf("LookPath(fusermount): %v", err)
+		}
+
+		gFusermountDir = path.Dir(fusermountPath)
+	}
 
 	// Set up a directory into which we will build.
 	gBuildDir, err = ioutil.TempDir("", "gcsfuse_integration_tests")
@@ -147,7 +162,9 @@ func buildBuildGcsfuse(dst string) (err error) {
 		)
 
 		cmd.Dir = srcDir
-		cmd.Env = []string{}
+		cmd.Env = []string{
+			fmt.Sprintf("GOROOT=%s", runtime.GOROOT()),
+		}
 
 		var output []byte
 		output, err = cmd.CombinedOutput()

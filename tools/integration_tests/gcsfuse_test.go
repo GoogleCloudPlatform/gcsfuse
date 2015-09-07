@@ -125,7 +125,10 @@ func (t *GcsfuseTest) runGcsfuse(args []string, statusW *os.File) (err error) {
 	cmd := exec.Command(t.gcsfusePath)
 	cmd.Args = append(cmd.Args, args...)
 	cmd.ExtraFiles = []*os.File{statusW}
-	cmd.Env = []string{"STATUS_PIPE=3"}
+	cmd.Env = []string{
+		"STATUS_PIPE=3",
+		fmt.Sprintf("PATH=%s", gFusermountDir),
+	}
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
