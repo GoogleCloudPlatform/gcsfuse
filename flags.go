@@ -15,7 +15,9 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/codegangsta/cli"
@@ -49,6 +51,12 @@ COPYRIGHT:
 }
 
 func newApp() (app *cli.App) {
+	dirModeValue := new(OctalInt)
+	*dirModeValue = 0755
+
+	fileModeValue := new(OctalInt)
+	*fileModeValue = 0644
+
 	app = &cli.App{
 		Name:     "gcsfuse",
 		Version:  getVersion(),
@@ -71,16 +79,16 @@ func newApp() (app *cli.App) {
 				Usage: "Additional system-specific mount options. Be careful!",
 			},
 
-			cli.IntFlag{
+			cli.GenericFlag{
 				Name:  "dir-mode",
-				Value: 0755,
-				Usage: "Permissions bits for directories. (default: 0755)",
+				Value: dirModeValue,
+				Usage: "Permissions bits for directories, in octal.",
 			},
 
-			cli.IntFlag{
+			cli.GenericFlag{
 				Name:  "file-mode",
-				Value: 0644,
-				Usage: "Permission bits for files (default: 0644)",
+				Value: fileModeValue,
+				Usage: "Permission bits for files, in octal.",
 			},
 
 			cli.IntFlag{
@@ -211,8 +219,8 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 	flags = &flagStorage{
 		// File system
 		MountOptions: make(map[string]string),
-		DirMode:      os.FileMode(c.Int("dir-mode")),
-		FileMode:     os.FileMode(c.Int("file-mode")),
+		DirMode:      os.FileMode(*c.Generic("dir-mode").(*OctalInt)),
+		FileMode:     os.FileMode(*c.Generic("file-mode").(*OctalInt)),
 		Uid:          int64(c.Int("uid")),
 		Gid:          int64(c.Int("gid")),
 
@@ -240,4 +248,25 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 	}
 
 	return
+}
+
+// A cli.Generic that can be used with cli.GenericFlag to obtain an int flag
+// that is parsed in octal.
+type OctalInt int
+
+var _ cli.Generic = (*OctalInt)(nil)
+
+func (oi *OctalInt) Set(value string) (err error) {
+	tmp, err := strconv.ParseInt(value, 8, 32)
+	if err != nil {
+		err = fmt.Errorf("Parsing as octal: %v", err)
+		return
+	}
+
+	*oi = OctalInt(tmp)
+	return
+}
+
+func (oi OctalInt) String() string {
+	return fmt.Sprintf("%o", oi)
 }

@@ -139,10 +139,8 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugInvariants)
 }
 
-func (t *FlagsTest) Numbers() {
+func (t *FlagsTest) DecimalNumbers() {
 	args := []string{
-		"--dir-mode=0711",
-		"--file-mode", "0611",
 		"--uid=17",
 		"--gid=19",
 		"--limit-bytes-per-sec=123.4",
@@ -150,12 +148,21 @@ func (t *FlagsTest) Numbers() {
 	}
 
 	f := parseArgs(args)
-	ExpectEq(os.FileMode(0711), f.DirMode)
-	ExpectEq(os.FileMode(0611), f.FileMode)
 	ExpectEq(17, f.Uid)
 	ExpectEq(19, f.Gid)
 	ExpectEq(123.4, f.EgressBandwidthLimitBytesPerSecond)
 	ExpectEq(56.78, f.OpRateLimitHz)
+}
+
+func (t *FlagsTest) OctalNumbers() {
+	args := []string{
+		"--dir-mode=711",
+		"--file-mode", "611",
+	}
+
+	f := parseArgs(args)
+	ExpectEq(os.FileMode(0711), f.DirMode)
+	ExpectEq(os.FileMode(0611), f.FileMode)
 }
 
 func (t *FlagsTest) Strings() {
