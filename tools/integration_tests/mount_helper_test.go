@@ -74,6 +74,22 @@ func (t *MountHelperTest) TearDown() {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *MountHelperTest) DoesFoo() {
+func (t *MountHelperTest) BadUsage() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MountHelperTest) SuccessfulMount() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MountHelperTest) ReadOnlyMode() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MountHelperTest) ExtraneousOptions() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MountHelperTest) FuseSubtype() {
 	AssertTrue(false, "TODO")
 }
