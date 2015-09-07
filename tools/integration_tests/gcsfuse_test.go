@@ -26,15 +26,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/jacobsa/fuse"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
 func TestGcsfuse(t *testing.T) { RunTests(t) }
-
-// Cf. bucket.go.
-const fakeBucketName = "fake@bucket"
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -173,19 +171,19 @@ func (t *GcsfuseTest) BadUsage() {
 	}{
 		// Too few args
 		0: {
-			[]string{fakeBucketName},
+			[]string{canned.FakeBucketName},
 			"exactly two arguments",
 		},
 
 		// Too many args
 		1: {
-			[]string{fakeBucketName, "a", "b"},
+			[]string{canned.FakeBucketName, "a", "b"},
 			"exactly two arguments",
 		},
 
 		// Unknown flag
 		2: {
-			[]string{"--tweak_frobnicator", fakeBucketName, "a"},
+			[]string{"--tweak_frobnicator", canned.FakeBucketName, "a"},
 			"not defined.*tweak_frobnicator",
 		},
 	}
@@ -206,28 +204,28 @@ func (t *GcsfuseTest) CannedContents() {
 	var fi os.FileInfo
 
 	// Mount.
-	args := []string{fakeBucketName, t.dir}
+	args := []string{canned.FakeBucketName, t.dir}
 
 	err = t.mount(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
 	// Check the expected contents of the file system (cf. bucket.go).
-	fi, err = os.Lstat(path.Join(t.dir, "foo"))
+	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
 	AssertEq(nil, err)
 	ExpectEq(os.FileMode(0644), fi.Mode())
 
-	contents, err := ioutil.ReadFile(path.Join(t.dir, "foo"))
+	contents, err := ioutil.ReadFile(path.Join(t.dir, canned.TopLevelFile))
 	AssertEq(nil, err)
-	ExpectEq("taco", string(contents))
+	ExpectEq(canned.TopLevelFile_Contents, string(contents))
 
-	fi, err = os.Lstat(path.Join(t.dir, "bar"))
+	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelDir))
 	AssertEq(nil, err)
 	ExpectEq(0755|os.ModeDir, fi.Mode())
 
 	// The implicit directory shouldn't be visible, since we don't have implicit
 	// directories enabled.
-	_, err = os.Lstat(path.Join(t.dir, "baz"))
+	_, err = os.Lstat(path.Join(t.dir, path.Dir(canned.ImplicitDirFile)))
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
@@ -235,7 +233,7 @@ func (t *GcsfuseTest) ReadOnlyMode() {
 	var err error
 
 	// Mount.
-	args := []string{"-o", "ro", fakeBucketName, t.dir}
+	args := []string{"-o", "ro", canned.FakeBucketName, t.dir}
 
 	err = t.mount(args)
 	AssertEq(nil, err)
@@ -250,14 +248,14 @@ func (t *GcsfuseTest) ReadWriteMode() {
 	var err error
 
 	// Mount.
-	args := []string{fakeBucketName, t.dir}
+	args := []string{canned.FakeBucketName, t.dir}
 
 	err = t.mount(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
 	// Overwrite the canned file.
-	p := path.Join(t.dir, "foo")
+	p := path.Join(t.dir, canned.TopLevelFile)
 
 	err = ioutil.WriteFile(p, []byte("enchilada"), 0400)
 	AssertEq(nil, err)
@@ -275,7 +273,7 @@ func (t *GcsfuseTest) FileAndDirModeFlags() {
 	args := []string{
 		"--file-mode", "461",
 		"--dir-mode", "511",
-		fakeBucketName,
+		canned.FakeBucketName,
 		t.dir,
 	}
 
@@ -284,11 +282,11 @@ func (t *GcsfuseTest) FileAndDirModeFlags() {
 	defer unmount(t.dir)
 
 	// Stat contents.
-	fi, err = os.Lstat(path.Join(t.dir, "foo"))
+	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
 	AssertEq(nil, err)
 	ExpectEq(os.FileMode(0461), fi.Mode())
 
-	fi, err = os.Lstat(path.Join(t.dir, "bar"))
+	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelDir))
 	AssertEq(nil, err)
 	ExpectEq(0511|os.ModeDir, fi.Mode())
 }
@@ -303,7 +301,7 @@ func (t *GcsfuseTest) UidAndGidFlags() {
 		"--uid", "1719",
 		"--gid", "2329",
 		"--dir-mode", "555",
-		fakeBucketName,
+		canned.FakeBucketName,
 		t.dir,
 	}
 
@@ -312,12 +310,12 @@ func (t *GcsfuseTest) UidAndGidFlags() {
 	defer unmount(t.dir)
 
 	// Stat contents.
-	fi, err = os.Lstat(path.Join(t.dir, "foo"))
+	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
 	AssertEq(nil, err)
 	ExpectEq(1719, fi.Sys().(*syscall.Stat_t).Uid)
 	ExpectEq(2329, fi.Sys().(*syscall.Stat_t).Gid)
 
-	fi, err = os.Lstat(path.Join(t.dir, "bar"))
+	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelDir))
 	AssertEq(nil, err)
 	ExpectEq(1719, fi.Sys().(*syscall.Stat_t).Uid)
 	ExpectEq(2329, fi.Sys().(*syscall.Stat_t).Gid)
@@ -330,7 +328,7 @@ func (t *GcsfuseTest) ImplicitDirs() {
 	// Mount with implicit directories enabled.
 	args := []string{
 		"--implicit-dirs",
-		fakeBucketName,
+		canned.FakeBucketName,
 		t.dir,
 	}
 
@@ -339,11 +337,11 @@ func (t *GcsfuseTest) ImplicitDirs() {
 	defer unmount(t.dir)
 
 	// The implicit directory should be visible, as should its child.
-	fi, err = os.Lstat(path.Join(t.dir, "baz"))
+	fi, err = os.Lstat(path.Join(t.dir, path.Dir(canned.ImplicitDirFile)))
 	AssertEq(nil, err)
 	ExpectEq(0755|os.ModeDir, fi.Mode())
 
-	fi, err = os.Lstat(path.Join(t.dir, "baz/qux"))
+	fi, err = os.Lstat(path.Join(t.dir, canned.ImplicitDirFile))
 	AssertEq(nil, err)
 	ExpectEq(os.FileMode(0644), fi.Mode())
 }
