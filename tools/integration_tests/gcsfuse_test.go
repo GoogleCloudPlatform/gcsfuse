@@ -321,7 +321,28 @@ func (t *GcsfuseTest) UidAndGidFlags() {
 }
 
 func (t *GcsfuseTest) ImplicitDirs() {
-	AssertTrue(false, "TODO")
+	var err error
+	var fi os.FileInfo
+
+	// Mount with implicit directories enabled.
+	args := []string{
+		"--implicit-dirs",
+		fakeBucketName,
+		t.dir,
+	}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// The implicit directory should be visible, as should its child.
+	fi, err = os.Lstat(path.Join(t.dir, "baz"))
+	AssertEq(nil, err)
+	ExpectEq(0755|os.ModeDir, fi.Mode())
+
+	fi, err = os.Lstat(path.Join(t.dir, "baz/qux"))
+	AssertEq(nil, err)
+	ExpectEq(os.FileMode(0644), fi.Mode())
 }
 
 func (t *GcsfuseTest) VersionFlags() {
