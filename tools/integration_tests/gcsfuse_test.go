@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -290,7 +291,33 @@ func (t *GcsfuseTest) FileAndDirModeFlags() {
 }
 
 func (t *GcsfuseTest) UidAndGidFlags() {
-	AssertTrue(false, "TODO")
+	var err error
+	var fi os.FileInfo
+
+	// Mount, setting the flags. Make sure to set the directory mode such that we
+	// can actually see the contents.
+	args := []string{
+		"--uid", "1719",
+		"--gid", "2329",
+		"--dir-mode", "555",
+		fakeBucketName,
+		t.dir,
+	}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// Stat contents.
+	fi, err = os.Lstat(path.Join(t.dir, "foo"))
+	AssertEq(nil, err)
+	ExpectEq(1719, fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(2329, fi.Sys().(*syscall.Stat_t).Gid)
+
+	fi, err = os.Lstat(path.Join(t.dir, "bar"))
+	AssertEq(nil, err)
+	ExpectEq(1719, fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(2329, fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *GcsfuseTest) ImplicitDirs() {
