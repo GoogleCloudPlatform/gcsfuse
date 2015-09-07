@@ -23,10 +23,13 @@ import (
 	"os"
 )
 
-// For use by gcsfuse: signal that the file system has been successfully
-// mounted, allowing the caller to return to the user in success if it so
-// desires.
-func SignalMounted() (err error) {
+// For use by gcsfuse: signal that mounting was successful (allowing the caller
+// of the process to return in success) or that there was a failure to mount
+// the file system (allowing the caller of the process to display an
+// appropriate error message).
+//
+// Do nothing if the process wasn't invoked with Mount.
+func SignalOutcome(outcome error) (err error) {
 	err = errors.New("TODO")
 	return
 }
@@ -34,7 +37,7 @@ func SignalMounted() (err error) {
 // For use by gcsfuse: return a writer that should be used for logging status
 // messages while in the process of mounting.
 //
-// The returned writer must not be written to after calling SignalMounted.
+// The returned writer must not be written to after calling SignalOutcome.
 func StatusWriter() (w io.Writer) {
 	panic("TODO")
 }
