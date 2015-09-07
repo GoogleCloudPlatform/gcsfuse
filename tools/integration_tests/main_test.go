@@ -147,7 +147,9 @@ func buildBuildGcsfuse(dst string) (err error) {
 		)
 
 		cmd.Dir = srcDir
-		cmd.Env = []string{}
+		cmd.Env = []string{
+			fmt.Sprintf("GOROOT=%s", runtime.GOROOT()),
+		}
 
 		var output []byte
 		output, err = cmd.CombinedOutput()
