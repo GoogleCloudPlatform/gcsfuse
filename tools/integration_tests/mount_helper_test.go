@@ -77,9 +77,7 @@ func (t *MountHelperTest) TearDown() {
 func (t *MountHelperTest) mount(args []string) (err error) {
 	cmd := exec.Command(t.helperPath)
 	cmd.Args = append(cmd.Args, args...)
-	cmd.Env = []string{
-		fmt.Sprintf("PATH=%s", path.Join(gBuildDir, "bin")),
-	}
+	cmd.Env = []string{}
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
