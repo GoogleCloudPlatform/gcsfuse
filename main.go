@@ -18,13 +18,6 @@
 //
 //     gcsfuse [flags] bucket mount_point
 //
-// The following environment variables are supported. These are subject to
-// change, and are for internal use only!
-//
-//     STATUS_PIPE: If set to a file descriptor number, gcsfuse will write a
-//                  single byte to that file when the file system has been
-//                  successfully mounted.
-//
 package main
 
 import (
@@ -36,7 +29,6 @@ import (
 	"path"
 	"runtime"
 	"runtime/pprof"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -229,19 +221,6 @@ func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 
 // Mount the file system according to arguments in the supplied context.
 func mountFromContext(c *cli.Context) (mfs *fuse.MountedFileSystem, err error) {
-	// Extract the status pipe that the user handed us, if any.
-	var statusPipe *os.File
-	if os.Getenv("STATUS_PIPE") != "" {
-		var fd int
-		fd, err = strconv.Atoi(os.Getenv("STATUS_PIPE"))
-		if err != nil {
-			err = fmt.Errorf("Atoi(%q): %v", os.Getenv("STATUS_PIPE"), err)
-			return
-		}
-
-		statusPipe = os.NewFile(uintptr(fd), "status_pipe")
-	}
-
 	// Extract arguments.
 	if len(c.Args()) != 2 {
 		err = fmt.Errorf(
@@ -295,10 +274,6 @@ func run(c *cli.Context) (err error) {
 	}
 
 	log.Println("File system has been successfully mounted.")
-
-	if statusPipe != nil {
-		statusPipe.Write([]byte("x"))
-	}
 
 	// Let the user unmount with Ctrl-C (SIGINT).
 	registerSIGINTHandler(mfs.Dir())
