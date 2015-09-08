@@ -136,6 +136,21 @@ func (t *GcsfuseTest) BadUsage() {
 	}
 }
 
+func (t *GcsfuseTest) NonExistentMountPoint() {
+	var err error
+
+	// Mount.
+	args := []string{canned.FakeBucketName, path.Join(t.dir, "blahblah")}
+
+	err = t.mount(args)
+	ExpectThat(err, Error(HasSubstr("no such")))
+	ExpectThat(err, Error(HasSubstr("blahblah")))
+}
+
+func (t *GcsfuseTest) MountPointIsAFile() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *GcsfuseTest) CannedContents() {
 	var err error
 	var fi os.FileInfo
