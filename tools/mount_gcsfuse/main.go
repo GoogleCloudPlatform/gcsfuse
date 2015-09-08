@@ -57,8 +57,8 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/daemon"
 	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 )
 
@@ -210,19 +210,18 @@ func run(args []string) (err error) {
 		log.Printf("gcsfuse arg: %q", a)
 	}
 
-	// Run gcsfuse and wait for it to complete.
-	cmd := exec.Command("gcsfuse", gcsfuseArgs...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	// Call gcsfuse and wait for it to successfully mount.
+	err = daemon.Mount(
+		"gcsfuse",
+		"fusermount",
+		gcsfuseArgs,
+		os.Stderr)
 
-	err = cmd.Run()
 	if err != nil {
-		err = fmt.Errorf("Running gcsfuse: %v", err)
+		err = fmt.Errorf("daemon.Mount: %v", err)
 		return
 	}
 
-	log.Println("gcsfuse completed successfully.")
 	return
 }
 
