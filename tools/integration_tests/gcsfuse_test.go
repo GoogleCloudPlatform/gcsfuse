@@ -176,7 +176,7 @@ func (t *GcsfuseTest) CannedContents() {
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
-	// Check the expected contents of the file system (cf. bucket.go).
+	// Check the expected contents of the file system.
 	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
 	AssertEq(nil, err)
 	ExpectEq(os.FileMode(0644), fi.Mode())

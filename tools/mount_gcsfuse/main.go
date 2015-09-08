@@ -73,24 +73,6 @@ func makeGcsfuseArgs(
 	// Deal with options.
 	for name, value := range opts {
 		switch name {
-		case "fuse_debug":
-			args = append(args, "--fuse.debug")
-
-		case "gcs_debug":
-			args = append(args, "--gcs.debug")
-
-		case "uid":
-			args = append(args, "--uid="+value)
-
-		case "gid":
-			args = append(args, "--gid="+value)
-
-		case "file_mode":
-			args = append(args, "--file-mode="+value)
-
-		case "dir_mode":
-			args = append(args, "--dir-mode="+value)
-
 		// Don't pass through options that are relevant to mount(8) but not to
 		// gcsfuse, and that fusermount chokes on with "Invalid argument" on Linux.
 		case "user", "nouser", "auto", "noauto":

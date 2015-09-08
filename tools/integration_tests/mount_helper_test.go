@@ -15,12 +15,16 @@
 package integration_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"runtime"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -70,26 +74,152 @@ func (t *MountHelperTest) TearDown() {
 	AssertEq(nil, err)
 }
 
+func (t *MountHelperTest) mount(args []string) (err error) {
+	cmd := exec.Command(t.helperPath)
+	cmd.Args = append(cmd.Args, args...)
+	cmd.Env = []string{
+		fmt.Sprintf("PATH=%s", path.Join(gBuildDir, "bin")),
+	}
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		err = fmt.Errorf("CombinedOutput: %v\nOutput:\n%s", err, output)
+		return
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
 func (t *MountHelperTest) BadUsage() {
-	AssertTrue(false, "TODO")
+	testCases := []struct {
+		args           []string
+		expectedOutput string
+	}{
+		// Too few args
+		0: {
+			[]string{canned.FakeBucketName},
+			"two positional arguments",
+		},
+
+		// Too many args
+		1: {
+			[]string{canned.FakeBucketName, "a", "b"},
+			"Unexpected arg 3",
+		},
+
+		// Trailing -o
+		2: {
+			[]string{canned.FakeBucketName, "a", "-o"},
+			"Unexpected -o",
+		},
+	}
+
+	// Run each test case.
+	for i, tc := range testCases {
+		cmd := exec.Command(t.helperPath)
+		cmd.Args = append(cmd.Args, tc.args...)
+		cmd.Env = []string{}
+
+		output, err := cmd.CombinedOutput()
+		ExpectThat(err, Error(HasSubstr("exit status")), "case %d", i)
+		ExpectThat(string(output), MatchesRegexp(tc.expectedOutput), "case %d", i)
+	}
 }
 
 func (t *MountHelperTest) SuccessfulMount() {
-	AssertTrue(false, "TODO")
+	var err error
+	var fi os.FileInfo
+
+	// Mount.
+	args := []string{canned.FakeBucketName, t.dir}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// Check that the file system is available.
+	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
+	AssertEq(nil, err)
+	ExpectEq(os.FileMode(0644), fi.Mode())
+	ExpectEq(len(canned.TopLevelFile_Contents), fi.Size())
 }
 
 func (t *MountHelperTest) ReadOnlyMode() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Mount.
+	args := []string{"-o", "ro", canned.FakeBucketName, t.dir}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// Writing to the file system should fail.
+	err = ioutil.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
+	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
 func (t *MountHelperTest) ExtraneousOptions() {
-	AssertTrue(false, "TODO")
+	var err error
+	var fi os.FileInfo
+
+	// Mount with extra junk that shouldn't be passed on.
+	args := []string{
+		"-o", "noauto,nouser,auto,user",
+		canned.FakeBucketName,
+		t.dir,
+	}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// Check that the file system is available.
+	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
+	AssertEq(nil, err)
+	ExpectEq(os.FileMode(0644), fi.Mode())
+	ExpectEq(len(canned.TopLevelFile_Contents), fi.Size())
+}
+
+func (t *MountHelperTest) LinuxArgumentOrder() {
+	var err error
+
+	// Linux places the options at the end.
+	args := []string{canned.FakeBucketName, t.dir, "-o", "ro"}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// Writing to the file system should fail.
+	err = ioutil.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
+	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
 func (t *MountHelperTest) FuseSubtype() {
-	AssertTrue(false, "TODO")
+	var err error
+	var fi os.FileInfo
+
+	// This test isn't relevant except on Linux.
+	if runtime.GOOS != "linux" {
+		return
+	}
+
+	// Mount using the tool that would be invoked by ~mount -t fuse.gcsfuse`.
+	t.helperPath = path.Join(gBuildDir, "sbin/mount.fuse.gcsfuse")
+	args := []string{canned.FakeBucketName, t.dir}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// Check that the file system is available.
+	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
+	AssertEq(nil, err)
+	ExpectEq(os.FileMode(0644), fi.Mode())
+	ExpectEq(len(canned.TopLevelFile_Contents), fi.Size())
 }
