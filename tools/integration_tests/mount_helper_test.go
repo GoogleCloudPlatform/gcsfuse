@@ -164,7 +164,25 @@ func (t *MountHelperTest) ReadOnlyMode() {
 }
 
 func (t *MountHelperTest) ExtraneousOptions() {
-	AssertTrue(false, "TODO")
+	var err error
+	var fi os.FileInfo
+
+	// Mount with extra junk that shouldn't be passed on.
+	args := []string{
+		"-o", "noauto,nouser,auto,user",
+		canned.FakeBucketName,
+		t.dir,
+	}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// Check that the file system is available.
+	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
+	AssertEq(nil, err)
+	ExpectEq(os.FileMode(0644), fi.Mode())
+	ExpectEq(len(canned.TopLevelFile_Contents), fi.Size())
 }
 
 func (t *MountHelperTest) LinuxArgumentOrder() {
