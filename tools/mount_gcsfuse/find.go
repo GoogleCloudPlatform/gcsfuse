@@ -44,6 +44,31 @@ func findFusermount() (p string, err error) {
 		}
 	}
 
-	err = errors.New("Can't find a usable fusermount executable.")
+	err = errors.New("Can't find a usable executable.")
+	return
+}
+
+// Find the path to the gcsfuse program.
+func findGcsfuse() (p string, err error) {
+	// HACK(jacobsa): Since mount(8) appears to call its helpers with $PATH
+	// unset, I can find no better way to do this than searching a hard-coded
+	// list of candidates. However, include as a candidate the $PATH-relative
+	// version in case we are being called in a context with $PATH set, such as
+	// a test.
+	candidates := []string{
+		"gcsfuse",
+		"/usr/bin/gcsfuse",
+		"/usr/local/bin/gcsfuse",
+	}
+
+	for _, c := range candidates {
+		_, err = exec.LookPath(c)
+		if err == nil {
+			p = c
+			return
+		}
+	}
+
+	err = errors.New("Can't find a usable executable.")
 	return
 }
