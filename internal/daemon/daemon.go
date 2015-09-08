@@ -20,7 +20,6 @@ package daemon
 import (
 	"errors"
 	"io"
-	"os"
 )
 
 // For use by gcsfuse: signal that mounting was successful (allowing the caller
@@ -44,12 +43,12 @@ func StatusWriter() (w io.Writer) {
 
 // Invoke gcsfuse with the supplied arguments, waiting until it successfully
 // mounts or reports that is has failed. Write status updates while mounting
-// into the supplied file (which may be nil for silence). Return nil only if it
-// mounts successfully.
+// into the supplied writer (which may be nil for silence). Return nil only if
+// it mounts successfully.
 func Mount(
 	gcsfusePath string,
 	args []string,
-	status *os.File) (err error) {
+	status io.Writer) (err error) {
 	err = errors.New("TODO")
 	return
 }
