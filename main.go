@@ -33,6 +33,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path"
 	"runtime"
 	"runtime/pprof"
 	"strconv"
@@ -226,6 +227,80 @@ func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 // main function
 ////////////////////////////////////////////////////////////////////////
 
+func run(c *cli.Context) (err error) {
+	// Extract the status pipe that the user handed us, if any.
+	var statusPipe *os.File
+	if os.Getenv("STATUS_PIPE") != "" {
+		var fd int
+		fd, err = strconv.Atoi(os.Getenv("STATUS_PIPE"))
+		if err != nil {
+			err = fmt.Errorf("Atoi(%q): %v", os.Getenv("STATUS_PIPE"), err)
+			return
+		}
+
+		statusPipe = os.NewFile(uintptr(fd), "status_pipe")
+	}
+
+	// Extract arguments.
+	if len(c.Args()) != 2 {
+		err = fmt.Errorf(
+			"Error: %s takes exactly two arguments. Run `%s --help` for more info.",
+			path.Base(os.Args[0]),
+			path.Base(os.Args[0]))
+
+		return
+	}
+
+	bucketName := c.Args()[0]
+	mountPoint := c.Args()[1]
+
+	// Populate and parse flags.
+	flags := populateFlags(c)
+
+	// Enable invariant checking if requested.
+	if flags.DebugInvariants {
+		syncutil.EnableInvariantChecking()
+	}
+
+	// Grab the connection.
+	conn, err := getConn(flags)
+	if err != nil {
+		err = fmt.Errorf("getConn: %v", err)
+		return
+	}
+
+	// Mount the file system.
+	mfs, err := mount(
+		context.Background(),
+		bucketName,
+		mountPoint,
+		flags,
+		conn)
+
+	if err != nil {
+		err = fmt.Errorf("mount: %v", err)
+		return
+	}
+
+	log.Println("File system has been successfully mounted.")
+
+	if statusPipe != nil {
+		statusPipe.Write([]byte("x"))
+	}
+
+	// Let the user unmount with Ctrl-C (SIGINT).
+	registerSIGINTHandler(mfs.Dir())
+
+	// Wait for the file system to be unmounted.
+	err = mfs.Join(context.Background())
+	if err != nil {
+		err = fmt.Errorf("MountedFileSystem.Join: %v", err)
+		return
+	}
+
+	return
+}
+
 func main() {
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
@@ -234,81 +309,21 @@ func main() {
 	go handleCPUProfileSignals()
 	go handleMemoryProfileSignals()
 
-	// Extract the status pipe that the user handed us, if any.
-	var statusPipe *os.File
-	if os.Getenv("STATUS_PIPE") != "" {
-		fd, err := strconv.Atoi(os.Getenv("STATUS_PIPE"))
-		if err != nil {
-			log.Fatalf("Atoi(%q): %v", os.Getenv("STATUS_PIPE"), err)
-		}
-
-		statusPipe = os.NewFile(uintptr(fd), "status_pipe")
-	}
-
 	// Set up the app.
 	app := newApp()
 	app.Action = func(c *cli.Context) {
-		var err error
-
-		// We should get two arguments exactly. Otherwise error out.
-		if len(c.Args()) != 2 {
-			fmt.Fprintf(
-				os.Stderr,
-				"Error: %s takes exactly two arguments.\n\n",
-				app.Name)
-			cli.ShowAppHelp(c)
+		err := run(c)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-
-		// Populate and parse flags.
-		bucketName := c.Args()[0]
-		mountPoint := c.Args()[1]
-		flags := populateFlags(c)
-
-		// Enable invariant checking if requested.
-		if flags.DebugInvariants {
-			syncutil.EnableInvariantChecking()
-		}
-
-		// Grab the connection.
-		conn, err := getConn(flags)
-		if err != nil {
-			log.Fatalf("getConn: %v", err)
-		}
-
-		// Mount the file system.
-		mfs, err := mount(
-			context.Background(),
-			bucketName,
-			mountPoint,
-			flags,
-			conn)
-
-		if err != nil {
-			log.Fatalf("Mounting file system: %v", err)
-		}
-
-		log.Println("File system has been successfully mounted.")
-
-		if statusPipe != nil {
-			statusPipe.Write([]byte("x"))
-		}
-
-		// Let the user unmount with Ctrl-C (SIGINT).
-		registerSIGINTHandler(mfs.Dir())
-
-		// Wait for the file system to be unmounted.
-		err = mfs.Join(context.Background())
-		if err != nil {
-			err = fmt.Errorf("MountedFileSystem.Join: %v", err)
-			return
-		}
-
-		log.Println("Successfully exiting.")
 	}
 
 	err := app.Run(os.Args)
 	if err != nil {
-		log.Fatalln(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
+
+	log.Println("Successfully exiting.")
 }
