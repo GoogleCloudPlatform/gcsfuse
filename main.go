@@ -37,6 +37,7 @@ import (
 	"golang.org/x/oauth2/google"
 
 	"github.com/codegangsta/cli"
+	"github.com/googlecloudplatform/gcsfuse/internal/daemon"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
@@ -220,7 +221,9 @@ func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountFromContext(c *cli.Context) (mfs *fuse.MountedFileSystem, err error) {
+func mountFromContext(
+	c *cli.Context,
+	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Extract arguments.
 	if len(c.Args()) != 2 {
 		err = fmt.Errorf(
@@ -243,6 +246,8 @@ func mountFromContext(c *cli.Context) (mfs *fuse.MountedFileSystem, err error) {
 	}
 
 	// Grab the connection.
+	mountStatus.Println("Opening GCS connection...")
+
 	conn, err := getConn(flags)
 	if err != nil {
 		err = fmt.Errorf("getConn: %v", err)
@@ -255,7 +260,8 @@ func mountFromContext(c *cli.Context) (mfs *fuse.MountedFileSystem, err error) {
 		bucketName,
 		mountPoint,
 		flags,
-		conn)
+		conn,
+		mountStatus)
 
 	if err != nil {
 		err = fmt.Errorf("mount: %v", err)
@@ -266,14 +272,22 @@ func mountFromContext(c *cli.Context) (mfs *fuse.MountedFileSystem, err error) {
 }
 
 func run(c *cli.Context) (err error) {
-	// Mount.
-	mfs, err := mountFromContext(c)
-	if err != nil {
-		err = fmt.Errorf("mountFromContext: %v", err)
-		return
-	}
+	// Mount, writing information about our progress to the writer that package
+	// daemon gives us and telling it about the outcome.
+	var mfs *fuse.MountedFileSystem
+	{
+		mountStatus := log.New(daemon.StatusWriter(), "", 0)
+		mfs, err = mountFromContext(c, mountStatus)
 
-	log.Println("File system has been successfully mounted.")
+		if err == nil {
+			mountStatus.Println("File system has been successfully mounted.")
+			daemon.SignalOutcome(nil)
+		} else {
+			err = fmt.Errorf("mountFromContext: %v", err)
+			daemon.SignalOutcome(err)
+			return
+		}
+	}
 
 	// Let the user unmount with Ctrl-C (SIGINT).
 	registerSIGINTHandler(mfs.Dir())
