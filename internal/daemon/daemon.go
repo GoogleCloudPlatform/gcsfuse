@@ -20,6 +20,7 @@ package daemon
 import (
 	"encoding/gob"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -137,6 +138,65 @@ func StatusWriter() (w io.Writer) {
 func Mount(
 	gcsfusePath string,
 	args []string,
+	status io.Writer) (err error) {
+	if status == nil {
+		status = ioutil.Discard
+	}
+
+	// Set up the pipe that we will hand to the gcsfuse subprocess.
+	pipeR, pipeW, err := os.Pipe()
+	if err != nil {
+		err = fmt.Errorf("Pipe: %v", err)
+		return
+	}
+
+	// Attempt to start gcsfuse. If we encounter an error in so doing, write it
+	// to the channel.
+	startGcsfuseErr := make(chan error, 1)
+	go func() {
+		defer pipeW.Close()
+		startGcsfuseErr <- startGcsfuse(args, pipeW)
+	}()
+
+	// Read communication from gcsfuse from the pipe, writing nil into the
+	// channel only if the mount succeeds.
+	readFromGcsfuseOutcome := make(chan error, 1)
+	go func() {
+		defer pipeR.Close()
+		readFromGcsfuseOutcome <- readFromGcsfuse(pipeR, status)
+	}()
+
+	// Wait for a result from one of the above.
+	select {
+	case err = <-startGcsfuseErr:
+		err = fmt.Errorf("startGcsfuse: %v", err)
+		return
+
+	case err = <-readFromGcsfuseOutcome:
+		if err == nil {
+			// All is good.
+			return
+		}
+
+		err = fmt.Errorf("readFromGcsfuse: %v", err)
+		return
+	}
+}
+
+// Start gcsfuse, handing it the supplied pipe for communication. Do not wait
+// for it to return.
+func startGcsfuse(
+	args []string,
+	pipeW *os.File) (err error) {
+	err = errors.New("TODO")
+	return
+}
+
+// Process communication from a gcsfuse subprocess. Write log messages to the
+// supplied writer (which must be non-nil). Return nil only if the output of
+// mounting is success.
+func readFromGcsfuse(
+	r io.Reader,
 	status io.Writer) (err error) {
 	err = errors.New("TODO")
 	return
