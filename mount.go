@@ -36,7 +36,8 @@ func mount(
 	bucketName string,
 	mountPoint string,
 	flags *flagStorage,
-	conn gcs.Conn) (mfs *fuse.MountedFileSystem, err error) {
+	conn gcs.Conn,
+	status *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
@@ -81,6 +82,8 @@ be interacting with the file system.
 	}
 
 	// Set up the bucket.
+	status.Println("Opening bucket...")
+
 	bucket, err := setUpBucket(
 		ctx,
 		flags,
@@ -116,6 +119,8 @@ be interacting with the file system.
 	}
 
 	// Mount the file system.
+	status.Println("Mounting file system...")
+
 	mountCfg := &fuse.MountConfig{
 		FSName:      bucket.Name(),
 		Options:     flags.MountOptions,

@@ -18,13 +18,6 @@
 //
 //     gcsfuse [flags] bucket mount_point
 //
-// The following environment variables are supported. These are subject to
-// change, and are for internal use only!
-//
-//     STATUS_PIPE: If set to a file descriptor number, gcsfuse will write a
-//                  single byte to that file when the file system has been
-//                  successfully mounted.
-//
 package main
 
 import (
@@ -33,9 +26,9 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path"
 	"runtime"
 	"runtime/pprof"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -44,6 +37,7 @@ import (
 	"golang.org/x/oauth2/google"
 
 	"github.com/codegangsta/cli"
+	"github.com/googlecloudplatform/gcsfuse/internal/daemon"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
@@ -223,8 +217,90 @@ func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// main function
+// main logic
 ////////////////////////////////////////////////////////////////////////
+
+// Mount the file system according to arguments in the supplied context.
+func mountFromContext(
+	c *cli.Context,
+	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
+	// Extract arguments.
+	if len(c.Args()) != 2 {
+		err = fmt.Errorf(
+			"Error: %s takes exactly two arguments. Run `%s --help` for more info.",
+			path.Base(os.Args[0]),
+			path.Base(os.Args[0]))
+
+		return
+	}
+
+	bucketName := c.Args()[0]
+	mountPoint := c.Args()[1]
+
+	// Populate and parse flags.
+	flags := populateFlags(c)
+
+	// Enable invariant checking if requested.
+	if flags.DebugInvariants {
+		syncutil.EnableInvariantChecking()
+	}
+
+	// Grab the connection.
+	mountStatus.Println("Opening GCS connection...")
+
+	conn, err := getConn(flags)
+	if err != nil {
+		err = fmt.Errorf("getConn: %v", err)
+		return
+	}
+
+	// Mount the file system.
+	mfs, err = mount(
+		context.Background(),
+		bucketName,
+		mountPoint,
+		flags,
+		conn,
+		mountStatus)
+
+	if err != nil {
+		err = fmt.Errorf("mount: %v", err)
+		return
+	}
+
+	return
+}
+
+func run(c *cli.Context) (err error) {
+	// Mount, writing information about our progress to the writer that package
+	// daemon gives us and telling it about the outcome.
+	var mfs *fuse.MountedFileSystem
+	{
+		mountStatus := log.New(daemon.StatusWriter(), "", 0)
+		mfs, err = mountFromContext(c, mountStatus)
+
+		if err == nil {
+			mountStatus.Println("File system has been successfully mounted.")
+			daemon.SignalOutcome(nil)
+		} else {
+			err = fmt.Errorf("mountFromContext: %v", err)
+			daemon.SignalOutcome(err)
+			return
+		}
+	}
+
+	// Let the user unmount with Ctrl-C (SIGINT).
+	registerSIGINTHandler(mfs.Dir())
+
+	// Wait for the file system to be unmounted.
+	err = mfs.Join(context.Background())
+	if err != nil {
+		err = fmt.Errorf("MountedFileSystem.Join: %v", err)
+		return
+	}
+
+	return
+}
 
 func main() {
 	// Make logging output better.
@@ -234,74 +310,13 @@ func main() {
 	go handleCPUProfileSignals()
 	go handleMemoryProfileSignals()
 
-	// Extract the status pipe that the user handed us, if any.
-	var statusPipe *os.File
-	if os.Getenv("STATUS_PIPE") != "" {
-		fd, err := strconv.Atoi(os.Getenv("STATUS_PIPE"))
-		if err != nil {
-			log.Fatalf("Atoi(%q): %v", os.Getenv("STATUS_PIPE"), err)
-		}
-
-		statusPipe = os.NewFile(uintptr(fd), "status_pipe")
-	}
-
 	// Set up the app.
 	app := newApp()
 	app.Action = func(c *cli.Context) {
-		var err error
-
-		// We should get two arguments exactly. Otherwise error out.
-		if len(c.Args()) != 2 {
-			fmt.Fprintf(
-				os.Stderr,
-				"Error: %s takes exactly two arguments.\n\n",
-				app.Name)
-			cli.ShowAppHelp(c)
+		err := run(c)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
-		}
-
-		// Populate and parse flags.
-		bucketName := c.Args()[0]
-		mountPoint := c.Args()[1]
-		flags := populateFlags(c)
-
-		// Enable invariant checking if requested.
-		if flags.DebugInvariants {
-			syncutil.EnableInvariantChecking()
-		}
-
-		// Grab the connection.
-		conn, err := getConn(flags)
-		if err != nil {
-			log.Fatalf("getConn: %v", err)
-		}
-
-		// Mount the file system.
-		mfs, err := mount(
-			context.Background(),
-			bucketName,
-			mountPoint,
-			flags,
-			conn)
-
-		if err != nil {
-			log.Fatalf("Mounting file system: %v", err)
-		}
-
-		log.Println("File system has been successfully mounted.")
-
-		if statusPipe != nil {
-			statusPipe.Write([]byte("x"))
-		}
-
-		// Let the user unmount with Ctrl-C (SIGINT).
-		registerSIGINTHandler(mfs.Dir())
-
-		// Wait for the file system to be unmounted.
-		err = mfs.Join(context.Background())
-		if err != nil {
-			err = fmt.Errorf("MountedFileSystem.Join: %v", err)
-			return
 		}
 
 		log.Println("Successfully exiting.")
@@ -309,6 +324,7 @@ func main() {
 
 	err := app.Run(os.Args)
 	if err != nil {
-		log.Fatalln(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 }

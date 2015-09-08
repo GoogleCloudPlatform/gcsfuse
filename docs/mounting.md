@@ -113,26 +113,17 @@ your operating system:
 *   Linux: `/sbin/mount.gcsfuse`
 *   OS X: `/sbin/mount_gcsfuse`
 
-These scripts contain reasonable defaults, but you may need to edit them to
-change details about your setup if you're doing anything special with regard to
-e.g. credentials or daemonization. In particular, they require [daemon][] to be
-installed.
-
-On OS X, these scripts allow you to mount buckets using the `mount` command.
+On OS X, this program allows you to mount buckets using the `mount` command.
 (On Linux, only root can do this.)
 
     mount -t gcsfuse -o rw,user my-bucket /path/to/mount/point
 
-Because the `mount` command works, you can also add entries to your
-`/etc/fstab` file like the following:
+On both OS X and Linux, you can also add entries to your `/etc/fstab` file like
+the following:
 
     my-bucket /mount/point gcsfuse rw,noauto,user
 
 Afterward, you can run `mount /mount/point` as a non-root user.
 
 The `noauto` option above specifies that the file system should not be mounted
-at boot time. If you want this, remove the option and modify the mount helper
-script in `/sbin` to tell the daemonizing program to run gcsfuse as your
-desired user.
-
-[daemon]: http://libslack.org/daemon/
+at boot time.

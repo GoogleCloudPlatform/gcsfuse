@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A small helper for using gcsfuse with mount(8).
+// A helper that allows using gcsfuse with mount(8).
 //
 // Can be invoked using a command-line of the form expected for mount helpers.
 // Calls the gcsfuse binary, which must be in $PATH, and waits for it to
 // complete. The device and mount point are passed on as positional arguments,
 // and other known options are converted to appropriate flags.
 //
-// This binary does not daemonize, and therefore must be used with a wrapper
-// that performs daemonization if it is to be used directly with mount(8).
+// This binary returns with exit code zero only after gcsfuse has reported that
+// it has successfuly mounted the file system. Further output from gcsfuse is
+// suppressed.
 package main
 
 // Example invocation on OS X:
@@ -54,10 +55,10 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
-	"os/exec"
+	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/daemon"
 	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 )
 
@@ -72,24 +73,6 @@ func makeGcsfuseArgs(
 	// Deal with options.
 	for name, value := range opts {
 		switch name {
-		case "fuse_debug":
-			args = append(args, "--fuse.debug")
-
-		case "gcs_debug":
-			args = append(args, "--gcs.debug")
-
-		case "uid":
-			args = append(args, "--uid="+value)
-
-		case "gid":
-			args = append(args, "--gid="+value)
-
-		case "file_mode":
-			args = append(args, "--file-mode="+value)
-
-		case "dir_mode":
-			args = append(args, "--dir-mode="+value)
-
 		// Don't pass through options that are relevant to mount(8) but not to
 		// gcsfuse, and that fusermount chokes on with "Invalid argument" on Linux.
 		case "user", "nouser", "auto", "noauto":
@@ -159,61 +142,78 @@ func parseArgs(
 		}
 	}
 
+	if positionalCount != 2 {
+		err = fmt.Errorf("Expected two positional arguments; got %d.", positionalCount)
+		return
+	}
+
 	return
 }
 
-func main() {
-	args := os.Args
-
+func run(args []string) (err error) {
 	// If invoked with a single "--help" argument, print a usage message and exit
 	// successfully.
 	if len(args) == 2 && args[1] == "--help" {
 		fmt.Fprintf(
 			os.Stderr,
 			"Usage: %s [-o options] bucket_name mount_point\n",
-			os.Args[0])
+			args[0])
 
-		os.Exit(0)
+		return
 	}
 
-	// Print out each argument.
-	for i, arg := range args {
-		log.Printf("Arg %d: %q", i, arg)
+	// Find the path to gcsfuse.
+	gcsfusePath, err := findGcsfuse()
+	if err != nil {
+		err = fmt.Errorf("findGcsfuse: %v", err)
+		return
+	}
+
+	// Find the path to fusermount.
+	fusermountPath, err := findFusermount()
+	if err != nil {
+		err = fmt.Errorf("findFusermount: %v", err)
+		return
 	}
 
 	// Attempt to parse arguments.
 	device, mountPoint, opts, err := parseArgs(args)
 	if err != nil {
-		log.Fatalf("parseArgs: %v", err)
-	}
-
-	// Print what we gleaned.
-	log.Printf("Device: %q", device)
-	log.Printf("Mount point: %q", mountPoint)
-	for name, value := range opts {
-		log.Printf("Option %q: %q", name, value)
+		err = fmt.Errorf("parseArgs: %v", err)
+		return
 	}
 
 	// Choose gcsfuse args.
 	gcsfuseArgs, err := makeGcsfuseArgs(device, mountPoint, opts)
 	if err != nil {
-		log.Fatalf("makeGcsfuseArgs: %v", err)
+		err = fmt.Errorf("makeGcsfuseArgs: %v", err)
+		return
 	}
 
-	for _, a := range gcsfuseArgs {
-		log.Printf("gcsfuse arg: %q", a)
-	}
+	fmt.Fprintf(
+		os.Stderr,
+		"Calling gcsfuse with arguments: %s\n",
+		strings.Join(gcsfuseArgs, " "))
 
-	// Run gcsfuse and wait for it to complete.
-	cmd := exec.Command("gcsfuse", gcsfuseArgs...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	// Call gcsfuse and wait for it to successfully mount.
+	err = daemon.Mount(
+		gcsfusePath,
+		fusermountPath,
+		gcsfuseArgs,
+		os.Stderr)
 
-	err = cmd.Run()
 	if err != nil {
-		log.Fatalf("gcsfuse failed or failed to run: %v", err)
+		err = fmt.Errorf("daemon.Mount: %v", err)
+		return
 	}
 
-	log.Println("gcsfuse completed successfully.")
+	return
+}
+
+func main() {
+	err := run(os.Args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
+	}
 }

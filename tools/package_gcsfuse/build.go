@@ -47,32 +47,6 @@ func build(
 		}
 	}()
 
-	// Set up the destination for a call to build_gcsfuse, which writes files
-	// like
-	//
-	//     bin/gcsfuse
-	//     sbin/mount.gcsfuse
-	//
-	// On Linux and OS X we want these to go into different places.
-	var buildDir string
-	switch osys {
-	case "linux":
-		buildDir = path.Join(dir, "usr")
-
-	case "darwin":
-		buildDir = path.Join(dir, "usr/local")
-
-	default:
-		err = fmt.Errorf("Unhandled OS: %q", osys)
-		return
-	}
-
-	err = os.MkdirAll(buildDir, 0755)
-	if err != nil {
-		err = fmt.Errorf("MkdirAll: %v", err)
-		return
-	}
-
 	// Create another directory into which we will clone the git repo bloe.
 	gitDir, err := ioutil.TempDir("", "package_gcsfuse_git")
 	if err != nil {
@@ -134,7 +108,7 @@ func build(
 		cmd := exec.Command(
 			buildTool,
 			gitDir,
-			buildDir,
+			dir,
 			version)
 
 		var output []byte
@@ -145,38 +119,23 @@ func build(
 		}
 	}
 
-	// Add symlink(s) from /sbin to /usr/sbin or /usr/local/sbin, as the case may
-	// be.
-	{
-		symlinks := map[string]string{}
-		switch osys {
-		case "linux":
-			symlinks["sbin/mount.fuse.gcsfuse"] = "/usr/sbin/mount.fuse.gcsfuse"
-			symlinks["sbin/mount.gcsfuse"] = "/usr/sbin/mount.gcsfuse"
+	// build_gcsfuse writes files like:
+	//
+	//     bin/gcsfuse
+	//     sbin/mount.gcsfuse
+	//
+	// Which is what we want for e.g. a homebrew cellar. But for a Linux package,
+	// we want the first to live in /usr/bin.
+	err = os.MkdirAll(path.Join(dir, "usr"), 0755)
+	if err != nil {
+		err = fmt.Errorf("MkdirAll: %v", err)
+		return
+	}
 
-		case "darwin":
-			symlinks["sbin/mount_gcsfuse"] = "/usr/local/sbin/mount_gcsfuse"
-
-		default:
-			err = fmt.Errorf("Unhandled OS: %q", osys)
-			return
-		}
-
-		for relativeSrc, target := range symlinks {
-			src := path.Join(dir, relativeSrc)
-
-			err = os.MkdirAll(path.Dir(src), 0755)
-			if err != nil {
-				err = fmt.Errorf("MkdirAll: %v", err)
-				return
-			}
-
-			err = os.Symlink(target, src)
-			if err != nil {
-				err = fmt.Errorf("Symlink: %v", err)
-				return
-			}
-		}
+	err = os.Rename(path.Join(dir, "bin"), path.Join(dir, "usr/bin"))
+	if err != nil {
+		err = fmt.Errorf("Rename: %v", err)
+		return
 	}
 
 	return

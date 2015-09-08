@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/internal/daemon"
 	"github.com/jacobsa/fuse"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -69,71 +70,7 @@ func (t *GcsfuseTest) TearDown() {
 // Call gcsfuse with the supplied args, waiting for it to mount. Return nil
 // only if it mounts successfully.
 func (t *GcsfuseTest) mount(args []string) (err error) {
-	// Set up a pipe that gcsfuse can write to to tell us when it has
-	// successfully mounted.
-	statusR, statusW, err := os.Pipe()
-	if err != nil {
-		err = fmt.Errorf("Pipe: %v", err)
-		return
-	}
-
-	// Run gcsfuse, writing the result of waiting for it to a channel.
-	gcsfuseErr := make(chan error, 1)
-	go func() {
-		gcsfuseErr <- t.runGcsfuse(args, statusW)
-	}()
-
-	// In the background, wait for something to be written to the pipe.
-	pipeErr := make(chan error, 1)
-	go func() {
-		defer statusR.Close()
-		n, err := statusR.Read(make([]byte, 1))
-		if n == 1 {
-			pipeErr <- nil
-			return
-		}
-
-		pipeErr <- fmt.Errorf("statusR.Read: %v", err)
-	}()
-
-	// Watch for a result from one of them.
-	select {
-	case err = <-gcsfuseErr:
-		err = fmt.Errorf("gcsfuse: %v", err)
-		return
-
-	case err = <-pipeErr:
-		if err == nil {
-			// All is good.
-			return
-		}
-
-		err = <-gcsfuseErr
-		err = fmt.Errorf("gcsfuse after pipe error: %v", err)
-		return
-	}
-}
-
-// Run gcsfuse and wait for it to return. Hand it the supplied pipe to write
-// into when it successfully mounts. This function takes responsibility for
-// closing the write end of the pipe locally.
-func (t *GcsfuseTest) runGcsfuse(args []string, statusW *os.File) (err error) {
-	defer statusW.Close()
-
-	cmd := exec.Command(t.gcsfusePath)
-	cmd.Args = append(cmd.Args, args...)
-	cmd.ExtraFiles = []*os.File{statusW}
-	cmd.Env = []string{
-		"STATUS_PIPE=3",
-		fmt.Sprintf("PATH=%s", gFusermountDir),
-	}
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		err = fmt.Errorf("%v\nOutput:\n%s", err, output)
-		return
-	}
-
+	err = daemon.Mount(t.gcsfusePath, gFusermountPath, args, ioutil.Discard)
 	return
 }
 
@@ -199,6 +136,35 @@ func (t *GcsfuseTest) BadUsage() {
 	}
 }
 
+func (t *GcsfuseTest) NonExistentMountPoint() {
+	var err error
+
+	// Mount.
+	args := []string{canned.FakeBucketName, path.Join(t.dir, "blahblah")}
+
+	err = t.mount(args)
+	ExpectThat(err, Error(HasSubstr("no such")))
+	ExpectThat(err, Error(HasSubstr("blahblah")))
+}
+
+func (t *GcsfuseTest) MountPointIsAFile() {
+	var err error
+
+	// Write a file.
+	p := path.Join(t.dir, "foo")
+
+	err = ioutil.WriteFile(p, []byte{}, 0500)
+	AssertEq(nil, err)
+	defer os.Remove(p)
+
+	// Mount.
+	args := []string{canned.FakeBucketName, p}
+
+	err = t.mount(args)
+	ExpectThat(err, Error(HasSubstr(p)))
+	ExpectThat(err, Error(HasSubstr("not a directory")))
+}
+
 func (t *GcsfuseTest) CannedContents() {
 	var err error
 	var fi os.FileInfo
@@ -210,7 +176,7 @@ func (t *GcsfuseTest) CannedContents() {
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
-	// Check the expected contents of the file system (cf. bucket.go).
+	// Check the expected contents of the file system.
 	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
 	AssertEq(nil, err)
 	ExpectEq(os.FileMode(0644), fi.Mode())
