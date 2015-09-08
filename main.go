@@ -318,6 +318,8 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
+
+		log.Println("Successfully exiting.")
 	}
 
 	err := app.Run(os.Args)
@@ -325,6 +327,4 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-
-	log.Println("Successfully exiting.")
 }
