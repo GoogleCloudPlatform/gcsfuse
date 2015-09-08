@@ -149,10 +149,25 @@ func (t *MountHelperTest) SuccessfulMount() {
 }
 
 func (t *MountHelperTest) ReadOnlyMode() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Mount.
+	args := []string{"-o", "ro", canned.FakeBucketName, t.dir}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// Writing to the file system should fail.
+	err = ioutil.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
+	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
 func (t *MountHelperTest) ExtraneousOptions() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MountHelperTest) LinuxArgumentOrder() {
 	AssertTrue(false, "TODO")
 }
 
