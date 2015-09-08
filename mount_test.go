@@ -90,7 +90,13 @@ func (t *MountTest) mount(
 	AssertNe(nil, flags)
 
 	// Mount.
-	mfs, err = mount(t.ctx, bucketName, mountPoint, flags, t.conn)
+	mfs, err = mount(
+		t.ctx,
+		bucketName,
+		mountPoint,
+		flags,
+		t.conn,
+		log.New(ioutil.Discard, "", 0))
 
 	return
 }

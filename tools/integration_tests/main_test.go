@@ -31,9 +31,9 @@ import (
 // in TestMain.
 var gBuildDir string
 
-// On Linux, the directory containing fusermount, which must be in gcsfuse's
-// PATH variable in order to successfully mount. Set by TestMain.
-var gFusermountDir string
+// On Linux, the path to fusermount, whose directory must be in gcsfuse's PATH
+// variable in order to successfully mount. Set by TestMain.
+var gFusermountPath string
 
 func TestMain(m *testing.M) {
 	flag.Parse()
@@ -41,12 +41,10 @@ func TestMain(m *testing.M) {
 
 	// Find fusermount if we're running on Linux.
 	if runtime.GOOS == "linux" {
-		fusermountPath, err := exec.LookPath("fusermount")
+		gFusermountPath, err = exec.LookPath("fusermount")
 		if err != nil {
 			log.Fatalf("LookPath(fusermount): %v", err)
 		}
-
-		gFusermountDir = path.Dir(fusermountPath)
 	}
 
 	// Set up a directory into which we will build.
