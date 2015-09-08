@@ -122,7 +122,9 @@ func (t *MountHelperTest) BadUsage() {
 	for i, tc := range testCases {
 		cmd := exec.Command(t.helperPath)
 		cmd.Args = append(cmd.Args, tc.args...)
-		cmd.Env = []string{}
+		cmd.Env = []string{
+			fmt.Sprintf("PATH=%s", path.Join(gBuildDir, "bin")),
+		}
 
 		output, err := cmd.CombinedOutput()
 		ExpectThat(err, Error(HasSubstr("exit status")), "case %d", i)

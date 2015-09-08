@@ -162,6 +162,20 @@ func run(args []string) (err error) {
 		return
 	}
 
+	// Find the path to gcsfuse.
+	gcsfusePath, err := findGcsfuse()
+	if err != nil {
+		err = fmt.Errorf("findGcsfuse: %v", err)
+		return
+	}
+
+	// Find the path to fusermount.
+	fusermountPath, err := findFusermount()
+	if err != nil {
+		err = fmt.Errorf("findFusermount: %v", err)
+		return
+	}
+
 	// Attempt to parse arguments.
 	device, mountPoint, opts, err := parseArgs(args)
 	if err != nil {
@@ -183,8 +197,8 @@ func run(args []string) (err error) {
 
 	// Call gcsfuse and wait for it to successfully mount.
 	err = daemon.Mount(
-		"gcsfuse",
-		"fusermount",
+		gcsfusePath,
+		fusermountPath,
 		gcsfuseArgs,
 		os.Stderr)
 
