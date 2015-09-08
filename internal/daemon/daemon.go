@@ -43,9 +43,9 @@ type logMsg struct {
 // A message indicating the outcome of the process of mounting the file system.
 // The receiver ignores further messages.
 type outcomeMsg struct {
-	Succesful bool
+	Successful bool
 
-	// Meaningful only if !Succesful.
+	// Meaningful only if !Successful.
 	ErrorMsg string
 }
 
@@ -99,10 +99,10 @@ func SignalOutcome(outcome error) (err error) {
 
 	// Write out the outcome.
 	msg := &outcomeMsg{
-		Succesful: outcome == nil,
+		Successful: outcome == nil,
 	}
 
-	if !msg.Succesful {
+	if !msg.Successful {
 		msg.ErrorMsg = outcome.Error()
 	}
 
@@ -243,7 +243,25 @@ func readFromGcsfuse(
 		}
 
 		// Handle the message.
-		err = fmt.Errorf("TODO: %T", msg)
-		return
+		switch msg := msg.(type) {
+		case logMsg:
+			_, err = status.Write(msg.Msg)
+			if err != nil {
+				err = fmt.Errorf("status.Write: %v", err)
+				return
+			}
+
+		case outcomeMsg:
+			if msg.Successful {
+				return
+			}
+
+			err = fmt.Errorf("gcsfuse: %s", msg.ErrorMsg)
+			return
+
+		default:
+			err = fmt.Errorf("Unhandled message type: %T", msg)
+			return
+		}
 	}
 }
