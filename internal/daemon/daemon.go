@@ -21,6 +21,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -96,12 +97,28 @@ func SignalOutcome(outcome error) (err error) {
 	return
 }
 
+// An io.Writer that sends logMsg messages over a gob encoder.
+type logMsgWriter struct {
+	encoder *gob.Encoder
+}
+
+func (w *logMsgWriter) Write(p []byte) (n int, err error) {
+	err = errors.New("TODO")
+	return
+}
+
 // For use by gcsfuse: return a writer that should be used for logging status
 // messages while in the process of mounting.
 //
 // The returned writer must not be written to after calling SignalOutcome.
 func StatusWriter() (w io.Writer) {
-	panic("TODO")
+	if gGobEncoder == nil {
+		w = ioutil.Discard
+		return
+	}
+
+	w = &logMsgWriter{gGobEncoder}
+	return
 }
 
 // Invoke gcsfuse with the supplied arguments, waiting until it successfully
