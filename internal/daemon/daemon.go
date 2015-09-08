@@ -103,7 +103,16 @@ type logMsgWriter struct {
 }
 
 func (w *logMsgWriter) Write(p []byte) (n int, err error) {
-	err = errors.New("TODO")
+	msg := &logMsg{
+		Msg: p,
+	}
+
+	err = w.encoder.Encode(msg)
+	if err != nil {
+		return
+	}
+
+	n = len(p)
 	return
 }
 
