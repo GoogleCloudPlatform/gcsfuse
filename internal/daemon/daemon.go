@@ -19,7 +19,6 @@ package daemon
 
 import (
 	"encoding/gob"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -158,7 +157,10 @@ func Mount(
 	startGcsfuseErr := make(chan error, 1)
 	go func() {
 		defer pipeW.Close()
-		startGcsfuseErr <- startGcsfuse(gcsfusePath, fusermountPath, args, pipeW)
+		err := startGcsfuse(gcsfusePath, fusermountPath, args, pipeW)
+		if err != nil {
+			startGcsfuseErr <- err
+		}
 	}()
 
 	// Read communication from gcsfuse from the pipe, writing nil into the
@@ -218,6 +220,19 @@ func startGcsfuse(
 func readFromGcsfuse(
 	r io.Reader,
 	status io.Writer) (err error) {
-	err = errors.New("TODO")
-	return
+	decoder := gob.NewDecoder(r)
+
+	for {
+		// Read a message.
+		var msg interface{}
+		err = decoder.Decode(&msg)
+		if err != nil {
+			err = fmt.Errorf("Decode: %v", err)
+			return
+		}
+
+		// Handle the message.
+		err = fmt.Errorf("TODO: %T", msg)
+		return
+	}
 }
