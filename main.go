@@ -224,10 +224,11 @@ func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// main function
+// main logic
 ////////////////////////////////////////////////////////////////////////
 
-func run(c *cli.Context) (err error) {
+// Mount the file system according to arguments in the supplied context.
+func mountFromContext(c *cli.Context) (mfs *fuse.MountedFileSystem, err error) {
 	// Extract the status pipe that the user handed us, if any.
 	var statusPipe *os.File
 	if os.Getenv("STATUS_PIPE") != "" {
@@ -270,7 +271,7 @@ func run(c *cli.Context) (err error) {
 	}
 
 	// Mount the file system.
-	mfs, err := mount(
+	mfs, err = mount(
 		context.Background(),
 		bucketName,
 		mountPoint,
@@ -279,6 +280,17 @@ func run(c *cli.Context) (err error) {
 
 	if err != nil {
 		err = fmt.Errorf("mount: %v", err)
+		return
+	}
+
+	return
+}
+
+func run(c *cli.Context) (err error) {
+	// Mount.
+	mfs, err := mountFromContext(c)
+	if err != nil {
+		err = fmt.Errorf("mountFromContext: %v", err)
 		return
 	}
 
