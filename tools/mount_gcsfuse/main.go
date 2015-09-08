@@ -55,8 +55,8 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/daemon"
 	"github.com/googlecloudplatform/gcsfuse/internal/mount"
@@ -180,23 +180,11 @@ func run(args []string) (err error) {
 		return
 	}
 
-	// Print out each argument to aid debugging.
-	for i, arg := range args {
-		log.Printf("Arg %d: %q", i, arg)
-	}
-
 	// Attempt to parse arguments.
 	device, mountPoint, opts, err := parseArgs(args)
 	if err != nil {
 		err = fmt.Errorf("parseArgs: %v", err)
 		return
-	}
-
-	// Print what we gleaned.
-	log.Printf("Device: %q", device)
-	log.Printf("Mount point: %q", mountPoint)
-	for name, value := range opts {
-		log.Printf("Option %q: %q", name, value)
 	}
 
 	// Choose gcsfuse args.
@@ -206,9 +194,10 @@ func run(args []string) (err error) {
 		return
 	}
 
-	for _, a := range gcsfuseArgs {
-		log.Printf("gcsfuse arg: %q", a)
-	}
+	fmt.Fprintf(
+		os.Stderr,
+		"Calling gcsfuse with arguments: %s\n",
+		strings.Join(gcsfuseArgs, " "))
 
 	// Call gcsfuse and wait for it to successfully mount.
 	err = daemon.Mount(
