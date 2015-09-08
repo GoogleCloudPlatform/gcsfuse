@@ -27,6 +27,7 @@ import (
 	"os/exec"
 	"path"
 	"strconv"
+	"syscall"
 )
 
 // The name of an environment variable used to communicate a file descriptor
@@ -201,25 +202,33 @@ func Mount(
 
 // Start gcsfuse, handing it the supplied pipe for communication. Do not wait
 // for it to return.
-//
-// TODO(jacobsa): Call setsid, set stderr and friends, etc. See #122.
 func startGcsfuse(
 	gcsfusePath string,
 	fusermountPath string,
 	args []string,
 	pipeW *os.File) (err error) {
-	// Start the command.
 	cmd := exec.Command(gcsfusePath)
 	cmd.Args = append(cmd.Args, args...)
 	cmd.ExtraFiles = []*os.File{pipeW}
+
+	// Change working directories so that we don't prevent unmounting of the
+	// volume of our current working directory.
+	cmd.Dir = "/"
+
+	// Call setsid after forking in order to avoid being killed when the user
+	// logs out.
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setsid: true,
+	}
+
+	// Send along the write end of the pipe, and let gcsfuse find fusermount.
 	cmd.Env = []string{
 		fmt.Sprintf("%s=3", envVar),
 		fmt.Sprintf("PATH=%s", path.Dir(fusermountPath)),
 	}
 
+	// Start. Clean up in the background, ignoring errors.
 	err = cmd.Start()
-
-	// Clean up in the background, ignoring errors.
 	go cmd.Wait()
 
 	return
