@@ -15,6 +15,7 @@
 package integration_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -73,6 +74,22 @@ func (t *MountHelperTest) TearDown() {
 	AssertEq(nil, err)
 }
 
+func (t *MountHelperTest) mount(args []string) (err error) {
+	cmd := exec.Command(t.helperPath)
+	cmd.Args = append(cmd.Args, args...)
+	cmd.Env = []string{
+		fmt.Sprintf("PATH=%s", path.Join(gBuildDir, "bin")),
+	}
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		err = fmt.Errorf("CombinedOutput: %v\nOutput:\n%s", err, output)
+		return
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
@@ -105,6 +122,7 @@ func (t *MountHelperTest) BadUsage() {
 	for i, tc := range testCases {
 		cmd := exec.Command(t.helperPath)
 		cmd.Args = append(cmd.Args, tc.args...)
+		cmd.Env = []string{}
 
 		output, err := cmd.CombinedOutput()
 		ExpectThat(err, Error(HasSubstr("exit status")), "case %d", i)
@@ -113,7 +131,21 @@ func (t *MountHelperTest) BadUsage() {
 }
 
 func (t *MountHelperTest) SuccessfulMount() {
-	AssertTrue(false, "TODO")
+	var err error
+	var fi os.FileInfo
+
+	// Mount.
+	args := []string{canned.FakeBucketName, t.dir}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// Check that the file system is available.
+	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
+	AssertEq(nil, err)
+	ExpectEq(os.FileMode(0644), fi.Mode())
+	ExpectEq(len(canned.TopLevelFile_Contents), fi.Size())
 }
 
 func (t *MountHelperTest) ReadOnlyMode() {
