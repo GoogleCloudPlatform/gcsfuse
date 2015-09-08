@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A small helper for using gcsfuse with mount(8).
+// A helper that allows using gcsfuse with mount(8).
 //
 // Can be invoked using a command-line of the form expected for mount helpers.
 // Calls the gcsfuse binary, which must be in $PATH, and waits for it to
 // complete. The device and mount point are passed on as positional arguments,
 // and other known options are converted to appropriate flags.
 //
-// This binary does not daemonize, and therefore must be used with a wrapper
-// that performs daemonization if it is to be used directly with mount(8).
+// This binary returns with exit code zero only after gcsfuse has reported that
+// it has successfuly mounted the file system. Further output from gcsfuse is
+// suppressed.
 package main
 
 // Example invocation on OS X:
@@ -159,24 +160,27 @@ func parseArgs(
 		}
 	}
 
+	if positionalCount != 2 {
+		err = fmt.Errorf("Expected two positional arguments; got %d.", positionalCount)
+		return
+	}
+
 	return
 }
 
-func main() {
-	args := os.Args
-
+func run(args []string) (err error) {
 	// If invoked with a single "--help" argument, print a usage message and exit
 	// successfully.
 	if len(args) == 2 && args[1] == "--help" {
 		fmt.Fprintf(
 			os.Stderr,
 			"Usage: %s [-o options] bucket_name mount_point\n",
-			os.Args[0])
+			args[0])
 
-		os.Exit(0)
+		return
 	}
 
-	// Print out each argument.
+	// Print out each argument to aid debugging.
 	for i, arg := range args {
 		log.Printf("Arg %d: %q", i, arg)
 	}
@@ -184,7 +188,8 @@ func main() {
 	// Attempt to parse arguments.
 	device, mountPoint, opts, err := parseArgs(args)
 	if err != nil {
-		log.Fatalf("parseArgs: %v", err)
+		err = fmt.Errorf("parseArgs: %v", err)
+		return
 	}
 
 	// Print what we gleaned.
@@ -197,7 +202,8 @@ func main() {
 	// Choose gcsfuse args.
 	gcsfuseArgs, err := makeGcsfuseArgs(device, mountPoint, opts)
 	if err != nil {
-		log.Fatalf("makeGcsfuseArgs: %v", err)
+		err = fmt.Errorf("makeGcsfuseArgs: %v", err)
+		return
 	}
 
 	for _, a := range gcsfuseArgs {
@@ -212,8 +218,18 @@ func main() {
 
 	err = cmd.Run()
 	if err != nil {
-		log.Fatalf("gcsfuse failed or failed to run: %v", err)
+		err = fmt.Errorf("Running gcsfuse: %v", err)
+		return
 	}
 
 	log.Println("gcsfuse completed successfully.")
+	return
+}
+
+func main() {
+	err := run(os.Args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
+	}
 }
