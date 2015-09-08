@@ -20,6 +20,9 @@ package daemon
 import (
 	"errors"
 	"io"
+	"log"
+	"os"
+	"strconv"
 )
 
 // The name of an environment variable used to communicate a file descriptor
@@ -40,6 +43,26 @@ type outcomeMsg struct {
 
 	// Meaningful only if !Succesful.
 	ErrorMsg string
+}
+
+// The file provded to this process via the environment variable, or nil if
+// none.
+var gFile *os.File
+
+func init() {
+	// Is the environment variable set?
+	fdStr, ok := os.LookupEnv(envVar)
+	if !ok {
+		return
+	}
+
+	// Parse the file descriptor.
+	fd, err := strconv.ParseUint(fdStr, 10, 32)
+	if err != nil {
+		log.Fatalf("Couldn't parse %s value %q: %v", envVar, fdStr, err)
+	}
+
+	gFile = os.NewFile(uintptr(fd), envVar)
 }
 
 // For use by gcsfuse: signal that mounting was successful (allowing the caller
