@@ -22,6 +22,26 @@ import (
 	"io"
 )
 
+// The name of an environment variable used to communicate a file descriptor
+// set up by Mount to the gcsfuse subprocess. Gob encoding is used to
+// communicate back to Mount.
+const envVar = "MOUNT_STATUS_FD"
+
+// A message containing logging output for the process of mounting the file
+// system.
+type logMsg struct {
+	Msg []byte
+}
+
+// A message indicating the outcome of the process of mounting the file system.
+// The receiver ignores further messages.
+type outcomeMsg struct {
+	Succesful bool
+
+	// Meaningful only if !Succesful.
+	ErrorMsg string
+}
+
 // For use by gcsfuse: signal that mounting was successful (allowing the caller
 // of the process to return in success) or that there was a failure to mount
 // the file system (allowing the caller of the process to display an
