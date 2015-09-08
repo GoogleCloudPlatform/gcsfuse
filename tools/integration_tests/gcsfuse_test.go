@@ -148,7 +148,21 @@ func (t *GcsfuseTest) NonExistentMountPoint() {
 }
 
 func (t *GcsfuseTest) MountPointIsAFile() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Write a file.
+	p := path.Join(t.dir, "foo")
+
+	err = ioutil.WriteFile(p, []byte{}, 0500)
+	AssertEq(nil, err)
+	defer os.Remove(p)
+
+	// Mount.
+	args := []string{canned.FakeBucketName, p}
+
+	err = t.mount(args)
+	ExpectThat(err, Error(HasSubstr(p)))
+	ExpectThat(err, Error(HasSubstr("not a directory")))
 }
 
 func (t *GcsfuseTest) CannedContents() {
