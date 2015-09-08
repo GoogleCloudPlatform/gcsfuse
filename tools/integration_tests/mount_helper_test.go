@@ -17,10 +17,13 @@ package integration_test
 import (
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"runtime"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -75,7 +78,38 @@ func (t *MountHelperTest) TearDown() {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *MountHelperTest) BadUsage() {
-	AssertTrue(false, "TODO")
+	testCases := []struct {
+		args           []string
+		expectedOutput string
+	}{
+		// Too few args
+		0: {
+			[]string{canned.FakeBucketName},
+			"two positional arguments",
+		},
+
+		// Too many args
+		1: {
+			[]string{canned.FakeBucketName, "a", "b"},
+			"Unexpected arg 3",
+		},
+
+		// Trailing -o
+		2: {
+			[]string{canned.FakeBucketName, "a", "-o"},
+			"Unexpected -o",
+		},
+	}
+
+	// Run each test case.
+	for i, tc := range testCases {
+		cmd := exec.Command(t.helperPath)
+		cmd.Args = append(cmd.Args, tc.args...)
+
+		output, err := cmd.CombinedOutput()
+		ExpectThat(err, Error(HasSubstr("exit status")), "case %d", i)
+		ExpectThat(string(output), MatchesRegexp(tc.expectedOutput), "case %d", i)
+	}
 }
 
 func (t *MountHelperTest) SuccessfulMount() {
