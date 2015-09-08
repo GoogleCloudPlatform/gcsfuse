@@ -18,6 +18,7 @@
 package daemon
 
 import (
+	"encoding/gob"
 	"errors"
 	"io"
 	"log"
@@ -49,6 +50,9 @@ type outcomeMsg struct {
 // none.
 var gFile *os.File
 
+// A gob encoder that writes into gFile, or nil.
+var gGobEncoder *gob.Encoder
+
 func init() {
 	// Is the environment variable set?
 	fdStr, ok := os.LookupEnv(envVar)
@@ -62,7 +66,9 @@ func init() {
 		log.Fatalf("Couldn't parse %s value %q: %v", envVar, fdStr, err)
 	}
 
+	// Set up the file and the encoder that wraps it.
 	gFile = os.NewFile(uintptr(fd), envVar)
+	gGobEncoder = gob.NewEncoder(gFile)
 }
 
 // For use by gcsfuse: signal that mounting was successful (allowing the caller
@@ -72,7 +78,21 @@ func init() {
 //
 // Do nothing if the process wasn't invoked with Mount.
 func SignalOutcome(outcome error) (err error) {
-	err = errors.New("TODO")
+	// Is there anything to do?
+	if gGobEncoder == nil {
+		return
+	}
+
+	// Write out the outcome.
+	msg := &outcomeMsg{
+		Succesful: outcome == nil,
+	}
+
+	if !msg.Succesful {
+		msg.ErrorMsg = outcome.Error()
+	}
+
+	err = gGobEncoder.Encode(msg)
 	return
 }
 
