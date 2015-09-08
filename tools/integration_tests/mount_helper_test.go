@@ -186,7 +186,18 @@ func (t *MountHelperTest) ExtraneousOptions() {
 }
 
 func (t *MountHelperTest) LinuxArgumentOrder() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Linux places the options at the end.
+	args := []string{canned.FakeBucketName, t.dir, "-o", "ro"}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// Writing to the file system should fail.
+	err = ioutil.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
+	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
 func (t *MountHelperTest) FuseSubtype() {
