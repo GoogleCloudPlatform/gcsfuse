@@ -49,6 +49,11 @@ type outcomeMsg struct {
 	ErrorMsg string
 }
 
+func init() {
+	gob.Register(logMsg{})
+	gob.Register(outcomeMsg{})
+}
+
 // The file provded to this process via the environment variable, or nil if
 // none.
 var gFile *os.File
@@ -74,6 +79,12 @@ func init() {
 	gGobEncoder = gob.NewEncoder(gFile)
 }
 
+// Send the supplied message as an interface{}, matching the decoder.
+func sendMsg(msg interface{}) (err error) {
+	err = gGobEncoder.Encode(&msg)
+	return
+}
+
 // For use by gcsfuse: signal that mounting was successful (allowing the caller
 // of the process to return in success) or that there was a failure to mount
 // the file system (allowing the caller of the process to display an
@@ -95,13 +106,13 @@ func SignalOutcome(outcome error) (err error) {
 		msg.ErrorMsg = outcome.Error()
 	}
 
-	err = gGobEncoder.Encode(msg)
+	err = sendMsg(msg)
+
 	return
 }
 
-// An io.Writer that sends logMsg messages over a gob encoder.
+// An io.Writer that sends logMsg messages over gGobEncoder.
 type logMsgWriter struct {
-	encoder *gob.Encoder
 }
 
 func (w *logMsgWriter) Write(p []byte) (n int, err error) {
@@ -109,7 +120,7 @@ func (w *logMsgWriter) Write(p []byte) (n int, err error) {
 		Msg: p,
 	}
 
-	err = w.encoder.Encode(msg)
+	err = sendMsg(msg)
 	if err != nil {
 		return
 	}
@@ -128,7 +139,7 @@ func StatusWriter() (w io.Writer) {
 		return
 	}
 
-	w = &logMsgWriter{gGobEncoder}
+	w = &logMsgWriter{}
 	return
 }
 
