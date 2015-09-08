@@ -136,7 +136,7 @@ func (w *logMsgWriter) Write(p []byte) (n int, err error) {
 // The returned writer must not be written to after calling SignalOutcome.
 func StatusWriter() (w io.Writer) {
 	if gGobEncoder == nil {
-		w = ioutil.Discard
+		w = os.Stderr
 		return
 	}
 
