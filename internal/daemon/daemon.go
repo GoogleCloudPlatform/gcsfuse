@@ -25,6 +25,8 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
+	"path"
 	"strconv"
 )
 
@@ -137,6 +139,7 @@ func StatusWriter() (w io.Writer) {
 // it mounts successfully.
 func Mount(
 	gcsfusePath string,
+	fusermountPath string,
 	args []string,
 	status io.Writer) (err error) {
 	if status == nil {
@@ -155,7 +158,7 @@ func Mount(
 	startGcsfuseErr := make(chan error, 1)
 	go func() {
 		defer pipeW.Close()
-		startGcsfuseErr <- startGcsfuse(args, pipeW)
+		startGcsfuseErr <- startGcsfuse(gcsfusePath, fusermountPath, args, pipeW)
 	}()
 
 	// Read communication from gcsfuse from the pipe, writing nil into the
@@ -185,10 +188,27 @@ func Mount(
 
 // Start gcsfuse, handing it the supplied pipe for communication. Do not wait
 // for it to return.
+//
+// TODO(jacobsa): Call setsid, set stderr and friends, etc. See #122.
 func startGcsfuse(
+	gcsfusePath string,
+	fusermountPath string,
 	args []string,
 	pipeW *os.File) (err error) {
-	err = errors.New("TODO")
+	// Start the command.
+	cmd := exec.Command(gcsfusePath)
+	cmd.Args = append(cmd.Args, args...)
+	cmd.ExtraFiles = []*os.File{pipeW}
+	cmd.Env = []string{
+		fmt.Sprintf("%s=3", envVar),
+		fmt.Sprintf("PATH=%s", path.Dir(fusermountPath)),
+	}
+
+	err = cmd.Start()
+
+	// Clean up in the background, ignoring errors.
+	go cmd.Wait()
+
 	return
 }
 

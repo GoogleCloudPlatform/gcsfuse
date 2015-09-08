@@ -70,30 +70,7 @@ func (t *GcsfuseTest) TearDown() {
 // Call gcsfuse with the supplied args, waiting for it to mount. Return nil
 // only if it mounts successfully.
 func (t *GcsfuseTest) mount(args []string) (err error) {
-	err = daemon.Mount(t.gcsfusePath, args, ioutil.Discard)
-	return
-}
-
-// Run gcsfuse and wait for it to return. Hand it the supplied pipe to write
-// into when it successfully mounts. This function takes responsibility for
-// closing the write end of the pipe locally.
-func (t *GcsfuseTest) runGcsfuse(args []string, statusW *os.File) (err error) {
-	defer statusW.Close()
-
-	cmd := exec.Command(t.gcsfusePath)
-	cmd.Args = append(cmd.Args, args...)
-	cmd.ExtraFiles = []*os.File{statusW}
-	cmd.Env = []string{
-		"STATUS_PIPE=3",
-		fmt.Sprintf("PATH=%s", gFusermountDir),
-	}
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		err = fmt.Errorf("%v\nOutput:\n%s", err, output)
-		return
-	}
-
+	err = daemon.Mount(t.gcsfusePath, gFusermountPath, args, ioutil.Discard)
 	return
 }
 
