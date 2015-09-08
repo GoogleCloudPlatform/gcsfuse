@@ -201,5 +201,25 @@ func (t *MountHelperTest) LinuxArgumentOrder() {
 }
 
 func (t *MountHelperTest) FuseSubtype() {
-	AssertTrue(false, "TODO")
+	var err error
+	var fi os.FileInfo
+
+	// This test isn't relevant except on Linux.
+	if runtime.GOOS != "linux" {
+		return
+	}
+
+	// Mount using the tool that would be invoked by ~mount -t fuse.gcsfuse`.
+	t.helperPath = path.Join(gBuildDir, "sbin/mount.fuse.gcsfuse")
+	args := []string{canned.FakeBucketName, t.dir}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// Check that the file system is available.
+	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
+	AssertEq(nil, err)
+	ExpectEq(os.FileMode(0644), fi.Mode())
+	ExpectEq(len(canned.TopLevelFile_Contents), fi.Size())
 }
