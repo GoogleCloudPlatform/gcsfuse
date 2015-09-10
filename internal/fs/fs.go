@@ -869,6 +869,27 @@ func (fs *fileSystem) Destroy() {
 	fs.stopGarbageCollecting()
 }
 
+func (fs *fileSystem) StatFS(
+	ctx context.Context,
+	op *fuseops.StatFSOp) (err error) {
+	// Simulate a large amount of free space so that the Finder doesn't refuse to
+	// copy in files. (See issue #125.)
+	op.BlockSize = 1 << 20
+	op.Blocks = 1 << 30
+	op.BlocksFree = op.Blocks
+	op.BlocksAvailable = op.Blocks
+
+	// Similarly with inodes.
+	op.Inodes = 1 << 50
+	op.InodesFree = op.Inodes
+
+	// Prefer large transfers. This is the largest value that OS X will
+	// faithfully pass on, according to fuseops/ops.go.
+	op.IoSize = 1 << 20
+
+	return
+}
+
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
