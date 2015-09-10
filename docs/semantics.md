@@ -300,7 +300,7 @@ look up child inodes. Unlike file inodes:
 
 *   gcsfuse does not keep track of modification time for
     directories. There are no guarantees for the contents of `stat::st_mtime`
-    or equivalent.
+    or equivalent or the behavior of `utimes(2)` and similar.
 
 *   There are no guarantees about `stat::st_nlink`.
 
@@ -372,7 +372,8 @@ By default, all inodes in a gcsfuse file system show up as being owned by the
 UID and GID of the gcsfuse process itself, i.e. the user who mounted the file
 system. All files have permission bits `0644`, and all directories have
 permission bits `0755` (but see below for issues with use by other users).
-Changing permission bits is not supported.
+Changing inode mode (using `chmod(2)` or similar) is unsupported, and changes
+are silently ignored.
 
 These defaults can be overriden with the `--uid`, `--gid`, `--file-mode`, and
 `--dir-mode` flags.

@@ -1161,6 +1161,35 @@ func (t *DirectoryTest) CreateHardLink() {
 	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
+func (t *DirectoryTest) Chmod() {
+	var err error
+
+	// Create a directory.
+	p := path.Join(t.mfs.Dir(), "foo")
+	err = os.Mkdir(p, 0700)
+	AssertEq(nil, err)
+
+	// Attempt to chmod it. Chmod should succeed even though we don't do anything
+	// useful. The OS X Finder otherwise complains to the user when copying in a
+	// file.
+	err = os.Chmod(p, 0777)
+	ExpectEq(nil, err)
+}
+
+func (t *DirectoryTest) Chtimes() {
+	var err error
+
+	// Create a directory.
+	p := path.Join(t.mfs.Dir(), "foo")
+	err = os.Mkdir(p, 0700)
+	AssertEq(nil, err)
+
+	// Chtimes should succeed even though we don't do anything useful. The OS X
+	// Finder otherwise complains to the user when copying in a directory.
+	err = os.Chtimes(p, time.Now(), time.Now())
+	ExpectEq(nil, err)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // File interaction
 ////////////////////////////////////////////////////////////////////////
@@ -1680,15 +1709,15 @@ func (t *FileTest) Chmod() {
 	var err error
 
 	// Write a file.
-	fileName := path.Join(t.mfs.Dir(), "foo")
-	err = ioutil.WriteFile(fileName, []byte(""), 0700)
+	p := path.Join(t.mfs.Dir(), "foo")
+	err = ioutil.WriteFile(p, []byte(""), 0700)
 	AssertEq(nil, err)
 
-	// Attempt to chmod it. We don't support doing so.
-	err = os.Chmod(fileName, 0777)
-
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("not implemented")))
+	// Attempt to chmod it. Chmod should succeed even though we don't do anything
+	// useful. The OS X Finder otherwise complains to the user when copying in a
+	// file.
+	err = os.Chmod(p, 0777)
+	ExpectEq(nil, err)
 }
 
 func (t *FileTest) Chtimes_InactiveFile() {
@@ -1782,19 +1811,6 @@ func (t *FileTest) Chtimes_OpenFile_Dirty() {
 	fi, err = os.Stat(p)
 	AssertEq(nil, err)
 	ExpectThat(fi.ModTime(), timeutil.TimeEq(newMtime))
-}
-
-func (t *FileTest) Chtimes_Directory() {
-	var err error
-
-	// Create a directory.
-	p := path.Join(t.mfs.Dir(), "foo")
-	err = os.Mkdir(p, 0700)
-	AssertEq(nil, err)
-
-	// Chtimes should fail; we don't support it for directories.
-	err = os.Chtimes(p, time.Now(), time.Now())
-	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
 func (t *FileTest) Sync_Dirty() {

@@ -952,16 +952,10 @@ func (fs *fileSystem) SetInodeAttributes(
 
 	in.Lock()
 	defer in.Unlock()
+	file, isFile := in.(*inode.FileInode)
 
-	// We don't support changing non-files.
-	file, ok := in.(*inode.FileInode)
-	if !ok {
-		err = fuse.ENOSYS
-		return
-	}
-
-	// Set the mtime, if requested.
-	if op.Mtime != nil {
+	// Set file mtimes.
+	if isFile && op.Mtime != nil {
 		err = file.SetMtime(ctx, *op.Mtime)
 		if err != nil {
 			err = fmt.Errorf("SetMtime: %v", err)
@@ -969,8 +963,8 @@ func (fs *fileSystem) SetInodeAttributes(
 		}
 	}
 
-	// Set the size, if specified.
-	if op.Size != nil {
+	// Truncate files.
+	if isFile && op.Size != nil {
 		err = file.Truncate(ctx, int64(*op.Size))
 		if err != nil {
 			err = fmt.Errorf("Truncate: %v", err)
@@ -978,12 +972,7 @@ func (fs *fileSystem) SetInodeAttributes(
 		}
 	}
 
-	// We don't support setting mode. (We silently ignore atime updates, as per
-	// docs/semantics.md.)
-	if op.Mode != nil {
-		err = fuse.ENOSYS
-		return
-	}
+	// We silently ignore updates to mode and atime.
 
 	// Fill in the response.
 	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in)
