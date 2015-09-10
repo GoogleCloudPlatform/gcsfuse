@@ -371,7 +371,7 @@ func convertInMessage(
 		}
 
 	case fusekernel.OpStatfs:
-		o = &statFSOp{}
+		o = &fuseops.StatFSOp{}
 
 	case fusekernel.OpInterrupt:
 		type input fusekernel.InterruptIn
@@ -557,8 +557,41 @@ func (c *Connection) kernelResponseForOp(
 	case *fuseops.ReadSymlinkOp:
 		m.AppendString(o.Target)
 
-	case *statFSOp:
-		m.Grow(unsafe.Sizeof(fusekernel.StatfsOut{}))
+	case *fuseops.StatFSOp:
+		out := (*fusekernel.StatfsOut)(m.Grow(unsafe.Sizeof(fusekernel.StatfsOut{})))
+		out.St.Blocks = o.Blocks
+		out.St.Bfree = o.BlocksFree
+		out.St.Bavail = o.BlocksAvailable
+		out.St.Files = o.Inodes
+		out.St.Ffree = o.InodesFree
+
+		// The posix spec for sys/statvfs.h (http://goo.gl/LktgrF) defines the
+		// following fields of statvfs, among others:
+		//
+		//     f_bsize    File system block size.
+		//     f_frsize   Fundamental file system block size.
+		//     f_blocks   Total number of blocks on file system in units of f_frsize.
+		//
+		// It appears as though f_bsize was the only thing supported by most unixes
+		// originally, but then f_frsize was added when new sorts of file systems
+		// came about. Quoth The Linux Programming Interface by Michael Kerrisk
+		// (https://goo.gl/5LZMxQ):
+		//
+		//     For most Linux file systems, the values of f_bsize and f_frsize are
+		//     the same. However, some file systems support the notion of block
+		//     fragments, which can be used to allocate a smaller unit of storage
+		//     at the end of the file if if a full block is not required. This
+		//     avoids the waste of space that would otherwise occur if a full block
+		//     was allocated. On such file systems, f_frsize is the size of a
+		//     fragment, and f_bsize is the size of a whole block. (The notion of
+		//     fragments in UNIX file systems first appeared in the early 1980s
+		//     with the 4.2BSD Fast File System.)
+		//
+		// Confusingly, it appears as though osxfuse surfaces fuse_kstatfs::bsize
+		// as statfs::f_iosize (of advisory use only), and fuse_kstatfs::frsize as
+		// statfs::f_bsize (which affects free space display in the Finder).
+		out.St.Bsize = o.IoSize
+		out.St.Frsize = o.BlockSize
 
 	case *initOp:
 		out := (*fusekernel.InitOut)(m.Grow(unsafe.Sizeof(fusekernel.InitOut{})))

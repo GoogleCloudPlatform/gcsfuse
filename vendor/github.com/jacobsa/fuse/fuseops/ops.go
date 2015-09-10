@@ -20,6 +20,81 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////
+// File system
+////////////////////////////////////////////////////////////////////////
+
+// Return statistics about the file system's capacity and available resources.
+//
+// Called by statfs(2) and friends:
+//
+//     * (https://goo.gl/Xi1lDr) sys_statfs called user_statfs, which calls
+//        vfs_statfs, which calls statfs_by_dentry.
+//
+//     * (https://goo.gl/VAIOwU) statfs_by_dentry calls the superblock
+//       operation statfs, which in our case points at
+//       fuse_statfs (cf. https://goo.gl/L7BTM3)
+//
+//     * (https://goo.gl/Zn7Sgl) fuse_statfs sends a statfs op, then uses
+//       convert_fuse_statfs to convert the response in a straightforward
+//       manner.
+//
+// This op is particularly important on OS X: if you don't implement it, the
+// file system will not successfully mount. If you don't model a sane amount of
+// free space, the Finder will refuse to copy files into the file system.
+type StatFSOp struct {
+	// The size of the file system's blocks. This may be used, in combination
+	// with the block counts below,  by callers of statfs(2) to infer the file
+	// system's capacity and space availability.
+	//
+	// On Linux this is surfaced as statfs::f_frsize, matching the posix standard
+	// (http://goo.gl/LktgrF), which says that f_blocks and friends are in units
+	// of f_frsize. On OS X this is surfaced as statfs::f_bsize, which plays the
+	// same roll.
+	//
+	// It appears as though the original intent of statvfs::f_frsize in the posix
+	// standard was to support a smaller addressable unit than statvfs::f_bsize
+	// (cf. The Linux Programming Interface by Michael Kerrisk,
+	// https://goo.gl/5LZMxQ). Therefore users should probably arrange for this
+	// to be no larger than IoSize.
+	//
+	// On Linux this can be any value, and will be faithfully returned to the
+	// caller of statfs(2) (see the code walk above). On OS X it appears that
+	// only powers of 2 in the range [2^9, 2^17] are preserved, and a value of
+	// zero is treated as 4096.
+	//
+	// This interface does not distinguish between blocks and block fragments.
+	BlockSize uint32
+
+	// The total number of blocks in the file system, the number of unused
+	// blocks, and the count of the latter that are available for use by non-root
+	// users.
+	//
+	// For each category, the corresponding number of bytes is derived by
+	// multiplying by BlockSize.
+	Blocks          uint64
+	BlocksFree      uint64
+	BlocksAvailable uint64
+
+	// The preferred size of writes to and reads from the file system, in bytes.
+	// This may affect clients that use statfs(2) to size buffers correctly. It
+	// does not appear to influence the size of writes sent from the kernel to
+	// the file system daemon.
+	//
+	// On Linux this is surfaced as statfs::f_bsize, and on OS X as
+	// statfs::f_iosize. Both are documented in `man 2 statfs` as "optimal
+	// transfer block size".
+	//
+	// On Linux this can be any value. On OS X it appears that only powers of 2
+	// in the range [2^12, 2^20] are faithfully preserved, and a value of zero is
+	// treated as 65536.
+	IoSize uint32
+
+	// The total number of inodes in the file system, and how many remain free.
+	Inodes     uint64
+	InodesFree uint64
+}
+
+////////////////////////////////////////////////////////////////////////
 // Inodes
 ////////////////////////////////////////////////////////////////////////
 
