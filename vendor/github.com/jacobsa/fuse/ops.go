@@ -26,10 +26,6 @@ type unknownOp struct {
 	Inode  fuseops.InodeID
 }
 
-// Required in order to mount on OS X.
-type statFSOp struct {
-}
-
 // Causes us to cancel the associated context.
 type interruptOp struct {
 	FuseID uint64

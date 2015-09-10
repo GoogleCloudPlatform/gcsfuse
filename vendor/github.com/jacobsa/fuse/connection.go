@@ -405,14 +405,6 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 		ctx = c.beginOp(inMsg.Header().Opcode, inMsg.Header().Unique)
 		ctx = context.WithValue(ctx, contextKey, opState{inMsg, outMsg, op})
 
-		// Special case: responding to statfs is required to make mounting work on
-		// OS X. We don't currently expose the capability for the file system to
-		// intercept this.
-		if _, ok := op.(*statFSOp); ok {
-			c.Reply(ctx, nil)
-			continue
-		}
-
 		// Return the op to the user.
 		return
 	}

@@ -35,6 +35,7 @@ import (
 // See NotImplementedFileSystem for a convenient way to embed default
 // implementations for methods you don't care about.
 type FileSystem interface {
+	StatFS(context.Context, *fuseops.StatFSOp) error
 	LookUpInode(context.Context, *fuseops.LookUpInodeOp) error
 	GetInodeAttributes(context.Context, *fuseops.GetInodeAttributesOp) error
 	SetInodeAttributes(context.Context, *fuseops.SetInodeAttributesOp) error
@@ -118,6 +119,9 @@ func (s *fileSystemServer) handleOp(
 	switch typed := op.(type) {
 	default:
 		err = fuse.ENOSYS
+
+	case *fuseops.StatFSOp:
+		err = s.fs.StatFS(ctx, typed)
 
 	case *fuseops.LookUpInodeOp:
 		err = s.fs.LookUpInode(ctx, typed)
