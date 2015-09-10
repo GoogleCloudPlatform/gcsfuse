@@ -372,7 +372,8 @@ By default, all inodes in a gcsfuse file system show up as being owned by the
 UID and GID of the gcsfuse process itself, i.e. the user who mounted the file
 system. All files have permission bits `0644`, and all directories have
 permission bits `0755` (but see below for issues with use by other users).
-Changing permission bits is not supported.
+Changing inode mode (using `chmod(2)` or similar) is unsupported, and changes
+are silently ignored.
 
 These defaults can be overriden with the `--uid`, `--gid`, `--file-mode`, and
 `--dir-mode` flags.
