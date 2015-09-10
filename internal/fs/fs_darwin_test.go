@@ -66,6 +66,9 @@ func (t *ForeignModsTest) Statfs() {
 	ExpectGe(stat.Files, 1<<40)
 	ExpectEq(stat.Files, stat.Ffree)
 
+	// The recommended IO size should not be pitiful.
+	ExpectEq(1<<20, stat.Iosize)
+
 	// The file system name should be the bucket's name.
 	ExpectEq(t.bucket.Name(), convertStatfsString(stat.Mntfromname[:]))
 }
