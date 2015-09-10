@@ -16,12 +16,13 @@
 // the file system at all. Rather we set up contents in a GCS bucket out of
 // band, wait for them to be available, and then read them via the file system.
 
-package fs_test
+package integration_test
 
 import (
 	"math"
 	"syscall"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -29,12 +30,19 @@ import (
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ForeignModsTest) Statfs() {
+func (t *GcsfuseTest) Statfs() {
 	var err error
 	var stat syscall.Statfs_t
 
+	// Mount.
+	args := []string{canned.FakeBucketName, t.dir}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
 	// Stat the file system.
-	err = syscall.Statfs(t.Dir, &stat)
+	err = syscall.Statfs(t.dir, &stat)
 	AssertEq(nil, err)
 
 	// The FS should show a reasonable number of bytes available, so that e.g.
