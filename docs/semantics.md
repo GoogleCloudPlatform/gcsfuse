@@ -300,7 +300,7 @@ look up child inodes. Unlike file inodes:
 
 *   gcsfuse does not keep track of modification time for
     directories. There are no guarantees for the contents of `stat::st_mtime`
-    or equivalent.
+    or equivalent or the behavior of `utimes(2)` and similar.
 
 *   There are no guarantees about `stat::st_nlink`.
 
