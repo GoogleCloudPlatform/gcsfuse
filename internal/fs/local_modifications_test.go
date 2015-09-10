@@ -1676,19 +1676,34 @@ func (t *FileTest) UnlinkFile_ThenRecreateWithSameName() {
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
-func (t *FileTest) Chmod() {
+func (t *FileTest) Chmod_File() {
 	var err error
 
 	// Write a file.
-	fileName := path.Join(t.mfs.Dir(), "foo")
-	err = ioutil.WriteFile(fileName, []byte(""), 0700)
+	p := path.Join(t.mfs.Dir(), "foo")
+	err = ioutil.WriteFile(p, []byte(""), 0700)
 	AssertEq(nil, err)
 
-	// Attempt to chmod it. We don't support doing so.
-	err = os.Chmod(fileName, 0777)
+	// Attempt to chmod it. Chmod should succeed even though we don't do anything
+	// useful. The OS X Finder otherwise complains to the user when copying in a
+	// file.
+	err = os.Chmod(p, 0777)
+	ExpectEq(nil, err)
+}
 
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("not implemented")))
+func (t *FileTest) Chmod_Directory() {
+	var err error
+
+	// Create a directory.
+	p := path.Join(t.mfs.Dir(), "foo")
+	err = os.Mkdir(p, 0700)
+	AssertEq(nil, err)
+
+	// Attempt to chmod it. Chmod should succeed even though we don't do anything
+	// useful. The OS X Finder otherwise complains to the user when copying in a
+	// file.
+	err = os.Chmod(p, 0777)
+	ExpectEq(nil, err)
 }
 
 func (t *FileTest) Chtimes_InactiveFile() {
@@ -1792,9 +1807,10 @@ func (t *FileTest) Chtimes_Directory() {
 	err = os.Mkdir(p, 0700)
 	AssertEq(nil, err)
 
-	// Chtimes should fail; we don't support it for directories.
+	// Chtimes should succeed even though we don't do anything useful. The OS X
+	// Finder otherwise complains to the user when copying in a directory.
 	err = os.Chtimes(p, time.Now(), time.Now())
-	ExpectThat(err, Error(HasSubstr("not implemented")))
+	ExpectEq(nil, err)
 }
 
 func (t *FileTest) Sync_Dirty() {
