@@ -123,6 +123,7 @@ be interacting with the file system.
 
 	mountCfg := &fuse.MountConfig{
 		FSName:      bucket.Name(),
+		VolumeName:  bucket.Name(),
 		Options:     flags.MountOptions,
 		ErrorLogger: log.New(os.Stderr, "fuse: ", log.Flags()),
 	}
