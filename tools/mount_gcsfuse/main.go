@@ -15,9 +15,10 @@
 // A helper that allows using gcsfuse with mount(8).
 //
 // Can be invoked using a command-line of the form expected for mount helpers.
-// Calls the gcsfuse binary, which must be in $PATH, and waits for it to
-// complete. The device and mount point are passed on as positional arguments,
-// and other known options are converted to appropriate flags.
+// Calls the gcsfuse binary, which it finds from one of a list of expected
+// locations, and waits for it to complete. The device and mount point are
+// passed on as positional arguments, and other known options are converted to
+// appropriate flags.
 //
 // This binary returns with exit code zero only after gcsfuse has reported that
 // it has successfuly mounted the file system. Further output from gcsfuse is
