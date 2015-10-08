@@ -2,6 +2,27 @@ This document defines the semantics of a gcsfuse file system mounted with a GCS
 bucket, including how files and directories map to object names, what
 consistency guarantees are made, etc.
 
+# Compatibility
+
+The following compatibility constraints are worth noting:
+
+*   gcsfuse does not support GCS buckets with [object versioning][] enabled.
+    (The default is to have this disabled.) No guarantees are made about its
+    behavior when used with such a bucket.
+
+*   Reading or modifying a file backed by an object with a `contentEncoding`
+    property set may yield surprising results, and no guarantees are made about
+    the behavior. It is recommended that you do not use gcsfuse to interact
+    with such objects.
+
+    (See the [Object resource][] and [performance tips][] pages for more info
+    on `contentEncoding`, and [this][encoding-writeup] writeup for an
+    explanation of why it can't be reliably supported.)
+
+[object versioning]: https://cloud.google.com/storage/docs/object-versioning
+[Object resource]: https://cloud.google.com/storage/docs/json_api/v1/objects#resource
+[performance tips]: https://cloud.google.com/storage/docs/json_api/v1/how-tos/performance
+[encoding-writeup]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/131#issuecomment-146031206
 
 <a name="caching"></a>
 # Caching
