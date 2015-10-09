@@ -80,6 +80,20 @@ fstab compatiblity.
 
 # Performance
 
+## Rate limiting
+
+If you would like to rate limit traffic to/from GCS in order to set limits on
+your GCS spending on behalf of gcsfuse, you can do so:
+
+*   The flag `--limit-ops-per-sec` controls the rate at which gcsfuse will send
+    requests to GCS.
+*   The flag `--limit-bytes-per-sec` controls the egress
+    bandwidth from gcsfuse to GCS.
+
+All rate limiting is approximate, and is performed over an 8-hour window. By
+default, requests are limited to 5 per second. There is no limit applied to
+bandwidth by default.
+
 ## GCS round trips
 
 By default, gcsfuse uses two forms of caching to save round trips to GCS, at the
@@ -112,20 +126,6 @@ Note that new and modified files are also fully staged in the local temporary
 directory until they are written out to GCS due to being closed or fsync'd.
 Therefore the user must ensure that there is enough free space available to
 handle staged content when writing large files.
-
-## Rate limiting
-
-If you would like to rate limit traffic to/from GCS in order to set limits on
-your GCS spending on behalf of gcsfuse, you can do so:
-
-*   The flag `--limit-ops-per-sec` controls the rate at which gcsfuse will send
-    requests to GCS.
-*   The flag `--limit-bytes-per-sec` controls the egress
-    bandwidth from gcsfuse to GCS.
-
-All rate limiting is approximate, and is performed over an 8-hour window. By
-default, requests are limited to 5 per second. There is no limit applied to
-bandwidth by default.
 
 ## Other performance issues
 
