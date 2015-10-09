@@ -80,6 +80,21 @@ fstab compatiblity.
 
 # Performance
 
+## Latency and rsync
+
+Writing files to and reading files from GCS has a much higher latency than using
+a local file system. If you are reading or writing one small file at a time,
+this may cause you to achieve a low throughput to or from GCS. If you want high
+throughput, you will need to either use larger files to smooth across latency
+hiccups or read/write multiple files at a time.
+
+Note in particular that this heavily affects `rsync`, which reads and writes
+only one file at a time. You might try using [`gsutil -m rsync`][gsutil rsync]
+to transfer multiple files to or from your bucket in parallel instead of plain
+`rsync` with gcsfuse.
+
+[gsutil rsync]: https://cloud.google.com/storage/docs/gsutil/commands/rsync
+
 ## Rate limiting
 
 If you would like to rate limit traffic to/from GCS in order to set limits on
