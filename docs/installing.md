@@ -27,7 +27,7 @@ ensure fuse is installed, then download and install the latest release package.
 The instructions vary by distribution.
 
 
-## Ubuntu and Debian
+## Ubuntu and Debian (latest releases)
 
 The following instructions set up `apt-get` to see updates to gcsfuse, and work
 for the **vivid** and **trusty** [releases][ubuntu-releases] of Ubuntu, and the
@@ -60,7 +60,7 @@ way: `sudo apt-get update && sudo apt-get upgrade`.
 [debian-releases]: https://www.debian.org/releases/
 
 
-## CentOS and Red Hat
+## CentOS and Red Hat (latest releases)
 
 The following instructions set up `yum` to see updates to gcsfuse, and work
 for CentOS 7 and RHEL 7. Users of older releases should follow the instructions
@@ -99,8 +99,8 @@ Download and install the latest release package:
     curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.12.0/gcsfuse-0.12.0-1.x86_64.rpm
     sudo rpm --install -p gcsfuse-0.12.0-1.x86_64.rpm
 
-
-## Other distributions
+<a name="other-distributions"></a>
+## Older releases and other distributions
 
 Ensure that dependencies are present:
 
