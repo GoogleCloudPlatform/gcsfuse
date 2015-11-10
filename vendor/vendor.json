@@ -1,0 +1,176 @@
+{
+	"comment": "",
+	"ignore": "appengine test",
+	"package": [
+		{
+			"path": "github.com/codegangsta/cli",
+			"revision": "bca61c476e3c752594983e4c9bcd5f62fb09f157",
+			"revisionTime": "2015-07-11T14:54:04-07:00"
+		},
+		{
+			"path": "github.com/jacobsa/fuse",
+			"revision": "bc664bf39be72bcf975d71007fa767f15d3a7d7c",
+			"revisionTime": "2015-09-10T13:55:51+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/fuse/fsutil",
+			"revision": "bc664bf39be72bcf975d71007fa767f15d3a7d7c",
+			"revisionTime": "2015-09-10T13:55:51+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/fuse/fuseops",
+			"revision": "bc664bf39be72bcf975d71007fa767f15d3a7d7c",
+			"revisionTime": "2015-09-10T13:55:51+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/fuse/fusetesting",
+			"revision": "bc664bf39be72bcf975d71007fa767f15d3a7d7c",
+			"revisionTime": "2015-09-10T13:55:51+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/fuse/fuseutil",
+			"revision": "bc664bf39be72bcf975d71007fa767f15d3a7d7c",
+			"revisionTime": "2015-09-10T13:55:51+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/fuse/internal/buffer",
+			"revision": "bc664bf39be72bcf975d71007fa767f15d3a7d7c",
+			"revisionTime": "2015-09-10T13:55:51+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/fuse/internal/freelist",
+			"revision": "bc664bf39be72bcf975d71007fa767f15d3a7d7c",
+			"revisionTime": "2015-09-10T13:55:51+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/fuse/internal/fusekernel",
+			"revision": "bc664bf39be72bcf975d71007fa767f15d3a7d7c",
+			"revisionTime": "2015-09-10T13:55:51+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/gcloud/gcs",
+			"revision": "a49fd56fbbeb6288d0ff40fa8b4fd9c8e0df8c1b",
+			"revisionTime": "2015-08-31T11:02:33+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/gcloud/gcs/gcscaching",
+			"revision": "a49fd56fbbeb6288d0ff40fa8b4fd9c8e0df8c1b",
+			"revisionTime": "2015-08-31T11:02:33+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/gcloud/gcs/gcsfake",
+			"revision": "a49fd56fbbeb6288d0ff40fa8b4fd9c8e0df8c1b",
+			"revisionTime": "2015-08-31T11:02:33+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/gcloud/gcs/gcsutil",
+			"revision": "a49fd56fbbeb6288d0ff40fa8b4fd9c8e0df8c1b",
+			"revisionTime": "2015-08-31T11:02:33+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/gcloud/httputil",
+			"revision": "a49fd56fbbeb6288d0ff40fa8b4fd9c8e0df8c1b",
+			"revisionTime": "2015-08-31T11:02:33+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/oglematchers",
+			"revision": "141901ea67cd4769c6800aa7bfdfc558fa22bda5",
+			"revisionTime": "2015-07-20T10:07:06+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/oglemock",
+			"revision": "b320e9d68125bec1159ac587792648ff06eaa2cc",
+			"revisionTime": "2015-07-20T10:07:30+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/ogletest",
+			"revision": "4e03a8595ea739995b62c031bf15e228fd1ee4ed",
+			"revisionTime": "2015-07-20T10:06:19+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/ogletest/srcutil",
+			"revision": "4e03a8595ea739995b62c031bf15e228fd1ee4ed",
+			"revisionTime": "2015-07-20T10:06:19+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/ratelimit",
+			"revision": "f5e47030f3b0a6d33e2176e47adeab7f6140098e",
+			"revisionTime": "2015-09-04T10:18:04+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/reqtrace",
+			"revision": "245c9e0234cb2ad542483a336324e982f1a22934",
+			"revisionTime": "2015-05-05T14:38:53+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/syncutil",
+			"revision": "bcec119027cd5d9dba5061cc3180e382f608ef47",
+			"revisionTime": "2015-07-20T10:07:43+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/timeutil",
+			"revision": "7106ba3aceaa475584d7d2a68795027a5e080f2b",
+			"revisionTime": "2015-08-12T16:09:03+10:00"
+		},
+		{
+			"path": "github.com/jacobsa/util/lrucache",
+			"revision": "976a6f4de67efb102394e2f91f43ec6f2579fe2f",
+			"revisionTime": "2015-08-10T14:08:48+10:00"
+		},
+		{
+			"path": "golang.org/x/net/context",
+			"revision": "4a71d182556e05375344f3da665304f3d5784ab4",
+			"revisionTime": "2015-07-10T09:50:07-06:00"
+		},
+		{
+			"path": "golang.org/x/oauth2",
+			"revision": "8914e5017ca260f2a3a1575b1e6868874050d95e",
+			"revisionTime": "2015-07-01T13:53:18+02:00"
+		},
+		{
+			"path": "golang.org/x/oauth2/google",
+			"revision": "8914e5017ca260f2a3a1575b1e6868874050d95e",
+			"revisionTime": "2015-07-01T13:53:18+02:00"
+		},
+		{
+			"path": "golang.org/x/oauth2/internal",
+			"revision": "8914e5017ca260f2a3a1575b1e6868874050d95e",
+			"revisionTime": "2015-07-01T13:53:18+02:00"
+		},
+		{
+			"path": "golang.org/x/oauth2/jws",
+			"revision": "8914e5017ca260f2a3a1575b1e6868874050d95e",
+			"revisionTime": "2015-07-01T13:53:18+02:00"
+		},
+		{
+			"path": "golang.org/x/oauth2/jwt",
+			"revision": "8914e5017ca260f2a3a1575b1e6868874050d95e",
+			"revisionTime": "2015-07-01T13:53:18+02:00"
+		},
+		{
+			"path": "google.golang.org/api/googleapi",
+			"revision": "0a735f7ec81c85ce7ec31bf7a67e125ef62266ec",
+			"revisionTime": "2015-01-18T15:16:46-08:00"
+		},
+		{
+			"path": "google.golang.org/api/googleapi/internal/uritemplates",
+			"revision": "0a735f7ec81c85ce7ec31bf7a67e125ef62266ec",
+			"revisionTime": "2015-01-18T15:16:46-08:00"
+		},
+		{
+			"path": "google.golang.org/api/storage/v1",
+			"revision": "0a735f7ec81c85ce7ec31bf7a67e125ef62266ec",
+			"revisionTime": "2015-01-18T15:16:46-08:00"
+		},
+		{
+			"path": "google.golang.org/cloud/compute/metadata",
+			"revision": "e34a32f9b0ecbc0784865fb2d47f3818c09521d4",
+			"revisionTime": "2015-07-29T23:39:00-07:00"
+		},
+		{
+			"path": "google.golang.org/cloud/internal",
+			"revision": "e34a32f9b0ecbc0784865fb2d47f3818c09521d4",
+			"revisionTime": "2015-07-29T23:39:00-07:00"
+		}
+	]
+}
