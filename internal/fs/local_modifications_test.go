@@ -419,8 +419,7 @@ func (t *MknodTest) File() {
 	p := path.Join(t.mfs.Dir(), "foo")
 
 	// Create
-	const mode = syscall.S_IFREG | 0600
-	err = syscall.Mknod(p, syscall.S_IFREG | 0600, 0)
+	err = syscall.Mknod(p, syscall.S_IFREG|0600, 0)
 	AssertEq(nil, err)
 
 	// Stat
@@ -438,7 +437,13 @@ func (t *MknodTest) File() {
 }
 
 func (t *MknodTest) Directory() {
-	AddFailure("TODO")
+	var err error
+	p := path.Join(t.mfs.Dir(), "foo")
+
+	// Quoth `man 2 mknod`: "Under Linux, this call cannot be used to create
+	// directories."
+	err = syscall.Mknod(p, syscall.S_IFDIR|0700, 0)
+	ExpectEq(syscall.EPERM, err)
 }
 
 func (t *MknodTest) AlreadyExists() {
