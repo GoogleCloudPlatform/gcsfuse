@@ -465,7 +465,11 @@ func (t *MknodTest) AlreadyExists() {
 }
 
 func (t *MknodTest) NonExistentParent() {
-	AddFailure("TODO")
+	var err error
+	p := path.Join(t.mfs.Dir(), "foo/bar")
+
+	err = syscall.Mknod(p, syscall.S_IFREG|0600, 0)
+	ExpectEq(syscall.ENOENT, err)
 }
 
 ////////////////////////////////////////////////////////////////////////
