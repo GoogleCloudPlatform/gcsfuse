@@ -405,6 +405,74 @@ func (t *OpenTest) IllegalNames() {
 }
 
 ////////////////////////////////////////////////////////////////////////
+// Mknod
+////////////////////////////////////////////////////////////////////////
+
+type MknodTest struct {
+	fsTest
+}
+
+func init() { RegisterTestSuite(&MknodTest{}) }
+
+func (t *MknodTest) File() {
+	var err error
+	p := path.Join(t.mfs.Dir(), "foo")
+
+	// Create
+	err = syscall.Mknod(p, syscall.S_IFREG|0600, 0)
+	AssertEq(nil, err)
+
+	// Stat
+	fi, err := os.Stat(p)
+	AssertEq(nil, err)
+
+	ExpectEq(path.Base(p), fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(filePerms, fi.Mode())
+
+	// Read
+	contents, err := ioutil.ReadFile(p)
+	AssertEq(nil, err)
+	ExpectEq("", string(contents))
+}
+
+func (t *MknodTest) Directory() {
+	var err error
+	p := path.Join(t.mfs.Dir(), "foo")
+
+	// Quoth `man 2 mknod`: "Under Linux, this call cannot be used to create
+	// directories."
+	err = syscall.Mknod(p, syscall.S_IFDIR|0700, 0)
+	ExpectEq(syscall.EPERM, err)
+}
+
+func (t *MknodTest) AlreadyExists() {
+	var err error
+	p := path.Join(t.mfs.Dir(), "foo")
+
+	// Create (first)
+	err = ioutil.WriteFile(p, []byte("taco"), 0600)
+	AssertEq(nil, err)
+
+	// Create (second)
+	err = syscall.Mknod(p, syscall.S_IFREG|0600, 0)
+	ExpectEq(syscall.EEXIST, err)
+
+	// Read
+	contents, err := ioutil.ReadFile(p)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
+}
+
+func (t *MknodTest) NonExistentParent() {
+	var err error
+	p := path.Join(t.mfs.Dir(), "foo/bar")
+
+	err = syscall.Mknod(p, syscall.S_IFREG|0600, 0)
+	ExpectEq(syscall.ENOENT, err)
+}
+
+////////////////////////////////////////////////////////////////////////
 // Modes
 ////////////////////////////////////////////////////////////////////////
 
