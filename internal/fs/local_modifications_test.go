@@ -415,6 +415,9 @@ type MknodTest struct {
 func init() { RegisterTestSuite(&MknodTest{}) }
 
 func (t *MknodTest) File() {
+	// mknod(2) only works for root on OS X.
+	if runtime.GOOS == "darwin" { return }
+
 	var err error
 	p := path.Join(t.mfs.Dir(), "foo")
 
@@ -437,6 +440,9 @@ func (t *MknodTest) File() {
 }
 
 func (t *MknodTest) Directory() {
+	// mknod(2) only works for root on OS X.
+	if runtime.GOOS == "darwin" { return }
+
 	var err error
 	p := path.Join(t.mfs.Dir(), "foo")
 
@@ -447,6 +453,9 @@ func (t *MknodTest) Directory() {
 }
 
 func (t *MknodTest) AlreadyExists() {
+	// mknod(2) only works for root on OS X.
+	if runtime.GOOS == "darwin" { return }
+
 	var err error
 	p := path.Join(t.mfs.Dir(), "foo")
 
@@ -465,6 +474,9 @@ func (t *MknodTest) AlreadyExists() {
 }
 
 func (t *MknodTest) NonExistentParent() {
+	// mknod(2) only works for root on OS X.
+	if runtime.GOOS == "darwin" { return }
+
 	var err error
 	p := path.Join(t.mfs.Dir(), "foo/bar")
 
