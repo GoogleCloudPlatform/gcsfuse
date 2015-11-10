@@ -405,6 +405,32 @@ func (t *OpenTest) IllegalNames() {
 }
 
 ////////////////////////////////////////////////////////////////////////
+// Mknod
+////////////////////////////////////////////////////////////////////////
+
+type MknodTest struct {
+	fsTest
+}
+
+func init() { RegisterTestSuite(&MknodTest{}) }
+
+func (t *MknodTest) File() {
+	AddFailure("TODO")
+}
+
+func (t *MknodTest) Directory() {
+	AddFailure("TODO")
+}
+
+func (t *MknodTest) AlreadyExists() {
+	AddFailure("TODO: Both files and directories.")
+}
+
+func (t *MknodTest) NonExistentParent() {
+	AddFailure("TODO")
+}
+
+////////////////////////////////////////////////////////////////////////
 // Modes
 ////////////////////////////////////////////////////////////////////////
 
