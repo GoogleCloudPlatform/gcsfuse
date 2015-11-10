@@ -447,7 +447,21 @@ func (t *MknodTest) Directory() {
 }
 
 func (t *MknodTest) AlreadyExists() {
-	AddFailure("TODO: Both files and directories.")
+	var err error
+	p := path.Join(t.mfs.Dir(), "foo")
+
+	// Create (first)
+	err = ioutil.WriteFile(p, []byte("taco"), 0600)
+	AssertEq(nil, err)
+
+	// Create (second)
+	err = syscall.Mknod(p, syscall.S_IFREG|0600, 0)
+	ExpectEq(syscall.EEXIST, err)
+
+	// Read
+	contents, err := ioutil.ReadFile(p)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
 }
 
 func (t *MknodTest) NonExistentParent() {
