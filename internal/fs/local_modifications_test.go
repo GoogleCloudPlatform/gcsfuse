@@ -415,7 +415,26 @@ type MknodTest struct {
 func init() { RegisterTestSuite(&MknodTest{}) }
 
 func (t *MknodTest) File() {
-	AddFailure("TODO")
+	var err error
+	p := path.Join(t.mfs.Dir(), "foo")
+
+	// Create
+	const mode = syscall.S_IFREG | 0600
+	err = syscall.Mknod(p, syscall.S_IFREG | 0600, 0)
+	AssertEq(nil, err)
+
+	// Stat
+	fi, err := os.Stat(p)
+	AssertEq(nil, err)
+
+	ExpectEq(path.Base(p), fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(filePerms, fi.Mode())
+
+	// Read
+	contents, err := ioutil.ReadFile(p)
+	AssertEq(nil, err)
+	ExpectEq("", string(contents))
 }
 
 func (t *MknodTest) Directory() {
