@@ -71,6 +71,13 @@ func (fs *NotImplementedFileSystem) MkDir(
 	return
 }
 
+func (fs *NotImplementedFileSystem) MkNode(
+	ctx context.Context,
+	op *fuseops.MkNodeOp) (err error) {
+	err = fuse.ENOSYS
+	return
+}
+
 func (fs *NotImplementedFileSystem) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {

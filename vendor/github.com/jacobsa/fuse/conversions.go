@@ -134,6 +134,27 @@ func convertInMessage(
 			Mode: convertFileMode(in.Mode) | os.ModeDir,
 		}
 
+	case fusekernel.OpMknod:
+		in := (*fusekernel.MknodIn)(inMsg.Consume(fusekernel.MknodInSize(protocol)))
+		if in == nil {
+			err = errors.New("Corrupt OpMknod")
+			return
+		}
+
+		name := inMsg.ConsumeBytes(inMsg.Len())
+		i := bytes.IndexByte(name, '\x00')
+		if i < 0 {
+			err = errors.New("Corrupt OpMknod")
+			return
+		}
+		name = name[:i]
+
+		o = &fuseops.MkNodeOp{
+			Parent: fuseops.InodeID(inMsg.Header().Nodeid),
+			Name:   string(name),
+			Mode:   convertFileMode(in.Mode),
+		}
+
 	case fusekernel.OpCreate:
 		in := (*fusekernel.CreateIn)(inMsg.Consume(fusekernel.CreateInSize(protocol)))
 		if in == nil {
@@ -491,6 +512,11 @@ func (c *Connection) kernelResponseForOp(
 		out := (*fusekernel.EntryOut)(m.Grow(size))
 		convertChildInodeEntry(&o.Entry, out)
 
+	case *fuseops.MkNodeOp:
+		size := fusekernel.EntryOutSize(c.protocol)
+		out := (*fusekernel.EntryOut)(m.Grow(size))
+		convertChildInodeEntry(&o.Entry, out)
+
 	case *fuseops.CreateFileOp:
 		eSize := fusekernel.EntryOutSize(c.protocol)
 
@@ -633,6 +659,8 @@ func convertAttributes(
 	out.Nlink = in.Nlink
 	out.Uid = in.Uid
 	out.Gid = in.Gid
+	// round up to the nearest 512 boundary
+	out.Blocks = (in.Size + 512 - 1) / 512
 
 	// Set the mode.
 	out.Mode = uint32(in.Mode) & 0777
