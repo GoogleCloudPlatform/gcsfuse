@@ -30,10 +30,10 @@ The instructions vary by distribution.
 ## Ubuntu and Debian (latest releases)
 
 The following instructions set up `apt-get` to see updates to gcsfuse, and work
-for the **vivid** and **trusty** [releases][ubuntu-releases] of Ubuntu, and the
-**jessie** [release][debian-releases] of Debian. (Run `lsb_release -c` to find
-your release codename.) Users of older releases should follow the instructions
-for [other distributions](#other-distributions) below.
+for the **wily**, **vivid**, and **trusty** [releases][ubuntu-releases] of
+Ubuntu, and the **jessie** [release][debian-releases] of Debian. (Run
+`lsb_release -c` to find your release codename.) Users of older releases should
+follow the instructions for [other distributions](#other-distributions) below.
 
 1.  Add the gcsfuse distribution URL as a package source and import its public
     key:
@@ -47,8 +47,8 @@ for [other distributions](#other-distributions) below.
         sudo apt-get update
         sudo apt-get install gcsfuse
 
-3.  (**Ubuntu only**) Add yourself to the `fuse` group, then log out and back
-    in:
+3.  (**Ubuntu before wily only**) Add yourself to the `fuse` group, then log
+    out and back in:
 
         sudo usermod -a -G fuse $USER
         exit
