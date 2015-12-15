@@ -1055,6 +1055,31 @@ func (fs *fileSystem) MkDir(
 	return
 }
 
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) MkNode(
+	ctx context.Context,
+	op *fuseops.MkNodeOp) (err error) {
+	// Create the child.
+	child, err := fs.createFile(ctx, op.Parent, op.Name, op.Mode)
+	if err != nil {
+		return
+	}
+
+	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
+
+	// Fill out the response.
+	e := &op.Entry
+	e.Child = child.ID()
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+
+	if err != nil {
+		err = fmt.Errorf("getAttributes: %v", err)
+		return
+	}
+
+	return
+}
+
 // Create a child of the parent with the given ID, returning the child locked
 // and with its lookup count incremented.
 //
