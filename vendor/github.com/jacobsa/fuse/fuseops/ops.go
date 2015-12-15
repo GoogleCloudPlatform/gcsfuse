@@ -235,6 +235,33 @@ type MkDirOp struct {
 	Entry ChildInodeEntry
 }
 
+// Create a file inode as a child of an existing directory inode. The kernel
+// sends this in response to a mknod(2) call. It may also send it in special
+// cases such as an NFS export (cf. https://goo.gl/HiLfnK). It is more typical
+// to see CreateFileOp, which is received for an open(2) that creates a file.
+//
+// The Linux kernel appears to verify the name doesn't already exist (mknod
+// calls sys_mknodat calls user_path_create calls filename_create, which
+// verifies: http://goo.gl/FZpLu5). But osxfuse may not guarantee this, as with
+// mkdir(2). And if names may be created outside of the kernel's control, it
+// doesn't matter what the kernel does anyway.
+//
+// Therefore the file system should return EEXIST if the name already exists.
+type MkNodeOp struct {
+	// The ID of parent directory inode within which to create the child.
+	Parent InodeID
+
+	// The name of the child to create, and the mode with which to create it.
+	Name string
+	Mode os.FileMode
+
+	// Set by the file system: information about the inode that was created.
+	//
+	// The lookup count for the inode is implicitly incremented. See notes on
+	// ForgetInodeOp for more information.
+	Entry ChildInodeEntry
+}
+
 // Create a file inode and open it.
 //
 // The kernel sends this when the user asks to open a file with the O_CREAT

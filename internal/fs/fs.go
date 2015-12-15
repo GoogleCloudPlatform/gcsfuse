@@ -1056,18 +1056,49 @@ func (fs *fileSystem) MkDir(
 }
 
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *fileSystem) CreateFile(
+func (fs *fileSystem) MkNode(
 	ctx context.Context,
-	op *fuseops.CreateFileOp) (err error) {
+	op *fuseops.MkNodeOp) (err error) {
+	// Create the child.
+	child, err := fs.createFile(ctx, op.Parent, op.Name, op.Mode)
+	if err != nil {
+		return
+	}
+
+	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
+
+	// Fill out the response.
+	e := &op.Entry
+	e.Child = child.ID()
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+
+	if err != nil {
+		err = fmt.Errorf("getAttributes: %v", err)
+		return
+	}
+
+	return
+}
+
+// Create a child of the parent with the given ID, returning the child locked
+// and with its lookup count incremented.
+//
+// LOCKS_EXCLUDED(fs.mu)
+// LOCK_FUNCTION(child)
+func (fs *fileSystem) createFile(
+	ctx context.Context,
+	parentID fuseops.InodeID,
+	name string,
+	mode os.FileMode) (child inode.Inode, err error) {
 	// Find the parent.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent].(inode.DirInode)
+	parent := fs.inodes[parentID].(inode.DirInode)
 	fs.mu.Unlock()
 
 	// Create an empty backing object for the child, failing if it already
 	// exists.
 	parent.Lock()
-	o, err := parent.CreateChildFile(ctx, op.Name)
+	o, err := parent.CreateChildFile(ctx, name)
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
@@ -1086,9 +1117,22 @@ func (fs *fileSystem) CreateFile(
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
 	fs.mu.Lock()
-	child := fs.lookUpOrCreateInodeIfNotStale(o.Name, o)
+	child = fs.lookUpOrCreateInodeIfNotStale(o.Name, o)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
+		return
+	}
+
+	return
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) CreateFile(
+	ctx context.Context,
+	op *fuseops.CreateFileOp) (err error) {
+	// Create the child.
+	child, err := fs.createFile(ctx, op.Parent, op.Name, op.Mode)
+	if err != nil {
 		return
 	}
 
