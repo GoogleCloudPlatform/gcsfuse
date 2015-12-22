@@ -115,7 +115,31 @@ func (t *PrefixBucketTest) CreateObject() {
 }
 
 func (t *PrefixBucketTest) CopyObject() {
-	AddFailure("TODO")
+	var err error
+	suffix := "taco"
+	name := t.prefix + suffix
+	contents := "foobar"
+
+	// Create an object through the back door.
+	_, err = gcsutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
+	AssertEq(nil, err)
+
+	// Copy it to a new name.
+	newSuffix := "burrito"
+	o, err := t.bucket.CopyObject(
+		t.ctx,
+		&gcs.CopyObjectRequest{
+			SrcName: suffix,
+			DstName: newSuffix,
+		})
+
+	AssertEq(nil, err)
+	ExpectEq(newSuffix, o.Name)
+
+	// Read it through the back door.
+	actual, err := gcsutil.ReadObject(t.ctx, t.wrapped, t.prefix+newSuffix)
+	AssertEq(nil, err)
+	ExpectEq(contents, string(actual))
 }
 
 func (t *PrefixBucketTest) ComposeObject() {
