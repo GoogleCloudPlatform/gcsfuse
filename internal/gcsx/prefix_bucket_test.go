@@ -15,6 +15,7 @@
 package gcsx_test
 
 import (
+	"io/ioutil"
 	"testing"
 
 	"golang.org/x/net/context"
@@ -22,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
+	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 )
@@ -63,7 +65,28 @@ func (t *PrefixBucketTest) Name() {
 }
 
 func (t *PrefixBucketTest) NewReader() {
-	AddFailure("TODO")
+	var err error
+	suffix := "taco"
+	name := t.prefix + suffix
+	contents := "foobar"
+
+	// Create an object through the back door.
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, name, []byte(contents))
+	AssertEq(nil, err)
+
+	// Read it through the prefix bucket.
+	rc, err := t.bucket.NewReader(
+		t.ctx,
+		&gcs.ReadObjectRequest{
+			Name: suffix,
+		})
+
+	AssertEq(nil, err)
+	defer rc.Close()
+
+	actual, err := ioutil.ReadAll(rc)
+	AssertEq(nil, err)
+	ExpectEq(contents, string(actual))
 }
 
 func (t *PrefixBucketTest) CreateObject() {
