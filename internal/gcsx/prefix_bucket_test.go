@@ -142,8 +142,45 @@ func (t *PrefixBucketTest) CopyObject() {
 	ExpectEq(contents, string(actual))
 }
 
-func (t *PrefixBucketTest) ComposeObject() {
-	AddFailure("TODO")
+func (t *PrefixBucketTest) ComposeObjects() {
+	var err error
+
+	suffix0 := "taco"
+	contents0 := "foo"
+
+	suffix1 := "burrito"
+	contents1 := "bar"
+
+	// Create two objects through the back door.
+	err = gcsutil.CreateObjects(
+		t.ctx,
+		t.wrapped,
+		map[string][]byte{
+			(t.prefix + suffix0): []byte(contents0),
+			(t.prefix + suffix1): []byte(contents1),
+		})
+
+	AssertEq(nil, err)
+
+	// Compose them.
+	newSuffix := "enchilada"
+	o, err := t.bucket.ComposeObjects(
+		t.ctx,
+		&gcs.ComposeObjectsRequest{
+			DstName: newSuffix,
+			Sources: []gcs.ComposeSource{
+				{Name: suffix0},
+				{Name: suffix1},
+			},
+		})
+
+	AssertEq(nil, err)
+	ExpectEq(newSuffix, o.Name)
+
+	// Read it through the back door.
+	actual, err := gcsutil.ReadObject(t.ctx, t.wrapped, t.prefix+newSuffix)
+	AssertEq(nil, err)
+	ExpectEq(contents0+contents1, string(actual))
 }
 
 func (t *PrefixBucketTest) StatObject() {
