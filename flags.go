@@ -109,6 +109,11 @@ func newApp() (app *cli.App) {
 					"docs/semantics.md",
 			},
 
+			cli.StringFlag{
+				Name:  "only-dir",
+				Usage: "Mount only the given directory, relative to the bucket root.",
+			},
+
 			/////////////////////////
 			// GCS
 			/////////////////////////
@@ -195,6 +200,7 @@ type flagStorage struct {
 	Uid          int64
 	Gid          int64
 	ImplicitDirs bool
+	OnlyDir      string
 
 	// GCS
 	KeyFile                            string
@@ -223,6 +229,8 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		FileMode:     os.FileMode(*c.Generic("file-mode").(*OctalInt)),
 		Uid:          int64(c.Int("uid")),
 		Gid:          int64(c.Int("gid")),
+		ImplicitDirs: c.Bool("implicit-dirs"),
+		OnlyDir:      c.String("only-dir"),
 
 		// GCS,
 		KeyFile: c.String("key-file"),
@@ -233,7 +241,6 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		StatCacheTTL: c.Duration("stat-cache-ttl"),
 		TypeCacheTTL: c.Duration("type-cache-ttl"),
 		TempDir:      c.String("temp-dir"),
-		ImplicitDirs: c.Bool("implicit-dirs"),
 
 		// Debugging,
 		DebugFuse:       c.Bool("debug_fuse"),
