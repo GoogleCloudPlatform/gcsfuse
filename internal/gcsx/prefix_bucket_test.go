@@ -184,7 +184,25 @@ func (t *PrefixBucketTest) ComposeObjects() {
 }
 
 func (t *PrefixBucketTest) StatObject() {
-	AddFailure("TODO")
+	var err error
+	suffix := "taco"
+	name := t.prefix + suffix
+	contents := "foobar"
+
+	// Create an object through the back door.
+	_, err = gcsutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
+	AssertEq(nil, err)
+
+	// Stat it.
+	o, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{
+			Name: suffix,
+		})
+
+	AssertEq(nil, err)
+	ExpectEq(suffix, o.Name)
+	ExpectEq(len(contents), o.Size)
 }
 
 func (t *PrefixBucketTest) ListObjects() {
