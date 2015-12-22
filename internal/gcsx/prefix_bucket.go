@@ -97,7 +97,19 @@ func (b *prefixBucket) CreateObject(
 func (b *prefixBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
-	err = errors.New("TODO")
+	// Modify the request and call through.
+	mReq := new(gcs.CopyObjectRequest)
+	*mReq = *req
+	mReq.SrcName = b.wrappedName(req.SrcName)
+	mReq.DstName = b.wrappedName(req.DstName)
+
+	o, err = b.wrapped.CopyObject(ctx, mReq)
+
+	// Modify the returned object.
+	if o != nil {
+		o.Name = b.localName(o.Name)
+	}
+
 	return
 }
 
