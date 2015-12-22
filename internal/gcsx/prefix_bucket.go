@@ -51,6 +51,10 @@ type prefixBucket struct {
 	wrapped gcs.Bucket
 }
 
+func (b *prefixBucket) wrappedName(n string) string {
+	return b.prefix + n
+}
+
 func (b *prefixBucket) Name() string {
 	return b.wrapped.Name()
 }
@@ -58,7 +62,11 @@ func (b *prefixBucket) Name() string {
 func (b *prefixBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
-	err = errors.New("TODO")
+	mReq := new(gcs.ReadObjectRequest)
+	*mReq = *req
+	mReq.Name = b.wrappedName(mReq.Name)
+
+	rc, err = b.wrapped.NewReader(ctx, mReq)
 	return
 }
 

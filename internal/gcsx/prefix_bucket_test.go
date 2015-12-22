@@ -71,7 +71,7 @@ func (t *PrefixBucketTest) NewReader() {
 	contents := "foobar"
 
 	// Create an object through the back door.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, name, []byte(contents))
+	_, err = gcsutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
 	AssertEq(nil, err)
 
 	// Read it through the prefix bucket.
