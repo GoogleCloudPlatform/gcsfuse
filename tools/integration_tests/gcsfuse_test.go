@@ -340,7 +340,29 @@ func (t *GcsfuseTest) OnlyDir() {
 }
 
 func (t *GcsfuseTest) OnlyDir_TrailingSlash() {
-	AddFailure("TODO")
+	var err error
+	var fi os.FileInfo
+
+	// Mount only a single directory from the bucket, including a trailing slash.
+	args := []string{
+		"--only-dir",
+		path.Dir(canned.ExplicitDirFile) + "/",
+		canned.FakeBucketName,
+		t.dir,
+	}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// It should be as if t.dir points into the bucket's first-level directory.
+	entries, err := fusetesting.ReadDirPicky(t.dir)
+	AssertEq(nil, err)
+
+	AssertEq(1, len(entries))
+	fi = entries[0]
+	ExpectEq(path.Base(canned.ExplicitDirFile), fi.Name())
+	ExpectEq(len(canned.ExplicitDirFile_Contents), fi.Size())
 }
 
 func (t *GcsfuseTest) OnlyDir_WithImplicitDirs() {
