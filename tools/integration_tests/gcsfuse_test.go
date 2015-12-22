@@ -312,6 +312,18 @@ func (t *GcsfuseTest) ImplicitDirs() {
 	ExpectEq(os.FileMode(0644), fi.Mode())
 }
 
+func (t *GcsfuseTest) OnlyDir() {
+	AddFailure("TODO")
+}
+
+func (t *GcsfuseTest) OnlyDir_TrailingSlash() {
+	AddFailure("TODO")
+}
+
+func (t *GcsfuseTest) OnlyDir_WithImplicitDirs() {
+	AddFailure("TODO")
+}
+
 func (t *GcsfuseTest) VersionFlags() {
 	testCases := []struct {
 		args []string
