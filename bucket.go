@@ -105,7 +105,7 @@ func setUpBucket(
 
 	// Limit to a requested prefix of the bucket, if any.
 	if flags.OnlyDir != "" {
-		b, err = gcsx.NewPrefixBucket(path.Clean(flags.OnlyDir+"/"), b)
+		b, err = gcsx.NewPrefixBucket(path.Clean(flags.OnlyDir)+"/", b)
 		if err != nil {
 			err = fmt.Errorf("NewPrefixBucket: %v", err)
 			return
