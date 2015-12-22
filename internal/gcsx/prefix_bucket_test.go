@@ -303,7 +303,38 @@ func (t *PrefixBucketTest) ListObjects_Delimeter() {
 }
 
 func (t *PrefixBucketTest) ListObjects_PrefixAndDelimeter() {
-	AddFailure("TODO")
+	var err error
+
+	// Create a few objects.
+	err = gcsutil.CreateObjects(
+		t.ctx,
+		t.wrapped,
+		map[string][]byte{
+			t.prefix + "burrito":     []byte(""),
+			t.prefix + "burrito_0":   []byte(""),
+			t.prefix + "burrito_1":   []byte(""),
+			t.prefix + "enchilada_0": []byte(""),
+		})
+
+	AssertEq(nil, err)
+
+	// List, with a delimiter and a prefix. Make things extra interesting by
+	// using a delimiter that is contained within the bucket prefix.
+	AssertNe(-1, strings.IndexByte(t.prefix, '_'))
+	l, err := t.bucket.ListObjects(
+		t.ctx,
+		&gcs.ListObjectsRequest{
+			Delimiter: "_",
+			Prefix:    "burrito",
+		})
+
+	AssertEq(nil, err)
+	AssertEq("", l.ContinuationToken)
+
+	ExpectThat(l.CollapsedRuns, ElementsAre("burrito_"))
+
+	AssertEq(1, len(l.Objects))
+	ExpectEq("burrito", l.Objects[0].Name)
 }
 
 func (t *PrefixBucketTest) UpdateObject() {
