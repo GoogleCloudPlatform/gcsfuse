@@ -105,7 +105,7 @@ func (t *PrefixBucketTest) CreateObject() {
 		})
 
 	AssertEq(nil, err)
-	ExpectEq("suffix", o.Name)
+	ExpectEq(suffix, o.Name)
 	ExpectEq("en-GB", o.ContentLanguage)
 
 	// Read it through the back door.

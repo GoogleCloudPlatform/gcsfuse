@@ -17,6 +17,7 @@ package gcsx
 import (
 	"errors"
 	"io"
+	"strings"
 	"unicode/utf8"
 
 	"golang.org/x/net/context"
@@ -55,6 +56,10 @@ func (b *prefixBucket) wrappedName(n string) string {
 	return b.prefix + n
 }
 
+func (b *prefixBucket) localName(n string) string {
+	return strings.TrimPrefix(n, b.prefix)
+}
+
 func (b *prefixBucket) Name() string {
 	return b.wrapped.Name()
 }
@@ -62,9 +67,10 @@ func (b *prefixBucket) Name() string {
 func (b *prefixBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	// Modify the request and call through.
 	mReq := new(gcs.ReadObjectRequest)
 	*mReq = *req
-	mReq.Name = b.wrappedName(mReq.Name)
+	mReq.Name = b.wrappedName(req.Name)
 
 	rc, err = b.wrapped.NewReader(ctx, mReq)
 	return
@@ -73,7 +79,18 @@ func (b *prefixBucket) NewReader(
 func (b *prefixBucket) CreateObject(
 	ctx context.Context,
 	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
-	err = errors.New("TODO")
+	// Modify the request and call through.
+	mReq := new(gcs.CreateObjectRequest)
+	*mReq = *req
+	mReq.Name = b.wrappedName(req.Name)
+
+	o, err = b.wrapped.CreateObject(ctx, mReq)
+
+	// Modify the returned object.
+	if o != nil {
+		o.Name = b.localName(o.Name)
+	}
+
 	return
 }
 
