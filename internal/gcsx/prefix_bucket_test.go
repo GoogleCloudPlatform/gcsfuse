@@ -16,6 +16,7 @@ package gcsx_test
 
 import (
 	"io/ioutil"
+	"strings"
 	"testing"
 
 	"golang.org/x/net/context"
@@ -90,7 +91,27 @@ func (t *PrefixBucketTest) NewReader() {
 }
 
 func (t *PrefixBucketTest) CreateObject() {
-	AddFailure("TODO")
+	var err error
+	suffix := "taco"
+	contents := "foobar"
+
+	// Create the object.
+	o, err := t.bucket.CreateObject(
+		t.ctx,
+		&gcs.CreateObjectRequest{
+			Name:            suffix,
+			ContentLanguage: "en-GB",
+			Contents:        strings.NewReader(contents),
+		})
+
+	AssertEq(nil, err)
+	ExpectEq("suffix", o.Name)
+	ExpectEq("en-GB", o.ContentLanguage)
+
+	// Read it through the back door.
+	actual, err := gcsutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
+	AssertEq(nil, err)
+	ExpectEq(contents, string(actual))
 }
 
 func (t *PrefixBucketTest) CopyObject() {
