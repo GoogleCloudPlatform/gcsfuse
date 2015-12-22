@@ -58,6 +58,38 @@ func (t *PrefixBucketTest) SetUp(ti *TestInfo) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *PrefixBucketTest) DoesFoo() {
+func (t *PrefixBucketTest) Name() {
+	AddFailure("TODO")
+}
+
+func (t *PrefixBucketTest) NewReader() {
+	AddFailure("TODO")
+}
+
+func (t *PrefixBucketTest) CreateObject() {
+	AddFailure("TODO")
+}
+
+func (t *PrefixBucketTest) CopyObject() {
+	AddFailure("TODO")
+}
+
+func (t *PrefixBucketTest) ComposeObject() {
+	AddFailure("TODO")
+}
+
+func (t *PrefixBucketTest) StatObject() {
+	AddFailure("TODO")
+}
+
+func (t *PrefixBucketTest) ListObjects() {
+	AddFailure("TODO")
+}
+
+func (t *PrefixBucketTest) UpdateObject() {
+	AddFailure("TODO")
+}
+
+func (t *PrefixBucketTest) DeleteObject() {
 	AddFailure("TODO")
 }
