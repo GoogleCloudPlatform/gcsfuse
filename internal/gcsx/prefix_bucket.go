@@ -14,7 +14,15 @@
 
 package gcsx
 
-import "github.com/jacobsa/gcloud/gcs"
+import (
+	"errors"
+	"io"
+	"unicode/utf8"
+
+	"golang.org/x/net/context"
+
+	"github.com/jacobsa/gcloud/gcs"
+)
 
 // Create a view on the wrapped bucket that pretends as if only the objects
 // whose names contain the supplied string as a strict prefix exist, and that
@@ -25,5 +33,80 @@ import "github.com/jacobsa/gcloud/gcs"
 func NewPrefixBucket(
 	prefix string,
 	wrapped gcs.Bucket) (b gcs.Bucket, err error) {
-	panic("TODO")
+	if !utf8.ValidString(prefix) {
+		err = errors.New("prefix is not valid UTF-8")
+		return
+	}
+
+	b = &prefixBucket{
+		prefix:  prefix,
+		wrapped: wrapped,
+	}
+
+	return
+}
+
+type prefixBucket struct {
+	prefix  string
+	wrapped gcs.Bucket
+}
+
+func (b *prefixBucket) Name() string {
+	return b.wrapped.Name()
+}
+
+func (b *prefixBucket) NewReader(
+	ctx context.Context,
+	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (b *prefixBucket) CreateObject(
+	ctx context.Context,
+	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (b *prefixBucket) CopyObject(
+	ctx context.Context,
+	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (b *prefixBucket) ComposeObjects(
+	ctx context.Context,
+	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (b *prefixBucket) StatObject(
+	ctx context.Context,
+	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (b *prefixBucket) ListObjects(
+	ctx context.Context,
+	req *gcs.ListObjectsRequest) (l *gcs.Listing, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (b *prefixBucket) UpdateObject(
+	ctx context.Context,
+	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+	err = errors.New("TODO")
+	return
+}
+
+func (b *prefixBucket) DeleteObject(
+	ctx context.Context,
+	req *gcs.DeleteObjectRequest) (err error) {
+	err = errors.New("TODO")
+	return
 }
