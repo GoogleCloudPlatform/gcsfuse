@@ -25,6 +25,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 )
@@ -234,5 +235,30 @@ func (t *PrefixBucketTest) UpdateObject() {
 }
 
 func (t *PrefixBucketTest) DeleteObject() {
-	AddFailure("TODO")
+	var err error
+	suffix := "taco"
+	name := t.prefix + suffix
+	contents := "foobar"
+
+	// Create an object through the back door.
+	_, err = gcsutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
+	AssertEq(nil, err)
+
+	// Delete it.
+	err = t.bucket.DeleteObject(
+		t.ctx,
+		&gcs.DeleteObjectRequest{
+			Name: suffix,
+		})
+
+	AssertEq(nil, err)
+
+	// It should be gone.
+	_, err = t.wrapped.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{
+			Name: name,
+		})
+
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
