@@ -214,9 +214,9 @@ func (t *PrefixBucketTest) ListObjects_NoOptions() {
 		t.ctx,
 		t.wrapped,
 		map[string][]byte{
-			t.prefix + "burrito":   []byte("foo"),
-			t.prefix + "enchilada": []byte("bar"),
-			t.prefix + "taco":      []byte("baz"),
+			t.prefix + "burrito":   []byte(""),
+			t.prefix + "enchilada": []byte(""),
+			t.prefix + "taco":      []byte(""),
 		})
 
 	AssertEq(nil, err)
@@ -237,7 +237,35 @@ func (t *PrefixBucketTest) ListObjects_NoOptions() {
 }
 
 func (t *PrefixBucketTest) ListObjects_Prefix() {
-	AddFailure("TODO")
+	var err error
+
+	// Create a few objects.
+	err = gcsutil.CreateObjects(
+		t.ctx,
+		t.wrapped,
+		map[string][]byte{
+			t.prefix + "burritn":  []byte(""),
+			t.prefix + "burrito0": []byte(""),
+			t.prefix + "burrito1": []byte(""),
+			t.prefix + "burritp":  []byte(""),
+		})
+
+	AssertEq(nil, err)
+
+	// List, with a prefix.
+	l, err := t.bucket.ListObjects(
+		t.ctx,
+		&gcs.ListObjectsRequest{
+			Prefix: "burrito",
+		})
+
+	AssertEq(nil, err)
+	AssertEq("", l.ContinuationToken)
+	AssertThat(l.CollapsedRuns, ElementsAre())
+
+	AssertEq(2, len(l.Objects))
+	ExpectEq("burrito0", l.Objects[0].Name)
+	ExpectEq("burrito1", l.Objects[1].Name)
 }
 
 func (t *PrefixBucketTest) ListObjects_Delimeter() {
