@@ -206,7 +206,19 @@ func (t *PrefixBucketTest) StatObject() {
 	ExpectEq(len(contents), o.Size)
 }
 
-func (t *PrefixBucketTest) ListObjects() {
+func (t *PrefixBucketTest) ListObjects_NoOptions() {
+	AddFailure("TODO")
+}
+
+func (t *PrefixBucketTest) ListObjects_Prefix() {
+	AddFailure("TODO")
+}
+
+func (t *PrefixBucketTest) ListObjects_Delimeter() {
+	AddFailure("TODO")
+}
+
+func (t *PrefixBucketTest) ListObjects_PrefixAndDelimeter() {
 	AddFailure("TODO")
 }
 
