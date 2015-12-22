@@ -183,6 +183,11 @@ func (b *prefixBucket) UpdateObject(
 func (b *prefixBucket) DeleteObject(
 	ctx context.Context,
 	req *gcs.DeleteObjectRequest) (err error) {
-	err = errors.New("TODO")
+	// Modify the request and call through.
+	mReq := new(gcs.DeleteObjectRequest)
+	*mReq = *req
+	mReq.Name = b.wrappedName(req.Name)
+
+	err = b.wrapped.DeleteObject(ctx, mReq)
 	return
 }
