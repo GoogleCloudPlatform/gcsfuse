@@ -157,8 +157,8 @@ func (t *PrefixBucketTest) ComposeObjects() {
 		t.ctx,
 		t.wrapped,
 		map[string][]byte{
-			(t.prefix + suffix0): []byte(contents0),
-			(t.prefix + suffix1): []byte(contents1),
+			t.prefix + suffix0: []byte(contents0),
+			t.prefix + suffix1: []byte(contents1),
 		})
 
 	AssertEq(nil, err)
@@ -207,7 +207,33 @@ func (t *PrefixBucketTest) StatObject() {
 }
 
 func (t *PrefixBucketTest) ListObjects_NoOptions() {
-	AddFailure("TODO")
+	var err error
+
+	// Create a few objects.
+	err = gcsutil.CreateObjects(
+		t.ctx,
+		t.wrapped,
+		map[string][]byte{
+			t.prefix + "burrito":   []byte("foo"),
+			t.prefix + "enchilada": []byte("bar"),
+			t.prefix + "taco":      []byte("baz"),
+		})
+
+	AssertEq(nil, err)
+
+	// List.
+	l, err := t.bucket.ListObjects(
+		t.ctx,
+		&gcs.ListObjectsRequest{})
+
+	AssertEq(nil, err)
+	AssertEq("", l.ContinuationToken)
+	AssertThat(l.CollapsedRuns, ElementsAre())
+
+	AssertEq(3, len(l.Objects))
+	ExpectEq("burrito", l.Objects[0].Name)
+	ExpectEq("enchilada", l.Objects[1].Name)
+	ExpectEq("taco", l.Objects[2].Name)
 }
 
 func (t *PrefixBucketTest) ListObjects_Prefix() {
