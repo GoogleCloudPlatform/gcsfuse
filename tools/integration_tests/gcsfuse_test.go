@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/daemon"
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
@@ -310,6 +311,84 @@ func (t *GcsfuseTest) ImplicitDirs() {
 	fi, err = os.Lstat(path.Join(t.dir, canned.ImplicitDirFile))
 	AssertEq(nil, err)
 	ExpectEq(os.FileMode(0644), fi.Mode())
+}
+
+func (t *GcsfuseTest) OnlyDir() {
+	var err error
+	var fi os.FileInfo
+
+	// Mount only a single directory from the bucket.
+	args := []string{
+		"--only-dir",
+		path.Dir(canned.ExplicitDirFile),
+		canned.FakeBucketName,
+		t.dir,
+	}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// It should be as if t.dir points into the bucket's first-level directory.
+	entries, err := fusetesting.ReadDirPicky(t.dir)
+	AssertEq(nil, err)
+
+	AssertEq(1, len(entries))
+	fi = entries[0]
+	ExpectEq(path.Base(canned.ExplicitDirFile), fi.Name())
+	ExpectEq(len(canned.ExplicitDirFile_Contents), fi.Size())
+}
+
+func (t *GcsfuseTest) OnlyDir_TrailingSlash() {
+	var err error
+	var fi os.FileInfo
+
+	// Mount only a single directory from the bucket, including a trailing slash.
+	args := []string{
+		"--only-dir",
+		path.Dir(canned.ExplicitDirFile) + "/",
+		canned.FakeBucketName,
+		t.dir,
+	}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// It should be as if t.dir points into the bucket's first-level directory.
+	entries, err := fusetesting.ReadDirPicky(t.dir)
+	AssertEq(nil, err)
+
+	AssertEq(1, len(entries))
+	fi = entries[0]
+	ExpectEq(path.Base(canned.ExplicitDirFile), fi.Name())
+	ExpectEq(len(canned.ExplicitDirFile_Contents), fi.Size())
+}
+
+func (t *GcsfuseTest) OnlyDir_WithImplicitDir() {
+	var err error
+	var fi os.FileInfo
+
+	// Mount only a single implicit directory from the bucket.
+	args := []string{
+		"--only-dir",
+		path.Dir(canned.ImplicitDirFile),
+		canned.FakeBucketName,
+		t.dir,
+	}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// It should be as if t.dir points into the implicit directory
+	entries, err := fusetesting.ReadDirPicky(t.dir)
+	AssertEq(nil, err)
+
+	AssertEq(1, len(entries))
+	fi = entries[0]
+	ExpectEq(path.Base(canned.ImplicitDirFile), fi.Name())
+	ExpectEq(len(canned.ImplicitDirFile_Contents), fi.Size())
 }
 
 func (t *GcsfuseTest) VersionFlags() {

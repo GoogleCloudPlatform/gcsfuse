@@ -48,8 +48,11 @@ const (
 	TopLevelDir          = "bar/"
 	TopLevelDir_Contents = ""
 
+	ExplicitDirFile          = "bar/f"
+	ExplicitDirFile_Contents = "burrito"
+
 	ImplicitDirFile          = "baz/qux"
-	ImplicitDirFile_Contents = "burrito"
+	ImplicitDirFile_Contents = "enchilada"
 )
 
 // Create a fake bucket with canned contents as described in the comments for
@@ -61,6 +64,7 @@ func MakeFakeBucket(ctx context.Context) (b gcs.Bucket) {
 	contents := map[string]string{
 		TopLevelFile:    TopLevelFile_Contents,
 		TopLevelDir:     TopLevelDir_Contents,
+		ExplicitDirFile: ExplicitDirFile_Contents,
 		ImplicitDirFile: ImplicitDirFile_Contents,
 	}
 
