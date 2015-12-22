@@ -116,7 +116,24 @@ func (b *prefixBucket) CopyObject(
 func (b *prefixBucket) ComposeObjects(
 	ctx context.Context,
 	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
-	err = errors.New("TODO")
+	// Modify the request and call through.
+	mReq := new(gcs.ComposeObjectsRequest)
+	*mReq = *req
+	mReq.DstName = b.wrappedName(req.DstName)
+
+	mReq.Sources = nil
+	for _, s := range req.Sources {
+		s.Name = b.wrappedName(s.Name)
+		mReq.Sources = append(mReq.Sources, s)
+	}
+
+	o, err = b.wrapped.ComposeObjects(ctx, mReq)
+
+	// Modify the returned object.
+	if o != nil {
+		o.Name = b.localName(o.Name)
+	}
+
 	return
 }
 
