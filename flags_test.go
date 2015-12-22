@@ -169,11 +169,13 @@ func (t *FlagsTest) Strings() {
 	args := []string{
 		"--key-file", "-asdf",
 		"--temp-dir=foobar",
+		"--only-dir=baz",
 	}
 
 	f := parseArgs(args)
 	ExpectEq("-asdf", f.KeyFile)
 	ExpectEq("foobar", f.TempDir)
+	ExpectEq("baz", f.OnlyDir)
 }
 
 func (t *FlagsTest) Durations() {
