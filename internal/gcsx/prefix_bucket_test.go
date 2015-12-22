@@ -217,6 +217,7 @@ func (t *PrefixBucketTest) ListObjects_NoOptions() {
 			t.prefix + "burrito":   []byte(""),
 			t.prefix + "enchilada": []byte(""),
 			t.prefix + "taco":      []byte(""),
+			"some_other":           []byte(""),
 		})
 
 	AssertEq(nil, err)
@@ -248,6 +249,7 @@ func (t *PrefixBucketTest) ListObjects_Prefix() {
 			t.prefix + "burrito0": []byte(""),
 			t.prefix + "burrito1": []byte(""),
 			t.prefix + "burritp":  []byte(""),
+			"some_other":          []byte(""),
 		})
 
 	AssertEq(nil, err)
@@ -280,6 +282,7 @@ func (t *PrefixBucketTest) ListObjects_Delimeter() {
 			t.prefix + "burrito_0":   []byte(""),
 			t.prefix + "burrito_1":   []byte(""),
 			t.prefix + "enchilada_0": []byte(""),
+			"some_other":             []byte(""),
 		})
 
 	AssertEq(nil, err)
@@ -314,6 +317,7 @@ func (t *PrefixBucketTest) ListObjects_PrefixAndDelimeter() {
 			t.prefix + "burrito_0":   []byte(""),
 			t.prefix + "burrito_1":   []byte(""),
 			t.prefix + "enchilada_0": []byte(""),
+			"some_other":             []byte(""),
 		})
 
 	AssertEq(nil, err)

@@ -158,7 +158,24 @@ func (b *prefixBucket) StatObject(
 func (b *prefixBucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (l *gcs.Listing, err error) {
-	err = errors.New("TODO")
+	// Modify the request and call through.
+	mReq := new(gcs.ListObjectsRequest)
+	*mReq = *req
+	mReq.Prefix = b.prefix + mReq.Prefix
+
+	l, err = b.wrapped.ListObjects(ctx, mReq)
+
+	// Modify the returned listing.
+	if l != nil {
+		for _, o := range l.Objects {
+			o.Name = b.localName(o.Name)
+		}
+
+		for i, n := range l.CollapsedRuns {
+			l.CollapsedRuns[i] = strings.TrimPrefix(n, b.prefix)
+		}
+	}
+
 	return
 }
 
