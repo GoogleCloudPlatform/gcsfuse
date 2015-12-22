@@ -16,11 +16,13 @@ package main
 
 import (
 	"fmt"
+	"path"
 	"time"
 
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
 	"github.com/jacobsa/ratelimit"
@@ -90,7 +92,7 @@ func setUpBucket(
 	flags *flagStorage,
 	conn gcs.Conn,
 	name string) (b gcs.Bucket, err error) {
-	// Set up the appropriate bucket.
+	// Set up the appropriate backing bucket.
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
@@ -99,6 +101,13 @@ func setUpBucket(
 			err = fmt.Errorf("OpenBucket: %v", err)
 			return
 		}
+	}
+
+	// Limit to a requested prefix of the bucket, if any.
+	b, err = gcsx.NewPrefixBucket(path.Clean(flags.OnlyDir+"/"), b)
+	if err != nil {
+		err = fmt.Errorf("NewPrefixBucket: %v", err)
+		return
 	}
 
 	// Enable rate limiting, if requested.
