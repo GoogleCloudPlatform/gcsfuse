@@ -59,7 +59,7 @@ func (t *PrefixBucketTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *PrefixBucketTest) Name() {
-	AddFailure("TODO")
+	ExpectEq(t.wrapped.Name(), t.bucket.Name())
 }
 
 func (t *PrefixBucketTest) NewReader() {
