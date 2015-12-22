@@ -210,7 +210,27 @@ func (t *PrefixBucketTest) ListObjects() {
 }
 
 func (t *PrefixBucketTest) UpdateObject() {
-	AddFailure("TODO")
+	var err error
+	suffix := "taco"
+	name := t.prefix + suffix
+	contents := "foobar"
+
+	// Create an object through the back door.
+	_, err = gcsutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
+	AssertEq(nil, err)
+
+	// Update it.
+	newContentLanguage := "en-GB"
+	o, err := t.bucket.UpdateObject(
+		t.ctx,
+		&gcs.UpdateObjectRequest{
+			Name:            suffix,
+			ContentLanguage: &newContentLanguage,
+		})
+
+	AssertEq(nil, err)
+	ExpectEq(suffix, o.Name)
+	ExpectEq(newContentLanguage, o.ContentLanguage)
 }
 
 func (t *PrefixBucketTest) DeleteObject() {
