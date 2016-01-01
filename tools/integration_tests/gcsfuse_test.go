@@ -27,7 +27,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/internal/daemon"
+	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
@@ -71,7 +71,16 @@ func (t *GcsfuseTest) TearDown() {
 // Call gcsfuse with the supplied args, waiting for it to mount. Return nil
 // only if it mounts successfully.
 func (t *GcsfuseTest) mount(args []string) (err error) {
-	err = daemon.Mount(t.gcsfusePath, gFusermountPath, args, ioutil.Discard)
+	env := []string{
+		fmt.Sprintf("PATH=%s", gFusermountPath),
+	}
+
+	err = daemonize.Run(
+		t.gcsfusePath,
+		args,
+		env,
+		ioutil.Discard)
+
 	return
 }
 

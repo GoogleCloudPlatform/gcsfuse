@@ -37,7 +37,7 @@ import (
 	"golang.org/x/oauth2/google"
 
 	"github.com/codegangsta/cli"
-	"github.com/googlecloudplatform/gcsfuse/internal/daemon"
+	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
@@ -273,18 +273,18 @@ func mountFromContext(
 
 func run(c *cli.Context) (err error) {
 	// Mount, writing information about our progress to the writer that package
-	// daemon gives us and telling it about the outcome.
+	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
-		mountStatus := log.New(daemon.StatusWriter(), "", 0)
+		mountStatus := log.New(daemonize.StatusWriter, "", 0)
 		mfs, err = mountFromContext(c, mountStatus)
 
 		if err == nil {
 			mountStatus.Println("File system has been successfully mounted.")
-			daemon.SignalOutcome(nil)
+			daemonize.SignalOutcome(nil)
 		} else {
 			err = fmt.Errorf("mountFromContext: %v", err)
-			daemon.SignalOutcome(err)
+			daemonize.SignalOutcome(err)
 			return
 		}
 	}

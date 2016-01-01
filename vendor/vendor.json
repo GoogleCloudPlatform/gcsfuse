@@ -8,6 +8,11 @@
 			"revisionTime": "2015-07-11T14:54:04-07:00"
 		},
 		{
+			"path": "github.com/jacobsa/daemonize",
+			"revision": "e460293e890f254bdec4234e574fa31ac7927c2c",
+			"revisionTime": "2016-01-01T21:54:49+11:00"
+		},
+		{
 			"path": "github.com/jacobsa/fuse",
 			"revision": "895b8c415580ff864f707cc0016b08ff840cd23b",
 			"revisionTime": "2015-12-15T10:55:29+11:00"

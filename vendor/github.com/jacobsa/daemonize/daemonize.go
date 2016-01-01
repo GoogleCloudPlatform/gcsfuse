@@ -12,10 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Helper code for daemonizing gcsfuse, synchronizing on successful mount.
+// Helper code for starting a daemon process.
 //
-// The details of this package are subject to change.
-package daemon
+// This package assumes that the user invokes a tool, which invokes a daemon
+// process. Though the tool starts the daemon process with stdin, stdout, and
+// stderr closed (using Run), the daemon should be able to communicate status
+// to the user while it starts up (using StatusWriter), causing the tool to
+// exit in success or failure only when it is clear whether the daemon has
+// sucessfully started (which it signal using SignalOutcome).
+package daemonize
 
 import (
 	"encoding/gob"
@@ -25,24 +30,22 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path"
 	"strconv"
 	"syscall"
 )
 
 // The name of an environment variable used to communicate a file descriptor
-// set up by Mount to the gcsfuse subprocess. Gob encoding is used to
-// communicate back to Mount.
-const envVar = "MOUNT_STATUS_FD"
+// set up by Run to the daemon process. Gob encoding is used to communicate
+// back to Run.
+const envVar = "DAEMONIZE_STATUS_FD"
 
-// A message containing logging output for the process of mounting the file
-// system.
+// A message containing logging output while starting the daemon.
 type logMsg struct {
 	Msg []byte
 }
 
-// A message indicating the outcome of the process of mounting the file system.
-// The receiver ignores further messages.
+// A message indicating the outcome of starting the daemon. The receiver
+// ignores further messages.
 type outcomeMsg struct {
 	Successful bool
 
@@ -86,12 +89,8 @@ func sendMsg(msg interface{}) (err error) {
 	return
 }
 
-// For use by gcsfuse: signal that mounting was successful (allowing the caller
-// of the process to return in success) or that there was a failure to mount
-// the file system (allowing the caller of the process to display an
-// appropriate error message).
-//
-// Do nothing if the process wasn't invoked with Mount.
+// For use by the daemon: signal an outcome back to Run in the invoking tool,
+// causing it to return. Do nothing if the process wasn't invoked with Run.
 func SignalOutcome(outcome error) (err error) {
 	// Is there anything to do?
 	if gGobEncoder == nil {
@@ -130,85 +129,87 @@ func (w *logMsgWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
-// For use by gcsfuse: return a writer that should be used for logging status
-// messages while in the process of mounting.
+// For use by the daemon: the writer that should be used for logging status
+// messages while in the process of starting up. The writer must not be written
+// to after calling SignalOutcome.
 //
-// The returned writer must not be written to after calling SignalOutcome.
-func StatusWriter() (w io.Writer) {
-	if gGobEncoder == nil {
-		w = os.Stderr
-		return
-	}
+// Set to a reasonable default if the process wasn't invoked by a call to Run.
+var StatusWriter io.Writer
 
-	w = &logMsgWriter{}
-	return
+func init() {
+	if gGobEncoder != nil {
+		StatusWriter = &logMsgWriter{}
+	} else {
+		StatusWriter = os.Stderr
+	}
 }
 
-// Invoke gcsfuse with the supplied arguments, waiting until it successfully
-// mounts or reports that is has failed. Write status updates while mounting
+// Invoke the daemon with the supplied arguments, waiting until it successfully
+// starts up or reports that is has failed. Write status updates while starting
 // into the supplied writer (which may be nil for silence). Return nil only if
-// it mounts successfully.
-func Mount(
-	gcsfusePath string,
-	fusermountPath string,
+// it starts successfully.
+func Run(
+	path string,
 	args []string,
+	env []string,
 	status io.Writer) (err error) {
 	if status == nil {
 		status = ioutil.Discard
 	}
 
-	// Set up the pipe that we will hand to the gcsfuse subprocess.
+	// Set up the pipe that we will hand to the daemon.
 	pipeR, pipeW, err := os.Pipe()
 	if err != nil {
 		err = fmt.Errorf("Pipe: %v", err)
 		return
 	}
 
-	// Attempt to start gcsfuse. If we encounter an error in so doing, write it
-	// to the channel.
-	startGcsfuseErr := make(chan error, 1)
+	// Attempt to start the daemon process. If we encounter an error in so doing,
+	// write it to the channel.
+	startProcessErr := make(chan error, 1)
 	go func() {
 		defer pipeW.Close()
-		err := startGcsfuse(gcsfusePath, fusermountPath, args, pipeW)
+		err := startProcess(path, args, env, pipeW)
 		if err != nil {
-			startGcsfuseErr <- err
+			startProcessErr <- err
 		}
 	}()
 
-	// Read communication from gcsfuse from the pipe, writing nil into the
-	// channel only if the mount succeeds.
-	readFromGcsfuseOutcome := make(chan error, 1)
+	// Read communication from the daemon from the pipe, writing nil into the
+	// channel only if the startup succeeds.
+	readFromProcessOutcome := make(chan error, 1)
 	go func() {
 		defer pipeR.Close()
-		readFromGcsfuseOutcome <- readFromGcsfuse(pipeR, status)
+		readFromProcessOutcome <- readFromProcess(pipeR, status)
 	}()
 
 	// Wait for a result from one of the above.
 	select {
-	case err = <-startGcsfuseErr:
-		err = fmt.Errorf("startGcsfuse: %v", err)
+	case err = <-startProcessErr:
+		err = fmt.Errorf("startProcess: %v", err)
 		return
 
-	case err = <-readFromGcsfuseOutcome:
+	case err = <-readFromProcessOutcome:
 		if err == nil {
 			// All is good.
 			return
 		}
 
-		err = fmt.Errorf("readFromGcsfuse: %v", err)
+		err = fmt.Errorf("readFromProcess: %v", err)
 		return
 	}
 }
 
-// Start gcsfuse, handing it the supplied pipe for communication. Do not wait
-// for it to return.
-func startGcsfuse(
-	gcsfusePath string,
-	fusermountPath string,
+// Start the daemon process, handing it the supplied pipe for communication. Do
+// not wait for it to return.
+func startProcess(
+	path string,
 	args []string,
+	env []string,
 	pipeW *os.File) (err error) {
-	cmd := exec.Command(gcsfusePath)
+	cmd := exec.Command(path)
 	cmd.Args = append(cmd.Args, args...)
+	cmd.Env = append(cmd.Env, env...)
 	cmd.ExtraFiles = []*os.File{pipeW}
 
 	// Change working directories so that we don't prevent unmounting of the
@@ -221,11 +222,8 @@ func startGcsfuse(
 		Setsid: true,
 	}
 
-	// Send along the write end of the pipe, and let gcsfuse find fusermount.
-	cmd.Env = []string{
-		fmt.Sprintf("%s=3", envVar),
-		fmt.Sprintf("PATH=%s", path.Dir(fusermountPath)),
-	}
+	// Send along the write end of the pipe.
+	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=3", envVar))
 
 	// Start. Clean up in the background, ignoring errors.
 	err = cmd.Start()
@@ -234,10 +232,10 @@ func startGcsfuse(
 	return
 }
 
-// Process communication from a gcsfuse subprocess. Write log messages to the
-// supplied writer (which must be non-nil). Return nil only if the output of
-// mounting is success.
-func readFromGcsfuse(
+// Process communication from a daemon subprocess. Write log messages to the
+// supplied writer (which must be non-nil). Return nil only if the startup
+// succeeds.
+func readFromProcess(
 	r io.Reader,
 	status io.Writer) (err error) {
 	decoder := gob.NewDecoder(r)
@@ -265,7 +263,7 @@ func readFromGcsfuse(
 				return
 			}
 
-			err = fmt.Errorf("gcsfuse: %s", msg.ErrorMsg)
+			err = fmt.Errorf("sub-process: %s", msg.ErrorMsg)
 			return
 
 		default:
