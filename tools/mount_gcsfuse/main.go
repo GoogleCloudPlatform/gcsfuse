@@ -57,6 +57,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/mount"
@@ -200,7 +201,7 @@ func run(args []string) (err error) {
 	err = daemonize.Run(
 		gcsfusePath,
 		gcsfuseArgs,
-		[]string{fmt.Sprintf("PATH=%s", fusermountPath)},
+		[]string{fmt.Sprintf("PATH=%s", path.Dir(fusermountPath))},
 		os.Stderr)
 
 	if err != nil {

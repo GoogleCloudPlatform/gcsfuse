@@ -72,7 +72,7 @@ func (t *GcsfuseTest) TearDown() {
 // only if it mounts successfully.
 func (t *GcsfuseTest) mount(args []string) (err error) {
 	env := []string{
-		fmt.Sprintf("PATH=%s", gFusermountPath),
+		fmt.Sprintf("PATH=%s", path.Dir(gFusermountPath)),
 	}
 
 	err = daemonize.Run(
