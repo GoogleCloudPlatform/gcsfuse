@@ -57,11 +57,11 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/mount"
-	"github.com/jacobsa/daemonize"
 )
 
 // Turn mount-style options into gcsfuse arguments. Skip known detritus that
@@ -197,15 +197,15 @@ func run(args []string) (err error) {
 		"Calling gcsfuse with arguments: %s\n",
 		strings.Join(gcsfuseArgs, " "))
 
-	// Call gcsfuse and wait for it to successfully mount.
-	err = daemonize.Run(
-		gcsfusePath,
-		gcsfuseArgs,
-		[]string{fmt.Sprintf("PATH=%s", path.Dir(fusermountPath))},
-		os.Stderr)
+	// Run gcsfuse.
+	cmd := exec.Command(gcsfusePath, gcsfuseArgs...)
+	cmd.Env = append(cmd.Env, fmt.Sprintf("PATH=%s", path.Dir(fusermountPath)))
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
+	err = cmd.Run()
 	if err != nil {
-		err = fmt.Errorf("daemonize.Run: %v", err)
+		err = fmt.Errorf("running gcsfuse: %v", err)
 		return
 	}
 
