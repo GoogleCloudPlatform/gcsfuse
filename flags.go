@@ -126,7 +126,7 @@ func newApp() (app *cli.App) {
 			cli.StringFlag{
 				Name:  "key-file",
 				Value: "",
-				Usage: "Path to JSON key file for use with GCS. " +
+				Usage: "Absolute path to JSON key file for use with GCS. " +
 					"(default: none, Google application default credentials used)",
 			},
 
@@ -164,8 +164,8 @@ func newApp() (app *cli.App) {
 			cli.StringFlag{
 				Name:  "temp-dir",
 				Value: "",
-				Usage: "Temporary directory for local GCS object copies. " +
-					"(default: system default, likely /tmp)",
+				Usage: "Absolute path to temporary directory for local GCS object " +
+					"copies. (default: system default, likely /tmp)",
 			},
 
 			/////////////////////////

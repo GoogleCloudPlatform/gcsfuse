@@ -27,6 +27,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"syscall"
@@ -222,23 +223,11 @@ func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountFromContext(
-	args []string,
+func mountWithArgs(
+	bucketName string,
+	mountPoint string,
 	flags *flagStorage,
 	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
-	// Extract arguments.
-	if len(args) != 2 {
-		err = fmt.Errorf(
-			"Error: %s takes exactly two arguments. Run `%s --help` for more info.",
-			path.Base(os.Args[0]),
-			path.Base(os.Args[0]))
-
-		return
-	}
-
-	bucketName := args[0]
-	mountPoint := args[1]
-
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
 		syncutil.EnableInvariantChecking()
@@ -254,7 +243,7 @@ func mountFromContext(
 	}
 
 	// Mount the file system.
-	mfs, err = mount(
+	mfs, err = mountWithConn(
 		context.Background(),
 		bucketName,
 		mountPoint,
@@ -263,7 +252,7 @@ func mountFromContext(
 		mountStatus)
 
 	if err != nil {
-		err = fmt.Errorf("mount: %v", err)
+		err = fmt.Errorf("mountWithConn: %v", err)
 		return
 	}
 
@@ -273,9 +262,34 @@ func mountFromContext(
 func runCLIApp(c *cli.Context) (err error) {
 	flags := populateFlags(c)
 
+	// Extract arguments.
+	if len(c.Args()) != 2 {
+		err = fmt.Errorf(
+			"%s takes exactly two arguments. Run `%s --help` for more info.",
+			path.Base(os.Args[0]),
+			path.Base(os.Args[0]))
+
+		return
+	}
+
+	bucketName := c.Args()[0]
+	mountPoint := c.Args()[1]
+
+	// Canonicalize the mount point, making it absolute. This is important when
+	// daemonizing below, since the daemon will change its working directory
+	// before running this code again.
+	mountPoint, err = filepath.Abs(mountPoint)
+	if err != nil {
+		err = fmt.Errorf("canonicalizing mount point: %v", err)
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "Using mount point: %s\n", mountPoint)
+
 	// If we haven't been asked to run in foreground mode, we should run a daemon
 	// with the foreground flag set and wait for it to mount.
 	if !flags.Foreground {
+		// Find the executable.
 		var path string
 		path, err = osext.Executable()
 		if err != nil {
@@ -283,11 +297,17 @@ func runCLIApp(c *cli.Context) (err error) {
 			return
 		}
 
+		// Set up arguments. Be sure to use foreground mode, and to send along the
+		// potentially-modified mount point.
 		args := append([]string{"--foreground"}, os.Args[1:]...)
+		args[len(args)-1] = mountPoint
+
+		// Pass along PATH so that the daemon can find fusermount on Linux.
 		env := []string{
 			fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
 		}
 
+		// Run.
 		err = daemonize.Run(path, args, env, os.Stderr)
 		if err != nil {
 			err = fmt.Errorf("daemonize.Run: %v", err)
@@ -302,13 +322,13 @@ func runCLIApp(c *cli.Context) (err error) {
 	var mfs *fuse.MountedFileSystem
 	{
 		mountStatus := log.New(daemonize.StatusWriter, "", 0)
-		mfs, err = mountFromContext(c.Args(), flags, mountStatus)
+		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountStatus)
 
 		if err == nil {
 			mountStatus.Println("File system has been successfully mounted.")
 			daemonize.SignalOutcome(nil)
 		} else {
-			err = fmt.Errorf("mountFromContext: %v", err)
+			err = fmt.Errorf("mountWithArgs: %v", err)
 			daemonize.SignalOutcome(err)
 			return
 		}
