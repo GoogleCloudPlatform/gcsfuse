@@ -15,6 +15,7 @@
 package integration_test
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -401,6 +402,56 @@ func (t *GcsfuseTest) OnlyDir_WithImplicitDir() {
 	fi = entries[0]
 	ExpectEq(path.Base(canned.ImplicitDirFile), fi.Name())
 	ExpectEq(len(canned.ImplicitDirFile_Contents), fi.Size())
+}
+
+func (t *GcsfuseTest) ForegroundMode() {
+	// Start gcsfuse, writing stderr to a pipe.
+	cmd := exec.Command(
+		t.gcsfusePath,
+		"--foreground",
+		canned.FakeBucketName,
+		t.dir)
+
+	stderr, err := cmd.StderrPipe()
+	AssertEq(nil, err)
+
+	err = cmd.Start()
+	AssertEq(nil, err)
+	defer cmd.Wait()
+	defer cmd.Process.Kill()
+
+	// Accumulate output from stderr until we see a successful mount message,
+	// hackily synchronizing. Yes, this is an O(n^2) loop.
+	var output []byte
+	{
+		buf := make([]byte, 4096)
+		for !bytes.Contains(output, []byte("successfully mounted")) {
+			n, err := stderr.Read(buf)
+			output = append(output, buf[:n]...)
+			AssertEq(nil, err, "Output so far:\n%s", output)
+		}
+	}
+
+	defer unmount(t.dir)
+
+	// The gcsfuse process should still be running, even after waiting a moment.
+	time.Sleep(50 * time.Millisecond)
+	err = cmd.Process.Signal(syscall.Signal(0))
+	AssertEq(nil, err)
+
+	// The file system should be available.
+	fi, err := os.Lstat(path.Join(t.dir, canned.TopLevelFile))
+	AssertEq(nil, err)
+	ExpectEq(os.FileMode(0644), fi.Mode())
+	ExpectEq(len(canned.TopLevelFile_Contents), fi.Size())
+
+	// Unmounting should work fine.
+	err = unmount(t.dir)
+	AssertEq(nil, err)
+
+	// Now the process should exit successfully.
+	err = cmd.Wait()
+	AssertEq(nil, err)
 }
 
 func (t *GcsfuseTest) VersionFlags() {
