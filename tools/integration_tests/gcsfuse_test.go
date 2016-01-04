@@ -412,6 +412,10 @@ func (t *GcsfuseTest) ForegroundMode() {
 		canned.FakeBucketName,
 		t.dir)
 
+	cmd.Env = []string{
+		fmt.Sprintf("PATH=%s", path.Dir(gFusermountPath)),
+	}
+
 	stderr, err := cmd.StderrPipe()
 	AssertEq(nil, err)
 
