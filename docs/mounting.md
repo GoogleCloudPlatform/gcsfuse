@@ -76,33 +76,6 @@ security implications!
 [allow_other]: https://github.com/torvalds/linux/blob/a33f32244/Documentation/filesystems/fuse.txt#L100-L105
 
 
-# Running as a daemon
-
-gcsfuse runs as a foreground process, writing log messages to stderr. This
-makes it easy to test out and terminate by pressing Ctrl-C, and to redirect its
-output to where you like. However, it is common to want to put gcsfuse into the
-background, detaching it from the terminal that started it. Advanced users also
-want to manage gcsfuse log output, perhaps sending it to syslog.
-
-In order to do this, use your preferred daemonization wrapper. Common choices
-include [daemon][], [daemonize][], [daemontools][], [systemd][], and
-[upstart][].
-
-[daemon]: http://libslack.org/daemon/
-[daemonize]: http://software.clapper.org/daemonize/
-[daemontools]: http://cr.yp.to/daemontools.html
-[systemd]: http://www.freedesktop.org/wiki/Software/systemd/
-[upstart]: http://upstart.ubuntu.com/
-
-For example, `daemon` can be installed using `sudo apt-get install daemon` on
-Ubuntu or `brew install daemon` with [homebrew][] on OS X. Afterward, gcsfuse
-can be run with:
-
-    daemon -- gcsfuse my-bucket /path/to/mount/point
-
-[homebrew]: http://brew.sh/
-
-
 # mount(8) and fstab compatibility
 
 The gcsfuse [installation process](installing.md) installed a helper understood
