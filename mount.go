@@ -31,7 +31,7 @@ import (
 
 // Mount the file system based on the supplied arguments, returning a
 // fuse.MountedFileSystem that can be joined to wait for unmounting.
-func mount(
+func mountWithConn(
 	ctx context.Context,
 	bucketName string,
 	mountPoint string,
