@@ -156,8 +156,8 @@ func buildBinaries(
 
 	// On Linux, also support `mount -t fuse.gcsfuse`. If there's no explicit
 	// helper for this type, /sbin/mount.fuse will call the gcsfuse executable
-	// directly, but it doesn't support the right argument format and doesn't
-	// daemonize. So we install an explicit helper.
+	// directly, but it doesn't support the right argument format. So we install
+	// an explicit helper.
 	if osys == "linux" {
 		err = os.Symlink("mount.gcsfuse", path.Join(dstDir, "sbin/mount.fuse.gcsfuse"))
 		if err != nil {
