@@ -222,10 +222,11 @@ func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 
 // Mount the file system according to arguments in the supplied context.
 func mountFromContext(
-	c *cli.Context,
+	args []string,
+	flags *flagStorage,
 	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Extract arguments.
-	if len(c.Args()) != 2 {
+	if len(args) != 2 {
 		err = fmt.Errorf(
 			"Error: %s takes exactly two arguments. Run `%s --help` for more info.",
 			path.Base(os.Args[0]),
@@ -234,11 +235,8 @@ func mountFromContext(
 		return
 	}
 
-	bucketName := c.Args()[0]
-	mountPoint := c.Args()[1]
-
-	// Populate and parse flags.
-	flags := populateFlags(c)
+	bucketName := args[0]
+	mountPoint := args[1]
 
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
@@ -277,7 +275,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	var mfs *fuse.MountedFileSystem
 	{
 		mountStatus := log.New(daemonize.StatusWriter, "", 0)
-		mfs, err = mountFromContext(c, mountStatus)
+		mfs, err = mountFromContext(c.Args(), populateFlags(c), mountStatus)
 
 		if err == nil {
 			mountStatus.Println("File system has been successfully mounted.")
