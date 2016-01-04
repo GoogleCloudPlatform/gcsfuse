@@ -271,7 +271,7 @@ func mountFromContext(
 	return
 }
 
-func run(c *cli.Context) (err error) {
+func runCLIApp(c *cli.Context) (err error) {
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
@@ -302,6 +302,25 @@ func run(c *cli.Context) (err error) {
 	return
 }
 
+func run() (err error) {
+	// Set up the app.
+	app := newApp()
+
+	var appErr error
+	app.Action = func(c *cli.Context) {
+		appErr = runCLIApp(c)
+	}
+
+	// Run it.
+	err = app.Run(os.Args)
+	if err != nil {
+		return
+	}
+
+	err = appErr
+	return
+}
+
 func main() {
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
@@ -310,21 +329,12 @@ func main() {
 	go handleCPUProfileSignals()
 	go handleMemoryProfileSignals()
 
-	// Set up the app.
-	app := newApp()
-	app.Action = func(c *cli.Context) {
-		err := run(c)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-
-		log.Println("Successfully exiting.")
-	}
-
-	err := app.Run(os.Args)
+	// Run.
+	err := run()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+
+	log.Println("Successfully exiting.")
 }
