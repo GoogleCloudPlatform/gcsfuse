@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
-	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
@@ -68,18 +67,22 @@ func (t *GcsfuseTest) TearDown() {
 	AssertEq(nil, err)
 }
 
-// Call gcsfuse with the supplied args, waiting for it to mount. Return nil
-// only if it mounts successfully.
-func (t *GcsfuseTest) mount(args []string) (err error) {
-	env := []string{
+// Call gcsfuse with the supplied args, waiting for it to exit. Return nil only
+// if it exits successfully.
+func (t *GcsfuseTest) runGcsfuse(args []string) (err error) {
+	cmd := exec.Command(t.gcsfusePath, args...)
+
+	// Teach gcsfuse where fusermount lives.
+	cmd.Env = []string{
 		fmt.Sprintf("PATH=%s", path.Dir(gFusermountPath)),
 	}
 
-	err = daemonize.Run(
-		t.gcsfusePath,
-		args,
-		env,
-		ioutil.Discard)
+	// Run.
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		err = fmt.Errorf("error %q running gcsfuse; output:\n%s", err.Error(), output)
+		return
+	}
 
 	return
 }
@@ -152,7 +155,7 @@ func (t *GcsfuseTest) NonExistentMountPoint() {
 	// Mount.
 	args := []string{canned.FakeBucketName, path.Join(t.dir, "blahblah")}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	ExpectThat(err, Error(HasSubstr("no such")))
 	ExpectThat(err, Error(HasSubstr("blahblah")))
 }
@@ -170,7 +173,7 @@ func (t *GcsfuseTest) MountPointIsAFile() {
 	// Mount.
 	args := []string{canned.FakeBucketName, p}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	ExpectThat(err, Error(HasSubstr(p)))
 	ExpectThat(err, Error(HasSubstr("not a directory")))
 }
@@ -182,7 +185,7 @@ func (t *GcsfuseTest) CannedContents() {
 	// Mount.
 	args := []string{canned.FakeBucketName, t.dir}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
@@ -211,7 +214,7 @@ func (t *GcsfuseTest) ReadOnlyMode() {
 	// Mount.
 	args := []string{"-o", "ro", canned.FakeBucketName, t.dir}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
@@ -226,7 +229,7 @@ func (t *GcsfuseTest) ReadWriteMode() {
 	// Mount.
 	args := []string{canned.FakeBucketName, t.dir}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
@@ -253,7 +256,7 @@ func (t *GcsfuseTest) FileAndDirModeFlags() {
 		t.dir,
 	}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
@@ -281,7 +284,7 @@ func (t *GcsfuseTest) UidAndGidFlags() {
 		t.dir,
 	}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
@@ -308,7 +311,7 @@ func (t *GcsfuseTest) ImplicitDirs() {
 		t.dir,
 	}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
@@ -334,7 +337,7 @@ func (t *GcsfuseTest) OnlyDir() {
 		t.dir,
 	}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
@@ -360,7 +363,7 @@ func (t *GcsfuseTest) OnlyDir_TrailingSlash() {
 		t.dir,
 	}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
@@ -386,7 +389,7 @@ func (t *GcsfuseTest) OnlyDir_WithImplicitDir() {
 		t.dir,
 	}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
