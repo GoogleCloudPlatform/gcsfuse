@@ -27,6 +27,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"syscall"
@@ -274,9 +275,21 @@ func runCLIApp(c *cli.Context) (err error) {
 	bucketName := c.Args()[0]
 	mountPoint := c.Args()[1]
 
+	// Canonicalize the mount point, making it absolute. This is important when
+	// daemonizing below, since the daemon will change its working directory
+	// before running this code again.
+	mountPoint, err = filepath.Abs(mountPoint)
+	if err != nil {
+		err = fmt.Errorf("canonicalizing mount point: %v", err)
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "Using mount point: %s\n", mountPoint)
+
 	// If we haven't been asked to run in foreground mode, we should run a daemon
 	// with the foreground flag set and wait for it to mount.
 	if !flags.Foreground {
+		// Find the executable.
 		var path string
 		path, err = osext.Executable()
 		if err != nil {
@@ -284,11 +297,17 @@ func runCLIApp(c *cli.Context) (err error) {
 			return
 		}
 
+		// Set up arguments. Be sure to use foreground mode, and to send along the
+		// potentially-modified mount point.
 		args := append([]string{"--foreground"}, os.Args[1:]...)
+		args[len(args)-1] = mountPoint
+
+		// Pass along PATH so that the daemon can find fusermount on Linux.
 		env := []string{
 			fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
 		}
 
+		// Run.
 		err = daemonize.Run(path, args, env, os.Stderr)
 		if err != nil {
 			err = fmt.Errorf("daemonize.Run: %v", err)
