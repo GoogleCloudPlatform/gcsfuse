@@ -411,6 +411,27 @@ func (t *GcsfuseTest) OnlyDir_WithImplicitDir() {
 	ExpectEq(len(canned.ImplicitDirFile_Contents), fi.Size())
 }
 
+func (t *GcsfuseTest) RelativeMountPoint() {
+	// Start gcsfuse with a relative mount point.
+	cmd := t.gcsfuseCommand([]string{
+		canned.FakeBucketName,
+		path.Base(t.dir),
+	})
+
+	cmd.Dir = path.Dir(t.dir)
+
+	output, err := cmd.CombinedOutput()
+	AssertEq(nil, err, "output:\n%s", output)
+
+	defer unmount(t.dir)
+
+	// The file system should be available.
+	fi, err := os.Lstat(path.Join(t.dir, canned.TopLevelFile))
+	AssertEq(nil, err)
+	ExpectEq(os.FileMode(0644), fi.Mode())
+	ExpectEq(len(canned.TopLevelFile_Contents), fi.Size())
+}
+
 func (t *GcsfuseTest) ForegroundMode() {
 	// Start gcsfuse, writing stderr to a pipe.
 	cmd := t.gcsfuseCommand([]string{
