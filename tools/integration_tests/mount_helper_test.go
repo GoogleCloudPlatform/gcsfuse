@@ -74,12 +74,18 @@ func (t *MountHelperTest) TearDown() {
 	AssertEq(nil, err)
 }
 
-func (t *MountHelperTest) mount(args []string) (err error) {
-	cmd := exec.Command(t.helperPath)
+func (t *MountHelperTest) mountHelperCommand(args []string) (cmd *exec.Cmd) {
+	cmd = exec.Command(t.helperPath)
 	cmd.Args = append(cmd.Args, args...)
 	cmd.Env = []string{
 		fmt.Sprintf("PATH=%s", path.Join(gBuildDir, "bin")),
 	}
+
+	return
+}
+
+func (t *MountHelperTest) mount(args []string) (err error) {
+	cmd := t.mountHelperCommand(args)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -120,11 +126,7 @@ func (t *MountHelperTest) BadUsage() {
 
 	// Run each test case.
 	for i, tc := range testCases {
-		cmd := exec.Command(t.helperPath)
-		cmd.Args = append(cmd.Args, tc.args...)
-		cmd.Env = []string{
-			fmt.Sprintf("PATH=%s", path.Join(gBuildDir, "bin")),
-		}
+		cmd := t.mountHelperCommand(tc.args)
 
 		output, err := cmd.CombinedOutput()
 		ExpectThat(err, Error(HasSubstr("exit status")), "case %d", i)
@@ -144,6 +146,30 @@ func (t *MountHelperTest) SuccessfulMount() {
 	defer unmount(t.dir)
 
 	// Check that the file system is available.
+	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
+	AssertEq(nil, err)
+	ExpectEq(os.FileMode(0644), fi.Mode())
+	ExpectEq(len(canned.TopLevelFile_Contents), fi.Size())
+}
+
+func (t *MountHelperTest) RelativeMountPoint() {
+	var err error
+	var fi os.FileInfo
+
+	// Mount with a relative mount point.
+	cmd := t.mountHelperCommand([]string{
+		canned.FakeBucketName,
+		path.Base(t.dir),
+	})
+
+	cmd.Dir = path.Dir(t.dir)
+
+	output, err := cmd.CombinedOutput()
+	AssertEq(nil, err, "output:\n%s", output)
+
+	defer unmount(t.dir)
+
+	// The file system should be available.
 	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
 	AssertEq(nil, err)
 	ExpectEq(os.FileMode(0644), fi.Mode())
