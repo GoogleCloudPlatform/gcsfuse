@@ -123,6 +123,11 @@
 			"revisionTime": "2015-08-10T14:08:48+10:00"
 		},
 		{
+			"path": "github.com/kardianos/osext",
+			"revision": "29ae4ffbc9a6fe9fb2bc5029050ce6996ea1d3bc",
+			"revisionTime": "2015-12-22T07:32:29-08:00"
+		},
+		{
 			"path": "golang.org/x/net/context",
 			"revision": "4a71d182556e05375344f3da665304f3d5784ab4",
 			"revisionTime": "2015-07-10T09:50:07-06:00"
