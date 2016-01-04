@@ -43,10 +43,10 @@ system, not as root. Similarly, the directory should be owned by that user. Do
 not use `sudo` for either of the steps above or you will wind up with
 permissions issues.
 
-You should now be able to see your bucket contents if you run `ls
-/path/to/mount/point` in another shell. gcsfuse stays in the foreground until
-it is told to exit or the file system is unmounted; see below for information
-about unmounting and about running it as a daemon.
+After the gcsfuse tool exits, you should be able to see your bucket contents if
+you run `ls /path/to/mount/point`. If you would prefer the tool to stay in the
+foreground (for example to see debug logging), run it with the `--foreground`
+flag.
 
 ## Unmounting
 
@@ -57,9 +57,6 @@ On Linux, unmount using fuse's `fusermount` tool:
 On OS X, unmount like any other file system:
 
     umount /path/to/mount/point
-
-On both systems, you can also unmount by sending `SIGINT` to the gcsfuse
-process (usually by pressing Ctrl-C in the controlling terminal).
 
 
 # Access permissions
@@ -77,33 +74,6 @@ security implications!
 
 [fuse-security]: https://github.com/torvalds/linux/blob/a33f32244/Documentation/filesystems/fuse.txt#L253-L300
 [allow_other]: https://github.com/torvalds/linux/blob/a33f32244/Documentation/filesystems/fuse.txt#L100-L105
-
-
-# Running as a daemon
-
-gcsfuse runs as a foreground process, writing log messages to stderr. This
-makes it easy to test out and terminate by pressing Ctrl-C, and to redirect its
-output to where you like. However, it is common to want to put gcsfuse into the
-background, detaching it from the terminal that started it. Advanced users also
-want to manage gcsfuse log output, perhaps sending it to syslog.
-
-In order to do this, use your preferred daemonization wrapper. Common choices
-include [daemon][], [daemonize][], [daemontools][], [systemd][], and
-[upstart][].
-
-[daemon]: http://libslack.org/daemon/
-[daemonize]: http://software.clapper.org/daemonize/
-[daemontools]: http://cr.yp.to/daemontools.html
-[systemd]: http://www.freedesktop.org/wiki/Software/systemd/
-[upstart]: http://upstart.ubuntu.com/
-
-For example, `daemon` can be installed using `sudo apt-get install daemon` on
-Ubuntu or `brew install daemon` with [homebrew][] on OS X. Afterward, gcsfuse
-can be run with:
-
-    daemon -- gcsfuse my-bucket /path/to/mount/point
-
-[homebrew]: http://brew.sh/
 
 
 # mount(8) and fstab compatibility

@@ -15,6 +15,7 @@
 package integration_test
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -27,7 +28,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
-	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
@@ -68,18 +68,22 @@ func (t *GcsfuseTest) TearDown() {
 	AssertEq(nil, err)
 }
 
-// Call gcsfuse with the supplied args, waiting for it to mount. Return nil
-// only if it mounts successfully.
-func (t *GcsfuseTest) mount(args []string) (err error) {
-	env := []string{
+// Call gcsfuse with the supplied args, waiting for it to exit. Return nil only
+// if it exits successfully.
+func (t *GcsfuseTest) runGcsfuse(args []string) (err error) {
+	cmd := exec.Command(t.gcsfusePath, args...)
+
+	// Teach gcsfuse where fusermount lives.
+	cmd.Env = []string{
 		fmt.Sprintf("PATH=%s", path.Dir(gFusermountPath)),
 	}
 
-	err = daemonize.Run(
-		t.gcsfusePath,
-		args,
-		env,
-		ioutil.Discard)
+	// Run.
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		err = fmt.Errorf("error %q running gcsfuse; output:\n%s", err.Error(), output)
+		return
+	}
 
 	return
 }
@@ -152,7 +156,7 @@ func (t *GcsfuseTest) NonExistentMountPoint() {
 	// Mount.
 	args := []string{canned.FakeBucketName, path.Join(t.dir, "blahblah")}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	ExpectThat(err, Error(HasSubstr("no such")))
 	ExpectThat(err, Error(HasSubstr("blahblah")))
 }
@@ -170,7 +174,7 @@ func (t *GcsfuseTest) MountPointIsAFile() {
 	// Mount.
 	args := []string{canned.FakeBucketName, p}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	ExpectThat(err, Error(HasSubstr(p)))
 	ExpectThat(err, Error(HasSubstr("not a directory")))
 }
@@ -182,7 +186,7 @@ func (t *GcsfuseTest) CannedContents() {
 	// Mount.
 	args := []string{canned.FakeBucketName, t.dir}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
@@ -211,7 +215,7 @@ func (t *GcsfuseTest) ReadOnlyMode() {
 	// Mount.
 	args := []string{"-o", "ro", canned.FakeBucketName, t.dir}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
@@ -226,7 +230,7 @@ func (t *GcsfuseTest) ReadWriteMode() {
 	// Mount.
 	args := []string{canned.FakeBucketName, t.dir}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
@@ -253,7 +257,7 @@ func (t *GcsfuseTest) FileAndDirModeFlags() {
 		t.dir,
 	}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
@@ -281,7 +285,7 @@ func (t *GcsfuseTest) UidAndGidFlags() {
 		t.dir,
 	}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
@@ -308,7 +312,7 @@ func (t *GcsfuseTest) ImplicitDirs() {
 		t.dir,
 	}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
@@ -334,7 +338,7 @@ func (t *GcsfuseTest) OnlyDir() {
 		t.dir,
 	}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
@@ -360,7 +364,7 @@ func (t *GcsfuseTest) OnlyDir_TrailingSlash() {
 		t.dir,
 	}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
@@ -386,7 +390,7 @@ func (t *GcsfuseTest) OnlyDir_WithImplicitDir() {
 		t.dir,
 	}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
@@ -398,6 +402,60 @@ func (t *GcsfuseTest) OnlyDir_WithImplicitDir() {
 	fi = entries[0]
 	ExpectEq(path.Base(canned.ImplicitDirFile), fi.Name())
 	ExpectEq(len(canned.ImplicitDirFile_Contents), fi.Size())
+}
+
+func (t *GcsfuseTest) ForegroundMode() {
+	// Start gcsfuse, writing stderr to a pipe.
+	cmd := exec.Command(
+		t.gcsfusePath,
+		"--foreground",
+		canned.FakeBucketName,
+		t.dir)
+
+	cmd.Env = []string{
+		fmt.Sprintf("PATH=%s", path.Dir(gFusermountPath)),
+	}
+
+	stderr, err := cmd.StderrPipe()
+	AssertEq(nil, err)
+
+	err = cmd.Start()
+	AssertEq(nil, err)
+	defer cmd.Wait()
+	defer cmd.Process.Kill()
+
+	// Accumulate output from stderr until we see a successful mount message,
+	// hackily synchronizing. Yes, this is an O(n^2) loop.
+	var output []byte
+	{
+		buf := make([]byte, 4096)
+		for !bytes.Contains(output, []byte("successfully mounted")) {
+			n, err := stderr.Read(buf)
+			output = append(output, buf[:n]...)
+			AssertEq(nil, err, "Output so far:\n%s", output)
+		}
+	}
+
+	defer unmount(t.dir)
+
+	// The gcsfuse process should still be running, even after waiting a moment.
+	time.Sleep(50 * time.Millisecond)
+	err = cmd.Process.Signal(syscall.Signal(0))
+	AssertEq(nil, err)
+
+	// The file system should be available.
+	fi, err := os.Lstat(path.Join(t.dir, canned.TopLevelFile))
+	AssertEq(nil, err)
+	ExpectEq(os.FileMode(0644), fi.Mode())
+	ExpectEq(len(canned.TopLevelFile_Contents), fi.Size())
+
+	// Unmounting should work fine.
+	err = unmount(t.dir)
+	AssertEq(nil, err)
+
+	// Now the process should exit successfully.
+	err = cmd.Wait()
+	AssertEq(nil, err)
 }
 
 func (t *GcsfuseTest) VersionFlags() {

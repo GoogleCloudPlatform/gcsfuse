@@ -59,9 +59,8 @@ gcsfuse my-bucket /path/to/mount
 **Important**: You should run gcsfuse as the user who will be using the file
 system, not as root. Do not use `sudo`.
 
-The gcsfuse tool will run until the file system is unmounted. You can press
-Ctrl-C to make this happen cleanly, or unmount in the usual way for a fuse file
-system on your operating system:
+The gcsfuse tool will exit successfully after mounting the file system. Unmount
+in the usual way for a fuse file system on your operating system:
 
     umount /path/to/mount         # OS X
     fusermount -u /path/to/mount  # Linux
@@ -72,8 +71,8 @@ notes in [semantics.md][semantics-implicit-dirs] for more information.
 
 [semantics-implicit-dirs]: docs/semantics.md#implicit-directories
 
-See [mounting.md][] for more detail, including notes on running as a daemon and
-fstab compatiblity.
+See [mounting.md][] for more detail, including notes on running in the
+foreground and fstab compatiblity.
 
 [mounting.md]: /docs/mounting.md
 

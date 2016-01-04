@@ -41,6 +41,7 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
+	"github.com/kardianos/osext"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -222,10 +223,11 @@ func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 
 // Mount the file system according to arguments in the supplied context.
 func mountFromContext(
-	c *cli.Context,
+	args []string,
+	flags *flagStorage,
 	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Extract arguments.
-	if len(c.Args()) != 2 {
+	if len(args) != 2 {
 		err = fmt.Errorf(
 			"Error: %s takes exactly two arguments. Run `%s --help` for more info.",
 			path.Base(os.Args[0]),
@@ -234,11 +236,8 @@ func mountFromContext(
 		return
 	}
 
-	bucketName := c.Args()[0]
-	mountPoint := c.Args()[1]
-
-	// Populate and parse flags.
-	flags := populateFlags(c)
+	bucketName := args[0]
+	mountPoint := args[1]
 
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
@@ -271,13 +270,39 @@ func mountFromContext(
 	return
 }
 
-func run(c *cli.Context) (err error) {
+func runCLIApp(c *cli.Context) (err error) {
+	flags := populateFlags(c)
+
+	// If we haven't been asked to run in foreground mode, we should run a daemon
+	// with the foreground flag set and wait for it to mount.
+	if !flags.Foreground {
+		var path string
+		path, err = osext.Executable()
+		if err != nil {
+			err = fmt.Errorf("osext.Executable: %v", err)
+			return
+		}
+
+		args := append([]string{"--foreground"}, os.Args[1:]...)
+		env := []string{
+			fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
+		}
+
+		err = daemonize.Run(path, args, env, os.Stderr)
+		if err != nil {
+			err = fmt.Errorf("daemonize.Run: %v", err)
+			return
+		}
+
+		return
+	}
+
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
 		mountStatus := log.New(daemonize.StatusWriter, "", 0)
-		mfs, err = mountFromContext(c, mountStatus)
+		mfs, err = mountFromContext(c.Args(), flags, mountStatus)
 
 		if err == nil {
 			mountStatus.Println("File system has been successfully mounted.")
@@ -302,6 +327,25 @@ func run(c *cli.Context) (err error) {
 	return
 }
 
+func run() (err error) {
+	// Set up the app.
+	app := newApp()
+
+	var appErr error
+	app.Action = func(c *cli.Context) {
+		appErr = runCLIApp(c)
+	}
+
+	// Run it.
+	err = app.Run(os.Args)
+	if err != nil {
+		return
+	}
+
+	err = appErr
+	return
+}
+
 func main() {
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
@@ -310,19 +354,8 @@ func main() {
 	go handleCPUProfileSignals()
 	go handleMemoryProfileSignals()
 
-	// Set up the app.
-	app := newApp()
-	app.Action = func(c *cli.Context) {
-		err := run(c)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-
-		log.Println("Successfully exiting.")
-	}
-
-	err := app.Run(os.Args)
+	// Run.
+	err := run()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

@@ -55,7 +55,7 @@ func (t *GcsfuseTest) Statfs() {
 	// Mount.
 	args := []string{canned.FakeBucketName, t.dir}
 
-	err = t.mount(args)
+	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
 	defer unmount(t.dir)
 
