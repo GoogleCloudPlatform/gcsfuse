@@ -41,6 +41,7 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
+	"github.com/kardianos/osext"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -270,12 +271,38 @@ func mountFromContext(
 }
 
 func runCLIApp(c *cli.Context) (err error) {
+	flags := populateFlags(c)
+
+	// If we haven't been asked to run in foreground mode, we should run a daemon
+	// with the foreground flag set and wait for it to mount.
+	if !flags.Foreground {
+		var path string
+		path, err = osext.Executable()
+		if err != nil {
+			err = fmt.Errorf("osext.Executable: %v", err)
+			return
+		}
+
+		args := append([]string{"--foreground"}, os.Args[1:]...)
+		env := []string{
+			fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
+		}
+
+		err = daemonize.Run(path, args, env, os.Stderr)
+		if err != nil {
+			err = fmt.Errorf("daemonize.Run: %v", err)
+			return
+		}
+
+		return
+	}
+
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
 		mountStatus := log.New(daemonize.StatusWriter, "", 0)
-		mfs, err = mountFromContext(c.Args(), populateFlags(c), mountStatus)
+		mfs, err = mountFromContext(c.Args(), flags, mountStatus)
 
 		if err == nil {
 			mountStatus.Println("File system has been successfully mounted.")
@@ -333,6 +360,4 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-
-	log.Println("Successfully exiting.")
 }
