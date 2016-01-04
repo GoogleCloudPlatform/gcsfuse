@@ -70,6 +70,11 @@ func newApp() (app *cli.App) {
 				Usage: "Print this help text and exit successfuly.",
 			},
 
+			cli.BoolFlag{
+				Name:  "foreground",
+				Usage: "Stay in the foreground after mounting.",
+			},
+
 			/////////////////////////
 			// File system
 			/////////////////////////
@@ -193,6 +198,8 @@ func newApp() (app *cli.App) {
 }
 
 type flagStorage struct {
+	Foreground bool
+
 	// File system
 	MountOptions map[string]string
 	DirMode      os.FileMode
@@ -223,6 +230,8 @@ type flagStorage struct {
 // variables into which the flags will parse.
 func populateFlags(c *cli.Context) (flags *flagStorage) {
 	flags = &flagStorage{
+		Foreground: c.Bool("foreground"),
+
 		// File system
 		MountOptions: make(map[string]string),
 		DirMode:      os.FileMode(*c.Generic("dir-mode").(*OctalInt)),
