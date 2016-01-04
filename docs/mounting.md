@@ -56,9 +56,6 @@ On OS X, unmount like any other file system:
 
     umount /path/to/mount/point
 
-On both systems, you can also unmount by sending `SIGINT` to the gcsfuse
-process (usually by pressing Ctrl-C in the controlling terminal).
-
 
 # Access permissions
 
