@@ -44,7 +44,9 @@ not use `sudo` for either of the steps above or you will wind up with
 permissions issues.
 
 After the gcsfuse tool exits, you should be able to see your bucket contents if
-you run `ls /path/to/mount/point`.
+you run `ls /path/to/mount/point`. If you would prefer the tool to stay in the
+foreground (for example to see debug logging), run it with the `--foreground`
+flag.
 
 ## Unmounting
 
