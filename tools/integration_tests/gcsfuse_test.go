@@ -68,15 +68,23 @@ func (t *GcsfuseTest) TearDown() {
 	AssertEq(nil, err)
 }
 
-// Call gcsfuse with the supplied args, waiting for it to exit. Return nil only
-// if it exits successfully.
-func (t *GcsfuseTest) runGcsfuse(args []string) (err error) {
-	cmd := exec.Command(t.gcsfusePath, args...)
+// Create an appropriate exec.Cmd for running gcsfuse, setting the required
+// environment.
+func (t *GcsfuseTest) gcsfuseCommand(args []string) (cmd *exec.Cmd) {
+	cmd = exec.Command(t.gcsfusePath, args...)
 
 	// Teach gcsfuse where fusermount lives.
 	cmd.Env = []string{
 		fmt.Sprintf("PATH=%s", path.Dir(gFusermountPath)),
 	}
+
+	return
+}
+
+// Call gcsfuse with the supplied args, waiting for it to exit. Return nil only
+// if it exits successfully.
+func (t *GcsfuseTest) runGcsfuse(args []string) (err error) {
+	cmd := t.gcsfuseCommand(args)
 
 	// Run.
 	output, err := cmd.CombinedOutput()
@@ -141,8 +149,7 @@ func (t *GcsfuseTest) BadUsage() {
 
 	// Run each test case.
 	for i, tc := range testCases {
-		cmd := exec.Command(t.gcsfusePath)
-		cmd.Args = append(cmd.Args, tc.args...)
+		cmd := t.gcsfuseCommand(tc.args)
 
 		output, err := cmd.CombinedOutput()
 		ExpectThat(err, Error(HasSubstr("exit status")), "case %d", i)
@@ -406,11 +413,11 @@ func (t *GcsfuseTest) OnlyDir_WithImplicitDir() {
 
 func (t *GcsfuseTest) ForegroundMode() {
 	// Start gcsfuse, writing stderr to a pipe.
-	cmd := exec.Command(
-		t.gcsfusePath,
+	cmd := t.gcsfuseCommand([]string{
 		"--foreground",
 		canned.FakeBucketName,
-		t.dir)
+		t.dir,
+	})
 
 	cmd.Env = []string{
 		fmt.Sprintf("PATH=%s", path.Dir(gFusermountPath)),
@@ -468,9 +475,7 @@ func (t *GcsfuseTest) VersionFlags() {
 
 	// For each argument, gcsfuse should exist successfully.
 	for i, tc := range testCases {
-		cmd := exec.Command(t.gcsfusePath)
-		cmd.Args = append(cmd.Args, tc.args...)
-
+		cmd := t.gcsfuseCommand(tc.args)
 		output, err := cmd.CombinedOutput()
 		ExpectEq(nil, err, "case %d\nOutput:\n%s", i, output)
 	}
@@ -486,9 +491,7 @@ func (t *GcsfuseTest) HelpFlags() {
 
 	// For each argument, gcsfuse should exist successfully.
 	for i, tc := range testCases {
-		cmd := exec.Command(t.gcsfusePath)
-		cmd.Args = append(cmd.Args, tc.args...)
-
+		cmd := t.gcsfuseCommand(tc.args)
 		output, err := cmd.CombinedOutput()
 		ExpectEq(nil, err, "case %d\nOutput:\n%s", i, output)
 	}
