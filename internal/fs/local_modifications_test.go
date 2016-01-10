@@ -416,7 +416,9 @@ func init() { RegisterTestSuite(&MknodTest{}) }
 
 func (t *MknodTest) File() {
 	// mknod(2) only works for root on OS X.
-	if runtime.GOOS == "darwin" { return }
+	if runtime.GOOS == "darwin" {
+		return
+	}
 
 	var err error
 	p := path.Join(t.mfs.Dir(), "foo")
@@ -441,7 +443,9 @@ func (t *MknodTest) File() {
 
 func (t *MknodTest) Directory() {
 	// mknod(2) only works for root on OS X.
-	if runtime.GOOS == "darwin" { return }
+	if runtime.GOOS == "darwin" {
+		return
+	}
 
 	var err error
 	p := path.Join(t.mfs.Dir(), "foo")
@@ -454,7 +458,9 @@ func (t *MknodTest) Directory() {
 
 func (t *MknodTest) AlreadyExists() {
 	// mknod(2) only works for root on OS X.
-	if runtime.GOOS == "darwin" { return }
+	if runtime.GOOS == "darwin" {
+		return
+	}
 
 	var err error
 	p := path.Join(t.mfs.Dir(), "foo")
@@ -475,7 +481,9 @@ func (t *MknodTest) AlreadyExists() {
 
 func (t *MknodTest) NonExistentParent() {
 	// mknod(2) only works for root on OS X.
-	if runtime.GOOS == "darwin" { return }
+	if runtime.GOOS == "darwin" {
+		return
+	}
 
 	var err error
 	p := path.Join(t.mfs.Dir(), "foo/bar")
@@ -1270,6 +1278,45 @@ func (t *DirectoryTest) Chtimes() {
 	ExpectEq(nil, err)
 }
 
+func (t *DirectoryTest) AtimeCtimeAndMtime() {
+	var err error
+
+	// Create a directory.
+	p := path.Join(t.mfs.Dir(), "foo")
+	createTime := t.mtimeClock.Now()
+	err = os.Mkdir(p, 0700)
+	AssertEq(nil, err)
+
+	// Stat it.
+	fi, err := os.Stat(p)
+	AssertEq(nil, err)
+
+	// We require only that the times be "reasonable".
+	atime, ctime, mtime := fusetesting.GetTimes(fi)
+	const delta = 5 * time.Hour
+
+	ExpectThat(atime, timeutil.TimeNear(createTime, delta))
+	ExpectThat(ctime, timeutil.TimeNear(createTime, delta))
+	ExpectThat(mtime, timeutil.TimeNear(createTime, delta))
+}
+
+func (t *DirectoryTest) RootAtimeCtimeAndMtime() {
+	var err error
+	mountTime := t.mtimeClock.Now()
+
+	// Stat the root directory.
+	fi, err := os.Stat(t.mfs.Dir())
+	AssertEq(nil, err)
+
+	// We require only that the times be "reasonable".
+	atime, ctime, mtime := fusetesting.GetTimes(fi)
+	const delta = 5 * time.Hour
+
+	ExpectThat(atime, timeutil.TimeNear(mountTime, delta))
+	ExpectThat(ctime, timeutil.TimeNear(mountTime, delta))
+	ExpectThat(mtime, timeutil.TimeNear(mountTime, delta))
+}
+
 ////////////////////////////////////////////////////////////////////////
 // File interaction
 ////////////////////////////////////////////////////////////////////////
@@ -2060,6 +2107,27 @@ func (t *FileTest) Close_Clobbered() {
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("foobar", string(contents))
+}
+
+func (t *FileTest) AtimeAndCtime() {
+	var err error
+
+	// Create a file.
+	p := path.Join(t.mfs.Dir(), "foo")
+	createTime := t.mtimeClock.Now()
+	err = ioutil.WriteFile(p, []byte{}, 0400)
+	AssertEq(nil, err)
+
+	// Stat it.
+	fi, err := os.Stat(p)
+	AssertEq(nil, err)
+
+	// We require only that atime and ctime be "reasonable".
+	atime, ctime, _ := fusetesting.GetTimes(fi)
+	const delta = 5 * time.Hour
+
+	ExpectThat(atime, timeutil.TimeNear(createTime, delta))
+	ExpectThat(ctime, timeutil.TimeNear(createTime, delta))
 }
 
 ////////////////////////////////////////////////////////////////////////

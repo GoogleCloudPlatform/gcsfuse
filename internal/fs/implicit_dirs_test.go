@@ -22,11 +22,13 @@ import (
 	"os"
 	"path"
 	"syscall"
+	"time"
 
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/gcloud/gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
+	"github.com/jacobsa/timeutil"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -538,4 +540,30 @@ func (t *ImplicitDirsTest) Rmdir_Empty() {
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
+}
+
+func (t *ImplicitDirsTest) AtimeCtimeAndMtime() {
+	var err error
+	mountTime := t.mtimeClock.Now()
+
+	// Create an implicit directory.
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				// File
+				"foo/bar": "",
+			}))
+
+	// Stat it.
+	fi, err := os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	// We require only that the times be "reasonable".
+	atime, ctime, mtime := fusetesting.GetTimes(fi)
+	const delta = 5 * time.Hour
+
+	ExpectThat(atime, timeutil.TimeNear(mountTime, delta))
+	ExpectThat(ctime, timeutil.TimeNear(mountTime, delta))
+	ExpectThat(mtime, timeutil.TimeNear(mountTime, delta))
 }

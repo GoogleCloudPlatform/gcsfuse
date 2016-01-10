@@ -161,6 +161,11 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 			Uid:  fs.uid,
 			Gid:  fs.gid,
 			Mode: fs.dirMode,
+
+			// We guarantee only that directory times be "reasonable".
+			Atime: fs.mtimeClock.Now(),
+			Ctime: fs.mtimeClock.Now(),
+			Mtime: fs.mtimeClock.Now(),
 		},
 		fs.implicitDirs,
 		fs.dirTypeCacheTTL,
@@ -501,6 +506,11 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 				Uid:  fs.uid,
 				Gid:  fs.gid,
 				Mode: fs.dirMode,
+
+				// We guarantee only that directory times be "reasonable".
+				Atime: fs.mtimeClock.Now(),
+				Ctime: fs.mtimeClock.Now(),
+				Mtime: fs.mtimeClock.Now(),
 			},
 			fs.implicitDirs,
 			fs.dirTypeCacheTTL,
@@ -517,6 +527,11 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 				Uid:  fs.uid,
 				Gid:  fs.gid,
 				Mode: fs.dirMode,
+
+				// We guarantee only that directory times be "reasonable".
+				Atime: fs.mtimeClock.Now(),
+				Ctime: fs.mtimeClock.Now(),
+				Mtime: fs.mtimeClock.Now(),
 			},
 			fs.implicitDirs,
 			fs.dirTypeCacheTTL,

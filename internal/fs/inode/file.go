@@ -285,6 +285,10 @@ func (f *FileInode) Attributes(
 	attrs.Mtime = f.src.Updated
 	attrs.Size = uint64(f.src.Size)
 
+	// We require only that atime and ctime be "reasonable".
+	attrs.Atime = attrs.Mtime
+	attrs.Ctime = attrs.Mtime
+
 	// If the source object has an mtime metadata key, use that instead of its
 	// update time.
 	if formatted, ok := f.src.Metadata["gcsfuse_mtime"]; ok {

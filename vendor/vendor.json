@@ -14,43 +14,43 @@
 		},
 		{
 			"path": "github.com/jacobsa/fuse",
-			"revision": "895b8c415580ff864f707cc0016b08ff840cd23b",
-			"revisionTime": "2015-12-15T10:55:29+11:00"
+			"revision": "608feace05097efdad15b7c5f36e0604c53c4abe",
+			"revisionTime": "2016-01-11T10:27:55+11:00"
 		},
 		{
 			"path": "github.com/jacobsa/fuse/fsutil",
-			"revision": "895b8c415580ff864f707cc0016b08ff840cd23b",
-			"revisionTime": "2015-12-15T10:55:29+11:00"
+			"revision": "608feace05097efdad15b7c5f36e0604c53c4abe",
+			"revisionTime": "2016-01-11T10:27:55+11:00"
 		},
 		{
 			"path": "github.com/jacobsa/fuse/fuseops",
-			"revision": "895b8c415580ff864f707cc0016b08ff840cd23b",
-			"revisionTime": "2015-12-15T10:55:29+11:00"
+			"revision": "608feace05097efdad15b7c5f36e0604c53c4abe",
+			"revisionTime": "2016-01-11T10:27:55+11:00"
 		},
 		{
 			"path": "github.com/jacobsa/fuse/fusetesting",
-			"revision": "895b8c415580ff864f707cc0016b08ff840cd23b",
-			"revisionTime": "2015-12-15T10:55:29+11:00"
+			"revision": "608feace05097efdad15b7c5f36e0604c53c4abe",
+			"revisionTime": "2016-01-11T10:27:55+11:00"
 		},
 		{
 			"path": "github.com/jacobsa/fuse/fuseutil",
-			"revision": "895b8c415580ff864f707cc0016b08ff840cd23b",
-			"revisionTime": "2015-12-15T10:55:29+11:00"
+			"revision": "608feace05097efdad15b7c5f36e0604c53c4abe",
+			"revisionTime": "2016-01-11T10:27:55+11:00"
 		},
 		{
 			"path": "github.com/jacobsa/fuse/internal/buffer",
-			"revision": "895b8c415580ff864f707cc0016b08ff840cd23b",
-			"revisionTime": "2015-12-15T10:55:29+11:00"
+			"revision": "608feace05097efdad15b7c5f36e0604c53c4abe",
+			"revisionTime": "2016-01-11T10:27:55+11:00"
 		},
 		{
 			"path": "github.com/jacobsa/fuse/internal/freelist",
-			"revision": "895b8c415580ff864f707cc0016b08ff840cd23b",
-			"revisionTime": "2015-12-15T10:55:29+11:00"
+			"revision": "608feace05097efdad15b7c5f36e0604c53c4abe",
+			"revisionTime": "2016-01-11T10:27:55+11:00"
 		},
 		{
 			"path": "github.com/jacobsa/fuse/internal/fusekernel",
-			"revision": "895b8c415580ff864f707cc0016b08ff840cd23b",
-			"revisionTime": "2015-12-15T10:55:29+11:00"
+			"revision": "608feace05097efdad15b7c5f36e0604c53c4abe",
+			"revisionTime": "2016-01-11T10:27:55+11:00"
 		},
 		{
 			"path": "github.com/jacobsa/gcloud/gcs",
