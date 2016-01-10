@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"syscall"
 	"time"
 
 	"github.com/jacobsa/oglematchers"
@@ -93,6 +94,12 @@ func birthtimeIsWithin(
 	}
 
 	return nil
+}
+
+// Extract time information from the supplied file info. Panic on platforms
+// where this is not possible.
+func GetTimes(fi os.FileInfo) (atime, ctime, mtime time.Time) {
+	return getTimes(fi.Sys().(*syscall.Stat_t))
 }
 
 // Match os.FileInfo values that specify a number of links equal to the given

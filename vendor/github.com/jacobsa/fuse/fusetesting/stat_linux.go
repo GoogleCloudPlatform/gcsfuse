@@ -34,3 +34,10 @@ func extractNlink(sys interface{}) (nlink uint64, ok bool) {
 	ok = true
 	return
 }
+
+func getTimes(stat *syscall.Stat_t) (atime, ctime, mtime time.Time) {
+	atime = time.Unix(stat.Atim.Unix())
+	ctime = time.Unix(stat.Ctim.Unix())
+	mtime = time.Unix(stat.Mtim.Unix())
+	return
+}
