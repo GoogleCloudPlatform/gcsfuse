@@ -560,18 +560,10 @@ func (t *ImplicitDirsTest) AtimeCtimeAndMtime() {
 	AssertEq(nil, err)
 
 	// We require only that the times be "reasonable".
-	sys := fi.Sys().(*syscall.Stat_t)
+	atime, ctime, mtime := fusetesting.GetTimes(fi)
 	const delta = 5 * time.Hour
 
-	ExpectThat(
-		timespecToTime(sys.Atimespec),
-		timeutil.TimeNear(mountTime, delta))
-
-	ExpectThat(
-		timespecToTime(sys.Ctimespec),
-		timeutil.TimeNear(mountTime, delta))
-
-	ExpectThat(
-		timespecToTime(sys.Mtimespec),
-		timeutil.TimeNear(mountTime, delta))
+	ExpectThat(atime, timeutil.TimeNear(mountTime, delta))
+	ExpectThat(ctime, timeutil.TimeNear(mountTime, delta))
+	ExpectThat(mtime, timeutil.TimeNear(mountTime, delta))
 }

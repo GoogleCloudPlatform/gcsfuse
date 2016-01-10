@@ -157,10 +157,6 @@ func interestingLegalNames() (names []string) {
 	return
 }
 
-func timespecToTime(ts syscall.Timespec) time.Time {
-	return time.Unix(ts.Unix())
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Open
 ////////////////////////////////////////////////////////////////////////
@@ -1296,20 +1292,12 @@ func (t *DirectoryTest) AtimeCtimeAndMtime() {
 	AssertEq(nil, err)
 
 	// We require only that the times be "reasonable".
-	sys := fi.Sys().(*syscall.Stat_t)
+	atime, ctime, mtime := fusetesting.GetTimes(fi)
 	const delta = 5 * time.Hour
 
-	ExpectThat(
-		timespecToTime(sys.Atimespec),
-		timeutil.TimeNear(createTime, delta))
-
-	ExpectThat(
-		timespecToTime(sys.Ctimespec),
-		timeutil.TimeNear(createTime, delta))
-
-	ExpectThat(
-		timespecToTime(sys.Mtimespec),
-		timeutil.TimeNear(createTime, delta))
+	ExpectThat(atime, timeutil.TimeNear(createTime, delta))
+	ExpectThat(ctime, timeutil.TimeNear(createTime, delta))
+	ExpectThat(mtime, timeutil.TimeNear(createTime, delta))
 }
 
 func (t *DirectoryTest) RootAtimeCtimeAndMtime() {
@@ -1321,20 +1309,12 @@ func (t *DirectoryTest) RootAtimeCtimeAndMtime() {
 	AssertEq(nil, err)
 
 	// We require only that the times be "reasonable".
-	sys := fi.Sys().(*syscall.Stat_t)
+	atime, ctime, mtime := fusetesting.GetTimes(fi)
 	const delta = 5 * time.Hour
 
-	ExpectThat(
-		timespecToTime(sys.Atimespec),
-		timeutil.TimeNear(mountTime, delta))
-
-	ExpectThat(
-		timespecToTime(sys.Ctimespec),
-		timeutil.TimeNear(mountTime, delta))
-
-	ExpectThat(
-		timespecToTime(sys.Mtimespec),
-		timeutil.TimeNear(mountTime, delta))
+	ExpectThat(atime, timeutil.TimeNear(mountTime, delta))
+	ExpectThat(ctime, timeutil.TimeNear(mountTime, delta))
+	ExpectThat(mtime, timeutil.TimeNear(mountTime, delta))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -2143,16 +2123,11 @@ func (t *FileTest) AtimeAndCtime() {
 	AssertEq(nil, err)
 
 	// We require only that atime and ctime be "reasonable".
-	sys := fi.Sys().(*syscall.Stat_t)
+	atime, ctime, _ := fusetesting.GetTimes(fi)
 	const delta = 5 * time.Hour
 
-	ExpectThat(
-		timespecToTime(sys.Atimespec),
-		timeutil.TimeNear(createTime, delta))
-
-	ExpectThat(
-		timespecToTime(sys.Ctimespec),
-		timeutil.TimeNear(createTime, delta))
+	ExpectThat(atime, timeutil.TimeNear(createTime, delta))
+	ExpectThat(ctime, timeutil.TimeNear(createTime, delta))
 }
 
 ////////////////////////////////////////////////////////////////////////
