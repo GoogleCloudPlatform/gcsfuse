@@ -138,6 +138,8 @@ func (t *FileTest) InitialAttributes() {
 	ExpectEq(uid, attrs.Uid)
 	ExpectEq(gid, attrs.Gid)
 	ExpectEq(fileMode, attrs.Mode)
+	ExpectThat(attrs.Atime, timeutil.TimeEq(t.backingObj.Updated))
+	ExpectThat(attrs.Ctime, timeutil.TimeEq(t.backingObj.Updated))
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(t.backingObj.Updated))
 }
 
