@@ -253,14 +253,17 @@ modifications from another actor in the meantime.) There are no guarantees
 about whether local modifications are reflected in GCS after writing but before
 syncing or closing.
 
-Modification time (`stat::st_mtime` on Linux) is tracked for file inodes, and
-can be updated in usual the usual way using `utimes(2)` or `futimens(2)`. When
-dirty inodes are written out to GCS objects, mtime is stored in the custom
-metadata key `gcsfuse_mtime` in an unspecified format.
+Modification time (`stat::st_mtim` on Linux) is tracked for file inodes, and can
+be updated in usual the usual way using `utimes(2)` or `futimens(2)`. When dirty
+inodes are written out to GCS objects, mtime is stored in the custom metadata
+key `gcsfuse_mtime` in an unspecified format.
 
 There is one special case worth mentioning: mtime updates to unlinked inodes
 may be silently lost. (Of course content updates to these inodes will also be
 lost once the file is closed.)
+
+There are no guarantees about other inode times (such as `stat::st_ctim` and
+`stat::st_atim` on Linux) except that they will be set to something reasonable.
 
 
 <a name="file-inode-identity"></a>
@@ -320,10 +323,13 @@ look up child inodes. Unlike file inodes:
     overwritten.
 
 *   gcsfuse does not keep track of modification time for
-    directories. There are no guarantees for the contents of `stat::st_mtime`
-    or equivalent or the behavior of `utimes(2)` and similar.
+    directories. There are no guarantees for the contents of `stat::st_mtim` or
+    equivalent, or the behavior of `utimes(2)` and similar.
 
 *   There are no guarantees about `stat::st_nlink`.
+
+Despite no guarantees about the actual times for directories, their time fields
+in `stat` structs will be set to something reasonable.
 
 <a name="dir-inode-reading"></a>
 ### Reading
