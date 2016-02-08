@@ -86,9 +86,17 @@ your operating system:
 *   OS X: `/sbin/mount_gcsfuse`
 
 On OS X, this program allows you to mount buckets using the `mount` command.
-(On Linux, only root can do this.)
+(On Linux, only root can do this.) For example:
 
     mount -t gcsfuse -o rw,user my-bucket /path/to/mount/point
+
+The following mount options are supported, in addition to the standard ones for
+your system, matching the semantics of the corresponding `gcsfuse` flags named
+with dashes instead of underscores:
+
+*   `implicit_dirs`
+*   `dir_mode`
+*   `file_mode`
 
 On both OS X and Linux, you can also add entries to your `/etc/fstab` file like
 the following:
