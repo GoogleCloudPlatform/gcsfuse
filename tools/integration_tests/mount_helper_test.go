@@ -251,3 +251,19 @@ func (t *MountHelperTest) FuseSubtype() {
 	ExpectEq(os.FileMode(0644), fi.Mode())
 	ExpectEq(len(canned.TopLevelFile_Contents), fi.Size())
 }
+
+func (t *MountHelperTest) ImplicitDirs() {
+	var err error
+
+	// Mount.
+	args := []string{"-o", "implicit_dirs", canned.FakeBucketName, t.dir}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	defer unmount(t.dir)
+
+	// The implicit directory should be visible.
+	fi, err := os.Lstat(path.Join(t.dir, canned.ImplicitDirFile))
+	AssertEq(nil, err)
+	ExpectTrue(fi.IsDir())
+}
