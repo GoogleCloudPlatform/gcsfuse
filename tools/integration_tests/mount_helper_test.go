@@ -275,7 +275,7 @@ func (t *MountHelperTest) ModeOptions() {
 	// Stat the file.
 	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
 	AssertEq(nil, err)
-	ExpectEq(os.FileMode(612)|os.ModeDir, fi.Mode())
+	ExpectEq(os.FileMode(0612), fi.Mode())
 }
 
 func (t *MountHelperTest) ImplicitDirs() {
@@ -289,7 +289,7 @@ func (t *MountHelperTest) ImplicitDirs() {
 	defer unmount(t.dir)
 
 	// The implicit directory should be visible.
-	fi, err := os.Lstat(path.Join(t.dir, canned.ImplicitDirFile))
+	fi, err := os.Lstat(path.Join(t.dir, path.Dir(canned.ImplicitDirFile)))
 	AssertEq(nil, err)
 	ExpectTrue(fi.IsDir())
 }

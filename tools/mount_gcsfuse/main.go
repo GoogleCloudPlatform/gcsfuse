@@ -79,6 +79,21 @@ func makeGcsfuseArgs(
 		// gcsfuse, and that fusermount chokes on with "Invalid argument" on Linux.
 		case "user", "nouser", "auto", "noauto":
 
+		// Special case: support mount-like formatting for gcsfuse bool flags.
+		case "implicit_dirs":
+			args = append(
+				args,
+				"--"+strings.Replace(name, "_", "-", -1),
+			)
+
+		// Special case: support mount-like formatting for gcsfuse string flags.
+		case "dir_mode", "file_mode":
+			args = append(
+				args,
+				"--"+strings.Replace(name, "_", "-", -1),
+				value,
+			)
+
 		// Pass through everything else.
 		default:
 			var formatted string
