@@ -132,6 +132,7 @@ func interestingLegalNames() (names []string) {
 	//  *  Cn (non-character and reserved), which is not included in unicode.C.
 	//  *  Co (private usage), which is large.
 	//  *  Cs (surrages), which is large.
+	//  *  U+0000, which is forbidden in paths by Go (cf. https://goo.gl/BHoO7N).
 	//  *  U+000A and U+000D, which are forbidden by the docs.
 	//
 	for r := rune(0); r <= unicode.MaxRune; r++ {
@@ -144,6 +145,10 @@ func interestingLegalNames() (names []string) {
 		}
 
 		if unicode.In(r, unicode.Cs) {
+			continue
+		}
+
+		if r == 0x00 {
 			continue
 		}
 

@@ -11,7 +11,7 @@ dist: trusty
 
 # We can't build with 1.4.2 (the default as of 2015-07-27), because it doesn't
 # support vendoring.
-go: 1.5
+go: 1.6
 
 # Ensure that we get vendoring support in `go test`.
 env:
