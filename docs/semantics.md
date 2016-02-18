@@ -311,6 +311,17 @@ unlinks it. Process A continues to have a consistent view of the file's
 contents until it closes the file handle, at which point the contents are lost.
 
 
+### GCS object metadata
+
+gcsfuse sets the following pieces of GCS object metadata for file objects:
+
+*   `contentType` is set to GCS's best guess as to the MIME type of the file,
+    based on its file extension.
+
+*   The custom metadata key `gcsfuse_mtime` is set to track mtime, as discussed
+    above.
+
+
 <a name="dir-inodes"></a>
 # Directory inodes
 
