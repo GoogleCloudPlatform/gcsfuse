@@ -16,6 +16,8 @@ package gcsx
 
 import "github.com/jacobsa/gcloud/gcs"
 
+// NewContentTypeBucket creates a wrapper bucket that guesses MIME types for
+// new objects when an explicit type is not already set.
 func NewContentTypeBucket(b gcs.Bucket) gcs.Bucket {
 	// TODO
 	return b
