@@ -103,5 +103,39 @@ func TestContentTypeBucket_CreateObject(t *testing.T) {
 }
 
 func TestContentTypeBucket_ComposeObjects(t *testing.T) {
-	t.Fatal("TODO")
+	var err error
+	ctx := context.Background()
+
+	for i, tc := range contentTypeBucketTestCases {
+		// Set up a bucket.
+		bucket := gcsfake.NewFakeBucket(timeutil.RealClock(), "")
+
+		// Create a source object.
+		const srcName = "some_src"
+		_, err = bucket.CreateObject(ctx, &gcs.CreateObjectRequest{
+			Name:     srcName,
+			Contents: strings.NewReader(""),
+		})
+
+		if err != nil {
+			t.Fatalf("Test case %d: CreateObject: %v", err)
+		}
+
+		// Compose.
+		req := &gcs.ComposeObjectsRequest{
+			DstName:     tc.name,
+			ContentType: tc.request,
+			Sources:     []gcs.ComposeSource{{Name: srcName}},
+		}
+
+		o, err := bucket.ComposeObjects(ctx, req)
+		if err != nil {
+			t.Fatalf("Test case %d: ComposeObject: %v", i, err)
+		}
+
+		// Check the content type.
+		if got, want := o.ContentType, tc.expected; got != want {
+			t.Errorf("Test case %d: o.ContentType is %q, want %q", i, got, want)
+		}
+	}
 }
