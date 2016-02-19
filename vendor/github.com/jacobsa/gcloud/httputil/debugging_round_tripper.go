@@ -16,10 +16,11 @@ package httputil
 
 import (
 	"bytes"
-	"io"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/httputil"
 )
 
 // An interface for transports that support the signature of
@@ -46,26 +47,28 @@ func DebuggingRoundTripper(
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func readAllAndClose(rc io.ReadCloser) string {
-	// Read.
-	contents, err := ioutil.ReadAll(rc)
+// Ensure that the supplied request has a correct ContentLength field set.
+func fillInContentLength(req *http.Request) (err error) {
+	body := req.Body
+	if body == nil {
+		req.ContentLength = 0
+		return
+	}
+
+	// Make a copy.
+	contents, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		panic(err)
+		err = fmt.Errorf("ReadAll: %v", err)
+		return
 	}
 
-	// Close.
-	if err := rc.Close(); err != nil {
-		panic(err)
-	}
+	req.Body.Close()
 
-	return string(contents)
-}
+	// Fill in the content length and restore the body.
+	req.ContentLength = int64(len(contents))
+	req.Body = ioutil.NopCloser(bytes.NewReader(contents))
 
-// Read everything from *rc, then replace it with a copy.
-func snarfBody(rc *io.ReadCloser) string {
-	contents := readAllAndClose(*rc)
-	*rc = ioutil.NopCloser(bytes.NewBufferString(contents))
-	return contents
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -78,41 +81,47 @@ type debuggingRoundTripper struct {
 }
 
 func (t *debuggingRoundTripper) RoundTrip(
-	req *http.Request) (*http.Response, error) {
-	// Print information about the request.
-	t.logger.Println("========== REQUEST ===========")
-	t.logger.Println(req.Method, req.URL, req.Proto)
-	for k, vs := range req.Header {
-		for _, v := range vs {
-			t.logger.Printf("%s: %s\n", k, v)
-		}
+	req *http.Request) (resp *http.Response, err error) {
+	// Ensure that the request has a ContentLength field, so that it doesn't need
+	// to be transmitted with chunked encoding. This improves debugging output.
+	err = fillInContentLength(req)
+	if err != nil {
+		err = fmt.Errorf("fillInContentLength: %v", err)
+		return
 	}
 
-	if req.Body != nil {
-		t.logger.Printf("\n%s\n", snarfBody(&req.Body))
+	// Dump the request.
+	{
+		var dumped []byte
+		dumped, err = httputil.DumpRequestOut(req, true)
+		if err != nil {
+			err = fmt.Errorf("DumpRequestOut: %v", err)
+			return
+		}
+
+		t.logger.Printf("========== REQUEST:\n%s", dumped)
 	}
 
 	// Execute the request.
-	res, err := t.wrapped.RoundTrip(req)
+	resp, err = t.wrapped.RoundTrip(req)
 	if err != nil {
-		return res, err
+		return
 	}
 
-	// Print the response.
-	t.logger.Println("========== RESPONSE ==========")
-	t.logger.Println(res.Proto, res.Status)
-	for k, vs := range res.Header {
-		for _, v := range vs {
-			t.logger.Printf("%s: %s\n", k, v)
+	// Dump the response.
+	{
+		var dumped []byte
+		dumped, err = httputil.DumpResponse(resp, true)
+		if err != nil {
+			err = fmt.Errorf("DumpResponse: %v", err)
+			return
 		}
+
+		t.logger.Printf("========== RESPONSE:\n%s", dumped)
+		t.logger.Println("====================")
 	}
 
-	if res.Body != nil {
-		t.logger.Printf("\n%s\n", snarfBody(&res.Body))
-	}
-	t.logger.Println("==============================")
-
-	return res, err
+	return
 }
 
 func (t *debuggingRoundTripper) CancelRequest(req *http.Request) {

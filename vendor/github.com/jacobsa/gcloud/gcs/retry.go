@@ -113,7 +113,7 @@ func chooseDelay(prevSleepCount uint) (d time.Duration) {
 
 	// Choose a a delay in [0, 2^prevSleepCount * baseDelay).
 	d = (1 << prevSleepCount) * baseDelay
-	d = time.Duration(float64(d) * rand.Float64())
+	d = time.Duration(rand.Int63n(int64(d)))
 
 	return
 }
@@ -429,8 +429,8 @@ func (rb *retryBucket) CreateObject(
 	// attempt might exhaust some of the req.Contents reader, leaving missing
 	// contents for the second attempt.
 	//
-	// So, copy out all contents and create a modified request that serves from
-	// memory.
+	// So, copy out all contents and create a copy of the request that we will
+	// modify to serve from memory for each call.
 	contents, err := ioutil.ReadAll(req.Contents)
 	if err != nil {
 		err = fmt.Errorf("ioutil.ReadAll: %v", err)
@@ -438,7 +438,6 @@ func (rb *retryBucket) CreateObject(
 	}
 
 	reqCopy := *req
-	reqCopy.Contents = bytes.NewReader(contents)
 
 	// Call through with that request.
 	err = oneShotExpBackoff(
@@ -446,6 +445,7 @@ func (rb *retryBucket) CreateObject(
 		fmt.Sprintf("CreateObject(%q)", req.Name),
 		rb.maxSleep,
 		func() (err error) {
+			reqCopy.Contents = bytes.NewReader(contents)
 			o, err = rb.wrapped.CreateObject(ctx, &reqCopy)
 			return
 		})

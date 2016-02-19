@@ -39,10 +39,6 @@ func (b *bucket) makeComposeObjectsBody(
 		Destination: &storagev1.Object{
 			Name:     req.DstName,
 			Metadata: req.Metadata,
-
-			// We get an HTTP 400 if we don't set this.
-			// Cf. Google-internal bug 21588058.
-			ContentType: "application/octet-stream",
 		},
 	}
 
