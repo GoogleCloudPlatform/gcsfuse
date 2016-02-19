@@ -44,3 +44,16 @@ func (b contentTypeBucket) CreateObject(
 	o, err = b.Bucket.CreateObject(ctx, req)
 	return
 }
+
+func (b contentTypeBucket) ComposeObjects(
+	ctx context.Context,
+	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+	// Guess a content type if necessary.
+	if req.ContentType == "" {
+		req.ContentType = mime.TypeByExtension(path.Ext(req.DstName))
+	}
+
+	// Pass on the request.
+	o, err = b.Bucket.ComposeObjects(ctx, req)
+	return
+}
