@@ -54,28 +54,28 @@
 		},
 		{
 			"path": "github.com/jacobsa/gcloud/gcs",
-			"revision": "375c8d26ef4afd74817b4ce3e5065bf97d78325f",
-			"revisionTime": "2016-02-18T23:38:22+11:00"
+			"revision": "60dc0c7874d8adf958f7ded1e2edda4d7b3e8318",
+			"revisionTime": "2016-02-19T11:39:26+11:00"
 		},
 		{
 			"path": "github.com/jacobsa/gcloud/gcs/gcscaching",
-			"revision": "375c8d26ef4afd74817b4ce3e5065bf97d78325f",
-			"revisionTime": "2016-02-18T23:38:22+11:00"
+			"revision": "60dc0c7874d8adf958f7ded1e2edda4d7b3e8318",
+			"revisionTime": "2016-02-19T11:39:26+11:00"
 		},
 		{
 			"path": "github.com/jacobsa/gcloud/gcs/gcsfake",
-			"revision": "375c8d26ef4afd74817b4ce3e5065bf97d78325f",
-			"revisionTime": "2016-02-18T23:38:22+11:00"
+			"revision": "60dc0c7874d8adf958f7ded1e2edda4d7b3e8318",
+			"revisionTime": "2016-02-19T11:39:26+11:00"
 		},
 		{
 			"path": "github.com/jacobsa/gcloud/gcs/gcsutil",
-			"revision": "375c8d26ef4afd74817b4ce3e5065bf97d78325f",
-			"revisionTime": "2016-02-18T23:38:22+11:00"
+			"revision": "60dc0c7874d8adf958f7ded1e2edda4d7b3e8318",
+			"revisionTime": "2016-02-19T11:39:26+11:00"
 		},
 		{
 			"path": "github.com/jacobsa/gcloud/httputil",
-			"revision": "375c8d26ef4afd74817b4ce3e5065bf97d78325f",
-			"revisionTime": "2016-02-18T23:38:22+11:00"
+			"revision": "60dc0c7874d8adf958f7ded1e2edda4d7b3e8318",
+			"revisionTime": "2016-02-19T11:39:26+11:00"
 		},
 		{
 			"path": "github.com/jacobsa/oglematchers",

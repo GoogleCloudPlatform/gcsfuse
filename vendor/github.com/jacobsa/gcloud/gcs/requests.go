@@ -124,7 +124,8 @@ type ComposeObjectsRequest struct {
 	//
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects#resource
 	//
-	Metadata map[string]string
+	ContentType string
+	Metadata    map[string]string
 }
 
 type ComposeSource struct {

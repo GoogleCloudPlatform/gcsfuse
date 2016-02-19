@@ -674,6 +674,7 @@ func (b *bucket) ComposeObjects(
 		GenerationPrecondition:     req.DstGenerationPrecondition,
 		MetaGenerationPrecondition: req.DstMetaGenerationPrecondition,
 		Contents:                   io.MultiReader(srcReaders...),
+		ContentType:                req.ContentType,
 		Metadata:                   req.Metadata,
 	}
 
