@@ -1322,6 +1322,27 @@ func (t *DirectoryTest) RootAtimeCtimeAndMtime() {
 	ExpectThat(mtime, timeutil.TimeNear(mountTime, delta))
 }
 
+func (t *DirectoryTest) ContentTypes() {
+	testCases := []string{
+		"foo/",
+		"foo.jpg/",
+		"foo.txt/",
+	}
+
+	for _, name := range testCases {
+		p := path.Join(t.mfs.Dir(), name)
+
+		// Create the directory.
+		err := os.Mkdir(p, 0700)
+		AssertEq(nil, err)
+
+		// There should be no content type set in GCS.
+		o, err := t.bucket.StatObject(t.ctx, &gcs.StatObjectRequest{Name: name})
+		AssertEq(nil, err)
+		ExpectEq("", o.ContentType, "name: %q", name)
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////
 // File interaction
 ////////////////////////////////////////////////////////////////////////
