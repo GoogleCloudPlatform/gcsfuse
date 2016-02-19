@@ -86,7 +86,7 @@ type randomReader struct {
 func (rr *randomReader) CheckInvariants() {
 	// INVARIANT: (reader == nil) == (cancel == nil)
 	if (rr.reader == nil) != (rr.cancel == nil) {
-		panic(fmt.Sprintf("Mismatch: %v vs. %v", rr.reader, rr.cancel))
+		panic(fmt.Sprintf("Mismatch: %v vs. %v", rr.reader == nil, rr.cancel == nil))
 	}
 
 	// INVARIANT: start <= limit

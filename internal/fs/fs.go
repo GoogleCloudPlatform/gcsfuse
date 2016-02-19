@@ -401,7 +401,7 @@ func (fs *fileSystem) checkInvariants() {
 	for _, v := range fs.generationBackedInodes {
 		if fs.inodes[v.ID()] != v {
 			panic(fmt.Sprintf(
-				"Mismatch for ID %v: %p %p",
+				"Mismatch for ID %v: %v %v",
 				v.ID(),
 				fs.inodes[v.ID()],
 				v))
@@ -426,7 +426,7 @@ func (fs *fileSystem) checkInvariants() {
 	for _, v := range fs.implicitDirInodes {
 		if fs.inodes[v.ID()] != v {
 			panic(fmt.Sprintf(
-				"Mismatch for ID %v: %p %p",
+				"Mismatch for ID %v: %v %v",
 				v.ID(),
 				fs.inodes[v.ID()],
 				v))
@@ -452,7 +452,7 @@ func (fs *fileSystem) checkInvariants() {
 		if dir && !edir {
 			if !(fs.implicitDirInodes[in.Name()] == in) {
 				panic(fmt.Sprintf(
-					"implicitDirInodes mismatch: %q %p %p",
+					"implicitDirInodes mismatch: %q %v %v",
 					in.Name(),
 					fs.implicitDirInodes[in.Name()],
 					in))
