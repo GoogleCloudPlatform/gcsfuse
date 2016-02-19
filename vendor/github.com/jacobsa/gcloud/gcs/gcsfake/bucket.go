@@ -220,11 +220,6 @@ func (b *bucket) mintObject(
 	// Set up data.
 	o.data = contents
 
-	// Support the same default content type as GCS.
-	if o.metadata.ContentType == "" {
-		o.metadata.ContentType = "application/octet-stream"
-	}
-
 	return
 }
 
@@ -679,6 +674,7 @@ func (b *bucket) ComposeObjects(
 		GenerationPrecondition:     req.DstGenerationPrecondition,
 		MetaGenerationPrecondition: req.DstMetaGenerationPrecondition,
 		Contents:                   io.MultiReader(srcReaders...),
+		ContentType:                req.ContentType,
 		Metadata:                   req.Metadata,
 	}
 
@@ -732,12 +728,6 @@ func (b *bucket) UpdateObject(
 	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-
-	// Match real GCS in not allowing the removal of ContentType.
-	if req.ContentType != nil && *req.ContentType == "" {
-		err = errors.New("The ContentType field is required and cannot be removed.")
-		return
-	}
 
 	// Does the object exist?
 	index := b.objects.find(req.Name)
@@ -809,8 +799,9 @@ func (b *bucket) UpdateObject(
 		}
 	}
 
-	// Bump up the entry generation number.
+	// Bump up the entry generation number and the update time.
 	obj.MetaGeneration++
+	obj.Updated = b.clock.Now()
 
 	// Make a copy to avoid handing back internal state.
 	var objCopy gcs.Object = *obj

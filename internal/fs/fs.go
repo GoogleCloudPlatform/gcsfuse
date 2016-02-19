@@ -121,6 +121,9 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		return
 	}
 
+	// Set up a bucket that infers content types when creating files.
+	bucket := gcsx.NewContentTypeBucket(cfg.Bucket)
+
 	// Create the object syncer.
 	if cfg.TmpObjectPrefix == "" {
 		err = errors.New("You must set TmpObjectPrefix.")
@@ -130,13 +133,13 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	syncer := gcsx.NewSyncer(
 		cfg.AppendThreshold,
 		cfg.TmpObjectPrefix,
-		cfg.Bucket)
+		bucket)
 
 	// Set up the basic struct.
 	fs := &fileSystem{
 		mtimeClock:             timeutil.RealClock(),
 		cacheClock:             cfg.CacheClock,
-		bucket:                 cfg.Bucket,
+		bucket:                 bucket,
 		syncer:                 syncer,
 		tempDir:                cfg.TempDir,
 		implicitDirs:           cfg.ImplicitDirectories,
@@ -169,7 +172,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		},
 		fs.implicitDirs,
 		fs.dirTypeCacheTTL,
-		cfg.Bucket,
+		fs.bucket,
 		fs.mtimeClock,
 		fs.cacheClock)
 

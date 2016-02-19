@@ -54,28 +54,28 @@
 		},
 		{
 			"path": "github.com/jacobsa/gcloud/gcs",
-			"revision": "a49fd56fbbeb6288d0ff40fa8b4fd9c8e0df8c1b",
-			"revisionTime": "2015-08-31T11:02:33+10:00"
+			"revision": "60dc0c7874d8adf958f7ded1e2edda4d7b3e8318",
+			"revisionTime": "2016-02-19T11:39:26+11:00"
 		},
 		{
 			"path": "github.com/jacobsa/gcloud/gcs/gcscaching",
-			"revision": "a49fd56fbbeb6288d0ff40fa8b4fd9c8e0df8c1b",
-			"revisionTime": "2015-08-31T11:02:33+10:00"
+			"revision": "60dc0c7874d8adf958f7ded1e2edda4d7b3e8318",
+			"revisionTime": "2016-02-19T11:39:26+11:00"
 		},
 		{
 			"path": "github.com/jacobsa/gcloud/gcs/gcsfake",
-			"revision": "a49fd56fbbeb6288d0ff40fa8b4fd9c8e0df8c1b",
-			"revisionTime": "2015-08-31T11:02:33+10:00"
+			"revision": "60dc0c7874d8adf958f7ded1e2edda4d7b3e8318",
+			"revisionTime": "2016-02-19T11:39:26+11:00"
 		},
 		{
 			"path": "github.com/jacobsa/gcloud/gcs/gcsutil",
-			"revision": "a49fd56fbbeb6288d0ff40fa8b4fd9c8e0df8c1b",
-			"revisionTime": "2015-08-31T11:02:33+10:00"
+			"revision": "60dc0c7874d8adf958f7ded1e2edda4d7b3e8318",
+			"revisionTime": "2016-02-19T11:39:26+11:00"
 		},
 		{
 			"path": "github.com/jacobsa/gcloud/httputil",
-			"revision": "a49fd56fbbeb6288d0ff40fa8b4fd9c8e0df8c1b",
-			"revisionTime": "2015-08-31T11:02:33+10:00"
+			"revision": "60dc0c7874d8adf958f7ded1e2edda4d7b3e8318",
+			"revisionTime": "2016-02-19T11:39:26+11:00"
 		},
 		{
 			"path": "github.com/jacobsa/oglematchers",

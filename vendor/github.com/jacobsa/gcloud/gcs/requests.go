@@ -124,7 +124,8 @@ type ComposeObjectsRequest struct {
 	//
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects#resource
 	//
-	Metadata map[string]string
+	ContentType string
+	Metadata    map[string]string
 }
 
 type ComposeSource struct {
@@ -142,8 +143,11 @@ type ComposeSource struct {
 //
 //  *  If Limit is less than or equal to Start, the range is treated as empty.
 //
-//  *  If Limit is greater than the length of the object, the range is
-//     implicitly truncated.
+//  *  The effective range is [start, limit) intersected with [0, L), where L
+//     is the length of the object.
+//
+//     For example, a read for [L-1, L+10) returns the last byte of the object,
+//     and [L+2, L+10) is legal but returns nothing.
 //
 type ByteRange struct {
 	Start uint64

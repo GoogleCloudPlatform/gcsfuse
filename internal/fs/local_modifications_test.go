@@ -1322,6 +1322,27 @@ func (t *DirectoryTest) RootAtimeCtimeAndMtime() {
 	ExpectThat(mtime, timeutil.TimeNear(mountTime, delta))
 }
 
+func (t *DirectoryTest) ContentTypes() {
+	testCases := []string{
+		"foo/",
+		"foo.jpg/",
+		"foo.txt/",
+	}
+
+	for _, name := range testCases {
+		p := path.Join(t.mfs.Dir(), name)
+
+		// Create the directory.
+		err := os.Mkdir(p, 0700)
+		AssertEq(nil, err)
+
+		// There should be no content type set in GCS.
+		o, err := t.bucket.StatObject(t.ctx, &gcs.StatObjectRequest{Name: name})
+		AssertEq(nil, err)
+		ExpectEq("", o.ContentType, "name: %q", name)
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////
 // File interaction
 ////////////////////////////////////////////////////////////////////////
@@ -2133,6 +2154,44 @@ func (t *FileTest) AtimeAndCtime() {
 
 	ExpectThat(atime, timeutil.TimeNear(createTime, delta))
 	ExpectThat(ctime, timeutil.TimeNear(createTime, delta))
+}
+
+func (t *FileTest) ContentTypes() {
+	testCases := map[string]string{
+		"foo.jpg": "image/jpeg",
+		"bar.txt": "text/plain; charset=utf-8",
+		"baz":     "",
+	}
+
+	runOne := func(name string, expected string) {
+		p := path.Join(t.mfs.Dir(), name)
+
+		// Create a file.
+		f, err := os.Create(p)
+		AssertEq(nil, err)
+		defer f.Close()
+
+		// Check the GCS content type.
+		o, err := t.bucket.StatObject(t.ctx, &gcs.StatObjectRequest{Name: name})
+		AssertEq(nil, err)
+		ExpectEq(expected, o.ContentType, "name: %q", name)
+
+		// Modify the file and cause a new generation to be written out.
+		_, err = f.Write([]byte("taco"))
+		AssertEq(nil, err)
+
+		err = f.Sync()
+		AssertEq(nil, err)
+
+		// The GCS content type should still be correct.
+		o, err = t.bucket.StatObject(t.ctx, &gcs.StatObjectRequest{Name: name})
+		AssertEq(nil, err)
+		ExpectEq(expected, o.ContentType, "name: %q", name)
+	}
+
+	for name, expected := range testCases {
+		runOne(name, expected)
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
