@@ -24,62 +24,62 @@ import (
 	"golang.org/x/net/context"
 )
 
+var contentTypeBucketTestCases = []struct {
+	name     string
+	request  string // ContentType in request
+	expected string // Expected final type
+}{
+	/////////////////
+	// No extension
+	/////////////////
+
+	0: {
+		name:     "foo/bar",
+		request:  "",
+		expected: "",
+	},
+
+	1: {
+		name:     "foo/bar",
+		request:  "image/jpeg",
+		expected: "image/jpeg",
+	},
+
+	//////////////////////
+	// Unknown extension
+	//////////////////////
+
+	2: {
+		name:     "foo/bar.asdf",
+		request:  "",
+		expected: "",
+	},
+
+	3: {
+		name:     "foo/bar.asdf",
+		request:  "image/jpeg",
+		expected: "image/jpeg",
+	},
+
+	//////////////////////
+	// Known extension
+	//////////////////////
+
+	4: {
+		name:     "foo/bar.jpg",
+		request:  "",
+		expected: "image/jpeg",
+	},
+
+	5: {
+		name:     "foo/bar.jpg",
+		request:  "text/plain",
+		expected: "text/plain",
+	},
+}
+
 func TestContentTypeBucket_CreateObject(t *testing.T) {
-	testCases := []struct {
-		name     string
-		request  string // ContentType in request
-		expected string // Expected final type
-	}{
-		/////////////////
-		// No extension
-		/////////////////
-
-		0: {
-			name:     "foo/bar",
-			request:  "",
-			expected: "",
-		},
-
-		1: {
-			name:     "foo/bar",
-			request:  "image/jpeg",
-			expected: "image/jpeg",
-		},
-
-		//////////////////////
-		// Unknown extension
-		//////////////////////
-
-		2: {
-			name:     "foo/bar.asdf",
-			request:  "",
-			expected: "",
-		},
-
-		3: {
-			name:     "foo/bar.asdf",
-			request:  "image/jpeg",
-			expected: "image/jpeg",
-		},
-
-		//////////////////////
-		// Known extension
-		//////////////////////
-
-		4: {
-			name:     "foo/bar.jpg",
-			request:  "",
-			expected: "image/jpeg",
-		},
-
-		5: {
-			name:     "foo/bar.jpg",
-			request:  "text/plain",
-			expected: "text/plain",
-		},
-	}
-
-	for i, tc := range testCases {
+	for i, tc := range contentTypeBucketTestCases {
 		// Set up a bucket.
 		bucket := gcsfake.NewFakeBucket(timeutil.RealClock(), "")
 
