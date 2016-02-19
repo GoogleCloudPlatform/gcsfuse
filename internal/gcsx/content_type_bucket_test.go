@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsx
+package gcsx_test
 
-import "github.com/jacobsa/gcloud/gcs"
+import "testing"
 
-// NewContentTypeBucket creates a wrapper bucket that guesses MIME types for
-// newly created or composed objects when an explicit type is not already set.
-func NewContentTypeBucket(b gcs.Bucket) gcs.Bucket {
-	// TODO
-	return b
+func TestContentTypeBucket_CreateObject(t *testing.T) {
+	t.Fatal("TODO")
+}
+
+func TestContentTypeBucket_ComposeObjects(t *testing.T) {
+	t.Fatal("TODO")
 }
