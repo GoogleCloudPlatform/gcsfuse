@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -166,6 +167,28 @@ func (t *GcsfuseTest) NonExistentMountPoint() {
 	err = t.runGcsfuse(args)
 	ExpectThat(err, Error(HasSubstr("no such")))
 	ExpectThat(err, Error(HasSubstr("blahblah")))
+}
+
+func (t *GcsfuseTest) NonEmptyMountPoint() {
+	var err error
+
+	// osxfuse apparently doesn't care about this.
+	if runtime.GOOS == "darwin" {
+		return
+	}
+
+	// Write a file into the mount point.
+	p := path.Join(t.dir, "foo")
+	err = ioutil.WriteFile(p, nil, 0600)
+	AssertEq(nil, err)
+
+	defer os.Remove(p)
+
+	// Mount.
+	args := []string{canned.FakeBucketName, t.dir}
+
+	err = t.runGcsfuse(args)
+	ExpectThat(err, Error(HasSubstr("must be nonempty")))
 }
 
 func (t *GcsfuseTest) MountPointIsAFile() {
