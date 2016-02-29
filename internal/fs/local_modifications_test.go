@@ -1326,7 +1326,7 @@ func (t *DirectoryTest) ContentTypes() {
 	testCases := []string{
 		"foo/",
 		"foo.jpg/",
-		"foo.txt/",
+		"foo.gif/",
 	}
 
 	for _, name := range testCases {
@@ -2159,7 +2159,7 @@ func (t *FileTest) AtimeAndCtime() {
 func (t *FileTest) ContentTypes() {
 	testCases := map[string]string{
 		"foo.jpg": "image/jpeg",
-		"bar.txt": "text/plain; charset=utf-8",
+		"bar.gif": "image/gif",
 		"baz":     "",
 	}
 
