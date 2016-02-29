@@ -38,6 +38,7 @@ import (
 	"golang.org/x/oauth2/google"
 
 	"github.com/codegangsta/cli"
+	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
@@ -234,12 +235,18 @@ func mountWithArgs(
 	}
 
 	// Grab the connection.
-	mountStatus.Println("Opening GCS connection...")
+	//
+	// Special case: if we're mounting the fake bucket, we don't need an actual
+	// connection.
+	var conn gcs.Conn
+	if bucketName != canned.FakeBucketName {
+		mountStatus.Println("Opening GCS connection...")
 
-	conn, err := getConn(flags)
-	if err != nil {
-		err = fmt.Errorf("getConn: %v", err)
-		return
+		conn, err = getConn(flags)
+		if err != nil {
+			err = fmt.Errorf("getConn: %v", err)
+			return
+		}
 	}
 
 	// Mount the file system.
