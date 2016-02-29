@@ -188,7 +188,7 @@ func (t *GcsfuseTest) NonEmptyMountPoint() {
 	args := []string{canned.FakeBucketName, t.dir}
 
 	err = t.runGcsfuse(args)
-	ExpectThat(err, Error(HasSubstr("must be nonempty")))
+	ExpectThat(err, Error(HasSubstr("is not empty")))
 }
 
 func (t *GcsfuseTest) MountPointIsAFile() {
