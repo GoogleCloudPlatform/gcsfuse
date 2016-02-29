@@ -1,36 +1,13 @@
 package fuse
 
 import (
-	"bufio"
+	"bytes"
 	"fmt"
-	"io"
-	"log"
 	"net"
 	"os"
 	"os/exec"
-	"sync"
 	"syscall"
 )
-
-func lineLogger(wg *sync.WaitGroup, prefix string, r io.ReadCloser) {
-	defer wg.Done()
-
-	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
-		switch line := scanner.Text(); line {
-		case `fusermount: failed to open /etc/fuse.conf: Permission denied`:
-			// Silence this particular message, it occurs way too
-			// commonly and isn't very relevant to whether the mount
-			// succeeds or not.
-			continue
-		default:
-			log.Printf("%s: %s", prefix, line)
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		log.Printf("%s, error reading: %v", prefix, err)
-	}
-}
 
 // Begin the process of mounting at the given directory, returning a connection
 // to the kernel. Mounting continues in the background, and is complete when an
@@ -57,7 +34,9 @@ func mount(
 	readFile := os.NewFile(uintptr(fds[1]), "fusermount-parent-reads")
 	defer readFile.Close()
 
-	// Start fusermount, passing it pipes for stdout and stderr.
+	// Start fusermount, passing it a buffer in which to write stderr.
+	var stderr bytes.Buffer
+
 	cmd := exec.Command(
 		"fusermount",
 		"-o", cfg.toOptionsString(),
@@ -67,36 +46,12 @@ func mount(
 
 	cmd.Env = append(os.Environ(), "_FUSE_COMMFD=3")
 	cmd.ExtraFiles = []*os.File{writeFile}
+	cmd.Stderr = &stderr
 
-	stdout, err := cmd.StdoutPipe()
+	// Run the command.
+	err = cmd.Run()
 	if err != nil {
-		err = fmt.Errorf("StdoutPipe: %v", err)
-		return
-	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		err = fmt.Errorf("StderrPipe: %v", err)
-		return
-	}
-
-	err = cmd.Start()
-	if err != nil {
-		err = fmt.Errorf("Starting fusermount: %v", err)
-		return
-	}
-
-	// Log fusermount output until it closes stdout and stderr.
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go lineLogger(&wg, "mount helper output", stdout)
-	go lineLogger(&wg, "mount helper error", stderr)
-	wg.Wait()
-
-	// Wait for the command.
-	err = cmd.Wait()
-	if err != nil {
-		err = fmt.Errorf("fusermount: %v", err)
+		err = fmt.Errorf("running fusermount: %v\n\nstderr:\n%s", err, stderr.Bytes())
 		return
 	}
 
