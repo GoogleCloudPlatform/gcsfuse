@@ -47,7 +47,7 @@ const (
 
 func TestFS(t *testing.T) { RunTests(t) }
 
-var fDebug = flag.Bool("debug", false, "Print debugging output.")
+var fDebug = flag.Bool("debug_fuse", false, "Print debugging output.")
 
 // Install a SIGINT handler that exits gracefully once the current test is
 // finished. It's not safe to exit in the middle of a test because closing any
