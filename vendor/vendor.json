@@ -13,44 +13,52 @@
 			"revisionTime": "2016-01-01T21:54:49+11:00"
 		},
 		{
+			"checksumSHA1": "V5TNojx9nggRfKV+EepBQZx6VUk=",
 			"path": "github.com/jacobsa/fuse",
-			"revision": "652a72aae2c59321ae6ed05efac92c97210775d7",
-			"revisionTime": "2016-02-29T02:48:28Z"
+			"revision": "0b9db0a706bc0248f8a37cba1dd5372b4c9a8b72",
+			"revisionTime": "2016-05-16T00:07:28Z"
 		},
 		{
+			"checksumSHA1": "N/KRZG2wlcmctqiiZGhukTuGFbI=",
 			"path": "github.com/jacobsa/fuse/fsutil",
-			"revision": "652a72aae2c59321ae6ed05efac92c97210775d7",
-			"revisionTime": "2016-02-29T02:48:28Z"
+			"revision": "0b9db0a706bc0248f8a37cba1dd5372b4c9a8b72",
+			"revisionTime": "2016-05-16T00:07:28Z"
 		},
 		{
+			"checksumSHA1": "vVT8mKC0XUzo9p3m/8aYRl5rM6A=",
 			"path": "github.com/jacobsa/fuse/fuseops",
-			"revision": "652a72aae2c59321ae6ed05efac92c97210775d7",
-			"revisionTime": "2016-02-29T02:48:28Z"
+			"revision": "0b9db0a706bc0248f8a37cba1dd5372b4c9a8b72",
+			"revisionTime": "2016-05-16T00:07:28Z"
 		},
 		{
+			"checksumSHA1": "i9WjyyjzKty9qEEz7k1QRbMg880=",
 			"path": "github.com/jacobsa/fuse/fusetesting",
-			"revision": "652a72aae2c59321ae6ed05efac92c97210775d7",
-			"revisionTime": "2016-02-29T02:48:28Z"
+			"revision": "0b9db0a706bc0248f8a37cba1dd5372b4c9a8b72",
+			"revisionTime": "2016-05-16T00:07:28Z"
 		},
 		{
+			"checksumSHA1": "ajwBLpxjVkJv3YAWufmFDVxbvNI=",
 			"path": "github.com/jacobsa/fuse/fuseutil",
-			"revision": "652a72aae2c59321ae6ed05efac92c97210775d7",
-			"revisionTime": "2016-02-29T02:48:28Z"
+			"revision": "0b9db0a706bc0248f8a37cba1dd5372b4c9a8b72",
+			"revisionTime": "2016-05-16T00:07:28Z"
 		},
 		{
+			"checksumSHA1": "ajnld/MDC/amfqGmbfTidCdNSa8=",
 			"path": "github.com/jacobsa/fuse/internal/buffer",
-			"revision": "652a72aae2c59321ae6ed05efac92c97210775d7",
-			"revisionTime": "2016-02-29T02:48:28Z"
+			"revision": "0b9db0a706bc0248f8a37cba1dd5372b4c9a8b72",
+			"revisionTime": "2016-05-16T00:07:28Z"
 		},
 		{
+			"checksumSHA1": "ZetWNSeIsB2EgRxoUpFOQu+yXco=",
 			"path": "github.com/jacobsa/fuse/internal/freelist",
-			"revision": "652a72aae2c59321ae6ed05efac92c97210775d7",
-			"revisionTime": "2016-02-29T02:48:28Z"
+			"revision": "0b9db0a706bc0248f8a37cba1dd5372b4c9a8b72",
+			"revisionTime": "2016-05-16T00:07:28Z"
 		},
 		{
+			"checksumSHA1": "dtdosMzKZeBj6Fwh/x/7nq5Tc4Y=",
 			"path": "github.com/jacobsa/fuse/internal/fusekernel",
-			"revision": "652a72aae2c59321ae6ed05efac92c97210775d7",
-			"revisionTime": "2016-02-29T02:48:28Z"
+			"revision": "0b9db0a706bc0248f8a37cba1dd5372b4c9a8b72",
+			"revisionTime": "2016-05-16T00:07:28Z"
 		},
 		{
 			"path": "github.com/jacobsa/gcloud/gcs",
@@ -182,5 +190,6 @@
 			"revision": "e34a32f9b0ecbc0784865fb2d47f3818c09521d4",
 			"revisionTime": "2015-07-29T23:39:00-07:00"
 		}
-	]
+	],
+	"rootPath": "github.com/googlecloudplatform/gcsfuse"
 }

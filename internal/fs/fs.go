@@ -879,6 +879,62 @@ func (fs *fileSystem) getAttributes(
 	return
 }
 
+// inodeOrDie returns the inode with the given ID, panicking with a helpful
+// error message if it doesn't exist.
+//
+// LOCKS_REQUIRED(fs.mu)
+func (fs *fileSystem) inodeOrDie(id fuseops.InodeID) (in inode.Inode) {
+	in = fs.inodes[id]
+	if in == nil {
+		panic(fmt.Sprintf("inode %d doesn't exist", id))
+	}
+
+	return
+}
+
+// dirInodeOrDie returns the directory inode with the given ID, panicking with
+// a helpful error message if it doesn't exist or is the wrong type.
+//
+// LOCKS_REQUIRED(fs.mu)
+func (fs *fileSystem) dirInodeOrDie(id fuseops.InodeID) (in inode.DirInode) {
+	tmp := fs.inodes[id]
+	in, ok := tmp.(inode.DirInode)
+	if !ok {
+		panic(fmt.Sprintf("inode %d is %T, wanted inode.DirInode", id, tmp))
+	}
+
+	return
+}
+
+// fileInodeOrDie returns the file inode with the given ID, panicking with a
+// helpful error message if it doesn't exist or is the wrong type.
+//
+// LOCKS_REQUIRED(fs.mu)
+func (fs *fileSystem) fileInodeOrDie(id fuseops.InodeID) (in *inode.FileInode) {
+	tmp := fs.inodes[id]
+	in, ok := tmp.(*inode.FileInode)
+	if !ok {
+		panic(fmt.Sprintf("inode %d is %T, wanted *inode.FileInode", id, tmp))
+	}
+
+	return
+}
+
+// symlinkInodeOrDie returns the symlink inode with the given ID, panicking
+// with a helpful error message if it doesn't exist or is the wrong type.
+//
+// LOCKS_REQUIRED(fs.mu)
+func (fs *fileSystem) symlinkInodeOrDie(
+	id fuseops.InodeID) (in *inode.SymlinkInode) {
+	tmp := fs.inodes[id]
+	in, ok := tmp.(*inode.SymlinkInode)
+	if !ok {
+		panic(fmt.Sprintf("inode %d is %T, wanted *inode.SymlinkInode", id, tmp))
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // fuse.FileSystem methods
 ////////////////////////////////////////////////////////////////////////
@@ -915,7 +971,7 @@ func (fs *fileSystem) LookUpInode(
 	op *fuseops.LookUpInodeOp) (err error) {
 	// Find the parent directory in question.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent].(inode.DirInode)
+	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
 
 	// Find or create the child inode.
@@ -944,7 +1000,7 @@ func (fs *fileSystem) GetInodeAttributes(
 	op *fuseops.GetInodeAttributesOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
-	in := fs.inodes[op.Inode]
+	in := fs.inodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
 	in.Lock()
@@ -965,7 +1021,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	op *fuseops.SetInodeAttributesOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
-	in := fs.inodes[op.Inode]
+	in := fs.inodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
 	in.Lock()
@@ -1008,7 +1064,7 @@ func (fs *fileSystem) ForgetInode(
 	op *fuseops.ForgetInodeOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
-	in := fs.inodes[op.Inode]
+	in := fs.inodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
 	// Acquire both locks in the correct order.
@@ -1027,7 +1083,7 @@ func (fs *fileSystem) MkDir(
 	op *fuseops.MkDirOp) (err error) {
 	// Find the parent.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent].(inode.DirInode)
+	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
 
 	// Create an empty backing object for the child, failing if it already
@@ -1110,7 +1166,7 @@ func (fs *fileSystem) createFile(
 	mode os.FileMode) (child inode.Inode, err error) {
 	// Find the parent.
 	fs.mu.Lock()
-	parent := fs.inodes[parentID].(inode.DirInode)
+	parent := fs.dirInodeOrDie(parentID)
 	fs.mu.Unlock()
 
 	// Create an empty backing object for the child, failing if it already
@@ -1188,7 +1244,7 @@ func (fs *fileSystem) CreateSymlink(
 	op *fuseops.CreateSymlinkOp) (err error) {
 	// Find the parent.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent].(inode.DirInode)
+	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
 
 	// Create the object in GCS, failing if it already exists.
@@ -1237,10 +1293,9 @@ func (fs *fileSystem) CreateSymlink(
 func (fs *fileSystem) RmDir(
 	ctx context.Context,
 	op *fuseops.RmDirOp) (err error) {
-	// Find the parent. We assume that it exists because otherwise the kernel has
-	// done something mildly concerning.
+	// Find the parent.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent].(inode.DirInode)
+	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
 
 	// Find or create the child inode.
@@ -1321,8 +1376,8 @@ func (fs *fileSystem) Rename(
 	op *fuseops.RenameOp) (err error) {
 	// Find the old and new parents.
 	fs.mu.Lock()
-	oldParent := fs.inodes[op.OldParent].(inode.DirInode)
-	newParent := fs.inodes[op.NewParent].(inode.DirInode)
+	oldParent := fs.dirInodeOrDie(op.OldParent)
+	newParent := fs.dirInodeOrDie(op.NewParent)
 	fs.mu.Unlock()
 
 	// Find the object in the old location.
@@ -1383,7 +1438,7 @@ func (fs *fileSystem) Unlink(
 	op *fuseops.UnlinkOp) (err error) {
 	// Find the parent.
 	fs.mu.Lock()
-	parent := fs.inodes[op.Parent].(inode.DirInode)
+	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
 
 	parent.Lock()
@@ -1414,7 +1469,7 @@ func (fs *fileSystem) OpenDir(
 	// Make sure the inode still exists and is a directory. If not, something has
 	// screwed up because the VFS layer shouldn't have let us forget the inode
 	// before opening it.
-	in := fs.inodes[op.Inode].(inode.DirInode)
+	in := fs.dirInodeOrDie(op.Inode)
 
 	// Allocate a handle.
 	handleID := fs.nextHandleID
@@ -1468,7 +1523,7 @@ func (fs *fileSystem) OpenFile(
 	defer fs.mu.Unlock()
 
 	// Find the inode.
-	in := fs.inodes[op.Inode].(*inode.FileInode)
+	in := fs.fileInodeOrDie(op.Inode)
 
 	// Allocate a handle.
 	handleID := fs.nextHandleID
@@ -1515,7 +1570,7 @@ func (fs *fileSystem) ReadSymlink(
 	op *fuseops.ReadSymlinkOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
-	in := fs.inodes[op.Inode].(*inode.SymlinkInode)
+	in := fs.symlinkInodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
 	in.Lock()
@@ -1533,7 +1588,7 @@ func (fs *fileSystem) WriteFile(
 	op *fuseops.WriteFileOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
-	in := fs.inodes[op.Inode].(*inode.FileInode)
+	in := fs.fileInodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
 	in.Lock()
@@ -1551,7 +1606,7 @@ func (fs *fileSystem) SyncFile(
 	op *fuseops.SyncFileOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
-	in := fs.inodes[op.Inode].(*inode.FileInode)
+	in := fs.fileInodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
 	in.Lock()
@@ -1569,7 +1624,7 @@ func (fs *fileSystem) FlushFile(
 	op *fuseops.FlushFileOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
-	in := fs.inodes[op.Inode].(*inode.FileInode)
+	in := fs.fileInodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
 	in.Lock()
