@@ -593,11 +593,15 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	}
 
 	// Ensure that no matter which inode we return, we increase its lookup count
-	// on the way out.
+	// on the way out and then release the file system lock.
+	//
+	// INVARIANT: we return with fs.mu held, and with in.mu held with in != nil.
 	defer func() {
 		if in != nil {
 			in.IncrementLookupCount()
 		}
+
+		fs.mu.Unlock()
 	}()
 
 	// Handle implicit directories.
@@ -614,9 +618,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 			fs.implicitDirInodes[in.Name()] = in.(inode.DirInode)
 		}
 
-		fs.mu.Unlock()
 		in.Lock()
-
 		return
 	}
 
@@ -636,19 +638,25 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 			in = fs.mintInode(o.Name, o)
 			fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
-			fs.mu.Unlock()
 			in.Lock()
-
 			return
 		}
 
-		// Otherwise we need to grab the inode lock to find out if this is our
-		// inode, our record is stale, or the inode is stale. We must exclude
-		// concurrent actions on the inode to get a definitive answer.
-		//
-		// Drop the file system lock and acquire the inode lock.
+		// Otherwise we need to read the inode's source generation below, which
+		// requires the inode's lock. We must not hold the inode lock while
+		// acquiring the file system lock, so drop it while acquiring the inode's
+		// lock, then reacquire.
 		fs.mu.Unlock()
 		existingInode.Lock()
+		fs.mu.Lock()
+
+		// Check that the index still points at this inode. If not, it's possible
+		// that the inode is in the process of being destroyed and is unsafe to
+		// use. Go around and try again.
+		if fs.generationBackedInodes[o.Name] != existingInode {
+			existingInode.Unlock()
+			continue
+		}
 
 		// Have we found the correct inode?
 		cmp := oGen.Compare(existingInode.SourceGeneration())
@@ -657,7 +665,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 			return
 		}
 
-		// Are we stale?
+		// Is the object record stale? If so, return nil.
 		if cmp == -1 {
 			existingInode.Unlock()
 			return
@@ -667,26 +675,16 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// holding the inode lock, excluding concurrent actions by the inode (in
 		// particular concurrent calls to Sync, which changes generation numbers).
 		// This means we've proven that the record cannot have been caused by the
-		// inode's actions, and therefore it is not the inode we want.
+		// inode's actions, and therefore this is not the inode we want.
 		//
-		// Re-acquire the file system lock. If the index entry still points at
-		// existingInode, we have proven we can replace it with an entry for a a
-		// newly-minted inode.
-		fs.mu.Lock()
-		if fs.generationBackedInodes[o.Name] == existingInode {
-			in = fs.mintInode(o.Name, o)
-			fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
-
-			fs.mu.Unlock()
-			existingInode.Unlock()
-			in.Lock()
-
-			return
-		}
-
-		// The index entry has been changed in the meantime, so there may be a new
-		// inode that we have to contend with. Go around and try again.
+		// Replace it with a newly-mintend inode and then go around, acquiring its
+		// lock in accordance with our lock ordering rules.
 		existingInode.Unlock()
+
+		in = fs.mintInode(o.Name, o)
+		fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
+
+		continue
 	}
 }
 
