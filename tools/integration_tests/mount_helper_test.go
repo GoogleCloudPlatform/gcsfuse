@@ -197,7 +197,7 @@ func (t *MountHelperTest) ExtraneousOptions() {
 
 	// Mount with extra junk that shouldn't be passed on.
 	args := []string{
-		"-o", "noauto,nouser,auto,user",
+		"-o", "noauto,nouser,no_netdev,auto,user,_netdev",
 		canned.FakeBucketName,
 		t.dir,
 	}

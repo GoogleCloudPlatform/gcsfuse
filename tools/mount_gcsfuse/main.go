@@ -77,7 +77,7 @@ func makeGcsfuseArgs(
 		switch name {
 		// Don't pass through options that are relevant to mount(8) but not to
 		// gcsfuse, and that fusermount chokes on with "Invalid argument" on Linux.
-		case "user", "nouser", "auto", "noauto":
+		case "user", "nouser", "auto", "noauto", "_netdev", "no_netdev":
 
 		// Special case: support mount-like formatting for gcsfuse bool flags.
 		case "implicit_dirs":
