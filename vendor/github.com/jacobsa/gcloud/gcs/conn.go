@@ -60,6 +60,10 @@ type ConnConfig struct {
 	// empty, a default will be used.
 	UserAgent string
 
+	// The HTTP transport to use for communication with GCS. If not supplied,
+	// http.DefaultTransport will be used.
+	Transport httputil.CancellableRoundTripper
+
 	// The maximum amount of time to spend sleeping in a retry loop with
 	// exponential backoff for failed requests. The default of zero disables
 	// automatic retries.
@@ -93,8 +97,13 @@ func NewConn(cfg *ConnConfig) (c Conn, err error) {
 		userAgent = defaultUserAgent
 	}
 
+	// Choose the basic transport.
+	transport := cfg.Transport
+	if cfg.HTTPDebugLogger != nil {
+		transport = http.DefaultTransport.(httputil.CancellableRoundTripper)
+	}
+
 	// Enable HTTP debugging if requested.
-	transport := http.DefaultTransport.(httputil.CancellableRoundTripper)
 	if cfg.HTTPDebugLogger != nil {
 		transport = httputil.DebuggingRoundTripper(transport, cfg.HTTPDebugLogger)
 	}
