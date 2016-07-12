@@ -200,7 +200,7 @@ more thorough discussion):
 *   gcsfuse sends a single Objects.list request to GCS, and treats the
     directory as being implicitly defined if the results are non-empty. In rare
     cases (notably when many objects have recently been deleted) Objects.list
-    may return an abitrary number of empty response with continuation tokens,
+    may return an arbitrary number of empty responses with continuation tokens,
     even for a non-empty name range. In order to bound the number of requests,
     gcsfuse simply ignores this subtlety. Therefore in rare cases an implicitly
     defined directory will fail to appear.
