@@ -10,7 +10,7 @@ If you are running on [Google Compute Engine][], it is recommended that you use
 one of the following images with which it has been tested (preferring the
 latest version when possible):
 
-*   `ubuntu-15-04`, `ubuntu-14-04`
+*   `ubuntu-1604-lts`, `ubuntu-1404-lts`
 *   `debian-8`, `debian-7`
 *   `centos-7`, `centos-6`
 *   `rhel-7`, `rhel-6`
@@ -29,11 +29,12 @@ The instructions vary by distribution.
 
 ## Ubuntu and Debian (latest releases)
 
-The following instructions set up `apt-get` to see updates to gcsfuse, and work
-for the **wily**, **vivid**, and **trusty** [releases][ubuntu-releases] of
-Ubuntu, and the **jessie** [release][debian-releases] of Debian. (Run
-`lsb_release -c` to find your release codename.) Users of older releases should
-follow the instructions for [other distributions](#other-distributions) below.
+The following instructions set up `apt-get` to see updates to gcsfuse, and are
+supported for the **xenial**, **wily**, and **trusty**
+[releases][ubuntu-releases] of Ubuntu, and the **jessie**
+[release][debian-releases] of Debian. (Run `lsb_release -c` to find your
+release codename.) Users of older releases should follow the instructions for
+[other distributions](#other-distributions) below.
 
 1.  Add the gcsfuse distribution URL as a package source and import its public
     key:
