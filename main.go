@@ -328,6 +328,12 @@ func runCLIApp(c *cli.Context) (err error) {
 			fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
 		}
 
+		// Pass along GOOGLE_APPLICATION_CREDENTIALS, since we document in
+		// mounting.md that it can be used for specifying a key file.
+		if p, ok := os.LookupEnv("GOOGLE_APPLICATION_CREDENTIALS"); ok {
+			env = append(env, fmt.Sprintf("GOOGLE_APPLICATION_CREDENTIALS=%s", p))
+		}
+
 		// Run.
 		err = daemonize.Run(path, args, env, os.Stderr)
 		if err != nil {
