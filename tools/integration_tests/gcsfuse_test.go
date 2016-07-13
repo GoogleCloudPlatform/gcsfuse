@@ -209,6 +209,41 @@ func (t *GcsfuseTest) MountPointIsAFile() {
 	ExpectThat(err, Error(HasSubstr("not a directory")))
 }
 
+func (t *GcsfuseTest) KeyFile() {
+	const nonexistent = "/tmp/foobarbazdoesntexist"
+
+	// Specify a non-existent key file in two different ways.
+	testCases := []struct {
+		extraArgs []string
+		env       []string
+	}{
+		// Via flag
+		0: {
+			extraArgs: []string{fmt.Sprintf("--key-file=%s", nonexistent)},
+		},
+
+		// Via the environment
+		1: {
+			env: []string{fmt.Sprintf("GOOGLE_APPLICATION_CREDENTIALS=%s", nonexistent)},
+		},
+	}
+
+	// Run each test case.
+	for i, tc := range testCases {
+		args := tc.extraArgs
+		args = append(args, canned.FakeBucketName, t.dir)
+
+		cmd := t.gcsfuseCommand(args, tc.env)
+
+		output, err := cmd.CombinedOutput()
+		unmount(t.dir)
+
+		ExpectThat(err, Error(HasSubstr("exit status")), "case %d", i)
+		ExpectThat(string(output), HasSubstr(nonexistent), "case %d", i)
+		ExpectThat(string(output), HasSubstr("no such file"), "case %d", i)
+	}
+}
+
 func (t *GcsfuseTest) CannedContents() {
 	var err error
 	var fi os.FileInfo
