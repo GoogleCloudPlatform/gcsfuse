@@ -231,7 +231,7 @@ func (t *GcsfuseTest) KeyFile() {
 	// Run each test case.
 	for i, tc := range testCases {
 		args := tc.extraArgs
-		args = append(args, canned.FakeBucketName, t.dir)
+		args = append(args, "some-non-canned-bucket-name", t.dir)
 
 		cmd := t.gcsfuseCommand(args, tc.env)
 
