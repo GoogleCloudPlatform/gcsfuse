@@ -5,7 +5,8 @@ Storage][gcs].
 
 # Current status
 
-Please treat gcsfuse as beta-quality software. Use it for whatever you like, but
+Contrary to rumors and an unfortunately titled Issue, gcsfuse has not been discontinued.
+However, since gcsfuse has not been released as GA software (and met the quality standard required of GA), please continue to treat gcsfuse as beta-quality software. Use it for whatever you like, but
 be aware that bugs may lurk, and that we reserve the right to make small
 backwards-incompatible changes.
 
