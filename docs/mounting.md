@@ -22,6 +22,10 @@ Console:
 
     GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json gcsfuse [...]
 
+When mounting with an fstab entry, you can use the `key_file` option. For example:
+
+    my-bucket /mount/point gcsfuse rw,noauto,user,key_file=/path/to/key.json
+
 [gce]: https://cloud.google.com/compute/
 [gce-service-accounts]: https://cloud.google.com/compute/docs/authentication
 [gcloud tool]: https://cloud.google.com/sdk/gcloud/
@@ -97,6 +101,7 @@ with dashes instead of underscores:
 *   `implicit_dirs`
 *   `dir_mode`
 *   `file_mode`
+*   `key_file`
 
 On both OS X and Linux, you can also add entries to your `/etc/fstab` file like
 the following:
