@@ -22,7 +22,7 @@ Console:
 
     GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json gcsfuse [...]
 
-On OS X and Linux you can also use fstab option in `/etc/fstab` system file:
+When mounting with an fstab entry, you can use the `key_file` option. For example:
 
     my-bucket /mount/point gcsfuse rw,noauto,user,key_file=/path/to/key.json
 
