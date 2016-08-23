@@ -21,11 +21,9 @@
 package main
 
 import (
-	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"path"
@@ -47,17 +45,6 @@ import (
 	"github.com/jacobsa/syncutil"
 	"github.com/kardianos/osext"
 )
-
-// httpTransport is a transport with HTTP/2 disabled. This is to work around
-// very high memory usage for our read pattern (http://golang.org/issue/15930)
-// and can be removed when we're building with a version of Go that has that
-// issue fixed.
-var httpTransport = func() *http.Transport {
-	t := &http.Transport{}
-	*t = *(http.DefaultTransport.(*http.Transport))
-	t.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
-	return t
-}()
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -218,7 +205,6 @@ func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 	const userAgent = "gcsfuse/0.0"
 	cfg := &gcs.ConnConfig{
 		TokenSource: tokenSrc,
-		Transport:   httpTransport,
 		UserAgent:   userAgent,
 	}
 
