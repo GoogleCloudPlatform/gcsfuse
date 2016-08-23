@@ -2,20 +2,13 @@
 # Cf. http://docs.travis-ci.com/user/languages/go/
 
 language: go
+go: 1.7
 
 # Use the virtualized Trusty beta Travis is running in order to get support for
 # installing fuse.
 #
 # Cf. Personal communication from support@travis-ci.com.
 dist: trusty
-
-# We can't build with 1.4.2 (the default as of 2015-07-27), because it doesn't
-# support vendoring.
-go: 1.6
-
-# Ensure that we get vendoring support in `go test`.
-env:
-  - GO15VENDOREXPERIMENT=1
 
 # Install fuse before installing our code.
 before_install:
