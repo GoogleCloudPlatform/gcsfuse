@@ -147,6 +147,10 @@ func parseArgs(
 				return
 			}
 
+		// Work around for systemd .mount file integration with gcsfuse
+		case s == "-n":
+			continue
+
 		// Is this an options string following a "-o"?
 		case i > 0 && args[i-1] == "-o":
 			mount.ParseOptions(opts, s)
