@@ -134,6 +134,17 @@ func (t *MountHelperTest) BadUsage() {
 	}
 }
 
+func (t *MountHelperTest) IgnoreMtabFlag() {
+	var err error
+
+	// Mount.
+	args := []string{canned.FakeBucketName, t.dir, "-n"}
+
+	err = t.mount(args)
+	AssertEq(nil, err)
+	unmount(t.dir)
+}
+
 func (t *MountHelperTest) SuccessfulMount() {
 	var err error
 	var fi os.FileInfo
