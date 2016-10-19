@@ -147,6 +147,24 @@ func parseArgs(
 				return
 			}
 
+		// Work around for systemd .mount file integration with gcsfuse:
+		//
+		// systemd passes -n (alias --no-mtab) to the mount helper mount.gcsfuse
+		// in the case of using gcsfuse as the type of the filesystem in a
+		// systemd .mount file. This seems to be a result of the new setup on many
+		// Linux systems with /etc/mtab as a symlink pointing to /proc/self/mounts.
+		// /proc/self/mounts is read only so any helper that would normally
+		// write to /etc/mtab should be configured not to do so. Because
+		// systemd does not provide a way to disable this behavior
+		// for mount helpers that do not write to /etc/mtab, this
+		// workaround will allow compatibility between gcsfuse and systemd.
+		//
+		// This patch allows gcsfuse to ignore the -n flag and will
+		// provide an opportunity to set the filesystem type to gcsfuse in
+		// systemd without causing the mount helper to fail.
+		case s == "-n":
+			continue
+
 		// Is this an options string following a "-o"?
 		case i > 0 && args[i-1] == "-o":
 			mount.ParseOptions(opts, s)
