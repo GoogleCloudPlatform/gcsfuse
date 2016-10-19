@@ -59,7 +59,7 @@ type StatFSOp struct {
 	//
 	// On Linux this can be any value, and will be faithfully returned to the
 	// caller of statfs(2) (see the code walk above). On OS X it appears that
-	// only powers of 2 in the range [2^9, 2^17] are preserved, and a value of
+	// only powers of 2 in the range [2^7, 2^20] are preserved, and a value of
 	// zero is treated as 4096.
 	//
 	// This interface does not distinguish between blocks and block fragments.
@@ -85,7 +85,7 @@ type StatFSOp struct {
 	// transfer block size".
 	//
 	// On Linux this can be any value. On OS X it appears that only powers of 2
-	// in the range [2^12, 2^20] are faithfully preserved, and a value of zero is
+	// in the range [2^12, 2^25] are faithfully preserved, and a value of zero is
 	// treated as 65536.
 	IoSize uint32
 
@@ -696,9 +696,10 @@ type SyncFileOp struct {
 //  *  On OS X, if a user modifies a mapped file via the mapping before
 //     closing the file with close(2), the WriteFileOps for the modifications
 //     may not be received before the FlushFileOp for the close(2) (cf.
-//     http://goo.gl/kVmNcx).
+//     https://github.com/osxfuse/osxfuse/issues/202). It appears that this may
+//     be fixed in osxfuse 3 (cf. https://goo.gl/rtvbko).
 //
-//  *  However, even on OS X you can arrange for writes via a mapping to be
+//  *  However, you safely can arrange for writes via a mapping to be
 //     flushed by calling msync(2) followed by close(2). On OS X msync(2)
 //     will cause a WriteFileOps to go through and close(2) will cause a
 //     FlushFile as usual (cf. http://goo.gl/kVmNcx). On Linux, msync(2) does
