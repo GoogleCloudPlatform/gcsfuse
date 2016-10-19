@@ -134,10 +134,10 @@ func (t *MountHelperTest) BadUsage() {
 	}
 }
 
-func (t *MountHelperTest) IgnoreMtabFlag() {
+func (t *MountHelperTest) NoMtabFlag() {
 	var err error
 
-	// Mount.
+	// Mount. The "-n" argument should be ignored.
 	args := []string{canned.FakeBucketName, t.dir, "-n"}
 
 	err = t.mount(args)
