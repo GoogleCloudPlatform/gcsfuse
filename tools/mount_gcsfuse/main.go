@@ -147,6 +147,16 @@ func parseArgs(
 				return
 			}
 
+		// systemd passes -n (alias --no-mtab) to the mount helper. This seems to
+		// be a result of the new setup on many Linux systems with /etc/mtab as a
+		// symlink pointing to /proc/self/mounts. /proc/self/mounts is read-only,
+		// so any helper that would normally write to /etc/mtab should be
+		// configured not to do so. Because systemd does not provide a way to
+		// disable this behavior for mount helpers that do not write to /etc/mtab,
+		// we ignore the flag.
+		case s == "-n":
+			continue
+
 		// Is this an options string following a "-o"?
 		case i > 0 && args[i-1] == "-o":
 			mount.ParseOptions(opts, s)
