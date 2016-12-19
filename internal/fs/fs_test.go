@@ -133,6 +133,14 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	mountCfg := t.mountCfg
 	mountCfg.OpContext = t.ctx
 
+	if mountCfg.ErrorLogger == nil {
+		mountCfg.ErrorLogger = log.New(
+			os.Stderr,
+			"fuse_errors: ",
+			log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile,
+		)
+	}
+
 	if *fDebug {
 		mountCfg.DebugLogger = log.New(os.Stderr, "fuse: ", 0)
 	}
