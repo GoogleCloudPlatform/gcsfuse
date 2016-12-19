@@ -279,7 +279,7 @@ func convertInMessage(
 		o = to
 
 		readSize := int(in.Size)
-		p := outMsg.GrowNoZero(uintptr(readSize))
+		p := outMsg.GrowNoZero(readSize)
 		if p == nil {
 			err = fmt.Errorf("Can't grow for %d-byte read", readSize)
 			return
@@ -305,7 +305,7 @@ func convertInMessage(
 		o = to
 
 		readSize := int(in.Size)
-		p := outMsg.GrowNoZero(uintptr(readSize))
+		p := outMsg.GrowNoZero(readSize)
 		if p == nil {
 			err = fmt.Errorf("Can't grow for %d-byte read", readSize)
 			return
@@ -469,7 +469,7 @@ func (c *Connection) kernelResponse(
 		// the header, because on OS X the kernel otherwise returns EINVAL when we
 		// attempt to write an error response with a length that extends beyond the
 		// header.
-		m.ShrinkTo(buffer.OutMessageInitialSize)
+		m.ShrinkTo(buffer.OutMessageHeaderSize)
 	}
 
 	// Otherwise, fill in the rest of the response.
@@ -489,45 +489,45 @@ func (c *Connection) kernelResponseForOp(
 	// Create the appropriate output message
 	switch o := op.(type) {
 	case *fuseops.LookUpInodeOp:
-		size := fusekernel.EntryOutSize(c.protocol)
+		size := int(fusekernel.EntryOutSize(c.protocol))
 		out := (*fusekernel.EntryOut)(m.Grow(size))
 		convertChildInodeEntry(&o.Entry, out)
 
 	case *fuseops.GetInodeAttributesOp:
-		size := fusekernel.AttrOutSize(c.protocol)
+		size := int(fusekernel.AttrOutSize(c.protocol))
 		out := (*fusekernel.AttrOut)(m.Grow(size))
 		out.AttrValid, out.AttrValidNsec = convertExpirationTime(
 			o.AttributesExpiration)
 		convertAttributes(o.Inode, &o.Attributes, &out.Attr)
 
 	case *fuseops.SetInodeAttributesOp:
-		size := fusekernel.AttrOutSize(c.protocol)
+		size := int(fusekernel.AttrOutSize(c.protocol))
 		out := (*fusekernel.AttrOut)(m.Grow(size))
 		out.AttrValid, out.AttrValidNsec = convertExpirationTime(
 			o.AttributesExpiration)
 		convertAttributes(o.Inode, &o.Attributes, &out.Attr)
 
 	case *fuseops.MkDirOp:
-		size := fusekernel.EntryOutSize(c.protocol)
+		size := int(fusekernel.EntryOutSize(c.protocol))
 		out := (*fusekernel.EntryOut)(m.Grow(size))
 		convertChildInodeEntry(&o.Entry, out)
 
 	case *fuseops.MkNodeOp:
-		size := fusekernel.EntryOutSize(c.protocol)
+		size := int(fusekernel.EntryOutSize(c.protocol))
 		out := (*fusekernel.EntryOut)(m.Grow(size))
 		convertChildInodeEntry(&o.Entry, out)
 
 	case *fuseops.CreateFileOp:
-		eSize := fusekernel.EntryOutSize(c.protocol)
+		eSize := int(fusekernel.EntryOutSize(c.protocol))
 
 		e := (*fusekernel.EntryOut)(m.Grow(eSize))
 		convertChildInodeEntry(&o.Entry, e)
 
-		oo := (*fusekernel.OpenOut)(m.Grow(unsafe.Sizeof(fusekernel.OpenOut{})))
+		oo := (*fusekernel.OpenOut)(m.Grow(int(unsafe.Sizeof(fusekernel.OpenOut{}))))
 		oo.Fh = uint64(o.Handle)
 
 	case *fuseops.CreateSymlinkOp:
-		size := fusekernel.EntryOutSize(c.protocol)
+		size := int(fusekernel.EntryOutSize(c.protocol))
 		out := (*fusekernel.EntryOut)(m.Grow(size))
 		convertChildInodeEntry(&o.Entry, out)
 
@@ -541,20 +541,20 @@ func (c *Connection) kernelResponseForOp(
 		// Empty response
 
 	case *fuseops.OpenDirOp:
-		out := (*fusekernel.OpenOut)(m.Grow(unsafe.Sizeof(fusekernel.OpenOut{})))
+		out := (*fusekernel.OpenOut)(m.Grow(int(unsafe.Sizeof(fusekernel.OpenOut{}))))
 		out.Fh = uint64(o.Handle)
 
 	case *fuseops.ReadDirOp:
 		// convertInMessage already set up the destination buffer to be at the end
 		// of the out message. We need only shrink to the right size based on how
 		// much the user read.
-		m.ShrinkTo(buffer.OutMessageInitialSize + uintptr(o.BytesRead))
+		m.ShrinkTo(buffer.OutMessageHeaderSize + o.BytesRead)
 
 	case *fuseops.ReleaseDirHandleOp:
 		// Empty response
 
 	case *fuseops.OpenFileOp:
-		out := (*fusekernel.OpenOut)(m.Grow(unsafe.Sizeof(fusekernel.OpenOut{})))
+		out := (*fusekernel.OpenOut)(m.Grow(int(unsafe.Sizeof(fusekernel.OpenOut{}))))
 		out.Fh = uint64(o.Handle)
 
 		if o.KeepPageCache {
@@ -565,10 +565,10 @@ func (c *Connection) kernelResponseForOp(
 		// convertInMessage already set up the destination buffer to be at the end
 		// of the out message. We need only shrink to the right size based on how
 		// much the user read.
-		m.ShrinkTo(buffer.OutMessageInitialSize + uintptr(o.BytesRead))
+		m.ShrinkTo(buffer.OutMessageHeaderSize + o.BytesRead)
 
 	case *fuseops.WriteFileOp:
-		out := (*fusekernel.WriteOut)(m.Grow(unsafe.Sizeof(fusekernel.WriteOut{})))
+		out := (*fusekernel.WriteOut)(m.Grow(int(unsafe.Sizeof(fusekernel.WriteOut{}))))
 		out.Size = uint32(len(o.Data))
 
 	case *fuseops.SyncFileOp:
@@ -584,7 +584,7 @@ func (c *Connection) kernelResponseForOp(
 		m.AppendString(o.Target)
 
 	case *fuseops.StatFSOp:
-		out := (*fusekernel.StatfsOut)(m.Grow(unsafe.Sizeof(fusekernel.StatfsOut{})))
+		out := (*fusekernel.StatfsOut)(m.Grow(int(unsafe.Sizeof(fusekernel.StatfsOut{}))))
 		out.St.Blocks = o.Blocks
 		out.St.Bfree = o.BlocksFree
 		out.St.Bavail = o.BlocksAvailable
@@ -620,7 +620,7 @@ func (c *Connection) kernelResponseForOp(
 		out.St.Frsize = o.BlockSize
 
 	case *initOp:
-		out := (*fusekernel.InitOut)(m.Grow(unsafe.Sizeof(fusekernel.InitOut{})))
+		out := (*fusekernel.InitOut)(m.Grow(int(unsafe.Sizeof(fusekernel.InitOut{}))))
 
 		out.Major = o.Library.Major
 		out.Minor = o.Library.Minor

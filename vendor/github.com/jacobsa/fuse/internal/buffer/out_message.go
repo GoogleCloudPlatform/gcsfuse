@@ -23,14 +23,9 @@ import (
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
-const outHeaderSize = unsafe.Sizeof(fusekernel.OutHeader{})
-
-// OutMessage structs begin life with Len() == OutMessageInitialSize.
-const OutMessageInitialSize = outHeaderSize
-
-// We size out messages to be large enough to hold a header for the response
-// plus the largest read that may come in.
-const outMessageSize = outHeaderSize + MaxReadSize
+// OutMessageHeaderSize is the size of the leading header in every
+// properly-constructed OutMessage. Reset brings the message back to this size.
+const OutMessageHeaderSize = int(unsafe.Sizeof(fusekernel.OutHeader{}))
 
 // OutMessage provides a mechanism for constructing a single contiguous fuse
 // message from multiple segments, where the first segment is always a
@@ -38,72 +33,95 @@ const outMessageSize = outHeaderSize + MaxReadSize
 //
 // Must be initialized with Reset.
 type OutMessage struct {
-	offset  uintptr
-	storage [outMessageSize]byte
+	// The offset into payload to which we're currently writing.
+	payloadOffset int
+
+	header  fusekernel.OutHeader
+	payload [MaxReadSize]byte
 }
 
-// Make sure alignment works out correctly, at least for the header.
+// Make sure that the header and payload are contiguous.
 func init() {
-	a := unsafe.Alignof(OutMessage{})
-	o := unsafe.Offsetof(OutMessage{}.storage)
-	e := unsafe.Alignof(fusekernel.OutHeader{})
+	a := unsafe.Offsetof(OutMessage{}.header) + uintptr(OutMessageHeaderSize)
+	b := unsafe.Offsetof(OutMessage{}.payload)
 
-	if a%e != 0 || o%e != 0 {
-		log.Panicf("Bad alignment or offset: %d, %d, need %d", a, o, e)
+	if a != b {
+		log.Panicf(
+			"header ends at offset %d, but payload starts at offset %d",
+			a, b)
 	}
 }
 
-// Reset the message so that it is ready to be used again. Afterward, the
-// contents are solely a zeroed header.
+// Reset resets m so that it's ready to be used again. Afterward, the contents
+// are solely a zeroed fusekernel.OutHeader struct.
 func (m *OutMessage) Reset() {
-	m.offset = OutMessageInitialSize
-	memclr(unsafe.Pointer(&m.storage), OutMessageInitialSize)
+	// Ideally we'd like to write:
+	//
+	//     m.payloadOffset = 0
+	//     m.header = fusekernel.OutHeader{}
+	//
+	// But Go 1.8 beta 2 generates bad code for this
+	// (https://golang.org/issue/18370). Encourage it to generate the same code
+	// as Go 1.7.4 did.
+	if unsafe.Offsetof(m.payload) != 24 {
+		panic("unexpected OutMessage layout")
+	}
+
+	a := (*[3]uint64)(unsafe.Pointer(m))
+	a[0] = 0
+	a[1] = 0
+	a[2] = 0
 }
 
-// Return a pointer to the header at the start of the message.
-func (b *OutMessage) OutHeader() (h *fusekernel.OutHeader) {
-	h = (*fusekernel.OutHeader)(unsafe.Pointer(&b.storage))
-	return
+// OutHeader returns a pointer to the header at the start of the message.
+func (m *OutMessage) OutHeader() *fusekernel.OutHeader {
+	return &m.header
 }
 
-// Grow the buffer by the supplied number of bytes, returning a pointer to the
-// start of the new segment, which is zeroed. If there is no space left, return
-// the nil pointer.
-func (b *OutMessage) Grow(size uintptr) (p unsafe.Pointer) {
-	p = b.GrowNoZero(size)
+// Grow grows m's buffer by the given number of bytes, returning a pointer to
+// the start of the new segment, which is guaranteed to be zeroed. If there is
+// insufficient space, it returns nil.
+func (m *OutMessage) Grow(n int) (p unsafe.Pointer) {
+	p = m.GrowNoZero(n)
 	if p != nil {
-		memclr(p, size)
+		memclr(p, uintptr(n))
 	}
 
 	return
 }
 
-// Equivalent to Grow, except the new segment is not zeroed. Use with caution!
-func (b *OutMessage) GrowNoZero(size uintptr) (p unsafe.Pointer) {
-	if outMessageSize-b.offset < size {
+// GrowNoZero is equivalent to Grow, except the new segment is not zeroed. Use
+// with caution!
+func (m *OutMessage) GrowNoZero(n int) (p unsafe.Pointer) {
+	// Will we overflow the buffer?
+	o := m.payloadOffset
+	if len(m.payload)-o < n {
 		return
 	}
 
-	p = unsafe.Pointer(uintptr(unsafe.Pointer(&b.storage)) + b.offset)
-	b.offset += size
+	p = unsafe.Pointer(uintptr(unsafe.Pointer(&m.payload)) + uintptr(o))
+	m.payloadOffset = o + n
 
 	return
 }
 
-// Shrink to the supplied size. Panic if the size is greater than Len() or less
-// than OutMessageInitialSize.
-func (b *OutMessage) ShrinkTo(n uintptr) {
-	if n < OutMessageInitialSize || n > b.offset {
-		panic(fmt.Sprintf("ShrinkTo(%d) out of range for offset %d", n, b.offset))
+// ShrinkTo shrinks m to the given size. It panics if the size is greater than
+// Len() or less than OutMessageHeaderSize.
+func (m *OutMessage) ShrinkTo(n int) {
+	if n < OutMessageHeaderSize || n > m.Len() {
+		panic(fmt.Sprintf(
+			"ShrinkTo(%d) out of range (current Len: %d)",
+			n,
+			m.Len()))
 	}
 
-	b.offset = n
+	m.payloadOffset = n - OutMessageHeaderSize
 }
 
-// Equivalent to growing by the length of p, then copying p over the new
-// segment. Panics if there is not enough room available.
-func (b *OutMessage) Append(src []byte) {
-	p := b.GrowNoZero(uintptr(len(src)))
+// Append is equivalent to growing by len(src), then copying src over the new
+// segment. Int panics if there is not enough room available.
+func (m *OutMessage) Append(src []byte) {
+	p := m.GrowNoZero(len(src))
 	if p == nil {
 		panic(fmt.Sprintf("Can't grow %d bytes", len(src)))
 	}
@@ -114,10 +132,9 @@ func (b *OutMessage) Append(src []byte) {
 	return
 }
 
-// Equivalent to growing by the length of s, then copying s over the new
-// segment. Panics if there is not enough room available.
-func (b *OutMessage) AppendString(src string) {
-	p := b.GrowNoZero(uintptr(len(src)))
+// AppendString is like Append, but accepts string input.
+func (m *OutMessage) AppendString(src string) {
+	p := m.GrowNoZero(len(src))
 	if p == nil {
 		panic(fmt.Sprintf("Can't grow %d bytes", len(src)))
 	}
@@ -128,12 +145,20 @@ func (b *OutMessage) AppendString(src string) {
 	return
 }
 
-// Return the current size of the buffer.
-func (b *OutMessage) Len() int {
-	return int(b.offset)
+// Len returns the current size of the message, including the leading header.
+func (m *OutMessage) Len() int {
+	return OutMessageHeaderSize + m.payloadOffset
 }
 
-// Return a reference to the current contents of the buffer.
-func (b *OutMessage) Bytes() []byte {
-	return b.storage[:int(b.offset)]
+// Bytes returns a reference to the current contents of the buffer, including
+// the leading header.
+func (m *OutMessage) Bytes() []byte {
+	l := m.Len()
+	sh := reflect.SliceHeader{
+		Data: uintptr(unsafe.Pointer(&m.header)),
+		Len:  l,
+		Cap:  l,
+	}
+
+	return *(*[]byte)(unsafe.Pointer(&sh))
 }

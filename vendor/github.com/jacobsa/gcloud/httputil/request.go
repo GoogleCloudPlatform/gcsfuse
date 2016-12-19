@@ -22,7 +22,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Create an HTTP request with the supplied information.
+// Create an HTTP request with the supplied information. bodyLength must be the
+// total amount of data that will be returned by body, or -1 if unknown.
 //
 // Unlike http.NewRequest:
 //
@@ -34,8 +35,9 @@ import (
 //     between actual slashes in the path and escaped ones (cf.
 //     http://goo.gl/rWX6ps).
 //
-//  *  This function doesn't magically re-interpret an io.Reader as an
-//     io.ReadCloser when possible.
+//  *  This function contains less magic: it insists on an io.ReadCloser as in
+//     http.Request.Body, and doesn't attempt to imperfectly sniff content
+//     length.
 //
 //  *  This function provides a convenient choke point to ensure we don't
 //     forget to set a user agent header.
@@ -45,18 +47,20 @@ func NewRequest(
 	method string,
 	url *url.URL,
 	body io.ReadCloser,
+	bodyLength int64,
 	userAgent string) (req *http.Request, err error) {
 	// Create the request.
 	req = &http.Request{
-		Method:     method,
-		URL:        url,
-		Proto:      "HTTP/1.1",
-		ProtoMajor: 1,
-		ProtoMinor: 1,
-		Header:     make(http.Header),
-		Body:       body,
-		Host:       url.Host,
-		Cancel:     ctx.Done(),
+		Method:        method,
+		URL:           url,
+		Proto:         "HTTP/1.1",
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		Header:        make(http.Header),
+		Body:          body,
+		ContentLength: bodyLength,
+		Host:          url.Host,
+		Cancel:        ctx.Done(),
 	}
 
 	// Set the User-Agent header.

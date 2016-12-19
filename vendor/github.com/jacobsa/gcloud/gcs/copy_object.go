@@ -18,10 +18,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strings"
 	"unicode/utf8"
 
 	"github.com/jacobsa/gcloud/httputil"
@@ -70,11 +68,8 @@ func (b *bucket) CopyObject(
 		RawQuery: query.Encode(),
 	}
 
-	// We don't want to update any metadata.
-	body := ioutil.NopCloser(strings.NewReader(""))
-
 	// Create an HTTP request.
-	httpReq, err := httputil.NewRequest(ctx, "POST", url, body, b.userAgent)
+	httpReq, err := httputil.NewRequest(ctx, "POST", url, nil, 0, b.userAgent)
 	if err != nil {
 		err = fmt.Errorf("httputil.NewRequest: %v", err)
 		return

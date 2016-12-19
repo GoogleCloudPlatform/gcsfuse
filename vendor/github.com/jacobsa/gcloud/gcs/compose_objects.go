@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -33,7 +32,7 @@ import (
 )
 
 func (b *bucket) makeComposeObjectsBody(
-	req *ComposeObjectsRequest) (rc io.ReadCloser, err error) {
+	req *ComposeObjectsRequest) (body []byte, err error) {
 	// Create a request in the form expected by the API.
 	r := storagev1.ComposeRequest{
 		Destination: &storagev1.Object{
@@ -53,14 +52,11 @@ func (b *bucket) makeComposeObjectsBody(
 	}
 
 	// Serialize it.
-	j, err := json.Marshal(&r)
+	body, err = json.Marshal(&r)
 	if err != nil {
 		err = fmt.Errorf("json.Marshal: %v", err)
 		return
 	}
-
-	// Create a ReadCloser.
-	rc = ioutil.NopCloser(bytes.NewReader(j))
 
 	return
 }
@@ -116,7 +112,8 @@ func (b *bucket) ComposeObjects(
 		ctx,
 		"POST",
 		url,
-		body,
+		ioutil.NopCloser(bytes.NewReader(body)),
+		int64(len(body)),
 		b.userAgent)
 
 	if err != nil {
