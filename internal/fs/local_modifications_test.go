@@ -2514,7 +2514,7 @@ func (t *RenameTest) OverExisting_WrongType() {
 
 	// Renaming one over the other shouldn't work.
 	err = os.Rename(filePath, dirPath)
-	ExpectThat(err, Error(HasSubstr("is a directory")))
+	ExpectThat(err, Error(MatchesRegexp("file exists|is a directory")))
 
 	err = os.Rename(dirPath, filePath)
 	ExpectThat(err, Error(HasSubstr("not a directory")))

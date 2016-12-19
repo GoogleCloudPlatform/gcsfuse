@@ -2,7 +2,10 @@
 # Cf. http://docs.travis-ci.com/user/languages/go/
 
 language: go
-go: 1.7
+
+go:
+  - 1.7.4
+  - tip
 
 # Use the virtualized Trusty beta Travis is running in order to get support for
 # installing fuse.

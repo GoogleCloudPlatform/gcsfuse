@@ -63,7 +63,7 @@ func (b *bucket) NewReader(
 	}
 
 	// Create an HTTP request.
-	httpReq, err := httputil.NewRequest(ctx, "GET", url, nil, b.userAgent)
+	httpReq, err := httputil.NewRequest(ctx, "GET", url, nil, 0, b.userAgent)
 	if err != nil {
 		err = fmt.Errorf("httputil.NewRequest: %v", err)
 		return

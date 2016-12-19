@@ -19,10 +19,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/jacobsa/gcloud/httputil"
@@ -33,7 +33,7 @@ import (
 
 // Create the JSON for an "object resource", for use as an Objects.insert body.
 func (b *bucket) makeCreateObjectBody(
-	req *CreateObjectRequest) (rc io.ReadCloser, err error) {
+	req *CreateObjectRequest) (body []byte, err error) {
 	// Convert to storagev1.Object.
 	rawObject, err := toRawObject(b.Name(), req)
 	if err != nil {
@@ -42,14 +42,11 @@ func (b *bucket) makeCreateObjectBody(
 	}
 
 	// Serialize.
-	j, err := json.Marshal(rawObject)
+	body, err = json.Marshal(rawObject)
 	if err != nil {
 		err = fmt.Errorf("json.Marshal: %v", err)
 		return
 	}
-
-	// Create a ReadCloser.
-	rc = ioutil.NopCloser(bytes.NewReader(j))
 
 	return
 }
@@ -105,7 +102,8 @@ func (b *bucket) startResumableUpload(
 		ctx,
 		"POST",
 		url,
-		body,
+		ioutil.NopCloser(bytes.NewReader(body)),
+		int64(len(body)),
 		b.userAgent)
 
 	if err != nil {
@@ -164,12 +162,27 @@ func (b *bucket) CreateObject(
 		return
 	}
 
+	// Special case: for a few common cases we can explicitly specify a body
+	// length, which may assist the HTTP package. In particular, it works around
+	// https://golang.org/issue/17071 in versions before Go 1.7.2 when the
+	// information is available.
+	contentsLength := int64(-1)
+	switch v := req.Contents.(type) {
+	case *bytes.Buffer:
+		contentsLength = int64(v.Len())
+	case *bytes.Reader:
+		contentsLength = int64(v.Len())
+	case *strings.Reader:
+		contentsLength = int64(v.Len())
+	}
+
 	// Set up a follow-up request to the upload URL.
 	httpReq, err := httputil.NewRequest(
 		ctx,
 		"PUT",
 		uploadURL,
 		ioutil.NopCloser(req.Contents),
+		contentsLength,
 		b.userAgent)
 
 	if err != nil {

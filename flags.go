@@ -37,10 +37,7 @@ VERSION:
    {{end}}{{if len .Authors}}
 AUTHOR(S):
    {{range .Authors}}{{ . }}{{end}}
-   {{end}}{{if .Commands}}
-COMMANDS:
-   {{range .Commands}}{{join .Names ", "}}{{ "\t" }}{{.Usage}}
-   {{end}}{{end}}{{if .Flags}}
+   {{end}}{{if .Flags}}
 GLOBAL OPTIONS:
    {{range .Flags}}{{.}}
    {{end}}{{end}}{{if .Copyright }}
@@ -61,14 +58,8 @@ func newApp() (app *cli.App) {
 		Name:     "gcsfuse",
 		Version:  getVersion(),
 		Usage:    "Mount a GCS bucket locally",
-		HideHelp: true,
 		Writer:   os.Stderr,
 		Flags: []cli.Flag{
-
-			cli.BoolFlag{
-				Name:  "help, h",
-				Usage: "Print this help text and exit successfuly.",
-			},
 
 			cli.BoolFlag{
 				Name:  "foreground",

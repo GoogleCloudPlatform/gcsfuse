@@ -1,13 +1,13 @@
 {
  "kind": "discovery#restDescription",
- "etag": "\"ye6orv2F-1npMW3u9suM3a7C5Bo/ALzt_o9hBNBIakQJmeXCNhSU8II\"",
+ "etag": "\"tbys6C40o18GZwyMen5GMkdK-3s/sMgjc4eoIFjgub4daTU-MGW0WMA\"",
  "discoveryVersion": "v1",
  "id": "storage:v1",
  "name": "storage",
  "version": "v1",
- "revision": "20150630",
- "title": "Cloud Storage API",
- "description": "Lets you store and retrieve potentially-large, immutable data objects.",
+ "revision": "20161109",
+ "title": "Cloud Storage JSON API",
+ "description": "Stores and retrieves potentially large, immutable data objects.",
  "ownerDomain": "google.com",
  "ownerName": "Google",
  "icons": {
@@ -74,6 +74,9 @@
    "scopes": {
     "https://www.googleapis.com/auth/cloud-platform": {
      "description": "View and manage your data across Google Cloud Platform services"
+    },
+    "https://www.googleapis.com/auth/cloud-platform.read-only": {
+     "description": "View your data across Google Cloud Platform services"
     },
     "https://www.googleapis.com/auth/devstorage.full_control": {
      "description": "Manage your data and permissions in Google Cloud Storage"
@@ -174,9 +177,13 @@
           "type": "object",
           "description": "The action to take.",
           "properties": {
+           "storageClass": {
+            "type": "string",
+            "description": "Target storage class. Required iff the type of the action is SetStorageClass."
+           },
            "type": {
             "type": "string",
-            "description": "Type of the action. Currently, only Delete is supported."
+            "description": "Type of the action. Currently, only Delete and SetStorageClass are supported."
            }
           }
          },
@@ -197,6 +204,13 @@
            "isLive": {
             "type": "boolean",
             "description": "Relevant only for versioned objects. If the value is true, this condition matches live objects; if the value is false, it matches archived objects."
+           },
+           "matchesStorageClass": {
+            "type": "array",
+            "description": "Objects having any of the storage classes specified by this condition will be matched. Values include MULTI_REGIONAL, REGIONAL, NEARLINE, COLDLINE, STANDARD, and DURABLE_REDUCED_AVAILABILITY.",
+            "items": {
+             "type": "string"
+            }
            },
            "numNewerVersions": {
             "type": "integer",
@@ -267,11 +281,16 @@
     },
     "storageClass": {
      "type": "string",
-     "description": "The bucket's storage class. This defines how objects in the bucket are stored and determines the SLA and the cost of storage. Values include STANDARD, NEARLINE and DURABLE_REDUCED_AVAILABILITY. Defaults to STANDARD. For more information, see storage classes."
+     "description": "The bucket's default storage class, used whenever no storageClass is specified for a newly-created object. This defines how objects in the bucket are stored and determines the SLA and the cost of storage. Values include MULTI_REGIONAL, REGIONAL, STANDARD, NEARLINE, COLDLINE, and DURABLE_REDUCED_AVAILABILITY. If this value is not specified when the bucket is created, it will default to STANDARD. For more information, see storage classes."
     },
     "timeCreated": {
      "type": "string",
-     "description": "Creation time of the bucket in RFC 3339 format.",
+     "description": "The creation time of the bucket in RFC 3339 format.",
+     "format": "date-time"
+    },
+    "updated": {
+     "type": "string",
+     "description": "The modification time of the bucket in RFC 3339 format.",
      "format": "date-time"
     },
     "versioning": {
@@ -286,15 +305,15 @@
     },
     "website": {
      "type": "object",
-     "description": "The bucket's website configuration.",
+     "description": "The bucket's website configuration, controlling how the service behaves when accessing bucket contents as a web site. See the Static Website Examples for more information.",
      "properties": {
       "mainPageSuffix": {
        "type": "string",
-       "description": "Behaves as the bucket's directory index where missing objects are treated as potential directories."
+       "description": "If the requested object path is missing, the service will ensure the path has a trailing '/', append this suffix, and attempt to retrieve the resulting object. This allows the creation of index.html objects to represent directory pages."
       },
       "notFoundPage": {
        "type": "string",
-       "description": "The custom object to return when a requested resource is not found."
+       "description": "If the requested object path is missing, and any mainPageSuffix object is missing, if applicable, the service will return the named object from this bucket as the content for a 404 Not Found result."
       }
      }
     }
@@ -353,13 +372,13 @@
       },
       "team": {
        "type": "string",
-       "description": "The team. Can be owners, editors, or viewers."
+       "description": "The team."
       }
      }
     },
     "role": {
      "type": "string",
-     "description": "The access permission for the entity. Can be READER, WRITER, or OWNER.",
+     "description": "The access permission for the entity.",
      "annotations": {
       "required": [
        "storage.bucketAccessControls.insert"
@@ -545,7 +564,7 @@
     },
     "cacheControl": {
      "type": "string",
-     "description": "Cache-Control directive for the object data."
+     "description": "Cache-Control directive for the object data. If omitted, and the object is accessible to all anonymous users, the default will be public, max-age=3600."
     },
     "componentCount": {
      "type": "integer",
@@ -566,17 +585,25 @@
     },
     "contentType": {
      "type": "string",
-     "description": "Content-Type of the object data.",
-     "annotations": {
-      "required": [
-       "storage.objects.insert",
-       "storage.objects.update"
-      ]
-     }
+     "description": "Content-Type of the object data. If contentType is not specified, object downloads will be served as application/octet-stream."
     },
     "crc32c": {
      "type": "string",
      "description": "CRC32c checksum, as described in RFC 4960, Appendix B; encoded using base64 in big-endian byte order. For more information about using the CRC32c checksum, see Hashes and ETags: Best Practices."
+    },
+    "customerEncryption": {
+     "type": "object",
+     "description": "Metadata of customer-supplied encryption key, if the object is encrypted by such a key.",
+     "properties": {
+      "encryptionAlgorithm": {
+       "type": "string",
+       "description": "The encryption algorithm."
+      },
+      "keySha256": {
+       "type": "string",
+       "description": "SHA256 hash value of the encryption key."
+      }
+     }
     },
     "etag": {
      "type": "string",
@@ -648,14 +675,24 @@
      "type": "string",
      "description": "Storage class of the object."
     },
+    "timeCreated": {
+     "type": "string",
+     "description": "The creation time of the object in RFC 3339 format.",
+     "format": "date-time"
+    },
     "timeDeleted": {
      "type": "string",
      "description": "The deletion time of the object in RFC 3339 format. Will be returned if and only if this version of the object has been deleted.",
      "format": "date-time"
     },
+    "timeStorageClassUpdated": {
+     "type": "string",
+     "description": "The time at which the object's storage class was last changed. When the object is initially created, it will be set to timeCreated.",
+     "format": "date-time"
+    },
     "updated": {
      "type": "string",
-     "description": "The creation or modification time of the object in RFC 3339 format. For buckets with versioning enabled, changing an object's metadata does not change this property.",
+     "description": "The modification time of the object metadata in RFC 3339 format.",
      "format": "date-time"
     }
    }
@@ -679,7 +716,13 @@
     },
     "entity": {
      "type": "string",
-     "description": "The entity holding the permission, in one of the following forms: \n- user-userId \n- user-email \n- group-groupId \n- group-email \n- domain-domain \n- project-team-projectId \n- allUsers \n- allAuthenticatedUsers Examples: \n- The user liz@example.com would be user-liz@example.com. \n- The group example@googlegroups.com would be group-example@googlegroups.com. \n- To refer to all members of the Google Apps for Business domain example.com, the entity would be domain-example.com."
+     "description": "The entity holding the permission, in one of the following forms: \n- user-userId \n- user-email \n- group-groupId \n- group-email \n- domain-domain \n- project-team-projectId \n- allUsers \n- allAuthenticatedUsers Examples: \n- The user liz@example.com would be user-liz@example.com. \n- The group example@googlegroups.com would be group-example@googlegroups.com. \n- To refer to all members of the Google Apps for Business domain example.com, the entity would be domain-example.com.",
+     "annotations": {
+      "required": [
+       "storage.defaultObjectAccessControls.insert",
+       "storage.objectAccessControls.insert"
+      ]
+     }
     },
     "entityId": {
      "type": "string",
@@ -691,7 +734,7 @@
     },
     "generation": {
      "type": "string",
-     "description": "The content generation of the object.",
+     "description": "The content generation of the object, if applied to an object.",
      "format": "int64"
     },
     "id": {
@@ -705,7 +748,7 @@
     },
     "object": {
      "type": "string",
-     "description": "The name of the object."
+     "description": "The name of the object, if applied to an object."
     },
     "projectTeam": {
      "type": "object",
@@ -717,13 +760,19 @@
       },
       "team": {
        "type": "string",
-       "description": "The team. Can be owners, editors, or viewers."
+       "description": "The team."
       }
      }
     },
     "role": {
      "type": "string",
-     "description": "The access permission for the entity. Can be READER or OWNER."
+     "description": "The access permission for the entity.",
+     "annotations": {
+      "required": [
+       "storage.defaultObjectAccessControls.insert",
+       "storage.objectAccessControls.insert"
+      ]
+     }
     },
     "selfLink": {
      "type": "string",
@@ -740,7 +789,7 @@
      "type": "array",
      "description": "The list of items.",
      "items": {
-      "type": "any"
+      "$ref": "ObjectAccessControl"
      }
     },
     "kind": {
@@ -842,6 +891,7 @@
       "entity"
      ],
      "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     },
@@ -872,6 +922,7 @@
       "$ref": "BucketAccessControl"
      },
      "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     },
@@ -898,6 +949,7 @@
       "$ref": "BucketAccessControl"
      },
      "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     },
@@ -921,6 +973,7 @@
       "$ref": "BucketAccessControls"
      },
      "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     },
@@ -954,6 +1007,7 @@
       "$ref": "BucketAccessControl"
      },
      "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     },
@@ -987,6 +1041,7 @@
       "$ref": "BucketAccessControl"
      },
      "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     }
@@ -1061,7 +1116,7 @@
        ],
        "enumDescriptions": [
         "Include all properties.",
-        "Omit acl and defaultObjectAcl properties."
+        "Omit owner, acl and defaultObjectAcl properties."
        ],
        "location": "query"
       }
@@ -1074,6 +1129,7 @@
      },
      "scopes": [
       "https://www.googleapis.com/auth/cloud-platform",
+      "https://www.googleapis.com/auth/cloud-platform.read-only",
       "https://www.googleapis.com/auth/devstorage.full_control",
       "https://www.googleapis.com/auth/devstorage.read_only",
       "https://www.googleapis.com/auth/devstorage.read_write"
@@ -1140,7 +1196,7 @@
        ],
        "enumDescriptions": [
         "Include all properties.",
-        "Omit acl and defaultObjectAcl properties."
+        "Omit owner, acl and defaultObjectAcl properties."
        ],
        "location": "query"
       }
@@ -1198,7 +1254,7 @@
        ],
        "enumDescriptions": [
         "Include all properties.",
-        "Omit acl and defaultObjectAcl properties."
+        "Omit owner, acl and defaultObjectAcl properties."
        ],
        "location": "query"
       }
@@ -1211,6 +1267,7 @@
      },
      "scopes": [
       "https://www.googleapis.com/auth/cloud-platform",
+      "https://www.googleapis.com/auth/cloud-platform.read-only",
       "https://www.googleapis.com/auth/devstorage.full_control",
       "https://www.googleapis.com/auth/devstorage.read_only",
       "https://www.googleapis.com/auth/devstorage.read_write"
@@ -1220,7 +1277,7 @@
      "id": "storage.buckets.patch",
      "path": "b/{bucket}",
      "httpMethod": "PATCH",
-     "description": "Updates a bucket. This method supports patch semantics.",
+     "description": "Updates a bucket. Changes to the bucket will be readable immediately after writing, but configuration changes may take time to propagate. This method supports patch semantics.",
      "parameters": {
       "bucket": {
        "type": "string",
@@ -1289,7 +1346,7 @@
        ],
        "enumDescriptions": [
         "Include all properties.",
-        "Omit acl and defaultObjectAcl properties."
+        "Omit owner, acl and defaultObjectAcl properties."
        ],
        "location": "query"
       }
@@ -1305,15 +1362,14 @@
      },
      "scopes": [
       "https://www.googleapis.com/auth/cloud-platform",
-      "https://www.googleapis.com/auth/devstorage.full_control",
-      "https://www.googleapis.com/auth/devstorage.read_write"
+      "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     },
     "update": {
      "id": "storage.buckets.update",
      "path": "b/{bucket}",
      "httpMethod": "PUT",
-     "description": "Updates a bucket.",
+     "description": "Updates a bucket. Changes to the bucket will be readable immediately after writing, but configuration changes may take time to propagate.",
      "parameters": {
       "bucket": {
        "type": "string",
@@ -1382,7 +1438,7 @@
        ],
        "enumDescriptions": [
         "Include all properties.",
-        "Omit acl and defaultObjectAcl properties."
+        "Omit owner, acl and defaultObjectAcl properties."
        ],
        "location": "query"
       }
@@ -1398,8 +1454,7 @@
      },
      "scopes": [
       "https://www.googleapis.com/auth/cloud-platform",
-      "https://www.googleapis.com/auth/devstorage.full_control",
-      "https://www.googleapis.com/auth/devstorage.read_write"
+      "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     }
    }
@@ -1417,6 +1472,7 @@
      },
      "scopes": [
       "https://www.googleapis.com/auth/cloud-platform",
+      "https://www.googleapis.com/auth/cloud-platform.read-only",
       "https://www.googleapis.com/auth/devstorage.full_control",
       "https://www.googleapis.com/auth/devstorage.read_only",
       "https://www.googleapis.com/auth/devstorage.read_write"
@@ -1450,6 +1506,7 @@
       "entity"
      ],
      "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     },
@@ -1480,6 +1537,7 @@
       "$ref": "ObjectAccessControl"
      },
      "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     },
@@ -1506,6 +1564,7 @@
       "$ref": "ObjectAccessControl"
      },
      "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     },
@@ -1541,6 +1600,7 @@
       "$ref": "ObjectAccessControls"
      },
      "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     },
@@ -1574,6 +1634,7 @@
       "$ref": "ObjectAccessControl"
      },
      "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     },
@@ -1607,6 +1668,7 @@
       "$ref": "ObjectAccessControl"
      },
      "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     }
@@ -1640,7 +1702,7 @@
       },
       "object": {
        "type": "string",
-       "description": "Name of the object.",
+       "description": "Name of the object. For information about how to URL encode object names to be path safe, see Encoding URI Path Parts.",
        "required": true,
        "location": "path"
       }
@@ -1651,6 +1713,7 @@
       "entity"
      ],
      "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     },
@@ -1680,7 +1743,7 @@
       },
       "object": {
        "type": "string",
-       "description": "Name of the object.",
+       "description": "Name of the object. For information about how to URL encode object names to be path safe, see Encoding URI Path Parts.",
        "required": true,
        "location": "path"
       }
@@ -1694,6 +1757,7 @@
       "$ref": "ObjectAccessControl"
      },
      "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     },
@@ -1717,7 +1781,7 @@
       },
       "object": {
        "type": "string",
-       "description": "Name of the object.",
+       "description": "Name of the object. For information about how to URL encode object names to be path safe, see Encoding URI Path Parts.",
        "required": true,
        "location": "path"
       }
@@ -1733,6 +1797,7 @@
       "$ref": "ObjectAccessControl"
      },
      "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     },
@@ -1756,7 +1821,7 @@
       },
       "object": {
        "type": "string",
-       "description": "Name of the object.",
+       "description": "Name of the object. For information about how to URL encode object names to be path safe, see Encoding URI Path Parts.",
        "required": true,
        "location": "path"
       }
@@ -1769,6 +1834,7 @@
       "$ref": "ObjectAccessControls"
      },
      "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     },
@@ -1798,7 +1864,7 @@
       },
       "object": {
        "type": "string",
-       "description": "Name of the object.",
+       "description": "Name of the object. For information about how to URL encode object names to be path safe, see Encoding URI Path Parts.",
        "required": true,
        "location": "path"
       }
@@ -1815,6 +1881,7 @@
       "$ref": "ObjectAccessControl"
      },
      "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     },
@@ -1844,7 +1911,7 @@
       },
       "object": {
        "type": "string",
-       "description": "Name of the object.",
+       "description": "Name of the object. For information about how to URL encode object names to be path safe, see Encoding URI Path Parts.",
        "required": true,
        "location": "path"
       }
@@ -1861,6 +1928,7 @@
       "$ref": "ObjectAccessControl"
      },
      "scopes": [
+      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     }
@@ -1882,7 +1950,7 @@
       },
       "destinationObject": {
        "type": "string",
-       "description": "Name of the new object.",
+       "description": "Name of the new object. For information about how to URL encode object names to be path safe, see Encoding URI Path Parts.",
        "required": true,
        "location": "path"
       },
@@ -1935,7 +2003,8 @@
       "https://www.googleapis.com/auth/devstorage.full_control",
       "https://www.googleapis.com/auth/devstorage.read_write"
      ],
-     "supportsMediaDownload": true
+     "supportsMediaDownload": true,
+     "useMediaDownloadService": true
     },
     "copy": {
      "id": "storage.objects.copy",
@@ -1945,7 +2014,7 @@
      "parameters": {
       "destinationBucket": {
        "type": "string",
-       "description": "Name of the bucket in which to store the new object. Overrides the provided object metadata's bucket value, if any.",
+       "description": "Name of the bucket in which to store the new object. Overrides the provided object metadata's bucket value, if any.For information about how to URL encode object names to be path safe, see Encoding URI Path Parts.",
        "required": true,
        "location": "path"
       },
@@ -2033,7 +2102,7 @@
        ],
        "enumDescriptions": [
         "Include all properties.",
-        "Omit the acl property."
+        "Omit the owner, acl property."
        ],
        "location": "query"
       },
@@ -2051,7 +2120,7 @@
       },
       "sourceObject": {
        "type": "string",
-       "description": "Name of the source object.",
+       "description": "Name of the source object. For information about how to URL encode object names to be path safe, see Encoding URI Path Parts.",
        "required": true,
        "location": "path"
       }
@@ -2073,7 +2142,8 @@
       "https://www.googleapis.com/auth/devstorage.full_control",
       "https://www.googleapis.com/auth/devstorage.read_write"
      ],
-     "supportsMediaDownload": true
+     "supportsMediaDownload": true,
+     "useMediaDownloadService": true
     },
     "delete": {
      "id": "storage.objects.delete",
@@ -2119,7 +2189,7 @@
       },
       "object": {
        "type": "string",
-       "description": "Name of the object.",
+       "description": "Name of the object. For information about how to URL encode object names to be path safe, see Encoding URI Path Parts.",
        "required": true,
        "location": "path"
       }
@@ -2178,7 +2248,7 @@
       },
       "object": {
        "type": "string",
-       "description": "Name of the object.",
+       "description": "Name of the object. For information about how to URL encode object names to be path safe, see Encoding URI Path Parts.",
        "required": true,
        "location": "path"
       },
@@ -2191,7 +2261,7 @@
        ],
        "enumDescriptions": [
         "Include all properties.",
-        "Omit the acl property."
+        "Omit the owner, acl property."
        ],
        "location": "query"
       }
@@ -2205,11 +2275,13 @@
      },
      "scopes": [
       "https://www.googleapis.com/auth/cloud-platform",
+      "https://www.googleapis.com/auth/cloud-platform.read-only",
       "https://www.googleapis.com/auth/devstorage.full_control",
       "https://www.googleapis.com/auth/devstorage.read_only",
       "https://www.googleapis.com/auth/devstorage.read_write"
      ],
-     "supportsMediaDownload": true
+     "supportsMediaDownload": true,
+     "useMediaDownloadService": true
     },
     "insert": {
      "id": "storage.objects.insert",
@@ -2254,7 +2326,7 @@
       },
       "name": {
        "type": "string",
-       "description": "Name of the object. Required when the object metadata is not otherwise provided. Overrides the object metadata's name value, if any.",
+       "description": "Name of the object. Required when the object metadata is not otherwise provided. Overrides the object metadata's name value, if any. For information about how to URL encode object names to be path safe, see Encoding URI Path Parts.",
        "location": "query"
       },
       "predefinedAcl": {
@@ -2287,7 +2359,7 @@
        ],
        "enumDescriptions": [
         "Include all properties.",
-        "Omit the acl property."
+        "Omit the owner, acl property."
        ],
        "location": "query"
       }
@@ -2307,6 +2379,7 @@
       "https://www.googleapis.com/auth/devstorage.read_write"
      ],
      "supportsMediaDownload": true,
+     "useMediaDownloadService": true,
      "supportsMediaUpload": true,
      "mediaUpload": {
       "accept": [
@@ -2367,7 +2440,7 @@
        ],
        "enumDescriptions": [
         "Include all properties.",
-        "Omit the acl property."
+        "Omit the owner, acl property."
        ],
        "location": "query"
       },
@@ -2385,6 +2458,7 @@
      },
      "scopes": [
       "https://www.googleapis.com/auth/cloud-platform",
+      "https://www.googleapis.com/auth/cloud-platform.read-only",
       "https://www.googleapis.com/auth/devstorage.full_control",
       "https://www.googleapis.com/auth/devstorage.read_only",
       "https://www.googleapis.com/auth/devstorage.read_write"
@@ -2435,7 +2509,7 @@
       },
       "object": {
        "type": "string",
-       "description": "Name of the object.",
+       "description": "Name of the object. For information about how to URL encode object names to be path safe, see Encoding URI Path Parts.",
        "required": true,
        "location": "path"
       },
@@ -2469,7 +2543,7 @@
        ],
        "enumDescriptions": [
         "Include all properties.",
-        "Omit the acl property."
+        "Omit the owner, acl property."
        ],
        "location": "query"
       }
@@ -2486,8 +2560,7 @@
      },
      "scopes": [
       "https://www.googleapis.com/auth/cloud-platform",
-      "https://www.googleapis.com/auth/devstorage.full_control",
-      "https://www.googleapis.com/auth/devstorage.read_write"
+      "https://www.googleapis.com/auth/devstorage.full_control"
      ]
     },
     "rewrite": {
@@ -2504,7 +2577,7 @@
       },
       "destinationObject": {
        "type": "string",
-       "description": "Name of the new object. Required when the object metadata is not otherwise provided. Overrides the object metadata's name value, if any.",
+       "description": "Name of the new object. Required when the object metadata is not otherwise provided. Overrides the object metadata's name value, if any. For information about how to URL encode object names to be path safe, see Encoding URI Path Parts.",
        "required": true,
        "location": "path"
       },
@@ -2592,7 +2665,7 @@
        ],
        "enumDescriptions": [
         "Include all properties.",
-        "Omit the acl property."
+        "Omit the owner, acl property."
        ],
        "location": "query"
       },
@@ -2615,7 +2688,7 @@
       },
       "sourceObject": {
        "type": "string",
-       "description": "Name of the source object.",
+       "description": "Name of the source object. For information about how to URL encode object names to be path safe, see Encoding URI Path Parts.",
        "required": true,
        "location": "path"
       }
@@ -2682,7 +2755,7 @@
       },
       "object": {
        "type": "string",
-       "description": "Name of the object.",
+       "description": "Name of the object. For information about how to URL encode object names to be path safe, see Encoding URI Path Parts.",
        "required": true,
        "location": "path"
       },
@@ -2716,7 +2789,7 @@
        ],
        "enumDescriptions": [
         "Include all properties.",
-        "Omit the acl property."
+        "Omit the owner, acl property."
        ],
        "location": "query"
       }
@@ -2733,10 +2806,10 @@
      },
      "scopes": [
       "https://www.googleapis.com/auth/cloud-platform",
-      "https://www.googleapis.com/auth/devstorage.full_control",
-      "https://www.googleapis.com/auth/devstorage.read_write"
+      "https://www.googleapis.com/auth/devstorage.full_control"
      ],
-     "supportsMediaDownload": true
+     "supportsMediaDownload": true,
+     "useMediaDownloadService": true
     },
     "watchAll": {
      "id": "storage.objects.watchAll",
@@ -2781,7 +2854,7 @@
        ],
        "enumDescriptions": [
         "Include all properties.",
-        "Omit the acl property."
+        "Omit the owner, acl property."
        ],
        "location": "query"
       },
@@ -2803,6 +2876,7 @@
      },
      "scopes": [
       "https://www.googleapis.com/auth/cloud-platform",
+      "https://www.googleapis.com/auth/cloud-platform.read-only",
       "https://www.googleapis.com/auth/devstorage.full_control",
       "https://www.googleapis.com/auth/devstorage.read_only",
       "https://www.googleapis.com/auth/devstorage.read_write"

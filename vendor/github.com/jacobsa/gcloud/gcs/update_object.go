@@ -15,9 +15,9 @@
 package gcs
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -29,7 +29,7 @@ import (
 )
 
 func (b *bucket) makeUpdateObjectBody(
-	req *UpdateObjectRequest) (rc io.ReadCloser, err error) {
+	req *UpdateObjectRequest) (body []byte, err error) {
 	// Set up a map representing the JSON object we want to send to GCS. For now,
 	// we don't treat empty strings specially.
 	jsonMap := make(map[string]interface{})
@@ -70,8 +70,13 @@ func (b *bucket) makeUpdateObjectBody(
 		return
 	}
 
-	// Set up a ReadCloser.
-	rc = ioutil.NopCloser(r)
+	// Serialize eagerly so that we know the content length, avoiding issues in
+	// net/http like https://golang.org/issue/17071.
+	body, err = ioutil.ReadAll(r)
+	if err != nil {
+		err = fmt.Errorf("reading JSON: %v", err)
+		return
+	}
 
 	return
 }
@@ -113,7 +118,14 @@ func (b *bucket) UpdateObject(
 	}
 
 	// Create an HTTP request.
-	httpReq, err := httputil.NewRequest(ctx, "PATCH", url, body, b.userAgent)
+	httpReq, err := httputil.NewRequest(
+		ctx,
+		"PATCH",
+		url,
+		ioutil.NopCloser(bytes.NewReader(body)),
+		int64(len(body)),
+		b.userAgent)
+
 	if err != nil {
 		err = fmt.Errorf("httputil.NewRequest: %v", err)
 		return

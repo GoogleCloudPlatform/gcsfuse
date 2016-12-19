@@ -19,6 +19,8 @@ import "unsafe"
 //go:noescape
 
 // Zero the n bytes starting at p.
+//
+// REQUIRES: the region does not contain any Go pointers.
 func memclr(p unsafe.Pointer, n uintptr)
 
 //go:noescape

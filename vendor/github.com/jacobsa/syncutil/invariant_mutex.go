@@ -26,6 +26,11 @@ func EnableInvariantChecking() {
 	atomic.StoreUintptr(&gEnable, 1)
 }
 
+// Has EnableInvariantChecking previously been called?
+func InvariantCheckingEnabled() bool {
+	return atomic.LoadUintptr(&gEnable) != 0
+}
+
 // A sync.Locker that, when enabled, runs a check for registered invariants at
 // times when invariants should hold. This can aid debugging subtle code by
 // crashing early as soon as something unexpected happens.
@@ -87,7 +92,7 @@ func (i *InvariantMutex) Unlock() {
 }
 
 func (i *InvariantMutex) checkIfEnabled() {
-	if atomic.LoadUintptr(&gEnable) != 0 {
+	if InvariantCheckingEnabled() {
 		i.check()
 	}
 }
@@ -99,17 +104,13 @@ func (i *InvariantMutex) checkIfEnabled() {
 // no guarantees that it will run.
 //
 // The invariants must hold at the time that NewInvariantMutex is called.
-func NewInvariantMutex(check func()) InvariantMutex {
+func NewInvariantMutex(check func()) (mu InvariantMutex) {
 	if check == nil {
 		panic("check must be non-nil.")
 	}
 
-	// Check now, if enabled.
-	if atomic.LoadUintptr(&gEnable) != 0 {
-		check()
-	}
+	mu.check = check
+	mu.checkIfEnabled()
 
-	return InvariantMutex{
-		check: check,
-	}
+	return
 }
