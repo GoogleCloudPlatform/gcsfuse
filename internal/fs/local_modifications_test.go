@@ -1740,11 +1740,12 @@ func (t *FileTest) UnlinkFile_StillOpen() {
 	fileName := path.Join(t.mfs.Dir(), "foo")
 
 	// Create and open a file.
-	t.f1, err = os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0600)
+	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0600)
 	AssertEq(nil, err)
+	defer f.Close()
 
 	// Write some data into it.
-	n, err := t.f1.Write([]byte("taco"))
+	n, err := f.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
@@ -1759,7 +1760,7 @@ func (t *FileTest) UnlinkFile_StillOpen() {
 
 	// We should be able to stat the file. It should still show as having
 	// contents, but with no links.
-	fi, err := t.f1.Stat()
+	fi, err := f.Stat()
 
 	AssertEq(nil, err)
 	ExpectEq(4, fi.Size())
@@ -1767,14 +1768,14 @@ func (t *FileTest) UnlinkFile_StillOpen() {
 
 	// The contents should still be available.
 	buf := make([]byte, 1024)
-	n, err = t.f1.ReadAt(buf, 0)
+	n, err = f.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
 	AssertEq(4, n)
 	ExpectEq("taco", string(buf[:4]))
 
 	// Writing should still work, too.
-	n, err = t.f1.Write([]byte("burrito"))
+	n, err = f.Write([]byte("burrito"))
 	AssertEq(nil, err)
 	AssertEq(len("burrito"), n)
 }
@@ -2108,11 +2109,12 @@ func (t *FileTest) Close_Clobbered() {
 	var n int
 
 	// Create a file.
-	t.f1, err = os.Create(path.Join(t.mfs.Dir(), "foo"))
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
 	AssertEq(nil, err)
+	defer f.Close()
 
 	// Dirty the file by giving it some contents.
-	n, err = t.f1.Write([]byte("taco"))
+	n, err = f.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
@@ -2123,13 +2125,12 @@ func (t *FileTest) Close_Clobbered() {
 		"foo",
 		[]byte("foobar"))
 
-	// Close the file. This should not result in an error, but the new generation
-	// should not be replaced.
-	err = t.f1.Close()
-	t.f1 = nil
-	AssertEq(nil, err)
+	// Close the file. This may result in a "generation not found" error when
+	// faulting in the object's contents on Linux where close may cause cached
+	// writes to be delivered to the file system. But in any case the new
+	// generation should not be replaced.
+	f.Close()
 
-	// Check that the new generation was not replaced.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("foobar", string(contents))
