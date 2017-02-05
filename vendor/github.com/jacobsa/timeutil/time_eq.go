@@ -43,8 +43,12 @@ func timeEq(expected time.Time, c interface{}) error {
 }
 
 // Return a matcher for times that are exactly equal to the given input time
-// according to the == operator, which compares on location as well as instant.
-// Canonicalize using UTC to ignore location.
+// according to the == operator, which compares on location, instant, and
+// monotonic clock reading.
+//
+// If you want to ignore location, canonicalize using Time.UTC. If you want to
+// ignore ignore monotonic clock reading, strip it using Time.AddDate(0, 0, 0)
+// (cf. https://goo.gl/rYU5UI).
 func TimeEq(t time.Time) oglematchers.Matcher {
 	return oglematchers.NewMatcher(
 		func(c interface{}) error { return timeEq(t, c) },
