@@ -149,7 +149,7 @@ func (t *FileTest) InitialAttributes_MtimeFromObjectMetadata() {
 		t.backingObj.Metadata = make(map[string]string)
 	}
 
-	mtime := time.Now().Add(123 * time.Second).UTC()
+	mtime := time.Now().Add(123*time.Second).UTC().AddDate(0, 0, 0)
 	t.backingObj.Metadata["gcsfuse_mtime"] = mtime.Format(time.RFC3339Nano)
 
 	t.createInode()
@@ -497,7 +497,7 @@ func (t *FileTest) SetMtime_ContentNotFaultedIn() {
 	var attrs fuseops.InodeAttributes
 
 	// Set mtime.
-	mtime := time.Now().UTC().Add(123 * time.Second)
+	mtime := time.Now().UTC().Add(123*time.Second).AddDate(0, 0, 0)
 
 	err = t.in.SetMtime(t.ctx, mtime)
 	AssertEq(nil, err)
@@ -527,7 +527,7 @@ func (t *FileTest) SetMtime_ContentClean() {
 	AssertEq(nil, err)
 
 	// Set mtime.
-	mtime := time.Now().UTC().Add(123 * time.Second)
+	mtime := time.Now().UTC().Add(123*time.Second).AddDate(0, 0, 0)
 
 	err = t.in.SetMtime(t.ctx, mtime)
 	AssertEq(nil, err)
