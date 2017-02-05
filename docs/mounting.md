@@ -102,6 +102,7 @@ with dashes instead of underscores:
 *   `dir_mode`
 *   `file_mode`
 *   `key_file`
+*   `temp_dir`
 
 On both OS X and Linux, you can also add entries to your `/etc/fstab` file like
 the following:
