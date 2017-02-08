@@ -115,6 +115,20 @@ cost of consistency guarantees. These caching behaviors can be controlled with
 the flags `--stat-cache-ttl` and `--type-cache-ttl`. See
 [semantics.md](docs/semantics.md#caching) for more information.
 
+## Timeouts
+
+If you are using [FUSE for macOS](https://osxfuse.github.io/), be aware that by
+default it will give gcsfuse only 60 seconds to respond to each file system
+operation. This means that if you write and then flush a large file and your
+upstream bandwidth is insufficient to write it all to GCS within 60 seconds,
+your gcsfuse file system may become unresponsive. This behavior can be tuned
+using the [`daemon_timeout`][timeout] mount option. See [issue #196][] for
+details.
+
+[timeout]: https://github.com/osxfuse/osxfuse/wiki/Mount-options#daemon_timeout
+[issue #196]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/196
+
+
 ## Downloading object contents
 
 Behind the scenes, when a newly-opened file is first modified, gcsfuse downloads
