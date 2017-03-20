@@ -103,6 +103,8 @@ with dashes instead of underscores:
 *   `file_mode`
 *   `key_file`
 *   `temp_dir`
+*   `uid`
+*   `gid`
 
 On both OS X and Linux, you can also add entries to your `/etc/fstab` file like
 the following:
@@ -113,3 +115,8 @@ Afterward, you can run `mount /mount/point` as a non-root user.
 
 The `noauto` option above specifies that the file system should not be mounted
 at boot time.
+
+You can also mount the file system automatically as a non-root user by
+specifying the options `uid` and/or `gid`:
+
+    my-bucket /mount/point gcsfuse rw,uid=1001,gid=1001
