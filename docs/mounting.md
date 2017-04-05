@@ -105,6 +105,7 @@ with dashes instead of underscores:
 *   `temp_dir`
 *   `uid`
 *   `gid`
+*   `only_dir`
 
 On both OS X and Linux, you can also add entries to your `/etc/fstab` file like
 the following:

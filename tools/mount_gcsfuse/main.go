@@ -86,8 +86,8 @@ func makeGcsfuseArgs(
 				"--"+strings.Replace(name, "_", "-", -1),
 			)
 
-		// Special case: support mount-like formatting for gcsfuse string flags.
-		case "dir_mode", "file_mode", "key_file", "temp_dir", "gid", "uid":
+			// Special case: support mount-like formatting for gcsfuse string flags.
+		case "dir_mode", "file_mode", "key_file", "temp_dir", "gid", "uid", "only_dir":
 			args = append(
 				args,
 				"--"+strings.Replace(name, "_", "-", -1),
