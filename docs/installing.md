@@ -147,7 +147,7 @@ First, handle prerequisites:
 
 Afterward, gcsfuse can be installed with `brew`:
 
-    brew install homebrew/fuse/gcsfuse
+    brew install gcsfuse
     sudo ln -s /usr/local/sbin/mount_gcsfuse /sbin  # For mount(8) support
 
 The second command is only necessary if you want to use gcsfuse with the
