@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs"
+	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
@@ -91,6 +92,7 @@ type FlagStorage struct {
 
 	// File system
 	MountOptions map[string]string
+	MountOpts    string
 	DirMode      os.FileMode
 	FileMode     os.FileMode
 	Uid          int64
@@ -113,4 +115,8 @@ type FlagStorage struct {
 	DebugGCS        bool
 	DebugHTTP       bool
 	DebugInvariants bool
+}
+
+func ParseOptions(m map[string]string, s string) {
+	mount.ParseOptions(m, s)
 }
