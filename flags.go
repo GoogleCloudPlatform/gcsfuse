@@ -101,7 +101,7 @@ func newApp() (app *cli.App) {
 
 			cli.BoolFlag{
 				Name: "implicit-dirs",
-				Usage: "Implicitly define directories based on content. See" +
+				Usage: "Implicitly define directories based on content. See " +
 					"docs/semantics.md",
 			},
 
