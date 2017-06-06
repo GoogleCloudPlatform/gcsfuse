@@ -80,7 +80,13 @@ for [other distributions](#other-distributions) below.
                https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
         EOF
 
-2.  Install gcsfuse:
+2.  Make the system aware of the new repo:
+
+        sudo yum update
+
+    Be sure to answer "yes" to any questions about adding the GPG signing key.
+
+3.  Install gcsfuse:
 
         sudo yum install gcsfuse
 
