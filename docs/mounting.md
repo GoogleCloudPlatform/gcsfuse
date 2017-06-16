@@ -108,6 +108,8 @@ with dashes instead of underscores:
 *   `only_dir`
 *   `limit_ops_per_sec`
 *   `limit_bytes_per_sec`
+*   `stat_cache_ttl`
+*   `type_cache_ttl`
 
 On both OS X and Linux, you can also add entries to your `/etc/fstab` file like
 the following:
