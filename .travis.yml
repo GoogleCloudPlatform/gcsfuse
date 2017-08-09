@@ -4,7 +4,7 @@
 language: go
 
 go:
-  - 1.7.4
+  - 1.8.3
   - tip
 
 # Use the virtualized Trusty beta Travis is running in order to get support for
