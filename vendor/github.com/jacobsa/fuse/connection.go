@@ -55,7 +55,8 @@ var contextKey interface{} = contextKeyType(0)
 // Reading a page at a time is a drag. Ask for a larger size.
 const maxReadahead = 1 << 20
 
-// A connection to the fuse kernel process.
+// Connection represents a connection to the fuse kernel process. It is used to
+// receive and reply to requests from the kernel.
 type Connection struct {
 	cfg         MountConfig
 	debugLogger *log.Logger
@@ -115,7 +116,7 @@ func newConnection(
 	return
 }
 
-// Do the work necessary to cause the mount process to complete.
+// Init performs the work necessary to cause the mount process to complete.
 func (c *Connection) Init() (err error) {
 	// Read the init op.
 	ctx, op, err := c.ReadOp()
@@ -360,9 +361,9 @@ func (c *Connection) writeMessage(msg []byte) (err error) {
 	return
 }
 
-// Read the next op from the kernel process, returning the op and a context
-// that should be used for work related to the op. Return io.EOF if the kernel
-// has closed the connection.
+// ReadOp consumes the next op from the kernel process, returning the op and a
+// context that should be used for work related to the op. It returns io.EOF if
+// the kernel has closed the connection.
 //
 // If err != nil, the user is responsible for later calling c.Reply with the
 // returned context.
@@ -433,6 +434,10 @@ func (c *Connection) shouldLogError(
 			return false
 		}
 
+	case *fuseops.GetXattrOp:
+		if err == syscall.ENODATA || err == syscall.ERANGE {
+			return false
+		}
 	case *unknownOp:
 		// Don't bother the user with methods we intentionally don't support.
 		if err == syscall.ENOSYS {
@@ -443,8 +448,8 @@ func (c *Connection) shouldLogError(
 	return true
 }
 
-// Reply to an op previously read using ReadOp, with the supplied error (or nil
-// if successful). The context must be the context returned by ReadOp.
+// Reply replies to an op previously read using ReadOp, with the supplied error
+// (or nil if successful). The context must be the context returned by ReadOp.
 //
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) Reply(ctx context.Context, opErr error) {
@@ -488,7 +493,7 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 	if !noResponse {
 		err := c.writeMessage(outMsg.Bytes())
 		if err != nil && c.errorLogger != nil {
-			c.errorLogger.Printf("writeMessage: %v", err)
+			c.errorLogger.Printf("writeMessage: %v %v", err, outMsg.Bytes())
 		}
 	}
 }

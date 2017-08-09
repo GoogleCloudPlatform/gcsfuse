@@ -21,7 +21,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-// A type that knows how to serve ops read from a connection.
+// Server is an interface for any type that knows how to serve ops read from a
+// connection.
 type Server interface {
 	// Read and serve ops from the supplied connection until EOF. Do not return
 	// until all operations have been responded to. Must not be called more than
@@ -29,8 +30,8 @@ type Server interface {
 	ServeOps(*Connection)
 }
 
-// Attempt to mount a file system on the given directory, using the supplied
-// Server to serve connection requests. This function blocks until the file
+// Mount attempts to mount a file system on the given directory, using the
+// supplied Server to serve connection requests. It blocks until the file
 // system is successfully mounted.
 func Mount(
 	dir string,

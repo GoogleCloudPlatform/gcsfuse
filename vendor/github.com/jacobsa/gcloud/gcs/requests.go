@@ -85,14 +85,15 @@ type CopyObjectRequest struct {
 	SrcMetaGenerationPrecondition *int64
 }
 
-// The maximum number of sources that a ComposeObjectsRequest may contain.
+// MaxSourcesPerComposeRequest is the maximum number of sources that a
+// ComposeObjectsRequest may contain.
 //
 // Cf. https://cloud.google.com/storage/docs/composite-objects#_Compose
 const MaxSourcesPerComposeRequest = 32
 
-// The maximum number of components that a composite object may have. The sum
-// of the component counts of the sources in a ComposeObjectsRequest must be no
-// more than this value.
+// MaxComponentCount is the maximum number of components that a composite
+// object may have. The sum of the component counts of the sources in a
+// ComposeObjectsRequest must be no more than this value.
 //
 // Cf. https://cloud.google.com/storage/docs/composite-objects#_Count
 const MaxComponentCount = 1024
@@ -137,9 +138,9 @@ type ComposeSource struct {
 	Generation int64
 }
 
-// A [start, limit) range of bytes within an object.
+// ByteRange is a [start, limit) range of bytes within an object.
 //
-// Semantics:
+// Its semantics are as follows:
 //
 //  *  If Limit is less than or equal to Start, the range is treated as empty.
 //
@@ -205,8 +206,8 @@ type ListObjectsRequest struct {
 	MaxResults int
 }
 
-// A set of objects and delimter-based collapsed runs returned by a call to
-// ListObjects. See also ListObjectsRequest.
+// Listing contains a set of objects and delimter-based collapsed runs returned
+// by a call to ListObjects. See also ListObjectsRequest.
 type Listing struct {
 	// Records for objects matching the listing criteria.
 	//

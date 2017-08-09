@@ -22,18 +22,19 @@ import (
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
-// A 64-bit number used to uniquely identify a file or directory in the file
-// system. File systems may mint inode IDs with any value except for
+// InodeID is a 64-bit number used to uniquely identify a file or directory in
+// the file system. File systems may mint inode IDs with any value except for
 // RootInodeID.
 //
 // This corresponds to struct inode::i_no in the VFS layer.
 // (Cf. http://goo.gl/tvYyQt)
 type InodeID uint64
 
-// A distinguished inode ID that identifies the root of the file system, e.g.
-// in an OpenDirOp or LookUpInodeOp. Unlike all other inode IDs, which are
-// minted by the file system, the FUSE VFS layer may send a request for this ID
-// without the file system ever having referenced it in a previous response.
+// RootInodeID is a distinguished inode ID that identifies the root of the file
+// system, e.g. in an OpenDirOp or LookUpInodeOp. Unlike all other inode IDs,
+// which are minted by the file system, the FUSE VFS layer may send a request
+// for this ID without the file system ever having referenced it in a previous
+// response.
 const RootInodeID = 1
 
 func init() {
@@ -55,8 +56,8 @@ func init() {
 	}
 }
 
-// Attributes for a file or directory inode. Corresponds to struct inode (cf.
-// http://goo.gl/tvYyQt).
+// InodeAttributes contains attributes for a file or directory inode. It
+// corresponds to struct inode (cf. http://goo.gl/tvYyQt).
 type InodeAttributes struct {
 	Size uint64
 
@@ -107,9 +108,10 @@ func (a *InodeAttributes) DebugString() string {
 		a.Gid)
 }
 
-// A generation number for an inode. Irrelevant for file systems that won't be
-// exported over NFS. For those that will and that reuse inode IDs when they
-// become free, the generation number must change when an ID is reused.
+// GenerationNumber represents a generation of an inode. It is irrelevant for
+// file systems that won't be exported over NFS. For those that will and that
+// reuse inode IDs when they become free, the generation number must change
+// when an ID is reused.
 //
 // This corresponds to struct inode::i_generation in the VFS layer.
 // (Cf. http://goo.gl/tvYyQt)
@@ -124,20 +126,20 @@ func (a *InodeAttributes) DebugString() string {
 //
 type GenerationNumber uint64
 
-// An opaque 64-bit number used to identify a particular open handle to a file
-// or directory.
+// HandleID is an opaque 64-bit number used to identify a particular open
+// handle to a file or directory.
 //
 // This corresponds to fuse_file_info::fh.
 type HandleID uint64
 
-// An offset into an open directory handle. This is opaque to FUSE, and can be
-// used for whatever purpose the file system desires. See notes on
-// ReadDirOp.Offset for details.
+// DirOffset is an offset into an open directory handle. This is opaque to
+// FUSE, and can be used for whatever purpose the file system desires. See
+// notes on ReadDirOp.Offset for details.
 type DirOffset uint64
 
-// Information about a child inode within its parent directory. Shared by
-// LookUpInodeOp, MkDirOp, CreateFileOp, etc. Consumed by the kernel in order
-// to set up a dcache entry.
+// ChildInodeEntry contains information about a child inode within its parent
+// directory. It is shared by LookUpInodeOp, MkDirOp, CreateFileOp, etc, and is
+// consumed by the kernel in order to set up a dcache entry.
 type ChildInodeEntry struct {
 	// The ID of the child inode. The file system must ensure that the returned
 	// inode ID remains valid until a later ForgetInodeOp.
