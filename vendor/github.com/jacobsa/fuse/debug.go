@@ -89,6 +89,15 @@ func describeRequest(op interface{}) (s string) {
 		addComponent("handle %d", typed.Handle)
 		addComponent("offset %d", typed.Offset)
 		addComponent("%d bytes", len(typed.Data))
+
+	case *fuseops.RemoveXattrOp:
+		addComponent("name %s", typed.Name)
+
+	case *fuseops.GetXattrOp:
+		addComponent("name %s", typed.Name)
+
+	case *fuseops.SetXattrOp:
+		addComponent("name %s", typed.Name)
 	}
 
 	// Use just the name if there is no extra info.

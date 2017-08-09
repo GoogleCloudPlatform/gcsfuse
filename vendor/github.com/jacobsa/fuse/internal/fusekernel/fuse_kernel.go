@@ -660,6 +660,11 @@ type GetxattrOut struct {
 	Padding uint32
 }
 
+type ListxattrIn struct {
+	Size    uint32
+	Padding uint32
+}
+
 type LkIn struct {
 	Fh      uint64
 	Owner   uint64

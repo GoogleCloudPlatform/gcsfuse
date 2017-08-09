@@ -48,7 +48,7 @@ type Conn interface {
 		name string) (b Bucket, err error)
 }
 
-// Configuration accepted by NewConn.
+// ConnConfig contains options accepted by NewConn.
 type ConnConfig struct {
 	// An oauth2 token source to use for authenticating to GCS.
 	//
