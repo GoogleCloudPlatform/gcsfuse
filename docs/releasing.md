@@ -40,4 +40,4 @@ Building a gcsfuse release:
 [semver]: http://semver.org/
 [tags]: https://github.com/GoogleCloudPlatform/gcsfuse/tags
 [new-release]: https://github.com/GoogleCloudPlatform/gcsfuse/releases/new
-[formula]: https://github.com/Homebrew/homebrew-fuse/blob/master/Formula/gcsfuse.rb
+[formula]: https://github.com/Homebrew/homebrew-core/blob/master/Formula/gcsfuse.rb
