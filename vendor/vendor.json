@@ -327,16 +327,6 @@
 			"revisionTime": "2017-08-01T18:31:37Z"
 		},
 		{
-			"path": "google.golang.org/cloud/compute/metadata",
-			"revision": "e34a32f9b0ecbc0784865fb2d47f3818c09521d4",
-			"revisionTime": "2015-07-29T23:39:00-07:00"
-		},
-		{
-			"path": "google.golang.org/cloud/internal",
-			"revision": "e34a32f9b0ecbc0784865fb2d47f3818c09521d4",
-			"revisionTime": "2015-07-29T23:39:00-07:00"
-		},
-		{
 			"checksumSHA1": "F/69y+hieV9WDDBwLOTdsLJg1q8=",
 			"path": "google.golang.org/grpc",
 			"revision": "8712952b7d646dbbbc6fb73a782174f3115060f3",
