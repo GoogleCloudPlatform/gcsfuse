@@ -65,7 +65,7 @@ func mountWithConn(
 	}
 
 	if uid == 0 && flags.Uid < 0 {
-		fmt.Fprintln(os.Stderr, `
+		fmt.Fprintln(os.Stdout, `
 WARNING: gcsfuse invoked as root. This will cause all files to be owned by
 root. If this is not what you intended, invoke gcsfuse as the user that will
 be interacting with the file system.
@@ -129,7 +129,7 @@ be interacting with the file system.
 	}
 
 	if flags.DebugFuse {
-		mountCfg.DebugLogger = log.New(os.Stderr, "fuse_debug: ", 0)
+		mountCfg.DebugLogger = log.New(os.Stdout, "fuse_debug: ", 0)
 	}
 
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)

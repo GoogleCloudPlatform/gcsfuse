@@ -209,11 +209,11 @@ func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 	}
 
 	if flags.DebugHTTP {
-		cfg.HTTPDebugLogger = log.New(os.Stderr, "http: ", 0)
+		cfg.HTTPDebugLogger = log.New(os.Stdout, "http: ", 0)
 	}
 
 	if flags.DebugGCS {
-		cfg.GCSDebugLogger = log.New(os.Stderr, "gcs: ", 0)
+		cfg.GCSDebugLogger = log.New(os.Stdout, "gcs: ", 0)
 	}
 
 	return gcs.NewConn(cfg)
@@ -291,7 +291,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "Using mount point: %s\n", mountPoint)
+	fmt.Fprintf(os.Stdout, "Using mount point: %s\n", mountPoint)
 
 	// If we haven't been asked to run in foreground mode, we should run a daemon
 	// with the foreground flag set and wait for it to mount.
@@ -321,7 +321,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		}
 
 		// Run.
-		err = daemonize.Run(path, args, env, os.Stderr)
+		err = daemonize.Run(path, args, env, os.Stdout)
 		if err != nil {
 			err = fmt.Errorf("daemonize.Run: %v", err)
 			return
