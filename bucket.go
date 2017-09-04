@@ -16,6 +16,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"time"
 
@@ -133,11 +134,13 @@ func setUpBucket(
 			b)
 	}
 
-	// Ensure the bucket works, catching problems early.
-	_, err = b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1})
-	if err != nil {
-		err = fmt.Errorf("checking bucket works: %v", err)
-		return
+	// Check whether this bucket works, giving the user a warning early if there
+	// is some problem.
+	{
+		_, err := b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1})
+		if err != nil {
+			fmt.Fprintln(os.Stdout, "WARNING, bucket doesn't appear to work: ", err)
+		}
 	}
 
 	return
