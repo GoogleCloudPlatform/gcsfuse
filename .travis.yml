@@ -4,8 +4,7 @@
 language: go
 
 go:
-  - 1.8.3
-  - 1.9rc2
+  - 1.9
   - tip
 
 # Use the virtualized Trusty beta Travis is running in order to get support for
@@ -51,7 +50,4 @@ install: true
 script:
   - cd $GOPATH/src/github.com/
   - mv GoogleCloudPlatform googlecloudplatform
-  # Set GOROOT to work around https://github.com/travis-ci/travis-ci/issues/8229.
-  # TODO(jacobsa): once that issue is fixed, remove the workaround and make
-  # sure the build still passes with Go 1.9.
-  - GOROOT=$(go env GOROOT) go test -v github.com/googlecloudplatform/gcsfuse/...
+  - go test -v github.com/googlecloudplatform/gcsfuse/...
