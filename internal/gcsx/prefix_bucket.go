@@ -113,6 +113,25 @@ func (b *prefixBucket) CopyObject(
 	return
 }
 
+func (b *prefixBucket) MoveObject(
+	ctx context.Context,
+	req *gcs.MoveObjectRequest) (o *gcs.Object, err error) {
+	// Modify the request and call through.
+	mReq := new(gcs.MoveObjectRequest)
+	*mReq = *req
+	mReq.SrcName = b.wrappedName(req.SrcName)
+	mReq.DstName = b.wrappedName(req.DstName)
+
+	o, err = b.wrapped.MoveObject(ctx, req)
+
+	// Modify the returned object.
+	if o != nil {
+		o.Name = b.localName(o.Name)
+	}
+
+	return
+}
+
 func (b *prefixBucket) ComposeObjects(
 	ctx context.Context,
 	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
