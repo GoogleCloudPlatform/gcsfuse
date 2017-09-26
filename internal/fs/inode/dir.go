@@ -807,7 +807,7 @@ func (d *dirInode) MoveChild(
 	src *gcs.Object) (o *gcs.Object, err error) {
 
 	dstPath := path.Join(d.Name(), name)
-	o, err = d.bucket.MoveObject(ctx, &gcs.MoveObjectRequest{SrcPath: src.Name, DstPath: dstPath})
+	o, err = d.bucket.MoveObject(ctx, &gcs.MoveObjectRequest{SrcName: src.Name, DstName: dstPath})
 	if err != nil {
 		return
 	}
