@@ -119,8 +119,8 @@ func (b *prefixBucket) MoveObject(
 	// Modify the request and call through.
 	mReq := new(gcs.MoveObjectRequest)
 	*mReq = *req
-	mReq.SrcName = b.wrappedName(req.SrcName)
-	mReq.DstName = b.wrappedName(req.DstName)
+	mReq.SrcPath = b.wrappedName(req.SrcPath)
+	mReq.DstPath = b.wrappedName(req.DstPath)
 
 	o, err = b.wrapped.MoveObject(ctx, req)
 

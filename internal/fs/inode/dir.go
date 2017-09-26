@@ -115,6 +115,12 @@ type DirInode interface {
 		name string,
 		src *gcs.Object) (o *gcs.Object, err error)
 
+	// Move child file or directory into new location.
+	MoveChild(
+		ctx context.Context,
+		name string,
+		src *gcs.Object) (o *gcs.Object, err error)
+
 	// Create a symlink object with the supplied (relative) name and the supplied
 	// target, failing with *gcs.PreconditionError if a backing object already
 	// exists in GCS.
@@ -792,6 +798,15 @@ func (d *dirInode) CloneToChildFile(
 	d.cache.NoteFile(d.cacheClock.Now(), name)
 
 	return
+}
+
+// LOCKS_REQUIRED(d)
+func (d *dirInode) MoveChild(
+	ctx context.Context,
+	name string,
+	src *gcs.Object) (o *gcs.Object, err error) {
+	dstPath := path.Join(d.Name(), name)
+	return d.bucket.MoveObject(ctx, &gcs.MoveObjectRequest{SrcPath: src.Name, DstPath: dstPath})
 }
 
 // LOCKS_REQUIRED(d)

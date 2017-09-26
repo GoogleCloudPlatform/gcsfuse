@@ -1393,15 +1393,9 @@ func (fs *fileSystem) Rename(
 		return
 	}
 
-	// We don't support renaming directories.
-	if inode.IsDirName(lr.FullName) {
-		err = fuse.ENOSYS
-		return
-	}
-
 	// Clone into the new location.
 	newParent.Lock()
-	_, err = newParent.CloneToChildFile(
+	_, err = newParent.MoveChild(
 		ctx,
 		op.NewName,
 		lr.Object)
@@ -1409,21 +1403,6 @@ func (fs *fileSystem) Rename(
 
 	if err != nil {
 		err = fmt.Errorf("CloneToChildFile: %v", err)
-		return
-	}
-
-	// Delete behind. Make sure to delete exactly the generation we cloned, in
-	// case the referent of the name has changed in the meantime.
-	oldParent.Lock()
-	err = oldParent.DeleteChildFile(
-		ctx,
-		op.OldName,
-		lr.Object.Generation,
-		&lr.Object.MetaGeneration)
-	oldParent.Unlock()
-
-	if err != nil {
-		err = fmt.Errorf("DeleteChildFile: %v", err)
 		return
 	}
 
