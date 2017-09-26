@@ -1402,7 +1402,7 @@ func (fs *fileSystem) Rename(
 	newParent.Unlock()
 
 	if err != nil {
-		err = fmt.Errorf("CloneToChildFile: %v", err)
+		err = fmt.Errorf("MoveChild: %v", err)
 		return
 	}
 
