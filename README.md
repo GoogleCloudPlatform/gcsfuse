@@ -28,20 +28,24 @@ See [installing.md][] for full installation instructions for Linux and Mac OS X.
 
 ## Prerequisites
 
-Before invoking gcsfuse, you must have a GCS bucket that you want to mount. If
+* Before invoking gcsfuse, you must have a GCS bucket that you want to mount. If
 your bucket doesn't yet exist, create one using the
 [Google Developers Console][console].
 
 [console]: https://console.developers.google.com
 
-GCS credentials are automatically loaded using [Google application default
+* Make sure [the Google Cloud Storage JSON API is enabled][enableAPI].
+
+[enableAPI]: https://cloud.google.com/storage/docs/json_api/#activating
+
+* GCS credentials are automatically loaded using [Google application default
 credentials][app-default-credentials], or a JSON key file can be specified
 explicitly using `--key-file`. If you haven't already done so, the easiest way
 to set up your credentials for testing is to run the [gcloud tool][]:
 
     gcloud auth login
 
-See [mounting.md][] for more information on credentials.
+  See [mounting.md][] for more information on credentials.
 
 [gcloud tool]: https://cloud.google.com/sdk/gcloud/
 [app-default-credentials]: https://developers.google.com/identity/protocols/application-default-credentials#howtheywork
