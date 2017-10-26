@@ -34,7 +34,7 @@ your bucket doesn't yet exist, create one using the
 
 [console]: https://console.developers.google.com
 
-* Also, make sure [the Google Cloud Storage JSON API is enabled][enableAPI].
+* Make sure [the Google Cloud Storage JSON API is enabled][enableAPI].
 
 [enableAPI]: https://cloud.google.com/storage/docs/json_api/#activating
 
