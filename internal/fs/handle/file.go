@@ -16,7 +16,6 @@ package handle
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
@@ -86,36 +85,36 @@ func (fh *FileHandle) Read(
 	// Lock the inode and attempt to ensure that we have a reader for its current
 	// state, or clear fh.reader if it's not possible to create one (probably
 	// because the inode is dirty).
-	fh.inode.Lock()
-	err = fh.tryEnsureReader()
-	if err != nil {
-		fh.inode.Unlock()
-		err = fmt.Errorf("tryEnsureReader: %v", err)
-		return
-	}
-
-	// If we have an appropriate reader, unlock the inode and use that. This
-	// allows reads to proceed concurrently with other operations; in particular,
-	// multiple reads can run concurrently. It's safe because the user can't tell
-	// if a concurrent write started during or after a read.
-	if fh.reader != nil {
-		fh.inode.Unlock()
-
-		n, err = fh.reader.ReadAt(ctx, dst, offset)
-		switch {
-		case err == io.EOF:
-			return
-
-		case err != nil:
-			err = fmt.Errorf("fh.reader.ReadAt: %v", err)
-			return
-		}
-
-		return
-	}
+	fh.inode.RLock()
+	//err = fh.tryEnsureReader()
+	//if err != nil {
+	//	fh.inode.Unlock()
+	//	err = fmt.Errorf("tryEnsureReader: %v", err)
+	//	return
+	//}
+	//
+	//// If we have an appropriate reader, unlock the inode and use that. This
+	//// allows reads to proceed concurrently with other operations; in particular,
+	//// multiple reads can run concurrently. It's safe because the user can't tell
+	//// if a concurrent write started during or after a read.
+	//if fh.reader != nil {
+	//	fh.inode.Unlock()
+	//
+	//	n, err = fh.reader.ReadAt(ctx, dst, offset)
+	//	switch {
+	//	case err == io.EOF:
+	//		return
+	//
+	//	case err != nil:
+	//		err = fmt.Errorf("fh.reader.ReadAt: %v", err)
+	//		return
+	//	}
+	//
+	//	return
+	//}
 
 	// Otherwise we must fall through to the inode.
-	defer fh.inode.Unlock()
+	defer fh.inode.RUnlock()
 	n, err = fh.inode.Read(ctx, dst, offset)
 
 	return

@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -156,6 +157,38 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		handles:                make(map[fuseops.HandleID]interface{}),
 	}
 
+	fs.syncSc = util.NewSchedule(time.Second*30, 0, nil, func(i interface{}) {
+		log.Println("DEBUG SYNCING FILE", i)
+		var (
+			inodeId fuseops.InodeID
+			ok      bool
+		)
+		if inodeId, ok = i.(fuseops.InodeID); !ok {
+			panic("fuseops.InodeID is expected")
+		}
+		// Find the inode.
+		fs.mu.Lock()
+		tmp := fs.inodes[inodeId]
+		in, ok := tmp.(*inode.FileInode)
+		if !ok {
+			fs.mu.Unlock()
+			return
+		}
+		fs.mu.Unlock()
+
+		in.RLock()
+		defer in.RUnlock()
+
+		// Sync it.
+		err := fs.syncFile(context.Background(), in)
+		if err != nil {
+			log.Println("failed to sync file. Rescheduling", in.Name(), i)
+			fs.syncSc.Schedule(i)
+		} else {
+			log.Println("DEBUG SYNCING FILE done", in.Name(), i)
+		}
+	})
+
 	// Set up the root inode.
 	root := inode.NewDirInode(
 		fuseops.RootInodeID,
@@ -186,9 +219,9 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
 
 	// Periodically garbage collect temporary objects.
-	var gcCtx context.Context
-	gcCtx, fs.stopGarbageCollecting = context.WithCancel(context.Background())
-	go garbageCollect(gcCtx, cfg.TmpObjectPrefix, fs.bucket)
+	//var gcCtx context.Context
+	//gcCtx, fs.stopGarbageCollecting = context.WithCancel(context.Background())
+	//go garbageCollect(gcCtx, cfg.TmpObjectPrefix, fs.bucket)
 
 	server = fuseutil.NewFileSystemServer(fs)
 	return
@@ -337,6 +370,8 @@ type fileSystem struct {
 	//
 	// GUARDED_BY(mu)
 	nextHandleID fuseops.HandleID
+
+	syncSc *util.Schedule
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -521,7 +556,7 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 			fs.mtimeClock,
 			fs.cacheClock)
 
-	// Implicit directories
+		// Implicit directories
 	case inode.IsDirName(name):
 		in = inode.NewDirInode(
 			id,
@@ -564,13 +599,29 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 			fs.bucket,
 			fs.syncer,
 			fs.tempDir,
-			fs.mtimeClock)
+			fs.mtimeClock, fs.cleanupFunc)
 	}
 
 	// Place it in our map of IDs to inodes.
 	fs.inodes[in.ID()] = in
+	log.Println("DEBUG MAP INODE ", in.Name(), in.ID())
 
 	return
+}
+
+func (fs *fileSystem) cleanupFunc (in inode.Inode) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	delete(fs.inodes, in.ID())
+
+	// Update indexes if necessary.
+	if fs.generationBackedInodes[in.Name()] == in {
+		delete(fs.generationBackedInodes, in.Name())
+	}
+
+	if fs.implicitDirInodes[in.Name()] == in {
+		delete(fs.implicitDirInodes, in.Name())
+	}
 }
 
 // Attempt to find an inode for the given name, backed by the supplied object
@@ -586,7 +637,7 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	name string,
-	o *gcs.Object) (in inode.Inode) {
+	o *gcs.Object) (in inode.Inode, roLocked bool) {
 	// Sanity check.
 	if o != nil && name != o.Name {
 		panic(fmt.Sprintf("Name mismatch: %q vs. %q", name, o.Name))
@@ -632,6 +683,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	for {
 		// Look at the current index entry.
 		existingInode, ok := fs.generationBackedInodes[o.Name]
+		fin, isFin := existingInode.(*inode.FileInode)
 
 		// If we have no existing record for this name, mint an inode and return it.
 		if !ok {
@@ -647,14 +699,22 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// acquiring the file system lock, so drop it while acquiring the inode's
 		// lock, then reacquire.
 		fs.mu.Unlock()
-		existingInode.Lock()
+		if isFin {
+			fin.RLock()
+		} else {
+			existingInode.Lock()
+		}
 		fs.mu.Lock()
 
 		// Check that the index still points at this inode. If not, it's possible
 		// that the inode is in the process of being destroyed and is unsafe to
 		// use. Go around and try again.
 		if fs.generationBackedInodes[o.Name] != existingInode {
-			existingInode.Unlock()
+			if isFin {
+				fin.RUnlock()
+			} else {
+				existingInode.Unlock()
+			}
 			continue
 		}
 
@@ -662,12 +722,19 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		cmp := oGen.Compare(existingInode.SourceGeneration())
 		if cmp == 0 {
 			in = existingInode
+			if isFin{
+				roLocked = true
+			}
 			return
 		}
 
 		// Is the object record stale? If so, return nil.
 		if cmp == -1 {
-			existingInode.Unlock()
+			if isFin {
+				fin.RUnlock()
+			} else {
+				existingInode.Unlock()
+			}
 			return
 		}
 
@@ -679,7 +746,11 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		//
 		// Replace it with a newly-mintend inode and then go around, acquiring its
 		// lock in accordance with our lock ordering rules.
-		existingInode.Unlock()
+		if isFin {
+			fin.RUnlock()
+		} else {
+			existingInode.Unlock()
+		}
 
 		in = fs.mintInode(o.Name, o)
 		fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
@@ -700,7 +771,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 func (fs *fileSystem) lookUpOrCreateChildInode(
 	ctx context.Context,
 	parent inode.DirInode,
-	childName string) (child inode.Inode, err error) {
+	childName string) (child inode.Inode, roLocked bool, err error) {
 	// Set up a function that will find a lookup result for the child with the
 	// given name. Expects no locks to be held.
 	getLookupResult := func() (r inode.LookUpResult, err error) {
@@ -734,7 +805,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 
 		// Attempt to create the inode. Return if successful.
 		fs.mu.Lock()
-		child = fs.lookUpOrCreateInodeIfNotStale(result.FullName, result.Object)
+		child, roLocked = fs.lookUpOrCreateInodeIfNotStale(result.FullName, result.Object)
 		if child != nil {
 			return
 		}
@@ -782,11 +853,22 @@ func (fs *fileSystem) syncFile(
 // UNLOCK_FUNCTION(in)
 func (fs *fileSystem) unlockAndDecrementLookupCount(
 	in inode.Inode,
-	N uint64) {
+	N uint64, roLocked bool) {
 	name := in.Name()
 
 	// Decrement the lookup count.
 	shouldDestroy := in.DecrementLookupCount(N)
+
+	if shouldDestroy {
+		if file, isFile := in.(*inode.FileInode); isFile {
+			shouldDestroy = file.CanDestroy()
+			if !shouldDestroy {
+				log.Println("DEBUG ShoudDestroy falsed", in.Name(), in.ID())
+			}
+		}
+	}
+
+
 
 	// Update file system state, orphaning the inode if we're going to destroy it
 	// below.
@@ -814,7 +896,16 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(
 		}
 	}
 
-	in.Unlock()
+	if !roLocked {
+		in.Unlock()
+		return
+	}
+
+	if fin, ok := in.(*inode.FileInode); ok {
+		fin.RUnlock()
+	} else {
+		panic(fmt.Errorf("file inode expected", in.ID(), in.Name()))
+	}
 }
 
 // A helper function for use after incrementing an inode's lookup count.
@@ -840,17 +931,25 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(
 // UNLOCK_FUNCTION(in)
 func (fs *fileSystem) unlockAndMaybeDisposeOfInode(
 	in inode.Inode,
-	err *error) {
+	err *error, roLocked bool) {
 	// If there is no error, just unlock.
 	if *err == nil {
-		in.Unlock()
-		return
+		if !roLocked {
+			in.Unlock()
+			return
+		}
+		if fin, ok := in.(*inode.FileInode); ok {
+			fin.RUnlock()
+			return
+		} else {
+			panic(fmt.Errorf("file inode expected", in.ID(), in.Name()))
+		}
 	}
 
 	// Otherwise, go through the decrement helper, which requires the file system
 	// lock.
 	fs.mu.Lock()
-	fs.unlockAndDecrementLookupCount(in, 1)
+	fs.unlockAndDecrementLookupCount(in, 1, roLocked)
 }
 
 // Fetch attributes for the supplied inode and fill in an appropriate
@@ -910,12 +1009,12 @@ func (fs *fileSystem) dirInodeOrDie(id fuseops.InodeID) (in inode.DirInode) {
 // LOCKS_REQUIRED(fs.mu)
 func (fs *fileSystem) fileInodeOrDie(id fuseops.InodeID) (in *inode.FileInode) {
 	tmp := fs.inodes[id]
-	in, ok := tmp.(*inode.FileInode)
+	ino, ok := tmp.(*inode.FileInode)
 	if !ok {
 		panic(fmt.Sprintf("inode %d is %T, wanted *inode.FileInode", id, tmp))
 	}
 
-	return
+	return ino
 }
 
 // symlinkInodeOrDie returns the symlink inode with the given ID, panicking
@@ -973,12 +1072,12 @@ func (fs *fileSystem) LookUpInode(
 	fs.mu.Unlock()
 
 	// Find or create the child inode.
-	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
+	child, roLocked, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
 	if err != nil {
 		return
 	}
 
-	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
+	defer fs.unlockAndMaybeDisposeOfInode(child, &err, roLocked)
 
 	// Fill out the response.
 	e := &op.Entry
@@ -1000,9 +1099,13 @@ func (fs *fileSystem) GetInodeAttributes(
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
 	fs.mu.Unlock()
-
-	in.Lock()
-	defer in.Unlock()
+	if fin, ok := in.(*inode.FileInode); ok {
+		fin.RLock()
+		defer fin.RUnlock()
+	} else {
+		in.Lock()
+		defer in.Unlock()
+	}
 
 	// Grab its attributes.
 	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in)
@@ -1025,7 +1128,6 @@ func (fs *fileSystem) SetInodeAttributes(
 	in.Lock()
 	defer in.Unlock()
 	file, isFile := in.(*inode.FileInode)
-
 	// Set file mtimes.
 	if isFile && op.Mtime != nil {
 		err = file.SetMtime(ctx, *op.Mtime)
@@ -1052,7 +1154,6 @@ func (fs *fileSystem) SetInodeAttributes(
 		err = fmt.Errorf("getAttributes: %v", err)
 		return
 	}
-
 	return
 }
 
@@ -1068,9 +1169,10 @@ func (fs *fileSystem) ForgetInode(
 	// Acquire both locks in the correct order.
 	in.Lock()
 	fs.mu.Lock()
+	log.Println("DEBUG ForgetInode", in.Name(), in.ID())
 
 	// Decrement and unlock.
-	fs.unlockAndDecrementLookupCount(in, op.N)
+	fs.unlockAndDecrementLookupCount(in, op.N, false)
 
 	return
 }
@@ -1106,13 +1208,13 @@ func (fs *fileSystem) MkDir(
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
 	fs.mu.Lock()
-	child := fs.lookUpOrCreateInodeIfNotStale(o.Name, o)
+	child, roLocked := fs.lookUpOrCreateInodeIfNotStale(o.Name, o)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
 		return
 	}
 
-	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
+	defer fs.unlockAndMaybeDisposeOfInode(child, &err, roLocked)
 
 	// Fill out the response.
 	e := &op.Entry
@@ -1132,12 +1234,12 @@ func (fs *fileSystem) MkNode(
 	ctx context.Context,
 	op *fuseops.MkNodeOp) (err error) {
 	// Create the child.
-	child, err := fs.createFile(ctx, op.Parent, op.Name, op.Mode)
+	child, roLocked, err := fs.createFile(ctx, op.Parent, op.Name, op.Mode)
 	if err != nil {
 		return
 	}
 
-	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
+	defer fs.unlockAndMaybeDisposeOfInode(child, &err, roLocked)
 
 	// Fill out the response.
 	e := &op.Entry
@@ -1161,7 +1263,7 @@ func (fs *fileSystem) createFile(
 	ctx context.Context,
 	parentID fuseops.InodeID,
 	name string,
-	mode os.FileMode) (child inode.Inode, err error) {
+	mode os.FileMode) (child inode.Inode, roLocked bool, err error) {
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(parentID)
@@ -1189,7 +1291,7 @@ func (fs *fileSystem) createFile(
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
 	fs.mu.Lock()
-	child = fs.lookUpOrCreateInodeIfNotStale(o.Name, o)
+	child, roLocked = fs.lookUpOrCreateInodeIfNotStale(o.Name, o)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
 		return
@@ -1203,12 +1305,12 @@ func (fs *fileSystem) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {
 	// Create the child.
-	child, err := fs.createFile(ctx, op.Parent, op.Name, op.Mode)
+	child, roLocked, err := fs.createFile(ctx, op.Parent, op.Name, op.Mode)
 	if err != nil {
 		return
 	}
 
-	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
+	defer fs.unlockAndMaybeDisposeOfInode(child, &err, roLocked)
 
 	// Allocate a handle.
 	fs.mu.Lock()
@@ -1266,13 +1368,13 @@ func (fs *fileSystem) CreateSymlink(
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
 	fs.mu.Lock()
-	child := fs.lookUpOrCreateInodeIfNotStale(o.Name, o)
+	child, roLocked := fs.lookUpOrCreateInodeIfNotStale(o.Name, o)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
 		return
 	}
 
-	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
+	defer fs.unlockAndMaybeDisposeOfInode(child, &err, roLocked)
 
 	// Fill out the response.
 	e := &op.Entry
@@ -1297,7 +1399,7 @@ func (fs *fileSystem) RmDir(
 	fs.mu.Unlock()
 
 	// Find or create the child inode.
-	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
+	child, roLocked, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
 	if err != nil {
 		return
 	}
@@ -1311,7 +1413,7 @@ func (fs *fileSystem) RmDir(
 		if !childCleanedUp {
 			childCleanedUp = true
 			fs.mu.Lock()
-			fs.unlockAndDecrementLookupCount(child, 1)
+			fs.unlockAndDecrementLookupCount(child, 1, roLocked)
 		}
 	}
 
@@ -1529,6 +1631,7 @@ func (fs *fileSystem) ReadFile(
 
 	fh.Lock()
 	defer fh.Unlock()
+	//log.Println("DEBUG READFILE", fh.Inode().Name(), fh.Inode().ID(), len(op.Dst), op.Offset)
 
 	// Serve the read.
 	op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset)
@@ -1573,7 +1676,10 @@ func (fs *fileSystem) WriteFile(
 
 	// Serve the request.
 	err = in.Write(ctx, op.Data, op.Offset)
-
+	if err != nil {
+		log.Println("DEBUG WriteFile failed")
+	}
+	fs.syncSc.Cancel(op.Inode)
 	return
 }
 
@@ -1589,9 +1695,21 @@ func (fs *fileSystem) SyncFile(
 	in.Lock()
 	defer in.Unlock()
 
-	// Sync it.
-	err = fs.syncFile(ctx, in)
+	if !in.IsSyncRequired() || in.IsSyncReceived(){
+		log.Println("DEBUG sync scheduled sync ignoring", in.Name(), in.ID())
+		return
+	}
 
+	in.SyncReceived()
+
+	// Sync it locally.
+	err = in.SyncLocal()
+	if err != nil {
+		return
+	}
+
+	log.Println("DEBUG sync scheduled sync", in.Name(), in.ID())
+	fs.syncSc.Schedule(op.Inode)
 	return
 }
 
@@ -1604,12 +1722,28 @@ func (fs *fileSystem) FlushFile(
 	in := fs.fileInodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
+	in.RLock()
+
+	if !in.IsSyncRequired() || in.IsSyncReceived() {
+		log.Println("DEBUG flush scheduled sync ignoring", in.Name(), in.ID())
+		in.RUnlock()
+		return
+	}
+	in.RUnlock()
+
 	in.Lock()
 	defer in.Unlock()
 
-	// Sync it.
-	err = fs.syncFile(ctx, in)
+	in.SyncReceived()
 
+	// Sync it locally.
+	err = in.SyncLocal()
+	if err != nil {
+		return
+	}
+
+	log.Println("DEBUG flush scheduled sync", in.Name(), in.ID())
+	fs.syncSc.Schedule(op.Inode)
 	return
 }
 

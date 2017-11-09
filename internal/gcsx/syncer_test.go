@@ -123,7 +123,7 @@ func (t *SyncerTest) SetUp(ti *TestInfo) {
 	t.content, err = NewTempFile(
 		strings.NewReader(srcObjectContents),
 		"",
-		&t.clock)
+		&t.clock, false,nil)
 
 	AssertEq(nil, err)
 

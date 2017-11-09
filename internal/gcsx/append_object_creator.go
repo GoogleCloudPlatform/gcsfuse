@@ -123,7 +123,8 @@ func (oc *appendObjectCreator) Create(
 			})
 
 		if err == nil && deleteErr != nil {
-			err = fmt.Errorf("DeleteObject: %v", deleteErr)
+			// Silent error as Datomia is removing tmp object itself
+			//err = fmt.Errorf("DeleteObject: %v", deleteErr)
 		}
 	}()
 

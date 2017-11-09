@@ -20,11 +20,13 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
+	"log"
 )
 
 // A GCS object metadata key for file mtimes. mtimes are UTC, and are stored in
@@ -75,6 +77,13 @@ type FileInode struct {
 	//
 	// GUARDED_BY(mu)
 	destroyed bool
+
+	sc               *util.Schedule
+	syncRequired     bool
+	cleanupScheduled bool
+	cleanupFunc      func(in Inode)
+	syncing          bool
+	syncReceived     bool
 }
 
 var _ Inode = &FileInode{}
@@ -94,24 +103,41 @@ func NewFileInode(
 	bucket gcs.Bucket,
 	syncer gcsx.Syncer,
 	tempDir string,
-	mtimeClock timeutil.Clock) (f *FileInode) {
+	mtimeClock timeutil.Clock, cleanupFunc func(Inode)) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
-		bucket:     bucket,
-		syncer:     syncer,
-		mtimeClock: mtimeClock,
-		id:         id,
-		name:       o.Name,
-		attrs:      attrs,
-		tempDir:    tempDir,
-		src:        *o,
+		bucket:      bucket,
+		syncer:      syncer,
+		mtimeClock:  mtimeClock,
+		id:          id,
+		name:        o.Name,
+		attrs:       attrs,
+		tempDir:     tempDir,
+		src:         *o,
+		cleanupFunc: cleanupFunc,
 	}
+	f.sc = util.NewSchedule(time.Minute*1, 0, nil, func(i interface{}) {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		log.Println("DEBUG REMOVING LOCAL CONTENT", i)
+		if f.content != nil {
+			f.content.Destroy()
+			f.content = nil
+		}
+		f.cleanupScheduled = false
+
+		if f.lc.count == 0 && f.syncRequired == false {
+			log.Println("DEBUG CLEANUP INODE")
+			f.Destroy()
+			f.cleanupFunc(f)
+		}
+	})
 
 	f.lc.Init(id)
 
 	// Set up invariant checking.
 	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
-
+	log.Println("DEBUG NewFileInode", f.name, f.id)
 	return
 }
 
@@ -172,10 +198,13 @@ func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) ensureContent(ctx context.Context) (err error) {
+	f.cancelCleanupSchedule()
 	// Is there anything to do?
 	if f.content != nil {
 		return
 	}
+	log.Println("DEBUG ensureContent", f.name)
+	defer log.Println("DEBUG ensureContent done", f.name)
 
 	// Open a reader for the generation we care about.
 	rc, err := f.bucket.NewReader(
@@ -190,10 +219,10 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		return
 	}
 
-	defer rc.Close()
+	//defer rc.Close()
 
 	// Create a temporary file with its contents.
-	tf, err := gcsx.NewTempFile(rc, f.tempDir, f.mtimeClock)
+	tf, err := gcsx.NewTempFile(rc, f.tempDir, f.mtimeClock, true, rc.Close)
 	if err != nil {
 		err = fmt.Errorf("NewTempFile: %v", err)
 		return
@@ -203,6 +232,46 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 	f.content = tf
 
 	return
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) CanDestroy() bool {
+	return !f.syncRequired && !f.cleanupScheduled && !f.syncing
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) scheduleCleanUp() {
+	f.sc.Schedule(f.name)
+	f.cleanupScheduled = true
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) cancelCleanupSchedule() {
+	f.sc.Cancel(f.name)
+	f.cleanupScheduled = false
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) SyncLocal() error {
+	if f.content == nil {
+		return nil
+	}
+	return f.content.SyncLocal()
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) IsSyncRequired() bool {
+	return f.syncRequired
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) IsSyncReceived() bool {
+	return f.syncReceived
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) SyncReceived() {
+	f.syncReceived = true
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -215,6 +284,14 @@ func (f *FileInode) Lock() {
 
 func (f *FileInode) Unlock() {
 	f.mu.Unlock()
+}
+
+func (f *FileInode) RLock() {
+	f.mu.RLock()
+}
+
+func (f *FileInode) RUnlock() {
+	f.mu.RUnlock()
 }
 
 func (f *FileInode) ID() fuseops.InodeID {
@@ -267,6 +344,7 @@ func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Destroy() (err error) {
+	log.Println("DEBUG FileInode Destroy", f.name, f.id)
 	f.destroyed = true
 
 	if f.content != nil {
@@ -339,6 +417,11 @@ func (f *FileInode) Read(
 	ctx context.Context,
 	dst []byte,
 	offset int64) (n int, err error) {
+	defer func(){
+		if !f.syncing {
+			f.scheduleCleanUp()
+		}
+	}()
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -367,6 +450,8 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) (err error) {
+	f.syncRequired = true
+	f.syncReceived = false
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -457,8 +542,21 @@ func (f *FileInode) SetMtime(
 func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// If we have not been dirtied, there is nothing to do.
 	if f.content == nil {
+		log.Println("DEBUG Sync canceled. nil content", f.name)
 		return
 	}
+
+	if !f.syncRequired {
+		log.Println("DEBUG Sync canceled. clean file", f.name)
+		return
+	}
+	f.syncReceived = true
+	f.syncing = true
+	f.cancelCleanupSchedule()
+	defer func(){
+		f.syncing = false
+		f.scheduleCleanUp()
+	}()
 
 	// Write out the contents if they are dirty.
 	newObj, err := f.syncer.SyncObject(ctx, &f.src, f.content)
@@ -472,14 +570,16 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// Propagate other errors.
 	if err != nil {
 		err = fmt.Errorf("SyncObject: %v", err)
+		f.syncRequired = true
 		return
 	}
 
 	// If we wrote out a new object, we need to update our state.
 	if newObj != nil {
 		f.src = *newObj
-		f.content = nil
+		//f.content = nil
 	}
+	f.syncRequired = false
 
 	return
 }

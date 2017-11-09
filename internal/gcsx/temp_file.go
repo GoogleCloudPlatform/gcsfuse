@@ -20,8 +20,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
+	"sync"
+	"log"
+	"path"
+	"io/ioutil"
 )
 
 // A temporary file that keeps track of the lowest offset at which it has been
@@ -49,6 +52,12 @@ type TempFile interface {
 	// Throw away the resources used by the temporary file. The object must not
 	// be used again.
 	Destroy()
+
+	SetDirtyThreshold(t int64)
+
+	SyncLocal() error
+
+	GetFileRO() *os.File
 }
 
 type StatResult struct {
@@ -69,34 +78,92 @@ type StatResult struct {
 	Mtime *time.Time
 }
 
+type progressWriter struct{
+	written int64
+}
+
+func (pw *progressWriter) Write(data []byte) (int, error) {
+	pw.written += int64(len(data))
+	return len(data), nil
+}
+
 // Create a temp file whose initial contents are given by the supplied reader.
 // dir is a directory on whose file system the inode will live, or the system
 // default temporary location if empty.
 func NewTempFile(
 	content io.Reader,
 	dir string,
-	clock timeutil.Clock) (tf TempFile, err error) {
+	clock timeutil.Clock, async bool, close func() error) (tf TempFile, err error) {
 	// Create an anonymous file to wrap. When we close it, its resources will be
 	// magically cleaned up.
-	f, err := fsutil.AnonymousFile(dir)
+	f, fro, err := AnonymousFile(dir)
 	if err != nil {
 		err = fmt.Errorf("AnonymousFile: %v", err)
 		return
 	}
+	pw := &progressWriter{}
+	tempFile := &tempFile{
+		clock:          clock,
+		f:              f,
+		fro: fro,
+		pw: pw,
+		downloadInProgress: true,
+	}
+	tempFile.mu.Lock()
+	tf = tempFile
 
-	// Copy into the file.
-	size, err := io.Copy(f, content)
+	fc := func() {
+		defer func(){
+			if close != nil {
+				close()
+			}
+			tempFile.dpmu.Lock()
+			tempFile.downloadInProgress = false
+			tempFile.dpmu.Unlock()
+			tempFile.mu.Unlock()
+		}()
+		// Copy into the file.
+		log.Println("DEBUG copying")
+		defer log.Println("DEBUG copying done.")
+		size, err := io.Copy(f, io.TeeReader(content, pw))
+		if err != nil {
+			tempFile.err = fmt.Errorf("copy: %v", err)
+			return
+		}
+		tempFile.dirtyThreshold = size
+	}
+	if async {
+		go fc()
+	} else {
+		fc()
+	}
+	return
+}
+
+
+func AnonymousFile(dir string) (frw *os.File, fro *os.File, err error){
+	// Choose a prefix based on the binary name.
+	prefix := path.Base(os.Args[0])
+
+	// Create the file.
+	frw, err = ioutil.TempFile(dir, prefix)
 	if err != nil {
-		err = fmt.Errorf("copy: %v", err)
+		err = fmt.Errorf("TempFile: %v", err)
 		return
 	}
 
-	tf = &tempFile{
-		clock:          clock,
-		f:              f,
-		dirtyThreshold: size,
+	fro, err = os.Open(frw.Name())
+	if err != nil {
+		err = fmt.Errorf("TempFile: %v", err)
+		return
 	}
 
+	// Unlink it.
+	err = os.Remove(frw.Name())
+	if err != nil {
+		err = fmt.Errorf("Remove: %v", err)
+		return
+	}
 	return
 }
 
@@ -116,6 +183,9 @@ type tempFile struct {
 	// A file containing our current contents.
 	f *os.File
 
+	// A file descriptior for sync process
+	fro *os.File
+
 	// The lowest byte index that has been modified from the initial contents.
 	//
 	// INVARIANT: Stat().DirtyThreshold <= Stat().Size
@@ -126,6 +196,14 @@ type tempFile struct {
 	//
 	// INVARIANT: mtime == nil => Stat().DirtyThreshold == Stat().Size
 	mtime *time.Time
+
+	mu sync.Mutex
+
+	dpmu sync.Mutex
+	downloadInProgress bool
+
+	pw *progressWriter
+	err error
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -172,6 +250,10 @@ func (tf *tempFile) Destroy() {
 	// Throw away the file.
 	tf.f.Close()
 	tf.f = nil
+
+	// Throw away the file.
+	tf.fro.Close()
+	tf.fro = nil
 }
 
 func (tf *tempFile) Read(p []byte) (int, error) {
@@ -183,6 +265,19 @@ func (tf *tempFile) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (tf *tempFile) ReadAt(p []byte, offset int64) (int, error) {
+	for {
+		tf.dpmu.Lock()
+		if !tf.downloadInProgress {
+			tf.dpmu.Unlock()
+			break
+		}
+		tf.dpmu.Unlock()
+		if offset+int64(len(p)) <= tf.pw.written {
+			break
+		}
+		log.Println("DEBUG sleep", offset+int64(len(p)), tf.pw.written)
+		time.Sleep(time.Second)
+	}
 	return tf.f.ReadAt(p, offset)
 }
 
@@ -201,6 +296,8 @@ func (tf *tempFile) Stat() (sr StatResult, err error) {
 }
 
 func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
+	tf.mu.Lock()
+	defer tf.mu.Unlock()
 	// Update our state regarding being dirty.
 	tf.dirtyThreshold = minInt64(tf.dirtyThreshold, offset)
 
@@ -224,6 +321,18 @@ func (tf *tempFile) Truncate(n int64) error {
 
 func (tf *tempFile) SetMtime(mtime time.Time) {
 	tf.mtime = &mtime
+}
+
+func (tf *tempFile) SetDirtyThreshold(t int64) {
+	tf.dirtyThreshold = t
+}
+
+func (tf *tempFile) SyncLocal() error {
+	return tf.f.Sync()
+}
+
+func (tf *tempFile) GetFileRO() *os.File {
+	return tf.fro
 }
 
 ////////////////////////////////////////////////////////////////////////

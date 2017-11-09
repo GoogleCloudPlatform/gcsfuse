@@ -111,7 +111,7 @@ func (t *IntegrationTest) create(o *gcs.Object) {
 	AssertEq(nil, err)
 
 	// Use it to create the temp file.
-	t.tf, err = gcsx.NewTempFile(rc, "", &t.clock)
+	t.tf, err = gcsx.NewTempFile(rc, "", &t.clock, false, nil)
 	AssertEq(nil, err)
 
 	// Close it.

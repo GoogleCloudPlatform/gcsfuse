@@ -200,21 +200,21 @@ func (os *syncer) SyncObject(
 	if srcSize >= os.appendThreshold &&
 		sr.DirtyThreshold == srcSize &&
 		srcObject.ComponentCount < gcs.MaxComponentCount {
-		_, err = content.Seek(srcSize, 0)
+		_, err = content.GetFileRO().Seek(srcSize, 0)
 		if err != nil {
 			err = fmt.Errorf("Seek: %v", err)
 			return
 		}
 
-		o, err = os.appendCreator.Create(ctx, srcObject, mtime, content)
+		o, err = os.appendCreator.Create(ctx, srcObject, mtime, content.GetFileRO())
 	} else {
-		_, err = content.Seek(0, 0)
+		_, err = content.GetFileRO().Seek(0, 0)
 		if err != nil {
 			err = fmt.Errorf("Seek: %v", err)
 			return
 		}
 
-		o, err = os.fullCreator.Create(ctx, srcObject, mtime, content)
+		o, err = os.fullCreator.Create(ctx, srcObject, mtime, content.GetFileRO())
 	}
 
 	// Deal with errors.
@@ -229,7 +229,8 @@ func (os *syncer) SyncObject(
 	}
 
 	// Destroy the temp file.
-	content.Destroy()
+	// Datomia: we need to keep local file.
+	//content.Destroy()
 
 	return
 }
