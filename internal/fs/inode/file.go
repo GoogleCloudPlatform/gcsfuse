@@ -265,6 +265,11 @@ func (f *FileInode) IsSyncRequired() bool {
 }
 
 // LOCKS_REQUIRED(f.mu)
+func (f *FileInode) SetSyncRequired(s bool) {
+	f.syncRequired = false
+}
+
+// LOCKS_REQUIRED(f.mu)
 func (f *FileInode) IsSyncReceived() bool {
 	return f.syncReceived
 }
@@ -310,6 +315,11 @@ func (f *FileInode) Source() *gcs.Object {
 	// Make a copy, since we modify f.src.
 	o := f.src
 	return &o
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) UpdateSourceName(name string) {
+	f.src.Name = name
 }
 
 // If true, it is safe to serve reads directly from the object given by
