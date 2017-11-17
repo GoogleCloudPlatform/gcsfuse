@@ -266,7 +266,7 @@ func (f *FileInode) IsSyncRequired() bool {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SetSyncRequired(s bool) {
-	f.syncRequired = false
+	f.syncRequired = s
 }
 
 // LOCKS_REQUIRED(f.mu)
@@ -277,6 +277,11 @@ func (f *FileInode) IsSyncReceived() bool {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SyncReceived() {
 	f.syncReceived = true
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) GetTmpFileName() string {
+	return f.content.GetFileRO().Name()
 }
 
 ////////////////////////////////////////////////////////////////////////

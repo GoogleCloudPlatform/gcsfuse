@@ -23,6 +23,7 @@ import (
 	"reflect"
 	"time"
 
+	"encoding/json"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
@@ -34,7 +35,9 @@ import (
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
+	"io/ioutil"
 	"path"
+	"sync"
 )
 
 type ServerConfig struct {
@@ -156,6 +159,11 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		generationBackedInodes: make(map[string]inode.GenerationBackedInode),
 		implicitDirInodes:      make(map[string]inode.DirInode),
 		handles:                make(map[fuseops.HandleID]interface{}),
+		syncStatusFile:         path.Join(cfg.TempDir, "status.json"),
+	}
+
+	if er := fs.uploadUnsynced(); er != nil {
+		log.Println(er)
 	}
 
 	fs.syncSc = util.NewSchedule(time.Second*30, 0, nil, func(i interface{}) {
@@ -184,9 +192,13 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		err := fs.syncFile(context.Background(), in)
 		if err != nil {
 			log.Println("failed to sync file. Rescheduling", in.Name(), i, err)
-			fs.syncSc.Schedule(i)
+			if er := fs.scheduleSync(in); er != nil {
+				log.Println("DEBUG failed to reschedule, failed to update status file", er)
+			}
+
 		} else {
 			log.Println("DEBUG SYNCING FILE done", in.Name(), i)
+			fs.updateStatus(in, false)
 		}
 	})
 
@@ -373,11 +385,138 @@ type fileSystem struct {
 	nextHandleID fuseops.HandleID
 
 	syncSc *util.Schedule
+
+	sMu            sync.Mutex
+	syncStatusFile string
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
+
+func (fs *fileSystem) scheduleSync(in inode.Inode) error {
+	file, ok := in.(*inode.FileInode)
+	if !ok {
+		return fmt.Errorf("expected ")
+	}
+
+	fs.syncSc.Schedule(in.ID())
+	return fs.updateStatus(file, true)
+}
+
+type tempFileStat struct {
+	Name       string
+	Synced     bool
+	Generation int64
+}
+
+func (fs *fileSystem) getStatusFile() (*os.File, map[string]tempFileStat, error) {
+	file, err := os.OpenFile(fs.syncStatusFile, os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	bytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	tmpFileStats := map[string]tempFileStat{}
+	if len(bytes) > 0 {
+		if err := json.Unmarshal(bytes, &tmpFileStats); err != nil {
+			return nil, nil, err
+		}
+	}
+	return file, tmpFileStats, nil
+}
+
+func (fs *fileSystem) writeStatusFile(file *os.File, st map[string]tempFileStat) error {
+	bytes, err := json.Marshal(st)
+	if err != nil {
+		return err
+	}
+
+	file.Truncate(0)
+	file.Seek(0, 0)
+
+	if _, err = file.Write(bytes); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (fs *fileSystem) updateStatus(in *inode.FileInode, sync bool) error {
+	fs.sMu.Lock()
+	defer fs.sMu.Unlock()
+
+	file, st, err := fs.getStatusFile()
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	if sync {
+		src := in.Source()
+		st[in.GetTmpFileName()] = tempFileStat{
+			Name:       src.Name,
+			Generation: src.Generation,
+		}
+	} else {
+		//st[in.Name()] = false
+		delete(st, in.GetTmpFileName())
+	}
+
+	return fs.writeStatusFile(file, st)
+}
+
+func (fs *fileSystem) uploadUnsynced() error {
+	fs.sMu.Lock()
+	defer fs.sMu.Unlock()
+
+	file, st, err := fs.getStatusFile()
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	for t, f := range st {
+		log.Println("local cache file sync.", t, f.Name)
+		if err := fs.uploadTmpFile(t, f); err != nil {
+			log.Println("local cache file sync failed.", t, f.Name, err)
+			continue
+		}
+		if err := os.Remove(t); err != nil {
+			log.Println("failed to remove local cache file.", t, f.Name)
+		}
+		log.Println("local cache file sync done.", t, f.Name)
+		delete(st, t)
+
+		if err = fs.writeStatusFile(file, st); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (fs *fileSystem) uploadTmpFile(tmpFile string, f tempFileStat) error {
+	tfile, err := os.Open(tmpFile)
+	defer tfile.Close()
+	if err != nil {
+		return err
+	}
+	req := &gcs.CreateObjectRequest{
+		Name: f.Name,
+		GenerationPrecondition: &f.Generation,
+		Contents:               tfile,
+		Metadata: map[string]string{
+			"gcsfuse_mtime": time.Now().Format(time.RFC3339Nano),
+		},
+	}
+	_, err = fs.bucket.CreateObject(context.Background(), req)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 func (fs *fileSystem) checkInvariants() {
 	//////////////////////////////////
@@ -610,7 +749,7 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 	return
 }
 
-func (fs *fileSystem) cleanupFunc (in inode.Inode) {
+func (fs *fileSystem) cleanupFunc(in inode.Inode) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	delete(fs.inodes, in.ID())
@@ -868,8 +1007,6 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(
 			}
 		}
 	}
-
-
 
 	// Update file system state, orphaning the inode if we're going to destroy it
 	// below.
@@ -1541,7 +1678,10 @@ func (fs *fileSystem) Unlink(
 	}
 	if in, ok := child.(*inode.FileInode); ok {
 		in.SetSyncRequired(false)
-		fs.syncSc.Cancel(in.ID())
+		fs.syncSc.Cancel(in)
+		if er := fs.updateStatus(in, false); er != nil {
+			log.Println("DEBUG failed to update status file", er)
+		}
 	}
 	fs.unlockAndMaybeDisposeOfInode(child, &err, roLocked)
 
@@ -1704,7 +1844,8 @@ func (fs *fileSystem) WriteFile(
 	if err != nil {
 		log.Println("DEBUG WriteFile failed")
 	}
-	fs.syncSc.Cancel(op.Inode)
+	in.SetSyncRequired(true)
+	fs.syncSc.Cancel(in)
 	return
 }
 
@@ -1717,13 +1858,17 @@ func (fs *fileSystem) SyncFile(
 	in := fs.fileInodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
-	in.Lock()
-	defer in.Unlock()
+	in.RLock()
 
-	if !in.IsSyncRequired() || in.IsSyncReceived(){
+	if !in.IsSyncRequired() || in.IsSyncReceived() {
 		log.Println("DEBUG sync scheduled sync ignoring", in.Name(), in.ID())
+		in.RUnlock()
 		return
 	}
+	in.RUnlock()
+
+	in.Lock()
+	defer in.Unlock()
 
 	in.SyncReceived()
 
@@ -1734,7 +1879,9 @@ func (fs *fileSystem) SyncFile(
 	}
 
 	log.Println("DEBUG sync scheduled sync", in.Name(), in.ID())
-	fs.syncSc.Schedule(op.Inode)
+	if er := fs.scheduleSync(in); er != nil {
+		log.Println("DEBUG failed to update status file", er)
+	}
 	return
 }
 
@@ -1768,7 +1915,9 @@ func (fs *fileSystem) FlushFile(
 	}
 
 	log.Println("DEBUG flush scheduled sync", in.Name(), in.ID())
-	fs.syncSc.Schedule(op.Inode)
+	if er := fs.scheduleSync(in); er != nil {
+		log.Println("DEBUG failed to update status file", er)
+	}
 	return
 }
 
