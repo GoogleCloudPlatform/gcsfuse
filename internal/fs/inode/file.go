@@ -289,6 +289,11 @@ func (f *FileInode) GetTmpFileName() string {
 	return f.content.GetFileRO().Name()
 }
 
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) HasContent() bool {
+	return f.content != nil
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
