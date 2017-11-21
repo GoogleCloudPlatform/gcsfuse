@@ -158,12 +158,12 @@ func AnonymousFile(dir string) (frw *os.File, fro *os.File, err error){
 		return
 	}
 
-	// Unlink it.
-	err = os.Remove(frw.Name())
-	if err != nil {
-		err = fmt.Errorf("Remove: %v", err)
-		return
-	}
+	//// Unlink it.
+	//err = os.Remove(frw.Name())
+	//if err != nil {
+	//	err = fmt.Errorf("Remove: %v", err)
+	//	return
+	//}
 	return
 }
 
@@ -247,12 +247,13 @@ func (tf *tempFile) CheckInvariants() {
 func (tf *tempFile) Destroy() {
 	tf.destroyed = true
 
-	// Throw away the file.
 	tf.f.Close()
-	tf.f = nil
-
-	// Throw away the file.
 	tf.fro.Close()
+	// Throw away the file.
+	if err := os.Remove(tf.f.Name()); err != nil {
+		log.Println("failed to remove fuse local temp file. %q, %v", tf.f.Name(), err)
+	}
+	tf.f = nil
 	tf.fro = nil
 }
 

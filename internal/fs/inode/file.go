@@ -84,6 +84,7 @@ type FileInode struct {
 	cleanupFunc      func(in Inode)
 	syncing          bool
 	syncReceived     bool
+	tempFileState    *gcsx.TempFileSate
 }
 
 var _ Inode = &FileInode{}
@@ -103,24 +104,28 @@ func NewFileInode(
 	bucket gcs.Bucket,
 	syncer gcsx.Syncer,
 	tempDir string,
-	mtimeClock timeutil.Clock, cleanupFunc func(Inode)) (f *FileInode) {
+	mtimeClock timeutil.Clock, cleanupFunc func(Inode), p *gcsx.TempFileSate) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
-		bucket:      bucket,
-		syncer:      syncer,
-		mtimeClock:  mtimeClock,
-		id:          id,
-		name:        o.Name,
-		attrs:       attrs,
-		tempDir:     tempDir,
-		src:         *o,
-		cleanupFunc: cleanupFunc,
+		bucket:        bucket,
+		syncer:        syncer,
+		mtimeClock:    mtimeClock,
+		id:            id,
+		name:          o.Name,
+		attrs:         attrs,
+		tempDir:       tempDir,
+		src:           *o,
+		cleanupFunc:   cleanupFunc,
+		tempFileState: p,
 	}
 	f.sc = util.NewSchedule(time.Minute*1, 0, nil, func(i interface{}) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
 		log.Println("DEBUG REMOVING LOCAL CONTENT", i)
 		if f.content != nil {
+			if er := f.tempFileState.CleanFileStatus(f.GetTmpFileName()); er != nil {
+				log.Println("DEBUG clean failed to update status file", er)
+			}
 			f.content.Destroy()
 			f.content = nil
 		}
