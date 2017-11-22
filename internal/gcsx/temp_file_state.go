@@ -91,6 +91,14 @@ func (p *TempFileSate) CleanFileStatus(tmpFile string) error {
 	})
 }
 
+func (p *TempFileSate) UpdateName(tmpFile, newName string) error {
+	return p.update(func(m map[string]tempFileStat) {
+		s := m[tmpFile]
+		s.Name = newName
+		m[tmpFile] = s
+	})
+}
+
 func (p *TempFileSate) update(update func(m map[string]tempFileStat)) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()

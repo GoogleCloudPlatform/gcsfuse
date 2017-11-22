@@ -195,7 +195,9 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 
 		} else {
 			log.Println("DEBUG SYNCING FILE done", in.Name(), i)
-			fs.tempFileState.MarkUploaded(in.GetTmpFileName())
+			if er := fs.tempFileState.MarkUploaded(in.GetTmpFileName()); er != nil {
+				log.Println("DEBUG failed to update status file after sync is done", in.GetTmpFileName(), in.Name(), er)
+			}
 		}
 	})
 
@@ -1539,6 +1541,11 @@ func (fs *fileSystem) Rename(
 	if isFile {
 		newPath := path.Join(newParent.Name(), op.NewName)
 		in.UpdateSourceName(newPath)
+		if in.HasContent() {
+			if er := fs.tempFileState.UpdateName(in.GetTmpFileName(), newPath); er != nil {
+				log.Println("DEBUG Rename failed to update status file", in.GetTmpFileName(), newPath, er)
+			}
+		}
 	}
 
 	return
