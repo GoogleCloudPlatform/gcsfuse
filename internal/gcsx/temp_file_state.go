@@ -1,15 +1,17 @@
 package gcsx
 
 import (
+	"github.com/jacobsa/gcloud/gcs"
+
 	"context"
 	"encoding/json"
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
+	"strings"
 	"sync"
 	"time"
-
-	"github.com/jacobsa/gcloud/gcs"
 )
 
 type tempFileStat struct {
@@ -91,11 +93,16 @@ func (p *TempFileSate) CleanFileStatus(tmpFile string) error {
 	})
 }
 
-func (p *TempFileSate) UpdateName(tmpFile, newName string) error {
+func (p *TempFileSate) UpdatePaths(oldPath, newPath string) error {
 	return p.update(func(m map[string]tempFileStat) {
-		s := m[tmpFile]
-		s.Name = newName
-		m[tmpFile] = s
+		for t, s := range m {
+			if strings.HasPrefix(s.Name, oldPath) {
+				p2 := strings.TrimLeft(s.Name, oldPath)
+				newName := path.Join(newPath, p2)
+				s.Name = newName
+				m[t] = s
+			}
+		}
 	})
 }
 
@@ -123,7 +130,7 @@ func (p *TempFileSate) UploadUnsynced(ctx context.Context) error {
 	p.mu.Unlock()
 	defer file.Close()
 
-	go func (){
+	go func() {
 		for t, f := range st {
 			if !f.Synced {
 				log.Println("local cache file sync.", t, f.Name)

@@ -335,6 +335,7 @@ func (f *FileInode) Source() *gcs.Object {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) UpdateSourceName(name string) {
 	f.src.Name = name
+	f.name = name
 }
 
 // If true, it is safe to serve reads directly from the object given by
