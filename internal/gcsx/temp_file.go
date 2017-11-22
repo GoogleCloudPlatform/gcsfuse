@@ -251,7 +251,7 @@ func (tf *tempFile) Destroy() {
 	tf.fro.Close()
 	// Throw away the file.
 	if err := os.Remove(tf.f.Name()); err != nil {
-		log.Println("failed to remove fuse local temp file. %q, %v", tf.f.Name(), err)
+		log.Println("failed to remove fuse local temp file.", tf.f.Name(), err)
 	}
 	tf.f = nil
 	tf.fro = nil
