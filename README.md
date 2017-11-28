@@ -164,7 +164,7 @@ handle staged content when writing large files.
 If you notice otherwise unreasonable performance, please [file an
 issue][issues].
 
-[issues]: https://github.com/googlecloudplatform/gcsfuse/issues
+[issues]: https://github.com/GoogleCloudPlatform/gcsfuse/issues
 
 
 <a name="support">
