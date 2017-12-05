@@ -1058,7 +1058,7 @@ func (fs *fileSystem) symlinkInodeOrDie(
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *fileSystem) Destroy() {
-	fs.stopGarbageCollecting()
+	//fs.stopGarbageCollecting()
 }
 
 func (fs *fileSystem) StatFS(
