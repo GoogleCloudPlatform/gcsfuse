@@ -97,6 +97,12 @@ func (oc *fullObjectCreator) Create(
 	}
 
 	o, err = oc.bucket.CreateObject(ctx, req)
+	if _, ok := err.(*gcs.NotFoundError); ok {
+		var gen int64 = 0
+		req.GenerationPrecondition = &gen
+		req.MetaGenerationPrecondition = &gen
+		o, err = oc.bucket.CreateObject(ctx, req)
+	}
 	if err != nil {
 		// Don't mangle precondition errors.
 		if _, ok := err.(*gcs.PreconditionError); ok {

@@ -36,6 +36,9 @@ type Inode interface {
 	// Does not require the lock to be held.
 	Name() string
 
+	// Update inode name
+	UpdateName(name string)
+
 	// Increment the lookup count for the inode. For use in fuse operations where
 	// the kernel expects us to remember the inode.
 	IncrementLookupCount()

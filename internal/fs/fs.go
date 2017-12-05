@@ -35,6 +35,7 @@ import (
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 	"path"
+	"strings"
 )
 
 type ServerConfig struct {
@@ -1536,14 +1537,56 @@ func (fs *fileSystem) Rename(
 		err = fmt.Errorf("MoveChild: %v", err)
 		return
 	}
-	if isFile {
-		newPath := path.Join(newParent.Name(), op.NewName)
-		delete(fs.generationBackedInodes, in.Name())
-		in.UpdateSourceName(newPath)
-		fs.generationBackedInodes[in.Name()] = in
-	}
 	oPath := path.Join(oldParent.Name(), op.OldName)
 	nPath := path.Join(newParent.Name(), op.NewName)
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	if isFile {
+		delete(fs.generationBackedInodes, in.Name())
+		delete(fs.inodes, in.ID())
+		in.UpdateName(nPath)
+		fs.generationBackedInodes[in.Name()] = in
+		fs.inodes[in.ID()] = in
+	} else {
+		oPath = oPath + "/"
+		nPath = nPath + "/"
+		for _, i := range fs.inodes {
+			if strings.HasPrefix(i.Name(), oPath) {
+				p2 := strings.TrimPrefix(i.Name(), oPath)
+				newName := path.Join(nPath, p2)
+				if strings.HasSuffix(i.Name(), "/") {
+					newName = newName + "/"
+				}
+				log.Println("DEBUG updating inodes name", i.ID(), i.Name(), newName)
+				if i.ID() != child.ID() {
+					i.Lock()
+				}
+				genInode, isGenInode := fs.generationBackedInodes[i.Name()]
+				dirInode, isDirInode := fs.implicitDirInodes[i.Name()]
+
+				if isGenInode {
+					delete(fs.generationBackedInodes, i.Name())
+				}
+				if isDirInode {
+					delete(fs.implicitDirInodes, i.Name())
+				}
+				delete(fs.inodes, i.ID())
+				i.UpdateName(newName)
+				fs.inodes[i.ID()] = i
+				if isGenInode {
+					fs.generationBackedInodes[i.Name()] = genInode
+				}
+				if isDirInode {
+					fs.implicitDirInodes[i.Name()] = dirInode
+				}
+
+				if i.ID() != child.ID() {
+					i.Unlock()
+				}
+			}
+		}
+	}
+
 	if er := fs.tempFileState.UpdatePaths(oPath, nPath); er != nil {
 		log.Println("DEBUG Rename failed to update status file", oPath, nPath, er)
 	}

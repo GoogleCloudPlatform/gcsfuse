@@ -107,6 +107,10 @@ func (s *SymlinkInode) Name() string {
 	return s.name
 }
 
+func (s *SymlinkInode) UpdateName(name string) {
+	s.name = name
+}
+
 // Return the object generation from which this inode was branched.
 //
 // LOCKS_REQUIRED(s)

@@ -576,6 +576,10 @@ func (d *dirInode) Name() string {
 	return d.name
 }
 
+func (d *dirInode) UpdateName(name string) {
+	d.name = name
+}
+
 // LOCKS_REQUIRED(d)
 func (d *dirInode) IncrementLookupCount() {
 	d.lc.Inc()

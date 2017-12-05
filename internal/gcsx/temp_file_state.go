@@ -97,8 +97,11 @@ func (p *TempFileSate) UpdatePaths(oldPath, newPath string) error {
 	return p.update(func(m map[string]tempFileStat) {
 		for t, s := range m {
 			if strings.HasPrefix(s.Name, oldPath) {
-				p2 := strings.TrimLeft(s.Name, oldPath)
+				p2 := strings.TrimPrefix(s.Name, oldPath)
 				newName := path.Join(newPath, p2)
+				if strings.HasSuffix(t, "/") {
+					newName = newName + "/"
+				}
 				s.Name = newName
 				m[t] = s
 			}
@@ -179,8 +182,13 @@ func (p *TempFileSate) uploadTmpFile(ctx context.Context, tmpFile string, f temp
 		},
 	}
 	_, err = p.bucket.CreateObject(ctx, req)
-	if err != nil {
-		return err
+	if err == nil {
+		return nil
 	}
-	return nil
+	if _, ok := err.(*gcs.NotFoundError); ok {
+		var gen int64 = 0
+		req.GenerationPrecondition = &gen
+		_, err = p.bucket.CreateObject(ctx, req)
+	}
+	return err
 }

@@ -333,7 +333,7 @@ func (f *FileInode) Source() *gcs.Object {
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) UpdateSourceName(name string) {
+func (f *FileInode) UpdateName(name string) {
 	f.src.Name = name
 	f.name = name
 }
