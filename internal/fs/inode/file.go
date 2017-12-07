@@ -46,10 +46,11 @@ type FileInode struct {
 	// Constant data
 	/////////////////////////
 
-	id      fuseops.InodeID
-	name    string
-	attrs   fuseops.InodeAttributes
-	tempDir string
+	id                fuseops.InodeID
+	name              string
+	attrs             fuseops.InodeAttributes
+	tempDir           string
+	cacheRemovalDelay time.Duration
 
 	/////////////////////////
 	// Mutable state
@@ -104,7 +105,7 @@ func NewFileInode(
 	bucket gcs.Bucket,
 	syncer gcsx.Syncer,
 	tempDir string,
-	mtimeClock timeutil.Clock, cleanupFunc func(Inode), p *gcsx.TempFileSate) (f *FileInode) {
+	mtimeClock timeutil.Clock, cleanupFunc func(Inode), p *gcsx.TempFileSate, cacheRemovalDelay time.Duration,) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
 		bucket:        bucket,
@@ -114,11 +115,12 @@ func NewFileInode(
 		name:          o.Name,
 		attrs:         attrs,
 		tempDir:       tempDir,
+		cacheRemovalDelay: cacheRemovalDelay,
 		src:           *o,
 		cleanupFunc:   cleanupFunc,
 		tempFileState: p,
 	}
-	f.sc = util.NewSchedule(time.Minute*1, 0, nil, func(i interface{}) {
+	f.sc = util.NewSchedule(f.cacheRemovalDelay, 0, nil, func(i interface{}) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
 		log.Println("fuse: removing cache for inode", i)
@@ -443,7 +445,7 @@ func (f *FileInode) Read(
 	ctx context.Context,
 	dst []byte,
 	offset int64) (n int, err error) {
-	defer func(){
+	defer func() {
 		if !f.syncing {
 			f.scheduleCleanUp()
 		}
@@ -579,7 +581,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	f.syncReceived = true
 	f.syncing = true
 	f.cancelCleanupSchedule()
-	defer func(){
+	defer func() {
 		f.syncing = false
 		f.scheduleCleanUp()
 	}()

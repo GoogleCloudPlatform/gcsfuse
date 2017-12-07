@@ -67,6 +67,8 @@ be interacting with the file system.
 		CacheClock:             timeutil.RealClock(),
 		Bucket:                 bucket,
 		TempDir:                flags.TempDir,
+		CacheSyncDelay:         flags.CacheSyncDelay,
+		CacheRemovalDelay:      flags.CacheRemovalDelay,
 		ImplicitDirectories:    flags.ImplicitDirs,
 		InodeAttributeCacheTTL: flags.StatCacheTTL,
 		DirTypeCacheTTL:        flags.TypeCacheTTL,
@@ -92,7 +94,6 @@ type FlagStorage struct {
 
 	// File system
 	MountOptions map[string]string
-	MountOpts    string
 	DirMode      os.FileMode
 	FileMode     os.FileMode
 	Uid          int64
@@ -106,9 +107,11 @@ type FlagStorage struct {
 	OpRateLimitHz                      float64
 
 	// Tuning
-	StatCacheTTL time.Duration
-	TypeCacheTTL time.Duration
-	TempDir      string
+	StatCacheTTL      time.Duration
+	TypeCacheTTL      time.Duration
+	TempDir           string
+	CacheSyncDelay    time.Duration
+	CacheRemovalDelay time.Duration
 
 	// Debugging
 	DebugFuse       bool

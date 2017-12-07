@@ -50,6 +50,12 @@ type ServerConfig struct {
 	// use the system default.
 	TempDir string
 
+	// Time after which local cache file will start upload to cloud.
+	CacheSyncDelay time.Duration
+
+	// Time after which local cache will be removed after it's been uploaded to cloud
+	CacheRemovalDelay time.Duration
+
 	// By default, if a bucket contains the object "foo/bar" but no object named
 	// "foo/", it's as if the directory doesn't exist. This allows us to have
 	// non-flaky name resolution code.
@@ -145,6 +151,8 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		bucket:                 bucket,
 		syncer:                 syncer,
 		tempDir:                cfg.TempDir,
+		CacheSyncDelay:         cfg.CacheSyncDelay,
+		CacheRemovalDelay:      cfg.CacheRemovalDelay,
 		implicitDirs:           cfg.ImplicitDirectories,
 		inodeAttributeCacheTTL: cfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:        cfg.DirTypeCacheTTL,
@@ -164,7 +172,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		log.Println(er)
 	}
 
-	fs.syncSc = util.NewSchedule(time.Second*30, 0, nil, func(i interface{}) {
+	fs.syncSc = util.NewSchedule(cfg.CacheSyncDelay, 0, nil, func(i interface{}) {
 		log.Println("fuse: start file sync", i)
 		var (
 			inodeId fuseops.InodeID
@@ -281,6 +289,8 @@ type fileSystem struct {
 	/////////////////////////
 
 	tempDir                string
+	CacheSyncDelay         time.Duration
+	CacheRemovalDelay      time.Duration
 	implicitDirs           bool
 	inodeAttributeCacheTTL time.Duration
 	dirTypeCacheTTL        time.Duration
@@ -622,7 +632,7 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 			fs.bucket,
 			fs.syncer,
 			fs.tempDir,
-			fs.mtimeClock, fs.cleanupFunc, fs.tempFileState)
+			fs.mtimeClock, fs.cleanupFunc, fs.tempFileState, fs.CacheRemovalDelay)
 	}
 
 	// Place it in our map of IDs to inodes.
