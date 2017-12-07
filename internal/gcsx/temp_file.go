@@ -123,8 +123,6 @@ func NewTempFile(
 			tempFile.mu.Unlock()
 		}()
 		// Copy into the file.
-		log.Println("DEBUG copying")
-		defer log.Println("DEBUG copying done.")
 		size, err := io.Copy(f, io.TeeReader(content, pw))
 		if err != nil {
 			tempFile.err = fmt.Errorf("copy: %v", err)
@@ -276,7 +274,7 @@ func (tf *tempFile) ReadAt(p []byte, offset int64) (int, error) {
 		if offset+int64(len(p)) <= tf.pw.written {
 			break
 		}
-		log.Println("DEBUG sleep", offset+int64(len(p)), tf.pw.written)
+		log.Println("fuse: waiting download", offset+int64(len(p)), tf.pw.written)
 		time.Sleep(time.Second)
 	}
 	return tf.f.ReadAt(p, offset)

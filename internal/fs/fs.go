@@ -165,7 +165,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	}
 
 	fs.syncSc = util.NewSchedule(time.Second*30, 0, nil, func(i interface{}) {
-		log.Println("DEBUG SYNCING FILE", i)
+		log.Println("fuse: start file sync", i)
 		var (
 			inodeId fuseops.InodeID
 			ok      bool
@@ -189,13 +189,13 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		// Sync it.
 		err := fs.syncFile(context.Background(), in)
 		if err != nil {
-			log.Println("failed to sync file. Rescheduling", in.Name(), i, err)
+			log.Println("fuse: failed to sync file. rescheduling", in.Name(), i, err)
 			if er := fs.scheduleSync(in); er != nil {
-				log.Println("DEBUG failed to reschedule, failed to update status file", er)
+				log.Println("fuse: failed to reschedule, failed to update status file", er)
 			}
 
 		} else {
-			log.Println("DEBUG SYNCING FILE done", in.Name(), i)
+			log.Println("fuse: file sync done", in.Name(), i)
 			fs.tempFileState.MarkUploaded(in.GetTmpFileName())
 		}
 	})
@@ -627,7 +627,6 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 
 	// Place it in our map of IDs to inodes.
 	fs.inodes[in.ID()] = in
-	log.Println("DEBUG MAP INODE ", in.Name(), in.ID())
 
 	return
 }
@@ -886,7 +885,7 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(
 		if file, isFile := in.(*inode.FileInode); isFile {
 			shouldDestroy = file.CanDestroy()
 			if !shouldDestroy {
-				log.Println("DEBUG ShoudDestroy falsed", in.Name(), in.ID())
+				log.Println("fuse: ShoudDestroy falsed", in.Name(), in.ID())
 			}
 		}
 	}
@@ -1190,7 +1189,6 @@ func (fs *fileSystem) ForgetInode(
 	// Acquire both locks in the correct order.
 	in.Lock()
 	fs.mu.Lock()
-	log.Println("DEBUG ForgetInode", in.Name(), in.ID())
 
 	// Decrement and unlock.
 	fs.unlockAndDecrementLookupCount(in, op.N, false)
@@ -1519,7 +1517,6 @@ func (fs *fileSystem) Rename(
 	// Find or create the child inode.
 	child, roLocked, er := fs.lookUpOrCreateChildInode(ctx, oldParent, op.OldName, false)
 	if er != nil {
-		log.Println("DEBUG lookUpOrCreateChildInode", oldParent, lr.FullName)
 		return er
 	}
 	in, isFile := child.(*inode.FileInode)
@@ -1557,7 +1554,7 @@ func (fs *fileSystem) Rename(
 				if strings.HasSuffix(i.Name(), "/") {
 					newName = newName + "/"
 				}
-				log.Println("DEBUG updating inodes name", i.ID(), i.Name(), newName)
+				log.Println("fuse: updating inode name", i.ID(), i.Name(), newName)
 				if i.ID() != child.ID() {
 					i.Lock()
 				}
@@ -1588,7 +1585,7 @@ func (fs *fileSystem) Rename(
 	}
 
 	if er := fs.tempFileState.UpdatePaths(oPath, nPath); er != nil {
-		log.Println("DEBUG Rename failed to update status file", oPath, nPath, er)
+		log.Println("fuse: rename failed to update status file", oPath, nPath, er)
 	}
 
 	return
@@ -1612,8 +1609,8 @@ func (fs *fileSystem) Unlink(
 		in.SetSyncRequired(false)
 		fs.syncSc.Cancel(in)
 		if in.HasContent() {
-			if er := fs.tempFileState.CleanFileStatus(in.GetTmpFileName()); er != nil {
-				log.Println("DEBUG unlink failed to update status file", er)
+			if er := fs.tempFileState.DeleteFileStatus(in.GetTmpFileName()); er != nil {
+				log.Println("fuse: unlink failed to update status file", er)
 			}
 		}
 	}
@@ -1730,7 +1727,6 @@ func (fs *fileSystem) ReadFile(
 
 	fh.Lock()
 	defer fh.Unlock()
-	//log.Println("DEBUG READFILE", fh.Inode().Name(), fh.Inode().ID(), len(op.Dst), op.Offset)
 
 	// Serve the read.
 	op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset)
@@ -1776,7 +1772,7 @@ func (fs *fileSystem) WriteFile(
 	// Serve the request.
 	err = in.Write(ctx, op.Data, op.Offset)
 	if err != nil {
-		log.Println("DEBUG WriteFile failed")
+		return
 	}
 	in.SetSyncRequired(true)
 	fs.syncSc.Cancel(in)
@@ -1795,7 +1791,7 @@ func (fs *fileSystem) SyncFile(
 	in.RLock()
 
 	if !in.IsSyncRequired() || in.IsSyncReceived() {
-		log.Println("DEBUG sync scheduled sync ignoring", in.Name(), in.ID())
+		log.Println("fuse: ignoring sync", in.Name(), in.ID())
 		in.RUnlock()
 		return
 	}
@@ -1812,9 +1808,9 @@ func (fs *fileSystem) SyncFile(
 		return
 	}
 
-	log.Println("DEBUG sync scheduled sync", in.Name(), in.ID())
+	log.Println("fuse: sync scheduled", in.Name(), in.ID())
 	if er := fs.scheduleSync(in); er != nil {
-		log.Println("DEBUG failed to update status file", er)
+		log.Println("fuse: failed to update status file", in.Name(), er)
 	}
 	return
 }
@@ -1831,7 +1827,7 @@ func (fs *fileSystem) FlushFile(
 	in.RLock()
 
 	if !in.IsSyncRequired() || in.IsSyncReceived() {
-		log.Println("DEBUG flush scheduled sync ignoring", in.Name(), in.ID())
+		log.Println("fuse: ignoring flush", in.Name(), in.ID())
 		in.RUnlock()
 		return
 	}
@@ -1848,9 +1844,9 @@ func (fs *fileSystem) FlushFile(
 		return
 	}
 
-	log.Println("DEBUG flush scheduled sync", in.Name(), in.ID())
+	log.Println("fuse: flush scheduled", in.Name(), in.ID())
 	if er := fs.scheduleSync(in); er != nil {
-		log.Println("DEBUG failed to update status file", er)
+		log.Println("fuse: failed to update status file", in.Name(), er)
 	}
 	return
 }

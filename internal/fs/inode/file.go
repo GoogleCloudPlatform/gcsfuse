@@ -121,10 +121,11 @@ func NewFileInode(
 	f.sc = util.NewSchedule(time.Minute*1, 0, nil, func(i interface{}) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
-		log.Println("DEBUG REMOVING LOCAL CONTENT", i)
+		log.Println("fuse: removing cache for inode", i)
 		if f.content != nil {
-			if er := f.tempFileState.CleanFileStatus(f.GetTmpFileName()); er != nil {
-				log.Println("DEBUG clean failed to update status file", er)
+			name := f.GetTmpFileName()
+			if er := f.tempFileState.DeleteFileStatus(name); er != nil {
+				log.Println("fuse: failed to delete cache status", name, er)
 			}
 			f.content.Destroy()
 			f.content = nil
@@ -132,7 +133,7 @@ func NewFileInode(
 		f.cleanupScheduled = false
 
 		if f.lc.count == 0 && f.syncRequired == false {
-			log.Println("DEBUG CLEANUP INODE")
+			log.Println("fuse: cleanup inode", i)
 			f.Destroy()
 			f.cleanupFunc(f)
 		}
@@ -142,7 +143,6 @@ func NewFileInode(
 
 	// Set up invariant checking.
 	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
-	log.Println("DEBUG NewFileInode", f.name, f.id)
 	return
 }
 
@@ -208,8 +208,8 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 	if f.content != nil {
 		return
 	}
-	log.Println("DEBUG ensureContent", f.name)
-	defer log.Println("DEBUG ensureContent done", f.name)
+	log.Println("fuse: ensureContent", f.name)
+	defer log.Println("fuse: ensureContent done", f.name)
 
 	// Open a reader for the generation we care about.
 	rc, err := f.bucket.NewReader(
@@ -370,7 +370,7 @@ func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Destroy() (err error) {
-	log.Println("DEBUG FileInode Destroy", f.name, f.id)
+	log.Println("fuse: destroying file inode", f.name, f.id)
 	f.destroyed = true
 
 	if f.content != nil {
@@ -568,12 +568,12 @@ func (f *FileInode) SetMtime(
 func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// If we have not been dirtied, there is nothing to do.
 	if f.content == nil {
-		log.Println("DEBUG Sync canceled. nil content", f.name)
+		log.Println("fuse: sync canceled. nil content", f.name)
 		return
 	}
 
 	if !f.syncRequired {
-		log.Println("DEBUG Sync canceled. clean file", f.name)
+		log.Println("fuse: sync canceled. sync is not required", f.name)
 		return
 	}
 	f.syncReceived = true

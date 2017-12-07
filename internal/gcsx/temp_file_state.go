@@ -87,7 +87,7 @@ func (p *TempFileSate) MarkUploaded(tmpFile string) error {
 	})
 }
 
-func (p *TempFileSate) CleanFileStatus(tmpFile string) error {
+func (p *TempFileSate) DeleteFileStatus(tmpFile string) error {
 	return p.update(func(m map[string]tempFileStat) {
 		delete(m, tmpFile)
 	})
