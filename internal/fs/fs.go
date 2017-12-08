@@ -139,6 +139,18 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		return
 	}
 
+	cacheDir := path.Join(cfg.TempDir, bucket.Name())
+	if err := os.MkdirAll(cacheDir, 0666); err != nil {
+		return nil, err
+	}
+
+	cacheStateFile := path.Join(cacheDir, "status.json")
+	csf, err := os.OpenFile(cacheStateFile, os.O_CREATE|os.O_RDWR, 0666)
+	defer csf.Close()
+	if err != nil {
+		return nil, err
+	}
+
 	syncer := gcsx.NewSyncer(
 		cfg.AppendThreshold,
 		cfg.TmpObjectPrefix,
@@ -150,7 +162,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		cacheClock:             cfg.CacheClock,
 		bucket:                 bucket,
 		syncer:                 syncer,
-		tempDir:                cfg.TempDir,
+		tempDir:                cacheDir,
 		CacheSyncDelay:         cfg.CacheSyncDelay,
 		CacheRemovalDelay:      cfg.CacheRemovalDelay,
 		implicitDirs:           cfg.ImplicitDirectories,
@@ -165,7 +177,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		generationBackedInodes: make(map[string]inode.GenerationBackedInode),
 		implicitDirInodes:      make(map[string]inode.DirInode),
 		handles:                make(map[fuseops.HandleID]interface{}),
-		tempFileState:          gcsx.NewTempFileSate(path.Join(cfg.TempDir, "status.json"), bucket),
+		tempFileState:          gcsx.NewTempFileSate(cacheStateFile, bucket),
 	}
 
 	if er := fs.tempFileState.UploadUnsynced(context.Background()); er != nil {
