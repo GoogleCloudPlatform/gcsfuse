@@ -72,7 +72,7 @@
   branch = "master"
   name = "github.com/jacobsa/syncutil"
   packages = ["."]
-  revision = "c39ef5c1aa0b8fae9504e0146ba34c3922d69dc0"
+  revision = "08c1767d13114596059e49555801373277616944"
   source = "https://github.com/istreamdata/syncutil.git"
 
 [[projects]]
