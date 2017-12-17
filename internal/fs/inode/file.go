@@ -215,7 +215,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 
 	// Open a reader for the generation we care about.
 	rc, err := f.bucket.NewReader(
-		ctx,
+		context.Background(),
 		&gcs.ReadObjectRequest{
 			Name:       f.src.Name,
 			Generation: f.src.Generation,

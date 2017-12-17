@@ -256,7 +256,7 @@ func (tf *tempFile) Destroy() {
 }
 
 func (tf *tempFile) Read(p []byte) (int, error) {
-	return tf.f.Read(p)
+	return tf.fro.Read(p)
 }
 
 func (tf *tempFile) Seek(offset int64, whence int) (int64, error) {
@@ -271,13 +271,15 @@ func (tf *tempFile) ReadAt(p []byte, offset int64) (int, error) {
 			break
 		}
 		tf.dpmu.Unlock()
-		if offset+int64(len(p)) <= tf.pw.written {
+		bl := offset+int64(len(p))
+		wr := tf.pw.written
+		if bl <= wr {
 			break
 		}
-		log.Println("fuse: waiting download", offset+int64(len(p)), tf.pw.written)
+		log.Println("fuse: waiting download", bl, wr)
 		time.Sleep(time.Second)
 	}
-	return tf.f.ReadAt(p, offset)
+	return tf.fro.ReadAt(p, offset)
 }
 
 func (tf *tempFile) Stat() (sr StatResult, err error) {
