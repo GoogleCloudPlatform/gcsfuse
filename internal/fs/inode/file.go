@@ -123,22 +123,7 @@ func NewFileInode(
 	f.sc = util.NewSchedule(f.cacheRemovalDelay, 0, nil, func(i interface{}) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
-		log.Println("fuse: removing cache for inode", i)
-		if f.content != nil {
-			name := f.GetTmpFileName()
-			if er := f.tempFileState.DeleteFileStatus(name); er != nil {
-				log.Println("fuse: failed to delete cache status", name, er)
-			}
-			f.content.Destroy()
-			f.content = nil
-		}
-		f.cleanupScheduled = false
-
-		if f.lc.count == 0 && f.syncRequired == false {
-			log.Println("fuse: cleanup inode", i)
-			f.Destroy()
-			f.cleanupFunc(f)
-		}
+		f.cleanup(i)
 	})
 
 	f.lc.Init(id)
@@ -151,6 +136,26 @@ func NewFileInode(
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) cleanup(i interface{}) {
+	log.Println("fuse: removing cache for inode", i)
+	if f.content != nil {
+		name := f.GetTmpFileName()
+		if er := f.tempFileState.DeleteFileStatus(name); er != nil {
+			log.Println("fuse: failed to delete cache status", name, er)
+		}
+		f.content.Destroy()
+		f.content = nil
+	}
+	f.cleanupScheduled = false
+
+	if f.lc.count == 0 && f.syncRequired == false {
+		log.Println("fuse: cleanup inode", i)
+		f.Destroy()
+		f.cleanupFunc(f)
+	}
+}
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) checkInvariants() {
@@ -204,7 +209,7 @@ func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
 // Ensure that f.content != nil
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) ensureContent(ctx context.Context) (err error) {
+func (f *FileInode) ensureContent(ctx context.Context, async bool) (err error) {
 	f.cancelCleanupSchedule()
 	// Is there anything to do?
 	if f.content != nil {
@@ -229,7 +234,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 	//defer rc.Close()
 
 	// Create a temporary file with its contents.
-	tf, err := gcsx.NewTempFile(rc, f.tempDir, f.mtimeClock, true, rc.Close)
+	tf, err := gcsx.NewTempFile(rc, f.tempDir, f.mtimeClock, async, rc.Close)
 	if err != nil {
 		err = fmt.Errorf("NewTempFile: %v", err)
 		return
@@ -451,7 +456,7 @@ func (f *FileInode) Read(
 		}
 	}()
 	// Make sure f.content != nil.
-	err = f.ensureContent(ctx)
+	err = f.ensureContent(ctx, true)
 	if err != nil {
 		err = fmt.Errorf("ensureContent: %v", err)
 		return
@@ -465,6 +470,8 @@ func (f *FileInode) Read(
 
 	case err != nil:
 		err = fmt.Errorf("content.ReadAt: %v", err)
+		f.cancelCleanupSchedule()
+		f.cleanup(f.name)
 		return
 	}
 
@@ -481,9 +488,11 @@ func (f *FileInode) Write(
 	f.syncRequired = true
 	f.syncReceived = false
 	// Make sure f.content != nil.
-	err = f.ensureContent(ctx)
+	err = f.ensureContent(ctx, false)
 	if err != nil {
 		err = fmt.Errorf("ensureContent: %v", err)
+		f.cancelCleanupSchedule()
+		f.cleanup(f.name)
 		return
 	}
 
@@ -619,9 +628,11 @@ func (f *FileInode) Truncate(
 	ctx context.Context,
 	size int64) (err error) {
 	// Make sure f.content != nil.
-	err = f.ensureContent(ctx)
+	err = f.ensureContent(ctx, false)
 	if err != nil {
 		err = fmt.Errorf("ensureContent: %v", err)
+		f.cancelCleanupSchedule()
+		f.cleanup(f.name)
 		return
 	}
 

@@ -134,6 +134,7 @@ func NewTempFile(
 		go fc()
 	} else {
 		fc()
+		err = tempFile.err
 	}
 	return
 }
@@ -268,6 +269,9 @@ func (tf *tempFile) ReadAt(p []byte, offset int64) (int, error) {
 		tf.dpmu.Lock()
 		if !tf.downloadInProgress {
 			tf.dpmu.Unlock()
+			if tf.err != nil && tf.err != io.EOF {
+				return 0, tf.err
+			}
 			break
 		}
 		tf.dpmu.Unlock()
