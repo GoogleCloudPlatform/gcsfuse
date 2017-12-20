@@ -1629,7 +1629,7 @@ func (fs *fileSystem) Unlink(
 	}
 	if in, ok := child.(*inode.FileInode); ok {
 		in.SetSyncRequired(false)
-		fs.syncSc.Cancel(in)
+		fs.syncSc.Cancel(in.ID())
 		if in.HasContent() {
 			if er := fs.tempFileState.DeleteFileStatus(in.GetTmpFileName()); er != nil {
 				log.Println("fuse: unlink failed to update status file", er)
