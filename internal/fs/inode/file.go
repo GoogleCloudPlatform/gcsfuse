@@ -123,7 +123,7 @@ func NewFileInode(
 	f.sc = util.NewSchedule(f.cacheRemovalDelay, 0, nil, func(i interface{}) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
-		f.cleanup(i)
+		f.Cleanup()
 	})
 
 	f.lc.Init(id)
@@ -138,8 +138,8 @@ func NewFileInode(
 ////////////////////////////////////////////////////////////////////////
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) cleanup(i interface{}) {
-	log.Println("fuse: removing cache for inode", i)
+func (f *FileInode) Cleanup() {
+	log.Println("fuse: removing cache for inode", f.id, f.name)
 	if f.content != nil {
 		name := f.GetTmpFileName()
 		if er := f.tempFileState.DeleteFileStatus(name); er != nil {
@@ -151,7 +151,7 @@ func (f *FileInode) cleanup(i interface{}) {
 	f.cleanupScheduled = false
 
 	if f.lc.count == 0 && f.syncRequired == false {
-		log.Println("fuse: cleanup inode", i)
+		log.Println("fuse: cleanup inode", f.id, f.name)
 		f.Destroy()
 		f.cleanupFunc(f)
 	}
@@ -471,7 +471,7 @@ func (f *FileInode) Read(
 	case err != nil:
 		err = fmt.Errorf("content.ReadAt: %v", err)
 		f.cancelCleanupSchedule()
-		f.cleanup(f.name)
+		f.Cleanup()
 		return
 	}
 
@@ -492,7 +492,7 @@ func (f *FileInode) Write(
 	if err != nil {
 		err = fmt.Errorf("ensureContent: %v", err)
 		f.cancelCleanupSchedule()
-		f.cleanup(f.name)
+		f.Cleanup()
 		return
 	}
 
@@ -632,7 +632,7 @@ func (f *FileInode) Truncate(
 	if err != nil {
 		err = fmt.Errorf("ensureContent: %v", err)
 		f.cancelCleanupSchedule()
-		f.cleanup(f.name)
+		f.Cleanup()
 		return
 	}
 

@@ -1628,13 +1628,14 @@ func (fs *fileSystem) Unlink(
 		return er
 	}
 	if in, ok := child.(*inode.FileInode); ok {
-		in.SetSyncRequired(false)
 		fs.syncSc.Cancel(in.ID())
 		if in.HasContent() {
 			if er := fs.tempFileState.DeleteFileStatus(in.GetTmpFileName()); er != nil {
 				log.Println("fuse: unlink failed to update status file", er)
 			}
 		}
+		in.SetSyncRequired(false)
+		in.Cleanup()
 	}
 	fs.unlockAndMaybeDisposeOfInode(child, &err, roLocked)
 
