@@ -1624,8 +1624,12 @@ func (fs *fileSystem) Unlink(
 
 	// Find or create the child inode.
 	child, roLocked, er := fs.lookUpOrCreateChildInode(ctx, parent, op.Name, false)
+	defer fs.unlockAndMaybeDisposeOfInode(child, &er, roLocked)
 	if er != nil {
 		return er
+	} else {
+		// fs.unlockAndMaybeDisposeOfInode only does unlock if er was nil, so we need to decrement lookup clount
+		defer child.DecrementLookupCount(1)
 	}
 	if in, ok := child.(*inode.FileInode); ok {
 		fs.syncSc.Cancel(in.ID())
@@ -1637,7 +1641,6 @@ func (fs *fileSystem) Unlink(
 		in.SetSyncRequired(false)
 		in.Cleanup()
 	}
-	fs.unlockAndMaybeDisposeOfInode(child, &err, roLocked)
 
 	parent.Lock()
 	defer parent.Unlock()
