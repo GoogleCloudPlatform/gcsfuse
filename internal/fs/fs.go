@@ -140,12 +140,12 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	}
 
 	cacheDir := path.Join(cfg.TempDir, bucket.Name())
-	if err := os.MkdirAll(cacheDir, 0666); err != nil {
+	if err := os.MkdirAll(cacheDir, 0700); err != nil {
 		return nil, err
 	}
 
 	cacheStateFile := path.Join(cacheDir, "status.json")
-	csf, err := os.OpenFile(cacheStateFile, os.O_CREATE|os.O_RDWR, 0666)
+	csf, err := os.OpenFile(cacheStateFile, os.O_CREATE|os.O_RDWR, 0700)
 	defer csf.Close()
 	if err != nil {
 		return nil, err
