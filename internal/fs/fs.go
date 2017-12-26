@@ -1553,9 +1553,12 @@ func (fs *fileSystem) Rename(
 	newParent.Unlock()
 
 	if err != nil {
-		err = fmt.Errorf("MoveChild: %v", err)
+		if err == os.ErrExist {
+			err = fuse.EEXIST
+		}
 		return
 	}
+
 	oPath := path.Join(oldParent.Name(), op.OldName)
 	nPath := path.Join(newParent.Name(), op.NewName)
 	fs.mu.Lock()
