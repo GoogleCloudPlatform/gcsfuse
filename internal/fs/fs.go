@@ -144,10 +144,8 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		return nil, err
 	}
 
-	cacheStateFile := path.Join(cacheDir, "status.json")
-	csf, err := os.OpenFile(cacheStateFile, os.O_CREATE|os.O_RDWR, 0700)
-	defer csf.Close()
-	if err != nil {
+	tfs := gcsx.NewTempFileSate(cacheDir, bucket)
+	if err := tfs.CreateIfEmpty(); err != nil {
 		return nil, err
 	}
 
@@ -177,7 +175,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		generationBackedInodes: make(map[string]inode.GenerationBackedInode),
 		implicitDirInodes:      make(map[string]inode.DirInode),
 		handles:                make(map[fuseops.HandleID]interface{}),
-		tempFileState:          gcsx.NewTempFileSate(cacheStateFile, bucket),
+		tempFileState:          tfs,
 	}
 
 	if er := fs.tempFileState.UploadUnsynced(context.Background()); er != nil {

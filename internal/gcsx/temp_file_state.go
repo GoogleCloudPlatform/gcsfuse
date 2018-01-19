@@ -27,15 +27,15 @@ type TempFileSate struct {
 	bucket gcs.Bucket
 }
 
-func NewTempFileSate(syncStatusFile string, b gcs.Bucket) *TempFileSate {
+func NewTempFileSate(cacheDir string, b gcs.Bucket) *TempFileSate {
 	return &TempFileSate{
-		stateFile: syncStatusFile,
+		stateFile: path.Join(cacheDir, "status.json"),
 		bucket:    b,
 	}
 }
 
 func (p *TempFileSate) getStatusFile() (*os.File, map[string]tempFileStat, error) {
-	file, err := os.OpenFile(p.stateFile, os.O_CREATE|os.O_RDWR, 0666)
+	file, err := os.OpenFile(p.stateFile, os.O_CREATE|os.O_RDWR, 0700)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -164,6 +164,25 @@ func (p *TempFileSate) UploadUnsynced(ctx context.Context) error {
 			p.mu.Unlock()
 		}
 	}()
+	return nil
+}
+
+func (p *TempFileSate) CreateIfEmpty() error {
+	csf, err := os.OpenFile(p.stateFile, os.O_CREATE|os.O_RDWR, 0700)
+	if err != nil {
+		return err
+	}
+	defer csf.Close()
+	size, err := csf.Seek(0, 2)
+	if err != nil {
+		return err
+	}
+	if size == 0 {
+		_, err := csf.WriteString("{}\n")
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
