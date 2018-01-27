@@ -97,7 +97,7 @@ func setUpBucket(
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		b, err = conn.OpenBucket(ctx, name)
+		b, err = conn.OpenBucket(ctx, &gcs.OpenBucketOptions{Name: name})
 		if err != nil {
 			err = fmt.Errorf("OpenBucket: %v", err)
 			return
