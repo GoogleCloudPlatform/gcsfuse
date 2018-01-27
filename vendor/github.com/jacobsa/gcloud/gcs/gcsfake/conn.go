@@ -67,19 +67,19 @@ func (c *conn) checkInvariants() {
 // LOCKS_EXCLUDED(c.mu)
 func (c *conn) OpenBucket(
 	ctx context.Context,
-	name string) (b gcs.Bucket, err error) {
+	options *gcs.OpenBucketOptions) (b gcs.Bucket, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	// Do we already know this bucket name?
-	b = c.buckets[name]
+	b = c.buckets[options.Name]
 	if b != nil {
 		return
 	}
 
 	// Create it.
-	b = NewFakeBucket(c.clock, name)
-	c.buckets[name] = b
+	b = NewFakeBucket(c.clock, options.Name)
+	c.buckets[options.Name] = b
 
 	return
 }

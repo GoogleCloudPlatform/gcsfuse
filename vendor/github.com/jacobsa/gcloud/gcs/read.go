@@ -55,6 +55,10 @@ func (b *bucket) NewReader(
 		query.Set("generation", fmt.Sprintf("%d", req.Generation))
 	}
 
+	if b.billingProject != "" {
+		query.Set("userProject", b.billingProject)
+	}
+
 	url := &url.URL{
 		Scheme:   "https",
 		Host:     "www.googleapis.com",
