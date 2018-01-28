@@ -38,14 +38,25 @@ const (
 	Scope_ReadWrite   = storagev1.DevstorageReadWriteScope
 )
 
+// OpenBucketOptions contains options accepted by Conn.OpenBucket.
+type OpenBucketOptions struct {
+	// Name is the name of the bucket to be opened.
+	Name string
+
+	// BillingProject specifies the project to be billed when making requests.
+	// This option is only needed for requester pays buckets and can be left empty otherwise.
+	// (https://cloud.google.com/storage/docs/requester-pays)
+	BillingProject string
+}
+
 // Conn represents a connection to GCS, pre-bound with a project ID and
 // information required for authorization.
 type Conn interface {
-	// Return a Bucket object representing the GCS bucket with the given name.
+	// Return a Bucket object representing the GCS bucket using the given options.
 	// Attempt to fail early in the case of bad credentials.
 	OpenBucket(
 		ctx context.Context,
-		name string) (b Bucket, err error)
+		options *OpenBucketOptions) (b Bucket, err error)
 }
 
 // ConnConfig contains options accepted by NewConn.
@@ -139,8 +150,8 @@ type conn struct {
 
 func (c *conn) OpenBucket(
 	ctx context.Context,
-	name string) (b Bucket, err error) {
-	b = newBucket(c.client, c.userAgent, name)
+	options *OpenBucketOptions) (b Bucket, err error) {
+	b = newBucket(c.client, c.userAgent, options.Name, options.BillingProject)
 
 	// Enable retry loops if requested.
 	if c.maxBackoffSleep > 0 {

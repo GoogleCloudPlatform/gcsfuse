@@ -502,7 +502,7 @@ func (b *bucket) ListObjects(
 		// If the final object we visited was returned as an element in
 		// listing.CollapsedRuns, we want to skip all other objects that would
 		// result in the same so we don't return duplicate elements in
-		// listing.CollapsedRuns accross requests.
+		// listing.CollapsedRuns across requests.
 		if lastResultWasPrefix {
 			lastResultPrefix := listing.CollapsedRuns[len(listing.CollapsedRuns)-1]
 			listing.ContinuationToken = prefixSuccessor(lastResultPrefix)
