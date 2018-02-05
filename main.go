@@ -213,7 +213,7 @@ func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 	}
 
 	if flags.DebugGCS {
-		cfg.GCSDebugLogger = log.New(os.Stdout, "gcs: ", 0)
+		cfg.GCSDebugLogger = log.New(os.Stdout, "gcs: ", log.Flags())
 	}
 
 	return gcs.NewConn(cfg)

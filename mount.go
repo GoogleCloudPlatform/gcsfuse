@@ -129,7 +129,7 @@ be interacting with the file system.
 	}
 
 	if flags.DebugFuse {
-		mountCfg.DebugLogger = log.New(os.Stdout, "fuse_debug: ", 0)
+		mountCfg.DebugLogger = log.New(os.Stdout, "fuse_debug: ", log.Flags())
 	}
 
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
