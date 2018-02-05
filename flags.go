@@ -117,7 +117,7 @@ func newApp() (app *cli.App) {
 			cli.StringFlag{
 				Name:  "billing-project",
 				Value: "",
-				Usage: "Project to use for billing when accessing requeter pays buckets. " +
+				Usage: "Project to use for billing when accessing requester pays buckets. " +
 					"(default: none)",
 			},
 
