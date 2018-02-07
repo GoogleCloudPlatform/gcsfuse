@@ -55,10 +55,10 @@ func newApp() (app *cli.App) {
 	*fileModeValue = 0644
 
 	app = &cli.App{
-		Name:     "gcsfuse",
-		Version:  getVersion(),
-		Usage:    "Mount a GCS bucket locally",
-		Writer:   os.Stderr,
+		Name:    "gcsfuse",
+		Version: getVersion(),
+		Usage:   "Mount a GCS bucket locally",
+		Writer:  os.Stderr,
 		Flags: []cli.Flag{
 
 			cli.BoolFlag{
@@ -113,6 +113,13 @@ func newApp() (app *cli.App) {
 			/////////////////////////
 			// GCS
 			/////////////////////////
+
+			cli.StringFlag{
+				Name:  "billing-project",
+				Value: "",
+				Usage: "Project to use for billing when accessing requester pays buckets. " +
+					"(default: none)",
+			},
 
 			cli.StringFlag{
 				Name:  "key-file",
@@ -201,6 +208,7 @@ type flagStorage struct {
 	OnlyDir      string
 
 	// GCS
+	BillingProject                     string
 	KeyFile                            string
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
@@ -233,7 +241,8 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		OnlyDir:      c.String("only-dir"),
 
 		// GCS,
-		KeyFile: c.String("key-file"),
+		BillingProject: c.String("billing-project"),
+		KeyFile:        c.String("key-file"),
 		EgressBandwidthLimitBytesPerSecond: c.Float64("limit-bytes-per-sec"),
 		OpRateLimitHz:                      c.Float64("limit-ops-per-sec"),
 
