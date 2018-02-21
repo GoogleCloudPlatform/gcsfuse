@@ -181,10 +181,10 @@ the appropriate variable is set in your environment:
 
 To install or update gcsfuse, run:
 
-    go get -u github.com/googlecloudplatform/gcsfuse
+    go get -u github.com/GoogleCloudPlatform/gcsfuse
 
 This will fetch the gcsfuse sources to
-`$GOPATH/src/github.com/googlecloudplatform/gcsfuse`, build them, and install a
+`$GOPATH/src/github.com/GoogleCloudPlatform/gcsfuse`, build them, and install a
 binary named `gcsfuse` to `$GOPATH/bin`.
 
 [go]: http://tip.golang.org/doc/install/source

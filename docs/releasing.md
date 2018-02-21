@@ -22,7 +22,7 @@ Building a gcsfuse release:
     packages:
 
         mkdir -p ~/tmp/release
-        go get -v -u github.com/googlecloudplatform/gcsfuse/tools/package_gcsfuse
+        go get -v -u github.com/GoogleCloudPlatform/gcsfuse/tools/package_gcsfuse
         package_gcsfuse ~/tmp/release $VERSION
 
 7.  Sign the `.rpm` file generated in the previous step.

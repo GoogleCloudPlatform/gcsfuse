@@ -34,20 +34,20 @@ install: true
 #
 # Normally this is papered over by the fact that the default `install` step for
 # go does `go get -v ./...` from within  that directory. That winds up fetching
-# another copy into `$GOPATH/src/github.com/googlecloudplatform/gcsfuse`, so
+# another copy into `$GOPATH/src/github.com/GoogleCloudPlatform/gcsfuse`, so
 # the imports resolve correctly. (But this is bad! We get the wrong versions if
 # commits are pushed quickly.)
 #
 # However we disabled the install step above, so this doesn't happen and
 # instead we get errors like the following:
 #
-#     mount.go:25:2: cannot find package "github.com/googlecloudplatform/gcsfuse/fs" in any of:
-#             /home/travis/gopath/src/github.com/GoogleCloudPlatform/gcsfuse/vendor/github.com/googlecloudplatform/gcsfuse/fs (vendor tree)
-#             /home/travis/.gimme/versions/go/src/github.com/googlecloudplatform/gcsfuse/fs (from $GOROOT)
-#             /home/travis/gopath/src/github.com/googlecloudplatform/gcsfuse/fs (from $GOPATH)
+#     mount.go:25:2: cannot find package "github.com/GoogleCloudPlatform/gcsfuse/fs" in any of:
+#             /home/travis/gopath/src/github.com/GoogleCloudPlatform/gcsfuse/vendor/github.com/GoogleCloudPlatform/gcsfuse/fs (vendor tree)
+#             /home/travis/.gimme/versions/go/src/github.com/GoogleCloudPlatform/gcsfuse/fs (from $GOROOT)
+#             /home/travis/gopath/src/github.com/GoogleCloudPlatform/gcsfuse/fs (from $GOPATH)
 #
 # Fix this by renaming the directory before testing.
 script:
   - cd $GOPATH/src/github.com/
   - mv GoogleCloudPlatform googlecloudplatform
-  - go test -v github.com/googlecloudplatform/gcsfuse/...
+  - go test -v github.com/GoogleCloudPlatform/gcsfuse/...

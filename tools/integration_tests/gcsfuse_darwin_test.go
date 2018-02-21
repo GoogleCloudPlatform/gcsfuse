@@ -22,7 +22,7 @@ import (
 	"math"
 	"syscall"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	"github.com/GoogleCloudPlatform/gcsfuse/internal/canned"
 	. "github.com/jacobsa/ogletest"
 )
 
