@@ -38,7 +38,7 @@ will be modifying a bucket, be sure to read the rest of this section carefully
 and consider disabling caching.
 
 **Important**: The rest of this document assumes that caching is disabled (by
-setting `--stat-cache-ttl 0` and `--type-cache-ttl 0`. This is not the default.
+setting `--stat-cache-ttl 0` and `--type-cache-ttl 0`). This is not the default.
 If you want the consistency guarantees discussed in this document, you must use
 these options to disable caching.
 
@@ -75,7 +75,7 @@ this document. It is safe only in the following situations:
 ## Type caching
 
 Because GCS does not forbid an object named `foo` from existing next to an
-object named `foo/` (see the [Name conflicts](#name-conflicts) section above),
+object named `foo/` (see the [Name conflicts](#name-conflicts) section),
 when gcsfuse is asked to look up the name "foo" it must stat both objects.
 
 The stat cache enabled with `--stat-cache-ttl` can help with this, but it does
