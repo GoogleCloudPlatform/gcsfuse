@@ -166,8 +166,6 @@ issue][issues].
 
 [issues]: https://github.com/googlecloudplatform/gcsfuse/issues
 
-
-<a name="support">
 # Support
 
 gcsfuse is open source software, released under the [Apache license](LICENSE).
