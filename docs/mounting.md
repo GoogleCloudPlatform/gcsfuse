@@ -124,4 +124,4 @@ at boot time.
 You can also mount the file system automatically as a non-root user by
 specifying the options `uid` and/or `gid`:
 
-    my-bucket /mount/point gcsfuse rw,uid=1001,gid=1001
+    my-bucket /mount/point gcsfuse rw,allow_other,uid=1001,gid=1001
