@@ -93,7 +93,7 @@ func (pw *progressWriter) Write(data []byte) (int, error) {
 func NewTempFile(
 	content io.Reader,
 	dir string,
-	clock timeutil.Clock, async bool, close func() error) (tf TempFile, err error) {
+	clock timeutil.Clock, readMode bool, close func() error) (tf TempFile, err error) {
 	// Create an anonymous file to wrap. When we close it, its resources will be
 	// magically cleaned up.
 	f, fro, err := AnonymousFile(dir)
@@ -107,7 +107,6 @@ func NewTempFile(
 		f:              f,
 		fro: fro,
 		pw: pw,
-		downloadInProgress: true,
 	}
 	tempFile.mu.Lock()
 	tf = tempFile
@@ -130,9 +129,10 @@ func NewTempFile(
 		}
 		tempFile.dirtyThreshold = size
 	}
-	if async {
-		go fc()
+	if readMode {
+		//go fc()
 	} else {
+		tempFile.downloadInProgress = true
 		fc()
 		err = tempFile.err
 	}

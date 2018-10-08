@@ -27,6 +27,7 @@ import (
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 	"log"
+	"sync"
 )
 
 // A GCS object metadata key for file mtimes. mtimes are UTC, and are stored in
@@ -73,6 +74,9 @@ type FileInode struct {
 	// The current content of this inode, or nil if the source object is still
 	// authoritative.
 	content gcsx.TempFile
+
+	rmu sync.Mutex
+	sourceReader io.ReadSeeker
 
 	// Has Destroy been called?
 	//
@@ -209,10 +213,10 @@ func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
 // Ensure that f.content != nil
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) ensureContent(ctx context.Context, async bool) (err error) {
+func (f *FileInode) ensureContent(ctx context.Context, readMode bool) (err error) {
 	f.cancelCleanupSchedule()
 	// Is there anything to do?
-	if f.content != nil {
+	if f.content != nil || readMode && f.sourceReader != nil {
 		return
 	}
 	log.Println("fuse: ensureContent", f.name)
@@ -232,9 +236,13 @@ func (f *FileInode) ensureContent(ctx context.Context, async bool) (err error) {
 	}
 
 	//defer rc.Close()
+	if readMode {
+		f.sourceReader = rc
+		return
+	}
 
 	// Create a temporary file with its contents.
-	tf, err := gcsx.NewTempFile(rc, f.tempDir, f.mtimeClock, async, rc.Close)
+	tf, err := gcsx.NewTempFile(rc, f.tempDir, f.mtimeClock, readMode, rc.Close)
 	if err != nil {
 		err = fmt.Errorf("NewTempFile: %v", err)
 		return
@@ -463,7 +471,18 @@ func (f *FileInode) Read(
 	}
 
 	// Read from the local content, propagating io.EOF.
-	n, err = f.content.ReadAt(dst, offset)
+	if f.content != nil {
+		n, err = f.content.ReadAt(dst, offset)
+	} else {
+		_, err = f.sourceReader.Seek(offset, io.SeekStart)
+		if err != nil {
+			return
+		}
+		f.rmu.Lock()
+		n, err = f.sourceReader.Read(dst)
+		f.rmu.Unlock()
+	}
+
 	switch {
 	case err == io.EOF:
 		return

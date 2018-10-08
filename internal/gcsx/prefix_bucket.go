@@ -16,7 +16,6 @@ package gcsx
 
 import (
 	"errors"
-	"io"
 	"strings"
 	"unicode/utf8"
 
@@ -66,7 +65,7 @@ func (b *prefixBucket) Name() string {
 
 func (b *prefixBucket) NewReader(
 	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	req *gcs.ReadObjectRequest) (rc gcs.ReadSeekCloser, err error) {
 	// Modify the request and call through.
 	mReq := new(gcs.ReadObjectRequest)
 	*mReq = *req
