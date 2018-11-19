@@ -94,6 +94,13 @@ func makeGcsfuseArgs(
 				value,
 			)
 
+			// Special case: support mount-like formatting for gcsfuse debug flags.
+		case "debug_fuse", "debug_gcs", "debug_http", "debug_invariants":
+			args = append(
+				args,
+				"--"+strings,
+			)
+
 		// Pass through everything else.
 		default:
 			var formatted string
