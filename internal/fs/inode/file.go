@@ -225,7 +225,7 @@ func (f *FileInode) Name() string {
 	return f.name
 }
 
-// Return a record for the GCS object from which this inode is branched. The
+// Source returns a record for the GCS object from which this inode is branched. The
 // record is guaranteed not to be modified, and users must not modify it.
 //
 // LOCKS_REQUIRED(f.mu)
@@ -445,7 +445,7 @@ func (f *FileInode) SetMtime(
 	}
 }
 
-// Write out contents to GCS. If this fails due to the generation having been
+// Sync writes out contents to GCS. If this fails due to the generation having been
 // clobbered, treat it as a non-error (simulating the inode having been
 // unlinked).
 //

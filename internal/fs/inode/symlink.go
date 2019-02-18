@@ -27,7 +27,7 @@ import (
 // this with IsSymlink.
 const SymlinkMetadataKey = "gcsfuse_symlink_target"
 
-// Does the supplied object represent a symlink inode?
+// IsSymlink Does the supplied object represent a symlink inode?
 func IsSymlink(o *gcs.Object) bool {
 	_, ok := o.Metadata[SymlinkMetadataKey]
 	return ok
@@ -107,7 +107,7 @@ func (s *SymlinkInode) Name() string {
 	return s.name
 }
 
-// Return the object generation from which this inode was branched.
+// SourceGeneration returns the object generation from which this inode was branched.
 //
 // LOCKS_REQUIRED(s)
 func (s *SymlinkInode) SourceGeneration() Generation {
@@ -137,7 +137,7 @@ func (s *SymlinkInode) Attributes(
 	return
 }
 
-// Return the target of the symlink.
+// Target returns the target of the symlink.
 func (s *SymlinkInode) Target() (target string) {
 	target = s.target
 	return

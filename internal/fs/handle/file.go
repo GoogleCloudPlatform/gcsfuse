@@ -61,7 +61,7 @@ func (fh *FileHandle) Destroy() {
 	}
 }
 
-// Return the inode backing this handle.
+// Inode returns the inode backing this handle.
 func (fh *FileHandle) Inode() *inode.FileInode {
 	return fh.inode
 }
