@@ -184,14 +184,6 @@ more thorough discussion):
 *   The feature requires an additional request to GCS for each name lookup,
     which may have costs in terms of request budget and latency.
 
-*   GCS object listings are only eventually consistent, so directories that
-    recently implicitly sprang into existence due to the creation of a child
-    object may not show up for several minutes (or, in rare extreme cases,
-    hours or days). Similarly, recently deleted objects may continue for a time
-    to implicitly define directories that eventually wink out of existence.
-    Even if an up to date listing is seen once, it is not guaranteed to be seen
-    on the next lookup.
-
 *   With this setup, it will appear as if there is a directory called "foo"
     containing a file called "bar". But when the user runs `rm foo/bar`,
     suddenly it will appear as if the file system is completely empty. This is
@@ -342,18 +334,6 @@ look up child inodes. Unlike file inodes:
 Despite no guarantees about the actual times for directories, their time fields
 in `stat` structs will be set to something reasonable.
 
-<a name="dir-inode-reading"></a>
-### Reading
-
-Unlike reads for a particular object, listing operations in GCS are
-[eventually consistent][consistency]. This means that directory listings in
-gcsfuse may be arbitrarily far out of date. Additionally, seeing a fresh
-listing once does not imply that future listings will be fresh. This applies at
-the user level to commands like `ls`, and to the posix interfaces they use like
-`readdir`.
-
-[consistency]: https://cloud.google.com/storage/docs/concepts-techniques#consistency
-
 <a name="dir-inode-unlinking"></a>
 ### Unlinking
 
@@ -363,10 +343,7 @@ delete its backing object.
 
 gcsfuse does the pragmatic thing here: it lists objects with the directory's
 name as a prefix, returning `ENOTEMPTY` if anything shows up, and otherwise
-deletes the backing object. Because listing operations in GCS are only
-[eventually consistent][consistency], this may sometimes cause an `ENOTEMPTY`
-error when unlinking an empty directory, and may sometimes mean that a
-non-empty directory is successfully unlinked.
+deletes the backing object.
 
 Note that by their definition, [implicit directories](#implicit-directories)
 cannot be empty.
