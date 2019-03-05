@@ -43,8 +43,9 @@ credentials][app-default-credentials], or a JSON key file can be specified
 explicitly using `--key-file`. If you haven't already done so, the easiest way
 to set up your credentials for testing is to run the [gcloud tool][]:
 
+```
     gcloud auth login
-
+```
   See [mounting.md][] for more information on credentials.
 
 [gcloud tool]: https://cloud.google.com/sdk/gcloud/
