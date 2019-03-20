@@ -232,6 +232,21 @@ called with `O_CREAT`, an empty object with the appropriate name is created in
 GCS. The resulting generation is used as the source generation for the inode,
 and it is as if that object had been pre-existing and was opened.
 
+<a name="pubsub-creation"></a>
+### Pubsub notifications on file creation.
+
+[Pubsub notifications][gcs_notifications] may be enabled on a GCS bucket to help track changes to
+Cloud Storage objects. Due of the semantics that GCSFuse uses to create files,
+3 different events are generated, per file created:
+1. One OBJECT_FINALIZE event: a zero sized object has been created.
+2. One OBJECT_DELETE event: the first generation of the object has been deleted.
+3. One OBJECT_FINALIZE event: a non-zero sized object has been created.
+
+These GCS events can be used from other cloud products, such as AppEngine,
+Cloud Functions, etc. It is recommended to ignore events for files with zero size.
+
+[gcs_notifications]: https://cloud.google.com/storage/docs/reporting-changes
+
 <a name="file-inode-modifications"></a>
 ### Modifications
 
