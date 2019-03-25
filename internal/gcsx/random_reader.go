@@ -17,22 +17,17 @@ package gcsx
 import (
 	"fmt"
 	"io"
-	"math"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
 
-// We will not send a request to GCS for less than this many bytes (unless the
-// end of the object comes first).
-const minReadSize = 1 << 20
-
 // We will skip forwards in a GCS response at most this many bytes.
-const skipForwardThreshold = 1 << 20
+// About 6 MB of data is buffered anyway, so 8 MB seems like a good round number.
+const skipForwardThreshold = 8 * 1 << 20
 
 // An object that knows how to read ranges within a particular generation of a
-// particular GCS object. May make optimizations when it e.g. detects large
-// sequential reads.
+// particular GCS object. Optimised for (large) sequential reads.
 //
 // Not safe for concurrent access.
 type RandomReader interface {
@@ -262,25 +257,15 @@ func (rr *randomReader) startRead(
 		return
 	}
 
-	// We always read a decent amount from GCS, no matter how silly small the
-	// user's read is, because GCS requests are expensive.
-	actualSize := int64(size)
-	if actualSize < minReadSize {
-		actualSize = minReadSize
-	}
+	// GCS requests are expensive. Always issue read requests to the end of
+	// the object. Sequential reads will simply sip from the fire house
+	// with each call to ReadAt. In practice, GCS will fill the TCP buffers
+	// with about 6 MB of data. Requests from outside GCP will be charged
+	// about 6MB of egress data, even if less data is read. Inside GCP
+	// regions, GCS egress is free. This logic should limit the number of
+	// GCS read requests, which are not free.
 
-	// If this read starts where the previous one left off, we take this as a
-	// sign that the user is reading sequentially within the object. It's
-	// probably worth it to just request the entire rest of the object, and let
-	// them sip from the fire house with each call to ReadAt.
-	if start == rr.limit {
-		actualSize = math.MaxInt64
-	}
-
-	// Clip to the end of the object.
-	if actualSize > int64(rr.object.Size)-start {
-		actualSize = int64(rr.object.Size) - start
-	}
+	// TODO: Investigate impact on random read workloads.
 
 	// Begin the read.
 	ctx, cancel := context.WithCancel(context.Background())
@@ -291,7 +276,7 @@ func (rr *randomReader) startRead(
 			Generation: rr.object.Generation,
 			Range: &gcs.ByteRange{
 				Start: uint64(start),
-				Limit: uint64(start + actualSize),
+				Limit: uint64(rr.object.Size),
 			},
 		})
 
@@ -303,7 +288,7 @@ func (rr *randomReader) startRead(
 	rr.reader = rc
 	rr.cancel = cancel
 	rr.start = start
-	rr.limit = start + actualSize
+	rr.limit = int64(rr.object.Size)
 
 	return
 }
