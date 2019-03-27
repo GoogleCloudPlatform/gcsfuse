@@ -22,6 +22,7 @@ import (
 	"golang.org/x/net/context"
 )
 
+// MB is 1 Megabyte. (Silly comment to make the lint warning go away)
 const MB = 1 << 20
 
 // Min read size in bytes for random reads.
@@ -39,8 +40,8 @@ const maxReadSize = 8 * MB
 // Minimum number of seeks before evaluating if the read pattern is random.
 const minSeeksForRandom = 2
 
-// An object that knows how to read ranges within a particular generation of a
-// particular GCS object. Optimised for (large) sequential reads.
+// RandomReader is an object that knows how to read ranges within a particular
+// generation of a particular GCS object. Optimised for (large) sequential reads.
 //
 // Not safe for concurrent access.
 type RandomReader interface {
@@ -59,8 +60,8 @@ type RandomReader interface {
 	Destroy()
 }
 
-// Create a random reader for the supplied object record that reads using the
-// given bucket.
+// NewRandomReader create a random reader for the supplied object record that
+// reads using the given bucket.
 func NewRandomReader(
 	o *gcs.Object,
 	bucket gcs.Bucket) (rr RandomReader, err error) {
@@ -133,8 +134,8 @@ func (rr *randomReader) ReadAt(
 		// For parallel sequential reads to a single file, not throwing away the connections
 		// is a 15-20x improvement in throughput: 150-200 MB/s instead of 10 MB/s.
 		if rr.reader != nil && rr.start < offset && offset - rr.start < maxReadSize {
-			bytes_to_skip := int64(offset - rr.start)
-			p := make([]byte, bytes_to_skip)
+			bytesToSkip := int64(offset - rr.start)
+			p := make([]byte, bytesToSkip)
 			n, _ := rr.reader.Read(p)
 			rr.start += int64(n)
 		}
@@ -145,7 +146,7 @@ func (rr *randomReader) ReadAt(
 			rr.reader.Close()
 			rr.reader = nil
 			rr.cancel = nil
-			rr.seeks += 1
+			rr.seeks++
 		}
 
 		// If we don't have a reader, start a read operation.
