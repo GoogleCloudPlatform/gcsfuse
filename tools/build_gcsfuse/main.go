@@ -80,6 +80,14 @@ func buildBinaries(
 		return
 	}
 
+	// Create a directory to become GOCACHE for our build below.
+	var gocache string
+	gocache, err = ioutil.TempDir("", "build_gcsfuse_gocache")
+	if err != nil {
+		err = fmt.Errorf("TempDir: %v", err)
+		return
+	}
+
 	defer os.RemoveAll(gopath)
 
 	// Make it appear as if the source directory is at the appropriate position
@@ -143,6 +151,7 @@ func buildBinaries(
 			"GO15VENDOREXPERIMENT=1",
 			fmt.Sprintf("GOROOT=%s", runtime.GOROOT()),
 			fmt.Sprintf("GOPATH=%s", gopath),
+			fmt.Sprintf("GOCACHE=%s", gocache),
 		}
 
 		// Build.
