@@ -24,8 +24,8 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
-// A temporary file that keeps track of the lowest offset at which it has been
-// modified.
+// TempFile is a temporary file that keeps track of the lowest offset at which
+// it has been modified.
 //
 // Not safe for concurrent access.
 type TempFile interface {
@@ -51,6 +51,7 @@ type TempFile interface {
 	Destroy()
 }
 
+// StatResult stores the result of a stat operation.
 type StatResult struct {
 	// The current size in bytes of the content.
 	Size int64
@@ -69,9 +70,9 @@ type StatResult struct {
 	Mtime *time.Time
 }
 
-// Create a temp file whose initial contents are given by the supplied reader.
-// dir is a directory on whose file system the inode will live, or the system
-// default temporary location if empty.
+// NewTempFile creates a temp file whose initial contents are given by the
+// supplied reader. dir is a directory on whose file system the inode will live,
+// or the system default temporary location if empty.
 func NewTempFile(
 	content io.Reader,
 	dir string,

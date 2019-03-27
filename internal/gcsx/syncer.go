@@ -23,11 +23,12 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Objects created by Syncer.SyncObject will contain a metadata field with this
-// key and with a UTC mtime in the format defined by time.RFC3339Nano.
+// MtimeMetadataKey objects are created by Syncer.SyncObject and contain a
+// metadata field with this key and with a UTC mtime in the format defined
+// by time.RFC3339Nano.
 const MtimeMetadataKey = "gcsfuse_mtime"
 
-// Safe for concurrent access.
+// Syncer is safe for concurrent access.
 type Syncer interface {
 	// Given an object record and content that was originally derived from that
 	// object's contents (and potentially modified):
@@ -45,7 +46,7 @@ type Syncer interface {
 		content TempFile) (o *gcs.Object, err error)
 }
 
-// Create a syncer that syncs into the supplied bucket.
+// NewSyncer creates a syncer that syncs into the supplied bucket.
 //
 // When the source object has been changed only by appending, and the source
 // object's size is at least appendThreshold, we will "append" to it by writing

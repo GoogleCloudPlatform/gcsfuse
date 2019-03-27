@@ -25,9 +25,9 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 )
 
-// Create a view on the wrapped bucket that pretends as if only the objects
-// whose names contain the supplied string as a strict prefix exist, and that
-// strips the prefix from the names of those objects before exposing them.
+// NewPrefixBucket creates a view on the wrapped bucket that pretends as if only
+// the objects whose names contain the supplied string as a strict prefix exist,
+// and that strips the prefix from the names of those objects before exposing them.
 //
 // In order to preserve the invariant that object names are valid UTF-8, prefix
 // must be valid UTF-8.
