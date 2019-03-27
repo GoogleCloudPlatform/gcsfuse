@@ -33,6 +33,15 @@ func build(
 	osys string) (dir string, err error) {
 	log.Printf("Building version %s from %s.", version, commit)
 
+	// Create a directory to become GOCACHE below.
+	var gocache string
+	gocache, err = ioutil.TempDir("", "package_gcsfuse_gocache")
+	if err != nil {
+		err = fmt.Errorf("TempDir: %v", err)
+		return
+	}
+	defer os.RemoveAll(gocache)
+
 	// Create a directory to hold our outputs. Kill it if we later return in
 	// error.
 	dir, err = ioutil.TempDir("", "package_gcsfuse_build")
@@ -90,6 +99,7 @@ func build(
 		cmd.Env = []string{
 			"GO15VENDOREXPERIMENT=1",
 			fmt.Sprintf("GOROOT=%s", runtime.GOROOT()),
+			fmt.Sprintf("GOCACHE=%s", gocache),
 			"GOPATH=/does/not/exist",
 		}
 
