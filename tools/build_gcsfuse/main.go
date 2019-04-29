@@ -45,6 +45,7 @@ import (
 	"os/exec"
 	"path"
 	"runtime"
+	"strings"
 )
 
 // Build release binaries according to the supplied settings, setting up the
@@ -52,10 +53,7 @@ import (
 //
 // version is the gcsfuse version being built (e.g. "0.11.1"), or a short git
 // commit name if this is not for an official release.
-func buildBinaries(
-	dstDir string,
-	srcDir string,
-	version string) (err error) {
+func buildBinaries(dstDir, srcDir, version, buildArgs string) (err error) {
 	osys := runtime.GOOS
 	// Create the target structure.
 	{
@@ -142,6 +140,10 @@ func buildBinaries(
 				"-ldflags",
 				fmt.Sprintf("-X main.gcsfuseVersion=%s", version),
 			)
+			parsedFlags := strings.Fields(buildArgs)
+			if parsedFlags != nil {
+				cmd.Args = append(cmd.Args, parsedFlags...)
+			}
 		}
 
 		cmd.Args = append(cmd.Args, bin.goTarget)
@@ -214,7 +216,8 @@ func copyFile(dst string, src string, perm os.FileMode) (err error) {
 func run() (err error) {
 	// Extract arguments.
 	args := flag.Args()
-	if len(args) != 3 {
+	numArgs := len(args)
+	if numArgs != 3 && numArgs != 4 {
 		err = fmt.Errorf("Usage: %s src_dir dst_dir version", os.Args[0])
 		return
 	}
@@ -222,9 +225,13 @@ func run() (err error) {
 	srcDir := args[0]
 	dstDir := args[1]
 	version := args[2]
+	buildArgs := ""
+	if numArgs == 4 {
+		buildArgs = args[3]
+	}
 
 	// Build.
-	err = buildBinaries(dstDir, srcDir, version)
+	err = buildBinaries(dstDir, srcDir, version, buildArgs)
 	if err != nil {
 		err = fmt.Errorf("buildBinaries: %v", err)
 		return
