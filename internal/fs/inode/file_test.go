@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -143,7 +144,7 @@ func (t *FileTest) InitialAttributes() {
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(t.backingObj.Updated))
 }
 
-func (t *FileTest) InitialAttributes_MtimeFromObjectMetadata() {
+func (t *FileTest) InitialAttributes_MtimeFromObjectMetadata_Gcsfuse() {
 	// Set up an explicit mtime on the backing object and re-create the inode.
 	if t.backingObj.Metadata == nil {
 		t.backingObj.Metadata = make(map[string]string)
@@ -159,6 +160,45 @@ func (t *FileTest) InitialAttributes_MtimeFromObjectMetadata() {
 	AssertEq(nil, err)
 
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(mtime))
+}
+
+func (t *FileTest) InitialAttributes_MtimeFromObjectMetadata_Gsutil() {
+	// Set up an explicit mtime on the backing object and re-create the inode.
+	if t.backingObj.Metadata == nil {
+		t.backingObj.Metadata = make(map[string]string)
+	}
+
+	mtime := time.Now().Add(123*time.Second).UTC().AddDate(0, 0, 0).Round(time.Second)
+	t.backingObj.Metadata["goog-reserved-file-mtime"] = strconv.FormatInt(mtime.Unix(), 10)
+
+	t.createInode()
+
+	// Ask it for its attributes.
+	attrs, err := t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+
+	ExpectThat(attrs.Mtime.UTC(), timeutil.TimeEq(mtime))
+}
+
+func (t *FileTest) InitialAttributes_MtimeFromObjectMetadata_GcsfuseOutranksGsutil() {
+	// Set up an explicit mtime on the backing object and re-create the inode.
+	if t.backingObj.Metadata == nil {
+		t.backingObj.Metadata = make(map[string]string)
+	}
+
+	gsutilMtime := time.Now().Add(123*time.Second).UTC().AddDate(0, 0, 0).Round(time.Second)
+	t.backingObj.Metadata["goog-reserved-file-mtime"] = strconv.FormatInt(gsutilMtime.Unix(), 10)
+
+	canonicalMtime := time.Now().Add(456*time.Second).UTC().AddDate(0, 0, 0)
+	t.backingObj.Metadata["gcsfuse_mtime"] = canonicalMtime.Format(time.RFC3339Nano)
+
+	t.createInode()
+
+	// Ask it for its attributes.
+	attrs, err := t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(canonicalMtime))
 }
 
 func (t *FileTest) Read() {
