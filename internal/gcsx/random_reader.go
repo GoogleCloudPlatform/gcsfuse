@@ -66,11 +66,11 @@ func NewRandomReader(
 	o *gcs.Object,
 	bucket gcs.Bucket) (rr RandomReader, err error) {
 	rr = &randomReader{
-		object: o,
-		bucket: bucket,
-		start:  -1,
-		limit:  -1,
-		seeks: 0,
+		object:         o,
+		bucket:         bucket,
+		start:          -1,
+		limit:          -1,
+		seeks:          0,
 		totalReadBytes: 0,
 	}
 
@@ -93,9 +93,9 @@ type randomReader struct {
 	//
 	// INVARIANT: start <= limit
 	// INVARIANT: limit < 0 implies reader != nil
-	start int64
-	limit int64
-	seeks uint64
+	start          int64
+	limit          int64
+	seeks          uint64
 	totalReadBytes uint64
 }
 
@@ -133,7 +133,7 @@ func (rr *randomReader) ReadAt(
 		// re-use GCS connection and avoid throwing away already read data.
 		// For parallel sequential reads to a single file, not throwing away the connections
 		// is a 15-20x improvement in throughput: 150-200 MB/s instead of 10 MB/s.
-		if rr.reader != nil && rr.start < offset && offset - rr.start < maxReadSize {
+		if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
 			bytesToSkip := int64(offset - rr.start)
 			p := make([]byte, bytesToSkip)
 			n, _ := rr.reader.Read(p)
@@ -292,15 +292,18 @@ func (rr *randomReader) startRead(
 	if rr.seeks >= minSeeksForRandom {
 		averageReadBytes := rr.totalReadBytes / rr.seeks
 		if averageReadBytes < maxReadSize {
-			randomReadSize := int64(((averageReadBytes / MB) + 1 ) * MB)
+			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
 			if randomReadSize < minReadSize {
-			   randomReadSize = minReadSize
+				randomReadSize = minReadSize
 			}
 			if randomReadSize > maxReadSize {
-			   randomReadSize = maxReadSize
+				randomReadSize = maxReadSize
 			}
 			end = start + randomReadSize
-		 }
+		}
+	}
+	if end > int64(rr.object.Size) {
+		end = int64(rr.object.Size)
 	}
 
 	// Begin the read.
