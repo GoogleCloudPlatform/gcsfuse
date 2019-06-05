@@ -10,7 +10,7 @@ If you are running on [Google Compute Engine][], it is recommended that you use
 one of the following images with which it has been tested (preferring the
 latest version when possible):
 
-*   `ubuntu-1604-lts`, `ubuntu-1404-lts`
+*   `ubuntu-1804-lts`, `ubuntu-1604-lts`, and `ubuntu-1404-lts`
 *   `debian-8`, `debian-7`
 *   `centos-7`, `centos-6`
 *   `rhel-7`, `rhel-6`
