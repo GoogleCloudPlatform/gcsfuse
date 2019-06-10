@@ -202,7 +202,7 @@ You could automate this with a webhook to reduce the delay between creating file
 and them apearing in gcsfuse. [issue-7-bash][Example bash script]
 
 [issue-7-bash]: 
-https://github.com/GoogleCloudPlatform/gcsfuse/issues/7#issuecomment-388220891)
+https://github.com/GoogleCloudPlatform/gcsfuse/issues/7#issuecomment-264221351
 [issue-7]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/7
 
 
