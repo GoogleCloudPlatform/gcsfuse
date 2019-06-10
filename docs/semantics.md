@@ -197,6 +197,12 @@ more thorough discussion):
     gcsfuse simply ignores this subtlety. Therefore in rare cases an implicitly
     defined directory will fail to appear.
 
+Another option would be to periodically mkdir all missing directory entries. 
+You could automate this with a webhook to reduce the delay between creating files 
+and them apearing in gcsfuse. [issue-7-bash][Example bash script]
+
+[issue-7-bash]: 
+https://github.com/GoogleCloudPlatform/gcsfuse/issues/7#issuecomment-388220891)
 [issue-7]: https://github.com/GoogleCloudPlatform/gcsfuse/issues/7
 
 
