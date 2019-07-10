@@ -75,7 +75,7 @@ type Generation struct {
 	Metadata int64
 }
 
-// Return -1, 0, or 1 according to whether g is less than, equal to, or greater
+// Compare returns -1, 0, or 1 according to whether g is less than, equal to, or greater
 // than other.
 func (g Generation) Compare(other Generation) int {
 	// Compare first on object generation number.

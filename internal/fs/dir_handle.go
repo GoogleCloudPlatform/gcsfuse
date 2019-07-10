@@ -243,7 +243,7 @@ func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-// Handle a request to read from the directory, without responding.
+// ReadDir handles a request to read from the directory, without responding.
 //
 // Special case: we assume that a zero offset indicates that rewinddir has been
 // called (since fuse gives us no way to intercept and know for sure), and

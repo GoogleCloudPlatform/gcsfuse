@@ -29,7 +29,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Does the supplied object name represent a directory (as opposed to a file or
+// IsDirName Does the supplied object name represent a directory (as opposed to a file or
 // symlink)?
 func IsDirName(name string) bool {
 	return name == "" || name[len(name)-1] == '/'
@@ -55,7 +55,7 @@ type LookUpResult struct {
 	ImplicitDir bool
 }
 
-// Return true iff the result indicates that the child exists, explicitly or
+// Exists returns true iff the result indicates that the child exists, explicitly or
 // implicitly.
 func (lr *LookUpResult) Exists() bool {
 	return lr.Object != nil || lr.ImplicitDir
