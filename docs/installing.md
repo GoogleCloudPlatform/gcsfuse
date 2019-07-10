@@ -107,6 +107,13 @@ Download and install the latest release package:
     sudo rpm --install -p gcsfuse-0.27.0-1.x86_64.rpm
 
 <a name="other-distributions"></a>
+
+## Arch Linux
+
+Available from [AUR](https://aur.archlinux.org/packages/gcsfuse/) and can be installed with any AUR helper.
+
+    pacaur -S gcsfuse
+
 ## Older releases and other distributions
 
 Ensure that dependencies are present:
