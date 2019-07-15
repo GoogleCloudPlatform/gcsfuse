@@ -17,6 +17,7 @@ package inode
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
@@ -291,6 +292,14 @@ func (f *FileInode) Attributes(
 
 	// If the source object has an mtime metadata key, use that instead of its
 	// update time.
+	// If the file was copied via gsutil, we'll have goog-reserved-file-mtime
+	if strTimestamp, ok := f.src.Metadata["goog-reserved-file-mtime"]; ok {
+		if timestamp, err := strconv.ParseInt(strTimestamp, 0, 64); err == nil {
+			attrs.Mtime = time.Unix(timestamp, 0)
+		}
+	}
+
+	// Otherwise, if its been synced with gcsfuse before, we'll have gcsfuse_mtime
 	if formatted, ok := f.src.Metadata["gcsfuse_mtime"]; ok {
 		attrs.Mtime, err = time.Parse(time.RFC3339Nano, formatted)
 		if err != nil {
