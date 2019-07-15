@@ -98,7 +98,7 @@ func makeGcsfuseArgs(
 		case "debug_fuse", "debug_gcs", "debug_http", "debug_invariants":
 			args = append(
 				args,
-				"--"+strings,
+				"--"+name,
 			)
 
 		// Pass through everything else.
