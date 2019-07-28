@@ -110,6 +110,7 @@ with dashes instead of underscores:
 *   `limit_bytes_per_sec`
 *   `stat_cache_ttl`
 *   `type_cache_ttl`
+*   `billing_project`
 
 On both OS X and Linux, you can also add entries to your `/etc/fstab` file like
 the following:
