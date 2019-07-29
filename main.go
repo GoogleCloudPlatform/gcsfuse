@@ -324,7 +324,6 @@ func runCLIApp(c *cli.Context) (err error) {
 		if p, ok := os.LookupEnv("http_proxy"); ok {
 			env = append(env, fmt.Sprintf("http_proxy=%s", p))
 		}
-								                }
 
 		// Run.
 		err = daemonize.Run(path, args, env, os.Stdout)
