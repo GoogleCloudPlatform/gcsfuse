@@ -76,6 +76,7 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq(5, f.OpRateLimitHz)
 
 	// Tuning
+	ExpectEq(4096, f.StatCacheCapacity)
 	ExpectEq(time.Minute, f.StatCacheTTL)
 	ExpectEq(time.Minute, f.TypeCacheTTL)
 	ExpectEq("", f.TempDir)
@@ -145,6 +146,7 @@ func (t *FlagsTest) DecimalNumbers() {
 		"--gid=19",
 		"--limit-bytes-per-sec=123.4",
 		"--limit-ops-per-sec=56.78",
+		"--stat-cache-capacity=8192",
 	}
 
 	f := parseArgs(args)
@@ -152,6 +154,7 @@ func (t *FlagsTest) DecimalNumbers() {
 	ExpectEq(19, f.Gid)
 	ExpectEq(123.4, f.EgressBandwidthLimitBytesPerSecond)
 	ExpectEq(56.78, f.OpRateLimitHz)
+	ExpectEq(8192, f.StatCacheCapacity)
 }
 
 func (t *FlagsTest) OctalNumbers() {

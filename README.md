@@ -117,7 +117,7 @@ bandwidth by default.
 
 By default, gcsfuse uses two forms of caching to save round trips to GCS, at the
 cost of consistency guarantees. These caching behaviors can be controlled with
-the flags `--stat-cache-ttl` and `--type-cache-ttl`. See
+the flags `--stat-cache-capacity`, `--stat-cache-ttl` and `--type-cache-ttl`. See
 [semantics.md](docs/semantics.md#caching) for more information.
 
 ## Timeouts
