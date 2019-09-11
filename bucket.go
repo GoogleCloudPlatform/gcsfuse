@@ -126,7 +126,7 @@ func setUpBucket(
 
 	// Enable cached StatObject results, if appropriate.
 	if flags.StatCacheTTL != 0 {
-		const cacheCapacity = 4096
+		cacheCapacity := flags.StatCacheCapacity
 		b = gcscaching.NewFastStatBucket(
 			flags.StatCacheTTL,
 			gcscaching.NewStatCache(cacheCapacity),

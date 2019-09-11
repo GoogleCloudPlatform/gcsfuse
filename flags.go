@@ -146,6 +146,12 @@ func newApp() (app *cli.App) {
 			// Tuning
 			/////////////////////////
 
+			cli.IntFlag{
+				Name:  "stat-cache-capacity",
+				Value: 4096,
+				Usage: "How many entries can the stat cache hold (impacts memory consumption)",
+			},
+
 			cli.DurationFlag{
 				Name:  "stat-cache-ttl",
 				Value: time.Minute,
@@ -214,9 +220,10 @@ type flagStorage struct {
 	OpRateLimitHz                      float64
 
 	// Tuning
-	StatCacheTTL time.Duration
-	TypeCacheTTL time.Duration
-	TempDir      string
+	StatCacheCapacity int
+	StatCacheTTL      time.Duration
+	TypeCacheTTL      time.Duration
+	TempDir           string
 
 	// Debugging
 	DebugFuse       bool
@@ -241,15 +248,16 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		OnlyDir:      c.String("only-dir"),
 
 		// GCS,
-		BillingProject: c.String("billing-project"),
-		KeyFile:        c.String("key-file"),
+		BillingProject:                     c.String("billing-project"),
+		KeyFile:                            c.String("key-file"),
 		EgressBandwidthLimitBytesPerSecond: c.Float64("limit-bytes-per-sec"),
 		OpRateLimitHz:                      c.Float64("limit-ops-per-sec"),
 
 		// Tuning,
-		StatCacheTTL: c.Duration("stat-cache-ttl"),
-		TypeCacheTTL: c.Duration("type-cache-ttl"),
-		TempDir:      c.String("temp-dir"),
+		StatCacheCapacity: c.Int("stat-cache-capacity"),
+		StatCacheTTL:      c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:      c.Duration("type-cache-ttl"),
+		TempDir:           c.String("temp-dir"),
 
 		// Debugging,
 		DebugFuse:       c.Bool("debug_fuse"),
