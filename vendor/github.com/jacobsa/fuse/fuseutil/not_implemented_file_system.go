@@ -15,9 +15,10 @@
 package fuseutil
 
 import (
+	"context"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
-	"golang.org/x/net/context"
 )
 
 // A FileSystem that responds to all ops with fuse.ENOSYS. Embed this in your
@@ -88,6 +89,13 @@ func (fs *NotImplementedFileSystem) CreateFile(
 func (fs *NotImplementedFileSystem) CreateSymlink(
 	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) (err error) {
+	err = fuse.ENOSYS
+	return
+}
+
+func (fs *NotImplementedFileSystem) CreateLink(
+	ctx context.Context,
+	op *fuseops.CreateLinkOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }
@@ -207,6 +215,13 @@ func (fs *NotImplementedFileSystem) ListXattr(
 func (fs *NotImplementedFileSystem) SetXattr(
 	ctx context.Context,
 	op *fuseops.SetXattrOp) (err error) {
+	err = fuse.ENOSYS
+	return
+}
+
+func (fs *NotImplementedFileSystem) Fallocate(
+	ctx context.Context,
+	op *fuseops.FallocateOp) (err error) {
 	err = fuse.ENOSYS
 	return
 }

@@ -420,6 +420,32 @@ func convertInMessage(
 			Flags:        fusekernel.InitFlags(in.Flags),
 		}
 
+	case fusekernel.OpLink:
+		type input fusekernel.LinkIn
+		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
+		if in == nil {
+			err = errors.New("Corrupt OpLink")
+			return
+		}
+
+		name := inMsg.ConsumeBytes(inMsg.Len())
+		i := bytes.IndexByte(name, '\x00')
+		if i < 0 {
+			err = errors.New("Corrupt OpLink")
+			return
+		}
+		name = name[:i]
+		if len(name) == 0 {
+			err = errors.New("Corrupt OpLink (Name not read)")
+			return
+		}
+
+		o = &fuseops.CreateLinkOp{
+			Parent: fuseops.InodeID(inMsg.Header().Nodeid),
+			Name:   string(name),
+			Target: fuseops.InodeID(in.Oldnodeid),
+		}
+
 	case fusekernel.OpRemovexattr:
 		buf := inMsg.ConsumeBytes(inMsg.Len())
 		n := len(buf)
@@ -519,6 +545,21 @@ func convertInMessage(
 			Name:  string(name),
 			Value: value,
 			Flags: in.Flags,
+		}
+	case fusekernel.OpFallocate:
+		type input fusekernel.FallocateIn
+		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
+		if in == nil {
+			err = errors.New("Corrupt OpFallocate")
+			return
+		}
+
+		o = &fuseops.FallocateOp{
+			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
+			Handle: fuseops.HandleID(in.Fh),
+			Offset: in.Offset,
+			Length: in.Length,
+			Mode:   in.Mode,
 		}
 
 	default:
@@ -647,6 +688,11 @@ func (c *Connection) kernelResponseForOp(
 		out := (*fusekernel.EntryOut)(m.Grow(size))
 		convertChildInodeEntry(&o.Entry, out)
 
+	case *fuseops.CreateLinkOp:
+		size := int(fusekernel.EntryOutSize(c.protocol))
+		out := (*fusekernel.EntryOut)(m.Grow(size))
+		convertChildInodeEntry(&o.Entry, out)
+
 	case *fuseops.RenameOp:
 		// Empty response
 
@@ -762,6 +808,9 @@ func (c *Connection) kernelResponseForOp(
 	case *fuseops.SetXattrOp:
 		// Empty response
 
+	case *fuseops.FallocateOp:
+		// Empty response
+
 	case *initOp:
 		out := (*fusekernel.InitOut)(m.Grow(int(unsafe.Sizeof(fusekernel.InitOut{}))))
 
@@ -824,6 +873,9 @@ func convertAttributes(
 		out.Mode |= syscall.S_IFLNK
 	case in.Mode&os.ModeSocket != 0:
 		out.Mode |= syscall.S_IFSOCK
+	}
+	if in.Mode&os.ModeSetuid != 0 {
+		out.Mode |= syscall.S_ISUID
 	}
 }
 

@@ -15,6 +15,7 @@
 package fuse
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -23,8 +24,6 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
-
-	"golang.org/x/net/context"
 
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/internal/buffer"

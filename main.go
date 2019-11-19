@@ -37,7 +37,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	"github.com/codegangsta/cli"
+	"github.com/urfave/cli"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"

@@ -66,7 +66,7 @@ func (b *bucket) makeUpdateObjectBody(
 	// Set up a reader.
 	r, err := googleapi.WithoutDataWrapper.JSONReader(jsonMap)
 	if err != nil {
-		err = fmt.Errorf("JSONReader", err)
+		err = fmt.Errorf("JSONReader: %v", err)
 		return
 	}
 
