@@ -10,7 +10,7 @@ If you are running on [Google Compute Engine][], it is recommended that you use
 one of the following images with which it has been tested (preferring the
 latest version when possible):
 
-*   `ubuntu-1604-lts`, `ubuntu-1404-lts`
+*   `ubuntu-1804-lts`, `ubuntu-1604-lts`, and `ubuntu-1404-lts`
 *   `debian-8`, `debian-7`
 *   `centos-7`, `centos-6`
 *   `rhel-7`, `rhel-6`
@@ -31,8 +31,8 @@ The instructions vary by distribution.
 
 The following instructions set up `apt-get` to see updates to gcsfuse, and are
 supported for the **bionic**, **artful**, **zesty**, **yakkety**, **xenial**,
-and **trusty** [releases][ubuntu-releases] of Ubuntu, and the **jessie**
-[release][debian-releases] of Debian. (Run `lsb_release -c` to find your
+and **trusty** [releases][ubuntu-releases] of Ubuntu, and the **jessie** and **stretch**
+[releases][debian-releases] of Debian. (Run `lsb_release -c` to find your
 release codename.) Users of older releases should follow the instructions for
 [other distributions](#other-distributions) below.
 
@@ -107,6 +107,13 @@ Download and install the latest release package:
     sudo rpm --install -p gcsfuse-0.27.0-1.x86_64.rpm
 
 <a name="other-distributions"></a>
+
+## Arch Linux
+
+Available from [AUR](https://aur.archlinux.org/packages/gcsfuse/) and can be installed with any AUR helper.
+
+    pacaur -S gcsfuse
+
 ## Older releases and other distributions
 
 Ensure that dependencies are present:

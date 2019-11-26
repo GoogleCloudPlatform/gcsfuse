@@ -17,6 +17,7 @@ package inode
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
@@ -225,7 +226,7 @@ func (f *FileInode) Name() string {
 	return f.name
 }
 
-// Return a record for the GCS object from which this inode is branched. The
+// Source returns a record for the GCS object from which this inode is branched. The
 // record is guaranteed not to be modified, and users must not modify it.
 //
 // LOCKS_REQUIRED(f.mu)
@@ -291,6 +292,14 @@ func (f *FileInode) Attributes(
 
 	// If the source object has an mtime metadata key, use that instead of its
 	// update time.
+	// If the file was copied via gsutil, we'll have goog-reserved-file-mtime
+	if strTimestamp, ok := f.src.Metadata["goog-reserved-file-mtime"]; ok {
+		if timestamp, err := strconv.ParseInt(strTimestamp, 0, 64); err == nil {
+			attrs.Mtime = time.Unix(timestamp, 0)
+		}
+	}
+
+	// Otherwise, if its been synced with gcsfuse before, we'll have gcsfuse_mtime
 	if formatted, ok := f.src.Metadata["gcsfuse_mtime"]; ok {
 		attrs.Mtime, err = time.Parse(time.RFC3339Nano, formatted)
 		if err != nil {
@@ -445,7 +454,7 @@ func (f *FileInode) SetMtime(
 	}
 }
 
-// Write out contents to GCS. If this fails due to the generation having been
+// Sync writes out contents to GCS. If this fails due to the generation having been
 // clobbered, treat it as a non-error (simulating the inode having been
 // unlinked).
 //
