@@ -177,14 +177,18 @@ func buildBuildGcsfuse(dst string) (err error) {
 			return
 		}
 		cmd.Dir = srcDir
-		var pth string
-		pth, err = exec.LookPath("git")
+		var gitPath string
+		gitPath, err = exec.LookPath("git")
 		if err != nil {
-		   return fmt.Errorf("Unable to find git: %v", err)
+		   if e, ok := err.(*exec.Error); ok && e.Err == exec.ErrNotFound {
+		      gitPath = ""
+		   } else {
+		     return fmt.Errorf("Unable to find git: %v", err)
+		   }
 		}
 		cmd.Env = []string{
+			fmt.Sprintf("PATH=%s", filepath.Dir(gitPath)),
 			fmt.Sprintf("GOROOT=%s", runtime.GOROOT()),
-			fmt.Sprintf("PATH=%s", filepath.Dir(pth)),
 			fmt.Sprintf("GOPATH=%s", gopath),
 			fmt.Sprintf("GOCACHE=%s", gocache),
 		}
