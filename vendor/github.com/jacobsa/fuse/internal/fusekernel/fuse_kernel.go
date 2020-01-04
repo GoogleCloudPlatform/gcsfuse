@@ -380,6 +380,7 @@ const (
 	OpDestroy     = 38
 	OpIoctl       = 39 // Linux?
 	OpPoll        = 40 // Linux?
+	OpFallocate   = 43
 
 	// OS X
 	OpSetvolname = 61
@@ -662,6 +663,14 @@ type GetxattrOut struct {
 
 type ListxattrIn struct {
 	Size    uint32
+	Padding uint32
+}
+
+type FallocateIn struct {
+	Fh      uint64
+	Offset  uint64
+	Length  uint64
+	Mode    uint32
 	Padding uint32
 }
 

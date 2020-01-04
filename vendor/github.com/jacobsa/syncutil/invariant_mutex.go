@@ -77,7 +77,7 @@ func InvariantCheckingEnabled() bool {
 //     }
 //
 type InvariantMutex struct {
-	mu    sync.Mutex
+	mu    sync.RWMutex
 	check func()
 }
 
@@ -89,6 +89,16 @@ func (i *InvariantMutex) Lock() {
 func (i *InvariantMutex) Unlock() {
 	i.checkIfEnabled()
 	i.mu.Unlock()
+}
+
+func (i *InvariantMutex) RLock() {
+	i.mu.RLock()
+	i.checkIfEnabled()
+}
+
+func (i *InvariantMutex) RUnlock() {
+	i.checkIfEnabled()
+	i.mu.RUnlock()
 }
 
 func (i *InvariantMutex) checkIfEnabled() {

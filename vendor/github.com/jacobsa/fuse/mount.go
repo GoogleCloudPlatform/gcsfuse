@@ -15,10 +15,9 @@
 package fuse
 
 import (
+	"context"
 	"fmt"
 	"os"
-
-	"golang.org/x/net/context"
 )
 
 // Server is an interface for any type that knows how to serve ops read from a

@@ -35,7 +35,7 @@ type Object struct {
 	Size            uint64
 	ContentEncoding string
 	MD5             *[md5.Size]byte // Missing for composite objects
-	CRC32C          uint32
+	CRC32C          *uint32 //Missing for CMEK buckets
 	MediaLink       string
 	Metadata        map[string]string
 	Generation      int64
