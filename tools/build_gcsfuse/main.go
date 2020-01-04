@@ -44,6 +44,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"runtime"
 )
 
@@ -144,9 +145,16 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 
 		cmd.Args = append(cmd.Args, bin.goTarget)
 
+		var pth string
+		pth, err = exec.LookPath("git")
+		if err != nil {
+		   return fmt.Errorf("Unable to find git: %v", err)
+		}
+
 		// Set up environment.
 		cmd.Env = []string{
 			"GO15VENDOREXPERIMENT=1",
+			fmt.Sprintf("PATH=%s", filepath.Dir(pth)),
 			fmt.Sprintf("GOROOT=%s", runtime.GOROOT()),
 			fmt.Sprintf("GOPATH=%s", gopath),
 			fmt.Sprintf("GOCACHE=%s", gocache),

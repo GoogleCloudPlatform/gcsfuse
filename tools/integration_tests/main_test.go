@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"runtime"
 	"testing"
 )
@@ -159,9 +160,33 @@ func buildBuildGcsfuse(dst string) (err error) {
 			"-o", dst,
 		)
 
+		// Create a directory to become GOCACHE for our build below.
+		var gocache string
+		gocache, err = ioutil.TempDir("", "build_gcsfuse_gocache")
+		if err != nil {
+			err = fmt.Errorf("TempDir: %v", err)
+			return
+		}
+		
+
+		// Create a directory to become GOPATH for our build below.
+		var gopath string
+		gopath, err = ioutil.TempDir("", "build_gcsfuse_gopath")
+		if err != nil {
+			err = fmt.Errorf("TempDir: %v", err)
+			return
+		}
 		cmd.Dir = srcDir
+		var pth string
+		pth, err = exec.LookPath("git")
+		if err != nil {
+		   return fmt.Errorf("Unable to find git: %v", err)
+		}
 		cmd.Env = []string{
 			fmt.Sprintf("GOROOT=%s", runtime.GOROOT()),
+			fmt.Sprintf("PATH=%s", filepath.Dir(pth)),
+			fmt.Sprintf("GOPATH=%s", gopath),
+			fmt.Sprintf("GOCACHE=%s", gocache),
 		}
 
 		var output []byte
