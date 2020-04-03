@@ -120,7 +120,13 @@ the following:
 Afterward, you can run `mount /mount/point` as a non-root user.
 
 The `noauto` option above specifies that the file system should not be mounted
-at boot time.
+at boot time. 
+
+If you would prefer to mount the file system automatically, you may need to pass 
+the `x-systemd.requires=network-online.target` option to ensure that gcsfuse waits
+for the network system to be ready prior to mounting.
+
+    my-bucket /mount/point gcsfuse rw,systemd.requires=network-online.target,user
 
 You can also mount the file system automatically as a non-root user by
 specifying the options `uid` and/or `gid`:
