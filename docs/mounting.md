@@ -123,7 +123,7 @@ The `noauto` option above specifies that the file system should not be mounted
 at boot time. 
 
 If you would prefer to mount the file system automatically, you may need to pass 
-the `x-systemd.requires=network-online.target` option to ensure that gcsfuse waits
+the `x-systemd.requires=network-online.target` or `_netdev` option to ensure that gcsfuse waits
 for the network system to be ready prior to mounting.
 
     my-bucket /mount/point gcsfuse rw,systemd.requires=network-online.target,user
@@ -131,4 +131,4 @@ for the network system to be ready prior to mounting.
 You can also mount the file system automatically as a non-root user by
 specifying the options `uid` and/or `gid`:
 
-    my-bucket /mount/point gcsfuse rw,allow_other,uid=1001,gid=1001
+    my-bucket /mount/point gcsfuse rw,_netdev,allow_other,uid=1001,gid=1001
