@@ -44,7 +44,7 @@ explicitly using `--key-file`. If you haven't already done so, the easiest way
 to set up your credentials for testing is to run the [gcloud tool][]:
 
 ```
-    gcloud auth login
+    gcloud auth application-default login
 ```
   See [mounting.md][] for more information on credentials.
 
