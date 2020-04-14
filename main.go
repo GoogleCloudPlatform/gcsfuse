@@ -319,10 +319,21 @@ func runCLIApp(c *cli.Context) (err error) {
 		if p, ok := os.LookupEnv("GOOGLE_APPLICATION_CREDENTIALS"); ok {
 			env = append(env, fmt.Sprintf("GOOGLE_APPLICATION_CREDENTIALS=%s", p))
 		}
-		// Pass through the http_proxy environment variable, in case the host
-		// requires a HTTP proxy server to reach the GCS endpoint.
-		if p, ok := os.LookupEnv("http_proxy"); ok {
+		// Pass through the https_proxy/http_proxy environment variable,
+		// in case the host requires a proxy server to reach the GCS endpoint.
+		// http_proxy has precedence over http_proxy, in case both are set
+		if p, ok := os.LookupEnv("https_proxy"); ok {
+			env = append(env, fmt.Sprintf("https_proxy=%s", p))
+			fmt.Fprintf(
+				os.Stdout,
+				"Added environment https_proxy: %s\n",
+				p)
+		} else if p, ok := os.LookupEnv("http_proxy"); ok {
 			env = append(env, fmt.Sprintf("http_proxy=%s", p))
+			fmt.Fprintf(
+				os.Stdout,
+				"Added environment http_proxy: %s\n",
+				p)
 		}
 
 		// Run.
