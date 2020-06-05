@@ -82,9 +82,7 @@ for [other distributions](#other-distributions) below.
 
 2.  Make the system aware of the new repo:
 
-        sudo yum update
-
-    Be sure to answer "yes" to any questions about adding the GPG signing key.
+        sudo yum -y check-update
 
 3.  Install gcsfuse:
 
