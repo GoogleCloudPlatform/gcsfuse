@@ -68,8 +68,7 @@ func mountWithConn(
 		fmt.Fprintln(os.Stdout, `
 WARNING: gcsfuse invoked as root. This will cause all files to be owned by
 root. If this is not what you intended, invoke gcsfuse as the user that will
-be interacting with the file system.
-`)
+be interacting with the file system.`)
 	}
 
 	// Choose UID and GID.
