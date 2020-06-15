@@ -407,11 +407,12 @@ func (t *RandomReaderTest) DoesntPropagateCancellationAfterReturning() {
 	}
 }
 
-func (t *RandomReaderTest) UpgradesReadsToMinimumSize() {
-	t.object.Size = 1 << 40
+func (t *RandomReaderTest) UpgradesReadsToObjectSize() {
+	const objectSize = 2 * MB
+	t.object.Size = objectSize
 
 	const readSize = 10
-	AssertLt(readSize, minReadSize)
+	AssertLt(readSize, objectSize)
 
 	// Simulate an existing reader at a mismatched offset.
 	t.rr.wrapped.reader = ioutil.NopCloser(strings.NewReader("xxx"))
@@ -419,14 +420,14 @@ func (t *RandomReaderTest) UpgradesReadsToMinimumSize() {
 	t.rr.wrapped.start = 2
 	t.rr.wrapped.limit = 5
 
-	// The bucket should be asked to read minReadSize bytes, even though we only
-	// ask for a few bytes below.
-	r := strings.NewReader(strings.Repeat("x", minReadSize))
+	// The bucket should be asked to read the entire object, even though we only
+	// ask for readSize bytes below, to minimize the cost for GCS requests.
+	r := strings.NewReader(strings.Repeat("x", objectSize))
 	rc := ioutil.NopCloser(r)
 
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
-		AllOf(rangeStartIs(1), rangeLimitIs(1+minReadSize))).
+		AllOf(rangeStartIs(1), rangeLimitIs(objectSize))).
 		WillOnce(Return(rc, nil))
 
 	// Call through.
@@ -435,34 +436,44 @@ func (t *RandomReaderTest) UpgradesReadsToMinimumSize() {
 
 	// Check the state now.
 	ExpectEq(1+readSize, t.rr.wrapped.start)
-	ExpectEq(1+minReadSize, t.rr.wrapped.limit)
+	ExpectEq(objectSize, t.rr.wrapped.limit)
 }
 
-func (t *RandomReaderTest) DoesntChangeReadsOfAppropriateSize() {
+func (t *RandomReaderTest) UpgradeReadsToAverageSize() {
 	t.object.Size = 1 << 40
+	const totalReadBytes = 6 * MB
+	const numReads = 2
+	const avgReadBytes = totalReadBytes / numReads
+
+	const expectedBytesToRead = avgReadBytes
+	const start = 1
 	const readSize = 2 * minReadSize
 
 	// Simulate an existing reader at a mismatched offset.
+	t.rr.wrapped.seeks = numReads
+	t.rr.wrapped.totalReadBytes = totalReadBytes
 	t.rr.wrapped.reader = ioutil.NopCloser(strings.NewReader("xxx"))
 	t.rr.wrapped.cancel = func() {}
 	t.rr.wrapped.start = 2
 	t.rr.wrapped.limit = 5
 
-	// The bucket should be asked to read readSize bytes.
-	r := strings.NewReader(strings.Repeat("x", readSize))
+	// The bucket should be asked to read expectedBytesToRead bytes.
+	r := strings.NewReader(strings.Repeat("x", expectedBytesToRead))
 	rc := ioutil.NopCloser(r)
 
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
-		AllOf(rangeStartIs(1), rangeLimitIs(1+readSize))).
-		WillOnce(Return(rc, nil))
+		AllOf(
+			rangeStartIs(start),
+			rangeLimitIs(start+expectedBytesToRead),
+		)).WillOnce(Return(rc, nil))
 
 	// Call through.
 	buf := make([]byte, readSize)
-	t.rr.ReadAt(buf, 1)
+	t.rr.ReadAt(buf, start)
 
 	// Check the state now.
-	ExpectEq(1+readSize, t.rr.wrapped.limit)
+	ExpectEq(start+expectedBytesToRead, t.rr.wrapped.limit)
 }
 
 func (t *RandomReaderTest) UpgradesSequentialReads_ExistingReader() {
