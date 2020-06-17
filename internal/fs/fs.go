@@ -130,7 +130,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		return
 	}
 
-	syncer := gcsx.NewSyncer(
+	syncerBucket := gcsx.NewSyncerBucket(
 		cfg.AppendThreshold,
 		cfg.TmpObjectPrefix,
 		bucket)
@@ -139,8 +139,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	fs := &fileSystem{
 		mtimeClock:             timeutil.RealClock(),
 		cacheClock:             cfg.CacheClock,
-		bucket:                 bucket,
-		syncer:                 syncer,
+		bucket:                 syncerBucket,
 		tempDir:                cfg.TempDir,
 		implicitDirs:           cfg.ImplicitDirectories,
 		inodeAttributeCacheTTL: cfg.InodeAttributeCacheTTL,
@@ -229,8 +228,7 @@ type fileSystem struct {
 
 	mtimeClock timeutil.Clock
 	cacheClock timeutil.Clock
-	bucket     gcs.Bucket
-	syncer     gcsx.Syncer
+	bucket     gcsx.SyncerBucket
 
 	/////////////////////////
 	// Constant data
@@ -562,7 +560,6 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 				Mode: fs.fileMode,
 			},
 			fs.bucket,
-			fs.syncer,
 			fs.tempDir,
 			fs.mtimeClock)
 	}

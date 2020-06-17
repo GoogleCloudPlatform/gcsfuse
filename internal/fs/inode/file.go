@@ -37,8 +37,7 @@ type FileInode struct {
 	// Dependencies
 	/////////////////////////
 
-	bucket     gcs.Bucket
-	syncer     gcsx.Syncer
+	bucket     gcsx.SyncerBucket
 	mtimeClock timeutil.Clock
 
 	/////////////////////////
@@ -92,14 +91,12 @@ func NewFileInode(
 	id fuseops.InodeID,
 	o *gcs.Object,
 	attrs fuseops.InodeAttributes,
-	bucket gcs.Bucket,
-	syncer gcsx.Syncer,
+	bucket gcsx.SyncerBucket,
 	tempDir string,
 	mtimeClock timeutil.Clock) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
 		bucket:     bucket,
-		syncer:     syncer,
 		mtimeClock: mtimeClock,
 		id:         id,
 		name:       o.Name,
@@ -470,7 +467,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	}
 
 	// Write out the contents if they are dirty.
-	newObj, err := f.syncer.SyncObject(ctx, &f.src, f.content)
+	newObj, err := f.bucket.SyncObject(ctx, &f.src, f.content)
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.

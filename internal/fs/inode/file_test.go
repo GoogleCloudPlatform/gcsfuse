@@ -101,8 +101,7 @@ func (t *FileTest) createInode() {
 			Gid:  gid,
 			Mode: fileMode,
 		},
-		t.bucket,
-		gcsx.NewSyncer(
+		gcsx.NewSyncerBucket(
 			1, // Append threshold
 			".gcsfuse_tmp/",
 			t.bucket),
