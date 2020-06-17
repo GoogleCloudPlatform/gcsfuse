@@ -704,15 +704,6 @@ func (t *ModesTest) AppendMode_SeekAndWrite() {
 func (t *ModesTest) AppendMode_WriteAt() {
 	var err error
 
-	// Linux's support for pwrite is buggy; the pwrite(2) man page says this:
-	//
-	//     POSIX requires that opening a file with the O_APPEND flag should have
-	//     no affect on the location at which pwrite() writes data.  However, on
-	//     Linux,  if  a  file  is opened with O_APPEND, pwrite() appends data to
-	//     the end of the file, regardless of the value of offset.
-	//
-	isLinux := (runtime.GOOS == "linux")
-
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -723,7 +714,7 @@ func (t *ModesTest) AppendMode_WriteAt() {
 			os.FileMode(0644)))
 
 	// Open the file.
-	t.f1, err = os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR|os.O_APPEND, 0)
+	t.f1, err = os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0)
 	AssertEq(nil, err)
 
 	// Seek somewhere in the file.
@@ -742,51 +733,29 @@ func (t *ModesTest) AppendMode_WriteAt() {
 	// Check the size now.
 	fi, err := t.f1.Stat()
 	AssertEq(nil, err)
-
-	if isLinux {
-		ExpectEq(len(contents+"111"), fi.Size())
-	} else {
-		ExpectEq(len(contents), fi.Size())
-	}
+	ExpectEq(len(contents), fi.Size())
 
 	// Read the full contents with ReadAt.
 	buf := make([]byte, 1024)
 	n, err := t.f1.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
-	if isLinux {
-		ExpectEq("tacoburritoenchilada111", string(buf[:n]))
-	} else {
-		ExpectEq("taco111ritoenchilada", string(buf[:n]))
-	}
+	ExpectEq("taco111ritoenchilada", string(buf[:n]))
 
 	// Read the full contents with another file handle.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertEq(nil, err)
-	if isLinux {
-		ExpectEq("tacoburritoenchilada111", string(fileContents))
-	} else {
-		ExpectEq("taco111ritoenchilada", string(fileContents))
-	}
+	ExpectEq("taco111ritoenchilada", string(fileContents))
 }
 
 func (t *ModesTest) AppendMode_WriteAt_PastEOF() {
 	var err error
 
-	// Linux's support for pwrite is buggy; the pwrite(2) man page says this:
-	//
-	//     POSIX requires that opening a file with the O_APPEND flag should have
-	//     no affect on the location at which pwrite() writes data.  However, on
-	//     Linux,  if  a  file  is opened with O_APPEND, pwrite() appends data to
-	//     the end of the file, regardless of the value of offset.
-	//
-	isLinux := (runtime.GOOS == "linux")
-
 	// Open a file.
 	t.f1, err = os.OpenFile(
 		path.Join(t.mfs.Dir(), "foo"),
-		os.O_RDWR|os.O_APPEND|os.O_CREATE,
+		os.O_RDWR|os.O_CREATE,
 		0600)
 
 	AssertEq(nil, err)
@@ -810,11 +779,7 @@ func (t *ModesTest) AppendMode_WriteAt_PastEOF() {
 	contents, err := ioutil.ReadFile(t.f1.Name())
 	AssertEq(nil, err)
 
-	if isLinux {
-		ExpectEq("111222", string(contents))
-	} else {
-		ExpectEq("111\x00\x00\x00222", string(contents))
-	}
+	ExpectEq("111\x00\x00\x00222", string(contents))
 }
 
 func (t *ModesTest) ReadFromWriteOnlyFile() {
@@ -1452,7 +1417,7 @@ func (t *FileTest) WriteAtDoesntChangeOffset_AppendMode() {
 	// Create a file in append mode.
 	t.f1, err = os.OpenFile(
 		path.Join(t.mfs.Dir(), "foo"),
-		os.O_RDWR|os.O_APPEND|os.O_CREATE,
+		os.O_RDWR|os.O_CREATE,
 		0600)
 
 	AssertEq(nil, err)
