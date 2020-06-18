@@ -139,7 +139,6 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	fs := &fileSystem{
 		mtimeClock:             timeutil.RealClock(),
 		cacheClock:             cfg.CacheClock,
-		bucket:                 syncerBucket,
 		tempDir:                cfg.TempDir,
 		implicitDirs:           cfg.ImplicitDirectories,
 		inodeAttributeCacheTTL: cfg.InodeAttributeCacheTTL,
@@ -171,7 +170,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		},
 		fs.implicitDirs,
 		fs.dirTypeCacheTTL,
-		fs.bucket,
+		syncerBucket,
 		fs.mtimeClock,
 		fs.cacheClock)
 
@@ -187,7 +186,7 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 	// Periodically garbage collect temporary objects.
 	var gcCtx context.Context
 	gcCtx, fs.stopGarbageCollecting = context.WithCancel(context.Background())
-	go garbageCollect(gcCtx, cfg.TmpObjectPrefix, fs.bucket)
+	go garbageCollect(gcCtx, cfg.TmpObjectPrefix, syncerBucket)
 
 	server = fuseutil.NewFileSystemServer(fs)
 	return
@@ -228,7 +227,6 @@ type fileSystem struct {
 
 	mtimeClock timeutil.Clock
 	cacheClock timeutil.Clock
-	bucket     gcsx.SyncerBucket
 
 	/////////////////////////
 	// Constant data
@@ -491,7 +489,10 @@ func (fs *fileSystem) checkInvariants() {
 // of that function.
 //
 // LOCKS_REQUIRED(fs.mu)
-func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
+func (fs *fileSystem) mintInode(
+	bucket gcsx.SyncerBucket,
+	name string,
+	o *gcs.Object) (in inode.Inode) {
 	// Choose an ID.
 	id := fs.nextInodeID
 	fs.nextInodeID++
@@ -515,7 +516,7 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 			},
 			fs.implicitDirs,
 			fs.dirTypeCacheTTL,
-			fs.bucket,
+			bucket,
 			fs.mtimeClock,
 			fs.cacheClock)
 
@@ -536,7 +537,7 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 			},
 			fs.implicitDirs,
 			fs.dirTypeCacheTTL,
-			fs.bucket,
+			bucket,
 			fs.mtimeClock,
 			fs.cacheClock)
 
@@ -559,7 +560,7 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 				Gid:  fs.gid,
 				Mode: fs.fileMode,
 			},
-			fs.bucket,
+			bucket,
 			fs.tempDir,
 			fs.mtimeClock)
 	}
@@ -582,6 +583,7 @@ func (fs *fileSystem) mintInode(name string, o *gcs.Object) (in inode.Inode) {
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
+	bucket gcsx.SyncerBucket,
 	name string,
 	o *gcs.Object) (in inode.Inode) {
 	// Sanity check.
@@ -611,7 +613,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		var ok bool
 		in, ok = fs.implicitDirInodes[name]
 		if !ok {
-			in = fs.mintInode(name, nil)
+			in = fs.mintInode(bucket, name, nil)
 			fs.implicitDirInodes[in.Name()] = in.(inode.DirInode)
 		}
 
@@ -632,7 +634,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 
 		// If we have no existing record for this name, mint an inode and return it.
 		if !ok {
-			in = fs.mintInode(o.Name, o)
+			in = fs.mintInode(bucket, o.Name, o)
 			fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
 			in.Lock()
@@ -678,7 +680,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// lock in accordance with our lock ordering rules.
 		existingInode.Unlock()
 
-		in = fs.mintInode(o.Name, o)
+		in = fs.mintInode(bucket, o.Name, o)
 		fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
 		continue
@@ -731,7 +733,11 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 
 		// Attempt to create the inode. Return if successful.
 		fs.mu.Lock()
-		child = fs.lookUpOrCreateInodeIfNotStale(result.FullName, result.Object)
+		child = fs.lookUpOrCreateInodeIfNotStale(
+			result.Bucket,
+			result.FullName,
+			result.Object,
+		)
 		if child != nil {
 			return
 		}
@@ -1085,6 +1091,7 @@ func (fs *fileSystem) MkDir(
 	// exists.
 	parent.Lock()
 	o, err := parent.CreateChildDir(ctx, op.Name)
+	bucket := parent.Bucket()
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
@@ -1103,7 +1110,7 @@ func (fs *fileSystem) MkDir(
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
 	fs.mu.Lock()
-	child := fs.lookUpOrCreateInodeIfNotStale(o.Name, o)
+	child := fs.lookUpOrCreateInodeIfNotStale(bucket, o.Name, o)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
 		return
@@ -1168,6 +1175,7 @@ func (fs *fileSystem) createFile(
 	// exists.
 	parent.Lock()
 	o, err := parent.CreateChildFile(ctx, name)
+	bucket := parent.Bucket()
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
@@ -1186,7 +1194,7 @@ func (fs *fileSystem) createFile(
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
 	fs.mu.Lock()
-	child = fs.lookUpOrCreateInodeIfNotStale(o.Name, o)
+	child = fs.lookUpOrCreateInodeIfNotStale(bucket, o.Name, o)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
 		return
@@ -1213,9 +1221,7 @@ func (fs *fileSystem) CreateFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(
-		child.(*inode.FileInode),
-		fs.bucket)
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode))
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -1245,6 +1251,7 @@ func (fs *fileSystem) CreateSymlink(
 	// Create the object in GCS, failing if it already exists.
 	parent.Lock()
 	o, err := parent.CreateChildSymlink(ctx, op.Name, op.Target)
+	bucket := parent.Bucket()
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
@@ -1263,7 +1270,7 @@ func (fs *fileSystem) CreateSymlink(
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
 	fs.mu.Lock()
-	child := fs.lookUpOrCreateInodeIfNotStale(o.Name, o)
+	child := fs.lookUpOrCreateInodeIfNotStale(bucket, o.Name, o)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
 		return
@@ -1524,7 +1531,7 @@ func (fs *fileSystem) OpenFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(in, fs.bucket)
+	fs.handles[handleID] = handle.NewFileHandle(in)
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them

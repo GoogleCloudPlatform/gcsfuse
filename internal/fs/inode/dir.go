@@ -39,6 +39,9 @@ func IsDirName(name string) bool {
 // The result of looking up a child within a directory inode. See notes on
 // DirInode.LookUpChild for more info.
 type LookUpResult struct {
+	// The GCS bucket where the lookup is performed.
+	Bucket gcsx.SyncerBucket
+
 	// For both object-backed children and implicit directories, the full
 	// canonical name of the child. For example, if the parent inode is "foo/"
 	// and the child is a directory, then this is "foo/bar/".
@@ -261,6 +264,7 @@ func (d *dirInode) checkInvariants() {
 func (d *dirInode) lookUpChildFile(
 	ctx context.Context,
 	name string) (result LookUpResult, err error) {
+	result.Bucket = d.Bucket()
 	result.FullName = d.Name() + name
 	result.Object, err = statObjectMayNotExist(ctx, d.bucket, result.FullName)
 	if err != nil {
@@ -278,6 +282,7 @@ func (d *dirInode) lookUpChildDir(
 
 	// Stat the placeholder object.
 	b.Add(func(ctx context.Context) (err error) {
+		result.Bucket = d.Bucket()
 		result.FullName = d.Name() + name + "/"
 		result.Object, err = statObjectMayNotExist(ctx, d.bucket, result.FullName)
 		if err != nil {
