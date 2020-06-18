@@ -17,6 +17,7 @@ package inode
 import (
 	"sync"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
 )
@@ -55,6 +56,14 @@ type Inode interface {
 	//
 	// This method may block. Errors are for logging purposes only.
 	Destroy() (err error)
+}
+
+// An inode owned by a gcs bucket.
+type BucketOwnedInode interface {
+	Inode
+
+	// Return the gcs.Bucket which the dir or file belongs to.
+	Bucket() gcsx.SyncerBucket
 }
 
 // An inode that is backed by a particular generation of a GCS object.

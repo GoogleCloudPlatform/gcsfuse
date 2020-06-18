@@ -335,6 +335,10 @@ func (f *FileInode) Attributes(
 	return
 }
 
+func (f *FileInode) Bucket() gcsx.SyncerBucket {
+	return f.bucket
+}
+
 // Serve a read for this file with semantics matching io.ReaderAt.
 //
 // The caller may be better off reading directly from GCS when

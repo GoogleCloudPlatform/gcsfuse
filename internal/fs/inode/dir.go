@@ -66,7 +66,7 @@ func (lr *LookUpResult) Exists() bool {
 // looking up children, and creating and deleting children. Must be locked for
 // any method additional to the Inode interface.
 type DirInode interface {
-	Inode
+	BucketOwnedInode
 
 	// Look up the direct child with the given relative name, returning
 	// information about the object backing the child or whether it exists as an
@@ -596,6 +596,10 @@ func (d *dirInode) Attributes(
 	attrs.Nlink = 1
 
 	return
+}
+
+func (d *dirInode) Bucket() gcsx.SyncerBucket {
+	return d.bucket
 }
 
 // A suffix that can be used to unambiguously tag a file system name.
