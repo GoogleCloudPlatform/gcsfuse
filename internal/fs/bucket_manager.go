@@ -15,6 +15,7 @@
 package fs
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -37,6 +38,25 @@ type BucketConfig struct {
 	OpRateLimitHz                      float64
 	StatCacheCapacity                  int
 	StatCacheTTL                       time.Duration
+
+	// Files backed by on object of length at least AppendThreshold that have
+	// only been appended to (i.e. none of the object's contents have been
+	// dirtied) will be written out by "appending" to the object in GCS with this
+	// process:
+	//
+	// 1. Write out a temporary object containing the appended contents whose
+	//    name begins with TmpObjectPrefix.
+	//
+	// 2. Compose the original object and the temporary object on top of the
+	//    original object.
+	//
+	// 3. Delete the temporary object.
+	//
+	// Note that if the process fails or is interrupted the temporary object will
+	// not be cleaned up, so the user must ensure that TmpObjectPrefix is
+	// periodically garbage collected.
+	AppendThreshold int64
+	TmpObjectPrefix string
 }
 
 // BucketManager manages the lifecycle of buckets.
@@ -44,19 +64,28 @@ type BucketManager interface {
 	// Sets up a gcs bucket by its name
 	SetUpBucket(
 		ctx context.Context,
-		name string) (b gcs.Bucket, err error)
+		name string) (b gcsx.SyncerBucket, err error)
+
+	// Shuts down the bucket manager and its buckets
+	ShutDown()
 }
 
 type bucketManager struct {
 	config BucketConfig
 	conn   gcs.Conn
+
+	// Garbage collector
+	gcCtx                 context.Context
+	stopGarbageCollecting func()
 }
 
 func NewBucketManager(config BucketConfig, conn gcs.Conn) BucketManager {
-	return &bucketManager{
+	bm := &bucketManager{
 		config: config,
 		conn:   conn,
 	}
+	bm.gcCtx, bm.stopGarbageCollecting = context.WithCancel(context.Background())
+	return bm
 }
 
 func setUpRateLimiting(
@@ -119,7 +148,8 @@ func setUpRateLimiting(
 // bucket as described in that package.
 func (bm *bucketManager) SetUpBucket(
 	ctx context.Context,
-	name string) (b gcs.Bucket, err error) {
+	name string) (sb gcsx.SyncerBucket, err error) {
+	var b gcs.Bucket
 	// Set up the appropriate backing bucket.
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
@@ -167,6 +197,19 @@ func (bm *bucketManager) SetUpBucket(
 			b)
 	}
 
+	// Enable content type awareness
+	b = gcsx.NewContentTypeBucket(b)
+
+	// Enable Syncer
+	if bm.config.TmpObjectPrefix == "" {
+		err = errors.New("You must set TmpObjectPrefix.")
+		return
+	}
+	sb = gcsx.NewSyncerBucket(
+		bm.config.AppendThreshold,
+		bm.config.TmpObjectPrefix,
+		b)
+
 	// Check whether this bucket works, giving the user a warning early if there
 	// is some problem.
 	{
@@ -176,5 +219,12 @@ func (bm *bucketManager) SetUpBucket(
 		}
 	}
 
+	// Periodically garbage collect temporary objects
+	go garbageCollect(bm.gcCtx, bm.config.TmpObjectPrefix, sb)
+
 	return
+}
+
+func (bm *bucketManager) ShutDown() {
+	bm.stopGarbageCollecting()
 }

@@ -90,6 +90,8 @@ be interacting with the file system.`)
 		OpRateLimitHz:                      flags.OpRateLimitHz,
 		StatCacheCapacity:                  flags.StatCacheCapacity,
 		StatCacheTTL:                       flags.StatCacheTTL,
+		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
+		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 	}
 	bm := fs.NewBucketManager(bucketCfg, conn)
 
@@ -106,9 +108,6 @@ be interacting with the file system.`)
 		Gid:                    gid,
 		FilePerms:              os.FileMode(flags.FileMode),
 		DirPerms:               os.FileMode(flags.DirMode),
-
-		AppendThreshold: 1 << 21, // 2 MiB, a total guess.
-		TmpObjectPrefix: ".gcsfuse_tmp/",
 	}
 
 	server, err := fs.NewServer(ctx, serverCfg)

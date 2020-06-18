@@ -15,7 +15,6 @@
 package fs
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -90,25 +89,6 @@ type ServerConfig struct {
 	// os.ModePerm may be set.
 	FilePerms os.FileMode
 	DirPerms  os.FileMode
-
-	// Files backed by on object of length at least AppendThreshold that have
-	// only been appended to (i.e. none of the object's contents have been
-	// dirtied) will be written out by "appending" to the object in GCS with this
-	// process:
-	//
-	// 1. Write out a temporary object containing the appended contents whose
-	//    name begins with TmpObjectPrefix.
-	//
-	// 2. Compose the original object and the temporary object on top of the
-	//    original object.
-	//
-	// 3. Delete the temporary object.
-	//
-	// Note that if the process fails or is interrupted the temporary object will
-	// not be cleaned up, so the user must ensure that TmpObjectPrefix is
-	// periodically garbage collected.
-	AppendThreshold int64
-	TmpObjectPrefix string
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -126,30 +106,17 @@ func NewServer(
 		return
 	}
 
-	baseBucket, err := cfg.BucketManager.SetUpBucket(ctx, cfg.BucketName)
+	syncerBucket, err := cfg.BucketManager.SetUpBucket(ctx, cfg.BucketName)
 	if err != nil {
 		err = fmt.Errorf("SetUpBucket: %v", err)
 		return
 	}
 
-	// Set up a bucket that infers content types when creating files.
-	bucket := gcsx.NewContentTypeBucket(baseBucket)
-
-	// Create the object syncer.
-	if cfg.TmpObjectPrefix == "" {
-		err = errors.New("You must set TmpObjectPrefix.")
-		return
-	}
-
-	syncerBucket := gcsx.NewSyncerBucket(
-		cfg.AppendThreshold,
-		cfg.TmpObjectPrefix,
-		bucket)
-
 	// Set up the basic struct.
 	fs := &fileSystem{
 		mtimeClock:             timeutil.RealClock(),
 		cacheClock:             cfg.CacheClock,
+		bucketManager:          cfg.BucketManager,
 		tempDir:                cfg.TempDir,
 		implicitDirs:           cfg.ImplicitDirectories,
 		inodeAttributeCacheTTL: cfg.InodeAttributeCacheTTL,
@@ -194,11 +161,6 @@ func NewServer(
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
 
-	// Periodically garbage collect temporary objects.
-	var gcCtx context.Context
-	gcCtx, fs.stopGarbageCollecting = context.WithCancel(context.Background())
-	go garbageCollect(gcCtx, cfg.TmpObjectPrefix, syncerBucket)
-
 	server = fuseutil.NewFileSystemServer(fs)
 	return
 }
@@ -236,8 +198,9 @@ type fileSystem struct {
 	// Dependencies
 	/////////////////////////
 
-	mtimeClock timeutil.Clock
-	cacheClock timeutil.Clock
+	mtimeClock    timeutil.Clock
+	cacheClock    timeutil.Clock
+	bucketManager BucketManager
 
 	/////////////////////////
 	// Constant data
@@ -255,9 +218,6 @@ type fileSystem struct {
 	// Mode bits for all inodes.
 	fileMode os.FileMode
 	dirMode  os.FileMode
-
-	// A function that shuts down the garbage collector.
-	stopGarbageCollecting func()
 
 	/////////////////////////
 	// Mutable state
@@ -952,7 +912,7 @@ func (fs *fileSystem) symlinkInodeOrDie(
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *fileSystem) Destroy() {
-	fs.stopGarbageCollecting()
+	fs.bucketManager.ShutDown()
 }
 
 func (fs *fileSystem) StatFS(
