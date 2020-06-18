@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package fs
 
 import (
 	"fmt"
@@ -29,6 +29,15 @@ import (
 	"github.com/jacobsa/ratelimit"
 	"github.com/jacobsa/timeutil"
 )
+
+type BucketConfig struct {
+	BillingProject                     string
+	OnlyDir                            string
+	EgressBandwidthLimitBytesPerSecond float64
+	OpRateLimitHz                      float64
+	StatCacheCapacity                  int
+	StatCacheTTL                       time.Duration
+}
 
 func setUpRateLimiting(
 	in gcs.Bucket,
@@ -84,20 +93,26 @@ func setUpRateLimiting(
 	return
 }
 
-// Configure a bucket based on the supplied flags.
+// Configure a bucket based on the supplied config.
 //
 // Special case: if the bucket name is canned.FakeBucketName, set up a fake
 // bucket as described in that package.
-func setUpBucket(
+func SetUpBucket(
 	ctx context.Context,
-	flags *flagStorage,
+	config BucketConfig,
 	conn gcs.Conn,
 	name string) (b gcs.Bucket, err error) {
 	// Set up the appropriate backing bucket.
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		b, err = conn.OpenBucket(ctx, &gcs.OpenBucketOptions{Name: name, BillingProject: flags.BillingProject})
+		b, err = conn.OpenBucket(
+			ctx,
+			&gcs.OpenBucketOptions{
+				Name:           name,
+				BillingProject: config.BillingProject,
+			},
+		)
 		if err != nil {
 			err = fmt.Errorf("OpenBucket: %v", err)
 			return
@@ -105,8 +120,8 @@ func setUpBucket(
 	}
 
 	// Limit to a requested prefix of the bucket, if any.
-	if flags.OnlyDir != "" {
-		b, err = gcsx.NewPrefixBucket(path.Clean(flags.OnlyDir)+"/", b)
+	if config.OnlyDir != "" {
+		b, err = gcsx.NewPrefixBucket(path.Clean(config.OnlyDir)+"/", b)
 		if err != nil {
 			err = fmt.Errorf("NewPrefixBucket: %v", err)
 			return
@@ -116,8 +131,8 @@ func setUpBucket(
 	// Enable rate limiting, if requested.
 	b, err = setUpRateLimiting(
 		b,
-		flags.OpRateLimitHz,
-		flags.EgressBandwidthLimitBytesPerSecond)
+		config.OpRateLimitHz,
+		config.EgressBandwidthLimitBytesPerSecond)
 
 	if err != nil {
 		err = fmt.Errorf("setUpRateLimiting: %v", err)
@@ -125,10 +140,10 @@ func setUpBucket(
 	}
 
 	// Enable cached StatObject results, if appropriate.
-	if flags.StatCacheTTL != 0 {
-		cacheCapacity := flags.StatCacheCapacity
+	if config.StatCacheTTL != 0 {
+		cacheCapacity := config.StatCacheCapacity
 		b = gcscaching.NewFastStatBucket(
-			flags.StatCacheTTL,
+			config.StatCacheTTL,
 			gcscaching.NewStatCache(cacheCapacity),
 			timeutil.RealClock(),
 			b)

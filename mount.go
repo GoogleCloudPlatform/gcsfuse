@@ -83,14 +83,22 @@ be interacting with the file system.`)
 	// Set up the bucket.
 	status.Println("Opening bucket...")
 
-	bucket, err := setUpBucket(
+	bucketCfg := fs.BucketConfig{
+		BillingProject:                     flags.BillingProject,
+		OnlyDir:                            flags.OnlyDir,
+		EgressBandwidthLimitBytesPerSecond: flags.EgressBandwidthLimitBytesPerSecond,
+		OpRateLimitHz:                      flags.OpRateLimitHz,
+		StatCacheCapacity:                  flags.StatCacheCapacity,
+		StatCacheTTL:                       flags.StatCacheTTL,
+	}
+	bucket, err := fs.SetUpBucket(
 		ctx,
-		flags,
+		bucketCfg,
 		conn,
 		bucketName)
 
 	if err != nil {
-		err = fmt.Errorf("setUpBucket: %v", err)
+		err = fmt.Errorf("SetUpBucket: %v", err)
 		return
 	}
 
