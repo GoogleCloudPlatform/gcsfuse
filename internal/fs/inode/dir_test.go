@@ -24,6 +24,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
@@ -47,7 +48,7 @@ const typeCacheTTL = time.Second
 
 type DirTest struct {
 	ctx    context.Context
-	bucket gcs.Bucket
+	bucket gcsx.SyncerBucket
 	clock  timeutil.SimulatedClock
 
 	in inode.DirInode
@@ -61,8 +62,11 @@ func init() { RegisterTestSuite(&DirTest{}) }
 func (t *DirTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
-	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
-
+	bucket := gcsfake.NewFakeBucket(&t.clock, "some_bucket")
+	t.bucket = gcsx.NewSyncerBucket(
+		1, // Append threshold
+		".gcsfuse_tmp/",
+		bucket)
 	// Create the inode. No implicit dirs by default.
 	t.resetInode(false)
 }

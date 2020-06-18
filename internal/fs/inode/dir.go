@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
@@ -154,7 +155,7 @@ type dirInode struct {
 	// Dependencies
 	/////////////////////////
 
-	bucket     gcs.Bucket
+	bucket     gcsx.SyncerBucket
 	mtimeClock timeutil.Clock
 	cacheClock timeutil.Clock
 
@@ -214,7 +215,7 @@ func NewDirInode(
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
 	typeCacheTTL time.Duration,
-	bucket gcs.Bucket,
+	bucket gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock) (d DirInode) {
 	if !IsDirName(name) {
@@ -781,7 +782,7 @@ func (d *dirInode) CloneToChildFile(
 			SrcName:                       src.Name,
 			SrcGeneration:                 src.Generation,
 			SrcMetaGenerationPrecondition: &src.MetaGeneration,
-			DstName: path.Join(d.Name(), name),
+			DstName:                       path.Join(d.Name(), name),
 		})
 
 	if err != nil {
