@@ -40,8 +40,11 @@ type ServerConfig struct {
 	// which we use the wall clock.
 	CacheClock timeutil.Clock
 
-	// The bucket that the file system is to export.
-	Bucket gcs.Bucket
+	// The bucket manager is responsible for setting up buckets.
+	BucketManager BucketManager
+
+	// The name of the bucket to be mounted at root.
+	BucketName string
 
 	// The temporary directory to use for local caching, or the empty string to
 	// use the system default.
@@ -109,7 +112,9 @@ type ServerConfig struct {
 }
 
 // Create a fuse file system server according to the supplied configuration.
-func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
+func NewServer(
+	ctx context.Context,
+	cfg *ServerConfig) (server fuse.Server, err error) {
 	// Check permissions bits.
 	if cfg.FilePerms&^os.ModePerm != 0 {
 		err = fmt.Errorf("Illegal file perms: %v", cfg.FilePerms)
@@ -121,8 +126,14 @@ func NewServer(cfg *ServerConfig) (server fuse.Server, err error) {
 		return
 	}
 
+	baseBucket, err := cfg.BucketManager.SetUpBucket(ctx, cfg.BucketName)
+	if err != nil {
+		err = fmt.Errorf("SetUpBucket: %v", err)
+		return
+	}
+
 	// Set up a bucket that infers content types when creating files.
-	bucket := gcsx.NewContentTypeBucket(cfg.Bucket)
+	bucket := gcsx.NewContentTypeBucket(baseBucket)
 
 	// Create the object syncer.
 	if cfg.TmpObjectPrefix == "" {

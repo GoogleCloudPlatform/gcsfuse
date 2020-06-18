@@ -107,7 +107,8 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 		t.bucket = gcsfake.NewFakeBucket(t.mtimeClock, "some_bucket")
 	}
 
-	t.serverCfg.Bucket = t.bucket
+	t.serverCfg.BucketManager = fakeBucketManager{t.bucket}
+	t.serverCfg.BucketName = t.bucket.Name()
 
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
@@ -126,7 +127,7 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	AssertEq(nil, err)
 
 	// Create a file system server.
-	server, err := fs.NewServer(&t.serverCfg)
+	server, err := fs.NewServer(t.ctx, &t.serverCfg)
 	AssertEq(nil, err)
 
 	// Mount the file system.
@@ -269,4 +270,18 @@ func currentGid() uint32 {
 	AssertEq(nil, err)
 
 	return uint32(gid)
+}
+
+type fakeBucketManager struct {
+	bucket gcs.Bucket
+}
+
+func (bm fakeBucketManager) SetUpBucket(
+	ctx context.Context,
+	name string) (b gcs.Bucket, err error) {
+	if bm.bucket.Name() == name {
+		return bm.bucket, nil
+	}
+	err = fmt.Errorf("Bucket %v does not exist", name)
+	return
 }

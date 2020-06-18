@@ -92,19 +92,12 @@ be interacting with the file system.`)
 		StatCacheTTL:                       flags.StatCacheTTL,
 	}
 	bm := fs.NewBucketManager(bucketCfg, conn)
-	bucket, err := bm.SetUpBucket(
-		ctx,
-		bucketName)
-
-	if err != nil {
-		err = fmt.Errorf("SetUpBucket: %v", err)
-		return
-	}
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{
 		CacheClock:             timeutil.RealClock(),
-		Bucket:                 bucket,
+		BucketManager:          bm,
+		BucketName:             bucketName,
 		TempDir:                flags.TempDir,
 		ImplicitDirectories:    flags.ImplicitDirs,
 		InodeAttributeCacheTTL: flags.StatCacheTTL,
@@ -118,7 +111,7 @@ be interacting with the file system.`)
 		TmpObjectPrefix: ".gcsfuse_tmp/",
 	}
 
-	server, err := fs.NewServer(serverCfg)
+	server, err := fs.NewServer(ctx, serverCfg)
 	if err != nil {
 		err = fmt.Errorf("fs.NewServer: %v", err)
 		return
@@ -128,8 +121,8 @@ be interacting with the file system.`)
 	status.Println("Mounting file system...")
 
 	mountCfg := &fuse.MountConfig{
-		FSName:      bucket.Name(),
-		VolumeName:  bucket.Name(),
+		FSName:      "gcsfuse",
+		VolumeName:  "gcsfuse",
 		Options:     flags.MountOptions,
 		ErrorLogger: log.New(os.Stderr, "fuse: ", log.Flags()),
 	}
