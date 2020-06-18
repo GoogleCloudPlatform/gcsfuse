@@ -39,6 +39,26 @@ type BucketConfig struct {
 	StatCacheTTL                       time.Duration
 }
 
+// BucketManager manages the lifecycle of buckets.
+type BucketManager interface {
+	// Sets up a gcs bucket by its name
+	SetUpBucket(
+		ctx context.Context,
+		name string) (b gcs.Bucket, err error)
+}
+
+type bucketManager struct {
+	config BucketConfig
+	conn   gcs.Conn
+}
+
+func NewBucketManager(config BucketConfig, conn gcs.Conn) BucketManager {
+	return &bucketManager{
+		config: config,
+		conn:   conn,
+	}
+}
+
 func setUpRateLimiting(
 	in gcs.Bucket,
 	opRateLimitHz float64,
@@ -97,20 +117,18 @@ func setUpRateLimiting(
 //
 // Special case: if the bucket name is canned.FakeBucketName, set up a fake
 // bucket as described in that package.
-func SetUpBucket(
+func (bm *bucketManager) SetUpBucket(
 	ctx context.Context,
-	config BucketConfig,
-	conn gcs.Conn,
 	name string) (b gcs.Bucket, err error) {
 	// Set up the appropriate backing bucket.
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		b, err = conn.OpenBucket(
+		b, err = bm.conn.OpenBucket(
 			ctx,
 			&gcs.OpenBucketOptions{
 				Name:           name,
-				BillingProject: config.BillingProject,
+				BillingProject: bm.config.BillingProject,
 			},
 		)
 		if err != nil {
@@ -120,8 +138,8 @@ func SetUpBucket(
 	}
 
 	// Limit to a requested prefix of the bucket, if any.
-	if config.OnlyDir != "" {
-		b, err = gcsx.NewPrefixBucket(path.Clean(config.OnlyDir)+"/", b)
+	if bm.config.OnlyDir != "" {
+		b, err = gcsx.NewPrefixBucket(path.Clean(bm.config.OnlyDir)+"/", b)
 		if err != nil {
 			err = fmt.Errorf("NewPrefixBucket: %v", err)
 			return
@@ -131,8 +149,8 @@ func SetUpBucket(
 	// Enable rate limiting, if requested.
 	b, err = setUpRateLimiting(
 		b,
-		config.OpRateLimitHz,
-		config.EgressBandwidthLimitBytesPerSecond)
+		bm.config.OpRateLimitHz,
+		bm.config.EgressBandwidthLimitBytesPerSecond)
 
 	if err != nil {
 		err = fmt.Errorf("setUpRateLimiting: %v", err)
@@ -140,10 +158,10 @@ func SetUpBucket(
 	}
 
 	// Enable cached StatObject results, if appropriate.
-	if config.StatCacheTTL != 0 {
-		cacheCapacity := config.StatCacheCapacity
+	if bm.config.StatCacheTTL != 0 {
+		cacheCapacity := bm.config.StatCacheCapacity
 		b = gcscaching.NewFastStatBucket(
-			config.StatCacheTTL,
+			bm.config.StatCacheTTL,
 			gcscaching.NewStatCache(cacheCapacity),
 			timeutil.RealClock(),
 			b)

@@ -91,10 +91,9 @@ be interacting with the file system.`)
 		StatCacheCapacity:                  flags.StatCacheCapacity,
 		StatCacheTTL:                       flags.StatCacheTTL,
 	}
-	bucket, err := fs.SetUpBucket(
+	bm := fs.NewBucketManager(bucketCfg, conn)
+	bucket, err := bm.SetUpBucket(
 		ctx,
-		bucketCfg,
-		conn,
 		bucketName)
 
 	if err != nil {
