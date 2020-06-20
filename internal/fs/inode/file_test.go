@@ -44,7 +44,7 @@ const uid = 123
 const gid = 456
 
 const fileInodeID = 17
-const fileInodeName = "foo/bar"
+const fileName = "foo/bar"
 const fileMode os.FileMode = 0641
 
 type FileTest struct {
@@ -75,7 +75,7 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 	t.backingObj, err = gcsutil.CreateObject(
 		t.ctx,
 		t.bucket,
-		fileInodeName,
+		fileName,
 		[]byte(t.initialContents))
 
 	AssertEq(nil, err)
@@ -93,8 +93,13 @@ func (t *FileTest) createInode() {
 		t.in.Unlock()
 	}
 
+	name := inode.NewFileName(
+		inode.NewRootName(),
+		t.backingObj.Name,
+	)
 	t.in = inode.NewFileInode(
 		fileInodeID,
+		name,
 		t.backingObj,
 		fuseops.InodeAttributes{
 			Uid:  uid,
@@ -120,7 +125,7 @@ func (t *FileTest) ID() {
 }
 
 func (t *FileTest) Name() {
-	ExpectEq(fileInodeName, t.in.Name())
+	ExpectEq(fileName, t.in.Name().GcsObjectName())
 }
 
 func (t *FileTest) InitialSourceGeneration() {
@@ -344,7 +349,7 @@ func (t *FileTest) WriteThenSync() {
 	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration().Object)
 
 	// Stat the current object in the bucket.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
@@ -356,7 +361,7 @@ func (t *FileTest) WriteThenSync() {
 		o.Metadata["gcsfuse_mtime"])
 
 	// Read the object's contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name())
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 
 	AssertEq(nil, err)
 	ExpectEq("paco", string(contents))
@@ -392,7 +397,7 @@ func (t *FileTest) AppendThenSync() {
 	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration().Object)
 
 	// Stat the current object in the bucket.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
@@ -404,7 +409,7 @@ func (t *FileTest) AppendThenSync() {
 		o.Metadata["gcsfuse_mtime"])
 
 	// Read the object's contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name())
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 
 	AssertEq(nil, err)
 	ExpectEq("tacoburrito", string(contents))
@@ -438,7 +443,7 @@ func (t *FileTest) TruncateDownwardThenSync() {
 	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration().Object)
 
 	// Stat the current object in the bucket.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
@@ -480,7 +485,7 @@ func (t *FileTest) TruncateUpwardThenSync() {
 	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration().Object)
 
 	// Stat the current object in the bucket.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 	ExpectEq(
 		truncateTime.UTC().Format(time.RFC3339Nano),
@@ -510,7 +515,7 @@ func (t *FileTest) Sync_Clobbered() {
 	newObj, err := gcsutil.CreateObject(
 		t.ctx,
 		t.bucket,
-		t.in.Name(),
+		t.in.Name().GcsObjectName(),
 		[]byte("burrito"))
 
 	AssertEq(nil, err)
@@ -523,7 +528,7 @@ func (t *FileTest) Sync_Clobbered() {
 	ExpectEq(t.backingObj.MetaGeneration, t.in.SourceGeneration().Metadata)
 
 	// The object in the bucket should not have been changed.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
@@ -548,7 +553,7 @@ func (t *FileTest) SetMtime_ContentNotFaultedIn() {
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(mtime))
 
 	// The inode should have added the mtime to the backing object's metadata.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
@@ -578,7 +583,7 @@ func (t *FileTest) SetMtime_ContentClean() {
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(mtime))
 
 	// The inode should have added the mtime to the backing object's metadata.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
@@ -612,7 +617,7 @@ func (t *FileTest) SetMtime_ContentDirty() {
 	AssertEq(nil, err)
 
 	// Now the object in the bucket should have the appropriate mtime.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
@@ -628,7 +633,7 @@ func (t *FileTest) SetMtime_SourceObjectGenerationChanged() {
 	newObj, err := gcsutil.CreateObject(
 		t.ctx,
 		t.bucket,
-		t.in.Name(),
+		t.in.Name().GcsObjectName(),
 		[]byte("burrito"))
 
 	AssertEq(nil, err)
@@ -639,7 +644,7 @@ func (t *FileTest) SetMtime_SourceObjectGenerationChanged() {
 	AssertEq(nil, err)
 
 	// The object in the bucket should not have been changed.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
@@ -655,7 +660,7 @@ func (t *FileTest) SetMtime_SourceObjectMetaGenerationChanged() {
 	newObj, err := t.bucket.UpdateObject(
 		t.ctx,
 		&gcs.UpdateObjectRequest{
-			Name:            t.in.Name(),
+			Name:            t.in.Name().GcsObjectName(),
 			ContentLanguage: &lang,
 		})
 
@@ -667,7 +672,7 @@ func (t *FileTest) SetMtime_SourceObjectMetaGenerationChanged() {
 	AssertEq(nil, err)
 
 	// The object in the bucket should not have been changed.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name()}
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)

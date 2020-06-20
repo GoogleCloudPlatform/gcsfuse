@@ -31,11 +31,10 @@ type Inode interface {
 	// Does not require the lock to be held.
 	ID() fuseops.InodeID
 
-	// Return the name of the GCS object backing the inode. This may be "foo/bar"
-	// for a file, or "foo/bar/" for a directory.
+	// Return the name of the GCS object backing the inode.
 	//
 	// Does not require the lock to be held.
-	Name() string
+	Name() Name
 
 	// Increment the lookup count for the inode. For use in fuse operations where
 	// the kernel expects us to remember the inode.

@@ -34,6 +34,7 @@ type ExplicitDirInode interface {
 // NewDirInode for more.
 func NewExplicitDirInode(
 	id fuseops.InodeID,
+	name Name,
 	o *gcs.Object,
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
@@ -43,7 +44,7 @@ func NewExplicitDirInode(
 	cacheClock timeutil.Clock) (d ExplicitDirInode) {
 	wrapped := NewDirInode(
 		id,
-		o.Name,
+		name,
 		attrs,
 		implicitDirs,
 		typeCacheTTL,

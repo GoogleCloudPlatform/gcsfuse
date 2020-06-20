@@ -45,7 +45,7 @@ type FileInode struct {
 	/////////////////////////
 
 	id      fuseops.InodeID
-	name    string
+	name    Name
 	attrs   fuseops.InodeAttributes
 	tempDir string
 
@@ -62,7 +62,7 @@ type FileInode struct {
 
 	// The source object from which this inode derives.
 	//
-	// INVARIANT: src.Name == name
+	// INVARIANT: src.Name == name.GcsObjectName()
 	//
 	// GUARDED_BY(mu)
 	src gcs.Object
@@ -89,6 +89,7 @@ var _ Inode = &FileInode{}
 // REQUIRES: o.Name[len(o.Name)-1] != '/'
 func NewFileInode(
 	id fuseops.InodeID,
+	name Name,
 	o *gcs.Object,
 	attrs fuseops.InodeAttributes,
 	bucket gcsx.SyncerBucket,
@@ -99,7 +100,7 @@ func NewFileInode(
 		bucket:     bucket,
 		mtimeClock: mtimeClock,
 		id:         id,
-		name:       o.Name,
+		name:       name,
 		attrs:      attrs,
 		tempDir:    tempDir,
 		src:        *o,
@@ -125,13 +126,17 @@ func (f *FileInode) checkInvariants() {
 
 	// Make sure the name is legal.
 	name := f.Name()
-	if len(name) == 0 || name[len(name)-1] == '/' {
-		panic("Illegal file name: " + name)
+	if !name.IsFile() {
+		panic("Illegal file name: " + name.String())
 	}
 
 	// INVARIANT: src.Name == name
-	if f.src.Name != name {
-		panic(fmt.Sprintf("Name mismatch: %q vs. %q", f.src.Name, name))
+	if f.src.Name != name.GcsObjectName() {
+		panic(fmt.Sprintf(
+			"Name mismatch: %q vs. %q",
+			f.src.Name,
+			name.GcsObjectName(),
+		))
 	}
 
 	// INVARIANT: content.CheckInvariants() does not panic
@@ -143,7 +148,7 @@ func (f *FileInode) checkInvariants() {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
 	// Stat the object in GCS.
-	req := &gcs.StatObjectRequest{Name: f.name}
+	req := &gcs.StatObjectRequest{Name: f.name.GcsObjectName()}
 	o, err := f.bucket.StatObject(ctx, req)
 
 	// Special case: "not found" means we have been clobbered.
@@ -219,7 +224,7 @@ func (f *FileInode) ID() fuseops.InodeID {
 	return f.id
 }
 
-func (f *FileInode) Name() string {
+func (f *FileInode) Name() Name {
 	return f.name
 }
 
