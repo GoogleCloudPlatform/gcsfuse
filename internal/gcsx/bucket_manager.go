@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fs
+package gcsx
 
 import (
 	"errors"
@@ -24,7 +24,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
 	"github.com/jacobsa/ratelimit"
@@ -64,7 +63,7 @@ type BucketManager interface {
 	// Sets up a gcs bucket by its name
 	SetUpBucket(
 		ctx context.Context,
-		name string) (b gcsx.SyncerBucket, err error)
+		name string) (b SyncerBucket, err error)
 
 	// Shuts down the bucket manager and its buckets
 	ShutDown()
@@ -148,7 +147,7 @@ func setUpRateLimiting(
 // bucket as described in that package.
 func (bm *bucketManager) SetUpBucket(
 	ctx context.Context,
-	name string) (sb gcsx.SyncerBucket, err error) {
+	name string) (sb SyncerBucket, err error) {
 	var b gcs.Bucket
 	// Set up the appropriate backing bucket.
 	if name == canned.FakeBucketName {
@@ -169,7 +168,7 @@ func (bm *bucketManager) SetUpBucket(
 
 	// Limit to a requested prefix of the bucket, if any.
 	if bm.config.OnlyDir != "" {
-		b, err = gcsx.NewPrefixBucket(path.Clean(bm.config.OnlyDir)+"/", b)
+		b, err = NewPrefixBucket(path.Clean(bm.config.OnlyDir)+"/", b)
 		if err != nil {
 			err = fmt.Errorf("NewPrefixBucket: %v", err)
 			return
@@ -198,14 +197,14 @@ func (bm *bucketManager) SetUpBucket(
 	}
 
 	// Enable content type awareness
-	b = gcsx.NewContentTypeBucket(b)
+	b = NewContentTypeBucket(b)
 
 	// Enable Syncer
 	if bm.config.TmpObjectPrefix == "" {
 		err = errors.New("You must set TmpObjectPrefix.")
 		return
 	}
-	sb = gcsx.NewSyncerBucket(
+	sb = NewSyncerBucket(
 		bm.config.AppendThreshold,
 		bm.config.TmpObjectPrefix,
 		b)

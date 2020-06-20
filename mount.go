@@ -22,6 +22,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
@@ -83,7 +84,7 @@ be interacting with the file system.`)
 	// Set up the bucket.
 	status.Println("Opening bucket...")
 
-	bucketCfg := fs.BucketConfig{
+	bucketCfg := gcsx.BucketConfig{
 		BillingProject:                     flags.BillingProject,
 		OnlyDir:                            flags.OnlyDir,
 		EgressBandwidthLimitBytesPerSecond: flags.EgressBandwidthLimitBytesPerSecond,
@@ -93,7 +94,7 @@ be interacting with the file system.`)
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 	}
-	bm := fs.NewBucketManager(bucketCfg, conn)
+	bm := gcsx.NewBucketManager(bucketCfg, conn)
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{

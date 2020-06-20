@@ -40,7 +40,7 @@ type ServerConfig struct {
 	CacheClock timeutil.Clock
 
 	// The bucket manager is responsible for setting up buckets.
-	BucketManager BucketManager
+	BucketManager gcsx.BucketManager
 
 	// The name of the bucket to be mounted at root.
 	BucketName string
@@ -200,7 +200,7 @@ type fileSystem struct {
 
 	mtimeClock    timeutil.Clock
 	cacheClock    timeutil.Clock
-	bucketManager BucketManager
+	bucketManager gcsx.BucketManager
 
 	/////////////////////////
 	// Constant data
