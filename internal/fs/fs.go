@@ -1064,8 +1064,7 @@ func (fs *fileSystem) MkDir(
 	// Create an empty backing object for the child, failing if it already
 	// exists.
 	parent.Lock()
-	childname, o, err := parent.CreateChildDir(ctx, op.Name)
-	bucket := parent.Bucket()
+	bucket, childname, o, err := parent.CreateChildDir(ctx, op.Name)
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
@@ -1148,8 +1147,7 @@ func (fs *fileSystem) createFile(
 	// Create an empty backing object for the child, failing if it already
 	// exists.
 	parent.Lock()
-	childname, o, err := parent.CreateChildFile(ctx, name)
-	bucket := parent.Bucket()
+	bucket, childname, o, err := parent.CreateChildFile(ctx, name)
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
@@ -1224,8 +1222,7 @@ func (fs *fileSystem) CreateSymlink(
 
 	// Create the object in GCS, failing if it already exists.
 	parent.Lock()
-	childname, o, err := parent.CreateChildSymlink(ctx, op.Name, op.Target)
-	bucket := parent.Bucket()
+	bucket, childname, o, err := parent.CreateChildSymlink(ctx, op.Name, op.Target)
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
@@ -1379,7 +1376,7 @@ func (fs *fileSystem) Rename(
 
 	// Clone into the new location.
 	newParent.Lock()
-	_, _, err = newParent.CloneToChildFile(
+	_, _, _, err = newParent.CloneToChildFile(
 		ctx,
 		op.NewName,
 		lr.Object)

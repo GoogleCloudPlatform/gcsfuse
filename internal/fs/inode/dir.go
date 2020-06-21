@@ -69,7 +69,7 @@ func (lr *LookUpResult) Exists() bool {
 // looking up children, and creating and deleting children. Must be locked for
 // any method additional to the Inode interface.
 type DirInode interface {
-	BucketOwnedInode
+	Inode
 
 	// Look up the direct child with the given relative name, returning
 	// information about the object backing the child or whether it exists as an
@@ -111,7 +111,7 @@ type DirInode interface {
 	// Return the full name of the child and the GCS object it backs up.
 	CreateChildFile(
 		ctx context.Context,
-		name string) (fn Name, o *gcs.Object, err error)
+		name string) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error)
 
 	// Like CreateChildFile, except clone the supplied source object instead of
 	// creating an empty object.
@@ -119,7 +119,7 @@ type DirInode interface {
 	CloneToChildFile(
 		ctx context.Context,
 		name string,
-		src *gcs.Object) (fn Name, o *gcs.Object, err error)
+		src *gcs.Object) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error)
 
 	// Create a symlink object with the supplied (relative) name and the supplied
 	// target, failing with *gcs.PreconditionError if a backing object already
@@ -128,7 +128,7 @@ type DirInode interface {
 	CreateChildSymlink(
 		ctx context.Context,
 		name string,
-		target string) (fn Name, o *gcs.Object, err error)
+		target string) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error)
 
 	// Create a backing object for a child directory with the supplied (relative)
 	// name, failing with *gcs.PreconditionError if a backing object already
@@ -136,7 +136,7 @@ type DirInode interface {
 	// Return the full name of the child and the GCS object it backs up.
 	CreateChildDir(
 		ctx context.Context,
-		name string) (fn Name, o *gcs.Object, err error)
+		name string) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error)
 
 	// Delete the backing object for the child file or symlink with the given
 	// (relative) name and generation number, where zero means the latest
@@ -155,6 +155,12 @@ type DirInode interface {
 	DeleteChildDir(
 		ctx context.Context,
 		name string) (err error)
+}
+
+// An inode that represents a directory from a GCS bucket.
+type BucketOwnedDirInode interface {
+	DirInode
+	BucketOwnedInode
 }
 
 type dirInode struct {
@@ -771,7 +777,8 @@ func (d *dirInode) ReadEntries(
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildFile(
 	ctx context.Context,
-	name string) (fn Name, o *gcs.Object, err error) {
+	name string) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error) {
+	b = d.Bucket()
 	metadata := map[string]string{
 		FileMtimeMetadataKey: d.mtimeClock.Now().UTC().Format(time.RFC3339Nano),
 	}
@@ -791,7 +798,8 @@ func (d *dirInode) CreateChildFile(
 func (d *dirInode) CloneToChildFile(
 	ctx context.Context,
 	name string,
-	src *gcs.Object) (fn Name, o *gcs.Object, err error) {
+	src *gcs.Object) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error) {
+	b = d.Bucket()
 	// Erase any existing type information for this name.
 	d.cache.Erase(name)
 	fn = NewFileName(d.Name(), name)
@@ -820,7 +828,8 @@ func (d *dirInode) CloneToChildFile(
 func (d *dirInode) CreateChildSymlink(
 	ctx context.Context,
 	name string,
-	target string) (fn Name, o *gcs.Object, err error) {
+	target string) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error) {
+	b = d.Bucket()
 	fn = NewFileName(d.Name(), name)
 	metadata := map[string]string{
 		SymlinkMetadataKey: target,
@@ -839,7 +848,8 @@ func (d *dirInode) CreateChildSymlink(
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildDir(
 	ctx context.Context,
-	name string) (fn Name, o *gcs.Object, err error) {
+	name string) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error) {
+	b = d.Bucket()
 	fn = NewDirName(d.Name(), name)
 
 	o, err = d.createNewObject(ctx, fn, nil)

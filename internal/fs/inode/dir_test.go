@@ -658,15 +658,12 @@ func (t *DirTest) CreateChildFile_DoesntExist() {
 	const name = "qux"
 	objName := path.Join(dirInodeName, name)
 
-	var fn inode.Name
-	var o *gcs.Object
-	var err error
-
 	// Call the inode.
-	fn, o, err = t.in.CreateChildFile(t.ctx, name)
+	b, fn, o, err := t.in.CreateChildFile(t.ctx, name)
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(t.bucket.Name(), b.Name())
 	ExpectEq(fn.GcsObjectName(), o.Name)
 	ExpectEq(objName, o.Name)
 	ExpectFalse(inode.IsSymlink(o))
@@ -688,7 +685,7 @@ func (t *DirTest) CreateChildFile_Exists() {
 	AssertEq(nil, err)
 
 	// Call the inode.
-	_, _, err = t.in.CreateChildFile(t.ctx, name)
+	_, _, _, err = t.in.CreateChildFile(t.ctx, name)
 	ExpectThat(err, Error(HasSubstr("Precondition")))
 	ExpectThat(err, Error(HasSubstr("exists")))
 }
@@ -702,7 +699,7 @@ func (t *DirTest) CreateChildFile_TypeCaching() {
 	var err error
 
 	// Create the name.
-	_, _, err = t.in.CreateChildFile(t.ctx, name)
+	_, _, _, err = t.in.CreateChildFile(t.ctx, name)
 	AssertEq(nil, err)
 
 	// Create a backing object for a directory.
@@ -748,7 +745,7 @@ func (t *DirTest) CloneToChildFile_SourceDoesntExist() {
 	AssertEq(nil, err)
 
 	// Call the inode.
-	_, _, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
+	_, _, _, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
@@ -756,19 +753,16 @@ func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
 	const srcName = "blah/baz"
 	dstName := path.Join(dirInodeName, "qux")
 
-	var fn inode.Name
-	var o *gcs.Object
-	var err error
-
 	// Create the source.
 	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
-	fn, o, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
+	b, fn, o, err := t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(t.bucket.Name(), b.Name())
 	ExpectEq(fn.GcsObjectName(), o.Name)
 	ExpectEq(dstName, o.Name)
 	ExpectFalse(inode.IsSymlink(o))
@@ -783,10 +777,6 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 	const srcName = "blah/baz"
 	dstName := path.Join(dirInodeName, "qux")
 
-	var fn inode.Name
-	var o *gcs.Object
-	var err error
-
 	// Create the source.
 	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, []byte("taco"))
 	AssertEq(nil, err)
@@ -796,10 +786,11 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 	AssertEq(nil, err)
 
 	// Call the inode.
-	fn, o, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
+	b, fn, o, err := t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(t.bucket.Name(), b.Name())
 	ExpectEq(fn.GcsObjectName(), o.Name)
 	ExpectEq(dstName, o.Name)
 	ExpectFalse(inode.IsSymlink(o))
@@ -823,7 +814,7 @@ func (t *DirTest) CloneToChildFile_TypeCaching() {
 	AssertEq(nil, err)
 
 	// Clone to the destination.
-	_, _, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
+	_, _, _, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
 	AssertEq(nil, err)
 
 	// Create a backing object for a directory.
@@ -858,15 +849,12 @@ func (t *DirTest) CreateChildSymlink_DoesntExist() {
 	const target = "taco"
 	objName := path.Join(dirInodeName, name)
 
-	var fn inode.Name
-	var o *gcs.Object
-	var err error
-
 	// Call the inode.
-	fn, o, err = t.in.CreateChildSymlink(t.ctx, name, target)
+	b, fn, o, err := t.in.CreateChildSymlink(t.ctx, name, target)
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(t.bucket.Name(), b.Name())
 	ExpectEq(fn.GcsObjectName(), o.Name)
 	ExpectEq(objName, o.Name)
 	ExpectEq(target, o.Metadata[inode.SymlinkMetadataKey])
@@ -884,7 +872,7 @@ func (t *DirTest) CreateChildSymlink_Exists() {
 	AssertEq(nil, err)
 
 	// Call the inode.
-	_, _, err = t.in.CreateChildSymlink(t.ctx, name, target)
+	_, _, _, err = t.in.CreateChildSymlink(t.ctx, name, target)
 	ExpectThat(err, Error(HasSubstr("Precondition")))
 	ExpectThat(err, Error(HasSubstr("exists")))
 }
@@ -898,7 +886,7 @@ func (t *DirTest) CreateChildSymlink_TypeCaching() {
 	var err error
 
 	// Create the name.
-	_, _, err = t.in.CreateChildSymlink(t.ctx, name, "")
+	_, _, _, err = t.in.CreateChildSymlink(t.ctx, name, "")
 	AssertEq(nil, err)
 
 	// Create a backing object for a directory.
@@ -932,15 +920,12 @@ func (t *DirTest) CreateChildDir_DoesntExist() {
 	const name = "qux"
 	objName := path.Join(dirInodeName, name) + "/"
 
-	var fn inode.Name
-	var o *gcs.Object
-	var err error
-
 	// Call the inode.
-	fn, o, err = t.in.CreateChildDir(t.ctx, name)
+	b, fn, o, err := t.in.CreateChildDir(t.ctx, name)
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(t.bucket.Name(), b.Name())
 	ExpectEq(fn.GcsObjectName(), o.Name)
 	ExpectEq(objName, o.Name)
 	ExpectFalse(inode.IsSymlink(o))
@@ -957,7 +942,7 @@ func (t *DirTest) CreateChildDir_Exists() {
 	AssertEq(nil, err)
 
 	// Call the inode.
-	_, _, err = t.in.CreateChildDir(t.ctx, name)
+	_, _, _, err = t.in.CreateChildDir(t.ctx, name)
 	ExpectThat(err, Error(HasSubstr("Precondition")))
 	ExpectThat(err, Error(HasSubstr("exists")))
 }
@@ -1060,7 +1045,7 @@ func (t *DirTest) DeleteChildFile_TypeCaching() {
 	var err error
 
 	// Create the name, priming the type cache.
-	_, _, err = t.in.CreateChildFile(t.ctx, name)
+	_, _, _, err = t.in.CreateChildFile(t.ctx, name)
 	AssertEq(nil, err)
 
 	// Create a backing object for a directory. It should be shadowed by the
