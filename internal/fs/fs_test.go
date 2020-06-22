@@ -107,13 +107,20 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	if t.bucket == nil {
 		t.bucket = gcsfake.NewFakeBucket(t.mtimeClock, "some_bucket")
 	}
-
-	t.serverCfg.BucketManager = fakeBucketManager{
-		bucket:          t.bucket,
+	if t.serverCfg.BucketName == "" {
+		t.serverCfg.BucketName = t.bucket.Name()
+	}
+	t.serverCfg.BucketManager = &fakeBucketManager{
+		// This bucket manager is allowed to open these buckets
+		buckets: map[string]gcs.Bucket{
+			t.bucket.Name(): t.bucket,
+			"bucket-1":      gcsfake.NewFakeBucket(t.mtimeClock, "bucket-1"),
+			"bucket-2":      gcsfake.NewFakeBucket(t.mtimeClock, "bucket-2"),
+		},
+		// Configs for the syncer when setting up buckets
 		appendThreshold: 0,
 		tmpObjectPrefix: ".gcsfuse_tmp/",
 	}
-	t.serverCfg.BucketName = t.bucket.Name()
 
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
@@ -274,23 +281,24 @@ func currentGid() uint32 {
 }
 
 type fakeBucketManager struct {
-	bucket          gcs.Bucket
+	buckets         map[string]gcs.Bucket
 	appendThreshold int64
 	tmpObjectPrefix string
 }
 
-func (bm fakeBucketManager) ShutDown() {}
+func (bm *fakeBucketManager) ShutDown() {}
 
-func (bm fakeBucketManager) SetUpBucket(
+func (bm *fakeBucketManager) SetUpBucket(
 	ctx context.Context,
-	name string) (b gcsx.SyncerBucket, err error) {
-	if bm.bucket.Name() == name {
-		bucket := gcsx.NewContentTypeBucket(bm.bucket)
-		sb := gcsx.NewSyncerBucket(
+	name string) (sb gcsx.SyncerBucket, err error) {
+	bucket, ok := bm.buckets[name]
+	if ok {
+		sb = gcsx.NewSyncerBucket(
 			bm.appendThreshold,
 			bm.tmpObjectPrefix,
-			bucket)
-		return sb, nil
+			gcsx.NewContentTypeBucket(bucket),
+		)
+		return
 	}
 	err = fmt.Errorf("Bucket %v does not exist", name)
 	return

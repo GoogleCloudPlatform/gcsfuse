@@ -34,6 +34,13 @@ import (
 	"golang.org/x/net/context"
 )
 
+// WildcardBucketName denotes 'all buckets'.
+//
+// When a WildcardBucketName is used, all the accessible buckets will be mounted
+// as subdirectories of the root of the file system. Otherwise, one bucket will
+// be mounted at the root of the file system.
+const WildcardBucketName = "*"
+
 type ServerConfig struct {
 	// A clock used for cache expiration. It is *not* used for inode times, for
 	// which we use the wall clock.
@@ -42,7 +49,7 @@ type ServerConfig struct {
 	// The bucket manager is responsible for setting up buckets.
 	BucketManager gcsx.BucketManager
 
-	// The name of the bucket to be mounted at root.
+	// The name of the bucket to be mounted at root, or WildcardBucketName.
 	BucketName string
 
 	// The temporary directory to use for local caching, or the empty string to
@@ -106,12 +113,6 @@ func NewServer(
 		return
 	}
 
-	syncerBucket, err := cfg.BucketManager.SetUpBucket(ctx, cfg.BucketName)
-	if err != nil {
-		err = fmt.Errorf("SetUpBucket: %v", err)
-		return
-	}
-
 	// Set up the basic struct.
 	fs := &fileSystem{
 		mtimeClock:             timeutil.RealClock(),
@@ -132,8 +133,37 @@ func NewServer(
 		handles:                make(map[fuseops.HandleID]interface{}),
 	}
 
-	// Set up the root inode.
-	root := inode.NewDirInode(
+	// Set up root bucket
+	var root inode.DirInode
+	if cfg.BucketName == WildcardBucketName {
+		root = makeRootForAllBuckets(fs)
+	} else {
+		var syncerBucket gcsx.SyncerBucket
+		syncerBucket, err = fs.bucketManager.SetUpBucket(ctx, cfg.BucketName)
+		if err != nil {
+			err = fmt.Errorf("SetUpBucket: %v", err)
+			return
+		}
+		root = makeRootForBucket(ctx, fs, syncerBucket)
+	}
+	root.Lock()
+	root.IncrementLookupCount()
+	fs.inodes[fuseops.RootInodeID] = root
+	fs.implicitDirInodes[root.Name()] = root
+	root.Unlock()
+
+	// Set up invariant checking.
+	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
+
+	server = fuseutil.NewFileSystemServer(fs)
+	return
+}
+
+func makeRootForBucket(
+	ctx context.Context,
+	fs *fileSystem,
+	syncerBucket gcsx.SyncerBucket) inode.DirInode {
+	return inode.NewDirInode(
 		fuseops.RootInodeID,
 		inode.NewRootName(""),
 		fuseops.InodeAttributes{
@@ -150,19 +180,26 @@ func NewServer(
 		fs.dirTypeCacheTTL,
 		syncerBucket,
 		fs.mtimeClock,
-		fs.cacheClock)
+		fs.cacheClock,
+	)
+}
 
-	root.Lock()
-	root.IncrementLookupCount()
-	fs.inodes[fuseops.RootInodeID] = root
-	fs.implicitDirInodes[root.Name()] = root
-	root.Unlock()
+func makeRootForAllBuckets(fs *fileSystem) inode.DirInode {
+	return inode.NewBaseDirInode(
+		fuseops.RootInodeID,
+		inode.NewRootName(""),
+		fuseops.InodeAttributes{
+			Uid:  fs.uid,
+			Gid:  fs.gid,
+			Mode: fs.dirMode,
 
-	// Set up invariant checking.
-	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
-
-	server = fuseutil.NewFileSystemServer(fs)
-	return
+			// We guarantee only that directory times be "reasonable".
+			Atime: fs.mtimeClock.Now(),
+			Ctime: fs.mtimeClock.Now(),
+			Mtime: fs.mtimeClock.Now(),
+		},
+		fs.bucketManager,
+	)
 }
 
 ////////////////////////////////////////////////////////////////////////
