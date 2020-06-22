@@ -92,7 +92,7 @@ func (t *DirTest) resetInode(implicitDirs bool) {
 
 	t.in = inode.NewDirInode(
 		dirInodeID,
-		inode.NewDirName(inode.NewRootName(), dirInodeName),
+		inode.NewDirName(inode.NewRootName(""), dirInodeName),
 		fuseops.InodeAttributes{
 			Uid:  uid,
 			Gid:  gid,

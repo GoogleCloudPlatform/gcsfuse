@@ -94,7 +94,7 @@ func (t *FileTest) createInode() {
 	}
 
 	name := inode.NewFileName(
-		inode.NewRootName(),
+		inode.NewRootName(""),
 		t.backingObj.Name,
 	)
 	t.in = inode.NewFileInode(

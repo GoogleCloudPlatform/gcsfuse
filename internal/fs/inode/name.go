@@ -22,13 +22,20 @@ import (
 //   (1) LocalName: the name of the inode in the local file system.
 //   (2) GcsObjectName: the name of its gcs object backed by the inode.
 type Name struct {
+	// The local directory where the root of the bucket is mounted.
+	// Can be either empty, or a directory named after a gcs bucket.
+	// E.g. "" or "bucket_name/"
+	mountPoint string
 	// The gcs object's name in its bucket.
 	objectName string
 }
 
 // NewRootName creates a Name for the root directory of a gcs bucket
-func NewRootName() Name {
-	return Name{""}
+func NewRootName(mountPoint string) Name {
+	if mountPoint == "" || mountPoint[len(mountPoint)-1] == '/' {
+		return Name{mountPoint, ""}
+	}
+	panic(fmt.Sprintf("Cannot mount bucket root at %s", mountPoint))
 }
 
 // NewDirName creates a new inode name for a directory.
@@ -42,7 +49,7 @@ func NewDirName(parentName Name, dirName string) Name {
 	if dirName[len(dirName)-1] != '/' {
 		dirName = dirName + "/"
 	}
-	return Name{parentName.objectName + dirName}
+	return Name{parentName.mountPoint, parentName.objectName + dirName}
 }
 
 // NewFileName creates a new inode name for a file.
@@ -53,13 +60,19 @@ func NewFileName(parentName Name, fileName string) Name {
 			parentName,
 			fileName))
 	}
-	return Name{parentName.objectName + fileName}
+	return Name{parentName.mountPoint, parentName.objectName + fileName}
+}
+
+// IsBucketRoot returns true if the name represents of a root directory
+// of a GCS bucket.
+func (name Name) IsBucketRoot() bool {
+	return name.objectName == ""
 }
 
 // IsDir returns true if the name represents a directory.
 func (name Name) IsDir() bool {
-	isBucketRoot := (name.objectName == "")
-	return isBucketRoot || name.objectName[len(name.objectName)-1] == '/'
+	return name.IsBucketRoot() ||
+		name.objectName[len(name.objectName)-1] == '/'
 }
 
 // IsFile returns true if the name represents a file.
@@ -74,7 +87,7 @@ func (name Name) GcsObjectName() string {
 
 // LocalName returns the name of the directory or file in the mounted file system.
 func (name Name) LocalName() string {
-	return name.objectName
+	return name.mountPoint + name.objectName
 }
 
 // String returns LocalName.

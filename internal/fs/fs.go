@@ -135,7 +135,7 @@ func NewServer(
 	// Set up the root inode.
 	root := inode.NewDirInode(
 		fuseops.RootInodeID,
-		inode.NewRootName(),
+		inode.NewRootName(""),
 		fuseops.InodeAttributes{
 			Uid:  fs.uid,
 			Gid:  fs.gid,
