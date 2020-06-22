@@ -50,7 +50,8 @@ type LookUpResult struct {
 	FullName Name
 
 	// The backing object for the child, if any. If the child is not found or
-	// exists only as an implicit directory, this is nil.
+	// exists only as an implicit directory, or is the root directory of a bucket,
+	// this is nil.
 	Object *gcs.Object
 
 	// Does the child exist as a directory implicitly defined by its own
@@ -62,7 +63,11 @@ type LookUpResult struct {
 // Exists returns true iff the result indicates that the child exists, explicitly or
 // implicitly.
 func (lr *LookUpResult) Exists() bool {
-	return lr.Object != nil || lr.ImplicitDir
+	IsFound := lr.Object != nil
+	IsImplicitDir := lr.ImplicitDir
+	IsBucketRootMounted :=
+		lr.FullName.LocalName() != "" && lr.FullName.IsBucketRoot()
+	return IsFound || IsImplicitDir || IsBucketRootMounted
 }
 
 // An inode representing a directory, with facilities for listing entries,
