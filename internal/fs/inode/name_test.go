@@ -22,8 +22,13 @@ import (
 )
 
 func TestName(t *testing.T) {
-	for _, mountPoint := range []string{"", "x/"} {
-		root := inode.NewRootName(mountPoint)
+	for _, bucketName := range []string{"", "bucketx"} {
+		mountPoint := ""
+		if bucketName != "" {
+			mountPoint = bucketName + "/"
+		}
+
+		root := inode.NewRootName(bucketName)
 		ExpectTrue(root.IsBucketRoot())
 		ExpectTrue(root.IsDir())
 		ExpectFalse(root.IsFile())
@@ -61,7 +66,7 @@ func TestName(t *testing.T) {
 }
 
 func TestNameAsMapKey(t *testing.T) {
-	root := inode.NewRootName("bucketx/")
+	root := inode.NewRootName("bucketx")
 	foo := inode.NewDirName(root, "foo")
 	foo2 := inode.NewDirName(root, "foo")
 	bar := inode.NewDirName(root, "bar")

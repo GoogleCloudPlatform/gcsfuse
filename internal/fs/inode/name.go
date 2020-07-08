@@ -22,20 +22,18 @@ import (
 //   (1) LocalName: the name of the inode in the local file system.
 //   (2) GcsObjectName: the name of its gcs object backed by the inode.
 type Name struct {
-	// The local directory where the root of the bucket is mounted.
-	// Can be either empty, or a directory named after a gcs bucket.
-	// E.g. "" or "bucket_name/"
-	mountPoint string
+	// The value of bucketName can be:
+	// - "", when single gcs bucket is explicitly mounted for the file system.
+	// - the name of the gcs bucket, when potentially multiple buckets are
+	//   mounted as subdirectories of the root of the file system.
+	bucketName string
 	// The gcs object's name in its bucket.
 	objectName string
 }
 
 // NewRootName creates a Name for the root directory of a gcs bucket
-func NewRootName(mountPoint string) Name {
-	if mountPoint == "" || mountPoint[len(mountPoint)-1] == '/' {
-		return Name{mountPoint, ""}
-	}
-	panic(fmt.Sprintf("Cannot mount bucket root at %s", mountPoint))
+func NewRootName(bucketName string) Name {
+	return Name{bucketName, ""}
 }
 
 // NewDirName creates a new inode name for a directory.
@@ -49,7 +47,7 @@ func NewDirName(parentName Name, dirName string) Name {
 	if dirName[len(dirName)-1] != '/' {
 		dirName = dirName + "/"
 	}
-	return Name{parentName.mountPoint, parentName.objectName + dirName}
+	return Name{parentName.bucketName, parentName.objectName + dirName}
 }
 
 // NewFileName creates a new inode name for a file.
@@ -60,7 +58,7 @@ func NewFileName(parentName Name, fileName string) Name {
 			parentName,
 			fileName))
 	}
-	return Name{parentName.mountPoint, parentName.objectName + fileName}
+	return Name{parentName.bucketName, parentName.objectName + fileName}
 }
 
 // IsBucketRoot returns true if the name represents of a root directory
@@ -85,9 +83,12 @@ func (name Name) GcsObjectName() string {
 	return name.objectName
 }
 
-// LocalName returns the name of the directory or file in the mounted file system.
+// LocalName returns the name of the directory or file in the local file system.
 func (name Name) LocalName() string {
-	return name.mountPoint + name.objectName
+	if name.bucketName == "" {
+		return name.objectName
+	}
+	return name.bucketName + "/" + name.objectName
 }
 
 // String returns LocalName.

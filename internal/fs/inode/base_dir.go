@@ -160,7 +160,7 @@ func (d *baseDirInode) LookUpChild(
 	}
 
 	result.Bucket = bucket
-	result.FullName = NewRootName(bucket.Name() + "/")
+	result.FullName = NewRootName(bucket.Name())
 	result.ImplicitDir = false
 	result.Object = nil
 	return
