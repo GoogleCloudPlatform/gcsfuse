@@ -645,6 +645,7 @@ func (d *dirInode) LookUpChild(
 	now := d.cacheClock.Now()
 	cacheSaysFile := d.cache.IsFile(now, name)
 	cacheSaysDir := d.cache.IsDir(now, name)
+	cacheSaysImplicitDir := d.cache.IsImplicitDir(now, name)
 
 	// Is this a conflict marker name?
 	if strings.HasSuffix(name, ConflictingFileNameSuffix) {
@@ -668,10 +669,19 @@ func (d *dirInode) LookUpChild(
 	// but not a directory.
 	var dirResult LookUpResult
 	if !(cacheSaysFile && !cacheSaysDir) {
-		b.Add(func(ctx context.Context) (err error) {
-			dirResult, err = d.lookUpChildDir(ctx, name)
-			return
-		})
+		if cacheSaysImplicitDir {
+			dirResult = LookUpResult{
+				Bucket:      d.Bucket(),
+				FullName:    NewDirName(d.Name(), name),
+				Object:      nil,
+				ImplicitDir: true,
+			}
+		} else {
+			b.Add(func(ctx context.Context) (err error) {
+				dirResult, err = d.lookUpChildDir(ctx, name)
+				return
+			})
+		}
 	}
 
 	// Wait for both.
@@ -696,6 +706,9 @@ func (d *dirInode) LookUpChild(
 
 	if dirResult.Exists() {
 		d.cache.NoteDir(now, name)
+		if dirResult.ImplicitDir {
+			d.cache.NoteImplicitDir(now, name)
+		}
 	}
 
 	return
