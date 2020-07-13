@@ -204,8 +204,9 @@ func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 	// Create the connection.
 	const userAgent = "gcsfuse/0.0"
 	cfg := &gcs.ConnConfig{
-		TokenSource: tokenSrc,
-		UserAgent:   userAgent,
+		TokenSource:     tokenSrc,
+		UserAgent:       userAgent,
+		MaxBackoffSleep: flags.MaxRetrySleep,
 	}
 
 	if flags.DebugHTTP {
