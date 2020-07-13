@@ -30,7 +30,7 @@ func init() {
    {{.Name}} - {{.Usage}}
 
 USAGE:
-   {{.Name}} {{if .Flags}}[global options]{{end}} bucket mountpoint
+   {{.Name}} {{if .Flags}}[global options]{{end}} [bucket] mountpoint
    {{if .Version}}
 VERSION:
    {{.Version}}
@@ -57,7 +57,7 @@ func newApp() (app *cli.App) {
 	app = &cli.App{
 		Name:    "gcsfuse",
 		Version: getVersion(),
-		Usage:   "Mount a GCS bucket locally",
+		Usage:   "Mount a specified GCS bucket or all accessible buckets locally",
 		Writer:  os.Stderr,
 		Flags: []cli.Flag{
 
