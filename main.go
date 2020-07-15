@@ -267,21 +267,28 @@ func mountWithArgs(
 	return
 }
 
-func runCLIApp(c *cli.Context) (err error) {
-	flags := populateFlags(c)
-
+func populateArgs(c *cli.Context) (
+	bucketName string,
+	mountPoint string,
+	err error) {
 	// Extract arguments.
-	if len(c.Args()) != 2 {
+	switch len(c.Args()) {
+	case 1:
+		bucketName = ""
+		mountPoint = c.Args()[0]
+
+	case 2:
+		bucketName = c.Args()[0]
+		mountPoint = c.Args()[1]
+
+	default:
 		err = fmt.Errorf(
-			"%s takes exactly two arguments. Run `%s --help` for more info.",
+			"%s takes one or two arguments. Run `%s --help` for more info.",
 			path.Base(os.Args[0]),
 			path.Base(os.Args[0]))
 
 		return
 	}
-
-	bucketName := c.Args()[0]
-	mountPoint := c.Args()[1]
 
 	// Canonicalize the mount point, making it absolute. This is important when
 	// daemonizing below, since the daemon will change its working directory
@@ -289,6 +296,18 @@ func runCLIApp(c *cli.Context) (err error) {
 	mountPoint, err = filepath.Abs(mountPoint)
 	if err != nil {
 		err = fmt.Errorf("canonicalizing mount point: %v", err)
+		return
+	}
+	return
+}
+
+func runCLIApp(c *cli.Context) (err error) {
+	flags := populateFlags(c)
+
+	var bucketName string
+	var mountPoint string
+	bucketName, mountPoint, err = populateArgs(c)
+	if err != nil {
 		return
 	}
 
