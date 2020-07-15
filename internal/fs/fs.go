@@ -46,6 +46,9 @@ type ServerConfig struct {
 	// GCS buckets are mounted as subdirectories of the FS root.
 	BucketName string
 
+	// LocalFileCache
+	LocalFileCache bool
+
 	// The temporary directory to use for local caching, or the empty string to
 	// use the system default.
 	TempDir string
@@ -112,6 +115,7 @@ func NewServer(
 		mtimeClock:             timeutil.RealClock(),
 		cacheClock:             cfg.CacheClock,
 		bucketManager:          cfg.BucketManager,
+		localFileCache:         cfg.LocalFileCache,
 		tempDir:                cfg.TempDir,
 		implicitDirs:           cfg.ImplicitDirectories,
 		inodeAttributeCacheTTL: cfg.InodeAttributeCacheTTL,
@@ -237,6 +241,7 @@ type fileSystem struct {
 	// Constant data
 	/////////////////////////
 
+	localFileCache         bool
 	tempDir                string
 	implicitDirs           bool
 	inodeAttributeCacheTTL time.Duration
@@ -566,6 +571,7 @@ func (fs *fileSystem) mintInode(
 				Mode: fs.fileMode,
 			},
 			bucket,
+			fs.localFileCache,
 			fs.tempDir,
 			fs.mtimeClock)
 	}

@@ -101,6 +101,7 @@ be interacting with the file system.`)
 		CacheClock:             timeutil.RealClock(),
 		BucketManager:          bm,
 		BucketName:             bucketName,
+		LocalFileCache:         flags.LocalFileCache,
 		TempDir:                flags.TempDir,
 		ImplicitDirectories:    flags.ImplicitDirs,
 		InodeAttributeCacheTTL: flags.StatCacheTTL,
