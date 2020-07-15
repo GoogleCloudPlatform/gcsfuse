@@ -64,7 +64,7 @@ way: `sudo apt-get update && sudo apt-get upgrade`.
 ## CentOS and Red Hat (latest releases)
 
 The following instructions set up `yum` to see updates to gcsfuse, and work
-for CentOS 7 and RHEL 7. Users of older releases should follow the instructions
+for CentOS 7 and 8 and RHEL 7. Users of older releases should follow the instructions
 for [other distributions](#other-distributions) below.
 
 1.  Configure the gcsfuse repo:
@@ -80,13 +80,7 @@ for [other distributions](#other-distributions) below.
                https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
         EOF
 
-2.  Make the system aware of the new repo:
-
-        sudo yum update
-
-    Be sure to answer "yes" to any questions about adding the GPG signing key.
-
-3.  Install gcsfuse:
+2.  Install gcsfuse:
 
         sudo yum install gcsfuse
 
