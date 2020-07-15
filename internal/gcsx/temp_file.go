@@ -93,6 +93,7 @@ func NewTempFile(
 	}
 
 	tf = &tempFile{
+		state:          fileComplete,
 		clock:          clock,
 		f:              f,
 		dirtyThreshold: size,
@@ -100,6 +101,14 @@ func NewTempFile(
 
 	return
 }
+
+type fileState string
+
+const (
+	fileComplete  fileState = "fileComplete"
+	fileDirty               = "fileDirty"
+	fileDestroyed           = "fileDestroyed"
+)
 
 type tempFile struct {
 	/////////////////////////
@@ -111,8 +120,7 @@ type tempFile struct {
 	/////////////////////////
 	// Mutable state
 	/////////////////////////
-
-	destroyed bool
+	state fileState
 
 	// A file containing our current contents.
 	f *os.File
@@ -134,7 +142,7 @@ type tempFile struct {
 ////////////////////////////////////////////////////////////////////////
 
 func (tf *tempFile) CheckInvariants() {
-	if tf.destroyed {
+	if tf.state == fileDestroyed {
 		panic("Use of destroyed tempFile object.")
 	}
 
@@ -168,7 +176,7 @@ func (tf *tempFile) CheckInvariants() {
 }
 
 func (tf *tempFile) Destroy() {
-	tf.destroyed = true
+	tf.state = fileDestroyed
 
 	// Throw away the file.
 	tf.f.Close()
@@ -205,6 +213,8 @@ func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
 	// Update our state regarding being dirty.
 	tf.dirtyThreshold = minInt64(tf.dirtyThreshold, offset)
 
+	tf.state = fileDirty
+
 	newMtime := tf.clock.Now()
 	tf.mtime = &newMtime
 
@@ -215,6 +225,8 @@ func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
 func (tf *tempFile) Truncate(n int64) error {
 	// Update our state regarding being dirty.
 	tf.dirtyThreshold = minInt64(tf.dirtyThreshold, n)
+
+	tf.state = fileDirty
 
 	newMtime := tf.clock.Now()
 	tf.mtime = &newMtime
