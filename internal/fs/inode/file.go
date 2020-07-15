@@ -93,6 +93,7 @@ func NewFileInode(
 	o *gcs.Object,
 	attrs fuseops.InodeAttributes,
 	bucket gcsx.SyncerBucket,
+	localFileCache bool,
 	tempDir string,
 	mtimeClock timeutil.Clock) (f *FileInode) {
 	// Set up the basic struct.
@@ -110,6 +111,11 @@ func NewFileInode(
 
 	// Set up invariant checking.
 	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
+
+	if localFileCache {
+		// The gcs object is cached as local temp file
+		f.ensureContent(context.Background())
+	}
 
 	return
 }

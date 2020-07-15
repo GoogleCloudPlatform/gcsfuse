@@ -165,6 +165,11 @@ func newApp() (app *cli.App) {
 					"inodes.",
 			},
 
+			cli.BoolFlag{
+				Name:  "local-file-cache",
+				Usage: "Cache GCS files on local disk for reads.",
+			},
+
 			cli.StringFlag{
 				Name:  "temp-dir",
 				Value: "",
@@ -223,6 +228,7 @@ type flagStorage struct {
 	StatCacheCapacity int
 	StatCacheTTL      time.Duration
 	TypeCacheTTL      time.Duration
+	LocalFileCache    bool
 	TempDir           string
 
 	// Debugging
@@ -257,6 +263,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		StatCacheCapacity: c.Int("stat-cache-capacity"),
 		StatCacheTTL:      c.Duration("stat-cache-ttl"),
 		TypeCacheTTL:      c.Duration("type-cache-ttl"),
+		LocalFileCache:    c.Bool("local-file-cache"),
 		TempDir:           c.String("temp-dir"),
 
 		// Debugging,

@@ -110,6 +110,7 @@ func (t *FileTest) createInode() {
 			1, // Append threshold
 			".gcsfuse_tmp/",
 			t.bucket),
+		false, // localFileCache
 		"",
 		&t.clock)
 
