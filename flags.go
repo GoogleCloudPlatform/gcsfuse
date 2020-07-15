@@ -146,6 +146,15 @@ func newApp() (app *cli.App) {
 			// Tuning
 			/////////////////////////
 
+			cli.DurationFlag{
+				Name:  "max-retry-sleep",
+				Value: time.Minute,
+				Usage: "The maximum duration allowed to sleep in a retry loop with " +
+					"exponential backoff for failed requests to GCS backend. Once the " +
+					"backoff duration exceeds this limit, the retry stops. The default " +
+					"of 0 disables retries.",
+			},
+
 			cli.IntFlag{
 				Name:  "stat-cache-capacity",
 				Value: 4096,
@@ -220,6 +229,7 @@ type flagStorage struct {
 	OpRateLimitHz                      float64
 
 	// Tuning
+	MaxRetrySleep     time.Duration
 	StatCacheCapacity int
 	StatCacheTTL      time.Duration
 	TypeCacheTTL      time.Duration
@@ -254,6 +264,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		OpRateLimitHz:                      c.Float64("limit-ops-per-sec"),
 
 		// Tuning,
+		MaxRetrySleep:     c.Duration("max-retry-sleep"),
 		StatCacheCapacity: c.Int("stat-cache-capacity"),
 		StatCacheTTL:      c.Duration("stat-cache-ttl"),
 		TypeCacheTTL:      c.Duration("type-cache-ttl"),
