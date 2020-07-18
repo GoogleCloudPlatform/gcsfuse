@@ -104,6 +104,14 @@ func (bm *fakeBucketManager) SetUpTimes() int {
 	return bm.setupTimes
 }
 
+func (bm *fakeBucketManager) ListBuckets(
+	ctx context.Context) (names []string, err error) {
+	for name, _ := range bm.buckets {
+		names = append(names, name)
+	}
+	return
+}
+
 func (t *BaseDirTest) resetInode() {
 	if t.in != nil {
 		t.in.Unlock()
