@@ -186,6 +186,19 @@ func newApp() (app *cli.App) {
 					"copies. (default: system default, likely /tmp)",
 			},
 
+			cli.BoolFlag{
+				Name: "disable-http2",
+				Usage: "Once set, the protocol used for communicating with " +
+					"GCS backend would be HTTP/1.1, instead of the default HTTP/2.",
+			},
+
+			cli.IntFlag{
+				Name:  "max-conns-per-host",
+				Value: 10,
+				Usage: "The max number of TCP connections allowed per server. " +
+					"This is effective when --disable-http2 is set.",
+			},
+
 			/////////////////////////
 			// Debugging
 			/////////////////////////
@@ -240,6 +253,8 @@ type flagStorage struct {
 	TypeCacheTTL      time.Duration
 	LocalFileCache    bool
 	TempDir           string
+	DisableHTTP2      bool
+	MaxConnsPerHost   int
 
 	// Debugging
 	DebugFuse       bool
@@ -276,6 +291,8 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		TypeCacheTTL:      c.Duration("type-cache-ttl"),
 		LocalFileCache:    c.Bool("local-file-cache"),
 		TempDir:           c.String("temp-dir"),
+		DisableHTTP2:      c.Bool("disable-http2"),
+		MaxConnsPerHost:   c.Int("max-conns-per-host"),
 
 		// Debugging,
 		DebugFuse:       c.Bool("debug_fuse"),

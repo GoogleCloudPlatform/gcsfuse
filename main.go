@@ -21,9 +21,11 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"path"
@@ -207,6 +209,20 @@ func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 		TokenSource:     tokenSrc,
 		UserAgent:       userAgent,
 		MaxBackoffSleep: flags.MaxRetrySleep,
+	}
+
+	// The default HTTP transport uses HTTP/2 with TCP multiplexing, which
+	// does not create new TCP connections even when the idle connections
+	// run out. To specify multiple connections per host, HTTP/2 is disabled
+	// on purpose.
+	if flags.DisableHTTP2 {
+		cfg.Transport = &http.Transport{
+			MaxConnsPerHost: flags.MaxConnsPerHost,
+			// This disables HTTP/2 in the transport.
+			TLSNextProto: make(
+				map[string]func(string, *tls.Conn) http.RoundTripper,
+			),
+		}
 	}
 
 	if flags.DebugHTTP {
