@@ -85,21 +85,25 @@ func NewTempFile(
 		return
 	}
 
-	// Copy into the file.
-	size, err := io.Copy(f, content)
-	if err != nil {
-		err = fmt.Errorf("copy: %v", err)
-		return
-	}
-
 	tf = &tempFile{
+		source:         content,
+		state:          fileIncomplete,
 		clock:          clock,
 		f:              f,
-		dirtyThreshold: size,
+		dirtyThreshold: 0,
 	}
 
 	return
 }
+
+type fileState string
+
+const (
+	fileIncomplete fileState = "fileIncomplete"
+	fileComplete             = "fileComplete"
+	fileDirty                = "fileDirty"
+	fileDestroyed            = "fileDestroyed"
+)
 
 type tempFile struct {
 	/////////////////////////
@@ -108,11 +112,12 @@ type tempFile struct {
 
 	clock timeutil.Clock
 
+	source io.Reader
+
 	/////////////////////////
 	// Mutable state
 	/////////////////////////
-
-	destroyed bool
+	state fileState
 
 	// A file containing our current contents.
 	f *os.File
@@ -134,7 +139,7 @@ type tempFile struct {
 ////////////////////////////////////////////////////////////////////////
 
 func (tf *tempFile) CheckInvariants() {
-	if tf.destroyed {
+	if tf.state == fileDestroyed {
 		panic("Use of destroyed tempFile object.")
 	}
 
@@ -168,7 +173,7 @@ func (tf *tempFile) CheckInvariants() {
 }
 
 func (tf *tempFile) Destroy() {
-	tf.destroyed = true
+	tf.state = fileDestroyed
 
 	// Throw away the file.
 	tf.f.Close()
@@ -176,18 +181,22 @@ func (tf *tempFile) Destroy() {
 }
 
 func (tf *tempFile) Read(p []byte) (int, error) {
+	tf.ensureComplete()
 	return tf.f.Read(p)
 }
 
 func (tf *tempFile) Seek(offset int64, whence int) (int64, error) {
+	tf.ensureComplete()
 	return tf.f.Seek(offset, whence)
 }
 
 func (tf *tempFile) ReadAt(p []byte, offset int64) (int, error) {
+	tf.ensureComplete()
 	return tf.f.ReadAt(p, offset)
 }
 
 func (tf *tempFile) Stat() (sr StatResult, err error) {
+	tf.ensureComplete()
 	sr.DirtyThreshold = tf.dirtyThreshold
 	sr.Mtime = tf.mtime
 
@@ -202,8 +211,12 @@ func (tf *tempFile) Stat() (sr StatResult, err error) {
 }
 
 func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
+	tf.ensureComplete()
+
 	// Update our state regarding being dirty.
 	tf.dirtyThreshold = minInt64(tf.dirtyThreshold, offset)
+
+	tf.state = fileDirty
 
 	newMtime := tf.clock.Now()
 	tf.mtime = &newMtime
@@ -213,8 +226,12 @@ func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
 }
 
 func (tf *tempFile) Truncate(n int64) error {
+	tf.ensureComplete()
+
 	// Update our state regarding being dirty.
 	tf.dirtyThreshold = minInt64(tf.dirtyThreshold, n)
+
+	tf.state = fileDirty
 
 	newMtime := tf.clock.Now()
 	tf.mtime = &newMtime
@@ -237,4 +254,24 @@ func minInt64(a int64, b int64) int64 {
 	}
 
 	return b
+}
+
+func (tf *tempFile) ensureComplete() (err error) {
+	if tf.state == fileComplete {
+		return
+	}
+	if tf.state != fileIncomplete {
+		err = fmt.Errorf("state %s cannot be completed", tf.state)
+		return
+	}
+
+	// Copy into the file.
+	size, err := io.Copy(tf.f, tf.source)
+	if err != nil {
+		err = fmt.Errorf("copy: %v", err)
+		return
+	}
+	tf.dirtyThreshold = size
+	tf.state = fileComplete
+	return
 }
