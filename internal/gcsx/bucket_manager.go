@@ -23,11 +23,13 @@ import (
 
 	"golang.org/x/net/context"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
 	"github.com/jacobsa/ratelimit"
 	"github.com/jacobsa/timeutil"
+	"google.golang.org/api/iterator"
 )
 
 type BucketConfig struct {
@@ -65,6 +67,9 @@ type BucketManager interface {
 		ctx context.Context,
 		name string) (b SyncerBucket, err error)
 
+	// Lists the names of all the buckets in the project.
+	ListBuckets(ctx context.Context) (names []string, err error)
+
 	// Shuts down the bucket manager and its buckets
 	ShutDown()
 }
@@ -76,12 +81,19 @@ type bucketManager struct {
 	// Garbage collector
 	gcCtx                 context.Context
 	stopGarbageCollecting func()
+
+	client *storage.Client
 }
 
 func NewBucketManager(config BucketConfig, conn gcs.Conn) BucketManager {
+	client, err := storage.NewClient(context.Background())
+	if err != nil {
+		panic(fmt.Sprintf("Cannot connect to GCS: %v", err))
+	}
 	bm := &bucketManager{
 		config: config,
 		conn:   conn,
+		client: client,
 	}
 	bm.gcCtx, bm.stopGarbageCollecting = context.WithCancel(context.Background())
 	return bm
@@ -153,6 +165,7 @@ func (bm *bucketManager) SetUpBucket(
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
+		fmt.Printf("OpenBucket(%q, %q)\n", name, bm.config.BillingProject)
 		b, err = bm.conn.OpenBucket(
 			ctx,
 			&gcs.OpenBucketOptions{
@@ -226,4 +239,23 @@ func (bm *bucketManager) SetUpBucket(
 
 func (bm *bucketManager) ShutDown() {
 	bm.stopGarbageCollecting()
+}
+
+func (bm *bucketManager) ListBuckets(ctx context.Context) (
+	names []string,
+	err error) {
+	fmt.Printf("Buckets(%q)\n", bm.config.BillingProject)
+	it := bm.client.Buckets(ctx, bm.config.BillingProject)
+	for {
+		bucket, nextErr := it.Next()
+		switch nextErr {
+		case nil:
+			names = append(names, bucket.Name)
+		case iterator.Done:
+			return
+		default:
+			err = nextErr
+			return
+		}
+	}
 }

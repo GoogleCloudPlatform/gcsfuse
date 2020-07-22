@@ -170,7 +170,19 @@ func (d *baseDirInode) LookUpChild(
 func (d *baseDirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
-	err = fuse.ENOSYS
+	var bucketNames []string
+	bucketNames, err = d.bucketManager.ListBuckets(ctx)
+	if err != nil {
+		return
+	}
+	for _, name := range bucketNames {
+		entry := fuseutil.Dirent{
+			Name: name,
+			Type: fuseutil.DT_Directory,
+		}
+		entries = append(entries, entry)
+	}
+
 	return
 }
 
