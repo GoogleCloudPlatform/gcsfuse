@@ -76,13 +76,11 @@ func openOSXFUSEDev(devPrefix string) (dev *os.File, err error) {
 		if os.IsNotExist(err) {
 			if i == 0 {
 				// Not even the first device was found. Fuse must not be loaded.
-				err = errNotLoaded
-				return
+				return nil, errNotLoaded
 			}
 
 			// Otherwise we've run out of kernel-provided devices
-			err = errNoAvail
-			return
+			return nil, errNoAvail
 		}
 
 		if err2, ok := err.(*os.PathError); ok && err2.Err == syscall.EBUSY {
@@ -90,7 +88,7 @@ func openOSXFUSEDev(devPrefix string) (dev *os.File, err error) {
 			continue
 		}
 
-		return
+		return dev, nil
 	}
 }
 
@@ -100,7 +98,7 @@ func callMount(
 	dir string,
 	cfg *MountConfig,
 	dev *os.File,
-	ready chan<- error) (err error) {
+	ready chan<- error) error {
 
 	// The mount helper doesn't understand any escaping.
 	for k, v := range cfg.toMap() {
@@ -143,9 +141,8 @@ func callMount(
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
 
-	err = cmd.Start()
-	if err != nil {
-		return
+	if err := cmd.Start(); err != nil {
+		return err
 	}
 
 	// In the background, wait for the command to complete.
@@ -162,7 +159,7 @@ func callMount(
 		ready <- err
 	}()
 
-	return
+	return nil
 }
 
 // Begin the process of mounting at the given directory, returning a connection
@@ -188,8 +185,7 @@ func mount(
 		if err == errNotLoaded {
 			err = loadOSXFUSE(loc.Load)
 			if err != nil {
-				err = fmt.Errorf("loadOSXFUSE: %v", err)
-				return
+				return nil, fmt.Errorf("loadOSXFUSE: %v", err)
 			}
 
 			dev, err = openOSXFUSEDev(loc.DevicePrefix)
@@ -197,21 +193,17 @@ func mount(
 
 		// Propagate errors.
 		if err != nil {
-			err = fmt.Errorf("openOSXFUSEDev: %v", err)
-			return
+			return nil, fmt.Errorf("openOSXFUSEDev: %v", err)
 		}
 
 		// Call the mount binary with the device.
-		err = callMount(loc.Mount, loc.DaemonVar, dir, cfg, dev, ready)
-		if err != nil {
+		if err := callMount(loc.Mount, loc.DaemonVar, dir, cfg, dev, ready); err != nil {
 			dev.Close()
-			err = fmt.Errorf("callMount: %v", err)
-			return
+			return nil, fmt.Errorf("callMount: %v", err)
 		}
 
-		return
+		return dev, nil
 	}
 
-	err = errOSXFUSENotFound
-	return
+	return nil, errOSXFUSENotFound
 }

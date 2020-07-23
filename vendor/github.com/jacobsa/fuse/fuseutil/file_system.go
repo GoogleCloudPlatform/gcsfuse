@@ -15,10 +15,9 @@
 package fuseutil
 
 import (
+	"context"
 	"io"
 	"sync"
-
-	"golang.org/x/net/context"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
@@ -43,6 +42,7 @@ type FileSystem interface {
 	MkDir(context.Context, *fuseops.MkDirOp) error
 	MkNode(context.Context, *fuseops.MkNodeOp) error
 	CreateFile(context.Context, *fuseops.CreateFileOp) error
+	CreateLink(context.Context, *fuseops.CreateLinkOp) error
 	CreateSymlink(context.Context, *fuseops.CreateSymlinkOp) error
 	Rename(context.Context, *fuseops.RenameOp) error
 	RmDir(context.Context, *fuseops.RmDirOp) error
@@ -61,6 +61,7 @@ type FileSystem interface {
 	GetXattr(context.Context, *fuseops.GetXattrOp) error
 	ListXattr(context.Context, *fuseops.ListXattrOp) error
 	SetXattr(context.Context, *fuseops.SetXattrOp) error
+	Fallocate(context.Context, *fuseops.FallocateOp) error
 
 	// Regard all inodes (including the root inode) as having their lookup counts
 	// decremented to zero, and clean up any resources associated with the file
@@ -72,8 +73,10 @@ type FileSystem interface {
 // method.Respond with the resulting error. Unsupported ops are responded to
 // directly with ENOSYS.
 //
-// Each call to a FileSystem method is made on its own goroutine, and is free
-// to block.
+// Each call to a FileSystem method (except ForgetInode) is made on
+// its own goroutine, and is free to block. ForgetInode may be called
+// synchronously, and should not depend on calls to other methods
+// being received concurrently.
 //
 // (It is safe to naively process ops concurrently because the kernel
 // guarantees to serialize operations that the user expects to happen in order,
@@ -109,7 +112,15 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 		}
 
 		s.opsInFlight.Add(1)
-		go s.handleOp(c, ctx, op)
+		if _, ok := op.(*fuseops.ForgetInodeOp); ok {
+			// Special case: call in this goroutine for
+			// forget inode ops, which may come in a
+			// flurry from the kernel and are generally
+			// cheap for the file system to handle
+			s.handleOp(c, ctx, op)
+		} else {
+			go s.handleOp(c, ctx, op)
+		}
 	}
 }
 
@@ -148,6 +159,9 @@ func (s *fileSystemServer) handleOp(
 
 	case *fuseops.CreateFileOp:
 		err = s.fs.CreateFile(ctx, typed)
+
+	case *fuseops.CreateLinkOp:
+		err = s.fs.CreateLink(ctx, typed)
 
 	case *fuseops.CreateSymlinkOp:
 		err = s.fs.CreateSymlink(ctx, typed)
@@ -202,6 +216,9 @@ func (s *fileSystemServer) handleOp(
 
 	case *fuseops.SetXattrOp:
 		err = s.fs.SetXattr(ctx, typed)
+
+	case *fuseops.FallocateOp:
+		err = s.fs.Fallocate(ctx, typed)
 	}
 
 	c.Reply(ctx, err)

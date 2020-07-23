@@ -14,7 +14,7 @@
 
 package fuse
 
-import "golang.org/x/net/context"
+import "context"
 
 // MountedFileSystem represents the status of a mount operation, with a method
 // that waits for unmounting.

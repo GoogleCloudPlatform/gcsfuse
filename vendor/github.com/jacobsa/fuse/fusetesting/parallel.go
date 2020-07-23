@@ -15,6 +15,7 @@
 package fusetesting
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -25,7 +26,6 @@ import (
 
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/syncutil"
-	"golang.org/x/net/context"
 )
 
 // Run an ogletest test that checks expectations for parallel calls to open(2)
@@ -44,22 +44,18 @@ func RunCreateInParallelTest_NoTruncate(
 
 		// Set up a function that opens the file with O_CREATE and then appends a
 		// byte to it.
-		worker := func(id byte) (err error) {
+		worker := func(id byte) error {
 			f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 			if err != nil {
-				err = fmt.Errorf("Worker %d: Open: %v", id, err)
-				return
+				return fmt.Errorf("Worker %d: Open: %v", id, err)
 			}
-
 			defer f.Close()
 
-			_, err = f.Write([]byte{id})
-			if err != nil {
-				err = fmt.Errorf("Worker %d: Write: %v", id, err)
-				return
+			if _, err := f.Write([]byte{id}); err != nil {
+				return fmt.Errorf("Worker %d: Write: %v", id, err)
 			}
 
-			return
+			return nil
 		}
 
 		// Run several workers in parallel.
@@ -67,9 +63,8 @@ func RunCreateInParallelTest_NoTruncate(
 		b := syncutil.NewBundle(ctx)
 		for i := 0; i < numWorkers; i++ {
 			id := byte(i)
-			b.Add(func(ctx context.Context) (err error) {
-				err = worker(id)
-				return
+			b.Add(func(ctx context.Context) error {
+				return worker(id)
 			})
 		}
 
@@ -121,21 +116,16 @@ func RunCreateInParallelTest_Truncate(
 				filename,
 				os.O_CREATE|os.O_WRONLY|os.O_APPEND|os.O_TRUNC,
 				0600)
-
 			if err != nil {
-				err = fmt.Errorf("Worker %d: Open: %v", id, err)
-				return
+				return fmt.Errorf("Worker %d: Open: %v", id, err)
 			}
-
 			defer f.Close()
 
-			_, err = f.Write([]byte{id})
-			if err != nil {
-				err = fmt.Errorf("Worker %d: Write: %v", id, err)
-				return
+			if _, err := f.Write([]byte{id}); err != nil {
+				return fmt.Errorf("Worker %d: Write: %v", id, err)
 			}
 
-			return
+			return nil
 		}
 
 		// Run several workers in parallel.
@@ -143,9 +133,8 @@ func RunCreateInParallelTest_Truncate(
 		b := syncutil.NewBundle(ctx)
 		for i := 0; i < numWorkers; i++ {
 			id := byte(i)
-			b.Add(func(ctx context.Context) (err error) {
-				err = worker(id)
-				return
+			b.Add(func(ctx context.Context) error {
+				return worker(id)
 			})
 		}
 
@@ -203,26 +192,22 @@ func RunCreateInParallelTest_Exclusive(
 
 			// If we failed to open due to the file already existing, just leave.
 			if os.IsExist(err) {
-				err = nil
-				return
+				return nil
 			}
 
 			// Propgate other errors.
 			if err != nil {
-				err = fmt.Errorf("Worker %d: Open: %v", id, err)
-				return
+				return fmt.Errorf("Worker %d: Open: %v", id, err)
 			}
 
 			atomic.AddUint64(&openCount, 1)
 			defer f.Close()
 
-			_, err = f.Write([]byte{id})
-			if err != nil {
-				err = fmt.Errorf("Worker %d: Write: %v", id, err)
-				return
+			if _, err := f.Write([]byte{id}); err != nil {
+				return fmt.Errorf("Worker %d: Write: %v", id, err)
 			}
 
-			return
+			return nil
 		}
 
 		// Run several workers in parallel.
@@ -230,9 +215,8 @@ func RunCreateInParallelTest_Exclusive(
 		b := syncutil.NewBundle(ctx)
 		for i := 0; i < numWorkers; i++ {
 			id := byte(i)
-			b.Add(func(ctx context.Context) (err error) {
-				err = worker(id)
-				return
+			b.Add(func(ctx context.Context) error {
+				return worker(id)
 			})
 		}
 
@@ -269,19 +253,16 @@ func RunMkdirInParallelTest(
 		filename := path.Join(dir, "foo")
 
 		// Set up a function that creates the directory, ignoring EEXIST errors.
-		worker := func(id byte) (err error) {
-			err = os.Mkdir(filename, 0700)
-
+		worker := func(id byte) error {
+			err := os.Mkdir(filename, 0700)
 			if os.IsExist(err) {
-				err = nil
+				return nil
 			}
-
 			if err != nil {
-				err = fmt.Errorf("Worker %d: Mkdir: %v", id, err)
-				return
+				return fmt.Errorf("Worker %d: Mkdir: %v", id, err)
 			}
 
-			return
+			return nil
 		}
 
 		// Run several workers in parallel.
@@ -289,9 +270,8 @@ func RunMkdirInParallelTest(
 		b := syncutil.NewBundle(ctx)
 		for i := 0; i < numWorkers; i++ {
 			id := byte(i)
-			b.Add(func(ctx context.Context) (err error) {
-				err = worker(id)
-				return
+			b.Add(func(ctx context.Context) error {
+				return worker(id)
 			})
 		}
 
@@ -325,19 +305,17 @@ func RunSymlinkInParallelTest(
 		filename := path.Join(dir, "foo")
 
 		// Set up a function that creates the symlink, ignoring EEXIST errors.
-		worker := func(id byte) (err error) {
-			err = os.Symlink("blah", filename)
-
+		worker := func(id byte) error {
+			err := os.Symlink("blah", filename)
 			if os.IsExist(err) {
-				err = nil
+				return nil
 			}
 
 			if err != nil {
-				err = fmt.Errorf("Worker %d: Symlink: %v", id, err)
-				return
+				return fmt.Errorf("Worker %d: Symlink: %v", id, err)
 			}
 
-			return
+			return nil
 		}
 
 		// Run several workers in parallel.
@@ -345,9 +323,8 @@ func RunSymlinkInParallelTest(
 		b := syncutil.NewBundle(ctx)
 		for i := 0; i < numWorkers; i++ {
 			id := byte(i)
-			b.Add(func(ctx context.Context) (err error) {
-				err = worker(id)
-				return
+			b.Add(func(ctx context.Context) error {
+				return worker(id)
 			})
 		}
 
@@ -364,4 +341,68 @@ func RunSymlinkInParallelTest(
 		err = os.Remove(filename)
 		AssertEq(nil, err)
 	}
+}
+
+// Run an ogletest test that checks expectations for parallel calls to
+// link(2).
+func RunHardlinkInParallelTest(
+	ctx context.Context,
+	dir string) {
+	// Ensure that we get parallelism for this test.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
+
+	// Create a file.
+	originalFile := path.Join(dir, "original_file")
+	const contents = "Hello\x00world"
+
+	err := ioutil.WriteFile(originalFile, []byte(contents), 0444)
+	AssertEq(nil, err)
+
+	// Try for awhile to see if anything breaks.
+	const duration = 500 * time.Millisecond
+	startTime := time.Now()
+	for time.Since(startTime) < duration {
+		filename := path.Join(dir, "foo")
+
+		// Set up a function that creates the symlink, ignoring EEXIST errors.
+		worker := func(id byte) error {
+			err := os.Link(originalFile, filename)
+			if os.IsExist(err) {
+				return nil
+			}
+			if err != nil {
+				return fmt.Errorf("Worker %d: Link: %v", id, err)
+			}
+
+			return nil
+		}
+
+		// Run several workers in parallel.
+		const numWorkers = 16
+		b := syncutil.NewBundle(ctx)
+		for i := 0; i < numWorkers; i++ {
+			id := byte(i)
+			b.Add(func(ctx context.Context) error {
+				return worker(id)
+			})
+		}
+
+		err := b.Join()
+		AssertEq(nil, err)
+
+		// The symlink should have been created, once.
+		entries, err := ReadDirPicky(dir)
+		AssertEq(nil, err)
+		AssertEq(2, len(entries))
+		AssertEq("foo", entries[0].Name())
+		AssertEq("original_file", entries[1].Name())
+
+		// Remove the link.
+		err = os.Remove(filename)
+		AssertEq(nil, err)
+	}
+
+	// Clean up the original file at the end.
+	err = os.Remove(originalFile)
+	AssertEq(nil, err)
 }

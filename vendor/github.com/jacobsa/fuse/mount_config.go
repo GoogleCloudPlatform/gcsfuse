@@ -15,12 +15,11 @@
 package fuse
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"runtime"
 	"strings"
-
-	"golang.org/x/net/context"
 )
 
 // Optional configuration accepted by Mount.
@@ -129,6 +128,29 @@ type MountConfig struct {
 	// entries will be cached for an arbitrarily long time.
 	EnableVnodeCaching bool
 
+	// Linux only.
+	//
+	// Linux 4.20 introduced caching symlink targets in the page cache:
+	// https://github.com/torvalds/linux/commit/5571f1e65486be025f73fa6aa30fb03725d362a2
+	//
+	// This is not enabled by default because the old behavior masked a bug:
+	// file systems could return any size in the inode attributes of
+	// symlinks. After enabling caching, the specified size caps the symlink
+	// target.
+	EnableSymlinkCaching bool
+
+	// Linux only.
+	//
+	// Tell the kernel to treat returning -ENOSYS on OpenFile as not needing
+	// OpenFile calls at all (Linux >= 3.16):
+	EnableNoOpenSupport bool
+
+	// Linux only.
+	//
+	// Tell the kernel to treat returning -ENOSYS on OpenDir as not needing
+	// OpenDir calls at all (Linux >= 5.1):
+	EnableNoOpendirSupport bool
+
 	// OS X only.
 	//
 	// The name of the mounted volume, as displayed in the Finder. If empty, a
@@ -142,6 +164,11 @@ type MountConfig struct {
 	// For expert use only! May invalidate other guarantees made in the
 	// documentation for this package.
 	Options map[string]string
+
+	// Sets the filesystem type (third field in /etc/mtab). /etc/mtab and
+	// /proc/mounts will show the filesystem type as fuse.<Subtype>.
+	// If not set, /proc/mounts will show the filesystem type as fuse/fuseblk.
+	Subtype string
 }
 
 // Create a map containing all of the key=value mount options to be given to
@@ -171,6 +198,11 @@ func (c *MountConfig) toMap() (opts map[string]string) {
 	// Special file system name?
 	if fsname != "" {
 		opts["fsname"] = fsname
+	}
+
+	subtype := c.Subtype
+	if subtype != "" {
+		opts["subtype"] = subtype
 	}
 
 	// Read only?
@@ -204,20 +236,19 @@ func (c *MountConfig) toMap() (opts map[string]string) {
 		opts[k] = v
 	}
 
-	return
+	return opts
 }
 
 func escapeOptionsKey(s string) (res string) {
 	res = s
 	res = strings.Replace(res, `\`, `\\`, -1)
 	res = strings.Replace(res, `,`, `\,`, -1)
-	return
+	return res
 }
 
-// Create an options string suitable for passing to the mount helper.
-func (c *MountConfig) toOptionsString() string {
+func mapToOptionsString(opts map[string]string) string {
 	var components []string
-	for k, v := range c.toMap() {
+	for k, v := range opts {
 		k = escapeOptionsKey(k)
 
 		component := k
@@ -229,4 +260,9 @@ func (c *MountConfig) toOptionsString() string {
 	}
 
 	return strings.Join(components, ",")
+}
+
+// Create an options string suitable for passing to the mount helper.
+func (c *MountConfig) toOptionsString() string {
+	return mapToOptionsString(c.toMap())
 }

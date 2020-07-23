@@ -15,10 +15,9 @@
 package fuse
 
 import (
+	"context"
 	"fmt"
 	"os"
-
-	"golang.org/x/net/context"
 )
 
 // Server is an interface for any type that knows how to serve ops read from a
@@ -36,25 +35,23 @@ type Server interface {
 func Mount(
 	dir string,
 	server Server,
-	config *MountConfig) (mfs *MountedFileSystem, err error) {
+	config *MountConfig) (*MountedFileSystem, error) {
 	// Sanity check: make sure the mount point exists and is a directory. This
 	// saves us from some confusing errors later on OS X.
 	fi, err := os.Stat(dir)
 	switch {
 	case os.IsNotExist(err):
-		return
+		return nil, err
 
 	case err != nil:
-		err = fmt.Errorf("Statting mount point: %v", err)
-		return
+		return nil, fmt.Errorf("Statting mount point: %v", err)
 
 	case !fi.IsDir():
-		err = fmt.Errorf("Mount point %s is not a directory", dir)
-		return
+		return nil, fmt.Errorf("Mount point %s is not a directory", dir)
 	}
 
 	// Initialize the struct.
-	mfs = &MountedFileSystem{
+	mfs := &MountedFileSystem{
 		dir:                 dir,
 		joinStatusAvailable: make(chan struct{}),
 	}
@@ -63,8 +60,7 @@ func Mount(
 	ready := make(chan error, 1)
 	dev, err := mount(dir, config, ready)
 	if err != nil {
-		err = fmt.Errorf("mount: %v", err)
-		return
+		return nil, fmt.Errorf("mount: %v", err)
 	}
 
 	// Choose a parent context for ops.
@@ -79,10 +75,8 @@ func Mount(
 		config.DebugLogger,
 		config.ErrorLogger,
 		dev)
-
 	if err != nil {
-		err = fmt.Errorf("newConnection: %v", err)
-		return
+		return nil, fmt.Errorf("newConnection: %v", err)
 	}
 
 	// Serve the connection in the background. When done, set the join status.
@@ -93,10 +87,9 @@ func Mount(
 	}()
 
 	// Wait for the mount process to complete.
-	if err = <-ready; err != nil {
-		err = fmt.Errorf("mount (background): %v", err)
-		return
+	if err := <-ready; err != nil {
+		return nil, fmt.Errorf("mount (background): %v", err)
 	}
 
-	return
+	return mfs, nil
 }

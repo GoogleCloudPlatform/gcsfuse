@@ -98,6 +98,11 @@ func describeRequest(op interface{}) (s string) {
 
 	case *fuseops.SetXattrOp:
 		addComponent("name %s", typed.Name)
+
+	case *fuseops.FallocateOp:
+		addComponent("offset %d", typed.Offset)
+		addComponent("length %d", typed.Length)
+		addComponent("mode %d", typed.Mode)
 	}
 
 	// Use just the name if there is no extra info.

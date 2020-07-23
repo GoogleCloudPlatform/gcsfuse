@@ -79,7 +79,7 @@ func WriteDirent(buf []byte, d Dirent) (n int) {
 	// Do we have enough room?
 	totalLen := direntSize + len(d.Name) + padLen
 	if totalLen > len(buf) {
-		return
+		return n
 	}
 
 	// Write the header.
@@ -101,5 +101,5 @@ func WriteDirent(buf []byte, d Dirent) (n int) {
 		n += copy(buf[n:], padding[:padLen])
 	}
 
-	return
+	return n
 }
