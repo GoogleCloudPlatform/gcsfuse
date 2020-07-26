@@ -276,6 +276,10 @@ func minInt64(a int64, b int64) int64 {
 	return b
 }
 
+const (
+	minCopyLength = 64 * 1024 * 1024 // 64 MB
+)
+
 func (tf *tempFile) ensure(limit int64) error {
 	switch tf.state {
 	case fileIncomplete:
@@ -283,8 +287,11 @@ func (tf *tempFile) ensure(limit int64) error {
 		if size >= limit {
 			return nil
 		}
-		var n int64
-		n, err = io.CopyN(tf.f, tf.source, limit-size)
+		n := limit - size
+		if n < minCopyLength {
+			n = minCopyLength
+		}
+		n, err = io.CopyN(tf.f, tf.source, n)
 		if err == io.EOF {
 			tf.source.Close()
 			tf.dirtyThreshold = size + n
