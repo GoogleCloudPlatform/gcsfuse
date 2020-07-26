@@ -276,37 +276,35 @@ func minInt64(a int64, b int64) int64 {
 	return b
 }
 
-func (tf *tempFile) ensure(limit int64) (int64, error) {
-	size, err := tf.f.Seek(0, 2)
-	if size >= limit {
-		return size, nil
-	}
-	var n int64
-	n, err = io.CopyN(tf.f, tf.source, limit-size)
-	if err == io.EOF {
-		tf.source.Close()
-		tf.dirtyThreshold = size + n
-		tf.state = fileComplete
-		err = nil
-	}
-	return size + n, err
-}
-
-func (tf *tempFile) ensureComplete() (err error) {
+func (tf *tempFile) ensure(limit int64) error {
 	switch tf.state {
 	case fileIncomplete:
-		_, err = tf.ensure(math.MaxInt64)
-		if err != nil {
-			err = fmt.Errorf("load temp file: %v", err)
-			return
+		size, err := tf.f.Seek(0, 2)
+		if size >= limit {
+			return nil
 		}
-		return
+		var n int64
+		n, err = io.CopyN(tf.f, tf.source, limit-size)
+		if err == io.EOF {
+			tf.source.Close()
+			tf.dirtyThreshold = size + n
+			tf.state = fileComplete
+			err = nil
+		}
+		return err
 	case fileComplete, fileDirty:
 		// already completed
-		return
+		return nil
 	case fileDestroyed:
-		err = fmt.Errorf("file destroyed")
-		return
+		return fmt.Errorf("file destroyed")
 	}
-	return
+	return nil
+}
+
+func (tf *tempFile) ensureComplete() error {
+	err := tf.ensure(math.MaxInt64)
+	if err != nil {
+		err = fmt.Errorf("load temp file: %v", err)
+	}
+	return err
 }
