@@ -17,6 +17,7 @@ package gcsx
 import (
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"time"
 
@@ -74,7 +75,7 @@ type StatResult struct {
 // supplied reader. dir is a directory on whose file system the inode will live,
 // or the system default temporary location if empty.
 func NewTempFile(
-	content io.Reader,
+	source io.ReadCloser,
 	dir string,
 	clock timeutil.Clock) (tf TempFile, err error) {
 	// Create an anonymous file to wrap. When we close it, its resources will be
@@ -86,7 +87,7 @@ func NewTempFile(
 	}
 
 	tf = &tempFile{
-		source:         content,
+		source:         source,
 		state:          fileIncomplete,
 		clock:          clock,
 		f:              f,
@@ -112,7 +113,7 @@ type tempFile struct {
 
 	clock timeutil.Clock
 
-	source io.Reader
+	source io.ReadCloser
 
 	/////////////////////////
 	// Mutable state
@@ -181,22 +182,35 @@ func (tf *tempFile) Destroy() {
 }
 
 func (tf *tempFile) Read(p []byte) (int, error) {
-	tf.ensureComplete()
+	err := tf.ensureComplete()
+	if err != nil {
+		return 0, fmt.Errorf("Cannot Read incomplete file: %v", err)
+	}
 	return tf.f.Read(p)
 }
 
 func (tf *tempFile) Seek(offset int64, whence int) (int64, error) {
-	tf.ensureComplete()
+	err := tf.ensureComplete()
+	if err != nil {
+		return 0, fmt.Errorf("Cannot Seek incomplete file: %v", err)
+	}
 	return tf.f.Seek(offset, whence)
 }
 
 func (tf *tempFile) ReadAt(p []byte, offset int64) (int, error) {
-	tf.ensureComplete()
+	err := tf.ensureComplete()
+	if err != nil {
+		return 0, fmt.Errorf("Cannot ReadAt incomplete file: %v", err)
+	}
 	return tf.f.ReadAt(p, offset)
 }
 
 func (tf *tempFile) Stat() (sr StatResult, err error) {
-	tf.ensureComplete()
+	err = tf.ensureComplete()
+	if err != nil {
+		err = fmt.Errorf("Cannot Stat incomplete file: %v", err)
+		return
+	}
 	sr.DirtyThreshold = tf.dirtyThreshold
 	sr.Mtime = tf.mtime
 
@@ -211,7 +225,10 @@ func (tf *tempFile) Stat() (sr StatResult, err error) {
 }
 
 func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
-	tf.ensureComplete()
+	err := tf.ensureComplete()
+	if err != nil {
+		return 0, fmt.Errorf("Cannot WriteAt incomplete file: %v", err)
+	}
 
 	// Update our state regarding being dirty.
 	tf.dirtyThreshold = minInt64(tf.dirtyThreshold, offset)
@@ -226,7 +243,10 @@ func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
 }
 
 func (tf *tempFile) Truncate(n int64) error {
-	tf.ensureComplete()
+	err := tf.ensureComplete()
+	if err != nil {
+		return fmt.Errorf("Cannot WriteAt incomplete file: %v", err)
+	}
 
 	// Update our state regarding being dirty.
 	tf.dirtyThreshold = minInt64(tf.dirtyThreshold, n)
@@ -256,22 +276,37 @@ func minInt64(a int64, b int64) int64 {
 	return b
 }
 
-func (tf *tempFile) ensureComplete() (err error) {
-	if tf.state == fileComplete {
-		return
+func (tf *tempFile) ensure(limit int64) (int64, error) {
+	size, err := tf.f.Seek(0, 2)
+	if size >= limit {
+		return size, nil
 	}
-	if tf.state != fileIncomplete {
-		err = fmt.Errorf("state %s cannot be completed", tf.state)
-		return
+	var n int64
+	n, err = io.CopyN(tf.f, tf.source, limit-size)
+	if err == io.EOF {
+		tf.source.Close()
+		tf.dirtyThreshold = size + n
+		tf.state = fileComplete
+		err = nil
 	}
+	return size + n, err
+}
 
-	// Copy into the file.
-	size, err := io.Copy(tf.f, tf.source)
-	if err != nil {
-		err = fmt.Errorf("copy: %v", err)
+func (tf *tempFile) ensureComplete() (err error) {
+	switch tf.state {
+	case fileIncomplete:
+		_, err = tf.ensure(math.MaxInt64)
+		if err != nil {
+			err = fmt.Errorf("load temp file: %v", err)
+			return
+		}
+		return
+	case fileComplete, fileDirty:
+		// already completed
+		return
+	case fileDestroyed:
+		err = fmt.Errorf("file destroyed")
 		return
 	}
-	tf.dirtyThreshold = size
-	tf.state = fileComplete
 	return
 }

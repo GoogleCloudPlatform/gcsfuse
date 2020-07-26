@@ -51,6 +51,14 @@ func readAll(rs io.ReadSeeker) (content []byte, err error) {
 	return
 }
 
+type dummyReadCloser struct {
+	io.Reader
+}
+
+func (rc dummyReadCloser) Close() error {
+	return nil
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Invariant-checking temp file
 ////////////////////////////////////////////////////////////////////////
@@ -136,7 +144,7 @@ func (t *TempFileTest) SetUp(ti *TestInfo) {
 
 	// And the temp file.
 	t.tf.wrapped, err = gcsx.NewTempFile(
-		strings.NewReader(initialContent),
+		dummyReadCloser{strings.NewReader(initialContent)},
 		"",
 		&t.clock)
 
