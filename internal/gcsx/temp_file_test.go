@@ -173,6 +173,14 @@ func (t *TempFileTest) ReadAt() {
 	ExpectEq(nil, err)
 	ExpectEq(initialContent[1:3], string(buf[:]))
 
+	n, err = t.tf.ReadAt(buf[:], int64(initialContentSize)-1)
+	ExpectEq(1, n)
+	ExpectEq(io.EOF, err)
+	ExpectEq(
+		initialContent[initialContentSize-1:initialContentSize],
+		string(buf[0:n]),
+	)
+
 	// Check Stat.
 	sr, err := t.tf.Stat()
 
