@@ -51,6 +51,14 @@ func readAll(rs io.ReadSeeker) (content []byte, err error) {
 	return
 }
 
+type dummyReadCloser struct {
+	io.Reader
+}
+
+func (rc dummyReadCloser) Close() error {
+	return nil
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Invariant-checking temp file
 ////////////////////////////////////////////////////////////////////////
@@ -136,7 +144,7 @@ func (t *TempFileTest) SetUp(ti *TestInfo) {
 
 	// And the temp file.
 	t.tf.wrapped, err = gcsx.NewTempFile(
-		strings.NewReader(initialContent),
+		dummyReadCloser{strings.NewReader(initialContent)},
 		"",
 		&t.clock)
 
@@ -164,6 +172,14 @@ func (t *TempFileTest) ReadAt() {
 	ExpectEq(2, n)
 	ExpectEq(nil, err)
 	ExpectEq(initialContent[1:3], string(buf[:]))
+
+	n, err = t.tf.ReadAt(buf[:], int64(initialContentSize)-1)
+	ExpectEq(1, n)
+	ExpectEq(io.EOF, err)
+	ExpectEq(
+		initialContent[initialContentSize-1:initialContentSize],
+		string(buf[0:n]),
+	)
 
 	// Check Stat.
 	sr, err := t.tf.Stat()

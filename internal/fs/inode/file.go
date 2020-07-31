@@ -199,9 +199,8 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		return
 	}
 
-	defer rc.Close()
-
-	// Create a temporary file with its contents.
+	// Create a temporary file with its contents. The temp file
+	// ensures to call Close() on the rc.
 	tf, err := gcsx.NewTempFile(rc, f.tempDir, f.mtimeClock)
 	if err != nil {
 		err = fmt.Errorf("NewTempFile: %v", err)
