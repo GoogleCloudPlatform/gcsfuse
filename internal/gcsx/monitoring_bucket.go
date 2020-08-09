@@ -33,11 +33,36 @@ var (
 			"method",
 		},
 	)
+	counterBytesRead = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gcsfuse_bytes_read",
+			Help: "Number of bytes read from GCS.",
+		},
+		[]string{ // labels
+			"bucket",
+			"object",
+		},
+	)
+	counterObjectReadersCreated = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "gcsfuse_object_readers_created",
+			Help: "Number of object readers created.",
+		},
+	)
+	counterObjectReadersClosed = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "gcsfuse_object_readers_closed",
+			Help: "Number of object readers already closed.",
+		},
+	)
 )
 
 // Initialize the prometheus metrics.
 func init() {
 	prometheus.MustRegister(counterGcsRequests)
+	prometheus.MustRegister(counterBytesRead)
+	prometheus.MustRegister(counterObjectReadersCreated)
+	prometheus.MustRegister(counterObjectReadersClosed)
 }
 
 func incrementCounterGcsRequests(bucketName string, method string) {
@@ -47,6 +72,15 @@ func incrementCounterGcsRequests(bucketName string, method string) {
 			"method": method,
 		},
 	).Inc()
+}
+
+func incrementCounterBytesRead(bucketName string, object string, bytes int) {
+	counterBytesRead.With(
+		prometheus.Labels{
+			"bucket": bucketName,
+			"object": object,
+		},
+	).Add(float64(bytes))
 }
 
 // NewMonitoringBucket returns a gcs.Bucket that exports metrics for monitoring
@@ -66,9 +100,13 @@ func (mb *monitoringBucket) Name() string {
 
 func (mb *monitoringBucket) NewReader(
 	ctx context.Context,
-	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
+	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	incrementCounterGcsRequests(mb.Name(), "NewReader")
-	return mb.wrapped.NewReader(ctx, req)
+	rc, err = mb.wrapped.NewReader(ctx, req)
+	if err == nil {
+		rc = newMonitoringReadCloser(mb.Name(), req.Name, rc)
+	}
+	return
 }
 
 func (mb *monitoringBucket) CreateObject(
@@ -118,4 +156,38 @@ func (mb *monitoringBucket) DeleteObject(
 	req *gcs.DeleteObjectRequest) error {
 	incrementCounterGcsRequests(mb.Name(), "DeleteObject")
 	return mb.wrapped.DeleteObject(ctx, req)
+}
+
+func newMonitoringReadCloser(
+	bucketName string,
+	object string,
+	rc io.ReadCloser) io.ReadCloser {
+	counterObjectReadersCreated.Inc()
+	return &monitoringReadCloser{
+		bucketName: bucketName,
+		object:     object,
+		wrapped:    rc,
+	}
+}
+
+type monitoringReadCloser struct {
+	bucketName string
+	object     string
+	wrapped    io.ReadCloser
+}
+
+func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
+	n, err = mrc.wrapped.Read(p)
+	if err == nil {
+		incrementCounterBytesRead(mrc.bucketName, mrc.object, n)
+	}
+	return
+}
+
+func (mrc *monitoringReadCloser) Close() (err error) {
+	err = mrc.wrapped.Close()
+	if err == nil {
+		counterObjectReadersClosed.Inc()
+	}
+	return
 }
