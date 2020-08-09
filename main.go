@@ -46,6 +46,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
 	"github.com/kardianos/osext"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -72,6 +73,11 @@ func registerSIGINTHandler(mountPoint string) {
 			}
 		}
 	}()
+}
+
+func handlePrometheusHTTPRequests() {
+	http.Handle("/metrics", promhttp.Handler())
+	http.ListenAndServe(":8086", nil)
 }
 
 func handleCPUProfileSignals() {
@@ -438,6 +444,9 @@ func main() {
 	// Set up profiling handlers.
 	go handleCPUProfileSignals()
 	go handleMemoryProfileSignals()
+
+	// Set up prometheus request handlers.
+	go handlePrometheusHTTPRequests()
 
 	// Run.
 	err := run()
