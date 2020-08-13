@@ -38,6 +38,11 @@ import (
 	"time"
 )
 
+var fIterations = flag.Int(
+	"iterations",
+	1,
+	"Number of iterations to read the files.",
+)
 var fHTTP = flag.String(
 	"http",
 	"1.1",
@@ -59,12 +64,7 @@ const (
 	MB = 1024 * KB
 )
 
-func testReader(
-	httpVersion string,
-	maxConnsPerHost int,
-	readerVersion string,
-	bucketName string,
-	objectNames []string) (stats testStats) {
+func testReader(rf readerFactory, objectNames []string) (stats testStats) {
 	reportDuration := 10 * time.Second
 	ticker := time.NewTicker(reportDuration)
 	defer ticker.Stop()
@@ -74,9 +74,6 @@ func testReader(
 	start := time.Now()
 
 	// run readers concurrently
-	transport := getTransport(httpVersion, maxConnsPerHost)
-	defer transport.CloseIdleConnections()
-	rf := newReaderFactory(transport, readerVersion, bucketName)
 	for _, objectName := range objectNames {
 		name := objectName
 		go func() {
@@ -113,7 +110,6 @@ func testReader(
 		}
 	}
 	stats.duration = time.Since(start)
-	stats.report(httpVersion, readerVersion)
 	return
 }
 
@@ -122,17 +118,21 @@ func run(bucketName string, objectNames []string) {
 		"1.1": http1,
 		"2":   http2,
 	}
+	httpVersion := protocols[*fHTTP]
+	transport := getTransport(httpVersion, *fConnsPerHost)
+	defer transport.CloseIdleConnections()
+
 	readers := map[string]string{
 		"vendor":   vendorClientReader,
 		"official": officialClientReader,
 	}
-	testReader(
-		protocols[*fHTTP],
-		*fConnsPerHost,
-		readers[*fReader],
-		bucketName,
-		objectNames,
-	)
+	readerVersion := readers[*fReader]
+	rf := newReaderFactory(transport, readerVersion, bucketName)
+
+	for i := 0; i < *fIterations; i++ {
+		stats := testReader(rf, objectNames)
+		stats.report(httpVersion, readerVersion)
+	}
 }
 
 type testStats struct {
@@ -157,7 +157,7 @@ func (s testStats) report(
 			"Protocol: %s\n"+
 			"Total bytes: %d\n"+
 			"Total files: %d\n"+
-			"Avg Throughput: %.1f\n MB/s",
+			"Avg Throughput: %.1f MB/s\n\n",
 		readerVersion,
 		httpVersion,
 		s.totalBytes,
