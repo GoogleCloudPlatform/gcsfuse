@@ -21,20 +21,16 @@ import (
 )
 
 const (
-	http1x10  = "HTTP/1.1 (10 Conns Per Host)"
-	http1x50  = "HTTP/1.1 (50 Conns Per Host)"
-	http1x100 = "HTTP/1.1 (100 Conns Per Host)"
-	http2     = "HTTP/2"
+	http1 = "HTTP/1.1"
+	http2 = "HTTP/2"
 )
 
-func getTransport(transportType string) (transport *http.Transport) {
+func getTransport(
+	transportType string,
+	maxConnsPerHost int) (transport *http.Transport) {
 	switch transportType {
-	case http1x10:
-		return getTransportHTTP1(10)
-	case http1x50:
-		return getTransportHTTP1(50)
-	case http1x100:
-		return getTransportHTTP1(100)
+	case http1:
+		return getTransportHTTP1(maxConnsPerHost)
 	case http2:
 		return http.DefaultTransport.(*http.Transport).Clone()
 	default:

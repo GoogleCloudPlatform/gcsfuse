@@ -23,7 +23,7 @@
 //
 // Usage Example:
 // 	 gsutil ls 'gs://bucket/prefix*' | go run \
-//      --http=1x50 --reader=official ./benchmark/concurrent_read
+//      --conns_per_host=10 --reader=vendor ./benchmark/concurrent_read
 //
 
 package main
@@ -40,8 +40,13 @@ import (
 
 var fHTTP = flag.String(
 	"http",
-	"1x100",
-	"Protocol and connections per host: 1x10, 1x50, 1x100, 2",
+	"1.1",
+	"HTTP protocol version, 1.1 or 2.",
+)
+var fConnsPerHost = flag.Int(
+	"conns_per_host",
+	10,
+	"Max number of TCP connections per host.",
 )
 var fReader = flag.String(
 	"reader",
@@ -56,6 +61,7 @@ const (
 
 func testReader(
 	httpVersion string,
+	maxConnsPerHost int,
 	readerVersion string,
 	bucketName string,
 	objectNames []string) (stats testStats) {
@@ -68,7 +74,7 @@ func testReader(
 	start := time.Now()
 
 	// run readers concurrently
-	transport := getTransport(httpVersion)
+	transport := getTransport(httpVersion, maxConnsPerHost)
 	defer transport.CloseIdleConnections()
 	rf := newReaderFactory(transport, readerVersion, bucketName)
 	for _, objectName := range objectNames {
@@ -113,10 +119,8 @@ func testReader(
 
 func run(bucketName string, objectNames []string) {
 	protocols := map[string]string{
-		"1x10":  http1x10,
-		"1x50":  http1x50,
-		"1x100": http1x100,
-		"2":     http2,
+		"1.1": http1,
+		"2":   http2,
 	}
 	readers := map[string]string{
 		"vendor":   vendorClientReader,
@@ -124,6 +128,7 @@ func run(bucketName string, objectNames []string) {
 	}
 	testReader(
 		protocols[*fHTTP],
+		*fConnsPerHost,
 		readers[*fReader],
 		bucketName,
 		objectNames,
