@@ -131,7 +131,7 @@ func run(bucketName string, objectNames []string) {
 
 	for i := 0; i < *fIterations; i++ {
 		stats := testReader(rf, objectNames)
-		stats.report(httpVersion, readerVersion)
+		stats.report(httpVersion, *fConnsPerHost, readerVersion)
 	}
 }
 
@@ -150,16 +150,18 @@ func (s testStats) throughput() float32 {
 
 func (s testStats) report(
 	httpVersion string,
+	maxConnsPerHost int,
 	readerVersion string,
 ) {
 	fmt.Printf(
 		"# TEST READER %s\n"+
-			"Protocol: %s\n"+
+			"Protocol: %s (%v connections per host)\n"+
 			"Total bytes: %d\n"+
 			"Total files: %d\n"+
 			"Avg Throughput: %.1f MB/s\n\n",
 		readerVersion,
 		httpVersion,
+		maxConnsPerHost,
 		s.totalBytes,
 		s.totalFiles,
 		s.throughput(),
