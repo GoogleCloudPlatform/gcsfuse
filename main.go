@@ -75,9 +75,12 @@ func registerSIGINTHandler(mountPoint string) {
 	}()
 }
 
-func handlePrometheusHTTPRequests() {
-	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(":8086", nil)
+func startMonitoringHTTPHandler(monitoringPort int) {
+	fmt.Printf("Exporting metrics at localhost:%v/metrics\n", monitoringPort)
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(fmt.Sprintf(":%v", monitoringPort), nil)
+	}()
 }
 
 func handleCPUProfileSignals() {
@@ -405,6 +408,11 @@ func runCLIApp(c *cli.Context) (err error) {
 		}
 	}
 
+	// Open a port for exporting monitoring metrics
+	if flags.MonitoringPort > 0 {
+		startMonitoringHTTPHandler(flags.MonitoringPort)
+	}
+
 	// Let the user unmount with Ctrl-C (SIGINT).
 	registerSIGINTHandler(mfs.Dir())
 
@@ -444,9 +452,6 @@ func main() {
 	// Set up profiling handlers.
 	go handleCPUProfileSignals()
 	go handleMemoryProfileSignals()
-
-	// Set up prometheus request handlers.
-	go handlePrometheusHTTPRequests()
 
 	// Run.
 	err := run()
