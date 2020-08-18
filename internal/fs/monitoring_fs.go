@@ -16,6 +16,7 @@ package fs
 
 import (
 	"context"
+	"time"
 
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -32,11 +33,25 @@ var (
 			"method",
 		},
 	)
+	latencyOpenFile = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name: "gcsfuse_fs_open_file_latency",
+			Help: "The latency of OpenFile file system requests in ms.",
+		},
+	)
+	latencyReadFile = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name: "gcsfuse_fs_read_file_latency",
+			Help: "The latency of ReadFile file system requests in ms.",
+		},
+	)
 )
 
 // Initialize the prometheus metrics.
 func init() {
 	prometheus.MustRegister(counterFsRequests)
+	prometheus.MustRegister(latencyOpenFile)
+	prometheus.MustRegister(latencyReadFile)
 }
 
 func incrementCounterFsRequests(method string) {
@@ -45,6 +60,11 @@ func incrementCounterFsRequests(method string) {
 			"method": method,
 		},
 	).Inc()
+}
+
+func recordLatency(metric prometheus.Histogram, start time.Time) {
+	latency := float64(time.Since(start).Milliseconds())
+	metric.Observe(latency)
 }
 
 // WithMonitoring takes a FileSystem, returns a FileSystem with monitoring
@@ -173,6 +193,7 @@ func (fs *monitoringFileSystem) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) error {
 	incrementCounterFsRequests("OpenFile")
+	defer recordLatency(latencyOpenFile, time.Now())
 	return fs.wrapped.OpenFile(ctx, op)
 }
 
@@ -180,6 +201,7 @@ func (fs *monitoringFileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) error {
 	incrementCounterFsRequests("ReadFile")
+	defer recordLatency(latencyReadFile, time.Now())
 	return fs.wrapped.ReadFile(ctx, op)
 }
 
