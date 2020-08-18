@@ -46,6 +46,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
 	"github.com/kardianos/osext"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -71,6 +72,14 @@ func registerSIGINTHandler(mountPoint string) {
 				return
 			}
 		}
+	}()
+}
+
+func startMonitoringHTTPHandler(monitoringPort int) {
+	fmt.Printf("Exporting metrics at localhost:%v/metrics\n", monitoringPort)
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(fmt.Sprintf(":%v", monitoringPort), nil)
 	}()
 }
 
@@ -397,6 +406,11 @@ func runCLIApp(c *cli.Context) (err error) {
 			daemonize.SignalOutcome(err)
 			return
 		}
+	}
+
+	// Open a port for exporting monitoring metrics
+	if flags.MonitoringPort > 0 {
+		startMonitoringHTTPHandler(flags.MonitoringPort)
 	}
 
 	// Let the user unmount with Ctrl-C (SIGINT).

@@ -212,6 +212,9 @@ func (bm *bucketManager) SetUpBucket(
 	// Enable content type awareness
 	b = NewContentTypeBucket(b)
 
+	// Enable monitoring
+	b = NewMonitoringBucket(b)
+
 	// Enable Syncer
 	if bm.config.TmpObjectPrefix == "" {
 		err = errors.New("You must set TmpObjectPrefix.")

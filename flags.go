@@ -200,6 +200,17 @@ func newApp() (app *cli.App) {
 			},
 
 			/////////////////////////
+			// Monitoring
+			/////////////////////////
+
+			cli.IntFlag{
+				Name:  "monitoring-port",
+				Value: 0,
+				Usage: "The port used to export prometheus metrics for monitoring. " +
+					"The default value 0 indicates no monitoring metrics.",
+			},
+
+			/////////////////////////
 			// Debugging
 			/////////////////////////
 
@@ -256,6 +267,9 @@ type flagStorage struct {
 	DisableHTTP2      bool
 	MaxConnsPerHost   int
 
+	// Monitoring
+	MonitoringPort int
+
 	// Debugging
 	DebugFuse       bool
 	DebugGCS        bool
@@ -293,6 +307,9 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		TempDir:           c.String("temp-dir"),
 		DisableHTTP2:      c.Bool("disable-http2"),
 		MaxConnsPerHost:   c.Int("max-conns-per-host"),
+
+		// Monitoring
+		MonitoringPort: c.Int("monitoring-port"),
 
 		// Debugging,
 		DebugFuse:       c.Bool("debug_fuse"),
