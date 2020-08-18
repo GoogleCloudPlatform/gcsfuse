@@ -153,7 +153,7 @@ func NewServer(
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
 
-	server = fuseutil.NewFileSystemServer(fs)
+	server = fuseutil.NewFileSystemServer(WithMonitoring(fs))
 	return
 }
 
