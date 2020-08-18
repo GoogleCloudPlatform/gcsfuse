@@ -44,14 +44,16 @@ var (
 	)
 	latencyOpenFile = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
-			Name: "gcsfuse_fs_open_file_latency",
-			Help: "The latency of OpenFile file system requests in ms.",
+			Name:    "gcsfuse_fs_open_file_latency",
+			Help:    "The latency of executing an OpenFile request in ms.",
+			Buckets: prometheus.ExponentialBuckets(0.01, 10, 8),
 		},
 	)
 	latencyReadFile = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
-			Name: "gcsfuse_fs_read_file_latency",
-			Help: "The latency of ReadFile file system requests in ms.",
+			Name:    "gcsfuse_fs_read_file_latency",
+			Help:    "The latency of executing a ReadFile request in ms.",
+			Buckets: prometheus.ExponentialBuckets(0.01, 10, 8),
 		},
 	)
 )
