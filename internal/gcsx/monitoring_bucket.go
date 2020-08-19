@@ -58,16 +58,20 @@ var (
 	)
 	latencyNewReader = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
-			Name:    "gcsfuse_object_new_reader_latency",
-			Help:    "The latency of creating a GCS object reader in ms.",
-			Buckets: prometheus.ExponentialBuckets(0.01, 10, 8),
+			Name: "gcsfuse_object_new_reader_latency",
+			Help: "The latency of creating a GCS object reader in ms.",
+
+			// 32 buckets: [0.1ms, 0.15ms, ..., 28.8s, +Inf]
+			Buckets: prometheus.ExponentialBuckets(0.1, 1.5, 32),
 		},
 	)
 	latencyRead = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
-			Name:    "gcsfuse_object_read_latency",
-			Help:    "The latency of reading once by the reader in ms.",
-			Buckets: prometheus.ExponentialBuckets(0.01, 10, 8),
+			Name: "gcsfuse_object_read_latency",
+			Help: "The latency of reading once by the reader in ms.",
+
+			// 32 buckets: [0.1ms, 0.15ms, ..., 28.8s, +Inf]
+			Buckets: prometheus.ExponentialBuckets(0.1, 1.5, 32),
 		},
 	)
 )
@@ -124,7 +128,7 @@ func (mb *monitoringBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	incrementCounterGcsRequests(mb.Name(), "NewReader")
-	defer recordLatency(latencyRead, time.Now())
+	defer recordLatency(latencyNewReader, time.Now())
 
 	rc, err = mb.wrapped.NewReader(ctx, req)
 	if err == nil {
