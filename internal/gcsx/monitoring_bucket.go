@@ -17,6 +17,7 @@ package gcsx
 import (
 	"context"
 	"io"
+	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/prometheus/client_golang/prometheus"
@@ -55,6 +56,24 @@ var (
 			Help: "Number of object readers already closed.",
 		},
 	)
+	latencyNewReader = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name: "gcsfuse_object_new_reader_latency",
+			Help: "The latency of creating a GCS object reader in ms.",
+
+			// 32 buckets: [0.1ms, 0.15ms, ..., 28.8s, +Inf]
+			Buckets: prometheus.ExponentialBuckets(0.1, 1.5, 32),
+		},
+	)
+	latencyRead = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name: "gcsfuse_object_read_latency",
+			Help: "The latency of reading once by the reader in ms.",
+
+			// 32 buckets: [0.1ms, 0.15ms, ..., 28.8s, +Inf]
+			Buckets: prometheus.ExponentialBuckets(0.1, 1.5, 32),
+		},
+	)
 )
 
 // Initialize the prometheus metrics.
@@ -63,6 +82,8 @@ func init() {
 	prometheus.MustRegister(counterBytesRead)
 	prometheus.MustRegister(counterObjectReadersCreated)
 	prometheus.MustRegister(counterObjectReadersClosed)
+	prometheus.MustRegister(latencyNewReader)
+	prometheus.MustRegister(latencyRead)
 }
 
 func incrementCounterGcsRequests(bucketName string, method string) {
@@ -81,6 +102,11 @@ func incrementCounterBytesRead(bucketName string, object string, bytes int) {
 			"object": object,
 		},
 	).Add(float64(bytes))
+}
+
+func recordLatency(metric prometheus.Histogram, start time.Time) {
+	latency := float64(time.Since(start).Milliseconds())
+	metric.Observe(latency)
 }
 
 // NewMonitoringBucket returns a gcs.Bucket that exports metrics for monitoring
@@ -102,6 +128,8 @@ func (mb *monitoringBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	incrementCounterGcsRequests(mb.Name(), "NewReader")
+	defer recordLatency(latencyNewReader, time.Now())
+
 	rc, err = mb.wrapped.NewReader(ctx, req)
 	if err == nil {
 		rc = newMonitoringReadCloser(mb.Name(), req.Name, rc)
@@ -177,6 +205,8 @@ type monitoringReadCloser struct {
 }
 
 func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
+	defer recordLatency(latencyRead, time.Now())
+
 	n, err = mrc.wrapped.Read(p)
 	if err == nil {
 		incrementCounterBytesRead(mrc.bucketName, mrc.object, n)
