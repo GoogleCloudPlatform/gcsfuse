@@ -42,22 +42,16 @@ var (
 			"method",
 		},
 	)
-	latencyOpenFile = prometheus.NewHistogram(
+	latency = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name: "gcsfuse_fs_open_file_latency",
-			Help: "The latency of executing an OpenFile request in ms.",
+			Name: "gcsfuse_fs_latency",
+			Help: "The latency of an file system operation.",
 
 			// 32 buckets: [0.1ms, 0.15ms, ..., 28.8s, +Inf]
 			Buckets: prometheus.ExponentialBuckets(0.1, 1.5, 32),
 		},
-	)
-	latencyReadFile = prometheus.NewHistogram(
-		prometheus.HistogramOpts{
-			Name: "gcsfuse_fs_read_file_latency",
-			Help: "The latency of executing a ReadFile request in ms.",
-
-			// 32 buckets: [0.1ms, 0.15ms, ..., 28.8s, +Inf]
-			Buckets: prometheus.ExponentialBuckets(0.1, 1.5, 32),
+		[]string{ // labels
+			"method",
 		},
 	)
 )
@@ -66,8 +60,7 @@ var (
 func init() {
 	prometheus.MustRegister(counterFsRequests)
 	prometheus.MustRegister(counterFsErrors)
-	prometheus.MustRegister(latencyOpenFile)
-	prometheus.MustRegister(latencyReadFile)
+	prometheus.MustRegister(latency)
 }
 
 func incrementCounterFsRequests(method string) {
@@ -87,9 +80,13 @@ func incrementCounterFsErrors(method string, err error) {
 	}
 }
 
-func recordLatency(metric prometheus.Histogram, start time.Time) {
-	latency := float64(time.Since(start).Milliseconds())
-	metric.Observe(latency)
+func recordLatency(method string, start time.Time) {
+	duration := float64(time.Since(start).Milliseconds())
+	latency.With(
+		prometheus.Labels{
+			"method": method,
+		},
+	).Observe(duration)
 }
 
 // WithMonitoring takes a FileSystem, returns a FileSystem with monitoring
@@ -122,6 +119,7 @@ func (fs *monitoringFileSystem) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) error {
 	incrementCounterFsRequests("LookUpInode")
+	defer recordLatency("LookUpInode", time.Now())
 	err := fs.wrapped.LookUpInode(ctx, op)
 	incrementCounterFsErrors("LookUpInode", err)
 	return err
@@ -248,7 +246,7 @@ func (fs *monitoringFileSystem) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) error {
 	incrementCounterFsRequests("OpenFile")
-	defer recordLatency(latencyOpenFile, time.Now())
+	defer recordLatency("OpenFile", time.Now())
 	err := fs.wrapped.OpenFile(ctx, op)
 	incrementCounterFsErrors("OpenFile", err)
 	return err
@@ -258,7 +256,7 @@ func (fs *monitoringFileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) error {
 	incrementCounterFsRequests("ReadFile")
-	defer recordLatency(latencyReadFile, time.Now())
+	defer recordLatency("ReadFile", time.Now())
 	err := fs.wrapped.ReadFile(ctx, op)
 	incrementCounterFsErrors("ReadFile", err)
 	return err
