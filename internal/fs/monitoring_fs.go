@@ -42,6 +42,15 @@ var (
 			"method",
 		},
 	)
+	latencyLookUpInode = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name: "gcsfuse_fs_look_up_inode_latency",
+			Help: "The latency of executing an LookUpInode request in ms.",
+
+			// 32 buckets: [0.1ms, 0.15ms, ..., 28.8s, +Inf]
+			Buckets: prometheus.ExponentialBuckets(0.1, 1.5, 32),
+		},
+	)
 	latencyOpenFile = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
 			Name: "gcsfuse_fs_open_file_latency",
@@ -66,6 +75,7 @@ var (
 func init() {
 	prometheus.MustRegister(counterFsRequests)
 	prometheus.MustRegister(counterFsErrors)
+	prometheus.MustRegister(latencyLookUpInode)
 	prometheus.MustRegister(latencyOpenFile)
 	prometheus.MustRegister(latencyReadFile)
 }
@@ -122,6 +132,7 @@ func (fs *monitoringFileSystem) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) error {
 	incrementCounterFsRequests("LookUpInode")
+	defer recordLatency(latencyLookUpInode, time.Now())
 	err := fs.wrapped.LookUpInode(ctx, op)
 	incrementCounterFsErrors("LookUpInode", err)
 	return err
