@@ -1996,7 +1996,7 @@ func (t *FileTest) Sync_Clobbered() {
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
-	// Replace the underyling object with a new generation.
+	// Replace the underlying object with a new generation.
 	_, err = gcsutil.CreateObject(
 		t.ctx,
 		t.bucket,
@@ -2083,7 +2083,7 @@ func (t *FileTest) Close_Clobbered() {
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
-	// Replace the underyling object with a new generation.
+	// Replace the underlying object with a new generation.
 	_, err = gcsutil.CreateObject(
 		t.ctx,
 		t.bucket,
