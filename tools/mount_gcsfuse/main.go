@@ -21,7 +21,7 @@
 // appropriate flags.
 //
 // This binary returns with exit code zero only after gcsfuse has reported that
-// it has successfuly mounted the file system. Further output from gcsfuse is
+// it has successfully mounted the file system. Further output from gcsfuse is
 // suppressed.
 package main
 
