@@ -1,6 +1,6 @@
 module github.com/googlecloudplatform/gcsfuse
 
-go 1.14
+go 1.15
 
 require (
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
