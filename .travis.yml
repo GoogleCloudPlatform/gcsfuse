@@ -4,7 +4,8 @@
 language: go
 
 go:
-  - 1.10
+  - "1.10"
+  - 1.14.x
   - stable
 
 # Use the virtualized Trusty beta Travis is running in order to get support for
