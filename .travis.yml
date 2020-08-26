@@ -5,7 +5,7 @@ language: go
 
 go:
   - 1.10
-  - tip
+  - master
 
 # Use the virtualized Trusty beta Travis is running in order to get support for
 # installing fuse.
