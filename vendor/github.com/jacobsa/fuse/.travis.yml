@@ -1,0 +1,35 @@
+# Cf. http://docs.travis-ci.com/user/getting-started/
+# Cf. http://docs.travis-ci.com/user/languages/go/
+
+matrix:
+  include:
+    - os: linux
+      language: go
+      go: 1.13
+      # Use the virtualized Trusty beta Travis is running in order to get
+      # support for installing fuse.
+      #
+      # Cf. Personal communication from support@travis-ci.com.
+      dist: trusty
+      sudo: required
+    - os: osx
+      # Pin to macOS 10.12 (indirectly by using the Xcode 8.3 image).  We must
+      # do this to get the OSXFUSE kernel extension to work because there
+      # currently is no know way to programmatically grant permissions to load
+      # a kernel extension in macOS 10.13.
+      #
+      # See https://github.com/travis-ci/travis-ci/issues/10017 for details.
+      osx_image: xcode8.3
+      language: go
+      go: 1.13
+
+# Install fuse before installing our code.
+before_install:
+  # For linux: install fuse.
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      sudo apt-get install -qq fuse;
+    fi
+
+  # For macOS: update homebrew and then install osxfuse.
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew cask install osxfuse; fi
