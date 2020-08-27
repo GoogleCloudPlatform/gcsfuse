@@ -248,24 +248,26 @@ var openResponseFlagNames = []flagName{
 type InitFlags uint32
 
 const (
-	InitAsyncRead       InitFlags = 1 << 0
-	InitPosixLocks      InitFlags = 1 << 1
-	InitFileOps         InitFlags = 1 << 2
-	InitAtomicTrunc     InitFlags = 1 << 3
-	InitExportSupport   InitFlags = 1 << 4
-	InitBigWrites       InitFlags = 1 << 5
-	InitDontMask        InitFlags = 1 << 6
-	InitSpliceWrite     InitFlags = 1 << 7
-	InitSpliceMove      InitFlags = 1 << 8
-	InitSpliceRead      InitFlags = 1 << 9
-	InitFlockLocks      InitFlags = 1 << 10
-	InitHasIoctlDir     InitFlags = 1 << 11
-	InitAutoInvalData   InitFlags = 1 << 12
-	InitDoReaddirplus   InitFlags = 1 << 13
-	InitReaddirplusAuto InitFlags = 1 << 14
-	InitAsyncDIO        InitFlags = 1 << 15
-	InitWritebackCache  InitFlags = 1 << 16
-	InitNoOpenSupport   InitFlags = 1 << 17
+	InitAsyncRead        InitFlags = 1 << 0
+	InitPosixLocks       InitFlags = 1 << 1
+	InitFileOps          InitFlags = 1 << 2
+	InitAtomicTrunc      InitFlags = 1 << 3
+	InitExportSupport    InitFlags = 1 << 4
+	InitBigWrites        InitFlags = 1 << 5
+	InitDontMask         InitFlags = 1 << 6
+	InitSpliceWrite      InitFlags = 1 << 7
+	InitSpliceMove       InitFlags = 1 << 8
+	InitSpliceRead       InitFlags = 1 << 9
+	InitFlockLocks       InitFlags = 1 << 10
+	InitHasIoctlDir      InitFlags = 1 << 11
+	InitAutoInvalData    InitFlags = 1 << 12
+	InitDoReaddirplus    InitFlags = 1 << 13
+	InitReaddirplusAuto  InitFlags = 1 << 14
+	InitAsyncDIO         InitFlags = 1 << 15
+	InitWritebackCache   InitFlags = 1 << 16
+	InitNoOpenSupport    InitFlags = 1 << 17
+	InitCacheSymlinks    InitFlags = 1 << 23
+	InitNoOpendirSupport InitFlags = 1 << 24
 
 	InitCaseSensitive InitFlags = 1 << 29 // OS X only
 	InitVolRename     InitFlags = 1 << 30 // OS X only
@@ -296,6 +298,8 @@ var initFlagNames = []flagName{
 	{uint32(InitAsyncDIO), "InitAsyncDIO"},
 	{uint32(InitWritebackCache), "InitWritebackCache"},
 	{uint32(InitNoOpenSupport), "InitNoOpenSupport"},
+	{uint32(InitCacheSymlinks), "InitCacheSymlinks"},
+	{uint32(InitNoOpendirSupport), "InitNoOpendirSupport"},
 
 	{uint32(InitCaseSensitive), "InitCaseSensitive"},
 	{uint32(InitVolRename), "InitVolRename"},
@@ -380,6 +384,7 @@ const (
 	OpDestroy     = 38
 	OpIoctl       = 39 // Linux?
 	OpPoll        = 40 // Linux?
+	OpFallocate   = 43
 
 	// OS X
 	OpSetvolname = 61
@@ -662,6 +667,14 @@ type GetxattrOut struct {
 
 type ListxattrIn struct {
 	Size    uint32
+	Padding uint32
+}
+
+type FallocateIn struct {
+	Fh      uint64
+	Offset  uint64
+	Length  uint64
+	Mode    uint32
 	Padding uint32
 }
 

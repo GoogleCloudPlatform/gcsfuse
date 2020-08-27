@@ -55,22 +55,8 @@ func init() {
 // Reset resets m so that it's ready to be used again. Afterward, the contents
 // are solely a zeroed fusekernel.OutHeader struct.
 func (m *OutMessage) Reset() {
-	// Ideally we'd like to write:
-	//
-	//     m.payloadOffset = 0
-	//     m.header = fusekernel.OutHeader{}
-	//
-	// But Go 1.8 beta 2 generates bad code for this
-	// (https://golang.org/issue/18370). Encourage it to generate the same code
-	// as Go 1.7.4 did.
-	if unsafe.Offsetof(m.payload) != 24 {
-		panic("unexpected OutMessage layout")
-	}
-
-	a := (*[3]uint64)(unsafe.Pointer(m))
-	a[0] = 0
-	a[1] = 0
-	a[2] = 0
+	m.payloadOffset = 0
+	m.header = fusekernel.OutHeader{}
 }
 
 // OutHeader returns a pointer to the header at the start of the message.
@@ -81,28 +67,28 @@ func (m *OutMessage) OutHeader() *fusekernel.OutHeader {
 // Grow grows m's buffer by the given number of bytes, returning a pointer to
 // the start of the new segment, which is guaranteed to be zeroed. If there is
 // insufficient space, it returns nil.
-func (m *OutMessage) Grow(n int) (p unsafe.Pointer) {
-	p = m.GrowNoZero(n)
+func (m *OutMessage) Grow(n int) unsafe.Pointer {
+	p := m.GrowNoZero(n)
 	if p != nil {
 		memclr(p, uintptr(n))
 	}
 
-	return
+	return p
 }
 
 // GrowNoZero is equivalent to Grow, except the new segment is not zeroed. Use
 // with caution!
-func (m *OutMessage) GrowNoZero(n int) (p unsafe.Pointer) {
+func (m *OutMessage) GrowNoZero(n int) unsafe.Pointer {
 	// Will we overflow the buffer?
 	o := m.payloadOffset
 	if len(m.payload)-o < n {
-		return
+		return nil
 	}
 
-	p = unsafe.Pointer(uintptr(unsafe.Pointer(&m.payload)) + uintptr(o))
+	p := unsafe.Pointer(uintptr(unsafe.Pointer(&m.payload)) + uintptr(o))
 	m.payloadOffset = o + n
 
-	return
+	return p
 }
 
 // ShrinkTo shrinks m to the given size. It panics if the size is greater than

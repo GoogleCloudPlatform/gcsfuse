@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/codegangsta/cli"
+	"github.com/urfave/cli"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 )
 
