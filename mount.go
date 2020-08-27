@@ -81,9 +81,6 @@ be interacting with the file system.`)
 		gid = uint32(flags.Gid)
 	}
 
-	// Set up the bucket.
-	status.Println("Opening bucket...")
-
 	bucketCfg := gcsx.BucketConfig{
 		BillingProject:                     flags.BillingProject,
 		OnlyDir:                            flags.OnlyDir,
