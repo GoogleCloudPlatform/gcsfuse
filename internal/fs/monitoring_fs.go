@@ -179,6 +179,15 @@ func (fs *monitoringFileSystem) CreateFile(
 	return err
 }
 
+func (fs *monitoringFileSystem) CreateLink(
+	ctx context.Context,
+	op *fuseops.CreateLinkOp) error {
+	incrementCounterFsRequests("CreateLink")
+	err := fs.wrapped.CreateLink(ctx, op)
+	incrementCounterFsErrors("CreateLink", err)
+	return err
+}
+
 func (fs *monitoringFileSystem) CreateSymlink(
 	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) error {
@@ -340,5 +349,14 @@ func (fs *monitoringFileSystem) SetXattr(
 	incrementCounterFsRequests("SetXattr")
 	err := fs.wrapped.SetXattr(ctx, op)
 	incrementCounterFsErrors("SetXattr", err)
+	return err
+}
+
+func (fs *monitoringFileSystem) Fallocate(
+	ctx context.Context,
+	op *fuseops.FallocateOp) error {
+	incrementCounterFsRequests("Fallocate")
+	err := fs.wrapped.Fallocate(ctx, op)
+	incrementCounterFsErrors("Fallocate", err)
 	return err
 }
