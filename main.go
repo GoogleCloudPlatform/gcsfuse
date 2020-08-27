@@ -39,7 +39,6 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	"github.com/codegangsta/cli"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
@@ -47,6 +46,7 @@ import (
 	"github.com/jacobsa/syncutil"
 	"github.com/kardianos/osext"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/urfave/cli"
 )
 
 ////////////////////////////////////////////////////////////////////////

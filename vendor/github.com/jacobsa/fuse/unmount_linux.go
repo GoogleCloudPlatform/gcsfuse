@@ -6,18 +6,20 @@ import (
 	"os/exec"
 )
 
-func unmount(dir string) (err error) {
-	// Call fusermount.
-	cmd := exec.Command("fusermount", "-u", dir)
+func unmount(dir string) error {
+	fusermount, err := findFusermount()
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(fusermount, "-u", dir)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if len(output) > 0 {
 			output = bytes.TrimRight(output, "\n")
-			err = fmt.Errorf("%v: %s", err, output)
+			return fmt.Errorf("%v: %s", err, output)
 		}
 
-		return
+		return err
 	}
-
-	return
+	return nil
 }

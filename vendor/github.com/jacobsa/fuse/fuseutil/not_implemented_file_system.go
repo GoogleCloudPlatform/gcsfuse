@@ -15,9 +15,10 @@
 package fuseutil
 
 import (
+	"context"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
-	"golang.org/x/net/context"
 )
 
 // A FileSystem that responds to all ops with fuse.ENOSYS. Embed this in your
@@ -31,184 +32,170 @@ var _ FileSystem = &NotImplementedFileSystem{}
 
 func (fs *NotImplementedFileSystem) StatFS(
 	ctx context.Context,
-	op *fuseops.StatFSOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.StatFSOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) LookUpInode(
 	ctx context.Context,
-	op *fuseops.LookUpInodeOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.LookUpInodeOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) GetInodeAttributes(
 	ctx context.Context,
-	op *fuseops.GetInodeAttributesOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.GetInodeAttributesOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) SetInodeAttributes(
 	ctx context.Context,
-	op *fuseops.SetInodeAttributesOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.SetInodeAttributesOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) ForgetInode(
 	ctx context.Context,
-	op *fuseops.ForgetInodeOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.ForgetInodeOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) MkDir(
 	ctx context.Context,
-	op *fuseops.MkDirOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.MkDirOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) MkNode(
 	ctx context.Context,
-	op *fuseops.MkNodeOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.MkNodeOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) CreateFile(
 	ctx context.Context,
-	op *fuseops.CreateFileOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.CreateFileOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) CreateSymlink(
 	ctx context.Context,
-	op *fuseops.CreateSymlinkOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.CreateSymlinkOp) error {
+	return fuse.ENOSYS
+}
+
+func (fs *NotImplementedFileSystem) CreateLink(
+	ctx context.Context,
+	op *fuseops.CreateLinkOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) Rename(
 	ctx context.Context,
-	op *fuseops.RenameOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.RenameOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) RmDir(
 	ctx context.Context,
-	op *fuseops.RmDirOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.RmDirOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) Unlink(
 	ctx context.Context,
-	op *fuseops.UnlinkOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.UnlinkOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) OpenDir(
 	ctx context.Context,
-	op *fuseops.OpenDirOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.OpenDirOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) ReadDir(
 	ctx context.Context,
-	op *fuseops.ReadDirOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.ReadDirOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) ReleaseDirHandle(
 	ctx context.Context,
-	op *fuseops.ReleaseDirHandleOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.ReleaseDirHandleOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) OpenFile(
 	ctx context.Context,
-	op *fuseops.OpenFileOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.OpenFileOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) ReadFile(
 	ctx context.Context,
-	op *fuseops.ReadFileOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.ReadFileOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) WriteFile(
 	ctx context.Context,
-	op *fuseops.WriteFileOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.WriteFileOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) SyncFile(
 	ctx context.Context,
-	op *fuseops.SyncFileOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.SyncFileOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) FlushFile(
 	ctx context.Context,
-	op *fuseops.FlushFileOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.FlushFileOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) ReleaseFileHandle(
 	ctx context.Context,
-	op *fuseops.ReleaseFileHandleOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.ReleaseFileHandleOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) ReadSymlink(
 	ctx context.Context,
-	op *fuseops.ReadSymlinkOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.ReadSymlinkOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) RemoveXattr(
 	ctx context.Context,
-	op *fuseops.RemoveXattrOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.RemoveXattrOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) GetXattr(
 	ctx context.Context,
-	op *fuseops.GetXattrOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.GetXattrOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) ListXattr(
 	ctx context.Context,
-	op *fuseops.ListXattrOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.ListXattrOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) SetXattr(
 	ctx context.Context,
-	op *fuseops.SetXattrOp) (err error) {
-	err = fuse.ENOSYS
-	return
+	op *fuseops.SetXattrOp) error {
+	return fuse.ENOSYS
+}
+
+func (fs *NotImplementedFileSystem) Fallocate(
+	ctx context.Context,
+	op *fuseops.FallocateOp) error {
+	return fuse.ENOSYS
 }
 
 func (fs *NotImplementedFileSystem) Destroy() {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build amd64 arm64 ppc64 ppc64le
+// +build amd64 arm64 ppc64 ppc64le arm
 // +build go1.8
 
 // Assembly code isn't subject to visibility restrictions, so we can jump
@@ -23,6 +23,9 @@
 
 #include "textflag.h"
 
+#ifdef GOARCH_arm
+#define JMP B
+#endif
 #ifdef GOARCH_ppc64
 #define JMP BR
 #endif

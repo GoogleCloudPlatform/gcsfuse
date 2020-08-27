@@ -22,16 +22,16 @@ type Freelist struct {
 }
 
 // Get an element from the freelist, returning nil if empty.
-func (fl *Freelist) Get() (p unsafe.Pointer) {
+func (fl *Freelist) Get() unsafe.Pointer {
 	l := len(fl.list)
 	if l == 0 {
-		return
+		return nil
 	}
 
-	p = fl.list[l-1]
+	p := fl.list[l-1]
 	fl.list = fl.list[:l-1]
 
-	return
+	return p
 }
 
 // Contribute an element back to the freelist.
