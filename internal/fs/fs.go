@@ -134,9 +134,11 @@ func NewServer(
 	// Set up root bucket
 	var root inode.DirInode
 	if cfg.BucketName == "" {
+		fmt.Println("Set up root directory for all accessible buckets")
 		root = makeRootForAllBuckets(fs)
 	} else {
 		var syncerBucket gcsx.SyncerBucket
+		fmt.Println("Set up root directory for bucket " + cfg.BucketName)
 		syncerBucket, err = fs.bucketManager.SetUpBucket(ctx, cfg.BucketName)
 		if err != nil {
 			err = fmt.Errorf("SetUpBucket: %v", err)
