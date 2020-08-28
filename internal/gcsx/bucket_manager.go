@@ -247,7 +247,10 @@ func (bm *bucketManager) ShutDown() {
 func (bm *bucketManager) ListBuckets(ctx context.Context) (
 	names []string,
 	err error) {
-	fmt.Printf("Buckets(%q)\n", bm.config.BillingProject)
+	if bm.config.BillingProject == "" {
+		err = fmt.Errorf("ListBuckets: BillingProject not configured")
+		return
+	}
 	it := bm.client.Buckets(ctx, bm.config.BillingProject)
 	for {
 		bucket, nextErr := it.Next()
