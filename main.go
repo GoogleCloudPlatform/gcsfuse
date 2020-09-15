@@ -40,6 +40,7 @@ import (
 	"golang.org/x/oauth2/google"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/internal/logfile"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
@@ -328,6 +329,14 @@ func populateArgs(c *cli.Context) (
 
 func runCLIApp(c *cli.Context) (err error) {
 	flags := populateFlags(c)
+
+	// If log file provided, override the default status output
+	if flags.LogFile != "" {
+		daemonize.StatusWriter, err = logfile.Init(flags.LogFile)
+		if err != nil {
+			return
+		}
+	}
 
 	var bucketName string
 	var mountPoint string

@@ -20,8 +20,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/urfave/cli"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
+	"github.com/urfave/cli"
 )
 
 // Set up custom help text for gcsfuse; in particular the usage section.
@@ -200,7 +200,7 @@ func newApp() (app *cli.App) {
 			},
 
 			/////////////////////////
-			// Monitoring
+			// Monitoring & Logging
 			/////////////////////////
 
 			cli.IntFlag{
@@ -208,6 +208,14 @@ func newApp() (app *cli.App) {
 				Value: 0,
 				Usage: "The port used to export prometheus metrics for monitoring. " +
 					"The default value 0 indicates no monitoring metrics.",
+			},
+
+			cli.StringFlag{
+				Name:  "log-file",
+				Value: "",
+				Usage: "The file for storing logs that can be parsed by " +
+					"fluentd. When not provided, plain text logs are printed to " +
+					"stdout.",
 			},
 
 			/////////////////////////
@@ -269,6 +277,7 @@ type flagStorage struct {
 
 	// Monitoring
 	MonitoringPort int
+	LogFile        string
 
 	// Debugging
 	DebugFuse       bool
@@ -310,6 +319,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 
 		// Monitoring
 		MonitoringPort: c.Int("monitoring-port"),
+		LogFile:        c.String("log-file"),
 
 		// Debugging,
 		DebugFuse:       c.Bool("debug_fuse"),
