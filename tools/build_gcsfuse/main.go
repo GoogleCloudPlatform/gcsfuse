@@ -70,6 +70,12 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		}
 	}
 
+	pathEnv, exists := os.LookupEnv("PATH")
+	if !exists {
+		err = fmt.Errorf("$PATH not found in OS")
+		return
+	}
+
 	// Create a directory to become GOPATH for our build below.
 	gopath, err := ioutil.TempDir("", "build_gcsfuse_gopath")
 	if err != nil {
@@ -147,6 +153,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		// Set up environment.
 		cmd.Env = []string{
 			"GO15VENDOREXPERIMENT=1",
+			fmt.Sprintf("PATH=%s", pathEnv),
 			fmt.Sprintf("GOROOT=%s", runtime.GOROOT()),
 			fmt.Sprintf("GOPATH=%s", gopath),
 			fmt.Sprintf("GOCACHE=%s", gocache),
