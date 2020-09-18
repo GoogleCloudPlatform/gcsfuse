@@ -20,8 +20,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/urfave/cli"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
+	"github.com/urfave/cli"
 )
 
 // Set up custom help text for gcsfuse; in particular the usage section.
@@ -30,7 +30,7 @@ func init() {
    {{.Name}} - {{.Usage}}
 
 USAGE:
-   {{.Name}} {{if .Flags}}[global options]{{end}} bucket mountpoint
+   {{.Name}} {{if .Flags}}[global options]{{end}} [bucket] mountpoint
    {{if .Version}}
 VERSION:
    {{.Version}}
@@ -57,7 +57,7 @@ func newApp() (app *cli.App) {
 	app = &cli.App{
 		Name:    "gcsfuse",
 		Version: getVersion(),
-		Usage:   "Mount a GCS bucket locally",
+		Usage:   "Mount a specified GCS bucket or all accessible buckets locally",
 		Writer:  os.Stderr,
 		Flags: []cli.Flag{
 
@@ -174,11 +174,48 @@ func newApp() (app *cli.App) {
 					"inodes.",
 			},
 
+			cli.BoolFlag{
+				Name:  "local-file-cache",
+				Usage: "Cache GCS files on local disk for reads.",
+			},
+
 			cli.StringFlag{
 				Name:  "temp-dir",
 				Value: "",
 				Usage: "Absolute path to temporary directory for local GCS object " +
 					"copies. (default: system default, likely /tmp)",
+			},
+
+			cli.BoolFlag{
+				Name: "disable-http2",
+				Usage: "Once set, the protocol used for communicating with " +
+					"GCS backend would be HTTP/1.1, instead of the default HTTP/2.",
+			},
+
+			cli.IntFlag{
+				Name:  "max-conns-per-host",
+				Value: 10,
+				Usage: "The max number of TCP connections allowed per server. " +
+					"This is effective when --disable-http2 is set.",
+			},
+
+			/////////////////////////
+			// Monitoring & Logging
+			/////////////////////////
+
+			cli.IntFlag{
+				Name:  "monitoring-port",
+				Value: 0,
+				Usage: "The port used to export prometheus metrics for monitoring. " +
+					"The default value 0 indicates no monitoring metrics.",
+			},
+
+			cli.StringFlag{
+				Name:  "log-file",
+				Value: "",
+				Usage: "The file for storing logs that can be parsed by " +
+					"fluentd. When not provided, plain text logs are printed to " +
+					"stdout.",
 			},
 
 			/////////////////////////
@@ -233,7 +270,14 @@ type flagStorage struct {
 	StatCacheCapacity int
 	StatCacheTTL      time.Duration
 	TypeCacheTTL      time.Duration
+	LocalFileCache    bool
 	TempDir           string
+	DisableHTTP2      bool
+	MaxConnsPerHost   int
+
+	// Monitoring
+	MonitoringPort int
+	LogFile        string
 
 	// Debugging
 	DebugFuse       bool
@@ -268,7 +312,14 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		StatCacheCapacity: c.Int("stat-cache-capacity"),
 		StatCacheTTL:      c.Duration("stat-cache-ttl"),
 		TypeCacheTTL:      c.Duration("type-cache-ttl"),
+		LocalFileCache:    c.Bool("local-file-cache"),
 		TempDir:           c.String("temp-dir"),
+		DisableHTTP2:      c.Bool("disable-http2"),
+		MaxConnsPerHost:   c.Int("max-conns-per-host"),
+
+		// Monitoring
+		MonitoringPort: c.Int("monitoring-port"),
+		LogFile:        c.String("log-file"),
 
 		// Debugging,
 		DebugFuse:       c.Bool("debug_fuse"),
