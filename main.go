@@ -21,9 +21,11 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"path"
@@ -37,13 +39,15 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	"github.com/urfave/cli"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/internal/logfile"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
 	"github.com/kardianos/osext"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/urfave/cli"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -69,6 +73,14 @@ func registerSIGINTHandler(mountPoint string) {
 				return
 			}
 		}
+	}()
+}
+
+func startMonitoringHTTPHandler(monitoringPort int) {
+	fmt.Printf("Exporting metrics at localhost:%v/metrics\n", monitoringPort)
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(fmt.Sprintf(":%v", monitoringPort), nil)
 	}()
 }
 
@@ -209,6 +221,20 @@ func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 		MaxBackoffSleep: flags.MaxRetrySleep,
 	}
 
+	// The default HTTP transport uses HTTP/2 with TCP multiplexing, which
+	// does not create new TCP connections even when the idle connections
+	// run out. To specify multiple connections per host, HTTP/2 is disabled
+	// on purpose.
+	if flags.DisableHTTP2 {
+		cfg.Transport = &http.Transport{
+			MaxConnsPerHost: flags.MaxConnsPerHost,
+			// This disables HTTP/2 in the transport.
+			TLSNextProto: make(
+				map[string]func(string, *tls.Conn) http.RoundTripper,
+			),
+		}
+	}
+
 	if flags.DebugHTTP {
 		cfg.HTTPDebugLogger = log.New(os.Stdout, "http: ", 0)
 	}
@@ -267,21 +293,28 @@ func mountWithArgs(
 	return
 }
 
-func runCLIApp(c *cli.Context) (err error) {
-	flags := populateFlags(c)
-
+func populateArgs(c *cli.Context) (
+	bucketName string,
+	mountPoint string,
+	err error) {
 	// Extract arguments.
-	if len(c.Args()) != 2 {
+	switch len(c.Args()) {
+	case 1:
+		bucketName = ""
+		mountPoint = c.Args()[0]
+
+	case 2:
+		bucketName = c.Args()[0]
+		mountPoint = c.Args()[1]
+
+	default:
 		err = fmt.Errorf(
-			"%s takes exactly two arguments. Run `%s --help` for more info.",
+			"%s takes one or two arguments. Run `%s --help` for more info.",
 			path.Base(os.Args[0]),
 			path.Base(os.Args[0]))
 
 		return
 	}
-
-	bucketName := c.Args()[0]
-	mountPoint := c.Args()[1]
 
 	// Canonicalize the mount point, making it absolute. This is important when
 	// daemonizing below, since the daemon will change its working directory
@@ -289,6 +322,26 @@ func runCLIApp(c *cli.Context) (err error) {
 	mountPoint, err = filepath.Abs(mountPoint)
 	if err != nil {
 		err = fmt.Errorf("canonicalizing mount point: %v", err)
+		return
+	}
+	return
+}
+
+func runCLIApp(c *cli.Context) (err error) {
+	flags := populateFlags(c)
+
+	// If log file provided, override the default status output
+	if flags.LogFile != "" {
+		daemonize.StatusWriter, err = logfile.Init(flags.LogFile)
+		if err != nil {
+			return
+		}
+	}
+
+	var bucketName string
+	var mountPoint string
+	bucketName, mountPoint, err = populateArgs(c)
+	if err != nil {
 		return
 	}
 
@@ -362,6 +415,11 @@ func runCLIApp(c *cli.Context) (err error) {
 			daemonize.SignalOutcome(err)
 			return
 		}
+	}
+
+	// Open a port for exporting monitoring metrics
+	if flags.MonitoringPort > 0 {
+		startMonitoringHTTPHandler(flags.MonitoringPort)
 	}
 
 	// Let the user unmount with Ctrl-C (SIGINT).

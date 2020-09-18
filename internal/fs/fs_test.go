@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
@@ -106,8 +107,20 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	if t.bucket == nil {
 		t.bucket = gcsfake.NewFakeBucket(t.mtimeClock, "some_bucket")
 	}
-
-	t.serverCfg.Bucket = t.bucket
+	if t.serverCfg.BucketName == "" {
+		t.serverCfg.BucketName = t.bucket.Name()
+	}
+	t.serverCfg.BucketManager = &fakeBucketManager{
+		// This bucket manager is allowed to open these buckets
+		buckets: map[string]gcs.Bucket{
+			t.bucket.Name(): t.bucket,
+			"bucket-1":      gcsfake.NewFakeBucket(t.mtimeClock, "bucket-1"),
+			"bucket-2":      gcsfake.NewFakeBucket(t.mtimeClock, "bucket-2"),
+		},
+		// Configs for the syncer when setting up buckets
+		appendThreshold: 0,
+		tmpObjectPrefix: ".gcsfuse_tmp/",
+	}
 
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
@@ -117,16 +130,12 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	t.serverCfg.FilePerms = filePerms
 	t.serverCfg.DirPerms = dirPerms
 
-	// Set up the append optimization.
-	t.serverCfg.AppendThreshold = 0
-	t.serverCfg.TmpObjectPrefix = ".gcsfuse_tmp/"
-
 	// Set up a temporary directory for mounting.
 	t.Dir, err = ioutil.TempDir("", "fs_test")
 	AssertEq(nil, err)
 
 	// Create a file system server.
-	server, err := fs.NewServer(&t.serverCfg)
+	server, err := fs.NewServer(t.ctx, &t.serverCfg)
 	AssertEq(nil, err)
 
 	// Mount the file system.
@@ -269,4 +278,36 @@ func currentGid() uint32 {
 	AssertEq(nil, err)
 
 	return uint32(gid)
+}
+
+type fakeBucketManager struct {
+	buckets         map[string]gcs.Bucket
+	appendThreshold int64
+	tmpObjectPrefix string
+}
+
+func (bm *fakeBucketManager) ShutDown() {}
+
+func (bm *fakeBucketManager) ListBuckets(
+	ctx context.Context) (names []string, err error) {
+	for name, _ := range bm.buckets {
+		names = append(names, name)
+	}
+	return
+}
+
+func (bm *fakeBucketManager) SetUpBucket(
+	ctx context.Context,
+	name string) (sb gcsx.SyncerBucket, err error) {
+	bucket, ok := bm.buckets[name]
+	if ok {
+		sb = gcsx.NewSyncerBucket(
+			bm.appendThreshold,
+			bm.tmpObjectPrefix,
+			gcsx.NewContentTypeBucket(bucket),
+		)
+		return
+	}
+	err = fmt.Errorf("Bucket %v does not exist", name)
+	return
 }

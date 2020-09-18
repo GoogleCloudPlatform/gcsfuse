@@ -39,7 +39,7 @@ type SymlinkInode struct {
 	/////////////////////////
 
 	id               fuseops.InodeID
-	name             string
+	name             Name
 	sourceGeneration Generation
 	attrs            fuseops.InodeAttributes
 	target           string
@@ -61,12 +61,13 @@ var _ Inode = &SymlinkInode{}
 // REQUIRES: IsSymlink(o)
 func NewSymlinkInode(
 	id fuseops.InodeID,
+	name Name,
 	o *gcs.Object,
 	attrs fuseops.InodeAttributes) (s *SymlinkInode) {
 	// Create the inode.
 	s = &SymlinkInode{
 		id:   id,
-		name: o.Name,
+		name: name,
 		sourceGeneration: Generation{
 			Object:   o.Generation,
 			Metadata: o.MetaGeneration,
@@ -103,7 +104,7 @@ func (s *SymlinkInode) ID() fuseops.InodeID {
 	return s.id
 }
 
-func (s *SymlinkInode) Name() string {
+func (s *SymlinkInode) Name() Name {
 	return s.name
 }
 

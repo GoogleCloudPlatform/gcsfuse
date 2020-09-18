@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/jacobsa/gcloud/httputil"
+	"google.golang.org/api/googleapi"
 )
 
 // NewFlakyTransport return a flaky transport that can have hiccups (service
@@ -48,7 +49,10 @@ func (t *flakyTransport) unavailable() bool {
 func (t *flakyTransport) RoundTrip(
 	req *http.Request) (resp *http.Response, err error) {
 	if t.unavailable() {
-		err = fmt.Errorf("Service Unavailable")
+		err = &googleapi.Error{
+			Code: http.StatusServiceUnavailable,
+			Body: "Service Unavailable",
+		}
 		fmt.Println("Hiccup injected")
 	} else {
 		resp, err = t.reliable.RoundTrip(req)

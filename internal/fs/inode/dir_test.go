@@ -24,6 +24,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
@@ -47,7 +48,7 @@ const typeCacheTTL = time.Second
 
 type DirTest struct {
 	ctx    context.Context
-	bucket gcs.Bucket
+	bucket gcsx.SyncerBucket
 	clock  timeutil.SimulatedClock
 
 	in inode.DirInode
@@ -61,8 +62,11 @@ func init() { RegisterTestSuite(&DirTest{}) }
 func (t *DirTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
-	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
-
+	bucket := gcsfake.NewFakeBucket(&t.clock, "some_bucket")
+	t.bucket = gcsx.NewSyncerBucket(
+		1, // Append threshold
+		".gcsfuse_tmp/",
+		bucket)
 	// Create the inode. No implicit dirs by default.
 	t.resetInode(false)
 }
@@ -88,7 +92,7 @@ func (t *DirTest) resetInode(implicitDirs bool) {
 
 	t.in = inode.NewDirInode(
 		dirInodeID,
-		dirInodeName,
+		inode.NewDirName(inode.NewRootName(""), dirInodeName),
 		fuseops.InodeAttributes{
 			Uid:  uid,
 			Gid:  gid,
@@ -147,7 +151,7 @@ func (t *DirTest) ID() {
 }
 
 func (t *DirTest) Name() {
-	ExpectEq(dirInodeName, t.in.Name())
+	ExpectEq(dirInodeName, t.in.Name().GcsObjectName())
 }
 
 func (t *DirTest) LookupCount() {
@@ -194,7 +198,7 @@ func (t *DirTest) LookUpChild_FileOnly() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
-	ExpectEq(objName, result.FullName)
+	ExpectEq(objName, result.FullName.GcsObjectName())
 	ExpectEq(objName, o.Name)
 	ExpectEq(createObj.Generation, o.Generation)
 	ExpectEq(createObj.Size, o.Size)
@@ -223,7 +227,7 @@ func (t *DirTest) LookUpChild_DirOnly() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
-	ExpectEq(objName, result.FullName)
+	ExpectEq(objName, result.FullName.GcsObjectName())
 	ExpectEq(objName, o.Name)
 	ExpectEq(createObj.Generation, o.Generation)
 	ExpectEq(createObj.Size, o.Size)
@@ -274,7 +278,7 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 	AssertEq(nil, err)
 	ExpectEq(nil, result.Object)
 
-	ExpectEq(objName, result.FullName)
+	ExpectEq(objName, result.FullName.GcsObjectName())
 	ExpectTrue(result.ImplicitDir)
 
 	// A conflict marker should not work.
@@ -305,7 +309,7 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
-	ExpectEq(dirObjName, result.FullName)
+	ExpectEq(dirObjName, result.FullName.GcsObjectName())
 	ExpectEq(dirObjName, o.Name)
 	ExpectEq(dirObj.Generation, o.Generation)
 	ExpectEq(dirObj.Size, o.Size)
@@ -317,7 +321,7 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
-	ExpectEq(fileObjName, result.FullName)
+	ExpectEq(fileObjName, result.FullName.GcsObjectName())
 	ExpectEq(fileObjName, o.Name)
 	ExpectEq(fileObj.Generation, o.Generation)
 	ExpectEq(fileObj.Size, o.Size)
@@ -348,7 +352,7 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
-	ExpectEq(dirObjName, result.FullName)
+	ExpectEq(dirObjName, result.FullName.GcsObjectName())
 	ExpectEq(dirObjName, o.Name)
 	ExpectEq(dirObj.Generation, o.Generation)
 	ExpectEq(dirObj.Size, o.Size)
@@ -360,7 +364,7 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
-	ExpectEq(linkObjName, result.FullName)
+	ExpectEq(linkObjName, result.FullName.GcsObjectName())
 	ExpectEq(linkObjName, o.Name)
 	ExpectEq(linkObj.Generation, o.Generation)
 	ExpectEq(linkObj.Size, o.Size)
@@ -393,7 +397,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
-	ExpectEq(dirObjName, result.FullName)
+	ExpectEq(dirObjName, result.FullName.GcsObjectName())
 	ExpectEq(dirObjName, o.Name)
 	ExpectEq(dirObj.Generation, o.Generation)
 	ExpectEq(dirObj.Size, o.Size)
@@ -405,7 +409,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
-	ExpectEq(fileObjName, result.FullName)
+	ExpectEq(fileObjName, result.FullName.GcsObjectName())
 	ExpectEq(fileObjName, o.Name)
 	ExpectEq(fileObj.Generation, o.Generation)
 	ExpectEq(fileObj.Size, o.Size)
@@ -441,7 +445,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
-	ExpectEq(dirObjName, result.FullName)
+	ExpectEq(dirObjName, result.FullName.GcsObjectName())
 	ExpectEq(dirObjName, o.Name)
 	ExpectEq(dirObj.Generation, o.Generation)
 	ExpectEq(dirObj.Size, o.Size)
@@ -453,7 +457,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
-	ExpectEq(fileObjName, result.FullName)
+	ExpectEq(fileObjName, result.FullName.GcsObjectName())
 	ExpectEq(fileObjName, o.Name)
 	ExpectEq(fileObj.Generation, o.Generation)
 	ExpectEq(fileObj.Size, o.Size)
@@ -654,14 +658,13 @@ func (t *DirTest) CreateChildFile_DoesntExist() {
 	const name = "qux"
 	objName := path.Join(dirInodeName, name)
 
-	var o *gcs.Object
-	var err error
-
 	// Call the inode.
-	o, err = t.in.CreateChildFile(t.ctx, name)
+	b, fn, o, err := t.in.CreateChildFile(t.ctx, name)
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(t.bucket.Name(), b.Name())
+	ExpectEq(fn.GcsObjectName(), o.Name)
 	ExpectEq(objName, o.Name)
 	ExpectFalse(inode.IsSymlink(o))
 
@@ -682,7 +685,7 @@ func (t *DirTest) CreateChildFile_Exists() {
 	AssertEq(nil, err)
 
 	// Call the inode.
-	_, err = t.in.CreateChildFile(t.ctx, name)
+	_, _, _, err = t.in.CreateChildFile(t.ctx, name)
 	ExpectThat(err, Error(HasSubstr("Precondition")))
 	ExpectThat(err, Error(HasSubstr("exists")))
 }
@@ -696,7 +699,7 @@ func (t *DirTest) CreateChildFile_TypeCaching() {
 	var err error
 
 	// Create the name.
-	_, err = t.in.CreateChildFile(t.ctx, name)
+	_, _, _, err = t.in.CreateChildFile(t.ctx, name)
 	AssertEq(nil, err)
 
 	// Create a backing object for a directory.
@@ -742,7 +745,7 @@ func (t *DirTest) CloneToChildFile_SourceDoesntExist() {
 	AssertEq(nil, err)
 
 	// Call the inode.
-	_, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
+	_, _, _, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
@@ -750,18 +753,17 @@ func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
 	const srcName = "blah/baz"
 	dstName := path.Join(dirInodeName, "qux")
 
-	var o *gcs.Object
-	var err error
-
 	// Create the source.
 	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
-	o, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
+	b, fn, o, err := t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(t.bucket.Name(), b.Name())
+	ExpectEq(fn.GcsObjectName(), o.Name)
 	ExpectEq(dstName, o.Name)
 	ExpectFalse(inode.IsSymlink(o))
 
@@ -775,9 +777,6 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 	const srcName = "blah/baz"
 	dstName := path.Join(dirInodeName, "qux")
 
-	var o *gcs.Object
-	var err error
-
 	// Create the source.
 	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, []byte("taco"))
 	AssertEq(nil, err)
@@ -787,10 +786,12 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 	AssertEq(nil, err)
 
 	// Call the inode.
-	o, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
+	b, fn, o, err := t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(t.bucket.Name(), b.Name())
+	ExpectEq(fn.GcsObjectName(), o.Name)
 	ExpectEq(dstName, o.Name)
 	ExpectFalse(inode.IsSymlink(o))
 	ExpectEq(len("taco"), o.Size)
@@ -813,7 +814,7 @@ func (t *DirTest) CloneToChildFile_TypeCaching() {
 	AssertEq(nil, err)
 
 	// Clone to the destination.
-	_, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
+	_, _, _, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
 	AssertEq(nil, err)
 
 	// Create a backing object for a directory.
@@ -848,14 +849,13 @@ func (t *DirTest) CreateChildSymlink_DoesntExist() {
 	const target = "taco"
 	objName := path.Join(dirInodeName, name)
 
-	var o *gcs.Object
-	var err error
-
 	// Call the inode.
-	o, err = t.in.CreateChildSymlink(t.ctx, name, target)
+	b, fn, o, err := t.in.CreateChildSymlink(t.ctx, name, target)
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(t.bucket.Name(), b.Name())
+	ExpectEq(fn.GcsObjectName(), o.Name)
 	ExpectEq(objName, o.Name)
 	ExpectEq(target, o.Metadata[inode.SymlinkMetadataKey])
 }
@@ -872,7 +872,7 @@ func (t *DirTest) CreateChildSymlink_Exists() {
 	AssertEq(nil, err)
 
 	// Call the inode.
-	_, err = t.in.CreateChildSymlink(t.ctx, name, target)
+	_, _, _, err = t.in.CreateChildSymlink(t.ctx, name, target)
 	ExpectThat(err, Error(HasSubstr("Precondition")))
 	ExpectThat(err, Error(HasSubstr("exists")))
 }
@@ -886,7 +886,7 @@ func (t *DirTest) CreateChildSymlink_TypeCaching() {
 	var err error
 
 	// Create the name.
-	_, err = t.in.CreateChildSymlink(t.ctx, name, "")
+	_, _, _, err = t.in.CreateChildSymlink(t.ctx, name, "")
 	AssertEq(nil, err)
 
 	// Create a backing object for a directory.
@@ -920,14 +920,13 @@ func (t *DirTest) CreateChildDir_DoesntExist() {
 	const name = "qux"
 	objName := path.Join(dirInodeName, name) + "/"
 
-	var o *gcs.Object
-	var err error
-
 	// Call the inode.
-	o, err = t.in.CreateChildDir(t.ctx, name)
+	b, fn, o, err := t.in.CreateChildDir(t.ctx, name)
 	AssertEq(nil, err)
 	AssertNe(nil, o)
 
+	ExpectEq(t.bucket.Name(), b.Name())
+	ExpectEq(fn.GcsObjectName(), o.Name)
 	ExpectEq(objName, o.Name)
 	ExpectFalse(inode.IsSymlink(o))
 }
@@ -943,7 +942,7 @@ func (t *DirTest) CreateChildDir_Exists() {
 	AssertEq(nil, err)
 
 	// Call the inode.
-	_, err = t.in.CreateChildDir(t.ctx, name)
+	_, _, _, err = t.in.CreateChildDir(t.ctx, name)
 	ExpectThat(err, Error(HasSubstr("Precondition")))
 	ExpectThat(err, Error(HasSubstr("exists")))
 }
@@ -1046,7 +1045,7 @@ func (t *DirTest) DeleteChildFile_TypeCaching() {
 	var err error
 
 	// Create the name, priming the type cache.
-	_, err = t.in.CreateChildFile(t.ctx, name)
+	_, _, _, err = t.in.CreateChildFile(t.ctx, name)
 	AssertEq(nil, err)
 
 	// Create a backing object for a directory. It should be shadowed by the
