@@ -21,8 +21,11 @@ import (
 	"path"
 
 	"github.com/jacobsa/fuse/fusetesting"
+	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
+	"github.com/jacobsa/timeutil"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -36,9 +39,16 @@ type AllBucketsTest struct {
 func init() { RegisterTestSuite(&AllBucketsTest{}) }
 
 func (t *AllBucketsTest) SetUp(ti *TestInfo) {
-	t.serverCfg.BucketName = "*"
+	t.mtimeClock = timeutil.RealClock()
+	t.buckets = map[string]gcs.Bucket{
+		"bucket-0": gcsfake.NewFakeBucket(t.mtimeClock, "bucket-0"),
+		"bucket-1": gcsfake.NewFakeBucket(t.mtimeClock, "bucket-1"),
+		"bucket-2": gcsfake.NewFakeBucket(t.mtimeClock, "bucket-2"),
+	}
 	// buckets: {"some_bucket", "bucket-1", "bucket-2"}
 	t.fsTest.SetUp(ti)
+	AssertEq("", t.serverCfg.BucketName)
+	AssertEq(t.Dir, t.mfs.Dir())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -46,10 +56,19 @@ func (t *AllBucketsTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *AllBucketsTest) BaseDir_Ls() {
-	_, err := ioutil.ReadDir(t.Dir)
-	ExpectThat(err, Error(HasSubstr("input/output error")))
-	_, err = fusetesting.ReadDirPicky(t.Dir)
-	ExpectThat(err, Error(HasSubstr("input/output error")))
+	entries, err := ioutil.ReadDir(t.Dir)
+	AssertEq(nil, err)
+	AssertEq(3, len(entries))
+	ExpectEq("bucket-0", entries[0].Name())
+	ExpectEq("bucket-1", entries[1].Name())
+	ExpectEq("bucket-2", entries[2].Name())
+
+	entries, err = fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+	AssertEq(3, len(entries))
+	ExpectEq("bucket-0", entries[0].Name())
+	ExpectEq("bucket-1", entries[1].Name())
+	ExpectEq("bucket-2", entries[2].Name())
 }
 
 func (t *AllBucketsTest) BaseDir_Write() {

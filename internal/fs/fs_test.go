@@ -80,7 +80,12 @@ type fsTest struct {
 	// rather than creating a default one.
 	mtimeClock timeutil.Clock
 	cacheClock timeutil.SimulatedClock
-	bucket     gcs.Bucket
+
+	// To mount a special bucket, override `bucket`;
+	// To mount multiple buckets, override `buckets`;
+	// Otherwise, a default bucket will be used.
+	bucket  gcs.Bucket
+	buckets map[string]gcs.Bucket
 
 	// Mount information
 	mfs *fuse.MountedFileSystem
@@ -103,20 +108,22 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	t.cacheClock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 	t.serverCfg.CacheClock = &t.cacheClock
 
-	// And the bucket.
-	if t.bucket == nil {
-		t.bucket = gcsfake.NewFakeBucket(t.mtimeClock, "some_bucket")
-	}
-	if t.serverCfg.BucketName == "" {
+	if t.buckets != nil {
+		// mount all buckets
+		t.bucket = nil
+		t.serverCfg.BucketName = ""
+	} else {
+		// mount a single bucket
+		if t.bucket == nil {
+			t.bucket = gcsfake.NewFakeBucket(t.mtimeClock, "some_bucket")
+		}
 		t.serverCfg.BucketName = t.bucket.Name()
+		t.buckets = map[string]gcs.Bucket{t.bucket.Name(): t.bucket}
 	}
+
 	t.serverCfg.BucketManager = &fakeBucketManager{
 		// This bucket manager is allowed to open these buckets
-		buckets: map[string]gcs.Bucket{
-			t.bucket.Name(): t.bucket,
-			"bucket-1":      gcsfake.NewFakeBucket(t.mtimeClock, "bucket-1"),
-			"bucket-2":      gcsfake.NewFakeBucket(t.mtimeClock, "bucket-2"),
-		},
+		buckets: t.buckets,
 		// Configs for the syncer when setting up buckets
 		appendThreshold: 0,
 		tmpObjectPrefix: ".gcsfuse_tmp/",
