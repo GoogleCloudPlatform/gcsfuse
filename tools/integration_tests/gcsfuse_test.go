@@ -129,20 +129,14 @@ func (t *GcsfuseTest) BadUsage() {
 		args           []string
 		expectedOutput string
 	}{
-		// Too few args
-		0: {
-			[]string{canned.FakeBucketName},
-			"exactly two arguments",
-		},
-
 		// Too many args
-		1: {
+		0: {
 			[]string{canned.FakeBucketName, "a", "b"},
-			"exactly two arguments",
+			"gcsfuse takes one or two arguments.",
 		},
 
 		// Unknown flag
-		2: {
+		1: {
 			[]string{"--tweak_frobnicator", canned.FakeBucketName, "a"},
 			"not defined.*tweak_frobnicator",
 		},
