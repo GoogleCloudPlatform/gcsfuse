@@ -152,7 +152,7 @@ func newApp() (app *cli.App) {
 				Usage: "The maximum duration allowed to sleep in a retry loop with " +
 					"exponential backoff for failed requests to GCS backend. Once the " +
 					"backoff duration exceeds this limit, the retry stops. The default " +
-					"of 0 disables retries.",
+					"is 1 minute. A value of 0 disables retries.",
 			},
 
 			cli.IntFlag{
