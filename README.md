@@ -32,7 +32,7 @@ See [installing.md][] for full installation instructions for Linux and Mac OS X.
 your bucket doesn't yet exist, create one using the
 [Google Developers Console][console].
 
-[console]: https://console.developers.google.com
+[console]: https://console.cloud.google.com
 
 * Make sure [the Google Cloud Storage JSON API is enabled][enableAPI].
 

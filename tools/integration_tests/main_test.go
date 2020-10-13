@@ -151,6 +151,23 @@ func buildBuildGcsfuse(dst string) (err error) {
 		srcDir = pkg.Dir
 	}
 
+	// Create a directory to become GOPATH for our build below.
+	gopath, err := ioutil.TempDir("", "build_gcsfuse_gopath")
+	if err != nil {
+		err = fmt.Errorf("TempDir: %v", err)
+		return
+	}
+	defer os.RemoveAll(gopath)
+
+	// Create a directory to become GOCACHE for our build below.
+	var gocache string
+	gocache, err = ioutil.TempDir("", "build_gcsfuse_gocache")
+	if err != nil {
+		err = fmt.Errorf("TempDir: %v", err)
+		return
+	}
+	defer os.RemoveAll(gocache)
+
 	// Build within that directory with no GOPATH -- it should have no external
 	// dependencies besides the standard library.
 	{
@@ -162,6 +179,8 @@ func buildBuildGcsfuse(dst string) (err error) {
 		cmd.Dir = srcDir
 		cmd.Env = []string{
 			fmt.Sprintf("GOROOT=%s", runtime.GOROOT()),
+			fmt.Sprintf("GOPATH=%s", gopath),
+			fmt.Sprintf("GOCACHE=%s", gocache),
 		}
 
 		var output []byte

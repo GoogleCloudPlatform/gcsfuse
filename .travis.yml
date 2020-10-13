@@ -9,6 +9,7 @@ go:
   - "1.12"
   - "1.13"
   - "1.14"
+  - "1.15.2"
   - stable
 
 # Use the virtualized Trusty beta Travis is running in order to get support for

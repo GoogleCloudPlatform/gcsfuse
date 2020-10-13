@@ -22,6 +22,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
@@ -80,24 +81,24 @@ be interacting with the file system.`)
 		gid = uint32(flags.Gid)
 	}
 
-	// Set up the bucket.
-	status.Println("Opening bucket...")
-
-	bucket, err := setUpBucket(
-		ctx,
-		flags,
-		conn,
-		bucketName)
-
-	if err != nil {
-		err = fmt.Errorf("setUpBucket: %v", err)
-		return
+	bucketCfg := gcsx.BucketConfig{
+		BillingProject:                     flags.BillingProject,
+		OnlyDir:                            flags.OnlyDir,
+		EgressBandwidthLimitBytesPerSecond: flags.EgressBandwidthLimitBytesPerSecond,
+		OpRateLimitHz:                      flags.OpRateLimitHz,
+		StatCacheCapacity:                  flags.StatCacheCapacity,
+		StatCacheTTL:                       flags.StatCacheTTL,
+		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
+		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 	}
+	bm := gcsx.NewBucketManager(bucketCfg, conn)
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{
 		CacheClock:             timeutil.RealClock(),
-		Bucket:                 bucket,
+		BucketManager:          bm,
+		BucketName:             bucketName,
+		LocalFileCache:         flags.LocalFileCache,
 		TempDir:                flags.TempDir,
 		ImplicitDirectories:    flags.ImplicitDirs,
 		InodeAttributeCacheTTL: flags.StatCacheTTL,
@@ -106,12 +107,9 @@ be interacting with the file system.`)
 		Gid:                    gid,
 		FilePerms:              os.FileMode(flags.FileMode),
 		DirPerms:               os.FileMode(flags.DirMode),
-
-		AppendThreshold: 1 << 21, // 2 MiB, a total guess.
-		TmpObjectPrefix: ".gcsfuse_tmp/",
 	}
 
-	server, err := fs.NewServer(serverCfg)
+	server, err := fs.NewServer(ctx, serverCfg)
 	if err != nil {
 		err = fmt.Errorf("fs.NewServer: %v", err)
 		return
@@ -121,8 +119,8 @@ be interacting with the file system.`)
 	status.Println("Mounting file system...")
 
 	mountCfg := &fuse.MountConfig{
-		FSName:      bucket.Name(),
-		VolumeName:  bucket.Name(),
+		FSName:      "gcsfuse",
+		VolumeName:  "gcsfuse",
 		Options:     flags.MountOptions,
 		ErrorLogger: log.New(os.Stderr, "fuse: ", log.Flags()),
 	}
