@@ -12,8 +12,8 @@ latest version when possible):
 
 *   `ubuntu-2004-lts`, `ubuntu-1804-lts`, `ubuntu-1604-lts`, and `ubuntu-1404-lts`
 *   `debian-8`, `debian-7`
-*   `centos-7`, `centos-6`
-*   `rhel-7`, `rhel-6`
+*   `centos-8`, `centos-7`
+*   `rhel-7`
 *   `sles-12`
 
 [Google Compute Engine]: https://cloud.google.com/compute/
