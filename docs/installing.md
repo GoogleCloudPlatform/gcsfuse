@@ -170,15 +170,10 @@ In the future gcsfuse can be updated in the usual way for homebrew packages:
 
 Prerequisites:
 
-*   A working [Go][go] installation at least as new as [commit
-    183cc0c][183cc0c]. See [Installing Go from source][go-setup].
+*   A working [Go][go] installation at least as new as [version
+    1.10][go-version]. See [Installing Go from source][go-setup].
 *   Fuse. See the instructions for the binary release above.
 *   Git. This is probably available as `git` in your package manager.
-
-Because we use the [Go 1.5 vendoring support][183cc0c], you must ensure that
-the appropriate variable is set in your environment:
-
-    export GO15VENDOREXPERIMENT=1
 
 To install or update gcsfuse, run:
 
@@ -189,5 +184,5 @@ This will fetch the gcsfuse sources to
 binary named `gcsfuse` to `$GOPATH/bin`.
 
 [go]: http://tip.golang.org/doc/install/source
-[183cc0c]: https://github.com/golang/go/commit/183cc0c
+[go-version]: https://github.com/golang/go/releases/tag/go1.10
 [go-setup]: http://golang.org/doc/code.html
