@@ -42,8 +42,8 @@ type ServerConfig struct {
 	// The bucket manager is responsible for setting up buckets.
 	BucketManager gcsx.BucketManager
 
-	// The name of the specific GCS bucket to be mounted. If empty, all accessible
-	// GCS buckets are mounted as subdirectories of the FS root.
+	// The name of the specific GCS bucket to be mounted. If it's empty or "_",
+	// all accessible GCS buckets are mounted as subdirectories of the FS root.
 	BucketName string
 
 	// LocalFileCache
@@ -133,7 +133,7 @@ func NewServer(
 
 	// Set up root bucket
 	var root inode.DirInode
-	if cfg.BucketName == "" {
+	if cfg.BucketName == "" || cfg.BucketName == "_" {
 		fmt.Println("Set up root directory for all accessible buckets")
 		root = makeRootForAllBuckets(fs)
 	} else {
