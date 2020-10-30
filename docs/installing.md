@@ -149,11 +149,11 @@ above and logging out and back in, you may need to fix the permissions:
 
 First, handle prerequisites:
 
-*   Install [osxfuse](https://osxfuse.github.io/).
 *   Install the [homebrew](http://brew.sh/) package manager.
 
 Afterward, gcsfuse can be installed with `brew`:
 
+    brew cask install osxfuse
     brew install gcsfuse
     sudo ln -s /usr/local/sbin/mount_gcsfuse /sbin  # For mount(8) support
 
