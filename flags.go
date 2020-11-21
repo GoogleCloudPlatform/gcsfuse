@@ -128,6 +128,12 @@ func newApp() (app *cli.App) {
 					"(default: none, Google application default credentials used)",
 			},
 
+			cli.StringFlag{
+				Name:  "exchange-token",
+				Value: "",
+				Usage: "A token exchanged for an access token for GCS API.",
+			},
+
 			cli.Float64Flag{
 				Name:  "limit-bytes-per-sec",
 				Value: -1,
@@ -262,6 +268,7 @@ type flagStorage struct {
 	// GCS
 	BillingProject                     string
 	KeyFile                            string
+	ExchangeToken                      string
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
 
@@ -304,6 +311,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		// GCS,
 		BillingProject:                     c.String("billing-project"),
 		KeyFile:                            c.String("key-file"),
+		ExchangeToken:                      c.String("exchange-token"),
 		EgressBandwidthLimitBytesPerSecond: c.Float64("limit-bytes-per-sec"),
 		OpRateLimitHz:                      c.Float64("limit-ops-per-sec"),
 

@@ -171,7 +171,10 @@ func handleMemoryProfileSignals() {
 
 func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 	var tokenSrc oauth2.TokenSource
-	tokenSrc, err = auth.GetTokenSource(flags.KeyFile)
+	tokenSrc, err = auth.GetTokenSource(
+		flags.KeyFile,
+		flags.ExchangeToken,
+	)
 	if err != nil {
 		err = fmt.Errorf("GetTokenSource: %v", err)
 		return
