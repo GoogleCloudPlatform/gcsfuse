@@ -23,7 +23,6 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -37,8 +36,8 @@ import (
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/logfile"
 	"github.com/jacobsa/daemonize"
@@ -170,47 +169,12 @@ func handleMemoryProfileSignals() {
 	}
 }
 
-// Create token source from the JSON file at the supplide path.
-func newTokenSourceFromPath(
-	path string,
-	scope string) (ts oauth2.TokenSource, err error) {
-	// Read the file.
-	contents, err := ioutil.ReadFile(path)
-	if err != nil {
-		err = fmt.Errorf("ReadFile(%q): %v", path, err)
-		return
-	}
-
-	// Create a config struct based on its contents.
-	jwtConfig, err := google.JWTConfigFromJSON(contents, scope)
-	if err != nil {
-		err = fmt.Errorf("JWTConfigFromJSON: %v", err)
-		return
-	}
-
-	// Create the token source.
-	ts = jwtConfig.TokenSource(context.Background())
-
-	return
-}
-
 func getConn(flags *flagStorage) (c gcs.Conn, err error) {
-	// Create the oauth2 token source.
-	const scope = gcs.Scope_FullControl
-
 	var tokenSrc oauth2.TokenSource
-	if flags.KeyFile != "" {
-		tokenSrc, err = newTokenSourceFromPath(flags.KeyFile, scope)
-		if err != nil {
-			err = fmt.Errorf("newTokenSourceFromPath: %v", err)
-			return
-		}
-	} else {
-		tokenSrc, err = google.DefaultTokenSource(context.Background(), scope)
-		if err != nil {
-			err = fmt.Errorf("DefaultTokenSource: %v", err)
-			return
-		}
+	tokenSrc, err = auth.GetTokenSource(flags.KeyFile)
+	if err != nil {
+		err = fmt.Errorf("GetTokenSource: %v", err)
+		return
 	}
 
 	// Create the connection.
