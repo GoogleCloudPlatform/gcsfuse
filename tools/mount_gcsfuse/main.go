@@ -86,8 +86,20 @@ func makeGcsfuseArgs(
 				"--"+strings.Replace(name, "_", "-", -1),
 			)
 
-			// Special case: support mount-like formatting for gcsfuse string flags.
-		case "dir_mode", "file_mode", "key_file", "temp_dir", "gid", "uid", "only_dir", "limit_ops_per_sec", "limit_bytes_per_sec", "stat_cache_ttl", "type_cache_ttl", "billing_project":
+		// Special case: support mount-like formatting for gcsfuse string flags.
+		case "dir_mode",
+			"file_mode",
+			"key_file",
+			"temp_dir",
+			"gid",
+			"uid",
+			"only_dir",
+			"limit_ops_per_sec",
+			"limit_bytes_per_sec",
+			"stat_cache_ttl",
+			"type_cache_ttl",
+			"exchange_token",
+			"billing_project":
 			args = append(
 				args,
 				"--"+strings.Replace(name, "_", "-", -1),
@@ -233,14 +245,14 @@ func run(args []string) (err error) {
 	cmd := exec.Command(gcsfusePath, gcsfuseArgs...)
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PATH=%s", path.Dir(fusermountPath)))
 
-        // Pass through the https_proxy/http_proxy environment variable,
+	// Pass through the https_proxy/http_proxy environment variable,
 	// in case the host requires a proxy server to reach the GCS endpoint.
 	// http_proxy has precedence over http_proxy, in case both are set
-        if p, ok := os.LookupEnv("https_proxy"); ok {
-                cmd.Env = append(cmd.Env, fmt.Sprintf("https_proxy=%s", p))
-        } else if p, ok := os.LookupEnv("http_proxy"); ok {
-                cmd.Env = append(cmd.Env, fmt.Sprintf("http_proxy=%s", p))
-        }
+	if p, ok := os.LookupEnv("https_proxy"); ok {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("https_proxy=%s", p))
+	} else if p, ok := os.LookupEnv("http_proxy"); ok {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("http_proxy=%s", p))
+	}
 
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
