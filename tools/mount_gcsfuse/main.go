@@ -86,16 +86,23 @@ func makeGcsfuseArgs(
 		// Special case: support mount-like formatting for gcsfuse string flags.
 		case "dir_mode",
 			"file_mode",
-			"key_file",
-			"temp_dir",
-			"gid",
 			"uid",
+			"gid",
 			"only_dir",
-			"limit_ops_per_sec",
+			"billing_project",
+			"key_file",
 			"limit_bytes_per_sec",
+			"limit_ops_per_sec",
+			"max_retry_sleep",
+			"stat_cache_capacity",
 			"stat_cache_ttl",
 			"type_cache_ttl",
-			"billing_project":
+			"local_file_cache",
+			"temp_dir",
+			"disable_http2",
+			"max_conns_per_host",
+			"monitoring_port",
+			"log_file":
 			args = append(args, "--"+strings.Replace(name, "_", "-", -1), value)
 
 		// Special case: support mount-like formatting for gcsfuse debug flags.
