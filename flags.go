@@ -128,6 +128,13 @@ func newApp() (app *cli.App) {
 					"(default: none, Google application default credentials used)",
 			},
 
+			cli.StringFlag{
+				Name:  "auth-proxy",
+				Value: "",
+				Usage: "A URL for an authentication proxy that provides access " +
+					"tokens. Used when key-file is unset.",
+			},
+
 			cli.Float64Flag{
 				Name:  "limit-bytes-per-sec",
 				Value: -1,
@@ -262,6 +269,7 @@ type flagStorage struct {
 	// GCS
 	BillingProject                     string
 	KeyFile                            string
+	AuthProxy                          string
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
 
@@ -304,6 +312,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		// GCS,
 		BillingProject:                     c.String("billing-project"),
 		KeyFile:                            c.String("key-file"),
+		AuthProxy:                          c.String("auth-proxy"),
 		EgressBandwidthLimitBytesPerSecond: c.Float64("limit-bytes-per-sec"),
 		OpRateLimitHz:                      c.Float64("limit-ops-per-sec"),
 
