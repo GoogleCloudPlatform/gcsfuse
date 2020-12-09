@@ -26,8 +26,10 @@ import (
 
 // Create token source from the JSON file at the supplide path.
 func newTokenSourceFromPath(
+	ctx context.Context,
 	path string,
-	scope string) (ts oauth2.TokenSource, err error) {
+	scope string,
+) (ts oauth2.TokenSource, err error) {
 	// Read the file.
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -43,29 +45,32 @@ func newTokenSourceFromPath(
 	}
 
 	// Create the token source.
-	ts = jwtConfig.TokenSource(context.Background())
+	ts = jwtConfig.TokenSource(ctx)
 
 	return
 }
 
 // GetTokenSource returns a TokenSource for GCS API given a key file, or
 // with the default credentials.
-func GetTokenSource(keyFile string) (tokenSrc oauth2.TokenSource, err error) {
+func GetTokenSource(
+	ctx context.Context,
+	keyFile string,
+) (tokenSrc oauth2.TokenSource, err error) {
 	// Create the oauth2 token source.
 	const scope = gcs.Scope_FullControl
+	var method string
 
 	if keyFile != "" {
-		tokenSrc, err = newTokenSourceFromPath(keyFile, scope)
-		if err != nil {
-			err = fmt.Errorf("newTokenSourceFromPath: %v", err)
-			return
-		}
+		tokenSrc, err = newTokenSourceFromPath(ctx, keyFile, scope)
+		method = "newTokenSourceFromPath"
 	} else {
-		tokenSrc, err = google.DefaultTokenSource(context.Background(), scope)
-		if err != nil {
-			err = fmt.Errorf("DefaultTokenSource: %v", err)
-			return
-		}
+		tokenSrc, err = google.DefaultTokenSource(ctx, scope)
+		method = "DefaultTokenSource"
+	}
+
+	if err != nil {
+		err = fmt.Errorf("%s: %v", method, err)
+		return
 	}
 	return
 }

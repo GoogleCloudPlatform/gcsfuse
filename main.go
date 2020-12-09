@@ -35,7 +35,6 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
-	"golang.org/x/oauth2"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
@@ -170,8 +169,7 @@ func handleMemoryProfileSignals() {
 }
 
 func getConn(flags *flagStorage) (c gcs.Conn, err error) {
-	var tokenSrc oauth2.TokenSource
-	tokenSrc, err = auth.GetTokenSource(flags.KeyFile)
+	tokenSrc, err := auth.GetTokenSource(context.Background(), flags.KeyFile)
 	if err != nil {
 		err = fmt.Errorf("GetTokenSource: %v", err)
 		return
