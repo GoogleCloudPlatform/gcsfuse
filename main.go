@@ -38,6 +38,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/logfile"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
@@ -168,7 +169,7 @@ func handleMemoryProfileSignals() {
 	}
 }
 
-func getConn(flags *flagStorage) (c gcs.Conn, err error) {
+func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 	tokenSrc, err := auth.GetTokenSource(context.Background(), flags.KeyFile)
 	if err != nil {
 		err = fmt.Errorf("GetTokenSource: %v", err)
@@ -205,7 +206,7 @@ func getConn(flags *flagStorage) (c gcs.Conn, err error) {
 		cfg.GCSDebugLogger = log.New(os.Stdout, "gcs: ", log.Flags())
 	}
 
-	return gcs.NewConn(cfg)
+	return gcsx.NewConnection(cfg)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -227,7 +228,7 @@ func mountWithArgs(
 	//
 	// Special case: if we're mounting the fake bucket, we don't need an actual
 	// connection.
-	var conn gcs.Conn
+	var conn *gcsx.Connection
 	if bucketName != canned.FakeBucketName {
 		mountStatus.Println("Opening GCS connection...")
 
