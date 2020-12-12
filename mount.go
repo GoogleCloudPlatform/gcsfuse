@@ -26,7 +26,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
-	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -37,7 +36,7 @@ func mountWithConn(
 	bucketName string,
 	mountPoint string,
 	flags *flagStorage,
-	conn gcs.Conn,
+	conn *gcsx.Connection,
 	status *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO

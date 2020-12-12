@@ -23,13 +23,11 @@ import (
 
 	"golang.org/x/net/context"
 
-	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
 	"github.com/jacobsa/ratelimit"
 	"github.com/jacobsa/timeutil"
-	"google.golang.org/api/iterator"
 )
 
 type BucketConfig struct {
@@ -76,24 +74,17 @@ type BucketManager interface {
 
 type bucketManager struct {
 	config BucketConfig
-	conn   gcs.Conn
+	conn   *Connection
 
 	// Garbage collector
 	gcCtx                 context.Context
 	stopGarbageCollecting func()
-
-	client *storage.Client
 }
 
-func NewBucketManager(config BucketConfig, conn gcs.Conn) BucketManager {
-	client, err := storage.NewClient(context.Background())
-	if err != nil {
-		panic(fmt.Sprintf("Cannot connect to GCS: %v", err))
-	}
+func NewBucketManager(config BucketConfig, conn *Connection) BucketManager {
 	bm := &bucketManager{
 		config: config,
 		conn:   conn,
-		client: client,
 	}
 	bm.gcCtx, bm.stopGarbageCollecting = context.WithCancel(context.Background())
 	return bm
@@ -247,21 +238,6 @@ func (bm *bucketManager) ShutDown() {
 func (bm *bucketManager) ListBuckets(ctx context.Context) (
 	names []string,
 	err error) {
-	if bm.config.BillingProject == "" {
-		err = fmt.Errorf("ListBuckets: BillingProject not configured")
-		return
-	}
-	it := bm.client.Buckets(ctx, bm.config.BillingProject)
-	for {
-		bucket, nextErr := it.Next()
-		switch nextErr {
-		case nil:
-			names = append(names, bucket.Name)
-		case iterator.Done:
-			return
-		default:
-			err = nextErr
-			return
-		}
-	}
+	names, err = bm.conn.ListBuckets(ctx, bm.config.BillingProject)
+	return
 }
