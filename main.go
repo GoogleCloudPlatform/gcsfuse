@@ -173,7 +173,7 @@ func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 	tokenSrc, err := auth.GetTokenSource(
 		context.Background(),
 		flags.KeyFile,
-		flags.AuthProxy,
+		flags.TokenUrl,
 	)
 	if err != nil {
 		err = fmt.Errorf("GetTokenSource: %v", err)
