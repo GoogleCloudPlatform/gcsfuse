@@ -91,6 +91,7 @@ func makeGcsfuseArgs(
 			"only_dir",
 			"billing_project",
 			"key_file",
+			"token_url",
 			"limit_bytes_per_sec",
 			"limit_ops_per_sec",
 			"max_retry_sleep",
