@@ -153,7 +153,7 @@ First, handle prerequisites:
 
 Afterward, gcsfuse can be installed with `brew`:
 
-    brew cask install osxfuse
+    brew install osxfuse
     brew install gcsfuse
     sudo ln -s /usr/local/sbin/mount_gcsfuse /sbin  # For mount(8) support
 
