@@ -26,7 +26,7 @@ RUN apt-get update -qq && \
 ENV CGO_ENABLED=0
 ENV GOOS=linux
 
-ARG GCSFUSE_VERSION="0.33.0"
+ARG GCSFUSE_VERSION="0.33.1"
 ARG GCSFUSE_REPO="github.com/googlecloudplatform/gcsfuse/"
 ENV GCSFUSE_PATH "$GOPATH/src/$GCSFUSE_REPO"
 RUN go get -u ${GCSFUSE_REPO}
@@ -39,6 +39,7 @@ WORKDIR ${GOPATH}
 RUN go install ${GCSFUSE_REPO}/tools/build_gcsfuse
 RUN mkdir -p ${GCSFUSE_BIN}
 RUN build_gcsfuse ${GCSFUSE_PATH} ${GCSFUSE_BIN} ${GCSFUSE_VERSION}
+RUN mkdir -p ${GCSFUSE_BIN}/usr && mv ${GCSFUSE_BIN}/bin ${GCSFUSE_BIN}/usr/bin
 
 ARG GCSFUSE_PKG="/packages"
 RUN mkdir -p ${GCSFUSE_PKG}
