@@ -153,18 +153,17 @@ First, handle prerequisites:
 
 Afterward, gcsfuse can be installed with `brew`:
 
-    brew cask install osxfuse
+    brew install --cask install osxfuse
     brew install gcsfuse
     sudo ln -s /usr/local/sbin/mount_gcsfuse /sbin  # For mount(8) support
 
-The second command is only necessary if you want to use gcsfuse with the
+The symlink command is only necessary if you want to use gcsfuse with the
 `mount` command or in your `/etc/fstab` file, as opposed to calling `gcsfuse`
 directly.
 
 In the future gcsfuse can be updated in the usual way for homebrew packages:
 
     brew update && brew upgrade
-
 
 # Building from source
 
