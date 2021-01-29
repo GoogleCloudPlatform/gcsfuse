@@ -77,7 +77,7 @@ notes in [semantics.md][semantics-implicit-dirs] for more information.
 [semantics-implicit-dirs]: docs/semantics.md#implicit-directories
 
 See [mounting.md][] for more detail, including notes on running in the
-foreground and fstab compatiblity.
+foreground and fstab compatibility.
 
 [mounting.md]: /docs/mounting.md
 
