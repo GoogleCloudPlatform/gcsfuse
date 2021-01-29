@@ -126,7 +126,7 @@ If you would prefer to mount the file system automatically, you may need to pass
 the `x-systemd.requires=network-online.target` or `_netdev` option to ensure that gcsfuse waits
 for the network system to be ready prior to mounting.
 
-    my-bucket /mount/point gcsfuse rw,systemd.requires=network-online.target,user
+    my-bucket /mount/point gcsfuse rw,x-systemd.requires=network-online.target,user
 
 You can also mount the file system automatically as a non-root user by
 specifying the options `uid` and/or `gid`:
