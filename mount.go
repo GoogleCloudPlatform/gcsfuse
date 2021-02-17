@@ -23,6 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
@@ -121,11 +122,11 @@ be interacting with the file system.`)
 		FSName:      "gcsfuse",
 		VolumeName:  "gcsfuse",
 		Options:     flags.MountOptions,
-		ErrorLogger: log.New(os.Stderr, "fuse: ", log.Flags()),
+		ErrorLogger: logger.NewError("fuse: "),
 	}
 
 	if flags.DebugFuse {
-		mountCfg.DebugLogger = log.New(os.Stdout, "fuse_debug: ", log.Flags())
+		mountCfg.DebugLogger = logger.NewDebug("fuse_debug: ")
 	}
 
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)

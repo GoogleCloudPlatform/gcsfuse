@@ -62,13 +62,13 @@ func registerSIGINTHandler(mountPoint string) {
 	go func() {
 		for {
 			<-signalChan
-			log.Println("Received SIGINT, attempting to unmount...")
+			logger.Info("Received SIGINT, attempting to unmount...")
 
 			err := fuse.Unmount(mountPoint)
 			if err != nil {
-				log.Printf("Failed to unmount in response to SIGINT: %v", err)
+				logger.Infof("Failed to unmount in response to SIGINT: %v", err)
 			} else {
-				log.Printf("Successfully unmounted in response to SIGINT.")
+				logger.Infof("Successfully unmounted in response to SIGINT.")
 				return
 			}
 		}
@@ -76,7 +76,7 @@ func registerSIGINTHandler(mountPoint string) {
 }
 
 func startMonitoringHTTPHandler(monitoringPort int) {
-	fmt.Printf("Exporting metrics at localhost:%v/metrics\n", monitoringPort)
+	logger.Infof("Exporting metrics at localhost:%v/metrics\n", monitoringPort)
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
 		http.ListenAndServe(fmt.Sprintf(":%v", monitoringPort), nil)
@@ -113,13 +113,13 @@ func handleCPUProfileSignals() {
 		const path = "/tmp/cpu.pprof"
 		const duration = 10 * time.Second
 
-		log.Printf("Writing %v CPU profile to %s...", duration, path)
+		logger.Infof("Writing %v CPU profile to %s...", duration, path)
 
 		err := profileOnce(duration, path)
 		if err == nil {
-			log.Printf("Done writing CPU profile to %s.", path)
+			logger.Infof("Done writing CPU profile to %s.", path)
 		} else {
-			log.Printf("Error writing CPU profile: %v", err)
+			logger.Infof("Error writing CPU profile: %v", err)
 		}
 	}
 }
@@ -162,9 +162,9 @@ func handleMemoryProfileSignals() {
 
 		err := profileOnce(path)
 		if err == nil {
-			log.Printf("Wrote memory profile to %s.", path)
+			logger.Infof("Wrote memory profile to %s.", path)
 		} else {
-			log.Printf("Error writing memory profile: %v", err)
+			logger.Infof("Error writing memory profile: %v", err)
 		}
 	}
 }
@@ -203,11 +203,11 @@ func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 	}
 
 	if flags.DebugHTTP {
-		cfg.HTTPDebugLogger = log.New(os.Stdout, "http: ", 0)
+		cfg.HTTPDebugLogger = logger.NewDebug("http: ")
 	}
 
 	if flags.DebugGCS {
-		cfg.GCSDebugLogger = log.New(os.Stdout, "gcs: ", log.Flags())
+		cfg.GCSDebugLogger = logger.NewDebug("gcs: ")
 	}
 
 	return gcsx.NewConnection(cfg)
@@ -297,11 +297,10 @@ func populateArgs(c *cli.Context) (
 func runCLIApp(c *cli.Context) (err error) {
 	flags := populateFlags(c)
 
-	// If log file provided, override the default status output
-	if flags.LogFile != "" {
-		daemonize.StatusWriter, err = logger.Init(flags.LogFile)
+	if flags.Foreground && flags.LogFile != "" {
+		err = logger.InitLogFile(flags.LogFile)
 		if err != nil {
-			return
+			return fmt.Errorf("init log file: %v", err)
 		}
 	}
 
@@ -371,7 +370,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
-		mountStatus := log.New(daemonize.StatusWriter, "", 0)
+		mountStatus := logger.NewNotice("")
 		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountStatus)
 
 		if err == nil {

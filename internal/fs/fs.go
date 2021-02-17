@@ -17,7 +17,6 @@ package fs
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"reflect"
 	"time"
@@ -25,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -134,11 +134,11 @@ func NewServer(
 	// Set up root bucket
 	var root inode.DirInode
 	if cfg.BucketName == "" || cfg.BucketName == "_" {
-		fmt.Println("Set up root directory for all accessible buckets")
+		logger.Info("Set up root directory for all accessible buckets")
 		root = makeRootForAllBuckets(fs)
 	} else {
 		var syncerBucket gcsx.SyncerBucket
-		fmt.Println("Set up root directory for bucket " + cfg.BucketName)
+		logger.Info("Set up root directory for bucket " + cfg.BucketName)
 		syncerBucket, err = fs.bucketManager.SetUpBucket(ctx, cfg.BucketName)
 		if err != nil {
 			err = fmt.Errorf("SetUpBucket: %v", err)
@@ -826,7 +826,7 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(
 	if shouldDestroy {
 		destroyErr := in.Destroy()
 		if destroyErr != nil {
-			log.Printf("Error destroying inode %q: %v", name, destroyErr)
+			logger.Infof("Error destroying inode %q: %v", name, destroyErr)
 		}
 	}
 

@@ -24,6 +24,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
 	"github.com/jacobsa/ratelimit"
@@ -156,7 +157,7 @@ func (bm *bucketManager) SetUpBucket(
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		fmt.Printf("OpenBucket(%q, %q)\n", name, bm.config.BillingProject)
+		logger.Infof("OpenBucket(%q, %q)\n", name, bm.config.BillingProject)
 		b, err = bm.conn.OpenBucket(
 			ctx,
 			&gcs.OpenBucketOptions{

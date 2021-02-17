@@ -31,6 +31,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
@@ -59,7 +60,7 @@ func init() {
 
 	go func() {
 		<-c
-		log.Println("Received SIGINT; exiting after this test completes.")
+		logger.Info("Received SIGINT; exiting after this test completes.")
 		StopRunningTests()
 	}()
 }
@@ -151,11 +152,11 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 
 	const loggingFlags = log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile
 	if mountCfg.ErrorLogger == nil {
-		mountCfg.ErrorLogger = log.New(os.Stderr, "fuse_errors: ", loggingFlags)
+		mountCfg.ErrorLogger = logger.NewError("fuse_errors: ")
 	}
 
 	if *fDebug {
-		mountCfg.DebugLogger = log.New(os.Stderr, "fuse: ", loggingFlags)
+		mountCfg.DebugLogger = logger.NewDebug("fuse: ")
 	}
 
 	t.mfs, err = fuse.Mount(t.Dir, server, &mountCfg)
@@ -183,7 +184,7 @@ func (t *fsTest) TearDown() {
 		}
 
 		if strings.Contains(err.Error(), "resource busy") {
-			log.Println("Resource busy error while unmounting; trying again")
+			logger.Info("Resource busy error while unmounting; trying again")
 			time.Sleep(delay)
 			delay = time.Duration(1.3 * float64(delay))
 			continue

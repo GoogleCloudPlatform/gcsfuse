@@ -21,9 +21,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/urfave/cli"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
+	"github.com/urfave/cli"
 )
 
 func TestFlags(t *testing.T) { RunTests(t) }

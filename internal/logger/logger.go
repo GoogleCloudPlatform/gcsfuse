@@ -15,65 +15,115 @@
 package logger
 
 import (
-	"encoding/json"
 	"io"
+	"log"
 	"os"
-	"time"
+
+	"github.com/jacobsa/daemonize"
 )
 
-// Init creates or opens a log file.
-func Init(filename string) (f io.Writer, err error) {
-	f, err = os.OpenFile(
+var (
+	defaultLoggerFactory *loggerFactory
+	defaultInfoLogger    *log.Logger
+)
+
+// InitLogFile initializes the logger factory to create loggers that print to
+// a log file.
+func InitLogFile(filename string) error {
+	f, err := os.OpenFile(
 		filename,
 		os.O_WRONLY|os.O_CREATE|os.O_APPEND,
 		0644,
 	)
-	f = &fluentdWriter{
-		w: f,
-	}
-	return
-}
-
-type logEntry struct {
-	Name             string `json:"name,omitempty"`
-	LevelName        string `json:"levelname,omitempty"`
-	Severity         string `json:"severity,omitempty"`
-	Message          string `json:"message,omitempty"`
-	TimestampSeconds int64  `json:"timestampSeconds,omitempty"`
-	TimestampNanos   int    `json:"timestampNanos,omitempty"`
-}
-
-// FluentdLogFile is an io.Writer that prints the logs to the file in
-// fluentd-based json format. This is not thread-safe.
-type fluentdWriter struct {
-	w io.Writer
-}
-
-// Write writes log message with formatting.
-func (f *fluentdWriter) Write(p []byte) (n int, err error) {
-	now := time.Now()
-
-	entry := logEntry{
-		Name:             "root",
-		LevelName:        "INFO",
-		Severity:         "INFO",
-		Message:          string(p),
-		TimestampSeconds: now.Unix(),
-		TimestampNanos:   now.Nanosecond(),
-	}
-
-	var buf []byte
-	buf, err = json.Marshal(entry)
 	if err != nil {
-		return
+		return err
 	}
 
-	buf = append(buf, '\n')
-	_, err = f.w.Write(buf)
-	if err != nil {
-		return
+	defaultLoggerFactory = &loggerFactory{
+		file: f,
+		flag: 0,
+	}
+	defaultInfoLogger = NewInfo("")
+
+	return nil
+}
+
+// init initializes the logger factory to use stdout and stderr.
+func init() {
+	defaultLoggerFactory = &loggerFactory{
+		file: nil,
+		flag: log.Ldate | log.Ltime | log.Lmicroseconds,
+	}
+	defaultInfoLogger = NewInfo("")
+}
+
+// Close closes the log file when necessary.
+func Close() {
+	if f := defaultLoggerFactory.file; f != nil {
+		f.Close()
+		defaultLoggerFactory.file = nil
+	}
+}
+
+// NewNotice returns a new logger for logging notice with given prefix to
+// the log file or the status writer which forwards the notices to the invoker
+// from the daemon.
+func NewNotice(prefix string) *log.Logger {
+	return defaultLoggerFactory.newLogger("NOTICE", prefix)
+}
+
+// NewDebug returns a new logger for logging debug messages with given prefix
+// to the log file or stdout.
+func NewDebug(prefix string) *log.Logger {
+	return defaultLoggerFactory.newLogger("DEBUG", prefix)
+}
+
+// NewInfo returns a new logger for logging info with given prefix to the log
+// file or stdout.
+func NewInfo(prefix string) *log.Logger {
+	return defaultLoggerFactory.newLogger("INFO", prefix)
+}
+
+// NewError returns a new logger for logging errors with given prefix to the log
+// file or stderr.
+func NewError(prefix string) *log.Logger {
+	return defaultLoggerFactory.newLogger("ERROR", prefix)
+}
+
+// Info calls the default info logger to print the message using Printf.
+func Infof(format string, v ...interface{}) {
+	defaultInfoLogger.Printf(format, v...)
+}
+
+// Info calls the default info logger to print the message using Println.
+func Info(v ...interface{}) {
+	defaultInfoLogger.Println(v...)
+}
+
+type loggerFactory struct {
+	// If nil, log to stdout or stderr. Otherwise, log to this file.
+	file *os.File
+	flag int
+}
+
+func (f *loggerFactory) newLogger(level, prefix string) *log.Logger {
+	return log.New(f.writer(level), prefix, f.flag)
+}
+
+func (f *loggerFactory) writer(level string) io.Writer {
+	if f.file != nil {
+		return &jsonWriter{
+			w:     f.file,
+			level: level,
+		}
 	}
 
-	n = len(p)
-	return
+	switch level {
+	case "NOTICE":
+		return daemonize.StatusWriter
+	case "ERROR":
+		return os.Stderr
+	default:
+		return os.Stdout
+	}
 }

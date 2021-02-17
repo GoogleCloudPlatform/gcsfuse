@@ -16,12 +16,12 @@ package gcsx
 
 import (
 	"fmt"
-	"log"
 	"sync/atomic"
 	"time"
 
 	"golang.org/x/net/context"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	"github.com/jacobsa/syncutil"
@@ -111,20 +111,20 @@ func garbageCollect(
 		case <-ticker.C:
 		}
 
-		log.Println("Starting a garbage collection run.")
+		logger.Info("Starting a garbage collection run.")
 
 		startTime := time.Now()
 		objectsDeleted, err := garbageCollectOnce(ctx, tmpObjectPrefix, bucket)
 
 		if err != nil {
-			log.Printf(
+			logger.Infof(
 				"Garbage collection failed after deleting %d objects in %v, "+
 					"with error: %v",
 				objectsDeleted,
 				time.Since(startTime),
 				err)
 		} else {
-			log.Printf(
+			logger.Infof(
 				"Garbage collection succeeded after deleted %d objects in %v.",
 				objectsDeleted,
 				time.Since(startTime))

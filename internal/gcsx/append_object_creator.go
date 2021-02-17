@@ -94,7 +94,7 @@ func (oc *appendObjectCreator) Create(
 	tmp, err := oc.bucket.CreateObject(
 		ctx,
 		&gcs.CreateObjectRequest{
-			Name: tmpName,
+			Name:                   tmpName,
 			GenerationPrecondition: &zero,
 			Contents:               r,
 		})
