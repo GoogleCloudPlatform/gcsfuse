@@ -39,7 +39,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/internal/logfile"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
@@ -299,7 +299,7 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	// If log file provided, override the default status output
 	if flags.LogFile != "" {
-		daemonize.StatusWriter, err = logfile.Init(flags.LogFile)
+		daemonize.StatusWriter, err = logger.Init(flags.LogFile)
 		if err != nil {
 			return
 		}
