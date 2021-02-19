@@ -117,9 +117,13 @@ be interacting with the file system.`)
 
 	// Mount the file system.
 	status.Println("Mounting file system...")
+	fsName := bucketName
+	if fsName == "" {
+		fsName = "gcsfuse"
+	}
 
 	mountCfg := &fuse.MountConfig{
-		FSName:      "gcsfuse",
+		FSName:      fsName,
 		VolumeName:  "gcsfuse",
 		Options:     flags.MountOptions,
 		ErrorLogger: logger.NewError("fuse: "),
