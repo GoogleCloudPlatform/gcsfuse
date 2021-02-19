@@ -991,7 +991,7 @@ func (fs *fileSystem) LookUpInode(
 	// Find or create the child inode.
 	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
 	if err != nil {
-		return
+		return errno(err)
 	}
 
 	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
@@ -1002,7 +1002,7 @@ func (fs *fileSystem) LookUpInode(
 	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
 
 	if err != nil {
-		return
+		return errno(err)
 	}
 
 	return
@@ -1023,7 +1023,7 @@ func (fs *fileSystem) GetInodeAttributes(
 	// Grab its attributes.
 	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in)
 	if err != nil {
-		return
+		return errno(err)
 	}
 
 	return
@@ -1047,7 +1047,7 @@ func (fs *fileSystem) SetInodeAttributes(
 		err = file.SetMtime(ctx, *op.Mtime)
 		if err != nil {
 			err = fmt.Errorf("SetMtime: %w", err)
-			return
+			return errno(err)
 		}
 	}
 
@@ -1056,7 +1056,7 @@ func (fs *fileSystem) SetInodeAttributes(
 		err = file.Truncate(ctx, int64(*op.Size))
 		if err != nil {
 			err = fmt.Errorf("Truncate: %w", err)
-			return
+			return errno(err)
 		}
 	}
 
@@ -1066,7 +1066,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in)
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
-		return
+		return errno(err)
 	}
 
 	return
@@ -1115,7 +1115,7 @@ func (fs *fileSystem) MkDir(
 	// Propagate other errors.
 	if err != nil {
 		err = fmt.Errorf("CreateChildDir: %w", err)
-		return
+		return errno(err)
 	}
 
 	// Attempt to create a child inode using the object we created. If we fail to
@@ -1125,7 +1125,7 @@ func (fs *fileSystem) MkDir(
 	child := fs.lookUpOrCreateInodeIfNotStale(bucket, childname, o)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
-		return
+		return errno(err)
 	}
 
 	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
@@ -1137,7 +1137,7 @@ func (fs *fileSystem) MkDir(
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
-		return
+		return errno(err)
 	}
 
 	return
@@ -1150,7 +1150,7 @@ func (fs *fileSystem) MkNode(
 	// Create the child.
 	child, err := fs.createFile(ctx, op.Parent, op.Name, op.Mode)
 	if err != nil {
-		return
+		return errno(err)
 	}
 
 	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
@@ -1162,7 +1162,7 @@ func (fs *fileSystem) MkNode(
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
-		return
+		return errno(err)
 	}
 
 	return
@@ -1198,7 +1198,7 @@ func (fs *fileSystem) createFile(
 	// Propagate other errors.
 	if err != nil {
 		err = fmt.Errorf("CreateChildFile: %w", err)
-		return
+		return 
 	}
 
 	// Attempt to create a child inode using the object we created. If we fail to
@@ -1221,7 +1221,7 @@ func (fs *fileSystem) CreateFile(
 	// Create the child.
 	child, err := fs.createFile(ctx, op.Parent, op.Name, op.Mode)
 	if err != nil {
-		return
+		return errno(err)
 	}
 
 	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
@@ -1244,7 +1244,7 @@ func (fs *fileSystem) CreateFile(
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
-		return
+		return errno(err)
 	}
 
 	return
@@ -1273,7 +1273,7 @@ func (fs *fileSystem) CreateSymlink(
 	// Propagate other errors.
 	if err != nil {
 		err = fmt.Errorf("CreateChildSymlink: %w", err)
-		return
+		return errno(err)
 	}
 
 	// Attempt to create a child inode using the object we created. If we fail to
@@ -1283,7 +1283,7 @@ func (fs *fileSystem) CreateSymlink(
 	child := fs.lookUpOrCreateInodeIfNotStale(bucket, childname, o)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
-		return
+		return errno(err)
 	}
 
 	defer fs.unlockAndMaybeDisposeOfInode(child, &err)
@@ -1295,7 +1295,7 @@ func (fs *fileSystem) CreateSymlink(
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
-		return
+		return errno(err)
 	}
 
 	return
@@ -1351,7 +1351,7 @@ func (fs *fileSystem) RmDir(
 		entries, tok, err = childDir.ReadEntries(ctx, tok)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %w", err)
-			return
+			return errno(err)
 		}
 
 		// Are there any entries?
@@ -1376,7 +1376,7 @@ func (fs *fileSystem) RmDir(
 
 	if err != nil {
 		err = fmt.Errorf("DeleteChildDir: %w", err)
-		return
+		return errno(err)
 	}
 
 	return
@@ -1399,12 +1399,12 @@ func (fs *fileSystem) Rename(
 
 	if err != nil {
 		err = fmt.Errorf("LookUpChild: %w", err)
-		return
+		return errno(err)
 	}
 
 	if !lr.Exists() {
 		err = fuse.ENOENT
-		return
+		return errno(err)
 	}
 
 	// We don't support renaming directories.
@@ -1423,7 +1423,7 @@ func (fs *fileSystem) Rename(
 
 	if err != nil {
 		err = fmt.Errorf("CloneToChildFile: %w", err)
-		return
+		return errno(err)
 	}
 
 	// Delete behind. Make sure to delete exactly the generation we cloned, in
@@ -1438,7 +1438,7 @@ func (fs *fileSystem) Rename(
 
 	if err != nil {
 		err = fmt.Errorf("DeleteChildFile: %w", err)
-		return
+		return errno(err)
 	}
 
 	return
@@ -1465,7 +1465,7 @@ func (fs *fileSystem) Unlink(
 
 	if err != nil {
 		err = fmt.Errorf("DeleteChildFile: %w", err)
-		return
+		return errno(err)
 	}
 
 	return
@@ -1506,9 +1506,11 @@ func (fs *fileSystem) ReadDir(
 	defer dh.Mu.Unlock()
 
 	// Serve the request.
-	err = dh.ReadDir(ctx, op)
+	if err := dh.ReadDir(ctx, op); err != nil {
+		return errno(err)
+	}
 
-	return
+	return 
 }
 
 // LOCKS_EXCLUDED(fs.mu)
@@ -1607,7 +1609,9 @@ func (fs *fileSystem) WriteFile(
 	defer in.Unlock()
 
 	// Serve the request.
-	err = in.Write(ctx, op.Data, op.Offset)
+	if err := in.Write(ctx, op.Data, op.Offset); err != nil {
+		return errno(err)
+	}
 
 	return
 }
@@ -1625,7 +1629,9 @@ func (fs *fileSystem) SyncFile(
 	defer in.Unlock()
 
 	// Sync it.
-	err = fs.syncFile(ctx, in)
+	if  err := fs.syncFile(ctx, in); err != nil {
+		return errno(err)
+	}
 
 	return
 }
@@ -1643,7 +1649,9 @@ func (fs *fileSystem) FlushFile(
 	defer in.Unlock()
 
 	// Sync it.
-	err = fs.syncFile(ctx, in)
+	if err := fs.syncFile(ctx, in); err != nil {
+		return errno(err)
+	}
 
 	return
 }
