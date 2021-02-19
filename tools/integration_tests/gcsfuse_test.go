@@ -90,7 +90,7 @@ func (t *GcsfuseTest) runGcsfuse(args []string) (err error) {
 	// Run.
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		err = fmt.Errorf("error %q running gcsfuse; output:\n%s", err.Error(), output)
+		err = fmt.Errorf("error %w running gcsfuse; output:\n%s", err, output)
 		return
 	}
 
@@ -115,7 +115,7 @@ func unmount(dir string) (err error) {
 			continue
 		}
 
-		err = fmt.Errorf("Unmount: %v", err)
+		err = fmt.Errorf("Unmount: %w", err)
 		return
 	}
 }

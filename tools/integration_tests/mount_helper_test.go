@@ -89,7 +89,7 @@ func (t *MountHelperTest) mount(args []string) (err error) {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		err = fmt.Errorf("CombinedOutput: %v\nOutput:\n%s", err, output)
+		err = fmt.Errorf("CombinedOutput: %w\nOutput:\n%s", err, output)
 		return
 	}
 

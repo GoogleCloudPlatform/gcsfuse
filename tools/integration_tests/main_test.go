@@ -43,21 +43,21 @@ func TestMain(m *testing.M) {
 	if runtime.GOOS == "linux" {
 		gFusermountPath, err = exec.LookPath("fusermount")
 		if err != nil {
-			log.Fatalf("LookPath(fusermount): %v", err)
+			log.Fatalf("LookPath(fusermount): %w", err)
 		}
 	}
 
 	// Set up a directory into which we will build.
 	gBuildDir, err = ioutil.TempDir("", "gcsfuse_integration_tests")
 	if err != nil {
-		log.Fatalf("TempDir: %v", err)
+		log.Fatalf("TempDir: %w", err)
 		return
 	}
 
 	// Build into that directory.
 	err = buildGcsfuse(gBuildDir)
 	if err != nil {
-		log.Fatalf("buildGcsfuse: %v", err)
+		log.Fatalf("buildGcsfuse: %w", err)
 		return
 	}
 
@@ -77,7 +77,7 @@ func buildGcsfuse(dstDir string) (err error) {
 		var toolDir string
 		toolDir, err = ioutil.TempDir("", "gcsfuse_integration_tests")
 		if err != nil {
-			err = fmt.Errorf("TempDir: %v", err)
+			err = fmt.Errorf("TempDir: %w", err)
 			return
 		}
 
@@ -88,7 +88,7 @@ func buildGcsfuse(dstDir string) (err error) {
 
 		err = buildBuildGcsfuse(toolPath)
 		if err != nil {
-			err = fmt.Errorf("buildBuildGcsfuse: %v", err)
+			err = fmt.Errorf("buildBuildGcsfuse: %w", err)
 			return
 		}
 	}
@@ -103,7 +103,7 @@ func buildGcsfuse(dstDir string) (err error) {
 			build.FindOnly)
 
 		if err != nil {
-			err = fmt.Errorf("build.Import: %v", err)
+			err = fmt.Errorf("build.Import: %w", err)
 			return
 		}
 
@@ -124,7 +124,7 @@ func buildGcsfuse(dstDir string) (err error) {
 		var output []byte
 		output, err = cmd.CombinedOutput()
 		if err != nil {
-			err = fmt.Errorf("build_gcsfuse: %v\nOutput:\n%s", err, output)
+			err = fmt.Errorf("build_gcsfuse: %w\nOutput:\n%s", err, output)
 			return
 		}
 	}
@@ -144,7 +144,7 @@ func buildBuildGcsfuse(dst string) (err error) {
 			build.FindOnly)
 
 		if err != nil {
-			err = fmt.Errorf("build.Import: %v", err)
+			err = fmt.Errorf("build.Import: %w", err)
 			return
 		}
 
@@ -154,7 +154,7 @@ func buildBuildGcsfuse(dst string) (err error) {
 	// Create a directory to become GOPATH for our build below.
 	gopath, err := ioutil.TempDir("", "build_gcsfuse_gopath")
 	if err != nil {
-		err = fmt.Errorf("TempDir: %v", err)
+		err = fmt.Errorf("TempDir: %w", err)
 		return
 	}
 	defer os.RemoveAll(gopath)
@@ -163,7 +163,7 @@ func buildBuildGcsfuse(dst string) (err error) {
 	var gocache string
 	gocache, err = ioutil.TempDir("", "build_gcsfuse_gocache")
 	if err != nil {
-		err = fmt.Errorf("TempDir: %v", err)
+		err = fmt.Errorf("TempDir: %w", err)
 		return
 	}
 	defer os.RemoveAll(gocache)
@@ -186,7 +186,7 @@ func buildBuildGcsfuse(dst string) (err error) {
 		var output []byte
 		output, err = cmd.CombinedOutput()
 		if err != nil {
-			err = fmt.Errorf("go build build_gcsfuse: %v\nOutput:\n%s", err, output)
+			err = fmt.Errorf("go build build_gcsfuse: %w\nOutput:\n%s", err, output)
 			return
 		}
 	}

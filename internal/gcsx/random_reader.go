@@ -153,7 +153,7 @@ func (rr *randomReader) ReadAt(
 		if rr.reader == nil {
 			err = rr.startRead(offset, int64(len(p)))
 			if err != nil {
-				err = fmt.Errorf("startRead: %v", err)
+				err = fmt.Errorf("startRead: %w", err)
 				return
 			}
 		}
@@ -205,7 +205,7 @@ func (rr *randomReader) ReadAt(
 
 		case err != nil:
 			// Propagate other errors.
-			err = fmt.Errorf("readFull: %v", err)
+			err = fmt.Errorf("readFull: %w", err)
 			return
 		}
 	}
@@ -320,7 +320,7 @@ func (rr *randomReader) startRead(
 		})
 
 	if err != nil {
-		err = fmt.Errorf("NewReader: %v", err)
+		err = fmt.Errorf("NewReader: %w", err)
 		return
 	}
 

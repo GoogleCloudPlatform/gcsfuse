@@ -284,7 +284,7 @@ func (d *dirInode) lookUpChildFile(
 	result.FullName = NewFileName(d.Name(), name)
 	result.Object, err = statObjectMayNotExist(ctx, d.bucket, result.FullName)
 	if err != nil {
-		err = fmt.Errorf("statObjectMayNotExist: %v", err)
+		err = fmt.Errorf("statObjectMayNotExist: %w", err)
 		return
 	}
 
@@ -303,7 +303,7 @@ func (d *dirInode) lookUpChildDir(
 		result.FullName = childName
 		result.Object, err = statObjectMayNotExist(ctx, d.bucket, result.FullName)
 		if err != nil {
-			err = fmt.Errorf("statObjectMayNotExist: %v", err)
+			err = fmt.Errorf("statObjectMayNotExist: %w", err)
 			return
 		}
 
@@ -320,7 +320,7 @@ func (d *dirInode) lookUpChildDir(
 				childName.GcsObjectName())
 
 			if err != nil {
-				err = fmt.Errorf("objectNamePrefixNonEmpty: %v", err)
+				err = fmt.Errorf("objectNamePrefixNonEmpty: %w", err)
 				return
 			}
 
@@ -352,7 +352,7 @@ func (d *dirInode) lookUpConflicting(
 	var dirResult LookUpResult
 	dirResult, err = d.lookUpChildDir(ctx, strippedName)
 	if err != nil {
-		err = fmt.Errorf("lookUpChildDir for stripped name: %v", err)
+		err = fmt.Errorf("lookUpChildDir for stripped name: %w", err)
 		return
 	}
 
@@ -363,7 +363,7 @@ func (d *dirInode) lookUpConflicting(
 	// The directory name exists. Find the conflicting file.
 	result, err = d.lookUpChildFile(ctx, strippedName)
 	if err != nil {
-		err = fmt.Errorf("lookUpChildFile for stripped name: %v", err)
+		err = fmt.Errorf("lookUpChildFile for stripped name: %w", err)
 		return
 	}
 
@@ -382,7 +382,7 @@ func objectNamePrefixNonEmpty(
 
 	listing, err := bucket.ListObjects(ctx, req)
 	if err != nil {
-		err = fmt.Errorf("ListObjects: %v", err)
+		err = fmt.Errorf("ListObjects: %w", err)
 		return
 	}
 
@@ -410,7 +410,7 @@ func statObjectMayNotExist(
 
 	// Annotate others.
 	if err != nil {
-		err = fmt.Errorf("StatObject: %v", err)
+		err = fmt.Errorf("StatObject: %w", err)
 		return
 	}
 
@@ -457,7 +457,7 @@ func filterMissingChildDirNames(
 			NewDirName(dirName, name),
 		)
 		if err != nil {
-			err = fmt.Errorf("statObjectMayNotExist: %v", err)
+			err = fmt.Errorf("statObjectMayNotExist: %w", err)
 			return
 		}
 
@@ -727,7 +727,7 @@ func (d *dirInode) ReadEntries(
 
 	listing, err := d.bucket.ListObjects(ctx, req)
 	if err != nil {
-		err = fmt.Errorf("ListObjects: %v", err)
+		err = fmt.Errorf("ListObjects: %w", err)
 		return
 	}
 
@@ -760,7 +760,7 @@ func (d *dirInode) ReadEntries(
 	// Filter the directory names according to our implicit directory settings.
 	dirNames, err = d.filterMissingChildDirs(ctx, dirNames)
 	if err != nil {
-		err = fmt.Errorf("filterMissingChildDirs: %v", err)
+		err = fmt.Errorf("filterMissingChildDirs: %w", err)
 		return
 	}
 
@@ -898,7 +898,7 @@ func (d *dirInode) DeleteChildFile(
 		})
 
 	if err != nil {
-		err = fmt.Errorf("DeleteObject: %v", err)
+		err = fmt.Errorf("DeleteObject: %w", err)
 		return
 	}
 
@@ -921,7 +921,7 @@ func (d *dirInode) DeleteChildDir(
 		})
 
 	if err != nil {
-		err = fmt.Errorf("DeleteObject: %v", err)
+		err = fmt.Errorf("DeleteObject: %w", err)
 		return
 	}
 

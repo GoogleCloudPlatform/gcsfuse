@@ -94,7 +94,7 @@ func (bm *fakeBucketManager) SetUpBucket(
 	if ok {
 		return
 	}
-	err = fmt.Errorf("Cannot open bucket %v", name)
+	err = fmt.Errorf("Cannot open bucket %q", name)
 	return
 }
 

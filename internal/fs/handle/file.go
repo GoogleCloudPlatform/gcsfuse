@@ -85,7 +85,7 @@ func (fh *FileHandle) Read(
 	err = fh.tryEnsureReader()
 	if err != nil {
 		fh.inode.Unlock()
-		err = fmt.Errorf("tryEnsureReader: %v", err)
+		err = fmt.Errorf("tryEnsureReader: %w", err)
 		return
 	}
 
@@ -102,7 +102,7 @@ func (fh *FileHandle) Read(
 			return
 
 		case err != nil:
-			err = fmt.Errorf("fh.reader.ReadAt: %v", err)
+			err = fmt.Errorf("fh.reader.ReadAt: %w", err)
 			return
 		}
 
@@ -159,7 +159,7 @@ func (fh *FileHandle) tryEnsureReader() (err error) {
 	// Attempt to create an appropriate reader.
 	rr, err := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket())
 	if err != nil {
-		err = fmt.Errorf("NewRandomReader: %v", err)
+		err = fmt.Errorf("NewRandomReader: %w", err)
 		return
 	}
 

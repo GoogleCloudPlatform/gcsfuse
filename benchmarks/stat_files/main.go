@@ -74,7 +74,7 @@ func createFiles(
 				var f *os.File
 				f, err = fsutil.AnonymousFile(dir)
 				if err != nil {
-					err = fmt.Errorf("AnonymousFile: %v", err)
+					err = fmt.Errorf("AnonymousFile: %w", err)
 					return
 				}
 
@@ -132,7 +132,7 @@ func run() (err error) {
 
 	files, err := createFiles(*fDir, *fNumFiles)
 	if err != nil {
-		err = fmt.Errorf("ListBackups: %v", err)
+		err = fmt.Errorf("ListBackups: %w", err)
 		return
 	}
 
@@ -147,7 +147,7 @@ func run() (err error) {
 	for ; time.Since(start) < *fDuration; statCount++ {
 		_, err = files[statCount%int64(len(files))].Stat()
 		if err != nil {
-			err = fmt.Errorf("Stat: %v", err)
+			err = fmt.Errorf("Stat: %w", err)
 			return
 		}
 	}

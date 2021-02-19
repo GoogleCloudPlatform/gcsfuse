@@ -32,7 +32,7 @@ type Connection struct {
 func NewConnection(cfg *gcs.ConnConfig) (c *Connection, err error) {
 	wrapped, err := gcs.NewConn(cfg)
 	if err != nil {
-		err = fmt.Errorf("Cannot create Conn: %v", err)
+		err = fmt.Errorf("Cannot create Conn: %w", err)
 		return
 	}
 
@@ -40,7 +40,7 @@ func NewConnection(cfg *gcs.ConnConfig) (c *Connection, err error) {
 		context.Background(),
 		option.WithTokenSource(cfg.TokenSource))
 	if err != nil {
-		err = fmt.Errorf("Cannot create GCS client: %v", err)
+		err = fmt.Errorf("Cannot create GCS client: %w", err)
 		return
 	}
 

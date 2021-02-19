@@ -119,7 +119,7 @@ func setUpRateLimiting(
 		window)
 
 	if err != nil {
-		err = fmt.Errorf("Choosing operation token bucket capacity: %v", err)
+		err = fmt.Errorf("Choosing operation token bucket capacity: %w", err)
 		return
 	}
 
@@ -128,7 +128,7 @@ func setUpRateLimiting(
 		window)
 
 	if err != nil {
-		err = fmt.Errorf("Choosing egress bandwidth token bucket capacity: %v", err)
+		err = fmt.Errorf("Choosing egress bandwidth token bucket capacity: %w", err)
 		return
 	}
 
@@ -166,7 +166,7 @@ func (bm *bucketManager) SetUpBucket(
 			},
 		)
 		if err != nil {
-			err = fmt.Errorf("OpenBucket: %v", err)
+			err = fmt.Errorf("OpenBucket: %w", err)
 			return
 		}
 	}
@@ -175,7 +175,7 @@ func (bm *bucketManager) SetUpBucket(
 	if bm.config.OnlyDir != "" {
 		b, err = NewPrefixBucket(path.Clean(bm.config.OnlyDir)+"/", b)
 		if err != nil {
-			err = fmt.Errorf("NewPrefixBucket: %v", err)
+			err = fmt.Errorf("NewPrefixBucket: %w", err)
 			return
 		}
 	}
@@ -187,7 +187,7 @@ func (bm *bucketManager) SetUpBucket(
 		bm.config.EgressBandwidthLimitBytesPerSecond)
 
 	if err != nil {
-		err = fmt.Errorf("setUpRateLimiting: %v", err)
+		err = fmt.Errorf("setUpRateLimiting: %w", err)
 		return
 	}
 

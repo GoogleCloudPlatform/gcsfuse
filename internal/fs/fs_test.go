@@ -200,7 +200,7 @@ func (t *fsTest) TearDown() {
 
 	// Unlink the mount point.
 	if err = os.Remove(t.Dir); err != nil {
-		err = fmt.Errorf("Unlinking mount point: %v", err)
+		err = fmt.Errorf("Unlinking mount point: %w", err)
 		return
 	}
 }
@@ -316,6 +316,6 @@ func (bm *fakeBucketManager) SetUpBucket(
 		)
 		return
 	}
-	err = fmt.Errorf("Bucket %v does not exist", name)
+	err = fmt.Errorf("Bucket %q does not exist", name)
 	return
 }

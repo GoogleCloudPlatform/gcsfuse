@@ -104,7 +104,7 @@ func (oc *fullObjectCreator) Create(
 			return
 		}
 
-		err = fmt.Errorf("CreateObject: %v", err)
+		err = fmt.Errorf("CreateObject: %w", err)
 		return
 	}
 
@@ -163,7 +163,7 @@ func (os *syncer) SyncObject(
 	// Stat the content.
 	sr, err := content.Stat()
 	if err != nil {
-		err = fmt.Errorf("Stat: %v", err)
+		err = fmt.Errorf("Stat: %w", err)
 		return
 	}
 
@@ -203,7 +203,7 @@ func (os *syncer) SyncObject(
 		srcObject.ComponentCount < gcs.MaxComponentCount {
 		_, err = content.Seek(srcSize, 0)
 		if err != nil {
-			err = fmt.Errorf("Seek: %v", err)
+			err = fmt.Errorf("Seek: %w", err)
 			return
 		}
 
@@ -211,7 +211,7 @@ func (os *syncer) SyncObject(
 	} else {
 		_, err = content.Seek(0, 0)
 		if err != nil {
-			err = fmt.Errorf("Seek: %v", err)
+			err = fmt.Errorf("Seek: %w", err)
 			return
 		}
 
@@ -225,7 +225,7 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		err = fmt.Errorf("Create: %v", err)
+		err = fmt.Errorf("Create: %w", err)
 		return
 	}
 

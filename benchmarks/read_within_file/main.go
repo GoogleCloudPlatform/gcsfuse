@@ -69,7 +69,7 @@ func readRandom(
 			err = nil
 
 		case err != nil:
-			err = fmt.Errorf("ReadAt: %v", err)
+			err = fmt.Errorf("ReadAt: %w", err)
 			return
 		}
 
@@ -112,12 +112,12 @@ func readSequential(
 		case err == io.EOF:
 			_, err = r.Seek(0, 0)
 			if err != nil {
-				err = fmt.Errorf("Seek: %v", err)
+				err = fmt.Errorf("Seek: %w", err)
 				return
 			}
 
 		case err != nil:
-			err = fmt.Errorf("Read: %v", err)
+			err = fmt.Errorf("Read: %w", err)
 		}
 
 		bytesRead += int64(n)
@@ -162,7 +162,7 @@ func run() (err error) {
 	// Find its size.
 	size, err := f.Seek(0, 2)
 	if err != nil {
-		err = fmt.Errorf("Seek: %v", err)
+		err = fmt.Errorf("Seek: %w", err)
 		return
 	}
 
@@ -172,13 +172,13 @@ func run() (err error) {
 	if *fRandom {
 		err = readRandom(f, size, *fReadSize, *fDuration)
 		if err != nil {
-			err = fmt.Errorf("readRandom: %v", err)
+			err = fmt.Errorf("readRandom: %w", err)
 			return
 		}
 	} else {
 		err = readSequential(f, *fReadSize, *fDuration)
 		if err != nil {
-			err = fmt.Errorf("readSequential: %v", err)
+			err = fmt.Errorf("readSequential: %w", err)
 			return
 		}
 	}

@@ -141,7 +141,7 @@ func NewServer(
 		logger.Info("Set up root directory for bucket " + cfg.BucketName)
 		syncerBucket, err = fs.bucketManager.SetUpBucket(ctx, cfg.BucketName)
 		if err != nil {
-			err = fmt.Errorf("SetUpBucket: %v", err)
+			err = fmt.Errorf("SetUpBucket: %w", err)
 			return
 		}
 		root = makeRootForBucket(ctx, fs, syncerBucket)
@@ -721,7 +721,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 
 		r, err = parent.LookUpChild(ctx, childName)
 		if err != nil {
-			err = fmt.Errorf("LookUpChild: %v", err)
+			err = fmt.Errorf("LookUpChild: %w", err)
 			return
 		}
 
@@ -771,7 +771,7 @@ func (fs *fileSystem) syncFile(
 	// Sync the inode.
 	err = f.Sync(ctx)
 	if err != nil {
-		err = fmt.Errorf("FileInode.Sync: %v", err)
+		err = fmt.Errorf("FileInode.Sync: %w", err)
 		return
 	}
 
@@ -1046,7 +1046,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	if isFile && op.Mtime != nil {
 		err = file.SetMtime(ctx, *op.Mtime)
 		if err != nil {
-			err = fmt.Errorf("SetMtime: %v", err)
+			err = fmt.Errorf("SetMtime: %w", err)
 			return
 		}
 	}
@@ -1055,7 +1055,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	if isFile && op.Size != nil {
 		err = file.Truncate(ctx, int64(*op.Size))
 		if err != nil {
-			err = fmt.Errorf("Truncate: %v", err)
+			err = fmt.Errorf("Truncate: %w", err)
 			return
 		}
 	}
@@ -1065,7 +1065,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	// Fill in the response.
 	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in)
 	if err != nil {
-		err = fmt.Errorf("getAttributes: %v", err)
+		err = fmt.Errorf("getAttributes: %w", err)
 		return
 	}
 
@@ -1114,7 +1114,7 @@ func (fs *fileSystem) MkDir(
 
 	// Propagate other errors.
 	if err != nil {
-		err = fmt.Errorf("CreateChildDir: %v", err)
+		err = fmt.Errorf("CreateChildDir: %w", err)
 		return
 	}
 
@@ -1136,7 +1136,7 @@ func (fs *fileSystem) MkDir(
 	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
 
 	if err != nil {
-		err = fmt.Errorf("getAttributes: %v", err)
+		err = fmt.Errorf("getAttributes: %w", err)
 		return
 	}
 
@@ -1161,7 +1161,7 @@ func (fs *fileSystem) MkNode(
 	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
 
 	if err != nil {
-		err = fmt.Errorf("getAttributes: %v", err)
+		err = fmt.Errorf("getAttributes: %w", err)
 		return
 	}
 
@@ -1197,7 +1197,7 @@ func (fs *fileSystem) createFile(
 
 	// Propagate other errors.
 	if err != nil {
-		err = fmt.Errorf("CreateChildFile: %v", err)
+		err = fmt.Errorf("CreateChildFile: %w", err)
 		return
 	}
 
@@ -1243,7 +1243,7 @@ func (fs *fileSystem) CreateFile(
 	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
 
 	if err != nil {
-		err = fmt.Errorf("getAttributes: %v", err)
+		err = fmt.Errorf("getAttributes: %w", err)
 		return
 	}
 
@@ -1272,7 +1272,7 @@ func (fs *fileSystem) CreateSymlink(
 
 	// Propagate other errors.
 	if err != nil {
-		err = fmt.Errorf("CreateChildSymlink: %v", err)
+		err = fmt.Errorf("CreateChildSymlink: %w", err)
 		return
 	}
 
@@ -1294,7 +1294,7 @@ func (fs *fileSystem) CreateSymlink(
 	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
 
 	if err != nil {
-		err = fmt.Errorf("getAttributes: %v", err)
+		err = fmt.Errorf("getAttributes: %w", err)
 		return
 	}
 
@@ -1350,7 +1350,7 @@ func (fs *fileSystem) RmDir(
 		var entries []fuseutil.Dirent
 		entries, tok, err = childDir.ReadEntries(ctx, tok)
 		if err != nil {
-			err = fmt.Errorf("ReadEntries: %v", err)
+			err = fmt.Errorf("ReadEntries: %w", err)
 			return
 		}
 
@@ -1375,7 +1375,7 @@ func (fs *fileSystem) RmDir(
 	parent.Unlock()
 
 	if err != nil {
-		err = fmt.Errorf("DeleteChildDir: %v", err)
+		err = fmt.Errorf("DeleteChildDir: %w", err)
 		return
 	}
 
@@ -1398,7 +1398,7 @@ func (fs *fileSystem) Rename(
 	oldParent.Unlock()
 
 	if err != nil {
-		err = fmt.Errorf("LookUpChild: %v", err)
+		err = fmt.Errorf("LookUpChild: %w", err)
 		return
 	}
 
@@ -1422,7 +1422,7 @@ func (fs *fileSystem) Rename(
 	newParent.Unlock()
 
 	if err != nil {
-		err = fmt.Errorf("CloneToChildFile: %v", err)
+		err = fmt.Errorf("CloneToChildFile: %w", err)
 		return
 	}
 
@@ -1437,7 +1437,7 @@ func (fs *fileSystem) Rename(
 	oldParent.Unlock()
 
 	if err != nil {
-		err = fmt.Errorf("DeleteChildFile: %v", err)
+		err = fmt.Errorf("DeleteChildFile: %w", err)
 		return
 	}
 
@@ -1464,7 +1464,7 @@ func (fs *fileSystem) Unlink(
 		nil) // No meta-generation precondition
 
 	if err != nil {
-		err = fmt.Errorf("DeleteChildFile: %v", err)
+		err = fmt.Errorf("DeleteChildFile: %w", err)
 		return
 	}
 

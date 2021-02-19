@@ -89,7 +89,7 @@ func handleCPUProfileSignals() {
 		var f *os.File
 		f, err = os.Create(path)
 		if err != nil {
-			err = fmt.Errorf("Create: %v", err)
+			err = fmt.Errorf("Create: %w", err)
 			return
 		}
 
@@ -134,7 +134,7 @@ func handleMemoryProfileSignals() {
 		var f *os.File
 		f, err = os.Create(path)
 		if err != nil {
-			err = fmt.Errorf("Create: %v", err)
+			err = fmt.Errorf("Create: %w", err)
 			return
 		}
 
@@ -148,7 +148,7 @@ func handleMemoryProfileSignals() {
 		// Dump to the file.
 		err = pprof.Lookup("heap").WriteTo(f, 0)
 		if err != nil {
-			err = fmt.Errorf("WriteTo: %v", err)
+			err = fmt.Errorf("WriteTo: %w", err)
 			return
 		}
 
@@ -176,7 +176,7 @@ func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 		flags.TokenUrl,
 	)
 	if err != nil {
-		err = fmt.Errorf("GetTokenSource: %v", err)
+		err = fmt.Errorf("GetTokenSource: %w", err)
 		return
 	}
 
@@ -238,7 +238,7 @@ func mountWithArgs(
 
 		conn, err = getConn(flags)
 		if err != nil {
-			err = fmt.Errorf("getConn: %v", err)
+			err = fmt.Errorf("getConn: %w", err)
 			return
 		}
 	}
@@ -253,7 +253,7 @@ func mountWithArgs(
 		mountStatus)
 
 	if err != nil {
-		err = fmt.Errorf("mountWithConn: %v", err)
+		err = fmt.Errorf("mountWithConn: %w", err)
 		return
 	}
 
@@ -288,7 +288,7 @@ func populateArgs(c *cli.Context) (
 	// before running this code again.
 	mountPoint, err = filepath.Abs(mountPoint)
 	if err != nil {
-		err = fmt.Errorf("canonicalizing mount point: %v", err)
+		err = fmt.Errorf("canonicalizing mount point: %w", err)
 		return
 	}
 	return
@@ -300,7 +300,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	if flags.Foreground && flags.LogFile != "" {
 		err = logger.InitLogFile(flags.LogFile)
 		if err != nil {
-			return fmt.Errorf("init log file: %v", err)
+			return fmt.Errorf("init log file: %w", err)
 		}
 	}
 
@@ -320,7 +320,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		var path string
 		path, err = osext.Executable()
 		if err != nil {
-			err = fmt.Errorf("osext.Executable: %v", err)
+			err = fmt.Errorf("osext.Executable: %w", err)
 			return
 		}
 
@@ -359,7 +359,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		// Run.
 		err = daemonize.Run(path, args, env, os.Stdout)
 		if err != nil {
-			err = fmt.Errorf("daemonize.Run: %v", err)
+			err = fmt.Errorf("daemonize.Run: %w", err)
 			return
 		}
 
@@ -377,7 +377,7 @@ func runCLIApp(c *cli.Context) (err error) {
 			mountStatus.Println("File system has been successfully mounted.")
 			daemonize.SignalOutcome(nil)
 		} else {
-			err = fmt.Errorf("mountWithArgs: %v", err)
+			err = fmt.Errorf("mountWithArgs: %w", err)
 			daemonize.SignalOutcome(err)
 			return
 		}
@@ -394,7 +394,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	// Wait for the file system to be unmounted.
 	err = mfs.Join(context.Background())
 	if err != nil {
-		err = fmt.Errorf("MountedFileSystem.Join: %v", err)
+		err = fmt.Errorf("MountedFileSystem.Join: %w", err)
 		return
 	}
 

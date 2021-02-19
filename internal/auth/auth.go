@@ -33,14 +33,14 @@ func newTokenSourceFromPath(
 	// Read the file.
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
-		err = fmt.Errorf("ReadFile(%q): %v", path, err)
+		err = fmt.Errorf("ReadFile(%q): %w", path, err)
 		return
 	}
 
 	// Create a config struct based on its contents.
 	jwtConfig, err := google.JWTConfigFromJSON(contents, scope)
 	if err != nil {
-		err = fmt.Errorf("JWTConfigFromJSON: %v", err)
+		err = fmt.Errorf("JWTConfigFromJSON: %w", err)
 		return
 	}
 
@@ -73,7 +73,7 @@ func GetTokenSource(
 	}
 
 	if err != nil {
-		err = fmt.Errorf("%s: %v", method, err)
+		err = fmt.Errorf("%s: %w", method, err)
 		return
 	}
 	return

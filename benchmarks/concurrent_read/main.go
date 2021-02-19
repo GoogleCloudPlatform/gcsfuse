@@ -86,7 +86,7 @@ func testReader(rf readerFactory, objectNames []string) (stats testStats) {
 				if err == io.EOF {
 					break
 				} else if err != nil {
-					panic(fmt.Errorf("read %v fails: %v", name, err))
+					panic(fmt.Errorf("read %q fails: %w", name, err))
 				}
 			}
 			doneFiles <- 1
@@ -177,7 +177,7 @@ func getLinesFromStdin() (lines []string) {
 				err = nil
 				break
 			}
-			panic(fmt.Errorf("Stdin error: %v", err))
+			panic(fmt.Errorf("Stdin error: %w", err))
 		}
 		lines = append(lines, line)
 	}
@@ -191,13 +191,13 @@ func getObjectNames() (bucketName string, objectNames []string) {
 		path = strings.TrimRight(path, "\n")
 		segs := strings.Split(path, "/")
 		if len(segs) <= 1 {
-			panic(fmt.Errorf("Not a file name: %v", uri))
+			panic(fmt.Errorf("Not a file name: %q", uri))
 		}
 
 		if bucketName == "" {
 			bucketName = segs[0]
 		} else if bucketName != segs[0] {
-			panic(fmt.Errorf("Multiple buckets: %v, %v", bucketName, segs[0]))
+			panic(fmt.Errorf("Multiple buckets: %q, %q", bucketName, segs[0]))
 		}
 
 		objectName := strings.Join(segs[1:], "/")

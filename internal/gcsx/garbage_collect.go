@@ -40,7 +40,7 @@ func garbageCollectOnce(
 		defer close(objects)
 		err = gcsutil.ListPrefix(ctx, bucket, tmpObjectPrefix, objects)
 		if err != nil {
-			err = fmt.Errorf("ListPrefix: %v", err)
+			err = fmt.Errorf("ListPrefix: %w", err)
 			return
 		}
 
@@ -79,7 +79,7 @@ func garbageCollectOnce(
 				})
 
 			if err != nil {
-				err = fmt.Errorf("DeleteObject(%q): %v", name, err)
+				err = fmt.Errorf("DeleteObject(%q): %w", name, err)
 				return
 			}
 

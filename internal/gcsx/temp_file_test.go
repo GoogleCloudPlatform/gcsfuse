@@ -38,13 +38,13 @@ func TestTempFile(t *testing.T) { RunTests(t) }
 func readAll(rs io.ReadSeeker) (content []byte, err error) {
 	_, err = rs.Seek(0, 0)
 	if err != nil {
-		err = fmt.Errorf("Seek: %v", err)
+		err = fmt.Errorf("Seek: %w", err)
 		return
 	}
 
 	content, err = ioutil.ReadAll(rs)
 	if err != nil {
-		err = fmt.Errorf("ReadFull: %v", err)
+		err = fmt.Errorf("ReadFull: %w", err)
 		return
 	}
 

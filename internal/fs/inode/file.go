@@ -166,7 +166,7 @@ func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
 
 	// Propagate other errors.
 	if err != nil {
-		err = fmt.Errorf("StatObject: %v", err)
+		err = fmt.Errorf("StatObject: %w", err)
 		return
 	}
 
@@ -195,7 +195,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		})
 
 	if err != nil {
-		err = fmt.Errorf("NewReader: %v", err)
+		err = fmt.Errorf("NewReader: %w", err)
 		return
 	}
 
@@ -203,7 +203,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 	// ensures to call Close() on the rc.
 	tf, err := gcsx.NewTempFile(rc, f.tempDir, f.mtimeClock)
 	if err != nil {
-		err = fmt.Errorf("NewTempFile: %v", err)
+		err = fmt.Errorf("NewTempFile: %w", err)
 		return
 	}
 
@@ -310,7 +310,7 @@ func (f *FileInode) Attributes(
 	if formatted, ok := f.src.Metadata["gcsfuse_mtime"]; ok {
 		attrs.Mtime, err = time.Parse(time.RFC3339Nano, formatted)
 		if err != nil {
-			err = fmt.Errorf("time.Parse(%q): %v", formatted, err)
+			err = fmt.Errorf("time.Parse(%q): %w", formatted, err)
 			return
 		}
 	}
@@ -320,7 +320,7 @@ func (f *FileInode) Attributes(
 		var sr gcsx.StatResult
 		sr, err = f.content.Stat()
 		if err != nil {
-			err = fmt.Errorf("Stat: %v", err)
+			err = fmt.Errorf("Stat: %w", err)
 			return
 		}
 
@@ -334,7 +334,7 @@ func (f *FileInode) Attributes(
 	// unlinked.
 	clobbered, err := f.clobbered(ctx)
 	if err != nil {
-		err = fmt.Errorf("clobbered: %v", err)
+		err = fmt.Errorf("clobbered: %w", err)
 		return
 	}
 
@@ -362,7 +362,7 @@ func (f *FileInode) Read(
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
-		err = fmt.Errorf("ensureContent: %v", err)
+		err = fmt.Errorf("ensureContent: %w", err)
 		return
 	}
 
@@ -373,7 +373,7 @@ func (f *FileInode) Read(
 		return
 
 	case err != nil:
-		err = fmt.Errorf("content.ReadAt: %v", err)
+		err = fmt.Errorf("content.ReadAt: %w", err)
 		return
 	}
 
@@ -390,7 +390,7 @@ func (f *FileInode) Write(
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
-		err = fmt.Errorf("ensureContent: %v", err)
+		err = fmt.Errorf("ensureContent: %w", err)
 		return
 	}
 
@@ -412,7 +412,7 @@ func (f *FileInode) SetMtime(
 	if f.content != nil {
 		sr, err = f.content.Stat()
 		if err != nil {
-			err = fmt.Errorf("Stat: %v", err)
+			err = fmt.Errorf("Stat: %w", err)
 			return
 		}
 	}
@@ -460,7 +460,7 @@ func (f *FileInode) SetMtime(
 		return
 
 	default:
-		err = fmt.Errorf("UpdateObject: %v", err)
+		err = fmt.Errorf("UpdateObject: %w", err)
 		return
 	}
 }
@@ -491,7 +491,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 
 	// Propagate other errors.
 	if err != nil {
-		err = fmt.Errorf("SyncObject: %v", err)
+		err = fmt.Errorf("SyncObject: %w", err)
 		return
 	}
 
@@ -513,7 +513,7 @@ func (f *FileInode) Truncate(
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
-		err = fmt.Errorf("ensureContent: %v", err)
+		err = fmt.Errorf("ensureContent: %w", err)
 		return
 	}
 

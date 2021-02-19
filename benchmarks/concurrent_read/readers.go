@@ -44,7 +44,7 @@ func newReaderFactory(
 	case officialClientReader:
 		rf = newOfficialReaderFactory(transport, bucketName)
 	default:
-		panic(fmt.Errorf("Unknown reader type: %v", readerType))
+		panic(fmt.Errorf("Unknown reader type: %q", readerType))
 	}
 	return
 }
@@ -62,7 +62,7 @@ func newVendorReaderFactory(
 		gcs.Scope_FullControl,
 	)
 	if err != nil {
-		panic(fmt.Errorf("Cannot get token source: %v", err))
+		panic(fmt.Errorf("Cannot get token source: %w", err))
 	}
 	config := &gcs.ConnConfig{
 		TokenSource: tokenSrc,
@@ -71,7 +71,7 @@ func newVendorReaderFactory(
 	}
 	conn, err := gcs.NewConn(config)
 	if err != nil {
-		panic(fmt.Errorf("Cannot create conn: %v", err))
+		panic(fmt.Errorf("Cannot create conn: %w", err))
 	}
 	bucket, err := conn.OpenBucket(
 		context.Background(),
@@ -80,7 +80,7 @@ func newVendorReaderFactory(
 		},
 	)
 	if err != nil {
-		panic(fmt.Errorf("Cannot open bucket %v: %v", bucketName, err))
+		panic(fmt.Errorf("Cannot open bucket %q: %w", bucketName, err))
 	}
 	rf = &vendorReaderFactory{
 		bucket: bucket,
@@ -97,7 +97,7 @@ func (rf *vendorReaderFactory) NewReader(
 		},
 	)
 	if err != nil {
-		panic(fmt.Errorf("Cannot read %v: %v", objectName, err))
+		panic(fmt.Errorf("Cannot read %q: %w", objectName, err))
 	}
 	return r
 }
@@ -112,7 +112,7 @@ func newOfficialReaderFactory(
 	bucketName string) (rf readerFactory) {
 	client, err := storage.NewClient(context.Background())
 	if err != nil {
-		panic(fmt.Errorf("NewClient: %v", err))
+		panic(fmt.Errorf("NewClient: %w", err))
 	}
 	bucket := client.Bucket(bucketName)
 	return &officialReaderFactory{
@@ -125,7 +125,7 @@ func (rf *officialReaderFactory) NewReader(
 	object := rf.bucket.Object(objectName)
 	reader, err := object.NewReader(context.Background())
 	if err != nil {
-		panic(fmt.Errorf("NewReader: %v", err))
+		panic(fmt.Errorf("NewReader: %w", err))
 	}
 	return reader
 }

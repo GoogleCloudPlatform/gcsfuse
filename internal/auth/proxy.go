@@ -47,13 +47,13 @@ type proxyTokenSource struct {
 func (ts proxyTokenSource) Token() (token *oauth2.Token, err error) {
 	resp, err := ts.client.Get(ts.endpoint)
 	if err != nil {
-		err = fmt.Errorf("proxyTokenSource cannot fetch token: %v", err)
+		err = fmt.Errorf("proxyTokenSource cannot fetch token: %w", err)
 		return
 	}
 
 	body, err := ioutil.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
-		err = fmt.Errorf("proxyTokenSource cannot load body: %v", err)
+		err = fmt.Errorf("proxyTokenSource cannot load body: %w", err)
 		return
 	}
 
@@ -68,7 +68,7 @@ func (ts proxyTokenSource) Token() (token *oauth2.Token, err error) {
 	token = &oauth2.Token{}
 	err = json.Unmarshal(body, token)
 	if err != nil {
-		err = fmt.Errorf("proxyTokenSource cannot decode body: %v", err)
+		err = fmt.Errorf("proxyTokenSource cannot decode body: %w", err)
 		return
 	}
 

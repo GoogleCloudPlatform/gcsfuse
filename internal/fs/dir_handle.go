@@ -169,7 +169,7 @@ func readAllEntries(
 
 		batch, tok, err = in.ReadEntries(ctx, tok)
 		if err != nil {
-			err = fmt.Errorf("ReadEntries: %v", err)
+			err = fmt.Errorf("ReadEntries: %w", err)
 			return
 		}
 
@@ -189,7 +189,7 @@ func readAllEntries(
 	// Fix name conflicts.
 	err = fixConflictingNames(entries)
 	if err != nil {
-		err = fmt.Errorf("fixConflictingNames: %v", err)
+		err = fmt.Errorf("fixConflictingNames: %w", err)
 		return
 	}
 
@@ -228,7 +228,7 @@ func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
 	var entries []fuseutil.Dirent
 	entries, err = readAllEntries(ctx, dh.in)
 	if err != nil {
-		err = fmt.Errorf("readAllEntries: %v", err)
+		err = fmt.Errorf("readAllEntries: %w", err)
 		return
 	}
 

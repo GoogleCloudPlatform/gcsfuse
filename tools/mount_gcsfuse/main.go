@@ -211,28 +211,28 @@ func run(args []string) (err error) {
 	// Find the path to gcsfuse.
 	gcsfusePath, err := findGcsfuse()
 	if err != nil {
-		err = fmt.Errorf("findGcsfuse: %v", err)
+		err = fmt.Errorf("findGcsfuse: %w", err)
 		return
 	}
 
 	// Find the path to fusermount.
 	fusermountPath, err := findFusermount()
 	if err != nil {
-		err = fmt.Errorf("findFusermount: %v", err)
+		err = fmt.Errorf("findFusermount: %w", err)
 		return
 	}
 
 	// Attempt to parse arguments.
 	device, mountPoint, opts, err := parseArgs(args)
 	if err != nil {
-		err = fmt.Errorf("parseArgs: %v", err)
+		err = fmt.Errorf("parseArgs: %w", err)
 		return
 	}
 
 	// Choose gcsfuse args.
 	gcsfuseArgs, err := makeGcsfuseArgs(device, mountPoint, opts)
 	if err != nil {
-		err = fmt.Errorf("makeGcsfuseArgs: %v", err)
+		err = fmt.Errorf("makeGcsfuseArgs: %w", err)
 		return
 	}
 
@@ -259,7 +259,7 @@ func run(args []string) (err error) {
 
 	err = cmd.Run()
 	if err != nil {
-		err = fmt.Errorf("running gcsfuse: %v", err)
+		err = fmt.Errorf("running gcsfuse: %w", err)
 		return
 	}
 

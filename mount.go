@@ -61,7 +61,7 @@ func mountWithConn(
 	// by root. This is probably not what the user wants, so print a warning.
 	uid, gid, err := perms.MyUserAndGroup()
 	if err != nil {
-		err = fmt.Errorf("MyUserAndGroup: %v", err)
+		err = fmt.Errorf("MyUserAndGroup: %w", err)
 		return
 	}
 
@@ -111,7 +111,7 @@ be interacting with the file system.`)
 
 	server, err := fs.NewServer(ctx, serverCfg)
 	if err != nil {
-		err = fmt.Errorf("fs.NewServer: %v", err)
+		err = fmt.Errorf("fs.NewServer: %w", err)
 		return
 	}
 
@@ -131,7 +131,7 @@ be interacting with the file system.`)
 
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
 	if err != nil {
-		err = fmt.Errorf("Mount: %v", err)
+		err = fmt.Errorf("Mount: %w", err)
 		return
 	}
 
