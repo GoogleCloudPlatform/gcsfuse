@@ -311,7 +311,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		return
 	}
 
-	fmt.Fprintf(os.Stdout, "Using mount point: %s\n", mountPoint)
+	logger.Infof("Using mount point: %s\n", mountPoint)
 
 	// If we haven't been asked to run in foreground mode, we should run a daemon
 	// with the foreground flag set and wait for it to mount.
