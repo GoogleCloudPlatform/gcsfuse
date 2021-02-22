@@ -29,10 +29,6 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
-	"runtime"
-	"runtime/pprof"
-	"syscall"
-	"time"
 
 	"golang.org/x/net/context"
 
@@ -40,6 +36,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/internal/perf"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
@@ -81,92 +78,6 @@ func startMonitoringHTTPHandler(monitoringPort int) {
 		http.Handle("/metrics", promhttp.Handler())
 		http.ListenAndServe(fmt.Sprintf(":%v", monitoringPort), nil)
 	}()
-}
-
-func handleCPUProfileSignals() {
-	profileOnce := func(duration time.Duration, path string) (err error) {
-		// Set up the file.
-		var f *os.File
-		f, err = os.Create(path)
-		if err != nil {
-			err = fmt.Errorf("Create: %w", err)
-			return
-		}
-
-		defer func() {
-			closeErr := f.Close()
-			if err == nil {
-				err = closeErr
-			}
-		}()
-
-		// Profile.
-		pprof.StartCPUProfile(f)
-		time.Sleep(duration)
-		pprof.StopCPUProfile()
-		return
-	}
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGUSR1)
-	for range c {
-		const path = "/tmp/cpu.pprof"
-		const duration = 10 * time.Second
-
-		logger.Infof("Writing %v CPU profile to %s...", duration, path)
-
-		err := profileOnce(duration, path)
-		if err == nil {
-			logger.Infof("Done writing CPU profile to %s.", path)
-		} else {
-			logger.Infof("Error writing CPU profile: %v", err)
-		}
-	}
-}
-
-func handleMemoryProfileSignals() {
-	profileOnce := func(path string) (err error) {
-		// Trigger a garbage collection to get up to date information (cf.
-		// https://goo.gl/aXVQfL).
-		runtime.GC()
-
-		// Open the file.
-		var f *os.File
-		f, err = os.Create(path)
-		if err != nil {
-			err = fmt.Errorf("Create: %w", err)
-			return
-		}
-
-		defer func() {
-			closeErr := f.Close()
-			if err == nil {
-				err = closeErr
-			}
-		}()
-
-		// Dump to the file.
-		err = pprof.Lookup("heap").WriteTo(f, 0)
-		if err != nil {
-			err = fmt.Errorf("WriteTo: %w", err)
-			return
-		}
-
-		return
-	}
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGUSR2)
-	for range c {
-		const path = "/tmp/mem.pprof"
-
-		err := profileOnce(path)
-		if err == nil {
-			logger.Infof("Wrote memory profile to %s.", path)
-		} else {
-			logger.Infof("Error writing memory profile: %v", err)
-		}
-	}
 }
 
 func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
@@ -425,8 +336,8 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
 	// Set up profiling handlers.
-	go handleCPUProfileSignals()
-	go handleMemoryProfileSignals()
+	go perf.HandleCPUProfileSignals()
+	go perf.HandleMemoryProfileSignals()
 
 	// Run.
 	err := run()
