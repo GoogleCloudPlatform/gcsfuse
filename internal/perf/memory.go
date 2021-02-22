@@ -21,6 +21,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"syscall"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 )
@@ -60,7 +61,7 @@ func HandleMemoryProfileSignals() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGUSR2)
 	for range c {
-		const path = "/tmp/mem.pprof"
+		path := fmt.Sprintf("/tmp/mem-%d.pprof", time.Now().UnixNano())
 
 		err := profileOnce(path)
 		if err == nil {

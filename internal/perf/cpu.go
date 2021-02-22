@@ -53,7 +53,7 @@ func HandleCPUProfileSignals() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGUSR1)
 	for range c {
-		const path = "/tmp/cpu.pprof"
+		path := fmt.Sprintf("/tmp/cpu-%d.pprof", time.Now().UnixNano())
 		const duration = 10 * time.Second
 
 		logger.Infof("Writing %v CPU profile to %s...", duration, path)
