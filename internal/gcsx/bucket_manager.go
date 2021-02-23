@@ -38,6 +38,7 @@ type BucketConfig struct {
 	OpRateLimitHz                      float64
 	StatCacheCapacity                  int
 	StatCacheTTL                       time.Duration
+	EnableMonitoring                   bool
 
 	// Files backed by on object of length at least AppendThreshold that have
 	// only been appended to (i.e. none of the object's contents have been
@@ -205,7 +206,9 @@ func (bm *bucketManager) SetUpBucket(
 	b = NewContentTypeBucket(b)
 
 	// Enable monitoring
-	b = NewMonitoringBucket(b)
+	if bm.config.EnableMonitoring {
+		b = NewMonitoringBucket(b)
+	}
 
 	// Enable Syncer
 	if bm.config.TmpObjectPrefix == "" {

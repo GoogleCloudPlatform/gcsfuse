@@ -63,6 +63,18 @@ On OS X, unmount like any other file system:
     umount /path/to/mount/point
 
 
+## Logging
+
+Use flags like `--debug_gcs`, `--debug_fuse` and `--debug_http` to get 
+additional logs from GCS, Fuse, and HTTP requests.
+
+When gcsfuse is run in the foreground, all the logs are printed to stdout and 
+stderr. When it is in the background, only a few lines of logs indicating the 
+mounting status would be printed to stdout or stderr.
+
+If you need logs when running gcsfuse in the background, please use `--log-file`
+to specify a log file. The directory of the log file must exist.
+
 # Access permissions
 
 As a security measure, fuse itself restricts file system access to the user who

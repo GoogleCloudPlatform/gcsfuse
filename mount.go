@@ -88,6 +88,7 @@ be interacting with the file system.`)
 		OpRateLimitHz:                      flags.OpRateLimitHz,
 		StatCacheCapacity:                  flags.StatCacheCapacity,
 		StatCacheTTL:                       flags.StatCacheTTL,
+		EnableMonitoring:                   flags.MonitoringPort > 0,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 	}
@@ -115,13 +116,14 @@ be interacting with the file system.`)
 		return
 	}
 
-	// Mount the file system.
-	status.Println("Mounting file system...")
 	fsName := bucketName
-	if fsName == "" {
+	if bucketName == "" || bucketName == "_" {
+		// mouting all the buckets at once
 		fsName = "gcsfuse"
 	}
 
+	// Mount the file system.
+	status.Printf("Mounting file system %q...", fsName)
 	mountCfg := &fuse.MountConfig{
 		FSName:      fsName,
 		VolumeName:  "gcsfuse",
