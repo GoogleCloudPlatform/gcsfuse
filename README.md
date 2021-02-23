@@ -113,6 +113,14 @@ All rate limiting is approximate, and is performed over an 8-hour window. By
 default, requests are limited to 5 per second. There is no limit applied to
 bandwidth by default.
 
+## Upload procedure control
+
+An upload procedure is implemented as a retry loop with exponential backoff 
+for failed requests to the GCS backend. Once the backoff duration exceeds this 
+limit, the retry stops. Flag `--max-retry-sleep` controls such behavior.
+The default is 1 minute. A value of 0 disables retries.
+Note: If you are experiencing high memory consumption (see [issue #467][issue-467]) you may consider `--max-retry-sleep=0`.
+
 ## GCS round trips
 
 By default, gcsfuse uses two forms of caching to save round trips to GCS, at the
