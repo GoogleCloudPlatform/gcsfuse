@@ -43,21 +43,21 @@ func TestMain(m *testing.M) {
 	if runtime.GOOS == "linux" {
 		gFusermountPath, err = exec.LookPath("fusermount")
 		if err != nil {
-			log.Fatalf("LookPath(fusermount): %w", err)
+			log.Fatalf("LookPath(fusermount): %p", err)
 		}
 	}
 
 	// Set up a directory into which we will build.
 	gBuildDir, err = ioutil.TempDir("", "gcsfuse_integration_tests")
 	if err != nil {
-		log.Fatalf("TempDir: %w", err)
+		log.Fatalf("TempDir: %p", err)
 		return
 	}
 
 	// Build into that directory.
 	err = buildGcsfuse(gBuildDir)
 	if err != nil {
-		log.Fatalf("buildGcsfuse: %w", err)
+		log.Fatalf("buildGcsfuse: %p", err)
 		return
 	}
 

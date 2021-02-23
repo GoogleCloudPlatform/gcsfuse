@@ -147,29 +147,29 @@ func (tf *tempFile) CheckInvariants() {
 	// Restore the seek position after using Stat below.
 	pos, err := tf.Seek(0, 1)
 	if err != nil {
-		panic(fmt.Sprintf("Seek: %w", err))
+		panic(fmt.Errorf("Seek: %w", err))
 	}
 
 	defer func() {
 		_, err := tf.Seek(pos, 0)
 		if err != nil {
-			panic(fmt.Sprintf("Seek: %w", err))
+			panic(fmt.Errorf("Seek: %w", err))
 		}
 	}()
 
 	// INVARIANT: Stat().DirtyThreshold <= Stat().Size
 	sr, err := tf.Stat()
 	if err != nil {
-		panic(fmt.Sprintf("Stat: %w", err))
+		panic(fmt.Errorf("Stat: %w", err))
 	}
 
 	if !(sr.DirtyThreshold <= sr.Size) {
-		panic(fmt.Sprintf("Mismatch: %d vs. %d", sr.DirtyThreshold, sr.Size))
+		panic(fmt.Errorf("Mismatch: %d vs. %d", sr.DirtyThreshold, sr.Size))
 	}
 
 	// INVARIANT: mtime == nil => Stat().DirtyThreshold == Stat().Size
 	if tf.mtime == nil && sr.DirtyThreshold != sr.Size {
-		panic(fmt.Sprintf("Mismatch: %d vs. %d", sr.DirtyThreshold, sr.Size))
+		panic(fmt.Errorf("Mismatch: %d vs. %d", sr.DirtyThreshold, sr.Size))
 	}
 }
 
