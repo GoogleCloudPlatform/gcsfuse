@@ -36,6 +36,9 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/internal/perf"
 )
 
 var fIterations = flag.Int(
@@ -50,7 +53,7 @@ var fHTTP = flag.String(
 )
 var fConnsPerHost = flag.Int(
 	"conns_per_host",
-	10,
+	50,
 	"Max number of TCP connections per host.",
 )
 var fReader = flag.String(
@@ -153,7 +156,7 @@ func (s testStats) report(
 	maxConnsPerHost int,
 	readerVersion string,
 ) {
-	fmt.Printf(
+	logger.Infof(
 		"# TEST READER %s\n"+
 			"Protocol: %s (%v connections per host)\n"+
 			"Total bytes: %d\n"+
@@ -208,6 +211,9 @@ func getObjectNames() (bucketName string, objectNames []string) {
 
 func main() {
 	flag.Parse()
+
+	go perf.HandleCPUProfileSignals()
+
 	bucketName, objectNames := getObjectNames()
 	run(bucketName, objectNames)
 	return
