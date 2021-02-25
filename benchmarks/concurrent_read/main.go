@@ -94,10 +94,9 @@ func testReader(rf readerFactory, objectNames []string) (stats testStats) {
 			defer reader.Close()
 
 			p := make([]byte, 128*1024)
+			region = trace.StartRegion(ctx, "ReadObject")
 			for {
-				region = trace.StartRegion(ctx, "Read")
 				n, err := reader.Read(p)
-				region.End()
 
 				doneBytes <- int64(n)
 				if err == io.EOF {
@@ -106,6 +105,7 @@ func testReader(rf readerFactory, objectNames []string) (stats testStats) {
 					panic(fmt.Errorf("read %q fails: %w", name, err))
 				}
 			}
+			region.End()
 			doneFiles <- 1
 			return
 		}()
