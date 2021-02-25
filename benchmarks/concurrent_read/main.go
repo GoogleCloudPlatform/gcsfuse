@@ -204,7 +204,7 @@ func getLinesFromStdin() (lines []string) {
 func getObjectNames() (bucketName string, objectNames []string) {
 	uris := getLinesFromStdin()
 	for _, uri := range uris {
-		path := strings.TrimLeft(uri, "gs://")
+		path := uri[len("gs://"):]
 		path = strings.TrimRight(path, "\n")
 		segs := strings.Split(path, "/")
 		if len(segs) <= 1 {
