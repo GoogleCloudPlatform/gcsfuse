@@ -31,7 +31,7 @@ const (
 )
 
 type readerFactory interface {
-	NewReader(objectName string) io.ReadCloser
+	NewReader(ctx context.Context, objectName string) io.ReadCloser
 }
 
 func newReaderFactory(
@@ -89,9 +89,10 @@ func newVendorReaderFactory(
 }
 
 func (rf *vendorReaderFactory) NewReader(
+	ctx context.Context,
 	objectName string) io.ReadCloser {
 	r, err := rf.bucket.NewReader(
-		context.Background(),
+		ctx,
 		&gcs.ReadObjectRequest{
 			Name: objectName,
 		},
@@ -121,9 +122,10 @@ func newOfficialReaderFactory(
 }
 
 func (rf *officialReaderFactory) NewReader(
+	ctx context.Context,
 	objectName string) io.ReadCloser {
 	object := rf.bucket.Object(objectName)
-	reader, err := object.NewReader(context.Background())
+	reader, err := object.NewReader(ctx)
 	if err != nil {
 		panic(fmt.Errorf("NewReader: %w", err))
 	}

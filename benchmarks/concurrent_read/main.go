@@ -30,6 +30,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -76,11 +77,13 @@ func testReader(rf readerFactory, objectNames []string) (stats testStats) {
 	doneFiles := make(chan int)
 	start := time.Now()
 
+	ctx := context.Background()
+
 	// run readers concurrently
 	for _, objectName := range objectNames {
 		name := objectName
 		go func() {
-			reader := rf.NewReader(name)
+			reader := rf.NewReader(ctx, name)
 			defer reader.Close()
 			p := make([]byte, 128*1024)
 			for {
