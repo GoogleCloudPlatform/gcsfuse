@@ -34,7 +34,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"os"
+	"runtime/trace"
 	"strings"
 	"time"
 
@@ -79,15 +81,24 @@ func testReader(rf readerFactory, objectNames []string) (stats testStats) {
 
 	ctx := context.Background()
 
+	ctx, traceTask := trace.NewTask(ctx, "ReadAllObjects")
+	defer traceTask.End()
+
 	// run readers concurrently
 	for _, objectName := range objectNames {
 		name := objectName
 		go func() {
+			region := trace.StartRegion(ctx, "NewReader")
 			reader := rf.NewReader(ctx, name)
+			region.End()
 			defer reader.Close()
+
 			p := make([]byte, 128*1024)
 			for {
+				region = trace.StartRegion(ctx, "Read")
 				n, err := reader.Read(p)
+				region.End()
+
 				doneBytes <- int64(n)
 				if err == io.EOF {
 					break
@@ -217,7 +228,23 @@ func main() {
 
 	go perf.HandleCPUProfileSignals()
 
+	// Enable trace
+	f, err := os.Create("/tmp/concurrent_read_trace.out")
+	if err != nil {
+		log.Fatalf("failed to create trace output file: %v", err)
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Fatalf("failed to close trace file: %v", err)
+		}
+	}()
+	if err := trace.Start(f); err != nil {
+		log.Fatalf("failed to start trace: %v", err)
+	}
+	defer trace.Stop()
+
 	bucketName, objectNames := getObjectNames()
 	run(bucketName, objectNames)
+
 	return
 }
