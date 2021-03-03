@@ -113,7 +113,7 @@ To alleviate this, gcsfuse supports a "type cache" on directory inodes. When
 the name of its children to whether those children are known to be files or
 directories or both. When a child is looked up, if the parent's cache says that
 the child is a file but not a directory, only one GCS object will need to be
-statted. Similarly if the child is a directory but not a file.
+stated. Similarly if the child is a directory but not a file.
 
 **Warning**: Using type caching breaks the consistency guarantees discussed in
 this document. It is safe only in the following situations:
@@ -417,7 +417,7 @@ permission bits `0755` (but see below for issues with use by other users).
 Changing inode mode (using `chmod(2)` or similar) is unsupported, and changes
 are silently ignored.
 
-These defaults can be overriden with the `--uid`, `--gid`, `--file-mode`, and
+These defaults can be overridden with the `--uid`, `--gid`, `--file-mode`, and
 `--dir-mode` flags.
 
 <a name="permissions-fuse"></a>
