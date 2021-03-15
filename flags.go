@@ -224,6 +224,12 @@ func newApp() (app *cli.App) {
 					"stdout.",
 			},
 
+			cli.StringFlag{
+				Name:  "log-format",
+				Value: "json",
+				Usage: "The format of the log file: 'text' or 'json'.",
+			},
+
 			/////////////////////////
 			// Debugging
 			/////////////////////////
@@ -285,6 +291,7 @@ type flagStorage struct {
 	// Monitoring
 	MonitoringPort int
 	LogFile        string
+	LogFormat      string
 
 	// Debugging
 	DebugFuse       bool
@@ -328,6 +335,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		// Monitoring
 		MonitoringPort: c.Int("monitoring-port"),
 		LogFile:        c.String("log-file"),
+		LogFormat:      c.String("log-format"),
 
 		// Debugging,
 		DebugFuse:       c.Bool("debug_fuse"),

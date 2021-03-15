@@ -29,7 +29,7 @@ var (
 
 // InitLogFile initializes the logger factory to create loggers that print to
 // a log file.
-func InitLogFile(filename string) error {
+func InitLogFile(filename string, format string) error {
 	f, err := os.OpenFile(
 		filename,
 		os.O_WRONLY|os.O_CREATE|os.O_APPEND,
@@ -40,8 +40,9 @@ func InitLogFile(filename string) error {
 	}
 
 	defaultLoggerFactory = &loggerFactory{
-		file: f,
-		flag: 0,
+		file:   f,
+		flag:   0,
+		format: format,
 	}
 	defaultInfoLogger = NewInfo("")
 
@@ -102,8 +103,9 @@ func Info(v ...interface{}) {
 
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
-	file *os.File
-	flag int
+	file   *os.File
+	flag   int
+	format string
 }
 
 func (f *loggerFactory) newLogger(level, prefix string) *log.Logger {
@@ -112,9 +114,14 @@ func (f *loggerFactory) newLogger(level, prefix string) *log.Logger {
 
 func (f *loggerFactory) writer(level string) io.Writer {
 	if f.file != nil {
-		return &jsonWriter{
-			w:     f.file,
-			level: level,
+		switch f.format {
+		case "json":
+			return &jsonWriter{
+				w:     f.file,
+				level: level,
+			}
+		case "text":
+			return f.file
 		}
 	}
 

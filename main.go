@@ -209,7 +209,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	flags := populateFlags(c)
 
 	if flags.Foreground && flags.LogFile != "" {
-		err = logger.InitLogFile(flags.LogFile)
+		err = logger.InitLogFile(flags.LogFile, flags.LogFormat)
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
 		}
