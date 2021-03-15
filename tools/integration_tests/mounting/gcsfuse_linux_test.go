@@ -23,6 +23,7 @@ import (
 	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/tools/util"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -39,7 +40,7 @@ func (t *GcsfuseTest) Statfs() {
 
 	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
-	defer unmount(t.dir)
+	defer util.Unmount(t.dir)
 
 	// Stat the file system.
 	err = syscall.Statfs(t.dir, &stat)

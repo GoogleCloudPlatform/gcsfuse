@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/tools/util"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
@@ -142,7 +143,7 @@ func (t *MountHelperTest) NoMtabFlag() {
 
 	err = t.mount(args)
 	AssertEq(nil, err)
-	unmount(t.dir)
+	util.Unmount(t.dir)
 }
 
 func (t *MountHelperTest) SuccessfulMount() {
@@ -154,7 +155,7 @@ func (t *MountHelperTest) SuccessfulMount() {
 
 	err = t.mount(args)
 	AssertEq(nil, err)
-	defer unmount(t.dir)
+	defer util.Unmount(t.dir)
 
 	// Check that the file system is available.
 	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
@@ -178,7 +179,7 @@ func (t *MountHelperTest) RelativeMountPoint() {
 	output, err := cmd.CombinedOutput()
 	AssertEq(nil, err, "output:\n%s", output)
 
-	defer unmount(t.dir)
+	defer util.Unmount(t.dir)
 
 	// The file system should be available.
 	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
@@ -195,7 +196,7 @@ func (t *MountHelperTest) ReadOnlyMode() {
 
 	err = t.mount(args)
 	AssertEq(nil, err)
-	defer unmount(t.dir)
+	defer util.Unmount(t.dir)
 
 	// Writing to the file system should fail.
 	err = ioutil.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
@@ -215,7 +216,7 @@ func (t *MountHelperTest) ExtraneousOptions() {
 
 	err = t.mount(args)
 	AssertEq(nil, err)
-	defer unmount(t.dir)
+	defer util.Unmount(t.dir)
 
 	// Check that the file system is available.
 	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
@@ -232,7 +233,7 @@ func (t *MountHelperTest) LinuxArgumentOrder() {
 
 	err = t.mount(args)
 	AssertEq(nil, err)
-	defer unmount(t.dir)
+	defer util.Unmount(t.dir)
 
 	// Writing to the file system should fail.
 	err = ioutil.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
@@ -254,7 +255,7 @@ func (t *MountHelperTest) FuseSubtype() {
 
 	err = t.mount(args)
 	AssertEq(nil, err)
-	defer unmount(t.dir)
+	defer util.Unmount(t.dir)
 
 	// Check that the file system is available.
 	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
@@ -276,7 +277,7 @@ func (t *MountHelperTest) ModeOptions() {
 
 	err = t.mount(args)
 	AssertEq(nil, err)
-	defer unmount(t.dir)
+	defer util.Unmount(t.dir)
 
 	// Stat the directory.
 	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelDir))
@@ -297,7 +298,7 @@ func (t *MountHelperTest) ImplicitDirs() {
 
 	err = t.mount(args)
 	AssertEq(nil, err)
-	defer unmount(t.dir)
+	defer util.Unmount(t.dir)
 
 	// The implicit directory should be visible.
 	fi, err := os.Lstat(path.Join(t.dir, path.Dir(canned.ImplicitDirFile)))
