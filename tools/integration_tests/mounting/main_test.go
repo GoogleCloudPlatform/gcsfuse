@@ -16,15 +16,14 @@ package integration_test
 
 import (
 	"flag"
-	"fmt"
-	"go/build"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
-	"path"
 	"runtime"
 	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/tools/util"
 )
 
 // A directory containing outputs created by build_gcsfuse, set up and deleted
@@ -55,7 +54,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// Build into that directory.
-	err = buildGcsfuse(gBuildDir)
+	err = util.BuildGcsfuse(gBuildDir)
 	if err != nil {
 		log.Fatalf("buildGcsfuse: %p", err)
 		return
@@ -67,129 +66,4 @@ func TestMain(m *testing.M) {
 	// Clean up and exit.
 	os.RemoveAll(gBuildDir)
 	os.Exit(code)
-}
-
-// Build bin/gcsfuse, sbin/mount_gcsfuse, etc. into the supplied directory.
-func buildGcsfuse(dstDir string) (err error) {
-	// Ensure we have a copy of build_gcsfuse sitting around.
-	var toolPath string
-	{
-		var toolDir string
-		toolDir, err = ioutil.TempDir("", "gcsfuse_integration_tests")
-		if err != nil {
-			err = fmt.Errorf("TempDir: %w", err)
-			return
-		}
-
-		defer os.RemoveAll(toolDir)
-
-		toolPath = path.Join(toolDir, "build_gcsfuse")
-		log.Printf("Building build_gcsfuse at %s", toolPath)
-
-		err = buildBuildGcsfuse(toolPath)
-		if err != nil {
-			err = fmt.Errorf("buildBuildGcsfuse: %w", err)
-			return
-		}
-	}
-
-	// Figure out where we can find the source code for gcsfuse.
-	var srcDir string
-	{
-		var pkg *build.Package
-		pkg, err = build.Import(
-			"github.com/googlecloudplatform/gcsfuse",
-			"",
-			build.FindOnly)
-
-		if err != nil {
-			err = fmt.Errorf("build.Import: %w", err)
-			return
-		}
-
-		srcDir = pkg.Dir
-	}
-
-	// Use build_gcsfuse to perform a build.
-	log.Printf("Building gcsfuse into %s", dstDir)
-
-	{
-		cmd := exec.Command(
-			toolPath,
-			srcDir,
-			dstDir,
-			"fake_version",
-		)
-
-		var output []byte
-		output, err = cmd.CombinedOutput()
-		if err != nil {
-			err = fmt.Errorf("build_gcsfuse: %w\nOutput:\n%s", err, output)
-			return
-		}
-	}
-
-	return
-}
-
-// Build the build_gcsfuse tool, writing the binary to the supplied path.
-func buildBuildGcsfuse(dst string) (err error) {
-	// Figure out where we can find the source for build_gcsfuse.
-	var srcDir string
-	{
-		var pkg *build.Package
-		pkg, err = build.Import(
-			"github.com/googlecloudplatform/gcsfuse/tools/build_gcsfuse",
-			"",
-			build.FindOnly)
-
-		if err != nil {
-			err = fmt.Errorf("build.Import: %w", err)
-			return
-		}
-
-		srcDir = pkg.Dir
-	}
-
-	// Create a directory to become GOPATH for our build below.
-	gopath, err := ioutil.TempDir("", "build_gcsfuse_gopath")
-	if err != nil {
-		err = fmt.Errorf("TempDir: %w", err)
-		return
-	}
-	defer os.RemoveAll(gopath)
-
-	// Create a directory to become GOCACHE for our build below.
-	var gocache string
-	gocache, err = ioutil.TempDir("", "build_gcsfuse_gocache")
-	if err != nil {
-		err = fmt.Errorf("TempDir: %w", err)
-		return
-	}
-	defer os.RemoveAll(gocache)
-
-	// Build within that directory with no GOPATH -- it should have no external
-	// dependencies besides the standard library.
-	{
-		cmd := exec.Command(
-			"go", "build",
-			"-o", dst,
-		)
-
-		cmd.Dir = srcDir
-		cmd.Env = []string{
-			fmt.Sprintf("GOROOT=%s", runtime.GOROOT()),
-			fmt.Sprintf("GOPATH=%s", gopath),
-			fmt.Sprintf("GOCACHE=%s", gocache),
-		}
-
-		var output []byte
-		output, err = cmd.CombinedOutput()
-		if err != nil {
-			err = fmt.Errorf("go build build_gcsfuse: %w\nOutput:\n%s", err, output)
-			return
-		}
-	}
-
-	return
 }
