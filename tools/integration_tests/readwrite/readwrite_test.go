@@ -18,6 +18,7 @@ package readwrite_test
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -31,29 +32,22 @@ import (
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
 
 var (
+	testDir string
 	binFile string
 	logFile string
 	mntDir string
 )
 
-func TestMain(m *testing.M) {
-	flag.Parse()
-
-	if *testBucket == "" {
-		log.Fatalf("--testbucket must be specified")
-		return
-	}
-
-	testDir, err := ioutil.TempDir("", "gcsfuse_readwrite_test_")
+func setUpTestDir() error {
+	var err error
+	testDir, err = ioutil.TempDir("", "gcsfuse_readwrite_test_")
 	if err != nil {
-		log.Fatalf("TempDir: %v\n", err)
+		return fmt.Errorf("TempDir: %w\n", err)
 	}
-	defer os.Remove(testDir)
 
 	err = util.BuildGcsfuse(testDir)
 	if err != nil {
-		log.Printf("BuildGcsfuse(%q): %v\n", testDir, err)
-		return
+		return fmt.Errorf("BuildGcsfuse(%q): %w\n", testDir, err)
 	}
 
 	binFile = path.Join(testDir, "bin/gcsfuse")
@@ -62,10 +56,12 @@ func TestMain(m *testing.M) {
 
 	err = os.Mkdir(mntDir, 0755)
 	if err != nil {
-		log.Printf("Mkdir(%q): %v\n", mntDir, err)
-		return
+		return fmt.Errorf("Mkdir(%q): %v\n", mntDir, err)
 	}
+	return nil
+}
 
+func mountGcsfuse() error {
 	mountCmd := exec.Command(
 		binFile,
 		"--implicit-dirs",
@@ -78,16 +74,36 @@ func TestMain(m *testing.M) {
 	)
 	output, err := mountCmd.CombinedOutput()
 	if err != nil {
-		log.Printf("Cannot mount gcsfuse: %v\n", err)
-		return
+		return fmt.Errorf("cannot mount gcsfuse: %w\n", err)
 	}
 	if lines := bytes.Count(output, []byte{'\n'}); lines > 1 {
-		log.Printf("Mount failure: %q\n", output)
-		return
+		return fmt.Errorf("mount output: %q\n", output)
 	}
-	defer util.Unmount(mntDir)
+	return nil
+}
 
+func TestMain(m *testing.M) {
+	flag.Parse()
+
+	if *testBucket == "" {
+		log.Printf("--testbucket must be specified")
+		os.Exit(0)
+	}
+
+	if err := setUpTestDir(); err != nil {
+		log.Printf("setUpTestDir: %v\n", err)
+		os.Exit(1)
+	}
+
+	if err := mountGcsfuse(); err != nil {
+		log.Printf("mountGcsfuse: %v\n", err)
+		os.Exit(1)
+	}
+
+	log.Printf("Test log: %s\n", logFile)
 	ret := m.Run()
+
+	util.Unmount(mntDir)
 	os.Exit(ret)
 }
 

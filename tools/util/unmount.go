@@ -35,7 +35,7 @@ func Unmount(dir string) (err error) {
 		}
 
 		if strings.Contains(err.Error(), "resource busy") {
-			log.Println("Resource busy error while unmounting; trying again")
+			log.Printf("Resource busy error while unmounting: %v; trying again\n", err)
 			time.Sleep(delay)
 			delay = time.Duration(1.3 * float64(delay))
 			continue
