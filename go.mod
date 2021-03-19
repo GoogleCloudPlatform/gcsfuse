@@ -18,7 +18,7 @@ require (
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/prometheus/client_golang v1.7.1
-	github.com/urfave/cli v1.22.4
+	github.com/urfave/cli v1.22.5
 	golang.org/x/net v0.0.0-20201224014010-6772e930b67b
 	golang.org/x/oauth2 v0.0.0-20210218202405-ba52d332ba99
 	google.golang.org/api v0.40.0
