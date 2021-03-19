@@ -151,6 +151,11 @@ type MountConfig struct {
 	// OpenDir calls at all (Linux >= 5.1):
 	EnableNoOpendirSupport bool
 
+	// Disable FUSE default permissions.
+	// This is useful for situations where the backing data store (e.g., S3) doesn't
+	// actually utilise any form of qualifiable UNIX permissions.
+	DisableDefaultPermissions bool
+
 	// OS X only.
 	//
 	// The name of the mounted volume, as displayed in the Finder. If empty, a
@@ -179,7 +184,9 @@ func (c *MountConfig) toMap() (opts map[string]string) {
 
 	// Enable permissions checking in the kernel. See the comments on
 	// InodeAttributes.Mode.
-	opts["default_permissions"] = ""
+	if !c.DisableDefaultPermissions {
+		opts["default_permissions"] = ""
+	}
 
 	// HACK(jacobsa): Work around what appears to be a bug in systemd v219, as
 	// shipped in Ubuntu 15.04, where it automatically unmounts any file system

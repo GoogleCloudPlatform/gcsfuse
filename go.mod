@@ -5,7 +5,7 @@ go 1.14
 require (
 	cloud.google.com/go/storage v1.6.0
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
-	github.com/jacobsa/fuse v0.0.0-20200706075950-f8927095af03
+	github.com/jacobsa/fuse v0.0.0-20201216155545-e0296dec955f
 	github.com/jacobsa/gcloud v0.0.0-20210318100944-f73b85415adb
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
 	github.com/jacobsa/oglemock v0.0.0-20150831005832-e94d794d06ff

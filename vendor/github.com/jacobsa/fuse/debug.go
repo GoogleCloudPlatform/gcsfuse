@@ -55,6 +55,12 @@ func describeRequest(op interface{}) (s string) {
 		addComponent("name %q", f.Interface())
 	}
 
+	if f := v.FieldByName("OpContext"); f.IsValid() {
+		if meta, ok := f.Interface().(fuseops.OpContext); ok {
+			addComponent("PID %+v", meta.Pid)
+		}
+	}
+
 	// Handle special cases.
 	switch typed := op.(type) {
 	case *interruptOp:
