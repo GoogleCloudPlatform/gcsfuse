@@ -82,6 +82,19 @@ func mountGcsfuse() error {
 	return nil
 }
 
+func umount(dir string) error {
+	umount, err := exec.LookPath("umount")
+	if err != nil {
+		return fmt.Errorf("cannot find umount: %w", err)
+	}
+	cmd := exec.Command(umount, mntDir)
+	if _, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("umount error: %w", err)
+	}
+	return nil
+}
+
+
 func TestMain(m *testing.M) {
 	flag.Parse()
 
@@ -103,7 +116,7 @@ func TestMain(m *testing.M) {
 	log.Printf("Test log: %s\n", logFile)
 	ret := m.Run()
 
-	util.Unmount(mntDir)
+	umount(mntDir)
 	os.Exit(ret)
 }
 
