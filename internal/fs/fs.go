@@ -23,6 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/internal/fs/wrappers"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/fuse"
@@ -155,7 +156,11 @@ func NewServer(
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
 
-	server = fuseutil.NewFileSystemServer(WithMonitoring(fs))
+	server = fuseutil.NewFileSystemServer(
+		wrappers.WithMonitoring(
+			fs,
+		),
+	)
 	return
 }
 
