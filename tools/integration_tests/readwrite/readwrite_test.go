@@ -35,7 +35,7 @@ var (
 	testDir string
 	binFile string
 	logFile string
-	mntDir string
+	mntDir  string
 )
 
 func setUpTestDir() error {
@@ -66,8 +66,8 @@ func mountGcsfuse() error {
 		binFile,
 		"--implicit-dirs",
 		"--debug_gcs",
-		"--debug_fuse",
-		"--log-file=" + logFile,
+		"--debug_fs",
+		"--log-file="+logFile,
 		"--log-format=text",
 		*testBucket,
 		mntDir,
@@ -93,7 +93,6 @@ func umount(dir string) error {
 	}
 	return nil
 }
-
 
 func TestMain(m *testing.M) {
 	flag.Parse()
@@ -149,7 +148,7 @@ func TestReadAfterWrite(t *testing.T) {
 
 	content, err := ioutil.ReadAll(tmpFile)
 	if err != nil {
-		t.Errorf("ReadAll: %v",  err)
+		t.Errorf("ReadAll: %v", err)
 	}
 	if got, want := string(content), "line 1\n"; got != want {
 		t.Errorf("File content %q not match %q", got, want)

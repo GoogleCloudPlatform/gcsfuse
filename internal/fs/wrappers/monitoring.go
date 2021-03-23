@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fs
+package wrappers
 
 import (
 	"context"
@@ -92,21 +92,21 @@ func recordLatency(method string, start time.Time) {
 // WithMonitoring takes a FileSystem, returns a FileSystem with monitoring
 // on the counts of requests per API.
 func WithMonitoring(fs fuseutil.FileSystem) fuseutil.FileSystem {
-	return &monitoringFileSystem{
+	return &monitoring{
 		wrapped: fs,
 	}
 }
 
-type monitoringFileSystem struct {
+type monitoring struct {
 	wrapped fuseutil.FileSystem
 }
 
-func (fs *monitoringFileSystem) Destroy() {
+func (fs *monitoring) Destroy() {
 	incrementCounterFsRequests("Destroy")
 	fs.wrapped.Destroy()
 }
 
-func (fs *monitoringFileSystem) StatFS(
+func (fs *monitoring) StatFS(
 	ctx context.Context,
 	op *fuseops.StatFSOp) error {
 	incrementCounterFsRequests("StatFS")
@@ -115,7 +115,7 @@ func (fs *monitoringFileSystem) StatFS(
 	return err
 }
 
-func (fs *monitoringFileSystem) LookUpInode(
+func (fs *monitoring) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) error {
 	incrementCounterFsRequests("LookUpInode")
@@ -125,7 +125,7 @@ func (fs *monitoringFileSystem) LookUpInode(
 	return err
 }
 
-func (fs *monitoringFileSystem) GetInodeAttributes(
+func (fs *monitoring) GetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) error {
 	incrementCounterFsRequests("GetInodeAttributes")
@@ -134,7 +134,7 @@ func (fs *monitoringFileSystem) GetInodeAttributes(
 	return err
 }
 
-func (fs *monitoringFileSystem) SetInodeAttributes(
+func (fs *monitoring) SetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.SetInodeAttributesOp) error {
 	incrementCounterFsRequests("SetInodeAttributes")
@@ -143,7 +143,7 @@ func (fs *monitoringFileSystem) SetInodeAttributes(
 	return err
 }
 
-func (fs *monitoringFileSystem) ForgetInode(
+func (fs *monitoring) ForgetInode(
 	ctx context.Context,
 	op *fuseops.ForgetInodeOp) error {
 	incrementCounterFsRequests("ForgetInode")
@@ -152,7 +152,7 @@ func (fs *monitoringFileSystem) ForgetInode(
 	return err
 }
 
-func (fs *monitoringFileSystem) MkDir(
+func (fs *monitoring) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) error {
 	incrementCounterFsRequests("MkDir")
@@ -161,7 +161,7 @@ func (fs *monitoringFileSystem) MkDir(
 	return err
 }
 
-func (fs *monitoringFileSystem) MkNode(
+func (fs *monitoring) MkNode(
 	ctx context.Context,
 	op *fuseops.MkNodeOp) error {
 	incrementCounterFsRequests("MkNode")
@@ -170,7 +170,7 @@ func (fs *monitoringFileSystem) MkNode(
 	return err
 }
 
-func (fs *monitoringFileSystem) CreateFile(
+func (fs *monitoring) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) error {
 	incrementCounterFsRequests("CreateFile")
@@ -179,7 +179,7 @@ func (fs *monitoringFileSystem) CreateFile(
 	return err
 }
 
-func (fs *monitoringFileSystem) CreateLink(
+func (fs *monitoring) CreateLink(
 	ctx context.Context,
 	op *fuseops.CreateLinkOp) error {
 	incrementCounterFsRequests("CreateLink")
@@ -188,7 +188,7 @@ func (fs *monitoringFileSystem) CreateLink(
 	return err
 }
 
-func (fs *monitoringFileSystem) CreateSymlink(
+func (fs *monitoring) CreateSymlink(
 	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) error {
 	incrementCounterFsRequests("CreateSymlink")
@@ -197,7 +197,7 @@ func (fs *monitoringFileSystem) CreateSymlink(
 	return err
 }
 
-func (fs *monitoringFileSystem) Rename(
+func (fs *monitoring) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) error {
 	incrementCounterFsRequests("Rename")
@@ -206,7 +206,7 @@ func (fs *monitoringFileSystem) Rename(
 	return err
 }
 
-func (fs *monitoringFileSystem) RmDir(
+func (fs *monitoring) RmDir(
 	ctx context.Context,
 	op *fuseops.RmDirOp) error {
 	incrementCounterFsRequests("RmDir")
@@ -215,7 +215,7 @@ func (fs *monitoringFileSystem) RmDir(
 	return err
 }
 
-func (fs *monitoringFileSystem) Unlink(
+func (fs *monitoring) Unlink(
 	ctx context.Context,
 	op *fuseops.UnlinkOp) error {
 	incrementCounterFsRequests("Unlink")
@@ -224,7 +224,7 @@ func (fs *monitoringFileSystem) Unlink(
 	return err
 }
 
-func (fs *monitoringFileSystem) OpenDir(
+func (fs *monitoring) OpenDir(
 	ctx context.Context,
 	op *fuseops.OpenDirOp) error {
 	incrementCounterFsRequests("OpenDir")
@@ -233,7 +233,7 @@ func (fs *monitoringFileSystem) OpenDir(
 	return err
 }
 
-func (fs *monitoringFileSystem) ReadDir(
+func (fs *monitoring) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp) error {
 	incrementCounterFsRequests("ReadDir")
@@ -242,7 +242,7 @@ func (fs *monitoringFileSystem) ReadDir(
 	return err
 }
 
-func (fs *monitoringFileSystem) ReleaseDirHandle(
+func (fs *monitoring) ReleaseDirHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseDirHandleOp) error {
 	incrementCounterFsRequests("ReleaseDirHandle")
@@ -251,7 +251,7 @@ func (fs *monitoringFileSystem) ReleaseDirHandle(
 	return err
 }
 
-func (fs *monitoringFileSystem) OpenFile(
+func (fs *monitoring) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) error {
 	incrementCounterFsRequests("OpenFile")
@@ -261,7 +261,7 @@ func (fs *monitoringFileSystem) OpenFile(
 	return err
 }
 
-func (fs *monitoringFileSystem) ReadFile(
+func (fs *monitoring) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) error {
 	incrementCounterFsRequests("ReadFile")
@@ -271,7 +271,7 @@ func (fs *monitoringFileSystem) ReadFile(
 	return err
 }
 
-func (fs *monitoringFileSystem) WriteFile(
+func (fs *monitoring) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) error {
 	incrementCounterFsRequests("WriteFile")
@@ -280,7 +280,7 @@ func (fs *monitoringFileSystem) WriteFile(
 	return err
 }
 
-func (fs *monitoringFileSystem) SyncFile(
+func (fs *monitoring) SyncFile(
 	ctx context.Context,
 	op *fuseops.SyncFileOp) error {
 	incrementCounterFsRequests("SyncFile")
@@ -289,7 +289,7 @@ func (fs *monitoringFileSystem) SyncFile(
 	return err
 }
 
-func (fs *monitoringFileSystem) FlushFile(
+func (fs *monitoring) FlushFile(
 	ctx context.Context,
 	op *fuseops.FlushFileOp) error {
 	incrementCounterFsRequests("FlushFile")
@@ -298,7 +298,7 @@ func (fs *monitoringFileSystem) FlushFile(
 	return err
 }
 
-func (fs *monitoringFileSystem) ReleaseFileHandle(
+func (fs *monitoring) ReleaseFileHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseFileHandleOp) error {
 	incrementCounterFsRequests("ReleaseFileHandle")
@@ -307,7 +307,7 @@ func (fs *monitoringFileSystem) ReleaseFileHandle(
 	return err
 }
 
-func (fs *monitoringFileSystem) ReadSymlink(
+func (fs *monitoring) ReadSymlink(
 	ctx context.Context,
 	op *fuseops.ReadSymlinkOp) error {
 	incrementCounterFsRequests("ReadSymlink")
@@ -316,7 +316,7 @@ func (fs *monitoringFileSystem) ReadSymlink(
 	return err
 }
 
-func (fs *monitoringFileSystem) RemoveXattr(
+func (fs *monitoring) RemoveXattr(
 	ctx context.Context,
 	op *fuseops.RemoveXattrOp) error {
 	incrementCounterFsRequests("RemoveXattr")
@@ -325,7 +325,7 @@ func (fs *monitoringFileSystem) RemoveXattr(
 	return err
 }
 
-func (fs *monitoringFileSystem) GetXattr(
+func (fs *monitoring) GetXattr(
 	ctx context.Context,
 	op *fuseops.GetXattrOp) error {
 	incrementCounterFsRequests("GetXattr")
@@ -334,7 +334,7 @@ func (fs *monitoringFileSystem) GetXattr(
 	return err
 }
 
-func (fs *monitoringFileSystem) ListXattr(
+func (fs *monitoring) ListXattr(
 	ctx context.Context,
 	op *fuseops.ListXattrOp) error {
 	incrementCounterFsRequests("ListXattr")
@@ -343,7 +343,7 @@ func (fs *monitoringFileSystem) ListXattr(
 	return err
 }
 
-func (fs *monitoringFileSystem) SetXattr(
+func (fs *monitoring) SetXattr(
 	ctx context.Context,
 	op *fuseops.SetXattrOp) error {
 	incrementCounterFsRequests("SetXattr")
@@ -352,7 +352,7 @@ func (fs *monitoringFileSystem) SetXattr(
 	return err
 }
 
-func (fs *monitoringFileSystem) Fallocate(
+func (fs *monitoring) Fallocate(
 	ctx context.Context,
 	op *fuseops.FallocateOp) error {
 	incrementCounterFsRequests("Fallocate")

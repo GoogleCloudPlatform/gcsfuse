@@ -100,6 +100,7 @@ be interacting with the file system.`)
 		BucketManager:          bm,
 		BucketName:             bucketName,
 		LocalFileCache:         flags.LocalFileCache,
+		DebugFS:                flags.DebugFS,
 		TempDir:                flags.TempDir,
 		ImplicitDirectories:    flags.ImplicitDirs,
 		InodeAttributeCacheTTL: flags.StatCacheTTL,
