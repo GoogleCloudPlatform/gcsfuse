@@ -23,7 +23,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/internal/fs/wrappers"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/fuse"
@@ -97,18 +96,16 @@ type ServerConfig struct {
 }
 
 // Create a fuse file system server according to the supplied configuration.
-func NewServer(
-	ctx context.Context,
-	cfg *ServerConfig) (server fuse.Server, err error) {
+func NewFileSystem( 
+	ctx context.Context, 
+	cfg *ServerConfig) (fuseutil.FileSystem, error) {
 	// Check permissions bits.
 	if cfg.FilePerms&^os.ModePerm != 0 {
-		err = fmt.Errorf("Illegal file perms: %v", cfg.FilePerms)
-		return
+		return nil, fmt.Errorf("Illegal file perms: %v", cfg.FilePerms)
 	}
 
 	if cfg.DirPerms&^os.ModePerm != 0 {
-		err = fmt.Errorf("Illegal dir perms: %v", cfg.FilePerms)
-		return
+		return nil, fmt.Errorf("Illegal dir perms: %v", cfg.FilePerms)
 	}
 
 	// Set up the basic struct.
@@ -138,12 +135,10 @@ func NewServer(
 		logger.Info("Set up root directory for all accessible buckets")
 		root = makeRootForAllBuckets(fs)
 	} else {
-		var syncerBucket gcsx.SyncerBucket
 		logger.Info("Set up root directory for bucket " + cfg.BucketName)
-		syncerBucket, err = fs.bucketManager.SetUpBucket(ctx, cfg.BucketName)
+		syncerBucket, err := fs.bucketManager.SetUpBucket(ctx, cfg.BucketName)
 		if err != nil {
-			err = fmt.Errorf("SetUpBucket: %w", err)
-			return
+			return nil, fmt.Errorf("SetUpBucket: %w", err)
 		}
 		root = makeRootForBucket(ctx, fs, syncerBucket)
 	}
@@ -155,15 +150,7 @@ func NewServer(
 
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
-
-	server = fuseutil.NewFileSystemServer(
-		wrappers.WithMonitoring(
-			wrappers.WithErrorMapping(
-				fs,
-			),
-		),
-	)
-	return
+	return fs, nil
 }
 
 func makeRootForBucket(
