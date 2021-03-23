@@ -49,6 +49,9 @@ type ServerConfig struct {
 	// LocalFileCache
 	LocalFileCache bool
 
+	// Enable debug messages
+	DebugFS bool
+
 	// The temporary directory to use for local caching, or the empty string to
 	// use the system default.
 	TempDir string
@@ -96,8 +99,8 @@ type ServerConfig struct {
 }
 
 // Create a fuse file system server according to the supplied configuration.
-func NewFileSystem( 
-	ctx context.Context, 
+func NewFileSystem(
+	ctx context.Context,
 	cfg *ServerConfig) (fuseutil.FileSystem, error) {
 	// Check permissions bits.
 	if cfg.FilePerms&^os.ModePerm != 0 {
@@ -1192,7 +1195,7 @@ func (fs *fileSystem) createFile(
 	// Propagate other errors.
 	if err != nil {
 		err = fmt.Errorf("CreateChildFile: %w", err)
-		return 
+		return
 	}
 
 	// Attempt to create a child inode using the object we created. If we fail to
@@ -1504,7 +1507,7 @@ func (fs *fileSystem) ReadDir(
 		return err
 	}
 
-	return 
+	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
@@ -1623,7 +1626,7 @@ func (fs *fileSystem) SyncFile(
 	defer in.Unlock()
 
 	// Sync it.
-	if  err := fs.syncFile(ctx, in); err != nil {
+	if err := fs.syncFile(ctx, in); err != nil {
 		return err
 	}
 
