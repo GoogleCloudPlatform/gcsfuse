@@ -36,6 +36,11 @@ func errno(err error) error {
 		return errno
 	}
 
+	// FS op is interrupted
+	if errors.Is(err, context.Canceled) {
+		return syscall.EINTR
+	}
+
 	// Translate API errors into an FS errno
 	var apiErr *googleapi.Error
 	if errors.As(err, &apiErr) {
@@ -49,7 +54,7 @@ func errno(err error) error {
 	return syscall.EIO
 }
 
-// WithErrorMapping wraps a FileSystem, processing the returned errors, and 
+// WithErrorMapping wraps a FileSystem, processing the returned errors, and
 // mapping them into syscall.Errno that can be understood by FUSE.
 func WithErrorMapping(wrapped fuseutil.FileSystem) fuseutil.FileSystem {
 	return &errorMapping{wrapped: wrapped}
