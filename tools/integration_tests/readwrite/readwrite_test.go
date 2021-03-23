@@ -126,31 +126,33 @@ func TestReadAfterWrite(t *testing.T) {
 		return
 	}
 
-	tmpFile, err := ioutil.TempFile(tmpDir, "tmpFile")
-	if err != nil {
-		t.Errorf("Create file at %q: %v", tmpDir, err)
-		return
-	}
+	for i := 0; i < 10; i++ {
+		tmpFile, err := ioutil.TempFile(tmpDir, "tmpFile")
+		if err != nil {
+			t.Errorf("Create file at %q: %v", tmpDir, err)
+			return
+		}
 
-	fileName := tmpFile.Name()
-	if _, err := tmpFile.WriteString("line 1\n"); err != nil {
-		t.Errorf("WriteString: %v", err)
-	}
-	if err := tmpFile.Close(); err != nil {
-		t.Errorf("Close: %v", err)
-	}
+		fileName := tmpFile.Name()
+		if _, err := tmpFile.WriteString("line 1\n"); err != nil {
+			t.Errorf("WriteString: %v", err)
+		}
+		if err := tmpFile.Close(); err != nil {
+			t.Errorf("Close: %v", err)
+		}
 
-	tmpFile, err = os.Open(fileName)
-	if err != nil {
-		t.Errorf("Open %q: %v", fileName, err)
-		return
-	}
+		tmpFile, err = os.Open(fileName)
+		if err != nil {
+			t.Errorf("Open %q: %v", fileName, err)
+			return
+		}
 
-	content, err := ioutil.ReadAll(tmpFile)
-	if err != nil {
-		t.Errorf("ReadAll: %v", err)
-	}
-	if got, want := string(content), "line 1\n"; got != want {
-		t.Errorf("File content %q not match %q", got, want)
+		content, err := ioutil.ReadAll(tmpFile)
+		if err != nil {
+			t.Errorf("ReadAll: %v", err)
+		}
+		if got, want := string(content), "line 1\n"; got != want {
+			t.Errorf("File content %q not match %q", got, want)
+		}
 	}
 }
