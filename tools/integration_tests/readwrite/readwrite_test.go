@@ -67,6 +67,7 @@ func mountGcsfuse() error {
 		"--implicit-dirs",
 		"--debug_gcs",
 		"--debug_fs",
+		"--debug_fuse",
 		"--log-file="+logFile,
 		"--log-format=text",
 		*testBucket,
