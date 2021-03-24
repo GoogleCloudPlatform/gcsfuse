@@ -77,6 +77,8 @@ func NewSymlinkInode(
 			Uid:   attrs.Uid,
 			Gid:   attrs.Gid,
 			Mode:  attrs.Mode,
+			Atime: o.Updated,
+			Ctime: o.Updated,
 			Mtime: o.Updated,
 		},
 		target: o.Metadata[SymlinkMetadataKey],
