@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # BUILD EXAMPLE
-#   docker build . -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.33.0
+#   docker build . -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.34.0
 # RUN EXAMPLE
 #   docker run -it -v /tmp:/output gcsfuse-release cp -r /packages /output
 
@@ -27,7 +27,7 @@ ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GO111MODULE=auto
 
-ARG GCSFUSE_VERSION="0.33.1"
+ARG GCSFUSE_VERSION="0.34.0"
 ARG GCSFUSE_REPO="github.com/googlecloudplatform/gcsfuse/"
 ENV GCSFUSE_PATH "$GOPATH/src/$GCSFUSE_REPO"
 RUN go get -u ${GCSFUSE_REPO}
