@@ -17,7 +17,7 @@
 # RUN EXAMPLE
 #   docker run -it -v /tmp:/output gcsfuse-release cp -r /packages /output
 
-FROM golang:1.15.7 as builder
+FROM golang:1.16.2 as builder
 
 RUN apt-get update -qq && \
     apt-get install -y ruby ruby-dev rubygems build-essential rpm && \
@@ -25,6 +25,7 @@ RUN apt-get update -qq && \
 
 ENV CGO_ENABLED=0
 ENV GOOS=linux
+ENV GO111MODULE=auto
 
 ARG GCSFUSE_VERSION="0.33.1"
 ARG GCSFUSE_REPO="github.com/googlecloudplatform/gcsfuse/"
