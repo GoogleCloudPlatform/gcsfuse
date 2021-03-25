@@ -14,7 +14,9 @@ import (
 )
 
 // now aliases time.Now for testing
-var now = time.Now
+var now = func() time.Time {
+	return time.Now().UTC()
+}
 
 // Config stores the configuration for fetching tokens with external credentials.
 type Config struct {
@@ -45,7 +47,7 @@ func (c *Config) TokenSource(ctx context.Context) oauth2.TokenSource {
 		ctx:    ctx,
 		url:    c.ServiceAccountImpersonationURL,
 		scopes: scopes,
-		ts: oauth2.ReuseTokenSource(nil, ts),
+		ts:     oauth2.ReuseTokenSource(nil, ts),
 	}
 	return oauth2.ReuseTokenSource(nil, imp)
 }
