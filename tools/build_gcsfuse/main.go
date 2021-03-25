@@ -114,10 +114,6 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		mountHelperName = "mount.gcsfuse"
 	}
 
-	// Build binaries in module-aware mode since Go 1.16, which requires go.mod
-	// in the current directory.
-	os.Chdir(gcsfuseDir)
-
 	// Build the binaries.
 	binaries := []struct {
 		goTarget   string
@@ -157,6 +153,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		// Set up environment.
 		cmd.Env = []string{
 			"GO15VENDOREXPERIMENT=1",
+			"GO111MODULE=auto",
 			fmt.Sprintf("PATH=%s", pathEnv),
 			fmt.Sprintf("GOROOT=%s", runtime.GOROOT()),
 			fmt.Sprintf("GOPATH=%s", gopath),
