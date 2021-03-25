@@ -12,18 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.15.2-alpine as builder
+FROM golang:1.16.2-alpine as builder
+
+RUN apk add git
 
 ENV CGO_ENABLED=0
 ENV GOOS=linux
 
-ARG GCSFUSE_VERSION="dev"
+ARG GCSFUSE_VERSION="master"
 ARG GCSFUSE_REPO="${GOPATH}/src/github.com/googlecloudplatform/gcsfuse/"
 ADD . ${GCSFUSE_REPO}
 
-WORKDIR ${GOPATH}
-RUN go install github.com/googlecloudplatform/gcsfuse/tools/build_gcsfuse
-RUN build_gcsfuse ${GCSFUSE_REPO} /tmp ${GCSFUSE_VERSION}
+WORKDIR ${GCSFUSE_REPO}
+RUN git checkout ${GCSFUSE_VERSION}
+RUN go install ./tools/build_gcsfuse
+RUN build_gcsfuse . /tmp ${GCSFUSE_VERSION}
 
 FROM alpine:3.12
 
