@@ -167,7 +167,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		var output []byte
 		output, err = cmd.CombinedOutput()
 		if err != nil {
-			err = fmt.Errorf("Building %s: %w\nOutput:\n%s", bin.outputPath, err, output)
+			err = fmt.Errorf("%v: %w\nOutput:\n%s", cmd, err, output)
 			return
 		}
 	}
