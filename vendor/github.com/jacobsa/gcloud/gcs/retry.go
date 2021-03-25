@@ -425,16 +425,22 @@ func (rb *retryBucket) NewReader(
 func (rb *retryBucket) CreateObject(
 	ctx context.Context,
 	req *CreateObjectRequest) (o *Object, err error) {
-	// We can't simply replay the request multiple times, because the first
-	// attempt might exhaust some of the req.Contents reader, leaving missing
-	// contents for the second attempt.
-	//
-	// So, copy out all contents and create a copy of the request that we will
-	// modify to serve from memory for each call.
-	contents, err := ioutil.ReadAll(req.Contents)
-	if err != nil {
-		err = fmt.Errorf("ioutil.ReadAll: %v", err)
-		return
+	var seeker io.ReadSeeker
+	if readSeeker, ok := req.Contents.(io.ReadSeeker); ok {
+		seeker = readSeeker
+	} else {
+		// We can't simply replay the request multiple times, because the first
+		// attempt might exhaust some of the req.Contents reader, leaving
+		// missing contents for the second attempt.
+		//
+		// So, copy out all contents and create a copy of the request that we
+		// will modify to serve from memory for each call.
+		data, err := ioutil.ReadAll(req.Contents)
+		if err != nil {
+			err = fmt.Errorf("ioutil.ReadAll: %v", err)
+			return nil, err
+		}
+		seeker = bytes.NewReader(data)
 	}
 
 	reqCopy := *req
@@ -445,7 +451,10 @@ func (rb *retryBucket) CreateObject(
 		fmt.Sprintf("CreateObject(%q)", req.Name),
 		rb.maxSleep,
 		func() (err error) {
-			reqCopy.Contents = bytes.NewReader(contents)
+			if _, err = seeker.Seek(0, io.SeekStart); err != nil {
+				return
+			}
+			reqCopy.Contents = seeker
 			o, err = rb.wrapped.CreateObject(ctx, &reqCopy)
 			return
 		})
