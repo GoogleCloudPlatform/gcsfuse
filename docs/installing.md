@@ -97,8 +97,8 @@ Ensure that dependencies are present:
 
 Download and install the latest release package:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.32.0/gcsfuse-0.32.0-1.x86_64.rpm
-    sudo rpm --install -p gcsfuse-0.32.0-1.x86_64.rpm
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.34.0/gcsfuse-0.34.0-1.x86_64.rpm
+    sudo rpm --install -p gcsfuse-0.34.0-1.x86_64.rpm
 
 <a name="other-distributions"></a>
 
@@ -146,6 +146,11 @@ above and logging out and back in, you may need to fix the permissions:
 
 
 # OS X
+
+The following describes how to install gcsfuse from homebrew. However, due to
+the dependency on FUSE, homebrew is [deprecating
+gcsfuse](https://github.com/Homebrew/homebrew-core/pull/64491) as a formulae.
+Building from source will be preferred in the future.
 
 First, handle prerequisites:
 
