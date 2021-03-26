@@ -102,11 +102,13 @@ func makeGcsfuseArgs(
 			"temp_dir",
 			"max_conns_per_host",
 			"monitoring_port",
+			"log_format",
 			"log_file":
 			args = append(args, "--"+strings.Replace(name, "_", "-", -1), value)
 
 		// Special case: support mount-like formatting for gcsfuse debug flags.
 		case "debug_fuse",
+			"debug_fs",
 			"debug_gcs",
 			"debug_http",
 			"debug_invariants":
