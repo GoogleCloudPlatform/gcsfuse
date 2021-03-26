@@ -181,7 +181,7 @@ Prerequisites:
 
 To install or update gcsfuse, run:
 
-    go get -u github.com/googlecloudplatform/gcsfuse
+    GO111MODULE=auto go get -u github.com/googlecloudplatform/gcsfuse
 
 This will fetch the gcsfuse sources to
 `$GOPATH/src/github.com/googlecloudplatform/gcsfuse`, build them, and install a
