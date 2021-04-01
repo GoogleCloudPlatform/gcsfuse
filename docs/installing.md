@@ -97,8 +97,8 @@ Ensure that dependencies are present:
 
 Download and install the latest release package:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.34.0/gcsfuse-0.34.0-1.x86_64.rpm
-    sudo rpm --install -p gcsfuse-0.34.0-1.x86_64.rpm
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.34.1/gcsfuse-0.34.1-1.x86_64.rpm
+    sudo rpm --install -p gcsfuse-0.34.1-1.x86_64.rpm
 
 <a name="other-distributions"></a>
 
