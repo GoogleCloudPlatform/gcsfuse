@@ -81,14 +81,16 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 	AssertEq(nil, err)
 
 	// Create the inode.
-	t.createInode()
+	t.createInode(
+		false, // limitMtimeMutation
+	)
 }
 
 func (t *FileTest) TearDown() {
 	t.in.Unlock()
 }
 
-func (t *FileTest) createInode() {
+func (t *FileTest) createInode(limitMtimeMutation bool) {
 	if t.in != nil {
 		t.in.Unlock()
 	}
@@ -111,6 +113,7 @@ func (t *FileTest) createInode() {
 			".gcsfuse_tmp/",
 			t.bucket),
 		false, // localFileCache
+		limitMtimeMutation,
 		"",
 		&t.clock)
 
@@ -158,7 +161,9 @@ func (t *FileTest) InitialAttributes_MtimeFromObjectMetadata_Gcsfuse() {
 	mtime := time.Now().Add(123*time.Second).UTC().AddDate(0, 0, 0)
 	t.backingObj.Metadata["gcsfuse_mtime"] = mtime.Format(time.RFC3339Nano)
 
-	t.createInode()
+	t.createInode(
+		false, // limitMtimeMutation
+	)
 
 	// Ask it for its attributes.
 	attrs, err := t.in.Attributes(t.ctx)
@@ -176,7 +181,9 @@ func (t *FileTest) InitialAttributes_MtimeFromObjectMetadata_Gsutil() {
 	mtime := time.Now().Add(123*time.Second).UTC().AddDate(0, 0, 0).Round(time.Second)
 	t.backingObj.Metadata["goog-reserved-file-mtime"] = strconv.FormatInt(mtime.Unix(), 10)
 
-	t.createInode()
+	t.createInode(
+		false, // limitMtimeMutation
+	)
 
 	// Ask it for its attributes.
 	attrs, err := t.in.Attributes(t.ctx)
@@ -197,7 +204,9 @@ func (t *FileTest) InitialAttributes_MtimeFromObjectMetadata_GcsfuseOutranksGsut
 	canonicalMtime := time.Now().Add(456*time.Second).UTC().AddDate(0, 0, 0)
 	t.backingObj.Metadata["gcsfuse_mtime"] = canonicalMtime.Format(time.RFC3339Nano)
 
-	t.createInode()
+	t.createInode(
+		false, // limitMtimeMutation
+	)
 
 	// Ask it for its attributes.
 	attrs, err := t.in.Attributes(t.ctx)
@@ -679,4 +688,48 @@ func (t *FileTest) SetMtime_SourceObjectMetaGenerationChanged() {
 	AssertEq(nil, err)
 	ExpectEq(newObj.Generation, o.Generation)
 	ExpectEq(newObj.MetaGeneration, o.MetaGeneration)
+}
+
+func (t *FileTest) SetMtime_LimitMtimeMutation() {
+	var err error
+	var attrs fuseops.InodeAttributes
+
+	t.createInode(
+		true, // limitMtimeMutation
+	)
+
+	// Set mtime.
+	mtime := time.Now().UTC().Add(678*time.Second).AddDate(0, 0, 0)
+
+	err = t.in.SetMtime(t.ctx, mtime)
+	AssertEq(nil, err)
+
+	// The inode should agree about the new mtime.
+	attrs, err = t.in.Attributes(t.ctx)
+
+	AssertEq(nil, err)
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(mtime))
+
+	// The inode hasn't added the mtime to the backing object's metadata.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	o, err := t.bucket.StatObject(t.ctx, statReq)
+
+	AssertEq(nil, err)
+	ExpectNe(
+		mtime.UTC().Format(time.RFC3339Nano),
+		o.Metadata["gcsfuse_mtime"])
+
+	// The inode adds the mtime to the backing object's metadata when syncing
+	// the file content.
+	t.in.Write(t.ctx, []byte("burrito"), 0)
+	err = t.in.SetMtime(t.ctx, mtime)
+	t.in.Sync(t.ctx)
+
+	statReq = &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	o, err = t.bucket.StatObject(t.ctx, statReq)
+
+	AssertEq(nil, err)
+	ExpectEq(
+		mtime.UTC().Format(time.RFC3339Nano),
+		o.Metadata["gcsfuse_mtime"])
 }

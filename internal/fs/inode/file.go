@@ -44,10 +44,11 @@ type FileInode struct {
 	// Constant data
 	/////////////////////////
 
-	id      fuseops.InodeID
-	name    Name
-	attrs   fuseops.InodeAttributes
-	tempDir string
+	id                 fuseops.InodeID
+	name               Name
+	attrs              fuseops.InodeAttributes
+	tempDir            string
+	limitMtimeMutation bool
 
 	/////////////////////////
 	// Mutable state
@@ -94,17 +95,19 @@ func NewFileInode(
 	attrs fuseops.InodeAttributes,
 	bucket gcsx.SyncerBucket,
 	localFileCache bool,
+	limitMtimeMutation bool,
 	tempDir string,
 	mtimeClock timeutil.Clock) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
-		bucket:     bucket,
-		mtimeClock: mtimeClock,
-		id:         id,
-		name:       name,
-		attrs:      attrs,
-		tempDir:    tempDir,
-		src:        *o,
+		bucket:             bucket,
+		mtimeClock:         mtimeClock,
+		id:                 id,
+		name:               name,
+		attrs:              attrs,
+		tempDir:            tempDir,
+		limitMtimeMutation: limitMtimeMutation,
+		src:                *o,
 	}
 
 	f.lc.Init(id)
@@ -425,6 +428,10 @@ func (f *FileInode) SetMtime(
 	// always receive a setattr request just before a flush of a dirty file.
 	if sr.Mtime != nil {
 		f.content.SetMtime(mtime)
+		return
+	}
+
+	if f.limitMtimeMutation {
 		return
 	}
 

@@ -105,6 +105,7 @@ be interacting with the file system.`)
 		ImplicitDirectories:    flags.ImplicitDirs,
 		InodeAttributeCacheTTL: flags.StatCacheTTL,
 		DirTypeCacheTTL:        flags.TypeCacheTTL,
+		LimitMtimeMutation:     flags.LimitMtimeMutation,
 		Uid:                    uid,
 		Gid:                    gid,
 		FilePerms:              os.FileMode(flags.FileMode),

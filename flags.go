@@ -110,6 +110,12 @@ func newApp() (app *cli.App) {
 				Usage: "Mount only the given directory, relative to the bucket root.",
 			},
 
+			cli.BoolFlag{
+				Name: "limited-mtime-mutation",
+				Usage: "Mtime mutations are only allowed for unflushed file " +
+					"changes, not for flushed file content.",
+			},
+
 			/////////////////////////
 			// GCS
 			/////////////////////////
@@ -282,6 +288,7 @@ type flagStorage struct {
 	TokenUrl                           string
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
+	LimitMtimeMutation                 bool
 
 	// Tuning
 	MaxRetrySleep     time.Duration
@@ -327,6 +334,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		TokenUrl:                           c.String("token-url"),
 		EgressBandwidthLimitBytesPerSecond: c.Float64("limit-bytes-per-sec"),
 		OpRateLimitHz:                      c.Float64("limit-ops-per-sec"),
+		LimitMtimeMutation:                 c.Bool("limited-mtime-mutation"),
 
 		// Tuning,
 		MaxRetrySleep:     c.Duration("max-retry-sleep"),
