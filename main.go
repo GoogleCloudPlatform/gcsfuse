@@ -31,6 +31,7 @@ import (
 	"path/filepath"
 
 	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
@@ -81,19 +82,26 @@ func startMonitoringHTTPHandler(monitoringPort int) {
 }
 
 func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
-	tokenSrc, err := auth.GetTokenSource(
-		context.Background(),
-		flags.KeyFile,
-		flags.TokenUrl,
-	)
-	if err != nil {
-		err = fmt.Errorf("GetTokenSource: %w", err)
-		return
+	var tokenSrc oauth2.TokenSource
+	if flags.Endpoint.Hostname() == "www.googleapis.com" {
+		tokenSrc, err = auth.GetTokenSource(
+			context.Background(),
+			flags.KeyFile,
+			flags.TokenUrl,
+		)
+		if err != nil {
+			err = fmt.Errorf("GetTokenSource: %w", err)
+			return
+		}
+	} else {
+		// Do not use OAuth with non-Google hosts.
+		tokenSrc = oauth2.StaticTokenSource(&oauth2.Token{})
 	}
 
 	// Create the connection.
 	const userAgent = "gcsfuse/0.0"
 	cfg := &gcs.ConnConfig{
+		Url:             flags.Endpoint,
 		TokenSource:     tokenSrc,
 		UserAgent:       userAgent,
 		MaxBackoffSleep: flags.MaxRetrySleep,
