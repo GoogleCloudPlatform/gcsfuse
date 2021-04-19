@@ -1405,7 +1405,7 @@ func (fs *fileSystem) Rename(
 	}
 
 	if lr.FullName.IsDir() {
-		return fs.renameDir(ctx)
+		return fs.renameDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
 	return fs.renameFile(ctx, oldParent, op.OldName, lr.Object, newParent, op.NewName)
 }
@@ -1449,9 +1449,81 @@ func (fs *fileSystem) renameFile(
 	return nil
 }
 
+// Rename an empty directory in a non-atomic way.
+//
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *fileSystem) renameDir(ctx context.Context) error {
-	return fuse.ENOSYS
+func (fs *fileSystem) renameDir(
+	ctx context.Context,
+	oldParent inode.DirInode,
+	oldName string,
+	newParent inode.DirInode,
+	newName string) error {
+	oldChild, err := fs.lookUpOrCreateChildInode(ctx, oldParent, oldName)
+	if err != nil {
+		return fmt.Errorf("lookUpOrCreateChildInode: %w", err)
+	}
+
+	cleanUpAndUnlockOldChild := func() {
+		if oldChild != nil {
+			fs.mu.Lock()
+			fs.unlockAndDecrementLookupCount(oldChild, 1)
+			oldChild = nil
+		}
+	}
+
+	// Set up a function that throws away the lookup count increment that we
+	// implicitly did above (since we're not handing the child back to the
+	// kernel) and unlocks the child, but only once
+	defer cleanUpAndUnlockOldChild()
+
+	// Make sure the old child inode is a directory.
+	oldDir, ok := oldChild.(inode.DirInode)
+	if !ok {
+		return fuse.ENOTDIR
+	}
+
+	// Ensure that the old directory is empty.
+	var tok string
+	for {
+		var entries []fuseutil.Dirent
+		entries, tok, err = oldDir.ReadEntries(ctx, tok)
+		if err != nil {
+			err = fmt.Errorf("ReadEntries: %w", err)
+			return err
+		}
+
+		// Are there any entries?
+		if len(entries) != 0 {
+			return fuse.ENOTEMPTY
+		}
+
+		// Are we done listing?
+		if tok == "" {
+			break
+		}
+	}
+
+	// Create the backing object of the new directory.
+	newParent.Lock()
+	_, _, _, err = newParent.CreateChildDir(ctx, newName)
+	newParent.Unlock()
+	if err != nil {
+		return fmt.Errorf("CreateChildDir: %w", err)
+	}
+
+	// We are done with the old directory.
+	cleanUpAndUnlockOldChild()
+
+	// Delete the backing object of the old directory.
+	oldParent.Lock()
+	err = oldParent.DeleteChildDir(ctx, oldName)
+	oldParent.Unlock()
+
+	if err != nil {
+		return fmt.Errorf("DeleteChildDir: %w", err)
+	}
+
+	return nil
 }
 
 // LOCKS_EXCLUDED(fs.mu)

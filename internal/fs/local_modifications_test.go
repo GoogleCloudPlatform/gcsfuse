@@ -2282,7 +2282,7 @@ type RenameTest struct {
 
 func init() { RegisterTestSuite(&RenameTest{}) }
 
-func (t *RenameTest) Directory() {
+func (t *RenameTest) DirectoryContainingFiles() {
 	var err error
 
 	// Create a directory.
@@ -2290,11 +2290,36 @@ func (t *RenameTest) Directory() {
 	err = os.Mkdir(oldPath, 0700)
 	AssertEq(nil, err)
 
+	file := path.Join(oldPath, "foo")
+	err = ioutil.WriteFile(file, []byte("taco"), 0400)
+	AssertEq(nil, err)
+
 	// Attempt to rename it.
 	newPath := path.Join(t.Dir, "bar")
 
 	err = os.Rename(oldPath, newPath)
-	ExpectThat(err, Error(HasSubstr("not implemented")))
+	ExpectThat(err, Error(HasSubstr("directory not empty")))
+}
+
+func (t *RenameTest) EmptyDirectory() {
+	var err error
+
+	// Create a directory.
+	oldPath := path.Join(t.Dir, "foo")
+	err = os.Mkdir(oldPath, 0700)
+	AssertEq(nil, err)
+
+	// Rename it.
+	newPath := path.Join(t.Dir, "bar")
+	err = os.Rename(oldPath, newPath)
+	AssertEq(nil, err)
+
+	_, err = os.Stat(oldPath)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	file, err := os.Stat(newPath)
+	AssertEq(nil, err)
+	ExpectTrue(file.IsDir())
 }
 
 func (t *RenameTest) WithinDir() {
