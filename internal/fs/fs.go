@@ -97,6 +97,9 @@ type ServerConfig struct {
 	// os.ModePerm may be set.
 	FilePerms os.FileMode
 	DirPerms  os.FileMode
+
+	// Allow renaming a directory containing fewer files than this limit.
+	RenameDirLimit int64
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -122,6 +125,7 @@ func NewFileSystem(
 		implicitDirs:           cfg.ImplicitDirectories,
 		inodeAttributeCacheTTL: cfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:        cfg.DirTypeCacheTTL,
+		renameDirLimit:         cfg.RenameDirLimit,
 		uid:                    cfg.Uid,
 		gid:                    cfg.Gid,
 		fileMode:               cfg.FilePerms,
@@ -246,6 +250,7 @@ type fileSystem struct {
 	implicitDirs           bool
 	inodeAttributeCacheTTL time.Duration
 	dirTypeCacheTTL        time.Duration
+	renameDirLimit         int64
 
 	// The user and group owning everything in the file system.
 	uid uint32
