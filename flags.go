@@ -110,6 +110,13 @@ func newApp() (app *cli.App) {
 				Usage: "Mount only the given directory, relative to the bucket root.",
 			},
 
+			cli.IntFlag{
+				Name:  "rename-dir-limit",
+				Value: 0,
+				Usage: "Allow renaming a directory containing fewer files than " +
+					"this limit in a non-atomic way.",
+			},
+
 			/////////////////////////
 			// GCS
 			/////////////////////////
@@ -268,13 +275,14 @@ type flagStorage struct {
 	Foreground bool
 
 	// File system
-	MountOptions map[string]string
-	DirMode      os.FileMode
-	FileMode     os.FileMode
-	Uid          int64
-	Gid          int64
-	ImplicitDirs bool
-	OnlyDir      string
+	MountOptions   map[string]string
+	DirMode        os.FileMode
+	FileMode       os.FileMode
+	Uid            int64
+	Gid            int64
+	ImplicitDirs   bool
+	OnlyDir        string
+	RenameDirLimit int64
 
 	// GCS
 	BillingProject                     string
@@ -313,13 +321,14 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		Foreground: c.Bool("foreground"),
 
 		// File system
-		MountOptions: make(map[string]string),
-		DirMode:      os.FileMode(*c.Generic("dir-mode").(*OctalInt)),
-		FileMode:     os.FileMode(*c.Generic("file-mode").(*OctalInt)),
-		Uid:          int64(c.Int("uid")),
-		Gid:          int64(c.Int("gid")),
-		ImplicitDirs: c.Bool("implicit-dirs"),
-		OnlyDir:      c.String("only-dir"),
+		MountOptions:   make(map[string]string),
+		DirMode:        os.FileMode(*c.Generic("dir-mode").(*OctalInt)),
+		FileMode:       os.FileMode(*c.Generic("file-mode").(*OctalInt)),
+		Uid:            int64(c.Int("uid")),
+		Gid:            int64(c.Int("gid")),
+		ImplicitDirs:   c.Bool("implicit-dirs"),
+		OnlyDir:        c.String("only-dir"),
+		RenameDirLimit: int64(c.Int("rename-dir-limit")),
 
 		// GCS,
 		BillingProject:                     c.String("billing-project"),
