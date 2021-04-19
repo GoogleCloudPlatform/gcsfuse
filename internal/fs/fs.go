@@ -1404,18 +1404,26 @@ func (fs *fileSystem) Rename(
 		return err
 	}
 
-	// We don't support renaming directories.
 	if lr.FullName.IsDir() {
-		err = fuse.ENOSYS
-		return
+		return fs.renameDir(ctx)
 	}
+	return fs.renameFile(ctx, oldParent, op.OldName, lr.Object, newParent, op.NewName)
+}
 
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) renameFile(
+	ctx context.Context,
+	oldParent inode.DirInode,
+	oldName string,
+	oldObject *gcs.Object,
+	newParent inode.DirInode,
+	newFileName string) error {
 	// Clone into the new location.
 	newParent.Lock()
-	_, _, _, err = newParent.CloneToChildFile(
+	_, _, _, err := newParent.CloneToChildFile(
 		ctx,
-		op.NewName,
-		lr.Object)
+		newFileName,
+		oldObject)
 	newParent.Unlock()
 
 	if err != nil {
@@ -1428,9 +1436,9 @@ func (fs *fileSystem) Rename(
 	oldParent.Lock()
 	err = oldParent.DeleteChildFile(
 		ctx,
-		op.OldName,
-		lr.Object.Generation,
-		&lr.Object.MetaGeneration)
+		oldName,
+		oldObject.Generation,
+		&oldObject.MetaGeneration)
 	oldParent.Unlock()
 
 	if err != nil {
@@ -1438,7 +1446,12 @@ func (fs *fileSystem) Rename(
 		return err
 	}
 
-	return
+	return nil
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) renameDir(ctx context.Context) error {
+	return fuse.ENOSYS
 }
 
 // LOCKS_EXCLUDED(fs.mu)
