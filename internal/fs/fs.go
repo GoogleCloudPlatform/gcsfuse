@@ -68,12 +68,6 @@ type ServerConfig struct {
 	// See docs/semantics.md for more info.
 	ImplicitDirectories bool
 
-	// This flag allows the FS to cache the mtime changes locally, instead of
-	// setting it directly in the GCS, which requires object.update permission.
-	// If the mtime is cached, it will only be uploaded when the FlushFile is
-	// invoked, and local file content is synced to the GCS.
-	LimitMtimeMutation bool
-
 	// How long to allow the kernel to cache inode attributes.
 	//
 	// Any given object generation in GCS is immutable, and a new generation
@@ -127,7 +121,6 @@ func NewFileSystem(
 		implicitDirs:           cfg.ImplicitDirectories,
 		inodeAttributeCacheTTL: cfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:        cfg.DirTypeCacheTTL,
-		limitMtimeMutation:     cfg.LimitMtimeMutation,
 		uid:                    cfg.Uid,
 		gid:                    cfg.Gid,
 		fileMode:               cfg.FilePerms,
@@ -252,7 +245,6 @@ type fileSystem struct {
 	implicitDirs           bool
 	inodeAttributeCacheTTL time.Duration
 	dirTypeCacheTTL        time.Duration
-	limitMtimeMutation     bool
 
 	// The user and group owning everything in the file system.
 	uid uint32
@@ -579,7 +571,6 @@ func (fs *fileSystem) mintInode(
 			},
 			bucket,
 			fs.localFileCache,
-			fs.limitMtimeMutation,
 			fs.tempDir,
 			fs.mtimeClock)
 	}

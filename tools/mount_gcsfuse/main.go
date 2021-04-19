@@ -80,7 +80,7 @@ func makeGcsfuseArgs(
 		case "user", "nouser", "auto", "noauto", "_netdev", "no_netdev":
 
 		// Special case: support mount-like formatting for gcsfuse bool flags.
-		case "implicit_dirs", "disable_http2", "limited_mtime_mutation":
+		case "implicit_dirs", "disable_http2":
 			args = append(args, "--"+strings.Replace(name, "_", "-", -1))
 
 		// Special case: support mount-like formatting for gcsfuse string flags.
