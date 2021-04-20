@@ -30,12 +30,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-// IsDirName Does the supplied object name represent a directory (as opposed to a file or
-// symlink)?
-func IsDirName(name string) bool {
-	return name == "" || name[len(name)-1] == '/'
-}
-
 // The result of looking up a child within a directory inode. See notes on
 // DirInode.LookUpChild for more info.
 type LookUpResult struct {
@@ -226,7 +220,7 @@ var _ DirInode = &dirInode{}
 //
 // The initial lookup count is zero.
 //
-// REQUIRES: IsDirName(name)
+// REQUIRES: name.IsDir()
 func NewDirInode(
 	id fuseops.InodeID,
 	name Name,

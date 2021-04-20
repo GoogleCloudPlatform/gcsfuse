@@ -275,7 +275,7 @@ type fileSystem struct {
 	// INVARIANT: For all keys k, fuseops.RootInodeID <= k < nextInodeID
 	// INVARIANT: For all keys k, inodes[k].ID() == k
 	// INVARIANT: inodes[fuseops.RootInodeID] is missing or of type inode.DirInode
-	// INVARIANT: For all v, if IsDirName(v.Name()) then v is inode.DirInode
+	// INVARIANT: For all v, if v.Name().IsDir() then v is inode.DirInode
 	//
 	// GUARDED_BY(mu)
 	inodes map[fuseops.InodeID]inode.Inode
@@ -375,7 +375,7 @@ func (fs *fileSystem) checkInvariants() {
 		panic(fmt.Sprintf("Unexpected type for root: %v", reflect.TypeOf(in)))
 	}
 
-	// INVARIANT: For all v, if IsDirName(v.Name()) then v is inode.DirInode
+	// INVARIANT: For all v, if v.Name().IsDir() then v is inode.DirInode
 	for _, in := range fs.inodes {
 		if in.Name().IsDir() {
 			_, ok := in.(inode.DirInode)
