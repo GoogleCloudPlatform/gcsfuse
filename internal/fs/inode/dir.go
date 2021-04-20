@@ -76,7 +76,7 @@ type DirInode interface {
 	// Return the full name of the child and the GCS object it backs up.
 	CreateChildFile(
 		ctx context.Context,
-		name string) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error)
+		name string) (result BackObject, err error)
 
 	// Like CreateChildFile, except clone the supplied source object instead of
 	// creating an empty object.
@@ -84,7 +84,7 @@ type DirInode interface {
 	CloneToChildFile(
 		ctx context.Context,
 		name string,
-		src *gcs.Object) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error)
+		src *gcs.Object) (result BackObject, err error)
 
 	// Create a symlink object with the supplied (relative) name and the supplied
 	// target, failing with *gcs.PreconditionError if a backing object already
@@ -93,7 +93,7 @@ type DirInode interface {
 	CreateChildSymlink(
 		ctx context.Context,
 		name string,
-		target string) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error)
+		target string) (result BackObject, err error)
 
 	// Create a backing object for a child directory with the supplied (relative)
 	// name, failing with *gcs.PreconditionError if a backing object already
@@ -101,7 +101,7 @@ type DirInode interface {
 	// Return the full name of the child and the GCS object it backs up.
 	CreateChildDir(
 		ctx context.Context,
-		name string) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error)
+		name string) (result BackObject, err error)
 
 	// Delete the backing object for the child file or symlink with the given
 	// (relative) name and generation number, where zero means the latest
@@ -755,14 +755,14 @@ func (d *dirInode) ReadEntries(
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildFile(
 	ctx context.Context,
-	name string) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error) {
-	b = d.Bucket()
+	name string) (result BackObject, err error) {
+	result.Bucket = d.Bucket()
 	metadata := map[string]string{
 		FileMtimeMetadataKey: d.mtimeClock.Now().UTC().Format(time.RFC3339Nano),
 	}
-	fn = NewFileName(d.Name(), name)
+	result.FullName = NewFileName(d.Name(), name)
 
-	o, err = d.createNewObject(ctx, fn, metadata)
+	result.Object, err = d.createNewObject(ctx, result.FullName, metadata)
 	if err != nil {
 		return
 	}
@@ -776,20 +776,20 @@ func (d *dirInode) CreateChildFile(
 func (d *dirInode) CloneToChildFile(
 	ctx context.Context,
 	name string,
-	src *gcs.Object) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error) {
-	b = d.Bucket()
+	src *gcs.Object) (result BackObject, err error) {
+	result.Bucket = d.Bucket()
 	// Erase any existing type information for this name.
 	d.cache.Erase(name)
-	fn = NewFileName(d.Name(), name)
+	result.FullName = NewFileName(d.Name(), name)
 
 	// Clone over anything that might already exist for the name.
-	o, err = d.bucket.CopyObject(
+	result.Object, err = d.bucket.CopyObject(
 		ctx,
 		&gcs.CopyObjectRequest{
 			SrcName:                       src.Name,
 			SrcGeneration:                 src.Generation,
 			SrcMetaGenerationPrecondition: &src.MetaGeneration,
-			DstName:                       fn.GcsObjectName(),
+			DstName:                       result.FullName.GcsObjectName(),
 		})
 
 	if err != nil {
@@ -806,14 +806,14 @@ func (d *dirInode) CloneToChildFile(
 func (d *dirInode) CreateChildSymlink(
 	ctx context.Context,
 	name string,
-	target string) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error) {
-	b = d.Bucket()
-	fn = NewFileName(d.Name(), name)
+	target string) (result BackObject, err error) {
+	result.Bucket = d.Bucket()
+	result.FullName = NewFileName(d.Name(), name)
 	metadata := map[string]string{
 		SymlinkMetadataKey: target,
 	}
 
-	o, err = d.createNewObject(ctx, fn, metadata)
+	result.Object, err = d.createNewObject(ctx, result.FullName, metadata)
 	if err != nil {
 		return
 	}
@@ -826,11 +826,11 @@ func (d *dirInode) CreateChildSymlink(
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildDir(
 	ctx context.Context,
-	name string) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error) {
-	b = d.Bucket()
-	fn = NewDirName(d.Name(), name)
+	name string) (result BackObject, err error) {
+	result.Bucket = d.Bucket()
+	result.FullName = NewDirName(d.Name(), name)
 
-	o, err = d.createNewObject(ctx, fn, nil)
+	result.Object, err = d.createNewObject(ctx, result.FullName, nil)
 	if err != nil {
 		return
 	}

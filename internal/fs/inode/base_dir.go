@@ -198,7 +198,7 @@ func (d *baseDirInode) ReadEntries(
 
 func (d *baseDirInode) CreateChildFile(
 	ctx context.Context,
-	name string) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error) {
+	name string) (result BackObject, err error) {
 	err = fuse.ENOSYS
 	return
 }
@@ -206,7 +206,7 @@ func (d *baseDirInode) CreateChildFile(
 func (d *baseDirInode) CloneToChildFile(
 	ctx context.Context,
 	name string,
-	src *gcs.Object) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error) {
+	src *gcs.Object) (result BackObject, err error) {
 	err = fuse.ENOSYS
 	return
 }
@@ -214,14 +214,14 @@ func (d *baseDirInode) CloneToChildFile(
 func (d *baseDirInode) CreateChildSymlink(
 	ctx context.Context,
 	name string,
-	target string) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error) {
+	target string) (result BackObject, err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (d *baseDirInode) CreateChildDir(
 	ctx context.Context,
-	name string) (b gcsx.SyncerBucket, fn Name, o *gcs.Object, err error) {
+	name string) (result BackObject, err error) {
 	err = fuse.ENOSYS
 	return
 }

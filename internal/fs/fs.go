@@ -1100,7 +1100,7 @@ func (fs *fileSystem) MkDir(
 	// Create an empty backing object for the child, failing if it already
 	// exists.
 	parent.Lock()
-	bucket, childname, o, err := parent.CreateChildDir(ctx, op.Name)
+	result, err := parent.CreateChildDir(ctx, op.Name)
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
@@ -1119,7 +1119,7 @@ func (fs *fileSystem) MkDir(
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
 	fs.mu.Lock()
-	child := fs.lookUpOrCreateInodeIfNotStale(bucket, childname, o)
+	child := fs.lookUpOrCreateInodeIfNotStale(result.Bucket, result.FullName, result.Object)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
 		return err
@@ -1183,7 +1183,7 @@ func (fs *fileSystem) createFile(
 	// Create an empty backing object for the child, failing if it already
 	// exists.
 	parent.Lock()
-	bucket, childname, o, err := parent.CreateChildFile(ctx, name)
+	result, err := parent.CreateChildFile(ctx, name)
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
@@ -1202,7 +1202,7 @@ func (fs *fileSystem) createFile(
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
 	fs.mu.Lock()
-	child = fs.lookUpOrCreateInodeIfNotStale(bucket, childname, o)
+	child = fs.lookUpOrCreateInodeIfNotStale(result.Bucket, result.FullName, result.Object)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
 		return
@@ -1258,7 +1258,7 @@ func (fs *fileSystem) CreateSymlink(
 
 	// Create the object in GCS, failing if it already exists.
 	parent.Lock()
-	bucket, childname, o, err := parent.CreateChildSymlink(ctx, op.Name, op.Target)
+	result, err := parent.CreateChildSymlink(ctx, op.Name, op.Target)
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
@@ -1277,7 +1277,7 @@ func (fs *fileSystem) CreateSymlink(
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
 	fs.mu.Lock()
-	child := fs.lookUpOrCreateInodeIfNotStale(bucket, childname, o)
+	child := fs.lookUpOrCreateInodeIfNotStale(result.Bucket, result.FullName, result.Object)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
 		return err
@@ -1420,10 +1420,7 @@ func (fs *fileSystem) renameFile(
 	newFileName string) error {
 	// Clone into the new location.
 	newParent.Lock()
-	_, _, _, err := newParent.CloneToChildFile(
-		ctx,
-		newFileName,
-		oldObject)
+	_, err := newParent.CloneToChildFile(ctx, newFileName, oldObject)
 	newParent.Unlock()
 
 	if err != nil {
@@ -1505,7 +1502,7 @@ func (fs *fileSystem) renameDir(
 
 	// Create the backing object of the new directory.
 	newParent.Lock()
-	_, _, _, err = newParent.CreateChildDir(ctx, newName)
+	_, err = newParent.CreateChildDir(ctx, newName)
 	newParent.Unlock()
 	if err != nil {
 		return fmt.Errorf("CreateChildDir: %w", err)
