@@ -30,40 +30,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-// The result of looking up a child within a directory inode. See notes on
-// DirInode.LookUpChild for more info.
-type LookUpResult struct {
-	// The GCS bucket where the lookup is performed.
-	Bucket gcsx.SyncerBucket
-
-	// For both object-backed children and implicit directories, the full
-	// canonical name of the child. For example, if the parent inode is "foo/"
-	// and the child is a directory, then this is "foo/bar/".
-	//
-	// Guaranteed to be present only if Exists().
-	FullName Name
-
-	// The backing object for the child, if any. If the child is not found or
-	// exists only as an implicit directory, or is the root directory of a bucket,
-	// this is nil.
-	Object *gcs.Object
-
-	// Does the child exist as a directory implicitly defined by its own
-	// descendents? Meaningful only if Object is nil and implicit directories are
-	// enabled for the parent inode.
-	ImplicitDir bool
-}
-
-// Exists returns true iff the result indicates that the child exists, explicitly or
-// implicitly.
-func (lr *LookUpResult) Exists() bool {
-	IsFound := lr.Object != nil
-	IsImplicitDir := lr.ImplicitDir
-	IsBucketRootMounted :=
-		lr.FullName.LocalName() != "" && lr.FullName.IsBucketRoot()
-	return IsFound || IsImplicitDir || IsBucketRootMounted
-}
-
 // An inode representing a directory, with facilities for listing entries,
 // looking up children, and creating and deleting children. Must be locked for
 // any method additional to the Inode interface.
@@ -88,7 +54,7 @@ type DirInode interface {
 	// true.
 	LookUpChild(
 		ctx context.Context,
-		name string) (result LookUpResult, err error)
+		name string) (result BackObject, err error)
 
 	// Read some number of entries from the directory, returning a continuation
 	// token that can be used to pick up the read operation where it left off.
@@ -273,7 +239,7 @@ func (d *dirInode) checkInvariants() {
 
 func (d *dirInode) lookUpChildFile(
 	ctx context.Context,
-	name string) (result LookUpResult, err error) {
+	name string) (result BackObject, err error) {
 	result.Bucket = d.Bucket()
 	result.FullName = NewFileName(d.Name(), name)
 	result.Object, err = statObjectMayNotExist(ctx, d.bucket, result.FullName)
@@ -287,7 +253,7 @@ func (d *dirInode) lookUpChildFile(
 
 func (d *dirInode) lookUpChildDir(
 	ctx context.Context,
-	dirName string) (result LookUpResult, err error) {
+	dirName string) (result BackObject, err error) {
 	b := syncutil.NewBundle(ctx)
 	childName := NewDirName(d.Name(), dirName)
 
@@ -338,12 +304,12 @@ func (d *dirInode) lookUpChildDir(
 // REQUIRES: strings.HasSuffix(name, ConflictingFileNameSuffix)
 func (d *dirInode) lookUpConflicting(
 	ctx context.Context,
-	name string) (result LookUpResult, err error) {
+	name string) (result BackObject, err error) {
 	strippedName := strings.TrimSuffix(name, ConflictingFileNameSuffix)
 
 	// In order to a marked name to be accepted, we require the conflicting
 	// directory to exist.
-	var dirResult LookUpResult
+	var dirResult BackObject
 	dirResult, err = d.lookUpChildDir(ctx, strippedName)
 	if err != nil {
 		err = fmt.Errorf("lookUpChildDir for stripped name: %w", err)
@@ -633,7 +599,7 @@ const ConflictingFileNameSuffix = "\n"
 // LOCKS_REQUIRED(d)
 func (d *dirInode) LookUpChild(
 	ctx context.Context,
-	name string) (result LookUpResult, err error) {
+	name string) (result BackObject, err error) {
 	// Consult the cache about the type of the child. This may save us work
 	// below.
 	now := d.cacheClock.Now()
@@ -651,7 +617,7 @@ func (d *dirInode) LookUpChild(
 	// but not a file.
 	b := syncutil.NewBundle(ctx)
 
-	var fileResult LookUpResult
+	var fileResult BackObject
 	if !(cacheSaysDir && !cacheSaysFile) {
 		b.Add(func(ctx context.Context) (err error) {
 			fileResult, err = d.lookUpChildFile(ctx, name)
@@ -661,10 +627,10 @@ func (d *dirInode) LookUpChild(
 
 	// Stat the child as a directory, unless the cache has told us it's a file
 	// but not a directory.
-	var dirResult LookUpResult
+	var dirResult BackObject
 	if !(cacheSaysFile && !cacheSaysDir) {
 		if cacheSaysImplicitDir {
-			dirResult = LookUpResult{
+			dirResult = BackObject{
 				Bucket:      d.Bucket(),
 				FullName:    NewDirName(d.Name(), name),
 				Object:      nil,

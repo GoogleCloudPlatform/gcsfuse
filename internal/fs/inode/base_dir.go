@@ -15,8 +15,9 @@
 package inode
 
 import (
-	"github.com/jacobsa/fuse"
 	"sync"
+
+	"github.com/jacobsa/fuse"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
@@ -149,7 +150,7 @@ func (d *baseDirInode) Attributes(
 // LOCKS_REQUIRED(d)
 func (d *baseDirInode) LookUpChild(
 	ctx context.Context,
-	name string) (result LookUpResult, err error) {
+	name string) (result BackObject, err error) {
 	bucket, ok := d.buckets[name]
 	if !ok {
 		bucket, err = d.bucketManager.SetUpBucket(ctx, name)

@@ -712,7 +712,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	childName string) (child inode.Inode, err error) {
 	// Set up a function that will find a lookup result for the child with the
 	// given name. Expects no locks to be held.
-	getLookupResult := func() (r inode.LookUpResult, err error) {
+	getLookupResult := func() (r inode.BackObject, err error) {
 		parent.Lock()
 		defer parent.Unlock()
 
@@ -729,7 +729,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	const maxTries = 3
 	for n := 0; n < maxTries; n++ {
 		// Create a record.
-		var result inode.LookUpResult
+		var result inode.BackObject
 		result, err = getLookupResult()
 
 		if err != nil {
