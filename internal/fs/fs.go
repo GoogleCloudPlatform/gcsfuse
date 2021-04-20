@@ -495,10 +495,7 @@ func (fs *fileSystem) checkInvariants() {
 // of that function.
 //
 // LOCKS_REQUIRED(fs.mu)
-func (fs *fileSystem) mintInode(
-	bucket gcsx.SyncerBucket,
-	name inode.Name,
-	o *gcs.Object) (in inode.Inode) {
+func (fs *fileSystem) mintInode(backer inode.BackObject) (in inode.Inode) {
 	// Choose an ID.
 	id := fs.nextInodeID
 	fs.nextInodeID++
@@ -506,11 +503,11 @@ func (fs *fileSystem) mintInode(
 	// Create the inode.
 	switch {
 	// Explicit directories
-	case o != nil && name.IsDir():
+	case backer.Object != nil && backer.FullName.IsDir():
 		in = inode.NewExplicitDirInode(
 			id,
-			name,
-			o,
+			backer.FullName,
+			backer.Object,
 			fuseops.InodeAttributes{
 				Uid:  fs.uid,
 				Gid:  fs.gid,
@@ -523,15 +520,15 @@ func (fs *fileSystem) mintInode(
 			},
 			fs.implicitDirs,
 			fs.dirTypeCacheTTL,
-			bucket,
+			backer.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock)
 
 		// Implicit directories
-	case name.IsDir():
+	case backer.FullName.IsDir():
 		in = inode.NewDirInode(
 			id,
-			name,
+			backer.FullName,
 			fuseops.InodeAttributes{
 				Uid:  fs.uid,
 				Gid:  fs.gid,
@@ -544,15 +541,15 @@ func (fs *fileSystem) mintInode(
 			},
 			fs.implicitDirs,
 			fs.dirTypeCacheTTL,
-			bucket,
+			backer.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock)
 
-	case inode.IsSymlink(o):
+	case inode.IsSymlink(backer.Object):
 		in = inode.NewSymlinkInode(
 			id,
-			name,
-			o,
+			backer.FullName,
+			backer.Object,
 			fuseops.InodeAttributes{
 				Uid:  fs.uid,
 				Gid:  fs.gid,
@@ -562,14 +559,14 @@ func (fs *fileSystem) mintInode(
 	default:
 		in = inode.NewFileInode(
 			id,
-			name,
-			o,
+			backer.FullName,
+			backer.Object,
 			fuseops.InodeAttributes{
 				Uid:  fs.uid,
 				Gid:  fs.gid,
 				Mode: fs.fileMode,
 			},
-			bucket,
+			backer.Bucket,
 			fs.localFileCache,
 			fs.tempDir,
 			fs.mtimeClock)
@@ -593,12 +590,11 @@ func (fs *fileSystem) mintInode(
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
-	bucket gcsx.SyncerBucket,
-	name inode.Name,
-	o *gcs.Object) (in inode.Inode) {
+	backer inode.BackObject) (in inode.Inode) {
+
 	// Sanity check.
-	if o != nil && name.GcsObjectName() != o.Name {
-		panic(fmt.Sprintf("Name mismatch: %q vs. %q", name, o.Name))
+	if backer.Object != nil && backer.FullName.GcsObjectName() != backer.Object.Name {
+		panic(fmt.Sprintf("Name mismatch: %q vs. %q", backer.FullName, backer.Object.Name))
 	}
 
 	// Ensure that no matter which inode we return, we increase its lookup count
@@ -614,16 +610,16 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	}()
 
 	// Handle implicit directories.
-	if o == nil {
-		if !name.IsDir() {
-			panic(fmt.Sprintf("Unexpected name for an implicit directory: %q", name))
+	if backer.Object == nil {
+		if !backer.FullName.IsDir() {
+			panic(fmt.Sprintf("Unexpected name for an implicit directory: %q", backer.FullName))
 		}
 
 		// If we don't have an entry, create one.
 		var ok bool
-		in, ok = fs.implicitDirInodes[name]
+		in, ok = fs.implicitDirInodes[backer.FullName]
 		if !ok {
-			in = fs.mintInode(bucket, name, nil)
+			in = fs.mintInode(backer)
 			fs.implicitDirInodes[in.Name()] = in.(inode.DirInode)
 		}
 
@@ -632,19 +628,19 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	}
 
 	oGen := inode.Generation{
-		Object:   o.Generation,
-		Metadata: o.MetaGeneration,
+		Object:   backer.Object.Generation,
+		Metadata: backer.Object.MetaGeneration,
 	}
 
 	// Retry loop for the stale index entry case below. On entry, we hold fs.mu
 	// but no inode lock.
 	for {
 		// Look at the current index entry.
-		existingInode, ok := fs.generationBackedInodes[name]
+		existingInode, ok := fs.generationBackedInodes[backer.FullName]
 
 		// If we have no existing record for this name, mint an inode and return it.
 		if !ok {
-			in = fs.mintInode(bucket, name, o)
+			in = fs.mintInode(backer)
 			fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
 			in.Lock()
@@ -662,7 +658,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// Check that the index still points at this inode. If not, it's possible
 		// that the inode is in the process of being destroyed and is unsafe to
 		// use. Go around and try again.
-		if fs.generationBackedInodes[name] != existingInode {
+		if fs.generationBackedInodes[backer.FullName] != existingInode {
 			existingInode.Unlock()
 			continue
 		}
@@ -690,7 +686,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// lock in accordance with our lock ordering rules.
 		existingInode.Unlock()
 
-		in = fs.mintInode(bucket, name, o)
+		in = fs.mintInode(backer)
 		fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
 		continue
@@ -743,11 +739,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 
 		// Attempt to create the inode. Return if successful.
 		fs.mu.Lock()
-		child = fs.lookUpOrCreateInodeIfNotStale(
-			result.Bucket,
-			result.FullName,
-			result.Object,
-		)
+		child = fs.lookUpOrCreateInodeIfNotStale(result)
 		if child != nil {
 			return
 		}
@@ -1119,7 +1111,7 @@ func (fs *fileSystem) MkDir(
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
 	fs.mu.Lock()
-	child := fs.lookUpOrCreateInodeIfNotStale(result.Bucket, result.FullName, result.Object)
+	child := fs.lookUpOrCreateInodeIfNotStale(result)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
 		return err
@@ -1202,7 +1194,7 @@ func (fs *fileSystem) createFile(
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
 	fs.mu.Lock()
-	child = fs.lookUpOrCreateInodeIfNotStale(result.Bucket, result.FullName, result.Object)
+	child = fs.lookUpOrCreateInodeIfNotStale(result)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
 		return
@@ -1277,7 +1269,7 @@ func (fs *fileSystem) CreateSymlink(
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
 	fs.mu.Lock()
-	child := fs.lookUpOrCreateInodeIfNotStale(result.Bucket, result.FullName, result.Object)
+	child := fs.lookUpOrCreateInodeIfNotStale(result)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
 		return err

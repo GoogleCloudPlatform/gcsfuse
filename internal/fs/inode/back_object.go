@@ -43,7 +43,7 @@ type BackObject struct {
 }
 
 // Exists returns true iff the back object exists implicitly or explicitly.
-func (bo *BackObject) Exists() bool {
+func (bo BackObject) Exists() bool {
 	IsExplicitFileOrDir := bo.Object != nil
 	IsImplicitDir := bo.ImplicitDir
 	IsBucketRootDir :=
