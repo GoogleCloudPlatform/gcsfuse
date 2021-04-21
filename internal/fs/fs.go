@@ -1417,6 +1417,8 @@ func (fs *fileSystem) Rename(
 }
 
 // LOCKS_EXCLUDED(fs.mu)
+// LOCKS_EXCLUDED(oldParent)
+// LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) renameFile(
 	ctx context.Context,
 	oldParent inode.DirInode,
@@ -1455,6 +1457,8 @@ func (fs *fileSystem) renameFile(
 // Rename an empty directory in a non-atomic way.
 //
 // LOCKS_EXCLUDED(fs.mu)
+// LOCKS_EXCLUDED(oldParent)
+// LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) renameDir(
 	ctx context.Context,
 	oldParent inode.DirInode,
