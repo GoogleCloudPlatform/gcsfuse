@@ -94,6 +94,7 @@ func makeGcsfuseArgs(
 			"token_url",
 			"limit_bytes_per_sec",
 			"limit_ops_per_sec",
+			"rename_dir_limit",
 			"max_retry_sleep",
 			"stat_cache_capacity",
 			"stat_cache_ttl",
