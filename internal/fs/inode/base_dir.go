@@ -167,7 +167,15 @@ func (d *baseDirInode) LookUpChild(
 	return
 }
 
-// To be implemented
+// Not implemented
+func (d *baseDirInode) ReadObjects(
+	ctx context.Context,
+	tok string) (files []BackObject, dirs []BackObject, newTok string, err error) {
+	err = fuse.ENOSYS
+	return
+}
+
+// LOCKS_REQUIRED(d)
 func (d *baseDirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
