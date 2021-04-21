@@ -2290,15 +2290,44 @@ func (t *RenameTest) DirectoryContainingFiles() {
 	err = os.Mkdir(oldPath, 0700)
 	AssertEq(nil, err)
 
-	file := path.Join(oldPath, "foo")
+	for i := 0; i < int(t.serverCfg.RenameDirLimit); i++ {
+		file := fmt.Sprintf("%s/%d.txt", oldPath, i)
+		err = ioutil.WriteFile(file, []byte("taco"), 0400)
+		AssertEq(nil, err)
+	}
+
+	// Attempt to rename it.
+	newPath := path.Join(t.Dir, "bar")
+	err = os.Rename(oldPath, newPath)
+	AssertEq(nil, err)
+
+	// File count exceeds the limit.
+	file := fmt.Sprintf("%s/%d.txt", newPath, t.serverCfg.RenameDirLimit)
 	err = ioutil.WriteFile(file, []byte("taco"), 0400)
 	AssertEq(nil, err)
 
 	// Attempt to rename it.
-	newPath := path.Join(t.Dir, "bar")
+	err = os.Rename(newPath, oldPath)
+	ExpectThat(err, Error(HasSubstr("too many open files")))
+}
 
+func (t *RenameTest) DirectoryContainingDirectories() {
+	var err error
+
+	// Create a directory.
+	oldPath := path.Join(t.Dir, "foo")
+	err = os.Mkdir(oldPath, 0700)
+	AssertEq(nil, err)
+
+	// Create a subdirectory.
+	subdirPath := path.Join(oldPath, "baz")
+	err = os.Mkdir(subdirPath, 0700)
+	AssertEq(nil, err)
+
+	// Attempt to rename it.
+	newPath := path.Join(t.Dir, "bar")
 	err = os.Rename(oldPath, newPath)
-	ExpectThat(err, Error(HasSubstr("directory not empty")))
+	ExpectThat(err, Error(HasSubstr("operation not supported")))
 }
 
 func (t *RenameTest) EmptyDirectory() {

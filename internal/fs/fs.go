@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"reflect"
 	"syscall"
 	"time"
@@ -755,6 +756,32 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	return
 }
 
+// Look up the child directory with the given name within the parent, then
+// return an existing dir inode for that child or create a new one if necessary.
+// Return ENOENT if the child doesn't exist.
+//
+// Return the child locked, incrementing its lookup count.
+//
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_EXCLUDED(parent)
+// LOCK_FUNCTION(child)
+func (fs *fileSystem) lookUpOrCreateChildDirInode(
+	ctx context.Context,
+	parent inode.DirInode,
+	childName string) (child inode.DirInode, err error) {
+	in, err := fs.lookUpOrCreateChildInode(ctx, parent, childName)
+	if err != nil {
+		return nil, fmt.Errorf("lookup or create %q: %w", childName, err)
+	}
+	var ok bool
+	if child, ok = in.(inode.DirInode); !ok {
+		fs.mu.Lock()
+		fs.unlockAndDecrementLookupCount(in, 1)
+		return nil, fmt.Errorf("not a directory: %q", childName)
+	}
+	return child, nil
+}
+
 // Synchronize the supplied file inode to GCS, updating the index as
 // appropriate.
 //
@@ -1470,43 +1497,47 @@ func (fs *fileSystem) renameDir(
 	oldName string,
 	newParent inode.DirInode,
 	newName string) error {
-	oldChild, err := fs.lookUpOrCreateChildInode(ctx, oldParent, oldName)
-	if err != nil {
-		return fmt.Errorf("lookUpOrCreateChildInode: %w", err)
-	}
 
-	cleanUpAndUnlockOldChild := func() {
-		if oldChild != nil {
+	// Set up a function that throws away the lookup count increment from
+	// lookUpOrCreateChildInode (since the pending inodes are not sent back to
+	// the kernel) and unlocks the pending inodes, but only once
+	var pendingInodes []inode.DirInode
+	releaseInodes := func() {
+		for _, in := range pendingInodes {
 			fs.mu.Lock()
-			fs.unlockAndDecrementLookupCount(oldChild, 1)
-			oldChild = nil
+			fs.unlockAndDecrementLookupCount(in, 1)
 		}
+		pendingInodes = []inode.DirInode{}
 	}
+	defer releaseInodes()
 
-	// Set up a function that throws away the lookup count increment that we
-	// implicitly did above (since we're not handing the child back to the
-	// kernel) and unlocks the child, but only once
-	defer cleanUpAndUnlockOldChild()
-
-	// Make sure the old child inode is a directory.
-	oldDir, ok := oldChild.(inode.DirInode)
-	if !ok {
-		return fuse.ENOTDIR
+	// Get the inode of the old directory
+	oldDir, err := fs.lookUpOrCreateChildDirInode(ctx, oldParent, oldName)
+	if err != nil {
+		return fmt.Errorf("lookup old directory: %w", err)
 	}
+	pendingInodes = append(pendingInodes, oldDir)
 
-	// Ensure that the old directory is empty.
+	// Ensure that the old directory has limited files.
 	var tok string
+	var oldFiles []inode.BackObject
 	for {
-		var entries []fuseutil.Dirent
-		entries, tok, err = oldDir.ReadEntries(ctx, tok)
+		var files, dirs []inode.BackObject
+		files, dirs, tok, err = oldDir.ReadObjects(ctx, tok)
 		if err != nil {
-			err = fmt.Errorf("ReadEntries: %w", err)
+			err = fmt.Errorf("read objects: %w", err)
 			return err
 		}
 
-		// Are there any entries?
-		if len(entries) != 0 {
-			return fuse.ENOTEMPTY
+		// Are there any directories?
+		if len(dirs) != 0 {
+			return syscall.ENOTSUP
+		}
+
+		// Too many files to be renamed?
+		oldFiles = append(oldFiles, files...)
+		if len(oldFiles) > int(fs.renameDirLimit) {
+			return syscall.EMFILE
 		}
 
 		// Are we done listing?
@@ -1523,14 +1554,33 @@ func (fs *fileSystem) renameDir(
 		return fmt.Errorf("CreateChildDir: %w", err)
 	}
 
-	// We are done with the old directory.
-	cleanUpAndUnlockOldChild()
+	// Get the inode of the new directory
+	newDir, err := fs.lookUpOrCreateChildDirInode(ctx, newParent, newName)
+	if err != nil {
+		return fmt.Errorf("lookup new directory: %w", err)
+	}
+	pendingInodes = append(pendingInodes, newDir)
+
+	// Move all the files from the old directory to the new directory, keeping
+	// both directories locked.
+	for _, oldFile := range oldFiles {
+		fileName := path.Base(oldFile.FullName.LocalName())
+		o := oldFile.Object
+		if _, err := newDir.CloneToChildFile(ctx, fileName, o); err != nil {
+			return fmt.Errorf("copy file %q: %w", fileName, err)
+		}
+		if err := oldDir.DeleteChildFile(ctx, fileName, o.Generation, &o.MetaGeneration); err != nil {
+			return fmt.Errorf("delete file %q: %w", fileName, err)
+		}
+	}
+
+	// We are done with both directories.
+	releaseInodes()
 
 	// Delete the backing object of the old directory.
 	oldParent.Lock()
 	err = oldParent.DeleteChildDir(ctx, oldName)
 	oldParent.Unlock()
-
 	if err != nil {
 		return fmt.Errorf("DeleteChildDir: %w", err)
 	}
