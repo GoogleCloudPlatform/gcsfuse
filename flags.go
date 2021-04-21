@@ -150,7 +150,7 @@ func newApp() (app *cli.App) {
 
 			cli.Float64Flag{
 				Name:  "limit-ops-per-sec",
-				Value: 5.0,
+				Value: -1,
 				Usage: "Operations per second limit, measured over a 30-second window " +
 					"(use -1 for no limit)",
 			},
