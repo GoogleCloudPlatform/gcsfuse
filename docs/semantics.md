@@ -532,11 +532,16 @@ See the notes on [fuseops.FlushFileOp][flush-op] for more details.
 
 Not all of the usual file system features are supported. Most prominently:
 
-*   Renaming directories is not supported. A directory rename cannot be
-    performed atomically in GCS and would therefore be arbitrarily expensive in
-    terms of GCS operations, and for large directories would have high
+*   Renaming directories is by default not supported. A directory rename cannot 
+    be performed atomically in GCS and would therefore be arbitrarily expensive 
+    in terms of GCS operations, and for large directories would have high
     probability of failure, leaving the two directories in an inconsistent
-    state.
+    state. 
+
+    *  However, if your application can tolerate the risks, you may enable
+       renaming directories in a non-atomic way in gcsfuse starting v0.35.0,
+       by setting `--rename-dir-limit`. If a directory contains fewer files
+       than this limit and no subdirectory, it can be renamed.
 
 *   File and directory permissions and ownership cannot be changed. See the
     [section](#permissions-and-ownership) above.
