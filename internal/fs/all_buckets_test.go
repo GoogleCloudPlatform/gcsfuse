@@ -78,6 +78,23 @@ func (t *AllBucketsTest) BaseDir_Write() {
 	ExpectThat(err, Error(HasSubstr("input/output error")))
 }
 
+func (t *AllBucketsTest) BaseDir_Rename() {
+	err := os.Rename(t.Dir+"/bucket-0", t.Dir+"/bucket-1/foo")
+	ExpectThat(err, Error(HasSubstr("operation not supported")))
+
+	filename := path.Join(t.Dir + "/bucket-0/foo")
+	err = ioutil.WriteFile(
+		filename, []byte("content"), os.FileMode(0644))
+	AssertEq(nil, err)
+
+	err = os.Rename(t.Dir+"/bucket-0/foo", t.Dir+"/bucket-1/foo")
+	ExpectThat(err, Error(HasSubstr("operation not supported")))
+
+	err = os.Rename(t.Dir+"/bucket-0/foo", t.Dir+"/bucket-99")
+	ExpectThat(err, Error(HasSubstr("input/output error")))
+
+}
+
 func (t *AllBucketsTest) SingleBucket_ReadAfterWrite() {
 	var err error
 	filename := path.Join(t.mfs.Dir(), "bucket-1/foo")

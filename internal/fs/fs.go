@@ -19,6 +19,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"syscall"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
@@ -1380,6 +1381,19 @@ func (fs *fileSystem) Rename(
 	oldParent := fs.dirInodeOrDie(op.OldParent)
 	newParent := fs.dirInodeOrDie(op.NewParent)
 	fs.mu.Unlock()
+
+	if oldInode, ok := oldParent.(inode.BucketOwnedInode); !ok {
+		// The old parent is not owned by any bucket, which means it's the base
+		// directory that holds all the buckets' root directories. So, this op
+		// is to rename a bucket, which is not supported.
+		return fmt.Errorf("rename a bucket: %w", syscall.ENOTSUP)
+	} else {
+		// The target path must exist in the same bucket.
+		oldBucket := oldInode.Bucket().Name()
+		if newInode, ok := newParent.(inode.BucketOwnedInode); !ok || oldBucket != newInode.Bucket().Name() {
+			return fmt.Errorf("move out of bucket %q: %w", oldBucket, syscall.ENOTSUP)
+		}
+	}
 
 	// Find the object in the old location.
 	oldParent.Lock()
