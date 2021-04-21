@@ -56,6 +56,18 @@ type DirInode interface {
 		ctx context.Context,
 		name string) (result BackObject, err error)
 
+	// Read some number of objects from the directory, returning a continuation
+	// token that can be used to pick up the read operation where it left off.
+	// Supply the empty token on the first call.
+	//
+	// At the end of the directory, the returned continuation token will be
+	// empty. Otherwise it will be non-empty. There is no guarantee about the
+	// number of objects returned; it may be zero even with a non-empty
+	// continuation token.
+	ReadObjects(
+		ctx context.Context,
+		tok string) (files []BackObject, dirs []BackObject, newTok string, err error)
+
 	// Read some number of entries from the directory, returning a continuation
 	// token that can be used to pick up the read operation where it left off.
 	// Supply the empty token on the first call.
@@ -675,9 +687,9 @@ func (d *dirInode) LookUpChild(
 }
 
 // LOCKS_REQUIRED(d)
-func (d *dirInode) ReadEntries(
+func (d *dirInode) ReadObjects(
 	ctx context.Context,
-	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
+	tok string) (files []BackObject, dirs []BackObject, newTok string, err error) {
 	// Ask the bucket to list some objects.
 	req := &gcs.ListObjectsRequest{
 		Delimiter:         "/",
@@ -690,25 +702,23 @@ func (d *dirInode) ReadEntries(
 		err = fmt.Errorf("ListObjects: %w", err)
 		return
 	}
+	now := d.cacheClock.Now()
 
-	// Convert objects to entries for files or symlinks.
+	// Collect objects for files or symlinks.
 	for _, o := range listing.Objects {
-		// Skip the entry for the backing object itself, which of course has its
+		// Skip the dir object itself, which of course has its
 		// own name as a prefix but which we don't wan to appear to contain itself.
 		if o.Name == d.Name().GcsObjectName() {
 			continue
 		}
 
-		e := fuseutil.Dirent{
-			Name: path.Base(o.Name),
-			Type: fuseutil.DT_File,
-		}
-
-		if IsSymlink(o) {
-			e.Type = fuseutil.DT_Link
-		}
-
-		entries = append(entries, e)
+		files = append(files, BackObject{
+			Bucket:      d.Bucket(),
+			FullName:    NewFileName(d.Name(), path.Base(o.Name)),
+			Object:      o,
+			ImplicitDir: false,
+		})
+		d.cache.NoteFile(now, path.Base(o.Name))
 	}
 
 	// Extract directory names from the collapsed runs.
@@ -726,29 +736,50 @@ func (d *dirInode) ReadEntries(
 
 	// Return entries for directories.
 	for _, name := range dirNames {
-		e := fuseutil.Dirent{
-			Name: name,
-			Type: fuseutil.DT_Directory,
-		}
-
-		entries = append(entries, e)
+		dirs = append(dirs, BackObject{
+			Bucket:   d.Bucket(),
+			FullName: NewDirName(d.Name(), name),
+			// This is not necessarily an implicit dir. But, it's not worthwhile
+			// to figure out whether the backing gcs object exists. So, all the
+			// directories are recorded as implicit for simplicity.
+			Object:      nil,
+			ImplicitDir: true,
+		})
+		d.cache.NoteDir(now, name)
 	}
 
 	// Return an appropriate continuation token, if any.
 	newTok = listing.ContinuationToken
+	return
+}
 
-	// Update the type cache with everything we learned.
-	now := d.cacheClock.Now()
-	for _, e := range entries {
-		switch e.Type {
-		case fuseutil.DT_File:
-			d.cache.NoteFile(now, e.Name)
-
-		case fuseutil.DT_Directory:
-			d.cache.NoteDir(now, e.Name)
-		}
+// LOCKS_REQUIRED(d)
+func (d *dirInode) ReadEntries(
+	ctx context.Context,
+	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
+	var files, dirs []BackObject
+	files, dirs, newTok, err = d.ReadObjects(ctx, tok)
+	if err != nil {
+		err = fmt.Errorf("read objects: %w", err)
+		return
 	}
 
+	for _, file := range files {
+		entryType := fuseutil.DT_File
+		if IsSymlink(file.Object) {
+			entryType = fuseutil.DT_Link
+		}
+		entries = append(entries, fuseutil.Dirent{
+			Name: path.Base(file.FullName.LocalName()),
+			Type: entryType,
+		})
+	}
+	for _, dir := range dirs {
+		entries = append(entries, fuseutil.Dirent{
+			Name: path.Base(dir.FullName.LocalName()),
+			Type: fuseutil.DT_Directory,
+		})
+	}
 	return
 }
 
