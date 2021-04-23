@@ -17,9 +17,11 @@ package wrappers
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"syscall"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"google.golang.org/api/googleapi"
@@ -30,18 +32,18 @@ func errno(err error) error {
 		return nil
 	}
 
-	// Use existing FS errno
+	// Use existing em errno
 	var errno syscall.Errno
 	if errors.As(err, &errno) {
 		return errno
 	}
 
-	// FS op is interrupted
+	// em op is interrupted
 	if errors.Is(err, context.Canceled) {
 		return syscall.EINTR
 	}
 
-	// Translate API errors into an FS errno
+	// Translate API errors into an em errno
 	var apiErr *googleapi.Error
 	if errors.As(err, &apiErr) {
 		switch apiErr.Code {
@@ -57,209 +59,219 @@ func errno(err error) error {
 // WithErrorMapping wraps a FileSystem, processing the returned errors, and
 // mapping them into syscall.Errno that can be understood by FUSE.
 func WithErrorMapping(wrapped fuseutil.FileSystem) fuseutil.FileSystem {
-	return &errorMapping{wrapped: wrapped}
+	return &errorMapping{
+		wrapped: wrapped,
+		logger:  logger.NewError(""),
+	}
 }
 
 type errorMapping struct {
 	wrapped fuseutil.FileSystem
+	logger  *log.Logger
 }
 
-func (fs *errorMapping) Destroy() {
-	fs.wrapped.Destroy()
+func (em *errorMapping) mapError(op string, err error) error {
+	fsErr := errno(err)
+	em.logger.Printf("%s: %v: %v", op, fsErr, err)
+	return fsErr
 }
 
-func (fs *errorMapping) StatFS(
+func (em *errorMapping) Destroy() {
+	em.wrapped.Destroy()
+}
+
+func (em *errorMapping) StatFS(
 	ctx context.Context,
 	op *fuseops.StatFSOp) error {
-	err := fs.wrapped.StatFS(ctx, op)
-	return errno(err)
+	err := em.wrapped.StatFS(ctx, op)
+	return em.mapError("StatFS", err)
 }
 
-func (fs *errorMapping) LookUpInode(
+func (em *errorMapping) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) error {
-	err := fs.wrapped.LookUpInode(ctx, op)
-	return errno(err)
+	err := em.wrapped.LookUpInode(ctx, op)
+	return em.mapError("LookUpInode", err)
 }
 
-func (fs *errorMapping) GetInodeAttributes(
+func (em *errorMapping) GetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) error {
-	err := fs.wrapped.GetInodeAttributes(ctx, op)
-	return errno(err)
+	err := em.wrapped.GetInodeAttributes(ctx, op)
+	return em.mapError("GetInodeAttributes", err)
 }
 
-func (fs *errorMapping) SetInodeAttributes(
+func (em *errorMapping) SetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.SetInodeAttributesOp) error {
-	err := fs.wrapped.SetInodeAttributes(ctx, op)
-	return errno(err)
+	err := em.wrapped.SetInodeAttributes(ctx, op)
+	return em.mapError("SetInodeAttributes", err)
 }
 
-func (fs *errorMapping) ForgetInode(
+func (em *errorMapping) ForgetInode(
 	ctx context.Context,
 	op *fuseops.ForgetInodeOp) error {
-	err := fs.wrapped.ForgetInode(ctx, op)
-	return errno(err)
+	err := em.wrapped.ForgetInode(ctx, op)
+	return em.mapError("ForgetInode", err)
 }
 
-func (fs *errorMapping) MkDir(
+func (em *errorMapping) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) error {
-	err := fs.wrapped.MkDir(ctx, op)
-	return errno(err)
+	err := em.wrapped.MkDir(ctx, op)
+	return em.mapError("MkDir", err)
 }
 
-func (fs *errorMapping) MkNode(
+func (em *errorMapping) MkNode(
 	ctx context.Context,
 	op *fuseops.MkNodeOp) error {
-	err := fs.wrapped.MkNode(ctx, op)
-	return errno(err)
+	err := em.wrapped.MkNode(ctx, op)
+	return em.mapError("MkNode", err)
 }
 
-func (fs *errorMapping) CreateFile(
+func (em *errorMapping) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) error {
-	err := fs.wrapped.CreateFile(ctx, op)
-	return errno(err)
+	err := em.wrapped.CreateFile(ctx, op)
+	return em.mapError("CreateFile", err)
 }
 
-func (fs *errorMapping) CreateLink(
+func (em *errorMapping) CreateLink(
 	ctx context.Context,
 	op *fuseops.CreateLinkOp) error {
-	err := fs.wrapped.CreateLink(ctx, op)
-	return errno(err)
+	err := em.wrapped.CreateLink(ctx, op)
+	return em.mapError("CreateLink", err)
 }
 
-func (fs *errorMapping) CreateSymlink(
+func (em *errorMapping) CreateSymlink(
 	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) error {
-	err := fs.wrapped.CreateSymlink(ctx, op)
-	return errno(err)
+	err := em.wrapped.CreateSymlink(ctx, op)
+	return em.mapError("CreateSymlink", err)
 }
 
-func (fs *errorMapping) Rename(
+func (em *errorMapping) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) error {
-	err := fs.wrapped.Rename(ctx, op)
-	return errno(err)
+	err := em.wrapped.Rename(ctx, op)
+	return em.mapError("Rename", err)
 }
 
-func (fs *errorMapping) RmDir(
+func (em *errorMapping) RmDir(
 	ctx context.Context,
 	op *fuseops.RmDirOp) error {
-	err := fs.wrapped.RmDir(ctx, op)
-	return errno(err)
+	err := em.wrapped.RmDir(ctx, op)
+	return em.mapError("RmDir", err)
 }
 
-func (fs *errorMapping) Unlink(
+func (em *errorMapping) Unlink(
 	ctx context.Context,
 	op *fuseops.UnlinkOp) error {
-	err := fs.wrapped.Unlink(ctx, op)
-	return errno(err)
+	err := em.wrapped.Unlink(ctx, op)
+	return em.mapError("Unlink", err)
 }
 
-func (fs *errorMapping) OpenDir(
+func (em *errorMapping) OpenDir(
 	ctx context.Context,
 	op *fuseops.OpenDirOp) error {
-	err := fs.wrapped.OpenDir(ctx, op)
-	return errno(err)
+	err := em.wrapped.OpenDir(ctx, op)
+	return em.mapError("OpenDir", err)
 }
 
-func (fs *errorMapping) ReadDir(
+func (em *errorMapping) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp) error {
-	err := fs.wrapped.ReadDir(ctx, op)
-	return errno(err)
+	err := em.wrapped.ReadDir(ctx, op)
+	return em.mapError("ReadDir", err)
 }
 
-func (fs *errorMapping) ReleaseDirHandle(
+func (em *errorMapping) ReleaseDirHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseDirHandleOp) error {
-	err := fs.wrapped.ReleaseDirHandle(ctx, op)
-	return errno(err)
+	err := em.wrapped.ReleaseDirHandle(ctx, op)
+	return em.mapError("ReleaseDirHandle", err)
 }
 
-func (fs *errorMapping) OpenFile(
+func (em *errorMapping) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) error {
-	err := fs.wrapped.OpenFile(ctx, op)
-	return errno(err)
+	err := em.wrapped.OpenFile(ctx, op)
+	return em.mapError("OpenFile", err)
 }
 
-func (fs *errorMapping) ReadFile(
+func (em *errorMapping) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) error {
-	err := fs.wrapped.ReadFile(ctx, op)
-	return errno(err)
+	err := em.wrapped.ReadFile(ctx, op)
+	return em.mapError("ReadFile", err)
 }
 
-func (fs *errorMapping) WriteFile(
+func (em *errorMapping) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) error {
-	err := fs.wrapped.WriteFile(ctx, op)
-	return errno(err)
+	err := em.wrapped.WriteFile(ctx, op)
+	return em.mapError("WriteFile", err)
 }
 
-func (fs *errorMapping) SyncFile(
+func (em *errorMapping) SyncFile(
 	ctx context.Context,
 	op *fuseops.SyncFileOp) error {
-	err := fs.wrapped.SyncFile(ctx, op)
-	return errno(err)
+	err := em.wrapped.SyncFile(ctx, op)
+	return em.mapError("SyncFile", err)
 }
 
-func (fs *errorMapping) FlushFile(
+func (em *errorMapping) FlushFile(
 	ctx context.Context,
 	op *fuseops.FlushFileOp) error {
-	err := fs.wrapped.FlushFile(ctx, op)
-	return errno(err)
+	err := em.wrapped.FlushFile(ctx, op)
+	return em.mapError("FlushFile", err)
 }
 
-func (fs *errorMapping) ReleaseFileHandle(
+func (em *errorMapping) ReleaseFileHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseFileHandleOp) error {
-	err := fs.wrapped.ReleaseFileHandle(ctx, op)
-	return errno(err)
+	err := em.wrapped.ReleaseFileHandle(ctx, op)
+	return em.mapError("ReleaseFileHandle", err)
 }
 
-func (fs *errorMapping) ReadSymlink(
+func (em *errorMapping) ReadSymlink(
 	ctx context.Context,
 	op *fuseops.ReadSymlinkOp) error {
-	err := fs.wrapped.ReadSymlink(ctx, op)
-	return errno(err)
+	err := em.wrapped.ReadSymlink(ctx, op)
+	return em.mapError("ReadSymlink", err)
 }
 
-func (fs *errorMapping) RemoveXattr(
+func (em *errorMapping) RemoveXattr(
 	ctx context.Context,
 	op *fuseops.RemoveXattrOp) error {
-	err := fs.wrapped.RemoveXattr(ctx, op)
-	return errno(err)
+	err := em.wrapped.RemoveXattr(ctx, op)
+	return em.mapError("RemoveXattr", err)
 }
 
-func (fs *errorMapping) GetXattr(
+func (em *errorMapping) GetXattr(
 	ctx context.Context,
 	op *fuseops.GetXattrOp) error {
-	err := fs.wrapped.GetXattr(ctx, op)
-	return errno(err)
+	err := em.wrapped.GetXattr(ctx, op)
+	return em.mapError("GetXattr", err)
 }
 
-func (fs *errorMapping) ListXattr(
+func (em *errorMapping) ListXattr(
 	ctx context.Context,
 	op *fuseops.ListXattrOp) error {
-	err := fs.wrapped.ListXattr(ctx, op)
-	return errno(err)
+	err := em.wrapped.ListXattr(ctx, op)
+	return em.mapError("ListXattr", err)
 }
 
-func (fs *errorMapping) SetXattr(
+func (em *errorMapping) SetXattr(
 	ctx context.Context,
 	op *fuseops.SetXattrOp) error {
-	err := fs.wrapped.SetXattr(ctx, op)
-	return errno(err)
+	err := em.wrapped.SetXattr(ctx, op)
+	return em.mapError("SetXattr", err)
 }
 
-func (fs *errorMapping) Fallocate(
+func (em *errorMapping) Fallocate(
 	ctx context.Context,
 	op *fuseops.FallocateOp) error {
-	err := fs.wrapped.Fallocate(ctx, op)
-	return errno(err)
+	err := em.wrapped.Fallocate(ctx, op)
+	return em.mapError("Fallocate", err)
 }
