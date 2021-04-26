@@ -61,6 +61,12 @@ func NewFileName(parentName Name, fileName string) Name {
 	return Name{parentName.bucketName, parentName.objectName + fileName}
 }
 
+// NewDescendant creates a new inode name for an object as a descendant of
+// another inode.
+func NewDescendantName(ancestor Name, descendantObjectName string) Name {
+	return Name{ancestor.bucketName, descendantObjectName}
+}
+
 // IsBucketRoot returns true if the name represents of a root directory
 // of a GCS bucket.
 func (name Name) IsBucketRoot() bool {

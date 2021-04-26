@@ -62,6 +62,13 @@ func TestName(t *testing.T) {
 		ExpectTrue(qux.IsFile())
 		ExpectEq("foo/bar/qux", qux.GcsObjectName())
 		ExpectEq(mountPoint+"foo/bar/qux", qux.LocalName())
+
+		qux = inode.NewDescendantName(foo, "foo/bar/qux")
+		ExpectFalse(qux.IsBucketRoot())
+		ExpectFalse(qux.IsDir())
+		ExpectTrue(qux.IsFile())
+		ExpectEq("foo/bar/qux", qux.GcsObjectName())
+		ExpectEq(mountPoint+"foo/bar/qux", qux.LocalName())
 	}
 }
 
