@@ -768,16 +768,16 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 func (fs *fileSystem) lookUpOrCreateChildDirInode(
 	ctx context.Context,
 	parent inode.DirInode,
-	childName string) (child inode.DirInode, err error) {
+	childName string) (child inode.BucketOwnedDirInode, err error) {
 	in, err := fs.lookUpOrCreateChildInode(ctx, parent, childName)
 	if err != nil {
 		return nil, fmt.Errorf("lookup or create %q: %w", childName, err)
 	}
 	var ok bool
-	if child, ok = in.(inode.DirInode); !ok {
+	if child, ok = in.(inode.BucketOwnedDirInode); !ok {
 		fs.mu.Lock()
 		fs.unlockAndDecrementLookupCount(in, 1)
-		return nil, fmt.Errorf("not a directory: %q", childName)
+		return nil, fmt.Errorf("not a bucket owned directory: %q", childName)
 	}
 	return child, nil
 }
