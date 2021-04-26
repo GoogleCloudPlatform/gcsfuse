@@ -19,7 +19,7 @@ require (
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/prometheus/client_golang v1.10.0
 	github.com/urfave/cli v1.22.5
-	golang.org/x/net v0.0.0-20210316092652-d523dce5a7f4
+	golang.org/x/net v0.0.0-20210423184538-5f58ad60dda6
 	golang.org/x/oauth2 v0.0.0-20210413134643-5e61552d6c78
 	google.golang.org/api v0.45.0
 )
