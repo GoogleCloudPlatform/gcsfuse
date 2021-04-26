@@ -490,6 +490,39 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 	ExpectEq(dirObjName, result.Object.Name)
 }
 
+func (t *DirTest) ReadDescendants_Empty() {
+	descendants, err := t.in.ReadDescendants(t.ctx, 10)
+
+	AssertEq(nil, err)
+	ExpectEq(0, len(descendants))
+
+}
+
+func (t *DirTest) ReadDescendants_NonEmpty() {
+	var err error
+
+	// Set up contents.
+	objs := []string{
+		dirInodeName + "backed_dir_empty/",
+		dirInodeName + "backed_dir_nonempty/",
+		dirInodeName + "backed_dir_nonempty/blah",
+		dirInodeName + "file",
+		dirInodeName + "implicit_dir/blah",
+		dirInodeName + "symlink",
+	}
+
+	err = gcsutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+	AssertEq(nil, err)
+
+	descendants, err := t.in.ReadDescendants(t.ctx, 10)
+	AssertEq(nil, err)
+	ExpectEq(6, len(descendants))
+
+	descendants, err = t.in.ReadDescendants(t.ctx, 2)
+	AssertEq(nil, err)
+	ExpectEq(2, len(descendants))
+}
+
 func (t *DirTest) ReadEntries_Empty() {
 	entries, err := t.readAllEntries()
 

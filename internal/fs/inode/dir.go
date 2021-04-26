@@ -56,6 +56,13 @@ type DirInode interface {
 		ctx context.Context,
 		name string) (result BackObject, err error)
 
+	// Read the children objects of this dir, recursively. The result count
+	// is capped at the given limit. Internal caches are not refreshed from this
+	// call.
+	ReadDescendants(
+		ctx context.Context,
+		limit int) (descendants map[Name]BackObject, err error)
+
 	// Read some number of objects from the directory, returning a continuation
 	// token that can be used to pick up the read operation where it left off.
 	// Supply the empty token on the first call.
@@ -684,6 +691,50 @@ func (d *dirInode) LookUpChild(
 	}
 
 	return
+}
+
+// LOCKS_REQUIRED(d)
+func (d *dirInode) ReadDescendants(
+	ctx context.Context,
+	limit int) (descendants map[Name]BackObject, err error) {
+	var tok string
+	var listing *gcs.Listing
+	descendants = make(map[Name]BackObject)
+	for {
+		listing, err = d.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{
+			Delimiter:         "", // recursively
+			Prefix:            d.Name().GcsObjectName(),
+			ContinuationToken: tok,
+			MaxResults:        limit + 1, // to exclude itself
+		})
+		if err != nil {
+			err = fmt.Errorf("list objects: %w", err)
+			return
+		}
+
+		for _, o := range listing.Objects {
+			if len(descendants) >= limit {
+				return
+			}
+			// skip the current directory
+			if o.Name == d.Name().GcsObjectName() {
+				continue
+			}
+			name := NewDescendantName(d.Name(), o.Name)
+			descendants[name] = BackObject{
+				Bucket:      d.Bucket(),
+				FullName:    name,
+				Object:      o,
+				ImplicitDir: false,
+			}
+		}
+
+		// Are we done listing?
+		if tok = listing.ContinuationToken; tok == "" {
+			return
+		}
+	}
+
 }
 
 // LOCKS_REQUIRED(d)

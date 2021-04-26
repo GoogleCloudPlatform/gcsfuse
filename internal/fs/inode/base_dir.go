@@ -168,6 +168,14 @@ func (d *baseDirInode) LookUpChild(
 }
 
 // Not implemented
+func (d *baseDirInode) ReadDescendants(
+	ctx context.Context,
+	limit int) (descendants map[Name]BackObject, err error) {
+	err = fuse.ENOSYS
+	return
+}
+
+// Not implemented
 func (d *baseDirInode) ReadObjects(
 	ctx context.Context,
 	tok string) (files []BackObject, dirs []BackObject, newTok string, err error) {
