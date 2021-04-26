@@ -73,7 +73,7 @@ func (t *FlagsTest) Defaults() {
 	// GCS
 	ExpectEq("", f.KeyFile)
 	ExpectEq(-1, f.EgressBandwidthLimitBytesPerSecond)
-	ExpectEq(5, f.OpRateLimitHz)
+	ExpectEq(-1, f.OpRateLimitHz)
 
 	// Tuning
 	ExpectEq(4096, f.StatCacheCapacity)
