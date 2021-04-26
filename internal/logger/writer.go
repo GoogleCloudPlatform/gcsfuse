@@ -64,3 +64,22 @@ func (f *jsonWriter) Write(p []byte) (n int, err error) {
 	n = len(p)
 	return
 }
+
+type textWriter struct {
+	w     io.Writer
+	level string
+}
+
+func (f *textWriter) Write(p []byte) (n int, err error) {
+	now := time.Now()
+	if _, err := f.w.Write([]byte{f.level[0]}); err != nil {
+		return 0, err
+	}
+	if _, err := f.w.Write([]byte(now.Format("0102 15:04:05.000000"))); err != nil {
+		return 0, err
+	}
+	if _, err := f.w.Write([]byte{' '}); err != nil {
+		return 0, err
+	}
+	return f.w.Write(p)
+}

@@ -121,7 +121,10 @@ func (f *loggerFactory) writer(level string) io.Writer {
 				level: level,
 			}
 		case "text":
-			return f.file
+			return &textWriter{
+				w:     f.file,
+				level: level,
+			}
 		}
 	}
 
