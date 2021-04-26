@@ -2320,14 +2320,32 @@ func (t *RenameTest) DirectoryContainingDirectories() {
 	AssertEq(nil, err)
 
 	// Create a subdirectory.
-	subdirPath := path.Join(oldPath, "baz")
-	err = os.Mkdir(subdirPath, 0700)
+	subPath := path.Join(oldPath, "baz")
+	err = os.Mkdir(subPath, 0700)
 	AssertEq(nil, err)
 
-	// Attempt to rename it.
+	// Create a subsubdirectory.
+	subSubPath := path.Join(subPath, "qux")
+	err = os.Mkdir(subSubPath, 0700)
+	AssertEq(nil, err)
+
+	// Create files.
+	filePath1 := path.Join(subPath, "file1")
+	err = ioutil.WriteFile(filePath1, []byte("taco"), 0400)
+	AssertEq(nil, err)
+	filePath2 := path.Join(subSubPath, "file2")
+	err = ioutil.WriteFile(filePath2, []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	// Rename the directory.
 	newPath := path.Join(t.Dir, "bar")
 	err = os.Rename(oldPath, newPath)
-	ExpectThat(err, Error(HasSubstr("operation not supported")))
+	AssertEq(nil, err)
+	files, err := ioutil.ReadDir(newPath)
+	AssertEq(nil, err)
+	AssertEq(1, len(files))
+	ExpectEq("baz", files[0].Name())
+	ExpectTrue(files[0].IsDir())
 }
 
 func (t *RenameTest) EmptyDirectory() {

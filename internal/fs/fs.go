@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"reflect"
+	"strings"
 	"syscall"
 	"time"
 
@@ -1518,32 +1518,10 @@ func (fs *fileSystem) renameDir(
 	}
 	pendingInodes = append(pendingInodes, oldDir)
 
-	// Ensure that the old directory has limited files.
-	var tok string
-	var oldFiles []inode.BackObject
-	for {
-		var files, dirs []inode.BackObject
-		files, dirs, tok, err = oldDir.ReadObjects(ctx, tok)
-		if err != nil {
-			err = fmt.Errorf("read objects: %w", err)
-			return err
-		}
-
-		// Are there any directories?
-		if len(dirs) != 0 {
-			return syscall.ENOTSUP
-		}
-
-		// Too many files to be renamed?
-		oldFiles = append(oldFiles, files...)
-		if len(oldFiles) > int(fs.renameDirLimit) {
-			return syscall.EMFILE
-		}
-
-		// Are we done listing?
-		if tok == "" {
-			break
-		}
+	// Fetch all the descendants of the directory recuirsively
+	descendants, err := oldDir.ReadDescendants(ctx, int(fs.renameDirLimit+1))
+	if len(descendants) > int(fs.renameDirLimit) {
+		return fmt.Errorf("too many objects to be renamed: %w", syscall.EMFILE)
 	}
 
 	// Create the backing object of the new directory.
@@ -1563,14 +1541,19 @@ func (fs *fileSystem) renameDir(
 
 	// Move all the files from the old directory to the new directory, keeping
 	// both directories locked.
-	for _, oldFile := range oldFiles {
-		fileName := path.Base(oldFile.FullName.LocalName())
-		o := oldFile.Object
-		if _, err := newDir.CloneToChildFile(ctx, fileName, o); err != nil {
-			return fmt.Errorf("copy file %q: %w", fileName, err)
+	for _, descendant := range descendants {
+		nameDiff := strings.TrimPrefix(
+			descendant.FullName.GcsObjectName(), oldDir.Name().GcsObjectName())
+		if nameDiff == descendant.FullName.GcsObjectName() {
+			return fmt.Errorf("unwanted descendant %q not from dir %q", descendant.FullName, oldDir.Name())
 		}
-		if err := oldDir.DeleteChildFile(ctx, fileName, o.Generation, &o.MetaGeneration); err != nil {
-			return fmt.Errorf("delete file %q: %w", fileName, err)
+
+		o := descendant.Object
+		if _, err := newDir.CloneToChildFile(ctx, nameDiff, o); err != nil {
+			return fmt.Errorf("copy file %q: %w", o.Name, err)
+		}
+		if err := oldDir.DeleteChildFile(ctx, nameDiff, o.Generation, &o.MetaGeneration); err != nil {
+			return fmt.Errorf("delete file %q: %w", o.Name, err)
 		}
 	}
 
