@@ -31,11 +31,12 @@ func newProxyTokenSource(
 	ctx context.Context,
 	endpoint string,
 ) oauth2.TokenSource {
-	return proxyTokenSource{
+	ts := proxyTokenSource{
 		ctx:      ctx,
 		endpoint: endpoint,
 		client:   &http.Client{},
 	}
+	return oauth2.ReuseTokenSource(nil, ts)
 }
 
 type proxyTokenSource struct {
