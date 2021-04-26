@@ -28,42 +28,60 @@ func TestName(t *testing.T) {
 			mountPoint = bucketName + "/"
 		}
 
-		root := inode.NewRootName(bucketName)
+		root := inode.NewRootName(bucketName) // ""
 		ExpectTrue(root.IsBucketRoot())
 		ExpectTrue(root.IsDir())
 		ExpectFalse(root.IsFile())
 		ExpectEq("", root.GcsObjectName())
 		ExpectEq(mountPoint+"", root.LocalName())
+		ExpectFalse(root.IsDirectChildOf(root))
 
-		foo := inode.NewDirName(root, "foo")
+		anotherRoot := inode.NewRootName("bucket-y") // ""
+		ExpectFalse(root.IsDirectChildOf(anotherRoot))
+		ExpectFalse(anotherRoot.IsDirectChildOf(root))
+
+		foo := inode.NewDirName(root, "foo") // "foo"
 		ExpectFalse(foo.IsBucketRoot())
 		ExpectTrue(foo.IsDir())
 		ExpectFalse(foo.IsFile())
 		ExpectEq("foo/", foo.GcsObjectName())
 		ExpectEq(mountPoint+"foo/", foo.LocalName())
+		ExpectFalse(foo.IsDirectChildOf(foo))
+		ExpectFalse(foo.IsDirectChildOf(anotherRoot))
+		ExpectTrue(foo.IsDirectChildOf(root))
 
-		bar := inode.NewDirName(foo, "bar")
+		bar := inode.NewDirName(foo, "bar") // "foo/bar"
 		ExpectFalse(bar.IsBucketRoot())
 		ExpectTrue(bar.IsDir())
 		ExpectFalse(bar.IsFile())
 		ExpectEq("foo/bar/", bar.GcsObjectName())
 		ExpectEq(mountPoint+"foo/bar/", bar.LocalName())
+		ExpectFalse(bar.IsDirectChildOf(bar))
+		ExpectFalse(bar.IsDirectChildOf(root))
+		ExpectTrue(bar.IsDirectChildOf(foo))
+		ExpectFalse(foo.IsDirectChildOf(bar))
 
-		baz := inode.NewFileName(root, "baz")
+		baz := inode.NewFileName(root, "baz") // "baz"
 		ExpectFalse(baz.IsBucketRoot())
 		ExpectFalse(baz.IsDir())
 		ExpectTrue(baz.IsFile())
 		ExpectEq("baz", baz.GcsObjectName())
 		ExpectEq(mountPoint+"baz", baz.LocalName())
+		ExpectFalse(baz.IsDirectChildOf(foo))
+		ExpectFalse(baz.IsDirectChildOf(bar))
+		ExpectTrue(baz.IsDirectChildOf(root))
 
-		qux := inode.NewFileName(bar, "qux")
+		qux := inode.NewFileName(bar, "qux") // "foo/bar/qux"
 		ExpectFalse(qux.IsBucketRoot())
 		ExpectFalse(qux.IsDir())
 		ExpectTrue(qux.IsFile())
 		ExpectEq("foo/bar/qux", qux.GcsObjectName())
 		ExpectEq(mountPoint+"foo/bar/qux", qux.LocalName())
+		ExpectFalse(qux.IsDirectChildOf(root))
+		ExpectFalse(baz.IsDirectChildOf(baz))
+		ExpectTrue(qux.IsDirectChildOf(bar))
 
-		qux = inode.NewDescendantName(foo, "foo/bar/qux")
+		qux = inode.NewDescendantName(foo, "foo/bar/qux") // "foo/bar/qux"
 		ExpectFalse(qux.IsBucketRoot())
 		ExpectFalse(qux.IsDir())
 		ExpectTrue(qux.IsFile())

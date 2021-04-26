@@ -16,6 +16,7 @@ package inode
 
 import (
 	"fmt"
+	"strings"
 )
 
 // Name is the inode's name that can be interpreted in 2 ways:
@@ -100,4 +101,24 @@ func (name Name) LocalName() string {
 // String returns LocalName.
 func (name Name) String() string {
 	return name.LocalName()
+}
+
+// IsDirectChildOf returns true if the name is a direct child file or directory
+// of another directory.
+func (name Name) IsDirectChildOf(parent Name) bool {
+	if !parent.IsDir() && name.IsBucketRoot() {
+		return false
+	}
+	if name.bucketName != parent.bucketName {
+		return false
+	}
+	if !strings.HasPrefix(name.objectName, parent.objectName) {
+		return false
+	}
+	diff := strings.TrimPrefix(name.objectName, parent.objectName)
+	if diff == "" {
+		return false
+	}
+	cleanDiff := strings.TrimSuffix(diff, "/")
+	return !strings.Contains(cleanDiff, "/")
 }
