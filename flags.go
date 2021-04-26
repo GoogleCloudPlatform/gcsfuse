@@ -113,8 +113,8 @@ func newApp() (app *cli.App) {
 			cli.IntFlag{
 				Name:  "rename-dir-limit",
 				Value: 0,
-				Usage: "Allow renaming a directory containing fewer files than " +
-					"this limit in a non-atomic way.",
+				Usage: "Allow rename a directory containing fewer descendants " +
+					"than this limit.",
 			},
 
 			/////////////////////////

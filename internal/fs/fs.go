@@ -99,7 +99,7 @@ type ServerConfig struct {
 	FilePerms os.FileMode
 	DirPerms  os.FileMode
 
-	// Allow renaming a directory containing fewer files than this limit.
+	// Allow renaming a directory containing fewer descendants than this limit.
 	RenameDirLimit int64
 }
 
