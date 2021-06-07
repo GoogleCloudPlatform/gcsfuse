@@ -19,6 +19,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strings"
 	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
@@ -38,9 +39,14 @@ func errno(err error) error {
 		return errno
 	}
 
-	// em op is interrupted
+	// The fuse op is interrupted
 	if errors.Is(err, context.Canceled) {
 		return syscall.EINTR
+	}
+
+	// The HTTP request is canceled
+	if strings.Contains(err.Error(), "net/http: request canceled") {
+		return syscall.ECANCELED
 	}
 
 	// Translate API errors into an em errno
