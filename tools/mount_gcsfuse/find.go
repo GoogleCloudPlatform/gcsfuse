@@ -34,6 +34,7 @@ func findFusermount() (p string, err error) {
 	candidates := []string{
 		"/bin/fusermount",
 		"/usr/bin/fusermount",
+		"/run/current-system/sw/bin/fusermount",
 	}
 
 	for _, c := range candidates {
@@ -59,6 +60,7 @@ func findGcsfuse() (p string, err error) {
 		"gcsfuse",
 		"/usr/bin/gcsfuse",
 		"/usr/local/bin/gcsfuse",
+		"/run/current-system/sw/bin/gcsfuse",
 	}
 
 	for _, c := range candidates {
