@@ -600,8 +600,8 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	backer inode.BackObject) (in inode.Inode) {
 
 	// Sanity check.
-	if backer.Object != nil && backer.FullName.GcsObjectName() != backer.Object.Name {
-		panic(fmt.Sprintf("Name mismatch: %q vs. %q", backer.FullName, backer.Object.Name))
+	if err := backer.SanityCheck(); err != nil {
+		panic(err.Error())
 	}
 
 	// Ensure that no matter which inode we return, we increase its lookup count

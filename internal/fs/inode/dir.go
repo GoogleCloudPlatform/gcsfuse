@@ -313,6 +313,10 @@ func (d *dirInode) lookUpChildDir(
 		return
 	}
 
+	if result.Object != nil && result.ImplicitDir {
+		result.ImplicitDir = false
+	}
+
 	return
 }
 

@@ -15,6 +15,8 @@
 package inode
 
 import (
+	"fmt"
+
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/gcloud/gcs"
 )
@@ -49,4 +51,18 @@ func (bo BackObject) Exists() bool {
 	IsBucketRootDir :=
 		bo.FullName.LocalName() != "" && bo.FullName.IsBucketRoot()
 	return IsExplicitFileOrDir || IsImplicitDir || IsBucketRootDir
+}
+
+// SanityCheck returns an error if the object is conflicting with itself, which
+// means the metadata of the file system is broken.
+func (bo BackObject) SanityCheck() error {
+	if bo.Object != nil {
+		if bo.ImplicitDir {
+			return fmt.Errorf("directory backed by %q is not implicit", bo.Object.Name)
+		}
+		if bo.FullName.objectName != bo.Object.Name {
+			return fmt.Errorf("%q backed by %q inconsistently", bo.FullName, bo.Object.Name)
+		}
+	}
+	return nil
 }

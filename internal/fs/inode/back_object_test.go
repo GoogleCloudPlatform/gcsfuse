@@ -116,3 +116,42 @@ func (t *BackObjectTest) Nonexistent() {
 	}
 	ExpectFalse(bo.Exists())
 }
+
+func (t *BackObjectTest) SanityCheck() {
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "bar/", []byte(""))
+	AssertEq(nil, err)
+
+	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), o.Name)
+	bo := inode.BackObject{
+		Bucket:      t.bucket,
+		FullName:    name,
+		Object:      o,
+		ImplicitDir: true,
+	}
+	ExpectNe(nil, bo.SanityCheck())
+
+	bo = inode.BackObject{
+		Bucket:      t.bucket,
+		FullName:    name,
+		Object:      nil,
+		ImplicitDir: true,
+	}
+	ExpectEq(nil, bo.SanityCheck())
+
+	bo = inode.BackObject{
+		Bucket:      t.bucket,
+		FullName:    name,
+		Object:      nil,
+		ImplicitDir: false,
+	}
+	ExpectEq(nil, bo.SanityCheck())
+
+	o.Name = "foo/"
+	bo = inode.BackObject{
+		Bucket:      t.bucket,
+		FullName:    name,
+		Object:      o,
+		ImplicitDir: false,
+	}
+	ExpectNe(nil, bo.SanityCheck())
+}
