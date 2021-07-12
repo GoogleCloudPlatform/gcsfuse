@@ -22,6 +22,7 @@ import (
 	"strings"
 	"syscall"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -43,6 +44,9 @@ func errno(err error) error {
 	if errors.Is(err, context.Canceled) {
 		return syscall.EINTR
 	}
+	if errors.Is(err, storage.ErrObjectNotExist) {
+		return syscall.ENOENT
+	}
 
 	// The HTTP request is canceled
 	if strings.Contains(err.Error(), "net/http: request canceled") {
@@ -55,6 +59,8 @@ func errno(err error) error {
 		switch apiErr.Code {
 		case http.StatusForbidden:
 			return syscall.EACCES
+		case http.StatusNotFound:
+			return syscall.ENOENT
 		}
 	}
 
