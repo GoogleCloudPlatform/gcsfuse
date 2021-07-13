@@ -44,7 +44,8 @@ func (b *bucket) NewReader(
 	bucketSegment := httputil.EncodePathSegment(b.name)
 	objectSegment := httputil.EncodePathSegment(req.Name)
 	opaque := fmt.Sprintf(
-		"//www.googleapis.com/download/storage/v1/b/%s/o/%s",
+		"//%s/download/storage/v1/b/%s/o/%s",
+		b.url.Host,
 		bucketSegment,
 		objectSegment)
 
@@ -60,8 +61,8 @@ func (b *bucket) NewReader(
 	}
 
 	url := &url.URL{
-		Scheme:   "https",
-		Host:     "www.googleapis.com",
+		Scheme:   b.url.Scheme,
+		Host:     b.url.Host,
 		Opaque:   opaque,
 		RawQuery: query.Encode(),
 	}

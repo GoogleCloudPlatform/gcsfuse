@@ -16,6 +16,7 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -120,6 +121,12 @@ func newApp() (app *cli.App) {
 			/////////////////////////
 			// GCS
 			/////////////////////////
+
+			cli.StringFlag{
+				Name:  "endpoint",
+				Value: "https://www.googleapis.com:443",
+				Usage: "The endpoint to connect to.",
+			},
 
 			cli.StringFlag{
 				Name:  "billing-project",
@@ -285,6 +292,7 @@ type flagStorage struct {
 	RenameDirLimit int64
 
 	// GCS
+	Endpoint                           *url.URL
 	BillingProject                     string
 	KeyFile                            string
 	TokenUrl                           string
@@ -317,6 +325,11 @@ type flagStorage struct {
 // Add the flags accepted by run to the supplied flag set, returning the
 // variables into which the flags will parse.
 func populateFlags(c *cli.Context) (flags *flagStorage) {
+	endpoint, err := url.Parse(c.String("endpoint"))
+	if err != nil {
+		fmt.Printf("Could not parse endpoint")
+		return nil
+	}
 	flags = &flagStorage{
 		Foreground: c.Bool("foreground"),
 
@@ -331,6 +344,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		RenameDirLimit: int64(c.Int("rename-dir-limit")),
 
 		// GCS,
+		Endpoint:                           endpoint,
 		BillingProject:                     c.String("billing-project"),
 		KeyFile:                            c.String("key-file"),
 		TokenUrl:                           c.String("token-url"),
