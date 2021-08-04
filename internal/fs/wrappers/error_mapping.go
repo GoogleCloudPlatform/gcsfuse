@@ -53,6 +53,11 @@ func errno(err error) error {
 		return syscall.ECANCELED
 	}
 
+	// Cannot authenticate
+	if strings.Contains(err.Error(), "oauth2: cannot fetch token") {
+		return syscall.EACCES
+	}
+
 	// Translate API errors into an em errno
 	var apiErr *googleapi.Error
 	if errors.As(err, &apiErr) {
