@@ -40,6 +40,7 @@ func NewConnection(cfg *gcs.ConnConfig) (c *Connection, err error) {
 
 	gcs, err := storage.NewClient(
 		context.Background(),
+		option.WithEndpoint(fmt.Sprintf("%s/storage/v1/", cfg.Url.String())),
 		option.WithTokenSource(cfg.TokenSource))
 	if err != nil {
 		err = fmt.Errorf("Cannot create GCS client: %w", err)

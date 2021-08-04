@@ -77,7 +77,8 @@ func (b *bucket) ComposeObjects(
 	objectSegment := httputil.EncodePathSegment(req.DstName)
 
 	opaque := fmt.Sprintf(
-		"//www.googleapis.com/storage/v1/b/%s/o/%s/compose",
+		"//%s/storage/v1/b/%s/o/%s/compose",
+		b.url.Host,
 		bucketSegment,
 		objectSegment)
 
@@ -94,8 +95,8 @@ func (b *bucket) ComposeObjects(
 	}
 
 	url := &url.URL{
-		Scheme:   "https",
-		Host:     "www.googleapis.com",
+		Scheme:   b.url.Scheme,
+		Host:     b.url.Host,
 		Opaque:   opaque,
 		RawQuery: query.Encode(),
 	}

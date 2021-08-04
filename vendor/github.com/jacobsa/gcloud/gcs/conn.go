@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"time"
 
 	"golang.org/x/net/context"
@@ -66,6 +67,9 @@ type ConnConfig struct {
 	// You probably want this one:
 	//     http://godoc.org/golang.org/x/oauth2/google#DefaultTokenSource
 	TokenSource oauth2.TokenSource
+
+	// The URL to connect to, useful for testing with non-Google implementations.
+	Url *url.URL
 
 	// The value to set in User-Agent headers for outgoing HTTP requests. If
 	// empty, a default will be used.
@@ -120,7 +124,7 @@ func NewConn(cfg *ConnConfig) (c Conn, err error) {
 	}
 
 	// Wrap the HTTP transport in an oauth layer.
-	if cfg.TokenSource == nil {
+	if cfg.Url.Hostname() == "www.googleapis.com" && cfg.TokenSource == nil {
 		err = errors.New("You must set TokenSource.")
 		return
 	}
@@ -133,6 +137,7 @@ func NewConn(cfg *ConnConfig) (c Conn, err error) {
 	// Set up the connection.
 	c = &conn{
 		client:          &http.Client{Transport: transport},
+		url:             cfg.Url,
 		userAgent:       userAgent,
 		maxBackoffSleep: cfg.MaxBackoffSleep,
 		debugLogger:     cfg.GCSDebugLogger,
@@ -143,6 +148,7 @@ func NewConn(cfg *ConnConfig) (c Conn, err error) {
 
 type conn struct {
 	client          *http.Client
+	url             *url.URL
 	userAgent       string
 	maxBackoffSleep time.Duration
 	debugLogger     *log.Logger
@@ -151,7 +157,7 @@ type conn struct {
 func (c *conn) OpenBucket(
 	ctx context.Context,
 	options *OpenBucketOptions) (b Bucket, err error) {
-	b = newBucket(c.client, c.userAgent, options.Name, options.BillingProject)
+	b = newBucket(c.client, c.url, c.userAgent, options.Name, options.BillingProject)
 
 	// Enable retry loops if requested.
 	if c.maxBackoffSleep > 0 {
