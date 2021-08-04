@@ -16,6 +16,8 @@ package gcsx
 
 import (
 	"fmt"
+	"strings"
+	"syscall"
 
 	"cloud.google.com/go/storage"
 	"github.com/jacobsa/gcloud/gcs"
@@ -55,6 +57,19 @@ func (c *Connection) OpenBucket(
 	ctx context.Context,
 	options *gcs.OpenBucketOptions) (b gcs.Bucket, err error) {
 	b, err = c.wrapped.OpenBucket(ctx, options)
+
+	// The gcs.Conn.OpenBucket returns converted errors without the underlying
+	// googleapi.Error, which is impossible to use errors.As to match the error
+	// type. To interpret the errors in syscall, here we use string matching.
+	if err != nil {
+		if strings.Contains(err.Error(), "Bad credentials") {
+			return b, fmt.Errorf("Bad credentials for bucket %q: %w", options.Name, syscall.EACCES)
+		}
+		if strings.Contains(err.Error(), "Unknown bucket") {
+			return b, fmt.Errorf("Unknown bucket %q: %w", options.Name, syscall.ENOENT)
+		}
+	}
+
 	return
 }
 
