@@ -161,6 +161,9 @@ func (c *Connection) Init() error {
 
 	// Tell the kernel not to use pitifully small 4 KiB writes.
 	initOp.Flags |= fusekernel.InitBigWrites
+	// kernel 4.20 increases the max from 32 -> 256
+	initOp.Flags |= fusekernel.InitMaxPages
+	initOp.MaxPages = 256
 
 	// Enable writeback caching if the user hasn't asked us not to.
 	if !c.cfg.DisableWritebackCaching {

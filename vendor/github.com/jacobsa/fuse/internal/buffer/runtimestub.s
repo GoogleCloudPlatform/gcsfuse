@@ -12,29 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build amd64 arm64 ppc64 ppc64le arm
-// +build go1.8
-
-// Assembly code isn't subject to visibility restrictions, so we can jump
-// directly into package runtime.
-//
-// Technique copied from here:
-//     https://github.com/golang/go/blob/d8c6dac/src/os/signal/sig.s
-
-#include "textflag.h"
-
-#ifdef GOARCH_arm
-#define JMP B
-#endif
-#ifdef GOARCH_ppc64
-#define JMP BR
-#endif
-#ifdef GOARCH_ppc64le
-#define JMP BR
-#endif
-
-TEXT ·memclr(SB),NOSPLIT,$0-16
-	JMP runtime·memclrNoHeapPointers(SB)
-
-TEXT ·memmove(SB),NOSPLIT,$0-24
-	JMP runtime·memmove(SB)
+// The buffer package uses //go:linkname to push a few functions into this
+// package but we still need a .s file so the Go tool does not pass -complete
+// to the go tool compile so the latter does not complain about Go functions
+// with no bodies.

@@ -70,7 +70,7 @@ func (m *OutMessage) OutHeader() *fusekernel.OutHeader {
 func (m *OutMessage) Grow(n int) unsafe.Pointer {
 	p := m.GrowNoZero(n)
 	if p != nil {
-		memclr(p, uintptr(n))
+		jacobsa_fuse_memclr(p, uintptr(n))
 	}
 
 	return p
@@ -113,7 +113,7 @@ func (m *OutMessage) Append(src []byte) {
 	}
 
 	sh := (*reflect.SliceHeader)(unsafe.Pointer(&src))
-	memmove(p, unsafe.Pointer(sh.Data), uintptr(sh.Len))
+	jacobsa_fuse_memmove(p, unsafe.Pointer(sh.Data), uintptr(sh.Len))
 
 	return
 }
@@ -126,7 +126,7 @@ func (m *OutMessage) AppendString(src string) {
 	}
 
 	sh := (*reflect.StringHeader)(unsafe.Pointer(&src))
-	memmove(p, unsafe.Pointer(sh.Data), uintptr(sh.Len))
+	jacobsa_fuse_memmove(p, unsafe.Pointer(sh.Data), uintptr(sh.Len))
 
 	return
 }

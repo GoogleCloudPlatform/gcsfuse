@@ -30,7 +30,7 @@ github.com/googleapis/gax-go/v2
 # github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
 ## explicit
 github.com/jacobsa/daemonize
-# github.com/jacobsa/fuse v0.0.0-20210330112455-9677d0392291
+# github.com/jacobsa/fuse v0.0.0-20210805062233-5d146b000c70
 ## explicit
 github.com/jacobsa/fuse
 github.com/jacobsa/fuse/fsutil
