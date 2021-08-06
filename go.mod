@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	cloud.google.com/go/storage v1.16.0
+	github.com/go-kit/kit v0.10.0 // indirect
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
 	github.com/jacobsa/fuse v0.0.0-20210805062233-5d146b000c70
 	github.com/jacobsa/gcloud v0.0.0-20210611094250-93436725bc18
@@ -17,7 +18,7 @@ require (
 	github.com/jacobsa/util v0.0.0-20150810040848-976a6f4de67e
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/kylelemons/godebug v1.1.0 // indirect
-	github.com/prometheus/client_golang v1.10.0
+	github.com/prometheus/client_golang v1.11.0
 	github.com/urfave/cli v1.22.5
 	golang.org/x/net v0.0.0-20210503060351-7fd8e65b6420
 	golang.org/x/oauth2 v0.0.0-20210615190721-d04028783cf1
