@@ -3,7 +3,7 @@ module github.com/googlecloudplatform/gcsfuse
 go 1.14
 
 require (
-	cloud.google.com/go/storage v1.15.0
+	cloud.google.com/go/storage v1.16.0
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
 	github.com/jacobsa/fuse v0.0.0-20210805062233-5d146b000c70
 	github.com/jacobsa/gcloud v0.0.0-20210611094250-93436725bc18
@@ -19,7 +19,7 @@ require (
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/prometheus/client_golang v1.10.0
 	github.com/urfave/cli v1.22.5
-	golang.org/x/net v0.0.0-20210423184538-5f58ad60dda6
-	golang.org/x/oauth2 v0.0.0-20210413134643-5e61552d6c78
-	google.golang.org/api v0.45.0
+	golang.org/x/net v0.0.0-20210503060351-7fd8e65b6420
+	golang.org/x/oauth2 v0.0.0-20210615190721-d04028783cf1
+	google.golang.org/api v0.49.0
 )
