@@ -260,7 +260,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		}
 		// Pass through the https_proxy/http_proxy environment variable,
 		// in case the host requires a proxy server to reach the GCS endpoint.
-		// http_proxy has precedence over http_proxy, in case both are set
+		// https_proxy has precedence over http_proxy, in case both are set
 		if p, ok := os.LookupEnv("https_proxy"); ok {
 			env = append(env, fmt.Sprintf("https_proxy=%s", p))
 			fmt.Fprintf(
