@@ -30,7 +30,7 @@ The instructions vary by distribution.
 ## Ubuntu and Debian (latest releases)
 
 The following instructions set up `apt-get` to see updates to gcsfuse, and are
-supported for the **bionic**, **artful**, **zesty**, **yakkety**, **xenial**,
+supported for the **focal**, **bionic**, **artful**, **zesty**, **yakkety**, **xenial**,
 and **trusty** [releases][ubuntu-releases] of Ubuntu, and the **jessie** and **stretch**
 [releases][debian-releases] of Debian. (Run `lsb_release -c` to find your
 release codename.) Users of older releases should follow the instructions for
