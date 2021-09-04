@@ -267,6 +267,8 @@ github.com/jacobsa/fuse v0.0.0-20210330112455-9677d0392291 h1:GoZXB1SHOnDgMmFNYv
 github.com/jacobsa/fuse v0.0.0-20210330112455-9677d0392291/go.mod h1:9Aml1MG17JVeXrN4D2mtJvYHtHklJH5bESjCKNzVjFU=
 github.com/jacobsa/fuse v0.0.0-20210805062233-5d146b000c70 h1:vR6mlMANegpO8kmBpGr1sYWIVy2tgD87aIRPp+CTrmk=
 github.com/jacobsa/fuse v0.0.0-20210805062233-5d146b000c70/go.mod h1:xtZnnLxHY6QniCrfIpTwr5h8mH8zr+jsOFj0y9cfyp4=
+github.com/jacobsa/fuse v0.0.0-20210818065549-10d864429bf7 h1:1sUZkRpOpTY4L/QbnCrCVMk9UTfdn9nfLdW3uZQPk7c=
+github.com/jacobsa/fuse v0.0.0-20210818065549-10d864429bf7/go.mod h1:xtZnnLxHY6QniCrfIpTwr5h8mH8zr+jsOFj0y9cfyp4=
 github.com/jacobsa/gcloud v0.0.0-20190518041910-99c1a71c36ad h1:3Nv6XpZ73PXomRrHaNz611V67q6HJc4kw2tgGSGHifY=
 github.com/jacobsa/gcloud v0.0.0-20190518041910-99c1a71c36ad/go.mod h1:3fF6sEraNZSToePaj5q+f9KSaMpuZcwccqAQmOKDv/k=
 github.com/jacobsa/gcloud v0.0.0-20210318100944-f73b85415adb h1:jIIP6QBXQdRbKwyvnuuBwEz6wtHoPEDeKMOwjN2wr/o=
