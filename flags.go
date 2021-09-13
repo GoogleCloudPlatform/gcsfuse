@@ -62,6 +62,12 @@ func newApp() (app *cli.App) {
 		Writer:  os.Stderr,
 		Flags: []cli.Flag{
 
+			cli.StringFlag{
+				Name:  "app-name",
+				Value: "",
+				Usage: "The application name of this mount.",
+			},
+
 			cli.BoolFlag{
 				Name:  "foreground",
 				Usage: "Stay in the foreground after mounting.",
@@ -279,6 +285,7 @@ func newApp() (app *cli.App) {
 }
 
 type flagStorage struct {
+	AppName    string
 	Foreground bool
 
 	// File system
@@ -331,6 +338,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		return nil
 	}
 	flags = &flagStorage{
+		AppName:    c.String("app-name"),
 		Foreground: c.Bool("foreground"),
 
 		// File system
