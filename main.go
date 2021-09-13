@@ -99,11 +99,10 @@ func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 	}
 
 	// Create the connection.
-	const userAgent = "gcsfuse/0.0"
 	cfg := &gcs.ConnConfig{
 		Url:             flags.Endpoint,
 		TokenSource:     tokenSrc,
-		UserAgent:       userAgent,
+		UserAgent:       fmt.Sprintf("gcsfuse/%s %s", getVersion(), flags.AppName),
 		MaxBackoffSleep: flags.MaxRetrySleep,
 	}
 
