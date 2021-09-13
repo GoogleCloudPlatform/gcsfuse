@@ -229,7 +229,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		return
 	}
 
-	logger.Infof("Using mount point: %s\n", mountPoint)
+	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", getVersion(), flags.AppName, mountPoint)
 
 	// If we haven't been asked to run in foreground mode, we should run a daemon
 	// with the foreground flag set and wait for it to mount.
