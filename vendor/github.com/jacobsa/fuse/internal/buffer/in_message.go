@@ -25,31 +25,30 @@ import (
 
 // All requests read from the kernel, without data, are shorter than
 // this.
-const pageSize = 4096
-
-func init() {
-	// Confirm the page size.
-	if syscall.Getpagesize() != pageSize {
-		panic(fmt.Sprintf("Page size is unexpectedly %d", syscall.Getpagesize()))
-	}
-}
+var pageSize int
 
 // We size the buffer to have enough room for a fuse request plus data
 // associated with a write request.
-const bufSize = pageSize + MaxWriteSize
+var bufSize int
+
+func init() {
+	pageSize = syscall.Getpagesize()
+	bufSize = pageSize + MaxWriteSize
+}
 
 // An incoming message from the kernel, including leading fusekernel.InHeader
 // struct. Provides storage for messages and convenient access to their
 // contents.
 type InMessage struct {
 	remaining []byte
-	storage   [bufSize]byte
+	storage   []byte
 }
 
 // Initialize with the data read by a single call to r.Read. The first call to
 // Consume will consume the bytes directly after the fusekernel.InHeader
 // struct.
 func (m *InMessage) Init(r io.Reader) error {
+	m.storage = make([]byte, bufSize, bufSize)
 	n, err := r.Read(m.storage[:])
 	if err != nil {
 		return err
