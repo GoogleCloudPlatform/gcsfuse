@@ -88,6 +88,7 @@ func makeGcsfuseArgs(
 			"file_mode",
 			"uid",
 			"gid",
+			"app_name",
 			"only_dir",
 			"billing_project",
 			"key_file",
