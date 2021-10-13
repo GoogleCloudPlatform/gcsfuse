@@ -22,5 +22,5 @@ require (
 	github.com/urfave/cli v1.22.5
 	golang.org/x/net v0.0.0-20211013171255-e13a2654a71e
 	golang.org/x/oauth2 v0.0.0-20211005180243-6b3c2da341f1
-	google.golang.org/api v0.52.0
+	google.golang.org/api v0.58.0
 )
