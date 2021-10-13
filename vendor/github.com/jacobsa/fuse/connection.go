@@ -161,6 +161,11 @@ func (c *Connection) Init() error {
 
 	// Tell the kernel not to use pitifully small 4 KiB writes.
 	initOp.Flags |= fusekernel.InitBigWrites
+
+	if c.cfg.EnableAsyncReads {
+		initOp.Flags |= fusekernel.InitAsyncRead
+	}
+
 	// kernel 4.20 increases the max from 32 -> 256
 	initOp.Flags |= fusekernel.InitMaxPages
 	initOp.MaxPages = 256

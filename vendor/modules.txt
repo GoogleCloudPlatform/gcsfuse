@@ -1,4 +1,4 @@
-# cloud.google.com/go v0.88.0
+# cloud.google.com/go v0.97.0
 cloud.google.com/go
 cloud.google.com/go/compute/metadata
 cloud.google.com/go/iam
@@ -6,9 +6,10 @@ cloud.google.com/go/internal
 cloud.google.com/go/internal/optional
 cloud.google.com/go/internal/trace
 cloud.google.com/go/internal/version
-# cloud.google.com/go/storage v1.16.0
+# cloud.google.com/go/storage v1.18.0
 ## explicit
 cloud.google.com/go/storage
+cloud.google.com/go/storage/internal/apiv2
 # github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile
 # github.com/cespare/xxhash/v2 v2.1.1
@@ -20,19 +21,25 @@ github.com/cpuguy83/go-md2man/v2/md2man
 # github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
 github.com/golang/groupcache/lru
 # github.com/golang/protobuf v1.5.2
-github.com/golang/protobuf/internal/gengogrpc
 github.com/golang/protobuf/proto
-github.com/golang/protobuf/protoc-gen-go
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
-# github.com/googleapis/gax-go/v2 v2.0.5
+# github.com/google/go-cmp v0.5.6
+github.com/google/go-cmp/cmp
+github.com/google/go-cmp/cmp/internal/diff
+github.com/google/go-cmp/cmp/internal/flags
+github.com/google/go-cmp/cmp/internal/function
+github.com/google/go-cmp/cmp/internal/value
+# github.com/googleapis/gax-go/v2 v2.1.1
 github.com/googleapis/gax-go/v2
+github.com/googleapis/gax-go/v2/apierror
+github.com/googleapis/gax-go/v2/apierror/internal/proto
 # github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
 ## explicit
 github.com/jacobsa/daemonize
-# github.com/jacobsa/fuse v0.0.0-20210818065549-10d864429bf7
+# github.com/jacobsa/fuse v0.0.0-20210904154839-95fc8d118111
 ## explicit
 github.com/jacobsa/fuse
 github.com/jacobsa/fuse/fsutil
@@ -74,10 +81,6 @@ github.com/jacobsa/timeutil
 # github.com/jacobsa/util v0.0.0-20150810040848-976a6f4de67e
 ## explicit
 github.com/jacobsa/util/lrucache
-# github.com/jstemmer/go-junit-report v0.9.1
-github.com/jstemmer/go-junit-report
-github.com/jstemmer/go-junit-report/formatter
-github.com/jstemmer/go-junit-report/parser
 # github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 ## explicit
 github.com/kardianos/osext
@@ -113,6 +116,7 @@ go.opencensus.io/internal
 go.opencensus.io/internal/tagencoding
 go.opencensus.io/metric/metricdata
 go.opencensus.io/metric/metricproducer
+go.opencensus.io/plugin/ocgrpc
 go.opencensus.io/plugin/ochttp
 go.opencensus.io/plugin/ochttp/propagation/b3
 go.opencensus.io/resource
@@ -124,13 +128,7 @@ go.opencensus.io/trace
 go.opencensus.io/trace/internal
 go.opencensus.io/trace/propagation
 go.opencensus.io/trace/tracestate
-# golang.org/x/lint v0.0.0-20210508222113-6edffad5e616
-golang.org/x/lint
-golang.org/x/lint/golint
-# golang.org/x/mod v0.4.2
-golang.org/x/mod/module
-golang.org/x/mod/semver
-# golang.org/x/net v0.0.0-20210805182204-aaa1db679c0d
+# golang.org/x/net v0.0.0-20211013171255-e13a2654a71e
 ## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -140,7 +138,7 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
+# golang.org/x/oauth2 v0.0.0-20211005180243-6b3c2da341f1
 ## explicit
 golang.org/x/oauth2
 golang.org/x/oauth2/authhandler
@@ -149,8 +147,7 @@ golang.org/x/oauth2/google/internal/externalaccount
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
-golang.org/x/sys/execabs
+# golang.org/x/sys v0.0.0-20210917161153-d61c044b1678
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
@@ -159,27 +156,14 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.1.5
-golang.org/x/tools/cmd/goimports
-golang.org/x/tools/go/ast/astutil
-golang.org/x/tools/go/gcexportdata
-golang.org/x/tools/go/internal/gcimporter
-golang.org/x/tools/internal/event
-golang.org/x/tools/internal/event/core
-golang.org/x/tools/internal/event/keys
-golang.org/x/tools/internal/event/label
-golang.org/x/tools/internal/fastwalk
-golang.org/x/tools/internal/gocommand
-golang.org/x/tools/internal/gopathwalk
-golang.org/x/tools/internal/imports
-golang.org/x/tools/internal/typeparams
 # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/api v0.52.0
+# google.golang.org/api v0.58.0
 ## explicit
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
+google.golang.org/api/iamcredentials/v1
 google.golang.org/api/internal
 google.golang.org/api/internal/gensupport
 google.golang.org/api/internal/impersonate
@@ -188,7 +172,9 @@ google.golang.org/api/iterator
 google.golang.org/api/option
 google.golang.org/api/option/internaloption
 google.golang.org/api/storage/v1
+google.golang.org/api/transport
 google.golang.org/api/transport/cert
+google.golang.org/api/transport/grpc
 google.golang.org/api/transport/http
 google.golang.org/api/transport/http/internal/propagation
 google.golang.org/api/transport/internal/dca
@@ -201,26 +187,42 @@ google.golang.org/appengine/internal/datastore
 google.golang.org/appengine/internal/log
 google.golang.org/appengine/internal/modules
 google.golang.org/appengine/internal/remote_api
+google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
+google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20210722135532-667f2b7c528f
+# google.golang.org/genproto v0.0.0-20210924002016-3dee208752a0
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
 google.golang.org/genproto/googleapis/rpc/code
+google.golang.org/genproto/googleapis/rpc/errdetails
 google.golang.org/genproto/googleapis/rpc/status
+google.golang.org/genproto/googleapis/storage/v2
+google.golang.org/genproto/googleapis/type/date
 google.golang.org/genproto/googleapis/type/expr
-# google.golang.org/grpc v1.39.0
+# google.golang.org/grpc v1.40.0
 google.golang.org/grpc
 google.golang.org/grpc/attributes
 google.golang.org/grpc/backoff
 google.golang.org/grpc/balancer
 google.golang.org/grpc/balancer/base
+google.golang.org/grpc/balancer/grpclb
+google.golang.org/grpc/balancer/grpclb/grpc_lb_v1
 google.golang.org/grpc/balancer/grpclb/state
 google.golang.org/grpc/balancer/roundrobin
 google.golang.org/grpc/binarylog/grpc_binarylog_v1
 google.golang.org/grpc/codes
 google.golang.org/grpc/connectivity
 google.golang.org/grpc/credentials
+google.golang.org/grpc/credentials/alts
+google.golang.org/grpc/credentials/alts/internal
+google.golang.org/grpc/credentials/alts/internal/authinfo
+google.golang.org/grpc/credentials/alts/internal/conn
+google.golang.org/grpc/credentials/alts/internal/handshaker
+google.golang.org/grpc/credentials/alts/internal/handshaker/service
+google.golang.org/grpc/credentials/alts/internal/proto/grpc_gcp
+google.golang.org/grpc/credentials/google
+google.golang.org/grpc/credentials/oauth
 google.golang.org/grpc/encoding
 google.golang.org/grpc/encoding/proto
 google.golang.org/grpc/grpclog
@@ -232,6 +234,7 @@ google.golang.org/grpc/internal/buffer
 google.golang.org/grpc/internal/channelz
 google.golang.org/grpc/internal/credentials
 google.golang.org/grpc/internal/envconfig
+google.golang.org/grpc/internal/googlecloud
 google.golang.org/grpc/internal/grpclog
 google.golang.org/grpc/internal/grpcrand
 google.golang.org/grpc/internal/grpcsync
@@ -255,14 +258,14 @@ google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
 # google.golang.org/protobuf v1.27.1
-google.golang.org/protobuf/cmd/protoc-gen-go/internal_gengo
-google.golang.org/protobuf/compiler/protogen
+google.golang.org/protobuf/encoding/protojson
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
 google.golang.org/protobuf/internal/descfmt
 google.golang.org/protobuf/internal/descopts
 google.golang.org/protobuf/internal/detrand
 google.golang.org/protobuf/internal/encoding/defval
+google.golang.org/protobuf/internal/encoding/json
 google.golang.org/protobuf/internal/encoding/messageset
 google.golang.org/protobuf/internal/encoding/tag
 google.golang.org/protobuf/internal/encoding/text
@@ -286,5 +289,6 @@ google.golang.org/protobuf/runtime/protoimpl
 google.golang.org/protobuf/types/descriptorpb
 google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
+google.golang.org/protobuf/types/known/emptypb
+google.golang.org/protobuf/types/known/fieldmaskpb
 google.golang.org/protobuf/types/known/timestamppb
-google.golang.org/protobuf/types/pluginpb
