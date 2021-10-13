@@ -281,6 +281,8 @@ github.com/jacobsa/fuse v0.0.0-20210805062233-5d146b000c70 h1:vR6mlMANegpO8kmBpG
 github.com/jacobsa/fuse v0.0.0-20210805062233-5d146b000c70/go.mod h1:xtZnnLxHY6QniCrfIpTwr5h8mH8zr+jsOFj0y9cfyp4=
 github.com/jacobsa/fuse v0.0.0-20210818065549-10d864429bf7 h1:1sUZkRpOpTY4L/QbnCrCVMk9UTfdn9nfLdW3uZQPk7c=
 github.com/jacobsa/fuse v0.0.0-20210818065549-10d864429bf7/go.mod h1:xtZnnLxHY6QniCrfIpTwr5h8mH8zr+jsOFj0y9cfyp4=
+github.com/jacobsa/fuse v0.0.0-20210904154839-95fc8d118111 h1:x35u3++Oj2CXNVqUSPdf/DX8QbfbVKb+T0fKzGIHlWY=
+github.com/jacobsa/fuse v0.0.0-20210904154839-95fc8d118111/go.mod h1:xtZnnLxHY6QniCrfIpTwr5h8mH8zr+jsOFj0y9cfyp4=
 github.com/jacobsa/gcloud v0.0.0-20190518041910-99c1a71c36ad h1:3Nv6XpZ73PXomRrHaNz611V67q6HJc4kw2tgGSGHifY=
 github.com/jacobsa/gcloud v0.0.0-20190518041910-99c1a71c36ad/go.mod h1:3fF6sEraNZSToePaj5q+f9KSaMpuZcwccqAQmOKDv/k=
 github.com/jacobsa/gcloud v0.0.0-20210318100944-f73b85415adb h1:jIIP6QBXQdRbKwyvnuuBwEz6wtHoPEDeKMOwjN2wr/o=
@@ -702,6 +704,7 @@ golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c h1:F1jZWGFhYfh0Ci55sIpILtKKK
 golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20210806184541-e5e7981a1069/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.0.0-20210917161153-d61c044b1678 h1:J27LZFQBFoihqXoegpscI10HpjZ7B5WQLLKL2FZXQKw=
 golang.org/x/sys v0.0.0-20210917161153-d61c044b1678/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
 golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
