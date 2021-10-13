@@ -21,6 +21,6 @@ require (
 	github.com/prometheus/client_golang v1.11.0
 	github.com/urfave/cli v1.22.5
 	golang.org/x/net v0.0.0-20211013171255-e13a2654a71e
-	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
+	golang.org/x/oauth2 v0.0.0-20211005180243-6b3c2da341f1
 	google.golang.org/api v0.52.0
 )
