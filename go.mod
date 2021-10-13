@@ -3,7 +3,7 @@ module github.com/googlecloudplatform/gcsfuse
 go 1.14
 
 require (
-	cloud.google.com/go/storage v1.16.0
+	cloud.google.com/go/storage v1.18.0
 	github.com/go-kit/kit v0.10.0 // indirect
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
 	github.com/jacobsa/fuse v0.0.0-20210904154839-95fc8d118111
