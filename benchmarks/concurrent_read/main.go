@@ -40,29 +40,30 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/benchmarks/concurrent_read/readers"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/perf"
 )
 
-var fIterations = flag.Int(
+var iterations = flag.Int(
 	"iterations",
 	1,
 	"Number of iterations to read the files.",
 )
-var fHTTP = flag.String(
-	"http",
-	"1.1",
-	"HTTP protocol version, 1.1 or 2.",
+var protocol = flag.String(
+	"protocol",
+	"HTTP/1.1",
+	"Choose from HTTP/1.1, HTTP/2, GRPC.",
 )
-var fConnsPerHost = flag.Int(
-	"conns_per_host",
+var connections = flag.Int(
+	"connections",
 	50,
 	"Max number of TCP connections per host.",
 )
-var fReader = flag.String(
-	"reader",
+var implementation = flag.String(
+	"implementation",
 	"vendor",
-	"Reader type: vendor, official.",
+	"Choose from vendor, google.",
 )
 
 const (
@@ -70,7 +71,7 @@ const (
 	MB = 1024 * KB
 )
 
-func testReader(rf readerFactory, objectNames []string) (stats testStats) {
+func testReader(ctx context.Context, client readers.Client, objectNames []string) (stats testStats) {
 	reportDuration := 10 * time.Second
 	ticker := time.NewTicker(reportDuration)
 	defer ticker.Stop()
@@ -79,18 +80,17 @@ func testReader(rf readerFactory, objectNames []string) (stats testStats) {
 	doneFiles := make(chan int)
 	start := time.Now()
 
-	ctx := context.Background()
-
-	ctx, traceTask := trace.NewTask(ctx, "ReadAllObjects")
-	defer traceTask.End()
-
 	// run readers concurrently
 	for _, objectName := range objectNames {
 		name := objectName
 		go func() {
 			region := trace.StartRegion(ctx, "NewReader")
-			reader := rf.NewReader(ctx, name)
+			reader, err := client.NewReader(name)
 			region.End()
+			if err != nil {
+				fmt.Printf("Skip %q: %s", name, err)
+				return
+			}
 			defer reader.Close()
 
 			p := make([]byte, 128*1024)
@@ -131,24 +131,19 @@ func testReader(rf readerFactory, objectNames []string) (stats testStats) {
 }
 
 func run(bucketName string, objectNames []string) {
-	protocols := map[string]string{
-		"1.1": http1,
-		"2":   http2,
-	}
-	httpVersion := protocols[*fHTTP]
-	transport := getTransport(httpVersion, *fConnsPerHost)
-	defer transport.CloseIdleConnections()
+	ctx := context.Background()
 
-	readers := map[string]string{
-		"vendor":   vendorClientReader,
-		"official": officialClientReader,
-	}
-	readerVersion := readers[*fReader]
-	rf := newReaderFactory(transport, readerVersion, bucketName)
+	ctx, traceTask := trace.NewTask(ctx, "ReadAllObjects")
+	defer traceTask.End()
 
-	for i := 0; i < *fIterations; i++ {
-		stats := testReader(rf, objectNames)
-		stats.report(httpVersion, *fConnsPerHost, readerVersion)
+	client, err := readers.NewClient(ctx, *protocol, *connections, *implementation, bucketName)
+	if err != nil {
+		panic("Cannot create client for ")
+	}
+
+	for i := 0; i < *iterations; i++ {
+		stats := testReader(ctx, client, objectNames)
+		stats.report()
 	}
 }
 
@@ -165,20 +160,16 @@ func (s testStats) throughput() float32 {
 	return mbs / seconds
 }
 
-func (s testStats) report(
-	httpVersion string,
-	maxConnsPerHost int,
-	readerVersion string,
-) {
+func (s testStats) report() {
 	logger.Infof(
 		"# TEST READER %s\n"+
 			"Protocol: %s (%v connections per host)\n"+
 			"Total bytes: %d\n"+
 			"Total files: %d\n"+
 			"Avg Throughput: %.1f MB/s\n\n",
-		readerVersion,
-		httpVersion,
-		maxConnsPerHost,
+		*protocol,
+		*implementation,
+		*connections,
 		s.totalBytes,
 		s.totalFiles,
 		s.throughput(),
