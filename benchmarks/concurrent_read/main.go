@@ -22,8 +22,7 @@
 // doesn't have FUSE involved.
 //
 // Usage Example:
-// 	 gsutil ls 'gs://bucket/prefix*' | go run \
-//      --conns_per_host=10 --reader=vendor ./benchmark/concurrent_read
+// 	 gsutil ls 'gs://bucket/prefix*' | go run ./benchmarks/concurrent_read/
 //
 
 package main
@@ -45,31 +44,53 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/perf"
 )
 
-var iterations = flag.Int(
-	"iterations",
-	1,
-	"Number of iterations to read the files.",
-)
-var protocol = flag.String(
-	"protocol",
-	"HTTP/1.1",
-	"Choose from HTTP/1.1, HTTP/2, GRPC.",
-)
-var connections = flag.Int(
-	"connections",
-	50,
-	"Max number of TCP connections per host.",
-)
-var implementation = flag.String(
-	"implementation",
-	"vendor",
-	"Choose from vendor, google.",
-)
+type BenchmarkConfig struct {
+	// The GCS bucket storing the objects to be read.
+	Bucket string
+	// The GCS objects as 'gs://...' to be read from the bucket above.
+	Objects []string
+	// Each job reads all the objects.
+	Jobs []JobConfig
+}
+
+type JobConfig struct {
+	// Choose from HTTP/1.1, HTTP/2, GRPC
+	Protocol string
+	// Max connections for this job
+	Connections int
+	// Choose from vendor, google.
+	Implementation string
+}
 
 const (
 	KB = 1024
 	MB = 1024 * KB
 )
+
+func getJobs() []JobConfig {
+	return []JobConfig{
+		JobConfig{
+			Protocol:       "HTTP/1.1",
+			Connections:    50,
+			Implementation: "vendor",
+		},
+		JobConfig{
+			Protocol:       "HTTP/2",
+			Connections:    50,
+			Implementation: "vendor",
+		},
+		JobConfig{
+			Protocol:       "HTTP/1.1",
+			Connections:    50,
+			Implementation: "google",
+		},
+		JobConfig{
+			Protocol:       "HTTP/2",
+			Connections:    50,
+			Implementation: "google",
+		},
+	}
+}
 
 func testReader(ctx context.Context, client readers.Client, objectNames []string) (stats testStats) {
 	reportDuration := 10 * time.Second
@@ -130,20 +151,20 @@ func testReader(ctx context.Context, client readers.Client, objectNames []string
 	return
 }
 
-func run(bucketName string, objectNames []string) {
+func run(cfg BenchmarkConfig) {
 	ctx := context.Background()
 
 	ctx, traceTask := trace.NewTask(ctx, "ReadAllObjects")
 	defer traceTask.End()
 
-	client, err := readers.NewClient(ctx, *protocol, *connections, *implementation, bucketName)
-	if err != nil {
-		panic("Cannot create client for ")
-	}
-
-	for i := 0; i < *iterations; i++ {
-		stats := testReader(ctx, client, objectNames)
-		stats.report()
+	for _, job := range cfg.Jobs {
+		client, err := readers.NewClient(ctx, job.Protocol, job.Connections, job.Implementation, cfg.Bucket)
+		if err != nil {
+			fmt.Printf("Cannot create client for job: %v", job)
+			continue
+		}
+		stats := testReader(ctx, client, cfg.Objects)
+		stats.report(job)
 	}
 }
 
@@ -160,16 +181,16 @@ func (s testStats) throughput() float32 {
 	return mbs / seconds
 }
 
-func (s testStats) report() {
+func (s testStats) report(job JobConfig) {
 	logger.Infof(
 		"# TEST READER %s\n"+
 			"Protocol: %s (%v connections per host)\n"+
 			"Total bytes: %d\n"+
 			"Total files: %d\n"+
 			"Avg Throughput: %.1f MB/s\n\n",
-		*protocol,
-		*implementation,
-		*connections,
+		job.Protocol,
+		job.Implementation,
+		job.Connections,
 		s.totalBytes,
 		s.totalFiles,
 		s.throughput(),
@@ -235,7 +256,12 @@ func main() {
 	defer trace.Stop()
 
 	bucketName, objectNames := getObjectNames()
-	run(bucketName, objectNames)
+	config := BenchmarkConfig{
+		Bucket:  bucketName,
+		Objects: objectNames,
+		Jobs:    getJobs(),
+	}
+	run(config)
 
 	return
 }
