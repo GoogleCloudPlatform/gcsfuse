@@ -1,0 +1,137 @@
+// Copyright 2020 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package job
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"runtime/trace"
+	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/benchmarks/concurrent_read/readers"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+)
+
+const (
+	KB = 1024
+	MB = 1024 * KB
+)
+
+type Job struct {
+	// Choose from HTTP/1.1, HTTP/2, GRPC
+	Protocol string
+	// Max connections for this job
+	Connections int
+	// Choose from vendor, google.
+	Implementation string
+}
+
+type Stats struct {
+	TotalBytes int64
+	TotalFiles int
+	Mbps       []float32
+	Duration   time.Duration
+}
+
+func (s *Stats) Throughput() float32 {
+	mbs := float32(s.TotalBytes) / float32(MB)
+	seconds := float32(s.Duration) / float32(time.Second)
+	return mbs / seconds
+}
+
+func (s *Stats) Report(job *Job) {
+	logger.Infof(
+		"# TEST READER %s\n"+
+			"Protocol: %s (%v connections per host)\n"+
+			"Total bytes: %d\n"+
+			"Total files: %d\n"+
+			"Avg Throughput: %.1f MB/s\n\n",
+		job.Protocol,
+		job.Implementation,
+		job.Connections,
+		s.TotalBytes,
+		s.TotalFiles,
+		s.Throughput(),
+	)
+}
+
+func (job *Job) Run(ctx context.Context, bucketName string, objects []string) (*Stats, error) {
+	client, err := readers.NewClient(ctx, job.Protocol, job.Connections, job.Implementation, bucketName)
+	if err != nil {
+		return nil, err
+	}
+	stats := testReader(ctx, client, objects)
+	return &stats, nil
+}
+
+func testReader(ctx context.Context, client readers.Client, objectNames []string) (stats Stats) {
+	reportDuration := 10 * time.Second
+	ticker := time.NewTicker(reportDuration)
+	defer ticker.Stop()
+
+	doneBytes := make(chan int64)
+	doneFiles := make(chan int)
+	start := time.Now()
+
+	// run readers concurrently
+	for _, objectName := range objectNames {
+		name := objectName
+		go func() {
+			region := trace.StartRegion(ctx, "NewReader")
+			reader, err := client.NewReader(name)
+			region.End()
+			if err != nil {
+				fmt.Printf("Skip %q: %s", name, err)
+				return
+			}
+			defer reader.Close()
+
+			p := make([]byte, 128*1024)
+			region = trace.StartRegion(ctx, "ReadObject")
+			for {
+				n, err := reader.Read(p)
+
+				doneBytes <- int64(n)
+				if err == io.EOF {
+					break
+				} else if err != nil {
+					panic(fmt.Errorf("read %q fails: %w", name, err))
+				}
+			}
+			region.End()
+			doneFiles <- 1
+			return
+		}()
+	}
+
+	// collect test stats
+	var lastTotalBytes int64
+	for stats.TotalFiles < len(objectNames) {
+		select {
+		case b := <-doneBytes:
+			stats.TotalBytes += b
+		case f := <-doneFiles:
+			stats.TotalFiles += f
+		case <-ticker.C:
+			readBytes := stats.TotalBytes - lastTotalBytes
+			lastTotalBytes = stats.TotalBytes
+			mbps := float32(readBytes/MB) / float32(reportDuration/time.Second)
+			stats.Mbps = append(stats.Mbps, mbps)
+		}
+	}
+	stats.Duration = time.Since(start)
+	return
+}
