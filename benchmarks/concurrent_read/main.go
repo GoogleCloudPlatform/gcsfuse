@@ -37,10 +37,8 @@ import (
 	"os"
 	"runtime/trace"
 	"strings"
-	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/benchmarks/concurrent_read/readers"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/benchmarks/concurrent_read/job"
 	"github.com/googlecloudplatform/gcsfuse/internal/perf"
 )
 
@@ -50,105 +48,32 @@ type BenchmarkConfig struct {
 	// The GCS objects as 'gs://...' to be read from the bucket above.
 	Objects []string
 	// Each job reads all the objects.
-	Jobs []JobConfig
+	Jobs []*job.Job
 }
 
-type JobConfig struct {
-	// Choose from HTTP/1.1, HTTP/2, GRPC
-	Protocol string
-	// Max connections for this job
-	Connections int
-	// Choose from vendor, google.
-	Implementation string
-}
-
-const (
-	KB = 1024
-	MB = 1024 * KB
-)
-
-func getJobs() []JobConfig {
-	return []JobConfig{
-		JobConfig{
+func getJobs() []*job.Job {
+	return []*job.Job{
+		&job.Job{
 			Protocol:       "HTTP/1.1",
 			Connections:    50,
 			Implementation: "vendor",
 		},
-		JobConfig{
+		&job.Job{
 			Protocol:       "HTTP/2",
 			Connections:    50,
 			Implementation: "vendor",
 		},
-		JobConfig{
+		&job.Job{
 			Protocol:       "HTTP/1.1",
 			Connections:    50,
 			Implementation: "google",
 		},
-		JobConfig{
+		&job.Job{
 			Protocol:       "HTTP/2",
 			Connections:    50,
 			Implementation: "google",
 		},
 	}
-}
-
-func testReader(ctx context.Context, client readers.Client, objectNames []string) (stats testStats) {
-	reportDuration := 10 * time.Second
-	ticker := time.NewTicker(reportDuration)
-	defer ticker.Stop()
-
-	doneBytes := make(chan int64)
-	doneFiles := make(chan int)
-	start := time.Now()
-
-	// run readers concurrently
-	for _, objectName := range objectNames {
-		name := objectName
-		go func() {
-			region := trace.StartRegion(ctx, "NewReader")
-			reader, err := client.NewReader(name)
-			region.End()
-			if err != nil {
-				fmt.Printf("Skip %q: %s", name, err)
-				return
-			}
-			defer reader.Close()
-
-			p := make([]byte, 128*1024)
-			region = trace.StartRegion(ctx, "ReadObject")
-			for {
-				n, err := reader.Read(p)
-
-				doneBytes <- int64(n)
-				if err == io.EOF {
-					break
-				} else if err != nil {
-					panic(fmt.Errorf("read %q fails: %w", name, err))
-				}
-			}
-			region.End()
-			doneFiles <- 1
-			return
-		}()
-	}
-
-	// collect test stats
-	var lastTotalBytes int64
-	for stats.totalFiles < len(objectNames) {
-		select {
-		case b := <-doneBytes:
-			stats.totalBytes += b
-		case f := <-doneFiles:
-			stats.totalFiles += f
-		case <-ticker.C:
-			readBytes := stats.totalBytes - lastTotalBytes
-			lastTotalBytes = stats.totalBytes
-			mbps := float32(readBytes/MB) / float32(reportDuration/time.Second)
-			stats.mbps = append(stats.mbps, mbps)
-		}
-	}
-	stats.duration = time.Since(start)
-	return
 }
 
 func run(cfg BenchmarkConfig) {
@@ -158,43 +83,13 @@ func run(cfg BenchmarkConfig) {
 	defer traceTask.End()
 
 	for _, job := range cfg.Jobs {
-		client, err := readers.NewClient(ctx, job.Protocol, job.Connections, job.Implementation, cfg.Bucket)
+		stats, err := job.Run(ctx, cfg.Bucket, cfg.Objects)
 		if err != nil {
-			fmt.Printf("Cannot create client for job: %v", job)
+			fmt.Printf("Job failed: %v", job)
 			continue
 		}
-		stats := testReader(ctx, client, cfg.Objects)
-		stats.report(job)
+		stats.Report(job)
 	}
-}
-
-type testStats struct {
-	totalBytes int64
-	totalFiles int
-	mbps       []float32
-	duration   time.Duration
-}
-
-func (s testStats) throughput() float32 {
-	mbs := float32(s.totalBytes) / float32(MB)
-	seconds := float32(s.duration) / float32(time.Second)
-	return mbs / seconds
-}
-
-func (s testStats) report(job JobConfig) {
-	logger.Infof(
-		"# TEST READER %s\n"+
-			"Protocol: %s (%v connections per host)\n"+
-			"Total bytes: %d\n"+
-			"Total files: %d\n"+
-			"Avg Throughput: %.1f MB/s\n\n",
-		job.Protocol,
-		job.Implementation,
-		job.Connections,
-		s.totalBytes,
-		s.totalFiles,
-		s.throughput(),
-	)
 }
 
 func getLinesFromStdin() (lines []string) {
