@@ -100,7 +100,7 @@ func (job *Job) Run(ctx context.Context, bucketName string, objects []string) (*
 	case "vendor":
 		client, err = readers.NewVendorClient(ctx, job.Protocol, job.Connections, bucketName)
 	case "google":
-		client, err = readers.NewGoogleClient(ctx, bucketName)
+		client, err = readers.NewGoogleClient(ctx, job.Protocol, job.Connections, bucketName)
 	default:
 		panic(fmt.Errorf("Unknown reader implementation: %q", job.Implementation))
 	}
