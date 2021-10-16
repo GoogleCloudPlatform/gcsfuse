@@ -88,8 +88,23 @@ func (s *Stats) Query(key string) string {
 	}
 }
 
+type Client interface {
+	NewReader(objectName string) (io.ReadCloser, error)
+}
+
 func (job *Job) Run(ctx context.Context, bucketName string, objects []string) (*Stats, error) {
-	client, err := readers.NewClient(ctx, job.Protocol, job.Connections, job.Implementation, bucketName)
+	var client Client
+	var err error
+
+	switch job.Implementation {
+	case "vendor":
+		client, err = readers.NewVendorClient(ctx, job.Protocol, job.Connections, bucketName)
+	case "google":
+		client, err = readers.NewGoogleClient(ctx, bucketName)
+	default:
+		panic(fmt.Errorf("Unknown reader implementation: %q", job.Implementation))
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +112,7 @@ func (job *Job) Run(ctx context.Context, bucketName string, objects []string) (*
 	return stats, nil
 }
 
-func (job *Job) testReader(ctx context.Context, client readers.Client, objectNames []string) *Stats {
+func (job *Job) testReader(ctx context.Context, client Client, objectNames []string) *Stats {
 	stats := &Stats{Job: job}
 	reportDuration := 10 * time.Second
 	ticker := time.NewTicker(reportDuration)
