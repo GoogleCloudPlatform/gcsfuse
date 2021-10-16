@@ -16,10 +16,8 @@ package readers
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 
 	"github.com/jacobsa/gcloud/gcs"
@@ -33,10 +31,7 @@ type vendorClient struct {
 }
 
 func NewVendorClient(ctx context.Context, protocol string, connections int, bucketName string) (*vendorClient, error) {
-	tokenSrc, err := google.DefaultTokenSource(
-		ctx,
-		gcs.Scope_FullControl,
-	)
+	tokenSrc, err := google.DefaultTokenSource(ctx, gcs.Scope_FullControl)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +39,7 @@ func NewVendorClient(ctx context.Context, protocol string, connections int, buck
 	config := &gcs.ConnConfig{
 		Url:         endpoint,
 		TokenSource: tokenSrc,
-		UserAgent:   "gcsfuse/dev Benchmark (concurrent_read)",
+		UserAgent:   userAgent,
 		Transport:   getTransport(protocol, connections),
 	}
 	conn, err := gcs.NewConn(config)
@@ -70,21 +65,4 @@ func (c *vendorClient) NewReader(objectName string) (io.ReadCloser, error) {
 			Name: objectName,
 		},
 	)
-}
-
-func getTransport(protocol string, connections int) (transport *http.Transport) {
-	switch protocol {
-	case "HTTP/1.1":
-		return &http.Transport{
-			MaxConnsPerHost: connections,
-			// This disables HTTP/2 in the transport.
-			TLSNextProto: make(
-				map[string]func(string, *tls.Conn) http.RoundTripper,
-			),
-		}
-	case "HTTP/2":
-		return http.DefaultTransport.(*http.Transport).Clone()
-	default:
-		panic(fmt.Errorf("Unsupported protocol: %q", protocol))
-	}
 }
