@@ -40,6 +40,7 @@ type Job struct {
 }
 
 type Stats struct {
+	Job        *Job
 	TotalBytes int64
 	TotalFiles int
 	Mbps       []float32
@@ -52,20 +53,39 @@ func (s *Stats) Throughput() float32 {
 	return mbs / seconds
 }
 
-func (s *Stats) Report(job *Job) {
+func (s *Stats) Report() {
 	logger.Infof(
 		"# TEST READER %s\n"+
 			"Protocol: %s (%v connections per host)\n"+
 			"Total bytes: %d\n"+
 			"Total files: %d\n"+
 			"Avg Throughput: %.1f MB/s\n\n",
-		job.Protocol,
-		job.Implementation,
-		job.Connections,
+		s.Job.Protocol,
+		s.Job.Implementation,
+		s.Job.Connections,
 		s.TotalBytes,
 		s.TotalFiles,
 		s.Throughput(),
 	)
+}
+
+func (s *Stats) Query(key string) string {
+	switch key {
+	case "Protocol":
+		return s.Job.Protocol
+	case "Implementation":
+		return s.Job.Implementation
+	case "Connections":
+		return fmt.Sprintf("%d", s.Job.Connections)
+	case "TotalBytes (MB)":
+		return fmt.Sprintf("%d", s.TotalBytes/MB)
+	case "TotalFiles":
+		return fmt.Sprintf("%d", s.TotalFiles)
+	case "Throughput (MB/s)":
+		return fmt.Sprintf("%.1f", s.Throughput())
+	default:
+		return ""
+	}
 }
 
 func (job *Job) Run(ctx context.Context, bucketName string, objects []string) (*Stats, error) {
@@ -73,11 +93,12 @@ func (job *Job) Run(ctx context.Context, bucketName string, objects []string) (*
 	if err != nil {
 		return nil, err
 	}
-	stats := testReader(ctx, client, objects)
-	return &stats, nil
+	stats := job.testReader(ctx, client, objects)
+	return stats, nil
 }
 
-func testReader(ctx context.Context, client readers.Client, objectNames []string) (stats Stats) {
+func (job *Job) testReader(ctx context.Context, client readers.Client, objectNames []string) *Stats {
+	stats := &Stats{Job: job}
 	reportDuration := 10 * time.Second
 	ticker := time.NewTicker(reportDuration)
 	defer ticker.Stop()
@@ -133,5 +154,5 @@ func testReader(ctx context.Context, client readers.Client, objectNames []string
 		}
 	}
 	stats.Duration = time.Since(start)
-	return
+	return stats
 }
