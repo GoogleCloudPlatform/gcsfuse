@@ -82,13 +82,43 @@ func run(cfg BenchmarkConfig) {
 	ctx, traceTask := trace.NewTask(ctx, "ReadAllObjects")
 	defer traceTask.End()
 
+	var statsList []*job.Stats
 	for _, job := range cfg.Jobs {
 		stats, err := job.Run(ctx, cfg.Bucket, cfg.Objects)
 		if err != nil {
 			fmt.Printf("Job failed: %v", job)
 			continue
 		}
-		stats.Report(job)
+		stats.Report()
+		statsList = append(statsList, stats)
+	}
+	printSummary(statsList)
+}
+
+func printSummary(statsList []*job.Stats) {
+	cols := []string{
+		"Protocol",
+		"Implementation",
+		"Connections",
+		"TotalBytes (MB)",
+		"TotalFiles",
+		"Throughput (MB/s)",
+	}
+	for _, col := range cols {
+		fmt.Printf("    %s |", col)
+	}
+	fmt.Println("")
+	for _, col := range cols {
+		fmt.Printf(strings.Repeat("-", len(col)+6))
+	}
+	fmt.Println("")
+	for _, stats := range statsList {
+		for _, col := range cols {
+			value := stats.Query(col)
+			padding := strings.Repeat(" ", len(col)+4-len(value))
+			fmt.Printf("%s%s |", padding, value)
+		}
+		fmt.Println("")
 	}
 }
 
