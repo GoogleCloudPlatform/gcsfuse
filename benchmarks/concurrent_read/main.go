@@ -59,18 +59,13 @@ func getJobs() []*job.Job {
 			Implementation: "vendor",
 		},
 		&job.Job{
-			Protocol:       "HTTP/2",
-			Connections:    50,
-			Implementation: "vendor",
-		},
-		&job.Job{
 			Protocol:       "HTTP/1.1",
 			Connections:    50,
 			Implementation: "google",
 		},
 		&job.Job{
-			Protocol:       "HTTP/2",
-			Connections:    50,
+			Protocol:       "GRPC",
+			Connections:    0,
 			Implementation: "google",
 		},
 	}

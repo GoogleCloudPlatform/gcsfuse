@@ -16,7 +16,6 @@ package readers
 
 import (
 	"context"
-	"errors"
 	"io"
 	"net/http"
 
@@ -48,7 +47,7 @@ func (c *googleClient) NewReader(objectName string) (io.ReadCloser, error) {
 
 func getStorageClient(ctx context.Context, protocol string, connections int) (*storage.Client, error) {
 	if protocol == "GRPC" {
-		return getGRPCClient()
+		return getGRPCClient(ctx)
 	}
 	tokenSrc, err := google.DefaultTokenSource(ctx, gcs.Scope_FullControl)
 	if err != nil {
@@ -66,6 +65,6 @@ func getStorageClient(ctx context.Context, protocol string, connections int) (*s
 	)
 }
 
-func getGRPCClient() (*storage.Client, error) {
-	return nil, errors.New("GRPC is not supported")
+func getGRPCClient(ctx context.Context) (*storage.Client, error) {
+	return storage.NewHybridClient(ctx, nil)
 }
