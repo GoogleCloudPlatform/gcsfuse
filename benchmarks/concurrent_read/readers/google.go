@@ -66,5 +66,12 @@ func getStorageClient(ctx context.Context, protocol string, connections int) (*s
 }
 
 func getGRPCClient(ctx context.Context) (*storage.Client, error) {
-	return storage.NewHybridClient(ctx, nil)
+	return storage.NewHybridClient(
+		ctx,
+		&storage.HybridClientOptions{
+			GRPCOpts: []option.ClientOption{
+				option.WithGRPCConnectionPool(5),
+			},
+		},
+	)
 }
