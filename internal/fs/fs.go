@@ -1798,3 +1798,15 @@ func (fs *fileSystem) ReleaseFileHandle(
 
 	return
 }
+
+func (fs *fileSystem) GetXattr(
+	ctx context.Context,
+	op *fuseops.GetXattrOp) (err error) {
+	return syscall.ENODATA
+}
+
+func (fs *fileSystem) ListXattr(
+	ctx context.Context,
+	op *fuseops.ListXattrOp) error {
+	return syscall.ENODATA
+}
