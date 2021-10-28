@@ -17,7 +17,10 @@ package fuse
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
+	"os/exec"
+	"syscall"
 )
 
 // Server is an interface for any type that knows how to serve ops read from a
@@ -92,4 +95,83 @@ func Mount(
 	}
 
 	return mfs, nil
+}
+
+func fusermount(binary string, argv []string, additionalEnv []string, wait bool) (*os.File, error) {
+	// Create a socket pair.
+	fds, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	if err != nil {
+		return nil, fmt.Errorf("Socketpair: %v", err)
+	}
+
+	// Wrap the sockets into os.File objects that we will pass off to fusermount.
+	writeFile := os.NewFile(uintptr(fds[0]), "fusermount-child-writes")
+	defer writeFile.Close()
+
+	readFile := os.NewFile(uintptr(fds[1]), "fusermount-parent-reads")
+	defer readFile.Close()
+
+	// Start fusermount/mount_macfuse/mount_osxfuse.
+	cmd := exec.Command(binary, argv...)
+	cmd.Env = append(os.Environ(), "_FUSE_COMMFD=3")
+	cmd.Env = append(cmd.Env, additionalEnv...)
+	cmd.ExtraFiles = []*os.File{writeFile}
+	cmd.Stderr = os.Stderr
+
+	// Run the command.
+	if wait {
+		err = cmd.Run()
+	} else {
+		err = cmd.Start()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("running %v: %v", binary, err)
+	}
+
+	// Wrap the socket file in a connection.
+	c, err := net.FileConn(readFile)
+	if err != nil {
+		return nil, fmt.Errorf("FileConn: %v", err)
+	}
+	defer c.Close()
+
+	// We expect to have a Unix domain socket.
+	uc, ok := c.(*net.UnixConn)
+	if !ok {
+		return nil, fmt.Errorf("Expected UnixConn, got %T", c)
+	}
+
+	// Read a message.
+	buf := make([]byte, 32) // expect 1 byte
+	oob := make([]byte, 32) // expect 24 bytes
+	_, oobn, _, _, err := uc.ReadMsgUnix(buf, oob)
+	if err != nil {
+		return nil, fmt.Errorf("ReadMsgUnix: %v", err)
+	}
+
+	// Parse the message.
+	scms, err := syscall.ParseSocketControlMessage(oob[:oobn])
+	if err != nil {
+		return nil, fmt.Errorf("ParseSocketControlMessage: %v", err)
+	}
+
+	// We expect one message.
+	if len(scms) != 1 {
+		return nil, fmt.Errorf("expected 1 SocketControlMessage; got scms = %#v", scms)
+	}
+
+	scm := scms[0]
+
+	// Pull out the FD returned by fusermount
+	gotFds, err := syscall.ParseUnixRights(&scm)
+	if err != nil {
+		return nil, fmt.Errorf("syscall.ParseUnixRights: %v", err)
+	}
+
+	if len(gotFds) != 1 {
+		return nil, fmt.Errorf("wanted 1 fd; got %#v", gotFds)
+	}
+
+	// Turn the FD into an os.File.
+	return os.NewFile(uintptr(gotFds[0]), "/dev/fuse"), nil
 }

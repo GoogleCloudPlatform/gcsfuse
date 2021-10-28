@@ -40,6 +40,10 @@ type osxfuseInstallation struct {
 
 	// Environment variable used to pass the "called by library" flag.
 	LibVar string
+
+	// Open device manually (false) or receive the FD through a UNIX socket,
+	// like with fusermount (true)
+	UseCommFD bool
 }
 
 var (
@@ -51,6 +55,7 @@ var (
 			Mount:        "/Library/Filesystems/macfuse.fs/Contents/Resources/mount_macfuse",
 			DaemonVar:    "_FUSE_DAEMON_PATH",
 			LibVar:       "_FUSE_CALL_BY_LIB",
+			UseCommFD:    true,
 		},
 
 		// v3
@@ -106,6 +111,36 @@ func openOSXFUSEDev(devPrefix string) (dev *os.File, err error) {
 	}
 }
 
+func convertMountArgs(daemonVar string, libVar string,
+	cfg *MountConfig) ([]string, []string, error) {
+
+	// The mount helper doesn't understand any escaping.
+	for k, v := range cfg.toMap() {
+		if strings.Contains(k, ",") || strings.Contains(v, ",") {
+			return nil, nil, fmt.Errorf(
+				"mount options cannot contain commas on darwin: %q=%q",
+				k,
+				v)
+		}
+	}
+
+	env := []string{ libVar+"=" }
+	if daemonVar != "" {
+		env = append(env, daemonVar+"="+os.Args[0])
+	}
+	argv := []string{
+		"-o", cfg.toOptionsString(),
+		// Tell osxfuse-kext how large our buffer is. It must split
+		// writes larger than this into multiple writes.
+		//
+		// OSXFUSE seems to ignore InitResponse.MaxWrite, and uses
+		// this instead.
+		"-o", "iosize="+strconv.FormatUint(buffer.MaxWriteSize, 10),
+	}
+
+	return argv, env, nil
+}
+
 func callMount(
 	bin string,
 	daemonVar string,
@@ -115,39 +150,21 @@ func callMount(
 	dev *os.File,
 	ready chan<- error) error {
 
-	// The mount helper doesn't understand any escaping.
-	for k, v := range cfg.toMap() {
-		if strings.Contains(k, ",") || strings.Contains(v, ",") {
-			return fmt.Errorf(
-				"mount options cannot contain commas on darwin: %q=%q",
-				k,
-				v)
-		}
+	argv, env, err := convertMountArgs(daemonVar, libVar, cfg)
+	if err != nil {
+		return err
 	}
 
 	// Call the mount helper, passing in the device file and saving output into a
 	// buffer.
-	cmd := exec.Command(
-		bin,
-		"-o", cfg.toOptionsString(),
-		// Tell osxfuse-kext how large our buffer is. It must split
-		// writes larger than this into multiple writes.
-		//
-		// OSXFUSE seems to ignore InitResponse.MaxWrite, and uses
-		// this instead.
-		"-o", "iosize="+strconv.FormatUint(buffer.MaxWriteSize, 10),
+	argv = append(argv,
 		// refers to fd passed in cmd.ExtraFiles
 		"3",
 		dir,
 	)
+	cmd := exec.Command(bin, argv...)
 	cmd.ExtraFiles = []*os.File{dev}
-	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, libVar+"=")
-
-	daemon := os.Args[0]
-	if daemonVar != "" {
-		cmd.Env = append(cmd.Env, daemonVar+"="+daemon)
-	}
+	cmd.Env = env
 
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
@@ -174,6 +191,23 @@ func callMount(
 	return nil
 }
 
+func callMountCommFD(
+	bin string,
+	daemonVar string,
+	libVar string,
+	dir string,
+	cfg *MountConfig) (*os.File, error) {
+
+	argv, env, err := convertMountArgs(daemonVar, libVar, cfg)
+	if err != nil {
+		return nil, err
+	}
+	env = append(env, "_FUSE_COMMVERS=2")
+	argv = append(argv, dir)
+
+	return fusermount(bin, argv, env, false)
+}
+
 // Begin the process of mounting at the given directory, returning a connection
 // to the kernel. Mounting continues in the background, and is complete when an
 // error is written to the supplied channel. The file system may need to
@@ -187,6 +221,16 @@ func mount(
 		if _, err := os.Stat(loc.Mount); os.IsNotExist(err) {
 			// try the other locations
 			continue
+		}
+
+		if loc.UseCommFD {
+			// Call the mount binary with the device.
+			ready <- nil
+			dev, err = callMountCommFD(loc.Mount, loc.DaemonVar, loc.LibVar, dir, cfg)
+			if err != nil {
+				return nil, fmt.Errorf("callMount: %v", err)
+			}
+			return
 		}
 
 		// Open the device.

@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/storage v1.18.0
 	github.com/go-kit/kit v0.10.0 // indirect
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
-	github.com/jacobsa/fuse v0.0.0-20210904154839-95fc8d118111
+	github.com/jacobsa/fuse v0.0.0-20211028214151-8da59ba99807
 	github.com/jacobsa/gcloud v0.0.0-20210611094250-93436725bc18
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
 	github.com/jacobsa/oglemock v0.0.0-20150831005832-e94d794d06ff
@@ -22,5 +22,6 @@ require (
 	github.com/urfave/cli v1.22.5
 	golang.org/x/net v0.0.0-20211013171255-e13a2654a71e
 	golang.org/x/oauth2 v0.0.0-20211005180243-6b3c2da341f1
+	golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359 // indirect
 	google.golang.org/api v0.58.0
 )

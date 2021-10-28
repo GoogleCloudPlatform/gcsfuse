@@ -31,7 +31,7 @@ func (c *Connection) getInMessage() *buffer.InMessage {
 	c.mu.Unlock()
 
 	if x == nil {
-		x = new(buffer.InMessage)
+		x = buffer.NewInMessage()
 	}
 
 	return x

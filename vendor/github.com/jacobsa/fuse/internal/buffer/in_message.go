@@ -44,11 +44,17 @@ type InMessage struct {
 	storage   []byte
 }
 
+// NewInMessage creates a new InMessage with its storage initialized.
+func NewInMessage() *InMessage {
+	return &InMessage{
+		storage: make([]byte, bufSize),
+	}
+}
+
 // Initialize with the data read by a single call to r.Read. The first call to
 // Consume will consume the bytes directly after the fusekernel.InHeader
 // struct.
 func (m *InMessage) Init(r io.Reader) error {
-	m.storage = make([]byte, bufSize, bufSize)
 	n, err := r.Read(m.storage[:])
 	if err != nil {
 		return err
