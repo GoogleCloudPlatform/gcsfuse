@@ -12,25 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.16.2-alpine as builder
+# Build an alpine image with gcsfuse installed from the source code:
+#  > docker build . -t gcsfuse
+# Mount the gcsfuse to /mnt/gcs:
+#  > docker run --privileged --device /fuse -v /mnt/gcs:/gcs:rw,rshared gcsfuse
+
+FROM golang:1.17.2-alpine as builder
 
 RUN apk add git
 
-ENV CGO_ENABLED=0
-ENV GOOS=linux
-
-ARG GCSFUSE_VERSION="master"
-ARG GCSFUSE_REPO="${GOPATH}/src/github.com/googlecloudplatform/gcsfuse/"
+ARG GCSFUSE_REPO="/run/gcsfuse/"
 ADD . ${GCSFUSE_REPO}
-
 WORKDIR ${GCSFUSE_REPO}
-RUN git checkout ${GCSFUSE_VERSION}
 RUN go install ./tools/build_gcsfuse
-RUN build_gcsfuse . /tmp ${GCSFUSE_VERSION}
+RUN build_gcsfuse . /tmp $(git log -1 --format=format:"%H")
 
-FROM alpine:3.12
+FROM alpine:3.13
 
 RUN apk add --update --no-cache bash ca-certificates fuse
 
 COPY --from=builder /tmp/bin/gcsfuse /usr/local/bin/gcsfuse
 COPY --from=builder /tmp/sbin/mount.gcsfuse /usr/sbin/mount.gcsfuse
+ENTRYPOINT ["gcsfuse", "-o", "allow_other", "--foreground", "--implicit-dirs", "/gcs"]
