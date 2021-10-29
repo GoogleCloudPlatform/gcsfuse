@@ -12,25 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# BUILD EXAMPLE
-#   docker build . -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.36.0
-# RUN EXAMPLE
-#   docker run -it -v /tmp:/output gcsfuse-release cp -r /packages /output
+# Build an image with gcsfuse packages:
+#   > docker build . -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.37.0
+# Copy the gcsfuse packages to the host:
+#   > docker run -it -v /tmp:/output gcsfuse-release cp -r /packages /output
 
-FROM golang:1.16.2 as builder
+FROM golang:1.17.2 as builder
 
-RUN apt-get update -qq && \
-    apt-get install -y ruby ruby-dev rubygems build-essential rpm && \
-    gem install --no-document fpm
+RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm && gem install --no-document fpm
 
 ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GO111MODULE=auto
 
-ARG GCSFUSE_VERSION="0.36.0"
+ARG GCSFUSE_VERSION="0.37.0"
 ARG GCSFUSE_REPO="github.com/googlecloudplatform/gcsfuse/"
 ENV GCSFUSE_PATH "$GOPATH/src/$GCSFUSE_REPO"
-RUN go get -u ${GCSFUSE_REPO}
+RUN go get ${GCSFUSE_REPO}
 
 WORKDIR ${GCSFUSE_PATH}
 RUN git checkout "v${GCSFUSE_VERSION}"
@@ -65,4 +63,3 @@ RUN fpm \
     --vendor "" \
     --url "https://$GCSFUSE_REPO" \
     --description "A user-space file system for Google Cloud Storage."
-
