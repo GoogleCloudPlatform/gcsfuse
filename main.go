@@ -162,6 +162,7 @@ func mountWithArgs(
 	}
 
 	// Mount the file system.
+	logger.Infof("Creating a mount at %q\n", mountPoint)
 	mfs, err = mountWithConn(
 		context.Background(),
 		bucketName,

@@ -43,6 +43,7 @@ func mountWithConn(
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
 	if flags.TempDir != "" {
+		logger.Infof("Creating a temporary directory at %q\n", flags.TempDir)
 		var f *os.File
 		f, err = fsutil.AnonymousFile(flags.TempDir)
 		f.Close()
@@ -112,6 +113,7 @@ be interacting with the file system.`)
 		RenameDirLimit:         flags.RenameDirLimit,
 	}
 
+	logger.Infof("Creating a new server...\n")
 	server, err := fs.NewServer(ctx, serverCfg)
 	if err != nil {
 		err = fmt.Errorf("fs.NewServer: %w", err)
