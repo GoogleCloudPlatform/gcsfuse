@@ -29,6 +29,7 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
+	"time"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -131,6 +132,16 @@ func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 	return gcsx.NewConnection(cfg)
 }
 
+func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
+	c, err = getConn(flags)
+	for delay := 1 * time.Second; delay <= flags.MaxRetrySleep && err != nil; delay = delay/2 + delay {
+		logger.Infof("Waiting for connection: %v\n", err)
+		time.Sleep(delay)
+		c, err = getConn(flags)
+	}
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // main logic
 ////////////////////////////////////////////////////////////////////////
@@ -154,9 +165,10 @@ func mountWithArgs(
 	if bucketName != canned.FakeBucketName {
 		mountStatus.Println("Opening GCS connection...")
 
-		conn, err = getConn(flags)
+		conn, err = getConnWithRetry(flags)
 		if err != nil {
-			err = fmt.Errorf("getConn: %w", err)
+			mountStatus.Printf("Failed to open connection: %v\n", err)
+			err = fmt.Errorf("getConnWithRetry: %w", err)
 			return
 		}
 	}
