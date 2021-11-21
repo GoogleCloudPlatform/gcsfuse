@@ -1,0 +1,30 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  linux-tests:
+    strategy:
+      matrix:
+        go: [1.16.x, 1.17.x]
+    runs-on: ubuntu-20.04
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Go ${{ matrix.go }}
+      uses: actions/setup-go@v2.1.4
+      with:
+        go-version: ${{ matrix.go }}
+    - name: Install fuse
+      run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
+    - name: Build
+      run: |
+        go build ./...
+        go install ./tools/build_gcsfuse
+        build_gcsfuse . /tmp ${GITHUB_SHA}
