@@ -585,12 +585,11 @@ func (fs *fileSystem) mintInode(backer inode.BackObject) (in inode.Inode) {
 	return
 }
 
-// Attempt to find an inode for the given name, backed by the supplied object
-// record (or nil for implicit directories). Create one if one has never yet
-// existed and, if the record is non-nil, the record is newer than any inode
-// we've yet recorded.
+// Attempt to find an inode for a backing object or an implicit directory.
+// Create an inode if (1) it has never yet existed, or (2) the object is newer
+// than the existing one.
 //
-// If the record is stale (i.e. some newer inode exists), return nil. In this
+// If the backing object is older than the existing inode, return nil. In this
 // case, the caller may obtain a fresh record and try again. Otherwise,
 // increment the inode's lookup count and return it locked.
 //
@@ -606,8 +605,6 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 
 	// Ensure that no matter which inode we return, we increase its lookup count
 	// on the way out and then release the file system lock.
-	//
-	// INVARIANT: we return with fs.mu held, and with in.mu held with in != nil.
 	defer func() {
 		if in != nil {
 			in.IncrementLookupCount()
@@ -622,9 +619,9 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 			panic(fmt.Sprintf("Unexpected name for an implicit directory: %q", backer.FullName))
 		}
 
-		// If we don't have an entry, create one.
 		var ok bool
 		in, ok = fs.implicitDirInodes[backer.FullName]
+		// If we don't have an entry, create one.
 		if !ok {
 			in = fs.mintInode(backer)
 			fs.implicitDirInodes[in.Name()] = in.(inode.DirInode)
@@ -645,7 +642,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// Look at the current index entry.
 		existingInode, ok := fs.generationBackedInodes[backer.FullName]
 
-		// If we have no existing record for this name, mint an inode and return it.
+		// If we have no existing record, mint an inode and return it.
 		if !ok {
 			in = fs.mintInode(backer)
 			fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
@@ -677,13 +674,14 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 			return
 		}
 
-		// Is the object record stale? If so, return nil.
+		// The existing inode is newer than the backing object. The caller
+		// should call again with a newer backing object.
 		if cmp == -1 {
 			existingInode.Unlock()
 			return
 		}
 
-		// We've observed that the record is newer than the existing inode, while
+		// The backing object is newer than the existing inode, while
 		// holding the inode lock, excluding concurrent actions by the inode (in
 		// particular concurrent calls to Sync, which changes generation numbers).
 		// This means we've proven that the record cannot have been caused by the
