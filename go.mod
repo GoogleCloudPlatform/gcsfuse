@@ -12,7 +12,7 @@ require (
 	github.com/go-kit/kit v0.10.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
-	github.com/jacobsa/fuse v0.0.0-20211028214151-8da59ba99807
+	github.com/jacobsa/fuse v0.0.0-20211125163655-ffd6c474e806
 	github.com/jacobsa/gcloud v0.0.0-20210611094250-93436725bc18
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
 	github.com/jacobsa/oglemock v0.0.0-20150831005832-e94d794d06ff
