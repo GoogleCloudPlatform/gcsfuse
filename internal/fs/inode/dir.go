@@ -273,50 +273,34 @@ func (d *dirInode) lookUpChildFile(
 func (d *dirInode) lookUpChildDir(
 	ctx context.Context,
 	dirName string) (result BackObject, err error) {
-	b := syncutil.NewBundle(ctx)
 	childName := NewDirName(d.Name(), dirName)
 
 	// Stat the placeholder object.
-	b.Add(func(ctx context.Context) (err error) {
-		result.Bucket = d.Bucket()
-		result.FullName = childName
-		result.Object, err = statObjectMayNotExist(ctx, d.bucket, result.FullName)
-		if err != nil {
-			err = fmt.Errorf("statObjectMayNotExist: %w", err)
-			return
-		}
-
+	result.Bucket = d.Bucket()
+	result.FullName = childName
+	result.Object, err = statObjectMayNotExist(ctx, d.bucket, result.FullName)
+	if err != nil {
+		err = fmt.Errorf("statObjectMayNotExist: %w", err)
 		return
-	})
+	}
+	if result.Object != nil {
+		// Placeholder found. This is an explicit directory.
+		return
+	}
 
 	// If implicit directories are enabled, find out whether the child name is
 	// implicitly defined.
 	if d.implicitDirs {
-		b.Add(func(ctx context.Context) (err error) {
-			result.ImplicitDir, err = objectNamePrefixNonEmpty(
-				ctx,
-				d.bucket,
-				childName.GcsObjectName())
+		result.ImplicitDir, err = objectNamePrefixNonEmpty(
+			ctx,
+			d.bucket,
+			childName.GcsObjectName())
 
-			if err != nil {
-				err = fmt.Errorf("objectNamePrefixNonEmpty: %w", err)
-				return
-			}
-
+		if err != nil {
+			err = fmt.Errorf("objectNamePrefixNonEmpty: %w", err)
 			return
-		})
+		}
 	}
-
-	// Wait for both.
-	err = b.Join()
-	if err != nil {
-		return
-	}
-
-	if result.Object != nil && result.ImplicitDir {
-		result.ImplicitDir = false
-	}
-
 	return
 }
 
