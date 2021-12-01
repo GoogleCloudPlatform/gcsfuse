@@ -775,7 +775,6 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 	}
 	var ok bool
 	if child, ok = in.(inode.BucketOwnedDirInode); !ok {
-		fs.mu.Lock()
 		fs.unlockAndDecrementLookupCount(in, 1)
 		return nil, fmt.Errorf("not a bucket owned directory: %q", childName)
 	}
@@ -816,11 +815,11 @@ func (fs *fileSystem) syncFile(
 // We require the file system lock to exclude concurrent lookups, which might
 // otherwise find an inode whose lookup count has gone to zero.
 //
+// LOCKS_REQUIRED(in)
+// LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(fs.mu)
 // UNLOCK_FUNCTION(in)
-func (fs *fileSystem) unlockAndDecrementLookupCount(
-	in inode.Inode,
-	N uint64) {
+func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, N uint64) {
 	name := in.Name()
 
 	// Decrement the lookup count.
@@ -832,17 +831,15 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(
 		delete(fs.inodes, in.ID())
 
 		// Update indexes if necessary.
+		fs.mu.Lock()
 		if fs.generationBackedInodes[name] == in {
 			delete(fs.generationBackedInodes, name)
 		}
-
 		if fs.implicitDirInodes[name] == in {
 			delete(fs.implicitDirInodes, name)
 		}
+		fs.mu.Unlock()
 	}
-
-	// We are done with the file system.
-	fs.mu.Unlock()
 
 	// Now we can destroy the inode if necessary.
 	if shouldDestroy {
@@ -874,6 +871,7 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(
 //       ...
 //     }
 //
+// LOCKS_REQUIRED(in)
 // LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(in)
 func (fs *fileSystem) unlockAndMaybeDisposeOfInode(
@@ -885,9 +883,7 @@ func (fs *fileSystem) unlockAndMaybeDisposeOfInode(
 		return
 	}
 
-	// Otherwise, go through the decrement helper, which requires the file system
-	// lock.
-	fs.mu.Lock()
+	// Otherwise, go through the decrement helper
 	fs.unlockAndDecrementLookupCount(in, 1)
 }
 
@@ -1103,11 +1099,8 @@ func (fs *fileSystem) ForgetInode(
 	in := fs.inodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
-	// Acquire both locks in the correct order.
-	in.Lock()
-	fs.mu.Lock()
-
 	// Decrement and unlock.
+	in.Lock()
 	fs.unlockAndDecrementLookupCount(in, op.N)
 
 	return
@@ -1329,7 +1322,7 @@ func (fs *fileSystem) RmDir(
 	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
 
-	// Find or create the child inode.
+	// Find or create the child inode, locked.
 	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
 	if err != nil {
 		return
@@ -1343,7 +1336,6 @@ func (fs *fileSystem) RmDir(
 	cleanUpAndUnlockChild := func() {
 		if !childCleanedUp {
 			childCleanedUp = true
-			fs.mu.Lock()
 			fs.unlockAndDecrementLookupCount(child, 1)
 		}
 	}
@@ -1501,7 +1493,6 @@ func (fs *fileSystem) renameDir(
 	var pendingInodes []inode.DirInode
 	releaseInodes := func() {
 		for _, in := range pendingInodes {
-			fs.mu.Lock()
 			fs.unlockAndDecrementLookupCount(in, 1)
 		}
 		pendingInodes = []inode.DirInode{}
