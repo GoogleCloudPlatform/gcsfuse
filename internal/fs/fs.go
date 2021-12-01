@@ -1749,14 +1749,20 @@ func (fs *fileSystem) SyncFile(
 	op *fuseops.SyncFileOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
-	in := fs.fileInodeOrDie(op.Inode)
+	in := fs.inodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
-	in.Lock()
-	defer in.Unlock()
+	file, ok := in.(*inode.FileInode)
+	if !ok {
+		// No-op if the target is not a file
+		return
+	}
+
+	file.Lock()
+	defer file.Unlock()
 
 	// Sync it.
-	if err := fs.syncFile(ctx, in); err != nil {
+	if err := fs.syncFile(ctx, file); err != nil {
 		return err
 	}
 
