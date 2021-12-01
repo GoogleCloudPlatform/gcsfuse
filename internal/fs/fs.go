@@ -593,6 +593,7 @@ func (fs *fileSystem) mintInode(backer inode.BackObject) (in inode.Inode) {
 // case, the caller may obtain a fresh record and try again. Otherwise,
 // increment the inode's lookup count and return it locked.
 //
+// LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
@@ -612,6 +613,8 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 
 		fs.mu.Unlock()
 	}()
+
+	fs.mu.Lock()
 
 	// Handle implicit directories.
 	if backer.Object == nil {
@@ -743,7 +746,6 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 		}
 
 		// Attempt to create the inode. Return if successful.
-		fs.mu.Lock()
 		child = fs.lookUpOrCreateInodeIfNotStale(result)
 		if child != nil {
 			return
@@ -1141,7 +1143,6 @@ func (fs *fileSystem) MkDir(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
-	fs.mu.Lock()
 	child := fs.lookUpOrCreateInodeIfNotStale(result)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
@@ -1224,7 +1225,6 @@ func (fs *fileSystem) createFile(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
-	fs.mu.Lock()
 	child = fs.lookUpOrCreateInodeIfNotStale(result)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
@@ -1299,7 +1299,6 @@ func (fs *fileSystem) CreateSymlink(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
-	fs.mu.Lock()
 	child := fs.lookUpOrCreateInodeIfNotStale(result)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
