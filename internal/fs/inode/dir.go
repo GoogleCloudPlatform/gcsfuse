@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
@@ -174,7 +175,7 @@ type dirInode struct {
 
 	// A mutex that must be held when calling certain methods. See documentation
 	// for each method.
-	mu syncutil.InvariantMutex
+	mu locker.Locker
 
 	// GUARDED_BY(mu)
 	lc lookupCount
@@ -236,7 +237,7 @@ func NewDirInode(
 	typed.lc.Init(id)
 
 	// Set up invariant checking.
-	typed.mu = syncutil.NewInvariantMutex(typed.checkInvariants)
+	typed.mu = locker.New(name.GcsObjectName(), typed.checkInvariants)
 
 	d = typed
 	return

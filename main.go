@@ -37,12 +37,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/perf"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/syncutil"
 	"github.com/kardianos/osext"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/cli"
@@ -154,7 +154,7 @@ func mountWithArgs(
 	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
-		syncutil.EnableInvariantChecking()
+		locker.EnableInvariantsCheck()
 	}
 
 	// Grab the connection.

@@ -26,12 +26,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 )
@@ -158,7 +158,7 @@ func NewFileSystem(
 	root.Unlock()
 
 	// Set up invariant checking.
-	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
+	fs.mu = locker.New("FS", fs.checkInvariants)
 	return fs, nil
 }
 
@@ -267,7 +267,7 @@ type fileSystem struct {
 
 	// A lock protecting the state of the file system struct itself (distinct
 	// from per-inode locks). Make sure to see the notes on lock ordering above.
-	mu syncutil.InvariantMutex
+	mu locker.Locker
 
 	// The next inode ID to hand out. We assume that this will never overflow,
 	// since even if we were handing out inode IDs at 4 GHz, it would still take

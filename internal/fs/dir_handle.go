@@ -19,10 +19,10 @@ import (
 	"sort"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
 
@@ -39,7 +39,7 @@ type dirHandle struct {
 	// Mutable state
 	/////////////////////////
 
-	Mu syncutil.InvariantMutex
+	Mu locker.Locker
 
 	// All entries in the directory. Populated the first time we need one.
 	//
@@ -67,7 +67,7 @@ func newDirHandle(
 	}
 
 	// Set up invariant checking.
-	dh.Mu = syncutil.NewInvariantMutex(dh.checkInvariants)
+	dh.Mu = locker.New("DH." + in.Name().GcsObjectName(), dh.checkInvariants)
 
 	return
 }
