@@ -181,6 +181,7 @@ github.com/shurcooL/sanitized_anchor_name
 ## explicit
 github.com/urfave/cli
 # go.opencensus.io v0.23.0
+## explicit
 go.opencensus.io
 go.opencensus.io/internal
 go.opencensus.io/internal/tagencoding
