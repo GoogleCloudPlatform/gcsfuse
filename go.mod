@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	cloud.google.com/go/storage v1.18.2
+	contrib.go.opencensus.io/exporter/stackdriver v0.13.10
 	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/cncf/xds/go v0.0.0-20211130200136-a8f946100490 // indirect

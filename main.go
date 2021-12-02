@@ -31,6 +31,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"contrib.go.opencensus.io/exporter/stackdriver"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 
@@ -297,6 +298,27 @@ func runCLIApp(c *cli.Context) (err error) {
 		return
 	}
 
+	var exporter *stackdriver.Exporter
+	if flags.StackdriverExportInterval > 0 {
+		exporter, err = stackdriver.NewExporter(stackdriver.Options{
+			ReportingInterval: flags.StackdriverExportInterval,
+			OnError: func(err error) {
+				logger.Infof("Fail to send metric: %v", err)
+			},
+		})
+		if err != nil {
+			err = fmt.Errorf("creating stackdriver exporter: %w", err)
+			daemonize.SignalOutcome(err)
+			return
+		}
+
+		if err = exporter.StartMetricsExporter(); err != nil {
+			err = fmt.Errorf("start stackdriver exporter: %w", err)
+			daemonize.SignalOutcome(err)
+			return
+		}
+	}
+
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
@@ -324,6 +346,12 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	// Wait for the file system to be unmounted.
 	err = mfs.Join(context.Background())
+
+	if exporter != nil {
+		exporter.StopMetricsExporter()
+		exporter.Flush()
+	}
+
 	if err != nil {
 		err = fmt.Errorf("MountedFileSystem.Join: %w", err)
 		return

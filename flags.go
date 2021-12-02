@@ -236,6 +236,11 @@ func newApp() (app *cli.App) {
 					"The default value 0 indicates no monitoring metrics.",
 			},
 
+			cli.DurationFlag{
+				Name:  "stackdriver-export-interval",
+				Usage: "Export metrics to stackdriver with this interval. The default value 0 indicates no exporting.",
+			},
+
 			cli.StringFlag{
 				Name:  "log-file",
 				Value: "",
@@ -317,9 +322,10 @@ type flagStorage struct {
 	MaxConnsPerHost   int
 
 	// Monitoring
-	MonitoringPort int
-	LogFile        string
-	LogFormat      string
+	MonitoringPort            int
+	StackdriverExportInterval time.Duration
+	LogFile                   string
+	LogFormat                 string
 
 	// Debugging
 	DebugFuse       bool
@@ -370,9 +376,10 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		MaxConnsPerHost:   c.Int("max-conns-per-host"),
 
 		// Monitoring
-		MonitoringPort: c.Int("monitoring-port"),
-		LogFile:        c.String("log-file"),
-		LogFormat:      c.String("log-format"),
+		MonitoringPort:            c.Int("monitoring-port"),
+		StackdriverExportInterval: c.Duration("stackdriver-export-interval"),
+		LogFile:                   c.String("log-file"),
+		LogFormat:                 c.String("log-format"),
 
 		// Debugging,
 		DebugFuse:       c.Bool("debug_fuse"),
