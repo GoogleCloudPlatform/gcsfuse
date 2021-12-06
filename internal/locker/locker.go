@@ -56,7 +56,7 @@ func New(name string, check func()) Locker {
 		l = &debugger{
 			locker: l,
 			name:   name,
-			logger: logger.NewDebug("debug_locker"),
+			logger: logger.NewDebug("debug_mutex"),
 		}
 	}
 
