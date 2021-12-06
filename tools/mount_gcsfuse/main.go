@@ -113,7 +113,8 @@ func makeGcsfuseArgs(
 			"debug_fs",
 			"debug_gcs",
 			"debug_http",
-			"debug_invariants":
+			"debug_invariants",
+			"debug_mutex":
 			args = append(args, "--"+name)
 
 		// Pass through everything else.

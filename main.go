@@ -157,6 +157,9 @@ func mountWithArgs(
 	if flags.DebugInvariants {
 		locker.EnableInvariantsCheck()
 	}
+	if flags.DebugMutex {
+		locker.EnableDebugMessages()
+	}
 
 	// Grab the connection.
 	//

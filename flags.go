@@ -283,6 +283,11 @@ func newApp() (app *cli.App) {
 				Name:  "debug_invariants",
 				Usage: "Panic when internal invariants are violated.",
 			},
+
+			cli.BoolFlag{
+				Name:  "debug_mutex",
+				Usage: "Print debug messages when a mutex is held too long.",
+			},
 		},
 	}
 
@@ -333,6 +338,7 @@ type flagStorage struct {
 	DebugGCS        bool
 	DebugHTTP       bool
 	DebugInvariants bool
+	DebugMutex      bool
 }
 
 // Add the flags accepted by run to the supplied flag set, returning the
@@ -387,6 +393,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		DebugFS:         c.Bool("debug_fs"),
 		DebugHTTP:       c.Bool("debug_http"),
 		DebugInvariants: c.Bool("debug_invariants"),
+		DebugMutex:      c.Bool("debug_mutex"),
 	}
 
 	// Handle the repeated "-o" flag.
