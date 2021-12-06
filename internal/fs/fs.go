@@ -828,10 +828,10 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, N uint64) {
 	// Update file system state, orphaning the inode if we're going to destroy it
 	// below.
 	if shouldDestroy {
+		fs.mu.Lock()
 		delete(fs.inodes, in.ID())
 
 		// Update indexes if necessary.
-		fs.mu.Lock()
 		if fs.generationBackedInodes[name] == in {
 			delete(fs.generationBackedInodes, name)
 		}
