@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Build an image with gcsfuse packages:
-#   > docker build . -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.37.0
+#   > docker build . -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.38.0
 # Copy the gcsfuse packages to the host:
 #   > docker run -it -v /tmp:/output gcsfuse-release cp -r /packages /output
 
@@ -25,7 +25,7 @@ ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GO111MODULE=auto
 
-ARG GCSFUSE_VERSION="0.37.0"
+ARG GCSFUSE_VERSION="0.38.0"
 ARG GCSFUSE_REPO="github.com/googlecloudplatform/gcsfuse/"
 ENV GCSFUSE_PATH "$GOPATH/src/$GCSFUSE_REPO"
 RUN go get ${GCSFUSE_REPO}
