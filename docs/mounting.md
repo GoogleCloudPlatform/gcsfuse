@@ -94,8 +94,8 @@ On OS X, unmount like any other file system:
 
 ## Logging
 
-Use flags like `--debug_gcs`, `--debug_fuse` and `--debug_http` to get
-additional logs from GCS, Fuse, and HTTP requests.
+Use flags like `--debug_gcs`, `--debug_fuse`, `--debug_http`, `--debug_fs`, and
+`--debug_mutex` to get additional logs from GCS, Fuse, and HTTP requests.
 
 When gcsfuse is run in the foreground, all the logs are printed to stdout and
 stderr. When it is in the background, only a few lines of logs indicating the
