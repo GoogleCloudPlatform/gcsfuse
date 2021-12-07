@@ -245,7 +245,7 @@ func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
 func (tf *tempFile) Truncate(n int64) error {
 	err := tf.ensureComplete()
 	if err != nil {
-		return fmt.Errorf("Cannot WriteAt incomplete file: %w", err)
+		return fmt.Errorf("Cannot Truncate incomplete file: %w", err)
 	}
 
 	// Update our state regarding being dirty.
