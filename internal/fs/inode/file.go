@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/gcs"
@@ -44,10 +45,10 @@ type FileInode struct {
 	// Constant data
 	/////////////////////////
 
-	id      fuseops.InodeID
-	name    Name
-	attrs   fuseops.InodeAttributes
-	tempDir string
+	id           fuseops.InodeID
+	name         Name
+	attrs        fuseops.InodeAttributes
+	contentCache *contentcache.ContentCache
 
 	/////////////////////////
 	// Mutable state
@@ -94,17 +95,17 @@ func NewFileInode(
 	attrs fuseops.InodeAttributes,
 	bucket gcsx.SyncerBucket,
 	localFileCache bool,
-	tempDir string,
+	contentCache *contentcache.ContentCache,
 	mtimeClock timeutil.Clock) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
-		bucket:     bucket,
-		mtimeClock: mtimeClock,
-		id:         id,
-		name:       name,
-		attrs:      attrs,
-		tempDir:    tempDir,
-		src:        *o,
+		bucket:       bucket,
+		mtimeClock:   mtimeClock,
+		id:           id,
+		name:         name,
+		attrs:        attrs,
+		contentCache: contentCache,
+		src:          *o,
 	}
 
 	f.lc.Init(id)
@@ -201,7 +202,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 
 	// Create a temporary file with its contents. The temp file
 	// ensures to call Close() on the rc.
-	tf, err := gcsx.NewTempFile(rc, f.tempDir, f.mtimeClock)
+	tf, err := f.contentCache.NewTempFile(rc)
 	if err != nil {
 		err = fmt.Errorf("NewTempFile: %w", err)
 		return

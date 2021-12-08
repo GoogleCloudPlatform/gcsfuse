@@ -23,6 +23,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
@@ -116,13 +117,15 @@ func NewFileSystem(
 		return nil, fmt.Errorf("Illegal dir perms: %v", cfg.FilePerms)
 	}
 
+	mtimeClock := timeutil.RealClock()
+
 	// Set up the basic struct.
 	fs := &fileSystem{
-		mtimeClock:             timeutil.RealClock(),
+		mtimeClock:             mtimeClock,
 		cacheClock:             cfg.CacheClock,
 		bucketManager:          cfg.BucketManager,
 		localFileCache:         cfg.LocalFileCache,
-		tempDir:                cfg.TempDir,
+		contentCache:           contentcache.New(cfg.TempDir, mtimeClock),
 		implicitDirs:           cfg.ImplicitDirectories,
 		inodeAttributeCacheTTL: cfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:        cfg.DirTypeCacheTTL,
@@ -247,7 +250,7 @@ type fileSystem struct {
 	/////////////////////////
 
 	localFileCache         bool
-	tempDir                string
+	contentCache           *contentcache.ContentCache
 	implicitDirs           bool
 	inodeAttributeCacheTTL time.Duration
 	dirTypeCacheTTL        time.Duration
@@ -575,7 +578,7 @@ func (fs *fileSystem) mintInode(backer inode.BackObject) (in inode.Inode) {
 			},
 			backer.Bucket,
 			fs.localFileCache,
-			fs.tempDir,
+			fs.contentCache,
 			fs.mtimeClock)
 	}
 
