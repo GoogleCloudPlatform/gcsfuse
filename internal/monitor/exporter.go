@@ -16,10 +16,12 @@ package monitor
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+	"go.opencensus.io/stats/view"
 )
 
 var exporter *stackdriver.Exporter
@@ -36,6 +38,18 @@ func EnableStackdriverExporter(interval time.Duration) error {
 		ReportingInterval: interval,
 		OnError: func(err error) {
 			logger.Infof("Fail to send metric: %v", err)
+		},
+
+		// For a local metric "http_sent_bytes", the Stackdriver metric type
+		// would be "custom.googleapis.com/gcsfuse/http_sent_bytes", display
+		// name would be "Http sent bytes".
+		MetricPrefix: "custom.googleapis.com/gcsfuse/",
+		GetMetricDisplayName: func(view *view.View) string {
+			name := strings.ReplaceAll(view.Name, "_", " ")
+			if len(name) > 0 {
+				name = strings.ToUpper(name[:1]) + name[1:]
+			}
+			return name
 		},
 	}); err != nil {
 		return fmt.Errorf("create exporter: %w", err)
