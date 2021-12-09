@@ -153,6 +153,8 @@ func (b *bucket) ListObjects(
 
 	if req.Delimiter != "" {
 		query.Set("delimiter", req.Delimiter)
+		query.Set("includeTrailingDelimiter",
+			fmt.Sprintf("%v", req.IncludeTrailingDelimiter))
 	}
 
 	if req.ContinuationToken != "" {

@@ -196,6 +196,22 @@ type ListObjectsRequest struct {
 	// a large number of objects, this may be more efficient.
 	Delimiter string
 
+	// Only applicable when Delimiter is set nonempty. Default to false.
+	//
+	// The objects in the result listing would contain those objects that end
+	// with the first delimiter if this is true. Otherwise, those objects are
+	// not included.
+	//
+	// Example:
+	//  Assume there is an object "foo/bar/".
+	//  1. Prefix: "foo/", Delimiter: "/", IncludeTrailingDelimiter: true
+	//     -> "foo/bar/" exists in both listing.CollapsedRuns and
+	//     listing.Objects.
+	//  2. Prefix: "foo/", Delimiter: "/", IncludeTrailingDelimiter: false
+	//     -> "foo/bar/" exists in only listing.CollapsedRuns but not
+	//     listing.Objects.
+	IncludeTrailingDelimiter bool
+
 	// Used to continue a listing where a previous one left off. See
 	// Listing.ContinuationToken for more information.
 	ContinuationToken string
