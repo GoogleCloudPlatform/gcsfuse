@@ -40,6 +40,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/perf"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
@@ -121,6 +122,7 @@ func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 			),
 		}
 	}
+	cfg.Transport = monitor.EnableHTTPMonitoring(cfg.Transport)
 
 	if flags.DebugHTTP {
 		cfg.HTTPDebugLogger = logger.NewDebug("http: ")
