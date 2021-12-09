@@ -16,7 +16,7 @@
 package monitor
 
 import (
-	"log"
+	"fmt"
 	"net/http"
 
 	"github.com/jacobsa/gcloud/httputil"
@@ -30,7 +30,7 @@ import (
 //   - "opencensus.io/http/client/received_bytes",
 //   - "opencensus.io/http/client/roundtrip_latency",
 // in the HTTP transport. It returns the transport being monitored.
-func EnableHTTPMonitoring(r http.RoundTripper) httputil.CancellableRoundTripper {
+func EnableHTTPMonitoring(r http.RoundTripper) (httputil.CancellableRoundTripper, error) {
 	if err := view.Register(
 		&view.View{
 			Name:        "http_sent_bytes",
@@ -54,9 +54,7 @@ func EnableHTTPMonitoring(r http.RoundTripper) httputil.CancellableRoundTripper 
 			TagKeys:     []tag.Key{ochttp.KeyClientMethod, ochttp.KeyClientStatus},
 		},
 	); err != nil {
-		log.Fatalf("cannot register opencensus views for http: ", err)
+		return nil, fmt.Errorf("register views: %w", err)
 	}
-	return &ochttp.Transport{
-		Base: r,
-	}
+	return &ochttp.Transport{Base: r}, nil
 }

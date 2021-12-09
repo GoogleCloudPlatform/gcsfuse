@@ -122,7 +122,9 @@ func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 			),
 		}
 	}
-	cfg.Transport = monitor.EnableHTTPMonitoring(cfg.Transport)
+	if cfg.Transport, err = monitor.EnableHTTPMonitoring(cfg.Transport); err != nil {
+		return nil, fmt.Errorf("enable http monitoring: %w", err)
+	}
 
 	if flags.DebugHTTP {
 		cfg.HTTPDebugLogger = logger.NewDebug("http: ")
