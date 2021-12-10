@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"path"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
@@ -408,143 +407,6 @@ func (d *dirInode) createNewObject(
 	return
 }
 
-// An implementation detail fo filterMissingChildDirs.
-func filterMissingChildDirNames(
-	ctx context.Context,
-	bucket gcs.Bucket,
-	dirName Name,
-	unfiltered <-chan string,
-	filtered chan<- string) (err error) {
-	for name := range unfiltered {
-		var o *gcs.Object
-
-		// Stat the placeholder.
-		o, err = statObjectMayNotExist(
-			ctx,
-			bucket,
-			NewDirName(dirName, name),
-		)
-		if err != nil {
-			err = fmt.Errorf("statObjectMayNotExist: %w", err)
-			return
-		}
-
-		// Should we pass on this name?
-		if o == nil {
-			continue
-		}
-
-		select {
-		case <-ctx.Done():
-			err = ctx.Err()
-			return
-
-		case filtered <- name:
-		}
-	}
-
-	return
-}
-
-// Given a list of child names that appear to be directories according to
-// d.bucket.ListObjects (which always behaves as if implicit directories are
-// enabled), filter out the ones for which a placeholder object does not
-// actually exist. If implicit directories are enabled, simply return them all.
-//
-// LOCKS_REQUIRED(d)
-func (d *dirInode) filterMissingChildDirs(
-	ctx context.Context,
-	in []string) (out []string, err error) {
-	// Do we need to do anything?
-	if d.implicitDirs {
-		out = in
-		return
-	}
-
-	b := syncutil.NewBundle(ctx)
-
-	// First add any names that we already know are directories according to our
-	// cache, removing them from the input.
-	now := d.cacheClock.Now()
-	var tmp []string
-	for _, name := range in {
-		if d.cache.IsDir(now, name) {
-			out = append(out, name)
-		} else {
-			tmp = append(tmp, name)
-		}
-	}
-
-	in = tmp
-
-	// Feed names into a channel.
-	unfiltered := make(chan string, 100)
-	b.Add(func(ctx context.Context) (err error) {
-		defer close(unfiltered)
-
-		for _, name := range in {
-			select {
-			case <-ctx.Done():
-				err = ctx.Err()
-				return
-
-			case unfiltered <- name:
-			}
-		}
-
-		return
-	})
-
-	// Stat the placeholder object for each, filtering out placeholders that are
-	// not found. Use some parallelism.
-	const statWorkers = 32
-	filtered := make(chan string, 100)
-	var wg sync.WaitGroup
-	for i := 0; i < statWorkers; i++ {
-		wg.Add(1)
-		b.Add(func(ctx context.Context) (err error) {
-			defer wg.Done()
-			err = filterMissingChildDirNames(
-				ctx,
-				d.bucket,
-				d.Name(),
-				unfiltered,
-				filtered)
-
-			return
-		})
-	}
-
-	go func() {
-		wg.Wait()
-		close(filtered)
-	}()
-
-	// Accumulate into a slice.
-	var filteredSlice []string
-	b.Add(func(ctx context.Context) (err error) {
-		for name := range filtered {
-			filteredSlice = append(filteredSlice, name)
-		}
-
-		return
-	})
-
-	// Wait for everything to complete.
-	err = b.Join()
-
-	// Update the cache with everything we learned.
-	now = d.cacheClock.Now()
-	for _, name := range filteredSlice {
-		d.cache.NoteDir(now, name)
-	}
-
-	// Return everything we learned.
-	out = append(out, filteredSlice...)
-
-	return
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -732,9 +594,10 @@ func (d *dirInode) ReadObjects(
 	tok string) (files []BackObject, dirs []BackObject, newTok string, err error) {
 	// Ask the bucket to list some objects.
 	req := &gcs.ListObjectsRequest{
-		Delimiter:         "/",
-		Prefix:            d.Name().GcsObjectName(),
-		ContinuationToken: tok,
+		Delimiter:                "/",
+		IncludeTrailingDelimiter: true,
+		Prefix:                   d.Name().GcsObjectName(),
+		ContinuationToken:        tok,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)
@@ -744,52 +607,62 @@ func (d *dirInode) ReadObjects(
 	}
 	now := d.cacheClock.Now()
 
-	// Collect objects for files or symlinks.
+	explicitDirs := make(map[string]bool)
 	for _, o := range listing.Objects {
-		// Skip the dir object itself, which of course has its
-		// own name as a prefix but which we don't wan to appear to contain itself.
-		if o.Name == d.Name().GcsObjectName() {
+		// Skip empty results or the directory object backing this inode.
+		if o.Name == d.Name().GcsObjectName() || o.Name == "" {
 			continue
 		}
 
-		files = append(files, BackObject{
-			Bucket:      d.Bucket(),
-			FullName:    NewFileName(d.Name(), path.Base(o.Name)),
-			Object:      o,
-			ImplicitDir: false,
-		})
-		d.cache.NoteFile(now, path.Base(o.Name))
-	}
-
-	// Extract directory names from the collapsed runs.
-	var dirNames []string
-	for _, p := range listing.CollapsedRuns {
-		dirNames = append(dirNames, path.Base(p))
-	}
-
-	// Filter the directory names according to our implicit directory settings.
-	dirNames, err = d.filterMissingChildDirs(ctx, dirNames)
-	if err != nil {
-		err = fmt.Errorf("filterMissingChildDirs: %w", err)
-		return
-	}
-
-	// Return entries for directories.
-	for _, name := range dirNames {
-		dirs = append(dirs, BackObject{
-			Bucket:   d.Bucket(),
-			FullName: NewDirName(d.Name(), name),
-			// This is not necessarily an implicit dir. But, it's not worthwhile
-			// to figure out whether the backing gcs object exists. So, all the
-			// directories are recorded as implicit for simplicity.
-			Object:      nil,
-			ImplicitDir: true,
-		})
-		d.cache.NoteDir(now, name)
+		nameBase := path.Base(o.Name) // ie. "bar" from "foo/bar/" or "foo/bar"
+		if strings.HasSuffix(o.Name, "/") {
+			explicitDir := BackObject{
+				Bucket:      d.Bucket(),
+				FullName:    NewDirName(d.Name(), nameBase),
+				Object:      o,
+				ImplicitDir: false,
+			}
+			dirs = append(dirs, explicitDir)
+			explicitDirs[nameBase] = true
+			d.cache.NoteDir(now, nameBase)
+		} else {
+			file := BackObject{
+				Bucket:      d.Bucket(),
+				FullName:    NewFileName(d.Name(), nameBase),
+				Object:      o,
+				ImplicitDir: false,
+			}
+			files = append(files, file)
+			d.cache.NoteFile(now, nameBase)
+		}
 	}
 
 	// Return an appropriate continuation token, if any.
 	newTok = listing.ContinuationToken
+
+	if !d.implicitDirs {
+		return
+	}
+
+	// Add implicit directories into the result.
+	for _, p := range listing.CollapsedRuns {
+		pathBase := path.Base(p) // ie. "bar" from "foo/bar/"
+
+		if _, ok := explicitDirs[pathBase]; ok {
+			continue
+		}
+
+		implicitDir := BackObject{
+			Bucket:      d.Bucket(),
+			FullName:    NewDirName(d.Name(), pathBase),
+			Object:      nil,
+			ImplicitDir: true,
+		}
+		dirs = append(dirs, implicitDir)
+		d.cache.NoteDir(now, pathBase)
+		d.cache.NoteImplicitDir(now, pathBase)
+	}
+
 	return
 }
 
