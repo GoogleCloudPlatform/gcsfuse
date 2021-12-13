@@ -16,6 +16,7 @@ package monitor
 
 import (
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -25,6 +26,8 @@ import (
 )
 
 var exporter *stackdriver.Exporter
+var infoLogger *log.Logger
+var errorLogger *log.Logger
 
 // EnableStackdriverExporter starts to collect monitoring metrics and exports
 // them to Stackdriver iff the given interval is positive.
@@ -33,11 +36,14 @@ func EnableStackdriverExporter(interval time.Duration) error {
 		return nil
 	}
 
+	infoLogger = logger.NewInfo("")
+	errorLogger = logger.NewError("")
+
 	var err error
 	if exporter, err = stackdriver.NewExporter(stackdriver.Options{
 		ReportingInterval: interval,
 		OnError: func(err error) {
-			logger.Infof("Fail to send metric: %v", err)
+			errorLogger.Printf("Fail to send metric: %v", err)
 		},
 
 		// For a local metric "http_sent_bytes", the Stackdriver metric type
@@ -57,6 +63,8 @@ func EnableStackdriverExporter(interval time.Duration) error {
 	if err = exporter.StartMetricsExporter(); err != nil {
 		return fmt.Errorf("start exporter: %w", err)
 	}
+
+	infoLogger.Printf("Stackdriver exporter started")
 	return nil
 }
 
@@ -67,5 +75,6 @@ func CloseStackdriverExporter() {
 		exporter.StopMetricsExporter()
 		exporter.Flush()
 	}
+	infoLogger.Printf("Stackdriver exporter closed")
 	exporter = nil
 }
