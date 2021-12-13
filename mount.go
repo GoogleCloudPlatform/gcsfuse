@@ -89,7 +89,7 @@ be interacting with the file system.`)
 		OpRateLimitHz:                      flags.OpRateLimitHz,
 		StatCacheCapacity:                  flags.StatCacheCapacity,
 		StatCacheTTL:                       flags.StatCacheTTL,
-		EnableMonitoring:                   flags.MonitoringPort > 0,
+		EnableMonitoring:                   flags.StackdriverExportInterval > 0,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 	}

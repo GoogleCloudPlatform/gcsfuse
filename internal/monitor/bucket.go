@@ -16,97 +16,109 @@ package monitor
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"time"
 
 	"github.com/jacobsa/gcloud/gcs"
-	"github.com/prometheus/client_golang/prometheus"
+	"go.opencensus.io/stats"
+	"go.opencensus.io/stats/view"
+	"go.opencensus.io/tag"
 )
 
 var (
-	counterGcsRequests = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "gcsfuse_gcs_requests",
-			Help: "Number of GCS requests.",
-		},
-		[]string{ // labels
-			"bucket",
-			"method",
-		},
-	)
-	counterBytesRead = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "gcsfuse_bytes_read",
-			Help: "Number of bytes read from GCS.",
-		},
-		[]string{ // labels
-			"bucket",
-			"object",
-		},
-	)
-	counterObjectReadersCreated = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Name: "gcsfuse_object_readers_created",
-			Help: "Number of object readers created.",
-		},
-	)
-	counterObjectReadersClosed = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Name: "gcsfuse_object_readers_closed",
-			Help: "Number of object readers already closed.",
-		},
-	)
-	latencyNewReader = prometheus.NewHistogram(
-		prometheus.HistogramOpts{
-			Name: "gcsfuse_object_new_reader_latency",
-			Help: "The latency of creating a GCS object reader in ms.",
+	methodName = tag.MustNewKey("method_name")
+	bucketName = tag.MustNewKey("bucket_name")
+)
 
-			// 32 buckets: [0.1ms, 0.15ms, ..., 28.8s, +Inf]
-			Buckets: prometheus.ExponentialBuckets(0.1, 1.5, 32),
-		},
-	)
-	latencyRead = prometheus.NewHistogram(
-		prometheus.HistogramOpts{
-			Name: "gcsfuse_object_read_latency",
-			Help: "The latency of reading once by the reader in ms.",
-
-			// 32 buckets: [0.1ms, 0.15ms, ..., 28.8s, +Inf]
-			Buckets: prometheus.ExponentialBuckets(0.1, 1.5, 32),
-		},
-	)
+var (
+	requestCount = stats.Int64(
+		"gcs_requests",
+		"Number of GCS requests.",
+		stats.UnitDimensionless)
+	bytesRead = stats.Int64(
+		"gcs_bytes_read",
+		"Number of bytes read from GCS.",
+		stats.UnitBytes)
+	objectReadersCreated = stats.Int64(
+		"object_readers_created",
+		"Number of object readers created.",
+		stats.UnitDimensionless)
+	objectReadersClosed = stats.Int64(
+		"object_readers_closed",
+		"Number of object readers closed.",
+		stats.UnitDimensionless)
+	latency = stats.Float64(
+		"gcs_latency",
+		"The latency of the method being executed in ms.",
+		stats.UnitMilliseconds)
 )
 
 // Initialize the prometheus metrics.
 func init() {
-	prometheus.MustRegister(counterGcsRequests)
-	prometheus.MustRegister(counterBytesRead)
-	prometheus.MustRegister(counterObjectReadersCreated)
-	prometheus.MustRegister(counterObjectReadersClosed)
-	prometheus.MustRegister(latencyNewReader)
-	prometheus.MustRegister(latencyRead)
-}
-
-func incrementCounterGcsRequests(bucketName string, method string) {
-	counterGcsRequests.With(
-		prometheus.Labels{
-			"bucket": bucketName,
-			"method": method,
+	if err := view.Register(
+		&view.View{
+			Name:        requestCount.Name(),
+			Measure:     requestCount,
+			Description: requestCount.Description(),
+			Aggregation: view.Sum(),
+			TagKeys:     []tag.Key{methodName, bucketName},
 		},
-	).Inc()
-}
-
-func incrementCounterBytesRead(bucketName string, object string, bytes int) {
-	counterBytesRead.With(
-		prometheus.Labels{
-			"bucket": bucketName,
-			"object": object,
+		&view.View{
+			Name:        bytesRead.Name(),
+			Measure:     bytesRead,
+			Description: bytesRead.Description(),
+			Aggregation: view.Sum(),
+			TagKeys:     []tag.Key{bucketName},
 		},
-	).Add(float64(bytes))
+		&view.View{
+			Name:        objectReadersCreated.Name(),
+			Measure:     objectReadersCreated,
+			Description: objectReadersCreated.Description(),
+			Aggregation: view.Sum(),
+		},
+		&view.View{
+			Name:        objectReadersClosed.Name(),
+			Measure:     objectReadersClosed,
+			Description: objectReadersClosed.Description(),
+			Aggregation: view.Sum(),
+		},
+		&view.View{
+			Name:        latency.Name(),
+			Measure:     latency,
+			Description: latency.Description(),
+			Aggregation: view.Distribution(),
+			TagKeys:     []tag.Key{methodName, bucketName},
+		}); err != nil {
+		fmt.Printf("Failed to register metrics in the monitoring bucket\n")
+	}
 }
 
-func recordLatency(metric prometheus.Histogram, start time.Time) {
-	latency := float64(time.Since(start).Milliseconds())
-	metric.Observe(latency)
+func incrementCounterGcsRequests(bucket string, method string) {
+	stats.RecordWithTags(
+		context.Background(),
+		[]tag.Mutator{
+			tag.Upsert(methodName, method),
+			tag.Upsert(bucketName, bucket),
+		},
+		requestCount.M(1),
+	)
+}
+
+func incrementCounterBytesRead(bucket string, bytes int) {
+	stats.RecordWithTags(
+		context.Background(),
+		[]tag.Mutator{tag.Upsert(bucketName, bucket)},
+		bytesRead.M(int64(bytes)),
+	)
+}
+
+func recordLatency(method string, start time.Time) {
+	stats.RecordWithTags(
+		context.Background(),
+		[]tag.Mutator{tag.Upsert(methodName, method)},
+		latency.M(float64(time.Since(start).Milliseconds())),
+	)
 }
 
 // NewMonitoringBucket returns a gcs.Bucket that exports metrics for monitoring
@@ -128,7 +140,7 @@ func (mb *monitoringBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	incrementCounterGcsRequests(mb.Name(), "NewReader")
-	defer recordLatency(latencyNewReader, time.Now())
+	defer recordLatency("NewReader", time.Now())
 
 	rc, err = mb.wrapped.NewReader(ctx, req)
 	if err == nil {
@@ -190,7 +202,7 @@ func newMonitoringReadCloser(
 	bucketName string,
 	object string,
 	rc io.ReadCloser) io.ReadCloser {
-	counterObjectReadersCreated.Inc()
+	stats.Record(context.Background(), objectReadersCreated.M(1))
 	return &monitoringReadCloser{
 		bucketName: bucketName,
 		object:     object,
@@ -205,11 +217,11 @@ type monitoringReadCloser struct {
 }
 
 func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
-	defer recordLatency(latencyRead, time.Now())
+	defer recordLatency("Read", time.Now())
 
 	n, err = mrc.wrapped.Read(p)
 	if err == nil {
-		incrementCounterBytesRead(mrc.bucketName, mrc.object, n)
+		incrementCounterBytesRead(mrc.bucketName, n)
 	}
 	return
 }
@@ -217,7 +229,7 @@ func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
 func (mrc *monitoringReadCloser) Close() (err error) {
 	err = mrc.wrapped.Close()
 	if err == nil {
-		counterObjectReadersClosed.Inc()
+		stats.Record(context.Background(), objectReadersClosed.M(1))
 	}
 	return
 }
