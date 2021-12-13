@@ -116,7 +116,7 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 		func(n string) (err error) {
 			contents, err := ioutil.ReadFile(path.Join(t.Dir, n))
 			if err != nil {
-				err = fmt.Errorf("ReadFile: %v", err)
+				err = fmt.Errorf("ReadFile: %w", err)
 				return
 			}
 

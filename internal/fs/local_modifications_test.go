@@ -704,15 +704,6 @@ func (t *ModesTest) AppendMode_SeekAndWrite() {
 func (t *ModesTest) AppendMode_WriteAt() {
 	var err error
 
-	// Linux's support for pwrite is buggy; the pwrite(2) man page says this:
-	//
-	//     POSIX requires that opening a file with the O_APPEND flag should have
-	//     no affect on the location at which pwrite() writes data.  However, on
-	//     Linux,  if  a  file  is opened with O_APPEND, pwrite() appends data to
-	//     the end of the file, regardless of the value of offset.
-	//
-	isLinux := (runtime.GOOS == "linux")
-
 	// Create a file.
 	const contents = "tacoburritoenchilada"
 	AssertEq(
@@ -723,7 +714,7 @@ func (t *ModesTest) AppendMode_WriteAt() {
 			os.FileMode(0644)))
 
 	// Open the file.
-	t.f1, err = os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR|os.O_APPEND, 0)
+	t.f1, err = os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0)
 	AssertEq(nil, err)
 
 	// Seek somewhere in the file.
@@ -742,51 +733,29 @@ func (t *ModesTest) AppendMode_WriteAt() {
 	// Check the size now.
 	fi, err := t.f1.Stat()
 	AssertEq(nil, err)
-
-	if isLinux {
-		ExpectEq(len(contents+"111"), fi.Size())
-	} else {
-		ExpectEq(len(contents), fi.Size())
-	}
+	ExpectEq(len(contents), fi.Size())
 
 	// Read the full contents with ReadAt.
 	buf := make([]byte, 1024)
 	n, err := t.f1.ReadAt(buf, 0)
 
 	AssertEq(io.EOF, err)
-	if isLinux {
-		ExpectEq("tacoburritoenchilada111", string(buf[:n]))
-	} else {
-		ExpectEq("taco111ritoenchilada", string(buf[:n]))
-	}
+	ExpectEq("taco111ritoenchilada", string(buf[:n]))
 
 	// Read the full contents with another file handle.
 	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertEq(nil, err)
-	if isLinux {
-		ExpectEq("tacoburritoenchilada111", string(fileContents))
-	} else {
-		ExpectEq("taco111ritoenchilada", string(fileContents))
-	}
+	ExpectEq("taco111ritoenchilada", string(fileContents))
 }
 
 func (t *ModesTest) AppendMode_WriteAt_PastEOF() {
 	var err error
 
-	// Linux's support for pwrite is buggy; the pwrite(2) man page says this:
-	//
-	//     POSIX requires that opening a file with the O_APPEND flag should have
-	//     no affect on the location at which pwrite() writes data.  However, on
-	//     Linux,  if  a  file  is opened with O_APPEND, pwrite() appends data to
-	//     the end of the file, regardless of the value of offset.
-	//
-	isLinux := (runtime.GOOS == "linux")
-
 	// Open a file.
 	t.f1, err = os.OpenFile(
 		path.Join(t.mfs.Dir(), "foo"),
-		os.O_RDWR|os.O_APPEND|os.O_CREATE,
+		os.O_RDWR|os.O_CREATE,
 		0600)
 
 	AssertEq(nil, err)
@@ -810,11 +779,7 @@ func (t *ModesTest) AppendMode_WriteAt_PastEOF() {
 	contents, err := ioutil.ReadFile(t.f1.Name())
 	AssertEq(nil, err)
 
-	if isLinux {
-		ExpectEq("111222", string(contents))
-	} else {
-		ExpectEq("111\x00\x00\x00222", string(contents))
-	}
+	ExpectEq("111\x00\x00\x00222", string(contents))
 }
 
 func (t *ModesTest) ReadFromWriteOnlyFile() {
@@ -1452,7 +1417,7 @@ func (t *FileTest) WriteAtDoesntChangeOffset_AppendMode() {
 	// Create a file in append mode.
 	t.f1, err = os.OpenFile(
 		path.Join(t.mfs.Dir(), "foo"),
-		os.O_RDWR|os.O_APPEND|os.O_CREATE,
+		os.O_RDWR|os.O_CREATE,
 		0600)
 
 	AssertEq(nil, err)
@@ -2031,7 +1996,7 @@ func (t *FileTest) Sync_Clobbered() {
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
-	// Replace the underyling object with a new generation.
+	// Replace the underlying object with a new generation.
 	_, err = gcsutil.CreateObject(
 		t.ctx,
 		t.bucket,
@@ -2118,7 +2083,7 @@ func (t *FileTest) Close_Clobbered() {
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
-	// Replace the underyling object with a new generation.
+	// Replace the underlying object with a new generation.
 	_, err = gcsutil.CreateObject(
 		t.ctx,
 		t.bucket,
@@ -2317,7 +2282,7 @@ type RenameTest struct {
 
 func init() { RegisterTestSuite(&RenameTest{}) }
 
-func (t *RenameTest) Directory() {
+func (t *RenameTest) DirectoryContainingFiles() {
 	var err error
 
 	// Create a directory.
@@ -2325,11 +2290,83 @@ func (t *RenameTest) Directory() {
 	err = os.Mkdir(oldPath, 0700)
 	AssertEq(nil, err)
 
+	for i := 0; i < int(t.serverCfg.RenameDirLimit); i++ {
+		file := fmt.Sprintf("%s/%d.txt", oldPath, i)
+		err = ioutil.WriteFile(file, []byte("taco"), 0400)
+		AssertEq(nil, err)
+	}
+
 	// Attempt to rename it.
 	newPath := path.Join(t.Dir, "bar")
-
 	err = os.Rename(oldPath, newPath)
-	ExpectThat(err, Error(HasSubstr("not implemented")))
+	AssertEq(nil, err)
+
+	// File count exceeds the limit.
+	file := fmt.Sprintf("%s/%d.txt", newPath, t.serverCfg.RenameDirLimit)
+	err = ioutil.WriteFile(file, []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	// Attempt to rename it.
+	err = os.Rename(newPath, oldPath)
+	ExpectThat(err, Error(HasSubstr("too many open files")))
+}
+
+func (t *RenameTest) DirectoryContainingDirectories() {
+	var err error
+
+	// Create a directory.
+	oldPath := path.Join(t.Dir, "foo")
+	err = os.Mkdir(oldPath, 0700)
+	AssertEq(nil, err)
+
+	// Create a subdirectory.
+	subPath := path.Join(oldPath, "baz")
+	err = os.Mkdir(subPath, 0700)
+	AssertEq(nil, err)
+
+	// Create a subsubdirectory.
+	subSubPath := path.Join(subPath, "qux")
+	err = os.Mkdir(subSubPath, 0700)
+	AssertEq(nil, err)
+
+	// Create files.
+	filePath1 := path.Join(subPath, "file1")
+	err = ioutil.WriteFile(filePath1, []byte("taco"), 0400)
+	AssertEq(nil, err)
+	filePath2 := path.Join(subSubPath, "file2")
+	err = ioutil.WriteFile(filePath2, []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	// Rename the directory.
+	newPath := path.Join(t.Dir, "bar")
+	err = os.Rename(oldPath, newPath)
+	AssertEq(nil, err)
+	files, err := ioutil.ReadDir(newPath)
+	AssertEq(nil, err)
+	AssertEq(1, len(files))
+	ExpectEq("baz", files[0].Name())
+	ExpectTrue(files[0].IsDir())
+}
+
+func (t *RenameTest) EmptyDirectory() {
+	var err error
+
+	// Create a directory.
+	oldPath := path.Join(t.Dir, "foo")
+	err = os.Mkdir(oldPath, 0700)
+	AssertEq(nil, err)
+
+	// Rename it.
+	newPath := path.Join(t.Dir, "bar")
+	err = os.Rename(oldPath, newPath)
+	AssertEq(nil, err)
+
+	_, err = os.Stat(oldPath)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	file, err := os.Stat(newPath)
+	AssertEq(nil, err)
+	ExpectTrue(file.IsDir())
 }
 
 func (t *RenameTest) WithinDir() {

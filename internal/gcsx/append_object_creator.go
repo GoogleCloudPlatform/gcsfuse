@@ -58,7 +58,7 @@ func (oc *appendObjectCreator) chooseName() (name string, err error) {
 	var buf [8]byte
 	_, err = io.ReadFull(rand.Reader, buf[:])
 	if err != nil {
-		err = fmt.Errorf("ReadFull: %v", err)
+		err = fmt.Errorf("ReadFull: %w", err)
 		return
 	}
 
@@ -85,7 +85,7 @@ func (oc *appendObjectCreator) Create(
 	// Choose a name for a temporary object.
 	tmpName, err := oc.chooseName()
 	if err != nil {
-		err = fmt.Errorf("chooseName: %v", err)
+		err = fmt.Errorf("chooseName: %w", err)
 		return
 	}
 
@@ -94,7 +94,7 @@ func (oc *appendObjectCreator) Create(
 	tmp, err := oc.bucket.CreateObject(
 		ctx,
 		&gcs.CreateObjectRequest{
-			Name: tmpName,
+			Name:                   tmpName,
 			GenerationPrecondition: &zero,
 			Contents:               r,
 		})
@@ -105,12 +105,12 @@ func (oc *appendObjectCreator) Create(
 
 	case *gcs.PreconditionError:
 		err = &gcs.PreconditionError{
-			Err: fmt.Errorf("CreateObject: %v", typed.Err),
+			Err: fmt.Errorf("CreateObject: %w", typed.Err),
 		}
 		return
 
 	default:
-		err = fmt.Errorf("CreateObject: %v", err)
+		err = fmt.Errorf("CreateObject: %w", err)
 		return
 	}
 
@@ -123,7 +123,7 @@ func (oc *appendObjectCreator) Create(
 			})
 
 		if err == nil && deleteErr != nil {
-			err = fmt.Errorf("DeleteObject: %v", deleteErr)
+			err = fmt.Errorf("DeleteObject: %w", deleteErr)
 		}
 	}()
 
@@ -155,7 +155,7 @@ func (oc *appendObjectCreator) Create(
 
 	case *gcs.PreconditionError:
 		err = &gcs.PreconditionError{
-			Err: fmt.Errorf("ComposeObjects: %v", typed.Err),
+			Err: fmt.Errorf("ComposeObjects: %w", typed.Err),
 		}
 		return
 
@@ -165,13 +165,13 @@ func (oc *appendObjectCreator) Create(
 	case *gcs.NotFoundError:
 		err = &gcs.PreconditionError{
 			Err: fmt.Errorf(
-				"Synthesized precondition error for ComposeObjects. Original: %v",
+				"Synthesized precondition error for ComposeObjects. Original: %w",
 				err),
 		}
 		return
 
 	default:
-		err = fmt.Errorf("ComposeObjects: %v", err)
+		err = fmt.Errorf("ComposeObjects: %w", err)
 		return
 	}
 

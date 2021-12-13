@@ -17,6 +17,7 @@ package gcsx
 import (
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"time"
 
@@ -74,32 +75,36 @@ type StatResult struct {
 // supplied reader. dir is a directory on whose file system the inode will live,
 // or the system default temporary location if empty.
 func NewTempFile(
-	content io.Reader,
+	source io.ReadCloser,
 	dir string,
 	clock timeutil.Clock) (tf TempFile, err error) {
 	// Create an anonymous file to wrap. When we close it, its resources will be
 	// magically cleaned up.
 	f, err := fsutil.AnonymousFile(dir)
 	if err != nil {
-		err = fmt.Errorf("AnonymousFile: %v", err)
-		return
-	}
-
-	// Copy into the file.
-	size, err := io.Copy(f, content)
-	if err != nil {
-		err = fmt.Errorf("copy: %v", err)
+		err = fmt.Errorf("AnonymousFile: %w", err)
 		return
 	}
 
 	tf = &tempFile{
+		source:         source,
+		state:          fileIncomplete,
 		clock:          clock,
 		f:              f,
-		dirtyThreshold: size,
+		dirtyThreshold: 0,
 	}
 
 	return
 }
+
+type fileState string
+
+const (
+	fileIncomplete fileState = "fileIncomplete"
+	fileComplete             = "fileComplete"
+	fileDirty                = "fileDirty"
+	fileDestroyed            = "fileDestroyed"
+)
 
 type tempFile struct {
 	/////////////////////////
@@ -108,11 +113,12 @@ type tempFile struct {
 
 	clock timeutil.Clock
 
+	source io.ReadCloser
+
 	/////////////////////////
 	// Mutable state
 	/////////////////////////
-
-	destroyed bool
+	state fileState
 
 	// A file containing our current contents.
 	f *os.File
@@ -134,41 +140,41 @@ type tempFile struct {
 ////////////////////////////////////////////////////////////////////////
 
 func (tf *tempFile) CheckInvariants() {
-	if tf.destroyed {
+	if tf.state == fileDestroyed {
 		panic("Use of destroyed tempFile object.")
 	}
 
 	// Restore the seek position after using Stat below.
 	pos, err := tf.Seek(0, 1)
 	if err != nil {
-		panic(fmt.Sprintf("Seek: %v", err))
+		panic(fmt.Errorf("Seek: %w", err))
 	}
 
 	defer func() {
 		_, err := tf.Seek(pos, 0)
 		if err != nil {
-			panic(fmt.Sprintf("Seek: %v", err))
+			panic(fmt.Errorf("Seek: %w", err))
 		}
 	}()
 
 	// INVARIANT: Stat().DirtyThreshold <= Stat().Size
 	sr, err := tf.Stat()
 	if err != nil {
-		panic(fmt.Sprintf("Stat: %v", err))
+		panic(fmt.Errorf("Stat: %w", err))
 	}
 
 	if !(sr.DirtyThreshold <= sr.Size) {
-		panic(fmt.Sprintf("Mismatch: %d vs. %d", sr.DirtyThreshold, sr.Size))
+		panic(fmt.Errorf("Mismatch: %d vs. %d", sr.DirtyThreshold, sr.Size))
 	}
 
 	// INVARIANT: mtime == nil => Stat().DirtyThreshold == Stat().Size
 	if tf.mtime == nil && sr.DirtyThreshold != sr.Size {
-		panic(fmt.Sprintf("Mismatch: %d vs. %d", sr.DirtyThreshold, sr.Size))
+		panic(fmt.Errorf("Mismatch: %d vs. %d", sr.DirtyThreshold, sr.Size))
 	}
 }
 
 func (tf *tempFile) Destroy() {
-	tf.destroyed = true
+	tf.state = fileDestroyed
 
 	// Throw away the file.
 	tf.f.Close()
@@ -176,25 +182,42 @@ func (tf *tempFile) Destroy() {
 }
 
 func (tf *tempFile) Read(p []byte) (int, error) {
+	err := tf.ensureComplete()
+	if err != nil {
+		return 0, fmt.Errorf("Cannot Read incomplete file: %w", err)
+	}
 	return tf.f.Read(p)
 }
 
 func (tf *tempFile) Seek(offset int64, whence int) (int64, error) {
+	err := tf.ensureComplete()
+	if err != nil {
+		return 0, fmt.Errorf("Cannot Seek incomplete file: %w", err)
+	}
 	return tf.f.Seek(offset, whence)
 }
 
 func (tf *tempFile) ReadAt(p []byte, offset int64) (int, error) {
+	err := tf.ensureComplete()
+	if err != nil {
+		return 0, fmt.Errorf("Cannot ReadAt incomplete file: %w", err)
+	}
 	return tf.f.ReadAt(p, offset)
 }
 
 func (tf *tempFile) Stat() (sr StatResult, err error) {
+	err = tf.ensureComplete()
+	if err != nil {
+		err = fmt.Errorf("Cannot Stat incomplete file: %w", err)
+		return
+	}
 	sr.DirtyThreshold = tf.dirtyThreshold
 	sr.Mtime = tf.mtime
 
 	// Get the size from the file.
 	sr.Size, err = tf.f.Seek(0, 2)
 	if err != nil {
-		err = fmt.Errorf("Seek: %v", err)
+		err = fmt.Errorf("Seek: %w", err)
 		return
 	}
 
@@ -202,8 +225,15 @@ func (tf *tempFile) Stat() (sr StatResult, err error) {
 }
 
 func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
+	err := tf.ensureComplete()
+	if err != nil {
+		return 0, fmt.Errorf("Cannot WriteAt incomplete file: %w", err)
+	}
+
 	// Update our state regarding being dirty.
 	tf.dirtyThreshold = minInt64(tf.dirtyThreshold, offset)
+
+	tf.state = fileDirty
 
 	newMtime := tf.clock.Now()
 	tf.mtime = &newMtime
@@ -213,8 +243,15 @@ func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
 }
 
 func (tf *tempFile) Truncate(n int64) error {
+	err := tf.ensureComplete()
+	if err != nil {
+		return fmt.Errorf("Cannot Truncate incomplete file: %w", err)
+	}
+
 	// Update our state regarding being dirty.
 	tf.dirtyThreshold = minInt64(tf.dirtyThreshold, n)
+
+	tf.state = fileDirty
 
 	newMtime := tf.clock.Now()
 	tf.mtime = &newMtime
@@ -237,4 +274,44 @@ func minInt64(a int64, b int64) int64 {
 	}
 
 	return b
+}
+
+const (
+	minCopyLength = 64 * 1024 * 1024 // 64 MB
+)
+
+func (tf *tempFile) ensure(limit int64) error {
+	switch tf.state {
+	case fileIncomplete:
+		size, err := tf.f.Seek(0, 2)
+		if size >= limit {
+			return nil
+		}
+		n := limit - size
+		if n < minCopyLength {
+			n = minCopyLength
+		}
+		n, err = io.CopyN(tf.f, tf.source, n)
+		if err == io.EOF {
+			tf.source.Close()
+			tf.dirtyThreshold = size + n
+			tf.state = fileComplete
+			err = nil
+		}
+		return err
+	case fileComplete, fileDirty:
+		// already completed
+		return nil
+	case fileDestroyed:
+		return fmt.Errorf("file destroyed")
+	}
+	return nil
+}
+
+func (tf *tempFile) ensureComplete() error {
+	err := tf.ensure(math.MaxInt64)
+	if err != nil {
+		err = fmt.Errorf("load temp file: %w", err)
+	}
+	return err
 }

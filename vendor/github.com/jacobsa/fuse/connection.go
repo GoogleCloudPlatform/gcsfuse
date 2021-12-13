@@ -15,6 +15,7 @@
 package fuse
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -23,8 +24,6 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
-
-	"golang.org/x/net/context"
 
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/internal/buffer"
@@ -96,8 +95,8 @@ func newConnection(
 	cfg MountConfig,
 	debugLogger *log.Logger,
 	errorLogger *log.Logger,
-	dev *os.File) (c *Connection, err error) {
-	c = &Connection{
+	dev *os.File) (*Connection, error) {
+	c := &Connection{
 		cfg:         cfg,
 		debugLogger: debugLogger,
 		errorLogger: errorLogger,
@@ -106,30 +105,26 @@ func newConnection(
 	}
 
 	// Initialize.
-	err = c.Init()
-	if err != nil {
+	if err := c.Init(); err != nil {
 		c.close()
-		err = fmt.Errorf("Init: %v", err)
-		return
+		return nil, fmt.Errorf("Init: %v", err)
 	}
 
-	return
+	return c, nil
 }
 
 // Init performs the work necessary to cause the mount process to complete.
-func (c *Connection) Init() (err error) {
+func (c *Connection) Init() error {
 	// Read the init op.
 	ctx, op, err := c.ReadOp()
 	if err != nil {
-		err = fmt.Errorf("Reading init op: %v", err)
-		return
+		return fmt.Errorf("Reading init op: %v", err)
 	}
 
 	initOp, ok := op.(*initOp)
 	if !ok {
 		c.Reply(ctx, syscall.EPROTO)
-		err = fmt.Errorf("Expected *initOp, got %T", op)
-		return
+		return fmt.Errorf("Expected *initOp, got %T", op)
 	}
 
 	// Make sure the protocol version spoken by the kernel is new enough.
@@ -140,8 +135,7 @@ func (c *Connection) Init() (err error) {
 
 	if initOp.Kernel.LT(min) {
 		c.Reply(ctx, syscall.EPROTO)
-		err = fmt.Errorf("Version too old: %v", initOp.Kernel)
-		return
+		return fmt.Errorf("Version too old: %v", initOp.Kernel)
 	}
 
 	// Downgrade our protocol if necessary.
@@ -154,6 +148,10 @@ func (c *Connection) Init() (err error) {
 		c.protocol = initOp.Kernel
 	}
 
+	cacheSymlinks := initOp.Flags&fusekernel.InitCacheSymlinks > 0
+	noOpenSupport := initOp.Flags&fusekernel.InitNoOpenSupport > 0
+	noOpendirSupport := initOp.Flags&fusekernel.InitNoOpendirSupport > 0
+
 	// Respond to the init op.
 	initOp.Library = c.protocol
 	initOp.MaxReadahead = maxReadahead
@@ -164,13 +162,39 @@ func (c *Connection) Init() (err error) {
 	// Tell the kernel not to use pitifully small 4 KiB writes.
 	initOp.Flags |= fusekernel.InitBigWrites
 
+	if c.cfg.EnableAsyncReads {
+		initOp.Flags |= fusekernel.InitAsyncRead
+	}
+
+	// kernel 4.20 increases the max from 32 -> 256
+	initOp.Flags |= fusekernel.InitMaxPages
+	initOp.MaxPages = 256
+
 	// Enable writeback caching if the user hasn't asked us not to.
 	if !c.cfg.DisableWritebackCaching {
 		initOp.Flags |= fusekernel.InitWritebackCache
 	}
 
+	// Enable caching symlink targets in the kernel page cache if the user opted
+	// into it (might require fixing the size field of inode attributes first):
+	if c.cfg.EnableSymlinkCaching && cacheSymlinks {
+		initOp.Flags |= fusekernel.InitCacheSymlinks
+	}
+
+	// Tell the kernel to treat returning -ENOSYS on OpenFile as not needing
+	// OpenFile calls at all (Linux >= 3.16):
+	if c.cfg.EnableNoOpenSupport && noOpenSupport {
+		initOp.Flags |= fusekernel.InitNoOpenSupport
+	}
+
+	// Tell the kernel to treat returning -ENOSYS on OpenDir as not needing
+	// OpenDir calls at all (Linux >= 5.1):
+	if c.cfg.EnableNoOpendirSupport && noOpendirSupport {
+		initOp.Flags |= fusekernel.InitNoOpendirSupport
+	}
+
 	c.Reply(ctx, nil)
-	return
+	return nil
 }
 
 // Log information for an operation with the given ID. calldepth is the depth
@@ -229,9 +253,9 @@ func (c *Connection) recordCancelFunc(
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) beginOp(
 	opCode uint32,
-	fuseID uint64) (ctx context.Context) {
+	fuseID uint64) context.Context {
 	// Start with the parent context.
-	ctx = c.cfg.OpContext
+	ctx := c.cfg.OpContext
 
 	// Set up a cancellation function.
 	//
@@ -247,7 +271,7 @@ func (c *Connection) beginOp(
 		c.recordCancelFunc(fuseID, cancel)
 	}
 
-	return
+	return ctx
 }
 
 // Clean up all state associated with an op to which the user has responded,
@@ -308,14 +332,14 @@ func (c *Connection) handleInterrupt(fuseID uint64) {
 
 // Read the next message from the kernel. The message must later be destroyed
 // using destroyInMessage.
-func (c *Connection) readMessage() (m *buffer.InMessage, err error) {
+func (c *Connection) readMessage() (*buffer.InMessage, error) {
 	// Allocate a message.
-	m = c.getInMessage()
+	m := c.getInMessage()
 
 	// Loop past transient errors.
 	for {
 		// Attempt a reaed.
-		err = m.Init(c.dev)
+		err := m.Init(c.dev)
 
 		// Special cases:
 		//
@@ -337,28 +361,26 @@ func (c *Connection) readMessage() (m *buffer.InMessage, err error) {
 
 		if err != nil {
 			c.putInMessage(m)
-			m = nil
-			return
+			return nil, err
 		}
 
-		return
+		return m, nil
 	}
 }
 
 // Write the supplied message to the kernel.
-func (c *Connection) writeMessage(msg []byte) (err error) {
+func (c *Connection) writeMessage(msg []byte) error {
 	// Avoid the retry loop in os.File.Write.
 	n, err := syscall.Write(int(c.dev.Fd()), msg)
 	if err != nil {
-		return
+		return err
 	}
 
 	if n != len(msg) {
-		err = fmt.Errorf("Wrote %d bytes; expected %d", n, len(msg))
-		return
+		return fmt.Errorf("Wrote %d bytes; expected %d", n, len(msg))
 	}
 
-	return
+	return nil
 }
 
 // ReadOp consumes the next op from the kernel process, returning the op and a
@@ -372,14 +394,13 @@ func (c *Connection) writeMessage(msg []byte) (err error) {
 // /dev/fuse. It must not be called multiple times concurrently.
 //
 // LOCKS_EXCLUDED(c.mu)
-func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
+func (c *Connection) ReadOp() (_ context.Context, op interface{}, _ error) {
 	// Keep going until we find a request we know how to convert.
 	for {
 		// Read the next message from the kernel.
-		var inMsg *buffer.InMessage
-		inMsg, err = c.readMessage()
+		inMsg, err := c.readMessage()
 		if err != nil {
-			return
+			return nil, nil, err
 		}
 
 		// Convert the message to an op.
@@ -387,8 +408,7 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 		op, err = convertInMessage(inMsg, outMsg, c.protocol)
 		if err != nil {
 			c.putOutMessage(outMsg)
-			err = fmt.Errorf("convertInMessage: %v", err)
-			return
+			return nil, nil, fmt.Errorf("convertInMessage: %v", err)
 		}
 
 		// Choose an ID for this operation for the purposes of logging, and log it.
@@ -403,11 +423,11 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 		}
 
 		// Set up a context that remembers information about this op.
-		ctx = c.beginOp(inMsg.Header().Opcode, inMsg.Header().Unique)
+		ctx := c.beginOp(inMsg.Header().Opcode, inMsg.Header().Unique)
 		ctx = context.WithValue(ctx, contextKey, opState{inMsg, outMsg, op})
 
 		// Return the op to the user.
-		return
+		return ctx, op, nil
 	}
 }
 
@@ -433,8 +453,7 @@ func (c *Connection) shouldLogError(
 		if err == syscall.ENOENT {
 			return false
 		}
-
-	case *fuseops.GetXattrOp:
+	case *fuseops.GetXattrOp, *fuseops.ListXattrOp:
 		if err == syscall.ENODATA || err == syscall.ERANGE {
 			return false
 		}
@@ -500,10 +519,9 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 
 // Close the connection. Must not be called until operations that were read
 // from the connection have been responded to.
-func (c *Connection) close() (err error) {
+func (c *Connection) close() error {
 	// Posix doesn't say that close can be called concurrently with read or
 	// write, but luckily we exclude the possibility of a race by requiring the
 	// user to respond to all ops first.
-	err = c.dev.Close()
-	return
+	return c.dev.Close()
 }

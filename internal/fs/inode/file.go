@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/gcs"
@@ -37,18 +38,17 @@ type FileInode struct {
 	// Dependencies
 	/////////////////////////
 
-	bucket     gcs.Bucket
-	syncer     gcsx.Syncer
+	bucket     gcsx.SyncerBucket
 	mtimeClock timeutil.Clock
 
 	/////////////////////////
 	// Constant data
 	/////////////////////////
 
-	id      fuseops.InodeID
-	name    string
-	attrs   fuseops.InodeAttributes
-	tempDir string
+	id           fuseops.InodeID
+	name         Name
+	attrs        fuseops.InodeAttributes
+	contentCache *contentcache.ContentCache
 
 	/////////////////////////
 	// Mutable state
@@ -63,7 +63,7 @@ type FileInode struct {
 
 	// The source object from which this inode derives.
 	//
-	// INVARIANT: src.Name == name
+	// INVARIANT: src.Name == name.GcsObjectName()
 	//
 	// GUARDED_BY(mu)
 	src gcs.Object
@@ -90,28 +90,33 @@ var _ Inode = &FileInode{}
 // REQUIRES: o.Name[len(o.Name)-1] != '/'
 func NewFileInode(
 	id fuseops.InodeID,
+	name Name,
 	o *gcs.Object,
 	attrs fuseops.InodeAttributes,
-	bucket gcs.Bucket,
-	syncer gcsx.Syncer,
-	tempDir string,
+	bucket gcsx.SyncerBucket,
+	localFileCache bool,
+	contentCache *contentcache.ContentCache,
 	mtimeClock timeutil.Clock) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
-		bucket:     bucket,
-		syncer:     syncer,
-		mtimeClock: mtimeClock,
-		id:         id,
-		name:       o.Name,
-		attrs:      attrs,
-		tempDir:    tempDir,
-		src:        *o,
+		bucket:       bucket,
+		mtimeClock:   mtimeClock,
+		id:           id,
+		name:         name,
+		attrs:        attrs,
+		contentCache: contentCache,
+		src:          *o,
 	}
 
 	f.lc.Init(id)
 
 	// Set up invariant checking.
 	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
+
+	if localFileCache {
+		// The gcs object is cached as local temp file
+		f.ensureContent(context.Background())
+	}
 
 	return
 }
@@ -128,13 +133,17 @@ func (f *FileInode) checkInvariants() {
 
 	// Make sure the name is legal.
 	name := f.Name()
-	if len(name) == 0 || name[len(name)-1] == '/' {
-		panic("Illegal file name: " + name)
+	if !name.IsFile() {
+		panic("Illegal file name: " + name.String())
 	}
 
 	// INVARIANT: src.Name == name
-	if f.src.Name != name {
-		panic(fmt.Sprintf("Name mismatch: %q vs. %q", f.src.Name, name))
+	if f.src.Name != name.GcsObjectName() {
+		panic(fmt.Sprintf(
+			"Name mismatch: %q vs. %q",
+			f.src.Name,
+			name.GcsObjectName(),
+		))
 	}
 
 	// INVARIANT: content.CheckInvariants() does not panic
@@ -146,7 +155,7 @@ func (f *FileInode) checkInvariants() {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
 	// Stat the object in GCS.
-	req := &gcs.StatObjectRequest{Name: f.name}
+	req := &gcs.StatObjectRequest{Name: f.name.GcsObjectName()}
 	o, err := f.bucket.StatObject(ctx, req)
 
 	// Special case: "not found" means we have been clobbered.
@@ -158,7 +167,7 @@ func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
 
 	// Propagate other errors.
 	if err != nil {
-		err = fmt.Errorf("StatObject: %v", err)
+		err = fmt.Errorf("StatObject: %w", err)
 		return
 	}
 
@@ -187,16 +196,15 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		})
 
 	if err != nil {
-		err = fmt.Errorf("NewReader: %v", err)
+		err = fmt.Errorf("NewReader: %w", err)
 		return
 	}
 
-	defer rc.Close()
-
-	// Create a temporary file with its contents.
-	tf, err := gcsx.NewTempFile(rc, f.tempDir, f.mtimeClock)
+	// Create a temporary file with its contents. The temp file
+	// ensures to call Close() on the rc.
+	tf, err := f.contentCache.NewTempFile(rc)
 	if err != nil {
-		err = fmt.Errorf("NewTempFile: %v", err)
+		err = fmt.Errorf("NewTempFile: %w", err)
 		return
 	}
 
@@ -222,7 +230,7 @@ func (f *FileInode) ID() fuseops.InodeID {
 	return f.id
 }
 
-func (f *FileInode) Name() string {
+func (f *FileInode) Name() Name {
 	return f.name
 }
 
@@ -303,7 +311,7 @@ func (f *FileInode) Attributes(
 	if formatted, ok := f.src.Metadata["gcsfuse_mtime"]; ok {
 		attrs.Mtime, err = time.Parse(time.RFC3339Nano, formatted)
 		if err != nil {
-			err = fmt.Errorf("time.Parse(%q): %v", formatted, err)
+			err = fmt.Errorf("time.Parse(%q): %w", formatted, err)
 			return
 		}
 	}
@@ -313,7 +321,7 @@ func (f *FileInode) Attributes(
 		var sr gcsx.StatResult
 		sr, err = f.content.Stat()
 		if err != nil {
-			err = fmt.Errorf("Stat: %v", err)
+			err = fmt.Errorf("Stat: %w", err)
 			return
 		}
 
@@ -327,7 +335,7 @@ func (f *FileInode) Attributes(
 	// unlinked.
 	clobbered, err := f.clobbered(ctx)
 	if err != nil {
-		err = fmt.Errorf("clobbered: %v", err)
+		err = fmt.Errorf("clobbered: %w", err)
 		return
 	}
 
@@ -336,6 +344,10 @@ func (f *FileInode) Attributes(
 	}
 
 	return
+}
+
+func (f *FileInode) Bucket() gcsx.SyncerBucket {
+	return f.bucket
 }
 
 // Serve a read for this file with semantics matching io.ReaderAt.
@@ -351,7 +363,7 @@ func (f *FileInode) Read(
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
-		err = fmt.Errorf("ensureContent: %v", err)
+		err = fmt.Errorf("ensureContent: %w", err)
 		return
 	}
 
@@ -362,7 +374,7 @@ func (f *FileInode) Read(
 		return
 
 	case err != nil:
-		err = fmt.Errorf("content.ReadAt: %v", err)
+		err = fmt.Errorf("content.ReadAt: %w", err)
 		return
 	}
 
@@ -379,7 +391,7 @@ func (f *FileInode) Write(
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
-		err = fmt.Errorf("ensureContent: %v", err)
+		err = fmt.Errorf("ensureContent: %w", err)
 		return
 	}
 
@@ -401,7 +413,7 @@ func (f *FileInode) SetMtime(
 	if f.content != nil {
 		sr, err = f.content.Stat()
 		if err != nil {
-			err = fmt.Errorf("Stat: %v", err)
+			err = fmt.Errorf("Stat: %w", err)
 			return
 		}
 	}
@@ -449,7 +461,7 @@ func (f *FileInode) SetMtime(
 		return
 
 	default:
-		err = fmt.Errorf("UpdateObject: %v", err)
+		err = fmt.Errorf("UpdateObject: %w", err)
 		return
 	}
 }
@@ -470,7 +482,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	}
 
 	// Write out the contents if they are dirty.
-	newObj, err := f.syncer.SyncObject(ctx, &f.src, f.content)
+	newObj, err := f.bucket.SyncObject(ctx, &f.src, f.content)
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.
@@ -480,7 +492,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 
 	// Propagate other errors.
 	if err != nil {
-		err = fmt.Errorf("SyncObject: %v", err)
+		err = fmt.Errorf("SyncObject: %w", err)
 		return
 	}
 
@@ -502,7 +514,7 @@ func (f *FileInode) Truncate(
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
-		err = fmt.Errorf("ensureContent: %v", err)
+		err = fmt.Errorf("ensureContent: %w", err)
 		return
 	}
 

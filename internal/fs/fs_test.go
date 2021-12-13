@@ -30,6 +30,8 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
@@ -58,7 +60,7 @@ func init() {
 
 	go func() {
 		<-c
-		log.Println("Received SIGINT; exiting after this test completes.")
+		logger.Info("Received SIGINT; exiting after this test completes.")
 		StopRunningTests()
 	}()
 }
@@ -79,7 +81,12 @@ type fsTest struct {
 	// rather than creating a default one.
 	mtimeClock timeutil.Clock
 	cacheClock timeutil.SimulatedClock
-	bucket     gcs.Bucket
+
+	// To mount a special bucket, override `bucket`;
+	// To mount multiple buckets, override `buckets`;
+	// Otherwise, a default bucket will be used.
+	bucket  gcs.Bucket
+	buckets map[string]gcs.Bucket
 
 	// Mount information
 	mfs *fuse.MountedFileSystem
@@ -102,12 +109,27 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	t.cacheClock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 	t.serverCfg.CacheClock = &t.cacheClock
 
-	// And the bucket.
-	if t.bucket == nil {
-		t.bucket = gcsfake.NewFakeBucket(t.mtimeClock, "some_bucket")
+	if t.buckets != nil {
+		// mount all buckets
+		t.bucket = nil
+		t.serverCfg.BucketName = ""
+	} else {
+		// mount a single bucket
+		if t.bucket == nil {
+			t.bucket = gcsfake.NewFakeBucket(t.mtimeClock, "some_bucket")
+		}
+		t.serverCfg.BucketName = t.bucket.Name()
+		t.buckets = map[string]gcs.Bucket{t.bucket.Name(): t.bucket}
 	}
 
-	t.serverCfg.Bucket = t.bucket
+	t.serverCfg.BucketManager = &fakeBucketManager{
+		// This bucket manager is allowed to open these buckets
+		buckets: t.buckets,
+		// Configs for the syncer when setting up buckets
+		appendThreshold: 0,
+		tmpObjectPrefix: ".gcsfuse_tmp/",
+	}
+	t.serverCfg.RenameDirLimit = 5
 
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
@@ -117,16 +139,12 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	t.serverCfg.FilePerms = filePerms
 	t.serverCfg.DirPerms = dirPerms
 
-	// Set up the append optimization.
-	t.serverCfg.AppendThreshold = 0
-	t.serverCfg.TmpObjectPrefix = ".gcsfuse_tmp/"
-
 	// Set up a temporary directory for mounting.
 	t.Dir, err = ioutil.TempDir("", "fs_test")
 	AssertEq(nil, err)
 
 	// Create a file system server.
-	server, err := fs.NewServer(&t.serverCfg)
+	server, err := fs.NewServer(t.ctx, &t.serverCfg)
 	AssertEq(nil, err)
 
 	// Mount the file system.
@@ -135,11 +153,11 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 
 	const loggingFlags = log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile
 	if mountCfg.ErrorLogger == nil {
-		mountCfg.ErrorLogger = log.New(os.Stderr, "fuse_errors: ", loggingFlags)
+		mountCfg.ErrorLogger = logger.NewError("fuse_errors: ")
 	}
 
 	if *fDebug {
-		mountCfg.DebugLogger = log.New(os.Stderr, "fuse: ", loggingFlags)
+		mountCfg.DebugLogger = logger.NewDebug("fuse: ")
 	}
 
 	t.mfs, err = fuse.Mount(t.Dir, server, &mountCfg)
@@ -167,7 +185,7 @@ func (t *fsTest) TearDown() {
 		}
 
 		if strings.Contains(err.Error(), "resource busy") {
-			log.Println("Resource busy error while unmounting; trying again")
+			logger.Info("Resource busy error while unmounting; trying again")
 			time.Sleep(delay)
 			delay = time.Duration(1.3 * float64(delay))
 			continue
@@ -183,7 +201,7 @@ func (t *fsTest) TearDown() {
 
 	// Unlink the mount point.
 	if err = os.Remove(t.Dir); err != nil {
-		err = fmt.Errorf("Unlinking mount point: %v", err)
+		err = fmt.Errorf("Unlinking mount point: %w", err)
 		return
 	}
 }
@@ -269,4 +287,36 @@ func currentGid() uint32 {
 	AssertEq(nil, err)
 
 	return uint32(gid)
+}
+
+type fakeBucketManager struct {
+	buckets         map[string]gcs.Bucket
+	appendThreshold int64
+	tmpObjectPrefix string
+}
+
+func (bm *fakeBucketManager) ShutDown() {}
+
+func (bm *fakeBucketManager) ListBuckets(
+	ctx context.Context) (names []string, err error) {
+	for name, _ := range bm.buckets {
+		names = append(names, name)
+	}
+	return
+}
+
+func (bm *fakeBucketManager) SetUpBucket(
+	ctx context.Context,
+	name string) (sb gcsx.SyncerBucket, err error) {
+	bucket, ok := bm.buckets[name]
+	if ok {
+		sb = gcsx.NewSyncerBucket(
+			bm.appendThreshold,
+			bm.tmpObjectPrefix,
+			gcsx.NewContentTypeBucket(bucket),
+		)
+		return
+	}
+	err = fmt.Errorf("Bucket %q does not exist", name)
+	return
 }

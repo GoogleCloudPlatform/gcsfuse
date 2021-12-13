@@ -17,9 +17,16 @@ package gcsx
 import (
 	"fmt"
 	"io"
+	"log"
 
 	"github.com/jacobsa/gcloud/gcs"
+	"go.opencensus.io/stats"
+	"go.opencensus.io/stats/view"
 	"golang.org/x/net/context"
+)
+
+var (
+	readBytes = stats.Int64("read_bytes", "The number of bytes read from GCS", "By")
 )
 
 // MB is 1 Megabyte. (Silly comment to make the lint warning go away)
@@ -39,6 +46,19 @@ const maxReadSize = 8 * MB
 
 // Minimum number of seeks before evaluating if the read pattern is random.
 const minSeeksForRandom = 2
+
+// Initialize the prometheus metrics.
+func init() {
+	v := &view.View{
+		Name:        "gcsfuse_read_bytes",
+		Measure:     readBytes,
+		Description: "The number of bytes read from GCS",
+		Aggregation: view.Sum(),
+	}
+	if err := view.Register(v); err != nil {
+		log.Fatalf("Failed to register the view: %v", err)
+	}
+}
 
 // RandomReader is an object that knows how to read ranges within a particular
 // generation of a particular GCS object. Optimised for (large) sequential reads.
@@ -153,7 +173,7 @@ func (rr *randomReader) ReadAt(
 		if rr.reader == nil {
 			err = rr.startRead(offset, int64(len(p)))
 			if err != nil {
-				err = fmt.Errorf("startRead: %v", err)
+				err = fmt.Errorf("startRead: %w", err)
 				return
 			}
 		}
@@ -205,11 +225,12 @@ func (rr *randomReader) ReadAt(
 
 		case err != nil:
 			// Propagate other errors.
-			err = fmt.Errorf("readFull: %v", err)
+			err = fmt.Errorf("readFull: %w", err)
 			return
 		}
 	}
 
+	stats.Record(ctx, readBytes.M(int64(n)))
 	return
 }
 
@@ -320,7 +341,7 @@ func (rr *randomReader) startRead(
 		})
 
 	if err != nil {
-		err = fmt.Errorf("NewReader: %v", err)
+		err = fmt.Errorf("NewReader: %w", err)
 		return
 	}
 

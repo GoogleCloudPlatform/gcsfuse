@@ -67,7 +67,7 @@ func run(args []string) (err error) {
 	// Assemble binaries, mount(8) helper scripts, etc.
 	buildDir, err := build(commit, version, osys)
 	if err != nil {
-		err = fmt.Errorf("build: %v", err)
+		err = fmt.Errorf("build: %w", err)
 		return
 	}
 
@@ -77,13 +77,13 @@ func run(args []string) (err error) {
 	if osys == "linux" {
 		err = packageDeb(buildDir, version, osys, arch, dstDir)
 		if err != nil {
-			err = fmt.Errorf("packageDeb: %v", err)
+			err = fmt.Errorf("packageDeb: %w", err)
 			return
 		}
 
 		err = packageRpm(buildDir, version, osys, arch, dstDir)
 		if err != nil {
-			err = fmt.Errorf("packageDeb: %v", err)
+			err = fmt.Errorf("packageDeb: %w", err)
 			return
 		}
 	}

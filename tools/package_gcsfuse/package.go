@@ -46,7 +46,7 @@ func packageFpm(
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		err = fmt.Errorf("fpm: %v\nOutput:\n%s", err, output)
+		err = fmt.Errorf("fpm: %w\nOutput:\n%s", err, output)
 		return
 	}
 

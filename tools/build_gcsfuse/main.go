@@ -64,16 +64,22 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		for _, d := range dirs {
 			err = os.Mkdir(path.Join(dstDir, d), 0755)
 			if err != nil {
-				err = fmt.Errorf("Mkdir: %v", err)
+				err = fmt.Errorf("Mkdir: %w", err)
 				return
 			}
 		}
 	}
 
+	pathEnv, exists := os.LookupEnv("PATH")
+	if !exists {
+		err = fmt.Errorf("$PATH not found in OS")
+		return
+	}
+
 	// Create a directory to become GOPATH for our build below.
 	gopath, err := ioutil.TempDir("", "build_gcsfuse_gopath")
 	if err != nil {
-		err = fmt.Errorf("TempDir: %v", err)
+		err = fmt.Errorf("TempDir: %w", err)
 		return
 	}
 	defer os.RemoveAll(gopath)
@@ -82,7 +88,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 	var gocache string
 	gocache, err = ioutil.TempDir("", "build_gcsfuse_gocache")
 	if err != nil {
-		err = fmt.Errorf("TempDir: %v", err)
+		err = fmt.Errorf("TempDir: %w", err)
 		return
 	}
 	defer os.RemoveAll(gocache)
@@ -92,13 +98,13 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 	gcsfuseDir := path.Join(gopath, "src/github.com/googlecloudplatform/gcsfuse")
 	err = os.MkdirAll(path.Dir(gcsfuseDir), 0700)
 	if err != nil {
-		err = fmt.Errorf("MkdirAll: %v", err)
+		err = fmt.Errorf("MkdirAll: %w", err)
 		return
 	}
 
 	err = os.Symlink(srcDir, gcsfuseDir)
 	if err != nil {
-		err = fmt.Errorf("Symlink: %v", err)
+		err = fmt.Errorf("Symlink: %w", err)
 		return
 	}
 
@@ -147,6 +153,8 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		// Set up environment.
 		cmd.Env = []string{
 			"GO15VENDOREXPERIMENT=1",
+			"GO111MODULE=auto",
+			fmt.Sprintf("PATH=%s", pathEnv),
 			fmt.Sprintf("GOROOT=%s", runtime.GOROOT()),
 			fmt.Sprintf("GOPATH=%s", gopath),
 			fmt.Sprintf("GOCACHE=%s", gocache),
@@ -156,7 +164,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		var output []byte
 		output, err = cmd.CombinedOutput()
 		if err != nil {
-			err = fmt.Errorf("Building %s: %v\nOutput:\n%s", bin.outputPath, err, output)
+			err = fmt.Errorf("%v: %w\nOutput:\n%s", cmd, err, output)
 			return
 		}
 	}
@@ -168,7 +176,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 	if osys == "linux" {
 		err = os.Symlink("mount.gcsfuse", path.Join(dstDir, "sbin/mount.fuse.gcsfuse"))
 		if err != nil {
-			err = fmt.Errorf("Symlink: %v", err)
+			err = fmt.Errorf("Symlink: %w", err)
 			return
 		}
 	}
@@ -196,7 +204,7 @@ func copyFile(dst string, src string, perm os.FileMode) (err error) {
 	// Copy contents.
 	_, err = io.Copy(d, s)
 	if err != nil {
-		err = fmt.Errorf("Copy: %v", err)
+		err = fmt.Errorf("Copy: %w", err)
 		return
 	}
 
@@ -225,7 +233,7 @@ func run() (err error) {
 	// Build.
 	err = buildBinaries(dstDir, srcDir, version, buildArgs)
 	if err != nil {
-		err = fmt.Errorf("buildBinaries: %v", err)
+		err = fmt.Errorf("buildBinaries: %w", err)
 		return
 	}
 

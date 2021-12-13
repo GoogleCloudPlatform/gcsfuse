@@ -62,6 +62,18 @@ kernel to cache inode attributes. Caching these can help with file system
 performance, since otherwise the kernel must send a request for inode attributes
 to gcsfuse for each call to `write(2)`, `stat(2)`, and others.
 
+The size of the stat cache can also be configured with `--stat-cache-capacity`.
+By default the stat cache will hold up to 4096 items. If you have folders
+containing more than 4096 items (folders or files) you may want to increase this,
+otherwise the caching will not function properly when listing that folder's contents:
+
+* ListObjects will return information on the items within the folder. Each item's data is cached
+* Because there are more objects than cache capacity, the earliest entries will be evicted
+* The linux kernel then asks for a little more information on each file.
+* As the earliest cache entries were evicted, this is a fresh GetObjectDetails request
+* This cycle repeats and sends a GetObjectDetails request for every item in the folder, as though
+  caching were disabled
+
 **Warning**: Using stat caching breaks the consistency guarantees discussed in
 this document. It is safe only in the following situations:
 
@@ -101,7 +113,7 @@ To alleviate this, gcsfuse supports a "type cache" on directory inodes. When
 the name of its children to whether those children are known to be files or
 directories or both. When a child is looked up, if the parent's cache says that
 the child is a file but not a directory, only one GCS object will need to be
-statted. Similarly if the child is a directory but not a file.
+stated. Similarly if the child is a directory but not a file.
 
 **Warning**: Using type caching breaks the consistency guarantees discussed in
 this document. It is safe only in the following situations:
@@ -405,7 +417,7 @@ permission bits `0755` (but see below for issues with use by other users).
 Changing inode mode (using `chmod(2)` or similar) is unsupported, and changes
 are silently ignored.
 
-These defaults can be overriden with the `--uid`, `--gid`, `--file-mode`, and
+These defaults can be overridden with the `--uid`, `--gid`, `--file-mode`, and
 `--dir-mode` flags.
 
 <a name="permissions-fuse"></a>
@@ -520,11 +532,16 @@ See the notes on [fuseops.FlushFileOp][flush-op] for more details.
 
 Not all of the usual file system features are supported. Most prominently:
 
-*   Renaming directories is not supported. A directory rename cannot be
-    performed atomically in GCS and would therefore be arbitrarily expensive in
-    terms of GCS operations, and for large directories would have high
+*   Renaming directories is by default not supported. A directory rename cannot 
+    be performed atomically in GCS and would therefore be arbitrarily expensive 
+    in terms of GCS operations, and for large directories would have high
     probability of failure, leaving the two directories in an inconsistent
-    state.
+    state. 
+
+    *  However, if your application can tolerate the risks, you may enable
+       renaming directories in a non-atomic way in gcsfuse starting v0.35.0,
+       by setting `--rename-dir-limit`. If a directory contains fewer files
+       than this limit and no subdirectory, it can be renamed.
 
 *   File and directory permissions and ownership cannot be changed. See the
     [section](#permissions-and-ownership) above.

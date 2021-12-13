@@ -195,6 +195,7 @@ func (b *bucket) mintObject(
 	req *gcs.CreateObjectRequest,
 	contents []byte) (o fakeObject) {
 	md5Sum := md5.Sum(contents)
+	crc32c := crc32.Checksum(contents, crc32cTable)
 
 	// Set up basic info.
 	b.prevGeneration++
@@ -208,7 +209,7 @@ func (b *bucket) mintObject(
 		ContentEncoding: req.ContentEncoding,
 		ComponentCount:  1,
 		MD5:             &md5Sum,
-		CRC32C:          crc32.Checksum(contents, crc32cTable),
+		CRC32C:          &crc32c,
 		MediaLink:       "http://localhost/download/storage/fake/" + req.Name,
 		Metadata:        copyMetadata(req.Metadata),
 		Generation:      b.prevGeneration,

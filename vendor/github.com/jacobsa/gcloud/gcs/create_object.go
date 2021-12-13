@@ -66,7 +66,8 @@ func (b *bucket) startResumableUpload(
 	// 3986.
 	bucketSegment := httputil.EncodePathSegment(b.Name())
 	opaque := fmt.Sprintf(
-		"//www.googleapis.com/upload/storage/v1/b/%s/o",
+		"//%s/upload/storage/v1/b/%s/o",
+		b.url.Host,
 		bucketSegment)
 
 	query := make(url.Values)
@@ -84,8 +85,8 @@ func (b *bucket) startResumableUpload(
 	}
 
 	url := &url.URL{
-		Scheme:   "https",
-		Host:     "www.googleapis.com",
+		Scheme:   b.url.Scheme,
+		Host:     b.url.Host,
 		Opaque:   opaque,
 		RawQuery: query.Encode(),
 	}

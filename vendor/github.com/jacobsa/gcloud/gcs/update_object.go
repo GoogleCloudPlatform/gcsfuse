@@ -66,7 +66,7 @@ func (b *bucket) makeUpdateObjectBody(
 	// Set up a reader.
 	r, err := googleapi.WithoutDataWrapper.JSONReader(jsonMap)
 	if err != nil {
-		err = fmt.Errorf("JSONReader", err)
+		err = fmt.Errorf("JSONReader: %v", err)
 		return
 	}
 
@@ -86,7 +86,8 @@ func (b *bucket) UpdateObject(
 	req *UpdateObjectRequest) (o *Object, err error) {
 	// Construct an appropriate URL (cf. http://goo.gl/B46IDy).
 	opaque := fmt.Sprintf(
-		"//www.googleapis.com/storage/v1/b/%s/o/%s",
+		"//%s/storage/v1/b/%s/o/%s",
+		b.url.Host,
 		httputil.EncodePathSegment(b.Name()),
 		httputil.EncodePathSegment(req.Name))
 
@@ -104,8 +105,8 @@ func (b *bucket) UpdateObject(
 	}
 
 	url := &url.URL{
-		Scheme:   "https",
-		Host:     "www.googleapis.com",
+		Scheme:   b.url.Scheme,
+		Host:     b.url.Host,
 		Opaque:   opaque,
 		RawQuery: query.Encode(),
 	}

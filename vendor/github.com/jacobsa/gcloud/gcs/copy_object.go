@@ -42,7 +42,8 @@ func (b *bucket) CopyObject(
 
 	// Construct an appropriate URL (cf. https://goo.gl/A41CyJ).
 	opaque := fmt.Sprintf(
-		"//www.googleapis.com/storage/v1/b/%s/o/%s/copyTo/b/%s/o/%s",
+		"//%s/storage/v1/b/%s/o/%s/copyTo/b/%s/o/%s",
+		b.url.Host,
 		httputil.EncodePathSegment(b.Name()),
 		httputil.EncodePathSegment(req.SrcName),
 		httputil.EncodePathSegment(b.Name()),
@@ -62,8 +63,8 @@ func (b *bucket) CopyObject(
 	}
 
 	url := &url.URL{
-		Scheme:   "https",
-		Host:     "www.googleapis.com",
+		Scheme:   b.url.Scheme,
+		Host:     b.url.Host,
 		Opaque:   opaque,
 		RawQuery: query.Encode(),
 	}

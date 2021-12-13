@@ -56,7 +56,7 @@ func run() (err error) {
 
 	f, err := ioutil.TempFile(*fDir, "sequential_read")
 	if err != nil {
-		err = fmt.Errorf("TempFile: %v", err)
+		err = fmt.Errorf("TempFile: %w", err)
 		return
 	}
 
@@ -72,14 +72,14 @@ func run() (err error) {
 	log.Printf("Writing %d random bytes.", *fFileSize)
 	_, err = io.Copy(f, io.LimitReader(rand.Reader, *fFileSize))
 	if err != nil {
-		err = fmt.Errorf("Copying random bytes: %v", err)
+		err = fmt.Errorf("Copying random bytes: %w", err)
 		return
 	}
 
 	// Finish off the file.
 	err = f.Close()
 	if err != nil {
-		err = fmt.Errorf("Closing file: %v", err)
+		err = fmt.Errorf("Closing file: %w", err)
 		return
 	}
 
@@ -95,7 +95,7 @@ func run() (err error) {
 		// Open the file for reading.
 		f, err = os.Open(path)
 		if err != nil {
-			err = fmt.Errorf("Opening file: %v", err)
+			err = fmt.Errorf("Opening file: %w", err)
 			return
 		}
 
@@ -114,14 +114,14 @@ func run() (err error) {
 			err = nil
 
 		case err != nil:
-			err = fmt.Errorf("Reading: %v", err)
+			err = fmt.Errorf("Reading: %w", err)
 			return
 		}
 
 		// Close the file.
 		err = f.Close()
 		if err != nil {
-			err = fmt.Errorf("Closing file after reading: %v", err)
+			err = fmt.Errorf("Closing file after reading: %w", err)
 			return
 		}
 	}

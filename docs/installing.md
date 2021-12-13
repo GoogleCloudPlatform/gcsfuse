@@ -10,10 +10,10 @@ If you are running on [Google Compute Engine][], it is recommended that you use
 one of the following images with which it has been tested (preferring the
 latest version when possible):
 
-*   `ubuntu-1804-lts`, `ubuntu-1604-lts`, and `ubuntu-1404-lts`
+*   `ubuntu-2004-lts`, `ubuntu-1804-lts`, `ubuntu-1604-lts`, and `ubuntu-1404-lts`
 *   `debian-8`, `debian-7`
-*   `centos-7`, `centos-6`
-*   `rhel-7`, `rhel-6`
+*   `centos-8`, `centos-7`
+*   `rhel-7`
 *   `sles-12`
 
 [Google Compute Engine]: https://cloud.google.com/compute/
@@ -30,7 +30,7 @@ The instructions vary by distribution.
 ## Ubuntu and Debian (latest releases)
 
 The following instructions set up `apt-get` to see updates to gcsfuse, and are
-supported for the **bionic**, **artful**, **zesty**, **yakkety**, **xenial**,
+supported for the **focal**, **bionic**, **artful**, **zesty**, **yakkety**, **xenial**,
 and **trusty** [releases][ubuntu-releases] of Ubuntu, and the **jessie** and **stretch**
 [releases][debian-releases] of Debian. (Run `lsb_release -c` to find your
 release codename.) Users of older releases should follow the instructions for
@@ -64,7 +64,7 @@ way: `sudo apt-get update && sudo apt-get upgrade`.
 ## CentOS and Red Hat (latest releases)
 
 The following instructions set up `yum` to see updates to gcsfuse, and work
-for CentOS 7 and RHEL 7. Users of older releases should follow the instructions
+for CentOS 7 and 8 and RHEL 7. Users of older releases should follow the instructions
 for [other distributions](#other-distributions) below.
 
 1.  Configure the gcsfuse repo:
@@ -75,18 +75,12 @@ for [other distributions](#other-distributions) below.
         baseurl=https://packages.cloud.google.com/yum/repos/gcsfuse-el7-x86_64
         enabled=1
         gpgcheck=1
-        repo_gpgcheck=1
+        repo_gpgcheck=0
         gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
                https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
         EOF
 
-2.  Make the system aware of the new repo:
-
-        sudo yum update
-
-    Be sure to answer "yes" to any questions about adding the GPG signing key.
-
-3.  Install gcsfuse:
+2.  Install gcsfuse:
 
         sudo yum install gcsfuse
 
@@ -103,8 +97,8 @@ Ensure that dependencies are present:
 
 Download and install the latest release package:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.27.0/gcsfuse-0.27.0-1.x86_64.rpm
-    sudo rpm --install -p gcsfuse-0.27.0-1.x86_64.rpm
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.38.0/gcsfuse-0.38.0-1.x86_64.rpm
+    sudo rpm --install -p gcsfuse-0.38.0-1.x86_64.rpm
 
 <a name="other-distributions"></a>
 
@@ -124,13 +118,13 @@ Ensure that dependencies are present:
 
 If you are on a distribution that uses `.rpm` files for package management:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.27.0/gcsfuse-0.27.0-1.x86_64.rpm
-    sudo rpm --install -p gcsfuse-0.27.0-1.x86_64.rpm
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.37.0/gcsfuse-0.37.0-1.x86_64.rpm
+    sudo rpm --install -p gcsfuse-0.32.0-1.x86_64.rpm
 
 Or one that uses `.deb` files:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.27.0/gcsfuse_0.27.0_amd64.deb
-    sudo dpkg --install gcsfuse_0.27.0_amd64.deb
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.37.0/gcsfuse_0.37.0_amd64.deb
+    sudo dpkg --install gcsfuse_0.32.0_amd64.deb
 
 On some systems it may be necessary to add the your user account to the `fuse`
 group in order to have permission to run `fusermount` (don't forget to log out
@@ -153,17 +147,22 @@ above and logging out and back in, you may need to fix the permissions:
 
 # OS X
 
+The following describes how to install gcsfuse from homebrew. However, due to
+the dependency on FUSE, homebrew is [deprecating
+gcsfuse](https://github.com/Homebrew/homebrew-core/pull/64491) as a formulae.
+Building from source will be preferred in the future.
+
 First, handle prerequisites:
 
-*   Install [osxfuse](https://osxfuse.github.io/).
 *   Install the [homebrew](http://brew.sh/) package manager.
 
 Afterward, gcsfuse can be installed with `brew`:
 
+    brew install --cask osxfuse
     brew install gcsfuse
     sudo ln -s /usr/local/sbin/mount_gcsfuse /sbin  # For mount(8) support
 
-The second command is only necessary if you want to use gcsfuse with the
+The symlink command is only necessary if you want to use gcsfuse with the
 `mount` command or in your `/etc/fstab` file, as opposed to calling `gcsfuse`
 directly.
 
@@ -171,29 +170,23 @@ In the future gcsfuse can be updated in the usual way for homebrew packages:
 
     brew update && brew upgrade
 
-
 # Building from source
 
 Prerequisites:
 
-*   A working [Go][go] installation at least as new as [commit
-    183cc0c][183cc0c]. See [Installing Go from source][go-setup].
+*   A working [Go][go] installation at least as new as [version
+    1.13][go-version]. See [Installing Go from source][go-setup].
 *   Fuse. See the instructions for the binary release above.
 *   Git. This is probably available as `git` in your package manager.
 
-Because we use the [Go 1.5 vendoring support][183cc0c], you must ensure that
-the appropriate variable is set in your environment:
-
-    export GO15VENDOREXPERIMENT=1
-
 To install or update gcsfuse, run:
 
-    go get -u github.com/googlecloudplatform/gcsfuse
+    GO111MODULE=auto go get -u github.com/googlecloudplatform/gcsfuse
 
 This will fetch the gcsfuse sources to
 `$GOPATH/src/github.com/googlecloudplatform/gcsfuse`, build them, and install a
 binary named `gcsfuse` to `$GOPATH/bin`.
 
 [go]: http://tip.golang.org/doc/install/source
-[183cc0c]: https://github.com/golang/go/commit/183cc0c
+[go-version]: https://github.com/golang/go/releases/tag/go1.13
 [go-setup]: http://golang.org/doc/code.html

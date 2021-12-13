@@ -22,10 +22,11 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
-	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -36,12 +37,13 @@ func mountWithConn(
 	bucketName string,
 	mountPoint string,
 	flags *flagStorage,
-	conn gcs.Conn,
+	conn *gcsx.Connection,
 	status *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
 	if flags.TempDir != "" {
+		logger.Infof("Creating a temporary directory at %q\n", flags.TempDir)
 		var f *os.File
 		f, err = fsutil.AnonymousFile(flags.TempDir)
 		f.Close()
@@ -60,7 +62,7 @@ func mountWithConn(
 	// by root. This is probably not what the user wants, so print a warning.
 	uid, gid, err := perms.MyUserAndGroup()
 	if err != nil {
-		err = fmt.Errorf("MyUserAndGroup: %v", err)
+		err = fmt.Errorf("MyUserAndGroup: %w", err)
 		return
 	}
 
@@ -68,8 +70,7 @@ func mountWithConn(
 		fmt.Fprintln(os.Stdout, `
 WARNING: gcsfuse invoked as root. This will cause all files to be owned by
 root. If this is not what you intended, invoke gcsfuse as the user that will
-be interacting with the file system.
-`)
+be interacting with the file system.`)
 	}
 
 	// Choose UID and GID.
@@ -81,24 +82,26 @@ be interacting with the file system.
 		gid = uint32(flags.Gid)
 	}
 
-	// Set up the bucket.
-	status.Println("Opening bucket...")
-
-	bucket, err := setUpBucket(
-		ctx,
-		flags,
-		conn,
-		bucketName)
-
-	if err != nil {
-		err = fmt.Errorf("setUpBucket: %v", err)
-		return
+	bucketCfg := gcsx.BucketConfig{
+		BillingProject:                     flags.BillingProject,
+		OnlyDir:                            flags.OnlyDir,
+		EgressBandwidthLimitBytesPerSecond: flags.EgressBandwidthLimitBytesPerSecond,
+		OpRateLimitHz:                      flags.OpRateLimitHz,
+		StatCacheCapacity:                  flags.StatCacheCapacity,
+		StatCacheTTL:                       flags.StatCacheTTL,
+		EnableMonitoring:                   flags.MonitoringPort > 0,
+		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
+		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 	}
+	bm := gcsx.NewBucketManager(bucketCfg, conn)
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{
 		CacheClock:             timeutil.RealClock(),
-		Bucket:                 bucket,
+		BucketManager:          bm,
+		BucketName:             bucketName,
+		LocalFileCache:         flags.LocalFileCache,
+		DebugFS:                flags.DebugFS,
 		TempDir:                flags.TempDir,
 		ImplicitDirectories:    flags.ImplicitDirs,
 		InodeAttributeCacheTTL: flags.StatCacheTTL,
@@ -107,34 +110,38 @@ be interacting with the file system.
 		Gid:                    gid,
 		FilePerms:              os.FileMode(flags.FileMode),
 		DirPerms:               os.FileMode(flags.DirMode),
-
-		AppendThreshold: 1 << 21, // 2 MiB, a total guess.
-		TmpObjectPrefix: ".gcsfuse_tmp/",
+		RenameDirLimit:         flags.RenameDirLimit,
 	}
 
-	server, err := fs.NewServer(serverCfg)
+	logger.Infof("Creating a new server...\n")
+	server, err := fs.NewServer(ctx, serverCfg)
 	if err != nil {
-		err = fmt.Errorf("fs.NewServer: %v", err)
+		err = fmt.Errorf("fs.NewServer: %w", err)
 		return
 	}
 
-	// Mount the file system.
-	status.Println("Mounting file system...")
+	fsName := bucketName
+	if bucketName == "" || bucketName == "_" {
+		// mouting all the buckets at once
+		fsName = "gcsfuse"
+	}
 
+	// Mount the file system.
+	status.Printf("Mounting file system %q...", fsName)
 	mountCfg := &fuse.MountConfig{
-		FSName:      bucket.Name(),
-		VolumeName:  bucket.Name(),
+		FSName:      fsName,
+		VolumeName:  "gcsfuse",
 		Options:     flags.MountOptions,
-		ErrorLogger: log.New(os.Stderr, "fuse: ", log.Flags()),
+		ErrorLogger: logger.NewError("fuse: "),
 	}
 
 	if flags.DebugFuse {
-		mountCfg.DebugLogger = log.New(os.Stdout, "fuse_debug: ", log.Flags())
+		mountCfg.DebugLogger = logger.NewDebug("fuse_debug: ")
 	}
 
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
 	if err != nil {
-		err = fmt.Errorf("Mount: %v", err)
+		err = fmt.Errorf("Mount: %w", err)
 		return
 	}
 

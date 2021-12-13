@@ -1,3 +1,4 @@
+[![ci](https://github.com/jacobsa/fuse/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jacobsa/fuse/actions/workflows/ci.yml)
 [![GoDoc](https://godoc.org/github.com/jacobsa/ogletest?status.svg)](https://godoc.org/github.com/jacobsa/fuse)
 
 This package allows for writing and mounting user-space file systems from Go.

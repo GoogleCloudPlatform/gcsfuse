@@ -20,14 +20,12 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
-	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
 
 type FileHandle struct {
-	inode  *inode.FileInode
-	bucket gcs.Bucket
+	inode *inode.FileInode
 
 	mu syncutil.InvariantMutex
 
@@ -40,12 +38,9 @@ type FileHandle struct {
 	reader gcsx.RandomReader
 }
 
-func NewFileHandle(
-	inode *inode.FileInode,
-	bucket gcs.Bucket) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode) (fh *FileHandle) {
 	fh = &FileHandle{
-		inode:  inode,
-		bucket: bucket,
+		inode: inode,
 	}
 
 	fh.mu = syncutil.NewInvariantMutex(fh.checkInvariants)
@@ -90,7 +85,7 @@ func (fh *FileHandle) Read(
 	err = fh.tryEnsureReader()
 	if err != nil {
 		fh.inode.Unlock()
-		err = fmt.Errorf("tryEnsureReader: %v", err)
+		err = fmt.Errorf("tryEnsureReader: %w", err)
 		return
 	}
 
@@ -107,7 +102,7 @@ func (fh *FileHandle) Read(
 			return
 
 		case err != nil:
-			err = fmt.Errorf("fh.reader.ReadAt: %v", err)
+			err = fmt.Errorf("fh.reader.ReadAt: %w", err)
 			return
 		}
 
@@ -162,9 +157,9 @@ func (fh *FileHandle) tryEnsureReader() (err error) {
 	}
 
 	// Attempt to create an appropriate reader.
-	rr, err := gcsx.NewRandomReader(fh.inode.Source(), fh.bucket)
+	rr, err := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket())
 	if err != nil {
-		err = fmt.Errorf("NewRandomReader: %v", err)
+		err = fmt.Errorf("NewRandomReader: %w", err)
 		return
 	}
 

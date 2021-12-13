@@ -44,9 +44,9 @@ import (
 // The FUSE version implemented by the package.
 const (
 	ProtoVersionMinMajor = 7
-	ProtoVersionMinMinor = 8
+	ProtoVersionMinMinor = 19
 	ProtoVersionMaxMajor = 7
-	ProtoVersionMaxMinor = 12
+	ProtoVersionMaxMinor = 31
 )
 
 const (
@@ -248,24 +248,27 @@ var openResponseFlagNames = []flagName{
 type InitFlags uint32
 
 const (
-	InitAsyncRead       InitFlags = 1 << 0
-	InitPosixLocks      InitFlags = 1 << 1
-	InitFileOps         InitFlags = 1 << 2
-	InitAtomicTrunc     InitFlags = 1 << 3
-	InitExportSupport   InitFlags = 1 << 4
-	InitBigWrites       InitFlags = 1 << 5
-	InitDontMask        InitFlags = 1 << 6
-	InitSpliceWrite     InitFlags = 1 << 7
-	InitSpliceMove      InitFlags = 1 << 8
-	InitSpliceRead      InitFlags = 1 << 9
-	InitFlockLocks      InitFlags = 1 << 10
-	InitHasIoctlDir     InitFlags = 1 << 11
-	InitAutoInvalData   InitFlags = 1 << 12
-	InitDoReaddirplus   InitFlags = 1 << 13
-	InitReaddirplusAuto InitFlags = 1 << 14
-	InitAsyncDIO        InitFlags = 1 << 15
-	InitWritebackCache  InitFlags = 1 << 16
-	InitNoOpenSupport   InitFlags = 1 << 17
+	InitAsyncRead        InitFlags = 1 << 0
+	InitPosixLocks       InitFlags = 1 << 1
+	InitFileOps          InitFlags = 1 << 2
+	InitAtomicTrunc      InitFlags = 1 << 3
+	InitExportSupport    InitFlags = 1 << 4
+	InitBigWrites        InitFlags = 1 << 5
+	InitDontMask         InitFlags = 1 << 6
+	InitSpliceWrite      InitFlags = 1 << 7
+	InitSpliceMove       InitFlags = 1 << 8
+	InitSpliceRead       InitFlags = 1 << 9
+	InitFlockLocks       InitFlags = 1 << 10
+	InitHasIoctlDir      InitFlags = 1 << 11
+	InitAutoInvalData    InitFlags = 1 << 12
+	InitDoReaddirplus    InitFlags = 1 << 13
+	InitReaddirplusAuto  InitFlags = 1 << 14
+	InitAsyncDIO         InitFlags = 1 << 15
+	InitWritebackCache   InitFlags = 1 << 16
+	InitNoOpenSupport    InitFlags = 1 << 17
+	InitMaxPages         InitFlags = 1 << 22
+	InitCacheSymlinks    InitFlags = 1 << 23
+	InitNoOpendirSupport InitFlags = 1 << 24
 
 	InitCaseSensitive InitFlags = 1 << 29 // OS X only
 	InitVolRename     InitFlags = 1 << 30 // OS X only
@@ -284,6 +287,7 @@ var initFlagNames = []flagName{
 	{uint32(InitAtomicTrunc), "InitAtomicTrunc"},
 	{uint32(InitExportSupport), "InitExportSupport"},
 	{uint32(InitBigWrites), "InitBigWrites"},
+	{uint32(InitMaxPages), "InitMaxPages"},
 	{uint32(InitDontMask), "InitDontMask"},
 	{uint32(InitSpliceWrite), "InitSpliceWrite"},
 	{uint32(InitSpliceMove), "InitSpliceMove"},
@@ -296,6 +300,8 @@ var initFlagNames = []flagName{
 	{uint32(InitAsyncDIO), "InitAsyncDIO"},
 	{uint32(InitWritebackCache), "InitWritebackCache"},
 	{uint32(InitNoOpenSupport), "InitNoOpenSupport"},
+	{uint32(InitCacheSymlinks), "InitCacheSymlinks"},
+	{uint32(InitNoOpendirSupport), "InitNoOpendirSupport"},
 
 	{uint32(InitCaseSensitive), "InitCaseSensitive"},
 	{uint32(InitVolRename), "InitVolRename"},
@@ -380,6 +386,7 @@ const (
 	OpDestroy     = 38
 	OpIoctl       = 39 // Linux?
 	OpPoll        = 40 // Linux?
+	OpFallocate   = 43
 
 	// OS X
 	OpSetvolname = 61
@@ -665,6 +672,14 @@ type ListxattrIn struct {
 	Padding uint32
 }
 
+type FallocateIn struct {
+	Fh      uint64
+	Offset  uint64
+	Length  uint64
+	Mode    uint32
+	Padding uint32
+}
+
 type LkIn struct {
 	Fh      uint64
 	Owner   uint64
@@ -701,12 +716,17 @@ type InitIn struct {
 const InitInSize = int(unsafe.Sizeof(InitIn{}))
 
 type InitOut struct {
-	Major        uint32
-	Minor        uint32
-	MaxReadahead uint32
-	Flags        uint32
-	Unused       uint32
-	MaxWrite     uint32
+	Major               uint32
+	Minor               uint32
+	MaxReadahead        uint32
+	Flags               uint32
+	MaxBackground       uint16
+	CongestionThreshold uint16
+	MaxWrite            uint32
+	TimeGran            uint32
+	MaxPages            uint16
+	MapAlignment        uint16
+	Unused              [8]uint32
 }
 
 type InterruptIn struct {

@@ -25,16 +25,16 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 // LOCKS_EXCLUDED(c.mu)
-func (c *Connection) getInMessage() (x *buffer.InMessage) {
+func (c *Connection) getInMessage() *buffer.InMessage {
 	c.mu.Lock()
-	x = (*buffer.InMessage)(c.inMessages.Get())
+	x := (*buffer.InMessage)(c.inMessages.Get())
 	c.mu.Unlock()
 
 	if x == nil {
-		x = new(buffer.InMessage)
+		x = buffer.NewInMessage()
 	}
 
-	return
+	return x
 }
 
 // LOCKS_EXCLUDED(c.mu)
@@ -49,9 +49,9 @@ func (c *Connection) putInMessage(x *buffer.InMessage) {
 ////////////////////////////////////////////////////////////////////////
 
 // LOCKS_EXCLUDED(c.mu)
-func (c *Connection) getOutMessage() (x *buffer.OutMessage) {
+func (c *Connection) getOutMessage() *buffer.OutMessage {
 	c.mu.Lock()
-	x = (*buffer.OutMessage)(c.outMessages.Get())
+	x := (*buffer.OutMessage)(c.outMessages.Get())
 	c.mu.Unlock()
 
 	if x == nil {
@@ -59,7 +59,7 @@ func (c *Connection) getOutMessage() (x *buffer.OutMessage) {
 	}
 	x.Reset()
 
-	return
+	return x
 }
 
 // LOCKS_EXCLUDED(c.mu)

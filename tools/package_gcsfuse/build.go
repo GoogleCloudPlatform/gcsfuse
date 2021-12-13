@@ -37,7 +37,7 @@ func build(
 	var gocache string
 	gocache, err = ioutil.TempDir("", "package_gcsfuse_gocache")
 	if err != nil {
-		err = fmt.Errorf("TempDir: %v", err)
+		err = fmt.Errorf("TempDir: %w", err)
 		return
 	}
 	defer os.RemoveAll(gocache)
@@ -46,7 +46,7 @@ func build(
 	// error.
 	dir, err = ioutil.TempDir("", "package_gcsfuse_build")
 	if err != nil {
-		err = fmt.Errorf("TempDir: %v", err)
+		err = fmt.Errorf("TempDir: %w", err)
 		return
 	}
 
@@ -59,7 +59,7 @@ func build(
 	// Create another directory into which we will clone the git repo bloe.
 	gitDir, err := ioutil.TempDir("", "package_gcsfuse_git")
 	if err != nil {
-		err = fmt.Errorf("TempDir: %v", err)
+		err = fmt.Errorf("TempDir: %w", err)
 		return
 	}
 
@@ -79,7 +79,7 @@ func build(
 		var output []byte
 		output, err = cmd.CombinedOutput()
 		if err != nil {
-			err = fmt.Errorf("Cloning: %v\nOutput:\n%s", err, output)
+			err = fmt.Errorf("Cloning: %w\nOutput:\n%s", err, output)
 			return
 		}
 	}
@@ -106,7 +106,7 @@ func build(
 		var output []byte
 		output, err = cmd.CombinedOutput()
 		if err != nil {
-			err = fmt.Errorf("Building build_gcsfuse: %v\nOutput:\n%s", err, output)
+			err = fmt.Errorf("Building build_gcsfuse: %w\nOutput:\n%s", err, output)
 			return
 		}
 	}
@@ -124,7 +124,7 @@ func build(
 		var output []byte
 		output, err = cmd.CombinedOutput()
 		if err != nil {
-			err = fmt.Errorf("go run build_gcsfuse: %v\nOutput:\n%s", err, output)
+			err = fmt.Errorf("go run build_gcsfuse: %w\nOutput:\n%s", err, output)
 			return
 		}
 	}
@@ -138,13 +138,13 @@ func build(
 	// we want the first to live in /usr/bin.
 	err = os.MkdirAll(path.Join(dir, "usr"), 0755)
 	if err != nil {
-		err = fmt.Errorf("MkdirAll: %v", err)
+		err = fmt.Errorf("MkdirAll: %w", err)
 		return
 	}
 
 	err = os.Rename(path.Join(dir, "bin"), path.Join(dir, "usr/bin"))
 	if err != nil {
-		err = fmt.Errorf("Rename: %v", err)
+		err = fmt.Errorf("Rename: %w", err)
 		return
 	}
 

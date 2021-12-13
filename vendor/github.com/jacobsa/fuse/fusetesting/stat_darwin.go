@@ -20,26 +20,20 @@ import (
 )
 
 func extractMtime(sys interface{}) (mtime time.Time, ok bool) {
-	mtime = time.Unix(sys.(*syscall.Stat_t).Mtimespec.Unix())
-	ok = true
-	return
+	return time.Unix(sys.(*syscall.Stat_t).Mtimespec.Unix()), true
 }
 
 func extractBirthtime(sys interface{}) (birthtime time.Time, ok bool) {
-	birthtime = time.Unix(sys.(*syscall.Stat_t).Birthtimespec.Unix())
-	ok = true
-	return
+	return time.Unix(sys.(*syscall.Stat_t).Birthtimespec.Unix()), true
 }
 
 func extractNlink(sys interface{}) (nlink uint64, ok bool) {
-	nlink = uint64(sys.(*syscall.Stat_t).Nlink)
-	ok = true
-	return
+	return uint64(sys.(*syscall.Stat_t).Nlink), true
 }
 
 func getTimes(stat *syscall.Stat_t) (atime, ctime, mtime time.Time) {
 	atime = time.Unix(stat.Atimespec.Unix())
 	ctime = time.Unix(stat.Ctimespec.Unix())
 	mtime = time.Unix(stat.Mtimespec.Unix())
-	return
+	return atime, ctime, mtime
 }

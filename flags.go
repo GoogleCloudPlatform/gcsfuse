@@ -16,12 +16,13 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
 
-	"github.com/codegangsta/cli"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
+	"github.com/urfave/cli"
 )
 
 // Set up custom help text for gcsfuse; in particular the usage section.
@@ -30,7 +31,7 @@ func init() {
    {{.Name}} - {{.Usage}}
 
 USAGE:
-   {{.Name}} {{if .Flags}}[global options]{{end}} bucket mountpoint
+   {{.Name}} {{if .Flags}}[global options]{{end}} [bucket] mountpoint
    {{if .Version}}
 VERSION:
    {{.Version}}
@@ -57,9 +58,15 @@ func newApp() (app *cli.App) {
 	app = &cli.App{
 		Name:    "gcsfuse",
 		Version: getVersion(),
-		Usage:   "Mount a GCS bucket locally",
+		Usage:   "Mount a specified GCS bucket or all accessible buckets locally",
 		Writer:  os.Stderr,
 		Flags: []cli.Flag{
+
+			cli.StringFlag{
+				Name:  "app-name",
+				Value: "",
+				Usage: "The application name of this mount.",
+			},
 
 			cli.BoolFlag{
 				Name:  "foreground",
@@ -110,9 +117,22 @@ func newApp() (app *cli.App) {
 				Usage: "Mount only the given directory, relative to the bucket root.",
 			},
 
+			cli.IntFlag{
+				Name:  "rename-dir-limit",
+				Value: 0,
+				Usage: "Allow rename a directory containing fewer descendants " +
+					"than this limit.",
+			},
+
 			/////////////////////////
 			// GCS
 			/////////////////////////
+
+			cli.StringFlag{
+				Name:  "endpoint",
+				Value: "https://www.googleapis.com:443",
+				Usage: "The endpoint to connect to.",
+			},
 
 			cli.StringFlag{
 				Name:  "billing-project",
@@ -128,6 +148,12 @@ func newApp() (app *cli.App) {
 					"(default: none, Google application default credentials used)",
 			},
 
+			cli.StringFlag{
+				Name:  "token-url",
+				Value: "",
+				Usage: "An url for getting an access token when key-file is absent.",
+			},
+
 			cli.Float64Flag{
 				Name:  "limit-bytes-per-sec",
 				Value: -1,
@@ -137,7 +163,7 @@ func newApp() (app *cli.App) {
 
 			cli.Float64Flag{
 				Name:  "limit-ops-per-sec",
-				Value: 5.0,
+				Value: -1,
 				Usage: "Operations per second limit, measured over a 30-second window " +
 					"(use -1 for no limit)",
 			},
@@ -145,6 +171,21 @@ func newApp() (app *cli.App) {
 			/////////////////////////
 			// Tuning
 			/////////////////////////
+
+			cli.DurationFlag{
+				Name:  "max-retry-sleep",
+				Value: time.Minute,
+				Usage: "The maximum duration allowed to sleep in a retry loop with " +
+					"exponential backoff for failed requests to GCS backend. Once the " +
+					"backoff duration exceeds this limit, the retry stops. The default " +
+					"is 1 minute. A value of 0 disables retries.",
+			},
+
+			cli.IntFlag{
+				Name:  "stat-cache-capacity",
+				Value: 4096,
+				Usage: "How many entries can the stat cache hold (impacts memory consumption)",
+			},
 
 			cli.DurationFlag{
 				Name:  "stat-cache-ttl",
@@ -159,11 +200,59 @@ func newApp() (app *cli.App) {
 					"inodes.",
 			},
 
+			cli.BoolFlag{
+				Name:  "local-file-cache",
+				Usage: "Cache GCS files on local disk for reads.",
+			},
+
 			cli.StringFlag{
 				Name:  "temp-dir",
 				Value: "",
 				Usage: "Absolute path to temporary directory for local GCS object " +
 					"copies. (default: system default, likely /tmp)",
+			},
+
+			cli.BoolFlag{
+				Name: "disable-http2",
+				Usage: "Once set, the protocol used for communicating with " +
+					"GCS backend would be HTTP/1.1, instead of the default HTTP/2.",
+			},
+
+			cli.IntFlag{
+				Name:  "max-conns-per-host",
+				Value: 10,
+				Usage: "The max number of TCP connections allowed per server. " +
+					"This is effective when --disable-http2 is set.",
+			},
+
+			/////////////////////////
+			// Monitoring & Logging
+			/////////////////////////
+
+			cli.IntFlag{
+				Name:  "monitoring-port",
+				Value: 0,
+				Usage: "The port used to export prometheus metrics for monitoring. " +
+					"The default value 0 indicates no monitoring metrics.",
+			},
+
+			cli.DurationFlag{
+				Name:  "stackdriver-export-interval",
+				Usage: "Export metrics to stackdriver with this interval. The default value 0 indicates no exporting.",
+			},
+
+			cli.StringFlag{
+				Name:  "log-file",
+				Value: "",
+				Usage: "The file for storing logs that can be parsed by " +
+					"fluentd. When not provided, plain text logs are printed to " +
+					"stdout.",
+			},
+
+			cli.StringFlag{
+				Name:  "log-format",
+				Value: "json",
+				Usage: "The format of the log file: 'text' or 'json'.",
 			},
 
 			/////////////////////////
@@ -173,6 +262,11 @@ func newApp() (app *cli.App) {
 			cli.BoolFlag{
 				Name:  "debug_fuse",
 				Usage: "Enable fuse-related debugging output.",
+			},
+
+			cli.BoolFlag{
+				Name:  "debug_fs",
+				Usage: "Enable file system debugging output.",
 			},
 
 			cli.BoolFlag{
@@ -189,6 +283,11 @@ func newApp() (app *cli.App) {
 				Name:  "debug_invariants",
 				Usage: "Panic when internal invariants are violated.",
 			},
+
+			cli.BoolFlag{
+				Name:  "debug_mutex",
+				Usage: "Print debug messages when a mutex is held too long.",
+			},
 		},
 	}
 
@@ -196,66 +295,105 @@ func newApp() (app *cli.App) {
 }
 
 type flagStorage struct {
+	AppName    string
 	Foreground bool
 
 	// File system
-	MountOptions map[string]string
-	DirMode      os.FileMode
-	FileMode     os.FileMode
-	Uid          int64
-	Gid          int64
-	ImplicitDirs bool
-	OnlyDir      string
+	MountOptions   map[string]string
+	DirMode        os.FileMode
+	FileMode       os.FileMode
+	Uid            int64
+	Gid            int64
+	ImplicitDirs   bool
+	OnlyDir        string
+	RenameDirLimit int64
 
 	// GCS
+	Endpoint                           *url.URL
 	BillingProject                     string
 	KeyFile                            string
+	TokenUrl                           string
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
 
 	// Tuning
-	StatCacheTTL time.Duration
-	TypeCacheTTL time.Duration
-	TempDir      string
+	MaxRetrySleep     time.Duration
+	StatCacheCapacity int
+	StatCacheTTL      time.Duration
+	TypeCacheTTL      time.Duration
+	LocalFileCache    bool
+	TempDir           string
+	DisableHTTP2      bool
+	MaxConnsPerHost   int
+
+	// Monitoring
+	MonitoringPort            int
+	StackdriverExportInterval time.Duration
+	LogFile                   string
+	LogFormat                 string
 
 	// Debugging
 	DebugFuse       bool
+	DebugFS         bool
 	DebugGCS        bool
 	DebugHTTP       bool
 	DebugInvariants bool
+	DebugMutex      bool
 }
 
 // Add the flags accepted by run to the supplied flag set, returning the
 // variables into which the flags will parse.
 func populateFlags(c *cli.Context) (flags *flagStorage) {
+	endpoint, err := url.Parse(c.String("endpoint"))
+	if err != nil {
+		fmt.Printf("Could not parse endpoint")
+		return nil
+	}
 	flags = &flagStorage{
+		AppName:    c.String("app-name"),
 		Foreground: c.Bool("foreground"),
 
 		// File system
-		MountOptions: make(map[string]string),
-		DirMode:      os.FileMode(*c.Generic("dir-mode").(*OctalInt)),
-		FileMode:     os.FileMode(*c.Generic("file-mode").(*OctalInt)),
-		Uid:          int64(c.Int("uid")),
-		Gid:          int64(c.Int("gid")),
-		ImplicitDirs: c.Bool("implicit-dirs"),
-		OnlyDir:      c.String("only-dir"),
+		MountOptions:   make(map[string]string),
+		DirMode:        os.FileMode(*c.Generic("dir-mode").(*OctalInt)),
+		FileMode:       os.FileMode(*c.Generic("file-mode").(*OctalInt)),
+		Uid:            int64(c.Int("uid")),
+		Gid:            int64(c.Int("gid")),
+		ImplicitDirs:   c.Bool("implicit-dirs"),
+		OnlyDir:        c.String("only-dir"),
+		RenameDirLimit: int64(c.Int("rename-dir-limit")),
 
 		// GCS,
-		BillingProject: c.String("billing-project"),
-		KeyFile:        c.String("key-file"),
+		Endpoint:                           endpoint,
+		BillingProject:                     c.String("billing-project"),
+		KeyFile:                            c.String("key-file"),
+		TokenUrl:                           c.String("token-url"),
 		EgressBandwidthLimitBytesPerSecond: c.Float64("limit-bytes-per-sec"),
 		OpRateLimitHz:                      c.Float64("limit-ops-per-sec"),
 
 		// Tuning,
-		StatCacheTTL: c.Duration("stat-cache-ttl"),
-		TypeCacheTTL: c.Duration("type-cache-ttl"),
-		TempDir:      c.String("temp-dir"),
+		MaxRetrySleep:     c.Duration("max-retry-sleep"),
+		StatCacheCapacity: c.Int("stat-cache-capacity"),
+		StatCacheTTL:      c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:      c.Duration("type-cache-ttl"),
+		LocalFileCache:    c.Bool("local-file-cache"),
+		TempDir:           c.String("temp-dir"),
+		DisableHTTP2:      c.Bool("disable-http2"),
+		MaxConnsPerHost:   c.Int("max-conns-per-host"),
+
+		// Monitoring
+		MonitoringPort:            c.Int("monitoring-port"),
+		StackdriverExportInterval: c.Duration("stackdriver-export-interval"),
+		LogFile:                   c.String("log-file"),
+		LogFormat:                 c.String("log-format"),
 
 		// Debugging,
 		DebugFuse:       c.Bool("debug_fuse"),
 		DebugGCS:        c.Bool("debug_gcs"),
+		DebugFS:         c.Bool("debug_fs"),
 		DebugHTTP:       c.Bool("debug_http"),
 		DebugInvariants: c.Bool("debug_invariants"),
+		DebugMutex:      c.Bool("debug_mutex"),
 	}
 
 	// Handle the repeated "-o" flag.
@@ -275,7 +413,7 @@ var _ cli.Generic = (*OctalInt)(nil)
 func (oi *OctalInt) Set(value string) (err error) {
 	tmp, err := strconv.ParseInt(value, 8, 32)
 	if err != nil {
-		err = fmt.Errorf("Parsing as octal: %v", err)
+		err = fmt.Errorf("Parsing as octal: %w", err)
 		return
 	}
 

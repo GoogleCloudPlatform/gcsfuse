@@ -49,7 +49,7 @@ func run() (err error) {
 
 	f, err := ioutil.TempFile(*fDir, "write_to_gcs")
 	if err != nil {
-		err = fmt.Errorf("TempFile: %v", err)
+		err = fmt.Errorf("TempFile: %w", err)
 		return
 	}
 
@@ -80,7 +80,7 @@ func run() (err error) {
 		// Write them.
 		_, err = f.Write(buf)
 		if err != nil {
-			err = fmt.Errorf("Write: %v", err)
+			err = fmt.Errorf("Write: %w", err)
 			return
 		}
 
@@ -97,7 +97,7 @@ func run() (err error) {
 	closeDuration := time.Since(start)
 
 	if err != nil {
-		err = fmt.Errorf("Close: %v", err)
+		err = fmt.Errorf("Close: %w", err)
 		return
 	}
 

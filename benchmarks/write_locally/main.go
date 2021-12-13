@@ -50,7 +50,7 @@ func run() (err error) {
 
 	f, err := ioutil.TempFile(*fDir, "write_locally")
 	if err != nil {
-		err = fmt.Errorf("TempFile: %v", err)
+		err = fmt.Errorf("TempFile: %w", err)
 		return
 	}
 
@@ -71,7 +71,7 @@ func run() (err error) {
 
 	err = f.Truncate(*fFileSize)
 	if err != nil {
-		err = fmt.Errorf("Truncate: %v", err)
+		err = fmt.Errorf("Truncate: %w", err)
 		return
 	}
 
@@ -88,7 +88,7 @@ func run() (err error) {
 		// Seek to the beginning.
 		_, err = f.Seek(0, 0)
 		if err != nil {
-			err = fmt.Errorf("Seek: %v", err)
+			err = fmt.Errorf("Seek: %w", err)
 			return
 		}
 
@@ -103,7 +103,7 @@ func run() (err error) {
 			var tmp int
 			tmp, err = f.Write(buf)
 			if err != nil {
-				err = fmt.Errorf("Write: %v", err)
+				err = fmt.Errorf("Write: %w", err)
 				return
 			}
 

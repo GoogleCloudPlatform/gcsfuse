@@ -32,7 +32,7 @@ See [installing.md][] for full installation instructions for Linux and Mac OS X.
 your bucket doesn't yet exist, create one using the
 [Google Developers Console][console].
 
-[console]: https://console.developers.google.com
+[console]: https://console.cloud.google.com
 
 * Make sure [the Google Cloud Storage JSON API is enabled][enableAPI].
 
@@ -77,7 +77,7 @@ notes in [semantics.md][semantics-implicit-dirs] for more information.
 [semantics-implicit-dirs]: docs/semantics.md#implicit-directories
 
 See [mounting.md][] for more detail, including notes on running in the
-foreground and fstab compatiblity.
+foreground and fstab compatibility.
 
 [mounting.md]: /docs/mounting.md
 
@@ -113,11 +113,18 @@ All rate limiting is approximate, and is performed over an 8-hour window. By
 default, requests are limited to 5 per second. There is no limit applied to
 bandwidth by default.
 
+## Upload procedure control
+
+An upload procedure is implemented as a retry loop with exponential backoff 
+for failed requests to the GCS backend. Once the backoff duration exceeds this 
+limit, the retry stops. Flag `--max-retry-sleep` controls such behavior.
+The default is 1 minute. A value of 0 disables retries.
+
 ## GCS round trips
 
 By default, gcsfuse uses two forms of caching to save round trips to GCS, at the
 cost of consistency guarantees. These caching behaviors can be controlled with
-the flags `--stat-cache-ttl` and `--type-cache-ttl`. See
+the flags `--stat-cache-capacity`, `--stat-cache-ttl` and `--type-cache-ttl`. See
 [semantics.md](docs/semantics.md#caching) for more information.
 
 ## Timeouts

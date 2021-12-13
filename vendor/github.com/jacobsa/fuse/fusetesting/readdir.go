@@ -37,8 +37,7 @@ func ReadDirPicky(dirname string) (entries []os.FileInfo, err error) {
 	// Open the directory.
 	f, err := os.Open(dirname)
 	if err != nil {
-		err = fmt.Errorf("Open: %v", err)
-		return
+		return nil, fmt.Errorf("Open: %v", err)
 	}
 
 	// Don't forget to close it later.
@@ -52,8 +51,7 @@ func ReadDirPicky(dirname string) (entries []os.FileInfo, err error) {
 	// Read all of the names from the directory.
 	names, err := f.Readdirnames(-1)
 	if err != nil {
-		err = fmt.Errorf("Readdirnames: %v", err)
-		return
+		return nil, fmt.Errorf("Readdirnames: %v", err)
 	}
 
 	// Stat each one.
@@ -62,8 +60,7 @@ func ReadDirPicky(dirname string) (entries []os.FileInfo, err error) {
 
 		fi, err = os.Lstat(path.Join(dirname, name))
 		if err != nil {
-			err = fmt.Errorf("Lstat(%s): %v", name, err)
-			return
+			return nil, fmt.Errorf("Lstat(%s): %v", name, err)
 		}
 
 		entries = append(entries, fi)
@@ -72,5 +69,5 @@ func ReadDirPicky(dirname string) (entries []os.FileInfo, err error) {
 	// Sort the entries by name.
 	sort.Sort(sortedEntries(entries))
 
-	return
+	return entries, nil
 }

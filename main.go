@@ -21,29 +21,33 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"path"
 	"path/filepath"
-	"runtime"
-	"runtime/pprof"
-	"syscall"
 	"time"
 
+	"contrib.go.opencensus.io/exporter/stackdriver"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 
-	"github.com/codegangsta/cli"
+	"github.com/googlecloudplatform/gcsfuse/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
+	"github.com/googlecloudplatform/gcsfuse/internal/perf"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/syncutil"
 	"github.com/kardianos/osext"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/urfave/cli"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -59,164 +63,86 @@ func registerSIGINTHandler(mountPoint string) {
 	go func() {
 		for {
 			<-signalChan
-			log.Println("Received SIGINT, attempting to unmount...")
+			logger.Info("Received SIGINT, attempting to unmount...")
 
 			err := fuse.Unmount(mountPoint)
 			if err != nil {
-				log.Printf("Failed to unmount in response to SIGINT: %v", err)
+				logger.Infof("Failed to unmount in response to SIGINT: %v", err)
 			} else {
-				log.Printf("Successfully unmounted in response to SIGINT.")
+				logger.Infof("Successfully unmounted in response to SIGINT.")
 				return
 			}
 		}
 	}()
 }
 
-func handleCPUProfileSignals() {
-	profileOnce := func(duration time.Duration, path string) (err error) {
-		// Set up the file.
-		var f *os.File
-		f, err = os.Create(path)
-		if err != nil {
-			err = fmt.Errorf("Create: %v", err)
-			return
-		}
-
-		defer func() {
-			closeErr := f.Close()
-			if err == nil {
-				err = closeErr
-			}
-		}()
-
-		// Profile.
-		pprof.StartCPUProfile(f)
-		time.Sleep(duration)
-		pprof.StopCPUProfile()
-		return
-	}
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGUSR1)
-	for range c {
-		const path = "/tmp/cpu.pprof"
-		const duration = 10 * time.Second
-
-		log.Printf("Writing %v CPU profile to %s...", duration, path)
-
-		err := profileOnce(duration, path)
-		if err == nil {
-			log.Printf("Done writing CPU profile to %s.", path)
-		} else {
-			log.Printf("Error writing CPU profile: %v", err)
-		}
-	}
+func startMonitoringHTTPHandler(monitoringPort int) {
+	logger.Infof("Exporting metrics at localhost:%v/metrics\n", monitoringPort)
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(fmt.Sprintf(":%v", monitoringPort), nil)
+	}()
 }
 
-func handleMemoryProfileSignals() {
-	profileOnce := func(path string) (err error) {
-		// Trigger a garbage collection to get up to date information (cf.
-		// https://goo.gl/aXVQfL).
-		runtime.GC()
-
-		// Open the file.
-		var f *os.File
-		f, err = os.Create(path)
-		if err != nil {
-			err = fmt.Errorf("Create: %v", err)
-			return
-		}
-
-		defer func() {
-			closeErr := f.Close()
-			if err == nil {
-				err = closeErr
-			}
-		}()
-
-		// Dump to the file.
-		err = pprof.Lookup("heap").WriteTo(f, 0)
-		if err != nil {
-			err = fmt.Errorf("WriteTo: %v", err)
-			return
-		}
-
-		return
-	}
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGUSR2)
-	for range c {
-		const path = "/tmp/mem.pprof"
-
-		err := profileOnce(path)
-		if err == nil {
-			log.Printf("Wrote memory profile to %s.", path)
-		} else {
-			log.Printf("Error writing memory profile: %v", err)
-		}
-	}
-}
-
-// Create token source from the JSON file at the supplide path.
-func newTokenSourceFromPath(
-	path string,
-	scope string) (ts oauth2.TokenSource, err error) {
-	// Read the file.
-	contents, err := ioutil.ReadFile(path)
-	if err != nil {
-		err = fmt.Errorf("ReadFile(%q): %v", path, err)
-		return
-	}
-
-	// Create a config struct based on its contents.
-	jwtConfig, err := google.JWTConfigFromJSON(contents, scope)
-	if err != nil {
-		err = fmt.Errorf("JWTConfigFromJSON: %v", err)
-		return
-	}
-
-	// Create the token source.
-	ts = jwtConfig.TokenSource(context.Background())
-
-	return
-}
-
-func getConn(flags *flagStorage) (c gcs.Conn, err error) {
-	// Create the oauth2 token source.
-	const scope = gcs.Scope_FullControl
-
+func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 	var tokenSrc oauth2.TokenSource
-	if flags.KeyFile != "" {
-		tokenSrc, err = newTokenSourceFromPath(flags.KeyFile, scope)
+	if flags.Endpoint.Hostname() == "www.googleapis.com" {
+		tokenSrc, err = auth.GetTokenSource(
+			context.Background(),
+			flags.KeyFile,
+			flags.TokenUrl,
+		)
 		if err != nil {
-			err = fmt.Errorf("newTokenSourceFromPath: %v", err)
+			err = fmt.Errorf("GetTokenSource: %w", err)
 			return
 		}
 	} else {
-		tokenSrc, err = google.DefaultTokenSource(context.Background(), scope)
-		if err != nil {
-			err = fmt.Errorf("DefaultTokenSource: %v", err)
-			return
-		}
+		// Do not use OAuth with non-Google hosts.
+		tokenSrc = oauth2.StaticTokenSource(&oauth2.Token{})
 	}
 
 	// Create the connection.
-	const userAgent = "gcsfuse/0.0"
 	cfg := &gcs.ConnConfig{
-		TokenSource: tokenSrc,
-		UserAgent:   userAgent,
+		Url:             flags.Endpoint,
+		TokenSource:     tokenSrc,
+		UserAgent:       fmt.Sprintf("gcsfuse/%s %s", getVersion(), flags.AppName),
+		MaxBackoffSleep: flags.MaxRetrySleep,
 	}
 
+	// The default HTTP transport uses HTTP/2 with TCP multiplexing, which
+	// does not create new TCP connections even when the idle connections
+	// run out. To specify multiple connections per host, HTTP/2 is disabled
+	// on purpose.
+	if flags.DisableHTTP2 {
+		cfg.Transport = &http.Transport{
+			MaxConnsPerHost: flags.MaxConnsPerHost,
+			// This disables HTTP/2 in the transport.
+			TLSNextProto: make(
+				map[string]func(string, *tls.Conn) http.RoundTripper,
+			),
+		}
+	}
+	cfg.Transport = monitor.EnableHTTPMonitoring(cfg.Transport)
+
 	if flags.DebugHTTP {
-		cfg.HTTPDebugLogger = log.New(os.Stdout, "http: ", 0)
+		cfg.HTTPDebugLogger = logger.NewDebug("http: ")
 	}
 
 	if flags.DebugGCS {
-		cfg.GCSDebugLogger = log.New(os.Stdout, "gcs: ", log.Flags())
+		cfg.GCSDebugLogger = logger.NewDebug("gcs: ")
 	}
 
-	return gcs.NewConn(cfg)
+	return gcsx.NewConnection(cfg)
+}
+
+func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
+	c, err = getConn(flags)
+	for delay := 1 * time.Second; delay <= flags.MaxRetrySleep && err != nil; delay = delay/2 + delay {
+		logger.Infof("Waiting for connection: %v\n", err)
+		time.Sleep(delay)
+		c, err = getConn(flags)
+	}
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -231,25 +157,30 @@ func mountWithArgs(
 	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
-		syncutil.EnableInvariantChecking()
+		locker.EnableInvariantsCheck()
+	}
+	if flags.DebugMutex {
+		locker.EnableDebugMessages()
 	}
 
 	// Grab the connection.
 	//
 	// Special case: if we're mounting the fake bucket, we don't need an actual
 	// connection.
-	var conn gcs.Conn
+	var conn *gcsx.Connection
 	if bucketName != canned.FakeBucketName {
 		mountStatus.Println("Opening GCS connection...")
 
-		conn, err = getConn(flags)
+		conn, err = getConnWithRetry(flags)
 		if err != nil {
-			err = fmt.Errorf("getConn: %v", err)
+			mountStatus.Printf("Failed to open connection: %v\n", err)
+			err = fmt.Errorf("getConnWithRetry: %w", err)
 			return
 		}
 	}
 
 	// Mount the file system.
+	logger.Infof("Creating a mount at %q\n", mountPoint)
 	mfs, err = mountWithConn(
 		context.Background(),
 		bucketName,
@@ -259,39 +190,65 @@ func mountWithArgs(
 		mountStatus)
 
 	if err != nil {
-		err = fmt.Errorf("mountWithConn: %v", err)
+		err = fmt.Errorf("mountWithConn: %w", err)
 		return
 	}
 
 	return
 }
 
-func runCLIApp(c *cli.Context) (err error) {
-	flags := populateFlags(c)
-
+func populateArgs(c *cli.Context) (
+	bucketName string,
+	mountPoint string,
+	err error) {
 	// Extract arguments.
-	if len(c.Args()) != 2 {
+	switch len(c.Args()) {
+	case 1:
+		bucketName = ""
+		mountPoint = c.Args()[0]
+
+	case 2:
+		bucketName = c.Args()[0]
+		mountPoint = c.Args()[1]
+
+	default:
 		err = fmt.Errorf(
-			"%s takes exactly two arguments. Run `%s --help` for more info.",
+			"%s takes one or two arguments. Run `%s --help` for more info.",
 			path.Base(os.Args[0]),
 			path.Base(os.Args[0]))
 
 		return
 	}
 
-	bucketName := c.Args()[0]
-	mountPoint := c.Args()[1]
-
 	// Canonicalize the mount point, making it absolute. This is important when
 	// daemonizing below, since the daemon will change its working directory
 	// before running this code again.
 	mountPoint, err = filepath.Abs(mountPoint)
 	if err != nil {
-		err = fmt.Errorf("canonicalizing mount point: %v", err)
+		err = fmt.Errorf("canonicalizing mount point: %w", err)
+		return
+	}
+	return
+}
+
+func runCLIApp(c *cli.Context) (err error) {
+	flags := populateFlags(c)
+
+	if flags.Foreground && flags.LogFile != "" {
+		err = logger.InitLogFile(flags.LogFile, flags.LogFormat)
+		if err != nil {
+			return fmt.Errorf("init log file: %w", err)
+		}
+	}
+
+	var bucketName string
+	var mountPoint string
+	bucketName, mountPoint, err = populateArgs(c)
+	if err != nil {
 		return
 	}
 
-	fmt.Fprintf(os.Stdout, "Using mount point: %s\n", mountPoint)
+	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", getVersion(), flags.AppName, mountPoint)
 
 	// If we haven't been asked to run in foreground mode, we should run a daemon
 	// with the foreground flag set and wait for it to mount.
@@ -300,7 +257,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		var path string
 		path, err = osext.Executable()
 		if err != nil {
-			err = fmt.Errorf("osext.Executable: %v", err)
+			err = fmt.Errorf("osext.Executable: %w", err)
 			return
 		}
 
@@ -319,37 +276,74 @@ func runCLIApp(c *cli.Context) (err error) {
 		if p, ok := os.LookupEnv("GOOGLE_APPLICATION_CREDENTIALS"); ok {
 			env = append(env, fmt.Sprintf("GOOGLE_APPLICATION_CREDENTIALS=%s", p))
 		}
-		// Pass through the http_proxy environment variable, in case the host
-		// requires a HTTP proxy server to reach the GCS endpoint.
-		if p, ok := os.LookupEnv("http_proxy"); ok {
+		// Pass through the https_proxy/http_proxy environment variable,
+		// in case the host requires a proxy server to reach the GCS endpoint.
+		// https_proxy has precedence over http_proxy, in case both are set
+		if p, ok := os.LookupEnv("https_proxy"); ok {
+			env = append(env, fmt.Sprintf("https_proxy=%s", p))
+			fmt.Fprintf(
+				os.Stdout,
+				"Added environment https_proxy: %s\n",
+				p)
+		} else if p, ok := os.LookupEnv("http_proxy"); ok {
 			env = append(env, fmt.Sprintf("http_proxy=%s", p))
+			fmt.Fprintf(
+				os.Stdout,
+				"Added environment http_proxy: %s\n",
+				p)
 		}
 
 		// Run.
 		err = daemonize.Run(path, args, env, os.Stdout)
 		if err != nil {
-			err = fmt.Errorf("daemonize.Run: %v", err)
+			err = fmt.Errorf("daemonize.Run: %w", err)
 			return
 		}
 
 		return
 	}
 
+	var exporter *stackdriver.Exporter
+	if flags.StackdriverExportInterval > 0 {
+		exporter, err = stackdriver.NewExporter(stackdriver.Options{
+			ReportingInterval: flags.StackdriverExportInterval,
+			OnError: func(err error) {
+				logger.Infof("Fail to send metric: %v", err)
+			},
+		})
+		if err != nil {
+			err = fmt.Errorf("creating stackdriver exporter: %w", err)
+			daemonize.SignalOutcome(err)
+			return
+		}
+
+		if err = exporter.StartMetricsExporter(); err != nil {
+			err = fmt.Errorf("start stackdriver exporter: %w", err)
+			daemonize.SignalOutcome(err)
+			return
+		}
+	}
+
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
-		mountStatus := log.New(daemonize.StatusWriter, "", 0)
+		mountStatus := logger.NewNotice("")
 		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountStatus)
 
 		if err == nil {
 			mountStatus.Println("File system has been successfully mounted.")
 			daemonize.SignalOutcome(nil)
 		} else {
-			err = fmt.Errorf("mountWithArgs: %v", err)
+			err = fmt.Errorf("mountWithArgs: %w", err)
 			daemonize.SignalOutcome(err)
 			return
 		}
+	}
+
+	// Open a port for exporting monitoring metrics
+	if flags.MonitoringPort > 0 {
+		startMonitoringHTTPHandler(flags.MonitoringPort)
 	}
 
 	// Let the user unmount with Ctrl-C (SIGINT).
@@ -357,8 +351,14 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	// Wait for the file system to be unmounted.
 	err = mfs.Join(context.Background())
+
+	if exporter != nil {
+		exporter.StopMetricsExporter()
+		exporter.Flush()
+	}
+
 	if err != nil {
-		err = fmt.Errorf("MountedFileSystem.Join: %v", err)
+		err = fmt.Errorf("MountedFileSystem.Join: %w", err)
 		return
 	}
 
@@ -389,8 +389,8 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
 	// Set up profiling handlers.
-	go handleCPUProfileSignals()
-	go handleMemoryProfileSignals()
+	go perf.HandleCPUProfileSignals()
+	go perf.HandleMemoryProfileSignals()
 
 	// Run.
 	err := run()

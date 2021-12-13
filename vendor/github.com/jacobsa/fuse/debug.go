@@ -55,6 +55,12 @@ func describeRequest(op interface{}) (s string) {
 		addComponent("name %q", f.Interface())
 	}
 
+	if f := v.FieldByName("OpContext"); f.IsValid() {
+		if meta, ok := f.Interface().(fuseops.OpContext); ok {
+			addComponent("PID %+v", meta.Pid)
+		}
+	}
+
 	// Handle special cases.
 	switch typed := op.(type) {
 	case *interruptOp:
@@ -80,6 +86,12 @@ func describeRequest(op interface{}) (s string) {
 			addComponent("mtime %v", *typed.Mtime)
 		}
 
+	case *fuseops.RenameOp:
+		addComponent("old_parent %v", typed.OldParent)
+		addComponent("old_name %q", typed.OldName)
+		addComponent("new_parent %v", typed.NewParent)
+		addComponent("new_name %q", typed.NewName)
+
 	case *fuseops.ReadFileOp:
 		addComponent("handle %d", typed.Handle)
 		addComponent("offset %d", typed.Offset)
@@ -98,6 +110,11 @@ func describeRequest(op interface{}) (s string) {
 
 	case *fuseops.SetXattrOp:
 		addComponent("name %s", typed.Name)
+
+	case *fuseops.FallocateOp:
+		addComponent("offset %d", typed.Offset)
+		addComponent("length %d", typed.Length)
+		addComponent("mode %d", typed.Mode)
 	}
 
 	// Use just the name if there is no extra info.

@@ -28,25 +28,22 @@ import (
 // Warning: this is not production-quality code, and should only be used for
 // testing purposes. In particular, there is a race between creating and
 // unlinking by name.
-func AnonymousFile(dir string) (f *os.File, err error) {
+func AnonymousFile(dir string) (*os.File, error) {
 	// Choose a prefix based on the binary name.
 	prefix := path.Base(os.Args[0])
 
 	// Create the file.
-	f, err = ioutil.TempFile(dir, prefix)
+	f, err := ioutil.TempFile(dir, prefix)
 	if err != nil {
-		err = fmt.Errorf("TempFile: %v", err)
-		return
+		return nil, fmt.Errorf("TempFile: %v", err)
 	}
 
 	// Unlink it.
-	err = os.Remove(f.Name())
-	if err != nil {
-		err = fmt.Errorf("Remove: %v", err)
-		return
+	if err := os.Remove(f.Name()); err != nil {
+		return nil, fmt.Errorf("Remove: %v", err)
 	}
 
-	return
+	return f, nil
 }
 
 // Call fdatasync on the supplied file.

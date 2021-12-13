@@ -17,6 +17,7 @@ package inode
 import (
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/timeutil"
@@ -33,16 +34,17 @@ type ExplicitDirInode interface {
 // NewDirInode for more.
 func NewExplicitDirInode(
 	id fuseops.InodeID,
+	name Name,
 	o *gcs.Object,
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
 	typeCacheTTL time.Duration,
-	bucket gcs.Bucket,
+	bucket gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock) (d ExplicitDirInode) {
 	wrapped := NewDirInode(
 		id,
-		o.Name,
+		name,
 		attrs,
 		implicitDirs,
 		typeCacheTTL,

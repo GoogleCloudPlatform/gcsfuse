@@ -125,6 +125,7 @@ type Bucket interface {
 
 type bucket struct {
 	client         *http.Client
+	url            *url.URL
 	userAgent      string
 	name           string
 	billingProject string
@@ -139,7 +140,8 @@ func (b *bucket) ListObjects(
 	req *ListObjectsRequest) (listing *Listing, err error) {
 	// Construct an appropriate URL (cf. http://goo.gl/aVSAhT).
 	opaque := fmt.Sprintf(
-		"//www.googleapis.com/storage/v1/b/%s/o",
+		"//%s/storage/v1/b/%s/o",
+		b.url.Host,
 		httputil.EncodePathSegment(b.Name()))
 
 	query := make(url.Values)
@@ -151,6 +153,8 @@ func (b *bucket) ListObjects(
 
 	if req.Delimiter != "" {
 		query.Set("delimiter", req.Delimiter)
+		query.Set("includeTrailingDelimiter",
+			fmt.Sprintf("%v", req.IncludeTrailingDelimiter))
 	}
 
 	if req.ContinuationToken != "" {
@@ -166,8 +170,8 @@ func (b *bucket) ListObjects(
 	}
 
 	url := &url.URL{
-		Scheme:   "https",
-		Host:     "www.googleapis.com",
+		Scheme:   b.url.Scheme,
+		Host:     b.url.Host,
 		Opaque:   opaque,
 		RawQuery: query.Encode(),
 	}
@@ -211,7 +215,8 @@ func (b *bucket) StatObject(
 	req *StatObjectRequest) (o *Object, err error) {
 	// Construct an appropriate URL (cf. http://goo.gl/MoITmB).
 	opaque := fmt.Sprintf(
-		"//www.googleapis.com/storage/v1/b/%s/o/%s",
+		"//%s/storage/v1/b/%s/o/%s",
+		b.url.Host,
 		httputil.EncodePathSegment(b.Name()),
 		httputil.EncodePathSegment(req.Name))
 
@@ -223,8 +228,8 @@ func (b *bucket) StatObject(
 	}
 
 	url := &url.URL{
-		Scheme:   "https",
-		Host:     "www.googleapis.com",
+		Scheme:   b.url.Scheme,
+		Host:     b.url.Host,
 		Opaque:   opaque,
 		RawQuery: query.Encode(),
 	}
@@ -276,7 +281,8 @@ func (b *bucket) DeleteObject(
 	req *DeleteObjectRequest) (err error) {
 	// Construct an appropriate URL (cf. http://goo.gl/TRQJjZ).
 	opaque := fmt.Sprintf(
-		"//www.googleapis.com/storage/v1/b/%s/o/%s",
+		"//%s/storage/v1/b/%s/o/%s",
+		b.url.Host,
 		httputil.EncodePathSegment(b.Name()),
 		httputil.EncodePathSegment(req.Name))
 
@@ -297,8 +303,8 @@ func (b *bucket) DeleteObject(
 	}
 
 	url := &url.URL{
-		Scheme:   "https",
-		Host:     "www.googleapis.com",
+		Scheme:   b.url.Scheme,
+		Host:     b.url.Host,
 		Opaque:   opaque,
 		RawQuery: query.Encode(),
 	}
@@ -345,11 +351,13 @@ func (b *bucket) DeleteObject(
 
 func newBucket(
 	client *http.Client,
+	url *url.URL,
 	userAgent string,
 	name string,
 	billingProject string) Bucket {
 	return &bucket{
 		client:         client,
+		url:            url,
 		userAgent:      userAgent,
 		name:           name,
 		billingProject: billingProject,

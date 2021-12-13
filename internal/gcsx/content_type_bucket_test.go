@@ -121,7 +121,7 @@ func TestContentTypeBucket_ComposeObjects(t *testing.T) {
 		})
 
 		if err != nil {
-			t.Fatalf("Test case %d: CreateObject: %v", err)
+			t.Fatalf("Test case %d: CreateObject: %v", i, err)
 		}
 
 		// Compose.

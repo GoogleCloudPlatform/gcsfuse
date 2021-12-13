@@ -121,7 +121,7 @@ func (t *SyncerTest) SetUp(ti *TestInfo) {
 
 	// Wrap a TempFile around it.
 	t.content, err = NewTempFile(
-		strings.NewReader(srcObjectContents),
+		dummyReadCloser{strings.NewReader(srcObjectContents)},
 		"",
 		&t.clock)
 
@@ -135,6 +135,14 @@ func (t *SyncerTest) SetUp(ti *TestInfo) {
 func (t *SyncerTest) call() (o *gcs.Object, err error) {
 	o, err = t.syncer.SyncObject(t.ctx, t.srcObject, t.content)
 	return
+}
+
+type dummyReadCloser struct {
+	io.Reader
+}
+
+func (rc dummyReadCloser) Close() error {
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////

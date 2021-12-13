@@ -21,7 +21,7 @@
 // appropriate flags.
 //
 // This binary returns with exit code zero only after gcsfuse has reported that
-// it has successfuly mounted the file system. Further output from gcsfuse is
+// it has successfully mounted the file system. Further output from gcsfuse is
 // suppressed.
 package main
 
@@ -80,19 +80,42 @@ func makeGcsfuseArgs(
 		case "user", "nouser", "auto", "noauto", "_netdev", "no_netdev":
 
 		// Special case: support mount-like formatting for gcsfuse bool flags.
-		case "implicit_dirs":
-			args = append(
-				args,
-				"--"+strings.Replace(name, "_", "-", -1),
-			)
+		case "implicit_dirs", "disable_http2":
+			args = append(args, "--"+strings.Replace(name, "_", "-", -1))
 
-			// Special case: support mount-like formatting for gcsfuse string flags.
-		case "dir_mode", "file_mode", "key_file", "temp_dir", "gid", "uid", "only_dir", "limit_ops_per_sec", "limit_bytes_per_sec", "stat_cache_ttl", "type_cache_ttl":
-			args = append(
-				args,
-				"--"+strings.Replace(name, "_", "-", -1),
-				value,
-			)
+		// Special case: support mount-like formatting for gcsfuse string flags.
+		case "dir_mode",
+			"file_mode",
+			"uid",
+			"gid",
+			"app_name",
+			"only_dir",
+			"billing_project",
+			"key_file",
+			"token_url",
+			"limit_bytes_per_sec",
+			"limit_ops_per_sec",
+			"rename_dir_limit",
+			"max_retry_sleep",
+			"stat_cache_capacity",
+			"stat_cache_ttl",
+			"type_cache_ttl",
+			"local_file_cache",
+			"temp_dir",
+			"max_conns_per_host",
+			"monitoring_port",
+			"log_format",
+			"log_file":
+			args = append(args, "--"+strings.Replace(name, "_", "-", -1), value)
+
+		// Special case: support mount-like formatting for gcsfuse debug flags.
+		case "debug_fuse",
+			"debug_fs",
+			"debug_gcs",
+			"debug_http",
+			"debug_invariants",
+			"debug_mutex":
+			args = append(args, "--"+name)
 
 		// Pass through everything else.
 		default:
@@ -192,28 +215,28 @@ func run(args []string) (err error) {
 	// Find the path to gcsfuse.
 	gcsfusePath, err := findGcsfuse()
 	if err != nil {
-		err = fmt.Errorf("findGcsfuse: %v", err)
+		err = fmt.Errorf("findGcsfuse: %w", err)
 		return
 	}
 
 	// Find the path to fusermount.
 	fusermountPath, err := findFusermount()
 	if err != nil {
-		err = fmt.Errorf("findFusermount: %v", err)
+		err = fmt.Errorf("findFusermount: %w", err)
 		return
 	}
 
 	// Attempt to parse arguments.
 	device, mountPoint, opts, err := parseArgs(args)
 	if err != nil {
-		err = fmt.Errorf("parseArgs: %v", err)
+		err = fmt.Errorf("parseArgs: %w", err)
 		return
 	}
 
 	// Choose gcsfuse args.
 	gcsfuseArgs, err := makeGcsfuseArgs(device, mountPoint, opts)
 	if err != nil {
-		err = fmt.Errorf("makeGcsfuseArgs: %v", err)
+		err = fmt.Errorf("makeGcsfuseArgs: %w", err)
 		return
 	}
 
@@ -225,12 +248,22 @@ func run(args []string) (err error) {
 	// Run gcsfuse.
 	cmd := exec.Command(gcsfusePath, gcsfuseArgs...)
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PATH=%s", path.Dir(fusermountPath)))
+
+	// Pass through the https_proxy/http_proxy environment variable,
+	// in case the host requires a proxy server to reach the GCS endpoint.
+	// http_proxy has precedence over http_proxy, in case both are set
+	if p, ok := os.LookupEnv("https_proxy"); ok {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("https_proxy=%s", p))
+	} else if p, ok := os.LookupEnv("http_proxy"); ok {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("http_proxy=%s", p))
+	}
+
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	err = cmd.Run()
 	if err != nil {
-		err = fmt.Errorf("running gcsfuse: %v", err)
+		err = fmt.Errorf("running gcsfuse: %w", err)
 		return
 	}
 

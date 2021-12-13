@@ -19,10 +19,10 @@ import (
 	"sort"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
 
@@ -39,7 +39,7 @@ type dirHandle struct {
 	// Mutable state
 	/////////////////////////
 
-	Mu syncutil.InvariantMutex
+	Mu locker.Locker
 
 	// All entries in the directory. Populated the first time we need one.
 	//
@@ -67,7 +67,7 @@ func newDirHandle(
 	}
 
 	// Set up invariant checking.
-	dh.Mu = syncutil.NewInvariantMutex(dh.checkInvariants)
+	dh.Mu = locker.New("DH." + in.Name().GcsObjectName(), dh.checkInvariants)
 
 	return
 }
@@ -169,7 +169,7 @@ func readAllEntries(
 
 		batch, tok, err = in.ReadEntries(ctx, tok)
 		if err != nil {
-			err = fmt.Errorf("ReadEntries: %v", err)
+			err = fmt.Errorf("ReadEntries: %w", err)
 			return
 		}
 
@@ -189,7 +189,7 @@ func readAllEntries(
 	// Fix name conflicts.
 	err = fixConflictingNames(entries)
 	if err != nil {
-		err = fmt.Errorf("fixConflictingNames: %v", err)
+		err = fmt.Errorf("fixConflictingNames: %w", err)
 		return
 	}
 
@@ -228,7 +228,7 @@ func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
 	var entries []fuseutil.Dirent
 	entries, err = readAllEntries(ctx, dh.in)
 	if err != nil {
-		err = fmt.Errorf("readAllEntries: %v", err)
+		err = fmt.Errorf("readAllEntries: %w", err)
 		return
 	}
 
