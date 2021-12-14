@@ -27,131 +27,131 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestBackObject(t *testing.T) { RunTests(t) }
+func TestCore(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type BackObjectTest struct {
+type CoreTest struct {
 	ctx    context.Context
 	bucket gcsx.SyncerBucket
 	clock  timeutil.SimulatedClock
 }
 
-var _ SetUpInterface = &BackObjectTest{}
-var _ TearDownInterface = &BackObjectTest{}
+var _ SetUpInterface = &CoreTest{}
+var _ TearDownInterface = &CoreTest{}
 
-func init() { RegisterTestSuite(&BackObjectTest{}) }
+func init() { RegisterTestSuite(&CoreTest{}) }
 
-func (t *BackObjectTest) SetUp(ti *TestInfo) {
+func (t *CoreTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 	t.bucket = gcsx.NewSyncerBucket(
 		1, ".gcsfuse_tmp/", gcsfake.NewFakeBucket(&t.clock, "some_bucket"))
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 }
 
-func (t *BackObjectTest) TearDown() {}
+func (t *CoreTest) TearDown() {}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *BackObjectTest) File() {
+func (t *CoreTest) File() {
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	name := inode.NewFileName(inode.NewRootName(t.bucket.Name()), o.Name)
-	bo := inode.BackObject{
+	c := inode.Core{
 		Bucket:      t.bucket,
 		FullName:    name,
 		Object:      o,
 		ImplicitDir: false,
 	}
-	ExpectTrue(bo.Exists())
+	ExpectTrue(c.Exists())
 }
 
-func (t *BackObjectTest) ExplicitDir() {
+func (t *CoreTest) ExplicitDir() {
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "bar/", []byte(""))
 	AssertEq(nil, err)
 
 	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), o.Name)
-	bo := inode.BackObject{
+	c := inode.Core{
 		Bucket:      t.bucket,
 		FullName:    name,
 		Object:      o,
 		ImplicitDir: false,
 	}
-	ExpectTrue(bo.Exists())
+	ExpectTrue(c.Exists())
 }
 
-func (t *BackObjectTest) ImplicitDir() {
+func (t *CoreTest) ImplicitDir() {
 	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), "bar/")
-	bo := inode.BackObject{
+	c := inode.Core{
 		Bucket:      t.bucket,
 		FullName:    name,
 		Object:      nil,
 		ImplicitDir: true,
 	}
-	ExpectTrue(bo.Exists())
+	ExpectTrue(c.Exists())
 }
 
-func (t *BackObjectTest) BucketRootDir() {
-	bo := inode.BackObject{
+func (t *CoreTest) BucketRootDir() {
+	c := inode.Core{
 		Bucket:      t.bucket,
 		FullName:    inode.NewRootName(t.bucket.Name()),
 		Object:      nil,
 		ImplicitDir: false,
 	}
-	ExpectTrue(bo.Exists())
+	ExpectTrue(c.Exists())
 }
 
-func (t *BackObjectTest) Nonexistent() {
+func (t *CoreTest) Nonexistent() {
 	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), "bar/")
-	bo := inode.BackObject{
+	c := inode.Core{
 		Bucket:      t.bucket,
 		FullName:    name,
 		Object:      nil,
 		ImplicitDir: false,
 	}
-	ExpectFalse(bo.Exists())
+	ExpectFalse(c.Exists())
 }
 
-func (t *BackObjectTest) SanityCheck() {
+func (t *CoreTest) SanityCheck() {
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "bar/", []byte(""))
 	AssertEq(nil, err)
 
 	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), o.Name)
-	bo := inode.BackObject{
+	c := inode.Core{
 		Bucket:      t.bucket,
 		FullName:    name,
 		Object:      o,
 		ImplicitDir: true,
 	}
-	ExpectNe(nil, bo.SanityCheck())
+	ExpectNe(nil, c.SanityCheck())
 
-	bo = inode.BackObject{
+	c = inode.Core{
 		Bucket:      t.bucket,
 		FullName:    name,
 		Object:      nil,
 		ImplicitDir: true,
 	}
-	ExpectEq(nil, bo.SanityCheck())
+	ExpectEq(nil, c.SanityCheck())
 
-	bo = inode.BackObject{
+	c = inode.Core{
 		Bucket:      t.bucket,
 		FullName:    name,
 		Object:      nil,
 		ImplicitDir: false,
 	}
-	ExpectEq(nil, bo.SanityCheck())
+	ExpectEq(nil, c.SanityCheck())
 
 	o.Name = "foo/"
-	bo = inode.BackObject{
+	c = inode.Core{
 		Bucket:      t.bucket,
 		FullName:    name,
 		Object:      o,
 		ImplicitDir: false,
 	}
-	ExpectNe(nil, bo.SanityCheck())
+	ExpectNe(nil, c.SanityCheck())
 }

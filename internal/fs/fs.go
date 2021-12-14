@@ -505,7 +505,7 @@ func (fs *fileSystem) checkInvariants() {
 // of that function.
 //
 // LOCKS_REQUIRED(fs.mu)
-func (fs *fileSystem) mintInode(backer inode.BackObject) (in inode.Inode) {
+func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 	// Choose an ID.
 	id := fs.nextInodeID
 	fs.nextInodeID++
@@ -513,11 +513,11 @@ func (fs *fileSystem) mintInode(backer inode.BackObject) (in inode.Inode) {
 	// Create the inode.
 	switch {
 	// Explicit directories
-	case backer.Object != nil && backer.FullName.IsDir():
+	case ic.Object != nil && ic.FullName.IsDir():
 		in = inode.NewExplicitDirInode(
 			id,
-			backer.FullName,
-			backer.Object,
+			ic.FullName,
+			ic.Object,
 			fuseops.InodeAttributes{
 				Uid:  fs.uid,
 				Gid:  fs.gid,
@@ -530,15 +530,15 @@ func (fs *fileSystem) mintInode(backer inode.BackObject) (in inode.Inode) {
 			},
 			fs.implicitDirs,
 			fs.dirTypeCacheTTL,
-			backer.Bucket,
+			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock)
 
 		// Implicit directories
-	case backer.FullName.IsDir():
+	case ic.FullName.IsDir():
 		in = inode.NewDirInode(
 			id,
-			backer.FullName,
+			ic.FullName,
 			fuseops.InodeAttributes{
 				Uid:  fs.uid,
 				Gid:  fs.gid,
@@ -551,15 +551,15 @@ func (fs *fileSystem) mintInode(backer inode.BackObject) (in inode.Inode) {
 			},
 			fs.implicitDirs,
 			fs.dirTypeCacheTTL,
-			backer.Bucket,
+			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock)
 
-	case inode.IsSymlink(backer.Object):
+	case inode.IsSymlink(ic.Object):
 		in = inode.NewSymlinkInode(
 			id,
-			backer.FullName,
-			backer.Object,
+			ic.FullName,
+			ic.Object,
 			fuseops.InodeAttributes{
 				Uid:  fs.uid,
 				Gid:  fs.gid,
@@ -569,14 +569,14 @@ func (fs *fileSystem) mintInode(backer inode.BackObject) (in inode.Inode) {
 	default:
 		in = inode.NewFileInode(
 			id,
-			backer.FullName,
-			backer.Object,
+			ic.FullName,
+			ic.Object,
 			fuseops.InodeAttributes{
 				Uid:  fs.uid,
 				Gid:  fs.gid,
 				Mode: fs.fileMode,
 			},
-			backer.Bucket,
+			ic.Bucket,
 			fs.localFileCache,
 			fs.contentCache,
 			fs.mtimeClock)
@@ -599,11 +599,10 @@ func (fs *fileSystem) mintInode(backer inode.BackObject) (in inode.Inode) {
 // LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
-func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
-	backer inode.BackObject) (in inode.Inode) {
+func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Inode) {
 
 	// Sanity check.
-	if err := backer.SanityCheck(); err != nil {
+	if err := ic.SanityCheck(); err != nil {
 		panic(err.Error())
 	}
 
@@ -620,16 +619,16 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	fs.mu.Lock()
 
 	// Handle implicit directories.
-	if backer.Object == nil {
-		if !backer.FullName.IsDir() {
-			panic(fmt.Sprintf("Unexpected name for an implicit directory: %q", backer.FullName))
+	if ic.Object == nil {
+		if !ic.FullName.IsDir() {
+			panic(fmt.Sprintf("Unexpected name for an implicit directory: %q", ic.FullName))
 		}
 
 		var ok bool
-		in, ok = fs.implicitDirInodes[backer.FullName]
+		in, ok = fs.implicitDirInodes[ic.FullName]
 		// If we don't have an entry, create one.
 		if !ok {
-			in = fs.mintInode(backer)
+			in = fs.mintInode(ic)
 			fs.implicitDirInodes[in.Name()] = in.(inode.DirInode)
 		}
 
@@ -638,19 +637,19 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 	}
 
 	oGen := inode.Generation{
-		Object:   backer.Object.Generation,
-		Metadata: backer.Object.MetaGeneration,
+		Object:   ic.Object.Generation,
+		Metadata: ic.Object.MetaGeneration,
 	}
 
 	// Retry loop for the stale index entry case below. On entry, we hold fs.mu
 	// but no inode lock.
 	for {
 		// Look at the current index entry.
-		existingInode, ok := fs.generationBackedInodes[backer.FullName]
+		existingInode, ok := fs.generationBackedInodes[ic.FullName]
 
 		// If we have no existing record, mint an inode and return it.
 		if !ok {
-			in = fs.mintInode(backer)
+			in = fs.mintInode(ic)
 			fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
 			in.Lock()
@@ -668,7 +667,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// Check that the index still points at this inode. If not, it's possible
 		// that the inode is in the process of being destroyed and is unsafe to
 		// use. Go around and try again.
-		if fs.generationBackedInodes[backer.FullName] != existingInode {
+		if fs.generationBackedInodes[ic.FullName] != existingInode {
 			existingInode.Unlock()
 			continue
 		}
@@ -697,7 +696,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(
 		// lock in accordance with our lock ordering rules.
 		existingInode.Unlock()
 
-		in = fs.mintInode(backer)
+		in = fs.mintInode(ic)
 		fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
 		continue
@@ -719,7 +718,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	childName string) (child inode.Inode, err error) {
 	// Set up a function that will find a lookup result for the child with the
 	// given name. Expects no locks to be held.
-	getLookupResult := func() (r inode.BackObject, err error) {
+	getLookupResult := func() (r inode.Core, err error) {
 		parent.Lock()
 		defer parent.Unlock()
 
@@ -736,7 +735,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	const maxTries = 3
 	for n := 0; n < maxTries; n++ {
 		// Create a record.
-		var result inode.BackObject
+		var result inode.Core
 		result, err = getLookupResult()
 
 		if err != nil {

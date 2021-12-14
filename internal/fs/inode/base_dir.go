@@ -150,7 +150,7 @@ func (d *baseDirInode) Attributes(
 // LOCKS_REQUIRED(d)
 func (d *baseDirInode) LookUpChild(
 	ctx context.Context,
-	name string) (result BackObject, err error) {
+	name string) (result Core, err error) {
 	bucket, ok := d.buckets[name]
 	if !ok {
 		bucket, err = d.bucketManager.SetUpBucket(ctx, name)
@@ -170,7 +170,7 @@ func (d *baseDirInode) LookUpChild(
 // Not implemented
 func (d *baseDirInode) ReadDescendants(
 	ctx context.Context,
-	limit int) (descendants map[Name]BackObject, err error) {
+	limit int) (descendants map[Name]Core, err error) {
 	err = fuse.ENOSYS
 	return
 }
@@ -178,7 +178,7 @@ func (d *baseDirInode) ReadDescendants(
 // Not implemented
 func (d *baseDirInode) ReadObjects(
 	ctx context.Context,
-	tok string) (files []BackObject, dirs []BackObject, newTok string, err error) {
+	tok string) (files []Core, dirs []Core, newTok string, err error) {
 	err = fuse.ENOSYS
 	return
 }
@@ -214,7 +214,7 @@ func (d *baseDirInode) ReadEntries(
 
 func (d *baseDirInode) CreateChildFile(
 	ctx context.Context,
-	name string) (result BackObject, err error) {
+	name string) (result Core, err error) {
 	err = fuse.ENOSYS
 	return
 }
@@ -222,7 +222,7 @@ func (d *baseDirInode) CreateChildFile(
 func (d *baseDirInode) CloneToChildFile(
 	ctx context.Context,
 	name string,
-	src *gcs.Object) (result BackObject, err error) {
+	src *gcs.Object) (result Core, err error) {
 	err = fuse.ENOSYS
 	return
 }
@@ -230,14 +230,14 @@ func (d *baseDirInode) CloneToChildFile(
 func (d *baseDirInode) CreateChildSymlink(
 	ctx context.Context,
 	name string,
-	target string) (result BackObject, err error) {
+	target string) (result Core, err error) {
 	err = fuse.ENOSYS
 	return
 }
 
 func (d *baseDirInode) CreateChildDir(
 	ctx context.Context,
-	name string) (result BackObject, err error) {
+	name string) (result Core, err error) {
 	err = fuse.ENOSYS
 	return
 }
