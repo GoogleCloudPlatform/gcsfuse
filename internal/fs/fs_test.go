@@ -31,6 +31,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
 	"github.com/jacobsa/fuse"
@@ -57,6 +58,8 @@ var fDebug = flag.Bool("debug_fuse", false, "Print debugging output.")
 func init() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
+
+	locker.EnableDebugMessages()
 
 	go func() {
 		<-c

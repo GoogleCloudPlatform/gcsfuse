@@ -470,77 +470,61 @@ const ConflictingFileNameSuffix = "\n"
 func (d *dirInode) LookUpChild(
 	ctx context.Context,
 	name string) (result Core, err error) {
-	// Consult the cache about the type of the child. This may save us work
-	// below.
-	now := d.cacheClock.Now()
-	cacheSaysFile := d.cache.IsFile(now, name)
-	cacheSaysDir := d.cache.IsDir(now, name)
-	cacheSaysImplicitDir := d.cache.IsImplicitDir(now, name)
-
 	// Is this a conflict marker name?
 	if strings.HasSuffix(name, ConflictingFileNameSuffix) {
 		result, err = d.lookUpConflicting(ctx, name)
 		return
 	}
 
-	// Stat the child as a file, unless the cache has told us it's a directory
-	// but not a file.
+	var fileResult Core
+	var dirResult Core
 	b := syncutil.NewBundle(ctx)
 
-	var fileResult Core
-	if !(cacheSaysDir && !cacheSaysFile) {
+	cachedType := d.cache.Get(d.cacheClock.Now(), name)
+	switch cachedType {
+	case ImplicitDirType:
+		dirResult = Core{
+			Bucket:      d.Bucket(),
+			FullName:    NewDirName(d.Name(), name),
+			Object:      nil,
+			ImplicitDir: true,
+		}
+	case ExplicitDirType:
+		b.Add(func(ctx context.Context) (err error) {
+			dirResult, err = d.lookUpChildDir(ctx, name)
+			return
+		})
+	case RegularFileType, SymlinkType:
+		b.Add(func(ctx context.Context) (err error) {
+			fileResult, err = d.lookUpChildFile(ctx, name)
+			return
+		})
+	case UnknownType:
+		b.Add(func(ctx context.Context) (err error) {
+			dirResult, err = d.lookUpChildDir(ctx, name)
+			return
+		})
 		b.Add(func(ctx context.Context) (err error) {
 			fileResult, err = d.lookUpChildFile(ctx, name)
 			return
 		})
 	}
 
-	// Stat the child as a directory, unless the cache has told us it's a file
-	// but not a directory.
-	var dirResult Core
-	if !(cacheSaysFile && !cacheSaysDir) {
-		if cacheSaysImplicitDir {
-			dirResult = Core{
-				Bucket:      d.Bucket(),
-				FullName:    NewDirName(d.Name(), name),
-				Object:      nil,
-				ImplicitDir: true,
-			}
-		} else {
-			b.Add(func(ctx context.Context) (err error) {
-				dirResult, err = d.lookUpChildDir(ctx, name)
-				return
-			})
-		}
-	}
-
-	// Wait for both.
 	err = b.Join()
 	if err != nil {
 		return
 	}
 
-	// Prefer directories over files.
-	switch {
-	case dirResult.Exists():
+	if dirResult.Exists() {
 		result = dirResult
-	case fileResult.Exists():
+	} else if fileResult.Exists() {
 		result = fileResult
 	}
 
-	// Update the cache.
-	now = d.cacheClock.Now()
-	if fileResult.Exists() {
-		d.cache.NoteFile(now, name)
+	if result.Exists() {
+		record := &Record{result.Object}
+		d.cache.Insert(d.cacheClock.Now(), name, record.Type())
 	}
-
-	if dirResult.Exists() {
-		d.cache.NoteDir(now, name)
-		if dirResult.ImplicitDir {
-			d.cache.NoteImplicitDir(now, name)
-		}
-	}
-
 	return
 }
 
@@ -605,9 +589,15 @@ func (d *dirInode) ReadObjects(
 		err = fmt.Errorf("ListObjects: %w", err)
 		return
 	}
-	now := d.cacheClock.Now()
 
-	explicitDirs := make(map[string]bool)
+	records := make(map[string]*Record)
+	defer func() {
+		now := d.cacheClock.Now()
+		for name, record := range records {
+			d.cache.Insert(now, name, record.Type())
+		}
+	}()
+
 	for _, o := range listing.Objects {
 		// Skip empty results or the directory object backing this inode.
 		if o.Name == d.Name().GcsObjectName() || o.Name == "" {
@@ -615,6 +605,12 @@ func (d *dirInode) ReadObjects(
 		}
 
 		nameBase := path.Base(o.Name) // ie. "bar" from "foo/bar/" or "foo/bar"
+
+		// Given the alphabetical order of the objects, if a file "foo" and
+		// directory "foo/" coexist, the directory would eventually occupy
+		// the value of records["foo"].
+		records[nameBase] = &Record{o}
+
 		if strings.HasSuffix(o.Name, "/") {
 			explicitDir := Core{
 				Bucket:      d.Bucket(),
@@ -623,8 +619,6 @@ func (d *dirInode) ReadObjects(
 				ImplicitDir: false,
 			}
 			dirs = append(dirs, explicitDir)
-			explicitDirs[nameBase] = true
-			d.cache.NoteDir(now, nameBase)
 		} else {
 			file := Core{
 				Bucket:      d.Bucket(),
@@ -633,7 +627,6 @@ func (d *dirInode) ReadObjects(
 				ImplicitDir: false,
 			}
 			files = append(files, file)
-			d.cache.NoteFile(now, nameBase)
 		}
 	}
 
@@ -646,11 +639,11 @@ func (d *dirInode) ReadObjects(
 
 	// Add implicit directories into the result.
 	for _, p := range listing.CollapsedRuns {
-		pathBase := path.Base(p) // ie. "bar" from "foo/bar/"
-
-		if _, ok := explicitDirs[pathBase]; ok {
+		pathBase := path.Base(p)
+		if r, ok := records[pathBase]; ok && r.Type() == ExplicitDirType {
 			continue
 		}
+		records[pathBase] = &Record{nil}
 
 		implicitDir := Core{
 			Bucket:      d.Bucket(),
@@ -659,8 +652,6 @@ func (d *dirInode) ReadObjects(
 			ImplicitDir: true,
 		}
 		dirs = append(dirs, implicitDir)
-		d.cache.NoteDir(now, pathBase)
-		d.cache.NoteImplicitDir(now, pathBase)
 	}
 
 	return
@@ -711,7 +702,7 @@ func (d *dirInode) CreateChildFile(
 		return
 	}
 
-	d.cache.NoteFile(d.cacheClock.Now(), name)
+	d.cache.Insert(d.cacheClock.Now(), name, RegularFileType)
 
 	return
 }
@@ -741,7 +732,8 @@ func (d *dirInode) CloneToChildFile(
 	}
 
 	// Update the type cache.
-	d.cache.NoteFile(d.cacheClock.Now(), name)
+	r := &Record{result.Object}
+	d.cache.Insert(d.cacheClock.Now(), name, r.Type())
 
 	return
 }
@@ -762,7 +754,7 @@ func (d *dirInode) CreateChildSymlink(
 		return
 	}
 
-	d.cache.NoteFile(d.cacheClock.Now(), name)
+	d.cache.Insert(d.cacheClock.Now(), name, SymlinkType)
 
 	return
 }
@@ -779,7 +771,7 @@ func (d *dirInode) CreateChildDir(
 		return
 	}
 
-	d.cache.NoteDir(d.cacheClock.Now(), name)
+	d.cache.Insert(d.cacheClock.Now(), name, ExplicitDirType)
 
 	return
 }
@@ -805,6 +797,7 @@ func (d *dirInode) DeleteChildFile(
 		err = fmt.Errorf("DeleteObject: %w", err)
 		return
 	}
+	d.cache.Erase(name)
 
 	return
 }
@@ -828,6 +821,7 @@ func (d *dirInode) DeleteChildDir(
 		err = fmt.Errorf("DeleteObject: %w", err)
 		return
 	}
+	d.cache.Erase(name)
 
 	return
 }
