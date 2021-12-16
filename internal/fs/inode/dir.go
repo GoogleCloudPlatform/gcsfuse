@@ -256,52 +256,16 @@ func (d *dirInode) checkInvariants() {
 	d.cache.CheckInvariants()
 }
 
-func (d *dirInode) lookUpChildFile(
-	ctx context.Context,
-	name string) (result Core, err error) {
-	result.Bucket = d.Bucket()
-	result.FullName = NewFileName(d.Name(), name)
-	result.Object, err = statObjectMayNotExist(ctx, d.bucket, result.FullName)
-	if err != nil {
-		err = fmt.Errorf("statObjectMayNotExist: %w", err)
-		return
-	}
-
-	return
+func (d *dirInode) lookUpChildFile(ctx context.Context, name string) (*Core, error) {
+	return findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name))
 }
 
-func (d *dirInode) lookUpChildDir(
-	ctx context.Context,
-	dirName string) (result Core, err error) {
-	childName := NewDirName(d.Name(), dirName)
-
-	// Stat the placeholder object.
-	result.Bucket = d.Bucket()
-	result.FullName = childName
-	result.Object, err = statObjectMayNotExist(ctx, d.bucket, result.FullName)
-	if err != nil {
-		err = fmt.Errorf("statObjectMayNotExist: %w", err)
-		return
-	}
-	if result.Object != nil {
-		// Core found. This is an explicit directory.
-		return
-	}
-
-	// If implicit directories are enabled, find out whether the child name is
-	// implicitly defined.
+func (d *dirInode) lookUpChildDir(ctx context.Context, name string) (*Core, error) {
+	childName := NewDirName(d.Name(), name)
 	if d.implicitDirs {
-		result.ImplicitDir, err = objectNamePrefixNonEmpty(
-			ctx,
-			d.bucket,
-			childName.GcsObjectName())
-
-		if err != nil {
-			err = fmt.Errorf("objectNamePrefixNonEmpty: %w", err)
-			return
-		}
+		return findDirInode(ctx, d.Bucket(), childName)
 	}
-	return
+	return findExplicitInode(ctx, d.Bucket(), childName)
 }
 
 // Look up the file for a (file, dir) pair with conflicting names, overriding
@@ -309,66 +273,39 @@ func (d *dirInode) lookUpChildDir(
 // nil error. If the directory doesn't exist, pretend the file doesn't exist.
 //
 // REQUIRES: strings.HasSuffix(name, ConflictingFileNameSuffix)
-func (d *dirInode) lookUpConflicting(
-	ctx context.Context,
-	name string) (result Core, err error) {
+func (d *dirInode) lookUpConflicting(ctx context.Context, name string) (*Core, error) {
 	strippedName := strings.TrimSuffix(name, ConflictingFileNameSuffix)
 
 	// In order to a marked name to be accepted, we require the conflicting
 	// directory to exist.
-	var dirResult Core
-	dirResult, err = d.lookUpChildDir(ctx, strippedName)
+	result, err := d.lookUpChildDir(ctx, strippedName)
 	if err != nil {
-		err = fmt.Errorf("lookUpChildDir for stripped name: %w", err)
-		return
+		return nil, fmt.Errorf("lookUpChildDir for stripped name: %w", err)
 	}
 
-	if !dirResult.Exists() {
-		return
+	if result == nil {
+		return nil, nil
 	}
 
 	// The directory name exists. Find the conflicting file.
+	// Overwrite the result.
 	result, err = d.lookUpChildFile(ctx, strippedName)
 	if err != nil {
-		err = fmt.Errorf("lookUpChildFile for stripped name: %w", err)
-		return
+		return nil, fmt.Errorf("lookUpChildFile for stripped name: %w", err)
 	}
 
-	return
+	return result, nil
 }
 
-// List the supplied object name prefix to find out whether it is non-empty.
-func objectNamePrefixNonEmpty(
-	ctx context.Context,
-	bucket gcs.Bucket,
-	prefix string) (nonEmpty bool, err error) {
-	req := &gcs.ListObjectsRequest{
-		Prefix:     prefix,
-		MaxResults: 1,
-	}
-
-	listing, err := bucket.ListObjects(ctx, req)
-	if err != nil {
-		err = fmt.Errorf("ListObjects: %w", err)
-		return
-	}
-
-	nonEmpty = len(listing.Objects) != 0
-	return
-}
-
-// Stat the object with the given name, returning (nil, nil) if the object
-// doesn't exist rather than failing.
-func statObjectMayNotExist(
-	ctx context.Context,
-	bucket gcs.Bucket,
-	name Name) (o *gcs.Object, err error) {
+// findExplicitInode finds the file or dir inode core backed by an explicit
+// object in GCS with the given name. Return nil if such object does not exist.
+func findExplicitInode(ctx context.Context, bucket gcsx.SyncerBucket, name Name) (*Core, error) {
 	// Call the bucket.
 	req := &gcs.StatObjectRequest{
 		Name: name.GcsObjectName(),
 	}
 
-	o, err = bucket.StatObject(ctx, req)
+	o, err := bucket.StatObject(ctx, req)
 
 	// Suppress "not found" errors.
 	if _, ok := err.(*gcs.NotFoundError); ok {
@@ -377,11 +314,48 @@ func statObjectMayNotExist(
 
 	// Annotate others.
 	if err != nil {
-		err = fmt.Errorf("StatObject: %w", err)
-		return
+		return nil, fmt.Errorf("StatObject: %w", err)
 	}
 
-	return
+	return &Core{
+		Bucket:      bucket,
+		FullName:    name,
+		Object:      o,
+		ImplicitDir: false,
+	}, nil
+}
+
+// findDirInode finds the dir inode core where the directory is either explicit
+// or implicit. Returns nil if no such directory exists.
+func findDirInode(ctx context.Context, bucket gcsx.SyncerBucket, name Name) (*Core, error) {
+	if !name.IsDir() {
+		return nil, fmt.Errorf("%q is not directory", name)
+	}
+
+	req := &gcs.ListObjectsRequest{
+		Prefix:     name.GcsObjectName(),
+		MaxResults: 1,
+	}
+	listing, err := bucket.ListObjects(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("list objects: %w", err)
+	}
+
+	if len(listing.Objects) == 0 {
+		return nil, nil
+	}
+
+	result := &Core{
+		Bucket:   bucket,
+		FullName: name,
+	}
+	if o := listing.Objects[0]; o.Name == name.GcsObjectName() {
+		result.Object = o
+		result.ImplicitDir = false
+	} else {
+		result.ImplicitDir = true
+	}
+	return result, nil
 }
 
 // Fail if the name already exists. Pass on errors directly.
@@ -472,42 +446,45 @@ func (d *dirInode) LookUpChild(
 	name string) (result Core, err error) {
 	// Is this a conflict marker name?
 	if strings.HasSuffix(name, ConflictingFileNameSuffix) {
-		result, err = d.lookUpConflicting(ctx, name)
+		r, err := d.lookUpConflicting(ctx, name)
+		return *r, err
+	}
+
+	var fileResult *Core
+	var dirResult *Core
+	lookUpFile := func(ctx context.Context) (err error) {
+		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name))
+		return
+	}
+	lookUpExplicitDir := func(ctx context.Context) (err error) {
+		dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
+		return
+	}
+	lookUpImplicitOrExplicitDir := func(ctx context.Context) (err error) {
+		dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
 
-	var fileResult Core
-	var dirResult Core
 	b := syncutil.NewBundle(ctx)
-
-	cachedType := d.cache.Get(d.cacheClock.Now(), name)
-	switch cachedType {
+	switch cachedType := d.cache.Get(d.cacheClock.Now(), name); cachedType {
 	case ImplicitDirType:
-		dirResult = Core{
+		dirResult = &Core{
 			Bucket:      d.Bucket(),
 			FullName:    NewDirName(d.Name(), name),
 			Object:      nil,
 			ImplicitDir: true,
 		}
 	case ExplicitDirType:
-		b.Add(func(ctx context.Context) (err error) {
-			dirResult, err = d.lookUpChildDir(ctx, name)
-			return
-		})
+		b.Add(lookUpExplicitDir)
 	case RegularFileType, SymlinkType:
-		b.Add(func(ctx context.Context) (err error) {
-			fileResult, err = d.lookUpChildFile(ctx, name)
-			return
-		})
+		b.Add(lookUpFile)
 	case UnknownType:
-		b.Add(func(ctx context.Context) (err error) {
-			dirResult, err = d.lookUpChildDir(ctx, name)
-			return
-		})
-		b.Add(func(ctx context.Context) (err error) {
-			fileResult, err = d.lookUpChildFile(ctx, name)
-			return
-		})
+		b.Add(lookUpFile)
+		if d.implicitDirs {
+			b.Add(lookUpImplicitOrExplicitDir)
+		} else {
+			b.Add(lookUpExplicitDir)
+		}
 	}
 
 	err = b.Join()
@@ -515,10 +492,10 @@ func (d *dirInode) LookUpChild(
 		return
 	}
 
-	if dirResult.Exists() {
-		result = dirResult
-	} else if fileResult.Exists() {
-		result = fileResult
+	if dirResult != nil {
+		result = *dirResult
+	} else if fileResult != nil {
+		result = *fileResult
 	}
 
 	if result.Exists() {
