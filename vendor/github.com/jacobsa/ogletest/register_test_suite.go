@@ -174,6 +174,8 @@ func filterMethods(suiteName string, in []reflect.Method) (out []reflect.Method)
 		if isSpecialMethod(m.Name) || !isExportedMethod(m.Name) {
 			continue
 		}
+
+		out = append(out, m)
 	}
 
 	return
