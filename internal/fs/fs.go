@@ -1131,7 +1131,7 @@ func (fs *fileSystem) MkDir(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
-	child := fs.lookUpOrCreateInodeIfNotStale(result)
+	child := fs.lookUpOrCreateInodeIfNotStale(*result)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
 		return err
@@ -1213,7 +1213,7 @@ func (fs *fileSystem) createFile(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
-	child = fs.lookUpOrCreateInodeIfNotStale(result)
+	child = fs.lookUpOrCreateInodeIfNotStale(*result)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
 		return
@@ -1287,7 +1287,7 @@ func (fs *fileSystem) CreateSymlink(
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
-	child := fs.lookUpOrCreateInodeIfNotStale(result)
+	child := fs.lookUpOrCreateInodeIfNotStale(*result)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
 		return err

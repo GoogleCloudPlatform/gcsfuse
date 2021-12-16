@@ -168,11 +168,8 @@ func (d *baseDirInode) LookUpChild(ctx context.Context, name string) (*Core, err
 }
 
 // Not implemented
-func (d *baseDirInode) ReadDescendants(
-	ctx context.Context,
-	limit int) (descendants map[Name]Core, err error) {
-	err = fuse.ENOSYS
-	return
+func (d *baseDirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Core, error) {
+	return nil, fuse.ENOSYS
 }
 
 // Not implemented
@@ -212,34 +209,20 @@ func (d *baseDirInode) ReadEntries(
 // tries to mutate the base directory, they will receive a ENOSYS error
 // indicating such operation is not supported.
 
-func (d *baseDirInode) CreateChildFile(
-	ctx context.Context,
-	name string) (result Core, err error) {
-	err = fuse.ENOSYS
-	return
+func (d *baseDirInode) CreateChildFile(ctx context.Context, name string) (*Core, error) {
+	return nil, fuse.ENOSYS
 }
 
-func (d *baseDirInode) CloneToChildFile(
-	ctx context.Context,
-	name string,
-	src *gcs.Object) (result Core, err error) {
-	err = fuse.ENOSYS
-	return
+func (d *baseDirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.Object) (*Core, error) {
+	return nil, fuse.ENOSYS
 }
 
-func (d *baseDirInode) CreateChildSymlink(
-	ctx context.Context,
-	name string,
-	target string) (result Core, err error) {
-	err = fuse.ENOSYS
-	return
+func (d *baseDirInode) CreateChildSymlink(ctx context.Context, name string, target string) (*Core, error) {
+	return nil, fuse.ENOSYS
 }
 
-func (d *baseDirInode) CreateChildDir(
-	ctx context.Context,
-	name string) (result Core, err error) {
-	err = fuse.ENOSYS
-	return
+func (d *baseDirInode) CreateChildDir(ctx context.Context, name string) (*Core, error) {
+	return nil, fuse.ENOSYS
 }
 
 func (d *baseDirInode) DeleteChildFile(

@@ -57,9 +57,7 @@ type DirInode interface {
 	// Read the children objects of this dir, recursively. The result count
 	// is capped at the given limit. Internal caches are not refreshed from this
 	// call.
-	ReadDescendants(
-		ctx context.Context,
-		limit int) (descendants map[Name]Core, err error)
+	ReadDescendants(ctx context.Context, limit int) (map[Name]*Core, error)
 
 	// Read some number of objects from the directory, returning a continuation
 	// token that can be used to pick up the read operation where it left off.
@@ -91,34 +89,24 @@ type DirInode interface {
 	// Create an empty child file with the supplied (relative) name, failing with
 	// *gcs.PreconditionError if a backing object already exists in GCS.
 	// Return the full name of the child and the GCS object it backs up.
-	CreateChildFile(
-		ctx context.Context,
-		name string) (result Core, err error)
+	CreateChildFile(ctx context.Context, name string) (*Core, error)
 
 	// Like CreateChildFile, except clone the supplied source object instead of
 	// creating an empty object.
 	// Return the full name of the child and the GCS object it backs up.
-	CloneToChildFile(
-		ctx context.Context,
-		name string,
-		src *gcs.Object) (result Core, err error)
+	CloneToChildFile(ctx context.Context, name string, src *gcs.Object) (*Core, error)
 
 	// Create a symlink object with the supplied (relative) name and the supplied
 	// target, failing with *gcs.PreconditionError if a backing object already
 	// exists in GCS.
 	// Return the full name of the child and the GCS object it backs up.
-	CreateChildSymlink(
-		ctx context.Context,
-		name string,
-		target string) (result Core, err error)
+	CreateChildSymlink(ctx context.Context, name string, target string) (*Core, error)
 
 	// Create a backing object for a child directory with the supplied (relative)
 	// name, failing with *gcs.PreconditionError if a backing object already
 	// exists in GCS.
 	// Return the full name of the child and the GCS object it backs up.
-	CreateChildDir(
-		ctx context.Context,
-		name string) (result Core, err error)
+	CreateChildDir(ctx context.Context, name string) (*Core, error)
 
 	// Delete the backing object for the child file or symlink with the given
 	// (relative) name and generation number, where zero means the latest
@@ -501,34 +489,30 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 }
 
 // LOCKS_REQUIRED(d)
-func (d *dirInode) ReadDescendants(
-	ctx context.Context,
-	limit int) (descendants map[Name]Core, err error) {
+func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Core, error) {
 	var tok string
-	var listing *gcs.Listing
-	descendants = make(map[Name]Core)
+	descendants := make(map[Name]*Core)
 	for {
-		listing, err = d.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{
+		listing, err := d.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{
 			Delimiter:         "", // recursively
 			Prefix:            d.Name().GcsObjectName(),
 			ContinuationToken: tok,
 			MaxResults:        limit + 1, // to exclude itself
 		})
 		if err != nil {
-			err = fmt.Errorf("list objects: %w", err)
-			return
+			return nil, fmt.Errorf("list objects: %w", err)
 		}
 
 		for _, o := range listing.Objects {
 			if len(descendants) >= limit {
-				return
+				return descendants, nil
 			}
 			// skip the current directory
 			if o.Name == d.Name().GcsObjectName() {
 				continue
 			}
 			name := NewDescendantName(d.Name(), o.Name)
-			descendants[name] = Core{
+			descendants[name] = &Core{
 				Bucket:      d.Bucket(),
 				FullName:    name,
 				Object:      o,
@@ -538,7 +522,7 @@ func (d *dirInode) ReadDescendants(
 
 		// Are we done listing?
 		if tok = listing.ContinuationToken; tok == "" {
-			return
+			return descendants, nil
 		}
 	}
 
@@ -660,92 +644,91 @@ func (d *dirInode) ReadEntries(
 }
 
 // LOCKS_REQUIRED(d)
-func (d *dirInode) CreateChildFile(
-	ctx context.Context,
-	name string) (result Core, err error) {
-	result.Bucket = d.Bucket()
+func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, error) {
 	metadata := map[string]string{
 		FileMtimeMetadataKey: d.mtimeClock.Now().UTC().Format(time.RFC3339Nano),
 	}
-	result.FullName = NewFileName(d.Name(), name)
+	fullName := NewFileName(d.Name(), name)
 
-	result.Object, err = d.createNewObject(ctx, result.FullName, metadata)
+	o, err := d.createNewObject(ctx, fullName, metadata)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	d.cache.Insert(d.cacheClock.Now(), name, RegularFileType)
-
-	return
+	return &Core{
+		Bucket:   d.Bucket(),
+		FullName: fullName,
+		Object:   o,
+	}, nil
 }
 
 // LOCKS_REQUIRED(d)
-func (d *dirInode) CloneToChildFile(
-	ctx context.Context,
-	name string,
-	src *gcs.Object) (result Core, err error) {
-	result.Bucket = d.Bucket()
+func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.Object) (*Core, error) {
 	// Erase any existing type information for this name.
 	d.cache.Erase(name)
-	result.FullName = NewFileName(d.Name(), name)
+	fullName := NewFileName(d.Name(), name)
 
 	// Clone over anything that might already exist for the name.
-	result.Object, err = d.bucket.CopyObject(
+	o, err := d.bucket.CopyObject(
 		ctx,
 		&gcs.CopyObjectRequest{
 			SrcName:                       src.Name,
 			SrcGeneration:                 src.Generation,
 			SrcMetaGenerationPrecondition: &src.MetaGeneration,
-			DstName:                       result.FullName.GcsObjectName(),
+			DstName:                       fullName.GcsObjectName(),
 		})
-
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	// Update the type cache.
-	r := &Record{result.Object}
+	r := &Record{o}
 	d.cache.Insert(d.cacheClock.Now(), name, r.Type())
 
-	return
+	return &Core{
+		Bucket:   d.Bucket(),
+		FullName: fullName,
+		Object:   o,
+	}, nil
 }
 
 // LOCKS_REQUIRED(d)
-func (d *dirInode) CreateChildSymlink(
-	ctx context.Context,
-	name string,
-	target string) (result Core, err error) {
-	result.Bucket = d.Bucket()
-	result.FullName = NewFileName(d.Name(), name)
+func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target string) (*Core, error) {
+	fullName := NewFileName(d.Name(), name)
 	metadata := map[string]string{
 		SymlinkMetadataKey: target,
 	}
 
-	result.Object, err = d.createNewObject(ctx, result.FullName, metadata)
+	o, err := d.createNewObject(ctx, fullName, metadata)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	d.cache.Insert(d.cacheClock.Now(), name, SymlinkType)
 
-	return
+	return &Core{
+		Bucket:   d.Bucket(),
+		FullName: fullName,
+		Object:   o,
+	}, nil
 }
 
 // LOCKS_REQUIRED(d)
-func (d *dirInode) CreateChildDir(
-	ctx context.Context,
-	name string) (result Core, err error) {
-	result.Bucket = d.Bucket()
-	result.FullName = NewDirName(d.Name(), name)
-
-	result.Object, err = d.createNewObject(ctx, result.FullName, nil)
+func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, error) {
+	fullName := NewDirName(d.Name(), name)
+	o, err := d.createNewObject(ctx, fullName, nil)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	d.cache.Insert(d.cacheClock.Now(), name, ExplicitDirType)
 
-	return
+	return &Core{
+		Bucket:   d.Bucket(),
+		FullName: fullName,
+		Object:   o,
+	}, nil
 }
 
 // LOCKS_REQUIRED(d)

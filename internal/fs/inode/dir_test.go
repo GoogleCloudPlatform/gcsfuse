@@ -671,6 +671,7 @@ func (t *DirTest) CreateChildFile_DoesntExist() {
 	// Call the inode.
 	result, err := t.in.CreateChildFile(t.ctx, name)
 	AssertEq(nil, err)
+	AssertNe(nil, result)
 	AssertNe(nil, result.Object)
 
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
@@ -767,6 +768,7 @@ func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
 	// Call the inode.
 	result, err := t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
 	AssertEq(nil, err)
+	AssertNe(nil, result)
 	AssertNe(nil, result.Object)
 
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
@@ -795,6 +797,7 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 	// Call the inode.
 	result, err := t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
 	AssertEq(nil, err)
+	AssertNe(nil, result)
 	AssertNe(nil, result.Object)
 
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
@@ -856,6 +859,7 @@ func (t *DirTest) CreateChildSymlink_DoesntExist() {
 	// Call the inode.
 	result, err := t.in.CreateChildSymlink(t.ctx, name, target)
 	AssertEq(nil, err)
+	AssertNe(nil, result)
 	AssertNe(nil, result.Object)
 
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
@@ -924,6 +928,7 @@ func (t *DirTest) CreateChildDir_DoesntExist() {
 	// Call the inode.
 	result, err := t.in.CreateChildDir(t.ctx, name)
 	AssertEq(nil, err)
+	AssertNe(nil, result)
 	AssertNe(nil, result.Object)
 
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
