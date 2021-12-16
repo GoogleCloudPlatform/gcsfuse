@@ -75,6 +75,5 @@ func CloseStackdriverExporter() {
 		exporter.StopMetricsExporter()
 		exporter.Flush()
 	}
-	infoLogger.Printf("Stackdriver exporter closed")
 	exporter = nil
 }
