@@ -148,23 +148,23 @@ func (d *baseDirInode) Attributes(
 }
 
 // LOCKS_REQUIRED(d)
-func (d *baseDirInode) LookUpChild(
-	ctx context.Context,
-	name string) (result Core, err error) {
+func (d *baseDirInode) LookUpChild(ctx context.Context, name string) (*Core, error) {
+	var err error
 	bucket, ok := d.buckets[name]
 	if !ok {
 		bucket, err = d.bucketManager.SetUpBucket(ctx, name)
 		if err != nil {
-			return
+			return nil, err
 		}
 		d.buckets[name] = bucket
 	}
 
-	result.Bucket = bucket
-	result.FullName = NewRootName(bucket.Name())
-	result.ImplicitDir = false
-	result.Object = nil
-	return
+	return &Core{
+		Bucket:      bucket,
+		FullName:    NewRootName(bucket.Name()),
+		ImplicitDir: false,
+		Object:      nil,
+	}, nil
 }
 
 // Not implemented

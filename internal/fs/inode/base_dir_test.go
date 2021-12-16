@@ -165,7 +165,7 @@ func (t *BaseDirTest) LookUpChild_NonExistent() {
 	result, err := t.in.LookUpChild(t.ctx, "missing_bucket")
 
 	ExpectNe(nil, err)
-	ExpectFalse(result.Exists())
+	ExpectEq(nil, result)
 	ExpectEq(1, t.bm.SetUpTimes())
 }
 
@@ -173,7 +173,7 @@ func (t *BaseDirTest) LookUpChild_BucketFound() {
 	result, err := t.in.LookUpChild(t.ctx, "bucketA")
 
 	AssertEq(nil, err)
-	ExpectTrue(result.Exists())
+	AssertNe(nil, result)
 
 	ExpectEq("bucketA", result.Bucket.Name())
 	ExpectTrue(result.FullName.IsBucketRoot())
@@ -185,7 +185,7 @@ func (t *BaseDirTest) LookUpChild_BucketFound() {
 	result, err = t.in.LookUpChild(t.ctx, "bucketB")
 
 	AssertEq(nil, err)
-	ExpectTrue(result.Exists())
+	AssertNe(nil, result)
 
 	ExpectEq("bucketB", result.Bucket.Name())
 	ExpectTrue(result.FullName.IsBucketRoot())

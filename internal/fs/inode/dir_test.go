@@ -177,7 +177,7 @@ func (t *DirTest) LookUpChild_NonExistent() {
 	result, err := t.in.LookUpChild(t.ctx, "qux")
 
 	AssertEq(nil, err)
-	ExpectFalse(result.Exists())
+	AssertEq(nil, result)
 }
 
 func (t *DirTest) LookUpChild_FileOnly() {
@@ -204,7 +204,7 @@ func (t *DirTest) LookUpChild_FileOnly() {
 	// A conflict marker name shouldn't work.
 	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
 	AssertEq(nil, err)
-	ExpectFalse(result.Exists())
+	ExpectEq(nil, result)
 }
 
 func (t *DirTest) LookUpChild_DirOnly() {
@@ -231,7 +231,7 @@ func (t *DirTest) LookUpChild_DirOnly() {
 	// A conflict marker name shouldn't work.
 	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
 	AssertEq(nil, err)
-	ExpectFalse(result.Exists())
+	ExpectEq(nil, result)
 }
 
 func (t *DirTest) LookUpChild_ImplicitDirOnly_Disabled() {
@@ -246,12 +246,12 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Disabled() {
 	// Looking up the name shouldn't work.
 	result, err := t.in.LookUpChild(t.ctx, name)
 	AssertEq(nil, err)
-	ExpectFalse(result.Exists())
+	ExpectEq(nil, result)
 
 	// Ditto with a conflict marker.
 	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
 	AssertEq(nil, err)
-	ExpectFalse(result.Exists())
+	ExpectEq(nil, result)
 }
 
 func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
@@ -280,7 +280,7 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 	// A conflict marker should not work.
 	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
 	AssertEq(nil, err)
-	ExpectFalse(result.Exists())
+	ExpectEq(nil, result)
 }
 
 func (t *DirTest) LookUpChild_FileAndDir() {

@@ -718,43 +718,36 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	childName string) (child inode.Inode, err error) {
 	// Set up a function that will find a lookup result for the child with the
 	// given name. Expects no locks to be held.
-	getLookupResult := func() (r inode.Core, err error) {
+	getLookupResult := func() (*inode.Core, error) {
 		parent.Lock()
 		defer parent.Unlock()
-
-		r, err = parent.LookUpChild(ctx, childName)
-		if err != nil {
-			err = fmt.Errorf("LookUpChild: %w", err)
-			return
-		}
-
-		return
+		return parent.LookUpChild(ctx, childName)
 	}
 
 	// Run a retry loop around lookUpOrCreateInodeIfNotStale.
 	const maxTries = 3
 	for n := 0; n < maxTries; n++ {
 		// Create a record.
-		var result inode.Core
-		result, err = getLookupResult()
+		var core *inode.Core
+		core, err = getLookupResult()
 
 		if err != nil {
 			return
 		}
 
-		if !result.Exists() {
+		if core == nil {
 			err = fuse.ENOENT
 			return
 		}
 
 		// Attempt to create the inode. Return if successful.
-		child = fs.lookUpOrCreateInodeIfNotStale(result)
+		child = fs.lookUpOrCreateInodeIfNotStale(*core)
 		if child != nil {
 			return
 		}
 	}
 
-	err = fmt.Errorf("Did not converge after %v tries", maxTries)
+	err = fmt.Errorf("cannot find %q in %q with %v tries", childName, parent.Name(), maxTries)
 	return
 }
 
@@ -1420,7 +1413,7 @@ func (fs *fileSystem) Rename(
 
 	// Find the object in the old location.
 	oldParent.Lock()
-	lr, err := oldParent.LookUpChild(ctx, op.OldName)
+	child, err := oldParent.LookUpChild(ctx, op.OldName)
 	oldParent.Unlock()
 
 	if err != nil {
@@ -1428,15 +1421,15 @@ func (fs *fileSystem) Rename(
 		return err
 	}
 
-	if !lr.Exists() {
+	if child == nil {
 		err = fuse.ENOENT
 		return err
 	}
 
-	if lr.FullName.IsDir() {
+	if child.FullName.IsDir() {
 		return fs.renameDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
-	return fs.renameFile(ctx, oldParent, op.OldName, lr.Object, newParent, op.NewName)
+	return fs.renameFile(ctx, oldParent, op.OldName, child.Object, newParent, op.NewName)
 }
 
 // LOCKS_EXCLUDED(fs.mu)

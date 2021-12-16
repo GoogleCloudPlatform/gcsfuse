@@ -39,8 +39,8 @@ type DirInode interface {
 	// Look up the direct child with the given relative name, returning
 	// information about the object backing the child or whether it exists as an
 	// implicit directory. If a file/symlink and a directory with the given name
-	// both exist, the directory is preferred. Return a result with
-	// !result.Exists() and a nil error if neither is found.
+	// both exist, the directory is preferred. Return nil result and a nil error
+	// if neither is found.
 	//
 	// Special case: if the name ends in ConflictingFileNameSuffix, we strip the
 	// suffix, confirm that a conflicting directory exists, then return a result
@@ -52,9 +52,7 @@ type DirInode interface {
 	// named "foo/bar/baz" and this is the directory "foo", a child directory
 	// named "bar" will be implied. In this case, result.ImplicitDir will be
 	// true.
-	LookUpChild(
-		ctx context.Context,
-		name string) (result Core, err error)
+	LookUpChild(ctx context.Context, name string) (*Core, error)
 
 	// Read the children objects of this dir, recursively. The result count
 	// is capped at the given limit. Internal caches are not refreshed from this
@@ -309,7 +307,7 @@ func findExplicitInode(ctx context.Context, bucket gcsx.SyncerBucket, name Name)
 
 	// Suppress "not found" errors.
 	if _, ok := err.(*gcs.NotFoundError); ok {
-		err = nil
+		return nil, nil
 	}
 
 	// Annotate others.
@@ -441,13 +439,10 @@ func (d *dirInode) Bucket() gcsx.SyncerBucket {
 const ConflictingFileNameSuffix = "\n"
 
 // LOCKS_REQUIRED(d)
-func (d *dirInode) LookUpChild(
-	ctx context.Context,
-	name string) (result Core, err error) {
+func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) {
 	// Is this a conflict marker name?
 	if strings.HasSuffix(name, ConflictingFileNameSuffix) {
-		r, err := d.lookUpConflicting(ctx, name)
-		return *r, err
+		return d.lookUpConflicting(ctx, name)
 	}
 
 	var fileResult *Core
@@ -487,22 +482,22 @@ func (d *dirInode) LookUpChild(
 		}
 	}
 
-	err = b.Join()
-	if err != nil {
-		return
+	if err := b.Join(); err != nil {
+		return nil, err
 	}
 
+	var result *Core
 	if dirResult != nil {
-		result = *dirResult
+		result = dirResult
 	} else if fileResult != nil {
-		result = *fileResult
+		result = fileResult
 	}
 
-	if result.Exists() {
+	if result != nil {
 		record := &Record{result.Object}
 		d.cache.Insert(d.cacheClock.Now(), name, record.Type())
 	}
-	return
+	return result, nil
 }
 
 // LOCKS_REQUIRED(d)
