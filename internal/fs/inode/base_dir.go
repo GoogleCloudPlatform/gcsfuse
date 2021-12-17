@@ -171,14 +171,6 @@ func (d *baseDirInode) ReadDescendants(ctx context.Context, limit int) (map[Name
 	return nil, fuse.ENOSYS
 }
 
-// Not implemented
-func (d *baseDirInode) ReadObjects(
-	ctx context.Context,
-	tok string) (files []*Core, dirs []*Core, newTok string, err error) {
-	err = fuse.ENOSYS
-	return
-}
-
 // LOCKS_REQUIRED(d)
 func (d *baseDirInode) ReadEntries(
 	ctx context.Context,

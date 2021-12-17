@@ -59,16 +59,6 @@ type DirInode interface {
 	// call.
 	ReadDescendants(ctx context.Context, limit int) (map[Name]*Core, error)
 
-	// Read some number of objects from the directory, returning a continuation
-	// token that can be used to pick up the read operation where it left off.
-	// Supply the empty token on the first call.
-	//
-	// At the end of the directory, the returned continuation token will be
-	// empty. Otherwise it will be non-empty. There is no guarantee about the
-	// number of objects returned; it may be zero even with a non-empty
-	// continuation token.
-	ReadObjects(ctx context.Context, tok string) (files []*Core, dirs []*Core, newTok string, err error)
-
 	// Read some number of entries from the directory, returning a continuation
 	// token that can be used to pick up the read operation where it left off.
 	// Supply the empty token on the first call.
@@ -520,9 +510,9 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 }
 
 // LOCKS_REQUIRED(d)
-func (d *dirInode) ReadObjects(
+func (d *dirInode) readObjects(
 	ctx context.Context,
-	tok string) (files []*Core, dirs []*Core, newTok string, err error) {
+	tok string) (cores map[Name]*Core, newTok string, err error) {
 	// Ask the bucket to list some objects.
 	req := &gcs.ListObjectsRequest{
 		Delimiter:                "/",
@@ -537,11 +527,11 @@ func (d *dirInode) ReadObjects(
 		return
 	}
 
-	cores := make(map[string]*Core)
+	cores = make(map[Name]*Core)
 	defer func() {
 		now := d.cacheClock.Now()
-		for name, c := range cores {
-			d.cache.Insert(now, name, c.Type())
+		for fullName, c := range cores {
+			d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
 		}
 	}()
 
@@ -557,21 +547,21 @@ func (d *dirInode) ReadObjects(
 		// directory "foo/" coexist, the directory would eventually occupy
 		// the value of records["foo"].
 		if strings.HasSuffix(o.Name, "/") {
+			dirName := NewDirName(d.Name(), nameBase)
 			explicitDir := &Core{
 				Bucket:   d.Bucket(),
-				FullName: NewDirName(d.Name(), nameBase),
+				FullName: dirName,
 				Object:   o,
 			}
-			dirs = append(dirs, explicitDir)
-			cores[nameBase] = explicitDir
+			cores[dirName] = explicitDir
 		} else {
+			fileName := NewFileName(d.Name(), nameBase)
 			file := &Core{
 				Bucket:   d.Bucket(),
-				FullName: NewFileName(d.Name(), nameBase),
+				FullName: fileName,
 				Object:   o,
 			}
-			files = append(files, file)
-			cores[nameBase] = file
+			cores[fileName] = file
 		}
 	}
 
@@ -585,48 +575,45 @@ func (d *dirInode) ReadObjects(
 	// Add implicit directories into the result.
 	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
-		if c, ok := cores[pathBase]; ok && c.Type() == ExplicitDirType {
+		dirName := NewDirName(d.Name(), pathBase)
+		if c, ok := cores[dirName]; ok && c.Type() == ExplicitDirType {
 			continue
 		}
 
 		implicitDir := &Core{
 			Bucket:   d.Bucket(),
-			FullName: NewDirName(d.Name(), pathBase),
+			FullName: dirName,
 			Object:   nil,
 		}
-		dirs = append(dirs, implicitDir)
-		cores[pathBase] = implicitDir
+		cores[dirName] = implicitDir
 	}
-
 	return
 }
 
-// LOCKS_REQUIRED(d)
 func (d *dirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
-	var files, dirs []*Core
-	files, dirs, newTok, err = d.ReadObjects(ctx, tok)
+	var cores map[Name]*Core
+	cores, newTok, err = d.readObjects(ctx, tok)
 	if err != nil {
 		err = fmt.Errorf("read objects: %w", err)
 		return
 	}
 
-	for _, file := range files {
-		entryType := fuseutil.DT_File
-		if IsSymlink(file.Object) {
-			entryType = fuseutil.DT_Link
+	for fullName, core := range cores {
+		entry := fuseutil.Dirent{
+			Name: path.Base(fullName.LocalName()),
+			Type: fuseutil.DT_Unknown,
 		}
-		entries = append(entries, fuseutil.Dirent{
-			Name: path.Base(file.FullName.LocalName()),
-			Type: entryType,
-		})
-	}
-	for _, dir := range dirs {
-		entries = append(entries, fuseutil.Dirent{
-			Name: path.Base(dir.FullName.LocalName()),
-			Type: fuseutil.DT_Directory,
-		})
+		switch core.Type() {
+		case SymlinkType:
+			entry.Type = fuseutil.DT_Link
+		case RegularFileType:
+			entry.Type = fuseutil.DT_File
+		case ImplicitDirType, ExplicitDirType:
+			entry.Type = fuseutil.DT_Directory
+		}
+		entries = append(entries, entry)
 	}
 	return
 }
