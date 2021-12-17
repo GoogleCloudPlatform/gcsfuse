@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"strings"
@@ -282,7 +283,8 @@ func findExplicitInode(ctx context.Context, bucket gcsx.SyncerBucket, name Name)
 	o, err := bucket.StatObject(ctx, req)
 
 	// Suppress "not found" errors.
-	if _, ok := err.(*gcs.NotFoundError); ok {
+	var gcsErr *gcs.NotFoundError
+	if errors.As(err, &gcsErr) {
 		return nil, nil
 	}
 
