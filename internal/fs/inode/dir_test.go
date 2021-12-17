@@ -275,7 +275,7 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 	ExpectEq(nil, result.Object)
 
 	ExpectEq(objName, result.FullName.GcsObjectName())
-	ExpectTrue(result.ImplicitDir)
+	ExpectEq(inode.ImplicitDirType, result.Type())
 
 	// A conflict marker should not work.
 	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)

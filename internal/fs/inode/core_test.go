@@ -62,13 +62,13 @@ func (t *CoreTest) File() {
 	AssertEq(nil, err)
 
 	name := inode.NewFileName(inode.NewRootName(t.bucket.Name()), o.Name)
-	c := inode.Core{
-		Bucket:      t.bucket,
-		FullName:    name,
-		Object:      o,
-		ImplicitDir: false,
+	c := &inode.Core{
+		Bucket:   t.bucket,
+		FullName: name,
+		Object:   o,
 	}
 	ExpectTrue(c.Exists())
+	ExpectEq(inode.RegularFileType, c.Type())
 }
 
 func (t *CoreTest) ExplicitDir() {
@@ -76,82 +76,72 @@ func (t *CoreTest) ExplicitDir() {
 	AssertEq(nil, err)
 
 	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), o.Name)
-	c := inode.Core{
-		Bucket:      t.bucket,
-		FullName:    name,
-		Object:      o,
-		ImplicitDir: false,
+	c := &inode.Core{
+		Bucket:   t.bucket,
+		FullName: name,
+		Object:   o,
 	}
 	ExpectTrue(c.Exists())
+	ExpectEq(inode.ExplicitDirType, c.Type())
 }
 
 func (t *CoreTest) ImplicitDir() {
 	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), "bar/")
-	c := inode.Core{
-		Bucket:      t.bucket,
-		FullName:    name,
-		Object:      nil,
-		ImplicitDir: true,
+	c := &inode.Core{
+		Bucket:   t.bucket,
+		FullName: name,
+		Object:   nil,
 	}
 	ExpectTrue(c.Exists())
+	ExpectEq(inode.ImplicitDirType, c.Type())
 }
 
 func (t *CoreTest) BucketRootDir() {
-	c := inode.Core{
-		Bucket:      t.bucket,
-		FullName:    inode.NewRootName(t.bucket.Name()),
-		Object:      nil,
-		ImplicitDir: false,
+	c := &inode.Core{
+		Bucket:   t.bucket,
+		FullName: inode.NewRootName(t.bucket.Name()),
+		Object:   nil,
 	}
 	ExpectTrue(c.Exists())
+	ExpectEq(inode.ImplicitDirType, c.Type())
 }
 
 func (t *CoreTest) Nonexistent() {
-	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), "bar/")
-	c := inode.Core{
-		Bucket:      t.bucket,
-		FullName:    name,
-		Object:      nil,
-		ImplicitDir: false,
-	}
+	var c *inode.Core
 	ExpectFalse(c.Exists())
+	ExpectEq(inode.UnknownType, c.Type())
 }
 
 func (t *CoreTest) SanityCheck() {
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "bar/", []byte(""))
+	root := inode.NewRootName(t.bucket.Name())
+	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "bar", []byte(""))
 	AssertEq(nil, err)
 
-	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), o.Name)
-	c := inode.Core{
-		Bucket:      t.bucket,
-		FullName:    name,
-		Object:      o,
-		ImplicitDir: true,
+	c := &inode.Core{
+		Bucket:   t.bucket,
+		FullName: inode.NewDirName(root, "bar"),
+		Object:   nil,
 	}
-	ExpectNe(nil, c.SanityCheck())
+	ExpectEq(nil, c.SanityCheck()) // implicit dir is okay
 
-	c = inode.Core{
-		Bucket:      t.bucket,
-		FullName:    name,
-		Object:      nil,
-		ImplicitDir: true,
+	c = &inode.Core{
+		Bucket:   t.bucket,
+		FullName: inode.NewFileName(root, "bar"),
+		Object:   nil,
 	}
-	ExpectEq(nil, c.SanityCheck())
+	ExpectNe(nil, c.SanityCheck()) // missing object for file
 
-	c = inode.Core{
-		Bucket:      t.bucket,
-		FullName:    name,
-		Object:      nil,
-		ImplicitDir: false,
+	c = &inode.Core{
+		Bucket:   t.bucket,
+		FullName: inode.NewFileName(root, o.Name),
+		Object:   o,
 	}
-	ExpectEq(nil, c.SanityCheck())
+	ExpectEq(nil, c.SanityCheck()) // name match
 
-	o.Name = "foo/"
-	c = inode.Core{
-		Bucket:      t.bucket,
-		FullName:    name,
-		Object:      o,
-		ImplicitDir: false,
+	c = &inode.Core{
+		Bucket:   t.bucket,
+		FullName: inode.NewFileName(root, "foo"),
+		Object:   o,
 	}
-	ExpectNe(nil, c.SanityCheck())
+	ExpectNe(nil, c.SanityCheck()) // name mismatch
 }

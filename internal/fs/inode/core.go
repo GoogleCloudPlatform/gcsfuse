@@ -21,6 +21,16 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 )
 
+type Type int
+
+var (
+	UnknownType     Type = 0
+	SymlinkType     Type = 1
+	RegularFileType Type = 2
+	ExplicitDirType Type = 3
+	ImplicitDirType Type = 4
+)
+
 // Core contains critical information about an inode before its creation.
 type Core struct {
 	// The full name of the file or directory. Required for all inodes.
@@ -33,30 +43,36 @@ type Core struct {
 	// The GCS object in the bucket above that backs up the inode. Can be empty
 	// if the inode is the base directory or an implicit directory.
 	Object *gcs.Object
-
-	// True iff the inode is an implicit directory.
-	ImplicitDir bool
 }
 
 // Exists returns true iff the back object exists implicitly or explicitly.
-func (c Core) Exists() bool {
-	IsExplicitFileOrDir := c.Object != nil
-	IsImplicitDir := c.ImplicitDir
-	IsBucketRootDir :=
-		c.FullName.LocalName() != "" && c.FullName.IsBucketRoot()
-	return IsExplicitFileOrDir || IsImplicitDir || IsBucketRootDir
+func (c *Core) Exists() bool {
+	return c != nil
+}
+
+func (c *Core) Type() Type {
+	switch {
+	case c == nil:
+		return UnknownType
+	case c.Object == nil:
+		return ImplicitDirType
+	case c.FullName.IsDir():
+		return ExplicitDirType
+	case IsSymlink(c.Object):
+		return SymlinkType
+	default:
+		return RegularFileType
+	}
 }
 
 // SanityCheck returns an error if the object is conflicting with itself, which
 // means the metadata of the file system is broken.
 func (c Core) SanityCheck() error {
-	if c.Object != nil {
-		if c.ImplicitDir {
-			return fmt.Errorf("directory backed by %q is not implicit", c.Object.Name)
-		}
-		if c.FullName.objectName != c.Object.Name {
-			return fmt.Errorf("%q backed by %q inconsistently", c.FullName, c.Object.Name)
-		}
+	if c.Object != nil && c.FullName.objectName != c.Object.Name {
+		return fmt.Errorf("inode name %q mismatches object name %q", c.FullName, c.Object.Name)
+	}
+	if c.Object == nil && !c.FullName.IsDir() {
+		return fmt.Errorf("object missing for %q", c.FullName)
 	}
 	return nil
 }

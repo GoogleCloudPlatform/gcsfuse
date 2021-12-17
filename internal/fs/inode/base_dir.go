@@ -160,10 +160,9 @@ func (d *baseDirInode) LookUpChild(ctx context.Context, name string) (*Core, err
 	}
 
 	return &Core{
-		Bucket:      bucket,
-		FullName:    NewRootName(bucket.Name()),
-		ImplicitDir: false,
-		Object:      nil,
+		Bucket:   bucket,
+		FullName: NewRootName(bucket.Name()),
+		Object:   nil,
 	}, nil
 }
 
@@ -175,7 +174,7 @@ func (d *baseDirInode) ReadDescendants(ctx context.Context, limit int) (map[Name
 // Not implemented
 func (d *baseDirInode) ReadObjects(
 	ctx context.Context,
-	tok string) (files []Core, dirs []Core, newTok string, err error) {
+	tok string) (files []*Core, dirs []*Core, newTok string, err error) {
 	err = fuse.ENOSYS
 	return
 }

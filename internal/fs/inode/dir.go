@@ -67,9 +67,7 @@ type DirInode interface {
 	// empty. Otherwise it will be non-empty. There is no guarantee about the
 	// number of objects returned; it may be zero even with a non-empty
 	// continuation token.
-	ReadObjects(
-		ctx context.Context,
-		tok string) (files []Core, dirs []Core, newTok string, err error)
+	ReadObjects(ctx context.Context, tok string) (files []*Core, dirs []*Core, newTok string, err error)
 
 	// Read some number of entries from the directory, returning a continuation
 	// token that can be used to pick up the read operation where it left off.
@@ -304,10 +302,9 @@ func findExplicitInode(ctx context.Context, bucket gcsx.SyncerBucket, name Name)
 	}
 
 	return &Core{
-		Bucket:      bucket,
-		FullName:    name,
-		Object:      o,
-		ImplicitDir: false,
+		Bucket:   bucket,
+		FullName: name,
+		Object:   o,
 	}, nil
 }
 
@@ -337,9 +334,6 @@ func findDirInode(ctx context.Context, bucket gcsx.SyncerBucket, name Name) (*Co
 	}
 	if o := listing.Objects[0]; o.Name == name.GcsObjectName() {
 		result.Object = o
-		result.ImplicitDir = false
-	} else {
-		result.ImplicitDir = true
 	}
 	return result, nil
 }
@@ -452,10 +446,9 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	switch cachedType := d.cache.Get(d.cacheClock.Now(), name); cachedType {
 	case ImplicitDirType:
 		dirResult = &Core{
-			Bucket:      d.Bucket(),
-			FullName:    NewDirName(d.Name(), name),
-			Object:      nil,
-			ImplicitDir: true,
+			Bucket:   d.Bucket(),
+			FullName: NewDirName(d.Name(), name),
+			Object:   nil,
 		}
 	case ExplicitDirType:
 		b.Add(lookUpExplicitDir)
@@ -482,8 +475,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	}
 
 	if result != nil {
-		record := &Record{result.Object}
-		d.cache.Insert(d.cacheClock.Now(), name, record.Type())
+		d.cache.Insert(d.cacheClock.Now(), name, result.Type())
 	}
 	return result, nil
 }
@@ -513,10 +505,9 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 			}
 			name := NewDescendantName(d.Name(), o.Name)
 			descendants[name] = &Core{
-				Bucket:      d.Bucket(),
-				FullName:    name,
-				Object:      o,
-				ImplicitDir: false,
+				Bucket:   d.Bucket(),
+				FullName: name,
+				Object:   o,
 			}
 		}
 
@@ -531,7 +522,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 // LOCKS_REQUIRED(d)
 func (d *dirInode) ReadObjects(
 	ctx context.Context,
-	tok string) (files []Core, dirs []Core, newTok string, err error) {
+	tok string) (files []*Core, dirs []*Core, newTok string, err error) {
 	// Ask the bucket to list some objects.
 	req := &gcs.ListObjectsRequest{
 		Delimiter:                "/",
@@ -546,11 +537,11 @@ func (d *dirInode) ReadObjects(
 		return
 	}
 
-	records := make(map[string]*Record)
+	cores := make(map[string]*Core)
 	defer func() {
 		now := d.cacheClock.Now()
-		for name, record := range records {
-			d.cache.Insert(now, name, record.Type())
+		for name, c := range cores {
+			d.cache.Insert(now, name, c.Type())
 		}
 	}()
 
@@ -565,24 +556,22 @@ func (d *dirInode) ReadObjects(
 		// Given the alphabetical order of the objects, if a file "foo" and
 		// directory "foo/" coexist, the directory would eventually occupy
 		// the value of records["foo"].
-		records[nameBase] = &Record{o}
-
 		if strings.HasSuffix(o.Name, "/") {
-			explicitDir := Core{
-				Bucket:      d.Bucket(),
-				FullName:    NewDirName(d.Name(), nameBase),
-				Object:      o,
-				ImplicitDir: false,
+			explicitDir := &Core{
+				Bucket:   d.Bucket(),
+				FullName: NewDirName(d.Name(), nameBase),
+				Object:   o,
 			}
 			dirs = append(dirs, explicitDir)
+			cores[nameBase] = explicitDir
 		} else {
-			file := Core{
-				Bucket:      d.Bucket(),
-				FullName:    NewFileName(d.Name(), nameBase),
-				Object:      o,
-				ImplicitDir: false,
+			file := &Core{
+				Bucket:   d.Bucket(),
+				FullName: NewFileName(d.Name(), nameBase),
+				Object:   o,
 			}
 			files = append(files, file)
+			cores[nameBase] = file
 		}
 	}
 
@@ -596,18 +585,17 @@ func (d *dirInode) ReadObjects(
 	// Add implicit directories into the result.
 	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
-		if r, ok := records[pathBase]; ok && r.Type() == ExplicitDirType {
+		if c, ok := cores[pathBase]; ok && c.Type() == ExplicitDirType {
 			continue
 		}
-		records[pathBase] = &Record{nil}
 
-		implicitDir := Core{
-			Bucket:      d.Bucket(),
-			FullName:    NewDirName(d.Name(), pathBase),
-			Object:      nil,
-			ImplicitDir: true,
+		implicitDir := &Core{
+			Bucket:   d.Bucket(),
+			FullName: NewDirName(d.Name(), pathBase),
+			Object:   nil,
 		}
 		dirs = append(dirs, implicitDir)
+		cores[pathBase] = implicitDir
 	}
 
 	return
@@ -617,7 +605,7 @@ func (d *dirInode) ReadObjects(
 func (d *dirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
-	var files, dirs []Core
+	var files, dirs []*Core
 	files, dirs, newTok, err = d.ReadObjects(ctx, tok)
 	if err != nil {
 		err = fmt.Errorf("read objects: %w", err)
@@ -682,15 +670,13 @@ func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.O
 		return nil, err
 	}
 
-	// Update the type cache.
-	r := &Record{o}
-	d.cache.Insert(d.cacheClock.Now(), name, r.Type())
-
-	return &Core{
+	c := &Core{
 		Bucket:   d.Bucket(),
 		FullName: fullName,
 		Object:   o,
-	}, nil
+	}
+	d.cache.Insert(d.cacheClock.Now(), name, c.Type())
+	return c, nil
 }
 
 // LOCKS_REQUIRED(d)
