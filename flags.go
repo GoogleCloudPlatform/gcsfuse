@@ -232,12 +232,12 @@ func newApp() (app *cli.App) {
 			cli.IntFlag{
 				Name:  "monitoring-port",
 				Value: 0,
-				Usage: "The port used to export prometheus metrics for monitoring. " +
-					"The default value 0 indicates no monitoring metrics.",
+				Usage: "Deprecated.",
 			},
 
 			cli.DurationFlag{
 				Name:  "stackdriver-export-interval",
+				Value: 0,
 				Usage: "Export metrics to stackdriver with this interval. The default value 0 indicates no exporting.",
 			},
 

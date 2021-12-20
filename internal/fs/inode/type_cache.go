@@ -20,6 +20,11 @@ import (
 	"github.com/jacobsa/util/lrucache"
 )
 
+type cacheEntry struct {
+	expiry    time.Time
+	inodeType Type
+}
+
 // A cache that maps from a name to information about the type of the object
 // with that name. Each name N is in one of the following states:
 //
@@ -41,41 +46,20 @@ type typeCache struct {
 	// Mutable state
 	/////////////////////////
 
-	// A cache mapping file names to the time at which the entry should expire.
+	// A cache mapping names to the cache entry.
 	//
-	// INVARIANT: files.CheckInvariants() does not panic
-	// INVARIANT: Each value is of type time.Time
-	files lrucache.Cache
-
-	// A cache mapping directory names to the time at which the entry should
-	// expire.
-	//
-	// INVARIANT: dirs.CheckInvariants() does not panic
-	// INVARIANT: Each value is of type time.Time
-	dirs lrucache.Cache
-
-	// A cache mapping implicit directory names to the time at which the entry
-	// should expire.
-	//
-	// INVARIANT: implicitDirs.CheckInvariants() does not panic
-	// INVARIANT: Each value is of type time.Time
-	// INVARIANT: must be a subset of dirs
-	implicitDirs lrucache.Cache
+	// INVARIANT: entries.CheckInvariants() does not panic
+	// INVARIANT: Each value is of type cacheEntry
+	entries lrucache.Cache
 }
 
 // Create a cache whose information expires with the supplied TTL. If the TTL
 // is zero, nothing will ever be cached.
-func newTypeCache(
-	perTypeCapacity int,
-	ttl time.Duration) (tc typeCache) {
-	tc = typeCache{
-		ttl:          ttl,
-		files:        lrucache.New(perTypeCapacity),
-		dirs:         lrucache.New(perTypeCapacity),
-		implicitDirs: lrucache.New(perTypeCapacity),
+func newTypeCache(perTypeCapacity int, ttl time.Duration) typeCache {
+	return typeCache{
+		ttl:     ttl,
+		entries: lrucache.New(perTypeCapacity),
 	}
-
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -85,116 +69,39 @@ func newTypeCache(
 // Panic if any internal invariants have been violated. The careful user can
 // arrange to call this at crucial moments.
 func (tc *typeCache) CheckInvariants() {
-	// INVARIANT: files.CheckInvariants() does not panic
-	tc.files.CheckInvariants()
-
-	// INVARIANT: dirs.CheckInvariants() does not panic
-	tc.dirs.CheckInvariants()
-
-	// INVARIANT: dirs.CheckInvariants() does not panic
-	tc.implicitDirs.CheckInvariants()
+	tc.entries.CheckInvariants()
 }
 
-// Record that the supplied name is a file. It may still also be a directory.
-func (tc *typeCache) NoteFile(now time.Time, name string) {
+// Insert inserts a record to the cache.
+func (tc *typeCache) Insert(now time.Time, name string, it Type) {
 	// Are we disabled?
 	if tc.ttl == 0 {
 		return
 	}
-
-	tc.files.Insert(name, now.Add(tc.ttl))
+	tc.entries.Insert(name, cacheEntry{
+		expiry:    now.Add(tc.ttl),
+		inodeType: it,
+	})
 }
 
-// Record that the supplied name is a directory. It may still also be a file.
-func (tc *typeCache) NoteDir(now time.Time, name string) {
-	// Are we disabled?
-	if tc.ttl == 0 {
-		return
-	}
-
-	tc.dirs.Insert(name, now.Add(tc.ttl))
-}
-
-// Record that the supplied name is an implicit directory. It may still also be
-// a file, but must not be a regular directory.
-func (tc *typeCache) NoteImplicitDir(now time.Time, name string) {
-	// Are we disabled?
-	if tc.ttl == 0 {
-		return
-	}
-
-	tc.implicitDirs.Insert(name, now.Add(tc.ttl))
-}
-
-// Erase all information about the supplied name.
+// Erase erases all information about the supplied name.
 func (tc *typeCache) Erase(name string) {
-	tc.files.Erase(name)
-	tc.dirs.Erase(name)
-	tc.implicitDirs.Erase(name)
+	tc.entries.Erase(name)
 }
 
-// Do we currently think the given name is a file?
-func (tc *typeCache) IsFile(now time.Time, name string) (res bool) {
-	// Is there an entry?
-	val := tc.files.LookUp(name)
+// Get gets the record for the given name.
+func (tc *typeCache) Get(now time.Time, name string) Type {
+	val := tc.entries.LookUp(name)
 	if val == nil {
-		res = false
-		return
+		return UnknownType
 	}
 
-	expiration := val.(time.Time)
+	entry := val.(cacheEntry)
 
 	// Has the entry expired?
-	if expiration.Before(now) {
-		tc.files.Erase(name)
-		res = false
-		return
+	if entry.expiry.Before(now) {
+		tc.entries.Erase(name)
+		return UnknownType
 	}
-
-	res = true
-	return
-}
-
-// Do we currently think the given name is a directory?
-func (tc *typeCache) IsDir(now time.Time, name string) (res bool) {
-	// Is there an entry?
-	val := tc.dirs.LookUp(name)
-	if val == nil {
-		res = false
-		return
-	}
-
-	expiration := val.(time.Time)
-
-	// Has the entry expired?
-	if expiration.Before(now) {
-		tc.dirs.Erase(name)
-		res = false
-		return
-	}
-
-	res = true
-	return
-}
-
-// Do we currently think the given name is an implicit directory?
-func (tc *typeCache) IsImplicitDir(now time.Time, name string) (res bool) {
-	// Is there an entry?
-	val := tc.implicitDirs.LookUp(name)
-	if val == nil {
-		res = false
-		return
-	}
-
-	expiration := val.(time.Time)
-
-	// Has the entry expired?
-	if expiration.Before(now) {
-		tc.implicitDirs.Erase(name)
-		res = false
-		return
-	}
-
-	res = true
-	return
+	return entry.inodeType
 }

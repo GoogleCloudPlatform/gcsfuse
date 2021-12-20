@@ -484,8 +484,11 @@ func (b *bucket) ListObjects(
 					listing.CollapsedRuns = append(listing.CollapsedRuns, resultPrefix)
 				}
 
-				lastResultWasPrefix = true
-				continue
+				isTrailingDelimiter := (delimiterIndex == len(nameMinusQueryPrefix)-1)
+				if !isTrailingDelimiter || !req.IncludeTrailingDelimiter {
+					lastResultWasPrefix = true
+					continue
+				}
 			}
 		}
 
@@ -671,7 +674,7 @@ func (b *bucket) ComposeObjects(
 
 	// Create the new object.
 	createReq := &gcs.CreateObjectRequest{
-		Name: req.DstName,
+		Name:                       req.DstName,
 		GenerationPrecondition:     req.DstGenerationPrecondition,
 		MetaGenerationPrecondition: req.DstMetaGenerationPrecondition,
 		Contents:                   io.MultiReader(srcReaders...),

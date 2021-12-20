@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math"
 	"math/rand"
 	"net"
@@ -157,12 +156,7 @@ func expBackoff(
 			// Special case: don't spam up the logs for EOF, which io.Reader returns
 			// in the normal course of things.
 			if err != io.EOF {
-				log.Printf(
-					"Not retrying %s after error of type %T (%q): %#v",
-					desc,
-					err,
-					err.Error(),
-					err)
+				err = fmt.Errorf("not retrying %s: %w", desc, err)
 			}
 
 			return
@@ -179,13 +173,6 @@ func expBackoff(
 		}
 
 		// Sleep, returning early if cancelled.
-		log.Printf(
-			"Retrying %s after error of type %T (%q) in %v",
-			desc,
-			err,
-			err,
-			d)
-
 		select {
 		case <-ctx.Done():
 			// On cancellation, return the last error we saw.

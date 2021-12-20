@@ -24,6 +24,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
@@ -111,7 +112,7 @@ func (t *FileTest) createInode() {
 			".gcsfuse_tmp/",
 			t.bucket),
 		false, // localFileCache
-		"",
+		contentcache.New("", &t.clock),
 		&t.clock)
 
 	t.in.Lock()

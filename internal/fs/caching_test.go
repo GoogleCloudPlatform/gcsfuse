@@ -15,6 +15,7 @@
 package fs_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -258,11 +259,13 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	var err error
 
 	// Create a directory via the file system.
+	fmt.Printf("Mkdir\n")
 	err = os.Mkdir(path.Join(t.Dir, name), 0700)
 	AssertEq(nil, err)
 
 	// Remove the backing object in GCS, updating the bucket cache (but not the
 	// file system type cache)
+	fmt.Printf("DeleteObject\n")
 	err = t.bucket.DeleteObject(
 		t.ctx,
 		&gcs.DeleteObjectRequest{Name: name + "/"})
@@ -270,6 +273,7 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	AssertEq(nil, err)
 
 	// Create a file with the same name via GCS, again updating the bucket cache.
+	fmt.Printf("CreateObject\n")
 	_, err = gcsutil.CreateObject(
 		t.ctx,
 		t.bucket,
@@ -279,6 +283,7 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	AssertEq(nil, err)
 
 	// Because the file system is caching types, it will fail to find the name.
+	fmt.Printf("Stat\n")
 	_, err = os.Stat(path.Join(t.Dir, name))
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 
