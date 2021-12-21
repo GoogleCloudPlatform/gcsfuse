@@ -172,7 +172,7 @@ github.com/jacobsa/fuse/fuseutil
 github.com/jacobsa/fuse/internal/buffer
 github.com/jacobsa/fuse/internal/freelist
 github.com/jacobsa/fuse/internal/fusekernel
-# github.com/jacobsa/gcloud v0.0.0-20211209095912-b31f414cf7c3
+# github.com/jacobsa/gcloud v0.0.0-20211221120201-0d771bbe4dd5
 ## explicit
 github.com/jacobsa/gcloud/gcs
 github.com/jacobsa/gcloud/gcs/gcscaching
