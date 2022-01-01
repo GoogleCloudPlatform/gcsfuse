@@ -7,14 +7,14 @@ require (
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.10
 	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
-	github.com/cncf/xds/go v0.0.0-20211130200136-a8f946100490 // indirect
+	github.com/cncf/xds/go v0.0.0-20211216145620-d92e9ce0af51 // indirect
 	github.com/envoyproxy/go-control-plane v0.10.1 // indirect
 	github.com/envoyproxy/protoc-gen-validate v0.6.2 // indirect
 	github.com/go-kit/kit v0.10.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
 	github.com/jacobsa/fuse v0.0.0-20211125163655-ffd6c474e806
-	github.com/jacobsa/gcloud v0.0.0-20211209095912-b31f414cf7c3
+	github.com/jacobsa/gcloud v0.0.0-20211221120201-0d771bbe4dd5
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
 	github.com/jacobsa/oglemock v0.0.0-20150831005832-e94d794d06ff
 	github.com/jacobsa/ogletest v0.0.0-20170503003838-80d50a735a11
@@ -28,11 +28,11 @@ require (
 	github.com/prometheus/client_golang v1.11.0
 	github.com/urfave/cli v1.22.5
 	go.opencensus.io v0.23.0
-	golang.org/x/net v0.0.0-20211123203042-d83791d6bcd9
+	golang.org/x/net v0.0.0-20211216030914-fe4d6282115f
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
-	golang.org/x/sys v0.0.0-20211124211545-fe61309f8881 // indirect
+	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
 	golang.org/x/text v0.3.7 // indirect
-	google.golang.org/api v0.60.0
-	google.golang.org/genproto v0.0.0-20211129164237-f09f9a12af12 // indirect
-	google.golang.org/grpc v1.42.0 // indirect
+	google.golang.org/api v0.63.0
+	google.golang.org/genproto v0.0.0-20211221195035-429b39de9b1c // indirect
+	google.golang.org/grpc v1.43.0 // indirect
 )
