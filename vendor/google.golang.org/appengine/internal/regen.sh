@@ -20,14 +20,14 @@ done
 echo -n 1>&2 "finding package dir... "
 pkgdir=$(go list -f '{{.Dir}}' $PKG)
 echo 1>&2 $pkgdir
-base=$(echo $pkgdir | sed "s,/$PKG\$,,")
+base=$(echo "$pkgdir" | sed "s,/$PKG\$,,")
 echo 1>&2 "base: $base"
-cd $base
+cd "$base"
 
 # Run protoc once per package.
 for dir in $(find $PKG/internal -name '*.proto' | xargs dirname | sort | uniq); do
 	echo 1>&2 "* $dir"
-	protoc --go_out=. $dir/*.proto
+	protoc --go_out=. "$dir"/*.proto
 done
 
 for f in $(find $PKG/internal -name '*.pb.go'); do
@@ -36,5 +36,5 @@ for f in $(find $PKG/internal -name '*.pb.go'); do
   # are used on classic App Engine. proto.RegisterEnum only affects
   # parsing the text format; we don't care about that.
   # https://code.google.com/p/googleappengine/issues/detail?id=11670#c17
-  sed -i '/proto.RegisterEnum/d' $f
+  sed -i '/proto.RegisterEnum/d' "$f"
 done

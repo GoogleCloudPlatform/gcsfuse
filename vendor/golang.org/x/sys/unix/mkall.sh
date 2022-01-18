@@ -27,8 +27,8 @@ case "$1" in
 	do
 		# Run the command line that appears in the first line
 		# of the generated file to regenerate it.
-		sed 1q $i | sed 's;^// ;;' | sh > _$i && gofmt < _$i > $i
-		rm _$i
+		sed 1q "$i" | sed 's;^// ;;' | sh > _"$i" && gofmt < _"$i" > "$i"
+		rm _"$i"
 	done
 	exit 0
 	;;
@@ -49,8 +49,8 @@ esac
 if [[ "$GOOS" = "linux" ]]; then
 	# Use the Docker-based build system
 	# Files generated through docker (use $cmd so you can Ctl-C the build or run)
-	$cmd docker build --tag generate:$GOOS $GOOS
-	$cmd docker run --interactive --tty --volume $(cd -- "$(dirname -- "$0")/.." && /bin/pwd):/build generate:$GOOS
+	$cmd docker build --tag generate:"$GOOS" "$GOOS"
+	$cmd docker run --interactive --tty --volume $(cd -- "$(dirname -- "$0")/.." && /bin/pwd):/build generate:"$GOOS"
 	exit
 fi
 
