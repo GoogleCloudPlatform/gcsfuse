@@ -156,6 +156,7 @@ func (mb *monitoringBucket) CreateObject(
 	ctx context.Context,
 	req *gcs.CreateObjectRequest) (*gcs.Object, error) {
 	incrementCounterGcsRequests(mb.Name(), "CreateObject")
+	defer recordLatency("CreateObject", time.Now())
 	return mb.wrapped.CreateObject(ctx, req)
 }
 
@@ -163,6 +164,7 @@ func (mb *monitoringBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (*gcs.Object, error) {
 	incrementCounterGcsRequests(mb.Name(), "CopyObject")
+	defer recordLatency("CopyObject", time.Now())
 	return mb.wrapped.CopyObject(ctx, req)
 }
 
@@ -170,6 +172,7 @@ func (mb *monitoringBucket) ComposeObjects(
 	ctx context.Context,
 	req *gcs.ComposeObjectsRequest) (*gcs.Object, error) {
 	incrementCounterGcsRequests(mb.Name(), "ComposeObjects")
+	defer recordLatency("ComposeObjects", time.Now())
 	return mb.wrapped.ComposeObjects(ctx, req)
 }
 
@@ -177,6 +180,7 @@ func (mb *monitoringBucket) StatObject(
 	ctx context.Context,
 	req *gcs.StatObjectRequest) (*gcs.Object, error) {
 	incrementCounterGcsRequests(mb.Name(), "StatObject")
+	defer recordLatency("StatObject", time.Now())
 	return mb.wrapped.StatObject(ctx, req)
 }
 
@@ -184,6 +188,7 @@ func (mb *monitoringBucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (*gcs.Listing, error) {
 	incrementCounterGcsRequests(mb.Name(), "ListObjects")
+	defer recordLatency("ListObjects", time.Now())
 	return mb.wrapped.ListObjects(ctx, req)
 }
 
@@ -191,6 +196,7 @@ func (mb *monitoringBucket) UpdateObject(
 	ctx context.Context,
 	req *gcs.UpdateObjectRequest) (*gcs.Object, error) {
 	incrementCounterGcsRequests(mb.Name(), "UpdateObject")
+	defer recordLatency("UpdateObject", time.Now())
 	return mb.wrapped.UpdateObject(ctx, req)
 }
 
@@ -198,6 +204,7 @@ func (mb *monitoringBucket) DeleteObject(
 	ctx context.Context,
 	req *gcs.DeleteObjectRequest) error {
 	incrementCounterGcsRequests(mb.Name(), "DeleteObject")
+	defer recordLatency("DeleteObject", time.Now())
 	return mb.wrapped.DeleteObject(ctx, req)
 }
 
