@@ -16,77 +16,71 @@ package wrappers
 
 import (
 	"context"
-	"time"
+	"fmt"
 
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"github.com/prometheus/client_golang/prometheus"
+	"go.opencensus.io/stats"
+	"go.opencensus.io/stats/view"
+	"go.opencensus.io/tag"
 )
 
 var (
-	counterFsRequests = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "gcsfuse_fs_requests",
-			Help: "Number of requests per file system API.",
-		},
-		[]string{ // labels
-			"method",
-		},
-	)
-	counterFsErrors = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "gcsfuse_fs_errors",
-			Help: "Number of errors per file system API.",
-		},
-		[]string{ // labels
-			"method",
-		},
-	)
-	latency = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name: "gcsfuse_fs_latency",
-			Help: "The latency of an file system operation.",
-
-			// 32 buckets: [0.1ms, 0.15ms, ..., 28.8s, +Inf]
-			Buckets: prometheus.ExponentialBuckets(0.1, 1.5, 32),
-		},
-		[]string{ // labels
-			"method",
-		},
-	)
+	methodName = tag.MustNewKey("method_name")
 )
 
-// Initialize the prometheus metrics.
-func init() {
-	prometheus.MustRegister(counterFsRequests)
-	prometheus.MustRegister(counterFsErrors)
-	prometheus.MustRegister(latency)
-}
+var (
+	requestCount = stats.Int64(
+		"fs_requests",
+		"Number of file system requests.",
+		stats.UnitDimensionless)
+	errorCount = stats.Int64(
+		"fs_errors",
+		"Number of file system errors.",
+		stats.UnitDimensionless)
+)
 
-func incrementCounterFsRequests(method string) {
-	counterFsRequests.With(
-		prometheus.Labels{
-			"method": method,
+// Initialize the metrics.
+func init() {
+	if err := view.Register(
+		&view.View{
+			Name:        requestCount.Name(),
+			Measure:     requestCount,
+			Description: requestCount.Description(),
+			Aggregation: view.Sum(),
+			TagKeys:     []tag.Key{methodName},
 		},
-	).Inc()
-}
-func incrementCounterFsErrors(method string, err error) {
-	if err != nil {
-		counterFsErrors.With(
-			prometheus.Labels{
-				"method": method,
-			},
-		).Inc()
+		&view.View{
+			Name:        errorCount.Name(),
+			Measure:     errorCount,
+			Description: errorCount.Description(),
+			Aggregation: view.Sum(),
+			TagKeys:     []tag.Key{methodName},
+		}); err != nil {
+		fmt.Printf("Failed to register metrics in the monitoring bucket\n")
 	}
 }
 
-func recordLatency(method string, start time.Time) {
-	duration := float64(time.Since(start).Milliseconds())
-	latency.With(
-		prometheus.Labels{
-			"method": method,
+func incrementCounterFsRequests(method string) {
+	stats.RecordWithTags(
+		context.Background(),
+		[]tag.Mutator{
+			tag.Upsert(methodName, method),
 		},
-	).Observe(duration)
+		requestCount.M(1),
+	)
+}
+func incrementCounterFsErrors(method string, err error) {
+	if err == nil {
+		return
+	}
+	stats.RecordWithTags(
+		context.Background(),
+		[]tag.Mutator{
+			tag.Upsert(methodName, method),
+		},
+		errorCount.M(1),
+	)
 }
 
 // WithMonitoring takes a FileSystem, returns a FileSystem with monitoring
@@ -119,7 +113,6 @@ func (fs *monitoring) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) error {
 	incrementCounterFsRequests("LookUpInode")
-	defer recordLatency("LookUpInode", time.Now())
 	err := fs.wrapped.LookUpInode(ctx, op)
 	incrementCounterFsErrors("LookUpInode", err)
 	return err
@@ -255,7 +248,6 @@ func (fs *monitoring) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) error {
 	incrementCounterFsRequests("OpenFile")
-	defer recordLatency("OpenFile", time.Now())
 	err := fs.wrapped.OpenFile(ctx, op)
 	incrementCounterFsErrors("OpenFile", err)
 	return err
@@ -265,7 +257,6 @@ func (fs *monitoring) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) error {
 	incrementCounterFsRequests("ReadFile")
-	defer recordLatency("ReadFile", time.Now())
 	err := fs.wrapped.ReadFile(ctx, op)
 	incrementCounterFsErrors("ReadFile", err)
 	return err

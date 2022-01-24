@@ -54,7 +54,7 @@ var (
 		stats.UnitMilliseconds)
 )
 
-// Initialize the prometheus metrics.
+// Initialize the metrics.
 func init() {
 	if err := view.Register(
 		&view.View{

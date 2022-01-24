@@ -47,7 +47,7 @@ const maxReadSize = 8 * MB
 // Minimum number of seeks before evaluating if the read pattern is random.
 const minSeeksForRandom = 2
 
-// Initialize the prometheus metrics.
+// Initialize the metrics.
 func init() {
 	v := &view.View{
 		Name:        "gcsfuse_read_bytes",
