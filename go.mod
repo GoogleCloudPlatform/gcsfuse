@@ -25,7 +25,6 @@ require (
 	github.com/jacobsa/util v0.0.0-20150810040848-976a6f4de67e
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/kylelemons/godebug v1.1.0 // indirect
-	github.com/prometheus/client_golang v1.11.0
 	github.com/urfave/cli v1.22.5
 	go.opencensus.io v0.23.0
 	golang.org/x/net v0.0.0-20211216030914-fe4d6282115f

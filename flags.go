@@ -229,12 +229,6 @@ func newApp() (app *cli.App) {
 			// Monitoring & Logging
 			/////////////////////////
 
-			cli.IntFlag{
-				Name:  "monitoring-port",
-				Value: 0,
-				Usage: "Deprecated.",
-			},
-
 			cli.DurationFlag{
 				Name:  "stackdriver-export-interval",
 				Value: 0,
@@ -326,8 +320,7 @@ type flagStorage struct {
 	DisableHTTP2      bool
 	MaxConnsPerHost   int
 
-	// Monitoring
-	MonitoringPort            int
+	// Monitoring & Logging
 	StackdriverExportInterval time.Duration
 	LogFile                   string
 	LogFormat                 string
@@ -381,8 +374,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		DisableHTTP2:      c.Bool("disable-http2"),
 		MaxConnsPerHost:   c.Int("max-conns-per-host"),
 
-		// Monitoring
-		MonitoringPort:            c.Int("monitoring-port"),
+		// Monitoring & Logging
 		StackdriverExportInterval: c.Duration("stackdriver-export-interval"),
 		LogFile:                   c.String("log-file"),
 		LogFormat:                 c.String("log-format"),
