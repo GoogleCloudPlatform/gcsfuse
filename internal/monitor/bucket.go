@@ -52,6 +52,7 @@ var (
 		"gcs_latency",
 		"The latency of the method being executed in ms.",
 		stats.UnitMilliseconds)
+	latencyDistribution = view.Distribution(0.005, 0.01, 0.02, 0.04, 0.08, 0.15, 0.25, 0.50, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0, 32000.0)
 )
 
 // Initialize the metrics.
@@ -87,7 +88,7 @@ func init() {
 			Name:        latency.Name(),
 			Measure:     latency,
 			Description: latency.Description(),
-			Aggregation: view.Distribution(),
+			Aggregation: latencyDistribution,
 			TagKeys:     []tag.Key{methodName, bucketName},
 		}); err != nil {
 		fmt.Printf("Failed to register metrics in the monitoring bucket\n")
@@ -114,10 +115,12 @@ func incrementCounterBytesRead(bucket string, bytes int) {
 }
 
 func recordLatency(method string, start time.Time) {
+	latencyUs := time.Since(start).Microseconds()
+	latencyMs := float64(latencyUs) / 1000.0
 	stats.RecordWithTags(
 		context.Background(),
 		[]tag.Mutator{tag.Upsert(methodName, method)},
-		latency.M(float64(time.Since(start).Milliseconds())),
+		latency.M(latencyMs),
 	)
 }
 
@@ -218,7 +221,6 @@ type monitoringReadCloser struct {
 
 func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
 	defer recordLatency("Read", time.Now())
-
 	n, err = mrc.wrapped.Read(p)
 	if err == nil {
 		incrementCounterBytesRead(mrc.bucketName, n)
