@@ -653,6 +653,71 @@ func (t *ModesTest) ReadWriteMode() {
 	ExpectEq("000o111ritoenchilada222", string(fileContents))
 }
 
+func (t *ModesTest) FuzzyReadWriteMode() {
+	var err error
+
+	// Create a file.
+	const contents = "baz\u1100\u1161"
+	AssertEq(
+		nil,
+		ioutil.WriteFile(
+			path.Join(t.mfs.Dir(), "foo"),
+			[]byte(contents),
+			os.FileMode(0644)))
+
+	// Read back its contents.
+	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+	ExpectEq("baz\u1100\u1161", string(fileContents))
+
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0)
+	AssertEq(nil, err)
+
+	// Write to the start of the file using File.Write.
+	_, err = t.f1.Write([]byte("타코世界"))
+	AssertEq(nil, err)
+
+	// Seek and write immediately after the previous string.
+	_, err = t.f1.Seek(int64(len("타코世界")), 0)
+	AssertEq(nil, err)
+
+	_, err = t.f1.Write([]byte("\u0041\u030a"))
+	AssertEq(nil, err)
+
+	// Check the size now.
+	fi, err := t.f1.Stat()
+	AssertEq(nil, err)
+	ExpectEq(len("타코世界")+len("\u0041\u030a"), fi.Size())
+
+	// Read some contents with Seek and Read.
+	_, err = t.f1.Seek(0, 0)
+	AssertEq(nil, err)
+
+	buf := make([]byte, 3)
+	_, err = io.ReadFull(t.f1, buf)
+
+	AssertEq(nil, err)
+	ExpectEq("타", string(buf))
+
+	// Read the full contents with ReadAt.
+	buf = make([]byte, len("타코世界")+len("\u0041\u030a"))
+	_, err = t.f1.ReadAt(buf, 0)
+
+	AssertEq(nil, err)
+	ExpectEq("타코世界\u0041\u030a", string(buf))
+
+	// Close the file.
+	AssertEq(nil, t.f1.Close())
+	t.f1 = nil
+
+	// Read back its contents.
+	fileContents, err = ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertEq(nil, err)
+	ExpectEq("타코世界\u0041\u030a", string(fileContents))
+}
+
 func (t *ModesTest) AppendMode_SeekAndWrite() {
 	var err error
 
