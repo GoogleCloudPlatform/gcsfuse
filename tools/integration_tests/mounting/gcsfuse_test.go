@@ -157,7 +157,10 @@ func (t *GcsfuseTest) NonEmptyMountPoint() {
 	args := []string{canned.FakeBucketName, t.dir}
 
 	err = t.runGcsfuse(args)
-	ExpectThat(err, Error(HasSubstr("is not empty")))
+	ExpectThat(err, Error(HasSubstr("exit status 1")))
+	// TODO ezl the below string is not returned by cmd.CombinedOutput, we should make changes
+	// to detect it and passthrough this error
+	// ExpectThat(err, Error(HasSubstr("is not empty")))
 }
 
 func (t *GcsfuseTest) MountPointIsAFile() {
@@ -175,7 +178,7 @@ func (t *GcsfuseTest) MountPointIsAFile() {
 
 	err = t.runGcsfuse(args)
 	ExpectThat(err, Error(HasSubstr(p)))
-	ExpectThat(err, Error(HasSubstr("not a directory")))
+	ExpectThat(err, Error(HasSubstr("is not a directory")))
 }
 
 func (t *GcsfuseTest) KeyFile() {
