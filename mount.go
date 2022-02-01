@@ -130,6 +130,7 @@ be interacting with the file system.`)
 	status.Printf("Mounting file system %q...", fsName)
 	mountCfg := &fuse.MountConfig{
 		FSName:      fsName,
+		Subtype:     "gcsfuse",
 		VolumeName:  "gcsfuse",
 		Options:     flags.MountOptions,
 		ErrorLogger: logger.NewError("fuse: "),
