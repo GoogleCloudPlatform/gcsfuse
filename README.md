@@ -110,8 +110,7 @@ your GCS spending on behalf of gcsfuse, you can do so:
     bandwidth from gcsfuse to GCS.
 
 All rate limiting is approximate, and is performed over an 8-hour window. By
-default, requests are limited to 5 per second. There is no limit applied to
-bandwidth by default.
+default, there are no limits applied.
 
 ## Upload procedure control
 
