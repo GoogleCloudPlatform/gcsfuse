@@ -230,7 +230,7 @@ func (os *syncer) SyncObject(
 	}
 
 	// Destroy the temp file.
-	content.Destroy()
+	// content.Destroy()
 
 	return
 }

@@ -17,11 +17,11 @@ package gcsx
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math"
 	"os"
 	"time"
 
-	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -78,11 +78,11 @@ func NewTempFile(
 	source io.ReadCloser,
 	dir string,
 	clock timeutil.Clock) (tf TempFile, err error) {
-	// Create an anonymous file to wrap. When we close it, its resources will be
-	// magically cleaned up.
-	f, err := fsutil.AnonymousFile(dir)
+	// Create a temporary cache file on disk
+	// TODO ezl: Place these files in memory cache
+	f, err := ioutil.TempFile(dir, "gcsfusecache")
 	if err != nil {
-		err = fmt.Errorf("AnonymousFile: %w", err)
+		err = fmt.Errorf("TempFile: %w", err)
 		return
 	}
 
@@ -178,6 +178,7 @@ func (tf *tempFile) Destroy() {
 
 	// Throw away the file.
 	tf.f.Close()
+	os.Remove(tf.f.Name())
 	tf.f = nil
 }
 

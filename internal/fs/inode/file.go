@@ -187,6 +187,16 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		return
 	}
 
+	// Not sure we need to do validate generation numbers here
+	// when we locate a new generation, fs should destroy old inode
+	// delete the copy in the cache
+	// if f.contentCache.IsCacheEnabled() {
+	// 	if file, exists := f.contentCache.FileMap[f.name.objectName]; exists {
+	// 		f.content = file
+	// 		return
+	// 	}
+	// }
+
 	// Open a reader for the generation we care about.
 	rc, err := f.bucket.NewReader(
 		ctx,
@@ -210,6 +220,10 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 
 	// Update state.
 	f.content = tf
+	if _, exists := f.contentCache.FileMap[f.name.objectName]; exists {
+		f.contentCache.FileMap[f.name.objectName].Destroy()
+	}
+	f.contentCache.FileMap[f.name.objectName] = tf
 
 	return
 }
@@ -279,6 +293,7 @@ func (f *FileInode) Destroy() (err error) {
 	f.destroyed = true
 
 	if f.content != nil {
+		delete(f.contentCache.FileMap, f.name.objectName)
 		f.content.Destroy()
 	}
 

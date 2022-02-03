@@ -86,6 +86,7 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 }
 
 func (t *FileTest) TearDown() {
+	t.in.Destroy()
 	t.in.Unlock()
 }
 

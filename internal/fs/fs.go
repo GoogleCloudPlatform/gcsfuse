@@ -580,6 +580,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			fs.localFileCache,
 			fs.contentCache,
 			fs.mtimeClock)
+		// in.Destroy() will destroy the inode contents
 	}
 
 	// Place it in our map of IDs to inodes.
@@ -697,6 +698,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		existingInode.Unlock()
 
 		in = fs.mintInode(ic)
+		fs.generationBackedInodes[in.Name()].Destroy()
 		fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
 		continue

@@ -72,6 +72,7 @@ func (t *BaseDirTest) SetUp(ti *TestInfo) {
 }
 
 func (t *BaseDirTest) TearDown() {
+	t.in.Destroy()
 	t.in.Unlock()
 }
 

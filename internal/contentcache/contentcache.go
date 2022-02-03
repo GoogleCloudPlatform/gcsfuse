@@ -24,7 +24,13 @@ import (
 
 // ContentCache is a directory on local disk to store the object content.
 type ContentCache struct {
-	tempDir    string
+	tempDir        string
+	localFileCache bool
+	// TODO do not expose FileMap through public interface
+	// Use Add() and Remove() methods to interact with the filemap
+	// Filemap maps canononical file prefixes to gcsx.TempFile, wrapper for
+	// temp files on disk cache
+	FileMap    map[string]gcsx.TempFile
 	mtimeClock timeutil.Clock
 }
 
@@ -32,8 +38,19 @@ type ContentCache struct {
 func New(tempDir string, mtimeClock timeutil.Clock) *ContentCache {
 	return &ContentCache{
 		tempDir:    tempDir,
+		FileMap:    make(map[string]gcsx.TempFile),
 		mtimeClock: mtimeClock,
 	}
+}
+
+// Read the metadata and initialize the in memory map
+func (c *ContentCache) ReadMetadata() {
+
+}
+
+// Create the content cache metadata and flush to disk
+func (c *ContentCache) CreateMetadata() {
+
 }
 
 // NewTempFile returns a handle for a temporary file on the disk. The caller
