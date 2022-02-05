@@ -15,6 +15,7 @@
 package gcsx
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -22,6 +23,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -71,6 +73,13 @@ type StatResult struct {
 	Mtime *time.Time
 }
 
+type Metadata struct {
+	BucketName     string
+	ObjectName     string
+	Generation     int64
+	MetaGeneration int64
+}
+
 // NewTempFile creates a temp file whose initial contents are given by the
 // supplied reader. dir is a directory on whose file system the inode will live,
 // or the system default temporary location if empty.
@@ -78,13 +87,44 @@ func NewTempFile(
 	source io.ReadCloser,
 	dir string,
 	clock timeutil.Clock) (tf TempFile, err error) {
+	// Create an anonymous file to wrap. When we close it, its resources will be
+	// magically cleaned up.
+	f, err := fsutil.AnonymousFile(dir)
+	if err != nil {
+		err = fmt.Errorf("AnonymousFile: %w", err)
+		return
+	}
+
+	tf = &tempFile{
+		source:         source,
+		state:          fileIncomplete,
+		clock:          clock,
+		f:              f,
+		dirtyThreshold: 0,
+	}
+
+	return
+}
+
+// NewCacheFile creates a temp file whose initial contents are given by the
+// supplied reader. dir is a directory on whose file system the inode will live,
+// or the system default temporary location if empty.
+func NewCacheFile(
+	source io.ReadCloser,
+	metadata *Metadata,
+	dir string,
+	clock timeutil.Clock) (tf TempFile, err error) {
 	// Create a temporary cache file on disk
 	// TODO ezl: Place these files in memory cache
+	// Create the json metadata before flushing the tempfile to disk
 	f, err := ioutil.TempFile(dir, "gcsfusecache")
 	if err != nil {
 		err = fmt.Errorf("TempFile: %w", err)
 		return
 	}
+
+	file, _ := json.MarshalIndent(*metadata, "", " ")
+	_ = ioutil.WriteFile(f.Name()+".json", file, 0644)
 
 	tf = &tempFile{
 		source:         source,
@@ -122,6 +162,9 @@ type tempFile struct {
 
 	// A file containing our current contents.
 	f *os.File
+
+	// A file containing our metadata
+	metadata *os.File
 
 	// The lowest byte index that has been modified from the initial contents.
 	//

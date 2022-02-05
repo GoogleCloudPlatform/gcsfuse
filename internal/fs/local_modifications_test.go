@@ -401,7 +401,6 @@ func (t *OpenTest) LegalNames() {
 
 	// And delete each.
 	for _, n := range names {
-		fmt.Printf("Name: %s", n)
 		err = os.Remove(path.Join(t.Dir, n))
 		AssertEq(nil, err, "Name: %q", n)
 	}

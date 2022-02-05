@@ -22,15 +22,18 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
+type CacheObjectKey struct {
+	BucketName string
+	ObjectName string
+}
+
 // ContentCache is a directory on local disk to store the object content.
 type ContentCache struct {
 	tempDir        string
 	localFileCache bool
-	// TODO do not expose FileMap through public interface
-	// Use Add() and Remove() methods to interact with the filemap
 	// Filemap maps canononical file prefixes to gcsx.TempFile, wrapper for
 	// temp files on disk cache
-	FileMap    map[string]gcsx.TempFile
+	fileMap    map[CacheObjectKey]gcsx.TempFile
 	mtimeClock timeutil.Clock
 }
 
@@ -38,23 +41,48 @@ type ContentCache struct {
 func New(tempDir string, mtimeClock timeutil.Clock) *ContentCache {
 	return &ContentCache{
 		tempDir:    tempDir,
-		FileMap:    make(map[string]gcsx.TempFile),
+		fileMap:    make(map[CacheObjectKey]gcsx.TempFile),
 		mtimeClock: mtimeClock,
 	}
 }
 
-// Read the metadata and initialize the in memory map
-func (c *ContentCache) ReadMetadata() {
-
+// Function to add or update existing cache file
+func (c *ContentCache) AddOrReplace(cacheObjectKey *CacheObjectKey, generation int64, rc io.ReadCloser) (gcsx.TempFile, error) {
+	if _, exists := c.fileMap[*cacheObjectKey]; exists {
+		c.fileMap[*cacheObjectKey].Destroy()
+	}
+	metadata := &gcsx.Metadata{
+		BucketName: cacheObjectKey.BucketName,
+		ObjectName: cacheObjectKey.ObjectName,
+		Generation: generation,
+	}
+	file, err := c.NewCacheFile(rc, metadata)
+	c.fileMap[*cacheObjectKey] = file
+	return file, err
 }
 
-// Create the content cache metadata and flush to disk
-func (c *ContentCache) CreateMetadata() {
+// Retrieve temp file from the cache
+func (c *ContentCache) Get(cacheObjectKey *CacheObjectKey) (gcsx.TempFile, bool) {
+	file, exists := c.fileMap[*cacheObjectKey]
+	return file, exists
+}
 
+// Function to remove and destroy cache file and metadata on disk
+func (c *ContentCache) Remove(cacheObjectKey *CacheObjectKey) {
+	if _, exists := c.fileMap[*cacheObjectKey]; exists {
+		c.fileMap[*cacheObjectKey].Destroy()
+	}
+	delete(c.fileMap, *cacheObjectKey)
 }
 
 // NewTempFile returns a handle for a temporary file on the disk. The caller
 // must call Destroy on the TempFile before releasing it.
 func (c *ContentCache) NewTempFile(rc io.ReadCloser) (gcsx.TempFile, error) {
 	return gcsx.NewTempFile(rc, c.tempDir, c.mtimeClock)
+}
+
+// NewTempFile returns a handle for a temporary file on the disk. The caller
+// must call Destroy on the TempFile before releasing it.
+func (c *ContentCache) NewCacheFile(rc io.ReadCloser, metadata *gcsx.Metadata) (gcsx.TempFile, error) {
+	return gcsx.NewCacheFile(rc, metadata, c.tempDir, c.mtimeClock)
 }

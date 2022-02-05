@@ -187,15 +187,14 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		return
 	}
 
-	// Not sure we need to do validate generation numbers here
-	// when we locate a new generation, fs should destroy old inode
-	// delete the copy in the cache
-	// if f.contentCache.IsCacheEnabled() {
-	// 	if file, exists := f.contentCache.FileMap[f.name.objectName]; exists {
-	// 		f.content = file
-	// 		return
-	// 	}
-	// }
+	// Fetch content from the cache
+	// We may want to validate generation numbers here again
+	// (should be validated already at inode creation/destruction)
+	cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
+	if file, exists := f.contentCache.Get(cacheObjectKey); exists {
+		f.content = file
+		return
+	}
 
 	// Open a reader for the generation we care about.
 	rc, err := f.bucket.NewReader(
@@ -212,7 +211,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 
 	// Create a temporary file with its contents. The temp file
 	// ensures to call Close() on the rc.
-	tf, err := f.contentCache.NewTempFile(rc)
+	tf, err := f.contentCache.AddOrReplace(cacheObjectKey, f.src.Generation, rc)
 	if err != nil {
 		err = fmt.Errorf("NewTempFile: %w", err)
 		return
@@ -220,10 +219,6 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 
 	// Update state.
 	f.content = tf
-	if _, exists := f.contentCache.FileMap[f.name.objectName]; exists {
-		f.contentCache.FileMap[f.name.objectName].Destroy()
-	}
-	f.contentCache.FileMap[f.name.objectName] = tf
 
 	return
 }
@@ -292,10 +287,8 @@ func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
 func (f *FileInode) Destroy() (err error) {
 	f.destroyed = true
 
-	if f.content != nil {
-		delete(f.contentCache.FileMap, f.name.objectName)
-		f.content.Destroy()
-	}
+	cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.name.bucketName, ObjectName: f.name.objectName}
+	f.contentCache.Remove(cacheObjectKey)
 
 	return
 }
