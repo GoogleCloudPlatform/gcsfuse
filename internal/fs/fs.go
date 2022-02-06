@@ -17,6 +17,7 @@ package fs
 import (
 	"fmt"
 	"io"
+	iofs "io/fs"
 	"os"
 	"reflect"
 	"strings"
@@ -1156,6 +1157,10 @@ func (fs *fileSystem) MkDir(
 func (fs *fileSystem) MkNode(
 	ctx context.Context,
 	op *fuseops.MkNodeOp) (err error) {
+	if (op.Mode & (iofs.ModeNamedPipe | iofs.ModeSocket)) != 0 {
+		return syscall.ENOTSUP
+	}
+
 	// Create the child.
 	child, err := fs.createFile(ctx, op.Parent, op.Name, op.Mode)
 	if err != nil {
