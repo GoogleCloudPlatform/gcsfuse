@@ -206,6 +206,19 @@ func convertInMessage(
 		}
 
 		names := inMsg.ConsumeBytes(inMsg.Len())
+		// closed-source macfuse 4.x has broken compatibility with osxfuse 3.x:
+		// it passes an additional 64-bit field (flags) after RenameIn regardless
+		// that we don't enable the support for RENAME_SWAP/RENAME_EXCL
+		// macfuse doesn't want change the behaviour back which is motivated by
+		// not breaking compatibility the second time, look here for details:
+		// https://github.com/osxfuse/osxfuse/issues/839
+		//
+		// the simplest fix is just to check for the presence of all-zero flags
+		if len(names) >= 8 &&
+			names[0] == 0 && names[1] == 0 && names[2] == 0 && names[3] == 0 &&
+			names[4] == 0 && names[5] == 0 && names[6] == 0 && names[7] == 0 {
+			names = names[8:]
+		}
 		// names should be "old\x00new\x00"
 		if len(names) < 4 {
 			return nil, errors.New("Corrupt OpRename")
