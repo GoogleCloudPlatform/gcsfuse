@@ -5,7 +5,7 @@ go 1.14
 require (
 	cloud.google.com/go/iam v0.1.1 // indirect
 	cloud.google.com/go/monitoring v1.2.0 // indirect
-	cloud.google.com/go/storage v1.18.2
+	cloud.google.com/go/storage v1.20.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.10
 	github.com/aws/aws-sdk-go v1.42.48 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect

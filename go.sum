@@ -78,6 +78,8 @@ cloud.google.com/go/storage v1.18.0 h1:HM5Hu/BqgmWbo7pT9KFYGUccwzA8ZWDICJww9m5t9
 cloud.google.com/go/storage v1.18.0/go.mod h1:h0NImijCz/2WHwLh03BvmWdrNe4I/pzUdvUHoxIUroU=
 cloud.google.com/go/storage v1.18.2 h1:5NQw6tOn3eMm0oE8vTkfjau18kjL79FlMjy/CHTpmoY=
 cloud.google.com/go/storage v1.18.2/go.mod h1:AiIj7BWXyhO5gGVmYJ+S8tbkCx3yb0IMjua8Aw4naVM=
+cloud.google.com/go/storage v1.20.0 h1:kv3rQ3clEQdxqokkCCgQo+bxPqcuXiROjxvnKb8Oqdk=
+cloud.google.com/go/storage v1.20.0/go.mod h1:TiC1o6FxNCG8y5gB7rqCsFZCIYPMPZCO81ppOoEPLGI=
 cloud.google.com/go/trace v1.0.0 h1:laKx2y7IWMjguCe5zZx6n7qLtREk4kyE69SXVC0VSN8=
 cloud.google.com/go/trace v1.0.0/go.mod h1:4iErSByzxkyHWzzlAj63/Gmjz0NH1ASqhJguHpGcr6A=
 contrib.go.opencensus.io/exporter/stackdriver v0.13.10 h1:a9+GZPUe+ONKUwULjlEOucMMG0qfSCCenlji0Nhqbys=
