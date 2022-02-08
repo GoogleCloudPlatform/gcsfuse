@@ -3,6 +3,7 @@ module github.com/googlecloudplatform/gcsfuse
 go 1.14
 
 require (
+	cloud.google.com/go/iam v0.1.1 // indirect
 	cloud.google.com/go/storage v1.18.2
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.10
 	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect
@@ -29,9 +30,7 @@ require (
 	go.opencensus.io v0.23.0
 	golang.org/x/net v0.0.0-20211216030914-fe4d6282115f
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
-	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
 	golang.org/x/text v0.3.7 // indirect
-	google.golang.org/api v0.63.0
-	google.golang.org/genproto v0.0.0-20211221195035-429b39de9b1c // indirect
+	google.golang.org/api v0.68.0
 	google.golang.org/grpc v1.43.0 // indirect
 )
