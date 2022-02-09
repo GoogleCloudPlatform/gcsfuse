@@ -16,7 +16,11 @@
 package contentcache
 
 import (
+	"encoding/json"
 	"io"
+	"io/ioutil"
+	"log"
+	"regexp"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/timeutil"
@@ -44,6 +48,42 @@ func New(tempDir string, mtimeClock timeutil.Clock) *ContentCache {
 		fileMap:    make(map[CacheObjectKey]gcsx.TempFile),
 		mtimeClock: mtimeClock,
 	}
+}
+
+func (c *ContentCache) PopulateCache() {
+	if c.tempDir == "" {
+		c.tempDir = "/tmp"
+	}
+	files, err := ioutil.ReadDir(c.tempDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, file := range files {
+		// validate not a directory and matches gcsfuse pattern
+		if !file.IsDir() && matchPattern(file.Name()) {
+			var contents []byte
+			var metadata *gcsx.Metadata
+			contents, err = ioutil.ReadFile(file.Name())
+			if err != nil {
+				panic("")
+			}
+			err = json.Unmarshal(contents, metadata)
+			if err != nil {
+				panic("")
+			}
+			cacheObjectKey := &CacheObjectKey{BucketName: metadata.BucketName, ObjectName: metadata.ObjectName}
+			_, err := c.Get(cacheObjectKey)
+			panic(err)
+		}
+	}
+}
+
+func matchPattern(fileName string) bool {
+	match, err := regexp.MatchString("gcsfusecache[0-9]+[.]json", fileName)
+	if err != nil {
+		return false
+	}
+	return match
 }
 
 // Function to add or update existing cache file

@@ -192,8 +192,10 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 	// (should be validated already at inode creation/destruction)
 	cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
 	if file, exists := f.contentCache.Get(cacheObjectKey); exists {
-		f.content = file
-		return
+		if file.ValidateGeneration(f.src.Generation) {
+			f.content = file
+			return
+		}
 	}
 
 	// Open a reader for the generation we care about.
@@ -287,7 +289,7 @@ func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
 func (f *FileInode) Destroy() (err error) {
 	f.destroyed = true
 
-	cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.name.bucketName, ObjectName: f.name.objectName}
+	cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
 	f.contentCache.Remove(cacheObjectKey)
 
 	return

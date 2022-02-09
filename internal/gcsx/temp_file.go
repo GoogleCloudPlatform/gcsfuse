@@ -49,6 +49,9 @@ type TempFile interface {
 	// until another method that modifies the file is called.
 	SetMtime(mtime time.Time)
 
+	// Validate metadata
+	ValidateGeneration(generation int64) bool
+
 	// Throw away the resources used by the temporary file. The object must not
 	// be used again.
 	Destroy()
@@ -124,10 +127,11 @@ func NewCacheFile(
 	}
 
 	file, _ := json.MarshalIndent(*metadata, "", " ")
-	_ = ioutil.WriteFile(f.Name()+".json", file, 0644)
+	_ = ioutil.WriteFile(fmt.Sprintf("%s.json", f.Name()), file, 0644)
 
 	tf = &tempFile{
 		source:         source,
+		metadata:       metadata,
 		state:          fileIncomplete,
 		clock:          clock,
 		f:              f,
@@ -163,8 +167,8 @@ type tempFile struct {
 	// A file containing our current contents.
 	f *os.File
 
-	// A file containing our metadata
-	metadata *os.File
+	// tempfile struct containing our metadata
+	metadata *Metadata
 
 	// The lowest byte index that has been modified from the initial contents.
 	//
@@ -222,6 +226,8 @@ func (tf *tempFile) Destroy() {
 	// Throw away the file.
 	tf.f.Close()
 	os.Remove(tf.f.Name())
+	// Throw away the metadata
+	os.Remove(fmt.Sprintf("%s.json", tf.f.Name()))
 	tf.f = nil
 }
 
@@ -306,6 +312,10 @@ func (tf *tempFile) Truncate(n int64) error {
 
 func (tf *tempFile) SetMtime(mtime time.Time) {
 	tf.mtime = &mtime
+}
+
+func (tf *tempFile) ValidateGeneration(generation int64) bool {
+	return tf.metadata.Generation == generation
 }
 
 ////////////////////////////////////////////////////////////////////////
