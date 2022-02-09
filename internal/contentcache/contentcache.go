@@ -22,7 +22,7 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
-// CacheObjectKey contains
+// CacheObjectKey uniquely identifies GCS objects by bucket name and object name
 type CacheObjectKey struct {
 	BucketName string
 	ObjectName string
@@ -43,11 +43,6 @@ func New(tempDir string, mtimeClock timeutil.Clock) *ContentCache {
 		fileMap:    make(map[CacheObjectKey]gcsx.TempFile),
 		mtimeClock: mtimeClock,
 	}
-}
-
-// Populates the ContentCache with files on disk
-func (c *ContentCache) PopulateCache() {
-
 }
 
 // NewTempFile returns a handle for a temporary file on the disk. The caller

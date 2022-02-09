@@ -47,7 +47,7 @@ type TempFile interface {
 	// until another method that modifies the file is called.
 	SetMtime(mtime time.Time)
 
-	// Validate the metadata generation
+	// Validate the generation number of the file
 	ValidateGeneration(generation int64) bool
 
 	// Throw away the resources used by the temporary file. The object must not
@@ -75,7 +75,7 @@ type StatResult struct {
 }
 
 // Metadata store struct
-type Metadata struct {
+type TempFileObjectMetadata struct {
 	BucketName     string
 	ObjectName     string
 	Generation     int64
@@ -135,7 +135,7 @@ type tempFile struct {
 	f *os.File
 
 	// Metadata for the temp file
-	metadata *Metadata
+	tempFileObjectMetadata *TempFileObjectMetadata
 
 	// The lowest byte index that has been modified from the initial contents.
 	//
@@ -279,7 +279,10 @@ func (tf *tempFile) SetMtime(mtime time.Time) {
 }
 
 func (tf *tempFile) ValidateGeneration(generation int64) bool {
-	return tf.metadata.Generation == generation
+	if tf.tempFileObjectMetadata == nil {
+		return false
+	}
+	return tf.tempFileObjectMetadata.Generation == generation
 }
 
 ////////////////////////////////////////////////////////////////////////
