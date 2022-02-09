@@ -22,18 +22,32 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
+// CacheObjectKey contains
+type CacheObjectKey struct {
+	BucketName string
+	ObjectName string
+}
+
 // ContentCache is a directory on local disk to store the object content.
 type ContentCache struct {
-	tempDir    string
-	mtimeClock timeutil.Clock
+	tempDir        string
+	localFileCache bool
+	fileMap        map[CacheObjectKey]gcsx.TempFile
+	mtimeClock     timeutil.Clock
 }
 
 // New creates a ContentCache.
 func New(tempDir string, mtimeClock timeutil.Clock) *ContentCache {
 	return &ContentCache{
 		tempDir:    tempDir,
+		fileMap:    make(map[CacheObjectKey]gcsx.TempFile),
 		mtimeClock: mtimeClock,
 	}
+}
+
+// Populates the ContentCache with files on disk
+func (c *ContentCache) PopulateCache() {
+
 }
 
 // NewTempFile returns a handle for a temporary file on the disk. The caller

@@ -47,6 +47,9 @@ type TempFile interface {
 	// until another method that modifies the file is called.
 	SetMtime(mtime time.Time)
 
+	// Validate the metadata generation
+	ValidateGeneration(generation int64) bool
+
 	// Throw away the resources used by the temporary file. The object must not
 	// be used again.
 	Destroy()
@@ -69,6 +72,14 @@ type StatResult struct {
 	// If neither of those things has ever happened, it is nil. This implies that
 	// DirtyThreshold == Size.
 	Mtime *time.Time
+}
+
+// Metadata store struct
+type Metadata struct {
+	BucketName     string
+	ObjectName     string
+	Generation     int64
+	MetaGeneration int64
 }
 
 // NewTempFile creates a temp file whose initial contents are given by the
@@ -122,6 +133,9 @@ type tempFile struct {
 
 	// A file containing our current contents.
 	f *os.File
+
+	// Metadata for the temp file
+	metadata *Metadata
 
 	// The lowest byte index that has been modified from the initial contents.
 	//
@@ -262,6 +276,10 @@ func (tf *tempFile) Truncate(n int64) error {
 
 func (tf *tempFile) SetMtime(mtime time.Time) {
 	tf.mtime = &mtime
+}
+
+func (tf *tempFile) ValidateGeneration(generation int64) bool {
+	return tf.metadata.Generation == generation
 }
 
 ////////////////////////////////////////////////////////////////////////
