@@ -103,7 +103,7 @@ func makeGcsfuseArgs(
 			"local_file_cache",
 			"temp_dir",
 			"max_conns_per_host",
-			"monitoring_port",
+			"stackdriver_export_interval",
 			"log_format",
 			"log_file":
 			args = append(args, "--"+strings.Replace(name, "_", "-", -1), value)
