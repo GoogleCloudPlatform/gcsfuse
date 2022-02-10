@@ -15,8 +15,10 @@
 package gcsx
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math"
 	"os"
 	"time"
@@ -24,6 +26,9 @@ import (
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
 )
+
+// cache file prefix to identify the file as coming from gcsfuse
+const CACHE_FILE_PREFIX = "gcsfusecache"
 
 // TempFile is a temporary file that keeps track of the lowest offset at which
 // it has been modified.
@@ -103,6 +108,38 @@ func NewTempFile(
 		clock:          clock,
 		f:              f,
 		dirtyThreshold: 0,
+	}
+
+	return
+}
+
+// NewCacheFile creates a temp file whose initial contents are given by the
+// supplied reader. dir is a directory on whose file system the file will live,
+// or the system default temporary location if empty.
+func NewCacheFile(
+	source io.ReadCloser,
+	tempFileObjectMetadata *TempFileObjectMetadata,
+	dir string,
+	clock timeutil.Clock) (tf TempFile, err error) {
+	// Create a temporary cache file on disk
+	// TODO ezl: Place these files in memory cache
+	// Create the json metadata before flushing the tempfile to disk
+	f, err := ioutil.TempFile(dir, CACHE_FILE_PREFIX)
+	if err != nil {
+		err = fmt.Errorf("TempFile: %w", err)
+		return
+	}
+
+	file, _ := json.MarshalIndent(*tempFileObjectMetadata, "", " ")
+	_ = ioutil.WriteFile(fmt.Sprintf("%s.json", f.Name()), file, 0644)
+
+	tf = &tempFile{
+		source:                 source,
+		tempFileObjectMetadata: tempFileObjectMetadata,
+		state:                  fileIncomplete,
+		clock:                  clock,
+		f:                      f,
+		dirtyThreshold:         0,
 	}
 
 	return
