@@ -15,6 +15,7 @@
 package fs
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	iofs "io/fs"
@@ -1475,7 +1476,8 @@ func (fs *fileSystem) renameFile(
 	return nil
 }
 
-// Rename an empty directory in a non-atomic way.
+// Rename an old directory to a new directory. If the new directory already
+// exists and is non-empty, return ENOTEMPTY.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_EXCLUDED(oldParent)
@@ -1520,7 +1522,13 @@ func (fs *fileSystem) renameDir(
 	_, err = newParent.CreateChildDir(ctx, newName)
 	newParent.Unlock()
 	if err != nil {
-		return fmt.Errorf("CreateChildDir: %w", err)
+		var preconditionErr *gcs.PreconditionError
+		if errors.As(err, &preconditionErr) && strings.Contains(preconditionErr.Error(), "object exists") {
+			// This means the new directory already exists, which is OK if
+			// it is empty (checked below).
+		} else {
+			return fmt.Errorf("CreateChildDir: %w", err)
+		}
 	}
 
 	// Get the inode of the new directory
@@ -1529,6 +1537,15 @@ func (fs *fileSystem) renameDir(
 		return fmt.Errorf("lookup new directory: %w", err)
 	}
 	pendingInodes = append(pendingInodes, newDir)
+
+	// Fail the operation if the new directory is non-empty.
+	unexpected, err := newDir.ReadDescendants(ctx, 1)
+	if err != nil {
+		return fmt.Errorf("read descendants of the new directory %q: %w", newName, err)
+	}
+	if len(unexpected) > 0 {
+		return fuse.ENOTEMPTY
+	}
 
 	// Move all the files from the old directory to the new directory, keeping
 	// both directories locked.

@@ -2347,6 +2347,31 @@ type RenameTest struct {
 
 func init() { RegisterTestSuite(&RenameTest{}) }
 
+func (t *RenameTest) DirectoryNamingConflicts() {
+	var err error
+
+	oldPath := path.Join(t.Dir, "foo")
+	err = os.Mkdir(oldPath, 0700)
+	AssertEq(nil, err)
+
+	conflictingPath := path.Join(t.Dir, "bar")
+	err = os.Mkdir(conflictingPath, 0700)
+	AssertEq(nil, err)
+
+	conflictingFile := path.Join(conflictingPath, "placeholder.txt")
+	err = ioutil.WriteFile(conflictingFile, []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	err = syscall.Rename(oldPath, conflictingPath)
+	ExpectThat(err, Error(HasSubstr("directory not empty")))
+
+	err = os.Remove(conflictingFile)
+	AssertEq(nil, err)
+
+	err = syscall.Rename(oldPath, conflictingPath)
+	AssertEq(nil, err)
+}
+
 func (t *RenameTest) DirectoryContainingFiles() {
 	var err error
 
