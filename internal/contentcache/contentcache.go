@@ -83,6 +83,35 @@ func (c *ContentCache) NewTempFile(rc io.ReadCloser) (gcsx.TempFile, error) {
 	return gcsx.NewTempFile(rc, c.tempDir, c.mtimeClock)
 }
 
+// Function to add or update existing cache file
+func (c *ContentCache) AddOrReplace(cacheObjectKey *CacheObjectKey, generation int64, rc io.ReadCloser) (gcsx.TempFile, error) {
+	if _, exists := c.fileMap[*cacheObjectKey]; exists {
+		c.fileMap[*cacheObjectKey].Destroy()
+	}
+	metadata := &gcsx.TempFileObjectMetadata{
+		BucketName: cacheObjectKey.BucketName,
+		ObjectName: cacheObjectKey.ObjectName,
+		Generation: generation,
+	}
+	file, err := c.NewCacheFile(rc, metadata)
+	c.fileMap[*cacheObjectKey] = file
+	return file, err
+}
+
+// Retrieve temp file from the cache
+func (c *ContentCache) Get(cacheObjectKey *CacheObjectKey) (gcsx.TempFile, bool) {
+	file, exists := c.fileMap[*cacheObjectKey]
+	return file, exists
+}
+
+// Function to remove and destroy cache file and metadata on disk
+func (c *ContentCache) Remove(cacheObjectKey *CacheObjectKey) {
+	if _, exists := c.fileMap[*cacheObjectKey]; exists {
+		c.fileMap[*cacheObjectKey].Destroy()
+	}
+	delete(c.fileMap, *cacheObjectKey)
+}
+
 // NewCacheFile creates a cache file on the disk storing the object content
 // TODO ezl we should refactor reading/writing cache files and metadata to a different package
 func (c *ContentCache) NewCacheFile(rc io.ReadCloser, metadata *gcsx.TempFileObjectMetadata) (gcsx.TempFile, error) {

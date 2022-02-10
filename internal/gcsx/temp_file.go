@@ -227,7 +227,6 @@ func (tf *tempFile) CheckInvariants() {
 
 func (tf *tempFile) Destroy() {
 	tf.state = fileDestroyed
-
 	// Throw away the file.
 	tf.f.Close()
 	tf.f = nil
