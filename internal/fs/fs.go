@@ -121,13 +121,16 @@ func NewFileSystem(
 
 	mtimeClock := timeutil.RealClock()
 
+	contentCache := contentcache.New(cfg.TempDir, mtimeClock)
+	contentCache.PopulateCache()
+
 	// Set up the basic struct.
 	fs := &fileSystem{
 		mtimeClock:             mtimeClock,
 		cacheClock:             cfg.CacheClock,
 		bucketManager:          cfg.BucketManager,
 		localFileCache:         cfg.LocalFileCache,
-		contentCache:           contentcache.New(cfg.TempDir, mtimeClock),
+		contentCache:           contentCache,
 		implicitDirs:           cfg.ImplicitDirectories,
 		inodeAttributeCacheTTL: cfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:        cfg.DirTypeCacheTTL,

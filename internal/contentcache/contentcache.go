@@ -16,7 +16,11 @@
 package contentcache
 
 import (
+	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
+	"regexp"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/timeutil"
@@ -34,6 +38,34 @@ type ContentCache struct {
 	localFileCache bool
 	fileMap        map[CacheObjectKey]gcsx.TempFile
 	mtimeClock     timeutil.Clock
+}
+
+// Populates the cache with existing persisted files when gcsfuse starts
+func (c *ContentCache) PopulateCache() {
+	if c.tempDir == "" {
+		c.tempDir = "/tmp"
+	}
+	files, err := ioutil.ReadDir(c.tempDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, file := range files {
+		// validate not a directory and matches gcsfuse pattern
+		if !file.IsDir() && matchPattern(file.Name()) {
+			// TODO ezl: load the files from disk to the in memory map
+			fmt.Printf(file.Name())
+		}
+	}
+}
+
+// Helper function that matches the format of a gcsfuse file
+func matchPattern(fileName string) bool {
+	// TODO ezl: replace with constant defined in gcsx.TempFile
+	match, err := regexp.MatchString(fmt.Sprintf("gcsfuse[0-9]+[.]json"), fileName)
+	if err != nil {
+		return false
+	}
+	return match
 }
 
 // New creates a ContentCache.
