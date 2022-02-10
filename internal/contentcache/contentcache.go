@@ -51,8 +51,7 @@ func (c *ContentCache) NewTempFile(rc io.ReadCloser) (gcsx.TempFile, error) {
 	return gcsx.NewTempFile(rc, c.tempDir, c.mtimeClock)
 }
 
-// NewTempFile returns a handle for a temporary file on the disk. The caller
-// must call Destroy on the TempFile before releasing it.
+// NewCacheFile returns a handle for a cache file on the disk.
 func (c *ContentCache) NewCacheFile(rc io.ReadCloser, metadata *gcsx.TempFileObjectMetadata) (gcsx.TempFile, error) {
 	return gcsx.NewCacheFile(rc, metadata, c.tempDir, c.mtimeClock)
 }
