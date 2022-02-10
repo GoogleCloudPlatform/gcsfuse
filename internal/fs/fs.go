@@ -1506,20 +1506,14 @@ func (fs *fileSystem) renameDir(
 	}
 	pendingInodes = append(pendingInodes, oldDir)
 
-	// Fetch all the descendants of the old directory recursively
+	// Fetch all the descendants of the directory recuirsively
 	descendants, err := oldDir.ReadDescendants(ctx, int(fs.renameDirLimit+1))
 	if len(descendants) > int(fs.renameDirLimit) {
 		return fmt.Errorf("too many objects to be renamed: %w", syscall.EMFILE)
 	}
 
-	newParent.Lock()
-	// Fetch a single descendant of the new parent
-	if newParentDescendents, err := newParent.ReadDescendants(ctx, 1); err == nil && len(newParentDescendents) > 0 {
-		newParent.Unlock()
-		return fuse.ENOTEMPTY
-	}
-
 	// Create the backing object of the new directory.
+	newParent.Lock()
 	_, err = newParent.CreateChildDir(ctx, newName)
 	newParent.Unlock()
 	if err != nil {
