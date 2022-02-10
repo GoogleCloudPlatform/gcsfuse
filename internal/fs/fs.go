@@ -1506,8 +1506,11 @@ func (fs *fileSystem) renameDir(
 	}
 	pendingInodes = append(pendingInodes, oldDir)
 
-	// Fetch all the descendants of the directory recuirsively
+	// Fetch all the descendants of the old directory recursively
 	descendants, err := oldDir.ReadDescendants(ctx, int(fs.renameDirLimit+1))
+	if err != nil {
+		return fmt.Errorf("read descendants of the old directory %q: %w", oldName, err)
+	}
 	if len(descendants) > int(fs.renameDirLimit) {
 		return fmt.Errorf("too many objects to be renamed: %w", syscall.EMFILE)
 	}
