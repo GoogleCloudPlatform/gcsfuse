@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // Package contentcache stores GCS object contents locally.
+// Note: The content cache is not concurrent safe and callers should ensure thread safety
 package contentcache
 
 import (
@@ -83,10 +84,10 @@ func (c *ContentCache) NewTempFile(rc io.ReadCloser) (gcsx.TempFile, error) {
 	return gcsx.NewTempFile(rc, c.tempDir, c.mtimeClock)
 }
 
-// Function to add or update existing cache file
+// Add or replace creates a new cache file or updates an existing cache file
 func (c *ContentCache) AddOrReplace(cacheObjectKey *CacheObjectKey, generation int64, rc io.ReadCloser) (gcsx.TempFile, error) {
-	if _, exists := c.fileMap[*cacheObjectKey]; exists {
-		c.fileMap[*cacheObjectKey].Destroy()
+	if cacheObject, exists := c.fileMap[*cacheObjectKey]; exists {
+		cacheObject.Destroy()
 	}
 	metadata := &gcsx.TempFileObjectMetadata{
 		BucketName: cacheObjectKey.BucketName,
@@ -94,17 +95,20 @@ func (c *ContentCache) AddOrReplace(cacheObjectKey *CacheObjectKey, generation i
 		Generation: generation,
 	}
 	file, err := c.NewCacheFile(rc, metadata)
+	if err != nil {
+		return nil, err
+	}
 	c.fileMap[*cacheObjectKey] = file
 	return file, err
 }
 
-// Retrieve temp file from the cache
+// Get retrieves a file from the cache given the GCS object name and bucket name
 func (c *ContentCache) Get(cacheObjectKey *CacheObjectKey) (gcsx.TempFile, bool) {
 	file, exists := c.fileMap[*cacheObjectKey]
 	return file, exists
 }
 
-// Function to remove and destroy cache file and metadata on disk
+// Remove removes and destroys the specfied cache file and metadata on disk
 func (c *ContentCache) Remove(cacheObjectKey *CacheObjectKey) {
 	if _, exists := c.fileMap[*cacheObjectKey]; exists {
 		c.fileMap[*cacheObjectKey].Destroy()
