@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"regexp"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
@@ -40,22 +39,23 @@ type ContentCache struct {
 	mtimeClock     timeutil.Clock
 }
 
-// Populates the cache with existing persisted files when gcsfuse starts
-func (c *ContentCache) PopulateCache() {
+// RecoverCache recovers the cache with existing persisted files when gcsfuse starts
+func (c *ContentCache) RecoverCache() error {
 	if c.tempDir == "" {
 		c.tempDir = "/tmp"
 	}
 	files, err := ioutil.ReadDir(c.tempDir)
 	if err != nil {
-		log.Fatal(err)
+		// if we fail to read the specified directory return
+		return err
 	}
 	for _, file := range files {
 		// validate not a directory and matches gcsfuse pattern
 		if !file.IsDir() && matchPattern(file.Name()) {
 			// TODO ezl: load the files from disk to the in memory map
-			fmt.Printf(file.Name())
 		}
 	}
+	return nil
 }
 
 // Helper function that matches the format of a gcsfuse file
