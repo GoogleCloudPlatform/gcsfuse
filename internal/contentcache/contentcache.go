@@ -51,7 +51,8 @@ func (c *ContentCache) NewTempFile(rc io.ReadCloser) (gcsx.TempFile, error) {
 	return gcsx.NewTempFile(rc, c.tempDir, c.mtimeClock)
 }
 
-// NewCacheFile returns a handle for a cache file on the disk.
+// NewCacheFile creates a cache file on the disk storing the object content
+// TODO ezl we should refactor reading/writing cache files and metadata to a different package
 func (c *ContentCache) NewCacheFile(rc io.ReadCloser, metadata *gcsx.TempFileObjectMetadata) (gcsx.TempFile, error) {
 	return gcsx.NewCacheFile(rc, metadata, c.tempDir, c.mtimeClock)
 }

@@ -116,6 +116,7 @@ func NewTempFile(
 // NewCacheFile creates a temp file whose initial contents are given by the
 // supplied reader. dir is a directory on whose file system the file will live,
 // or the system default temporary location if empty.
+// TODO ezl we should refactor reading/writing cache files and metadata to a different package
 func NewCacheFile(
 	source io.ReadCloser,
 	tempFileObjectMetadata *TempFileObjectMetadata,
