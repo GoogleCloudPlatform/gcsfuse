@@ -84,7 +84,7 @@ func (c *ContentCache) NewTempFile(rc io.ReadCloser) (gcsx.TempFile, error) {
 	return gcsx.NewTempFile(rc, c.tempDir, c.mtimeClock)
 }
 
-// Add or replace creates a new cache file or updates an existing cache file
+// AddOrReplace creates a new cache file or updates an existing cache file
 func (c *ContentCache) AddOrReplace(cacheObjectKey *CacheObjectKey, generation int64, rc io.ReadCloser) (gcsx.TempFile, error) {
 	if cacheObject, exists := c.fileMap[*cacheObjectKey]; exists {
 		cacheObject.Destroy()
@@ -96,7 +96,7 @@ func (c *ContentCache) AddOrReplace(cacheObjectKey *CacheObjectKey, generation i
 	}
 	file, err := c.NewCacheFile(rc, metadata)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Could not AddOrReplace cache file: %w", err)
 	}
 	c.fileMap[*cacheObjectKey] = file
 	return file, err
@@ -110,8 +110,8 @@ func (c *ContentCache) Get(cacheObjectKey *CacheObjectKey) (gcsx.TempFile, bool)
 
 // Remove removes and destroys the specfied cache file and metadata on disk
 func (c *ContentCache) Remove(cacheObjectKey *CacheObjectKey) {
-	if _, exists := c.fileMap[*cacheObjectKey]; exists {
-		c.fileMap[*cacheObjectKey].Destroy()
+	if cacheObject, exists := c.fileMap[*cacheObjectKey]; exists {
+		cacheObject.Destroy()
 	}
 	delete(c.fileMap, *cacheObjectKey)
 }
