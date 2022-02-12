@@ -46,8 +46,8 @@ func (c *ContentCache) RecoverCache() error {
 	}
 	files, err := ioutil.ReadDir(c.tempDir)
 	if err != nil {
-		// if we fail to read the specified directory return
-		return err
+		// if we fail to read the specified directory, log and return error
+		return fmt.Errorf("recover cache: %w", err)
 	}
 	for _, file := range files {
 		// validate not a directory and matches gcsfuse pattern
