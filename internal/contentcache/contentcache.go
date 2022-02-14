@@ -112,8 +112,8 @@ func (c *ContentCache) Get(cacheObjectKey *CacheObjectKey) (gcsx.TempFile, bool)
 func (c *ContentCache) Remove(cacheObjectKey *CacheObjectKey) {
 	if cacheObject, exists := c.fileMap[*cacheObjectKey]; exists {
 		cacheObject.Destroy()
+		delete(c.fileMap, *cacheObjectKey)
 	}
-	delete(c.fileMap, *cacheObjectKey)
 }
 
 // NewCacheFile creates a cache file on the disk storing the object content
