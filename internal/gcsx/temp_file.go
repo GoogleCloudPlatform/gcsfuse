@@ -122,9 +122,8 @@ func NewCacheFile(
 	tempFileObjectMetadata *TempFileObjectMetadata,
 	dir string,
 	clock timeutil.Clock) (tf TempFile, err error) {
-	// Create a temporary cache file on disk
-	// TODO ezl: Place these files in memory cache
-	// Create the json metadata before flushing the tempfile to disk
+
+	//Create a temporary cache file on disk
 	f, err := ioutil.TempFile(dir, CACHE_FILE_PREFIX)
 	if err != nil {
 		err = fmt.Errorf("TempFile: %w", err)
@@ -229,6 +228,9 @@ func (tf *tempFile) Destroy() {
 	tf.state = fileDestroyed
 	// Throw away the file.
 	tf.f.Close()
+	os.Remove(tf.f.Name())
+	// Throw away the metadata
+	os.Remove(fmt.Sprintf("%s.json", tf.f.Name()))
 	tf.f = nil
 }
 

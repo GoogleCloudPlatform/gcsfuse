@@ -40,7 +40,7 @@ type Syncer interface {
 	SyncObject(
 		ctx context.Context,
 		srcObject *gcs.Object,
-		content TempFile) (o *gcs.Object, err error)
+		content TempFile, localFileCache bool) (o *gcs.Object, err error)
 }
 
 // NewSyncer creates a syncer that syncs into the supplied bucket.
@@ -151,7 +151,7 @@ type syncer struct {
 func (os *syncer) SyncObject(
 	ctx context.Context,
 	srcObject *gcs.Object,
-	content TempFile) (o *gcs.Object, err error) {
+	content TempFile, localFileCache bool) (o *gcs.Object, err error) {
 	// Stat the content.
 	sr, err := content.Stat()
 	if err != nil {
