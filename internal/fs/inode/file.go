@@ -46,10 +46,11 @@ type FileInode struct {
 	// Constant data
 	/////////////////////////
 
-	id           fuseops.InodeID
-	name         Name
-	attrs        fuseops.InodeAttributes
-	contentCache *contentcache.ContentCache
+	id             fuseops.InodeID
+	name           Name
+	attrs          fuseops.InodeAttributes
+	contentCache   *contentcache.ContentCache
+	localFileCache bool
 
 	/////////////////////////
 	// Mutable state
@@ -100,13 +101,14 @@ func NewFileInode(
 	mtimeClock timeutil.Clock) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
-		bucket:       bucket,
-		mtimeClock:   mtimeClock,
-		id:           id,
-		name:         name,
-		attrs:        attrs,
-		contentCache: contentCache,
-		src:          *o,
+		bucket:         bucket,
+		mtimeClock:     mtimeClock,
+		id:             id,
+		name:           name,
+		attrs:          attrs,
+		localFileCache: localFileCache,
+		contentCache:   contentCache,
+		src:            *o,
 	}
 
 	f.lc.Init(id)
@@ -180,15 +182,11 @@ func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
 	return
 }
 
-// Ensure that f.content != nil
+// Helper method to open a reader
+// (should only be called by methods that have locks)
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) ensureContent(ctx context.Context) (err error) {
-	// Is there anything to do?
-	if f.content != nil {
-		return
-	}
-
+func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 	// Open a reader for the generation we care about.
 	rc, err := f.bucket.NewReader(
 		ctx,
@@ -196,22 +194,62 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 			Name:       f.src.Name,
 			Generation: f.src.Generation,
 		})
-
 	if err != nil {
 		err = fmt.Errorf("NewReader: %w", err)
-		return
 	}
+	return rc, err
+}
 
-	// Create a temporary file with its contents. The temp file
-	// ensures to call Close() on the rc.
-	tf, err := f.contentCache.NewTempFile(rc)
-	if err != nil {
-		err = fmt.Errorf("NewTempFile: %w", err)
-		return
+// Ensure that content exists and is not stale
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) ensureContent(ctx context.Context) (err error) {
+	if f.localFileCache {
+		// Fetch content from the cache
+		// we validate generation numbers here again
+		// first generation validation is at inode creation/destruction
+		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
+		if file, exists := f.contentCache.Get(cacheObjectKey); exists {
+			if file.ValidateGeneration(f.src.Generation) {
+				f.content = file
+				return
+			}
+		}
+
+		// open reader
+		rc, err := f.openReader(ctx)
+		if err != nil {
+			return err
+		}
+
+		// insert object into content cache
+		tf, err := f.contentCache.AddOrReplace(cacheObjectKey, f.src.Generation, rc)
+		if err != nil {
+			err = fmt.Errorf("NewCacheFile: %w", err)
+			return err
+		}
+
+		// Update state.
+		f.content = tf
+	} else {
+		// local filecache is not enabled
+		// Is there anything to do?
+		if f.content != nil {
+			return
+		}
+		// open reader
+		rc, err := f.openReader(ctx)
+		if err != nil {
+			return err
+		}
+		tf, err := f.contentCache.NewTempFile(rc)
+		if err != nil {
+			err = fmt.Errorf("NewTempFile: %w", err)
+			return err
+		}
+		// Update state.
+		f.content = tf
 	}
-
-	// Update state.
-	f.content = tf
 
 	return
 }
@@ -279,11 +317,12 @@ func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Destroy() (err error) {
 	f.destroyed = true
-
-	if f.content != nil {
+	if f.localFileCache {
+		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
+		f.contentCache.Remove(cacheObjectKey)
+	} else if f.content != nil {
 		f.content.Destroy()
 	}
-
 	return
 }
 
@@ -486,7 +525,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	}
 
 	// Write out the contents if they are dirty.
-	newObj, err := f.bucket.SyncObject(ctx, &f.src, f.content)
+	newObj, err := f.bucket.SyncObject(ctx, &f.src, f.content, f.localFileCache)
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.
