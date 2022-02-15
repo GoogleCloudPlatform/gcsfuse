@@ -12,7 +12,7 @@ jobs:
   linux-tests:
     strategy:
       matrix:
-        go: [1.16.x, 1.17.x]
+        go: [1.17.x]
     runs-on: ubuntu-20.04
 
     steps:
