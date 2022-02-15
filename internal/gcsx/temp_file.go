@@ -226,11 +226,14 @@ func (tf *tempFile) CheckInvariants() {
 
 func (tf *tempFile) Destroy() {
 	tf.state = fileDestroyed
-	// Throw away the file.
+	// Throw away the file (for anonymous files).
 	tf.f.Close()
-	os.Remove(tf.f.Name())
-	// Throw away the metadata
+
+	// TODO ezl: move this logic out once we refactor cache disk file handling outside of gcsx.Tempfile
+	// Throw away the cache file and metadata
 	os.Remove(fmt.Sprintf("%s.json", tf.f.Name()))
+	os.Remove(tf.f.Name())
+
 	tf.f = nil
 }
 
