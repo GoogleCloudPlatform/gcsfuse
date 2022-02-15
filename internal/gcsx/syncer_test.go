@@ -133,7 +133,7 @@ func (t *SyncerTest) SetUp(ti *TestInfo) {
 }
 
 func (t *SyncerTest) call() (o *gcs.Object, err error) {
-	o, err = t.syncer.SyncObject(t.ctx, t.srcObject, t.content)
+	o, err = t.syncer.SyncObject(t.ctx, t.srcObject, t.content, false)
 	return
 }
 

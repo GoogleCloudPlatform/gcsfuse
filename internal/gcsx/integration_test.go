@@ -146,7 +146,7 @@ func (t *IntegrationTest) objectGeneration(name string) (gen int64) {
 }
 
 func (t *IntegrationTest) sync(src *gcs.Object) (o *gcs.Object, err error) {
-	o, err = t.syncer.SyncObject(t.ctx, src, t.tf)
+	o, err = t.syncer.SyncObject(t.ctx, src, t.tf, false)
 	if err == nil && o != nil {
 		t.tf = nil
 	}
