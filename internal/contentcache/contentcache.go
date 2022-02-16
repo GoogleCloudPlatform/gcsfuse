@@ -32,12 +32,11 @@ type CacheObjectKey struct {
 	ObjectName string
 }
 
-// ContentCache is a directory on local disk to store the object content.
+// ContentCache is a directory on local disk to store the object content
 type ContentCache struct {
-	tempDir        string
-	localFileCache bool
-	fileMap        map[CacheObjectKey]gcsx.TempFile
-	mtimeClock     timeutil.Clock
+	tempDir    string
+	fileMap    map[CacheObjectKey]gcsx.TempFile
+	mtimeClock timeutil.Clock
 }
 
 // RecoverCache recovers the cache with existing persisted files when gcsfuse starts

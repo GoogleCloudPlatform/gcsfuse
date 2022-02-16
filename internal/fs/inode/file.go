@@ -182,12 +182,8 @@ func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
 	return
 }
 
-// Helper method to open a reader
-// (should only be called by methods that have locks)
-//
-// LOCKS_REQUIRED(f.mu)
+// Open a reader for the generation of object we care about.
 func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
-	// Open a reader for the generation we care about.
 	rc, err := f.bucket.NewReader(
 		ctx,
 		&gcs.ReadObjectRequest{
@@ -205,9 +201,8 @@ func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 	if f.localFileCache {
-		// Fetch content from the cache
-		// we validate generation numbers here again
-		// first generation validation is at inode creation/destruction
+		// Fetch content from the cache after validating generation numbers again
+		// Generation validation first occurs at inode creation/destruction
 		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
 		if file, exists := f.contentCache.Get(cacheObjectKey); exists {
 			if file.ValidateGeneration(f.src.Generation) {
@@ -216,13 +211,13 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 			}
 		}
 
-		// open reader
 		rc, err := f.openReader(ctx)
 		if err != nil {
+			fmt.Errorf("Open Reader Error: %w", err)
 			return err
 		}
 
-		// insert object into content cache
+		// Insert object into content cache
 		tf, err := f.contentCache.AddOrReplace(cacheObjectKey, f.src.Generation, rc)
 		if err != nil {
 			err = fmt.Errorf("NewCacheFile: %w", err)
@@ -232,16 +227,18 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		// Update state.
 		f.content = tf
 	} else {
-		// local filecache is not enabled
+		// Local filecache is not enabled
 		// Is there anything to do?
 		if f.content != nil {
 			return
 		}
-		// open reader
+
 		rc, err := f.openReader(ctx)
 		if err != nil {
+			fmt.Errorf("Open Reader Error: %w", err)
 			return err
 		}
+
 		tf, err := f.contentCache.NewTempFile(rc)
 		if err != nil {
 			err = fmt.Errorf("NewTempFile: %w", err)
