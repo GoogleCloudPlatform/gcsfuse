@@ -28,6 +28,7 @@ import (
 )
 
 // cache file prefix to identify the file as coming from gcsfuse
+// TODO ezl move this to new package after refactor
 const CACHE_FILE_PREFIX = "gcsfusecache"
 
 // TempFile is a temporary file that keeps track of the lowest offset at which
@@ -81,6 +82,7 @@ type StatResult struct {
 
 // Metadata store struct
 type TempFileObjectMetadata struct {
+	NameOnDisk     string
 	BucketName     string
 	ObjectName     string
 	Generation     int64
