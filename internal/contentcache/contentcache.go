@@ -17,12 +17,20 @@
 package contentcache
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
+	"log"
+	"os"
+	"path"
+	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -34,9 +42,45 @@ type CacheObjectKey struct {
 
 // ContentCache is a directory on local disk to store the object content
 type ContentCache struct {
+	debug      *log.Logger
 	tempDir    string
 	fileMap    map[CacheObjectKey]gcsx.TempFile
 	mtimeClock timeutil.Clock
+}
+
+// RecoverFileFromCache recovers a file from the cache via metadata
+func (c *ContentCache) RecoverFileFromCache(metadataFile fs.FileInfo) {
+	// validate not a directory and matches gcsfuse pattern
+	if metadataFile.IsDir() {
+		return
+	}
+	if !matchPattern(metadataFile.Name()) {
+		return
+	}
+	var metadata gcsx.TempFileObjectMetadata
+	metadataAbsolutePath := path.Join(c.tempDir, metadataFile.Name())
+	contents, err := ioutil.ReadFile(metadataAbsolutePath)
+	// TODO ezl should we exec some sort of cleanup in the cache if there are errors
+	if err != nil {
+		c.debug.Printf("Skip metadata file %v due to read error: %s", metadataFile.Name(), err)
+		return
+	}
+	err = json.Unmarshal(contents, &metadata)
+	if err != nil {
+		c.debug.Printf("Skip metadata file %v due to file corruption: %s", metadataFile.Name(), err)
+		return
+	}
+	cacheObjectKey := &CacheObjectKey{BucketName: metadata.BucketName, ObjectName: metadata.ObjectName}
+	// TODO ezl we should probably store the cached file name inside the cache file metadata instead of using the json file name
+	fileName := strings.TrimSuffix(metadataAbsolutePath, filepath.Ext(metadataFile.Name()))
+	// TODO ezl linux fs limits single process to open max of 1024 file descriptors
+	// so this is not scalable
+	file, err := os.Open(fileName)
+	if err != nil {
+		c.debug.Printf("Skip cache file %v due to error: %s", fileName, err)
+		return
+	}
+	c.AddOrReplace(cacheObjectKey, metadata.Generation, file)
 }
 
 // RecoverCache recovers the cache with existing persisted files when gcsfuse starts
@@ -44,16 +88,14 @@ func (c *ContentCache) RecoverCache() error {
 	if c.tempDir == "" {
 		c.tempDir = "/tmp"
 	}
+	logger.Infof("Recovering cache:\n")
 	files, err := ioutil.ReadDir(c.tempDir)
 	if err != nil {
 		// if we fail to read the specified directory, log and return error
 		return fmt.Errorf("recover cache: %w", err)
 	}
-	for _, file := range files {
-		// validate not a directory and matches gcsfuse pattern
-		if !file.IsDir() && matchPattern(file.Name()) {
-			// TODO ezl: load the files from disk to the in memory map
-		}
+	for _, metadataFile := range files {
+		c.RecoverFileFromCache(metadataFile)
 	}
 	return nil
 }
@@ -61,7 +103,7 @@ func (c *ContentCache) RecoverCache() error {
 // Helper function that matches the format of a gcsfuse file
 func matchPattern(fileName string) bool {
 	// TODO ezl: replace with constant defined in gcsx.TempFile
-	match, err := regexp.MatchString(fmt.Sprintf("gcsfuse[0-9]+[.]json"), fileName)
+	match, err := regexp.MatchString(fmt.Sprintf("%v[0-9]+[.]json", gcsx.CACHE_FILE_PREFIX), fileName)
 	if err != nil {
 		return false
 	}
@@ -71,6 +113,7 @@ func matchPattern(fileName string) bool {
 // New creates a ContentCache.
 func New(tempDir string, mtimeClock timeutil.Clock) *ContentCache {
 	return &ContentCache{
+		debug:      logger.NewDebug("content cache: "),
 		tempDir:    tempDir,
 		fileMap:    make(map[CacheObjectKey]gcsx.TempFile),
 		mtimeClock: mtimeClock,
