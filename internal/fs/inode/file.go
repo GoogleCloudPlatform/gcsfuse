@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -159,7 +160,8 @@ func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
 	o, err := f.bucket.StatObject(ctx, req)
 
 	// Special case: "not found" means we have been clobbered.
-	if _, ok := err.(*gcs.NotFoundError); ok {
+	var notFoundErr *gcs.NotFoundError
+	if errors.As(err, &notFoundErr) {
 		err = nil
 		b = true
 		return
@@ -443,27 +445,29 @@ func (f *FileInode) SetMtime(
 	}
 
 	o, err := f.bucket.UpdateObject(ctx, req)
-	switch err.(type) {
-	case nil:
+	if err == nil {
 		f.src = *o
 		return
+	}
 
-	case *gcs.NotFoundError:
+	var notFoundErr *gcs.NotFoundError
+	if errors.As(err, &notFoundErr) {
 		// Special case: silently ignore not found errors, which mean the file has
 		// been unlinked.
 		err = nil
 		return
+	}
 
-	case *gcs.PreconditionError:
+	var preconditionErr *gcs.PreconditionError
+	if errors.As(err, &preconditionErr) {
 		// Special case: silently ignore precondition errors, which we also take to
 		// mean the file has been unlinked.
 		err = nil
 		return
-
-	default:
-		err = fmt.Errorf("UpdateObject: %w", err)
-		return
 	}
+
+	err = fmt.Errorf("UpdateObject: %w", err)
+	return
 }
 
 // Sync writes out contents to GCS. If this fails due to the generation having been
@@ -486,8 +490,10 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.
-	if _, ok := err.(*gcs.PreconditionError); ok {
+	var preconditionErr *gcs.PreconditionError
+	if errors.As(err, &preconditionErr) {
 		err = nil
+		return
 	}
 
 	// Propagate other errors.
