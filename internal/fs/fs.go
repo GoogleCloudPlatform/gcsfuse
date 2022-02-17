@@ -1129,7 +1129,8 @@ func (fs *fileSystem) MkDir(
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
-	if _, ok := err.(*gcs.PreconditionError); ok {
+	var preconditionErr *gcs.PreconditionError
+	if errors.As(err, &preconditionErr) {
 		err = fuse.EEXIST
 		return
 	}
@@ -1215,7 +1216,8 @@ func (fs *fileSystem) createFile(
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
-	if _, ok := err.(*gcs.PreconditionError); ok {
+	var preconditionErr *gcs.PreconditionError
+	if errors.As(err, &preconditionErr) {
 		err = fuse.EEXIST
 		return
 	}
@@ -1289,7 +1291,8 @@ func (fs *fileSystem) CreateSymlink(
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
-	if _, ok := err.(*gcs.PreconditionError); ok {
+	var preconditionErr *gcs.PreconditionError
+	if errors.As(err, &preconditionErr) {
 		err = fuse.EEXIST
 		return
 	}
