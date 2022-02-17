@@ -39,3 +39,5 @@ require (
 	google.golang.org/genproto v0.0.0-20220207185906-7721543eae58 // indirect
 	google.golang.org/grpc v1.44.0 // indirect
 )
+
+replace github.com/jacobsa/gcloud v0.0.0-20211221120201-0d771bbe4dd5 => github.com/lezh/gcloud v0.0.0-20211222012502-e965291a656d

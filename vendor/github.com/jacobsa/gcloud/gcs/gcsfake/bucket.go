@@ -329,7 +329,7 @@ func (b *bucket) createObjectLocked(
 
 	// Create an object record from the given attributes.
 	var fo fakeObject = b.mintObject(req, contents)
-	o = &fo.metadata
+	o = copyObject(&fo.metadata)
 
 	// Replace an entry in or add an entry to our list of objects.
 	if existingIndex < len(b.objects) {
@@ -421,6 +421,12 @@ func copyMetadata(in map[string]string) (out map[string]string) {
 	return
 }
 
+func copyObject(o *gcs.Object) *gcs.Object {
+	var copy gcs.Object = *o
+	copy.Metadata = copyMetadata(o.Metadata)
+	return &copy
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -496,8 +502,7 @@ func (b *bucket) ListObjects(
 
 		// Otherwise, return as an object result. Make a copy to avoid handing back
 		// internal state.
-		var oCopy gcs.Object = o.metadata
-		listing.Objects = append(listing.Objects, &oCopy)
+		listing.Objects = append(listing.Objects, copyObject(&o.metadata))
 	}
 
 	// Set up a cursor for where to start the next scan if we didn't exhaust the
@@ -622,7 +627,7 @@ func (b *bucket) CopyObject(
 		sort.Sort(b.objects)
 	}
 
-	o = &dst.metadata
+	o = copyObject(&dst.metadata)
 	return
 }
 
@@ -697,8 +702,7 @@ func (b *bucket) ComposeObjects(
 	// composite objects.
 	metadata.MD5 = nil
 
-	oCopy := *metadata
-	o = &oCopy
+	o = copyObject(metadata)
 	return
 }
 
@@ -720,8 +724,7 @@ func (b *bucket) StatObject(
 	}
 
 	// Make a copy to avoid handing back internal state.
-	var objCopy gcs.Object = b.objects[index].metadata
-	o = &objCopy
+	o = copyObject(&b.objects[index].metadata)
 
 	return
 }
@@ -808,8 +811,7 @@ func (b *bucket) UpdateObject(
 	obj.Updated = b.clock.Now()
 
 	// Make a copy to avoid handing back internal state.
-	var objCopy gcs.Object = *obj
-	o = &objCopy
+	o = copyObject(obj)
 
 	return
 }
