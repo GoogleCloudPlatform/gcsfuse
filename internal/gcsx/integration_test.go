@@ -16,6 +16,7 @@ package gcsx_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -125,7 +126,8 @@ func (t *IntegrationTest) objectGeneration(name string) (gen int64) {
 	req := &gcs.StatObjectRequest{Name: name}
 	o, err := t.bucket.StatObject(t.ctx, req)
 
-	if _, ok := err.(*gcs.NotFoundError); ok {
+	var notFoundErr *gcs.NotFoundError
+	if errors.As(err, &notFoundErr) {
 		gen = -1
 		return
 	}
