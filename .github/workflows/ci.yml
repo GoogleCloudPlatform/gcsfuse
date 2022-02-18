@@ -26,6 +26,8 @@ jobs:
     - name: Build
       run: |
         go build ./...
-        go test -v ./internal/...
         go install ./tools/build_gcsfuse
         build_gcsfuse . /tmp ${GITHUB_SHA}
+    - name: Test
+      run: go test -p 1 -count 1 -v -cover ./...
+    
