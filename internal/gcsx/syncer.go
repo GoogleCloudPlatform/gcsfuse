@@ -99,11 +99,6 @@ func (oc *fullObjectCreator) Create(
 
 	o, err = oc.bucket.CreateObject(ctx, req)
 	if err != nil {
-		// Don't mangle precondition errors.
-		if _, ok := err.(*gcs.PreconditionError); ok {
-			return
-		}
-
 		err = fmt.Errorf("CreateObject: %w", err)
 		return
 	}
@@ -220,11 +215,6 @@ func (os *syncer) SyncObject(
 
 	// Deal with errors.
 	if err != nil {
-		// Special case: don't mess with precondition errors.
-		if _, ok := err.(*gcs.PreconditionError); ok {
-			return
-		}
-
 		err = fmt.Errorf("Create: %w", err)
 		return
 	}

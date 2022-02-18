@@ -306,7 +306,8 @@ func (t *SyncerTest) FullCreatorReturnsPreconditionError() {
 	// Call
 	_, err = t.call()
 
-	ExpectEq(t.fullCreator.err, err)
+	var preconditionErr *gcs.PreconditionError
+	ExpectTrue(errors.As(err, &preconditionErr))
 }
 
 func (t *SyncerTest) FullCreatorSucceeds() {
@@ -371,7 +372,8 @@ func (t *SyncerTest) AppendCreatorReturnsPreconditionError() {
 	// Call
 	_, err = t.call()
 
-	ExpectEq(t.appendCreator.err, err)
+	var preconditionErr *gcs.PreconditionError
+	ExpectTrue(errors.As(err, &preconditionErr))
 }
 
 func (t *SyncerTest) AppendCreatorSucceeds() {
