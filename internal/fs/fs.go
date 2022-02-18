@@ -129,7 +129,7 @@ func NewFileSystem(
 	if cfg.LocalFileCache {
 		err := contentCache.RecoverCache()
 		if err != nil {
-			fmt.Printf("Encountered error retrieving files from cache directory, disabling local file cache: %v", err)
+			fmt.Printf("encountered error retrieving files from cache directory, disabling local file cache: %v", err)
 			cfg.LocalFileCache = false
 		}
 	}
