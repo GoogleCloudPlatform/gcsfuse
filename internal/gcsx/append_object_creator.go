@@ -16,6 +16,7 @@ package gcsx
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -98,18 +99,7 @@ func (oc *appendObjectCreator) Create(
 			GenerationPrecondition: &zero,
 			Contents:               r,
 		})
-
-	// Don't mangle precondition errors.
-	switch typed := err.(type) {
-	case nil:
-
-	case *gcs.PreconditionError:
-		err = &gcs.PreconditionError{
-			Err: fmt.Errorf("CreateObject: %w", typed.Err),
-		}
-		return
-
-	default:
+	if err != nil {
 		err = fmt.Errorf("CreateObject: %w", err)
 		return
 	}
@@ -149,28 +139,17 @@ func (oc *appendObjectCreator) Create(
 				MtimeMetadataKey: mtime.Format(time.RFC3339Nano),
 			},
 		})
-
-	switch typed := err.(type) {
-	case nil:
-
-	case *gcs.PreconditionError:
-		err = &gcs.PreconditionError{
-			Err: fmt.Errorf("ComposeObjects: %w", typed.Err),
+	if err != nil {
+		// A not found error means that either the source object was clobbered or the
+		// temporary object was. The latter is unlikely, so we signal a precondition
+		// error.
+		var notFoundErr *gcs.NotFoundError
+		if errors.As(err, &notFoundErr) {
+			err = &gcs.PreconditionError{
+				Err: err,
+			}
 		}
-		return
 
-	// A not found error means that either the source object was clobbered or the
-	// temporary object was. The latter is unlikely, so we signal a precondition
-	// error.
-	case *gcs.NotFoundError:
-		err = &gcs.PreconditionError{
-			Err: fmt.Errorf(
-				"Synthesized precondition error for ComposeObjects. Original: %w",
-				err),
-		}
-		return
-
-	default:
 		err = fmt.Errorf("ComposeObjects: %w", err)
 		return
 	}

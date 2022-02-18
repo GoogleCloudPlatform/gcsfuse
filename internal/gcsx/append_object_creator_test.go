@@ -273,7 +273,6 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
 
 	var preconditionErr *gcs.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
-	ExpectThat(err, Error(HasSubstr("Synthesized")))
 	ExpectThat(err, Error(HasSubstr("ComposeObjects")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
