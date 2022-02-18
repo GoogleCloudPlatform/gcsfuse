@@ -144,7 +144,8 @@ func (t *AppendObjectCreatorTest) CreateObjectReturnsPreconditionError() {
 	// Call
 	_, err = t.call()
 
-	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	var preconditionErr *gcs.PreconditionError
+	ExpectTrue(errors.As(err, &preconditionErr))
 	ExpectThat(err, Error(HasSubstr("CreateObject")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
@@ -244,7 +245,8 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 	// Call
 	_, err := t.call()
 
-	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	var preconditionErr *gcs.PreconditionError
+	ExpectTrue(errors.As(err, &preconditionErr))
 	ExpectThat(err, Error(HasSubstr("ComposeObjects")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
@@ -269,7 +271,8 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
 	// Call
 	_, err := t.call()
 
-	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	var preconditionErr *gcs.PreconditionError
+	ExpectTrue(errors.As(err, &preconditionErr))
 	ExpectThat(err, Error(HasSubstr("Synthesized")))
 	ExpectThat(err, Error(HasSubstr("ComposeObjects")))
 	ExpectThat(err, Error(HasSubstr("taco")))

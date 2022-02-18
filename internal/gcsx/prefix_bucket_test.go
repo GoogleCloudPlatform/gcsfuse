@@ -15,6 +15,7 @@
 package gcsx_test
 
 import (
+	"errors"
 	"io/ioutil"
 	"strings"
 	"testing"
@@ -391,5 +392,6 @@ func (t *PrefixBucketTest) DeleteObject() {
 			Name: name,
 		})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	var notFoundErr *gcs.NotFoundError
+	ExpectTrue(errors.As(err, &notFoundErr))
 }

@@ -19,6 +19,7 @@
 package fs_test
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -181,7 +182,9 @@ func (t *OpenTest) NonExistent_CreateFlagNotSet() {
 
 	// No object should have been created.
 	_, err = gcsutil.ReadObject(t.ctx, t.bucket, "foo")
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+
+	var notFoundErr *gcs.NotFoundError
+	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
 func (t *OpenTest) NonExistent_CreateFlagSet() {
@@ -2334,7 +2337,8 @@ func (t *SymlinkTest) RemoveLink() {
 
 	// It should be gone from the bucket.
 	_, err = gcsutil.ReadObject(t.ctx, t.bucket, "foo")
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	var notFoundErr *gcs.NotFoundError
+	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
 ////////////////////////////////////////////////////////////////////////

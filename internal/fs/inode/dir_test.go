@@ -15,6 +15,7 @@
 package inode_test
 
 import (
+	"errors"
 	"os"
 	"path"
 	"sort"
@@ -754,7 +755,8 @@ func (t *DirTest) CloneToChildFile_SourceDoesntExist() {
 
 	// Call the inode.
 	_, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	var notFoundErr *gcs.NotFoundError
+	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
 func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
@@ -1020,7 +1022,8 @@ func (t *DirTest) DeleteChildFile_LatestGeneration() {
 
 	// Check the bucket.
 	_, err = gcsutil.ReadObject(t.ctx, t.bucket, objName)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	var notFoundErr *gcs.NotFoundError
+	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
 func (t *DirTest) DeleteChildFile_ParticularGenerationAndMetaGeneration() {
@@ -1039,7 +1042,8 @@ func (t *DirTest) DeleteChildFile_ParticularGenerationAndMetaGeneration() {
 
 	// Check the bucket.
 	_, err = gcsutil.ReadObject(t.ctx, t.bucket, objName)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	var notFoundErr *gcs.NotFoundError
+	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
 func (t *DirTest) DeleteChildFile_TypeCaching() {
@@ -1100,5 +1104,6 @@ func (t *DirTest) DeleteChildDir_Exists() {
 
 	// Check the bucket.
 	_, err = gcsutil.ReadObject(t.ctx, t.bucket, objName)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	var notFoundErr *gcs.NotFoundError
+	ExpectTrue(errors.As(err, &notFoundErr))
 }
