@@ -116,10 +116,10 @@ func NewFileInode(
 	// Set up invariant checking.
 	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
 
-	if localFileCache {
-		// The gcs object is cached as local temp file
-		f.ensureContent(context.Background())
-	}
+	// if localFileCache {
+	// 	// The gcs object is cached as local temp file
+	// 	f.ensureContent(context.Background())
+	// }
 
 	return
 }
@@ -213,14 +213,14 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 
 		rc, err := f.openReader(ctx)
 		if err != nil {
-			fmt.Errorf("Open Reader Error: %w", err)
+			fmt.Errorf("open reader error: %w", err)
 			return err
 		}
 
 		// Insert object into content cache
 		tf, err := f.contentCache.AddOrReplace(cacheObjectKey, f.src.Generation, rc)
 		if err != nil {
-			err = fmt.Errorf("NewCacheFile: %w", err)
+			err = fmt.Errorf("AddOrReplace cache error: %w", err)
 			return err
 		}
 
@@ -228,7 +228,6 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		f.content = tf
 	} else {
 		// Local filecache is not enabled
-		// Is there anything to do?
 		if f.content != nil {
 			return
 		}
