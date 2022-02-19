@@ -46,10 +46,12 @@ type FileInode struct {
 	// Constant data
 	/////////////////////////
 
-	id             fuseops.InodeID
-	name           Name
-	attrs          fuseops.InodeAttributes
-	contentCache   *contentcache.ContentCache
+	id           fuseops.InodeID
+	name         Name
+	attrs        fuseops.InodeAttributes
+	contentCache *contentcache.ContentCache
+	// TODO ezl remove bool flag and refactor contentCache to support two implementations:
+	// one implementation with original functionality and one with new persistent disk content cache
 	localFileCache bool
 
 	/////////////////////////
@@ -116,10 +118,10 @@ func NewFileInode(
 	// Set up invariant checking.
 	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
 
-	// if localFileCache {
-	// 	// The gcs object is cached as local temp file
-	// 	f.ensureContent(context.Background())
-	// }
+	if localFileCache {
+		// The gcs object is cached as local temp file
+		f.ensureContent(context.Background())
+	}
 
 	return
 }
@@ -521,7 +523,12 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	}
 
 	// Write out the contents if they are dirty.
-	newObj, err := f.bucket.SyncObject(ctx, &f.src, f.content, f.localFileCache)
+	newObj, err := f.bucket.SyncObject(ctx, &f.src, f.content)
+
+	// Destroy the temp file after syncing if the local file cache is disabled
+	if !f.localFileCache {
+		f.content.Destroy()
+	}
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.
