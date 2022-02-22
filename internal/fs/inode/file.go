@@ -505,6 +505,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// If we wrote out a new object, we need to update our state.
 	if newObj != nil {
 		f.src = *newObj
+		f.content.Destroy()
 		f.content = nil
 	}
 

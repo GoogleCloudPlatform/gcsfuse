@@ -37,9 +37,6 @@ type Syncer interface {
 	//
 	// *   Otherwise, write out a new generation in the bucket (failing with
 	//     *gcs.PreconditionError if the source generation is no longer current).
-	//
-	// In the second case, the TempFile is destroyed. Otherwise, including when
-	// this function fails, it is guaranteed to still be valid.
 	SyncObject(
 		ctx context.Context,
 		srcObject *gcs.Object,
@@ -218,9 +215,6 @@ func (os *syncer) SyncObject(
 		err = fmt.Errorf("Create: %w", err)
 		return
 	}
-
-	// Destroy the temp file.
-	content.Destroy()
 
 	return
 }
