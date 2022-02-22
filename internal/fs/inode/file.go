@@ -525,11 +525,6 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// Write out the contents if they are dirty.
 	newObj, err := f.bucket.SyncObject(ctx, &f.src, f.content)
 
-	// Destroy the temp file after syncing if the local file cache is disabled
-	if !f.localFileCache {
-		f.content.Destroy()
-	}
-
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.
 	var preconditionErr *gcs.PreconditionError
@@ -545,7 +540,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	}
 
 	// If we wrote out a new object, we need to update our state.
-	if newObj != nil {
+	if newObj != nil && !f.localFileCache {
 		f.src = *newObj
 		f.content.Destroy()
 		f.content = nil
