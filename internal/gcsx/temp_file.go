@@ -229,11 +229,8 @@ func (tf *tempFile) Destroy() {
 	// Throw away the file (for anonymous files).
 	tf.f.Close()
 
-	// TODO ezl: move this logic out once we refactor cache disk file handling outside of gcsx.Tempfile
-	// Throw away the cache file and metadata
-	os.Remove(fmt.Sprintf("%s.json", tf.f.Name()))
-	os.Remove(tf.f.Name())
-
+	// TODO ezl Throw away the cache file and metadata
+	// when the local file cache is enabled
 	tf.f = nil
 }
 
