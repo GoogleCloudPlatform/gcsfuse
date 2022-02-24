@@ -50,6 +50,9 @@ type FileInode struct {
 	name         Name
 	attrs        fuseops.InodeAttributes
 	contentCache *contentcache.ContentCache
+	// TODO ezl remove bool flag and refactor contentCache to support two implementations:
+	// one implementation with original functionality and one with new persistent disk content cache
+	localFileCache bool
 
 	/////////////////////////
 	// Mutable state
@@ -100,13 +103,14 @@ func NewFileInode(
 	mtimeClock timeutil.Clock) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
-		bucket:       bucket,
-		mtimeClock:   mtimeClock,
-		id:           id,
-		name:         name,
-		attrs:        attrs,
-		contentCache: contentCache,
-		src:          *o,
+		bucket:         bucket,
+		mtimeClock:     mtimeClock,
+		id:             id,
+		name:           name,
+		attrs:          attrs,
+		localFileCache: localFileCache,
+		contentCache:   contentCache,
+		src:            *o,
 	}
 
 	f.lc.Init(id)
@@ -180,38 +184,70 @@ func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
 	return
 }
 
-// Ensure that f.content != nil
-//
-// LOCKS_REQUIRED(f.mu)
-func (f *FileInode) ensureContent(ctx context.Context) (err error) {
-	// Is there anything to do?
-	if f.content != nil {
-		return
-	}
-
-	// Open a reader for the generation we care about.
+// Open a reader for the generation of object we care about.
+func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 	rc, err := f.bucket.NewReader(
 		ctx,
 		&gcs.ReadObjectRequest{
 			Name:       f.src.Name,
 			Generation: f.src.Generation,
 		})
-
 	if err != nil {
 		err = fmt.Errorf("NewReader: %w", err)
-		return
 	}
+	return rc, err
+}
 
-	// Create a temporary file with its contents. The temp file
-	// ensures to call Close() on the rc.
-	tf, err := f.contentCache.NewTempFile(rc)
-	if err != nil {
-		err = fmt.Errorf("NewTempFile: %w", err)
-		return
+// Ensure that content exists and is not stale
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) ensureContent(ctx context.Context) (err error) {
+	if f.localFileCache {
+		// Fetch content from the cache after validating generation numbers again
+		// Generation validation first occurs at inode creation/destruction
+		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
+		if file, exists := f.contentCache.Get(cacheObjectKey); exists {
+			if file.ValidateGeneration(f.src.Generation) {
+				f.content = file
+				return
+			}
+		}
+
+		rc, err := f.openReader(ctx)
+		if err != nil {
+			fmt.Errorf("open reader error: %w", err)
+			return err
+		}
+
+		// Insert object into content cache
+		tf, err := f.contentCache.AddOrReplace(cacheObjectKey, f.src.Generation, rc)
+		if err != nil {
+			err = fmt.Errorf("AddOrReplace cache error: %w", err)
+			return err
+		}
+
+		// Update state.
+		f.content = tf
+	} else {
+		// Local filecache is not enabled
+		if f.content != nil {
+			return
+		}
+
+		rc, err := f.openReader(ctx)
+		if err != nil {
+			fmt.Errorf("Open Reader Error: %w", err)
+			return err
+		}
+
+		tf, err := f.contentCache.NewTempFile(rc)
+		if err != nil {
+			err = fmt.Errorf("NewTempFile: %w", err)
+			return err
+		}
+		// Update state.
+		f.content = tf
 	}
-
-	// Update state.
-	f.content = tf
 
 	return
 }
@@ -279,11 +315,12 @@ func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Destroy() (err error) {
 	f.destroyed = true
-
-	if f.content != nil {
+	if f.localFileCache {
+		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
+		f.contentCache.Remove(cacheObjectKey)
+	} else if f.content != nil {
 		f.content.Destroy()
 	}
-
 	return
 }
 
@@ -503,7 +540,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	}
 
 	// If we wrote out a new object, we need to update our state.
-	if newObj != nil {
+	if newObj != nil && !f.localFileCache {
 		f.src = *newObj
 		f.content.Destroy()
 		f.content = nil
