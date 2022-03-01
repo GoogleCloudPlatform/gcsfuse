@@ -35,7 +35,7 @@ func NewVendorClient(ctx context.Context, protocol string, connections int, buck
 	if err != nil {
 		return nil, err
 	}
-	endpoint, _ := url.Parse("https://www.googleapis.com:443")
+	endpoint, _ := url.Parse("https://storage.googleapis.com:443")
 	config := &gcs.ConnConfig{
 		Url:         endpoint,
 		TokenSource: tokenSrc,
