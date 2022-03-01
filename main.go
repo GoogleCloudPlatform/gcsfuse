@@ -76,7 +76,7 @@ func registerSIGINTHandler(mountPoint string) {
 
 func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 	var tokenSrc oauth2.TokenSource
-	if flags.Endpoint.Hostname() == "www.googleapis.com" {
+	if flags.Endpoint.Hostname() == "storage.googleapis.com" {
 		tokenSrc, err = auth.GetTokenSource(
 			context.Background(),
 			flags.KeyFile,
