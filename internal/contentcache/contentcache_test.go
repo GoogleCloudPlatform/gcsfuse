@@ -28,6 +28,7 @@ import (
 
 const testTempDir = "/tmp"
 const testGeneration = 10002022
+const testMetaGeneration = 1
 
 func TestValidateGeneration(t *testing.T) {
 	objectMetadata := contentcache.CacheFileObjectMetadata{
@@ -35,10 +36,10 @@ func TestValidateGeneration(t *testing.T) {
 		BucketName:          "foo",
 		ObjectName:          "baz",
 		Generation:          testGeneration,
-		MetaGeneration:      1,
+		MetaGeneration:      testMetaGeneration,
 	}
 	cacheObject := contentcache.CacheObject{CacheFileObjectMetadata: &objectMetadata}
-	ExpectTrue(cacheObject.ValidateGeneration(testGeneration))
+	ExpectTrue(cacheObject.ValidateGeneration(testGeneration, testMetaGeneration))
 }
 
 func TestReadWriteMetadataCheckpointFile(t *testing.T) {
@@ -51,7 +52,7 @@ func TestReadWriteMetadataCheckpointFile(t *testing.T) {
 		BucketName:          "foo",
 		ObjectName:          "baz",
 		Generation:          testGeneration,
-		MetaGeneration:      1,
+		MetaGeneration:      testMetaGeneration,
 	}
 	metadataFileName, err := contentCache.WriteMetadataCheckpointFile(objectMetadata.ObjectName, &objectMetadata)
 	AssertEq(err, nil)

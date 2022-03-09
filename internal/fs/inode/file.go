@@ -207,7 +207,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		// Generation validation first occurs at inode creation/destruction
 		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
 		if cacheObject, exists := f.contentCache.Get(cacheObjectKey); exists {
-			if cacheObject.ValidateGeneration(f.src.Generation) {
+			if cacheObject.ValidateGeneration(f.src.Generation, f.src.MetaGeneration) {
 				f.content = cacheObject.CacheFile
 				return
 			}
@@ -220,7 +220,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		}
 
 		// Insert object into content cache
-		tf, err := f.contentCache.AddOrReplace(cacheObjectKey, f.src.Generation, rc)
+		tf, err := f.contentCache.AddOrReplace(cacheObjectKey, f.src.Generation, f.src.MetaGeneration, rc)
 		if err != nil {
 			err = fmt.Errorf("AddOrReplace cache error: %w", err)
 			return err
