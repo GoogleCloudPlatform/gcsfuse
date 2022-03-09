@@ -87,7 +87,11 @@ func (c *ContentCache) WriteMetadataCheckpointFile(cacheFileName string, cacheFi
 }
 
 func (c *CacheObject) Destroy() {
-	// TODO ezl clean up
+	if c.CacheFile != nil {
+		os.Remove(c.CacheFile.Name())
+		c.CacheFile.Destroy()
+	}
+	os.Remove(c.MetadataFileName)
 }
 
 // RecoverFileFromCache recovers a file from the cache via metadata
@@ -117,10 +121,19 @@ func (c *ContentCache) RecoverFileFromCache(metadataFile fs.FileInfo) {
 	// so this is not scalable
 	file, err := os.Open(fileName)
 	if err != nil {
-		c.debug.Printf("Skip cache file %v due to error: %s", fileName, err)
+		c.debug.Printf("Skip cache file %v due to error: %v", fileName, err)
 		return
 	}
-	c.AddOrReplace(cacheObjectKey, metadata.Generation, file)
+	cacheFile, err := c.RecoverCacheFile(file)
+	if err != nil {
+		c.debug.Printf("Skip cache file %v due to error: %v", fileName, err)
+	}
+	cacheObject := &CacheObject{
+		MetadataFileName:        metadataAbsolutePath,
+		CacheFileObjectMetadata: &metadata,
+		CacheFile:               cacheFile,
+	}
+	c.fileMap[*cacheObjectKey] = cacheObject
 }
 
 // RecoverCache recovers the cache with existing persisted files when gcsfuse starts
@@ -211,4 +224,8 @@ func (c *ContentCache) Remove(cacheObjectKey *CacheObjectKey) {
 // NewCacheFile creates a cache file on the disk storing the object content
 func (c *ContentCache) NewCacheFile(rc io.ReadCloser) (gcsx.TempFile, error) {
 	return gcsx.NewCacheFile(rc, c.tempDir, c.mtimeClock)
+}
+
+func (c *ContentCache) RecoverCacheFile(f *os.File) (gcsx.TempFile, error) {
+	return gcsx.RecoverCacheFile(f, c.tempDir, c.mtimeClock)
 }

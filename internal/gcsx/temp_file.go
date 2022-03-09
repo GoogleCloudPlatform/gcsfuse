@@ -130,6 +130,28 @@ func NewCacheFile(
 	return
 }
 
+func RecoverCacheFile(
+	source *os.File,
+	dir string,
+	clock timeutil.Clock) (tf TempFile, err error) {
+
+	stat, err := source.Stat()
+
+	if err != nil {
+		return nil, fmt.Errorf("could not retrieve file stat: %w", err)
+	}
+
+	tf = &tempFile{
+		source:         source,
+		state:          fileComplete,
+		clock:          clock,
+		f:              source,
+		dirtyThreshold: stat.Size(),
+	}
+
+	return
+}
+
 type fileState string
 
 const (
