@@ -121,9 +121,6 @@ func NewFileSystem(
 
 	mtimeClock := timeutil.RealClock()
 
-	// TODO ezl Consider setting contentcache to nil when the local file cache is disabled
-	// This means we need to refactor and separate the local file cache logic away from
-	// temp files being used when users want to write/modify files in the filesystem
 	contentCache := contentcache.New(cfg.TempDir, mtimeClock)
 
 	if cfg.LocalFileCache {
