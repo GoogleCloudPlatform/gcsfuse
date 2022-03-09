@@ -63,11 +63,11 @@ type CacheObject struct {
 	CacheFile               gcsx.TempFile
 }
 
-func (c *CacheObject) ValidateGeneration(generation int64) bool {
+func (c *CacheObject) ValidateGeneration(generation int64, metaGeneration int64) bool {
 	if c.CacheFileObjectMetadata == nil {
 		return false
 	}
-	return c.CacheFileObjectMetadata.Generation == generation
+	return c.CacheFileObjectMetadata.Generation == generation && c.CacheFileObjectMetadata.MetaGeneration == metaGeneration
 }
 
 func (c *ContentCache) WriteMetadataCheckpointFile(cacheFileName string, cacheFileObjectMetadata *CacheFileObjectMetadata) (metadataFileName string, err error) {
@@ -115,7 +115,10 @@ func (c *ContentCache) RecoverFileFromCache(metadataFile fs.FileInfo) {
 		c.debug.Printf("Skip metadata file %v due to file corruption: %s", metadataFile.Name(), err)
 		return
 	}
-	cacheObjectKey := &CacheObjectKey{BucketName: metadata.BucketName, ObjectName: metadata.ObjectName}
+	cacheObjectKey := &CacheObjectKey{
+		BucketName: metadata.BucketName,
+		ObjectName: metadata.ObjectName,
+	}
 	fileName := metadata.CacheFileNameOnDisk
 	// TODO ezl linux fs limits single process to open max of 1024 file descriptors
 	// so this is not scalable
@@ -179,7 +182,7 @@ func (c *ContentCache) NewTempFile(rc io.ReadCloser) (gcsx.TempFile, error) {
 }
 
 // AddOrReplace creates a new cache file or updates an existing cache file
-func (c *ContentCache) AddOrReplace(cacheObjectKey *CacheObjectKey, generation int64, rc io.ReadCloser) (*CacheObject, error) {
+func (c *ContentCache) AddOrReplace(cacheObjectKey *CacheObjectKey, generation int64, metaGeneration int64, rc io.ReadCloser) (*CacheObject, error) {
 	if cacheObject, exists := c.fileMap[*cacheObjectKey]; exists {
 		cacheObject.Destroy()
 	}
@@ -192,6 +195,7 @@ func (c *ContentCache) AddOrReplace(cacheObjectKey *CacheObjectKey, generation i
 		BucketName:          cacheObjectKey.BucketName,
 		ObjectName:          cacheObjectKey.ObjectName,
 		Generation:          generation,
+		MetaGeneration:      metaGeneration,
 	}
 	var metadataFileName string
 	metadataFileName, err = c.WriteMetadataCheckpointFile(file.Name(), metadata)
