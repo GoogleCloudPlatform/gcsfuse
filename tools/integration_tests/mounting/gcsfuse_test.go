@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+
 	//"runtime"
 	"syscall"
 	"testing"
@@ -160,9 +161,6 @@ func (t *GcsfuseTest) NonEmptyMountPoint() {
 
 	err = t.runGcsfuse(args)
 	ExpectThat(err, Error(HasSubstr("exit status 1")))
-	// TODO ezl the below string is not returned by cmd.CombinedOutput, we should make changes
-	// to detect it and passthrough this error
-	// ExpectThat(err, Error(HasSubstr("is not empty")))
 }
 */
 
