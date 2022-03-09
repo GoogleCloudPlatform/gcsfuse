@@ -21,6 +21,8 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"runtime"
+
 	//"runtime"
 	"syscall"
 	"testing"
@@ -138,8 +140,6 @@ func (t *GcsfuseTest) NonExistentMountPoint() {
 	ExpectThat(err, Error(HasSubstr("blahblah")))
 }
 
-// TODO: fails
-/*
 func (t *GcsfuseTest) NonEmptyMountPoint() {
 	var err error
 
@@ -160,11 +160,10 @@ func (t *GcsfuseTest) NonEmptyMountPoint() {
 
 	err = t.runGcsfuse(args)
 	ExpectThat(err, Error(HasSubstr("exit status 1")))
-	// TODO ezl the below string is not returned by cmd.CombinedOutput, we should make changes
+	// The below string is not returned by cmd.CombinedOutput, changes need to be made upstream
 	// to detect it and passthrough this error
-	// ExpectThat(err, Error(HasSubstr("is not empty")))
+	//ExpectThat(err, Error(HasSubstr("is not empty")))
 }
-*/
 
 func (t *GcsfuseTest) MountPointIsAFile() {
 	var err error
