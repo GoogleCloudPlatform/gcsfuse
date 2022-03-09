@@ -206,9 +206,9 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		// Fetch content from the cache after validating generation numbers again
 		// Generation validation first occurs at inode creation/destruction
 		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
-		if file, exists := f.contentCache.Get(cacheObjectKey); exists {
-			if file.ValidateGeneration(f.src.Generation) {
-				f.content = file
+		if cacheObject, exists := f.contentCache.Get(cacheObjectKey); exists {
+			if cacheObject.ValidateGeneration(f.src.Generation) {
+				f.content = cacheObject.CacheFile
 				return
 			}
 		}
@@ -227,7 +227,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		}
 
 		// Update state.
-		f.content = tf
+		f.content = tf.CacheFile
 	} else {
 		// Local filecache is not enabled
 		if f.content != nil {
