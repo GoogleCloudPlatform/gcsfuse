@@ -202,7 +202,7 @@ func newApp() (app *cli.App) {
 
 			cli.BoolFlag{
 				Name:  "local-file-cache",
-				Usage: "Cache GCS files on local disk for reads.",
+				Usage: "Experimental: Cache GCS files on local disk for reads.",
 			},
 
 			cli.StringFlag{
@@ -232,7 +232,7 @@ func newApp() (app *cli.App) {
 			cli.DurationFlag{
 				Name:  "stackdriver-export-interval",
 				Value: 0,
-				Usage: "Export metrics to stackdriver with this interval. The default value 0 indicates no exporting.",
+				Usage: "Experimental: Export metrics to stackdriver with this interval. The default value 0 indicates no exporting.",
 			},
 
 			cli.StringFlag{
