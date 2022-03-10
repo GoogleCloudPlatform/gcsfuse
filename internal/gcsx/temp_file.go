@@ -17,7 +17,6 @@ package gcsx
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"os"
 	"time"
@@ -25,9 +24,6 @@ import (
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
 )
-
-// TODO ezl remove this once cache file on disk creation is moved outside this package
-const CACHE_FILE_PREFIX = "gcsfusecache"
 
 // TempFile is a temporary file that keeps track of the lowest offset at which
 // it has been modified.
@@ -107,17 +103,11 @@ func NewTempFile(
 // NewCacheFile creates a temp file whose initial contents are given by the
 // supplied reader. dir is a directory on whose file system the file will live,
 // or the system default temporary location if empty.
-// TODO ezl we should refactor reading/writing cache files and metadata to a different package
 func NewCacheFile(
 	source io.ReadCloser,
+	f *os.File,
 	dir string,
 	clock timeutil.Clock) (tf TempFile, err error) {
-
-	// Create a temporary cache file on disk
-	f, err := ioutil.TempFile(dir, CACHE_FILE_PREFIX)
-	if err != nil {
-		err = fmt.Errorf("TempFile: %w", err)
-	}
 
 	tf = &tempFile{
 		source:         source,

@@ -183,7 +183,12 @@ func (c *ContentCache) AddOrReplace(cacheObjectKey *CacheObjectKey, generation i
 	if cacheObject, exists := c.fileMap[*cacheObjectKey]; exists {
 		cacheObject.Destroy()
 	}
-	file, err := c.NewCacheFile(rc)
+	// Create a temporary cache file on disk
+	f, err := ioutil.TempFile(c.tempDir, CACHE_FILE_PREFIX)
+	if err != nil {
+		err = fmt.Errorf("TempFile: %w", err)
+	}
+	file, err := c.NewCacheFile(rc, f)
 	if err != nil {
 		return nil, fmt.Errorf("NewCacheFile: %w", err)
 	}
@@ -222,8 +227,8 @@ func (c *ContentCache) Remove(cacheObjectKey *CacheObjectKey) {
 }
 
 // NewCacheFile creates a cache file on the disk storing the object content
-func (c *ContentCache) NewCacheFile(rc io.ReadCloser) (gcsx.TempFile, error) {
-	return gcsx.NewCacheFile(rc, c.tempDir, c.mtimeClock)
+func (c *ContentCache) NewCacheFile(rc io.ReadCloser, f *os.File) (gcsx.TempFile, error) {
+	return gcsx.NewCacheFile(rc, f, c.tempDir, c.mtimeClock)
 }
 
 func (c *ContentCache) RecoverCacheFile(f *os.File) (gcsx.TempFile, error) {
