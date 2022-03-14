@@ -26,6 +26,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"sync"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
@@ -41,7 +42,9 @@ type CacheObjectKey struct {
 }
 
 // ContentCache is a directory on local disk to store the object content
+// ContentCache is thread-safe
 type ContentCache struct {
+	mu         sync.Mutex
 	debug      *log.Logger
 	tempDir    string
 	fileMap    map[CacheObjectKey]*CacheObject
@@ -94,8 +97,8 @@ func (c *CacheObject) Destroy() {
 	os.Remove(c.MetadataFileName)
 }
 
-// RecoverFileFromCache recovers a file from the cache via metadata
-func (c *ContentCache) RecoverFileFromCache(metadataFile fs.FileInfo) {
+// recoverFileFromCache recovers a file from the cache via metadata
+func (c *ContentCache) recoverFileFromCache(metadataFile fs.FileInfo) {
 	// validate not a directory and matches gcsfuse pattern
 	if metadataFile.IsDir() {
 		return
@@ -127,7 +130,7 @@ func (c *ContentCache) RecoverFileFromCache(metadataFile fs.FileInfo) {
 		c.debug.Printf("Skip cache file %v due to error: %v", fileName, err)
 		return
 	}
-	cacheFile, err := c.RecoverCacheFile(file)
+	cacheFile, err := c.recoverCacheFile(file)
 	if err != nil {
 		c.debug.Printf("Skip cache file %v due to error: %v", fileName, err)
 	}
@@ -140,6 +143,8 @@ func (c *ContentCache) RecoverFileFromCache(metadataFile fs.FileInfo) {
 }
 
 // RecoverCache recovers the cache with existing persisted files when gcsfuse starts
+//
+// RecoverCache should not be called concurrently
 func (c *ContentCache) RecoverCache() error {
 	if c.tempDir == "" {
 		c.tempDir = "/tmp"
@@ -151,7 +156,7 @@ func (c *ContentCache) RecoverCache() error {
 		return fmt.Errorf("recover cache: %w", err)
 	}
 	for _, metadataFile := range files {
-		c.RecoverFileFromCache(metadataFile)
+		c.recoverFileFromCache(metadataFile)
 	}
 	return nil
 }
@@ -182,7 +187,10 @@ func (c *ContentCache) NewTempFile(rc io.ReadCloser) (gcsx.TempFile, error) {
 }
 
 // AddOrReplace creates a new cache file or updates an existing cache file
+// AddOrReplace is thread-safe
 func (c *ContentCache) AddOrReplace(cacheObjectKey *CacheObjectKey, generation int64, metaGeneration int64, rc io.ReadCloser) (*CacheObject, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if cacheObject, exists := c.fileMap[*cacheObjectKey]; exists {
 		cacheObject.Destroy()
 	}
@@ -217,13 +225,19 @@ func (c *ContentCache) AddOrReplace(cacheObjectKey *CacheObjectKey, generation i
 }
 
 // Get retrieves a file from the cache given the GCS object name and bucket name
+// Get is thread-safe
 func (c *ContentCache) Get(cacheObjectKey *CacheObjectKey) (*CacheObject, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	cacheObject, exists := c.fileMap[*cacheObjectKey]
 	return cacheObject, exists
 }
 
 // Remove removes and destroys the specfied cache file and metadata on disk
+// Remove is thread-safe
 func (c *ContentCache) Remove(cacheObjectKey *CacheObjectKey) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if cacheObject, exists := c.fileMap[*cacheObjectKey]; exists {
 		cacheObject.Destroy()
 		delete(c.fileMap, *cacheObjectKey)
@@ -235,6 +249,14 @@ func (c *ContentCache) NewCacheFile(rc io.ReadCloser, f *os.File) (gcsx.TempFile
 	return gcsx.NewCacheFile(rc, f, c.tempDir, c.mtimeClock)
 }
 
-func (c *ContentCache) RecoverCacheFile(f *os.File) (gcsx.TempFile, error) {
+// recoverCacheFile returns a tempfile wrapper around a prepopulated cache file from disk
+func (c *ContentCache) recoverCacheFile(f *os.File) (gcsx.TempFile, error) {
 	return gcsx.RecoverCacheFile(f, c.tempDir, c.mtimeClock)
+}
+
+// Size returns the size of the in memory map of cache files
+func (c *ContentCache) Size() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.fileMap)
 }
