@@ -118,11 +118,6 @@ func NewFileInode(
 	// Set up invariant checking.
 	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
 
-	if localFileCache {
-		// The gcs object is cached as local temp file
-		f.ensureContent(context.Background())
-	}
-
 	return
 }
 
@@ -566,4 +561,11 @@ func (f *FileInode) Truncate(
 	err = f.content.Truncate(size)
 
 	return
+}
+
+// Ensures cache content on read if content cache enabled
+func (f *FileInode) CacheEnsureContent(ctx context.Context) {
+	if f.localFileCache {
+		f.ensureContent(ctx)
+	}
 }

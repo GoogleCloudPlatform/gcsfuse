@@ -16,8 +16,10 @@ package contentcache_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
@@ -26,6 +28,7 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
+const numConcurrentGoRoutines = 100
 const testTempDir = "/tmp"
 const testGeneration = 10002022
 const testGenerationOld = 10002020
@@ -84,4 +87,76 @@ func TestReadWriteMetadataCheckpointFile(t *testing.T) {
 	ExpectEq(objectMetadata.MetaGeneration, newObjectMetadata.MetaGeneration)
 	ExpectEq(objectMetadata.ObjectName, newObjectMetadata.ObjectName)
 	os.Remove(metadataFileName)
+}
+
+// TestContentCacheAddOrReplace should panic on concurrent map access
+func TestContentCacheAddOrReplace(t *testing.T) {
+	var wg sync.WaitGroup
+	mtimeClock := timeutil.RealClock()
+	contentCache := contentcache.New(testTempDir, mtimeClock)
+	cacheObjectKey := &contentcache.CacheObjectKey{
+		BucketName: "foo",
+		ObjectName: "baz",
+	}
+	for i := 1; i <= numConcurrentGoRoutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := contentCache.AddOrReplace(cacheObjectKey, 1000, 1, nil)
+			ExpectEq(err, nil)
+		}()
+	}
+	wg.Wait()
+}
+
+func TestContentCacheGet(t *testing.T) {
+	var wg sync.WaitGroup
+	mtimeClock := timeutil.RealClock()
+	contentCache := contentcache.New(testTempDir, mtimeClock)
+	cacheObjectKey := &contentcache.CacheObjectKey{
+		BucketName: "foo",
+		ObjectName: "baz",
+	}
+	cacheObject, err := contentCache.AddOrReplace(cacheObjectKey, 1000, 1, nil)
+	ExpectEq(err, nil)
+	for i := 1; i <= numConcurrentGoRoutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			retrievedCacheObject, exists := contentCache.Get(cacheObjectKey)
+			ExpectTrue(exists)
+			ExpectEq(cacheObject.CacheFile, retrievedCacheObject.CacheFile)
+			ExpectEq(cacheObject.CacheFileObjectMetadata, retrievedCacheObject.CacheFileObjectMetadata)
+			ExpectEq(cacheObject.MetadataFileName, retrievedCacheObject.MetadataFileName)
+		}()
+	}
+	wg.Wait()
+}
+
+func TestContentCacheRemove(t *testing.T) {
+	var wg sync.WaitGroup
+	mtimeClock := timeutil.RealClock()
+	contentCache := contentcache.New(testTempDir, mtimeClock)
+	for i := 1; i <= numConcurrentGoRoutines; i++ {
+		cacheObjectKey := &contentcache.CacheObjectKey{
+			BucketName: "foo",
+			ObjectName: fmt.Sprintf("baz%d", i),
+		}
+		_, err := contentCache.AddOrReplace(cacheObjectKey, 1000, 1, nil)
+		ExpectEq(err, nil)
+	}
+	for i := 1; i <= numConcurrentGoRoutines; i++ {
+		wg.Add(1)
+		i := i
+		go func() {
+			defer wg.Done()
+			cacheObjectKey := &contentcache.CacheObjectKey{
+				BucketName: "foo",
+				ObjectName: fmt.Sprintf("baz%d", i),
+			}
+			contentCache.Remove(cacheObjectKey)
+		}()
+	}
+	wg.Wait()
+	ExpectEq(contentCache.Size(), 0)
 }

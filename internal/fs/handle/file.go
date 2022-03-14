@@ -82,7 +82,7 @@ func (fh *FileHandle) Read(
 	// state, or clear fh.reader if it's not possible to create one (probably
 	// because the inode is dirty).
 	fh.inode.Lock()
-	err = fh.tryEnsureReader()
+	err = fh.tryEnsureReader(ctx)
 	if err != nil {
 		fh.inode.Unlock()
 		err = fmt.Errorf("tryEnsureReader: %w", err)
@@ -133,7 +133,10 @@ func (fh *FileHandle) checkInvariants() {
 //
 // LOCKS_REQUIRED(fh)
 // LOCKS_REQUIRED(fh.inode)
-func (fh *FileHandle) tryEnsureReader() (err error) {
+func (fh *FileHandle) tryEnsureReader(ctx context.Context) (err error) {
+	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
+	// and fh.inode.SourceGenerationIsAuthoritative() will return false
+	fh.inode.CacheEnsureContent(ctx)
 	// If the inode is dirty, there's nothing we can do. Throw away our reader if
 	// we have one.
 	if !fh.inode.SourceGenerationIsAuthoritative() {
