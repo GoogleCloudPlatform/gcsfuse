@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"contrib.go.opencensus.io/exporter/ocagent"
 	"contrib.go.opencensus.io/exporter/stackdriver"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"go.opencensus.io/stats/view"
@@ -79,4 +80,38 @@ func CloseStackdriverExporter() {
 		stackdriverExporter.Flush()
 	}
 	stackdriverExporter = nil
+}
+
+var ocExporter *ocagent.Exporter
+
+// EnableOpenTelemetryCollectorExporter starts exporting monitoring metrics to
+// the OpenTelemetry Collector at the given address.
+// Details: https://opentelemetry.io/docs/collector/
+func EnableOpenTelemetryCollectorExporter(address string) error {
+	if address == "" {
+		return nil
+	}
+
+	var err error
+	if ocExporter, err = ocagent.NewExporter(
+		ocagent.WithAddress(address),
+		ocagent.WithServiceName("gcsfuse"),
+		ocagent.WithReconnectionPeriod(5*time.Second),
+	); err != nil {
+		return fmt.Errorf("create opentelementry collector exporter: %w", err)
+	}
+
+	view.RegisterExporter(ocExporter)
+	infoLogger.Printf("OpenTelemetry collector exporter started")
+	return nil
+}
+
+// CloseOpenTelemetryCollectorExporter ensures all collected metrics are sent to
+// the OpenTelemetry Collect and closes the exporter.
+func CloseOpenTelemetryCollectorExporter() {
+	if ocExporter != nil {
+		ocExporter.Stop()
+		ocExporter.Flush()
+	}
+	ocExporter = nil
 }

@@ -18,6 +18,9 @@ cloud.google.com/go/storage
 cloud.google.com/go/storage/internal/apiv2
 # cloud.google.com/go/trace v1.0.0
 cloud.google.com/go/trace/apiv2
+# contrib.go.opencensus.io/exporter/ocagent v0.7.0
+## explicit
+contrib.go.opencensus.io/exporter/ocagent
 # contrib.go.opencensus.io/exporter/stackdriver v0.13.10
 ## explicit
 contrib.go.opencensus.io/exporter/stackdriver
@@ -69,8 +72,11 @@ github.com/aws/aws-sdk-go/service/sts/stsiface
 # github.com/census-instrumentation/opencensus-proto v0.3.0
 ## explicit
 github.com/census-instrumentation/opencensus-proto/gen-go/agent/common/v1
+github.com/census-instrumentation/opencensus-proto/gen-go/agent/metrics/v1
+github.com/census-instrumentation/opencensus-proto/gen-go/agent/trace/v1
 github.com/census-instrumentation/opencensus-proto/gen-go/metrics/v1
 github.com/census-instrumentation/opencensus-proto/gen-go/resource/v1
+github.com/census-instrumentation/opencensus-proto/gen-go/trace/v1
 # github.com/cespare/xxhash/v2 v2.1.2
 ## explicit
 # github.com/cncf/xds/go v0.0.0-20211216145620-d92e9ce0af51
@@ -88,7 +94,10 @@ github.com/cpuguy83/go-md2man/v2/md2man
 ## explicit
 github.com/golang/groupcache/lru
 # github.com/golang/protobuf v1.5.2
+github.com/golang/protobuf/descriptor
+github.com/golang/protobuf/jsonpb
 github.com/golang/protobuf/proto
+github.com/golang/protobuf/protoc-gen-go/descriptor
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
@@ -104,6 +113,10 @@ github.com/google/go-cmp/cmp/internal/value
 github.com/googleapis/gax-go/v2
 github.com/googleapis/gax-go/v2/apierror
 github.com/googleapis/gax-go/v2/apierror/internal/proto
+# github.com/grpc-ecosystem/grpc-gateway v1.16.0
+github.com/grpc-ecosystem/grpc-gateway/internal
+github.com/grpc-ecosystem/grpc-gateway/runtime
+github.com/grpc-ecosystem/grpc-gateway/utilities
 # github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
 ## explicit
 github.com/jacobsa/daemonize
@@ -254,6 +267,7 @@ google.golang.org/appengine/urlfetch
 google.golang.org/genproto/googleapis/api
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/api/distribution
+google.golang.org/genproto/googleapis/api/httpbody
 google.golang.org/genproto/googleapis/api/label
 google.golang.org/genproto/googleapis/api/metric
 google.golang.org/genproto/googleapis/api/monitoredres
@@ -268,6 +282,7 @@ google.golang.org/genproto/googleapis/storage/v2
 google.golang.org/genproto/googleapis/type/calendarperiod
 google.golang.org/genproto/googleapis/type/date
 google.golang.org/genproto/googleapis/type/expr
+google.golang.org/genproto/protobuf/field_mask
 # google.golang.org/grpc v1.44.0
 ## explicit
 google.golang.org/grpc

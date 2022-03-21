@@ -295,7 +295,9 @@ func runCLIApp(c *cli.Context) (err error) {
 		return
 	}
 
+	// The returned error is ignored as we do not enforce monitoring exporters
 	monitor.EnableStackdriverExporter(flags.StackdriverExportInterval)
+	monitor.EnableOpenTelemetryCollectorExporter(flags.OtelCollectorAddress)
 
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
@@ -321,6 +323,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	err = mfs.Join(context.Background())
 
 	monitor.CloseStackdriverExporter()
+	monitor.CloseOpenTelemetryCollectorExporter()
 
 	if err != nil {
 		err = fmt.Errorf("MountedFileSystem.Join: %w", err)
