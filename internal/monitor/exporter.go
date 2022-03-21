@@ -25,9 +25,15 @@ import (
 	"go.opencensus.io/stats/view"
 )
 
-var exporter *stackdriver.Exporter
 var infoLogger *log.Logger
 var errorLogger *log.Logger
+
+func init() {
+	infoLogger = logger.NewInfo("")
+	errorLogger = logger.NewError("")
+}
+
+var stackdriverExporter *stackdriver.Exporter
 
 // EnableStackdriverExporter starts to collect monitoring metrics and exports
 // them to Stackdriver iff the given interval is positive.
@@ -36,11 +42,8 @@ func EnableStackdriverExporter(interval time.Duration) error {
 		return nil
 	}
 
-	infoLogger = logger.NewInfo("")
-	errorLogger = logger.NewError("")
-
 	var err error
-	if exporter, err = stackdriver.NewExporter(stackdriver.Options{
+	if stackdriverExporter, err = stackdriver.NewExporter(stackdriver.Options{
 		ReportingInterval: interval,
 		OnError: func(err error) {
 			errorLogger.Printf("Fail to send metric: %v", err)
@@ -58,10 +61,10 @@ func EnableStackdriverExporter(interval time.Duration) error {
 			return name
 		},
 	}); err != nil {
-		return fmt.Errorf("create exporter: %w", err)
+		return fmt.Errorf("create stackdriver exporter: %w", err)
 	}
-	if err = exporter.StartMetricsExporter(); err != nil {
-		return fmt.Errorf("start exporter: %w", err)
+	if err = stackdriverExporter.StartMetricsExporter(); err != nil {
+		return fmt.Errorf("start stackdriver exporter: %w", err)
 	}
 
 	infoLogger.Printf("Stackdriver exporter started")
@@ -69,11 +72,11 @@ func EnableStackdriverExporter(interval time.Duration) error {
 }
 
 // CloseStackdriverExporter ensures all collected metrics are sent to
-// Stackdriver and closes the exporter.
+// Stackdriver and closes the stackdriverExporter.
 func CloseStackdriverExporter() {
-	if exporter != nil {
-		exporter.StopMetricsExporter()
-		exporter.Flush()
+	if stackdriverExporter != nil {
+		stackdriverExporter.StopMetricsExporter()
+		stackdriverExporter.Flush()
 	}
-	exporter = nil
+	stackdriverExporter = nil
 }
