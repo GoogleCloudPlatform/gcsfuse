@@ -236,6 +236,12 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.StringFlag{
+				Name:  "opentelemetry-collector-address",
+				Value: "",
+				Usage: "Experimental: Export metrics to the OpenTelemetry collector at this address.",
+			},
+
+			cli.StringFlag{
 				Name:  "log-file",
 				Value: "",
 				Usage: "The file for storing logs that can be parsed by " +
@@ -322,6 +328,7 @@ type flagStorage struct {
 
 	// Monitoring & Logging
 	StackdriverExportInterval time.Duration
+	OtelCollectorAddress      string
 	LogFile                   string
 	LogFormat                 string
 
@@ -376,6 +383,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 
 		// Monitoring & Logging
 		StackdriverExportInterval: c.Duration("stackdriver-export-interval"),
+		OtelCollectorAddress:      c.String("opentelemetry-collector-address"),
 		LogFile:                   c.String("log-file"),
 		LogFormat:                 c.String("log-format"),
 

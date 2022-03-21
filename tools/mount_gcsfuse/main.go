@@ -104,6 +104,7 @@ func makeGcsfuseArgs(
 			"temp_dir",
 			"max_conns_per_host",
 			"stackdriver_export_interval",
+			"opentelemetry_collector_address",
 			"log_format",
 			"log_file":
 			args = append(args, "--"+strings.Replace(name, "_", "-", -1), value)
