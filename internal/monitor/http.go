@@ -22,7 +22,6 @@ import (
 	"github.com/jacobsa/gcloud/httputil"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats/view"
-	"go.opencensus.io/tag"
 )
 
 // EnableHTTPMonitoring enables the metrics
@@ -33,25 +32,16 @@ import (
 func EnableHTTPMonitoring(r http.RoundTripper) (httputil.CancellableRoundTripper, error) {
 	if err := view.Register(
 		&view.View{
-			Name:        "http_sent_bytes",
+			Name:        "http/bytes/sent",
 			Measure:     ochttp.ClientSentBytes,
-			Aggregation: ochttp.DefaultSizeDistribution,
+			Aggregation: view.Sum(),
 			Description: "Total bytes sent in request body (not including headers), by HTTP method and response status",
-			TagKeys:     []tag.Key{ochttp.KeyClientMethod, ochttp.KeyClientStatus},
 		},
 		&view.View{
-			Name:        "http_received_bytes",
-			Measure:     ochttp.ClientSentBytes,
-			Aggregation: ochttp.DefaultSizeDistribution,
+			Name:        "http/bytes/received",
+			Measure:     ochttp.ClientReceivedBytes,
+			Aggregation: view.Sum(),
 			Description: "Total bytes received in response bodies (not including headers but including error responses with bodies), by HTTP method and response status",
-			TagKeys:     []tag.Key{ochttp.KeyClientMethod, ochttp.KeyClientStatus},
-		},
-		&view.View{
-			Name:        "http_roundtrip_latency",
-			Measure:     ochttp.ClientRoundtripLatency,
-			Aggregation: ochttp.DefaultLatencyDistribution,
-			Description: "End-to-end latency, by HTTP method and response status",
-			TagKeys:     []tag.Key{ochttp.KeyClientMethod, ochttp.KeyClientStatus},
 		},
 	); err != nil {
 		return nil, fmt.Errorf("register views: %w", err)
