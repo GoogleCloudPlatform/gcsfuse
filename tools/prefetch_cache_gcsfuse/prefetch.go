@@ -39,7 +39,7 @@ func downloadFile(ctx context.Context, client *storage.Client, object *storage.O
 	// and either resuming the download or discarding and redownloading the file
 	// We may also want to do cleanup if files are created on disk but aren't populated in time
 
-	f, err := ioutil.TempFile(cacheDir, contentcache.CACHE_FILE_PREFIX)
+	f, err := ioutil.TempFile(cacheDir, contentcache.CacheFilePrefix)
 
 	if err != nil {
 		err = fmt.Errorf("ioutil.TempFile: %w", err)

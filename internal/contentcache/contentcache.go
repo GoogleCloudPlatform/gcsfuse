@@ -33,7 +33,7 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
-const CACHE_FILE_PREFIX = "gcsfusecache"
+const CacheFilePrefix = "gcsfusecache"
 
 // CacheObjectKey uniquely identifies GCS objects by bucket name and object name
 type CacheObjectKey struct {
@@ -43,6 +43,7 @@ type CacheObjectKey struct {
 
 // ContentCache is a directory on local disk to store the object content
 // ContentCache is thread-safe
+// fileMap is an in memory map to represent cache contents on disk
 type ContentCache struct {
 	mu         sync.Mutex
 	debug      *log.Logger
@@ -60,12 +61,14 @@ type CacheFileObjectMetadata struct {
 	MetaGeneration      int64
 }
 
+// CacheObject is a wrapper struct for a cache file and its associated metadata
 type CacheObject struct {
 	MetadataFileName        string
 	CacheFileObjectMetadata *CacheFileObjectMetadata
 	CacheFile               gcsx.TempFile
 }
 
+// ValidateGeneration compares fresh gcs object generation and metageneration numbers against cached objects
 func (c *CacheObject) ValidateGeneration(generation int64, metaGeneration int64) bool {
 	if c.CacheFileObjectMetadata == nil {
 		return false
@@ -73,6 +76,7 @@ func (c *CacheObject) ValidateGeneration(generation int64, metaGeneration int64)
 	return c.CacheFileObjectMetadata.Generation == generation && c.CacheFileObjectMetadata.MetaGeneration == metaGeneration
 }
 
+// WriteMetadataCheckpointFile writes the metadata struct to a json file so cache files can be recovered on startup
 func (c *ContentCache) WriteMetadataCheckpointFile(cacheFileName string, cacheFileObjectMetadata *CacheFileObjectMetadata) (metadataFileName string, err error) {
 	var file []byte
 	file, err = json.MarshalIndent(cacheFileObjectMetadata, "", " ")
@@ -89,6 +93,7 @@ func (c *ContentCache) WriteMetadataCheckpointFile(cacheFileName string, cacheFi
 	return
 }
 
+// Destroy performs disk clean up of cache files and metadata files
 func (c *CacheObject) Destroy() {
 	if c.CacheFile != nil {
 		os.Remove(c.CacheFile.Name())
@@ -161,9 +166,9 @@ func (c *ContentCache) RecoverCache() error {
 	return nil
 }
 
-// Helper function that matches the format of a gcsfuse file
+// matchPattern matches the filename format of a gcsfuse file via regex
 func matchPattern(fileName string) bool {
-	match, err := regexp.MatchString(fmt.Sprintf("%v[0-9]+[.]json", CACHE_FILE_PREFIX), fileName)
+	match, err := regexp.MatchString(fmt.Sprintf("%v[0-9]+[.]json", CacheFilePrefix), fileName)
 	if err != nil {
 		return false
 	}
@@ -195,7 +200,7 @@ func (c *ContentCache) AddOrReplace(cacheObjectKey *CacheObjectKey, generation i
 		cacheObject.Destroy()
 	}
 	// Create a temporary cache file on disk
-	f, err := ioutil.TempFile(c.tempDir, CACHE_FILE_PREFIX)
+	f, err := ioutil.TempFile(c.tempDir, CacheFilePrefix)
 	if err != nil {
 		err = fmt.Errorf("TempFile: %w", err)
 	}
@@ -233,7 +238,7 @@ func (c *ContentCache) Get(cacheObjectKey *CacheObjectKey) (*CacheObject, bool) 
 	return cacheObject, exists
 }
 
-// Remove removes and destroys the specfied cache file and metadata on disk
+// Remove and destroys the specfied cache file and metadata on disk
 // Remove is thread-safe
 func (c *ContentCache) Remove(cacheObjectKey *CacheObjectKey) {
 	c.mu.Lock()
