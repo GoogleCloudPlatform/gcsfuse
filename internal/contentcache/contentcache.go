@@ -128,8 +128,8 @@ func (c *ContentCache) recoverFileFromCache(metadataFile fs.FileInfo) {
 		ObjectName: metadata.ObjectName,
 	}
 	fileName := metadata.CacheFileNameOnDisk
-	// TODO ezl linux fs limits single process to open max of 1024 file descriptors
-	// so this is not scalable
+	// TODO (#641) linux fs limits single process to open max of 1024 file descriptors
+	// so this is probably not scalable, we should figure out if this is an actual issue or not
 	file, err := os.Open(fileName)
 	if err != nil {
 		c.debug.Printf("Skip cache file %v due to error: %v", fileName, err)
