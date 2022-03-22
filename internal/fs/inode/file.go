@@ -50,7 +50,7 @@ type FileInode struct {
 	name         Name
 	attrs        fuseops.InodeAttributes
 	contentCache *contentcache.ContentCache
-	// TODO ezl remove bool flag and refactor contentCache to support two implementations:
+	// TODO (#640) remove bool flag and refactor contentCache to support two implementations:
 	// one implementation with original functionality and one with new persistent disk content cache
 	localFileCache bool
 
