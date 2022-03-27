@@ -20,108 +20,82 @@ import (
 	"io"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/monitor/tags"
 	"github.com/jacobsa/gcloud/gcs"
+	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
 )
 
 var (
-	methodName = tag.MustNewKey("method_name")
-	bucketName = tag.MustNewKey("bucket_name")
-)
-
-var (
-	requestCount = stats.Int64(
-		"gcs_requests",
-		"Number of GCS requests.",
-		stats.UnitDimensionless)
-	bytesRead = stats.Int64(
-		"gcs_bytes_read",
-		"Number of bytes read from GCS.",
-		stats.UnitBytes)
-	objectReadersCreated = stats.Int64(
-		"object_readers_created",
-		"Number of object readers created.",
-		stats.UnitDimensionless)
-	objectReadersClosed = stats.Int64(
-		"object_readers_closed",
-		"Number of object readers closed.",
-		stats.UnitDimensionless)
-	latency = stats.Float64(
-		"gcs_latency",
-		"The latency of the method being executed in ms.",
-		stats.UnitMilliseconds)
-	latencyDistribution = view.Distribution(0.005, 0.01, 0.02, 0.04, 0.08, 0.15, 0.25, 0.50, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0, 32000.0)
+	// OpenCensus measures
+	readBytesCount = stats.Int64("gcs/read_bytes_count", "The number of bytes read from GCS objects.", stats.UnitBytes)
+	readerCount    = stats.Int64("gcs/reader_count", "The number of GCS object readers opened or closed.", stats.UnitDimensionless)
+	requestCount   = stats.Int64("gcs/request_count", "The number of GCS requests processed.", stats.UnitDimensionless)
+	requestLatency = stats.Float64("gcs/request_latency", "The latency of a GCS request.", stats.UnitMilliseconds)
 )
 
 // Initialize the metrics.
 func init() {
+	// OpenCensus views (aggregated measures)
 	if err := view.Register(
 		&view.View{
-			Name:        requestCount.Name(),
+			Name:        "gcs/read_bytes_count",
+			Measure:     readBytesCount,
+			Description: "The cumulative number of bytes read from GCS objects.",
+			Aggregation: view.Sum(),
+		},
+		&view.View{
+			Name:        "gcs/reader_count",
+			Measure:     readerCount,
+			Description: "The cumulative number of GCS object readers opened or closed.",
+			Aggregation: view.Sum(),
+			TagKeys:     []tag.Key{tags.IOMethod},
+		},
+		&view.View{
+			Name:        "gcs/request_count",
 			Measure:     requestCount,
-			Description: requestCount.Description(),
+			Description: "The cumulative number of GCS requests processed.",
 			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{methodName, bucketName},
+			TagKeys:     []tag.Key{tags.GCSMethod},
 		},
 		&view.View{
-			Name:        bytesRead.Name(),
-			Measure:     bytesRead,
-			Description: bytesRead.Description(),
-			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{bucketName},
-		},
-		&view.View{
-			Name:        objectReadersCreated.Name(),
-			Measure:     objectReadersCreated,
-			Description: objectReadersCreated.Description(),
-			Aggregation: view.Sum(),
-		},
-		&view.View{
-			Name:        objectReadersClosed.Name(),
-			Measure:     objectReadersClosed,
-			Description: objectReadersClosed.Description(),
-			Aggregation: view.Sum(),
-		},
-		&view.View{
-			Name:        latency.Name(),
-			Measure:     latency,
-			Description: latency.Description(),
-			Aggregation: latencyDistribution,
-			TagKeys:     []tag.Key{methodName, bucketName},
+			Name:        "gcs/request_latencies",
+			Measure:     requestLatency,
+			Description: "The cumulative distribution of the GCS request latencies.",
+			Aggregation: ochttp.DefaultLatencyDistribution,
+			TagKeys:     []tag.Key{tags.GCSMethod},
 		}); err != nil {
-		fmt.Printf("Failed to register metrics in the monitoring bucket\n")
+		fmt.Printf("Failed to register OpenCensus metrics for GCS client library: %v", err)
 	}
 }
 
-func incrementCounterGcsRequests(bucket string, method string) {
-	stats.RecordWithTags(
-		context.Background(),
+// recordRequest records a request and its latency.
+func recordRequest(ctx context.Context, method string, start time.Time) {
+	if err := stats.RecordWithTags(
+		ctx,
 		[]tag.Mutator{
-			tag.Upsert(methodName, method),
-			tag.Upsert(bucketName, bucket),
+			tag.Upsert(tags.GCSMethod, method),
 		},
 		requestCount.M(1),
-	)
-}
+	); err != nil {
+		// The error should be caused by a bad tag
+		errorLogger.Printf("Cannot record request count: %v", err)
+	}
 
-func incrementCounterBytesRead(bucket string, bytes int) {
-	stats.RecordWithTags(
-		context.Background(),
-		[]tag.Mutator{tag.Upsert(bucketName, bucket)},
-		bytesRead.M(int64(bytes)),
-	)
-}
-
-func recordLatency(method string, start time.Time) {
 	latencyUs := time.Since(start).Microseconds()
 	latencyMs := float64(latencyUs) / 1000.0
-	stats.RecordWithTags(
-		context.Background(),
-		[]tag.Mutator{tag.Upsert(methodName, method)},
-		latency.M(latencyMs),
-	)
+	if err := stats.RecordWithTags(
+		ctx,
+		[]tag.Mutator{
+			tag.Upsert(tags.GCSMethod, method),
+		},
+		requestLatency.M(latencyMs),
+	); err != nil {
+		// The error should be caused by a bad tag
+		errorLogger.Printf("Cannot record request latency: %v", err)
+	}
 }
 
 // NewMonitoringBucket returns a gcs.Bucket that exports metrics for monitoring
@@ -142,103 +116,122 @@ func (mb *monitoringBucket) Name() string {
 func (mb *monitoringBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
-	incrementCounterGcsRequests(mb.Name(), "NewReader")
-	defer recordLatency("NewReader", time.Now())
+	startTime := time.Now()
 
 	rc, err = mb.wrapped.NewReader(ctx, req)
 	if err == nil {
-		rc = newMonitoringReadCloser(mb.Name(), req.Name, rc)
+		rc = newMonitoringReadCloser(ctx, req.Name, rc)
 	}
+
+	recordRequest(ctx, "NewReader", startTime)
 	return
 }
 
 func (mb *monitoringBucket) CreateObject(
 	ctx context.Context,
 	req *gcs.CreateObjectRequest) (*gcs.Object, error) {
-	incrementCounterGcsRequests(mb.Name(), "CreateObject")
-	defer recordLatency("CreateObject", time.Now())
-	return mb.wrapped.CreateObject(ctx, req)
+	startTime := time.Now()
+	o, err := mb.wrapped.CreateObject(ctx, req)
+	recordRequest(ctx, "CreateObject", startTime)
+	return o, err
 }
 
 func (mb *monitoringBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (*gcs.Object, error) {
-	incrementCounterGcsRequests(mb.Name(), "CopyObject")
-	defer recordLatency("CopyObject", time.Now())
-	return mb.wrapped.CopyObject(ctx, req)
+	startTime := time.Now()
+	o, err := mb.wrapped.CopyObject(ctx, req)
+	recordRequest(ctx, "CopyObject", startTime)
+	return o, err
 }
 
 func (mb *monitoringBucket) ComposeObjects(
 	ctx context.Context,
 	req *gcs.ComposeObjectsRequest) (*gcs.Object, error) {
-	incrementCounterGcsRequests(mb.Name(), "ComposeObjects")
-	defer recordLatency("ComposeObjects", time.Now())
-	return mb.wrapped.ComposeObjects(ctx, req)
+	startTime := time.Now()
+	o, err := mb.wrapped.ComposeObjects(ctx, req)
+	recordRequest(ctx, "ComposeObjects", startTime)
+	return o, err
 }
 
 func (mb *monitoringBucket) StatObject(
 	ctx context.Context,
 	req *gcs.StatObjectRequest) (*gcs.Object, error) {
-	incrementCounterGcsRequests(mb.Name(), "StatObject")
-	defer recordLatency("StatObject", time.Now())
-	return mb.wrapped.StatObject(ctx, req)
+	startTime := time.Now()
+	o, err := mb.wrapped.StatObject(ctx, req)
+	recordRequest(ctx, "StatObject", startTime)
+	return o, err
 }
 
 func (mb *monitoringBucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (*gcs.Listing, error) {
-	incrementCounterGcsRequests(mb.Name(), "ListObjects")
-	defer recordLatency("ListObjects", time.Now())
-	return mb.wrapped.ListObjects(ctx, req)
+	startTime := time.Now()
+	listing, err := mb.wrapped.ListObjects(ctx, req)
+	recordRequest(ctx, "ListObjects", startTime)
+	return listing, err
 }
 
 func (mb *monitoringBucket) UpdateObject(
 	ctx context.Context,
 	req *gcs.UpdateObjectRequest) (*gcs.Object, error) {
-	incrementCounterGcsRequests(mb.Name(), "UpdateObject")
-	defer recordLatency("UpdateObject", time.Now())
-	return mb.wrapped.UpdateObject(ctx, req)
+	startTime := time.Now()
+	o, err := mb.wrapped.UpdateObject(ctx, req)
+	recordRequest(ctx, "UpdateObject", startTime)
+	return o, err
 }
 
 func (mb *monitoringBucket) DeleteObject(
 	ctx context.Context,
 	req *gcs.DeleteObjectRequest) error {
-	incrementCounterGcsRequests(mb.Name(), "DeleteObject")
-	defer recordLatency("DeleteObject", time.Now())
-	return mb.wrapped.DeleteObject(ctx, req)
+	startTime := time.Now()
+	err := mb.wrapped.DeleteObject(ctx, req)
+	recordRequest(ctx, "DeleteObject", startTime)
+	return err
 }
 
-func newMonitoringReadCloser(
-	bucketName string,
-	object string,
-	rc io.ReadCloser) io.ReadCloser {
-	stats.Record(context.Background(), objectReadersCreated.M(1))
+// recordReader increments the reader count when it's opened or closed.
+func recordReader(ctx context.Context, ioMethod string) {
+	if err := stats.RecordWithTags(
+		ctx,
+		[]tag.Mutator{
+			tag.Upsert(tags.IOMethod, ioMethod),
+		},
+		readerCount.M(1),
+	); err != nil {
+		errorLogger.Printf("Cannot record a reader %v: %v", ioMethod, err)
+	}
+}
+
+// Monitoring on the object reader
+func newMonitoringReadCloser(ctx context.Context, object string, rc io.ReadCloser) io.ReadCloser {
+	recordReader(ctx, "opened")
 	return &monitoringReadCloser{
-		bucketName: bucketName,
-		object:     object,
-		wrapped:    rc,
+		ctx:     ctx,
+		object:  object,
+		wrapped: rc,
 	}
 }
 
 type monitoringReadCloser struct {
-	bucketName string
-	object     string
-	wrapped    io.ReadCloser
+	ctx     context.Context
+	object  string
+	wrapped io.ReadCloser
 }
 
 func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
-	defer recordLatency("Read", time.Now())
 	n, err = mrc.wrapped.Read(p)
 	if err == nil {
-		incrementCounterBytesRead(mrc.bucketName, n)
+		stats.Record(mrc.ctx, readBytesCount.M(int64(n)))
 	}
 	return
 }
 
 func (mrc *monitoringReadCloser) Close() (err error) {
 	err = mrc.wrapped.Close()
-	if err == nil {
-		stats.Record(context.Background(), objectReadersClosed.M(1))
+	if err != nil {
+		return fmt.Errorf("close reader: %w", err)
 	}
+	recordReader(mrc.ctx, "closed")
 	return
 }
