@@ -24,21 +24,18 @@ import (
 	"go.opencensus.io/stats/view"
 )
 
-// EnableHTTPMonitoring enables the metrics
-//   - "custom.googleapis.com/http_sent_bytes",
-//   - "custom.googleapis.com/http_received_bytes",
-//   - "custom.googleapis.com/http_roundtrip_latency",
-// in the HTTP transport. It returns the transport being monitored.
+// EnableHTTPMonitoring enables the metrics in the HTTP transport. It returns
+// the transport being monitored.
 func EnableHTTPMonitoring(r http.RoundTripper) (httputil.CancellableRoundTripper, error) {
 	if err := view.Register(
 		&view.View{
-			Name:        "http/bytes/sent",
+			Name:        "http/sent_bytes_count",
 			Measure:     ochttp.ClientSentBytes,
 			Aggregation: view.Sum(),
 			Description: "Total bytes sent in request body (not including headers), by HTTP method and response status",
 		},
 		&view.View{
-			Name:        "http/bytes/received",
+			Name:        "http/received_bytes_count",
 			Measure:     ochttp.ClientReceivedBytes,
 			Aggregation: view.Sum(),
 			Description: "Total bytes received in response bodies (not including headers but including error responses with bodies), by HTTP method and response status",
