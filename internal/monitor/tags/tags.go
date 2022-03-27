@@ -25,4 +25,10 @@ var (
 
 	// GCSMethod annotates the method called in the GCS client library.
 	GCSMethod = tag.MustNewKey("gcs_method")
+
+	// FSOp annotates the file system op processed.
+	FSOp = tag.MustNewKey("fs_op")
+
+	// FSError annotates the
+	FSError = tag.MustNewKey("fs_error")
 )

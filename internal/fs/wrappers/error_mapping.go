@@ -29,6 +29,10 @@ import (
 	"google.golang.org/api/googleapi"
 )
 
+var (
+	DefaultFSError = syscall.EIO
+)
+
 func errno(err error) error {
 	if err == nil {
 		return nil
@@ -69,8 +73,7 @@ func errno(err error) error {
 		}
 	}
 
-	// Unknown errors
-	return syscall.EIO
+	return DefaultFSError
 }
 
 // WithErrorMapping wraps a FileSystem, processing the returned errors, and
