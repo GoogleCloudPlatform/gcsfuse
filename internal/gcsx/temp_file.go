@@ -100,14 +100,14 @@ func NewTempFile(
 	return
 }
 
-// NewCacheFile creates a temp file whose initial contents are given by the
-// supplied reader. dir is a directory on whose file system the file will live,
+// NewCacheFile creates a wrapper temp file whose initial contents are given by the
+// supplied source. dir is a directory on whose file system the file will live,
 // or the system default temporary location if empty.
 func NewCacheFile(
 	source io.ReadCloser,
 	f *os.File,
 	dir string,
-	clock timeutil.Clock) (tf TempFile, err error) {
+	clock timeutil.Clock) (tf TempFile) {
 
 	tf = &tempFile{
 		source:         source,

@@ -148,7 +148,6 @@ func (c *ContentCache) recoverFileFromCache(metadataFile fs.FileInfo) {
 }
 
 // RecoverCache recovers the cache with existing persisted files when gcsfuse starts
-//
 // RecoverCache should not be called concurrently
 func (c *ContentCache) RecoverCache() error {
 	if c.tempDir == "" {
@@ -202,12 +201,9 @@ func (c *ContentCache) AddOrReplace(cacheObjectKey *CacheObjectKey, generation i
 	// Create a temporary cache file on disk
 	f, err := ioutil.TempFile(c.tempDir, CacheFilePrefix)
 	if err != nil {
-		err = fmt.Errorf("TempFile: %w", err)
+		return nil, fmt.Errorf("TempFile: %w", err)
 	}
-	file, err := c.NewCacheFile(rc, f)
-	if err != nil {
-		return nil, fmt.Errorf("NewCacheFile: %w", err)
-	}
+	file := c.NewCacheFile(rc, f)
 	metadata := &CacheFileObjectMetadata{
 		CacheFileNameOnDisk: file.Name(),
 		BucketName:          cacheObjectKey.BucketName,
@@ -249,8 +245,8 @@ func (c *ContentCache) Remove(cacheObjectKey *CacheObjectKey) {
 	}
 }
 
-// NewCacheFile creates a cache file on the disk storing the object content
-func (c *ContentCache) NewCacheFile(rc io.ReadCloser, f *os.File) (gcsx.TempFile, error) {
+// NewCacheFile returns a cache tempfile wrapper around the source reader and file
+func (c *ContentCache) NewCacheFile(rc io.ReadCloser, f *os.File) gcsx.TempFile {
 	return gcsx.NewCacheFile(rc, f, c.tempDir, c.mtimeClock)
 }
 
