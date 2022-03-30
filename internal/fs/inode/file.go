@@ -210,7 +210,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 
 		rc, err := f.openReader(ctx)
 		if err != nil {
-			fmt.Errorf("open reader error: %w", err)
+			err = fmt.Errorf("openReader Error: %w", err)
 			return err
 		}
 
@@ -231,7 +231,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 
 		rc, err := f.openReader(ctx)
 		if err != nil {
-			fmt.Errorf("Open Reader Error: %w", err)
+			err = fmt.Errorf("openReader Error: %w", err)
 			return err
 		}
 
