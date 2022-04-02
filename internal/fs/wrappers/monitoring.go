@@ -29,14 +29,14 @@ import (
 )
 
 var (
-	opCount = stats.Int64("fs/op_count", "The number of ops processed by the file system.", stats.UnitDimensionless)
+	opCount = stats.Int64("fs/ops_count", "The number of ops processed by the file system.", stats.UnitDimensionless)
 )
 
 // Initialize the metrics.
 func init() {
 	if err := view.Register(
 		&view.View{
-			Name:        "fs/op_count",
+			Name:        "fs/ops_count",
 			Measure:     opCount,
 			Description: "The cumulative number of ops processed by the file system.",
 			Aggregation: view.Sum(),
