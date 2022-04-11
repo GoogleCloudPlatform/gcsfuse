@@ -31,6 +31,11 @@ import (
 	"golang.org/x/net/context"
 )
 
+// ListObjects call supports fetching upto 5000 results via maxResults param in
+// one call. By default 1000 results are returned if value is not set.
+// Defining a constant to set maxResults param.
+const MaxResultsForListObjectsCall = 5000
+
 // An inode representing a directory, with facilities for listing entries,
 // looking up children, and creating and deleting children. Must be locked for
 // any method additional to the Inode interface.
@@ -521,6 +526,7 @@ func (d *dirInode) readObjects(
 		IncludeTrailingDelimiter: true,
 		Prefix:                   d.Name().GcsObjectName(),
 		ContinuationToken:        tok,
+		MaxResults:               MaxResultsForListObjectsCall,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)
