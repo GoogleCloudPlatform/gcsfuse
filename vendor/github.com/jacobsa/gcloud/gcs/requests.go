@@ -176,6 +176,25 @@ type StatObjectRequest struct {
 	Name string
 }
 
+type Projection int64
+
+const (
+	Full Projection = iota
+	NoAcl
+)
+
+// Returning the string values based on the values accepted by projection param.
+// https://cloud.google.com/storage/docs/json_api/v1/objects/list#parameters
+func (p Projection) String() string {
+	switch p {
+	case Full:
+		return "full"
+	case NoAcl:
+		return "noAcl"
+	}
+	return "full"
+}
+
 type ListObjectsRequest struct {
 	// List only objects whose names begin with this prefix.
 	Prefix string
@@ -220,6 +239,15 @@ type ListObjectsRequest struct {
 	// this number may actually be returned. If this is zero, a sensible default
 	// is used.
 	MaxResults int
+
+	// Set of properties to return. Acceptable values- full & noAcl.
+	//    1. full  - returns all properties
+	//    2. noAcl - omit owner, acl properties
+	//
+	// Currently projection value is hardcoded to full. To keep it aligned with
+	// the current flow, default value will be full and callers can override it
+	// using this param.
+	ProjectionVal Projection
 }
 
 // Listing contains a set of objects and delimter-based collapsed runs returned
