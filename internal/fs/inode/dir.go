@@ -31,8 +31,10 @@ import (
 	"golang.org/x/net/context"
 )
 
-// ListObjects call supports fetching upto 5000 results via maxResults param in
-// one call. By default 1000 results are returned if value is not set.
+// ListObjects call supports fetching upto 5000 results when projection is noAcl
+// via maxResults param in one call. When projection is set to full, it returns
+// 2000 results max. In GcsFuse flows we will be setting projection as noAcl.
+// By default 1000 results are returned if maxResults is not set.
 // Defining a constant to set maxResults param.
 const MaxResultsForListObjectsCall = 5000
 
@@ -527,6 +529,9 @@ func (d *dirInode) readObjects(
 		Prefix:                   d.Name().GcsObjectName(),
 		ContinuationToken:        tok,
 		MaxResults:               MaxResultsForListObjectsCall,
+		// Setting Projection param to noAcl since fetching owner and acls are not
+		// required.
+		ProjectionVal: gcs.NoAcl,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)

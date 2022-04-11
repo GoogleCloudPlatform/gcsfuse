@@ -145,7 +145,7 @@ func (b *bucket) ListObjects(
 		httputil.EncodePathSegment(b.Name()))
 
 	query := make(url.Values)
-	query.Set("projection", "full")
+	query.Set("projection", req.ProjectionVal.String())
 
 	if req.Prefix != "" {
 		query.Set("prefix", req.Prefix)
