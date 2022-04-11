@@ -531,7 +531,7 @@ func (d *dirInode) readObjects(
 		MaxResults:               MaxResultsForListObjectsCall,
 		// Setting Projection param to noAcl since fetching owner and acls are not
 		// required.
-		ProjectionVal: gcs.NoAcl,
+		ProjectionVal:            gcs.NoAcl,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)
