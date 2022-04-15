@@ -20,7 +20,6 @@ import (
 	"os"
 	"path"
 
-	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	. "github.com/jacobsa/oglematchers"
@@ -56,19 +55,8 @@ func (t *AllBucketsTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *AllBucketsTest) BaseDir_Ls() {
-	entries, err := ioutil.ReadDir(t.Dir)
-	AssertEq(nil, err)
-	AssertEq(3, len(entries))
-	ExpectEq("bucket-0", entries[0].Name())
-	ExpectEq("bucket-1", entries[1].Name())
-	ExpectEq("bucket-2", entries[2].Name())
-
-	entries, err = fusetesting.ReadDirPicky(t.Dir)
-	AssertEq(nil, err)
-	AssertEq(3, len(entries))
-	ExpectEq("bucket-0", entries[0].Name())
-	ExpectEq("bucket-1", entries[1].Name())
-	ExpectEq("bucket-2", entries[2].Name())
+	_, err := ioutil.ReadDir(t.Dir)
+	ExpectThat(err, Error(HasSubstr("operation not supported")))
 }
 
 func (t *AllBucketsTest) BaseDir_Write() {

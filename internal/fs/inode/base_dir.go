@@ -16,6 +16,7 @@ package inode
 
 import (
 	"sync"
+	"syscall"
 
 	"github.com/jacobsa/fuse"
 
@@ -175,20 +176,12 @@ func (d *baseDirInode) ReadDescendants(ctx context.Context, limit int) (map[Name
 func (d *baseDirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
-	var bucketNames []string
-	bucketNames, err = d.bucketManager.ListBuckets(ctx)
-	if err != nil {
-		return
-	}
-	for _, name := range bucketNames {
-		entry := fuseutil.Dirent{
-			Name: name,
-			Type: fuseutil.DT_Directory,
-		}
-		entries = append(entries, entry)
-	}
 
-	return
+	// The subdirectories of the base directory should be all the accessible
+	// buckets. Although the user is allowed to visit each individual
+	// subdirectory, listing all the subdirectories (i.e. the buckets) can be
+	// very expensive and currently not supported.
+	return nil, "", syscall.ENOTSUP
 }
 
 ////////////////////////////////////////////////////////////////////////
