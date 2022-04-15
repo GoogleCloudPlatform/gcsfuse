@@ -100,11 +100,11 @@ func makeGcsfuseArgs(
 			"stat_cache_capacity",
 			"stat_cache_ttl",
 			"type_cache_ttl",
-			"local_file_cache",
+			"experimental_local_file_cache",
 			"temp_dir",
 			"max_conns_per_host",
-			"stackdriver_export_interval",
-			"opentelemetry_collector_address",
+			"experimental_stackdriver_export_interval",
+			"experimental_opentelemetry_collector_address",
 			"log_format",
 			"log_file":
 			args = append(args, "--"+strings.Replace(name, "_", "-", -1), value)

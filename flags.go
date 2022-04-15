@@ -201,7 +201,7 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.BoolFlag{
-				Name:  "local-file-cache",
+				Name:  "experimental-local-file-cache",
 				Usage: "Experimental: Cache GCS files on local disk for reads.",
 			},
 
@@ -230,13 +230,13 @@ func newApp() (app *cli.App) {
 			/////////////////////////
 
 			cli.DurationFlag{
-				Name:  "stackdriver-export-interval",
+				Name:  "experimental-stackdriver-export-interval",
 				Value: 0,
 				Usage: "Experimental: Export metrics to stackdriver with this interval. The default value 0 indicates no exporting.",
 			},
 
 			cli.StringFlag{
-				Name:  "opentelemetry-collector-address",
+				Name:  "experimental-opentelemetry-collector-address",
 				Value: "",
 				Usage: "Experimental: Export metrics to the OpenTelemetry collector at this address.",
 			},
@@ -376,14 +376,14 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		StatCacheCapacity: c.Int("stat-cache-capacity"),
 		StatCacheTTL:      c.Duration("stat-cache-ttl"),
 		TypeCacheTTL:      c.Duration("type-cache-ttl"),
-		LocalFileCache:    c.Bool("local-file-cache"),
+		LocalFileCache:    c.Bool("experimental-local-file-cache"),
 		TempDir:           c.String("temp-dir"),
 		DisableHTTP2:      c.Bool("disable-http2"),
 		MaxConnsPerHost:   c.Int("max-conns-per-host"),
 
 		// Monitoring & Logging
-		StackdriverExportInterval: c.Duration("stackdriver-export-interval"),
-		OtelCollectorAddress:      c.String("opentelemetry-collector-address"),
+		StackdriverExportInterval: c.Duration("experimental-stackdriver-export-interval"),
+		OtelCollectorAddress:      c.String("experimental-opentelemetry-collector-address"),
 		LogFile:                   c.String("log-file"),
 		LogFormat:                 c.String("log-format"),
 
