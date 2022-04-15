@@ -300,14 +300,6 @@ type fakeBucketManager struct {
 
 func (bm *fakeBucketManager) ShutDown() {}
 
-func (bm *fakeBucketManager) ListBuckets(
-	ctx context.Context) (names []string, err error) {
-	for name, _ := range bm.buckets {
-		names = append(names, name)
-	}
-	return
-}
-
 func (bm *fakeBucketManager) SetUpBucket(
 	ctx context.Context,
 	name string) (sb gcsx.SyncerBucket, err error) {

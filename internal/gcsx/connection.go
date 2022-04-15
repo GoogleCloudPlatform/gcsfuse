@@ -22,7 +22,6 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
-	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
 
@@ -72,22 +71,4 @@ func (c *Connection) OpenBucket(
 	}
 
 	return
-}
-
-func (c *Connection) ListBuckets(
-	ctx context.Context,
-	projectId string) (names []string, err error) {
-	it := c.gcs.Buckets(ctx, projectId)
-	for {
-		bucket, nextErr := it.Next()
-		switch nextErr {
-		case nil:
-			names = append(names, bucket.Name)
-		case iterator.Done:
-			return
-		default:
-			err = nextErr
-			return
-		}
-	}
 }

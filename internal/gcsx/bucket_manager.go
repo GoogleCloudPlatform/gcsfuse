@@ -68,9 +68,6 @@ type BucketManager interface {
 		ctx context.Context,
 		name string) (b SyncerBucket, err error)
 
-	// Lists the names of all the buckets in the project.
-	ListBuckets(ctx context.Context) (names []string, err error)
-
 	// Shuts down the bucket manager and its buckets
 	ShutDown()
 }
@@ -238,11 +235,4 @@ func (bm *bucketManager) SetUpBucket(
 
 func (bm *bucketManager) ShutDown() {
 	bm.stopGarbageCollecting()
-}
-
-func (bm *bucketManager) ListBuckets(ctx context.Context) (
-	names []string,
-	err error) {
-	names, err = bm.conn.ListBuckets(ctx, bm.config.BillingProject)
-	return
 }
