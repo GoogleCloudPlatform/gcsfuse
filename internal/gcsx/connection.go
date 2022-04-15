@@ -19,15 +19,12 @@ import (
 	"strings"
 	"syscall"
 
-	"cloud.google.com/go/storage"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
-	"google.golang.org/api/option"
 )
 
 type Connection struct {
 	wrapped gcs.Conn
-	gcs     *storage.Client
 }
 
 func NewConnection(cfg *gcs.ConnConfig) (c *Connection, err error) {
@@ -37,18 +34,8 @@ func NewConnection(cfg *gcs.ConnConfig) (c *Connection, err error) {
 		return
 	}
 
-	gcs, err := storage.NewClient(
-		context.Background(),
-		option.WithEndpoint(fmt.Sprintf("%s/storage/v1/", cfg.Url.String())),
-		option.WithTokenSource(cfg.TokenSource))
-	if err != nil {
-		err = fmt.Errorf("Cannot create GCS client: %w", err)
-		return
-	}
-
 	c = &Connection{
 		wrapped: wrapped,
-		gcs:     gcs,
 	}
 	return
 }
