@@ -18,6 +18,8 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+
+	storagev1 "google.golang.org/api/storage/v1"
 )
 
 // A request to create an object, accepted by Bucket.CreateObject.
@@ -50,6 +52,7 @@ type CreateObjectRequest struct {
 	CustomTime         string
 	EventBasedHold     bool
 	StorageClass       string
+	Acl                []*storagev1.ObjectAccessControl
 
 	// A reader from which to obtain the contents of the object. Must be non-nil.
 	Contents io.Reader
@@ -138,6 +141,7 @@ type ComposeObjectsRequest struct {
 	CustomTime         string
 	EventBasedHold     bool
 	StorageClass       string
+	Acl                []*storagev1.ObjectAccessControl
 }
 
 type ComposeSource struct {

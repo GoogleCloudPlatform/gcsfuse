@@ -46,6 +46,7 @@ func (b *bucket) makeComposeObjectsBody(
 			CustomTime:         req.CustomTime,
 			EventBasedHold:     req.EventBasedHold,
 			StorageClass:       req.StorageClass,
+			Acl:                req.Acl,
 		},
 	}
 

@@ -83,6 +83,7 @@ func toObject(in *storagev1.Object) (out *Object, err error) {
 		StorageClass:       in.StorageClass,
 		CustomTime:         in.CustomTime,
 		EventBasedHold:     in.EventBasedHold,
+		Acl:                in.Acl,
 	}
 
 	// Work around Google-internal bug 21572928. See notes on the ComponentCount
@@ -174,6 +175,7 @@ func toRawObject(
 		CustomTime:         in.CustomTime,
 		EventBasedHold:     in.EventBasedHold,
 		StorageClass:       in.StorageClass,
+		Acl:                in.Acl,
 	}
 
 	if in.CRC32C != nil {

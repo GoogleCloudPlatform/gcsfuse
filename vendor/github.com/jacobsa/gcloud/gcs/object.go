@@ -17,6 +17,8 @@ package gcs
 import (
 	"crypto/md5"
 	"time"
+
+	storagev1 "google.golang.org/api/storage/v1"
 )
 
 // Object is a record representing a particular generation of a particular
@@ -68,4 +70,5 @@ type Object struct {
 	ContentDisposition string
 	CustomTime         string
 	EventBasedHold     bool
+	Acl                []*storagev1.ObjectAccessControl
 }
