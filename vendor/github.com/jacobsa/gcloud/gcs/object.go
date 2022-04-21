@@ -64,4 +64,8 @@ type Object struct {
 	// the officially documented behavior above. That is, it synthesizes a
 	// component count of 1 for objects that do not have a component count.
 	ComponentCount int64
+
+	ContentDisposition string
+	CustomTime         string
+	EventBasedHold     bool
 }

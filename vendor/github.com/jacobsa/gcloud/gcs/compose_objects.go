@@ -36,9 +36,16 @@ func (b *bucket) makeComposeObjectsBody(
 	// Create a request in the form expected by the API.
 	r := storagev1.ComposeRequest{
 		Destination: &storagev1.Object{
-			Name:        req.DstName,
-			ContentType: req.ContentType,
-			Metadata:    req.Metadata,
+			Name:               req.DstName,
+			ContentType:        req.ContentType,
+			Metadata:           req.Metadata,
+			CacheControl:       req.CacheControl,
+			ContentDisposition: req.ContentDisposition,
+			ContentLanguage:    req.ContentLanguage,
+			ContentEncoding:    req.ContentEncoding,
+			CustomTime:         req.CustomTime,
+			EventBasedHold:     req.EventBasedHold,
+			StorageClass:       req.StorageClass,
 		},
 	}
 
