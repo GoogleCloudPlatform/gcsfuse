@@ -18,6 +18,8 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+
+	storagev1 "google.golang.org/api/storage/v1"
 )
 
 // A request to create an object, accepted by Bucket.CreateObject.
@@ -41,11 +43,16 @@ type CreateObjectRequest struct {
 	//
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects#resource
 	//
-	ContentType     string
-	ContentLanguage string
-	ContentEncoding string
-	CacheControl    string
-	Metadata        map[string]string
+	ContentType        string
+	ContentLanguage    string
+	ContentEncoding    string
+	CacheControl       string
+	Metadata           map[string]string
+	ContentDisposition string
+	CustomTime         string
+	EventBasedHold     bool
+	StorageClass       string
+	Acl                []*storagev1.ObjectAccessControl
 
 	// A reader from which to obtain the contents of the object. Must be non-nil.
 	Contents io.Reader
@@ -125,8 +132,16 @@ type ComposeObjectsRequest struct {
 	//
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects#resource
 	//
-	ContentType string
-	Metadata    map[string]string
+	ContentType        string
+	Metadata           map[string]string
+	ContentLanguage    string
+	ContentEncoding    string
+	CacheControl       string
+	ContentDisposition string
+	CustomTime         string
+	EventBasedHold     bool
+	StorageClass       string
+	Acl                []*storagev1.ObjectAccessControl
 }
 
 type ComposeSource struct {
@@ -174,6 +189,10 @@ type ReadObjectRequest struct {
 type StatObjectRequest struct {
 	// The name of the object in question.
 	Name string
+
+	// Relevant only when fast_stat_bucket is used. This field controls whether
+	// to fetch from gcs or from cache.
+	ForceFetchFromGcs bool
 }
 
 type Projection int64

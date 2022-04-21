@@ -68,18 +68,22 @@ func toListing(in *storagev1.Objects) (out *Listing, err error) {
 func toObject(in *storagev1.Object) (out *Object, err error) {
 	// Convert the easy fields.
 	out = &Object{
-		Name:            in.Name,
-		ContentType:     in.ContentType,
-		ContentLanguage: in.ContentLanguage,
-		CacheControl:    in.CacheControl,
-		ContentEncoding: in.ContentEncoding,
-		ComponentCount:  in.ComponentCount,
-		Size:            in.Size,
-		MediaLink:       in.MediaLink,
-		Metadata:        in.Metadata,
-		Generation:      in.Generation,
-		MetaGeneration:  in.Metageneration,
-		StorageClass:    in.StorageClass,
+		Name:               in.Name,
+		ContentType:        in.ContentType,
+		ContentLanguage:    in.ContentLanguage,
+		CacheControl:       in.CacheControl,
+		ContentDisposition: in.ContentDisposition,
+		ContentEncoding:    in.ContentEncoding,
+		ComponentCount:     in.ComponentCount,
+		Size:               in.Size,
+		MediaLink:          in.MediaLink,
+		Metadata:           in.Metadata,
+		Generation:         in.Generation,
+		MetaGeneration:     in.Metageneration,
+		StorageClass:       in.StorageClass,
+		CustomTime:         in.CustomTime,
+		EventBasedHold:     in.EventBasedHold,
+		Acl:                in.Acl,
 	}
 
 	// Work around Google-internal bug 21572928. See notes on the ComponentCount
@@ -160,13 +164,18 @@ func toRawObject(
 	bucketName string,
 	in *CreateObjectRequest) (out *storagev1.Object, err error) {
 	out = &storagev1.Object{
-		Bucket:          bucketName,
-		Name:            in.Name,
-		ContentType:     in.ContentType,
-		ContentLanguage: in.ContentLanguage,
-		ContentEncoding: in.ContentEncoding,
-		CacheControl:    in.CacheControl,
-		Metadata:        in.Metadata,
+		Bucket:             bucketName,
+		Name:               in.Name,
+		ContentType:        in.ContentType,
+		ContentLanguage:    in.ContentLanguage,
+		ContentEncoding:    in.ContentEncoding,
+		CacheControl:       in.CacheControl,
+		Metadata:           in.Metadata,
+		ContentDisposition: in.ContentDisposition,
+		CustomTime:         in.CustomTime,
+		EventBasedHold:     in.EventBasedHold,
+		StorageClass:       in.StorageClass,
+		Acl:                in.Acl,
 	}
 
 	if in.CRC32C != nil {

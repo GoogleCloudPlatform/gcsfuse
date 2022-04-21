@@ -17,6 +17,8 @@ package gcs
 import (
 	"crypto/md5"
 	"time"
+
+	storagev1 "google.golang.org/api/storage/v1"
 )
 
 // Object is a record representing a particular generation of a particular
@@ -64,4 +66,9 @@ type Object struct {
 	// the officially documented behavior above. That is, it synthesizes a
 	// component count of 1 for objects that do not have a component count.
 	ComponentCount int64
+
+	ContentDisposition string
+	CustomTime         string
+	EventBasedHold     bool
+	Acl                []*storagev1.ObjectAccessControl
 }

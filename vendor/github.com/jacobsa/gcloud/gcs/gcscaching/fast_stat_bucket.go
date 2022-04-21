@@ -187,6 +187,11 @@ func (b *fastStatBucket) ComposeObjects(
 func (b *fastStatBucket) StatObject(
 	ctx context.Context,
 	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	// If fetching from gcs is enabled, directly make a call to GCS.
+	if req.ForceFetchFromGcs {
+		return b.StatObjectFromGcs(ctx, req)
+	}
+
 	// Do we have an entry in the cache?
 	if hit, entry := b.lookUp(req.Name); hit {
 		// Negative entries result in NotFoundError.
@@ -203,21 +208,7 @@ func (b *fastStatBucket) StatObject(
 		return
 	}
 
-	// Ask the wrapped bucket.
-	o, err = b.wrapped.StatObject(ctx, req)
-	if err != nil {
-		// Special case: NotFoundError -> negative entry.
-		if _, ok := err.(*gcs.NotFoundError); ok {
-			b.addNegativeEntry(req.Name)
-		}
-
-		return
-	}
-
-	// Put the object in cache.
-	b.insert(o)
-
-	return
+	return b.StatObjectFromGcs(ctx, req)
 }
 
 // LOCKS_EXCLUDED(b.mu)
@@ -261,5 +252,22 @@ func (b *fastStatBucket) DeleteObject(
 	req *gcs.DeleteObjectRequest) (err error) {
 	b.invalidate(req.Name)
 	err = b.wrapped.DeleteObject(ctx, req)
+	return
+}
+
+func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	o, err = b.wrapped.StatObject(ctx, req)
+	if err != nil {
+		// Special case: NotFoundError -> negative entry.
+		if _, ok := err.(*gcs.NotFoundError); ok {
+			b.addNegativeEntry(req.Name)
+		}
+
+		return
+	}
+
+	// Put the object in cache.
+	b.insert(o)
+
 	return
 }
