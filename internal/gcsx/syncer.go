@@ -84,14 +84,28 @@ func (oc *fullObjectCreator) Create(
 	srcObject *gcs.Object,
 	mtime time.Time,
 	r io.Reader) (o *gcs.Object, err error) {
+	MetadataMap:= make(map[string]string)
+
+	/* Copy Metadata fields from existing object to retain them for new object. */
+	for key, value  := range srcObject.Metadata{
+		MetadataMap[key] = value
+	}
+
+	MetadataMap[MtimeMetadataKey] = mtime.Format(time.RFC3339Nano)
+
 	req := &gcs.CreateObjectRequest{
 		Name:                       srcObject.Name,
 		GenerationPrecondition:     &srcObject.Generation,
 		MetaGenerationPrecondition: &srcObject.MetaGeneration,
 		Contents:                   r,
-		Metadata: map[string]string{
-			MtimeMetadataKey: mtime.Format(time.RFC3339Nano),
-		},
+		Metadata:                   MetadataMap,
+		CacheControl:               srcObject.CacheControl,
+		ContentDisposition:         srcObject.ContentDisposition,
+		ContentEncoding:            srcObject.ContentEncoding,
+		ContentType:                srcObject.ContentType,
+		CustomTime:                 srcObject.CustomTime,
+		EventBasedHold:             srcObject.EventBasedHold,
+		StorageClass:               srcObject.StorageClass,
 	}
 
 	o, err = oc.bucket.CreateObject(ctx, req)

@@ -25,12 +25,141 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	. "github.com/jacobsa/oglematchers"
+	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 )
 
 func TestSyncer(t *testing.T) { RunTests(t) }
+
+////////////////////////////////////////////////////////////////////////
+// Boilerplate for FullObjectCreatorTests
+////////////////////////////////////////////////////////////////////////
+
+type FullObjectCreatorTest struct {
+	ctx     context.Context
+	bucket  gcs.MockBucket
+	creator objectCreator
+
+	srcObject   gcs.Object
+	srcContents string
+	mtime       time.Time
+}
+
+func init() { RegisterTestSuite(&FullObjectCreatorTest{}) }
+
+func (t *FullObjectCreatorTest) SetUp(ti *TestInfo) {
+	t.ctx = ti.Ctx
+
+	// Create the bucket.
+	t.bucket = gcs.NewMockBucket(ti.MockController, "bucket")
+
+	// Create the creator.
+	t.creator = &fullObjectCreator{
+		bucket: t.bucket,
+	}
+}
+
+func (t *FullObjectCreatorTest) call() (o *gcs.Object, err error) {
+	o, err = t.creator.Create(
+		t.ctx,
+		&t.srcObject,
+		t.mtime,
+		strings.NewReader(t.srcContents))
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// Tests
+////////////////////////////////////////////////////////////////////////
+
+func (t *FullObjectCreatorTest) CallsCreateObject() {
+	t.srcContents = "taco"
+
+	// CreateObject
+	var req *gcs.CreateObjectRequest
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
+
+	// Call
+	t.call()
+
+	AssertNe(nil, req)
+	ExpectThat(req.GenerationPrecondition, Pointee(Equals(0)))
+
+	b, err := ioutil.ReadAll(req.Contents)
+	AssertEq(nil, err)
+	ExpectEq(t.srcContents, string(b))
+}
+
+func (t *FullObjectCreatorTest) CreateObjectFails() {
+	var err error
+
+	// CreateObject
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(Return(nil, errors.New("taco")))
+
+	// Call
+	_, err = t.call()
+
+	ExpectThat(err, Error(HasSubstr("CreateObject")))
+	ExpectThat(err, Error(HasSubstr("taco")))
+}
+
+func (t *FullObjectCreatorTest) CreateObjectReturnsPreconditionError() {
+	var err error
+
+	// CreateObject
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("taco")}))
+
+	// Call
+	_, err = t.call()
+
+	var preconditionErr *gcs.PreconditionError
+	ExpectTrue(errors.As(err, &preconditionErr))
+	ExpectThat(err, Error(HasSubstr("CreateObject")))
+	ExpectThat(err, Error(HasSubstr("taco")))
+}
+
+func (t *FullObjectCreatorTest) CallsCreateObjectsWithObjectProperties() {
+	t.srcObject.Name = "foo"
+	t.srcObject.Generation = 17
+	t.srcObject.MetaGeneration = 23
+	t.srcObject.CacheControl = "testCacheControl"
+	t.srcObject.ContentDisposition = "inline"
+	t.srcObject.ContentEncoding = "gzip"
+	t.srcObject.ContentType = "text/plain"
+	t.srcObject.CustomTime  = "2022-04-02T00:30:00Z"
+	t.srcObject.EventBasedHold = true
+	t.srcObject.StorageClass = "STANDARD"
+	t.srcObject.Metadata = map[string]string {
+		"test_key": "test_value",
+	}
+	t.mtime = time.Now().Add(123 * time.Second).UTC()
+
+	var req *gcs.CreateObjectRequest
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
+
+	// Call
+	t.call()
+
+	AssertNe(nil, req)
+	ExpectEq(t.srcObject.Name, req.Name)
+	ExpectEq(t.srcObject.CacheControl, req.CacheControl)
+	ExpectEq(t.srcObject.ContentDisposition, req.ContentDisposition)
+	ExpectEq(t.srcObject.ContentEncoding, req.ContentEncoding)
+	ExpectEq(t.srcObject.ContentType, req.ContentType)
+	ExpectEq(t.srcObject.CustomTime, req.CustomTime)
+	ExpectEq(t.srcObject.EventBasedHold, req.EventBasedHold)
+
+	ExpectEq(2, len(req.Metadata))
+	ExpectEq(t.mtime.Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
+	ExpectEq("test_value", req.Metadata["test_key"])
+}
 
 ////////////////////////////////////////////////////////////////////////
 // fakeObjectCreator
