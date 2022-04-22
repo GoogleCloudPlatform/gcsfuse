@@ -153,10 +153,14 @@ func (f *FileInode) checkInvariants() {
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
-	// Stat the object in GCS.
-	req := &gcs.StatObjectRequest{Name: f.name.GcsObjectName()}
-	o, err := f.bucket.StatObject(ctx, req)
+func (f *FileInode) clobbered(ctx context.Context) (o *gcs.Object, b bool, err error) {
+	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
+	// gcs and not cache.
+	req := &gcs.StatObjectRequest{
+		Name: f.name.GcsObjectName(),
+		ForceFetchFromGcs: true,
+	}
+	o, err = f.bucket.StatObject(ctx, req)
 
 	// Special case: "not found" means we have been clobbered.
 	var notFoundErr *gcs.NotFoundError
@@ -367,7 +371,7 @@ func (f *FileInode) Attributes(
 
 	// If the object has been clobbered, we reflect that as the inode being
 	// unlinked.
-	clobbered, err := f.clobbered(ctx)
+	_, clobbered, err := f.clobbered(ctx)
 	if err != nil {
 		err = fmt.Errorf("clobbered: %w", err)
 		return
@@ -517,8 +521,26 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 		return
 	}
 
+	// When listObjects call is made, we fetch data with projection set as noAcl
+	// which means acls and owner properties are not returned. So the f.src object
+	// here will not have acl information even though there are acls present on
+	// the gcsObject.
+	// Hence, we are making an explicit gcs stat call to fetch the latest
+	// properties and using that when object is synced below. StatObject by
+	// default sets the projection to full, which fetches all the object
+	// properties.
+	latestGcsObj, isClobbered, err := f.clobbered(ctx)
+
+	// Clobbered is treated as being unlinked. There's no reason to return an
+	// error in that case. We simply return without syncing the object.
+	if err != nil || isClobbered {
+		return
+	}
+
 	// Write out the contents if they are dirty.
-	newObj, err := f.bucket.SyncObject(ctx, &f.src, f.content)
+	// Object properties are also synced as part of content sync. Hence, passing
+	// the latest object fetched from gcs which has all the properties populated.
+	newObj, err := f.bucket.SyncObject(ctx, latestGcsObj, f.content)
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.
