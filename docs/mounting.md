@@ -40,6 +40,7 @@ There are two ways to mount gcsfuse. If you only use one known bucket, you may
 use static mounting. If you want to mount all the accessible buckets, you may
 use dynamic mounting.
 
+
 ### Static Mounting
 
 Say you want to mount the GCS bucket called `my-bucket`. First create the
@@ -47,6 +48,9 @@ directory into which you want to mount the gcsfuse bucket, then run gcsfuse:
 
     mkdir /path/to/mount/point
     gcsfuse my-bucket /path/to/mount/point
+
+Note: Avoid using the name of the bucket as the local directory mount point name.
+
 
 ### Dynamic Mounting
 
