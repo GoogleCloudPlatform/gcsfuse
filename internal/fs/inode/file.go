@@ -153,10 +153,14 @@ func (f *FileInode) checkInvariants() {
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) clobbered(ctx context.Context) (b bool, err error) {
-	// Stat the object in GCS.
-	req := &gcs.StatObjectRequest{Name: f.name.GcsObjectName()}
-	o, err := f.bucket.StatObject(ctx, req)
+func (f *FileInode) clobbered(ctx context.Context) (o *gcs.Object, b bool, err error) {
+	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
+	// gcs and not cache.
+	req := &gcs.StatObjectRequest{
+		Name: f.name.GcsObjectName(),
+		ForceFetchFromGcs: true,
+	}
+	o, err = f.bucket.StatObject(ctx, req)
 
 	// Special case: "not found" means we have been clobbered.
 	var notFoundErr *gcs.NotFoundError
@@ -367,9 +371,9 @@ func (f *FileInode) Attributes(
 
 	// If the object has been clobbered, we reflect that as the inode being
 	// unlinked.
-	clobbered, err := f.clobbered(ctx)
+	o, clobbered, err := f.clobbered(ctx)
 	if err != nil {
-		err = fmt.Errorf("clobbered: %w", err)
+		err = fmt.Errorf("objectName: %s is clobbered: %w", o.Name, err)
 		return
 	}
 
@@ -525,7 +529,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// properties and using that when object is synced below. StatObject by
 	// default sets the projection to full, which fetches all the object
 	// properties.
-	latestGcsObj, isClobbered, err := f.GetLatestStatAndValidate(ctx, &f.src)
+	latestGcsObj, isClobbered, err := f.clobbered(ctx)
 
 	// Clobbered is treated as being unlinked. There's no reason to return an
 	// error in that case. We simply return without syncing the object.
@@ -586,35 +590,4 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) {
 	if f.localFileCache {
 		f.ensureContent(ctx)
 	}
-}
-
-func (f *FileInode) GetLatestStatAndValidate(
-		ctx context.Context,
-		srcObject *gcs.Object) (o *gcs.Object, isClobbered bool, err error) {
-	// Make StatObject call which fetches from gcs and not cache.
-	statReq := &gcs.StatObjectRequest{
-		Name: srcObject.Name,
-		ForceFetchFromGcs: true,
-	}
-
-	o, err = f.bucket.StatObject(ctx, statReq)
-	if  err != nil {
-		err = fmt.Errorf("statObject: %w", err)
-		return
-	}
-
-	latestObjGen := Generation {
-		Object: o.Generation,
-		Metadata: o.MetaGeneration,
-	}
-
-	srcObjectGen := Generation {
-		Object: srcObject.Generation,
-		Metadata: srcObject.MetaGeneration,
-	}
-
-	if latestObjGen.Compare(srcObjectGen) != 0 {
-		isClobbered = true
-	}
-	return
 }
