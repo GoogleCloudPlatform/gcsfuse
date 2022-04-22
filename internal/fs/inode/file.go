@@ -517,8 +517,24 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 		return
 	}
 
+	// When listObjects call is made, we fetch data with projection set as noAcl
+	// which means acls and owner properties are not returned. So the f.src object
+	// here will not have acl information even though there are acls present on
+	// the gcsObject.
+	// Hence, we are making an explicit gcs stat call to fetch the latest
+	// properties and using that when object is synced below.
+	latestGcsObj, isClobbered, err := f.GetLatestStatAndValidate(ctx, &f.src)
+
+	// Clobbered is treated as being unlinked. There's no reason to return an
+	// error in that case. We simply return without syncing the object.
+	if err != nil || isClobbered {
+		return
+	}
+
 	// Write out the contents if they are dirty.
-	newObj, err := f.bucket.SyncObject(ctx, &f.src, f.content)
+	// Object properties are also synced as part of content sync. Hence, passing
+	// the latest object fetched from gcs which has all the properties populated.
+	newObj, err := f.bucket.SyncObject(ctx, latestGcsObj, f.content)
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.
@@ -568,4 +584,35 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) {
 	if f.localFileCache {
 		f.ensureContent(ctx)
 	}
+}
+
+func (f *FileInode) GetLatestStatAndValidate(
+		ctx context.Context,
+		srcObject *gcs.Object) (o *gcs.Object, isClobbered bool, err error) {
+	// Make StatObject call which fetches from gcs and not cache.
+	statReq := &gcs.StatObjectRequest{
+		Name: srcObject.Name,
+		ForceFetchFromGcs: true,
+	}
+
+	o, err = f.bucket.StatObject(ctx, statReq)
+	if  err != nil {
+		err = fmt.Errorf("statObject: %w", err)
+		return
+	}
+
+	latestObjGen := Generation {
+		Object: o.Generation,
+		Metadata: o.MetaGeneration,
+	}
+
+	srcObjectGen := Generation {
+		Object: srcObject.Generation,
+		Metadata: srcObject.MetaGeneration,
+	}
+
+	if latestObjGen.Compare(srcObjectGen) != 0 {
+		isClobbered = true
+	}
+	return
 }
