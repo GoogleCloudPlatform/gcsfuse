@@ -371,9 +371,9 @@ func (f *FileInode) Attributes(
 
 	// If the object has been clobbered, we reflect that as the inode being
 	// unlinked.
-	o, clobbered, err := f.clobbered(ctx)
+	_, clobbered, err := f.clobbered(ctx)
 	if err != nil {
-		err = fmt.Errorf("objectName: %s is clobbered: %w", o.Name, err)
+		err = fmt.Errorf("clobbered: %w", err)
 		return
 	}
 
