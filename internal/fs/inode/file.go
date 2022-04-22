@@ -522,7 +522,9 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// here will not have acl information even though there are acls present on
 	// the gcsObject.
 	// Hence, we are making an explicit gcs stat call to fetch the latest
-	// properties and using that when object is synced below.
+	// properties and using that when object is synced below. StatObject by
+	// default sets the projection to full, which fetches all the object
+	// properties.
 	latestGcsObj, isClobbered, err := f.GetLatestStatAndValidate(ctx, &f.src)
 
 	// Clobbered is treated as being unlinked. There's no reason to return an
