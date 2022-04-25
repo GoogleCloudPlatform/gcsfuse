@@ -62,6 +62,10 @@ func (b *bucket) CopyObject(
 			fmt.Sprintf("%d", *req.SrcMetaGenerationPrecondition))
 	}
 
+	if b.billingProject != "" {
+		query.Set("userProject", b.billingProject)
+	}
+
 	url := &url.URL{
 		Scheme:   b.url.Scheme,
 		Host:     b.url.Host,
