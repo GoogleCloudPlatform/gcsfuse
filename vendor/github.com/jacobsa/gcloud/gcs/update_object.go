@@ -104,6 +104,10 @@ func (b *bucket) UpdateObject(
 			fmt.Sprintf("%d", *req.MetaGenerationPrecondition))
 	}
 
+	if b.billingProject != "" {
+		query.Set("userProject", b.billingProject)
+	}
+
 	url := &url.URL{
 		Scheme:   b.url.Scheme,
 		Host:     b.url.Host,
