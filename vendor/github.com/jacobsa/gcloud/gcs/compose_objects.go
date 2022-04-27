@@ -102,6 +102,10 @@ func (b *bucket) ComposeObjects(
 			fmt.Sprint(*req.DstMetaGenerationPrecondition))
 	}
 
+	if b.billingProject != "" {
+		query.Set("userProject", b.billingProject)
+	}
+
 	url := &url.URL{
 		Scheme:   b.url.Scheme,
 		Host:     b.url.Host,

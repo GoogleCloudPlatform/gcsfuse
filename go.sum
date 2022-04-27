@@ -203,6 +203,8 @@ github.com/jacobsa/gcloud v0.0.0-20220421085052-ff44a6cb0dd1 h1:4eR9KzVnkPXUmQLl
 github.com/jacobsa/gcloud v0.0.0-20220421085052-ff44a6cb0dd1/go.mod h1:nvUMlvvHkp6h7NFL7UuayN/8wmTp1pnVHxT3kfFQHDk=
 github.com/jacobsa/gcloud v0.0.0-20220421103137-3ddcc995d2eb h1:utN0Twclo6dIlOc8NjgzwcFszlR0t48gjElC250PXAU=
 github.com/jacobsa/gcloud v0.0.0-20220421103137-3ddcc995d2eb/go.mod h1:nvUMlvvHkp6h7NFL7UuayN/8wmTp1pnVHxT3kfFQHDk=
+github.com/jacobsa/gcloud v0.0.0-20220426111934-d5f9e155f950 h1:xwvIa1a/P0Vy5qD5UqaQJa7kPiClvym2iL+0ZYCrOdU=
+github.com/jacobsa/gcloud v0.0.0-20220426111934-d5f9e155f950/go.mod h1:nvUMlvvHkp6h7NFL7UuayN/8wmTp1pnVHxT3kfFQHDk=
 github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd h1:9GCSedGjMcLZCrusBZuo4tyKLpKUPenUUqi34AkuFmA=
 github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd/go.mod h1:TlmyIZDpGmwRoTWiakdr+HA1Tukze6C6XbRVidYq02M=
 github.com/jacobsa/oglemock v0.0.0-20150831005832-e94d794d06ff h1:2xRHTvkpJ5zJmglXLRqHiZQNjUoOkhUyhTAhEQvPAWw=
