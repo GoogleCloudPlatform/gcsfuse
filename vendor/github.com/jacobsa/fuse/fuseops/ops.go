@@ -637,8 +637,16 @@ type ReadFileOp struct {
 	// The offset within the file at which to read.
 	Offset int64
 
+	// The size of the read.
+	Size int64
+
 	// The destination buffer, whose length gives the size of the read.
+	// For vectored reads, this field is always nil as the buffer is not provided.
 	Dst []byte
+
+	// Set by the file system:
+	// A list of slices of data to send back to the client for vectored reads.
+	Data [][]byte
 
 	// Set by the file system: the number of bytes read.
 	//
