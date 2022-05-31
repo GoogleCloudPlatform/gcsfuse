@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/monitoring v1.2.0 // indirect
 	cloud.google.com/go/storage v1.22.1
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
-	contrib.go.opencensus.io/exporter/stackdriver v0.13.10
+	contrib.go.opencensus.io/exporter/stackdriver v0.13.12
 	github.com/aws/aws-sdk-go v1.42.48 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

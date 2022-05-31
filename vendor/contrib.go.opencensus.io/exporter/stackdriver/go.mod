@@ -11,6 +11,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.6
 	github.com/jstemmer/go-junit-report v0.9.1
+	github.com/prometheus/prometheus v2.5.0+incompatible
 	go.opencensus.io v0.23.0
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616
 	golang.org/x/net v0.0.0-20210503060351-7fd8e65b6420
