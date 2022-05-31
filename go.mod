@@ -3,7 +3,7 @@ module github.com/googlecloudplatform/gcsfuse
 go 1.14
 
 require (
-	cloud.google.com/go/monitoring v1.2.0 // indirect
+	cloud.google.com/go/monitoring v1.5.0 // indirect
 	cloud.google.com/go/storage v1.20.0
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.10
@@ -24,10 +24,7 @@ require (
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/urfave/cli v1.22.5
 	go.opencensus.io v0.23.0
-	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
-	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
-	golang.org/x/sys v0.0.0-20220207234003-57398862261d // indirect
-	google.golang.org/api v0.68.0
-	google.golang.org/genproto v0.0.0-20220207185906-7721543eae58 // indirect
-	google.golang.org/grpc v1.44.0 // indirect
+	golang.org/x/net v0.0.0-20220325170049-de3da57026de
+	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a
+	google.golang.org/api v0.74.0
 )
