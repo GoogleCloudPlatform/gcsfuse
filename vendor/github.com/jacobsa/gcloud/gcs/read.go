@@ -26,6 +26,7 @@ import (
 	"github.com/jacobsa/gcloud/httputil"
 	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
+	"cloud.google.com/go/storage"
 )
 
 func (b *bucket) NewReader(
@@ -41,6 +42,16 @@ func (b *bucket) NewReader(
 	// In Google-internal bug 19718068, it was clarified that the intent is that
 	// each of the bucket and object names are encoded into a single path
 	// segment, as defined by RFC 3986.
+	
+
+	// Switching to Go Storage Client Library 
+	if true{
+                rc, err = NewReaderSCL(ctx, req, b.name)
+                if err != nil {
+                        err = fmt.Errorf("Error in NewReaderSCL")
+                }
+                return
+        }
 	bucketSegment := httputil.EncodePathSegment(b.name)
 	objectSegment := httputil.EncodePathSegment(req.Name)
 	opaque := fmt.Sprintf(
@@ -136,6 +147,32 @@ func (b *bucket) NewReader(
 	}
 
 	return
+}
+
+
+// Custom function made to create a new reader using Storage Client Library
+func NewReaderSCL(
+        ctx context.Context,
+        req *ReadObjectRequest,bucketName string) (rc io.ReadCloser, err error){
+        // initialising the bucket
+        client, err := storage.NewClient(ctx)
+        if err != nil {
+                err = fmt.Errorf("Error in creating the client")
+                return
+        }
+        fmt.Println("New Storage Client Created for: ", req.Name)
+        bkt := client.Bucket(bucketName) //check if the bucket name is valid or not
+        obj:=bkt.Object(req.Name) //check if the object name is valid or not
+        start := int64((*req.Range).Start)
+        end := int64((*req.Range).Limit)
+        length := int64(end - start)
+        r, err := obj.NewRangeReader(ctx, start, length)
+        if err != nil {
+                err = fmt.Errorf("Found Error in NewRangeRwader of SCL")
+                return
+        }
+        rc = io.NopCloser(r) // converting io.Reader to io.ReadCloser
+        return
 }
 
 // Given a [start, limit) range, create an HTTP 1.1 Range header which ensures
