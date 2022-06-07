@@ -31,4 +31,10 @@ var (
 
 	// FSError annotates the
 	FSError = tag.MustNewKey("fs_error")
+
+	// FSLatency annotates the file system read calls
+	FSLatency = tag.MustNewKey("fs_read_latency")
+
+	//FSReadError annotates the error in file system read calls
+	FSReadError = tag.MustNewKey("fs_read_error")
 )
