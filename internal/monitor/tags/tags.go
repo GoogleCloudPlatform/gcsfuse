@@ -29,9 +29,6 @@ var (
 	// FSOp annotates the file system op processed.
 	FSOp = tag.MustNewKey("fs_op")
 
-	// FSError annotates the file system calls
+	// FSError annotates the file system failed operations
 	FSError = tag.MustNewKey("fs_error")
-
-	// FSLatency annotates the file system calls
-	FSLatency = tag.MustNewKey("fs_latency")
 )
