@@ -29,6 +29,10 @@ import (
 	"cloud.google.com/go/storage"
 )
 
+var (
+	sclClient *storage.Client = nil // Client for the Go Storage Client Library.
+)
+
 func (b *bucket) NewReader(
 	ctx context.Context,
 	req *ReadObjectRequest) (rc io.ReadCloser, err error) {
@@ -42,16 +46,16 @@ func (b *bucket) NewReader(
 	// In Google-internal bug 19718068, it was clarified that the intent is that
 	// each of the bucket and object names are encoded into a single path
 	// segment, as defined by RFC 3986.
-	
 
-	// Switching to Go Storage Client Library 
-	if true{
+	// Switching to Go Storage Client Library.
+	if true {
                 rc, err = NewReaderSCL(ctx, req, b.name)
                 if err != nil {
-                        err = fmt.Errorf("Error in NewReaderSCL")
+                        err = fmt.Errorf("Error in creating client through NewReaderSCL")
                 }
                 return
         }
+
 	bucketSegment := httputil.EncodePathSegment(b.name)
 	objectSegment := httputil.EncodePathSegment(req.Name)
 	opaque := fmt.Sprintf(
@@ -150,28 +154,34 @@ func (b *bucket) NewReader(
 }
 
 
-// Custom function made to create a new reader using Storage Client Library
+// Custom function made to create a new reader using Storage Client Library.
 func NewReaderSCL(
         ctx context.Context,
-        req *ReadObjectRequest,bucketName string) (rc io.ReadCloser, err error){
-        // initialising the bucket
-        client, err := storage.NewClient(ctx)
-        if err != nil {
-                err = fmt.Errorf("Error in creating the client")
-                return
-        }
-        fmt.Println("New Storage Client Created for: ", req.Name)
-        bkt := client.Bucket(bucketName) //check if the bucket name is valid or not
-        obj:=bkt.Object(req.Name) //check if the object name is valid or not
+        req *ReadObjectRequest, bucketName string) (rc io.ReadCloser, err error){
+	// Create a client if there is not one already declared.
+        if sclClient == nil {
+		fmt.Println("Client Created")
+		sclClient, err = storage.NewClient(ctx)
+		if err != nil {
+			err = fmt.Errorf("Error in creating the client")
+			return
+		}
+	}
+
+	// Initialising the starting offset and the length to be read by the reader.
         start := int64((*req.Range).Start)
         end := int64((*req.Range).Limit)
         length := int64(end - start)
-        r, err := obj.NewRangeReader(ctx, start, length)
+
+	// Creating a NewRangeReader instance.
+        r, err := sclClient.Bucket(bucketName).Object(req.Name).NewRangeReader(ctx, start, length)
         if err != nil {
-                err = fmt.Errorf("Found Error in NewRangeRwader of SCL")
+                err = fmt.Errorf("Error in creating a NewRangeReader instance")
                 return
         }
-        rc = io.NopCloser(r) // converting io.Reader to io.ReadCloser
+
+        rc = io.NopCloser(r) // Converting io.Reader to io.ReadCloser.
+
         return
 }
 
