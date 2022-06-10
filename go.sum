@@ -215,6 +215,8 @@ github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f/go.mod h1:Ip4fOw
 github.com/jacobsa/fuse v0.0.0-20211125163655-ffd6c474e806/go.mod h1:xtZnnLxHY6QniCrfIpTwr5h8mH8zr+jsOFj0y9cfyp4=
 github.com/jacobsa/fuse v0.0.0-20220130133955-108387eec147 h1:I8fEsqJpKTF+Sn4k4RuonfvjFmi2HQMg5O5qG1SxWnU=
 github.com/jacobsa/fuse v0.0.0-20220130133955-108387eec147/go.mod h1:xtZnnLxHY6QniCrfIpTwr5h8mH8zr+jsOFj0y9cfyp4=
+github.com/jacobsa/fuse v0.0.0-20220303083136-48612565d5c8 h1:x320Zi9M1VmS9gKvNbMHDxTZV3LwZIEkHvzcK1y4R1A=
+github.com/jacobsa/fuse v0.0.0-20220303083136-48612565d5c8/go.mod h1:xtZnnLxHY6QniCrfIpTwr5h8mH8zr+jsOFj0y9cfyp4=
 github.com/jacobsa/gcloud v0.0.0-20220411082628-5962fc71075a h1:M1P9HI/1MOZ+ooqBwURE3kTaqxmSfuOBBlURcRfwX60=
 github.com/jacobsa/gcloud v0.0.0-20220411082628-5962fc71075a/go.mod h1:nvUMlvvHkp6h7NFL7UuayN/8wmTp1pnVHxT3kfFQHDk=
 github.com/jacobsa/gcloud v0.0.0-20220421085052-ff44a6cb0dd1 h1:4eR9KzVnkPXUmQLlaTufFjPLtyhCtysJDklg9twc5qw=

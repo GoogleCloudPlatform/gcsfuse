@@ -156,6 +156,13 @@ type MountConfig struct {
 	// actually utilise any form of qualifiable UNIX permissions.
 	DisableDefaultPermissions bool
 
+	// Use vectored reads.
+	// Vectored read allows file systems to avoid memory copying overhead if
+	// the data is already in memory when they return it to FUSE.
+	// When turned on, ReadFileOp.Dst is always nil and the FS must return data
+	// being read from the file as a list of slices in ReadFileOp.Data.
+	UseVectoredRead bool
+
 	// OS X only.
 	//
 	// The name of the mounted volume, as displayed in the Finder. If empty, a
