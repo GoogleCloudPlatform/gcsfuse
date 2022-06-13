@@ -160,12 +160,12 @@ func NewReaderSCL(
         req *ReadObjectRequest, bucketName string) (rc io.ReadCloser, err error){
 	// Create a client if there is not one already created.
         if sclClient == nil {
-		fmt.Println("Client Created")
 		sclClient, err = storage.NewClient(ctx)
 		if err != nil {
 			err = fmt.Errorf("Error in creating the client: %v", err)
 			return
 		}
+		fmt.Println("Client Created")
 	}
 
 	// Initialising the starting offset and the length to be read by the reader.
