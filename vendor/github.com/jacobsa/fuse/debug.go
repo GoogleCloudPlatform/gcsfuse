@@ -95,7 +95,7 @@ func describeRequest(op interface{}) (s string) {
 	case *fuseops.ReadFileOp:
 		addComponent("handle %d", typed.Handle)
 		addComponent("offset %d", typed.Offset)
-		addComponent("%d bytes", len(typed.Dst))
+		addComponent("%d bytes", typed.Size)
 
 	case *fuseops.WriteFileOp:
 		addComponent("handle %d", typed.Handle)

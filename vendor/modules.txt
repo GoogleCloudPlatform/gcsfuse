@@ -115,7 +115,7 @@ github.com/grpc-ecosystem/grpc-gateway/utilities
 # github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
 ## explicit
 github.com/jacobsa/daemonize
-# github.com/jacobsa/fuse v0.0.0-20220130133955-108387eec147
+# github.com/jacobsa/fuse v0.0.0-20220303083136-48612565d5c8
 ## explicit
 github.com/jacobsa/fuse
 github.com/jacobsa/fuse/fsutil
