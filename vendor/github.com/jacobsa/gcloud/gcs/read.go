@@ -45,7 +45,7 @@ func (b *bucket) NewReader(
 
 	// Switching to Go Storage Client Library.
 	if true {
-		rc, err = NewReaderSCL(ctx, req, b.name, b.sclClient)
+		rc, err = NewReaderSCL(ctx, req, b.name, b.storageClient)
 		if err != nil {
 			err = fmt.Errorf("Error in creating client through NewReaderSCL")
 		}
@@ -152,10 +152,10 @@ func (b *bucket) NewReader(
 // Custom function made to create a new reader using Storage Client Library.
 func NewReaderSCL(
 	ctx context.Context,
-	req *ReadObjectRequest, bucketName string, sclClient *storage.Client) (rc io.ReadCloser, err error) {
+	req *ReadObjectRequest, bucketName string, storageClient *storage.Client) (rc io.ReadCloser, err error) {
 	// If client is "nil", it means that there was some problem in initializing client in newBucket function of bucket.go file.
-	if sclClient == nil {
-		err = fmt.Errorf("Error in creating client through GSCL: %v", err)
+	if storageClient == nil {
+		err = fmt.Errorf("Error in creating client through Go Storage Library: %v", err)
 		return
 	}
 
@@ -165,7 +165,7 @@ func NewReaderSCL(
 	length := int64(end - start)
 
 	// Creating a NewRangeReader instance.
-	r, err := sclClient.Bucket(bucketName).Object(req.Name).NewRangeReader(ctx, start, length)
+	r, err := storageClient.Bucket(bucketName).Object(req.Name).NewRangeReader(ctx, start, length)
 	if err != nil {
 		err = fmt.Errorf("Error in creating a NewRangeReader instance: %v", err)
 		return

@@ -126,7 +126,7 @@ type Bucket interface {
 
 type bucket struct {
 	client         *http.Client
-	sclClient      *storage.Client //Go Storage Library Client.
+	storageClient  *storage.Client //Go Storage Library Client.
 	url            *url.URL
 	userAgent      string
 	name           string
@@ -359,18 +359,18 @@ func newBucket(
 	name string,
 	billingProject string) Bucket {
 
-	// Creating client through GSCL for the sclClient parameter of bucket.
-	var sclClient *storage.Client = nil
-	sclClient, err := storage.NewClient(ctx)
+	// Creating client through Go Storage Client Library for the storageClient parameter of bucket.
+	var storageClient *storage.Client = nil
+	storageClient, err := storage.NewClient(ctx)
 	if err != nil {
-		err = fmt.Errorf("Error in creating the client through GSCL: %v", err)
+		err = fmt.Errorf("Error in creating the client through Go Storage Library: %v", err)
 	} else {
-		fmt.Println("GSCL Client Created")
+		fmt.Println("Go Storage Client Created")
 	}
 
 	return &bucket{
 		client:         client,
-		sclClient:      sclClient,
+		storageClient:  storageClient,
 		url:            url,
 		userAgent:      userAgent,
 		name:           name,
