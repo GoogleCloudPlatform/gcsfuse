@@ -364,8 +364,6 @@ func newBucket(
 	storageClient, err := storage.NewClient(ctx)
 	if err != nil {
 		err = fmt.Errorf("Error in creating the client through Go Storage Library: %v", err)
-	} else {
-		fmt.Println("Go Storage Client Created")
 	}
 
 	return &bucket{
