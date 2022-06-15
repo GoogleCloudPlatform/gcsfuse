@@ -357,16 +357,16 @@ func newBucket(
 	url *url.URL,
 	userAgent string,
 	name string,
-	billingProject string) Bucket {
+	billingProject string) (b Bucket, err error) {
 
 	// Creating client through Go Storage Client Library for the storageClient parameter of bucket.
 	var storageClient *storage.Client = nil
-	storageClient, err := storage.NewClient(ctx)
+	storageClient, err = storage.NewClient(ctx)
 	if err != nil {
 		err = fmt.Errorf("Error in creating the client through Go Storage Library: %v", err)
 	}
 
-	return &bucket{
+	b = &bucket{
 		client:         client,
 		storageClient:  storageClient,
 		url:            url,
@@ -374,4 +374,5 @@ func newBucket(
 		name:           name,
 		billingProject: billingProject,
 	}
+	return
 }

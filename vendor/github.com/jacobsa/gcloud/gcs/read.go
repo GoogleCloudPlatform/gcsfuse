@@ -46,9 +46,6 @@ func (b *bucket) NewReader(
 	// Switching to Go Storage Client Library.
 	if true {
 		rc, err = NewReaderSCL(ctx, req, b.name, b.storageClient)
-		if err != nil {
-			err = fmt.Errorf("Error in creating client through NewReaderSCL")
-		}
 		return
 	}
 
@@ -155,7 +152,7 @@ func NewReaderSCL(
 	req *ReadObjectRequest, bucketName string, storageClient *storage.Client) (rc io.ReadCloser, err error) {
 	// If client is "nil", it means that there was some problem in initializing client in newBucket function of bucket.go file.
 	if storageClient == nil {
-		err = fmt.Errorf("Error in creating client through Go Storage Library: %v", err)
+		err = fmt.Errorf("Error in creating client through Go Storage Library.")
 		return
 	}
 
