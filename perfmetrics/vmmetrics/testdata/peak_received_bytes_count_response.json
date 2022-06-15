@@ -1,0 +1,95 @@
+{
+    "metric": {
+    "labels": {
+      "key": "instance_name",
+      "value": "gke-cluster-1-default-pool-b89264dc-2633"
+    },
+    "labels": {
+        "key": "loadbalanced",
+        "value": "false"
+    },
+    "type": "compute.googleapis.com/instance/network/received_bytes_count"
+  },
+  "resource": {
+    "type": "gce_instance",
+    "labels": {
+      "key": "instance_id",
+      "value": "8484125211086864498"
+    },
+    "labels": {
+      "key": "project_id",
+      "value": "gcs-fuse-test"
+    },
+    "labels": {
+      "key": "zone",
+      "value": "us-central1-c"
+    }
+  },
+  "metric_kind": "GAUGE",
+  "value_type": 2,
+  "points": [{
+    "interval": {
+      "start_time": {
+        "seconds": 1652699400
+      },
+      "end_time": {
+        "seconds": 1652699400
+      }
+    },
+    "value": {
+      "int64_value": 913092
+    }
+  },
+   {
+    "interval": {
+      "start_time": {
+        "seconds": 1652699280
+      },
+      "end_time": {
+        "seconds": 1652699280
+      }
+    },
+    "value": {
+      "int64_value": 957076
+    }
+  },
+   {
+    "interval": {
+      "start_time": {
+        "seconds": 1652699160
+      },
+      "end_time": {
+        "seconds": 1652699160
+      }
+    },
+    "value": {
+      "int64_value": 854158
+    }
+  },
+   {
+    "interval": {
+      "start_time": {
+        "seconds": 1652699040
+      },
+      "end_time": {
+        "seconds": 1652699040
+      }
+    },
+    "value": {
+      "int64_value": 915777
+    }
+  },
+    {
+    "interval": {
+      "start_time": {
+        "seconds": 1652698920
+      },
+      "end_time": {
+        "seconds": 1652698920
+      }
+    },
+    "value": {
+      "int64_value": 919441
+    }
+  }]
+}
