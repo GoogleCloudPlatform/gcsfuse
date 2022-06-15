@@ -157,7 +157,7 @@ type conn struct {
 func (c *conn) OpenBucket(
 	ctx context.Context,
 	options *OpenBucketOptions) (b Bucket, err error) {
-	b = newBucket(c.client, c.url, c.userAgent, options.Name, options.BillingProject)
+	b = newBucket(ctx, c.client, c.url, c.userAgent, options.Name, options.BillingProject)
 
 	// Enable retry loops if requested.
 	if c.maxBackoffSleep > 0 {

@@ -23,14 +23,10 @@ import (
 	"net/url"
 	"strings"
 
+	"cloud.google.com/go/storage"
 	"github.com/jacobsa/gcloud/httputil"
 	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
-	"cloud.google.com/go/storage"
-)
-
-var (
-	sclClient *storage.Client = nil // Client for the Go Storage Client Library.
 )
 
 func (b *bucket) NewReader(
@@ -49,12 +45,12 @@ func (b *bucket) NewReader(
 
 	// Switching to Go Storage Client Library.
 	if true {
-                rc, err = NewReaderSCL(ctx, req, b.name)
-                if err != nil {
-                        err = fmt.Errorf("Error in creating client through NewReaderSCL")
-                }
-                return
-        }
+		rc, err = NewReaderSCL(ctx, req, b.name, b.sclClient)
+		if err != nil {
+			err = fmt.Errorf("Error in creating client through NewReaderSCL")
+		}
+		return
+	}
 
 	bucketSegment := httputil.EncodePathSegment(b.name)
 	objectSegment := httputil.EncodePathSegment(req.Name)
@@ -153,36 +149,31 @@ func (b *bucket) NewReader(
 	return
 }
 
-
 // Custom function made to create a new reader using Storage Client Library.
 func NewReaderSCL(
-        ctx context.Context,
-        req *ReadObjectRequest, bucketName string) (rc io.ReadCloser, err error){
-	// Create a client if there is not one already created.
-        if sclClient == nil {
-		sclClient, err = storage.NewClient(ctx)
-		if err != nil {
-			err = fmt.Errorf("Error in creating the client: %v", err)
-			return
-		}
-		fmt.Println("Client Created")
+	ctx context.Context,
+	req *ReadObjectRequest, bucketName string, sclClient *storage.Client) (rc io.ReadCloser, err error) {
+	// If client is "nil", it means that there was some problem in initializing client in newBucket function of bucket.go file.
+	if sclClient == nil {
+		err = fmt.Errorf("Error in creating client through GSCL: %v", err)
+		return
 	}
 
 	// Initialising the starting offset and the length to be read by the reader.
-        start := int64((*req.Range).Start)
-        end := int64((*req.Range).Limit)
-        length := int64(end - start)
+	start := int64((*req.Range).Start)
+	end := int64((*req.Range).Limit)
+	length := int64(end - start)
 
 	// Creating a NewRangeReader instance.
-        r, err := sclClient.Bucket(bucketName).Object(req.Name).NewRangeReader(ctx, start, length)
-        if err != nil {
+	r, err := sclClient.Bucket(bucketName).Object(req.Name).NewRangeReader(ctx, start, length)
+	if err != nil {
 		err = fmt.Errorf("Error in creating a NewRangeReader instance: %v", err)
-                return
-        }
+		return
+	}
 
-        rc = io.NopCloser(r) // Converting io.Reader to io.ReadCloser.
+	rc = io.NopCloser(r) // Converting io.Reader to io.ReadCloser.
 
-        return
+	return
 }
 
 // Given a [start, limit) range, create an HTTP 1.1 Range header which ensures
