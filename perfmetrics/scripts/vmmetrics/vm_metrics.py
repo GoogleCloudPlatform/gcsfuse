@@ -1,6 +1,6 @@
 """
 To execute the script:
->>python3 vmmetrics.py {instance} {start time in epoch sec} {end time in epoch sec} {mean period in sec}
+>>python3 vm_metrics.py {instance} {start time in epoch sec} {end time in epoch sec} {mean period in sec}
 
 The code takes input the start time and end time (in epoch seconds) and the
 instance name and the mean period. Then it creates an instance of VmMetrics
