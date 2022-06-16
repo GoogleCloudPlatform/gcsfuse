@@ -1,45 +1,45 @@
-"""Tests for vmmetrics."""
+"""Tests for vm_metrics."""
 import json
 import sys
 from unittest import mock
-import vmmetrics
+import vm_metrics
 from unittest import TestCase
 import os
 
-TEST_PATH = './vmmetrics/testdata'
+TEST_PATH = './vm_metrics/testdata'
 
 CPU_UTI_METRIC = 'compute.googleapis.com/instance/cpu/utilization'
 RECEIVED_BYTES_METRIC = 'compute.googleapis.com/instance/network/received_bytes_count'
 
-REC_BYTES_METRIC_POINT_1 = vmmetrics.MetricPoint(15.2182, 15.097991666666667,
+REC_BYTES_METRIC_POINT_1 = vm_metrics.MetricPoint(15.2182, 15.097991666666667,
                                                  1652699400, 1652699400)
-REC_BYTES_METRIC_POINT_2 = vmmetrics.MetricPoint(15.951266666666667, 15.43835,
+REC_BYTES_METRIC_POINT_2 = vm_metrics.MetricPoint(15.951266666666667, 15.43835,
                                                  1652699280, 1652699280)
-REC_BYTES_METRIC_POINT_3 = vmmetrics.MetricPoint(14.235966666666666,
+REC_BYTES_METRIC_POINT_3 = vm_metrics.MetricPoint(14.235966666666666,
                                                  13.995783333333334, 1652699160,
                                                  1652699160)
-REC_BYTES_METRIC_POINT_4 = vmmetrics.MetricPoint(15.26295, 14.97935, 1652699040,
+REC_BYTES_METRIC_POINT_4 = vm_metrics.MetricPoint(15.26295, 14.97935, 1652699040,
                                                  1652699040)
-REC_BYTES_METRIC_POINT_5 = vmmetrics.MetricPoint(15.324016666666667, 14.736275,
+REC_BYTES_METRIC_POINT_5 = vm_metrics.MetricPoint(15.324016666666667, 14.736275,
                                                  1652698920, 1652698920)
 EXPECTED_RECEIVED_BYTES_DATA = [
     REC_BYTES_METRIC_POINT_5, REC_BYTES_METRIC_POINT_4,
     REC_BYTES_METRIC_POINT_3, REC_BYTES_METRIC_POINT_2, REC_BYTES_METRIC_POINT_1
 ]
 
-CPU_UTI_METRIC_POINT_1 = vmmetrics.MetricPoint(8.399437243594244,
+CPU_UTI_METRIC_POINT_1 = vm_metrics.MetricPoint(8.399437243594244,
                                                8.351115843785617, 1652699400,
                                                1652699400)
-CPU_UTI_METRIC_POINT_2 = vmmetrics.MetricPoint(8.309971587877953,
+CPU_UTI_METRIC_POINT_2 = vm_metrics.MetricPoint(8.309971587877953,
                                                8.258347968997745, 1652699280,
                                                1652699280)
-CPU_UTI_METRIC_POINT_3 = vmmetrics.MetricPoint(8.459197695240922,
+CPU_UTI_METRIC_POINT_3 = vm_metrics.MetricPoint(8.459197695240922,
                                                8.333482699502687, 1652699160,
                                                1652699160)
-CPU_UTI_METRIC_POINT_4 = vmmetrics.MetricPoint(8.511909491062397,
+CPU_UTI_METRIC_POINT_4 = vm_metrics.MetricPoint(8.511909491062397,
                                                8.459746438844984, 1652699040,
                                                1652699040)
-CPU_UTI_METRIC_POINT_5 = vmmetrics.MetricPoint(8.437140491150785,
+CPU_UTI_METRIC_POINT_5 = vm_metrics.MetricPoint(8.437140491150785,
                                                8.351230117089775, 1652698920,
                                                1652698920)
 EXPECTED_CPU_UTI_DATA = [
@@ -76,7 +76,7 @@ class VmmetricsTest(TestCase):
 
   def setUp(self):
     super().setUp()
-    self.vm_metrics_obj = vmmetrics.VmMetrics()
+    self.vm_metrics_obj = vm_metrics.VmMetrics()
 
   def test_validate_start_end_times_with_start_time_greater_than_end_time(self):
     with self.assertRaises(ValueError):
@@ -87,27 +87,27 @@ class VmmetricsTest(TestCase):
         True,
         self.vm_metrics_obj._validate_start_end_times('1600000', '1600300'))
 
-  @mock.patch.object(vmmetrics.VmMetrics, '_get_api_response')
+  @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_for_cpu_utilization_throws_no_values_error(
       self, mock_get_api_response):
     mock_get_api_response.return_value = [{}, {}]
 
-    with self.assertRaises(vmmetrics.NoValuesError):
+    with self.assertRaises(vm_metrics.NoValuesError):
       self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC, TEST_END_TIME_SEC,
                                        TEST_INSTANCE, TEST_PERIOD,
                                        CPU_UTI_METRIC, CPU_UTI_FACTOR)
 
-  @mock.patch.object(vmmetrics.VmMetrics, '_get_api_response')
+  @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_for_received_bytes_throws_no_values_error(
       self, mock_get_api_response):
     mock_get_api_response.return_value = [{}, {}]
 
-    with self.assertRaises(vmmetrics.NoValuesError):
+    with self.assertRaises(vm_metrics.NoValuesError):
       self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC, TEST_END_TIME_SEC,
                                        TEST_INSTANCE, TEST_PERIOD,
                                        RECEIVED_BYTES_METRIC, REC_BYTES_FACTOR)
 
-  @mock.patch.object(vmmetrics.VmMetrics, '_get_api_response')
+  @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_for_cpu_utilization(self, mock_get_api_response):
     peak_metrics_response = get_response_from_filename(
         'peak_cpu_utilization_response')
@@ -124,7 +124,7 @@ class VmmetricsTest(TestCase):
 
     self.assertEqual(cpu_uti_data, EXPECTED_CPU_UTI_DATA)
 
-  @mock.patch.object(vmmetrics.VmMetrics, '_get_api_response')
+  @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_for_received_bytes(self, mock_get_api_response):
     peak_metrics_response = get_response_from_filename(
         'peak_received_bytes_count_response')
