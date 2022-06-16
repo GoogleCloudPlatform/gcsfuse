@@ -1,6 +1,6 @@
 """
 To execute the script:
->>blaze run vmmetrics {instance} {start time in epoch sec} {end time in epoch sec} {mean period in sec}
+>>python3 vmmetrics.py {instance} {start time in epoch sec} {end time in epoch sec} {mean period in sec}
 
 The code takes input the start time and end time (in epoch seconds) and the
 instance name and the mean period. Then it creates an instance of VmMetrics
@@ -213,7 +213,7 @@ class VmMetrics:
           rec_bytes_metric_point.mean_value
       ])
 
-    # writing metrics data to google sheet
+    # Writing metrics data to google sheet
     gsheet.write_to_google_sheet(WORKSHEET_NAME, metrics_data)
 
 
