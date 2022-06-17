@@ -17,7 +17,7 @@
 //
 // Usage:
 //
-//     build_gcsfuse src_dir dst_dir version
+//     build_gcsfuse src_dir dst_dir version [build args]
 //
 // where src_dir is the root of the gcsfuse git repository (or a tarball
 // thereof).
@@ -145,9 +145,8 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 				"-ldflags",
 				fmt.Sprintf("-X main.gcsfuseVersion=%s", version),
 			)
-			cmd.Args = append(cmd.Args, buildArgs...)
 		}
-
+		cmd.Args = append(cmd.Args, buildArgs...)
 		cmd.Args = append(cmd.Args, bin.goTarget)
 
 		// Set up environment.
