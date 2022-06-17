@@ -1,6 +1,7 @@
 package gcs
 
 import (
+	"cloud.google.com/go/storage"
 	"github.com/jacobsa/gcloud/gcs"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
@@ -14,6 +15,7 @@ func TestRead(t *testing.T) { RunTests(t) }
 type ReadTest struct {
 	ctx        context.Context
 	bucketName string
+	client     *storage.Client
 }
 
 var _ SetUpInterface = &ReadTest{}
@@ -21,10 +23,12 @@ var _ SetUpInterface = &ReadTest{}
 func init() { RegisterTestSuite(&ReadTest{}) }
 
 func (t *ReadTest) SetUp(ti *TestInfo) {
-
+	var err error
 	t.ctx = ti.Ctx
 
 	t.bucketName = "testing-gcsfuse" // Testing on my personal bucket.
+	t.client, err = storage.NewClient(t.ctx)
+	AssertEq(nil, err)
 }
 
 // Offset equals 0 and Length equals 0. In this case printed string should be empty.
@@ -42,7 +46,7 @@ func (t *ReadTest) OffsetZeroLengthZero() {
 			Limit: uint64(end),
 		},
 	}
-	rc, err := gcs.NewReaderSCL(t.ctx, req, t.bucketName) // NewRangeReader of Go Storage Client Library is used to create reader.
+	rc, err := gcs.NewReaderSCL(t.ctx, req, t.bucketName, t.client) // NewRangeReader of Go Storage Client Library is used to create reader.
 	AssertEq(nil, err)
 
 	buf := new(strings.Builder)
@@ -66,7 +70,7 @@ func (t *ReadTest) OffsetZeroLengthNonZero() {
 			Limit: uint64(end),
 		},
 	}
-	rc, err := gcs.NewReaderSCL(t.ctx, req, t.bucketName)
+	rc, err := gcs.NewReaderSCL(t.ctx, req, t.bucketName, t.client)
 	AssertEq(nil, err)
 
 	buf := new(strings.Builder)
@@ -90,7 +94,7 @@ func (t *ReadTest) OffsetNonZeroLengthZero() {
 			Limit: uint64(end),
 		},
 	}
-	rc, err := gcs.NewReaderSCL(t.ctx, req, t.bucketName)
+	rc, err := gcs.NewReaderSCL(t.ctx, req, t.bucketName, t.client)
 	AssertEq(nil, err)
 
 	buf := new(strings.Builder)
@@ -114,7 +118,7 @@ func (t *ReadTest) OffsetNonZeroLengthNonZero() {
 			Limit: uint64(end),
 		},
 	}
-	rc, err := gcs.NewReaderSCL(t.ctx, req, t.bucketName)
+	rc, err := gcs.NewReaderSCL(t.ctx, req, t.bucketName, t.client)
 	AssertEq(nil, err)
 
 	buf := new(strings.Builder)
@@ -138,7 +142,7 @@ func (t *ReadTest) LengthGreaterThanFileLength() {
 			Limit: uint64(end),
 		},
 	}
-	rc, err := gcs.NewReaderSCL(t.ctx, req, t.bucketName)
+	rc, err := gcs.NewReaderSCL(t.ctx, req, t.bucketName, t.client)
 	AssertEq(nil, err)
 
 	buf := new(strings.Builder)

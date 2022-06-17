@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"cloud.google.com/go/storage"
 	"github.com/jacobsa/gcloud/httputil"
 	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
@@ -125,6 +126,7 @@ type Bucket interface {
 
 type bucket struct {
 	client         *http.Client
+	storageClient  *storage.Client //Go Storage Library Client.
 	url            *url.URL
 	userAgent      string
 	name           string
@@ -350,16 +352,27 @@ func (b *bucket) DeleteObject(
 }
 
 func newBucket(
+	ctx context.Context,
 	client *http.Client,
 	url *url.URL,
 	userAgent string,
 	name string,
-	billingProject string) Bucket {
-	return &bucket{
+	billingProject string) (b Bucket, err error) {
+
+	// Creating client through Go Storage Client Library for the storageClient parameter of bucket.
+	var storageClient *storage.Client = nil
+	storageClient, err = storage.NewClient(ctx)
+	if err != nil {
+		err = fmt.Errorf("Error in creating the client through Go Storage Library: %v", err)
+	}
+
+	b = &bucket{
 		client:         client,
+		storageClient:  storageClient,
 		url:            url,
 		userAgent:      userAgent,
 		name:           name,
 		billingProject: billingProject,
 	}
+	return
 }
