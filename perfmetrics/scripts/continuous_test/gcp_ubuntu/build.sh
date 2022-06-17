@@ -13,7 +13,7 @@ mkdir -p gcs
 GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --disable-http2"
 BUCKET_NAME=gcs-fuse-dashboard-fio
 MOUNT_POINT=gcs
-LOG=$(gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT)
-echo $LOG
+# The VM will itself exit if the gcsfuse mount fails.
+gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 chmod +x build.sh
 ./build.sh
