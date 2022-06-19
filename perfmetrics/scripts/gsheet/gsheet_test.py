@@ -2,16 +2,31 @@
 import unittest
 from unittest import mock
 
-from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
+from google.oauth2 import service_account
+from googleapiclient.discovery import Resource
+
 import gsheet
 
 SPREADSHEET_ID = '1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
 NUM_ENTRIES_CELL = 'N4'
 WORKSHEET_NAME = 'mock!'
 
+class MockCredentials:
+
+  def authorize(self, request):
+    return request
 
 class GsheetTest(unittest.TestCase):
+
+  def test_get_sheets_service_client(self):
+    # Mocking service account
+    mock_credentials = MockCredentials()
+    service_account_mock = mock.MagicMock()
+    service_account_mock.return_value = mock_credentials
+    service_account.Credentials.from_service_account_file = service_account_mock
+    sheets_client = gsheet._get_sheets_service_client()
+    self.assertIsInstance(sheets_client, Resource)
 
   def test_write_to_google_sheet(self):
     get_response = {
@@ -161,3 +176,4 @@ class GsheetTest(unittest.TestCase):
 
 if __name__ == '__main__':
   unittest.main()
+
