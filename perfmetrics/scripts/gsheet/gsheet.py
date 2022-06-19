@@ -19,6 +19,15 @@ def _get_sheets_service_client():
 
 def write_to_google_sheet(worksheet: str, data) -> None:
   """Calls the API to update the values of a sheet.
+
+  Args:
+    worksheet: string, name of the worksheet to be edited appended by a "!"
+      NUM_ENTRIES_CELL in the worksheet should have the total number of entries
+      present in the worksheet
+    data: list of tuples/lists, data to be added to the worksheet
+
+  Raises:
+    HttpError: For any Google Sheets API call related errors
   """
   sheets_client = _get_sheets_service_client()
   spreadsheet_response = sheets_client.spreadsheets().values().get(
