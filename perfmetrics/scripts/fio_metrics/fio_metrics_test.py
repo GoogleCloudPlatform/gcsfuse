@@ -1,11 +1,7 @@
-from absl import flags
+import unittest
+import fio_metrics
 
-from google3.experimental.users.swethv.gcsfuse.dashboard.fio import fio_metrics
-from google3.pyglib import resources
-from google3.testing.pybase import googletest
-
-FLAGS = flags.FLAGS
-TEST_PATH = 'google3/experimental/users/swethv/gcsfuse/dashboard/fio/testdata/'
+TEST_PATH = './fio/testdata/'
 GOOD_FILE = 'good_out_job.json'
 EMPTY_FILE = 'empty_file.json'
 EMPTY_JSON_FILE = 'empty_json.json'
@@ -18,10 +14,10 @@ MULTIPLE_JOBS_JOB_FSIZE_FILE = 'multiple_jobs_job_fsize.json'
 
 def get_full_filepath(filename):
   filepath = '{}{}'.format(TEST_PATH, filename)
-  return resources.GetResourceFilename(filepath)
+  return filepath
 
 
-class FioMetricsTest(googletest.TestCase):
+class TestFioMetricsTest(unittest.TestCase):
 
   def setUp(self):
     super().setUp()
@@ -331,7 +327,7 @@ class FioMetricsTest(googletest.TestCase):
     self.assertIsNone(json_obj)
 
   def test_load_file_dict_bad_format_file_raises_value_error(self):
-    """input file is not in JSON format.
+    """Input file is not in JSON format.
 
     """
     json_obj = None
@@ -346,7 +342,10 @@ class FioMetricsTest(googletest.TestCase):
         get_full_filepath(GOOD_FILE))
     expected_metrics = [{
         'jobname': '1_thread',
-        'filesize': '50M',
+        'filesize': 50000,
+        'num_threads': 40,
+        'start_time': 1653027155,
+        'end_time': 1653027226,
         'iops': 95.26093,
         'bw': 97547,
         'lat_ns': {
@@ -362,7 +361,7 @@ class FioMetricsTest(googletest.TestCase):
     self.assertEqual(expected_metrics, extracted_metrics)
 
   def test_extract_metrics_from_incomplete_files(self):
-    """when input file contains a job with incomplete data.
+    """When input file contains a job with incomplete data.
 
     The partial_json file has non zero metric values for the 2nd job only.
     Since all metrics for 1st job have zero values, the 1st job will be ignored
@@ -372,7 +371,10 @@ class FioMetricsTest(googletest.TestCase):
         get_full_filepath(PARTIAL_FILE))
     expected_metrics = [{
         'jobname': '2_thread',
-        'filesize': '50M',
+        'filesize': 50000,
+        'num_threads': 40,
+        'start_time': 1653027155,
+        'end_time': 1653027226,
         'iops': 95.26093,
         'bw': 97547,
         'lat_ns': {
@@ -388,7 +390,7 @@ class FioMetricsTest(googletest.TestCase):
     self.assertEqual(expected_metrics, extracted_metrics)
 
   def test_extract_metrics_values_from_no_data_raises_no_values_error(self):
-    """tests if extract_metrics() raises error if no metrics are extracted."""
+    """Tests if extract_metrics() raises error if no metrics are extracted."""
     json_obj = self.fio_metrics_obj._load_file_dict(
         get_full_filepath(NO_METRICS_FILE))
     extracted_metrics = None
@@ -401,7 +403,10 @@ class FioMetricsTest(googletest.TestCase):
   def test_get_metrics_for_good_file(self):
     expected_metrics = [{
         'jobname': '1_thread',
-        'filesize': '50M',
+        'filesize': 50000,
+        'num_threads': 40,
+        'start_time': 1653027155,
+        'end_time': 1653027226,
         'iops': 95.26093,
         'bw': 97547,
         'lat_ns': {
@@ -412,17 +417,20 @@ class FioMetricsTest(googletest.TestCase):
     }]
 
     extracted_metrics = self.fio_metrics_obj.get_metrics(
-        get_full_filepath(GOOD_FILE), False)
+        get_full_filepath(GOOD_FILE))
 
     self.assertEqual(expected_metrics, extracted_metrics)
 
   def test_get_metrics_for_multiple_jobs_global_fsize(self):
-    """multiple_jobs_global_fsize_fpath has filesize as global parameter.
+    """Multiple_jobs_global_fsize_fpath has filesize as global parameter.
 
     """
     expected_metrics = [{
         'jobname': '1_thread',
-        'filesize': '50M',
+        'filesize': 50000,
+        'num_threads': 40,
+        'start_time': 1653381828,
+        'end_time': 1653381899,
         'iops': 115.354741,
         'bw': 135655,
         'lat_ns': {
@@ -432,7 +440,10 @@ class FioMetricsTest(googletest.TestCase):
         }
     }, {
         'jobname': '2_thread',
-        'filesize': '50M',
+        'filesize': 50000,
+        'num_threads': 10,
+        'start_time': 1653381899,
+        'end_time': 1653381969,
         'iops': 34.641075,
         'bw': 40988,
         'lat_ns': {
@@ -448,12 +459,15 @@ class FioMetricsTest(googletest.TestCase):
     self.assertEqual(expected_metrics, extracted_metrics)
 
   def test_get_metrics_for_multiple_jobs_job_fsize(self):
-    """multiple_jobs_global_fsize_fpath has filesize as job parameter.
+    """Multiple_jobs_global_fsize_fpath has filesize as job parameter.
 
     """
     expected_metrics = [{
         'jobname': '1_thread',
-        'filesize': '3M',
+        'filesize': 3000,
+        'num_threads': 40,
+        'start_time': 1653597156,
+        'end_time': 1653597232,
         'iops': 88.851558,
         'bw': 103682,
         'lat_ns': {
@@ -463,7 +477,10 @@ class FioMetricsTest(googletest.TestCase):
         }
     }, {
         'jobname': '2_thread',
-        'filesize': '5M',
+        'filesize': 5000,
+        'num_threads': 10,
+        'start_time': 1653597232,
+        'end_time': 1653597303,
         'iops': 37.52206,
         'bw': 44249,
         'lat_ns': {
@@ -480,4 +497,5 @@ class FioMetricsTest(googletest.TestCase):
 
 
 if __name__ == '__main__':
-  googletest.main()
+  unittest.main()
+
