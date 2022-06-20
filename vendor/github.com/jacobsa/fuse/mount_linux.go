@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"syscall"
 
 	"golang.org/x/sys/unix"
@@ -106,6 +108,14 @@ func mount(dir string, cfg *MountConfig, ready chan<- error) (*os.File, error) {
 	// On linux, mounting is never delayed.
 	ready <- nil
 
+	// If the mountpoint is /dev/fd/N, assume that the file descriptor N is an
+	// already open FUSE channel. Parse it, cast it to an fd, and don't do any
+	// other part of the mount dance.
+	if fd, err := parseFuseFd(dir); err == nil {
+		dev := os.NewFile(uintptr(fd), "/dev/fuse")
+		return dev, nil
+	}
+
 	// Try mounting without fusermount(1) first: we might be running as root or
 	// have the CAP_SYS_ADMIN capability.
 	dev, err := directmount(dir, cfg)
@@ -122,4 +132,17 @@ func mount(dir string, cfg *MountConfig, ready chan<- error) (*os.File, error) {
 		return fusermount(fusermountPath, argv, []string{}, true)
 	}
 	return dev, err
+}
+
+func parseFuseFd(dir string) (int, error) {
+	if !strings.HasPrefix(dir, "/dev/fd/") {
+		return -1, fmt.Errorf("not a /dev/fd path")
+	}
+
+	fd, err := strconv.ParseUint(strings.TrimPrefix(dir, "/dev/fd/"), 10, 32)
+	if err != nil {
+		return -1, fmt.Errorf("invalid /dev/fd/N path: N must be a positive integer")
+	}
+
+	return int(fd), nil
 }
