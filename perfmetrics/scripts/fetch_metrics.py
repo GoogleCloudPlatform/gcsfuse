@@ -21,9 +21,14 @@ if __name__ == '__main__':
   fio_metrics_obj = fio_metrics.FioMetrics()
   print('Getting fio metrics...')
   temp = fio_metrics_obj.get_metrics(argv[1])
+
   print('Waiting for 250 seconds for metrics to be updated on VM...')
+  # It takes up to 240 seconds for sampled data to be visible on the VM metrics graph
+  # So, waiting for 250 seconds to ensure the returned metrics are not empty
   time.sleep(250)
+
   vm_metrics_obj = vm_metrics.VmMetrics()
+  # Getting VM metrics for every job
   for ind, job in enumerate(temp):
     start_time_sec = job[START_TIME]
     end_time_sec = job[END_TIME]
