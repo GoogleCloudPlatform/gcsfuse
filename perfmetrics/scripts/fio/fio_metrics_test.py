@@ -1,7 +1,3 @@
-"""Tests for fio_metrics.
-
-  Usage from perfmetrics/scripts folder: python3 -m fio.fio_metrics_test
-"""
 import unittest
 from unittest import mock
 from fio import fio_metrics
@@ -10,7 +6,7 @@ TEST_PATH = './fio/testdata/'
 GOOD_FILE = 'good_out_job.json'
 EMPTY_FILE = 'empty_file.json'
 EMPTY_JSON_FILE = 'empty_json.json'
-PARTIAL_FILE = 'partial_json.json'
+PARTIAL_FILE = 'partial_metrics.json'
 NO_METRICS_FILE = 'no_metrics.json'
 BAD_FORMAT_FILE = 'bad_format.json'
 MULTIPLE_JOBS_GLOBAL_FSIZE_FILE = 'multiple_jobs_global_fsize.json'
@@ -353,8 +349,8 @@ class TestFioMetricsTest(unittest.TestCase):
         'jobname': '1_thread',
         'filesize': 50000,
         'num_threads': 40,
-        'start_time': 1653027084,
-        'end_time': 1653027155,
+        'start_time': 1653027155,
+        'end_time': 1653027226,
         'iops': 95.26093,
         'bw': 97547,
         'lat_ns': {
@@ -382,8 +378,8 @@ class TestFioMetricsTest(unittest.TestCase):
         'jobname': '2_thread',
         'filesize': 50000,
         'num_threads': 40,
-        'start_time': 1653027084,
-        'end_time': 1653027155,
+        'start_time': 1653027155,
+        'end_time': 1653027226,
         'iops': 95.26093,
         'bw': 97547,
         'lat_ns': {
@@ -414,8 +410,8 @@ class TestFioMetricsTest(unittest.TestCase):
         'jobname': '1_thread',
         'filesize': 50000,
         'num_threads': 40,
-        'start_time': 1653027084,
-        'end_time': 1653027155,
+        'start_time': 1653027155,
+        'end_time': 1653027226,
         'iops': 95.26093,
         'bw': 97547,
         'lat_ns': {
@@ -452,12 +448,13 @@ class TestFioMetricsTest(unittest.TestCase):
             body={
                 'majorDimension':
                     'ROWS',
-                'values': [('1_thread', 50000, 40, 1653027084, 1653027155,
+                'values': [('1_thread', 50000, 40, 1653027155, 1653027226,
                             95.26093, 97547, 353377760, 1697519869,
                             417754876.774692)]
             },
             range='{}A{}'.format(WORKSHEET_NAME, new_row))
     ]
+
     with mock.patch.object(fio_metrics.gsheet, '_get_sheets_service_client'
                            ) as get_sheets_service_client_mock:
       get_sheets_service_client_mock.return_value = sheets_service_mock
@@ -475,8 +472,8 @@ class TestFioMetricsTest(unittest.TestCase):
         'jobname': '1_thread',
         'filesize': 50000,
         'num_threads': 40,
-        'start_time': 1653381687,
-        'end_time': 1653381758,
+        'start_time': 1653381828,
+        'end_time': 1653381899,
         'iops': 115.354741,
         'bw': 135655,
         'lat_ns': {
@@ -488,8 +485,8 @@ class TestFioMetricsTest(unittest.TestCase):
         'jobname': '2_thread',
         'filesize': 50000,
         'num_threads': 10,
-        'start_time': 1653381758,
-        'end_time': 1653381828,
+        'start_time': 1653381899,
+        'end_time': 1653381969,
         'iops': 34.641075,
         'bw': 40988,
         'lat_ns': {
@@ -526,15 +523,16 @@ class TestFioMetricsTest(unittest.TestCase):
             body={
                 'majorDimension':
                     'ROWS',
-                'values': [('1_thread', 50000, 40, 1653381687, 1653381758,
+                'values': [('1_thread', 50000, 40, 1653381828, 1653381899,
                             115.354741, 135655, 249737264, 28958587178,
                             18494668007.316742),
-                           ('2_thread', 50000, 10, 1653381758, 1653381828,
+                           ('2_thread', 50000, 10, 1653381899, 1653381969,
                             34.641075, 40988, 212007238, 21590713209,
                             15969313013.822775)]
             },
             range='{}A{}'.format(WORKSHEET_NAME, new_row))
     ]
+
     with mock.patch.object(fio_metrics.gsheet, '_get_sheets_service_client'
                            ) as get_sheets_service_client_mock:
       get_sheets_service_client_mock.return_value = sheets_service_mock
@@ -552,8 +550,8 @@ class TestFioMetricsTest(unittest.TestCase):
         'jobname': '1_thread',
         'filesize': 3000,
         'num_threads': 40,
-        'start_time': 1653597009,
-        'end_time': 1653597085,
+        'start_time': 1653597156,
+        'end_time': 1653597232,
         'iops': 88.851558,
         'bw': 103682,
         'lat_ns': {
@@ -565,8 +563,8 @@ class TestFioMetricsTest(unittest.TestCase):
         'jobname': '2_thread',
         'filesize': 5000,
         'num_threads': 10,
-        'start_time': 1653597085,
-        'end_time': 1653597156,
+        'start_time': 1653597232,
+        'end_time': 1653597303,
         'iops': 37.52206,
         'bw': 44249,
         'lat_ns': {
@@ -604,10 +602,10 @@ class TestFioMetricsTest(unittest.TestCase):
             body={
                 'majorDimension':
                     'ROWS',
-                'values': [('1_thread', 3000, 40, 1653597009, 1653597085,
+                'values': [('1_thread', 3000, 40, 1653597156, 1653597232,
                             88.851558, 103682, 173373014, 36442812445,
                             21799839057.909954),
-                           ('2_thread', 5000, 10, 1653597085, 1653597156,
+                           ('2_thread', 5000, 10, 1653597232, 1653597303,
                             37.52206, 44249, 172148734, 20110704859,
                             14960429037.40382)]
             },
