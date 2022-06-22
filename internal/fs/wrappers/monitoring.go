@@ -190,6 +190,15 @@ func (fs *monitoring) ForgetInode(
 	return err
 }
 
+func (fs *monitoring) BatchForget(
+	ctx context.Context,
+	op *fuseops.BatchForgetOp) error {
+	startTime := time.Now()
+	err := fs.wrapped.BatchForget(ctx, op)
+	recordOp(ctx, "BatchForget", startTime, err)
+	return err
+}
+
 func (fs *monitoring) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) error {
