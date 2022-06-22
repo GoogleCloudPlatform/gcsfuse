@@ -4,7 +4,8 @@
    Extracts IOPS, Bandwidth and Latency (min, max, mean) from given input file
    and writes the metrics in appropriate columns in a google sheet
 
-   Usage: python3 fio_metrics.py <path to fio output json file>
+   Usage from dashboard folder:
+    python3 -m fio.fio_metrics <path to fio output json file>
 
 """
 
@@ -12,6 +13,8 @@ import json
 import re
 import sys
 from typing import Any, Dict, List
+
+from gsheet import gsheet
 
 JOBNAME = 'jobname'
 GLOBAL_OPTS = 'global options'
@@ -237,7 +240,13 @@ class FioMetrics:
     Args:
       jobs: list of dicts, contains required metrics for each job
     """
-    pass
+
+    values = []
+    for job in jobs:
+      values.append((job[JOBNAME], job[FILESIZE], job[THREADS], job[START_TIME],
+                     job[END_TIME], job[IOPS], job[BW], job[LAT][MIN],
+                     job[LAT][MAX], job[LAT][MEAN]))
+    gsheet.write_to_google_sheet(WORKSHEET_NAME, values)
 
   def get_metrics(self, filepath, add_to_gsheets=True) -> List[Dict[str, Any]]:
     """Returns job metrics obtained from given filepath and writes to gsheets.
