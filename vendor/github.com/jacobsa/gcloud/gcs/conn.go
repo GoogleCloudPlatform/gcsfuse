@@ -101,10 +101,38 @@ type ConnConfig struct {
 	// responses. If nil, no logging is performed.
 	GCSDebugLogger  *log.Logger
 	HTTPDebugLogger *log.Logger
+
+	// Config parameters for the custom http client of Go Storage Client.
+	MaxConnsPerHost     int
+	MaxIdleConnsPerHost int
+	ForceAttemptHTTP2   bool
+	EnableHTTP1         bool
+	DisableKeepAlives   bool
 }
+
+// Go Client Config structure.
+type GoClientConfig struct {
+	MaxConnsPerHost     int
+	MaxIdleConnsPerHost int
+	ForceAttemptHTTP2   bool
+	EnableHTTP1         bool
+	DisableKeepAlives   bool
+}
+
+var tokenSrc oauth2.TokenSource    // Token Source for auth of custom http client of Go Storage Client.
+var goClientConfig *GoClientConfig // Contains all the config info for the Go Client.
 
 // Open a connection to GCS.
 func NewConn(cfg *ConnConfig) (c Conn, err error) {
+
+	tokenSrc = cfg.TokenSource
+	goClientConfig = &GoClientConfig{
+		MaxConnsPerHost:     cfg.MaxConnsPerHost,
+		MaxIdleConnsPerHost: cfg.MaxIdleConnsPerHost,
+		ForceAttemptHTTP2:   cfg.ForceAttemptHTTP2,
+		EnableHTTP1:         cfg.EnableHTTP1,
+		DisableKeepAlives:   cfg.DisableKeepAlives,
+	}
 	// Fix the user agent if there is none.
 	userAgent := cfg.UserAgent
 	if userAgent == "" {
@@ -157,7 +185,7 @@ type conn struct {
 func (c *conn) OpenBucket(
 	ctx context.Context,
 	options *OpenBucketOptions) (b Bucket, err error) {
-	b, err = newBucket(ctx, c.client, c.url, c.userAgent, options.Name, options.BillingProject)
+	b, err = newBucket(ctx, c.client, c.url, c.userAgent, options.Name, options.BillingProject, tokenSrc, goClientConfig)
 	if err != nil {
 		return
 	}
