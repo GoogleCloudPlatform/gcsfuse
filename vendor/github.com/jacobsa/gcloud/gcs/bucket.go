@@ -28,7 +28,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"sync"
 )
 
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
@@ -134,7 +133,6 @@ type bucket struct {
 	userAgent      string
 	name           string
 	billingProject string
-	mu             sync.Mutex
 }
 
 func (b *bucket) Name() string {
@@ -366,10 +364,12 @@ func newBucket(
 	goClientConfig *GoClientConfig) (b Bucket, err error) {
 
 	// Creating client through Go Storage Client Library for the storageClient parameter of bucket.
-	var tr *http.Transport
+	var tr *http.Transport = nil
 
 	// Choosing between HTTP1 and HTTP2.
 	if goClientConfig.EnableHTTP1 {
+
+		// Disables HTTP 2.0.
 		tr = &http.Transport{
 			MaxConnsPerHost:     goClientConfig.MaxConnsPerHost,
 			MaxIdleConnsPerHost: goClientConfig.MaxIdleConnsPerHost,
