@@ -19,8 +19,7 @@ import google.api_core
 import google.cloud
 from google.api_core.exceptions import GoogleAPICallError
 from google.cloud import monitoring_v3
-sys.path.append("./gsheet")
-import gsheet
+from gsheet import gsheet
 
 WORKSHEET_NAME = 'vm_metrics!'
 
