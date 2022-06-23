@@ -380,7 +380,7 @@ func newBucket(
 	} else {
 		tr = &http.Transport{
 			DisableKeepAlives: goClientConfig.DisableKeepAlives,
-			MaxConnsPerHost:   100,
+			MaxConnsPerHost:   goClientConfig.MaxConnsPerHost,
 			ForceAttemptHTTP2: goClientConfig.ForceAttemptHTTP2,
 		}
 	}
