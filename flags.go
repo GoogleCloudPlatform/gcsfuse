@@ -225,29 +225,11 @@ func newApp() (app *cli.App) {
 					"This is effective when --disable-http2 is set.",
 			},
 
-			cli.BoolFlag{
-				Name: "disable-keep-alives",
-				Usage: "Once set, the DisableKeepAlives parameter will be set " +
-					"to true in transport of Go Client.",
-			},
-
-			cli.BoolFlag{
-				Name: "force-attempt-http2",
-				Usage: "Once set, ForceAttemptHTTP2 will be set to true" +
-					"in transport of Go Client.",
-			},
-
 			cli.IntFlag{
 				Name:  "max-idle-conns-per-host",
 				Value: -1,
 				Usage: "The number of MaxIdleConnsPerHost parameter in " +
 					" transport of Go Client.",
-			},
-
-			cli.BoolFlag{
-				Name: "enable_http1_for_go_client",
-				Usage: "Once set, the protocol used for communicating with " +
-					"GCS backend by Go Client would be HTTP/1.1, instead of the default HTTP/2.",
 			},
 
 			/////////////////////////
@@ -342,18 +324,15 @@ type flagStorage struct {
 	OpRateLimitHz                      float64
 
 	// Tuning
-	MaxRetrySleep          time.Duration
-	StatCacheCapacity      int
-	StatCacheTTL           time.Duration
-	TypeCacheTTL           time.Duration
-	LocalFileCache         bool
-	TempDir                string
-	DisableHTTP2           bool
-	MaxConnsPerHost        int
-	MaxIdleConnsPerHost    int
-	DisableKeepAlives      bool
-	ForceAttemptHTTP2      bool
-	EnableHTTP1ForGoClient bool
+	MaxRetrySleep       time.Duration
+	StatCacheCapacity   int
+	StatCacheTTL        time.Duration
+	TypeCacheTTL        time.Duration
+	LocalFileCache      bool
+	TempDir             string
+	DisableHTTP2        bool
+	MaxConnsPerHost     int
+	MaxIdleConnsPerHost int
 
 	// Monitoring & Logging
 	StackdriverExportInterval time.Duration
@@ -401,18 +380,15 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		OpRateLimitHz:                      c.Float64("limit-ops-per-sec"),
 
 		// Tuning,
-		MaxRetrySleep:          c.Duration("max-retry-sleep"),
-		StatCacheCapacity:      c.Int("stat-cache-capacity"),
-		StatCacheTTL:           c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:           c.Duration("type-cache-ttl"),
-		LocalFileCache:         c.Bool("experimental-local-file-cache"),
-		TempDir:                c.String("temp-dir"),
-		DisableHTTP2:           c.Bool("disable-http2"),
-		MaxConnsPerHost:        c.Int("max-conns-per-host"),
-		MaxIdleConnsPerHost:    c.Int("max-idle-conns-per-host"),
-		DisableKeepAlives:      c.Bool("disable-keep-alives"),
-		ForceAttemptHTTP2:      c.Bool("force-attempt-http2"),
-		EnableHTTP1ForGoClient: c.Bool("enable_http1_for_go_client"),
+		MaxRetrySleep:       c.Duration("max-retry-sleep"),
+		StatCacheCapacity:   c.Int("stat-cache-capacity"),
+		StatCacheTTL:        c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:        c.Duration("type-cache-ttl"),
+		LocalFileCache:      c.Bool("experimental-local-file-cache"),
+		TempDir:             c.String("temp-dir"),
+		DisableHTTP2:        c.Bool("disable-http2"),
+		MaxConnsPerHost:     c.Int("max-conns-per-host"),
+		MaxIdleConnsPerHost: c.Int("max-idle-conns-per-host"),
 
 		// Monitoring & Logging
 		StackdriverExportInterval: c.Duration("experimental-stackdriver-export-interval"),

@@ -105,33 +105,24 @@ type ConnConfig struct {
 	// Config parameters for the custom http client of Go Storage Client.
 	MaxConnsPerHost     int
 	MaxIdleConnsPerHost int
-	ForceAttemptHTTP2   bool
-	EnableHTTP1         bool
-	DisableKeepAlives   bool
+	DisableHTTP2        bool
 }
 
 // Go Client Config structure.
 type GoClientConfig struct {
 	MaxConnsPerHost     int
 	MaxIdleConnsPerHost int
-	ForceAttemptHTTP2   bool
-	EnableHTTP1         bool
-	DisableKeepAlives   bool
+	DisableHTTP2        bool
 }
-
-var tokenSrc oauth2.TokenSource    // Token Source for auth of custom http client of Go Storage Client.
-var goClientConfig *GoClientConfig // Contains all the config info for the Go Client.
 
 // Open a connection to GCS.
 func NewConn(cfg *ConnConfig) (c Conn, err error) {
 
-	tokenSrc = cfg.TokenSource
-	goClientConfig = &GoClientConfig{
+	tokenSrc := cfg.TokenSource
+	goClientConfig := &GoClientConfig{
 		MaxConnsPerHost:     cfg.MaxConnsPerHost,
 		MaxIdleConnsPerHost: cfg.MaxIdleConnsPerHost,
-		ForceAttemptHTTP2:   cfg.ForceAttemptHTTP2,
-		EnableHTTP1:         cfg.EnableHTTP1,
-		DisableKeepAlives:   cfg.DisableKeepAlives,
+		DisableHTTP2:        cfg.DisableHTTP2,
 	}
 	// Fix the user agent if there is none.
 	userAgent := cfg.UserAgent
@@ -169,6 +160,8 @@ func NewConn(cfg *ConnConfig) (c Conn, err error) {
 		userAgent:       userAgent,
 		maxBackoffSleep: cfg.MaxBackoffSleep,
 		debugLogger:     cfg.GCSDebugLogger,
+		tokenSrc:        tokenSrc,
+		goClientConfig:  goClientConfig,
 	}
 
 	return
@@ -180,12 +173,14 @@ type conn struct {
 	userAgent       string
 	maxBackoffSleep time.Duration
 	debugLogger     *log.Logger
+	tokenSrc        oauth2.TokenSource // Token Source for auth of custom http client of Go Storage Client.
+	goClientConfig  *GoClientConfig    // Contains all the config info for the Go Client.
 }
 
 func (c *conn) OpenBucket(
 	ctx context.Context,
 	options *OpenBucketOptions) (b Bucket, err error) {
-	b, err = newBucket(ctx, c.client, c.url, c.userAgent, options.Name, options.BillingProject, tokenSrc, goClientConfig)
+	b, err = newBucket(ctx, c.client, c.url, c.userAgent, options.Name, options.BillingProject, c.tokenSrc, c.goClientConfig)
 	if err != nil {
 		return
 	}

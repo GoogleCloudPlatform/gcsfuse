@@ -367,8 +367,7 @@ func newBucket(
 	var tr *http.Transport = nil
 
 	// Choosing between HTTP1 and HTTP2.
-	if goClientConfig.EnableHTTP1 {
-
+	if goClientConfig.DisableHTTP2 {
 		// Disables HTTP 2.0.
 		tr = &http.Transport{
 			MaxConnsPerHost:     goClientConfig.MaxConnsPerHost,
@@ -379,9 +378,9 @@ func newBucket(
 		}
 	} else {
 		tr = &http.Transport{
-			DisableKeepAlives: goClientConfig.DisableKeepAlives,
-			MaxConnsPerHost:   goClientConfig.MaxConnsPerHost,
-			ForceAttemptHTTP2: goClientConfig.ForceAttemptHTTP2,
+			DisableKeepAlives: true,
+			MaxConnsPerHost:   goClientConfig.MaxConnsPerHost, // Not affecting the performance when HTTP 2.0 is enabled.
+			ForceAttemptHTTP2: true,
 		}
 	}
 
