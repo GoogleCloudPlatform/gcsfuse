@@ -15,17 +15,18 @@
 package gcs
 
 import (
-	"cloud.google.com/go/storage"
 	"fmt"
-	"github.com/jacobsa/gcloud/httputil"
-	"golang.org/x/net/context"
-	"google.golang.org/api/googleapi"
 	"io"
 	"io/ioutil"
 	"math"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"cloud.google.com/go/storage"
+	"github.com/jacobsa/gcloud/httputil"
+	"golang.org/x/net/context"
+	"google.golang.org/api/googleapi"
 )
 
 func (b *bucket) NewReader(
@@ -168,6 +169,7 @@ func NewReaderSCL(
 	}
 
 	rc = io.NopCloser(r) // Converting io.Reader to io.ReadCloser.
+
 	return
 }
 
