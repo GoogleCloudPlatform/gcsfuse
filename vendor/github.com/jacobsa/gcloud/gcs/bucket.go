@@ -368,10 +368,10 @@ func newBucket(
 
 	// Choosing between HTTP1 and HTTP2.
 	if goClientConfig.DisableHTTP2 {
-		// Disables HTTP 2.0.
 		tr = &http.Transport{
 			MaxConnsPerHost:     goClientConfig.MaxConnsPerHost,
 			MaxIdleConnsPerHost: goClientConfig.MaxIdleConnsPerHost,
+			// This disables HTTP/2 in transport.
 			TLSNextProto: make(
 				map[string]func(string, *tls.Conn) http.RoundTripper,
 			),
