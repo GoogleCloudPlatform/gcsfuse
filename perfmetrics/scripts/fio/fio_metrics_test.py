@@ -17,7 +17,7 @@ MULTIPLE_JOBS_GLOBAL_FSIZE_FILE = 'multiple_jobs_global_fsize.json'
 MULTIPLE_JOBS_JOB_FSIZE_FILE = 'multiple_jobs_job_fsize.json'
 
 SPREADSHEET_ID = '1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
-NUM_ENTRIES_CELL = 'N4'
+NUM_ENTRIES_CELL = 'T4'
 WORKSHEET_NAME = 'fio_metrics!'
 
 
@@ -357,6 +357,7 @@ class TestFioMetricsTest(unittest.TestCase):
         'end_time': 1653027155,
         'iops': 95.26093,
         'bw': 97547,
+        'io_bytes': 6040846336,
         'lat_ns': {
             'min': 353377760,
             'max': 1697519869,
@@ -386,6 +387,7 @@ class TestFioMetricsTest(unittest.TestCase):
         'end_time': 1653027155,
         'iops': 95.26093,
         'bw': 97547,
+        'io_bytes': 6040846336,
         'lat_ns': {
             'min': 353377760,
             'max': 1697519869,
@@ -418,6 +420,7 @@ class TestFioMetricsTest(unittest.TestCase):
         'end_time': 1653027155,
         'iops': 95.26093,
         'bw': 97547,
+        'io_bytes': 6040846336,
         'lat_ns': {
             'min': 353377760,
             'max': 1697519869,
@@ -434,8 +437,8 @@ class TestFioMetricsTest(unittest.TestCase):
         'spreadsheetId': SPREADSHEET_ID,
         'updatedRange': '{0}A{1}:H{1}'.format(WORKSHEET_NAME, new_row),
         'updatedRows': 1,
-        'updatedColumns': 10,
-        'updatedCells': 10
+        'updatedColumns': 11,
+        'updatedCells': 11
     }
     sheets_service_mock = mock.MagicMock()
     sheets_service_mock.spreadsheets().values().get(
@@ -453,7 +456,7 @@ class TestFioMetricsTest(unittest.TestCase):
                 'majorDimension':
                     'ROWS',
                 'values': [('1_thread', 50000, 40, 1653027084, 1653027155,
-                            95.26093, 97547, 353377760, 1697519869,
+                            95.26093, 97547, 6040846336, 353377760, 1697519869,
                             417754876.774692)]
             },
             range='{}A{}'.format(WORKSHEET_NAME, new_row))
@@ -479,6 +482,7 @@ class TestFioMetricsTest(unittest.TestCase):
         'end_time': 1653381758,
         'iops': 115.354741,
         'bw': 135655,
+        'io_bytes': 8405385216,
         'lat_ns': {
             'min': 249737264,
             'max': 28958587178,
@@ -492,6 +496,7 @@ class TestFioMetricsTest(unittest.TestCase):
         'end_time': 1653381828,
         'iops': 34.641075,
         'bw': 40988,
+        'io_bytes': 2532311040,
         'lat_ns': {
             'min': 212007238,
             'max': 21590713209,
@@ -508,8 +513,8 @@ class TestFioMetricsTest(unittest.TestCase):
         'spreadsheetId': SPREADSHEET_ID,
         'updatedRange': '{}A{}:H{}'.format(WORKSHEET_NAME, new_row, new_row+1),
         'updatedRows': 2,
-        'updatedColumns': 10,
-        'updatedCells': 20
+        'updatedColumns': 11,
+        'updatedCells': 22
     }
     sheets_service_mock = mock.MagicMock()
     sheets_service_mock.spreadsheets().values().get(
@@ -527,10 +532,10 @@ class TestFioMetricsTest(unittest.TestCase):
                 'majorDimension':
                     'ROWS',
                 'values': [('1_thread', 50000, 40, 1653381687, 1653381758,
-                            115.354741, 135655, 249737264, 28958587178,
+                            115.354741, 135655, 8405385216, 249737264, 28958587178,
                             18494668007.316742),
                            ('2_thread', 50000, 10, 1653381758, 1653381828,
-                            34.641075, 40988, 212007238, 21590713209,
+                            34.641075, 40988, 2532311040, 212007238, 21590713209,
                             15969313013.822775)]
             },
             range='{}A{}'.format(WORKSHEET_NAME, new_row))
@@ -556,6 +561,7 @@ class TestFioMetricsTest(unittest.TestCase):
         'end_time': 1653597085,
         'iops': 88.851558,
         'bw': 103682,
+        'io_bytes': 6952058880,
         'lat_ns': {
             'min': 173373014,
             'max': 36442812445,
@@ -569,6 +575,7 @@ class TestFioMetricsTest(unittest.TestCase):
         'end_time': 1653597156,
         'iops': 37.52206,
         'bw': 44249,
+        'io_bytes': 2747269120,
         'lat_ns': {
             'min': 172148734,
             'max': 20110704859,
@@ -586,8 +593,8 @@ class TestFioMetricsTest(unittest.TestCase):
         'spreadsheetId': SPREADSHEET_ID,
         'updatedRange': '{}A{}:H{}'.format(WORKSHEET_NAME, new_row, new_row+1),
         'updatedRows': 2,
-        'updatedColumns': 10,
-        'updatedCells': 20
+        'updatedColumns': 11,
+        'updatedCells': 22
     }
     sheets_service_mock = mock.MagicMock()
     sheets_service_mock.spreadsheets().values().get(
@@ -605,10 +612,10 @@ class TestFioMetricsTest(unittest.TestCase):
                 'majorDimension':
                     'ROWS',
                 'values': [('1_thread', 3000, 40, 1653597009, 1653597085,
-                            88.851558, 103682, 173373014, 36442812445,
+                            88.851558, 103682, 6952058880, 173373014, 36442812445,
                             21799839057.909954),
                            ('2_thread', 5000, 10, 1653597085, 1653597156,
-                            37.52206, 44249, 172148734, 20110704859,
+                            37.52206, 44249, 2747269120, 172148734, 20110704859,
                             14960429037.40382)]
             },
             range='{}A{}'.format(WORKSHEET_NAME, new_row))
