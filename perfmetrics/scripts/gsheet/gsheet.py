@@ -6,7 +6,7 @@ SPREADSHEET_ID = '1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
 
 # cell containing the total number of entries in the sheet
 # so that we know where the new entry has to be added
-NUM_ENTRIES_CELL = 'P4'
+NUM_ENTRIES_CELL = 'T4'
 CREDENTIALS_PATH = ('./gsheet/creds.json')
 
 
