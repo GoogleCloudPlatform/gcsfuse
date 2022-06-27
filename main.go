@@ -93,10 +93,13 @@ func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 
 	// Create the connection.
 	cfg := &gcs.ConnConfig{
-		Url:             flags.Endpoint,
-		TokenSource:     tokenSrc,
-		UserAgent:       fmt.Sprintf("gcsfuse/%s %s", getVersion(), flags.AppName),
-		MaxBackoffSleep: flags.MaxRetrySleep,
+		Url:                 flags.Endpoint,
+		TokenSource:         tokenSrc,
+		UserAgent:           fmt.Sprintf("gcsfuse/%s %s", getVersion(), flags.AppName),
+		MaxBackoffSleep:     flags.MaxRetrySleep,
+		DisableHTTP2:        flags.DisableHTTP2,
+		MaxConnsPerHost:     flags.MaxConnsPerHost,
+		MaxIdleConnsPerHost: flags.MaxIdleConnsPerHost,
 	}
 
 	// The default HTTP transport uses HTTP/2 with TCP multiplexing, which

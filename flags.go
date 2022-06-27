@@ -225,6 +225,13 @@ func newApp() (app *cli.App) {
 					"This is effective when --disable-http2 is set.",
 			},
 
+			cli.IntFlag{
+				Name:  "max-idle-conns-per-host",
+				Value: -1,
+				Usage: "The number of MaxIdleConnsPerHost parameter in " +
+					" transport of Go Client.",
+			},
+
 			/////////////////////////
 			// Monitoring & Logging
 			/////////////////////////
@@ -317,14 +324,15 @@ type flagStorage struct {
 	OpRateLimitHz                      float64
 
 	// Tuning
-	MaxRetrySleep     time.Duration
-	StatCacheCapacity int
-	StatCacheTTL      time.Duration
-	TypeCacheTTL      time.Duration
-	LocalFileCache    bool
-	TempDir           string
-	DisableHTTP2      bool
-	MaxConnsPerHost   int
+	MaxRetrySleep       time.Duration
+	StatCacheCapacity   int
+	StatCacheTTL        time.Duration
+	TypeCacheTTL        time.Duration
+	LocalFileCache      bool
+	TempDir             string
+	DisableHTTP2        bool
+	MaxConnsPerHost     int
+	MaxIdleConnsPerHost int
 
 	// Monitoring & Logging
 	StackdriverExportInterval time.Duration
@@ -372,14 +380,15 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		OpRateLimitHz:                      c.Float64("limit-ops-per-sec"),
 
 		// Tuning,
-		MaxRetrySleep:     c.Duration("max-retry-sleep"),
-		StatCacheCapacity: c.Int("stat-cache-capacity"),
-		StatCacheTTL:      c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:      c.Duration("type-cache-ttl"),
-		LocalFileCache:    c.Bool("experimental-local-file-cache"),
-		TempDir:           c.String("temp-dir"),
-		DisableHTTP2:      c.Bool("disable-http2"),
-		MaxConnsPerHost:   c.Int("max-conns-per-host"),
+		MaxRetrySleep:       c.Duration("max-retry-sleep"),
+		StatCacheCapacity:   c.Int("stat-cache-capacity"),
+		StatCacheTTL:        c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:        c.Duration("type-cache-ttl"),
+		LocalFileCache:      c.Bool("experimental-local-file-cache"),
+		TempDir:             c.String("temp-dir"),
+		DisableHTTP2:        c.Bool("disable-http2"),
+		MaxConnsPerHost:     c.Int("max-conns-per-host"),
+		MaxIdleConnsPerHost: c.Int("max-idle-conns-per-host"),
 
 		// Monitoring & Logging
 		StackdriverExportInterval: c.Duration("experimental-stackdriver-export-interval"),

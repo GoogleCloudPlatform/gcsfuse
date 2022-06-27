@@ -15,17 +15,19 @@
 package gcs
 
 import (
+	"cloud.google.com/go/storage"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/jacobsa/gcloud/httputil"
+	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/api/option"
+	storagev1 "google.golang.org/api/storage/v1"
 	"io"
 	"net/http"
 	"net/url"
-
-	"cloud.google.com/go/storage"
-	"github.com/jacobsa/gcloud/httputil"
-	"golang.org/x/net/context"
-	"google.golang.org/api/googleapi"
-	storagev1 "google.golang.org/api/storage/v1"
 )
 
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
@@ -357,11 +359,39 @@ func newBucket(
 	url *url.URL,
 	userAgent string,
 	name string,
-	billingProject string) (b Bucket, err error) {
+	billingProject string,
+	tokenSrc oauth2.TokenSource,
+	goClientConfig *GoClientConfig) (b Bucket, err error) {
 
 	// Creating client through Go Storage Client Library for the storageClient parameter of bucket.
+	var tr *http.Transport = nil
+
+	// Choosing between HTTP1 and HTTP2.
+	if goClientConfig.DisableHTTP2 {
+		tr = &http.Transport{
+			MaxConnsPerHost:     goClientConfig.MaxConnsPerHost,
+			MaxIdleConnsPerHost: goClientConfig.MaxIdleConnsPerHost,
+			// This disables HTTP/2 in transport.
+			TLSNextProto: make(
+				map[string]func(string, *tls.Conn) http.RoundTripper,
+			),
+		}
+	} else {
+		tr = &http.Transport{
+			DisableKeepAlives: true,
+			MaxConnsPerHost:   goClientConfig.MaxConnsPerHost, // Not affecting the performance when HTTP 2.0 is enabled.
+			ForceAttemptHTTP2: true,
+		}
+	}
+
+	// Custom http Client for Go Client.
+	httpClient := &http.Client{Transport: &oauth2.Transport{
+		Base:   tr,
+		Source: tokenSrc,
+	}}
+
 	var storageClient *storage.Client = nil
-	storageClient, err = storage.NewClient(ctx)
+	storageClient, err = storage.NewClient(ctx, option.WithHTTPClient(httpClient))
 	if err != nil {
 		err = fmt.Errorf("Error in creating the client through Go Storage Library: %v", err)
 	}
