@@ -85,7 +85,8 @@ def _convert_value(value, conversion_dict, default_unit=''):
     conversion_dict: Dictionary containing units and their respective
       multiplication factor
     default_unit: String, specifies the default unit, used if no unit is present
-      in 'value'
+      in 'value'. Ex: In the job file, we can set ramp_time as "10s" or "10". For
+      the latter, the default unit (seconds) is considered.
 
   Returns:
     Int, number in a specific unit
