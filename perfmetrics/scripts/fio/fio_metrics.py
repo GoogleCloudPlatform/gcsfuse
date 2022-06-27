@@ -35,6 +35,7 @@ LAT = 'lat_ns'
 MIN = 'min'
 MAX = 'max'
 MEAN = 'mean'
+IO_BYTES = 'io_bytes'
 
 # Google sheet worksheet
 WORKSHEET_NAME = 'fio_metrics!'
@@ -206,6 +207,7 @@ class FioMetrics:
       min_lat_ns = job_read[LAT][MIN]
       max_lat_ns = job_read[LAT][MAX]
       mean_lat_ns = job_read[LAT][MEAN]
+      io_bytes = job_read[IO_BYTES]
 
       # default value of numjobs
       numjobs = '1'
@@ -243,7 +245,8 @@ class FioMetrics:
           END_TIME: end_time_s,
           IOPS: iops,
           BW: bw_kibps,
-          LAT: {MIN: min_lat_ns, MAX: max_lat_ns, MEAN: mean_lat_ns}
+          LAT: {MIN: min_lat_ns, MAX: max_lat_ns, MEAN: mean_lat_ns},
+          IO_BYTES: io_bytes
       })
 
     if not all_jobs:
@@ -262,7 +265,7 @@ class FioMetrics:
     for job in jobs:
       values.append((job[JOBNAME], job[FILESIZE], job[THREADS], job[START_TIME],
                      job[END_TIME], job[IOPS], job[BW], job[LAT][MIN],
-                     job[LAT][MAX], job[LAT][MEAN]))
+                     job[LAT][MAX], job[LAT][MEAN], job[IO_BYTES]))
     gsheet.write_to_google_sheet(WORKSHEET_NAME, values)
 
   def get_metrics(self, filepath, add_to_gsheets=True) -> List[Dict[str, Any]]:
