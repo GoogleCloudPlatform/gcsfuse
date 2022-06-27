@@ -31,10 +31,20 @@ END_TIME = 'end_time'
 READ = 'read'
 IOPS = 'iops'
 BW = 'bw'
-LAT = 'lat_ns'
+LAT_NS = 'lat_ns'
+LAT_S = 'lat_s'
 MIN = 'min'
 MAX = 'max'
 MEAN = 'mean'
+PERCENTILE = 'percentile'
+P20 = '20.000000'
+P50 = '50.000000'
+P90 = '90.000000'
+P95 = '95.000000'
+LAT_20_PERC = 'lat_20_perc'
+LAT_50_PERC = 'lat_50_perc'
+LAT_90_PERC = 'lat_90_perc'
+LAT_95_PERC = 'lat_95_perc'
 IO_BYTES = 'io_bytes'
 
 # Google sheet worksheet
@@ -62,6 +72,9 @@ RAMPTIME_CONVERSION = {
     'h': 3600*1000,
     'd': 24*3600*1000
 }
+
+NS_TO_S = 10**(-9)
+KIBPS_TO_BPS = 1024
 
 
 def _convert_value(value, conversion_dict, default_unit=''):
@@ -145,10 +158,13 @@ class FioMetrics:
     Returns:
       List of dicts, contains list of jobs and required metrics for each job
       Example return value:
-        [{'jobname': '1_thread', 'filesize': 5000, 'num_threads':40,
-        'start_time':1653027155, 'end_time':1653027215,
-        'iops': 85.137657, 'bw': 99137, 'lat_ns': {'min': 365421594,
-        'max': 38658496964, 'mean': 23292225875.57558}}]
+        [{'jobname': '1_thread', 'filesize': 50000, 'num_threads': 40,
+        'start_time': 1653027084, 'end_time': 1653027155, 'iops': 95.26093,
+        'bw': 99888128, 'lat_s': {'min': 0.35337776000000004, 'max':
+        1.6975198690000002, 'mean': 0.41775487677469203, 'lat_20_perc':
+        0.37958451200000004, 'lat_50_perc': 0.38797312, 'lat_90_perc':
+        0.49283072000000006, 'lat_95_perc': 0.526385152}, 'io_bytes':
+        6040846336}]
 
     Raises:
       KeyError: Key is missing in the json output
@@ -198,15 +214,21 @@ class FioMetrics:
 
     for i, job in enumerate(fio_out[JOBS]):
       jobname = ''
-      iops = bw_kibps = min_lat_ns = max_lat_ns = mean_lat_ns = filesize = 0
+      iops = bw_bps = min_lat_s = max_lat_s = mean_lat_s = filesize = 0
       jobname = job[JOBNAME]
       job_read = job[READ]
 
       iops = job_read[IOPS]
-      bw_kibps = job_read[BW]
-      min_lat_ns = job_read[LAT][MIN]
-      max_lat_ns = job_read[LAT][MAX]
-      mean_lat_ns = job_read[LAT][MEAN]
+      bw_bps = job_read[BW] * KIBPS_TO_BPS    # converting KiB/s to B/s
+      min_lat_s = job_read[LAT_NS][MIN] * NS_TO_S
+      max_lat_s = job_read[LAT_NS][MAX] * NS_TO_S
+      mean_lat_s = job_read[LAT_NS][MEAN] * NS_TO_S
+      lat_perc_20 = lat_perc_50 = lat_perc_90 = lat_perc_95 = 0
+      if PERCENTILE in job_read[LAT_NS]:
+        lat_perc_20 = job_read[LAT_NS][PERCENTILE][P20] * NS_TO_S
+        lat_perc_50 = job_read[LAT_NS][PERCENTILE][P50] * NS_TO_S
+        lat_perc_90 = job_read[LAT_NS][PERCENTILE][P90] * NS_TO_S
+        lat_perc_95 = job_read[LAT_NS][PERCENTILE][P95] * NS_TO_S
       io_bytes = job_read[IO_BYTES]
 
       # default value of numjobs
@@ -227,8 +249,8 @@ class FioMetrics:
       # If jobname and filesize are empty OR start_time=end_time
       # OR all the metrics are zero, log skip warning and continue to next job
       if ((not jobname and not filesize) or (start_time_s == end_time_s) or
-          (not iops and not bw_kibps and not min_lat_ns and not max_lat_ns and
-           not mean_lat_ns)):
+          (not iops and not bw_bps and not min_lat_s and not max_lat_s and
+           not mean_lat_s)):
         # TODO(ahanadatta): Print statement will be replaced by logging.
         print(f'No job details or metrics in json, skipping job index {i}')
         continue
@@ -244,9 +266,17 @@ class FioMetrics:
           START_TIME: start_time_s,
           END_TIME: end_time_s,
           IOPS: iops,
-          BW: bw_kibps,
+          BW: bw_bps,
           IO_BYTES: io_bytes,
-          LAT: {MIN: min_lat_ns, MAX: max_lat_ns, MEAN: mean_lat_ns}
+          LAT_S: {
+              MIN: min_lat_s,
+              MAX: max_lat_s,
+              MEAN: mean_lat_s,
+              LAT_20_PERC: lat_perc_20,
+              LAT_50_PERC: lat_perc_50,
+              LAT_90_PERC: lat_perc_90,
+              LAT_95_PERC: lat_perc_95
+          }
       })
 
     if not all_jobs:
@@ -263,9 +293,12 @@ class FioMetrics:
 
     values = []
     for job in jobs:
-      values.append((job[JOBNAME], job[FILESIZE], job[THREADS], job[START_TIME],
-                     job[END_TIME], job[IOPS], job[BW], job[IO_BYTES], job[LAT][MIN],
-                     job[LAT][MAX], job[LAT][MEAN]))
+      values.append(
+          (job[JOBNAME], job[FILESIZE], job[THREADS], job[START_TIME],
+           job[END_TIME], job[IOPS], job[BW], job[IO_BYTES], job[LAT_S][MIN],
+           job[LAT_S][MAX], job[LAT_S][MEAN], job[LAT_S][LAT_20_PERC],
+           job[LAT_S][LAT_50_PERC], job[LAT_S][LAT_90_PERC],
+           job[LAT_S][LAT_95_PERC]))
     gsheet.write_to_google_sheet(WORKSHEET_NAME, values)
 
   def get_metrics(self, filepath, add_to_gsheets=True) -> List[Dict[str, Any]]:
