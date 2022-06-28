@@ -28,7 +28,9 @@ RUNTIME = 'runtime'
 RAMPTIME = 'ramp_time'
 START_TIME = 'start_time'
 END_TIME = 'end_time'
+RW = 'rw'
 READ = 'read'
+WRITE = 'write'
 IOPS = 'iops'
 BW_BYTES = 'bw_bytes'
 LAT_NS = 'lat_ns'
@@ -90,7 +92,7 @@ def _convert_value(value, conversion_dict, default_unit=''):
   Returns:
     Int, number in a specific unit
 
-  Ex: For args value = "5s" and conversion_dict=RAMPTIME_CONVERSION 
+  Ex: For args value = "5s" and conversion_dict=RAMPTIME_CONVERSION
       "5s" will be converted to 5000 milliseconds and 5000 will be returned
 
   """
@@ -103,6 +105,13 @@ def _convert_value(value, conversion_dict, default_unit=''):
   mult_factor = conversion_dict[unit.lower()]
   converted_num = int(num) * mult_factor
   return converted_num
+
+
+def _get_rw(rw_value):
+  if rw_value in ['read', 'randread']:
+    return READ
+  if rw_value in ['write', 'randwrite']:
+    return WRITE
 
 
 class NoValuesError(Exception):
@@ -177,12 +186,17 @@ class FioMetrics:
 
     global_filesize = ''
     global_ramptime_ms = 0
+    # default readwrite value
+    global_rw = 'read'
     if GLOBAL_OPTS in fio_out:
       if FILESIZE in fio_out[GLOBAL_OPTS]:
         global_filesize = fio_out[GLOBAL_OPTS][FILESIZE]
+
       if RAMPTIME in fio_out[GLOBAL_OPTS]:
         global_ramptime_ms = _convert_value(fio_out[GLOBAL_OPTS][RAMPTIME],
                                             RAMPTIME_CONVERSION, 's')
+      if RW in fio_out[GLOBAL_OPTS]:
+        global_rw = fio_out[GLOBAL_OPTS][RW]
 
     all_jobs = []
     prev_start_time_s = 0
@@ -216,24 +230,11 @@ class FioMetrics:
       jobname = ''
       iops = bw_bps = min_lat_s = max_lat_s = mean_lat_s = filesize = 0
       jobname = job[JOBNAME]
-      job_read = job[READ]
-
-      iops = job_read[IOPS]
-      bw_bps = job_read[BW_BYTES]
-      min_lat_s = job_read[LAT_NS][MIN] * NS_TO_S
-      max_lat_s = job_read[LAT_NS][MAX] * NS_TO_S
-      mean_lat_s = job_read[LAT_NS][MEAN] * NS_TO_S
-      lat_perc_20 = lat_perc_50 = lat_perc_90 = lat_perc_95 = 0
-      if PERCENTILE in job_read[LAT_NS]:
-        lat_perc_20 = job_read[LAT_NS][PERCENTILE][P20] * NS_TO_S
-        lat_perc_50 = job_read[LAT_NS][PERCENTILE][P50] * NS_TO_S
-        lat_perc_90 = job_read[LAT_NS][PERCENTILE][P90] * NS_TO_S
-        lat_perc_95 = job_read[LAT_NS][PERCENTILE][P95] * NS_TO_S
-      io_bytes = job_read[IO_BYTES]
-
+      filesize = global_filesize
+      ramptime_ms = global_ramptime_ms
+      rw = global_rw
       # default value of numjobs
       numjobs = '1'
-      ramptime_ms = 0
       if JOB_OPTS in job:
         if NUMJOBS in job[JOB_OPTS]:
           numjobs = job[JOB_OPTS][NUMJOBS]
@@ -241,8 +242,23 @@ class FioMetrics:
         if FILESIZE in job[JOB_OPTS]:
           filesize = job[JOB_OPTS][FILESIZE]
 
-      if not filesize:
-        filesize = global_filesize
+        if RW in job[JOB_OPTS]:
+          rw = job[JOB_OPTS][RW]
+
+      job_rw = job[_get_rw(rw)]
+
+      iops = job_rw[IOPS]
+      bw_bps = job_rw[BW_BYTES]
+      min_lat_s = job_rw[LAT_NS][MIN] * NS_TO_S
+      max_lat_s = job_rw[LAT_NS][MAX] * NS_TO_S
+      mean_lat_s = job_rw[LAT_NS][MEAN] * NS_TO_S
+      lat_perc_20 = lat_perc_50 = lat_perc_90 = lat_perc_95 = 0
+      if PERCENTILE in job_rw[LAT_NS]:
+        lat_perc_20 = job_rw[LAT_NS][PERCENTILE][P20] * NS_TO_S
+        lat_perc_50 = job_rw[LAT_NS][PERCENTILE][P50] * NS_TO_S
+        lat_perc_90 = job_rw[LAT_NS][PERCENTILE][P90] * NS_TO_S
+        lat_perc_95 = job_rw[LAT_NS][PERCENTILE][P95] * NS_TO_S
+      io_bytes = job_rw[IO_BYTES]
 
       start_time_s, end_time_s = start_end_times[i]
 
@@ -256,13 +272,13 @@ class FioMetrics:
         continue
 
       filesize_kb = _convert_value(filesize, FILESIZE_CONVERSION)
-
       numjobs = int(numjobs)
 
       all_jobs.append({
           JOBNAME: jobname,
           FILESIZE: filesize_kb,
           THREADS: numjobs,
+          RW: rw,
           START_TIME: start_time_s,
           END_TIME: end_time_s,
           IOPS: iops,
@@ -294,11 +310,11 @@ class FioMetrics:
     values = []
     for job in jobs:
       values.append(
-          (job[JOBNAME], job[FILESIZE], job[THREADS], job[START_TIME],
-           job[END_TIME], job[IOPS], job[BW_BYTES], job[IO_BYTES], job[LAT_S][MIN],
-           job[LAT_S][MAX], job[LAT_S][MEAN], job[LAT_S][LAT_20_PERC],
-           job[LAT_S][LAT_50_PERC], job[LAT_S][LAT_90_PERC],
-           job[LAT_S][LAT_95_PERC]))
+          (job[JOBNAME], job[FILESIZE], job[THREADS], job[RW], job[START_TIME],
+           job[END_TIME], job[IOPS], job[BW_BYTES], job[IO_BYTES],
+           job[LAT_S][MIN], job[LAT_S][MAX], job[LAT_S][MEAN],
+           job[LAT_S][LAT_20_PERC], job[LAT_S][LAT_50_PERC],
+           job[LAT_S][LAT_90_PERC], job[LAT_S][LAT_95_PERC]))
     gsheet.write_to_google_sheet(WORKSHEET_NAME, values)
 
   def get_metrics(self, filepath, add_to_gsheets=True) -> List[Dict[str, Any]]:
