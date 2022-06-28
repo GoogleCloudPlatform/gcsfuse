@@ -30,7 +30,7 @@ START_TIME = 'start_time'
 END_TIME = 'end_time'
 READ = 'read'
 IOPS = 'iops'
-BW = 'bw'
+BW_BYTES = 'bw_bytes'
 LAT_NS = 'lat_ns'
 LAT_S = 'lat_s'
 MIN = 'min'
@@ -74,7 +74,6 @@ RAMPTIME_CONVERSION = {
 }
 
 NS_TO_S = 10**(-9)
-KIBPS_TO_BPS = 1024
 
 
 def _convert_value(value, conversion_dict, default_unit=''):
@@ -85,8 +84,7 @@ def _convert_value(value, conversion_dict, default_unit=''):
     conversion_dict: Dictionary containing units and their respective
       multiplication factor
     default_unit: String, specifies the default unit, used if no unit is present
-      in 'value'. Ex: In the job file, we can set ramp_time as "10s" or "10". For
-      the latter, the default unit (seconds) is considered.
+      in 'value'
 
   Returns:
     Int, number in a specific unit
@@ -161,7 +159,7 @@ class FioMetrics:
       Example return value:
         [{'jobname': '1_thread', 'filesize': 50000, 'num_threads': 40,
         'start_time': 1653027084, 'end_time': 1653027155, 'iops': 95.26093,
-        'bw': 99888128, 'lat_s': {'min': 0.35337776000000004, 'max':
+        'bw_bytes': 99888128, 'lat_s': {'min': 0.35337776000000004, 'max':
         1.6975198690000002, 'mean': 0.41775487677469203, 'lat_20_perc':
         0.37958451200000004, 'lat_50_perc': 0.38797312, 'lat_90_perc':
         0.49283072000000006, 'lat_95_perc': 0.526385152}, 'io_bytes':
@@ -220,7 +218,7 @@ class FioMetrics:
       job_read = job[READ]
 
       iops = job_read[IOPS]
-      bw_bps = job_read[BW] * KIBPS_TO_BPS    # converting KiB/s to B/s
+      bw_bps = job_read[BW_BYTES]
       min_lat_s = job_read[LAT_NS][MIN] * NS_TO_S
       max_lat_s = job_read[LAT_NS][MAX] * NS_TO_S
       mean_lat_s = job_read[LAT_NS][MEAN] * NS_TO_S
@@ -267,7 +265,7 @@ class FioMetrics:
           START_TIME: start_time_s,
           END_TIME: end_time_s,
           IOPS: iops,
-          BW: bw_bps,
+          BW_BYTES: bw_bps,
           IO_BYTES: io_bytes,
           LAT_S: {
               MIN: min_lat_s,
@@ -296,7 +294,7 @@ class FioMetrics:
     for job in jobs:
       values.append(
           (job[JOBNAME], job[FILESIZE], job[THREADS], job[START_TIME],
-           job[END_TIME], job[IOPS], job[BW], job[IO_BYTES], job[LAT_S][MIN],
+           job[END_TIME], job[IOPS], job[BW_BYTES], job[IO_BYTES], job[LAT_S][MIN],
            job[LAT_S][MAX], job[LAT_S][MEAN], job[LAT_S][LAT_20_PERC],
            job[LAT_S][LAT_50_PERC], job[LAT_S][LAT_90_PERC],
            job[LAT_S][LAT_95_PERC]))
