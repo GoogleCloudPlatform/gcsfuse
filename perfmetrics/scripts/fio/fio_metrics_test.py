@@ -17,7 +17,7 @@ MULTIPLE_JOBS_GLOBAL_FSIZE_FILE = 'multiple_jobs_global_fsize.json'
 MULTIPLE_JOBS_JOB_FSIZE_FILE = 'multiple_jobs_job_fsize.json'
 
 SPREADSHEET_ID = '1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
-NUM_ENTRIES_CELL = 'N4'
+NUM_ENTRIES_CELL = 'T4'
 WORKSHEET_NAME = 'fio_metrics!'
 
 
@@ -119,7 +119,26 @@ class TestFioMetricsTest(unittest.TestCase):
                     'max': 1697519869,
                     'mean': 417754876.774692,
                     'stddev': 119951962.892831,
-                    'N': 5761
+                    'N': 5761,
+                    'percentile': {
+                        '1.000000': 375390208,
+                        '5.000000': 379584512,
+                        '10.000000': 379584512,
+                        '20.000000': 379584512,
+                        '30.000000': 383778816,
+                        '40.000000': 383778816,
+                        '50.000000': 387973120,
+                        '60.000000': 387973120,
+                        '70.000000': 396361728,
+                        '80.000000': 408944640,
+                        '90.000000': 492830720,
+                        '95.000000': 526385152,
+                        '99.000000': 893386752,
+                        '99.500000': 1568669696,
+                        '99.900000': 1635778560,
+                        '99.950000': 1652555776,
+                        '99.990000': 1702887424
+                    }
                 },
                 'bw_min': 77907,
                 'bw_max': 163976,
@@ -356,16 +375,20 @@ class TestFioMetricsTest(unittest.TestCase):
         'start_time': 1653027084,
         'end_time': 1653027155,
         'iops': 95.26093,
-        'bw': 97547,
-        'lat_ns': {
-            'min': 353377760,
-            'max': 1697519869,
-            'mean': 417754876.774692
+        'bw_bytes': 99888324,
+        'io_bytes': 6040846336,
+        'lat_s': {
+            'min': 0.35337776000000004,
+            'max': 1.6975198690000002,
+            'mean': 0.41775487677469203,
+            'lat_20_perc': 0.37958451200000004,
+            'lat_50_perc': 0.38797312,
+            'lat_90_perc': 0.49283072000000006,
+            'lat_95_perc': 0.526385152
         }
     }]
 
-    extracted_metrics = self.fio_metrics_obj._extract_metrics(
-        json_obj)
+    extracted_metrics = self.fio_metrics_obj._extract_metrics(json_obj)
 
     self.assertEqual(expected_metrics, extracted_metrics)
 
@@ -385,16 +408,20 @@ class TestFioMetricsTest(unittest.TestCase):
         'start_time': 1653027084,
         'end_time': 1653027155,
         'iops': 95.26093,
-        'bw': 97547,
-        'lat_ns': {
-            'min': 353377760,
-            'max': 1697519869,
-            'mean': 417754876.774692
+        'bw_bytes': 99888324,
+        'io_bytes': 6040846336,
+        'lat_s': {
+            'min': 0.35337776000000004,
+            'max': 1.6975198690000002,
+            'mean': 0.41775487677469203,
+            'lat_20_perc': 0.37958451200000004,
+            'lat_50_perc': 0.38797312,
+            'lat_90_perc': 0.49283072000000006,
+            'lat_95_perc': 0.526385152
         }
     }]
 
-    extracted_metrics = self.fio_metrics_obj._extract_metrics(
-        json_obj)
+    extracted_metrics = self.fio_metrics_obj._extract_metrics(json_obj)
 
     self.assertEqual(expected_metrics, extracted_metrics)
 
@@ -417,11 +444,16 @@ class TestFioMetricsTest(unittest.TestCase):
         'start_time': 1653027084,
         'end_time': 1653027155,
         'iops': 95.26093,
-        'bw': 97547,
-        'lat_ns': {
-            'min': 353377760,
-            'max': 1697519869,
-            'mean': 417754876.774692
+        'bw_bytes': 99888324,
+        'io_bytes': 6040846336,
+        'lat_s': {
+            'min': 0.35337776000000004,
+            'max': 1.6975198690000002,
+            'mean': 0.41775487677469203,
+            'lat_20_perc': 0.37958451200000004,
+            'lat_50_perc': 0.38797312,
+            'lat_90_perc': 0.49283072000000006,
+            'lat_95_perc': 0.526385152
         }
     }]
     get_response = {
@@ -434,8 +466,8 @@ class TestFioMetricsTest(unittest.TestCase):
         'spreadsheetId': SPREADSHEET_ID,
         'updatedRange': '{0}A{1}:H{1}'.format(WORKSHEET_NAME, new_row),
         'updatedRows': 1,
-        'updatedColumns': 10,
-        'updatedCells': 10
+        'updatedColumns': 15,
+        'updatedCells': 15
     }
     sheets_service_mock = mock.MagicMock()
     sheets_service_mock.spreadsheets().values().get(
@@ -453,8 +485,10 @@ class TestFioMetricsTest(unittest.TestCase):
                 'majorDimension':
                     'ROWS',
                 'values': [('1_thread', 50000, 40, 1653027084, 1653027155,
-                            95.26093, 97547, 353377760, 1697519869,
-                            417754876.774692)]
+                            95.26093, 99888324, 6040846336, 0.35337776000000004,
+                            1.6975198690000002, 0.41775487677469203,
+                            0.37958451200000004, 0.38797312,
+                            0.49283072000000006, 0.526385152)]
             },
             range='{}A{}'.format(WORKSHEET_NAME, new_row))
     ]
@@ -468,9 +502,7 @@ class TestFioMetricsTest(unittest.TestCase):
     sheets_service_mock.assert_has_calls(calls, any_order=True)
 
   def test_get_metrics_for_multiple_jobs_global_fsize(self):
-    """Multiple_jobs_global_fsize_fpath has filesize as global parameter.
-
-    """
+    """Multiple_jobs_global_fsize_fpath has filesize as global parameter."""
     expected_metrics = [{
         'jobname': '1_thread',
         'filesize': 50000,
@@ -478,11 +510,16 @@ class TestFioMetricsTest(unittest.TestCase):
         'start_time': 1653381687,
         'end_time': 1653381758,
         'iops': 115.354741,
-        'bw': 135655,
-        'lat_ns': {
-            'min': 249737264,
-            'max': 28958587178,
-            'mean': 18494668007.316742
+        'bw_bytes': 138911322,
+        'io_bytes': 8405385216,
+        'lat_s': {
+            'min': 0.24973726400000001,
+            'max': 28.958587178000002,
+            'mean': 18.494668007316744,
+            'lat_20_perc': 0.37958451200000004,
+            'lat_50_perc': 0.38797312,
+            'lat_90_perc': 0.49283072000000006,
+            'lat_95_perc': 0.526385152
         }
     }, {
         'jobname': '2_thread',
@@ -491,11 +528,16 @@ class TestFioMetricsTest(unittest.TestCase):
         'start_time': 1653381758,
         'end_time': 1653381828,
         'iops': 34.641075,
-        'bw': 40988,
-        'lat_ns': {
-            'min': 212007238,
-            'max': 21590713209,
-            'mean': 15969313013.822775
+        'bw_bytes': 41972238,
+        'io_bytes': 2532311040,
+        'lat_s': {
+            'min': 0.21200723800000001,
+            'max': 21.590713209,
+            'mean': 15.969313013822775,
+            'lat_20_perc': 0.37958451200000004,
+            'lat_50_perc': 0.38797312,
+            'lat_90_perc': 0.49283072000000006,
+            'lat_95_perc': 0.526385152
         }
     }]
     get_response = {
@@ -508,8 +550,8 @@ class TestFioMetricsTest(unittest.TestCase):
         'spreadsheetId': SPREADSHEET_ID,
         'updatedRange': '{}A{}:H{}'.format(WORKSHEET_NAME, new_row, new_row+1),
         'updatedRows': 2,
-        'updatedColumns': 10,
-        'updatedCells': 20
+        'updatedColumns': 15,
+        'updatedCells': 30
     }
     sheets_service_mock = mock.MagicMock()
     sheets_service_mock.spreadsheets().values().get(
@@ -526,12 +568,17 @@ class TestFioMetricsTest(unittest.TestCase):
             body={
                 'majorDimension':
                     'ROWS',
-                'values': [('1_thread', 50000, 40, 1653381687, 1653381758,
-                            115.354741, 135655, 249737264, 28958587178,
-                            18494668007.316742),
-                           ('2_thread', 50000, 10, 1653381758, 1653381828,
-                            34.641075, 40988, 212007238, 21590713209,
-                            15969313013.822775)]
+                'values': [
+                    ('1_thread', 50000, 40, 1653381687, 1653381758, 115.354741,
+                     138911322, 8405385216, 0.24973726400000001,
+                     28.958587178000002, 18.494668007316744,
+                     0.37958451200000004, 0.38797312, 0.49283072000000006,
+                     0.526385152),
+                    ('2_thread', 50000, 10, 1653381758, 1653381828, 34.641075,
+                     41972238, 2532311040, 0.21200723800000001, 21.590713209,
+                     15.969313013822775, 0.37958451200000004, 0.38797312,
+                     0.49283072000000006, 0.526385152)
+                ]
             },
             range='{}A{}'.format(WORKSHEET_NAME, new_row))
     ]
@@ -545,9 +592,7 @@ class TestFioMetricsTest(unittest.TestCase):
     sheets_service_mock.assert_has_calls(calls, any_order=True)
 
   def test_get_metrics_for_multiple_jobs_job_fsize(self):
-    """Multiple_jobs_global_fsize_fpath has filesize as job parameter.
-
-    """
+    """Multiple_jobs_global_fsize_fpath has filesize as job parameter."""
     expected_metrics = [{
         'jobname': '1_thread',
         'filesize': 3000,
@@ -555,11 +600,16 @@ class TestFioMetricsTest(unittest.TestCase):
         'start_time': 1653597009,
         'end_time': 1653597085,
         'iops': 88.851558,
-        'bw': 103682,
-        'lat_ns': {
-            'min': 173373014,
-            'max': 36442812445,
-            'mean': 21799839057.909954
+        'bw_bytes': 106170722,
+        'io_bytes': 6952058880,
+        'lat_s': {
+            'min': 0.17337301400000002,
+            'max': 36.442812445,
+            'mean': 21.799839057909956,
+            'lat_20_perc': 0.37958451200000004,
+            'lat_50_perc': 0.38797312,
+            'lat_90_perc': 0.49283072000000006,
+            'lat_95_perc': 0.526385152
         }
     }, {
         'jobname': '2_thread',
@@ -568,11 +618,16 @@ class TestFioMetricsTest(unittest.TestCase):
         'start_time': 1653597085,
         'end_time': 1653597156,
         'iops': 37.52206,
-        'bw': 44249,
-        'lat_ns': {
-            'min': 172148734,
-            'max': 20110704859,
-            'mean': 14960429037.40382
+        'bw_bytes': 45311294,
+        'io_bytes': 2747269120,
+        'lat_s': {
+            'min': 0.172148734,
+            'max': 20.110704859000002,
+            'mean': 14.960429037403822,
+            'lat_20_perc': 0.37958451200000004,
+            'lat_50_perc': 0.38797312,
+            'lat_90_perc': 0.49283072000000006,
+            'lat_95_perc': 0.526385152
         }
     }]
 
@@ -586,8 +641,8 @@ class TestFioMetricsTest(unittest.TestCase):
         'spreadsheetId': SPREADSHEET_ID,
         'updatedRange': '{}A{}:H{}'.format(WORKSHEET_NAME, new_row, new_row+1),
         'updatedRows': 2,
-        'updatedColumns': 10,
-        'updatedCells': 20
+        'updatedColumns': 15,
+        'updatedCells': 30
     }
     sheets_service_mock = mock.MagicMock()
     sheets_service_mock.spreadsheets().values().get(
@@ -604,12 +659,16 @@ class TestFioMetricsTest(unittest.TestCase):
             body={
                 'majorDimension':
                     'ROWS',
-                'values': [('1_thread', 3000, 40, 1653597009, 1653597085,
-                            88.851558, 103682, 173373014, 36442812445,
-                            21799839057.909954),
-                           ('2_thread', 5000, 10, 1653597085, 1653597156,
-                            37.52206, 44249, 172148734, 20110704859,
-                            14960429037.40382)]
+                'values': [
+                    ('1_thread', 3000, 40, 1653597009, 1653597085, 88.851558,
+                     106170722, 6952058880, 0.17337301400000002, 36.442812445,
+                     21.799839057909956, 0.37958451200000004, 0.38797312,
+                     0.49283072000000006, 0.526385152),
+                    ('2_thread', 5000, 10, 1653597085, 1653597156, 37.52206,
+                     45311294, 2747269120, 0.172148734, 20.110704859000002,
+                     14.960429037403822, 0.37958451200000004, 0.38797312,
+                     0.49283072000000006, 0.526385152)
+                ],
             },
             range='{}A{}'.format(WORKSHEET_NAME, new_row))
     ]
