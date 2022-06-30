@@ -8,6 +8,7 @@ from vm_metrics import vm_metrics
 
 START_TIME = 'start_time'
 END_TIME = 'end_time'
+RW = 'rw'
 INSTANCE = socket.gethostname()
 PERIOD = 120
 
@@ -32,7 +33,13 @@ if __name__ == '__main__':
   for ind, job in enumerate(temp):
     start_time_sec = job[START_TIME]
     end_time_sec = job[END_TIME]
+    rw = 'ReadFile'
+    if job[RW] == 'read' or job[RW] == 'randread':
+      rw = 'ReadFile'
+    elif job[RW] == 'write' or job[RW] == 'randwrite':
+      rw = 'WriteFile'
+
     print(f'Getting VM metrics for job {ind+1}...')
     vm_metrics_obj.fetch_metrics_and_write_to_google_sheet(
-        start_time_sec, end_time_sec, INSTANCE, PERIOD)
+        start_time_sec, end_time_sec, INSTANCE, PERIOD, rw)
 
