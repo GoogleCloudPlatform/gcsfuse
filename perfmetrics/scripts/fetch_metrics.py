@@ -39,7 +39,7 @@ if __name__ == '__main__':
     elif job[RW] == 'write' or job[RW] == 'randwrite':
       rw = 'WriteFile'
 
-    print(f'Getting VM metrics for job {ind+1}...')
+    print(f'Getting VM metrics for job at index {ind+1}...')
     vm_metrics_obj.fetch_metrics_and_write_to_google_sheet(
         start_time_sec, end_time_sec, INSTANCE, PERIOD, rw)
 
