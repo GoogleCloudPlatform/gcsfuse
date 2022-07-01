@@ -146,7 +146,9 @@ class VmMetrics:
       elif (metric_type == OPS_LATENCY_METRIC):
         metric_filter = ('{} AND metric.labels.fs_op = {}'
                         ).format(metric_filter, TEST_TYPE)
-
+    else:
+      raise Exception('Unhandled metric type')
+      
     try:
       metrics_response = client.list_time_series({
           'name': PROJECT_NAME,
