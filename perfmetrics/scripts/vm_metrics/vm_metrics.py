@@ -185,9 +185,13 @@ class VmMetrics:
                                               end_time_sec, instance, period,
                                               aligner, reducer, group_fields)
     metrics_data = _create_metric_points_from_response(metrics_response, factor)
-
-    # Metrics response except OPS_ERROR_COUNT_METRIC should not be empty:
-    if(metric_type != OPS_ERROR_COUNT_METRIC and metrics_data == []):
+    
+    # In case OPS_ERROR_COUNT data is empty, we return a list of zeroes:
+    if(metric_type == OPS_ERROR_COUNT_METRIC and metrics_data == []):
+      return [MetricPoint(0, 0, 0) for i in range(int((end_time_sec-start_time_sec)/period)+1)]
+    
+    # Metrics data for metrics other that OPS_ERROR_COUNT_DATA should not be empty:
+    if(metrics_data == []):
       raise NoValuesError('No values were retrieved from the call')
 
     return metrics_data
@@ -239,10 +243,6 @@ class VmMetrics:
                                              OPS_ERROR_COUNT_METRIC, 1,
                                              'ALIGN_DELTA', 'REDUCE_SUM',
                                              ['metric.labels'])
-
-    # Incase OPS_ERROR_COUNT is empty, we want 0 to be dumped in the sheet:
-    if(ops_error_count_data == []):
-        ops_error_count_data = [MetricPoint(0, 0, 0) for point in cpu_uti_peak_data]
 
     metrics_data = []
     for cpu_uti_peak, cpu_uti_mean, rec_bytes_peak, rec_bytes_mean, ops_latency, read_bytes_count, ops_error_count in zip(
