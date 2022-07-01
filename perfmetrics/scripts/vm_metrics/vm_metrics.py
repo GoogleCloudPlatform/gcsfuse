@@ -161,10 +161,6 @@ class VmMetrics:
       raise GoogleAPICallError(('The request for API response of {} failed.'
                                 ).format(metric_type))
 
-    # Metrics response except OPS_ERROR_COUNT_METRIC should not be empty:
-    if(metric_type != OPS_ERROR_COUNT_METRIC and metrics_response == {}):
-      raise NoValuesError('No values were retrieved from the call')
-
     return metrics_response
 
   def _get_metrics(self, start_time_sec, end_time_sec, instance, period,
@@ -189,6 +185,11 @@ class VmMetrics:
                                               end_time_sec, instance, period,
                                               aligner, reducer, group_fields)
     metrics_data = _create_metric_points_from_response(metrics_response, factor)
+
+    # Metrics response except OPS_ERROR_COUNT_METRIC should not be empty:
+    if(metric_type != OPS_ERROR_COUNT_METRIC and metrics_data == []):
+      raise NoValuesError('No values were retrieved from the call')
+
     return metrics_data
 
   def fetch_metrics_and_write_to_google_sheet(self, start_time_sec,
