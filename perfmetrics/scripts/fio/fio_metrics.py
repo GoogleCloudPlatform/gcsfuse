@@ -54,12 +54,42 @@ LEVELS = 'levels'
 CONVERSION = 'conversion'
 NS_TO_S = 10**(-9)
 
+""" REQ_JOB_PARAMS:
+NAME: key for the parameter, to be used when creating parameter dict for each
+Job
+JSON_NAME: Key for parameter inside 'global options'/'job options' dictionary
+  Ex: For output json = {"global options": {"filesize":"50M"}, "jobs": [
+  "job options": {"rw": "read"}]}
+  JSON_NAME for filesize will be "filesize" and that for readwrite will be "rw"
+FORMAT: Function returning formatted parameter value. Needed to convert
+parameter to plottable values
+  Ex: 'filesize' is obtained as '50M', but we need to convert it to integer
+  showing size in kb in order to maintain uniformity
+DEFAULT: Default value for the parameter
+
+Ex: output json = {"global options": {"filesize":"50M"}}
+For REQ_JOB_PARAMS = [
+    {
+        NAME: FILESIZE_KB,
+        JSON_NAME: FILESIZE,
+        FORMAT: lambda val: _convert_value(val, FILESIZE_CONVERSION),
+        DEFAULT: 0
+    },
+    {
+        NAME: RW,
+        JSON_NAME: RW,
+        FORMAT: lambda val: val,
+        DEFAULT: 'read'
+    }
+]
+Extracted parameters would be {FILESIZE_KB: 50000, RW: 'read'}
+"""
 REQ_JOB_PARAMS = [
     {
         NAME: FILESIZE_KB,
         JSON_NAME: FILESIZE,
         FORMAT: lambda val: _convert_value(val, FILESIZE_CONVERSION),
-        DEFAULT: ''
+        DEFAULT: 0
     },
     {
         NAME: THREADS,
@@ -76,6 +106,15 @@ REQ_JOB_PARAMS = [
     }
 ]
 
+""" REQ_JOB_METRICS:
+NAME: key for the metric, to be used when creating metric dict for each job
+LEVELS: Keys for the metric inside 'read'/'write' dictionary in each job
+  Ex: For job = {'read': {'iops':123, 'latency':{'min':0}}}
+  LEVELS for IOPS will be ['iops'] and for min latency-> ['latency', 'min']
+CONVERSION: Multiplication factor to convert the metric to the desired unit
+  Ex: Extracted latency metrics are in nanoseconds, but we need them in seconds
+  for plotting. Hence CONVERSION=10^(-9) for latency metrics.
+"""
 REQ_JOB_METRICS = [
     {
         NAME: IOPS,
@@ -186,6 +225,15 @@ def _convert_value(value, conversion_dict, default_unit=''):
 
 
 def _get_rw(rw_value):
+  """Converting read/randread/write/randwrite to just read/write.
+
+  Args:
+    rw_value: str, 'read'/'randread'/'write'/'randwrite'
+
+  Returns:
+    str, 'read'/'write'
+
+  """
   if rw_value in ['read', 'randread']:
     return READ
   if rw_value in ['write', 'randwrite']:
@@ -283,26 +331,61 @@ class FioMetrics:
       List of dicts, each dict containing parameters for a job
         Ex: [{'filesize_kb': 50000, 'num_threads': 40, 'rw': 'read'}
 
+    Function working example:
+      Ex: out_json = {"global options": {"filesize":"50M", "numjobs":"40"},
+      "jobs":[{"job options": {"numjobs":"10", "rw":"write"}}]}
+      For REQ_JOB_PARAMS = [
+          {
+              NAME: FILESIZE_KB,
+              JSON_NAME: FILESIZE,
+              FORMAT: lambda val: _convert_value(val, FILESIZE_CONVERSION),
+              DEFAULT: 0
+          },
+          {
+              NAME: THREADS,
+              JSON_NAME: NUMJOBS,
+              FORMAT: lambda val: int(val),
+              DEFAULT: '1'
+          },
+          {
+              NAME: RW,
+              JSON_NAME: RW,
+              FORMAT: lambda val: val,
+              DEFAULT: 'read'
+          }
+      ]
+      Extracted parameters would be [{FILESIZE_KB: 50000, THREADS: 10, RW:
+      'read'}]
+
+
     """
+    # Job parameters specified as Global options
+    # Each param is formatted according to its format function before storing
     global_params = {}
     if GLOBAL_OPTS in out_json:
       for param in REQ_JOB_PARAMS:
+        # If param not present in global options, default value is used
         if param[JSON_NAME] in out_json[GLOBAL_OPTS]:
           global_params[param[NAME]] = param[FORMAT](
               out_json[GLOBAL_OPTS][param[JSON_NAME]])
         else:
           global_params[param[NAME]] = param[DEFAULT]
+
+    # Job parameters specified as job options overwrite global options
     params = []
     for job in out_json[JOBS]:
       curr_job_params = {}
       if JOB_OPTS in job:
         for param in REQ_JOB_PARAMS:
+          # If the param is not present in job options, global param is used
           if param[JSON_NAME] in job[JOB_OPTS]:
             curr_job_params[param[NAME]] = param[FORMAT](
                 job[JOB_OPTS][param[JSON_NAME]])
           else:
             curr_job_params[param[NAME]] = global_params[param[NAME]]
+
       params.append(curr_job_params)
+
     return params
 
   def _extract_metrics(self, fio_out) -> List[Dict[str, Any]]:
@@ -342,12 +425,22 @@ class FioMetrics:
     start_end_times = self._get_start_end_times(fio_out, job_params)
     all_jobs = []
 
+    # Get the required metrics for every job
     for i, job in enumerate(fio_out[JOBS]):
       rw = job_params[i][RW]
       job_rw = job[_get_rw(rw)]
       job_metrics = {}
       for metric in REQ_JOB_METRICS:
         val = job_rw
+        """
+        For metric[LEVELS]=['lat_ns', 'percentile', '20.000000']
+        After 1st iteration, sub = 'lat_ns', val = job_rw['lat_ns']
+        After 2nd iteration, sub = 'percentile', val =
+        job_rw['lat_ns']['percentile']
+        After 3rd iteration, sub = '20.000000', val =
+        job_rw['lat_ns']['percentile']['20.000000'] and hence we get the
+        required metric value
+        """
         for sub in metric[LEVELS]:
           if sub in val:
             val = val[sub]
