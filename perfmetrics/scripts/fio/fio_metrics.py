@@ -95,7 +95,7 @@ REQ_JOB_PARAMS = [
         NAME: THREADS,
         JSON_NAME: NUMJOBS,
         FORMAT: lambda val: int(val),
-        DEFAULT: '1'
+        DEFAULT: 1
     },
     # Don't remove the below parameter
     {
@@ -345,7 +345,7 @@ class FioMetrics:
               NAME: THREADS,
               JSON_NAME: NUMJOBS,
               FORMAT: lambda val: int(val),
-              DEFAULT: '1'
+              DEFAULT: 1
           },
           {
               NAME: RW,
