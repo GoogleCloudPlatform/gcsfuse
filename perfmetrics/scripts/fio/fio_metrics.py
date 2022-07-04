@@ -16,10 +16,10 @@ from typing import Any, Dict, List, Tuple
 
 from gsheet import gsheet
 
-JOBNAME = 'jobname'
 GLOBAL_OPTS = 'global options'
 JOBS = 'jobs'
 JOB_OPTS = 'job options'
+PARAMS = 'params'
 FILESIZE = 'filesize'
 FILESIZE_KB = 'filesize_kb'
 NUMJOBS = 'numjobs'
@@ -46,76 +46,86 @@ P90 = '90.000000'
 P95 = '95.000000'
 IO_BYTES = 'io_bytes'
 
+NAME = 'name'
+JSON_NAME = 'json_name'
+FORMAT = 'format'
+DEFAULT = 'default'
+LEVELS = 'levels'
+CONVERSION = 'conversion'
 NS_TO_S = 10**(-9)
 
 REQ_JOB_PARAMS = [
     {
-        'name': JOBNAME,
-        'levels': [JOBNAME],
-        'format': lambda val: val
+        NAME: FILESIZE_KB,
+        JSON_NAME: FILESIZE,
+        FORMAT: lambda val: _convert_value(val, FILESIZE_CONVERSION),
+        DEFAULT: ''
     },
     {
-        'name': FILESIZE_KB,
-        'levels': [JOB_OPTS, FILESIZE],
-        'format': lambda val: _convert_value(val, FILESIZE_CONVERSION)
+        NAME: THREADS,
+        JSON_NAME: NUMJOBS,
+        FORMAT: lambda val: int(val),
+        DEFAULT: '1'
     },
+    # Don't remove the below parameter
     {
-        'name': THREADS,
-        'levels': [JOB_OPTS, NUMJOBS],
-        'format': lambda val: val
+        NAME: RW,
+        JSON_NAME: RW,
+        FORMAT: lambda val: val,
+        DEFAULT: 'read'
     }
 ]
 
 REQ_JOB_METRICS = [
     {
-        'name': IOPS,
-        'levels': [IOPS],
-        'conversion': 1
+        NAME: IOPS,
+        LEVELS: [IOPS],
+        CONVERSION: 1
     },
     {
-        'name': BW_BYTES,
-        'levels': [BW_BYTES],
-        'conversion': 1
+        NAME: BW_BYTES,
+        LEVELS: [BW_BYTES],
+        CONVERSION: 1
     },
     {
-        'name': IO_BYTES,
-        'levels': [IO_BYTES],
-        'conversion': 1
+        NAME: IO_BYTES,
+        LEVELS: [IO_BYTES],
+        CONVERSION: 1
     },
     {
-        'name': 'lat_s_mean',
-        'levels': [LAT_NS, MEAN],
-        'conversion': NS_TO_S
+        NAME: 'lat_s_mean',
+        LEVELS: [LAT_NS, MEAN],
+        CONVERSION: NS_TO_S
     },
     {
-        'name': 'lat_s_min',
-        'levels': [LAT_NS, MIN],
-        'conversion': NS_TO_S
+        NAME: 'lat_s_min',
+        LEVELS: [LAT_NS, MIN],
+        CONVERSION: NS_TO_S
     },
     {
-        'name': 'lat_s_max',
-        'levels': [LAT_NS, MAX],
-        'conversion': NS_TO_S
+        NAME: 'lat_s_max',
+        LEVELS: [LAT_NS, MAX],
+        CONVERSION: NS_TO_S
     },
     {
-        'name': 'lat_s_perc_20',
-        'levels': [LAT_NS, PERCENTILE, P20],
-        'conversion': NS_TO_S
+        NAME: 'lat_s_perc_20',
+        LEVELS: [LAT_NS, PERCENTILE, P20],
+        CONVERSION: NS_TO_S
     },
     {
-        'name': 'lat_s_perc_50',
-        'levels': [LAT_NS, PERCENTILE, P50],
-        'conversion': NS_TO_S
+        NAME: 'lat_s_perc_50',
+        LEVELS: [LAT_NS, PERCENTILE, P50],
+        CONVERSION: NS_TO_S
     },
     {
-        'name': 'lat_s_perc_90',
-        'levels': [LAT_NS, PERCENTILE, P90],
-        'conversion': NS_TO_S
+        NAME: 'lat_s_perc_90',
+        LEVELS: [LAT_NS, PERCENTILE, P90],
+        CONVERSION: NS_TO_S
     },
     {
-        'name': 'lat_s_perc_95',
-        'levels': [LAT_NS, PERCENTILE, P95],
-        'conversion': NS_TO_S
+        NAME: 'lat_s_perc_95',
+        LEVELS: [LAT_NS, PERCENTILE, P95],
+        CONVERSION: NS_TO_S
     }
 ]
 
@@ -220,18 +230,19 @@ class FioMetrics:
       raise NoValuesError(f'JSON file {filepath} returned empty object')
     return fio_out
 
-  def _get_start_end_times(self, out_json, global_rw) -> List[Tuple[int]]:
+  def _get_start_end_times(self, out_json, job_params) -> List[Tuple[int]]:
     """Returns start and end times of each job as a list.
 
     Args:
       out_json : FIO json output
-      global_rw: Global read/write value
+      job_params: List of dicts, Parameters of all jobs
 
     Returns:
       List of start and end time tuples, one tuple for each job
-      Ex: [(1653027074, 1653027084), (1653027084, 1653027155)]
+      Ex: [(1653027014, 1653027084), (1653027084, 1653027155)]
 
     """
+    rw_rev_list = [job_param[RW] for job_param in reversed(job_params)]
     global_ramptime_ms = 0
     if GLOBAL_OPTS in out_json:
       if RAMPTIME in out_json[GLOBAL_OPTS]:
@@ -241,17 +252,9 @@ class FioMetrics:
     prev_start_time_s = 0
     rev_start_end_times = []
     # Looping from end since the given time is the final end time
-    for job in reversed(out_json[JOBS]):
+    for i, job in enumerate(list(reversed(out_json[JOBS]))):
       ramptime_ms = 0
-      rw = global_rw
-      if JOB_OPTS in job:
-        if RAMPTIME in job[JOB_OPTS]:
-          ramptime_ms = _convert_value(job[JOB_OPTS][RAMPTIME],
-                                       RAMPTIME_CONVERSION, 's')
-
-        if RW in job[JOB_OPTS]:
-          rw = job[JOB_OPTS][RW]
-
+      rw = rw_rev_list[i]
       job_rw = job[_get_rw(rw)]
       if ramptime_ms == 0:
         ramptime_ms = global_ramptime_ms
@@ -270,23 +273,56 @@ class FioMetrics:
 
     return list(reversed(rev_start_end_times))
 
+  def _get_job_params(self, out_json):
+    """Returns parameter values of each job.
+
+    Args:
+      out_json : FIO json output
+
+    Returns:
+      List of dicts, each dict containing parameters for a job
+        Ex: [{'filesize_kb': 50000, 'num_threads': 40, 'rw': 'read'}
+
+    """
+    global_params = {}
+    if GLOBAL_OPTS in out_json:
+      for param in REQ_JOB_PARAMS:
+        if param[JSON_NAME] in out_json[GLOBAL_OPTS]:
+          global_params[param[NAME]] = param[FORMAT](
+              out_json[GLOBAL_OPTS][param[JSON_NAME]])
+        else:
+          global_params[param[NAME]] = param[DEFAULT]
+    params = []
+    for job in out_json[JOBS]:
+      curr_job_params = {}
+      if JOB_OPTS in job:
+        for param in REQ_JOB_PARAMS:
+          if param[JSON_NAME] in job[JOB_OPTS]:
+            curr_job_params[param[NAME]] = param[FORMAT](
+                job[JOB_OPTS][param[JSON_NAME]])
+          else:
+            curr_job_params[param[NAME]] = global_params[param[NAME]]
+      params.append(curr_job_params)
+    return params
+
   def _extract_metrics(self, fio_out) -> List[Dict[str, Any]]:
     """Extracts and returns required metrics from fio output dict.
 
       The extracted metrics are stored in a list. Each entry in the list is a
       dictionary. Each dictionary stores the following fio metrics related
       to a particualar job:
-        jobname, filesize, number of threads, IOPS, Bandwidth and latency (min,
+        filesize, number of threads, IOPS, Bandwidth and latency (min,
         max and mean)
 
     Args:
       fio_out: JSON object representing the fio output
 
     Returns:
-      List of dicts, contains list of jobs and required metrics for each job
+      List of dicts, contains list of jobs and required parameters and metrics
+      for each job
       Example return value:
-        [{'jobname': '2_thread', 'filesize': 50000, 'num_threads': 40, 'rw':
-        'read', 'start_time': 1653027084, 'end_time': 1653027155, 'metrics':
+        [{'params': {'filesize': 50000, 'num_threads': 40, 'rw': 'read'},
+          'start_time': 1653027084, 'end_time': 1653027155, 'metrics':
         {'iops': 95.26093, 'bw_bytes': 99888324, 'io_bytes': 6040846336,
         'lat_s_mean': 0.41775487677469203, 'lat_s_min': 0.35337776000000004,
         'lat_s_max': 1.6975198690000002, 'lat_s_perc_20': 0.37958451200000004,
@@ -302,71 +338,38 @@ class FioMetrics:
     if not fio_out:
       raise NoValuesError('No data in json object')
 
-    global_filesize = ''
-    # default readwrite value
-    global_rw = 'read'
-    # default value of numjobs
-    global_numjobs = '1'
-    if GLOBAL_OPTS in fio_out:
-      if FILESIZE in fio_out[GLOBAL_OPTS]:
-        global_filesize = fio_out[GLOBAL_OPTS][FILESIZE]
-
-      if RW in fio_out[GLOBAL_OPTS]:
-        global_rw = fio_out[GLOBAL_OPTS][RW]
-
-      if NUMJOBS in fio_out[GLOBAL_OPTS]:
-        global_numjobs = fio_out[GLOBAL_OPTS][NUMJOBS]
-
-    start_end_times = self._get_start_end_times(fio_out, global_rw)
+    job_params = self._get_job_params(fio_out)
+    start_end_times = self._get_start_end_times(fio_out, job_params)
     all_jobs = []
 
     for i, job in enumerate(fio_out[JOBS]):
-      jobname = ''
-      jobname = job[JOBNAME]
-      filesize = global_filesize
-      rw = global_rw
-      numjobs = global_numjobs
-      if JOB_OPTS in job:
-        if NUMJOBS in job[JOB_OPTS]:
-          numjobs = job[JOB_OPTS][NUMJOBS]
-
-        if FILESIZE in job[JOB_OPTS]:
-          filesize = job[JOB_OPTS][FILESIZE]
-
-        if RW in job[JOB_OPTS]:
-          rw = job[JOB_OPTS][RW]
-
+      rw = job_params[i][RW]
       job_rw = job[_get_rw(rw)]
       job_metrics = {}
       for metric in REQ_JOB_METRICS:
         val = job_rw
-        for sub in metric['levels']:
+        for sub in metric[LEVELS]:
           if sub in val:
             val = val[sub]
           else:
             val = 0
-            break
+            raise NoValuesError(
+                f'Required metric {sub} not present in json output')
 
-        job_metrics[metric['name']] = val * metric['conversion']
+        job_metrics[metric[NAME]] = val * metric[CONVERSION]
 
       start_time_s, end_time_s = start_end_times[i]
 
-      # If jobname and filesize are empty OR start_time=end_time
-      # OR all the metrics are zero, log skip warning and continue to next job
-      if ((not jobname and not filesize) or (start_time_s == end_time_s) or
+      # start_time=end_time OR all the metrics are zero, 
+      # log skip warning and continue to next job
+      if ((start_time_s == end_time_s) or
           (all(not value for value in job_metrics.values()))):
         # TODO(ahanadatta): Print statement will be replaced by logging.
-        print(f'No job details or metrics in json, skipping job index {i}')
+        print(f'No job metrics in json, skipping job index {i}')
         continue
 
-      filesize_kb = _convert_value(filesize, FILESIZE_CONVERSION)
-      numjobs = int(numjobs)
-
       all_jobs.append({
-          JOBNAME: jobname,
-          FILESIZE: filesize_kb,
-          THREADS: numjobs,
-          RW: rw,
+          PARAMS: job_params[i],
           START_TIME: start_time_s,
           END_TIME: end_time_s,
           METRICS: job_metrics
@@ -386,10 +389,12 @@ class FioMetrics:
 
     values = []
     for job in jobs:
-      row = [
-          job[JOBNAME], job[FILESIZE], job[THREADS], job[RW], job[START_TIME],
-          job[END_TIME]
-      ]
+      row = []
+      for param_val in job[PARAMS].values():
+        row.append(param_val)
+
+      row.append(job[START_TIME])
+      row.append(job[END_TIME])
       for metric_val in job[METRICS].values():
         row.append(metric_val)
       values.append(row)
