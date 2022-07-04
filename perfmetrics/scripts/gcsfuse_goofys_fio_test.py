@@ -129,12 +129,6 @@ def main(argv) -> None:
 
   fio_metrics_obj = fio_metrics.FioMetrics()
 
-  print(f'{args.method1}')
-  print(f'{args.method1_version}')
-  print(f'{args.method2}')
-  print(f'{args.method2_version}')
-  print(f'{args.jobfile_path}')
-
   os.system(f'echo Method1: {args.method1} {args.method1_version} >> output.txt')
   if args.method1 == 'gcsfuse':
     _gcsfuse_test(args.method1_version, args.jobfile_path, fio_metrics_obj)
