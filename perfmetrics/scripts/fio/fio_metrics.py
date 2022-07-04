@@ -333,7 +333,7 @@ class FioMetrics:
 
     Function working example:
       Ex: out_json = {"global options": {"filesize":"50M", "numjobs":"40"},
-      "jobs":[{"job options": {"numjobs":"10", "rw":"write"}}]}
+      "jobs":[{"job options": {"numjobs":"10"}}]}
       For REQ_JOB_PARAMS = [
           {
               NAME: FILESIZE_KB,
