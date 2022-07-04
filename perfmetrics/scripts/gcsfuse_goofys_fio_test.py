@@ -1,7 +1,7 @@
 """Python script to do FIO test for GCSFuse Vs GCSFuse/Goofys.
 
 To run the script:
->> python3 gcsfuse_goofys_fio_test.py method1 method1_version method2 method2_version jobfile_path
+>> python3 gcsfuse_goofys_fio_test.py -- method1 method1_version method2 method2_version jobfile_path
 
 -> method1 & method can be gcsfuse or goofys.
 -> Incase of goofys specify the version as latest.
