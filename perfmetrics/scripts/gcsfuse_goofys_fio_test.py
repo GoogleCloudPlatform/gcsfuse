@@ -77,7 +77,7 @@ def _run_fio_test(jobfile_path, fio_metrics_obj) -> None:
   os.system(f'''fio {jobfile_path} --lat_percentiles 1 --output-format=json --output='output.json'
             ''')
   fio_metricss = fio_metrics_obj.get_metrics('output.json', False)
-  os.system(f'''echo {fio_metricss} >> output.txt
+  os.system(f'''echo {fio_metricss} >> out/output.txt
             rm output.json
             ''')
 
@@ -128,14 +128,15 @@ def main(argv) -> None:
   args = parser.parse_args(argv[1:])
 
   fio_metrics_obj = fio_metrics.FioMetrics()
+  os.system('mkdir out')
 
-  os.system(f'echo Method1: {args.method1} {args.method1_version} >> output.txt')
+  os.system(f'echo Method1: {args.method1} {args.method1_version} >> out/output.txt')
   if args.method1 == 'gcsfuse':
     _gcsfuse_test(args.method1_version, args.jobfile_path, fio_metrics_obj)
   else:
     _goofys_test(args.jobfile_path, fio_metrics_obj)
 
-  os.system(f'echo Method2: {args.method2} {args.method2_version} >> output.txt')
+  os.system(f'echo Method2: {args.method2} {args.method2_version} >> out/output.txt')
   if args.method2 == 'gcsfuse':
     _gcsfuse_test(args.method2_version, args.jobfile_path, fio_metrics_obj)
   else:
