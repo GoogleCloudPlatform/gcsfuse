@@ -55,9 +55,9 @@ CONVERSION = 'conversion'
 NS_TO_S = 10**(-9)
 
 """ REQ_JOB_PARAMS:
-NAME: Refers to the output dictionary key for the parameter. To be used when 
-creating parameter dict for each job
-JSON_NAME: Refers to the input JSON file key. Key for parameter inside 
+NAME: Can be any suitable value, it refers to the output dictionary key for the 
+parameter. To be used when creating parameter dict for each job.
+JSON_NAME: Must match the FIO job specification key. Key for parameter inside 
 'global options'/'job options' dictionary
   Ex: For output json = {"global options": {"filesize":"50M"}, "jobs": [
   "job options": {"rw": "read"}]}
@@ -69,9 +69,12 @@ parameter to plottable values
 DEFAULT: Default value for the parameter
 
 We'll extract job parameter from 'global options' or 'job options' in the JSON
+using key specified in JSON_NAME. The parameter will be formatted according to
+function in FORMAT. This formatted value will be stored against NAME key.
+If no parameter is found in the JSON object, the DEFAULT value will be used.
 
-Ex: output json = {"global options": {"filesize":"50M"}}
-For REQ_JOB_PARAMS = [
+Ex: For FIO output json = {"global options": {"filesize":"50M"}}
+and REQ_JOB_PARAMS = [
     {
         NAME: FILESIZE_KB,
         JSON_NAME: FILESIZE,
@@ -110,9 +113,11 @@ REQ_JOB_PARAMS = [
 ]
 
 """ REQ_JOB_METRICS:
-NAME: key for the metric, to be used when creating metric dict for each job
-LEVELS: Keys for the metric inside 'read'/'write' dictionary in each job
-  Ex: For job = {'read': {'iops':123, 'latency':{'min':0}}}
+NAME: Can be any suitable value, it is used as key for the metric 
+when creating metric dict for each job
+LEVELS: Keys for the metric inside 'read'/'write' dictionary in each job.
+Each value in the list must match the key in the FIO output JSON
+  Ex: For job = {'read': {'iops': 123, 'latency': {'min': 0}}}
   LEVELS for IOPS will be ['iops'] and for min latency-> ['latency', 'min']
 CONVERSION: Multiplication factor to convert the metric to the desired unit
   Ex: Extracted latency metrics are in nanoseconds, but we need them in seconds
@@ -231,10 +236,10 @@ def _get_rw(rw_value):
   """Converting read/randread/write/randwrite to just read/write.
 
   Args:
-    rw_value: str, 'read'/'randread'/'write'/'randwrite'
+    rw_value: str, possible values: read/randread/write/randwrite
 
   Returns:
-    str, 'read'/'write'
+    str, read/write
 
   """
   if rw_value in ['read', 'randread']:
@@ -286,14 +291,18 @@ class FioMetrics:
 
     Args:
       out_json : FIO json output
-      job_params: List of dicts, Parameters of all jobs
+      job_params: List of dicts, each dict containing parameters of a job
 
     Returns:
       List of start and end time tuples, one tuple for each job
       Ex: [(1653027014, 1653027084), (1653027084, 1653027155)]
 
     """
+    # Creating a list of just the 'rw' job parameter. Later, we will
+    # loop through the jobs from the end, therefore we are creating 
+    # reversed rw list for easy access
     rw_rev_list = [job_param[RW] for job_param in reversed(job_params)]
+
     global_ramptime_ms = 0
     if GLOBAL_OPTS in out_json:
       if RAMPTIME in out_json[GLOBAL_OPTS]:
@@ -339,8 +348,9 @@ class FioMetrics:
         Ex: [{'filesize_kb': 50000, 'num_threads': 40, 'rw': 'read'}
 
     Function working example:
-      Ex: out_json = {"global options": {"filesize":"50M", "numjobs":"40"},
-      "jobs":[{"job options": {"numjobs":"10"}}]}
+      Ex: out_json = {"global options": {"filesize": "50M", "numjobs": "40"},
+                      "jobs":[{"job options": {"numjobs": "10"}}]
+                      }
       For REQ_JOB_PARAMS = [
           {
               NAME: FILESIZE_KB,
