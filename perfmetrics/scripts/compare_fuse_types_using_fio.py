@@ -103,7 +103,7 @@ def _goofys_test(jobfile_path, fio_metrics_obj) -> None:
   _run_fio_test(jobfile_path, fio_metrics_obj)
   _remove_goofys()
   
- def _fuse_test(fuse_type, fuse_type_version, jobfile_path, fio_metric_obj) -> None:
+def _fuse_test(fuse_type, fuse_type_version, jobfile_path, fio_metric_obj) -> None:
   """FIO test for specific version of given fuse type.
   
   Args:
