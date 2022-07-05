@@ -54,6 +54,7 @@ LEVELS = 'levels'
 CONVERSION = 'conversion'
 NS_TO_S = 10**(-9)
 
+REQ_JOB_PARAMS_KEYS = [NAME, JSON_NAME, FORMAT, DEFAULT]
 """ REQ_JOB_PARAMS:
 NAME: Can be any suitable value, it refers to the output dictionary key for the 
 parameter. To be used when creating parameter dict for each job.
@@ -112,6 +113,7 @@ REQ_JOB_PARAMS = [
     }
 ]
 
+REQ_JOB_METRICS_KEYS = [NAME, LEVELS, CONVERSION]
 """ REQ_JOB_METRICS:
 NAME: Can be any suitable value, it is used as key for the metric 
 when creating metric dict for each job
@@ -140,11 +142,6 @@ REQ_JOB_METRICS = [
         CONVERSION: 1
     },
     {
-        NAME: 'lat_s_mean',
-        LEVELS: [LAT_NS, MEAN],
-        CONVERSION: NS_TO_S
-    },
-    {
         NAME: 'lat_s_min',
         LEVELS: [LAT_NS, MIN],
         CONVERSION: NS_TO_S
@@ -152,6 +149,11 @@ REQ_JOB_METRICS = [
     {
         NAME: 'lat_s_max',
         LEVELS: [LAT_NS, MAX],
+        CONVERSION: NS_TO_S
+    },
+    {
+        NAME: 'lat_s_mean',
+        LEVELS: [LAT_NS, MEAN],
         CONVERSION: NS_TO_S
     },
     {
@@ -217,6 +219,11 @@ def _convert_value(value, conversion_dict, default_unit=''):
   Returns:
     Int, number in a specific unit
 
+  Raises:
+    KeyError: If empty string is passed as value or if unit is present as key in
+    conversion_dict
+    ValueError: If string has no numerical part
+
   Ex: For args value = "5s" and conversion_dict=RAMPTIME_CONVERSION
       "5s" will be converted to 5000 milliseconds and 5000 will be returned
 
@@ -241,11 +248,30 @@ def _get_rw(rw_value):
   Returns:
     str, read/write
 
+  Raises:
+    ValueError: If any rw_value other than read/randread/write/randwrite
+
   """
   if rw_value in ['read', 'randread']:
     return READ
   if rw_value in ['write', 'randwrite']:
     return WRITE
+  raise ValueError('Only read/randread/write/randwrite are supported')
+
+
+def _validate_required_keys(keys_list, list_of_dicts_to_validate):
+  """Checks if all required keys are present in every dict in the list of dicts.
+
+  Args:
+    keys_list: list containing the required key values
+    list_of_dicts_to_validate: List of dicts, each dict should contain all
+      keys mentioned in keys_list
+  Raises:
+    KeyError: Required key is missing in any of the dicts in the list
+  """
+  for a_dict in list_of_dicts_to_validate:
+    if sorted(list(a_dict.keys())) != sorted(keys_list):
+      raise KeyError(f'All keys in {keys_list} are not present in {a_dict}')
 
 
 class NoValuesError(Exception):
@@ -347,6 +373,10 @@ class FioMetrics:
       List of dicts, each dict containing parameters for a job
         Ex: [{'filesize_kb': 50000, 'num_threads': 40, 'rw': 'read'}
 
+    Raises:
+      KeyError: If any key (NAME, JSON_NAME, FORMAT, DEFAULT) is missing in
+      REQ_JOB_PARAMS
+
     Function working example:
       Ex: out_json = {"global options": {"filesize": "50M", "numjobs": "40"},
                       "jobs":[{"job options": {"numjobs": "10"}}]
@@ -376,6 +406,8 @@ class FioMetrics:
 
 
     """
+    # Validate REQ_JOB_PARAMS
+    _validate_required_keys(REQ_JOB_PARAMS_KEYS, REQ_JOB_PARAMS)
     # Job parameters specified as Global options
     # Each param is formatted according to its format function before storing
     global_params = {}
@@ -430,8 +462,10 @@ class FioMetrics:
         'lat_s_perc_95': 0.526385152}}]
 
     Raises:
-      KeyError: Key is missing in the json output
-      NoValuesError: Data not present in json object
+      KeyError: If any key (NAME, LEVELS, CONVERSION) is missing in
+      REQ_JOB_METRICS
+      NoValuesError: Data not present in json object or key in LEVELS is not
+      present in FIO output
 
     """
 
@@ -441,7 +475,7 @@ class FioMetrics:
     job_params = self._get_job_params(fio_out)
     start_end_times = self._get_start_end_times(fio_out, job_params)
     all_jobs = []
-
+    _validate_required_keys(REQ_JOB_METRICS_KEYS, REQ_JOB_METRICS)
     # Get the required metrics for every job
     for i, job in enumerate(fio_out[JOBS]):
       rw = job_params[i][RW]
@@ -470,9 +504,9 @@ class FioMetrics:
 
       start_time_s, end_time_s = start_end_times[i]
 
-      # start_time=end_time OR all the metrics are zero, 
+      # start_time>=end_time OR all the metrics are zero, 
       # log skip warning and continue to next job
-      if ((start_time_s == end_time_s) or
+      if ((start_time_s >= end_time_s) or
           (all(not value for value in job_metrics.values()))):
         # TODO(ahanadatta): Print statement will be replaced by logging.
         print(f'No job metrics in json, skipping job index {i}')
