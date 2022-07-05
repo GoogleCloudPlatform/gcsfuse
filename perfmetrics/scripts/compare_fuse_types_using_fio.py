@@ -18,6 +18,7 @@ from fio import fio_metrics
 from absl import app
 
 GOOFYS_REPO = 'https://github.com/kahing/goofys'
+GCSFUSE_REPO = 'https://github.com/GoogleCloudPlatform/gcsfuse'
 GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --disable-http2"
 
 
@@ -33,8 +34,22 @@ def _install_gcsfuse(version, gcs_bucket) -> None:
             mkdir gcs
             gcsfuse {GCSFUSE_FLAGS} {gcs_bucket} gcs
             ''')
+  
+def _install_gcsfuse_source(version, gcs_bucket) -> None:
+  """Run gcsfuse from source code.
+  
+  Args:
+    version(str): gcsfuse version to be installed. 
+    gcs_bucket(str): GCS bucket to be mounted.
+  """
+  os.system(f'''git clone {GITHUB_REPO}
+            mkdir gcs
+            cd gcsfuse
+            gcsfuse {GCSFUSE_FLAGS} {gcs_bucket} ../gcs
+            cd ..
+            ''')
 
-
+  
 def _remove_gcsfuse(version) -> None:
   """Remove gcsfuse with specific version.
   
@@ -45,6 +60,7 @@ def _remove_gcsfuse(version) -> None:
             rm -rf gcs
             rm -rf gcsfuse_{version}_amd64.deb
             sudo apt-get remove gcsfuse -y
+            rm -rf gcsfuse
             ''')
 
 
@@ -96,7 +112,11 @@ def _gcsfuse_test(version, jobfile_path, fio_metrics_obj, gcs_bucket) -> None:
     fio_metrics_obj(str): object for extracting fio metrics.
     gcs_bucket(str): GCS bucket to be mounted.
   """
-  _install_gcsfuse(version, gcs_bucket)
+  if version == 'master':
+    _install_gcsfuse_source(version, gcs_bucket)
+  else:
+    _install_gcsfuse(version, gcs_bucket)
+  
   _run_fio_test(jobfile_path, fio_metrics_obj)
   _remove_gcsfuse(version)
 
