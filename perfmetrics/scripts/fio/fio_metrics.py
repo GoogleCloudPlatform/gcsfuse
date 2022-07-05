@@ -301,9 +301,13 @@ class FioMetrics:
     rev_start_end_times = []
     # Looping from end since the given time is the final end time
     for i, job in enumerate(list(reversed(out_json[JOBS]))):
-      ramptime_ms = 0
       rw = rw_rev_list[i]
       job_rw = job[_get_rw(rw)]
+      ramptime_ms = 0
+      if JOB_OPTS in job:
+        if RAMPTIME in job[JOB_OPTS]:
+          ramptime_ms = _convert_value(job[JOB_OPTS][RAMPTIME],
+                                       RAMPTIME_CONVERSION, 's')
       if ramptime_ms == 0:
         ramptime_ms = global_ramptime_ms
 
