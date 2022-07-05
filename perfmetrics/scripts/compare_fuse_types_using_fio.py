@@ -17,24 +17,27 @@ from fio import fio_metrics
 
 from absl import app
 
-GCS_BUCKET = 'gke_load_test'
 GOOFYS_REPO = 'https://github.com/kahing/goofys'
+GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --disable-http2"
 
 
-def _install_gcsfuse(version) -> None:
+def _install_gcsfuse(version, gcs_bucket) -> None:
   """Install gcsfuse with Specific version.
+  
   Args:
-    version(str): gcsfuse version to be installed.  
+    version(str): gcsfuse version to be installed. 
+    gcs_bucket(str): GCS bucket to be mounted.
   """
   os.system(f'''curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v{version}/gcsfuse_{version}_amd64.deb
             sudo dpkg --install gcsfuse_{version}_amd64.deb
             mkdir gcs
-            gcsfuse --implicit-dirs --max-conns-per-host 100 --disable-http2 {GCS_BUCKET} gcs
+            gcsfuse {GCSFUSE_FLAGS} {gcs_bucket} gcs
             ''')
 
 
 def _remove_gcsfuse(version) -> None:
   """Remove gcsfuse with specific version.
+  
   Args:
     version(str): gcsfuse version to be removed.
   """
@@ -45,14 +48,17 @@ def _remove_gcsfuse(version) -> None:
             ''')
 
 
-def _install_goofys() -> None:
+def _install_goofys(gcs_bucket) -> None:
   """Install latest version of goofys.
+  
+  Args:
+    gcs_bucket(str): GCS bucket to be mounted.
   """
   os.system(f'''git clone {GOOFYS_REPO}
             export GOPATH=$HOME/work
             mkdir gcs
             cd goofys
-            go run . gs://{GCS_BUCKET} ../gcs
+            go run . gs://{gcs_bucket} ../gcs
             cd ..
             ''')
 
@@ -68,6 +74,7 @@ def _remove_goofys() -> None:
 
 def _run_fio_test(jobfile_path, fio_metrics_obj) -> None:
   """Run fio test and extract metrics to output.txt file.
+  
   Args:
     jobfile(str): path of the job file.
     fio_metrics_obj(str): object for extracting fio metrics.
@@ -80,30 +87,33 @@ def _run_fio_test(jobfile_path, fio_metrics_obj) -> None:
             ''')
 
 
-def _gcsfuse_test(version, jobfile_path, fio_metrics_obj) -> None:
+def _gcsfuse_test(version, jobfile_path, fio_metrics_obj, gcs_bucket) -> None:
   """FIO test for gcsfuse of given version.
+  
   Args:
     version(str): gcsfuse version to perform fio test.
     jobfile(str): path of the job file.
     fio_metrics_obj(str): object for extracting fio metrics.
+    gcs_bucket(str): GCS bucket to be mounted.
   """
-  _install_gcsfuse(version)
+  _install_gcsfuse(version, gcs_bucket)
   _run_fio_test(jobfile_path, fio_metrics_obj)
   _remove_gcsfuse(version)
 
 
-def _goofys_test(jobfile_path, fio_metrics_obj) -> None:
+def _goofys_test(jobfile_path, fio_metrics_obj, gcs_bucket) -> None:
   """FIO test for latest version of goofys.
   
   Args:
     jobfile(str): path of the job file.
     fio_metrics_obj(str): object for extracting fio metrics.
+    gcs_bucket(str): GCS bucket to be mounted.
   """
-  _install_goofys()
+  _install_goofys(gcs_bucket)
   _run_fio_test(jobfile_path, fio_metrics_obj)
   _remove_goofys()
   
-def _fuse_test(fuse_type, fuse_type_version, jobfile_path, fio_metric_obj) -> None:
+def _fuse_test(fuse_type, fuse_type_version, jobfile_path, fio_metric_obj, gcs_bucket) -> None:
   """FIO test for specific version of given fuse type.
   
   Args:
@@ -111,11 +121,12 @@ def _fuse_test(fuse_type, fuse_type_version, jobfile_path, fio_metric_obj) -> No
     fuse_type_version(str): fuse type version for fio test.
     jobfile(str): path of the job file.
     fio_metrics_obj(str): object for extracting fio metrics.
+    gcs_bucket(str): GCS bucket to be mounted.
   """
   if fuse_type == 'gcsfuse':
-    _gcsfuse_test(fuse_type_version, jobfile_path, fio_metric_obj)
+    _gcsfuse_test(fuse_type_version, jobfile_path, fio_metric_obj, gcs_bucket)
   elif fuse_type == 'goofys':
-    _goofys_test(jobfile_path, fio_metric_obj)
+    _goofys_test(jobfile_path, fio_metric_obj, gcs_bucket)
   else:
     app.UsageError('Unsupported fuse type!')
       
@@ -138,16 +149,19 @@ def main(argv) -> None:
   parser.add_argument(
       'jobfile_path',
       help='Provid path of the jobfile')
+  parser.add_argumet(
+      'gcs_bucket',
+      help="Provide the gcs bucket name to be mounted"
   args = parser.parse_args(argv[1:])
 
   fio_metrics_obj = fio_metrics.FioMetrics()
   os.system('mkdir out')
 
   os.system(f'echo Fuse Type 1: {args.fuse_type_1} {args.fuse_type_1_version} >> out/output.txt')
-  _fuse_test(args.fuse_type_1, args.fuse_type_1_version, args.jobfile_path, fio_metrics_obj)
+  _fuse_test(args.fuse_type_1, args.fuse_type_1_version, args.jobfile_path, fio_metrics_obj, args.gcs_bucket)
 
   os.system(f'echo Fuse Type 2: {args.fuse_type_2} {args.fuse_type_2_version} >> out/output.txt')
-  _fuse_test(args.fuse_type_2, args.fuse_type_2_version, args.jobfile_path, fio_metrics_obj)
+  _fuse_test(args.fuse_type_2, args.fuse_type_2_version, args.jobfile_path, fio_metrics_obj, args.gcs_bucket)
 
 
 if __name__ == '__main__':
