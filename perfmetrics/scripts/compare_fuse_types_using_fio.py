@@ -42,7 +42,7 @@ def _install_gcsfuse_source(version, gcs_bucket) -> None:
     version(str): gcsfuse version to be installed. 
     gcs_bucket(str): GCS bucket to be mounted.
   """
-  os.system(f'''git clone {GITHUB_REPO}
+  os.system(f'''git clone {GCSFUSE_REPO}
             mkdir gcs
             cd gcsfuse
             gcsfuse {GCSFUSE_FLAGS} {gcs_bucket} ../gcs
