@@ -102,8 +102,25 @@ def _goofys_test(jobfile_path, fio_metrics_obj) -> None:
   _install_goofys()
   _run_fio_test(jobfile_path, fio_metrics_obj)
   _remove_goofys()
-
-
+  
+ def _fuse_test(fuse_type, fuse_type_version, jobfile_path, fio_metric_obj) -> None:
+  """FIO test for specific version of given fuse type.
+  
+  Args:
+    fuse_type(str): fuse type for fio test.
+    fuse_type_version(str): fuse type version for fio test.
+    jobfile(str): path of the job file.
+    fio_metrics_obj(str): object for extracting fio metrics.
+  """
+  switch(fuse_type):
+    case 'gcsfuse':
+      _gcsfuse_test(fuse_type_version, jobfile_path, fio_metric_obj)
+    case 'goofys':
+      _goofys_test(jobfile_path, fio_metric_obj)
+    default:
+      app.UsageError('Unsupported fuse type!')
+      
+  
 def main(argv) -> None:
 
   parser = argparse.ArgumentParser()
@@ -128,16 +145,10 @@ def main(argv) -> None:
   os.system('mkdir out')
 
   os.system(f'echo Fuse Type 1: {args.fuse_type_1} {args.fuse_type_1_version} >> out/output.txt')
-  if args.method1 == 'gcsfuse':
-    _gcsfuse_test(args.fuse_type_1_version, args.jobfile_path, fio_metrics_obj)
-  else:
-    _goofys_test(args.jobfile_path, fio_metrics_obj)
+  _fuse_test(args.fuse_type_1, args.fuse_type_1_version, args.jobfile_path, fio_metrics_obj)
 
   os.system(f'echo Fuse Type 2: {args.fuse_type_2} {args.fuse_type_2_version} >> out/output.txt')
-  if args.method2 == 'gcsfuse':
-    _gcsfuse_test(args.fuse_type_2_version, args.jobfile_path, fio_metrics_obj)
-  else:
-    _goofys_test(args.jobfile_path, fio_metrics_obj)
+  _fuse_test(args.fuse_type_2, args.fuse_type_2_version, args.jobfile_path, fio_metrics_obj)
 
 
 if __name__ == '__main__':
