@@ -26,7 +26,7 @@ def _install_gcsfuse(version, gcs_bucket) -> None:
   """Install gcsfuse with Specific version.
   
   Args:
-    version(str): gcsfuse version to be installed. 
+    version(str): Gcsfuse version to be installed. 
     gcs_bucket(str): GCS bucket to be mounted.
   """
   os.system(f'''curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v{version}/gcsfuse_{version}_amd64.deb
@@ -39,13 +39,13 @@ def _install_gcsfuse_source(version, gcs_bucket) -> None:
   """Run gcsfuse from source code.
   
   Args:
-    version(str): gcsfuse version to be installed. 
+    version(str): Gcsfuse version to be installed. 
     gcs_bucket(str): GCS bucket to be mounted.
   """
   os.system(f'''git clone {GCSFUSE_REPO}
             mkdir gcs
             cd gcsfuse
-            gcsfuse {GCSFUSE_FLAGS} {gcs_bucket} ../gcs
+            go run . {GCSFUSE_FLAGS} {gcs_bucket} ../gcs
             cd ..
             ''')
 
@@ -54,7 +54,7 @@ def _remove_gcsfuse(version) -> None:
   """Remove gcsfuse with specific version.
   
   Args:
-    version(str): gcsfuse version to be removed.
+    version(str): Gcsfuse version to be removed.
   """
   os.system(f'''fusermount -u gcs
             rm -rf gcs
@@ -92,8 +92,8 @@ def _run_fio_test(jobfile_path, fio_metrics_obj) -> None:
   """Run fio test and extract metrics to output.txt file.
   
   Args:
-    jobfile(str): path of the job file.
-    fio_metrics_obj(str): object for extracting fio metrics.
+    jobfile(str): Path of the job file.
+    fio_metrics_obj(str): Object for extracting fio metrics.
   """
   os.system(f'''fio {jobfile_path} --lat_percentiles 1 --output-format=json --output='output.json'
             ''')
@@ -107,9 +107,9 @@ def _gcsfuse_test(version, jobfile_path, fio_metrics_obj, gcs_bucket) -> None:
   """FIO test for gcsfuse of given version.
   
   Args:
-    version(str): gcsfuse version to perform fio test.
-    jobfile(str): path of the job file.
-    fio_metrics_obj(str): object for extracting fio metrics.
+    version(str): Gcsfuse version to perform fio test.
+    jobfile(str): Path of the job file.
+    fio_metrics_obj(str): Object for extracting fio metrics.
     gcs_bucket(str): GCS bucket to be mounted.
   """
   if version == 'master':
@@ -125,8 +125,8 @@ def _goofys_test(jobfile_path, fio_metrics_obj, gcs_bucket) -> None:
   """FIO test for latest version of goofys.
   
   Args:
-    jobfile(str): path of the job file.
-    fio_metrics_obj(str): object for extracting fio metrics.
+    jobfile(str): Path of the job file.
+    fio_metrics_obj(str): Object for extracting fio metrics.
     gcs_bucket(str): GCS bucket to be mounted.
   """
   _install_goofys(gcs_bucket)
@@ -137,10 +137,10 @@ def _fuse_test(fuse_type, fuse_type_version, jobfile_path, fio_metric_obj, gcs_b
   """FIO test for specific version of given fuse type.
   
   Args:
-    fuse_type(str): fuse type for fio test.
-    fuse_type_version(str): fuse type version for fio test.
-    jobfile(str): path of the job file.
-    fio_metrics_obj(str): object for extracting fio metrics.
+    fuse_type(str): Fuse type for fio test.
+    fuse_type_version(str): Fuse type version for fio test.
+    jobfile(str): Path of the job file.
+    fio_metrics_obj(str): Object for extracting fio metrics.
     gcs_bucket(str): GCS bucket to be mounted.
   """
   if fuse_type == 'gcsfuse':
