@@ -151,7 +151,7 @@ def main(argv) -> None:
       help='Provid path of the jobfile')
   parser.add_argumet(
       'gcs_bucket',
-      help="Provide the gcs bucket name to be mounted"
+      help="Provide the gcs bucket name to be mounted")
   args = parser.parse_args(argv[1:])
 
   fio_metrics_obj = fio_metrics.FioMetrics()
