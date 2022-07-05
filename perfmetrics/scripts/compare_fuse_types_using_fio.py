@@ -112,13 +112,12 @@ def _fuse_test(fuse_type, fuse_type_version, jobfile_path, fio_metric_obj) -> No
     jobfile(str): path of the job file.
     fio_metrics_obj(str): object for extracting fio metrics.
   """
-  switch(fuse_type):
-    case 'gcsfuse':
-      _gcsfuse_test(fuse_type_version, jobfile_path, fio_metric_obj)
-    case 'goofys':
-      _goofys_test(jobfile_path, fio_metric_obj)
-    default:
-      app.UsageError('Unsupported fuse type!')
+  if fuse_type == 'gcsfuse':
+    _gcsfuse_test(fuse_type_version, jobfile_path, fio_metric_obj)
+  elif fuse_type == 'goofys':
+    _goofys_test(jobfile_path, fio_metric_obj)
+  else:
+    app.UsageError('Unsupported fuse type!')
       
   
 def main(argv) -> None:
