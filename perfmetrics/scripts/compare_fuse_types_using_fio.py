@@ -1,12 +1,14 @@
 """Python script to do FIO test for GCSFuse Vs GCSFuse/Goofys.
 
 To run the script:
->> python3 compare_fuse_types_using_fio.py -- method1 method1_version method2 method2_version jobfile_path
--> method1 & method can be gcsfuse or goofys.
--> Incase of goofys specify the version as latest.
+>> python3 compare_fuse_types_using_fio.py -- fuse_type_1 fuse_type_1_version fuser_type_2 fuse_type_2_version jobfile_path
 
-The code takes input the fio test method and its version, jobfile_path as input.
-Then it will perform the fio test for each of the given method at a specific version
+-> Supported fuse_types are gcsfuse and goofys.
+-> Incase of gcsfuse you can specify version as any of its released version or master to run from the source.
+-> Incase of goofys specify the version as latest, as we will be comparing gcsfuse with the latest version of goofys.
+
+The code takes input the fuse type and its version and, jobfile_path as input for fio test.
+Then it will perform the fio test for each of the given fuse type at a specific version
 and extract fio_metrics to output.txt file.
 """
 import argparse
@@ -106,17 +108,17 @@ def main(argv) -> None:
 
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      'method1',
-      help='Provide reading method1 for fio test')
+      'fuse_type_1',
+      help='Provide reading fuse_type_1 for fio test')
   parser.add_argument(
-      'method1_version',
-      help='Provid the Specific version of method1 in approprite formate')
+      'fuse_type_1_version',
+      help='Provid the Specific version of fuse_type_1 in approprite formate')
   parser.add_argument(
-      'method2',
-      help='Provide reading method2 for fio test')
+      'fuse_type_2',
+      help='Provide reading fuse_type_2 for fio test')
   parser.add_argument(
-      'method2_version',
-      help='Provid the Specific version of method2 in approprite formate')
+      'fuse_type_2_version',
+      help='Provid the Specific version of fuse_type_2 in approprite formate')
   parser.add_argument(
       'jobfile_path',
       help='Provid path of the jobfile')
@@ -125,15 +127,15 @@ def main(argv) -> None:
   fio_metrics_obj = fio_metrics.FioMetrics()
   os.system('mkdir out')
 
-  os.system(f'echo Method1: {args.method1} {args.method1_version} >> out/output.txt')
+  os.system(f'echo Fuse Type 1: {args.fuse_type_1} {args.fuse_type_1_version} >> out/output.txt')
   if args.method1 == 'gcsfuse':
-    _gcsfuse_test(args.method1_version, args.jobfile_path, fio_metrics_obj)
+    _gcsfuse_test(args.fuse_type_1_version, args.jobfile_path, fio_metrics_obj)
   else:
     _goofys_test(args.jobfile_path, fio_metrics_obj)
 
-  os.system(f'echo Method2: {args.method2} {args.method2_version} >> out/output.txt')
+  os.system(f'echo Fuse Type 2: {args.fuse_type_2} {args.fuse_type_2_version} >> out/output.txt')
   if args.method2 == 'gcsfuse':
-    _gcsfuse_test(args.method2_version, args.jobfile_path, fio_metrics_obj)
+    _gcsfuse_test(args.fuse_type_2_version, args.jobfile_path, fio_metrics_obj)
   else:
     _goofys_test(args.jobfile_path, fio_metrics_obj)
 
