@@ -54,10 +54,12 @@ LEVELS = 'levels'
 CONVERSION = 'conversion'
 NS_TO_S = 10**(-9)
 
+REQ_JOB_PARAMS_KEYS = [NAME, JSON_NAME, FORMAT, DEFAULT]
 """ REQ_JOB_PARAMS:
-NAME: key for the parameter, to be used when creating parameter dict for each
-Job
-JSON_NAME: Key for parameter inside 'global options'/'job options' dictionary
+NAME: Can be any suitable value, it refers to the output dictionary key for the 
+parameter. To be used when creating parameter dict for each job.
+JSON_NAME: Must match the FIO job specification key. Key for parameter inside 
+'global options'/'job options' dictionary
   Ex: For output json = {"global options": {"filesize":"50M"}, "jobs": [
   "job options": {"rw": "read"}]}
   JSON_NAME for filesize will be "filesize" and that for readwrite will be "rw"
@@ -67,8 +69,13 @@ parameter to plottable values
   showing size in kb in order to maintain uniformity
 DEFAULT: Default value for the parameter
 
-Ex: output json = {"global options": {"filesize":"50M"}}
-For REQ_JOB_PARAMS = [
+We'll extract job parameter from 'global options' or 'job options' in the JSON
+using key specified in JSON_NAME. The parameter will be formatted according to
+function in FORMAT. This formatted value will be stored against NAME key.
+If no parameter is found in the JSON object, the DEFAULT value will be used.
+
+Ex: For FIO output json = {"global options": {"filesize":"50M"}}
+and REQ_JOB_PARAMS = [
     {
         NAME: FILESIZE_KB,
         JSON_NAME: FILESIZE,
@@ -95,7 +102,7 @@ REQ_JOB_PARAMS = [
         NAME: THREADS,
         JSON_NAME: NUMJOBS,
         FORMAT: lambda val: int(val),
-        DEFAULT: '1'
+        DEFAULT: 1
     },
     # Don't remove the below parameter
     {
@@ -106,10 +113,13 @@ REQ_JOB_PARAMS = [
     }
 ]
 
+REQ_JOB_METRICS_KEYS = [NAME, LEVELS, CONVERSION]
 """ REQ_JOB_METRICS:
-NAME: key for the metric, to be used when creating metric dict for each job
-LEVELS: Keys for the metric inside 'read'/'write' dictionary in each job
-  Ex: For job = {'read': {'iops':123, 'latency':{'min':0}}}
+NAME: Can be any suitable value, it is used as key for the metric 
+when creating metric dict for each job
+LEVELS: Keys for the metric inside 'read'/'write' dictionary in each job.
+Each value in the list must match the key in the FIO output JSON
+  Ex: For job = {'read': {'iops': 123, 'latency': {'min': 0}}}
   LEVELS for IOPS will be ['iops'] and for min latency-> ['latency', 'min']
 CONVERSION: Multiplication factor to convert the metric to the desired unit
   Ex: Extracted latency metrics are in nanoseconds, but we need them in seconds
@@ -132,11 +142,6 @@ REQ_JOB_METRICS = [
         CONVERSION: 1
     },
     {
-        NAME: 'lat_s_mean',
-        LEVELS: [LAT_NS, MEAN],
-        CONVERSION: NS_TO_S
-    },
-    {
         NAME: 'lat_s_min',
         LEVELS: [LAT_NS, MIN],
         CONVERSION: NS_TO_S
@@ -144,6 +149,11 @@ REQ_JOB_METRICS = [
     {
         NAME: 'lat_s_max',
         LEVELS: [LAT_NS, MAX],
+        CONVERSION: NS_TO_S
+    },
+    {
+        NAME: 'lat_s_mean',
+        LEVELS: [LAT_NS, MEAN],
         CONVERSION: NS_TO_S
     },
     {
@@ -209,6 +219,11 @@ def _convert_value(value, conversion_dict, default_unit=''):
   Returns:
     Int, number in a specific unit
 
+  Raises:
+    KeyError: If empty string is passed as value or if unit is present as key in
+    conversion_dict
+    ValueError: If string has no numerical part
+
   Ex: For args value = "5s" and conversion_dict=RAMPTIME_CONVERSION
       "5s" will be converted to 5000 milliseconds and 5000 will be returned
 
@@ -228,16 +243,35 @@ def _get_rw(rw_value):
   """Converting read/randread/write/randwrite to just read/write.
 
   Args:
-    rw_value: str, 'read'/'randread'/'write'/'randwrite'
+    rw_value: str, possible values: read/randread/write/randwrite
 
   Returns:
-    str, 'read'/'write'
+    str, read/write
+
+  Raises:
+    ValueError: If any rw_value other than read/randread/write/randwrite
 
   """
   if rw_value in ['read', 'randread']:
     return READ
   if rw_value in ['write', 'randwrite']:
     return WRITE
+  raise ValueError('Only read/randread/write/randwrite are supported')
+
+
+def _validate_required_keys(keys_list, list_of_dicts_to_validate):
+  """Checks if all required keys are present in every dict in the list of dicts.
+
+  Args:
+    keys_list: list containing the required key values
+    list_of_dicts_to_validate: List of dicts, each dict should contain all
+      keys mentioned in keys_list
+  Raises:
+    KeyError: Required key is missing in any of the dicts in the list
+  """
+  for a_dict in list_of_dicts_to_validate:
+    if sorted(list(a_dict.keys())) != sorted(keys_list):
+      raise KeyError(f'All keys in {keys_list} are not present in {a_dict}')
 
 
 class NoValuesError(Exception):
@@ -283,14 +317,18 @@ class FioMetrics:
 
     Args:
       out_json : FIO json output
-      job_params: List of dicts, Parameters of all jobs
+      job_params: List of dicts, each dict containing parameters of a job
 
     Returns:
       List of start and end time tuples, one tuple for each job
       Ex: [(1653027014, 1653027084), (1653027084, 1653027155)]
 
     """
+    # Creating a list of just the 'rw' job parameter. Later, we will
+    # loop through the jobs from the end, therefore we are creating 
+    # reversed rw list for easy access
     rw_rev_list = [job_param[RW] for job_param in reversed(job_params)]
+
     global_ramptime_ms = 0
     if GLOBAL_OPTS in out_json:
       if RAMPTIME in out_json[GLOBAL_OPTS]:
@@ -301,9 +339,13 @@ class FioMetrics:
     rev_start_end_times = []
     # Looping from end since the given time is the final end time
     for i, job in enumerate(list(reversed(out_json[JOBS]))):
-      ramptime_ms = 0
       rw = rw_rev_list[i]
       job_rw = job[_get_rw(rw)]
+      ramptime_ms = 0
+      if JOB_OPTS in job:
+        if RAMPTIME in job[JOB_OPTS]:
+          ramptime_ms = _convert_value(job[JOB_OPTS][RAMPTIME],
+                                       RAMPTIME_CONVERSION, 's')
       if ramptime_ms == 0:
         ramptime_ms = global_ramptime_ms
 
@@ -331,9 +373,14 @@ class FioMetrics:
       List of dicts, each dict containing parameters for a job
         Ex: [{'filesize_kb': 50000, 'num_threads': 40, 'rw': 'read'}
 
+    Raises:
+      KeyError: If any key (NAME, JSON_NAME, FORMAT, DEFAULT) is missing in
+      REQ_JOB_PARAMS
+
     Function working example:
-      Ex: out_json = {"global options": {"filesize":"50M", "numjobs":"40"},
-      "jobs":[{"job options": {"numjobs":"10"}}]}
+      Ex: out_json = {"global options": {"filesize": "50M", "numjobs": "40"},
+                      "jobs":[{"job options": {"numjobs": "10"}}]
+                      }
       For REQ_JOB_PARAMS = [
           {
               NAME: FILESIZE_KB,
@@ -345,7 +392,7 @@ class FioMetrics:
               NAME: THREADS,
               JSON_NAME: NUMJOBS,
               FORMAT: lambda val: int(val),
-              DEFAULT: '1'
+              DEFAULT: 1
           },
           {
               NAME: RW,
@@ -359,6 +406,8 @@ class FioMetrics:
 
 
     """
+    # Validate REQ_JOB_PARAMS
+    _validate_required_keys(REQ_JOB_PARAMS_KEYS, REQ_JOB_PARAMS)
     # Job parameters specified as Global options
     # Each param is formatted according to its format function before storing
     global_params = {}
@@ -413,8 +462,10 @@ class FioMetrics:
         'lat_s_perc_95': 0.526385152}}]
 
     Raises:
-      KeyError: Key is missing in the json output
-      NoValuesError: Data not present in json object
+      KeyError: If any key (NAME, LEVELS, CONVERSION) is missing in
+      REQ_JOB_METRICS
+      NoValuesError: Data not present in json object or key in LEVELS is not
+      present in FIO output
 
     """
 
@@ -424,7 +475,7 @@ class FioMetrics:
     job_params = self._get_job_params(fio_out)
     start_end_times = self._get_start_end_times(fio_out, job_params)
     all_jobs = []
-
+    _validate_required_keys(REQ_JOB_METRICS_KEYS, REQ_JOB_METRICS)
     # Get the required metrics for every job
     for i, job in enumerate(fio_out[JOBS]):
       rw = job_params[i][RW]
@@ -453,9 +504,9 @@ class FioMetrics:
 
       start_time_s, end_time_s = start_end_times[i]
 
-      # start_time=end_time OR all the metrics are zero, 
+      # start_time>=end_time OR all the metrics are zero, 
       # log skip warning and continue to next job
-      if ((start_time_s == end_time_s) or
+      if ((start_time_s >= end_time_s) or
           (all(not value for value in job_metrics.values()))):
         # TODO(ahanadatta): Print statement will be replaced by logging.
         print(f'No job metrics in json, skipping job index {i}')
