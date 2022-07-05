@@ -149,7 +149,7 @@ def main(argv) -> None:
   parser.add_argument(
       'jobfile_path',
       help='Provid path of the jobfile')
-  parser.add_argumet(
+  parser.add_argument(
       'gcs_bucket',
       help="Provide the gcs bucket name to be mounted")
   args = parser.parse_args(argv[1:])
