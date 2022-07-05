@@ -55,9 +55,10 @@ CONVERSION = 'conversion'
 NS_TO_S = 10**(-9)
 
 """ REQ_JOB_PARAMS:
-NAME: key for the parameter, to be used when creating parameter dict for each
-Job
-JSON_NAME: Key for parameter inside 'global options'/'job options' dictionary
+NAME: Refers to the output dictionary key for the parameter. To be used when 
+creating parameter dict for each job
+JSON_NAME: Refers to the input JSON file key. Key for parameter inside 
+'global options'/'job options' dictionary
   Ex: For output json = {"global options": {"filesize":"50M"}, "jobs": [
   "job options": {"rw": "read"}]}
   JSON_NAME for filesize will be "filesize" and that for readwrite will be "rw"
@@ -66,6 +67,8 @@ parameter to plottable values
   Ex: 'filesize' is obtained as '50M', but we need to convert it to integer
   showing size in kb in order to maintain uniformity
 DEFAULT: Default value for the parameter
+
+We'll extract job parameter from 'global options' or 'job options' in the JSON
 
 Ex: output json = {"global options": {"filesize":"50M"}}
 For REQ_JOB_PARAMS = [
