@@ -16,6 +16,7 @@ package gcs
 
 import (
 	"cloud.google.com/go/storage"
+	"crypto/md5"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -23,11 +24,13 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	storagev1 "google.golang.org/api/storage/v1"
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
@@ -142,6 +145,11 @@ func (b *bucket) Name() string {
 func (b *bucket) ListObjects(
 	ctx context.Context,
 	req *ListObjectsRequest) (listing *Listing, err error) {
+
+	if true {
+		listing, err = ListObjectsSCL(ctx, req, b.name, b.storageClient)
+		return
+	}
 	// Construct an appropriate URL (cf. http://goo.gl/aVSAhT).
 	opaque := fmt.Sprintf(
 		"//%s/storage/v1/b/%s/o",
@@ -210,13 +218,97 @@ func (b *bucket) ListObjects(
 	if listing, err = toListing(rawListing); err != nil {
 		return
 	}
+	fmt.Println((*listing))
+	return
+}
 
+func ListObjectsSCL(
+	ctx context.Context,
+	req *ListObjectsRequest, bucketName string, storageClient *storage.Client) (listing *Listing, err error) {
+	// If client is "nil", it means that there was some problem in initializing client in newBucket function of bucket.go file.
+	var list Listing
+	if storageClient == nil {
+		err = fmt.Errorf("Error in creating client through Go Storage Library.")
+		return
+	}
+
+	query := &storage.Query{
+		Delimiter:                req.Delimiter,
+		Prefix:                   req.Prefix,
+		Projection:               storage.Projection(req.ProjectionVal),
+		IncludeTrailingDelimiter: req.IncludeTrailingDelimiter,
+		//MaxResults: , (Field not present in storage.Query but present in Jacobsa query.)
+	}
+	itr := storageClient.Bucket(bucketName).Objects(ctx, query)
+
+	for {
+		var attrs *storage.ObjectAttrs = nil
+		attrs, err = itr.Next()
+		if err == iterator.Done {
+			err = nil
+			break
+		}
+		if err != nil {
+			err = fmt.Errorf("Error in iterating through objects: %v", err)
+			return
+		}
+
+		var Acl []*storagev1.ObjectAccessControl
+		for _, element := range attrs.ACL {
+			currACL := &storagev1.ObjectAccessControl{
+				Entity:   string(element.Entity),
+				EntityId: element.EntityID,
+				Role:     string(element.Role),
+				Domain:   element.Domain,
+				Email:    element.Email,
+				ProjectTeam: &storagev1.ObjectAccessControlProjectTeam{
+					ProjectNumber: element.ProjectTeam.ProjectNumber,
+					Team:          element.ProjectTeam.Team,
+				},
+			}
+			Acl = append(Acl, currACL)
+		}
+
+		var MD5 [md5.Size]byte
+		copy(MD5[:], attrs.MD5)
+
+		currObject := &Object{
+			Name:            attrs.Name,
+			ContentType:     attrs.ContentType,
+			ContentLanguage: attrs.ContentLanguage,
+			CacheControl:    attrs.CacheControl,
+			Owner:           attrs.Owner,
+			Size:            uint64(attrs.Size),
+			ContentEncoding: attrs.ContentEncoding,
+			MD5:             &MD5,
+			CRC32C:          &attrs.CRC32C,
+			MediaLink:       attrs.MediaLink,
+			Metadata:        attrs.Metadata,
+			Generation:      attrs.Generation,
+			MetaGeneration:  attrs.Metageneration,
+			StorageClass:    attrs.StorageClass,
+			Deleted:         attrs.Deleted,
+			Updated:         attrs.Updated,
+			//ComponentCount: , (Field not found in attrs)
+			ContentDisposition: attrs.ContentDisposition,
+			CustomTime:         string(attrs.CustomTime.Format(time.RFC3339)),
+			EventBasedHold:     attrs.EventBasedHold,
+			Acl:                Acl,
+		}
+		list.Objects = append(list.Objects, currObject)
+	}
+
+	listing = &list
 	return
 }
 
 func (b *bucket) StatObject(
 	ctx context.Context,
 	req *StatObjectRequest) (o *Object, err error) {
+	if true {
+		o, err = StatObjectSCL(ctx, req, b.name, b.storageClient)
+		return
+	}
 	// Construct an appropriate URL (cf. http://goo.gl/MoITmB).
 	opaque := fmt.Sprintf(
 		"//%s/storage/v1/b/%s/o/%s",
@@ -275,6 +367,75 @@ func (b *bucket) StatObject(
 	if o, err = toObject(rawObject); err != nil {
 		err = fmt.Errorf("toObject: %v", err)
 		return
+	}
+
+	return
+}
+
+func StatObjectSCL(
+	ctx context.Context,
+	req *StatObjectRequest, bucketName string, storageClient *storage.Client) (o *Object, err error) {
+	// If client is "nil", it means that there was some problem in initializing client in newBucket function of bucket.go file.
+	if storageClient == nil {
+		err = fmt.Errorf("Error in creating client through Go Storage Library.")
+		return
+	}
+	var attrs *storage.ObjectAttrs = nil
+	attrs, err = storageClient.Bucket(bucketName).Object(req.Name).Attrs(ctx)
+	if err == storage.ErrObjectNotExist {
+		dirName := req.Name + "/"
+		attrs, err = storageClient.Bucket(bucketName).Object(dirName).Attrs(ctx)
+		if err != nil {
+			err = &NotFoundError{Err: err}
+			return
+		}
+	}
+	if err != nil {
+		err = fmt.Errorf("Error in returning object attributes: %v", err)
+		return
+	}
+
+	var Acl []*storagev1.ObjectAccessControl
+	for _, element := range attrs.ACL {
+		currACL := &storagev1.ObjectAccessControl{
+			Entity:   string(element.Entity),
+			EntityId: element.EntityID,
+			Role:     string(element.Role),
+			Domain:   element.Domain,
+			Email:    element.Email,
+			ProjectTeam: &storagev1.ObjectAccessControlProjectTeam{
+				ProjectNumber: element.ProjectTeam.ProjectNumber,
+				Team:          element.ProjectTeam.Team,
+			},
+		}
+		Acl = append(Acl, currACL)
+	}
+
+	var MD5 [md5.Size]byte
+	copy(MD5[:], attrs.MD5)
+
+	o = &Object{
+		Name:            attrs.Name,
+		ContentType:     attrs.ContentType,
+		ContentLanguage: attrs.ContentLanguage,
+		CacheControl:    attrs.CacheControl,
+		Owner:           attrs.Owner,
+		Size:            uint64(attrs.Size),
+		ContentEncoding: attrs.ContentEncoding,
+		MD5:             &MD5,
+		CRC32C:          &attrs.CRC32C,
+		MediaLink:       attrs.MediaLink,
+		Metadata:        attrs.Metadata,
+		Generation:      attrs.Generation,
+		MetaGeneration:  attrs.Metageneration,
+		StorageClass:    attrs.StorageClass,
+		Deleted:         attrs.Deleted,
+		Updated:         attrs.Updated,
+		//ComponentCount: , (Field not found in attrs)
+		ContentDisposition: attrs.ContentDisposition,
+		CustomTime:         string(attrs.CustomTime.Format(time.RFC3339)),
+		EventBasedHold:     attrs.EventBasedHold,
+		Acl:                Acl,
 	}
 
 	return
@@ -365,6 +526,7 @@ func newBucket(
 
 	// Creating client through Go Storage Client Library for the storageClient parameter of bucket.
 	var tr *http.Transport = nil
+	//	duration, _ := time.ParseDuration("5ms")
 
 	// Choosing between HTTP1 and HTTP2.
 	if goClientConfig.DisableHTTP2 {
@@ -375,6 +537,8 @@ func newBucket(
 			TLSNextProto: make(
 				map[string]func(string, *tls.Conn) http.RoundTripper,
 			),
+			//	ResponseHeaderTimeout: duration,
+			//	TLSHandshakeTimeout: duration,
 		}
 	} else {
 		tr = &http.Transport{
@@ -388,7 +552,9 @@ func newBucket(
 	httpClient := &http.Client{Transport: &oauth2.Transport{
 		Base:   tr,
 		Source: tokenSrc,
-	}}
+	},
+		Timeout: 2*time.Second,
+	}
 
 	var storageClient *storage.Client = nil
 	storageClient, err = storage.NewClient(ctx, option.WithHTTPClient(httpClient))

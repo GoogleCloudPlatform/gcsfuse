@@ -161,10 +161,11 @@ func (o *ObjectHandle) NewRangeReader(ctx context.Context, offset, length int64)
 		if gen >= 0 {
 			req.URL.RawQuery = fmt.Sprintf("generation=%d", gen)
 		}
-
+		fmt.Println("HTTP Call Started")
 		var res *http.Response
 		err = run(ctx, func() error {
 			res, err = o.c.hc.Do(req)
+			fmt.Println("HTTP Call Ended", err)
 			if err != nil {
 				return err
 			}
