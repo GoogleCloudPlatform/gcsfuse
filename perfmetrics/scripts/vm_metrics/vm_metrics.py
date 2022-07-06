@@ -2,7 +2,7 @@
    the API response into a list and writes to google sheet.
 
    Takes VM instance name, interval start time, interval end time, alignment
-   period and fio test type as command line inputs.
+   period, fio test type and google sheet name as command line inputs.
    The supported fio test types are: read, write
    Metrics extracted:
    1.Peak Cpu Utilization(%)
@@ -14,7 +14,7 @@
    7.Read Bytes Count(By)
 
   Usage:
-  >>python3 vm_metrics.py {instance} {start time in epoch sec} {end time in epoch sec} {period in sec} {test_type}
+  >>python3 vm_metrics.py {instance} {start time in epoch sec} {end time in epoch sec} {period in sec} {test_type} {worksheet_name}
 
 """
 import dataclasses
@@ -25,8 +25,6 @@ from google.api_core.exceptions import GoogleAPICallError
 import google.cloud
 from google.cloud import monitoring_v3
 from gsheet import gsheet
-
-WORKSHEET_NAME = 'vm_metrics!'
 
 PROJECT_NAME = 'projects/gcs-fuse-test'
 
@@ -185,6 +183,7 @@ class VmMetrics:
           'view': monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
           'aggregation': aggregation,
       })
+      
     except:
       raise GoogleAPICallError(('The request for API response of {} failed.'
                                 ).format(metric_type))
@@ -227,7 +226,7 @@ class VmMetrics:
 
   def fetch_metrics_and_write_to_google_sheet(self, start_time_sec,
                                               end_time_sec, instance,
-                                              period, test_type) -> None:
+                                              period, test_type, worksheet_name) -> None:
     """Fetches the metrics data for all types and writes it to a google sheet.
 
     Args:
@@ -236,6 +235,7 @@ class VmMetrics:
       instance (str): VM instance
       period (float): Period over which the values are taken
       test_type(str): The type of load test for which metrics are taken
+      worksheet_name(str): The name of the worksheet of the google sheet we ware writing into
     Returns: None
     """
     self._validate_start_end_times(start_time_sec, end_time_sec)
@@ -280,21 +280,22 @@ class VmMetrics:
       ])
 
     # Writing metrics data to google sheet
-    gsheet.write_to_google_sheet(WORKSHEET_NAME, metrics_data)
+    gsheet.write_to_google_sheet(worksheet_name, metrics_data)
 
 
 def main() -> None:
-  if len(sys.argv) != 6:
+  if len(sys.argv) != 7:
     raise Exception('Invalid arguments.')
   instance = sys.argv[1]
   start_time_sec = int(sys.argv[2])
   end_time_sec = int(sys.argv[3])
   period = int(sys.argv[4])
   test_type = sys.argv[5]
+  worksheet_name = sys.argv[6]
   vm_metrics = VmMetrics()
   vm_metrics.fetch_metrics_and_write_to_google_sheet(start_time_sec,
                                                      end_time_sec, instance,
-                                                     period, test_type)
+                                                     period, test_type, worksheet_name)
 
 if __name__ == '__main__':
   main()
