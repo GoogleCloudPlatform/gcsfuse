@@ -1,9 +1,11 @@
 """Tests for vm_metrics."""
 import json
 import sys
+import unittest
 from unittest import mock
 import vm_metrics
 from unittest import TestCase
+from google.cloud import monitoring_v3
 import os
 
 TEST_PATH = './vm_metrics/testdata'
@@ -16,7 +18,7 @@ READ_BYTES_COUNT_METRIC = 'custom.googleapis.com/gcsfuse/gcs/read_bytes_count'
 
 
 TEST_START_TIME_SEC = 1656300600
-TEST_END_TIME_SEC = 1656301200
+TEST_END_TIME_SEC = 1656300960
 TEST_INSTANCE = 'drashti-load-test'
 TEST_PERIOD = 120
 CPU_UTI_FACTOR = 1 / 100
@@ -29,66 +31,45 @@ MEAN_ALIGNER = 'ALIGN_MEAN'
 DELTA_ALIGNER = 'ALIGN_DELTA'
 SUM_REDUCER = 'REDUCE_SUM'
 GROUP_FIELDS = ['metric.labels']
+TEST_TYPE = 'ReadFile'
 
 REC_BYTES_MEAN_METRIC_POINT_1 = vm_metrics.MetricPoint(6566811.916666667, 1656300720, 1656300720)
 REC_BYTES_MEAN_METRIC_POINT_2 = vm_metrics.MetricPoint(6772270.541666667, 1656300840, 1656300840)
 REC_BYTES_MEAN_METRIC_POINT_3 = vm_metrics.MetricPoint(6918446.791666667, 1656300960, 1656300960)
-REC_BYTES_MEAN_METRIC_POINT_4 = vm_metrics.MetricPoint(7114583.9, 1656301080, 1656301080)
-REC_BYTES_MEAN_METRIC_POINT_5 = vm_metrics.MetricPoint(7138908.908333333, 1656301200, 1656301200)
 EXPECTED_RECEIVED_BYTES_MEAN_DATA = [
-    REC_BYTES_MEAN_METRIC_POINT_1, REC_BYTES_MEAN_METRIC_POINT_2,
-    REC_BYTES_MEAN_METRIC_POINT_3, REC_BYTES_MEAN_METRIC_POINT_4, REC_BYTES_MEAN_METRIC_POINT_5
-]
+    REC_BYTES_MEAN_METRIC_POINT_1, REC_BYTES_MEAN_METRIC_POINT_2,REC_BYTES_MEAN_METRIC_POINT_3]
 
 REC_BYTES_PEAK_METRIC_POINT_1 = vm_metrics.MetricPoint(6685105.283333333, 1656300720, 1656300720)
 REC_BYTES_PEAK_METRIC_POINT_2 = vm_metrics.MetricPoint(6803372.233333333, 1656300840, 1656300840)
 REC_BYTES_PEAK_METRIC_POINT_3 = vm_metrics.MetricPoint(6933473.3, 1656300960, 1656300960)
-REC_BYTES_PEAK_METRIC_POINT_4 = vm_metrics.MetricPoint(7282851.5, 1656301080, 1656301080)
-REC_BYTES_PEAK_METRIC_POINT_5 = vm_metrics.MetricPoint(7395036.616666666, 1656301200, 1656301200)
 EXPECTED_RECEIVED_BYTES_PEAK_DATA = [
     REC_BYTES_PEAK_METRIC_POINT_1, REC_BYTES_PEAK_METRIC_POINT_2,
-    REC_BYTES_PEAK_METRIC_POINT_3, REC_BYTES_PEAK_METRIC_POINT_4, REC_BYTES_PEAK_METRIC_POINT_5
-]
+    REC_BYTES_PEAK_METRIC_POINT_3]
 
 CPU_UTI_MEAN_METRIC_POINT_1 = vm_metrics.MetricPoint(22.022823358129244, 1656300720, 1656300720)
 CPU_UTI_MEAN_METRIC_POINT_2 = vm_metrics.MetricPoint(23.330100279029768, 1656300840, 1656300840)
 CPU_UTI_MEAN_METRIC_POINT_3 = vm_metrics.MetricPoint(23.58245408118819, 1656300960, 1656300960)
-CPU_UTI_MEAN_METRIC_POINT_4 = vm_metrics.MetricPoint(24.508291550769677, 1656301080, 1656301080)
-CPU_UTI_MEAN_METRIC_POINT_5 = vm_metrics.MetricPoint(23.383308206167484, 1656301200, 1656301200)
 EXPECTED_CPU_UTI_MEAN_DATA = [
     CPU_UTI_MEAN_METRIC_POINT_1, CPU_UTI_MEAN_METRIC_POINT_2, CPU_UTI_MEAN_METRIC_POINT_3,
-    CPU_UTI_MEAN_METRIC_POINT_4, CPU_UTI_MEAN_METRIC_POINT_5
 ]
 
 CPU_UTI_PEAK_METRIC_POINT_1 = vm_metrics.MetricPoint(22.053231452171328, 1656300720, 1656300720)
 CPU_UTI_PEAK_METRIC_POINT_2 = vm_metrics.MetricPoint(23.417254448480286, 1656300840, 1656300840)
 CPU_UTI_PEAK_METRIC_POINT_3 = vm_metrics.MetricPoint(23.810199799611127, 1656300960, 1656300960)
-CPU_UTI_PEAK_METRIC_POINT_4 = vm_metrics.MetricPoint(25.30334780231998, 1656301080, 1656301080)
-CPU_UTI_PEAK_METRIC_POINT_5 = vm_metrics.MetricPoint(24.29497897243386, 1656301200, 1656301200)
 EXPECTED_CPU_UTI_PEAK_DATA = [
-    CPU_UTI_PEAK_METRIC_POINT_1, CPU_UTI_PEAK_METRIC_POINT_2, CPU_UTI_PEAK_METRIC_POINT_3,
-    CPU_UTI_PEAK_METRIC_POINT_4, CPU_UTI_PEAK_METRIC_POINT_5
-]
+    CPU_UTI_PEAK_METRIC_POINT_1, CPU_UTI_PEAK_METRIC_POINT_2, CPU_UTI_PEAK_METRIC_POINT_3]
 
 OPS_ERROR_COUNT_METRIC_POINT_1 = vm_metrics.MetricPoint(95.0, 1656300600, 1656300720)
 OPS_ERROR_COUNT_METRIC_POINT_2 = vm_metrics.MetricPoint(235.0, 1656300720, 1656300840)
 OPS_ERROR_COUNT_METRIC_POINT_3 = vm_metrics.MetricPoint(100.0, 1656300840, 1656300960)
-OPS_ERROR_COUNT_METRIC_POINT_4 = vm_metrics.MetricPoint(157.0, 1656300960, 1656301080)
-OPS_ERROR_COUNT_METRIC_POINT_5 = vm_metrics.MetricPoint(165.0, 1656301080, 1656301200)
 EXPECTED_OPS_ERROR_COUNT_DATA = [
-    OPS_ERROR_COUNT_METRIC_POINT_1, OPS_ERROR_COUNT_METRIC_POINT_2, OPS_ERROR_COUNT_METRIC_POINT_3,
-    OPS_ERROR_COUNT_METRIC_POINT_4, OPS_ERROR_COUNT_METRIC_POINT_5
-]
+    OPS_ERROR_COUNT_METRIC_POINT_1, OPS_ERROR_COUNT_METRIC_POINT_2, OPS_ERROR_COUNT_METRIC_POINT_3]
 
 READ_BYTES_COUNT_METRIC_POINT_1 = vm_metrics.MetricPoint(725685157.0, 1656300600, 1656300720)
 READ_BYTES_COUNT_METRIC_POINT_2 = vm_metrics.MetricPoint(746803219.0, 1656300720, 1656300840)
 READ_BYTES_COUNT_METRIC_POINT_3 = vm_metrics.MetricPoint(759282126.0, 1656300840, 1656300960)
-READ_BYTES_COUNT_METRIC_POINT_4 = vm_metrics.MetricPoint(788001964.0, 1656300960, 1656301080)
-READ_BYTES_COUNT_METRIC_POINT_5 = vm_metrics.MetricPoint(781867592.0, 1656301080, 1656301200)
 EXPECTED_READ_BYTES_COUNT_DATA = [
-    READ_BYTES_COUNT_METRIC_POINT_1, READ_BYTES_COUNT_METRIC_POINT_2, READ_BYTES_COUNT_METRIC_POINT_3,
-    READ_BYTES_COUNT_METRIC_POINT_4, READ_BYTES_COUNT_METRIC_POINT_5
-]
+    READ_BYTES_COUNT_METRIC_POINT_1, READ_BYTES_COUNT_METRIC_POINT_2, READ_BYTES_COUNT_METRIC_POINT_3]
 
 OPS_LATENCY_MEAN_METRIC_POINT_1 = vm_metrics.MetricPoint(15.40791568806023, 1656300600, 1656300720)
 OPS_LATENCY_MEAN_METRIC_POINT_2 = vm_metrics.MetricPoint(14.968170482459712, 1656300720, 1656300840)
@@ -96,9 +77,7 @@ OPS_LATENCY_MEAN_METRIC_POINT_3 = vm_metrics.MetricPoint(15.080919708390327, 165
 OPS_LATENCY_MEAN_METRIC_POINT_4 = vm_metrics.MetricPoint(14.724381767456052, 1656300960, 1656301080)
 OPS_LATENCY_MEAN_METRIC_POINT_5 = vm_metrics.MetricPoint(14.73861060219869, 1656301080, 1656301200)
 EXPECTED_OPS_LATENCY_MEAN_DATA = [
-    OPS_LATENCY_MEAN_METRIC_POINT_1, OPS_LATENCY_MEAN_METRIC_POINT_2, OPS_LATENCY_MEAN_METRIC_POINT_3,
-    OPS_LATENCY_MEAN_METRIC_POINT_4, OPS_LATENCY_MEAN_METRIC_POINT_5
-]
+    OPS_LATENCY_MEAN_METRIC_POINT_1, OPS_LATENCY_MEAN_METRIC_POINT_2, OPS_LATENCY_MEAN_METRIC_POINT_3]
 
 EXPECTED_ZERO_DATA = [vm_metrics.MetricPoint(0, 0, 0) for i in range(int((TEST_END_TIME_SEC-TEST_START_TIME_SEC)/TEST_PERIOD)+1)]
 
@@ -120,11 +99,67 @@ def get_response_from_filename(filename):
   return metrics_response
 
 
-class VmmetricsTest(TestCase):
+class TestVmmetricsTest(unittest.TestCase):
 
   def setUp(self):
     super().setUp()
     self.vm_metrics_obj = vm_metrics.VmMetrics()
+  
+  def test_get_ops_metric_method_name_read(self):
+    method_name = vm_metrics._get_ops_metric_method_name('read') 
+    self.assertEqual('ReadFile', method_name)
+  
+  def test_get_ops_metric_method_name_randread(self):
+    method_name = vm_metrics._get_ops_metric_method_name('randread') 
+    self.assertEqual('ReadFile', method_name)
+  
+  def test_get_ops_metric_method_name_write(self):
+    self.assertEqual('WriteFile', vm_metrics._get_ops_metric_method_name('write'))
+
+  def test_get_ops_metric_method_name_randwrite(self):
+    self.assertEqual('WriteFile', vm_metrics._get_ops_metric_method_name('randwrite'))
+  
+  def test_parse_metric_value_by_type_raises_exception(self):
+    metric = get_response_from_filename('peak_cpu_utilization_response')
+    value_object = metric.points[0].value
+    with self.assertRaises(Exception):
+      vm_metrics._parse_metric_value_by_type(value_object,0)
+  
+  def test_parse_metric_value_by_type_double(self):
+    metric = get_response_from_filename('peak_cpu_utilization_response')
+    value_object = metric.points[0].value
+    parsed_value = vm_metrics._parse_metric_value_by_type(value_object, metric.value_type)
+
+    self.assertEqual(0.23810199799611129, parsed_value)
+  
+  def test_parse_metric_value_by_type_distribution(self):
+    metric = get_response_from_filename('ops_mean_latency_response')
+    value_object = metric.points[0].value
+    parsed_value = vm_metrics._parse_metric_value_by_type(value_object, metric.value_type)
+
+    self.assertEqual(15.080919708390327, parsed_value)
+  
+  def test_get_metric_filter_compute(self):
+    metric_type = "metric_type"
+    expected_metric_filter = 'metric.type = "metric_type" AND metric.label.instance_name ={}'.format(TEST_INSTANCE)
+    self.assertEqual(vm_metrics._get_metric_filter('compute', metric_type, TEST_INSTANCE), expected_metric_filter)
+  
+  def test_get_metric_filter_custom(self):
+    metric_type = "metric_type"
+    expected_metric_filter = 'metric.type = "metric_type" AND metric.labels.opencensus_task = ends_with("{}")'.format(TEST_INSTANCE)
+    self.assertEqual(vm_metrics._get_metric_filter('custom', metric_type, TEST_INSTANCE), expected_metric_filter)
+  
+  def test_get_metric_filter_raises_exception(self):
+    metric_type = "metric_type"
+    with self.assertRaises(Exception):
+      vm_metrics._get_metric_filter('abcd', metric_type, TEST_INSTANCE)
+  
+  def test_parse_metric_value_by_type_int64(self) -> float:
+    metric = get_response_from_filename('read_bytes_count_response')
+    value_object = metric.points[0].value
+    parsed_value = vm_metrics._parse_metric_value_by_type(value_object, metric.value_type)
+
+    self.assertEqual(759282126, parsed_value)
 
   def test_validate_start_end_times_with_start_time_greater_than_end_time(self):
     with self.assertRaises(ValueError):
@@ -143,7 +178,7 @@ class VmmetricsTest(TestCase):
     with self.assertRaises(vm_metrics.NoValuesError):
       self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC, TEST_END_TIME_SEC,
                                        TEST_INSTANCE, TEST_PERIOD,
-                                       CPU_UTI_METRIC, CPU_UTI_FACTOR, PEAK_ALIGNER)
+                                       CPU_UTI_METRIC, CPU_UTI_FACTOR, PEAK_ALIGNER, TEST_TYPE)
   
   @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_for_cpu_utilization_mean_throws_no_values_error(
@@ -153,7 +188,7 @@ class VmmetricsTest(TestCase):
     with self.assertRaises(vm_metrics.NoValuesError):
       self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC, TEST_END_TIME_SEC,
                                        TEST_INSTANCE, TEST_PERIOD,
-                                       CPU_UTI_METRIC, CPU_UTI_FACTOR, MEAN_ALIGNER)
+                                       CPU_UTI_METRIC, CPU_UTI_FACTOR, MEAN_ALIGNER, TEST_TYPE)
 
   @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_for_received_bytes_peak_throws_no_values_error(
@@ -163,7 +198,7 @@ class VmmetricsTest(TestCase):
     with self.assertRaises(vm_metrics.NoValuesError):
       self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC, TEST_END_TIME_SEC,
                                        TEST_INSTANCE, TEST_PERIOD,
-                                       RECEIVED_BYTES_METRIC, REC_BYTES_FACTOR, PEAK_ALIGNER)
+                                       RECEIVED_BYTES_METRIC, REC_BYTES_FACTOR, PEAK_ALIGNER, TEST_TYPE)
   
   @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_for_received_bytes_mean_throws_no_values_error(
@@ -173,7 +208,7 @@ class VmmetricsTest(TestCase):
     with self.assertRaises(vm_metrics.NoValuesError):
       self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC, TEST_END_TIME_SEC,
                                        TEST_INSTANCE, TEST_PERIOD,
-                                       RECEIVED_BYTES_METRIC, REC_BYTES_FACTOR, MEAN_ALIGNER)
+                                       RECEIVED_BYTES_METRIC, REC_BYTES_FACTOR, MEAN_ALIGNER, TEST_TYPE)
 
   @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_ops_latency_mean_throws_no_values_error(
@@ -183,7 +218,7 @@ class VmmetricsTest(TestCase):
     with self.assertRaises(vm_metrics.NoValuesError):
       self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC, TEST_END_TIME_SEC,
                                        TEST_INSTANCE, TEST_PERIOD,
-                                       OPS_LATENCY_METRIC, OPS_LATENCY_FACTOR, DELTA_ALIGNER)
+                                       OPS_LATENCY_METRIC, OPS_LATENCY_FACTOR, DELTA_ALIGNER, TEST_TYPE)
   
   @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_ops_read_bytes_count_throws_no_values_error(
@@ -193,7 +228,7 @@ class VmmetricsTest(TestCase):
     with self.assertRaises(vm_metrics.NoValuesError):
       self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC, TEST_END_TIME_SEC,
                                        TEST_INSTANCE, TEST_PERIOD,
-                                       READ_BYTES_COUNT_METRIC, READ_BYTES_COUNT_FACTOR, DELTA_ALIGNER)
+                                       READ_BYTES_COUNT_METRIC, READ_BYTES_COUNT_FACTOR, DELTA_ALIGNER, TEST_TYPE)
   
   @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_ops_error_count_returns_list_of_zeroes(
@@ -202,7 +237,7 @@ class VmmetricsTest(TestCase):
 
     ops_error_count_data = self.vm_metrics_obj._get_metrics(
         TEST_START_TIME_SEC, TEST_END_TIME_SEC, TEST_INSTANCE, TEST_PERIOD,
-        OPS_ERROR_COUNT_METRIC, OPS_ERROR_COUNT_FACTOR, DELTA_ALIGNER, SUM_REDUCER, GROUP_FIELDS)
+        OPS_ERROR_COUNT_METRIC, OPS_ERROR_COUNT_FACTOR, DELTA_ALIGNER, TEST_TYPE, SUM_REDUCER, GROUP_FIELDS)
 
     self.assertEqual(ops_error_count_data, EXPECTED_ZERO_DATA)
 
@@ -216,7 +251,7 @@ class VmmetricsTest(TestCase):
                                                     TEST_END_TIME_SEC,
                                                     TEST_INSTANCE, TEST_PERIOD,
                                                     CPU_UTI_METRIC,
-                                                    CPU_UTI_FACTOR, PEAK_ALIGNER)
+                                                    CPU_UTI_FACTOR, PEAK_ALIGNER, TEST_TYPE)
 
     self.assertEqual(cpu_uti_peak_data, EXPECTED_CPU_UTI_PEAK_DATA)
 
@@ -230,7 +265,7 @@ class VmmetricsTest(TestCase):
                                                     TEST_END_TIME_SEC,
                                                     TEST_INSTANCE, TEST_PERIOD,
                                                     CPU_UTI_METRIC,
-                                                    CPU_UTI_FACTOR, MEAN_ALIGNER)
+                                                    CPU_UTI_FACTOR, MEAN_ALIGNER, TEST_TYPE)
 
     self.assertEqual(cpu_uti_mean_data, EXPECTED_CPU_UTI_MEAN_DATA)
 
@@ -242,7 +277,7 @@ class VmmetricsTest(TestCase):
 
     rec_bytes_peak_data = self.vm_metrics_obj._get_metrics(
         TEST_START_TIME_SEC, TEST_END_TIME_SEC, TEST_INSTANCE, TEST_PERIOD,
-        RECEIVED_BYTES_METRIC, REC_BYTES_FACTOR, PEAK_ALIGNER)
+        RECEIVED_BYTES_METRIC, REC_BYTES_FACTOR, PEAK_ALIGNER, TEST_TYPE)
 
     self.assertEqual(rec_bytes_peak_data, EXPECTED_RECEIVED_BYTES_PEAK_DATA)
 
@@ -254,7 +289,7 @@ class VmmetricsTest(TestCase):
 
     rec_bytes_mean_data = self.vm_metrics_obj._get_metrics(
         TEST_START_TIME_SEC, TEST_END_TIME_SEC, TEST_INSTANCE, TEST_PERIOD,
-        RECEIVED_BYTES_METRIC, REC_BYTES_FACTOR, MEAN_ALIGNER)
+        RECEIVED_BYTES_METRIC, REC_BYTES_FACTOR, MEAN_ALIGNER, TEST_TYPE)
 
     self.assertEqual(rec_bytes_mean_data, EXPECTED_RECEIVED_BYTES_MEAN_DATA)
   
@@ -267,7 +302,7 @@ class VmmetricsTest(TestCase):
 
     ops_latency_mean_data = self.vm_metrics_obj._get_metrics(
         TEST_START_TIME_SEC, TEST_END_TIME_SEC, TEST_INSTANCE, TEST_PERIOD,
-        OPS_LATENCY_METRIC, OPS_LATENCY_FACTOR, DELTA_ALIGNER)
+        OPS_LATENCY_METRIC, OPS_LATENCY_FACTOR, DELTA_ALIGNER, TEST_TYPE)
 
     self.assertEqual(ops_latency_mean_data, EXPECTED_OPS_LATENCY_MEAN_DATA)
   
@@ -279,7 +314,7 @@ class VmmetricsTest(TestCase):
 
     read_bytes_count_data = self.vm_metrics_obj._get_metrics(
         TEST_START_TIME_SEC, TEST_END_TIME_SEC, TEST_INSTANCE, TEST_PERIOD,
-        READ_BYTES_COUNT_METRIC, READ_BYTES_COUNT_FACTOR, DELTA_ALIGNER)
+        READ_BYTES_COUNT_METRIC, READ_BYTES_COUNT_FACTOR, DELTA_ALIGNER, TEST_TYPE)
 
     self.assertEqual(read_bytes_count_data, EXPECTED_READ_BYTES_COUNT_DATA)
   
@@ -291,6 +326,9 @@ class VmmetricsTest(TestCase):
 
     ops_error_count_data = self.vm_metrics_obj._get_metrics(
         TEST_START_TIME_SEC, TEST_END_TIME_SEC, TEST_INSTANCE, TEST_PERIOD,
-        OPS_ERROR_COUNT_METRIC, OPS_ERROR_COUNT_FACTOR, DELTA_ALIGNER, SUM_REDUCER, GROUP_FIELDS)
+        OPS_ERROR_COUNT_METRIC, OPS_ERROR_COUNT_FACTOR, DELTA_ALIGNER, TEST_TYPE, SUM_REDUCER, GROUP_FIELDS)
 
     self.assertEqual(ops_error_count_data, EXPECTED_OPS_ERROR_COUNT_DATA)
+
+if __name__ == '__main__':
+  unittest.main()
