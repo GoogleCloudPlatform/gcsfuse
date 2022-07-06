@@ -35,3 +35,4 @@ if __name__ == '__main__':
   print(f'Getting VM metrics for ML model')
 
   vm_metrics_obj.fetch_metrics_and_write_to_google_sheet(start_time_sec, end_time_sec, INSTANCE, period, 'read')
+
