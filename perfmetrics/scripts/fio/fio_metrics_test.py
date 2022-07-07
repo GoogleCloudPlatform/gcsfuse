@@ -11,6 +11,7 @@ GOOD_FILE = 'good_out_job.json'
 EMPTY_FILE = 'empty_file.json'
 EMPTY_JSON_FILE = 'empty_json.json'
 PARTIAL_FILE = 'partial_metrics.json'
+MISSING_METRIC_KEY = 'missing_metric_key.json'
 NO_METRICS_FILE = 'no_metrics.json'
 BAD_FORMAT_FILE = 'bad_format.json'
 MULTIPLE_JOBS_GLOBAL_OPTIONS_FILE = 'multiple_jobs_global_options.json'
@@ -376,6 +377,15 @@ class TestFioMetricsTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       _ = fio_metrics._convert_value('s', {'s': 1}, 's')
 
+  def test_get_rw(self):
+    rw = fio_metrics._get_rw('randread')
+
+    self.assertEqual('read', rw)
+
+  def test_get_rw_invalid_string_raises_value_error(self):
+    with self.assertRaises(ValueError):
+      _ = fio_metrics._get_rw('readwrite')
+
   def test_get_job_params_from_good_file(self):
     json_obj = self.fio_metrics_obj._load_file_dict(
         get_full_filepath(GOOD_FILE))
@@ -454,7 +464,18 @@ class TestFioMetricsTest(unittest.TestCase):
 
     self.assertEqual(expected_metrics, extracted_metrics)
 
-  def test_extract_metrics_values_from_no_data_raises_no_values_error(self):
+  def test_extract_metrics_missing_metric_key_raises_no_values_error(self):
+    """Tests if error is raised when specified key is not present in JSON output."""
+    json_obj = self.fio_metrics_obj._load_file_dict(
+        get_full_filepath(MISSING_METRIC_KEY))
+    extracted_metrics = None
+
+    with self.assertRaises(fio_metrics.NoValuesError):
+      extracted_metrics = self.fio_metrics_obj._extract_metrics(
+          json_obj)
+    self.assertIsNone(extracted_metrics)
+
+  def test_extract_metrics_from_no_data_raises_no_values_error(self):
     """Tests if extract_metrics() raises error if no metrics are extracted."""
     json_obj = self.fio_metrics_obj._load_file_dict(
         get_full_filepath(NO_METRICS_FILE))
@@ -464,6 +485,10 @@ class TestFioMetricsTest(unittest.TestCase):
       extracted_metrics = self.fio_metrics_obj._extract_metrics(
           json_obj)
     self.assertIsNone(extracted_metrics)
+
+  def test_extract_metrics_from_empty_json_raises_no_values_error(self):
+    with self.assertRaises(fio_metrics.NoValuesError):
+      _ = self.fio_metrics_obj._extract_metrics({})
 
   def test_get_metrics_for_good_file(self):
     expected_metrics = [{
@@ -634,8 +659,8 @@ class TestFioMetricsTest(unittest.TestCase):
             'filesize_kb': 3000,
             'num_threads': 40
         },
-        'start_time': 1653597010,
-        'end_time': 1653597086,
+        'start_time': 1653597000,
+        'end_time': 1653597076,
         'metrics': {
             'iops': 88.851558,
             'bw_bytes': 106170722,
@@ -654,7 +679,7 @@ class TestFioMetricsTest(unittest.TestCase):
             'filesize_kb': 5000,
             'num_threads': 10
         },
-        'start_time': 1653597086,
+        'start_time': 1653597076,
         'end_time': 1653597156,
         'metrics': {
             'iops': 34.641075,
@@ -699,11 +724,11 @@ class TestFioMetricsTest(unittest.TestCase):
                 'majorDimension':
                     'ROWS',
                 'values': [
-                    ['read', 3000, 40, 1653597010, 1653597086,
+                    ['read', 3000, 40, 1653597000, 1653597076,
                      88.851558, 106170722, 6952058880, 0.17337301400000002,
                      36.442812445, 21.799839057909956, 0.37958451200000004,
                      0.38797312, 0.49283072000000006, 0.526385152],
-                    ['write', 5000, 10, 1653597086, 1653597156,
+                    ['write', 5000, 10, 1653597076, 1653597156,
                      34.641075, 41972238, 2532311040, 0.21200723800000001,
                      21.590713209, 15.969313013822775, 0.37958451200000004,
                      0.38797312, 0.49283072000000006, 0.526385152]
