@@ -200,21 +200,6 @@ def _get_rw(rw_value):
   raise ValueError('Only read/randread/write/randwrite are supported')
 
 
-def _validate_required_keys(keys_list, list_of_dicts_to_validate):
-  """Checks if all required keys are present in every dict in the list of dicts.
-
-  Args:
-    keys_list: list containing the required key values
-    list_of_dicts_to_validate: List of dicts, each dict should contain all
-      keys mentioned in keys_list
-  Raises:
-    KeyError: Required key is missing in any of the dicts in the list
-  """
-  for a_dict in list_of_dicts_to_validate:
-    if sorted(list(a_dict.keys())) != sorted(keys_list):
-      raise KeyError(f'All keys in {keys_list} are not present in {a_dict}')
-
-
 class NoValuesError(Exception):
   """Some data is missing from the json output file."""
 
@@ -263,6 +248,9 @@ class FioMetrics:
     Returns:
       List of start and end time tuples, one tuple for each job
       Ex: [(1653027014, 1653027084), (1653027084, 1653027155)]
+
+    Raises:
+      KeyError: If RW is not present in any dict in job_params
 
     """
     # Creating a list of just the 'rw' job parameter. Later, we will
