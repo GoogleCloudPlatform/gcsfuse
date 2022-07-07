@@ -28,6 +28,7 @@ THREADS = 'num_threads'
 TIMESTAMP_MS = 'timestamp_ms'
 RUNTIME = 'runtime'
 RAMPTIME = 'ramp_time'
+STARTDELAY = 'startdelay'
 START_TIME = 'start_time'
 END_TIME = 'end_time'
 RW = 'rw'
@@ -100,7 +101,7 @@ REQ_JOB_PARAMS.append(JobParam(RW, RW, lambda val: val, 'read'))
 
 REQ_JOB_PARAMS.append(
     JobParam(FILESIZE_KB, FILESIZE,
-             lambda val: _convert_value(val, FILESIZE_CONVERSION), 0))
+             lambda val: _convert_value(val, FILESIZE_TO_KB_CONVERSION), 0))
 REQ_JOB_PARAMS.append(JobParam(THREADS, NUMJOBS, lambda val: int(val), 1))
 # append new params here
 
@@ -122,7 +123,7 @@ REQ_JOB_METRICS.extend([
 # Google sheet worksheet
 WORKSHEET_NAME = 'fio_metrics!'
 
-FILESIZE_CONVERSION = {
+FILESIZE_TO_KB_CONVERSION = {
     'b': 0.001,
     'k': 1,
     'kb': 1,
@@ -136,7 +137,7 @@ FILESIZE_CONVERSION = {
     'pb': 10**12
 }
 
-RAMPTIME_CONVERSION = {
+TIME_TO_MS_CONVERSION = {
     'us': 10**(-3),
     'ms': 1,
     's': 1000,
@@ -165,7 +166,7 @@ def _convert_value(value, conversion_dict, default_unit=''):
     conversion_dict
     ValueError: If string has no numerical part
 
-  Ex: For args value = "5s" and conversion_dict=RAMPTIME_CONVERSION
+  Ex: For args value = "5s" and conversion_dict=TIME_TO_MS_CONVERSION
       "5s" will be converted to 5000 milliseconds and 5000 will be returned
 
   """
@@ -254,40 +255,50 @@ class FioMetrics:
 
     """
     # Creating a list of just the 'rw' job parameter. Later, we will
-    # loop through the jobs from the end, therefore we are creating 
+    # loop through the jobs from the end, therefore we are creating
     # reversed rw list for easy access
     rw_rev_list = [job_param[RW] for job_param in reversed(job_params)]
 
     global_ramptime_ms = 0
+    global_startdelay_ms = 0
     if GLOBAL_OPTS in out_json:
       if RAMPTIME in out_json[GLOBAL_OPTS]:
         global_ramptime_ms = _convert_value(out_json[GLOBAL_OPTS][RAMPTIME],
-                                            RAMPTIME_CONVERSION, 's')
+                                            TIME_TO_MS_CONVERSION, 's')
+      if STARTDELAY in out_json[GLOBAL_OPTS]:
+        global_startdelay_ms = _convert_value(out_json[GLOBAL_OPTS][STARTDELAY],
+                                              TIME_TO_MS_CONVERSION, 's')
 
-    prev_start_time_s = 0
+    next_end_time_ms = 0
     rev_start_end_times = []
     # Looping from end since the given time is the final end time
     for i, job in enumerate(list(reversed(out_json[JOBS]))):
       rw = rw_rev_list[i]
       job_rw = job[_get_rw(rw)]
       ramptime_ms = 0
+      startdelay_ms = 0
       if JOB_OPTS in job:
         if RAMPTIME in job[JOB_OPTS]:
           ramptime_ms = _convert_value(job[JOB_OPTS][RAMPTIME],
-                                       RAMPTIME_CONVERSION, 's')
+                                       TIME_TO_MS_CONVERSION, 's')
+        if STARTDELAY in job[JOB_OPTS]:
+          startdelay_ms = _convert_value(job[JOB_OPTS][STARTDELAY],
+                                         TIME_TO_MS_CONVERSION, 's')
       if ramptime_ms == 0:
         ramptime_ms = global_ramptime_ms
+      if startdelay_ms == 0:
+        startdelay_ms = global_startdelay_ms
 
       # for multiple jobs, end time of one job = start time of next job
-      end_time_ms = prev_start_time_s * 1000 if prev_start_time_s > 0 else out_json[
+      end_time_ms = next_end_time_ms if next_end_time_ms > 0 else out_json[
           TIMESTAMP_MS]
       # job start time = job end time - job runtime - ramp time
       start_time_ms = end_time_ms - job_rw[RUNTIME] - ramptime_ms
+      next_end_time_ms = start_time_ms - startdelay_ms
 
       # converting start and end time to seconds
       start_time_s = start_time_ms // 1000
       end_time_s = round(end_time_ms/1000)
-      prev_start_time_s = start_time_s
       rev_start_end_times.append((start_time_s, end_time_s))
 
     return list(reversed(rev_start_end_times))
@@ -316,7 +327,8 @@ class FioMetrics:
           JobParam(
               name= FILESIZE_KB,
               json_name= FILESIZE,
-              format_param=lambda val: _convert_value(val, FILESIZE_CONVERSION),
+              format_param=lambda val: _convert_value(val,
+              FILESIZE_TO_KB_CONVERSION),
               default = 0
           ),
           JobParam(
@@ -430,7 +442,7 @@ class FioMetrics:
 
       start_time_s, end_time_s = start_end_times[i]
 
-      # start_time>=end_time OR all the metrics are zero, 
+      # start_time>=end_time OR all the metrics are zero,
       # log skip warning and continue to next job
       if ((start_time_s >= end_time_s) or
           (all(not value for value in job_metrics.values()))):
