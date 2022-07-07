@@ -1,7 +1,7 @@
 """Python script to do FIO test for GCSFuse Vs GCSFuse/Goofys.
 
 To run the script:
->> python3 compare_fuse_types_using_fio.py -- <fuse_type_1> <fuse_type_1_version> <fuser_type_2> <fuse_type_2_version> <jobfile_path> <gcs_bucket>
+python3 compare_fuse_types_using_fio.py -- <fuse_type_1> <fuse_type_1_version/github_repo_link> '$<command line arguments>' < <fuser_type_2> <fuse_type_2_version//github_repo_link> '$<command line arguments>' <jobfile_path> <gcs_bucket>
 
 -> Supported fuse_types are gcsfuse and goofys.
 -> Incase of gcsfuse you can specify version as any of its released version or master to run from the source.
