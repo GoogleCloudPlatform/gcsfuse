@@ -1,8 +1,12 @@
 # Commands to run animal_image_recognition_model
 
-Run below commands before executing the script:
+### Setup a new Virtual Machine
+
+Run below commands before executing the automation script:
 
 * source setup.sh
+
+### Performing ML tests
 
 Run from gcsfuse + install gcsfuse:
 
