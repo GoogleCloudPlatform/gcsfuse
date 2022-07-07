@@ -364,21 +364,24 @@ class FioMetrics:
 
     gsheet.write_to_google_sheet(consts.WORKSHEET_NAME, values)
 
-  def get_metrics(self, filepath, add_to_gsheets=True) -> List[Dict[str, Any]]:
+  def get_metrics(self,
+                  filepath,
+                  worksheet=consts.WORKSHEET_NAME) -> List[Dict[str, Any]]:
     """Returns job metrics obtained from given filepath and writes to gsheets.
 
     Args:
       filepath : str
         Path of the json file to be parsed
-      add_to_gsheets: bool, optional, default:True
-        Whether job metrics should be written to Google sheets or not
+      worksheet: str, optional, default:'fio_metrics!'
+        Worksheet where job metrics should be written. 
+        Pass '' or None to skip writing to Google sheets
 
     Returns:
       List of dicts, contains list of jobs and required metrics for each job
     """
     fio_out = self._load_file_dict(filepath)
     job_metrics = self._extract_metrics(fio_out)
-    if add_to_gsheets:
+    if worksheet:
       self._add_to_gsheet(job_metrics)
 
     return job_metrics
