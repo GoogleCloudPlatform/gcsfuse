@@ -334,7 +334,7 @@ class TestFioMetricsTest(unittest.TestCase):
   def test_load_non_existent_file_raises_os_error(self):
     json_obj = None
 
-    with self.assertRaises(OSError):
+    with self.assertRaisesRegex(OSError, '.*No such file.*'):
       json_obj = self.fio_metrics_obj._load_file_dict('i_dont_exist')
     self.assertIsNone(json_obj)
 
@@ -349,7 +349,8 @@ class TestFioMetricsTest(unittest.TestCase):
   def test_load_file_dict_empty_json_raises_no_values_error(self):
     json_obj = None
 
-    with self.assertRaises(fio_metrics.NoValuesError):
+    with self.assertRaisesRegex(fio_metrics.NoValuesError,
+                                'JSON file .* returned empty object'):
       json_obj = self.fio_metrics_obj._load_file_dict(
           get_full_filepath(EMPTY_JSON_FILE))
     self.assertIsNone(json_obj)
@@ -383,7 +384,8 @@ class TestFioMetricsTest(unittest.TestCase):
     self.assertEqual('read', rw)
 
   def test_get_rw_invalid_string_raises_value_error(self):
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegex(
+        ValueError, 'Only read/randread/write/randwrite are supported'):
       _ = fio_metrics._get_rw('readwrite')
 
   def test_get_job_params_from_good_file(self):
@@ -470,9 +472,10 @@ class TestFioMetricsTest(unittest.TestCase):
         get_full_filepath(MISSING_METRIC_KEY))
     extracted_metrics = None
 
-    with self.assertRaises(fio_metrics.NoValuesError):
-      extracted_metrics = self.fio_metrics_obj._extract_metrics(
-          json_obj)
+    with self.assertRaisesRegex(
+        fio_metrics.NoValuesError,
+        'Required metric .* not present in json output'):
+      extracted_metrics = self.fio_metrics_obj._extract_metrics(json_obj)
     self.assertIsNone(extracted_metrics)
 
   def test_extract_metrics_from_no_data_raises_no_values_error(self):
@@ -481,13 +484,14 @@ class TestFioMetricsTest(unittest.TestCase):
         get_full_filepath(NO_METRICS_FILE))
     extracted_metrics = None
 
-    with self.assertRaises(fio_metrics.NoValuesError):
-      extracted_metrics = self.fio_metrics_obj._extract_metrics(
-          json_obj)
+    with self.assertRaisesRegex(fio_metrics.NoValuesError,
+                                'No data could be extracted from file'):
+      extracted_metrics = self.fio_metrics_obj._extract_metrics(json_obj)
     self.assertIsNone(extracted_metrics)
 
   def test_extract_metrics_from_empty_json_raises_no_values_error(self):
-    with self.assertRaises(fio_metrics.NoValuesError):
+    with self.assertRaisesRegex(fio_metrics.NoValuesError,
+                                'No data in json object'):
       _ = self.fio_metrics_obj._extract_metrics({})
 
   def test_get_metrics_for_good_file(self):
