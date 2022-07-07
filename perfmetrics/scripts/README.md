@@ -37,7 +37,7 @@ gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 fio job_files/your-job-file.fio --lat_percentiles 1 --output-format=json --output='output.json'
 ```
 7. Install requirements by running `pip install -r requirements.txt --user`
-8. Generate your service account credentials `creds.json` and upload the file on your GCS bucket `your-bucket-name` and run the following command to copy it into `gsheet` directory:
+8. Generate your service account credentials `creds.json` and upload the file on your GCS bucket `your-bucket-name`. If using an old credentials file, make sure that it is not expired. Run the following command to copy it into `gsheet` directory:
 ```bash
 gsutil cp gs://your-bucket-name/creds.json ./gsheet
 ```
@@ -48,5 +48,17 @@ By default, cell `T4` contains the total number of entries in the worksheet.
 12. Finally, execute fetch_metrics.py to extract FIO and VM metrics and write to your Google Sheet. Pass the FIO output JSON file as argument to the fetch_metrics module.
 `python3 fetch_metrics.py output.json`
 
+## Adding new metrics
 
+### FIO Metric
+### VM Metric
+#### If your metric data does not depend on the read/write type of FIO load test:
+1. In the vm_metrics file, create an object of the [Metric class]() and append the object to the `METRICS_LIST` list.
+2. Add a column in the Google Sheet in the same position as the position of the new parameter in the `METRICS_LIST` list.
 
+#### If your metric data depends on the read/write type of load test:
+1. In the vm_metrics file, create an object of the [Metric class]() inside the `_add_new_metric_using_test_type` method and append the object to the `updated_metrics_list` list.
+2. Add a column in the Google Sheet in the same position as the position of the new parameter in the `updated_metrics_list` list.
+
+### Google Sheet
+1. The number of entries are stored in `T4` cell of both worksheets. If on adding new metrics, the column number exceeds `T` in any worksheet, use another cell `cell-name` to store the number of entries by writing `=COUNTA(A2:A)` into it in both worksheets. Also, replace `T4` with `cell-name` in this [line](https://github.com/GoogleCloudPlatform/gcsfuse/blob/de3c0ab46f856bc1dbbfc6f093b1c218331499fe/perfmetrics/scripts/gsheet/gsheet.py#L9).
