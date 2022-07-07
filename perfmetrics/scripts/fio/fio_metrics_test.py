@@ -565,8 +565,8 @@ class TestFioMetricsTest(unittest.TestCase):
             'filesize_kb': 50000,
             'num_threads': 10
         },
-        'start_time': 1653381686,
-        'end_time': 1653381757,
+        'start_time': 1653381667,
+        'end_time': 1653381738,
         'metrics': {
             'iops': 115.354741,
             'bw_bytes': 138911322,
@@ -629,7 +629,7 @@ class TestFioMetricsTest(unittest.TestCase):
                 'majorDimension':
                     'ROWS',
                 'values': [
-                    ['read', 50000, 10, 1653381686, 1653381757,
+                    ['read', 50000, 10, 1653381667, 1653381738,
                      115.354741, 138911322, 8405385216, 0.24973726400000001,
                      28.958587178000002, 18.494668007316744,
                      0.37958451200000004, 0.38797312, 0.49283072000000006,
@@ -659,8 +659,8 @@ class TestFioMetricsTest(unittest.TestCase):
             'filesize_kb': 3000,
             'num_threads': 40
         },
-        'start_time': 1653597000,
-        'end_time': 1653597076,
+        'start_time': 1653596980,
+        'end_time': 1653597056,
         'metrics': {
             'iops': 88.851558,
             'bw_bytes': 106170722,
@@ -724,7 +724,7 @@ class TestFioMetricsTest(unittest.TestCase):
                 'majorDimension':
                     'ROWS',
                 'values': [
-                    ['read', 3000, 40, 1653597000, 1653597076,
+                    ['read', 3000, 40, 1653596980, 1653597056,
                      88.851558, 106170722, 6952058880, 0.17337301400000002,
                      36.442812445, 21.799839057909956, 0.37958451200000004,
                      0.38797312, 0.49283072000000006, 0.526385152],
