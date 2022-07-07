@@ -9,10 +9,11 @@
 
 """
 
+from dataclasses import dataclass
 import json
 import re
 import sys
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Callable
 
 from gsheet import gsheet
 
@@ -35,6 +36,7 @@ WRITE = 'write'
 METRICS = 'metrics'
 IOPS = 'iops'
 BW_BYTES = 'bw_bytes'
+IO_BYTES = 'io_bytes'
 LAT_NS = 'lat_ns'
 MIN = 'min'
 MAX = 'max'
@@ -44,139 +46,78 @@ P20 = '20.000000'
 P50 = '50.000000'
 P90 = '90.000000'
 P95 = '95.000000'
-IO_BYTES = 'io_bytes'
 
-NAME = 'name'
-JSON_NAME = 'json_name'
-FORMAT = 'format'
-DEFAULT = 'default'
-LEVELS = 'levels'
-CONVERSION = 'conversion'
 NS_TO_S = 10**(-9)
 
-REQ_JOB_PARAMS_KEYS = [NAME, JSON_NAME, FORMAT, DEFAULT]
-""" REQ_JOB_PARAMS:
-NAME: Can be any suitable value, it refers to the output dictionary key for the 
-parameter. To be used when creating parameter dict for each job.
-JSON_NAME: Must match the FIO job specification key. Key for parameter inside 
-'global options'/'job options' dictionary
-  Ex: For output json = {"global options": {"filesize":"50M"}, "jobs": [
-  "job options": {"rw": "read"}]}
-  JSON_NAME for filesize will be "filesize" and that for readwrite will be "rw"
-FORMAT: Function returning formatted parameter value. Needed to convert
-parameter to plottable values
-  Ex: 'filesize' is obtained as '50M', but we need to convert it to integer
-  showing size in kb in order to maintain uniformity
-DEFAULT: Default value for the parameter
 
-We'll extract job parameter from 'global options' or 'job options' in the JSON
-using key specified in JSON_NAME. The parameter will be formatted according to
-function in FORMAT. This formatted value will be stored against NAME key.
-If no parameter is found in the JSON object, the DEFAULT value will be used.
+@dataclass(frozen=True)
+class JobParam:
+  """Dataclass for a FIO job parameter.
 
-Ex: For FIO output json = {"global options": {"filesize":"50M"}}
-and REQ_JOB_PARAMS = [
-    {
-        NAME: FILESIZE_KB,
-        JSON_NAME: FILESIZE,
-        FORMAT: lambda val: _convert_value(val, FILESIZE_CONVERSION),
-        DEFAULT: 0
-    },
-    {
-        NAME: RW,
-        JSON_NAME: RW,
-        FORMAT: lambda val: val,
-        DEFAULT: 'read'
-    }
-]
-Extracted parameters would be {FILESIZE_KB: 50000, RW: 'read'}
-"""
-REQ_JOB_PARAMS = [
-    {
-        NAME: FILESIZE_KB,
-        JSON_NAME: FILESIZE,
-        FORMAT: lambda val: _convert_value(val, FILESIZE_CONVERSION),
-        DEFAULT: 0
-    },
-    {
-        NAME: THREADS,
-        JSON_NAME: NUMJOBS,
-        FORMAT: lambda val: int(val),
-        DEFAULT: 1
-    },
-    # Don't remove the below parameter
-    {
-        NAME: RW,
-        JSON_NAME: RW,
-        FORMAT: lambda val: val,
-        DEFAULT: 'read'
-    }
-]
+  name: Can be any suitable value, it refers to the output dictionary key for
+  the parameter. To be used when creating parameter dict for each job.
+  json_name: Must match the FIO job specification key. Key for parameter inside 
+  'global options'/'job options' dictionary
+    Ex: For output json = {"global options": {"filesize":"50M"}, "jobs": [
+    "job options": {"rw": "read"}]}
+    `json_name` for file size will be "filesize" and that for readwrite will be
+    "rw"
+  format_param: Function returning formatted parameter value. Needed to convert
+  parameter to plottable values
+    Ex: 'filesize' is obtained as '50M', but we need to convert it to integer
+    showing size in kb in order to maintain uniformity
+  default: Default value for the parameter
 
-REQ_JOB_METRICS_KEYS = [NAME, LEVELS, CONVERSION]
-""" REQ_JOB_METRICS:
-NAME: Can be any suitable value, it is used as key for the metric 
-when creating metric dict for each job
-LEVELS: Keys for the metric inside 'read'/'write' dictionary in each job.
-Each value in the list must match the key in the FIO output JSON
-  Ex: For job = {'read': {'iops': 123, 'latency': {'min': 0}}}
-  LEVELS for IOPS will be ['iops'] and for min latency-> ['latency', 'min']
-CONVERSION: Multiplication factor to convert the metric to the desired unit
-  Ex: Extracted latency metrics are in nanoseconds, but we need them in seconds
-  for plotting. Hence CONVERSION=10^(-9) for latency metrics.
-"""
-REQ_JOB_METRICS = [
-    {
-        NAME: IOPS,
-        LEVELS: [IOPS],
-        CONVERSION: 1
-    },
-    {
-        NAME: BW_BYTES,
-        LEVELS: [BW_BYTES],
-        CONVERSION: 1
-    },
-    {
-        NAME: IO_BYTES,
-        LEVELS: [IO_BYTES],
-        CONVERSION: 1
-    },
-    {
-        NAME: 'lat_s_min',
-        LEVELS: [LAT_NS, MIN],
-        CONVERSION: NS_TO_S
-    },
-    {
-        NAME: 'lat_s_max',
-        LEVELS: [LAT_NS, MAX],
-        CONVERSION: NS_TO_S
-    },
-    {
-        NAME: 'lat_s_mean',
-        LEVELS: [LAT_NS, MEAN],
-        CONVERSION: NS_TO_S
-    },
-    {
-        NAME: 'lat_s_perc_20',
-        LEVELS: [LAT_NS, PERCENTILE, P20],
-        CONVERSION: NS_TO_S
-    },
-    {
-        NAME: 'lat_s_perc_50',
-        LEVELS: [LAT_NS, PERCENTILE, P50],
-        CONVERSION: NS_TO_S
-    },
-    {
-        NAME: 'lat_s_perc_90',
-        LEVELS: [LAT_NS, PERCENTILE, P90],
-        CONVERSION: NS_TO_S
-    },
-    {
-        NAME: 'lat_s_perc_95',
-        LEVELS: [LAT_NS, PERCENTILE, P95],
-        CONVERSION: NS_TO_S
-    }
-]
+  """
+  name: str
+  json_name: str
+  format_param: Callable[[str], Any]
+  default: Any
+
+
+@dataclass(frozen=True)
+class JobMetric:
+  """Dataclass for a FIO job metric.
+
+  name: Can be any suitable value, it is used as key for the metric 
+  when creating metric dict for each job
+  levels: Keys for the metric inside 'read'/'write' dictionary in each job.
+  Each value in the list must match the key in the FIO output JSON
+    Ex: For job = {'read': {'iops': 123, 'latency': {'min': 0}}}
+    levels for IOPS will be ['iops'] and for min latency-> ['latency', 'min']
+  conversion: Multiplication factor to convert the metric to the desired unit
+    Ex: Extracted latency metrics are in nanoseconds, but we need them in
+    seconds for plotting. Hence conversion=10^(-9) for latency metrics.
+  """
+  name: str
+  levels: List[str]
+  conversion: float
+
+
+REQ_JOB_PARAMS = []
+# DO NOT remove the below append line
+REQ_JOB_PARAMS.append(JobParam(RW, RW, lambda val: val, 'read'))
+
+REQ_JOB_PARAMS.append(
+    JobParam(FILESIZE_KB, FILESIZE,
+             lambda val: _convert_value(val, FILESIZE_CONVERSION), 0))
+REQ_JOB_PARAMS.append(JobParam(THREADS, NUMJOBS, lambda val: int(val), 1))
+# append new params here
+
+REQ_JOB_METRICS = []
+REQ_JOB_METRICS.append(JobMetric(IOPS, [IOPS], 1))
+REQ_JOB_METRICS.append(JobMetric(BW_BYTES, [BW_BYTES], 1))
+REQ_JOB_METRICS.append(JobMetric(IO_BYTES, [IO_BYTES], 1))
+REQ_JOB_METRICS.append(JobMetric('lat_s_min', [LAT_NS, MIN], NS_TO_S))
+REQ_JOB_METRICS.append(JobMetric('lat_s_max', [LAT_NS, MAX], NS_TO_S))
+REQ_JOB_METRICS.append(JobMetric('lat_s_mean', [LAT_NS, MEAN], NS_TO_S))
+REQ_JOB_METRICS.extend([
+    JobMetric('lat_s_perc_20', [LAT_NS, PERCENTILE, P20], NS_TO_S),
+    JobMetric('lat_s_perc_50', [LAT_NS, PERCENTILE, P50], NS_TO_S),
+    JobMetric('lat_s_perc_90', [LAT_NS, PERCENTILE, P90], NS_TO_S),
+    JobMetric('lat_s_perc_95', [LAT_NS, PERCENTILE, P95], NS_TO_S)])
+# append new metrics here
+
 
 # Google sheet worksheet
 WORKSHEET_NAME = 'fio_metrics!'
@@ -366,6 +307,12 @@ class FioMetrics:
   def _get_job_params(self, out_json):
     """Returns parameter values of each job.
 
+    We'll extract job parameter from 'global options' or 'job options' in the
+    JSON using key specified by `json_name`. The parameter will be formatted
+    according to function in `format_param`. This formatted value will be stored
+    against `name` key. If no parameter is found in the JSON object, the
+    `default` value will be used.
+
     Args:
       out_json : FIO json output
 
@@ -373,52 +320,46 @@ class FioMetrics:
       List of dicts, each dict containing parameters for a job
         Ex: [{'filesize_kb': 50000, 'num_threads': 40, 'rw': 'read'}
 
-    Raises:
-      KeyError: If any key (NAME, JSON_NAME, FORMAT, DEFAULT) is missing in
-      REQ_JOB_PARAMS
-
     Function working example:
       Ex: out_json = {"global options": {"filesize": "50M", "numjobs": "40"},
                       "jobs":[{"job options": {"numjobs": "10"}}]
                       }
       For REQ_JOB_PARAMS = [
-          {
-              NAME: FILESIZE_KB,
-              JSON_NAME: FILESIZE,
-              FORMAT: lambda val: _convert_value(val, FILESIZE_CONVERSION),
-              DEFAULT: 0
-          },
-          {
-              NAME: THREADS,
-              JSON_NAME: NUMJOBS,
-              FORMAT: lambda val: int(val),
-              DEFAULT: 1
-          },
-          {
-              NAME: RW,
-              JSON_NAME: RW,
-              FORMAT: lambda val: val,
-              DEFAULT: 'read'
-          }
+          JobParam(
+              name= FILESIZE_KB,
+              json_name= FILESIZE,
+              format_param=lambda val: _convert_value(val, FILESIZE_CONVERSION),
+              default = 0
+          ),
+          JobParam(
+              name= THREADS,
+              json_name= NUMJOBS,
+              format_param=lambda val: int(val),
+              default = 1
+          ),
+          JobParam(
+              name= RW,
+              json_name= RW,
+              format_param=lambda val: val,
+              default = 'read'
+          )
       ]
       Extracted parameters would be [{FILESIZE_KB: 50000, THREADS: 10, RW:
       'read'}]
 
 
     """
-    # Validate REQ_JOB_PARAMS
-    _validate_required_keys(REQ_JOB_PARAMS_KEYS, REQ_JOB_PARAMS)
     # Job parameters specified as Global options
     # Each param is formatted according to its format function before storing
     global_params = {}
     if GLOBAL_OPTS in out_json:
       for param in REQ_JOB_PARAMS:
         # If param not present in global options, default value is used
-        if param[JSON_NAME] in out_json[GLOBAL_OPTS]:
-          global_params[param[NAME]] = param[FORMAT](
-              out_json[GLOBAL_OPTS][param[JSON_NAME]])
+        if param.json_name in out_json[GLOBAL_OPTS]:
+          global_params[param.name] = param.format_param(
+              out_json[GLOBAL_OPTS][param.json_name])
         else:
-          global_params[param[NAME]] = param[DEFAULT]
+          global_params[param.name] = param.default
 
     # Job parameters specified as job options overwrite global options
     params = []
@@ -427,11 +368,11 @@ class FioMetrics:
       if JOB_OPTS in job:
         for param in REQ_JOB_PARAMS:
           # If the param is not present in job options, global param is used
-          if param[JSON_NAME] in job[JOB_OPTS]:
-            curr_job_params[param[NAME]] = param[FORMAT](
-                job[JOB_OPTS][param[JSON_NAME]])
+          if param.json_name in job[JOB_OPTS]:
+            curr_job_params[param.name] = param.format_param(
+                job[JOB_OPTS][param.json_name])
           else:
-            curr_job_params[param[NAME]] = global_params[param[NAME]]
+            curr_job_params[param.name] = global_params[param.name]
 
       params.append(curr_job_params)
 
@@ -462,8 +403,6 @@ class FioMetrics:
         'lat_s_perc_95': 0.526385152}}]
 
     Raises:
-      KeyError: If any key (NAME, LEVELS, CONVERSION) is missing in
-      REQ_JOB_METRICS
       NoValuesError: Data not present in json object or key in LEVELS is not
       present in FIO output
 
@@ -475,7 +414,6 @@ class FioMetrics:
     job_params = self._get_job_params(fio_out)
     start_end_times = self._get_start_end_times(fio_out, job_params)
     all_jobs = []
-    _validate_required_keys(REQ_JOB_METRICS_KEYS, REQ_JOB_METRICS)
     # Get the required metrics for every job
     for i, job in enumerate(fio_out[JOBS]):
       rw = job_params[i][RW]
@@ -484,7 +422,7 @@ class FioMetrics:
       for metric in REQ_JOB_METRICS:
         val = job_rw
         """
-        For metric[LEVELS]=['lat_ns', 'percentile', '20.000000']
+        For metric.levels=['lat_ns', 'percentile', '20.000000']
         After 1st iteration, sub = 'lat_ns', val = job_rw['lat_ns']
         After 2nd iteration, sub = 'percentile', val =
         job_rw['lat_ns']['percentile']
@@ -492,7 +430,7 @@ class FioMetrics:
         job_rw['lat_ns']['percentile']['20.000000'] and hence we get the
         required metric value
         """
-        for sub in metric[LEVELS]:
+        for sub in metric.levels:
           if sub in val:
             val = val[sub]
           else:
@@ -500,7 +438,7 @@ class FioMetrics:
             raise NoValuesError(
                 f'Required metric {sub} not present in json output')
 
-        job_metrics[metric[NAME]] = val * metric[CONVERSION]
+        job_metrics[metric.name] = val * metric.conversion
 
       start_time_s, end_time_s = start_end_times[i]
 
