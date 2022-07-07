@@ -51,6 +51,13 @@ By default, cell `T4` contains the total number of entries in the worksheet.
 ## Adding new metrics
 
 ### FIO Metric
+#### To add a new job parameter
+1. Add another JobParam object to the REQ_JOB_PARAMS list. Make sure that json_name matches the key of the parameter in the FIO output JSON to avoid any errors.
+2. Add a column in the Google Sheet in the same position as the position of the new parameter in the REQ_JOB_PARAMS list.
+#### To add a new job metric
+1. Add another JobMetric object to the REQ_JOB_METRICS list. Make sure that the values in LEVELS are correct and match the FIO output JSON keys in order to avoid any errors.
+2. Add a column in the Google Sheet in the same position as the position of the new metric in the REQ_JOB_METRICS list
+
 ### VM Metric
 #### If your metric data does not depend on the read/write type of FIO load test:
 1. In the vm_metrics file, create an object of the [Metric class]() and append the object to the `METRICS_LIST` list.
