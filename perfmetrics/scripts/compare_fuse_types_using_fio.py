@@ -172,7 +172,7 @@ def main(argv) -> None:
       required=True)
   parser.add_argument(
       '--fuse_type_1_version',
-      help='Provid the Specific version of fuse_type_1 in approprite formate',
+      help='Provide the Specific version of fuse_type_1 in approprite formate',
       required=True)
   parser.add_argument(
       '--flags_1',
@@ -184,7 +184,7 @@ def main(argv) -> None:
       required=True)
   parser.add_argument(
       '--fuse_type_2_version',
-      help='Provid the Specific version of fuse_type_2 in approprite formate',
+      help='Provide the Specific version of fuse_type_2 in approprite formate',
       required=True)
   parser.add_argument(
       '--flags_2',
@@ -192,7 +192,7 @@ def main(argv) -> None:
       required=True)
   parser.add_argument(
       '--jobfile_path',
-      help='Provid path of the jobfile',
+      help='Provide path of the jobfile',
       required=True)
   parser.add_argument(
       '--gcs_bucket',
