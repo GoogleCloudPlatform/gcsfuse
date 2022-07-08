@@ -296,7 +296,9 @@
         "filesize" : "5M",
         "directory" : "gcs/5mb",
         "numjobs" : "10",
-        "rw": "write"
+        "rw": "write",
+        "ramp_time" : "20s",
+        "startdelay" : "20s"
       },
       "read" : {
         "io_bytes" : 0,
@@ -553,3 +555,4 @@
     }
   ]
 }
+

@@ -6,10 +6,10 @@ from googleapiclient.errors import HttpError
 from google.oauth2 import service_account
 from googleapiclient.discovery import Resource
 
-import gsheet
+from gsheet import gsheet
 
 SPREADSHEET_ID = '1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
-NUM_ENTRIES_CELL = 'N4'
+NUM_ENTRIES_CELL = 'T4'
 WORKSHEET_NAME = 'mock!'
 
 class MockCredentials:

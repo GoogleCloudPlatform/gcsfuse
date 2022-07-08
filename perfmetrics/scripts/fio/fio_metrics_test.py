@@ -11,6 +11,7 @@ GOOD_FILE = 'good_out_job.json'
 EMPTY_FILE = 'empty_file.json'
 EMPTY_JSON_FILE = 'empty_json.json'
 PARTIAL_FILE = 'partial_metrics.json'
+MISSING_METRIC_KEY = 'missing_metric_key.json'
 NO_METRICS_FILE = 'no_metrics.json'
 BAD_FORMAT_FILE = 'bad_format.json'
 MULTIPLE_JOBS_GLOBAL_OPTIONS_FILE = 'multiple_jobs_global_options.json'
@@ -333,7 +334,7 @@ class TestFioMetricsTest(unittest.TestCase):
   def test_load_non_existent_file_raises_os_error(self):
     json_obj = None
 
-    with self.assertRaises(OSError):
+    with self.assertRaisesRegex(OSError, '.*No such file.*'):
       json_obj = self.fio_metrics_obj._load_file_dict('i_dont_exist')
     self.assertIsNone(json_obj)
 
@@ -348,7 +349,8 @@ class TestFioMetricsTest(unittest.TestCase):
   def test_load_file_dict_empty_json_raises_no_values_error(self):
     json_obj = None
 
-    with self.assertRaises(fio_metrics.NoValuesError):
+    with self.assertRaisesRegex(fio_metrics.NoValuesError,
+                                'JSON file .* returned empty object'):
       json_obj = self.fio_metrics_obj._load_file_dict(
           get_full_filepath(EMPTY_JSON_FILE))
     self.assertIsNone(json_obj)
@@ -376,6 +378,16 @@ class TestFioMetricsTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       _ = fio_metrics._convert_value('s', {'s': 1}, 's')
 
+  def test_get_rw(self):
+    rw = fio_metrics._get_rw('randread')
+
+    self.assertEqual('read', rw)
+
+  def test_get_rw_invalid_string_raises_value_error(self):
+    with self.assertRaisesRegex(
+        ValueError, 'Only read/randread/write/randwrite are supported'):
+      _ = fio_metrics._get_rw('readwrite')
+
   def test_get_job_params_from_good_file(self):
     json_obj = self.fio_metrics_obj._load_file_dict(
         get_full_filepath(GOOD_FILE))
@@ -384,29 +396,20 @@ class TestFioMetricsTest(unittest.TestCase):
     extracted_params = self.fio_metrics_obj._get_job_params(json_obj)
     self.assertEqual(expected_params, extracted_params)
 
-  def test_get_job_params_wrong_req_job_params_format_raises_key_error(self):
-    json_obj = self.fio_metrics_obj._load_file_dict(
-        get_full_filepath(GOOD_FILE))
-    temp = fio_metrics.REQ_JOB_PARAMS
-    fio_metrics.REQ_JOB_PARAMS = [{
-        'name': 'rw',
-        'format': lambda val: val,
-        'default': 'read'
-    }]
+  def test_get_start_end_times_no_rw_raises_key_error(self):
+    extracted_job_params = [{'rw': 'read'}, {'no_rw': 'blank'}]
 
     with self.assertRaises(KeyError):
-      _ = self.fio_metrics_obj._get_job_params(json_obj)
-
-    fio_metrics.REQ_JOB_PARAMS = temp
+      _ = self.fio_metrics_obj._get_start_end_times({}, extracted_job_params)
 
   def test_extract_metrics_from_good_file(self):
     json_obj = self.fio_metrics_obj._load_file_dict(
         get_full_filepath(GOOD_FILE))
     expected_metrics = [{
         'params': {
+            'rw': 'read',
             'filesize_kb': 50000,
-            'num_threads': 40,
-            'rw': 'read'
+            'num_threads': 40
         },
         'start_time': 1653027084,
         'end_time': 1653027155,
@@ -439,9 +442,9 @@ class TestFioMetricsTest(unittest.TestCase):
         get_full_filepath(PARTIAL_FILE))
     expected_metrics = [{
         'params': {
+            'rw': 'read',
             'filesize_kb': 50000,
-            'num_threads': 40,
-            'rw': 'read'
+            'num_threads': 40
         },
         'start_time': 1653027084,
         'end_time': 1653027155,
@@ -463,23 +466,40 @@ class TestFioMetricsTest(unittest.TestCase):
 
     self.assertEqual(expected_metrics, extracted_metrics)
 
-  def test_extract_metrics_values_from_no_data_raises_no_values_error(self):
+  def test_extract_metrics_missing_metric_key_raises_no_values_error(self):
+    """Tests if error is raised when specified key is not present in JSON output."""
+    json_obj = self.fio_metrics_obj._load_file_dict(
+        get_full_filepath(MISSING_METRIC_KEY))
+    extracted_metrics = None
+
+    with self.assertRaisesRegex(
+        fio_metrics.NoValuesError,
+        'Required metric .* not present in json output'):
+      extracted_metrics = self.fio_metrics_obj._extract_metrics(json_obj)
+    self.assertIsNone(extracted_metrics)
+
+  def test_extract_metrics_from_no_data_raises_no_values_error(self):
     """Tests if extract_metrics() raises error if no metrics are extracted."""
     json_obj = self.fio_metrics_obj._load_file_dict(
         get_full_filepath(NO_METRICS_FILE))
     extracted_metrics = None
 
-    with self.assertRaises(fio_metrics.NoValuesError):
-      extracted_metrics = self.fio_metrics_obj._extract_metrics(
-          json_obj)
+    with self.assertRaisesRegex(fio_metrics.NoValuesError,
+                                'No data could be extracted from file'):
+      extracted_metrics = self.fio_metrics_obj._extract_metrics(json_obj)
     self.assertIsNone(extracted_metrics)
+
+  def test_extract_metrics_from_empty_json_raises_no_values_error(self):
+    with self.assertRaisesRegex(fio_metrics.NoValuesError,
+                                'No data in json object'):
+      _ = self.fio_metrics_obj._extract_metrics({})
 
   def test_get_metrics_for_good_file(self):
     expected_metrics = [{
         'params': {
+            'rw': 'read',
             'filesize_kb': 50000,
-            'num_threads': 40,
-            'rw': 'read'
+            'num_threads': 40
         },
         'start_time': 1653027084,
         'end_time': 1653027155,
@@ -524,7 +544,7 @@ class TestFioMetricsTest(unittest.TestCase):
             body={
                 'majorDimension':
                     'ROWS',
-                'values': [[50000, 40, 'read', 1653027084,
+                'values': [['read', 40, 50000, 1653027084,
                             1653027155, 95.26093, 99888324, 6040846336,
                             0.35337776000000004, 1.6975198690000002,
                             0.41775487677469203, 0.37958451200000004,
@@ -545,12 +565,12 @@ class TestFioMetricsTest(unittest.TestCase):
     """Multiple_jobs_global_options_fpath has filesize as global parameter."""
     expected_metrics = [{
         'params': {
+            'rw': 'read',
             'filesize_kb': 50000,
-            'num_threads': 10,
-            'rw': 'read'
+            'num_threads': 10
         },
-        'start_time': 1653381686,
-        'end_time': 1653381757,
+        'start_time': 1653381667,
+        'end_time': 1653381738,
         'metrics': {
             'iops': 115.354741,
             'bw_bytes': 138911322,
@@ -565,9 +585,9 @@ class TestFioMetricsTest(unittest.TestCase):
         }
     }, {
         'params': {
+            'rw': 'read',
             'filesize_kb': 50000,
-            'num_threads': 10,
-            'rw': 'read'
+            'num_threads': 10
         },
         'start_time': 1653381757,
         'end_time': 1653381828,
@@ -613,12 +633,12 @@ class TestFioMetricsTest(unittest.TestCase):
                 'majorDimension':
                     'ROWS',
                 'values': [
-                    [50000, 10, 'read', 1653381686, 1653381757,
+                    ['read', 10, 50000, 1653381667, 1653381738,
                      115.354741, 138911322, 8405385216, 0.24973726400000001,
                      28.958587178000002, 18.494668007316744,
                      0.37958451200000004, 0.38797312, 0.49283072000000006,
                      0.526385152],
-                    [50000, 10, 'read', 1653381757, 1653381828,
+                    ['read', 10, 50000, 1653381757, 1653381828,
                      37.52206, 45311294, 2747269120, 0.172148734,
                      20.110704859000002, 14.960429037403822,
                      0.37958451200000004, 0.38797312, 0.49283072000000006,
@@ -639,12 +659,12 @@ class TestFioMetricsTest(unittest.TestCase):
   def test_get_metrics_for_multiple_jobs_job_options(self):
     expected_metrics = [{
         'params': {
+            'rw': 'read',
             'filesize_kb': 3000,
-            'num_threads': 40,
-            'rw': 'read'
+            'num_threads': 40
         },
-        'start_time': 1653597010,
-        'end_time': 1653597086,
+        'start_time': 1653596980,
+        'end_time': 1653597056,
         'metrics': {
             'iops': 88.851558,
             'bw_bytes': 106170722,
@@ -659,11 +679,11 @@ class TestFioMetricsTest(unittest.TestCase):
         }
     }, {
         'params': {
+            'rw': 'write',
             'filesize_kb': 5000,
-            'num_threads': 10,
-            'rw': 'write'
+            'num_threads': 10
         },
-        'start_time': 1653597086,
+        'start_time': 1653597076,
         'end_time': 1653597156,
         'metrics': {
             'iops': 34.641075,
@@ -708,11 +728,11 @@ class TestFioMetricsTest(unittest.TestCase):
                 'majorDimension':
                     'ROWS',
                 'values': [
-                    [3000, 40, 'read', 1653597010, 1653597086,
+                    ['read', 40, 3000, 1653596980, 1653597056,
                      88.851558, 106170722, 6952058880, 0.17337301400000002,
                      36.442812445, 21.799839057909956, 0.37958451200000004,
                      0.38797312, 0.49283072000000006, 0.526385152],
-                    [5000, 10, 'write', 1653597086, 1653597156,
+                    ['write', 10, 5000, 1653597076, 1653597156,
                      34.641075, 41972238, 2532311040, 0.21200723800000001,
                      21.590713209, 15.969313013822775, 0.37958451200000004,
                      0.38797312, 0.49283072000000006, 0.526385152]
