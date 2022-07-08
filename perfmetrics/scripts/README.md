@@ -44,7 +44,7 @@ pip install -r requirements.txt --user
 ```bash
 gsutil cp gs://your-bucket-name/creds.json ./gsheet
 ```
-9. Create a Google Sheet with id `your-gsheet-id` by copying this Google Sheet: 
+9. Create a Google Sheet with id `your-gsheet-id` by copying this [Google Sheet](https://docs.google.com/spreadsheets/d/10fyD6pPyrQoVt9YofT1SyXyjEqPqNhya356ThuA9H_o/edit#gid=0).
 By default, cell `T4` contains the total number of entries in the worksheet.
 10. Share the above copied Google Sheet with your service account(created in step 8)
 11. Change the Google sheet id in this [line](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/perfmetrics/scripts/gsheet/gsheet.py#L5) to `your-gsheet-id`.
