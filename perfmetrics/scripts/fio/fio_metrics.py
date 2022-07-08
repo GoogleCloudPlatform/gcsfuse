@@ -9,19 +9,92 @@
 
 """
 
+from dataclasses import dataclass
 import json
 import re
 import sys
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Callable
 
 from fio import constants as consts
 from gsheet import gsheet
 
 
-consts.REQ_JOB_PARAMS.append(
-    consts.JobParam(
+@dataclass(frozen=True)
+class JobParam:
+  """Dataclass for a FIO job parameter.
+
+  name: Can be any suitable value, it refers to the output dictionary key for
+  the parameter. To be used when creating parameter dict for each job.
+  json_name: Must match the FIO job specification key. Key for parameter inside 
+  'global options'/'job options' dictionary
+    Ex: For output json = {"global options": {"filesize":"50M"}, "jobs": [
+    "job options": {"rw": "read"}]}
+    `json_name` for file size will be "filesize" and that for readwrite will be
+    "rw"
+  format_param: Function returning formatted parameter value. Needed to convert
+  parameter to plottable values
+    Ex: 'filesize' is obtained as '50M', but we need to convert it to integer
+    showing size in kb in order to maintain uniformity
+  default: Default value for the parameter
+
+  """
+  name: str
+  json_name: str
+  format_param: Callable[[str], Any]
+  default: Any
+
+
+@dataclass(frozen=True)
+class JobMetric:
+  """Dataclass for a FIO job metric.
+
+  name: Can be any suitable value, it is used as key for the metric 
+  when creating metric dict for each job
+  levels: Keys for the metric inside 'read'/'write' dictionary in each job.
+  Each value in the list must match the key in the FIO output JSON
+    Ex: For job = {'read': {'iops': 123, 'latency': {'min': 0}}}
+    levels for IOPS will be ['iops'] and for min latency-> ['latency', 'min']
+  conversion: Multiplication factor to convert the metric to the desired unit
+    Ex: Extracted latency metrics are in nanoseconds, but we need them in
+    seconds for plotting. Hence conversion=10^(-9) for latency metrics.
+  """
+  name: str
+  levels: List[str]
+  conversion: float
+
+
+REQ_JOB_PARAMS = []
+# DO NOT remove the below append line
+REQ_JOB_PARAMS.append(JobParam(consts.RW, consts.RW, lambda val: val, 'read'))
+
+REQ_JOB_PARAMS.append(JobParam(consts.THREADS, consts.NUMJOBS, 
+                               lambda val: int(val), 1))
+REQ_JOB_PARAMS.append(
+    JobParam(
         consts.FILESIZE_KB, consts.FILESIZE,
         lambda val: _convert_value(val, consts.FILESIZE_TO_KB_CONVERSION), 0))
+# append new params here
+
+REQ_JOB_METRICS = []
+REQ_JOB_METRICS.append(JobMetric(consts.IOPS, [consts.IOPS], 1))
+REQ_JOB_METRICS.append(JobMetric(consts.BW_BYTES, [consts.BW_BYTES], 1))
+REQ_JOB_METRICS.append(JobMetric(consts.IO_BYTES, [consts.IO_BYTES], 1))
+REQ_JOB_METRICS.append(JobMetric('lat_s_min',
+                                 [consts.LAT_NS, consts.MIN], consts.NS_TO_S))
+REQ_JOB_METRICS.append(JobMetric('lat_s_max',
+                                 [consts.LAT_NS, consts.MAX], consts.NS_TO_S))
+REQ_JOB_METRICS.append(JobMetric('lat_s_mean',
+                                 [consts.LAT_NS, consts.MEAN], consts.NS_TO_S))
+REQ_JOB_METRICS.extend([
+    JobMetric('lat_s_perc_20',
+              [consts.LAT_NS, consts.PERCENTILE, consts.P20], consts.NS_TO_S),
+    JobMetric('lat_s_perc_50',
+              [consts.LAT_NS, consts.PERCENTILE, consts.P50], consts.NS_TO_S),
+    JobMetric('lat_s_perc_90',
+              [consts.LAT_NS, consts.PERCENTILE, consts.P90], consts.NS_TO_S),
+    JobMetric('lat_s_perc_95',
+              [consts.LAT_NS, consts.PERCENTILE, consts.P95], consts.NS_TO_S)])
+# append new metrics here
 
 
 def _convert_value(value, conversion_dict, default_unit=''):
@@ -204,20 +277,20 @@ class FioMetrics:
       Ex: out_json = {"global options": {"filesize": "50M", "numjobs": "40"},
                       "jobs":[{"job options": {"numjobs": "10"}}]
                       }
-      For consts.REQ_JOB_PARAMS = [
-          consts.JobParam(
+      For REQ_JOB_PARAMS = [
+          JobParam(
               name= RW,
               json_name= RW,
               format_param=lambda val: val,
               default = 'read'
           ),
-          consts.JobParam(
+          JobParam(
               name= THREADS,
               json_name= NUMJOBS,
               format_param=lambda val: int(val),
               default = 1
           ),
-          consts.JobParam(
+          JobParam(
               name= FILESIZE_KB,
               json_name= FILESIZE,
               format_param=lambda val: _convert_value(val,
@@ -234,7 +307,7 @@ class FioMetrics:
     # Each param is formatted according to its format function before storing
     global_params = {}
     if consts.GLOBAL_OPTS in out_json:
-      for param in consts.REQ_JOB_PARAMS:
+      for param in REQ_JOB_PARAMS:
         # If param not present in global options, default value is used
         if param.json_name in out_json[consts.GLOBAL_OPTS]:
           global_params[param.name] = param.format_param(
@@ -247,7 +320,7 @@ class FioMetrics:
     for job in out_json[consts.JOBS]:
       curr_job_params = {}
       if consts.JOB_OPTS in job:
-        for param in consts.REQ_JOB_PARAMS:
+        for param in REQ_JOB_PARAMS:
           # If the param is not present in job options, global param is used
           if param.json_name in job[consts.JOB_OPTS]:
             curr_job_params[param.name] = param.format_param(
@@ -300,7 +373,7 @@ class FioMetrics:
       rw = job_params[i][consts.RW]
       job_rw = job[_get_rw(rw)]
       job_metrics = {}
-      for metric in consts.REQ_JOB_METRICS:
+      for metric in REQ_JOB_METRICS:
         val = job_rw
         """
         For metric.levels=['lat_ns', 'percentile', '20.000000']
