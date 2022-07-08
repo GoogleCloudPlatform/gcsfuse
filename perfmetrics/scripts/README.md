@@ -31,7 +31,7 @@ MOUNT_POINT=your-directory-name
 gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 ```
 
-5. Create a FIO job file `your-job-file.fio` and place it in the `job_files` directory
+5. Create a FIO job file `your-job-file.fio` according to [this format](https://fio.readthedocs.io/en/latest/fio_doc.html#job-file-format) and place it in the `job_files` directory
 6. Run the FIO load test
 ```bash
 fio job_files/your-job-file.fio --lat_percentiles 1 --output-format=json --output='output.json'
@@ -40,11 +40,11 @@ fio job_files/your-job-file.fio --lat_percentiles 1 --output-format=json --outpu
 ```bash
 pip install -r requirements.txt --user
 ```
-8. Generate your service account credentials `creds.json` and upload the file on your GCS bucket `your-bucket-name`. If using an old credentials file, make sure that it is not expired. Run the following command to copy it into `gsheet` directory:
+8. Create a service account by following this [documentation](https://cloud.google.com/iam/docs/creating-managing-service-accounts). Generate your service account key, `creds.json` by following [this doc](https://cloud.google.com/iam/docs/creating-managing-service-account-keys#iam-service-account-keys-create-console) and upload the file on your GCS bucket `your-bucket-name`. If using an old credentials file, make sure that it is not expired. Run the following command to copy it into `gsheet` directory:
 ```bash
 gsutil cp gs://your-bucket-name/creds.json ./gsheet
 ```
-9. Create a Google Sheet with id `your-gsheet-id` by copying this [Google Sheet](https://docs.google.com/spreadsheets/d/10fyD6pPyrQoVt9YofT1SyXyjEqPqNhya356ThuA9H_o/edit#gid=0).
+9. Create a Google Sheet with id `your-gsheet-id` by copying this [Google Sheet](https://docs.google.com/spreadsheets/d/10fyD6pPyrQoVt9YofT1SyXyjEqPqNhya356ThuA9H_o/edit?usp=sharing)
 By default, cell `T4` contains the total number of entries in the worksheet.
 10. Share the above copied Google Sheet with your service account(created in step 8)
 11. Change the Google sheet id in this [line](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/perfmetrics/scripts/gsheet/gsheet.py#L5) to `your-gsheet-id`.
@@ -58,10 +58,10 @@ The FIO output JSON file is passed as an argument to the fetch_metrics module.
 
 ### FIO Metric
 #### To add a new job parameter
-1. Add another JobParam object to the REQ_JOB_PARAMS list [here](). Make sure that json_name matches the key of the parameter in the FIO output JSON to avoid any errors.
+1. Add another JobParam object to the REQ_JOB_PARAMS list [here](https://github.com/GoogleCloudPlatform/gcsfuse/blob/a454b452f5fd290f9ef3cc0da85b9d27d6beee4a/perfmetrics/scripts/fio/fio_metrics.py#L76). Make sure that json_name matches the key of the parameter in the FIO output JSON to avoid any errors.
 2. Add a column in the Google Sheet in the same position as the position of the new parameter in the REQ_JOB_PARAMS list.
 #### To add a new job metric
-1. Add another JobMetric object to the REQ_JOB_METRICS list [here](). Make sure that the values in LEVELS are correct and match the FIO output JSON keys in order to avoid any errors.
+1. Add another JobMetric object to the REQ_JOB_METRICS list [here](https://github.com/GoogleCloudPlatform/gcsfuse/blob/a454b452f5fd290f9ef3cc0da85b9d27d6beee4a/perfmetrics/scripts/fio/fio_metrics.py#L97). Make sure that the values in LEVELS are correct and match the FIO output JSON keys in order to avoid any errors.
 2. Add a column in the Google Sheet in the same position as the position of the new metric in the REQ_JOB_METRICS list
 
 ### VM Metric
