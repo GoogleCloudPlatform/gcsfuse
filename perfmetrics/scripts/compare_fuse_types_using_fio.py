@@ -116,7 +116,7 @@ def _run_fio_test(jobfile_path, fio_metrics_obj) -> None:
             ''')
 
 
-def _gcsfuse_test(version, jobfile_path, fio_metrics_obj, gcs_bucket, fuse_flags) -> None:
+def _gcsfuse_fio_test(version, jobfile_path, fio_metrics_obj, gcs_bucket, fuse_flags) -> None:
   """FIO test for gcsfuse of given version.
   
   Args:
@@ -134,7 +134,7 @@ def _gcsfuse_test(version, jobfile_path, fio_metrics_obj, gcs_bucket, fuse_flags
   _remove_gcsfuse(version)
 
 
-def _fuse_test(fuse_type, jobfile_path, fio_metrics_obj, gcs_bucket, fuse_flags, fuse_url) -> None:
+def _fuse_fio_test(fuse_type, jobfile_path, fio_metrics_obj, gcs_bucket, fuse_flags, fuse_url) -> None:
   """FIO test for latest version of goofys.
   
   Args:
@@ -158,11 +158,9 @@ def _fuse_test(fuse_type, fuse_type_version, jobfile_path, fio_metric_obj, gcs_b
     gcs_bucket(str): GCS bucket to be mounted.
   """
   if fuse_type == 'gcsfuse':
-    _gcsfuse_test(fuse_type_version, jobfile_path, fio_metric_obj, gcs_bucket, fuse_flags)
-  elif fuse_type == 'goofys':
-    _goofys_test(fuse_type, jobfile_path, fio_metric_obj, gcs_bucket, fuse_flags, fuse_type_version)
+    _gcsfuse_fio_test(fuse_type_version, jobfile_path, fio_metric_obj, gcs_bucket, fuse_flags)
   else:
-    _fuse_test(fuse_type, jobfile_path, fio_metric_obj, gcs_bucket, fuse_flags, fuse_type_version)
+    _fuse_fio_test(fuse_type, jobfile_path, fio_metric_obj, gcs_bucket, fuse_flags, fuse_type_version)
       
   
 def main(argv) -> None:
