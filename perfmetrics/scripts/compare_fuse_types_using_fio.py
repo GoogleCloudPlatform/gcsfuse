@@ -206,10 +206,10 @@ def main(argv) -> None:
   os.system('mkdir out')
 
   os.system(f'echo Fuse Type 1: {args.fuse_type_1} {args.fuse_type_1_version} >> out/output.txt')
-  _fuse_test(args.fuse_type_1, args.fuse_type_1_version, args.jobfile_path, fio_metrics_obj, args.gcs_bucket, args.fuse_type_1_flags[1:0])
+  _fuse_test(args.fuse_type_1, args.fuse_type_1_version, args.jobfile_path, fio_metrics_obj, args.gcs_bucket, args.flags_1)
 
   os.system(f'echo Fuse Type 2: {args.fuse_type_2} {args.fuse_type_2_version} >> out/output.txt')
-  _fuse_test(args.fuse_type_2, args.fuse_type_2_version, args.jobfile_path, fio_metrics_obj, args.gcs_bucket, args.fuse_type_2_flags[1:0])
+  _fuse_test(args.fuse_type_2, args.fuse_type_2_version, args.jobfile_path, fio_metrics_obj, args.gcs_bucket, args.flags_2)
 
 
 if __name__ == '__main__':
