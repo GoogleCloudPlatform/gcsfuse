@@ -8,6 +8,7 @@ bs=1M
 iodepth=64
 invalidate=1
 ramp_time=10s
+startdelay=3m
 runtime=60s
 time_based=1
 nrfiles=1
