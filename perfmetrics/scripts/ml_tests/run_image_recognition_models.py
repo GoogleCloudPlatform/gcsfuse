@@ -126,8 +126,13 @@ def _run_model(directory_name, data_path, data_read_method, ml_model_path, req_f
             echo ML model reading data using {data_read_method} >> output.txt
             pip install -r {req_file_path}
             ''')
+  
   start_time = int(time.time())
-  os.system(f'python3 {ml_model_path} {data_path} >> output.txt')
+  
+  os.system(f'''cd {directory_name}
+            python3 {ml_model_path} {data_path} >> output.txt
+            ''')
+  
   end_time = int(time.time())
 
   os.system(f'''cd ..
