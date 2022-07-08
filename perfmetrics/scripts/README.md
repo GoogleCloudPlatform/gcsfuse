@@ -65,11 +65,11 @@ The FIO output JSON file is passed as an argument to the fetch_metrics module.
 2. Add a column in the Google Sheet in the same position as the position of the new metric in the REQ_JOB_METRICS list
 
 ### VM Metric
-#### If your metric data does not depend on the read/write type of FIO load test:
+#### If your metric data does not depend on the read/write type of FIO load test
 1. In the vm_metrics file, create an object of the [Metric class](https://github.com/GoogleCloudPlatform/gcsfuse/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L44) and append the object to the [`METRICS_LIST`](https://github.com/GoogleCloudPlatform/gcsfuse/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L63) list.
 2. Add a column in the Google Sheet in the same position as the position of the new parameter in the [`METRICS_LIST`](https://github.com/GoogleCloudPlatform/gcsfuse/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L63) list.
 
-#### If your metric data depends on the read/write type of FIO load test:
+#### If your metric data depends on the read/write type of FIO load test
 1. In the vm_metrics file, create an object of the [Metric class](https://github.com/GoogleCloudPlatform/gcsfuse/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L44) inside the [`_add_new_metric_using_test_type`](https://github.com/GoogleCloudPlatform/gcsfuse/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L224) method and append the object to the [`updated_metrics_list`](https://github.com/GoogleCloudPlatform/gcsfuse/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L245) list.
 2. Add a column in the Google Sheet in the same position as the position of the new parameter in the [`updated_metrics_list`](https://github.com/GoogleCloudPlatform/gcsfuse/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L245) list.
 
