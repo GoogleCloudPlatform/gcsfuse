@@ -32,7 +32,7 @@ def write_to_google_sheet(worksheet: str, data) -> None:
   sheets_client = _get_sheets_service_client()
   spreadsheet_response = sheets_client.spreadsheets().values().get(
       spreadsheetId=SPREADSHEET_ID,
-      range='{}{}'.format(worksheet, NUM_ENTRIES_CELL)).execute()
+      range='{}!{}'.format(worksheet, NUM_ENTRIES_CELL)).execute()
   entries = int(spreadsheet_response.get('values', [])[0][0])
 
   sheets_client.spreadsheets().values().update(
@@ -42,5 +42,5 @@ def write_to_google_sheet(worksheet: str, data) -> None:
           'majorDimension': 'ROWS',
           'values': data
       },
-      range='{}A{}'.format(worksheet, entries+2)).execute()
+      range='{}!A{}'.format(worksheet, entries+2)).execute()
 
