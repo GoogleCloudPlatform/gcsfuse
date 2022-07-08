@@ -1,91 +1,66 @@
 {
-    "metric": {
+  "metric": {
+    "type": "compute.googleapis.com/instance/cpu/utilization",
     "labels": {
       "key": "instance_name",
-      "value": "gke-cluster-1-default-pool-b89264dc-2633"
-    },
-    "type": "compute.googleapis.com/instance/cpu/utilization"
+      "value": "drashti-load-test"
+    }
   },
   "resource": {
     "type": "gce_instance",
     "labels": {
-      "key": "instance_id",
-      "value": "8484125211086864498"
+      "key": "zone",
+      "value": "us-central1-c"
     },
     "labels": {
       "key": "project_id",
       "value": "gcs-fuse-test"
     },
     "labels": {
-      "key": "zone",
-      "value": "us-central1-c"
+      "key": "instance_id",
+      "value": "5260009346344796582"
     }
   },
   "metric_kind": "GAUGE",
   "value_type": 3,
-  "points": [{
+  "points": [
+  {
     "interval": {
-      "start_time": {
-        "seconds": 1652699400
-      },
       "end_time": {
-        "seconds": 1652699400
+        "seconds": 1656300960
+      },
+      "start_time": {
+        "seconds": 1656300960
       }
     },
     "value": {
-      "double_value": 0.08351115843785617
+      "double_value": 0.23582454081188189
     }
   },
-   {
+  {
     "interval": {
-      "start_time": {
-        "seconds": 1652699280
-      },
       "end_time": {
-        "seconds": 1652699280
+        "seconds": 1656300840
+      },
+      "start_time": {
+        "seconds": 1656300840
       }
     },
     "value": {
-      "double_value": 0.08258347968997745
+      "double_value": 0.2333010027902977
     }
   },
-   {
+  {
     "interval": {
-      "start_time": {
-        "seconds": 1652699160
-      },
       "end_time": {
-        "seconds": 1652699160
+        "seconds": 1656300720
+      },
+      "start_time": {
+        "seconds": 1656300720
       }
     },
     "value": {
-      "double_value": 0.08333482699502687
-    }
-  },
-   {
-    "interval": {
-      "start_time": {
-        "seconds": 1652699040
-      },
-      "end_time": {
-        "seconds": 1652699040
-      }
-    },
-    "value": {
-      "double_value": 0.08459746438844984
-    }
-  },
-    {
-    "interval": {
-      "start_time": {
-        "seconds": 1652698920
-      },
-      "end_time": {
-        "seconds": 1652698920
-      }
-    },
-    "value": {
-      "double_value": 0.08351230117089775
+      "double_value": 0.22022823358129245
     }
   }]
 }
