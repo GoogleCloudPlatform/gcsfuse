@@ -14,7 +14,7 @@ curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v$GC
 sudo dpkg --install gcsfuse_"$GCSFUSE_VERSION"_amd64.deb
 ```
 
-## How to run:
+## How to run
 1. Create a GCP VM with OS version as Ubuntu 20.04. Follow this [documentation](https://cloud.google.com/compute/docs/create-linux-vm-instance) and start your VM. Follow the next steps in your VM.
 2. Install the required packages as mentioned in the above section
 3. Clone the GCSFuse repo and cd into the perfmetrics/scripts directory:
