@@ -2,7 +2,7 @@
    the API response into a list and writes to google sheet.
 
    Takes VM instance name, interval start time, interval end time, alignment
-   period, fio test type and google worksheet name as command line inputs.
+   period, fio test type and google sheet name as command line inputs.
    The supported fio test types are: read, write
    Metrics extracted:
    1.Peak Cpu Utilization(%)
@@ -26,6 +26,7 @@ from google.api_core.exceptions import GoogleAPICallError
 import google.cloud
 from google.cloud import monitoring_v3
 from gsheet import gsheet
+from typing import List
 
 PROJECT_NAME = 'projects/gcs-fuse-test'
 CPU_UTI_METRIC_TYPE = 'compute.googleapis.com/instance/cpu/utilization'
@@ -47,8 +48,8 @@ class Metric:
   aligner: str
   extra_filter: str = ''
   reducer: str = 'REDUCE_NONE'
-  group_fields: list[str] = field(default_factory=list)
-  metric_point_list: list[MetricPoint] = field(default_factory=list)
+  group_fields: List[str] = field(default_factory=list)
+  metric_point_list: List[MetricPoint] = field(default_factory=list)
 
 CPU_UTI_PEAK = Metric(metric_type=CPU_UTI_METRIC_TYPE, factor=1/100, aligner='ALIGN_MAX')
 CPU_UTI_MEAN = Metric(metric_type=CPU_UTI_METRIC_TYPE, factor=1/100, aligner='ALIGN_MEAN')
