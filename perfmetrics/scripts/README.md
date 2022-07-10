@@ -50,7 +50,6 @@ pip install -r requirements.txt --user
 gsutil cp gs://your-bucket-name/creds.json ./gsheet
 ```
 9. Create a Google Sheet with id `your-gsheet-id` by copying this [Google Sheet](https://docs.google.com/spreadsheets/d/10fyD6pPyrQoVt9YofT1SyXyjEqPqNhya356ThuA9H_o/edit?usp=sharing).
-By default, cell `T4` contains the total number of entries in the worksheet.
 10. Share the above copied Google Sheet with your service account(created in step 8)
 11. Change the Google sheet id in this [line](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/perfmetrics/scripts/gsheet/gsheet.py#L5) to `your-gsheet-id`.
 12. Finally, execute fetch_metrics.py to extract FIO and VM metrics and write to your Google Sheet by running
@@ -77,6 +76,3 @@ The FIO output JSON file is passed as an argument to the fetch_metrics module.
 #### If your metric data depends on the read/write type of FIO load test
 1. In the vm_metrics file, create an object of the [Metric class](https://github.com/GoogleCloudPlatform/gcsfuse/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L44) inside the [`_add_new_metric_using_test_type`](https://github.com/GoogleCloudPlatform/gcsfuse/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L224) method and append the object to the [`updated_metrics_list`](https://github.com/GoogleCloudPlatform/gcsfuse/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L245) list.
 2. Add a column in the Google Sheet in the same position as the position of the new parameter in the [`updated_metrics_list`](https://github.com/GoogleCloudPlatform/gcsfuse/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L245) list.
-
-### Google Sheet
-1. The number of entries are stored in `T4` cell of both worksheets. If on adding new metrics, the column number exceeds `T` in any worksheet, use another cell `cell-name` to store the number of entries by writing `=COUNTA(A2:A)` into it in both worksheets. Also, replace `T4` with `cell-name` in this [line](https://github.com/GoogleCloudPlatform/gcsfuse/blob/de3c0ab46f856bc1dbbfc6f093b1c218331499fe/perfmetrics/scripts/gsheet/gsheet.py#L9).
