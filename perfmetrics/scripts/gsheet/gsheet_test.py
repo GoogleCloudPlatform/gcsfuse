@@ -9,8 +9,7 @@ from googleapiclient.discovery import Resource
 import gsheet
 
 SPREADSHEET_ID = '1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
-NUM_ENTRIES_CELL = 'T4'
-WORKSHEET_NAME = 'mock!'
+WORKSHEET_NAME = 'mock'
 
 class MockCredentials:
 
