@@ -31,8 +31,13 @@ MOUNT_POINT=your-directory-name
 gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 ```
 
-5. Create a FIO job file `your-job-file.fio` according to [this format](https://fio.readthedocs.io/en/latest/fio_doc.html#job-file-format) and place it in the `job_files` directory
-6. Run the FIO load test
+5. Create a FIO job file `your-job-file.fio` according to [this format](https://fio.readthedocs.io/en/latest/fio_doc.html#job-file-format) and place it in the `job_files` directory. When there are multiple jobs in a FIO job file and a ```global startdelay``` is specified, the FIO metrics collection code expects that ```global startdelay``` is present between each of the jobs in one job file. To make sure the FIO load test has ```global startdelay``` amount of delay between each job, the following ```startdelay``` should be added to the job options in the FIO job file:
+
+    1. For the first job the ```startdelay``` = ```global startdelay```
+
+    2. For every subsequent job, ```startdelay``` = ```startdelay``` of previous job + ```runtime``` of previous job + ```ramp_time``` of previous job +       ```global startdelay```
+
+7. Run the FIO load test
 ```bash
 fio job_files/your-job-file.fio --lat_percentiles 1 --output-format=json --output='output.json'
 ```
