@@ -1,0 +1,26 @@
+[DEFAULT]
+bucket_name=gcsfuse-testing
+root_folder=listing_perf
+command=ls
+command_flags=["-R", "--help"]
+
+# sub_directory_1
+[CONFIG_1]
+folder=1KB_1000files
+num_of_files=1000
+num_of_subdir=2
+file_size=1KB
+file_name_prefix=1kb_file
+subdir_name_prefix=testing
+
+# sub_directory_2
+[CONFIG_2]
+folder=1KB_10000files
+num_of_files=10000
+num_of_subdir=0
+file_size=1KB
+file_name_prefix=1kb_file
+
+
+
+
