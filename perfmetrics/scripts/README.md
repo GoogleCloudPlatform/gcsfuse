@@ -58,6 +58,10 @@ python3 fetch_metrics.py output.json
 ```
 The FIO output JSON file is passed as an argument to the fetch_metrics module.
 
+### Note
+
+The Google sheet's data is cleared before writing new data. So at any point, only the latest test’s data is stored in the sheet.
+
 ## Adding new metrics
 
 ### FIO Metric
