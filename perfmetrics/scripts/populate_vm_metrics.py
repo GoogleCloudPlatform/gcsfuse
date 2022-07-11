@@ -1,7 +1,7 @@
 """Executes vm_metrics.py by passing appropriate arguments.
 
 To run the script:
->> python3 fetch_metrics_ml.py <start_time> <end_time>
+>> python3 populate_vm_metrics.py <start_time> <end_time>
 """
 import socket
 import sys
@@ -20,7 +20,7 @@ if __name__ == '__main__':
   if len(argv) != 3:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
-                    'python3 fetch_metrics_ml.py <start_time> <end_time>')
+                    'python3 populate_vm_metrics.py <start_time> <end_time>')
 
   print('Waiting for 250 seconds for metrics to be updated on VM...')
   # It takes up to 240 seconds for sampled data to be visible on the VM metrics graph
