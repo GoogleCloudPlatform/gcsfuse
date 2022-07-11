@@ -35,7 +35,7 @@ P95 = '95.000000'
 NS_TO_S = 10**(-9)
 
 # Google sheet worksheet
-WORKSHEET_NAME = 'fio_metrics!'
+WORKSHEET_NAME = 'fio_metrics'
 
 FILESIZE_TO_KB_CONVERSION = {
     'b': 0.001,
