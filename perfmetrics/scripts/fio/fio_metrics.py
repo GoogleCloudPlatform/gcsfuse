@@ -233,10 +233,6 @@ class FioMetrics:
         if consts.RAMPTIME in job[consts.JOB_OPTS]:
           ramptime_ms = _convert_value(job[consts.JOB_OPTS][consts.RAMPTIME],
                                        consts.TIME_TO_MS_CONVERSION, 's')
-        if consts.STARTDELAY in job[consts.JOB_OPTS]:
-          startdelay_ms = _convert_value(
-              job[consts.JOB_OPTS][consts.STARTDELAY],
-              consts.TIME_TO_MS_CONVERSION, 's')
 
       if ramptime_ms == 0:
         ramptime_ms = global_ramptime_ms
@@ -445,8 +441,8 @@ class FioMetrics:
     Args:
       filepath : str
         Path of the json file to be parsed
-      worksheet: str, optional, default:'fio_metrics!'
-        Worksheet where job metrics should be written. 
+      worksheet: str, optional, default:'fio_metrics'
+        Worksheet where job metrics should be written.
         Pass '' or None to skip writing to Google sheets
 
     Returns:
