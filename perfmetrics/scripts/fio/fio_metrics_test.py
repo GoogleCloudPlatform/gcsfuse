@@ -11,15 +11,15 @@ GOOD_FILE = 'good_out_job.json'
 EMPTY_FILE = 'empty_file.json'
 EMPTY_JSON_FILE = 'empty_json.json'
 PARTIAL_FILE = 'partial_metrics.json'
+MISSING_METRIC_KEY = 'missing_metric_key.json'
 NO_METRICS_FILE = 'no_metrics.json'
 BAD_FORMAT_FILE = 'bad_format.json'
-MULTIPLE_JOBS_GLOBAL_FSIZE_FILE = 'multiple_jobs_global_fsize.json'
-MULTIPLE_JOBS_JOB_FSIZE_FILE = 'multiple_jobs_job_fsize.json'
+MULTIPLE_JOBS_GLOBAL_OPTIONS_FILE = 'multiple_jobs_global_options.json'
+MULTIPLE_JOBS_JOB_OPTIONS_FILE = 'multiple_jobs_job_options.json'
 
 SPREADSHEET_ID = '1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
 NUM_ENTRIES_CELL = 'T4'
 WORKSHEET_NAME = 'fio_metrics!'
-
 
 def get_full_filepath(filename):
   filepath = '{}{}'.format(TEST_PATH, filename)
@@ -334,7 +334,7 @@ class TestFioMetricsTest(unittest.TestCase):
   def test_load_non_existent_file_raises_os_error(self):
     json_obj = None
 
-    with self.assertRaises(OSError):
+    with self.assertRaisesRegex(OSError, '.*No such file.*'):
       json_obj = self.fio_metrics_obj._load_file_dict('i_dont_exist')
     self.assertIsNone(json_obj)
 
@@ -349,7 +349,8 @@ class TestFioMetricsTest(unittest.TestCase):
   def test_load_file_dict_empty_json_raises_no_values_error(self):
     json_obj = None
 
-    with self.assertRaises(fio_metrics.NoValuesError):
+    with self.assertRaisesRegex(fio_metrics.NoValuesError,
+                                'JSON file .* returned empty object'):
       json_obj = self.fio_metrics_obj._load_file_dict(
           get_full_filepath(EMPTY_JSON_FILE))
     self.assertIsNone(json_obj)
@@ -365,26 +366,64 @@ class TestFioMetricsTest(unittest.TestCase):
           get_full_filepath(BAD_FORMAT_FILE))
     self.assertIsNone(json_obj)
 
+  def test_convert_value(self):
+    converted_val = fio_metrics._convert_value('5ms', {'ms': 0.001, 's': 1})
+    self.assertEqual(0.005, converted_val)
+
+  def test_convert_value_unit_not_in_conversion_dict_raises_key_error(self):
+    with self.assertRaises(KeyError):
+      _ = fio_metrics._convert_value('5ms', {'s': 1})
+
+  def test_convert_value_only_unit_raises_value_error(self):
+    with self.assertRaises(ValueError):
+      _ = fio_metrics._convert_value('s', {'s': 1}, 's')
+
+  def test_get_rw(self):
+    rw = fio_metrics._get_rw('randread')
+
+    self.assertEqual('read', rw)
+
+  def test_get_rw_invalid_string_raises_value_error(self):
+    with self.assertRaisesRegex(
+        ValueError, 'Only read/randread/write/randwrite are supported'):
+      _ = fio_metrics._get_rw('readwrite')
+
+  def test_get_job_params_from_good_file(self):
+    json_obj = self.fio_metrics_obj._load_file_dict(
+        get_full_filepath(GOOD_FILE))
+    expected_params = [{'filesize_kb': 50000, 'num_threads': 40, 'rw': 'read'}]
+
+    extracted_params = self.fio_metrics_obj._get_job_params(json_obj)
+    self.assertEqual(expected_params, extracted_params)
+
+  def test_get_start_end_times_no_rw_raises_key_error(self):
+    extracted_job_params = [{'rw': 'read'}, {'no_rw': 'blank'}]
+
+    with self.assertRaises(KeyError):
+      _ = self.fio_metrics_obj._get_start_end_times({}, extracted_job_params)
+
   def test_extract_metrics_from_good_file(self):
     json_obj = self.fio_metrics_obj._load_file_dict(
         get_full_filepath(GOOD_FILE))
     expected_metrics = [{
-        'jobname': '1_thread',
-        'filesize': 50000,
-        'num_threads': 40,
+        'params': {
+            'rw': 'read',
+            'filesize_kb': 50000,
+            'num_threads': 40
+        },
         'start_time': 1653027084,
         'end_time': 1653027155,
-        'iops': 95.26093,
-        'bw_bytes': 99888324,
-        'io_bytes': 6040846336,
-        'lat_s': {
-            'min': 0.35337776000000004,
-            'max': 1.6975198690000002,
-            'mean': 0.41775487677469203,
-            'lat_20_perc': 0.37958451200000004,
-            'lat_50_perc': 0.38797312,
-            'lat_90_perc': 0.49283072000000006,
-            'lat_95_perc': 0.526385152
+        'metrics': {
+            'iops': 95.26093,
+            'bw_bytes': 99888324,
+            'io_bytes': 6040846336,
+            'lat_s_mean': 0.41775487677469203,
+            'lat_s_min': 0.35337776000000004,
+            'lat_s_max': 1.6975198690000002,
+            'lat_s_perc_20': 0.37958451200000004,
+            'lat_s_perc_50': 0.38797312,
+            'lat_s_perc_90': 0.49283072000000006,
+            'lat_s_perc_95': 0.526385152
         }
     }]
 
@@ -402,22 +441,24 @@ class TestFioMetricsTest(unittest.TestCase):
     json_obj = self.fio_metrics_obj._load_file_dict(
         get_full_filepath(PARTIAL_FILE))
     expected_metrics = [{
-        'jobname': '2_thread',
-        'filesize': 50000,
-        'num_threads': 40,
+        'params': {
+            'rw': 'read',
+            'filesize_kb': 50000,
+            'num_threads': 40
+        },
         'start_time': 1653027084,
         'end_time': 1653027155,
-        'iops': 95.26093,
-        'bw_bytes': 99888324,
-        'io_bytes': 6040846336,
-        'lat_s': {
-            'min': 0.35337776000000004,
-            'max': 1.6975198690000002,
-            'mean': 0.41775487677469203,
-            'lat_20_perc': 0.37958451200000004,
-            'lat_50_perc': 0.38797312,
-            'lat_90_perc': 0.49283072000000006,
-            'lat_95_perc': 0.526385152
+        'metrics': {
+            'iops': 95.26093,
+            'bw_bytes': 99888324,
+            'io_bytes': 6040846336,
+            'lat_s_mean': 0.41775487677469203,
+            'lat_s_min': 0.35337776000000004,
+            'lat_s_max': 1.6975198690000002,
+            'lat_s_perc_20': 0.37958451200000004,
+            'lat_s_perc_50': 0.38797312,
+            'lat_s_perc_90': 0.49283072000000006,
+            'lat_s_perc_95': 0.526385152
         }
     }]
 
@@ -425,35 +466,54 @@ class TestFioMetricsTest(unittest.TestCase):
 
     self.assertEqual(expected_metrics, extracted_metrics)
 
-  def test_extract_metrics_values_from_no_data_raises_no_values_error(self):
+  def test_extract_metrics_missing_metric_key_raises_no_values_error(self):
+    """Tests if error is raised when specified key is not present in JSON output."""
+    json_obj = self.fio_metrics_obj._load_file_dict(
+        get_full_filepath(MISSING_METRIC_KEY))
+    extracted_metrics = None
+
+    with self.assertRaisesRegex(
+        fio_metrics.NoValuesError,
+        'Required metric .* not present in json output'):
+      extracted_metrics = self.fio_metrics_obj._extract_metrics(json_obj)
+    self.assertIsNone(extracted_metrics)
+
+  def test_extract_metrics_from_no_data_raises_no_values_error(self):
     """Tests if extract_metrics() raises error if no metrics are extracted."""
     json_obj = self.fio_metrics_obj._load_file_dict(
         get_full_filepath(NO_METRICS_FILE))
     extracted_metrics = None
 
-    with self.assertRaises(fio_metrics.NoValuesError):
-      extracted_metrics = self.fio_metrics_obj._extract_metrics(
-          json_obj)
+    with self.assertRaisesRegex(fio_metrics.NoValuesError,
+                                'No data could be extracted from file'):
+      extracted_metrics = self.fio_metrics_obj._extract_metrics(json_obj)
     self.assertIsNone(extracted_metrics)
+
+  def test_extract_metrics_from_empty_json_raises_no_values_error(self):
+    with self.assertRaisesRegex(fio_metrics.NoValuesError,
+                                'No data in json object'):
+      _ = self.fio_metrics_obj._extract_metrics({})
 
   def test_get_metrics_for_good_file(self):
     expected_metrics = [{
-        'jobname': '1_thread',
-        'filesize': 50000,
-        'num_threads': 40,
+        'params': {
+            'rw': 'read',
+            'filesize_kb': 50000,
+            'num_threads': 40
+        },
         'start_time': 1653027084,
         'end_time': 1653027155,
-        'iops': 95.26093,
-        'bw_bytes': 99888324,
-        'io_bytes': 6040846336,
-        'lat_s': {
-            'min': 0.35337776000000004,
-            'max': 1.6975198690000002,
-            'mean': 0.41775487677469203,
-            'lat_20_perc': 0.37958451200000004,
-            'lat_50_perc': 0.38797312,
-            'lat_90_perc': 0.49283072000000006,
-            'lat_95_perc': 0.526385152
+        'metrics': {
+            'iops': 95.26093,
+            'bw_bytes': 99888324,
+            'io_bytes': 6040846336,
+            'lat_s_min': 0.35337776000000004,
+            'lat_s_max': 1.6975198690000002,
+            'lat_s_mean': 0.41775487677469203,
+            'lat_s_perc_20': 0.37958451200000004,
+            'lat_s_perc_50': 0.38797312,
+            'lat_s_perc_90': 0.49283072000000006,
+            'lat_s_perc_95': 0.526385152
         }
     }]
     get_response = {
@@ -484,11 +544,11 @@ class TestFioMetricsTest(unittest.TestCase):
             body={
                 'majorDimension':
                     'ROWS',
-                'values': [('1_thread', 50000, 40, 1653027084, 1653027155,
-                            95.26093, 99888324, 6040846336, 0.35337776000000004,
-                            1.6975198690000002, 0.41775487677469203,
-                            0.37958451200000004, 0.38797312,
-                            0.49283072000000006, 0.526385152)]
+                'values': [['read', 40, 50000, 1653027084,
+                            1653027155, 95.26093, 99888324, 6040846336,
+                            0.35337776000000004, 1.6975198690000002,
+                            0.41775487677469203, 0.37958451200000004,
+                            0.38797312, 0.49283072000000006, 0.526385152]]
             },
             range='{}A{}'.format(WORKSHEET_NAME, new_row))
     ]
@@ -501,43 +561,47 @@ class TestFioMetricsTest(unittest.TestCase):
     self.assertEqual(expected_metrics, extracted_metrics)
     sheets_service_mock.assert_has_calls(calls, any_order=True)
 
-  def test_get_metrics_for_multiple_jobs_global_fsize(self):
-    """Multiple_jobs_global_fsize_fpath has filesize as global parameter."""
+  def test_get_metrics_for_multiple_jobs_global_options(self):
+    """Multiple_jobs_global_options_fpath has filesize as global parameter."""
     expected_metrics = [{
-        'jobname': '1_thread',
-        'filesize': 50000,
-        'num_threads': 40,
-        'start_time': 1653381687,
-        'end_time': 1653381758,
-        'iops': 115.354741,
-        'bw_bytes': 138911322,
-        'io_bytes': 8405385216,
-        'lat_s': {
-            'min': 0.24973726400000001,
-            'max': 28.958587178000002,
-            'mean': 18.494668007316744,
-            'lat_20_perc': 0.37958451200000004,
-            'lat_50_perc': 0.38797312,
-            'lat_90_perc': 0.49283072000000006,
-            'lat_95_perc': 0.526385152
+        'params': {
+            'rw': 'read',
+            'filesize_kb': 50000,
+            'num_threads': 10
+        },
+        'start_time': 1653381667,
+        'end_time': 1653381738,
+        'metrics': {
+            'iops': 115.354741,
+            'bw_bytes': 138911322,
+            'io_bytes': 8405385216,
+            'lat_s_min': 0.24973726400000001,
+            'lat_s_max': 28.958587178000002,
+            'lat_s_mean': 18.494668007316744,
+            'lat_s_perc_20': 0.37958451200000004,
+            'lat_s_perc_50': 0.38797312,
+            'lat_s_perc_90': 0.49283072000000006,
+            'lat_s_perc_95': 0.526385152
         }
     }, {
-        'jobname': '2_thread',
-        'filesize': 50000,
-        'num_threads': 10,
-        'start_time': 1653381758,
+        'params': {
+            'rw': 'read',
+            'filesize_kb': 50000,
+            'num_threads': 10
+        },
+        'start_time': 1653381757,
         'end_time': 1653381828,
-        'iops': 34.641075,
-        'bw_bytes': 41972238,
-        'io_bytes': 2532311040,
-        'lat_s': {
-            'min': 0.21200723800000001,
-            'max': 21.590713209,
-            'mean': 15.969313013822775,
-            'lat_20_perc': 0.37958451200000004,
-            'lat_50_perc': 0.38797312,
-            'lat_90_perc': 0.49283072000000006,
-            'lat_95_perc': 0.526385152
+        'metrics': {
+            'iops': 37.52206,
+            'bw_bytes': 45311294,
+            'io_bytes': 2747269120,
+            'lat_s_min': 0.172148734,
+            'lat_s_max': 20.110704859000002,
+            'lat_s_mean': 14.960429037403822,
+            'lat_s_perc_20': 0.37958451200000004,
+            'lat_s_perc_50': 0.38797312,
+            'lat_s_perc_90': 0.49283072000000006,
+            'lat_s_perc_95': 0.526385152
         }
     }]
     get_response = {
@@ -569,15 +633,16 @@ class TestFioMetricsTest(unittest.TestCase):
                 'majorDimension':
                     'ROWS',
                 'values': [
-                    ('1_thread', 50000, 40, 1653381687, 1653381758, 115.354741,
-                     138911322, 8405385216, 0.24973726400000001,
+                    ['read', 10, 50000, 1653381667, 1653381738,
+                     115.354741, 138911322, 8405385216, 0.24973726400000001,
                      28.958587178000002, 18.494668007316744,
                      0.37958451200000004, 0.38797312, 0.49283072000000006,
-                     0.526385152),
-                    ('2_thread', 50000, 10, 1653381758, 1653381828, 34.641075,
-                     41972238, 2532311040, 0.21200723800000001, 21.590713209,
-                     15.969313013822775, 0.37958451200000004, 0.38797312,
-                     0.49283072000000006, 0.526385152)
+                     0.526385152],
+                    ['read', 10, 50000, 1653381757, 1653381828,
+                     37.52206, 45311294, 2747269120, 0.172148734,
+                     20.110704859000002, 14.960429037403822,
+                     0.37958451200000004, 0.38797312, 0.49283072000000006,
+                     0.526385152]
                 ]
             },
             range='{}A{}'.format(WORKSHEET_NAME, new_row))
@@ -586,48 +651,51 @@ class TestFioMetricsTest(unittest.TestCase):
                            ) as get_sheets_service_client_mock:
       get_sheets_service_client_mock.return_value = sheets_service_mock
       extracted_metrics = self.fio_metrics_obj.get_metrics(
-          get_full_filepath(MULTIPLE_JOBS_GLOBAL_FSIZE_FILE))
+          get_full_filepath(MULTIPLE_JOBS_GLOBAL_OPTIONS_FILE))
 
     self.assertEqual(expected_metrics, extracted_metrics)
     sheets_service_mock.assert_has_calls(calls, any_order=True)
 
-  def test_get_metrics_for_multiple_jobs_job_fsize(self):
-    """Multiple_jobs_global_fsize_fpath has filesize as job parameter."""
+  def test_get_metrics_for_multiple_jobs_job_options(self):
     expected_metrics = [{
-        'jobname': '1_thread',
-        'filesize': 3000,
-        'num_threads': 40,
-        'start_time': 1653597009,
-        'end_time': 1653597085,
-        'iops': 88.851558,
-        'bw_bytes': 106170722,
-        'io_bytes': 6952058880,
-        'lat_s': {
-            'min': 0.17337301400000002,
-            'max': 36.442812445,
-            'mean': 21.799839057909956,
-            'lat_20_perc': 0.37958451200000004,
-            'lat_50_perc': 0.38797312,
-            'lat_90_perc': 0.49283072000000006,
-            'lat_95_perc': 0.526385152
+        'params': {
+            'rw': 'read',
+            'filesize_kb': 3000,
+            'num_threads': 40
+        },
+        'start_time': 1653596980,
+        'end_time': 1653597056,
+        'metrics': {
+            'iops': 88.851558,
+            'bw_bytes': 106170722,
+            'io_bytes': 6952058880,
+            'lat_s_min': 0.17337301400000002,
+            'lat_s_max': 36.442812445,
+            'lat_s_mean': 21.799839057909956,
+            'lat_s_perc_20': 0.37958451200000004,
+            'lat_s_perc_50': 0.38797312,
+            'lat_s_perc_90': 0.49283072000000006,
+            'lat_s_perc_95': 0.526385152
         }
     }, {
-        'jobname': '2_thread',
-        'filesize': 5000,
-        'num_threads': 10,
-        'start_time': 1653597085,
+        'params': {
+            'rw': 'write',
+            'filesize_kb': 5000,
+            'num_threads': 10
+        },
+        'start_time': 1653597076,
         'end_time': 1653597156,
-        'iops': 37.52206,
-        'bw_bytes': 45311294,
-        'io_bytes': 2747269120,
-        'lat_s': {
-            'min': 0.172148734,
-            'max': 20.110704859000002,
-            'mean': 14.960429037403822,
-            'lat_20_perc': 0.37958451200000004,
-            'lat_50_perc': 0.38797312,
-            'lat_90_perc': 0.49283072000000006,
-            'lat_95_perc': 0.526385152
+        'metrics': {
+            'iops': 34.641075,
+            'bw_bytes': 41972238,
+            'io_bytes': 2532311040,
+            'lat_s_min': 0.21200723800000001,
+            'lat_s_max': 21.590713209,
+            'lat_s_mean': 15.969313013822775,
+            'lat_s_perc_20': 0.37958451200000004,
+            'lat_s_perc_50': 0.38797312,
+            'lat_s_perc_90': 0.49283072000000006,
+            'lat_s_perc_95': 0.526385152
         }
     }]
 
@@ -660,14 +728,14 @@ class TestFioMetricsTest(unittest.TestCase):
                 'majorDimension':
                     'ROWS',
                 'values': [
-                    ('1_thread', 3000, 40, 1653597009, 1653597085, 88.851558,
-                     106170722, 6952058880, 0.17337301400000002, 36.442812445,
-                     21.799839057909956, 0.37958451200000004, 0.38797312,
-                     0.49283072000000006, 0.526385152),
-                    ('2_thread', 5000, 10, 1653597085, 1653597156, 37.52206,
-                     45311294, 2747269120, 0.172148734, 20.110704859000002,
-                     14.960429037403822, 0.37958451200000004, 0.38797312,
-                     0.49283072000000006, 0.526385152)
+                    ['read', 40, 3000, 1653596980, 1653597056,
+                     88.851558, 106170722, 6952058880, 0.17337301400000002,
+                     36.442812445, 21.799839057909956, 0.37958451200000004,
+                     0.38797312, 0.49283072000000006, 0.526385152],
+                    ['write', 10, 5000, 1653597076, 1653597156,
+                     34.641075, 41972238, 2532311040, 0.21200723800000001,
+                     21.590713209, 15.969313013822775, 0.37958451200000004,
+                     0.38797312, 0.49283072000000006, 0.526385152]
                 ],
             },
             range='{}A{}'.format(WORKSHEET_NAME, new_row))
@@ -677,7 +745,7 @@ class TestFioMetricsTest(unittest.TestCase):
                            ) as get_sheets_service_client_mock:
       get_sheets_service_client_mock.return_value = sheets_service_mock
       extracted_metrics = self.fio_metrics_obj.get_metrics(
-          get_full_filepath(MULTIPLE_JOBS_JOB_FSIZE_FILE))
+          get_full_filepath(MULTIPLE_JOBS_JOB_OPTIONS_FILE))
 
     self.assertEqual(expected_metrics, extracted_metrics)
     sheets_service_mock.assert_has_calls(calls, any_order=True)
