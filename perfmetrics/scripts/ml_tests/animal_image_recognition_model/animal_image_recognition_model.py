@@ -40,8 +40,8 @@ T = transforms.Compose([
 
 dataset = ImageFolder(sys.argv[1], transform=T)
 train_set, val_set = random_split(dataset, [int(len(dataset)*.8), len(dataset)-int(len(dataset)*.8)])
-train_loader =DataLoader(train_set, batch_size=4096)
-test_loader = DataLoader(val_set, batch_size=4096)
+train_loader =DataLoader(train_set, batch_size=4096, num_workers=4)
+test_loader = DataLoader(val_set, batch_size=4096, num_workers=4)
 
 
 # In[ ]:
