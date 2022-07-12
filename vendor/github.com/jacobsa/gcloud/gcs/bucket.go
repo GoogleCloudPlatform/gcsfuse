@@ -142,14 +142,63 @@ func (b *bucket) Name() string {
 	return b.name
 }
 
+// Convert the object attrs return by the Go Client to Object struct type present in object.go file.
+func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *Object {
+	// Converting []ACLRule returned by the Go Client into []*storagev1.ObjectAccessControl which complies with GCSFuse type.
+	var Acl []*storagev1.ObjectAccessControl
+	for _, element := range attrs.ACL {
+		currACL := &storagev1.ObjectAccessControl{
+			Entity:   string(element.Entity),
+			EntityId: element.EntityID,
+			Role:     string(element.Role),
+			Domain:   element.Domain,
+			Email:    element.Email,
+			ProjectTeam: &storagev1.ObjectAccessControlProjectTeam{
+				ProjectNumber: element.ProjectTeam.ProjectNumber,
+				Team:          element.ProjectTeam.Team,
+			},
+		}
+		Acl = append(Acl, currACL)
+	}
+
+	// Converting MD5[] slice to MD5[md5.Size] type fixed array as accepted by GCSFuse.
+	var MD5 [md5.Size]byte
+	copy(MD5[:], attrs.MD5)
+
+	// Setting the parameters in Object and doing conversions as necessary.
+	return &Object{
+		Name:            attrs.Name,
+		ContentType:     attrs.ContentType,
+		ContentLanguage: attrs.ContentLanguage,
+		CacheControl:    attrs.CacheControl,
+		Owner:           attrs.Owner,
+		Size:            uint64(attrs.Size),
+		ContentEncoding: attrs.ContentEncoding,
+		MD5:             &MD5,
+		CRC32C:          &attrs.CRC32C,
+		MediaLink:       attrs.MediaLink,
+		Metadata:        attrs.Metadata,
+		Generation:      attrs.Generation,
+		MetaGeneration:  attrs.Metageneration,
+		StorageClass:    attrs.StorageClass,
+		Deleted:         attrs.Deleted,
+		Updated:         attrs.Updated,
+		//ComponentCount: , (Field not found in attrs returned by Go Client.)
+		ContentDisposition: attrs.ContentDisposition,
+		CustomTime:         string(attrs.CustomTime.Format(time.RFC3339)),
+		EventBasedHold:     attrs.EventBasedHold,
+		Acl:                Acl,
+	}
+}
+
 func (b *bucket) ListObjects(
 	ctx context.Context,
 	req *ListObjectsRequest) (listing *Listing, err error) {
-
 	if true {
 		listing, err = ListObjectsSCL(ctx, req, b.name, b.storageClient)
 		return
 	}
+
 	// Construct an appropriate URL (cf. http://goo.gl/aVSAhT).
 	opaque := fmt.Sprintf(
 		"//%s/storage/v1/b/%s/o",
@@ -222,25 +271,28 @@ func (b *bucket) ListObjects(
 	return
 }
 
+// Custom function to list objects in a bucket using Storage Client Library.
 func ListObjectsSCL(
 	ctx context.Context,
 	req *ListObjectsRequest, bucketName string, storageClient *storage.Client) (listing *Listing, err error) {
 	// If client is "nil", it means that there was some problem in initializing client in newBucket function of bucket.go file.
-	var list Listing
 	if storageClient == nil {
 		err = fmt.Errorf("Error in creating client through Go Storage Library.")
 		return
 	}
 
+	// Converting *ListObjectsRequest to type *storage.Query as expected by the Go Storage Client.
 	query := &storage.Query{
 		Delimiter:                req.Delimiter,
 		Prefix:                   req.Prefix,
 		Projection:               storage.Projection(req.ProjectionVal),
 		IncludeTrailingDelimiter: req.IncludeTrailingDelimiter,
-		//MaxResults: , (Field not present in storage.Query but present in Jacobsa query.)
+		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
 	}
-	itr := storageClient.Bucket(bucketName).Objects(ctx, query)
+	itr := storageClient.Bucket(bucketName).Objects(ctx, query) // Returning iterator to the list of objects.
+	var list Listing
 
+	// Iterating through all the objects in the bucket and one by one adding them to the list.
 	for {
 		var attrs *storage.ObjectAttrs = nil
 		attrs, err = itr.Next()
@@ -253,48 +305,8 @@ func ListObjectsSCL(
 			return
 		}
 
-		var Acl []*storagev1.ObjectAccessControl
-		for _, element := range attrs.ACL {
-			currACL := &storagev1.ObjectAccessControl{
-				Entity:   string(element.Entity),
-				EntityId: element.EntityID,
-				Role:     string(element.Role),
-				Domain:   element.Domain,
-				Email:    element.Email,
-				ProjectTeam: &storagev1.ObjectAccessControlProjectTeam{
-					ProjectNumber: element.ProjectTeam.ProjectNumber,
-					Team:          element.ProjectTeam.Team,
-				},
-			}
-			Acl = append(Acl, currACL)
-		}
-
-		var MD5 [md5.Size]byte
-		copy(MD5[:], attrs.MD5)
-
-		currObject := &Object{
-			Name:            attrs.Name,
-			ContentType:     attrs.ContentType,
-			ContentLanguage: attrs.ContentLanguage,
-			CacheControl:    attrs.CacheControl,
-			Owner:           attrs.Owner,
-			Size:            uint64(attrs.Size),
-			ContentEncoding: attrs.ContentEncoding,
-			MD5:             &MD5,
-			CRC32C:          &attrs.CRC32C,
-			MediaLink:       attrs.MediaLink,
-			Metadata:        attrs.Metadata,
-			Generation:      attrs.Generation,
-			MetaGeneration:  attrs.Metageneration,
-			StorageClass:    attrs.StorageClass,
-			Deleted:         attrs.Deleted,
-			Updated:         attrs.Updated,
-			//ComponentCount: , (Field not found in attrs)
-			ContentDisposition: attrs.ContentDisposition,
-			CustomTime:         string(attrs.CustomTime.Format(time.RFC3339)),
-			EventBasedHold:     attrs.EventBasedHold,
-			Acl:                Acl,
-		}
+		// Converting attrs to *Object type.
+		currObject := ObjectAttrsToBucketObject(attrs)
 		list.Objects = append(list.Objects, currObject)
 	}
 
@@ -372,6 +384,7 @@ func (b *bucket) StatObject(
 	return
 }
 
+// Custom function made to return the attributes of an object using Storage Client Library.
 func StatObjectSCL(
 	ctx context.Context,
 	req *StatObjectRequest, bucketName string, storageClient *storage.Client) (o *Object, err error) {
@@ -380,13 +393,19 @@ func StatObjectSCL(
 		err = fmt.Errorf("Error in creating client through Go Storage Library.")
 		return
 	}
+
 	var attrs *storage.ObjectAttrs = nil
+	// Retrieving object attrs through Go Storage Client.
 	attrs, err = storageClient.Bucket(bucketName).Object(req.Name).Attrs(ctx)
+
+	// If error is of type storage.ErrObjectNotExist, then we have to retry once by appending '/' to the object name.
+	// We are retyring to handle the case when the object is a directory.
+	// Since directories in GCS bucket are denoted with a an extra '/' at the end of their name. But in the request we are only provided with their name without '/'.
 	if err == storage.ErrObjectNotExist {
 		dirName := req.Name + "/"
 		attrs, err = storageClient.Bucket(bucketName).Object(dirName).Attrs(ctx)
-		if err != nil {
-			err = &NotFoundError{Err: err}
+		if err == storage.ErrObjectNotExist {
+			err = &NotFoundError{Err: err} // Special case error that object not found in the bucket.
 			return
 		}
 	}
@@ -395,48 +414,8 @@ func StatObjectSCL(
 		return
 	}
 
-	var Acl []*storagev1.ObjectAccessControl
-	for _, element := range attrs.ACL {
-		currACL := &storagev1.ObjectAccessControl{
-			Entity:   string(element.Entity),
-			EntityId: element.EntityID,
-			Role:     string(element.Role),
-			Domain:   element.Domain,
-			Email:    element.Email,
-			ProjectTeam: &storagev1.ObjectAccessControlProjectTeam{
-				ProjectNumber: element.ProjectTeam.ProjectNumber,
-				Team:          element.ProjectTeam.Team,
-			},
-		}
-		Acl = append(Acl, currACL)
-	}
-
-	var MD5 [md5.Size]byte
-	copy(MD5[:], attrs.MD5)
-
-	o = &Object{
-		Name:            attrs.Name,
-		ContentType:     attrs.ContentType,
-		ContentLanguage: attrs.ContentLanguage,
-		CacheControl:    attrs.CacheControl,
-		Owner:           attrs.Owner,
-		Size:            uint64(attrs.Size),
-		ContentEncoding: attrs.ContentEncoding,
-		MD5:             &MD5,
-		CRC32C:          &attrs.CRC32C,
-		MediaLink:       attrs.MediaLink,
-		Metadata:        attrs.Metadata,
-		Generation:      attrs.Generation,
-		MetaGeneration:  attrs.Metageneration,
-		StorageClass:    attrs.StorageClass,
-		Deleted:         attrs.Deleted,
-		Updated:         attrs.Updated,
-		//ComponentCount: , (Field not found in attrs)
-		ContentDisposition: attrs.ContentDisposition,
-		CustomTime:         string(attrs.CustomTime.Format(time.RFC3339)),
-		EventBasedHold:     attrs.EventBasedHold,
-		Acl:                Acl,
-	}
+	// Converting attrs to type *Object
+	o = ObjectAttrsToBucketObject(attrs)
 
 	return
 }
@@ -444,6 +423,11 @@ func StatObjectSCL(
 func (b *bucket) DeleteObject(
 	ctx context.Context,
 	req *DeleteObjectRequest) (err error) {
+	if true {
+		err = DeleteObjectSCL(ctx, req, b.name, b.storageClient)
+		return
+	}
+
 	// Construct an appropriate URL (cf. http://goo.gl/TRQJjZ).
 	opaque := fmt.Sprintf(
 		"//%s/storage/v1/b/%s/o/%s",
@@ -514,6 +498,40 @@ func (b *bucket) DeleteObject(
 	return
 }
 
+// Custom function made to delete an object using Storage Client Library.
+func DeleteObjectSCL(
+	ctx context.Context,
+	req *DeleteObjectRequest, bucketName string, storageClient *storage.Client) (err error) {
+	// If client is "nil", it means that there was some problem in initializing client in newBucket function of bucket.go file.
+	if storageClient == nil {
+		err = fmt.Errorf("Error in creating client through Go Storage Library.")
+		return
+	}
+
+	obj := storageClient.Bucket(bucketName).Object(req.Name)
+
+	// Switching to the requested generation of the object.
+	if req.Generation != 0 {
+		obj = obj.Generation(req.Generation)
+	}
+
+	// Putting condition that the object's MetaGeneration should match the requested MetaGeneration for deletion to occur.
+	if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
+
+		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
+
+	}
+
+	// Deleting object through Go Storage Client.
+	err = obj.Delete(ctx)
+	if err != nil {
+		err = fmt.Errorf("Error in deleting the object through Go storage client: %v", err)
+		return
+	}
+
+	return
+}
+
 func newBucket(
 	ctx context.Context,
 	client *http.Client,
@@ -526,7 +544,6 @@ func newBucket(
 
 	// Creating client through Go Storage Client Library for the storageClient parameter of bucket.
 	var tr *http.Transport = nil
-	//	duration, _ := time.ParseDuration("5ms")
 
 	// Choosing between HTTP1 and HTTP2.
 	if goClientConfig.DisableHTTP2 {
@@ -537,8 +554,6 @@ func newBucket(
 			TLSNextProto: make(
 				map[string]func(string, *tls.Conn) http.RoundTripper,
 			),
-			//	ResponseHeaderTimeout: duration,
-			//	TLSHandshakeTimeout: duration,
 		}
 	} else {
 		tr = &http.Transport{
@@ -553,7 +568,7 @@ func newBucket(
 		Base:   tr,
 		Source: tokenSrc,
 	},
-		Timeout: 2*time.Second,
+		Timeout: 2 * time.Second,
 	}
 
 	var storageClient *storage.Client = nil
