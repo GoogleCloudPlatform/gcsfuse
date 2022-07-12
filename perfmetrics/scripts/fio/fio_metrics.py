@@ -67,7 +67,7 @@ REQ_JOB_PARAMS = []
 # DO NOT remove the below append line
 REQ_JOB_PARAMS.append(JobParam(consts.RW, consts.RW, lambda val: val, 'read'))
 
-REQ_JOB_PARAMS.append(JobParam(consts.THREADS, consts.NUMJOBS, 
+REQ_JOB_PARAMS.append(JobParam(consts.THREADS, consts.NUMJOBS,
                                lambda val: int(val), 1))
 REQ_JOB_PARAMS.append(
     JobParam(
@@ -412,7 +412,7 @@ class FioMetrics:
 
     return all_jobs
 
-  def _add_to_gsheet(self, jobs):
+  def _add_to_gsheet(self, jobs, worksheet_name):
     """Add the metric values to respective columns in a google sheet.
 
     Args:
@@ -431,17 +431,17 @@ class FioMetrics:
         row.append(metric_val)
       values.append(row)
 
-    gsheet.write_to_google_sheet(consts.WORKSHEET_NAME, values)
+    gsheet.write_to_google_sheet(worksheet_name, values)
 
   def get_metrics(self,
                   filepath,
-                  worksheet=consts.WORKSHEET_NAME) -> List[Dict[str, Any]]:
+                  worksheet_name) -> List[Dict[str, Any]]:
     """Returns job metrics obtained from given filepath and writes to gsheets.
 
     Args:
       filepath : str
         Path of the json file to be parsed
-      worksheet: str, optional, default:'fio_metrics'
+      worksheet_name: str, optional, default:'fio_metrics'
         Worksheet where job metrics should be written.
         Pass '' or None to skip writing to Google sheets
 
@@ -450,8 +450,8 @@ class FioMetrics:
     """
     fio_out = self._load_file_dict(filepath)
     job_metrics = self._extract_metrics(fio_out)
-    if worksheet:
-      self._add_to_gsheet(job_metrics)
+    if worksheet_name:
+      self._add_to_gsheet(job_metrics, worksheet_name)
 
     return job_metrics
 
@@ -463,6 +463,6 @@ if __name__ == '__main__':
                     'python3 fio_metrics.py <fio output json filepath>')
 
   fio_metrics_obj = FioMetrics()
-  temp = fio_metrics_obj.get_metrics(argv[1])
+  temp = fio_metrics_obj.get_metrics(argv[1], 'fio_metrics_expt')
   print(temp)
 
