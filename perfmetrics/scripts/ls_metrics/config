@@ -1,5 +1,5 @@
 [DEFAULT]
-bucket_name=gcsfuse-testing
+bucket_name=testing-gcsfuse
 root_folder=listing_perf
 command=ls
 command_flags=["-R", "--help"]
