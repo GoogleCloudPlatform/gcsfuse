@@ -161,14 +161,19 @@ func NewReaderSCL(
 	end := int64((*req.Range).Limit)
 	length := int64(end - start)
 
+	obj := storageClient.Bucket(bucketName).Object(req.Name)
+
+	// Switching to the requested generation of object.
+	if req.Generation != 0 {
+		obj = obj.Generation(req.Generation)
+	}
+
 	// Creating a NewRangeReader instance.
-	fmt.Println("NewRangeReader Start", start, end, length)
-	r, err := storageClient.Bucket(bucketName).Object(req.Name).NewRangeReader(ctx, start, length)
+	r, err := obj.NewRangeReader(ctx, start, length)
 	if err != nil {
 		err = fmt.Errorf("Error in creating a NewRangeReader instance: %v", err)
 		return
 	}
-	fmt.Println("NewRangeReader End")
 
 	rc = io.NopCloser(r) // Converting io.Reader to io.ReadCloser.
 
