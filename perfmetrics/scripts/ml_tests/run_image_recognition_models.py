@@ -35,6 +35,7 @@ file in the same directory. At the end, it will unmount the GCS bucket.
 
 import argparse
 import os
+import time
 
 from absl import app
 
@@ -124,8 +125,19 @@ def _run_model(directory_name, data_path, data_read_method, ml_model_path, req_f
             cd {directory_name}
             echo ML model reading data using {data_read_method} >> output.txt
             pip install -r {req_file_path}
+            ''')
+  
+  start_time = int(time.time())
+  
+  os.system(f'''cd {directory_name}
             python3 {ml_model_path} {data_path} >> output.txt
-            cd ..
+            ''')
+  
+  end_time = int(time.time())
+
+  os.system(f'''cd ..
+            chmod +x populate_metrics.sh
+            ./populate_metrics.sh {start_time} {end_time}
             ''')
 
 
