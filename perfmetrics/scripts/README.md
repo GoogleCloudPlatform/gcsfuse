@@ -60,7 +60,7 @@ The FIO output JSON file is passed as an argument to the fetch_metrics module.
 
 ### Note
 
-The previous data in the google sheet will be deleted every time you enter new data. Therefore, at any point of time, the google sheet will store only the last tests’ data.
+The previous data in the google sheet will be deleted every time you enter new data. Therefore, at any point of time, the google sheet will store only the last tests’ data. If you want, you can change this in the [```gsheet/gsheet.py```](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/perfmetrics/scripts/gsheet/gsheet.py) file.
 
 ## Adding new metrics
 
