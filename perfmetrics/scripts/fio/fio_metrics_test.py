@@ -516,7 +516,7 @@ class TestFioMetricsTest(unittest.TestCase):
         }
     }]
     get_response = {
-        'range': '{}!A2:A'.format(WORKSHEET_NAME),
+        'range': '{}!A1:A'.format(WORKSHEET_NAME),
         'majorDimension': 'ROWS',
         'values': [['read'], ['read'], ['write']]
     }
@@ -545,7 +545,7 @@ class TestFioMetricsTest(unittest.TestCase):
     calls = [
         mock.call.spreadsheets().values().get(
             spreadsheetId=SPREADSHEET_ID,
-            range='{}!A2:A'.format(WORKSHEET_NAME)),
+            range='{}!A1:A'.format(WORKSHEET_NAME)),
         mock.call.spreadsheets().values().clear(
             spreadsheetId=SPREADSHEET_ID,
             range='{}!A2:{}'.format(WORKSHEET_NAME, last_row),
@@ -618,7 +618,7 @@ class TestFioMetricsTest(unittest.TestCase):
         }
     }]
     get_response = {
-        'range': '{}!A2:A'.format(WORKSHEET_NAME),
+        'range': '{}!A1:A'.format(WORKSHEET_NAME),
         'majorDimension': 'ROWS',
         'values': [['read'], ['read'], ['write']]
     }
@@ -647,7 +647,7 @@ class TestFioMetricsTest(unittest.TestCase):
     calls = [
         mock.call.spreadsheets().values().get(
             spreadsheetId=SPREADSHEET_ID,
-            range='{}!A2:A'.format(WORKSHEET_NAME)),
+            range='{}!A1:A'.format(WORKSHEET_NAME)),
         mock.call.spreadsheets().values().clear(
             spreadsheetId=SPREADSHEET_ID,
             range='{}!A2:{}'.format(WORKSHEET_NAME, last_row),
@@ -726,7 +726,7 @@ class TestFioMetricsTest(unittest.TestCase):
         }
     }]
     get_response = {
-        'range': '{}!A2:A'.format(WORKSHEET_NAME),
+        'range': '{}!A1:A'.format(WORKSHEET_NAME),
         'majorDimension': 'ROWS',
         'values': [['read'], ['read'], ['write']]
     }
@@ -755,7 +755,7 @@ class TestFioMetricsTest(unittest.TestCase):
     calls = [
         mock.call.spreadsheets().values().get(
             spreadsheetId=SPREADSHEET_ID,
-            range='{}!A2:A'.format(WORKSHEET_NAME)),
+            range='{}!A1:A'.format(WORKSHEET_NAME)),
         mock.call.spreadsheets().values().clear(
             spreadsheetId=SPREADSHEET_ID,
             range='{}!A2:{}'.format(WORKSHEET_NAME, last_row),
