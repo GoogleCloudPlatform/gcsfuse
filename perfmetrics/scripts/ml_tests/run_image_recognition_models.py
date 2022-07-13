@@ -135,7 +135,8 @@ def _run_model(directory_name, data_path, data_read_method, ml_model_path, req_f
   
   end_time = int(time.time())
 
-  os.system(f'''chmod +x populate_metrics.sh
+  os.system(f'''cd ..
+            chmod +x populate_metrics.sh
             ./populate_metrics.sh {start_time} {end_time}
             ''')
 
@@ -204,6 +205,8 @@ def main(argv) -> None:
       help='Provide Absolute disk data path',
       required=False)
   args = parser.parse_args(argv[1:])
+
+  os.system('export PATH=/home/kbuilder/.local/bin:$PATH')
 
   directory_name = args.directory_name
   data_read_method = args.data_read_method
