@@ -25,7 +25,7 @@ def write_to_google_sheet(worksheet: str, data) -> None:
   """
   sheets_client = _get_sheets_service_client()
 
-  # Getting the number of occupied rows in the sheet
+  # Getting the index of the last occupied row in the sheet
   spreadsheet_response = sheets_client.spreadsheets().values().get(
       spreadsheetId=SPREADSHEET_ID,
       range='{}!A1:A'.format(worksheet)).execute()
