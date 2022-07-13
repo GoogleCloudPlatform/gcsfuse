@@ -33,7 +33,7 @@ fi
 # Install Golang.
 if [ "$(which go)" = "" ] ;then
   echo "Installing Golang..."
-  sudo apt update && sudo apt upgrade -y
+  sudo apt update
   if sudo apt install wget -y; then
     wget https://golang.org/dl/$GO_VERSION
     sudo tar -zxvf $GO_VERSION
