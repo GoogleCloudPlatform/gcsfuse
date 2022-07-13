@@ -33,7 +33,7 @@ fi
 # Install Golang.
 if [ "$(which go)" = "" ] ;then
   echo "Installing Golang..."
-  sudo apt update
+  sudo apt-get update
   if sudo apt install wget -y; then
     wget https://golang.org/dl/$GO_VERSION
     sudo tar -zxvf $GO_VERSION
@@ -71,3 +71,9 @@ else
   echo "Failed to install required Prerequistes for automation script. Please try again"
   exit 1
 fi
+
+
+python3 --version
+go version
+fusermount -V
+git --version
