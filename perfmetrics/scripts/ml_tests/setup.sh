@@ -56,6 +56,11 @@ echo $GOROOT
 #   fi
 # fi
 
+echo 'export GOROOT=$HOME/go' >> ~/.bashrc
+echo 'export GOPATH=$HOME/go' >> ~/.bashrc
+echo 'export PATH=$PATH:$GOROOT/bin:$GOPATH/bin' >> ~/.bashrc 
+source ~/.bashrc
+
 # Install fuse.
 install fuse -y
 
@@ -81,3 +86,6 @@ python3.9 --version
 go version
 fusermount -V
 git --version
+which go
+echo $GOROOT
+echo $GOPATH
