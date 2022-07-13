@@ -135,8 +135,7 @@ def _run_model(directory_name, data_path, data_read_method, ml_model_path, req_f
   
   end_time = int(time.time())
 
-  os.system(f'''cd ..
-            chmod +x populate_metrics.sh
+  os.system(f'''chmod +x populate_metrics.sh
             ./populate_metrics.sh {start_time} {end_time}
             ''')
 

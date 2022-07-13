@@ -17,4 +17,5 @@ chmod +x ml_tests/setup.sh
 source ml_tests/setup.sh
 
 echo "Running ML model automation script"
-python3 ml_tests/run_image_recognition_models.py -- ml_tests/fashion_items_image_recognition_model/fashion_items_image_recognition_model.py ml_tests/fashion_items_image_recognition_model/requirements.txt --install_gcsfuse --data_read_method gcsfuse --gcsbucket_data_path fashion_items_data_small/data test
+cd ml_tests
+python3 run_image_recognition_models.py -- fashion_items_image_recognition_model/fashion_items_image_recognition_model.py fashion_items_image_recognition_model/requirements.txt --install_gcsfuse --data_read_method gcsfuse --gcsbucket_data_path fashion_items_data_small/data test
