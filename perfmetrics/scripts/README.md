@@ -66,10 +66,10 @@ The previous data in the google sheet will be deleted every time you enter new d
 
 ### FIO Metric
 #### To add a new job parameter
-1. Add another JobParam object to the REQ_JOB_PARAMS list [here](https://github.com/GoogleCloudPlatform/gcsfuse/blob/a454b452f5fd290f9ef3cc0da85b9d27d6beee4a/perfmetrics/scripts/fio/fio_metrics.py#L76). Make sure that json_name matches the key of the parameter in the FIO output JSON to avoid any errors.
+1. Add another object of [JobParam class](https://github.com/GoogleCloudPlatform/gcsfuse/blob/be488de374db77748813a5bc7d710cf9eed425d7/perfmetrics/scripts/fio/fio_metrics.py#L23) to the REQ_JOB_PARAMS list [here](https://github.com/GoogleCloudPlatform/gcsfuse/blob/a454b452f5fd290f9ef3cc0da85b9d27d6beee4a/perfmetrics/scripts/fio/fio_metrics.py#L76). Make sure that json_name matches the key of the parameter in the FIO output JSON to avoid any errors.
 2. Add a column in the Google Sheet in the same position as the position of the new parameter in the REQ_JOB_PARAMS list.
 #### To add a new job metric
-1. Add another JobMetric object to the REQ_JOB_METRICS list [here](https://github.com/GoogleCloudPlatform/gcsfuse/blob/a454b452f5fd290f9ef3cc0da85b9d27d6beee4a/perfmetrics/scripts/fio/fio_metrics.py#L97). Make sure that the values in LEVELS are correct and match the FIO output JSON keys in order to avoid any errors.
+1. Add another object of [JobMetric class](https://github.com/GoogleCloudPlatform/gcsfuse/blob/be488de374db77748813a5bc7d710cf9eed425d7/perfmetrics/scripts/fio/fio_metrics.py#L48) to the REQ_JOB_METRICS list [here](https://github.com/GoogleCloudPlatform/gcsfuse/blob/a454b452f5fd290f9ef3cc0da85b9d27d6beee4a/perfmetrics/scripts/fio/fio_metrics.py#L97). Make sure that the values in LEVELS are correct and match the FIO output JSON keys in order to avoid any errors.
 2. Add a column in the Google Sheet in the same position as the position of the new metric in the REQ_JOB_METRICS list
 
 ### VM Metric
