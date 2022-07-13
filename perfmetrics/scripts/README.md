@@ -37,11 +37,11 @@ gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 
     2. For every subsequent job, ```startdelay``` = ```startdelay``` of previous job + ```runtime``` of previous job + ```ramp_time``` of previous job +       ```global startdelay```
 
-7. Run the FIO load test
+6. Run the FIO load test
 ```bash
 fio job_files/your-job-file.fio --lat_percentiles 1 --output-format=json --output='output.json'
 ```
-7. Install requirements by running `
+7. Install requirements by running
 ```bash
 pip install -r requirements.txt --user
 ```
