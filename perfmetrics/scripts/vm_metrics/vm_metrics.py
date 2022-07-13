@@ -2,7 +2,7 @@
    the API response into a list and writes to google sheet.
 
    Takes VM instance name, interval start time, interval end time, alignment
-   period, fio test type and google sheet name as command line inputs.
+   period, fio test type and google worksheet name as command line inputs.
    The supported fio test types are: read, write
    Metrics extracted:
    1.Peak Cpu Utilization(%)
@@ -220,7 +220,7 @@ class VmMetrics:
     
     # Metrics data for metrics other that OPS_ERROR_COUNT_DATA should not be empty:
     if(metrics_data == []):
-      raise NoValuesError('No values were retrieved from the call')
+      raise NoValuesError('No values were retrieved from the call for ' + metric.metric_type)
 
     return metrics_data
   
@@ -249,10 +249,8 @@ class VmMetrics:
 
     return updated_metrics_list
 
-  def fetch_metrics_and_write_to_google_sheet(self, start_time_sec,
-                                              end_time_sec, instance,
-                                              period, test_type, worksheet_name) -> None:
-    """Fetches the metrics data for all types and writes it to a google sheet.
+  def fetch_metrics(self, start_time_sec, end_time_sec, instance, period, test_type):
+    """Fetches the metrics data for all types and returns a list of lists to be written in google sheet.
 
     Args:
       start_time_sec (int): Epoch seconds
@@ -260,8 +258,8 @@ class VmMetrics:
       instance (str): VM instance
       period (float): Period over which the values are taken
       test_type(str): The type of load test for which metrics are taken
-      worksheet_name(str): The name of the worksheet of the google sheet we ware writing into
-    Returns: None
+    Returns:
+      list[[period end time, interval end time, CPU_UTI_PEAK, CPU_UTI_MEAN, REC_BYTES_PEAK, REC_BYTES_MEAN, READ_BYTES_COUNT, OPS_ERROR_COUNT, OPS_MEAN_LATENCY]]
     """
     self._validate_start_end_times(start_time_sec, end_time_sec)
     
@@ -277,13 +275,33 @@ class VmMetrics:
     metrics_data = []
     for i in range(num_points):
         row = [updated_metrics_list[0].metric_point_list[i].start_time_sec]
+        row.append(end_time_sec)
         for metric in updated_metrics_list:
             row.append(metric.metric_point_list[i].value)
         metrics_data.append(row)
 
-    # Writing metrics data to google sheet
-    gsheet.write_to_google_sheet(worksheet_name, metrics_data)
+    return metrics_data
 
+  def fetch_metrics_and_write_to_google_sheet(self, start_time_sec, end_time_sec, instance, period, test_type, worksheet_name):
+    """Fetches the metrics data for all types and writes to a google sheet.
+
+    Args:
+      start_time_sec (int): Epoch seconds
+      end_time_sec (int): Epoch seconds
+      instance (str): VM instance
+      period (float): Period over which the values are taken
+      test_type(str): The type of load test for which metrics are taken
+      worksheet_name(str): The name of the google worksheet you want to write to
+    Returns:
+      None
+    """
+    self._validate_start_end_times(start_time_sec, end_time_sec)
+    
+    # Getting metrics data:
+    metrics_data = self.fetch_metrics(start_time_sec, end_time_sec, instance, period, test_type)
+   
+    # Writing data into google sheet
+    gsheet.write_to_google_sheet(worksheet_name, metrics_data)
 
 def main() -> None:
   if len(sys.argv) != 7:
@@ -295,8 +313,7 @@ def main() -> None:
   test_type = sys.argv[5]
   worksheet_name = sys.argv[6]
   vm_metrics = VmMetrics()
-  vm_metrics.fetch_metrics_and_write_to_google_sheet(start_time_sec, end_time_sec, instance,
-                                                     period, test_type, worksheet_name)
+  vm_metrics.fetch_metrics_and_write_to_google_sheet(start_time_sec, end_time_sec, instance, period, test_type, worksheet_name)
 
 if __name__ == '__main__':
   main()
