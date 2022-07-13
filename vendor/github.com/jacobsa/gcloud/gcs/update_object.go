@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"cloud.google.com/go/storage"
 	"github.com/jacobsa/gcloud/httputil"
 	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
@@ -84,6 +85,11 @@ func (b *bucket) makeUpdateObjectBody(
 func (b *bucket) UpdateObject(
 	ctx context.Context,
 	req *UpdateObjectRequest) (o *Object, err error) {
+	if true {
+		o, err = UpdateObjectSCL(ctx, req, b.name, b.storageClient)
+		return
+	}
+
 	// Construct an appropriate URL (cf. http://goo.gl/B46IDy).
 	opaque := fmt.Sprintf(
 		"//%s/storage/v1/b/%s/o/%s",
@@ -176,6 +182,72 @@ func (b *bucket) UpdateObject(
 		err = fmt.Errorf("toObject: %v", err)
 		return
 	}
+
+	return
+}
+
+// Custom function to update a given object using Storage Client Library.
+func UpdateObjectSCL(
+	ctx context.Context,
+	req *UpdateObjectRequest, bucketName string, storageClient *storage.Client) (o *Object, err error) {
+	// If client is "nil", it means that there was some problem in initializing client in newBucket function of bucket.go file.
+	if storageClient == nil {
+		err = fmt.Errorf("Error in creating client through Go Storage Library.")
+		return
+	}
+
+	obj := storageClient.Bucket(bucketName).Object(req.Name)
+
+	// Switching to requested Generation of object.
+	if req.Generation != 0 {
+		obj = obj.Generation(req.Generation)
+	}
+
+	// Putting condition to ensure MetaGeneration of object matches *req.MetaGenerationPrecondition for update to occur.
+	if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
+		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
+	}
+
+	// Creating update query consisting of attributes to update in the object.
+	updateQuery := storage.ObjectAttrsToUpdate{}
+
+	if req.ContentType != nil {
+		updateQuery.ContentType = *req.ContentType
+	}
+
+	if req.ContentEncoding != nil {
+		updateQuery.ContentEncoding = *req.ContentEncoding
+	}
+
+	if req.ContentLanguage != nil {
+		updateQuery.ContentLanguage = *req.ContentLanguage
+	}
+
+	if req.CacheControl != nil {
+		updateQuery.CacheControl = *req.CacheControl
+	}
+
+	if req.Metadata != nil {
+		updateQuery.Metadata = make(map[string]string)
+		for key, element := range req.Metadata {
+			if element != nil {
+				updateQuery.Metadata[key] = *element
+			}
+		}
+	}
+
+	// Updating parameters using Update method of Go Storage Client.
+	attrs, err := obj.Update(ctx, updateQuery)
+	if err == storage.ErrObjectNotExist {
+		err = &NotFoundError{Err: err} // Handling special case of object not found.
+		return
+	} else if err != nil {
+		err = fmt.Errorf("Error in updating object through Go Storage Client: %v", err)
+		return
+	}
+
+	// Convert attrs to type *Object.
+	o = ObjectAttrsToBucketObject(attrs)
 
 	return
 }

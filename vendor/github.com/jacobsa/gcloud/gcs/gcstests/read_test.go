@@ -40,7 +40,7 @@ func (t *ReadTest) SetUp(ti *TestInfo) {
 	t.clock = clock
 
 	// Set up the fake bucket.
-	t.bucket = gcsfake.NewFakeBucket(clock, "some_bucket")
+	t.bucket = gcsfake.NewFakeBucket(t.ctx, clock, "some_bucket")
 
 }
 

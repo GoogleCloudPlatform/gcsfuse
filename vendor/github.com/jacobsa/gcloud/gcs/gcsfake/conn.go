@@ -78,7 +78,7 @@ func (c *conn) OpenBucket(
 	}
 
 	// Create it.
-	b = NewFakeBucket(c.clock, options.Name)
+	b = NewFakeBucket(ctx, c.clock, options.Name)
 	c.buckets[options.Name] = b
 
 	return

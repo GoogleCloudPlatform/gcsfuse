@@ -15,6 +15,7 @@
 package gcs
 
 import (
+	"cloud.google.com/go/storage"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,6 +38,11 @@ func (b *bucket) CopyObject(
 	// to detect this for us.
 	if !utf8.ValidString(req.DstName) {
 		err = errors.New("Invalid object name: not valid UTF-8")
+		return
+	}
+
+	if true {
+		o, err = CopyObjectSCL(ctx, req, b.name, b.storageClient)
 		return
 	}
 
@@ -120,6 +126,42 @@ func (b *bucket) CopyObject(
 		err = fmt.Errorf("toObject: %v", err)
 		return
 	}
+
+	return
+}
+
+// Custom function to copy Source Object to Destination Object using Storage Client Library.
+func CopyObjectSCL(
+	ctx context.Context,
+	req *CopyObjectRequest, bucketName string, storageClient *storage.Client) (o *Object, err error) {
+	// If client is "nil", it means that there was some problem in initializing client in newBucket function of bucket.go file.
+	if storageClient == nil {
+		err = fmt.Errorf("Error in creating client through Go Storage Library.")
+		return
+	}
+
+	srcObj := storageClient.Bucket(bucketName).Object(req.SrcName)
+	dstObj := storageClient.Bucket(bucketName).Object(req.DstName)
+
+	// Switching to the requested Generation of Source Object.
+	if req.SrcGeneration != 0 {
+		srcObj = srcObj.Generation(req.SrcGeneration)
+	}
+
+	// Putting a condition that the MetaGeneration of source should match *req.SrcMetaGenerationPrecondition for copying operation to occur.
+	if req.SrcMetaGenerationPrecondition != nil {
+		srcObj = srcObj.If(storage.Conditions{MetagenerationMatch: *req.SrcMetaGenerationPrecondition})
+	}
+
+	// Copying Source Object to the Destination Object through a Copier created by Go Storage Client.
+	objAttrs, err := dstObj.CopierFrom(srcObj).Run(ctx)
+	if err != nil {
+		err = fmt.Errorf("Error in copying using Go Storage Client: %v", err)
+		return
+	}
+
+	// Converting objAttrs to type *Object
+	o = ObjectAttrsToBucketObject(objAttrs)
 
 	return
 }
