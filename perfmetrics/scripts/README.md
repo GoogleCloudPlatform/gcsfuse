@@ -31,7 +31,7 @@ MOUNT_POINT=your-directory-name
 gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 ```
 
-5. Create a FIO job file `your-job-file.fio` according to [this format](https://fio.readthedocs.io/en/latest/fio_doc.html#job-file-format) and place it in the `job_files` directory. When there are multiple jobs in a FIO job file and a ```global startdelay``` is specified, the FIO metrics collection code expects that ```global startdelay``` is present between each of the jobs in one job file. To make sure the FIO load test has ```global startdelay``` amount of delay between each job, the following ```startdelay``` should be added to the job options in the FIO job file:
+5. Create a FIO job file `your-job-file.fio` according to [this format](https://fio.readthedocs.io/en/latest/fio_doc.html#job-file-format) and place it in the `job_files` directory. Note that you can use only one job file. However, you can put any number of jobs within that job file. When there are multiple jobs in a FIO job file and a ```global startdelay``` is specified, the FIO metrics collection code expects that ```global startdelay``` is present between each of the jobs in one job file. To make sure the FIO load test has ```global startdelay``` amount of delay between each job, the following ```startdelay``` should be added to the job options in the FIO job file:
 
     1. For the first job the ```startdelay``` = ```global startdelay```
 
