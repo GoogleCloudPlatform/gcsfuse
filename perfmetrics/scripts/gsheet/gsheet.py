@@ -46,4 +46,3 @@ def write_to_google_sheet(worksheet: str, data) -> None:
           'values': data
       },
       range='{}!A2'.format(worksheet)).execute()
-
