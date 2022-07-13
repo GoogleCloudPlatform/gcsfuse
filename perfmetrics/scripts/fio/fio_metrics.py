@@ -417,6 +417,7 @@ class FioMetrics:
 
     Args:
       jobs: list of dicts, contains required metrics for each job
+      worksheet_name: str, worksheet where job metrics should be written.
     """
 
     values = []
@@ -435,13 +436,13 @@ class FioMetrics:
 
   def get_metrics(self,
                   filepath,
-                  worksheet_name) -> List[Dict[str, Any]]:
+                  worksheet_name=None) -> List[Dict[str, Any]]:
     """Returns job metrics obtained from given filepath and writes to gsheets.
 
     Args:
       filepath : str
         Path of the json file to be parsed
-      worksheet_name: str, optional, default:'fio_metrics'
+      worksheet_name: str, optional, default:None
         Worksheet where job metrics should be written.
         Pass '' or None to skip writing to Google sheets
 
@@ -460,7 +461,7 @@ if __name__ == '__main__':
   if len(argv) != 2:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
-                    'python3 fio_metrics.py <fio output json filepath>')
+                    'python3 -m fio.fio_metrics <fio output json filepath>')
 
   fio_metrics_obj = FioMetrics()
   temp = fio_metrics_obj.get_metrics(argv[1], 'fio_metrics_expt')
