@@ -1,10 +1,11 @@
 #i!/bin/bash
 set -e
 sudo apt-get update
+
+echo "Installing Golang"
 sudo add-apt-repository ppa:longsleep/golang-backports
 sudo apt-get update
 sudo apt-get install golang-go -y
-
 echo 'export GOROOT=/usr/lib/go' >> ~/.bashrc
 echo 'export GOPATH=$HOME/go' >> ~/.bashrc
 echo 'export PATH=$PATH:$GOROOT/bin:$GOPATH/bin' >> ~/.bashrc 
