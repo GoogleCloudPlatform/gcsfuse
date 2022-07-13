@@ -31,15 +31,13 @@ import (
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
-	"cloud.google.com/go/storage"
 )
 
 var crc32cTable = crc32.MakeTable(crc32.Castagnoli)
 
 // Equivalent to NewConn(clock).GetBucket(name).
-func NewFakeBucket(ctx context.Context, clock timeutil.Clock, name string) gcs.Bucket {
-	client, _ := storage.NewClient(ctx)
-	b := &bucket{clock: clock, name: name, storageClient:client}
+func NewFakeBucket(clock timeutil.Clock, name string) gcs.Bucket {
+	b := &bucket{clock: clock, name: name}
 	b.mu = syncutil.NewInvariantMutex(b.checkInvariants)
 	return b
 }
@@ -129,7 +127,6 @@ type bucket struct {
 	clock timeutil.Clock
 	name  string
 	mu    syncutil.InvariantMutex
-	storageClient *storage.Client
 
 	// The set of extant objects.
 	//
@@ -444,10 +441,6 @@ func (b *bucket) ListObjects(
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if true {
-		listing, err = gcs.ListObjectsSCL(ctx, req, b.name, b.storageClient)
-		return
-	}
 
 	// Set up the result object.
 	listing = new(gcs.Listing)
@@ -546,10 +539,6 @@ func (b *bucket) NewReader(
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if true {
-		rc, err = gcs.NewReaderSCL(ctx, req, b.name, b.storageClient)
-		return
-	}
 
 	r, _, err := b.newReaderLocked(req)
 	if err != nil {
@@ -566,10 +555,6 @@ func (b *bucket) CreateObject(
 	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if true {
-		o, err = gcs.CreateObjectSCL(ctx, req, b.name, b.storageClient)
-		return
-	}
 
 	o, err = b.createObjectLocked(req)
 	return
@@ -581,10 +566,6 @@ func (b *bucket) CopyObject(
 	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if true {
-		o, err = gcs.CopyObjectSCL(ctx, req, b.name, b.storageClient)
-		return
-	}
 
 	// Check that the destination name is legal.
 	err = checkName(req.DstName)
@@ -656,10 +637,6 @@ func (b *bucket) ComposeObjects(
 	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if true {
-		o, err = gcs.ComposeObjectsSCL(ctx, req, b.name, b.storageClient)
-		return
-	}
 
 	// GCS doesn't like too few or too many sources.
 	if len(req.Sources) < 1 {
@@ -735,10 +712,6 @@ func (b *bucket) StatObject(
 	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if true {
-		o, err = gcs.StatObjectSCL(ctx, req, b.name, b.storageClient)
-		return
-	}
 
 	// Does the object exist?
 	index := b.objects.find(req.Name)
@@ -762,10 +735,6 @@ func (b *bucket) UpdateObject(
 	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if true {
-		o, err = gcs.UpdateObjectSCL(ctx, req, b.name, b.storageClient)
-		return
-	}
 
 	// Does the object exist?
 	index := b.objects.find(req.Name)
@@ -853,10 +822,6 @@ func (b *bucket) DeleteObject(
 	req *gcs.DeleteObjectRequest) (err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if true {
-		err = gcs.DeleteObjectSCL(ctx, req, b.name, b.storageClient)
-		return
-	}
 
 	// Do we possess the object with the given name?
 	index := b.objects.find(req.Name)
