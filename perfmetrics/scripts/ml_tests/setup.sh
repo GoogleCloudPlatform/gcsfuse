@@ -30,28 +30,31 @@ else
   exit 1
 fi
 
-# Install Golang.
-if [ "$(which go)" = "" ] ;then
-  echo "Installing Golang..."
-  sudo apt-get update
-  if sudo apt install wget -y; then
-    wget https://golang.org/dl/$GO_VERSION
-    sudo tar -zxvf $GO_VERSION
-    if [ "$(which go)" = "" ]; then
-      echo 'export GOROOT=$HOME/go' >> ~/.bashrc
-      echo 'export GOPATH=$HOME/go' >> ~/.bashrc
-      echo 'export PATH=$PATH:$GOROOT/bin:$GOPATH/bin' >> ~/.bashrc 
-      source ~/.bashrc 
-      echo "Sucessfully installed Golang"
-    else
-      echo "Failed to install Golang. Please try again"
-      exit 1
-    fi
-  else
-    echo "Failed to install wget. Please try again"
-    exit 1
-  fi
-fi
+which go
+echo $GOPATH
+echo $GOROOT
+# # Install Golang.
+# if [ "$(which go)" = "" ] ;then
+#   echo "Installing Golang..."
+#   sudo apt-get update
+#   if sudo apt install wget -y; then
+#     wget https://golang.org/dl/$GO_VERSION
+#     sudo tar -zxvf $GO_VERSION
+#     if [ "$(which go)" = "" ]; then
+#       echo 'export GOROOT=$HOME/go' >> ~/.bashrc
+#       echo 'export GOPATH=$HOME/go' >> ~/.bashrc
+#       echo 'export PATH=$PATH:$GOROOT/bin:$GOPATH/bin' >> ~/.bashrc 
+#       source ~/.bashrc 
+#       echo "Sucessfully installed Golang"
+#     else
+#       echo "Failed to install Golang. Please try again"
+#       exit 1
+#     fi
+#   else
+#     echo "Failed to install wget. Please try again"
+#     exit 1
+#   fi
+# fi
 
 # Install fuse.
 install fuse -y
@@ -74,6 +77,7 @@ fi
 
 
 python3 --version
+python3.9 --version
 go version
 fusermount -V
 git --version
