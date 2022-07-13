@@ -1,17 +1,17 @@
-"""Extracts required Google Cloud metrics using Monitoring V3 API call, parses
+"""Extracts required Google Cloud VM metrics using Monitoring V3 API call, parses
    the API response into a list and writes to google sheet.
 
    Takes VM instance name, interval start time, interval end time, alignment
-   period, fio test type and google worksheet name as command line inputs.
+   period, fio test type and google sheet name as command line inputs.
    The supported fio test types are: read, write
    Metrics extracted:
    1.Peak Cpu Utilization(%)
    2.Mean Cpu Utilization(%)
    3.Peak Network Bandwidth(Bytes/s)
    4.Mean Network Bandwidth(Bytes/s)
-   5.Opencensus Error Count
-   6.Opencensus Mean Latency(s)
-   7.Read Bytes Count(Bytes)
+   5.Read Bytes Count(Bytes)
+   6.Opencensus Error Count
+   7.Opencensus Mean Latency(s)
 
   Usage:
   >>python3 vm_metrics.py {instance} {start time in epoch sec} {end time in epoch sec} {period in sec} {test_type} {worksheet_name}
@@ -26,6 +26,7 @@ from google.api_core.exceptions import GoogleAPICallError
 import google.cloud
 from google.cloud import monitoring_v3
 from gsheet import gsheet
+from typing import List
 
 PROJECT_NAME = 'projects/gcs-fuse-test'
 CPU_UTI_METRIC_TYPE = 'compute.googleapis.com/instance/cpu/utilization'
@@ -40,6 +41,8 @@ class MetricPoint:
   start_time_sec: int
   end_time_sec: int
 
+'''Refer this doc to find appropriate values for the attributes of the Metric class: 
+https://cloud.google.com/monitoring/custom-metrics/reading-metrics .'''
 @dataclasses.dataclass
 class Metric:
   metric_type: str
@@ -47,8 +50,8 @@ class Metric:
   aligner: str
   extra_filter: str = ''
   reducer: str = 'REDUCE_NONE'
-  group_fields: list[str] = field(default_factory=list)
-  metric_point_list: list[MetricPoint] = field(default_factory=list)
+  group_fields: List[str] = field(default_factory=list)
+  metric_point_list: List[MetricPoint] = field(default_factory=list)
 
 CPU_UTI_PEAK = Metric(metric_type=CPU_UTI_METRIC_TYPE, factor=1/100, aligner='ALIGN_MAX')
 CPU_UTI_MEAN = Metric(metric_type=CPU_UTI_METRIC_TYPE, factor=1/100, aligner='ALIGN_MEAN')
@@ -292,8 +295,7 @@ def main() -> None:
   test_type = sys.argv[5]
   worksheet_name = sys.argv[6]
   vm_metrics = VmMetrics()
-  vm_metrics.fetch_metrics_and_write_to_google_sheet(start_time_sec,
-                                                     end_time_sec, instance,
+  vm_metrics.fetch_metrics_and_write_to_google_sheet(start_time_sec, end_time_sec, instance,
                                                      period, test_type, worksheet_name)
 
 if __name__ == '__main__':
