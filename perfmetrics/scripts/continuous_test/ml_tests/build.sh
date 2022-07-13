@@ -1,7 +1,10 @@
 #i!/bin/bash
 set -e
 sudo apt-get update
-sudo apt-get install golang-go
+sudo add-apt-repository ppa:longsleep/golang-backports
+sudo apt-get update
+sudo apt-get install golang-go -y
+udo apt-get install golang-1.8-go -y
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts"
 
