@@ -71,13 +71,3 @@ else
   echo "Failed to install required Prerequistes for automation script. Please try again"
   exit 1
 fi
-
-
-# python3 --version
-# python3.9 --version
-# go version
-# fusermount -V
-# git --version
-# which go
-# echo $GOROOT
-# echo $GOPATH
