@@ -8,7 +8,7 @@ from vm_metrics import vm_metrics
 from gsheet import gsheet
 
 INSTANCE = socket.gethostname()
-PERIOD = 120
+PERIOD_SEC = 120
 
 # Google sheet worksheets
 FIO_WORKSHEET_NAME = 'fio_metrics'
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     end_time_sec = job[fio_metrics.consts.END_TIME]
     rw = job[fio_metrics.consts.PARAMS][fio_metrics.consts.RW]
     print(f'Getting VM metrics for job at index {ind+1}...')
-    metrics_data = vm_metrics_obj.fetch_metrics(start_time_sec, end_time_sec, INSTANCE, PERIOD, rw)
+    metrics_data = vm_metrics_obj.fetch_metrics(start_time_sec, end_time_sec, INSTANCE, PERIOD_SEC, rw)
     for row in metrics_data:
       vm_metrics_data.append(row)
 
