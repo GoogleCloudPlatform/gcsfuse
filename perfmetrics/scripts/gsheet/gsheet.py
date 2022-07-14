@@ -1,3 +1,6 @@
+"""This script creates a service account client to write new data into a Google Sheet 
+    after deleting the previous data."""
+
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
@@ -7,6 +10,7 @@ SPREADSHEET_ID = '1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
 CREDENTIALS_PATH = ('./gsheet/creds.json')
 
 def _get_sheets_service_client():
+  """ Returns a service account client from service account credentials file."""
   creds = service_account.Credentials.from_service_account_file(
       CREDENTIALS_PATH, scopes=SCOPES)
   service = build('sheets', 'v4', credentials=creds)
@@ -14,7 +18,7 @@ def _get_sheets_service_client():
 
 
 def write_to_google_sheet(worksheet: str, data) -> None:
-  """Calls the API to update the values of a sheet.
+  """Calls the Google Sheet API to update the values of a sheet.
 
   Args:
     worksheet: string, name of the worksheet to be edited appended by a "!"
