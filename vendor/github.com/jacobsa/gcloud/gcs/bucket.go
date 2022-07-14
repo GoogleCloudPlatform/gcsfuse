@@ -267,7 +267,6 @@ func (b *bucket) ListObjects(
 	if listing, err = toListing(rawListing); err != nil {
 		return
 	}
-	fmt.Println((*listing))
 	return
 }
 
@@ -517,9 +516,7 @@ func DeleteObjectSCL(
 
 	// Putting condition that the object's MetaGeneration should match the requested MetaGeneration for deletion to occur.
 	if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
-
 		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
-
 	}
 
 	// Deleting object through Go Storage Client.
