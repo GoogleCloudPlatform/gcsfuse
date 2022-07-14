@@ -9,7 +9,7 @@ sudo apt-get install fio -y
 ```
 ### GCSFuse
 ```bash
-GCSFUSE_VERSION=0.41.1
+GCSFUSE_VERSION=0.41.4
 curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v$GCSFUSE_VERSION/gcsfuse_"$GCSFUSE_VERSION"_amd64.deb
 sudo dpkg --install gcsfuse_"$GCSFUSE_VERSION"_amd64.deb
 ```
@@ -24,9 +24,9 @@ cd gcsfuse/perfmetrics/scripts
 ```
 4. Create a directory and mount your GCS bucket into it using GCSFuse:
 ```bash
-mkdir -p your-directory-name
 GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --disable-http2"
 BUCKET_NAME=your-bucket-name
+mkdir -p your-directory-name
 MOUNT_POINT=your-directory-name
 gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 ```
