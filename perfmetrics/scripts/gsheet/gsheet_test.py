@@ -29,14 +29,21 @@ class GsheetTest(unittest.TestCase):
 
   def test_write_to_google_sheet(self):
     get_response = {
-        'range': '{}!A2:A'.format(WORKSHEET_NAME),
+        'range': '{}!A1:A'.format(WORKSHEET_NAME),
         'majorDimension': 'ROWS',
         'values': [['read'], ['read'],['read'],['read'],['write'],['write']]
     }
-    new_row = len(get_response['values'])+2
-    update_response = {
+    last_row = len(get_response['values'])+1
+    update_response_clear = {
         'spreadsheetId': SPREADSHEET_ID,
-        'updatedRange': '{0}!A{1}:H{1}'.format(WORKSHEET_NAME, new_row),
+        'updatedRange': '{0}!A2:{1}'.format(WORKSHEET_NAME, last_row),
+        'updatedRows': 1,
+        'updatedColumns': 10,
+        'updatedCells': 10
+    }
+    update_response_write = {
+        'spreadsheetId': SPREADSHEET_ID,
+        'updatedRange': '{0}!A2'.format(WORKSHEET_NAME),
         'updatedRows': 1,
         'updatedColumns': 10,
         'updatedCells': 10
@@ -44,15 +51,21 @@ class GsheetTest(unittest.TestCase):
     sheets_service_mock = mock.MagicMock()
     sheets_service_mock.spreadsheets().values().get(
     ).execute.return_value = get_response
+    sheets_service_mock.spreadsheets().values().clear(
+    ).execute.return_value = update_response_clear
     sheets_service_mock.spreadsheets().values().update(
-    ).execute.return_value = update_response
+    ).execute.return_value = update_response_write
     metrics_to_be_added = [
         ('read', 50000, 40, 1653027155, 1653027215, 1, 2, 3, 4, 5)
     ]
     calls = [
         mock.call.spreadsheets().values().get(
             spreadsheetId=SPREADSHEET_ID,
-            range='{}!A2:A'.format(WORKSHEET_NAME)),
+            range='{}!A1:A'.format(WORKSHEET_NAME)),
+        mock.call.spreadsheets().values().clear(
+            spreadsheetId=SPREADSHEET_ID,
+            range='{}!A2:{}'.format(WORKSHEET_NAME, last_row),
+            body={}),
         mock.call.spreadsheets().values().update(
             spreadsheetId=SPREADSHEET_ID,
             valueInputOption='USER_ENTERED',
@@ -62,7 +75,7 @@ class GsheetTest(unittest.TestCase):
                     'read', 50000, 40, 1653027155, 1653027215, 1, 2, 3, 4, 5
                     )]
             },
-            range='{}!A{}'.format(WORKSHEET_NAME, new_row))
+            range='{}!A2'.format(WORKSHEET_NAME))
     ]
 
     with mock.patch.object(gsheet, '_get_sheets_service_client'
@@ -75,7 +88,7 @@ class GsheetTest(unittest.TestCase):
   def test_write_to_google_sheet_missing_permissions_raises_http_error(
       self):
     get_response = {
-        'range': '{}!A2:A'.format(WORKSHEET_NAME),
+        'range': '{}!A1:A'.format(WORKSHEET_NAME),
         'majorDimension': 'ROWS',
         'values': [['read'], ['read'],['read'],['read'],['write'],['write']]
     }
@@ -93,7 +106,7 @@ class GsheetTest(unittest.TestCase):
     calls = [
         mock.call.spreadsheets().values().get(
             spreadsheetId=SPREADSHEET_ID,
-            range='{}!A2:A'.format(WORKSHEET_NAME))
+            range='{}!A1:A'.format(WORKSHEET_NAME))
     ]
 
     with mock.patch.object(gsheet, '_get_sheets_service_client'

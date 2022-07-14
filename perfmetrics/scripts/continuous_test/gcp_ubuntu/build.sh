@@ -15,5 +15,5 @@ BUCKET_NAME=gcs-fuse-dashboard-fio
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
 gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
-chmod +x build.sh
-./build.sh
+chmod +x run_load_test_and_fetch_metrics.sh
+./run_load_test_and_fetch_metrics.sh
