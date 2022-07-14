@@ -16,7 +16,6 @@ def _get_sheets_service_client():
   service = build('sheets', 'v4', credentials=creds)
   return service
 
-
 def write_to_google_sheet(worksheet: str, data) -> None:
   """Calls the Google Sheet API to update the values of a sheet.
 
