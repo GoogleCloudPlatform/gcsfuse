@@ -5,14 +5,14 @@ python3 compare_fuse_types_using_fio.py -- --fuse_type_1=<value1> --fuse_type_1_
 --fuse_type_2=<value2> --fuse_type_2_version=<version2> --flags_2=<flags2> --jobfile_path=<jobfile_path> --gcs_bucket=<gcs_bucket>
 
 1) --fuse_type_1=<value1> & --fuse_type_2=<value2>
--> Value1 and value2 can be fuse based system name.
--> fuse based system name is used for logging so it can be anything. i.e 1) for gcsfuse, --fuse_type_1=gcsfuse 
+-> Value1 and value2 can be fuse based filesystem name.
+-> fuse based filesystem name is used for logging so it can be anything. 
 -> For GCSFuse it should be 'gcsfuse' 
 2) --fuse_type_1_version=<version1> & --fuse_type_2_version=<version2>
 -> For GCSFuse you can mention any released version or ‘master’ as version if you want to build from source.
--> For other fuse based system provide the link of github repository.
+-> For other fuse based filesystem provide the link of github repository.
 3) --flags_1=<flags1> & --flags_2=<flags2>
--> Provide  the flags for mounting bucket using specific provided fuse based system.
+-> Provide  the flags for mounting bucket using specific provided fuse based filesystem.
 -> Since there might be more than one flags, provided all of them inside single quotes.
 -> Example for GCSFuse flags: --flags_1='--implicit-dirs --max-conns-per-host 100 --disable-http2'
 4) --jobfile_path=<jobfile_path>
@@ -20,9 +20,9 @@ python3 compare_fuse_types_using_fio.py -- --fuse_type_1=<value1> --fuse_type_1_
 5) --gcs_bucket=<gcs_bucket>
 -> Name of the GCS bucket to be mounted for FIO load test.
 
-The code takes input the fuse based system type and its version, required flags to mount the bucket, jobfile_path, 
+The code takes input the fuse based filesystem type and its version, required flags to mount the bucket, jobfile_path, 
 and gcs bucket name as input for fio test. Then it will perform the fio test for each of the given 
-fuse based system type at a specific version
+fuse based filesystem type at a specific version
 and extract fio_metrics to 'output.txt' file in the 'out' directory.
 """
 
@@ -81,11 +81,11 @@ def _remove_gcsfuse(version) -> None:
 
 
 def _install_fuse(fuse_type, fuse_url, fuse_flags, gcs_bucket) -> None:
-  """Install latest version of given fuse based system.
+  """Install latest version of given fuse based filesystem.
   
   Args:
     fuse_type(str): Fuse type for fio test.
-    fuse_url(str): URL of github repo of given fuse based system.
+    fuse_url(str): URL of github repo of given fuse based filesystem.
     fuse_flags(str): Fuse flags for mounting the bucket.
     gcs_bucket(str): GCS bucket to be mounted.
   """
@@ -99,7 +99,7 @@ def _install_fuse(fuse_type, fuse_url, fuse_flags, gcs_bucket) -> None:
 
 
 def _remove_fuse(fuse_type) -> None:
-  """Remove the given fuse based system.
+  """Remove the given fuse based filesystem.
   
   Args:
     fuse_type(str): Fuse type for fio test.
@@ -153,7 +153,7 @@ def _fuse_fio_test(fuse_type, jobfile_path, fio_metrics_obj, gcs_bucket, fuse_fl
     fio_metrics_obj(str): Object for extracting fio metrics.
     gcs_bucket(str): GCS bucket to be mounted.
     fuse_flags(str): Fuse flags for mounting the bucket.
-    fuse_url(str): URL of github repo of given fuse based system.
+    fuse_url(str): URL of github repo of given fuse based filesystem.
   """
   _install_fuse(fuse_type, fuse_url, fuse_flags, gcs_bucket)
   _run_fio_test(jobfile_path, fio_metrics_obj)
