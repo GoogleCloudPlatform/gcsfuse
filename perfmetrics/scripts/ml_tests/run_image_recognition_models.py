@@ -62,7 +62,7 @@ def _install_gcsfuse() -> None:
   Args:
     None
   """
-  os.system('''export GCSFUSE_REPO=gcsfuse-buster
+  os.system('''export GCSFUSE_REPO=gcsfuse-`lsb_release -c -s`
             echo "deb http://packages.cloud.google.com/apt $GCSFUSE_REPO main" | sudo tee /etc/apt/sources.list.d/gcsfuse.list
             curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
             sudo apt-get update
@@ -124,7 +124,7 @@ def _run_model(directory_name, data_path, data_read_method, ml_model_path, req_f
             mkdir {directory_name}
             cd {directory_name}
             echo ML model reading data using {data_read_method} >> output.txt
-            pip install -r {req_file_path}
+            pip install -r {req_file_path} --user
             ''')
   
   start_time = int(time.time())
@@ -205,6 +205,8 @@ def main(argv) -> None:
       help='Provide Absolute disk data path',
       required=False)
   args = parser.parse_args(argv[1:])
+
+  os.system('export PATH=/home/kbuilder/.local/bin:$PATH')
 
   directory_name = args.directory_name
   data_read_method = args.data_read_method

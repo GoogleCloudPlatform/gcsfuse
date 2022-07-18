@@ -33,8 +33,8 @@ fi
 # Install Golang.
 if [ "$(which go)" = "" ] ;then
   echo "Installing Golang..."
-  sudo apt update && sudo apt upgrade -y
-  if sudo apt install wget software-properties-common apt-transport-https -y; then
+  sudo apt-get update
+  if sudo apt install wget -y; then
     wget https://golang.org/dl/$GO_VERSION
     sudo tar -zxvf $GO_VERSION
     if [ "$(which go)" = "" ]; then
@@ -64,7 +64,7 @@ install python3.9 -y
 
 echo "Install/Upgrade Prerequistes for automation script.."
 sudo apt-get update
-if sudo apt install python3-pip python-dev -y && \ 
+if sudo apt install python3-pip python-dev -y &&  
    sudo -H pip3 install --upgrade pip && pip3 install absl-py; then
   echo "You are now ready to run automation script"
 else
