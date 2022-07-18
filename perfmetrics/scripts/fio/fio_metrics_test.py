@@ -18,8 +18,7 @@ MULTIPLE_JOBS_GLOBAL_OPTIONS_FILE = 'multiple_jobs_global_options.json'
 MULTIPLE_JOBS_JOB_OPTIONS_FILE = 'multiple_jobs_job_options.json'
 
 SPREADSHEET_ID = '1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
-NUM_ENTRIES_CELL = 'T4'
-WORKSHEET_NAME = 'fio_metrics!'
+WORKSHEET_NAME = 'fio_metrics'
 
 def get_full_filepath(filename):
   filepath = '{}{}'.format(TEST_PATH, filename)
@@ -517,14 +516,21 @@ class TestFioMetricsTest(unittest.TestCase):
         }
     }]
     get_response = {
-        'range': '{}{}'.format(WORKSHEET_NAME, NUM_ENTRIES_CELL),
+        'range': '{}!A1:A'.format(WORKSHEET_NAME),
         'majorDimension': 'ROWS',
-        'values': [['6']]
+        'values': [['read'], ['read'], ['write']]
     }
-    new_row = 8
-    update_response = {
+    last_row = len(get_response['values'])+1
+    update_response_clear = {
         'spreadsheetId': SPREADSHEET_ID,
-        'updatedRange': '{0}A{1}:H{1}'.format(WORKSHEET_NAME, new_row),
+        'updatedRange': '{}!A2:{}'.format(WORKSHEET_NAME, last_row),
+        'updatedRows': 1,
+        'updatedColumns': 15,
+        'updatedCells': 45
+    }
+    update_response_write = {
+        'spreadsheetId': SPREADSHEET_ID,
+        'updatedRange': '{}!A2'.format(WORKSHEET_NAME),
         'updatedRows': 1,
         'updatedColumns': 15,
         'updatedCells': 15
@@ -532,12 +538,18 @@ class TestFioMetricsTest(unittest.TestCase):
     sheets_service_mock = mock.MagicMock()
     sheets_service_mock.spreadsheets().values().get(
     ).execute.return_value = get_response
+    sheets_service_mock.spreadsheets().values().clear(
+    ).execute.return_value = update_response_clear
     sheets_service_mock.spreadsheets().values().update(
-    ).execute.return_value = update_response
+    ).execute.return_value = update_response_write
     calls = [
         mock.call.spreadsheets().values().get(
             spreadsheetId=SPREADSHEET_ID,
-            range='{}{}'.format(WORKSHEET_NAME, NUM_ENTRIES_CELL)),
+            range='{}!A1:A'.format(WORKSHEET_NAME)),
+        mock.call.spreadsheets().values().clear(
+            spreadsheetId=SPREADSHEET_ID,
+            range='{}!A2:{}'.format(WORKSHEET_NAME, last_row),
+            body={}),
         mock.call.spreadsheets().values().update(
             spreadsheetId=SPREADSHEET_ID,
             valueInputOption='USER_ENTERED',
@@ -550,13 +562,14 @@ class TestFioMetricsTest(unittest.TestCase):
                             0.41775487677469203, 0.37958451200000004,
                             0.38797312, 0.49283072000000006, 0.526385152]]
             },
-            range='{}A{}'.format(WORKSHEET_NAME, new_row))
+            range='{}!A2'.format(WORKSHEET_NAME))
     ]
+
     with mock.patch.object(fio_metrics.gsheet, '_get_sheets_service_client'
                            ) as get_sheets_service_client_mock:
       get_sheets_service_client_mock.return_value = sheets_service_mock
       extracted_metrics = self.fio_metrics_obj.get_metrics(
-          get_full_filepath(GOOD_FILE))
+          get_full_filepath(GOOD_FILE), WORKSHEET_NAME)
 
     self.assertEqual(expected_metrics, extracted_metrics)
     sheets_service_mock.assert_has_calls(calls, any_order=True)
@@ -605,27 +618,40 @@ class TestFioMetricsTest(unittest.TestCase):
         }
     }]
     get_response = {
-        'range': '{}{}'.format(WORKSHEET_NAME, NUM_ENTRIES_CELL),
+        'range': '{}!A1:A'.format(WORKSHEET_NAME),
         'majorDimension': 'ROWS',
-        'values': [['6']]
+        'values': [['read'], ['read'], ['write']]
     }
-    new_row = 8
-    update_response = {
+    last_row = len(get_response['values'])+1
+    update_response_clear = {
         'spreadsheetId': SPREADSHEET_ID,
-        'updatedRange': '{}A{}:H{}'.format(WORKSHEET_NAME, new_row, new_row+1),
-        'updatedRows': 2,
+        'updatedRange': '{}!A2:{}'.format(WORKSHEET_NAME, last_row),
+        'updatedRows': 1,
+        'updatedColumns': 15,
+        'updatedCells': 45
+    }
+    update_response_write = {
+        'spreadsheetId': SPREADSHEET_ID,
+        'updatedRange': '{}!A2'.format(WORKSHEET_NAME),
+        'updatedRows': 1,
         'updatedColumns': 15,
         'updatedCells': 30
     }
     sheets_service_mock = mock.MagicMock()
     sheets_service_mock.spreadsheets().values().get(
     ).execute.return_value = get_response
+    sheets_service_mock.spreadsheets().values().clear(
+    ).execute.return_value = update_response_clear
     sheets_service_mock.spreadsheets().values().update(
-    ).execute.return_value = update_response
+    ).execute.return_value = update_response_write
     calls = [
         mock.call.spreadsheets().values().get(
             spreadsheetId=SPREADSHEET_ID,
-            range='{}{}'.format(WORKSHEET_NAME, NUM_ENTRIES_CELL)),
+            range='{}!A1:A'.format(WORKSHEET_NAME)),
+        mock.call.spreadsheets().values().clear(
+            spreadsheetId=SPREADSHEET_ID,
+            range='{}!A2:{}'.format(WORKSHEET_NAME, last_row),
+            body={}),
         mock.call.spreadsheets().values().update(
             spreadsheetId=SPREADSHEET_ID,
             valueInputOption='USER_ENTERED',
@@ -645,13 +671,14 @@ class TestFioMetricsTest(unittest.TestCase):
                      0.526385152]
                 ]
             },
-            range='{}A{}'.format(WORKSHEET_NAME, new_row))
+            range='{}!A2'.format(WORKSHEET_NAME))
     ]
+    
     with mock.patch.object(fio_metrics.gsheet, '_get_sheets_service_client'
                            ) as get_sheets_service_client_mock:
       get_sheets_service_client_mock.return_value = sheets_service_mock
       extracted_metrics = self.fio_metrics_obj.get_metrics(
-          get_full_filepath(MULTIPLE_JOBS_GLOBAL_OPTIONS_FILE))
+          get_full_filepath(MULTIPLE_JOBS_GLOBAL_OPTIONS_FILE), WORKSHEET_NAME)
 
     self.assertEqual(expected_metrics, extracted_metrics)
     sheets_service_mock.assert_has_calls(calls, any_order=True)
@@ -660,8 +687,8 @@ class TestFioMetricsTest(unittest.TestCase):
     expected_metrics = [{
         'params': {
             'rw': 'read',
-            'filesize_kb': 3000,
-            'num_threads': 40
+            'num_threads': 40,
+            'filesize_kb': 3000
         },
         'start_time': 1653596980,
         'end_time': 1653597056,
@@ -698,29 +725,41 @@ class TestFioMetricsTest(unittest.TestCase):
             'lat_s_perc_95': 0.526385152
         }
     }]
-
     get_response = {
-        'range': '{}{}'.format(WORKSHEET_NAME, NUM_ENTRIES_CELL),
+        'range': '{}!A1:A'.format(WORKSHEET_NAME),
         'majorDimension': 'ROWS',
-        'values': [['6']]
+        'values': [['read'], ['read'], ['write']]
     }
-    new_row = 8
-    update_response = {
+    last_row = len(get_response['values'])+1
+    update_response_clear = {
         'spreadsheetId': SPREADSHEET_ID,
-        'updatedRange': '{}A{}:H{}'.format(WORKSHEET_NAME, new_row, new_row+1),
-        'updatedRows': 2,
+        'updatedRange': '{}!A2:{}'.format(WORKSHEET_NAME, last_row),
+        'updatedRows': 1,
+        'updatedColumns': 15,
+        'updatedCells': 45
+    }
+    update_response_write = {
+        'spreadsheetId': SPREADSHEET_ID,
+        'updatedRange': '{}!A2'.format(WORKSHEET_NAME),
+        'updatedRows': 1,
         'updatedColumns': 15,
         'updatedCells': 30
     }
     sheets_service_mock = mock.MagicMock()
     sheets_service_mock.spreadsheets().values().get(
     ).execute.return_value = get_response
+    sheets_service_mock.spreadsheets().values().clear(
+    ).execute.return_value = update_response_clear
     sheets_service_mock.spreadsheets().values().update(
-    ).execute.return_value = update_response
+    ).execute.return_value = update_response_write
     calls = [
         mock.call.spreadsheets().values().get(
             spreadsheetId=SPREADSHEET_ID,
-            range='{}{}'.format(WORKSHEET_NAME, NUM_ENTRIES_CELL)),
+            range='{}!A1:A'.format(WORKSHEET_NAME)),
+        mock.call.spreadsheets().values().clear(
+            spreadsheetId=SPREADSHEET_ID,
+            range='{}!A2:{}'.format(WORKSHEET_NAME, last_row),
+            body={}),
         mock.call.spreadsheets().values().update(
             spreadsheetId=SPREADSHEET_ID,
             valueInputOption='USER_ENTERED',
@@ -738,14 +777,14 @@ class TestFioMetricsTest(unittest.TestCase):
                      0.38797312, 0.49283072000000006, 0.526385152]
                 ],
             },
-            range='{}A{}'.format(WORKSHEET_NAME, new_row))
+            range='{}!A2'.format(WORKSHEET_NAME))
     ]
 
     with mock.patch.object(fio_metrics.gsheet, '_get_sheets_service_client'
                            ) as get_sheets_service_client_mock:
       get_sheets_service_client_mock.return_value = sheets_service_mock
       extracted_metrics = self.fio_metrics_obj.get_metrics(
-          get_full_filepath(MULTIPLE_JOBS_JOB_OPTIONS_FILE))
+          get_full_filepath(MULTIPLE_JOBS_JOB_OPTIONS_FILE), WORKSHEET_NAME)
 
     self.assertEqual(expected_metrics, extracted_metrics)
     sheets_service_mock.assert_has_calls(calls, any_order=True)

@@ -296,6 +296,7 @@
       "eta" : 0,
       "elapsed" : 164,
       "job options" : {
+        "startdelay" : "100"
       },
       "read" : {
         "io_bytes" : 2747269120,

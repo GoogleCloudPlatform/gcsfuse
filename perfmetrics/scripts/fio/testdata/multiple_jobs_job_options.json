@@ -13,6 +13,7 @@
     "invalidate" : "1",
     "ramp_time" : "10",
     "runtime" : "60s",
+    "startdelay" : "20",
     "time_based" : "1",
     "nrfiles" : "1",
     "thread" : "1",
@@ -298,7 +299,7 @@
         "numjobs" : "10",
         "rw": "write",
         "ramp_time" : "20s",
-        "startdelay" : "20s"
+        "startdelay" : "100s"
       },
       "read" : {
         "io_bytes" : 0,
