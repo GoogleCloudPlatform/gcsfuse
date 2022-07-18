@@ -6,6 +6,8 @@ python3 compare_fuse_types_using_fio.py -- --fuse_type_1=<value1> --fuse_type_1_
 
 1) --fuse_type_1=<value1> & --fuse_type_2=<value2>
 -> Value1 and value2 can be fuse based system name.
+-> fuse based system name is used for logging so it can be anything. i.e 1) for gcsfuse, --fuse_type_1=gcsfuse 
+-> For GCSFuse it should be 'gcsfuse' 
 2) --fuse_type_1_version=<version1> & --fuse_type_2_version=<version2>
 -> For GCSFuse you can mention any released version or ‘master’ as version if you want to build from source.
 -> For other fuse based system provide the link of github repository.
@@ -117,8 +119,8 @@ def _run_fio_test(jobfile_path, fio_metrics_obj) -> None:
   """
   os.system(f'''fio {jobfile_path} --lat_percentiles 1 --output-format=json --output='output.json'
             ''')
-  fio_metricss = fio_metrics_obj.get_metrics('output.json', False)
-  os.system(f'''echo {fio_metricss} >> out/output.txt
+  fio_metrics_data = fio_metrics_obj.get_metrics('output.json', False)
+  os.system(f'''echo {fio_metrics_data} >> out/output.txt
             rm output.json
             ''')
 
