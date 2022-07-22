@@ -2,7 +2,7 @@
 gcsfuse has been tested successfully with the following operating systems:
 
 *   Linux (minimum kernel version 3.10)
-*   OS X (minimum version 10.10.2)
+*   macOS (minimum version 10.10.2)
 
 It may or may not work correctly with other operating systems and older versions.
 
@@ -145,7 +145,7 @@ above and logging out and back in, you may need to fix the permissions:
 [debian-bug]: http://superuser.com/a/800016/429161
 
 
-# OS X
+# macOS
 
 The following describes how to install gcsfuse from homebrew. However, due to
 the dependency on FUSE, homebrew is [deprecating
