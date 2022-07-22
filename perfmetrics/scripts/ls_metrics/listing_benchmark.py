@@ -50,15 +50,12 @@ logging.basicConfig(
 log = logging.getLogger()
 
 
-def OutputResults(folders, gcs_bucket_results, persistent_disk_results, message, num_samples) -> None:
+def OutputResults(folders, results_list, message, num_samples) -> dict:
   """Outputs the results on the console.
 
   This function takes in dictionary containing the list of results (for all samples) for each
   testing folder, for both the gcs bucket and persistent disk. Then it generates various metrics
-  out of these lists and outputs them into the console. It further uses the texttable library to
-  output the results in forms of tables. A single row of the table represents a single test(testing folder).
-  For every test a side by side comparision is made for the GCS bucket and persistent disk.
-  Also a quantile comparision is shown in the table.
+  out of these lists and outputs them into the console.
 
   The metrics present in the output are (in msec):
   Mean, Median, Standard Dev, 0th %ile, 20th %ile, 40th %ile, 60th %ile, 80th %ile, 90th %ile,
@@ -66,98 +63,39 @@ def OutputResults(folders, gcs_bucket_results, persistent_disk_results, message,
 
   Args:
     folders: List containing protobufs of testing folders.
-    gcs_bucket_results: Dictionary containing the list of results (for all samples)
-                        for each testing folder in the GCS bucket.
-    persistent_disk_results: Dictionary containing the list of results (for all samples)
-                             for each testing folder in the persistent disk.
+    results_list: Dictionary containing the list of results (for all samples)
+                  for each testing folder.
     message: String which describes/titles the test.
     num_samples: Number of samples to collect for each test.
+
+  Returns:
+    A dictionary containing the various metrics in a JSON format.
   """
-  log.info('Showing Results of %s samples:\n', num_samples)
-
-  print('Test Description:  {}\n'.format(message))
-
-  main_table_contents = []
-  main_table_contents.append(['Testing Folder', 'GCS Bucket Results', 'Persistent Disk Results', 'Quantile Comparision'])
+  metrics = dict()
 
   for testing_folder in folders:
-    gcs_bucket_results[testing_folder.name] = sorted(gcs_bucket_results[testing_folder.name])
-    persistent_disk_results[testing_folder.name] = sorted(persistent_disk_results[testing_folder.name])
+    metrics[testing_folder.name] = dict()
 
-    gcs_bucket_subtable = texttable.Texttable()
-    gcs_bucket_subtable.set_deco(texttable.Texttable.HEADER)
-    gcs_bucket_subtable.set_cols_dtype(['t', 'f'])
-    gcs_bucket_subtable.set_cols_align(['l', 'r'])
-    gcs_bucket_subtable.add_rows([
-        ['Statistic', 'Value (msec)'],
-        ['Mean', stat.mean(gcs_bucket_results[testing_folder.name])],
-        ['Median', stat.median(gcs_bucket_results[testing_folder.name])],
-        ['Standard Dev', stat.stdev(gcs_bucket_results[testing_folder.name])],
-    ])
+    metrics[testing_folder.name]['Test Desc.'] = message
+    metrics[testing_folder.name]['Number of samples'] = num_samples
+    results_list[testing_folder.name] = sorted(results_list[testing_folder.name])
 
-    persistent_disk_subtable = texttable.Texttable()
-    persistent_disk_subtable.set_deco(texttable.Texttable.HEADER)
-    persistent_disk_subtable.set_cols_dtype(['t', 'f'])
-    persistent_disk_subtable.set_cols_align(['l', 'r'])
-    persistent_disk_subtable.add_rows([
-        ['Statistic', 'Value (msec)'],
-        ['Mean', stat.mean(persistent_disk_results[testing_folder.name])],
-        ['Median', stat.median(persistent_disk_results[testing_folder.name])],
-        ['Standard Dev', stat.stdev(persistent_disk_results[testing_folder.name])],
+    metrics[testing_folder.name]['Mean'] = stat.mean(results_list[testing_folder.name])
+    metrics[testing_folder.name]['Median'] = stat.median(results_list[testing_folder.name])
+    metrics[testing_folder.name]['Standard Dev'] = stat.stdev(gcs_bucket_results[testing_folder.name])
 
-    ])
-
-    quantiles_gcs = []
+    metrics[testing_folder.name]['Quantiles'] = dict()
     for percentile in range(0, 100, 20):
-      quantiles_gcs.append(np.percentile(gcs_bucket_results[testing_folder.name], percentile))
+      metrics[testing_folder.name]['Quantiles']['{} %ile'.format(percentile)] = np.percentile(results_list[testing_folder.name], percentile)
 
-    quantiles_gcs.append(np.percentile(gcs_bucket_results[testing_folder.name], 90))
-    quantiles_gcs.append(np.percentile(gcs_bucket_results[testing_folder.name], 95))
-    quantiles_gcs.append(np.percentile(gcs_bucket_results[testing_folder.name], 98))
-    quantiles_gcs.append(np.percentile(gcs_bucket_results[testing_folder.name], 99))
-    quantiles_gcs.append(np.percentile(gcs_bucket_results[testing_folder.name], 100))
+    metrics[testing_folder.name]['Quantiles']['90 %ile'] = np.percentile(results_list[testing_folder.name], 90)
+    metrics[testing_folder.name]['Quantiles']['95 %ile'] = np.percentile(results_list[testing_folder.name], 95)
+    metrics[testing_folder.name]['Quantiles']['98 %ile'] = np.percentile(results_list[testing_folder.name], 98)
+    metrics[testing_folder.name]['Quantiles']['99 %ile'] = np.percentile(results_list[testing_folder.name], 99)
+    metrics[testing_folder.name]['Quantiles']['100 %ile'] = np.percentile(results_list[testing_folder.name], 100)
 
-    quantiles_pd = []
-    for percentile in range(0, 100, 20):
-      quantiles_pd.append(np.percentile(persistent_disk_results[testing_folder.name], percentile))
-
-    quantiles_pd.append(np.percentile(persistent_disk_results[testing_folder.name], 90))
-    quantiles_pd.append(np.percentile(persistent_disk_results[testing_folder.name], 95))
-    quantiles_pd.append(np.percentile(persistent_disk_results[testing_folder.name], 98))
-    quantiles_pd.append(np.percentile(persistent_disk_results[testing_folder.name], 99))
-    quantiles_pd.append(np.percentile(persistent_disk_results[testing_folder.name], 100))
-
-    quantile_table = texttable.Texttable()
-    quantile_table.set_deco(texttable.Texttable.HEADER)
-    quantile_table.set_cols_dtype(['t', 'f', 'f'])
-    quantile_table.set_cols_align(['l', 'r', 'r'])
-    quantile_table.add_rows([
-        ['Quantile', 'GCS Bucket', 'Persistent Disk'],
-        ['0th %ile', quantiles_gcs[0], quantiles_pd[0]],
-        ['20th %ile', quantiles_gcs[1], quantiles_pd[1]],
-        ['40th %ile', quantiles_gcs[2], quantiles_pd[2]],
-        ['60th %ile', quantiles_gcs[3], quantiles_pd[3]],
-        ['80th %ile', quantiles_gcs[4], quantiles_pd[4]],
-        ['90th %ile', quantiles_gcs[5], quantiles_pd[5]],
-        ['95th %ile', quantiles_gcs[6], quantiles_pd[6]],
-        ['98th %ile', quantiles_gcs[7], quantiles_pd[7]],
-        ['99th %ile', quantiles_gcs[8], quantiles_pd[8]],
-        ['100th %ile', quantiles_gcs[9], quantiles_pd[9]]
-    ])
-
-    main_table_contents.append(['{}'.format(testing_folder.name),
-                                gcs_bucket_subtable.draw(),
-                                persistent_disk_subtable.draw(),
-                                quantile_table.draw()])
-
-  main_table = texttable.Texttable()
-  main_table.set_cols_align(['l', 'c', 'c', 'c'])
-  main_table.set_cols_valign(['m', 'm', 'm', 'm'])
-  main_table.set_cols_width([30, 35, 35, 60])
-  main_table.add_rows(main_table_contents)
-
-  print(main_table.draw())
-  print('')
+  print(metrics)
+  return metrics
 
 
 def RecordTimeOfOperation(command, path, num_samples) -> list:
@@ -523,9 +461,10 @@ if __name__ == '__main__':
   log.info('Directory Structure Created.\n')
 
   gcs_bucket_results, persistent_disk_results = Testing(directory_structure.folders, gcs_bucket, persistent_disk,
-                                                        args.num_samples, args.command[0])
+                                                        int(args.num_samples[0]), args.command[0])
 
-  OutputResults(directory_structure.folders, gcs_bucket_results, persistent_disk_results, args.message, args.num_samples)
+  OutputResults(directory_structure.folders, gcs_bucket_results, args.message, int(args.num_samples[0]))
+  OutputResults(directory_structure.folders, persistent_disk_results, args.message, int(args.num_samples[0]))
 
   if not args.keep_files:
     log.info('Deleting files from persistent disk.\n')
