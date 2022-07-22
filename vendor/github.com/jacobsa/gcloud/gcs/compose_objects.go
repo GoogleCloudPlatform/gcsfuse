@@ -28,6 +28,7 @@ import (
 	"google.golang.org/api/googleapi"
 	storagev1 "google.golang.org/api/storage/v1"
 
+	"cloud.google.com/go/storage"
 	"golang.org/x/net/context"
 )
 
@@ -77,6 +78,11 @@ func (b *bucket) ComposeObjects(
 	// to detect this for us.
 	if !utf8.ValidString(req.DstName) {
 		err = errors.New("Invalid object name: not valid UTF-8")
+		return
+	}
+
+	if true {
+		o, err = ComposeObjectsSCL(ctx, req, b.name, b.storageClient)
 		return
 	}
 
@@ -172,6 +178,53 @@ func (b *bucket) ComposeObjects(
 		err = fmt.Errorf("toObject: %v", err)
 		return
 	}
+
+	return
+}
+
+// Custom function to compose a list of Source Objects to a Destination Object.
+func ComposeObjectsSCL(
+	ctx context.Context,
+	req *ComposeObjectsRequest, bucketName string, storageClient *storage.Client) (o *Object, err error) {
+	// If client is "nil", it means that there was some problem in initializing client in newBucket function of bucket.go file.
+	if storageClient == nil {
+		err = fmt.Errorf("Error in creating client through Go Storage Library.")
+		return
+	}
+
+	dstObj := storageClient.Bucket(bucketName).Object(req.DstName)
+
+	// Putting Generation and MetaGeneration conditions on Destination Object.
+	if req.DstGenerationPrecondition != nil {
+		if req.DstMetaGenerationPrecondition != nil {
+			dstObj = dstObj.If(storage.Conditions{GenerationMatch: *req.DstGenerationPrecondition, MetagenerationMatch: *req.DstMetaGenerationPrecondition})
+		} else {
+			dstObj = dstObj.If(storage.Conditions{GenerationMatch: *req.DstGenerationPrecondition})
+		}
+	} else if req.DstMetaGenerationPrecondition != nil {
+		dstObj = dstObj.If(storage.Conditions{MetagenerationMatch: *req.DstMetaGenerationPrecondition})
+	}
+
+	// Converting the req.Sources list to a list of storage.ObjectHandle as expected by the Go Storage Client.
+	var srcObjList []*storage.ObjectHandle
+	for _, src := range req.Sources {
+		currSrcObj := storageClient.Bucket(bucketName).Object(src.Name)
+		// Switching to requested Generation of the object.
+		if src.Generation != 0 {
+			currSrcObj = currSrcObj.Generation(src.Generation)
+		}
+		srcObjList = append(srcObjList, currSrcObj)
+	}
+
+	// Composing Source Objects to Destination Object using Composer created through Go Storage Client.
+	attrs, err := dstObj.ComposerFrom(srcObjList...).Run(ctx)
+	if err != nil {
+		err = fmt.Errorf("Error in composing objects through Go Storage Client: %v", err)
+		return
+	}
+
+	// Converting attrs to type *Object.
+	o = ObjectAttrsToBucketObject(attrs)
 
 	return
 }
