@@ -1,0 +1,41 @@
+{
+	"name": "listing_benchmark" ,
+	"num_folders": 2 ,
+	"folders": [
+		{
+			"name": "1KB_4files_3subdir" ,
+			"num_files": 1 ,
+			"file_name_prefix": "file" ,
+			"file_size": "1kb" ,
+			"num_folders": 3 ,
+			"folders": [
+				{
+					"name": "subdir1" ,
+					"num_files": 1 ,
+					"file_name_prefix": "file" ,
+					"file_size": "1kb"
+				} ,
+				{
+					"name": "subdir2" ,
+					"num_files": 1 ,
+					"file_name_prefix": "file" ,
+					"file_size": "1kb"
+				} ,
+				{
+					"name": "subdir3" ,
+					"num_files": 1 ,
+					"file_name_prefix": "file" ,
+					"file_size": "1kb"
+				}
+			]
+		} ,
+		{
+			"name": "2KB_3files_0subdir" ,
+			"num_files": 3 ,
+			"file_name_prefix": "file" ,
+			"file_size": "2kb"
+		}
+	]
+}
+
+
