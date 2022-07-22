@@ -36,6 +36,8 @@ def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
       if file_num > num_of_files:
         break
 
+  for batch_start in range(1, num_of_files+1, BATCH_SIZE):
+    for file_num in range(batch_start, batch_start + BATCH_SIZE):
       file_name = '{}_{}'.format(filename_prefix, file_num)
       temp_file = '{}/{}.txt'.format(TEMPORARY_DIRECTORY, file_name)
 
@@ -160,6 +162,7 @@ if __name__ == '__main__':
                                             int(file_size), file_name_prefix,
                                             local_destination_folder,
                                             True, 'output_file', None)
+
     keep_files = args.keep_files
     if(keep_files == False):
     # Deleting bucket directory:
