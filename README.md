@@ -16,10 +16,9 @@ surprising behaviors. The list of [open issues][issues] may also be of interest.
 [semantics.md]: docs/semantics.md
 [issues]: https://github.com/GoogleCloudPlatform/gcsfuse/issues
 
-
 # Installing
 
-See [installing.md][] for full installation instructions for Linux and Mac OS X.
+See [installing.md][] for full installation instructions for Linux and macOS.
 
 [installing.md]: docs/installing.md
 
@@ -43,10 +42,10 @@ credentials][app-default-credentials], or a JSON key file can be specified
 explicitly using `--key-file`. If you haven't already done so, the easiest way
 to set up your credentials for testing is to run the [gcloud tool][]:
 
-```
+    ```
     gcloud auth login
-```
-  See [mounting.md][] for more information on credentials.
+    ```
+See [mounting.md][] for more information on credentials.
 
 [gcloud tool]: https://cloud.google.com/sdk/gcloud/
 [app-default-credentials]: https://developers.google.com/identity/protocols/application-default-credentials#howtheywork
@@ -67,7 +66,7 @@ system, not as root. Do not use `sudo`.
 The gcsfuse tool will exit successfully after mounting the file system. Unmount
 in the usual way for a fuse file system on your operating system:
 
-    umount /path/to/mount         # OS X
+    umount /path/to/mount         # macOS
     fusermount -u /path/to/mount  # Linux
 
 If you are mounting a bucket that was populated with objects by some other means
@@ -80,7 +79,6 @@ See [mounting.md][] for more detail, including notes on running in the
 foreground and fstab compatibility.
 
 [mounting.md]: /docs/mounting.md
-
 
 # Performance
 
@@ -185,7 +183,6 @@ feature requests, please [file an issue][issues].
 
 [sf]: http://serverfault.com/
 [previous]: http://serverfault.com/questions/tagged/gcsfuse
-
 
 # Versioning
 
