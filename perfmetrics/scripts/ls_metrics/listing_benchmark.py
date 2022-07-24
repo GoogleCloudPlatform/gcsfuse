@@ -50,7 +50,7 @@ logging.basicConfig(
 log = logging.getLogger()
 
 
-def OutputResults(folders, results_list, message, num_samples) -> dict:
+def _parse_results(folders, results_list, message, num_samples) -> dict:
   """Outputs the results on the console.
 
   This function takes in dictionary containing the list of results (for all samples) for each
@@ -71,15 +71,16 @@ def OutputResults(folders, results_list, message, num_samples) -> dict:
   Returns:
     A dictionary containing the various metrics in a JSON format.
   """
+
   metrics = dict()
 
   for testing_folder in folders:
     metrics[testing_folder.name] = dict()
-
     metrics[testing_folder.name]['Test Desc.'] = message
     metrics[testing_folder.name]['Number of samples'] = num_samples
-    results_list[testing_folder.name] = sorted(results_list[testing_folder.name])
 
+    # Sorting based on time.
+    results_list[testing_folder.name] = sorted(results_list[testing_folder.name])
     metrics[testing_folder.name]['Mean'] = stat.mean(results_list[testing_folder.name])
     metrics[testing_folder.name]['Median'] = stat.median(results_list[testing_folder.name])
     metrics[testing_folder.name]['Standard Dev'] = stat.stdev(gcs_bucket_results[testing_folder.name])
@@ -87,7 +88,6 @@ def OutputResults(folders, results_list, message, num_samples) -> dict:
     metrics[testing_folder.name]['Quantiles'] = dict()
     for percentile in range(0, 100, 20):
       metrics[testing_folder.name]['Quantiles']['{} %ile'.format(percentile)] = np.percentile(results_list[testing_folder.name], percentile)
-
     metrics[testing_folder.name]['Quantiles']['90 %ile'] = np.percentile(results_list[testing_folder.name], 90)
     metrics[testing_folder.name]['Quantiles']['95 %ile'] = np.percentile(results_list[testing_folder.name], 95)
     metrics[testing_folder.name]['Quantiles']['98 %ile'] = np.percentile(results_list[testing_folder.name], 98)
@@ -98,7 +98,7 @@ def OutputResults(folders, results_list, message, num_samples) -> dict:
   return metrics
 
 
-def RecordTimeOfOperation(command, path, num_samples) -> list:
+def _record_time_of_operation(command, path, num_samples) -> list:
   """Runs the command on the given path for given num_samples times.
 
   Args:
@@ -109,18 +109,19 @@ def RecordTimeOfOperation(command, path, num_samples) -> list:
   Returns:
     A list containing the latencies of operations in milisecond.
   """
+
   result_list = []
   for _ in range(num_samples):
-    st = time.time()
+    start_time_sec = time.time()
     subprocess.call('{} {}'.format(command, path), shell=True,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.STDOUT)
-    et = time.time()
-    result_list.append((et-st)*1000)
+    end_time_sec = time.time()
+    result_list.append((end_time_sec-start_time_sec)*1000)
   return result_list
 
 
-def Testing(folders, gcs_bucket, persistent_disk, num_samples, command):
+def _perform_testing(folders, gcs_bucket, persistent_disk, num_samples, command):
   """This function tests the listing operation on the testing folders.
 
   Going through all the testing folders one by one for both GCS bucket and
@@ -132,6 +133,8 @@ def Testing(folders, gcs_bucket, persistent_disk, num_samples, command):
     folders: List of protobufs containing the testing folders.
     gcs_bucket: Name of the directory to which GCS bucket is mounted to.
     persistent_disk: Name of the directory in persistent disk containing all the testing folders.
+    num_samples: Number of times to run each test.
+    command: Command to run the test on.
 
   Returns:
     gcs_bucket_results: A dictionary containing the list of results (all samples)
@@ -139,23 +142,23 @@ def Testing(folders, gcs_bucket, persistent_disk, num_samples, command):
     persistent_disk_results: A dictionary containing the list of results (all samples)
                              for each testing folder.
   """
+
   gcs_bucket_results = {}
   persistent_disk_results = {}
 
   for testing_folder in folders:
     log.info('Testing started for testing folder: %s\n', testing_folder.name)
-
     local_dir_path = './{}/{}/'.format(persistent_disk, testing_folder.name)
     gcs_bucket_path = './{}/{}/'.format(gcs_bucket, testing_folder.name)
 
-    persistent_disk_results[testing_folder.name] = RecordTimeOfOperation(command, local_dir_path, num_samples)
-    gcs_bucket_results[testing_folder.name] = RecordTimeOfOperation(command, gcs_bucket_path, num_samples)
+    persistent_disk_results[testing_folder.name] = _record_time_of_operation(command, local_dir_path, num_samples)
+    gcs_bucket_results[testing_folder.name] = _record_time_of_operation(command, gcs_bucket_path, num_samples)
 
   log.info('Testing completed. Generating output.\n')
   return gcs_bucket_results, persistent_disk_results
 
 
-def CreateDirectoryStructure(gcs_bucket_url, persistent_disk_url, directory_structure, create_files_in_gcs) -> int:
+def _create_directory_structure(gcs_bucket_url, persistent_disk_url, directory_structure, create_files_in_gcs) -> int:
   """Creates new directory structure using generate_files.py as a library.
 
   This function creates new directory structure in persistent disk. If create_files_in_gcs
@@ -173,6 +176,7 @@ def CreateDirectoryStructure(gcs_bucket_url, persistent_disk_url, directory_stru
   Returns:
     1 if an error is encountered while uploading files to the GCS bucket. 0 if no error is encountered.
   """
+
   # Create a directory in the persistent disk.
   subprocess.call('mkdir {}'.format(persistent_disk_url), shell=True)
 
@@ -184,20 +188,20 @@ def CreateDirectoryStructure(gcs_bucket_url, persistent_disk_url, directory_stru
                                                                        file_size_unit, file_size,
                                                                        directory_structure.file_name_prefix,
                                                                        persistent_disk_url, create_files_in_gcs,
-                                                                       'return', log)
+                                                                       'return')
     if exit_code != 0:
       return 1
 
   result = 0
   for folder in directory_structure.folders:
-    result += CreateDirectoryStructure(gcs_bucket_url + folder.name + '/',
+    result += _create_directory_structure(gcs_bucket_url + folder.name + '/',
                                        persistent_disk_url + folder.name + '/',
                                        folder, create_files_in_gcs)
 
   return int(result > 0)
 
 
-def ListDirectory(path) -> (list, int):
+def _list_directory(path) -> (list, int):
   """Returns the list containing path of all the contents present in the current directory and also the number of contents.
 
   Args:
@@ -206,29 +210,25 @@ def ListDirectory(path) -> (list, int):
   Returns:
     A list containing path of all contents present in the input path. Also returns the number of contents.
   """
+
   contents = subprocess.check_output('gsutil -m ls {}'.format(path), shell=True)
   num_contents = len(contents.decode('utf-8').split('\n')[:-1])
   contents_url = contents.decode('utf-8').split('\n')[:-1]
   return contents_url, num_contents
 
 
-def CompareDirectoryStructure(url, directory_structure) -> bool:
+def _compare_directory_structure(url, directory_structure) -> bool:
   """Compares the directory structure present in the GCS bucket with the structure present in the JSON config file.
-
-  This function checks whether a same directory structure is present in the GCS bucket or not. If a same structure
-  is already present then we dont have to make the whole structure from scratch everytime. This saves a lot of time
-  as writing to the GCS bucket is a time expensive operation.
 
   Args:
     url: Path of the directory to compare in the GCS bucket.
     directory_structure: Protobuf of the current directory.
 
   Returns:
-    A boolean value which is true if the similar directory structure is already present in the GCS bucket.
-    Otherwise returns a false and we have to create the directory structure from scratch in the GCS bucket.
+    True if GCS bucket contents matches the directory structure.
   """
-  contents_url, num_contents = ListDirectory(url)
 
+  contents_url, num_contents = _list_directory(url)
   # gsutil in some cases return the contents_url list with the current directory in
   # the first index. We dont want the current directory so we remove it
   # manually.
@@ -237,7 +237,6 @@ def CompareDirectoryStructure(url, directory_structure) -> bool:
 
   files = []
   folders = []
-
   for content in contents_url:
     if content[-1] == '/':
       folders.append(content)
@@ -255,34 +254,32 @@ def CompareDirectoryStructure(url, directory_structure) -> bool:
     new_url = url + folder.name + '/'
     if new_url not in folders:
       return False
-    result = result and CompareDirectoryStructure(new_url, folder)
+    result = result and _compare_directory_structure(new_url, folder)
 
   return result
 
 
-def UnmountGCSBucket(gcs_bucket) -> None:
+def _unmount_gcs_bucket(gcs_bucket) -> None:
   """Unmounts the GCS bucket.
 
   Args:
     gcs_bucket: Name of the directory to which GCS bucket is mounted to.
 
   Raises:
-    An error if the GCS bucket cound not be umnounted.
+    An error if the GCS bucket could not be umnounted and aborts the program.
   """
+
   log.info('Unmounting the GCS Bucket.\n')
-
   exit_code = subprocess.call('umount -l {}'.format(gcs_bucket), shell=True)
-
   if exit_code != 0:
     log.error('Error encountered in umounting the bucket. Aborting!\n')
     subprocess.call('bash', shell=True)
-
   else:
     subprocess.call('rm -rf {}'.format(gcs_bucket), shell=True)
     log.info('Successfully unmounted the bucket and deleted %s directory.\n', gcs_bucket)
 
 
-def MountGCSBucket(bucket_name) -> str:
+def _mount_gcs_bucket(bucket_name) -> str:
   """Mounts the GCS bucket into the gcs_bucket directory.
 
   Args:
@@ -292,17 +289,15 @@ def MountGCSBucket(bucket_name) -> str:
     A string which contains the name of the directory to which the bucket is mounted.
 
   Raises:
-    An error into the logs if cannot mount the bucket due to some error. Also shut offs the program.
+    Aborts the program if error is encountered while mounting the bucket.
   """
+
   log.info('Started mounting the GCS Bucket using GCSFuse.\n')
   gcs_bucket = bucket_name
-
   subprocess.call('mkdir {}'.format(gcs_bucket), shell=True)
 
   exit_code = subprocess.call('gcsfuse --implicit-dirs --disable-http2 --max-conns-per-host 100 {} {}'.format(
       bucket_name, gcs_bucket), shell=True)
-  print('')
-
   if exit_code != 0:
     log.error('Cannot mount the GCS bucket due to exit code %s.\n', exit_code)
     subprocess.call('bash', shell=True)
@@ -310,7 +305,7 @@ def MountGCSBucket(bucket_name) -> str:
     return gcs_bucket
 
 
-def ParseArguments(argv):
+def _parse_arguments(argv):
   """Parses the arguments provided to the script via command line.
 
   Args:
@@ -319,16 +314,14 @@ def ParseArguments(argv):
   Returns:
     A class containing the parsed arguments.
   """
+
   argv = sys.argv
-
   parser = argparse.ArgumentParser()
-
   parser.add_argument(
       'config_file',
       help='Provide path of the config file.',
       action='store'
   )
-
   parser.add_argument(
       '--keep_files',
       help='Does not delete the directory structure in persistent disk.',
@@ -336,7 +329,6 @@ def ParseArguments(argv):
       default=False,
       required=False,
   )
-
   parser.add_argument(
       '--upload',
       help='Upload the results to the Google Sheet.',
@@ -344,7 +336,6 @@ def ParseArguments(argv):
       default=False,
       required=False,
   )
-
   parser.add_argument(
       '--message',
       help='Puts a message/title describing the test.',
@@ -353,46 +344,40 @@ def ParseArguments(argv):
       default='Performance Listing Benchmark',
       required=False,
   )
-
   parser.add_argument(
       '--num_samples',
       help='Number of samples to collect of each test.',
       action='store',
       nargs=1,
-      default=10,
+      default=[10],
       required=False,
   )
-
   parser.add_argument(
       '--command',
       help='Command to run the tests on.',
       action='store',
       nargs=1,
-      default='ls -R',
+      default=['ls -R'],
       required=True,
   )
-
-  args = parser.parse_args(argv[1:])
-
-  return args
+  # Ignoring the first parameter, as it is the path of this python script itself.
+  return parser.parse_args(argv[1:])
 
 
-def CheckDependencies(packages) -> None:
+def _check_dependencies(packages) -> None:
   """Check whether the dependencies are installed or not.
 
   Args:
     packages: List containing the names of the dependencies to be checked.
 
   Raises:
-    An error into the logs if a particular dependency is not installed and shuts of the program.
+    Aborts the execution if a particular dependency is not found.
   """
+
   for curr_package in packages:
     log.info('Checking whether %s is installed.\n', curr_package)
-
     exit_code = subprocess.call(
         '{} --version'.format(curr_package), shell=True)
-    print('')
-
     if exit_code != 0:
       log.error('%s not installed. Please install. Aborting!\n', curr_package)
       subprocess.call('bash', shell=True)
@@ -407,21 +392,18 @@ if __name__ == '__main__':
                     'Usage: '
                     'python3 listing_benchmark.py [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --command COMMAND config_file')
 
-  args = ParseArguments(argv)
+  args = _parse_arguments(argv)
 
-  CheckDependencies(['gsutil', 'gcsfuse'])
+  _check_dependencies(['gsutil', 'gcsfuse'])
 
   f = open(os.path.abspath(args.config_file))
   config_json = json.load(f)
   f.close()
-
   directory_structure = ParseDict(config_json, directory_proto.Directory())
 
-  gcs_bucket = MountGCSBucket(directory_structure.name)
-
   log.info('Started checking the directory structure in the bucket.\n')
-  directory_structure_present = CompareDirectoryStructure('gs://{}/'.format(directory_structure.name),
-                                                                            directory_structure)
+  directory_structure_present = _compare_directory_structure('gs://{}/'.format(directory_structure.name),
+                                                                               directory_structure)
   if not directory_structure_present:
     log.info('Similar directory structure not found in the GCS bucket. Creating a new one.\n')
   else:
@@ -447,27 +429,27 @@ if __name__ == '__main__':
     subprocess.call('rm -rf {}'.format(os.path.dirname(temp_dir)), shell=True)
   subprocess.call('mkdir -p {}'.format(temp_dir), shell=True)
 
-  exit_code = CreateDirectoryStructure('gs://{}/'.format(directory_structure.name), './{}/'.format(persistent_disk),
-                                       directory_structure, not directory_structure_present)
+  exit_code = _create_directory_structure('gs://{}/'.format(directory_structure.name), './{}/'.format(persistent_disk),
+                                          directory_structure, not directory_structure_present)
 
   # Deleting the temp folder after the creation of files is done.
   subprocess.call('rm -rf {}'.format(os.path.dirname(temp_dir)) ,shell=True)
 
   if exit_code != 0:
-    UnmountGCSBucket(gcs_bucket)
     log.error('Cannot create files in the GCS bucket. Error encountered.\n')
     subprocess.call('bash', shell=True)
-
   log.info('Directory Structure Created.\n')
 
-  gcs_bucket_results, persistent_disk_results = Testing(directory_structure.folders, gcs_bucket, persistent_disk,
-                                                        int(args.num_samples[0]), args.command[0])
+  gcs_bucket = _mount_gcs_bucket(directory_structure.name)
 
-  OutputResults(directory_structure.folders, gcs_bucket_results, args.message, int(args.num_samples[0]))
-  OutputResults(directory_structure.folders, persistent_disk_results, args.message, int(args.num_samples[0]))
+  gcs_bucket_results, persistent_disk_results = _perform_testing(directory_structure.folders, gcs_bucket, persistent_disk,
+                                                                 int(args.num_samples[0]), args.command[0])
+
+  _parse_results(directory_structure.folders, gcs_bucket_results, args.message, int(args.num_samples[0]))
+  _parse_results(directory_structure.folders, persistent_disk_results, args.message, int(args.num_samples[0]))
 
   if not args.keep_files:
     log.info('Deleting files from persistent disk.\n')
     subprocess.call('rm -rf {}'.format(persistent_disk), shell=True)
 
-  UnmountGCSBucket(gcs_bucket)
+  _unmount_gcs_bucket(gcs_bucket)

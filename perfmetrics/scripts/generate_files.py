@@ -18,10 +18,21 @@ TEMPORARY_DIRECTORY = './tmp/data_gen'
 BATCH_SIZE = 100
 
 
-def logmessage(message) -> None:
-  with open(OUTPUT_FILE, 'a') as out:
-    out.write(message)
-  print(message)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger = logging.getLogger()
+
+
+def logmessage(message, output_format) -> None:
+  if output_format == 'output_file':
+    with open(OUTPUT_FILE, 'a') as out:
+      out.write(message)
+    print(message)
+  elif output_format == 'return':
+    logger.info(message)
 
 
 def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
@@ -29,15 +40,16 @@ def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
                                             filename_prefix,
                                             local_destination_folder,
                                             upload_to_gcs_bucket,
-                                            logging_method, log):
+                                            logging_method):
 
+  # Iterating till num_files will result in some files not being created.
+  # So iterating till num_of_files + BATCH_SIZE + 1 as a safe measure to cover
+  # all files. Manually breaking the loop at correct time using if statements inside.
   for batch_start in range(1, num_of_files + BATCH_SIZE + 1, BATCH_SIZE):
     for file_num in range(batch_start, batch_start + BATCH_SIZE):
       if file_num > num_of_files:
         break
 
-  for batch_start in range(1, num_of_files+1, BATCH_SIZE):
-    for file_num in range(batch_start, batch_start + BATCH_SIZE):
       file_name = '{}_{}'.format(filename_prefix, file_num)
       temp_file = '{}/{}.txt'.format(TEMPORARY_DIRECTORY, file_name)
 
@@ -65,7 +77,6 @@ def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
       process.communicate()
 
       exit_code = process.wait()
-
       if(exit_code != 0):
         if logging_method == 'output_file':
           print('Exited with code {}'.format(exit_code))
@@ -82,11 +93,8 @@ def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
     subprocess.call('rm -rf {}/*'.format(TEMPORARY_DIRECTORY), shell=True)
 
     # Writing number of files uploaded to output file after every batch uploads:
-    if logging_method == 'output_file':
-      logmessage('{}/{} files uploaded to {}\n'.format(file_num, num_of_files,
-                                                      destination_blob_name))
-    elif logging_method == 'return':
-      log.info('%s/%s files created.\n', min(file_num, num_of_files), num_of_files)
+    message = '{}/{} files created.\n'.format(min(file_num, num_of_files), num_of_files)
+    logmessage(message, logging_method)
 
     if file_num > num_of_files:
       return 0
@@ -115,7 +123,7 @@ if __name__ == '__main__':
   args = parser.parse_args(argv[1:])
 
   # Checking that gsutil is installed:
-  logmessage('Checking whether gsutil is installed.\n')
+  logmessage('Checking whether gsutil is installed.\n', 'output_file')
   process = Popen('gsutil version', shell=True)
   process.communicate()
   exit_code = process.wait()
@@ -129,7 +137,7 @@ if __name__ == '__main__':
   bucket_name = config['DEFAULT']['bucket_name']
 
   # Making temporary folder and local bucket directory:
-  logmessage('Making a temporary directory.\n')
+  logmessage('Making a temporary directory.\n', 'output_file')
   subprocess.call(['mkdir', '-p', TEMPORARY_DIRECTORY])
   subprocess.call(['mkdir', bucket_name])
 
@@ -161,17 +169,17 @@ if __name__ == '__main__':
                                             int(num_of_files), file_size_unit,
                                             int(file_size), file_name_prefix,
                                             local_destination_folder,
-                                            True, 'output_file', None)
+                                            True, 'output_file')
 
     keep_files = args.keep_files
     if(keep_files == False):
     # Deleting bucket directory:
-      logmessage('Deleting the local directories.\n')
+      logmessage('Deleting the local directories.\n', 'output_file')
       subprocess.call(['rm', '-r', bucket_name])
 
   # Deleting temporary folder:
-  logmessage('Deleting the temporary directory.\n')
+  logmessage('Deleting the temporary directory.\n', 'output_file')
   subprocess.call(['rm', '-r', TEMPORARY_DIRECTORY])
 
-  logmessage('Process complete.\n')
+  logmessage('Process complete.\n', 'output_file')
 
