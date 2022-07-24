@@ -404,10 +404,6 @@ if __name__ == '__main__':
   log.info('Started checking the directory structure in the bucket.\n')
   directory_structure_present = _compare_directory_structure('gs://{}/'.format(directory_structure.name),
                                                                                directory_structure)
-  if not directory_structure_present:
-    log.info('Similar directory structure not found in the GCS bucket. Creating a new one.\n')
-  else:
-    log.info('Similar directory already present in the bucket. Not making a new one.\n')
 
   # Removing the already present folder in persistent disk so as to create the
   # files from scratch.
@@ -418,6 +414,7 @@ if __name__ == '__main__':
   # If similar directory structure not found in the GCS bucket then delete all
   # the files in the bucket and make it from scratch.
   if not directory_structure_present:
+    log.info('Similar directory structure not found in the GCS bucket. Creating a new one.\n')
     log.info('Deleting previously present directories in the GCS bucket.\n')
     subprocess.call('gsutil -m rm -r gs://{}/*'.format(directory_structure.name),
                     shell=True, stdout = subprocess.DEVNULL, stderr = subprocess.STDOUT)
