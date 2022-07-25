@@ -113,6 +113,32 @@ func convertInMessage(
 			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 		}
 
+	case fusekernel.OpBatchForget:
+		type input fusekernel.BatchForgetCountIn
+		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
+		if in == nil {
+			return nil, errors.New("Corrupt OpBatchForget")
+		}
+
+		entries := make([]fuseops.BatchForgetEntry, 0, in.Count)
+		for i := uint32(0); i < in.Count; i++ {
+			type entry fusekernel.BatchForgetEntryIn
+			ein := (*entry)(inMsg.Consume(unsafe.Sizeof(entry{})))
+			if ein == nil {
+				return nil, errors.New("Corrupt OpBatchForget")
+			}
+
+			entries = append(entries, fuseops.BatchForgetEntry{
+				Inode: fuseops.InodeID(ein.Inode),
+				N:     ein.Nlookup,
+			})
+		}
+
+		o = &fuseops.BatchForgetOp{
+			Entries:   entries,
+			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
+		}
+
 	case fusekernel.OpMkdir:
 		in := (*fusekernel.MkdirIn)(inMsg.Consume(fusekernel.MkdirInSize(protocol)))
 		if in == nil {
@@ -593,6 +619,9 @@ func (c *Connection) kernelResponse(
 	// interruptOp .
 	switch op.(type) {
 	case *fuseops.ForgetInodeOp:
+		return true
+
+	case *fuseops.BatchForgetOp:
 		return true
 
 	case *interruptOp:

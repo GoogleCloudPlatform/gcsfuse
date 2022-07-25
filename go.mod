@@ -12,7 +12,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
-	github.com/jacobsa/fuse v0.0.0-20220303083136-48612565d5c8
+	github.com/jacobsa/fuse v0.0.0-20220531202254-21122235c77a
 	github.com/jacobsa/gcloud v0.0.0-20220426111934-d5f9e155f950
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
 	github.com/jacobsa/oglemock v0.0.0-20150831005832-e94d794d06ff
@@ -24,7 +24,7 @@ require (
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/urfave/cli v1.22.5
 	go.opencensus.io v0.23.0
-	golang.org/x/net v0.0.0-20220325170049-de3da57026de
+	golang.org/x/net v0.0.0-20220526153639-5463443f8c37
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5
 	google.golang.org/api v0.74.0
 )

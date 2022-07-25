@@ -81,6 +81,14 @@ func (fs *debugLogging) ForgetInode(
 	return err
 }
 
+func (fs *debugLogging) BatchForget(
+	ctx context.Context,
+	op *fuseops.BatchForgetOp) error {
+	err := fs.wrapped.BatchForget(ctx, op)
+	fs.logger.Printf("BatchForget(%v): %v", op.Entries, err)
+	return err
+}
+
 func (fs *debugLogging) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) error {
