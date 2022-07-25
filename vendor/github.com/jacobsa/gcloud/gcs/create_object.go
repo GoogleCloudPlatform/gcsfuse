@@ -16,14 +16,17 @@ package gcs
 
 import (
 	"bytes"
+	"cloud.google.com/go/storage"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"unicode/utf8"
+	"time"
 
 	"github.com/jacobsa/gcloud/httputil"
 	"golang.org/x/net/context"
@@ -161,6 +164,11 @@ func (b *bucket) CreateObject(
 		return
 	}
 
+	if true {
+		o, err = CreateObjectSCL(ctx, req, b.name, b.storageClient)
+		return
+	}
+
 	// Start a resumable upload, obtaining an upload URL.
 	uploadURL, err := b.startResumableUpload(ctx, req)
 	if err != nil {
@@ -228,6 +236,96 @@ func (b *bucket) CreateObject(
 		err = fmt.Errorf("toObject: %v", err)
 		return
 	}
+	return
+}
+
+// Custom function to create an object or upload an existing object to GCS Bucket.
+func CreateObjectSCL(
+	ctx context.Context,
+	req *CreateObjectRequest, bucketName string, storageClient *storage.Client) (o *Object, err error) {
+	// If client is "nil", it means that there was some problem in initializing client in newBucket function of bucket.go file.
+	if storageClient == nil {
+		err = fmt.Errorf("Error in creating client through Go Storage Library.")
+		return
+	}
+
+	obj := storageClient.Bucket(bucketName).Object(req.Name)
+
+	// Putting conditions on Generation and MetaGeneration of the object for upload to occur.
+	if req.GenerationPrecondition != nil {
+		if *req.GenerationPrecondition == 0 {
+			// Passing because GenerationPrecondition = 0 means object does not exist in the GCS Bucket yet.
+		} else if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
+			obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition, MetagenerationMatch: *req.MetaGenerationPrecondition})
+		} else {
+			obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition})
+		}
+	}
+
+	// Creating a NewWriter with requested attributes, using Go Storage Client.
+	// Chuck size for resumable upload is deafult i.e. 16MB.
+	wc := obj.NewWriter(ctx)
+	wc = SetAttrs(wc, req)
+
+	// Copying contents from the request to the Writer. These contents will be copied to the newly created object / already existing object.
+	if _, err = io.Copy(wc, req.Contents); err != nil {
+		err = fmt.Errorf("Error in io.Copy: %v", err)
+		return
+	}
+
+	// Closing the Writer.
+	if err = wc.Close(); err != nil {
+		err = fmt.Errorf("Error in closing writer: %v", err)
+		return
+	}
+
+	attrs := wc.Attrs() // Retrieving the attributes of the created object.
+
+	// Converting attrs to type *Object.
+	o = ObjectAttrsToBucketObject(attrs)
 
 	return
+}
+
+// Function for setting attributes to the Writer. These attributes will be assigned to the newly created object / already existing object.
+func SetAttrs(wc *storage.Writer, req *CreateObjectRequest) *storage.Writer {
+	wc.Name = req.Name
+	wc.ContentType = req.ContentType
+	wc.ContentLanguage = req.ContentLanguage
+	wc.ContentEncoding = req.ContentLanguage
+	wc.CacheControl = req.CacheControl
+	wc.Metadata = req.Metadata
+	wc.ContentDisposition = req.ContentDisposition
+	wc.CustomTime, _ = time.Parse(time.RFC3339, req.CustomTime)
+	wc.EventBasedHold = req.EventBasedHold
+	wc.StorageClass = req.StorageClass
+
+	// Converting []*storagev1.ObjectAccessControl to []ACLRule as expected by the Go Client Writer.
+	var Acl []storage.ACLRule
+	for _, element := range req.Acl {
+		currACL := storage.ACLRule{
+			Entity:   storage.ACLEntity(element.Entity),
+			EntityID: element.EntityId,
+			Role:     storage.ACLRole(element.Role),
+			Domain:   element.Domain,
+			Email:    element.Email,
+			ProjectTeam: &storage.ProjectTeam{
+				ProjectNumber: element.ProjectTeam.ProjectNumber,
+				Team:          element.ProjectTeam.Team,
+			},
+		}
+		Acl = append(Acl, currACL)
+	}
+	wc.ACL = Acl
+
+	if req.CRC32C != nil {
+		wc.CRC32C = *req.CRC32C
+		wc.SendCRC32C = true // Explicitly need to send CRC32C token in Writer in order to send the checksum.
+	}
+
+	if req.MD5 != nil {
+		wc.MD5 = (*req.MD5)[:]
+	}
+
+	return wc
 }
