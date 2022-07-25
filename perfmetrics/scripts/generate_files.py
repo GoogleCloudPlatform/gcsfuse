@@ -26,26 +26,19 @@ logging.basicConfig(
 logger = logging.getLogger()
 
 
-def logmessage(message, output_format) -> None:
-  if output_format == 'output_file':
-    with open(OUTPUT_FILE, 'a') as out:
-      out.write(message)
-    print(message)
-  elif output_format == 'return':
-    logger.info(message)
+def logmessage(message) -> None:
+  with open(OUTPUT_FILE, 'a') as out:
+    out.write(message)
+  logger.info(message)
 
 
 def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
                                             file_size_unit, file_size,
                                             filename_prefix,
                                             local_destination_folder,
-                                            upload_to_gcs_bucket,
-                                            logging_method):
+                                            upload_to_gcs_bucket):
 
-  # Iterating till num_files will result in some files not being created.
-  # So iterating till num_of_files + BATCH_SIZE + 1 as a safe measure to cover
-  # all files. Manually breaking the loop at correct time using if statements inside.
-  for batch_start in range(1, num_of_files + BATCH_SIZE + 1, BATCH_SIZE):
+  for batch_start in range(1, num_of_files + 1, BATCH_SIZE):
     for file_num in range(batch_start, batch_start + BATCH_SIZE):
       if file_num > num_of_files:
         break
@@ -75,14 +68,9 @@ def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
                                           destination_blob_name),
           shell=True)
       process.communicate()
-
       exit_code = process.wait()
-      if(exit_code != 0):
-        if logging_method == 'output_file':
-          print('Exited with code {}'.format(exit_code))
-          subprocess.call('bash', shell=True)
-        elif logging_method == 'return':
-          return exit_code
+      if exit_code != 0:
+        return exit_code
 
     # Copying batch files from temporary to local destination folder:
     subprocess.call(
@@ -94,10 +82,7 @@ def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
 
     # Writing number of files uploaded to output file after every batch uploads:
     message = '{}/{} files created.\n'.format(min(file_num, num_of_files), num_of_files)
-    logmessage(message, logging_method)
-
-    if file_num > num_of_files:
-      return 0
+    logmessage(message)
 
   return 0
 
@@ -123,7 +108,7 @@ if __name__ == '__main__':
   args = parser.parse_args(argv[1:])
 
   # Checking that gsutil is installed:
-  logmessage('Checking whether gsutil is installed.\n', 'output_file')
+  logmessage('Checking whether gsutil is installed.\n')
   process = Popen('gsutil version', shell=True)
   process.communicate()
   exit_code = process.wait()
@@ -137,7 +122,7 @@ if __name__ == '__main__':
   bucket_name = config['DEFAULT']['bucket_name']
 
   # Making temporary folder and local bucket directory:
-  logmessage('Making a temporary directory.\n', 'output_file')
+  logmessage('Making a temporary directory.\n')
   subprocess.call(['mkdir', '-p', TEMPORARY_DIRECTORY])
   subprocess.call(['mkdir', bucket_name])
 
@@ -165,21 +150,24 @@ if __name__ == '__main__':
                                                     destination_folder,
                                                     destination_sub_folder)
 
-    generate_files_and_upload_to_gcs_bucket(destination_blob_name,
-                                            int(num_of_files), file_size_unit,
-                                            int(file_size), file_name_prefix,
-                                            local_destination_folder,
-                                            True, 'output_file')
+    exit_code = generate_files_and_upload_to_gcs_bucket(destination_blob_name,
+                                                        int(num_of_files), file_size_unit,
+                                                        int(file_size), file_name_prefix,
+                                                        local_destination_folder,
+                                                        True)
+    if exit_code != 0:
+      print('Exited with code {}'.format(exit_code))
+      subprocess.call('bash', shell=True)
 
     keep_files = args.keep_files
     if(keep_files == False):
     # Deleting bucket directory:
-      logmessage('Deleting the local directories.\n', 'output_file')
+      logmessage('Deleting the local directories.\n')
       subprocess.call(['rm', '-r', bucket_name])
 
   # Deleting temporary folder:
-  logmessage('Deleting the temporary directory.\n', 'output_file')
+  logmessage('Deleting the temporary directory.\n')
   subprocess.call(['rm', '-r', TEMPORARY_DIRECTORY])
 
-  logmessage('Process complete.\n', 'output_file')
+  logmessage('Process complete.\n')
 

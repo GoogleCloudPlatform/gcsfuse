@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package directory_proto;
+package perfmetrics;
 
 message Directory {
     string name = 1;

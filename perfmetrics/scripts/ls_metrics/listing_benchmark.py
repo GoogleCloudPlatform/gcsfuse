@@ -187,10 +187,9 @@ def _create_directory_structure(gcs_bucket_url, persistent_disk_url, directory_s
                                                                        directory_structure.num_files,
                                                                        file_size_unit, file_size,
                                                                        directory_structure.file_name_prefix,
-                                                                       persistent_disk_url, create_files_in_gcs,
-                                                                       'return')
+                                                                       persistent_disk_url, create_files_in_gcs)
     if exit_code != 0:
-      return 1
+      return exit_code
 
   result = 0
   for folder in directory_structure.folders:
@@ -212,8 +211,8 @@ def _list_directory(path) -> (list, int):
   """
 
   contents = subprocess.check_output('gsutil -m ls {}'.format(path), shell=True)
-  num_contents = len(contents.decode('utf-8').split('\n')[:-1])
   contents_url = contents.decode('utf-8').split('\n')[:-1]
+  num_contents = len(contents_url)
   return contents_url, num_contents
 
 
@@ -396,9 +395,8 @@ if __name__ == '__main__':
 
   _check_dependencies(['gsutil', 'gcsfuse'])
 
-  f = open(os.path.abspath(args.config_file))
-  config_json = json.load(f)
-  f.close()
+  with open(os.path.abspath(args.config_file)) as file:
+    config_json = json.load(file)
   directory_structure = ParseDict(config_json, directory_proto.Directory())
 
   log.info('Started checking the directory structure in the bucket.\n')
