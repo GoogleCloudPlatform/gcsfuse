@@ -220,6 +220,32 @@ type ForgetInodeOp struct {
 	OpContext OpContext
 }
 
+// BatchForgetEntry represents one Inode entry to forget in the BatchForgetOp.
+//
+// Everything written in the ForgetInodeOp docs applies for the BatchForgetEntry
+// too.
+type BatchForgetEntry struct {
+	// The inode whose reference count should be decremented.
+	Inode InodeID
+
+	// The amount to decrement the reference count.
+	N uint64
+}
+
+// Decrement the reference counts for a list of inode IDs previously issued by the file
+// system.
+//
+// This operation is a batch of ForgetInodeOp operations. Every entry in
+// Entries is one ForgetInodeOp operation. See the docs of ForgetInodeOp
+// for further details.
+type BatchForgetOp struct {
+	// Entries is a list of Forget operations. One could treat every entry in the
+	// list as a single ForgetInodeOp operation.
+	Entries []BatchForgetEntry
+
+	OpContext OpContext
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Inode creation
 ////////////////////////////////////////////////////////////////////////

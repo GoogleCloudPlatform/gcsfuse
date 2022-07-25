@@ -60,6 +60,12 @@ func (fs *NotImplementedFileSystem) ForgetInode(
 	return fuse.ENOSYS
 }
 
+func (fs *NotImplementedFileSystem) BatchForget(
+	ctx context.Context,
+	op *fuseops.BatchForgetOp) error {
+	return fuse.ENOSYS
+}
+
 func (fs *NotImplementedFileSystem) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) error {

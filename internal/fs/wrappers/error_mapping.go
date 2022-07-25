@@ -137,6 +137,13 @@ func (em *errorMapping) ForgetInode(
 	return em.mapError("ForgetInode", err)
 }
 
+func (em *errorMapping) BatchForget(
+	ctx context.Context,
+	op *fuseops.BatchForgetOp) error {
+	err := em.wrapped.BatchForget(ctx, op)
+	return em.mapError("BatchForget", err)
+}
+
 func (em *errorMapping) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) error {
