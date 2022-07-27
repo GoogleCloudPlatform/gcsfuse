@@ -20,6 +20,8 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+//	"unsafe"
+	"github.com/DmitriyVTitov/size"
 	"github.com/jacobsa/gcloud/httputil"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -310,6 +312,7 @@ func ListObjectsSCL(
 	}
 
 	listing = &list
+	fmt.Println(size.Of(listing))
 	return
 }
 

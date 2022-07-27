@@ -2075,6 +2075,7 @@ func (it *BucketIterator) PageInfo() *iterator.PageInfo { return it.pageInfo }
 // transport-specific client implementations.
 func (it *BucketIterator) fetch(pageSize int, pageToken string) (token string, err error) {
 	req := it.client.raw.Buckets.List(it.projectID)
+	fmt.Println("call made")
 	setClientHeader(req.Header())
 	req.Projection("full")
 	req.Prefix(it.Prefix)
