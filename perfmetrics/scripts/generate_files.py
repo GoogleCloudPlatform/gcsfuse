@@ -81,8 +81,8 @@ def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
     subprocess.call('rm -rf {}/*'.format(TEMPORARY_DIRECTORY), shell=True)
 
     # Writing number of files uploaded to output file after every batch uploads:
-    message = '{}/{} files created.\n'.format(min(file_num, num_of_files), num_of_files)
-    logmessage(message)
+    logmessage('{}/{} files uploaded to {}\n'.format(file_num, num_of_files,
+                                                     destination_blob_name))
 
   return 0
 

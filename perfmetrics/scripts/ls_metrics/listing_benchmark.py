@@ -13,9 +13,9 @@ Typical usage example:
   Flag -h: Typical help interface of the script.
   Flag --keep_files: Do not delete the generated directory structure from the persistent disk after running the tests.
   Flag --upload: Uploads the results of the test to the Google Sheet.
-  Flag --num_smaples NUM_SAMPLES: Runs each test for NUM_SAMPLES times.
-  Flag --message MESSAGE: Takes input a message string, which describes/titles the test.
-  Flag --command COMMAND (required): Takes a input a string, which is the command to run the tests on.
+  Flag --num_samples: Runs each test for NUM_SAMPLES times.
+  Flag --message: Takes input a message string, which describes/titles the test.
+  Flag --command (required): Takes a input a string, which is the command to run the tests on.
   config_file (required): Path to the JSON config file which contains the details of the tests.
 
 Note: This python script is dependent on generate_files.py.
