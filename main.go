@@ -281,6 +281,14 @@ func runCLIApp(c *cli.Context) (err error) {
 				"Added environment http_proxy: %s\n",
 				p)
 		}
+		// Pass through the no_proxy enviroment variable.
+		if p, ok := os.LookupEnv("no_proxy"); ok {
+			env = append(env, fmt.Sprintf("no_proxy=%s", p))
+			fmt.Fprintf(
+				os.Stdout,
+				"Added environment no_proxy: %s\n",
+				p)
+		}
 
 		// Run.
 		err = daemonize.Run(path, args, env, os.Stdout)

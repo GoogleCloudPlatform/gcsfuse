@@ -258,6 +258,10 @@ func run(args []string) (err error) {
 	} else if p, ok := os.LookupEnv("http_proxy"); ok {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("http_proxy=%s", p))
 	}
+	// Pass through the no_proxy enviroment variable.
+	if p, ok := os.LookupEnv("no_proxy"); ok {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("no_proxy=%s", p))
+	}
 
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
