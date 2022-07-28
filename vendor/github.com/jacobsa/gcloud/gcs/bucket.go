@@ -20,8 +20,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-//	"unsafe"
-	"github.com/DmitriyVTitov/size"
 	"github.com/jacobsa/gcloud/httputil"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -132,12 +130,13 @@ type Bucket interface {
 }
 
 type bucket struct {
-	client         *http.Client
-	storageClient  *storage.Client //Go Storage Library Client.
-	url            *url.URL
-	userAgent      string
-	name           string
-	billingProject string
+	client                     *http.Client
+	storageClient              *storage.Client //Go Storage Library Client.
+	url                        *url.URL
+	userAgent                  string
+	name                       string
+	billingProject             string
+	enableStorageClientLibrary bool //Switches to Go Storage Client.
 }
 
 func (b *bucket) Name() string {
@@ -196,7 +195,7 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *Object {
 func (b *bucket) ListObjects(
 	ctx context.Context,
 	req *ListObjectsRequest) (listing *Listing, err error) {
-	if true {
+	if b.enableStorageClientLibrary {
 		listing, err = ListObjectsSCL(ctx, req, b.name, b.storageClient)
 		return
 	}
@@ -312,14 +311,13 @@ func ListObjectsSCL(
 	}
 
 	listing = &list
-	fmt.Println(size.Of(listing))
 	return
 }
 
 func (b *bucket) StatObject(
 	ctx context.Context,
 	req *StatObjectRequest) (o *Object, err error) {
-	if true {
+	if b.enableStorageClientLibrary {
 		o, err = StatObjectSCL(ctx, req, b.name, b.storageClient)
 		return
 	}
@@ -425,7 +423,7 @@ func StatObjectSCL(
 func (b *bucket) DeleteObject(
 	ctx context.Context,
 	req *DeleteObjectRequest) (err error) {
-	if true {
+	if b.enableStorageClientLibrary {
 		err = DeleteObjectSCL(ctx, req, b.name, b.storageClient)
 		return
 	}
@@ -541,49 +539,52 @@ func newBucket(
 	billingProject string,
 	tokenSrc oauth2.TokenSource,
 	goClientConfig *GoClientConfig) (b Bucket, err error) {
-
-	// Creating client through Go Storage Client Library for the storageClient parameter of bucket.
-	var tr *http.Transport = nil
-
-	// Choosing between HTTP1 and HTTP2.
-	if goClientConfig.DisableHTTP2 {
-		tr = &http.Transport{
-			MaxConnsPerHost:     goClientConfig.MaxConnsPerHost,
-			MaxIdleConnsPerHost: goClientConfig.MaxIdleConnsPerHost,
-			// This disables HTTP/2 in transport.
-			TLSNextProto: make(
-				map[string]func(string, *tls.Conn) http.RoundTripper,
-			),
-		}
-	} else {
-		tr = &http.Transport{
-			DisableKeepAlives: true,
-			MaxConnsPerHost:   goClientConfig.MaxConnsPerHost, // Not affecting the performance when HTTP 2.0 is enabled.
-			ForceAttemptHTTP2: true,
-		}
-	}
-
-	// Custom http Client for Go Client.
-	httpClient := &http.Client{Transport: &oauth2.Transport{
-		Base:   tr,
-		Source: tokenSrc,
-	},
-		Timeout: 2 * time.Second,
-	}
-
 	var storageClient *storage.Client = nil
-	storageClient, err = storage.NewClient(ctx, option.WithHTTPClient(httpClient))
-	if err != nil {
-		err = fmt.Errorf("Error in creating the client through Go Storage Library: %v", err)
+
+	if goClientConfig.EnableStorageClientLibrary {
+		// Creating client through Go Storage Client Library for the storageClient parameter of bucket.
+		var tr *http.Transport = nil
+
+		// Choosing between HTTP1 and HTTP2.
+		if goClientConfig.DisableHTTP2 {
+			tr = &http.Transport{
+				MaxConnsPerHost:     goClientConfig.MaxConnsPerHost,
+				MaxIdleConnsPerHost: goClientConfig.MaxIdleConnsPerHost,
+				// This disables HTTP/2 in transport.
+				TLSNextProto: make(
+					map[string]func(string, *tls.Conn) http.RoundTripper,
+				),
+			}
+		} else {
+			tr = &http.Transport{
+				DisableKeepAlives: true,
+				MaxConnsPerHost:   goClientConfig.MaxConnsPerHost, // Not affecting the performance when HTTP 2.0 is enabled.
+				ForceAttemptHTTP2: true,
+			}
+		}
+
+		// Custom http Client for Go Client.
+		httpClient := &http.Client{Transport: &oauth2.Transport{
+			Base:   tr,
+			Source: tokenSrc,
+		},
+			Timeout: 800 * time.Millisecond,
+		}
+
+		storageClient, err = storage.NewClient(ctx, option.WithHTTPClient(httpClient))
+		if err != nil {
+			err = fmt.Errorf("Error in creating the client through Go Storage Library: %v", err)
+		}
 	}
 
 	b = &bucket{
-		client:         client,
-		storageClient:  storageClient,
-		url:            url,
-		userAgent:      userAgent,
-		name:           name,
-		billingProject: billingProject,
+		client:                     client,
+		storageClient:              storageClient,
+		url:                        url,
+		userAgent:                  userAgent,
+		name:                       name,
+		billingProject:             billingProject,
+		enableStorageClientLibrary: goClientConfig.EnableStorageClientLibrary,
 	}
 	return
 }

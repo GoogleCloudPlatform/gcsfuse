@@ -295,6 +295,16 @@ func newApp() (app *cli.App) {
 				Name:  "debug_mutex",
 				Usage: "Print debug messages when a mutex is held too long.",
 			},
+
+			/////////////////////////
+			// Client
+			/////////////////////////
+
+			cli.BoolFlag{
+				Name: "enable-storage-client-library",
+				Usage: "Once set, the client used for communicating with the" +
+					"GCS backend would be Go Storage Client.",
+			},
 		},
 	}
 
@@ -347,6 +357,9 @@ type flagStorage struct {
 	DebugHTTP       bool
 	DebugInvariants bool
 	DebugMutex      bool
+
+	// Client
+	EnableStorageClientLibrary bool
 }
 
 // Add the flags accepted by run to the supplied flag set, returning the
@@ -403,6 +416,9 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		DebugHTTP:       c.Bool("debug_http"),
 		DebugInvariants: c.Bool("debug_invariants"),
 		DebugMutex:      c.Bool("debug_mutex"),
+
+		// Client
+		EnableStorageClientLibrary: c.Bool("enable-storage-client-library"),
 	}
 
 	// Handle the repeated "-o" flag.

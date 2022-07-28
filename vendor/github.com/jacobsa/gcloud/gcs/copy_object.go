@@ -41,7 +41,7 @@ func (b *bucket) CopyObject(
 		return
 	}
 
-	if true {
+	if b.enableStorageClientLibrary {
 		o, err = CopyObjectSCL(ctx, req, b.name, b.storageClient)
 		return
 	}

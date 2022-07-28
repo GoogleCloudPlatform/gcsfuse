@@ -44,7 +44,7 @@ func (b *bucket) NewReader(
 	// segment, as defined by RFC 3986.
 
 	// Switching to Go Storage Client Library.
-	if true {
+	if b.enableStorageClientLibrary {
 		rc, err = NewReaderSCL(ctx, req, b.name, b.storageClient)
 		return
 	}

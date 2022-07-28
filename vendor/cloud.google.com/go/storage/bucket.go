@@ -1977,7 +1977,7 @@ func (it *ObjectIterator) fetch(pageSize int, pageToken string) (string, error) 
 	if projection == ProjectionDefault {
 		projection = ProjectionFull
 	}
-	req.Projection(projection.String())
+	req.Projection("noAcl")
 	req.Delimiter(it.query.Delimiter)
 	req.Prefix(it.query.Prefix)
 	req.StartOffset(it.query.StartOffset)
@@ -1991,9 +1991,7 @@ func (it *ObjectIterator) fetch(pageSize int, pageToken string) (string, error) 
 	if it.bucket.userProject != "" {
 		req.UserProject(it.bucket.userProject)
 	}
-	if pageSize > 0 {
-		req.MaxResults(int64(pageSize))
-	}
+	req.MaxResults(5000)
 	var resp *raw.Objects
 	var err error
 	err = run(it.ctx, func() error {
@@ -2075,7 +2073,6 @@ func (it *BucketIterator) PageInfo() *iterator.PageInfo { return it.pageInfo }
 // transport-specific client implementations.
 func (it *BucketIterator) fetch(pageSize int, pageToken string) (token string, err error) {
 	req := it.client.raw.Buckets.List(it.projectID)
-	fmt.Println("call made")
 	setClientHeader(req.Header())
 	req.Projection("full")
 	req.Prefix(it.Prefix)

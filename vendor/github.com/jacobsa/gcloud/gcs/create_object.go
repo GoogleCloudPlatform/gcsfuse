@@ -25,8 +25,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"unicode/utf8"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jacobsa/gcloud/httputil"
 	"golang.org/x/net/context"
@@ -164,7 +164,7 @@ func (b *bucket) CreateObject(
 		return
 	}
 
-	if true {
+	if b.enableStorageClientLibrary {
 		o, err = CreateObjectSCL(ctx, req, b.name, b.storageClient)
 		return
 	}
@@ -265,6 +265,7 @@ func CreateObjectSCL(
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
 	// Chuck size for resumable upload is deafult i.e. 16MB.
 	wc := obj.NewWriter(ctx)
+	wc.ChunkSize = 0 // This will enable one shot upload and thus increase performance.
 	wc = SetAttrs(wc, req)
 
 	// Copying contents from the request to the Writer. These contents will be copied to the newly created object / already existing object.
