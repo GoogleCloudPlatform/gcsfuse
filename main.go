@@ -281,7 +281,10 @@ func runCLIApp(c *cli.Context) (err error) {
 				"Added environment http_proxy: %s\n",
 				p)
 		}
-		// Pass through the no_proxy enviroment variable.
+		// Pass through the no_proxy enviroment variable. Whenever
+		// using the http(s)_proxy environment variables. This should
+		// also be included to know for which hosts the use of proxies
+		// should be ignored.
 		if p, ok := os.LookupEnv("no_proxy"); ok {
 			env = append(env, fmt.Sprintf("no_proxy=%s", p))
 			fmt.Fprintf(
