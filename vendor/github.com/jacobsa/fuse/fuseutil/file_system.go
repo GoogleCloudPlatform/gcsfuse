@@ -154,6 +154,19 @@ func (s *fileSystemServer) handleOp(
 
 	case *fuseops.BatchForgetOp:
 		err = s.fs.BatchForget(ctx, typed)
+		if err == fuse.ENOSYS {
+			// Handle as a series of single-inode forget operations
+			for _, entry := range typed.Entries {
+				err = s.fs.ForgetInode(ctx, &fuseops.ForgetInodeOp{
+					Inode:     entry.Inode,
+					N:         entry.N,
+					OpContext: typed.OpContext,
+				})
+				if err != nil {
+					break
+				}
+			}
+		}
 
 	case *fuseops.MkDirOp:
 		err = s.fs.MkDir(ctx, typed)

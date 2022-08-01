@@ -17,6 +17,8 @@ package fuseops
 import (
 	"os"
 	"time"
+
+	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -645,6 +647,8 @@ type OpenFileOp struct {
 	// layer. This allows for filesystems whose file sizes are not known in
 	// advance, for example, because contents are generated on the fly.
 	UseDirectIO bool
+
+	OpenFlags fusekernel.OpenFlags
 
 	OpContext OpContext
 }

@@ -207,6 +207,8 @@ github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f/go.mod h1:Ip4fOw
 github.com/jacobsa/fuse v0.0.0-20211125163655-ffd6c474e806/go.mod h1:xtZnnLxHY6QniCrfIpTwr5h8mH8zr+jsOFj0y9cfyp4=
 github.com/jacobsa/fuse v0.0.0-20220531202254-21122235c77a h1:VHohpR+EvyeJ2isnVu7VYi7fZjaRMS5HYrbsJb6I8hg=
 github.com/jacobsa/fuse v0.0.0-20220531202254-21122235c77a/go.mod h1:liOmRdJd8oTwHCQ5M9JemRE3CebdlYcZWLk+ZjQeuq0=
+github.com/jacobsa/fuse v0.0.0-20220726073400-226fec2ce902 h1:/IQH2E2OKt1gyALxVdOMBOqHt71CXHrCBxCyrUORe3o=
+github.com/jacobsa/fuse v0.0.0-20220726073400-226fec2ce902/go.mod h1:liOmRdJd8oTwHCQ5M9JemRE3CebdlYcZWLk+ZjQeuq0=
 github.com/jacobsa/gcloud v0.0.0-20220426111934-d5f9e155f950 h1:xwvIa1a/P0Vy5qD5UqaQJa7kPiClvym2iL+0ZYCrOdU=
 github.com/jacobsa/gcloud v0.0.0-20220426111934-d5f9e155f950/go.mod h1:nvUMlvvHkp6h7NFL7UuayN/8wmTp1pnVHxT3kfFQHDk=
 github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd h1:9GCSedGjMcLZCrusBZuo4tyKLpKUPenUUqi34AkuFmA=
