@@ -7,29 +7,42 @@ The progress is updated in output.out file.
 import argparse
 import configparser
 from datetime import datetime as dt
+import logging
 import os
 import subprocess
 from subprocess import Popen
 import sys
 
 OUTPUT_FILE = str(dt.now().isoformat()) + '.out'
-TEMPORARY_DIRECTORY = '/tmp/data_gen'
+TEMPORARY_DIRECTORY = './tmp/data_gen'
 BATCH_SIZE = 100
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger = logging.getLogger()
 
 
 def logmessage(message) -> None:
   with open(OUTPUT_FILE, 'a') as out:
     out.write(message)
-  print(message)
+  logger.info(message)
 
 
 def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
                                             file_size_unit, file_size,
                                             filename_prefix,
-                                            local_destination_folder):
+                                            local_destination_folder,
+                                            upload_to_gcs_bucket):
 
-  for batch_start in range(1, num_of_files+1, BATCH_SIZE):
+  for batch_start in range(1, num_of_files + 1, BATCH_SIZE):
     for file_num in range(batch_start, batch_start + BATCH_SIZE):
+      if file_num > num_of_files:
+        break
+
       file_name = '{}_{}'.format(filename_prefix, file_num)
       temp_file = '{}/{}.txt'.format(TEMPORARY_DIRECTORY, file_name)
 
@@ -41,17 +54,23 @@ def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
           out.truncate(1024 * 1024 * int(file_size))
         if(file_size_unit.lower() == 'kb'):
           out.truncate(1024 * int(file_size))
+        if(file_size_unit.lower() == 'b'):
+          out.truncate(int(file_size))
+
+    num_files = os.listdir(TEMPORARY_DIRECTORY)
+    if not num_files:
+      return 0
 
     # Uploading batch files to GCS
-    process = Popen(
-        'gsutil -m cp -r {}/* {}'.format(TEMPORARY_DIRECTORY,
-                                         destination_blob_name),
-        shell=True)
-    process.communicate()
-    exit_code = process.wait()
-    if(exit_code != 0):
-      print('Exited with code {}'.format(exit_code))
-      subprocess.call('bash', shell=True)
+    if upload_to_gcs_bucket:
+      process = Popen(
+          'gsutil -m cp -r {}/* {}'.format(TEMPORARY_DIRECTORY,
+                                          destination_blob_name),
+          shell=True)
+      process.communicate()
+      exit_code = process.wait()
+      if exit_code != 0:
+        return exit_code
 
     # Copying batch files from temporary to local destination folder:
     subprocess.call(
@@ -59,11 +78,14 @@ def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
         shell=True)
 
     # Deleting batch files from temporary folder:
-    subprocess.call('rm -r {}/*'.format(TEMPORARY_DIRECTORY), shell=True)
+    subprocess.call('rm -rf {}/*'.format(TEMPORARY_DIRECTORY), shell=True)
 
     # Writing number of files uploaded to output file after every batch uploads:
     logmessage('{}/{} files uploaded to {}\n'.format(file_num, num_of_files,
                                                      destination_blob_name))
+
+  return 0
+
 
 if __name__ == '__main__':
   argv = sys.argv
@@ -128,10 +150,15 @@ if __name__ == '__main__':
                                                     destination_folder,
                                                     destination_sub_folder)
 
-    generate_files_and_upload_to_gcs_bucket(destination_blob_name,
-                                            int(num_of_files), file_size_unit,
-                                            int(file_size), file_name_prefix,
-                                            local_destination_folder)
+    exit_code = generate_files_and_upload_to_gcs_bucket(destination_blob_name,
+                                                        int(num_of_files), file_size_unit,
+                                                        int(file_size), file_name_prefix,
+                                                        local_destination_folder,
+                                                        True)
+    if exit_code != 0:
+      print('Exited with code {}'.format(exit_code))
+      subprocess.call('bash', shell=True)
+
     keep_files = args.keep_files
     if(keep_files == False):
     # Deleting bucket directory:
