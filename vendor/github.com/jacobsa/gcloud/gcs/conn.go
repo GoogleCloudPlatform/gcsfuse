@@ -103,16 +103,18 @@ type ConnConfig struct {
 	HTTPDebugLogger *log.Logger
 
 	// Config parameters for the custom http client of Go Storage Client.
-	MaxConnsPerHost     int
-	MaxIdleConnsPerHost int
-	DisableHTTP2        bool
+	MaxConnsPerHost            int
+	MaxIdleConnsPerHost        int
+	DisableHTTP2               bool
+	EnableStorageClientLibrary bool // Switches to Go Client API.
 }
 
 // Go Client Config structure.
 type GoClientConfig struct {
-	MaxConnsPerHost     int
-	MaxIdleConnsPerHost int
-	DisableHTTP2        bool
+	MaxConnsPerHost            int
+	MaxIdleConnsPerHost        int
+	DisableHTTP2               bool
+	EnableStorageClientLibrary bool
 }
 
 // Open a connection to GCS.
@@ -120,9 +122,10 @@ func NewConn(cfg *ConnConfig) (c Conn, err error) {
 
 	tokenSrc := cfg.TokenSource
 	goClientConfig := &GoClientConfig{
-		MaxConnsPerHost:     cfg.MaxConnsPerHost,
-		MaxIdleConnsPerHost: cfg.MaxIdleConnsPerHost,
-		DisableHTTP2:        cfg.DisableHTTP2,
+		MaxConnsPerHost:            cfg.MaxConnsPerHost,
+		MaxIdleConnsPerHost:        cfg.MaxIdleConnsPerHost,
+		DisableHTTP2:               cfg.DisableHTTP2,
+		EnableStorageClientLibrary: cfg.EnableStorageClientLibrary,
 	}
 	// Fix the user agent if there is none.
 	userAgent := cfg.UserAgent

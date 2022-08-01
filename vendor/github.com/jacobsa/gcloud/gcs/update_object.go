@@ -85,7 +85,7 @@ func (b *bucket) makeUpdateObjectBody(
 func (b *bucket) UpdateObject(
 	ctx context.Context,
 	req *UpdateObjectRequest) (o *Object, err error) {
-	if true {
+	if b.enableStorageClientLibrary {
 		o, err = UpdateObjectSCL(ctx, req, b.name, b.storageClient)
 		return
 	}

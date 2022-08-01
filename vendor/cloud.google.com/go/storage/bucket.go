@@ -1991,9 +1991,7 @@ func (it *ObjectIterator) fetch(pageSize int, pageToken string) (string, error) 
 	if it.bucket.userProject != "" {
 		req.UserProject(it.bucket.userProject)
 	}
-	if pageSize > 0 {
-		req.MaxResults(int64(pageSize))
-	}
+	req.MaxResults(5000) // This is done because the default is 1000 and we need to find a way to make this configurable.
 	var resp *raw.Objects
 	var err error
 	err = run(it.ctx, func() error {

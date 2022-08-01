@@ -81,7 +81,7 @@ func (b *bucket) ComposeObjects(
 		return
 	}
 
-	if true {
+	if b.enableStorageClientLibrary {
 		o, err = ComposeObjectsSCL(ctx, req, b.name, b.storageClient)
 		return
 	}
