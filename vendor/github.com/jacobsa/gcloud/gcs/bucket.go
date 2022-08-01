@@ -281,11 +281,25 @@ func ListObjectsSCL(
 		return
 	}
 
+	// Explicitly converting Projection Value because the ProjectionVal interface of jacobsa/gcloud and Go Client API are not coupled correctly.
+	var convertedProjection storage.Projection = storage.Projection(0) // Stores the Projection Value according to the Go Client API Interface.
+	switch int(req.ProjectionVal) {
+	// Projection Value 0 in jacobsa/gcloud maps to Projection Value 1 in Go Client API, that is for "full".
+	case 0:
+		convertedProjection = storage.Projection(1)
+	// Projection Value 1 in jacobsa/gcloud maps to Projection Value 2 in Go Client API, that is for "noAcl".
+	case 1:
+		convertedProjection = storage.Projection(2)
+	// Default Projection value in jacobsa/gcloud library is 0 that maps to 1 in Go Client API interface, and that is for "full".
+	default:
+		convertedProjection = storage.Projection(1)
+	}
+
 	// Converting *ListObjectsRequest to type *storage.Query as expected by the Go Storage Client.
 	query := &storage.Query{
 		Delimiter:                req.Delimiter,
 		Prefix:                   req.Prefix,
-		Projection:               storage.Projection(req.ProjectionVal),
+		Projection:               convertedProjection,
 		IncludeTrailingDelimiter: req.IncludeTrailingDelimiter,
 		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
 	}

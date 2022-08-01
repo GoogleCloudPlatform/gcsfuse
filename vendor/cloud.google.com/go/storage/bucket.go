@@ -1977,7 +1977,7 @@ func (it *ObjectIterator) fetch(pageSize int, pageToken string) (string, error) 
 	if projection == ProjectionDefault {
 		projection = ProjectionFull
 	}
-	req.Projection("noAcl")
+	req.Projection(projection.String())
 	req.Delimiter(it.query.Delimiter)
 	req.Prefix(it.query.Prefix)
 	req.StartOffset(it.query.StartOffset)
@@ -1991,7 +1991,7 @@ func (it *ObjectIterator) fetch(pageSize int, pageToken string) (string, error) 
 	if it.bucket.userProject != "" {
 		req.UserProject(it.bucket.userProject)
 	}
-	req.MaxResults(5000)
+	req.MaxResults(5000) // This is done because the default is 1000 and we need to find a way to make this configurable.
 	var resp *raw.Objects
 	var err error
 	err = run(it.ctx, func() error {

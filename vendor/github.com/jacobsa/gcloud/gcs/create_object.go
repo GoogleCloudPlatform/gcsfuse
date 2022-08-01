@@ -265,7 +265,7 @@ func CreateObjectSCL(
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
 	// Chuck size for resumable upload is deafult i.e. 16MB.
 	wc := obj.NewWriter(ctx)
-	wc.ChunkSize = 0 // This will enable one shot upload and thus increase performance.
+	wc.ChunkSize = 0 // This will enable one shot upload and thus increase performance. JSON API Client also performs one-shot upload.
 	wc = SetAttrs(wc, req)
 
 	// Copying contents from the request to the Writer. These contents will be copied to the newly created object / already existing object.
