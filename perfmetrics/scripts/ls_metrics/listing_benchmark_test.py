@@ -215,6 +215,15 @@ class ListingBenchmarkTest(unittest.TestCase):
         self.assertEqual(mock_subprocess_call.call_count, 5)
         self.assertEqual(result_list, [0, 0, 0, 0, 0])
 
+    @patch('listing_benchmark.subprocess.call', return_value=1)
+    @patch('listing_benchmark.time.time')
+    def test_record_time_of_operation_different_time(self, mock_time, mock_subprocess_call):
+        mock_time.side_effect = [1, 2, 3, 5]
+        result_list = listing_benchmark._record_time_of_operation(
+            'ls', 'fakepath/', 2)
+        self.assertEqual(mock_subprocess_call.call_count, 2)
+        self.assertEqual(result_list, [1000, 2000])
+
     @patch('listing_benchmark._record_time_of_operation')
     def test_perform_testing_type1(self, mock_record_time_of_operation):
         mock_record_time_of_operation.return_value = [1, 1, 1]
