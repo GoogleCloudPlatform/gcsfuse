@@ -201,7 +201,7 @@ def _create_directory_structure(gcs_bucket_url, persistent_disk_url, directory_s
 
 
 def _list_directory(path) -> list:
-  """Returns the list containing path of all the contents present in the current directory and also the number of contents.
+  """Returns the list containing path of all the contents present in the current directory.
 
   Args:
     path: Path of the directory.
