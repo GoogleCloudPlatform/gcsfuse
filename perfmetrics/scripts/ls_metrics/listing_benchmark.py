@@ -81,18 +81,18 @@ def _parse_results(folders, results_list, message, num_samples) -> dict:
 
     # Sorting based on time.
     results_list[testing_folder.name] = sorted(results_list[testing_folder.name])
-    metrics[testing_folder.name]['Mean'] = stat.mean(results_list[testing_folder.name])
-    metrics[testing_folder.name]['Median'] = stat.median(results_list[testing_folder.name])
-    metrics[testing_folder.name]['Standard Dev'] = stat.stdev(results_list[testing_folder.name])
+    metrics[testing_folder.name]['Mean'] = round(stat.mean(results_list[testing_folder.name]), 3)
+    metrics[testing_folder.name]['Median'] = round(stat.median(results_list[testing_folder.name]), 3)
+    metrics[testing_folder.name]['Standard Dev'] = round(stat.stdev(results_list[testing_folder.name]), 3)
 
     metrics[testing_folder.name]['Quantiles'] = dict()
     for percentile in range(0, 100, 20):
-      metrics[testing_folder.name]['Quantiles']['{} %ile'.format(percentile)] = np.percentile(results_list[testing_folder.name], percentile)
-    metrics[testing_folder.name]['Quantiles']['90 %ile'] = np.percentile(results_list[testing_folder.name], 90)
-    metrics[testing_folder.name]['Quantiles']['95 %ile'] = np.percentile(results_list[testing_folder.name], 95)
-    metrics[testing_folder.name]['Quantiles']['98 %ile'] = np.percentile(results_list[testing_folder.name], 98)
-    metrics[testing_folder.name]['Quantiles']['99 %ile'] = np.percentile(results_list[testing_folder.name], 99)
-    metrics[testing_folder.name]['Quantiles']['100 %ile'] = np.percentile(results_list[testing_folder.name], 100)
+      metrics[testing_folder.name]['Quantiles']['{} %ile'.format(percentile)] = round(np.percentile(results_list[testing_folder.name], percentile), 3)
+    metrics[testing_folder.name]['Quantiles']['90 %ile'] = round(np.percentile(results_list[testing_folder.name], 90), 3)
+    metrics[testing_folder.name]['Quantiles']['95 %ile'] = round(np.percentile(results_list[testing_folder.name], 95), 3)
+    metrics[testing_folder.name]['Quantiles']['98 %ile'] = round(np.percentile(results_list[testing_folder.name], 98), 3)
+    metrics[testing_folder.name]['Quantiles']['99 %ile'] = round(np.percentile(results_list[testing_folder.name], 99), 3)
+    metrics[testing_folder.name]['Quantiles']['100 %ile'] = round(np.percentile(results_list[testing_folder.name], 100), 3)
 
   print(metrics)
   return metrics

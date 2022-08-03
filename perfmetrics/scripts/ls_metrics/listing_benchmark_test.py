@@ -147,20 +147,20 @@ class ListingBenchmarkTest(unittest.TestCase):
                          {
                              'Test Desc.': 'fake_test',
                              'Number of samples': 5,
-                             'Mean': 0.517818,
+                             'Mean': 0.518,
                              'Median': 0.222,
-                             'Standard Dev': 0.5559497869592182,
+                             'Standard Dev': 0.556,
                              'Quantiles':
                              {
-                                 '0 %ile': 0.01709,
-                                 '20 %ile': 0.100218,
-                                 '40 %ile': 0.1816,
-                                 '60 %ile': 0.5311999999999999,
-                                 '80 %ile': 1.0428,
-                                 '90 %ile': 1.1384,
-                                 '95 %ile': 1.1862,
-                                 '98 %ile': 1.21488,
-                                 '99 %ile': 1.22444,
+                                 '0 %ile': 0.017,
+                                 '20 %ile': 0.1,
+                                 '40 %ile': 0.182,
+                                 '60 %ile': 0.531,
+                                 '80 %ile': 1.043,
+                                 '90 %ile': 1.138,
+                                 '95 %ile': 1.186,
+                                 '98 %ile': 1.215,
+                                 '99 %ile': 1.224,
                                  '100 %ile': 1.234
                              }
                          },
@@ -170,18 +170,18 @@ class ListingBenchmarkTest(unittest.TestCase):
                              'Number of samples': 5,
                              'Mean': 19.965,
                              'Median': 1.95,
-                             'Standard Dev': 39.504362202166995,
+                             'Standard Dev': 39.504,
                              'Quantiles':
                              {
                                  '0 %ile': 0.001,
-                                 '20 %ile': 0.2674,
-                                 '40 %ile': 1.3036,
-                                 '60 %ile': 4.005999999999999,
-                                 '80 %ile': 23.762000000000015,
-                                 '90 %ile': 57.10600000000001,
-                                 '95 %ile': 73.77799999999999,
-                                 '98 %ile': 83.7812,
-                                 '99 %ile': 87.1156,
+                                 '20 %ile': 0.267,
+                                 '40 %ile': 1.304,
+                                 '60 %ile': 4.006,
+                                 '80 %ile': 23.762,
+                                 '90 %ile': 57.106,
+                                 '95 %ile': 73.778,
+                                 '98 %ile': 83.781,
+                                 '99 %ile': 87.116,
                                  '100 %ile': 90.45
                              }
                          },
@@ -191,18 +191,18 @@ class ListingBenchmarkTest(unittest.TestCase):
                              'Number of samples': 5,
                              'Mean': 37,
                              'Median': 21,
-                             'Standard Dev': 39.62953444086872,
+                             'Standard Dev': 39.63,
                              'Quantiles':
                              {
                                  '0 %ile': 6.0,
                                  '20 %ile': 6.8,
-                                 '40 %ile': 15.400000000000002,
+                                 '40 %ile': 15.4,
                                  '60 %ile': 33.0,
-                                 '80 %ile': 60.80000000000001,
+                                 '80 %ile': 60.8,
                                  '90 %ile': 80.4,
-                                 '95 %ile': 90.19999999999999,
+                                 '95 %ile': 90.2,
                                  '98 %ile': 96.08,
-                                 '99 %ile': 98.03999999999999,
+                                 '99 %ile': 98.04,
                                  '100 %ile': 100.0
                              }
                          }
