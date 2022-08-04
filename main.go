@@ -16,8 +16,7 @@
 //
 // Usage:
 //
-//     gcsfuse [flags] bucket mount_point
-//
+//	gcsfuse [flags] bucket mount_point
 package main
 
 import (
@@ -29,6 +28,7 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"golang.org/x/net/context"
@@ -349,6 +349,49 @@ func run() (err error) {
 	return
 }
 
+func isFileExist(filePath string) bool {
+	_, err := os.Stat(filePath)
+	return err == nil
+}
+
+func getResolvedPath(path string) (resolvedPath string, err error) {
+	if strings.HasPrefix(path, "~/") {
+		homeDir, err1 := os.UserHomeDir()
+		if err1 != nil {
+			return "", fmt.Errorf("get home dir: %w", err1)
+		}
+		return filepath.Join(homeDir, path[2:]), nil
+	} else {
+		return filepath.Abs(path)
+	}
+}
+func resolvePathInCLIArguments(args []string, skipFileTest bool) (err error) {
+	// check for the log-file
+	for idx, flag := range args {
+		if strings.HasPrefix(flag, "--log-file") {
+			// case: --log-file <path of log file>
+			if flag == "--log-file" {
+				if idx+1 < len(args) && (skipFileTest || isFileExist(args[idx+1])) {
+					args[idx+1], err = getResolvedPath(args[idx+1])
+					if err != nil {
+						return fmt.Errorf("while resolving path: %w", err)
+					}
+				}
+			} else { // --log-file=<path of log file>
+				filePath := flag[11:]
+				if skipFileTest || isFileExist(filePath) {
+					args[idx], err = getResolvedPath(filePath)
+					if err != nil {
+						return fmt.Errorf("while resolving path: %w", err)
+					}
+					args[idx] = "--log-file=" + args[idx]
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func main() {
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
@@ -357,10 +400,19 @@ func main() {
 	go perf.HandleCPUProfileSignals()
 	go perf.HandleMemoryProfileSignals()
 
-	// Run.
-	err := run()
+	err := resolvePathInCLIArguments(os.Args, false)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	testArgs := os.Args
+	fmt.Println(testArgs)
+
+	// Run.
+	err1 := run()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err1)
 		os.Exit(1)
 	}
 }
