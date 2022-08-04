@@ -81,18 +81,18 @@ def _parse_results(folders, results_list, message, num_samples) -> dict:
 
     # Sorting based on time.
     results_list[testing_folder.name] = sorted(results_list[testing_folder.name])
-    metrics[testing_folder.name]['Mean'] = stat.mean(results_list[testing_folder.name])
-    metrics[testing_folder.name]['Median'] = stat.median(results_list[testing_folder.name])
-    metrics[testing_folder.name]['Standard Dev'] = stat.stdev(gcs_bucket_results[testing_folder.name])
+    metrics[testing_folder.name]['Mean'] = round(stat.mean(results_list[testing_folder.name]), 3)
+    metrics[testing_folder.name]['Median'] = round(stat.median(results_list[testing_folder.name]), 3)
+    metrics[testing_folder.name]['Standard Dev'] = round(stat.stdev(results_list[testing_folder.name]), 3)
 
     metrics[testing_folder.name]['Quantiles'] = dict()
     for percentile in range(0, 100, 20):
-      metrics[testing_folder.name]['Quantiles']['{} %ile'.format(percentile)] = np.percentile(results_list[testing_folder.name], percentile)
-    metrics[testing_folder.name]['Quantiles']['90 %ile'] = np.percentile(results_list[testing_folder.name], 90)
-    metrics[testing_folder.name]['Quantiles']['95 %ile'] = np.percentile(results_list[testing_folder.name], 95)
-    metrics[testing_folder.name]['Quantiles']['98 %ile'] = np.percentile(results_list[testing_folder.name], 98)
-    metrics[testing_folder.name]['Quantiles']['99 %ile'] = np.percentile(results_list[testing_folder.name], 99)
-    metrics[testing_folder.name]['Quantiles']['100 %ile'] = np.percentile(results_list[testing_folder.name], 100)
+      metrics[testing_folder.name]['Quantiles']['{} %ile'.format(percentile)] = round(np.percentile(results_list[testing_folder.name], percentile), 3)
+    metrics[testing_folder.name]['Quantiles']['90 %ile'] = round(np.percentile(results_list[testing_folder.name], 90), 3)
+    metrics[testing_folder.name]['Quantiles']['95 %ile'] = round(np.percentile(results_list[testing_folder.name], 95), 3)
+    metrics[testing_folder.name]['Quantiles']['98 %ile'] = round(np.percentile(results_list[testing_folder.name], 98), 3)
+    metrics[testing_folder.name]['Quantiles']['99 %ile'] = round(np.percentile(results_list[testing_folder.name], 99), 3)
+    metrics[testing_folder.name]['Quantiles']['100 %ile'] = round(np.percentile(results_list[testing_folder.name], 100), 3)
 
   print(metrics)
   return metrics
@@ -200,20 +200,19 @@ def _create_directory_structure(gcs_bucket_url, persistent_disk_url, directory_s
   return int(result > 0)
 
 
-def _list_directory(path) -> (list, int):
-  """Returns the list containing path of all the contents present in the current directory and also the number of contents.
+def _list_directory(path) -> list:
+  """Returns the list containing path of all the contents present in the current directory.
 
   Args:
     path: Path of the directory.
 
   Returns:
-    A list containing path of all contents present in the input path. Also returns the number of contents.
+    A list containing path of all contents present in the input path.
   """
 
   contents = subprocess.check_output('gsutil -m ls {}'.format(path), shell=True)
   contents_url = contents.decode('utf-8').split('\n')[:-1]
-  num_contents = len(contents_url)
-  return contents_url, num_contents
+  return contents_url
 
 
 def _compare_directory_structure(url, directory_structure) -> bool:
@@ -227,7 +226,7 @@ def _compare_directory_structure(url, directory_structure) -> bool:
     True if GCS bucket contents matches the directory structure.
   """
 
-  contents_url, num_contents = _list_directory(url)
+  contents_url = _list_directory(url)
   # gsutil in some cases return the contents_url list with the current directory in
   # the first index. We dont want the current directory so we remove it
   # manually.
