@@ -1,6 +1,6 @@
 module github.com/googlecloudplatform/gcsfuse
 
-go 1.14
+go 1.18.4
 
 require (
 	cloud.google.com/go/monitoring v1.2.0 // indirect
