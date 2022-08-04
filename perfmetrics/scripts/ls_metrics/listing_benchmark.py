@@ -36,8 +36,8 @@ import directory_pb2 as directory_proto
 
 sys.path.insert(0, '..')
 import generate_files
+from gsheet import gsheet
 import numpy as np
-import texttable
 
 from google.protobuf.json_format import Parse, ParseDict
 
@@ -48,6 +48,76 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 log = logging.getLogger()
+
+WORKSHEET_NAME_GCS = 'ls_metrics_gcsfuse'
+WORKSHEET_NAME_PD = 'ls_metrics_persistent_disk'
+
+
+def _count_number_of_files_and_folders(directory, files, folders):
+  """Count the number of files and folders in the given directory recursively.
+
+  Args:
+    directory: protobuf of the directory.
+    files: Number of files.
+    folders: Number of folders.
+
+  Returns:
+    Number of files and folders encountered till now.
+  """
+
+  files += directory.num_files
+  folders += directory.num_folders
+  for folder in directory.folders:
+    child_files = 0
+    child_folders = 0
+    child_files, child_folders = _count_number_of_files_and_folders(folder, child_files, child_folders)
+    files += child_files
+    folders += child_folders
+  return files, folders
+
+
+def _export_to_gsheet(folders, metrics, command, worksheet) -> None:
+  """Exports data to the Google Sheet.
+
+  Args:
+    folders: List containing protobufs of testing folders.
+    metrics: A dictionary containing all the result metrics for each testing folder.
+    command: Command to run the tests on.
+    worksheet: Google Sheet worksheet to upload the data.
+  """
+
+  # Changing directory to comply with "cred.json" path in "gsheet.py".
+  os.chdir('..')
+  gsheet_data = []
+  for testing_folder in folders:
+    num_files = 0
+    num_folders = 0
+    num_files, num_folders = _count_number_of_files_and_folders(testing_folder, num_files, num_folders)
+    row = [
+        metrics[testing_folder.name]['Test Desc.'],
+        command,
+        num_files,
+        num_folders,
+        metrics[testing_folder.name]['Number of samples'],
+        metrics[testing_folder.name]['Mean'],
+        metrics[testing_folder.name]['Median'],
+        metrics[testing_folder.name]['Standard Dev'],
+        metrics[testing_folder.name]['Quantiles']['0 %ile'],
+        metrics[testing_folder.name]['Quantiles']['20 %ile'],
+        metrics[testing_folder.name]['Quantiles']['40 %ile'],
+        metrics[testing_folder.name]['Quantiles']['60 %ile'],
+        metrics[testing_folder.name]['Quantiles']['80 %ile'],
+        metrics[testing_folder.name]['Quantiles']['90 %ile'],
+        metrics[testing_folder.name]['Quantiles']['95 %ile'],
+        metrics[testing_folder.name]['Quantiles']['98 %ile'],
+        metrics[testing_folder.name]['Quantiles']['99 %ile'],
+        metrics[testing_folder.name]['Quantiles']['100 %ile']
+    ]
+    gsheet_data.append(row)
+
+  gsheet.write_to_google_sheet(worksheet, gsheet_data)
+  os.chdir('./ls_metrics') # Changing the directory back to current directory.
+  return
 
 
 def _parse_results(folders, results_list, message, num_samples) -> dict:
@@ -439,8 +509,13 @@ if __name__ == '__main__':
   gcs_bucket_results, persistent_disk_results = _perform_testing(directory_structure.folders, gcs_bucket, persistent_disk,
                                                                  int(args.num_samples[0]), args.command[0])
 
-  _parse_results(directory_structure.folders, gcs_bucket_results, args.message, int(args.num_samples[0]))
-  _parse_results(directory_structure.folders, persistent_disk_results, args.message, int(args.num_samples[0]))
+  gcs_parsed_metrics = _parse_results(directory_structure.folders, gcs_bucket_results, args.message, int(args.num_samples[0]))
+  pd_parsed_metrics = _parse_results(directory_structure.folders, persistent_disk_results, args.message, int(args.num_samples[0]))
+
+  if args.upload:
+    log.info('Uploading files to the Google Sheet.\n')
+    _export_to_gsheet(directory_structure.folders, gcs_parsed_metrics, args.command[0], WORKSHEET_NAME_GCS)
+    _export_to_gsheet(directory_structure.folders, pd_parsed_metrics, args.command[0], WORKSHEET_NAME_PD)
 
   if not args.keep_files:
     log.info('Deleting files from persistent disk.\n')
