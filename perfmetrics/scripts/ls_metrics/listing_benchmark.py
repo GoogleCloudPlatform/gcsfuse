@@ -99,13 +99,13 @@ def _export_to_gsheet(folders, metrics, command, worksheet) -> None:
         metrics[testing_folder.name]['Standard Dev'],
         metrics[testing_folder.name]['Quantiles']['0 %ile'],
         metrics[testing_folder.name]['Quantiles']['20 %ile'],
-        metrics[testing_folder.name]['Quantiles']['40 %ile'],
-        metrics[testing_folder.name]['Quantiles']['60 %ile'],
-        metrics[testing_folder.name]['Quantiles']['80 %ile'],
+        metrics[testing_folder.name]['Quantiles']['50 %ile'],
         metrics[testing_folder.name]['Quantiles']['90 %ile'],
         metrics[testing_folder.name]['Quantiles']['95 %ile'],
         metrics[testing_folder.name]['Quantiles']['98 %ile'],
         metrics[testing_folder.name]['Quantiles']['99 %ile'],
+        metrics[testing_folder.name]['Quantiles']['99.5 %ile'],
+        metrics[testing_folder.name]['Quantiles']['99.9 %ile'],
         metrics[testing_folder.name]['Quantiles']['100 %ile']
     ]
     gsheet_data.append(row)
@@ -124,8 +124,8 @@ def _parse_results(folders, results_list, message, num_samples) -> dict:
   the console.
 
   The metrics present in the output are (in msec):
-  Mean, Median, Standard Dev, 0th %ile, 20th %ile, 40th %ile, 60th %ile,
-  80th %ile, 90th %ile, 95th %ile, 98th %ile, 99th %ile, 100th %ile.
+  Mean, Median, Standard Dev, 0th %ile, 20th %ile, 50th %ile, 90th %ile,
+  95th %ile, 98th %ile, 99th %ile, 99.5th %ile, 99.9th %ile, 100th %ile.
 
   Args:
     folders: List containing protobufs of testing folders.
@@ -156,19 +156,10 @@ def _parse_results(folders, results_list, message, num_samples) -> dict:
         stat.stdev(results_list[testing_folder.name]), 3)
 
     metrics[testing_folder.name]['Quantiles'] = dict()
-    for percentile in range(0, 100, 20):
+    sample_set = [0, 20, 50, 90, 95, 98, 99, 99.5, 99.9, 100]
+    for percentile in sample_set:
       metrics[testing_folder.name]['Quantiles']['{} %ile'.format(percentile)] = round(
           np.percentile(results_list[testing_folder.name], percentile), 3)
-    metrics[testing_folder.name]['Quantiles']['90 %ile'] = round(
-        np.percentile(results_list[testing_folder.name], 90), 3)
-    metrics[testing_folder.name]['Quantiles']['95 %ile'] = round(
-        np.percentile(results_list[testing_folder.name], 95), 3)
-    metrics[testing_folder.name]['Quantiles']['98 %ile'] = round(
-        np.percentile(results_list[testing_folder.name], 98), 3)
-    metrics[testing_folder.name]['Quantiles']['99 %ile'] = round(
-        np.percentile(results_list[testing_folder.name], 99), 3)
-    metrics[testing_folder.name]['Quantiles']['100 %ile'] = round(
-        np.percentile(results_list[testing_folder.name], 100), 3)
 
   print(metrics)
   return metrics
