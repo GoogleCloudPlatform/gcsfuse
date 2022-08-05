@@ -185,7 +185,7 @@ func (t *GcsfuseTest) KeyFile() {
 	const nonexistent = "/tmp/foobarbazdoesntexist"
 
 	// Specify a non-existent key file in two different ways.
-	// We pass --max-retry-sleep 0, just to limit number of retry to 1 with no wait time
+	// We pass --max-retry-sleep 0, just to limit the number of retry to 0 with no wait time
 	testCases := []struct {
 		extraArgs []string
 		env       []string
