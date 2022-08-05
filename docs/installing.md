@@ -10,7 +10,7 @@ If you are running on [Google Compute Engine][], it is recommended that you use
 one of the following images with which it has been tested (preferring the
 latest version when possible):
 
-*   `ubuntu-2004-lts`, `ubuntu-1804-lts`, `ubuntu-1604-lts`, and `ubuntu-1404-lts`
+*   `ubuntu-2004-lts`, `ubuntu-1804-lts`, `ubuntu-1604-lts`, and `ubuntu-1 4-lts`
 *   `debian-10`, `debian-8`, `debian-7`
 *   `centos-8`, `centos-7`
 *   `rhel-7`
@@ -97,8 +97,8 @@ Ensure that dependencies are present:
 
 Download and install the latest release package:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.41.1/gcsfuse-0.41.1-1.x86_64.rpm
-    sudo rpm --install -p gcsfuse-0.41.1-1.x86_64.rpm
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.41.5/gcsfuse-0.41.5-1.x86_64.rpm
+    sudo rpm --install -p gcsfuse-0.41.5-1.x86_64.rpm
 
 <a name="other-distributions"></a>
 
@@ -118,13 +118,13 @@ Ensure that dependencies are present:
 
 If you are on a distribution that uses `.rpm` files for package management:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.41.1/gcsfuse-0.41.1-1.x86_64.rpm
-    sudo rpm --install -p gcsfuse-0.41.1-1.x86_64.rpm
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.41.5/gcsfuse-0.41.5-1.x86_64.rpm
+    sudo rpm --install -p gcsfuse-0.41.5-1.x86_64.rpm
 
 Or one that uses `.deb` files:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.41.1/gcsfuse_0.41.1_amd64.deb
-    sudo dpkg --install gcsfuse_0.41.1_amd64.deb
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.41.5/gcsfuse_0.41.5_amd64.deb
+    sudo dpkg --install gcsfuse_0.41.5_amd64.deb
 
 On some systems it may be necessary to add the your user account to the `fuse`
 group in order to have permission to run `fusermount` (don't forget to log out
