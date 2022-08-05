@@ -330,7 +330,9 @@ func (rr *randomReader) startRead(
 	// optimise for random reads. Random reads will read data in chunks of
 	// (average read size in bytes rounded up to the next MB).
 	end := int64(rr.object.Size)
+	readType := sequential
 	if rr.seeks >= minSeeksForRandom {
+		readType = random
 		averageReadBytes := rr.totalReadBytes / rr.seeks
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
@@ -370,17 +372,12 @@ func (rr *randomReader) startRead(
 	rr.start = start
 	rr.limit = end
 
-	captureMetrics(ctx, rr.seeks)
+	captureMetrics(ctx, readType)
 
 	return
 }
 
-func captureMetrics(ctx context.Context, seeks uint64) {
-	readType := sequential
-	if seeks >= minSeeksForRandom {
-		readType = random
-	}
-
+func captureMetrics(ctx context.Context, readType string) {
 	if err := stats.RecordWithTags(
 		ctx,
 		[]tag.Mutator{
