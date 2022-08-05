@@ -420,7 +420,7 @@ def _parse_arguments(argv):
       help='Puts a message/title describing the test.',
       action='store',
       nargs=1,
-      default='Performance Listing Benchmark',
+      default=['Performance Listing Benchmark'],
       required=False,
   )
   parser.add_argument(
@@ -529,10 +529,10 @@ if __name__ == '__main__':
       int(args.num_samples[0]), args.command[0])
 
   gcs_parsed_metrics = _parse_results(
-      directory_structure.folders, gcs_bucket_results, args.message,
+      directory_structure.folders, gcs_bucket_results, args.message[0],
       int(args.num_samples[0]))
   pd_parsed_metrics = _parse_results(
-      directory_structure.folders, persistent_disk_results, args.message,
+      directory_structure.folders, persistent_disk_results, args.message[0],
       int(args.num_samples[0]))
 
   if args.upload:
