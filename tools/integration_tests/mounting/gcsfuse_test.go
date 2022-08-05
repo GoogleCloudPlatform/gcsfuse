@@ -21,7 +21,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-
 	//"runtime"
 	"syscall"
 	"testing"
@@ -182,24 +181,24 @@ func (t *GcsfuseTest) MountPointIsAFile() {
 	ExpectThat(err, Error(HasSubstr("is not a directory")))
 }
 
-// TODO: hangs
-/*
 func (t *GcsfuseTest) KeyFile() {
 	const nonexistent = "/tmp/foobarbazdoesntexist"
 
 	// Specify a non-existent key file in two different ways.
+	// We pass --max-retry-sleep 0, just to limit the number of retry to 0 with no wait time
 	testCases := []struct {
 		extraArgs []string
 		env       []string
 	}{
 		// Via flag
 		0: {
-			extraArgs: []string{fmt.Sprintf("--key-file=%s", nonexistent)},
+			extraArgs: []string{fmt.Sprintf("--key-file=%s", nonexistent), "--max-retry-sleep=0"},
 		},
 
 		// Via the environment
 		1: {
-			env: []string{fmt.Sprintf("GOOGLE_APPLICATION_CREDENTIALS=%s", nonexistent)},
+			env:       []string{fmt.Sprintf("GOOGLE_APPLICATION_CREDENTIALS=%s", nonexistent)},
+			extraArgs: []string{"--max-retry-sleep=0"},
 		},
 	}
 
@@ -218,7 +217,6 @@ func (t *GcsfuseTest) KeyFile() {
 		ExpectThat(string(output), HasSubstr("no such file"), "case %d", i)
 	}
 }
-*/
 
 func (t *GcsfuseTest) CannedContents() {
 	var err error
