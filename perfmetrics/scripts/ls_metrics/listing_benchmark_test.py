@@ -130,6 +130,24 @@ DIRECTORY_STRUCTURE3 = ParseDict(
 
 class ListingBenchmarkTest(unittest.TestCase):
 
+  def test_num_files_and_folders_single_level_dir(self):
+    num_files, num_folders = listing_benchmark._count_number_of_files_and_folders(
+        DIRECTORY_STRUCTURE1, 0, 0)
+    self.assertEqual(num_files, 0)
+    self.assertEqual(num_folders, 0)
+
+  def test_num_files_and_folders_double_level_dir(self):
+    num_files, num_folders = listing_benchmark._count_number_of_files_and_folders(
+        DIRECTORY_STRUCTURE2, 0, 0)
+    self.assertEqual(num_files, 6)
+    self.assertEqual(num_folders, 3)
+
+  def test_num_files_and_folders_multi_level_dir(self):
+    num_files, num_folders = listing_benchmark._count_number_of_files_and_folders(
+        DIRECTORY_STRUCTURE3, 0, 0)
+    self.assertEqual(num_files, 14)
+    self.assertEqual(num_folders, 10)
+
   def test_parse_results_single_level_dir(self):
     metrics = listing_benchmark._parse_results(
         DIRECTORY_STRUCTURE1.folders, {}, 'fake_test', 5)
