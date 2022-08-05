@@ -401,19 +401,16 @@ func main() {
 	go perf.HandleCPUProfileSignals()
 	go perf.HandleMemoryProfileSignals()
 
-	err := resolvePathInCLIArguments([]string{"--log-file", "--key-file"}, os.Args, false)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	resolveErr := resolvePathInCLIArguments([]string{"--log-file", "--key-file"}, os.Args, false)
+	if resolveErr != nil {
+		fmt.Fprintln(os.Stderr, resolveErr)
 		os.Exit(1)
 	}
 
-	testArgs := os.Args
-	fmt.Println(testArgs)
-
 	// Run.
-	err1 := run()
+	err := run()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err1)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
