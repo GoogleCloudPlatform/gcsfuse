@@ -38,6 +38,7 @@ import directory_pb2 as directory_proto
 sys.path.insert(0, '..')
 import generate_files
 from google.protobuf.json_format import ParseDict
+from gsheet import gsheet
 import numpy as np
 
 
@@ -47,6 +48,71 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 log = logging.getLogger()
+
+WORKSHEET_NAME_GCS = 'ls_metrics_gcsfuse'
+WORKSHEET_NAME_PD = 'ls_metrics_persistent_disk'
+
+
+def _count_number_of_files_and_folders(directory, files, folders):
+  """Count the number of files and folders in the given directory recursively.
+  Args:
+    directory: protobuf of the directory.
+    files: Number of files.
+    folders: Number of folders.
+  Returns:
+    Number of files and folders encountered till now.
+  """
+
+  files += directory.num_files
+  folders += directory.num_folders
+  for folder in directory.folders:
+    child_files, child_folders = _count_number_of_files_and_folders(folder, 0, 0)
+    files += child_files
+    folders += child_folders
+  return files, folders
+
+
+def _export_to_gsheet(folders, metrics, command, worksheet) -> None:
+  """Exports data to the Google Sheet.
+  Args:
+    folders: List containing protobufs of testing folders.
+    metrics: A dictionary containing all the result metrics for each
+             testing folder.
+    command: Command to run the tests on.
+    worksheet: Google Sheet worksheet to upload the data.
+  """
+
+  # Changing directory to comply with "cred.json" path in "gsheet.py".
+  os.chdir('..')
+  gsheet_data = []
+  for testing_folder in folders:
+    num_files, num_folders = _count_number_of_files_and_folders(
+        testing_folder, 0, 0)
+    row = [
+        metrics[testing_folder.name]['Test Desc.'],
+        command,
+        num_files,
+        num_folders,
+        metrics[testing_folder.name]['Number of samples'],
+        metrics[testing_folder.name]['Mean'],
+        metrics[testing_folder.name]['Median'],
+        metrics[testing_folder.name]['Standard Dev'],
+        metrics[testing_folder.name]['Quantiles']['0 %ile'],
+        metrics[testing_folder.name]['Quantiles']['20 %ile'],
+        metrics[testing_folder.name]['Quantiles']['50 %ile'],
+        metrics[testing_folder.name]['Quantiles']['90 %ile'],
+        metrics[testing_folder.name]['Quantiles']['95 %ile'],
+        metrics[testing_folder.name]['Quantiles']['98 %ile'],
+        metrics[testing_folder.name]['Quantiles']['99 %ile'],
+        metrics[testing_folder.name]['Quantiles']['99.5 %ile'],
+        metrics[testing_folder.name]['Quantiles']['99.9 %ile'],
+        metrics[testing_folder.name]['Quantiles']['100 %ile']
+    ]
+    gsheet_data.append(row)
+
+  gsheet.write_to_google_sheet(worksheet, gsheet_data)
+  os.chdir('./ls_metrics')  # Changing the directory back to current directory.
+  return
 
 
 def _parse_results(folders, results_list, message, num_samples) -> dict:
@@ -58,8 +124,8 @@ def _parse_results(folders, results_list, message, num_samples) -> dict:
   the console.
 
   The metrics present in the output are (in msec):
-  Mean, Median, Standard Dev, 0th %ile, 20th %ile, 40th %ile, 60th %ile,
-  80th %ile, 90th %ile, 95th %ile, 98th %ile, 99th %ile, 100th %ile.
+  Mean, Median, Standard Dev, 0th %ile, 20th %ile, 50th %ile, 90th %ile,
+  95th %ile, 98th %ile, 99th %ile, 99.5th %ile, 99.9th %ile, 100th %ile.
 
   Args:
     folders: List containing protobufs of testing folders.
@@ -90,19 +156,10 @@ def _parse_results(folders, results_list, message, num_samples) -> dict:
         stat.stdev(results_list[testing_folder.name]), 3)
 
     metrics[testing_folder.name]['Quantiles'] = dict()
-    for percentile in range(0, 100, 20):
+    sample_set = [0, 20, 50, 90, 95, 98, 99, 99.5, 99.9, 100]
+    for percentile in sample_set:
       metrics[testing_folder.name]['Quantiles']['{} %ile'.format(percentile)] = round(
           np.percentile(results_list[testing_folder.name], percentile), 3)
-    metrics[testing_folder.name]['Quantiles']['90 %ile'] = round(
-        np.percentile(results_list[testing_folder.name], 90), 3)
-    metrics[testing_folder.name]['Quantiles']['95 %ile'] = round(
-        np.percentile(results_list[testing_folder.name], 95), 3)
-    metrics[testing_folder.name]['Quantiles']['98 %ile'] = round(
-        np.percentile(results_list[testing_folder.name], 98), 3)
-    metrics[testing_folder.name]['Quantiles']['99 %ile'] = round(
-        np.percentile(results_list[testing_folder.name], 99), 3)
-    metrics[testing_folder.name]['Quantiles']['100 %ile'] = round(
-        np.percentile(results_list[testing_folder.name], 100), 3)
 
   print(metrics)
   return metrics
@@ -477,6 +534,15 @@ if __name__ == '__main__':
   pd_parsed_metrics = _parse_results(
       directory_structure.folders, persistent_disk_results, args.message,
       int(args.num_samples[0]))
+
+  if args.upload:
+    log.info('Uploading files to the Google Sheet.\n')
+    _export_to_gsheet(
+        directory_structure.folders, gcs_parsed_metrics, args.command[0],
+        WORKSHEET_NAME_GCS)
+    _export_to_gsheet(
+        directory_structure.folders, pd_parsed_metrics, args.command[0],
+        WORKSHEET_NAME_PD)
 
   if not args.keep_files:
     log.info('Deleting files from persistent disk.\n')

@@ -119,6 +119,72 @@ METRICS1 = [1.234, 0.995, 0.121, 0.222, 0.01709]
 METRICS2 = [90.45, 1.95, 0.334, 7.090, 0.001]
 METRICS3 = [100, 7, 6, 51, 21]
 
+SAMPLE_METRIC_FOR_DIRECTORY_STRUCTURE_2 = {
+    '2KB_3files_0subdir':
+    {
+        'Test Desc.': 'fake_test',
+        'Number of samples': 5,
+        'Mean': 0.518,
+        'Median': 0.222,
+        'Standard Dev': 0.556,
+        'Quantiles':
+        {
+            '0 %ile': 0.017,
+            '20 %ile': 0.1,
+            '50 %ile': 0.222,
+            '90 %ile': 1.138,
+            '95 %ile': 1.186,
+            '98 %ile': 1.215,
+            '99 %ile': 1.224,
+            '99.5 %ile': 1.229,
+            '99.9 %ile': 1.233,
+            '100 %ile': 1.234
+        }
+    },
+    '1KB_2files_0subdir':
+    {
+        'Test Desc.': 'fake_test',
+        'Number of samples': 5,
+        'Mean': 19.965,
+        'Median': 1.95,
+        'Standard Dev': 39.504,
+        'Quantiles':
+        {
+            '0 %ile': 0.001,
+            '20 %ile': 0.267,
+            '50 %ile': 1.95,
+            '90 %ile': 57.106,
+            '95 %ile': 73.778,
+            '98 %ile': 83.781,
+            '99 %ile': 87.116,
+            '99.5 %ile': 88.783,
+            '99.9 %ile': 90.117,
+            '100 %ile': 90.45
+        }
+    },
+    '1KB_0files_0subdir':
+    {
+        'Test Desc.': 'fake_test',
+        'Number of samples': 5,
+        'Mean': 37,
+        'Median': 21,
+        'Standard Dev': 39.63,
+        'Quantiles':
+        {
+            '0 %ile': 6.0,
+            '20 %ile': 6.8,
+            '50 %ile': 21.0,
+            '90 %ile': 80.4,
+            '95 %ile': 90.2,
+            '98 %ile': 96.08,
+            '99 %ile': 98.04,
+            '99.5 %ile': 99.02,
+            '99.9 %ile': 99.804,
+            '100 %ile': 100.0
+        }
+    }
+}
+
 # Converting JSON to protobuf.
 DIRECTORY_STRUCTURE1 = ParseDict(
     DIRECTORY_STRUCTURE1, directory_proto.Directory())
@@ -127,13 +193,50 @@ DIRECTORY_STRUCTURE2 = ParseDict(
 DIRECTORY_STRUCTURE3 = ParseDict(
     DIRECTORY_STRUCTURE3, directory_proto.Directory())
 
+WORKSHEET_NAME = 'ls_metrics_gcsfuse'
+
 
 class ListingBenchmarkTest(unittest.TestCase):
+
+  def test_num_files_and_folders_single_level_dir(self):
+    num_files, num_folders = listing_benchmark._count_number_of_files_and_folders(
+        DIRECTORY_STRUCTURE1, 0, 0)
+    self.assertEqual(num_files, 0)
+    self.assertEqual(num_folders, 0)
+
+  def test_num_files_and_folders_double_level_dir(self):
+    num_files, num_folders = listing_benchmark._count_number_of_files_and_folders(
+        DIRECTORY_STRUCTURE2, 0, 0)
+    self.assertEqual(num_files, 6)
+    self.assertEqual(num_folders, 3)
+
+  def test_num_files_and_folders_multi_level_dir(self):
+    num_files, num_folders = listing_benchmark._count_number_of_files_and_folders(
+        DIRECTORY_STRUCTURE3, 0, 0)
+    self.assertEqual(num_files, 14)
+    self.assertEqual(num_folders, 10)
 
   def test_parse_results_single_level_dir(self):
     metrics = listing_benchmark._parse_results(
         DIRECTORY_STRUCTURE1.folders, {}, 'fake_test', 5)
     self.assertEqual(metrics, {})
+
+  @patch('listing_benchmark.gsheet.write_to_google_sheet')
+  def test_export_to_google_sheet(self, mock_sheet):
+    listing_benchmark._export_to_gsheet(
+        DIRECTORY_STRUCTURE2.folders, SAMPLE_METRIC_FOR_DIRECTORY_STRUCTURE_2,
+        'ls', WORKSHEET_NAME)
+    self.assertEqual(mock_sheet.call_args_list, [
+        call('ls_metrics_gcsfuse',
+             [
+                 ['fake_test', 'ls', 3, 0, 5, 0.518, 0.222, 0.556, 0.017,
+                  0.1, 0.222, 1.138, 1.186, 1.215, 1.224, 1.229, 1.233, 1.234],
+                 ['fake_test', 'ls', 2, 0, 5, 19.965, 1.95, 39.504, 0.001,
+                  0.267, 1.95, 57.106, 73.778, 83.781, 87.116, 88.783, 90.117, 90.45],
+                 ['fake_test', 'ls', 0, 0, 5, 37, 21, 39.63, 6.0, 6.8, 21.0,
+                  80.4, 90.2, 96.08, 98.04, 99.02, 99.804, 100.0]
+             ])
+    ])
 
   def test_parse_results_double_level_dir(self):
     metrics = listing_benchmark._parse_results(DIRECTORY_STRUCTURE2.folders, {
@@ -141,73 +244,7 @@ class ListingBenchmarkTest(unittest.TestCase):
         '1KB_2files_0subdir': METRICS2,
         '1KB_0files_0subdir': METRICS3
     }, 'fake_test', 5)
-    self.assertEqual(metrics,
-                     {
-                         '2KB_3files_0subdir':
-                         {
-                             'Test Desc.': 'fake_test',
-                             'Number of samples': 5,
-                             'Mean': 0.518,
-                             'Median': 0.222,
-                             'Standard Dev': 0.556,
-                             'Quantiles':
-                             {
-                                 '0 %ile': 0.017,
-                                 '20 %ile': 0.1,
-                                 '40 %ile': 0.182,
-                                 '60 %ile': 0.531,
-                                 '80 %ile': 1.043,
-                                 '90 %ile': 1.138,
-                                 '95 %ile': 1.186,
-                                 '98 %ile': 1.215,
-                                 '99 %ile': 1.224,
-                                 '100 %ile': 1.234
-                             }
-                         },
-                         '1KB_2files_0subdir':
-                         {
-                             'Test Desc.': 'fake_test',
-                             'Number of samples': 5,
-                             'Mean': 19.965,
-                             'Median': 1.95,
-                             'Standard Dev': 39.504,
-                             'Quantiles':
-                             {
-                                 '0 %ile': 0.001,
-                                 '20 %ile': 0.267,
-                                 '40 %ile': 1.304,
-                                 '60 %ile': 4.006,
-                                 '80 %ile': 23.762,
-                                 '90 %ile': 57.106,
-                                 '95 %ile': 73.778,
-                                 '98 %ile': 83.781,
-                                 '99 %ile': 87.116,
-                                 '100 %ile': 90.45
-                             }
-                         },
-                         '1KB_0files_0subdir':
-                         {
-                             'Test Desc.': 'fake_test',
-                             'Number of samples': 5,
-                             'Mean': 37,
-                             'Median': 21,
-                             'Standard Dev': 39.63,
-                             'Quantiles':
-                             {
-                                 '0 %ile': 6.0,
-                                 '20 %ile': 6.8,
-                                 '40 %ile': 15.4,
-                                 '60 %ile': 33.0,
-                                 '80 %ile': 60.8,
-                                 '90 %ile': 80.4,
-                                 '95 %ile': 90.2,
-                                 '98 %ile': 96.08,
-                                 '99 %ile': 98.04,
-                                 '100 %ile': 100.0
-                             }
-                         }
-                     }
-                     )
+    self.assertEqual(metrics, SAMPLE_METRIC_FOR_DIRECTORY_STRUCTURE_2)
 
   @patch('listing_benchmark.subprocess.call', return_value=1)
   @patch('listing_benchmark.time.time', return_value=1)
