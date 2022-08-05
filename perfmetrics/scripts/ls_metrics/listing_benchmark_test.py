@@ -211,21 +211,26 @@ class ListingBenchmarkTest(unittest.TestCase):
 
   @patch('listing_benchmark.subprocess.call', return_value=1)
   @patch('listing_benchmark.time.time', return_value=1)
-  def test_record_time_of_operation_same_time(self, mock_time, mock_subprocess_call):
-    result_list = listing_benchmark._record_time_of_operation('ls', 'fakepath/', 5)
+  def test_record_time_of_operation_same_time(
+      self, mock_time, mock_subprocess_call):
+    result_list = listing_benchmark._record_time_of_operation(
+        'ls', 'fakepath/', 5)
     self.assertEqual(mock_subprocess_call.call_count, 5)
     self.assertEqual(result_list, [0, 0, 0, 0, 0])
 
   @patch('listing_benchmark.subprocess.call', return_value=1)
   @patch('listing_benchmark.time.time')
-  def test_record_time_of_operation_different_time(self, mock_time, mock_subprocess_call):
+  def test_record_time_of_operation_different_time(
+      self, mock_time, mock_subprocess_call):
     mock_time.side_effect = [1, 2, 3, 5]
-    result_list = listing_benchmark._record_time_of_operation('ls', 'fakepath/', 2)
+    result_list = listing_benchmark._record_time_of_operation(
+        'ls', 'fakepath/', 2)
     self.assertEqual(mock_subprocess_call.call_count, 2)
     self.assertEqual(result_list, [1000, 2000])
 
   @patch('listing_benchmark._record_time_of_operation')
-  def test_perform_testing_single_level_dir(self, mock_record_time_of_operation):
+  def test_perform_testing_single_level_dir(
+      self, mock_record_time_of_operation):
     mock_record_time_of_operation.return_value = [1, 1, 1]
     gcs_bucket_results, persistent_disk_results = listing_benchmark._perform_testing(
         DIRECTORY_STRUCTURE1.folders, 'fake_bucket', 'fake_disk', 3, 'ls -R')
@@ -234,7 +239,8 @@ class ListingBenchmarkTest(unittest.TestCase):
     self.assertEqual(gcs_bucket_results, {})
 
   @patch('listing_benchmark._record_time_of_operation')
-  def test_perform_testing_double_level_dir(self, mock_record_time_of_operation):
+  def test_perform_testing_double_level_dir(
+      self, mock_record_time_of_operation):
     mock_record_time_of_operation.return_value = [1, 1, 1]
     gcs_bucket_results, persistent_disk_results = listing_benchmark._perform_testing(
         DIRECTORY_STRUCTURE2.folders, 'fake_bucket', 'fake_disk', 3, 'ls -R')
@@ -261,7 +267,8 @@ class ListingBenchmarkTest(unittest.TestCase):
 
   @patch('listing_benchmark.subprocess.call', return_value=0)
   @patch('listing_benchmark.generate_files.generate_files_and_upload_to_gcs_bucket', return_value=0)
-  def test_create_directory_structure_single_level_dir(self, mock_generate_files, mock_subprocess_call):
+  def test_create_directory_structure_single_level_dir(
+      self, mock_generate_files, mock_subprocess_call):
     exit_code = listing_benchmark._create_directory_structure(
         'fake_bucket_url/', 'fake_disk_url/', DIRECTORY_STRUCTURE1, True)
     self.assertEqual(exit_code, 0)
@@ -274,7 +281,8 @@ class ListingBenchmarkTest(unittest.TestCase):
 
   @patch('listing_benchmark.subprocess.call', return_value=0)
   @patch('listing_benchmark.generate_files.generate_files_and_upload_to_gcs_bucket', return_value=0)
-  def test_create_directory_structure_double_level_dir(self, mock_generate_files, mock_subprocess_call):
+  def test_create_directory_structure_double_level_dir(
+      self, mock_generate_files, mock_subprocess_call):
     exit_code = listing_benchmark._create_directory_structure(
         'fake_bucket_url/', 'fake_disk_url/', DIRECTORY_STRUCTURE2, True)
     self.assertEqual(exit_code, 0)
@@ -296,7 +304,8 @@ class ListingBenchmarkTest(unittest.TestCase):
 
   @patch('listing_benchmark.subprocess.call', return_value=0)
   @patch('listing_benchmark.generate_files.generate_files_and_upload_to_gcs_bucket', return_value=0)
-  def test_create_directory_structure_multi_level_dir(self, mock_generate_files, mock_subprocess_call):
+  def test_create_directory_structure_multi_level_dir(
+      self, mock_generate_files, mock_subprocess_call):
     exit_code = listing_benchmark._create_directory_structure(
         'fake_bucket_url/', 'fake_disk_url/', DIRECTORY_STRUCTURE3, True)
     self.assertEqual(exit_code, 0)
@@ -336,7 +345,8 @@ class ListingBenchmarkTest(unittest.TestCase):
 
   @patch('listing_benchmark.subprocess.call', return_value=0)
   @patch('listing_benchmark.generate_files.generate_files_and_upload_to_gcs_bucket', return_value=1)
-  def test_create_directory_structure_error_multi_level_dir(self, mock_generate_files, mock_subprocess_call):
+  def test_create_directory_structure_error_multi_level_dir(
+      self, mock_generate_files, mock_subprocess_call):
     exit_code = listing_benchmark._create_directory_structure(
         'fake_bucket_url/', 'fake_disk_url/', DIRECTORY_STRUCTURE3, True)
     self.assertGreater(exit_code, 0)
@@ -360,15 +370,19 @@ class ListingBenchmarkTest(unittest.TestCase):
   @patch('listing_benchmark._list_directory')
   def test_compare_directory_structure_true_single_level_dir(self, mock_list):
     mock_list.side_effect = [['fake_bucket/']]
-    result = listing_benchmark._compare_directory_structure('fake_bucket/', DIRECTORY_STRUCTURE1)
+    result = listing_benchmark._compare_directory_structure(
+        'fake_bucket/', DIRECTORY_STRUCTURE1)
     self.assertTrue(result)
 
   @patch('listing_benchmark._list_directory')
   def test_compare_directory_structure_true_double_level_dir(self, mock_list):
     mock_list.side_effect = [
-        ['fake_bucket/', 'fake_bucket/file', 'fake_bucket/2KB_3files_0subdir/',
-         'fake_bucket/1KB_2files_0subdir/', 'fake_bucket/1KB_0files_0subdir/'],
-        ['fake_bucket/2KB_3files_0subdir/file_1', 'fake_bucket/2KB_3files_0subdir/file_2',
+        ['fake_bucket/', 'fake_bucket/file',
+         'fake_bucket/2KB_3files_0subdir/',
+         'fake_bucket/1KB_2files_0subdir/',
+         'fake_bucket/1KB_0files_0subdir/'],
+        ['fake_bucket/2KB_3files_0subdir/file_1',
+         'fake_bucket/2KB_3files_0subdir/file_2',
          'fake_bucket/2KB_3files_0subdir/file_3'],
         ['fake_bucket/1KB_2files_0subdir/file_1',
          'fake_bucket/1KB_2files_0subdir/file_2'],
@@ -379,11 +393,15 @@ class ListingBenchmarkTest(unittest.TestCase):
     self.assertTrue(result)
 
   @patch('listing_benchmark._list_directory')
-  def test_compare_directory_structure_false_file_double_level_dir_test1(self, mock_list):
+  def test_compare_directory_structure_false_file_double_level_dir_test1(
+      self, mock_list):
     mock_list.side_effect = [
-        ['fake_bucket/', 'fake_bucket/file', 'fake_bucket/2KB_3files_0subdir/',
-         'fake_bucket/1KB_2files_0subdir/', 'fake_bucket/1KB_0files_0subdir/'],
-        ['fake_bucket/2KB_3files_0subdir/file_1', 'fake_bucket/2KB_3files_0subdir/file_2',
+        ['fake_bucket/', 'fake_bucket/file',
+         'fake_bucket/2KB_3files_0subdir/',
+         'fake_bucket/1KB_2files_0subdir/',
+         'fake_bucket/1KB_0files_0subdir/'],
+        ['fake_bucket/2KB_3files_0subdir/file_1',
+         'fake_bucket/2KB_3files_0subdir/file_2',
          'fake_bucket/2KB_3files_0subdir/file_3'],
         ['fake_bucket/1KB_2files_0subdir/file_1',
          'fake_bucket/1KB_2files_0subdir/file_2'],
@@ -394,12 +412,17 @@ class ListingBenchmarkTest(unittest.TestCase):
     self.assertFalse(result)
 
   @patch('listing_benchmark._list_directory')
-  def test_compare_directory_structure_false_folder_double_level_dir(self, mock_list):
+  def test_compare_directory_structure_false_folder_double_level_dir(
+      self, mock_list):
     mock_list.side_effect = [
-        ['fake_bucket/', 'fake_bucket/file', 'fake_bucket/2KB_3files_0subdir/',
-         'fake_bucket/1KB_2files_0subdir/', 'fake_bucket/1KB_0files_0subdir/'],
-        ['fake_bucket/2KB_3files_0subdir/dummy_folder/', 'fake_bucket/2KB_3files_0subdir/file_1',
-         'fake_bucket/2KB_3files_0subdir/file_2', 'fake_bucket/2KB_3files_0subdir/file_3'],
+        ['fake_bucket/', 'fake_bucket/file',
+         'fake_bucket/2KB_3files_0subdir/',
+         'fake_bucket/1KB_2files_0subdir/',
+         'fake_bucket/1KB_0files_0subdir/'],
+        ['fake_bucket/2KB_3files_0subdir/dummy_folder/',
+         'fake_bucket/2KB_3files_0subdir/file_1',
+         'fake_bucket/2KB_3files_0subdir/file_2',
+         'fake_bucket/2KB_3files_0subdir/file_3'],
         ['fake_bucket/1KB_2files_0subdir/file_1',
          'fake_bucket/1KB_2files_0subdir/file_2'],
         []
@@ -409,11 +432,14 @@ class ListingBenchmarkTest(unittest.TestCase):
     self.assertFalse(result)
 
   @patch('listing_benchmark._list_directory')
-  def test_compare_directory_structure_false_file_double_level_dir_test2(self, mock_list):
+  def test_compare_directory_structure_false_file_double_level_dir_test2(
+      self, mock_list):
     mock_list.side_effect = [
         ['fake_bucket/', 'fake_bucket/2KB_3files_0subdir/',
-         'fake_bucket/1KB_2files_0subdir/', 'fake_bucket/1KB_0files_0subdir/'],
-        ['fake_bucket/2KB_3files_0subdir/file_1', 'fake_bucket/2KB_3files_0subdir/file_2',
+         'fake_bucket/1KB_2files_0subdir/',
+         'fake_bucket/1KB_0files_0subdir/'],
+        ['fake_bucket/2KB_3files_0subdir/file_1',
+         'fake_bucket/2KB_3files_0subdir/file_2',
          'fake_bucket/2KB_3files_0subdir/file_3'],
         ['fake_bucket/1KB_2files_0subdir/file_1',
          'fake_bucket/1KB_2files_0subdir/file_2'],
@@ -427,10 +453,14 @@ class ListingBenchmarkTest(unittest.TestCase):
   def test_compare_directory_structure_true_multi_level_dir(self, mock_list):
     mock_list.side_effect = [
         ['fake_bucket/', 'fake_bucket/1KB_4files_3subdir/',
-         'fake_bucket/2KB_3files_1subdir/', 'fake_bucket/1KB_1files_0subdir/'],
-        ['fake_bucket/1KB_4files_3subdir/file_1', 'fake_bucket/1KB_4files_3subdir/file_2',
-         'fake_bucket/1KB_4files_3subdir/file_3', 'fake_bucket/1KB_4files_3subdir/file_4',
-         'fake_bucket/1KB_4files_3subdir/subdir1/', 'fake_bucket/1KB_4files_3subdir/subdir2/',
+         'fake_bucket/2KB_3files_1subdir/',
+         'fake_bucket/1KB_1files_0subdir/'],
+        ['fake_bucket/1KB_4files_3subdir/file_1',
+         'fake_bucket/1KB_4files_3subdir/file_2',
+         'fake_bucket/1KB_4files_3subdir/file_3',
+         'fake_bucket/1KB_4files_3subdir/file_4',
+         'fake_bucket/1KB_4files_3subdir/subdir1/',
+         'fake_bucket/1KB_4files_3subdir/subdir2/',
          'fake_bucket/1KB_4files_3subdir/subdir3/'],
         ['fake_bucket/1KB_4files_3subdir/subdir1/file_1',
          'fake_bucket/1KB_4files_3subdir/subdir1/subsubdir1/',
@@ -442,8 +472,10 @@ class ListingBenchmarkTest(unittest.TestCase):
         ['fake_bucket/1KB_4files_3subdir/subdir3/file_1',
          'fake_bucket/1KB_4files_3subdir/subdir3/subsubdir1/'],
         ['fake_bucket/1KB_4files_3subdir/subdir3/subsubdir1/file_1'],
-        ['fake_bucket/2KB_3files_1subdir/file_1', 'fake_bucket/2KB_3files_1subdir/file_2',
-         'fake_bucket/2KB_3files_1subdir/file_3', 'fake_bucket/2KB_3files_1subdir/subdir1/'],
+        ['fake_bucket/2KB_3files_1subdir/file_1',
+         'fake_bucket/2KB_3files_1subdir/file_2',
+         'fake_bucket/2KB_3files_1subdir/file_3',
+         'fake_bucket/2KB_3files_1subdir/subdir1/'],
         [],
         ['fake_bucket/1KB_1files_0subdir/file_1']
     ]
@@ -452,13 +484,19 @@ class ListingBenchmarkTest(unittest.TestCase):
     self.assertTrue(result)
 
   @patch('listing_benchmark._list_directory')
-  def test_compare_directory_structure_false_file_folder_multi_level_dir(self, mock_list):
+  def test_compare_directory_structure_false_file_folder_multi_level_dir(
+      self, mock_list):
     mock_list.side_effect = [
-        ['fake_bucket/', 'fake_bucket/file1', 'fake_bucket/1KB_4files_3subdir/',
-         'fake_bucket/2KB_3files_1subdir/', 'fake_bucket/1KB_1files_0subdir/'],
-        ['fake_bucket/1KB_4files_3subdir/file_1', 'fake_bucket/1KB_4files_3subdir/file_2',
-         'fake_bucket/1KB_4files_3subdir/file_3', 'fake_bucket/1KB_4files_3subdir/file_4',
-         'fake_bucket/1KB_4files_3subdir/subdir1/', 'fake_bucket/1KB_4files_3subdir/subdir2/',
+        ['fake_bucket/', 'fake_bucket/file1',
+         'fake_bucket/1KB_4files_3subdir/',
+         'fake_bucket/2KB_3files_1subdir/',
+         'fake_bucket/1KB_1files_0subdir/'],
+        ['fake_bucket/1KB_4files_3subdir/file_1',
+         'fake_bucket/1KB_4files_3subdir/file_2',
+         'fake_bucket/1KB_4files_3subdir/file_3',
+         'fake_bucket/1KB_4files_3subdir/file_4',
+         'fake_bucket/1KB_4files_3subdir/subdir1/',
+         'fake_bucket/1KB_4files_3subdir/subdir2/',
          'fake_bucket/1KB_4files_3subdir/subdir3/'],
         ['fake_bucket/1KB_4files_3subdir/subdir1/file_1',
          'fake_bucket/1KB_4files_3subdir/subdir1/subsubdir1/',
@@ -470,8 +508,10 @@ class ListingBenchmarkTest(unittest.TestCase):
         ['fake_bucket/1KB_4files_3subdir/subdir3/file_1',
          'fake_bucket/1KB_4files_3subdir/subdir3/subsubdir1/'],
         ['fake_bucket/1KB_4files_3subdir/subdir3/subsubdir1/file_1'],
-        ['fake_bucket/2KB_3files_1subdir/file_1', 'fake_bucket/2KB_3files_1subdir/file_2',
-         'fake_bucket/2KB_3files_1subdir/file_3', 'fake_bucket/2KB_3files_1subdir/subdir1/'],
+        ['fake_bucket/2KB_3files_1subdir/file_1',
+         'fake_bucket/2KB_3files_1subdir/file_2',
+         'fake_bucket/2KB_3files_1subdir/file_3',
+         'fake_bucket/2KB_3files_1subdir/subdir1/'],
         ['fake_bucket/2KB_3files_1subdir/subdir1/file_1',
          'fake_bucket/2KB_3files_1subdir/subdir1/dummy_folder/'],
         ['fake_bucket/1KB_1files_0subdir/file_1']
