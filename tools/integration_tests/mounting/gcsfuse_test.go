@@ -207,8 +207,7 @@ func (t *GcsfuseTest) KeyFile() {
 		args = append(args, "some-non-canned-bucket-name", t.dir)
 
 		cmd := t.gcsfuseCommand(args, tc.env)
-		fmt.Println(cmd)
-		//fmt.Println(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+
 		output, err := cmd.CombinedOutput()
 		util.Unmount(t.dir)
 

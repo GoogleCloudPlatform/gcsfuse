@@ -45,13 +45,13 @@ func (t *MainTest) ResolvePathTest() {
 	}
 
 	inputArgs0 := []string{"gcsfuse", "--log-file", "test.json", "--ht", "-x"}
-	resolvePathInCLIArguments(inputArgs0, true)
+	resolvePathInCLIArguments([]string{"--log-file", "--key-file"}, inputArgs0, true)
 	expected0 := []string{"gcsfuse",
 		"--log-file", fmt.Sprintf("%s/test.json", currDir), "--ht", "-x"}
 	ExpectTrue(reflect.DeepEqual(inputArgs0, expected0))
 
 	inputArgs1 := []string{"gcsfuse", "--log-file=test.json", "--foreground"}
-	resolvePathInCLIArguments(inputArgs1, true)
+	resolvePathInCLIArguments([]string{"--log-file", "--key-file"}, inputArgs1, true)
 	expected1 := []string{"gcsfuse",
 		fmt.Sprintf("--log-file=%s/test.json", currDir), "--foreground"}
 	ExpectTrue(reflect.DeepEqual(inputArgs1, expected1))
@@ -61,12 +61,10 @@ func (t *MainTest) ResolvePathTest() {
 		fmt.Errorf("current working directory: %w", err)
 	}
 
-	inputArgs2 := []string{"gcsfuse", "--log-file=~/test.json", "--foreground"}
-	resolvePathInCLIArguments(inputArgs2, true)
+	inputArgs2 := []string{"gcsfuse", "--log-file=test.txt", "--key-file=~/test.json", "--foreground"}
+	resolvePathInCLIArguments([]string{"--log-file", "--key-file"}, inputArgs2, true)
 	expected2 := []string{"gcsfuse",
-		fmt.Sprintf("--log-file=%s/test.json", homeDir), "--foreground"}
-	fmt.Println(inputArgs2)
-	fmt.Println(expected2)
+		fmt.Sprintf("--log-file=%s/test.txt", currDir),
+		fmt.Sprintf("--key-file=%s/test.json", homeDir), "--foreground"}
 	ExpectTrue(reflect.DeepEqual(inputArgs2, expected2))
-
 }

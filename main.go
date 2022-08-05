@@ -365,26 +365,27 @@ func getResolvedPath(path string) (resolvedPath string, err error) {
 		return filepath.Abs(path)
 	}
 }
-func resolvePathInCLIArguments(args []string, skipFileTest bool) (err error) {
-	// check for the log-file
-	for idx, flag := range args {
-		if strings.HasPrefix(flag, "--log-file") {
-			// case: --log-file <path of log file>
-			if flag == "--log-file" {
-				if idx+1 < len(args) && (skipFileTest || isFileExist(args[idx+1])) {
-					args[idx+1], err = getResolvedPath(args[idx+1])
-					if err != nil {
-						return fmt.Errorf("while resolving path: %w", err)
+func resolvePathInCLIArguments(flags []string, args []string, skipFileTest bool) (err error) {
+	for _, flag := range flags {
+		for idx, arg := range args {
+			if strings.HasPrefix(arg, flag) {
+				// case like, --log-file <path of log file>
+				if arg == flag {
+					if idx+1 < len(args) && (skipFileTest || isFileExist(args[idx+1])) {
+						args[idx+1], err = getResolvedPath(args[idx+1])
+						if err != nil {
+							return fmt.Errorf("while resolving path: %w", err)
+						}
 					}
-				}
-			} else { // --log-file=<path of log file>
-				filePath := flag[11:]
-				if skipFileTest || isFileExist(filePath) {
-					args[idx], err = getResolvedPath(filePath)
-					if err != nil {
-						return fmt.Errorf("while resolving path: %w", err)
+				} else { // for --log-file=<path of log file>
+					filePath := arg[len(flag)+1:]
+					if skipFileTest || isFileExist(filePath) {
+						args[idx], err = getResolvedPath(filePath)
+						if err != nil {
+							return fmt.Errorf("while resolving path: %w", err)
+						}
+						args[idx] = flag + "=" + args[idx]
 					}
-					args[idx] = "--log-file=" + args[idx]
 				}
 			}
 		}
@@ -400,7 +401,7 @@ func main() {
 	go perf.HandleCPUProfileSignals()
 	go perf.HandleMemoryProfileSignals()
 
-	err := resolvePathInCLIArguments(os.Args, false)
+	err := resolvePathInCLIArguments([]string{"--log-file", "--key-file"}, os.Args, false)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
