@@ -62,7 +62,7 @@ const random = "Random"
 func init() {
 	if err := view.Register(
 		      &view.View{
-						      Name:        "gcsfuse_read_bytes",
+									Name:        "gcsfuse_read_bytes",
 									Measure:     readBytes,
 									Description: "The number of bytes read from GCS",
 									Aggregation: view.Sum(),
