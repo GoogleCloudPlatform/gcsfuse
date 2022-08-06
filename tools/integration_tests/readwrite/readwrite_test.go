@@ -83,7 +83,7 @@ func mountGcsfuse() error {
 	return nil
 }
 
-func umount() error {
+func unMount() error {
 	fusermount, err := exec.LookPath("fusermount")
 	if err != nil {
 		return fmt.Errorf("cannot find fusermount: %w", err)
@@ -101,7 +101,7 @@ func clearKernelCache() error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("clear kernel cache failed with error: %w", err)
 	}
-  return nil
+	return nil
 }
 
 func TestMain(m *testing.M) {
@@ -127,7 +127,7 @@ func TestMain(m *testing.M) {
 
 	// Delete all files from mntDir to delete files from gcs bucket.
 	os.RemoveAll(mntDir)
-	umount()
+	unMount()
 
 	os.Exit(ret)
 }
