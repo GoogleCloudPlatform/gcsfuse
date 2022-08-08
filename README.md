@@ -232,7 +232,7 @@ go run . --implicit-dirs --enable-storage-client-library --disable-http2 --max-c
 go run . --implicit-dirs --enable-storage-client-library --disable-http2 --max-conns-per-host 100 --max-idle-conns-per-host 100 <bucket_name> <mount_dir_name>
 ```
 
-## Extra points for Go Storage Client
+## Extra points for using Go Storage Client
 
 * [HTTP client timeout](vendor/github.com/jacobsa/gcloud/gcs/bucket.go#L585) needs to be always set when using Go Storage Client HTTP 1.1 for random reads. If no client timeout is set, then the HTTP client will be stuck indefinitely after making some calls. 
 
