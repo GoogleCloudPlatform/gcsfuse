@@ -27,7 +27,6 @@ import (
 	"os"
 	"os/signal"
 	"path"
-	"strings"
 	"time"
 
 	"golang.org/x/net/context"
@@ -220,7 +219,7 @@ func populateArgs(c *cli.Context) (
 }
 
 func runCLIApp(c *cli.Context) (err error) {
-	err = resolvePathInSubprocessForTheRequiredFlag(c)
+	err = resolvePathForTheRequiredFlagInContext(c)
 	if err != nil {
 		return fmt.Errorf("Resolving path: %w", err)
 	}
@@ -306,15 +305,9 @@ func runCLIApp(c *cli.Context) (err error) {
 		}
 		env = append(env, fmt.Sprintf("%s=%s", PARENT_PROCESS_EXECUTION_DIR_KEY, parentProcessExecutionDir))
 
-		if strings.HasPrefix(flags.LogFile, "~") || strings.HasPrefix(flags.KeyFile, "~") {
-			// pass home directory, it is not set for sub-process
-			var homeDir string
-			homeDir, err = os.UserHomeDir()
-			if err != nil {
-				return fmt.Errorf("while retrieving home dir: %w", err)
-			}
-			env = append(env, fmt.Sprintf("HOME=%s", homeDir))
-		}
+		// no need to handle error, here resolvePath method will take care of this.
+		homeDir, _ := os.UserHomeDir()
+		env = append(env, fmt.Sprintf("HOME=%s", homeDir))
 
 		// Run.
 		err = daemonize.Run(path, args, env, os.Stdout)

@@ -364,21 +364,22 @@ func getResolvedPath(filePath string) (resolvedPath string, err error) {
 	}
 }
 
-// This method will not do anything for the main method invocation, will only
-// resolve path for re-invocation of gcsfuse, happening in absence of
-// --foreground flag.
-func resolvePathInSubprocessForTheRequiredFlag(c *cli.Context) (err error) {
+// It smartly resolves the path of the required flag
+// For parent process: it only resolves the path with respect to home folder.
+// For child process (when --foreground flag is disabled) - it resolves
+// the path relative to both current directory and home directory
+func resolvePathForTheRequiredFlagInContext(c *cli.Context) (err error) {
 	parentProcessExecutionDir, ok := os.LookupEnv(PARENT_PROCESS_EXECUTION_DIR_KEY)
-	if !ok { // Don't do anything, directory is not set
-		return nil
+	if !ok { // means parent process, hence set the parentProcessExecutionDir empty.
+		parentProcessExecutionDir = ""
 	}
 
-	err = resolvePathForTheFlag("log-file", parentProcessExecutionDir, c)
+	err = resolvePathForTheFlagInContext("log-file", parentProcessExecutionDir, c)
 	if err != nil {
 		return fmt.Errorf("resolving for log-file: [%w]", err)
 	}
 
-	err = resolvePathForTheFlag("key-file", parentProcessExecutionDir, c)
+	err = resolvePathForTheFlagInContext("key-file", parentProcessExecutionDir, c)
 	if err != nil {
 		return fmt.Errorf("resolving for key-file: [%w]", err)
 	}
@@ -386,7 +387,10 @@ func resolvePathInSubprocessForTheRequiredFlag(c *cli.Context) (err error) {
 	return nil
 }
 
-func resolvePathForTheFlag(flagKey string, parentProcWorkingDir string, c *cli.Context) (err error) {
+// This method resolve the path in the context dictionary
+// in case of relative path if parentProcWorkingDir == "", resolves wrt currentDir
+// otherwise wrt to parentProcWorkingDir (good when child-process change the directory)
+func resolvePathForTheFlagInContext(flagKey string, parentProcWorkingDir string, c *cli.Context) (err error) {
 	flagValue := c.String(flagKey)
 	if flagValue == "" || path.IsAbs(flagValue) {
 		return nil
@@ -397,10 +401,19 @@ func resolvePathForTheFlag(flagKey string, parentProcWorkingDir string, c *cli.C
 			return fmt.Errorf("while resolving path: %w", err)
 		}
 		c.Set(flagKey, resolvedPath)
-	} else { // relative to parent process's execution directory
-		err = c.Set(flagKey, filepath.Join(parentProcWorkingDir, flagValue))
-		if err != nil {
-			return fmt.Errorf("while setting value in context: %w", err)
+	} else { // relative path
+		if parentProcWorkingDir != "" { // child process
+			err = c.Set(flagKey, filepath.Join(parentProcWorkingDir, flagValue))
+			if err != nil {
+				return fmt.Errorf("while setting value in context: %w", err)
+			}
+		} else {
+			var absolutePath string
+			absolutePath, err = filepath.Abs(flagValue)
+			if err != nil {
+				return fmt.Errorf("while converting to absolute: [%w]", err)
+			}
+			c.Set(flagKey, absolutePath)
 		}
 	}
 
