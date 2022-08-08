@@ -17,3 +17,7 @@ MOUNT_POINT=gcs
 gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 chmod +x run_load_test_and_fetch_metrics.sh
 ./run_load_test_and_fetch_metrics.sh
+# ls_metrics test
+cd "./ls_metrics"
+chmod +x run_ls_benchmark.sh
+./run_ls_benchmark.sh
