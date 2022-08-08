@@ -16,8 +16,7 @@
 //
 // Usage:
 //
-//     gcsfuse [flags] bucket mount_point
-//
+//	gcsfuse [flags] bucket mount_point
 package main
 
 import (
@@ -29,6 +28,7 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"golang.org/x/net/context"
@@ -212,7 +212,7 @@ func populateArgs(c *cli.Context) (
 	// Canonicalize the mount point, making it absolute. This is important when
 	// daemonizing below, since the daemon will change its working directory
 	// before running this code again.
-	mountPoint, err = filepath.Abs(mountPoint)
+	mountPoint, err = getResolvedPath(mountPoint)
 	if err != nil {
 		err = fmt.Errorf("canonicalizing mount point: %w", err)
 		return
@@ -220,7 +220,55 @@ func populateArgs(c *cli.Context) (
 	return
 }
 
+func getResolvedPath(filePath string) (resolvedPath string, err error) {
+	if path.IsAbs(filePath) {
+		return filePath, nil
+	}
+
+	if strings.HasPrefix(filePath, "~/") {
+		homeDir, err1 := os.UserHomeDir()
+		if err1 != nil {
+			return "", fmt.Errorf("get home dir: %w", err1)
+		}
+		return filepath.Join(homeDir, filePath[2:]), nil
+	} else {
+		return filepath.Abs(filePath)
+	}
+}
+
+func resolveRelativePath(c *cli.Context) (err error) {
+	parentProcessExecutionDir, ok := os.LookupEnv("parent_process_execution_dir")
+	if !ok { // Don't do anything, directory is not set
+		return nil
+	}
+	//var parentProcessExecutionDir string
+	logFile := c.String("log-file")
+
+	if logFile == "" || path.IsAbs(logFile) {
+		return nil
+	} else if strings.HasPrefix(logFile, "~") {
+		var resolvedPath string
+		resolvedPath, err = getResolvedPath(logFile)
+		if err != nil {
+			return fmt.Errorf("while resolving path: %w", err)
+		}
+		c.Set("log-file", resolvedPath)
+	} else { // relative to parent process's execution directory
+		err = c.Set("log-file", filepath.Join(parentProcessExecutionDir, logFile))
+		if err != nil {
+			return fmt.Errorf("while setting value in context: %w", err)
+		}
+	}
+
+	return nil
+}
+
 func runCLIApp(c *cli.Context) (err error) {
+	err = resolveRelativePath(c)
+	if err != nil {
+		return fmt.Errorf("Resolving path: %w", err)
+	}
+
 	flags := populateFlags(c)
 
 	if flags.Foreground && flags.LogFile != "" {
@@ -291,6 +339,25 @@ func runCLIApp(c *cli.Context) (err error) {
 				os.Stdout,
 				"Added environment no_proxy: %s\n",
 				p)
+		}
+
+		// Pass the parent process working directory to child process via
+		// environment variable. This variable will be used to resolve relative paths.
+		var parentProcessExecutionDir string
+		parentProcessExecutionDir, err = os.Getwd()
+		if err != nil {
+			return fmt.Errorf("Getting current working dir: %w", err)
+		}
+		env = append(env, fmt.Sprintf("parent_process_execution_dir=%s", parentProcessExecutionDir))
+
+		if strings.HasPrefix(flags.LogFile, "~") {
+			// pass home directory, it is not set for sub-process
+			var homeDir string
+			homeDir, err = os.UserHomeDir()
+			if err != nil {
+				return fmt.Errorf("while retrieving home dir: %w", err)
+			}
+			env = append(env, fmt.Sprintf("HOME=%s", homeDir))
 		}
 
 		// Run.

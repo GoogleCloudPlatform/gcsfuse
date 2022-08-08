@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	//"runtime"
 	"syscall"
 	"testing"
@@ -80,10 +81,10 @@ func (t *GcsfuseTest) gcsfuseCommand(args []string, env []string) (cmd *exec.Cmd
 	return
 }
 
-// Call gcsfuse with the supplied args, waiting for it to exit. Return nil only
-// if it exits successfully.
-func (t *GcsfuseTest) runGcsfuse(args []string) (err error) {
-	cmd := t.gcsfuseCommand(args, nil)
+// Call gcsfuse with the supplied args and environment variable,
+// waiting for it to exit. Return nil only if it exits successfully.
+func (t *GcsfuseTest) runGcsfuseWithEnv(args []string, env []string) (err error) {
+	cmd := t.gcsfuseCommand(args, env)
 
 	// Run.
 	output, err := cmd.CombinedOutput()
@@ -93,6 +94,12 @@ func (t *GcsfuseTest) runGcsfuse(args []string) (err error) {
 	}
 
 	return
+}
+
+// Call gcsfuse with the supplied args, waiting for it to exit. Return nil only
+// if it exits successfully.
+func (t *GcsfuseTest) runGcsfuse(args []string) (err error) {
+	return t.runGcsfuseWithEnv(args, nil)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -549,5 +556,56 @@ func (t *GcsfuseTest) HelpFlags() {
 		cmd := t.gcsfuseCommand(tc.args, nil)
 		output, err := cmd.CombinedOutput()
 		ExpectEq(nil, err, "case %d\nOutput:\n%s", i, output)
+	}
+}
+
+func (t *GcsfuseTest) RelativeLogFilePath() {
+
+	var err error
+	var homeDir string
+
+	// create a temp file in current working directory
+	currentDirTestFile := filepath.Join(t.dir, "test.txt")
+	_, err = os.Create(currentDirTestFile)
+	AssertEq(nil, err)
+	defer os.Remove(currentDirTestFile)
+
+	//create a temp log file in home directory
+	homeDir, err = os.UserHomeDir()
+	AssertEq(nil, err)
+
+	homeTestFile := filepath.Join(homeDir, "test_home.json")
+	_, err = os.Create(homeTestFile)
+	defer os.Remove(homeTestFile)
+
+	// Specify log file in different way.
+	testCases := []struct {
+		extraArgs []string
+		env       []string
+	}{
+		// without --foreground flag, relative path
+		0: {
+			extraArgs: []string{"--log-file", "test.txt"},
+		},
+
+		// without --foreground flag, relative with ./
+		1: {
+			extraArgs: []string{"--log-file", "./test.txt"},
+		},
+
+		// without --foreground flag, path with tilda
+		2: {
+			extraArgs: []string{"--log-file", "~/test_home.json"},
+			env:       []string{fmt.Sprintf("HOME=%s", homeDir)},
+		},
+	}
+
+	for _, tc := range testCases {
+		args := tc.extraArgs
+		args = append(args, canned.FakeBucketName, t.dir)
+
+		err := t.runGcsfuseWithEnv(args, tc.env)
+		util.Unmount(t.dir)
+		ExpectEq(nil, err)
 	}
 }
