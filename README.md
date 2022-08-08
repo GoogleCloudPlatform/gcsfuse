@@ -191,3 +191,53 @@ Versioning][semver]. Note that the current major version is `0`, which means
 that we reserve the right to make backwards-incompatible changes.
 
 [semver]: http://semver.org/
+
+# Switching to Go Storage Client
+
+## Extra flags added
+
+* `--enable-storage-client-library` flag enables us to switch the client to the Go Storage Client for communicating with the GCS backend.
+* `--max-idle-conns-per-host` flag allows us to set the max limit of idle connections when using the Go Storage Client in HTTP 1.1 mode.
+
+## How to access different versions of clients
+
+* **Default JSON API Client** 
+```
+go run . --implicit-dirs <bucket_name> <mount_dir_name>
+```
+
+* **JSON API Client (perf mode)** 
+```
+go run . --implicit-dirs --disable-http2 --max-conns-per-host 100 <bucket_name> <mount_dir_name>
+```
+
+* **Default Go Storage Client** \
+Firstly set the `DisableKeepAlives` and `ForceAttemptHTTP2` parameters to False in the [bucket.go](vendor/github.com/jacobsa/gcloud/gcs/bucket.go#L574) file. Then run the following command.
+```
+go run . --implicit-dirs --enable-storage-client-library <bucket_name> <mount_dir_name>
+```
+
+* **Go Storage Client HTTP 2.0 (perf mode)**
+```
+go run . --implicit-dirs --enable-storage-client-library <bucket_name> <mount_dir_name>
+```
+
+* **Go Storage Client HTTP 1.1 (perf mode)**
+```
+go run . --implicit-dirs --enable-storage-client-library --disable-http2 --max-conns-per-host 100 <bucket_name> <mount_dir_name>
+```
+
+* **Go Storage Client HTTP 1.1 (ultra perf mode)**
+```
+go run . --implicit-dirs --enable-storage-client-library --disable-http2 --max-conns-per-host 100 --max-idle-conns-per-host 100 <bucket_name> <mount_dir_name>
+```
+
+## Extra points for Go Storage Client
+
+* [HTTP client timeout](vendor/github.com/jacobsa/gcloud/gcs/bucket.go#L585) needs to be always set when using Go Storage Client HTTP 1.1 for random reads. If no client timeout is set, then the HTTP client will be stuck indefinitely after making some calls. 
+
+* Client timeout affect the performance in case of read flows. Lesser the client timeout more is the performance in random reads scenario. But for sequential reads it is just the opposite i.e. more the client timeout better the performance. So a optimal value of client timeout needs to mantained in order to get good results in both type of access patterns. Optimal value as per previous experiments was in the ball park of 800 ms.
+
+* While the write flows are not affected by the client timeout but they highly depend on the [ChunkSize](vendor/github.com/jacobsa/gcloud/gcs/create_object.go#L268) parameter of the NewWriter. Currently the ChunkSize parameter is set to 0 to perform one-shot uploads because the current JSON API client also performs one-shot uploads. But it can be changed in the future as per needs. 
+
+* The performance of the listing operation is dependent on the [MaxResults](vendor/cloud.google.com/go/storage/bucket.go#L1994) parameter. For now it is hardcoded to 5000 but we need to find a way to make it configurable.
