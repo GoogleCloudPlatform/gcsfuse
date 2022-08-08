@@ -122,18 +122,21 @@ be interacting with the file system.`)
 
 	fsName := bucketName
 	if bucketName == "" || bucketName == "_" {
-		// mouting all the buckets at once
+		// mounting all the buckets at once
 		fsName = "gcsfuse"
 	}
 
 	// Mount the file system.
 	status.Printf("Mounting file system %q...", fsName)
 	mountCfg := &fuse.MountConfig{
-		FSName:      fsName,
-		Subtype:     "gcsfuse",
-		VolumeName:  "gcsfuse",
-		Options:     flags.MountOptions,
-		ErrorLogger: logger.NewError("fuse: "),
+		FSName:     fsName,
+		Subtype:    "gcsfuse",
+		VolumeName: "gcsfuse",
+		Options:    flags.MountOptions,
+	}
+
+	if flags.LogFuseErrors {
+		mountCfg.ErrorLogger = logger.NewError("fuse: ")
 	}
 
 	if flags.DebugFuse {
