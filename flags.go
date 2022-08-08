@@ -112,7 +112,7 @@ func newApp() (app *cli.App) {
 			cli.BoolFlag{
 				Name: "implicit-dirs",
 				Usage: "Implicitly define directories based on content. See " +
-						"docs/semantics.md",
+					"docs/semantics.md",
 			},
 
 			cli.StringFlag{
@@ -124,7 +124,7 @@ func newApp() (app *cli.App) {
 				Name:  "rename-dir-limit",
 				Value: 0,
 				Usage: "Allow rename a directory containing fewer descendants " +
-						"than this limit.",
+					"than this limit.",
 			},
 
 			/////////////////////////
@@ -141,14 +141,14 @@ func newApp() (app *cli.App) {
 				Name:  "billing-project",
 				Value: "",
 				Usage: "Project to use for billing when accessing requester pays buckets. " +
-						"(default: none)",
+					"(default: none)",
 			},
 
 			cli.StringFlag{
 				Name:  "key-file",
 				Value: "",
 				Usage: "Absolute path to JSON key file for use with GCS. " +
-						"(default: none, Google application default credentials used)",
+					"(default: none, Google application default credentials used)",
 			},
 
 			cli.StringFlag{
@@ -161,14 +161,14 @@ func newApp() (app *cli.App) {
 				Name:  "limit-bytes-per-sec",
 				Value: -1,
 				Usage: "Bandwidth limit for reading data, measured over a 30-second " +
-						"window. (use -1 for no limit)",
+					"window. (use -1 for no limit)",
 			},
 
 			cli.Float64Flag{
 				Name:  "limit-ops-per-sec",
 				Value: -1,
 				Usage: "Operations per second limit, measured over a 30-second window " +
-						"(use -1 for no limit)",
+					"(use -1 for no limit)",
 			},
 
 			/////////////////////////
@@ -179,9 +179,9 @@ func newApp() (app *cli.App) {
 				Name:  "max-retry-sleep",
 				Value: time.Minute,
 				Usage: "The maximum duration allowed to sleep in a retry loop with " +
-						"exponential backoff for failed requests to GCS backend. Once the " +
-						"backoff duration exceeds this limit, the retry stops. The default " +
-						"is 1 minute. A value of 0 disables retries.",
+					"exponential backoff for failed requests to GCS backend. Once the " +
+					"backoff duration exceeds this limit, the retry stops. The default " +
+					"is 1 minute. A value of 0 disables retries.",
 			},
 
 			cli.IntFlag{
@@ -200,7 +200,7 @@ func newApp() (app *cli.App) {
 				Name:  "type-cache-ttl",
 				Value: time.Minute,
 				Usage: "How long to cache name -> file/dir mappings in directory " +
-						"inodes.",
+					"inodes.",
 			},
 
 			cli.BoolFlag{
@@ -212,20 +212,20 @@ func newApp() (app *cli.App) {
 				Name:  "temp-dir",
 				Value: "",
 				Usage: "Absolute path to temporary directory for local GCS object " +
-						"copies. (default: system default, likely /tmp)",
+					"copies. (default: system default, likely /tmp)",
 			},
 
 			cli.BoolFlag{
 				Name: "disable-http2",
 				Usage: "Once set, the protocol used for communicating with " +
-						"GCS backend would be HTTP/1.1, instead of the default HTTP/2.",
+					"GCS backend would be HTTP/1.1, instead of the default HTTP/2.",
 			},
 
 			cli.IntFlag{
 				Name:  "max-conns-per-host",
 				Value: 10,
 				Usage: "The max number of TCP connections allowed per server. " +
-						"This is effective when --disable-http2 is set.",
+					"This is effective when --disable-http2 is set.",
 			},
 
 			/////////////////////////
@@ -248,8 +248,8 @@ func newApp() (app *cli.App) {
 				Name:  "log-file",
 				Value: "",
 				Usage: "The file for storing logs that can be parsed by " +
-						"fluentd. When not provided, plain text logs are printed to " +
-						"stdout.",
+					"fluentd. When not provided, plain text logs are printed to " +
+					"stdout.",
 			},
 
 			cli.StringFlag{
