@@ -18,7 +18,10 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
@@ -109,7 +112,7 @@ func newApp() (app *cli.App) {
 			cli.BoolFlag{
 				Name: "implicit-dirs",
 				Usage: "Implicitly define directories based on content. See " +
-					"docs/semantics.md",
+						"docs/semantics.md",
 			},
 
 			cli.StringFlag{
@@ -121,7 +124,7 @@ func newApp() (app *cli.App) {
 				Name:  "rename-dir-limit",
 				Value: 0,
 				Usage: "Allow rename a directory containing fewer descendants " +
-					"than this limit.",
+						"than this limit.",
 			},
 
 			/////////////////////////
@@ -138,14 +141,14 @@ func newApp() (app *cli.App) {
 				Name:  "billing-project",
 				Value: "",
 				Usage: "Project to use for billing when accessing requester pays buckets. " +
-					"(default: none)",
+						"(default: none)",
 			},
 
 			cli.StringFlag{
 				Name:  "key-file",
 				Value: "",
 				Usage: "Absolute path to JSON key file for use with GCS. " +
-					"(default: none, Google application default credentials used)",
+						"(default: none, Google application default credentials used)",
 			},
 
 			cli.StringFlag{
@@ -158,14 +161,14 @@ func newApp() (app *cli.App) {
 				Name:  "limit-bytes-per-sec",
 				Value: -1,
 				Usage: "Bandwidth limit for reading data, measured over a 30-second " +
-					"window. (use -1 for no limit)",
+						"window. (use -1 for no limit)",
 			},
 
 			cli.Float64Flag{
 				Name:  "limit-ops-per-sec",
 				Value: -1,
 				Usage: "Operations per second limit, measured over a 30-second window " +
-					"(use -1 for no limit)",
+						"(use -1 for no limit)",
 			},
 
 			/////////////////////////
@@ -176,9 +179,9 @@ func newApp() (app *cli.App) {
 				Name:  "max-retry-sleep",
 				Value: time.Minute,
 				Usage: "The maximum duration allowed to sleep in a retry loop with " +
-					"exponential backoff for failed requests to GCS backend. Once the " +
-					"backoff duration exceeds this limit, the retry stops. The default " +
-					"is 1 minute. A value of 0 disables retries.",
+						"exponential backoff for failed requests to GCS backend. Once the " +
+						"backoff duration exceeds this limit, the retry stops. The default " +
+						"is 1 minute. A value of 0 disables retries.",
 			},
 
 			cli.IntFlag{
@@ -197,7 +200,7 @@ func newApp() (app *cli.App) {
 				Name:  "type-cache-ttl",
 				Value: time.Minute,
 				Usage: "How long to cache name -> file/dir mappings in directory " +
-					"inodes.",
+						"inodes.",
 			},
 
 			cli.BoolFlag{
@@ -209,20 +212,20 @@ func newApp() (app *cli.App) {
 				Name:  "temp-dir",
 				Value: "",
 				Usage: "Absolute path to temporary directory for local GCS object " +
-					"copies. (default: system default, likely /tmp)",
+						"copies. (default: system default, likely /tmp)",
 			},
 
 			cli.BoolFlag{
 				Name: "disable-http2",
 				Usage: "Once set, the protocol used for communicating with " +
-					"GCS backend would be HTTP/1.1, instead of the default HTTP/2.",
+						"GCS backend would be HTTP/1.1, instead of the default HTTP/2.",
 			},
 
 			cli.IntFlag{
 				Name:  "max-conns-per-host",
 				Value: 10,
 				Usage: "The max number of TCP connections allowed per server. " +
-					"This is effective when --disable-http2 is set.",
+						"This is effective when --disable-http2 is set.",
 			},
 
 			/////////////////////////
@@ -245,8 +248,8 @@ func newApp() (app *cli.App) {
 				Name:  "log-file",
 				Value: "",
 				Usage: "The file for storing logs that can be parsed by " +
-					"fluentd. When not provided, plain text logs are printed to " +
-					"stdout.",
+						"fluentd. When not provided, plain text logs are printed to " +
+						"stdout.",
 			},
 
 			cli.StringFlag{
@@ -339,6 +342,69 @@ type flagStorage struct {
 	DebugHTTP       bool
 	DebugInvariants bool
 	DebugMutex      bool
+}
+
+const PARENT_PROCESS_EXECUTION_DIR_KEY = "MD5Hash38cda02df9fcf2b1bba019000cce0eb6"
+
+// returns the same filepath in case of absolute path
+// returns the resolved path for relative to current dir or home dir
+func getResolvedPath(filePath string) (resolvedPath string, err error) {
+	if path.IsAbs(filePath) {
+		return filePath, nil
+	}
+
+	if strings.HasPrefix(filePath, "~") {
+		homeDir, err1 := os.UserHomeDir()
+		if err1 != nil {
+			return "", fmt.Errorf("get home dir: %w", err1)
+		}
+		return filepath.Join(homeDir, filePath[2:]), nil
+	} else {
+		return filepath.Abs(filePath)
+	}
+}
+
+// This method will not do anything for the main method invocation, will only
+// resolve path for re-invocation of gcsfuse, happening in absence of
+// --foreground flag.
+func resolvePathInSubprocessForTheRequiredFlag(c *cli.Context) (err error) {
+	parentProcessExecutionDir, ok := os.LookupEnv(PARENT_PROCESS_EXECUTION_DIR_KEY)
+	if !ok { // Don't do anything, directory is not set
+		return nil
+	}
+
+	err = resolvePathForTheFlag("log-file", parentProcessExecutionDir, c)
+	if err != nil {
+		return fmt.Errorf("resolving for log-file: [%w]", err)
+	}
+
+	err = resolvePathForTheFlag("key-file", parentProcessExecutionDir, c)
+	if err != nil {
+		return fmt.Errorf("resolving for key-file: [%w]", err)
+	}
+
+	return nil
+}
+
+func resolvePathForTheFlag(flagKey string, parentProcWorkingDir string, c *cli.Context) (err error) {
+	flagValue := c.String(flagKey)
+	if flagValue == "" || path.IsAbs(flagValue) {
+		return nil
+	} else if strings.HasPrefix(flagValue, "~") {
+		var resolvedPath string
+		resolvedPath, err = getResolvedPath(flagValue)
+		if err != nil {
+			return fmt.Errorf("while resolving path: %w", err)
+		}
+		c.Set(flagKey, resolvedPath)
+	} else { // relative to parent process's execution directory
+		err = c.Set(flagKey, filepath.Join(parentProcWorkingDir, flagValue))
+		if err != nil {
+			return fmt.Errorf("while setting value in context: %w", err)
+		}
+	}
+
+	return nil
 }
 
 // Add the flags accepted by run to the supplied flag set, returning the
