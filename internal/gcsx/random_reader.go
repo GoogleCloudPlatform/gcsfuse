@@ -33,7 +33,7 @@ var (
 	// requests will be served from the downloaded data.
 	// This metric captures only the requests made to GCS, not the subsequent page calls.
 	gcsReadCount = stats.Int64("gcs/read_count", "Specifies the count of gcs reads made along with type", stats.UnitDimensionless)
-	downloadBytesCount = stats.Int64("gcs/download_bytes_count", "The number of bytes downloaded from GCS", stats.UnitBytes)
+	downloadBytesCount = stats.Int64("gcs/download_bytes_count", "Cumulative number of bytes downloaded from GCS along with read type", stats.UnitBytes)
 )
 
 // MB is 1 Megabyte. (Silly comment to make the lint warning go away)
@@ -400,5 +400,4 @@ func captureMetrics(ctx context.Context, readType string, requestedDataSize int6
 		// Error in recording gcsReadCount.
 		log.Fatalf("Cannot record downloadBytesCount %v", err)
 	}
-
 }
