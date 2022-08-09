@@ -164,13 +164,16 @@ func NewFileSystem(
 		if err != nil {
 			return nil, fmt.Errorf("SetUpBucket: %w", err)
 		}
+		logger.Info("Make root for bucket " + cfg.BucketName)
 		root = makeRootForBucket(ctx, fs, syncerBucket)
 	}
 	root.Lock()
+	logger.Info("Lock acquired on bucket " + cfg.BucketName)
 	root.IncrementLookupCount()
 	fs.inodes[fuseops.RootInodeID] = root
 	fs.implicitDirInodes[root.Name()] = root
 	root.Unlock()
+	logger.Info("Lock released on bucket " + cfg.BucketName)
 
 	// Set up invariant checking.
 	fs.mu = locker.New("FS", fs.checkInvariants)
