@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/urfave/cli"
 )
@@ -384,7 +385,8 @@ func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) 
 		return fmt.Errorf("While resolving path: [%w]", err)
 	}
 	c.Set(flagKey, resolvedPath)
-
+	logger.Infof(fmt.Sprintf("Value of [%s] resolved from [%s] to [%s]\n",
+		flagKey, flagValue, resolvedPath))
 	return
 }
 
