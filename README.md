@@ -249,3 +249,5 @@ go run . --implicit-dirs --enable-storage-client-library --disable-http2 --max-c
 * **Reads**: In sequential reads, the Go Storage Client in HTTP 1.1 mode performs the best. Performs even better than the current JSON API client.
 * **Writes**: In writes, be it random access or sequential access, all the clients perform equally well and there is not much of a difference.
 * **List**: Go Storage Client in HTTP 1.1 mode and JSON API client in perf mode performs the best.
+
+To conclude, according to our assessment Go Storage Client in HTTP 1.1 mode performs the best in an overall way.
