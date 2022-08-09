@@ -298,16 +298,13 @@ func runCLIApp(c *cli.Context) (err error) {
 
 		// Pass the parent process working directory to child process via
 		// environment variable. This variable will be used to resolve relative paths.
-		var parentProcessExecutionDir string
-		parentProcessExecutionDir, err = os.Getwd()
-		if err != nil {
-			return fmt.Errorf("Getting current working dir: %w", err)
+		if parentProcessExecutionDir, err := os.Getwd(); err == nil {
+			env = append(env, fmt.Sprintf("%s=%s", GCSFUSE_PARENT_PROCESS_DIR, parentProcessExecutionDir))
 		}
-		env = append(env, fmt.Sprintf("%s=%s", PARENT_PROCESS_EXECUTION_DIR_KEY, parentProcessExecutionDir))
 
-		// no need to handle error, here resolvePath method will take care of this.
-		homeDir, _ := os.UserHomeDir()
-		env = append(env, fmt.Sprintf("HOME=%s", homeDir))
+		if homeDir, _ := os.UserHomeDir(); err == nil {
+			env = append(env, fmt.Sprintf("HOME=%s", homeDir))
+		}
 
 		// Run.
 		err = daemonize.Run(path, args, env, os.Stdout)

@@ -344,80 +344,65 @@ type flagStorage struct {
 	DebugMutex      bool
 }
 
-const PARENT_PROCESS_EXECUTION_DIR_KEY = "MD5Hash38cda02df9fcf2b1bba019000cce0eb6"
+const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
 
-// returns the same filepath in case of absolute path
-// returns the resolved path for relative to current dir or home dir
+// (1) returns the same filepath in case of absolute path or empty filename.
+// (2) for relative path with . && .. or nothing, it resolves smartly the path
+// in case of child proces it resolves with respect to GCSFUSE_PARENT_PROCESS_DIR
+// otherwise with respect to the current working dir.
+// (3) for relative path starting with ~, it resolves with respect to home dir.
 func getResolvedPath(filePath string) (resolvedPath string, err error) {
-	if path.IsAbs(filePath) {
-		return filePath, nil
+	if filePath == "" || path.IsAbs(filePath) {
+		resolvedPath = filePath
+		return resolvedPath, err
 	}
 
+	// relative path starting with tilda (~)
 	if strings.HasPrefix(filePath, "~") {
-		homeDir, err1 := os.UserHomeDir()
-		if err1 != nil {
-			return "", fmt.Errorf("get home dir: %w", err1)
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("Fetch home dir: [%w]", homeDir)
 		}
-		return filepath.Join(homeDir, filePath[2:]), nil
-	} else {
+		return filepath.Join(homeDir, filePath[2:]), err
+	}
+
+	// means - relative path starting with ., .. or nothing.
+	gcsfuseParentProcessDir, _ := os.LookupEnv(GCSFUSE_PARENT_PROCESS_DIR)
+	if gcsfuseParentProcessDir == "" {
 		return filepath.Abs(filePath)
+	} else {
+		return filepath.Join(gcsfuseParentProcessDir, filePath), err
 	}
 }
 
-// It smartly resolves the path of the required flag
+// This method resolves path in the context dictionary.
+func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) {
+	flagValue := c.String(flagKey)
+	resolvedPath, err := getResolvedPath(flagValue)
+	if err != nil {
+		return fmt.Errorf("While resolving path: [%w]", err)
+	}
+	c.Set(flagKey, resolvedPath)
+
+	return err
+}
+
+// It smartly resolves the path of the required flag.
 // For parent process: it only resolves the path with respect to home folder.
 // For child process (when --foreground flag is disabled) - it resolves
 // the path relative to both current directory and home directory
 func resolvePathForTheRequiredFlagInContext(c *cli.Context) (err error) {
-	parentProcessExecutionDir, ok := os.LookupEnv(PARENT_PROCESS_EXECUTION_DIR_KEY)
-	if !ok { // means parent process, hence set the parentProcessExecutionDir empty.
-		parentProcessExecutionDir = ""
-	}
-
-	err = resolvePathForTheFlagInContext("log-file", parentProcessExecutionDir, c)
+	err = resolvePathForTheFlagInContext("log-file", c)
 	if err != nil {
 		return fmt.Errorf("resolving for log-file: [%w]", err)
 	}
 
-	err = resolvePathForTheFlagInContext("key-file", parentProcessExecutionDir, c)
+	err = resolvePathForTheFlagInContext("key-file", c)
 	if err != nil {
 		return fmt.Errorf("resolving for key-file: [%w]", err)
 	}
 
-	return nil
-}
-
-// This method resolve the path in the context dictionary
-// in case of relative path if parentProcWorkingDir == "", resolves wrt currentDir
-// otherwise wrt to parentProcWorkingDir (good when child-process change the directory)
-func resolvePathForTheFlagInContext(flagKey string, parentProcWorkingDir string, c *cli.Context) (err error) {
-	flagValue := c.String(flagKey)
-	if flagValue == "" || path.IsAbs(flagValue) {
-		return nil
-	} else if strings.HasPrefix(flagValue, "~") {
-		var resolvedPath string
-		resolvedPath, err = getResolvedPath(flagValue)
-		if err != nil {
-			return fmt.Errorf("while resolving path: %w", err)
-		}
-		c.Set(flagKey, resolvedPath)
-	} else { // relative path
-		if parentProcWorkingDir != "" { // child process
-			err = c.Set(flagKey, filepath.Join(parentProcWorkingDir, flagValue))
-			if err != nil {
-				return fmt.Errorf("while setting value in context: %w", err)
-			}
-		} else {
-			var absolutePath string
-			absolutePath, err = filepath.Abs(flagValue)
-			if err != nil {
-				return fmt.Errorf("while converting to absolute: [%w]", err)
-			}
-			c.Set(flagKey, absolutePath)
-		}
-	}
-
-	return nil
+	return
 }
 
 // Add the flags accepted by run to the supplied flag set, returning the
