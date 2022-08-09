@@ -28,7 +28,6 @@ import (
 )
 
 var (
-	readBytes = stats.Int64("read_bytes", "The number of bytes read from GCS", "By")
 	// When a first read call is made by the user, we either fetch entire file or x number of bytes from GCS based on the request.
 	// Now depending on the pagesize multiple read calls will be issued by user to read the entire file. These
 	// requests will be served from the downloaded data.
@@ -61,12 +60,6 @@ const random = "Random"
 // Initialize the metrics.
 func init() {
 	if err := view.Register(
-		&view.View{
-			Name:        "gcsfuse_read_bytes",
-			Measure:     readBytes,
-			Description: "The number of bytes read from GCS",
-			Aggregation: view.Sum(),
-		},
 		&view.View{
 			Name:        "gcs_read_count",
 			Measure:     gcsReadCount,
@@ -249,7 +242,6 @@ func (rr *randomReader) ReadAt(
 		}
 	}
 
-	stats.Record(ctx, readBytes.M(int64(n)))
 	return
 }
 
