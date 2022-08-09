@@ -96,6 +96,13 @@ func unMount() error {
 }
 
 func clearKernelCache() error {
+	if _, err := os.Stat("/proc/sys/vm/drop_caches"); err != nil {
+		log.Printf("Kernel cache file not found: %v", err)
+		// No need to stop the test execution if cache file is not found. Further
+		// reads will be served from kernel cache.
+		return nil
+	}
+
 	// sudo permission is required to clear kernel page cache.
 	cmd := exec.Command("sudo", "sh", "-c", "echo 3 > /proc/sys/vm/drop_caches")
 	if err := cmd.Run(); err != nil {
