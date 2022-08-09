@@ -194,7 +194,9 @@ that we reserve the right to make backwards-incompatible changes.
 
 # Switching to Go Storage Client
 
-## Extra flags added
+This branch of the GCSFuse repository provides ability to use [Go Storage Client](https://pkg.go.dev/cloud.google.com/go/storage) as a client to interact with the GCS backend. Option to choose between Go Storage Client and currently used JSON API client is available via a flag mentioned below. All the methods present in the third party library, [jacobsa/gcloud](vendor/github.com/jacobsa/gcloud/gcs/bucket.go#L44) are changed to use the Go Storage Client.
+
+## Extra flags added to access Go Client
 
 * `--enable-storage-client-library` flag enables us to switch the client to the Go Storage Client for communicating with the GCS backend.
 * `--max-idle-conns-per-host` flag allows us to set the max limit of idle connections when using the Go Storage Client in HTTP 1.1 mode.
@@ -241,3 +243,9 @@ go run . --implicit-dirs --enable-storage-client-library --disable-http2 --max-c
 * While the write flows are not affected by the client timeout but they highly depend on the [ChunkSize](vendor/github.com/jacobsa/gcloud/gcs/create_object.go#L268) parameter of the NewWriter. Currently the ChunkSize parameter is set to 0 to perform one-shot uploads because the current JSON API client also performs one-shot uploads. But it can be changed in the future as per needs. 
 
 * The performance of the listing operation is dependent on the [MaxResults](vendor/cloud.google.com/go/storage/bucket.go#L1994) parameter. For now it is hardcoded to 5000 but we need to find a way to make it configurable.
+
+## Performance of Go Storage Client
+
+* **Reads**: In sequential reads, the Go Storage Client in HTTP 1.1 mode performs the best. Performs even better than the current JSON API client.
+* **Writes**: In writes, be it random access or sequential access, all the clients perform equally well and there is not much of a difference.
+* **List**: Go Storage Client in HTTP 1.1 mode and JSON API client in perf mode performs the best.
