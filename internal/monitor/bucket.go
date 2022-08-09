@@ -31,7 +31,6 @@ import (
 var (
 	// OpenCensus measures
 	readBytesCount = stats.Int64("gcs/read_bytes_count", "The number of bytes read from GCS objects.", stats.UnitBytes)
-	downloadBytesCount = stats.Int64("gcs/download_bytes_count", "The number of bytes downloaded from GCS", stats.UnitBytes)
 	readerCount    = stats.Int64("gcs/reader_count", "The number of GCS object readers opened or closed.", stats.UnitDimensionless)
 	requestCount   = stats.Int64("gcs/request_count", "The number of GCS requests processed.", stats.UnitDimensionless)
 	requestLatency = stats.Float64("gcs/request_latency", "The latency of a GCS request.", stats.UnitMilliseconds)
@@ -45,12 +44,6 @@ func init() {
 			Name:        "gcs/read_bytes_count",
 			Measure:     readBytesCount,
 			Description: "The cumulative number of bytes read from GCS objects.",
-			Aggregation: view.Sum(),
-		},
-		&view.View{
-			Name:        "gcs/download_bytes_count",
-			Measure:     downloadBytesCount,
-			Description: "The cumulative number of bytes downloaded from GCS.",
 			Aggregation: view.Sum(),
 		},
 		&view.View{
@@ -131,11 +124,6 @@ func (mb *monitoringBucket) NewReader(
 	}
 
 	recordRequest(ctx, "NewReader", startTime)
-
-	if req.Range != nil {
-		requestSize := req.Range.Limit - req.Range.Start
-		stats.Record(ctx, downloadBytesCount.M(int64(requestSize)))
-	}
 	return
 }
 

@@ -33,6 +33,7 @@ var (
 	// requests will be served from the downloaded data.
 	// This metric captures only the requests made to GCS, not the subsequent page calls.
 	gcsReadCount = stats.Int64("gcs/read_count", "Specifies the count of gcs reads made along with type", stats.UnitDimensionless)
+	downloadBytesCount = stats.Int64("gcs/download_bytes_count", "The number of bytes downloaded from GCS", stats.UnitBytes)
 )
 
 // MB is 1 Megabyte. (Silly comment to make the lint warning go away)
@@ -64,6 +65,13 @@ func init() {
 			Name:        "gcs/read_count",
 			Measure:     gcsReadCount,
 			Description: "Specifies the number of gcs reads made along with type- Sequential/Random",
+			Aggregation: view.Sum(),
+			TagKeys:     []tag.Key{tags.ReadType},
+		},
+		&view.View{
+			Name:        "gcs/download_bytes_count",
+			Measure:     downloadBytesCount,
+			Description: "The cumulative number of bytes downloaded from GCS.",
 			Aggregation: view.Sum(),
 			TagKeys:     []tag.Key{tags.ReadType},
 		},
@@ -364,12 +372,13 @@ func (rr *randomReader) startRead(
 	rr.start = start
 	rr.limit = end
 
-	captureMetrics(ctx, readType)
+	requestedDataSize := end - start
+	captureMetrics(ctx, readType, requestedDataSize)
 
 	return
 }
 
-func captureMetrics(ctx context.Context, readType string) {
+func captureMetrics(ctx context.Context, readType string, requestedDataSize int64) {
 	if err := stats.RecordWithTags(
 		ctx,
 		[]tag.Mutator{
@@ -380,4 +389,16 @@ func captureMetrics(ctx context.Context, readType string) {
 		// Error in recording gcsReadCount.
 		log.Fatalf("Cannot record gcsReadCount %v", err)
 	}
+
+	if err := stats.RecordWithTags(
+		ctx,
+		[]tag.Mutator{
+			tag.Upsert(tags.ReadType, readType),
+		},
+		downloadBytesCount.M(requestedDataSize),
+	); err != nil {
+		// Error in recording gcsReadCount.
+		log.Fatalf("Cannot record downloadBytesCount %v", err)
+	}
+
 }
