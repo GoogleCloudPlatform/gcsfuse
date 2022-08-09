@@ -32,7 +32,7 @@ var (
 	// Now depending on the pagesize multiple read calls will be issued by user to read the entire file. These
 	// requests will be served from the downloaded data.
 	// This metric captures only the requests made to GCS, not the subsequent page calls.
-	gcsReadCount = stats.Int64("gcs_reads", "Specifies the count of gcs reads made along with type", stats.UnitDimensionless)
+	gcsReadCount = stats.Int64("gcs/read_count", "Specifies the count of gcs reads made along with type", stats.UnitDimensionless)
 )
 
 // MB is 1 Megabyte. (Silly comment to make the lint warning go away)
@@ -61,7 +61,7 @@ const random = "Random"
 func init() {
 	if err := view.Register(
 		&view.View{
-			Name:        "gcs_read_count",
+			Name:        "gcs/read_count",
 			Measure:     gcsReadCount,
 			Description: "Specifies the number of gcs reads made along with type- Sequential/Random",
 			Aggregation: view.Sum(),
