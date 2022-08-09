@@ -362,7 +362,7 @@ func getResolvedPath(filePath string) (resolvedPath string, err error) {
 	if strings.HasPrefix(filePath, "~/") {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
-			return "", fmt.Errorf("Fetch home dir: [%w]", homeDir)
+			return "", fmt.Errorf("Fetch home dir: [%w]", err)
 		}
 		return filepath.Join(homeDir, filePath[2:]), err
 	}
