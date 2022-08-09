@@ -299,9 +299,12 @@ func runCLIApp(c *cli.Context) (err error) {
 		// Pass the parent process working directory to child process via
 		// environment variable. This variable will be used to resolve relative paths.
 		if parentProcessExecutionDir, err := os.Getwd(); err == nil {
-			env = append(env, fmt.Sprintf("%s=%s", GCSFUSE_PARENT_PROCESS_DIR, parentProcessExecutionDir))
+			env = append(env, fmt.Sprintf("%s=%s", GCSFUSE_PARENT_PROCESS_DIR,
+				parentProcessExecutionDir))
 		}
 
+		// Here, parent process doesn't pass the $HOME to child process implicitly,
+		// hence we need to pass it explicitly.
 		if homeDir, _ := os.UserHomeDir(); err == nil {
 			env = append(env, fmt.Sprintf("HOME=%s", homeDir))
 		}

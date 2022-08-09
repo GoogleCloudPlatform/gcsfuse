@@ -354,11 +354,11 @@ const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
 func getResolvedPath(filePath string) (resolvedPath string, err error) {
 	if filePath == "" || path.IsAbs(filePath) {
 		resolvedPath = filePath
-		return resolvedPath, err
+		return
 	}
 
 	// relative path starting with tilda (~)
-	if strings.HasPrefix(filePath, "~") {
+	if strings.HasPrefix(filePath, "~/") {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
 			return "", fmt.Errorf("Fetch home dir: [%w]", homeDir)
@@ -368,6 +368,7 @@ func getResolvedPath(filePath string) (resolvedPath string, err error) {
 
 	// means - relative path starting with ., .. or nothing.
 	gcsfuseParentProcessDir, _ := os.LookupEnv(GCSFUSE_PARENT_PROCESS_DIR)
+	gcsfuseParentProcessDir = strings.TrimSpace(gcsfuseParentProcessDir)
 	if gcsfuseParentProcessDir == "" {
 		return filepath.Abs(filePath)
 	} else {
@@ -384,10 +385,9 @@ func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) 
 	}
 	c.Set(flagKey, resolvedPath)
 
-	return err
+	return
 }
 
-// It smartly resolves the path of the required flag.
 // For parent process: it only resolves the path with respect to home folder.
 // For child process (when --foreground flag is disabled) - it resolves
 // the path relative to both current directory and home directory
