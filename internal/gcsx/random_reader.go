@@ -61,19 +61,19 @@ const random = "Random"
 // Initialize the metrics.
 func init() {
 	if err := view.Register(
-		      &view.View{
-									Name:        "gcsfuse_read_bytes",
-									Measure:     readBytes,
-									Description: "The number of bytes read from GCS",
-									Aggregation: view.Sum(),
-					},
-					&view.View{
-									Name:        "gcs_read_count",
-									Measure:     gcsReadCount,
-									Description: "Specifies the number of gcs reads made along with type- Sequential/Random",
-									Aggregation: view.Sum(),
-									TagKeys:     []tag.Key{tags.ReadType},
-					},
+		&view.View{
+			Name:        "gcsfuse_read_bytes",
+			Measure:     readBytes,
+			Description: "The number of bytes read from GCS",
+			Aggregation: view.Sum(),
+		},
+		&view.View{
+			Name:        "gcs_read_count",
+			Measure:     gcsReadCount,
+			Description: "Specifies the number of gcs reads made along with type- Sequential/Random",
+			Aggregation: view.Sum(),
+			TagKeys:     []tag.Key{tags.ReadType},
+		},
 	); err != nil {
 		log.Fatalf("Failed to register the view: %v", err)
 	}
