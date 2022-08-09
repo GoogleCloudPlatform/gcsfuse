@@ -135,7 +135,7 @@ be interacting with the file system.`)
 		Options:    flags.MountOptions,
 	}
 
-	if flags.LogFuseErrors {
+	if flags.DebugFuseErrors {
 		mountCfg.ErrorLogger = logger.NewError("fuse: ")
 	}
 

@@ -255,16 +255,16 @@ func newApp() (app *cli.App) {
 				Usage: "The format of the log file: 'text' or 'json'.",
 			},
 
+			/////////////////////////
+			// Debugging
+			/////////////////////////
+
 			cli.BoolTFlag{
-				Name: "log-fuse-errors",
+				Name: "debug_fuse_errors",
 				Usage: "If false, fuse errors will not be logged to the " +
 					"console (in case of --foreground) or the log-file " +
 					"(if specified",
 			},
-
-			/////////////////////////
-			// Debugging
-			/////////////////////////
 
 			cli.BoolFlag{
 				Name:  "debug_fuse",
@@ -338,7 +338,7 @@ type flagStorage struct {
 	OtelCollectorAddress      string
 	LogFile                   string
 	LogFormat                 string
-	LogFuseErrors             bool
+	DebugFuseErrors           bool
 
 	// Debugging
 	DebugFuse       bool
@@ -394,9 +394,9 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		OtelCollectorAddress:      c.String("experimental-opentelemetry-collector-address"),
 		LogFile:                   c.String("log-file"),
 		LogFormat:                 c.String("log-format"),
-		LogFuseErrors:             c.BoolT("log-fuse-errors"),
 
 		// Debugging,
+		DebugFuseErrors: c.BoolT("debug_fuse_errors"),
 		DebugFuse:       c.Bool("debug_fuse"),
 		DebugGCS:        c.Bool("debug_gcs"),
 		DebugFS:         c.Bool("debug_fs"),
