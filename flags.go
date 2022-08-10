@@ -348,9 +348,10 @@ type flagStorage struct {
 const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
 
 // 1. Returns the same filepath in case of absolute path or empty filename.
-// 2. For relative path with . or .. or nothing, it resolves smartly the path
-// in case of child proces it resolves with respect to GCSFUSE_PARENT_PROCESS_DIR
-// otherwise with respect to the current working dir.
+// 2. For child process, it resolves relative path like, ./test.txt, test.txt
+// ../test.txt etc, with respect to GCSFUSE_PARENT_PROCESS_DIR
+// because we execute the child process from different directory and input
+// files are provided with respect the GCSFUSE_PARENT_PROCESS_DIR.
 // 3. For relative path starting with ~, it resolves with respect to home dir.
 func getResolvedPath(filePath string) (resolvedPath string, err error) {
 	if filePath == "" || path.IsAbs(filePath) {
@@ -367,7 +368,7 @@ func getResolvedPath(filePath string) (resolvedPath string, err error) {
 		return filepath.Join(homeDir, filePath[2:]), err
 	}
 
-	// Means - relative path starting with ., .. or nothing.
+	// We reach here, when relative path starts with . or .. or other than (/ or ~)
 	gcsfuseParentProcessDir, _ := os.LookupEnv(GCSFUSE_PARENT_PROCESS_DIR)
 	gcsfuseParentProcessDir = strings.TrimSpace(gcsfuseParentProcessDir)
 	if gcsfuseParentProcessDir == "" {
@@ -392,17 +393,18 @@ func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) 
 }
 
 // For parent process: it only resolves the path with respect to home folder.
-// For child process (when --foreground flag is disabled): it resolves
-// the path relative to both current directory and home directory
-func resolvePathForTheRequiredFlagInContext(c *cli.Context) (err error) {
+// For child process: it resolves the path relative to both home directory and
+// GCSFUSE_PARENT_PROCESS_DIR. Child process is spawned when --foreground flag
+// is disabled.
+func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
 	err = resolvePathForTheFlagInContext("log-file", c)
 	if err != nil {
-		return fmt.Errorf("resolving for log-file: [%w]", err)
+		return fmt.Errorf("resolving for log-file: %w", err)
 	}
 
 	err = resolvePathForTheFlagInContext("key-file", c)
 	if err != nil {
-		return fmt.Errorf("resolving for key-file: [%w]", err)
+		return fmt.Errorf("resolving for key-file: %w", err)
 	}
 
 	return

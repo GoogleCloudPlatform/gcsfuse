@@ -219,7 +219,7 @@ func populateArgs(c *cli.Context) (
 }
 
 func runCLIApp(c *cli.Context) (err error) {
-	err = resolvePathForTheRequiredFlagInContext(c)
+	err = resolvePathForTheFlagsInContext(c)
 	if err != nil {
 		return fmt.Errorf("Resolving path: %w", err)
 	}

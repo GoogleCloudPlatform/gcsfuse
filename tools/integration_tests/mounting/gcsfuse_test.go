@@ -562,10 +562,10 @@ func (t *GcsfuseTest) HelpFlags() {
 const TEST_RELATIVE_FILE_NAME = "test.txt"
 const TEST_HOME_RELATIVE_FILE_NAME = "test_home.json"
 
-func (t *GcsfuseTest) createTestFilesForRelativePathTesting() (
+func createTestFilesForRelativePathTesting(curWorkingDir string) (
 	curDirTestFile string, homeDirTestFile string) {
 
-	curDirTestFile = filepath.Join(t.dir, TEST_RELATIVE_FILE_NAME)
+	curDirTestFile = filepath.Join(curWorkingDir, TEST_RELATIVE_FILE_NAME)
 	_, err := os.Create(curDirTestFile)
 	AssertEq(nil, err)
 
@@ -579,8 +579,8 @@ func (t *GcsfuseTest) createTestFilesForRelativePathTesting() (
 	return
 }
 
-func (t *GcsfuseTest) RelativeLogFilePath() {
-	curDirTestFile, homeDirTestFile := t.createTestFilesForRelativePathTesting()
+func (t *GcsfuseTest) LogFilePath() {
+	curDirTestFile, homeDirTestFile := createTestFilesForRelativePathTesting(t.dir)
 	defer os.Remove(curDirTestFile)
 	defer os.Remove(homeDirTestFile)
 
@@ -592,22 +592,27 @@ func (t *GcsfuseTest) RelativeLogFilePath() {
 		extraArgs []string
 		env       []string
 	}{
-		// relative path
+		// Relative path
 		0: {
 			extraArgs: []string{"--log-file", TEST_RELATIVE_FILE_NAME},
 		},
 
-		// relative with ./
+		// Relative with ./
 		1: {
 			extraArgs: []string{"--log-file",
 				fmt.Sprintf("./%s", TEST_RELATIVE_FILE_NAME)},
 		},
 
-		// path with tilda
+		// Path with tilda
 		2: {
 			extraArgs: []string{"--log-file",
 				fmt.Sprintf("~/%s", TEST_HOME_RELATIVE_FILE_NAME)},
 			env: []string{fmt.Sprintf("HOME=%s", homeDir)},
+		},
+
+		// Absolute path
+		3: {
+			extraArgs: []string{"--log-file", curDirTestFile},
 		},
 	}
 
@@ -621,8 +626,8 @@ func (t *GcsfuseTest) RelativeLogFilePath() {
 	}
 }
 
-func (t *GcsfuseTest) RelativeKeyFilePath() {
-	curDirTestFile, homeDirTestFile := t.createTestFilesForRelativePathTesting()
+func (t *GcsfuseTest) KeyFilePath() {
+	curDirTestFile, homeDirTestFile := createTestFilesForRelativePathTesting(t.dir)
 	defer os.Remove(curDirTestFile)
 	defer os.Remove(homeDirTestFile)
 
@@ -651,6 +656,11 @@ func (t *GcsfuseTest) RelativeKeyFilePath() {
 				fmt.Sprintf("~/%s", TEST_HOME_RELATIVE_FILE_NAME)},
 			env: []string{fmt.Sprintf("HOME=%s", homeDir)},
 		},
+
+		// Absolute path
+		3: {
+			extraArgs: []string{"--key-file", curDirTestFile},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -663,8 +673,8 @@ func (t *GcsfuseTest) RelativeKeyFilePath() {
 	}
 }
 
-func (t *GcsfuseTest) RelativeBothLogAndKeyFilePath() {
-	curDirTestFile, homeDirTestFile := t.createTestFilesForRelativePathTesting()
+func (t *GcsfuseTest) BothLogAndKeyFilePath() {
+	curDirTestFile, homeDirTestFile := createTestFilesForRelativePathTesting(t.dir)
 	defer os.Remove(curDirTestFile)
 	defer os.Remove(homeDirTestFile)
 
@@ -697,6 +707,12 @@ func (t *GcsfuseTest) RelativeBothLogAndKeyFilePath() {
 				"--log-file",
 				fmt.Sprintf("~/%s", TEST_HOME_RELATIVE_FILE_NAME)},
 			env: []string{fmt.Sprintf("HOME=%s", homeDir)},
+		},
+
+		// Absolute path
+		3: {
+			extraArgs: []string{"--log-file", curDirTestFile,
+				"--key-file", curDirTestFile},
 		},
 	}
 
