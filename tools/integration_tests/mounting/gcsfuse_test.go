@@ -559,58 +559,143 @@ func (t *GcsfuseTest) HelpFlags() {
 	}
 }
 
-func (t *GcsfuseTest) RelativeLogFilePath() {
-	// Create a temp file in current working directory
-	currentDirTestFile := filepath.Join(t.dir, "test.txt")
-	_, err := os.Create(currentDirTestFile)
-	AssertEq(nil, err)
-	defer os.Remove(currentDirTestFile)
+const TEST_RELATIVE_FILE_NAME = "test.txt"
+const TEST_HOME_RELATIVE_FILE_NAME = "test_home.json"
 
-	// Create a temp log file in home directory
+func (t *GcsfuseTest) createTestFilesForRelativePathTesting() (
+	curDirTestFile string, homeDirTestFile string) {
+
+	curDirTestFile = filepath.Join(t.dir, TEST_RELATIVE_FILE_NAME)
+	_, err := os.Create(curDirTestFile)
+	AssertEq(nil, err)
+
 	homeDir, err := os.UserHomeDir()
 	AssertEq(nil, err)
 
-	homeTestFile := filepath.Join(homeDir, "test_home.json")
-	_, err = os.Create(homeTestFile)
-	defer os.Remove(homeTestFile)
+	homeDirTestFile = filepath.Join(homeDir, TEST_HOME_RELATIVE_FILE_NAME)
+	_, err = os.Create(homeDirTestFile)
+	AssertEq(nil, err)
 
-	// Specify log file in different way.
+	return
+}
+
+func (t *GcsfuseTest) RelativeLogFilePath() {
+	curDirTestFile, homeDirTestFile := t.createTestFilesForRelativePathTesting()
+	defer os.Remove(curDirTestFile)
+	defer os.Remove(homeDirTestFile)
+
+	homeDir, err := os.UserHomeDir()
+	AssertEq(nil, err)
+
+	// Specify log-file and key-file in different way with --foreground flag.
 	testCases := []struct {
 		extraArgs []string
 		env       []string
 	}{
-		// Without --foreground flag, relative path
+		// relative path
 		0: {
-			extraArgs: []string{"--log-file", "test.txt"},
+			extraArgs: []string{"--log-file", TEST_RELATIVE_FILE_NAME},
 		},
 
-		// Without --foreground flag, relative with ./
+		// relative with ./
 		1: {
-			extraArgs: []string{"--log-file", "./test.txt"},
+			extraArgs: []string{"--log-file",
+				fmt.Sprintf("./%s", TEST_RELATIVE_FILE_NAME)},
 		},
 
-		// Without --foreground flag, path with tilda
+		// path with tilda
 		2: {
-			extraArgs: []string{"--log-file", "~/test_home.json"},
-			env:       []string{fmt.Sprintf("HOME=%s", homeDir)},
-		},
-
-		// Without --foreground flag, key-file relative path
-		3: {
-			extraArgs: []string{"--log-file", "test.txt"},
-		},
-
-		// Without --foreground flag, both key-file and log-file
-		4: {
-			extraArgs: []string{"--key-file", "~/test_home.json",
-				"--log-file", "test.txt"},
+			extraArgs: []string{"--log-file",
+				fmt.Sprintf("~/%s", TEST_HOME_RELATIVE_FILE_NAME)},
 			env: []string{fmt.Sprintf("HOME=%s", homeDir)},
 		},
+	}
 
-		// Without --foreground flag, both key-file and log-file
-		5: {
-			extraArgs: []string{"--key-file", "./test.txt",
-				"--log-file", "~/test_home.json"},
+	for _, tc := range testCases {
+		args := tc.extraArgs
+		args = append(args, canned.FakeBucketName, t.dir)
+
+		err := t.runGcsfuseWithEnv(args, tc.env)
+		util.Unmount(t.dir)
+		ExpectEq(nil, err)
+	}
+}
+
+func (t *GcsfuseTest) RelativeKeyFilePath() {
+	curDirTestFile, homeDirTestFile := t.createTestFilesForRelativePathTesting()
+	defer os.Remove(curDirTestFile)
+	defer os.Remove(homeDirTestFile)
+
+	homeDir, err := os.UserHomeDir()
+	AssertEq(nil, err)
+
+	// Specify key-file in different way with --foreground flag.
+	testCases := []struct {
+		extraArgs []string
+		env       []string
+	}{
+		// relative path
+		0: {
+			extraArgs: []string{"--key-file", TEST_RELATIVE_FILE_NAME},
+		},
+
+		// relative with ./
+		1: {
+			extraArgs: []string{"--key-file",
+				fmt.Sprintf("./%s", TEST_RELATIVE_FILE_NAME)},
+		},
+
+		// path with tilda
+		2: {
+			extraArgs: []string{"--key-file",
+				fmt.Sprintf("~/%s", TEST_HOME_RELATIVE_FILE_NAME)},
+			env: []string{fmt.Sprintf("HOME=%s", homeDir)},
+		},
+	}
+
+	for _, tc := range testCases {
+		args := tc.extraArgs
+		args = append(args, canned.FakeBucketName, t.dir)
+
+		err := t.runGcsfuseWithEnv(args, tc.env)
+		util.Unmount(t.dir)
+		ExpectEq(nil, err)
+	}
+}
+
+func (t *GcsfuseTest) RelativeBothLogAndKeyFilePath() {
+	curDirTestFile, homeDirTestFile := t.createTestFilesForRelativePathTesting()
+	defer os.Remove(curDirTestFile)
+	defer os.Remove(homeDirTestFile)
+
+	homeDir, err := os.UserHomeDir()
+	AssertEq(nil, err)
+
+	// Specify log-file and key-file in different way with --foreground flag.
+	testCases := []struct {
+		extraArgs []string
+		env       []string
+	}{
+		// relative path
+		0: {
+			extraArgs: []string{"--key-file", TEST_RELATIVE_FILE_NAME,
+				"--log-file", TEST_RELATIVE_FILE_NAME},
+		},
+
+		// relative with ./
+		1: {
+			extraArgs: []string{"--key-file",
+				fmt.Sprintf("./%s", TEST_RELATIVE_FILE_NAME),
+				"--log-file",
+				fmt.Sprintf("./%s", TEST_RELATIVE_FILE_NAME)},
+		},
+
+		// path with tilda
+		2: {
+			extraArgs: []string{"--key-file",
+				fmt.Sprintf("~/%s", TEST_HOME_RELATIVE_FILE_NAME),
+				"--log-file",
+				fmt.Sprintf("~/%s", TEST_HOME_RELATIVE_FILE_NAME)},
 			env: []string{fmt.Sprintf("HOME=%s", homeDir)},
 		},
 	}

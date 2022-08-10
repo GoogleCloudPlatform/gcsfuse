@@ -347,18 +347,18 @@ type flagStorage struct {
 
 const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
 
-// (1) returns the same filepath in case of absolute path or empty filename.
-// (2) for relative path with . && .. or nothing, it resolves smartly the path
+// 1. Returns the same filepath in case of absolute path or empty filename.
+// 2. For relative path with . or .. or nothing, it resolves smartly the path
 // in case of child proces it resolves with respect to GCSFUSE_PARENT_PROCESS_DIR
 // otherwise with respect to the current working dir.
-// (3) for relative path starting with ~, it resolves with respect to home dir.
+// 3. For relative path starting with ~, it resolves with respect to home dir.
 func getResolvedPath(filePath string) (resolvedPath string, err error) {
 	if filePath == "" || path.IsAbs(filePath) {
 		resolvedPath = filePath
 		return
 	}
 
-	// relative path starting with tilda (~)
+	// Relative path starting with tilda (~)
 	if strings.HasPrefix(filePath, "~/") {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
@@ -367,7 +367,7 @@ func getResolvedPath(filePath string) (resolvedPath string, err error) {
 		return filepath.Join(homeDir, filePath[2:]), err
 	}
 
-	// means - relative path starting with ., .. or nothing.
+	// Means - relative path starting with ., .. or nothing.
 	gcsfuseParentProcessDir, _ := os.LookupEnv(GCSFUSE_PARENT_PROCESS_DIR)
 	gcsfuseParentProcessDir = strings.TrimSpace(gcsfuseParentProcessDir)
 	if gcsfuseParentProcessDir == "" {
@@ -382,16 +382,16 @@ func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) 
 	flagValue := c.String(flagKey)
 	resolvedPath, err := getResolvedPath(flagValue)
 	if err != nil {
-		return fmt.Errorf("While resolving path: [%w]", err)
+		return
 	}
 	c.Set(flagKey, resolvedPath)
-	logger.Infof(fmt.Sprintf("Value of [%s] resolved from [%s] to [%s]\n",
-		flagKey, flagValue, resolvedPath))
+	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n",
+		flagKey, flagValue, resolvedPath)
 	return
 }
 
 // For parent process: it only resolves the path with respect to home folder.
-// For child process (when --foreground flag is disabled) - it resolves
+// For child process (when --foreground flag is disabled): it resolves
 // the path relative to both current directory and home directory
 func resolvePathForTheRequiredFlagInContext(c *cli.Context) (err error) {
 	err = resolvePathForTheFlagInContext("log-file", c)
