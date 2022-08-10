@@ -239,7 +239,7 @@ func (t *FlagsTest) ResolvePathInParentProcess() {
 func (t *FlagsTest) ResolvePathInChildProcess() {
 	args := []string{
 		"--log-file=test.txt",
-		"--key-file=test.json",
+		"--key-file=~/test.json",
 	}
 
 	const gcsFuseParentProcessDir = "/var/generic/google"
@@ -248,8 +248,11 @@ func (t *FlagsTest) ResolvePathInChildProcess() {
 	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
 	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
 
+	homeDir, err := os.UserHomeDir()
+	AssertEq(nil, err)
+
 	f := parseArgs(args)
 
 	ExpectEq(filepath.Join(gcsFuseParentProcessDir, "test.txt"), f.LogFile)
-	ExpectEq(filepath.Join(gcsFuseParentProcessDir, "test.json"), f.KeyFile)
+	ExpectEq(filepath.Join(homeDir, "test.json"), f.KeyFile)
 }
