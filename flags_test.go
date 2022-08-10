@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"testing"
 	"time"
@@ -41,6 +42,7 @@ func parseArgs(args []string) (flags *flagStorage) {
 	// Create a CLI app, and abuse it to snoop on the flags.
 	app := newApp()
 	app.Action = func(appCtx *cli.Context) {
+		resolvePathForTheRequiredFlagInContext(appCtx)
 		flags = populateFlags(appCtx)
 	}
 
@@ -175,8 +177,11 @@ func (t *FlagsTest) Strings() {
 		"--only-dir=baz",
 	}
 
+	currentWorkingDir, err := os.Getwd()
+	AssertEq(nil, err)
+
 	f := parseArgs(args)
-	ExpectEq("-asdf", f.KeyFile)
+	ExpectEq(filepath.Join(currentWorkingDir, "-asdf"), f.KeyFile)
 	ExpectEq("foobar", f.TempDir)
 	ExpectEq("baz", f.OnlyDir)
 }
@@ -212,4 +217,39 @@ func (t *FlagsTest) Maps() {
 	ExpectEq("", f.MountOptions["nodev"])
 	ExpectEq("", f.MountOptions["rw"])
 	ExpectEq("jacobsa", f.MountOptions["user"])
+}
+
+func (t *FlagsTest) ResolvePathInParentProcess() {
+	args := []string{
+		"--log-file=~/test.txt",
+		"--key-file=test.json",
+	}
+
+	f := parseArgs(args)
+	currentWorkingDir, err := os.Getwd()
+	AssertEq(nil, err)
+
+	homeDir, err := os.UserHomeDir()
+	AssertEq(nil, err)
+
+	ExpectEq(filepath.Join(homeDir, "test.txt"), f.LogFile)
+	ExpectEq(filepath.Join(currentWorkingDir, "test.json"), f.KeyFile)
+}
+
+func (t *FlagsTest) ResolvePathInChildProcess() {
+	args := []string{
+		"--log-file=test.txt",
+		"--key-file=test.json",
+	}
+
+	const gcsFuseParentProcessDir = "/var/generic/google"
+
+	// By setting this environment variable, resolve will work for child process.
+	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
+	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
+
+	f := parseArgs(args)
+
+	ExpectEq(filepath.Join(gcsFuseParentProcessDir, "test.txt"), f.LogFile)
+	ExpectEq(filepath.Join(gcsFuseParentProcessDir, "test.json"), f.KeyFile)
 }
