@@ -381,15 +381,12 @@ func getResolvedPath(filePath string) (resolvedPath string, err error) {
 func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) {
 	flagValue := c.String(flagKey)
 	resolvedPath, err := getResolvedPath(flagValue)
-	if err != nil {
+	if flagValue == resolvedPath || err != nil {
 		return
 	}
 	c.Set(flagKey, resolvedPath)
-
-	if flagValue != resolvedPath {
-		logger.Infof("Value of [%s] resolved from [%s] to [%s]\n",
-			flagKey, flagValue, resolvedPath)
-	}
+	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n",
+		flagKey, flagValue, resolvedPath)
 
 	return
 }
