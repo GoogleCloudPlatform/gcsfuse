@@ -1,8 +1,8 @@
 # Listing Operation Benchmarking Script
 
-This project is used to benchmark the performance (latency) of listing operation in GCSFuse mounted bucket. Further a side by side comparision of GCSFuse performance is made with the persistent disk.\
+This script is used to benchmark the performance (latency) of listing operation in GCSFuse mounted bucket. Further a side by side comparision of GCSFuse performance is made with the persistent disk.\
 The main file of this project is [listing_benchmark.py](listing_benchmark.py) python script. This script by itself creates the necessary directory structure, containing files and folders, needed to test the listing operation. Then it systematically test the operation on the directory structure and parse the results. Also if required it can upload the results of the test to a Google Sheet.\
-It takes input a JSON config file whcih contains the info regrading directory structure and also through which multiple tests of different configurations can be performed in a single run.
+It takes input a JSON config file which contains the info regarding directory structure and also through which multiple tests of different configurations can be performed in a single run.
 
 ## Installing required packages
 
