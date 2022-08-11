@@ -83,14 +83,30 @@ func mountGcsfuse() error {
 	return nil
 }
 
-func umount(dir string) error {
-	umount, err := exec.LookPath("umount")
+func unMount() error {
+	fusermount, err := exec.LookPath("fusermount")
 	if err != nil {
-		return fmt.Errorf("cannot find umount: %w", err)
+		return fmt.Errorf("cannot find fusermount: %w", err)
 	}
-	cmd := exec.Command(umount, mntDir)
+	cmd := exec.Command(fusermount, "-uz", mntDir)
 	if _, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("umount error: %w", err)
+		return fmt.Errorf("fusermount error: %w", err)
+	}
+	return nil
+}
+
+func clearKernelCache() error {
+	if _, err := os.Stat("/proc/sys/vm/drop_caches"); err != nil {
+		log.Printf("Kernel cache file not found: %v", err)
+		// No need to stop the test execution if cache file is not found. Further
+		// reads will be served from kernel cache.
+		return nil
+	}
+
+	// sudo permission is required to clear kernel page cache.
+	cmd := exec.Command("sudo", "sh", "-c", "echo 3 > /proc/sys/vm/drop_caches")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("clear kernel cache failed with error: %w", err)
 	}
 	return nil
 }
@@ -116,7 +132,10 @@ func TestMain(m *testing.M) {
 	log.Printf("Test log: %s\n", logFile)
 	ret := m.Run()
 
-	umount(mntDir)
+	// Delete all files from mntDir to delete files from gcs bucket.
+	os.RemoveAll(mntDir)
+	unMount()
+
 	os.Exit(ret)
 }
 
@@ -142,6 +161,10 @@ func TestReadAfterWrite(t *testing.T) {
 			t.Errorf("Close: %v", err)
 		}
 
+		// After write, data will be cached by kernel. So subsequent read will be
+		// served using cached data by kernel instead of calling gcsfuse.
+		// Clearing kernel cache to ensure that gcsfuse is invoked during read operation.
+		clearKernelCache()
 		tmpFile, err = os.Open(fileName)
 		if err != nil {
 			t.Errorf("Open %q: %v", fileName, err)

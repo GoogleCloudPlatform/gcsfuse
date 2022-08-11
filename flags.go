@@ -259,6 +259,13 @@ func newApp() (app *cli.App) {
 			// Debugging
 			/////////////////////////
 
+			cli.BoolTFlag{
+				Name: "debug_fuse_errors",
+				Usage: "If false, fuse errors will not be logged to the " +
+					"console (in case of --foreground) or the log-file " +
+					"(if specified",
+			},
+
 			cli.BoolFlag{
 				Name:  "debug_fuse",
 				Usage: "Enable fuse-related debugging output.",
@@ -331,6 +338,7 @@ type flagStorage struct {
 	OtelCollectorAddress      string
 	LogFile                   string
 	LogFormat                 string
+	DebugFuseErrors           bool
 
 	// Debugging
 	DebugFuse       bool
@@ -388,6 +396,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		LogFormat:                 c.String("log-format"),
 
 		// Debugging,
+		DebugFuseErrors: c.BoolT("debug_fuse_errors"),
 		DebugFuse:       c.Bool("debug_fuse"),
 		DebugGCS:        c.Bool("debug_gcs"),
 		DebugFS:         c.Bool("debug_fs"),

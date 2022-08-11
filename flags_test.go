@@ -81,6 +81,9 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq(time.Minute, f.TypeCacheTTL)
 	ExpectEq("", f.TempDir)
 
+	// Logging
+	ExpectTrue(f.DebugFuseErrors)
+
 	// Debugging
 	ExpectFalse(f.DebugFuse)
 	ExpectFalse(f.DebugGCS)
@@ -91,6 +94,7 @@ func (t *FlagsTest) Defaults() {
 func (t *FlagsTest) Bools() {
 	names := []string{
 		"implicit-dirs",
+		"debug_fuse_errors",
 		"debug_fuse",
 		"debug_gcs",
 		"debug_http",
@@ -108,6 +112,7 @@ func (t *FlagsTest) Bools() {
 
 	f = parseArgs(args)
 	ExpectTrue(f.ImplicitDirs)
+	ExpectTrue(f.DebugFuseErrors)
 	ExpectTrue(f.DebugFuse)
 	ExpectTrue(f.DebugGCS)
 	ExpectTrue(f.DebugHTTP)
@@ -121,6 +126,7 @@ func (t *FlagsTest) Bools() {
 
 	f = parseArgs(args)
 	ExpectFalse(f.ImplicitDirs)
+	ExpectFalse(f.DebugFuseErrors)
 	ExpectFalse(f.DebugFuse)
 	ExpectFalse(f.DebugGCS)
 	ExpectFalse(f.DebugHTTP)
@@ -134,6 +140,7 @@ func (t *FlagsTest) Bools() {
 
 	f = parseArgs(args)
 	ExpectTrue(f.ImplicitDirs)
+	ExpectTrue(f.DebugFuseErrors)
 	ExpectTrue(f.DebugFuse)
 	ExpectTrue(f.DebugGCS)
 	ExpectTrue(f.DebugHTTP)
