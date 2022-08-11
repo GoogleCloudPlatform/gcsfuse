@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/signal"
 	"os/user"
+	"path"
 	"strconv"
 	"strings"
 	"testing"
@@ -163,6 +164,15 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 
 	t.mfs, err = fuse.Mount(t.Dir, server, &mountCfg)
 	AssertEq(nil, err)
+
+	fmt.Println("Mount successful")
+	pathVal := path.Join(t.mfs.Dir(), "test")
+	fileVal, err := os.Create(pathVal)
+	fmt.Println("file creation succesfful")
+	AssertEq(nil, err)
+	ExpectEq(nil, fileVal.Close())
+	fmt.Println("File close")
+
 }
 
 func (t *fsTest) TearDown() {
