@@ -351,7 +351,7 @@ const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
 // 2. For child process, it resolves relative path like, ./test.txt, test.txt
 // ../test.txt etc, with respect to GCSFUSE_PARENT_PROCESS_DIR
 // because we execute the child process from different directory and input
-// files are provided with respect the GCSFUSE_PARENT_PROCESS_DIR.
+// files are provided with respect to GCSFUSE_PARENT_PROCESS_DIR.
 // 3. For relative path starting with ~, it resolves with respect to home dir.
 func getResolvedPath(filePath string) (resolvedPath string, err error) {
 	if filePath == "" || path.IsAbs(filePath) {

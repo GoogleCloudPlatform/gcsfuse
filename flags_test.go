@@ -27,6 +27,8 @@ import (
 	"github.com/urfave/cli"
 )
 
+const gcsFuseParentProcessDir = "/var/generic/google"
+
 func TestFlags(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
@@ -217,8 +219,8 @@ func (t *FlagsTest) Maps() {
 
 func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndFilePathStartsWithTilda() {
 	resolvedPath, err := getResolvedPath("~/test.txt")
-	AssertEq(nil, err)
 
+	AssertEq(nil, err)
 	homeDir, err := os.UserHomeDir()
 	AssertEq(nil, err)
 	ExpectEq(filepath.Join(homeDir, "test.txt"), resolvedPath)
@@ -226,8 +228,8 @@ func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndFilePathStartsWithTilda(
 
 func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndFilePathStartsWithDot() {
 	resolvedPath, err := getResolvedPath("./test.txt")
-	AssertEq(nil, err)
 
+	AssertEq(nil, err)
 	currentWorkingDir, err := os.Getwd()
 	AssertEq(nil, err)
 	ExpectEq(filepath.Join(currentWorkingDir, "./test.txt"), resolvedPath)
@@ -235,8 +237,8 @@ func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndFilePathStartsWithDot() 
 
 func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndFilePathStartsWithDoubleDot() {
 	resolvedPath, err := getResolvedPath("../test.txt")
-	AssertEq(nil, err)
 
+	AssertEq(nil, err)
 	currentWorkingDir, err := os.Getwd()
 	AssertEq(nil, err)
 	ExpectEq(filepath.Join(currentWorkingDir, "../test.txt"), resolvedPath)
@@ -244,8 +246,8 @@ func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndFilePathStartsWithDouble
 
 func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndRelativePath() {
 	resolvedPath, err := getResolvedPath("test.txt")
-	AssertEq(nil, err)
 
+	AssertEq(nil, err)
 	currentWorkingDir, err := os.Getwd()
 	AssertEq(nil, err)
 	ExpectEq(filepath.Join(currentWorkingDir, "test.txt"), resolvedPath)
@@ -253,19 +255,17 @@ func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndRelativePath() {
 
 func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndAbsoluteFilePath() {
 	resolvedPath, err := getResolvedPath("/var/dir/test.txt")
-	AssertEq(nil, err)
 
+	AssertEq(nil, err)
 	ExpectEq("/var/dir/test.txt", resolvedPath)
 }
 
 func (t *FlagsTest) ResolveEmptyFilePath() {
 	resolvedPath, err := getResolvedPath("")
-	AssertEq(nil, err)
 
+	AssertEq(nil, err)
 	ExpectEq("", resolvedPath)
 }
-
-const gcsFuseParentProcessDir = "/var/generic/google"
 
 // Below all tests when GCSFUSE_PARENT_PROCESS_DIR env variable is set.
 // By setting this environment variable, resolve will work for child process.
@@ -274,8 +274,8 @@ func (t *FlagsTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithTilda() {
 	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
 
 	resolvedPath, err := getResolvedPath("~/test.txt")
-	AssertEq(nil, err)
 
+	AssertEq(nil, err)
 	homeDir, err := os.UserHomeDir()
 	AssertEq(nil, err)
 	ExpectEq(filepath.Join(homeDir, "test.txt"), resolvedPath)
@@ -286,8 +286,8 @@ func (t *FlagsTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithDot() {
 	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
 
 	resolvedPath, err := getResolvedPath("./test.txt")
-	AssertEq(nil, err)
 
+	AssertEq(nil, err)
 	ExpectEq(filepath.Join(gcsFuseParentProcessDir, "./test.txt"), resolvedPath)
 }
 
@@ -296,8 +296,8 @@ func (t *FlagsTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithDoubleDot
 	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
 
 	resolvedPath, err := getResolvedPath("../test.txt")
-	AssertEq(nil, err)
 
+	AssertEq(nil, err)
 	ExpectEq(filepath.Join(gcsFuseParentProcessDir, "../test.txt"), resolvedPath)
 }
 
@@ -306,8 +306,8 @@ func (t *FlagsTest) ResolveWhenParentProcDirEnvSetAndRelativePath() {
 	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
 
 	resolvedPath, err := getResolvedPath("test.txt")
-	AssertEq(nil, err)
 
+	AssertEq(nil, err)
 	ExpectEq(filepath.Join(gcsFuseParentProcessDir, "test.txt"), resolvedPath)
 }
 
@@ -316,8 +316,8 @@ func (t *FlagsTest) ResolveWhenParentProcDirEnvSetAndAbsoluteFilePath() {
 	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
 
 	resolvedPath, err := getResolvedPath("/var/dir/test.txt")
-	AssertEq(nil, err)
 
+	AssertEq(nil, err)
 	ExpectEq("/var/dir/test.txt", resolvedPath)
 }
 
