@@ -42,7 +42,6 @@ func parseArgs(args []string) (flags *flagStorage) {
 	// Create a CLI app, and abuse it to snoop on the flags.
 	app := newApp()
 	app.Action = func(appCtx *cli.Context) {
-		resolvePathForTheFlagsInContext(appCtx)
 		flags = populateFlags(appCtx)
 	}
 
@@ -177,11 +176,8 @@ func (t *FlagsTest) Strings() {
 		"--only-dir=baz",
 	}
 
-	currentWorkingDir, err := os.Getwd()
-	AssertEq(nil, err)
-
 	f := parseArgs(args)
-	ExpectEq(filepath.Join(currentWorkingDir, "-asdf"), f.KeyFile)
+	ExpectEq("-asdf", f.KeyFile)
 	ExpectEq("foobar", f.TempDir)
 	ExpectEq("baz", f.OnlyDir)
 }
@@ -220,84 +216,53 @@ func (t *FlagsTest) Maps() {
 }
 
 func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndFilePathStartsWithTilda() {
-	args := []string{
-		"--log-file=~/test.txt",
-		"--key-file=~/test.json",
-	}
-
-	f := parseArgs(args)
+	resolvedPath, err := getResolvedPath("~/test.txt")
+	AssertEq(nil, err)
 
 	homeDir, err := os.UserHomeDir()
 	AssertEq(nil, err)
-
-	ExpectEq(filepath.Join(homeDir, "test.txt"), f.LogFile)
-	ExpectEq(filepath.Join(homeDir, "test.json"), f.KeyFile)
+	ExpectEq(filepath.Join(homeDir, "test.txt"), resolvedPath)
 }
 
 func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndFilePathStartsWithDot() {
-	args := []string{
-		"--log-file=./test.txt",
-		"--key-file=./test.json",
-	}
-
-	f := parseArgs(args)
-	currentWorkingDir, err := os.Getwd()
+	resolvedPath, err := getResolvedPath("./test.txt")
 	AssertEq(nil, err)
 
-	ExpectEq(filepath.Join(currentWorkingDir, "test.txt"), f.LogFile)
-	ExpectEq(filepath.Join(currentWorkingDir, "test.json"), f.KeyFile)
+	currentWorkingDir, err := os.Getwd()
+	AssertEq(nil, err)
+	ExpectEq(filepath.Join(currentWorkingDir, "./test.txt"), resolvedPath)
 }
 
 func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndFilePathStartsWithDoubleDot() {
-	args := []string{
-		"--log-file=../test.txt",
-		"--key-file=../test.json",
-	}
-
-	f := parseArgs(args)
-	currentWorkingDir, err := os.Getwd()
+	resolvedPath, err := getResolvedPath("../test.txt")
 	AssertEq(nil, err)
 
-	ExpectEq(filepath.Join(currentWorkingDir, "../test.txt"), f.LogFile)
-	ExpectEq(filepath.Join(currentWorkingDir, "../test.json"), f.KeyFile)
+	currentWorkingDir, err := os.Getwd()
+	AssertEq(nil, err)
+	ExpectEq(filepath.Join(currentWorkingDir, "../test.txt"), resolvedPath)
 }
 
 func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndRelativePath() {
-	args := []string{
-		"--log-file=test.txt",
-		"--key-file=test.json",
-	}
-
-	f := parseArgs(args)
-	currentWorkingDir, err := os.Getwd()
+	resolvedPath, err := getResolvedPath("test.txt")
 	AssertEq(nil, err)
 
-	ExpectEq(filepath.Join(currentWorkingDir, "test.txt"), f.LogFile)
-	ExpectEq(filepath.Join(currentWorkingDir, "test.json"), f.KeyFile)
+	currentWorkingDir, err := os.Getwd()
+	AssertEq(nil, err)
+	ExpectEq(filepath.Join(currentWorkingDir, "test.txt"), resolvedPath)
 }
 
 func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndAbsoluteFilePath() {
-	args := []string{
-		"--log-file=/var/dir/test.txt",
-		"--key-file=/var/dir/test.json",
-	}
+	resolvedPath, err := getResolvedPath("/var/dir/test.txt")
+	AssertEq(nil, err)
 
-	f := parseArgs(args)
-
-	ExpectEq("/var/dir/test.txt", f.LogFile)
-	ExpectEq("/var/dir/test.json", f.KeyFile)
+	ExpectEq("/var/dir/test.txt", resolvedPath)
 }
 
-func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndEmptyFilePath() {
-	args := []string{
-		"--log-file=",
-		"--key-file=",
-	}
+func (t *FlagsTest) ResolveEmptyFilePath() {
+	resolvedPath, err := getResolvedPath("")
+	AssertEq(nil, err)
 
-	f := parseArgs(args)
-
-	ExpectEq("", f.LogFile)
-	ExpectEq("", f.KeyFile)
+	ExpectEq("", resolvedPath)
 }
 
 const gcsFuseParentProcessDir = "/var/generic/google"
@@ -305,81 +270,55 @@ const gcsFuseParentProcessDir = "/var/generic/google"
 // Below all tests when GCSFUSE_PARENT_PROCESS_DIR env variable is set.
 // By setting this environment variable, resolve will work for child process.
 func (t *FlagsTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithTilda() {
-	args := []string{
-		"--log-file=~/test.txt",
-		"--key-file=~/test.json",
-	}
-
 	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
 	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
 
-	f := parseArgs(args)
+	resolvedPath, err := getResolvedPath("~/test.txt")
+	AssertEq(nil, err)
 
 	homeDir, err := os.UserHomeDir()
 	AssertEq(nil, err)
-
-	ExpectEq(filepath.Join(homeDir, "test.txt"), f.LogFile)
-	ExpectEq(filepath.Join(homeDir, "test.json"), f.KeyFile)
+	ExpectEq(filepath.Join(homeDir, "test.txt"), resolvedPath)
 }
 
 func (t *FlagsTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithDot() {
-	args := []string{
-		"--log-file=./test.txt",
-		"--key-file=./test.json",
-	}
-
 	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
 	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
 
-	f := parseArgs(args)
+	resolvedPath, err := getResolvedPath("./test.txt")
+	AssertEq(nil, err)
 
-	ExpectEq(filepath.Join(gcsFuseParentProcessDir, "test.txt"), f.LogFile)
-	ExpectEq(filepath.Join(gcsFuseParentProcessDir, "test.json"), f.KeyFile)
+	ExpectEq(filepath.Join(gcsFuseParentProcessDir, "./test.txt"), resolvedPath)
 }
 
 func (t *FlagsTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithDoubleDot() {
-	args := []string{
-		"--log-file=../test.txt",
-		"--key-file=../test.json",
-	}
-
 	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
 	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
 
-	f := parseArgs(args)
+	resolvedPath, err := getResolvedPath("../test.txt")
+	AssertEq(nil, err)
 
-	ExpectEq(filepath.Join(gcsFuseParentProcessDir, "../test.txt"), f.LogFile)
-	ExpectEq(filepath.Join(gcsFuseParentProcessDir, "../test.json"), f.KeyFile)
+	ExpectEq(filepath.Join(gcsFuseParentProcessDir, "../test.txt"), resolvedPath)
+}
+
+func (t *FlagsTest) ResolveWhenParentProcDirEnvSetAndRelativePath() {
+	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
+	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
+
+	resolvedPath, err := getResolvedPath("test.txt")
+	AssertEq(nil, err)
+
+	ExpectEq(filepath.Join(gcsFuseParentProcessDir, "test.txt"), resolvedPath)
 }
 
 func (t *FlagsTest) ResolveWhenParentProcDirEnvSetAndAbsoluteFilePath() {
-	args := []string{
-		"--log-file=/var/dir/test.txt",
-		"--key-file=/var/dir/test.json",
-	}
-
 	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
 	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
 
-	f := parseArgs(args)
+	resolvedPath, err := getResolvedPath("/var/dir/test.txt")
+	AssertEq(nil, err)
 
-	ExpectEq("/var/dir/test.txt", f.LogFile)
-	ExpectEq("/var/dir/test.json", f.KeyFile)
-}
-
-func (t *FlagsTest) ResolveWhenParentProcDirEnvSetAndEmptyFilePath() {
-	args := []string{
-		"--log-file=",
-		"--key-file=",
-	}
-
-	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
-	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
-
-	f := parseArgs(args)
-
-	ExpectEq("", f.LogFile)
-	ExpectEq("", f.KeyFile)
+	ExpectEq("/var/dir/test.txt", resolvedPath)
 }
 
 func (t *FlagsTest) TestResolvePathForTheFlagInContext() {
