@@ -33,17 +33,17 @@ pip install -r requirements.txt --user
 ## How to run
 1. Create a GCP VM with OS version as Ubuntu 20.04. Follow this [documentation](https://cloud.google.com/compute/docs/create-linux-vm-instance) and start your VM.
 2. Install the required packages as mentioned in the above section.
-3. Configure the [JSON config file](config.json) according to the following rules:
-4. Run the custom python script. A sample command is shown below:
-```
-python3 listing_benchmark.py config.json --command "ls -R"
-```
-
-**Note**: To upload to the google sheet follow the additional 2 steps mentioned below:
-1. Create a service account by following this [documentation](https://cloud.google.com/iam/docs/creating-managing-service-accounts). Generate your service account key, `creds.json` by following [this doc](https://cloud.google.com/iam/docs/creating-managing-service-account-keys#iam-service-account-keys-create-console) and upload the file on your GCS bucket `your-bucket-name`. If using an old credentials file, make sure that it is not expired. Run the following command to copy it into `gsheet` directory:
+3. Create a service account by following this [documentation](https://cloud.google.com/iam/docs/creating-managing-service-accounts). Generate your service account key, `creds.json` by following [this doc](https://cloud.google.com/iam/docs/creating-managing-service-account-keys#iam-service-account-keys-create-console) and upload the file on your GCS bucket `your-bucket-name`. If using an old credentials file, make sure that it is not expired. Run the following command to copy it into `gsheet` directory:
 ```bash
 gsutil cp gs://your-bucket-name/creds.json ../gsheet
 ```
-2. Create a Google Sheet with id `your-gsheet-id` by copying this [Google Sheet](https://docs.google.com/spreadsheets/d/10fyD6pPyrQoVt9YofT1SyXyjEqPqNhya356ThuA9H_o/edit?usp=sharing).
-3. Share the above copied Google Sheet with your service account(created in step 2)
-4. Change the Google sheet id in this [line](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/perfmetrics/scripts/gsheet/gsheet.py#L5) to `your-gsheet-id`.
+4. Create a Google Sheet with id `your-gsheet-id` by copying this [Google Sheet](https://docs.google.com/spreadsheets/d/10fyD6pPyrQoVt9YofT1SyXyjEqPqNhya356ThuA9H_o/edit?usp=sharing).
+5. Share the above copied Google Sheet with your service account(created in step 2)
+6. Change the Google sheet id in this [line](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/perfmetrics/scripts/gsheet/gsheet.py#L5) to `your-gsheet-id`.
+7. Configure the [JSON config file](config.json) as per needs.
+8. Run the custom python script. A sample command is shown below:
+```
+python3 listing_benchmark.py config.json --command "ls -R" --upload
+```
+
+**Note**: Steps 3, 4, 5, and 6 are needed only if you want to upload results to the Google Sheet.
