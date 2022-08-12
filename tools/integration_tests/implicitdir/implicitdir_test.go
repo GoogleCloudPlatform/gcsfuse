@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provides integration tests for reads and writes through FUSE and GCS APIs.
-package readwrite_test
+// Provides integration tests when implicit_dir flag is set.
+package implicitdir_test
 
 import (
 	"bytes"
@@ -137,46 +137,4 @@ func TestMain(m *testing.M) {
 	unMount()
 
 	os.Exit(ret)
-}
-
-func TestReadAfterWrite(t *testing.T) {
-	tmpDir, err := ioutil.TempDir(mntDir, "tmpDir")
-	if err != nil {
-		t.Errorf("Mkdir at %q: %v", mntDir, err)
-		return
-	}
-
-	for i := 0; i < 10; i++ {
-		tmpFile, err := ioutil.TempFile(tmpDir, "tmpFile")
-		if err != nil {
-			t.Errorf("Create file at %q: %v", tmpDir, err)
-			return
-		}
-
-		fileName := tmpFile.Name()
-		if _, err := tmpFile.WriteString("line 1\n"); err != nil {
-			t.Errorf("WriteString: %v", err)
-		}
-		if err := tmpFile.Close(); err != nil {
-			t.Errorf("Close: %v", err)
-		}
-
-		// After write, data will be cached by kernel. So subsequent read will be
-		// served using cached data by kernel instead of calling gcsfuse.
-		// Clearing kernel cache to ensure that gcsfuse is invoked during read operation.
-		clearKernelCache()
-		tmpFile, err = os.Open(fileName)
-		if err != nil {
-			t.Errorf("Open %q: %v", fileName, err)
-			return
-		}
-
-		content, err := ioutil.ReadAll(tmpFile)
-		if err != nil {
-			t.Errorf("ReadAll: %v", err)
-		}
-		if got, want := string(content), "line 1\n"; got != want {
-			t.Errorf("File content %q not match %q", got, want)
-		}
-	}
 }
