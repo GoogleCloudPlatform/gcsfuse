@@ -16,8 +16,7 @@
 //
 // Usage:
 //
-//     gcsfuse [flags] bucket mount_point
-//
+//	gcsfuse [flags] bucket mount_point
 package main
 
 import (
@@ -28,7 +27,6 @@ import (
 	"os"
 	"os/signal"
 	"path"
-	"path/filepath"
 	"time"
 
 	"golang.org/x/net/context"
@@ -212,7 +210,7 @@ func populateArgs(c *cli.Context) (
 	// Canonicalize the mount point, making it absolute. This is important when
 	// daemonizing below, since the daemon will change its working directory
 	// before running this code again.
-	mountPoint, err = filepath.Abs(mountPoint)
+	mountPoint, err = getResolvedPath(mountPoint)
 	if err != nil {
 		err = fmt.Errorf("canonicalizing mount point: %w", err)
 		return
@@ -221,6 +219,11 @@ func populateArgs(c *cli.Context) (
 }
 
 func runCLIApp(c *cli.Context) (err error) {
+	err = resolvePathForTheFlagsInContext(c)
+	if err != nil {
+		return fmt.Errorf("Resolving path: %w", err)
+	}
+
 	flags := populateFlags(c)
 
 	if flags.Foreground && flags.LogFile != "" {
@@ -291,6 +294,19 @@ func runCLIApp(c *cli.Context) (err error) {
 				os.Stdout,
 				"Added environment no_proxy: %s\n",
 				p)
+		}
+
+		// Pass the parent process working directory to child process via
+		// environment variable. This variable will be used to resolve relative paths.
+		if parentProcessExecutionDir, err := os.Getwd(); err == nil {
+			env = append(env, fmt.Sprintf("%s=%s", GCSFUSE_PARENT_PROCESS_DIR,
+				parentProcessExecutionDir))
+		}
+
+		// Here, parent process doesn't pass the $HOME to child process implicitly,
+		// hence we need to pass it explicitly.
+		if homeDir, _ := os.UserHomeDir(); err == nil {
+			env = append(env, fmt.Sprintf("HOME=%s", homeDir))
 		}
 
 		// Run.

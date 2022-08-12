@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	//"runtime"
 	"syscall"
 	"testing"
@@ -80,10 +81,10 @@ func (t *GcsfuseTest) gcsfuseCommand(args []string, env []string) (cmd *exec.Cmd
 	return
 }
 
-// Call gcsfuse with the supplied args, waiting for it to exit. Return nil only
-// if it exits successfully.
-func (t *GcsfuseTest) runGcsfuse(args []string) (err error) {
-	cmd := t.gcsfuseCommand(args, nil)
+// Call gcsfuse with the supplied args and environment variable,
+// waiting for it to exit. Return nil only if it exits successfully.
+func (t *GcsfuseTest) runGcsfuseWithEnv(args []string, env []string) (err error) {
+	cmd := t.gcsfuseCommand(args, env)
 
 	// Run.
 	output, err := cmd.CombinedOutput()
@@ -93,6 +94,12 @@ func (t *GcsfuseTest) runGcsfuse(args []string) (err error) {
 	}
 
 	return
+}
+
+// Call gcsfuse with the supplied args, waiting for it to exit. Return nil only
+// if it exits successfully.
+func (t *GcsfuseTest) runGcsfuse(args []string) (err error) {
+	return t.runGcsfuseWithEnv(args, nil)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -549,5 +556,172 @@ func (t *GcsfuseTest) HelpFlags() {
 		cmd := t.gcsfuseCommand(tc.args, nil)
 		output, err := cmd.CombinedOutput()
 		ExpectEq(nil, err, "case %d\nOutput:\n%s", i, output)
+	}
+}
+
+const TEST_RELATIVE_FILE_NAME = "test.txt"
+const TEST_HOME_RELATIVE_FILE_NAME = "test_home.json"
+
+func createTestFilesForRelativePathTesting(curWorkingDir string) (
+	curDirTestFile string, homeDirTestFile string) {
+
+	curDirTestFile = filepath.Join(curWorkingDir, TEST_RELATIVE_FILE_NAME)
+	_, err := os.Create(curDirTestFile)
+	AssertEq(nil, err)
+
+	homeDir, err := os.UserHomeDir()
+	AssertEq(nil, err)
+
+	homeDirTestFile = filepath.Join(homeDir, TEST_HOME_RELATIVE_FILE_NAME)
+	_, err = os.Create(homeDirTestFile)
+	AssertEq(nil, err)
+
+	return
+}
+
+func (t *GcsfuseTest) LogFilePath() {
+	curDirTestFile, homeDirTestFile := createTestFilesForRelativePathTesting(t.dir)
+	defer os.Remove(curDirTestFile)
+	defer os.Remove(homeDirTestFile)
+
+	homeDir, err := os.UserHomeDir()
+	AssertEq(nil, err)
+
+	// Specify log-file and key-file in different way with --foreground flag.
+	testCases := []struct {
+		extraArgs []string
+		env       []string
+	}{
+		// Relative path
+		0: {
+			extraArgs: []string{"--log-file", TEST_RELATIVE_FILE_NAME},
+		},
+
+		// Relative with ./
+		1: {
+			extraArgs: []string{"--log-file",
+				fmt.Sprintf("./%s", TEST_RELATIVE_FILE_NAME)},
+		},
+
+		// Path with tilda
+		2: {
+			extraArgs: []string{"--log-file",
+				fmt.Sprintf("~/%s", TEST_HOME_RELATIVE_FILE_NAME)},
+			env: []string{fmt.Sprintf("HOME=%s", homeDir)},
+		},
+
+		// Absolute path
+		3: {
+			extraArgs: []string{"--log-file", curDirTestFile},
+		},
+	}
+
+	for _, tc := range testCases {
+		args := tc.extraArgs
+		args = append(args, canned.FakeBucketName, t.dir)
+
+		err := t.runGcsfuseWithEnv(args, tc.env)
+		util.Unmount(t.dir)
+		ExpectEq(nil, err)
+	}
+}
+
+func (t *GcsfuseTest) KeyFilePath() {
+	curDirTestFile, homeDirTestFile := createTestFilesForRelativePathTesting(t.dir)
+	defer os.Remove(curDirTestFile)
+	defer os.Remove(homeDirTestFile)
+
+	homeDir, err := os.UserHomeDir()
+	AssertEq(nil, err)
+
+	// Specify key-file in different way with --foreground flag.
+	testCases := []struct {
+		extraArgs []string
+		env       []string
+	}{
+		// relative path
+		0: {
+			extraArgs: []string{"--key-file", TEST_RELATIVE_FILE_NAME},
+		},
+
+		// relative with ./
+		1: {
+			extraArgs: []string{"--key-file",
+				fmt.Sprintf("./%s", TEST_RELATIVE_FILE_NAME)},
+		},
+
+		// path with tilda
+		2: {
+			extraArgs: []string{"--key-file",
+				fmt.Sprintf("~/%s", TEST_HOME_RELATIVE_FILE_NAME)},
+			env: []string{fmt.Sprintf("HOME=%s", homeDir)},
+		},
+
+		// Absolute path
+		3: {
+			extraArgs: []string{"--key-file", curDirTestFile},
+		},
+	}
+
+	for _, tc := range testCases {
+		args := tc.extraArgs
+		args = append(args, canned.FakeBucketName, t.dir)
+
+		err := t.runGcsfuseWithEnv(args, tc.env)
+		util.Unmount(t.dir)
+		ExpectEq(nil, err)
+	}
+}
+
+func (t *GcsfuseTest) BothLogAndKeyFilePath() {
+	curDirTestFile, homeDirTestFile := createTestFilesForRelativePathTesting(t.dir)
+	defer os.Remove(curDirTestFile)
+	defer os.Remove(homeDirTestFile)
+
+	homeDir, err := os.UserHomeDir()
+	AssertEq(nil, err)
+
+	// Specify log-file and key-file in different way with --foreground flag.
+	testCases := []struct {
+		extraArgs []string
+		env       []string
+	}{
+		// relative path
+		0: {
+			extraArgs: []string{"--key-file", TEST_RELATIVE_FILE_NAME,
+				"--log-file", TEST_RELATIVE_FILE_NAME},
+		},
+
+		// relative with ./
+		1: {
+			extraArgs: []string{"--key-file",
+				fmt.Sprintf("./%s", TEST_RELATIVE_FILE_NAME),
+				"--log-file",
+				fmt.Sprintf("./%s", TEST_RELATIVE_FILE_NAME)},
+		},
+
+		// path with tilda
+		2: {
+			extraArgs: []string{"--key-file",
+				fmt.Sprintf("~/%s", TEST_HOME_RELATIVE_FILE_NAME),
+				"--log-file",
+				fmt.Sprintf("~/%s", TEST_HOME_RELATIVE_FILE_NAME)},
+			env: []string{fmt.Sprintf("HOME=%s", homeDir)},
+		},
+
+		// Absolute path
+		3: {
+			extraArgs: []string{"--log-file", curDirTestFile,
+				"--key-file", curDirTestFile},
+		},
+	}
+
+	for _, tc := range testCases {
+		args := tc.extraArgs
+		args = append(args, canned.FakeBucketName, t.dir)
+
+		err := t.runGcsfuseWithEnv(args, tc.env)
+		util.Unmount(t.dir)
+		ExpectEq(nil, err)
 	}
 }
