@@ -323,10 +323,8 @@ func (t *FlagsTest) ResolveWhenParentProcDirEnvSetAndAbsoluteFilePath() {
 
 func (t *FlagsTest) TestResolvePathForTheFlagInContext() {
 	app := newApp()
-
 	currentWorkingDir, err := os.Getwd()
 	AssertEq(nil, err)
-
 	app.Action = func(appCtx *cli.Context) {
 		resolvePathForTheFlagInContext("log-file", appCtx)
 		resolvePathForTheFlagInContext("key-file", appCtx)
@@ -336,21 +334,19 @@ func (t *FlagsTest) TestResolvePathForTheFlagInContext() {
 		ExpectEq(filepath.Join(currentWorkingDir, "test.txt"),
 			appCtx.String("key-file"))
 	}
-
 	// Simulate argv.
 	fullArgs := []string{"some_app", "--log-file=test.txt",
 		"--key-file=test.txt"}
 
 	err = app.Run(fullArgs)
+
 	AssertEq(nil, err)
 }
 
 func (t *FlagsTest) TestResolvePathForTheFlagsInContext() {
 	app := newApp()
-
 	currentWorkingDir, err := os.Getwd()
 	AssertEq(nil, err)
-
 	app.Action = func(appCtx *cli.Context) {
 		resolvePathForTheFlagsInContext(appCtx)
 
@@ -359,11 +355,11 @@ func (t *FlagsTest) TestResolvePathForTheFlagsInContext() {
 		ExpectEq(filepath.Join(currentWorkingDir, "test.txt"),
 			appCtx.String("key-file"))
 	}
-
 	// Simulate argv.
 	fullArgs := []string{"some_app", "--log-file=test.txt",
 		"--key-file=test.txt"}
 
 	err = app.Run(fullArgs)
+
 	AssertEq(nil, err)
 }
