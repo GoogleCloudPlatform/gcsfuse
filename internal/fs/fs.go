@@ -371,6 +371,7 @@ type fileSystem struct {
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *fileSystem) checkInvariants() {
+	fmt.Println("CheckInvairants called")
 	//////////////////////////////////
 	// inodes
 	//////////////////////////////////
@@ -521,6 +522,7 @@ func (fs *fileSystem) checkInvariants() {
 //
 // LOCKS_REQUIRED(fs.mu)
 func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
+	fmt.Println("MintInode is called")
 	// Choose an ID.
 	id := fs.nextInodeID
 	fs.nextInodeID++
@@ -615,7 +617,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Inode) {
-
+	fmt.Println("LookupOrCreatChildInodeIfNotStale called")
 	// Sanity check.
 	if err := ic.SanityCheck(); err != nil {
 		panic(err.Error())
@@ -731,6 +733,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	ctx context.Context,
 	parent inode.DirInode,
 	childName string) (child inode.Inode, err error) {
+	fmt.Println("LookupOrCreatChildInode2 called")
 	// Set up a function that will find a lookup result for the child with the
 	// given name. Expects no locks to be held.
 	getLookupResult := func() (*inode.Core, error) {
@@ -779,6 +782,7 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 	ctx context.Context,
 	parent inode.DirInode,
 	childName string) (child inode.BucketOwnedDirInode, err error) {
+	fmt.Println("LookupOrCreateChildDirInode invoked")
 	in, err := fs.lookUpOrCreateChildInode(ctx, parent, childName)
 	if err != nil {
 		return nil, fmt.Errorf("lookup or create %q: %w", childName, err)
@@ -799,6 +803,7 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 func (fs *fileSystem) syncFile(
 	ctx context.Context,
 	f *inode.FileInode) (err error) {
+	fmt.Println("SyncFile invoked")
 	// Sync the inode.
 	err = f.Sync(ctx)
 	if err != nil {
@@ -907,9 +912,11 @@ func (fs *fileSystem) getAttributes(
 	attr fuseops.InodeAttributes,
 	expiration time.Time,
 	err error) {
+	fmt.Println("GetAttributes invoked")
 	// Call through.
 	attr, err = in.Attributes(ctx)
 	if err != nil {
+		fmt.Println("GetAttributes rturned error")
 		return
 	}
 
@@ -918,6 +925,7 @@ func (fs *fileSystem) getAttributes(
 		expiration = time.Now().Add(fs.inodeAttributeCacheTTL)
 	}
 
+	fmt.Println("Get Attributes returnend")
 	return
 }
 
@@ -926,6 +934,7 @@ func (fs *fileSystem) getAttributes(
 //
 // LOCKS_REQUIRED(fs.mu)
 func (fs *fileSystem) inodeOrDie(id fuseops.InodeID) (in inode.Inode) {
+	fmt.Println("InodeOrDie invoked")
 	in = fs.inodes[id]
 	if in == nil {
 		panic(fmt.Sprintf("inode %d doesn't exist", id))
@@ -939,6 +948,7 @@ func (fs *fileSystem) inodeOrDie(id fuseops.InodeID) (in inode.Inode) {
 //
 // LOCKS_REQUIRED(fs.mu)
 func (fs *fileSystem) dirInodeOrDie(id fuseops.InodeID) (in inode.DirInode) {
+	fmt.Println("DirInodeOrDie innvoked")
 	tmp := fs.inodes[id]
 	in, ok := tmp.(inode.DirInode)
 	if !ok {
@@ -953,6 +963,7 @@ func (fs *fileSystem) dirInodeOrDie(id fuseops.InodeID) (in inode.DirInode) {
 //
 // LOCKS_REQUIRED(fs.mu)
 func (fs *fileSystem) fileInodeOrDie(id fuseops.InodeID) (in *inode.FileInode) {
+	fmt.Println("FileInodeOrDie invoked")
 	tmp := fs.inodes[id]
 	in, ok := tmp.(*inode.FileInode)
 	if !ok {
@@ -968,6 +979,7 @@ func (fs *fileSystem) fileInodeOrDie(id fuseops.InodeID) (in *inode.FileInode) {
 // LOCKS_REQUIRED(fs.mu)
 func (fs *fileSystem) symlinkInodeOrDie(
 	id fuseops.InodeID) (in *inode.SymlinkInode) {
+	fmt.Println("SymlinkInodeOrDie called")
 	tmp := fs.inodes[id]
 	in, ok := tmp.(*inode.SymlinkInode)
 	if !ok {
@@ -982,12 +994,14 @@ func (fs *fileSystem) symlinkInodeOrDie(
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *fileSystem) Destroy() {
+	fmt.Println("Destroy called")
 	fs.bucketManager.ShutDown()
 }
 
 func (fs *fileSystem) StatFS(
 	ctx context.Context,
 	op *fuseops.StatFSOp) (err error) {
+	fmt.Println("StatFS invoked")
 	// Simulate a large amount of free space so that the Finder doesn't refuse to
 	// copy in files. (See issue #125.) Use 2^17 as the block size because that
 	// is the largest that OS X will pass on.
@@ -1011,6 +1025,7 @@ func (fs *fileSystem) StatFS(
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
+	fmt.Println("LookUpInode invoked")
 	// Find the parent directory in question.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1019,6 +1034,7 @@ func (fs *fileSystem) LookUpInode(
 	// Find or create the child inode.
 	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
 	if err != nil {
+		fmt.Println("Lookupinode returned error line1037")
 		return err
 	}
 
@@ -1030,9 +1046,11 @@ func (fs *fileSystem) LookUpInode(
 	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
 
 	if err != nil {
+		fmt.Println("Lookupinode returned error2")
 		return err
 	}
 
+	fmt.Println("Lookupinode returned ")
 	return
 }
 
@@ -1040,6 +1058,7 @@ func (fs *fileSystem) LookUpInode(
 func (fs *fileSystem) GetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) (err error) {
+	fmt.Println("GetInodeAttributes called")
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -1061,6 +1080,7 @@ func (fs *fileSystem) GetInodeAttributes(
 func (fs *fileSystem) SetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.SetInodeAttributesOp) (err error) {
+	fmt.Println("SetInodeAttributes called")
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -1104,6 +1124,7 @@ func (fs *fileSystem) SetInodeAttributes(
 func (fs *fileSystem) ForgetInode(
 	ctx context.Context,
 	op *fuseops.ForgetInodeOp) (err error) {
+	fmt.Println("ForgetInode called")
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -1120,6 +1141,7 @@ func (fs *fileSystem) ForgetInode(
 func (fs *fileSystem) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) (err error) {
+	fmt.Println("MKDir called")
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1172,6 +1194,7 @@ func (fs *fileSystem) MkDir(
 func (fs *fileSystem) MkNode(
 	ctx context.Context,
 	op *fuseops.MkNodeOp) (err error) {
+	fmt.Println("MkNode called")
 	if (op.Mode & (iofs.ModeNamedPipe | iofs.ModeSocket)) != 0 {
 		return syscall.ENOTSUP
 	}
@@ -1207,6 +1230,7 @@ func (fs *fileSystem) createFile(
 	parentID fuseops.InodeID,
 	name string,
 	mode os.FileMode) (child inode.Inode, err error) {
+	fmt.Println("Create File invoked")
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(parentID)
@@ -1222,12 +1246,14 @@ func (fs *fileSystem) createFile(
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		err = fuse.EEXIST
+		fmt.Println("Create file returned EEXIST error")
 		return
 	}
 
 	// Propagate other errors.
 	if err != nil {
 		err = fmt.Errorf("CreateChildFile: %w", err)
+		fmt.Println("Create file failed with createchilderror")
 		return
 	}
 
@@ -1237,9 +1263,11 @@ func (fs *fileSystem) createFile(
 	child = fs.lookUpOrCreateInodeIfNotStale(*result)
 	if child == nil {
 		err = fmt.Errorf("Newly-created record is already stale")
+		fmt.Println("Create file newly create record error")
 		return
 	}
 
+	fmt.Println("Create file returned")
 	return
 }
 
@@ -1247,9 +1275,11 @@ func (fs *fileSystem) createFile(
 func (fs *fileSystem) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {
+	fmt.Println("CreateFile2 called")
 	// Create the child.
 	child, err := fs.createFile(ctx, op.Parent, op.Name, op.Mode)
 	if err != nil {
+		fmt.Println("CreateFile2 returned with error")
 		return err
 	}
 
@@ -1273,9 +1303,11 @@ func (fs *fileSystem) CreateFile(
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
+		fmt.Println("CreateFile2 failed here")
 		return err
 	}
 
+	fmt.Println("Create file2 returned")
 	return
 }
 
@@ -1283,6 +1315,7 @@ func (fs *fileSystem) CreateFile(
 func (fs *fileSystem) CreateSymlink(
 	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) (err error) {
+	fmt.Println("CreateSymLink called")
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1599,6 +1632,7 @@ func (fs *fileSystem) renameDir(
 func (fs *fileSystem) Unlink(
 	ctx context.Context,
 	op *fuseops.UnlinkOp) (err error) {
+	fmt.Println("Unlink called")
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1616,9 +1650,11 @@ func (fs *fileSystem) Unlink(
 
 	if err != nil {
 		err = fmt.Errorf("DeleteChildFile: %w", err)
+		fmt.Println("Unlink returned error")
 		return err
 	}
 
+	fmt.Println("Unlink returned")
 	return
 }
 
@@ -1626,6 +1662,7 @@ func (fs *fileSystem) Unlink(
 func (fs *fileSystem) OpenDir(
 	ctx context.Context,
 	op *fuseops.OpenDirOp) (err error) {
+	fmt.Println("OpenDir called")
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -1641,6 +1678,7 @@ func (fs *fileSystem) OpenDir(
 	fs.handles[handleID] = newDirHandle(in, fs.implicitDirs)
 	op.Handle = handleID
 
+	fmt.Println("OpenDir returned")
 	return
 }
 
@@ -1648,6 +1686,7 @@ func (fs *fileSystem) OpenDir(
 func (fs *fileSystem) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp) (err error) {
+	fmt.Println("ReadDir called")
 	// Find the handle.
 	fs.mu.Lock()
 	dh := fs.handles[op.Handle].(*dirHandle)
@@ -1658,9 +1697,11 @@ func (fs *fileSystem) ReadDir(
 
 	// Serve the request.
 	if err := dh.ReadDir(ctx, op); err != nil {
+		fmt.Println("ReadDir returned error")
 		return err
 	}
 
+	fmt.Println("ReadDir returned")
 	return
 }
 
@@ -1668,6 +1709,7 @@ func (fs *fileSystem) ReadDir(
 func (fs *fileSystem) ReleaseDirHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseDirHandleOp) (err error) {
+	fmt.Println("ReleaseDirHandle called")
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -1677,6 +1719,7 @@ func (fs *fileSystem) ReleaseDirHandle(
 	// Clear the entry from the map.
 	delete(fs.handles, op.Handle)
 
+	fmt.Println("ReleaseDirHandle returned")
 	return
 }
 
@@ -1684,6 +1727,7 @@ func (fs *fileSystem) ReleaseDirHandle(
 func (fs *fileSystem) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
+	fmt.Println("OpenFile called")
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -1703,6 +1747,7 @@ func (fs *fileSystem) OpenFile(
 	// open to open for a given inode.
 	op.KeepPageCache = true
 
+	fmt.Println("Open file returned")
 	return
 }
 
@@ -1710,6 +1755,7 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
+	fmt.Println("ReadFile called")
 	// Find the handle and lock it.
 	fs.mu.Lock()
 	fh := fs.handles[op.Handle].(*handle.FileHandle)
@@ -1723,9 +1769,11 @@ func (fs *fileSystem) ReadFile(
 
 	// As required by fuse, we don't treat EOF as an error.
 	if err == io.EOF {
+		fmt.Println("REadfile returned EOF ")
 		err = nil
 	}
 
+	fmt.Println("ReadFile returned")
 	return
 }
 
@@ -1733,6 +1781,7 @@ func (fs *fileSystem) ReadFile(
 func (fs *fileSystem) ReadSymlink(
 	ctx context.Context,
 	op *fuseops.ReadSymlinkOp) (err error) {
+	fmt.Println("Readsymlink called")
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.symlinkInodeOrDie(op.Inode)
@@ -1744,6 +1793,7 @@ func (fs *fileSystem) ReadSymlink(
 	// Serve the request.
 	op.Target = in.Target()
 
+	fmt.Println("Readsymlink returned")
 	return
 }
 
@@ -1751,6 +1801,7 @@ func (fs *fileSystem) ReadSymlink(
 func (fs *fileSystem) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) (err error) {
+	fmt.Println("Write file called")
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.fileInodeOrDie(op.Inode)
@@ -1761,9 +1812,11 @@ func (fs *fileSystem) WriteFile(
 
 	// Serve the request.
 	if err := in.Write(ctx, op.Data, op.Offset); err != nil {
+		fmt.Println("Write file returned error")
 		return err
 	}
 
+	fmt.Println("Write file returned")
 	return
 }
 
@@ -1771,6 +1824,7 @@ func (fs *fileSystem) WriteFile(
 func (fs *fileSystem) SyncFile(
 	ctx context.Context,
 	op *fuseops.SyncFileOp) (err error) {
+	fmt.Println("Sync file called")
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -1778,6 +1832,7 @@ func (fs *fileSystem) SyncFile(
 
 	file, ok := in.(*inode.FileInode)
 	if !ok {
+		fmt.Println("Sync file returned not ok")
 		// No-op if the target is not a file
 		return
 	}
@@ -1787,9 +1842,11 @@ func (fs *fileSystem) SyncFile(
 
 	// Sync it.
 	if err := fs.syncFile(ctx, file); err != nil {
+		fmt.Println("Sync file returned error")
 		return err
 	}
 
+	fmt.Println("Sync file returned")
 	return
 }
 
@@ -1797,6 +1854,7 @@ func (fs *fileSystem) SyncFile(
 func (fs *fileSystem) FlushFile(
 	ctx context.Context,
 	op *fuseops.FlushFileOp) (err error) {
+	fmt.Println("flush file called")
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.fileInodeOrDie(op.Inode)
@@ -1807,9 +1865,11 @@ func (fs *fileSystem) FlushFile(
 
 	// Sync it.
 	if err := fs.syncFile(ctx, in); err != nil {
+		fmt.Println("Flush file returned error")
 		return err
 	}
 
+	fmt.Println("Flush file returned")
 	return
 }
 
@@ -1817,6 +1877,7 @@ func (fs *fileSystem) FlushFile(
 func (fs *fileSystem) ReleaseFileHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseFileHandleOp) (err error) {
+	fmt.Println("Release File handle called")
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -1826,6 +1887,7 @@ func (fs *fileSystem) ReleaseFileHandle(
 	// Update the map.
 	delete(fs.handles, op.Handle)
 
+	fmt.Println("Release File handle returned")
 	return
 }
 

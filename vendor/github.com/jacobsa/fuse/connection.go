@@ -124,6 +124,7 @@ func (c *Connection) Init() error {
 	initOp, ok := op.(*initOp)
 	if !ok {
 		c.Reply(ctx, syscall.EPROTO)
+		fmt.Printf("Expected *initOp, got %T", op)
 		return fmt.Errorf("Expected *initOp, got %T", op)
 	}
 
@@ -229,6 +230,7 @@ func (c *Connection) debugLog(
 
 	// Print it.
 	c.debugLogger.Println(msg)
+	fmt.Println(msg)
 }
 
 // LOCKS_EXCLUDED(c.mu)
@@ -377,6 +379,7 @@ func (c *Connection) writeMessage(msg []byte) error {
 	}
 
 	if n != len(msg) {
+		fmt.Printf("Wrote %d bytes; expected %d", n, len(msg))
 		return fmt.Errorf("Wrote %d bytes; expected %d", n, len(msg))
 	}
 
@@ -399,7 +402,9 @@ func (c *Connection) ReadOp() (_ context.Context, op interface{}, _ error) {
 	for {
 		// Read the next message from the kernel.
 		inMsg, err := c.readMessage()
+		fmt.Println("read the message")
 		if err != nil {
+			fmt.Println("Got the error")
 			return nil, nil, err
 		}
 
@@ -408,16 +413,19 @@ func (c *Connection) ReadOp() (_ context.Context, op interface{}, _ error) {
 		op, err = convertInMessage(&c.cfg, inMsg, outMsg, c.protocol)
 		if err != nil {
 			c.putOutMessage(outMsg)
+			fmt.Println("Convert failed")
 			return nil, nil, fmt.Errorf("convertInMessage: %v", err)
 		}
 
 		// Choose an ID for this operation for the purposes of logging, and log it.
+		fmt.Printf("<- %s", describeRequest(op))
 		if c.debugLogger != nil {
 			c.debugLog(inMsg.Header().Unique, 1, "<- %s", describeRequest(op))
 		}
 
 		// Special case: handle interrupt requests inline.
 		if interruptOp, ok := op.(*interruptOp); ok {
+			fmt.Println("Recieved interrupt")
 			c.handleInterrupt(interruptOp.FuseID)
 			continue
 		}
@@ -492,6 +500,14 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 	// Clean up state for this op.
 	c.finishOp(inMsg.Header().Opcode, inMsg.Header().Unique)
 
+	if opErr == nil {
+		fmt.Printf("-> OK1 %s", describeResponse(op))
+		fmt.Println(describeResponse(op))
+		fmt.Println(op)
+		fmt.Println("hi swethv")
+	} else {
+		fmt.Println("-> Error: %q", opErr.Error())
+	}
 	// Debug logging
 	if c.debugLogger != nil {
 		if opErr == nil {
@@ -515,6 +531,9 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 			_, err = writev(int(c.dev.Fd()), outMsg.Sglist)
 		} else {
 			err = c.writeMessage(outMsg.OutHeaderBytes())
+		}
+		if err != nil {
+			fmt.Printf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
 		}
 		if err != nil && c.errorLogger != nil {
 			c.errorLogger.Printf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
