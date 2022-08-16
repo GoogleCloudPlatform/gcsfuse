@@ -145,8 +145,8 @@ def _create_metric_points_from_response(metrics_response, factor):
     for point in metric.points:
       value = _parse_metric_value_by_type(point.value, metric.value_type)
       metric_point = MetricPoint(value / factor,
-                                 point.interval.start_time.seconds,
-                                 point.interval.end_time.seconds)
+                                 point.interval.start_time.second,
+                                 point.interval.end_time.second)
 
       metric_point_list.append(metric_point)
   metric_point_list.reverse()
