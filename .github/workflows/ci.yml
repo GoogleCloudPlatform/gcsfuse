@@ -44,6 +44,6 @@ jobs:
     - name: golangci-lint
       uses: golangci/golangci-lint-action@032fa5c5e48499f06cf9d32c02149bfac1284239
       with:
-        args: --E=goimports
+        args: -E=goimports
 
     
