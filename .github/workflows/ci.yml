@@ -40,7 +40,7 @@ jobs:
       with:
         go-version: 1.18
     - name: checkout code
-      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      uses: actions/checkout@v3
     - name: golangci-lint
       uses: golangci/golangci-lint-action@032fa5c5e48499f06cf9d32c02149bfac1284239
       with:
