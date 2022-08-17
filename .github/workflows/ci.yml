@@ -42,7 +42,7 @@ jobs:
     - name: checkout code
       uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
     - name: golangci-lint
-      uses: golangci/golangci-lint-action@7c1d8b75bd4aed28783a7b6a4dd852b7be9dc3d5
+      uses: golangci/golangci-lint-action@2541b1294d2704b0964813337f33b291d3f8596b
       with:
         args: -E=goimports
 
