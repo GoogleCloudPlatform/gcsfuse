@@ -586,8 +586,10 @@ func (f *FileInode) Truncate(
 }
 
 // Ensures cache content on read if content cache enabled
-func (f *FileInode) CacheEnsureContent(ctx context.Context) {
+func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 	if f.localFileCache {
-		f.ensureContent(ctx)
+		err = f.ensureContent(ctx)
 	}
+
+	return
 }

@@ -478,7 +478,6 @@ func (t *ForeignModsTest) OpenNonExistentFile() {
 
 func (t *ForeignModsTest) ReadFromFile_Small() {
 	const contents = "tacoburritoenchilada"
-	const contentLen = len(contents)
 
 	// Create an object.
 	AssertEq(nil, t.createWithContents("foo", contents))
