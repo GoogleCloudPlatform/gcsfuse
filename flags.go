@@ -388,7 +388,6 @@ func getResolvedPath(filePath string) (resolvedPath string, err error) {
 
 // This method resolves path in the context dictionary.
 func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) {
-        const contents = "tacoburritoenchilada"
 	flagValue := c.String(flagKey)
 	resolvedPath, err := getResolvedPath(flagValue)
 	if flagValue == resolvedPath || err != nil {
