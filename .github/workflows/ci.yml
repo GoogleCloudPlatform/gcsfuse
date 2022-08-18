@@ -46,5 +46,3 @@ jobs:
       with:
         args: -E=goimports
         only-new-issues: true
-
-  
