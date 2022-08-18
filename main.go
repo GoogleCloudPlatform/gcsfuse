@@ -332,10 +332,10 @@ func runCLIApp(c *cli.Context) (err error) {
 
 		if err == nil {
 			mountStatus.Println("File system has been successfully mounted.")
-			err = daemonize.SignalOutcome(nil)
+			daemonize.SignalOutcome(nil)
 		} else {
 			err = fmt.Errorf("mountWithArgs: %w", err)
-			err = daemonize.SignalOutcome(err)
+			daemonize.SignalOutcome(err)
 			return
 		}
 	}
