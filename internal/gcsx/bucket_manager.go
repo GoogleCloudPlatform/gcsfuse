@@ -21,8 +21,6 @@ import (
 	"path"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
@@ -30,6 +28,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
 	"github.com/jacobsa/ratelimit"
 	"github.com/jacobsa/timeutil"
+	"golang.org/x/net/context"
 )
 
 type BucketConfig struct {
@@ -73,19 +72,23 @@ type BucketManager interface {
 }
 
 type bucketManager struct {
-	config BucketConfig
-	conn   *Connection
+	config        BucketConfig
+	conn          *Connection
+	storageHandle StorageHandle
 
 	// Garbage collector
 	gcCtx                 context.Context
 	stopGarbageCollecting func()
 }
 
-func NewBucketManager(config BucketConfig, conn *Connection) BucketManager {
+func NewBucketManager(config BucketConfig, conn *Connection,
+	storageHandle StorageHandle) BucketManager {
 	bm := &bucketManager{
-		config: config,
-		conn:   conn,
+		config:        config,
+		conn:          conn,
+		storageHandle: storageHandle,
 	}
+
 	bm.gcCtx, bm.stopGarbageCollecting = context.WithCancel(context.Background())
 	return bm
 }
@@ -156,14 +159,22 @@ func (bm *bucketManager) SetUpBucket(
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		logger.Infof("OpenBucket(%q, %q)\n", name, bm.config.BillingProject)
-		b, err = bm.conn.OpenBucket(
-			ctx,
-			&gcs.OpenBucketOptions{
-				Name:           name,
-				BillingProject: bm.config.BillingProject,
-			},
-		)
+		var bh *bucketHandle
+		if bm.storageHandle != nil {
+			bh, err = bm.storageHandle.BucketHandle(name)
+			// TODO: Add inside reqTraceBucket, also check it happens right now or not
+			b = bh
+		} else {
+			logger.Infof("OpenBucket(%q, %q)\n", name, bm.config.BillingProject)
+			b, err = bm.conn.OpenBucket(
+				ctx,
+				&gcs.OpenBucketOptions{
+					Name:           name,
+					BillingProject: bm.config.BillingProject,
+				},
+			)
+		}
+
 		if err != nil {
 			err = fmt.Errorf("OpenBucket: %w", err)
 			return

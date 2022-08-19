@@ -155,10 +155,14 @@ func mountWithArgs(
 	// Special case: if we're mounting the fake bucket, we don't need an actual
 	// connection.
 	var conn *gcsx.Connection
+	var storageHandle gcsx.StorageHandle
 	if bucketName != canned.FakeBucketName {
 		mountStatus.Println("Opening GCS connection...")
-
-		conn, err = getConnWithRetry(flags)
+		if flags.ExperimentalEnableStorageClientLibrary {
+			storageHandle, err = gcsx.NewStorageHandle(context.Background())
+		} else {
+			conn, err = getConnWithRetry(flags)
+		}
 		if err != nil {
 			mountStatus.Printf("Failed to open connection: %v\n", err)
 			err = fmt.Errorf("getConnWithRetry: %w", err)
@@ -174,6 +178,7 @@ func mountWithArgs(
 		mountPoint,
 		flags,
 		conn,
+		storageHandle,
 		mountStatus)
 
 	if err != nil {
