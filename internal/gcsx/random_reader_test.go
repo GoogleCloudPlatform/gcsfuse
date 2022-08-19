@@ -199,7 +199,8 @@ func (t *RandomReaderTest) NoExistingReader() {
 		WillOnce(Return(nil, errors.New("")))
 
 	buf := make([]byte, 1)
-	t.rr.ReadAt(buf, 0)
+	_, err := t.rr.ReadAt(buf, 0)
+	AssertNe(nil, err)
 }
 
 func (t *RandomReaderTest) ExistingReader_WrongOffset() {
@@ -214,7 +215,8 @@ func (t *RandomReaderTest) ExistingReader_WrongOffset() {
 		WillOnce(Return(nil, errors.New("")))
 
 	buf := make([]byte, 1)
-	t.rr.ReadAt(buf, 0)
+	_, err := t.rr.ReadAt(buf, 0)
+	AssertNe(nil, err)
 }
 
 func (t *RandomReaderTest) NewReaderReturnsError() {
@@ -432,9 +434,10 @@ func (t *RandomReaderTest) UpgradesReadsToObjectSize() {
 
 	// Call through.
 	buf := make([]byte, readSize)
-	t.rr.ReadAt(buf, 1)
+	_, err := t.rr.ReadAt(buf, 1)
 
 	// Check the state now.
+	ExpectEq(nil, err)
 	ExpectEq(1+readSize, t.rr.wrapped.start)
 	ExpectEq(objectSize, t.rr.wrapped.limit)
 }
@@ -470,9 +473,10 @@ func (t *RandomReaderTest) UpgradeReadsToAverageSize() {
 
 	// Call through.
 	buf := make([]byte, readSize)
-	t.rr.ReadAt(buf, start)
+	_, err := t.rr.ReadAt(buf, start)
 
 	// Check the state now.
+	AssertEq(nil, err)
 	ExpectEq(start+expectedBytesToRead, t.rr.wrapped.limit)
 }
 
@@ -501,9 +505,10 @@ func (t *RandomReaderTest) UpgradesSequentialReads_ExistingReader() {
 
 	// Call through.
 	buf := make([]byte, readSize)
-	t.rr.ReadAt(buf, 1)
+	_, err := t.rr.ReadAt(buf, 1)
 
 	// Check the state now.
+	AssertEq(nil, err)
 	ExpectEq(1+readSize, t.rr.wrapped.start)
 	ExpectEq(t.object.Size, t.rr.wrapped.limit)
 }
@@ -528,9 +533,10 @@ func (t *RandomReaderTest) UpgradesSequentialReads_NoExistingReader() {
 
 	// Call through.
 	buf := make([]byte, readSize)
-	t.rr.ReadAt(buf, 1)
+	_, err := t.rr.ReadAt(buf, 1)
 
 	// Check the state now.
+	ExpectEq(nil, err)
 	ExpectEq(1+readSize, t.rr.wrapped.start)
 	ExpectEq(t.object.Size, t.rr.wrapped.limit)
 }

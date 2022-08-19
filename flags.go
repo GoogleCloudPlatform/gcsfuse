@@ -393,9 +393,10 @@ func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) 
 	if flagValue == resolvedPath || err != nil {
 		return
 	}
-	c.Set(flagKey, resolvedPath)
+
 	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n",
 		flagKey, flagValue, resolvedPath)
+	err = c.Set(flagKey, resolvedPath)
 
 	return
 }

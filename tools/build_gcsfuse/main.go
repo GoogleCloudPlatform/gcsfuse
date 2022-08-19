@@ -38,7 +38,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -179,39 +178,6 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 			err = fmt.Errorf("Symlink: %w", err)
 			return
 		}
-	}
-
-	return
-}
-
-func copyFile(dst string, src string, perm os.FileMode) (err error) {
-	// Open the source.
-	s, err := os.Open(src)
-	if err != nil {
-		return
-	}
-
-	defer s.Close()
-
-	// Open the destination.
-	d, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, perm)
-	if err != nil {
-		return
-	}
-
-	defer d.Close()
-
-	// Copy contents.
-	_, err = io.Copy(d, s)
-	if err != nil {
-		err = fmt.Errorf("Copy: %w", err)
-		return
-	}
-
-	// Finish up.
-	err = d.Close()
-	if err != nil {
-		return
 	}
 
 	return
