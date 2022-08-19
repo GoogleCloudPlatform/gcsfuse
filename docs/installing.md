@@ -118,12 +118,12 @@ Ensure that dependencies are present:
 
 If you are on a distribution that uses `.rpm` files for package management:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.41.5/gcsfuse-0.41.5-1.x86_64.rpm
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases#:~:text=gcsfuse%2D0.41.5%2D1.x86_64.rpm
     sudo rpm --install -p gcsfuse-0.41.5-1.x86_64.rpm
 
 Or one that uses `.deb` files:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.41.5/gcsfuse_0.41.5_amd64.deb
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v%400.41.5/gcsfuse_0.41.5_amd64.deb
     sudo dpkg --install gcsfuse_0.41.5_amd64.deb
 
 On some systems it may be necessary to add the your user account to the `fuse`
