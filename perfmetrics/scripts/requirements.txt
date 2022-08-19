@@ -1,7 +1,7 @@
 pytest
 typing
 dataclasses
-google-cloud-monitoring==2.10.1
+google-cloud-monitoring
 grpcio
 googleapis.common.protos
 google.auth
@@ -10,3 +10,4 @@ testresources
 google.api_core
 google.cloud==0.34.0
 google_api_python_client
+proto-plus==1.20.6
