@@ -28,9 +28,9 @@ type storageClientConfig struct {
 // storageClientConfig parameter.
 func GetStorageClientHandle(ctx context.Context,
 	sc storageClientConfig) (sh *storageHandle, err error) {
-	var storageClient *storage.Client = nil
+	var storageClient *storage.Client
 
-	var tr *http.Transport = nil
+	var tr *http.Transport
 	// Choosing between HTTP1 and HTTP2. HTTP2 is more performant.
 	if sc.disableHttp2 {
 		tr = &http.Transport{

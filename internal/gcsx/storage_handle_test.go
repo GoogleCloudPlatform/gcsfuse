@@ -21,6 +21,9 @@ func TestNewStorageHandleHttp2Disabled(t *testing.T) {
 	if handleCreated == nil {
 		t.Errorf("Storage handle is null")
 	}
+	if handleCreated.client == nil {
+		t.Errorf("Storage client handle is null")
+	}
 }
 
 func TestNewStorageHandleHttp2Enabled(t *testing.T) {
@@ -37,6 +40,9 @@ func TestNewStorageHandleHttp2Enabled(t *testing.T) {
 	if handleCreated == nil {
 		t.Errorf("Storage handle is null")
 	}
+	if handleCreated.client == nil {
+		t.Errorf("Storage client handle is null")
+	}
 }
 
 func TestNewStorageHandleWithZeroMaxConnsPerHost(t *testing.T) {
@@ -52,5 +58,8 @@ func TestNewStorageHandleWithZeroMaxConnsPerHost(t *testing.T) {
 	}
 	if handleCreated == nil {
 		t.Errorf("Storage handle is null")
+	}
+	if handleCreated.client == nil {
+		t.Errorf("Storage client handle is null")
 	}
 }
