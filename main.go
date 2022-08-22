@@ -159,7 +159,13 @@ func mountWithArgs(
 	if bucketName != canned.FakeBucketName {
 		mountStatus.Println("Opening GCS connection...")
 		if flags.ExperimentalEnableStorageClientLibrary {
-			storageHandle, err = gcsx.NewStorageHandle(context.Background())
+			var tokenSrc oauth2.TokenSource
+			tokenSrc, err = auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl)
+			if err != nil {
+				err = fmt.Errorf("get token source: %w", err)
+				return
+			}
+			storageHandle, err = gcsx.NewStorageHandle(context.Background(), tokenSrc)
 		} else {
 			conn, err = getConnWithRetry(flags)
 		}

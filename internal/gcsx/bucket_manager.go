@@ -27,6 +27,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
 	"github.com/jacobsa/ratelimit"
+	"github.com/jacobsa/reqtrace"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 )
@@ -162,8 +163,10 @@ func (bm *bucketManager) SetUpBucket(
 		var bh *bucketHandle
 		if bm.storageHandle != nil {
 			bh, err = bm.storageHandle.BucketHandle(name)
-			// TODO: Add inside reqTraceBucket, also check it happens right now or not
 			b = bh
+			if reqtrace.Enabled() {
+				b = gcs.GetWrappedWithReqtraceBucket(bh)
+			}
 		} else {
 			logger.Infof("OpenBucket(%q, %q)\n", name, bm.config.BillingProject)
 			b, err = bm.conn.OpenBucket(

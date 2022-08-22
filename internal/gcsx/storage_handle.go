@@ -20,11 +20,11 @@ type storageHandle struct {
 	client *storage.Client
 }
 
-func NewStorageHandle(ctx context.Context) (sh *storageHandle, err error) {
-	var storageClient *storage.Client = nil
+func NewStorageHandle(ctx context.Context, tokenSrc oauth2.TokenSource) (sh *storageHandle, err error) {
+	var storageClient *storage.Client
 
 	// Creating client through Go Storage Client Library for the storageClient parameter of bucket.
-	var tr *http.Transport = nil
+	var tr *http.Transport
 
 	// Choosing between HTTP1 and HTTP2.
 	if true {
@@ -46,8 +46,8 @@ func NewStorageHandle(ctx context.Context) (sh *storageHandle, err error) {
 
 	// Custom http Client for Go Client.
 	httpClient := &http.Client{Transport: &oauth2.Transport{
-		Base: tr,
-		//Source: tokenSrc,
+		Base:   tr,
+		Source: tokenSrc,
 	},
 		Timeout: 800 * time.Millisecond,
 	}

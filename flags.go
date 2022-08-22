@@ -304,7 +304,7 @@ func newApp() (app *cli.App) {
 			// Client
 			/////////////////////////
 
-			cli.BoolTFlag{
+			cli.BoolFlag{
 				Name: "experimental-enable-storage-client-library",
 				Usage: "If true, will use go storage client library " +
 					"otherwise jacobsa/gcloud",
