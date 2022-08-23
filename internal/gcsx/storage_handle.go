@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googleapis/gax-go/v2"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
@@ -52,10 +53,17 @@ func NewStorageHandle(ctx context.Context, tokenSrc oauth2.TokenSource) (sh *sto
 		Timeout: 800 * time.Millisecond,
 	}
 
-	// check retry strategy should be enabled here.
 	storageClient, err = storage.NewClient(ctx, option.WithHTTPClient(httpClient))
+
+	storageClient.SetRetry(
+		storage.WithBackoff(gax.Backoff{
+			Max:        600 * time.Millisecond,
+			Multiplier: 1.5,
+		}),
+		storage.WithPolicy(storage.RetryAlways))
+
 	if err != nil {
-		err = fmt.Errorf("go storage client creation: %v", err)
+		err = fmt.Errorf("go storage client creation: %w", err)
 	}
 	sh = &storageHandle{storageClient}
 
@@ -63,11 +71,8 @@ func NewStorageHandle(ctx context.Context, tokenSrc oauth2.TokenSource) (sh *sto
 }
 
 func (sh *storageHandle) BucketHandle(bucketName string) (bh *bucketHandle,
-	err error) {
+		err error) {
 	bh = &bucketHandle{bucket: sh.client.Bucket(bucketName)}
 
-	// TODO: Add retry strategy
-	// We need to make a call to gcs ListObjects method to check if the bucket
-	// name is valid and the client has access
 	return
 }
