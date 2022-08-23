@@ -157,3 +157,230 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 		Acl:                Acl,
 	}
 }
+
+func (bh *bucketHandle) StatObject(
+	ctx context.Context,
+	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+
+	var attrs *storage.ObjectAttrs = nil
+	// Retrieving object attrs through Go Storage Client.
+	attrs, err = bh.bucket.Object(req.Name).Attrs(ctx)
+
+	// If error is of type storage.ErrObjectNotExist, then we have to retry once by appending '/' to the object name.
+	// We are retyring to handle the case when the object is a directory.
+	// Since directories in GCS bucket are denoted with a an extra '/' at the end of their name. But in the request we are only provided with their name without '/'.
+	if err == storage.ErrObjectNotExist {
+		dirName := req.Name + "/"
+		attrs, err = bh.bucket.Object(dirName).Attrs(ctx)
+		if err == storage.ErrObjectNotExist {
+			err = &gcs.NotFoundError{Err: err} // Special case error that object not found in the bucket.
+			return
+		}
+	}
+	if err != nil {
+		err = fmt.Errorf("Error in returning object attributes: %v", err)
+		return
+	}
+
+	// Converting attrs to type *Object
+	o = ObjectAttrsToBucketObject(attrs)
+
+	return
+}
+
+func (bh *bucketHandle) DeleteObject(
+	ctx context.Context,
+	req *gcs.DeleteObjectRequest) (err error) {
+
+	obj := bh.bucket.Object(req.Name)
+
+	// Switching to the requested generation of the object.
+	if req.Generation != 0 {
+		obj = obj.Generation(req.Generation)
+	}
+
+	// Putting condition that the object's MetaGeneration should match the requested MetaGeneration for deletion to occur.
+	if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
+		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
+	}
+
+	// Deleting object through Go Storage Client.
+	err = obj.Delete(ctx)
+	if err != nil {
+		err = fmt.Errorf("Error in deleting the object through Go storage client: %v", err)
+		return
+	}
+
+	return
+}
+
+func (bh *bucketHandle) ComposeObjects(
+	ctx context.Context,
+	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+	dstObj := bh.bucket.Object(req.DstName)
+
+	// Putting Generation and MetaGeneration conditions on Destination Object.
+	if req.DstGenerationPrecondition != nil {
+		if req.DstMetaGenerationPrecondition != nil {
+			dstObj = dstObj.If(storage.Conditions{GenerationMatch: *req.DstGenerationPrecondition, MetagenerationMatch: *req.DstMetaGenerationPrecondition})
+		} else {
+			dstObj = dstObj.If(storage.Conditions{GenerationMatch: *req.DstGenerationPrecondition})
+		}
+	} else if req.DstMetaGenerationPrecondition != nil {
+		dstObj = dstObj.If(storage.Conditions{MetagenerationMatch: *req.DstMetaGenerationPrecondition})
+	}
+
+	// Converting the req.Sources list to a list of storage.ObjectHandle as expected by the Go Storage Client.
+	var srcObjList []*storage.ObjectHandle
+	for _, src := range req.Sources {
+		currSrcObj := bh.bucket.Object(src.Name)
+		// Switching to requested Generation of the object.
+		if src.Generation != 0 {
+			currSrcObj = currSrcObj.Generation(src.Generation)
+		}
+		srcObjList = append(srcObjList, currSrcObj)
+	}
+
+	// Composing Source Objects to Destination Object using Composer created through Go Storage Client.
+	attrs, err := dstObj.ComposerFrom(srcObjList...).Run(ctx)
+	if err != nil {
+		err = fmt.Errorf("Error in composing objects through Go Storage Client: %v", err)
+		return
+	}
+
+	// Converting attrs to type *Object.
+	o = ObjectAttrsToBucketObject(attrs)
+	return
+
+}
+
+func (bh *bucketHandle) CopyObject(
+	ctx context.Context,
+	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+
+	srcObj := bh.bucket.Object(req.SrcName)
+	dstObj := bh.bucket.Object(req.DstName)
+
+	// Switching to the requested Generation of Source Object.
+	if req.SrcGeneration != 0 {
+		srcObj = srcObj.Generation(req.SrcGeneration)
+	}
+
+	// Putting a condition that the MetaGeneration of source should match *req.SrcMetaGenerationPrecondition for copying operation to occur.
+	if req.SrcMetaGenerationPrecondition != nil {
+		srcObj = srcObj.If(storage.Conditions{MetagenerationMatch: *req.SrcMetaGenerationPrecondition})
+	}
+
+	// Copying Source Object to the Destination Object through a Copier created by Go Storage Client.
+	objAttrs, err := dstObj.CopierFrom(srcObj).Run(ctx)
+	if err != nil {
+		err = fmt.Errorf("Error in copying using Go Storage Client: %v", err)
+		return
+	}
+
+	// Converting objAttrs to type *Object
+	o = ObjectAttrsToBucketObject(objAttrs)
+	return
+}
+
+func (bh *bucketHandle) CreateObject(
+	ctx context.Context,
+	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+
+	obj := bh.bucket.Object(req.Name)
+
+	// Putting conditions on Generation and MetaGeneration of the object for upload to occur.
+	if req.GenerationPrecondition != nil {
+		if *req.GenerationPrecondition == 0 {
+			// Passing because GenerationPrecondition = 0 means object does not exist in the GCS Bucket yet.
+		} else if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
+			obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition, MetagenerationMatch: *req.MetaGenerationPrecondition})
+		} else {
+			obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition})
+		}
+	}
+
+	// Creating a NewWriter with requested attributes, using Go Storage Client.
+	// Chuck size for resumable upload is deafult i.e. 16MB.
+	wc := obj.NewWriter(ctx)
+	wc.ChunkSize = 0 // This will enable one shot upload and thus increase performance. JSON API Client also performs one-shot upload.
+	//wc = gcs.SetAttrs(wc, req)
+
+	// Copying contents from the request to the Writer. These contents will be copied to the newly created object / already existing object.
+	if _, err = io.Copy(wc, req.Contents); err != nil {
+		err = fmt.Errorf("Error in io.Copy: %v", err)
+		return
+	}
+
+	// Closing the Writer.
+	if err = wc.Close(); err != nil {
+		err = fmt.Errorf("Error in closing writer: %v", err)
+		return
+	}
+
+	attrs := wc.Attrs() // Retrieving the attributes of the created object.
+
+	// Converting attrs to type *Object.
+	o = ObjectAttrsToBucketObject(attrs)
+	return
+}
+
+func (bh *bucketHandle) UpdateObject(
+	ctx context.Context,
+	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+
+	obj := bh.bucket.Object(req.Name)
+
+	// Switching to requested Generation of object.
+	if req.Generation != 0 {
+		obj = obj.Generation(req.Generation)
+	}
+
+	// Putting condition to ensure MetaGeneration of object matches *req.MetaGenerationPrecondition for update to occur.
+	if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
+		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
+	}
+
+	// Creating update query consisting of attributes to update in the object.
+	updateQuery := storage.ObjectAttrsToUpdate{}
+
+	if req.ContentType != nil {
+		updateQuery.ContentType = *req.ContentType
+	}
+
+	if req.ContentEncoding != nil {
+		updateQuery.ContentEncoding = *req.ContentEncoding
+	}
+
+	if req.ContentLanguage != nil {
+		updateQuery.ContentLanguage = *req.ContentLanguage
+	}
+
+	if req.CacheControl != nil {
+		updateQuery.CacheControl = *req.CacheControl
+	}
+
+	if req.Metadata != nil {
+		updateQuery.Metadata = make(map[string]string)
+		for key, element := range req.Metadata {
+			if element != nil {
+				updateQuery.Metadata[key] = *element
+			}
+		}
+	}
+
+	// Updating parameters using Update method of Go Storage Client.
+	attrs, err := obj.Update(ctx, updateQuery)
+	if err == storage.ErrObjectNotExist {
+		err = &gcs.NotFoundError{Err: err} // Handling special case of object not found.
+		return
+	} else if err != nil {
+		err = fmt.Errorf("Error in updating object through Go Storage Client: %v", err)
+		return
+	}
+
+	// Convert attrs to type *Object.
+	o = ObjectAttrsToBucketObject(attrs)
+
+	return
+}

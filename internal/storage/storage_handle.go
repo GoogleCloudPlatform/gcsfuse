@@ -71,8 +71,17 @@ func NewStorageHandle(ctx context.Context, tokenSrc oauth2.TokenSource) (sh *sto
 }
 
 func (sh *storageHandle) BucketHandle(bucketName string) (bh *bucketHandle,
-	err error) {
-	bh = &bucketHandle{bucket: sh.client.Bucket(bucketName)}
+		err error) {
+
+	actualHandle1 := sh.client.Bucket(bucketName)
+	attrs1, err := actualHandle1.Attrs(context.Background())
+	fmt.Println(attrs1)
+
+	actualHandle2 := sh.client.Bucket(bucketName + "test")
+	attrs2, err := actualHandle2.Attrs(context.Background())
+	fmt.Println(attrs2)
+
+	bh = &bucketHandle{bucket: actualHandle1}
 
 	return
 }
