@@ -12,12 +12,12 @@ import (
 	"google.golang.org/api/option"
 )
 
-type storageHandle struct {
+type storageClient struct {
 	client *storage.Client
 }
 
 type storageClientConfig struct {
-	disableHttp2        bool
+	disableHTTP2        bool
 	maxConnsPerHost     int
 	maxIdleConnsPerHost int
 	tokenSrc            oauth2.TokenSource
@@ -27,42 +27,42 @@ type storageClientConfig struct {
 // customized http client. We can configure the http client using the
 // storageClientConfig parameter.
 func GetStorageClientHandle(ctx context.Context,
-	sc storageClientConfig) (sh *storageHandle, err error) {
-	var storageClient *storage.Client
-
-	var tr *http.Transport
-	// Choosing between HTTP1 and HTTP2. HTTP2 is more performant.
-	if sc.disableHttp2 {
-		tr = &http.Transport{
-			MaxConnsPerHost:     sc.maxConnsPerHost,
-			MaxIdleConnsPerHost: sc.maxIdleConnsPerHost,
+		scConfig storageClientConfig) (sh *storageClient, err error) {
+	var transport *http.Transport
+	// Disabling the http2 makes the client more performant.
+	if scConfig.disableHTTP2 {
+		transport = &http.Transport{
+			MaxConnsPerHost:     scConfig.maxConnsPerHost,
+			MaxIdleConnsPerHost: scConfig.maxIdleConnsPerHost,
 			// This disables HTTP/2 in transport.
 			TLSNextProto: make(
 				map[string]func(string, *tls.Conn) http.RoundTripper,
 			),
 		}
 	} else {
-		tr = &http.Transport{
+		// For http2, change in MaxConnsPerHost doesn't affect the performance.
+		transport = &http.Transport{
 			DisableKeepAlives: true,
-			MaxConnsPerHost:   sc.maxConnsPerHost, // not affect the performance for http2
+			MaxConnsPerHost:   scConfig.maxConnsPerHost,
 			ForceAttemptHTTP2: true,
 		}
 	}
 
-	// Custom http Client for Go Client.
+	// Custom http client for Go Client.
 	httpClient := &http.Client{Transport: &oauth2.Transport{
-		Base:   tr,
-		Source: sc.tokenSrc,
+		Base:   transport,
+		Source: scConfig.tokenSrc,
 	},
 		Timeout: 800 * time.Millisecond,
 	}
 
-	// check retry strategy should be enabled here.
-	storageClient, err = storage.NewClient(ctx, option.WithHTTPClient(httpClient))
+	var sc *storage.Client
+	sc, err = storage.NewClient(ctx, option.WithHTTPClient(httpClient))
 	if err != nil {
-		err = fmt.Errorf("go storage client creation: %v", err)
+		err = fmt.Errorf("go storage client creation: %w", err)
+		return
 	}
-	sh = &storageHandle{storageClient}
 
+	sh = &storageClient{sc}
 	return
 }

@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewStorageHandleHttp2Disabled(t *testing.T) {
-	sc := storageClientConfig{disableHttp2: true,
+	sc := storageClientConfig{disableHTTP2: true,
 		maxConnsPerHost:     10,
 		maxIdleConnsPerHost: 100,
 		tokenSrc:            oauth2.StaticTokenSource(&oauth2.Token{})}
@@ -27,7 +27,7 @@ func TestNewStorageHandleHttp2Disabled(t *testing.T) {
 }
 
 func TestNewStorageHandleHttp2Enabled(t *testing.T) {
-	sc := storageClientConfig{disableHttp2: false,
+	sc := storageClientConfig{disableHTTP2: false,
 		maxConnsPerHost:     10,
 		maxIdleConnsPerHost: 100,
 		tokenSrc:            oauth2.StaticTokenSource(&oauth2.Token{})}
@@ -46,7 +46,7 @@ func TestNewStorageHandleHttp2Enabled(t *testing.T) {
 }
 
 func TestNewStorageHandleWithZeroMaxConnsPerHost(t *testing.T) {
-	sc := storageClientConfig{disableHttp2: true,
+	sc := storageClientConfig{disableHTTP2: true,
 		maxConnsPerHost:     0,
 		maxIdleConnsPerHost: 100,
 		tokenSrc:            oauth2.StaticTokenSource(&oauth2.Token{})}
