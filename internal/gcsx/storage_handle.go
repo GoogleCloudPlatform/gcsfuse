@@ -21,19 +21,20 @@ type storageClientConfig struct {
 	maxConnsPerHost     int
 	maxIdleConnsPerHost int
 	tokenSrc            oauth2.TokenSource
+	timeOut             time.Duration
 }
 
-// GetStorageClientHandle returns the handle of Go storage client containing
+// NewStorageHandle returns the handle of Go storage client containing
 // customized http client. We can configure the http client using the
 // storageClientConfig parameter.
-func GetStorageClientHandle(ctx context.Context,
-	scConfig storageClientConfig) (sh *storageClient, err error) {
+func NewStorageHandle(ctx context.Context,
+	clientConfig storageClientConfig) (sh *storageClient, err error) {
 	var transport *http.Transport
 	// Disabling the http2 makes the client more performant.
-	if scConfig.disableHTTP2 {
+	if clientConfig.disableHTTP2 {
 		transport = &http.Transport{
-			MaxConnsPerHost:     scConfig.maxConnsPerHost,
-			MaxIdleConnsPerHost: scConfig.maxIdleConnsPerHost,
+			MaxConnsPerHost:     clientConfig.maxConnsPerHost,
+			MaxIdleConnsPerHost: clientConfig.maxIdleConnsPerHost,
 			// This disables HTTP/2 in transport.
 			TLSNextProto: make(
 				map[string]func(string, *tls.Conn) http.RoundTripper,
@@ -43,23 +44,24 @@ func GetStorageClientHandle(ctx context.Context,
 		// For http2, change in MaxConnsPerHost doesn't affect the performance.
 		transport = &http.Transport{
 			DisableKeepAlives: true,
-			MaxConnsPerHost:   scConfig.maxConnsPerHost,
+			MaxConnsPerHost:   clientConfig.maxConnsPerHost,
 			ForceAttemptHTTP2: true,
 		}
 	}
 
 	// Custom http client for Go Client.
-	httpClient := &http.Client{Transport: &oauth2.Transport{
-		Base:   transport,
-		Source: scConfig.tokenSrc,
-	},
-		Timeout: 800 * time.Millisecond,
+	httpClient := &http.Client{
+		Transport: &oauth2.Transport{
+			Base:   transport,
+			Source: clientConfig.tokenSrc,
+		},
+		Timeout: clientConfig.timeOut,
 	}
 
 	var sc *storage.Client
 	sc, err = storage.NewClient(ctx, option.WithHTTPClient(httpClient))
 	if err != nil {
-		err = fmt.Errorf("go storage client creation: %w", err)
+		err = fmt.Errorf("go storage client creation failed: %w", err)
 		return
 	}
 
