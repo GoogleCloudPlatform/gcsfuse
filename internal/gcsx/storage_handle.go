@@ -27,7 +27,7 @@ type storageClientConfig struct {
 // customized http client. We can configure the http client using the
 // storageClientConfig parameter.
 func GetStorageClientHandle(ctx context.Context,
-		scConfig storageClientConfig) (sh *storageClient, err error) {
+	scConfig storageClientConfig) (sh *storageClient, err error) {
 	var transport *http.Transport
 	// Disabling the http2 makes the client more performant.
 	if scConfig.disableHTTP2 {
