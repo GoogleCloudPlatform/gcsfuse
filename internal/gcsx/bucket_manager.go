@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
 	"github.com/jacobsa/ratelimit"
@@ -75,7 +76,7 @@ type BucketManager interface {
 type bucketManager struct {
 	config        BucketConfig
 	conn          *Connection
-	storageHandle StorageHandle
+	storageHandle storage.StorageHandle
 
 	// Garbage collector
 	gcCtx                 context.Context
@@ -83,7 +84,7 @@ type bucketManager struct {
 }
 
 func NewBucketManager(config BucketConfig, conn *Connection,
-	storageHandle StorageHandle) BucketManager {
+	storageHandle storage.StorageHandle) BucketManager {
 	bm := &bucketManager{
 		config:        config,
 		conn:          conn,
@@ -160,9 +161,8 @@ func (bm *bucketManager) SetUpBucket(
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		var bh *bucketHandle
 		if bm.storageHandle != nil {
-			bh, err = bm.storageHandle.BucketHandle(name)
+			bh, _ := bm.storageHandle.BucketHandle(name)
 			b = bh
 			if reqtrace.Enabled() {
 				b = gcs.GetWrappedWithReqtraceBucket(bh)

@@ -1,4 +1,4 @@
-package gcsx
+package storage
 
 import (
 	"crypto/md5"
@@ -89,9 +89,9 @@ func (bh *bucketHandle) ListObjects(
 
 	// Iterating through all the objects in the bucket and one by one adding them to the list.
 	for {
-		var attrs *storage.ObjectAttrs = nil
+		var attrs *storage.ObjectAttrs
 		attrs, err = itr.Next()
-		if err == iterator.Done {
+		if iterator.Done == err {
 			err = nil
 			break
 		}
@@ -109,7 +109,7 @@ func (bh *bucketHandle) ListObjects(
 	return
 }
 
-// Convert the object attrs return by the Go Client to Object struct type present in object.go file.
+// ObjectAttrsToBucketObject Convert the object attrs return by the Go Client to Object struct type present in object.go file.
 func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 	// Converting []ACLRule returned by the Go Client into []*storagev1.ObjectAccessControl which complies with GCSFuse type.
 	var Acl []*storagev1.ObjectAccessControl

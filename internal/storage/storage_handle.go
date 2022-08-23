@@ -1,4 +1,4 @@
-package gcsx
+package storage
 
 import (
 	"crypto/tls"
@@ -71,7 +71,7 @@ func NewStorageHandle(ctx context.Context, tokenSrc oauth2.TokenSource) (sh *sto
 }
 
 func (sh *storageHandle) BucketHandle(bucketName string) (bh *bucketHandle,
-		err error) {
+	err error) {
 	bh = &bucketHandle{bucket: sh.client.Bucket(bucketName)}
 
 	return
