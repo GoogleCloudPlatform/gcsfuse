@@ -1,4 +1,4 @@
-package gcsx
+package storage
 
 import (
 	"crypto/tls"
