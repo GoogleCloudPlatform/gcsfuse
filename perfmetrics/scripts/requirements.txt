@@ -9,4 +9,5 @@ requests
 testresources
 google.api_core
 google.cloud==0.34.0
-google_api_python_client
+google_api_python_client==2.55.0
+proto-plus==1.20.6
