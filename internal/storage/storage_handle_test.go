@@ -3,9 +3,6 @@ package storage
 import (
 	"context"
 	"testing"
-	"time"
-
-	"golang.org/x/oauth2"
 )
 
 func invokeAndVerifyStorageHandle(t *testing.T, sc storageClientConfig) {
@@ -14,7 +11,7 @@ func invokeAndVerifyStorageHandle(t *testing.T, sc storageClientConfig) {
 	if err != nil {
 		t.Errorf("Handle creation failure")
 	}
-	if nil == handleCreated {
+	if handleCreated == nil {
 		t.Fatalf("Storage handle is null")
 	}
 	if nil == handleCreated.client {
@@ -23,31 +20,30 @@ func invokeAndVerifyStorageHandle(t *testing.T, sc storageClientConfig) {
 }
 
 func TestNewStorageHandleHttp2Disabled(t *testing.T) {
-	sc := storageClientConfig{disableHTTP2: true,
-		maxConnsPerHost:     10,
-		maxIdleConnsPerHost: 100,
-		tokenSrc:            oauth2.StaticTokenSource(&oauth2.Token{}),
-		timeOut:             800 * time.Millisecond}
+	sc := getDefaultStorageClientConfig() // by default http2 disabled
 
 	invokeAndVerifyStorageHandle(t, sc)
 }
 
 func TestNewStorageHandleHttp2Enabled(t *testing.T) {
-	sc := storageClientConfig{disableHTTP2: false,
-		maxConnsPerHost:     10,
-		maxIdleConnsPerHost: 100,
-		tokenSrc:            oauth2.StaticTokenSource(&oauth2.Token{}),
-		timeOut:             800 * time.Millisecond}
+	sc := getDefaultStorageClientConfig()
+	sc.disableHTTP2 = false
 
 	invokeAndVerifyStorageHandle(t, sc)
 }
 
 func TestNewStorageHandleWithZeroMaxConnsPerHost(t *testing.T) {
-	sc := storageClientConfig{disableHTTP2: true,
-		maxConnsPerHost:     0,
-		maxIdleConnsPerHost: 100,
-		tokenSrc:            oauth2.StaticTokenSource(&oauth2.Token{}),
-		timeOut:             800 * time.Millisecond}
+	sc := getDefaultStorageClientConfig()
+	sc.maxConnsPerHost = 0
 
 	invokeAndVerifyStorageHandle(t, sc)
+}
+
+func TestBucketHandleIfDoesNotExist(t *testing.T) {
+	handleCreated, _ := NewStorageHandle(context.Background(), getDefaultStorageClientConfig())
+	bh, _ := handleCreated.BucketHandle("test")
+
+	if bh != nil {
+		t.Errorf("bucket handle is non-null")
+	}
 }

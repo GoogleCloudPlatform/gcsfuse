@@ -7,10 +7,15 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googleapis/gax-go/v2"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 )
+
+type StorageHandle interface {
+	BucketHandle(bucketName string) (bh *bucketHandle, err error)
+}
 
 type storageClient struct {
 	client *storage.Client
@@ -22,6 +27,20 @@ type storageClientConfig struct {
 	maxIdleConnsPerHost int
 	tokenSrc            oauth2.TokenSource
 	timeOut             time.Duration
+	maxRetryDuration    time.Duration
+	retryMultiplier     float64
+}
+
+func getDefaultStorageClientConfig() (clientConfig storageClientConfig) {
+	return storageClientConfig{
+		disableHTTP2:        true,
+		maxConnsPerHost:     10,
+		maxIdleConnsPerHost: 100,
+		tokenSrc:            oauth2.StaticTokenSource(&oauth2.Token{}),
+		timeOut:             800 * time.Millisecond,
+		maxRetryDuration:    30 * time.Second,
+		retryMultiplier:     2,
+	}
 }
 
 // NewStorageHandle returns the handle of Go storage client containing
@@ -65,6 +84,25 @@ func NewStorageHandle(ctx context.Context,
 		return
 	}
 
-	sh = &storageClient{sc}
+	sc.SetRetry(
+		storage.WithBackoff(gax.Backoff{
+			Max:        clientConfig.maxRetryDuration,
+			Multiplier: clientConfig.retryMultiplier,
+		}),
+		storage.WithPolicy(storage.RetryAlways))
+
+	sh = &storageClient{client: sc}
+	return
+}
+
+func (sh *storageClient) BucketHandle(bucketName string) (bh *bucketHandle, err error) {
+	bucket := sh.client.Bucket(bucketName)
+
+	attrs, err := bucket.Attrs(context.Background())
+	if err != nil || attrs == nil {
+		return
+	}
+
+	bh = &bucketHandle{bucket: bucket}
 	return
 }
