@@ -38,12 +38,3 @@ func TestNewStorageHandleWithZeroMaxConnsPerHost(t *testing.T) {
 
 	invokeAndVerifyStorageHandle(t, sc)
 }
-
-func TestBucketHandleIfDoesNotExist(t *testing.T) {
-	handleCreated, _ := NewStorageHandle(context.Background(), getDefaultStorageClientConfig())
-	bh, _ := handleCreated.BucketHandle("test")
-
-	if bh != nil {
-		t.Errorf("bucket handle is non-null")
-	}
-}

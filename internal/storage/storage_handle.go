@@ -13,10 +13,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-type StorageHandle interface {
-	BucketHandle(bucketName string) (bh *bucketHandle, err error)
-}
-
 type storageClient struct {
 	client *storage.Client
 }
@@ -92,17 +88,5 @@ func NewStorageHandle(ctx context.Context,
 		storage.WithPolicy(storage.RetryAlways))
 
 	sh = &storageClient{client: sc}
-	return
-}
-
-func (sh *storageClient) BucketHandle(bucketName string) (bh *bucketHandle, err error) {
-	bucket := sh.client.Bucket(bucketName)
-
-	attrs, err := bucket.Attrs(context.Background())
-	if err != nil || attrs == nil {
-		return
-	}
-
-	bh = &bucketHandle{bucket: bucket}
 	return
 }
