@@ -2,9 +2,10 @@ package storage
 
 import (
 	"context"
-	"golang.org/x/oauth2"
 	"testing"
 	"time"
+
+	"golang.org/x/oauth2"
 )
 
 func getDefaultStorageClientConfig() (clientConfig storageClientConfig) {
