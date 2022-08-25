@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -154,7 +153,6 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	mountCfg := t.mountCfg
 	mountCfg.OpContext = t.ctx
 
-	const loggingFlags = log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile
 	if mountCfg.ErrorLogger == nil {
 		mountCfg.ErrorLogger = logger.NewError("fuse_errors: ")
 	}

@@ -136,7 +136,10 @@ func (fh *FileHandle) checkInvariants() {
 func (fh *FileHandle) tryEnsureReader(ctx context.Context) (err error) {
 	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
 	// and fh.inode.SourceGenerationIsAuthoritative() will return false
-	fh.inode.CacheEnsureContent(ctx)
+	err = fh.inode.CacheEnsureContent(ctx)
+	if err != nil {
+		return
+	}
 	// If the inode is dirty, there's nothing we can do. Throw away our reader if
 	// we have one.
 	if !fh.inode.SourceGenerationIsAuthoritative() {
