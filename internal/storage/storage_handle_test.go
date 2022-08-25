@@ -2,8 +2,22 @@ package storage
 
 import (
 	"context"
+	"golang.org/x/oauth2"
 	"testing"
+	"time"
 )
+
+func getDefaultStorageClientConfig() (clientConfig storageClientConfig) {
+	return storageClientConfig{
+		disableHTTP2:        true,
+		maxConnsPerHost:     10,
+		maxIdleConnsPerHost: 100,
+		tokenSrc:            oauth2.StaticTokenSource(&oauth2.Token{}),
+		timeOut:             800 * time.Millisecond,
+		maxRetryDuration:    30 * time.Second,
+		retryMultiplier:     2,
+	}
+}
 
 func invokeAndVerifyStorageHandle(t *testing.T, sc storageClientConfig) {
 	handleCreated, err := NewStorageHandle(context.Background(), sc)

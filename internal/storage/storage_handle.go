@@ -27,18 +27,6 @@ type storageClientConfig struct {
 	retryMultiplier     float64
 }
 
-func getDefaultStorageClientConfig() (clientConfig storageClientConfig) {
-	return storageClientConfig{
-		disableHTTP2:        true,
-		maxConnsPerHost:     10,
-		maxIdleConnsPerHost: 100,
-		tokenSrc:            oauth2.StaticTokenSource(&oauth2.Token{}),
-		timeOut:             800 * time.Millisecond,
-		maxRetryDuration:    30 * time.Second,
-		retryMultiplier:     2,
-	}
-}
-
 // NewStorageHandle returns the handle of Go storage client containing
 // customized http client. We can configure the http client using the
 // storageClientConfig parameter.
@@ -80,6 +68,8 @@ func NewStorageHandle(ctx context.Context,
 		return
 	}
 
+	// RetryAlways causes all operations to be retried when the service returns a transient error, regardless of
+	// idempotency considerations.
 	sc.SetRetry(
 		storage.WithBackoff(gax.Backoff{
 			Max:        clientConfig.maxRetryDuration,
