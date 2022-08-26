@@ -13,7 +13,11 @@ import (
 	"google.golang.org/api/option"
 )
 
-type storageClient struct {
+type StorageHandle interface {
+	BucketHandle(bucketName string) (bh *bucketHandle, err error)
+}
+
+type StorageClient struct {
 	client *storage.Client
 }
 
@@ -31,7 +35,7 @@ type storageClientConfig struct {
 // customized http client. We can configure the http client using the
 // storageClientConfig parameter.
 func NewStorageHandle(ctx context.Context,
-	clientConfig storageClientConfig) (sh *storageClient, err error) {
+	clientConfig storageClientConfig) (sh *StorageClient, err error) {
 	var transport *http.Transport
 	// Disabling the http2 makes the client more performant.
 	if clientConfig.disableHTTP2 {
@@ -77,6 +81,19 @@ func NewStorageHandle(ctx context.Context,
 		}),
 		storage.WithPolicy(storage.RetryAlways))
 
-	sh = &storageClient{client: sc}
+	sh = &StorageClient{client: sc}
+	return
+}
+
+func (sh *StorageClient) BucketHandle(bucketName string) (bh *bucketHandle,
+	err error) {
+	storageBucketHandle := sh.client.Bucket(bucketName)
+	attrs, err := storageBucketHandle.Attrs(context.Background())
+
+	if err != nil || attrs == nil {
+		return
+	}
+
+	bh = &bucketHandle{bucket: storageBucketHandle}
 	return
 }
