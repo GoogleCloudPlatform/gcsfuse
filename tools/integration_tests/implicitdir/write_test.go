@@ -16,39 +16,22 @@
 package implicitdir_test
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 )
 
-func TestAppendEndAfterWrite(t *testing.T) {
-	tmpDir, err := ioutil.TempDir(mntDir, "tmpDir")
-	if err != nil {
-		t.Errorf("Mkdir at %q: %v", mntDir, err)
-		return
-	}
+func TestAppendToEndOfFile(t *testing.T) {
 
-	for i := 0; i < 10; i++ {
-		tmpFile, err := ioutil.TempFile(tmpDir, "tmpFile")
-		if err != nil {
-			t.Errorf("Create file at %q: %v", tmpDir, err)
-			return
-		}
+	for i := 0; i < 1; i++ {
 
 		fileName := tmpFile.Name()
-		if _, err := tmpFile.WriteString("line 1\n"); err != nil {
-			t.Errorf("WriteString: %v", err)
-		}
-		if err := tmpFile.Close(); err != nil {
-			t.Errorf("Close: %v", err)
-		}
 
-		f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+		f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0600)
 		if err != nil {
 		    t.Errorf("Open file for append: %v", err)
 		}
 
-		if _, err = f.WriteString("line2\n"); err != nil {
+		if _, err = f.WriteString("line 3\n"); err != nil {
 		    t.Errorf("AppendString: %v", err)
 		}
 
@@ -57,21 +40,6 @@ func TestAppendEndAfterWrite(t *testing.T) {
 		// After write, data will be cached by kernel. So subsequent read will be
 		// served using cached data by kernel instead of calling gcsfuse.
 		// Clearing kernel cache to ensure that gcsfuse is invoked during read operation.
-
-		clearKernelCache()
-		tmpFile, err = os.Open(fileName)
-		if err != nil {
-			t.Errorf("Open %q: %v", fileName, err)
-			return
-		}
-		defer tmpFile.Close()
-
-		content, err := ioutil.ReadAll(tmpFile)
-		if err != nil {
-			t.Errorf("ReadAll: %v", err)
-		}
-		if got, want := string(content), "line 1\nline2\n"; got != want {
-			t.Errorf("File content %q not match %q", got, want)
-		}
+		compareFileContents(t, fileName, "line 1\nline 2\nline 3\n")
 	}
 }

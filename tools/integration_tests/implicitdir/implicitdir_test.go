@@ -36,6 +36,8 @@ var (
 	binFile string
 	logFile string
 	mntDir  string
+	tmpDir string
+	tmpFile *os.File
 )
 
 func setUpTestDir() error {
@@ -111,6 +113,29 @@ func clearKernelCache() error {
 	return nil
 }
 
+func compareFileContents(t *testing.T, fileName string, filecontent string) {
+	clearKernelCache()
+	tmpFile, err := os.Open(fileName)
+	if err != nil {
+		t.Errorf("Open %q: %v", fileName, err)
+		return
+	}
+	defer tmpFile.Close()
+
+	content, err := ioutil.ReadAll(tmpFile)
+	if err != nil {
+		t.Errorf("ReadAll: %v", err)
+	}
+	if got:= string(content); got != filecontent {
+		t.Errorf("File content %q not match %q", got, filecontent)
+	}
+}
+
+func printAndExit(s string){
+	fmt.Println(s)
+	os.Exit(1)
+}
+
 func TestMain(m *testing.M) {
 	flag.Parse()
 
@@ -130,9 +155,30 @@ func TestMain(m *testing.M) {
 	}
 
 	log.Printf("Test log: %s\n", logFile)
+
+	// tmp dir setup
+	tmpDir, err := ioutil.TempDir(mntDir, "tmpDir")
+	if err != nil {
+		printAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
+	}
+
+	// tmp file setup
+	tmpFile, err = ioutil.TempFile(tmpDir, "tmpFile")
+	if err != nil {
+		printAndExit(fmt.Sprintf("Create file at %q: %v", tmpDir, err))
+	}
+
+	if _, err := tmpFile.WriteString("line 1\nline 2\n"); err != nil {
+		printAndExit(fmt.Sprintf("WriteString: %v", err))
+	}
+	if err := tmpFile.Close(); err != nil {
+		printAndExit(fmt.Sprintf("Close: %v", err))
+	}
+
 	ret := m.Run()
 
 	// Delete all files from mntDir to delete files from gcs bucket.
+	os.RemoveAll(tmpDir)
 	os.RemoveAll(mntDir)
 	unMount()
 
