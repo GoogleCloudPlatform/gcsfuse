@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googleapis/gax-go/v2"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
@@ -22,6 +23,8 @@ type storageClientConfig struct {
 	maxIdleConnsPerHost int
 	tokenSrc            oauth2.TokenSource
 	timeOut             time.Duration
+	maxRetryDuration    time.Duration
+	retryMultiplier     float64
 }
 
 // NewStorageHandle returns the handle of Go storage client containing
@@ -65,6 +68,15 @@ func NewStorageHandle(ctx context.Context,
 		return
 	}
 
-	sh = &storageClient{sc}
+	// RetryAlways causes all operations to be retried when the service returns a transient error, regardless of
+	// idempotency considerations.
+	sc.SetRetry(
+		storage.WithBackoff(gax.Backoff{
+			Max:        clientConfig.maxRetryDuration,
+			Multiplier: clientConfig.retryMultiplier,
+		}),
+		storage.WithPolicy(storage.RetryAlways))
+
+	sh = &storageClient{client: sc}
 	return
 }
