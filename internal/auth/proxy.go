@@ -31,10 +31,12 @@ func newProxyTokenSource(
 	ctx context.Context,
 	endpoint string,
 ) oauth2.TokenSource {
+	tr := &http.Transport{}
+	tr.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
 	ts := proxyTokenSource{
 		ctx:      ctx,
 		endpoint: endpoint,
-		client:   &http.Client{},
+		client:   &http.Client{Transport: tr},
 	}
 	return oauth2.ReuseTokenSource(nil, ts)
 }
