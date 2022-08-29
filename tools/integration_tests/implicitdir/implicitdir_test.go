@@ -23,9 +23,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path"
 	"testing"
-
+	"path"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 )
 
@@ -37,7 +36,7 @@ var (
 	logFile string
 	mntDir  string
 	tmpDir string
-	tmpFile *os.File
+	fileName string
 )
 
 func setUpTestDir() error {
@@ -114,25 +113,26 @@ func clearKernelCache() error {
 }
 
 func compareFileContents(t *testing.T, fileName string, filecontent string) {
-	clearKernelCache()
-	tmpFile, err := os.Open(fileName)
+	// After write, data will be cached by kernel. So subsequent read will be
+	// served using cached data by kernel instead of calling gcsfuse.
+	// Clearing kernel cache to ensure that gcsfuse is invoked during read operation.
+	err := clearKernelCache()
 	if err != nil {
-		t.Errorf("Open %q: %v", fileName, err)
-		return
+		t.Errorf("Clear Kernel Cache: %v", err)
 	}
-	defer tmpFile.Close()
 
-	content, err := ioutil.ReadAll(tmpFile)
+	content, err := os.ReadFile(fileName)
 	if err != nil {
-		t.Errorf("ReadAll: %v", err)
+		t.Errorf("Read: %v", err)
 	}
-	if got:= string(content); got != filecontent {
+
+	if got := string(content); got != filecontent {
 		t.Errorf("File content %q not match %q", got, filecontent)
 	}
 }
 
 func printAndExit(s string){
-	fmt.Println(s)
+	log.Printf(s)
 	os.Exit(1)
 }
 
@@ -157,28 +157,22 @@ func TestMain(m *testing.M) {
 	log.Printf("Test log: %s\n", logFile)
 
 	// tmp dir setup
-	tmpDir, err := ioutil.TempDir(mntDir, "tmpDir")
+	tmpDir, err := os.MkdirTemp(mntDir, "tmpDir")
 	if err != nil {
 		printAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
 	}
 
 	// tmp file setup
-	tmpFile, err = ioutil.TempFile(tmpDir, "tmpFile")
-	if err != nil {
-		printAndExit(fmt.Sprintf("Create file at %q: %v", tmpDir, err))
-	}
+	fileName = path.Join(tmpDir, "tmpFile")
+	err = os.WriteFile(fileName, []byte("line 1\nline 2\n"), 0666)
 
-	if _, err := tmpFile.WriteString("line 1\nline 2\n"); err != nil {
-		printAndExit(fmt.Sprintf("WriteString: %v", err))
-	}
-	if err := tmpFile.Close(); err != nil {
-		printAndExit(fmt.Sprintf("Close: %v", err))
+	if err != nil {
+		printAndExit(fmt.Println("Temporary file at %v", err))
 	}
 
 	ret := m.Run()
 
 	// Delete all files from mntDir to delete files from gcs bucket.
-	os.RemoveAll(tmpDir)
 	os.RemoveAll(mntDir)
 	unMount()
 
