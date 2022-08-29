@@ -23,9 +23,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path"
 	"testing"
-
+	"path"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 )
 
@@ -37,7 +36,7 @@ var (
 	logFile string
 	mntDir  string
 	tmpDir string
-	tmpFile *os.File
+	fileName string
 )
 
 func setUpTestDir() error {
@@ -114,19 +113,17 @@ func clearKernelCache() error {
 }
 
 func compareFileContents(t *testing.T, fileName string, filecontent string) {
-	clearKernelCache()
-	tmpFile, err := os.Open(fileName)
-	if err != nil {
-		t.Errorf("Open %q: %v", fileName, err)
-		return
-	}
-	defer tmpFile.Close()
 
-	content, err := ioutil.ReadAll(tmpFile)
+	err := clearKernelCache()
 	if err != nil {
-		t.Errorf("ReadAll: %v", err)
+		t.Errorf("Clear Kernel Cache: %v", err)
 	}
-	if got:= string(content); got != filecontent {
+	content, err := os.ReadFile(fileName)
+
+	if err != nil {
+		t.Errorf("Read: %v", err)
+	}
+	if got := string(content); got != filecontent {
 		t.Errorf("File content %q not match %q", got, filecontent)
 	}
 }
@@ -157,28 +154,18 @@ func TestMain(m *testing.M) {
 	log.Printf("Test log: %s\n", logFile)
 
 	// tmp dir setup
-	tmpDir, err := ioutil.TempDir(mntDir, "tmpDir")
+	tmpDir, err := os.MkdirTemp(mntDir, "tmpDir")
 	if err != nil {
 		printAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
 	}
 
 	// tmp file setup
-	tmpFile, err = ioutil.TempFile(tmpDir, "tmpFile")
-	if err != nil {
-		printAndExit(fmt.Sprintf("Create file at %q: %v", tmpDir, err))
-	}
-
-	if _, err := tmpFile.WriteString("line 1\nline 2\n"); err != nil {
-		printAndExit(fmt.Sprintf("WriteString: %v", err))
-	}
-	if err := tmpFile.Close(); err != nil {
-		printAndExit(fmt.Sprintf("Close: %v", err))
-	}
+	fileName = path.Join(tmpDir, "tmpFile")
+	err = os.WriteFile(fileName, []byte("line 1\nline 2\n"), 0666)
 
 	ret := m.Run()
 
 	// Delete all files from mntDir to delete files from gcs bucket.
-	os.RemoveAll(tmpDir)
 	os.RemoveAll(mntDir)
 	unMount()
 
