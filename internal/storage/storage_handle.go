@@ -89,7 +89,6 @@ func (sh *storageClient) BucketHandle(bucketName string) (bh *bucketHandle,
 	err error) {
 	storageBucketHandle := sh.client.Bucket(bucketName)
 	_, err = storageBucketHandle.Attrs(context.Background())
-
 	if err != nil {
 		return
 	}
