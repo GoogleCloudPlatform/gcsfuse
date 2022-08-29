@@ -113,23 +113,26 @@ func clearKernelCache() error {
 }
 
 func compareFileContents(t *testing.T, fileName string, filecontent string) {
-
+	// After write, data will be cached by kernel. So subsequent read will be
+	// served using cached data by kernel instead of calling gcsfuse.
+	// Clearing kernel cache to ensure that gcsfuse is invoked during read operation.
 	err := clearKernelCache()
 	if err != nil {
 		t.Errorf("Clear Kernel Cache: %v", err)
 	}
-	content, err := os.ReadFile(fileName)
 
+	content, err := os.ReadFile(fileName)
 	if err != nil {
 		t.Errorf("Read: %v", err)
 	}
+
 	if got := string(content); got != filecontent {
 		t.Errorf("File content %q not match %q", got, filecontent)
 	}
 }
 
 func printAndExit(s string){
-	fmt.Println(s)
+	log.Printf(s)
 	os.Exit(1)
 }
 
@@ -153,15 +156,21 @@ func TestMain(m *testing.M) {
 
 	log.Printf("Test log: %s\n", logFile)
 
-	// tmp dir setup
+	// Creating a temporary directory to store files
+	// to be used for testing
 	tmpDir, err := os.MkdirTemp(mntDir, "tmpDir")
 	if err != nil {
 		printAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
 	}
 
-	// tmp file setup
+	// A temporary file is created and some lines are added
+	// to it for testing purposes
 	fileName = path.Join(tmpDir, "tmpFile")
 	err = os.WriteFile(fileName, []byte("line 1\nline 2\n"), 0666)
+
+	if err != nil {
+		printAndExit(fmt.Println("Temporary file at %v", err))
+	}
 
 	ret := m.Run()
 
