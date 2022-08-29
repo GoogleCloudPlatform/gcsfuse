@@ -17,7 +17,7 @@ type StorageHandle interface {
 	BucketHandle(bucketName string) (bh *bucketHandle, err error)
 }
 
-type StorageClient struct {
+type storageClient struct {
 	client *storage.Client
 }
 
@@ -35,7 +35,7 @@ type storageClientConfig struct {
 // customized http client. We can configure the http client using the
 // storageClientConfig parameter.
 func NewStorageHandle(ctx context.Context,
-	clientConfig storageClientConfig) (sh *StorageClient, err error) {
+	clientConfig storageClientConfig) (sh StorageHandle, err error) {
 	var transport *http.Transport
 	// Disabling the http2 makes the client more performant.
 	if clientConfig.disableHTTP2 {
@@ -81,16 +81,16 @@ func NewStorageHandle(ctx context.Context,
 		}),
 		storage.WithPolicy(storage.RetryAlways))
 
-	sh = &StorageClient{client: sc}
-	return
+	client := &storageClient{client: sc}
+	return client, err
 }
 
-func (sh *StorageClient) BucketHandle(bucketName string) (bh *bucketHandle,
+func (sh *storageClient) BucketHandle(bucketName string) (bh *bucketHandle,
 	err error) {
 	storageBucketHandle := sh.client.Bucket(bucketName)
-	attrs, err := storageBucketHandle.Attrs(context.Background())
+	_, err = storageBucketHandle.Attrs(context.Background())
 
-	if err != nil || attrs == nil {
+	if err != nil {
 		return
 	}
 
