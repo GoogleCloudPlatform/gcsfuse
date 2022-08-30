@@ -15,6 +15,8 @@ This is a very generic error which could mean either the permission to the direc
 ### Mount failed with invalid argument
 Please consult the [flags.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/flags.go) file to make sure that the flag that you are passing to mount gcsfuse is a valid one.
 
+### Mount successful but files not visible
+This is explained in the [semantics](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#implicit-directories) page and can possibly be fixed by passing the --implicit-dirs=true flag to the gcsfuse command.
 
 ## Serving
 Once the mounting is successful, there are other issues which may crop up during the serving phase and this section discusses some of those and their possible remedies.
