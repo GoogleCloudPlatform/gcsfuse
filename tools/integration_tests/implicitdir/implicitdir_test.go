@@ -23,21 +23,22 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"testing"
 	"path"
+	"testing"
+
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 )
 
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
 
 var (
-	testDir string
-	binFile string
-	logFile string
-	mntDir  string
-	tmpDir string
+	testDir  string
+	binFile  string
+	logFile  string
+	mntDir   string
+	tmpDir   string
 	fileName string
-	err error
+	err      error
 )
 
 func setUpTestDir() error {
@@ -132,18 +133,18 @@ func compareFileContents(t *testing.T, fileName string, filecontent string) {
 	}
 }
 
-func printAndExit(s string){
+func logAndExit(s string) {
 	log.Printf(s)
 	os.Exit(1)
 }
 
-func createTempFile(){
+func createTempFile() {
 	// A temporary file is created and some lines are added
 	// to it for testing purposes
 	fileName = path.Join(tmpDir, "tmpFile")
 	err := os.WriteFile(fileName, []byte("line 1\nline 2\n"), 0666)
 	if err != nil {
-		printAndExit(fmt.Sprintf("Temporary file at %v", err))
+		logAndExit(fmt.Sprintf("Temporary file at %v", err))
 	}
 }
 
@@ -171,7 +172,7 @@ func TestMain(m *testing.M) {
 	// to be used for testing
 	tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
 	if err != nil {
-		printAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
+		logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
 	}
 
 	ret := m.Run()

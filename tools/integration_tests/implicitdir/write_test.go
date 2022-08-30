@@ -24,11 +24,11 @@ func TestAppendToEndOfFile(t *testing.T) {
 	createTempFile()
 	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
-	    t.Errorf("Open file for append: %v", err)
+		t.Errorf("Open file for append: %v", err)
 	}
 
 	if _, err = f.WriteString("line 3\n"); err != nil {
-	    t.Errorf("AppendString: %v", err)
+		t.Errorf("AppendString: %v", err)
 	}
 
 	f.Close()
