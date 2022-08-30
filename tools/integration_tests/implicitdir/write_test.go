@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provides integration tests for read flows with implicit_dir flag set.
+// Provides integration tests for write flows with implicit_dir flag set.
 package implicitdir_test
 
 import (
