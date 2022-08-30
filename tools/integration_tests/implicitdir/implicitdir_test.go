@@ -169,7 +169,7 @@ func TestMain(m *testing.M) {
 	err = os.WriteFile(fileName, []byte("line 1\nline 2\n"), 0666)
 
 	if err != nil {
-		printAndExit(fmt.Println("Temporary file at %v", err))
+		printAndExit(fmt.Sprintf("Temporary file at %v", err))
 	}
 
 	ret := m.Run()
