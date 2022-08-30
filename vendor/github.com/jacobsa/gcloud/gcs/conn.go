@@ -199,6 +199,9 @@ func (c *conn) OpenBucket(
 			return
 		}
 	}
+	if err !=nil{
+		return
+	}
 
 	// Otherwise, don't interfere.
 	err = nil
