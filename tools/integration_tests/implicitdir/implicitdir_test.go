@@ -156,18 +156,20 @@ func TestMain(m *testing.M) {
 
 	log.Printf("Test log: %s\n", logFile)
 
-	// tmp dir setup
+	// Creating a temporary directory to store files
+	// to be used for testing
 	tmpDir, err := os.MkdirTemp(mntDir, "tmpDir")
 	if err != nil {
 		printAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
 	}
 
-	// tmp file setup
+	// A temporary file is created and some lines are added
+	// to it for testing purposes
 	fileName = path.Join(tmpDir, "tmpFile")
 	err = os.WriteFile(fileName, []byte("line 1\nline 2\n"), 0666)
 
 	if err != nil {
-		printAndExit(fmt.Println("Temporary file at %v", err))
+		printAndExit(fmt.Sprintf("Temporary file at %v", err))
 	}
 
 	ret := m.Run()
