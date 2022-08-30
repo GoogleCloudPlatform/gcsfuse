@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provides integration tests for read flows with implicit_dir flag set.
+// Provides integration tests for write flows with implicit_dir flag set.
 package implicitdir_test
 
 import (
@@ -21,13 +21,14 @@ import (
 )
 
 func TestAppendToEndOfFile(t *testing.T) {
+	createTempFile()
 	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
-	    t.Errorf("Open file for append: %v", err)
+		t.Errorf("Open file for append: %v", err)
 	}
 
 	if _, err = f.WriteString("line 3\n"); err != nil {
-	    t.Errorf("AppendString: %v", err)
+		t.Errorf("AppendString: %v", err)
 	}
 
 	f.Close()
@@ -36,6 +37,7 @@ func TestAppendToEndOfFile(t *testing.T) {
 }
 
 func TestWriteAtStartOfFile(t *testing.T){
+	createTempFile()
 	f, err := os.OpenFile(fileName, os.O_WRONLY, 0600)
 	if err != nil {
 	    t.Errorf("Open file for write at start: %v", err)
@@ -47,5 +49,5 @@ func TestWriteAtStartOfFile(t *testing.T){
 
 	f.Close()
 
-	compareFileContents(t, fileName, "line 4\nline 2\nline 3\n")
+	compareFileContents(t, fileName, "line 4\nline 2\n")
 }
