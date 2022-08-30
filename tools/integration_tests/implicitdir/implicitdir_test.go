@@ -132,7 +132,7 @@ func compareFileContents(t *testing.T, fileName string, filecontent string) {
 	}
 }
 
-func printAndExit(s string){
+func logAndExit(s string){
 	log.Printf(s)
 	os.Exit(1)
 }
@@ -143,7 +143,7 @@ func createTempFile(){
 	fileName = path.Join(tmpDir, "tmpFile")
 	err := os.WriteFile(fileName, []byte("line 1\nline 2\n"), 0666)
 	if err != nil {
-		printAndExit(fmt.Sprintf("Temporary file at %v", err))
+		logAndExit(fmt.Sprintf("Temporary file at %v", err))
 	}
 }
 
@@ -171,7 +171,7 @@ func TestMain(m *testing.M) {
 	// to be used for testing
 	tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
 	if err != nil {
-		printAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
+		logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
 	}
 
 	ret := m.Run()
