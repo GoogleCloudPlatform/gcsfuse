@@ -167,7 +167,6 @@ func TestMain(m *testing.M) {
 	// to it for testing purposes
 	fileName = path.Join(tmpDir, "tmpFile")
 	err = os.WriteFile(fileName, []byte("line 1\nline 2\n"), 0666)
-
 	if err != nil {
 		printAndExit(fmt.Sprintf("Temporary file at %v", err))
 	}
