@@ -20,6 +20,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"golang.org/x/net/context"
@@ -28,7 +29,7 @@ import (
 	"github.com/jacobsa/gcloud/httputil"
 	"github.com/jacobsa/reqtrace"
 
-	"google.golang.org/api/googleapi"
+	//"google.golang.org/api/googleapi"
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
@@ -184,22 +185,31 @@ func (c *conn) OpenBucket(
 	// bucket.
 	_, err = b.ListObjects(ctx, &ListObjectsRequest{MaxResults: 1})
 
-	if typed, ok := err.(*googleapi.Error); ok {
-		switch typed.Code {
-		case http.StatusForbidden:
+	//if typed, ok := err.(*googleapi.Error); ok {
+	//	switch typed.Code {
+	//	case http.StatusForbidden:
+	//		err = fmt.Errorf(
+	//			"Bad credentials for bucket %q. Check the bucket name and your "+
+	//				"credentials.",
+	//			b.Name())
+	//
+	//		return
+	//
+	//	case http.StatusNotFound:
+	//		err = fmt.Errorf("Unknown bucket %q", b.Name())
+	//		return
+	//	}
+	//}
+
+	if err != nil {
+		if strings.Contains(err.Error(), "Error 403") {
 			err = fmt.Errorf(
 				"Bad credentials for bucket %q. Check the bucket name and your "+
-					"credentials.",
+						"credentials.",
 				b.Name())
-
-			return
-
-		case http.StatusNotFound:
+		} else if strings.Contains(err.Error(), "Error 404") {
 			err = fmt.Errorf("Unknown bucket %q", b.Name())
-			return
 		}
-	}
-	if err !=nil{
 		return
 	}
 
