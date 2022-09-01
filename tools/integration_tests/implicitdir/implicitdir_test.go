@@ -112,7 +112,7 @@ func clearKernelCache() error {
 	return nil
 }
 
-func compareFileContents(t *testing.T, fileName string, filecontent string) {
+func compareFileContents(t *testing.T, fileName string, fileContent string) {
 	// After write, data will be cached by kernel. So subsequent read will be
 	// served using cached data by kernel instead of calling gcsfuse.
 	// Clearing kernel cache to ensure that gcsfuse is invoked during read operation.
@@ -126,8 +126,8 @@ func compareFileContents(t *testing.T, fileName string, filecontent string) {
 		t.Errorf("Read: %v", err)
 	}
 
-	if got := string(content); got != filecontent {
-		t.Errorf("File content %q not match %q", got, filecontent)
+	if got := string(content); got != fileContent {
+		t.Errorf("File content doesn't match. Expected: %q, Actual: %q", got, fileContent)
 	}
 }
 
