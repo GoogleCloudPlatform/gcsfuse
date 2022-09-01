@@ -32,10 +32,10 @@ import (
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
 
 var (
-	testDir  string
 	binFile  string
 	logFile  string
 	mntDir   string
+	testDir  string
 	tmpDir   string
 )
 
@@ -132,7 +132,7 @@ func compareFileContents(t *testing.T, fileName string, fileContent string) {
 }
 
 func logAndExit(s string) {
-	log.Printf(s)
+	log.Print(s)
 	os.Exit(1)
 }
 
