@@ -30,13 +30,17 @@ import (
 func newProxyTokenSource(
 	ctx context.Context,
 	endpoint string,
+	reuseTokenFromUrl bool,
 ) oauth2.TokenSource {
 	ts := proxyTokenSource{
 		ctx:      ctx,
 		endpoint: endpoint,
 		client:   &http.Client{},
 	}
-	return oauth2.ReuseTokenSource(nil, ts)
+	if reuseTokenFromUrl {
+		return oauth2.ReuseTokenSource(nil, ts)
+	}
+	return ts
 }
 
 type proxyTokenSource struct {

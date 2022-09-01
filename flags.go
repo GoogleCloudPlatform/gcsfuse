@@ -158,6 +158,11 @@ func newApp() (app *cli.App) {
 				Usage: "An url for getting an access token when key-file is absent.",
 			},
 
+			cli.BoolTFlag{
+				Name:  "reuse-token-from-url",
+				Usage: "If false, the token acquired from token-url is not reused.",
+			},
+
 			cli.Float64Flag{
 				Name:  "limit-bytes-per-sec",
 				Value: -1,
@@ -324,6 +329,7 @@ type flagStorage struct {
 	BillingProject                     string
 	KeyFile                            string
 	TokenUrl                           string
+	ReuseTokenFromUrl                  bool
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
 
@@ -446,6 +452,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		BillingProject:                     c.String("billing-project"),
 		KeyFile:                            c.String("key-file"),
 		TokenUrl:                           c.String("token-url"),
+		ReuseTokenFromUrl:                  c.BoolT("reuse-token-from-url"),
 		EgressBandwidthLimitBytesPerSecond: c.Float64("limit-bytes-per-sec"),
 		OpRateLimitHz:                      c.Float64("limit-ops-per-sec"),
 
