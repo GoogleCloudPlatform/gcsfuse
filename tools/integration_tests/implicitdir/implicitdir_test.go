@@ -37,8 +37,6 @@ var (
 	logFile  string
 	mntDir   string
 	tmpDir   string
-	fileName string
-	err      error
 )
 
 func setUpTestDir() error {
@@ -138,14 +136,15 @@ func logAndExit(s string) {
 	os.Exit(1)
 }
 
-func createTempFile() {
+func createTempFile() string {
 	// A temporary file is created and some lines are added
-	// to it for testing purposes
-	fileName = path.Join(tmpDir, "tmpFile")
+	// to it for testing purposes.
+	fileName := path.Join(tmpDir, "tmpFile")
 	err := os.WriteFile(fileName, []byte("line 1\nline 2\n"), 0666)
 	if err != nil {
 		logAndExit(fmt.Sprintf("Temporary file at %v", err))
 	}
+	return fileName
 }
 
 func TestMain(m *testing.M) {
@@ -169,7 +168,8 @@ func TestMain(m *testing.M) {
 	log.Printf("Test log: %s\n", logFile)
 
 	// Creating a temporary directory to store files
-	// to be used for testing
+	// to be used for testing.
+	var err error
 	tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
 	if err != nil {
 		logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
