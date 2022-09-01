@@ -20,8 +20,8 @@ import (
 	"testing"
 )
 
-func TestAppendToEndOfFile(t *testing.T) {
-	createTempFile()
+func TestWriteAtEndOfFile(t *testing.T) {
+	fileName := createTempFile()
 	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		t.Errorf("Open file for append: %v", err)
