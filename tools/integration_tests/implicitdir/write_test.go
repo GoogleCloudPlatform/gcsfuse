@@ -53,7 +53,7 @@ func TestWriteAtStartOfFile(t *testing.T){
 }
 
 func TestWriteAtRandom(t *testing.T){
-	createTempFile()
+	fileName := createTempFile()
 
 	f, err := os.OpenFile(fileName, os.O_WRONLY, 0600)
 	if err != nil {
