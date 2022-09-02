@@ -36,14 +36,14 @@ func TestWriteAtEndOfFile(t *testing.T) {
 	compareFileContents(t, fileName, "line 1\nline 2\nline 3\n")
 }
 
-func TestWriteAtStartOfFile(t *testing.T){
+func TestWriteAtStartOfFile(t *testing.T) {
 	fileName := createTempFile()
 	f, err := os.OpenFile(fileName, os.O_WRONLY, 0600)
 	if err != nil {
-	    t.Errorf("Open file for write at start: %v", err)
+		t.Errorf("Open file for write at start: %v", err)
 	}
 
-	if _, err = f.WriteAt([]byte("line 4\n"),0); err != nil {
+	if _, err = f.WriteAt([]byte("line 4\n"), 0); err != nil {
 		t.Errorf("WriteString-Start: %v", err)
 	}
 
