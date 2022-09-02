@@ -32,11 +32,11 @@ import (
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
 
 var (
-	binFile  string
-	logFile  string
-	mntDir   string
-	testDir  string
-	tmpDir   string
+	binFile string
+	logFile string
+	mntDir  string
+	testDir string
+	tmpDir  string
 )
 
 func setUpTestDir() error {
