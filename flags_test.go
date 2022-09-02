@@ -77,6 +77,7 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq("", f.KeyFile)
 	ExpectEq(-1, f.EgressBandwidthLimitBytesPerSecond)
 	ExpectEq(-1, f.OpRateLimitHz)
+	ExpectTrue(f.ReuseTokenFromUrl)
 
 	// Tuning
 	ExpectEq(4096, f.StatCacheCapacity)
@@ -97,6 +98,7 @@ func (t *FlagsTest) Defaults() {
 func (t *FlagsTest) Bools() {
 	names := []string{
 		"implicit-dirs",
+		"reuse-token-from-url",
 		"debug_fuse_errors",
 		"debug_fuse",
 		"debug_gcs",
@@ -115,6 +117,7 @@ func (t *FlagsTest) Bools() {
 
 	f = parseArgs(args)
 	ExpectTrue(f.ImplicitDirs)
+	ExpectTrue(f.ReuseTokenFromUrl)
 	ExpectTrue(f.DebugFuseErrors)
 	ExpectTrue(f.DebugFuse)
 	ExpectTrue(f.DebugGCS)
@@ -129,6 +132,7 @@ func (t *FlagsTest) Bools() {
 
 	f = parseArgs(args)
 	ExpectFalse(f.ImplicitDirs)
+	ExpectFalse(f.ReuseTokenFromUrl)
 	ExpectFalse(f.DebugFuseErrors)
 	ExpectFalse(f.DebugFuse)
 	ExpectFalse(f.DebugGCS)
@@ -143,6 +147,7 @@ func (t *FlagsTest) Bools() {
 
 	f = parseArgs(args)
 	ExpectTrue(f.ImplicitDirs)
+	ExpectTrue(f.ReuseTokenFromUrl)
 	ExpectTrue(f.DebugFuseErrors)
 	ExpectTrue(f.DebugFuse)
 	ExpectTrue(f.DebugGCS)
