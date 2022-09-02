@@ -30,7 +30,6 @@ func TestWriteAtEndOfFile(t *testing.T) {
 	if _, err = f.WriteString("line 3\n"); err != nil {
 		t.Errorf("AppendString: %v", err)
 	}
-
 	f.Close()
 
 	compareFileContents(t, fileName, "line 1\nline 2\nline 3\n")
@@ -46,7 +45,6 @@ func TestWriteAtStartOfFile(t *testing.T) {
 	if _, err = f.WriteAt([]byte("line 4\n"), 0); err != nil {
 		t.Errorf("WriteString-Start: %v", err)
 	}
-
 	f.Close()
 
 	compareFileContents(t, fileName, "line 4\nline 2\n")
