@@ -79,6 +79,7 @@ func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 			context.Background(),
 			flags.KeyFile,
 			flags.TokenUrl,
+			flags.ReuseTokenFromUrl,
 		)
 		if err != nil {
 			err = fmt.Errorf("GetTokenSource: %w", err)
