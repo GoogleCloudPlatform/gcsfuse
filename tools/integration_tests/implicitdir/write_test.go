@@ -61,7 +61,6 @@ func TestWriteAtRandom(t *testing.T) {
 	if _, err = f.WriteAt([]byte("line 5\n"), 7); err != nil {
 		t.Errorf("WriteString-Random: %v", err)
 	}
-
 	f.Close()
 
 	compareFileContents(t, fileName, "line 1\nline 5\n")
