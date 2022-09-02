@@ -32,10 +32,11 @@ import (
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
 
 var (
-	testDir string
 	binFile string
 	logFile string
 	mntDir  string
+	testDir string
+	tmpDir  string
 )
 
 func setUpTestDir() error {
@@ -111,6 +112,41 @@ func clearKernelCache() error {
 	return nil
 }
 
+func compareFileContents(t *testing.T, fileName string, fileContent string) {
+	// After write, data will be cached by kernel. So subsequent read will be
+	// served using cached data by kernel instead of calling gcsfuse.
+	// Clearing kernel cache to ensure that gcsfuse is invoked during read operation.
+	err := clearKernelCache()
+	if err != nil {
+		t.Errorf("Clear Kernel Cache: %v", err)
+	}
+
+	content, err := os.ReadFile(fileName)
+	if err != nil {
+		t.Errorf("Read: %v", err)
+	}
+
+	if got := string(content); got != fileContent {
+		t.Errorf("File content doesn't match. Expected: %q, Actual: %q", got, fileContent)
+	}
+}
+
+func logAndExit(s string) {
+	log.Print(s)
+	os.Exit(1)
+}
+
+func createTempFile() string {
+	// A temporary file is created and some lines are added
+	// to it for testing purposes.
+	fileName := path.Join(tmpDir, "tmpFile")
+	err := os.WriteFile(fileName, []byte("line 1\nline 2\n"), 0666)
+	if err != nil {
+		logAndExit(fmt.Sprintf("Temporary file at %v", err))
+	}
+	return fileName
+}
+
 func TestMain(m *testing.M) {
 	flag.Parse()
 
@@ -130,6 +166,15 @@ func TestMain(m *testing.M) {
 	}
 
 	log.Printf("Test log: %s\n", logFile)
+
+	// Creating a temporary directory to store files
+	// to be used for testing.
+	var err error
+	tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
+	if err != nil {
+		logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
+	}
+
 	ret := m.Run()
 
 	// Delete all files from mntDir to delete files from gcs bucket.
