@@ -58,6 +58,8 @@ func TestWriteAtRandom(t *testing.T) {
 		t.Errorf("Open file for write at random: %v", err)
 	}
 
+	// Write at 7th byte which corresponds to the start of 2nd line
+	// thus changing line2\n with line5\n.
 	if _, err = f.WriteAt([]byte("line 5\n"), 7); err != nil {
 		t.Errorf("WriteString-Random: %v", err)
 	}
