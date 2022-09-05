@@ -49,3 +49,21 @@ func TestWriteAtStartOfFile(t *testing.T) {
 
 	compareFileContents(t, fileName, "line 4\nline 2\n")
 }
+
+func TestWriteAtRandom(t *testing.T) {
+	fileName := createTempFile()
+
+	f, err := os.OpenFile(fileName, os.O_WRONLY, 0600)
+	if err != nil {
+		t.Errorf("Open file for write at random: %v", err)
+	}
+
+	// Write at 7th byte which corresponds to the start of 2nd line
+	// thus changing line2\n with line5\n.
+	if _, err = f.WriteAt([]byte("line 5\n"), 7); err != nil {
+		t.Errorf("WriteString-Random: %v", err)
+	}
+	f.Close()
+
+	compareFileContents(t, fileName, "line 1\nline 5\n")
+}
