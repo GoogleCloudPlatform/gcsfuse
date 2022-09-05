@@ -17,7 +17,9 @@ package implicitdir_test
 
 import (
 	"os"
+	"path"
 	"testing"
+	"time"
 )
 
 func TestCreateFile(t *testing.T) {
@@ -62,7 +64,7 @@ func TestRenameFile(t *testing.T) {
 
 func TestFileAttributes(t *testing.T) {
 	preCreateTime := time.Now()
-	// Sleep for 100ms else preCreateTime would be greater than modTime. 
+	// Sleep for 100ms else preCreateTime would be greater than modTime.
 	// time.Sleep(100 * time.Millisecond)
 
 	fileName := createTempFile()
