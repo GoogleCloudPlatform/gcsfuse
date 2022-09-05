@@ -29,3 +29,33 @@ func TestCreateFile(t *testing.T) {
 	}
 
 }
+
+func TestRenameFile(t *testing.T) {
+	fileName := createTempFile()
+
+	err := clearKernelCache()
+	if err != nil {
+		t.Errorf("Clear Kernel Cache: %v", err)
+	}
+
+	content, err := os.ReadFile(fileName)
+	if err != nil {
+		t.Errorf("Read: %v", err)
+	}
+
+	newFileName := fileName + "Rename"
+	if err := os.Rename(fileName, newFileName); err != nil {
+		t.Errorf("Rename unsuccessful: %v", err)
+	}
+
+	if _, err := os.Stat(fileName); os.IsExist(err) {
+		t.Errorf("File %s still exists", fileName)
+	}
+
+	if _, err := os.Stat(newFileName); os.IsNotExist(err) {
+		t.Errorf("Renamed file %s not found", newFileName)
+	}
+
+	// Check if the data in the file is the same after renaming.
+	compareFileContents(t, newFileName, string(content))
+}
