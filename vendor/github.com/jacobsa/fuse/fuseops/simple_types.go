@@ -118,12 +118,11 @@ func (a *InodeAttributes) DebugString() string {
 //
 // Some related reading:
 //
-//     http://fuse.sourceforge.net/doxygen/structfuse__entry__param.html
-//     http://stackoverflow.com/q/11071996/1505451
-//     http://goo.gl/CqvwyX
-//     http://julipedia.meroh.net/2005/09/nfs-file-handles.html
-//     http://goo.gl/wvo3MB
-//
+//	http://fuse.sourceforge.net/doxygen/structfuse__entry__param.html
+//	http://stackoverflow.com/q/11071996/1505451
+//	http://goo.gl/CqvwyX
+//	http://julipedia.meroh.net/2005/09/nfs-file-handles.html
+//	http://goo.gl/wvo3MB
 type GenerationNumber uint64
 
 // HandleID is an opaque 64-bit number used to identify a particular open
