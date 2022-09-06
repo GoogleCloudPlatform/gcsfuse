@@ -22,16 +22,6 @@ import (
 	"time"
 )
 
-func TestCreateFile(t *testing.T) {
-	fileName := createTempFile()
-
-	// Stat the file to check if it exists.
-	if _, err := os.Stat(fileName); err != nil {
-		t.Errorf("File not found, %v", err)
-	}
-
-}
-
 func TestRenameFile(t *testing.T) {
 	fileName := createTempFile()
 
