@@ -67,3 +67,14 @@ func TestWriteAtRandom(t *testing.T) {
 
 	compareFileContents(t, fileName, "line 1\nline 5\n")
 }
+
+func TestCreateFile(t *testing.T) {
+	fileName := createTempFile()
+
+	// Stat the file to check if it exists.
+	if _, err := os.Stat(fileName); err != nil {
+		t.Errorf("File not found, %v", err)
+	}
+
+	compareFileContents(t, fileName, "line 1\nline 2\n")
+}
