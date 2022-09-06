@@ -6,11 +6,19 @@ import (
 	"time"
 
 	"github.com/fsouza/fake-gcs-server/fakestorage"
+	. "github.com/jacobsa/ogletest"
 	"golang.org/x/oauth2"
 )
 
 const validBucketName string = "will-be-present-in-fake-server"
 const invalidBucketName string = "will-not-be-present-in-fake-server"
+
+func TestStorageHandle(t *testing.T) { RunTests(t) }
+
+type StorageHandleTest struct {
+}
+
+func init() { RegisterTestSuite(&StorageHandleTest{}) }
 
 func createFakeServer() (fakeServer *fakestorage.Server, err error) {
 	fakeServer, err = fakestorage.NewServerWithOptions(fakestorage.Options{
@@ -27,39 +35,30 @@ func createFakeServer() (fakeServer *fakestorage.Server, err error) {
 	return
 }
 
-func TestBucketHandleWhenBucketExists(t *testing.T) {
+func (t *StorageHandleTest) TestBucketHandleWhenBucketExists() {
 	server, err := createFakeServer()
-	if err != nil {
-		t.Fatalf("Server creation failed")
-	}
+	AssertEq(nil, err)
 	defer server.Stop()
 
 	fakeClient := server.Client()
 	fakeStorageClient := &storageClient{client: fakeClient}
 	bucketHandle, err := fakeStorageClient.BucketHandle(validBucketName)
 
-	if err != nil {
-		t.Fatalf("BucketHandle creation failed")
-	}
-	if bucketHandle == nil {
-		t.Errorf("BucketHandle should be non null")
-	}
+	AssertEq(nil, err)
+	AssertNe(nil, bucketHandle)
 }
 
-func TestBucketHandleWhenBucketDoesNotExist(t *testing.T) {
+func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExist() {
 	server, err := createFakeServer()
-	if err != nil {
-		t.Fatalf("Server creation failed")
-	}
+	AssertEq(nil, err)
 	defer server.Stop()
 
 	fakeClient := server.Client()
 	fakeStorageClient := &storageClient{client: fakeClient}
 	bucketHandle, err := fakeStorageClient.BucketHandle(invalidBucketName)
 
-	if err == nil || bucketHandle != nil {
-		t.Fatalf("BucketHandle should be nil")
-	}
+	AssertNe(nil, err)
+	AssertEq(nil, bucketHandle)
 }
 
 func getDefaultStorageClientConfig() (clientConfig storageClientConfig) {
@@ -74,33 +73,28 @@ func getDefaultStorageClientConfig() (clientConfig storageClientConfig) {
 	}
 }
 
-func invokeAndVerifyStorageHandle(t *testing.T, sc storageClientConfig) {
+func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc storageClientConfig) {
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
-
-	if err != nil {
-		t.Errorf("Handle creation failure")
-	}
-	if handleCreated == nil {
-		t.Fatalf("Storage handle is null")
-	}
+	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
 }
 
-func TestNewStorageHandleHttp2Disabled(t *testing.T) {
+func (t *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
 	sc := getDefaultStorageClientConfig() // by default http2 disabled
 
-	invokeAndVerifyStorageHandle(t, sc)
+	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func TestNewStorageHandleHttp2Enabled(t *testing.T) {
+func (t *StorageHandleTest) TestNewStorageHandleHttp2Enabled() {
 	sc := getDefaultStorageClientConfig()
 	sc.disableHTTP2 = false
 
-	invokeAndVerifyStorageHandle(t, sc)
+	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func TestNewStorageHandleWithZeroMaxConnsPerHost(t *testing.T) {
+func (t *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost() {
 	sc := getDefaultStorageClientConfig()
 	sc.maxConnsPerHost = 0
 
-	invokeAndVerifyStorageHandle(t, sc)
+	t.invokeAndVerifyStorageHandle(sc)
 }
