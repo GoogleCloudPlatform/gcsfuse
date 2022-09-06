@@ -7,7 +7,6 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/jacobsa/gcloud/gcs"
-	"google.golang.org/api/iterator"
 )
 
 type bucketHandle struct {
@@ -15,44 +14,20 @@ type bucketHandle struct {
 	bucket *storage.BucketHandle
 }
 
-//func(bh *bucketHandle) Name string {
-//}
-
 func (bh *bucketHandle) NewReader(
-		ctx context.Context,
-		req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
-	// make a call to gcs
+	ctx context.Context,
+	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	return
 }
-func (b *bucket) DeleteObject(
-		ctx context.Context,
-		req *DeleteObjectRequest) (err error) {
-
+func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) (err error) {
 	ctx = context.Background()
-	client, err := storage.NewClient(ctx)
-	name := b.Name()
-	bucket := client.Bucket(name)
 
-	it := bucket.Objects(ctx, nil)
-	for {
-		objAttrs, err := it.Next()
-		if err != nil && err != iterator.Done {
-			fmt.Println("Error Occurred while deleting object")
-		}
-		if err == iterator.Done {
-			break
-		}
-		if req.Name == objAttrs.Name {
-			if err := bucket.Object(objAttrs.Name).Delete(ctx); err != nil {
-				fmt.Println("Error Occurred while deleting object")
-			}
-		}
+	if err := b.bucket.Object(req.Name).Delete(ctx); err != nil {
+		fmt.Println("Error Occurred while deleting object")
 	}
-
 	// Propagate other errors.
 	if err != nil {
 		return
 	}
-
 	return
 }
