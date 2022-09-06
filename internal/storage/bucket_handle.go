@@ -28,7 +28,6 @@ func (b *bucket) DeleteObject(
 		ctx context.Context,
 		req *DeleteObjectRequest) (err error) {
 
-	// Construct an appropriate URL (cf. http://goo.gl/TRQJjZ).
 	ctx = context.Background()
 	client, err := storage.NewClient(ctx)
 	name := b.Name()
