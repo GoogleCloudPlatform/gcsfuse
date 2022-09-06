@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provides integration tests for write flows with implicit_dir flag set.
+// Provides integration tests for file operations with implicit_dir flag set.
 package implicitdir_test
 
 import (
@@ -22,12 +22,10 @@ import (
 
 func TestRenameFile(t *testing.T) {
 	fileName := createTempFile()
-
 	err := clearKernelCache()
 	if err != nil {
 		t.Errorf("Clear Kernel Cache: %v", err)
 	}
-
 	content, err := os.ReadFile(fileName)
 	if err != nil {
 		t.Errorf("Read: %v", err)
@@ -38,14 +36,12 @@ func TestRenameFile(t *testing.T) {
 		t.Errorf("Rename unsuccessful: %v", err)
 	}
 
-	if _, err := os.Stat(fileName); os.IsExist(err) {
-		t.Errorf("File %s still exists", fileName)
-	}
-
 	if _, err := os.Stat(newFileName); os.IsNotExist(err) {
 		t.Errorf("Renamed file %s not found", newFileName)
 	}
-
+	if _, err := os.Stat(fileName); os.IsExist(err) {
+		t.Errorf("File %s still exists", fileName)
+	}
 	// Check if the data in the file is the same after renaming.
 	compareFileContents(t, newFileName, string(content))
 }
