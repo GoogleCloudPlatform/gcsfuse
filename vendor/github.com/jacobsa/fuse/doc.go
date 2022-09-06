@@ -16,15 +16,15 @@
 //
 // The primary elements of interest are:
 //
-//  *  The fuseops package, which defines the operations that fuse might send
+//   - The fuseops package, which defines the operations that fuse might send
 //     to your userspace daemon.
 //
-//  *  The Server interface, which your daemon must implement.
+//   - The Server interface, which your daemon must implement.
 //
-//  *  fuseutil.NewFileSystemServer, which offers a convenient way to implement
+//   - fuseutil.NewFileSystemServer, which offers a convenient way to implement
 //     the Server interface.
 //
-//  *  Mount, a function that allows for mounting a Server as a file system.
+//   - Mount, a function that allows for mounting a Server as a file system.
 //
 // Make sure to see the examples in the sub-packages of samples/, which double
 // as tests for this package: http://godoc.org/github.com/jacobsa/fuse/samples

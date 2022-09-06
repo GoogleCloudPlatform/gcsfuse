@@ -205,7 +205,7 @@ func callMountCommFD(
 	env = append(env, "_FUSE_COMMVERS=2")
 	argv = append(argv, dir)
 
-	return fusermount(bin, argv, env, false)
+	return fusermount(bin, argv, env, false, cfg.DebugLogger)
 }
 
 // Begin the process of mounting at the given directory, returning a connection
