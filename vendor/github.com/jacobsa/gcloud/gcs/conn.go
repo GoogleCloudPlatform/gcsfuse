@@ -184,8 +184,9 @@ func (c *conn) OpenBucket(
 	// bucket.
 	_, err = b.ListObjects(ctx, &ListObjectsRequest{MaxResults: 1})
 
-	if typed, ok := err.(*googleapi.Error); ok {
-		switch typed.Code {
+	var apiError *googleapi.Error
+	if errors.As(err, &apiError) {
+		switch apiError.Code {
 		case http.StatusForbidden:
 			err = fmt.Errorf(
 				"Bad credentials for bucket %q. Check the bucket name and your "+

@@ -1,0 +1,24 @@
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Start gcsfuse/fake_version (Go version go1.19-pre4 cl/455575533 +12f49fe0ed) for app \"\" using mount point: /tmp/gcsfuse_test1743820428\n","timestampSeconds":1662540221,"timestampNanos":695732107}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Creating a mount at \"/tmp/gcsfuse_test1743820428\"\n","timestampSeconds":1662540221,"timestampNanos":696646628}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Creating a new server...\n","timestampSeconds":1662540221,"timestampNanos":697406379}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Set up root directory for bucket fake@bucket\n","timestampSeconds":1662540221,"timestampNanos":697427670}
+{"name":"root","levelname":"NOTICE","severity":"NOTICE","message":"Mounting file system \"fake@bucket\"...\n","timestampSeconds":1662540221,"timestampNanos":697521430}
+{"name":"root","levelname":"NOTICE","severity":"NOTICE","message":"File system has been successfully mounted.\n","timestampSeconds":1662540221,"timestampNanos":702929156}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Start gcsfuse/fake_version (Go version go1.19-pre4 cl/455575533 +12f49fe0ed) for app \"\" using mount point: /tmp/gcsfuse_test1743820428\n","timestampSeconds":1662540221,"timestampNanos":733106496}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Creating a mount at \"/tmp/gcsfuse_test1743820428\"\n","timestampSeconds":1662540221,"timestampNanos":733247256}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Creating a new server...\n","timestampSeconds":1662540221,"timestampNanos":733782387}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Set up root directory for bucket fake@bucket\n","timestampSeconds":1662540221,"timestampNanos":733795137}
+{"name":"root","levelname":"NOTICE","severity":"NOTICE","message":"Mounting file system \"fake@bucket\"...\n","timestampSeconds":1662540221,"timestampNanos":733859987}
+{"name":"root","levelname":"NOTICE","severity":"NOTICE","message":"File system has been successfully mounted.\n","timestampSeconds":1662540221,"timestampNanos":739390063}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Start gcsfuse/fake_version (Go version go1.19-pre4 cl/455575533 +12f49fe0ed) for app \"\" using mount point: /tmp/gcsfuse_test297796875\n","timestampSeconds":1662540222,"timestampNanos":17211799}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Creating a mount at \"/tmp/gcsfuse_test297796875\"\n","timestampSeconds":1662540222,"timestampNanos":17678819}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Creating a new server...\n","timestampSeconds":1662540222,"timestampNanos":18472700}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Set up root directory for bucket fake@bucket\n","timestampSeconds":1662540222,"timestampNanos":18496380}
+{"name":"root","levelname":"NOTICE","severity":"NOTICE","message":"Mounting file system \"fake@bucket\"...\n","timestampSeconds":1662540222,"timestampNanos":18589240}
+{"name":"root","levelname":"NOTICE","severity":"NOTICE","message":"File system has been successfully mounted.\n","timestampSeconds":1662540222,"timestampNanos":25700818}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Start gcsfuse/fake_version (Go version go1.19-pre4 cl/455575533 +12f49fe0ed) for app \"\" using mount point: /tmp/gcsfuse_test297796875\n","timestampSeconds":1662540222,"timestampNanos":60099653}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Creating a mount at \"/tmp/gcsfuse_test297796875\"\n","timestampSeconds":1662540222,"timestampNanos":60232763}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Creating a new server...\n","timestampSeconds":1662540222,"timestampNanos":61000314}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Set up root directory for bucket fake@bucket\n","timestampSeconds":1662540222,"timestampNanos":61019664}
+{"name":"root","levelname":"NOTICE","severity":"NOTICE","message":"Mounting file system \"fake@bucket\"...\n","timestampSeconds":1662540222,"timestampNanos":61083654}
+{"name":"root","levelname":"NOTICE","severity":"NOTICE","message":"File system has been successfully mounted.\n","timestampSeconds":1662540222,"timestampNanos":68437121}
