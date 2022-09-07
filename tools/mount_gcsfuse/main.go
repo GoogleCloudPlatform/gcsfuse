@@ -105,7 +105,7 @@ func makeGcsfuseArgs(
 			"type_cache_ttl",
 			"temp_dir",
 			"max_conns_per_host",
-			"experimental_stackdriver_export_interval",
+			"stackdriver_export_interval",
 			"experimental_opentelemetry_collector_address",
 			"log_format",
 			"log_file":
