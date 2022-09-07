@@ -15,8 +15,8 @@
 package storage
 
 import (
-"cloud.google.com/go/storage"
-"github.com/jacobsa/gcloud/gcs"
+	"cloud.google.com/go/storage"
+	"github.com/jacobsa/gcloud/gcs"
 )
 
 type bucketHandle struct {
