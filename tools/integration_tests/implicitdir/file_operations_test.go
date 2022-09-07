@@ -32,17 +32,20 @@ func TestRenameFile(t *testing.T) {
 	if err != nil {
 		t.Errorf("Read: %v", err)
 	}
-
 	newFileName := fileName + "Rename"
+	if _, err := os.Stat(newFileName); err == nil {
+		t.Errorf("Renamed file %s already present", newFileName)
+	}
+
 	if err := os.Rename(fileName, newFileName); err != nil {
 		t.Errorf("Rename unsuccessful: %v", err)
 	}
 
-	if _, err := os.Stat(newFileName); os.IsNotExist(err) {
-		t.Errorf("Renamed file %s not found", newFileName)
-	}
-	if _, err := os.Stat(fileName); os.IsExist(err) {
+	if _, err := os.Stat(fileName); err == nil {
 		t.Errorf("File %s still exists", fileName)
+	}
+	if _, err := os.Stat(newFileName); err != nil {
+		t.Errorf("Renamed file %s not found", newFileName)
 	}
 	// Check if the data in the file is the same after renaming.
 	compareFileContents(t, newFileName, string(content))
