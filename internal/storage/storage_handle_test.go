@@ -27,28 +27,6 @@ import (
 const validBucketName string = "will-be-present-in-fake-server"
 const invalidBucketName string = "will-not-be-present-in-fake-server"
 
-func TestStorageHandle(t *testing.T) { RunTests(t) }
-
-type StorageHandleTest struct {
-}
-
-func init() { RegisterTestSuite(&StorageHandleTest{}) }
-
-func createFakeServer() (fakeServer *fakestorage.Server, err error) {
-	fakeServer, err = fakestorage.NewServerWithOptions(fakestorage.Options{
-		InitialObjects: []fakestorage.Object{
-			{
-				ObjectAttrs: fakestorage.ObjectAttrs{
-					BucketName: validBucketName,
-				},
-			},
-		},
-		Host: "127.0.0.1",
-		Port: 8081,
-	})
-	return
-}
-
 func getDefaultStorageClientConfig() (clientConfig storageClientConfig) {
 	return storageClientConfig{
 		disableHTTP2:        true,
@@ -61,11 +39,45 @@ func getDefaultStorageClientConfig() (clientConfig storageClientConfig) {
 	}
 }
 
-func (t *StorageHandleTest) TestBucketHandleWhenBucketExists() {
-	server, err := createFakeServer()
+func TestStorageHandle(t *testing.T) { RunTests(t) }
+
+type StorageHandleTest struct {
+	fakeStorageServer *fakestorage.Server
+}
+
+var _ SetUpInterface = &StorageHandleTest{}
+var _ TearDownInterface = &StorageHandleTest{}
+
+func init() { RegisterTestSuite(&StorageHandleTest{}) }
+
+func (t *StorageHandleTest) SetUp(_ *TestInfo) {
+	var err error
+	t.fakeStorageServer, err = fakestorage.NewServerWithOptions(fakestorage.Options{
+		InitialObjects: []fakestorage.Object{
+			{
+				ObjectAttrs: fakestorage.ObjectAttrs{
+					BucketName: validBucketName,
+				},
+			},
+		},
+		Host: "127.0.0.1",
+		Port: 8081,
+	})
 	AssertEq(nil, err)
-	defer server.Stop()
-	fakeClient := server.Client()
+}
+
+func (t *StorageHandleTest) TearDown() {
+	t.fakeStorageServer.Stop()
+}
+
+func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc storageClientConfig) {
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
+}
+
+func (t *StorageHandleTest) TestBucketHandleWhenBucketExists() {
+	fakeClient := t.fakeStorageServer.Client()
 	fakeStorageClient := &storageClient{client: fakeClient}
 
 	bucketHandle, err := fakeStorageClient.BucketHandle(validBucketName)
@@ -75,22 +87,13 @@ func (t *StorageHandleTest) TestBucketHandleWhenBucketExists() {
 }
 
 func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExist() {
-	server, err := createFakeServer()
-	AssertEq(nil, err)
-	defer server.Stop()
-	fakeClient := server.Client()
+	fakeClient := t.fakeStorageServer.Client()
 	fakeStorageClient := &storageClient{client: fakeClient}
 
 	bucketHandle, err := fakeStorageClient.BucketHandle(invalidBucketName)
 
 	AssertNe(nil, err)
 	AssertEq(nil, bucketHandle)
-}
-
-func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc storageClientConfig) {
-	handleCreated, err := NewStorageHandle(context.Background(), sc)
-	AssertEq(nil, err)
-	AssertNe(nil, handleCreated)
 }
 
 func (t *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
