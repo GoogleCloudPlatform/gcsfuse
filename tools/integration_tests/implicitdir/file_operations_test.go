@@ -42,7 +42,7 @@ func TestRenameFile(t *testing.T) {
 	}
 
 	if _, err := os.Stat(fileName); err == nil {
-		t.Errorf("File %s still exists", fileName)
+		t.Errorf("Original file %s still exists", fileName)
 	}
 	if _, err := os.Stat(newFileName); err != nil {
 		t.Errorf("Renamed file %s not found", newFileName)
@@ -66,7 +66,7 @@ func TestFileAttributes(t *testing.T) {
 		t.Errorf("File name not matched in os.Stat, found: %s, expected: %s", statFileName, fileName)
 	}
 	if (preCreateTime.After(fStat.ModTime())) || (postCreateTime.Before(fStat.ModTime())) {
-		t.Errorf("File modification time not in the required time-range")
+		t.Errorf("File modification time not in the expected time-range")
 	}
 	// The file size in createTempFile() is 14 bytes
 	if fStat.Size() != 14 {
