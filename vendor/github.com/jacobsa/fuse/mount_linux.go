@@ -55,6 +55,9 @@ var mountflagopts = map[string]func(uintptr) uintptr{
 var errFallback = errors.New("sentinel: fallback to fusermount(1)")
 
 func directmount(dir string, cfg *MountConfig) (*os.File, error) {
+	if cfg.DebugLogger != nil {
+		cfg.DebugLogger.Println("Preparing for direct mounting")
+	}
 	// We use syscall.Open + os.NewFile instead of os.OpenFile so that the file
 	// is opened in blocking mode. When opened in non-blocking mode, the Go
 	// runtime tries to use poll(2), which does not work with /dev/fuse.
@@ -63,6 +66,10 @@ func directmount(dir string, cfg *MountConfig) (*os.File, error) {
 		return nil, errFallback
 	}
 	dev := os.NewFile(uintptr(fd), "/dev/fuse")
+
+	if cfg.DebugLogger != nil {
+		cfg.DebugLogger.Println("Successfully opened the /dev/fuse in blocking mode")
+	}
 	// As per libfuse/fusermount.c:847: https://bit.ly/2SgtWYM#L847
 	data := fmt.Sprintf("fd=%d,rootmode=40000,user_id=%d,group_id=%d",
 		dev.Fd(), os.Getuid(), os.Getgid())
@@ -84,6 +91,10 @@ func directmount(dir string, cfg *MountConfig) (*os.File, error) {
 	}
 	delete(opts, "subtype")
 	data += "," + mapToOptionsString(opts)
+
+	if cfg.DebugLogger != nil {
+		cfg.DebugLogger.Println("Starting the unix mounting")
+	}
 	if err := unix.Mount(
 		cfg.FSName, // source
 		dir,        // target
@@ -97,6 +108,9 @@ func directmount(dir string, cfg *MountConfig) (*os.File, error) {
 		}
 		return nil, err
 	}
+	if cfg.DebugLogger != nil {
+		cfg.DebugLogger.Println("Unix mounting completed successfully")
+	}
 	return dev, nil
 }
 
@@ -108,6 +122,9 @@ func mount(dir string, cfg *MountConfig, ready chan<- error) (*os.File, error) {
 	// On linux, mounting is never delayed.
 	ready <- nil
 
+	if cfg.DebugLogger != nil {
+		cfg.DebugLogger.Println("Parsing fuse file descriptor")
+	}
 	// If the mountpoint is /dev/fd/N, assume that the file descriptor N is an
 	// already open FUSE channel. Parse it, cast it to an fd, and don't do any
 	// other part of the mount dance.
@@ -120,6 +137,9 @@ func mount(dir string, cfg *MountConfig, ready chan<- error) (*os.File, error) {
 	// have the CAP_SYS_ADMIN capability.
 	dev, err := directmount(dir, cfg)
 	if err == errFallback {
+		if cfg.DebugLogger != nil {
+			cfg.DebugLogger.Println("Directmount failed. Trying fallback.")
+		}
 		fusermountPath, err := findFusermount()
 		if err != nil {
 			return nil, err
@@ -129,7 +149,7 @@ func mount(dir string, cfg *MountConfig, ready chan<- error) (*os.File, error) {
 			"--",
 			dir,
 		}
-		return fusermount(fusermountPath, argv, []string{}, true)
+		return fusermount(fusermountPath, argv, []string{}, true, cfg.DebugLogger)
 	}
 	return dev, err
 }
