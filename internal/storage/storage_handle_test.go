@@ -78,9 +78,9 @@ func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc storageClientConfig)
 
 func (t *StorageHandleTest) TestBucketHandleWhenBucketExists() {
 	fakeClient := t.fakeStorageServer.Client()
-	fakeStorageClient := &storageClient{client: fakeClient}
+	storageClient := &storageClient{client: fakeClient}
 
-	bucketHandle, err := fakeStorageClient.BucketHandle(validBucketName)
+	bucketHandle, err := storageClient.BucketHandle(validBucketName)
 
 	AssertEq(nil, err)
 	AssertNe(nil, bucketHandle)
@@ -88,9 +88,9 @@ func (t *StorageHandleTest) TestBucketHandleWhenBucketExists() {
 
 func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExist() {
 	fakeClient := t.fakeStorageServer.Client()
-	fakeStorageClient := &storageClient{client: fakeClient}
+	storageClient := &storageClient{client: fakeClient}
 
-	bucketHandle, err := fakeStorageClient.BucketHandle(invalidBucketName)
+	bucketHandle, err := storageClient.BucketHandle(invalidBucketName)
 
 	AssertNe(nil, err)
 	AssertEq(nil, bucketHandle)
