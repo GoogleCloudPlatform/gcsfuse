@@ -37,16 +37,16 @@ type OpContext struct {
 //
 // Called by statfs(2) and friends:
 //
-//     * (https://goo.gl/Xi1lDr) sys_statfs called user_statfs, which calls
-//        vfs_statfs, which calls statfs_by_dentry.
+//   - (https://goo.gl/Xi1lDr) sys_statfs called user_statfs, which calls
+//     vfs_statfs, which calls statfs_by_dentry.
 //
-//     * (https://goo.gl/VAIOwU) statfs_by_dentry calls the superblock
-//       operation statfs, which in our case points at
-//       fuse_statfs (cf. https://goo.gl/L7BTM3)
+//   - (https://goo.gl/VAIOwU) statfs_by_dentry calls the superblock
+//     operation statfs, which in our case points at
+//     fuse_statfs (cf. https://goo.gl/L7BTM3)
 //
-//     * (https://goo.gl/Zn7Sgl) fuse_statfs sends a statfs op, then uses
-//       convert_fuse_statfs to convert the response in a straightforward
-//       manner.
+//   - (https://goo.gl/Zn7Sgl) fuse_statfs sends a statfs op, then uses
+//     convert_fuse_statfs to convert the response in a straightforward
+//     manner.
 //
 // This op is particularly important on OS X: if you don't implement it, the
 // file system will not successfully mount. If you don't model a sane amount of
@@ -191,10 +191,10 @@ type SetInodeAttributesOp struct {
 // The reference count corresponds to fuse_inode::nlookup
 // (http://goo.gl/ut48S4). Some examples of where the kernel manipulates it:
 //
-//  *  (http://goo.gl/vPD9Oh) Any caller to fuse_iget increases the count.
-//  *  (http://goo.gl/B6tTTC) fuse_lookup_name calls fuse_iget.
-//  *  (http://goo.gl/IlcxWv) fuse_create_open calls fuse_iget.
-//  *  (http://goo.gl/VQMQul) fuse_dentry_revalidate increments after
+//   - (http://goo.gl/vPD9Oh) Any caller to fuse_iget increases the count.
+//   - (http://goo.gl/B6tTTC) fuse_lookup_name calls fuse_iget.
+//   - (http://goo.gl/IlcxWv) fuse_create_open calls fuse_iget.
+//   - (http://goo.gl/VQMQul) fuse_dentry_revalidate increments after
 //     revalidating.
 //
 // In contrast to all other inodes, RootInodeID begins with an implicit
@@ -202,12 +202,12 @@ type SetInodeAttributesOp struct {
 // could be no such op, because the root cannot be referred to by name.) Code
 // walk:
 //
-//  *  (http://goo.gl/gWAheU) fuse_fill_super calls fuse_get_root_inode.
+//   - (http://goo.gl/gWAheU) fuse_fill_super calls fuse_get_root_inode.
 //
-//  *  (http://goo.gl/AoLsbb) fuse_get_root_inode calls fuse_iget without
+//   - (http://goo.gl/AoLsbb) fuse_get_root_inode calls fuse_iget without
 //     sending any particular request.
 //
-//  *  (http://goo.gl/vPD9Oh) fuse_iget increments nlookup.
+//   - (http://goo.gl/vPD9Oh) fuse_iget increments nlookup.
 //
 // File systems should tolerate but not rely on receiving forget ops for
 // remaining inodes when the file system unmounts, including the root inode.
@@ -400,19 +400,19 @@ type CreateLinkOp struct {
 // file system boundaries, and that the destination doesn't already exist with
 // the wrong type. Some subtleties that the file system must care about:
 //
-//  *  If the new name is an existing directory, the file system must ensure it
+//   - If the new name is an existing directory, the file system must ensure it
 //     is empty before replacing it, returning ENOTEMPTY otherwise. (This is
 //     per the posix spec: http://goo.gl/4XtT79)
 //
-//  *  The rename must be atomic from the point of view of an observer of the
+//   - The rename must be atomic from the point of view of an observer of the
 //     new name. That is, if the new name already exists, there must be no
 //     point at which it doesn't exist.
 //
-//  *  It is okay for the new name to be modified before the old name is
+//   - It is okay for the new name to be modified before the old name is
 //     removed; these need not be atomic. In fact, the Linux man page
 //     explicitly says this is likely (cf. https://goo.gl/Y1wVZc).
 //
-//  *  Linux bends over backwards (https://goo.gl/pLDn3r) to ensure that
+//   - Linux bends over backwards (https://goo.gl/pLDn3r) to ensure that
 //     neither the old nor the new parent can be concurrently modified. But
 //     it's not clear whether OS X does this, and in any case it doesn't matter
 //     for file systems that may be modified remotely. Therefore a careful file
@@ -422,7 +422,6 @@ type CreateLinkOp struct {
 //     posix and the man pages are imprecise about the actual semantics of a
 //     rename if it's not atomic, so it is probably not disastrous to be loose
 //     about this.
-//
 type RenameOp struct {
 	// The old parent directory, and the name of the entry within it to be
 	// relocated.
@@ -698,13 +697,13 @@ type ReadFileOp struct {
 // cache and the page is marked dirty. Later the kernel may write back the
 // page via the FUSE VFS layer, causing this op to be sent:
 //
-//  *  The kernel calls address_space_operations::writepage when a dirty page
+//   - The kernel calls address_space_operations::writepage when a dirty page
 //     needs to be written to backing store (cf. http://goo.gl/Ezbewg). Fuse
 //     sets this to fuse_writepage (cf. http://goo.gl/IeNvLT).
 //
-//  *  (http://goo.gl/Eestuy) fuse_writepage calls fuse_writepage_locked.
+//   - (http://goo.gl/Eestuy) fuse_writepage calls fuse_writepage_locked.
 //
-//  *  (http://goo.gl/RqYIxY) fuse_writepage_locked makes a write request to
+//   - (http://goo.gl/RqYIxY) fuse_writepage_locked makes a write request to
 //     the userspace server.
 //
 // Note that the kernel *will* ensure that writes are received and acknowledged
@@ -757,10 +756,10 @@ type WriteFileOp struct {
 // vfs.txt documents this as being called for by the fsync(2) system call
 // (cf. http://goo.gl/j9X8nB). Code walk for that case:
 //
-//  *  (http://goo.gl/IQkWZa) sys_fsync calls do_fsync, calls vfs_fsync, calls
+//   - (http://goo.gl/IQkWZa) sys_fsync calls do_fsync, calls vfs_fsync, calls
 //     vfs_fsync_range.
 //
-//  *  (http://goo.gl/5L2SMy) vfs_fsync_range calls f_op->fsync.
+//   - (http://goo.gl/5L2SMy) vfs_fsync_range calls f_op->fsync.
 //
 // Note that this is also sent by fdatasync(2) (cf. http://goo.gl/01R7rF), and
 // may be sent for msync(2) with the MS_SYNC flag (see the notes on
@@ -781,8 +780,8 @@ type SyncFileOp struct {
 // vfs.txt documents this as being sent for each close(2) system call (cf.
 // http://goo.gl/FSkbrq). Code walk for that case:
 //
-//  *  (http://goo.gl/e3lv0e) sys_close calls __close_fd, calls filp_close.
-//  *  (http://goo.gl/nI8fxD) filp_close calls f_op->flush (fuse_flush).
+//   - (http://goo.gl/e3lv0e) sys_close calls __close_fd, calls filp_close.
+//   - (http://goo.gl/nI8fxD) filp_close calls f_op->flush (fuse_flush).
 //
 // But note that this is also sent in other contexts where a file descriptor is
 // closed, such as dup2(2) (cf. http://goo.gl/NQDvFS). In the case of close(2),
@@ -791,15 +790,15 @@ type SyncFileOp struct {
 // One potentially significant case where this may not be sent is mmap'd files,
 // where the behavior is complicated:
 //
-//  *  munmap(2) does not cause flushes (cf. http://goo.gl/j8B9g0).
+//   - munmap(2) does not cause flushes (cf. http://goo.gl/j8B9g0).
 //
-//  *  On OS X, if a user modifies a mapped file via the mapping before
+//   - On OS X, if a user modifies a mapped file via the mapping before
 //     closing the file with close(2), the WriteFileOps for the modifications
 //     may not be received before the FlushFileOp for the close(2) (cf.
 //     https://github.com/osxfuse/osxfuse/issues/202). It appears that this may
 //     be fixed in osxfuse 3 (cf. https://goo.gl/rtvbko).
 //
-//  *  However, you safely can arrange for writes via a mapping to be
+//   - However, you safely can arrange for writes via a mapping to be
 //     flushed by calling msync(2) followed by close(2). On OS X msync(2)
 //     will cause a WriteFileOps to go through and close(2) will cause a
 //     FlushFile as usual (cf. http://goo.gl/kVmNcx). On Linux, msync(2) does
