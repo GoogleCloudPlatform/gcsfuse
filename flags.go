@@ -239,7 +239,7 @@ func newApp() (app *cli.App) {
 			/////////////////////////
 
 			cli.DurationFlag{
-				Name:  "experimental-stackdriver-export-interval",
+				Name:  "stackdriver-export-interval",
 				Value: 0,
 				Usage: "Experimental: Export metrics to stackdriver with this interval. The default value 0 indicates no exporting.",
 			},
@@ -467,7 +467,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		MaxConnsPerHost:   c.Int("max-conns-per-host"),
 
 		// Monitoring & Logging
-		StackdriverExportInterval: c.Duration("experimental-stackdriver-export-interval"),
+		StackdriverExportInterval: c.Duration("stackdriver-export-interval"),
 		OtelCollectorAddress:      c.String("experimental-opentelemetry-collector-address"),
 		LogFile:                   c.String("log-file"),
 		LogFormat:                 c.String("log-format"),
