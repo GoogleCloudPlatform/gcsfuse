@@ -30,11 +30,11 @@ func TestRenameFile(t *testing.T) {
 	if err != nil {
 		t.Errorf("Read: %v", err)
 	}
-
 	newFileName := fileName + "Rename"
 	if _, err := os.Stat(newFileName); err == nil {
 		t.Errorf("Renamed file %s already present", newFileName)
 	}
+
 	if err := os.Rename(fileName, newFileName); err != nil {
 		t.Errorf("Rename unsuccessful: %v", err)
 	}
