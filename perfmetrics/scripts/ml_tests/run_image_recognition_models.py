@@ -105,7 +105,7 @@ def _run_from_source(gcs_bucket, data_directory_name) -> None:
   os.system(f'''mkdir {data_directory_name}
             git clone {GITHUB_REPO}
             cd gcsfuse
-            go run . --implicit-dirs --stat-cache-capacity 1000000 --disable-http2 --max-conns-per-host 100 --experimental-stackdriver-export-interval=60s {gcs_bucket} ../{data_directory_name}
+            go run . --implicit-dirs --stat-cache-capacity 1000000 --disable-http2 --max-conns-per-host 100 --stackdriver-export-interval=60s {gcs_bucket} ../{data_directory_name}
             cd ..
             ''')
 
