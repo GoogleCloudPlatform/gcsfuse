@@ -65,9 +65,9 @@ func (t *StorageHandleTest) TestBucketHandleWhenBucketExists() {
 	server, err := createFakeServer()
 	AssertEq(nil, err)
 	defer server.Stop()
-
 	fakeClient := server.Client()
 	fakeStorageClient := &storageClient{client: fakeClient}
+
 	bucketHandle, err := fakeStorageClient.BucketHandle(validBucketName)
 
 	AssertEq(nil, err)
@@ -78,9 +78,9 @@ func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExist() {
 	server, err := createFakeServer()
 	AssertEq(nil, err)
 	defer server.Stop()
-
 	fakeClient := server.Client()
 	fakeStorageClient := &storageClient{client: fakeClient}
+	
 	bucketHandle, err := fakeStorageClient.BucketHandle(invalidBucketName)
 
 	AssertNe(nil, err)
