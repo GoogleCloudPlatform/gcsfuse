@@ -1,3 +1,17 @@
+// Copyright 2022 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package storage
 
 import (
@@ -12,6 +26,10 @@ import (
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 )
+
+type StorageHandle interface {
+	BucketHandle(bucketName string) (bh *bucketHandle, err error)
+}
 
 type storageClient struct {
 	client *storage.Client
@@ -30,8 +48,7 @@ type storageClientConfig struct {
 // NewStorageHandle returns the handle of Go storage client containing
 // customized http client. We can configure the http client using the
 // storageClientConfig parameter.
-func NewStorageHandle(ctx context.Context,
-	clientConfig storageClientConfig) (sh *storageClient, err error) {
+func NewStorageHandle(ctx context.Context, clientConfig storageClientConfig) (sh StorageHandle, err error) {
 	var transport *http.Transport
 	// Disabling the http2 makes the client more performant.
 	if clientConfig.disableHTTP2 {
@@ -77,6 +94,18 @@ func NewStorageHandle(ctx context.Context,
 		}),
 		storage.WithPolicy(storage.RetryAlways))
 
-	sh = &storageClient{client: sc}
+	client := &storageClient{client: sc}
+	return client, err
+}
+
+func (sh *storageClient) BucketHandle(bucketName string) (bh *bucketHandle,
+		err error) {
+	storageBucketHandle := sh.client.Bucket(bucketName)
+	_, err = storageBucketHandle.Attrs(context.Background())
+	if err != nil {
+		return
+	}
+
+	bh = &bucketHandle{bucket: storageBucketHandle}
 	return
 }
