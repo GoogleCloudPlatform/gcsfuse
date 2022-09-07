@@ -80,7 +80,7 @@ func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExist() {
 	defer server.Stop()
 	fakeClient := server.Client()
 	fakeStorageClient := &storageClient{client: fakeClient}
-	
+
 	bucketHandle, err := fakeStorageClient.BucketHandle(invalidBucketName)
 
 	AssertNe(nil, err)
