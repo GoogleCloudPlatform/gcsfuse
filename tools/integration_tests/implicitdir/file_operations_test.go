@@ -42,7 +42,7 @@ func TestRenameFile(t *testing.T) {
 	}
 
 	if _, err := os.Stat(fileName); err == nil {
-		t.Errorf("File %s still exists", fileName)
+		t.Errorf("Original file %s still exists", fileName)
 	}
 	if _, err := os.Stat(newFileName); err != nil {
 		t.Errorf("Renamed file %s not found", newFileName)
