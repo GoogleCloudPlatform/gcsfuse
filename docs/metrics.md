@@ -49,3 +49,6 @@ on the Google cloud project.
    **Global > Custom > metric name**
     5. Example graph for fs/ops_count
 ![fs/ops_count](https://user-images.githubusercontent.com/101323867/188802087-6423f4f1-2aa6-4501-8db6-3d1997986f68.png)
+
+## References:
+* More details around adding custom metrics using OpenCensus can be found [here](https://cloud.google.com/monitoring/custom-metrics/open-census)
