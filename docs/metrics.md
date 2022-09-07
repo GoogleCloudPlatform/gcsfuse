@@ -41,7 +41,8 @@ which data will be exported.
 on the Google cloud project.
 3. Service account with which the GCSFuse is running should have 
 **monitoring.metricsDescriptors.create** permission.
-4. For viewing the metrics:
+4. Install the [Ops agent](https://cloud.google.com/monitoring/agent/ops-agent/install-index) on the VM.
+5. For viewing the metrics:
     1. In the Google cloud console, go to **Metrics Explorer** page within **Monitoring**.
     2. In the toolbar, select the **Explorer** tab.
     3. Select the **configuration** tab.
