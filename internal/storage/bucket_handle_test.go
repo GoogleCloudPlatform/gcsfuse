@@ -23,14 +23,13 @@ import (
 	. "github.com/jacobsa/ogletest"
 )
 
-const fileContent string = "hello gcsfuse"
-const validFilePathInBucket string = "some/object/file.txt"
-const invalidFilePathInBucket string = "test/foo"
+const missingObjectName string = "test/foo"
 
 func TestBucketHandle(t *testing.T) { RunTests(t) }
 
 type BucketHandleTest struct {
 	fakeStorageServer *fakestorage.Server
+	bucketHandle      *bucketHandle
 }
 
 var _ SetUpInterface = &BucketHandleTest{}
@@ -40,63 +39,63 @@ func init() { RegisterTestSuite(&BucketHandleTest{}) }
 
 func (t *BucketHandleTest) SetUp(_ *TestInfo) {
 	var err error
-	t.fakeStorageServer, err = fakestorage.NewServerWithOptions(fakestorage.Options{
-		InitialObjects: []fakestorage.Object{
-			{
-				ObjectAttrs: fakestorage.ObjectAttrs{
-					BucketName: validBucketName,
-					Name:       validFilePathInBucket,
-				},
-				Content: []byte(fileContent),
-			},
-		},
-		Host: "127.0.0.1",
-		Port: 8081,
-	})
+	t.fakeStorageServer, err = CreateFakeStorageServer([]fakestorage.Object{GetDefaultObject()})
 	AssertEq(nil, err)
+
+	storageClient := &storageClient{client: t.fakeStorageServer.Client()}
+	t.bucketHandle, err = storageClient.BucketHandle(DefaultBucketName)
+	AssertEq(nil, err)
+	AssertNe(nil, t.bucketHandle)
 }
 
 func (t *BucketHandleTest) TearDown() {
 	t.fakeStorageServer.Stop()
 }
 
-func (t *BucketHandleTest) TestNewReaderMethodWithValidObject() {
-	fakeClient := t.fakeStorageServer.Client()
-	storageClient := &storageClient{client: fakeClient}
-	bucketHandle, err := storageClient.BucketHandle(validBucketName)
-	AssertEq(nil, err)
-	AssertNe(nil, bucketHandle)
-
-	rc, err := bucketHandle.NewReader(context.Background(),
+func (t *BucketHandleTest) TestNewReaderMethodWithCompleteRead() {
+	rc, err := t.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
-			Name: validFilePathInBucket,
+			Name: DefaultObjectName,
 			Range: &gcs.ByteRange{
 				Start: uint64(0),
-				Limit: uint64(len(fileContent)),
+				Limit: uint64(len(ContentInDefaultObject)),
 			},
 		})
 
 	AssertEq(nil, err)
-	buf := make([]byte, len(fileContent))
+	buf := make([]byte, len(ContentInDefaultObject))
 	_, err = rc.Read(buf)
 	AssertEq(nil, err)
-	content := string(buf[:])
-	ExpectEq(content, fileContent)
+	ExpectEq(string(buf[:]), ContentInDefaultObject)
+}
+
+func (t *BucketHandleTest) TestNewReaderMethodWithRangeRead() {
+	start := uint64(2)
+	limit := uint64(8)
+
+	rc, err := t.bucketHandle.NewReader(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: DefaultObjectName,
+			Range: &gcs.ByteRange{
+				Start: start,
+				Limit: limit,
+			},
+		})
+
+	AssertEq(nil, err)
+	buf := make([]byte, limit-start)
+	_, err = rc.Read(buf)
+	AssertEq(nil, err)
+	ExpectEq(string(buf[:]), ContentInDefaultObject[start:limit])
 }
 
 func (t *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
-	fakeClient := t.fakeStorageServer.Client()
-	storageClient := &storageClient{client: fakeClient}
-	bucketHandle, err := storageClient.BucketHandle(validBucketName)
-	AssertEq(nil, err)
-	AssertNe(nil, bucketHandle)
-
-	rc, err := bucketHandle.NewReader(context.Background(),
+	rc, err := t.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
-			Name: invalidFilePathInBucket,
+			Name: missingObjectName,
 			Range: &gcs.ByteRange{
 				Start: uint64(0),
-				Limit: uint64(len(fileContent)),
+				Limit: uint64(len(ContentInDefaultObject)),
 			},
 		})
 
@@ -104,6 +103,27 @@ func (t *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
 	AssertEq(nil, rc)
 }
 
-func (t *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
+func (t *BucketHandleTest) TestNewReaderMethodWithGeneration() {
+	// Modify the default object with different content
+	updatedContent := "Some Modification"
+	defaultObj := GetDefaultObject()
+	defaultObj.Generation = 2
+	defaultObj.Content = []byte(updatedContent)
+	t.fakeStorageServer.CreateObject(defaultObj)
 
+	rc, err := t.bucketHandle.NewReader(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: DefaultObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(updatedContent)),
+			},
+			Generation: 2,
+		})
+
+	AssertEq(nil, err)
+	buf := make([]byte, len(updatedContent))
+	_, err = rc.Read(buf)
+	AssertEq(nil, err)
+	ExpectEq(string(buf[:]), updatedContent)
 }
