@@ -17,10 +17,10 @@ package implicitdir_test
 
 import (
 	"os"
+	"os/exec"
 	"path"
 	"testing"
 	"time"
-	"os/exec"
 )
 
 func TestRenameFile(t *testing.T) {
