@@ -20,6 +20,7 @@ import (
 	"path"
 	"testing"
 	"time"
+	"os/exec"
 )
 
 func TestRenameFile(t *testing.T) {
