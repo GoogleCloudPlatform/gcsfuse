@@ -73,3 +73,33 @@ func TestFileAttributes(t *testing.T) {
 		t.Errorf("File size is not 14 bytes, found size: %d bytes", fStat.Size())
 	}
 }
+
+func TestCopyFile(t *testing.T) {
+	fileName := createTempFile()
+	err := clearKernelCache()
+	if err != nil {
+		t.Errorf("Clear Kernel Cache: %v", err)
+	}
+	content, err := os.ReadFile(fileName)
+	if err != nil {
+		t.Errorf("Read: %v", err)
+	}
+	newFileName := fileName + "Copy"
+	if _, err := os.Stat(newFileName); err == nil {
+		t.Errorf("Renamed file %s already present", newFileName)
+	}
+
+	cmd := exec.Command("cp", fileName, newFileName)
+	if err := cmd.Run(); err != nil {
+		t.Errorf("Copy unsuccessful: %v", err)
+	}
+
+	if _, err := os.Stat(fileName); os.IsExist(err) {
+		t.Errorf("Old file %s not found", fileName)
+	}
+	if _, err := os.Stat(newFileName); os.IsNotExist(err) {
+		t.Errorf("Copied file %s not found", newFileName)
+	}
+	// Check if the data in the copied file matches the original file.
+	compareFileContents(t, newFileName, string(content))
+}
