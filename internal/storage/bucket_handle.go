@@ -15,6 +15,9 @@
 package storage
 
 import (
+	"context"
+	"fmt"
+
 	"cloud.google.com/go/storage"
 	"github.com/jacobsa/gcloud/gcs"
 )
@@ -22,4 +25,28 @@ import (
 type bucketHandle struct {
 	gcs.Bucket
 	bucket *storage.BucketHandle
+}
+
+func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) (err error) {
+	// If client is "nil", it means that there was some problem in initializing client in newBucket function of bucket.go file.
+	obj := b.bucket.Object(req.Name)
+
+	// Switching to the requested generation of the object.
+
+	if req.Generation != 0 {
+		obj = obj.Generation(req.Generation)
+	}
+	// Putting condition that the object's MetaGeneration should match the requested MetaGeneration for deletion to occur.
+	if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
+		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
+	}
+
+	// Deleting object through Go Storage Client.
+	err = obj.Delete(ctx)
+	if err != nil {
+		err = fmt.Errorf("Error in deleting the object through Go storage client: %v", err)
+		return
+	}
+
+	return
 }
