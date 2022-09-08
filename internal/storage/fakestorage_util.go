@@ -24,7 +24,7 @@ const host string = "127.0.0.1"
 const DefaultBucketName string = "gcsfuse-default-bucket"
 const DefaultObjectName string = "gcsfuse/default.txt"
 const ContentInDefaultObject string = "Hello GCSFuse!!!"
-const DefaultGeneration int64 = 0
+const DefaultGeneration int64 = 780
 
 func GetDefaultObject() fakestorage.Object {
 	return fakestorage.Object{

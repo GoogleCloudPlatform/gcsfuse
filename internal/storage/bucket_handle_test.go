@@ -63,6 +63,7 @@ func (t *BucketHandleTest) TestNewReaderMethodWithCompleteRead() {
 		})
 
 	AssertEq(nil, err)
+	defer rc.Close()
 	buf := make([]byte, len(ContentInDefaultObject))
 	_, err = rc.Read(buf)
 	AssertEq(nil, err)
@@ -83,6 +84,7 @@ func (t *BucketHandleTest) TestNewReaderMethodWithRangeRead() {
 		})
 
 	AssertEq(nil, err)
+	defer rc.Close()
 	buf := make([]byte, limit-start)
 	_, err = rc.Read(buf)
 	AssertEq(nil, err)
@@ -122,6 +124,7 @@ func (t *BucketHandleTest) TestNewReaderMethodWithGeneration() {
 		})
 
 	AssertEq(nil, err)
+	defer rc.Close()
 	buf := make([]byte, len(updatedContent))
 	_, err = rc.Read(buf)
 	AssertEq(nil, err)
