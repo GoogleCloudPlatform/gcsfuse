@@ -103,3 +103,7 @@ func (t *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
 	AssertNe(nil, err)
 	AssertEq(nil, rc)
 }
+
+func (t *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
+
+}
