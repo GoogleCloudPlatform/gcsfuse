@@ -28,11 +28,9 @@ type bucketHandle struct {
 }
 
 func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) (err error) {
-	// If client is "nil", it means that there was some problem in initializing client in newBucket function of bucket.go file.
 	obj := b.bucket.Object(req.Name)
 
 	// Switching to the requested generation of the object.
-
 	if req.Generation != 0 {
 		obj = obj.Generation(req.Generation)
 	}
