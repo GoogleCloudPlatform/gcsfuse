@@ -34,8 +34,8 @@ type bucketHandle struct {
 }
 
 func (bh *bucketHandle) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+		ctx context.Context,
+		req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64((*req.Range).Start)
 	end := int64((*req.Range).Limit)
@@ -58,5 +58,25 @@ func (bh *bucketHandle) NewReader(
 	// Converting io.Reader to io.ReadCloser by adding a no-op closer method
 	// to match the return type interface.
 	rc = io.NopCloser(r)
+	return
+}
+func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) (err error) {
+	obj := b.bucket.Object(req.Name)
+
+	// Switching to the requested generation of the object.
+	if req.Generation != 0 {
+		obj = obj.Generation(req.Generation)
+	}
+	// Putting condition that the object's MetaGeneration should match the requested MetaGeneration for deletion to occur.
+	if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
+		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
+	}
+
+	// Deleting object through Go Storage Client.
+	err = obj.Delete(ctx)
+	if err != nil {
+		return
+	}
+
 	return
 }
