@@ -106,13 +106,8 @@ func TestCopyFile(t *testing.T) {
 		t.Errorf("Error in file copying: %v", err)
 	}
 
-	// Checks on old and new file.
-	if _, err := os.Stat(fileName); os.IsExist(err) {
-		t.Errorf("Old file %s not found", fileName)
-	}
-	if _, err := os.Stat(newFileName); os.IsNotExist(err) {
-		t.Errorf("Copied file %s not found", newFileName)
-	}
-	// Check if the data in the copied file matches the original file.
+	// Check if the data in the copied file matches the original file,
+	// and the data in original file is unchanged.
 	compareFileContents(t, newFileName, string(content))
+	compareFileContents(t, fileName, string(content))
 }
