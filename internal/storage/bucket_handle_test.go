@@ -105,28 +105,36 @@ func (t *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
 	AssertEq(nil, rc)
 }
 
-func (t *BucketHandleTest) TestNewReaderMethodWithGeneration() {
-	// Modify the default object with different content
-	updatedContent := "Some Modification"
-	defaultObj := GetTestFakeStorageObject()
-	defaultObj.Generation = 2
-	defaultObj.Content = []byte(updatedContent)
-	CreateObject(t.fakeStorageServer, defaultObj)
-
+func (t *BucketHandleTest) TestNewReaderMethodWithValidGeneration() {
 	rc, err := t.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
 			Range: &gcs.ByteRange{
 				Start: uint64(0),
-				Limit: uint64(len(updatedContent)),
+				Limit: uint64(len(ContentInTestObject)),
 			},
-			Generation: 2,
+			Generation: TestObjectGeneration,
 		})
 
 	AssertEq(nil, err)
 	defer rc.Close()
-	buf := make([]byte, len(updatedContent))
+	buf := make([]byte, len(ContentInTestObject))
 	_, err = rc.Read(buf)
 	AssertEq(nil, err)
-	ExpectEq(string(buf[:]), updatedContent)
+	ExpectEq(string(buf[:]), ContentInTestObject)
+}
+
+func (t *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
+	rc, err := t.bucketHandle.NewReader(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: TestObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(ContentInTestObject)),
+			},
+			Generation: 222, // other than TestObjectGeneration, doesn't exist.
+		})
+
+	AssertNe(nil, err)
+	AssertEq(nil, rc)
 }
