@@ -141,21 +141,23 @@ func (t *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
 }
 
 func (t *BucketHandleTest) TestDeleteObjectMethodWithValidObject() {
-	error := t.bucketHandle.DeleteObject(context.Background(), &gcs.DeleteObjectRequest{
-		Name:                       TestObjectName,
-		Generation:                 0,
-		MetaGenerationPrecondition: nil,
-	})
+	error := t.bucketHandle.DeleteObject(context.Background(),
+		&gcs.DeleteObjectRequest{
+			Name:                       TestObjectName,
+			Generation:                 0,
+			MetaGenerationPrecondition: nil,
+		})
 
 	AssertEq(nil, error)
 }
 
 func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
-	error := t.bucketHandle.DeleteObject(context.Background(), &gcs.DeleteObjectRequest{
-		Name:                       missingObjectName,
-		Generation:                 0,
-		MetaGenerationPrecondition: nil,
-	})
+	error := t.bucketHandle.DeleteObject(context.Background(),
+		&gcs.DeleteObjectRequest{
+			Name:                       missingObjectName,
+			Generation:                 0,
+			MetaGenerationPrecondition: nil,
+		})
 
 	err_expected := fmt.Errorf("storage: object doesn't exist")
 	AssertEq(err_expected.Error(), error.Error())
