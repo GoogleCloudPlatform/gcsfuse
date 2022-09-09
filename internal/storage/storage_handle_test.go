@@ -24,7 +24,6 @@ import (
 	"golang.org/x/oauth2"
 )
 
-const validBucketName string = "will-be-present-in-fake-server"
 const invalidBucketName string = "will-not-be-present-in-fake-server"
 
 func getDefaultStorageClientConfig() (clientConfig storageClientConfig) {
@@ -52,17 +51,7 @@ func init() { RegisterTestSuite(&StorageHandleTest{}) }
 
 func (t *StorageHandleTest) SetUp(_ *TestInfo) {
 	var err error
-	t.fakeStorageServer, err = fakestorage.NewServerWithOptions(fakestorage.Options{
-		InitialObjects: []fakestorage.Object{
-			{
-				ObjectAttrs: fakestorage.ObjectAttrs{
-					BucketName: validBucketName,
-				},
-			},
-		},
-		Host: "127.0.0.1",
-		Port: 8081,
-	})
+	t.fakeStorageServer, err = CreateFakeStorageServer([]fakestorage.Object{GetTestFakeStorageObject()})
 	AssertEq(nil, err)
 }
 
@@ -80,7 +69,7 @@ func (t *StorageHandleTest) TestBucketHandleWhenBucketExists() {
 	fakeClient := t.fakeStorageServer.Client()
 	storageClient := &storageClient{client: fakeClient}
 
-	bucketHandle, err := storageClient.BucketHandle(validBucketName)
+	bucketHandle, err := storageClient.BucketHandle(TestBucketName)
 
 	AssertEq(nil, err)
 	AssertNe(nil, bucketHandle)
