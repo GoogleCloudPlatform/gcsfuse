@@ -150,7 +150,7 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithValidObject() {
 	AssertEq(nil, error)
 }
 
-func (t *BucketHandleTest) TestDeleteObjectMethodWithInValidObject() {
+func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 	error := t.bucketHandle.DeleteObject(context.Background(), &gcs.DeleteObjectRequest{
 		Name:                       missingObjectName,
 		Generation:                 0,
