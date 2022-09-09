@@ -16,7 +16,6 @@ package storage
 
 import (
 	"context"
-	"fmt"
 
 	"cloud.google.com/go/storage"
 	"github.com/jacobsa/gcloud/gcs"
@@ -42,7 +41,6 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 	// Deleting object through Go Storage Client.
 	err = obj.Delete(ctx)
 	if err != nil {
-		err = fmt.Errorf("Error in deleting the object through Go storage client: %v", err)
 		return
 	}
 
