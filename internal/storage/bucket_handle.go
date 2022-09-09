@@ -50,6 +50,8 @@ func (bh *bucketHandle) NewReader(
 		return
 	}
 
-	rc = io.NopCloser(r) // Converting io.Reader to io.ReadCloser.
+	// Converting io.Reader to io.ReadCloser by adding a no-op closer method
+	// to match the return type interface.
+	rc = io.NopCloser(r)
 	return
 }

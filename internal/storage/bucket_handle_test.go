@@ -39,11 +39,11 @@ func init() { RegisterTestSuite(&BucketHandleTest{}) }
 
 func (t *BucketHandleTest) SetUp(_ *TestInfo) {
 	var err error
-	t.fakeStorageServer, err = CreateFakeStorageServer([]fakestorage.Object{GetDefaultObject()})
+	t.fakeStorageServer, err = CreateFakeStorageServer([]fakestorage.Object{GetTestFakeStorageObject()})
 	AssertEq(nil, err)
 
 	storageClient := &storageClient{client: t.fakeStorageServer.Client()}
-	t.bucketHandle, err = storageClient.BucketHandle(DefaultBucketName)
+	t.bucketHandle, err = storageClient.BucketHandle(TestBucketName)
 	AssertEq(nil, err)
 	AssertNe(nil, t.bucketHandle)
 }
@@ -55,19 +55,19 @@ func (t *BucketHandleTest) TearDown() {
 func (t *BucketHandleTest) TestNewReaderMethodWithCompleteRead() {
 	rc, err := t.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
-			Name: DefaultObjectName,
+			Name: TestObjectName,
 			Range: &gcs.ByteRange{
 				Start: uint64(0),
-				Limit: uint64(len(ContentInDefaultObject)),
+				Limit: uint64(len(ContentInTestObject)),
 			},
 		})
 
 	AssertEq(nil, err)
 	defer rc.Close()
-	buf := make([]byte, len(ContentInDefaultObject))
+	buf := make([]byte, len(ContentInTestObject))
 	_, err = rc.Read(buf)
 	AssertEq(nil, err)
-	ExpectEq(string(buf[:]), ContentInDefaultObject)
+	ExpectEq(string(buf[:]), ContentInTestObject)
 }
 
 func (t *BucketHandleTest) TestNewReaderMethodWithRangeRead() {
@@ -76,7 +76,7 @@ func (t *BucketHandleTest) TestNewReaderMethodWithRangeRead() {
 
 	rc, err := t.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
-			Name: DefaultObjectName,
+			Name: TestObjectName,
 			Range: &gcs.ByteRange{
 				Start: start,
 				Limit: limit,
@@ -88,7 +88,7 @@ func (t *BucketHandleTest) TestNewReaderMethodWithRangeRead() {
 	buf := make([]byte, limit-start)
 	_, err = rc.Read(buf)
 	AssertEq(nil, err)
-	ExpectEq(string(buf[:]), ContentInDefaultObject[start:limit])
+	ExpectEq(string(buf[:]), ContentInTestObject[start:limit])
 }
 
 func (t *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
@@ -97,7 +97,7 @@ func (t *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
 			Name: missingObjectName,
 			Range: &gcs.ByteRange{
 				Start: uint64(0),
-				Limit: uint64(len(ContentInDefaultObject)),
+				Limit: uint64(len(ContentInTestObject)),
 			},
 		})
 
@@ -108,14 +108,14 @@ func (t *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
 func (t *BucketHandleTest) TestNewReaderMethodWithGeneration() {
 	// Modify the default object with different content
 	updatedContent := "Some Modification"
-	defaultObj := GetDefaultObject()
+	defaultObj := GetTestFakeStorageObject()
 	defaultObj.Generation = 2
 	defaultObj.Content = []byte(updatedContent)
-	t.fakeStorageServer.CreateObject(defaultObj)
+	CreateObject(t.fakeStorageServer, defaultObj)
 
 	rc, err := t.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
-			Name: DefaultObjectName,
+			Name: TestObjectName,
 			Range: &gcs.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(len(updatedContent)),

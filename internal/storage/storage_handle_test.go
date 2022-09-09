@@ -51,7 +51,7 @@ func init() { RegisterTestSuite(&StorageHandleTest{}) }
 
 func (t *StorageHandleTest) SetUp(_ *TestInfo) {
 	var err error
-	t.fakeStorageServer, err = CreateFakeStorageServer([]fakestorage.Object{GetDefaultObject()})
+	t.fakeStorageServer, err = CreateFakeStorageServer([]fakestorage.Object{GetTestFakeStorageObject()})
 	AssertEq(nil, err)
 }
 
@@ -69,7 +69,7 @@ func (t *StorageHandleTest) TestBucketHandleWhenBucketExists() {
 	fakeClient := t.fakeStorageServer.Client()
 	storageClient := &storageClient{client: fakeClient}
 
-	bucketHandle, err := storageClient.BucketHandle(DefaultBucketName)
+	bucketHandle, err := storageClient.BucketHandle(TestBucketName)
 
 	AssertEq(nil, err)
 	AssertNe(nil, bucketHandle)

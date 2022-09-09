@@ -21,19 +21,19 @@ import (
 const port uint16 = 8081
 const host string = "127.0.0.1"
 
-const DefaultBucketName string = "gcsfuse-default-bucket"
-const DefaultObjectName string = "gcsfuse/default.txt"
-const ContentInDefaultObject string = "Hello GCSFuse!!!"
-const DefaultGeneration int64 = 780
+const TestBucketName string = "gcsfuse-default-bucket"
+const TestObjectName string = "gcsfuse/default.txt"
+const ContentInTestObject string = "Hello GCSFuse!!!"
+const TestObjectGeneration int64 = 780
 
-func GetDefaultObject() fakestorage.Object {
+func GetTestFakeStorageObject() fakestorage.Object {
 	return fakestorage.Object{
 		ObjectAttrs: fakestorage.ObjectAttrs{
-			BucketName: DefaultBucketName,
-			Name:       DefaultObjectName,
-			Generation: DefaultGeneration,
+			BucketName: TestBucketName,
+			Name:       TestObjectName,
+			Generation: TestObjectGeneration,
 		},
-		Content: []byte(ContentInDefaultObject),
+		Content: []byte(ContentInTestObject),
 	}
 }
 
@@ -43,4 +43,8 @@ func CreateFakeStorageServer(objects []fakestorage.Object) (*fakestorage.Server,
 		Host:           host,
 		Port:           port,
 	})
+}
+
+func CreateObject(server *fakestorage.Server, object fakestorage.Object) {
+	server.CreateObject(object)
 }
