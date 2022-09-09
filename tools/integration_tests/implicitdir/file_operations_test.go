@@ -16,6 +16,7 @@
 package implicitdir_test
 
 import (
+	"io"
 	"os"
 	"path"
 	"testing"
@@ -72,4 +73,41 @@ func TestFileAttributes(t *testing.T) {
 	if fStat.Size() != 14 {
 		t.Errorf("File size is not 14 bytes, found size: %d bytes", fStat.Size())
 	}
+}
+
+func TestCopyFile(t *testing.T) {
+	fileName := createTempFile()
+	err := clearKernelCache()
+	if err != nil {
+		t.Errorf("Clear Kernel Cache: %v", err)
+	}
+	content, err := os.ReadFile(fileName)
+	if err != nil {
+		t.Errorf("Read: %v", err)
+	}
+	newFileName := fileName + "Copy"
+	if _, err := os.Stat(newFileName); err == nil {
+		t.Errorf("Copied file %s already present", newFileName)
+	}
+
+	// File copying with io.Copy() utility.
+	source, err := os.Open(fileName)
+	if err != nil {
+		t.Errorf("File %s opening error: %v", fileName, err)
+	}
+	defer source.Close()
+	destination, err := os.Create(newFileName)
+	if err != nil {
+		t.Errorf("Copied file creation error: %v", err)
+	}
+	defer destination.Close()
+	_, err = io.Copy(destination, source)
+	if err != nil {
+		t.Errorf("Error in file copying: %v", err)
+	}
+
+	// Check if the data in the copied file matches the original file,
+	// and the data in original file is unchanged.
+	compareFileContents(t, newFileName, string(content))
+	compareFileContents(t, fileName, string(content))
 }
