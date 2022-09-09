@@ -34,8 +34,8 @@ type bucketHandle struct {
 }
 
 func (bh *bucketHandle) NewReader(
-		ctx context.Context,
-		req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	ctx context.Context,
+	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64((*req.Range).Start)
 	end := int64((*req.Range).Limit)
@@ -74,9 +74,5 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 
 	// Deleting object through Go Storage Client.
 	err = obj.Delete(ctx)
-	if err != nil {
-		return
-	}
-
 	return
 }
