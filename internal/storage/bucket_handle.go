@@ -74,5 +74,6 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 
 	// Deleting object through Go Storage Client.
 	err = obj.Delete(ctx)
+
 	return
 }

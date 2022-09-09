@@ -17,7 +17,9 @@ package implicitdir_test
 
 import (
 	"os"
+	"path"
 	"testing"
+	"time"
 )
 
 func TestRenameFile(t *testing.T) {
@@ -47,4 +49,27 @@ func TestRenameFile(t *testing.T) {
 	}
 	// Check if the data in the file is the same after renaming.
 	compareFileContents(t, newFileName, string(content))
+}
+
+func TestFileAttributes(t *testing.T) {
+	preCreateTime := time.Now()
+	fileName := createTempFile()
+	postCreateTime := time.Now()
+
+	fStat, err := os.Stat(fileName)
+
+	if err != nil {
+		t.Errorf("os.Stat error: %s, %v", fileName, err)
+	}
+	statFileName := path.Join(tmpDir, fStat.Name())
+	if fileName != statFileName {
+		t.Errorf("File name not matched in os.Stat, found: %s, expected: %s", statFileName, fileName)
+	}
+	if (preCreateTime.After(fStat.ModTime())) || (postCreateTime.Before(fStat.ModTime())) {
+		t.Errorf("File modification time not in the expected time-range")
+	}
+	// The file size in createTempFile() is 14 bytes
+	if fStat.Size() != 14 {
+		t.Errorf("File size is not 14 bytes, found size: %d bytes", fStat.Size())
+	}
 }

@@ -24,14 +24,13 @@ import (
 	. "github.com/jacobsa/ogletest"
 )
 
-const fileContent string = "hello gcsfuse"
-const validFilePathInBucket string = "some/object/file.txt"
-const invalidFilePathInBucket string = "test/foo"
+const missingObjectName string = "test/foo"
 
 func TestBucketHandle(t *testing.T) { RunTests(t) }
 
 type BucketHandleTest struct {
 	fakeStorageServer *fakestorage.Server
+	bucketHandle      *bucketHandle
 }
 
 var _ SetUpInterface = &BucketHandleTest{}
@@ -41,33 +40,110 @@ func init() { RegisterTestSuite(&BucketHandleTest{}) }
 
 func (t *BucketHandleTest) SetUp(_ *TestInfo) {
 	var err error
-	t.fakeStorageServer, err = fakestorage.NewServerWithOptions(fakestorage.Options{
-		InitialObjects: []fakestorage.Object{
-			{
-				ObjectAttrs: fakestorage.ObjectAttrs{
-					BucketName: validBucketName,
-					Name:       validFilePathInBucket,
-				},
-				Content: []byte(fileContent),
-			},
-		},
-		Host: "127.0.0.1",
-		Port: 8081,
-	})
+	t.fakeStorageServer, err = CreateFakeStorageServer([]fakestorage.Object{GetTestFakeStorageObject()})
 	AssertEq(nil, err)
+
+	storageClient := &storageClient{client: t.fakeStorageServer.Client()}
+	t.bucketHandle, err = storageClient.BucketHandle(TestBucketName)
+	AssertEq(nil, err)
+	AssertNe(nil, t.bucketHandle)
 }
+
 func (t *BucketHandleTest) TearDown() {
 	t.fakeStorageServer.Stop()
 }
-func (t *BucketHandleTest) TestDeleteObjectMethodWithValidObject() {
-	fakeClient := t.fakeStorageServer.Client()
-	storageClient := &storageClient{client: fakeClient}
-	bucketHandle, err := storageClient.BucketHandle(validBucketName)
-	AssertEq(nil, err)
-	AssertNe(nil, bucketHandle)
 
-	error := bucketHandle.DeleteObject(context.Background(), &gcs.DeleteObjectRequest{
-		Name:                       validFilePathInBucket,
+func (t *BucketHandleTest) TestNewReaderMethodWithCompleteRead() {
+	rc, err := t.bucketHandle.NewReader(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: TestObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(ContentInTestObject)),
+			},
+		})
+
+	AssertEq(nil, err)
+	defer rc.Close()
+	buf := make([]byte, len(ContentInTestObject))
+	_, err = rc.Read(buf)
+	AssertEq(nil, err)
+	ExpectEq(string(buf[:]), ContentInTestObject)
+}
+
+func (t *BucketHandleTest) TestNewReaderMethodWithRangeRead() {
+	start := uint64(2)
+	limit := uint64(8)
+
+	rc, err := t.bucketHandle.NewReader(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: TestObjectName,
+			Range: &gcs.ByteRange{
+				Start: start,
+				Limit: limit,
+			},
+		})
+
+	AssertEq(nil, err)
+	defer rc.Close()
+	buf := make([]byte, limit-start)
+	_, err = rc.Read(buf)
+	AssertEq(nil, err)
+	ExpectEq(string(buf[:]), ContentInTestObject[start:limit])
+}
+
+func (t *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
+	rc, err := t.bucketHandle.NewReader(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: missingObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(ContentInTestObject)),
+			},
+		})
+
+	AssertNe(nil, err)
+	AssertEq(nil, rc)
+}
+
+func (t *BucketHandleTest) TestNewReaderMethodWithValidGeneration() {
+	rc, err := t.bucketHandle.NewReader(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: TestObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(ContentInTestObject)),
+			},
+			Generation: TestObjectGeneration,
+		})
+
+	AssertEq(nil, err)
+	defer rc.Close()
+	buf := make([]byte, len(ContentInTestObject))
+	_, err = rc.Read(buf)
+	AssertEq(nil, err)
+	ExpectEq(string(buf[:]), ContentInTestObject)
+}
+
+func (t *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
+	rc, err := t.bucketHandle.NewReader(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: TestObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(ContentInTestObject)),
+			},
+			Generation: 222, // other than TestObjectGeneration, doesn't exist.
+		})
+
+	AssertNe(nil, err)
+	AssertEq(nil, rc)
+}
+
+func (t *BucketHandleTest) TestDeleteObjectMethodWithValidObject() {
+
+	error := t.bucketHandle.DeleteObject(context.Background(), &gcs.DeleteObjectRequest{
+		Name:                       TestObjectName,
 		Generation:                 0,
 		MetaGenerationPrecondition: nil,
 	})
@@ -76,14 +152,9 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithValidObject() {
 }
 
 func (t *BucketHandleTest) TestDeleteObjectMethodWithInValidObject() {
-	fakeClient := t.fakeStorageServer.Client()
-	storageClient := &storageClient{client: fakeClient}
-	bucketHandle, err := storageClient.BucketHandle(validBucketName)
-	AssertEq(nil, err)
-	AssertNe(nil, bucketHandle)
 
-	error := bucketHandle.DeleteObject(context.Background(), &gcs.DeleteObjectRequest{
-		Name:                       invalidFilePathInBucket,
+	error := t.bucketHandle.DeleteObject(context.Background(), &gcs.DeleteObjectRequest{
+		Name:                       missingObjectName,
 		Generation:                 0,
 		MetaGenerationPrecondition: nil,
 	})
