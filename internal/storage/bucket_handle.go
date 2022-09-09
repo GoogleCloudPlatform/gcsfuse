@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// For now, we are not writing the unit test, which requires multiple
+// version of same object. As this is not supported by fake-storage-server.
+// Although API is exposed to enable the object versioning for a bucket,
+// but it returns "method not allowed" when we call it.
+
 package storage
 
 import (
