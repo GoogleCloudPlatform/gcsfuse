@@ -16,8 +16,8 @@
 package implicitdir_test
 
 import (
+	"io"
 	"os"
-	"os/exec"
 	"path"
 	"testing"
 	"time"
@@ -87,14 +87,26 @@ func TestCopyFile(t *testing.T) {
 	}
 	newFileName := fileName + "Copy"
 	if _, err := os.Stat(newFileName); err == nil {
-		t.Errorf("Renamed file %s already present", newFileName)
+		t.Errorf("Copied file %s already present", newFileName)
 	}
 
-	cmd := exec.Command("cp", fileName, newFileName)
-	if err := cmd.Run(); err != nil {
-		t.Errorf("Copy unsuccessful: %v", err)
+	// File copying with io.Copy() utility.
+	source, err := os.Open(fileName)
+	if err != nil {
+		t.Errorf("File %s opening error: %v", fileName, err)
+	}
+	defer source.Close()
+	destination, err := os.Create(newFileName)
+	if err != nil {
+		t.Errorf("Copied file creation error: %v", err)
+	}
+	defer destination.Close()
+	_, err = io.Copy(destination, source)
+	if err != nil {
+		t.Errorf("Error in file copying: %v", err)
 	}
 
+	// Checks on old and new file.
 	if _, err := os.Stat(fileName); os.IsExist(err) {
 		t.Errorf("Old file %s not found", fileName)
 	}
