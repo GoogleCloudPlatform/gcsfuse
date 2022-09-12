@@ -60,7 +60,7 @@ func (bh *bucketHandle) NewReader(
 	rc = io.NopCloser(r)
 	return
 }
-func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) (err error) {
+func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
 	obj := b.bucket.Object(req.Name)
 
 	// Switching to the requested generation of the object.
