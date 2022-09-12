@@ -163,48 +163,6 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 	AssertEq(err_expected.Error(), error.Error())
 }
 
-func (t *BucketHandleTest) TestDeleteObjectMethodWithValidGeneration() {
-	error := t.bucketHandle.DeleteObject(context.Background(),
-		&gcs.DeleteObjectRequest{
-			Name:                       TestObjectName,
-			Generation:                 0,
-			MetaGenerationPrecondition: nil,
-		})
-
-	AssertEq(nil, error)
-}
-
-func (t *BucketHandleTest) TestDeleteObjectMethodWithInValidGeneration() {
-	error := t.bucketHandle.DeleteObject(context.Background(),
-		&gcs.DeleteObjectRequest{
-			Name:                       TestObjectName,
-			Generation:                 222, // other than TestObjectGeneration, doesn't exist.
-			MetaGenerationPrecondition: nil,
-		})
-
-	AssertEq(nil, error)
-}
-
-func (t *BucketHandleTest) TestDeleteObjectMethodWithValidMetaGeneration() {
-	error := t.bucketHandle.DeleteObject(context.Background(),
-		&gcs.DeleteObjectRequest{
-			Name:                       TestObjectName,
-			Generation:                 0,
-			MetaGenerationPrecondition: nil,
-		})
-
-	AssertEq(nil, error)
-}
-
-func (t *BucketHandleTest) TestDeleteObjectMethodWithInValidMetaGeneration() {
-	var metaGeneration int64 = 222
-
-	error := t.bucketHandle.DeleteObject(context.Background(),
-		&gcs.DeleteObjectRequest{
-			Name:                       TestObjectName,
-			Generation:                 0,
-			MetaGenerationPrecondition: &metaGeneration,
-		})
-
-	AssertEq(nil, error)
-}
+//Unit tests for Invalid Generation and Metagenaration are not written because
+//Deletemethod of fake server object is not returning error for both the cases
+//https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#:~:text=*Server)-,deleteObject,-(r%20*
