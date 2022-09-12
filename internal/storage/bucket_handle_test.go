@@ -162,6 +162,7 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 	err_expected := fmt.Errorf("storage: object doesn't exist")
 	AssertEq(err_expected.Error(), error.Error())
 }
+
 func (t *BucketHandleTest) TestDeleteObjectMethodWithValidGeneration() {
 	error := t.bucketHandle.DeleteObject(context.Background(),
 		&gcs.DeleteObjectRequest{
@@ -172,6 +173,7 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithValidGeneration() {
 
 	AssertEq(nil, error)
 }
+
 func (t *BucketHandleTest) TestDeleteObjectMethodWithInValidGeneration() {
 	error := t.bucketHandle.DeleteObject(context.Background(),
 		&gcs.DeleteObjectRequest{
@@ -182,6 +184,7 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithInValidGeneration() {
 
 	AssertEq(nil, error)
 }
+
 func (t *BucketHandleTest) TestDeleteObjectMethodWithValidMetaGeneration() {
 	error := t.bucketHandle.DeleteObject(context.Background(),
 		&gcs.DeleteObjectRequest{
@@ -192,6 +195,7 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithValidMetaGeneration() {
 
 	AssertEq(nil, error)
 }
+
 func (t *BucketHandleTest) TestDeleteObjectMethodWithInValidMetaGeneration() {
 	var metagenration int64 = 222
 
