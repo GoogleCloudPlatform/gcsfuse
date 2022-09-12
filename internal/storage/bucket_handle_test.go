@@ -197,13 +197,13 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithValidMetaGeneration() {
 }
 
 func (t *BucketHandleTest) TestDeleteObjectMethodWithInValidMetaGeneration() {
-	var metagenration int64 = 222
+	var metaGeneration int64 = 222
 
 	error := t.bucketHandle.DeleteObject(context.Background(),
 		&gcs.DeleteObjectRequest{
 			Name:                       TestObjectName,
 			Generation:                 0,
-			MetaGenerationPrecondition: &metagenration,
+			MetaGenerationPrecondition: &metaGeneration,
 		})
 
 	AssertEq(nil, error)
