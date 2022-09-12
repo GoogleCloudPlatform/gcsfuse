@@ -66,7 +66,7 @@ func GetTokenSource(
 		tokenSrc, err = newTokenSourceFromPath(ctx, keyFile, scope)
 		method = "newTokenSourceFromPath"
 	} else if tokenUrl != "" {
-		tokenSrc = newProxyTokenSource(ctx, tokenUrl, reuseTokenFromUrl)
+		tokenSrc, err = newProxyTokenSource(ctx, tokenUrl, reuseTokenFromUrl)
 		method = "newProxyTokenSource"
 	} else {
 		tokenSrc, err = google.DefaultTokenSource(ctx, scope)
