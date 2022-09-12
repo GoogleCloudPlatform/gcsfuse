@@ -162,3 +162,45 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 	err_expected := fmt.Errorf("storage: object doesn't exist")
 	AssertEq(err_expected.Error(), error.Error())
 }
+func (t *BucketHandleTest) TestDeleteObjectMethodWithValidGeneration() {
+	error := t.bucketHandle.DeleteObject(context.Background(),
+		&gcs.DeleteObjectRequest{
+			Name:                       TestObjectName,
+			Generation:                 0,
+			MetaGenerationPrecondition: nil,
+		})
+
+	AssertEq(nil, error)
+}
+func (t *BucketHandleTest) TestDeleteObjectMethodWithInValidGeneration() {
+	error := t.bucketHandle.DeleteObject(context.Background(),
+		&gcs.DeleteObjectRequest{
+			Name:                       TestObjectName,
+			Generation:                 222, // other than TestObjectGeneration, doesn't exist.
+			MetaGenerationPrecondition: nil,
+		})
+
+	AssertEq(nil, error)
+}
+func (t *BucketHandleTest) TestDeleteObjectMethodWithValidMetaGeneration() {
+	error := t.bucketHandle.DeleteObject(context.Background(),
+		&gcs.DeleteObjectRequest{
+			Name:                       TestObjectName,
+			Generation:                 0,
+			MetaGenerationPrecondition: nil,
+		})
+
+	AssertEq(nil, error)
+}
+func (t *BucketHandleTest) TestDeleteObjectMethodWithInValidMetaGeneration() {
+	var metagenration int64 = 222
+
+	error := t.bucketHandle.DeleteObject(context.Background(),
+		&gcs.DeleteObjectRequest{
+			Name:                       TestObjectName,
+			Generation:                 0,
+			MetaGenerationPrecondition: &metagenration,
+		})
+
+	AssertEq(nil, error)
+}
