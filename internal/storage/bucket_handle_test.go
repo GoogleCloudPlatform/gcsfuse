@@ -16,7 +16,7 @@ package storage
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/fsouza/fake-gcs-server/fakestorage"
@@ -159,7 +159,7 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 			MetaGenerationPrecondition: nil,
 		})
 
-	err_expected := fmt.Errorf("storage: object doesn't exist")
+	err_expected := errors.New("storage: object doesn't exist")
 	AssertEq(err_expected.Error(), error.Error())
 }
 
