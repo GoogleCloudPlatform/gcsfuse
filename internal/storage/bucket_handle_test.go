@@ -25,6 +25,10 @@ import (
 
 const missingObjectName string = "test/foo"
 
+// FakeGCSServer is not handling generation and metageneration checks for Delete flow.
+// Hence, we are not writing the test for this test case.
+// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L515
+
 func TestBucketHandle(t *testing.T) { RunTests(t) }
 
 type BucketHandleTest struct {
@@ -160,7 +164,3 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 
 	AssertEq("storage: object doesn't exist", error.Error())
 }
-
-// Delete-method of the fake server object is not returning an error for invalid Generation and MetaGenerationPrecondition.
-// Hence, we are not writing the test for this test case.
-// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#:~:text=*Server)-,deleteObject,-(r%20*
