@@ -16,7 +16,6 @@ package storage
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/fsouza/fake-gcs-server/fakestorage"
@@ -159,10 +158,9 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 			MetaGenerationPrecondition: nil,
 		})
 
-	err_expected := errors.New("storage: object doesn't exist")
-	AssertEq(err_expected.Error(), error.Error())
+	AssertEq("storage: object doesn't exist", error.Error())
 }
 
-//Unit tests for Invalid Generation and Metagenaration are not written because
-//Deletemethod of fake server object is not returning error for both the cases
-//https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#:~:text=*Server)-,deleteObject,-(r%20*
+// Unit tests for invalid Generation and MetaGenerationPrecondition are not written, because
+// Delete-method of fake server object is not returning error for both the cases.
+// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#:~:text=*Server)-,deleteObject,-(r%20*
