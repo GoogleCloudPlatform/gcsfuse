@@ -26,7 +26,7 @@ import (
 const missingObjectName string = "test/foo"
 
 // FakeGCSServer is not handling generation and metageneration checks for Delete flow.
-// Hence, we are not writing the test for this test case.
+// Hence, we are not writing tests for these flows.
 // https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L515
 
 func TestBucketHandle(t *testing.T) { RunTests(t) }
