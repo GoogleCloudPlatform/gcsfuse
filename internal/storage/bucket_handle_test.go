@@ -161,6 +161,6 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 	AssertEq("storage: object doesn't exist", error.Error())
 }
 
-// Unit tests for invalid Generation and MetaGenerationPrecondition are not written, because
-// Delete-method of fake server object is not returning error for both the cases.
+// Delete-method of the fake server object is not returning an error for invalid Generation and MetaGenerationPrecondition.
+// Hence, we are not writing the test for this test case.
 // https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#:~:text=*Server)-,deleteObject,-(r%20*
