@@ -60,3 +60,18 @@ func (bh *bucketHandle) NewReader(
 	rc = io.NopCloser(r)
 	return
 }
+func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
+	obj := b.bucket.Object(req.Name)
+
+	// Switching to the requested generation of the object.
+	if req.Generation != 0 {
+		obj = obj.Generation(req.Generation)
+	}
+	// Putting condition that the object's MetaGeneration should match the requested MetaGeneration for deletion to occur.
+	if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
+		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
+	}
+
+	// Deleting object through Go Storage Client.
+	return obj.Delete(ctx)
+}
