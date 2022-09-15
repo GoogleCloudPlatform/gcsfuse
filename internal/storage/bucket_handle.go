@@ -76,7 +76,7 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 }
 
 func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
-	var attrs *storage.ObjectAttrs = nil
+	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
 	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
 
