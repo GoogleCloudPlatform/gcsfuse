@@ -147,7 +147,7 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithValidObject() {
 	error := t.bucketHandle.DeleteObject(context.Background(),
 		&gcs.DeleteObjectRequest{
 			Name:                       TestObjectName,
-			Generation:                 0,
+			Generation:                 TestObjectGeneration,
 			MetaGenerationPrecondition: nil,
 		})
 
@@ -158,9 +158,29 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 	error := t.bucketHandle.DeleteObject(context.Background(),
 		&gcs.DeleteObjectRequest{
 			Name:                       missingObjectName,
-			Generation:                 0,
+			Generation:                 TestObjectGeneration,
 			MetaGenerationPrecondition: nil,
 		})
 
 	AssertEq("storage: object doesn't exist", error.Error())
+}
+
+func (t *BucketHandleTest) TestStatObjectMethodWithValidObject() {
+	_, error := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name:              TestObjectName,
+			ForceFetchFromGcs: true,
+		})
+
+	AssertEq(nil, error)
+}
+
+func (t *BucketHandleTest) TestStatObjectMethodWithMissingObject() {
+	_, error := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name:              missingObjectName,
+			ForceFetchFromGcs: true,
+		})
+
+	AssertNe(nil, error)
 }

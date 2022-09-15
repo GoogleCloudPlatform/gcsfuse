@@ -72,6 +72,32 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
 	}
 
-	// Deleting object through Go Storage Client.
 	return obj.Delete(ctx)
+}
+
+func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	var attrs *storage.ObjectAttrs = nil
+	// Retrieving object attrs through Go Storage Client.
+	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
+
+	// If error is of type storage.ErrObjectNotExist, then we have to retry once by appending '/' to the object name.
+	// We are retyring to handle the case when the object is a directory.
+	// Since directories in GCS bucket are denoted with a an extra '/' at the end of their name. But in the request we are only provided with their name without '/'.
+	if err == storage.ErrObjectNotExist {
+		dirName := req.Name + "/"
+		attrs, err = b.bucket.Object(dirName).Attrs(ctx)
+		if err == storage.ErrObjectNotExist {
+			err = &gcs.NotFoundError{Err: err} // Special case error that object not found in the bucket.
+			return
+		}
+	}
+	if err != nil {
+		err = fmt.Errorf("Error in returning object attributes: %v", err)
+		return
+	}
+
+	// Converting attrs to type *Object
+	o = gcs.ObjectAttrsToBucketObject(attrs)
+
+	return
 }
