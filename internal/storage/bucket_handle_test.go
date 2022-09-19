@@ -166,6 +166,7 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 	AssertEq("storage: object doesn't exist", error.Error())
 }
 
+<<<<<<< HEAD
 func (t *BucketHandleTest) TestStatObjectMethodWithValidObject() {
 	_, error := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
@@ -185,3 +186,8 @@ func (t *BucketHandleTest) TestStatObjectMethodWithMissingObject() {
 
 	AssertTrue(errors.As(error, &notfound))
 }
+=======
+func (t *BucketHandleTest) TestCreateObjectMethod() {
+
+}
+>>>>>>> 19ab4ece (Added a new method name create object for bucket handle)
