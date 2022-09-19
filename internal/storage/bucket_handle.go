@@ -78,8 +78,8 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 }
 
 func (bh *bucketHandle) CreateObject(
-		ctx context.Context,
-		req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	ctx context.Context,
+	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 
 	obj := bh.bucket.Object(req.Name)
 
@@ -95,20 +95,20 @@ func (bh *bucketHandle) CreateObject(
 	}
 
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
-	// Chuck size for resumable upload is deafult i.e. 16MB.
+	// Chuck size for resumable upload is default i.e. 16MB.
 	wc := obj.NewWriter(ctx)
 	wc.ChunkSize = 0 // This will enable one shot upload and thus increase performance. JSON API Client also performs one-shot upload.
 	//wc = gcs.SetAttrs(wc, req)
 
 	// Copying contents from the request to the Writer. These contents will be copied to the newly created object / already existing object.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
-		err = fmt.Errorf("Error in io.Copy: %v", err)
+		err = fmt.Errorf("error in io.Copy: %w", err)
 		return
 	}
 
 	// Closing the Writer.
 	if err = wc.Close(); err != nil {
-		err = fmt.Errorf("Error in closing writer: %v", err)
+		err = fmt.Errorf("error in closing writer: %w", err)
 		return
 	}
 
@@ -118,5 +118,3 @@ func (bh *bucketHandle) CreateObject(
 	o = storage_util.ObjectAttrsToBucketObject(attrs)
 	return
 }
-
-

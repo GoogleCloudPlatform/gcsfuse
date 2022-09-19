@@ -16,6 +16,7 @@ package storage
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/fsouza/fake-gcs-server/fakestorage"
@@ -165,6 +166,13 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 	AssertEq("storage: object doesn't exist", error.Error())
 }
 
-func (t *BucketHandleTest) TestCreateObjectMethod() {
+func (t *BucketHandleTest) TestCreateObjectMethodWithValidObject() {
+	obj, err := t.bucketHandle.CreateObject(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:     "test_object",
+			Contents: strings.NewReader("Creating new object"),
+		})
 
+	AssertEq(obj.Name, "test_object")
+	AssertEq(nil, err)
 }
