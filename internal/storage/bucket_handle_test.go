@@ -164,3 +164,7 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 
 	AssertEq("storage: object doesn't exist", error.Error())
 }
+
+func (t *BucketHandleTest) TestCreateObjectMethod() {
+
+}

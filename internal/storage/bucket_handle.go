@@ -24,6 +24,7 @@ import (
 	"io"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storage_util"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
@@ -75,3 +76,47 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 	// Deleting object through Go Storage Client.
 	return obj.Delete(ctx)
 }
+
+func (bh *bucketHandle) CreateObject(
+		ctx context.Context,
+		req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+
+	obj := bh.bucket.Object(req.Name)
+
+	// Putting conditions on Generation and MetaGeneration of the object for upload to occur.
+	if req.GenerationPrecondition != nil {
+		if *req.GenerationPrecondition == 0 {
+			// Passing because GenerationPrecondition = 0 means object does not exist in the GCS Bucket yet.
+		} else if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
+			obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition, MetagenerationMatch: *req.MetaGenerationPrecondition})
+		} else {
+			obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition})
+		}
+	}
+
+	// Creating a NewWriter with requested attributes, using Go Storage Client.
+	// Chuck size for resumable upload is deafult i.e. 16MB.
+	wc := obj.NewWriter(ctx)
+	wc.ChunkSize = 0 // This will enable one shot upload and thus increase performance. JSON API Client also performs one-shot upload.
+	//wc = gcs.SetAttrs(wc, req)
+
+	// Copying contents from the request to the Writer. These contents will be copied to the newly created object / already existing object.
+	if _, err = io.Copy(wc, req.Contents); err != nil {
+		err = fmt.Errorf("Error in io.Copy: %v", err)
+		return
+	}
+
+	// Closing the Writer.
+	if err = wc.Close(); err != nil {
+		err = fmt.Errorf("Error in closing writer: %v", err)
+		return
+	}
+
+	attrs := wc.Attrs() // Retrieving the attributes of the created object.
+
+	// Converting attrs to type *Object.
+	o = storage_util.ObjectAttrsToBucketObject(attrs)
+	return
+}
+
+
