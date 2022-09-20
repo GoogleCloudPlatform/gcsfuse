@@ -108,12 +108,12 @@ type RandomReader interface {
 // reads using the given bucket.
 func NewRandomReader(o *gcs.Object, bucket gcs.Bucket, sequentialReadSizeMb int32) RandomReader {
 	return &randomReader{
-		object:         o,
-		bucket:         bucket,
-		start:          -1,
-		limit:          -1,
-		seeks:          0,
-		totalReadBytes: 0,
+		object:               o,
+		bucket:               bucket,
+		start:                -1,
+		limit:                -1,
+		seeks:                0,
+		totalReadBytes:       0,
 		sequentialReadSizeMb: sequentialReadSizeMb,
 	}
 }
@@ -306,7 +306,8 @@ func (rr *randomReader) readFull(
 }
 
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
-// a prefix.
+// a prefix. Irrespective of the size requested, we try to fetch more data
+// from GCS defined by sequentialReadSizeMb flag to serve future read requests.
 func (rr *randomReader) startRead(
 	ctx context.Context,
 	start int64,
