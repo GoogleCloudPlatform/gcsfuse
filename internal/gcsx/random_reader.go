@@ -321,8 +321,8 @@ func (rr *randomReader) startRead(
 		return
 	}
 
-	// GCS requests are expensive. Prefer to issue read requests to the end of
-	// the object. Sequential reads will simply sip from the fire house
+	// GCS requests are expensive. Prefer to issue read requests defined by
+	// sequentialReadSizeMb flag. Sequential reads will simply sip from the fire house
 	// with each call to ReadAt. In practice, GCS will fill the TCP buffers
 	// with about 6 MB of data. Requests from outside GCP will be charged
 	// about 6MB of egress data, even if less data is read. Inside GCP
