@@ -20,7 +20,7 @@ type objectAttrsToBucketObject struct {
 
 func init() { RegisterTestSuite(&objectAttrsToBucketObject{}) }
 
-func (t objectAttrsToBucketObject) TestObjectAttrsToBucketObjectMethodWithValidObject() {
+func (t objectAttrsToBucketObject) TestObjectAttrsToBucketObjectMethod() {
 	var attrMd5 []byte
 	Time := time.Now()
 	attrs := storage.ObjectAttrs{
