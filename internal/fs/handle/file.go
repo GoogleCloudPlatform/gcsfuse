@@ -74,11 +74,7 @@ func (fh *FileHandle) Unlock() {
 //
 // LOCKS_REQUIRED(fh)
 // LOCKS_EXCLUDED(fh.inode)
-func (fh *FileHandle) Read(
-		ctx context.Context,
-		dst []byte,
-		offset int64,
-		sequentialReadSizeMb int32) (n int, err error) {
+func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) (n int, err error) {
 	// Lock the inode and attempt to ensure that we have a reader for its current
 	// state, or clear fh.reader if it's not possible to create one (probably
 	// because the inode is dirty).
