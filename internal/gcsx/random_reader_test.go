@@ -595,12 +595,10 @@ func (t *RandomReaderTest) SequentialReads_existingReader_requestedSizeGreaterTh
 	// by the read below.
 	const existingSize = 3
 	r := strings.NewReader(strings.Repeat("x", existingSize))
-
 	t.rr.wrapped.reader = ioutil.NopCloser(r)
 	t.rr.wrapped.cancel = func() {}
 	t.rr.wrapped.start = 0
 	t.rr.wrapped.limit = existingSize
-
 	// Create readers for each chunk.
 	chunk1Reader := strings.NewReader(strings.Repeat("x", chunkSize))
 	chunk1RC := ioutil.NopCloser(chunk1Reader)
