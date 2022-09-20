@@ -177,6 +177,13 @@ func newApp() (app *cli.App) {
 					"(use -1 for no limit)",
 			},
 
+			cli.IntFlag{
+				Name:  "sequential-read-size-mb",
+				Value: 200,
+				Usage: "File chunk size to read from GCS in one call. Need to specify " +
+					"the value in MB. ChunkSize less than 1MB is not supported",
+			},
+
 			/////////////////////////
 			// Tuning
 			/////////////////////////
@@ -332,6 +339,7 @@ type flagStorage struct {
 	ReuseTokenFromUrl                  bool
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
+	SequentialReadSizeMb               int32
 
 	// Tuning
 	MaxRetrySleep     time.Duration
@@ -455,6 +463,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		ReuseTokenFromUrl:                  c.BoolT("reuse-token-from-url"),
 		EgressBandwidthLimitBytesPerSecond: c.Float64("limit-bytes-per-sec"),
 		OpRateLimitHz:                      c.Float64("limit-ops-per-sec"),
+		SequentialReadSizeMb:               int32(c.Int("sequential-read-size-mb")),
 
 		// Tuning,
 		MaxRetrySleep:     c.Duration("max-retry-sleep"),

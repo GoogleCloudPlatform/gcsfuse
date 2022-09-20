@@ -58,8 +58,6 @@ const maxReadSize = 8 * MB
 // Minimum number of seeks before evaluating if the read pattern is random.
 const minSeeksForRandom = 2
 
-const maxSizeToReadFromGCS = 200 * MB
-
 // Constants for read types - sequential/random
 const sequential = "Sequential"
 const random = "Random"
@@ -108,19 +106,16 @@ type RandomReader interface {
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(
-		o *gcs.Object,
-		bucket gcs.Bucket) (rr RandomReader, err error) {
-	rr = &randomReader{
+func NewRandomReader(o *gcs.Object, bucket gcs.Bucket, sequentialReadSizeMb int32) RandomReader {
+	return &randomReader{
 		object:         o,
 		bucket:         bucket,
 		start:          -1,
 		limit:          -1,
 		seeks:          0,
 		totalReadBytes: 0,
+		sequentialReadSizeMb: sequentialReadSizeMb,
 	}
-
-	return
 }
 
 type randomReader struct {
@@ -143,6 +138,8 @@ type randomReader struct {
 	limit          int64
 	seeks          uint64
 	totalReadBytes uint64
+
+	sequentialReadSizeMb int32
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -163,9 +160,9 @@ func (rr *randomReader) CheckInvariants() {
 }
 
 func (rr *randomReader) ReadAt(
-		ctx context.Context,
-		p []byte,
-		offset int64) (n int, err error) {
+	ctx context.Context,
+	p []byte,
+	offset int64) (n int, err error) {
 	for len(p) > 0 {
 		// Have we blown past the end of the object?
 		if offset >= int64(rr.object.Size) {
@@ -277,8 +274,8 @@ func (rr *randomReader) Destroy() {
 //
 // REQUIRES: rr.reader != nil
 func (rr *randomReader) readFull(
-		ctx context.Context,
-		p []byte) (n int, err error) {
+	ctx context.Context,
+	p []byte) (n int, err error) {
 	// Start a goroutine that will cancel the read operation we block on below if
 	// the calling context is cancelled, but only if this method has not already
 	// returned (to avoid souring the reader for the next read if this one is
@@ -311,9 +308,9 @@ func (rr *randomReader) readFull(
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
 // a prefix.
 func (rr *randomReader) startRead(
-		ctx context.Context,
-		start int64,
-		size int64) (err error) {
+	ctx context.Context,
+	start int64,
+	size int64) (err error) {
 	// Make sure start and size are legal.
 	if start < 0 || uint64(start) > rr.object.Size || size < 0 {
 		err = fmt.Errorf(
@@ -355,7 +352,10 @@ func (rr *randomReader) startRead(
 		end = int64(rr.object.Size)
 	}
 
-	if end-start > maxSizeToReadFromGCS {
+	// To avoid overloading GCS and to have reasonable latencies, we will only
+	// fetch data of max size defined by sequentialReadSizeMb.
+	maxSizeToReadFromGCS := int64(rr.sequentialReadSizeMb * MB)
+	if end - start > maxSizeToReadFromGCS {
 		end = start + maxSizeToReadFromGCS
 	}
 

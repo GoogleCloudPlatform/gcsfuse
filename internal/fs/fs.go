@@ -104,6 +104,9 @@ type ServerConfig struct {
 
 	// Allow renaming a directory containing fewer descendants than this limit.
 	RenameDirLimit int64
+
+	// File chunk size to read from GCS in one call. Specified in MB.
+	SequentialReadSizeMb int32
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -142,6 +145,7 @@ func NewFileSystem(
 		inodeAttributeCacheTTL: cfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:        cfg.DirTypeCacheTTL,
 		renameDirLimit:         cfg.RenameDirLimit,
+		sequentialReadSizeMb:   cfg.SequentialReadSizeMb,
 		uid:                    cfg.Uid,
 		gid:                    cfg.Gid,
 		fileMode:               cfg.FilePerms,
@@ -267,6 +271,7 @@ type fileSystem struct {
 	inodeAttributeCacheTTL time.Duration
 	dirTypeCacheTTL        time.Duration
 	renameDirLimit         int64
+	sequentialReadSizeMb   int32
 
 	// The user and group owning everything in the file system.
 	uid uint32
@@ -1716,7 +1721,7 @@ func (fs *fileSystem) ReadFile(
 	defer fh.Unlock()
 
 	// Serve the read.
-	op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset)
+	op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
 
 	// As required by fuse, we don't treat EOF as an error.
 	if err == io.EOF {
