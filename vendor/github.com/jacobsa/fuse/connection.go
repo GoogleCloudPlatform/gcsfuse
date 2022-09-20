@@ -309,6 +309,7 @@ func (c *Connection) finishOp(
 func (c *Connection) handleInterrupt(fuseID uint64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	fmt.Println("Interrrupt triggered")
 
 	// NOTE(jacobsa): fuse.txt in the Linux kernel documentation
 	// (https://goo.gl/H55Dnr) defines the kernel <-> userspace protocol for
@@ -329,8 +330,9 @@ func (c *Connection) handleInterrupt(fuseID uint64) {
 		return
 	}
 	
-	panic("Invokig cancel in interrupt")
+	fmt.Println("Invokig cancel in interrupt")
 	cancel()
+	fmt.Println("cancel returned in interrupt")
 }
 
 // Read the next message from the kernel. The message must later be destroyed
