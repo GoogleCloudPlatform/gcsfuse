@@ -512,6 +512,7 @@ func (t *RandomReaderTest) UpgradesSequentialReads_ExistingReader() {
 	// Check the state now.
 	AssertEq(nil, err)
 	ExpectEq(1+readSize, t.rr.wrapped.start)
+	// Limit is same as the byteRange of last GCS call made.
 	ExpectEq(1+existingSize+sequentialReadSizeInBytes, t.rr.wrapped.limit)
 }
 
