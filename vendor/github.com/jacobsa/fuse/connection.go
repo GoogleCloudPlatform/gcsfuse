@@ -328,7 +328,8 @@ func (c *Connection) handleInterrupt(fuseID uint64) {
 	if !ok {
 		return
 	}
-
+	
+	panic("Invokig cancel in interrupt")
 	cancel()
 }
 
