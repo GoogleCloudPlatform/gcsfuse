@@ -567,11 +567,11 @@ func (t *RandomReaderTest) SequentialReads_NoExistingReader_requestedSizeGreater
 		WillOnce(Return(chunk1RC, nil))
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
-		AllOf(rangeStartIs(chunkSize), rangeLimitIs(chunkSize * 2))).
+		AllOf(rangeStartIs(chunkSize), rangeLimitIs(chunkSize*2))).
 		WillOnce(Return(chunk2RC, nil))
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
-		AllOf(rangeStartIs(chunkSize*2), rangeLimitIs(chunkSize * 3))).
+		AllOf(rangeStartIs(chunkSize*2), rangeLimitIs(chunkSize*3))).
 		WillOnce(Return(chunk3RC, nil))
 
 	// Call through.
@@ -613,11 +613,11 @@ func (t *RandomReaderTest) SequentialReads_existingReader_requestedSizeGreaterTh
 		WillOnce(Return(chunk1RC, nil))
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
-		AllOf(rangeStartIs(existingSize+chunkSize), rangeLimitIs(existingSize+ chunkSize * 2))).
+		AllOf(rangeStartIs(existingSize+chunkSize), rangeLimitIs(existingSize+chunkSize*2))).
 		WillOnce(Return(chunk2RC, nil))
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
-		AllOf(rangeStartIs(existingSize+ chunkSize * 2), rangeLimitIs(existingSize + chunkSize * 3))).
+		AllOf(rangeStartIs(existingSize+chunkSize*2), rangeLimitIs(existingSize+chunkSize*3))).
 		WillOnce(Return(chunk3RC, nil))
 
 	// Call through.
@@ -627,5 +627,5 @@ func (t *RandomReaderTest) SequentialReads_existingReader_requestedSizeGreaterTh
 	// Check the state now.
 	ExpectEq(nil, err)
 	ExpectEq(readSize, t.rr.wrapped.start)
-	ExpectEq(existingSize + readSize, t.rr.wrapped.limit)
+	ExpectEq(existingSize+readSize, t.rr.wrapped.limit)
 }

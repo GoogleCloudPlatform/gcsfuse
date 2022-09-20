@@ -355,7 +355,7 @@ func (rr *randomReader) startRead(
 	// To avoid overloading GCS and to have reasonable latencies, we will only
 	// fetch data of max size defined by sequentialReadSizeMb.
 	maxSizeToReadFromGCS := int64(rr.sequentialReadSizeMb * MB)
-	if end - start > maxSizeToReadFromGCS {
+	if end-start > maxSizeToReadFromGCS {
 		end = start + maxSizeToReadFromGCS
 	}
 
