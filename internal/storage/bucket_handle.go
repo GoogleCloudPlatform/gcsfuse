@@ -24,6 +24,7 @@ import (
 	"io"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
@@ -80,16 +81,10 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 	// Retrieving object attrs through Go Storage Client.
 	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
 
-	// If error is of type storage.ErrObjectNotExist, then we have to retry once by appending '/' to the object name.
-	// We are retyring to handle the case when the object is a directory.
-	// Since directories in GCS bucket are denoted with a an extra '/' at the end of their name. But in the request we are only provided with their name without '/'.
+	// If error is of type storage.ErrObjectNotExist
 	if err == storage.ErrObjectNotExist {
-		dirName := req.Name + "/"
-		attrs, err = b.bucket.Object(dirName).Attrs(ctx)
-		if err == storage.ErrObjectNotExist {
-			err = &gcs.NotFoundError{Err: err} // Special case error that object not found in the bucket.
-			return
-		}
+		err = &gcs.NotFoundError{Err: err} // Special case error that object not found in the bucket.
+		return
 	}
 	if err != nil {
 		err = fmt.Errorf("Error in returning object attributes: %v", err)
@@ -97,7 +92,7 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 	}
 
 	// Converting attrs to type *Object
-	o = gcs.ObjectAttrsToBucketObject(attrs)
+	o = storageutil.ObjectAttrsToBucketObject(attrs)
 
 	return
 }
