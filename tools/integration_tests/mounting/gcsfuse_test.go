@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+
 	//"runtime"
 	"syscall"
 	"testing"
@@ -562,11 +563,13 @@ func (t *GcsfuseTest) HelpFlags() {
 const TEST_RELATIVE_FILE_NAME = "test.txt"
 const TEST_HOME_RELATIVE_FILE_NAME = "test_home.json"
 
-func createTestFilesForRelativePathTesting(curWorkingDir string) (
+func createTestFilesForRelativePathTesting() (
 	curDirTestFile string, homeDirTestFile string) {
 
+	curWorkingDir, err := os.Getwd()
+	AssertEq(nil, err)
 	curDirTestFile = filepath.Join(curWorkingDir, TEST_RELATIVE_FILE_NAME)
-	_, err := os.Create(curDirTestFile)
+	_, err = os.Create(curDirTestFile)
 	AssertEq(nil, err)
 
 	homeDir, err := os.UserHomeDir()
@@ -580,7 +583,7 @@ func createTestFilesForRelativePathTesting(curWorkingDir string) (
 }
 
 func (t *GcsfuseTest) LogFilePath() {
-	curDirTestFile, homeDirTestFile := createTestFilesForRelativePathTesting(t.dir)
+	curDirTestFile, homeDirTestFile := createTestFilesForRelativePathTesting()
 	defer os.Remove(curDirTestFile)
 	defer os.Remove(homeDirTestFile)
 
@@ -627,7 +630,7 @@ func (t *GcsfuseTest) LogFilePath() {
 }
 
 func (t *GcsfuseTest) KeyFilePath() {
-	curDirTestFile, homeDirTestFile := createTestFilesForRelativePathTesting(t.dir)
+	curDirTestFile, homeDirTestFile := createTestFilesForRelativePathTesting()
 	defer os.Remove(curDirTestFile)
 	defer os.Remove(homeDirTestFile)
 
@@ -674,7 +677,7 @@ func (t *GcsfuseTest) KeyFilePath() {
 }
 
 func (t *GcsfuseTest) BothLogAndKeyFilePath() {
-	curDirTestFile, homeDirTestFile := createTestFilesForRelativePathTesting(t.dir)
+	curDirTestFile, homeDirTestFile := createTestFilesForRelativePathTesting()
 	defer os.Remove(curDirTestFile)
 	defer os.Remove(homeDirTestFile)
 
