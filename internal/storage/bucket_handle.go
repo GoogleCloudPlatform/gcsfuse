@@ -87,7 +87,7 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 		return
 	}
 	if err != nil {
-		err = fmt.Errorf("Error in returning object attributes: %v", err)
+		err = fmt.Errorf("Error in fetching object attributes: %v", err)
 		return
 	}
 

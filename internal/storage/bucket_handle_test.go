@@ -168,8 +168,7 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 func (t *BucketHandleTest) TestStatObjectMethodWithValidObject() {
 	_, error := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
-			Name:              TestObjectName,
-			ForceFetchFromGcs: true,
+			Name: TestObjectName,
 		})
 
 	AssertEq(nil, error)
@@ -178,9 +177,7 @@ func (t *BucketHandleTest) TestStatObjectMethodWithValidObject() {
 func (t *BucketHandleTest) TestStatObjectMethodWithMissingObject() {
 	_, error := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
-			Name:              missingObjectName,
-			ForceFetchFromGcs: true,
+			Name: missingObjectName,
 		})
-
-	AssertNe(nil, error)
+	AssertEq("gcs.NotFoundError: storage: object doesn't exist", error.Error())
 }
