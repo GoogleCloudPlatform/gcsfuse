@@ -16,12 +16,12 @@ const Test string = "test"
 
 func TestObjectAttrsToBucketObject(t *testing.T) { RunTests(t) }
 
-type objectAttrsToBucketObject struct {
+type objectAttrsTest struct {
 }
 
-func init() { RegisterTestSuite(&objectAttrsToBucketObject{}) }
+func init() { RegisterTestSuite(&objectAttrsTest{}) }
 
-func (t objectAttrsToBucketObject) TestObjectAttrsToBucketObjectMethod() {
+func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
 	var attrMd5 []byte
 	Time := time.Now()
 	attrs := storage.ObjectAttrs{
@@ -60,7 +60,7 @@ func (t objectAttrsToBucketObject) TestObjectAttrsToBucketObjectMethod() {
 	var MD5Expected [md5.Size]byte
 	copy(MD5Expected[:], attrs.MD5)
 
-	var Acl []*storagev1.ObjectAccessControl
+	var acl []*storagev1.ObjectAccessControl
 	for _, element := range attrs.ACL {
 		currACL := &storagev1.ObjectAccessControl{
 			Entity:   string(element.Entity),
@@ -73,7 +73,7 @@ func (t objectAttrsToBucketObject) TestObjectAttrsToBucketObjectMethod() {
 				Team:          element.ProjectTeam.Team,
 			},
 		}
-		Acl = append(Acl, currACL)
+		acl = append(acl, currACL)
 	}
 
 	object := ObjectAttrsToBucketObject(&attrs)
@@ -98,5 +98,5 @@ func (t objectAttrsToBucketObject) TestObjectAttrsToBucketObjectMethod() {
 	ExpectEq(object.ContentDisposition, attrs.ContentDisposition)
 	ExpectEq(object.CustomTime, CustomeTimeExpected)
 	ExpectEq(object.EventBasedHold, attrs.EventBasedHold)
-	ExpectEq(object.Acl, Acl)
+	ExpectEq(object.Acl, acl)
 }
