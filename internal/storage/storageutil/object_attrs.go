@@ -28,8 +28,8 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 	}
 
 	// Converting MD5[] slice to MD5[md5.Size] type fixed array as accepted by GCSFuse.
-	var MD5 [md5.Size]byte
-	copy(MD5[:], attrs.MD5)
+	var md5 [md5.Size]byte
+	copy(md5[:], attrs.MD5)
 
 	// Setting the parameters in Object and doing conversions as necessary.
 	return &gcs.Object{
@@ -40,7 +40,7 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 		Owner:           attrs.Owner,
 		Size:            uint64(attrs.Size),
 		ContentEncoding: attrs.ContentEncoding,
-		MD5:             &MD5,
+		MD5:             &md5,
 		CRC32C:          &attrs.CRC32C,
 		MediaLink:       attrs.MediaLink,
 		Metadata:        attrs.Metadata,

@@ -12,9 +12,8 @@ import (
 
 const TestBucketName string = "gcsfuse-default-bucket"
 const TestObjectName string = "gcsfuse/default.txt"
-const Test string = "test"
 
-func TestObjectAttrsToBucketObject(t *testing.T) { RunTests(t) }
+func TestObjectAttrs(t *testing.T) { RunTests(t) }
 
 type objectAttrsTest struct {
 }
@@ -23,42 +22,42 @@ func init() { RegisterTestSuite(&objectAttrsTest{}) }
 
 func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
 	var attrMd5 []byte
-	Time := time.Now()
+	timeAttr := time.Now()
 	attrs := storage.ObjectAttrs{
 		Bucket:                  TestBucketName,
 		Name:                    TestObjectName,
-		ContentType:             Test,
-		ContentLanguage:         Test,
-		CacheControl:            Test,
+		ContentType:             "ContentType",
+		ContentLanguage:         "ContentLanguage",
+		CacheControl:            "CacheControl",
 		EventBasedHold:          true,
 		TemporaryHold:           true,
-		RetentionExpirationTime: Time,
+		RetentionExpirationTime: timeAttr,
 		ACL:                     nil,
-		PredefinedACL:           Test,
-		Owner:                   Test,
+		PredefinedACL:           "PredefinedACL",
+		Owner:                   "Owner",
 		Size:                    16,
-		ContentEncoding:         Test,
-		ContentDisposition:      Test,
+		ContentEncoding:         "ContentEncoding",
+		ContentDisposition:      "ContentDisposition",
 		MD5:                     attrMd5,
 		CRC32C:                  0,
-		MediaLink:               Test,
+		MediaLink:               "MediaLink",
 		Metadata:                nil,
 		Generation:              780,
 		Metageneration:          0,
-		StorageClass:            Test,
-		Created:                 Time,
-		Deleted:                 Time,
-		Updated:                 Time,
-		CustomerKeySHA256:       Test,
-		KMSKeyName:              Test,
-		Prefix:                  Test,
-		Etag:                    Test,
-		CustomTime:              Time,
+		StorageClass:            "StorageClass",
+		Created:                 timeAttr,
+		Deleted:                 timeAttr,
+		Updated:                 timeAttr,
+		CustomerKeySHA256:       "CustomerKeySHA256",
+		KMSKeyName:              "KMSKeyName",
+		Prefix:                  "Prefix",
+		Etag:                    "Etag",
+		CustomTime:              timeAttr,
 	}
-	CustomeTimeExpected := string(attrs.CustomTime.Format(time.RFC3339))
+	customeTimeExpected := string(attrs.CustomTime.Format(time.RFC3339))
 
-	var MD5Expected [md5.Size]byte
-	copy(MD5Expected[:], attrs.MD5)
+	var md5Expected [md5.Size]byte
+	copy(md5Expected[:], attrs.MD5)
 
 	var acl []*storagev1.ObjectAccessControl
 	for _, element := range attrs.ACL {
@@ -85,8 +84,8 @@ func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
 	ExpectEq(object.Owner, attrs.Owner)
 	ExpectEq(object.Size, attrs.Size)
 	ExpectEq(object.ContentEncoding, attrs.ContentEncoding)
-	ExpectEq(len(object.MD5), len(&MD5Expected))
-	ExpectEq(cap(object.MD5), cap(&MD5Expected))
+	ExpectEq(len(object.MD5), len(&md5Expected))
+	ExpectEq(cap(object.MD5), cap(&md5Expected))
 	ExpectEq(object.CRC32C, &attrs.CRC32C)
 	ExpectEq(object.MediaLink, attrs.MediaLink)
 	ExpectEq(object.Metadata, attrs.Metadata)
@@ -96,7 +95,7 @@ func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
 	ExpectEq(object.Updated.String(), attrs.Updated.String())
 	ExpectEq(object.Deleted.String(), attrs.Deleted.String())
 	ExpectEq(object.ContentDisposition, attrs.ContentDisposition)
-	ExpectEq(object.CustomTime, CustomeTimeExpected)
+	ExpectEq(object.CustomTime, customeTimeExpected)
 	ExpectEq(object.EventBasedHold, attrs.EventBasedHold)
 	ExpectEq(object.Acl, acl)
 }

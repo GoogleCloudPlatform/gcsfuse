@@ -179,5 +179,6 @@ func (t *BucketHandleTest) TestStatObjectMethodWithMissingObject() {
 		&gcs.StatObjectRequest{
 			Name: missingObjectName,
 		})
+
 	AssertEq("gcs.NotFoundError: storage: object doesn't exist", error.Error())
 }
