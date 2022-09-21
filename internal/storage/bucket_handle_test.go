@@ -16,6 +16,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/fsouza/fake-gcs-server/fakestorage"
@@ -175,10 +176,12 @@ func (t *BucketHandleTest) TestStatObjectMethodWithValidObject() {
 }
 
 func (t *BucketHandleTest) TestStatObjectMethodWithMissingObject() {
+	var notfound *gcs.NotFoundError
+
 	_, error := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: missingObjectName,
 		})
 
-	AssertEq("gcs.NotFoundError: storage: object doesn't exist", error.Error())
+	AssertTrue(errors.As(error, &notfound))
 }
