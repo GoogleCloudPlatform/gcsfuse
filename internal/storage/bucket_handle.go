@@ -24,6 +24,7 @@ import (
 	"io"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
@@ -72,6 +73,26 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
 	}
 
-	// Deleting object through Go Storage Client.
 	return obj.Delete(ctx)
+}
+
+func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	var attrs *storage.ObjectAttrs
+	// Retrieving object attrs through Go Storage Client.
+	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
+
+	// If error is of type storage.ErrObjectNotExist
+	if err == storage.ErrObjectNotExist {
+		err = &gcs.NotFoundError{Err: err} // Special case error that object not found in the bucket.
+		return
+	}
+	if err != nil {
+		err = fmt.Errorf("Error in fetching object attributes: %v", err)
+		return
+	}
+
+	// Converting attrs to type *Object
+	o = storageutil.ObjectAttrsToBucketObject(attrs)
+
+	return
 }
