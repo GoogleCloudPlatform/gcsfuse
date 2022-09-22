@@ -25,6 +25,7 @@ import (
 )
 
 const missingObjectName string = "test/foo"
+const dstObjectName string = "gcsfuse/dst.txt"
 
 // FakeGCSServer is not handling generation and metageneration checks for Delete flow.
 // Hence, we are not writing tests for these flows.
@@ -181,6 +182,32 @@ func (t *BucketHandleTest) TestStatObjectMethodWithMissingObject() {
 	_, error := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: missingObjectName,
+		})
+
+	AssertTrue(errors.As(error, &notfound))
+}
+
+func (t *BucketHandleTest) TestCopyObjectMethodWithValidObject() {
+	_, error := t.bucketHandle.CopyObject(context.Background(),
+		&gcs.CopyObjectRequest{
+			SrcName:                       TestObjectName,
+			DstName:                       dstObjectName,
+			SrcGeneration:                 TestObjectGeneration,
+			SrcMetaGenerationPrecondition: nil,
+		})
+
+	AssertEq(nil, error)
+}
+
+func (t *BucketHandleTest) TestCopyObjectMethodWithMissingObject() {
+	var notfound *gcs.NotFoundError
+
+	_, error := t.bucketHandle.CopyObject(context.Background(),
+		&gcs.CopyObjectRequest{
+			SrcName:                       missingObjectName,
+			DstName:                       dstObjectName,
+			SrcGeneration:                 TestObjectGeneration,
+			SrcMetaGenerationPrecondition: nil,
 		})
 
 	AssertTrue(errors.As(error, &notfound))

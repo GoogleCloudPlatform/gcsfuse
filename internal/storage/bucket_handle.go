@@ -22,11 +22,13 @@ package storage
 import (
 	"fmt"
 	"io"
+	"net/http"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
+	"google.golang.org/api/googleapi"
 )
 
 type bucketHandle struct {
@@ -94,5 +96,40 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 	// Converting attrs to type *Object
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
 
+	return
+}
+
+func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+	srcObj := b.bucket.Object(req.SrcName)
+	dstObj := b.bucket.Object(req.DstName)
+
+	// Switching to the requested Generation of Source Object.
+	if req.SrcGeneration != 0 {
+		srcObj = srcObj.Generation(req.SrcGeneration)
+	}
+
+	// Putting a condition that the MetaGeneration of source should match *req.SrcMetaGenerationPrecondition for copying operation to occur.
+	if req.SrcMetaGenerationPrecondition != nil {
+		srcObj = srcObj.If(storage.Conditions{MetagenerationMatch: *req.SrcMetaGenerationPrecondition})
+	}
+
+	objAttrs, err := dstObj.CopierFrom(srcObj).Run(ctx)
+
+	if err != nil {
+		switch ee := err.(type) {
+		case *googleapi.Error:
+			if ee.Code == http.StatusPreconditionFailed {
+				err = &gcs.PreconditionError{Err: ee}
+			}
+			if ee.Code == http.StatusNotFound {
+				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+			}
+		default:
+			err = fmt.Errorf("Error in copying using Go Storage Client: %v", err)
+		}
+		return
+	}
+	// Converting objAttrs to type *Object
+	o = storageutil.ObjectAttrsToBucketObject(objAttrs)
 	return
 }
