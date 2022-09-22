@@ -24,6 +24,7 @@ import (
 	"io"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storage_util"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
@@ -117,18 +118,13 @@ func (bh *bucketHandle) CreateObject(
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
 	// Chuck size for resumable upload is default i.e. 16MB.
 	wc := obj.NewWriter(ctx)
-	wc.ChunkSize = 0 // This will enable one shot upload and thus increase performance. JSON API Client also performs one-shot upload.
-	//wc = gcs.SetAttrs(wc, req)
+	defer wc.Close()
+	wc.ChunkSize = 0 // This enables one shot upload.
+	wc = storage_util.SetAttrs(wc, req)
 
 	// Copying contents from the request to the Writer. These contents will be copied to the newly created object / already existing object.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
 		err = fmt.Errorf("error in io.Copy: %w", err)
-		return
-	}
-
-	// Closing the Writer.
-	if err = wc.Close(); err != nil {
-		err = fmt.Errorf("error in closing writer: %w", err)
 		return
 	}
 
