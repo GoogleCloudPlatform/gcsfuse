@@ -100,6 +100,11 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	obj := bh.bucket.Object(req.Name)
 
+	// GenerationPrecondition - If non-nil, the object will be created/overwritten
+	// only if the current generation for the object name is equal to the given value.
+	// Zero means the object does not exist.
+	// MetagenerationMatch - Similar work as GenerationPrecondition, but it is only
+	// meaningful in conjunction with GenerationPrecondition.
 	if req.GenerationPrecondition != nil && *req.GenerationPrecondition != 0 {
 		if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
 			obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition, MetagenerationMatch: *req.MetaGenerationPrecondition})
@@ -128,7 +133,6 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	}
 
 	attrs := wc.Attrs() // Retrieving the attributes of the created object.
-
 	// Converting attrs to type *Object.
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
 	return

@@ -214,5 +214,5 @@ func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExi
 		})
 
 	AssertEq(nil, obj)
-	AssertEq(nil, err)
+	AssertNe(nil, err)
 }
