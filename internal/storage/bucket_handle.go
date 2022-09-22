@@ -107,8 +107,6 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 	if req.SrcGeneration != 0 {
 		srcObj = srcObj.Generation(req.SrcGeneration)
 	}
-	var x int64 = 7
-	req.SrcMetaGenerationPrecondition = &x
 
 	// Putting a condition that the metaGeneration of source should match *req.SrcMetaGenerationPrecondition for copy operation to occur.
 	if req.SrcMetaGenerationPrecondition != nil {
@@ -116,8 +114,6 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 	}
 
 	objAttrs, err := dstObj.CopierFrom(srcObj).Run(ctx)
-
-	fmt.Println("ERROR ", err)
 
 	if err != nil {
 		switch ee := err.(type) {
