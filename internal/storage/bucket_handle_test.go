@@ -188,12 +188,31 @@ func (t *BucketHandleTest) TestStatObjectMethodWithMissingObject() {
 }
 
 func (t *BucketHandleTest) TestCreateObjectMethodWithValidObject() {
+	content := "Creating a new object"
 	obj, err := t.bucketHandle.CreateObject(context.Background(),
 		&gcs.CreateObjectRequest{
 			Name:     "test_object",
-			Contents: strings.NewReader("Creating new object"),
+			Contents: strings.NewReader(content),
 		})
 
 	AssertEq(obj.Name, "test_object")
+	AssertEq(obj.Size, len(content))
+	AssertEq(nil, err)
+}
+
+func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExist() {
+	content := "Creating a new object"
+	var crc32 uint32 = 45
+	var generation int64 = 786
+
+	obj, err := t.bucketHandle.CreateObject(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:                   "test_object",
+			Contents:               strings.NewReader(content),
+			CRC32C:                 &crc32,
+			GenerationPrecondition: &generation,
+		})
+
+	AssertEq(nil, obj)
 	AssertEq(nil, err)
 }

@@ -97,17 +97,11 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 	return
 }
 
-func (bh *bucketHandle) CreateObject(
-	ctx context.Context,
-	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
-
+func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	obj := bh.bucket.Object(req.Name)
 
-	// Putting conditions on Generation and MetaGeneration of the object for upload to occur.
-	if req.GenerationPrecondition != nil {
-		if *req.GenerationPrecondition == 0 {
-			// Passing because GenerationPrecondition = 0 means object does not exist in the GCS Bucket yet.
-		} else if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
+	if req.GenerationPrecondition != nil && *req.GenerationPrecondition != 0 {
+		if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
 			obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition, MetagenerationMatch: *req.MetaGenerationPrecondition})
 		} else {
 			obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition})
@@ -117,13 +111,18 @@ func (bh *bucketHandle) CreateObject(
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
 	// Chuck size for resumable upload is default i.e. 16MB.
 	wc := obj.NewWriter(ctx)
-	defer wc.Close()
 	wc.ChunkSize = 0 // This enables one shot upload.
-	wc = storageutil.SetAttrs(wc, req)
+	wc = storageutil.SetAttrsInWriter(wc, req)
 
-	// Copying contents from the request to the Writer. These contents will be copied to the newly created object / already existing object.
+	// Copy the contents to the writer.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
 		err = fmt.Errorf("error in io.Copy: %w", err)
+		return
+	}
+
+	// Closing the Writer.
+	if err = wc.Close(); err != nil {
+		err = fmt.Errorf("error in closing writer: %v", err)
 		return
 	}
 
