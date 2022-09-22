@@ -120,7 +120,8 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 		return
 	}
 
-	// Closing the Writer.
+	// We can't use defer to close the writer, because we need to close the
+	// writer successfully before calling Attrs() method of writer.
 	if err = wc.Close(); err != nil {
 		err = fmt.Errorf("error in closing writer: %v", err)
 		return
