@@ -24,7 +24,6 @@ import (
 	"io"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/storage_util"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
@@ -120,7 +119,7 @@ func (bh *bucketHandle) CreateObject(
 	wc := obj.NewWriter(ctx)
 	defer wc.Close()
 	wc.ChunkSize = 0 // This enables one shot upload.
-	wc = storage_util.SetAttrs(wc, req)
+	wc = storageutil.SetAttrs(wc, req)
 
 	// Copying contents from the request to the Writer. These contents will be copied to the newly created object / already existing object.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
@@ -131,6 +130,6 @@ func (bh *bucketHandle) CreateObject(
 	attrs := wc.Attrs() // Retrieving the attributes of the created object.
 
 	// Converting attrs to type *Object.
-	o = storage_util.ObjectAttrsToBucketObject(attrs)
+	o = storageutil.ObjectAttrsToBucketObject(attrs)
 	return
 }
