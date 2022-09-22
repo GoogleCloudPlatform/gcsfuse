@@ -103,17 +103,21 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 	srcObj := b.bucket.Object(req.SrcName)
 	dstObj := b.bucket.Object(req.DstName)
 
-	// Switching to the requested Generation of Source Object.
+	// Switching to the requested generation of source object.
 	if req.SrcGeneration != 0 {
 		srcObj = srcObj.Generation(req.SrcGeneration)
 	}
+	var x int64 = 7
+	req.SrcMetaGenerationPrecondition = &x
 
-	// Putting a condition that the MetaGeneration of source should match *req.SrcMetaGenerationPrecondition for copying operation to occur.
+	// Putting a condition that the metaGeneration of source should match *req.SrcMetaGenerationPrecondition for copy operation to occur.
 	if req.SrcMetaGenerationPrecondition != nil {
 		srcObj = srcObj.If(storage.Conditions{MetagenerationMatch: *req.SrcMetaGenerationPrecondition})
 	}
 
 	objAttrs, err := dstObj.CopierFrom(srcObj).Run(ctx)
+
+	fmt.Println("ERROR ", err)
 
 	if err != nil {
 		switch ee := err.(type) {
@@ -125,7 +129,7 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
 			}
 		default:
-			err = fmt.Errorf("Error in copying using Go Storage Client: %v", err)
+			err = fmt.Errorf("Error in copying object: %v", err)
 		}
 		return
 	}

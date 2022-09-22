@@ -212,3 +212,17 @@ func (t *BucketHandleTest) TestCopyObjectMethodWithMissingObject() {
 
 	AssertTrue(errors.As(error, &notfound))
 }
+
+func (t *BucketHandleTest) TestCopyObjectMethodWithInvalidGeneration() {
+	var notfound *gcs.NotFoundError
+
+	_, error := t.bucketHandle.CopyObject(context.Background(),
+		&gcs.CopyObjectRequest{
+			SrcName:                       TestObjectName,
+			DstName:                       dstObjectName,
+			SrcGeneration:                 222, // other than TestObjectGeneration, doesn't exist.
+			SrcMetaGenerationPrecondition: nil,
+		})
+
+	AssertTrue(errors.As(error, &notfound))
+}
