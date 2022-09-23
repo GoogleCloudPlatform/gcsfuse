@@ -20,6 +20,30 @@ type objectAttrsTest struct {
 
 func init() { RegisterTestSuite(&objectAttrsTest{}) }
 
+func (t objectAttrsTest) TestConvertACLRuleToObjectAccessControlMethod() {
+	projectTeam := storage.ProjectTeam{
+		ProjectNumber: "123",
+		Team:          "Team",
+	}
+	var attrs = storage.ACLRule{
+		Entity:      "allUsers",
+		EntityID:    "123",
+		Role:        "OWNER",
+		Domain:      "Domain",
+		Email:       "Email",
+		ProjectTeam: &projectTeam,
+	}
+
+	objectAccessControl := convertACLRuleTooObjectAccessControl(attrs)
+
+	ExpectEq(objectAccessControl.Entity, string(attrs.Entity))
+	ExpectEq(objectAccessControl.EntityId, attrs.EntityID)
+	ExpectEq(objectAccessControl.Role, string(attrs.Role))
+	ExpectEq(objectAccessControl.Domain, attrs.Domain)
+	ExpectEq(objectAccessControl.Email, attrs.Email)
+	ExpectEq(objectAccessControl.ProjectTeam.ProjectNumber, attrs.ProjectTeam.ProjectNumber)
+	ExpectEq(objectAccessControl.ProjectTeam.Team, attrs.ProjectTeam.Team)
+}
 func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
 	var attrMd5 []byte
 	timeAttr := time.Now()

@@ -125,7 +125,7 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
 			}
 		default:
-			err = fmt.Errorf("Error in copying object: %v", err)
+			err = fmt.Errorf("Error in copying object: %w", err)
 		}
 		return
 	}
