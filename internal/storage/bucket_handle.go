@@ -35,8 +35,8 @@ type bucketHandle struct {
 }
 
 func (bh *bucketHandle) NewReader(
-		ctx context.Context,
-		req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	ctx context.Context,
+	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64((*req.Range).Start)
 	end := int64((*req.Range).Limit)
@@ -113,7 +113,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	if req.MetaGenerationPrecondition != nil {
 		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
 	}
-	
+
 	// Operation will depend on both generation and meta-generation precondition.
 	if req.GenerationPrecondition != nil && req.MetaGenerationPrecondition != nil {
 		obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition, MetagenerationMatch: *req.MetaGenerationPrecondition})
