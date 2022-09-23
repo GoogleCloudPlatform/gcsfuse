@@ -9,7 +9,7 @@ import (
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
-func convertACLRuleTooObjectAccessControl(element storage.ACLRule) *storagev1.ObjectAccessControl {
+func convertACLRuleToObjectAccessControl(element storage.ACLRule) *storagev1.ObjectAccessControl {
 	return &storagev1.ObjectAccessControl{
 		Entity:   string(element.Entity),
 		EntityId: element.EntityID,
@@ -28,8 +28,7 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 	var acl []*storagev1.ObjectAccessControl
 
 	for _, element := range attrs.ACL {
-		currACL := convertACLRuleTooObjectAccessControl(element)
-		acl = append(acl, currACL)
+		acl = append(acl, convertACLRuleToObjectAccessControl(element))
 	}
 
 	// Converting MD5[] slice to MD5[md5.Size] type fixed array as accepted by GCSFuse.
