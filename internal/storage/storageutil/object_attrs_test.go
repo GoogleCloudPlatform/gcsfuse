@@ -85,17 +85,7 @@ func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
 
 	var acl []*storagev1.ObjectAccessControl
 	for _, element := range attrs.ACL {
-		currACL := &storagev1.ObjectAccessControl{
-			Entity:   string(element.Entity),
-			EntityId: element.EntityID,
-			Role:     string(element.Role),
-			Domain:   element.Domain,
-			Email:    element.Email,
-			ProjectTeam: &storagev1.ObjectAccessControlProjectTeam{
-				ProjectNumber: element.ProjectTeam.ProjectNumber,
-				Team:          element.ProjectTeam.Team,
-			},
-		}
+		currACL := convertACLRuleTooObjectAccessControl(element)
 		acl = append(acl, currACL)
 	}
 
