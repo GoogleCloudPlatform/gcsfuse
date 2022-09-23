@@ -9,6 +9,20 @@ import (
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
+func convertObjectAccessControlToACLRule(obj *storagev1.ObjectAccessControl) storage.ACLRule {
+	return storage.ACLRule{
+		Entity:   storage.ACLEntity(obj.Entity),
+		EntityID: obj.EntityId,
+		Role:     storage.ACLRole(obj.Role),
+		Domain:   obj.Domain,
+		Email:    obj.Email,
+		ProjectTeam: &storage.ProjectTeam{
+			ProjectNumber: obj.ProjectTeam.ProjectNumber,
+			Team:          obj.ProjectTeam.Team,
+		},
+	}
+}
+
 func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 	// Converting []ACLRule returned by the Go Client into []*storagev1.ObjectAccessControl which complies with GCSFuse type.
 	var acl []*storagev1.ObjectAccessControl
@@ -54,20 +68,6 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 		CustomTime:         string(attrs.CustomTime.Format(time.RFC3339)),
 		EventBasedHold:     attrs.EventBasedHold,
 		Acl:                acl,
-	}
-}
-
-func convertObjectAccessControlToACLRule(obj *storagev1.ObjectAccessControl) storage.ACLRule {
-	return storage.ACLRule{
-		Entity:   storage.ACLEntity(obj.Entity),
-		EntityID: obj.EntityId,
-		Role:     storage.ACLRole(obj.Role),
-		Domain:   obj.Domain,
-		Email:    obj.Email,
-		ProjectTeam: &storage.ProjectTeam{
-			ProjectNumber: obj.ProjectTeam.ProjectNumber,
-			Team:          obj.ProjectTeam.Team,
-		},
 	}
 }
 

@@ -35,8 +35,8 @@ type bucketHandle struct {
 }
 
 func (bh *bucketHandle) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+		ctx context.Context,
+		req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64((*req.Range).Start)
 	end := int64((*req.Range).Limit)
@@ -103,20 +103,25 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
 	// only if the current generation for the object name is equal to the given value.
 	// Zero means the object does not exist.
+	if req.GenerationPrecondition != nil {
+		obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition})
+	}
+
 	// MetagenerationMatch - Similar work as GenerationPrecondition, but it is only
-	// meaningful in conjunction with GenerationPrecondition.
-	if req.GenerationPrecondition != nil && *req.GenerationPrecondition != 0 {
-		if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
-			obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition, MetagenerationMatch: *req.MetaGenerationPrecondition})
-		} else {
-			obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition})
-		}
+	// meaningful in conjunction with GenerationPrecondition. Here, it will take
+	// the object with the latest generation.
+	if req.MetaGenerationPrecondition != nil {
+		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
+	}
+	
+	// Operation will depend on both generation and meta-generation precondition.
+	if req.GenerationPrecondition != nil && req.MetaGenerationPrecondition != nil {
+		obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition, MetagenerationMatch: *req.MetaGenerationPrecondition})
 	}
 
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
 	// Chuck size for resumable upload is default i.e. 16MB.
 	wc := obj.NewWriter(ctx)
-	wc.ChunkSize = 0 // This enables one shot upload.
 	wc = storageutil.SetAttrsInWriter(wc, req)
 
 	// Copy the contents to the writer.
