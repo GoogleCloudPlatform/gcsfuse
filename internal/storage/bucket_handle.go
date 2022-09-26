@@ -99,6 +99,52 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 	return
 }
 
+func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	obj := bh.bucket.Object(req.Name)
+
+	// GenerationPrecondition - If non-nil, the object will be created/overwritten
+	// only if the current generation for the object name is equal to the given value.
+	// Zero means the object does not exist.
+	if req.GenerationPrecondition != nil {
+		obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition})
+	}
+
+	// MetagenerationMatch - Similar work as GenerationPrecondition, but it is only
+	// meaningful in conjunction with GenerationPrecondition. Here, it will take
+	// the object with the latest generation.
+	if req.MetaGenerationPrecondition != nil {
+		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
+	}
+
+	// Operation will depend on both generation and meta-generation precondition.
+	if req.GenerationPrecondition != nil && req.MetaGenerationPrecondition != nil {
+		obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition, MetagenerationMatch: *req.MetaGenerationPrecondition})
+	}
+
+	// Creating a NewWriter with requested attributes, using Go Storage Client.
+	// Chuck size for resumable upload is default i.e. 16MB.
+	wc := obj.NewWriter(ctx)
+	wc = storageutil.SetAttrsInWriter(wc, req)
+
+	// Copy the contents to the writer.
+	if _, err = io.Copy(wc, req.Contents); err != nil {
+		err = fmt.Errorf("error in io.Copy: %w", err)
+		return
+	}
+
+	// We can't use defer to close the writer, because we need to close the
+	// writer successfully before calling Attrs() method of writer.
+	if err = wc.Close(); err != nil {
+		err = fmt.Errorf("error in closing writer: %v", err)
+		return
+	}
+
+	attrs := wc.Attrs() // Retrieving the attributes of the created object.
+	// Converting attrs to type *Object.
+	o = storageutil.ObjectAttrsToBucketObject(attrs)
+	return
+}
+
 func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
 	srcObj := b.bucket.Object(req.SrcName)
 	dstObj := b.bucket.Object(req.DstName)

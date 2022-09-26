@@ -2,10 +2,12 @@ package storageutil
 
 import (
 	"crypto/md5"
+	"strings"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/jacobsa/gcloud/gcs"
 	. "github.com/jacobsa/ogletest"
 	storagev1 "google.golang.org/api/storage/v1"
 )
@@ -111,4 +113,71 @@ func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
 	ExpectEq(object.CustomTime, customeTimeExpected)
 	ExpectEq(object.EventBasedHold, attrs.EventBasedHold)
 	ExpectEq(object.Acl, acl)
+}
+
+func (t objectAttrsTest) TestConvertObjectAccessControlToACLRuleMethod() {
+	objectAccessControl := &storagev1.ObjectAccessControl{
+		Entity:   "test_entity",
+		EntityId: "test_entity_id",
+		Role:     "owner",
+		Domain:   "test_domain",
+		Email:    "test_email@test.com",
+		ProjectTeam: &storagev1.ObjectAccessControlProjectTeam{
+			ProjectNumber: "test_project_num",
+			Team:          "test_team",
+		},
+	}
+
+	aclRule := convertObjectAccessControlToACLRule(objectAccessControl)
+
+	ExpectEq(aclRule.Entity, objectAccessControl.Entity)
+	ExpectEq(aclRule.EntityID, objectAccessControl.EntityId)
+	ExpectEq(aclRule.Role, objectAccessControl.Role)
+	ExpectEq(aclRule.Domain, objectAccessControl.Domain)
+	ExpectEq(aclRule.Email, objectAccessControl.Email)
+	ExpectEq(aclRule.ProjectTeam.ProjectNumber, objectAccessControl.ProjectTeam.ProjectNumber)
+	ExpectEq(aclRule.ProjectTeam.Team, objectAccessControl.ProjectTeam.Team)
+}
+
+func (t objectAttrsTest) TestSetAttrsInWriterMethod() {
+	var crc32c uint32 = 45
+	var generationPrecondition int64 = 3
+	var metaGenerationPrecondition int64 = 33
+	md5Hash := md5.Sum([]byte("testing"))
+	timeInRFC3339 := "2006-01-02T15:04:05Z07:00"
+	createObjectRequest := gcs.CreateObjectRequest{
+		Name:                       "test_object",
+		ContentType:                "json",
+		ContentEncoding:            "universal",
+		CacheControl:               "Medium",
+		Metadata:                   map[string]string{"file_name": "test.txt"},
+		ContentDisposition:         "Test content disposition",
+		CustomTime:                 timeInRFC3339,
+		EventBasedHold:             true,
+		StorageClass:               "High Accessibility",
+		Acl:                        nil,
+		Contents:                   strings.NewReader("Creating new object"),
+		CRC32C:                     &crc32c,
+		MD5:                        &md5Hash,
+		GenerationPrecondition:     &generationPrecondition,
+		MetaGenerationPrecondition: &metaGenerationPrecondition,
+	}
+	writer := &storage.Writer{}
+
+	writer = SetAttrsInWriter(writer, &createObjectRequest)
+
+	ExpectEq(writer.Name, createObjectRequest.Name)
+	ExpectEq(writer.ContentType, createObjectRequest.ContentType)
+	ExpectEq(writer.ContentLanguage, createObjectRequest.ContentLanguage)
+	ExpectEq(writer.ContentEncoding, createObjectRequest.ContentEncoding)
+	ExpectEq(writer.CacheControl, createObjectRequest.CacheControl)
+	ExpectEq(writer.Metadata, createObjectRequest.Metadata)
+	ExpectEq(writer.ContentDisposition, createObjectRequest.ContentDisposition)
+	parsedTime, _ := time.Parse(time.RFC3339, createObjectRequest.CustomTime)
+	ExpectTrue(parsedTime.Equal(writer.CustomTime))
+	ExpectEq(writer.EventBasedHold, createObjectRequest.EventBasedHold)
+	ExpectEq(writer.StorageClass, createObjectRequest.StorageClass)
+	ExpectEq(writer.CRC32C, *createObjectRequest.CRC32C)
+	ExpectTrue(writer.SendCRC32C)
+	ExpectEq(string(writer.MD5[:]), string(createObjectRequest.MD5[:]))
 }
