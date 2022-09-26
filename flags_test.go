@@ -99,11 +99,11 @@ func (t *FlagsTest) Bools() {
 	names := []string{
 		"implicit-dirs",
 		"reuse-token-from-url",
-		"debug_fuse_errors",
-		"debug_fuse",
-		"debug_gcs",
-		"debug_http",
-		"debug_invariants",
+		"debug-fuse-errors",
+		"debug-fuse",
+		"debug-gcs",
+		"debug-http",
+		"debug-invariants",
 	}
 
 	var args []string

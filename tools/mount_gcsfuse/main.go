@@ -119,7 +119,7 @@ func makeGcsfuseArgs(
 			"debug_http",
 			"debug_invariants",
 			"debug_mutex":
-			args = append(args, "--"+name)
+			args = append(args, "--"+strings.Replace(name, "_", "-", -1))
 
 		// Pass through everything else.
 		default:

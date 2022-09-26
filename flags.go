@@ -269,39 +269,39 @@ func newApp() (app *cli.App) {
 			/////////////////////////
 
 			cli.BoolTFlag{
-				Name: "debug_fuse_errors",
+				Name: "debug-fuse-errors",
 				Usage: "If false, fuse errors will not be logged to the " +
 					"console (in case of --foreground) or the log-file " +
 					"(if specified",
 			},
 
 			cli.BoolFlag{
-				Name:  "debug_fuse",
+				Name:  "debug-fuse",
 				Usage: "Enable fuse-related debugging output.",
 			},
 
 			cli.BoolFlag{
-				Name:  "debug_fs",
+				Name:  "debug-fs",
 				Usage: "Enable file system debugging output.",
 			},
 
 			cli.BoolFlag{
-				Name:  "debug_gcs",
+				Name:  "debug-gcs",
 				Usage: "Print GCS request and timing information.",
 			},
 
 			cli.BoolFlag{
-				Name:  "debug_http",
+				Name:  "debug-http",
 				Usage: "Dump HTTP requests and responses to/from GCS.",
 			},
 
 			cli.BoolFlag{
-				Name:  "debug_invariants",
+				Name:  "debug-invariants",
 				Usage: "Panic when internal invariants are violated.",
 			},
 
 			cli.BoolFlag{
-				Name:  "debug_mutex",
+				Name:  "debug-mutex",
 				Usage: "Print debug messages when a mutex is held too long.",
 			},
 		},
@@ -473,13 +473,13 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		LogFormat:                 c.String("log-format"),
 
 		// Debugging,
-		DebugFuseErrors: c.BoolT("debug_fuse_errors"),
-		DebugFuse:       c.Bool("debug_fuse"),
-		DebugGCS:        c.Bool("debug_gcs"),
-		DebugFS:         c.Bool("debug_fs"),
-		DebugHTTP:       c.Bool("debug_http"),
-		DebugInvariants: c.Bool("debug_invariants"),
-		DebugMutex:      c.Bool("debug_mutex"),
+		DebugFuseErrors: c.BoolT("debug-fuse-errors"),
+		DebugFuse:       c.Bool("debug-fuse"),
+		DebugGCS:        c.Bool("debug-gcs"),
+		DebugFS:         c.Bool("debug-fs"),
+		DebugHTTP:       c.Bool("debug-http"),
+		DebugInvariants: c.Bool("debug-invariants"),
+		DebugMutex:      c.Bool("debug-mutex"),
 	}
 
 	// Handle the repeated "-o" flag.
