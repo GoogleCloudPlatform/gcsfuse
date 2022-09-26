@@ -220,7 +220,7 @@ func (t *BucketHandleTest) TestCopyObjectMethodWithInvalidGeneration() {
 		&gcs.CopyObjectRequest{
 			SrcName:                       TestObjectName,
 			DstName:                       dstObjectName,
-			SrcGeneration:                 222, // other than TestObjectGeneration, doesn't exist.
+			SrcGeneration:                 222, // Other than testObjectGeneration, no other generation exists.
 			SrcMetaGenerationPrecondition: nil,
 		})
 
