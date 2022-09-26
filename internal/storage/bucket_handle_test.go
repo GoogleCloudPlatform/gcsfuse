@@ -214,5 +214,5 @@ func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExi
 		})
 
 	AssertEq(nil, obj)
-	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "Error 412: Precondition failed"))
 }
