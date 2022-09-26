@@ -20,6 +20,30 @@ type objectAttrsTest struct {
 
 func init() { RegisterTestSuite(&objectAttrsTest{}) }
 
+func (t objectAttrsTest) TestConvertACLRuleToObjectAccessControlMethod() {
+	var attrs = storage.ACLRule{
+		Entity:   "allUsers",
+		EntityID: "123",
+		Role:     "OWNER",
+		Domain:   "Domain",
+		Email:    "Email",
+		ProjectTeam: &storage.ProjectTeam{
+			ProjectNumber: "123",
+			Team:          "Team",
+		},
+	}
+
+	objectAccessControl := convertACLRuleToObjectAccessControl(attrs)
+
+	ExpectEq(objectAccessControl.Entity, string(attrs.Entity))
+	ExpectEq(objectAccessControl.EntityId, attrs.EntityID)
+	ExpectEq(objectAccessControl.Role, string(attrs.Role))
+	ExpectEq(objectAccessControl.Domain, attrs.Domain)
+	ExpectEq(objectAccessControl.Email, attrs.Email)
+	ExpectEq(objectAccessControl.ProjectTeam.ProjectNumber, attrs.ProjectTeam.ProjectNumber)
+	ExpectEq(objectAccessControl.ProjectTeam.Team, attrs.ProjectTeam.Team)
+}
+
 func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
 	var attrMd5 []byte
 	timeAttr := time.Now()
@@ -61,18 +85,7 @@ func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
 
 	var acl []*storagev1.ObjectAccessControl
 	for _, element := range attrs.ACL {
-		currACL := &storagev1.ObjectAccessControl{
-			Entity:   string(element.Entity),
-			EntityId: element.EntityID,
-			Role:     string(element.Role),
-			Domain:   element.Domain,
-			Email:    element.Email,
-			ProjectTeam: &storagev1.ObjectAccessControlProjectTeam{
-				ProjectNumber: element.ProjectTeam.ProjectNumber,
-				Team:          element.ProjectTeam.Team,
-			},
-		}
-		acl = append(acl, currACL)
+		acl = append(acl, convertACLRuleToObjectAccessControl(element))
 	}
 
 	object := ObjectAttrsToBucketObject(&attrs)

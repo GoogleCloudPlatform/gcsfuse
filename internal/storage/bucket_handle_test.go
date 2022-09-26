@@ -25,6 +25,7 @@ import (
 )
 
 const missingObjectName string = "test/foo"
+const dstObjectName string = "gcsfuse/dst.txt"
 
 // FakeGCSServer is not handling generation and metageneration checks for Delete flow.
 // Hence, we are not writing tests for these flows.
@@ -145,43 +146,83 @@ func (t *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
 }
 
 func (t *BucketHandleTest) TestDeleteObjectMethodWithValidObject() {
-	error := t.bucketHandle.DeleteObject(context.Background(),
+	err := t.bucketHandle.DeleteObject(context.Background(),
 		&gcs.DeleteObjectRequest{
 			Name:                       TestObjectName,
 			Generation:                 TestObjectGeneration,
 			MetaGenerationPrecondition: nil,
 		})
 
-	AssertEq(nil, error)
+	AssertEq(nil, err)
 }
 
 func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
-	error := t.bucketHandle.DeleteObject(context.Background(),
+	err := t.bucketHandle.DeleteObject(context.Background(),
 		&gcs.DeleteObjectRequest{
 			Name:                       missingObjectName,
 			Generation:                 TestObjectGeneration,
 			MetaGenerationPrecondition: nil,
 		})
 
-	AssertEq("storage: object doesn't exist", error.Error())
+	AssertEq("storage: object doesn't exist", err.Error())
 }
 
 func (t *BucketHandleTest) TestStatObjectMethodWithValidObject() {
-	_, error := t.bucketHandle.StatObject(context.Background(),
+	_, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestObjectName,
 		})
 
-	AssertEq(nil, error)
+	AssertEq(nil, err)
 }
 
 func (t *BucketHandleTest) TestStatObjectMethodWithMissingObject() {
 	var notfound *gcs.NotFoundError
 
-	_, error := t.bucketHandle.StatObject(context.Background(),
+	_, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: missingObjectName,
 		})
 
-	AssertTrue(errors.As(error, &notfound))
+	AssertTrue(errors.As(err, &notfound))
+}
+
+func (t *BucketHandleTest) TestCopyObjectMethodWithValidObject() {
+	_, err := t.bucketHandle.CopyObject(context.Background(),
+		&gcs.CopyObjectRequest{
+			SrcName:                       TestObjectName,
+			DstName:                       dstObjectName,
+			SrcGeneration:                 TestObjectGeneration,
+			SrcMetaGenerationPrecondition: nil,
+		})
+
+	AssertEq(nil, err)
+}
+
+func (t *BucketHandleTest) TestCopyObjectMethodWithMissingObject() {
+	var notfound *gcs.NotFoundError
+
+	_, err := t.bucketHandle.CopyObject(context.Background(),
+		&gcs.CopyObjectRequest{
+			SrcName:                       missingObjectName,
+			DstName:                       dstObjectName,
+			SrcGeneration:                 TestObjectGeneration,
+			SrcMetaGenerationPrecondition: nil,
+		})
+
+	AssertTrue(errors.As(err, &notfound))
+}
+
+func (t *BucketHandleTest) TestCopyObjectMethodWithInvalidGeneration() {
+	var notfound *gcs.NotFoundError
+
+	_, err := t.bucketHandle.CopyObject(context.Background(),
+		&gcs.CopyObjectRequest{
+			SrcName:                       TestObjectName,
+			DstName:                       dstObjectName,
+			SrcGeneration:                 222, // Other than testObjectGeneration, no other generation exists.
+			SrcMetaGenerationPrecondition: nil,
+		})
+
+	AssertTrue(errors.As(err, &notfound))
 }

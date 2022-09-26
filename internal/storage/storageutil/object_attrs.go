@@ -9,22 +9,25 @@ import (
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
+func convertACLRuleToObjectAccessControl(element storage.ACLRule) *storagev1.ObjectAccessControl {
+	return &storagev1.ObjectAccessControl{
+		Entity:   string(element.Entity),
+		EntityId: element.EntityID,
+		Role:     string(element.Role),
+		Domain:   element.Domain,
+		Email:    element.Email,
+		ProjectTeam: &storagev1.ObjectAccessControlProjectTeam{
+			ProjectNumber: element.ProjectTeam.ProjectNumber,
+			Team:          element.ProjectTeam.Team,
+		},
+	}
+}
+
 func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
-	// Converting []ACLRule returned by the Go Client into []*storagev1.ObjectAccessControl which complies with GCSFuse type.
+	// gcs.Object accepts []*storagev1.ObjectAccessControl instead of []ACLRule.
 	var acl []*storagev1.ObjectAccessControl
 	for _, element := range attrs.ACL {
-		currACL := &storagev1.ObjectAccessControl{
-			Entity:   string(element.Entity),
-			EntityId: element.EntityID,
-			Role:     string(element.Role),
-			Domain:   element.Domain,
-			Email:    element.Email,
-			ProjectTeam: &storagev1.ObjectAccessControlProjectTeam{
-				ProjectNumber: element.ProjectTeam.ProjectNumber,
-				Team:          element.ProjectTeam.Team,
-			},
-		}
-		acl = append(acl, currACL)
+		acl = append(acl, convertACLRuleToObjectAccessControl(element))
 	}
 
 	// Converting MD5[] slice to MD5[md5.Size] type fixed array as accepted by GCSFuse.
