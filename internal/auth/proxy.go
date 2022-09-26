@@ -20,7 +20,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
+	"net/url"
 
 	"golang.org/x/oauth2"
 )
@@ -31,16 +33,33 @@ func newProxyTokenSource(
 	ctx context.Context,
 	endpoint string,
 	reuseTokenFromUrl bool,
-) oauth2.TokenSource {
-	ts := proxyTokenSource{
+) (ts oauth2.TokenSource, err error) {
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		err = fmt.Errorf("newProxyTokenSource cannot parse endpoint %s: %w", endpoint, err)
+		return
+	}
+
+	client := &http.Client{}
+	if u.Scheme == "unix" {
+		client.Transport = &http.Transport{
+			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+				dialer := net.Dialer{}
+				return dialer.DialContext(ctx, u.Scheme, u.Path)
+			},
+		}
+		endpoint = "http://unix?" + u.RawQuery
+	}
+
+	ts = proxyTokenSource{
 		ctx:      ctx,
 		endpoint: endpoint,
-		client:   &http.Client{},
+		client:   client,
 	}
 	if reuseTokenFromUrl {
-		return oauth2.ReuseTokenSource(nil, ts)
+		return oauth2.ReuseTokenSource(nil, ts), nil
 	}
-	return ts
+	return ts, nil
 }
 
 type proxyTokenSource struct {
