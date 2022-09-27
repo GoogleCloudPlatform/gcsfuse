@@ -160,6 +160,7 @@ func (c *conn) OpenBucket(
 	b = newBucket(c.client, c.url, c.userAgent, options.Name, options.BillingProject)
 
 	// Enable retry loops if requested.
+	// Enable retry loops if requested.
 	if c.maxBackoffSleep > 0 {
 		// TODO(jacobsa): Show the retries as distinct spans in the trace.
 		b = newRetryBucket(c.maxBackoffSleep, b)
@@ -174,7 +175,7 @@ func (c *conn) OpenBucket(
 
 	// Print debug output if requested.
 	if c.debugLogger != nil {
-		b = newDebugBucket(b, c.debugLogger)
+		b = NewDebugBucket(b, c.debugLogger)
 	}
 
 	// Attempt to make an innocuous request to the bucket, snooping for HTTP 403
