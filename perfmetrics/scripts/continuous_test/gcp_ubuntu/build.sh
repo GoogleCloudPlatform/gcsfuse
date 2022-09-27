@@ -10,7 +10,7 @@ sudo dpkg --install gcsfuse_"$GCSFUSE_VERSION"_amd64.deb
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts"
 echo Mounting gcs bucket
 mkdir -p gcs
-GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --disable-http2 --experimental-stackdriver-export-interval=30s"
+GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --disable-http2 --stackdriver-export-interval=30s"
 BUCKET_NAME=gcs-fuse-dashboard-fio
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
