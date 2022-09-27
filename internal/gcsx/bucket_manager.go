@@ -21,6 +21,8 @@ import (
 	"path"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/jacobsa/reqtrace"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
@@ -40,6 +42,7 @@ type BucketConfig struct {
 	StatCacheCapacity                  int
 	StatCacheTTL                       time.Duration
 	EnableMonitoring                   bool
+	debugGcs                           bool
 
 	// Files backed by on object of length at least AppendThreshold that have
 	// only been appended to (i.e. none of the object's contents have been
@@ -76,15 +79,18 @@ type bucketManager struct {
 	config BucketConfig
 	conn   *Connection
 
+	storageHandle storage.StorageHandle
 	// Garbage collector
 	gcCtx                 context.Context
 	stopGarbageCollecting func()
 }
 
-func NewBucketManager(config BucketConfig, conn *Connection) BucketManager {
+func NewBucketManager(config BucketConfig, conn *Connection,
+	storageHandle storage.StorageHandle) BucketManager {
 	bm := &bucketManager{
-		config: config,
-		conn:   conn,
+		config:        config,
+		conn:          conn,
+		storageHandle: storageHandle,
 	}
 	bm.gcCtx, bm.stopGarbageCollecting = context.WithCancel(context.Background())
 	return bm
@@ -156,14 +162,26 @@ func (bm *bucketManager) SetUpBucket(
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		logger.Infof("OpenBucket(%q, %q)\n", name, bm.config.BillingProject)
-		b, err = bm.conn.OpenBucket(
-			ctx,
-			&gcs.OpenBucketOptions{
-				Name:           name,
-				BillingProject: bm.config.BillingProject,
-			},
-		)
+		if bm.storageHandle != nil {
+			bh, _ := bm.storageHandle.BucketHandle(name)
+			b = bh
+			if reqtrace.Enabled() {
+				b = gcs.GetWrappedWithReqtraceBucket(bh)
+			}
+			if bm.config.debugGcs != false {
+				b = gcs.NewDebugBucket(b, logger.NewDebug("gcs: "))
+			}
+
+		} else {
+			logger.Infof("OpenBucket(%q, %q)\n", name, bm.config.BillingProject)
+			b, err = bm.conn.OpenBucket(
+				ctx,
+				&gcs.OpenBucketOptions{
+					Name:           name,
+					BillingProject: bm.config.BillingProject,
+				},
+			)
+		}
 		if err != nil {
 			err = fmt.Errorf("OpenBucket: %w", err)
 			return

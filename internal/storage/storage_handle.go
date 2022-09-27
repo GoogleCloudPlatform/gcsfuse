@@ -35,11 +35,11 @@ type storageClient struct {
 	client *storage.Client
 }
 
-type storageClientConfig struct {
+type StorageClientConfig struct {
 	disableHTTP2        bool
 	maxConnsPerHost     int
 	maxIdleConnsPerHost int
-	tokenSrc            oauth2.TokenSource
+	TokenSrc            oauth2.TokenSource
 	timeOut             time.Duration
 	maxRetryDuration    time.Duration
 	retryMultiplier     float64
@@ -48,7 +48,7 @@ type storageClientConfig struct {
 // NewStorageHandle returns the handle of Go storage client containing
 // customized http client. We can configure the http client using the
 // storageClientConfig parameter.
-func NewStorageHandle(ctx context.Context, clientConfig storageClientConfig) (sh StorageHandle, err error) {
+func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh StorageHandle, err error) {
 	var transport *http.Transport
 	// Disabling the http2 makes the client more performant.
 	if clientConfig.disableHTTP2 {
@@ -73,7 +73,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageClientConfig) (sh
 	httpClient := &http.Client{
 		Transport: &oauth2.Transport{
 			Base:   transport,
-			Source: clientConfig.tokenSrc,
+			Source: clientConfig.TokenSrc,
 		},
 		Timeout: clientConfig.timeOut,
 	}

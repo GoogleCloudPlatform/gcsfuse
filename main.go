@@ -29,6 +29,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 
@@ -156,10 +157,24 @@ func mountWithArgs(
 	// Special case: if we're mounting the fake bucket, we don't need an actual
 	// connection.
 	var conn *gcsx.Connection
+	var storageHandle storage.StorageHandle
+
 	if bucketName != canned.FakeBucketName {
 		mountStatus.Println("Opening GCS connection...")
 
-		conn, err = getConnWithRetry(flags)
+		if flags.ExperimentalEnableStorageClientLibrary {
+			var tokenSrc oauth2.TokenSource
+
+			tokenSrc, err = auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl, true)
+			var storageClientConfigToken = storage.StorageClientConfig{TokenSrc: tokenSrc}
+			if err != nil {
+				err = fmt.Errorf("get token source: %w", err)
+				return
+			}
+			storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfigToken)
+		} else {
+			conn, err = getConnWithRetry(flags)
+		}
 		if err != nil {
 			mountStatus.Printf("Failed to open connection: %v\n", err)
 			err = fmt.Errorf("getConnWithRetry: %w", err)
@@ -175,6 +190,7 @@ func mountWithArgs(
 		mountPoint,
 		flags,
 		conn,
+		storageHandle,
 		mountStatus)
 
 	if err != nil {
