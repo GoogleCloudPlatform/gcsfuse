@@ -1,5 +1,7 @@
 #!/bin/bash
 set -e
+# Refer for env var: https://stackoverflow.com/questions/72441758/typeerror-descriptors-cannot-not-be-created-directly
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 echo Installing pip and fuse..
 sudo apt-get install fuse -y
 sudo apt-get install pip -y
