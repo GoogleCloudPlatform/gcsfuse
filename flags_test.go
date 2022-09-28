@@ -104,6 +104,7 @@ func (t *FlagsTest) Bools() {
 		"debug_gcs",
 		"debug_http",
 		"debug_invariants",
+		"experimental-enable-storage-client-library",
 	}
 
 	var args []string
@@ -123,6 +124,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugGCS)
 	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
+	ExpectTrue(f.ExperimentalEnableStorageClientLibrary)
 
 	// --foo=false form
 	args = nil
@@ -138,6 +140,7 @@ func (t *FlagsTest) Bools() {
 	ExpectFalse(f.DebugGCS)
 	ExpectFalse(f.DebugHTTP)
 	ExpectFalse(f.DebugInvariants)
+	ExpectFalse(f.ExperimentalEnableStorageClientLibrary)
 
 	// --foo=true form
 	args = nil
@@ -153,6 +156,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugGCS)
 	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
+	ExpectTrue(f.ExperimentalEnableStorageClientLibrary)
 }
 
 func (t *FlagsTest) DecimalNumbers() {
