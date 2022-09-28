@@ -199,7 +199,6 @@ func newApp() (app *cli.App) {
 			cli.DurationFlag{
 				Name:  "stat-cache-ttl",
 				Value: time.Minute,
-				Usage: "How long to cache StatObject results and inode attributes.",
 			},
 
 			cli.DurationFlag{
@@ -210,18 +209,21 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.DurationFlag{
-				Name:  "go-storage-timeout",
+				Name:  "http-client-timeout",
 				Value: 800 * time.Millisecond,
+				Usage: "The time duration that client will wait to get response from the server.",
 			},
 
 			cli.DurationFlag{
-				Name:  "go-storage-max-retry-duration",
+				Name:  "max-retry-duration",
 				Value: 30 * time.Second,
+				Usage: "The operation will be retried till the value of max-retry-duration.",
 			},
 
 			cli.Float64Flag{
-				Name:  "go-storage-retry-multiplier",
+				Name:  "retry-multiplier",
 				Value: 2,
+				Usage: "Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.",
 			},
 
 			cli.BoolFlag{
@@ -252,6 +254,8 @@ func newApp() (app *cli.App) {
 			cli.IntFlag{
 				Name:  "max-idle-conns-per-host",
 				Value: 100,
+				Usage: "The number of MaxIdleConnsPerHost parameter in " +
+					" transport of Go Client.",
 			},
 
 			/////////////////////////
@@ -364,18 +368,18 @@ type flagStorage struct {
 	OpRateLimitHz                      float64
 
 	// Tuning
-	MaxRetrySleep             time.Duration
-	StatCacheCapacity         int
-	StatCacheTTL              time.Duration
-	TypeCacheTTL              time.Duration
-	GoStorageTimeOut          time.Duration
-	GoStorageMaxRetryDuration time.Duration
-	GoStorageRetryMultiplier  float64
-	LocalFileCache            bool
-	TempDir                   string
-	DisableHTTP2              bool
-	MaxConnsPerHost           int
-	MaxIdleConnsPerHost       int
+	MaxRetrySleep       time.Duration
+	StatCacheCapacity   int
+	StatCacheTTL        time.Duration
+	TypeCacheTTL        time.Duration
+	HttpClientTimeOut   time.Duration
+	MaxRetryDuration    time.Duration
+	RetryMultiplier     float64
+	LocalFileCache      bool
+	TempDir             string
+	DisableHTTP2        bool
+	MaxConnsPerHost     int
+	MaxIdleConnsPerHost int
 
 	// Monitoring & Logging
 	StackdriverExportInterval time.Duration
@@ -494,18 +498,18 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		OpRateLimitHz:                      c.Float64("limit-ops-per-sec"),
 
 		// Tuning,
-		MaxRetrySleep:             c.Duration("max-retry-sleep"),
-		StatCacheCapacity:         c.Int("stat-cache-capacity"),
-		StatCacheTTL:              c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:              c.Duration("type-cache-ttl"),
-		GoStorageTimeOut:          c.Duration("go-storage-timeout"),
-		GoStorageMaxRetryDuration: c.Duration("go-storage-max-retry-duration"),
-		GoStorageRetryMultiplier:  c.Float64("go-storage-retry-multiplier"),
-		LocalFileCache:            c.Bool("experimental-local-file-cache"),
-		TempDir:                   c.String("temp-dir"),
-		DisableHTTP2:              c.Bool("disable-http2"),
-		MaxConnsPerHost:           c.Int("max-conns-per-host"),
-		MaxIdleConnsPerHost:       c.Int("max-idle-conns-per-host"),
+		MaxRetrySleep:       c.Duration("max-retry-sleep"),
+		StatCacheCapacity:   c.Int("stat-cache-capacity"),
+		StatCacheTTL:        c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:        c.Duration("type-cache-ttl"),
+		HttpClientTimeOut:   c.Duration("http-client-timeout"),
+		MaxRetryDuration:    c.Duration("max-retry-duration"),
+		RetryMultiplier:     c.Float64("retry-multiplier"),
+		LocalFileCache:      c.Bool("experimental-local-file-cache"),
+		TempDir:             c.String("temp-dir"),
+		DisableHTTP2:        c.Bool("disable-http2"),
+		MaxConnsPerHost:     c.Int("max-conns-per-host"),
+		MaxIdleConnsPerHost: c.Int("max-idle-conns-per-host"),
 
 		// Monitoring & Logging
 		StackdriverExportInterval: c.Duration("stackdriver-export-interval"),
