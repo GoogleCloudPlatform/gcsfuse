@@ -167,7 +167,7 @@ func (t *FlagsTest) DecimalNumbers() {
 		"--limit-bytes-per-sec=123.4",
 		"--limit-ops-per-sec=56.78",
 		"--stat-cache-capacity=8192",
-		"--max-idle-conns-per-host=2",
+		"--max-idle-conns-per-host=100",
 	}
 
 	f := parseArgs(args)
@@ -176,7 +176,7 @@ func (t *FlagsTest) DecimalNumbers() {
 	ExpectEq(123.4, f.EgressBandwidthLimitBytesPerSecond)
 	ExpectEq(56.78, f.OpRateLimitHz)
 	ExpectEq(8192, f.StatCacheCapacity)
-	ExpectEq(2, f.MaxIdleConnsPerHost)
+	ExpectEq(100, f.MaxIdleConnsPerHost)
 }
 
 func (t *FlagsTest) OctalNumbers() {
@@ -207,14 +207,14 @@ func (t *FlagsTest) Durations() {
 	args := []string{
 		"--stat-cache-ttl", "1m17s",
 		"--type-cache-ttl", "19ns",
-		"--Go-Storage-timeout", "50ms",
+		"--Go-Storage-timeout", "800ms",
 		"--Go-Storage-max-retry-duration", "30s",
 	}
 
 	f := parseArgs(args)
 	ExpectEq(77*time.Second, f.StatCacheTTL)
 	ExpectEq(19*time.Nanosecond, f.TypeCacheTTL)
-	ExpectEq(50*time.Millisecond, f.GoStorageTimeOut)
+	ExpectEq(800*time.Millisecond, f.GoStorageTimeOut)
 	ExpectEq(30*time.Second, f.GoStorageMaxRetryDuration)
 }
 

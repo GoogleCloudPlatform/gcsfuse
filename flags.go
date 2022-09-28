@@ -211,7 +211,7 @@ func newApp() (app *cli.App) {
 
 			cli.DurationFlag{
 				Name:  "Go-Storage-timeout",
-				Value: 50 * time.Millisecond,
+				Value: 800 * time.Millisecond,
 			},
 
 			cli.DurationFlag{
@@ -251,7 +251,7 @@ func newApp() (app *cli.App) {
 
 			cli.IntFlag{
 				Name:  "max-idle-conns-per-host",
-				Value: 2,
+				Value: 100,
 			},
 
 			/////////////////////////
