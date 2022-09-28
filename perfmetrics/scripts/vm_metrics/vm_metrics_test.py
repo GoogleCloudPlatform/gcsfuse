@@ -8,7 +8,7 @@ from unittest import TestCase
 from google.cloud import monitoring_v3
 import os
 
-TEST_PATH = './vm_metrics/testdata'
+TEST_PATH = './testdata'
 
 CPU_UTI_METRIC_TYPE = 'compute.googleapis.com/instance/cpu/utilization'
 RECEIVED_BYTES_COUNT_METRIC_TYPE = 'compute.googleapis.com/instance/network/received_bytes_count'

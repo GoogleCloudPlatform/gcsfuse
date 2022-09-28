@@ -37,7 +37,7 @@ pip install -r requirements.txt --user
 ```bash
 gsutil cp gs://your-bucket-name/creds.json ../gsheet
 ```
-4. Create a Google Sheet with id `your-gsheet-id` by copying this [Google Sheet](https://docs.google.com/spreadsheets/d/10fyD6pPyrQoVt9YofT1SyXyjEqPqNhya356ThuA9H_o/edit?usp=sharing).
+4. Create a Google Sheet with id `your-gsheet-id` by copying this [Google Sheet](https://docs.google.com/spreadsheets/d/1IJIjWuEs7cL6eYqPmlVaEGdclr6MSiaKJdnFXXC5tg8/).
 5. Share the above copied Google Sheet with your service account(created in step 2)
 6. Change the Google sheet id in this [line](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/perfmetrics/scripts/gsheet/gsheet.py#L5) to `your-gsheet-id`.
 7. Configure the [JSON config file](config.json) as per needs.
