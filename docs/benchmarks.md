@@ -61,7 +61,7 @@ for doing sequential reads on file sizes > 10MB and < 1GB. Always use
 1. [Create](https://cloud.google.com/compute/docs/instances/create-start-instance#publicimage) a GCP VM instance.
 2. [Connect](https://cloud.google.com/compute/docs/instances/connecting-to-instance) to the VM instance.
 3. Install FIO.
-```angular2html
+```
 sudo apt-get update
 sudo apt-get install fio
 ```
@@ -74,12 +74,12 @@ sudo apt-get install fio
   --disable-http2 --max-conns-per-host=100 <bucket-name> <path-to-mount-point>
 ```
 7. Create a FIO job spec file.
-```angular2html
+```
 vi samplejobspec.fio
 ```
 Copy the following contents into the job spec file. Read the details about FIO spec
 [here](https://fio.readthedocs.io/en/latest/).
-```angular2html
+```
 [global]
 ioengine=libaio
 direct=1
@@ -106,7 +106,7 @@ stonewall
 numjobs=40
 ```
 8. Run the FIO test using following command. 
-```angular2html
+```
 fio samplejobspec.fio
 ```
 9. Metrics will be displayed on the terminal after test is completed.
