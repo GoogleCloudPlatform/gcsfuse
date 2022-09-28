@@ -1,6 +1,6 @@
 # GCSFuse Performance Benchmarks
 
-FIO is used to perform load tests on GCSFuse. Below tables shows performance metrics of GCSFuse for different workloads for the given test setup:
+[FIO](https://fio.readthedocs.io/en/latest/) is used to perform load tests on GCSFuse. Below tables shows performance metrics of GCSFuse for different workloads for the given test setup:
 
 ## Test setup:
 
@@ -15,12 +15,12 @@ FIO is used to perform load tests on GCSFuse. Below tables shows performance met
 ### FIO Spec
 * Test runtime: 60sec
 * Thread count: 40
-* Block Size: 1MB
+* Block Size: 256KB for 256KB files and 1MB for all other files.
 
 ### GCSFuse command
 ```
-gcsfuse  --max-conns-per-host=100 --implicit-dirs --stat-cache-ttl=60s 
---type-cache-ttl=60s --disable-http2 <bucket-name> ~/gcs
+gcsfuse --implicit-dirs --stat-cache-ttl=60s --type-cache-ttl=60s
+ --disable-http2 --max-conns-per-host=100 <bucket-name> <path-to-mount-point>
 ```
 ## Reads
 ### Sequential reads
@@ -54,4 +54,59 @@ gcsfuse  --max-conns-per-host=100 --implicit-dirs --stat-cache-ttl=60s
 
 ### Recommendation for reads
 GCSFuse performs well for sequential reads and recommendation is to use GCSFuse
-for doing sequential reads on file sizes > 10MB and < 1GB.
+for doing sequential reads on file sizes > 10MB and < 1GB. Always use
+--disable-http2 and --max-connections-per-host flag, it gives better throughput.
+
+## Steps to benchmark GCSFuse performance
+1. [Create](https://cloud.google.com/compute/docs/instances/create-start-instance#publicimage) a GCP VM instance.
+2. [Connect](https://cloud.google.com/compute/docs/instances/connecting-to-instance) to the VM instance.
+3. Install FIO.
+```angular2html
+sudo apt-get update
+sudo apt-get install fio
+```
+5. [Install GCSFuse](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/installing.md#linux).
+6. Create a directory on the VM and then mount the gcs bucket to that directory.
+```angular2html
+  mkdir <path-to-mount-point> 
+  
+  gcsfuse --implicit-dirs --stat-cache-ttl=60s --type-cache-ttl=60s
+  --disable-http2 --max-conns-per-host=100 <bucket-name> <path-to-mount-point>
+```
+7. Create a FIO job spec file.
+```angular2html
+vi samplejobspec.fio
+```
+Copy the following contents into the job spec file. Read the details about FIO spec
+[here](https://fio.readthedocs.io/en/latest/).
+```angular2html
+[global]
+ioengine=libaio
+direct=1
+fadvise_hint=0
+verify=0
+rw=read
+bs=1M
+iodepth=64
+invalidate=1
+ramp_time=10s
+runtime=60s
+time_based=1
+nrfiles=1
+thread=1
+filesize=10M 
+openfiles=1
+group_reporting=1
+allrandrepeat=1
+directory=<path-to-mount-point>
+filename_format=$jobname.$jobnum.$filenum
+
+[40_thread]
+stonewall
+numjobs=40
+```
+8. Run the FIO test using following command. 
+```angular2html
+fio samplejobspec.fio
+```
+9. Metrics will be displayed on the terminal after test is completed.
