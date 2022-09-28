@@ -369,7 +369,7 @@ type flagStorage struct {
 	DebugMutex      bool
 
 	// client
-	ExperimentalEnableStorageClientLibrary bool
+	EnableStorageClientLibrary bool
 }
 
 const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
@@ -495,7 +495,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		DebugMutex:      c.Bool("debug_mutex"),
 
 		// Client,
-		ExperimentalEnableStorageClientLibrary: c.Bool("experimental-enable-storage-client-library"),
+		EnableStorageClientLibrary: c.Bool("experimental-enable-storage-client-library"),
 	}
 
 	// Handle the repeated "-o" flag.
