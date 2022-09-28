@@ -210,17 +210,17 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.DurationFlag{
-				Name:  "go-Storage-timeout",
+				Name:  "go-storage-timeout",
 				Value: 800 * time.Millisecond,
 			},
 
 			cli.DurationFlag{
-				Name:  "go-Storage-max-retry-duration",
+				Name:  "go-storage-max-retry-duration",
 				Value: 30 * time.Second,
 			},
 
 			cli.Float64Flag{
-				Name:  "go-Storage-Retry-Multiplier",
+				Name:  "go-storage-retry-multiplier",
 				Value: 2,
 			},
 
@@ -498,9 +498,9 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		StatCacheCapacity:         c.Int("stat-cache-capacity"),
 		StatCacheTTL:              c.Duration("stat-cache-ttl"),
 		TypeCacheTTL:              c.Duration("type-cache-ttl"),
-		GoStorageTimeOut:          c.Duration("go-Storage-timeout"),
-		GoStorageMaxRetryDuration: c.Duration("go-Storage-max-retry-duration"),
-		GoStorageRetryMultiplier:  c.Float64("go-Storage-Retry-Multiplier"),
+		GoStorageTimeOut:          c.Duration("go-storage-timeout"),
+		GoStorageMaxRetryDuration: c.Duration("go-storage-max-retry-duration"),
+		GoStorageRetryMultiplier:  c.Float64("go-storage-retry-multiplier"),
 		LocalFileCache:            c.Bool("experimental-local-file-cache"),
 		TempDir:                   c.String("temp-dir"),
 		DisableHTTP2:              c.Bool("disable-http2"),

@@ -207,8 +207,8 @@ func (t *FlagsTest) Durations() {
 	args := []string{
 		"--stat-cache-ttl", "1m17s",
 		"--type-cache-ttl", "19ns",
-		"--Go-Storage-timeout", "800ms",
-		"--Go-Storage-max-retry-duration", "30s",
+		"--go-storage-timeout", "800ms",
+		"--go-storage-max-retry-duration", "30s",
 	}
 
 	f := parseArgs(args)
