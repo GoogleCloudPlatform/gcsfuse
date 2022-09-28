@@ -25,7 +25,7 @@ import (
 )
 
 // Wrap the supplied bucket in a layer that prints debug messages.
-func newDebugBucket(
+func NewDebugBucket(
 	wrapped Bucket,
 	logger *log.Logger) (b Bucket) {
 	b = &debugBucket{
