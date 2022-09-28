@@ -67,7 +67,7 @@ sudo apt-get install fio
 ```
 5. [Install GCSFuse](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/installing.md#linux).
 6. Create a directory on the VM and then mount the gcs bucket to that directory.
-```angular2html
+```
   mkdir <path-to-mount-point> 
   
   gcsfuse --implicit-dirs --stat-cache-ttl=60s --type-cache-ttl=60s
