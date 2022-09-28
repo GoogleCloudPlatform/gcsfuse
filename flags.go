@@ -113,7 +113,7 @@ func newApp() (app *cli.App) {
 			cli.BoolFlag{
 				Name: "implicit-dirs",
 				Usage: "Implicitly define directories based on content. See " +
-					"docs/semantics.md",
+						"docs/semantics.md",
 			},
 
 			cli.StringFlag{
@@ -125,7 +125,7 @@ func newApp() (app *cli.App) {
 				Name:  "rename-dir-limit",
 				Value: 0,
 				Usage: "Allow rename a directory containing fewer descendants " +
-					"than this limit.",
+						"than this limit.",
 			},
 
 			/////////////////////////
@@ -142,14 +142,14 @@ func newApp() (app *cli.App) {
 				Name:  "billing-project",
 				Value: "",
 				Usage: "Project to use for billing when accessing requester pays buckets. " +
-					"(default: none)",
+						"(default: none)",
 			},
 
 			cli.StringFlag{
 				Name:  "key-file",
 				Value: "",
 				Usage: "Absolute path to JSON key file for use with GCS. " +
-					"(default: none, Google application default credentials used)",
+						"(default: none, Google application default credentials used)",
 			},
 
 			cli.StringFlag{
@@ -167,14 +167,14 @@ func newApp() (app *cli.App) {
 				Name:  "limit-bytes-per-sec",
 				Value: -1,
 				Usage: "Bandwidth limit for reading data, measured over a 30-second " +
-					"window. (use -1 for no limit)",
+						"window. (use -1 for no limit)",
 			},
 
 			cli.Float64Flag{
 				Name:  "limit-ops-per-sec",
 				Value: -1,
 				Usage: "Operations per second limit, measured over a 30-second window " +
-					"(use -1 for no limit)",
+						"(use -1 for no limit)",
 			},
 
 			/////////////////////////
@@ -185,9 +185,9 @@ func newApp() (app *cli.App) {
 				Name:  "max-retry-sleep",
 				Value: time.Minute,
 				Usage: "The maximum duration allowed to sleep in a retry loop with " +
-					"exponential backoff for failed requests to GCS backend. Once the " +
-					"backoff duration exceeds this limit, the retry stops. The default " +
-					"is 1 minute. A value of 0 disables retries.",
+						"exponential backoff for failed requests to GCS backend. Once the " +
+						"backoff duration exceeds this limit, the retry stops. The default " +
+						"is 1 minute. A value of 0 disables retries.",
 			},
 
 			cli.IntFlag{
@@ -206,7 +206,22 @@ func newApp() (app *cli.App) {
 				Name:  "type-cache-ttl",
 				Value: time.Minute,
 				Usage: "How long to cache name -> file/dir mappings in directory " +
-					"inodes.",
+						"inodes.",
+			},
+
+			cli.DurationFlag{
+				Name:  "Go-Storage-timeout",
+				Value: 50 * time.Millisecond,
+			},
+
+			cli.DurationFlag{
+				Name:  "Go-Storage-max-retry-duration",
+				Value: 30 * time.Second,
+			},
+
+			cli.Float64Flag{
+				Name:  "Go-Storage-Retry-Multiplier",
+				Value: 2,
 			},
 
 			cli.BoolFlag{
@@ -218,20 +233,25 @@ func newApp() (app *cli.App) {
 				Name:  "temp-dir",
 				Value: "",
 				Usage: "Absolute path to temporary directory for local GCS object " +
-					"copies. (default: system default, likely /tmp)",
+						"copies. (default: system default, likely /tmp)",
 			},
 
 			cli.BoolFlag{
 				Name: "disable-http2",
 				Usage: "Once set, the protocol used for communicating with " +
-					"GCS backend would be HTTP/1.1, instead of the default HTTP/2.",
+						"GCS backend would be HTTP/1.1, instead of the default HTTP/2.",
 			},
 
 			cli.IntFlag{
 				Name:  "max-conns-per-host",
 				Value: 10,
 				Usage: "The max number of TCP connections allowed per server. " +
-					"This is effective when --disable-http2 is set.",
+						"This is effective when --disable-http2 is set.",
+			},
+
+			cli.IntFlag{
+				Name:  "max-idle-conns-per-host",
+				Value: 2,
 			},
 
 			/////////////////////////
@@ -254,8 +274,8 @@ func newApp() (app *cli.App) {
 				Name:  "log-file",
 				Value: "",
 				Usage: "The file for storing logs that can be parsed by " +
-					"fluentd. When not provided, plain text logs are printed to " +
-					"stdout.",
+						"fluentd. When not provided, plain text logs are printed to " +
+						"stdout.",
 			},
 
 			cli.StringFlag{
@@ -271,8 +291,8 @@ func newApp() (app *cli.App) {
 			cli.BoolTFlag{
 				Name: "debug_fuse_errors",
 				Usage: "If false, fuse errors will not be logged to the " +
-					"console (in case of --foreground) or the log-file " +
-					"(if specified",
+						"console (in case of --foreground) or the log-file " +
+						"(if specified",
 			},
 
 			cli.BoolFlag{
@@ -312,7 +332,7 @@ func newApp() (app *cli.App) {
 			cli.BoolFlag{
 				Name: "experimental-enable-storage-client-library",
 				Usage: "If true, will use go storage client library " +
-					"otherwise jacobsa/gcloud",
+						"otherwise jacobsa/gcloud",
 			},
 		},
 	}
@@ -344,14 +364,18 @@ type flagStorage struct {
 	OpRateLimitHz                      float64
 
 	// Tuning
-	MaxRetrySleep     time.Duration
-	StatCacheCapacity int
-	StatCacheTTL      time.Duration
-	TypeCacheTTL      time.Duration
-	LocalFileCache    bool
-	TempDir           string
-	DisableHTTP2      bool
-	MaxConnsPerHost   int
+	MaxRetrySleep             time.Duration
+	StatCacheCapacity         int
+	StatCacheTTL              time.Duration
+	TypeCacheTTL              time.Duration
+	GoStorageTimeOut          time.Duration
+	GoStorageMaxRetryDuration time.Duration
+	GoStorageRetryMultiplier  float64
+	LocalFileCache            bool
+	TempDir                   string
+	DisableHTTP2              bool
+	MaxConnsPerHost           int
+	MaxIdleConnsPerHost       int
 
 	// Monitoring & Logging
 	StackdriverExportInterval time.Duration
@@ -470,14 +494,18 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		OpRateLimitHz:                      c.Float64("limit-ops-per-sec"),
 
 		// Tuning,
-		MaxRetrySleep:     c.Duration("max-retry-sleep"),
-		StatCacheCapacity: c.Int("stat-cache-capacity"),
-		StatCacheTTL:      c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:      c.Duration("type-cache-ttl"),
-		LocalFileCache:    c.Bool("experimental-local-file-cache"),
-		TempDir:           c.String("temp-dir"),
-		DisableHTTP2:      c.Bool("disable-http2"),
-		MaxConnsPerHost:   c.Int("max-conns-per-host"),
+		MaxRetrySleep:             c.Duration("max-retry-sleep"),
+		StatCacheCapacity:         c.Int("stat-cache-capacity"),
+		StatCacheTTL:              c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:              c.Duration("type-cache-ttl"),
+		GoStorageTimeOut:          c.Duration("Go-Storage-timeout"),
+		GoStorageMaxRetryDuration: c.Duration("Go-Storage-max-retry-duration"),
+		GoStorageRetryMultiplier:  c.Float64("Go-Storage-Retry-Multiplier"),
+		LocalFileCache:            c.Bool("experimental-local-file-cache"),
+		TempDir:                   c.String("temp-dir"),
+		DisableHTTP2:              c.Bool("disable-http2"),
+		MaxConnsPerHost:           c.Int("max-conns-per-host"),
+		MaxIdleConnsPerHost:       c.Int("max-idle-conns-per-host"),
 
 		// Monitoring & Logging
 		StackdriverExportInterval: c.Duration("stackdriver-export-interval"),
