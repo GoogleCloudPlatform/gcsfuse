@@ -3,5 +3,5 @@ configparser
 statistics
 numpy
 mock
-protobuf==3.20.*
+protobuf==4.21.*
 
