@@ -214,7 +214,7 @@ func (t *FlagsTest) Durations() {
 	f := parseArgs(args)
 	ExpectEq(77*time.Second, f.StatCacheTTL)
 	ExpectEq(19*time.Nanosecond, f.TypeCacheTTL)
-	ExpectEq(800*time.Millisecond, f.HttpClientTimeOut)
+	ExpectEq(800*time.Millisecond, f.HttpClientTimeout)
 	ExpectEq(30*time.Second, f.MaxRetryDuration)
 }
 

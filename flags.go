@@ -255,8 +255,7 @@ func newApp() (app *cli.App) {
 			cli.IntFlag{
 				Name:  "max-idle-conns-per-host",
 				Value: 100,
-				Usage: "The number of MaxIdleConnsPerHost parameter in " +
-					" transport of Go Client.",
+				Usage: "The number of maximum idle connections allowed per server",
 			},
 
 			/////////////////////////
@@ -373,7 +372,7 @@ type flagStorage struct {
 	StatCacheCapacity   int
 	StatCacheTTL        time.Duration
 	TypeCacheTTL        time.Duration
-	HttpClientTimeOut   time.Duration
+	HttpClientTimeout   time.Duration
 	MaxRetryDuration    time.Duration
 	RetryMultiplier     float64
 	LocalFileCache      bool
@@ -503,7 +502,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		StatCacheCapacity:   c.Int("stat-cache-capacity"),
 		StatCacheTTL:        c.Duration("stat-cache-ttl"),
 		TypeCacheTTL:        c.Duration("type-cache-ttl"),
-		HttpClientTimeOut:   c.Duration("http-client-timeout"),
+		HttpClientTimeout:   c.Duration("http-client-timeout"),
 		MaxRetryDuration:    c.Duration("max-retry-duration"),
 		RetryMultiplier:     c.Float64("retry-multiplier"),
 		LocalFileCache:      c.Bool("experimental-local-file-cache"),
