@@ -35,26 +35,26 @@ type storageClient struct {
 	client *storage.Client
 }
 
-type storageClientConfig struct {
-	disableHTTP2        bool
-	maxConnsPerHost     int
-	maxIdleConnsPerHost int
-	tokenSrc            oauth2.TokenSource
-	timeOut             time.Duration
-	maxRetryDuration    time.Duration
-	retryMultiplier     float64
+type StorageClientConfig struct {
+	DisableHTTP2        bool
+	MaxConnsPerHost     int
+	MaxIdleConnsPerHost int
+	TokenSrc            oauth2.TokenSource
+	HttpClientTimeout   time.Duration
+	MaxRetryDuration    time.Duration
+	RetryMultiplier     float64
 }
 
 // NewStorageHandle returns the handle of Go storage client containing
 // customized http client. We can configure the http client using the
 // storageClientConfig parameter.
-func NewStorageHandle(ctx context.Context, clientConfig storageClientConfig) (sh StorageHandle, err error) {
+func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh StorageHandle, err error) {
 	var transport *http.Transport
 	// Disabling the http2 makes the client more performant.
-	if clientConfig.disableHTTP2 {
+	if clientConfig.DisableHTTP2 {
 		transport = &http.Transport{
-			MaxConnsPerHost:     clientConfig.maxConnsPerHost,
-			MaxIdleConnsPerHost: clientConfig.maxIdleConnsPerHost,
+			MaxConnsPerHost:     clientConfig.MaxConnsPerHost,
+			MaxIdleConnsPerHost: clientConfig.MaxIdleConnsPerHost,
 			// This disables HTTP/2 in transport.
 			TLSNextProto: make(
 				map[string]func(string, *tls.Conn) http.RoundTripper,
@@ -64,7 +64,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageClientConfig) (sh
 		// For http2, change in MaxConnsPerHost doesn't affect the performance.
 		transport = &http.Transport{
 			DisableKeepAlives: true,
-			MaxConnsPerHost:   clientConfig.maxConnsPerHost,
+			MaxConnsPerHost:   clientConfig.MaxConnsPerHost,
 			ForceAttemptHTTP2: true,
 		}
 	}
@@ -73,9 +73,9 @@ func NewStorageHandle(ctx context.Context, clientConfig storageClientConfig) (sh
 	httpClient := &http.Client{
 		Transport: &oauth2.Transport{
 			Base:   transport,
-			Source: clientConfig.tokenSrc,
+			Source: clientConfig.TokenSrc,
 		},
-		Timeout: clientConfig.timeOut,
+		Timeout: clientConfig.HttpClientTimeout,
 	}
 
 	var sc *storage.Client
@@ -89,8 +89,8 @@ func NewStorageHandle(ctx context.Context, clientConfig storageClientConfig) (sh
 	// idempotency considerations.
 	sc.SetRetry(
 		storage.WithBackoff(gax.Backoff{
-			Max:        clientConfig.maxRetryDuration,
-			Multiplier: clientConfig.retryMultiplier,
+			Max:        clientConfig.MaxRetryDuration,
+			Multiplier: clientConfig.RetryMultiplier,
 		}),
 		storage.WithPolicy(storage.RetryAlways))
 

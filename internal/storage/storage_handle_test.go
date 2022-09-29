@@ -26,15 +26,15 @@ import (
 
 const invalidBucketName string = "will-not-be-present-in-fake-server"
 
-func getDefaultStorageClientConfig() (clientConfig storageClientConfig) {
-	return storageClientConfig{
-		disableHTTP2:        true,
-		maxConnsPerHost:     10,
-		maxIdleConnsPerHost: 100,
-		tokenSrc:            oauth2.StaticTokenSource(&oauth2.Token{}),
-		timeOut:             800 * time.Millisecond,
-		maxRetryDuration:    30 * time.Second,
-		retryMultiplier:     2,
+func getDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
+	return StorageClientConfig{
+		DisableHTTP2:        true,
+		MaxConnsPerHost:     10,
+		MaxIdleConnsPerHost: 100,
+		TokenSrc:            oauth2.StaticTokenSource(&oauth2.Token{}),
+		HttpClientTimeout:   800 * time.Millisecond,
+		MaxRetryDuration:    30 * time.Second,
+		RetryMultiplier:     2,
 	}
 }
 
@@ -59,7 +59,7 @@ func (t *StorageHandleTest) TearDown() {
 	t.fakeStorageServer.Stop()
 }
 
-func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc storageClientConfig) {
+func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc StorageClientConfig) {
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 	AssertEq(nil, err)
 	AssertNe(nil, handleCreated)
@@ -93,14 +93,14 @@ func (t *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
 
 func (t *StorageHandleTest) TestNewStorageHandleHttp2Enabled() {
 	sc := getDefaultStorageClientConfig()
-	sc.disableHTTP2 = false
+	sc.DisableHTTP2 = false
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
 
 func (t *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost() {
 	sc := getDefaultStorageClientConfig()
-	sc.maxConnsPerHost = 0
+	sc.MaxConnsPerHost = 0
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
