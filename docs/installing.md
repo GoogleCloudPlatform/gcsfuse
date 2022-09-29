@@ -123,7 +123,7 @@ If you are on a distribution that uses `.rpm` files for package management:
 
 Or one that uses `.deb` files:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v%400.41.7/gcsfuse_0.41.7_amd64.deb
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.41.7/gcsfuse_0.41.7_amd64.deb
     sudo dpkg --install gcsfuse_0.41.7_amd64.deb
 
 On some systems it may be necessary to add the your user account to the `fuse`
