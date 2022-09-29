@@ -36,13 +36,13 @@ type storageClient struct {
 }
 
 type StorageClientConfig struct {
-	disableHTTP2        bool
-	maxConnsPerHost     int
-	maxIdleConnsPerHost int
+	DisableHTTP2        bool
+	MaxConnsPerHost     int
+	MaxIdleConnsPerHost int
 	TokenSrc            oauth2.TokenSource
-	timeOut             time.Duration
-	maxRetryDuration    time.Duration
-	retryMultiplier     float64
+	HttpClientTimeout   time.Duration
+	MaxRetryDuration    time.Duration
+	RetryMultiplier     float64
 }
 
 // NewStorageHandle returns the handle of Go storage client containing
@@ -51,10 +51,10 @@ type StorageClientConfig struct {
 func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh StorageHandle, err error) {
 	var transport *http.Transport
 	// Disabling the http2 makes the client more performant.
-	if clientConfig.disableHTTP2 {
+	if clientConfig.DisableHTTP2 {
 		transport = &http.Transport{
-			MaxConnsPerHost:     clientConfig.maxConnsPerHost,
-			MaxIdleConnsPerHost: clientConfig.maxIdleConnsPerHost,
+			MaxConnsPerHost:     clientConfig.MaxConnsPerHost,
+			MaxIdleConnsPerHost: clientConfig.MaxIdleConnsPerHost,
 			// This disables HTTP/2 in transport.
 			TLSNextProto: make(
 				map[string]func(string, *tls.Conn) http.RoundTripper,
@@ -64,7 +64,7 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 		// For http2, change in MaxConnsPerHost doesn't affect the performance.
 		transport = &http.Transport{
 			DisableKeepAlives: true,
-			MaxConnsPerHost:   clientConfig.maxConnsPerHost,
+			MaxConnsPerHost:   clientConfig.MaxConnsPerHost,
 			ForceAttemptHTTP2: true,
 		}
 	}
@@ -75,7 +75,7 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 			Base:   transport,
 			Source: clientConfig.TokenSrc,
 		},
-		Timeout: clientConfig.timeOut,
+		Timeout: clientConfig.HttpClientTimeout,
 	}
 
 	var sc *storage.Client
@@ -89,8 +89,8 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 	// idempotency considerations.
 	sc.SetRetry(
 		storage.WithBackoff(gax.Backoff{
-			Max:        clientConfig.maxRetryDuration,
-			Multiplier: clientConfig.retryMultiplier,
+			Max:        clientConfig.MaxRetryDuration,
+			Multiplier: clientConfig.RetryMultiplier,
 		}),
 		storage.WithPolicy(storage.RetryAlways))
 
