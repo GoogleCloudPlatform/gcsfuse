@@ -29,11 +29,12 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/iterator"
 )
 
 type BucketHandle struct {
 	gcs.Bucket
-	bucket *storage.BucketHandle
+	BucketObj *storage.BucketHandle
 }
 
 func (bh *BucketHandle) NewReader(
@@ -44,7 +45,7 @@ func (bh *BucketHandle) NewReader(
 	end := int64((*req.Range).Limit)
 	length := int64(end - start)
 
-	obj := bh.bucket.Object(req.Name)
+	obj := bh.BucketObj.Object(req.Name)
 
 	// Switching to the requested generation of object.
 	if req.Generation != 0 {
@@ -64,7 +65,7 @@ func (bh *BucketHandle) NewReader(
 	return
 }
 func (b *BucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
-	obj := b.bucket.Object(req.Name)
+	obj := b.BucketObj.Object(req.Name)
 
 	// Switching to the requested generation of the object.
 	if req.Generation != 0 {
@@ -81,7 +82,7 @@ func (b *BucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 func (b *BucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
-	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
+	attrs, err = b.BucketObj.Object(req.Name).Attrs(ctx)
 
 	// If error is of type storage.ErrObjectNotExist
 	if err == storage.ErrObjectNotExist {
@@ -100,7 +101,7 @@ func (b *BucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 }
 
 func (bh *BucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
-	obj := bh.bucket.Object(req.Name)
+	obj := bh.BucketObj.Object(req.Name)
 
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
 	// only if the current generation for the object name is equal to the given value.
@@ -146,8 +147,8 @@ func (bh *BucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 }
 
 func (b *BucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
-	srcObj := b.bucket.Object(req.SrcName)
-	dstObj := b.bucket.Object(req.DstName)
+	srcObj := b.BucketObj.Object(req.SrcName)
+	dstObj := b.BucketObj.Object(req.DstName)
 
 	// Switching to the requested generation of source object.
 	if req.SrcGeneration != 0 {
@@ -177,5 +178,54 @@ func (b *BucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 	}
 	// Converting objAttrs to type *Object
 	o = storageutil.ObjectAttrsToBucketObject(objAttrs)
+	return
+}
+
+func (b *BucketHandle) ListObjects(
+	ctx context.Context,
+	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+	var convertedProjection storage.Projection = storage.Projection(1) // Stores the Projection Value according to the Go Client API Interface.
+	switch int(req.ProjectionVal) {
+	// Projection Value 0 in jacobsa/gcloud maps to Projection Value 1 in Go Client API, that is for "full".
+	case 0:
+		convertedProjection = storage.Projection(1)
+	// Projection Value 1 in jacobsa/gcloud maps to Projection Value 2 in Go Client API, that is for "noAcl".
+	case 1:
+		convertedProjection = storage.Projection(2)
+	// Default Projection value in jacobsa/gcloud library is 0 that maps to 1 in Go Client API interface, and that is for "full".
+	default:
+		convertedProjection = storage.Projection(1)
+	}
+
+	// Converting *ListObjectsRequest to type *storage.Query as expected by the Go Storage Client.
+	query := &storage.Query{
+		Delimiter:                req.Delimiter,
+		Prefix:                   req.Prefix,
+		Projection:               convertedProjection,
+		IncludeTrailingDelimiter: req.IncludeTrailingDelimiter,
+		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
+	}
+	itr := b.BucketObj.Objects(ctx, query) // Returning iterator to the list of objects.
+	var list gcs.Listing
+
+	// Iterating through all the objects in the bucket and one by one adding them to the list.
+	for {
+		var attrs *storage.ObjectAttrs = nil
+		attrs, err = itr.Next()
+		if err == iterator.Done {
+			err = nil
+			break
+		}
+		if err != nil {
+			err = fmt.Errorf("Error in iterating through objects: %v", err)
+			return
+		}
+
+		// Converting attrs to *Object type.
+		currObject := storageutil.ObjectAttrsToBucketObject(attrs)
+		list.Objects = append(list.Objects, currObject)
+	}
+
+	listing = &list
 	return
 }
