@@ -26,8 +26,8 @@ import (
 
 const invalidBucketName string = "will-not-be-present-in-fake-server"
 
-func getDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
-	return StorageClientConfig{
+func getDefaultStorageClientConfig() (clientConfig StorageclientConfig) {
+	return StorageclientConfig{
 		DisableHTTP2:        true,
 		MaxConnsPerHost:     10,
 		MaxIdleConnsPerHost: 100,
@@ -59,7 +59,7 @@ func (t *StorageHandleTest) TearDown() {
 	t.fakeStorageServer.Stop()
 }
 
-func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc StorageClientConfig) {
+func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc StorageclientConfig) {
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 	AssertEq(nil, err)
 	AssertNe(nil, handleCreated)
@@ -67,7 +67,7 @@ func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc StorageClientConfig)
 
 func (t *StorageHandleTest) TestBucketHandleWhenBucketExists() {
 	fakeClient := t.fakeStorageServer.Client()
-	storageClient := &storageClient{client: fakeClient}
+	storageClient := &Storageclient{Client: fakeClient}
 
 	bucketHandle, err := storageClient.BucketHandle(TestBucketName)
 
@@ -77,7 +77,7 @@ func (t *StorageHandleTest) TestBucketHandleWhenBucketExists() {
 
 func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExist() {
 	fakeClient := t.fakeStorageServer.Client()
-	storageClient := &storageClient{client: fakeClient}
+	storageClient := &Storageclient{Client: fakeClient}
 
 	bucketHandle, err := storageClient.BucketHandle(invalidBucketName)
 

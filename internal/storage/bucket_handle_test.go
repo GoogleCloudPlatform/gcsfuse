@@ -36,7 +36,7 @@ func TestBucketHandle(t *testing.T) { RunTests(t) }
 
 type BucketHandleTest struct {
 	fakeStorageServer *fakestorage.Server
-	bucketHandle      *bucketHandle
+	bucketHandle      *BucketHandle
 }
 
 var _ SetUpInterface = &BucketHandleTest{}
@@ -49,7 +49,7 @@ func (t *BucketHandleTest) SetUp(_ *TestInfo) {
 	t.fakeStorageServer, err = CreateFakeStorageServer([]fakestorage.Object{GetTestFakeStorageObject()})
 	AssertEq(nil, err)
 
-	storageClient := &storageClient{client: t.fakeStorageServer.Client()}
+	storageClient := &Storageclient{Client: t.fakeStorageServer.Client()}
 	t.bucketHandle, err = storageClient.BucketHandle(TestBucketName)
 	AssertEq(nil, err)
 	AssertNe(nil, t.bucketHandle)

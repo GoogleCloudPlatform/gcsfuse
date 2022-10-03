@@ -28,14 +28,14 @@ import (
 )
 
 type StorageHandle interface {
-	BucketHandle(bucketName string) (bh *bucketHandle, err error)
+	BucketHandle(bucketName string) (bh *BucketHandle, err error)
 }
 
-type storageClient struct {
-	client *storage.Client
+type Storageclient struct {
+	Client *storage.Client
 }
 
-type StorageClientConfig struct {
+type StorageclientConfig struct {
 	DisableHTTP2        bool
 	MaxConnsPerHost     int
 	MaxIdleConnsPerHost int
@@ -47,8 +47,8 @@ type StorageClientConfig struct {
 
 // NewStorageHandle returns the handle of Go storage client containing
 // customized http client. We can configure the http client using the
-// storageClientConfig parameter.
-func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh StorageHandle, err error) {
+// StorageclientConfig parameter.
+func NewStorageHandle(ctx context.Context, clientConfig StorageclientConfig) (sh StorageHandle, err error) {
 	var transport *http.Transport
 	// Disabling the http2 makes the client more performant.
 	if clientConfig.DisableHTTP2 {
@@ -94,17 +94,17 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 		}),
 		storage.WithPolicy(storage.RetryAlways))
 
-	sh = &storageClient{client: sc}
+	sh = &Storageclient{Client: sc}
 	return
 }
 
-func (sh *storageClient) BucketHandle(bucketName string) (bh *bucketHandle, err error) {
-	storageBucketHandle := sh.client.Bucket(bucketName)
+func (sh *Storageclient) BucketHandle(bucketName string) (bh *BucketHandle, err error) {
+	storageBucketHandle := sh.Client.Bucket(bucketName)
 	_, err = storageBucketHandle.Attrs(context.Background())
 	if err != nil {
 		return
 	}
 
-	bh = &bucketHandle{bucket: storageBucketHandle}
+	bh = &BucketHandle{bucket: storageBucketHandle}
 	return
 }

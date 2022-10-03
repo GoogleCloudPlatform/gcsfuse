@@ -31,12 +31,12 @@ import (
 	"google.golang.org/api/googleapi"
 )
 
-type bucketHandle struct {
+type BucketHandle struct {
 	gcs.Bucket
 	bucket *storage.BucketHandle
 }
 
-func (bh *bucketHandle) NewReader(
+func (bh *BucketHandle) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Initialising the starting offset and the length to be read by the reader.
@@ -63,7 +63,7 @@ func (bh *bucketHandle) NewReader(
 	rc = io.NopCloser(r)
 	return
 }
-func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
+func (b *BucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
 	obj := b.bucket.Object(req.Name)
 
 	// Switching to the requested generation of the object.
@@ -78,7 +78,7 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 	return obj.Delete(ctx)
 }
 
-func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+func (b *BucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
 	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
@@ -99,7 +99,7 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 	return
 }
 
-func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+func (bh *BucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	obj := bh.bucket.Object(req.Name)
 
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
@@ -145,7 +145,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	return
 }
 
-func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+func (b *BucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
 	srcObj := b.bucket.Object(req.SrcName)
 	dstObj := b.bucket.Object(req.DstName)
 
