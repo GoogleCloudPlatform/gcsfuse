@@ -86,14 +86,15 @@ COPY --from=gcsfuse_packages ${GCSFUSE_PKG}/*amd64.deb gcsfuse.deb
 RUN apt-get update && apt-get install -y ca-certificates fuse && rm -rf /var/lib/apt/lists/* && apt-get clean
 RUN dpkg -i gcsfuse.deb && rm gcsfuse.deb
 
-# Labels.
+# Labels:https://github.com/opencontainers/image-spec/blob/master/annotations.md
 ARG BUILD_DATE
 ARG GCSFUSE_VERSION
-LABEL build-date=$BUILD_DATE
-LABEL name="GoogleCloudPlatform/gcsfuse"
-LABEL version="v${GCSFUSE_VERSION}"
-LABEL description="A user-space file system for Google Cloud Storage."
-LABEL url="https://cloud.google.com/storage/docs/gcs-fuse"
-LABEL vcs-url="https://github.com/GoogleCloudPlatform/gcsfuse"
+ARG OS_NAME
+LABEL "org.opencontainers.artifact.created"=$BUILD_DATE
+LABEL "org.opencontainers.image.title"="GoogleCloudPlatform/gcsfuse-${OS_NAME}"
+LABEL "org.opencontainers.image.version"="v${GCSFUSE_VERSION}"
+LABEL "org.opencontainers.image.description"="A user-space file system for Google Cloud Storage."
+LABEL "org.opencontainers.image.url"="https://cloud.google.com/storage/docs/gcs-fuse"
+LABEL "org.opencontainers.image.source"="https://github.com/GoogleCloudPlatform/gcsfuse"
 
 CMD ["gcsfuse", "--help"]
