@@ -157,13 +157,13 @@ type conn struct {
 func (c *conn) OpenBucket(
 	ctx context.Context,
 	options *OpenBucketOptions) (b Bucket, err error) {
-	b = newBucket(c.client, c.url, c.userAgent, options.Name, options.BillingProject)
+	b = Newbukcet(c.client, c.url, c.userAgent, options.Name, options.BillingProject)
 
 	// Enable retry loops if requested.
 	// Enable retry loops if requested.
 	if c.maxBackoffSleep > 0 {
 		// TODO(jacobsa): Show the retries as distinct spans in the trace.
-		b = newRetryBucket(c.maxBackoffSleep, b)
+		b = NewRetryBucket(c.maxBackoffSleep, b)
 	}
 
 	// Enable tracing if appropriate.
