@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs"
@@ -33,12 +34,13 @@ import (
 // Mount the file system based on the supplied arguments, returning a
 // fuse.MountedFileSystem that can be joined to wait for unmounting.
 func mountWithConn(
-	ctx context.Context,
-	bucketName string,
-	mountPoint string,
-	flags *flagStorage,
-	conn *gcsx.Connection,
-	status *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
+		ctx context.Context,
+		bucketName string,
+		mountPoint string,
+		flags *flagStorage,
+		conn *gcsx.Connection,
+		storageHandle storage.StorageHandle,
+		status *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
@@ -51,7 +53,7 @@ func mountWithConn(
 		if err != nil {
 			err = fmt.Errorf(
 				"Error writing to temporary directory (%q); are you sure it exists "+
-					"with the correct permissions?",
+						"with the correct permissions?",
 				err.Error())
 			return
 		}
@@ -93,7 +95,8 @@ be interacting with the file system.`)
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 	}
-	bm := gcsx.NewBucketManager(bucketCfg, conn)
+
+	bm := gcsx.NewBucketManager(bucketCfg, conn, storageHandle)
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{
