@@ -122,17 +122,17 @@ func chooseDelay(prevSleepCount uint) (d time.Duration) {
 // This is essentially what is described in the "Best practices" section of the
 // "Upload Objects" docs:
 //
-//	https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload
+//     https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload
 //
 // with the following exceptions:
 //
-//   - We perform backoff for all operations.
+//  *  We perform backoff for all operations.
 //
-//   - The random component scales with the delay, so that the first sleep
+//  *  The random component scales with the delay, so that the first sleep
 //     cannot be as long as one second. The algorithm used matches the
 //     description at http://en.wikipedia.org/wiki/Exponential_backoff.
 //
-//   - We retry more types of errors; see shouldRetry above.
+//  *  We retry more types of errors; see shouldRetry above.
 //
 // State for total sleep time and number of previous sleeps is housed outside
 // of this function to allow it to be "resumed" by multiple invocations of
