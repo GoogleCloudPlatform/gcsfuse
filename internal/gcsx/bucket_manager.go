@@ -154,8 +154,6 @@ func setUpRateLimiting(
 // Special case: if the bucket name is canned.FakeBucketName, set up a fake
 // bucket as described in that package.
 func (bm *bucketManager) SetUpGcsBucket(ctx context.Context, name string) (b gcs.Bucket, err error) {
-	//bm.config.EnableStorageClientLibrary = true
-
 	if bm.config.EnableStorageClientLibrary == true {
 		bh, _ := bm.storageHandle.BucketHandle(name)
 		b = bh
