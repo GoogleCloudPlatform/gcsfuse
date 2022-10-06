@@ -18,7 +18,7 @@ import (
 	"github.com/fsouza/fake-gcs-server/fakestorage"
 )
 
-const port uint16 = 8082
+const port uint16 = 8081
 const host string = "127.0.0.1"
 
 const TestBucketName string = "gcsfuse-default-bucket"
