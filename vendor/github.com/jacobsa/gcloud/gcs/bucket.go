@@ -349,7 +349,7 @@ func (b *bucket) DeleteObject(
 	return
 }
 
-func Newbukcet(
+func newBucket(
 	client *http.Client,
 	url *url.URL,
 	userAgent string,

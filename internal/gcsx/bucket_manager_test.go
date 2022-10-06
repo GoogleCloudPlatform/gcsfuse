@@ -2,23 +2,20 @@ package gcsx
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"log"
-	"net/http"
-	"net/url"
 	"testing"
 	"time"
 
 	"github.com/fsouza/fake-gcs-server/fakestorage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	. "github.com/jacobsa/ogletest"
-	"github.com/jacobsa/reqtrace"
-	"google.golang.org/api/googleapi"
+	"github.com/jacobsa/timeutil"
 )
 
 func TestFlags(t *testing.T) { RunTests(t) }
+
+const TestBucketName string = "gcsfuse-default-bucket"
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -29,81 +26,6 @@ type BucketManagerTest struct {
 	bucketHandle      *storage.BucketHandle
 }
 
-type fakeStorageHandle struct {
-	fakeClient *storage.Storageclient
-}
-
-type fakeConn struct {
-	fakeClient          *http.Client
-	fakeUrl             *url.URL
-	fakeUserAgent       string
-	fakeMaxBackoffSleep time.Duration
-	fakeDebugLogger     *log.Logger
-}
-
-func (c *fakeConn) OpenBucket(
-	ctx context.Context,
-	options *gcs.OpenBucketOptions) (b gcs.Bucket, err error) {
-	b = gcs.Newbukcet(c.fakeClient, c.fakeUrl, c.fakeUserAgent, options.Name, options.BillingProject)
-
-	// Enable retry loops if requested.
-	// Enable retry loops if requested.
-	if c.fakeMaxBackoffSleep > 0 {
-		// TODO(jacobsa): Show the retries as distinct spans in the trace.
-		b = gcs.NewRetryBucket(c.fakeMaxBackoffSleep, b)
-	}
-
-	// Enable tracing if appropriate.
-	if reqtrace.Enabled() {
-		b = gcs.GetWrappedWithReqtraceBucket(b)
-	}
-
-	// Print debug output if requested.
-	if c.fakeDebugLogger != nil {
-		b = gcs.NewDebugBucket(b, c.fakeDebugLogger)
-	}
-
-	// Attempt to make an innocuous request to the bucket, snooping for HTTP 403
-	// errors that indicate bad credentials. This lets us warn the user early in
-	// the latter case, with a more helpful message than just "HTTP 403
-	// Forbidden". Similarly for bad bucket names that don't collide with another
-	// bucket.
-	_, err = b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1})
-
-	var apiError *googleapi.Error
-	if errors.As(err, &apiError) {
-		switch apiError.Code {
-		case http.StatusForbidden:
-			err = fmt.Errorf(
-				"Bad credentials for bucket %q. Check the bucket name and your "+
-					"credentials.",
-				b.Name())
-
-			return
-
-		case http.StatusNotFound:
-			err = fmt.Errorf("Unknown bucket %q", b.Name())
-			return
-		}
-	}
-
-	// Otherwise, don't interfere.
-	err = nil
-
-	return
-}
-
-func (f fakeStorageHandle) BucketHandle(bucketName string) (bh *storage.BucketHandle, err error) {
-	storageBucketHandle := f.fakeClient.Client.Bucket(bucketName)
-	_, err = storageBucketHandle.Attrs(context.Background())
-	if err != nil {
-		return
-	}
-
-	bh = &storage.BucketHandle{BucketObj: storageBucketHandle}
-	return
-}
-
 var _ SetUpInterface = &BucketManagerTest{}
 var _ TearDownInterface = &BucketManagerTest{}
 
@@ -111,7 +33,7 @@ func init() { RegisterTestSuite(&BucketManagerTest{}) }
 
 func (t *BucketManagerTest) SetUp(_ *TestInfo) {
 	var err error
-	t.fakeStorageServer, err = storage.CreateFakeStorageServer([]fakestorage.Object{GetTestFakeStorageObject()})
+	t.fakeStorageServer, err = storage.CreateFakeStorageServer([]fakestorage.Object{storage.GetTestFakeStorageObject()})
 	AssertEq(nil, err)
 
 	storageClient := &storage.Storageclient{Client: t.fakeStorageServer.Client()}
@@ -127,13 +49,6 @@ func (t *BucketManagerTest) TearDown() {
 func (t *BucketManagerTest) TestNewBucketManagerMethod() {
 	var nilValue *bucketManager = nil
 	storageClient := &storage.Storageclient{Client: t.fakeStorageServer.Client()}
-	fakeConnObj := fakeConn{
-		fakeClient:          nil,
-		fakeUrl:             nil,
-		fakeUserAgent:       "fakeuserAgent",
-		fakeMaxBackoffSleep: time.Second,
-		fakeDebugLogger:     nil,
-	}
 
 	bucketConfig := BucketConfig{
 		BillingProject:                     "BillingProject",
@@ -147,27 +62,37 @@ func (t *BucketManagerTest) TestNewBucketManagerMethod() {
 		AppendThreshold:                    2,
 		TmpObjectPrefix:                    "TmpObjectPrefix",
 	}
-	connection := Connection{
-		wrapped: &fakeConnObj,
-	}
 
-	bm := NewBucketManager(bucketConfig, &connection, storageClient)
+	bm := NewBucketManager(bucketConfig, nil, storageClient)
 	ExpectNe(bm, nilValue)
 }
 
-func (t *BucketManagerTest) TestSetUpGcsBucketMethod() {
+func (t *BucketManagerTest) TestSetUpGcsBucketEnableStorageClientLibraryMethod() {
 	var bm bucketManager
 	var nilBucket *storage.BucketHandle = nil
-
-	storageClient := &storage.Storageclient{Client: t.fakeStorageServer.Client()}
-	fakeStorageHandleObj := fakeStorageHandle{
-		fakeClient: storageClient,
-	}
-	bm.storageHandle = fakeStorageHandleObj
+	bm.storageHandle = &storage.Storageclient{Client: t.fakeStorageServer.Client()}
+	bm.config.EnableStorageClientLibrary = true
 
 	Bucket, err := bm.SetUpGcsBucket(context.Background(), TestBucketName)
 
 	ExpectNe(Bucket, nilBucket)
+	ExpectEq(err, nil)
+}
+
+func (t *BucketManagerTest) TestSetUpGcsBucketDisableStorageClientLibraryMethod() {
+	var bm bucketManager
+	var nilBucket *gcs.Bucket = nil
+
+	bm.storageHandle = &storage.Storageclient{Client: t.fakeStorageServer.Client()}
+	bm.config.EnableStorageClientLibrary = false
+	bm.config.BillingProject = "BillingProject"
+	bm.conn = &Connection{
+		wrapped: gcsfake.NewConn(timeutil.RealClock()),
+	}
+
+	Bucket, err := bm.SetUpGcsBucket(context.Background(), "fake@bucket")
+
+	ExpectNe(&Bucket, nilBucket)
 	ExpectEq(err, nil)
 }
 
@@ -186,17 +111,17 @@ func (t *BucketManagerTest) TestSetUpBucketMethod() {
 		debugGcs:                           true,
 		AppendThreshold:                    2,
 		TmpObjectPrefix:                    "TmpObjectPrefix",
+		EnableStorageClientLibrary:         true,
 	}
 
-	storageClient := &storage.Storageclient{Client: t.fakeStorageServer.Client()}
-	fakeStorageHandleObj := fakeStorageHandle{
-		fakeClient: storageClient,
-	}
 	ctx := context.Background()
 
-	bm.storageHandle = fakeStorageHandleObj
+	bm.storageHandle = &storage.Storageclient{Client: t.fakeStorageServer.Client()}
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
+	bm.conn = &Connection{
+		wrapped: gcsfake.NewConn(timeutil.RealClock()),
+	}
 
 	Bucket, err := bm.SetUpBucket(context.Background(), TestBucketName)
 	ExpectNe(Bucket.Syncer, nilSync.Syncer)

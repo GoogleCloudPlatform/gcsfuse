@@ -42,6 +42,7 @@ type BucketConfig struct {
 	StatCacheCapacity                  int
 	StatCacheTTL                       time.Duration
 	EnableMonitoring                   bool
+	EnableStorageClientLibrary         bool
 	debugGcs                           bool
 
 	// Files backed by on object of length at least AppendThreshold that have
@@ -153,7 +154,9 @@ func setUpRateLimiting(
 // Special case: if the bucket name is canned.FakeBucketName, set up a fake
 // bucket as described in that package.
 func (bm *bucketManager) SetUpGcsBucket(ctx context.Context, name string) (b gcs.Bucket, err error) {
-	if bm.storageHandle != nil {
+	//bm.config.EnableStorageClientLibrary = true
+
+	if bm.config.EnableStorageClientLibrary == true {
 		bh, _ := bm.storageHandle.BucketHandle(name)
 		b = bh
 		if reqtrace.Enabled() {

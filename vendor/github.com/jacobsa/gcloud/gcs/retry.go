@@ -36,9 +36,9 @@ type retryBucket struct {
 	wrapped  Bucket
 }
 
-func NewRetryBucket(
-	maxSleep time.Duration,
-	wrapped Bucket) (b Bucket) {
+func newRetryBucket(
+		maxSleep time.Duration,
+		wrapped Bucket) (b Bucket) {
 	b = &retryBucket{
 		maxSleep: maxSleep,
 		wrapped:  wrapped,
@@ -138,12 +138,12 @@ func chooseDelay(prevSleepCount uint) (d time.Duration) {
 // of this function to allow it to be "resumed" by multiple invocations of
 // retryObjectReader.Read.
 func expBackoff(
-	ctx context.Context,
-	desc string,
-	maxSleep time.Duration,
-	f func() error,
-	prevSleepCount *uint,
-	prevSleepDuration *time.Duration) (err error) {
+		ctx context.Context,
+		desc string,
+		maxSleep time.Duration,
+		f func() error,
+		prevSleepCount *uint,
+		prevSleepDuration *time.Duration) (err error) {
 	for {
 		// Make an attempt. Stop if successful.
 		err = f()
@@ -188,10 +188,10 @@ func expBackoff(
 // Like expBackoff, but assumes that we've never slept before (and won't need
 // to sleep again).
 func oneShotExpBackoff(
-	ctx context.Context,
-	desc string,
-	maxSleep time.Duration,
-	f func() error) (err error) {
+		ctx context.Context,
+		desc string,
+		maxSleep time.Duration,
+		f func() error) (err error) {
 	var prevSleepCount uint
 	var prevSleepDuration time.Duration
 
@@ -347,8 +347,8 @@ func (rb *retryBucket) Name() (name string) {
 }
 
 func (rb *retryBucket) NewReader(
-	ctx context.Context,
-	req *ReadObjectRequest) (rc io.ReadCloser, err error) {
+		ctx context.Context,
+		req *ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// If the user specified the latest generation, we need to figure out what
 	// that is so that we can create a reader that knows how to keep a stable
 	// generation despite retrying repeatedly.
@@ -410,8 +410,8 @@ func (rb *retryBucket) NewReader(
 }
 
 func (rb *retryBucket) CreateObject(
-	ctx context.Context,
-	req *CreateObjectRequest) (o *Object, err error) {
+		ctx context.Context,
+		req *CreateObjectRequest) (o *Object, err error) {
 	var seeker io.ReadSeeker
 	if readSeeker, ok := req.Contents.(io.ReadSeeker); ok {
 		seeker = readSeeker
@@ -450,8 +450,8 @@ func (rb *retryBucket) CreateObject(
 }
 
 func (rb *retryBucket) CopyObject(
-	ctx context.Context,
-	req *CopyObjectRequest) (o *Object, err error) {
+		ctx context.Context,
+		req *CopyObjectRequest) (o *Object, err error) {
 	err = oneShotExpBackoff(
 		ctx,
 		fmt.Sprintf("CopyObject(%q, %q)", req.SrcName, req.DstName),
@@ -465,8 +465,8 @@ func (rb *retryBucket) CopyObject(
 }
 
 func (rb *retryBucket) ComposeObjects(
-	ctx context.Context,
-	req *ComposeObjectsRequest) (o *Object, err error) {
+		ctx context.Context,
+		req *ComposeObjectsRequest) (o *Object, err error) {
 	err = oneShotExpBackoff(
 		ctx,
 		fmt.Sprintf("ComposeObjects(%q)", req.DstName),
@@ -480,8 +480,8 @@ func (rb *retryBucket) ComposeObjects(
 }
 
 func (rb *retryBucket) StatObject(
-	ctx context.Context,
-	req *StatObjectRequest) (o *Object, err error) {
+		ctx context.Context,
+		req *StatObjectRequest) (o *Object, err error) {
 	err = oneShotExpBackoff(
 		ctx,
 		fmt.Sprintf("StatObject(%q)", req.Name),
@@ -495,8 +495,8 @@ func (rb *retryBucket) StatObject(
 }
 
 func (rb *retryBucket) ListObjects(
-	ctx context.Context,
-	req *ListObjectsRequest) (listing *Listing, err error) {
+		ctx context.Context,
+		req *ListObjectsRequest) (listing *Listing, err error) {
 	err = oneShotExpBackoff(
 		ctx,
 		fmt.Sprintf("ListObjects(%q)", req.Prefix),
@@ -509,8 +509,8 @@ func (rb *retryBucket) ListObjects(
 }
 
 func (rb *retryBucket) UpdateObject(
-	ctx context.Context,
-	req *UpdateObjectRequest) (o *Object, err error) {
+		ctx context.Context,
+		req *UpdateObjectRequest) (o *Object, err error) {
 	err = oneShotExpBackoff(
 		ctx,
 		fmt.Sprintf("UpdateObject(%q)", req.Name),
@@ -524,8 +524,8 @@ func (rb *retryBucket) UpdateObject(
 }
 
 func (rb *retryBucket) DeleteObject(
-	ctx context.Context,
-	req *DeleteObjectRequest) (err error) {
+		ctx context.Context,
+		req *DeleteObjectRequest) (err error) {
 	err = oneShotExpBackoff(
 		ctx,
 		fmt.Sprintf("DeleteObject(%q)", req.Name),
