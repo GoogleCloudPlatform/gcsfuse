@@ -19,7 +19,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs"
@@ -39,7 +38,6 @@ func mountWithConn(
 	mountPoint string,
 	flags *flagStorage,
 	conn *gcsx.Connection,
-	storageHandle storage.StorageHandle,
 	status *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
@@ -95,8 +93,7 @@ be interacting with the file system.`)
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 	}
-
-	bm := gcsx.NewBucketManager(bucketCfg, conn, storageHandle)
+	bm := gcsx.NewBucketManager(bucketCfg, conn)
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{
