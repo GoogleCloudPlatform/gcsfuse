@@ -68,8 +68,8 @@ type BucketConfig struct {
 // BucketManager manages the lifecycle of buckets.
 type BucketManager interface {
 	SetUpBucket(
-			ctx context.Context,
-			name string) (b SyncerBucket, err error)
+		ctx context.Context,
+		name string) (b SyncerBucket, err error)
 
 	// Shuts down the bucket manager and its buckets
 	ShutDown()
@@ -96,9 +96,9 @@ func NewBucketManager(config BucketConfig, conn *Connection, storageHandle stora
 }
 
 func setUpRateLimiting(
-		in gcs.Bucket,
-		opRateLimitHz float64,
-		egressBandwidthLimit float64) (out gcs.Bucket, err error) {
+	in gcs.Bucket,
+	opRateLimitHz float64,
+	egressBandwidthLimit float64) (out gcs.Bucket, err error) {
 	// If no rate limiting has been requested, just return the bucket.
 	if !(opRateLimitHz > 0 || egressBandwidthLimit > 0) {
 		out = in
@@ -180,10 +180,9 @@ func (bm *bucketManager) SetUpGcsBucket(ctx context.Context, name string) (b gcs
 	return
 }
 func (bm *bucketManager) SetUpBucket(
-		ctx context.Context,
-		name string) (sb SyncerBucket, err error) {
+	ctx context.Context,
+	name string) (sb SyncerBucket, err error) {
 	var b gcs.Bucket
-	bm.config.EnableStorageClientLibrary = true
 	// Set up the appropriate backing bucket.
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
