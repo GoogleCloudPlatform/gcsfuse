@@ -67,6 +67,7 @@ func (t *BucketManagerTest) TestNewBucketManagerMethod() {
 	}
 
 	bm := NewBucketManager(bucketConfig, nil, storageClient)
+	
 	ExpectNe(bm, nilValue)
 }
 
@@ -128,6 +129,7 @@ func (t *BucketManagerTest) TestSetUpBucketMethod() {
 	}
 
 	bucket, err := bm.SetUpBucket(context.Background(), TestBucketName)
+
 	ExpectNe(bucket.Syncer, nilSync.Syncer)
 	ExpectEq(err, nil)
 }
