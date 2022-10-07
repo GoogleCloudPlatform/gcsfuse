@@ -157,7 +157,7 @@ func (bm *bucketManager) SetUpGcsBucket(ctx context.Context, name string) (b gcs
 	if bm.config.EnableStorageClientLibrary {
 		b, err = bm.storageHandle.BucketHandle(name)
 		if err != nil {
-			fmt.Println("Error Occurred while handling bucket ")
+			return
 		} else {
 			if reqtrace.Enabled() {
 				b = gcs.GetWrappedWithReqtraceBucket(b)
