@@ -7,7 +7,6 @@ import (
 
 	"github.com/fsouza/fake-gcs-server/fakestorage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
@@ -50,7 +49,6 @@ func (t *BucketManagerTest) TearDown() {
 }
 
 func (t *BucketManagerTest) TestNewBucketManagerMethod() {
-	var nilValue *bucketManager = nil
 	storageClient := &storage.Storageclient{Client: t.fakeStorageServer.Client()}
 	bucketConfig := BucketConfig{
 		BillingProject:                     "BillingProject",
@@ -63,29 +61,28 @@ func (t *BucketManagerTest) TestNewBucketManagerMethod() {
 		DebugGCS:                           true,
 		AppendThreshold:                    2,
 		TmpObjectPrefix:                    "TmpObjectPrefix",
+		EnableStorageClientLibrary:         true,
 	}
 
 	bm := NewBucketManager(bucketConfig, nil, storageClient)
 
-	ExpectNe(bm, nilValue)
+	ExpectNe(nil, bm)
 }
 
 func (t *BucketManagerTest) TestSetupGcsBucketWhenEnableStorageClientLibraryIsTrue() {
 	var bm bucketManager
-	var nilBucket *gcs.Bucket = nil
 	bm.storageHandle = &storage.Storageclient{Client: t.fakeStorageServer.Client()}
 	bm.config.EnableStorageClientLibrary = true
 	bm.config.DebugGCS = true
 
 	bucket, err := bm.SetUpGcsBucket(context.Background(), TestBucketName)
 
-	ExpectNe(&bucket, nilBucket)
-	ExpectEq(err, nil)
+	ExpectNe(nil, bucket)
+	ExpectEq(nil, err)
 }
 
 func (t *BucketManagerTest) TestSetupGcsBucketWhenEnableStorageClientLibraryIsFalse() {
 	var bm bucketManager
-	var nilBucket *gcs.Bucket = nil
 	bm.storageHandle = &storage.Storageclient{Client: t.fakeStorageServer.Client()}
 	bm.config.EnableStorageClientLibrary = false
 	bm.config.BillingProject = "BillingProject"
@@ -95,13 +92,12 @@ func (t *BucketManagerTest) TestSetupGcsBucketWhenEnableStorageClientLibraryIsFa
 
 	bucket, err := bm.SetUpGcsBucket(context.Background(), "fake@bucket")
 
-	ExpectNe(&bucket, nilBucket)
-	ExpectEq(err, nil)
+	ExpectNe(nil, bucket)
+	ExpectEq(nil, err)
 }
 
 func (t *BucketManagerTest) TestSetUpBucketMethod() {
 	var bm bucketManager
-	nilSync := NewSyncerBucket(0, "", nil)
 	bucketConfig := BucketConfig{
 		BillingProject:                     "BillingProject",
 		OnlyDir:                            "OnlyDir",
@@ -125,6 +121,6 @@ func (t *BucketManagerTest) TestSetUpBucketMethod() {
 
 	bucket, err := bm.SetUpBucket(context.Background(), TestBucketName)
 
-	ExpectNe(bucket.Syncer, nilSync.Syncer)
-	ExpectEq(err, nil)
+	ExpectNe(nil, bucket.Syncer)
+	ExpectEq(nil, err)
 }
