@@ -155,16 +155,15 @@ func setUpRateLimiting(
 // bucket as described in that package.
 func (bm *bucketManager) SetUpGcsBucket(ctx context.Context, name string) (b gcs.Bucket, err error) {
 	if bm.config.EnableStorageClientLibrary {
-		bh, err := bm.storageHandle.BucketHandle(name)
-		b = bh
+		b, err = bm.storageHandle.BucketHandle(name)
 		if err != nil {
 			fmt.Println("Error Occurred while handling bucket ")
 		} else {
 			if reqtrace.Enabled() {
-				b = gcs.GetWrappedWithReqtraceBucket(bh)
+				b = gcs.GetWrappedWithReqtraceBucket(b)
 			}
 			if bm.config.DebugGCS {
-				b = gcs.NewDebugBucket(bh, logger.NewDebug("gcs: "))
+				b = gcs.NewDebugBucket(b, logger.NewDebug("gcs: "))
 			}
 		}
 	} else {
