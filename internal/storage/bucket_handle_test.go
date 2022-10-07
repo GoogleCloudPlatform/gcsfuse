@@ -36,7 +36,7 @@ func TestBucketHandle(t *testing.T) { RunTests(t) }
 
 type BucketHandleTest struct {
 	fakeStorageServer *fakestorage.Server
-	bucketHandle      *BucketHandle
+	bucketHandle      *bucketHandle
 }
 
 var _ SetUpInterface = &BucketHandleTest{}

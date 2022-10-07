@@ -7,6 +7,7 @@ import (
 
 	"github.com/fsouza/fake-gcs-server/fakestorage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
@@ -22,7 +23,7 @@ const TestBucketName string = "gcsfuse-default-bucket"
 
 type BucketManagerTest struct {
 	fakeStorageServer *fakestorage.Server
-	bucketHandle      *storage.BucketHandle
+	bucket            gcs.Bucket
 }
 
 var _ SetUpInterface = &BucketManagerTest{}
@@ -38,10 +39,10 @@ func (t *BucketManagerTest) SetUp(_ *TestInfo) {
 	AssertEq(nil, err)
 
 	storageClient := &storage.Storageclient{Client: t.fakeStorageServer.Client()}
-	t.bucketHandle, err = storageClient.BucketHandle(TestBucketName)
+	t.bucket, err = storageClient.BucketHandle(TestBucketName)
 
 	AssertEq(nil, err)
-	AssertNe(nil, t.bucketHandle)
+	AssertNe(nil, t.bucket)
 }
 
 func (t *BucketManagerTest) TearDown() {
