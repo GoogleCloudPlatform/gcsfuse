@@ -43,7 +43,7 @@ type BucketConfig struct {
 	StatCacheTTL                       time.Duration
 	EnableMonitoring                   bool
 	EnableStorageClientLibrary         bool
-	DebugGcs                           bool
+	DebugGCS                           bool
 
 	// Files backed by on object of length at least AppendThreshold that have
 	// only been appended to (i.e. none of the object's contents have been
@@ -163,7 +163,7 @@ func (bm *bucketManager) SetUpGcsBucket(ctx context.Context, name string) (b gcs
 			if reqtrace.Enabled() {
 				b = gcs.GetWrappedWithReqtraceBucket(bh)
 			}
-			if bm.config.DebugGcs {
+			if bm.config.DebugGCS {
 				b = gcs.NewDebugBucket(bh, logger.NewDebug("gcs: "))
 			}
 		}
@@ -179,6 +179,7 @@ func (bm *bucketManager) SetUpGcsBucket(ctx context.Context, name string) (b gcs
 	}
 	return
 }
+
 func (bm *bucketManager) SetUpBucket(
 	ctx context.Context,
 	name string) (sb SyncerBucket, err error) {
