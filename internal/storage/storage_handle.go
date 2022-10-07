@@ -35,7 +35,7 @@ type Storageclient struct {
 	Client *storage.Client
 }
 
-type StorageclientConfig struct {
+type StorageClientConfig struct {
 	DisableHTTP2        bool
 	MaxConnsPerHost     int
 	MaxIdleConnsPerHost int
@@ -48,7 +48,7 @@ type StorageclientConfig struct {
 // NewStorageHandle returns the handle of Go storage client containing
 // customized http client. We can configure the http client using the
 // StorageclientConfig parameter.
-func NewStorageHandle(ctx context.Context, clientConfig StorageclientConfig) (sh StorageHandle, err error) {
+func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh StorageHandle, err error) {
 	var transport *http.Transport
 	// Disabling the http2 makes the client more performant.
 	if clientConfig.DisableHTTP2 {

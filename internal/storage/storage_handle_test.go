@@ -26,8 +26,8 @@ import (
 
 const invalidBucketName string = "will-not-be-present-in-fake-server"
 
-func getDefaultStorageClientConfig() (clientConfig StorageclientConfig) {
-	return StorageclientConfig{
+func getDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
+	return StorageClientConfig{
 		DisableHTTP2:        true,
 		MaxConnsPerHost:     10,
 		MaxIdleConnsPerHost: 100,
@@ -59,7 +59,7 @@ func (t *StorageHandleTest) TearDown() {
 	t.fakeStorageServer.Stop()
 }
 
-func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc StorageclientConfig) {
+func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc StorageClientConfig) {
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 	AssertEq(nil, err)
 	AssertNe(nil, handleCreated)
