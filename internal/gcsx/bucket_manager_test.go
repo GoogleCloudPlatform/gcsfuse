@@ -33,11 +33,14 @@ func init() { RegisterTestSuite(&BucketManagerTest{}) }
 
 func (t *BucketManagerTest) SetUp(_ *TestInfo) {
 	var err error
+
 	t.fakeStorageServer, err = storage.CreateFakeStorageServer([]fakestorage.Object{storage.GetTestFakeStorageObject()})
+
 	AssertEq(nil, err)
 
 	storageClient := &storage.Storageclient{Client: t.fakeStorageServer.Client()}
 	t.bucketHandle, err = storageClient.BucketHandle(TestBucketName)
+
 	AssertEq(nil, err)
 	AssertNe(nil, t.bucketHandle)
 }
@@ -58,7 +61,7 @@ func (t *BucketManagerTest) TestNewBucketManagerMethod() {
 		StatCacheCapacity:                  100,
 		StatCacheTTL:                       20 * time.Second,
 		EnableMonitoring:                   true,
-		debugGcs:                           true,
+		DebugGcs:                           true,
 		AppendThreshold:                    2,
 		TmpObjectPrefix:                    "TmpObjectPrefix",
 	}
@@ -67,19 +70,20 @@ func (t *BucketManagerTest) TestNewBucketManagerMethod() {
 	ExpectNe(bm, nilValue)
 }
 
-func (t *BucketManagerTest) TestSetUpGcsBucketEnableStorageClientLibraryMethod() {
+func (t *BucketManagerTest) TestSetupGcsBucketWhenEnableStorageClientLibraryIsTrue() {
 	var bm bucketManager
-	var nilBucket *storage.BucketHandle = nil
+	var nilBucket *gcs.Bucket = nil
 	bm.storageHandle = &storage.Storageclient{Client: t.fakeStorageServer.Client()}
 	bm.config.EnableStorageClientLibrary = true
+	bm.config.DebugGcs = true
 
-	Bucket, err := bm.SetUpGcsBucket(context.Background(), TestBucketName)
+	bucket, err := bm.SetUpGcsBucket(context.Background(), TestBucketName)
 
-	ExpectNe(Bucket, nilBucket)
+	ExpectNe(&bucket, nilBucket)
 	ExpectEq(err, nil)
 }
 
-func (t *BucketManagerTest) TestSetUpGcsBucketDisableStorageClientLibraryMethod() {
+func (t *BucketManagerTest) TestSetupGcsBucketWhenEnableStorageClientLibraryIsFalse() {
 	var bm bucketManager
 	var nilBucket *gcs.Bucket = nil
 
@@ -90,9 +94,9 @@ func (t *BucketManagerTest) TestSetUpGcsBucketDisableStorageClientLibraryMethod(
 		wrapped: gcsfake.NewConn(timeutil.RealClock()),
 	}
 
-	Bucket, err := bm.SetUpGcsBucket(context.Background(), "fake@bucket")
+	bucket, err := bm.SetUpGcsBucket(context.Background(), "fake@bucket")
 
-	ExpectNe(&Bucket, nilBucket)
+	ExpectNe(&bucket, nilBucket)
 	ExpectEq(err, nil)
 }
 
@@ -108,7 +112,7 @@ func (t *BucketManagerTest) TestSetUpBucketMethod() {
 		StatCacheCapacity:                  100,
 		StatCacheTTL:                       20 * time.Second,
 		EnableMonitoring:                   true,
-		debugGcs:                           true,
+		DebugGcs:                           true,
 		AppendThreshold:                    2,
 		TmpObjectPrefix:                    "TmpObjectPrefix",
 		EnableStorageClientLibrary:         true,
@@ -123,7 +127,7 @@ func (t *BucketManagerTest) TestSetUpBucketMethod() {
 		wrapped: gcsfake.NewConn(timeutil.RealClock()),
 	}
 
-	Bucket, err := bm.SetUpBucket(context.Background(), TestBucketName)
-	ExpectNe(Bucket.Syncer, nilSync.Syncer)
+	bucket, err := bm.SetUpBucket(context.Background(), TestBucketName)
+	ExpectNe(bucket.Syncer, nilSync.Syncer)
 	ExpectEq(err, nil)
 }

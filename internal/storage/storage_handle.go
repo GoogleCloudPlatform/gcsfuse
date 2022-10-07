@@ -105,6 +105,6 @@ func (sh *Storageclient) BucketHandle(bucketName string) (bh *BucketHandle, err 
 		return
 	}
 
-	bh = &BucketHandle{BucketObj: storageBucketHandle}
+	bh = &BucketHandle{bucket: storageBucketHandle}
 	return
 }

@@ -33,7 +33,7 @@ import (
 
 type BucketHandle struct {
 	gcs.Bucket
-	BucketObj *storage.BucketHandle
+	bucket *storage.BucketHandle
 }
 
 func (bh *BucketHandle) NewReader(
@@ -44,7 +44,7 @@ func (bh *BucketHandle) NewReader(
 	end := int64((*req.Range).Limit)
 	length := int64(end - start)
 
-	obj := bh.BucketObj.Object(req.Name)
+	obj := bh.bucket.Object(req.Name)
 
 	// Switching to the requested generation of object.
 	if req.Generation != 0 {
@@ -64,7 +64,7 @@ func (bh *BucketHandle) NewReader(
 	return
 }
 func (b *BucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
-	obj := b.BucketObj.Object(req.Name)
+	obj := b.bucket.Object(req.Name)
 
 	// Switching to the requested generation of the object.
 	if req.Generation != 0 {
@@ -81,7 +81,7 @@ func (b *BucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 func (b *BucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
-	attrs, err = b.BucketObj.Object(req.Name).Attrs(ctx)
+	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
 
 	// If error is of type storage.ErrObjectNotExist
 	if err == storage.ErrObjectNotExist {
@@ -100,7 +100,7 @@ func (b *BucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 }
 
 func (bh *BucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
-	obj := bh.BucketObj.Object(req.Name)
+	obj := bh.bucket.Object(req.Name)
 
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
 	// only if the current generation for the object name is equal to the given value.
@@ -146,8 +146,8 @@ func (bh *BucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 }
 
 func (b *BucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
-	srcObj := b.BucketObj.Object(req.SrcName)
-	dstObj := b.BucketObj.Object(req.DstName)
+	srcObj := b.bucket.Object(req.SrcName)
+	dstObj := b.bucket.Object(req.DstName)
 
 	// Switching to the requested generation of source object.
 	if req.SrcGeneration != 0 {

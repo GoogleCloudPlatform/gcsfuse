@@ -43,7 +43,7 @@ type BucketConfig struct {
 	StatCacheTTL                       time.Duration
 	EnableMonitoring                   bool
 	EnableStorageClientLibrary         bool
-	debugGcs                           bool
+	DebugGcs                           bool
 
 	// Files backed by on object of length at least AppendThreshold that have
 	// only been appended to (i.e. none of the object's contents have been
@@ -68,8 +68,8 @@ type BucketConfig struct {
 // BucketManager manages the lifecycle of buckets.
 type BucketManager interface {
 	SetUpBucket(
-		ctx context.Context,
-		name string) (b SyncerBucket, err error)
+			ctx context.Context,
+			name string) (b SyncerBucket, err error)
 
 	// Shuts down the bucket manager and its buckets
 	ShutDown()
@@ -96,9 +96,9 @@ func NewBucketManager(config BucketConfig, conn *Connection, storageHandle stora
 }
 
 func setUpRateLimiting(
-	in gcs.Bucket,
-	opRateLimitHz float64,
-	egressBandwidthLimit float64) (out gcs.Bucket, err error) {
+		in gcs.Bucket,
+		opRateLimitHz float64,
+		egressBandwidthLimit float64) (out gcs.Bucket, err error) {
 	// If no rate limiting has been requested, just return the bucket.
 	if !(opRateLimitHz > 0 || egressBandwidthLimit > 0) {
 		out = in
@@ -155,13 +155,17 @@ func setUpRateLimiting(
 // bucket as described in that package.
 func (bm *bucketManager) SetUpGcsBucket(ctx context.Context, name string) (b gcs.Bucket, err error) {
 	if bm.config.EnableStorageClientLibrary {
-		bh, _ := bm.storageHandle.BucketHandle(name)
+		bh, err := bm.storageHandle.BucketHandle(name)
 		b = bh
-		if reqtrace.Enabled() {
-			b = gcs.GetWrappedWithReqtraceBucket(bh)
-		}
-		if bm.config.debugGcs {
-			b = gcs.NewDebugBucket(b, logger.NewDebug("gcs: "))
+		if err != nil {
+			fmt.Println("Error Occurred while handling bucket ")
+		} else {
+			if reqtrace.Enabled() {
+				b = gcs.GetWrappedWithReqtraceBucket(bh)
+			}
+			if bm.config.DebugGcs {
+				b = gcs.NewDebugBucket(bh, logger.NewDebug("gcs: "))
+			}
 		}
 	} else {
 		logger.Infof("OpenBucket(%q, %q)\n", name, bm.config.BillingProject)
@@ -176,9 +180,10 @@ func (bm *bucketManager) SetUpGcsBucket(ctx context.Context, name string) (b gcs
 	return
 }
 func (bm *bucketManager) SetUpBucket(
-	ctx context.Context,
-	name string) (sb SyncerBucket, err error) {
+		ctx context.Context,
+		name string) (sb SyncerBucket, err error) {
 	var b gcs.Bucket
+	bm.config.EnableStorageClientLibrary = true
 	// Set up the appropriate backing bucket.
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
