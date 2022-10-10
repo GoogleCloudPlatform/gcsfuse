@@ -47,7 +47,7 @@ type StorageClientConfig struct {
 
 // NewStorageHandle returns the handle of Go storage client containing
 // customized http client. We can configure the http client using the
-// StorageclientConfig parameter.
+// storageClientConfig parameter.
 func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh StorageHandle, err error) {
 	var transport *http.Transport
 	// Disabling the http2 makes the client more performant.
