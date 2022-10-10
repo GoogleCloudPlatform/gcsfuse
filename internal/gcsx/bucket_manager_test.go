@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fsouza/fake-gcs-server/fakestorage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
@@ -22,35 +21,30 @@ const TestBucketName string = "gcsfuse-default-bucket"
 ////////////////////////////////////////////////////////////////////////
 
 type BucketManagerTest struct {
-	fakeStorageServer *fakestorage.Server
 	bucket            gcs.Bucket
+	storageHandle     *storage.Storageclient
+	fakeStorageServer storage.FakeStorage
 }
 
 var _ SetUpInterface = &BucketManagerTest{}
-var _ TearDownInterface = &BucketManagerTest{}
 
 func init() { RegisterTestSuite(&BucketManagerTest{}) }
 
 func (t *BucketManagerTest) SetUp(_ *TestInfo) {
 	var err error
-
-	t.fakeStorageServer, err = storage.CreateFakeStorageServer([]fakestorage.Object{storage.GetTestFakeStorageObject()})
-
-	AssertEq(nil, err)
-
-	storageClient := &storage.Storageclient{Client: t.fakeStorageServer.Client()}
-	t.bucket, err = storageClient.BucketHandle(TestBucketName)
+	t.storageHandle = t.fakeStorageServer.CreateStorageHandle()
+	t.bucket, err = t.storageHandle.BucketHandle(TestBucketName)
 
 	AssertEq(nil, err)
 	AssertNe(nil, t.bucket)
 }
 
 func (t *BucketManagerTest) TearDown() {
-	t.fakeStorageServer.Stop()
+	t.fakeStorageServer.ShutDown()
 }
 
 func (t *BucketManagerTest) TestNewBucketManagerMethod() {
-	storageClient := &storage.Storageclient{Client: t.fakeStorageServer.Client()}
+	storageClient := t.storageHandle
 	bucketConfig := BucketConfig{
 		BillingProject:                     "BillingProject",
 		OnlyDir:                            "OnlyDir",
@@ -72,7 +66,7 @@ func (t *BucketManagerTest) TestNewBucketManagerMethod() {
 
 func (t *BucketManagerTest) TestSetupGcsBucketWhenEnableStorageClientLibraryIsTrue() {
 	var bm bucketManager
-	bm.storageHandle = &storage.Storageclient{Client: t.fakeStorageServer.Client()}
+	bm.storageHandle = t.storageHandle
 	bm.config.EnableStorageClientLibrary = true
 	bm.config.DebugGCS = true
 
@@ -84,7 +78,7 @@ func (t *BucketManagerTest) TestSetupGcsBucketWhenEnableStorageClientLibraryIsTr
 
 func (t *BucketManagerTest) TestSetupGcsBucketWhenEnableStorageClientLibraryIsFalse() {
 	var bm bucketManager
-	bm.storageHandle = &storage.Storageclient{Client: t.fakeStorageServer.Client()}
+	bm.storageHandle = t.storageHandle
 	bm.config.EnableStorageClientLibrary = false
 	bm.config.BillingProject = "BillingProject"
 	bm.conn = &Connection{
@@ -113,7 +107,7 @@ func (t *BucketManagerTest) TestSetUpBucketMethod() {
 		EnableStorageClientLibrary:         true,
 	}
 	ctx := context.Background()
-	bm.storageHandle = &storage.Storageclient{Client: t.fakeStorageServer.Client()}
+	bm.storageHandle = t.storageHandle
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
 	bm.conn = &Connection{

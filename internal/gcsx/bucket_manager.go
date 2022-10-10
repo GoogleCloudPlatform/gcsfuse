@@ -158,13 +158,12 @@ func (bm *bucketManager) SetUpGcsBucket(ctx context.Context, name string) (b gcs
 		b, err = bm.storageHandle.BucketHandle(name)
 		if err != nil {
 			return
-		} else {
-			if reqtrace.Enabled() {
-				b = gcs.GetWrappedWithReqtraceBucket(b)
-			}
-			if bm.config.DebugGCS {
-				b = gcs.NewDebugBucket(b, logger.NewDebug("gcs: "))
-			}
+		}
+		if reqtrace.Enabled() {
+			b = gcs.GetWrappedWithReqtraceBucket(b)
+		}
+		if bm.config.DebugGCS {
+			b = gcs.NewDebugBucket(b, logger.NewDebug("gcs: "))
 		}
 	} else {
 		logger.Infof("OpenBucket(%q, %q)\n", name, bm.config.BillingProject)
