@@ -20,7 +20,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fsouza/fake-gcs-server/fakestorage"
 	"github.com/jacobsa/gcloud/gcs"
 	. "github.com/jacobsa/ogletest"
 )
@@ -35,8 +34,9 @@ const dstObjectName string = "gcsfuse/dst.txt"
 func TestBucketHandle(t *testing.T) { RunTests(t) }
 
 type BucketHandleTest struct {
-	fakeStorageServer *fakestorage.Server
-	bucketHandle      *bucketHandle
+	bucketHandle  *bucketHandle
+	storageHandle *Storageclient
+	fakeStorage   FakeStorage
 }
 
 var _ SetUpInterface = &BucketHandleTest{}
@@ -46,17 +46,19 @@ func init() { RegisterTestSuite(&BucketHandleTest{}) }
 
 func (t *BucketHandleTest) SetUp(_ *TestInfo) {
 	var err error
-	t.fakeStorageServer, err = CreateFakeStorageServer([]fakestorage.Object{GetTestFakeStorageObject()})
-	AssertEq(nil, err)
+	fakeStorage, _ := t.fakeStorage.ReturnFakeStorageServer()
+	t.fakeStorage = FakeStorage{
+		FakeStorageServer: fakeStorage,
+	}
+	t.storageHandle = t.fakeStorage.CreateStorageHandle()
+	t.bucketHandle, err = t.storageHandle.BucketHandle(TestBucketName)
 
-	storageClient := &Storageclient{Client: t.fakeStorageServer.Client()}
-	t.bucketHandle, err = storageClient.BucketHandle(TestBucketName)
 	AssertEq(nil, err)
 	AssertNe(nil, t.bucketHandle)
 }
 
 func (t *BucketHandleTest) TearDown() {
-	t.fakeStorageServer.Stop()
+	t.fakeStorage.ShutDown()
 }
 
 func (t *BucketHandleTest) TestNewReaderMethodWithCompleteRead() {

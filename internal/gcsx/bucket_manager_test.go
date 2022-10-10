@@ -12,7 +12,7 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
-func TestFlags(t *testing.T) { RunTests(t) }
+func TestBucketManager(t *testing.T) { RunTests(t) }
 
 const TestBucketName string = "gcsfuse-default-bucket"
 
@@ -21,9 +21,9 @@ const TestBucketName string = "gcsfuse-default-bucket"
 ////////////////////////////////////////////////////////////////////////
 
 type BucketManagerTest struct {
-	bucket            gcs.Bucket
-	storageHandle     *storage.Storageclient
-	fakeStorageServer storage.FakeStorage
+	bucket        gcs.Bucket
+	storageHandle *storage.Storageclient
+	fakeStorage   storage.FakeStorage
 }
 
 var _ SetUpInterface = &BucketManagerTest{}
@@ -33,7 +33,11 @@ func init() { RegisterTestSuite(&BucketManagerTest{}) }
 
 func (t *BucketManagerTest) SetUp(_ *TestInfo) {
 	var err error
-	t.storageHandle = t.fakeStorageServer.CreateStorageHandle()
+	fakeStorage, _ := t.fakeStorage.ReturnFakeStorageServer()
+	t.fakeStorage = storage.FakeStorage{
+		FakeStorageServer: fakeStorage,
+	}
+	t.storageHandle = t.fakeStorage.CreateStorageHandle()
 	t.bucket, err = t.storageHandle.BucketHandle(TestBucketName)
 
 	AssertEq(nil, err)
@@ -41,11 +45,10 @@ func (t *BucketManagerTest) SetUp(_ *TestInfo) {
 }
 
 func (t *BucketManagerTest) TearDown() {
-	t.fakeStorageServer.ShutDown()
+	t.fakeStorage.ShutDown()
 }
 
 func (t *BucketManagerTest) TestNewBucketManagerMethod() {
-	storageClient := t.storageHandle
 	bucketConfig := BucketConfig{
 		BillingProject:                     "BillingProject",
 		OnlyDir:                            "OnlyDir",
@@ -60,7 +63,7 @@ func (t *BucketManagerTest) TestNewBucketManagerMethod() {
 		EnableStorageClientLibrary:         true,
 	}
 
-	bm := NewBucketManager(bucketConfig, nil, storageClient)
+	bm := NewBucketManager(bucketConfig, nil, t.storageHandle)
 
 	ExpectNe(nil, bm)
 }

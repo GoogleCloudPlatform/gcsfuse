@@ -19,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fsouza/fake-gcs-server/fakestorage"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/oauth2"
 )
@@ -41,7 +40,7 @@ func getDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 func TestStorageHandle(t *testing.T) { RunTests(t) }
 
 type StorageHandleTest struct {
-	fakeStorageServer *fakestorage.Server
+	fakeStorage FakeStorage
 }
 
 var _ SetUpInterface = &StorageHandleTest{}
@@ -51,12 +50,15 @@ func init() { RegisterTestSuite(&StorageHandleTest{}) }
 
 func (t *StorageHandleTest) SetUp(_ *TestInfo) {
 	var err error
-	t.fakeStorageServer, err = CreateFakeStorageServer([]fakestorage.Object{GetTestFakeStorageObject()})
+	fakeStorage, err := t.fakeStorage.ReturnFakeStorageServer()
+	t.fakeStorage = FakeStorage{
+		FakeStorageServer: fakeStorage,
+	}
 	AssertEq(nil, err)
 }
 
 func (t *StorageHandleTest) TearDown() {
-	t.fakeStorageServer.Stop()
+	t.fakeStorage.ShutDown()
 }
 
 func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc StorageClientConfig) {
@@ -66,9 +68,7 @@ func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc StorageClientConfig)
 }
 
 func (t *StorageHandleTest) TestBucketHandleWhenBucketExists() {
-	fakeClient := t.fakeStorageServer.Client()
-	storageClient := &Storageclient{Client: fakeClient}
-
+	storageClient := t.fakeStorage.CreateStorageHandle()
 	bucketHandle, err := storageClient.BucketHandle(TestBucketName)
 
 	AssertEq(nil, err)
@@ -76,9 +76,7 @@ func (t *StorageHandleTest) TestBucketHandleWhenBucketExists() {
 }
 
 func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExist() {
-	fakeClient := t.fakeStorageServer.Client()
-	storageClient := &Storageclient{Client: fakeClient}
-
+	storageClient := t.fakeStorage.CreateStorageHandle()
 	bucketHandle, err := storageClient.BucketHandle(invalidBucketName)
 
 	AssertNe(nil, err)
