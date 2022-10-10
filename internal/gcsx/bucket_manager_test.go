@@ -22,8 +22,8 @@ const TestBucketName string = "gcsfuse-default-bucket"
 
 type BucketManagerTest struct {
 	bucket        gcs.Bucket
-	storageHandle *storage.Storageclient
-	fakeStorage   storage.FakeStorage
+	storageHandle storage.StorageHandle
+	fakeStorage   storage.FakeStorageServer
 }
 
 var _ SetUpInterface = &BucketManagerTest{}
@@ -33,10 +33,8 @@ func init() { RegisterTestSuite(&BucketManagerTest{}) }
 
 func (t *BucketManagerTest) SetUp(_ *TestInfo) {
 	var err error
-	fakeStorage, _ := t.fakeStorage.ReturnFakeStorageServer()
-	t.fakeStorage = storage.FakeStorage{
-		FakeStorageServer: fakeStorage,
-	}
+	fakeStorage, _ := storage.CreateFakeStorageServerWithTestObject()
+	t.fakeStorage = storage.NewFakeStorage(fakeStorage)
 	t.storageHandle = t.fakeStorage.CreateStorageHandle()
 	t.bucket, err = t.storageHandle.BucketHandle(TestBucketName)
 

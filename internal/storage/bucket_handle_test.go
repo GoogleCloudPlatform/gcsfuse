@@ -35,8 +35,8 @@ func TestBucketHandle(t *testing.T) { RunTests(t) }
 
 type BucketHandleTest struct {
 	bucketHandle  *bucketHandle
-	storageHandle *Storageclient
-	fakeStorage   FakeStorage
+	storageHandle StorageHandle
+	fakeStorage   FakeStorageServer
 }
 
 var _ SetUpInterface = &BucketHandleTest{}
@@ -46,10 +46,8 @@ func init() { RegisterTestSuite(&BucketHandleTest{}) }
 
 func (t *BucketHandleTest) SetUp(_ *TestInfo) {
 	var err error
-	fakeStorage, _ := t.fakeStorage.ReturnFakeStorageServer()
-	t.fakeStorage = FakeStorage{
-		FakeStorageServer: fakeStorage,
-	}
+	fakeStorage, _ := CreateFakeStorageServerWithTestObject()
+	t.fakeStorage = NewFakeStorage(fakeStorage)
 	t.storageHandle = t.fakeStorage.CreateStorageHandle()
 	t.bucketHandle, err = t.storageHandle.BucketHandle(TestBucketName)
 

@@ -27,22 +27,23 @@ const ContentInTestObject string = "Hello GCSFuse!!!"
 const TestObjectGeneration int64 = 780
 
 type FakeStorageServer interface {
-	GetTestFakeStorageObject() fakestorage.Object
+	CreateStorageHandle() (storageHandleObj StorageHandle)
 
-	CreateFakeStorageServer(objects []fakestorage.Object) (*fakestorage.Server, error)
-
-	CreateStorageHandle() (storageHandleObj *Storageclient)
-
-	ShutDown(fakeStorageServer *fakestorage.Server)
-
-	ReturnFakeStorageServer() *fakestorage.Server
+	ShutDown()
 }
 
-type FakeStorage struct {
-	FakeStorageServer *fakestorage.Server
+type fakeStorage struct {
+	fakeStorageServer *fakestorage.Server
 }
 
-func (f *FakeStorage) GetTestFakeStorageObject() fakestorage.Object {
+func NewFakeStorage(f *fakestorage.Server) FakeStorageServer {
+	fakeStorage := &fakeStorage{
+		fakeStorageServer: f,
+	}
+	return fakeStorage
+}
+
+func GetTestFakeStorageObject() fakestorage.Object {
 	return fakestorage.Object{
 		ObjectAttrs: fakestorage.ObjectAttrs{
 			BucketName: TestBucketName,
@@ -53,7 +54,7 @@ func (f *FakeStorage) GetTestFakeStorageObject() fakestorage.Object {
 	}
 }
 
-func (f *FakeStorage) CreateFakeStorageServer(objects []fakestorage.Object) (*fakestorage.Server, error) {
+func CreateFakeStorageServer(objects []fakestorage.Object) (*fakestorage.Server, error) {
 	return fakestorage.NewServerWithOptions(fakestorage.Options{
 		InitialObjects: objects,
 		Host:           host,
@@ -61,21 +62,19 @@ func (f *FakeStorage) CreateFakeStorageServer(objects []fakestorage.Object) (*fa
 	})
 }
 
-func (f *FakeStorage) ReturnFakeStorageServer() (*fakestorage.Server, error) {
+func CreateFakeStorageServerWithTestObject() (*fakestorage.Server, error) {
 	var err error
-	if f.FakeStorageServer == nil {
-		f.FakeStorageServer, err = f.CreateFakeStorageServer([]fakestorage.Object{f.GetTestFakeStorageObject()})
-	}
-	return f.FakeStorageServer, err
+	fakeStorageServer, err := CreateFakeStorageServer([]fakestorage.Object{GetTestFakeStorageObject()})
+	return fakeStorageServer, err
 }
 
-func (f *FakeStorage) CreateStorageHandle() (storageHandleObj *Storageclient) {
-	storageHandleObj = &Storageclient{Client: f.FakeStorageServer.Client()}
+func (f *fakeStorage) CreateStorageHandle() (storageHandleObj StorageHandle) {
+	storageHandleObj = &storageClient{client: f.fakeStorageServer.Client()}
 	return
 }
 
-func (f *FakeStorage) ShutDown() {
-	f.FakeStorageServer.Stop()
+func (f *fakeStorage) ShutDown() {
+	f.fakeStorageServer.Stop()
 }
 
 func CreateObject(server *fakestorage.Server, object fakestorage.Object) {

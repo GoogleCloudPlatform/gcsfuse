@@ -31,8 +31,8 @@ type StorageHandle interface {
 	BucketHandle(bucketName string) (bh *bucketHandle, err error)
 }
 
-type Storageclient struct {
-	Client *storage.Client
+type storageClient struct {
+	client *storage.Client
 }
 
 type StorageClientConfig struct {
@@ -94,12 +94,12 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 		}),
 		storage.WithPolicy(storage.RetryAlways))
 
-	sh = &Storageclient{Client: sc}
+	sh = &storageClient{client: sc}
 	return
 }
 
-func (sh *Storageclient) BucketHandle(bucketName string) (bh *bucketHandle, err error) {
-	storageBucketHandle := sh.Client.Bucket(bucketName)
+func (sh *storageClient) BucketHandle(bucketName string) (bh *bucketHandle, err error) {
+	storageBucketHandle := sh.client.Bucket(bucketName)
 	_, err = storageBucketHandle.Attrs(context.Background())
 	if err != nil {
 		return
