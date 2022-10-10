@@ -27,6 +27,7 @@ type BucketManagerTest struct {
 }
 
 var _ SetUpInterface = &BucketManagerTest{}
+var _ TearDownInterface = &BucketManagerTest{}
 
 func init() { RegisterTestSuite(&BucketManagerTest{}) }
 
