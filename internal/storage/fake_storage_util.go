@@ -27,7 +27,7 @@ const ContentInTestObject string = "Hello GCSFuse!!!"
 const TestObjectGeneration int64 = 780
 
 type FakeStorage interface {
-	CreateStorageHandle() (storageHandleObj StorageHandle)
+	CreateStorageHandle() (sh StorageHandle)
 
 	ShutDown()
 }
@@ -46,14 +46,14 @@ func (f *fakeStorage) ShutDown() {
 }
 
 func NewFakeStorage() FakeStorage {
-	f, _ := CreateFakeStorageServerWithTestObject()
+	f, _ := createFakeStorageServer([]fakestorage.Object{getTestFakeStorageObject()})
 	fakeStorage := &fakeStorage{
 		fakeStorageServer: f,
 	}
 	return fakeStorage
 }
 
-func GetTestFakeStorageObject() fakestorage.Object {
+func getTestFakeStorageObject() fakestorage.Object {
 	return fakestorage.Object{
 		ObjectAttrs: fakestorage.ObjectAttrs{
 			BucketName: TestBucketName,
@@ -64,18 +64,12 @@ func GetTestFakeStorageObject() fakestorage.Object {
 	}
 }
 
-func CreateFakeStorageServer(objects []fakestorage.Object) (*fakestorage.Server, error) {
+func createFakeStorageServer(objects []fakestorage.Object) (*fakestorage.Server, error) {
 	return fakestorage.NewServerWithOptions(fakestorage.Options{
 		InitialObjects: objects,
 		Host:           host,
 		Port:           port,
 	})
-}
-
-func CreateFakeStorageServerWithTestObject() (*fakestorage.Server, error) {
-	var err error
-	fakeStorageServer, err := CreateFakeStorageServer([]fakestorage.Object{GetTestFakeStorageObject()})
-	return fakeStorageServer, err
 }
 
 func CreateObject(server *fakestorage.Server, object fakestorage.Object) {
