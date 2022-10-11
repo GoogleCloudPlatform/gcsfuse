@@ -6,8 +6,6 @@ import (
 	. "github.com/jacobsa/ogletest"
 )
 
-const TestBucketName string = "gcsfuse-default-bucket"
-
 func Test_Main(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
