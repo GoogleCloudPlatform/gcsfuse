@@ -8,7 +8,7 @@ import (
 
 const TestBucketName string = "gcsfuse-default-bucket"
 
-func TestMains(t *testing.T) { RunTests(t) }
+func Test_Main(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
