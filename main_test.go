@@ -23,6 +23,7 @@ func (t *MainTest) TestCreateStorageHandleEnableStorageClientLibraryIsTrue() {
 	storageHandle, err := CreateStorageHandle(&flagStorage{
 		EnableStorageClientLibrary: true,
 	})
+
 	ExpectNe(nil, storageHandle)
 	ExpectEq(nil, err)
 }

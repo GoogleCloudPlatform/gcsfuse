@@ -143,20 +143,28 @@ func CreateStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 	var tokenSrc oauth2.TokenSource
 
 	tokenSrc, err = auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl, true)
-	var storageClientConfigToken = storage.StorageClientConfig{TokenSrc: tokenSrc}
 	if err != nil {
 		err = fmt.Errorf("get token source: %w", err)
 		return
 	}
-	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfigToken)
+
+	var storageClientConfig = storage.StorageClientConfig{DisableHTTP2: true,
+		MaxConnsPerHost:     10,
+		MaxIdleConnsPerHost: 100,
+		TokenSrc:            tokenSrc,
+		HttpClientTimeout:   800 * time.Millisecond,
+		MaxRetryDuration:    30 * time.Second,
+		RetryMultiplier:     2}
+
+	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
 	return
 }
 
 func mountWithArgs(
-	bucketName string,
-	mountPoint string,
-	flags *flagStorage,
-	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
+		bucketName string,
+		mountPoint string,
+		flags *flagStorage,
+		mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
 		locker.EnableInvariantsCheck()
@@ -174,7 +182,6 @@ func mountWithArgs(
 	if bucketName != canned.FakeBucketName {
 		mountStatus.Println("Opening GCS connection...")
 
-		conn, err = getConnWithRetry(flags)
 		if flags.EnableStorageClientLibrary {
 			storageHandle, err = CreateStorageHandle(flags)
 		} else {
@@ -207,9 +214,9 @@ func mountWithArgs(
 }
 
 func populateArgs(c *cli.Context) (
-	bucketName string,
-	mountPoint string,
-	err error) {
+		bucketName string,
+		mountPoint string,
+		err error) {
 	// Extract arguments.
 	switch len(c.Args()) {
 	case 1:
