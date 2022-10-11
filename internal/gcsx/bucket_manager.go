@@ -21,6 +21,8 @@ import (
 	"path"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/jacobsa/reqtrace"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
@@ -40,6 +42,8 @@ type BucketConfig struct {
 	StatCacheCapacity                  int
 	StatCacheTTL                       time.Duration
 	EnableMonitoring                   bool
+	EnableStorageClientLibrary         bool
+	DebugGCS                           bool
 
 	// Files backed by on object of length at least AppendThreshold that have
 	// only been appended to (i.e. none of the object's contents have been
@@ -63,7 +67,6 @@ type BucketConfig struct {
 
 // BucketManager manages the lifecycle of buckets.
 type BucketManager interface {
-	// Sets up a gcs bucket by its name
 	SetUpBucket(
 		ctx context.Context,
 		name string) (b SyncerBucket, err error)
@@ -73,18 +76,20 @@ type BucketManager interface {
 }
 
 type bucketManager struct {
-	config BucketConfig
-	conn   *Connection
+	config        BucketConfig
+	conn          *Connection
+	storageHandle storage.StorageHandle
 
 	// Garbage collector
 	gcCtx                 context.Context
 	stopGarbageCollecting func()
 }
 
-func NewBucketManager(config BucketConfig, conn *Connection) BucketManager {
+func NewBucketManager(config BucketConfig, conn *Connection, storageHandle storage.StorageHandle) BucketManager {
 	bm := &bucketManager{
-		config: config,
-		conn:   conn,
+		config:        config,
+		conn:          conn,
+		storageHandle: storageHandle,
 	}
 	bm.gcCtx, bm.stopGarbageCollecting = context.WithCancel(context.Background())
 	return bm
@@ -148,13 +153,19 @@ func setUpRateLimiting(
 //
 // Special case: if the bucket name is canned.FakeBucketName, set up a fake
 // bucket as described in that package.
-func (bm *bucketManager) SetUpBucket(
-	ctx context.Context,
-	name string) (sb SyncerBucket, err error) {
-	var b gcs.Bucket
-	// Set up the appropriate backing bucket.
-	if name == canned.FakeBucketName {
-		b = canned.MakeFakeBucket(ctx)
+func (bm *bucketManager) SetUpGcsBucket(ctx context.Context, name string) (b gcs.Bucket, err error) {
+	if bm.config.EnableStorageClientLibrary {
+		b, err = bm.storageHandle.BucketHandle(name)
+		if err != nil {
+			return
+		}
+
+		if reqtrace.Enabled() {
+			b = gcs.GetWrappedWithReqtraceBucket(b)
+		}
+		if bm.config.DebugGCS {
+			b = gcs.NewDebugBucket(b, logger.NewDebug("gcs: "))
+		}
 	} else {
 		logger.Infof("OpenBucket(%q, %q)\n", name, bm.config.BillingProject)
 		b, err = bm.conn.OpenBucket(
@@ -164,6 +175,19 @@ func (bm *bucketManager) SetUpBucket(
 				BillingProject: bm.config.BillingProject,
 			},
 		)
+	}
+	return
+}
+
+func (bm *bucketManager) SetUpBucket(
+	ctx context.Context,
+	name string) (sb SyncerBucket, err error) {
+	var b gcs.Bucket
+	// Set up the appropriate backing bucket.
+	if name == canned.FakeBucketName {
+		b = canned.MakeFakeBucket(ctx)
+	} else {
+		b, err = bm.SetUpGcsBucket(ctx, name)
 		if err != nil {
 			err = fmt.Errorf("OpenBucket: %w", err)
 			return

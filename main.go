@@ -175,6 +175,7 @@ func mountWithArgs(
 		mountPoint,
 		flags,
 		conn,
+		nil,
 		mountStatus)
 
 	if err != nil {

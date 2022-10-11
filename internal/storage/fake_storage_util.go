@@ -26,7 +26,34 @@ const TestObjectName string = "gcsfuse/default.txt"
 const ContentInTestObject string = "Hello GCSFuse!!!"
 const TestObjectGeneration int64 = 780
 
-func GetTestFakeStorageObject() fakestorage.Object {
+type FakeStorage interface {
+	CreateStorageHandle() (sh StorageHandle)
+
+	ShutDown()
+}
+
+type fakeStorage struct {
+	fakeStorageServer *fakestorage.Server
+}
+
+func (f *fakeStorage) CreateStorageHandle() (sh StorageHandle) {
+	sh = &storageClient{client: f.fakeStorageServer.Client()}
+	return
+}
+
+func (f *fakeStorage) ShutDown() {
+	f.fakeStorageServer.Stop()
+}
+
+func NewFakeStorage() FakeStorage {
+	f, _ := createFakeStorageServer([]fakestorage.Object{getTestFakeStorageObject()})
+	fakeStorage := &fakeStorage{
+		fakeStorageServer: f,
+	}
+	return fakeStorage
+}
+
+func getTestFakeStorageObject() fakestorage.Object {
 	return fakestorage.Object{
 		ObjectAttrs: fakestorage.ObjectAttrs{
 			BucketName: TestBucketName,
@@ -37,7 +64,7 @@ func GetTestFakeStorageObject() fakestorage.Object {
 	}
 }
 
-func CreateFakeStorageServer(objects []fakestorage.Object) (*fakestorage.Server, error) {
+func createFakeStorageServer(objects []fakestorage.Object) (*fakestorage.Server, error) {
 	return fakestorage.NewServerWithOptions(fakestorage.Options{
 		InitialObjects: objects,
 		Host:           host,
