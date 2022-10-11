@@ -20,7 +20,7 @@ type MainTest struct {
 func init() { RegisterTestSuite(&MainTest{}) }
 
 func (t *MainTest) TestCreateStorageHandleEnableStorageClientLibraryIsTrue() {
-	storageHandle, err := CreateStorageHandle(&flagStorage{
+	storageHandle, err := createStorageHandle(&flagStorage{
 		EnableStorageClientLibrary: true,
 	})
 

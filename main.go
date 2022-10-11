@@ -139,7 +139,7 @@ func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func CreateStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
+func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
 	var tokenSrc oauth2.TokenSource
 
 	tokenSrc, err = auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl, true)
@@ -183,7 +183,7 @@ func mountWithArgs(
 		mountStatus.Println("Opening GCS connection...")
 
 		if flags.EnableStorageClientLibrary {
-			storageHandle, err = CreateStorageHandle(flags)
+			storageHandle, err = createStorageHandle(flags)
 		} else {
 			conn, err = getConnWithRetry(flags)
 		}
