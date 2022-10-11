@@ -40,7 +40,7 @@ func getDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 func TestStorageHandle(t *testing.T) { RunTests(t) }
 
 type StorageHandleTest struct {
-	fakeStorage FakeStorageServer
+	fakeStorage FakeStorage
 }
 
 var _ SetUpInterface = &StorageHandleTest{}
@@ -50,8 +50,7 @@ func init() { RegisterTestSuite(&StorageHandleTest{}) }
 
 func (t *StorageHandleTest) SetUp(_ *TestInfo) {
 	var err error
-	fakeStorage, _ := CreateFakeStorageServerWithTestObject()
-	t.fakeStorage = NewFakeStorage(fakeStorage)
+	t.fakeStorage = NewFakeStorage()
 	AssertEq(nil, err)
 }
 
