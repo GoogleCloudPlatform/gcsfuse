@@ -147,24 +147,25 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 		err = fmt.Errorf("get token source: %w", err)
 		return
 	}
-
-	var storageClientConfig = storage.StorageClientConfig{DisableHTTP2: true,
-		MaxConnsPerHost:     10,
-		MaxIdleConnsPerHost: 100,
+	var storageClientConfig = storage.StorageClientConfig{
+		DisableHTTP2:        flags.DisableHTTP2,
+		MaxConnsPerHost:     flags.MaxConnsPerHost,
+		MaxIdleConnsPerHost: flags.MaxIdleConnsPerHost,
 		TokenSrc:            tokenSrc,
-		HttpClientTimeout:   800 * time.Millisecond,
-		MaxRetryDuration:    30 * time.Second,
-		RetryMultiplier:     2}
+		HttpClientTimeout:   flags.HttpClientTimeout,
+		MaxRetryDuration:    flags.MaxRetryDuration,
+		RetryMultiplier:     flags.RetryMultiplier,
+	}
 
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
 	return
 }
 
 func mountWithArgs(
-	bucketName string,
-	mountPoint string,
-	flags *flagStorage,
-	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
+		bucketName string,
+		mountPoint string,
+		flags *flagStorage,
+		mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
 		locker.EnableInvariantsCheck()
@@ -214,9 +215,9 @@ func mountWithArgs(
 }
 
 func populateArgs(c *cli.Context) (
-	bucketName string,
-	mountPoint string,
-	err error) {
+		bucketName string,
+		mountPoint string,
+		err error) {
 	// Extract arguments.
 	switch len(c.Args()) {
 	case 1:
