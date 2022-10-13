@@ -195,7 +195,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 
 	// Iterating through all the objects in the bucket and one by one adding them to the list.
 	for {
-		var attrs *storage.ObjectAttrs = nil
+		var attrs *storage.ObjectAttrs
 		attrs, err = itr.Next()
 		if err == iterator.Done {
 			err = nil
