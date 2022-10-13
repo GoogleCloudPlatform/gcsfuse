@@ -29,6 +29,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/iterator"
 )
 
 type bucketHandle struct {
@@ -177,5 +178,39 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 	}
 	// Converting objAttrs to type *Object
 	o = storageutil.ObjectAttrsToBucketObject(objAttrs)
+	return
+}
+
+func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+	// Converting *ListObjectsRequest to type *storage.Query as expected by the Go Storage Client.
+	query := &storage.Query{
+		Delimiter:                req.Delimiter,
+		Prefix:                   req.Prefix,
+		Projection:               storage.Projection(req.ProjectionVal),
+		IncludeTrailingDelimiter: req.IncludeTrailingDelimiter,
+		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
+	}
+	itr := b.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
+	var list gcs.Listing
+
+	// Iterating through all the objects in the bucket and one by one adding them to the list.
+	for {
+		var attrs *storage.ObjectAttrs = nil
+		attrs, err = itr.Next()
+		if err == iterator.Done {
+			err = nil
+			break
+		}
+		if err != nil {
+			err = fmt.Errorf("Error in iterating through objects: %v", err)
+			return
+		}
+
+		// Converting attrs to *Object type.
+		currObject := storageutil.ObjectAttrsToBucketObject(attrs)
+		list.Objects = append(list.Objects, currObject)
+	}
+
+	listing = &list
 	return
 }

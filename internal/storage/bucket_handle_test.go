@@ -256,3 +256,18 @@ func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExi
 	AssertEq(nil, obj)
 	AssertTrue(strings.Contains(err.Error(), "Error 412: Precondition failed"))
 }
+
+func (t *BucketHandleTest) TestListObjectMethod() {
+	obj, err := t.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   "gcsfuse/default.txt",
+			Delimiter:                "Delimiter",
+			IncludeTrailingDelimiter: true,
+			ContinuationToken:        "ContinuationToken",
+			MaxResults:               7,
+			ProjectionVal:            1,
+		})
+
+	AssertNe(nil, obj)
+	AssertEq(nil, err)
+}
