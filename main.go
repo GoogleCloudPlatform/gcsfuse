@@ -140,14 +140,12 @@ func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 
 // Mount the file system according to arguments in the supplied context.
 func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
-	var tokenSrc oauth2.TokenSource
-
-	tokenSrc, err = auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl, true)
+	tokenSrc, err := auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl, true)
 	if err != nil {
 		err = fmt.Errorf("get token source: %w", err)
 		return
 	}
-	var storageClientConfig = storage.StorageClientConfig{
+	storageClientConfig := storage.StorageClientConfig{
 		DisableHTTP2:        flags.DisableHTTP2,
 		MaxConnsPerHost:     flags.MaxConnsPerHost,
 		MaxIdleConnsPerHost: flags.MaxIdleConnsPerHost,
