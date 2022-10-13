@@ -225,7 +225,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		return fmt.Errorf("Resolving path: %w", err)
 	}
 
-	flags, err := populateFlags(c)
+	flags, err:= populateFlags(c)
 	if err != nil {
 		return fmt.Errorf("parsing flags failed: %w", err)
 	}
