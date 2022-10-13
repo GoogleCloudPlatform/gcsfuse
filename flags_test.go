@@ -43,14 +43,15 @@ func init() { RegisterTestSuite(&FlagsTest{}) }
 func parseArgs(args []string) (flags *flagStorage) {
 	// Create a CLI app, and abuse it to snoop on the flags.
 	app := newApp()
+	var err error
 	app.Action = func(appCtx *cli.Context) {
-		flags = populateFlags(appCtx)
+		flags, err = populateFlags(appCtx)
 	}
 
 	// Simulate argv.
 	fullArgs := append([]string{"some_app"}, args...)
 
-	err := app.Run(fullArgs)
+	err = app.Run(fullArgs)
 	AssertEq(nil, err)
 
 	return
@@ -385,4 +386,36 @@ func (t *FlagsTest) TestResolvePathForTheFlagsInContext() {
 	err = app.Run(fullArgs)
 
 	AssertEq(nil, err)
+}
+
+func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSize() {
+	flags := &flagStorage{
+		SequentialReadSizeMb: 10,
+	}
+
+	err := validateFlags(flags)
+
+	AssertEq(nil, err)
+}
+
+func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSize() {
+	flags := &flagStorage{
+		SequentialReadSizeMb: 0,
+	}
+
+	err := validateFlags(flags)
+
+	AssertNe(nil, err)
+	AssertEq("SequentialReadSizeMb should be less than 1024", err.Error())
+}
+
+func (t *FlagsTest) TestValidateFlagsForSequentialReadSizeGreaterThan1024() {
+	flags := &flagStorage{
+		SequentialReadSizeMb: 2048,
+	}
+
+	err := validateFlags(flags)
+
+	AssertNe(nil, err)
+	AssertEq("SequentialReadSizeMb should be less than 1024", err.Error())
 }

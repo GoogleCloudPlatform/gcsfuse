@@ -226,7 +226,10 @@ func runCLIApp(c *cli.Context) (err error) {
 		return fmt.Errorf("Resolving path: %w", err)
 	}
 
-	flags := populateFlags(c)
+	flags, err := populateFlags(c)
+	if err != nil {
+		return fmt.Errorf("parsing flags failed: %w", err)
+	}
 
 	if flags.Foreground && flags.LogFile != "" {
 		err = logger.InitLogFile(flags.LogFile, flags.LogFormat)

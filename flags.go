@@ -29,6 +29,9 @@ import (
 	"github.com/urfave/cli"
 )
 
+// Defines the max value supported by sequential-read-size-mb flag.
+const maxSequentialReadSizeMb = 1024
+
 // Set up custom help text for gcsfuse; in particular the usage section.
 func init() {
 	cli.AppHelpTemplate = `NAME:
@@ -175,6 +178,13 @@ func newApp() (app *cli.App) {
 				Value: -1,
 				Usage: "Operations per second limit, measured over a 30-second window " +
 					"(use -1 for no limit)",
+			},
+
+			cli.IntFlag{
+				Name:  "sequential-read-size-mb",
+				Value: 200,
+				Usage: "File chunk size to read from GCS in one call. Need to specify " +
+					"the value in MB. ChunkSize less than 1MB is not supported",
 			},
 
 			/////////////////////////
@@ -366,6 +376,7 @@ type flagStorage struct {
 	ReuseTokenFromUrl                  bool
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
+	SequentialReadSizeMb               int32
 
 	// Tuning
 	MaxRetrySleep       time.Duration
@@ -468,11 +479,11 @@ func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
 
 // Add the flags accepted by run to the supplied flag set, returning the
 // variables into which the flags will parse.
-func populateFlags(c *cli.Context) (flags *flagStorage) {
+func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 	endpoint, err := url.Parse(c.String("endpoint"))
 	if err != nil {
 		fmt.Printf("Could not parse endpoint")
-		return nil
+		return
 	}
 	flags = &flagStorage{
 		AppName:    c.String("app-name"),
@@ -496,6 +507,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		ReuseTokenFromUrl:                  c.BoolT("reuse-token-from-url"),
 		EgressBandwidthLimitBytesPerSecond: c.Float64("limit-bytes-per-sec"),
 		OpRateLimitHz:                      c.Float64("limit-ops-per-sec"),
+		SequentialReadSizeMb:               int32(c.Int("sequential-read-size-mb")),
 
 		// Tuning,
 		MaxRetrySleep:       c.Duration("max-retry-sleep"),
@@ -533,6 +545,16 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 	// Handle the repeated "-o" flag.
 	for _, o := range c.StringSlice("o") {
 		mountpkg.ParseOptions(flags.MountOptions, o)
+	}
+
+	err = validateFlags(flags)
+
+	return
+}
+
+func validateFlags(flags *flagStorage) (err error) {
+	if flags.SequentialReadSizeMb < 1 || flags.SequentialReadSizeMb > maxSequentialReadSizeMb {
+		err = fmt.Errorf("SequentialReadSizeMb should be less than %d", maxSequentialReadSizeMb)
 	}
 
 	return
