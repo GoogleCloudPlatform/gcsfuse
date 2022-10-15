@@ -257,17 +257,50 @@ func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExi
 	AssertTrue(strings.Contains(err.Error(), "Error 412: Precondition failed"))
 }
 
-func (t *BucketHandleTest) TestListObjectMethod() {
+func (t *BucketHandleTest) TestListObjectMethodWithValidPrefix() {
 	obj, err := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
-			Prefix:                   "gcsfuse/default.txt",
-			Delimiter:                "Delimiter",
+			Prefix:                   "gcsfuse/",
+			Delimiter:                "/",
 			IncludeTrailingDelimiter: true,
+			ContinuationToken:        "ContinuationToken",
+			MaxResults:               7,
+			ProjectionVal:            0,
+		})
+
+	AssertNe(nil, obj.Objects)
+	AssertNe(nil, obj.CollapsedRuns)
+	AssertEq(nil, err)
+}
+
+func (t *BucketHandleTest) TestListObjectMethodWithInValidPrefix() {
+	obj, err := t.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   "InvalidPrefix",
+			Delimiter:                "/",
+			IncludeTrailingDelimiter: true,
+			ContinuationToken:        "ContinuationToken",
+			MaxResults:               7,
+			ProjectionVal:            0,
+		})
+
+	AssertEq(nil, obj.Objects)
+	AssertEq(nil, obj.CollapsedRuns)
+	AssertEq(nil, err)
+}
+
+func (t *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimiter() {
+	obj, err := t.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   "gcsfuse/",
+			Delimiter:                "/",
+			IncludeTrailingDelimiter: false,
 			ContinuationToken:        "ContinuationToken",
 			MaxResults:               7,
 			ProjectionVal:            1,
 		})
 
-	AssertNe(nil, obj)
+	AssertEq(nil, obj.Objects)
+	AssertNe(nil, obj.CollapsedRuns)
 	AssertEq(nil, err)
 }

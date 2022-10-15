@@ -38,8 +38,8 @@ type bucketHandle struct {
 }
 
 func (bh *bucketHandle) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+		ctx context.Context,
+		req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64((*req.Range).Start)
 	end := int64((*req.Range).Limit)
@@ -182,11 +182,25 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 }
 
 func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+	// Explicitly converting Projection Value because the ProjectionVal interface of jacobsa/gcloud and Go Client API are not coupled correctly.
+	var convertedProjection storage.Projection = storage.Projection(1) // Stores the Projection Value according to the Go Client API Interface.
+	switch int(req.ProjectionVal) {
+	// Projection Value 0 in jacobsa/gcloud maps to Projection Value 1 in Go Client API, that is for "full".
+	case 0:
+		convertedProjection = storage.Projection(1)
+	// Projection Value 1 in jacobsa/gcloud maps to Projection Value 2 in Go Client API, that is for "noAcl".
+	case 1:
+		convertedProjection = storage.Projection(2)
+	// Default Projection value in jacobsa/gcloud library is 0 that maps to 1 in Go Client API interface, and that is for "full".
+	default:
+		convertedProjection = storage.Projection(1)
+	}
+
 	// Converting *ListObjectsRequest to type *storage.Query as expected by the Go Storage Client.
 	query := &storage.Query{
 		Delimiter:                req.Delimiter,
 		Prefix:                   req.Prefix,
-		Projection:               storage.Projection(req.ProjectionVal),
+		Projection:               convertedProjection,
 		IncludeTrailingDelimiter: req.IncludeTrailingDelimiter,
 		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
 	}
@@ -207,8 +221,13 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		}
 
 		// Converting attrs to *Object type.
-		currObject := storageutil.ObjectAttrsToBucketObject(attrs)
-		list.Objects = append(list.Objects, currObject)
+		if req.IncludeTrailingDelimiter == true {
+			currObject := storageutil.ObjectAttrsToBucketObject(attrs)
+			list.Objects = append(list.Objects, currObject)
+		}
+
+		currCollapsedRuns := attrs.Name
+		list.CollapsedRuns = append(list.CollapsedRuns, currCollapsedRuns)
 	}
 
 	listing = &list
