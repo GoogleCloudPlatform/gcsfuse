@@ -180,6 +180,7 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 	o = storageutil.ObjectAttrsToBucketObject(objAttrs)
 	return
 }
+
 func getProjectionValue(req gcs.Projection) storage.Projection {
 	// Explicitly converting Projection Value because the ProjectionVal interface of jacobsa/gcloud and Go Client API are not coupled correctly.
 	var convertedProjection storage.Projection // Stores the Projection Value according to the Go Client API Interface.
