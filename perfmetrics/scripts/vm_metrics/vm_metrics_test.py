@@ -97,10 +97,10 @@ def dict_to_obj(dict1):
   return json.loads(json.dumps(dict1), object_hook=MetricsResponseObject)
 
 def create_metrics_value_by_type(value, value_type) -> float:
-  """Parses the value from a value object in API response.
+  """Converts the value in json data into appropriate type defined by value_type.
 
     Args:
-      value (object): The value object from API response
+      value (object): The value object from json data
       value_type (int) : Integer representing the value type of the object, refer
                         https://cloud.google.com/monitoring/api/ref_v3/rest/v3/TypedValue.
   """
