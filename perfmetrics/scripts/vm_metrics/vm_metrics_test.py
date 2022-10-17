@@ -206,7 +206,7 @@ class TestVmmetricsTest(unittest.TestCase):
     extra_filter = "extra_filter"
     expected_metric_filter = 'metric.type = "{}" AND metric.labels.opencensus_task = ends_with("{}") AND {}'.format(metric_type, TEST_INSTANCE, extra_filter)
     self.assertEqual(vm_metrics._get_metric_filter('custom', metric_type, TEST_INSTANCE, extra_filter), expected_metric_filter)
-
+    
   def test_validate_start_end_times_with_start_time_greater_than_end_time(self):
     with self.assertRaises(ValueError):
       self.vm_metrics_obj._validate_start_end_times('1600000', '150000')
