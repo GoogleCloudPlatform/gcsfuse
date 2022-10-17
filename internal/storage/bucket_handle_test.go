@@ -258,19 +258,19 @@ func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExi
 	AssertTrue(strings.Contains(err.Error(), "Error 412: Precondition failed"))
 }
 
-func (t *BucketHandleTest) TestGetProjectionValueEqualZero() {
+func (t *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsNoAcl() {
 	proj := getProjectionValue(gcs.Projection(storage.ProjectionNoACL))
 
 	AssertEq(storage.Projection(1), proj)
 }
 
-func (t *BucketHandleTest) TestGetProjectionValueEqualOne() {
+func (t *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsFull() {
 	proj := getProjectionValue(gcs.Projection(storage.ProjectionFull))
 
 	AssertEq(storage.Projection(2), proj)
 }
 
-func (t *BucketHandleTest) TestGetProjectionValueForDefault() {
+func (t *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsDefault() {
 	proj := getProjectionValue(gcs.Projection(storage.ProjectionDefault))
 
 	AssertEq(storage.Projection(1), proj)
