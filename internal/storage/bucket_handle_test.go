@@ -309,23 +309,6 @@ func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectDoesNotExist() {
 	AssertEq(nil, obj.CollapsedRuns)
 }
 
-func (t *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimiterTrue() {
-	obj, err := t.bucketHandle.ListObjects(context.Background(),
-		&gcs.ListObjectsRequest{
-			Prefix:                   "gcsfuse/",
-			Delimiter:                "/",
-			IncludeTrailingDelimiter: true,
-			ContinuationToken:        "ContinuationToken",
-			MaxResults:               7,
-			ProjectionVal:            0,
-		})
-
-	AssertEq(nil, err)
-	AssertEq(TestObjectName, obj.Objects[0].Name)
-	AssertEq(TestObjectGeneration, obj.Objects[0].Generation)
-	AssertEq("gcsfuse/", obj.CollapsedRuns[0])
-}
-
 func (t *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimiterFalse() {
 	obj, err := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
