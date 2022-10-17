@@ -221,7 +221,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		}
 
 		// Converting attrs to *Object type.
-		if req.IncludeTrailingDelimiter == true {
+		if req.IncludeTrailingDelimiter {
 			currObject := storageutil.ObjectAttrsToBucketObject(attrs)
 			list.Objects = append(list.Objects, currObject)
 		}
