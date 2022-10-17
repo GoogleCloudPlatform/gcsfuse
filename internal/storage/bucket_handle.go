@@ -225,12 +225,14 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 
 		//If IncludeTrailingDelimiter is true then attribute will appear in both Objects and CollapsedRuns, otherwise it will only appear in CollapsedRuns.
 		// Converting attrs to *Object type.
-		if req.IncludeTrailingDelimiter {
+		if req.IncludeTrailingDelimiter && attrs.Prefix == "" {
 			currObject := storageutil.ObjectAttrsToBucketObject(attrs)
 			list.Objects = append(list.Objects, currObject)
 		}
-		currCollapsedRuns := query.Prefix
-		list.CollapsedRuns = append(list.CollapsedRuns, currCollapsedRuns)
+
+		if attrs.Prefix == "" {
+			list.CollapsedRuns = append(list.CollapsedRuns, query.Prefix)
+		}
 	}
 
 	listing = &list

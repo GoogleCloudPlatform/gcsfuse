@@ -259,19 +259,19 @@ func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExi
 }
 
 func (t *BucketHandleTest) TestGetProjectionValueEqualZero() {
-	proj := getProjectionValue(0)
+	proj := getProjectionValue(gcs.Projection(storage.ProjectionNoACL))
 
 	AssertEq(storage.Projection(1), proj)
 }
 
 func (t *BucketHandleTest) TestGetProjectionValueEqualOne() {
-	proj := getProjectionValue(1)
+	proj := getProjectionValue(gcs.Projection(storage.ProjectionFull))
 
 	AssertEq(storage.Projection(2), proj)
 }
 
 func (t *BucketHandleTest) TestGetProjectionValueForDefault() {
-	proj := getProjectionValue(7)
+	proj := getProjectionValue(gcs.Projection(storage.ProjectionDefault))
 
 	AssertEq(storage.Projection(1), proj)
 }
@@ -309,7 +309,7 @@ func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectDoesNotExist() {
 	AssertEq(nil, obj.CollapsedRuns)
 }
 
-func (t *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimiter() {
+func (t *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimiterTrue() {
 	obj, err := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
 			Prefix:                   "gcsfuse/",
@@ -323,6 +323,22 @@ func (t *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimiter() {
 	AssertEq(nil, err)
 	AssertEq(TestObjectName, obj.Objects[0].Name)
 	AssertEq(TestObjectGeneration, obj.Objects[0].Generation)
+	AssertEq("gcsfuse/", obj.CollapsedRuns[0])
+}
+
+func (t *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimiterFalse() {
+	obj, err := t.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   "gcsfuse/",
+			Delimiter:                "/",
+			IncludeTrailingDelimiter: false,
+			ContinuationToken:        "ContinuationToken",
+			MaxResults:               7,
+			ProjectionVal:            0,
+		})
+
+	AssertEq(nil, err)
+	AssertEq(nil, obj.Objects)
 	AssertEq("gcsfuse/", obj.CollapsedRuns[0])
 }
 
@@ -343,4 +359,22 @@ func (t *BucketHandleTest) TestListObjectMethodWithEmptyDelimiter() {
 	AssertEq(TestObjectGeneration, obj.Objects[0].Generation)
 	AssertEq("gcsfuse/", obj.CollapsedRuns[0])
 	AssertEq("gcsfuse/", obj.CollapsedRuns[1])
+}
+
+func (t *BucketHandleTest) TestListObjectMethodWithNonEmptyDelimiter() {
+	obj, err := t.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   "gcsfuse/",
+			Delimiter:                "/",
+			IncludeTrailingDelimiter: true,
+			ContinuationToken:        "ContinuationToken",
+			MaxResults:               7,
+			ProjectionVal:            0,
+		})
+
+	AssertEq(nil, err)
+	AssertEq(TestObjectName, obj.Objects[0].Name)
+	AssertEq(TestObjectGeneration, obj.Objects[0].Generation)
+	AssertEq("gcsfuse/", obj.CollapsedRuns[0])
+	AssertEq(1, len(obj.Objects))
 }
