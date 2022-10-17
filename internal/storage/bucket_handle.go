@@ -183,7 +183,7 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 
 func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
 	// Explicitly converting Projection Value because the ProjectionVal interface of jacobsa/gcloud and Go Client API are not coupled correctly.
-	var convertedProjection storage.Projection = storage.Projection(1) // Stores the Projection Value according to the Go Client API Interface.
+	var convertedProjection storage.Projection // Stores the Projection Value according to the Go Client API Interface.
 	switch int(req.ProjectionVal) {
 	// Projection Value 0 in jacobsa/gcloud maps to Projection Value 1 in Go Client API, that is for "full".
 	case 0:
