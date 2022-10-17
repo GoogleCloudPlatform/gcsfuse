@@ -297,7 +297,7 @@ func (t *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimiter() {
 			IncludeTrailingDelimiter: false,
 			ContinuationToken:        "ContinuationToken",
 			MaxResults:               7,
-			ProjectionVal:            1,
+			ProjectionVal:            0,
 		})
 
 	AssertEq(nil, obj.Objects)
