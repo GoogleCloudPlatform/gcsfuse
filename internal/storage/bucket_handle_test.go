@@ -342,6 +342,8 @@ func (t *BucketHandleTest) TestListObjectMethodWithEmptyDelimiter() {
 	AssertEq(TestObjectGeneration, obj.Objects[0].Generation)
 	AssertEq("gcsfuse/", obj.CollapsedRuns[0])
 	AssertEq("gcsfuse/", obj.CollapsedRuns[1])
+	AssertEq(2, len(obj.Objects))
+	AssertEq(2, len(obj.CollapsedRuns))
 }
 
 func (t *BucketHandleTest) TestListObjectMethodWithNonEmptyDelimiter() {
@@ -360,4 +362,5 @@ func (t *BucketHandleTest) TestListObjectMethodWithNonEmptyDelimiter() {
 	AssertEq(TestObjectGeneration, obj.Objects[0].Generation)
 	AssertEq("gcsfuse/", obj.CollapsedRuns[0])
 	AssertEq(1, len(obj.Objects))
+	AssertEq(1, len(obj.CollapsedRuns))
 }
