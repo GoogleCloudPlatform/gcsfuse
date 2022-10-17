@@ -180,11 +180,10 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 	o = storageutil.ObjectAttrsToBucketObject(objAttrs)
 	return
 }
-
-func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+func getProjectionValue(req gcs.Projection) storage.Projection {
 	// Explicitly converting Projection Value because the ProjectionVal interface of jacobsa/gcloud and Go Client API are not coupled correctly.
 	var convertedProjection storage.Projection // Stores the Projection Value according to the Go Client API Interface.
-	switch int(req.ProjectionVal) {
+	switch int(req) {
 	// Projection Value 0 in jacobsa/gcloud maps to Projection Value 1 in Go Client API, that is for "full".
 	case 0:
 		convertedProjection = storage.Projection(1)
@@ -195,12 +194,15 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 	default:
 		convertedProjection = storage.Projection(1)
 	}
+	return convertedProjection
+}
 
+func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
 	// Converting *ListObjectsRequest to type *storage.Query as expected by the Go Storage Client.
 	query := &storage.Query{
 		Delimiter:                req.Delimiter,
 		Prefix:                   req.Prefix,
-		Projection:               convertedProjection,
+		Projection:               getProjectionValue(req.ProjectionVal),
 		IncludeTrailingDelimiter: req.IncludeTrailingDelimiter,
 		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
 	}
@@ -220,13 +222,13 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 			return
 		}
 
+		//If IncludeTrailingDelimiter is true then attribute will appear in both Objects and CollapsedRuns, otherwise it will only appear in CollapsedRuns.
 		// Converting attrs to *Object type.
 		if req.IncludeTrailingDelimiter {
 			currObject := storageutil.ObjectAttrsToBucketObject(attrs)
 			list.Objects = append(list.Objects, currObject)
 		}
-
-		currCollapsedRuns := attrs.Name
+		currCollapsedRuns := query.Prefix
 		list.CollapsedRuns = append(list.CollapsedRuns, currCollapsedRuns)
 	}
 

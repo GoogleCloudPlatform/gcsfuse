@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"cloud.google.com/go/storage"
 	"github.com/jacobsa/gcloud/gcs"
 	. "github.com/jacobsa/ogletest"
 )
@@ -257,7 +258,25 @@ func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExi
 	AssertTrue(strings.Contains(err.Error(), "Error 412: Precondition failed"))
 }
 
-func (t *BucketHandleTest) TestListObjectMethodWithValidPrefix() {
+func (t *BucketHandleTest) TestGetProjectionValueEqualZero() {
+	proj := getProjectionValue(0)
+
+	AssertEq(storage.Projection(1), proj)
+}
+
+func (t *BucketHandleTest) TestGetProjectionValueEqualOne() {
+	proj := getProjectionValue(1)
+
+	AssertEq(storage.Projection(2), proj)
+}
+
+func (t *BucketHandleTest) TestGetProjectionValueForDefault() {
+	proj := getProjectionValue(7)
+
+	AssertEq(storage.Projection(1), proj)
+}
+
+func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectExist() {
 	obj, err := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
 			Prefix:                   "gcsfuse/",
@@ -268,15 +287,16 @@ func (t *BucketHandleTest) TestListObjectMethodWithValidPrefix() {
 			ProjectionVal:            0,
 		})
 
-	AssertNe(nil, obj.Objects)
-	AssertNe(nil, obj.CollapsedRuns)
 	AssertEq(nil, err)
+	AssertEq(TestObjectName, obj.Objects[0].Name)
+	AssertEq(TestObjectGeneration, obj.Objects[0].Generation)
+	AssertEq("gcsfuse/", obj.CollapsedRuns[0])
 }
 
-func (t *BucketHandleTest) TestListObjectMethodWithInValidPrefix() {
+func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectDoesNotExist() {
 	obj, err := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
-			Prefix:                   "InvalidPrefix",
+			Prefix:                   "PrefixObjectDoesNotExist",
 			Delimiter:                "/",
 			IncludeTrailingDelimiter: true,
 			ContinuationToken:        "ContinuationToken",
@@ -284,9 +304,9 @@ func (t *BucketHandleTest) TestListObjectMethodWithInValidPrefix() {
 			ProjectionVal:            0,
 		})
 
+	AssertEq(nil, err)
 	AssertEq(nil, obj.Objects)
 	AssertEq(nil, obj.CollapsedRuns)
-	AssertEq(nil, err)
 }
 
 func (t *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimiter() {
@@ -294,13 +314,14 @@ func (t *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimiter() {
 		&gcs.ListObjectsRequest{
 			Prefix:                   "gcsfuse/",
 			Delimiter:                "/",
-			IncludeTrailingDelimiter: false,
+			IncludeTrailingDelimiter: true,
 			ContinuationToken:        "ContinuationToken",
 			MaxResults:               7,
 			ProjectionVal:            0,
 		})
 
-	AssertEq(nil, obj.Objects)
-	AssertNe(nil, obj.CollapsedRuns)
 	AssertEq(nil, err)
+	AssertEq(TestObjectName, obj.Objects[0].Name)
+	AssertEq(TestObjectGeneration, obj.Objects[0].Generation)
+	AssertEq("gcsfuse/", obj.CollapsedRuns[0])
 }
