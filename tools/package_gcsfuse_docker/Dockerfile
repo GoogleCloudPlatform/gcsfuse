@@ -13,21 +13,11 @@
 # limitations under the License.
 
 # Build an image with gcsfuse packages:
-#   > docker build . --target gcsfuse_packages -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.39.2
+#   > docker build . -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.39.2
 # Copy the gcsfuse packages to the host:
 #   > docker run -it -v /tmp:/output gcsfuse-release cp -r /packages /output
 
-# Build Ubuntu/debian image with gcsfuse installed:
-#   > docker build . -t gcsfuse-{OS_NAME}:v{GCSFUSE_VERSION} --build-arg GCSFUSE_VERSION={GCSFUSE_VERSION} --build-arg OS_NAME={OS_NAME} --build-arg OS_VERSION={OS_VERSION} --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-#   E.g.
-#   > docker build . -t gcsfuse-ubuntu:v0.41.7 --build-arg GCSFUSE_VERSION=0.41.7 --build-arg OS_NAME=ubuntu --build-arg OS_VERSION=22.04 --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-
-ARG GO_VERSION=1.18.4
-ARG OS_VERSION
-ARG OS_NAME
-
-# Image with gcsfuse packages (.deb & .rpm)
-FROM golang:${GO_VERSION} as gcsfuse_packages
+FROM golang:1.18.4 as builder
 
 RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm && gem install --no-document fpm
 
@@ -73,28 +63,3 @@ RUN fpm \
     --vendor "" \
     --url "https://$GCSFUSE_REPO" \
     --description "A user-space file system for Google Cloud Storage."
-
-
-# Ubuntu/debian image with gcsfuse installed
-FROM ${OS_NAME}:${OS_VERSION}
-
-# Copy gcsfuse .deb package from gcsfuse_packages image
-ARG GCSFUSE_PKG="/packages"
-COPY --from=gcsfuse_packages ${GCSFUSE_PKG}/*amd64.deb gcsfuse.deb
-
-# Install gcsfuse and dependencies
-RUN apt-get update && apt-get install -y ca-certificates fuse && rm -rf /var/lib/apt/lists/* && apt-get clean
-RUN dpkg -i gcsfuse.deb && rm gcsfuse.deb
-
-# Labels:https://github.com/opencontainers/image-spec/blob/master/annotations.md
-ARG BUILD_DATE
-ARG GCSFUSE_VERSION
-ARG OS_NAME
-LABEL "org.opencontainers.artifact.created"=$BUILD_DATE
-LABEL "org.opencontainers.image.title"="GoogleCloudPlatform/gcsfuse-${OS_NAME}"
-LABEL "org.opencontainers.image.version"="v${GCSFUSE_VERSION}"
-LABEL "org.opencontainers.image.description"="A user-space file system for Google Cloud Storage."
-LABEL "org.opencontainers.image.url"="https://cloud.google.com/storage/docs/gcs-fuse"
-LABEL "org.opencontainers.image.source"="https://github.com/GoogleCloudPlatform/gcsfuse"
-
-CMD ["gcsfuse", "--help"]

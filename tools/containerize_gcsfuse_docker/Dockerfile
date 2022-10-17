@@ -13,29 +13,113 @@
 # limitations under the License.
 
 # Build image with gcsfuse installed:
+# (a) distroless image
+#   > docker build ./ --target gcsfuse-distroless -t gcsfuse-distroless:v{GCSFUSE_VERSION} --build-arg GCSFUSE_VERSION={GCSFUSE_VERSION} --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+#   E.g
+#   > docker build ./ --target gcsfuse-distroless -t gcsfuse-distroless:v0.41.7 --build-arg GCSFUSE_VERSION=0.41.7  --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+# (b) Ubuntu/debian image
 #   > docker build . -t gcsfuse-{OS_NAME}:v{GCSFUSE_VERSION} --build-arg GCSFUSE_VERSION={GCSFUSE_VERSION} --build-arg OS_NAME={OS_NAME} --build-arg OS_VERSION={OS_VERSION} --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 #   E.g.
 #   > docker build . -t gcsfuse-ubuntu:v0.41.7 --build-arg GCSFUSE_VERSION=0.41.7 --build-arg OS_NAME=ubuntu --build-arg OS_VERSION=22.04 --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
-# Mount bucket in container using gcsfuse:
-# E.g.
-#   > docker run --privileged -it -v $HOME/key.json:$HOME/key.json gcsfuse-ubuntu:v0.41.7 gcsfuse --key-file $HOME/key.json --foreground bucket-name /tmp
+# Mount bucket to /mnt/gcs on host (/gcs in container):
+# (a) using distroless image
+#   E.g.
+#   > docker run -it --privileged -v $HOME/key.json:/key.json -v /mnt/gcs:/gcs:rw,rshared -e BUCKET_NAME="my-bucket-name" gcsfuse-distroless:v0.41.7
+# (b) using ubuntu/debain image
+#   E.g.
+#   > docker run -it --privileged -v $HOME/key.json:/key.json -v /mnt/gcs:/gcs:rw,rshared -e BUCKET_NAME="my-bucket-name" gcsfuse-ubuntu:v0.41.7
 
-ARG OS_NAME
 ARG OS_VERSION
-FROM ${OS_NAME}:${OS_VERSION}
+ARG OS_NAME
 
-# Install dependencies
+# Image with gcsfuse installed and its package (.deb)
+FROM golang:1.18.4 as gcsfuse-package
+
+RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm fuse && gem install --no-document fpm
+
+ENV CGO_ENABLED=0
+ENV GOOS=linux
+ENV GO111MODULE=auto
+
 ARG GCSFUSE_VERSION
-ARG GCSFUSE_PACKAGE_NAME=gcsfuse_${GCSFUSE_VERSION}_amd64
-RUN apt-get update && apt-get install -y ca-certificates fuse curl && rm -rf /var/lib/apt/lists/* && apt-get clean
+ARG GCSFUSE_REPO="github.com/googlecloudplatform/gcsfuse/"
+ENV GCSFUSE_PATH "$GOPATH/src/$GCSFUSE_REPO"
+RUN go get ${GCSFUSE_REPO}
 
-# Download and install gcsfuse package
-RUN curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v${GCSFUSE_VERSION}/${GCSFUSE_PACKAGE_NAME}.deb
-RUN dpkg -i ${GCSFUSE_PACKAGE_NAME}.deb && rm ${GCSFUSE_PACKAGE_NAME}.deb
+WORKDIR ${GCSFUSE_PATH}
+# Branch name for building through a particular branch.
+ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
+RUN git checkout "${BRANCH_NAME}"
+
+ARG GCSFUSE_BIN="/gcsfuse"
+WORKDIR ${GOPATH}
+RUN go install ${GCSFUSE_REPO}/tools/build_gcsfuse
+RUN mkdir -p ${GCSFUSE_BIN}
+RUN build_gcsfuse ${GCSFUSE_PATH} ${GCSFUSE_BIN} ${GCSFUSE_VERSION}
+RUN mkdir -p ${GCSFUSE_BIN}/usr && mv ${GCSFUSE_BIN}/bin ${GCSFUSE_BIN}/usr/bin
+
+ARG GCSFUSE_PKG="/packages"
+RUN mkdir -p ${GCSFUSE_PKG}
+WORKDIR ${GCSFUSE_PKG}
+RUN fpm \
+    -s dir \
+    -t deb \
+    -n gcsfuse \
+    -C ${GCSFUSE_BIN} \
+    -v ${GCSFUSE_VERSION} \
+    -d fuse \
+    --vendor "" \
+    --url "https://$GCSFUSE_REPO" \
+    --description "A user-space file system for Google Cloud Storage."
+
+# distroless image with gcsfuse installed.
+FROM gcr.io/gke-release/gke-distroless/libc as gcsfuse-distroless
+
+# Copy gcsfuse and fuse binaries
+ARG GCSFUSE_BIN="/gcsfuse"
+COPY --from=gcsfuse-package ${GCSFUSE_BIN}/usr/bin/gcsfuse /bin/
+COPY --from=gcsfuse-package ${GCSFUSE_BIN}/sbin/mount.gcsfuse /sbin/
+COPY --from=gcsfuse-package /bin/fusermount /bin/
+COPY --from=gcsfuse-package /bin/sh /bin/
+
+ENV PATH "/bin:$PATH"
+ENV BUCKET_NAME ""
 
 # Labels:https://github.com/opencontainers/image-spec/blob/master/annotations.md
 ARG BUILD_DATE
+ARG GCSFUSE_VERSION
+LABEL "org.opencontainers.artifact.created"=$BUILD_DATE
+LABEL "org.opencontainers.image.title"="GoogleCloudPlatform/gcsfuse-distroless"
+LABEL "org.opencontainers.image.version"="v${GCSFUSE_VERSION}"
+LABEL "org.opencontainers.image.description"="A user-space file system for Google Cloud Storage."
+LABEL "org.opencontainers.image.url"="https://cloud.google.com/storage/docs/gcs-fuse"
+LABEL "org.opencontainers.image.source"="https://github.com/GoogleCloudPlatform/gcsfuse"
+
+CMD gcsfuse --key-file /key.json -o allow_other --file-mode 777 --dir-mode 777 --foreground --implicit-dirs $BUCKET_NAME /gcs
+
+# Ubuntu/debian image with gcsfuse installed
+FROM ${OS_NAME}:${OS_VERSION}
+
+# Copy gcsfuse .deb package from gcsfuse-package image
+ARG GCSFUSE_PKG="/packages"
+COPY --from=gcsfuse-package ${GCSFUSE_PKG}/*amd64.deb gcsfuse.deb
+
+# Install gcsfuse and dependencies
+RUN apt-get update && \
+    apt-get install -y ca-certificates fuse && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get clean
+RUN dpkg -i gcsfuse.deb && rm gcsfuse.deb
+
+# Allow non-root users to specify the allow_other or allow_root mount options
+RUN echo "user_allow_other" > /etc/fuse.conf
+
+ENV BUCKET_NAME ""
+
+# Labels:https://github.com/opencontainers/image-spec/blob/master/annotations.md
+ARG BUILD_DATE
+ARG GCSFUSE_VERSION
 ARG OS_NAME
 LABEL "org.opencontainers.artifact.created"=$BUILD_DATE
 LABEL "org.opencontainers.image.title"="GoogleCloudPlatform/gcsfuse-${OS_NAME}"
@@ -44,4 +128,4 @@ LABEL "org.opencontainers.image.description"="A user-space file system for Googl
 LABEL "org.opencontainers.image.url"="https://cloud.google.com/storage/docs/gcs-fuse"
 LABEL "org.opencontainers.image.source"="https://github.com/GoogleCloudPlatform/gcsfuse"
 
-CMD ["gcsfuse", "--help"]
+CMD gcsfuse --key-file /key.json -o allow_other --file-mode 777 --dir-mode 777 --foreground --implicit-dirs $BUCKET_NAME /gcs
