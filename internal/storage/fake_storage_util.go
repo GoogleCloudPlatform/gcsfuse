@@ -22,7 +22,9 @@ const port uint16 = 8081
 const host string = "127.0.0.1"
 
 const TestBucketName string = "gcsfuse-default-bucket"
+const TestObjectRootFolderName string = "gcsfuse/"
 const TestObjectName string = "gcsfuse/default.txt"
+const TestObjectSubRootFolderName string = "gcsfuse/SubFolder/"
 const TestSubObjectName string = "gcsfuse/SubFolder/default.txt"
 const ContentInTestObject string = "Hello GCSFuse!!!"
 const TestObjectGeneration int64 = 780
@@ -56,6 +58,26 @@ func NewFakeStorage() FakeStorage {
 
 func getTestFakeStorageObject() []fakestorage.Object {
 	var fakeObjects []fakestorage.Object
+	testObjectGcsfuse := fakestorage.Object{
+		ObjectAttrs: fakestorage.ObjectAttrs{
+			BucketName: TestBucketName,
+			Name:       TestObjectRootFolderName,
+			Generation: TestObjectGeneration,
+		},
+		Content: []byte(ContentInTestObject),
+	}
+	fakeObjects = append(fakeObjects, testObjectGcsfuse)
+
+	testObjectSubFolder := fakestorage.Object{
+		ObjectAttrs: fakestorage.ObjectAttrs{
+			BucketName: TestBucketName,
+			Name:       TestObjectSubRootFolderName,
+			Generation: TestObjectGeneration,
+		},
+		Content: []byte(ContentInTestObject),
+	}
+	fakeObjects = append(fakeObjects, testObjectSubFolder)
+
 	testObject := fakestorage.Object{
 		ObjectAttrs: fakestorage.ObjectAttrs{
 			BucketName: TestBucketName,

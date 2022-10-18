@@ -276,6 +276,7 @@ func (t *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsDefault() {
 	AssertEq(storage.Projection(1), proj)
 }
 
+// only shows results which include only objects whose names begin with this prefix.
 func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectExist() {
 	obj, err := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
@@ -288,9 +289,11 @@ func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectExist() {
 		})
 
 	AssertEq(nil, err)
-	AssertEq(TestObjectName, obj.Objects[0].Name)
+	AssertEq(TestObjectRootFolderName, obj.Objects[0].Name)
+	AssertEq(TestObjectSubRootFolderName, obj.Objects[1].Name)
+	AssertEq(TestObjectName, obj.Objects[2].Name)
 	AssertEq(TestObjectGeneration, obj.Objects[0].Generation)
-	AssertEq("gcsfuse/", obj.CollapsedRuns[0])
+	AssertEq(TestObjectSubRootFolderName, obj.CollapsedRuns[0])
 }
 
 func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectDoesNotExist() {
@@ -321,8 +324,9 @@ func (t *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimiterFalse
 		})
 
 	AssertEq(nil, err)
-	AssertEq(nil, obj.Objects)
-	AssertEq("gcsfuse/", obj.CollapsedRuns[0])
+	AssertEq(TestObjectRootFolderName, obj.Objects[0].Name)
+	AssertEq(TestObjectName, obj.Objects[1].Name)
+	AssertEq(TestObjectSubRootFolderName, obj.CollapsedRuns[0])
 }
 
 func (t *BucketHandleTest) TestListObjectMethodWithEmptyDelimiter() {
@@ -337,30 +341,10 @@ func (t *BucketHandleTest) TestListObjectMethodWithEmptyDelimiter() {
 		})
 
 	AssertEq(nil, err)
-	AssertEq(TestSubObjectName, obj.Objects[0].Name)
-	AssertEq(TestObjectName, obj.Objects[1].Name)
+	AssertEq(TestObjectRootFolderName, obj.Objects[0].Name)
+	AssertEq(TestObjectSubRootFolderName, obj.Objects[1].Name)
+	AssertEq(TestSubObjectName, obj.Objects[2].Name)
+	AssertEq(TestObjectName, obj.Objects[3].Name)
 	AssertEq(TestObjectGeneration, obj.Objects[0].Generation)
-	AssertEq("gcsfuse/", obj.CollapsedRuns[0])
-	AssertEq("gcsfuse/", obj.CollapsedRuns[1])
-	AssertEq(2, len(obj.Objects))
-	AssertEq(2, len(obj.CollapsedRuns))
-}
-
-func (t *BucketHandleTest) TestListObjectMethodWithNonEmptyDelimiter() {
-	obj, err := t.bucketHandle.ListObjects(context.Background(),
-		&gcs.ListObjectsRequest{
-			Prefix:                   "gcsfuse/",
-			Delimiter:                "/",
-			IncludeTrailingDelimiter: true,
-			ContinuationToken:        "ContinuationToken",
-			MaxResults:               7,
-			ProjectionVal:            0,
-		})
-
-	AssertEq(nil, err)
-	AssertEq(TestObjectName, obj.Objects[0].Name)
-	AssertEq(TestObjectGeneration, obj.Objects[0].Generation)
-	AssertEq("gcsfuse/", obj.CollapsedRuns[0])
-	AssertEq(1, len(obj.Objects))
-	AssertEq(1, len(obj.CollapsedRuns))
+	AssertEq(nil, obj.CollapsedRuns)
 }
