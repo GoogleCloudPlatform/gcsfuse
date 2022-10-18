@@ -276,7 +276,6 @@ func (t *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsDefault() {
 	AssertEq(storage.Projection(1), proj)
 }
 
-// only shows results which include only objects whose names begin with this prefix.
 func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectExist() {
 	obj, err := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
