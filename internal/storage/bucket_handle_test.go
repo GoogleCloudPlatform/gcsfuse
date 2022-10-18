@@ -328,6 +328,7 @@ func (t *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimiterFalse
 	AssertEq(TestObjectSubRootFolderName, obj.CollapsedRuns[0])
 }
 
+// If Delimiter is empty, all the objects will appear with same prefix.
 func (t *BucketHandleTest) TestListObjectMethodWithEmptyDelimiter() {
 	obj, err := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
