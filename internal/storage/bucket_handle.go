@@ -224,6 +224,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		}
 
 		// If Prefix of an attribute is set, only prefix will be populated through CollapsedRun.
+		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L370
 		if attrs.Prefix != "" {
 			list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
 		} else {

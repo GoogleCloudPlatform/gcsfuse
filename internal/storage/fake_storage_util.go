@@ -58,7 +58,7 @@ func NewFakeStorage() FakeStorage {
 
 func getTestFakeStorageObject() []fakestorage.Object {
 	var fakeObjects []fakestorage.Object
-	testObjectGcsfuse := fakestorage.Object{
+	testObjectRootFolder := fakestorage.Object{
 		ObjectAttrs: fakestorage.ObjectAttrs{
 			BucketName: TestBucketName,
 			Name:       TestObjectRootFolderName,
@@ -66,9 +66,9 @@ func getTestFakeStorageObject() []fakestorage.Object {
 		},
 		Content: []byte(ContentInTestObject),
 	}
-	fakeObjects = append(fakeObjects, testObjectGcsfuse)
+	fakeObjects = append(fakeObjects, testObjectRootFolder)
 
-	testObjectSubFolder := fakestorage.Object{
+	testObjectSubRootFolder := fakestorage.Object{
 		ObjectAttrs: fakestorage.ObjectAttrs{
 			BucketName: TestBucketName,
 			Name:       TestObjectSubRootFolderName,
@@ -76,7 +76,7 @@ func getTestFakeStorageObject() []fakestorage.Object {
 		},
 		Content: []byte(ContentInTestObject),
 	}
-	fakeObjects = append(fakeObjects, testObjectSubFolder)
+	fakeObjects = append(fakeObjects, testObjectSubRootFolder)
 
 	testObject := fakestorage.Object{
 		ObjectAttrs: fakestorage.ObjectAttrs{
