@@ -288,13 +288,13 @@ func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectExist() {
 		})
 
 	AssertEq(nil, err)
+	AssertEq(3, len(obj.Objects))
+	AssertEq(1, len(obj.CollapsedRuns))
 	AssertEq(TestObjectRootFolderName, obj.Objects[0].Name)
 	AssertEq(TestObjectSubRootFolderName, obj.Objects[1].Name)
 	AssertEq(TestObjectName, obj.Objects[2].Name)
 	AssertEq(TestObjectGeneration, obj.Objects[0].Generation)
 	AssertEq(TestObjectSubRootFolderName, obj.CollapsedRuns[0])
-	AssertEq(3, len(obj.Objects))
-	AssertEq(1, len(obj.CollapsedRuns))
 }
 
 func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectDoesNotExist() {
@@ -311,8 +311,6 @@ func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectDoesNotExist() {
 	AssertEq(nil, err)
 	AssertEq(nil, obj.Objects)
 	AssertEq(nil, obj.CollapsedRuns)
-	AssertEq(0, len(obj.Objects))
-	AssertEq(0, len(obj.CollapsedRuns))
 }
 
 func (t *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimiterFalse() {
@@ -327,11 +325,11 @@ func (t *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimiterFalse
 		})
 
 	AssertEq(nil, err)
+	AssertEq(2, len(obj.Objects))
+	AssertEq(1, len(obj.CollapsedRuns))
 	AssertEq(TestObjectRootFolderName, obj.Objects[0].Name)
 	AssertEq(TestObjectName, obj.Objects[1].Name)
 	AssertEq(TestObjectSubRootFolderName, obj.CollapsedRuns[0])
-	AssertEq(2, len(obj.Objects))
-	AssertEq(1, len(obj.CollapsedRuns))
 }
 
 // If Delimiter is empty, all the objects will appear with same prefix.
@@ -347,12 +345,11 @@ func (t *BucketHandleTest) TestListObjectMethodWithEmptyDelimiter() {
 		})
 
 	AssertEq(nil, err)
+	AssertEq(4, len(obj.Objects))
 	AssertEq(TestObjectRootFolderName, obj.Objects[0].Name)
 	AssertEq(TestObjectSubRootFolderName, obj.Objects[1].Name)
 	AssertEq(TestSubObjectName, obj.Objects[2].Name)
 	AssertEq(TestObjectName, obj.Objects[3].Name)
 	AssertEq(TestObjectGeneration, obj.Objects[0].Generation)
 	AssertEq(nil, obj.CollapsedRuns)
-	AssertEq(4, len(obj.Objects))
-	AssertEq(0, len(obj.CollapsedRuns))
 }
