@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"cloud.google.com/go/storage"
 	"github.com/jacobsa/gcloud/gcs"
 	. "github.com/jacobsa/ogletest"
 )
@@ -255,4 +256,100 @@ func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExi
 
 	AssertEq(nil, obj)
 	AssertTrue(strings.Contains(err.Error(), "Error 412: Precondition failed"))
+}
+
+func (t *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsNoAcl() {
+	proj := getProjectionValue(gcs.NoAcl)
+
+	AssertEq(storage.ProjectionNoACL, proj)
+}
+
+func (t *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsFull() {
+	proj := getProjectionValue(gcs.Full)
+
+	AssertEq(storage.ProjectionFull, proj)
+}
+
+func (t *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsDefault() {
+	proj := getProjectionValue(0)
+
+	AssertEq(storage.ProjectionFull, proj)
+}
+
+func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectExist() {
+	obj, err := t.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   "gcsfuse/",
+			Delimiter:                "/",
+			IncludeTrailingDelimiter: true,
+			ContinuationToken:        "ContinuationToken",
+			MaxResults:               7,
+			ProjectionVal:            0,
+		})
+
+	AssertEq(nil, err)
+	AssertEq(3, len(obj.Objects))
+	AssertEq(1, len(obj.CollapsedRuns))
+	AssertEq(TestObjectRootFolderName, obj.Objects[0].Name)
+	AssertEq(TestObjectSubRootFolderName, obj.Objects[1].Name)
+	AssertEq(TestObjectName, obj.Objects[2].Name)
+	AssertEq(TestObjectGeneration, obj.Objects[0].Generation)
+	AssertEq(TestObjectSubRootFolderName, obj.CollapsedRuns[0])
+}
+
+func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectDoesNotExist() {
+	obj, err := t.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   "PrefixObjectDoesNotExist",
+			Delimiter:                "/",
+			IncludeTrailingDelimiter: true,
+			ContinuationToken:        "ContinuationToken",
+			MaxResults:               7,
+			ProjectionVal:            0,
+		})
+
+	AssertEq(nil, err)
+	AssertEq(nil, obj.Objects)
+	AssertEq(nil, obj.CollapsedRuns)
+}
+
+func (t *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimiterFalse() {
+	obj, err := t.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   "gcsfuse/",
+			Delimiter:                "/",
+			IncludeTrailingDelimiter: false,
+			ContinuationToken:        "ContinuationToken",
+			MaxResults:               7,
+			ProjectionVal:            0,
+		})
+
+	AssertEq(nil, err)
+	AssertEq(2, len(obj.Objects))
+	AssertEq(1, len(obj.CollapsedRuns))
+	AssertEq(TestObjectRootFolderName, obj.Objects[0].Name)
+	AssertEq(TestObjectName, obj.Objects[1].Name)
+	AssertEq(TestObjectSubRootFolderName, obj.CollapsedRuns[0])
+}
+
+// If Delimiter is empty, all the objects will appear with same prefix.
+func (t *BucketHandleTest) TestListObjectMethodWithEmptyDelimiter() {
+	obj, err := t.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   "gcsfuse/",
+			Delimiter:                "",
+			IncludeTrailingDelimiter: true,
+			ContinuationToken:        "ContinuationToken",
+			MaxResults:               7,
+			ProjectionVal:            0,
+		})
+
+	AssertEq(nil, err)
+	AssertEq(4, len(obj.Objects))
+	AssertEq(TestObjectRootFolderName, obj.Objects[0].Name)
+	AssertEq(TestObjectSubRootFolderName, obj.Objects[1].Name)
+	AssertEq(TestSubObjectName, obj.Objects[2].Name)
+	AssertEq(TestObjectName, obj.Objects[3].Name)
+	AssertEq(TestObjectGeneration, obj.Objects[0].Generation)
+	AssertEq(nil, obj.CollapsedRuns)
 }

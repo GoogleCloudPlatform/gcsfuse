@@ -22,7 +22,10 @@ const port uint16 = 8081
 const host string = "127.0.0.1"
 
 const TestBucketName string = "gcsfuse-default-bucket"
+const TestObjectRootFolderName string = "gcsfuse/"
 const TestObjectName string = "gcsfuse/default.txt"
+const TestObjectSubRootFolderName string = "gcsfuse/SubFolder/"
+const TestSubObjectName string = "gcsfuse/SubFolder/default.txt"
 const ContentInTestObject string = "Hello GCSFuse!!!"
 const TestObjectGeneration int64 = 780
 
@@ -46,15 +49,36 @@ func (f *fakeStorage) ShutDown() {
 }
 
 func NewFakeStorage() FakeStorage {
-	f, _ := createFakeStorageServer([]fakestorage.Object{getTestFakeStorageObject()})
+	f, _ := createFakeStorageServer(getTestFakeStorageObject())
 	fakeStorage := &fakeStorage{
 		fakeStorageServer: f,
 	}
 	return fakeStorage
 }
 
-func getTestFakeStorageObject() fakestorage.Object {
-	return fakestorage.Object{
+func getTestFakeStorageObject() []fakestorage.Object {
+	var fakeObjects []fakestorage.Object
+	testObjectRootFolder := fakestorage.Object{
+		ObjectAttrs: fakestorage.ObjectAttrs{
+			BucketName: TestBucketName,
+			Name:       TestObjectRootFolderName,
+			Generation: TestObjectGeneration,
+		},
+		Content: []byte(ContentInTestObject),
+	}
+	fakeObjects = append(fakeObjects, testObjectRootFolder)
+
+	testObjectSubRootFolder := fakestorage.Object{
+		ObjectAttrs: fakestorage.ObjectAttrs{
+			BucketName: TestBucketName,
+			Name:       TestObjectSubRootFolderName,
+			Generation: TestObjectGeneration,
+		},
+		Content: []byte(ContentInTestObject),
+	}
+	fakeObjects = append(fakeObjects, testObjectSubRootFolder)
+
+	testObject := fakestorage.Object{
 		ObjectAttrs: fakestorage.ObjectAttrs{
 			BucketName: TestBucketName,
 			Name:       TestObjectName,
@@ -62,6 +86,19 @@ func getTestFakeStorageObject() fakestorage.Object {
 		},
 		Content: []byte(ContentInTestObject),
 	}
+	fakeObjects = append(fakeObjects, testObject)
+
+	testSubObject := fakestorage.Object{
+		ObjectAttrs: fakestorage.ObjectAttrs{
+			BucketName: TestBucketName,
+			Name:       TestSubObjectName,
+			Generation: TestObjectGeneration,
+		},
+		Content: []byte(ContentInTestObject),
+	}
+	fakeObjects = append(fakeObjects, testSubObject)
+
+	return fakeObjects
 }
 
 func createFakeStorageServer(objects []fakestorage.Object) (*fakestorage.Server, error) {

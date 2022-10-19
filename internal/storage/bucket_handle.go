@@ -29,6 +29,7 @@ import (
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/iterator"
 )
 
 type bucketHandle struct {
@@ -177,5 +178,63 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 	}
 	// Converting objAttrs to type *Object
 	o = storageutil.ObjectAttrsToBucketObject(objAttrs)
+	return
+}
+
+func getProjectionValue(req gcs.Projection) storage.Projection {
+	// Explicitly converting Projection Value because the ProjectionVal interface of jacobsa/gcloud and Go Client API are not coupled correctly.
+	var convertedProjection storage.Projection // Stores the Projection Value according to the Go Client API Interface.
+	switch int(req) {
+	// Projection Value 0 in jacobsa/gcloud maps to Projection Value 1 in Go Client API, that is for "full".
+	case 0:
+		convertedProjection = storage.Projection(1)
+	// Projection Value 1 in jacobsa/gcloud maps to Projection Value 2 in Go Client API, that is for "noAcl".
+	case 1:
+		convertedProjection = storage.Projection(2)
+	// Default Projection value in jacobsa/gcloud library is 0 that maps to 1 in Go Client API interface, and that is for "full".
+	default:
+		convertedProjection = storage.Projection(1)
+	}
+	return convertedProjection
+}
+
+func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+	// Converting *ListObjectsRequest to type *storage.Query as expected by the Go Storage Client.
+	query := &storage.Query{
+		Delimiter:                req.Delimiter,
+		Prefix:                   req.Prefix,
+		Projection:               getProjectionValue(req.ProjectionVal),
+		IncludeTrailingDelimiter: req.IncludeTrailingDelimiter,
+		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
+	}
+	itr := b.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
+	var list gcs.Listing
+
+	// Iterating through all the objects in the bucket and one by one adding them to the list.
+	for {
+		var attrs *storage.ObjectAttrs
+		attrs, err = itr.Next()
+		if err == iterator.Done {
+			err = nil
+			break
+		}
+		if err != nil {
+			err = fmt.Errorf("Error in iterating through objects: %v", err)
+			return
+		}
+
+		// Prefix attribute will be set for the objects returned as part of Prefix[] array in list response.
+		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/storage.go#L1304
+		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L370
+		if attrs.Prefix != "" {
+			list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
+		} else {
+			// Converting attrs to *Object type.
+			currObject := storageutil.ObjectAttrsToBucketObject(attrs)
+			list.Objects = append(list.Objects, currObject)
+		}
+	}
+
+	listing = &list
 	return
 }
