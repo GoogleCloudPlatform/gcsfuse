@@ -224,8 +224,8 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		}
 
 		// Prefix attribute will be set for the objects returned as part of Prefix[] array in list response.
-		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L370
 		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/storage.go#L1304
+		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L370
 		if attrs.Prefix != "" {
 			list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
 		} else {
