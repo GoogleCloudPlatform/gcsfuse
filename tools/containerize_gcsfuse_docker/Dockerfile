@@ -14,9 +14,9 @@
 
 # Build image with gcsfuse installed:
 # (a) distroless image
-#   > docker build ./ --target gcsfuse-distroless -t gcsfuse-distroless:v{GCSFUSE_VERSION} --build-arg GCSFUSE_VERSION={GCSFUSE_VERSION} --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+#   > docker build ./ --target distroless -t gcsfuse-distroless:v{GCSFUSE_VERSION} --build-arg GCSFUSE_VERSION={GCSFUSE_VERSION} --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 #   E.g
-#   > docker build ./ --target gcsfuse-distroless -t gcsfuse-distroless:v0.41.7 --build-arg GCSFUSE_VERSION=0.41.7  --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+#   > docker build ./ --target distroless -t gcsfuse-distroless:v0.41.7 --build-arg GCSFUSE_VERSION=0.41.7  --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 # (b) Ubuntu/debian image
 #   > docker build . -t gcsfuse-{OS_NAME}:v{GCSFUSE_VERSION} --build-arg GCSFUSE_VERSION={GCSFUSE_VERSION} --build-arg OS_NAME={OS_NAME} --build-arg OS_VERSION={OS_VERSION} --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 #   E.g.
@@ -74,7 +74,7 @@ RUN fpm \
     --description "A user-space file system for Google Cloud Storage."
 
 # distroless image with gcsfuse installed.
-FROM gcr.io/gke-release/gke-distroless/libc as gcsfuse-distroless
+FROM gcr.io/gke-release/gke-distroless/libc as distroless
 
 # Copy gcsfuse and fuse binaries
 ARG GCSFUSE_BIN="/gcsfuse"
