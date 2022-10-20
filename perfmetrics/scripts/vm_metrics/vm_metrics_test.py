@@ -138,7 +138,7 @@ def create_metrics_value_by_type(value, value_type) -> float:
   else:
     raise Exception('Unhandled Value type')
 
-def get_response_from_filename(filename, ):
+def get_response_from_filename(filename):
   response_filepath = os.path.join(TEST_PATH, filename + '.json')
   metrics_file = open(response_filepath, 'r')
   metrics_response = dict_to_obj(json.load(metrics_file))
@@ -156,9 +156,9 @@ def get_response_from_filename(filename, ):
         {"end_time": {"seconds": point.interval.end_time.seconds},
          "start_time": {"seconds": point.interval.start_time.seconds}}
     )
-    value = create_metrics_value_by_type(point.value, metrics_response.value_type)
-    point_val = monitoring_v3.Point({"interval": interval, "value": value})
-    time_series.points.append(point_val)
+    metric_value = create_metrics_value_by_type(point.value, metrics_response.value_type)
+    point = monitoring_v3.Point({"interval": interval, "value": metric_value})
+    time_series.points.append(point)
   return time_series
 
 
