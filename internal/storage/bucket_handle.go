@@ -209,7 +209,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 	}
 	itr := b.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
 	pi := itr.PageInfo()
-	pi.MaxSize = 5000
+	pi.MaxSize = req.MaxResults
 	var list gcs.Listing
 
 	// Iterating through all the objects in the bucket and one by one adding them to the list.
