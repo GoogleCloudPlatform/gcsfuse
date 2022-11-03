@@ -24,7 +24,7 @@ Once the mounting is successful, there are other issues which may crop up during
 ### Input/Output Error
 This issue is also related to permissions and most likely the culprit is the bucket not having the right permissions for gcsfuse to operate upon ([ref](https://stackoverflow.com/questions/36382704/gcsfuse-input-output-error)).
 
-### Generic error for gcsfuse installation on ubuntu 22.04
+### Generic NO_PUBKEY Error - while installing gcsfuse on ubuntu 22.04
 
 while running
 
@@ -35,9 +35,8 @@ The following signatures couldn't be verified because the public key is not
 available: NO_PUBKEY 6494C6D6997C215E
 
 Enter NO_PUBKEY here (eg: 6494C6D6997C215E is NO_PUBKEY for above error)
-<input type="text" class="g3doc-ext-placeholder" placeholder="@no-pubkey">
 
-solution
+**Solution**
 
-*   sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys [no-pubkey]
+*   sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6494C6D6997C215E
 *   sudo apt-get update
