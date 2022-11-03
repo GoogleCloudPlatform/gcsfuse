@@ -26,7 +26,7 @@ This issue is also related to permissions and most likely the culprit is the buc
 
 ### Generic NO_PUBKEY Error - while installing gcsfuse on ubuntu 22.04
 
-while running
+While running
 
 *   sudo apt-get update
 
