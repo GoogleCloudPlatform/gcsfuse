@@ -353,3 +353,21 @@ func (t *BucketHandleTest) TestListObjectMethodWithEmptyDelimiter() {
 	AssertEq(TestObjectGeneration, obj.Objects[0].Generation)
 	AssertEq(nil, obj.CollapsedRuns)
 }
+
+func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
+	obj, err := t.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   "",
+			Delimiter:                "",
+			IncludeTrailingDelimiter: true,
+			ContinuationToken:        "",
+			MaxResults:               2,
+			ProjectionVal:            0,
+		})
+
+	AssertEq(nil, err)
+	AssertEq(2, len(obj.Objects))
+	AssertEq(TestObjectRootFolderName, obj.Objects[0].Name)
+	AssertEq(TestObjectSubRootFolderName, obj.Objects[1].Name)
+	AssertEq(nil, obj.CollapsedRuns)
+}

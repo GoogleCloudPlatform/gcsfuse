@@ -210,11 +210,16 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 	itr := b.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
 	pi := itr.PageInfo()
 	pi.MaxSize = req.MaxResults
+	pi.Token = req.ContinuationToken
 	var list gcs.Listing
 
 	// Iterating through all the objects in the bucket and one by one adding them to the list.
 	for {
 		var attrs *storage.ObjectAttrs
+		if len(list.Objects) == req.MaxResults {
+			err = nil
+			break
+		}
 		attrs, err = itr.Next()
 		if err == iterator.Done {
 			err = nil
@@ -237,6 +242,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		}
 	}
 
+	list.ContinuationToken = itr.PageInfo().Token
 	listing = &list
 	return
 }
