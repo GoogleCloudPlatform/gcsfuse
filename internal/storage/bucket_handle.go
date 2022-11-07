@@ -216,13 +216,12 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 	// Iterating through all the objects in the bucket and one by one adding them to the list.
 	for {
 		var attrs *storage.ObjectAttrs
+		// Fetching number of objects equals to requested MaxResults
 		if len(list.Objects) == req.MaxResults {
-			err = nil
 			break
 		}
 		attrs, err = itr.Next()
 		if err == iterator.Done {
-			err = nil
 			break
 		}
 		if err != nil {
