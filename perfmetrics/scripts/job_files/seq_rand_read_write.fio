@@ -21,7 +21,7 @@ filename_format=$jobname.$jobnum.$filenum
 [1_thread]
 stonewall
 startdelay=300
-bs=16k
+bs=256k
 directory=gcs/256kb
 filesize=256k
 numjobs=40
@@ -29,7 +29,7 @@ numjobs=40
 [2_thread]
 stonewall
 startdelay=670
-bs=16k
+bs=256k
 directory=gcs/256kb
 filesize=256k
 rw=write
@@ -83,7 +83,7 @@ numjobs=40
 [9_thread]
 stonewall
 startdelay=3260
-bs=16k
+bs=256k
 directory=gcs/256kb
 filesize=256k
 rw=randread
@@ -92,7 +92,7 @@ numjobs=40
 [10_thread]
 stonewall
 startdelay=3630
-bs=16k
+bs=256k
 directory=gcs/256kb
 filesize=256k
 rw=randwrite
