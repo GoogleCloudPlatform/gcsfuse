@@ -41,8 +41,12 @@ func (bh *bucketHandle) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Initialising the starting offset and the length to be read by the reader.
-	start := int64((*req.Range).Start)
-	end := int64((*req.Range).Limit)
+	start := int64(0)
+	end := int64(-1)
+	if req.Range != nil {
+		start = int64((*req.Range).Start)
+		end = int64((*req.Range).Limit)
+	}
 	length := int64(end - start)
 
 	obj := bh.bucket.Object(req.Name)
