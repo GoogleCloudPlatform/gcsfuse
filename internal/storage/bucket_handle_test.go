@@ -353,3 +353,40 @@ func (t *BucketHandleTest) TestListObjectMethodWithEmptyDelimiter() {
 	AssertEq(TestObjectGeneration, obj.Objects[0].Generation)
 	AssertEq(nil, obj.CollapsedRuns)
 }
+
+// We have 4 objects in fakeserver.
+func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
+	fourObj, err := t.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   "",
+			Delimiter:                "",
+			IncludeTrailingDelimiter: true,
+			ContinuationToken:        "",
+			MaxResults:               4,
+			ProjectionVal:            0,
+		})
+
+	twoObj, err2 := t.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   "",
+			Delimiter:                "",
+			IncludeTrailingDelimiter: true,
+			ContinuationToken:        "",
+			MaxResults:               2,
+			ProjectionVal:            0,
+		})
+
+	AssertEq(nil, err)
+	AssertEq(4, len(fourObj.Objects))
+	AssertEq(TestObjectRootFolderName, fourObj.Objects[0].Name)
+	AssertEq(TestObjectSubRootFolderName, fourObj.Objects[1].Name)
+	AssertEq(TestSubObjectName, fourObj.Objects[2].Name)
+	AssertEq(TestObjectName, fourObj.Objects[3].Name)
+	AssertEq(nil, fourObj.CollapsedRuns)
+
+	AssertEq(nil, err2)
+	AssertEq(2, len(twoObj.Objects))
+	AssertEq(TestObjectRootFolderName, twoObj.Objects[0].Name)
+	AssertEq(TestObjectSubRootFolderName, twoObj.Objects[1].Name)
+	AssertEq(nil, twoObj.CollapsedRuns)
+}
