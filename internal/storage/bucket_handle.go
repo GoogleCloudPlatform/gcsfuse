@@ -295,16 +295,17 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 	attrs, err := obj.Update(ctx, updateQuery)
 
 	if err != nil {
-		if err == storage.ErrObjectNotExist {
-			err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
-		}
 		switch ee := err.(type) {
 		case *googleapi.Error:
 			if ee.Code == http.StatusPreconditionFailed {
 				err = &gcs.PreconditionError{Err: ee}
 			}
 		default:
-			err = fmt.Errorf("Error in updating object: %w", err)
+			if err == storage.ErrObjectNotExist {
+				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+			} else {
+				err = fmt.Errorf("Error in updating object: %w", err)
+			}
 		}
 		return
 	}
