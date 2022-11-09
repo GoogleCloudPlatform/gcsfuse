@@ -405,3 +405,46 @@ func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
 	AssertEq(TestObjectSubRootFolderName, twoObj.Objects[1].Name)
 	AssertEq(nil, twoObj.CollapsedRuns)
 }
+
+func (t *BucketHandleTest) TestUpdateObjectMethodWithValidObject() {
+	var ContentType string = "ContentType"
+	var ContentEncoding string = "ContentEncoding"
+	var ContentLanguage string = "ContentLanguage"
+	var CacheControl string = "CacheControl"
+
+	_, err := t.bucketHandle.UpdateObject(context.Background(),
+		&gcs.UpdateObjectRequest{
+			Name:                       TestObjectName,
+			Generation:                 TestObjectGeneration,
+			MetaGenerationPrecondition: nil,
+			ContentType:                &ContentType,
+			ContentEncoding:            &ContentEncoding,
+			ContentLanguage:            &ContentLanguage,
+			CacheControl:               &CacheControl,
+			Metadata:                   nil,
+		})
+
+	AssertEq(nil, err)
+}
+
+func (t *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
+	var notfound *gcs.NotFoundError
+	var ContentType string = "ContentType"
+	var ContentEncoding string = "ContentEncoding"
+	var ContentLanguage string = "ContentLanguage"
+	var CacheControl string = "CacheControl"
+
+	_, err := t.bucketHandle.UpdateObject(context.Background(),
+		&gcs.UpdateObjectRequest{
+			Name:                       "Not_Exist",
+			Generation:                 TestObjectGeneration,
+			MetaGenerationPrecondition: nil,
+			ContentType:                &ContentType,
+			ContentEncoding:            &ContentEncoding,
+			ContentLanguage:            &ContentLanguage,
+			CacheControl:               &CacheControl,
+			Metadata:                   nil,
+		})
+
+	AssertTrue(errors.As(err, &notfound))
+}
