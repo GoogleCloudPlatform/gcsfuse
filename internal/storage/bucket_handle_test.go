@@ -98,6 +98,21 @@ func (t *BucketHandleTest) TestNewReaderMethodWithRangeRead() {
 	ExpectEq(string(buf[:]), ContentInTestObject[start:limit])
 }
 
+func (t *BucketHandleTest) TestNewReaderMethodWithNilRange() {
+	rc, err := t.bucketHandle.NewReader(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name:  TestObjectName,
+			Range: nil,
+		})
+
+	AssertEq(nil, err)
+	defer rc.Close()
+	buf := make([]byte, len(ContentInTestObject))
+	_, err = rc.Read(buf)
+	AssertEq(nil, err)
+	ExpectEq(string(buf[:]), ContentInTestObject[:])
+}
+
 func (t *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
 	rc, err := t.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
