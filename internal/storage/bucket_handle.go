@@ -38,8 +38,8 @@ type bucketHandle struct {
 }
 
 func (bh *bucketHandle) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+		ctx context.Context,
+		req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -294,12 +294,16 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 
 	attrs, err := obj.Update(ctx, updateQuery)
 
-	// http client is not handling precondition error
-	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L515
 	if err != nil {
 		if err == storage.ErrObjectNotExist {
 			err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
-		} else {
+		}
+		switch ee := err.(type) {
+		case *googleapi.Error:
+			if ee.Code == http.StatusPreconditionFailed {
+				err = &gcs.PreconditionError{Err: ee}
+			}
+		default:
 			err = fmt.Errorf("Error in updating object: %w", err)
 		}
 		return
