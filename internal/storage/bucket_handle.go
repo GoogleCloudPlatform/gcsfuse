@@ -43,7 +43,7 @@ func (bh *bucketHandle) NewReader(
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
-	// If Range equals to nil, it has a default call which has start and end as above values otherwise it will take mentioned range.
+	// If Range equals to nil, it has a default call which has start and length as above values otherwise it will take mentioned range.
 	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/34211af652dbaeb012b381a3daf3c94b95f65e00/vendor/cloud.google.com/go/storage/reader.go#L75
 	if req.Range != nil {
 		start = int64((*req.Range).Start)
