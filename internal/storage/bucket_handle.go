@@ -42,14 +42,14 @@ func (bh *bucketHandle) NewReader(
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
-	end := int64(-1)
+	length := int64(-1)
 	// If Range equals to nil, it has a default call which has start and end as above values otherwise it will take mentioned range.
 	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/34211af652dbaeb012b381a3daf3c94b95f65e00/vendor/cloud.google.com/go/storage/reader.go#L75
 	if req.Range != nil {
 		start = int64((*req.Range).Start)
-		end = int64((*req.Range).Limit)
+		end := int64((*req.Range).Limit)
+		length = end - start
 	}
-	length := int64(end - start)
 
 	obj := bh.bucket.Object(req.Name)
 
