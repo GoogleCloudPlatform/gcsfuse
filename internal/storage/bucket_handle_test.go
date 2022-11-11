@@ -19,6 +19,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/jacobsa/gcloud/gcs"
@@ -27,6 +28,12 @@ import (
 
 const missingObjectName string = "test/foo"
 const dstObjectName string = "gcsfuse/dst.txt"
+const MetaDataKey string = "MetaDataKey"
+
+var ContentType string = "ContentType"
+var ContentEncoding string = "ContentEncoding"
+var ContentLanguage string = "ContentLanguage"
+var CacheControl string = "CacheControl"
 
 // FakeGCSServer is not handling generation and metageneration checks for Delete flow.
 // Hence, we are not writing tests for these flows.
@@ -160,7 +167,6 @@ func (t *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
 	AssertNe(nil, err)
 	AssertEq(nil, rc)
 }
-
 func (t *BucketHandleTest) TestDeleteObjectMethodWithValidObject() {
 	err := t.bucketHandle.DeleteObject(context.Background(),
 		&gcs.DeleteObjectRequest{
@@ -406,13 +412,18 @@ func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
 	AssertEq(nil, twoObj.CollapsedRuns)
 }
 
+// FakeGCSServer is not handling ContentType, ContentEncoding, ContentLanguage, CacheControl in updateflow
+// Hence, we are not writing tests for these parameters
+// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L795
 func (t *BucketHandleTest) TestUpdateObjectMethodWithValidObject() {
-	var ContentType string = "ContentType"
-	var ContentEncoding string = "ContentEncoding"
-	var ContentLanguage string = "ContentLanguage"
-	var CacheControl string = "CacheControl"
+	AssertEq("metaData", MetaDataValue)
 
-	_, err := t.bucketHandle.UpdateObject(context.Background(),
+	formatted := time.RFC3339Nano
+	expectedMetaData := map[string]string{
+		MetaDataKey: formatted,
+	}
+
+	updatedObj, err := t.bucketHandle.UpdateObject(context.Background(),
 		&gcs.UpdateObjectRequest{
 			Name:                       TestObjectName,
 			Generation:                 TestObjectGeneration,
@@ -421,18 +432,18 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithValidObject() {
 			ContentEncoding:            &ContentEncoding,
 			ContentLanguage:            &ContentLanguage,
 			CacheControl:               &CacheControl,
-			Metadata:                   nil,
+			Metadata: map[string]*string{
+				MetaDataKey: &formatted,
+			},
 		})
 
 	AssertEq(nil, err)
+	AssertEq(TestObjectName, updatedObj.Name)
+	AssertEq(expectedMetaData[MetaDataKey], updatedObj.Metadata[MetaDataKey])
 }
 
 func (t *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
 	var notfound *gcs.NotFoundError
-	var ContentType string = "ContentType"
-	var ContentEncoding string = "ContentEncoding"
-	var ContentLanguage string = "ContentLanguage"
-	var CacheControl string = "CacheControl"
 
 	_, err := t.bucketHandle.UpdateObject(context.Background(),
 		&gcs.UpdateObjectRequest{

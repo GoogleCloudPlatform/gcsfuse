@@ -254,7 +254,6 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 }
 
 func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
-
 	obj := b.bucket.Object(req.Name)
 
 	if req.Generation != 0 {
@@ -294,6 +293,7 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 
 	attrs, err := obj.Update(ctx, updateQuery)
 
+	// httpclient is returning ErrObjectNotExist error for storage object not exist instead of googleapi error.
 	if err != nil {
 		switch ee := err.(type) {
 		case *googleapi.Error:
@@ -309,7 +309,7 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 		}
 		return
 	}
-
+	// Converting objAttrs to type *Object
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
 
 	return
