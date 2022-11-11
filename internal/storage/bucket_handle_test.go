@@ -28,7 +28,6 @@ import (
 
 const missingObjectName string = "test/foo"
 const dstObjectName string = "gcsfuse/dst.txt"
-const MetaDataKey string = "MetaDataKey"
 
 var ContentType string = "ContentType"
 var ContentEncoding string = "ContentEncoding"
@@ -422,7 +421,7 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithValidObject() {
 		&gcs.StatObjectRequest{
 			Name: TestObjectName,
 		})
-	AssertEq(MetaDataValue, obj.Metadata["key"])
+	AssertEq(MetaDataValue, obj.Metadata[MetaDataKey])
 
 	formatted := time.RFC3339Nano
 	expectedMetaData := map[string]string{

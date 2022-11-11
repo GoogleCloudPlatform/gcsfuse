@@ -29,6 +29,7 @@ const TestSubObjectName string = "gcsfuse/SubFolder/default.txt"
 const ContentInTestObject string = "Hello GCSFuse!!!"
 const TestObjectGeneration int64 = 780
 const MetaDataValue string = "metaData"
+const MetaDataKey string = "key"
 
 type FakeStorage interface {
 	CreateStorageHandle() (sh StorageHandle)
@@ -84,7 +85,7 @@ func getTestFakeStorageObject() []fakestorage.Object {
 			BucketName: TestBucketName,
 			Name:       TestObjectName,
 			Generation: TestObjectGeneration,
-			Metadata:   map[string]string{"key": MetaDataValue},
+			Metadata:   map[string]string{MetaDataKey: MetaDataValue},
 		},
 		Content: []byte(ContentInTestObject),
 	}
