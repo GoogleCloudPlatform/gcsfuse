@@ -450,7 +450,7 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
 
 	_, err := t.bucketHandle.UpdateObject(context.Background(),
 		&gcs.UpdateObjectRequest{
-			Name:                       "Not_Exist",
+			Name:                       missingObjectName,
 			Generation:                 TestObjectGeneration,
 			MetaGenerationPrecondition: nil,
 			ContentType:                &ContentType,
