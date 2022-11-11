@@ -417,6 +417,7 @@ func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
 // Hence, we are not writing tests for these parameters
 // https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L795
 func (t *BucketHandleTest) TestUpdateObjectMethodWithValidObject() {
+	// Metadata value before updating object
 	AssertEq("metaData", MetaDataValue)
 
 	formatted := time.RFC3339Nano
@@ -440,6 +441,7 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithValidObject() {
 
 	AssertEq(nil, err)
 	AssertEq(TestObjectName, updatedObj.Name)
+	// Metadata value after updating object
 	AssertEq(expectedMetaData[MetaDataKey], updatedObj.Metadata[MetaDataKey])
 }
 
