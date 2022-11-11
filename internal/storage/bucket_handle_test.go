@@ -422,6 +422,7 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithValidObject() {
 			Name: TestObjectName,
 		})
 
+	AssertEq(nil, err)
 	AssertEq(MetaDataValue, obj.Metadata[MetaDataKey])
 
 	formatted := time.RFC3339Nano
