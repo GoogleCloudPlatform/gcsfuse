@@ -293,7 +293,8 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 
 	attrs, err := obj.Update(ctx, updateQuery)
 
-	// httpclient is returning ErrObjectNotExist error for storage object not exist instead of googleapi error.
+	// If storage object does not exist, httpclient is returning ErrObjectNotExist error instead of googleapi error
+	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L516
 	if err != nil {
 		switch ee := err.(type) {
 		case *googleapi.Error:
