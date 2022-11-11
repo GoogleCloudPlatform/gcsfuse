@@ -167,6 +167,7 @@ func (t *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
 	AssertNe(nil, err)
 	AssertEq(nil, rc)
 }
+
 func (t *BucketHandleTest) TestDeleteObjectMethodWithValidObject() {
 	err := t.bucketHandle.DeleteObject(context.Background(),
 		&gcs.DeleteObjectRequest{
