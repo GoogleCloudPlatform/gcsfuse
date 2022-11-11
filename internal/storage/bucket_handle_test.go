@@ -418,7 +418,11 @@ func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
 // https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L795
 func (t *BucketHandleTest) TestUpdateObjectMethodWithValidObject() {
 	// Metadata value before updating object
-	AssertEq("metaData", MetaDataValue)
+	obj, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: TestObjectName,
+		})
+	AssertEq(MetaDataValue, obj.Metadata["key"])
 
 	formatted := time.RFC3339Nano
 	expectedMetaData := map[string]string{
