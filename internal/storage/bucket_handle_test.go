@@ -425,9 +425,9 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithValidObject() {
 	AssertEq(nil, err)
 	AssertEq(MetaDataValue, obj.Metadata[MetaDataKey])
 
-	formatted := time.RFC3339Nano
+	updatedMetaData := time.RFC3339Nano
 	expectedMetaData := map[string]string{
-		MetaDataKey: formatted,
+		MetaDataKey: updatedMetaData,
 	}
 
 	updatedObj, err := t.bucketHandle.UpdateObject(context.Background(),
@@ -440,7 +440,7 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithValidObject() {
 			ContentLanguage:            &ContentLanguage,
 			CacheControl:               &CacheControl,
 			Metadata: map[string]*string{
-				MetaDataKey: &formatted,
+				MetaDataKey: &updatedMetaData,
 			},
 		})
 
