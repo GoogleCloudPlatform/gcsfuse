@@ -252,3 +252,67 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 	listing = &list
 	return
 }
+
+func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+	obj := b.bucket.Object(req.Name)
+
+	if req.Generation != 0 {
+		obj = obj.Generation(req.Generation)
+	}
+
+	if req.MetaGenerationPrecondition != nil {
+		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
+	}
+
+	updateQuery := storage.ObjectAttrsToUpdate{}
+
+	if req.ContentType != nil {
+		updateQuery.ContentType = *req.ContentType
+	}
+
+	if req.ContentEncoding != nil {
+		updateQuery.ContentEncoding = *req.ContentEncoding
+	}
+
+	if req.ContentLanguage != nil {
+		updateQuery.ContentLanguage = *req.ContentLanguage
+	}
+
+	if req.CacheControl != nil {
+		updateQuery.CacheControl = *req.CacheControl
+	}
+
+	if req.Metadata != nil {
+		updateQuery.Metadata = make(map[string]string)
+		for key, element := range req.Metadata {
+			if element != nil {
+				updateQuery.Metadata[key] = *element
+			}
+		}
+	}
+
+	attrs, err := obj.Update(ctx, updateQuery)
+
+	if err == nil {
+		// Converting objAttrs to type *Object
+		o = storageutil.ObjectAttrsToBucketObject(attrs)
+		return
+	}
+
+	// If storage object does not exist, httpclient is returning ErrObjectNotExist error instead of googleapi error
+	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L516
+	switch ee := err.(type) {
+	case *googleapi.Error:
+		if ee.Code == http.StatusPreconditionFailed {
+			err = &gcs.PreconditionError{Err: ee}
+		}
+	default:
+		if err == storage.ErrObjectNotExist {
+			err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+		} else {
+			err = fmt.Errorf("Error in updating object: %w", err)
+		}
+	}
+
+	return
+}

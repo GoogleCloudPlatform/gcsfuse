@@ -19,6 +19,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/jacobsa/gcloud/gcs"
@@ -27,6 +28,11 @@ import (
 
 const missingObjectName string = "test/foo"
 const dstObjectName string = "gcsfuse/dst.txt"
+
+var ContentType string = "ContentType"
+var ContentEncoding string = "ContentEncoding"
+var ContentLanguage string = "ContentLanguage"
+var CacheControl string = "CacheControl"
 
 // FakeGCSServer is not handling generation and metageneration checks for Delete flow.
 // Hence, we are not writing tests for these flows.
@@ -404,4 +410,60 @@ func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
 	AssertEq(TestObjectRootFolderName, twoObj.Objects[0].Name)
 	AssertEq(TestObjectSubRootFolderName, twoObj.Objects[1].Name)
 	AssertEq(nil, twoObj.CollapsedRuns)
+}
+
+// FakeGCSServer is not handling ContentType, ContentEncoding, ContentLanguage, CacheControl in updateflow
+// Hence, we are not writing tests for these parameters
+// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L795
+func (t *BucketHandleTest) TestUpdateObjectMethodWithValidObject() {
+	// Metadata value before updating object
+	obj, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: TestObjectName,
+		})
+
+	AssertEq(nil, err)
+	AssertEq(MetaDataValue, obj.Metadata[MetaDataKey])
+
+	updatedMetaData := time.RFC3339Nano
+	expectedMetaData := map[string]string{
+		MetaDataKey: updatedMetaData,
+	}
+
+	updatedObj, err := t.bucketHandle.UpdateObject(context.Background(),
+		&gcs.UpdateObjectRequest{
+			Name:                       TestObjectName,
+			Generation:                 TestObjectGeneration,
+			MetaGenerationPrecondition: nil,
+			ContentType:                &ContentType,
+			ContentEncoding:            &ContentEncoding,
+			ContentLanguage:            &ContentLanguage,
+			CacheControl:               &CacheControl,
+			Metadata: map[string]*string{
+				MetaDataKey: &updatedMetaData,
+			},
+		})
+
+	AssertEq(nil, err)
+	AssertEq(TestObjectName, updatedObj.Name)
+	// Metadata value after updating object
+	AssertEq(expectedMetaData[MetaDataKey], updatedObj.Metadata[MetaDataKey])
+}
+
+func (t *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
+	var notfound *gcs.NotFoundError
+
+	_, err := t.bucketHandle.UpdateObject(context.Background(),
+		&gcs.UpdateObjectRequest{
+			Name:                       missingObjectName,
+			Generation:                 TestObjectGeneration,
+			MetaGenerationPrecondition: nil,
+			ContentType:                &ContentType,
+			ContentEncoding:            &ContentEncoding,
+			ContentLanguage:            &ContentLanguage,
+			CacheControl:               &CacheControl,
+			Metadata:                   nil,
+		})
+
+	AssertTrue(errors.As(err, &notfound))
 }
