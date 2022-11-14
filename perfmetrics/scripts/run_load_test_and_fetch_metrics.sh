@@ -2,8 +2,8 @@
 set -e
 echo Running fio test..
 fio job_files/seq_rand_read_write.fio --lat_percentiles 1 --output-format=json --output='output.json'
-echi Logging fio results
-python3 fio_logger.py
+echo Logging fio results
+python3 fio_logger.py gcs/Fio-logs/ output.json
 echo Installing requirements..
 pip install -r requirements.txt --user
 gsutil cp gs://gcs-fuse-dashboard-fio/creds.json ./gsheet
