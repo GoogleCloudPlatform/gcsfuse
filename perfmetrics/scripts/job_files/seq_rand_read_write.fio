@@ -23,7 +23,7 @@ stonewall
 startdelay=300
 bs=256k
 directory=gcs/256kb
-filesize=256k
+filesize=16k
 numjobs=40
 
 [2_thread]
@@ -31,7 +31,7 @@ stonewall
 startdelay=670
 bs=256k
 directory=gcs/256kb
-filesize=256k
+filesize=16k
 rw=write
 numjobs=40
 
@@ -85,7 +85,7 @@ stonewall
 startdelay=3260
 bs=256k
 directory=gcs/256kb
-filesize=256k
+filesize=16k
 rw=randread
 numjobs=40
 
@@ -94,7 +94,7 @@ stonewall
 startdelay=3630
 bs=256k
 directory=gcs/256kb
-filesize=256k
+filesize=16k
 rw=randwrite
 numjobs=40
 
