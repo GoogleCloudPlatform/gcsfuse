@@ -5,9 +5,9 @@ import os
 from metrics_util import remove_old_log_files
 
 
-class TestFioLogger(unittest.TestCase):
+class TestMetricsUtil(unittest.TestCase):
 
-  def test_fio_log_dir_content(self):
+  def test_remove_old_log_files(self):
     if 'fio_log_test' in os.listdir('.'):
       os.system('rm -r fio_log_test')
     os.mkdir('fio_log_test')
@@ -15,10 +15,9 @@ class TestFioLogger(unittest.TestCase):
     for i in range(20):
       os.system('touch fio_log_test/log_dir/{}.txt'.format(i))
 
-    remove_old_log_files('fio_log_test/log_dir')
+    remove_old_log_files('fio_log_test/log_dir', 10)
 
     log_dir_content = os.listdir('fio_log_test/log_dir')
-
     log_dir_content.sort()
     expected_dir = [
         '18.txt', '19.txt', '2.txt', '3.txt', '4.txt', '5.txt', '6.txt',
