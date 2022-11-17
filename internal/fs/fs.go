@@ -872,16 +872,16 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, N uint64) {
 //
 // Typical usage:
 //
-//     func (fs *fileSystem) doFoo() (err error) {
-//       in, err := fs.lookUpOrCreateInodeIfNotStale(...)
-//       if err != nil {
-//         return
-//       }
+//	func (fs *fileSystem) doFoo() (err error) {
+//	  in, err := fs.lookUpOrCreateInodeIfNotStale(...)
+//	  if err != nil {
+//	    return
+//	  }
 //
-//       defer fs.unlockAndMaybeDisposeOfInode(in, &err)
+//	  defer fs.unlockAndMaybeDisposeOfInode(in, &err)
 //
-//       ...
-//     }
+//	  ...
+//	}
 //
 // LOCKS_REQUIRED(in)
 // LOCKS_EXCLUDED(fs.mu)
@@ -1416,6 +1416,7 @@ func (fs *fileSystem) RmDir(
 func (fs *fileSystem) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) (err error) {
+	fmt.Print("swethav rename called")
 	// Find the old and new parents.
 	fs.mu.Lock()
 	oldParent := fs.dirInodeOrDie(op.OldParent)

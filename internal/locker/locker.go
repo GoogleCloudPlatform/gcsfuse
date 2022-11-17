@@ -46,19 +46,15 @@ type Locker sync.Locker
 func New(name string, check func()) Locker {
 	var l Locker = &sync.Mutex{}
 
-	if gEnableInvariantsCheck {
-		l = &checker{
-			locker: l,
-			check:  check,
-		}
+	l = &checker{
+		locker: l,
+		check:  check,
 	}
 
-	if gEnableDebugMessages {
-		l = &debugger{
-			locker: l,
-			name:   name,
-			logger: logger.NewDebug("debug_mutex"),
-		}
+	l = &debugger{
+		locker: l,
+		name:   name,
+		logger: logger.NewDebug("debug_mutex"),
 	}
 
 	return l
