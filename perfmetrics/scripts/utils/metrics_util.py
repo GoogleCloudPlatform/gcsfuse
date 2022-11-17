@@ -14,7 +14,7 @@ def remove_old_log_files(logging_dir: str, num_files_retain: int):
   files.sort(reverse=True)
 
   for file in files[num_files_retain:]:
-    # Logging only last 10 fio output files
+    # Logging only last num_files_retain fio output files
     # Hence remove older files.
     os.remove(os.path.join(logging_dir, file))
 
