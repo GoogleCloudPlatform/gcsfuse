@@ -93,6 +93,7 @@ func (d *debugger) Lock() {
 
 	d.timer = time.AfterFunc(5*time.Second, func() {
 		d.logger.Printf("Potential dead lock detected for a lock %q held by: %v\n", d.name, d.holder)
+		fmt.Printf("swethav potential deadlock")
 	})
 }
 
