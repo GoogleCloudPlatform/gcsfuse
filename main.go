@@ -169,6 +169,7 @@ func mountWithArgs(
 		locker.EnableInvariantsCheck()
 	}
 	//if flags.DebugMutex {
+	fmt.Print("swethav: Enabling debug messages")
 	locker.EnableDebugMessages()
 	//git }
 

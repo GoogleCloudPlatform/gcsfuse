@@ -16,6 +16,7 @@
 package locker
 
 import (
+	"fmt"
 	"log"
 	"runtime"
 	"sync"
@@ -87,6 +88,7 @@ type debugger struct {
 }
 
 func (d *debugger) Lock() {
+	fmt.Print("swethav lock called")
 	d.locker.Lock()
 
 	buf := make([]byte, 2048)
