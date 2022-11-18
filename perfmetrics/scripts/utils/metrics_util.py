@@ -1,7 +1,7 @@
-""" Script for removing logs older than 10 days
+""" Script for removing logs older than num_days_retain
 
 Usage:
-python3 metrics_util.py $PATH_TO_LOG_DIR
+python3 metrics_util.py $PATH_TO_LOG_DIR $NUM_DAYS_RETAIN
 """
 
 import os
