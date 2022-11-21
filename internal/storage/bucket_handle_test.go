@@ -33,6 +33,8 @@ var ContentType string = "ContentType"
 var ContentEncoding string = "ContentEncoding"
 var ContentLanguage string = "ContentLanguage"
 var CacheControl string = "CacheControl"
+var CustomTime string = "CustomTime"
+var StorageClass string = "StorageClass"
 
 // FakeGCSServer is not handling generation and metageneration checks for Delete flow.
 // Hence, we are not writing tests for these flows.
@@ -466,4 +468,68 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
 		})
 
 	AssertTrue(errors.As(err, &notfound))
+}
+
+func (t *BucketHandleTest) TestComposeObjectMethodWithValidObject() {
+	obj, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: TestObjectName,
+		})
+
+	AssertEq(nil, err)
+
+	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
+		&gcs.ComposeObjectsRequest{
+			DstName:                       TestObjectName,
+			DstGenerationPrecondition:     nil,
+			DstMetaGenerationPrecondition: nil,
+			Sources: []gcs.ComposeSource{
+				{
+					Name: TestSubObjectName,
+				},
+			},
+			ContentType:     ContentType,
+			ContentEncoding: ContentEncoding,
+			ContentLanguage: ContentLanguage,
+			CacheControl:    CacheControl,
+			CustomTime:      CustomTime,
+			EventBasedHold:  true,
+			StorageClass:    StorageClass,
+			Metadata: map[string]string{
+				MetaDataKey: MetaDataValue,
+			},
+			Acl: nil,
+		})
+
+	AssertEq(nil, err)
+	AssertNe(nil, obj)
+	AssertGe(composedObj.Size, obj.Size)
+}
+
+func (t *BucketHandleTest) TestComposeObjectMethodWithInValidObject() {
+	_, err := t.bucketHandle.ComposeObjects(context.Background(),
+		&gcs.ComposeObjectsRequest{
+			DstName:                       TestObjectName,
+			DstGenerationPrecondition:     nil,
+			DstMetaGenerationPrecondition: nil,
+			Sources: []gcs.ComposeSource{
+				{
+					Name: missingObjectName,
+				},
+			},
+			ContentType:     ContentType,
+			ContentEncoding: ContentEncoding,
+			ContentLanguage: ContentLanguage,
+			CacheControl:    CacheControl,
+			CustomTime:      CustomTime,
+			EventBasedHold:  true,
+			StorageClass:    StorageClass,
+			Metadata: map[string]string{
+				MetaDataKey: MetaDataValue,
+			},
+			Acl: nil,
+		})
+
+	// For fakeobject it is giving googleapi 500 error, where as in real mounting we are getting "404 not found error"
+	AssertNe(nil, err)
 }
