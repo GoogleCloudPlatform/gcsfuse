@@ -509,7 +509,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithValidObject() {
 	AssertGe(composedObj.Size, obj.Size)
 }
 
-func (t *BucketHandleTest) TestComposeObjectMethodWithInValidObject() {
+func (t *BucketHandleTest) TestComposeObjectMethodWithSrcObjectDoesNotExist() {
 	_, err := t.bucketHandle.ComposeObjects(context.Background(),
 		&gcs.ComposeObjectsRequest{
 			DstName:                       TestObjectName,
