@@ -480,10 +480,13 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithValidObject() {
 
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
 		&gcs.ComposeObjectsRequest{
-			DstName:                       TestObjectName,
+			DstName:                       dstObjectName,
 			DstGenerationPrecondition:     nil,
 			DstMetaGenerationPrecondition: nil,
 			Sources: []gcs.ComposeSource{
+				{
+					Name: TestObjectName,
+				},
 				{
 					Name: TestSubObjectName,
 				},
@@ -531,5 +534,29 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithInValidObject() {
 		})
 
 	// For fakeobject it is giving googleapi 500 error, where as in real mounting we are getting "404 not found error"
+	AssertNe(nil, err)
+}
+
+func (t *BucketHandleTest) TestComposeObjectMethodWithInNilSources() {
+	_, err := t.bucketHandle.ComposeObjects(context.Background(),
+		&gcs.ComposeObjectsRequest{
+			DstName:                       TestObjectName,
+			DstGenerationPrecondition:     nil,
+			DstMetaGenerationPrecondition: nil,
+			Sources:                       nil,
+			ContentType:                   ContentType,
+			ContentEncoding:               ContentEncoding,
+			ContentLanguage:               ContentLanguage,
+			CacheControl:                  CacheControl,
+			CustomTime:                    CustomTime,
+			EventBasedHold:                true,
+			StorageClass:                  StorageClass,
+			Metadata: map[string]string{
+				MetaDataKey: MetaDataValue,
+			},
+			Acl: nil,
+		})
+
+	// error : Error in composing object: storage: at least one source object must be specified
 	AssertNe(nil, err)
 }
