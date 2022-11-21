@@ -112,20 +112,15 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
 	// only if the current generation for the object name is equal to the given value.
 	// Zero means the object does not exist.
-	if req.GenerationPrecondition != nil {
+	if req.GenerationPrecondition != nil && *req.GenerationPrecondition != 0 {
 		obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition})
 	}
 
-	// MetagenerationMatch - Similar work as GenerationPrecondition, but it is only
-	// meaningful in conjunction with GenerationPrecondition. Here, it will take
-	// the object with the latest generation.
-	if req.MetaGenerationPrecondition != nil {
+	// MetaGenerationPrecondition - If non-nil, the object will be created/overwritten
+	// only if the current metaGeneration for the object name is equal to the given value.
+	// Zero means the object does not exist.
+	if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
 		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
-	}
-
-	// Operation will depend on both generation and meta-generation precondition.
-	if req.GenerationPrecondition != nil && req.MetaGenerationPrecondition != nil {
-		obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition, MetagenerationMatch: *req.MetaGenerationPrecondition})
 	}
 
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
