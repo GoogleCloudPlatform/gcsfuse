@@ -490,6 +490,8 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 			},
 		})
 
+	AssertEq(nil, err)
+
 	defer rc.Close()
 	dstObjBuf := make([]byte, len(ContentInTestObject))
 	_, err = rc.Read(dstObjBuf)
@@ -543,6 +545,8 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 				Limit: uint64(len(ContentInTestSubObject)),
 			},
 		})
+
+	AssertEq(nil, err)
 
 	defer rc.Close()
 	srcObjBuf := make([]byte, len(ContentInTestSubObject))
@@ -627,6 +631,8 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
 				Limit: uint64(len(ContentInTestSubObject)),
 			},
 		})
+
+	AssertEq(nil, err)
 
 	defer rc.Close()
 	srcObjBuf := make([]byte, len(ContentInTestObject))
@@ -721,9 +727,13 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 			},
 		})
 
+	AssertEq(nil, err)
+
 	defer rc.Close()
 	srcObj1buf := make([]byte, len(ContentInTestObject))
 	_, err = rc.Read(srcObj1buf)
+
+	AssertEq(nil, err)
 
 	// Reading content of srcObject2
 	rc, err = t.bucketHandle.NewReader(context.Background(),
@@ -735,9 +745,13 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 			},
 		})
 
+	AssertEq(nil, err)
+
 	defer rc.Close()
 	srcObj2buf := make([]byte, len(ContentInTestSubObject))
 	_, err = rc.Read(srcObj2buf)
+
+	AssertEq(nil, err)
 
 	// Reading content of dstObject
 	rc, err = t.bucketHandle.NewReader(context.Background(),
