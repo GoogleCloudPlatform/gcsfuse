@@ -401,16 +401,16 @@ func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
 
 	AssertEq(nil, err)
 	AssertEq(4, len(fourObj.Objects))
-	AssertEq(DstObjectName, fourObj.Objects[0].Name)
-	AssertEq(TestObjectRootFolderName, fourObj.Objects[1].Name)
-	AssertEq(TestObjectSubRootFolderName, fourObj.Objects[2].Name)
-	AssertEq(TestSubObjectName, fourObj.Objects[3].Name)
+	AssertEq(TestObjectRootFolderName, fourObj.Objects[0].Name)
+	AssertEq(TestObjectSubRootFolderName, fourObj.Objects[1].Name)
+	AssertEq(TestSubObjectName, fourObj.Objects[2].Name)
+	AssertEq(TestObjectName, fourObj.Objects[3].Name)
 	AssertEq(nil, fourObj.CollapsedRuns)
 
 	AssertEq(nil, err2)
 	AssertEq(2, len(twoObj.Objects))
-	AssertEq(DstObjectName, twoObj.Objects[0].Name)
-	AssertEq(TestObjectRootFolderName, twoObj.Objects[1].Name)
+	AssertEq(TestObjectRootFolderName, twoObj.Objects[0].Name)
+	AssertEq(TestObjectSubRootFolderName, twoObj.Objects[1].Name)
 	AssertEq(nil, twoObj.CollapsedRuns)
 }
 
@@ -471,25 +471,26 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
 }
 
 func (t *BucketHandleTest) TestComposeObjectMethodWithOneValidSrcObjects() {
-	obj, err := t.bucketHandle.StatObject(context.Background(),
+	var notfound *gcs.NotFoundError
+
+	_, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
-			Name: DstObjectName,
+			Name: dstObjectName,
 		})
 
-	AssertEq(nil, err)
-	AssertNe(nil, obj)
+	AssertTrue(errors.As(err, &notfound))
 
-	srcObj1, err := t.bucketHandle.StatObject(context.Background(),
+	srcObj, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestObjectName,
 		})
 
 	AssertEq(nil, err)
-	AssertNe(nil, srcObj1)
+	AssertNe(nil, srcObj)
 
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
 		&gcs.ComposeObjectsRequest{
-			DstName:                       DstObjectName,
+			DstName:                       dstObjectName,
 			DstGenerationPrecondition:     nil,
 			DstMetaGenerationPrecondition: nil,
 			Sources: []gcs.ComposeSource{
@@ -512,17 +513,18 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneValidSrcObjects() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, composedObj)
-	AssertEq(srcObj1.Size, composedObj.Size)
+	AssertEq(srcObj.Size, composedObj.Size)
 }
 
 func (t *BucketHandleTest) TestComposeObjectMethodWithTwoValidSrcObjects() {
-	obj, err := t.bucketHandle.StatObject(context.Background(),
+	var notfound *gcs.NotFoundError
+
+	_, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
-			Name: DstObjectName,
+			Name: dstObjectName,
 		})
 
-	AssertEq(nil, err)
-	AssertNe(nil, obj)
+	AssertTrue(errors.As(err, &notfound))
 
 	srcObj1, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
@@ -542,7 +544,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithTwoValidSrcObjects() {
 
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
 		&gcs.ComposeObjectsRequest{
-			DstName:                       DstObjectName,
+			DstName:                       dstObjectName,
 			DstGenerationPrecondition:     nil,
 			DstMetaGenerationPrecondition: nil,
 			Sources: []gcs.ComposeSource{
