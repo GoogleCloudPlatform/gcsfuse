@@ -9,7 +9,7 @@ import typing
 import sys
 
 
-def remove_old_log_files(logging_dir: str, num_files_retain: int):
+def remove_old_files(logging_dir: str, num_files_retain: int):
   files = os.listdir(logging_dir)
   files.sort(reverse=True)
 
