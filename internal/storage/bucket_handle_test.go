@@ -401,16 +401,16 @@ func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
 
 	AssertEq(nil, err)
 	AssertEq(4, len(fourObj.Objects))
-	AssertEq(TestObjectRootFolderName, fourObj.Objects[0].Name)
-	AssertEq(TestObjectSubRootFolderName, fourObj.Objects[1].Name)
-	AssertEq(TestSubObjectName, fourObj.Objects[2].Name)
-	AssertEq(TestObjectName, fourObj.Objects[3].Name)
+	AssertEq(DstObjectName, fourObj.Objects[0].Name)
+	AssertEq(TestObjectRootFolderName, fourObj.Objects[1].Name)
+	AssertEq(TestObjectSubRootFolderName, fourObj.Objects[2].Name)
+	AssertEq(TestSubObjectName, fourObj.Objects[3].Name)
 	AssertEq(nil, fourObj.CollapsedRuns)
 
 	AssertEq(nil, err2)
 	AssertEq(2, len(twoObj.Objects))
-	AssertEq(TestObjectRootFolderName, twoObj.Objects[0].Name)
-	AssertEq(TestObjectSubRootFolderName, twoObj.Objects[1].Name)
+	AssertEq(DstObjectName, twoObj.Objects[0].Name)
+	AssertEq(TestObjectRootFolderName, twoObj.Objects[1].Name)
 	AssertEq(nil, twoObj.CollapsedRuns)
 }
 
@@ -470,17 +470,79 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
 	AssertTrue(errors.As(err, &notfound))
 }
 
-func (t *BucketHandleTest) TestComposeObjectMethodWithValidObject() {
+func (t *BucketHandleTest) TestComposeObjectMethodWithOneValidSrcObjects() {
 	obj, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: DstObjectName,
+		})
+
+	AssertEq(nil, err)
+	AssertNe(nil, obj)
+
+	srcObj1, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestObjectName,
 		})
 
 	AssertEq(nil, err)
+	AssertNe(nil, srcObj1)
 
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
 		&gcs.ComposeObjectsRequest{
-			DstName:                       dstObjectName,
+			DstName:                       DstObjectName,
+			DstGenerationPrecondition:     nil,
+			DstMetaGenerationPrecondition: nil,
+			Sources: []gcs.ComposeSource{
+				{
+					Name: TestObjectName,
+				},
+			},
+			ContentType:     ContentType,
+			ContentEncoding: ContentEncoding,
+			ContentLanguage: ContentLanguage,
+			CacheControl:    CacheControl,
+			CustomTime:      CustomTime,
+			EventBasedHold:  true,
+			StorageClass:    StorageClass,
+			Metadata: map[string]string{
+				MetaDataKey: MetaDataValue,
+			},
+			Acl: nil,
+		})
+
+	AssertEq(nil, err)
+	AssertNe(nil, composedObj)
+	AssertEq(srcObj1.Size, composedObj.Size)
+}
+
+func (t *BucketHandleTest) TestComposeObjectMethodWithTwoValidSrcObjects() {
+	obj, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: DstObjectName,
+		})
+
+	AssertEq(nil, err)
+	AssertNe(nil, obj)
+
+	srcObj1, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: TestObjectName,
+		})
+
+	AssertEq(nil, err)
+	AssertNe(nil, srcObj1)
+
+	srcObj2, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: TestSubObjectName,
+		})
+
+	AssertEq(nil, err)
+	AssertNe(nil, srcObj2)
+
+	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
+		&gcs.ComposeObjectsRequest{
+			DstName:                       DstObjectName,
 			DstGenerationPrecondition:     nil,
 			DstMetaGenerationPrecondition: nil,
 			Sources: []gcs.ComposeSource{
@@ -505,8 +567,8 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithValidObject() {
 		})
 
 	AssertEq(nil, err)
-	AssertNe(nil, obj)
-	AssertGe(composedObj.Size, obj.Size)
+	AssertNe(nil, composedObj)
+	AssertEq(srcObj1.Size+srcObj2.Size, composedObj.Size)
 }
 
 func (t *BucketHandleTest) TestComposeObjectMethodWithSrcObjectDoesNotExist() {
@@ -537,7 +599,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithSrcObjectDoesNotExist() {
 	AssertNe(nil, err)
 }
 
-func (t *BucketHandleTest) TestComposeObjectMethodWithInNilSources() {
+func (t *BucketHandleTest) TestComposeObjectMethodWhenSourceIsNil() {
 	_, err := t.bucketHandle.ComposeObjects(context.Background(),
 		&gcs.ComposeObjectsRequest{
 			DstName:                       TestObjectName,
