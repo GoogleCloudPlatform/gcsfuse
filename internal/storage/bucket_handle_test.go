@@ -561,12 +561,11 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 	AssertEq(nil, err)
 
 	defer rc.Close()
-	buf := make([]byte, len(ContentInTestSubObject))
-	_, err = rc.Read(buf)
+	dstObjBuf = make([]byte, len(ContentInTestSubObject))
+	_, err = rc.Read(dstObjBuf)
 
 	AssertEq(nil, err)
-	// After composing object, content will get overwrite by srcObject
-	ExpectEq(string(srcObjBuf[:]), string(buf[:]))
+	ExpectEq(string(srcObjBuf[:]), string(dstObjBuf[:]))
 	AssertNe(nil, composedObj)
 	AssertEq(srcObj.Size, composedObj.Size)
 }
@@ -645,11 +644,11 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
 	AssertEq(nil, err)
 
 	defer rc.Close()
-	buf := make([]byte, len(ContentInTestObject))
-	_, err = rc.Read(buf)
+	dstObjBuf := make([]byte, len(ContentInTestObject))
+	_, err = rc.Read(dstObjBuf)
 
 	AssertEq(nil, err)
-	ExpectEq(string(srcObjBuf[:]), string(buf[:]))
+	ExpectEq(string(srcObjBuf[:]), string(dstObjBuf[:]))
 	AssertNe(nil, composedObj)
 	AssertEq(srcObj.Size, composedObj.Size)
 }
@@ -750,12 +749,12 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 	AssertEq(nil, err)
 
 	defer rc.Close()
-	buf := make([]byte, len(ContentInTestObject)+len(ContentInTestSubObject))
-	_, err = rc.Read(buf)
+	dstObjBuf := make([]byte, len(ContentInTestObject)+len(ContentInTestSubObject))
+	_, err = rc.Read(dstObjBuf)
 
 	AssertEq(nil, err)
 	// comparing content of destination object
-	ExpectEq(string(srcObj1buf[:])+string(srcObj2buf[:]), string(buf[:]))
+	ExpectEq(string(srcObj1buf[:])+string(srcObj2buf[:]), string(dstObjBuf[:]))
 	AssertNe(nil, composedObj)
 	AssertEq(srcObj1.Size+srcObj2.Size, composedObj.Size)
 }
