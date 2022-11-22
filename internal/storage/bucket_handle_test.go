@@ -493,9 +493,10 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 	_, err = rc.Read(dstObjBuf)
 
 	AssertEq(nil, err)
-	// Before Composing object, content
+	// Content of destination object, before composing it
 	ExpectEq(ContentInTestObject, string(dstObjBuf[:]))
 
+	// Checking if srcObject exists or not
 	srcObj, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestSubObjectName,
@@ -504,6 +505,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 	AssertEq(nil, err)
 	AssertNe(nil, srcObj)
 
+	// composing the object
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
 		&gcs.ComposeObjectsRequest{
 			DstName:                       TestObjectName,
@@ -530,6 +532,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 
 	AssertEq(nil, err)
 
+	// Reading content of srcObject
 	rc, err = t.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestSubObjectName,
@@ -545,9 +548,10 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 
 	AssertEq(nil, err)
 
+	// Reading content of destination object
 	rc, err = t.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
-			Name: composedObj.Name,
+			Name: TestObjectName,
 			Range: &gcs.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(len(ContentInTestSubObject)),
@@ -570,6 +574,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
 	var notfound *gcs.NotFoundError
 
+	// Checking that dstObject does not exist
 	_, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: dstObjectName,
@@ -611,9 +616,26 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
 
 	AssertEq(nil, err)
 
+	// Reading content of srcObject
 	rc, err := t.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
-			Name: composedObj.Name,
+			Name: TestObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(ContentInTestSubObject)),
+			},
+		})
+
+	defer rc.Close()
+	srcObjBuf := make([]byte, len(ContentInTestObject))
+	_, err = rc.Read(srcObjBuf)
+
+	AssertEq(nil, err)
+
+	// Reading content of dstObject
+	rc, err = t.bucketHandle.NewReader(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: dstObjectName,
 			Range: &gcs.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(len(ContentInTestObject)),
@@ -627,7 +649,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
 	_, err = rc.Read(buf)
 
 	AssertEq(nil, err)
-	ExpectEq(ContentInTestObject, string(buf[:]))
+	ExpectEq(string(srcObjBuf[:]), string(buf[:]))
 	AssertNe(nil, composedObj)
 	AssertEq(srcObj.Size, composedObj.Size)
 }
@@ -687,6 +709,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 
 	AssertEq(nil, err)
 
+	// Reading content of srcObject1
 	rc, err := t.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
@@ -700,32 +723,34 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 	srcObj1buf := make([]byte, len(ContentInTestObject))
 	_, err = rc.Read(srcObj1buf)
 
+	// Reading content of srcObject2
 	rc, err = t.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestSubObjectName,
 			Range: &gcs.ByteRange{
 				Start: uint64(0),
-				Limit: uint64(len(ContentInTestObject)),
+				Limit: uint64(len(ContentInTestSubObject)),
 			},
 		})
 
 	defer rc.Close()
-	srcObj2buf := make([]byte, len(ContentInTestObject))
+	srcObj2buf := make([]byte, len(ContentInTestSubObject))
 	_, err = rc.Read(srcObj2buf)
 
+	// Reading content of dstObject
 	rc, err = t.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
-			Name: composedObj.Name,
+			Name: dstObjectName,
 			Range: &gcs.ByteRange{
 				Start: uint64(0),
-				Limit: uint64(2 * len(ContentInTestObject)),
+				Limit: uint64(len(ContentInTestObject) + len(ContentInTestSubObject)),
 			},
 		})
 
 	AssertEq(nil, err)
 
 	defer rc.Close()
-	buf := make([]byte, 2*len(ContentInTestObject))
+	buf := make([]byte, len(ContentInTestObject)+len(ContentInTestSubObject))
 	_, err = rc.Read(buf)
 
 	AssertEq(nil, err)
