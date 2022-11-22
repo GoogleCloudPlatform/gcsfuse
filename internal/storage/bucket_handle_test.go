@@ -480,6 +480,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 
 	AssertEq(nil, err)
 
+	// Reading content before composing it
 	rc, err := t.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
@@ -506,7 +507,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 	AssertEq(nil, err)
 	AssertNe(nil, srcObj)
 
-	// composing the object
+	// Composing the object
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
 		&gcs.ComposeObjectsRequest{
 			DstName:                       TestObjectName,
@@ -566,6 +567,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 	_, err = rc.Read(dstObjBuf)
 
 	AssertEq(nil, err)
+	// Destination object's content will get overwrite by srcObject.
 	ExpectEq(string(srcObjBuf[:]), string(dstObjBuf[:]))
 	AssertNe(nil, composedObj)
 	AssertEq(srcObj.Size, composedObj.Size)
