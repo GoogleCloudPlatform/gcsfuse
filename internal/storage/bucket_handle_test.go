@@ -35,6 +35,7 @@ var ContentLanguage string = "ContentLanguage"
 var CacheControl string = "CacheControl"
 var CustomTime string = "CustomTime"
 var StorageClass string = "StorageClass"
+var ContentDisposition string = "ContentDisposition"
 
 // FakeGCSServer is not handling generation and metageneration checks for Delete flow.
 // Hence, we are not writing tests for these flows.
@@ -596,4 +597,32 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneValidSrcObject() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, srcObj)
+
+	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
+		&gcs.ComposeObjectsRequest{
+			DstName:                       dstObjectName,
+			DstGenerationPrecondition:     nil,
+			DstMetaGenerationPrecondition: nil,
+			Sources: []gcs.ComposeSource{
+				{
+					Name: TestObjectName,
+				},
+			},
+			ContentType: ContentType,
+			Metadata: map[string]string{
+				MetaDataKey: MetaDataValue,
+			},
+			ContentLanguage:    ContentLanguage,
+			ContentEncoding:    ContentEncoding,
+			CacheControl:       CacheControl,
+			ContentDisposition: ContentDisposition,
+			CustomTime:         CustomTime,
+			EventBasedHold:     true,
+			StorageClass:       StorageClass,
+			Acl:                nil,
+		})
+
+	AssertEq(nil, err)
+	AssertNe(nil, composedObj)
+	AssertEq(srcObj.Size, composedObj.Size)
 }
