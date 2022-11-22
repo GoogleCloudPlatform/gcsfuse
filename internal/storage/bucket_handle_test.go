@@ -470,7 +470,7 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
 	AssertTrue(errors.As(err, &notfound))
 }
 
-func (t *BucketHandleTest) TestComposeObjectMethodWithOneValidSrcObjects() {
+func (t *BucketHandleTest) TestComposeObjectMethodWithOneValidSrcObject() {
 	var notfound *gcs.NotFoundError
 
 	_, err := t.bucketHandle.StatObject(context.Background(),
