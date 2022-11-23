@@ -561,3 +561,148 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 	AssertNe(nil, composedObj)
 	AssertEq(srcObj.Size, composedObj.Size)
 }
+
+func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
+	var notfound *gcs.NotFoundError
+
+	// Checking that dstObject does not exist
+	_, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: dstObjectName,
+		})
+
+	AssertTrue(errors.As(err, &notfound))
+
+	srcObj, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: TestObjectName,
+		})
+
+	AssertEq(nil, err)
+	AssertNe(nil, srcObj)
+
+	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
+		&gcs.ComposeObjectsRequest{
+			DstName:                       dstObjectName,
+			DstGenerationPrecondition:     nil,
+			DstMetaGenerationPrecondition: nil,
+			Sources: []gcs.ComposeSource{
+				{
+					Name: TestObjectName,
+				},
+			},
+			ContentType: ContentType,
+			Metadata: map[string]string{
+				MetaDataKey: MetaDataValue,
+			},
+			ContentLanguage:    ContentLanguage,
+			ContentEncoding:    ContentEncoding,
+			CacheControl:       CacheControl,
+			ContentDisposition: ContentDisposition,
+			CustomTime:         CustomTime,
+			EventBasedHold:     true,
+			StorageClass:       StorageClass,
+			Acl:                nil,
+		})
+
+	AssertEq(nil, err)
+
+	// validation of srcObject to ensure that it is not effected.
+	rc, err := t.bucketHandle.NewReader(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: TestObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(ContentInTestSubObject)),
+			},
+		})
+
+	AssertEq(nil, err)
+	defer rc.Close()
+	srcObjBuf := make([]byte, len(ContentInTestObject))
+	_, err = rc.Read(srcObjBuf)
+	AssertEq(nil, err)
+
+	// Reading content of dstObject
+	rc, err = t.bucketHandle.NewReader(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: dstObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(composedObj.Size),
+			},
+		})
+
+	AssertEq(nil, err)
+	defer rc.Close()
+	dstObjBuf := make([]byte, composedObj.Size)
+	_, err = rc.Read(dstObjBuf)
+	AssertEq(nil, err)
+	ExpectEq(string(srcObjBuf[:]), string(dstObjBuf[:]))
+	AssertNe(nil, composedObj)
+	AssertEq(srcObj.Size, composedObj.Size)
+}
+
+func (t *BucketHandleTest) TestComposeObjectMethodWhenSrcObjectDoesNotExist() {
+	var notfound *gcs.NotFoundError
+
+	_, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: missingObjectName,
+		})
+
+	// SrcObject does not exist
+	AssertTrue(errors.As(err, &notfound))
+
+	_, err = t.bucketHandle.ComposeObjects(context.Background(),
+		&gcs.ComposeObjectsRequest{
+			DstName:                       TestObjectName,
+			DstGenerationPrecondition:     nil,
+			DstMetaGenerationPrecondition: nil,
+			Sources: []gcs.ComposeSource{
+				{
+					Name: missingObjectName,
+				},
+			},
+			ContentType: ContentType,
+			Metadata: map[string]string{
+				MetaDataKey: MetaDataValue,
+			},
+			ContentLanguage:    ContentLanguage,
+			ContentEncoding:    ContentEncoding,
+			CacheControl:       CacheControl,
+			ContentDisposition: ContentDisposition,
+			CustomTime:         CustomTime,
+			EventBasedHold:     true,
+			StorageClass:       StorageClass,
+			Acl:                nil,
+		})
+
+	// For fakeobject it is giving googleapi 500 error, where as in real mounting we are getting "404 not found error"
+	AssertNe(nil, err)
+}
+
+func (t *BucketHandleTest) TestComposeObjectMethodWhenSourceIsNil() {
+	_, err := t.bucketHandle.ComposeObjects(context.Background(),
+		&gcs.ComposeObjectsRequest{
+			DstName:                       TestObjectName,
+			DstGenerationPrecondition:     nil,
+			DstMetaGenerationPrecondition: nil,
+			Sources:                       nil,
+			ContentType:                   ContentType,
+			Metadata: map[string]string{
+				MetaDataKey: MetaDataValue,
+			},
+			ContentLanguage:    ContentLanguage,
+			ContentEncoding:    ContentEncoding,
+			CacheControl:       CacheControl,
+			ContentDisposition: ContentDisposition,
+			CustomTime:         CustomTime,
+			EventBasedHold:     true,
+			StorageClass:       StorageClass,
+			Acl:                nil,
+		})
+
+	// error : Error in composing object: storage: at least one source object must be specified
+	AssertNe(nil, err)
+}
