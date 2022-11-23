@@ -28,6 +28,9 @@ class TestMetricsUtil(unittest.TestCase):
     self.assertEqual(log_dir_content, ['{}.txt'.format(x+5) for x in range(5)])
 
   def test_remove_old_files_when_dir_files_are_zero(self):
+    num_files = len(os.listdir('fio_log_test/log_dir'))
+    self.assertEqual(num_files, 0)
+
     remove_old_files('fio_log_test/log_dir', 2)
 
     log_dir_content = os.listdir('fio_log_test/log_dir')
