@@ -472,7 +472,7 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
 }
 
 func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
-	// checking that destination object exist
+	// Checking that destination object exist
 	_, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestObjectName,
