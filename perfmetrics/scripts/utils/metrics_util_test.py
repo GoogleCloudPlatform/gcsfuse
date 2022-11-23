@@ -25,16 +25,13 @@ class TestMetricsUtil(unittest.TestCase):
 
     log_dir_content = os.listdir('fio_log_test/log_dir')
     log_dir_content.sort()
-    expected_dir = ['{}.txt'.format(x+5) for x in range(5)]
-    self.assertEqual(log_dir_content, expected_dir)
+    self.assertEqual(log_dir_content, ['{}.txt'.format(x+5) for x in range(5)])
 
   def test_remove_old_files_when_dir_files_are_zero(self):
     remove_old_files('fio_log_test/log_dir', 2)
 
     log_dir_content = os.listdir('fio_log_test/log_dir')
-    log_dir_content.sort()
-    expected_dir = []
-    self.assertEqual(log_dir_content, expected_dir)
+    self.assertEqual(log_dir_content, [])
 
   def test_remove_old_files_when_num_retain_files_more_than_dir_files(self):
     for i in range(10):
@@ -44,8 +41,7 @@ class TestMetricsUtil(unittest.TestCase):
 
     log_dir_content = os.listdir('fio_log_test/log_dir')
     log_dir_content.sort()
-    expected_dir = ['{}.txt'.format(x) for x in range(10)]
-    self.assertEqual(log_dir_content, expected_dir)
+    self.assertEqual(log_dir_content, ['{}.txt'.format(x) for x in range(10)])
 
 if __name__ == '__main__':
   unittest.main()
