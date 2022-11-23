@@ -770,7 +770,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 	_, err = rc.Read(dstObjBuf)
 
 	AssertEq(nil, err)
-	// comparing content of destination object
+	// Comparing content of destination object
 	ExpectEq(string(srcObj1buf[:])+string(srcObj2buf[:]), string(dstObjBuf[:]))
 	AssertNe(nil, composedObj)
 	AssertEq(srcObj1.Size+srcObj2.Size, composedObj.Size)
