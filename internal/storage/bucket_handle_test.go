@@ -525,7 +525,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 
 	AssertEq(nil, err)
 
-	// validation of srcObject to ensure that it is not effected.
+	// Validation of srcObject to ensure that it is not effected.
 	rc, err = t.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestSubObjectName,
@@ -698,7 +698,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 
 	AssertEq(nil, err)
 
-	// validation of srcObject1 to ensure that it is not effected.
+	// Validation of srcObject1 to ensure that it is not effected.
 	rc, err := t.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
@@ -714,7 +714,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 	_, err = rc.Read(srcObj1buf)
 	AssertEq(nil, err)
 
-	// validation of srcObject2 to ensure that it is not effected.
+	// Validation of srcObject2 to ensure that it is not effected.
 	rc, err = t.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestSubObjectName,
