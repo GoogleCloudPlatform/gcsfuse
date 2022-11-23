@@ -643,6 +643,114 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
 	AssertEq(srcObj.Size, composedObj.Size)
 }
 
+func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
+	var notfound *gcs.NotFoundError
+
+	_, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: dstObjectName,
+		})
+
+	AssertTrue(errors.As(err, &notfound))
+
+	srcObj1, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: TestObjectName,
+		})
+
+	AssertEq(nil, err)
+	AssertNe(nil, srcObj1)
+
+	srcObj2, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: TestSubObjectName,
+		})
+
+	AssertEq(nil, err)
+	AssertNe(nil, srcObj2)
+
+	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
+		&gcs.ComposeObjectsRequest{
+			DstName:                       dstObjectName,
+			DstGenerationPrecondition:     nil,
+			DstMetaGenerationPrecondition: nil,
+			Sources: []gcs.ComposeSource{
+				{
+					Name: TestObjectName,
+				},
+				{
+					Name: TestSubObjectName,
+				},
+			},
+			ContentType: ContentType,
+			Metadata: map[string]string{
+				MetaDataKey: MetaDataValue,
+			},
+			ContentLanguage:    ContentLanguage,
+			ContentEncoding:    ContentEncoding,
+			CacheControl:       CacheControl,
+			ContentDisposition: ContentDisposition,
+			CustomTime:         CustomTime,
+			EventBasedHold:     true,
+			StorageClass:       StorageClass,
+			Acl:                nil,
+		})
+
+	AssertEq(nil, err)
+
+	// validation of srcObject1 to ensure that it is not effected.
+	rc, err := t.bucketHandle.NewReader(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: TestObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(ContentInTestObject)),
+			},
+		})
+
+	AssertEq(nil, err)
+	defer rc.Close()
+	srcObj1buf := make([]byte, len(ContentInTestObject))
+	_, err = rc.Read(srcObj1buf)
+	AssertEq(nil, err)
+
+	// validation of srcObject2 to ensure that it is not effected.
+	rc, err = t.bucketHandle.NewReader(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: TestSubObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(ContentInTestSubObject)),
+			},
+		})
+
+	AssertEq(nil, err)
+	defer rc.Close()
+	srcObj2buf := make([]byte, len(ContentInTestSubObject))
+	_, err = rc.Read(srcObj2buf)
+	AssertEq(nil, err)
+
+	// Reading content of dstObject
+	rc, err = t.bucketHandle.NewReader(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: dstObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(composedObj.Size),
+			},
+		})
+
+	AssertEq(nil, err)
+	defer rc.Close()
+	dstObjBuf := make([]byte, composedObj.Size)
+	_, err = rc.Read(dstObjBuf)
+	AssertEq(nil, err)
+	// Comparing content of destination object
+	ExpectEq(string(srcObj1buf[:])+string(srcObj2buf[:]), string(dstObjBuf[:]))
+	AssertNe(nil, composedObj)
+	AssertEq(srcObj1.Size+srcObj2.Size, composedObj.Size)
+}
+
 func (t *BucketHandleTest) TestComposeObjectMethodWhenSrcObjectDoesNotExist() {
 	var notfound *gcs.NotFoundError
 
