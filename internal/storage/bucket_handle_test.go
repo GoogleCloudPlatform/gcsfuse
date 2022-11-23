@@ -777,7 +777,17 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 }
 
 func (t *BucketHandleTest) TestComposeObjectMethodWithSrcObjectDoesNotExist() {
-	_, err := t.bucketHandle.ComposeObjects(context.Background(),
+	var notfound *gcs.NotFoundError
+
+	_, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: missingObjectName,
+		})
+
+	// SrcObject not exist
+	AssertTrue(errors.As(err, &notfound))
+
+	_, err = t.bucketHandle.ComposeObjects(context.Background(),
 		&gcs.ComposeObjectsRequest{
 			DstName:                       TestObjectName,
 			DstGenerationPrecondition:     nil,
