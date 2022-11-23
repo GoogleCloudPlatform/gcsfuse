@@ -784,7 +784,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithSrcObjectDoesNotExist() {
 			Name: missingObjectName,
 		})
 
-	// SrcObject not exist
+	// SrcObject does not exist
 	AssertTrue(errors.As(err, &notfound))
 
 	_, err = t.bucketHandle.ComposeObjects(context.Background(),
