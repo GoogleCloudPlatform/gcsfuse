@@ -1,7 +1,7 @@
-""" Script for removing logs older than 10 days
+""" Script for removing logs older than last num_files_retain in descending order
 
 Usage:
-python3 metrics_util.py $PATH_TO_LOG_DIR
+python3 metrics_util.py $PATH_TO_LOG_DIR $NUM_FILES_RETAIN
 """
 
 import os
@@ -9,7 +9,7 @@ import typing
 import sys
 
 
-def remove_old_log_files(logging_dir: str, num_files_retain: int):
+def remove_old_files(logging_dir: str, num_files_retain: int):
   files = os.listdir(logging_dir)
   files.sort(reverse=True)
 
@@ -20,5 +20,5 @@ def remove_old_log_files(logging_dir: str, num_files_retain: int):
 
 
 if __name__ == '__main__':
-  remove_old_log_files(sys.argv[1], int(sys.argv[2]))
+  remove_old_files(sys.argv[1], int(sys.argv[2]))
 
