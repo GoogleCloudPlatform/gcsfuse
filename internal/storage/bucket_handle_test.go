@@ -607,7 +607,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
 
 	AssertEq(nil, err)
 
-	// validation of srcObject to ensure that it is not effected.
+	// Validation of srcObject to ensure that it is not effected.
 	rc, err := t.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
