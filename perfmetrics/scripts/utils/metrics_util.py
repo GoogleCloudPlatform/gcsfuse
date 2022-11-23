@@ -1,7 +1,7 @@
-""" Script for removing logs older than num_days_retain
+""" Script for removing logs older than last num_files_retain in descending order
 
 Usage:
-python3 metrics_util.py $PATH_TO_LOG_DIR $NUM_DAYS_RETAIN
+python3 metrics_util.py $PATH_TO_LOG_DIR $NUM_FILES_RETAIN
 """
 
 import os
