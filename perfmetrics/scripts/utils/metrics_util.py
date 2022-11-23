@@ -20,5 +20,5 @@ def remove_old_files(logging_dir: str, num_files_retain: int):
 
 
 if __name__ == '__main__':
-  remove_old_log_files(sys.argv[1], int(sys.argv[2]))
+  remove_old_files(sys.argv[1], int(sys.argv[2]))
 
