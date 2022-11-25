@@ -92,6 +92,8 @@ func (b *bucket) ComposeObjects(
 
 	query := make(url.Values)
 
+	*req.DstGenerationPrecondition = 7
+	fmt.Println("GENERATION ",*req.DstGenerationPrecondition)
 	if req.DstGenerationPrecondition != nil {
 		query.Set("ifGenerationMatch", fmt.Sprint(*req.DstGenerationPrecondition))
 	}
