@@ -471,6 +471,7 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
 	AssertTrue(errors.As(err, &notfound))
 }
 
+// Read content of an object and return
 func (t *BucketHandleTest) testObjectContent(ctx context.Context, req *gcs.ReadObjectRequest) (buffer string) {
 	rc, err := t.bucketHandle.NewReader(ctx, &gcs.ReadObjectRequest{
 		Name:  req.Name,
