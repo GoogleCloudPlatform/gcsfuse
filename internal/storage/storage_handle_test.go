@@ -70,6 +70,7 @@ func (t *StorageHandleTest) TestBucketHandleWhenBucketExists() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, bucketHandle)
+	AssertEq(TestBucketName, bucketHandle.bucketName)
 }
 
 func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExist() {
