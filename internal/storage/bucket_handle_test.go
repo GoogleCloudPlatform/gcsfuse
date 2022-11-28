@@ -467,3 +467,9 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
 
 	AssertTrue(errors.As(err, &notfound))
 }
+
+func (t *BucketHandleTest) TestNameMethod() {
+	name := t.bucketHandle.Name()
+
+	AssertEq(TestBucketName, name)
+}
