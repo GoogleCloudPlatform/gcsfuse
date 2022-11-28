@@ -100,11 +100,12 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 
 func (sh *storageClient) BucketHandle(bucketName string) (bh *bucketHandle, err error) {
 	storageBucketHandle := sh.client.Bucket(bucketName)
-	_, err = storageBucketHandle.Attrs(context.Background())
+	obj, err := storageBucketHandle.Attrs(context.Background())
 	if err != nil {
 		return
 	}
 
-	bh = &bucketHandle{bucket: storageBucketHandle}
+	storageBucketName := obj.Name
+	bh = &bucketHandle{bucket: storageBucketHandle, bucketName: storageBucketName}
 	return
 }
