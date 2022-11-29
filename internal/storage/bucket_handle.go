@@ -34,12 +34,17 @@ import (
 
 type bucketHandle struct {
 	gcs.Bucket
-	bucket *storage.BucketHandle
+	bucket     *storage.BucketHandle
+	bucketName string
+}
+
+func (bh *bucketHandle) Name() string {
+	return bh.bucketName
 }
 
 func (bh *bucketHandle) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+		ctx context.Context,
+		req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
