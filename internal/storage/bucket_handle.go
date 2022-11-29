@@ -112,14 +112,14 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
 	// only if the current generation for the object name is equal to the given value.
 	// Zero means the object does not exist.
-	if req.GenerationPrecondition != nil && *req.GenerationPrecondition != 0 {
-		obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition})
-	}
-
 	// MetaGenerationPrecondition - If non-nil, the object will be created/overwritten
 	// only if the current metaGeneration for the object name is equal to the given value.
 	// Zero means the object does not exist.
-	if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
+	if req.GenerationPrecondition != nil && *req.GenerationPrecondition != 0 && req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
+		obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition, MetagenerationMatch: *req.MetaGenerationPrecondition})
+	} else if req.GenerationPrecondition != nil && *req.GenerationPrecondition != 0 {
+		obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition})
+	} else if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
 		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
 	}
 
