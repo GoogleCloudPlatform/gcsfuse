@@ -471,12 +471,6 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
 	AssertTrue(errors.As(err, &notfound))
 }
 
-func (t *BucketHandleTest) TestNameMethod() {
-	name := t.bucketHandle.Name()
-
-	AssertEq(TestBucketName, name)
-}
-
 // Read content of an object and return
 func (t *BucketHandleTest) readObjectContent(ctx context.Context, req *gcs.ReadObjectRequest) (buffer string) {
 	rc, err := t.bucketHandle.NewReader(ctx, &gcs.ReadObjectRequest{
@@ -765,4 +759,10 @@ func (t *BucketHandleTest) TestComposeObjectMethodWhenSourceIsNil() {
 
 	// error : Error in composing object: storage: at least one source object must be specified
 	AssertNe(nil, err)
+}
+
+func (t *BucketHandleTest) TestNameMethod() {
+	name := t.bucketHandle.Name()
+
+	AssertEq(TestBucketName, name)
 }
