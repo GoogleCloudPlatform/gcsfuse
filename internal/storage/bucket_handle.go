@@ -330,6 +330,7 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	for _, src := range req.Sources {
 		currSrcObj := b.bucket.Object(src.Name)
 		// Switching to requested Generation of the object.
+		// Zero src generation is the latest generation, we are skipping it because by default it will take the latest one
 		if src.Generation != 0 {
 			currSrcObj = currSrcObj.Generation(src.Generation)
 		}

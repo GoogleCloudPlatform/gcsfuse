@@ -472,7 +472,7 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
 }
 
 // Read content of an object and return
-func (t *BucketHandleTest) testObjectContent(ctx context.Context, req *gcs.ReadObjectRequest) (buffer string) {
+func (t *BucketHandleTest) readObjectContent(ctx context.Context, req *gcs.ReadObjectRequest) (buffer string) {
 	rc, err := t.bucketHandle.NewReader(ctx, &gcs.ReadObjectRequest{
 		Name:  req.Name,
 		Range: req.Range})
@@ -487,7 +487,7 @@ func (t *BucketHandleTest) testObjectContent(ctx context.Context, req *gcs.ReadO
 
 func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 	// Reading content before composing it
-	buffer := t.testObjectContent(context.Background(),
+	buffer := t.readObjectContent(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
 			Range: &gcs.ByteRange{
@@ -531,7 +531,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 
 	AssertEq(nil, err)
 	// Validation of srcObject to ensure that it is not effected.
-	srcBuffer := t.testObjectContent(context.Background(),
+	srcBuffer := t.readObjectContent(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestSubObjectName,
 			Range: &gcs.ByteRange{
@@ -541,7 +541,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 		})
 	ExpectEq(ContentInTestSubObject, srcBuffer)
 	// Reading content of destination object
-	dstBuffer := t.testObjectContent(context.Background(),
+	dstBuffer := t.readObjectContent(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
 			Range: &gcs.ByteRange{
@@ -596,7 +596,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
 
 	AssertEq(nil, err)
 	// Validation of srcObject to ensure that it is not effected.
-	srcBuffer := t.testObjectContent(context.Background(),
+	srcBuffer := t.readObjectContent(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
 			Range: &gcs.ByteRange{
@@ -605,7 +605,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
 			},
 		})
 	// Reading content of dstObject
-	dstBuffer := t.testObjectContent(context.Background(),
+	dstBuffer := t.readObjectContent(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: dstObjectName,
 			Range: &gcs.ByteRange{
@@ -667,7 +667,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 
 	AssertEq(nil, err)
 	// Validation of srcObject1 to ensure that it is not effected.
-	srcBuffer1 := t.testObjectContent(context.Background(),
+	srcBuffer1 := t.readObjectContent(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
 			Range: &gcs.ByteRange{
@@ -676,7 +676,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 			},
 		})
 	// Validation of srcObject2 to ensure that it is not effected.
-	srcBuffer2 := t.testObjectContent(context.Background(),
+	srcBuffer2 := t.readObjectContent(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestSubObjectName,
 			Range: &gcs.ByteRange{
@@ -685,7 +685,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 			},
 		})
 	// Reading content of dstObject
-	dstBuffer := t.testObjectContent(context.Background(),
+	dstBuffer := t.readObjectContent(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: dstObjectName,
 			Range: &gcs.ByteRange{
