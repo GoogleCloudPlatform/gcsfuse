@@ -38,8 +38,8 @@ type bucketHandle struct {
 }
 
 func (bh *bucketHandle) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+		ctx context.Context,
+		req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -315,14 +315,12 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
 	dstObj := b.bucket.Object(req.DstName)
 
-	if req.DstGenerationPrecondition != nil {
-		dstObj = dstObj.If(storage.Conditions{GenerationMatch: *req.DstGenerationPrecondition})
-	}
-	if req.DstMetaGenerationPrecondition != nil {
-		dstObj = dstObj.If(storage.Conditions{MetagenerationMatch: *req.DstMetaGenerationPrecondition})
-	}
 	if req.DstGenerationPrecondition != nil && req.DstMetaGenerationPrecondition != nil {
 		dstObj = dstObj.If(storage.Conditions{GenerationMatch: *req.DstGenerationPrecondition, MetagenerationMatch: *req.DstMetaGenerationPrecondition})
+	} else if req.DstGenerationPrecondition != nil {
+		dstObj = dstObj.If(storage.Conditions{GenerationMatch: *req.DstGenerationPrecondition})
+	} else if req.DstMetaGenerationPrecondition != nil {
+		dstObj = dstObj.If(storage.Conditions{MetagenerationMatch: *req.DstMetaGenerationPrecondition})
 	}
 
 	// Converting the req.Sources list to a list of storage.ObjectHandle as expected by the Go Storage Client.
