@@ -27,6 +27,7 @@ const TestObjectName string = "gcsfuse/default.txt"
 const TestObjectSubRootFolderName string = "gcsfuse/SubFolder/"
 const TestSubObjectName string = "gcsfuse/SubFolder/default.txt"
 const ContentInTestObject string = "Hello GCSFuse!!!"
+const ContentInTestSubObject string = "Hello GCSFuse From SubObject!!!"
 const TestObjectGeneration int64 = 780
 const MetaDataValue string = "metaData"
 const MetaDataKey string = "key"
@@ -97,7 +98,7 @@ func getTestFakeStorageObject() []fakestorage.Object {
 			Name:       TestSubObjectName,
 			Generation: TestObjectGeneration,
 		},
-		Content: []byte(ContentInTestObject),
+		Content: []byte(ContentInTestSubObject),
 	}
 	fakeObjects = append(fakeObjects, testSubObject)
 
