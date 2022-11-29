@@ -34,7 +34,12 @@ import (
 
 type bucketHandle struct {
 	gcs.Bucket
-	bucket *storage.BucketHandle
+	bucket     *storage.BucketHandle
+	bucketName string
+}
+
+func (bh *bucketHandle) Name() string {
+	return bh.bucketName
 }
 
 func (bh *bucketHandle) NewReader(
