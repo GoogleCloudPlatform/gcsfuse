@@ -105,7 +105,6 @@ func (sh *storageClient) BucketHandle(bucketName string) (bh *bucketHandle, err 
 		return
 	}
 
-	storageBucketName := obj.Name
-	bh = &bucketHandle{bucket: storageBucketHandle, bucketName: storageBucketName}
+	bh = &bucketHandle{bucket: storageBucketHandle, bucketName: obj.Name}
 	return
 }
