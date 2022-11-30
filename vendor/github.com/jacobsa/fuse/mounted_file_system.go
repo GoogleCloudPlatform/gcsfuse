@@ -14,7 +14,10 @@
 
 package fuse
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 // MountedFileSystem represents the status of a mount operation, with a method
 // that waits for unmounting.
@@ -46,4 +49,18 @@ func (mfs *MountedFileSystem) Join(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+// GetFuseContext implements the equiv. of FUSE-C fuse_get_context() and thus
+// returns the UID / GID / PID associated with all FUSE requests send by the kernel.
+// ctx parameter must be one of the context from the fuseops handlers (e.g.: CreateFile)
+func (mfs *MountedFileSystem) GetFuseContext(ctx context.Context) (uid, gid, pid uint32, err error) {
+	foo := ctx.Value(contextKey)
+	state, ok := foo.(opState)
+	if !ok {
+		return 0, 0, 0, fmt.Errorf("GetFuseContext called with invalid context: %#v", ctx)
+	}
+	inMsg := state.inMsg
+	header := inMsg.Header()
+	return header.Uid, header.Gid, header.Pid, nil
 }
