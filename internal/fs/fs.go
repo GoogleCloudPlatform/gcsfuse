@@ -642,7 +642,8 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		}
 
 		var ok bool
-		for {
+		var maxTriesToCreateInode = 3
+		for n := 0; n < maxTriesToCreateInode; n++ {
 			in, ok = fs.implicitDirInodes[ic.FullName]
 			// If we don't have an entry, create one.
 			if !ok {
@@ -668,6 +669,8 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 
 			return
 		}
+
+		return
 	}
 
 	oGen := inode.Generation{
