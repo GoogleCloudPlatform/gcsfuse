@@ -414,6 +414,7 @@ func main() {
 	// Set up profiling handlers.
 	go perf.HandleCPUProfileSignals()
 	go perf.HandleMemoryProfileSignals()
+	go logger.HandleReInitLogFile()
 
 	// Run.
 	err := run()

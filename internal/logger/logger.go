@@ -15,9 +15,14 @@
 package logger
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/jacobsa/daemonize"
 )
@@ -25,6 +30,11 @@ import (
 var (
 	defaultLoggerFactory *loggerFactory
 	defaultInfoLogger    *log.Logger
+	listOfLoggers        []*log.Logger
+
+	fileNumber     int
+	base_file_name string
+	extension      string
 )
 
 // InitLogFile initializes the logger factory to create loggers that print to
@@ -45,7 +55,16 @@ func InitLogFile(filename string, format string) error {
 		format: format,
 	}
 	defaultInfoLogger = NewInfo("")
+	listOfLoggers = make([]*log.Logger, 0, 15)
+	fileNumber = 0
 
+	base_name := filepath.Base(defaultLoggerFactory.file.Name())
+	dot_pos := strings.Index(base_name, ".")
+	if dot_pos == -1 {
+		return fmt.Errorf("There should be some extension in the base name")
+	}
+	base_file_name = base_name[:dot_pos]
+	extension = base_name[(dot_pos + 1):]
 	return nil
 }
 
@@ -56,6 +75,55 @@ func init() {
 		flag: log.Ldate | log.Ltime | log.Lmicroseconds,
 	}
 	defaultInfoLogger = NewInfo("")
+}
+
+func UpdateTheWriterInAllLoggers() error {
+	for _, lg := range listOfLoggers {
+		lg.SetOutput(defaultLoggerFactory.writer(lg.Prefix()))
+	}
+	return nil
+}
+
+func HandleReInitLogFile() error {
+	for {
+		time.Sleep(time.Minute / 6)
+		base_name := filepath.Base(defaultLoggerFactory.file.Name())
+		dot_pos := strings.Index(base_name, ".")
+
+		if dot_pos == -1 {
+			return fmt.Errorf("There should be some extension in the base name")
+		}
+
+		rel_file_name := base_file_name + strconv.Itoa(fileNumber) + "." + extension
+		file_name := filepath.Dir(defaultLoggerFactory.file.Name()) + "/" + rel_file_name
+		ReInitLogFile(file_name)
+	}
+}
+
+func ReInitLogFile(filename string) error {
+	f, err := os.OpenFile(
+		filename,
+		os.O_WRONLY|os.O_CREATE|os.O_APPEND,
+		0644,
+	)
+	if err != nil {
+		return err
+	}
+	previousLoggerFactory := defaultLoggerFactory
+	defaultLoggerFactory = &loggerFactory{
+		file:   f,
+		flag:   0,
+		format: previousLoggerFactory.format,
+	}
+	defaultInfoLogger = NewInfo("")
+	UpdateTheWriterInAllLoggers()
+
+	fileNumber++
+	if fp := previousLoggerFactory.file; fp != nil {
+		fp.Close()
+		previousLoggerFactory.file = nil
+	}
+	return nil
 }
 
 // Close closes the log file when necessary.
@@ -70,25 +138,33 @@ func Close() {
 // the log file or the status writer which forwards the notices to the invoker
 // from the daemon.
 func NewNotice(prefix string) *log.Logger {
-	return defaultLoggerFactory.newLogger("NOTICE", prefix)
+	tmp := defaultLoggerFactory.newLogger("NOTICE", prefix)
+	listOfLoggers = append(listOfLoggers, tmp)
+	return tmp
 }
 
 // NewDebug returns a new logger for logging debug messages with given prefix
 // to the log file or stdout.
 func NewDebug(prefix string) *log.Logger {
-	return defaultLoggerFactory.newLogger("DEBUG", prefix)
+	tmp := defaultLoggerFactory.newLogger("DEBUG", prefix)
+	listOfLoggers = append(listOfLoggers, tmp)
+	return tmp
 }
 
 // NewInfo returns a new logger for logging info with given prefix to the log
 // file or stdout.
 func NewInfo(prefix string) *log.Logger {
-	return defaultLoggerFactory.newLogger("INFO", prefix)
+	tmp := defaultLoggerFactory.newLogger("INFO", prefix)
+	listOfLoggers = append(listOfLoggers, tmp)
+	return tmp
 }
 
 // NewError returns a new logger for logging errors with given prefix to the log
 // file or stderr.
 func NewError(prefix string) *log.Logger {
-	return defaultLoggerFactory.newLogger("ERROR", prefix)
+	tmp := defaultLoggerFactory.newLogger("ERROR", prefix)
+	listOfLoggers = append(listOfLoggers, tmp)
+	return tmp
 }
 
 // Info calls the default info logger to print the message using Printf.
