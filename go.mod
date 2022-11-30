@@ -7,7 +7,7 @@ require (
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.12
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
-	github.com/jacobsa/fuse v0.0.0-20220906065402-c62d7682a662
+	github.com/jacobsa/fuse v0.0.0-20221016084658-a4cd154343d8
 	github.com/jacobsa/gcloud v0.0.0-20220926120811-1a153c059feb
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
 	github.com/jacobsa/oglemock v0.0.0-20150831005832-e94d794d06ff
