@@ -673,6 +673,10 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 			return
 		}
 
+		// Incase we exhausted the number of tries to createInode, we will return
+		// nil object. Returning nil is handled by callers to throw appropriate
+		// errors back to kernel.
+		in = nil
 		return
 	}
 
