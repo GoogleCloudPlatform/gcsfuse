@@ -23,6 +23,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"strings"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
@@ -36,6 +39,7 @@ type bucketHandle struct {
 	gcs.Bucket
 	bucket     *storage.BucketHandle
 	bucketName string
+	client     *http.Client
 }
 
 func (bh *bucketHandle) Name() string {
@@ -64,7 +68,23 @@ func (bh *bucketHandle) NewReader(
 	}
 
 	// Creating a NewRangeReader instance.
-	r, err := obj.NewRangeReader(ctx, start, length)
+	startTime := time.Now()
+	r, err := obj.NewRangeReader(ctx, start, length, bh.client)
+	endTime := time.Now()
+	total := endTime.Sub(startTime)
+	str := strings.TrimRight(total.String(), "ms")
+	fmt.Println(str)
+
+	file, err := os.OpenFile("/usr/local/google/home/tulsishah/Documents/gcsfuse/data.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	_, err2 := file.WriteString(str + "\n")
+
+	if err2 != nil {
+		fmt.Println("Could not write text to example.txt")
+
+	} else {
+		fmt.Println("BUKCET HANDLE Operation successful! Text has been appended to example.txt")
+	}
+
 	if err != nil {
 		err = fmt.Errorf("error in creating a NewRangeReader instance: %v", err)
 		return

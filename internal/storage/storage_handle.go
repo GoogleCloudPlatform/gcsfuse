@@ -32,7 +32,8 @@ type StorageHandle interface {
 }
 
 type storageClient struct {
-	client *storage.Client
+	client     *storage.Client
+	httpClient *http.Client
 }
 
 type StorageClientConfig struct {
@@ -94,7 +95,7 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 		}),
 		storage.WithPolicy(storage.RetryAlways))
 
-	sh = &storageClient{client: sc}
+	sh = &storageClient{client: sc, httpClient: httpClient}
 	return
 }
 
@@ -105,6 +106,7 @@ func (sh *storageClient) BucketHandle(bucketName string) (bh *bucketHandle, err 
 		return
 	}
 
-	bh = &bucketHandle{bucket: storageBucketHandle, bucketName: obj.Name}
+	httpClient := sh.httpClient
+	bh = &bucketHandle{bucket: storageBucketHandle, bucketName: obj.Name, client: httpClient}
 	return
 }

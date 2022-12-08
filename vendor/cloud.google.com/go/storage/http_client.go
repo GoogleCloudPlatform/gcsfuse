@@ -774,6 +774,8 @@ func (c *httpStorageClient) NewRangeReader(ctx context.Context, params *newRange
 
 	s := callSettings(c.settings, opts...)
 
+
+
 	u := &url.URL{
 		Scheme: c.scheme,
 		Host:   c.readHost,
@@ -826,7 +828,23 @@ func (c *httpStorageClient) NewRangeReader(ctx context.Context, params *newRange
 
 		var res *http.Response
 		err = run(ctx, func() error {
-			res, err = c.hc.Do(req)
+			fmt.Println("NAME OF OBJECT ",params.object," ",params.offset)
+			startTime := time.Now()
+			res, err = params.client.Do(req)
+			endTime := time.Now()
+			total := endTime.Sub(startTime)
+			fmt.Println("CLIENT ERROR ",err)
+			str := strings.TrimRight(total.String(), "ms")
+			fmt.Println("CLIENT "+ str + "\n")
+			//file, err := os.OpenFile("/usr/local/google/home/tulsishah/Documents/gcsfuse/data.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			//_, err2 := file.WriteString(str + "\n")
+			//
+			//if err2 != nil {
+			//	fmt.Println("Could not write text to example.txt")
+			//
+			//} else {
+			//	fmt.Println("CLIENT Operation successful! Text has been appended to example.txt")
+			//}
 			if err != nil {
 				return err
 			}
