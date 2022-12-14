@@ -42,6 +42,18 @@ func (bh *bucketHandle) Name() string {
 	return bh.bucketName
 }
 
+type CustomReadCloser struct {
+	io.Reader
+}
+
+func (c CustomReadCloser) Close() error {
+	return nil
+}
+
+func ConvertToReadCloser(r io.Reader) io.ReadCloser {
+
+	return CustomReadCloser{r}
+}
 func (bh *bucketHandle) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
@@ -72,7 +84,7 @@ func (bh *bucketHandle) NewReader(
 
 	// Converting io.Reader to io.ReadCloser by adding a no-op closer method
 	// to match the return type interface.
-	rc = io.NopCloser(r)
+	rc = ConvertToReadCloser(r)
 	return
 }
 func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
