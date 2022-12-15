@@ -44,7 +44,7 @@ func (bh *bucketHandle) Name() string {
 
 func (bh *bucketHandle) NewReader(
 	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -63,17 +63,8 @@ func (bh *bucketHandle) NewReader(
 		obj = obj.Generation(req.Generation)
 	}
 
-	// Creating a NewRangeReader instance.
-	r, err := obj.NewRangeReader(ctx, start, length)
-	if err != nil {
-		err = fmt.Errorf("error in creating a NewRangeReader instance: %v", err)
-		return
-	}
-
-	// Converting io.Reader to io.ReadCloser by adding a no-op closer method
-	// to match the return type interface.
-	rc = io.NopCloser(r)
-	return
+	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
+	return obj.NewRangeReader(ctx, start, length)
 }
 func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
 	obj := b.bucket.Object(req.Name)
