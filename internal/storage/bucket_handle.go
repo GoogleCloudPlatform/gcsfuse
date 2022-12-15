@@ -64,6 +64,7 @@ func (bh *bucketHandle) NewReader(
 	}
 
 	// Returning NewRangeReader instance.
+	// "storage.Reader" is a io.ReadCloser, since it contains both Read() and Close() method.
 	return obj.NewRangeReader(ctx, start, length)
 }
 func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
