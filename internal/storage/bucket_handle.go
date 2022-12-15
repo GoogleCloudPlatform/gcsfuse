@@ -64,15 +64,12 @@ func (bh *bucketHandle) NewReader(
 	}
 
 	// Creating a NewRangeReader instance.
-	r, err := obj.NewRangeReader(ctx, start, length)
+	rc, err = obj.NewRangeReader(ctx, start, length)
 	if err != nil {
 		err = fmt.Errorf("error in creating a NewRangeReader instance: %v", err)
 		return
 	}
 
-	// Converting io.Reader to io.ReadCloser by adding a no-op closer method
-	// to match the return type interface.
-	rc = io.NopCloser(r)
 	return
 }
 func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
