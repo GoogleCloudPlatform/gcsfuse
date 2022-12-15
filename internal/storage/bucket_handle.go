@@ -63,14 +63,8 @@ func (bh *bucketHandle) NewReader(
 		obj = obj.Generation(req.Generation)
 	}
 
-	// Creating a NewRangeReader instance.
-	rc, err = obj.NewRangeReader(ctx, start, length)
-	if err != nil {
-		err = fmt.Errorf("error in creating a NewRangeReader instance: %v", err)
-		return
-	}
-
-	return
+	// Returning NewRangeReader instance.
+	return obj.NewRangeReader(ctx, start, length)
 }
 func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
 	obj := b.bucket.Object(req.Name)
