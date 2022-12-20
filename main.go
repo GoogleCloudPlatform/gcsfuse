@@ -140,11 +140,23 @@ func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 
 // Mount the file system according to arguments in the supplied context.
 func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
+	var userAgent string
 	tokenSrc, err := auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl, true)
 	if err != nil {
 		err = fmt.Errorf("get token source: %w", err)
 		return
 	}
+
+	if os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE") == "dlvm" {
+		userAgent = fmt.Sprintf("gcsfuse/%s %s", getVersion(), flags.AppName, "DLVM Container")
+	} else if os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE") == "dlc" {
+		userAgent = fmt.Sprintf("gcsfuse/%s %s", getVersion(), flags.AppName, "DLC Container")
+	} else {
+		userAgent = fmt.Sprintf("gcsfuse/%s %s", getVersion(), flags.AppName)
+	}
+
+	fmt.Println("IMAGE TYPE ", os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE"))
+	fmt.Println("USER-AGENT ", userAgent)
 	storageClientConfig := storage.StorageClientConfig{
 		DisableHTTP2:        flags.DisableHTTP2,
 		MaxConnsPerHost:     flags.MaxConnsPerHost,
@@ -153,6 +165,7 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 		HttpClientTimeout:   flags.HttpClientTimeout,
 		MaxRetryDuration:    flags.MaxRetryDuration,
 		RetryMultiplier:     flags.RetryMultiplier,
+		UserAgent:           userAgent,
 	}
 
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)

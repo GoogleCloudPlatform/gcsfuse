@@ -34,6 +34,7 @@ func getDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 		HttpClientTimeout:   800 * time.Millisecond,
 		MaxRetryDuration:    30 * time.Second,
 		RetryMultiplier:     2,
+		UserAgent:           "AppName",
 	}
 }
 
@@ -97,6 +98,13 @@ func (t *StorageHandleTest) TestNewStorageHandleHttp2Enabled() {
 func (t *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost() {
 	sc := getDefaultStorageClientConfig()
 	sc.MaxConnsPerHost = 0
+
+	t.invokeAndVerifyStorageHandle(sc)
+}
+
+func (t *StorageHandleTest) TestNewStorageHandleWithDifferentUserAgent() {
+	sc := getDefaultStorageClientConfig()
+	sc.UserAgent = "UserAgent"
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
