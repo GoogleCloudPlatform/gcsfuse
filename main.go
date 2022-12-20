@@ -148,9 +148,9 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 	}
 
 	if os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE") == "dlvm" {
-		userAgent = fmt.Sprintf("gcsfuse/%s %s", getVersion(), flags.AppName, "DLVM Container")
+		userAgent = fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), flags.AppName, "DLVM Container")
 	} else if os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE") == "dlc" {
-		userAgent = fmt.Sprintf("gcsfuse/%s %s", getVersion(), flags.AppName, "DLC Container")
+		userAgent = fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), flags.AppName, "DLC Container")
 	} else {
 		userAgent = fmt.Sprintf("gcsfuse/%s %s", getVersion(), flags.AppName)
 	}
