@@ -139,24 +139,25 @@ func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
+func getUserAgent(AppName string) string {
 	var userAgent string
+
+	if os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE") != "" {
+		userAgent = fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), AppName, os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE"))
+	} else {
+		userAgent = fmt.Sprintf("gcsfuse/%s %s", getVersion(), AppName)
+	}
+
+	return userAgent
+}
+
+func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
 	tokenSrc, err := auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl, true)
 	if err != nil {
 		err = fmt.Errorf("get token source: %w", err)
 		return
 	}
 
-	if os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE") == "dlvm" {
-		userAgent = fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), flags.AppName, "DLVM Container")
-	} else if os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE") == "dlc" {
-		userAgent = fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), flags.AppName, "DLC Container")
-	} else {
-		userAgent = fmt.Sprintf("gcsfuse/%s %s", getVersion(), flags.AppName)
-	}
-
-	fmt.Println("IMAGE TYPE ", os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE"))
-	fmt.Println("USER-AGENT ", userAgent)
 	storageClientConfig := storage.StorageClientConfig{
 		DisableHTTP2:        flags.DisableHTTP2,
 		MaxConnsPerHost:     flags.MaxConnsPerHost,
@@ -165,7 +166,7 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 		HttpClientTimeout:   flags.HttpClientTimeout,
 		MaxRetryDuration:    flags.MaxRetryDuration,
 		RetryMultiplier:     flags.RetryMultiplier,
-		UserAgent:           userAgent,
+		UserAgent:           getUserAgent(flags.AppName),
 	}
 
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
@@ -173,10 +174,10 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 }
 
 func mountWithArgs(
-	bucketName string,
-	mountPoint string,
-	flags *flagStorage,
-	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
+		bucketName string,
+		mountPoint string,
+		flags *flagStorage,
+		mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
 		locker.EnableInvariantsCheck()
@@ -226,9 +227,9 @@ func mountWithArgs(
 }
 
 func populateArgs(c *cli.Context) (
-	bucketName string,
-	mountPoint string,
-	err error) {
+		bucketName string,
+		mountPoint string,
+		err error) {
 	// Extract arguments.
 	switch len(c.Args()) {
 	case 1:
