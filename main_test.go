@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"testing"
 
 	. "github.com/jacobsa/ogletest"
@@ -43,16 +42,16 @@ func (t *MainTest) TestCreateStorageHandle() {
 	AssertNe(nil, storageHandle)
 }
 
-func (t *MainTest) TestGetUserAgentWhereEnvironmentVariableEqualDLVM() {
-	os.Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
-	defer os.Unsetenv("GCSFUSE_METADATA_IMAGE_TYPE")
+//func (t *MainTest) TestGetUserAgentWhereEnvironmentVariableIs Set() {
+//	os.Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
+//	//defer os.Unsetenv("GCSFUSE_METADATA_IMAGE_TYPE")
+//
+//	userAgent := getUserAgent("AppName")
+//
+//	ExpectEq("gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) AppName DLVM", userAgent)
+//}
 
-	userAgent := getUserAgent("AppName")
-
-	ExpectEq("gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) AppName DLVM", userAgent)
-}
-
-func (t *MainTest) TestGetUserAgentEqualNil() {
+func (t *MainTest) TestGetUserAgentWhereEnvironmentVariableIsNotSet() {
 	userAgent := getUserAgent("AppName")
 
 	ExpectEq("gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) AppName", userAgent)

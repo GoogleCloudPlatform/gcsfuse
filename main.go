@@ -27,6 +27,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
@@ -95,7 +96,7 @@ func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 	cfg := &gcs.ConnConfig{
 		Url:             flags.Endpoint,
 		TokenSource:     tokenSrc,
-		UserAgent:       fmt.Sprintf("gcsfuse/%s %s", getVersion(), flags.AppName),
+		UserAgent:       getUserAgent(flags.AppName),
 		MaxBackoffSleep: flags.MaxRetrySleep,
 	}
 
@@ -140,13 +141,13 @@ func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 
 // Mount the file system according to arguments in the supplied context.
 
-func getUserAgent(AppName string) string {
+func getUserAgent(appName string) string {
 	var userAgent string
 
 	if os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE") != "" {
-		userAgent = fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), AppName, os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE"))
+		userAgent = strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), appName, os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")))
 	} else {
-		userAgent = fmt.Sprintf("gcsfuse/%s %s", getVersion(), AppName)
+		userAgent = strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s", getVersion(), appName))
 	}
 
 	return userAgent
