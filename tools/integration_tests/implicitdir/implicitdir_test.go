@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
@@ -62,13 +63,15 @@ func setUpTestDir() error {
 	return nil
 }
 
-func mountGcsfuse() error {
+func mountGcsfuse(enableGoStorageLibrary bool) error {
+	flag := strconv.FormatBool(enableGoStorageLibrary)
 	mountCmd := exec.Command(
 		binFile,
 		"--implicit-dirs",
 		"--debug_gcs",
 		"--debug_fs",
 		"--debug_fuse",
+		"--experimental-enable-storage-client-library="+flag,
 		"--log-file="+logFile,
 		"--log-format=text",
 		*testBucket,
@@ -160,7 +163,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	if err := mountGcsfuse(); err != nil {
+	if err := mountGcsfuse(true); err != nil {
 		log.Printf("mountGcsfuse: %v\n", err)
 		os.Exit(1)
 	}
@@ -176,6 +179,28 @@ func TestMain(m *testing.M) {
 	}
 
 	ret := m.Run()
+
+	// Delete all files from mntDir to delete files from gcs bucket.
+	os.RemoveAll(mntDir)
+	unMount()
+
+	os.Exit(ret)
+
+	if err := mountGcsfuse(false); err != nil {
+		log.Printf("mountGcsfuse: %v\n", err)
+		os.Exit(1)
+	}
+
+	log.Printf("Test log: %s\n", logFile)
+
+	// Creating a temporary directory to store files
+	// to be used for testing.
+	tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
+	if err != nil {
+		logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
+	}
+
+	ret = m.Run()
 
 	// Delete all files from mntDir to delete files from gcs bucket.
 	os.RemoveAll(mntDir)

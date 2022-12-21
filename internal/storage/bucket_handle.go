@@ -25,6 +25,7 @@ import (
 	"net/http"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
@@ -99,6 +100,7 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 	// Converting attrs to type *Object
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
 
+	logger.Info("IN BUCKET HANDLE")
 	return
 }
 
