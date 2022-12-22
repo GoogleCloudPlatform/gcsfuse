@@ -152,26 +152,8 @@ func createTempFile() string {
 	return fileName
 }
 
-func TestMain(m *testing.M) {
-	flag.Parse()
-
-	if *testBucket == "" {
-		log.Printf("--testbucket must be specified")
-		os.Exit(0)
-	}
-
-	if err := setUpTestDir(); err != nil {
-		log.Printf("setUpTestDir: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Run integration test for go-client library
-	executeTest(true, logFileGoClient, m)
-	// Run integration test for jacobsa/gcloud
-	executeTest(false, logFileJacobsa, m)
-}
-
-func executeTest(enableGoStorageLibrary bool, logFile string, m *testing.M) {
+// executing test
+func executeTest(enableGoStorageLibrary bool, logFile string, m *testing.M) (successCode int) {
 	if err := mountGcsfuse(enableGoStorageLibrary, logFile); err != nil {
 		log.Printf("mountGcsfuse: %v\n", err)
 		os.Exit(1)
@@ -187,11 +169,31 @@ func executeTest(enableGoStorageLibrary bool, logFile string, m *testing.M) {
 		logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
 	}
 
-	m.Run()
+	successCode = m.Run()
 
 	os.RemoveAll(mntDir)
-	err = unMount()
-	if err != nil {
-		return
+	unMount()
+
+	return
+}
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+
+	if *testBucket == "" {
+		log.Printf("--testbucket must be specified")
+		os.Exit(0)
 	}
+
+	if err := setUpTestDir(); err != nil {
+		log.Printf("setUpTestDir: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Run integration test for go-client library
+	successCode := executeTest(true, logFileGoClient, m)
+	// Run integration test for jacobsa/gcloud
+	successCode = executeTest(false, logFileJacobsa, m)
+
+	os.Exit(successCode)
 }
