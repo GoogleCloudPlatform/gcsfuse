@@ -165,13 +165,19 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	// Run integration test for go-client library functions
-	if err := mountGcsfuse(true, logFileGoClient); err != nil {
+	// Run integration test for go-client library
+	executeTest(true, logFileGoClient, m)
+	// Run integration test for jacobsa/gcloud
+	executeTest(false, logFileJacobsa, m)
+}
+
+func executeTest(enableGoStorageLibrary bool, logFile string, m *testing.M) {
+	if err := mountGcsfuse(enableGoStorageLibrary, logFile); err != nil {
 		log.Printf("mountGcsfuse: %v\n", err)
 		os.Exit(1)
 	}
 
-	log.Printf("Test log of Go-Client Library: %s\n", logFileGoClient)
+	log.Printf("Test log : %s\n", logFile)
 
 	// Creating a temporary directory to store files
 	// to be used for testing.
@@ -181,37 +187,11 @@ func TestMain(m *testing.M) {
 		logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
 	}
 
-	ret := m.Run()
+	m.Run()
 
 	os.RemoveAll(mntDir)
 	err = unMount()
 	if err != nil {
 		return
 	}
-
-	// Run integration test for jacobsa/gcloud  functions
-	if err := mountGcsfuse(false, logFileJacobsa); err != nil {
-		log.Printf("mountGcsfuse: %v\n", err)
-		os.Exit(1)
-	}
-
-	log.Printf("Test log of Jacobsa/gcloud: %s\n", logFileJacobsa)
-
-	// Creating a temporary directory to store files
-	// to be used for testing.
-	tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
-	if err != nil {
-		logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
-	}
-
-	ret = m.Run()
-
-	// Delete all files from mntDir to delete files from gcs bucket.
-	os.RemoveAll(mntDir)
-	err = unMount()
-	if err != nil {
-		return
-	}
-
-	os.Exit(ret)
 }
