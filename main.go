@@ -144,8 +144,9 @@ func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 func getUserAgent(appName string) string {
 	var userAgent string
 
-	if os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE") != "" {
-		userAgent = strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), appName, os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")))
+	fmt.Println("ENVIRONMENT VARIABLE ", os.Getenv("HISTCONTROL"))
+	if os.Getenv("HISTCONTROL") != "" {
+		userAgent = strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), appName, os.Getenv("HISTCONTROL")))
 	} else {
 		userAgent = strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s", getVersion(), appName))
 	}
