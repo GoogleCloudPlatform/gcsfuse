@@ -184,7 +184,10 @@ func TestMain(m *testing.M) {
 	ret := m.Run()
 
 	os.RemoveAll(mntDir)
-	unMount()
+	err = unMount()
+	if err != nil {
+		fmt.Println(err)
+	}
 	// Run integration test for jacobsa/gcloud  functions
 	if err := mountGcsfuse(false, logFileJacobsa); err != nil {
 		log.Printf("mountGcsfuse: %v\n", err)
