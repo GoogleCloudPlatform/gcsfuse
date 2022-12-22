@@ -188,6 +188,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		return
 	}
+
 	// Run integration test for jacobsa/gcloud  functions
 	if err := mountGcsfuse(false, logFileJacobsa); err != nil {
 		log.Printf("mountGcsfuse: %v\n", err)
