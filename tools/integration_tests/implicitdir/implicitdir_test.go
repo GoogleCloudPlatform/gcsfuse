@@ -24,7 +24,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"strconv"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
@@ -33,12 +32,11 @@ import (
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
 
 var (
-	binFile         string
-	logFileGoClient string
-	logFileJacobsa  string
-	mntDir          string
-	testDir         string
-	tmpDir          string
+	binFile string
+	logFile string
+	mntDir  string
+	testDir string
+	tmpDir  string
 )
 
 func setUpTestDir() error {
@@ -54,8 +52,7 @@ func setUpTestDir() error {
 	}
 
 	binFile = path.Join(testDir, "bin/gcsfuse")
-	logFileGoClient = path.Join(testDir, "gcsfuseGoClient.log")
-	logFileJacobsa = path.Join(testDir, "gcsfuseJacobsa.log")
+	logFile = path.Join(testDir, "gcsfuse.log")
 	mntDir = path.Join(testDir, "mnt")
 
 	err = os.Mkdir(mntDir, 0755)
@@ -65,17 +62,17 @@ func setUpTestDir() error {
 	return nil
 }
 
-func mountGcsfuse(enableGoStorageLibrary bool, logFile string) error {
-	flag := strconv.FormatBool(enableGoStorageLibrary)
+func mountGcsfuse(flag string) error {
 	mountCmd := exec.Command(
 		binFile,
 		"--implicit-dirs",
 		"--debug_gcs",
 		"--debug_fs",
 		"--debug_fuse",
-		"--experimental-enable-storage-client-library="+flag,
+		"--experimental-enable-storage-client-library=false",
 		"--log-file="+logFile,
 		"--log-format=text",
+		flag,
 		*testBucket,
 		mntDir,
 	)
@@ -153,14 +150,14 @@ func createTempFile() string {
 }
 
 // executing test
-func executeTest(flags []bool, logFiles []string, m *testing.M) (successCode int) {
+func executeTest(flags []string, m *testing.M) (successCode int) {
 	for i := 0; i < len(flags); i++ {
-		if err := mountGcsfuse(flags[i], logFiles[i]); err != nil {
+		if err := mountGcsfuse(flags[i]); err != nil {
 			log.Printf("mountGcsfuse: %v\n", err)
 			os.Exit(1)
 		}
 
-		log.Printf("Test log: %s\n", logFiles[i])
+		log.Printf("Test log: %s\n", logFile)
 
 		// Creating a temporary directory to store files
 		// to be used for testing.
@@ -194,9 +191,11 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	flags := []bool{true, false}
-	logFiles := []string{logFileGoClient, logFileJacobsa}
-	successCode := executeTest(flags, logFiles, m)
+	flags := []string{"--experimental-enable-storage-client-library=true",
+		"--experimental-enable-storage-client-library=false",
+		"--implicit-dirs=true",
+		"--implicit-dirs=false"}
+	successCode := executeTest(flags, m)
 
 	os.Exit(successCode)
 }
