@@ -55,6 +55,7 @@ func setUpTestDir() error {
 
 	binFile = path.Join(testDir, "bin/gcsfuse")
 	logFileGoClient = path.Join(testDir, "gcsfuse.log")
+	logFileJacobsa = path.Join(testDir, "gcsfuse.log")
 	mntDir = path.Join(testDir, "mnt")
 
 	err = os.Mkdir(mntDir, 0755)
@@ -185,7 +186,6 @@ func TestMain(m *testing.M) {
 	// Delete all files from mntDir to delete files from gcs bucket.
 	os.RemoveAll(mntDir)
 	unMount()
-	os.Exit(ret)
 	// Run integration test for jacobsa/gcloud  functions
 	if err := mountGcsfuse(false, logFileJacobsa); err != nil {
 		log.Printf("mountGcsfuse: %v\n", err)
@@ -201,11 +201,11 @@ func TestMain(m *testing.M) {
 		logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
 	}
 
-	ret2 := m.Run()
+	ret = m.Run()
 
 	// Delete all files from mntDir to delete files from gcs bucket.
 	os.RemoveAll(mntDir)
 	unMount()
 
-	os.Exit(ret2)
+	os.Exit(ret)
 }
