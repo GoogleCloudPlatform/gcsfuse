@@ -153,27 +153,28 @@ func createTempFile() string {
 }
 
 // executing test
-func executeTest(enableGoStorageLibrary bool, logFile string, m *testing.M) (successCode int) {
-	if err := mountGcsfuse(enableGoStorageLibrary, logFile); err != nil {
-		log.Printf("mountGcsfuse: %v\n", err)
-		os.Exit(1)
+func executeTest(flags []bool, logFiles []string, m *testing.M) (successCode int) {
+	for i := 0; i < len(flags); i++ {
+		if err := mountGcsfuse(flags[i], logFiles[i]); err != nil {
+			log.Printf("mountGcsfuse: %v\n", err)
+			os.Exit(1)
+		}
+
+		log.Printf("Test log: %s\n", logFiles[i])
+
+		// Creating a temporary directory to store files
+		// to be used for testing.
+		var err error
+		tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
+		if err != nil {
+			logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
+		}
+
+		successCode = m.Run()
+
+		os.RemoveAll(mntDir)
+		unMount()
 	}
-
-	log.Printf("Test log: %s\n", logFile)
-
-	// Creating a temporary directory to store files
-	// to be used for testing.
-	var err error
-	tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
-	if err != nil {
-		logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
-	}
-
-	successCode = m.Run()
-
-	os.RemoveAll(mntDir)
-	unMount()
-
 	return
 }
 
@@ -190,10 +191,9 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	// Run integration test for go-client library
-	executeTest(true, logFileGoClient, m)
-	// Run integration test for jacobsa/gcloud
-	successCode := executeTest(false, logFileJacobsa, m)
+	flags := []bool{true, false}
+	logFiles := []string{logFileGoClient, logFileJacobsa}
+	successCode := executeTest(flags, logFiles, m)
 
 	os.Exit(successCode)
 }
