@@ -185,7 +185,13 @@ func TestMain(m *testing.M) {
 
 	// Delete all files from mntDir to delete files from gcs bucket.
 	err = os.RemoveAll(mntDir)
-	unMount()
+	if err != nil {
+		return
+	}
+	err = unMount()
+	if err != nil {
+		return
+	}
 	// Run integration test for jacobsa/gcloud  functions
 	if err := mountGcsfuse(false, logFileJacobsa); err != nil {
 		log.Printf("mountGcsfuse: %v\n", err)
@@ -205,7 +211,13 @@ func TestMain(m *testing.M) {
 
 	// Delete all files from mntDir to delete files from gcs bucket.
 	err = os.RemoveAll(mntDir)
-	unMount()
+	if err != nil {
+		return
+	}
+	err = unMount()
+	if err != nil {
+		return
+	}
 
 	os.Exit(ret)
 }
