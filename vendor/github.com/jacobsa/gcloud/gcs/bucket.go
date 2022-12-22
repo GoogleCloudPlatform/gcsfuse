@@ -20,7 +20,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"log"
 
 	"github.com/jacobsa/gcloud/httputil"
 	"golang.org/x/net/context"
@@ -203,7 +202,6 @@ func (b *bucket) ListObjects(
 		return
 	}
 
-	log.Println("\n IN JACOBSA \n")
 	// Convert the response.
 	if listing, err = toListing(rawListing); err != nil {
 		return
@@ -274,7 +272,6 @@ func (b *bucket) StatObject(
 		err = fmt.Errorf("toObject: %v", err)
 		return
 	}
-
 
 	return
 }
