@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
@@ -421,6 +422,10 @@ const ConflictingFileNameSuffix = "\n"
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) {
+	if index := strings.LastIndex(name, "/"); index != -1 && len(name)-index > 255 {
+		return nil, syscall.ENAMETOOLONG // TODO: fuse.ENAMETOOLONG
+	}
+
 	// Is this a conflict marker name?
 	if strings.HasSuffix(name, ConflictingFileNameSuffix) {
 		return d.lookUpConflicting(ctx, name)
