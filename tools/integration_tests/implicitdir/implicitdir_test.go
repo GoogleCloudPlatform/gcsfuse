@@ -186,7 +186,7 @@ func TestMain(m *testing.M) {
 	os.RemoveAll(mntDir)
 	err = unMount()
 	if err != nil {
-		fmt.Println(err)
+		log.Printf("Error in Unmounting")
 	}
 	// Run integration test for jacobsa/gcloud  functions
 	if err := mountGcsfuse(false, logFileJacobsa); err != nil {
