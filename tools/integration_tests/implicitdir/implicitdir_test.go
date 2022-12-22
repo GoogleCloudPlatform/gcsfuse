@@ -191,9 +191,9 @@ func TestMain(m *testing.M) {
 	}
 
 	// Run integration test for go-client library
-	successCode := executeTest(true, logFileGoClient, m)
+	executeTest(true, logFileGoClient, m)
 	// Run integration test for jacobsa/gcloud
-	successCode = executeTest(false, logFileJacobsa, m)
+	successCode := executeTest(false, logFileJacobsa, m)
 
 	os.Exit(successCode)
 }
