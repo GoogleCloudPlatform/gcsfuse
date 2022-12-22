@@ -173,7 +173,10 @@ func executeTest(flags []bool, logFiles []string, m *testing.M) (successCode int
 		successCode = m.Run()
 
 		os.RemoveAll(mntDir)
-		unMount()
+		err = unMount()
+		if err != nil {
+			return
+		}
 	}
 	return
 }
