@@ -177,7 +177,7 @@ func executeTest(enableGoStorageLibrary bool, logFile string, m *testing.M) {
 		os.Exit(1)
 	}
 
-	log.Printf("Test log : %s\n", logFile)
+	log.Printf("Test log: %s\n", logFile)
 
 	// Creating a temporary directory to store files
 	// to be used for testing.
