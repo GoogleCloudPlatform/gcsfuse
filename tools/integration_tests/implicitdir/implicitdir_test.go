@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
@@ -32,11 +33,12 @@ import (
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
 
 var (
-	binFile string
-	logFile string
-	mntDir  string
-	testDir string
-	tmpDir  string
+	binFile         string
+	logFileGoClient string
+	logFileJacobsa  string
+	mntDir          string
+	testDir         string
+	tmpDir          string
 )
 
 func setUpTestDir() error {
@@ -52,7 +54,8 @@ func setUpTestDir() error {
 	}
 
 	binFile = path.Join(testDir, "bin/gcsfuse")
-	logFile = path.Join(testDir, "gcsfuse.log")
+	logFileGoClient = path.Join(testDir, "gcsfuseGoClient.log")
+	logFileJacobsa = path.Join(testDir, "gcsfuseJacobsa.log")
 	mntDir = path.Join(testDir, "mnt")
 
 	err = os.Mkdir(mntDir, 0755)
@@ -62,13 +65,15 @@ func setUpTestDir() error {
 	return nil
 }
 
-func mountGcsfuse() error {
+func mountGcsfuse(enableGoStorageLibrary bool, logFile string) error {
+	flag := strconv.FormatBool(enableGoStorageLibrary)
 	mountCmd := exec.Command(
 		binFile,
 		"--implicit-dirs",
 		"--debug_gcs",
 		"--debug_fs",
 		"--debug_fuse",
+		"--experimental-enable-storage-client-library="+flag,
 		"--log-file="+logFile,
 		"--log-format=text",
 		*testBucket,
@@ -160,12 +165,13 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	if err := mountGcsfuse(); err != nil {
+	// Run integration test for go-client library functions
+	if err := mountGcsfuse(true, logFileGoClient); err != nil {
 		log.Printf("mountGcsfuse: %v\n", err)
 		os.Exit(1)
 	}
 
-	log.Printf("Test log: %s\n", logFile)
+	log.Printf("Test log of Go-Client Library: %s\n", logFileGoClient)
 
 	// Creating a temporary directory to store files
 	// to be used for testing.
@@ -176,6 +182,25 @@ func TestMain(m *testing.M) {
 	}
 
 	ret := m.Run()
+
+	os.RemoveAll(mntDir)
+	unMount()
+	// Run integration test for jacobsa/gcloud  functions
+	if err := mountGcsfuse(false, logFileJacobsa); err != nil {
+		log.Printf("mountGcsfuse: %v\n", err)
+		os.Exit(1)
+	}
+
+	log.Printf("Test log of Jacobsa/gcloud: %s\n", logFileJacobsa)
+
+	// Creating a temporary directory to store files
+	// to be used for testing.
+	tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
+	if err != nil {
+		logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
+	}
+
+	ret = m.Run()
 
 	// Delete all files from mntDir to delete files from gcs bucket.
 	os.RemoveAll(mntDir)
