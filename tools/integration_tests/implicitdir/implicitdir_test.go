@@ -33,11 +33,12 @@ import (
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
 
 var (
-	binFile string
-	logFile string
-	mntDir  string
-	testDir string
-	tmpDir  string
+	binFile         string
+	logFileGoClient string
+	logFileJacobsa  string
+	mntDir          string
+	testDir         string
+	tmpDir          string
 )
 
 func setUpTestDir() error {
@@ -53,7 +54,7 @@ func setUpTestDir() error {
 	}
 
 	binFile = path.Join(testDir, "bin/gcsfuse")
-	logFile = path.Join(testDir, "gcsfuse.log")
+	logFileGoClient = path.Join(testDir, "gcsfuse.log")
 	mntDir = path.Join(testDir, "mnt")
 
 	err = os.Mkdir(mntDir, 0755)
@@ -63,7 +64,7 @@ func setUpTestDir() error {
 	return nil
 }
 
-func mountGcsfuse(enableGoStorageLibrary bool) error {
+func mountGcsfuse(enableGoStorageLibrary bool, logFile string) error {
 	flag := strconv.FormatBool(enableGoStorageLibrary)
 	mountCmd := exec.Command(
 		binFile,
@@ -163,12 +164,13 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	if err := mountGcsfuse(true); err != nil {
+	// Run integration test for go-client library functions
+	if err := mountGcsfuse(true, logFileGoClient); err != nil {
 		log.Printf("mountGcsfuse: %v\n", err)
 		os.Exit(1)
 	}
 
-	log.Printf("Test log: %s\n", logFile)
+	log.Printf("Test log of Go-Client Library: %s\n", logFileGoClient)
 
 	// Creating a temporary directory to store files
 	// to be used for testing.
@@ -184,14 +186,13 @@ func TestMain(m *testing.M) {
 	os.RemoveAll(mntDir)
 	unMount()
 
-	os.Exit(ret)
-
-	if err := mountGcsfuse(false); err != nil {
+	// Run integration test for jacobsa/gcloud  functions
+	if err := mountGcsfuse(false, logFileJacobsa); err != nil {
 		log.Printf("mountGcsfuse: %v\n", err)
 		os.Exit(1)
 	}
 
-	log.Printf("Test log: %s\n", logFile)
+	log.Printf("Test log of Jacobsa/gcloud: %s\n", logFileJacobsa)
 
 	// Creating a temporary directory to store files
 	// to be used for testing.
