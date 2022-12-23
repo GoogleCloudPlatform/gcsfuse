@@ -144,9 +144,8 @@ func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 func getUserAgent(appName string) string {
 	var userAgent string
 
-	fmt.Println("ENVIRONMENT VARIABLE ", os.Getenv("HISTCONTROL"))
-	if os.Getenv("HISTCONTROL") != "" {
-		userAgent = strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), appName, os.Getenv("HISTCONTROL")))
+	if os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE") != "" {
+		userAgent = strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), appName, os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")))
 	} else {
 		userAgent = strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s", getVersion(), appName))
 	}
@@ -177,10 +176,10 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 }
 
 func mountWithArgs(
-	bucketName string,
-	mountPoint string,
-	flags *flagStorage,
-	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
+		bucketName string,
+		mountPoint string,
+		flags *flagStorage,
+		mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
 		locker.EnableInvariantsCheck()
@@ -230,9 +229,9 @@ func mountWithArgs(
 }
 
 func populateArgs(c *cli.Context) (
-	bucketName string,
-	mountPoint string,
-	err error) {
+		bucketName string,
+		mountPoint string,
+		err error) {
 	// Extract arguments.
 	switch len(c.Args()) {
 	case 1:
