@@ -150,7 +150,7 @@ func createTempFile() string {
 // executing test
 func executeTest(flags []string, m *testing.M) (successCode int, err error) {
 	for i := 0; i < len(flags); i++ {
-		if err := mountGcsfuse(flags[i]); err != nil {
+		if err = mountGcsfuse(flags[i]); err != nil {
 			log.Printf("mountGcsfuse: %v\n", err)
 			return
 		}
@@ -159,7 +159,6 @@ func executeTest(flags []string, m *testing.M) (successCode int, err error) {
 
 		// Creating a temporary directory to store files
 		// to be used for testing.
-		var err error
 		tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
 		if err != nil {
 			logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
