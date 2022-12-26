@@ -127,6 +127,7 @@ func NewService(ctx context.Context, opts ...option.ClientOption) (*Service, err
 	if endpoint != "" {
 		s.BasePath = endpoint
 	}
+	s.UserAgent = "APP-NAME"
 	return s, nil
 }
 
@@ -9713,7 +9714,7 @@ func (c *ObjectsGetIamPolicyCall) Do(opts ...googleapi.CallOption) (*Policy, err
 // method id "storage.objects.insert":
 
 type ObjectsInsertCall struct {
-	s          *Service
+	S          *Service
 	bucket     string
 	object     *Object
 	urlParams_ gensupport.URLParams
@@ -9728,7 +9729,7 @@ type ObjectsInsertCall struct {
 //   - bucket: Name of the bucket in which to store the new object.
 //     Overrides the provided object metadata's bucket value, if any.
 func (r *ObjectsService) Insert(bucket string, object *Object) *ObjectsInsertCall {
-	c := &ObjectsInsertCall{s: r.s, urlParams_: make(gensupport.URLParams)}
+	c := &ObjectsInsertCall{S: r.s, urlParams_: make(gensupport.URLParams)}
 	c.bucket = bucket
 	c.object = object
 	return c
@@ -9951,7 +9952,7 @@ func (c *ObjectsInsertCall) doRequest(alt string) (*http.Response, error) {
 	for k, v := range c.header_ {
 		reqHeaders[k] = v
 	}
-	reqHeaders.Set("User-Agent", c.s.userAgent())
+	reqHeaders.Set("User-Agent", c.S.userAgent())
 	var body io.Reader = nil
 	body, err := googleapi.WithoutDataWrapper.JSONReader(c.object)
 	if err != nil {
@@ -9960,9 +9961,9 @@ func (c *ObjectsInsertCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders.Set("Content-Type", "application/json")
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
-	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/o")
+	urls := googleapi.ResolveRelative(c.S.BasePath, "b/{bucket}/o")
 	if c.mediaInfo_ != nil {
-		urls = googleapi.ResolveRelative(c.s.BasePath, "/upload/storage/v1/b/{bucket}/o")
+		urls = googleapi.ResolveRelative(c.S.BasePath, "/upload/storage/v1/b/{bucket}/o")
 		c.urlParams_.Set("uploadType", c.mediaInfo_.UploadType())
 	}
 	if body == nil {
@@ -9982,9 +9983,9 @@ func (c *ObjectsInsertCall) doRequest(alt string) (*http.Response, error) {
 		"bucket": c.bucket,
 	})
 	if c.retry != nil {
-		return gensupport.SendRequestWithRetry(c.ctx_, c.s.client, req, c.retry)
+		return gensupport.SendRequestWithRetry(c.ctx_, c.S.client, req, c.retry)
 	}
-	return gensupport.SendRequest(c.ctx_, c.s.client, req)
+	return gensupport.SendRequest(c.ctx_, c.S.client, req)
 }
 
 // Do executes the "storage.objects.insert" call.
@@ -10015,8 +10016,8 @@ func (c *ObjectsInsertCall) Do(opts ...googleapi.CallOption) (*Object, error) {
 	}
 	rx := c.mediaInfo_.ResumableUpload(res.Header.Get("Location"))
 	if rx != nil {
-		rx.Client = c.s.client
-		rx.UserAgent = c.s.userAgent()
+		rx.Client = c.S.client
+		rx.UserAgent = c.S.userAgent()
 		rx.Retry = c.retry
 		ctx := c.ctx_
 		if ctx == nil {
@@ -10170,7 +10171,7 @@ func (c *ObjectsInsertCall) Do(opts ...googleapi.CallOption) (*Object, error) {
 // method id "storage.objects.list":
 
 type ObjectsListCall struct {
-	s            *Service
+	S            *Service
 	bucket       string
 	urlParams_   gensupport.URLParams
 	ifNoneMatch_ string
@@ -10182,7 +10183,7 @@ type ObjectsListCall struct {
 //
 // - bucket: Name of the bucket in which to look for objects.
 func (r *ObjectsService) List(bucket string) *ObjectsListCall {
-	c := &ObjectsListCall{s: r.s, urlParams_: make(gensupport.URLParams)}
+	c := &ObjectsListCall{S: r.s, urlParams_: make(gensupport.URLParams)}
 	c.bucket = bucket
 	return c
 }
@@ -10318,14 +10319,14 @@ func (c *ObjectsListCall) doRequest(alt string) (*http.Response, error) {
 	for k, v := range c.header_ {
 		reqHeaders[k] = v
 	}
-	reqHeaders.Set("User-Agent", c.s.userAgent())
+	reqHeaders.Set("User-Agent", c.S.userAgent())
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
 	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
-	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/o")
+	urls := googleapi.ResolveRelative(c.S.BasePath, "b/{bucket}/o")
 	urls += "?" + c.urlParams_.Encode()
 	req, err := http.NewRequest("GET", urls, body)
 	if err != nil {
@@ -10335,7 +10336,7 @@ func (c *ObjectsListCall) doRequest(alt string) (*http.Response, error) {
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
-	return gensupport.SendRequest(c.ctx_, c.s.client, req)
+	return gensupport.SendRequest(c.ctx_, c.S.client, req)
 }
 
 // Do executes the "storage.objects.list" call.

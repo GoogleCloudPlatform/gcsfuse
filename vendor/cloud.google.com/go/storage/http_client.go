@@ -105,7 +105,6 @@ func newHTTPStorageClient(ctx context.Context, opts ...storageOption) (storageCl
 
 		// Append the emulator host as default endpoint for the user
 		o = append([]option.ClientOption{option.WithoutAuthentication()}, o...)
-
 		o = append(o, internaloption.WithDefaultEndpoint(endpoint))
 		o = append(o, internaloption.WithDefaultMTLSEndpoint(endpoint))
 	}
@@ -117,7 +116,7 @@ func newHTTPStorageClient(ctx context.Context, opts ...storageOption) (storageCl
 		return nil, fmt.Errorf("dialing: %v", err)
 	}
 	// RawService should be created with the chosen endpoint to take account of user override.
-	rawService, err := raw.NewService(ctx, option.WithEndpoint(ep), option.WithHTTPClient(hc))
+	rawService, err := raw.NewService(ctx, option.WithEndpoint(ep), option.WithHTTPClient(hc),option.WithUserAgent(userAgent))
 	if err != nil {
 		return nil, fmt.Errorf("storage client: %v", err)
 	}
@@ -354,6 +353,7 @@ func (c *httpStorageClient) ListObjects(ctx context.Context, bucket string, q *Q
 		if pageSize > 0 {
 			req.MaxResults(int64(pageSize))
 		}
+		fmt.Println("USER AGENT ",req.S.UserAgent)
 		var resp *raw.Objects
 		var err error
 		err = run(it.ctx, func() error {
