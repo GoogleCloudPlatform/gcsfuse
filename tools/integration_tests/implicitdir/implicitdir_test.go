@@ -148,11 +148,11 @@ func createTempFile() string {
 }
 
 // executing test
-func executeTest(flags []string, m *testing.M) (successCode int) {
+func executeTest(flags []string, m *testing.M) (successCode int, err error) {
 	for i := 0; i < len(flags); i++ {
 		if err := mountGcsfuse(flags[i]); err != nil {
 			log.Printf("mountGcsfuse: %v\n", err)
-			return 1
+			return
 		}
 
 		log.Printf("Test log: %s\n", logFile)
@@ -193,7 +193,10 @@ func TestMain(m *testing.M) {
 		"--experimental-enable-storage-client-library=false",
 		"--implicit-dirs=true",
 		"--implicit-dirs=false"}
-	successCode := executeTest(flags, m)
+	successCode, err := executeTest(flags, m)
+	if err != nil {
+		return
+	}
 
 	os.Exit(successCode)
 }
