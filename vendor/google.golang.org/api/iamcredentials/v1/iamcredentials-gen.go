@@ -94,7 +94,7 @@ func NewService(ctx context.Context, opts ...option.ClientOption) (*Service, err
 	opts = append([]option.ClientOption{scopesOption}, opts...)
 	opts = append(opts, internaloption.WithDefaultEndpoint(basePath))
 	opts = append(opts, internaloption.WithDefaultMTLSEndpoint(mtlsBasePath))
-	client, endpoint, err := htransport.NewClient(ctx, opts...)
+	client,ua, endpoint, err := htransport.NewClient(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -105,6 +105,7 @@ func NewService(ctx context.Context, opts ...option.ClientOption) (*Service, err
 	if endpoint != "" {
 		s.BasePath = endpoint
 	}
+	s.UserAgent = ua
 	return s, nil
 }
 

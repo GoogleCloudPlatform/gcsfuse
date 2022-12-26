@@ -20,7 +20,7 @@ import (
 // NewHTTPClient returns an HTTP client for use communicating with a Google cloud
 // service, configured with the given ClientOptions. It also returns the endpoint
 // for the service as specified in the options.
-func NewHTTPClient(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+func NewHTTPClient(ctx context.Context, opts ...option.ClientOption) (*http.Client,string, string, error) {
 	return htransport.NewClient(ctx, opts...)
 }
 

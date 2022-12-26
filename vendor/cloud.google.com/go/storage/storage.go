@@ -184,12 +184,12 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error
 	}
 
 	// htransport selects the correct endpoint among WithEndpoint (user override), WithDefaultEndpoint, and WithDefaultMTLSEndpoint.
-	hc, ep, err := htransport.NewClient(ctx, opts...)
+	hc, ua,ep, err := htransport.NewClient(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("dialing: %v", err)
 	}
 	// RawService should be created with the chosen endpoint to take account of user override.
-	rawService, err := raw.NewService(ctx, option.WithEndpoint(ep), option.WithHTTPClient(hc),option.WithUserAgent(userAgent))
+	rawService, err := raw.NewService(ctx, option.WithEndpoint(ep), option.WithHTTPClient(hc),option.WithUserAgent(ua))
 	if err != nil {
 		return nil, fmt.Errorf("storage client: %v", err)
 	}

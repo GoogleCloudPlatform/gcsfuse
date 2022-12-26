@@ -28,24 +28,24 @@ import (
 // NewClient returns an HTTP client for use communicating with a Google cloud
 // service, configured with the given ClientOptions. It also returns the endpoint
 // for the service as specified in the options.
-func NewClient(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+func NewClient(ctx context.Context, opts ...option.ClientOption) (*http.Client, string,string, error) {
 	settings, err := newSettings(opts)
 	if err != nil {
-		return nil, "", err
+		return nil,"", "", err
 	}
 	clientCertSource, endpoint, err := dca.GetClientCertificateSourceAndEndpoint(settings)
 	if err != nil {
-		return nil, "", err
+		return nil,"", "", err
 	}
 	// TODO(cbro): consider injecting the User-Agent even if an explicit HTTP client is provided?
 	if settings.HTTPClient != nil {
-		return settings.HTTPClient, endpoint, nil
+		return settings.HTTPClient,settings.UserAgent, endpoint, nil
 	}
 	trans, err := newTransport(ctx, defaultBaseTransport(ctx, clientCertSource), settings)
 	if err != nil {
-		return nil, "", err
+		return nil,"", "", err
 	}
-	return &http.Client{Transport: trans}, endpoint, nil
+	return &http.Client{Transport: trans}, settings.UserAgent,endpoint, nil
 }
 
 // NewTransport creates an http.RoundTripper for use communicating with a Google
