@@ -65,11 +65,9 @@ func setUpTestDir() error {
 func mountGcsfuse(flag string) error {
 	mountCmd := exec.Command(
 		binFile,
-		"--implicit-dirs",
 		"--debug_gcs",
 		"--debug_fs",
 		"--debug_fuse",
-		"--experimental-enable-storage-client-library=false",
 		"--log-file="+logFile,
 		"--log-format=text",
 		flag,
@@ -154,7 +152,7 @@ func executeTest(flags []string, m *testing.M) (successCode int) {
 	for i := 0; i < len(flags); i++ {
 		if err := mountGcsfuse(flags[i]); err != nil {
 			log.Printf("mountGcsfuse: %v\n", err)
-			os.Exit(1)
+			return 1
 		}
 
 		log.Printf("Test log: %s\n", logFile)
