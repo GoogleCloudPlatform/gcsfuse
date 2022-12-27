@@ -121,6 +121,23 @@ type Client struct {
 	useGRPC bool
 }
 
+func SetUserAgent(inner http.RoundTripper, userAgent string) http.RoundTripper {
+	return &addUGA{
+		inner: inner,
+		Agent: userAgent,
+	}
+}
+
+type addUGA struct {
+	inner http.RoundTripper
+	Agent string
+}
+
+func (ug *addUGA) RoundTrip(r *http.Request) (*http.Response, error) {
+	r.Header.Set("User-Agent", ug.Agent)
+	return ug.inner.RoundTrip(r)
+}
+
 // NewClient creates a new Google Cloud Storage client.
 // The default scope is ScopeFullControl. To use a different scope, like
 // ScopeReadOnly, use option.WithScopes.
