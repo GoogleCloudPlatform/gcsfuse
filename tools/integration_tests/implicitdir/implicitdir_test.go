@@ -154,6 +154,13 @@ func executeTest(flags []string, m *testing.M) (successCode int, err error) {
 			return
 		}
 
+		// Creating a temporary directory to store files
+		// to be used for testing.
+		tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
+		if err != nil {
+			os.Exit(1)
+		}
+
 		log.Printf("Test log: %s\n", logFile)
 
 		successCode = m.Run()
@@ -185,13 +192,6 @@ func TestMain(m *testing.M) {
 		"--experimental-enable-storage-client-library=false",
 		"--implicit-dirs=true",
 		"--implicit-dirs=false"}
-
-	// Creating a temporary directory to store files
-	// to be used for testing.
-	tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
-	if err != nil {
-		os.Exit(1)
-	}
 
 	successCode, err := executeTest(flags, m)
 	if err != nil {
