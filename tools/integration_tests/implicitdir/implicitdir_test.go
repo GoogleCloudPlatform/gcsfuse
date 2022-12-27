@@ -190,12 +190,12 @@ func TestMain(m *testing.M) {
 	// to be used for testing.
 	tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
 	if err != nil {
-		return
+		os.Exit(1)
 	}
 
 	successCode, err := executeTest(flags, m)
 	if err != nil {
-		return
+		os.Exit(1)
 	}
 
 	os.Exit(successCode)
