@@ -158,7 +158,7 @@ func executeTest(flags []string, m *testing.M) (successCode int, err error) {
 		// to be used for testing.
 		tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
 		if err != nil {
-			os.Exit(1)
+			return
 		}
 
 		log.Printf("Test log: %s\n", logFile)
