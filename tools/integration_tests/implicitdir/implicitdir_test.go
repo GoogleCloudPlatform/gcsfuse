@@ -147,7 +147,6 @@ func createTempFile() string {
 	return fileName
 }
 
-// executing test
 func executeTest(flags []string, m *testing.M) (successCode int, err error) {
 	for i := 0; i < len(flags); i++ {
 		if err = mountGcsfuse(flags[i]); err != nil {
@@ -156,13 +155,6 @@ func executeTest(flags []string, m *testing.M) (successCode int, err error) {
 		}
 
 		log.Printf("Test log: %s\n", logFile)
-
-		// Creating a temporary directory to store files
-		// to be used for testing.
-		tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
-		if err != nil {
-			logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
-		}
 
 		successCode = m.Run()
 
@@ -177,6 +169,7 @@ func executeTest(flags []string, m *testing.M) (successCode int, err error) {
 
 func TestMain(m *testing.M) {
 	flag.Parse()
+	var err error
 
 	if *testBucket == "" {
 		log.Printf("--testbucket must be specified")
@@ -192,6 +185,14 @@ func TestMain(m *testing.M) {
 		"--experimental-enable-storage-client-library=false",
 		"--implicit-dirs=true",
 		"--implicit-dirs=false"}
+
+	// Creating a temporary directory to store files
+	// to be used for testing.
+	tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
+	if err != nil {
+		return
+	}
+
 	successCode, err := executeTest(flags, m)
 	if err != nil {
 		return
