@@ -1,25 +1,29 @@
 git clone https://github.com/facebookresearch/dino.git
 
 # Install gcsfuse
-export GCSFUSE_REPO=gcsfuse-`lsb_release -c -s`
-echo "deb https://packages.cloud.google.com/apt $GCSFUSE_REPO main" | sudo tee /etc/apt/sources.list.d/gcsfuse.list
-curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+# export GCSFUSE_REPO=gcsfuse-`lsb_release -c -s`
+# echo "deb https://packages.cloud.google.com/apt $GCSFUSE_REPO main" | sudo tee /etc/apt/sources.list.d/gcsfuse.list
+# curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
 
-sudo apt-get update
-sudo apt-get install gcsfuse
+# sudo apt-get update
+# sudo apt-get install gcsfuse
 
 
 # Create the mount directory
 mkdir gcsfuse_data
 
 # Mount gcsfuse
-nohup gcsfuse --type-cache-ttl=100000s \
-        --stat-cache-ttl=100000s \
+nohup /home/princer_google_com/gcsfuse/gcsfuse --type-cache-ttl=1728000s \
+        --stat-cache-ttl=1728000s \
         --stat-cache-capacity=1320000 \
         --stackdriver-export-interval=60s \
         --implicit-dirs \
         --disable-http2 \
         --max-conns-per-host=100 \
+        --debug_fs \
+        --debug_gcs \
+        --log-file logs.txt \
+        --log-format text \
        gcsfuse-ml-data gcsfuse_data > gcsfuse.out 2> gcsfuse.err &
 
 #Install pytorch dependency
@@ -28,7 +32,7 @@ pip3 install timm
 # Run the pytorch Dino model
 experiment=dino_experiment
 nohup python3 -m torch.distributed.launch \
-  --nproc_per_node=1 dino/main_dino.py \
+  --nproc_per_node=8 dino/main_dino.py \
   --arch vit_small \
   --num_workers 20 \
   --data_path gcsfuse_data/imagenet/ILSVRC/Data/CLS-LOC/train/ \
@@ -45,5 +49,32 @@ nohup python3 -m torch.distributed.launch \
   --clip_grad 0 \
   --min_lr 0.00001 > $experiment.out 2> $experiment.err &
 
+# Install the go lang and build the 
+wget https://go.dev/dl/go1.19.4.linux-amd64.tar.gz
+rm -rf /usr/local/go && tar -C /usr/local -xzf go1.19.4.linux-amd64.tar.gz
+export PATH=$PATH:/usr/local/go/bin
+
+git clone https://github.com/raj-prince/gcsfuse.git
+cd gcsfuse
+git checkout log_rotation_latest
+go build .
 
 
+# Update the pytorch library code to bypass the kernel-cache
+echo "
+def pil_loader(path: str) -> Image.Image:
+    fd = os.open(path, os.O_DIRECT)
+    f = os.fdopen(fd, "rb")
+    img = Image.open(f)
+    rgb_img = img.convert("RGB")
+    f.close()
+    return rgb_img
+" > bypassed_code.py
+
+folder_file="/usr/local/lib/python3.8/dist-packages/torchvision/datasets/folder.py"
+x=$(grep -n "def pil_loader(path: str) -> Image.Image:" $folder_file | cut -f1 -d ':')
+incr=4
+y=$((x + incr))
+lines="$x,$y"
+sed -i "$lines"'d' $folder_file
+sed -i "$x"'r bypassed_code.py' $folder_file
