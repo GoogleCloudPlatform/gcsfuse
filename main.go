@@ -27,6 +27,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
@@ -95,7 +96,7 @@ func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 	cfg := &gcs.ConnConfig{
 		Url:             flags.Endpoint,
 		TokenSource:     tokenSrc,
-		UserAgent:       fmt.Sprintf("gcsfuse/%s %s", getVersion(), flags.AppName),
+		UserAgent:       getUserAgent(flags.AppName),
 		MaxBackoffSleep: flags.MaxRetrySleep,
 	}
 
@@ -139,12 +140,26 @@ func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
+
+func getUserAgent(appName string) string {
+	var userAgent string
+
+	if os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE") != "" {
+		userAgent = strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), appName, os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")))
+	} else {
+		userAgent = strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s", getVersion(), appName))
+	}
+
+	return userAgent
+}
+
 func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
 	tokenSrc, err := auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl, true)
 	if err != nil {
 		err = fmt.Errorf("get token source: %w", err)
 		return
 	}
+
 	storageClientConfig := storage.StorageClientConfig{
 		DisableHTTP2:        flags.DisableHTTP2,
 		MaxConnsPerHost:     flags.MaxConnsPerHost,
@@ -153,6 +168,7 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 		HttpClientTimeout:   flags.HttpClientTimeout,
 		MaxRetryDuration:    flags.MaxRetryDuration,
 		RetryMultiplier:     flags.RetryMultiplier,
+		UserAgent:           getUserAgent(flags.AppName),
 	}
 
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)

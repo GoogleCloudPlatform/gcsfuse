@@ -262,7 +262,7 @@ func (c *httpStorageClient) GetBucket(ctx context.Context, bucket string, conds 
 	if s.userProject != "" {
 		req.UserProject(s.userProject)
 	}
-
+	
 	var resp *raw.Bucket
 	err = run(ctx, func() error {
 		resp, err = req.Context(ctx).Do()

@@ -43,11 +43,29 @@ type StorageClientConfig struct {
 	HttpClientTimeout   time.Duration
 	MaxRetryDuration    time.Duration
 	RetryMultiplier     float64
+	UserAgent           string
 }
 
 // NewStorageHandle returns the handle of Go storage client containing
 // customized http client. We can configure the http client using the
 // storageClientConfig parameter.
+func SetUserAgent(inner http.RoundTripper, userAgent string) http.RoundTripper {
+	return &addUGA{
+		inner: inner,
+		Agent: userAgent,
+	}
+}
+
+type addUGA struct {
+	inner http.RoundTripper
+	Agent string
+}
+
+func (ug *addUGA) RoundTrip(r *http.Request) (*http.Response, error) {
+	r.Header.Set("User-Agent", ug.Agent)
+	return ug.inner.RoundTrip(r)
+}
+
 func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh StorageHandle, err error) {
 	var transport *http.Transport
 	// Disabling the http2 makes the client more performant.
@@ -78,8 +96,11 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 		Timeout: clientConfig.HttpClientTimeout,
 	}
 
+	httpClient.Transport = SetUserAgent(httpClient.Transport, clientConfig.UserAgent)
+
 	var sc *storage.Client
 	sc, err = storage.NewClient(ctx, option.WithHTTPClient(httpClient))
+
 	if err != nil {
 		err = fmt.Errorf("go storage client creation failed: %w", err)
 		return
