@@ -161,8 +161,6 @@ func executeTest(flags []string, m *testing.M) (successCode int, err error) {
 			return
 		}
 
-		log.Printf("Test log: %s\n", logFile)
-
 		successCode = m.Run()
 
 		os.RemoveAll(mntDir)
@@ -193,8 +191,9 @@ func TestMain(m *testing.M) {
 		"--implicit-dirs=false"}
 
 	successCode, err := executeTest(flags, m)
+	log.Printf("Test log: %s\n", logFile)
 	if err != nil {
-		os.Exit(1)
+		logAndExit(err.Error())
 	}
 
 	os.Exit(successCode)
