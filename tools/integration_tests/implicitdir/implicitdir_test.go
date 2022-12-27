@@ -176,7 +176,6 @@ func executeTest(flags []string, m *testing.M) (successCode int, err error) {
 
 func TestMain(m *testing.M) {
 	flag.Parse()
-	var err error
 
 	if *testBucket == "" {
 		log.Printf("--testbucket must be specified")
