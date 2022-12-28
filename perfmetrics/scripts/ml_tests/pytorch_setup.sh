@@ -29,6 +29,9 @@ nohup /home/princer_google_com/gcsfuse/gcsfuse --type-cache-ttl=1728000s \
 #Install pytorch dependency
 pip3 install timm
 
+# Fix the caching issue, by downloading the issue
+python -c "import torch;torch.hub.list("facebookresearch/xcit:main")"
+
 # Run the pytorch Dino model
 experiment=dino_experiment
 nohup python3 -m torch.distributed.launch \
@@ -64,17 +67,43 @@ go build .
 echo "
 def pil_loader(path: str) -> Image.Image:
     fd = os.open(path, os.O_DIRECT)
-    f = os.fdopen(fd, "rb")
+    f = os.fdopen(fd, \"rb\")
     img = Image.open(f)
-    rgb_img = img.convert("RGB")
+    rgb_img = img.convert(\"RGB\")
     f.close()
     return rgb_img
 " > bypassed_code.py
 
-folder_file="/usr/local/lib/python3.8/dist-packages/torchvision/datasets/folder.py"
+folder_file="/usr/local/lib/python3.6/dist-packages/torchvision/datasets/folder.py"
 x=$(grep -n "def pil_loader(path: str) -> Image.Image:" $folder_file | cut -f1 -d ':')
 incr=4
 y=$((x + incr))
 lines="$x,$y"
 sed -i "$lines"'d' $folder_file
 sed -i "$x"'r bypassed_code.py' $folder_file
+
+
+# Setup log-deleter - although we should not delete any logs - it should be archived.
+echo "
+num_logs=`ls logs* | wc -w`
+
+if [ $num_logs -lt 3 ]
+then
+        exit 0
+fi
+
+logs_list=`ls -tr logs*`
+
+for log_file in $logs_list; do
+        ((num_logs--))
+        `rm $log_file`
+
+        if [ $num_logs -lt 3 ]
+        then
+                exit 0
+        fi
+done
+" > log_deleter.sh
+chmod +x log_deleter.sh
+
+# Cron job setup to execute the log-deleter script periodically
