@@ -147,18 +147,18 @@ func createTempFile() string {
 	return fileName
 }
 
-func executeTest(flags []string, m *testing.M) (successCode int, err error) {
+func executeTest(flags []string, m *testing.M) (successCode int) {
+	var err error
 	for i := 0; i < len(flags); i++ {
 		if err = mountGcsfuse(flags[i]); err != nil {
-			log.Printf("mountGcsfuse: %v\n", err)
-			return
+			logAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 
 		// Creating a temporary directory to store files
 		// to be used for testing.
 		tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
 		if err != nil {
-			return
+			logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
 		}
 
 		successCode = m.Run()
@@ -166,7 +166,7 @@ func executeTest(flags []string, m *testing.M) (successCode int, err error) {
 		os.RemoveAll(mntDir)
 		err = unMount()
 		if err != nil {
-			return
+			logAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
 		}
 	}
 	return
@@ -190,11 +190,6 @@ func TestMain(m *testing.M) {
 		"--implicit-dirs=true",
 		"--implicit-dirs=false"}
 
-	successCode, err := executeTest(flags, m)
-	log.Printf("Test log: %s\n", logFile)
-	if err != nil {
-		logAndExit(err.Error())
-	}
-
+	successCode := executeTest(flags, m)
 	os.Exit(successCode)
 }
