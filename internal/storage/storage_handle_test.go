@@ -16,7 +16,6 @@ package storage
 
 import (
 	"context"
-	"net/http"
 	"testing"
 	"time"
 
@@ -108,22 +107,4 @@ func (t *StorageHandleTest) TestNewStorageHandleWithDifferentUserAgent() {
 	sc.UserAgent = "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df)"
 
 	t.invokeAndVerifyStorageHandle(sc)
-}
-
-func (t *StorageHandleTest) TestSetUserAgent() {
-	var req http.Request
-	var userAgent string = "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df)"
-	header := make(http.Header)
-	header.Set("User-Agent", userAgent)
-	req.Header = header
-
-	roundTripper := &addUGA{
-		inner: nil,
-		Agent: userAgent,
-	}
-
-	r := SetUserAgent(roundTripper, userAgent)
-	r.RoundTrip(&req)
-
-	ExpectEq("gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df)", req.Header.Get("User-Agent"))
 }
