@@ -49,6 +49,7 @@ type StorageClientConfig struct {
 // NewStorageHandle returns the handle of Go storage client containing
 // customized http client. We can configure the http client using the
 // storageClientConfig parameter.
+
 func SetUserAgent(inner http.RoundTripper, userAgent string) http.RoundTripper {
 	return &addUGA{
 		inner: inner,

@@ -16,6 +16,8 @@ package storage
 
 import (
 	"context"
+	"log"
+	"net/http"
 	"testing"
 	"time"
 
@@ -34,6 +36,7 @@ func getDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 		HttpClientTimeout:   800 * time.Millisecond,
 		MaxRetryDuration:    30 * time.Second,
 		RetryMultiplier:     2,
+		UserAgent:           "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df)",
 	}
 }
 
@@ -99,4 +102,32 @@ func (t *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost() {
 	sc.MaxConnsPerHost = 0
 
 	t.invokeAndVerifyStorageHandle(sc)
+}
+
+func (t *StorageHandleTest) TestNewStorageHandleWithDifferentUserAgent() {
+	sc := getDefaultStorageClientConfig()
+	sc.UserAgent = "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df)"
+
+	t.invokeAndVerifyStorageHandle(sc)
+}
+
+func (t *StorageHandleTest) TestSetUserAgent() {
+	var r *http.Request
+	URL := "https://api.nomics.com/v1/currencies/ticker?key=3990ec554a414b59dd85d29b2286dd85&interval=1d&ids="
+	//We make HTTP request using the Get function
+	r, err := http.Get(URL)
+	if err != nil {
+		log.Fatal("ooopsss an error occurred, please try again")
+	}
+	var rp http.RoundTripper
+	//uga := addUGA{
+	//	inner: nil,
+	//	Agent: "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df)",
+	//}
+	rp = SetUserAgent(rp, "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df)")
+	rp.RoundTrip(r)
+	//_, err := roundTripper.RoundTrip(r)
+	//ExpectEq("gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df)", r.Header.Get("User-Agent"))
+	//ExpectEq(nil, err)
+
 }
