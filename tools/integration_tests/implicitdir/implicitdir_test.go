@@ -191,11 +191,10 @@ func TestMain(m *testing.M) {
 		"--implicit-dirs=false"}
 
 	successCode, err := executeTest(flags, m)
+	log.Printf("Test log: %s\n", logFile)
 	if err != nil {
 		logAndExit(err.Error())
 	}
-
-	log.Printf("Test log: %s\n", logFile)
 
 	os.Exit(successCode)
 }
