@@ -107,3 +107,37 @@ done
 chmod +x log_deleter.sh
 
 # Cron job setup to execute the log-deleter script periodically
+
+
+
+# Steps to bootstrap with gpu docker
+
+# Install docker
+sudo apt-get update
+sudo apt-get install -y \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release
+
+
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+
+  sudo apt-get update
+
+  sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin -y
+
+#Install driver
+sudo apt update && sudo apt install -y build-essential
+BASE_URL=https://us.download.nvidia.com/tesla
+DRIVER_VERSION=450.172.01
+curl -fSsl -O $BASE_URL/$DRIVER_VERSION/NVIDIA-Linux-x86_64-$DRIVER_VERSION.run
+
+sudo sh NVIDIA-Linux-x86_64-$DRIVER_VERSION.run -s
+
