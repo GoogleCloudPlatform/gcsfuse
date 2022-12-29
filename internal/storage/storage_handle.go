@@ -97,6 +97,7 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 		Timeout: clientConfig.HttpClientTimeout,
 	}
 
+	// Setting UserAgent through RoundTripper middleware
 	httpClient.Transport = SetUserAgent(httpClient.Transport, clientConfig.UserAgent)
 
 	var sc *storage.Client
