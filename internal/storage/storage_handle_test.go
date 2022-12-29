@@ -123,6 +123,7 @@ func (t *StorageHandleTest) TestSetUserAgent() {
 	}
 
 	r := SetUserAgent(roundTripper, userAgent)
+	r.RoundTrip(&req)
 
 	ExpectEq("gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df)", req.Header.Get("User-Agent"))
 }
