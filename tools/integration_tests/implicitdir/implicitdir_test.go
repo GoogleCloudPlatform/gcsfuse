@@ -92,7 +92,7 @@ func mountGcsfuse(flag string) error {
 
 	output, err := mountCmd.CombinedOutput()
 	if err != nil {
-		log.Printf(cmd)
+		log.Print(cmd)
 		return fmt.Errorf("cannot mount gcsfuse: %w\n", err)
 	}
 	if lines := bytes.Count(output, []byte{'\n'}); lines > 1 {
