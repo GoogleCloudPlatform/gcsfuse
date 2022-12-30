@@ -63,6 +63,21 @@ func setUpTestDir() error {
 }
 
 func mountGcsfuse(flag string) error {
+	cmd := "mounting command: " + binFile + " --debug_gcs" + " --debug_fuse " + flag + " " + *testBucket + " " + mntDir + "\n"
+	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+
+	if err != nil {
+		fmt.Println("Could not open logfile")
+	}
+
+	defer file.Close()
+
+	_, err2 := file.WriteString(cmd)
+
+	if err2 != nil {
+		fmt.Println("Could not write text to logFile")
+	}
+
 	mountCmd := exec.Command(
 		binFile,
 		"--debug_gcs",
@@ -74,6 +89,7 @@ func mountGcsfuse(flag string) error {
 		*testBucket,
 		mntDir,
 	)
+
 	output, err := mountCmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("cannot mount gcsfuse: %w\n", err)
@@ -191,5 +207,6 @@ func TestMain(m *testing.M) {
 		"--implicit-dirs=false"}
 
 	successCode := executeTest(flags, m)
+	log.Printf("Test log: %s\n", logFile)
 	os.Exit(successCode)
 }
