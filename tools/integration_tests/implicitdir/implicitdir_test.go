@@ -75,7 +75,7 @@ func mountGcsfuse(flag string) error {
 	_, err2 := file.WriteString(cmd)
 
 	if err2 != nil {
-		fmt.Println("Could not write text to logFile")
+		fmt.Println("Could not write cmd to logFile")
 	}
 
 	mountCmd := exec.Command(
@@ -92,6 +92,7 @@ func mountGcsfuse(flag string) error {
 
 	output, err := mountCmd.CombinedOutput()
 	if err != nil {
+		log.Printf(cmd)
 		return fmt.Errorf("cannot mount gcsfuse: %w\n", err)
 	}
 	if lines := bytes.Count(output, []byte{'\n'}); lines > 1 {
