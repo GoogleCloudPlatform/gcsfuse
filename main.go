@@ -142,15 +142,7 @@ func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 // Mount the file system according to arguments in the supplied context.
 
 func getUserAgent(appName string) string {
-	var userAgent string
-
-	if os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE") != "" {
-		userAgent = strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), appName, os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")))
-	} else {
-		userAgent = strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s", getVersion(), appName))
-	}
-
-	return userAgent
+	return strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), appName, os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")))
 }
 
 func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {

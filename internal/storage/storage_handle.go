@@ -50,20 +50,13 @@ type StorageClientConfig struct {
 // customized http client. We can configure the http client using the
 // storageClientConfig parameter.
 
-func SetUserAgent(inner http.RoundTripper, userAgent string) http.RoundTripper {
-	return &addUGA{
-		inner: inner,
-		Agent: userAgent,
-	}
+type userAgentRoundTripper struct {
+	inner     http.RoundTripper
+	UserAgent string
 }
 
-type addUGA struct {
-	inner http.RoundTripper
-	Agent string
-}
-
-func (ug *addUGA) RoundTrip(r *http.Request) (*http.Response, error) {
-	r.Header.Set("User-Agent", ug.Agent)
+func (ug *userAgentRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	r.Header.Set("User-Agent", ug.UserAgent)
 	return ug.inner.RoundTrip(r)
 }
 
@@ -98,8 +91,10 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 	}
 
 	// Setting UserAgent through RoundTripper middleware
-	httpClient.Transport = SetUserAgent(httpClient.Transport, clientConfig.UserAgent)
-
+	httpClient.Transport = &userAgentRoundTripper{
+		inner:     httpClient.Transport,
+		UserAgent: clientConfig.UserAgent,
+	}
 	var sc *storage.Client
 	sc, err = storage.NewClient(ctx, option.WithHTTPClient(httpClient))
 	if err != nil {
