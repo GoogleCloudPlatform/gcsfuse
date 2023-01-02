@@ -177,17 +177,18 @@ func executeTest(flags []string, m *testing.M) (successCode int) {
 
 		successCode = m.Run()
 
+		os.RemoveAll(mntDir)
+		err = unMount()
+		if err != nil {
+			logAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
+		}
+
 		// Print flag on which test fails
 		if successCode != 0 {
 			log.Print("Test Fails on " + flags[i])
 			return
 		}
 
-		os.RemoveAll(mntDir)
-		err = unMount()
-		if err != nil {
-			logAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
-		}
 	}
 	return
 }
