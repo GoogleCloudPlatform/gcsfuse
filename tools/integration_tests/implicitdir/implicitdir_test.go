@@ -88,7 +88,7 @@ func mountGcsfuse(flag string) error {
 		"--log-file="+logFile,
 		"--log-format=text",
 		flag,
-		*testBucket,
+		"tulsishah_test",
 		mntDir,
 	)
 
