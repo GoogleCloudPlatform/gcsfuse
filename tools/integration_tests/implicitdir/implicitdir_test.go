@@ -62,8 +62,7 @@ func setUpTestDir() error {
 	return nil
 }
 
-func mountGcsfuse(flag string) error {
-	cmd := "mounting command: " + binFile + " --debug_gcs" + " --debug_fuse " + flag + " " + *testBucket + " " + mntDir + "\n"
+func logMountCmd(cmd string) {
 	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 
 	if err != nil {
@@ -77,6 +76,11 @@ func mountGcsfuse(flag string) error {
 	if err2 != nil {
 		fmt.Println("Could not write cmd to logFile")
 	}
+}
+
+func mountGcsfuse(flag string) error {
+	cmd := "mounting command: " + binFile + " --debug_gcs" + " --debug_fuse " + flag + " " + *testBucket + " " + mntDir + "\n"
+	logMountCmd(cmd)
 
 	mountCmd := exec.Command(
 		binFile,
@@ -179,6 +183,12 @@ func executeTest(flags []string, m *testing.M) (successCode int) {
 		}
 
 		successCode = m.Run()
+		fmt.Println("SuccessCode ", successCode)
+
+		// Print mount cmd on which test fails
+		if successCode != 0 {
+			logMountCmd(flags[i])
+		}
 
 		os.RemoveAll(mntDir)
 		err = unMount()
