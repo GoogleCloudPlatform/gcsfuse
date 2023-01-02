@@ -31,7 +31,7 @@ jobs:
         build_gcsfuse . /tmp ${GITHUB_SHA}
         GODEBUG="asyncpreemptoff=1"
     - name: Test
-      run: go test /gcsfuse/tools/integration_tests/implicitdir/implicitdir_test.go
+      run: go test ./tools/integration_tests/implicitdir/..
   lint:
     name: Lint
     runs-on: ubuntu-20.04
