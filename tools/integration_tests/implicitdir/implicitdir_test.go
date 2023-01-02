@@ -62,7 +62,13 @@ func setUpTestDir() error {
 	return nil
 }
 
-func logMountCmd(cmd string) {
+func mountCommand(flag string) string {
+	cmd := binFile + " --debug_gcs" + " --debug_fuse " + flag + " " + *testBucket + " " + mntDir + "\n"
+	return cmd
+}
+
+func mountGcsfuse(flag string) error {
+	// Adding mount command in logFile
 	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 
 	if err != nil {
@@ -71,16 +77,11 @@ func logMountCmd(cmd string) {
 
 	defer file.Close()
 
-	_, err2 := file.WriteString(cmd)
+	_, err2 := file.WriteString(mountCommand(flag))
 
 	if err2 != nil {
 		fmt.Println("Could not write cmd to logFile")
 	}
-}
-
-func mountGcsfuse(flag string) error {
-	cmd := "mounting command: " + binFile + " --debug_gcs" + " --debug_fuse " + flag + " " + *testBucket + " " + mntDir + "\n"
-	logMountCmd(cmd)
 
 	mountCmd := exec.Command(
 		binFile,
@@ -96,7 +97,7 @@ func mountGcsfuse(flag string) error {
 
 	output, err := mountCmd.CombinedOutput()
 	if err != nil {
-		log.Print(cmd)
+		log.Print(mountCommand(flag))
 		return fmt.Errorf("cannot mount gcsfuse: %w\n", err)
 	}
 	if lines := bytes.Count(output, []byte{'\n'}); lines > 1 {
@@ -183,11 +184,10 @@ func executeTest(flags []string, m *testing.M) (successCode int) {
 		}
 
 		successCode = m.Run()
-		fmt.Println("SuccessCode ", successCode)
 
 		// Print mount cmd on which test fails
 		if successCode != 0 {
-			logMountCmd(flags[i])
+			log.Print("Test Fails on " + mountCommand(flags[i]))
 		}
 
 		os.RemoveAll(mntDir)
