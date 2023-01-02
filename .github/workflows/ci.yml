@@ -29,8 +29,9 @@ jobs:
         go build ./...
         go install ./tools/build_gcsfuse
         build_gcsfuse . /tmp ${GITHUB_SHA}
+        GODEBUG="asyncpreemptoff=1"
     - name: Test
-      run: GODEBUG="asyncpreemptoff=1" go test --testbucket tulsishah_test
+      run: go test --testbucket tulsishah_test
   lint:
     name: Lint
     runs-on: ubuntu-20.04

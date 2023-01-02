@@ -70,15 +70,12 @@ func mountCommand(flag string) string {
 func mountGcsfuse(flag string) error {
 	// Adding mount command in logFile
 	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-
 	if err != nil {
 		fmt.Println("Could not open logfile")
 	}
-
 	defer file.Close()
 
 	_, err2 := file.WriteString(mountCommand(flag))
-
 	if err2 != nil {
 		fmt.Println("Could not write cmd to logFile")
 	}
