@@ -46,10 +46,6 @@ type StorageClientConfig struct {
 	UserAgent           string
 }
 
-// NewStorageHandle returns the handle of Go storage client containing
-// customized http client. We can configure the http client using the
-// storageClientConfig parameter.
-
 type userAgentRoundTripper struct {
 	inner     http.RoundTripper
 	UserAgent string
@@ -60,6 +56,9 @@ func (ug *userAgentRoundTripper) RoundTrip(r *http.Request) (*http.Response, err
 	return ug.inner.RoundTrip(r)
 }
 
+// NewStorageHandle returns the handle of Go storage client containing
+// customized http client. We can configure the http client using the
+// storageClientConfig parameter.
 func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh StorageHandle, err error) {
 	var transport *http.Transport
 	// Disabling the http2 makes the client more performant.
