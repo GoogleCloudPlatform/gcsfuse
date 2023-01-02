@@ -81,14 +81,15 @@ func mountGcsfuse(flag string) error {
 		fmt.Println("Could not open logfile")
 	}
 	defer file.Close()
-	_, err2 := file.WriteString(mountCmd.String())
+
+	_, err2 := file.WriteString(mountCmd.String() + "\n")
 	if err2 != nil {
 		fmt.Println("Could not write cmd to logFile")
 	}
 
 	output, err := mountCmd.CombinedOutput()
 	if err != nil {
-		log.Print(mountCmd.String())
+		log.Println(mountCmd.String())
 		return fmt.Errorf("cannot mount gcsfuse: %w\n", err)
 	}
 	if lines := bytes.Count(output, []byte{'\n'}); lines > 1 {
@@ -176,7 +177,7 @@ func executeTest(flags []string, m *testing.M) (successCode int) {
 
 		successCode = m.Run()
 
-		// Print mount cmd on which test fails
+		// Print flag on which test fails
 		if successCode != 0 {
 			log.Print("Test Fails on " + flags[i])
 			return
