@@ -44,7 +44,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 	AssertNe(nil, storageHandle)
 }
 
-func (t *MainTest) TestGetUserAgentWhenEnvironmentVariableIsDLVM() {
+func (t *MainTest) TestGetUserAgentWhenGcsfuseMetadataImageTypeIsSet() {
 	os.Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
 	defer os.Unsetenv("GCSFUSE_METADATA_IMAGE_TYPE")
 
