@@ -82,8 +82,8 @@ func mountGcsfuse(flag string) error {
 	}
 	defer file.Close()
 
-	_, err2 := file.WriteString(mountCmd.String() + "\n")
-	if err2 != nil {
+	_, err = file.WriteString(mountCmd.String() + "\n")
+	if err != nil {
 		fmt.Println("Could not write cmd to logFile")
 	}
 
