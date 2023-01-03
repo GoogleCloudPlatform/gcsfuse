@@ -102,7 +102,7 @@ func (t *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost() {
 	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWithDifferentUserAgent() {
+func (t *StorageHandleTest) TestNewStorageHandleWithUserAgentSet() {
 	sc := getDefaultStorageClientConfig()
 	sc.UserAgent = "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df)"
 

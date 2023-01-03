@@ -39,6 +39,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 	}
 
 	storageHandle, err := createStorageHandle(flags)
+
 	AssertEq(nil, err)
 	AssertNe(nil, storageHandle)
 }

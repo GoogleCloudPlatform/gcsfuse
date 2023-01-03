@@ -139,8 +139,6 @@ func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 // main logic
 ////////////////////////////////////////////////////////////////////////
 
-// Mount the file system according to arguments in the supplied context.
-
 func getUserAgent(appName string) string {
 	return strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), appName, os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")))
 }
@@ -167,6 +165,7 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 	return
 }
 
+// Mount the file system according to arguments in the supplied context.
 func mountWithArgs(
 	bucketName string,
 	mountPoint string,
