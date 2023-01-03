@@ -74,6 +74,10 @@ func registerSIGINTHandler(mountPoint string) {
 	}()
 }
 
+func getUserAgent(appName string) string {
+	return strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), appName, os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")))
+}
+
 func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 	var tokenSrc oauth2.TokenSource
 	if flags.Endpoint.Hostname() == "storage.googleapis.com" {
@@ -135,14 +139,6 @@ func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 	return
 }
 
-////////////////////////////////////////////////////////////////////////
-// main logic
-////////////////////////////////////////////////////////////////////////
-
-func getUserAgent(appName string) string {
-	return strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), appName, os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")))
-}
-
 func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
 	tokenSrc, err := auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl, true)
 	if err != nil {
@@ -164,6 +160,10 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
 	return
 }
+
+////////////////////////////////////////////////////////////////////////
+// main logic
+////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
 func mountWithArgs(
