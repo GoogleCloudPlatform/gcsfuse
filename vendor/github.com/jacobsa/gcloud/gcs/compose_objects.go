@@ -173,7 +173,5 @@ func (b *bucket) ComposeObjects(
 		return
 	}
 
-	fmt.Println("Component Count ", o.ComponentCount)
-
 	return
 }

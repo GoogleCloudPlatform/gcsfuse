@@ -120,7 +120,6 @@ func (b *bucket) CopyObject(
 		err = fmt.Errorf("toObject: %v", err)
 		return
 	}
-	fmt.Println("Component Count in Copy Object ", o.ComponentCount)
 
 	return
 }

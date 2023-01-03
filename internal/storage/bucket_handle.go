@@ -175,7 +175,6 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 	}
 	// Converting objAttrs to type *Object
 	o = storageutil.ObjectAttrsToBucketObject(objAttrs)
-	fmt.Println("Component Count in Copy Object ", o.ComponentCount)
 	return
 }
 
@@ -351,7 +350,6 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 
 	// Converting attrs to type *Object.
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
-	o.ComponentCount = int64(len(req.Sources))
 
 	return
 }
