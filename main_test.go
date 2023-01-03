@@ -44,7 +44,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 	AssertNe(nil, storageHandle)
 }
 
-func (t *MainTest) TestGetUserAgentWhenGcsfuseMetadataImageTypeIsSet() {
+func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
 	os.Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
 	defer os.Unsetenv("GCSFUSE_METADATA_IMAGE_TYPE")
 
@@ -53,7 +53,7 @@ func (t *MainTest) TestGetUserAgentWhenGcsfuseMetadataImageTypeIsSet() {
 	ExpectEq("gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) AppName DLVM", userAgent)
 }
 
-func (t *MainTest) TestGetUserAgentWhenGcsfuseMetadataImageTypeNotSet() {
+func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsNotSet() {
 	userAgent := getUserAgent("AppName")
 
 	ExpectEq("gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) AppName", userAgent)
