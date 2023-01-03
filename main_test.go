@@ -53,7 +53,7 @@ func (t *MainTest) TestGetUserAgentWhenGcsfuseMetadataImageTypeIsSet() {
 	ExpectEq("gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) AppName DLVM", userAgent)
 }
 
-func (t *MainTest) TestGetUserAgentWhenEnvironmentVariableIsNotSet() {
+func (t *MainTest) TestGetUserAgentWhenGcsfuseMetadataImageTypeNotSet() {
 	userAgent := getUserAgent("AppName")
 
 	ExpectEq("gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) AppName", userAgent)
