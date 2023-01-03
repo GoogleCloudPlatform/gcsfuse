@@ -43,6 +43,7 @@ type StorageClientConfig struct {
 	HttpClientTimeout   time.Duration
 	MaxRetryDuration    time.Duration
 	RetryMultiplier     float64
+	UserAgent           string
 }
 
 // NewStorageHandle returns the handle of Go storage client containing
@@ -78,6 +79,11 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 		Timeout: clientConfig.HttpClientTimeout,
 	}
 
+	// Setting UserAgent through RoundTripper middleware
+	httpClient.Transport = &userAgentRoundTripper{
+		wrapped:   httpClient.Transport,
+		UserAgent: clientConfig.UserAgent,
+	}
 	var sc *storage.Client
 	sc, err = storage.NewClient(ctx, option.WithHTTPClient(httpClient))
 	if err != nil {
