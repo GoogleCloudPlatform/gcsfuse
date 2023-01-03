@@ -10,6 +10,7 @@ sudo docker build . -f perfmetrics/scripts/ml_tests/pytorch_dino_model/Dockerfil
 
 mkdir container_artifacts
 
-# TODO: Please use the KOKORO_ARTIFACTS_DIR instead of exact value.
-sudo docker run --runtime=nvidia --privileged -d -v /tmpfs/src/github/gcsfuse1/container_artifacts:/pytorch_dino/run_artifacts:rw,rshared \
+sudo docker run --runtime=nvidia --name=pytorch_automation_container --privileged -d -v ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts:/pytorch_dino/run_artifacts:rw,rshared \
 --shm-size=128g pytorch-gcsfuse:latest
+
+sudo docker logs -f pytorch_automation_container
