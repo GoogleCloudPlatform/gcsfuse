@@ -1,4 +1,5 @@
-# Install the go lang and build the 
+#!/bin/bash
+
 wget -O go_tar.tar.gz https://go.dev/dl/go1.19.4.linux-amd64.tar.gz
 rm -rf /usr/local/go && tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=$PATH:/usr/local/go/bin
@@ -9,7 +10,6 @@ git checkout build_script_pytorch
 go build .
 cd -
 
-# Mount gcsfuse
 echo "Mounting GCSFuse..."
 nohup /pytorch_dino/gcsfuse/gcsfuse --type-cache-ttl=1728000s \
         --stat-cache-ttl=1728000s \
