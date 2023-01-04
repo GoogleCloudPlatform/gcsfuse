@@ -14,13 +14,13 @@
 
 # Build image with gcsfuse installed:
 # (a) distroless image
-#   > docker build ./ --target distroless -t gcsfuse-distroless:v{GCSFUSE_VERSION} --build-arg GCSFUSE_VERSION={GCSFUSE_VERSION} --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+#   > docker build ./ --target distroless -t gcsfuse-distroless:v{GCSFUSE_VERSION} --build-arg GCSFUSE_VERSION={GCSFUSE_VERSION}
 #   E.g
-#   > docker build ./ --target distroless -t gcsfuse-distroless:v0.41.7 --build-arg GCSFUSE_VERSION=0.41.7  --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+#   > docker build ./ --target distroless -t gcsfuse-distroless:v0.41.7 --build-arg GCSFUSE_VERSION=0.41.7
 # (b) Ubuntu/debian image
-#   > docker build . -t gcsfuse-{OS_NAME}:v{GCSFUSE_VERSION} --build-arg GCSFUSE_VERSION={GCSFUSE_VERSION} --build-arg OS_NAME={OS_NAME} --build-arg OS_VERSION={OS_VERSION} --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+#   > docker build . -t gcsfuse-{OS_NAME}:v{GCSFUSE_VERSION} --build-arg GCSFUSE_VERSION={GCSFUSE_VERSION} --build-arg OS_NAME={OS_NAME} --build-arg OS_VERSION={OS_VERSION}
 #   E.g.
-#   > docker build . -t gcsfuse-ubuntu:v0.41.7 --build-arg GCSFUSE_VERSION=0.41.7 --build-arg OS_NAME=ubuntu --build-arg OS_VERSION=22.04 --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+#   > docker build . -t gcsfuse-ubuntu:v0.41.7 --build-arg GCSFUSE_VERSION=0.41.7 --build-arg OS_NAME=ubuntu --build-arg OS_VERSION=22.04
 
 # Mount bucket to /mnt/gcs on host (/gcs in container):
 # (a) using distroless image
@@ -86,16 +86,6 @@ COPY --from=gcsfuse-package /bin/sh /bin/
 ENV PATH "/bin:$PATH"
 ENV BUCKET_NAME ""
 
-# Labels:https://github.com/opencontainers/image-spec/blob/master/annotations.md
-ARG BUILD_DATE
-ARG GCSFUSE_VERSION
-LABEL "org.opencontainers.artifact.created"=$BUILD_DATE
-LABEL "org.opencontainers.image.title"="GoogleCloudPlatform/gcsfuse-distroless"
-LABEL "org.opencontainers.image.version"="v${GCSFUSE_VERSION}"
-LABEL "org.opencontainers.image.description"="A user-space file system for Google Cloud Storage."
-LABEL "org.opencontainers.image.url"="https://cloud.google.com/storage/docs/gcs-fuse"
-LABEL "org.opencontainers.image.source"="https://github.com/GoogleCloudPlatform/gcsfuse"
-
 CMD gcsfuse --key-file /key.json -o allow_other --file-mode 777 --dir-mode 777 --foreground --implicit-dirs $BUCKET_NAME /gcs
 
 # Ubuntu/debian image with gcsfuse installed
@@ -116,16 +106,5 @@ RUN dpkg -i gcsfuse.deb && rm gcsfuse.deb
 RUN echo "user_allow_other" > /etc/fuse.conf
 
 ENV BUCKET_NAME ""
-
-# Labels:https://github.com/opencontainers/image-spec/blob/master/annotations.md
-ARG BUILD_DATE
-ARG GCSFUSE_VERSION
-ARG OS_NAME
-LABEL "org.opencontainers.artifact.created"=$BUILD_DATE
-LABEL "org.opencontainers.image.title"="GoogleCloudPlatform/gcsfuse-${OS_NAME}"
-LABEL "org.opencontainers.image.version"="v${GCSFUSE_VERSION}"
-LABEL "org.opencontainers.image.description"="A user-space file system for Google Cloud Storage."
-LABEL "org.opencontainers.image.url"="https://cloud.google.com/storage/docs/gcs-fuse"
-LABEL "org.opencontainers.image.source"="https://github.com/GoogleCloudPlatform/gcsfuse"
 
 CMD gcsfuse --key-file /key.json -o allow_other --file-mode 777 --dir-mode 777 --foreground --implicit-dirs $BUCKET_NAME /gcs
