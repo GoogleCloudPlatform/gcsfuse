@@ -62,20 +62,34 @@ func setUpTestDir() error {
 	return nil
 }
 
-func mountGcsfuse() error {
+func mountGcsfuse(flag string) error {
 	mountCmd := exec.Command(
 		binFile,
-		"--implicit-dirs",
 		"--debug_gcs",
 		"--debug_fs",
 		"--debug_fuse",
 		"--log-file="+logFile,
 		"--log-format=text",
+		flag,
 		*testBucket,
 		mntDir,
 	)
+
+	// Adding mount command in logFile
+	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Println("Could not open logfile")
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(mountCmd.String() + "\n")
+	if err != nil {
+		fmt.Println("Could not write cmd to logFile")
+	}
+
 	output, err := mountCmd.CombinedOutput()
 	if err != nil {
+		log.Println(mountCmd.String())
 		return fmt.Errorf("cannot mount gcsfuse: %w\n", err)
 	}
 	if lines := bytes.Count(output, []byte{'\n'}); lines > 1 {
@@ -147,6 +161,38 @@ func createTempFile() string {
 	return fileName
 }
 
+func executeTest(flags []string, m *testing.M) (successCode int) {
+	var err error
+	for i := 0; i < len(flags); i++ {
+		if err = mountGcsfuse(flags[i]); err != nil {
+			logAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
+		}
+
+		// Creating a temporary directory to store files
+		// to be used for testing.
+		tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
+		if err != nil {
+			logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
+		}
+
+		successCode = m.Run()
+
+		os.RemoveAll(mntDir)
+		err = unMount()
+		if err != nil {
+			logAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
+		}
+
+		// Print flag on which test fails
+		if successCode != 0 {
+			log.Print("Test Fails on " + flags[i])
+			return
+		}
+
+	}
+	return
+}
+
 func TestMain(m *testing.M) {
 	flag.Parse()
 
@@ -160,26 +206,12 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	if err := mountGcsfuse(); err != nil {
-		log.Printf("mountGcsfuse: %v\n", err)
-		os.Exit(1)
-	}
+	flags := []string{"--experimental-enable-storage-client-library=true",
+		"--experimental-enable-storage-client-library=false",
+		"--implicit-dirs=true",
+		"--implicit-dirs=false"}
 
+	successCode := executeTest(flags, m)
 	log.Printf("Test log: %s\n", logFile)
-
-	// Creating a temporary directory to store files
-	// to be used for testing.
-	var err error
-	tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
-	if err != nil {
-		logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
-	}
-
-	ret := m.Run()
-
-	// Delete all files from mntDir to delete files from gcs bucket.
-	os.RemoveAll(mntDir)
-	unMount()
-
-	os.Exit(ret)
+	os.Exit(successCode)
 }

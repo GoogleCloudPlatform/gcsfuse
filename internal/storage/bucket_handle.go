@@ -34,12 +34,17 @@ import (
 
 type bucketHandle struct {
 	gcs.Bucket
-	bucket *storage.BucketHandle
+	bucket     *storage.BucketHandle
+	bucketName string
+}
+
+func (bh *bucketHandle) Name() string {
+	return bh.bucketName
 }
 
 func (bh *bucketHandle) NewReader(
 	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -58,17 +63,8 @@ func (bh *bucketHandle) NewReader(
 		obj = obj.Generation(req.Generation)
 	}
 
-	// Creating a NewRangeReader instance.
-	r, err := obj.NewRangeReader(ctx, start, length)
-	if err != nil {
-		err = fmt.Errorf("error in creating a NewRangeReader instance: %v", err)
-		return
-	}
-
-	// Converting io.Reader to io.ReadCloser by adding a no-op closer method
-	// to match the return type interface.
-	rc = io.NopCloser(r)
-	return
+	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
+	return obj.NewRangeReader(ctx, start, length)
 }
 func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
 	obj := b.bucket.Object(req.Name)
@@ -112,20 +108,15 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
 	// only if the current generation for the object name is equal to the given value.
 	// Zero means the object does not exist.
-	if req.GenerationPrecondition != nil {
-		obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition})
-	}
-
-	// MetagenerationMatch - Similar work as GenerationPrecondition, but it is only
-	// meaningful in conjunction with GenerationPrecondition. Here, it will take
-	// the object with the latest generation.
-	if req.MetaGenerationPrecondition != nil {
-		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
-	}
-
-	// Operation will depend on both generation and meta-generation precondition.
-	if req.GenerationPrecondition != nil && req.MetaGenerationPrecondition != nil {
+	// MetaGenerationPrecondition - If non-nil, the object will be created/overwritten
+	// only if the current metaGeneration for the object name is equal to the given value.
+	// Zero means the object does not exist.
+	if req.GenerationPrecondition != nil && *req.GenerationPrecondition != 0 && req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
 		obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition, MetagenerationMatch: *req.MetaGenerationPrecondition})
+	} else if req.GenerationPrecondition != nil && *req.GenerationPrecondition != 0 {
+		obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition})
+	} else if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
+		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
 	}
 
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
@@ -313,6 +304,52 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 			err = fmt.Errorf("Error in updating object: %w", err)
 		}
 	}
+
+	return
+}
+
+func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+	dstObj := b.bucket.Object(req.DstName)
+
+	if req.DstGenerationPrecondition != nil && req.DstMetaGenerationPrecondition != nil {
+		dstObj = dstObj.If(storage.Conditions{GenerationMatch: *req.DstGenerationPrecondition, MetagenerationMatch: *req.DstMetaGenerationPrecondition})
+	} else if req.DstGenerationPrecondition != nil {
+		dstObj = dstObj.If(storage.Conditions{GenerationMatch: *req.DstGenerationPrecondition})
+	} else if req.DstMetaGenerationPrecondition != nil {
+		dstObj = dstObj.If(storage.Conditions{MetagenerationMatch: *req.DstMetaGenerationPrecondition})
+	}
+
+	// Converting the req.Sources list to a list of storage.ObjectHandle as expected by the Go Storage Client.
+	var srcObjList []*storage.ObjectHandle
+	for _, src := range req.Sources {
+		currSrcObj := b.bucket.Object(src.Name)
+		// Switching to requested Generation of the object.
+		// Zero src generation is the latest generation, we are skipping it because by default it will take the latest one
+		if src.Generation != 0 {
+			currSrcObj = currSrcObj.Generation(src.Generation)
+		}
+		srcObjList = append(srcObjList, currSrcObj)
+	}
+
+	// Composing Source Objects to Destination Object using Composer created through Go Storage Client.
+	attrs, err := dstObj.ComposerFrom(srcObjList...).Run(ctx)
+	if err != nil {
+		switch ee := err.(type) {
+		case *googleapi.Error:
+			if ee.Code == http.StatusPreconditionFailed {
+				err = &gcs.PreconditionError{Err: ee}
+			}
+			if ee.Code == http.StatusNotFound {
+				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+			}
+		default:
+			err = fmt.Errorf("Error in composing object: %w", err)
+		}
+		return
+	}
+
+	// Converting attrs to type *Object.
+	o = storageutil.ObjectAttrsToBucketObject(attrs)
 
 	return
 }
