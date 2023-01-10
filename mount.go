@@ -92,7 +92,7 @@ be interacting with the file system.`)
 		StatCacheCapacity:                  flags.StatCacheCapacity,
 		StatCacheTTL:                       flags.StatCacheTTL,
 		EnableMonitoring:                   flags.StackdriverExportInterval > 0,
-		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
+		AppendThreshold:                    2, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 		DebugGCS:                           flags.DebugGCS,
 		EnableStorageClientLibrary:         flags.EnableStorageClientLibrary,

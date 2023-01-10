@@ -66,7 +66,7 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 		StorageClass:    attrs.StorageClass,
 		Deleted:         attrs.Deleted,
 		Updated:         attrs.Updated,
-		//ComponentCount: , (Field not found in attrs returned by Go Client.)
+		//ComponentCount:     attrs.ComponentCount,
 		ContentDisposition: attrs.ContentDisposition,
 		CustomTime:         string(attrs.CustomTime.Format(time.RFC3339)),
 		EventBasedHold:     attrs.EventBasedHold,
@@ -87,6 +87,7 @@ func SetAttrsInWriter(wc *storage.Writer, req *gcs.CreateObjectRequest) *storage
 	wc.CustomTime, _ = time.Parse(time.RFC3339, req.CustomTime)
 	wc.EventBasedHold = req.EventBasedHold
 	wc.StorageClass = req.StorageClass
+	//wc.ObjectAttrs.ComponentCount = 1
 
 	// Converting []*storagev1.ObjectAccessControl to []ACLRule for writer object.
 	var aclRules []storage.ACLRule

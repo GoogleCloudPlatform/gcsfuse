@@ -713,6 +713,8 @@ func (c *httpStorageClient) ComposeObject(ctx context.Context, req *composeObjec
 	if err := run(ctx, retryCall, s.retry, s.idempotent, setRetryHeaderHTTP(call)); err != nil {
 		return nil, err
 	}
+	fmt.Println("Component Count ",obj.ComponentCount)
+
 	return newObject(obj), nil
 }
 func (c *httpStorageClient) RewriteObject(ctx context.Context, req *rewriteObjectRequest, opts ...storageOption) (*rewriteObjectResponse, error) {

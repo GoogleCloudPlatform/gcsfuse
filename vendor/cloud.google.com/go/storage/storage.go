@@ -1083,6 +1083,7 @@ func (o *ObjectAttrs) toRawObject(bucket string) *raw.Object {
 		Acl:                     toRawObjectACL(o.ACL),
 		Metadata:                o.Metadata,
 		CustomTime:              ct,
+		ComponentCount: o.ComponentCount,
 	}
 }
 
@@ -1122,6 +1123,7 @@ func (o *ObjectAttrs) toProtoObject(b string) *storagepb.Object {
 		Generation:          o.Generation,
 		Size:                o.Size,
 		Checksums:           checksums,
+		ComponentCount: int32(o.ComponentCount),
 	}
 }
 
@@ -1319,6 +1321,8 @@ type ObjectAttrs struct {
 	// later value but not to an earlier one. For more information see
 	// https://cloud.google.com/storage/docs/metadata#custom-time .
 	CustomTime time.Time
+
+	ComponentCount int64
 }
 
 // convertTime converts a time in RFC3339 format to time.Time.
@@ -1389,6 +1393,7 @@ func newObject(o *raw.Object) *ObjectAttrs {
 		Updated:                 convertTime(o.Updated),
 		Etag:                    o.Etag,
 		CustomTime:              convertTime(o.CustomTime),
+		ComponentCount: 				 o.ComponentCount,
 	}
 }
 
@@ -1422,6 +1427,7 @@ func newObjectFromProto(o *storagepb.Object) *ObjectAttrs {
 		Deleted:                 convertProtoTime(o.GetDeleteTime()),
 		Updated:                 convertProtoTime(o.GetUpdateTime()),
 		CustomTime:              convertProtoTime(o.GetCustomTime()),
+		ComponentCount: int64(o.ComponentCount),
 	}
 }
 

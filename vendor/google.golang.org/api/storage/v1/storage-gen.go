@@ -1760,6 +1760,7 @@ type Object struct {
 
 	// ComponentCount: Number of underlying components that make up this
 	// object. Components are accumulated by compose operations.
+
 	ComponentCount int64 `json:"componentCount,omitempty"`
 
 	// ContentDisposition: Content-Disposition of the object data.
@@ -8522,6 +8523,7 @@ func (c *ObjectsComposeCall) Do(opts ...googleapi.CallOption) (*Object, error) {
 	if err := gensupport.DecodeResponse(target, res); err != nil {
 		return nil, err
 	}
+
 	return ret, nil
 	// {
 	//   "description": "Concatenates a list of existing objects into a new object in the same bucket.",
