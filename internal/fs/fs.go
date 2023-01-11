@@ -642,14 +642,41 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		}
 
 		var ok bool
-		in, ok = fs.implicitDirInodes[ic.FullName]
-		// If we don't have an entry, create one.
-		if !ok {
-			in = fs.mintInode(ic)
-			fs.implicitDirInodes[in.Name()] = in.(inode.DirInode)
+		var maxTriesToCreateInode = 3
+		for n := 0; n < maxTriesToCreateInode; n++ {
+			in, ok = fs.implicitDirInodes[ic.FullName]
+			// If we don't have an entry, create one.
+			if !ok {
+				in = fs.mintInode(ic)
+				fs.implicitDirInodes[in.Name()] = in.(inode.DirInode)
+				// Since we are creating inode here, there is no chance that something else
+				// is holding the lock for inode. Hence its safe to take lock on inode
+				// without releasing fs.mu.lock.
+				in.Lock()
+				return
+			}
+
+			// If the inode already exists, we need to follow the lock ordering rules
+			// to get the lock. First get inode lock and then fs lock.
+			fs.mu.Unlock()
+			in.Lock()
+			fs.mu.Lock()
+
+			// Check if inode is still valid by the time we got the lock. If not,
+			// its means inode is in the process of getting destroyed. Try creating it
+			// again.
+			if fs.implicitDirInodes[ic.FullName] != in {
+				in.Unlock()
+				continue
+			}
+
+			return
 		}
 
-		in.Lock()
+		// Incase we exhausted the number of tries to createInode, we will return
+		// nil object. Returning nil is handled by callers to throw appropriate
+		// errors back to kernel.
+		in = nil
 		return
 	}
 
@@ -872,16 +899,16 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, N uint64) {
 //
 // Typical usage:
 //
-//     func (fs *fileSystem) doFoo() (err error) {
-//       in, err := fs.lookUpOrCreateInodeIfNotStale(...)
-//       if err != nil {
-//         return
-//       }
+//	func (fs *fileSystem) doFoo() (err error) {
+//	  in, err := fs.lookUpOrCreateInodeIfNotStale(...)
+//	  if err != nil {
+//	    return
+//	  }
 //
-//       defer fs.unlockAndMaybeDisposeOfInode(in, &err)
+//	  defer fs.unlockAndMaybeDisposeOfInode(in, &err)
 //
-//       ...
-//     }
+//	  ...
+//	}
 //
 // LOCKS_REQUIRED(in)
 // LOCKS_EXCLUDED(fs.mu)

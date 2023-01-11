@@ -161,6 +161,8 @@ type SetInodeAttributesOp struct {
 	Handle *HandleID
 
 	// The attributes to modify, or nil for attributes that don't need a change.
+	Uid   *uint32
+	Gid   *uint32
 	Size  *uint64
 	Mode  *os.FileMode
 	Atime *time.Time

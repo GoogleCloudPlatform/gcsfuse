@@ -155,7 +155,7 @@ github.com/grpc-ecosystem/grpc-gateway/utilities
 # github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
 ## explicit
 github.com/jacobsa/daemonize
-# github.com/jacobsa/fuse v0.0.0-20220906065402-c62d7682a662
+# github.com/jacobsa/fuse v0.0.0-20221016084658-a4cd154343d8
 ## explicit; go 1.18
 github.com/jacobsa/fuse
 github.com/jacobsa/fuse/fsutil
@@ -165,7 +165,7 @@ github.com/jacobsa/fuse/fuseutil
 github.com/jacobsa/fuse/internal/buffer
 github.com/jacobsa/fuse/internal/freelist
 github.com/jacobsa/fuse/internal/fusekernel
-# github.com/jacobsa/gcloud v0.0.0-20220926120811-1a153c059feb
+# github.com/jacobsa/gcloud v0.0.0-20230110125859-49bc5a12f398
 ## explicit; go 1.18
 github.com/jacobsa/gcloud/gcs
 github.com/jacobsa/gcloud/gcs/gcscaching

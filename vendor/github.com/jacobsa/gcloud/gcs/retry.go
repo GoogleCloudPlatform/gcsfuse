@@ -430,6 +430,13 @@ func (rb *retryBucket) CreateObject(
 		seeker = bytes.NewReader(data)
 	}
 
+	// Storing the current seek state so that we can use it to reset before making
+	// further retry call.
+	currSeekPos, err := seeker.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return nil, err
+	}
+
 	reqCopy := *req
 
 	// Call through with that request.
@@ -438,7 +445,7 @@ func (rb *retryBucket) CreateObject(
 		fmt.Sprintf("CreateObject(%q)", req.Name),
 		rb.maxSleep,
 		func() (err error) {
-			if _, err = seeker.Seek(0, io.SeekStart); err != nil {
+			if _, err = seeker.Seek(currSeekPos, io.SeekStart); err != nil {
 				return
 			}
 			reqCopy.Contents = seeker
