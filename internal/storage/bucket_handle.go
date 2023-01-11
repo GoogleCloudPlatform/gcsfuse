@@ -350,6 +350,7 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 
 	// Converting attrs to type *Object.
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
+	fmt.Println("Component Count ", o.ComponentCount)
 
 	return
 }

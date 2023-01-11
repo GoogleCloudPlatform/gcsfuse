@@ -1319,6 +1319,11 @@ type ObjectAttrs struct {
 	// later value but not to an earlier one. For more information see
 	// https://cloud.google.com/storage/docs/metadata#custom-time .
 	CustomTime time.Time
+
+	// ComponentCount is the number of objects contained within a composite object.
+	// For non-composite objects, the value will be zero.
+	// This field is read-only.
+	ComponentCount int64
 }
 
 // convertTime converts a time in RFC3339 format to time.Time.
@@ -1389,6 +1394,7 @@ func newObject(o *raw.Object) *ObjectAttrs {
 		Updated:                 convertTime(o.Updated),
 		Etag:                    o.Etag,
 		CustomTime:              convertTime(o.CustomTime),
+		ComponentCount:          o.ComponentCount,
 	}
 }
 
@@ -1422,6 +1428,7 @@ func newObjectFromProto(o *storagepb.Object) *ObjectAttrs {
 		Deleted:                 convertProtoTime(o.GetDeleteTime()),
 		Updated:                 convertProtoTime(o.GetUpdateTime()),
 		CustomTime:              convertProtoTime(o.GetCustomTime()),
+		ComponentCount:    int64(o.ComponentCount),
 	}
 }
 
@@ -1549,6 +1556,7 @@ var attrToFieldMap = map[string]string{
 	"Updated":                 "updated",
 	"Etag":                    "etag",
 	"CustomTime":              "customTime",
+	"ComponentCount":          "componentCount",
 }
 
 // SetAttrSelection makes the query populate only specific attributes of
