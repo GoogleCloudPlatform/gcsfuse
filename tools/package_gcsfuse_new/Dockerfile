@@ -27,7 +27,7 @@ ENV GO111MODULE=auto
 
 ARG GCSFUSE_VERSION
 ARG GCSFUSE_COMMIT_HASH
-ARG GCSFUSE_REPO="github.com/rsaksham-dev/gcsfuse/"
+ARG GCSFUSE_REPO="github.com/googlecloudplatform/gcsfuse/"
 ENV GCSFUSE_PATH "$GOPATH/src/$GCSFUSE_REPO"
 RUN go get ${GCSFUSE_REPO}
 
