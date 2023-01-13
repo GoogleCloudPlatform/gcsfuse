@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Build an image with gcsfuse packages:
-#   > docker build . -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.39.2 GCSFUSE_COMMIT_HASH
+#   > docker build . -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.39.2 --build-arg GCSFUSE_COMMIT_HASH
 # Copy the gcsfuse packages to the host:
 #   > docker run -it -v /tmp:/output gcsfuse-release cp -r /packages /output
 
