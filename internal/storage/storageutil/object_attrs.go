@@ -48,6 +48,9 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 	var md5 [md5.Size]byte
 	copy(md5[:], attrs.MD5)
 
+	// Making a local copy of crc to avoid keeping a reference to attrs instance.
+	crc := attrs.CRC32C
+
 	// Setting the parameters in Object and doing conversions as necessary.
 	return &gcs.Object{
 		Name:            attrs.Name,
@@ -58,7 +61,7 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 		Size:            uint64(attrs.Size),
 		ContentEncoding: attrs.ContentEncoding,
 		MD5:             &md5,
-		CRC32C:          &attrs.CRC32C,
+		CRC32C:          &crc,
 		MediaLink:       attrs.MediaLink,
 		Metadata:        attrs.Metadata,
 		Generation:      attrs.Generation,
