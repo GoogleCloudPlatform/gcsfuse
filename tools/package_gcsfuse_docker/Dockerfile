@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Build an image with gcsfuse packages:
-#   > docker build . -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.39.2
+#   > docker build . -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.39.2 --build-arg GCSFUSE_COMMIT_HASH
 # Copy the gcsfuse packages to the host:
 #   > docker run -it -v /tmp:/output gcsfuse-release cp -r /packages /output
 
@@ -26,12 +26,13 @@ ENV GOOS=linux
 ENV GO111MODULE=auto
 
 ARG GCSFUSE_VERSION
+ARG GCSFUSE_COMMIT_HASH
 ARG GCSFUSE_REPO="github.com/googlecloudplatform/gcsfuse/"
 ENV GCSFUSE_PATH "$GOPATH/src/$GCSFUSE_REPO"
 RUN go get ${GCSFUSE_REPO}
 
 WORKDIR ${GCSFUSE_PATH}
-RUN git checkout "v${GCSFUSE_VERSION}"
+RUN git checkout "${GCSFUSE_COMMIT_HASH}"
 
 ARG GCSFUSE_BIN="/gcsfuse"
 WORKDIR ${GOPATH}
