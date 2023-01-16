@@ -14,13 +14,13 @@
 
 # Build image with gcsfuse installed:
 # (a) distroless image
-#   > docker build ./ --target distroless -t gcsfuse-distroless:v{GCSFUSE_VERSION} --build-arg GCSFUSE_VERSION={GCSFUSE_VERSION}
+#   > docker build ./ --target distroless -t gcsfuse-distroless:v{GCSFUSE_VERSION} --build-arg GCSFUSE_VERSION={GCSFUSE_VERSION} --build-arg GCSFUSE_COMMIT_HASH
 #   E.g
-#   > docker build ./ --target distroless -t gcsfuse-distroless:v0.41.7 --build-arg GCSFUSE_VERSION=0.41.7
+#   > docker build ./ --target distroless -t gcsfuse-distroless:v0.41.7 --build-arg GCSFUSE_VERSION=0.41.7 --build-arg GCSFUSE_COMMIT_HASH
 # (b) Ubuntu/debian image
-#   > docker build . -t gcsfuse-{OS_NAME}:v{GCSFUSE_VERSION} --build-arg GCSFUSE_VERSION={GCSFUSE_VERSION} --build-arg OS_NAME={OS_NAME} --build-arg OS_VERSION={OS_VERSION}
+#   > docker build . -t gcsfuse-{OS_NAME}:v{GCSFUSE_VERSION} --build-arg GCSFUSE_VERSION={GCSFUSE_VERSION} --build-arg GCSFUSE_COMMIT_HASH --build-arg OS_NAME={OS_NAME} --build-arg OS_VERSION={OS_VERSION}
 #   E.g.
-#   > docker build . -t gcsfuse-ubuntu:v0.41.7 --build-arg GCSFUSE_VERSION=0.41.7 --build-arg OS_NAME=ubuntu --build-arg OS_VERSION=22.04
+#   > docker build . -t gcsfuse-ubuntu:v0.41.7 --build-arg GCSFUSE_VERSION=0.41.7 --build-arg GCSFUSE_COMMIT_HASH --build-arg OS_NAME=ubuntu --build-arg OS_VERSION=22.04
 
 # Mount bucket to /mnt/gcs on host (/gcs in container):
 # (a) using distroless image
@@ -43,6 +43,7 @@ ENV GOOS=linux
 ENV GO111MODULE=auto
 
 ARG GCSFUSE_VERSION
+ARG GCSFUSE_COMMIT_HASH
 ARG GCSFUSE_REPO="github.com/googlecloudplatform/gcsfuse/"
 ENV GCSFUSE_PATH "$GOPATH/src/$GCSFUSE_REPO"
 RUN go get ${GCSFUSE_REPO}
@@ -50,7 +51,7 @@ RUN go get ${GCSFUSE_REPO}
 WORKDIR ${GCSFUSE_PATH}
 # Branch name for building through a particular branch.
 ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
-RUN git checkout "${BRANCH_NAME}"
+RUN git checkout "${GCSFUSE_COMMIT_HASH}"
 
 ARG GCSFUSE_BIN="/gcsfuse"
 WORKDIR ${GOPATH}
