@@ -59,7 +59,7 @@ python -c 'import torch;torch.hub.list("facebookresearch/xcit:main")'
 echo "Running the pytorch dino model..."
 experiment=dino_experiment
 python3 -m torch.distributed.launch \
-  --nproc_per_node=8 dino/main_dino.py \
+  --nproc_per_node=2 dino/main_dino.py \
   --arch vit_small \
   --num_workers 20 \
   --data_path gcsfuse_data/imagenet/ILSVRC/Data/CLS-LOC/train/ \
