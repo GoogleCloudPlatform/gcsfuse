@@ -50,6 +50,33 @@ lines="$x,$y"
 sed -i "$lines"'d' $folder_file
 sed -i "$x"'r bypassed_code.py' $folder_file
 
+# Setup log-deleter - although we should not delete any logs - it should be archived.
+echo "
+#!/bin/bash
+num_logs=`ls logs* | wc -w`
+if [ $num_logs -lt 15 ]
+then
+        exit 0
+fi
+
+logs_list=`ls -tr logs*`
+
+for log_file in $logs_list; do
+        num_logs=$((num_logs-1))
+        `rm $log_file`
+
+        if [ $num_logs -lt 15 ]
+        then
+                exit 0
+        fi
+done
+" > log_deleter.sh
+chmod +x log_deleter.sh
+
+# Cron job setup to execute the log-deleter script periodically
+(sudo crontab -l ; echo "0 */2 * * * sh log_deleter.sh") | sort - | uniq - | sudo crontab -
+sudo service cron restart
+
 # Fix the caching issue - comes when we run the model first time with 8
 # nproc_per_node - by downloading the model in single thread environment.
 python -c 'import torch;torch.hub.list("facebookresearch/xcit:main")'
