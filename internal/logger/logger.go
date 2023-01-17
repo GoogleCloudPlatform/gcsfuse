@@ -112,7 +112,7 @@ func UpdateTheWriterInAllLoggers() error {
 
 func HandleReInitLogFile() error {
 	for {
-		time.Sleep(time.Minute / 6)
+		time.Sleep(time.Hour * 6)
 		base_name := filepath.Base(defaultLoggerFactory.file.Name())
 		dot_pos := strings.Index(base_name, ".")
 
