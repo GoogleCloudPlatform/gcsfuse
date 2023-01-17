@@ -42,8 +42,3 @@ distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
 sudo apt-get update
 sudo apt-get install -y nvidia-docker2
 sudo systemctl restart docker
-
-echo "Copying tf util files from bucket"
-gsutil -m cp gs://abhinav-working-dir/resnet.py ./perfmetrics/scripts/continuous_test/ml_tests/tf/setup_scripts/
-gsutil -m cp gs://abhinav-working-dir/files-modified-2.10.0/controller.py ml_tests/tf/setup_scripts/
-gsutil -m cp gs://abhinav-working-dir/files-modified-2.10.0/train_lib.py ml_tests/tf/setup_scripts/
