@@ -101,6 +101,6 @@ python3 -m torch.distributed.launch \
   --teacher_temp 0.07 \
   --warmup_teacher_temp_epochs 30 \
   --clip_grad 0 \
-  --min_lr 0.00001 2> "run_artifacts/$experiment.err"
+  --min_lr 0.00001
 
 echo "Pytorch DINO model completed the training successfully!"
