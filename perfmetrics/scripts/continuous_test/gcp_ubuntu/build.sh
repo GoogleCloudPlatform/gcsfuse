@@ -19,7 +19,7 @@ chmod +x run_load_test_and_fetch_metrics.sh
 ./run_load_test_and_fetch_metrics.sh
 # Copying gcsfuse logs to bucket
 mv log.txt log-$(date '+%Y-%m-%d').txt
-gsutil cp -m log.txt gs://gcs-fuse-dashboard-fio/fio-gcsfuse-logs/
+gsutil cp -m log-$(date '+%Y-%m-%d').txt gs://gcs-fuse-dashboard-fio/fio-gcsfuse-logs/
 
 # Deleting logs older than 10 days
 python3 ../../utils/metrics_util.py gcs/fio-gcsfuse-logs/ 10
