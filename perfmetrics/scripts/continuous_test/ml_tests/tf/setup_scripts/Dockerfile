@@ -21,7 +21,7 @@ RUN sudo apt-get install -y bash ca-certificates
 
 # Install go-lang
 RUN wget -O go_tar.tar.gz https://go.dev/dl/go1.19.4.linux-amd64.tar.gz
-RUN sudo rm -rf /usr/local/go && tar -C /usr/local -xzf go_tar.tar.gz
+RUN sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 RUN export PATH=$PATH:/usr/local/go/bin
 
 # Allow non-root users to specify the allow_other or allow_root mount options
