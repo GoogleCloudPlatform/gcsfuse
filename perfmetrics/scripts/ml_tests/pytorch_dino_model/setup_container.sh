@@ -4,11 +4,17 @@ wget -O go_tar.tar.gz https://go.dev/dl/go1.19.4.linux-amd64.tar.gz
 rm -rf /usr/local/go && tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 
-git clone https://github.com/raj-prince/gcsfuse.git
+# Todo: please update the branch, when log-rotation changes are merged.
+# Log-rotation branch will create the logs.txt file after every 6 hours.
+# Hence, we need to setup the job to delete the logs file if not required.
+git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
 cd gcsfuse
-git checkout build_script_pytorch
+git checkout log_rotation
 go build .
 cd -
+
+# Create a directory for gcsfuse logs
+mkdir gcsfuse_logs
 
 echo "Mounting GCSFuse..."
 nohup /pytorch_dino/gcsfuse/gcsfuse --type-cache-ttl=1728000s \
@@ -20,7 +26,7 @@ nohup /pytorch_dino/gcsfuse/gcsfuse --type-cache-ttl=1728000s \
         --max-conns-per-host=100 \
         --debug_fs \
         --debug_gcs \
-        --log-file logs.txt \
+        --log-file gcsfuse_logs/logs.txt \
         --log-format text \
        gcsfuse-ml-data gcsfuse_data > "run_artifacts/gcsfuse.out" 2> "run_artifacts/gcsfuse.err" &
 
@@ -44,16 +50,16 @@ lines="$x,$y"
 sed -i "$lines"'d' $folder_file
 sed -i "$x"'r bypassed_code.py' $folder_file
 
-# Fix the caching issue, by downloading the issue
+# Fix the caching issue - comes when we run the model first time with 8
+# nproc_per_node - by downloading the model in single thread environment.
 python -c 'import torch;torch.hub.list("facebookresearch/xcit:main")'
 
 # Run the pytorch Dino model
 # We need to run it in foreground mode to make the container running.
-# TODO: Please reset the value of gpu according to the availability
 echo "Running the pytorch dino model..."
 experiment=dino_experiment
 python3 -m torch.distributed.launch \
-  --nproc_per_node=2 dino/main_dino.py \
+  --nproc_per_node=8 dino/main_dino.py \
   --arch vit_small \
   --num_workers 20 \
   --data_path gcsfuse_data/imagenet/ILSVRC/Data/CLS-LOC/train/ \
@@ -68,4 +74,6 @@ python3 -m torch.distributed.launch \
   --teacher_temp 0.07 \
   --warmup_teacher_temp_epochs 30 \
   --clip_grad 0 \
-  --min_lr 0.00001 > "run_artifacts/$experiment.out" 2> "run_artifacts/$experiment.err"
+  --min_lr 0.00001 2> "run_artifacts/$experiment.err"
+
+echo "Pytorch DINO model completed the training successfully!"
