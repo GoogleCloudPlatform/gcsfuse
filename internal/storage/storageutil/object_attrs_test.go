@@ -101,7 +101,7 @@ func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
 	ExpectEq(object.ContentEncoding, attrs.ContentEncoding)
 	ExpectEq(len(object.MD5), len(&md5Expected))
 	ExpectEq(cap(object.MD5), cap(&md5Expected))
-	ExpectEq(object.CRC32C, &attrs.CRC32C)
+	ExpectEq(*object.CRC32C, attrs.CRC32C)
 	ExpectEq(object.MediaLink, attrs.MediaLink)
 	ExpectEq(object.Metadata, attrs.Metadata)
 	ExpectEq(object.Generation, attrs.Generation)
