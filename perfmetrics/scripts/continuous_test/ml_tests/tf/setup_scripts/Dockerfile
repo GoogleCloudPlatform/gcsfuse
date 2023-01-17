@@ -25,6 +25,7 @@ RUN echo "user_allow_other" > /etc/fuse.conf
 WORKDIR "/tf_test/"
 
 COPY ./perfmetrics/scripts/continuous_test/ml_tests/tf/setup_scripts/setup_container.sh .
+RUN chmod +x setup_container.sh
 
 RUN mkdir -p "myBucket"
 ENTRYPOINT ["/bin/bash", "-c", "./setup_container.sh"]

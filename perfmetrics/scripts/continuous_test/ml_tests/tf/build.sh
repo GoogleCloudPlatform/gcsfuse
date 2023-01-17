@@ -15,8 +15,8 @@ sudo docker build . -f perfmetrics/scripts/continuous_test/ml_tests/tf/setup_scr
 
 # Running the container image
 sudo docker run --runtime=nvidia --name tf_model_container --privileged -d \
--v container_artifacts/logs:/home/logs:rw,rshared \
--v container_artifacts/output:/home/output:rw,rshared --shm-size=24g tf-dlc-gcsfuse:latest
+-v ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts/logs:/home/logs:rw,rshared \
+-v ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts/output:/home/output:rw,rshared --shm-size=24g tf-dlc-gcsfuse:latest
 
 sudo docker logs -f tf_model_container
 
