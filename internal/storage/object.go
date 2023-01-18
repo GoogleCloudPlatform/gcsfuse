@@ -23,8 +23,7 @@ import (
 //
 // See here for more information about its fields:
 //
-//    https://cloud.google.com/storage/docs/json_api/v1/objects#resource
-//
+//	https://cloud.google.com/storage/docs/json_api/v1/objects#resource
 type MinObject struct {
 	Name           string
 	Size           uint64
