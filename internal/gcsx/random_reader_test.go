@@ -24,6 +24,7 @@ import (
 	"testing/iotest"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/jacobsa/gcloud/gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
@@ -134,7 +135,7 @@ const sequentialReadSizeInMb = 10
 const sequentialReadSizeInBytes = sequentialReadSizeInMb * MB
 
 type RandomReaderTest struct {
-	object *gcs.Object
+	object *storage.MinObject
 	bucket gcs.MockBucket
 	rr     checkingRandomReader
 }
@@ -148,7 +149,7 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	t.rr.ctx = ti.Ctx
 
 	// Manufacture an object record.
-	t.object = &gcs.Object{
+	t.object = &storage.MinObject{
 		Name:       "foo",
 		Size:       17,
 		Generation: 1234,
