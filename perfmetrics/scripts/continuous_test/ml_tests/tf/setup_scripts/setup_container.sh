@@ -27,7 +27,7 @@ if [ -f "/root/.local/lib/python3.7/site-packages/orbit/controller.py" ]; then e
 gsutil -m cp gs://gcsfuse-ml-data/tf_kokoro_test/resnet.py .
 
 echo "
-def train(self, steps: int, checkpoint_at_completion: bool = True, epochs = 1, clear_kernel_cache = False):
+  def train(self, steps: int, checkpoint_at_completion: bool = True, epochs = 1, clear_kernel_cache = False):
     \"\"\"Runs training until the specified global step count has been reached.
 
     This method makes calls to \`self.trainer.train()\` until the global step
@@ -38,7 +38,7 @@ def train(self, steps: int, checkpoint_at_completion: bool = True, epochs = 1, c
     Args:
       steps: The global step count to train up to.
       checkpoint_at_completion: Whether to save a checkpoint when this method
-        returns (regardless of the checkpointing interval). Defaults to `True`.
+        returns (regardless of the checkpointing interval). Defaults to \`True\`.
     \"\"\"
     self._require(\"trainer\", for_method=\"train\")
     total_steps = steps
@@ -63,7 +63,7 @@ def train(self, steps: int, checkpoint_at_completion: bool = True, epochs = 1, c
 
 controller_file="/root/.local/lib/python3.7/site-packages/orbit/controller.py"
 x=$(grep -n "def train(self, steps: int, checkpoint_at_completion: bool = True):" $controller_file | cut -f1 -d ':')
-y=$(grep -n "def evaluate(self, steps: int = -1) -> Optional[runner.Output]:" $controller_file | cut -f1 -d ':')
+y=$(grep -n "def evaluate(self, steps: int = -1)" $controller_file | cut -f1 -d ':')
 y=$((y - 2))
 lines="$x,$y"
 sed -i "$lines"'d' $controller_file
@@ -71,19 +71,19 @@ sed -i "$x"'r bypassed_code.py' $controller_file
 
 echo "
 def run_experiment(
-    distribution_strategy: tf.distribute.Strategy,
-    task: base_task.Task,
-    mode: str,
-    params: config_definitions.ExperimentConfig,
-    model_dir: str,
-    run_post_eval: bool = False,
-    save_summary: bool = True,
-    train_actions: Optional[List[orbit.Action]] = None,
-    eval_actions: Optional[List[orbit.Action]] = None,
-    trainer: Optional[base_trainer.Trainer] = None,
-    controller_cls=orbit.Controller,
-    epochs: int = 1,
-    clear_kernel_cache: bool = False
+  distribution_strategy: tf.distribute.Strategy,
+  task: base_task.Task,
+  mode: str,
+  params: config_definitions.ExperimentConfig,
+  model_dir: str,
+  run_post_eval: bool = False,
+  save_summary: bool = True,
+  train_actions: Optional[List[orbit.Action]] = None,
+  eval_actions: Optional[List[orbit.Action]] = None,
+  trainer: Optional[base_trainer.Trainer] = None,
+  controller_cls=orbit.Controller,
+  epochs: int = 1,
+  clear_kernel_cache: bool = False
 ) -> Tuple[tf.keras.Model, Mapping[str, Any]]:
   \"\"\"Runs train/eval configured by the experiment params.
 
@@ -131,20 +131,24 @@ x=$(grep -n "def run_experiment(" $train_lib_file | cut -f1 -d ':')
 y=$(grep -n "return runner.run()" $train_lib_file | cut -f1 -d ':')
 lines="$x,$y"
 sed -i "$lines"'d' $train_lib_file
+x=$((x-1))
 sed -i "$x"'r bypassed_code.py' $train_lib_file
 
-echo "def run(self, epochs=1, clear_kernel_cache=False) -> Tuple[tf.keras.Model, Mapping[str, Any]]:" > bypassed_code.py
-x=$(grep -n "def run(self) -> Tuple[tf.keras.Model, Mapping[str, Any]]:" $train_lib_file | cut -f1 -d ':')
+echo "  def run(self, epochs=1, clear_kernel_cache=False) -> Tuple[tf.keras.Model, Mapping[str, Any]]:" > bypassed_code.py
+x=$(grep -n "def run(self) -> Tuple\[tf.keras.Model, Mapping\[str, Any\]\]:" $train_lib_file | cut -f1 -d ':')
 lines="$x,$x"
 sed -i "$lines"'d' $train_lib_file
+x=$((x-1))
 sed -i "$x"'r bypassed_code.py' $train_lib_file
 
-echo "if mode == 'train' or mode == 'train_and_post_eval':
+echo "
+      if mode == 'train' or mode == 'train_and_post_eval':
         self.controller.train(steps=params.trainer.train_steps, clear_kernel_cache=clear_kernel_cache, epochs=epochs)" > bypassed_code.py
 x=$(grep -n "if mode == 'train' or mode == 'train_and_post_eval':" $train_lib_file | cut -f1 -d ':')
 y=$(grep -n "self.controller.train(steps=params.trainer.train_steps)" $train_lib_file | cut -f1 -d ':')
 lines="$x,$y"
 sed -i "$lines"'d' $train_lib_file
+x=$((x-1))
 sed -i "$x"'r bypassed_code.py' $train_lib_file
 
 # Start training the model
