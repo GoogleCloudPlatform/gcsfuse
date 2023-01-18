@@ -6,6 +6,7 @@ sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
 
 # Clone the repo and build gcsfuse
+# TODO change the branch once log_rotation is merged
 git clone "https://github.com/GoogleCloudPlatform/gcsfuse.git"
 cd gcsfuse
 git checkout log_rotation
@@ -14,18 +15,19 @@ cd -
 
 # Mount the bucket
 echo "Mounting the bucket"
-#gcsfuse/gcsfuse --implicit-dirs --max-conns-per-host 100 --disable-http2 --log-format "text" --log-file log.txt --stackdriver-export-interval 60s ml-models-data-gcsfuse myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
+gcsfuse/gcsfuse --implicit-dirs --max-conns-per-host 100 --disable-http2 --log-format "text" --log-file log.txt --stackdriver-export-interval 60s ml-models-data-gcsfuse myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
 
 # Install tensorflow model garden library
 pip3 install --user tf-models-official==2.10.0
 
-# Fail building the container image if folder.py is not at expected location.
+# Fail building the container image if train_lib.py and controller.py are not at expected location.
 if [ -f "/root/.local/lib/python3.7/site-packages/official/core/train_lib.py" ]; then echo "file exists"; else echo "train_lib.py file not present in expected location. Please correct the location. Exiting"; exit 1; fi
 if [ -f "/root/.local/lib/python3.7/site-packages/orbit/controller.py" ]; then echo "file exists"; else echo "controller.py file not present in expected location. Please correct the location. Exiting"; exit 1; fi
 
 # Copying tf util files from bucket
 gsutil -m cp gs://gcsfuse-ml-data/tf_kokoro_test/resnet.py .
 
+# Adding cache clearing functionality and epochs in controller.py
 echo "
   def train(self, steps: int, checkpoint_at_completion: bool = True, epochs = 1, clear_kernel_cache = False):
     \"\"\"Runs training until the specified global step count has been reached.
@@ -69,6 +71,7 @@ lines="$x,$y"
 sed -i "$lines"'d' $controller_file
 sed -i "$x"'r bypassed_code.py' $controller_file
 
+# Adding params for clear_kernel_cache and epochs in train_lib.py
 echo "
 def run_experiment(
   distribution_strategy: tf.distribute.Strategy,
@@ -152,6 +155,6 @@ x=$((x-1))
 sed -i "$x"'r bypassed_code.py' $train_lib_file
 
 # Start training the model
-#nohup python3 -u resnet.py > /home/output/myprogram.out 2> /home/output/myprogram.err &
+python3 -u resnet_runner.py > /home/output/myprogram.out 2> /home/output/myprogram.err &
 
 # TODO cron job

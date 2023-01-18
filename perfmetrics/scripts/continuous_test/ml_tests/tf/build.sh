@@ -18,9 +18,6 @@ sudo docker run --runtime=nvidia --name tf_model_container --privileged -d \
 -v ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts/logs:/home/logs:rw,rshared \
 -v ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts/output:/home/output:rw,rshared --shm-size=24g tf-dlc-gcsfuse:latest
 
-sudo docker exec tf_model_container sh -c "gcsfuse/gcsfuse --implicit-dirs --max-conns-per-host 100 --disable-http2 --log-format \"text\" --log-file log.txt --stackdriver-export-interval 60s ml-models-data-gcsfuse myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &"
-sudo docker exec tf_model_container sh -c "nohup python3 -u resnet.py > /home/output/myprogram.out 2> /home/output/myprogram.err &"
-
 sudo docker logs -f tf_model_container
 
 # TODO: copy logs to a bucket
