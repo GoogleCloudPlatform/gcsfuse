@@ -25,8 +25,8 @@ if [ -f "/root/.local/lib/python3.7/site-packages/orbit/controller.py" ]; then e
 
 # Copying tf util files from bucket
 gsutil -m cp gs://gcsfuse-ml-data/tf_kokoro_test/resnet.py .
-gsutil -m cp gs://gcsfuse-ml-data/tf_kokoro_test/files-modified-2.10.0/controller.py /root/.local/lib/python3.7/site-packages/official/core/
-gsutil -m cp gs://gcsfuse-ml-data/tf_kokoro_test/files-modified-2.10.0/train_lib.py /root/.local/lib/python3.7/site-packages/orbit/
+gsutil -m cp gs://gcsfuse-ml-data/tf_kokoro_test/files-modified-2.10.0/train_lib.py /root/.local/lib/python3.7/site-packages/official/core/
+gsutil -m cp gs://gcsfuse-ml-data/tf_kokoro_test/files-modified-2.10.0/controller.py /root/.local/lib/python3.7/site-packages/orbit/
 
 # Start training the model
 #nohup python3 -u resnet.py > /home/output/myprogram.out 2> /home/output/myprogram.err &
