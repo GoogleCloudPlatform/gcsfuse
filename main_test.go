@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	. "github.com/jacobsa/ogletest"
@@ -49,12 +51,14 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
 	defer os.Unsetenv("GCSFUSE_METADATA_IMAGE_TYPE")
 
 	userAgent := getUserAgent("AppName")
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), "AppName", os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")))
 
-	ExpectEq("gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) AppName DLVM", userAgent)
+	ExpectEq(expectedUserAgent, userAgent)
 }
 
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsNotSet() {
 	userAgent := getUserAgent("AppName")
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s", getVersion(), "AppName"))
 
-	ExpectEq("gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) AppName", userAgent)
+	ExpectEq(expectedUserAgent, userAgent)
 }
