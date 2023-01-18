@@ -14,7 +14,7 @@ cd -
 
 # Mount the bucket
 echo "Mounting the bucket"
-#gcsfuse/gcsfuse --implicit-dirs --max-conns-per-host 100 --disable-http2 --log-format "text" --log-file log.txt --stackdriver-export-interval 60s ml-models-data-gcsfuse myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
+gcsfuse/gcsfuse --implicit-dirs --max-conns-per-host 100 --disable-http2 --log-format "text" --log-file log.txt --stackdriver-export-interval 60s ml-models-data-gcsfuse myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
 
 # Install tensorflow model garden library
 pip3 install --user tf-models-official==2.10.0
@@ -29,6 +29,6 @@ gsutil -m cp gs://gcsfuse-ml-data/tf_kokoro_test/files-modified-2.10.0/train_lib
 gsutil -m cp gs://gcsfuse-ml-data/tf_kokoro_test/files-modified-2.10.0/controller.py /root/.local/lib/python3.7/site-packages/orbit/
 
 # Start training the model
-#nohup python3 -u resnet.py > /home/output/myprogram.out 2> /home/output/myprogram.err &
+nohup python3 -u resnet.py > /home/output/myprogram.out 2> /home/output/myprogram.err &
 
 # TODO cron job
