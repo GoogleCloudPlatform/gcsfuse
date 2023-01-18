@@ -102,8 +102,6 @@ func NewFileInode(
 	localFileCache bool,
 	contentCache *contentcache.ContentCache,
 	mtimeClock timeutil.Clock) (f *FileInode) {
-	minObj := convertObjToMinObject(o)
-
 	// Set up the basic struct.
 	f = &FileInode{
 		bucket:         bucket,
@@ -113,7 +111,7 @@ func NewFileInode(
 		attrs:          attrs,
 		localFileCache: localFileCache,
 		contentCache:   contentCache,
-		src:            minObj,
+		src:            convertObjToMinObject(o),
 	}
 
 	f.lc.Init(id)
