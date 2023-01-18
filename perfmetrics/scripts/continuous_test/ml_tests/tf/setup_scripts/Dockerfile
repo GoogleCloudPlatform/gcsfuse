@@ -28,4 +28,5 @@ COPY ./perfmetrics/scripts/continuous_test/ml_tests/tf/setup_scripts/setup_conta
 RUN chmod +x setup_container.sh
 
 RUN mkdir -p "myBucket"
-ENTRYPOINT ["/bin/bash", "-c", "./setup_container.sh"]
+#ENTRYPOINT ["/bin/bash", "-c", "./setup_container.sh"]
+ENTRYPOINT sleep infinity
