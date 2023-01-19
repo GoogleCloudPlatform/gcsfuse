@@ -5,8 +5,8 @@ This readme contains file descriptions, libraries and model used for the test.
 ## Test description:
 
 * We have used tf2.10 framework along with tf-model-garden library (v2.10) 
-for resnet18 based reliability testing on ImageNet dataset for 2000 epochs
-which runs for roughly 11.5 days.
+for resnet18 based reliability testing on ImageNet dataset for 3000 epochs
+which runs for roughly 14 days.
 
 * The TensorFlow Model Garden is a repository with a number of different 
 implementations of state-of-the-art (SOTA) models and modeling solutions for TensorFlow users.
@@ -17,7 +17,7 @@ and docker engine. And starts experiment using setup_scripts/Dockerfile as conta
 * Dockerfile: Uses Deep learning container tf as a base image.
 
 * setup_container.sh: Entrypoint for the Docker container. Installs gcsfuse and tf-model-garden
-library and starts the experiment on the container
+library and starts the experiment in the container
 
 * resnet_runner.py: python script for running resnet18 model using tf-model-garden library.
 Batch_size can be adjusted on line 34 and number of epochs for the training can be specified in call
