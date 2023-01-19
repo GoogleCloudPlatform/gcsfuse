@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Installs go1.19 on the container, builds gcsfuse using log_rotation file
+# and installs tf-models-official v2.10.0, makes update to include clear_kernel_cache
+# and epochs functionality, and runs the model
+
 # Install go lang
 wget -O go_tar.tar.gz https://go.dev/dl/go1.19.4.linux-amd64.tar.gz
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
@@ -13,7 +17,7 @@ git checkout log_rotation
 go build .
 cd -
 
-# Mount the bucket
+# Mount the bucket and run in background so that docker doesn't keep running after resnet_runner.py fails
 echo "Mounting the bucket"
 gcsfuse/gcsfuse --implicit-dirs --experimental-storage-client-library --max-conns-per-host 100 --disable-http2 --log-format "text" --log-file /home/logs/log.txt --stackdriver-export-interval 60s ml-models-data-gcsfuse myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
 
@@ -152,4 +156,4 @@ x=$((x-1))
 sed -i "$x"'r bypassed_code.py' $train_lib_file
 
 # Start training the model
-python3 -u resnet_runner.py > /home/output/myprogram.out 2> /home/output/myprogram.err
+python3 -u resnet_runner.py

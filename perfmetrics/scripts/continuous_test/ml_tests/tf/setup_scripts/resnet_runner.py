@@ -1,3 +1,6 @@
+# Python script for running resnet18 model
+# Usage: python3 resnet.py
+
 import pprint
 import tempfile
 import os

@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# This dockerfile contains deep learning container as base image
+# and is used for running tf based resnet18 model on the gpu vms for 
+# kokoro test
+
 ARG DLC_IMAGE_NAME
 
 FROM gcr.io/deeplearning-platform-release/${DLC_IMAGE_NAME}
