@@ -15,7 +15,7 @@ cd -
 
 # Mount the bucket
 echo "Mounting the bucket"
-gcsfuse/gcsfuse --implicit-dirs --max-conns-per-host 100 --disable-http2 --log-format "text" --log-file /home/logs/log.txt --stackdriver-export-interval 60s ml-models-data-gcsfuse myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
+gcsfuse/gcsfuse --implicit-dirs --experimental-storage-client-library --max-conns-per-host 100 --disable-http2 --log-format "text" --log-file /home/logs/log.txt --stackdriver-export-interval 60s ml-models-data-gcsfuse myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
 
 # Install tensorflow model garden library
 pip3 install --user tf-models-official==2.10.0
@@ -23,9 +23,6 @@ pip3 install --user tf-models-official==2.10.0
 # Fail building the container image if train_lib.py and controller.py are not at expected location.
 if [ -f "/root/.local/lib/python3.7/site-packages/official/core/train_lib.py" ]; then echo "file exists"; else echo "train_lib.py file not present in expected location. Please correct the location. Exiting"; exit 1; fi
 if [ -f "/root/.local/lib/python3.7/site-packages/orbit/controller.py" ]; then echo "file exists"; else echo "controller.py file not present in expected location. Please correct the location. Exiting"; exit 1; fi
-
-# Copying tf util files from bucket
-gsutil -m cp gs://gcsfuse-ml-data/tf_kokoro_test/resnet.py .
 
 # Adding cache clearing functionality and epochs in controller.py
 echo "

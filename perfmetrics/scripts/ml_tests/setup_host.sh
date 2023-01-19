@@ -2,6 +2,9 @@
 
 # Installing ops agent
 curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh 
+
+# Add the pub_key, for the package verification while installing using apt-get.
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B53DC80D13EDEF05
 sudo bash add-google-cloud-ops-agent-repo.sh --also-install --version=latest
 
 # Installing docker engine
