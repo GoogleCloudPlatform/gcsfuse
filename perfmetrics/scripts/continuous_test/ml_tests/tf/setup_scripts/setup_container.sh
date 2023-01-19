@@ -24,9 +24,6 @@ pip3 install --user tf-models-official==2.10.0
 if [ -f "/root/.local/lib/python3.7/site-packages/official/core/train_lib.py" ]; then echo "file exists"; else echo "train_lib.py file not present in expected location. Please correct the location. Exiting"; exit 1; fi
 if [ -f "/root/.local/lib/python3.7/site-packages/orbit/controller.py" ]; then echo "file exists"; else echo "controller.py file not present in expected location. Please correct the location. Exiting"; exit 1; fi
 
-# Copying tf util files from bucket
-gsutil -m cp gs://gcsfuse-ml-data/tf_kokoro_test/resnet.py .
-
 # Adding cache clearing functionality and epochs in controller.py
 echo "
   def train(self, steps: int, checkpoint_at_completion: bool = True, epochs = 1, clear_kernel_cache = False):
