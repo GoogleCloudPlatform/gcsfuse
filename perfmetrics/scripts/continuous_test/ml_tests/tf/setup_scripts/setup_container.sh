@@ -155,6 +155,6 @@ x=$((x-1))
 sed -i "$x"'r bypassed_code.py' $train_lib_file
 
 # Start training the model
-python3 -u resnet_runner.py > /home/output/myprogram.out 2> /home/output/myprogram.err &
+python3 -u resnet_runner.py > /home/output/myprogram.out 2> /home/output/myprogram.err
 
 # TODO cron job
