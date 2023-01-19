@@ -1,4 +1,6 @@
 #!/bin/bash
+# This file installs docker engine and nvidia driver and nvidia container tool
+# necessary for running dlc container on the vm
 
 # Installing ops agent
 curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh 

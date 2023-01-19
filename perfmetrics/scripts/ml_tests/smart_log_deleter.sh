@@ -1,4 +1,6 @@
 #!/bin/bash
+# Script for deleting older log files in the folder
+# Usage: ./smart_log_deleter.sh $FOLDER_NAME
 num_logs=`ls $1 | wc -w`
 echo $num_logs
 if [ $num_logs -lt 19 ]
