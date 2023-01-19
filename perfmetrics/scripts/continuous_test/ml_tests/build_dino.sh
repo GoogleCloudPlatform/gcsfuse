@@ -3,8 +3,8 @@
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts"
 
 echo "Setting up the machine with Docker and Nvidia Driver"
-chmod +x ml_tests/pytorch_dino_model/setup_host.sh
-source ml_tests/pytorch_dino_model/setup_host.sh
+chmod +x ml_tests/setup_host.sh
+source ml_tests/setup_host.sh
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 echo "Building docker image containing all pytorch libraries..."
