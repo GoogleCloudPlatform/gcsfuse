@@ -20,4 +20,8 @@ sudo docker run --runtime=nvidia --name tf_model_container --privileged -d \
 
 sudo docker logs -f tf_model_container
 
+# Adding crontab entry
+echo "0 */1 * * * sh ./perfmetrics/scripts/utils/smart_log_deleter.sh container_artifacts/logs/" | crontab -
+
 # TODO: copy logs to a bucket
+gsuitl -m cp -r container_artifacts/ gs://gcsfuse-ml-data/tf_kokoro_test
