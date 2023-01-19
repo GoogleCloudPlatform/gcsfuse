@@ -20,6 +20,7 @@ import (
 	"log"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor/tags"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/jacobsa/gcloud/gcs"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
@@ -97,7 +98,7 @@ type RandomReader interface {
 	ReadAt(ctx context.Context, p []byte, offset int64) (n int, err error)
 
 	// Return the record for the object to which the reader is bound.
-	Object() (o *gcs.Object)
+	Object() (o *storage.MinObject)
 
 	// Clean up any resources associated with the reader, which must not be used
 	// again.
@@ -106,7 +107,7 @@ type RandomReader interface {
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.Object, bucket gcs.Bucket, sequentialReadSizeMb int32) RandomReader {
+func NewRandomReader(o *storage.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32) RandomReader {
 	return &randomReader{
 		object:               o,
 		bucket:               bucket,
@@ -119,7 +120,7 @@ func NewRandomReader(o *gcs.Object, bucket gcs.Bucket, sequentialReadSizeMb int3
 }
 
 type randomReader struct {
-	object *gcs.Object
+	object *storage.MinObject
 	bucket gcs.Bucket
 
 	// If non-nil, an in-flight read request and a function for cancelling it.
@@ -256,7 +257,7 @@ func (rr *randomReader) ReadAt(
 	return
 }
 
-func (rr *randomReader) Object() (o *gcs.Object) {
+func (rr *randomReader) Object() (o *storage.MinObject) {
 	o = rr.object
 	return
 }
