@@ -1,4 +1,4 @@
-#i!/bin/bash
+#!/bin/bash
 set -e
 sudo apt-get update
 echo Installing fio
@@ -19,7 +19,7 @@ gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 chmod +x run_load_test_and_fetch_metrics.sh
 ./run_load_test_and_fetch_metrics.sh
 # Copying gcsfuse logs to bucket
-gsutil cp -m $LOG_FILE gs://gcs-fuse-dashboard-fio/fio-gcsfuse-logs/
+gsutil -m cp $LOG_FILE gs://gcs-fuse-dashboard-fio/fio-gcsfuse-logs/
 
 # Deleting logs older than 10 days
 python3 utils/metrics_util.py gcs/fio-gcsfuse-logs/ 10
