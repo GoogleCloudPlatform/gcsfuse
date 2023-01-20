@@ -32,7 +32,3 @@ logs. This will be beneficial for debugging purpose.
 ### Dino Model Logs: container_artifacts/dino-experiment/
 checkpoint*.pth - Model checkpointing. 
 log.txt - Contains the standard ouput we get after execution of DINO model.
-
-
-
-
