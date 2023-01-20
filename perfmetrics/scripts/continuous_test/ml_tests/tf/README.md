@@ -2,14 +2,23 @@
 
 This readme contains file descriptions, libraries and model used for the test.
 
-## Test description:
+## Test description
 
 * We have used tf2.10 framework along with tf-model-garden library (v2.10) 
-for resnet18 based reliability testing on ImageNet dataset for 3000 epochs
+for [resnet18](https://www.tensorflow.org/tfmodels/vision/image_classification) based reliability testing on ImageNet dataset for 3000 epochs
 which runs for roughly 14 days.
 
-* The TensorFlow Model Garden is a repository with a number of different 
+## Packages required
+
+* The [TensorFlow Model Garden](https://github.com/tensorflow/models) is a repository with a number of different 
 implementations of state-of-the-art (SOTA) models and modeling solutions for TensorFlow users.
+
+* [Docker engine](https://docs.docker.com/engine/install/ubuntu/) for running deep learning container based image.
+
+* [Nvidia drivers](https://docs.nvidia.com/datacenter/tesla/tesla-installation-notes/index.html#runfile) for using gpu.
+We have used driver version 450.172.01 for experiments.
+
+## File description
 
 * build.sh: Entrypoint for kokoro vm. Runs setup_host.sh for installing required nvidia drivers
 and docker engine. And starts experiment using setup_scripts/Dockerfile as container image
