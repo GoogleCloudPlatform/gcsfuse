@@ -1,7 +1,7 @@
 # Execution of Pytorch DINO Model
 
 As an automation, we run the pytorch dino model as a docker container. In docker,
-we say use word host to specify the actual VM and container to specify running
+we use word host to specify the actual VM and container to specify running
 docker image. Please find the description of all involved scripts in this 
 automation with their purpose:
 
@@ -13,8 +13,8 @@ docker system, nvidia-driver (gpu based ml training), and some utilities like,
 curl, ca-certificates, lsb-release etc.
 
 ### File: perfmetrics/scripts/ml_test/pytorch/dino/setup_container.sh
-This shell scripts contains the instruction to install gcsfuse, mount GCS-bucket
-using gcsfuse, some log-related handlings and finally runs the pytorch dino model.
+This script contains the instruction to install gcsfuse, mount GCS-bucket
+using gcsfuse, and finally runs the pytorch dino model.
 
 ### File: perfmetrics/scripts/continuous_test/pytorch/dino/build.sh
 This is the parent script of the above two scripts. Firstly, it sets-up the host
@@ -32,3 +32,13 @@ logs. This will be beneficial for debugging purpose.
 ### Dino Model Logs: container_artifacts/dino-experiment/
 checkpoint*.pth - Model checkpointing. 
 log.txt - Contains the standard ouput we get after execution of DINO model.
+
+### Steps to debug Offline
+1. Create an A2 GPU instance with 8 GPU on GCP console.
+2. Create a Working directory, and sets the KOKORO_ARTIFACTS_DIR environment 
+variable - with current working directory.
+3. Create a folder named "github" and clone the gcsfuse repo in that.
+4. Run the below script in the current working directory:
+   **source github/gcsfuse/permetrics/scripts/continuous_test/ml_tests/pytorch/dino/build.sh**
+5. The above command first setups the host and then start running the model
+inside container.
