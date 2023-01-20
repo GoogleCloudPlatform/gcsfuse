@@ -22,10 +22,16 @@ machine after that it creats the docker-image and finally it runs the container
 with the inststructions written in the setup_container.sh.
 
 ## Artifacts after the Executions:
+As a kokoro build execution, we create various logs - (a) GCSFuse logs (b) Dino
+model logs.
 
-### GCSFuse Logs
+### GCSFuse Logs: container_artifacts/gcsfuse_logs
+We mount the gcsfuse with debug flags, this folder contains the running gcsfuse
+logs. This will be beneficial for debugging purpose.
 
-### Dino Model Logs
+### Dino Model Logs: container_artifacts/dino-experiment/
+checkpoint*.pth - Model checkpointing. 
+log.txt - Contains the standard ouput we get after execution of DINO model.
 
 
 
