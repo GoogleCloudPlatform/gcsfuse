@@ -1,5 +1,4 @@
 #!/bin/bash
-<<<<<<< HEAD
 # This file installs docker engine and nvidia driver and nvidia container tool
 # necessary for running dlc container on the vm
 
