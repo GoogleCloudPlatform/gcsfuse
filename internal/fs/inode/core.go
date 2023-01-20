@@ -38,7 +38,7 @@ type Core struct {
 
 	// The bucket that backs up the inode. Required for all inodes except the
 	// base directory that holds all the buckets mounted.
-	Bucket gcsx.SyncerBucket
+	Bucket *gcsx.SyncerBucket
 
 	// The GCS object in the bucket above that backs up the inode. Can be empty
 	// if the inode is the base directory or an implicit directory.
