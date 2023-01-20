@@ -19,7 +19,7 @@ cd -
 
 # Mount the bucket and run in background so that docker doesn't keep running after resnet_runner.py fails
 echo "Mounting the bucket"
-gcsfuse/gcsfuse --implicit-dirs --experimental-enable-storage-client-library --max-conns-per-host 100 --disable-http2 --log-format "text" --log-file /home/logs/log.txt --stackdriver-export-interval 60s ml-models-data-gcsfuse myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
+nohup gcsfuse/gcsfuse --implicit-dirs --experimental-enable-storage-client-library --max-conns-per-host 100 --disable-http2 --log-format "text" --log-file /home/logs/log.txt --stackdriver-export-interval 60s ml-models-data-gcsfuse myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
 
 # Install tensorflow model garden library
 pip3 install --user tf-models-official==2.10.0
