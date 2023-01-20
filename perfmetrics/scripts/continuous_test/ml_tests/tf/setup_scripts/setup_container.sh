@@ -72,6 +72,16 @@ lines="$x,$y"
 sed -i "$lines"'d' $controller_file
 sed -i "$x"'r bypassed_code.py' $controller_file
 
+echo "
+import os
+import time
+" > bypassed_code.py
+
+x=$(grep -n "import time" $controller_file | cut -f1 -d ':')
+lines="$x,$x"
+sed -i "$lines"'d' $controller_file
+sed -i "$x"'r bypassed_code.py' $controller_file
+
 # Adding params for clear_kernel_cache and epochs in train_lib.py
 echo "
 def run_experiment(
