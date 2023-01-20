@@ -1,4 +1,4 @@
-# Kokoro test for tf model reliability testing
+# Kokoro test for tf model reliability using gcsfuse
 
 This readme contains file descriptions, libraries and model used for the test.
 
