@@ -25,7 +25,7 @@ WORKDIR "/pytorch_dino/"
 
 RUN git clone "https://github.com/facebookresearch/dino"
 
-COPY perfmetrics/scripts/ml_tests/pytorch/dino/model/setup_container.sh ./
+COPY perfmetrics/scripts/ml_tests/pytorch/dino/setup_container.sh ./
 RUN chmod +x setup_container.sh
 
 RUN mkdir -p "run_artifacts"

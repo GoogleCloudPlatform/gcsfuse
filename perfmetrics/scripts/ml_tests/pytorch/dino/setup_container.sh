@@ -14,7 +14,7 @@ go build .
 cd -
 
 # Create a directory for gcsfuse logs
-mkdir -p run_artifacts/gcsfuse_logs
+mkdir  run_artifacts/gcsfuse_logs
 
 echo "Mounting GCSFuse..."
 nohup /pytorch_dino/gcsfuse/gcsfuse --type-cache-ttl=1728000s \
