@@ -1,6 +1,6 @@
 # Execution of Pytorch DINO Model
 
-As an automation, we run the pytorch dino model as a docker container. In docker,
+As an automation, we run the pytorch dino model in a docker container. In docker,
 we use word host to specify the actual VM and container to specify running
 docker image. Please find the description of all involved scripts in this 
 automation with their purpose:
@@ -18,12 +18,13 @@ using gcsfuse, and finally runs the pytorch dino model.
 
 ### File: perfmetrics/scripts/continuous_test/pytorch/dino/build.sh
 This is the parent script of the above two scripts. Firstly, it sets-up the host
-machine after that it creats the docker-image and finally it runs the container
+machine after that it creates the docker-image and finally it runs the container
 with the inststructions written in the setup_container.sh.
 
 ## Artifacts after the Executions:
-As a kokoro build execution, we create various logs - (a) GCSFuse logs (b) Dino
-model logs.
+After the execution of kokoro job, we copy two types of logs -
+(a) GCSFuse logs
+(b) Dino model logs.
 
 ### GCSFuse Logs: container_artifacts/gcsfuse_logs
 We mount the gcsfuse with debug flags, this folder contains the running gcsfuse
@@ -31,9 +32,9 @@ logs. This will be beneficial for debugging purpose.
 
 ### Dino Model Logs: container_artifacts/dino-experiment/
 checkpoint*.pth - Model checkpointing. 
-log.txt - Contains the standard ouput we get after execution of DINO model.
+log.txt - Contains the model learning parameter value after each epoch.
 
-### Steps to debug Offline
+### Steps to run the model on VM 
 1. Create an A2 GPU instance with 8 GPU on GCP console.
 2. Create a Working directory, and sets the KOKORO_ARTIFACTS_DIR environment 
 variable - with current working directory.
