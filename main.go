@@ -27,8 +27,10 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 
@@ -72,6 +74,10 @@ func registerSIGINTHandler(mountPoint string) {
 	}()
 }
 
+func getUserAgent(appName string) string {
+	return strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), appName, os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")))
+}
+
 func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 	var tokenSrc oauth2.TokenSource
 	if flags.Endpoint.Hostname() == "storage.googleapis.com" {
@@ -79,6 +85,7 @@ func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 			context.Background(),
 			flags.KeyFile,
 			flags.TokenUrl,
+			flags.ReuseTokenFromUrl,
 		)
 		if err != nil {
 			err = fmt.Errorf("GetTokenSource: %w", err)
@@ -93,7 +100,7 @@ func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 	cfg := &gcs.ConnConfig{
 		Url:             flags.Endpoint,
 		TokenSource:     tokenSrc,
-		UserAgent:       fmt.Sprintf("gcsfuse/%s %s", getVersion(), flags.AppName),
+		UserAgent:       getUserAgent(flags.AppName),
 		MaxBackoffSleep: flags.MaxRetrySleep,
 	}
 
@@ -132,6 +139,28 @@ func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 	return
 }
 
+func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
+	tokenSrc, err := auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl, true)
+	if err != nil {
+		err = fmt.Errorf("get token source: %w", err)
+		return
+	}
+
+	storageClientConfig := storage.StorageClientConfig{
+		DisableHTTP2:        flags.DisableHTTP2,
+		MaxConnsPerHost:     flags.MaxConnsPerHost,
+		MaxIdleConnsPerHost: flags.MaxIdleConnsPerHost,
+		TokenSrc:            tokenSrc,
+		HttpClientTimeout:   flags.HttpClientTimeout,
+		MaxRetryDuration:    flags.MaxRetryDuration,
+		RetryMultiplier:     flags.RetryMultiplier,
+		UserAgent:           getUserAgent(flags.AppName),
+	}
+
+	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // main logic
 ////////////////////////////////////////////////////////////////////////
@@ -155,10 +184,15 @@ func mountWithArgs(
 	// Special case: if we're mounting the fake bucket, we don't need an actual
 	// connection.
 	var conn *gcsx.Connection
+	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
 		mountStatus.Println("Opening GCS connection...")
 
-		conn, err = getConnWithRetry(flags)
+		if flags.EnableStorageClientLibrary {
+			storageHandle, err = createStorageHandle(flags)
+		} else {
+			conn, err = getConnWithRetry(flags)
+		}
 		if err != nil {
 			mountStatus.Printf("Failed to open connection: %v\n", err)
 			err = fmt.Errorf("getConnWithRetry: %w", err)
@@ -174,6 +208,7 @@ func mountWithArgs(
 		mountPoint,
 		flags,
 		conn,
+		storageHandle,
 		mountStatus)
 
 	if err != nil {
@@ -224,7 +259,10 @@ func runCLIApp(c *cli.Context) (err error) {
 		return fmt.Errorf("Resolving path: %w", err)
 	}
 
-	flags := populateFlags(c)
+	flags, err := populateFlags(c)
+	if err != nil {
+		return fmt.Errorf("parsing flags failed: %w", err)
+	}
 
 	if flags.Foreground && flags.LogFile != "" {
 		err = logger.InitLogFile(flags.LogFile, flags.LogFormat)

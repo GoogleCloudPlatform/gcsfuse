@@ -56,6 +56,7 @@ func GetTokenSource(
 	ctx context.Context,
 	keyFile string,
 	tokenUrl string,
+	reuseTokenFromUrl bool,
 ) (tokenSrc oauth2.TokenSource, err error) {
 	// Create the oauth2 token source.
 	const scope = gcs.Scope_FullControl
@@ -65,7 +66,7 @@ func GetTokenSource(
 		tokenSrc, err = newTokenSourceFromPath(ctx, keyFile, scope)
 		method = "newTokenSourceFromPath"
 	} else if tokenUrl != "" {
-		tokenSrc = newProxyTokenSource(ctx, tokenUrl)
+		tokenSrc, err = newProxyTokenSource(ctx, tokenUrl, reuseTokenFromUrl)
 		method = "newProxyTokenSource"
 	} else {
 		tokenSrc, err = google.DefaultTokenSource(ctx, scope)

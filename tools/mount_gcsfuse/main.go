@@ -80,7 +80,11 @@ func makeGcsfuseArgs(
 		case "user", "nouser", "auto", "noauto", "_netdev", "no_netdev":
 
 		// Special case: support mount-like formatting for gcsfuse bool flags.
-		case "implicit_dirs", "disable_http2":
+		case "implicit_dirs",
+			"disable_http2",
+			"experimental_local_file_cache",
+			"experimental_enable_storage_client_library",
+			"reuse_token_from_url":
 			args = append(args, "--"+strings.Replace(name, "_", "-", -1))
 
 		// Special case: support mount-like formatting for gcsfuse string flags.
@@ -100,10 +104,9 @@ func makeGcsfuseArgs(
 			"stat_cache_capacity",
 			"stat_cache_ttl",
 			"type_cache_ttl",
-			"experimental_local_file_cache",
 			"temp_dir",
 			"max_conns_per_host",
-			"experimental_stackdriver_export_interval",
+			"stackdriver_export_interval",
 			"experimental_opentelemetry_collector_address",
 			"log_format",
 			"log_file":
@@ -111,6 +114,7 @@ func makeGcsfuseArgs(
 
 		// Special case: support mount-like formatting for gcsfuse debug flags.
 		case "debug_fuse",
+			"debug_fuse_errors",
 			"debug_fs",
 			"debug_gcs",
 			"debug_http",

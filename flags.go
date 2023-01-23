@@ -29,6 +29,9 @@ import (
 	"github.com/urfave/cli"
 )
 
+// Defines the max value supported by sequential-read-size-mb flag.
+const maxSequentialReadSizeMb = 1024
+
 // Set up custom help text for gcsfuse; in particular the usage section.
 func init() {
 	cli.AppHelpTemplate = `NAME:
@@ -158,6 +161,11 @@ func newApp() (app *cli.App) {
 				Usage: "An url for getting an access token when key-file is absent.",
 			},
 
+			cli.BoolTFlag{
+				Name:  "reuse-token-from-url",
+				Usage: "If false, the token acquired from token-url is not reused.",
+			},
+
 			cli.Float64Flag{
 				Name:  "limit-bytes-per-sec",
 				Value: -1,
@@ -170,6 +178,13 @@ func newApp() (app *cli.App) {
 				Value: -1,
 				Usage: "Operations per second limit, measured over a 30-second window " +
 					"(use -1 for no limit)",
+			},
+
+			cli.IntFlag{
+				Name:  "sequential-read-size-mb",
+				Value: 200,
+				Usage: "File chunk size to read from GCS in one call. Need to specify " +
+					"the value in MB. ChunkSize less than 1MB is not supported",
 			},
 
 			/////////////////////////
@@ -204,6 +219,24 @@ func newApp() (app *cli.App) {
 					"inodes.",
 			},
 
+			cli.DurationFlag{
+				Name:  "http-client-timeout",
+				Value: 800 * time.Millisecond,
+				Usage: "The time duration that client will wait to get response from the server.",
+			},
+
+			cli.DurationFlag{
+				Name:  "max-retry-duration",
+				Value: 30 * time.Second,
+				Usage: "The operation will be retried till the value of max-retry-duration.",
+			},
+
+			cli.Float64Flag{
+				Name:  "retry-multiplier",
+				Value: 2,
+				Usage: "Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.",
+			},
+
 			cli.BoolFlag{
 				Name:  "experimental-local-file-cache",
 				Usage: "Experimental: Cache GCS files on local disk for reads.",
@@ -229,12 +262,18 @@ func newApp() (app *cli.App) {
 					"This is effective when --disable-http2 is set.",
 			},
 
+			cli.IntFlag{
+				Name:  "max-idle-conns-per-host",
+				Value: 100,
+				Usage: "The number of maximum idle connections allowed per server",
+			},
+
 			/////////////////////////
 			// Monitoring & Logging
 			/////////////////////////
 
 			cli.DurationFlag{
-				Name:  "experimental-stackdriver-export-interval",
+				Name:  "stackdriver-export-interval",
 				Value: 0,
 				Usage: "Experimental: Export metrics to stackdriver with this interval. The default value 0 indicates no exporting.",
 			},
@@ -299,6 +338,16 @@ func newApp() (app *cli.App) {
 				Name:  "debug_mutex",
 				Usage: "Print debug messages when a mutex is held too long.",
 			},
+
+			/////////////////////////
+			// Client
+			/////////////////////////
+
+			cli.BoolFlag{
+				Name: "experimental-enable-storage-client-library",
+				Usage: "If true, will use go storage client library " +
+					"otherwise jacobsa/gcloud",
+			},
 		},
 	}
 
@@ -324,18 +373,24 @@ type flagStorage struct {
 	BillingProject                     string
 	KeyFile                            string
 	TokenUrl                           string
+	ReuseTokenFromUrl                  bool
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
+	SequentialReadSizeMb               int32
 
 	// Tuning
-	MaxRetrySleep     time.Duration
-	StatCacheCapacity int
-	StatCacheTTL      time.Duration
-	TypeCacheTTL      time.Duration
-	LocalFileCache    bool
-	TempDir           string
-	DisableHTTP2      bool
-	MaxConnsPerHost   int
+	MaxRetrySleep       time.Duration
+	StatCacheCapacity   int
+	StatCacheTTL        time.Duration
+	TypeCacheTTL        time.Duration
+	HttpClientTimeout   time.Duration
+	MaxRetryDuration    time.Duration
+	RetryMultiplier     float64
+	LocalFileCache      bool
+	TempDir             string
+	DisableHTTP2        bool
+	MaxConnsPerHost     int
+	MaxIdleConnsPerHost int
 
 	// Monitoring & Logging
 	StackdriverExportInterval time.Duration
@@ -351,6 +406,9 @@ type flagStorage struct {
 	DebugHTTP       bool
 	DebugInvariants bool
 	DebugMutex      bool
+
+	// client
+	EnableStorageClientLibrary bool
 }
 
 const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
@@ -421,11 +479,11 @@ func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
 
 // Add the flags accepted by run to the supplied flag set, returning the
 // variables into which the flags will parse.
-func populateFlags(c *cli.Context) (flags *flagStorage) {
+func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 	endpoint, err := url.Parse(c.String("endpoint"))
 	if err != nil {
 		fmt.Printf("Could not parse endpoint")
-		return nil
+		return
 	}
 	flags = &flagStorage{
 		AppName:    c.String("app-name"),
@@ -446,21 +504,27 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		BillingProject:                     c.String("billing-project"),
 		KeyFile:                            c.String("key-file"),
 		TokenUrl:                           c.String("token-url"),
+		ReuseTokenFromUrl:                  c.BoolT("reuse-token-from-url"),
 		EgressBandwidthLimitBytesPerSecond: c.Float64("limit-bytes-per-sec"),
 		OpRateLimitHz:                      c.Float64("limit-ops-per-sec"),
+		SequentialReadSizeMb:               int32(c.Int("sequential-read-size-mb")),
 
 		// Tuning,
-		MaxRetrySleep:     c.Duration("max-retry-sleep"),
-		StatCacheCapacity: c.Int("stat-cache-capacity"),
-		StatCacheTTL:      c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:      c.Duration("type-cache-ttl"),
-		LocalFileCache:    c.Bool("experimental-local-file-cache"),
-		TempDir:           c.String("temp-dir"),
-		DisableHTTP2:      c.Bool("disable-http2"),
-		MaxConnsPerHost:   c.Int("max-conns-per-host"),
+		MaxRetrySleep:       c.Duration("max-retry-sleep"),
+		StatCacheCapacity:   c.Int("stat-cache-capacity"),
+		StatCacheTTL:        c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:        c.Duration("type-cache-ttl"),
+		HttpClientTimeout:   c.Duration("http-client-timeout"),
+		MaxRetryDuration:    c.Duration("max-retry-duration"),
+		RetryMultiplier:     c.Float64("retry-multiplier"),
+		LocalFileCache:      c.Bool("experimental-local-file-cache"),
+		TempDir:             c.String("temp-dir"),
+		DisableHTTP2:        c.Bool("disable-http2"),
+		MaxConnsPerHost:     c.Int("max-conns-per-host"),
+		MaxIdleConnsPerHost: c.Int("max-idle-conns-per-host"),
 
 		// Monitoring & Logging
-		StackdriverExportInterval: c.Duration("experimental-stackdriver-export-interval"),
+		StackdriverExportInterval: c.Duration("stackdriver-export-interval"),
 		OtelCollectorAddress:      c.String("experimental-opentelemetry-collector-address"),
 		LogFile:                   c.String("log-file"),
 		LogFormat:                 c.String("log-format"),
@@ -473,11 +537,24 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		DebugHTTP:       c.Bool("debug_http"),
 		DebugInvariants: c.Bool("debug_invariants"),
 		DebugMutex:      c.Bool("debug_mutex"),
+
+		// Client,
+		EnableStorageClientLibrary: c.Bool("experimental-enable-storage-client-library"),
 	}
 
 	// Handle the repeated "-o" flag.
 	for _, o := range c.StringSlice("o") {
 		mountpkg.ParseOptions(flags.MountOptions, o)
+	}
+
+	err = validateFlags(flags)
+
+	return
+}
+
+func validateFlags(flags *flagStorage) (err error) {
+	if flags.SequentialReadSizeMb < 1 || flags.SequentialReadSizeMb > maxSequentialReadSizeMb {
+		err = fmt.Errorf("SequentialReadSizeMb should be less than %d", maxSequentialReadSizeMb)
 	}
 
 	return

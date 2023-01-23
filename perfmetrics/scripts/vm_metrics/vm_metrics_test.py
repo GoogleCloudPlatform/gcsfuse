@@ -6,9 +6,10 @@ from unittest import mock
 import vm_metrics
 from unittest import TestCase
 from google.cloud import monitoring_v3
+from google.api import distribution_pb2
 import os
 
-TEST_PATH = './vm_metrics/testdata'
+TEST_PATH = './testdata'
 
 CPU_UTI_METRIC_TYPE = 'compute.googleapis.com/instance/cpu/utilization'
 RECEIVED_BYTES_COUNT_METRIC_TYPE = 'compute.googleapis.com/instance/network/received_bytes_count'
@@ -95,12 +96,70 @@ def dict_to_obj(dict1):
   """Converting dictionary into object."""
   return json.loads(json.dumps(dict1), object_hook=MetricsResponseObject)
 
+def create_metrics_value_by_type(value, value_type) -> float:
+  """Converts the value in json data into appropriate type defined by value_type.
+
+    Args:
+      value (object): The value object from json data
+      value_type (int) : Integer representing the value type of the object, refer
+                        https://cloud.google.com/monitoring/api/ref_v3/rest/v3/TypedValue.
+  """
+  if value_type == 1:
+    return monitoring_v3.TypedValue({
+        "bool_value": value.bool_value
+    })
+  elif value_type == 2:
+    return monitoring_v3.TypedValue({
+        "int64_value": value.int64_value
+    })
+  elif value_type == 3:
+    return monitoring_v3.TypedValue({
+        "double_value": value.double_value
+    })
+  elif value_type == 4:
+    return monitoring_v3.TypedValue({
+        "string_value": value.string_value
+    })
+  elif value_type == 5:
+    explicit = distribution_pb2.Distribution.BucketOptions.Explicit()
+    explicit.bounds.append(value.distribution_value.bucket_options.explicit_buckets.bounds)
+    bucket_options = distribution_pb2.Distribution.BucketOptions()
+    bucket_options.explicit_buckets.CopyFrom(explicit)
+
+    distribution = distribution_pb2.Distribution()
+    distribution.count = value.distribution_value.count
+    distribution.mean = value.distribution_value.mean
+    distribution.sum_of_squared_deviation = value.distribution_value.sum_of_squared_deviation
+    distribution.bucket_options.CopyFrom(bucket_options)
+
+    return monitoring_v3.TypedValue({
+        "distribution_value": distribution
+    })
+  else:
+    raise Exception('Unhandled Value type')
 
 def get_response_from_filename(filename):
   response_filepath = os.path.join(TEST_PATH, filename + '.json')
   metrics_file = open(response_filepath, 'r')
   metrics_response = dict_to_obj(json.load(metrics_file))
-  return metrics_response
+  metrics_file.close()
+
+  # Timeseries doesn't have a pb2 file. Hence we cannot deserialize json into
+  # timeseries object. Explicitly creating a timeseries object by reading json
+  # data as dictionary.
+  time_series = monitoring_v3.TimeSeries()
+  time_series.metric.type = metrics_response.metric.type
+  time_series.value_type = metrics_response.value_type
+  time_series.resource.type = metrics_response.resource.type
+  for point in metrics_response.points:
+    interval = monitoring_v3.TimeInterval(
+        {"end_time": {"seconds": point.interval.end_time.seconds},
+         "start_time": {"seconds": point.interval.start_time.seconds}}
+    )
+    metric_value = create_metrics_value_by_type(point.value, metrics_response.value_type)
+    point = monitoring_v3.Point({"interval": interval, "value": metric_value})
+    time_series.points.append(point)
+  return time_series
 
 
 class TestVmmetricsTest(unittest.TestCase):
@@ -108,20 +167,20 @@ class TestVmmetricsTest(unittest.TestCase):
   def setUp(self):
     super().setUp()
     self.vm_metrics_obj = vm_metrics.VmMetrics()
-  
+
   def test_parse_metric_value_by_type_raises_exception(self):
     metric = get_response_from_filename('peak_cpu_utilization_response')
     value_object = metric.points[0].value
     with self.assertRaises(Exception):
       vm_metrics._parse_metric_value_by_type(value_object,0)
-  
+
   def test_parse_metric_value_by_type_double(self):
     metric = get_response_from_filename('peak_cpu_utilization_response')
     value_object = metric.points[0].value
     parsed_value = vm_metrics._parse_metric_value_by_type(value_object, metric.value_type)
 
     self.assertEqual(0.23810199799611129, parsed_value)
-  
+
   def test_parse_metric_value_by_type_distribution(self):
     metric = get_response_from_filename('ops_mean_latency_response')
     value_object = metric.points[0].value
@@ -135,13 +194,13 @@ class TestVmmetricsTest(unittest.TestCase):
     parsed_value = vm_metrics._parse_metric_value_by_type(value_object, metric.value_type)
 
     self.assertEqual(759282126, parsed_value)
-  
+
   def test_get_metric_filter_compute(self):
     metric_type = "metric_type"
     extra_filter = "extra_filter"
     expected_metric_filter = 'metric.type = "{}" AND metric.label.instance_name ={} AND {}'.format(metric_type, TEST_INSTANCE, extra_filter)
     self.assertEqual(vm_metrics._get_metric_filter('compute', metric_type, TEST_INSTANCE, extra_filter), expected_metric_filter)
-  
+
   def test_get_metric_filter_custom(self):
     metric_type = "metric_type"
     extra_filter = "extra_filter"
@@ -165,7 +224,7 @@ class TestVmmetricsTest(unittest.TestCase):
     with self.assertRaises(vm_metrics.NoValuesError):
       self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC, TEST_END_TIME_SEC,
                                        TEST_INSTANCE, TEST_PERIOD, CPU_UTI_PEAK)
-  
+
   @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_for_cpu_utilization_mean_throws_no_values_error(
       self, mock_get_api_response):
@@ -183,7 +242,7 @@ class TestVmmetricsTest(unittest.TestCase):
     with self.assertRaises(vm_metrics.NoValuesError):
       self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC, TEST_END_TIME_SEC,
                                        TEST_INSTANCE, TEST_PERIOD, REC_BYTES_PEAK)
-  
+
   @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_for_received_bytes_mean_throws_no_values_error(
       self, mock_get_api_response):
@@ -201,7 +260,7 @@ class TestVmmetricsTest(unittest.TestCase):
     with self.assertRaises(vm_metrics.NoValuesError):
       self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC, TEST_END_TIME_SEC,
                                        TEST_INSTANCE, TEST_PERIOD, OPS_LATENCY_MEAN)
-  
+
   @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_ops_read_bytes_count_throws_no_values_error(
       self, mock_get_api_response):
@@ -210,7 +269,7 @@ class TestVmmetricsTest(unittest.TestCase):
     with self.assertRaises(vm_metrics.NoValuesError):
       self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC, TEST_END_TIME_SEC,
                                        TEST_INSTANCE, TEST_PERIOD, READ_BYTES_COUNT)
-  
+
   @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_ops_error_count_returns_list_of_zeroes(
       self, mock_get_api_response):
@@ -266,7 +325,7 @@ class TestVmmetricsTest(unittest.TestCase):
         TEST_START_TIME_SEC, TEST_END_TIME_SEC, TEST_INSTANCE, TEST_PERIOD, REC_BYTES_MEAN)
 
     self.assertEqual(rec_bytes_mean_data, EXPECTED_RECEIVED_BYTES_MEAN_DATA)
-  
+
 
   @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_for_ops_mean_latency(self, mock_get_api_response):
@@ -278,7 +337,7 @@ class TestVmmetricsTest(unittest.TestCase):
         TEST_START_TIME_SEC, TEST_END_TIME_SEC, TEST_INSTANCE, TEST_PERIOD, OPS_LATENCY_MEAN)
 
     self.assertEqual(ops_latency_mean_data, EXPECTED_OPS_LATENCY_MEAN_DATA)
-  
+
   @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_for_read_bytes_count(self, mock_get_api_response):
     metrics_response = get_response_from_filename(
@@ -289,7 +348,7 @@ class TestVmmetricsTest(unittest.TestCase):
         TEST_START_TIME_SEC, TEST_END_TIME_SEC, TEST_INSTANCE, TEST_PERIOD, READ_BYTES_COUNT)
 
     self.assertEqual(read_bytes_count_data, EXPECTED_READ_BYTES_COUNT_DATA)
-  
+
   @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_for_ops_error_count(self, mock_get_api_response):
     metrics_response = get_response_from_filename(

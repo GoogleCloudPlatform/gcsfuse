@@ -43,14 +43,15 @@ func init() { RegisterTestSuite(&FlagsTest{}) }
 func parseArgs(args []string) (flags *flagStorage) {
 	// Create a CLI app, and abuse it to snoop on the flags.
 	app := newApp()
+	var err error
 	app.Action = func(appCtx *cli.Context) {
-		flags = populateFlags(appCtx)
+		flags, err = populateFlags(appCtx)
 	}
 
 	// Simulate argv.
 	fullArgs := append([]string{"some_app"}, args...)
 
-	err := app.Run(fullArgs)
+	err = app.Run(fullArgs)
 	AssertEq(nil, err)
 
 	return
@@ -77,12 +78,14 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq("", f.KeyFile)
 	ExpectEq(-1, f.EgressBandwidthLimitBytesPerSecond)
 	ExpectEq(-1, f.OpRateLimitHz)
+	ExpectTrue(f.ReuseTokenFromUrl)
 
 	// Tuning
 	ExpectEq(4096, f.StatCacheCapacity)
 	ExpectEq(time.Minute, f.StatCacheTTL)
 	ExpectEq(time.Minute, f.TypeCacheTTL)
 	ExpectEq("", f.TempDir)
+	ExpectEq(2, f.RetryMultiplier)
 
 	// Logging
 	ExpectTrue(f.DebugFuseErrors)
@@ -97,11 +100,13 @@ func (t *FlagsTest) Defaults() {
 func (t *FlagsTest) Bools() {
 	names := []string{
 		"implicit-dirs",
+		"reuse-token-from-url",
 		"debug_fuse_errors",
 		"debug_fuse",
 		"debug_gcs",
 		"debug_http",
 		"debug_invariants",
+		"experimental-enable-storage-client-library",
 	}
 
 	var args []string
@@ -115,11 +120,13 @@ func (t *FlagsTest) Bools() {
 
 	f = parseArgs(args)
 	ExpectTrue(f.ImplicitDirs)
+	ExpectTrue(f.ReuseTokenFromUrl)
 	ExpectTrue(f.DebugFuseErrors)
 	ExpectTrue(f.DebugFuse)
 	ExpectTrue(f.DebugGCS)
 	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
+	ExpectTrue(f.EnableStorageClientLibrary)
 
 	// --foo=false form
 	args = nil
@@ -129,11 +136,13 @@ func (t *FlagsTest) Bools() {
 
 	f = parseArgs(args)
 	ExpectFalse(f.ImplicitDirs)
+	ExpectFalse(f.ReuseTokenFromUrl)
 	ExpectFalse(f.DebugFuseErrors)
 	ExpectFalse(f.DebugFuse)
 	ExpectFalse(f.DebugGCS)
 	ExpectFalse(f.DebugHTTP)
 	ExpectFalse(f.DebugInvariants)
+	ExpectFalse(f.EnableStorageClientLibrary)
 
 	// --foo=true form
 	args = nil
@@ -143,11 +152,13 @@ func (t *FlagsTest) Bools() {
 
 	f = parseArgs(args)
 	ExpectTrue(f.ImplicitDirs)
+	ExpectTrue(f.ReuseTokenFromUrl)
 	ExpectTrue(f.DebugFuseErrors)
 	ExpectTrue(f.DebugFuse)
 	ExpectTrue(f.DebugGCS)
 	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
+	ExpectTrue(f.EnableStorageClientLibrary)
 }
 
 func (t *FlagsTest) DecimalNumbers() {
@@ -157,6 +168,7 @@ func (t *FlagsTest) DecimalNumbers() {
 		"--limit-bytes-per-sec=123.4",
 		"--limit-ops-per-sec=56.78",
 		"--stat-cache-capacity=8192",
+		"--max-idle-conns-per-host=100",
 	}
 
 	f := parseArgs(args)
@@ -165,6 +177,7 @@ func (t *FlagsTest) DecimalNumbers() {
 	ExpectEq(123.4, f.EgressBandwidthLimitBytesPerSecond)
 	ExpectEq(56.78, f.OpRateLimitHz)
 	ExpectEq(8192, f.StatCacheCapacity)
+	ExpectEq(100, f.MaxIdleConnsPerHost)
 }
 
 func (t *FlagsTest) OctalNumbers() {
@@ -195,11 +208,15 @@ func (t *FlagsTest) Durations() {
 	args := []string{
 		"--stat-cache-ttl", "1m17s",
 		"--type-cache-ttl", "19ns",
+		"--http-client-timeout", "800ms",
+		"--max-retry-duration", "30s",
 	}
 
 	f := parseArgs(args)
 	ExpectEq(77*time.Second, f.StatCacheTTL)
 	ExpectEq(19*time.Nanosecond, f.TypeCacheTTL)
+	ExpectEq(800*time.Millisecond, f.HttpClientTimeout)
+	ExpectEq(30*time.Second, f.MaxRetryDuration)
 }
 
 func (t *FlagsTest) Maps() {
@@ -369,4 +386,36 @@ func (t *FlagsTest) TestResolvePathForTheFlagsInContext() {
 	err = app.Run(fullArgs)
 
 	AssertEq(nil, err)
+}
+
+func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSize() {
+	flags := &flagStorage{
+		SequentialReadSizeMb: 10,
+	}
+
+	err := validateFlags(flags)
+
+	AssertEq(nil, err)
+}
+
+func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSize() {
+	flags := &flagStorage{
+		SequentialReadSizeMb: 0,
+	}
+
+	err := validateFlags(flags)
+
+	AssertNe(nil, err)
+	AssertEq("SequentialReadSizeMb should be less than 1024", err.Error())
+}
+
+func (t *FlagsTest) TestValidateFlagsForSequentialReadSizeGreaterThan1024() {
+	flags := &flagStorage{
+		SequentialReadSizeMb: 2048,
+	}
+
+	err := validateFlags(flags)
+
+	AssertNe(nil, err)
+	AssertEq("SequentialReadSizeMb should be less than 1024", err.Error())
 }

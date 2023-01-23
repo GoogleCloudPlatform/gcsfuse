@@ -23,6 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
@@ -70,7 +71,7 @@ type FileInode struct {
 	// INVARIANT: src.Name == name.GcsObjectName()
 	//
 	// GUARDED_BY(mu)
-	src gcs.Object
+	src storage.MinObject
 
 	// The current content of this inode, or nil if the source object is still
 	// authoritative.
@@ -110,7 +111,7 @@ func NewFileInode(
 		attrs:          attrs,
 		localFileCache: localFileCache,
 		contentCache:   contentCache,
-		src:            *o,
+		src:            convertObjToMinObject(o),
 	}
 
 	f.lc.Init(id)
@@ -157,7 +158,7 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *g
 	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
 	// gcs and not cache.
 	req := &gcs.StatObjectRequest{
-		Name: f.name.GcsObjectName(),
+		Name:              f.name.GcsObjectName(),
 		ForceFetchFromGcs: forceFetchFromGcs,
 	}
 	o, err = f.bucket.StatObject(ctx, req)
@@ -275,7 +276,7 @@ func (f *FileInode) Name() Name {
 // record is guaranteed not to be modified, and users must not modify it.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Source() *gcs.Object {
+func (f *FileInode) Source() *storage.MinObject {
 	// Make a copy, since we modify f.src.
 	o := f.src
 	return &o
@@ -482,7 +483,7 @@ func (f *FileInode) SetMtime(
 
 	o, err := f.bucket.UpdateObject(ctx, req)
 	if err == nil {
-		f.src = *o
+		f.src = convertObjToMinObject(o)
 		return
 	}
 
@@ -558,7 +559,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 
 	// If we wrote out a new object, we need to update our state.
 	if newObj != nil && !f.localFileCache {
-		f.src = *newObj
+		f.src = convertObjToMinObject(newObj)
 		f.content.Destroy()
 		f.content = nil
 	}
@@ -592,4 +593,15 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 	}
 
 	return
+}
+
+func convertObjToMinObject(o *gcs.Object) (mo storage.MinObject) {
+	return storage.MinObject{
+		Name:           o.Name,
+		Size:           o.Size,
+		Generation:     o.Generation,
+		MetaGeneration: o.MetaGeneration,
+		Updated:        o.Updated,
+		Metadata:       o.Metadata,
+	}
 }
