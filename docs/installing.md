@@ -97,8 +97,8 @@ Ensure that dependencies are present:
 
 Download and install the latest release package:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.41.11/gcsfuse-0.41.11-1.x86_64.rpm
-    sudo rpm --install -p gcsfuse-0.41.11-1.x86_64.rpm
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.41.12/gcsfuse-0.41.12-1.x86_64.rpm
+    sudo rpm --install -p gcsfuse-0.41.12-1.x86_64.rpm
 
 <a name="other-distributions"></a>
 
@@ -118,13 +118,13 @@ Ensure that dependencies are present:
 
 If you are on a distribution that uses `.rpm` files for package management:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases#:~:text=gcsfuse%2D0.41.11%2D1.x86_64.rpm
-    sudo rpm --install -p gcsfuse-0.41.11-1.x86_64.rpm
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases#:~:text=gcsfuse%2D0.41.12%2D1.x86_64.rpm
+    sudo rpm --install -p gcsfuse-0.41.12-1.x86_64.rpm
 
 Or one that uses `.deb` files:
 
-    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.41.11/gcsfuse_0.41.11_amd64.deb
-    sudo dpkg --install gcsfuse_0.41.11_amd64.deb
+    curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v0.41.12/gcsfuse_0.41.12_amd64.deb
+    sudo dpkg --install gcsfuse_0.41.12_amd64.deb
 
 On some systems it may be necessary to add the your user account to the `fuse`
 group in order to have permission to run `fusermount` (don't forget to log out

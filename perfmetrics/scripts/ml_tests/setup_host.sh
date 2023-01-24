@@ -2,14 +2,14 @@
 # This file installs docker engine and nvidia driver and nvidia container tool
 # necessary for running dlc container on the vm
 
-# Installing ops agent
-curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh 
+# Install Ops-agent to get the memory and processes' related data on VM console.
+curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
 
 # Add the pub_key, for the package verification while installing using apt-get.
 sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B53DC80D13EDEF05
 sudo bash add-google-cloud-ops-agent-repo.sh --also-install --version=latest
 
-# Installing docker engine
+# Steps to install nvidia-driver, docker-engine, nvidia-docker2 and their required dependencies
 echo "Installing linux utility packages, like, lsb-release, curl..."
 sudo apt-get update
 sudo apt-get install -y \
