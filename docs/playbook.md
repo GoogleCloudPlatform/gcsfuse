@@ -58,5 +58,5 @@ Enter NO_PUBKEY here (eg: 6494C6D6997C215E is NO_PUBKEY for above error)
 
 **Solution**
 
-*   sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6494C6D6997C215E 
+*   sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6494C6D6997C215E
 *   sudo apt-get update
