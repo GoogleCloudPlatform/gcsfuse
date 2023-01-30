@@ -50,11 +50,13 @@ While running
 Err: daemonize.Run: readFromProcess: sub-process: mountWithArgs: mountWithConn: Mount: mount: running /usr/bin/fusermount3: exit status 1
 
 **Reason**
+
 If bucket is already mounted in that folder and we try to mount it again in the same folder without un-mounting it, It will show this error.
 
 **Solution**
 
 Unmount the bucket
 * sudo umount <Bucket-Name>
+
 Then run 
 * gcsfuse --implicit-dirs <bucket> ~/gcsfuse
