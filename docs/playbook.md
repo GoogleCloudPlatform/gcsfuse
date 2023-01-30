@@ -20,7 +20,7 @@ This is explained in the [semantics](https://github.com/GoogleCloudPlatform/gcsf
 
 ### Mount failed with fusermount3 exit status 1
 
-The error comes when bucket is already mounted in a folder and we try to mount it again in the same folder without un-mounting it. Fix it to first umount and then remount. Command for un mounting.
+The error comes when bucket is already mounted in a folder and we try to mount it again in the same folder without un-mounting it. Fix it to first umount and then remount. Command for un-mounting.
 sudo umount ~/gcsfuse
 
 ## Serving
