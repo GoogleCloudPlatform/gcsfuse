@@ -55,8 +55,8 @@ If bucket is already mounted in that folder and we try to mount it again in the 
 
 **Solution**
 
-Unmount the bucket
-* sudo umount <Bucket-Name>
+First un-mount the bucket
+* sudo umount ~/gcsfuse
 
-Then run 
+Then mount 
 * gcsfuse --implicit-dirs <bucket> ~/gcsfuse
