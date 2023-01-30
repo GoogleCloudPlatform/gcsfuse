@@ -79,7 +79,6 @@ func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
 		Prefix:                  "Prefix",
 		Etag:                    "Etag",
 		CustomTime:              timeAttr,
-		ComponentCount:          7,
 	}
 	customeTimeExpected := string(attrs.CustomTime.Format(time.RFC3339))
 
@@ -114,7 +113,6 @@ func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
 	ExpectEq(object.CustomTime, customeTimeExpected)
 	ExpectEq(object.EventBasedHold, attrs.EventBasedHold)
 	ExpectEq(object.Acl, acl)
-	ExpectEq(object.ComponentCount, attrs.ComponentCount)
 }
 
 func (t objectAttrsTest) TestConvertObjectAccessControlToACLRuleMethod() {
