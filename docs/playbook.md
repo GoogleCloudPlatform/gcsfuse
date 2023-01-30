@@ -38,5 +38,23 @@ Enter NO_PUBKEY here (eg: 6494C6D6997C215E is NO_PUBKEY for above error)
 
 **Solution**
 
-*   sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6494C6D6997C215E
-*   sudo apt-get update
+* sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6494C6D6997C215E
+* sudo apt-get update
+
+### Mounting Bucket doesn't get Succeeded  
+
+While running
+
+* gcsfuse --implicit-dirs <bucket> ~/gcsfuse
+
+Err: daemonize.Run: readFromProcess: sub-process: mountWithArgs: mountWithConn: Mount: mount: running /usr/bin/fusermount3: exit status 1
+
+**Reason**
+If bucket is already mounted in that folder and we try to mount it again in the same folder without un-mounting it, It will show this error.
+
+**Solution**
+
+Unmount the bucket
+* sudo umount <Bucket-Name>
+Then run 
+* gcsfuse --implicit-dirs <bucket> ~/gcsfuse
