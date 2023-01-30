@@ -101,8 +101,6 @@ github.com/census-instrumentation/opencensus-proto/gen-go/trace/v1
 # github.com/cpuguy83/go-md2man/v2 v2.0.1
 ## explicit; go 1.11
 github.com/cpuguy83/go-md2man/v2/md2man
-# github.com/davecgh/go-spew v1.1.1
-## explicit
 # github.com/felixge/httpsnoop v1.0.3
 ## explicit; go 1.13
 github.com/felixge/httpsnoop
@@ -146,8 +144,6 @@ github.com/googleapis/gax-go/v2
 github.com/googleapis/gax-go/v2/apierror
 github.com/googleapis/gax-go/v2/apierror/internal/proto
 github.com/googleapis/gax-go/v2/internal
-# github.com/googleapis/go-type-adapters v1.0.0
-## explicit; go 1.11
 # github.com/gorilla/handlers v1.5.1
 ## explicit; go 1.14
 github.com/gorilla/handlers
@@ -162,8 +158,8 @@ github.com/grpc-ecosystem/grpc-gateway/utilities
 # github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
 ## explicit
 github.com/jacobsa/daemonize
-# github.com/jacobsa/fuse v0.0.0-20221016084658-a4cd154343d8
-## explicit; go 1.18
+# github.com/jacobsa/fuse v0.0.0-20230124164109-5e0f2e6b432b
+## explicit; go 1.19
 github.com/jacobsa/fuse
 github.com/jacobsa/fuse/fsutil
 github.com/jacobsa/fuse/fuseops
@@ -172,8 +168,8 @@ github.com/jacobsa/fuse/fuseutil
 github.com/jacobsa/fuse/internal/buffer
 github.com/jacobsa/fuse/internal/freelist
 github.com/jacobsa/fuse/internal/fusekernel
-# github.com/jacobsa/gcloud v0.0.0-20230110125859-49bc5a12f398
-## explicit; go 1.18
+# github.com/jacobsa/gcloud v0.0.0-20230127085636-f21b8e5016f7
+## explicit; go 1.19
 github.com/jacobsa/gcloud/gcs
 github.com/jacobsa/gcloud/gcs/gcscaching
 github.com/jacobsa/gcloud/gcs/gcsfake
@@ -269,7 +265,7 @@ golang.org/x/oauth2/jwt
 ## explicit
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.3.0
+# golang.org/x/sys v0.4.0
 ## explicit; go 1.17
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
