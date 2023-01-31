@@ -257,11 +257,9 @@ func (b *fastStatBucket) DeleteObject(
 
 func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
 	o, err = b.wrapped.StatObject(ctx, req)
-	fmt.Println("ERROR ",err)
 	if err != nil {
 		// Special case: NotFoundError -> negative entry.
 		if _, ok := err.(*gcs.NotFoundError); ok {
-			fmt.Println("ERROR Not FOUND ",err)
 			b.addNegativeEntry(req.Name)
 		}
 
