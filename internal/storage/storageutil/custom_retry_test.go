@@ -1,6 +1,7 @@
 package storageutil
 
 import (
+	"errors"
 	"io"
 	"net"
 	"net/url"
@@ -17,7 +18,7 @@ type customRetryTest struct {
 
 func init() { RegisterTestSuite(&customRetryTest{}) }
 
-func (t customRetryTest) TestGoogleAPIErrorRetry() {
+func (t customRetryTest) ShouldRetryReturnsTrueWithGoogleApiError() {
 	// 401
 	var err401 = googleapi.Error{
 		Code: 401,
@@ -32,43 +33,38 @@ func (t customRetryTest) TestGoogleAPIErrorRetry() {
 		Code: 429,
 		Body: "API rate limit exceeded",
 	}
+
+	ExpectEq(ShouldRetry(&err401), true)
+	ExpectEq(ShouldRetry(&err502), true)
+	ExpectEq(ShouldRetry(&err429), true)
+}
+
+func (t customRetryTest) ShouldRetryReturnsFalseWithGoogleApiError() {
 	// 400 - bad request
 	var err400 = googleapi.Error{
 		Code: 400,
 	}
 
-	ExpectEq(ShouldRetry(&err401), true)
-	ExpectEq(ShouldRetry(&err502), true)
-	ExpectEq(ShouldRetry(&err429), true)
 	ExpectEq(ShouldRetry(&err400), false)
 }
 
-func (t customRetryTest) TestUnexpectedEOFErrorRetry() {
+func (t customRetryTest) ShouldRetryReturnsTrueWithUnexpectedEOFError() {
 	ExpectEq(ShouldRetry(io.ErrUnexpectedEOF), true)
 }
 
-func (t customRetryTest) TestNetworkErrorRetry() {
-	ExpectEq(ShouldRetry(&net.OpError{}), true)
+func (t customRetryTest) ShouldRetryReturnsTrueWithNetworkError() {
+	ExpectEq(ShouldRetry(&net.OpError{
+		Err: errors.New("use of closed network connection")}), true)
 }
 
-func (t customRetryTest) TestURLErrorRetry() {
-	var urlErr401 = url.Error{
-		Err: &googleapi.Error{
-			Code: 401,
-			Body: "Invalid Credential",
-		},
+func (t customRetryTest) ShouldRetryReturnsTrueURLError() {
+	var urlErrConnRefused = url.Error{
+		Err: errors.New("connection refused"),
 	}
-	var urlErr400 = url.Error{
-		Err: &googleapi.Error{
-			Code: 400,
-			Body: "Bad Request",
-		},
-	}
-	var urlEOF = url.Error{
-		Err: io.EOF,
+	var urlErrConnReset = url.Error{
+		Err: errors.New("connection reset"),
 	}
 
-	ExpectEq(ShouldRetry(&urlErr400), false)
-	ExpectEq(ShouldRetry(&urlErr401), true)
-	ExpectEq(ShouldRetry(&urlEOF), true)
+	ExpectEq(ShouldRetry(&urlErrConnRefused), true)
+	ExpectEq(ShouldRetry(&urlErrConnReset), true)
 }
