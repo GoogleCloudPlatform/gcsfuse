@@ -159,6 +159,7 @@ func expBackoff(
 				err = fmt.Errorf("not retrying %s: %w", desc, err)
 			}
 
+			fmt.Println("Error in Retry ",err)
 			return
 		}
 
