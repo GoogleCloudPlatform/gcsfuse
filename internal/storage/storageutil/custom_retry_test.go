@@ -39,7 +39,7 @@ func (t customRetryTest) ShouldRetryReturnsTrueWithGoogleApiError() {
 	ExpectEq(ShouldRetry(&err429), true)
 }
 
-func (t customRetryTest) ShouldRetryReturnsFalseWithGoogleApiError() {
+func (t customRetryTest) ShouldRetryReturnsFalseWithGoogleApiError400() {
 	// 400 - bad request
 	var err400 = googleapi.Error{
 		Code: 400,
