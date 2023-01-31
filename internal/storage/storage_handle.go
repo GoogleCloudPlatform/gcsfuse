@@ -22,6 +22,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
@@ -98,7 +99,7 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 			Max:        clientConfig.MaxRetryDuration,
 			Multiplier: clientConfig.RetryMultiplier,
 		}),
-		storage.WithPolicy(storage.RetryAlways))
+		storage.WithErrorFunc(storageutil.ShouldRetry))
 
 	sh = &storageClient{client: sc}
 	return
