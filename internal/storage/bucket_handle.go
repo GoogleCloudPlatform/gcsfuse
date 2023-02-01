@@ -43,8 +43,8 @@ func (bh *bucketHandle) Name() string {
 }
 
 func (bh *bucketHandle) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
+		ctx context.Context,
+		req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -126,13 +126,27 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 
 	// Copy the contents to the writer.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
+		err = fmt.Errorf("error in io.Copy: %w", err)
 		return
 	}
 
 	// We can't use defer to close the writer, because we need to close the
 	// writer successfully before calling Attrs() method of writer.
 	if err = wc.Close(); err != nil {
-		return
+		if err != nil {
+			switch ee := err.(type) {
+			case *googleapi.Error:
+				if ee.Code == http.StatusPreconditionFailed {
+					err = &gcs.PreconditionError{Err: ee}
+				}
+				if ee.Code == http.StatusNotFound {
+					err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+				}
+			default:
+				err = fmt.Errorf("error in closing writer : %w", err)
+			}
+			return
+		}
 	}
 
 	attrs := wc.Attrs() // Retrieving the attributes of the created object.

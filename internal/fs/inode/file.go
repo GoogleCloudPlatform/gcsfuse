@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -30,7 +29,6 @@ import (
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
-	"google.golang.org/api/googleapi"
 )
 
 // A GCS object metadata key for file mtimes. mtimes are UTC, and are stored in
@@ -547,12 +545,10 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.
-	var gErr *googleapi.Error
-	if errors.As(err, &gErr) {
-		if gErr.Code == http.StatusPreconditionFailed {
-			err = nil
-			return
-		}
+	var preconditionErr *gcs.PreconditionError
+	if errors.As(err, &preconditionErr) {
+		err = nil
+		return
 	}
 
 	// Propagate other errors.
