@@ -25,7 +25,3 @@ gsutil -m cp $LOG_FILE gs://gcs-fuse-dashboard-fio/fio-gcsfuse-logs/
 
 # Deleting logs older than 10 days
 python3 utils/metrics_util.py gcs/fio-gcsfuse-logs/ 10
-# ls_metrics test
-cd "./ls_metrics"
-chmod +x run_ls_benchmark.sh
-./run_ls_benchmark.sh
