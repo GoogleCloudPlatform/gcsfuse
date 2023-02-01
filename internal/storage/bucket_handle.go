@@ -139,9 +139,6 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 				if ee.Code == http.StatusPreconditionFailed {
 					err = &gcs.PreconditionError{Err: ee}
 				}
-				if ee.Code == http.StatusNotFound {
-					err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
-				}
 			default:
 				err = fmt.Errorf("error in closing writer : %w", err)
 			}
