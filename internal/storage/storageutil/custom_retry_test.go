@@ -1,3 +1,17 @@
+// Copyright 2023 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package storageutil
 
 import (
@@ -34,9 +48,9 @@ func (t customRetryTest) ShouldRetryReturnsTrueWithGoogleApiError() {
 		Body: "API rate limit exceeded",
 	}
 
-	ExpectEq(ShouldRetry(&err401), true)
-	ExpectEq(ShouldRetry(&err502), true)
-	ExpectEq(ShouldRetry(&err429), true)
+	ExpectEq(true, ShouldRetry(&err401))
+	ExpectEq(true, ShouldRetry(&err502))
+	ExpectEq(true, ShouldRetry(&err429))
 }
 
 func (t customRetryTest) ShouldRetryReturnsFalseWithGoogleApiError400() {
@@ -45,16 +59,16 @@ func (t customRetryTest) ShouldRetryReturnsFalseWithGoogleApiError400() {
 		Code: 400,
 	}
 
-	ExpectEq(ShouldRetry(&err400), false)
+	ExpectEq(false, ShouldRetry(&err400))
 }
 
 func (t customRetryTest) ShouldRetryReturnsTrueWithUnexpectedEOFError() {
-	ExpectEq(ShouldRetry(io.ErrUnexpectedEOF), true)
+	ExpectEq(true, ShouldRetry(io.ErrUnexpectedEOF))
 }
 
 func (t customRetryTest) ShouldRetryReturnsTrueWithNetworkError() {
-	ExpectEq(ShouldRetry(&net.OpError{
-		Err: errors.New("use of closed network connection")}), true)
+	ExpectEq(true, ShouldRetry(&net.OpError{
+		Err: errors.New("use of closed network connection")}))
 }
 
 func (t customRetryTest) ShouldRetryReturnsTrueURLError() {
@@ -65,6 +79,6 @@ func (t customRetryTest) ShouldRetryReturnsTrueURLError() {
 		Err: errors.New("connection reset"),
 	}
 
-	ExpectEq(ShouldRetry(&urlErrConnRefused), true)
-	ExpectEq(ShouldRetry(&urlErrConnReset), true)
+	ExpectEq(true, ShouldRetry(&urlErrConnRefused))
+	ExpectEq(true, ShouldRetry(&urlErrConnReset))
 }
