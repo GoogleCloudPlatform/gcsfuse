@@ -20,6 +20,7 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -133,17 +134,15 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// We can't use defer to close the writer, because we need to close the
 	// writer successfully before calling Attrs() method of writer.
 	if err = wc.Close(); err != nil {
-		if err != nil {
-			switch ee := err.(type) {
-			case *googleapi.Error:
-				if ee.Code == http.StatusPreconditionFailed {
-					err = &gcs.PreconditionError{Err: ee}
-				}
-			default:
-				err = fmt.Errorf("error in closing writer : %w", err)
+		var gErr *googleapi.Error
+		if errors.As(err, &gErr) {
+			if gErr.Code == http.StatusPreconditionFailed {
+				err = &gcs.PreconditionError{Err: err}
 			}
-			return
+		} else {
+			err = fmt.Errorf("error in closing writer : %w", err)
 		}
+		return
 	}
 
 	attrs := wc.Attrs() // Retrieving the attributes of the created object.
