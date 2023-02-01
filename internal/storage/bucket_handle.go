@@ -138,10 +138,10 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 		if errors.As(err, &gErr) {
 			if gErr.Code == http.StatusPreconditionFailed {
 				err = &gcs.PreconditionError{Err: err}
+				return
 			}
-		} else {
-			err = fmt.Errorf("error in closing writer : %w", err)
 		}
+		err = fmt.Errorf("error in closing writer : %w", err)
 		return
 	}
 
