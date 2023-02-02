@@ -24,6 +24,7 @@ startdelay=300
 bs=16k
 directory=gcs/256kb
 filesize=256k
+rw=read
 numjobs=40
 
 [2_thread]
@@ -40,6 +41,7 @@ stonewall
 startdelay=1040
 directory=gcs/50mb
 filesize=50M
+rw=read
 numjobs=40
 
 [4_thread]
@@ -55,6 +57,7 @@ stonewall
 startdelay=1780
 directory=gcs/1gb
 filesize=1G
+rw=read
 numjobs=40
 
 [6_thread]
