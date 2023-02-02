@@ -105,7 +105,7 @@ func init() {
 
 func UpdateTheWriterInAllLoggers() error {
 	for _, lg := range listOfLoggers {
-		lg.SetOutput(defaultLoggerFactory.writer(lg.Prefix()))
+		lg.SetOutput(defaultLoggerFactory.writer("Prince"))
 	}
 	return nil
 }
