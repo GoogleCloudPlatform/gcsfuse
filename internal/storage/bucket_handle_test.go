@@ -266,6 +266,7 @@ func (t *BucketHandleTest) TestCreateObjectMethodWithValidObject() {
 }
 
 func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExist() {
+	var precondition *gcs.PreconditionError
 	content := "Creating a new object"
 	var crc32 uint32 = 45
 	var generation int64 = 786
@@ -279,7 +280,7 @@ func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExi
 		})
 
 	AssertEq(nil, obj)
-	AssertTrue(strings.Contains(err.Error(), "Error 412: Precondition failed"))
+	AssertTrue(errors.As(err, &precondition))
 }
 
 func (t *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsNoAcl() {
