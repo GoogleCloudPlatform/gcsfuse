@@ -7,8 +7,6 @@ echo Installing go-lang
 sudo snap install go --classic
 echo Installing fio
 sudo apt-get install fio -y
-mkdir master
-cd master
 echo cloning master branch code
 git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
 cd /gcsfuse/perfmetrics/scripts
@@ -21,11 +19,9 @@ MOUNT_POINT=gcs
 go run ../../. $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 chmod +x run_load_test_on_presubmit.sh
 ./run_load_test_on_presubmit.sh
-cd
-mkdir PR
-cd PR
-echo cloning PR branch code
-git clone $GITHUB_PULL_REQUEST_URL
+cd ../../
+echo checkout PR branch
+gh pr checkout $KOKORO_GITHUB_PULL_REQUEST_NUMBER
 cd gcsfuse/perfmetrics/scripts
 echo Mounting gcs bucket
 mkdir -p gcs
