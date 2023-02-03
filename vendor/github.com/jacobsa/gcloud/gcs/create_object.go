@@ -228,6 +228,5 @@ func (b *bucket) CreateObject(
 		err = fmt.Errorf("toObject: %v", err)
 		return
 	}
-
 	return
 }
