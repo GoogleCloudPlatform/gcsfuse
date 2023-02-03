@@ -1,7 +1,7 @@
 import json
 
 # Opening JSON file
-f = open('output_pr.json')
+f = open('output.json')
 
 # returns JSON object as 
 # a dictionary
