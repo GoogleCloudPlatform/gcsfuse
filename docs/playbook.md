@@ -18,6 +18,10 @@ Please consult the [flags.go](https://github.com/GoogleCloudPlatform/gcsfuse/blo
 ### Mount successful but files not visible
 This is explained in the [semantics](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#implicit-directories) page and can possibly be fixed by passing the --implicit-dirs=true flag to the gcsfuse command.
 
+### Mount failed with fusermount3 exit status 1
+The error comes when bucket is already mounted in a folder and we try to mount it again in the same folder without un-mounting it. Fix it to first umount and then remount. Command for un-mounting - 
+sudo umount mounted-dir-name
+
 ## Serving
 Once the mounting is successful, there are other issues which may crop up during the serving phase and this section discusses some of those and their possible remedies.
 
