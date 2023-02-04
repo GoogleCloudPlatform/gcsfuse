@@ -11,9 +11,9 @@ data = json.load(f)
 # list
 
 for d in data['jobs']:
-  print("filesize: "+ d["job options"]["filesize"])
   if d["read"]["bw"] != 0 :
     if d["job options"]["rw"] == "read":
+      print("filesize: "+ d["job options"]["filesize"])
       print("Read bw: " + str(float(d["read"]["bw"]/1000.0)) + "MiB/s")
     else:
       print("Random read bw: " + str(float(d["read"]["bw"]/1000.0)) + "MiB/s")
