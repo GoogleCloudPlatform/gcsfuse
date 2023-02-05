@@ -13,12 +13,12 @@ data = json.load(f)
 for d in data['jobs']:
   if d["read"]["bw"] != 0 :
     if d["job options"]["rw"] == "read":
-      print("filesize: "+ d["job options"]["filesize"])
+      print("Filesize: "+ d["job options"]["filesize"])
       #Read
       print("Read bw: " + str(float(d["read"]["bw"]/1000.0)) + "MiB/s")
     else:
       #RandomRead
-      print("Random read bw: " + str(float(d["read"]["bw"]/1000.0)) + "MiB/s")
+      print("RandomRead bw: " + str(float(d["read"]["bw"]/1000.0)) + "MiB/s")
 
   if d["write"]["bw"] != 0 :
     if d["job options"]["rw"] == "write":
@@ -26,6 +26,6 @@ for d in data['jobs']:
       print("Write bw: " + str(float(d["write"]["bw"]/1000.0)) + "MiB/s")
     else:
       #RandomWrite
-      print("Random write bw: " + str(float(d["write"]["bw"]/1000.0)) + "MiB/s")
+      print("RandomWrite bw: " + str(float(d["write"]["bw"]/1000.0)) + "MiB/s")
 # Closing file
 f.close()
