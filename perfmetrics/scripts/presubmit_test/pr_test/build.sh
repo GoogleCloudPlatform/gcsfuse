@@ -15,7 +15,7 @@ BUCKET_NAME=gcs-fuse-loadtest
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
 go run ../../. $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
-# Run FIO test
+# Running FIO test
 chmod +x run_load_test_on_presubmit.sh
 ./run_load_test_on_presubmit.sh
 sudo umount gcs
