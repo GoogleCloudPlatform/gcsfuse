@@ -21,19 +21,19 @@ if __name__ == '__main__':
   # Iterating through the json
   # list
   for d in data['jobs']:
-      if d["read"]["bw"] != 0 :
+      if d["read"]["bw_bytes"] != 0 :
         if d["job options"]["rw"] == "read":
           print("Filesize: "+ d["job options"]["filesize"])
           #Read
-          print("Read bw: " + str(d["read"]["bw"]/1024.0) + "MiB/s")
+          print("Read bw: " + str(round(d["read"]["bw_bytes"]/(1024.0*1024.0),2)) + "MiB/s")
         else:
           #RandomRead
-          print("RandomRead bw: " + str(d["read"]["bw"]/1024.0) + "MiB/s")
+          print("RandomRead bw: " + str(round(d["read"]["bw_bytes"]/(1024.0*1024.0),2)) + "MiB/s")
 
-      if d["write"]["bw"] != 0 :
+      if d["write"]["bw_bytes"] != 0 :
         if d["job options"]["rw"] == "write":
           #Write
-          print("Write bw: " + str(d["write"]["bw"]/1024.0) + "MiB/s")
+          print("Write bw: " + str(round(d["write"]["bw_bytes"]/(1024.0*1024.0),2)) + "MiB/s")
         else:
           #RandomWrite
-          print("RandomWrite bw: " + str(d["write"]["bw"]/1024.0) + "MiB/s")
+          print("RandomWrite bw: " + str(round(d["write"]["bw_bytes"]/(1024.0*1024.0),2)) + "MiB/s")
