@@ -3,7 +3,13 @@ set -e
 sudo apt-get update
 echo Installing git
 sudo apt-get install git
-echo Installing go-lang
+echo Installing go-lang 1.19.5
+wget https://go.dev/dl/go1.19.5.src.tar.gz
+sudo tar -xvf go1.19.5.src.tar.gz
+sudo mv go /usr/local
+export GOROOT=/usr/local/go
+export GOPATH=$HOME/Projects/Proj1
+export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
 sudo snap install go --classic
 echo Installing fio
 sudo apt-get install fio -y

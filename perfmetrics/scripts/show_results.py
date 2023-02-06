@@ -15,6 +15,9 @@ if __name__ == '__main__':
   # a dictionary
   data = json.load(file)
 
+  # Closing file
+  file.close()
+
   # Iterating through the json
   # list
   for d in data['jobs']:
@@ -22,17 +25,15 @@ if __name__ == '__main__':
         if d["job options"]["rw"] == "read":
           print("Filesize: "+ d["job options"]["filesize"])
           #Read
-          print("Read bw: " + str(d["read"]["bw"]/1000.0) + "MiB/s")
+          print("Read bw: " + str(d["read"]["bw"]/1024.0) + "MiB/s")
         else:
           #RandomRead
-          print("RandomRead bw: " + str(d["read"]["bw"]/1000.0) + "MiB/s")
+          print("RandomRead bw: " + str(d["read"]["bw"]/1024.0) + "MiB/s")
 
       if d["write"]["bw"] != 0 :
         if d["job options"]["rw"] == "write":
           #Write
-          print("Write bw: " + str(d["write"]["bw"]/1000.0) + "MiB/s")
+          print("Write bw: " + str(d["write"]["bw"]/1024.0) + "MiB/s")
         else:
           #RandomWrite
-          print("RandomWrite bw: " + str(d["write"]["bw"]/1000.0) + "MiB/s")
-    # Closing file
-  file.close()
+          print("RandomWrite bw: " + str(d["write"]["bw"]/1024.0) + "MiB/s")
