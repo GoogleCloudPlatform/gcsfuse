@@ -1,20 +1,17 @@
 #!/bin/bash
+# It will take approx 1.5-2 hours to run the script.
 set -e
 sudo apt-get update
 echo Installing git
 sudo apt-get install git
 echo Installing go-lang 1.19.5
-wget https://go.dev/dl/go1.19.5.src.tar.gz
-sudo tar -xvf go1.19.5.src.tar.gz
-sudo mv go /usr/local
-export GOROOT=/usr/local/go
-export GOPATH=$HOME/Projects/Proj1
-export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
-sudo snap install go --classic
+wget -O go_tar.tar.gz https://go.dev/dl/go1.19.5.linux-amd64.tar.gz
+sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
+export PATH=$PATH:/usr/local/go/bin
 echo Installing fio
 sudo apt-get install fio -y
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts"
-echo Mounting gcs bucket
+echo Mounting gcs bucket for master branch
 mkdir -p gcs
 GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --experimental-enable-storage-client-library=true --disable-http2"
 BUCKET_NAME=gcs-fuse-loadtest
