@@ -62,7 +62,7 @@ type BucketOwnedInode interface {
 	Inode
 
 	// Return the gcs.Bucket which the dir or file belongs to.
-	Bucket() gcsx.SyncerBucket
+	Bucket() *gcsx.SyncerBucket
 }
 
 // An inode that is backed by a particular generation of a GCS object.
