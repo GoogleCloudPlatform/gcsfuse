@@ -22,17 +22,17 @@ if __name__ == '__main__':
         if d["job options"]["rw"] == "read":
           print("Filesize: "+ d["job options"]["filesize"])
           #Read
-          print("Read bw: " + str(float(d["read"]["bw"]/1000.0)) + "MiB/s")
+          print("Read bw: " + str(d["read"]["bw"]/1000.0) + "MiB/s")
         else:
           #RandomRead
-          print("RandomRead bw: " + str(float(d["read"]["bw"]/1000.0)) + "MiB/s")
+          print("RandomRead bw: " + str(d["read"]["bw"]/1000.0) + "MiB/s")
 
       if d["write"]["bw"] != 0 :
         if d["job options"]["rw"] == "write":
           #Write
-          print("Write bw: " + str(float(d["write"]["bw"]/1000.0)) + "MiB/s")
+          print("Write bw: " + str(d["write"]["bw"]/1000.0) + "MiB/s")
         else:
           #RandomWrite
-          print("RandomWrite bw: " + str(float(d["write"]["bw"]/1000.0)) + "MiB/s")
+          print("RandomWrite bw: " + str(d["write"]["bw"]/1000.0) + "MiB/s")
     # Closing file
   file.close()
