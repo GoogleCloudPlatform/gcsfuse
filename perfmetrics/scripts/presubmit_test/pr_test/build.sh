@@ -34,6 +34,7 @@ go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 sudo umount perfmetrics/scripts/gcs
+
 # Fetch PR branch
 echo '[remote "origin"]
         fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' >> .git/config

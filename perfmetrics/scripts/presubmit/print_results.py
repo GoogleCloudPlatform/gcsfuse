@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import sys
-# from fio_metrics import FioMetrics
-from perfmetrics.scripts.fio.fio_metrics import FioMetrics
+sys.path.append("..")
+from fio.fio_metrics import FioMetrics
 
 if __name__ == '__main__':
   argv = sys.argv
@@ -27,10 +26,10 @@ if __name__ == '__main__':
   # Fetching metrics from json file
   fio_metrics_obj = FioMetrics()
   data = fio_metrics_obj.get_metrics(argv[1])
+  # Iterating through data
   for d in data :
+    # Printing Filesize only for one time
     if d['params']['rw'] == "read":
       print("Filesize: "+ str(round(d["params"]["filesize_kb"]/1024.0,3)) + "MiB")
-      print(d['params']['rw'] + " bw: "+ str(round(d["metrics"]["bw_bytes"]/(1024.0*1024.0),2)) + "MiB/s")
-      print(d['params']['rw'] + " bw: "+ str(round(d["metrics"]["bw_bytes"]/(1024.0*1024.0),2)) + "MiB/s")
-      print(d['params']['rw'] + " bw: "+ str(round(d["metrics"]["bw_bytes"]/(1024.0*1024.0),2)) + "MiB/s")
-      print(d['params']['rw'] + " bw: "+ str(round(d["metrics"]["bw_bytes"]/(1024.0*1024.0),2)) + "MiB/s")
+
+    print(d['params']['rw'] + " bw: "+ str(round(d["metrics"]["bw_bytes"]/(1024.0*1024.0),2)) + "MiB/s")
