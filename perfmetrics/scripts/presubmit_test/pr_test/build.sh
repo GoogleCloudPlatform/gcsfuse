@@ -4,6 +4,12 @@ set -e
 sudo apt-get update
 echo Installing git
 sudo apt-get install git
+echo Installing python3-pip
+sudo apt-get -y install python3-pip
+echo Installing libraries to run script
+pip install google-cloud
+pip install google-cloud-vision
+pip install google-api-python-client
 echo Installing go-lang 1.19.5
 wget -O go_tar.tar.gz https://go.dev/dl/go1.19.5.linux-amd64.tar.gz
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
