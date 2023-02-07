@@ -6,7 +6,7 @@ echo Installing git
 sudo apt-get install git
 echo Installing python3-pip
 sudo apt-get -y install python3-pip
-echo Installing libraries to run script
+echo Installing libraries to run python script
 pip install google-cloud
 pip install google-cloud-vision
 pip install google-api-python-client
