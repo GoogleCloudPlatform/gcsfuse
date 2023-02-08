@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import sys
-sys.path.append("..")
+sys.path.append("./perfmetrics/scripts/")
 from fio.fio_metrics import FioMetrics
 
 if __name__ == '__main__':
@@ -28,8 +28,9 @@ if __name__ == '__main__':
   data = fio_metrics_obj.get_metrics(argv[1])
   # Iterating through data
   for d in data :
-    # Printing Filesize only for one time
+    # Print filesize only once
     if d['params']['rw'] == "read":
       print("Filesize: "+ str(round(d["params"]["filesize_kb"]/1024.0,3)) + "MiB")
 
+    # Print Bandwidth
     print(d['params']['rw'] + " bw: "+ str(round(d["metrics"]["bw_bytes"]/(1024.0*1024.0),2)) + "MiB/s")

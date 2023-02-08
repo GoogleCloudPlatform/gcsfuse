@@ -1,5 +1,5 @@
 #!/bin/bash
-# It will take approx 1.5-2 hours to run the script.
+# It will take approx 40-50 minutes to run the script.
 set -e
 sudo apt-get update
 echo Installing git
