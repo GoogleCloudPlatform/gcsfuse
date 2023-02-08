@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import sys
+# For fetching fio_metrics form fio
 sys.path.append("./perfmetrics/scripts/")
 from fio.fio_metrics import FioMetrics
 
