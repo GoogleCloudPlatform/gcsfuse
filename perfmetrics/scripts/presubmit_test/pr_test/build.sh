@@ -2,6 +2,7 @@
 # It will take approx 40-50 minutes to run the script.
 set -e
 sudo apt-get update
+
 echo Installing git
 sudo apt-get install git
 echo Installing python3-pip
@@ -19,7 +20,7 @@ sudo apt-get install fio -y
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 echo Mounting gcs bucket for master branch
-mkdir -p perfmetrics/scripts/gcs
+mkdir -p gcs
 GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --experimental-enable-storage-client-library=true --disable-http2"
 BUCKET_NAME=gcs-fuse-loadtest
 MOUNT_POINT=gcs
