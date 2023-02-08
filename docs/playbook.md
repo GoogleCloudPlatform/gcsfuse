@@ -42,5 +42,15 @@ Enter NO_PUBKEY here (eg: 6494C6D6997C215E is NO_PUBKEY for above error)
 
 **Solution**
 
-*   sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6494C6D6997C215E
-*   sudo apt-get update
+* sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6494C6D6997C215E
+* sudo apt-get update
+
+### Mount Failed with Error: Current requires cgo or $USER set in environment
+We see this error when gcsfuse is mounted without --foreground flag and gcsfuse
+package is compiled with CGO_ENABLED=0 (go env variable).
+
+We found this error while mounting gcsfuse through source on debian 11 machine.
+CGO_ENABLED environment variable was false at that machine. To fix this, build
+the gcsfuse package by enabling CGO_ENABLED flag and then mount back.
+
+Refer this if you want to know more about CGO: https://www.golinuxcloud.com/cgo-tutorial/
