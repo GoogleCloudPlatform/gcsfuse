@@ -42,7 +42,7 @@ case GCSFuse tries to fetch the default application credential, but got stuck
 due to absense of application-credentials on the VM.
 
 Run "gcloud auth application-default login" command to fetch default creds
-to the VM. This creds are copied to -    
+to the VM. These creds are copied to -    
 (a) For linux - $HOME/.config/gcloud/application_default_credentials.json  
 (b) For window - %APPDATA%/gcloud/application_default_credentials.json
 
