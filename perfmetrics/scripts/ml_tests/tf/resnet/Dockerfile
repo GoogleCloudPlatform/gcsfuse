@@ -28,8 +28,8 @@ RUN echo "user_allow_other" > /etc/fuse.conf
 
 WORKDIR "/tf_test/"
 
-COPY ./perfmetrics/scripts/continuous_test/ml_tests/tf/setup_scripts/setup_container.sh .
-COPY ./perfmetrics/scripts/continuous_test/ml_tests/tf/setup_scripts/resnet_runner.py .
+COPY ./perfmetrics/scripts/ml_tests/tf/resnet/setup_scripts/setup_container.sh .
+COPY ./perfmetrics/scripts/ml_tests/tf/resnet/setup_scripts/resnet_runner.py .
 RUN chmod +x setup_container.sh
 
 RUN mkdir -p "myBucket"
