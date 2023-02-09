@@ -178,14 +178,11 @@ It is distributed as-is, without warranties or conditions of any kind.
 
 For support, visit [Server Fault][sf]. Tag your questions with `gcsfuse` and
 `google-cloud-platform`, and make sure to look at
-[previous questions and answers][previous] before asking a new one. For bugs and
-feature requests, please [file an issue][issues].
+[previous questions and answers][previous] and [playbook.md](docs/playbook.md) 
+before asking a new one. For bugs and feature requests, please [file an issue][issues].
 
 [sf]: http://serverfault.com/
 [previous]: http://serverfault.com/questions/tagged/gcsfuse
-
-## GCSFuse common errors/issues
-Please refer [playbook.md](docs/playbook.md), before reporting any issue.
 
 # Versioning
 
