@@ -220,12 +220,6 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.DurationFlag{
-				Name:  "http-client-timeout",
-				Value: 800 * time.Millisecond,
-				Usage: "The time duration that client will wait to get response from the server.",
-			},
-
-			cli.DurationFlag{
 				Name:  "max-retry-duration",
 				Value: 30 * time.Second,
 				Usage: "The operation will be retried till the value of max-retry-duration.",
@@ -383,7 +377,6 @@ type flagStorage struct {
 	StatCacheCapacity   int
 	StatCacheTTL        time.Duration
 	TypeCacheTTL        time.Duration
-	HttpClientTimeout   time.Duration
 	MaxRetryDuration    time.Duration
 	RetryMultiplier     float64
 	LocalFileCache      bool
@@ -514,7 +507,6 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		StatCacheCapacity:   c.Int("stat-cache-capacity"),
 		StatCacheTTL:        c.Duration("stat-cache-ttl"),
 		TypeCacheTTL:        c.Duration("type-cache-ttl"),
-		HttpClientTimeout:   c.Duration("http-client-timeout"),
 		MaxRetryDuration:    c.Duration("max-retry-duration"),
 		RetryMultiplier:     c.Float64("retry-multiplier"),
 		LocalFileCache:      c.Bool("experimental-local-file-cache"),
