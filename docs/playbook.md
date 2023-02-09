@@ -36,6 +36,17 @@ Command to enable the flag:
 
 Refer to know more about CGO: https://www.golinuxcloud.com/cgo-tutorial/
 
+### Mount gets stuck with error: DefaultTokenSource: google: could not find default credentials.
+This state comes when we don't provide key-file as a mounting argument. In this
+case GCSFuse tries to fetch the default application credential, but got stuck
+due to absense of application-credentials on the VM.
+
+Run "gcloud auth application-default login" command to fetch default creds
+to the VM. These creds are copied to -    
+(a) For linux - $HOME/.config/gcloud/application_default_credentials.json  
+(b) For window - %APPDATA%/gcloud/application_default_credentials.json
+
+
 ## Serving
 Once the mounting is successful, there are other issues which may crop up during the serving phase and this section discusses some of those and their possible remedies.
 
