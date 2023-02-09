@@ -191,3 +191,6 @@ Versioning][semver]. Note that the current major version is `0`, which means
 that we reserve the right to make backwards-incompatible changes.
 
 [semver]: http://semver.org/
+
+# GCSFuse common errors/issues
+Please refer [playbook.md](docs/playbook.md), before reporting any issue.
