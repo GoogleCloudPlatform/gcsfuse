@@ -22,7 +22,7 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 echo Mounting gcs bucket for master branch
 mkdir -p gcs
 GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --experimental-enable-storage-client-library=true --disable-http2"
-BUCKET_NAME=gcs-fuse-loadtest
+BUCKET_NAME=presubmit-perf-test
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
 go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT

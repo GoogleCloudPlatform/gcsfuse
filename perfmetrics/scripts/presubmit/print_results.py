@@ -31,7 +31,7 @@ if __name__ == '__main__':
   for d in data :
     # Print filesize only once
     if d['params']['rw'] == "read":
-      print("Filesize: "+ str(round(d["params"]["filesize_kb"]/1024.0,3)) + "MiB")
+      print("\n"+"Filesize: "+ str(round(d["params"]["filesize_kb"]/1024.0,3)) + "MiB")
 
     # Print Bandwidth
     print(d['params']['rw'] + " bw: "+ str(round(d["metrics"]["bw_bytes"]/(1024.0*1024.0),2)) + "MiB/s")
