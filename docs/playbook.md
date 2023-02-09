@@ -22,6 +22,20 @@ This is explained in the [semantics](https://github.com/GoogleCloudPlatform/gcsf
 The error comes when bucket is already mounted in a folder and we try to mount it again in the same folder without un-mounting it. Fix it to first umount and then remount. Command for un-mounting - 
 sudo umount mounted-dir-name
 
+### Mount failed with error: Current requires cgo or $USER set in environment
+We see this error when gcsfuse is mounted without --foreground flag and gcsfuse
+package is compiled with CGO_ENABLED=0 (go env variable).
+
+We found this error while mounting gcsfuse through source on debian 11 machine.
+CGO_ENABLED environment variable was false at that machine. To fix this, build
+the gcsfuse package by enabling CGO_ENABLED flag and then mount back.
+
+Command to enable the flag:  
+(a) Check the current value of CGO_ENABLED - using "go env" command.  
+(b) If it is unset, set this using - "export CGO_ENABLED=1" command.
+
+Refer to know more about CGO: https://www.golinuxcloud.com/cgo-tutorial/
+
 ## Serving
 Once the mounting is successful, there are other issues which may crop up during the serving phase and this section discusses some of those and their possible remedies.
 
@@ -44,13 +58,3 @@ Enter NO_PUBKEY here (eg: 6494C6D6997C215E is NO_PUBKEY for above error)
 
 * sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6494C6D6997C215E
 * sudo apt-get update
-
-### Mount Failed with Error: Current requires cgo or $USER set in environment
-We see this error when gcsfuse is mounted without --foreground flag and gcsfuse
-package is compiled with CGO_ENABLED=0 (go env variable).
-
-We found this error while mounting gcsfuse through source on debian 11 machine.
-CGO_ENABLED environment variable was false at that machine. To fix this, build
-the gcsfuse package by enabling CGO_ENABLED flag and then mount back.
-
-Refer this if you want to know more about CGO: https://www.golinuxcloud.com/cgo-tutorial/
