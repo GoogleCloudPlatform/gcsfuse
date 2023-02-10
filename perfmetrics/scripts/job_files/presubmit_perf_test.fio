@@ -19,7 +19,6 @@ filename_format=$jobname.$jobnum.$filenum
 
 [256kb_read]
 stonewall
-startdelay=10
 bs=16k
 directory=gcs/256kb
 filesize=256k
@@ -28,7 +27,7 @@ numjobs=40
 
 [256kb_write]
 stonewall
-startdelay=80
+startdelay=190
 bs=16k
 directory=gcs/256kb
 filesize=256k
@@ -37,7 +36,7 @@ numjobs=40
 
 [256kb_randread]
 stonewall
-startdelay=150
+startdelay=380
 bs=16k
 directory=gcs/256kb
 filesize=256k
@@ -46,7 +45,7 @@ numjobs=40
 
 [256kb_randwrite]
 stonewall
-startdelay=220
+startdelay=570
 bs=16k
 directory=gcs/256kb
 filesize=256k
@@ -55,7 +54,7 @@ numjobs=40
 
 [50mb_read]
 stonewall
-startdelay=290
+startdelay=760
 directory=gcs/50mb
 filesize=50M
 rw=read
@@ -63,7 +62,7 @@ numjobs=40
 
 [50mb_write]
 stonewall
-startdelay=360
+startdelay=950
 directory=gcs/50mb
 filesize=50M
 rw=write
@@ -71,7 +70,7 @@ numjobs=40
 
 [50mb_randread]
 stonewall
-startdelay=430
+startdelay=1140
 directory=gcs/50mb
 filesize=50M
 rw=randread
@@ -79,7 +78,7 @@ numjobs=40
 
 [50mb_randwrite]
 stonewall
-startdelay=500
+startdelay=1330
 directory=gcs/50mb
 filesize=50M
 rw=randwrite
@@ -87,7 +86,7 @@ numjobs=40
 
 [1gb_read]
 stonewall
-startdelay=570
+startdelay=1520
 directory=gcs/1gb
 filesize=1G
 rw=read
@@ -95,7 +94,7 @@ numjobs=40
 
 [1gb_write]
 stonewall
-startdelay=640
+startdelay=1710
 directory=gcs/1gb
 filesize=1G
 rw=write
@@ -103,7 +102,7 @@ numjobs=40
 
 [1gb_randread]
 stonewall
-startdelay=710
+startdelay=1900
 directory=gcs/1gb
 filesize=1G
 rw=randread
@@ -111,7 +110,7 @@ numjobs=40
 
 [1gb_randwrite]
 stonewall
-startdelay=780
+startdelay=2090
 directory=gcs/1gb
 filesize=1G
 rw=randwrite
