@@ -20,7 +20,7 @@ sudo docker run --runtime=nvidia --name=pytorch_automation_container --privilege
 --shm-size=128g pytorch-gcsfuse:latest
 
 echo "Setting up cron job to delete the gcsfuse_logs."
-echo "0 */1 * * * sudo sh ./perfmetrics/scripts/ml_tests/smart_log_deleter.sh container_artifacts/gcsfuse_logs/" | crontab -
+echo "0 */1 * * * cd ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse && sudo sh ./perfmetrics/scripts/ml_tests/smart_log_deleter.sh container_artifacts/gcsfuse_logs/" | crontab -
 
 # Wait for the script completion as well as logs output.
 sudo docker logs -f pytorch_automation_container
