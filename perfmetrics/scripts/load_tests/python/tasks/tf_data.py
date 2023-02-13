@@ -111,14 +111,14 @@ class TFDataRead(task.LoadTestTask):
     logging.info('Creating %s bytes TFRecord files using the format '
                  '%s', self.file_size, self.file_path_format)
 
-    file_path_0 = self.file_path_format.format(file_num=0)
-    self._create_tfrecord_file(file_path_0, self.file_size)
+    default_file_path = self.file_path_format.format(file_num=0)
+    self._create_tfrecord_file(default_file_path, self.file_size)
     for file_num in range(1, self.num_files):
       file_path = self.file_path_format.format(file_num=file_num)
       if not tf.io.gfile.exists(file_path):
         logging.info('Creating TFRecord file %s of size %s.', file_path,
                      self.file_size)
-        tf.io.gfile.copy(file_path_0, file_path)
+        tf.io.gfile.copy(default_file_path, file_path)
 
   def _create_tfrecord_file(self, file_path, file_size):
     """Creates .tfrecord file of given file size in bytes at given file path.
