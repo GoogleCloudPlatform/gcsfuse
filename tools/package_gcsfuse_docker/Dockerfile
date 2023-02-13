@@ -31,13 +31,13 @@ ENV GCSFUSE_PATH "$GOPATH/src/$GCSFUSE_REPO"
 RUN go get ${GCSFUSE_REPO}
 
 WORKDIR ${GCSFUSE_PATH}
-RUN git checkout "test_logrotate_package"
+RUN git checkout "v${GCSFUSE_VERSION}"
 
 ARG GCSFUSE_BIN="/gcsfuse"
 WORKDIR ${GOPATH}
 RUN go install ${GCSFUSE_REPO}/tools/build_gcsfuse
 RUN mkdir -p ${GCSFUSE_BIN}
-RUN build_gcsfuse ${GCSFUSE_PATH} ${GCSFUSE_BIN} test_logrotate_package
+RUN build_gcsfuse ${GCSFUSE_PATH} ${GCSFUSE_BIN} ${GCSFUSE_VERSION}
 RUN mkdir -p ${GCSFUSE_BIN}/usr && mv ${GCSFUSE_BIN}/bin ${GCSFUSE_BIN}/usr/bin
 
 ARG GCSFUSE_PKG="/packages"
@@ -48,18 +48,21 @@ RUN fpm \
     -t deb \
     -n gcsfuse \
     -C ${GCSFUSE_BIN} \
-    -v test_logrotate_package \
+    -v ${GCSFUSE_VERSION} \
     -d fuse \
     --vendor "" \
     --url "https://$GCSFUSE_REPO" \
-    --description "A user-space file system for Google Cloud Storage."
+    --description "A user-space file system for Google Cloud Storage." \
+    --after-install "tools/logrotate_config/package_after_install_script.sh"
 RUN fpm \
     -s dir \
     -t rpm \
     -n gcsfuse \
     -C ${GCSFUSE_BIN} \
-    -v test_logrotate_package \
+    -v ${GCSFUSE_VERSION} \
     -d fuse \
     --vendor "" \
     --url "https://$GCSFUSE_REPO" \
-    --description "A user-space file system for Google Cloud Storage."
+    --description "A user-space file system for Google Cloud Storage." \
+    --after-install "tools/logrotate_config/package_after_install_script.sh"
+
