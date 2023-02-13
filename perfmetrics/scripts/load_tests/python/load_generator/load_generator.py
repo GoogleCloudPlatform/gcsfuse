@@ -110,7 +110,10 @@ class LoadGenerator:
                 tasks_results_queue, post_tasks_results_queue))
       processes.append(process)
 
-    # Checkpoints initialisation. Note: Only used if self.run_time is set.
+    # Initialize checkpoints to show completion of load test i.e. 25%, 50% etc.
+    # Note: Completion checkpoints are shown only when self.run_time is set.
+    # E.g. if self.run_time is 60 then the load test will inform that 50% of
+    # load test is completed after 30 seconds.
     log_loading = self.run_time != sys.maxsize
     loading_checkpoints = list(
         map(lambda t: (t * self.run_time), lg_const.TIME_LOADING_PERCENTAGES))
@@ -123,6 +126,9 @@ class LoadGenerator:
 
     start_time = curr_time = time.time()
     loading_checkpoints = [t + start_time for t in loading_checkpoints]
+    # Loop till the condition of termination of load test is not met. The
+    # condition is either the load test has run for self.run_time or completed
+    # the total number of tasks assigned.
     while ((curr_time - start_time) < self.run_time) & \
         (tasks_results_queue.qsize() < self.total_num_tasks):
       # Sleep so that the looping is not very fast.
@@ -274,9 +280,8 @@ class LoadGenerator:
   def _compute_default_post_test_metrics(self, observations):
     """Computes default post load test metrics using observations.
 
-    Computes CPU and network related metrics using the observations over the
-    load test. Metrics includes CPU usage, latencies of tasks and upload and
-    download bandwidths.
+    Computes latency related metrics (percentiles, min, max and mean) of tasks
+    performed over the course of load test.
     """
     # Time stamps
     start_time = observations[lg_const.START_TIME]
