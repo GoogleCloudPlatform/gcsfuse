@@ -17,7 +17,7 @@ cd -
 mkdir  run_artifacts/gcsfuse_logs
 
 echo "Mounting GCSFuse..."
-nohup /pytorch_dino/gcsfuse/gcsfuse --type-cache-ttl=1728000s \
+nohup /pytorch_dino/gcsfuse/gcsfuse --foreground --type-cache-ttl=1728000s \
         --stat-cache-ttl=1728000s \
         --stat-cache-capacity=1320000 \
         --stackdriver-export-interval=60s \

@@ -19,11 +19,12 @@ cd -
 
 # Mount the bucket and run in background so that docker doesn't keep running after resnet_runner.py fails
 echo "Mounting the bucket"
-nohup gcsfuse/gcsfuse --implicit-dirs --experimental-enable-storage-client-library --debug_fuse --debug_gcs --max-conns-per-host 100 --disable-http2 --log-format "text" --log-file /home/logs/log.txt --stackdriver-export-interval 60s ml-models-data-gcsfuse myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
+nohup gcsfuse/gcsfuse --foreground --implicit-dirs --experimental-enable-storage-client-library --debug_fs --debug_gcs --max-conns-per-host 100 --disable-http2 --log-format "text" --log-file /home/logs/log.txt --stackdriver-export-interval 60s ml-models-data-gcsfuse myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
 
 # Install tensorflow model garden library
 pip3 install --user tf-models-official==2.10.0
 
+echo "Updating the tensorflow library code to bypass the kernel-cache..."
 # Fail building the container image if train_lib.py and controller.py are not at expected location.
 if [ -f "/root/.local/lib/python3.7/site-packages/official/core/train_lib.py" ]; then echo "file exists"; else echo "train_lib.py file not present in expected location. Please correct the location. Exiting"; exit 1; fi
 if [ -f "/root/.local/lib/python3.7/site-packages/orbit/controller.py" ]; then echo "file exists"; else echo "controller.py file not present in expected location. Please correct the location. Exiting"; exit 1; fi
@@ -165,5 +166,9 @@ sed -i "$lines"'d' $train_lib_file
 x=$((x-1))
 sed -i "$x"'r bypassed_code.py' $train_lib_file
 
+# We need to run it in foreground mode to make the container running.
+echo "Running the tensorflow resnet model..."
 # Start training the model
 python3 -u resnet_runner.py
+
+echo "Tensorflow resnet model completed the training successfully!"

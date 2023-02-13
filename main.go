@@ -151,7 +151,6 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 		MaxConnsPerHost:     flags.MaxConnsPerHost,
 		MaxIdleConnsPerHost: flags.MaxIdleConnsPerHost,
 		TokenSrc:            tokenSrc,
-		HttpClientTimeout:   flags.HttpClientTimeout,
 		MaxRetryDuration:    flags.MaxRetryDuration,
 		RetryMultiplier:     flags.RetryMultiplier,
 		UserAgent:           getUserAgent(flags.AppName),

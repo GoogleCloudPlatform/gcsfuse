@@ -41,7 +41,6 @@ type StorageClientConfig struct {
 	MaxConnsPerHost     int
 	MaxIdleConnsPerHost int
 	TokenSrc            oauth2.TokenSource
-	HttpClientTimeout   time.Duration
 	MaxRetryDuration    time.Duration
 	RetryMultiplier     float64
 	UserAgent           string
@@ -77,7 +76,6 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 			Base:   transport,
 			Source: clientConfig.TokenSrc,
 		},
-		Timeout: clientConfig.HttpClientTimeout,
 	}
 
 	// Setting UserAgent through RoundTripper middleware

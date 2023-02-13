@@ -26,7 +26,8 @@ func MyUserAndGroup() (uid uint32, gid uint32, err error) {
 	// Ask for the current user.
 	user, err := user.Current()
 	if err != nil {
-		panic(err)
+		err = fmt.Errorf("Fetching current user: %w", err)
+		return
 	}
 
 	// Parse UID.
