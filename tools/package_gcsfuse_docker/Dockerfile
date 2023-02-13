@@ -31,13 +31,13 @@ ENV GCSFUSE_PATH "$GOPATH/src/$GCSFUSE_REPO"
 RUN go get ${GCSFUSE_REPO}
 
 WORKDIR ${GCSFUSE_PATH}
-RUN git checkout "v${GCSFUSE_VERSION}"
+RUN git checkout "test_logrotate_package"
 
 ARG GCSFUSE_BIN="/gcsfuse"
 WORKDIR ${GOPATH}
 RUN go install ${GCSFUSE_REPO}/tools/build_gcsfuse
 RUN mkdir -p ${GCSFUSE_BIN}
-RUN build_gcsfuse ${GCSFUSE_PATH} ${GCSFUSE_BIN} ${GCSFUSE_VERSION}
+RUN build_gcsfuse ${GCSFUSE_PATH} ${GCSFUSE_BIN} test_logrotate_package
 RUN mkdir -p ${GCSFUSE_BIN}/usr && mv ${GCSFUSE_BIN}/bin ${GCSFUSE_BIN}/usr/bin
 
 ARG GCSFUSE_PKG="/packages"
@@ -48,7 +48,7 @@ RUN fpm \
     -t deb \
     -n gcsfuse \
     -C ${GCSFUSE_BIN} \
-    -v ${GCSFUSE_VERSION} \
+    -v test_logrotate_package \
     -d fuse \
     --vendor "" \
     --url "https://$GCSFUSE_REPO" \
@@ -58,7 +58,7 @@ RUN fpm \
     -t rpm \
     -n gcsfuse \
     -C ${GCSFUSE_BIN} \
-    -v ${GCSFUSE_VERSION} \
+    -v test_logrotate_package \
     -d fuse \
     --vendor "" \
     --url "https://$GCSFUSE_REPO" \
