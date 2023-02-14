@@ -519,6 +519,10 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 		if err != nil && c.errorLogger != nil {
 			c.errorLogger.Printf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
 		}
+
+		if err != nil {
+			fmt.Println("error received in write")
+		}
 		outMsg.Sglist = nil
 	}
 }

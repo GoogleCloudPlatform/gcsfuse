@@ -18,6 +18,7 @@ import (
 	"context"
 	"io"
 	"sync"
+	"fmt"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
@@ -103,7 +104,9 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 	}()
 
 	for {
+		fmt.Println("reading operation")
 		ctx, op, err := c.ReadOp()
+		fmt.Println("read operation")
 		if err == io.EOF {
 			break
 		}
