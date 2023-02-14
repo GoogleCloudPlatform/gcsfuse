@@ -12,7 +12,7 @@ echo Installing fio
 sudo apt-get install fio -y
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
-# Get latest commitId before today 12am in log file
+# Get the latest commitId of yesterday in the log file
 git log --before=yesterday --max-count=1 --pretty=%H >> log.txt
 commitId=`cat log.txt`
 git checkout $commitId
