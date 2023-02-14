@@ -1740,8 +1740,11 @@ func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
 	// Find the handle and lock it.
+	fmt.Println("ReadFile invoked")
 	fs.mu.Lock()
+	fmt.Println("ReadFile lock acquired")
 	fh := fs.handles[op.Handle].(*handle.FileHandle)
+	fmt.Println("filehandle conversion handled")
 	fs.mu.Unlock()
 
 	fh.Lock()
