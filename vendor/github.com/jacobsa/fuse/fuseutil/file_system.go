@@ -120,7 +120,7 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 			// cheap for the file system to handle
 			s.handleOp(c, ctx, op)
 		} else {
-			go s.handleOp(c, ctx, op)
+			s.handleOp(c, ctx, op)
 		}
 	}
 }
