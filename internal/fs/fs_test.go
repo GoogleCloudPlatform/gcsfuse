@@ -132,6 +132,7 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 		tmpObjectPrefix: ".gcsfuse_tmp/",
 	}
 	t.serverCfg.RenameDirLimit = 5
+	t.serverCfg.SequentialReadSizeMb = 200
 
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
