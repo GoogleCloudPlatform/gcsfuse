@@ -79,6 +79,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	// state, or clear fh.reader if it's not possible to create one (probably
 	// because the inode is dirty).
 	fh.inode.Lock()
+	fmt.Println("fh inode lock acquired")
 	err = fh.tryEnsureReader(ctx, sequentialReadSizeMb)
 	if err != nil {
 		fh.inode.Unlock()

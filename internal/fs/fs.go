@@ -1748,6 +1748,7 @@ func (fs *fileSystem) ReadFile(
 	fs.mu.Unlock()
 
 	fh.Lock()
+	fmt.Printf("FileHandle lock acquired")
 	defer fh.Unlock()
 
 	// Serve the read.
@@ -1758,6 +1759,7 @@ func (fs *fileSystem) ReadFile(
 		err = nil
 	}
 
+	fmt.Println("Readfile returned")
 	return
 }
 
