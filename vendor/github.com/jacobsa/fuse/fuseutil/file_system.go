@@ -31,7 +31,7 @@ import (
 //
 // The FileSystem implementation should not call Connection.Reply, instead
 // returning the error with which the caller should respond.
-//
+//fha
 // See NotImplementedFileSystem for a convenient way to embed default
 // implementations for methods you don't care about.
 type FileSystem interface {

@@ -339,7 +339,9 @@ func (c *Connection) readMessage() (*buffer.InMessage, error) {
 	// Loop past transient errors.
 	for {
 		// Attempt a read.
+		fmt.Println("attempting to read a message from c.dev")
 		err := m.Init(c.dev)
+		fmt.Println("read a message from c.dev")
 
 		// Special cases:
 		//

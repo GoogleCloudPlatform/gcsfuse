@@ -1082,8 +1082,8 @@ func (fs *fileSystem) GetInodeAttributes(
 	if err != nil {
 		return err
 	}
-	fmt.Println(op.Attributes)
-	fmt.Println(op.AttributesExpiration)
+	/*fmt.Println(op.Attributes)
+	fmt.Println(op.AttributesExpiration)*/
 
 	return
 }
