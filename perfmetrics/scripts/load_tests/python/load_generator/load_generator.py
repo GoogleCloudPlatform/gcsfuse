@@ -35,7 +35,7 @@ from load_generator import constants as lg_const
 
 
 class LoadGenerator:
-  """Generates load with the with a given task.
+  """Generates load using a given task.
 
   Generates load on CPU and other resources depending upon the given task. This
   class also provides default implementation of post load test task to get 
@@ -50,7 +50,7 @@ class LoadGenerator:
       in each process during load test.
     run_time: An integer defining the number of seconds to run the load test
       for.
-    num_tasks_per_thread: An integer defining the number of times the given
+    num_executions_per_thread: An integer defining the number of times the given
       task to be run inside each thread of each process during load test.
   """
 
@@ -58,20 +58,20 @@ class LoadGenerator:
                num_processes,
                num_threads_per_process,
                run_time=sys.maxsize,
-               num_tasks_per_thread=sys.maxsize):
+               num_executions_per_thread=sys.maxsize):
     self.num_processes = num_processes
     self.num_threads_per_process = num_threads_per_process
     self.run_time = min(sys.maxsize, run_time)
-    self.num_tasks_per_thread = min(sys.maxsize, num_tasks_per_thread)
+    self.num_executions_per_thread = min(sys.maxsize, num_executions_per_thread)
 
     if (self.run_time == sys.maxsize) & \
-        (self.num_tasks_per_thread == sys.maxsize):
-      raise ValueError('Out of run_time and num_tasks_per_thread '
+        (self.num_executions_per_thread == sys.maxsize):
+      raise ValueError('Out of run_time and num_executions_per_thread '
                        'arguments, one has to be passed.')
 
     self.total_num_tasks = sys.maxsize
-    if self.num_tasks_per_thread != sys.maxsize:
-      self.total_num_tasks = self.num_tasks_per_thread * \
+    if self.num_executions_per_thread != sys.maxsize:
+      self.total_num_tasks = self.num_executions_per_thread * \
                              self.num_threads_per_process * self.num_processes
 
   def pre_load_test(self):
@@ -79,8 +79,8 @@ class LoadGenerator:
     """
     pass
 
-  def generate_load(self, task):
-    """Generates load with the given task.
+  def load_test(self, task):
+    """Performs load test using the given task.
 
     The load is generated on CPU and other resources (depending upon the task
     used) by running process(s) and thread(s) where task runs inside thread(s)
@@ -106,7 +106,7 @@ class LoadGenerator:
       process = multiprocessing.Process(
           target=LoadGenerator._process_task,
           args=(task, process_id, self.num_threads_per_process,
-                self.num_tasks_per_thread, pre_tasks_results_queue,
+                self.num_executions_per_thread, pre_tasks_results_queue,
                 tasks_results_queue, post_tasks_results_queue))
       processes.append(process)
 
@@ -131,7 +131,9 @@ class LoadGenerator:
     # the total number of tasks assigned.
     while ((curr_time - start_time) < self.run_time) & \
         (tasks_results_queue.qsize() < self.total_num_tasks):
-      # Sleep so that the looping is not very fast.
+      # Sleep so that the looping is not very fast. 0.1 is decided on
+      # discretion with the intention that time duration shouldn't be very
+      # small or shouldn't be very large.
       time.sleep(0.1)
       curr_time = time.time()
       if log_loading & (curr_loading_idx < len(loading_checkpoints)) and (
@@ -193,13 +195,13 @@ class LoadGenerator:
     return metrics
 
   @staticmethod
-  def _thread_task(task, process_id, thread_id, num_tasks_per_thread,
+  def _thread_task(task, process_id, thread_id, num_executions_per_thread,
                    pre_tasks_results_queue, tasks_results_queue,
                    post_tasks_results_queue):
     """Task run in threads spawned during the load test.
 
     The task used for the load test is run inside this thread. Pre- and
-    post-task are also run inside this task.
+    post-task are also run inside this thread.
     This method is kept as protected as it is not used in other classes and
     static because class methods can't be passed as target of thread.
     """
@@ -208,7 +210,7 @@ class LoadGenerator:
     queues = [
         pre_tasks_results_queue, tasks_results_queue, post_tasks_results_queue
     ]
-    while cnt < num_tasks_per_thread:
+    while cnt < num_executions_per_thread:
       for curr_task, curr_queue in zip(tasks, queues):
         start_time = time.time()
         result = curr_task(thread_id, process_id)
@@ -218,7 +220,7 @@ class LoadGenerator:
 
   @staticmethod
   def _process_task(task, process_id, num_threads_per_process,
-                    num_tasks_per_thread, pre_tasks_results_queue,
+                    num_executions_per_thread, pre_tasks_results_queue,
                     tasks_results_queue, post_tasks_results_queue):
     """Task run in processes spawned during the load test.
 
@@ -233,7 +235,7 @@ class LoadGenerator:
       threads.append(
           threading.Thread(
               target=LoadGenerator._thread_task,
-              args=(task, process_id, thread_num, num_tasks_per_thread,
+              args=(task, process_id, thread_num, num_executions_per_thread,
                     pre_tasks_results_queue, tasks_results_queue,
                     post_tasks_results_queue)))
 
@@ -261,7 +263,7 @@ class LoadGenerator:
       data_pts: List of integer data points.
 
     Returns:
-      Dictionary containing 25, 50, 75, 90, 95 & 99 percentiles along with min,
+      Dictionary containing 25, 50, 90, 95 & 99 percentiles along with min,
       max and mean.
     """
     np_array = np.array(data_pts)
@@ -271,7 +273,6 @@ class LoadGenerator:
         lg_const.MAX: max(data_pts),
         lg_const.PER_25: np.percentile(np_array, 25),
         lg_const.PER_50: np.percentile(np_array, 50),
-        lg_const.PER_75: np.percentile(np_array, 75),
         lg_const.PER_90: np.percentile(np_array, 90),
         lg_const.PER_95: np.percentile(np_array, 95),
         lg_const.PER_99: np.percentile(np_array, 99)
@@ -354,4 +355,6 @@ class LoadGenerator:
             metrics[latency_stat_name][lg_const.PER_90])
       print('\t\t95th Percentile (in seconds): ',
             metrics[latency_stat_name][lg_const.PER_95])
+      print('\t\t99th Percentile (in seconds): ',
+            metrics[latency_stat_name][lg_const.PER_99])
       print('\t\tMax (in seconds): ', metrics[latency_stat_name][lg_const.MAX])

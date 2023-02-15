@@ -18,6 +18,8 @@ KB = 1024
 MB = 1024 * KB
 GB = 1024 * MB
 
+# Used in showing percentage of load test completed (time-wise). e.g 0.25
+# represents load test has run 25% of its total run time.
 TIME_LOADING_PERCENTAGES = (0.25, 0.50, 0.75)
 
 # Metrics names
@@ -34,7 +36,6 @@ MAX = 'max'
 MEAN = 'mean'
 PER_25 = 'per_25'
 PER_50 = 'per_50'
-PER_75 = 'per_75'
 PER_90 = 'per_90'
 PER_95 = 'per_95'
 PER_99 = 'per_99'
