@@ -13,9 +13,7 @@ sudo apt-get install fio -y
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 # Get the latest commitId of yesterday in the log file
-git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H >> log.txt
-commitId=`cat log.txt`
-git checkout $commitId
+commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 echo Mounting gcs bucket
 mkdir -p gcs
 LOG_FILE=log-$(date '+%Y-%m-%d').txt
@@ -24,6 +22,8 @@ BUCKET_NAME=gcs-fuse-dashboard-fio
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
 go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+
+# Executing perf tests
 chmod +x perfmetrics/scripts/run_load_test_and_fetch_metrics.sh
 ./perfmetrics/scripts/run_load_test_and_fetch_metrics.sh
 # Copying gcsfuse logs to bucket
@@ -31,6 +31,7 @@ gsutil -m cp $LOG_FILE gs://gcs-fuse-dashboard-fio/fio-gcsfuse-logs/
 
 # Deleting logs older than 10 days
 python3 perfmetrics/scripts/utils/metrics_util.py gcs/fio-gcsfuse-logs/ 10
+
 # ls_metrics test
 chmod +x perfmetrics/scripts/ls_metricsrun_ls_benchmark.sh
 ./perfmetrics/scripts/ls_metrics/run_ls_benchmark.sh
