@@ -51,4 +51,4 @@ chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 cat perfmetrics/scripts/presubmit/result.txt
 
 # delete file
-rm perfmetrics/scripts/presubmit/result.txt
+rm result.txt
