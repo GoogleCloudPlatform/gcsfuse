@@ -17,7 +17,6 @@ sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
 echo Installing fio
 sudo apt-get install fio -y
-touch perfmetrics/scripts/presubmit/results.txt
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 echo Mounting gcs bucket for master branch
@@ -47,8 +46,5 @@ go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 
-# show results
-cat perfmetrics/scripts/presubmit/result.txt
-
-# delete file
-rm result.txt
+echo showing results...
+cat result.txt
