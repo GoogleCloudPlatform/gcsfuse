@@ -29,7 +29,7 @@ if __name__ == '__main__':
   data = fio_metrics_obj.get_metrics(argv[1])
   # Iterating through data
 
-  file = open("results.txt", "w")
+  file = open(r"./perfmetrics/scripts/presubmit/result.txt", "w+")
   for d in data :
     # Print filesize only once
     if d['params']['rw'] == "read":
@@ -37,3 +37,4 @@ if __name__ == '__main__':
 
     # Print Bandwidth
     file.write(str.format(d['params']['rw'] + " bw: "+ str(round(d["metrics"]["bw_bytes"]/(1024.0*1024.0),2)) + "MiB/s" + "\n"))
+  file.close()

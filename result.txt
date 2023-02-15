@@ -1,0 +1,18 @@
+
+Filesize: 0.25MiB
+read bw: 215.93MiB/s
+write bw: 229.32MiB/s
+randread bw: 15.88MiB/s
+randwrite bw: 240.51MiB/s
+
+Filesize: 48.828MiB
+read bw: 786.1MiB/s
+write bw: 189.2MiB/s
+randread bw: 353.33MiB/s
+randwrite bw: 211.29MiB/s
+
+Filesize: 976.562MiB
+read bw: 758.84MiB/s
+write bw: 189.33MiB/s
+randread bw: 322.52MiB/s
+randwrite bw: 187.96MiB/s
