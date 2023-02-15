@@ -29,7 +29,7 @@ if __name__ == '__main__':
   data = fio_metrics_obj.get_metrics(argv[1])
   # Iterating through data
 
-  file = open(r"./perfmetrics/scripts/presubmit/result.txt", "w+")
+  file = open("result.txt", "w+")
   for d in data :
     # Print filesize only once
     if d['params']['rw'] == "read":
