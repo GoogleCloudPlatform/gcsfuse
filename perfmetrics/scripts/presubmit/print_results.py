@@ -27,9 +27,10 @@ if __name__ == '__main__':
   # Fetching metrics from json file
   fio_metrics_obj = FioMetrics()
   data = fio_metrics_obj.get_metrics(argv[1])
-  # Iterating through data
 
-  file = open("result.txt", "w+")
+  # Fetching results in result.txt file
+  file = open("result.txt", "a")
+  # Iterating through data
   for d in data :
     # Print filesize only once
     if d['params']['rw'] == "read":

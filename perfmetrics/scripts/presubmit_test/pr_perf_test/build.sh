@@ -26,7 +26,8 @@ BUCKET_NAME=presubmit-perf-test
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
 go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
-touch perfmetrics/scripts/presubmit/result.txt
+touch result.txt
+echo "Results of the master branch" >> result.txt
 # Running FIO test
 chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
@@ -42,6 +43,7 @@ echo Mounting gcs bucket from pr branch
 mkdir -p gcs
 # The VM will itself exit if the gcsfuse mount fails.
 go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+echo "Results of the PR branch" >> result.txt
 # Running FIO test
 chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
