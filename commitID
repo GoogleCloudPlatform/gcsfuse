@@ -1,1 +1,0 @@
-git log --before=yesterday 23:59:59 --max-count=1 --pretty=%H
