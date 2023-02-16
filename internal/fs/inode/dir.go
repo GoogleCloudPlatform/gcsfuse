@@ -461,7 +461,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		b.Add(lookUpExplicitDir)
 	case RegularFileType, SymlinkType:
 		b.Add(lookUpFile)
-	case NotExistingType:
+	case NonexistentType:
 		if d.enableNonexistentType {
 			return nil, nil
 		}
@@ -490,7 +490,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	if result != nil {
 		d.cache.Insert(d.cacheClock.Now(), name, result.Type())
 	} else if d.enableNonexistentType && typeUnknown {
-		d.cache.Insert(d.cacheClock.Now(), name, NotExistingType)
+		d.cache.Insert(d.cacheClock.Now(), name, NonexistentType)
 	}
 
 	return result, nil
