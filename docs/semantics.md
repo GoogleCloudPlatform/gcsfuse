@@ -118,7 +118,7 @@ stated. Similarly if the child is a directory but not a file.
 Note that if an inode does not exist in GCS, this nonexistent state is
 not cached in type cache. If an application needs to read nonexistent folders
 frequently, it could become a performance bottleneck as the nonexistent folder
-lookup request will hit GCS every time. To alleviate that, the tuning falg
+lookup request will hit GCS every time. To alleviate that, the tuning flag
 `--enable-nonexistent-type-cache` can be set. 
 
 **Warning**: Using type caching breaks the consistency guarantees discussed in
