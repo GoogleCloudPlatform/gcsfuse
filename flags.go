@@ -251,7 +251,7 @@ func newApp() (app *cli.App) {
 
 			cli.IntFlag{
 				Name:  "max-conns-per-host",
-				Value: 10,
+				Value: 100,
 				Usage: "The max number of TCP connections allowed per server. " +
 					"This is effective when --disable-http2 is set.",
 			},
