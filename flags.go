@@ -251,7 +251,7 @@ func newApp() (app *cli.App) {
 
 			cli.IntFlag{
 				Name:  "max-conns-per-host",
-				Value: 100,
+				Value: 10,
 				Usage: "The max number of TCP connections allowed per server. " +
 					"This is effective when --disable-http2 is set.",
 			},
@@ -260,6 +260,12 @@ func newApp() (app *cli.App) {
 				Name:  "max-idle-conns-per-host",
 				Value: 100,
 				Usage: "The number of maximum idle connections allowed per server",
+			},
+
+			cli.BoolFlag{
+				Name: "enable-nonexistent-type-cache",
+				Usage: "Once set,  if an inode is not found in GCS," +
+					"a type cache entry with type NonexistentType will be created.",
 			},
 
 			/////////////////////////
@@ -373,17 +379,18 @@ type flagStorage struct {
 	SequentialReadSizeMb               int32
 
 	// Tuning
-	MaxRetrySleep       time.Duration
-	StatCacheCapacity   int
-	StatCacheTTL        time.Duration
-	TypeCacheTTL        time.Duration
-	MaxRetryDuration    time.Duration
-	RetryMultiplier     float64
-	LocalFileCache      bool
-	TempDir             string
-	DisableHTTP2        bool
-	MaxConnsPerHost     int
-	MaxIdleConnsPerHost int
+	MaxRetrySleep         time.Duration
+	StatCacheCapacity     int
+	StatCacheTTL          time.Duration
+	TypeCacheTTL          time.Duration
+	MaxRetryDuration      time.Duration
+	RetryMultiplier       float64
+	LocalFileCache        bool
+	TempDir               string
+	DisableHTTP2          bool
+	MaxConnsPerHost       int
+	MaxIdleConnsPerHost   int
+	EnableNonexistentType bool
 
 	// Monitoring & Logging
 	StackdriverExportInterval time.Duration
@@ -503,17 +510,18 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		SequentialReadSizeMb:               int32(c.Int("sequential-read-size-mb")),
 
 		// Tuning,
-		MaxRetrySleep:       c.Duration("max-retry-sleep"),
-		StatCacheCapacity:   c.Int("stat-cache-capacity"),
-		StatCacheTTL:        c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:        c.Duration("type-cache-ttl"),
-		MaxRetryDuration:    c.Duration("max-retry-duration"),
-		RetryMultiplier:     c.Float64("retry-multiplier"),
-		LocalFileCache:      c.Bool("experimental-local-file-cache"),
-		TempDir:             c.String("temp-dir"),
-		DisableHTTP2:        c.Bool("disable-http2"),
-		MaxConnsPerHost:     c.Int("max-conns-per-host"),
-		MaxIdleConnsPerHost: c.Int("max-idle-conns-per-host"),
+		MaxRetrySleep:         c.Duration("max-retry-sleep"),
+		StatCacheCapacity:     c.Int("stat-cache-capacity"),
+		StatCacheTTL:          c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:          c.Duration("type-cache-ttl"),
+		MaxRetryDuration:      c.Duration("max-retry-duration"),
+		RetryMultiplier:       c.Float64("retry-multiplier"),
+		LocalFileCache:        c.Bool("experimental-local-file-cache"),
+		TempDir:               c.String("temp-dir"),
+		DisableHTTP2:          c.Bool("disable-http2"),
+		MaxConnsPerHost:       c.Int("max-conns-per-host"),
+		MaxIdleConnsPerHost:   c.Int("max-idle-conns-per-host"),
+		EnableNonexistentType: c.Bool("enable-nonexistent-type-cache"),
 
 		// Monitoring & Logging
 		StackdriverExportInterval: c.Duration("stackdriver-export-interval"),

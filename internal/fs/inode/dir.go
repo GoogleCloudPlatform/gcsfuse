@@ -145,6 +145,8 @@ type dirInode struct {
 	id           fuseops.InodeID
 	implicitDirs bool
 
+	enableNonexistentType bool
+
 	// INVARIANT: name.IsDir()
 	name Name
 
@@ -193,6 +195,7 @@ func NewDirInode(
 	name Name,
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
+	enableNonexistentType bool,
 	typeCacheTTL time.Duration,
 	bucket gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
@@ -205,14 +208,15 @@ func NewDirInode(
 	// Set up the struct.
 	const typeCacheCapacity = 1 << 16
 	typed := &dirInode{
-		bucket:       bucket,
-		mtimeClock:   mtimeClock,
-		cacheClock:   cacheClock,
-		id:           id,
-		implicitDirs: implicitDirs,
-		name:         name,
-		attrs:        attrs,
-		cache:        newTypeCache(typeCacheCapacity/2, typeCacheTTL),
+		bucket:                bucket,
+		mtimeClock:            mtimeClock,
+		cacheClock:            cacheClock,
+		id:                    id,
+		implicitDirs:          implicitDirs,
+		enableNonexistentType: enableNonexistentType,
+		name:                  name,
+		attrs:                 attrs,
+		cache:                 newTypeCache(typeCacheCapacity/2, typeCacheTTL),
 	}
 
 	typed.lc.Init(id)
@@ -442,6 +446,10 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	}
 
 	b := syncutil.NewBundle(ctx)
+
+	//Set this boolean to be true if the type is unknown from type cache.
+	var typeUnknown bool = false
+
 	switch cachedType := d.cache.Get(d.cacheClock.Now(), name); cachedType {
 	case ImplicitDirType:
 		dirResult = &Core{
@@ -453,6 +461,10 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		b.Add(lookUpExplicitDir)
 	case RegularFileType, SymlinkType:
 		b.Add(lookUpFile)
+	case NotExistingType:
+		if d.enableNonexistentType {
+			return nil, nil
+		}
 	case UnknownType:
 		b.Add(lookUpFile)
 		if d.implicitDirs {
@@ -460,6 +472,8 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		} else {
 			b.Add(lookUpExplicitDir)
 		}
+
+		typeUnknown = true
 	}
 
 	if err := b.Join(); err != nil {
@@ -475,7 +489,10 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 
 	if result != nil {
 		d.cache.Insert(d.cacheClock.Now(), name, result.Type())
+	} else if d.enableNonexistentType && typeUnknown {
+		d.cache.Insert(d.cacheClock.Now(), name, NotExistingType)
 	}
+
 	return result, nil
 }
 
@@ -531,7 +548,7 @@ func (d *dirInode) readObjects(
 		MaxResults:               MaxResultsForListObjectsCall,
 		// Setting Projection param to noAcl since fetching owner and acls are not
 		// required.
-		ProjectionVal:            gcs.NoAcl,
+		ProjectionVal: gcs.NoAcl,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)

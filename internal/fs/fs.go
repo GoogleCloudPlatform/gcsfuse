@@ -73,6 +73,15 @@ type ServerConfig struct {
 	// See docs/semantics.md for more info.
 	ImplicitDirectories bool
 
+	// By default, if a directory does not exist in GCS, this nonexistent state is
+	// not cached in type cache. So the directory lookup request will hit GCS every
+	// time.
+	//
+	// Setting this bool to true enables the nonexistent type cache so if the
+	// directory state is NonexistentType in type cache, the lookup request will
+	// return nil immediately.
+	EnableNonexistentType bool
+
 	// How long to allow the kernel to cache inode attributes.
 	//
 	// Any given object generation in GCS is immutable, and a new generation
@@ -142,6 +151,7 @@ func NewFileSystem(
 		localFileCache:         cfg.LocalFileCache,
 		contentCache:           contentCache,
 		implicitDirs:           cfg.ImplicitDirectories,
+		enableNonexistentType:  cfg.EnableNonexistentType,
 		inodeAttributeCacheTTL: cfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:        cfg.DirTypeCacheTTL,
 		renameDirLimit:         cfg.RenameDirLimit,
@@ -199,6 +209,7 @@ func makeRootForBucket(
 			Mtime: fs.mtimeClock.Now(),
 		},
 		fs.implicitDirs,
+		fs.enableNonexistentType,
 		fs.dirTypeCacheTTL,
 		syncerBucket,
 		fs.mtimeClock,
@@ -268,6 +279,7 @@ type fileSystem struct {
 	localFileCache         bool
 	contentCache           *contentcache.ContentCache
 	implicitDirs           bool
+	enableNonexistentType  bool
 	inodeAttributeCacheTTL time.Duration
 	dirTypeCacheTTL        time.Duration
 	renameDirLimit         int64
@@ -546,6 +558,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 				Mtime: fs.mtimeClock.Now(),
 			},
 			fs.implicitDirs,
+			fs.enableNonexistentType,
 			fs.dirTypeCacheTTL,
 			ic.Bucket,
 			fs.mtimeClock,
@@ -567,6 +580,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 				Mtime: fs.mtimeClock.Now(),
 			},
 			fs.implicitDirs,
+			fs.enableNonexistentType,
 			fs.dirTypeCacheTTL,
 			ic.Bucket,
 			fs.mtimeClock,

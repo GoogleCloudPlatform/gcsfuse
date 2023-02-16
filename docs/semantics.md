@@ -115,6 +115,12 @@ directories or both. When a child is looked up, if the parent's cache says that
 the child is a file but not a directory, only one GCS object will need to be
 stated. Similarly if the child is a directory but not a file.
 
+Note that if an inode does not exist in GCS, this nonexistent state is
+not cached in type cache. If an application needs to read nonexistent folders
+frequently, it could become a performance bottleneck as the nonexistent folder
+lookup request will hit GCS every time. To alleviate that, the tuning falg
+`--enable-nonexistent-type-cache` can be set. 
+
 **Warning**: Using type caching breaks the consistency guarantees discussed in
 this document. It is safe only in the following situations:
 

@@ -116,6 +116,7 @@ be interacting with the file system.`)
 		DirPerms:               os.FileMode(flags.DirMode),
 		RenameDirLimit:         flags.RenameDirLimit,
 		SequentialReadSizeMb:   flags.SequentialReadSizeMb,
+		EnableNonexistentType:  flags.EnableNonexistentType,
 	}
 
 	logger.Infof("Creating a new server...\n")
