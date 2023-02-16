@@ -2,5 +2,5 @@
 set -e
 echo Running fio test..
 fio ./perfmetrics/scripts/job_files/presubmit_perf_test.fio --lat_percentiles 1 --output-format=json --output='output.json'
-echo showing results..
+echo fetching results..
 python3 ./perfmetrics/scripts/presubmit/print_results.py output.json
