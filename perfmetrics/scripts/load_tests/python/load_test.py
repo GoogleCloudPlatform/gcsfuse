@@ -282,8 +282,9 @@ class LoadGeneratorWithFileCreation(lg.LoadGenerator):
       return metrics
 
     # compute bandwidth from task results
-    total_io_bytes = sum((
-        task_result[4] for task_result in observations[lg_const.TASKS_RESULTS]))
+    total_io_bytes = sum(
+        (task_result.result
+         for task_result in observations[lg_const.TASKS_RESULTS]))
     avg_computed_net_bw = total_io_bytes / metrics[lg_const.ACTUAL_RUN_TIME]
     avg_computed_net_bw = avg_computed_net_bw / lg_const.MB
     metrics.update({'avg_computed_net_bw': avg_computed_net_bw})
