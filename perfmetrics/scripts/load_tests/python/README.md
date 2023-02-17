@@ -52,7 +52,7 @@ run load_test.py script with ```--help``` flag.
 # Output metrics
 The output of load test contains the following metrics:
 * General: Start time, end time, actual run time, tasks count.
-* Latencies: Min, mean, max latencies and 25th, 50th, 75th and 95th percentiles 
+* Latencies: Min, mean, max latencies and 25th, 50th, 95th and 99th percentiles 
 of latencies of task performed over span of load test.
 
 The output of load test performed using task with name SampleTask is saved

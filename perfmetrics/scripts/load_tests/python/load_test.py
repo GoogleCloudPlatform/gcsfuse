@@ -81,7 +81,8 @@ def parse_args():
       help='Comma separated name(s) of tasks (task.LoadTestTask.task_name) in '
       'the --tasks-python-file-path or --tasks-yaml-file-path. Load test is '
       'conducted only with those tasks. If empty string or nothing is passed '
-      'then load test is conducted with all tasks.')
+      "then load test is conducted with all tasks. E.g. 'TaskA, TaskB', "
+      "'TaskA,TaskB'.")
   parser.add_argument(
       '--output-dir',
       type=str,
@@ -107,15 +108,14 @@ def parse_args():
       default=600,
       help='Duration in seconds for which to run the load test. Note: The load '
       'test may terminate before depending upon value of '
-      '--num-tasks-per-thread flags passed.')
+      '--num-executions-per-thread flags passed.')
   parser.add_argument(
-      '--num-tasks-per-thread',
+      '--num-executions-per-thread',
       type=int,
       default=sys.maxsize,
       help='Total number of times the given task to be performed inside each '
-      'thread of each process of load test. Note: The actual number of '
-      'times the task is performed may not be exactly equal but will be '
-      'around the value passed.')
+      'thread of each process of load test. Note: It is possible that the task '
+      'is not performed given number of times if --run-time is not enough.')
   parser.add_argument(
       '--start-delay',
       type=int,
@@ -201,7 +201,7 @@ def get_task_from_config(task_name, config):
     Task object instantiated using config.
 
   Raises:
-    ValueError: IF the task_type in config is not recognised and defined.
+    ValueError: If the task_type in config is not recognised and defined.
   """
   task_type = config['task_type']
   config.pop('task_type')
@@ -248,7 +248,7 @@ class LoadGeneratorWithFileCreation(lg.LoadGenerator):
   See base class for more details.
   """
 
-  def pre_load_test(self, task_obj):
+  def pre_load_generation(self, task_obj):
     """Pre- load test function to create files for read and write tasks.
 
     Calls task_obj.create_files method if task has create_files method
@@ -265,7 +265,8 @@ class LoadGeneratorWithFileCreation(lg.LoadGenerator):
         hasattr(task_obj, 'create_files'):
       task_obj.create_files(self.num_processes)
 
-  def post_load_test(self, observations, output_file, print_metrics, task_obj):
+  def post_load_generation(self, observations, output_file, print_metrics,
+                           task_obj):
     """Custom implementation of post-load test function.
 
     This function adds avg_computed_net_bw on top of default post load test
@@ -274,7 +275,8 @@ class LoadGeneratorWithFileCreation(lg.LoadGenerator):
     actual_run_time).
     See base class implementation for more details.
     """
-    metrics = super().post_load_test(observations, output_file, print_metrics)
+    metrics = super().post_load_generation(observations, output_file,
+                                           print_metrics)
     # only run custom logic for read and write tasks
     if getattr(task_obj, 'task_type', '') not in READ_WRITE_TASK_TYPES:
       return metrics
@@ -311,7 +313,7 @@ def main():
       num_processes=args.num_processes,
       num_threads_per_process=args.num_threads_per_process,
       run_time=args.run_time,
-      num_tasks_per_thread=args.num_tasks_per_thread)
+      num_executions_per_thread=args.num_executions_per_thread)
 
   task_objs = []
   if args.tasks_python_file_path:
@@ -333,7 +335,7 @@ def main():
     time.sleep(args.start_delay)
 
     logging.info('\nRunning pre load test task for: %s', task_obj.task_name)
-    lg_obj.pre_load_test(task_obj=task_obj)
+    lg_obj.pre_load_generation(task_obj=task_obj)
 
     logging.info('Generating load for: %s', task_obj.task_name)
     observations = lg_obj.generate_load(task_obj)
@@ -344,7 +346,7 @@ def main():
       output_file = os.path.join(args.output_dir, f'{task_obj.task_name}.json')
 
     logging.info('Running post load test task for: %s', task_obj.task_name)
-    metrics = lg_obj.post_load_test(
+    metrics = lg_obj.post_load_generation(
         observations,
         output_file=output_file,
         print_metrics=True,
