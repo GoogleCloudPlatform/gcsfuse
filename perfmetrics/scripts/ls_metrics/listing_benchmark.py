@@ -35,7 +35,7 @@ import sys
 import time
 
 import directory_pb2 as directory_proto
-sys.path.insert(0, '..')
+sys.path.insert(0, './perfmetrics/scripts/')
 import generate_files
 from google.protobuf.json_format import ParseDict
 from gsheet import gsheet
