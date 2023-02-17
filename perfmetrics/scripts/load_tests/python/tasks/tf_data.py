@@ -33,6 +33,9 @@ TF_DATA_READ = 'tf_data_read'
 class TFDataRead(task.LoadTestTask):
   """Task class for reading tfrecord file using tensorflow's tf.data api.
 
+  tf.data: https://www.tensorflow.org/guide/data
+  tf.data.TFRecordDataset.shard:
+  https://www.tensorflow.org/api_docs/python/tf/data/Dataset#shard
   Note: The same class can be used with tf's internal GCS client if format of
   file path starts with gs:// and with GCSFuse if local GCSFuse mounted path
   is passed.

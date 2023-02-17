@@ -37,6 +37,8 @@ class OSRead(task.LoadTestTask):
      'process_id' and 'thread_id' to be filled. E.g. gcs/256kb/read.{process_id}
     file_size: Integer size of file in bytes to be read.
     block_size: Integer size of block in bytes. File is read block by block.
+      If block size is not passed or -1, then by default it takes file size as
+      block size.
   """
 
   def __init__(self, task_name, file_path_format, file_size, block_size=-1):

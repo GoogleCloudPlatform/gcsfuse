@@ -29,6 +29,7 @@ TF_GFILE_READ = 'tf_gfile_read'
 class TFGFileRead(task.LoadTestTask):
   """Task class for reading GCS file using tensorflow's tf.io.gfile api.
 
+  tf.io.gfile: https://www.tensorflow.org/api_docs/python/tf/io/gfile/GFile
   Note: The same class can be used with tf's internal GCS client if format of
   file path starts with gs:// and with GCSFuse if local GCSFuse mounted path
   is passed.
@@ -39,6 +40,8 @@ class TFGFileRead(task.LoadTestTask):
      'process_id' and 'thread_id' to be filled. E.g. gcs/256kb/read.{process_id}
     file_size: Integer size of file in bytes to be read.
     block_size: Integer size of block in bytes. File is read block by block.
+      If block size is not passed or -1, then by default it takes file size as
+      block size
   """
 
   def __init__(self, task_name, file_path_format, file_size, block_size=-1):
