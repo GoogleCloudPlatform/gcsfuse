@@ -168,7 +168,10 @@ class LoadGenerator:
                                                        ),
     }
 
-  def post_load_generation(self, observations, output_file=None, print_metrics=True):
+  def post_load_generation(self,
+                           observations,
+                           output_file=None,
+                           print_metrics=True):
     """Task to perform after load testing.
 
     In this default implementation, latency metrics are computed. It can also
