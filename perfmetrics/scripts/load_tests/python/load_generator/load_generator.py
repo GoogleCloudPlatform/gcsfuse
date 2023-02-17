@@ -20,9 +20,9 @@ Example:
 
     task_obj = ReadTask()
     lg_obj = LoadGenerator(...)
-    lg_obj.pre_load_task(...)
+    lg_obj.pre_load_generation(...)
     observations = lg_obj.generate_load(task_obj)
-    metrics = lg_obj.post_load_task(observations, ...)
+    metrics = lg_obj.post_load_generation(observations, ...)
 """
 import logging
 import sys
@@ -74,12 +74,12 @@ class LoadGenerator:
       self.total_num_tasks = self.num_executions_per_thread * \
                              self.num_threads_per_process * self.num_processes
 
-  def pre_load_test(self):
+  def pre_load_generation(self):
     """Task to perform before running load test.
     """
     pass
 
-  def load_test(self, task):
+  def generate_load(self, task):
     """Performs load test using the given task.
 
     The load is generated on CPU and other resources (depending upon the task
@@ -168,7 +168,7 @@ class LoadGenerator:
                                                        ),
     }
 
-  def post_load_test(self, observations, output_file=None, print_metrics=True):
+  def post_load_generation(self, observations, output_file=None, print_metrics=True):
     """Task to perform after load testing.
 
     In this default implementation, latency metrics are computed. It can also
