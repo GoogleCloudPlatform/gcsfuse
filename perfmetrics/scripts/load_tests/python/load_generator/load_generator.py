@@ -31,7 +31,27 @@ import time
 import json
 import multiprocessing
 import numpy as np
+from dataclasses import dataclass
+from typing import Any
 from load_generator import constants as lg_const
+
+
+@dataclass(frozen=True)
+class TaskExecutionResult:
+  """Dataclass for a single task (pre, task & post) execution result.
+
+  process_id: Integer value denoting the process id in which the task was run.
+  thread_id: Integer value denoting the thread id in process_id in which the
+    task was run.
+  start_time: Float value denoting the time when the task was started.
+  end_time: Float value denoting the time when the task was ended.
+  result: Any type of value that the task returns
+  """
+  process_id: int
+  thread_id: int
+  start_time: float
+  end_time: float
+  result: Any
 
 
 class LoadGenerator:
@@ -218,7 +238,13 @@ class LoadGenerator:
         start_time = time.time()
         result = curr_task(thread_id, process_id)
         end_time = time.time()
-        curr_queue.put((process_id, thread_id, start_time, end_time, result))
+        curr_queue.put(
+            TaskExecutionResult(
+                process_id=process_id,
+                thread_id=thread_id,
+                start_time=start_time,
+                end_time=end_time,
+                result=result))
       cnt = cnt + 1
 
   @staticmethod
@@ -303,7 +329,10 @@ class LoadGenerator:
     ]
     latency_stats = {}
     for stat_name, result_name in zip(latency_stats_names, result_names):
-      lat_pts = [result[3] - result[2] for result in observations[result_name]]
+      lat_pts = [
+          result.end_time - result.start_time
+          for result in observations[result_name]
+      ]
       lat_pers = self._compute_percentiles(lat_pts)
       latency_stats[stat_name] = lat_pers
 
