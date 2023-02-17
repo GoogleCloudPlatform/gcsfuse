@@ -34,5 +34,5 @@ gsutil -m cp $LOG_FILE gs://gcs-fuse-dashboard-fio/fio-gcsfuse-logs/
 python3 perfmetrics/scripts/utils/metrics_util.py gcs/fio-gcsfuse-logs/ 10
 
 # ls_metrics test
-chmod +x perfmetrics/scripts/ls_metricsrun_ls_benchmark.sh
+chmod +x perfmetrics/scripts/ls_metrics/run_ls_benchmark.sh
 ./perfmetrics/scripts/ls_metrics/run_ls_benchmark.sh

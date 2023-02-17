@@ -82,8 +82,6 @@ def _export_to_gsheet(folders, metrics, command, worksheet) -> None:
     worksheet: Google Sheet worksheet to upload the data.
   """
 
-  # Changing directory to comply with "cred.json" path in "gsheet.py".
-  os.chdir('..')
   gsheet_data = []
   for testing_folder in folders:
     num_files, num_folders = _count_number_of_files_and_folders(
@@ -111,7 +109,6 @@ def _export_to_gsheet(folders, metrics, command, worksheet) -> None:
     gsheet_data.append(row)
 
   gsheet.write_to_google_sheet(worksheet, gsheet_data)
-  os.chdir('./ls_metrics')  # Changing the directory back to current directory.
   return
 
 
@@ -375,7 +372,7 @@ def _mount_gcs_bucket(bucket_name) -> str:
   subprocess.call('mkdir {}'.format(gcs_bucket), shell=True)
 
   exit_code = subprocess.call(
-      'gcsfuse --implicit-dirs --disable-http2 --max-conns-per-host 100 {} {}'.format(
+      'go run . --implicit-dirs --disable-http2 --max-conns-per-host 100 {} {}'.format(
           bucket_name, gcs_bucket), shell=True)
   if exit_code != 0:
     log.error('Cannot mount the GCS bucket due to exit code %s.\n', exit_code)
@@ -475,7 +472,7 @@ if __name__ == '__main__':
 
   args = _parse_arguments(argv)
 
-  _check_dependencies(['gsutil', 'gcsfuse'])
+  _check_dependencies(['gsutil'])
 
   with open(os.path.abspath(args.config_file)) as file:
     config_json = json.load(file)
