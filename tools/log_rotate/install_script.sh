@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 # Logrotate configuration to rotate gcsfuse logs.
 cat > /etc/logrotate1.d/gcsfuse <<EOF
 /var/log/gcsfuse/*.log {
