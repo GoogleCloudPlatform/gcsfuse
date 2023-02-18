@@ -15,12 +15,19 @@
 package logger
 
 import (
+	"fmt"
 	"io"
 	"log"
+	"log/syslog"
 	"os"
 
 	"github.com/jacobsa/daemonize"
 )
+
+// ProgrammeName constant is used while writing the logs to syslog file, it is
+// used while filtering the gcsfuse log-message from the syslog file, since
+// syslog file contains all the system related logs from other programmes too.
+const ProgrammeName string = "gcsfuse"
 
 var (
 	defaultLoggerFactory *loggerFactory
@@ -29,20 +36,34 @@ var (
 
 // InitLogFile initializes the logger factory to create loggers that print to
 // a log file.
+// In case of empty file, it starts writing the log to syslog file, which
+// is eventually filtered and redirected to a fixed location using syslog
+// config.
 func InitLogFile(filename string, format string) error {
-	f, err := os.OpenFile(
-		filename,
-		os.O_WRONLY|os.O_CREATE|os.O_APPEND,
-		0644,
-	)
-	if err != nil {
-		return err
+	var f *os.File
+	var sysWriter *syslog.Writer
+	var err error
+	if filename != "" {
+		f, err = os.OpenFile(
+			filename,
+			os.O_WRONLY|os.O_CREATE|os.O_APPEND,
+			0644,
+		)
+		if err != nil {
+			return err
+		}
+	} else {
+		sysWriter, err = syslog.New(syslog.LOG_ALERT, ProgrammeName)
+		if err != nil {
+			return fmt.Errorf("error while creating syswriter: %w", err)
+		}
 	}
 
 	defaultLoggerFactory = &loggerFactory{
-		file:   f,
-		flag:   0,
-		format: format,
+		file:      f,
+		sysWriter: sysWriter,
+		flag:      0,
+		format:    format,
 	}
 	defaultInfoLogger = NewInfo("")
 
@@ -103,9 +124,10 @@ func Info(v ...interface{}) {
 
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
-	file   *os.File
-	flag   int
-	format string
+	file      *os.File
+	sysWriter *syslog.Writer
+	flag      int
+	format    string
 }
 
 func (f *loggerFactory) newLogger(level, prefix string) *log.Logger {
@@ -114,26 +136,37 @@ func (f *loggerFactory) newLogger(level, prefix string) *log.Logger {
 
 func (f *loggerFactory) writer(level string) io.Writer {
 	if f.file != nil {
-		switch f.format {
-		case "json":
+		if f.format == "json" {
 			return &jsonWriter{
 				w:     f.file,
 				level: level,
 			}
-		case "text":
+		} else {
 			return &textWriter{
 				w:     f.file,
 				level: level,
 			}
 		}
-	}
-
-	switch level {
-	case "NOTICE":
-		return daemonize.StatusWriter
-	case "ERROR":
-		return os.Stderr
-	default:
-		return os.Stdout
+	} else if f.sysWriter != nil {
+		if f.format == "json" {
+			return &jsonWriter{
+				w:     f.sysWriter,
+				level: level,
+			}
+		} else {
+			return &textWriter{
+				w:     f.sysWriter,
+				level: level,
+			}
+		}
+	} else {
+		switch level {
+		case "NOTICE":
+			return daemonize.StatusWriter
+		case "ERROR":
+			return os.Stderr
+		default:
+			return os.Stdout
+		}
 	}
 }
