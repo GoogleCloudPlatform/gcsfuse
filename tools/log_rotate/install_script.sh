@@ -2,6 +2,9 @@
 
 set -e
 
+echo "Prince"
+exit 1
+
 # Logrotate configuration to rotate gcsfuse logs.
 cat > /etc/logrotate1.d/gcsfuse <<EOF
 /var/log/gcsfuse/*.log {
