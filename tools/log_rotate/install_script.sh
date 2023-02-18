@@ -28,7 +28,7 @@ fi
 
 # Syslog configuration to filter and redirect the logs from /var/log/syslog to
 # /var/log/gcsfuse/gcsfuse.log.
-cat > /etc/rsyslog1.d/12-gcsfuse.conf <<EOF
+cat > /etc/rsyslog.d/12-gcsfuse.conf <<EOF
 if $programname == 'gcsfuse' then /var/log/gcsfuse/gcsfuse.log;RSYSLOG_FileFormat
 EOF
 
