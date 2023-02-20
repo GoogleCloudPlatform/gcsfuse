@@ -110,6 +110,7 @@ var (
 	testDir    string
 	tmpDir     string
 	cacheClock timeutil.SimulatedClock
+	mtimeClock timeutil.Clock
 	bucket     gcs.Bucket
 	ctx        context.Context
 )
@@ -121,6 +122,7 @@ func (t *fsTest) SetUpTestSuite() {
 
 	// Set up the clocks.
 	t.mtimeClock = timeutil.RealClock()
+	mtimeClock = t.mtimeClock
 	cacheClock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 	t.serverCfg.CacheClock = &cacheClock
 
