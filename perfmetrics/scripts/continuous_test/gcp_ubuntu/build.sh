@@ -18,12 +18,12 @@ git checkout $commitId
 
 # Building and installing gcsfuse
 go install ./tools/build_gcsfuse
-$HOME/go/bin/build_gcsfuse ./ /usr/ $commitId
 mkdir $HOME/temp
 $HOME/go/bin/build_gcsfuse ./ $HOME/temp/ $commitId
 sudo cp ~/temp/bin/gcsfuse /usr/bin
 sudo cp ~/temp/sbin/mount.gcsfuse /sbin
 
+cd "perfmetrics/scripts/"
 echo Mounting gcs bucket
 mkdir -p gcs
 LOG_FILE=log-$(date '+%Y-%m-%d').txt
@@ -34,14 +34,15 @@ MOUNT_POINT=gcs
 gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 
 # Executing perf tests
-chmod +x perfmetrics/scripts/run_load_test_and_fetch_metrics.sh
-./perfmetrics/scripts/run_load_test_and_fetch_metrics.sh
+chmod +x run_load_test_and_fetch_metrics.sh
+./run_load_test_and_fetch_metrics.sh
 # Copying gcsfuse logs to bucket
 gsutil -m cp $LOG_FILE gs://gcs-fuse-dashboard-fio/fio-gcsfuse-logs/
 
 # Deleting logs older than 10 days
-python3 perfmetrics/scripts/utils/metrics_util.py gcs/fio-gcsfuse-logs/ 10
+python3 utils/metrics_util.py gcs/fio-gcsfuse-logs/ 10
 
 # ls_metrics test
-chmod +x perfmetrics/scripts/ls_metrics/run_ls_benchmark.sh
-./perfmetrics/scripts/ls_metrics/run_ls_benchmark.sh
+cd "ls_metrics"
+chmod +x run_ls_benchmark.sh
+./run_ls_benchmark.sh
