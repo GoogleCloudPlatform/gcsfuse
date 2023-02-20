@@ -902,7 +902,6 @@ func (t *ModesTest) WriteToReadOnlyFile() {
 	t.f1.Close()
 }
 
-/*
 ////////////////////////////////////////////////////////////////////////
 // Directory interaction
 ////////////////////////////////////////////////////////////////////////
@@ -1260,6 +1259,8 @@ func (t *DirectoryTest) Rmdir_OpenedForReading() {
 	if err != nil {
 		ExpectThat(err, Error(HasSubstr("no such file")))
 	}
+
+	t.f1.Close()
 }
 
 func (t *DirectoryTest) Rmdir_ThenRecreateWithSameName() {
@@ -1392,7 +1393,7 @@ func (t *DirectoryTest) ContentTypes() {
 		ExpectEq("", o.ContentType, "name: %q", name)
 	}
 }
-*/
+
 ////////////////////////////////////////////////////////////////////////
 // File interaction
 ////////////////////////////////////////////////////////////////////////
