@@ -1,0 +1,43 @@
+# Sample YAML file containing example configs for recognised and predefined
+# tasks.
+
+---
+# Sample task for reading file using Python OS native open api.
+256kb_os: # [Required] Name of the task (task_name).
+ # Task type. Fixed for reading file using python os native open api.
+ task_type: python_os_read # [Required]
+ # Local file path. Can only contain {process_id} and {thread_id} in format.
+ file_path_format: ./gcs/256kb/read.{process_id} # [Required]
+ # K for 1024, M for 1024 * K, G for 1024 * M.
+ file_size: 256K # [Required]
+ block_size: 16K # [Optional] [Default =  file_size]
+
+# Sample task for reading file using tensorflow's tf.io.gfile.GFile api.
+1mb_tf_gfile: # [Required] Name of the task (task_name).
+ # Task type. Fixed for reading file using tensorflow's tf.io.gfile.GFile api.
+ task_type: tf_gfile_read # [Required]
+ # Local file path/GCS path (gs://). Can only contain {process_id} and
+ # {thread_id} in format.
+ file_path_format: gs://load-test-bucket/1mb/read.{process_id} # [Required]
+ # K for 1024, M for 1024 * K, G for 1024 * M.
+ file_size: 1M # [Required]
+ block_size: 16K # [Optional] [Default =  file_size]
+
+# Sample task for reading file using tensorflow's tf.data api.
+100mb_tf_data: # [Required] Name of the task (task_name).
+ # Task type. Fixed for reading file using tensorflow's tf.data api.
+ task_type: tf_data_read # [Required]
+ # Local file path/GCS path (gs://). Can only contain {file_num} in path.
+ file_path_format: ./gcs/100mb/read.{file_num}.tfrecord # [Required]
+ # K for 1024, M for 1024 * K, G for 1024 * M.
+ file_size: 100M # [Required]
+ # Number of files to read in one task.
+ num_files: 3 # [Required]
+ # Prefetch value in tf.data call.
+ prefetch: 50 # [Optional] [Default = -1 (AUTOTUNE)]
+ # Parallelism in tf.data calls.
+ num_parallel_calls: 100 # [Optional] [Default = -1 (AUTOTUNE)]
+ # Shard value in tf.data call
+ shard: 100 # [Optional] [Default = 1]
+
+
