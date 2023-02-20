@@ -25,10 +25,12 @@ if __name__ == '__main__':
   print('Getting fio metrics...')
   temp = fio_metrics_obj.get_metrics(argv[1], FIO_WORKSHEET_NAME)
 
-  print('Waiting for 250 seconds for metrics to be updated on VM...')
+  print('Waiting for 360 seconds for metrics to be updated on VM...')
   # It takes up to 240 seconds for sampled data to be visible on the VM metrics graph
-  # So, waiting for 250 seconds to ensure the returned metrics are not empty
-  time.sleep(250)
+  # So, waiting for 360 seconds to ensure the returned metrics are not empty.
+  # Intermittenly custom metrics are not available after 240 seconds, hence
+  # waiting for 360 secs instead of 240 secs
+  time.sleep(360)
 
   vm_metrics_obj = vm_metrics.VmMetrics()
   vm_metrics_data = []
