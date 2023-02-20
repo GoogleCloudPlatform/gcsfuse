@@ -15,7 +15,19 @@
 package fs_test
 
 import (
+	"fmt"
+	"io/ioutil"
+	"math/rand"
+	"os"
+	"path"
+	"runtime"
 	"sync"
+	"time"
+
+	"github.com/jacobsa/fuse/fusetesting"
+	. "github.com/jacobsa/ogletest"
+	"github.com/jacobsa/syncutil"
+	"golang.org/x/net/context"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -67,7 +79,7 @@ func forEachName(names []string, f func(string) error) (err error) {
 // Stress testing
 ////////////////////////////////////////////////////////////////////////
 
-/*type StressTest struct {
+type StressTest struct {
 	fsTest
 }
 
@@ -91,7 +103,7 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 	err = forEachName(
 		names,
 		func(n string) (err error) {
-			err = ioutil.WriteFile(path.Join(t.Dir, n), []byte(n), 0400)
+			err = ioutil.WriteFile(path.Join(mntDir, n), []byte(n), 0400)
 			return
 		})
 
@@ -101,7 +113,7 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 	err = forEachName(
 		names,
 		func(n string) (err error) {
-			contents, err := ioutil.ReadFile(path.Join(t.Dir, n))
+			contents, err := ioutil.ReadFile(path.Join(mntDir, n))
 			if err != nil {
 				err = fmt.Errorf("ReadFile: %w", err)
 				return
@@ -123,7 +135,7 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
 
 	// Create a file.
-	f, err := os.Create(path.Join(t.Dir, "foo"))
+	f, err := os.Create(path.Join(mntDir, "foo"))
 	AssertEq(nil, err)
 	defer f.Close()
 
@@ -149,7 +161,7 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 	}
 
 	// Run several workers.
-	b := syncutil.NewBundle(t.ctx)
+	b := syncutil.NewBundle(ctx)
 
 	const numWorkers = 16
 	finalSizes := make(chan int64, numWorkers)
@@ -182,21 +194,21 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 }
 
 func (t *StressTest) CreateInParallel_NoTruncate() {
-	fusetesting.RunCreateInParallelTest_NoTruncate(t.ctx, t.Dir)
+	fusetesting.RunCreateInParallelTest_NoTruncate(ctx, mntDir)
 }
 
 func (t *StressTest) CreateInParallel_Truncate() {
-	fusetesting.RunCreateInParallelTest_Truncate(t.ctx, t.Dir)
+	fusetesting.RunCreateInParallelTest_Truncate(ctx, mntDir)
 }
 
 func (t *StressTest) CreateInParallel_Exclusive() {
-	fusetesting.RunCreateInParallelTest_Exclusive(t.ctx, t.Dir)
+	fusetesting.RunCreateInParallelTest_Exclusive(ctx, mntDir)
 }
 
 func (t *StressTest) MkdirInParallel() {
-	fusetesting.RunMkdirInParallelTest(t.ctx, t.Dir)
+	fusetesting.RunMkdirInParallelTest(ctx, mntDir)
 }
 
 func (t *StressTest) SymlinkInParallel() {
-	fusetesting.RunSymlinkInParallelTest(t.ctx, t.Dir)
-}*/
+	fusetesting.RunSymlinkInParallelTest(ctx, mntDir)
+}
