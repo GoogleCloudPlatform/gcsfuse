@@ -83,6 +83,7 @@ func makeGcsfuseArgs(
 		case "implicit_dirs",
 			"disable_http2",
 			"experimental_local_file_cache",
+			"experimental_enable_storage_client_library",
 			"reuse_token_from_url":
 			args = append(args, "--"+strings.Replace(name, "_", "-", -1))
 

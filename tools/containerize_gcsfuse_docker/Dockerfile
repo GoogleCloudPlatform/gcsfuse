@@ -34,7 +34,7 @@ ARG OS_VERSION
 ARG OS_NAME
 
 # Image with gcsfuse installed and its package (.deb)
-FROM golang:1.18.4 as gcsfuse-package
+FROM golang:1.19.5 as gcsfuse-package
 
 RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm fuse && gem install --no-document fpm
 

@@ -34,7 +34,6 @@ func (t *MainTest) TestCreateStorageHandle() {
 		DisableHTTP2:        false,
 		MaxConnsPerHost:     5,
 		MaxIdleConnsPerHost: 100,
-		HttpClientTimeout:   5,
 		MaxRetryDuration:    7,
 		RetryMultiplier:     2,
 		AppName:             "app",

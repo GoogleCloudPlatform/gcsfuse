@@ -22,6 +22,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
@@ -40,7 +41,6 @@ type StorageClientConfig struct {
 	MaxConnsPerHost     int
 	MaxIdleConnsPerHost int
 	TokenSrc            oauth2.TokenSource
-	HttpClientTimeout   time.Duration
 	MaxRetryDuration    time.Duration
 	RetryMultiplier     float64
 	UserAgent           string
@@ -76,7 +76,6 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 			Base:   transport,
 			Source: clientConfig.TokenSrc,
 		},
-		Timeout: clientConfig.HttpClientTimeout,
 	}
 
 	// Setting UserAgent through RoundTripper middleware
@@ -98,7 +97,7 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 			Max:        clientConfig.MaxRetryDuration,
 			Multiplier: clientConfig.RetryMultiplier,
 		}),
-		storage.WithPolicy(storage.RetryAlways))
+		storage.WithErrorFunc(storageutil.ShouldRetry))
 
 	sh = &storageClient{client: sc}
 	return

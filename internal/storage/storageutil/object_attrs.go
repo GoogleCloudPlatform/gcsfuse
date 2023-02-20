@@ -1,3 +1,17 @@
+// Copyright 2022 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package storageutil
 
 import (
@@ -53,23 +67,23 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 
 	// Setting the parameters in Object and doing conversions as necessary.
 	return &gcs.Object{
-		Name:            attrs.Name,
-		ContentType:     attrs.ContentType,
-		ContentLanguage: attrs.ContentLanguage,
-		CacheControl:    attrs.CacheControl,
-		Owner:           attrs.Owner,
-		Size:            uint64(attrs.Size),
-		ContentEncoding: attrs.ContentEncoding,
-		MD5:             &md5,
-		CRC32C:          &crc,
-		MediaLink:       attrs.MediaLink,
-		Metadata:        attrs.Metadata,
-		Generation:      attrs.Generation,
-		MetaGeneration:  attrs.Metageneration,
-		StorageClass:    attrs.StorageClass,
-		Deleted:         attrs.Deleted,
-		Updated:         attrs.Updated,
-		//ComponentCount: , (Field not found in attrs returned by Go Client.)
+		Name:               attrs.Name,
+		ContentType:        attrs.ContentType,
+		ContentLanguage:    attrs.ContentLanguage,
+		CacheControl:       attrs.CacheControl,
+		Owner:              attrs.Owner,
+		Size:               uint64(attrs.Size),
+		ContentEncoding:    attrs.ContentEncoding,
+		MD5:                &md5,
+		CRC32C:             &crc,
+		MediaLink:          attrs.MediaLink,
+		Metadata:           attrs.Metadata,
+		Generation:         attrs.Generation,
+		MetaGeneration:     attrs.Metageneration,
+		StorageClass:       attrs.StorageClass,
+		Deleted:            attrs.Deleted,
+		Updated:            attrs.Updated,
+		ComponentCount:     attrs.ComponentCount,
 		ContentDisposition: attrs.ContentDisposition,
 		CustomTime:         string(attrs.CustomTime.Format(time.RFC3339)),
 		EventBasedHold:     attrs.EventBasedHold,
