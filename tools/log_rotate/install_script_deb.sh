@@ -27,9 +27,14 @@ else
 fi
 
 # Syslog configuration to filter and redirect the logs from /var/log/syslog to
-# /var/log/gcsfuse/gcsfuse.log.
+# /var/log/gcsfuse.log.
 cat > /etc/rsyslog.d/12-gcsfuse.conf <<EOF
-if $programname == 'gcsfuse' then /var/log/gcsfuse/gcsfuse.log;RSYSLOG_FileFormat
+
+# Change the ownership of create log file through rsyslog.
+\$umask 0000
+\$FileCreateMode 0644
+
+if \$programname  == 'gcsfuse' then /var/log/gcsfuse.log;RSYSLOG_FileFormat
 EOF
 
 # Make sure gcsfuse-syslog filter config got placed correctly.
