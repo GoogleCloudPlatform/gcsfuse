@@ -169,6 +169,7 @@ func (t *FlagsTest) DecimalNumbers() {
 		"--limit-ops-per-sec=56.78",
 		"--stat-cache-capacity=8192",
 		"--max-idle-conns-per-host=100",
+		"--max-conns-per-host=100",
 	}
 
 	f := parseArgs(args)
@@ -178,6 +179,7 @@ func (t *FlagsTest) DecimalNumbers() {
 	ExpectEq(56.78, f.OpRateLimitHz)
 	ExpectEq(8192, f.StatCacheCapacity)
 	ExpectEq(100, f.MaxIdleConnsPerHost)
+	ExpectEq(100, f.MaxConnsPerHost)
 }
 
 func (t *FlagsTest) OctalNumbers() {

@@ -27,11 +27,15 @@ if __name__ == '__main__':
   # Fetching metrics from json file
   fio_metrics_obj = FioMetrics()
   data = fio_metrics_obj.get_metrics(argv[1])
+
+  # Fetching results in result.txt file
+  file = open("result.txt", "a")
   # Iterating through data
   for d in data :
     # Print filesize only once
     if d['params']['rw'] == "read":
-      print(str.format("\n"+"Filesize: "+ str(round(d["params"]["filesize_kb"]/1024.0,3)) + "MiB"))
+      file.write(str.format("\n"+"Filesize: "+ str(round(d["params"]["filesize_kb"]/1024.0,3)) + "MiB" + "\n"))
 
     # Print Bandwidth
-    print(str.format(d['params']['rw'] + " bw: "+ str(round(d["metrics"]["bw_bytes"]/(1024.0*1024.0),2)) + "MiB/s"))
+    file.write(str.format(d['params']['rw'] + " bw: "+ str(round(d["metrics"]["bw_bytes"]/(1024.0*1024.0),2)) + "MiB/s" + "\n"))
+  file.close()
