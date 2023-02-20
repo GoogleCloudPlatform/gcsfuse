@@ -4,6 +4,8 @@ sudo apt-get update
 
 echo Installing git
 sudo apt-get install git
+echo Installing pip
+sudo apt-get install pip -y
 echo Installing go-lang 1.19.5
 wget -O go_tar.tar.gz https://go.dev/dl/go1.19.5.linux-amd64.tar.gz
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
@@ -16,7 +18,7 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 git checkout $commitId
 
-# Building and installing gcsfuse
+echo Building and installing gcsfuse
 go install ./tools/build_gcsfuse
 mkdir $HOME/temp
 $HOME/go/bin/build_gcsfuse ./ $HOME/temp/ $commitId
