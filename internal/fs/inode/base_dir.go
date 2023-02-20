@@ -28,9 +28,10 @@ import (
 )
 
 // An inode that
-//  (1) represents a base directory which contains a list of
-//      subdirectories as the roots of different GCS buckets;
-//  (2) implements BaseDirInode, allowing read only ops.
+//
+//	(1) represents a base directory which contains a list of
+//	    subdirectories as the roots of different GCS buckets;
+//	(2) implements BaseDirInode, allowing read only ops.
 type baseDirInode struct {
 	/////////////////////////
 	// Constant data
@@ -139,7 +140,7 @@ func (d *baseDirInode) LookUpChild(ctx context.Context, name string) (*Core, err
 	}
 
 	return &Core{
-		Bucket:   bucket,
+		Bucket:   &bucket,
 		FullName: NewRootName(bucket.Name()),
 		Object:   nil,
 	}, nil

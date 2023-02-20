@@ -134,7 +134,7 @@ type dirInode struct {
 	// Dependencies
 	/////////////////////////
 
-	bucket     gcsx.SyncerBucket
+	bucket     *gcsx.SyncerBucket
 	mtimeClock timeutil.Clock
 	cacheClock timeutil.Clock
 
@@ -194,7 +194,7 @@ func NewDirInode(
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
 	typeCacheTTL time.Duration,
-	bucket gcsx.SyncerBucket,
+	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock) (d DirInode) {
 
@@ -281,7 +281,7 @@ func (d *dirInode) lookUpConflicting(ctx context.Context, name string) (*Core, e
 
 // findExplicitInode finds the file or dir inode core backed by an explicit
 // object in GCS with the given name. Return nil if such object does not exist.
-func findExplicitInode(ctx context.Context, bucket gcsx.SyncerBucket, name Name) (*Core, error) {
+func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
 	// Call the bucket.
 	req := &gcs.StatObjectRequest{
 		Name: name.GcsObjectName(),
@@ -309,7 +309,7 @@ func findExplicitInode(ctx context.Context, bucket gcsx.SyncerBucket, name Name)
 
 // findDirInode finds the dir inode core where the directory is either explicit
 // or implicit. Returns nil if no such directory exists.
-func findDirInode(ctx context.Context, bucket gcsx.SyncerBucket, name Name) (*Core, error) {
+func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
 	if !name.IsDir() {
 		return nil, fmt.Errorf("%q is not directory", name)
 	}
@@ -407,7 +407,7 @@ func (d *dirInode) Attributes(
 	return
 }
 
-func (d *dirInode) Bucket() gcsx.SyncerBucket {
+func (d *dirInode) Bucket() *gcsx.SyncerBucket {
 	return d.bucket
 }
 
@@ -531,7 +531,7 @@ func (d *dirInode) readObjects(
 		MaxResults:               MaxResultsForListObjectsCall,
 		// Setting Projection param to noAcl since fetching owner and acls are not
 		// required.
-		ProjectionVal:            gcs.NoAcl,
+		ProjectionVal: gcs.NoAcl,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)
