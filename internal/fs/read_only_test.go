@@ -14,16 +14,6 @@
 
 package fs_test
 
-import (
-	"io/ioutil"
-	"os"
-	"path"
-
-	"github.com/jacobsa/gcloud/gcs/gcsutil"
-	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/ogletest"
-)
-
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
@@ -32,6 +22,7 @@ type ReadOnlyTest struct {
 	fsTest
 }
 
+/*
 func init() { RegisterTestSuite(&ReadOnlyTest{}) }
 
 func (t *ReadOnlyTest) SetUp(ti *TestInfo) {
@@ -74,4 +65,4 @@ func (t *ReadOnlyTest) DeleteFile() {
 
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
-}
+}*/

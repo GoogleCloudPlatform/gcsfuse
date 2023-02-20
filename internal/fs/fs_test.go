@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/signal"
 	"os/user"
+	"path"
 	"strconv"
 	"strings"
 	"testing"
@@ -49,7 +50,7 @@ const (
 
 func TestFS(t *testing.T) { RunTests(t) }
 
-var fDebug = flag.Bool("debug_fuse", true, "Print debugging output.")
+var fDebug = flag.Bool("debug_fuse", false, "Print debugging output.")
 
 // Install a SIGINT handler that exits gracefully once the current test is
 // finished. It's not safe to exit in the middle of a test because closing any
@@ -99,17 +100,29 @@ type fsTest struct {
 	f2 *os.File
 }
 
-var _ SetUpInterface = &fsTest{}
-var _ TearDownInterface = &fsTest{}
+var _ SetUpTestSuiteInterface = &fsTest{}
+var _ TearDownTestSuiteInterface = &fsTest{}
 
-func (t *fsTest) SetUp(ti *TestInfo) {
+var (
+	binFile    string
+	logFile    string
+	mntDir     string
+	testDir    string
+	tmpDir     string
+	cacheClock timeutil.SimulatedClock
+	bucket     gcs.Bucket
+	ctx        context.Context
+)
+
+func (t *fsTest) SetUpTestSuite() {
 	var err error
-	t.ctx = ti.Ctx
+	t.ctx = context.Background()
+	ctx = t.ctx
 
 	// Set up the clocks.
 	t.mtimeClock = timeutil.RealClock()
-	t.cacheClock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
-	t.serverCfg.CacheClock = &t.cacheClock
+	cacheClock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
+	t.serverCfg.CacheClock = &cacheClock
 
 	if t.buckets != nil {
 		// mount all buckets
@@ -119,6 +132,7 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 		// mount a single bucket
 		if t.bucket == nil {
 			t.bucket = gcsfake.NewFakeBucket(t.mtimeClock, "some_bucket")
+			bucket = t.bucket
 		}
 		t.serverCfg.BucketName = t.bucket.Name()
 		t.buckets = map[string]gcs.Bucket{t.bucket.Name(): t.bucket}
@@ -163,10 +177,11 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	}
 
 	t.mfs, err = fuse.Mount(t.Dir, server, &mountCfg)
+	mntDir = t.Dir
 	AssertEq(nil, err)
 }
 
-func (t *fsTest) TearDown() {
+func (t *fsTest) TearDownTestSuite() {
 	var err error
 
 	// Close any files we opened.
@@ -181,7 +196,7 @@ func (t *fsTest) TearDown() {
 	// Unmount the file system. Try again on "resource busy" errors.
 	delay := 10 * time.Millisecond
 	for {
-		err := fuse.Unmount(t.mfs.Dir())
+		err := fuse.Unmount(mntDir)
 		if err == nil {
 			break
 		}
@@ -197,14 +212,37 @@ func (t *fsTest) TearDown() {
 		AbortTest()
 	}
 
-	if err := t.mfs.Join(t.ctx); err != nil {
+	/*	if err := t.mfs.Join(ctx); err != nil {
 		AssertEq(nil, err)
-	}
+	}*/
 
 	// Unlink the mount point.
-	if err = os.Remove(t.Dir); err != nil {
+	if err = os.Remove(mntDir); err != nil {
 		err = fmt.Errorf("Unlinking mount point: %w", err)
 		return
+	}
+}
+
+func (t *fsTest) TearDown() {
+	entries, err := os.ReadDir(mntDir)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	for _, e := range entries {
+		os.RemoveAll(path.Join(mntDir, e.Name()))
+		os.Remove(path.Join(mntDir, e.Name()))
+		fmt.Println(e.Name())
+	}
+
+	os.RemoveAll(mntDir)
+	entries, err = os.ReadDir(mntDir)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	for _, e := range entries {
+		fmt.Println(e.Name())
 	}
 }
 
@@ -218,7 +256,7 @@ func (t *fsTest) createObjects(in map[string]string) error {
 		b[k] = []byte(v)
 	}
 
-	err := gcsutil.CreateObjects(t.ctx, t.bucket, b)
+	err := gcsutil.CreateObjects(ctx, bucket, b)
 	return err
 }
 

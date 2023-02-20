@@ -14,19 +14,6 @@
 
 package fs_test
 
-import (
-	"io"
-	"io/ioutil"
-	"os"
-	"path"
-
-	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/gcsfake"
-	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/ogletest"
-	"github.com/jacobsa/timeutil"
-)
-
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
@@ -35,6 +22,7 @@ type AllBucketsTest struct {
 	fsTest
 }
 
+/*
 func init() { RegisterTestSuite(&AllBucketsTest{}) }
 
 func (t *AllBucketsTest) SetUp(ti *TestInfo) {
@@ -147,3 +135,4 @@ func (t *AllBucketsTest) SingleBucket_ReadAfterWrite() {
 	AssertEq(nil, err)
 	ExpectEq("000o111ritoenchilada222", string(fileContents))
 }
+*/

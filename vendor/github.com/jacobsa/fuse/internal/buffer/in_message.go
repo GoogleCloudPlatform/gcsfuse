@@ -57,7 +57,6 @@ func NewInMessage() *InMessage {
 // struct.
 func (m *InMessage) Init(r io.Reader) error {
 	n, err := r.Read(m.storage[:])
-	fmt.Printf("Message read in init")
 	if err != nil {
 		return err
 	}

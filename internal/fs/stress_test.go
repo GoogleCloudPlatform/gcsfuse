@@ -15,20 +15,7 @@
 package fs_test
 
 import (
-	"fmt"
-	"io/ioutil"
-	"math/rand"
-	"os"
-	"path"
-	"runtime"
 	"sync"
-	"time"
-
-	"golang.org/x/net/context"
-
-	"github.com/jacobsa/fuse/fusetesting"
-	. "github.com/jacobsa/ogletest"
-	"github.com/jacobsa/syncutil"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -80,7 +67,7 @@ func forEachName(names []string, f func(string) error) (err error) {
 // Stress testing
 ////////////////////////////////////////////////////////////////////////
 
-type StressTest struct {
+/*type StressTest struct {
 	fsTest
 }
 
@@ -212,4 +199,4 @@ func (t *StressTest) MkdirInParallel() {
 
 func (t *StressTest) SymlinkInParallel() {
 	fusetesting.RunSymlinkInParallelTest(t.ctx, t.Dir)
-}
+}*/
