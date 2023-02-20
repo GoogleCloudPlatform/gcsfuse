@@ -18,8 +18,6 @@ import (
 	"context"
 	"io"
 	"sync"
-	"fmt"
-
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 )
