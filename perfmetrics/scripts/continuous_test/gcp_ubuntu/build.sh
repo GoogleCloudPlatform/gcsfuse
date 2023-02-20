@@ -15,6 +15,15 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 # Get the latest commitId of yesterday in the log file
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 git checkout $commitId
+
+# Building and installing gcsfuse
+go install ./tools/build_gcsfuse
+$HOME/go/bin/build_gcsfuse ./ /usr/ $commitId
+mkdir $HOME/temp
+$HOME/go/bin/build_gcsfuse ./ $HOME/temp/ $commitId
+sudo cp ~/temp/bin/gcsfuse /usr/bin
+sudo cp ~/temp/sbin/mount.gcsfuse /sbin
+
 echo Mounting gcs bucket
 mkdir -p gcs
 LOG_FILE=log-$(date '+%Y-%m-%d').txt
@@ -22,7 +31,7 @@ GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --experimental-enable-st
 BUCKET_NAME=gcs-fuse-dashboard-fio
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
-go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 
 # Executing perf tests
 chmod +x perfmetrics/scripts/run_load_test_and_fetch_metrics.sh
