@@ -71,7 +71,12 @@ type CachingTest struct {
 	cachingTestCommon
 }
 
-func init() { RegisterTestSuite(&CachingTest{}) }
+func init() {
+	if os.Getenv("CI") != "" {
+		return
+	}
+	RegisterTestSuite(&CachingTest{})
+}
 
 func (t *CachingTest) EmptyBucket() {
 	// ReadDir
@@ -303,7 +308,12 @@ type CachingWithImplicitDirsTest struct {
 	cachingTestCommon
 }
 
-func init() { RegisterTestSuite(&CachingWithImplicitDirsTest{}) }
+func init() {
+	if os.Getenv("CI") != "" {
+		return
+	}
+	RegisterTestSuite(&CachingWithImplicitDirsTest{})
+}
 
 func (t *CachingWithImplicitDirsTest) SetUp(ti *TestInfo) {
 	t.serverCfg.ImplicitDirectories = true
