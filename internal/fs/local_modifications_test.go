@@ -19,13 +19,24 @@
 package fs_test
 
 import (
+	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
+	"path"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/jacobsa/fuse/fusetesting"
+	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/gcs/gcsutil"
+	. "github.com/jacobsa/oglematchers"
+	. "github.com/jacobsa/ogletest"
 )
 
 // The radius we use for "expect mtime is within"-style assertions. We can't
@@ -154,68 +165,68 @@ func interestingLegalNames() (names []string) {
 // Open
 ////////////////////////////////////////////////////////////////////////
 
-/*type OpenTest struct {
+type OpenTest struct {
 	fsTest
 }
 
 func init() { RegisterTestSuite(&OpenTest{}) }
 
-func (t *OpenTest) NonExistent_CreateFlagNotSet() {
+func (t1 *OpenTest) NonExistent_CreateFlagNotSet() {
 	var err error
-	t.f1, err = os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0700)
+	t1.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR, 0700)
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
 
 	// No object should have been created.
-	_, err = gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	_, err = gcsutil.ReadObject(ctx, bucket, "foo")
 
 	var notFoundErr *gcs.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
-func (t *OpenTest) NonExistent_CreateFlagSet() {
+func (t1 *OpenTest) NonExistent_CreateFlagSet() {
 	var err error
 
 	// Open the file.
-	t.f1, err = os.OpenFile(
-		path.Join(t.mfs.Dir(), "foo"),
+	t1.f1, err = os.OpenFile(
+		path.Join(mntDir, "foo"),
 		os.O_RDWR|os.O_CREATE,
 		0700)
 
 	AssertEq(nil, err)
 
 	// The object should now be present in the bucket, with empty contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	contents, err := gcsutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("", string(contents))
 
 	// Write some contents.
-	_, err = t.f1.Write([]byte("012"))
+	_, err = t1.f1.Write([]byte("012"))
 	AssertEq(nil, err)
 
 	// Read some contents with Seek and Read.
-	_, err = t.f1.Seek(1, 0)
+	_, err = t1.f1.Seek(1, 0)
 	AssertEq(nil, err)
 
 	buf := make([]byte, 2)
-	_, err = io.ReadFull(t.f1, buf)
+	_, err = io.ReadFull(t1.f1, buf)
 
 	AssertEq(nil, err)
 	ExpectEq("12", string(buf))
 
 	// Close the file.
-	AssertEq(nil, t.f1.Close())
-	t.f1 = nil
+	AssertEq(nil, t1.f1.Close())
+	t1.f1 = nil
 
 	// Read back its contents.
-	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
+	fileContents, err := ioutil.ReadFile(path.Join(mntDir, "foo"))
 
 	AssertEq(nil, err)
 	ExpectEq("012", string(fileContents))
 }
 
-func (t *OpenTest) ExistingFile() {
+func (t1 *OpenTest) ExistingFile() {
 	var err error
 
 	// Create a file.
@@ -223,34 +234,34 @@ func (t *OpenTest) ExistingFile() {
 	AssertEq(
 		nil,
 		ioutil.WriteFile(
-			path.Join(t.mfs.Dir(), "foo"),
+			path.Join(mntDir, "foo"),
 			[]byte(contents),
 			os.FileMode(0644)))
 
 	// Open the file.
-	t.f1, err = os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0)
+	t1.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR, 0)
 	AssertEq(nil, err)
 
 	// Write to the start of the file using File.Write.
-	_, err = t.f1.Write([]byte("012"))
+	_, err = t1.f1.Write([]byte("012"))
 	AssertEq(nil, err)
 
 	// Read some contents with Seek and Read.
-	_, err = t.f1.Seek(2, 0)
+	_, err = t1.f1.Seek(2, 0)
 	AssertEq(nil, err)
 
 	buf := make([]byte, 4)
-	_, err = io.ReadFull(t.f1, buf)
+	_, err = io.ReadFull(t1.f1, buf)
 
 	AssertEq(nil, err)
 	ExpectEq("2obu", string(buf))
 
 	// Close the file.
-	AssertEq(nil, t.f1.Close())
-	t.f1 = nil
+	AssertEq(nil, t1.f1.Close())
+	t1.f1 = nil
 
 	// Read back its contents.
-	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
+	fileContents, err := ioutil.ReadFile(path.Join(mntDir, "foo"))
 
 	AssertEq(nil, err)
 	ExpectEq("012oburritoenchilada", string(fileContents))
@@ -263,13 +274,13 @@ func (t *OpenTest) ExistingFile_Truncate() {
 	AssertEq(
 		nil,
 		ioutil.WriteFile(
-			path.Join(t.mfs.Dir(), "foo"),
+			path.Join(mntDir, "foo"),
 			[]byte("blahblahblah"),
 			os.FileMode(0644)))
 
 	// Open the file.
 	t.f1, err = os.OpenFile(
-		path.Join(t.mfs.Dir(), "foo"),
+		path.Join(mntDir, "foo"),
 		os.O_RDWR|os.O_TRUNC,
 		0)
 
@@ -297,7 +308,7 @@ func (t *OpenTest) ExistingFile_Truncate() {
 	t.f1 = nil
 
 	// Read back its contents.
-	fileContents, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "foo"))
+	fileContents, err := ioutil.ReadFile(path.Join(mntDir, "foo"))
 
 	AssertEq(nil, err)
 	ExpectEq("012", string(fileContents))
@@ -309,7 +320,7 @@ func (t *OpenTest) AlreadyOpenedFile() {
 	buf := make([]byte, 1024)
 
 	// Create and open a file.
-	t.f1, err = os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.f1, err = os.Create(path.Join(mntDir, "foo"))
 	AssertEq(nil, err)
 
 	// Write some data into it.
@@ -318,7 +329,7 @@ func (t *OpenTest) AlreadyOpenedFile() {
 	AssertEq(4, n)
 
 	// Open another handle for reading and writing.
-	t.f2, err = os.OpenFile(path.Join(t.mfs.Dir(), "foo"), os.O_RDWR, 0)
+	t.f2, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR, 0)
 	AssertEq(nil, err)
 
 	// The contents written through the first handle should be available to the
@@ -338,8 +349,13 @@ func (t *OpenTest) AlreadyOpenedFile() {
 	contents, err := ioutil.ReadFile(t.f2.Name())
 	AssertEq(nil, err)
 	ExpectEq("tank", string(contents))
+	AssertEq(nil, t.f1.Close())
+	t.f1 = nil
+	AssertEq(nil, t.f2.Close())
+	t.f2 = nil
 }
 
+/*
 func (t *OpenTest) LegalNames() {
 	var err error
 
@@ -348,7 +364,7 @@ func (t *OpenTest) LegalNames() {
 
 	// We should be able to create each name.
 	for _, n := range names {
-		err = ioutil.WriteFile(path.Join(t.Dir, n), []byte(n), 0400)
+		err = ioutil.WriteFile(path.Join(mntDir, n), []byte(n), 0400)
 		AssertEq(nil, err, "Name: %q", n)
 	}
 
@@ -364,7 +380,7 @@ func (t *OpenTest) LegalNames() {
 
 	// We should be able to read them all.
 	for _, n := range names {
-		contents, err := ioutil.ReadFile(path.Join(t.Dir, n))
+		contents, err := ioutil.ReadFile(path.Join(mntDir, n))
 		AssertEq(nil, err, "Name: %q", n)
 		ExpectEq(n, string(contents), "Name: %q", n)
 	}
@@ -394,10 +410,10 @@ func (t *OpenTest) IllegalNames() {
 
 	// We should not be able to create any of these names.
 	for _, tc := range testCases {
-		err = ioutil.WriteFile(path.Join(t.Dir, tc.name), []byte{}, 0400)
+		err = ioutil.WriteFile(path.Join(mntDir, tc.name), []byte{}, 0400)
 		ExpectThat(err, Error(HasSubstr(tc.err)), "Name: %q", tc.name)
 	}
-}
+}*/
 
 ////////////////////////////////////////////////////////////////////////
 // Mknod
@@ -416,7 +432,7 @@ func (t *MknodTest) File() {
 	}
 
 	var err error
-	p := path.Join(t.mfs.Dir(), "foo")
+	p := path.Join(mntDir, "foo")
 
 	// Create
 	err = syscall.Mknod(p, syscall.S_IFREG|0600, 0)
@@ -443,7 +459,7 @@ func (t *MknodTest) Directory() {
 	}
 
 	var err error
-	p := path.Join(t.mfs.Dir(), "foo")
+	p := path.Join(mntDir, "foo")
 
 	// Quoth `man 2 mknod`: "Under Linux, this call cannot be used to create
 	// directories."
@@ -458,7 +474,7 @@ func (t *MknodTest) AlreadyExists() {
 	}
 
 	var err error
-	p := path.Join(t.mfs.Dir(), "foo")
+	p := path.Join(mntDir, "foo")
 
 	// Create (first)
 	err = ioutil.WriteFile(p, []byte("taco"), 0600)
@@ -481,7 +497,7 @@ func (t *MknodTest) NonExistentParent() {
 	}
 
 	var err error
-	p := path.Join(t.mfs.Dir(), "foo/bar")
+	p := path.Join(mntDir, "foo/bar")
 
 	err = syscall.Mknod(p, syscall.S_IFREG|0600, 0)
 	ExpectEq(syscall.ENOENT, err)
@@ -491,7 +507,7 @@ func (t *MknodTest) NonExistentParent() {
 // Modes
 ////////////////////////////////////////////////////////////////////////
 
-type ModesTest struct {
+/*type ModesTest struct {
 	fsTest
 }
 
@@ -2327,7 +2343,7 @@ func (t *SymlinkTest) RemoveLink() {
 	var notFoundErr *gcs.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
-
+*/
 ////////////////////////////////////////////////////////////////////////
 // Rename
 ////////////////////////////////////////////////////////////////////////
@@ -2341,11 +2357,11 @@ func init() { RegisterTestSuite(&RenameTest{}) }
 func (t *RenameTest) DirectoryNamingConflicts() {
 	var err error
 
-	oldPath := path.Join(t.Dir, "foo")
+	oldPath := path.Join(mntDir, "foo")
 	err = os.Mkdir(oldPath, 0700)
 	AssertEq(nil, err)
 
-	conflictingPath := path.Join(t.Dir, "bar")
+	conflictingPath := path.Join(mntDir, "bar")
 	err = os.Mkdir(conflictingPath, 0700)
 	AssertEq(nil, err)
 
@@ -2367,23 +2383,23 @@ func (t *RenameTest) DirectoryContainingFiles() {
 	var err error
 
 	// Create a directory.
-	oldPath := path.Join(t.Dir, "foo")
+	oldPath := path.Join(mntDir, "foo")
 	err = os.Mkdir(oldPath, 0700)
 	AssertEq(nil, err)
 
-	for i := 0; i < int(t.serverCfg.RenameDirLimit); i++ {
+	for i := 0; i < int(5); i++ {
 		file := fmt.Sprintf("%s/%d.txt", oldPath, i)
 		err = ioutil.WriteFile(file, []byte("taco"), 0400)
 		AssertEq(nil, err)
 	}
 
 	// Attempt to rename it.
-	newPath := path.Join(t.Dir, "bar")
+	newPath := path.Join(mntDir, "bar")
 	err = os.Rename(oldPath, newPath)
 	AssertEq(nil, err)
 
 	// File count exceeds the limit.
-	file := fmt.Sprintf("%s/%d.txt", newPath, t.serverCfg.RenameDirLimit)
+	file := fmt.Sprintf("%s/%d.txt", newPath, 5)
 	err = ioutil.WriteFile(file, []byte("taco"), 0400)
 	AssertEq(nil, err)
 
@@ -2396,7 +2412,7 @@ func (t *RenameTest) DirectoryContainingDirectories() {
 	var err error
 
 	// Create a directory.
-	oldPath := path.Join(t.Dir, "foo")
+	oldPath := path.Join(mntDir, "foo")
 	err = os.Mkdir(oldPath, 0700)
 	AssertEq(nil, err)
 
@@ -2419,7 +2435,7 @@ func (t *RenameTest) DirectoryContainingDirectories() {
 	AssertEq(nil, err)
 
 	// Rename the directory.
-	newPath := path.Join(t.Dir, "bar")
+	newPath := path.Join(mntDir, "bar")
 	err = os.Rename(oldPath, newPath)
 	AssertEq(nil, err)
 	files, err := ioutil.ReadDir(newPath)
@@ -2433,12 +2449,12 @@ func (t *RenameTest) EmptyDirectory() {
 	var err error
 
 	// Create a directory.
-	oldPath := path.Join(t.Dir, "foo")
+	oldPath := path.Join(mntDir, "foo")
 	err = os.Mkdir(oldPath, 0700)
 	AssertEq(nil, err)
 
 	// Rename it.
-	newPath := path.Join(t.Dir, "bar")
+	newPath := path.Join(mntDir, "bar")
 	err = os.Rename(oldPath, newPath)
 	AssertEq(nil, err)
 
@@ -2454,7 +2470,7 @@ func (t *RenameTest) WithinDir() {
 	var err error
 
 	// Create a parent directory.
-	parentPath := path.Join(t.Dir, "parent")
+	parentPath := path.Join(mntDir, "parent")
 
 	err = os.Mkdir(parentPath, 0700)
 	AssertEq(nil, err)
@@ -2501,8 +2517,8 @@ func (t *RenameTest) AcrossDirs() {
 	var err error
 
 	// Create two parent directories.
-	oldParentPath := path.Join(t.Dir, "old")
-	newParentPath := path.Join(t.Dir, "new")
+	oldParentPath := path.Join(mntDir, "old")
+	newParentPath := path.Join(mntDir, "new")
 
 	err = os.Mkdir(oldParentPath, 0700)
 	AssertEq(nil, err)
@@ -2557,7 +2573,7 @@ func (t *RenameTest) OutOfFileSystem() {
 	var err error
 
 	// Create a file.
-	oldPath := path.Join(t.Dir, "foo")
+	oldPath := path.Join(mntDir, "foo")
 
 	err = ioutil.WriteFile(oldPath, []byte("taco"), 0400)
 	AssertEq(nil, err)
@@ -2583,7 +2599,7 @@ func (t *RenameTest) IntoFileSystem() {
 	defer os.Remove(oldPath)
 
 	// Attempt to move it into the file system.
-	err = os.Rename(oldPath, path.Join(t.Dir, "bar"))
+	err = os.Rename(oldPath, path.Join(mntDir, "bar"))
 	ExpectThat(err, Error(HasSubstr("cross-device")))
 }
 
@@ -2591,11 +2607,11 @@ func (t *RenameTest) OverExistingFile() {
 	var err error
 
 	// Create two files.
-	oldPath := path.Join(t.Dir, "foo")
+	oldPath := path.Join(mntDir, "foo")
 	err = ioutil.WriteFile(oldPath, []byte("taco"), 0400)
 	AssertEq(nil, err)
 
-	newPath := path.Join(t.Dir, "bar")
+	newPath := path.Join(mntDir, "bar")
 	err = ioutil.WriteFile(newPath, []byte("burrito"), 0600)
 	AssertEq(nil, err)
 
@@ -2609,7 +2625,7 @@ func (t *RenameTest) OverExistingFile() {
 	ExpectEq("taco", string(contents))
 
 	// And the parent listing.
-	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	entries, err := fusetesting.ReadDirPicky(mntDir)
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
 	fi := entries[0]
@@ -2622,11 +2638,11 @@ func (t *RenameTest) OverExisting_WrongType() {
 	var err error
 
 	// Create a file and a directory.
-	filePath := path.Join(t.Dir, "foo")
+	filePath := path.Join(mntDir, "foo")
 	err = ioutil.WriteFile(filePath, []byte("taco"), 0400)
 	AssertEq(nil, err)
 
-	dirPath := path.Join(t.Dir, "bar")
+	dirPath := path.Join(mntDir, "bar")
 	err = os.Mkdir(dirPath, 0700)
 	AssertEq(nil, err)
 
@@ -2641,7 +2657,6 @@ func (t *RenameTest) OverExisting_WrongType() {
 func (t *RenameTest) NonExistentFile() {
 	var err error
 
-	err = os.Rename(path.Join(t.Dir, "foo"), path.Join(t.Dir, "bar"))
+	err = os.Rename(path.Join(mntDir, "foo"), path.Join(mntDir, "bar"))
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
-*/
