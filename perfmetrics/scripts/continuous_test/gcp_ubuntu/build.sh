@@ -23,6 +23,7 @@ $HOME/go/bin/build_gcsfuse ./ $HOME/temp/ $commitId
 sudo cp ~/temp/bin/gcsfuse /usr/bin
 sudo cp ~/temp/sbin/mount.gcsfuse /sbin
 
+# Mounting gcs bucket
 cd "./perfmetrics/scripts/"
 echo Mounting gcs bucket
 mkdir -p gcs
