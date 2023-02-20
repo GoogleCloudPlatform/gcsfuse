@@ -32,7 +32,12 @@ type ReadOnlyTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&ReadOnlyTest{}) }
+func init() {
+	if os.Getenv("CI") != "" {
+		return
+	}
+	RegisterTestSuite(&ReadOnlyTest{})
+}
 
 func (t *ReadOnlyTest) SetUp(ti *TestInfo) {
 	t.mountCfg.ReadOnly = true

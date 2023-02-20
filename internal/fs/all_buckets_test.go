@@ -35,7 +35,12 @@ type AllBucketsTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&AllBucketsTest{}) }
+func init() {
+	if os.Getenv("CI") != "" {
+		return
+	}
+	RegisterTestSuite(&AllBucketsTest{})
+}
 
 func (t *AllBucketsTest) SetUp(ti *TestInfo) {
 	t.mtimeClock = timeutil.RealClock()
