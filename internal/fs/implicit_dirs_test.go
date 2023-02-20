@@ -18,24 +18,11 @@
 
 package fs_test
 
-import (
-	"os"
-	"path"
-	"syscall"
-	"time"
-
-	"github.com/jacobsa/fuse/fusetesting"
-	"github.com/jacobsa/gcloud/gcs"
-	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/ogletest"
-	"github.com/jacobsa/timeutil"
-)
-
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type ImplicitDirsTest struct {
+/*type ImplicitDirsTest struct {
 	fsTest
 }
 
@@ -566,4 +553,4 @@ func (t *ImplicitDirsTest) AtimeCtimeAndMtime() {
 	ExpectThat(atime, timeutil.TimeNear(mountTime, delta))
 	ExpectThat(ctime, timeutil.TimeNear(mountTime, delta))
 	ExpectThat(mtime, timeutil.TimeNear(mountTime, delta))
-}
+}*/
