@@ -90,13 +90,16 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 		return
 	}
 
-	// RetryAlways causes all operations to be retried when the service returns a transient error, regardless of
-	// idempotency considerations.
 	sc.SetRetry(
 		storage.WithBackoff(gax.Backoff{
 			Max:        clientConfig.MaxRetryDuration,
 			Multiplier: clientConfig.RetryMultiplier,
 		}),
+		// RetryAlways causes all operations to be retried regardless of
+		// idempotency considerations.
+		storage.WithPolicy(storage.RetryAlways),
+		// Custom ShouldRetry function checks if operation should be retried on the
+		// basis of Response(error.Code).
 		storage.WithErrorFunc(storageutil.ShouldRetry))
 
 	sh = &storageClient{client: sc}
