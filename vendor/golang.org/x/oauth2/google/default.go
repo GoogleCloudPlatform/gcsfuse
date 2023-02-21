@@ -117,9 +117,7 @@ func FindDefaultCredentialsWithParams(ctx context.Context, params CredentialsPar
 
 	// First, try the environment variable.
 	const envVar = "GOOGLE_APPLICATION_CREDENTIALS"
-	print("ENVIRONMENT VAR ",os.Getenv(envVar))
 	if filename := os.Getenv(envVar); filename != "" {
-		print("FILE NAME= ",filename)
 		creds, err := readCredentialsFile(ctx, filename, params)
 		if err != nil {
 			return nil, fmt.Errorf("google: error getting credentials using %v environment variable: %v", envVar, err)
@@ -129,6 +127,7 @@ func FindDefaultCredentialsWithParams(ctx context.Context, params CredentialsPar
 
 	// Second, try a well-known file.
 	filename := wellKnownFile()
+	println("FILE NAME= ",filename)
 	if creds, err := readCredentialsFile(ctx, filename, params); err == nil {
 		return creds, nil
 	} else if !os.IsNotExist(err) {
