@@ -379,18 +379,18 @@ type flagStorage struct {
 	SequentialReadSizeMb               int32
 
 	// Tuning
-	MaxRetrySleep         time.Duration
-	StatCacheCapacity     int
-	StatCacheTTL          time.Duration
-	TypeCacheTTL          time.Duration
-	MaxRetryDuration      time.Duration
-	RetryMultiplier       float64
-	LocalFileCache        bool
-	TempDir               string
-	DisableHTTP2          bool
-	MaxConnsPerHost       int
-	MaxIdleConnsPerHost   int
-	EnableNonexistentType bool
+	MaxRetrySleep              time.Duration
+	StatCacheCapacity          int
+	StatCacheTTL               time.Duration
+	TypeCacheTTL               time.Duration
+	MaxRetryDuration           time.Duration
+	RetryMultiplier            float64
+	LocalFileCache             bool
+	TempDir                    string
+	DisableHTTP2               bool
+	MaxConnsPerHost            int
+	MaxIdleConnsPerHost        int
+	EnableNonexistentTypeCache bool
 
 	// Monitoring & Logging
 	StackdriverExportInterval time.Duration
@@ -510,18 +510,18 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		SequentialReadSizeMb:               int32(c.Int("sequential-read-size-mb")),
 
 		// Tuning,
-		MaxRetrySleep:         c.Duration("max-retry-sleep"),
-		StatCacheCapacity:     c.Int("stat-cache-capacity"),
-		StatCacheTTL:          c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:          c.Duration("type-cache-ttl"),
-		MaxRetryDuration:      c.Duration("max-retry-duration"),
-		RetryMultiplier:       c.Float64("retry-multiplier"),
-		LocalFileCache:        c.Bool("experimental-local-file-cache"),
-		TempDir:               c.String("temp-dir"),
-		DisableHTTP2:          c.Bool("disable-http2"),
-		MaxConnsPerHost:       c.Int("max-conns-per-host"),
-		MaxIdleConnsPerHost:   c.Int("max-idle-conns-per-host"),
-		EnableNonexistentType: c.Bool("enable-nonexistent-type-cache"),
+		MaxRetrySleep:              c.Duration("max-retry-sleep"),
+		StatCacheCapacity:          c.Int("stat-cache-capacity"),
+		StatCacheTTL:               c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:               c.Duration("type-cache-ttl"),
+		MaxRetryDuration:           c.Duration("max-retry-duration"),
+		RetryMultiplier:            c.Float64("retry-multiplier"),
+		LocalFileCache:             c.Bool("experimental-local-file-cache"),
+		TempDir:                    c.String("temp-dir"),
+		DisableHTTP2:               c.Bool("disable-http2"),
+		MaxConnsPerHost:            c.Int("max-conns-per-host"),
+		MaxIdleConnsPerHost:        c.Int("max-idle-conns-per-host"),
+		EnableNonexistentTypeCache: c.Bool("enable-nonexistent-type-cache"),
 
 		// Monitoring & Logging
 		StackdriverExportInterval: c.Duration("stackdriver-export-interval"),

@@ -145,7 +145,7 @@ type dirInode struct {
 	id           fuseops.InodeID
 	implicitDirs bool
 
-	enableNonexistentType bool
+	enableNonexistentTypeCache bool
 
 	// INVARIANT: name.IsDir()
 	name Name
@@ -195,7 +195,7 @@ func NewDirInode(
 	name Name,
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
-	enableNonexistentType bool,
+	enableNonexistentTypeCache bool,
 	typeCacheTTL time.Duration,
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
@@ -208,15 +208,15 @@ func NewDirInode(
 	// Set up the struct.
 	const typeCacheCapacity = 1 << 16
 	typed := &dirInode{
-		bucket:                bucket,
-		mtimeClock:            mtimeClock,
-		cacheClock:            cacheClock,
-		id:                    id,
-		implicitDirs:          implicitDirs,
-		enableNonexistentType: enableNonexistentType,
-		name:                  name,
-		attrs:                 attrs,
-		cache:                 newTypeCache(typeCacheCapacity/2, typeCacheTTL),
+		bucket:                     bucket,
+		mtimeClock:                 mtimeClock,
+		cacheClock:                 cacheClock,
+		id:                         id,
+		implicitDirs:               implicitDirs,
+		enableNonexistentTypeCache: enableNonexistentTypeCache,
+		name:                       name,
+		attrs:                      attrs,
+		cache:                      newTypeCache(typeCacheCapacity/2, typeCacheTTL),
 	}
 
 	typed.lc.Init(id)
@@ -483,7 +483,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 
 	if result != nil {
 		d.cache.Insert(d.cacheClock.Now(), name, result.Type())
-	} else if d.enableNonexistentType && cachedType == UnknownType {
+	} else if d.enableNonexistentTypeCache && cachedType == UnknownType {
 		d.cache.Insert(d.cacheClock.Now(), name, NonexistentType)
 	}
 

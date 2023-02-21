@@ -84,7 +84,8 @@ func makeGcsfuseArgs(
 			"disable_http2",
 			"experimental_local_file_cache",
 			"experimental_enable_storage_client_library",
-			"reuse_token_from_url":
+			"reuse_token_from_url",
+			"enable-nonexistent-type-cache":
 			args = append(args, "--"+strings.Replace(name, "_", "-", -1))
 
 		// Special case: support mount-like formatting for gcsfuse string flags.

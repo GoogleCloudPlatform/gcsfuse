@@ -86,7 +86,7 @@ func (p DirentSlice) Len() int           { return len(p) }
 func (p DirentSlice) Less(i, j int) bool { return p[i].Name < p[j].Name }
 func (p DirentSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-func (t *DirTest) resetInode(implicitDirs bool, enableNonexistentType bool) {
+func (t *DirTest) resetInode(implicitDirs bool, enableNonexistentTypeCache bool) {
 	if t.in != nil {
 		t.in.Unlock()
 	}
@@ -100,7 +100,7 @@ func (t *DirTest) resetInode(implicitDirs bool, enableNonexistentType bool) {
 			Mode: dirMode,
 		},
 		implicitDirs,
-		enableNonexistentType,
+		enableNonexistentTypeCache,
 		typeCacheTTL,
 		&t.bucket,
 		&t.clock,
@@ -492,8 +492,8 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 	ExpectEq(dirObjName, result.Object.Name)
 }
 
-func (t *DirTest) LookUpChild_NonExistentTypeCache() {
-	// Enable enableNonexistentType for type cache
+func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
+	// Enable enableNonexistentTypeCache for type cache
 	t.resetInode(false, true)
 
 	const name = "qux"
@@ -509,7 +509,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache() {
 	createObj, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
 	AssertEq(nil, err)
 
-	// Look up again, should still return nil
+	// Look up again, should still return nil due to cache
 	result, err = t.in.LookUpChild(t.ctx, name)
 
 	AssertEq(nil, err)
@@ -528,6 +528,48 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache() {
 	ExpectEq(objName, result.Object.Name)
 	ExpectEq(createObj.Generation, result.Object.Generation)
 	ExpectEq(createObj.Size, result.Object.Size)
+}
+
+func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
+	// Enable implicitDirs and enableNonexistentTypeCache for type cache
+	t.resetInode(true, true)
+
+	const name = "qux"
+	objName := path.Join(dirInodeName, name) + "/"
+
+	// Look up nonexistent object, return nil
+	result, err := t.in.LookUpChild(t.ctx, name)
+
+	AssertEq(nil, err)
+	AssertEq(nil, result)
+
+	// Create an object that implicitly defines the directory.
+	otherObjName := path.Join(objName, "asdf")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
+	AssertEq(nil, err)
+
+	// Look up again, should still return nil due to cache
+	result, err = t.in.LookUpChild(t.ctx, name)
+
+	AssertEq(nil, err)
+	AssertEq(nil, result)
+
+	// But after the TTL expires, the behavior should flip.
+	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
+
+	// Look up again, should return correct object
+	result, err = t.in.LookUpChild(t.ctx, name)
+
+	AssertEq(nil, err)
+	ExpectEq(nil, result.Object)
+
+	ExpectEq(objName, result.FullName.GcsObjectName())
+	ExpectEq(inode.ImplicitDirType, result.Type())
+
+	// A conflict marker should not work.
+	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	AssertEq(nil, err)
+	ExpectEq(nil, result)
 }
 
 func (t *DirTest) ReadDescendants_Empty() {

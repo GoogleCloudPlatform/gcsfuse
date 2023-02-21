@@ -86,7 +86,7 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq(time.Minute, f.TypeCacheTTL)
 	ExpectEq("", f.TempDir)
 	ExpectEq(2, f.RetryMultiplier)
-	ExpectFalse(f.EnableNonexistentType)
+	ExpectFalse(f.EnableNonexistentTypeCache)
 
 	// Logging
 	ExpectTrue(f.DebugFuseErrors)
@@ -129,7 +129,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
 	ExpectTrue(f.EnableStorageClientLibrary)
-	ExpectTrue(f.EnableNonexistentType)
+	ExpectTrue(f.EnableNonexistentTypeCache)
 
 	// --foo=false form
 	args = nil
@@ -146,7 +146,7 @@ func (t *FlagsTest) Bools() {
 	ExpectFalse(f.DebugHTTP)
 	ExpectFalse(f.DebugInvariants)
 	ExpectFalse(f.EnableStorageClientLibrary)
-	ExpectFalse(f.EnableNonexistentType)
+	ExpectFalse(f.EnableNonexistentTypeCache)
 
 	// --foo=true form
 	args = nil
@@ -163,7 +163,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
 	ExpectTrue(f.EnableStorageClientLibrary)
-	ExpectTrue(f.EnableNonexistentType)
+	ExpectTrue(f.EnableNonexistentTypeCache)
 }
 
 func (t *FlagsTest) DecimalNumbers() {

@@ -101,22 +101,22 @@ be interacting with the file system.`)
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{
-		CacheClock:             timeutil.RealClock(),
-		BucketManager:          bm,
-		BucketName:             bucketName,
-		LocalFileCache:         flags.LocalFileCache,
-		DebugFS:                flags.DebugFS,
-		TempDir:                flags.TempDir,
-		ImplicitDirectories:    flags.ImplicitDirs,
-		InodeAttributeCacheTTL: flags.StatCacheTTL,
-		DirTypeCacheTTL:        flags.TypeCacheTTL,
-		Uid:                    uid,
-		Gid:                    gid,
-		FilePerms:              os.FileMode(flags.FileMode),
-		DirPerms:               os.FileMode(flags.DirMode),
-		RenameDirLimit:         flags.RenameDirLimit,
-		SequentialReadSizeMb:   flags.SequentialReadSizeMb,
-		EnableNonexistentType:  flags.EnableNonexistentType,
+		CacheClock:                 timeutil.RealClock(),
+		BucketManager:              bm,
+		BucketName:                 bucketName,
+		LocalFileCache:             flags.LocalFileCache,
+		DebugFS:                    flags.DebugFS,
+		TempDir:                    flags.TempDir,
+		ImplicitDirectories:        flags.ImplicitDirs,
+		InodeAttributeCacheTTL:     flags.StatCacheTTL,
+		DirTypeCacheTTL:            flags.TypeCacheTTL,
+		Uid:                        uid,
+		Gid:                        gid,
+		FilePerms:                  os.FileMode(flags.FileMode),
+		DirPerms:                   os.FileMode(flags.DirMode),
+		RenameDirLimit:             flags.RenameDirLimit,
+		SequentialReadSizeMb:       flags.SequentialReadSizeMb,
+		EnableNonexistentTypeCache: flags.EnableNonexistentTypeCache,
 	}
 
 	logger.Infof("Creating a new server...\n")

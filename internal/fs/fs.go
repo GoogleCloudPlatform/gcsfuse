@@ -80,7 +80,7 @@ type ServerConfig struct {
 	// Setting this bool to true enables the nonexistent type cache so if the
 	// directory state is NonexistentType in type cache, the lookup request will
 	// return nil immediately.
-	EnableNonexistentType bool
+	EnableNonexistentTypeCache bool
 
 	// How long to allow the kernel to cache inode attributes.
 	//
@@ -145,26 +145,26 @@ func NewFileSystem(
 
 	// Set up the basic struct.
 	fs := &fileSystem{
-		mtimeClock:             mtimeClock,
-		cacheClock:             cfg.CacheClock,
-		bucketManager:          cfg.BucketManager,
-		localFileCache:         cfg.LocalFileCache,
-		contentCache:           contentCache,
-		implicitDirs:           cfg.ImplicitDirectories,
-		enableNonexistentType:  cfg.EnableNonexistentType,
-		inodeAttributeCacheTTL: cfg.InodeAttributeCacheTTL,
-		dirTypeCacheTTL:        cfg.DirTypeCacheTTL,
-		renameDirLimit:         cfg.RenameDirLimit,
-		sequentialReadSizeMb:   cfg.SequentialReadSizeMb,
-		uid:                    cfg.Uid,
-		gid:                    cfg.Gid,
-		fileMode:               cfg.FilePerms,
-		dirMode:                cfg.DirPerms | os.ModeDir,
-		inodes:                 make(map[fuseops.InodeID]inode.Inode),
-		nextInodeID:            fuseops.RootInodeID + 1,
-		generationBackedInodes: make(map[inode.Name]inode.GenerationBackedInode),
-		implicitDirInodes:      make(map[inode.Name]inode.DirInode),
-		handles:                make(map[fuseops.HandleID]interface{}),
+		mtimeClock:                 mtimeClock,
+		cacheClock:                 cfg.CacheClock,
+		bucketManager:              cfg.BucketManager,
+		localFileCache:             cfg.LocalFileCache,
+		contentCache:               contentCache,
+		implicitDirs:               cfg.ImplicitDirectories,
+		enableNonexistentTypeCache: cfg.EnableNonexistentTypeCache,
+		inodeAttributeCacheTTL:     cfg.InodeAttributeCacheTTL,
+		dirTypeCacheTTL:            cfg.DirTypeCacheTTL,
+		renameDirLimit:             cfg.RenameDirLimit,
+		sequentialReadSizeMb:       cfg.SequentialReadSizeMb,
+		uid:                        cfg.Uid,
+		gid:                        cfg.Gid,
+		fileMode:                   cfg.FilePerms,
+		dirMode:                    cfg.DirPerms | os.ModeDir,
+		inodes:                     make(map[fuseops.InodeID]inode.Inode),
+		nextInodeID:                fuseops.RootInodeID + 1,
+		generationBackedInodes:     make(map[inode.Name]inode.GenerationBackedInode),
+		implicitDirInodes:          make(map[inode.Name]inode.DirInode),
+		handles:                    make(map[fuseops.HandleID]interface{}),
 	}
 
 	// Set up root bucket
@@ -209,7 +209,7 @@ func makeRootForBucket(
 			Mtime: fs.mtimeClock.Now(),
 		},
 		fs.implicitDirs,
-		fs.enableNonexistentType,
+		fs.enableNonexistentTypeCache,
 		fs.dirTypeCacheTTL,
 		&syncerBucket,
 		fs.mtimeClock,
@@ -276,14 +276,14 @@ type fileSystem struct {
 	// Constant data
 	/////////////////////////
 
-	localFileCache         bool
-	contentCache           *contentcache.ContentCache
-	implicitDirs           bool
-	enableNonexistentType  bool
-	inodeAttributeCacheTTL time.Duration
-	dirTypeCacheTTL        time.Duration
-	renameDirLimit         int64
-	sequentialReadSizeMb   int32
+	localFileCache             bool
+	contentCache               *contentcache.ContentCache
+	implicitDirs               bool
+	enableNonexistentTypeCache bool
+	inodeAttributeCacheTTL     time.Duration
+	dirTypeCacheTTL            time.Duration
+	renameDirLimit             int64
+	sequentialReadSizeMb       int32
 
 	// The user and group owning everything in the file system.
 	uid uint32
@@ -558,7 +558,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 				Mtime: fs.mtimeClock.Now(),
 			},
 			fs.implicitDirs,
-			fs.enableNonexistentType,
+			fs.enableNonexistentTypeCache,
 			fs.dirTypeCacheTTL,
 			ic.Bucket,
 			fs.mtimeClock,
@@ -580,7 +580,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 				Mtime: fs.mtimeClock.Now(),
 			},
 			fs.implicitDirs,
-			fs.enableNonexistentType,
+			fs.enableNonexistentTypeCache,
 			fs.dirTypeCacheTTL,
 			ic.Bucket,
 			fs.mtimeClock,
