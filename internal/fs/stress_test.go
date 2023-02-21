@@ -14,13 +14,30 @@
 
 package fs_test
 
+import (
+	"fmt"
+	"io/ioutil"
+	"math/rand"
+	"os"
+	"path"
+	"runtime"
+	"sync"
+	"time"
+
+	"golang.org/x/net/context"
+
+	"github.com/jacobsa/fuse/fusetesting"
+	. "github.com/jacobsa/ogletest"
+	"github.com/jacobsa/syncutil"
+)
+
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
 // Run the supplied function for each name, with parallelism. Return an error
 // if any invocation does.
-/*func forEachName(names []string, f func(string) error) (err error) {
+func forEachName(names []string, f func(string) error) (err error) {
 	const parallelism = 8
 
 	// Fill a channel.
@@ -198,4 +215,3 @@ func (t *StressTest) MkdirInParallel() {
 func (t *StressTest) SymlinkInParallel() {
 	fusetesting.RunSymlinkInParallelTest(ctx, mntDir)
 }
-*/
