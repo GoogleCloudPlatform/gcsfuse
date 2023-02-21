@@ -33,15 +33,12 @@ type ReadOnlyTest struct {
 }
 
 func init() {
-	if os.Getenv("CI") != "" {
-		return
-	}
 	RegisterTestSuite(&ReadOnlyTest{})
 }
 
-func (t *ReadOnlyTest) SetUp(ti *TestInfo) {
+func (t *ReadOnlyTest) SetUpTestSuite() {
 	t.mountCfg.ReadOnly = true
-	t.fsTest.SetUp(ti)
+	t.fsTest.SetUpTestSuite()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -49,17 +46,17 @@ func (t *ReadOnlyTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *ReadOnlyTest) CreateFile() {
-	err := ioutil.WriteFile(path.Join(t.Dir, "foo"), []byte{}, 0700)
+	err := ioutil.WriteFile(path.Join(mntDir, "foo"), []byte{}, 0700)
 	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
 func (t *ReadOnlyTest) ModifyFile() {
 	// Create an object in the bucket.
-	_, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
+	_, err := gcsutil.CreateObject(ctx, bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	// Opening it for writing should fail.
-	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	f, err := os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR, 0)
 	f.Close()
 
 	ExpectThat(err, Error(HasSubstr("read-only")))
@@ -67,15 +64,15 @@ func (t *ReadOnlyTest) ModifyFile() {
 
 func (t *ReadOnlyTest) DeleteFile() {
 	// Create an object in the bucket.
-	_, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
+	_, err := gcsutil.CreateObject(ctx, bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	// Attempt to delete it via the file system.
-	err = os.Remove(path.Join(t.Dir, "foo"))
+	err = os.Remove(path.Join(mntDir, "foo"))
 	ExpectThat(err, Error(HasSubstr("read-only")))
 
 	// the bucket should not have been modified.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	contents, err := gcsutil.ReadObject(ctx, bucket, "foo")
 
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
