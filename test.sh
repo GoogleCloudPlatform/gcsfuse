@@ -1,0 +1,1 @@
+gsutil cp gs://gcs-fuse-dashboard-fio/creds.json ./

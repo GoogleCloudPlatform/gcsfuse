@@ -1,7 +1,12 @@
 {
-  "client_id": "764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com",
-  "client_secret": "d-FL95Q19q7MQmFpd7hHD0Ty",
-  "quota_project_id": "gcs-fuse-test",
-  "refresh_token": "1//0gaRHppg-6c1tCgYIARAAGBASNwF-L9IrBuacJnH6wnSPpr9eqKUU_JIsebtqbIMJz1YbqeUPG74_WrI0_axYYKSgcPeowYQHJrI",
-  "type": "authorized_user"
+  "type": "service_account",
+  "project_id": "gcs-fuse-test",
+  "private_key_id": "0a27759d51a6afbf6ddbe3a4ab620e34e8407fd0",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCgzh/RjWjNU7eR\n14mjFZHlwZ1OIsEDJ9syyUXxdacJdEdz+GKJ4Og/TYTslECwMDJH4Jy9cwmdHZEC\nkOy4ytc8MZueRtZew+E3W4NcTTm7pWDH65xCjOkjBN5r41tnkrH6JKH7b+QXDNxg\nF4LK4AwpQfOL8/QKWMORT98LnTWutGgzLkDP26Rk2hd3S3MSaWFUP8AmmbC0epsn\nK6cRj9S3exw4BdnYWREPepWjxuakzuCP9RZvCY+g9Bnsg9LA8rwRRUw7+wFkM+8I\n41/zodV5YGiKnYAyXzHKEGGayYghKIkVbvIOQvG8O0ff5VBazGT8keZIr8dN9maU\nNb/KkGk1AgMBAAECggEABPfXDImU/GcC0GZ7bVj1U8b1y7eP4JsCs6DEvBPU+T67\nOrLx7ZIrOHaau4VN6gzCAhJZrDa+J6cFjh+G2Mgp1g6c4QHpIApChWeIeTmkJcXu\n5cCfQ+4/AWvmTU1yuP/4MCMPLK5OqF9eRsssTfMDr3U0rCd5a+78RYkeZ/Jh1P6z\nNcj0bvBPuD8DYTeQkEaI4a4DfLkOKlHx/dCE3Y4sxL5m4E/lnwK61UqHc2XuHX6u\ni7h8tmqO0dkA9wfPJoOPp7nD3E2eNK2Dg3+qufb/IbZKAR3n9Y0oxxRlumkTARtu\nfdLwsvnFN/v+WpbrDbXwYMFtP/CWABPKJj/vDH+IAQKBgQDT37HuzqrSZrQLVGKd\nBBR/43IJMoPIm/oECodD/o4IF1g2/978R0kgHniuTuPbq5DW/CI3uSJNcgZVSTp8\nFHbtGe2dN5b7c/5IaSk9m1vT0IqIdRe0R0daMTozU2horgeL0YmncTLtt1RJvOXR\nwUTp0+QPd6ht6MwEMiOd4BskAQKBgQDCS6TcFUWLWHJVeX8DI/v/D+WUlDLfuxKC\nR+GFknJPmjxSA91A9GvjB/jzUyiyYWv7T9WrQWWrvWVlxcSfxkRtbEISHTFACHdM\ntdkeMSZ8PwVcFztV/RqZpEQHwlMQPJuwcV21AjQyN2BhRJFYGkQk7Mrhx2U5bp7T\n4QIZ1331NQKBgGHbNnZCs7j7wHpfHjDBGqq6pQfEcgNsrvvA1Rq9bmIkThUQ9q90\nSTzxdfGj9C+YPQxeZXtxIXu9h1lKuh1m4kq+J/XuH+jBeRd+opKWt8HL1sARvMIC\nDd2FUQk1o8p9XnTgcYCJkukiPGbWPRs09Zw9xl6yeHNTCy+A7NxVDpQBAoGADHv1\nzNplDI4TUqCq45XFVF8+Hizjk/KePtbFi+KcC7daVt6+sbTC1eSmP2RBgiy2VoCL\ntyRNlxplUIPDnYyMywcgu686geXJXJl2qPT5hxQ5kPBBNMY9lk+yu1jmI23xhwXR\nwpawqeVbAQT53dJaPJEmfBlmzKjp9a1IiEaLZl0CgYAYvvM6s6QHn0rI1P29fJM6\n+NiMccpQ1fKP0OkzXW3kag//KpEr2ifqbLKdBik7XV6JzY4RPMk0+GSSK+tjSTRv\ndZ5N/DDl4bd2D2FSXIvdAv6XgDGu3iHNTBDjbSxVaycBzZ2+GbWs2NZdiZeEbCwH\nShSQMbaicSVay7wDKmScdw==\n-----END PRIVATE KEY-----\n",
+  "client_email": "gcsfusetest@gcs-fuse-test.iam.gserviceaccount.com",
+  "client_id": "115602867855035987253",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/gcsfusetest%40gcs-fuse-test.iam.gserviceaccount.com"
 }
