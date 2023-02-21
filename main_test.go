@@ -37,7 +37,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 		MaxRetryDuration:    7,
 		RetryMultiplier:     2,
 		AppName:             "app",
-		KeyFile:             "/usr/local/google/home/tulsishah/creds.json",
+		KeyFile:             "creds.json",
 	}
 
 	storageHandle, err := createStorageHandle(flags)

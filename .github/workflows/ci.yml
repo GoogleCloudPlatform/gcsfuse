@@ -29,6 +29,7 @@ jobs:
         go build ./...
         go install ./tools/build_gcsfuse
         build_gcsfuse . /tmp ${GITHUB_SHA}
+        gsutil cp gs://gcs-fuse-dashboard-fio/creds.json ./
     - name: Test
       run: go test -p 1 -count 1 -v -cover ./...
   lint:
