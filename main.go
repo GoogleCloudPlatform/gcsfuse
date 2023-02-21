@@ -140,6 +140,7 @@ func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 }
 
 func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
+	println("key file ", flags.KeyFile)
 	tokenSrc, err := auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl, true)
 	if err != nil {
 		err = fmt.Errorf("get token source: %w", err)
