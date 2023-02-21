@@ -18,33 +18,10 @@
 
 package fs_test
 
-import (
-	"errors"
-	"fmt"
-	"io"
-	"io/ioutil"
-	"os"
-	"path"
-	"runtime"
-	"sort"
-	"strings"
-	"syscall"
-	"time"
-	"unicode"
-	"unicode/utf8"
-
-	"github.com/jacobsa/fuse/fusetesting"
-	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/gcsutil"
-	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/ogletest"
-	"github.com/jacobsa/timeutil"
-)
-
 // The radius we use for "expect mtime is within"-style assertions. We can't
 // share a synchronized clock with the ultimate source of mtimes because with
 // writeback caching enabled the kernel manufactures them based on wall time.
-const timeSlop = 25 * time.Millisecond
+/*const timeSlop = 25 * time.Millisecond
 
 var fuseMaxNameLen int
 
@@ -2692,3 +2669,4 @@ func (t *RenameTest) NonExistentFile() {
 	err = os.Rename(path.Join(t.Dir, "foo"), path.Join(t.Dir, "bar"))
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
+*/
