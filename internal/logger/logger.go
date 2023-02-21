@@ -53,7 +53,7 @@ func InitLogFile(filename string, format string) error {
 			return err
 		}
 	} else {
-		sysWriter, err = syslog.New(syslog.LOG_ALERT, ProgrammeName)
+		sysWriter, err = syslog.New(syslog.LOG_LOCAL7|syslog.LOG_DEBUG, ProgrammeName)
 		if err != nil {
 			return fmt.Errorf("error while creating syswriter: %w", err)
 		}
