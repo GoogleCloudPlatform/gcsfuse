@@ -211,7 +211,7 @@ func makeRootForBucket(
 		fs.implicitDirs,
 		fs.enableNonexistentType,
 		fs.dirTypeCacheTTL,
-		syncerBucket,
+		&syncerBucket,
 		fs.mtimeClock,
 		fs.cacheClock,
 	)

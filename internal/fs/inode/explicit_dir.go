@@ -40,7 +40,7 @@ func NewExplicitDirInode(
 	implicitDirs bool,
 	enableNonexistentType bool,
 	typeCacheTTL time.Duration,
-	bucket gcsx.SyncerBucket,
+	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock) (d ExplicitDirInode) {
 	wrapped := NewDirInode(

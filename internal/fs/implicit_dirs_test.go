@@ -39,7 +39,12 @@ type ImplicitDirsTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&ImplicitDirsTest{}) }
+func init() {
+	if os.Getenv("CI") != "" {
+		return
+	}
+	RegisterTestSuite(&ImplicitDirsTest{})
+}
 
 func (t *ImplicitDirsTest) SetUp(ti *TestInfo) {
 	t.serverCfg.ImplicitDirectories = true

@@ -102,7 +102,7 @@ func (t *DirTest) resetInode(implicitDirs bool, enableNonexistentType bool) {
 		implicitDirs,
 		enableNonexistentType,
 		typeCacheTTL,
-		t.bucket,
+		&t.bucket,
 		&t.clock,
 		&t.clock)
 

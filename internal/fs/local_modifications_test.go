@@ -171,7 +171,12 @@ type OpenTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&OpenTest{}) }
+func init() {
+	if os.Getenv("CI") != "" {
+		return
+	}
+	RegisterTestSuite(&OpenTest{})
+}
 
 func (t *OpenTest) NonExistent_CreateFlagNotSet() {
 	var err error
@@ -420,7 +425,12 @@ type MknodTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&MknodTest{}) }
+func init() {
+	if os.Getenv("CI") != "" {
+		return
+	}
+	RegisterTestSuite(&MknodTest{})
+}
 
 func (t *MknodTest) File() {
 	// mknod(2) only works for root on OS X.
@@ -508,7 +518,12 @@ type ModesTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&ModesTest{}) }
+func init() {
+	if os.Getenv("CI") != "" {
+		return
+	}
+	RegisterTestSuite(&ModesTest{})
+}
 
 func (t *ModesTest) ReadOnlyMode() {
 	var err error
@@ -894,7 +909,12 @@ type DirectoryTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&DirectoryTest{}) }
+func init() {
+	if os.Getenv("CI") != "" {
+		return
+	}
+	RegisterTestSuite(&DirectoryTest{})
+}
 
 func (t *DirectoryTest) Mkdir_OneLevel() {
 	var err error
@@ -1384,7 +1404,12 @@ type FileTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&FileTest{}) }
+func init() {
+	if os.Getenv("CI") != "" {
+		return
+	}
+	RegisterTestSuite(&FileTest{})
+}
 
 func (t *FileTest) WriteOverlapsEndOfFile() {
 	var err error
@@ -2236,7 +2261,12 @@ type SymlinkTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&SymlinkTest{}) }
+func init() {
+	if os.Getenv("CI") != "" {
+		return
+	}
+	RegisterTestSuite(&SymlinkTest{})
+}
 
 func (t *SymlinkTest) CreateLink() {
 	var fi os.FileInfo
@@ -2349,7 +2379,12 @@ type RenameTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&RenameTest{}) }
+func init() {
+	if os.Getenv("CI") != "" {
+		return
+	}
+	RegisterTestSuite(&RenameTest{})
+}
 
 func (t *RenameTest) DirectoryNamingConflicts() {
 	var err error

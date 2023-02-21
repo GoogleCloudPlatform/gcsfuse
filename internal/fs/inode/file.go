@@ -40,7 +40,7 @@ type FileInode struct {
 	// Dependencies
 	/////////////////////////
 
-	bucket     gcsx.SyncerBucket
+	bucket     *gcsx.SyncerBucket
 	mtimeClock timeutil.Clock
 
 	/////////////////////////
@@ -98,7 +98,7 @@ func NewFileInode(
 	name Name,
 	o *gcs.Object,
 	attrs fuseops.InodeAttributes,
-	bucket gcsx.SyncerBucket,
+	bucket *gcsx.SyncerBucket,
 	localFileCache bool,
 	contentCache *contentcache.ContentCache,
 	mtimeClock timeutil.Clock) (f *FileInode) {
@@ -385,7 +385,7 @@ func (f *FileInode) Attributes(
 	return
 }
 
-func (f *FileInode) Bucket() gcsx.SyncerBucket {
+func (f *FileInode) Bucket() *gcsx.SyncerBucket {
 	return f.bucket
 }
 
