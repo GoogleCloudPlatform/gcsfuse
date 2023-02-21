@@ -73,8 +73,6 @@ func init() {
 
 // A struct that can be embedded to inherit common file system test behaviors.
 type fsTest struct {
-	ctx context.Context
-
 	// Configuration
 	serverCfg fs.ServerConfig
 	mountCfg  fuse.MountConfig
@@ -90,21 +88,26 @@ type fsTest struct {
 	bucket  gcs.Bucket
 	buckets map[string]gcs.Bucket
 
-	// Mount information
-	mfs *fuse.MountedFileSystem
-	Dir string
-
 	// Files to close when tearing down. Nil entries are skipped.
 	f1 *os.File
 	f2 *os.File
 }
 
-var _ SetUpInterface = &fsTest{}
-var _ TearDownInterface = &fsTest{}
+var (
+	mntDir string
+	ctx    context.Context
+	bucket gcs.Bucket
 
-func (t *fsTest) SetUp(ti *TestInfo) {
+	// Mount information
+	mfs *fuse.MountedFileSystem
+)
+
+var _ SetUpTestSuiteInterface = &fsTest{}
+var _ TearDownTestSuiteInterface = &fsTest{}
+
+func (t *fsTest) SetUpTestSuite() {
 	var err error
-	t.ctx = ti.Ctx
+	ctx = context.Background()
 
 	// Set up the clocks.
 	t.mtimeClock = timeutil.RealClock()
@@ -119,6 +122,7 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 		// mount a single bucket
 		if t.bucket == nil {
 			t.bucket = gcsfake.NewFakeBucket(t.mtimeClock, "some_bucket")
+			bucket = t.bucket
 		}
 		t.serverCfg.BucketName = t.bucket.Name()
 		t.buckets = map[string]gcs.Bucket{t.bucket.Name(): t.bucket}
@@ -132,6 +136,7 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 		tmpObjectPrefix: ".gcsfuse_tmp/",
 	}
 	t.serverCfg.RenameDirLimit = 5
+	t.serverCfg.SequentialReadSizeMb = 200
 
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
@@ -142,16 +147,16 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 	t.serverCfg.DirPerms = dirPerms
 
 	// Set up a temporary directory for mounting.
-	t.Dir, err = ioutil.TempDir("", "fs_test")
+	mntDir, err = ioutil.TempDir("", "fs_test")
 	AssertEq(nil, err)
 
 	// Create a file system server.
-	server, err := fs.NewServer(t.ctx, &t.serverCfg)
+	server, err := fs.NewServer(ctx, &t.serverCfg)
 	AssertEq(nil, err)
 
 	// Mount the file system.
 	mountCfg := t.mountCfg
-	mountCfg.OpContext = t.ctx
+	mountCfg.OpContext = ctx
 
 	if mountCfg.ErrorLogger == nil {
 		mountCfg.ErrorLogger = logger.NewError("fuse_errors: ")
@@ -161,26 +166,16 @@ func (t *fsTest) SetUp(ti *TestInfo) {
 		mountCfg.DebugLogger = logger.NewDebug("fuse: ")
 	}
 
-	t.mfs, err = fuse.Mount(t.Dir, server, &mountCfg)
+	mfs, err = fuse.Mount(mntDir, server, &mountCfg)
 	AssertEq(nil, err)
 }
 
-func (t *fsTest) TearDown() {
+func (t *fsTest) TearDownTestSuite() {
 	var err error
-
-	// Close any files we opened.
-	if t.f1 != nil {
-		ExpectEq(nil, t.f1.Close())
-	}
-
-	if t.f2 != nil {
-		ExpectEq(nil, t.f2.Close())
-	}
-
 	// Unmount the file system. Try again on "resource busy" errors.
 	delay := 10 * time.Millisecond
 	for {
-		err := fuse.Unmount(t.mfs.Dir())
+		err := fuse.Unmount(mfs.Dir())
 		if err == nil {
 			break
 		}
@@ -196,15 +191,30 @@ func (t *fsTest) TearDown() {
 		AbortTest()
 	}
 
-	if err := t.mfs.Join(t.ctx); err != nil {
+	if err := mfs.Join(ctx); err != nil {
 		AssertEq(nil, err)
 	}
 
 	// Unlink the mount point.
-	if err = os.Remove(t.Dir); err != nil {
+	if err = os.Remove(mntDir); err != nil {
 		err = fmt.Errorf("Unlinking mount point: %w", err)
 		return
 	}
+}
+
+func (t *fsTest) TearDown() {
+	// Close any files we opened.
+	if t.f1 != nil {
+		ExpectEq(nil, t.f1.Close())
+	}
+
+	if t.f2 != nil {
+		ExpectEq(nil, t.f2.Close())
+	}
+
+	// Remove all contents for mntDir. This helps to keep the directory clean
+	// for next test run
+	os.RemoveAll(mntDir)
 }
 
 func (t *fsTest) createWithContents(name string, contents string) error {
@@ -217,12 +227,12 @@ func (t *fsTest) createObjects(in map[string]string) error {
 		b[k] = []byte(v)
 	}
 
-	err := gcsutil.CreateObjects(t.ctx, t.bucket, b)
+	err := gcsutil.CreateObjects(ctx, t.bucket, b)
 	return err
 }
 
 func (t *fsTest) createEmptyObjects(names []string) error {
-	err := gcsutil.CreateEmptyObjects(t.ctx, t.bucket, names)
+	err := gcsutil.CreateEmptyObjects(ctx, t.bucket, names)
 	return err
 }
 
