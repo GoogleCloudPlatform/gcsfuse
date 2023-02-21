@@ -117,7 +117,9 @@ func FindDefaultCredentialsWithParams(ctx context.Context, params CredentialsPar
 
 	// First, try the environment variable.
 	const envVar = "GOOGLE_APPLICATION_CREDENTIALS"
+	print("ENVIRONMENT VAR ",os.Getenv(envVar))
 	if filename := os.Getenv(envVar); filename != "" {
+		print("FILE NAME= ",filename)
 		creds, err := readCredentialsFile(ctx, filename, params)
 		if err != nil {
 			return nil, fmt.Errorf("google: error getting credentials using %v environment variable: %v", envVar, err)
