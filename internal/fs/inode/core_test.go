@@ -63,7 +63,7 @@ func (t *CoreTest) File() {
 
 	name := inode.NewFileName(inode.NewRootName(t.bucket.Name()), o.Name)
 	c := &inode.Core{
-		Bucket:   t.bucket,
+		Bucket:   &t.bucket,
 		FullName: name,
 		Object:   o,
 	}
@@ -77,7 +77,7 @@ func (t *CoreTest) ExplicitDir() {
 
 	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), o.Name)
 	c := &inode.Core{
-		Bucket:   t.bucket,
+		Bucket:   &t.bucket,
 		FullName: name,
 		Object:   o,
 	}
@@ -88,7 +88,7 @@ func (t *CoreTest) ExplicitDir() {
 func (t *CoreTest) ImplicitDir() {
 	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), "bar/")
 	c := &inode.Core{
-		Bucket:   t.bucket,
+		Bucket:   &t.bucket,
 		FullName: name,
 		Object:   nil,
 	}
@@ -98,7 +98,7 @@ func (t *CoreTest) ImplicitDir() {
 
 func (t *CoreTest) BucketRootDir() {
 	c := &inode.Core{
-		Bucket:   t.bucket,
+		Bucket:   &t.bucket,
 		FullName: inode.NewRootName(t.bucket.Name()),
 		Object:   nil,
 	}
@@ -118,28 +118,28 @@ func (t *CoreTest) SanityCheck() {
 	AssertEq(nil, err)
 
 	c := &inode.Core{
-		Bucket:   t.bucket,
+		Bucket:   &t.bucket,
 		FullName: inode.NewDirName(root, "bar"),
 		Object:   nil,
 	}
 	ExpectEq(nil, c.SanityCheck()) // implicit dir is okay
 
 	c = &inode.Core{
-		Bucket:   t.bucket,
+		Bucket:   &t.bucket,
 		FullName: inode.NewFileName(root, "bar"),
 		Object:   nil,
 	}
 	ExpectNe(nil, c.SanityCheck()) // missing object for file
 
 	c = &inode.Core{
-		Bucket:   t.bucket,
+		Bucket:   &t.bucket,
 		FullName: inode.NewFileName(root, o.Name),
 		Object:   o,
 	}
 	ExpectEq(nil, c.SanityCheck()) // name match
 
 	c = &inode.Core{
-		Bucket:   t.bucket,
+		Bucket:   &t.bucket,
 		FullName: inode.NewFileName(root, "foo"),
 		Object:   o,
 	}

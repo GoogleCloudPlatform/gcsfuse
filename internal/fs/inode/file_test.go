@@ -98,6 +98,10 @@ func (t *FileTest) createInode() {
 		inode.NewRootName(""),
 		t.backingObj.Name,
 	)
+	syncerBucket := gcsx.NewSyncerBucket(
+		1, // Append threshold
+		".gcsfuse_tmp/",
+		t.bucket)
 	t.in = inode.NewFileInode(
 		fileInodeID,
 		name,
@@ -107,10 +111,7 @@ func (t *FileTest) createInode() {
 			Gid:  gid,
 			Mode: fileMode,
 		},
-		gcsx.NewSyncerBucket(
-			1, // Append threshold
-			".gcsfuse_tmp/",
-			t.bucket),
+		&syncerBucket,
 		false, // localFileCache
 		contentcache.New("", &t.clock),
 		&t.clock)

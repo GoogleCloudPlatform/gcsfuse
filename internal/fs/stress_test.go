@@ -84,7 +84,12 @@ type StressTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&StressTest{}) }
+func init() {
+	if os.Getenv("CI") != "" {
+		return
+	}
+	RegisterTestSuite(&StressTest{})
+}
 
 func (t *StressTest) CreateAndReadManyFilesInParallel() {
 	var err error

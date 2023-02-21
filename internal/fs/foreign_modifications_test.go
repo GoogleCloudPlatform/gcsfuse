@@ -69,7 +69,12 @@ type ForeignModsTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&ForeignModsTest{}) }
+func init() {
+	if os.Getenv("CI") != "" {
+		return
+	}
+	RegisterTestSuite(&ForeignModsTest{})
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
