@@ -128,7 +128,10 @@ func FindDefaultCredentialsWithParams(ctx context.Context, params CredentialsPar
 	// Second, try a well-known file.
 	filename := wellKnownFile()
 	println("FILE NAME= ",filename)
-	if creds, err := readCredentialsFile(ctx, filename, params); err == nil {
+	creds, err := readCredentialsFile(ctx, filename, params)
+	println("CREDS= ",creds)
+	println("ERROR= ",err)
+	if err == nil {
 		return creds, nil
 	} else if !os.IsNotExist(err) {
 		return nil, fmt.Errorf("google: error getting credentials using well-known file (%v): %v", filename, err)
