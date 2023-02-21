@@ -73,8 +73,6 @@ func init() {
 
 // A struct that can be embedded to inherit common file system test behaviors.
 type fsTest struct {
-	ctx context.Context
-
 	// Configuration
 	serverCfg fs.ServerConfig
 	mountCfg  fuse.MountConfig
@@ -89,10 +87,6 @@ type fsTest struct {
 	// Otherwise, a default bucket will be used.
 	bucket  gcs.Bucket
 	buckets map[string]gcs.Bucket
-
-	// Mount information
-	mfs *fuse.MountedFileSystem
-	Dir string
 
 	// Files to close when tearing down. Nil entries are skipped.
 	f1 *os.File
@@ -315,8 +309,8 @@ type fakeBucketManager struct {
 func (bm *fakeBucketManager) ShutDown() {}
 
 func (bm *fakeBucketManager) SetUpBucket(
-		ctx context.Context,
-		name string) (sb gcsx.SyncerBucket, err error) {
+	ctx context.Context,
+	name string) (sb gcsx.SyncerBucket, err error) {
 	bucket, ok := bm.buckets[name]
 	if ok {
 		sb = gcsx.NewSyncerBucket(

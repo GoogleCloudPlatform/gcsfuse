@@ -14,11 +14,29 @@
 
 package fs_test
 
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
+	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
+	"github.com/jacobsa/fuse/fusetesting"
+	"github.com/jacobsa/gcloud/gcs"
+	"github.com/jacobsa/gcloud/gcs/gcscaching"
+	"github.com/jacobsa/gcloud/gcs/gcsfake"
+	"github.com/jacobsa/gcloud/gcs/gcsutil"
+	. "github.com/jacobsa/oglematchers"
+	. "github.com/jacobsa/ogletest"
+	"github.com/jacobsa/timeutil"
+)
+
 ////////////////////////////////////////////////////////////////////////
 // Common
 ////////////////////////////////////////////////////////////////////////
 
-/*const ttl = 10 * time.Minute
+const ttl = 10 * time.Minute
 
 type cachingTestCommon struct {
 	fsTest
@@ -415,4 +433,4 @@ func (t *CachingWithImplicitDirsTest) SymlinksAreTypeCached() {
 	AssertEq(nil, err)
 	ExpectEq("foo"+inode.ConflictingFileNameSuffix, fi.Name())
 	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
-}*/
+}
