@@ -43,8 +43,9 @@ import (
 )
 
 const (
-	filePerms os.FileMode = 0740
-	dirPerms              = 0754
+	filePerms      os.FileMode = 0740
+	dirPerms                   = 0754
+	RenameDirLimit             = 5
 )
 
 func TestFS(t *testing.T) { RunTests(t) }
@@ -106,6 +107,8 @@ var (
 
 	// Mount information
 	mfs *fuse.MountedFileSystem
+
+	mtimeClock timeutil.Clock
 )
 
 var _ SetUpTestSuiteInterface = &fsTest{}
@@ -116,7 +119,7 @@ func (t *fsTest) SetUpTestSuite() {
 	ctx = context.Background()
 
 	// Set up the clocks.
-	t.mtimeClock = timeutil.RealClock()
+	mtimeClock = timeutil.RealClock()
 	t.cacheClock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 	t.serverCfg.CacheClock = &t.cacheClock
 
@@ -127,7 +130,7 @@ func (t *fsTest) SetUpTestSuite() {
 	} else {
 		// mount a single bucket
 		if t.bucket == nil {
-			t.bucket = gcsfake.NewFakeBucket(t.mtimeClock, "some_bucket")
+			t.bucket = gcsfake.NewFakeBucket(mtimeClock, "some_bucket")
 			bucket = t.bucket
 		}
 		t.serverCfg.BucketName = t.bucket.Name()
@@ -141,7 +144,7 @@ func (t *fsTest) SetUpTestSuite() {
 		appendThreshold: 0,
 		tmpObjectPrefix: ".gcsfuse_tmp/",
 	}
-	t.serverCfg.RenameDirLimit = 5
+	t.serverCfg.RenameDirLimit = RenameDirLimit
 	t.serverCfg.SequentialReadSizeMb = 200
 
 	// Set up ownership.
@@ -233,12 +236,12 @@ func (t *fsTest) createObjects(in map[string]string) error {
 		b[k] = []byte(v)
 	}
 
-	err := gcsutil.CreateObjects(ctx, t.bucket, b)
+	err := gcsutil.CreateObjects(ctx, bucket, b)
 	return err
 }
 
 func (t *fsTest) createEmptyObjects(names []string) error {
-	err := gcsutil.CreateEmptyObjects(ctx, t.bucket, names)
+	err := gcsutil.CreateEmptyObjects(ctx, bucket, names)
 	return err
 }
 
@@ -315,8 +318,8 @@ type fakeBucketManager struct {
 func (bm *fakeBucketManager) ShutDown() {}
 
 func (bm *fakeBucketManager) SetUpBucket(
-		ctx context.Context,
-		name string) (sb gcsx.SyncerBucket, err error) {
+	ctx context.Context,
+	name string) (sb gcsx.SyncerBucket, err error) {
 	bucket, ok := bm.buckets[name]
 	if ok {
 		sb = gcsx.NewSyncerBucket(
