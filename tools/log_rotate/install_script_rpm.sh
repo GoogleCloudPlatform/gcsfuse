@@ -13,7 +13,7 @@ cat > /etc/logrotate.d/gcsfuse <<EOF
   delaycompress
   sharedscripts
   postrotate
-	  kill -HUP $(cat /var/run/rsyslogd.pid) >/dev/null 2>&1 || true
+	  kill -HUP \$(cat /var/run/rsyslogd.pid) >/dev/null 2>&1 || true
   endscript
 }
 EOF
