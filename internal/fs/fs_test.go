@@ -201,8 +201,7 @@ func (t *fsTest) TearDownTestSuite() {
 		return
 	}
 
-	// Setting nil ensures bucket/buckets variable are clean for next test suite
-	// run.
+	// Cleaning of bucket/buckets variable to be clean for next test suite run.
 	buckets = nil
 	bucket = nil
 }
