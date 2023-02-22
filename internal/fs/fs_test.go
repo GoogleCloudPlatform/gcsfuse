@@ -228,7 +228,7 @@ func (t *fsTest) TearDown() {
 	// for next test run.
 
 	// ReadDirPicky throws error incase of allbuckets_test. That is expected since
-	// we can list buckets when bucket-name is not specified during mount.
+	// we can't list buckets when bucket-name is not specified during mount.
 	// os.RemoveAll throws error incase of readonly mount.
 	// Ignoring any errors we get while deleting the mntDir contents.
 	entries, _ := fusetesting.ReadDirPicky(mntDir)
