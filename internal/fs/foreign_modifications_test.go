@@ -284,7 +284,8 @@ func (t *ForeignModsTest) UnreachableObjects() {
 	// These unreachable objects (test/0, test/1, bar/0) start showing up in
 	// other tests as soon as directory with similar name is created. Hence
 	// cleaning them.
-	gcsutil.DeleteAllObjects(ctx, bucket)
+	err = gcsutil.DeleteAllObjects(ctx, bucket)
+	AssertEq(nil, err)
 }
 
 func (t *ForeignModsTest) FileAndDirectoryWithConflictingName() {
