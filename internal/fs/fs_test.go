@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/signal"
 	"os/user"
+	"path"
 	"strconv"
 	"strings"
 	"testing"
@@ -34,6 +35,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
@@ -110,6 +112,7 @@ var (
 	mfs *fuse.MountedFileSystem
 
 	mtimeClock timeutil.Clock
+	cacheClock timeutil.SimulatedClock
 )
 
 var _ SetUpTestSuiteInterface = &fsTest{}
@@ -121,21 +124,20 @@ func (t *fsTest) SetUpTestSuite() {
 
 	// Set up the clocks.
 	mtimeClock = timeutil.RealClock()
-	t.cacheClock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
-	t.serverCfg.CacheClock = &t.cacheClock
+	cacheClock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
+	t.serverCfg.CacheClock = &cacheClock
 
 	if t.buckets != nil {
 		// mount all buckets
-		t.bucket = nil
+		bucket = nil
 		t.serverCfg.BucketName = ""
 	} else {
 		// mount a single bucket
-		if t.bucket == nil {
-			t.bucket = gcsfake.NewFakeBucket(mtimeClock, "some_bucket")
-			bucket = t.bucket
+		if bucket == nil {
+			bucket = gcsfake.NewFakeBucket(mtimeClock, "some_bucket")
 		}
-		t.serverCfg.BucketName = t.bucket.Name()
-		t.buckets = map[string]gcs.Bucket{t.bucket.Name(): t.bucket}
+		t.serverCfg.BucketName = bucket.Name()
+		t.buckets = map[string]gcs.Bucket{bucket.Name(): bucket}
 	}
 
 	t.serverCfg.BucketManager = &fakeBucketManager{
@@ -206,7 +208,7 @@ func (t *fsTest) TearDownTestSuite() {
 	}
 
 	// Unlink the mount point.
-	if err = os.Remove(mntDir); err != nil {
+	if err = os.RemoveAll(mntDir); err != nil {
 		err = fmt.Errorf("Unlinking mount point: %w", err)
 		return
 	}
@@ -223,8 +225,16 @@ func (t *fsTest) TearDown() {
 	}
 
 	// Remove all contents for mntDir. This helps to keep the directory clean
-	// for next test run
-	os.RemoveAll(mntDir)
+	// for next test run.
+
+	// ReadDirPicky throws error incase of allbuckets_test. That is expected since
+	// we can list buckets when bucket-name is not specified during mount.
+	// os.RemoveAll throws error incase of readonly mount.
+	// Ignoring any errors we get while deleting the mntDir contents.
+	entries, _ := fusetesting.ReadDirPicky(mntDir)
+	for _, e := range entries {
+		os.RemoveAll(path.Join(mntDir, e.Name()))
+	}
 }
 
 func (t *fsTest) createWithContents(name string, contents string) error {

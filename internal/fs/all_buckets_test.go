@@ -36,23 +36,19 @@ type AllBucketsTest struct {
 }
 
 func init() {
-	if os.Getenv("CI") != "" {
-		return
-	}
 	RegisterTestSuite(&AllBucketsTest{})
 }
 
-func (t *AllBucketsTest) SetUp(ti *TestInfo) {
-	t.mtimeClock = timeutil.RealClock()
+func (t *AllBucketsTest) SetUpTestSuite() {
+	mtimeClock = timeutil.RealClock()
 	t.buckets = map[string]gcs.Bucket{
-		"bucket-0": gcsfake.NewFakeBucket(t.mtimeClock, "bucket-0"),
-		"bucket-1": gcsfake.NewFakeBucket(t.mtimeClock, "bucket-1"),
-		"bucket-2": gcsfake.NewFakeBucket(t.mtimeClock, "bucket-2"),
+		"bucket-0": gcsfake.NewFakeBucket(mtimeClock, "bucket-0"),
+		"bucket-1": gcsfake.NewFakeBucket(mtimeClock, "bucket-1"),
+		"bucket-2": gcsfake.NewFakeBucket(mtimeClock, "bucket-2"),
 	}
 	// buckets: {"some_bucket", "bucket-1", "bucket-2"}
-	t.fsTest.SetUp(ti)
+	t.fsTest.SetUpTestSuite()
 	AssertEq("", t.serverCfg.BucketName)
-	AssertEq(t.Dir, t.mfs.Dir())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -60,37 +56,37 @@ func (t *AllBucketsTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *AllBucketsTest) BaseDir_Ls() {
-	_, err := ioutil.ReadDir(t.Dir)
+	_, err := ioutil.ReadDir(mntDir)
 	ExpectThat(err, Error(HasSubstr("operation not supported")))
 }
 
 func (t *AllBucketsTest) BaseDir_Write() {
-	filename := path.Join(t.mfs.Dir(), "foo")
+	filename := path.Join(mntDir, "foo")
 	err := ioutil.WriteFile(
 		filename, []byte("content"), os.FileMode(0644))
 	ExpectThat(err, Error(HasSubstr("input/output error")))
 }
 
 func (t *AllBucketsTest) BaseDir_Rename() {
-	err := os.Rename(t.Dir+"/bucket-0", t.Dir+"/bucket-1/foo")
+	err := os.Rename(mntDir+"/bucket-0", mntDir+"/bucket-1/foo")
 	ExpectThat(err, Error(HasSubstr("operation not supported")))
 
-	filename := path.Join(t.Dir + "/bucket-0/foo")
+	filename := path.Join(mntDir + "/bucket-0/foo")
 	err = ioutil.WriteFile(
 		filename, []byte("content"), os.FileMode(0644))
 	AssertEq(nil, err)
 
-	err = os.Rename(t.Dir+"/bucket-0/foo", t.Dir+"/bucket-1/foo")
+	err = os.Rename(mntDir+"/bucket-0/foo", mntDir+"/bucket-1/foo")
 	ExpectThat(err, Error(HasSubstr("operation not supported")))
 
-	err = os.Rename(t.Dir+"/bucket-0/foo", t.Dir+"/bucket-99")
+	err = os.Rename(mntDir+"/bucket-0/foo", mntDir+"/bucket-99")
 	ExpectThat(err, Error(HasSubstr("input/output error")))
 
 }
 
 func (t *AllBucketsTest) SingleBucket_ReadAfterWrite() {
 	var err error
-	filename := path.Join(t.mfs.Dir(), "bucket-1/foo")
+	filename := path.Join(mntDir, "bucket-1/foo")
 
 	// Create a file.
 	const contents = "tacoburritoenchilada"

@@ -38,29 +38,33 @@ import (
 
 const ttl = 10 * time.Minute
 
+var (
+	uncachedBucket gcs.Bucket
+)
+
 type cachingTestCommon struct {
 	fsTest
 	uncachedBucket gcs.Bucket
 }
 
-func (t *cachingTestCommon) SetUp(ti *TestInfo) {
+func (t *cachingTestCommon) SetUpTestSuite() {
 	// Wrap the bucket in a stat caching layer for the purposes of the file
 	// system.
-	t.uncachedBucket = gcsfake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
+	uncachedBucket = gcsfake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
 
 	const statCacheCapacity = 1000
 	statCache := gcscaching.NewStatCache(statCacheCapacity)
-	t.bucket = gcscaching.NewFastStatBucket(
+	bucket = gcscaching.NewFastStatBucket(
 		ttl,
 		statCache,
-		&t.cacheClock,
-		t.uncachedBucket)
+		&cacheClock,
+		uncachedBucket)
 
 	// Enable directory type caching.
 	t.serverCfg.DirTypeCacheTTL = ttl
 
 	// Call through.
-	t.fsTest.SetUp(ti)
+	t.fsTest.SetUpTestSuite()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -72,15 +76,12 @@ type CachingTest struct {
 }
 
 func init() {
-	if os.Getenv("CI") != "" {
-		return
-	}
 	RegisterTestSuite(&CachingTest{})
 }
 
 func (t *CachingTest) EmptyBucket() {
 	// ReadDir
-	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	entries, err := fusetesting.ReadDirPicky(mntDir)
 	AssertEq(nil, err)
 
 	ExpectThat(entries, ElementsAre())
@@ -94,15 +95,15 @@ func (t *CachingTest) FileCreatedRemotely() {
 
 	// Create an object in GCS.
 	_, err := gcsutil.CreateObject(
-		t.ctx,
-		t.uncachedBucket,
+		ctx,
+		uncachedBucket,
 		name,
 		[]byte(contents))
 
 	AssertEq(nil, err)
 
 	// It should immediately show up in a listing.
-	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	entries, err := fusetesting.ReadDirPicky(mntDir)
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
 
@@ -111,22 +112,22 @@ func (t *CachingTest) FileCreatedRemotely() {
 	ExpectEq(len(contents), fi.Size())
 
 	// And we should be able to stat it.
-	fi, err = os.Stat(path.Join(t.Dir, name))
+	fi, err = os.Stat(path.Join(mntDir, name))
 	AssertEq(nil, err)
 
 	ExpectEq(name, fi.Name())
 	ExpectEq(len(contents), fi.Size())
 
 	// And read it.
-	b, err := ioutil.ReadFile(path.Join(t.Dir, name))
+	b, err := ioutil.ReadFile(path.Join(mntDir, name))
 	AssertEq(nil, err)
 	ExpectEq(contents, string(b))
 
 	// And overwrite it, and read it back again.
-	err = ioutil.WriteFile(path.Join(t.Dir, name), []byte("burrito"), 0500)
+	err = ioutil.WriteFile(path.Join(mntDir, name), []byte("burrito"), 0500)
 	AssertEq(nil, err)
 
-	b, err = ioutil.ReadFile(path.Join(t.Dir, name))
+	b, err = ioutil.ReadFile(path.Join(mntDir, name))
 	AssertEq(nil, err)
 	ExpectEq("burrito", string(b))
 }
@@ -137,13 +138,13 @@ func (t *CachingTest) FileChangedRemotely() {
 	var err error
 
 	// Create a file via the file system.
-	err = ioutil.WriteFile(path.Join(t.Dir, name), []byte("taco"), 0500)
+	err = ioutil.WriteFile(path.Join(mntDir, name), []byte("taco"), 0500)
 	AssertEq(nil, err)
 
 	// Overwrite the object in GCS.
 	_, err = gcsutil.CreateObject(
-		t.ctx,
-		t.uncachedBucket,
+		ctx,
+		uncachedBucket,
 		name,
 		[]byte("burrito"))
 
@@ -151,19 +152,19 @@ func (t *CachingTest) FileChangedRemotely() {
 
 	// Because we are caching, the file should still appear to be the local
 	// version.
-	fi, err = os.Stat(path.Join(t.Dir, name))
+	fi, err = os.Stat(path.Join(mntDir, name))
 	AssertEq(nil, err)
 	ExpectEq(len("taco"), fi.Size())
 
 	// After the TTL elapses, we should see the new version.
-	t.cacheClock.AdvanceTime(ttl + time.Millisecond)
+	cacheClock.AdvanceTime(ttl + time.Millisecond)
 
-	fi, err = os.Stat(path.Join(t.Dir, name))
+	fi, err = os.Stat(path.Join(mntDir, name))
 	AssertEq(nil, err)
 	ExpectEq(len("burrito"), fi.Size())
 
 	// Reading should work as expected.
-	b, err := ioutil.ReadFile(path.Join(t.Dir, name))
+	b, err := ioutil.ReadFile(path.Join(mntDir, name))
 	AssertEq(nil, err)
 	ExpectEq("burrito", string(b))
 }
@@ -174,25 +175,25 @@ func (t *CachingTest) DirectoryRemovedRemotely() {
 	var err error
 
 	// Create a directory via the file system.
-	err = os.Mkdir(path.Join(t.Dir, name), 0700)
+	err = os.Mkdir(path.Join(mntDir, name), 0700)
 	AssertEq(nil, err)
 
 	// Remove the backing object in GCS.
-	err = t.uncachedBucket.DeleteObject(
-		t.ctx,
+	err = uncachedBucket.DeleteObject(
+		ctx,
 		&gcs.DeleteObjectRequest{Name: name + "/"})
 
 	AssertEq(nil, err)
 
 	// Because we are caching, the directory should still appear to exist.
-	fi, err = os.Stat(path.Join(t.Dir, name))
+	fi, err = os.Stat(path.Join(mntDir, name))
 	AssertEq(nil, err)
 	ExpectTrue(fi.IsDir())
 
 	// After the TTL elapses, we should see it disappear.
-	t.cacheClock.AdvanceTime(ttl + time.Millisecond)
+	cacheClock.AdvanceTime(ttl + time.Millisecond)
 
-	_, err = os.Stat(path.Join(t.Dir, name))
+	_, err = os.Stat(path.Join(mntDir, name))
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
@@ -202,13 +203,13 @@ func (t *CachingTest) ConflictingNames_RemoteModifier() {
 	var err error
 
 	// Create a directory via the file system.
-	err = os.Mkdir(path.Join(t.Dir, name), 0700)
+	err = os.Mkdir(path.Join(mntDir, name), 0700)
 	AssertEq(nil, err)
 
 	// Create a file with the same name via GCS.
 	_, err = gcsutil.CreateObject(
-		t.ctx,
-		t.uncachedBucket,
+		ctx,
+		uncachedBucket,
 		name,
 		[]byte("taco"))
 
@@ -216,43 +217,43 @@ func (t *CachingTest) ConflictingNames_RemoteModifier() {
 
 	// Because the file system is caching types, it will fail to find the file
 	// when statting.
-	fi, err = os.Stat(path.Join(t.Dir, name))
+	fi, err = os.Stat(path.Join(mntDir, name))
 	AssertEq(nil, err)
 	ExpectTrue(fi.IsDir())
 
-	_, err = os.Stat(path.Join(t.Dir, name+inode.ConflictingFileNameSuffix))
+	_, err = os.Stat(path.Join(mntDir, name+inode.ConflictingFileNameSuffix))
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 
 	// After the TTL elapses, we should see both.
-	t.cacheClock.AdvanceTime(ttl + time.Millisecond)
+	cacheClock.AdvanceTime(ttl + time.Millisecond)
 
-	fi, err = os.Stat(path.Join(t.Dir, name))
+	fi, err = os.Stat(path.Join(mntDir, name))
 	AssertEq(nil, err)
 	ExpectTrue(fi.IsDir())
 
-	fi, err = os.Stat(path.Join(t.Dir, name+inode.ConflictingFileNameSuffix))
+	fi, err = os.Stat(path.Join(mntDir, name+inode.ConflictingFileNameSuffix))
 	AssertEq(nil, err)
 	ExpectFalse(fi.IsDir())
 }
 
 func (t *CachingTest) TypeOfNameChanges_LocalModifier() {
-	const name = "foo"
+	const name = "test"
 	var fi os.FileInfo
 	var err error
 
 	// Create a directory via the file system.
-	err = os.Mkdir(path.Join(t.Dir, name), 0700)
+	err = os.Mkdir(path.Join(mntDir, name), 0700)
 	AssertEq(nil, err)
 
 	// Delete it and recreate as a file.
-	err = os.Remove(path.Join(t.Dir, name))
+	err = os.Remove(path.Join(mntDir, name))
 	AssertEq(nil, err)
 
-	err = ioutil.WriteFile(path.Join(t.Dir, name), []byte("taco"), 0400)
+	err = ioutil.WriteFile(path.Join(mntDir, name), []byte("taco"), 0400)
 	AssertEq(nil, err)
 
 	// All caches should have been updated.
-	fi, err = os.Stat(path.Join(t.Dir, name))
+	fi, err = os.Stat(path.Join(mntDir, name))
 	AssertEq(nil, err)
 	ExpectFalse(fi.IsDir())
 	ExpectEq(len("taco"), fi.Size())
@@ -265,14 +266,14 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 
 	// Create a directory via the file system.
 	fmt.Printf("Mkdir\n")
-	err = os.Mkdir(path.Join(t.Dir, name), 0700)
+	err = os.Mkdir(path.Join(mntDir, name), 0700)
 	AssertEq(nil, err)
 
 	// Remove the backing object in GCS, updating the bucket cache (but not the
 	// file system type cache)
 	fmt.Printf("DeleteObject\n")
-	err = t.bucket.DeleteObject(
-		t.ctx,
+	err = bucket.DeleteObject(
+		ctx,
 		&gcs.DeleteObjectRequest{Name: name + "/"})
 
 	AssertEq(nil, err)
@@ -280,8 +281,8 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	// Create a file with the same name via GCS, again updating the bucket cache.
 	fmt.Printf("CreateObject\n")
 	_, err = gcsutil.CreateObject(
-		t.ctx,
-		t.bucket,
+		ctx,
+		bucket,
 		name,
 		[]byte("taco"))
 
@@ -289,13 +290,13 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 
 	// Because the file system is caching types, it will fail to find the name.
 	fmt.Printf("Stat\n")
-	_, err = os.Stat(path.Join(t.Dir, name))
+	_, err = os.Stat(path.Join(mntDir, name))
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 
 	// After the TTL elapses, we should see it turn into a file.
-	t.cacheClock.AdvanceTime(ttl + time.Millisecond)
+	cacheClock.AdvanceTime(ttl + time.Millisecond)
 
-	fi, err = os.Stat(path.Join(t.Dir, name))
+	fi, err = os.Stat(path.Join(mntDir, name))
 	AssertEq(nil, err)
 	ExpectFalse(fi.IsDir())
 }
@@ -309,15 +310,12 @@ type CachingWithImplicitDirsTest struct {
 }
 
 func init() {
-	if os.Getenv("CI") != "" {
-		return
-	}
 	RegisterTestSuite(&CachingWithImplicitDirsTest{})
 }
 
-func (t *CachingWithImplicitDirsTest) SetUp(ti *TestInfo) {
+func (t *CachingWithImplicitDirsTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
-	t.cachingTestCommon.SetUp(ti)
+	t.cachingTestCommon.SetUpTestSuite()
 }
 
 func (t *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
@@ -326,15 +324,15 @@ func (t *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
 
 	// Set up a file object implicitly defining a directory in GCS.
 	_, err = gcsutil.CreateObject(
-		t.ctx,
-		t.uncachedBucket,
+		ctx,
+		uncachedBucket,
 		"foo/bar",
 		[]byte(""))
 
 	AssertEq(nil, err)
 
 	// The directory should appear to exist.
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	fi, err = os.Stat(path.Join(mntDir, "foo"))
 	AssertEq(nil, err)
 
 	ExpectEq("foo", fi.Name())
@@ -347,15 +345,15 @@ func (t *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 
 	// Set up a directory object implicitly defining a directory in GCS.
 	_, err = gcsutil.CreateObject(
-		t.ctx,
-		t.uncachedBucket,
+		ctx,
+		uncachedBucket,
 		"foo/bar/",
 		[]byte(""))
 
 	AssertEq(nil, err)
 
 	// The directory should appear to exist.
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	fi, err = os.Stat(path.Join(mntDir, "foo"))
 	AssertEq(nil, err)
 
 	ExpectEq("foo", fi.Name())
@@ -367,14 +365,14 @@ func (t *CachingWithImplicitDirsTest) SymlinksWork() {
 	var err error
 
 	// Create a file.
-	fileName := path.Join(t.Dir, "foo")
+	fileName := path.Join(mntDir, "foo")
 	const contents = "taco"
 
 	err = ioutil.WriteFile(fileName, []byte(contents), 0400)
 	AssertEq(nil, err)
 
 	// Create a symlink to it.
-	symlinkName := path.Join(t.Dir, "bar")
+	symlinkName := path.Join(mntDir, "bar")
 	err = os.Symlink("foo", symlinkName)
 	AssertEq(nil, err)
 
@@ -400,14 +398,14 @@ func (t *CachingWithImplicitDirsTest) SymlinksAreTypeCached() {
 	var err error
 
 	// Create a symlink.
-	symlinkName := path.Join(t.Dir, "foo")
+	symlinkName := path.Join(mntDir, "foo")
 	err = os.Symlink("blah", symlinkName)
 	AssertEq(nil, err)
 
 	// Create a directory object out of band, so the root inode doesn't notice.
 	_, err = gcsutil.CreateObject(
 		t.ctx,
-		t.uncachedBucket,
+		uncachedBucket,
 		"foo/",
 		[]byte(""))
 
@@ -415,20 +413,20 @@ func (t *CachingWithImplicitDirsTest) SymlinksAreTypeCached() {
 
 	// The directory should not yet be visible, because the root inode should
 	// have cached that the symlink is present under the name "foo".
-	fi, err = os.Lstat(path.Join(t.Dir, "foo"))
+	fi, err = os.Lstat(path.Join(mntDir, "foo"))
 
 	AssertEq(nil, err)
 	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
 
 	// After the TTL elapses, we should see the directory.
-	t.cacheClock.AdvanceTime(ttl + time.Millisecond)
-	fi, err = os.Lstat(path.Join(t.Dir, "foo"))
+	cacheClock.AdvanceTime(ttl + time.Millisecond)
+	fi, err = os.Lstat(path.Join(mntDir, "foo"))
 
 	AssertEq(nil, err)
 	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 
 	// And should be able to stat the symlink under the alternative name.
-	fi, err = os.Lstat(path.Join(t.Dir, "foo"+inode.ConflictingFileNameSuffix))
+	fi, err = os.Lstat(path.Join(mntDir, "foo"+inode.ConflictingFileNameSuffix))
 
 	AssertEq(nil, err)
 	ExpectEq("foo"+inode.ConflictingFileNameSuffix, fi.Name())
