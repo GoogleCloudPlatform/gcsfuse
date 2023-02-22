@@ -208,7 +208,7 @@ func (t *fsTest) TearDownTestSuite() {
 	}
 
 	// Unlink the mount point.
-	if err = os.RemoveAll(mntDir); err != nil {
+	if err = os.Remove(mntDir); err != nil {
 		err = fmt.Errorf("Unlinking mount point: %w", err)
 		return
 	}
@@ -234,6 +234,7 @@ func (t *fsTest) TearDown() {
 	entries, _ := fusetesting.ReadDirPicky(mntDir)
 	for _, e := range entries {
 		os.RemoveAll(path.Join(mntDir, e.Name()))
+		os.Remove(path.Join(mntDir, e.Name()))
 	}
 }
 

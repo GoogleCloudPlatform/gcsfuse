@@ -40,9 +40,6 @@ type ImplicitDirsTest struct {
 }
 
 func init() {
-	if os.Getenv("CI") != "" {
-		return
-	}
 	RegisterTestSuite(&ImplicitDirsTest{})
 }
 
