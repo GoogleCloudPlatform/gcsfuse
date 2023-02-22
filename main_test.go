@@ -21,31 +21,16 @@ type MainTest struct {
 func init() { RegisterTestSuite(&MainTest{}) }
 
 func (t *MainTest) TestCreateStorageHandleEnableStorageClientLibraryIsTrue() {
-	// Creating fake credential to pass as key file
-	err := CreateFakeCreds("creds.json")
-
-	AssertEq(nil, err)
-
 	storageHandle, err := createStorageHandle(&flagStorage{
 		EnableStorageClientLibrary: true,
-		KeyFile:                    "creds.json",
+		KeyFile:                    "testdata/test_creds.json",
 	})
 
 	ExpectNe(nil, storageHandle)
 	ExpectEq(nil, err)
-
-	// Removing creds.json file
-	err = RemoveFakeCreds("creds.json")
-
-	AssertEq(nil, err)
 }
 
 func (t *MainTest) TestCreateStorageHandle() {
-	// Creating fake credential to pass as key file
-	err := CreateFakeCreds("creds.json")
-
-	AssertEq(nil, err)
-
 	flags := &flagStorage{
 		DisableHTTP2:        false,
 		MaxConnsPerHost:     5,
@@ -53,18 +38,13 @@ func (t *MainTest) TestCreateStorageHandle() {
 		MaxRetryDuration:    7,
 		RetryMultiplier:     2,
 		AppName:             "app",
-		KeyFile:             "creds.json",
+		KeyFile:             "testdata/test_creds.json",
 	}
 
 	storageHandle, err := createStorageHandle(flags)
 
 	AssertEq(nil, err)
 	AssertNe(nil, storageHandle)
-
-	// Removing creds.json file
-	err = RemoveFakeCreds("creds.json")
-
-	AssertEq(nil, err)
 }
 
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
