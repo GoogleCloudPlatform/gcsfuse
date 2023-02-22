@@ -53,6 +53,11 @@ func InitLogFile(filename string, format string) error {
 			return err
 		}
 	} else {
+		// Priority consist of facility and severity, here facility to specify the
+		// type of system that is logging the message to syslog and severity is log-level.
+		// Here, we are using facility as syslog.LOG_LOCAL7 - is a custom facility syslog
+		// provides for the user and severity as syslog.LOG_DEBUG which is for debug
+		// level messages.
 		sysWriter, err = syslog.New(syslog.LOG_LOCAL7|syslog.LOG_DEBUG, ProgrammeName)
 		if err != nil {
 			return fmt.Errorf("error while creating syswriter: %w", err)
@@ -140,27 +145,29 @@ func (f *loggerFactory) createJsonOrTextWriter(level string, writer io.Writer) i
 			w:     writer,
 			level: level,
 		}
-	} else {
-		return &textWriter{
-			w:     writer,
-			level: level,
-		}
+	}
+
+	return &textWriter{
+		w:     writer,
+		level: level,
 	}
 }
 
 func (f *loggerFactory) writer(level string) io.Writer {
 	if f.file != nil {
 		return f.createJsonOrTextWriter(level, f.file)
-	} else if f.sysWriter != nil {
+	}
+
+	if f.sysWriter != nil {
 		return f.createJsonOrTextWriter(level, f.sysWriter)
-	} else {
-		switch level {
-		case "NOTICE":
-			return daemonize.StatusWriter
-		case "ERROR":
-			return os.Stderr
-		default:
-			return os.Stdout
-		}
+	}
+
+	switch level {
+	case "NOTICE":
+		return daemonize.StatusWriter
+	case "ERROR":
+		return os.Stderr
+	default:
+		return os.Stdout
 	}
 }
