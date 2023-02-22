@@ -134,31 +134,25 @@ func (f *loggerFactory) newLogger(level, prefix string) *log.Logger {
 	return log.New(f.writer(level), prefix, f.flag)
 }
 
+func (f *loggerFactory) createJsonOrTextWriter(level string, writer io.Writer) io.Writer {
+	if f.format == "json" {
+		return &jsonWriter{
+			w:     writer,
+			level: level,
+		}
+	} else {
+		return &textWriter{
+			w:     writer,
+			level: level,
+		}
+	}
+}
+
 func (f *loggerFactory) writer(level string) io.Writer {
 	if f.file != nil {
-		if f.format == "json" {
-			return &jsonWriter{
-				w:     f.file,
-				level: level,
-			}
-		} else {
-			return &textWriter{
-				w:     f.file,
-				level: level,
-			}
-		}
+		return f.createJsonOrTextWriter(level, f.file)
 	} else if f.sysWriter != nil {
-		if f.format == "json" {
-			return &jsonWriter{
-				w:     f.sysWriter,
-				level: level,
-			}
-		} else {
-			return &textWriter{
-				w:     f.sysWriter,
-				level: level,
-			}
-		}
+		return f.createJsonOrTextWriter(level, f.sysWriter)
 	} else {
 		switch level {
 		case "NOTICE":
