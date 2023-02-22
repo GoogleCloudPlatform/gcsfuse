@@ -404,7 +404,7 @@ func (t *CachingWithImplicitDirsTest) SymlinksAreTypeCached() {
 
 	// Create a directory object out of band, so the root inode doesn't notice.
 	_, err = gcsutil.CreateObject(
-		t.ctx,
+		ctx,
 		uncachedBucket,
 		"foo/",
 		[]byte(""))

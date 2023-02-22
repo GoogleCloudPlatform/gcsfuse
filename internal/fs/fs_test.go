@@ -77,26 +77,9 @@ func init() {
 
 // A struct that can be embedded to inherit common file system test behaviors.
 type fsTest struct {
-	ctx context.Context
-
 	// Configuration
 	serverCfg fs.ServerConfig
 	mountCfg  fuse.MountConfig
-
-	// Dependencies. If bucket is set before SetUp is called, it will be used
-	// rather than creating a default one.
-	mtimeClock timeutil.Clock
-	cacheClock timeutil.SimulatedClock
-
-	// To mount a special bucket, override `bucket`;
-	// To mount multiple buckets, override `buckets`;
-	// Otherwise, a default bucket will be used.
-	bucket  gcs.Bucket
-	buckets map[string]gcs.Bucket
-
-	// Mount information
-	mfs *fuse.MountedFileSystem
-	Dir string
 
 	// Files to close when tearing down. Nil entries are skipped.
 	f1 *os.File
@@ -106,13 +89,18 @@ type fsTest struct {
 var (
 	mntDir string
 	ctx    context.Context
-	bucket gcs.Bucket
 
 	// Mount information
 	mfs *fuse.MountedFileSystem
 
 	mtimeClock timeutil.Clock
 	cacheClock timeutil.SimulatedClock
+
+	// To mount a special bucket, override `bucket`;
+	// To mount multiple buckets, override `buckets`;
+	// Otherwise, a default bucket will be used.
+	bucket  gcs.Bucket
+	buckets map[string]gcs.Bucket
 )
 
 var _ SetUpTestSuiteInterface = &fsTest{}
@@ -127,7 +115,7 @@ func (t *fsTest) SetUpTestSuite() {
 	cacheClock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 	t.serverCfg.CacheClock = &cacheClock
 
-	if t.buckets != nil {
+	if buckets != nil {
 		// mount all buckets
 		bucket = nil
 		t.serverCfg.BucketName = ""
@@ -137,12 +125,12 @@ func (t *fsTest) SetUpTestSuite() {
 			bucket = gcsfake.NewFakeBucket(mtimeClock, "some_bucket")
 		}
 		t.serverCfg.BucketName = bucket.Name()
-		t.buckets = map[string]gcs.Bucket{bucket.Name(): bucket}
+		buckets = map[string]gcs.Bucket{bucket.Name(): bucket}
 	}
 
 	t.serverCfg.BucketManager = &fakeBucketManager{
 		// This bucket manager is allowed to open these buckets
-		buckets: t.buckets,
+		buckets: buckets,
 		// Configs for the syncer when setting up buckets
 		appendThreshold: 0,
 		tmpObjectPrefix: ".gcsfuse_tmp/",
@@ -212,6 +200,10 @@ func (t *fsTest) TearDownTestSuite() {
 		err = fmt.Errorf("Unlinking mount point: %w", err)
 		return
 	}
+
+	// Cleaning of bucket/buckets variable to be clean for next test suite run.
+	buckets = nil
+	bucket = nil
 }
 
 func (t *fsTest) TearDown() {
