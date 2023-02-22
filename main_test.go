@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"testing"
@@ -22,17 +21,9 @@ type MainTest struct {
 func init() { RegisterTestSuite(&MainTest{}) }
 
 func (t *MainTest) TestCreateStorageHandleEnableStorageClientLibraryIsTrue() {
-	c := "{\n  \"type\": \"service_account\",\n  \"project_id\":  \"test\",\n  \"private_key_id\":  \"test\",\n  \"private_key\":  \"test\",\n  \"client_email\":  \"test\",\n  \"client_id\":  \"test\",\n  \"auth_uri\":  \"test\",\n  \"token_uri\":  \"test\",\n  \"auth_provider_x509_cert_url\":  \"test\",\n  \"client_x509_cert_url\":  \"test\"\n}"
-	f, err := os.Create("creds.json")
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = f.WriteString(c)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// Creating fake credential to pass as key file
+	CreateFakeCreds()
 
-	defer f.Close()
 	storageHandle, err := createStorageHandle(&flagStorage{
 		EnableStorageClientLibrary: true,
 		KeyFile:                    "creds.json",
@@ -41,24 +32,13 @@ func (t *MainTest) TestCreateStorageHandleEnableStorageClientLibraryIsTrue() {
 	ExpectNe(nil, storageHandle)
 	ExpectEq(nil, err)
 
-	e := os.Remove("creds.json")
-	if e != nil {
-		log.Fatal(e)
-	}
+	// Removing creds.json file
+	RemoveFakeCreds()
 }
 
 func (t *MainTest) TestCreateStorageHandle() {
-	c := "{\n  \"type\": \"service_account\",\n  \"project_id\":  \"test\",\n  \"private_key_id\":  \"test\",\n  \"private_key\":  \"test\",\n  \"client_email\":  \"test\",\n  \"client_id\":  \"test\",\n  \"auth_uri\":  \"test\",\n  \"token_uri\":  \"test\",\n  \"auth_provider_x509_cert_url\":  \"test\",\n  \"client_x509_cert_url\":  \"test\"\n}"
-	f, err := os.Create("creds.json")
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = f.WriteString(c)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer f.Close()
+	// Creating fake credential to pass as key file
+	CreateFakeCreds()
 
 	flags := &flagStorage{
 		DisableHTTP2:        false,
@@ -75,10 +55,8 @@ func (t *MainTest) TestCreateStorageHandle() {
 	AssertEq(nil, err)
 	AssertNe(nil, storageHandle)
 
-	e := os.Remove("creds.json")
-	if e != nil {
-		log.Fatal(e)
-	}
+	// Removing creds.json file
+	RemoveFakeCreds()
 }
 
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
