@@ -43,9 +43,10 @@ import (
 )
 
 const (
-	filePerms      os.FileMode = 0740
-	dirPerms                   = 0754
-	RenameDirLimit             = 5
+	filePerms            os.FileMode = 0740
+	dirPerms                         = 0754
+	RenameDirLimit                   = 5
+	SequentialReadSizeMb             = 200
 )
 
 func TestFS(t *testing.T) { RunTests(t) }
@@ -145,7 +146,7 @@ func (t *fsTest) SetUpTestSuite() {
 		tmpObjectPrefix: ".gcsfuse_tmp/",
 	}
 	t.serverCfg.RenameDirLimit = RenameDirLimit
-	t.serverCfg.SequentialReadSizeMb = 200
+	t.serverCfg.SequentialReadSizeMb = SequentialReadSizeMb
 
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
