@@ -23,6 +23,7 @@ func init() { RegisterTestSuite(&MainTest{}) }
 func (t *MainTest) TestCreateStorageHandleEnableStorageClientLibraryIsTrue() {
 	// Creating fake credential to pass as key file
 	err := CreateFakeCreds("creds.json")
+
 	AssertEq(nil, err)
 
 	storageHandle, err := createStorageHandle(&flagStorage{
@@ -35,12 +36,14 @@ func (t *MainTest) TestCreateStorageHandleEnableStorageClientLibraryIsTrue() {
 
 	// Removing creds.json file
 	err = RemoveFakeCreds("creds.json")
+
 	AssertEq(nil, err)
 }
 
 func (t *MainTest) TestCreateStorageHandle() {
 	// Creating fake credential to pass as key file
 	err := CreateFakeCreds("creds.json")
+
 	AssertEq(nil, err)
 
 	flags := &flagStorage{
@@ -60,6 +63,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 
 	// Removing creds.json file
 	err = RemoveFakeCreds("creds.json")
+
 	AssertEq(nil, err)
 }
 
