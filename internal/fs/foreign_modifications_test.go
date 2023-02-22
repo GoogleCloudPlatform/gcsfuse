@@ -280,6 +280,12 @@ func (t *ForeignModsTest) UnreachableObjects() {
 	// Statting the other name shouldn't work at all.
 	_, err = os.Stat(path.Join(mntDir, "bar"))
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	// These unreachable objects (test/0, test/1, bar/0) start showing up in
+	// other tests as soon as directory with similar name is created. Hence
+	// cleaning them.
+	err = gcsutil.DeleteAllObjects(ctx, bucket)
+	AssertEq(nil, err)
 }
 
 func (t *ForeignModsTest) FileAndDirectoryWithConflictingName() {

@@ -41,7 +41,7 @@ func init() {
 
 func (t *AllBucketsTest) SetUpTestSuite() {
 	mtimeClock = timeutil.RealClock()
-	t.buckets = map[string]gcs.Bucket{
+	buckets = map[string]gcs.Bucket{
 		"bucket-0": gcsfake.NewFakeBucket(mtimeClock, "bucket-0"),
 		"bucket-1": gcsfake.NewFakeBucket(mtimeClock, "bucket-1"),
 		"bucket-2": gcsfake.NewFakeBucket(mtimeClock, "bucket-2"),
