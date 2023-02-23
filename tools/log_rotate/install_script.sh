@@ -27,7 +27,6 @@ cat << EOF | tee /etc/logrotate.hourly.d/gcsfuse
   notifempty
   compress
   dateext
-  dateformat -%Y%m%d-%s
   delaycompress
   sharedscripts
   postrotate
@@ -35,8 +34,6 @@ cat << EOF | tee /etc/logrotate.hourly.d/gcsfuse
   endscript
 }
 EOF
-
-chmod 644 /etc/logrotate.hourly.d/gcsfuse
 
 # Make sure gcsfuse-logrotate config got placed correctly.
 if [ $? -eq 0 ]; then
@@ -72,3 +69,4 @@ fi
 
 # Restart the syslog service after adding the syslog configuration.
 systemctl restart rsyslog
+
