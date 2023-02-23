@@ -1,10 +1,28 @@
 #!/usr/bin/env bash
+
+# Create directory, which keeps all logrotate-config to rotate hourly.
+mkdir /etc/logrotate.hourly.d
+
+cat << EOF | tee /etc/logrotate.hourly.conf
+# packages drop hourly log rotation information into this directory
+include /etc/logrotate.hourly.d
+EOF
+
+chmod 644 /etc/logrotate.hourly.conf
+
+cat << EOF | tee /etc/cron.hourly/logrotate
+#!/bin/bash
+test -x /usr/sbin/logrotate || exit 0
+/usr/sbin/logrotate /etc/logrotate.hourly.conf
+EOF
+
+chmod 775 /etc/cron.hourly/logrotate
+
 # Logrotate configuration to rotate gcsfuse logs.
-cat > /etc/logrotate.d/gcsfuse <<EOF
+cat << EOF | tee /etc/logrotate.hourly.d/gcsfuse
 /var/log/gcsfuse.log {
   rotate 10
   size 5G
-  hourly
   missingok
   notifempty
   compress
@@ -17,6 +35,8 @@ cat > /etc/logrotate.d/gcsfuse <<EOF
   endscript
 }
 EOF
+
+chmod 644 /etc/logrotate.hourly.d/gcsfuse
 
 # Make sure gcsfuse-logrotate config got placed correctly.
 if [ $? -eq 0 ]; then
