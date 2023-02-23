@@ -24,9 +24,10 @@ import (
 	"github.com/jacobsa/daemonize"
 )
 
-// ProgrammeName constant is used while writing the logs to syslog file, it is
-// used while filtering the gcsfuse log-message from the syslog file, since
-// syslog file contains all the system related logs from other programmes too.
+// Syslog file contains logs from all different programmes running on the VM.
+// ProgrammeName is prefixed to all the logs written to syslog. This constant is
+// used to filter the logs from syslog and write it to respective log files -
+// gcsfuse.log in case of GCSFuse.
 const ProgrammeName string = "gcsfuse"
 
 var (
@@ -55,9 +56,9 @@ func InitLogFile(filename string, format string) error {
 	} else {
 		// Priority consist of facility and severity, here facility to specify the
 		// type of system that is logging the message to syslog and severity is log-level.
-		// Here, we are using facility as syslog.LOG_LOCAL7 - is a custom facility syslog
-		// provides for the user and severity as syslog.LOG_DEBUG which is for debug
-		// level messages.
+		// User applications are allowed to take facility value between LOG_LOCAL0
+		// to LOG_LOCAL7. We are using LOG_LOCAL7 as facility and LOG_DEBUG to write
+		// debug messages.
 		sysWriter, err = syslog.New(syslog.LOG_LOCAL7|syslog.LOG_DEBUG, ProgrammeName)
 		if err != nil {
 			return fmt.Errorf("error while creating syswriter: %w", err)
