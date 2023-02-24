@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -31,7 +32,7 @@ func (t *MainTest) TestCreateStorageHandleEnableStorageClientLibraryIsTrue() {
 
 func (t *MainTest) TestCreateStorageHandle() {
 	flags := &flagStorage{
-		DisableHTTP2:        false,
+		ClientProtocol:      mountpkg.HTTP1,
 		MaxConnsPerHost:     5,
 		MaxIdleConnsPerHost: 100,
 		MaxRetryDuration:    7,

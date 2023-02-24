@@ -40,6 +40,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
+	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/perf"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
@@ -108,7 +109,7 @@ func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 	// does not create new TCP connections even when the idle connections
 	// run out. To specify multiple connections per host, HTTP/2 is disabled
 	// on purpose.
-	if flags.DisableHTTP2 {
+	if flags.ClientProtocol == mountpkg.HTTP1 {
 		cfg.Transport = &http.Transport{
 			MaxConnsPerHost: flags.MaxConnsPerHost,
 			// This disables HTTP/2 in the transport.
@@ -147,7 +148,7 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 	}
 
 	storageClientConfig := storage.StorageClientConfig{
-		DisableHTTP2:        flags.DisableHTTP2,
+		ClientProtocol:      flags.ClientProtocol,
 		MaxConnsPerHost:     flags.MaxConnsPerHost,
 		MaxIdleConnsPerHost: flags.MaxIdleConnsPerHost,
 		TokenSrc:            tokenSrc,

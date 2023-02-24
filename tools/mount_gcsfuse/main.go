@@ -81,7 +81,6 @@ func makeGcsfuseArgs(
 
 		// Special case: support mount-like formatting for gcsfuse bool flags.
 		case "implicit_dirs",
-			"disable_http2",
 			"experimental_local_file_cache",
 			"experimental_enable_storage_client_library",
 			"reuse_token_from_url":
@@ -95,6 +94,7 @@ func makeGcsfuseArgs(
 			"app_name",
 			"only_dir",
 			"billing_project",
+			"client_protocol",
 			"key_file",
 			"token_url",
 			"limit_bytes_per_sec",
