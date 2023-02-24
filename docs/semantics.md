@@ -119,7 +119,10 @@ Note that if an inode does not exist in GCS, this nonexistent state is
 not cached in type cache. If an application needs to read nonexistent folders
 frequently, it could become a performance bottleneck as the nonexistent folder
 lookup request will hit GCS every time. To alleviate that, the tuning flag
-`--enable-nonexistent-type-cache` can be set. 
+`--enable-nonexistent-type-cache` can be set. Note that once this flag is set
+and an nonexistent file/dire is read, it will be cached in type cache. So in 
+mean time if the new file/dir is created, it will not be seen in cache before
+the cache expires after set time `--type-cache-ttl`.
 
 **Warning**: Using type caching breaks the consistency guarantees discussed in
 this document. It is safe only in the following situations:
