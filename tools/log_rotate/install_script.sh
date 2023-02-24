@@ -31,7 +31,7 @@ cat << EOF | tee /etc/logrotate.hourly.d/gcsfuse
   delaycompress
   sharedscripts
   postrotate
-	  kill -HUP \$(cat /var/run/rsyslogd.pid) >/dev/null 2>&1 || true
+	  systemctl kill -s HUP rsyslog.service >/dev/null 2>&1 || true
   endscript
 }
 EOF
