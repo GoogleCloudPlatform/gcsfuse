@@ -27,6 +27,7 @@ cat << EOF | tee /etc/logrotate.hourly.d/gcsfuse
   notifempty
   compress
   dateext
+  dateformat -%Y%m%d-%s
   delaycompress
   sharedscripts
   postrotate
