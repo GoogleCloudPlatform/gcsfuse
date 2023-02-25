@@ -4,6 +4,10 @@
 mkdir /etc/logrotate.hourly.d
 
 cat << EOF | tee /etc/logrotate.hourly.conf
+# use the adm group by default, since this is the owning group
+# of /var/log/syslog.
+su root adm
+
 # packages drop hourly log rotation information into this directory
 include /etc/logrotate.hourly.d
 EOF
