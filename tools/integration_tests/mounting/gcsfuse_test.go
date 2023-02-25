@@ -22,7 +22,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-
 	//"runtime"
 	"syscall"
 	"testing"
@@ -475,8 +474,10 @@ func (t *GcsfuseTest) RelativeMountPoint() {
 
 func (t *GcsfuseTest) ForegroundMode() {
 	// Start gcsfuse, writing stderr to a pipe.
+	// Here --log-file=/proc/self/fd/2 represents stderr
 	cmd := t.gcsfuseCommand([]string{
 		"--foreground",
+		"--log-file=/proc/self/fd/2",
 		canned.FakeBucketName,
 		t.dir,
 	},
