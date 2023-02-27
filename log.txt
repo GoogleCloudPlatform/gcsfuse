@@ -1,0 +1,585 @@
+I0224 10:03:45.447042 Start gcsfuse/unknown (Go version go1.20-20221229-RC00 cl/498461153 +db36eca33c) for app "" using mount point: /usr/local/google/home/tulsishah/mybucket
+N0224 10:03:45.447070 Opening GCS connection...
+I0224 10:03:45.447294 Creating a mount at "/usr/local/google/home/tulsishah/mybucket"
+I0224 10:03:45.447684 Creating a new server...
+I0224 10:03:45.447700 Set up root directory for bucket testmethods_tulsishah
+D0224 10:03:45.719999 gcs: Req              0x0: <- ListObjects("")
+D0224 10:03:45.909772 gcs: Req              0x0: -> ListObjects("") (189.767863ms): OK
+N0224 10:03:45.909860 Mounting file system "testmethods_tulsishah"...
+D0224 10:03:45.909887 fuse_debug: Beginning the mounting kickoff process
+D0224 10:03:45.909899 fuse_debug: Parsing fuse file descriptor
+D0224 10:03:45.909910 fuse_debug: Preparing for direct mounting
+D0224 10:03:45.909936 fuse_debug: Successfully opened the /dev/fuse in blocking mode
+D0224 10:03:45.909953 fuse_debug: Starting the unix mounting
+D0224 10:03:45.909973 fuse_debug: Directmount failed. Trying fallback.
+D0224 10:03:45.910013 fuse_debug: Creating a socket pair
+D0224 10:03:45.910035 fuse_debug: Creating files to wrap the sockets
+D0224 10:03:45.910048 fuse_debug: Starting fusermount/os mount
+D0224 10:03:45.911652 fuse_debug: Wrapping socket pair in a connection
+D0224 10:03:45.911696 fuse_debug: Checking that we have a unix domain socket
+D0224 10:03:45.911713 fuse_debug: Read a message from socket
+D0224 10:03:45.911728 fuse_debug: Successfully read the socket message.
+D0224 10:03:45.911737 fuse_debug: Converting FD into os.File
+D0224 10:03:45.911757 fuse_debug: Completed the mounting kickoff process
+D0224 10:03:45.911766 fuse_debug: Creating a connection object
+D0224 10:03:45.911899 fuse_debug: Op 0x00000002        connection.go:416] <- init
+D0224 10:03:45.911916 fuse_debug: Op 0x00000002        connection.go:498] -> OK ()
+D0224 10:03:45.911932 fuse_debug: Successfully created the connection
+D0224 10:03:45.911964 fuse_debug: Waiting for mounting process to complete
+N0224 10:03:45.911974 File system has been successfully mounted.
+D0224 10:03:45.912097 fuse_debug: Op 0x00000004        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 8667, name security.capability)
+D0224 10:03:45.912292 fuse_debug: Op 0x00000004        connection.go:500] -> Error: "no data available"
+D0224 10:03:45.912506 fuse_debug: Op 0x00000006        connection.go:416] <- GetInodeAttributes (inode 1, PID 8667)
+D0224 10:03:45.912696 fuse_debug: Op 0x00000006        connection.go:498] -> OK ()
+D0224 10:03:45.912918 fuse_debug: Op 0x00000008        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 8667, name security.capability)
+D0224 10:03:45.913010 fuse_debug: Op 0x00000008        connection.go:500] -> Error: "no data available"
+D0224 10:03:45.913131 fuse_debug: Op 0x0000000a        connection.go:416] <- LookUpInode (parent 1, name ".Trash", PID 8667)
+D0224 10:03:45.913273 gcs: Req              0x1: <- StatObject(".Trash/")
+D0224 10:03:45.913392 gcs: Req              0x2: <- StatObject(".Trash")
+D0224 10:03:45.917247 fuse_debug: Op 0x0000000c        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:45.917391 fuse_debug: Op 0x0000000c        connection.go:500] -> Error: "no data available"
+D0224 10:03:45.917489 fuse_debug: Op 0x0000000e        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:45.917592 fuse_debug: Op 0x0000000e        connection.go:498] -> OK ()
+D0224 10:03:45.917692 fuse_debug: Op 0x00000010        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:45.917767 fuse_debug: Op 0x00000010        connection.go:500] -> Error: "no data available"
+D0224 10:03:46.107048 gcs: Req              0x1: -> StatObject(".Trash/") (193.789773ms): gcs.NotFoundError: storage: object doesn't exist
+D0224 10:03:46.895227 gcs: Req              0x2: -> StatObject(".Trash") (981.954963ms): gcs.NotFoundError: storage: object doesn't exist
+D0224 10:03:46.895344 fuse_debug: Op 0x0000000a        connection.go:500] -> Error: "no such file or directory"
+D0224 10:03:46.895535 fuse_debug: Op 0x00000012        connection.go:416] <- LookUpInode (parent 1, name "BDMV", PID 64586)
+D0224 10:03:46.895671 gcs: Req              0x3: <- StatObject("BDMV/")
+D0224 10:03:46.895722 gcs: Req              0x4: <- StatObject("BDMV")
+D0224 10:03:47.081815 gcs: Req              0x4: -> StatObject("BDMV") (186.111143ms): gcs.NotFoundError: storage: object doesn't exist
+D0224 10:03:47.104759 gcs: Req              0x3: -> StatObject("BDMV/") (209.091801ms): gcs.NotFoundError: storage: object doesn't exist
+D0224 10:03:47.104840 fuse_debug: Op 0x00000012        connection.go:500] -> Error: "no such file or directory"
+D0224 10:03:47.105243 fuse_debug: Op 0x00000014        connection.go:416] <- LookUpInode (parent 1, name ".xdg-volume-info", PID 64588)
+D0224 10:03:47.105385 gcs: Req              0x5: <- StatObject(".xdg-volume-info/")
+D0224 10:03:47.105465 gcs: Req              0x6: <- StatObject(".xdg-volume-info")
+D0224 10:03:47.294049 gcs: Req              0x6: -> StatObject(".xdg-volume-info") (188.651484ms): gcs.NotFoundError: storage: object doesn't exist
+D0224 10:03:47.295153 gcs: Req              0x5: -> StatObject(".xdg-volume-info/") (189.782543ms): gcs.NotFoundError: storage: object doesn't exist
+D0224 10:03:47.295214 fuse_debug: Op 0x00000014        connection.go:500] -> Error: "no such file or directory"
+D0224 10:03:47.295348 fuse_debug: Op 0x00000016        connection.go:416] <- LookUpInode (parent 1, name "autorun.inf", PID 64587)
+D0224 10:03:47.295513 gcs: Req              0x7: <- StatObject("autorun.inf/")
+D0224 10:03:47.295644 gcs: Req              0x8: <- StatObject("autorun.inf")
+D0224 10:03:47.489766 gcs: Req              0x8: -> StatObject("autorun.inf") (194.241543ms): gcs.NotFoundError: storage: object doesn't exist
+D0224 10:03:47.495313 gcs: Req              0x7: -> StatObject("autorun.inf/") (199.812192ms): gcs.NotFoundError: storage: object doesn't exist
+D0224 10:03:47.495382 fuse_debug: Op 0x00000016        connection.go:500] -> Error: "no such file or directory"
+D0224 10:03:47.495609 fuse_debug: Op 0x00000018        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:47.495707 gcs: Req              0x9: <- ListObjects("")
+D0224 10:03:47.683602 gcs: Req              0x9: -> ListObjects("") (187.894584ms): OK
+D0224 10:03:47.683715 fuse_debug: Op 0x00000018        connection.go:498] -> OK ()
+D0224 10:03:47.683868 fuse_debug: Op 0x0000001a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:47.683979 fuse_debug: Op 0x0000001a        connection.go:498] -> OK ()
+D0224 10:03:47.684110 fuse_debug: Op 0x0000001c        connection.go:416] <- LookUpInode (parent 1, name ".Trash-1052824", PID 8667)
+D0224 10:03:47.684201 gcs: Req              0xa: <- StatObject(".Trash-1052824/")
+D0224 10:03:47.684324 gcs: Req              0xb: <- StatObject(".Trash-1052824")
+D0224 10:03:47.884651 gcs: Req              0xb: -> StatObject(".Trash-1052824") (200.448493ms): gcs.NotFoundError: storage: object doesn't exist
+D0224 10:03:47.900628 gcs: Req              0xa: -> StatObject(".Trash-1052824/") (216.438472ms): gcs.NotFoundError: storage: object doesn't exist
+D0224 10:03:47.900691 fuse_debug: Op 0x0000001c        connection.go:500] -> Error: "no such file or directory"
+D0224 10:03:47.900885 fuse_debug: Op 0x0000001e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:47.900993 fuse_debug: Op 0x0000001e        connection.go:498] -> OK ()
+D0224 10:03:47.901126 fuse_debug: Op 0x00000020        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:47.901169 fuse_debug: Op 0x00000022        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:47.901201 fuse_debug: Op 0x00000020        connection.go:498] -> OK ()
+D0224 10:03:47.901234 fuse_debug: Op 0x00000022        connection.go:500] -> Error: "no data available"
+D0224 10:03:47.901323 fuse_debug: Op 0x00000024        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:47.901397 fuse_debug: Op 0x00000024        connection.go:498] -> OK ()
+D0224 10:03:47.901485 fuse_debug: Op 0x00000026        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:47.901557 fuse_debug: Op 0x00000026        connection.go:500] -> Error: "no data available"
+D0224 10:03:47.901635 fuse_debug: Op 0x00000028        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:47.901693 fuse_debug: Op 0x00000028        connection.go:498] -> OK ()
+D0224 10:03:47.901823 fuse_debug: Op 0x0000002a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:47.901903 gcs: Req              0xc: <- ListObjects("")
+D0224 10:03:48.107631 gcs: Req              0xc: -> ListObjects("") (205.718312ms): OK
+D0224 10:03:48.107739 fuse_debug: Op 0x0000002a        connection.go:498] -> OK ()
+D0224 10:03:48.107935 fuse_debug: Op 0x0000002c        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:48.108072 fuse_debug: Op 0x0000002c        connection.go:498] -> OK ()
+D0224 10:03:48.108252 fuse_debug: Op 0x0000002e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:48.108349 fuse_debug: Op 0x0000002e        connection.go:498] -> OK ()
+D0224 10:03:48.108465 fuse_debug: Op 0x00000030        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:48.108518 fuse_debug: Op 0x00000032        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:48.108557 fuse_debug: Op 0x00000030        connection.go:498] -> OK ()
+D0224 10:03:48.108593 fuse_debug: Op 0x00000032        connection.go:500] -> Error: "no data available"
+D0224 10:03:48.108669 fuse_debug: Op 0x00000034        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:48.108737 fuse_debug: Op 0x00000034        connection.go:498] -> OK ()
+D0224 10:03:48.108817 fuse_debug: Op 0x00000036        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:48.108885 fuse_debug: Op 0x00000036        connection.go:500] -> Error: "no data available"
+D0224 10:03:48.108961 fuse_debug: Op 0x00000038        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:48.109014 fuse_debug: Op 0x00000038        connection.go:498] -> OK ()
+D0224 10:03:48.109109 fuse_debug: Op 0x0000003a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:48.109162 gcs: Req              0xd: <- ListObjects("")
+D0224 10:03:48.304468 gcs: Req              0xd: -> ListObjects("") (195.297782ms): OK
+D0224 10:03:48.304552 fuse_debug: Op 0x0000003a        connection.go:498] -> OK ()
+D0224 10:03:48.304809 fuse_debug: Op 0x0000003c        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:48.304945 fuse_debug: Op 0x0000003c        connection.go:498] -> OK ()
+D0224 10:03:48.305094 fuse_debug: Op 0x0000003e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:48.305191 fuse_debug: Op 0x0000003e        connection.go:498] -> OK ()
+D0224 10:03:48.305306 fuse_debug: Op 0x00000040        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:48.305346 fuse_debug: Op 0x00000042        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:48.305392 fuse_debug: Op 0x00000040        connection.go:498] -> OK ()
+D0224 10:03:48.305428 fuse_debug: Op 0x00000042        connection.go:500] -> Error: "no data available"
+D0224 10:03:48.305522 fuse_debug: Op 0x00000044        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:48.305596 fuse_debug: Op 0x00000044        connection.go:498] -> OK ()
+D0224 10:03:48.305691 fuse_debug: Op 0x00000046        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:48.305756 fuse_debug: Op 0x00000046        connection.go:500] -> Error: "no data available"
+D0224 10:03:48.305834 fuse_debug: Op 0x00000048        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:48.305935 fuse_debug: Op 0x00000048        connection.go:498] -> OK ()
+D0224 10:03:48.306060 fuse_debug: Op 0x0000004a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:48.306121 gcs: Req              0xe: <- ListObjects("")
+D0224 10:03:48.494420 gcs: Req              0xe: -> ListObjects("") (188.296813ms): OK
+D0224 10:03:48.494507 fuse_debug: Op 0x0000004a        connection.go:498] -> OK ()
+D0224 10:03:48.494652 fuse_debug: Op 0x0000004c        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:48.494745 fuse_debug: Op 0x0000004c        connection.go:498] -> OK ()
+D0224 10:03:48.494932 fuse_debug: Op 0x0000004e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:48.495012 fuse_debug: Op 0x0000004e        connection.go:498] -> OK ()
+D0224 10:03:48.495097 fuse_debug: Op 0x00000050        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:48.495131 fuse_debug: Op 0x00000052        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:48.495218 fuse_debug: Op 0x00000050        connection.go:498] -> OK ()
+D0224 10:03:48.495269 fuse_debug: Op 0x00000052        connection.go:500] -> Error: "no data available"
+D0224 10:03:48.495356 fuse_debug: Op 0x00000054        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:48.495446 fuse_debug: Op 0x00000054        connection.go:498] -> OK ()
+D0224 10:03:48.495536 fuse_debug: Op 0x00000056        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:48.495613 fuse_debug: Op 0x00000056        connection.go:500] -> Error: "no data available"
+D0224 10:03:48.495681 fuse_debug: Op 0x00000058        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:48.495761 fuse_debug: Op 0x00000058        connection.go:498] -> OK ()
+D0224 10:03:48.495848 fuse_debug: Op 0x0000005a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:48.495903 gcs: Req              0xf: <- ListObjects("")
+D0224 10:03:48.702927 gcs: Req              0xf: -> ListObjects("") (207.017891ms): OK
+D0224 10:03:48.703057 fuse_debug: Op 0x0000005a        connection.go:498] -> OK ()
+D0224 10:03:48.703332 fuse_debug: Op 0x0000005c        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:48.703444 fuse_debug: Op 0x0000005c        connection.go:498] -> OK ()
+D0224 10:03:48.703584 fuse_debug: Op 0x0000005e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:48.703670 fuse_debug: Op 0x0000005e        connection.go:498] -> OK ()
+D0224 10:03:48.703752 fuse_debug: Op 0x00000060        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:48.703785 fuse_debug: Op 0x00000062        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:48.703820 fuse_debug: Op 0x00000060        connection.go:498] -> OK ()
+D0224 10:03:48.703854 fuse_debug: Op 0x00000062        connection.go:500] -> Error: "no data available"
+D0224 10:03:48.703942 fuse_debug: Op 0x00000064        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:48.704001 fuse_debug: Op 0x00000064        connection.go:498] -> OK ()
+D0224 10:03:48.704075 fuse_debug: Op 0x00000066        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:48.704171 fuse_debug: Op 0x00000066        connection.go:500] -> Error: "no data available"
+D0224 10:03:48.704254 fuse_debug: Op 0x00000068        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:48.704306 fuse_debug: Op 0x00000068        connection.go:498] -> OK ()
+D0224 10:03:48.704382 fuse_debug: Op 0x0000006a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:48.704440 gcs: Req             0x10: <- ListObjects("")
+D0224 10:03:48.899231 gcs: Req             0x10: -> ListObjects("") (194.786333ms): OK
+D0224 10:03:48.899316 fuse_debug: Op 0x0000006a        connection.go:498] -> OK ()
+D0224 10:03:48.899443 fuse_debug: Op 0x0000006c        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:48.899543 fuse_debug: Op 0x0000006c        connection.go:498] -> OK ()
+D0224 10:03:48.899670 fuse_debug: Op 0x0000006e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:48.899744 fuse_debug: Op 0x0000006e        connection.go:498] -> OK ()
+D0224 10:03:48.899829 fuse_debug: Op 0x00000070        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:48.899867 fuse_debug: Op 0x00000072        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:48.899895 fuse_debug: Op 0x00000070        connection.go:498] -> OK ()
+D0224 10:03:48.899952 fuse_debug: Op 0x00000072        connection.go:500] -> Error: "no data available"
+D0224 10:03:48.900035 fuse_debug: Op 0x00000074        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:48.900091 fuse_debug: Op 0x00000074        connection.go:498] -> OK ()
+D0224 10:03:48.900181 fuse_debug: Op 0x00000076        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:48.900252 fuse_debug: Op 0x00000076        connection.go:500] -> Error: "no data available"
+D0224 10:03:48.900340 fuse_debug: Op 0x00000078        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:48.900396 fuse_debug: Op 0x00000078        connection.go:498] -> OK ()
+D0224 10:03:48.900470 fuse_debug: Op 0x0000007a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:48.900522 gcs: Req             0x11: <- ListObjects("")
+D0224 10:03:49.089435 gcs: Req             0x11: -> ListObjects("") (188.907553ms): OK
+D0224 10:03:49.089548 fuse_debug: Op 0x0000007a        connection.go:498] -> OK ()
+D0224 10:03:49.089708 fuse_debug: Op 0x0000007c        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:49.089790 fuse_debug: Op 0x0000007c        connection.go:498] -> OK ()
+D0224 10:03:49.089943 fuse_debug: Op 0x0000007e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:49.090064 fuse_debug: Op 0x0000007e        connection.go:498] -> OK ()
+D0224 10:03:49.090198 fuse_debug: Op 0x00000080        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:49.090241 fuse_debug: Op 0x00000082        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:49.090352 fuse_debug: Op 0x00000080        connection.go:498] -> OK ()
+D0224 10:03:49.090397 fuse_debug: Op 0x00000082        connection.go:500] -> Error: "no data available"
+D0224 10:03:49.090472 fuse_debug: Op 0x00000084        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:49.090553 fuse_debug: Op 0x00000084        connection.go:498] -> OK ()
+D0224 10:03:49.090640 fuse_debug: Op 0x00000086        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:49.090696 fuse_debug: Op 0x00000086        connection.go:500] -> Error: "no data available"
+D0224 10:03:49.090760 fuse_debug: Op 0x00000088        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:49.090849 fuse_debug: Op 0x00000088        connection.go:498] -> OK ()
+D0224 10:03:49.090941 fuse_debug: Op 0x0000008a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:49.091000 gcs: Req             0x12: <- ListObjects("")
+D0224 10:03:49.276548 gcs: Req             0x12: -> ListObjects("") (185.544323ms): OK
+D0224 10:03:49.276642 fuse_debug: Op 0x0000008a        connection.go:498] -> OK ()
+D0224 10:03:49.276749 fuse_debug: Op 0x0000008c        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:49.276866 fuse_debug: Op 0x0000008c        connection.go:498] -> OK ()
+D0224 10:03:49.277009 fuse_debug: Op 0x0000008e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:49.277088 fuse_debug: Op 0x0000008e        connection.go:498] -> OK ()
+D0224 10:03:49.277174 fuse_debug: Op 0x00000090        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:49.277235 fuse_debug: Op 0x00000092        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:49.277268 fuse_debug: Op 0x00000090        connection.go:498] -> OK ()
+D0224 10:03:49.277303 fuse_debug: Op 0x00000092        connection.go:500] -> Error: "no data available"
+D0224 10:03:49.277393 fuse_debug: Op 0x00000094        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:49.277461 fuse_debug: Op 0x00000094        connection.go:498] -> OK ()
+D0224 10:03:49.277542 fuse_debug: Op 0x00000096        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:49.277644 fuse_debug: Op 0x00000096        connection.go:500] -> Error: "no data available"
+D0224 10:03:49.277728 fuse_debug: Op 0x00000098        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:49.277783 fuse_debug: Op 0x00000098        connection.go:498] -> OK ()
+D0224 10:03:49.277860 fuse_debug: Op 0x0000009a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:49.277906 gcs: Req             0x13: <- ListObjects("")
+D0224 10:03:49.484954 gcs: Req             0x13: -> ListObjects("") (207.046161ms): OK
+D0224 10:03:49.485038 fuse_debug: Op 0x0000009a        connection.go:498] -> OK ()
+D0224 10:03:49.485181 fuse_debug: Op 0x0000009c        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:49.485288 fuse_debug: Op 0x0000009c        connection.go:498] -> OK ()
+D0224 10:03:49.485404 fuse_debug: Op 0x0000009e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:49.485529 fuse_debug: Op 0x0000009e        connection.go:498] -> OK ()
+D0224 10:03:49.485640 fuse_debug: Op 0x000000a0        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:49.485678 fuse_debug: Op 0x000000a2        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:49.485723 fuse_debug: Op 0x000000a0        connection.go:498] -> OK ()
+D0224 10:03:49.485750 fuse_debug: Op 0x000000a2        connection.go:500] -> Error: "no data available"
+D0224 10:03:49.485825 fuse_debug: Op 0x000000a4        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:49.485877 fuse_debug: Op 0x000000a4        connection.go:498] -> OK ()
+D0224 10:03:49.485946 fuse_debug: Op 0x000000a6        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:49.486038 fuse_debug: Op 0x000000a6        connection.go:500] -> Error: "no data available"
+D0224 10:03:49.486116 fuse_debug: Op 0x000000a8        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:49.486167 fuse_debug: Op 0x000000a8        connection.go:498] -> OK ()
+D0224 10:03:49.486237 fuse_debug: Op 0x000000aa        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:49.486301 gcs: Req             0x14: <- ListObjects("")
+D0224 10:03:49.675499 gcs: Req             0x14: -> ListObjects("") (189.195264ms): OK
+D0224 10:03:49.675574 fuse_debug: Op 0x000000aa        connection.go:498] -> OK ()
+D0224 10:03:49.675682 fuse_debug: Op 0x000000ac        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:49.675796 fuse_debug: Op 0x000000ac        connection.go:498] -> OK ()
+D0224 10:03:49.675941 fuse_debug: Op 0x000000ae        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:49.676019 fuse_debug: Op 0x000000ae        connection.go:498] -> OK ()
+D0224 10:03:49.676102 fuse_debug: Op 0x000000b0        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:49.676136 fuse_debug: Op 0x000000b2        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:49.676227 fuse_debug: Op 0x000000b0        connection.go:498] -> OK ()
+D0224 10:03:49.676272 fuse_debug: Op 0x000000b2        connection.go:500] -> Error: "no data available"
+D0224 10:03:49.676377 fuse_debug: Op 0x000000b4        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:49.676485 fuse_debug: Op 0x000000b4        connection.go:498] -> OK ()
+D0224 10:03:49.676582 fuse_debug: Op 0x000000b6        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:49.676646 fuse_debug: Op 0x000000b6        connection.go:500] -> Error: "no data available"
+D0224 10:03:49.676703 fuse_debug: Op 0x000000b8        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:49.676757 fuse_debug: Op 0x000000b8        connection.go:498] -> OK ()
+D0224 10:03:49.676843 fuse_debug: Op 0x000000ba        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:49.676891 gcs: Req             0x15: <- ListObjects("")
+D0224 10:03:49.887531 gcs: Req             0x15: -> ListObjects("") (210.63287ms): OK
+D0224 10:03:49.887636 fuse_debug: Op 0x000000ba        connection.go:498] -> OK ()
+D0224 10:03:49.887761 fuse_debug: Op 0x000000bc        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:49.887881 fuse_debug: Op 0x000000bc        connection.go:498] -> OK ()
+D0224 10:03:49.888014 fuse_debug: Op 0x000000be        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:49.888089 fuse_debug: Op 0x000000be        connection.go:498] -> OK ()
+D0224 10:03:49.888172 fuse_debug: Op 0x000000c0        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:49.888212 fuse_debug: Op 0x000000c2        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:49.888254 fuse_debug: Op 0x000000c0        connection.go:498] -> OK ()
+D0224 10:03:49.888309 fuse_debug: Op 0x000000c2        connection.go:500] -> Error: "no data available"
+D0224 10:03:49.888397 fuse_debug: Op 0x000000c4        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:49.888475 fuse_debug: Op 0x000000c4        connection.go:498] -> OK ()
+D0224 10:03:49.888585 fuse_debug: Op 0x000000c6        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:49.888669 fuse_debug: Op 0x000000c6        connection.go:500] -> Error: "no data available"
+D0224 10:03:49.888728 fuse_debug: Op 0x000000c8        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:49.888785 fuse_debug: Op 0x000000c8        connection.go:498] -> OK ()
+D0224 10:03:49.888859 fuse_debug: Op 0x000000ca        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:49.888909 gcs: Req             0x16: <- ListObjects("")
+D0224 10:03:50.096614 gcs: Req             0x16: -> ListObjects("") (207.695471ms): OK
+D0224 10:03:50.096723 fuse_debug: Op 0x000000ca        connection.go:498] -> OK ()
+D0224 10:03:50.096891 fuse_debug: Op 0x000000cc        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:50.097003 fuse_debug: Op 0x000000cc        connection.go:498] -> OK ()
+D0224 10:03:50.097148 fuse_debug: Op 0x000000ce        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:50.097242 fuse_debug: Op 0x000000ce        connection.go:498] -> OK ()
+D0224 10:03:50.097352 fuse_debug: Op 0x000000d0        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:50.097400 fuse_debug: Op 0x000000d2        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:50.097486 fuse_debug: Op 0x000000d0        connection.go:498] -> OK ()
+D0224 10:03:50.097531 fuse_debug: Op 0x000000d2        connection.go:500] -> Error: "no data available"
+D0224 10:03:50.097622 fuse_debug: Op 0x000000d4        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:50.097699 fuse_debug: Op 0x000000d4        connection.go:498] -> OK ()
+D0224 10:03:50.097797 fuse_debug: Op 0x000000d6        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:50.097869 fuse_debug: Op 0x000000d6        connection.go:500] -> Error: "no data available"
+D0224 10:03:50.097942 fuse_debug: Op 0x000000d8        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:50.098013 fuse_debug: Op 0x000000d8        connection.go:498] -> OK ()
+D0224 10:03:50.098100 fuse_debug: Op 0x000000da        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:50.098148 gcs: Req             0x17: <- ListObjects("")
+D0224 10:03:50.291527 gcs: Req             0x17: -> ListObjects("") (193.372603ms): OK
+D0224 10:03:50.291624 fuse_debug: Op 0x000000da        connection.go:498] -> OK ()
+D0224 10:03:50.291835 fuse_debug: Op 0x000000dc        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:50.292001 fuse_debug: Op 0x000000dc        connection.go:498] -> OK ()
+D0224 10:03:50.292263 fuse_debug: Op 0x000000de        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:50.292370 fuse_debug: Op 0x000000de        connection.go:498] -> OK ()
+D0224 10:03:50.292504 fuse_debug: Op 0x000000e0        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:50.292561 fuse_debug: Op 0x000000e2        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:50.292660 fuse_debug: Op 0x000000e0        connection.go:498] -> OK ()
+D0224 10:03:50.292722 fuse_debug: Op 0x000000e2        connection.go:500] -> Error: "no data available"
+D0224 10:03:50.292807 fuse_debug: Op 0x000000e4        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:50.292981 fuse_debug: Op 0x000000e4        connection.go:498] -> OK ()
+D0224 10:03:50.293099 fuse_debug: Op 0x000000e6        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:50.293178 fuse_debug: Op 0x000000e6        connection.go:500] -> Error: "no data available"
+D0224 10:03:50.293255 fuse_debug: Op 0x000000e8        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:50.293313 fuse_debug: Op 0x000000e8        connection.go:498] -> OK ()
+D0224 10:03:50.293409 fuse_debug: Op 0x000000ea        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:50.293459 gcs: Req             0x18: <- ListObjects("")
+D0224 10:03:50.482746 gcs: Req             0x18: -> ListObjects("") (189.285414ms): OK
+D0224 10:03:50.482830 fuse_debug: Op 0x000000ea        connection.go:498] -> OK ()
+D0224 10:03:50.483547 fuse_debug: Op 0x000000ec        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:50.483684 fuse_debug: Op 0x000000ec        connection.go:498] -> OK ()
+D0224 10:03:50.483812 fuse_debug: Op 0x000000ee        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:50.483922 fuse_debug: Op 0x000000ee        connection.go:498] -> OK ()
+D0224 10:03:50.484023 fuse_debug: Op 0x000000f0        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:50.484056 fuse_debug: Op 0x000000f2        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:50.484082 fuse_debug: Op 0x000000f0        connection.go:498] -> OK ()
+D0224 10:03:50.484129 fuse_debug: Op 0x000000f2        connection.go:500] -> Error: "no data available"
+D0224 10:03:50.484200 fuse_debug: Op 0x000000f4        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:50.484264 fuse_debug: Op 0x000000f4        connection.go:498] -> OK ()
+D0224 10:03:50.484344 fuse_debug: Op 0x000000f6        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:50.484408 fuse_debug: Op 0x000000f6        connection.go:500] -> Error: "no data available"
+D0224 10:03:50.484488 fuse_debug: Op 0x000000f8        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:50.484535 fuse_debug: Op 0x000000f8        connection.go:498] -> OK ()
+D0224 10:03:50.484606 fuse_debug: Op 0x000000fa        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:50.484650 gcs: Req             0x19: <- ListObjects("")
+D0224 10:03:50.679594 gcs: Req             0x19: -> ListObjects("") (194.936602ms): OK
+D0224 10:03:50.679715 fuse_debug: Op 0x000000fa        connection.go:498] -> OK ()
+D0224 10:03:50.679834 fuse_debug: Op 0x000000fc        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:50.679935 fuse_debug: Op 0x000000fc        connection.go:498] -> OK ()
+D0224 10:03:50.680054 fuse_debug: Op 0x000000fe        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:50.680137 fuse_debug: Op 0x000000fe        connection.go:498] -> OK ()
+D0224 10:03:50.680213 fuse_debug: Op 0x00000100        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:50.680251 fuse_debug: Op 0x00000102        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:50.680347 fuse_debug: Op 0x00000100        connection.go:498] -> OK ()
+D0224 10:03:50.680388 fuse_debug: Op 0x00000102        connection.go:500] -> Error: "no data available"
+D0224 10:03:50.680462 fuse_debug: Op 0x00000104        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:50.680550 fuse_debug: Op 0x00000104        connection.go:498] -> OK ()
+D0224 10:03:50.680646 fuse_debug: Op 0x00000106        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:50.680702 fuse_debug: Op 0x00000106        connection.go:500] -> Error: "no data available"
+D0224 10:03:50.680762 fuse_debug: Op 0x00000108        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:50.680815 fuse_debug: Op 0x00000108        connection.go:498] -> OK ()
+D0224 10:03:50.680903 fuse_debug: Op 0x0000010a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:50.680950 gcs: Req             0x1a: <- ListObjects("")
+D0224 10:03:50.884659 gcs: Req             0x1a: -> ListObjects("") (203.404961ms): OK
+D0224 10:03:50.884785 fuse_debug: Op 0x0000010a        connection.go:498] -> OK ()
+D0224 10:03:50.884941 fuse_debug: Op 0x0000010c        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:50.885057 fuse_debug: Op 0x0000010c        connection.go:498] -> OK ()
+D0224 10:03:50.885193 fuse_debug: Op 0x0000010e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:50.885283 fuse_debug: Op 0x0000010e        connection.go:498] -> OK ()
+D0224 10:03:50.885386 fuse_debug: Op 0x00000110        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:50.885427 fuse_debug: Op 0x00000112        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:50.885530 fuse_debug: Op 0x00000110        connection.go:498] -> OK ()
+D0224 10:03:50.885547 fuse_debug: Op 0x00000112        connection.go:500] -> Error: "no data available"
+D0224 10:03:50.885632 fuse_debug: Op 0x00000114        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:50.885707 fuse_debug: Op 0x00000114        connection.go:498] -> OK ()
+D0224 10:03:50.885802 fuse_debug: Op 0x00000116        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:50.885858 fuse_debug: Op 0x00000116        connection.go:500] -> Error: "no data available"
+D0224 10:03:50.885931 fuse_debug: Op 0x00000118        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:50.885982 fuse_debug: Op 0x00000118        connection.go:498] -> OK ()
+D0224 10:03:50.886066 fuse_debug: Op 0x0000011a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:50.886129 gcs: Req             0x1b: <- ListObjects("")
+D0224 10:03:51.239793 gcs: Req             0x1b: -> ListObjects("") (353.656548ms): OK
+D0224 10:03:51.239903 fuse_debug: Op 0x0000011a        connection.go:498] -> OK ()
+D0224 10:03:51.240108 fuse_debug: Op 0x0000011c        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:51.240233 fuse_debug: Op 0x0000011c        connection.go:498] -> OK ()
+D0224 10:03:51.240455 fuse_debug: Op 0x0000011e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:51.240540 fuse_debug: Op 0x0000011e        connection.go:498] -> OK ()
+D0224 10:03:51.240711 fuse_debug: Op 0x00000120        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:51.240784 fuse_debug: Op 0x00000122        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:51.240912 fuse_debug: Op 0x00000122        connection.go:500] -> Error: "no data available"
+D0224 10:03:51.240938 fuse_debug: Op 0x00000120        connection.go:498] -> OK ()
+D0224 10:03:51.241000 fuse_debug: Op 0x00000124        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:51.241094 fuse_debug: Op 0x00000124        connection.go:498] -> OK ()
+D0224 10:03:51.241181 fuse_debug: Op 0x00000126        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:51.241250 fuse_debug: Op 0x00000126        connection.go:500] -> Error: "no data available"
+D0224 10:03:51.241327 fuse_debug: Op 0x00000128        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:51.241387 fuse_debug: Op 0x00000128        connection.go:498] -> OK ()
+D0224 10:03:51.241485 fuse_debug: Op 0x0000012a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:51.241541 gcs: Req             0x1c: <- ListObjects("")
+D0224 10:03:51.434760 gcs: Req             0x1c: -> ListObjects("") (193.213803ms): OK
+D0224 10:03:51.434892 fuse_debug: Op 0x0000012a        connection.go:498] -> OK ()
+D0224 10:03:51.435027 fuse_debug: Op 0x0000012c        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:51.435160 fuse_debug: Op 0x0000012c        connection.go:498] -> OK ()
+D0224 10:03:51.435292 fuse_debug: Op 0x0000012e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:51.435369 fuse_debug: Op 0x0000012e        connection.go:498] -> OK ()
+D0224 10:03:51.435451 fuse_debug: Op 0x00000130        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:51.435489 fuse_debug: Op 0x00000132        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:51.435589 fuse_debug: Op 0x00000130        connection.go:498] -> OK ()
+D0224 10:03:51.435632 fuse_debug: Op 0x00000132        connection.go:500] -> Error: "no data available"
+D0224 10:03:51.435707 fuse_debug: Op 0x00000134        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:51.435810 fuse_debug: Op 0x00000134        connection.go:498] -> OK ()
+D0224 10:03:51.435908 fuse_debug: Op 0x00000136        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:51.435994 fuse_debug: Op 0x00000136        connection.go:500] -> Error: "no data available"
+D0224 10:03:51.436067 fuse_debug: Op 0x00000138        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:51.436125 fuse_debug: Op 0x00000138        connection.go:498] -> OK ()
+D0224 10:03:51.436213 fuse_debug: Op 0x0000013a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:51.436262 gcs: Req             0x1d: <- ListObjects("")
+D0224 10:03:51.644339 gcs: Req             0x1d: -> ListObjects("") (208.066812ms): OK
+D0224 10:03:51.644459 fuse_debug: Op 0x0000013a        connection.go:498] -> OK ()
+D0224 10:03:51.644615 fuse_debug: Op 0x0000013c        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:51.644718 fuse_debug: Op 0x0000013c        connection.go:498] -> OK ()
+D0224 10:03:51.644834 fuse_debug: Op 0x0000013e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:51.644922 fuse_debug: Op 0x0000013e        connection.go:498] -> OK ()
+D0224 10:03:51.645026 fuse_debug: Op 0x00000140        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:51.645067 fuse_debug: Op 0x00000142        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:51.645119 fuse_debug: Op 0x00000140        connection.go:498] -> OK ()
+D0224 10:03:51.645170 fuse_debug: Op 0x00000142        connection.go:500] -> Error: "no data available"
+D0224 10:03:51.645255 fuse_debug: Op 0x00000144        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:51.645340 fuse_debug: Op 0x00000144        connection.go:498] -> OK ()
+D0224 10:03:51.645423 fuse_debug: Op 0x00000146        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:51.645531 fuse_debug: Op 0x00000146        connection.go:500] -> Error: "no data available"
+D0224 10:03:51.645636 fuse_debug: Op 0x00000148        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:51.645713 fuse_debug: Op 0x00000148        connection.go:498] -> OK ()
+D0224 10:03:51.645800 fuse_debug: Op 0x0000014a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:51.645846 gcs: Req             0x1e: <- ListObjects("")
+D0224 10:03:51.834657 gcs: Req             0x1e: -> ListObjects("") (188.806514ms): OK
+D0224 10:03:51.834753 fuse_debug: Op 0x0000014a        connection.go:498] -> OK ()
+D0224 10:03:51.834937 fuse_debug: Op 0x0000014c        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:51.835029 fuse_debug: Op 0x0000014c        connection.go:498] -> OK ()
+D0224 10:03:51.835208 fuse_debug: Op 0x0000014e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:51.835291 fuse_debug: Op 0x0000014e        connection.go:498] -> OK ()
+D0224 10:03:51.835399 fuse_debug: Op 0x00000150        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:51.835436 fuse_debug: Op 0x00000152        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:51.835521 fuse_debug: Op 0x00000150        connection.go:498] -> OK ()
+D0224 10:03:51.835585 fuse_debug: Op 0x00000152        connection.go:500] -> Error: "no data available"
+D0224 10:03:51.835664 fuse_debug: Op 0x00000154        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:51.835765 fuse_debug: Op 0x00000154        connection.go:498] -> OK ()
+D0224 10:03:51.835900 fuse_debug: Op 0x00000156        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:51.835983 fuse_debug: Op 0x00000156        connection.go:500] -> Error: "no data available"
+D0224 10:03:51.836084 fuse_debug: Op 0x00000158        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:51.836146 fuse_debug: Op 0x00000158        connection.go:498] -> OK ()
+D0224 10:03:51.836260 fuse_debug: Op 0x0000015a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:51.836317 gcs: Req             0x1f: <- ListObjects("")
+D0224 10:03:52.045225 gcs: Req             0x1f: -> ListObjects("") (208.902321ms): OK
+D0224 10:03:52.045321 fuse_debug: Op 0x0000015a        connection.go:498] -> OK ()
+D0224 10:03:52.045467 fuse_debug: Op 0x0000015c        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:52.045579 fuse_debug: Op 0x0000015c        connection.go:498] -> OK ()
+D0224 10:03:52.045726 fuse_debug: Op 0x0000015e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:52.045796 fuse_debug: Op 0x0000015e        connection.go:498] -> OK ()
+D0224 10:03:52.045883 fuse_debug: Op 0x00000160        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:52.045922 fuse_debug: Op 0x00000162        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:52.045982 fuse_debug: Op 0x00000162        connection.go:500] -> Error: "no data available"
+D0224 10:03:52.046006 fuse_debug: Op 0x00000160        connection.go:498] -> OK ()
+D0224 10:03:52.046059 fuse_debug: Op 0x00000164        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:52.046124 fuse_debug: Op 0x00000164        connection.go:498] -> OK ()
+D0224 10:03:52.046211 fuse_debug: Op 0x00000166        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:52.046274 fuse_debug: Op 0x00000166        connection.go:500] -> Error: "no data available"
+D0224 10:03:52.046339 fuse_debug: Op 0x00000168        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:52.046414 fuse_debug: Op 0x00000168        connection.go:498] -> OK ()
+D0224 10:03:52.046517 fuse_debug: Op 0x0000016a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:52.046565 gcs: Req             0x20: <- ListObjects("")
+D0224 10:03:52.253399 gcs: Req             0x20: -> ListObjects("") (206.829271ms): OK
+D0224 10:03:52.253476 fuse_debug: Op 0x0000016a        connection.go:498] -> OK ()
+D0224 10:03:52.253648 fuse_debug: Op 0x0000016c        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:52.253777 fuse_debug: Op 0x0000016c        connection.go:498] -> OK ()
+D0224 10:03:52.253937 fuse_debug: Op 0x0000016e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:52.254023 fuse_debug: Op 0x0000016e        connection.go:498] -> OK ()
+D0224 10:03:52.254117 fuse_debug: Op 0x00000170        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:52.254157 fuse_debug: Op 0x00000172        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:52.254188 fuse_debug: Op 0x00000170        connection.go:498] -> OK ()
+D0224 10:03:52.254220 fuse_debug: Op 0x00000172        connection.go:500] -> Error: "no data available"
+D0224 10:03:52.254297 fuse_debug: Op 0x00000174        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:52.254363 fuse_debug: Op 0x00000174        connection.go:498] -> OK ()
+D0224 10:03:52.254444 fuse_debug: Op 0x00000176        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:52.254501 fuse_debug: Op 0x00000176        connection.go:500] -> Error: "no data available"
+D0224 10:03:52.254571 fuse_debug: Op 0x00000178        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:52.254618 fuse_debug: Op 0x00000178        connection.go:498] -> OK ()
+D0224 10:03:52.254692 fuse_debug: Op 0x0000017a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:52.254743 gcs: Req             0x21: <- ListObjects("")
+D0224 10:03:52.438658 gcs: Req             0x21: -> ListObjects("") (183.912824ms): OK
+D0224 10:03:52.438742 fuse_debug: Op 0x0000017a        connection.go:498] -> OK ()
+D0224 10:03:52.439058 fuse_debug: Op 0x0000017c        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:52.439206 fuse_debug: Op 0x0000017c        connection.go:498] -> OK ()
+D0224 10:03:52.439387 fuse_debug: Op 0x0000017e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:52.439489 fuse_debug: Op 0x0000017e        connection.go:498] -> OK ()
+D0224 10:03:52.439591 fuse_debug: Op 0x00000180        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:52.439631 fuse_debug: Op 0x00000182        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:52.439677 fuse_debug: Op 0x00000180        connection.go:498] -> OK ()
+D0224 10:03:52.439713 fuse_debug: Op 0x00000182        connection.go:500] -> Error: "no data available"
+D0224 10:03:52.439802 fuse_debug: Op 0x00000184        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:52.439886 fuse_debug: Op 0x00000184        connection.go:498] -> OK ()
+D0224 10:03:52.440019 fuse_debug: Op 0x00000186        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:52.440096 fuse_debug: Op 0x00000186        connection.go:500] -> Error: "no data available"
+D0224 10:03:52.440174 fuse_debug: Op 0x00000188        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:52.440232 fuse_debug: Op 0x00000188        connection.go:498] -> OK ()
+D0224 10:03:52.440338 fuse_debug: Op 0x0000018a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:52.440389 gcs: Req             0x22: <- ListObjects("")
+D0224 10:03:52.648151 gcs: Req             0x22: -> ListObjects("") (207.752621ms): OK
+D0224 10:03:52.648272 fuse_debug: Op 0x0000018a        connection.go:498] -> OK ()
+D0224 10:03:52.648455 fuse_debug: Op 0x0000018c        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:52.648572 fuse_debug: Op 0x0000018c        connection.go:498] -> OK ()
+D0224 10:03:52.648735 fuse_debug: Op 0x0000018e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:52.648822 fuse_debug: Op 0x0000018e        connection.go:498] -> OK ()
+D0224 10:03:52.648916 fuse_debug: Op 0x00000190        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:52.648949 fuse_debug: Op 0x00000192        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:52.649046 fuse_debug: Op 0x00000190        connection.go:498] -> OK ()
+D0224 10:03:52.649085 fuse_debug: Op 0x00000192        connection.go:500] -> Error: "no data available"
+D0224 10:03:52.649178 fuse_debug: Op 0x00000194        connection.go:416] <- OpenDir (inode 1, PID 5007)
+D0224 10:03:52.649248 fuse_debug: Op 0x00000194        connection.go:498] -> OK ()
+D0224 10:03:52.649334 fuse_debug: Op 0x00000196        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 5007, name security.capability)
+D0224 10:03:52.649423 fuse_debug: Op 0x00000196        connection.go:500] -> Error: "no data available"
+D0224 10:03:52.649516 fuse_debug: Op 0x00000198        connection.go:416] <- GetInodeAttributes (inode 1, PID 5007)
+D0224 10:03:52.649573 fuse_debug: Op 0x00000198        connection.go:498] -> OK ()
+D0224 10:03:52.649669 fuse_debug: Op 0x0000019a        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:52.649725 gcs: Req             0x23: <- ListObjects("")
+D0224 10:03:52.841478 gcs: Req             0x23: -> ListObjects("") (191.747583ms): OK
+D0224 10:03:52.841573 fuse_debug: Op 0x0000019a        connection.go:498] -> OK ()
+D0224 10:03:52.841684 fuse_debug: Op 0x0000019c        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:52.841777 fuse_debug: Op 0x0000019c        connection.go:498] -> OK ()
+D0224 10:03:52.841916 fuse_debug: Op 0x0000019e        connection.go:416] <- ReadDir (inode 1, PID 5007)
+D0224 10:03:52.841993 fuse_debug: Op 0x0000019e        connection.go:498] -> OK ()
+D0224 10:03:52.842081 fuse_debug: Op 0x000001a0        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:52.842156 fuse_debug: Op 0x000001a0        connection.go:498] -> OK ()
+D0224 10:03:52.842533 fuse_debug: Op 0x000001a2        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 64586, name security.capability)
+D0224 10:03:52.842615 fuse_debug: Op 0x000001a2        connection.go:500] -> Error: "no data available"
+D0224 10:03:52.842816 fuse_debug: Op 0x000001a4        connection.go:416] <- OpenDir (inode 1, PID 64586)
+D0224 10:03:52.842922 fuse_debug: Op 0x000001a4        connection.go:498] -> OK ()
+D0224 10:03:52.843036 fuse_debug: Op 0x000001a6        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 64586, name security.capability)
+D0224 10:03:52.843134 fuse_debug: Op 0x000001a6        connection.go:500] -> Error: "no data available"
+D0224 10:03:52.843217 fuse_debug: Op 0x000001a8        connection.go:416] <- GetInodeAttributes (inode 1, PID 64586)
+D0224 10:03:52.843287 fuse_debug: Op 0x000001a8        connection.go:498] -> OK ()
+D0224 10:03:52.843447 fuse_debug: Op 0x000001aa        connection.go:416] <- ReadDir (inode 1, PID 64586)
+D0224 10:03:52.843517 gcs: Req             0x24: <- ListObjects("")
+D0224 10:03:53.893466 gcs: Req             0x24: -> ListObjects("") (1.049943686s): OK
+D0224 10:03:53.893577 fuse_debug: Op 0x000001aa        connection.go:498] -> OK ()
+D0224 10:03:53.893772 fuse_debug: Op 0x000001ac        connection.go:416] <- ReadDir (inode 1, PID 64586)
+D0224 10:03:53.893942 fuse_debug: Op 0x000001ac        connection.go:498] -> OK ()
+D0224 10:03:53.894104 fuse_debug: Op 0x000001ae        connection.go:416] <- ReadDir (inode 1, PID 64586)
+D0224 10:03:53.894220 fuse_debug: Op 0x000001ae        connection.go:498] -> OK ()
+D0224 10:03:53.894465 fuse_debug: Op 0x000001b0        connection.go:416] <- ReleaseDirHandle (PID 0)
+D0224 10:03:53.894513 fuse_debug: Op 0x000001b2        connection.go:416] <- LookUpInode (parent 1, name "autorun.inf", PID 64586)
+D0224 10:03:53.894595 fuse_debug: Op 0x000001b0        connection.go:498] -> OK ()
+D0224 10:03:53.894737 fuse_debug: Op 0x000001b2        connection.go:500] -> Error: "no such file or directory"
+D0224 10:03:54.155498 fuse_debug: Op 0x000001b4        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 64609, name security.capability)
+D0224 10:03:54.155660 fuse_debug: Op 0x000001b4        connection.go:500] -> Error: "no data available"
+D0224 10:03:54.155762 fuse_debug: Op 0x000001b6        connection.go:416] <- GetInodeAttributes (inode 1, PID 64609)
+D0224 10:03:54.155869 fuse_debug: Op 0x000001b6        connection.go:498] -> OK ()
+D0224 10:03:54.155982 fuse_debug: Op 0x000001b8        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 64609, name security.capability)
+D0224 10:03:54.156131 fuse_debug: Op 0x000001b8        connection.go:500] -> Error: "no data available"
+D0224 10:03:54.156762 fuse_debug: Op 0x000001ba        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 36108, name security.capability)
+D0224 10:03:54.156846 fuse_debug: Op 0x000001ba        connection.go:500] -> Error: "no data available"
+D0224 10:03:54.156936 fuse_debug: Op 0x000001bc        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 36108, name security.capability)
+D0224 10:03:54.157012 fuse_debug: Op 0x000001bc        connection.go:500] -> Error: "no data available"
+D0224 10:03:54.673126 fuse_debug: Op 0x000001be        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 36108, name security.capability)
+D0224 10:03:54.673322 fuse_debug: Op 0x000001be        connection.go:500] -> Error: "no data available"
+D0224 10:03:54.673487 fuse_debug: Op 0x000001c0        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 36108, name security.capability)
+D0224 10:03:54.673613 fuse_debug: Op 0x000001c0        connection.go:500] -> Error: "no data available"
+D0224 10:03:57.355879 fuse_debug: Op 0x000001c2        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 64640, name security.capability)
+D0224 10:03:57.356093 fuse_debug: Op 0x000001c2        connection.go:500] -> Error: "no data available"
+D0224 10:03:57.358601 fuse_debug: Op 0x000001c4        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 64642, name security.capability)
+D0224 10:03:57.358698 fuse_debug: Op 0x000001c4        connection.go:500] -> Error: "no data available"
+D0224 10:03:57.367312 fuse_debug: Op 0x000001c6        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 64650, name security.capability)
+D0224 10:03:57.367458 fuse_debug: Op 0x000001c6        connection.go:500] -> Error: "no data available"
+D0224 10:03:57.367568 fuse_debug: Op 0x000001c8        connection.go:416] <- LookUpInode (parent 1, name "hbk", PID 64650)
+D0224 10:03:57.367672 gcs: Req             0x25: <- StatObject("hbk/")
+D0224 10:03:57.367691 gcs: Req             0x26: <- StatObject("hbk")
+D0224 10:03:57.551128 gcs: Req             0x26: -> StatObject("hbk") (183.448764ms): gcs.NotFoundError: storage: object doesn't exist
+D0224 10:03:57.558200 gcs: Req             0x25: -> StatObject("hbk/") (190.535113ms): gcs.NotFoundError: storage: object doesn't exist
+D0224 10:03:57.558280 fuse_debug: Op 0x000001c8        connection.go:500] -> Error: "no such file or directory"
+D0224 10:03:57.558433 fuse_debug: Op 0x000001ca        connection.go:416] <- MkDir (parent 1, name "hbk", PID 64650)
+D0224 10:03:57.560832 gcs: Req             0x27: <- CreateObject("hbk/")
+I0224 10:03:57.572084 Start gcsfuse/unknown (Go version go1.20-20221229-RC00 cl/498461153 +db36eca33c) for app "" using mount point: /usr/local/google/home/tulsishah/mybucket
+N0224 10:03:57.572495 Opening GCS connection...
+I0224 10:03:57.572711 Creating a mount at "/usr/local/google/home/tulsishah/mybucket"
+I0224 10:03:57.573112 Creating a new server...
+I0224 10:03:57.573138 Set up root directory for bucket testmethods_tulsishah
+D0224 10:03:57.857226 gcs: Req              0x0: <- ListObjects("")
+D0224 10:03:58.039607 gcs: Req              0x0: -> ListObjects("") (182.380093ms): OK
+N0224 10:03:58.039686 Mounting file system "testmethods_tulsishah"...
+D0224 10:03:58.039854 fuse_debug: Op 0x000001cc        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 64662, name security.capability)
+D0224 10:03:58.040037 fuse_debug: Op 0x000001cc        connection.go:500] -> Error: "no data available"
+D0224 10:03:58.040142 fuse_debug: Beginning the mounting kickoff process
+D0224 10:03:58.040166 fuse_debug: Parsing fuse file descriptor
+D0224 10:03:58.040178 fuse_debug: Preparing for direct mounting
+D0224 10:03:58.040209 fuse_debug: Successfully opened the /dev/fuse in blocking mode
+D0224 10:03:58.040228 fuse_debug: Starting the unix mounting
+D0224 10:03:58.040294 fuse_debug: Op 0x000001ce        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 64662, name security.capability)
+D0224 10:03:58.040416 fuse_debug: Op 0x000001ce        connection.go:500] -> Error: "no data available"
+D0224 10:03:58.040483 fuse_debug: Directmount failed. Trying fallback.
+D0224 10:03:58.040533 fuse_debug: Creating a socket pair
+D0224 10:03:58.040558 fuse_debug: Creating files to wrap the sockets
+D0224 10:03:58.040573 fuse_debug: Starting fusermount/os mount
+D0224 10:03:58.041463 fuse_debug: Op 0x000001d0        connection.go:416] <- GetXattr (inode 1, name "security.capability", PID 64668, name security.capability)
+D0224 10:03:58.041562 fuse_debug: Op 0x000001d0        connection.go:500] -> Error: "no data available"
+D0224 10:03:58.401368 gcs: Req             0x27: -> CreateObject("hbk/") (840.527975ms): OK

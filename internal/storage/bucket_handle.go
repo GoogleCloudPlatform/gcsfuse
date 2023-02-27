@@ -148,6 +148,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	attrs := wc.Attrs() // Retrieving the attributes of the created object.
 	// Converting attrs to type *Object.
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
+	panic("In create")
 	return
 }
 
