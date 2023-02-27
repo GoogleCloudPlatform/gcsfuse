@@ -81,6 +81,7 @@ func makeGcsfuseArgs(
 
 		// Special case: support mount-like formatting for gcsfuse bool flags.
 		case "implicit_dirs",
+			"foreground",
 			"disable_http2",
 			"experimental_local_file_cache",
 			"experimental_enable_storage_client_library",
