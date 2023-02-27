@@ -25,6 +25,11 @@ placed at `/etc/logrotate.hourly.d/gcsfuse` in case of installation using releas
 package. Otherwise, you need to add the logrotate configuration manually to support
 the log-rotation.
 
+If you want to mount by building gcsfuse from code. You need to execute
+[this script](https://github.com/add_after_merge) with root permission.
+This script will apply all the required configuration inplace which happens
+during installation when we install gcsfuse using release packages.
+
 ### Custom log location
 When you specify --log-file for the custom log location, you will find all the
 logs in the custom file only. This is the same behavior as before the syslog
@@ -33,8 +38,29 @@ implementation.
 To support the log rotation, you need to create the log-rotation config manually
 to apply on the passed log-location.
 
-Steps to support log-rotation in case of custom log-file:
-TODO: Add steps to configure log-rotation for custom log-file.
+Let's assume you pass `--log-file=/$HOME/test.log`, gcsfuse will start writing
+the debug information on this file. To support log-rotation for this file, you can
+follow the below steps:
+1. Create a logrotate configuration file named with any name like, gcsfuse-custom-logrotate-conf:
+```bash
+/$HOME/test.log {
+    rotate 10
+    size 5G
+    missingok
+    notifempty
+    compress
+    dateext
+    dateformat -%Y%m%d-%s
+    delaycompress
+    copytruncate
+}
+```
+2. Add the above created files to `/etc/logrotate.hourly.d/` this directory is created 
+during the installation of gcsfuse to rotate the logs hourly. In case if this directory
+doesn't exist, or you want to rotate daily not hourly, you can put the above created
+config file to `/etc/logrotate.d/`.
+3. You can verify the config using logrotate command:
+`/usr/sbin/logrotate -d <config_file_path>` 
 
 ### Log location - stdout/err
 We can find the file descriptor corresponding to stdout/err and pass in --log-file
@@ -45,7 +71,8 @@ Output would be: `stderr -> /proc/self/fd/2`
                  `stdin  -> /proc/self/fd/0`
                  `stdout -> /proc/self/fd/1`
 
-Hence, to redirect the logs to stdout we can use `--log-file=/proc/self/fd/1`.
+Hence, to redirect the logs to stdout we can pass `--log-file=/proc/self/fd/1` as
+an argument of gcsfuse command.
 
 
 
