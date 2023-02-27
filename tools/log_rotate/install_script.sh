@@ -1,25 +1,33 @@
 #!/usr/bin/env bash
 
 # Create directory, which keeps all logrotate-config to rotate hourly.
-mkdir /etc/logrotate.hourly.d
+mkdir -p /etc/logrotate.hourly.d
 
+# By default, only daily cron executes the logrotate which rotates the logs
+# according to the configuration in /etc/logrotate.d folder. To support the
+# hourly execution of logrotate, we have created logrotate config-files specific
+# hourly-execution.
+
+# This file describes about the hourly execution of logrotate. All the logrotate
+# -config files present in /etc/logrotate.hourly.d will be executed hourly.
 cat << EOF | tee /etc/logrotate.hourly.conf
-# use the adm group by default, since this is the owning group
-# of /var/log/syslog.
+# This to enforce logrotate to run as root/adm. In ubuntu distributions, the
+# ownership of the file created via rsyslog is syslog hence, we need to add
+# this explicitly.
 su root adm
 
 # packages drop hourly log rotation information into this directory
 include /etc/logrotate.hourly.d
 EOF
-
 chmod 644 /etc/logrotate.hourly.conf
 
+# Add a shell script which will be run hourly, which eventually executes the
+# command to rotate the logs according to config present in /etc/logrotate.hourly.d
 cat << EOF | tee /etc/cron.hourly/logrotate
 #!/bin/bash
 test -x /usr/sbin/logrotate || exit 0
 /usr/sbin/logrotate /etc/logrotate.hourly.conf
 EOF
-
 chmod 775 /etc/cron.hourly/logrotate
 
 # Logrotate configuration to rotate gcsfuse logs.
@@ -74,4 +82,3 @@ fi
 
 # Restart the syslog service after adding the syslog configuration.
 systemctl restart rsyslog
-
