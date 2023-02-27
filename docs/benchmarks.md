@@ -20,7 +20,7 @@
 ### GCSFuse command
 ```
 gcsfuse --implicit-dirs --stat-cache-ttl=60s --type-cache-ttl=60s 
---client-protocol http1 --max-conns-per-host=100 <bucket-name> <path-to-mount-point>
+--client-protocol=http1 --max-conns-per-host=100 <bucket-name> <path-to-mount-point>
 ```
 ## Reads
 ### Sequential reads
@@ -71,7 +71,7 @@ sudo apt-get install fio
 ```
   mkdir <path-to-mount-point> 
   
-  gcsfuse --implicit-dirs --stat-cache-ttl=60s --type-cache-ttl=60s --client-protocol http1 
+  gcsfuse --implicit-dirs --stat-cache-ttl=60s --type-cache-ttl=60s --client-protocol=http1 
   --max-conns-per-host=100 <bucket-name> <path-to-mount-point>
 ```
 7. Create a FIO job spec file.
