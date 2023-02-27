@@ -62,7 +62,7 @@ config file to `/etc/logrotate.d/`.
 3. You can verify the config using logrotate command:
 `/usr/sbin/logrotate -d <config_file_path>` 
 
-### Log location - stdout/err
+### Stdout/err
 We can find the file descriptor corresponding to stdout/err and pass in --log-file
 flag to redirect the log to stdout/err.
 
@@ -73,6 +73,3 @@ Output would be: `stderr -> /proc/self/fd/2`
 
 Hence, to redirect the logs to stdout we can pass `--log-file=/proc/self/fd/1` as
 an argument of gcsfuse command.
-
-
-
