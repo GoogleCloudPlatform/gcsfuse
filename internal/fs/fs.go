@@ -73,12 +73,12 @@ type ServerConfig struct {
 	// See docs/semantics.md for more info.
 	ImplicitDirectories bool
 
-	// By default, if a directory does not exist in GCS, this nonexistent state is
-	// not cached in type cache. So the directory lookup request will hit GCS every
+	// By default, if a file/directory does not exist in GCS, this nonexistent state is
+	// not cached in type cache. So the inode lookup request will hit GCS every
 	// time.
 	//
 	// Setting this bool to true enables the nonexistent type cache so if the
-	// directory state is NonexistentType in type cache, the lookup request will
+	// inode state is NonexistentType in type cache, the lookup request will
 	// return nil immediately.
 	EnableNonexistentTypeCache bool
 

@@ -270,7 +270,7 @@ func newApp() (app *cli.App) {
 					"For example, if this flag is set, and flag type-cache-ttl is " +
 					"set to 10 minutes, then we create the same file/node in mean " +
 					"time using the same mount, since we are not refreshing the " +
-					"cash, it will still return nil.",
+					"cache, it will still return nil.",
 			},
 
 			/////////////////////////
