@@ -67,8 +67,9 @@ fi
 
 # Syslog configuration to filter and redirect the logs from /var/log/syslog to
 # /var/log/gcsfuse.log. The prefix-number 08 in the gcsfuse.conf is just for
-# file ordering and precedence. Like, if the same parameter configuration is
-# present in 10-x.conf and 20-y.conf the latter will overwrite first one.
+# file ordering and precedence. E.g., if the same parameter configuration is
+# present in 10-x.conf and 20-y.conf the latter will take precedence over the
+# first one.
 cat > /etc/rsyslog.d/08-gcsfuse.conf <<EOF
 
 # Change the ownership of create log file through rsyslog.
