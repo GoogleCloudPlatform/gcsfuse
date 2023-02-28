@@ -23,12 +23,21 @@ chmod 644 /etc/logrotate.hourly.conf
 
 # Add a shell script which will be run hourly, which eventually executes the
 # command to rotate the logs according to config present in /etc/logrotate.hourly.d
-cat << EOF | tee /etc/cron.hourly/logrotate
+cat << EOF | tee /etc/cron.hourly/gcsfuse-logrotate
 #!/bin/bash
 test -x /usr/sbin/logrotate || exit 0
 /usr/sbin/logrotate /etc/logrotate.hourly.conf
 EOF
-chmod 775 /etc/cron.hourly/logrotate
+
+# Make sure, we have hourly logrotate setup inplace correctly.
+if [ $? -eq 0 ]; then
+        echo "Hourly cron setup for logrotate completed successfully"
+else
+        echo "Please install linux package - cron"
+        exit 1
+fi
+
+chmod 775 /etc/cron.hourly/gcsfuse-logrotate
 
 # Logrotate configuration to rotate gcsfuse logs.
 cat << EOF | tee /etc/logrotate.hourly.d/gcsfuse
@@ -57,10 +66,11 @@ else
 fi
 
 # Syslog configuration to filter and redirect the logs from /var/log/syslog to
-# /var/log/gcsfuse.log.
+# /var/log/gcsfuse.log. The prefix-number 08 in the gcsfuse.conf is just for
+# file ordering and precedence. Like, if the same parameter configuration is
+# present in 10-x.conf and 20-y.conf the latter will overwrite first one.
 cat > /etc/rsyslog.d/08-gcsfuse.conf <<EOF
 
-# Change the ownership of create log file through rsyslog.
 # Change the ownership of create log file through rsyslog.
 \$umask 0000
 \$FileCreateMode 0644
