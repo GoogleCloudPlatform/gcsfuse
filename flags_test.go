@@ -106,7 +106,7 @@ func (t *FlagsTest) Bools() {
 		"debug_gcs",
 		"debug_http",
 		"debug_invariants",
-		"experimental-enable-storage-client-library",
+		"enable-storage-client-library",
 	}
 
 	var args []string
