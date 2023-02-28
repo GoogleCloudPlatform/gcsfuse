@@ -22,7 +22,6 @@ nohup /pytorch_dino/gcsfuse/gcsfuse --foreground --type-cache-ttl=1728000s \
         --stat-cache-capacity=1320000 \
         --stackdriver-export-interval=60s \
         --implicit-dirs \
-        --disable-http2 \
         --experimental-enable-storage-client-library \
         --max-conns-per-host=100 \
         --debug_fs \
