@@ -24,6 +24,7 @@ func init() { RegisterTestSuite(&MainTest{}) }
 func (t *MainTest) TestCreateStorageHandleEnableStorageClientLibraryIsTrue() {
 	storageHandle, err := createStorageHandle(&flagStorage{
 		EnableStorageClientLibrary: true,
+		KeyFile:                    "testdata/test_creds.json",
 	})
 
 	ExpectNe(nil, storageHandle)
@@ -38,6 +39,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 		MaxRetryDuration:    7,
 		RetryMultiplier:     2,
 		AppName:             "app",
+		KeyFile:             "testdata/test_creds.json",
 	}
 
 	storageHandle, err := createStorageHandle(flags)

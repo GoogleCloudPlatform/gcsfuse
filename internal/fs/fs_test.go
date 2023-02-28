@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/signal"
 	"os/user"
+	"path"
 	"strconv"
 	"strings"
 	"testing"
@@ -34,6 +35,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
@@ -43,8 +45,10 @@ import (
 )
 
 const (
-	filePerms os.FileMode = 0740
-	dirPerms              = 0754
+	filePerms            os.FileMode = 0740
+	dirPerms                         = 0754
+	RenameDirLimit                   = 5
+	SequentialReadSizeMb             = 200
 )
 
 func TestFS(t *testing.T) { RunTests(t) }
@@ -73,26 +77,9 @@ func init() {
 
 // A struct that can be embedded to inherit common file system test behaviors.
 type fsTest struct {
-	ctx context.Context
-
 	// Configuration
 	serverCfg fs.ServerConfig
 	mountCfg  fuse.MountConfig
-
-	// Dependencies. If bucket is set before SetUp is called, it will be used
-	// rather than creating a default one.
-	mtimeClock timeutil.Clock
-	cacheClock timeutil.SimulatedClock
-
-	// To mount a special bucket, override `bucket`;
-	// To mount multiple buckets, override `buckets`;
-	// Otherwise, a default bucket will be used.
-	bucket  gcs.Bucket
-	buckets map[string]gcs.Bucket
-
-	// Mount information
-	mfs *fuse.MountedFileSystem
-	Dir string
 
 	// Files to close when tearing down. Nil entries are skipped.
 	f1 *os.File
@@ -102,10 +89,18 @@ type fsTest struct {
 var (
 	mntDir string
 	ctx    context.Context
-	bucket gcs.Bucket
 
 	// Mount information
 	mfs *fuse.MountedFileSystem
+
+	mtimeClock timeutil.Clock
+	cacheClock timeutil.SimulatedClock
+
+	// To mount a special bucket, override `bucket`;
+	// To mount multiple buckets, override `buckets`;
+	// Otherwise, a default bucket will be used.
+	bucket  gcs.Bucket
+	buckets map[string]gcs.Bucket
 )
 
 var _ SetUpTestSuiteInterface = &fsTest{}
@@ -116,33 +111,32 @@ func (t *fsTest) SetUpTestSuite() {
 	ctx = context.Background()
 
 	// Set up the clocks.
-	t.mtimeClock = timeutil.RealClock()
-	t.cacheClock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
-	t.serverCfg.CacheClock = &t.cacheClock
+	mtimeClock = timeutil.RealClock()
+	cacheClock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
+	t.serverCfg.CacheClock = &cacheClock
 
-	if t.buckets != nil {
+	if buckets != nil {
 		// mount all buckets
-		t.bucket = nil
+		bucket = nil
 		t.serverCfg.BucketName = ""
 	} else {
 		// mount a single bucket
-		if t.bucket == nil {
-			t.bucket = gcsfake.NewFakeBucket(t.mtimeClock, "some_bucket")
-			bucket = t.bucket
+		if bucket == nil {
+			bucket = gcsfake.NewFakeBucket(mtimeClock, "some_bucket")
 		}
-		t.serverCfg.BucketName = t.bucket.Name()
-		t.buckets = map[string]gcs.Bucket{t.bucket.Name(): t.bucket}
+		t.serverCfg.BucketName = bucket.Name()
+		buckets = map[string]gcs.Bucket{bucket.Name(): bucket}
 	}
 
 	t.serverCfg.BucketManager = &fakeBucketManager{
 		// This bucket manager is allowed to open these buckets
-		buckets: t.buckets,
+		buckets: buckets,
 		// Configs for the syncer when setting up buckets
 		appendThreshold: 0,
 		tmpObjectPrefix: ".gcsfuse_tmp/",
 	}
-	t.serverCfg.RenameDirLimit = 5
-	t.serverCfg.SequentialReadSizeMb = 200
+	t.serverCfg.RenameDirLimit = RenameDirLimit
+	t.serverCfg.SequentialReadSizeMb = SequentialReadSizeMb
 
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
@@ -206,6 +200,11 @@ func (t *fsTest) TearDownTestSuite() {
 		err = fmt.Errorf("Unlinking mount point: %w", err)
 		return
 	}
+
+	// Setting nil ensures bucket/buckets variables are clean for next test suite
+	// run.
+	buckets = nil
+	bucket = nil
 }
 
 func (t *fsTest) TearDown() {
@@ -219,8 +218,17 @@ func (t *fsTest) TearDown() {
 	}
 
 	// Remove all contents for mntDir. This helps to keep the directory clean
-	// for next test run
-	os.RemoveAll(mntDir)
+	// for next test run.
+
+	// ReadDirPicky throws error incase of allbuckets_test. That is expected since
+	// we can't list buckets when bucket-name is not specified during mount.
+	// os.RemoveAll throws error incase of readonly mount.
+	// Ignoring any errors we get while deleting the mntDir contents.
+	entries, _ := fusetesting.ReadDirPicky(mntDir)
+	for _, e := range entries {
+		os.RemoveAll(path.Join(mntDir, e.Name()))
+		os.Remove(path.Join(mntDir, e.Name()))
+	}
 }
 
 func (t *fsTest) createWithContents(name string, contents string) error {
@@ -233,12 +241,12 @@ func (t *fsTest) createObjects(in map[string]string) error {
 		b[k] = []byte(v)
 	}
 
-	err := gcsutil.CreateObjects(ctx, t.bucket, b)
+	err := gcsutil.CreateObjects(ctx, bucket, b)
 	return err
 }
 
 func (t *fsTest) createEmptyObjects(names []string) error {
-	err := gcsutil.CreateEmptyObjects(ctx, t.bucket, names)
+	err := gcsutil.CreateEmptyObjects(ctx, bucket, names)
 	return err
 }
 
@@ -315,8 +323,8 @@ type fakeBucketManager struct {
 func (bm *fakeBucketManager) ShutDown() {}
 
 func (bm *fakeBucketManager) SetUpBucket(
-		ctx context.Context,
-		name string) (sb gcsx.SyncerBucket, err error) {
+	ctx context.Context,
+	name string) (sb gcsx.SyncerBucket, err error) {
 	bucket, ok := bm.buckets[name]
 	if ok {
 		sb = gcsx.NewSyncerBucket(
