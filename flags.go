@@ -339,7 +339,7 @@ func newApp() (app *cli.App) {
 			/////////////////////////
 
 			cli.BoolFlag{
-				Name: "experimental-enable-storage-client-library",
+				Name: "enable-storage-client-library",
 				Usage: "If true, will use go storage client library " +
 					"otherwise jacobsa/gcloud",
 			},
@@ -534,7 +534,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		DebugMutex:      c.Bool("debug_mutex"),
 
 		// Client,
-		EnableStorageClientLibrary: c.Bool("experimental-enable-storage-client-library"),
+		EnableStorageClientLibrary: c.Bool("enable-storage-client-library"),
 	}
 
 	// Handle the repeated "-o" flag.
