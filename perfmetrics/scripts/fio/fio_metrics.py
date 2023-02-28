@@ -363,6 +363,11 @@ class FioMetrics:
 
     job_params = self._get_job_params(fio_out)
     start_end_times = self._get_start_end_times(fio_out, job_params)
+
+    # Print start and end time of jobs
+    for time in start_end_times :
+      print(time)
+
     all_jobs = []
     # Get the required metrics for every job
     for i, job in enumerate(fio_out[consts.JOBS]):
