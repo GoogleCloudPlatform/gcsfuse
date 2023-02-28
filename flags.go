@@ -243,17 +243,18 @@ func newApp() (app *cli.App) {
 					"copies. (default: system default, likely /tmp)",
 			},
 
-			cli.BoolFlag{
-				Name: "disable-http2",
-				Usage: "Once set, the protocol used for communicating with " +
-					"GCS backend would be HTTP/1.1, instead of the default HTTP/2.",
+			cli.StringFlag{
+				Name:  "client-protocol",
+				Value: string(mountpkg.HTTP1),
+				Usage: "The protocol used for communicating with GCS backend. " +
+					"Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2).",
 			},
 
 			cli.IntFlag{
 				Name:  "max-conns-per-host",
 				Value: 100,
 				Usage: "The max number of TCP connections allowed per server. " +
-					"This is effective when --disable-http2 is set.",
+					"This is effective when --client-protocol is set as 'http1'.",
 			},
 
 			cli.IntFlag{
@@ -381,7 +382,7 @@ type flagStorage struct {
 	RetryMultiplier     float64
 	LocalFileCache      bool
 	TempDir             string
-	DisableHTTP2        bool
+	ClientProtocol      mountpkg.ClientProtocol
 	MaxConnsPerHost     int
 	MaxIdleConnsPerHost int
 
@@ -478,6 +479,8 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		fmt.Printf("Could not parse endpoint")
 		return
 	}
+	clientProtocolString := strings.ToLower(c.String("client-protocol"))
+	clientProtocol := mountpkg.ClientProtocol(clientProtocolString)
 	flags = &flagStorage{
 		AppName:    c.String("app-name"),
 		Foreground: c.Bool("foreground"),
@@ -511,7 +514,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		RetryMultiplier:     c.Float64("retry-multiplier"),
 		LocalFileCache:      c.Bool("experimental-local-file-cache"),
 		TempDir:             c.String("temp-dir"),
-		DisableHTTP2:        c.Bool("disable-http2"),
+		ClientProtocol:      clientProtocol,
 		MaxConnsPerHost:     c.Int("max-conns-per-host"),
 		MaxIdleConnsPerHost: c.Int("max-idle-conns-per-host"),
 
@@ -547,8 +550,12 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 func validateFlags(flags *flagStorage) (err error) {
 	if flags.SequentialReadSizeMb < 1 || flags.SequentialReadSizeMb > maxSequentialReadSizeMb {
 		err = fmt.Errorf("SequentialReadSizeMb should be less than %d", maxSequentialReadSizeMb)
+		return
 	}
 
+	if !flags.ClientProtocol.IsValid() {
+		err = fmt.Errorf("client protocol: %s is not valid", flags.ClientProtocol)
+	}
 	return
 }
 

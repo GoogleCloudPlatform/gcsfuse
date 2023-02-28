@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/urfave/cli"
@@ -198,12 +199,14 @@ func (t *FlagsTest) Strings() {
 		"--key-file", "-asdf",
 		"--temp-dir=foobar",
 		"--only-dir=baz",
+		"--client-protocol=HTTP2",
 	}
 
 	f := parseArgs(args)
 	ExpectEq("-asdf", f.KeyFile)
 	ExpectEq("foobar", f.TempDir)
 	ExpectEq("baz", f.OnlyDir)
+	ExpectEq(mountpkg.HTTP2, f.ClientProtocol)
 }
 
 func (t *FlagsTest) Durations() {
@@ -388,9 +391,10 @@ func (t *FlagsTest) TestResolvePathForTheFlagsInContext() {
 	AssertEq(nil, err)
 }
 
-func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSize() {
+func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP1ClientProtocol() {
 	flags := &flagStorage{
 		SequentialReadSizeMb: 10,
+		ClientProtocol:       mountpkg.ClientProtocol("http1"),
 	}
 
 	err := validateFlags(flags)
@@ -398,9 +402,10 @@ func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSize() {
 	AssertEq(nil, err)
 }
 
-func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSize() {
+func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSizeAndValidClientProtocol() {
 	flags := &flagStorage{
 		SequentialReadSizeMb: 0,
+		ClientProtocol:       mountpkg.ClientProtocol("http2"),
 	}
 
 	err := validateFlags(flags)
@@ -409,13 +414,36 @@ func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSize() {
 	AssertEq("SequentialReadSizeMb should be less than 1024", err.Error())
 }
 
-func (t *FlagsTest) TestValidateFlagsForSequentialReadSizeGreaterThan1024() {
+func (t *FlagsTest) TestValidateFlagsForSequentialReadSizeGreaterThan1024AndValidClientProtocol() {
 	flags := &flagStorage{
 		SequentialReadSizeMb: 2048,
+		ClientProtocol:       mountpkg.ClientProtocol("http1"),
 	}
 
 	err := validateFlags(flags)
 
 	AssertNe(nil, err)
 	AssertEq("SequentialReadSizeMb should be less than 1024", err.Error())
+}
+
+func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndInValidClientProtocol() {
+	flags := &flagStorage{
+		SequentialReadSizeMb: 10,
+		ClientProtocol:       mountpkg.ClientProtocol("http4"),
+	}
+
+	err := validateFlags(flags)
+
+	AssertEq("client protocol: http4 is not valid", err.Error())
+}
+
+func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP2ClientProtocol() {
+	flags := &flagStorage{
+		SequentialReadSizeMb: 10,
+		ClientProtocol:       mountpkg.ClientProtocol("http2"),
+	}
+
+	err := validateFlags(flags)
+
+	AssertEq(nil, err)
 }

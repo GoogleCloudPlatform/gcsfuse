@@ -22,6 +22,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googleapis/gax-go/v2"
+	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -37,7 +38,7 @@ type storageClient struct {
 }
 
 type StorageClientConfig struct {
-	DisableHTTP2        bool
+	ClientProtocol      mountpkg.ClientProtocol
 	MaxConnsPerHost     int
 	MaxIdleConnsPerHost int
 	TokenSrc            oauth2.TokenSource
@@ -51,8 +52,8 @@ type StorageClientConfig struct {
 // storageClientConfig parameter.
 func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh StorageHandle, err error) {
 	var transport *http.Transport
-	// Disabling the http2 makes the client more performant.
-	if clientConfig.DisableHTTP2 {
+	// Using http1 makes the client more performant.
+	if clientConfig.ClientProtocol == mountpkg.HTTP1 {
 		transport = &http.Transport{
 			MaxConnsPerHost:     clientConfig.MaxConnsPerHost,
 			MaxIdleConnsPerHost: clientConfig.MaxIdleConnsPerHost,

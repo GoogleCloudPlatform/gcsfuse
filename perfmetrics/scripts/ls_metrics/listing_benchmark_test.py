@@ -582,7 +582,7 @@ class ListingBenchmarkTest(unittest.TestCase):
     self.assertEqual(mock_subprocess_call.call_count, 2)
     self.assertEqual(mock_subprocess_call.call_args_list, [
         call('mkdir fake_bucket', shell=True),
-        call('gcsfuse --implicit-dirs --disable-http2 --max-conns-per-host 100 fake_bucket fake_bucket', shell=True)
+        call('gcsfuse --implicit-dirs --max-conns-per-host 100 fake_bucket fake_bucket', shell=True)
     ])
 
   @patch('listing_benchmark.subprocess.call', return_value=1)
@@ -591,7 +591,7 @@ class ListingBenchmarkTest(unittest.TestCase):
     self.assertEqual(mock_subprocess_call.call_count, 3)
     self.assertEqual(mock_subprocess_call.call_args_list, [
         call('mkdir fake_bucket', shell=True),
-        call('gcsfuse --implicit-dirs --disable-http2 --max-conns-per-host 100 fake_bucket fake_bucket', shell=True),
+        call('gcsfuse --implicit-dirs --max-conns-per-host 100 fake_bucket fake_bucket', shell=True),
         call('bash', shell=True)
     ])
 

@@ -14,7 +14,7 @@ python3 compare_fuse_types_using_fio.py -- --fuse_type_1=<value1> --fuse_type_1_
 3) --flags_1=<flags1> & --flags_2=<flags2>
 -> Provide  the flags for mounting bucket using specific provided fuse based filesystem.
 -> Since there might be more than one flags, provided all of them inside single quotes.
--> Example for GCSFuse flags: --flags_1='--implicit-dirs --max-conns-per-host 100 --disable-http2'
+-> Example for GCSFuse flags: --flags_1='--implicit-dirs --max-conns-per-host 100'
 4) --jobfile_path=<jobfile_path>
 -> Job file path for the FIO load test.
 5) --gcs_bucket=<gcs_bucket>
@@ -33,7 +33,7 @@ from fio import fio_metrics
 from absl import app
 
 GCSFUSE_REPO = 'https://github.com/GoogleCloudPlatform/gcsfuse'
-GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --disable-http2"
+GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
 
 
 def _install_gcsfuse(version, gcs_bucket, gcsfuse_flags) -> None:
