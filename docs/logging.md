@@ -1,25 +1,26 @@
 # GCSFuse User Logging Guide
 Here, we will describe about the logging in gcsfuse and how different types of user
-can use the control to complete their work.
+can use the log-file flag to complete their work.
 
 GCSFuse supports different types of debug_flag named, --debug_fs, --debug_fuse, 
---debug_gcs etc., which logs the debug info of different component in gcsfuse.
+--debug_gcs etc., which logs the debug info of different components in gcsfuse.
 
 ## Log Location
-GCSFuse provides a flag named --log-file which controls the location of the logs.
-Either it can be to syslog or custom location. We will achieve the logging at
-stdout or stderr with the help of same flag.
+GCSFuse provides a flag named `--log-file` which controls the location of the logs.
+Either it can be a syslog or custom location. We will achieve the logging at
+stdout or stderr with the help of the same flag.
 
 We will also describe how we can achieve the rotation of logs in each case.
 
 ### Default location - syslog
 By default, if you don't provide --log-file, GCSFuse writes all the logs to
 syslog which eventually redirects to `/var/log/gcsfuse.log`. The redirection happens
-with the help of rsyslog conf file, which you found at /etc/rsyslog.d/08-gcsfuse.conf
-folder if you have installed the gcsfuse using the released-package, otherwise
-you need add this configuration to make this work.
+with the help of rsyslog conf file, which you found at `/etc/rsyslog.d/08-gcsfuse.conf`,
+if you have installed the gcsfuse using the released-package, otherwise
+you need add this configuration manually, e.g., in case when you mount by building
+the source code.
 
-We achieve the rotation of logs with the help of logrotate config applying on
+We achieve the rotation of logs with the help of logrotate package/config applying on
 the log file (/var/log/gcsfuse.log). You can find the logrotate configuration
 placed at `/etc/logrotate.hourly.d/gcsfuse` in case of installation using released
 package. Otherwise, you need to add the logrotate configuration manually to support
@@ -51,9 +52,19 @@ follow the below steps:
     compress
     dateext
     dateformat -%Y%m%d-%s
-    delaycompress
     copytruncate
 }
+```
+
+Here,
+``` text
+rotate 10 - means only 10 backup files will be kept other than original file.
+size 5G - rotation will take place only when file size exceeds this.
+missingok - if a log file is missing, logrotate will not issue an error.
+notifempty - do not rotate the log if it is empty.
+compress - old versions of log files are compressed with gzip by default.
+dateext - archive logs with date extension instead of adding a number.
+dateformat %Y%m%d-%s - added %s to make a unique rotate-log file name in hourly cron setup.
 ```
 2. Add the above created files to `/etc/logrotate.hourly.d/` this directory is created 
 during the installation of gcsfuse to rotate the logs hourly. In case if this directory
