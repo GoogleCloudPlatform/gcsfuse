@@ -52,7 +52,8 @@ RUN fpm \
     -d fuse \
     --vendor "" \
     --url "https://$GCSFUSE_REPO" \
-    --description "A user-space file system for Google Cloud Storage."
+    --description "A user-space file system for Google Cloud Storage." \
+    --before-install "${GCSFUSE_PATH}/tools/log_rotate/install_script.sh"
 RUN fpm \
     -s dir \
     -t rpm \
@@ -62,4 +63,6 @@ RUN fpm \
     -d fuse \
     --vendor "" \
     --url "https://$GCSFUSE_REPO" \
-    --description "A user-space file system for Google Cloud Storage."
+    --description "A user-space file system for Google Cloud Storage." \
+    --before-install "${GCSFUSE_PATH}/tools/log_rotate/install_script.sh"
+
