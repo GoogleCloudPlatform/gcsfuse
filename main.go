@@ -268,6 +268,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		if flags.LogFile == "" {
 			logger.Info("You haven't provided log-file hence logs will be redirected to syslog, please refer: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/logging.md")
 		}
+
 		err = logger.InitLogFile(flags.LogFile, flags.LogFormat)
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
