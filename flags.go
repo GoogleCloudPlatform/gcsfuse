@@ -283,8 +283,8 @@ func newApp() (app *cli.App) {
 				Name:  "log-file",
 				Value: "",
 				Usage: "The file for storing logs that can be parsed by " +
-					"fluentd. When not provided, plain text logs are written to syslog " +
-					"and eventually redirected to /var/log/gcsfuse.log",
+					"fluentd. When not provided, plain text logs are printed to " +
+					"stdout.",
 			},
 
 			cli.StringFlag{
