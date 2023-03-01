@@ -452,3 +452,10 @@ func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP2ClientPro
 
 	AssertEq(nil, err)
 }
+
+func (t *FlagsTest) TestDefaultValueOfEnableStorageClientLibraryFlag() {
+	var args []string = nil
+	f := parseArgs(args)
+
+	ExpectTrue(f.EnableStorageClientLibrary)
+}
