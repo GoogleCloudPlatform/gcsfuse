@@ -167,10 +167,10 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 
 // Mount the file system according to arguments in the supplied context.
 func mountWithArgs(
-		bucketName string,
-		mountPoint string,
-		flags *flagStorage,
-		mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
+	bucketName string,
+	mountPoint string,
+	flags *flagStorage,
+	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
 		locker.EnableInvariantsCheck()
@@ -220,9 +220,9 @@ func mountWithArgs(
 }
 
 func populateArgs(c *cli.Context) (
-		bucketName string,
-		mountPoint string,
-		err error) {
+	bucketName string,
+	mountPoint string,
+	err error) {
 	// Extract arguments.
 	switch len(c.Args()) {
 	case 1:
@@ -268,7 +268,6 @@ func runCLIApp(c *cli.Context) (err error) {
 		if flags.LogFile == "" {
 			logger.Info("You haven't provided log-file hence logs will be redirected to syslog, please refer: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/logging.md")
 		}
-
 		err = logger.InitLogFile(flags.LogFile, flags.LogFormat)
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
