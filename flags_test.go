@@ -109,7 +109,7 @@ func (t *FlagsTest) Bools() {
 		"debug_http",
 		"debug_invariants",
 		"enable-storage-client-library",
-    "enable-nonexistent-type-cache",
+		"enable-nonexistent-type-cache",
 	}
 
 	var args []string
