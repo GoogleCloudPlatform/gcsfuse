@@ -78,7 +78,7 @@ def _mount_gcsbucket(gcs_bucket, data_directory_name) -> None:
     data_directory_name(str): Destination for mounting the gcs_bucket.
   """
   os.system(f'''mkdir {data_directory_name}
-            gcsfuse --implicit-dirs --stat-cache-capacity 1000000 --disable-http2 --max-conns-per-host 100 --stackdriver-export-interval=60s {gcs_bucket} {data_directory_name}
+            gcsfuse --implicit-dirs --stat-cache-capacity 1000000 --max-conns-per-host 100 --stackdriver-export-interval=60s {gcs_bucket} {data_directory_name}
             ''')
 
 
@@ -105,7 +105,7 @@ def _run_from_source(gcs_bucket, data_directory_name) -> None:
   os.system(f'''mkdir {data_directory_name}
             git clone {GITHUB_REPO}
             cd gcsfuse
-            go run . --implicit-dirs --stat-cache-capacity 1000000 --disable-http2 --max-conns-per-host 100 --stackdriver-export-interval=60s {gcs_bucket} ../{data_directory_name}
+            go run . --implicit-dirs --stat-cache-capacity 1000000 --max-conns-per-host 100 --stackdriver-export-interval=60s {gcs_bucket} ../{data_directory_name}
             cd ..
             ''')
 

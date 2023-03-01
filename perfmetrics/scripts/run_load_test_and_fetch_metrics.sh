@@ -1,5 +1,7 @@
 #!/bin/bash
 set -e
+echo Print the time when FIO tests start
+date
 echo Running fio test..
 fio job_files/seq_rand_read_write.fio --lat_percentiles 1 --output-format=json --output='output.json'
 echo Logging fio results

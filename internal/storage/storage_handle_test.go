@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/oauth2"
 )
@@ -27,7 +28,7 @@ const invalidBucketName string = "will-not-be-present-in-fake-server"
 
 func getDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 	return StorageClientConfig{
-		DisableHTTP2:        true,
+		ClientProtocol:      mountpkg.HTTP1,
 		MaxConnsPerHost:     10,
 		MaxIdleConnsPerHost: 100,
 		TokenSrc:            oauth2.StaticTokenSource(&oauth2.Token{}),
@@ -82,14 +83,14 @@ func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExist() {
 }
 
 func (t *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
-	sc := getDefaultStorageClientConfig() // by default http2 disabled
+	sc := getDefaultStorageClientConfig() // by default http1 enabled
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
 
 func (t *StorageHandleTest) TestNewStorageHandleHttp2Enabled() {
 	sc := getDefaultStorageClientConfig()
-	sc.DisableHTTP2 = false
+	sc.ClientProtocol = mountpkg.HTTP2
 
 	t.invokeAndVerifyStorageHandle(sc)
 }

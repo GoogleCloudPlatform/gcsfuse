@@ -16,7 +16,7 @@ sudo apt-get install fio -y
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 # Get the latest commitId of yesterday in the log file
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
-git checkout $commitId
+#git checkout $commitId
 
 echo Building and installing gcsfuse
 go install ./tools/build_gcsfuse
@@ -30,7 +30,7 @@ cd "./perfmetrics/scripts/"
 echo Mounting gcs bucket
 mkdir -p gcs
 LOG_FILE=log-$(date '+%Y-%m-%d').txt
-GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --experimental-enable-storage-client-library=true --disable-http2 --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"
+GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"
 BUCKET_NAME=gcs-fuse-dashboard-fio
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
