@@ -15,20 +15,12 @@
 package logger
 
 import (
-	"fmt"
 	"io"
 	"log"
-	"log/syslog"
 	"os"
 
 	"github.com/jacobsa/daemonize"
 )
-
-// Syslog file contains logs from all different programmes running on the VM.
-// ProgrammeName is prefixed to all the logs written to syslog. This constant is
-// used to filter the logs from syslog and write it to respective log files -
-// gcsfuse.log in case of GCSFuse.
-const ProgrammeName string = "gcsfuse"
 
 var (
 	defaultLoggerFactory *loggerFactory
@@ -37,39 +29,20 @@ var (
 
 // InitLogFile initializes the logger factory to create loggers that print to
 // a log file.
-// In case of empty file, it starts writing the log to syslog file, which
-// is eventually filtered and redirected to a fixed location using syslog
-// config.
 func InitLogFile(filename string, format string) error {
-	var f *os.File
-	var sysWriter *syslog.Writer
-	var err error
-	if filename != "" {
-		f, err = os.OpenFile(
-			filename,
-			os.O_WRONLY|os.O_CREATE|os.O_APPEND,
-			0644,
-		)
-		if err != nil {
-			return err
-		}
-	} else {
-		// Priority consist of facility and severity, here facility to specify the
-		// type of system that is logging the message to syslog and severity is log-level.
-		// User applications are allowed to take facility value between LOG_LOCAL0
-		// to LOG_LOCAL7. We are using LOG_LOCAL7 as facility and LOG_DEBUG to write
-		// debug messages.
-		sysWriter, err = syslog.New(syslog.LOG_LOCAL7|syslog.LOG_DEBUG, ProgrammeName)
-		if err != nil {
-			return fmt.Errorf("error while creating syswriter: %w", err)
-		}
+	f, err := os.OpenFile(
+		filename,
+		os.O_WRONLY|os.O_CREATE|os.O_APPEND,
+		0644,
+	)
+	if err != nil {
+		return err
 	}
 
 	defaultLoggerFactory = &loggerFactory{
-		file:      f,
-		sysWriter: sysWriter,
-		flag:      0,
-		format:    format,
+		file:   f,
+		flag:   0,
+		format: format,
 	}
 	defaultInfoLogger = NewInfo("")
 
@@ -130,37 +103,29 @@ func Info(v ...interface{}) {
 
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
-	file      *os.File
-	sysWriter *syslog.Writer
-	flag      int
-	format    string
+	file   *os.File
+	flag   int
+	format string
 }
 
 func (f *loggerFactory) newLogger(level, prefix string) *log.Logger {
 	return log.New(f.writer(level), prefix, f.flag)
 }
 
-func (f *loggerFactory) createJsonOrTextWriter(level string, writer io.Writer) io.Writer {
-	if f.format == "json" {
-		return &jsonWriter{
-			w:     writer,
-			level: level,
-		}
-	}
-
-	return &textWriter{
-		w:     writer,
-		level: level,
-	}
-}
-
 func (f *loggerFactory) writer(level string) io.Writer {
 	if f.file != nil {
-		return f.createJsonOrTextWriter(level, f.file)
-	}
-
-	if f.sysWriter != nil {
-		return f.createJsonOrTextWriter(level, f.sysWriter)
+		switch f.format {
+		case "json":
+			return &jsonWriter{
+				w:     f.file,
+				level: level,
+			}
+		case "text":
+			return &textWriter{
+				w:     f.file,
+				level: level,
+			}
+		}
 	}
 
 	switch level {
