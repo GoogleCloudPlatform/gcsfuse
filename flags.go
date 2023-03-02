@@ -263,6 +263,17 @@ func newApp() (app *cli.App) {
 				Usage: "The number of maximum idle connections allowed per server",
 			},
 
+			cli.BoolFlag{
+				Name: "enable-nonexistent-type-cache",
+				Usage: "Once set, if an inode is not found in GCS," +
+					"a type cache entry with type NonexistentType will be created. " +
+					"This also means new file/dir created might not be seen. " +
+					"For example, if this flag is set, and flag type-cache-ttl is " +
+					"set to 10 minutes, then we create the same file/node in mean " +
+					"time using the same mount, since we are not refreshing the " +
+					"cache, it will still return nil.",
+			},
+
 			/////////////////////////
 			// Monitoring & Logging
 			/////////////////////////
@@ -374,17 +385,18 @@ type flagStorage struct {
 	SequentialReadSizeMb               int32
 
 	// Tuning
-	MaxRetrySleep       time.Duration
-	StatCacheCapacity   int
-	StatCacheTTL        time.Duration
-	TypeCacheTTL        time.Duration
-	MaxRetryDuration    time.Duration
-	RetryMultiplier     float64
-	LocalFileCache      bool
-	TempDir             string
-	ClientProtocol      mountpkg.ClientProtocol
-	MaxConnsPerHost     int
-	MaxIdleConnsPerHost int
+	MaxRetrySleep              time.Duration
+	StatCacheCapacity          int
+	StatCacheTTL               time.Duration
+	TypeCacheTTL               time.Duration
+	MaxRetryDuration           time.Duration
+	RetryMultiplier            float64
+	LocalFileCache             bool
+	TempDir                    string
+	ClientProtocol             mountpkg.ClientProtocol
+	MaxConnsPerHost            int
+	MaxIdleConnsPerHost        int
+	EnableNonexistentTypeCache bool
 
 	// Monitoring & Logging
 	StackdriverExportInterval time.Duration
@@ -506,17 +518,18 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		SequentialReadSizeMb:               int32(c.Int("sequential-read-size-mb")),
 
 		// Tuning,
-		MaxRetrySleep:       c.Duration("max-retry-sleep"),
-		StatCacheCapacity:   c.Int("stat-cache-capacity"),
-		StatCacheTTL:        c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:        c.Duration("type-cache-ttl"),
-		MaxRetryDuration:    c.Duration("max-retry-duration"),
-		RetryMultiplier:     c.Float64("retry-multiplier"),
-		LocalFileCache:      c.Bool("experimental-local-file-cache"),
-		TempDir:             c.String("temp-dir"),
-		ClientProtocol:      clientProtocol,
-		MaxConnsPerHost:     c.Int("max-conns-per-host"),
-		MaxIdleConnsPerHost: c.Int("max-idle-conns-per-host"),
+		MaxRetrySleep:              c.Duration("max-retry-sleep"),
+		StatCacheCapacity:          c.Int("stat-cache-capacity"),
+		StatCacheTTL:               c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:               c.Duration("type-cache-ttl"),
+		MaxRetryDuration:           c.Duration("max-retry-duration"),
+		RetryMultiplier:            c.Float64("retry-multiplier"),
+		LocalFileCache:             c.Bool("experimental-local-file-cache"),
+		TempDir:                    c.String("temp-dir"),
+		ClientProtocol:             clientProtocol,
+		MaxConnsPerHost:            c.Int("max-conns-per-host"),
+		MaxIdleConnsPerHost:        c.Int("max-idle-conns-per-host"),
+		EnableNonexistentTypeCache: c.Bool("enable-nonexistent-type-cache"),
 
 		// Monitoring & Logging
 		StackdriverExportInterval: c.Duration("stackdriver-export-interval"),

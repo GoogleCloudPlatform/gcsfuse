@@ -29,6 +29,7 @@ var (
 	RegularFileType Type = 2
 	ExplicitDirType Type = 3
 	ImplicitDirType Type = 4
+	NonexistentType Type = 5
 )
 
 // Core contains critical information about an inode before its creation.

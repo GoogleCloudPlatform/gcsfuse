@@ -69,7 +69,7 @@ func (t *DirTest) SetUp(ti *TestInfo) {
 		".gcsfuse_tmp/",
 		bucket)
 	// Create the inode. No implicit dirs by default.
-	t.resetInode(false)
+	t.resetInode(false, false)
 }
 
 func (t *DirTest) TearDown() {
@@ -86,7 +86,7 @@ func (p DirentSlice) Len() int           { return len(p) }
 func (p DirentSlice) Less(i, j int) bool { return p[i].Name < p[j].Name }
 func (p DirentSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-func (t *DirTest) resetInode(implicitDirs bool) {
+func (t *DirTest) resetInode(implicitDirs bool, enableNonexistentTypeCache bool) {
 	if t.in != nil {
 		t.in.Unlock()
 	}
@@ -100,6 +100,7 @@ func (t *DirTest) resetInode(implicitDirs bool) {
 			Mode: dirMode,
 		},
 		implicitDirs,
+		enableNonexistentTypeCache,
 		typeCacheTTL,
 		&t.bucket,
 		&t.clock,
@@ -262,7 +263,7 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 	var err error
 
 	// Enable implicit dirs.
-	t.resetInode(true)
+	t.resetInode(true, false)
 
 	// Create an object that implicitly defines the directory.
 	otherObjName := path.Join(objName, "asdf")
@@ -411,7 +412,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	var err error
 
 	// Enable implicit dirs.
-	t.resetInode(true)
+	t.resetInode(true, false)
 
 	// Create backing objects.
 	fileObj, err := gcsutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
@@ -489,6 +490,86 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 	AssertNe(nil, result.Object)
 
 	ExpectEq(dirObjName, result.Object.Name)
+}
+
+func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
+	// Enable enableNonexistentTypeCache for type cache
+	t.resetInode(false, true)
+
+	const name = "qux"
+	objName := path.Join(dirInodeName, name) + "/"
+
+	// Look up nonexistent object, return nil
+	result, err := t.in.LookUpChild(t.ctx, name)
+
+	AssertEq(nil, err)
+	AssertEq(nil, result)
+
+	// Create a backing object.
+	createObj, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
+	AssertEq(nil, err)
+
+	// Look up again, should still return nil due to cache
+	result, err = t.in.LookUpChild(t.ctx, name)
+
+	AssertEq(nil, err)
+	AssertEq(nil, result)
+
+	// But after the TTL expires, the behavior should flip.
+	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
+
+	// Look up again, should return correct object
+	result, err = t.in.LookUpChild(t.ctx, name)
+
+	AssertEq(nil, err)
+	AssertNe(nil, result.Object)
+
+	ExpectEq(objName, result.FullName.GcsObjectName())
+	ExpectEq(objName, result.Object.Name)
+	ExpectEq(createObj.Generation, result.Object.Generation)
+	ExpectEq(createObj.Size, result.Object.Size)
+}
+
+func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
+	// Enable implicitDirs and enableNonexistentTypeCache for type cache
+	t.resetInode(true, true)
+
+	const name = "qux"
+	objName := path.Join(dirInodeName, name) + "/"
+
+	// Look up nonexistent object, return nil
+	result, err := t.in.LookUpChild(t.ctx, name)
+
+	AssertEq(nil, err)
+	AssertEq(nil, result)
+
+	// Create an object that implicitly defines the directory.
+	otherObjName := path.Join(objName, "asdf")
+	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
+	AssertEq(nil, err)
+
+	// Look up again, should still return nil due to cache
+	result, err = t.in.LookUpChild(t.ctx, name)
+
+	AssertEq(nil, err)
+	AssertEq(nil, result)
+
+	// But after the TTL expires, the behavior should flip.
+	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
+
+	// Look up again, should return correct object
+	result, err = t.in.LookUpChild(t.ctx, name)
+
+	AssertEq(nil, err)
+	ExpectEq(nil, result.Object)
+
+	ExpectEq(objName, result.FullName.GcsObjectName())
+	ExpectEq(inode.ImplicitDirType, result.Type())
+
+	// A conflict marker should not work.
+	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	AssertEq(nil, err)
+	ExpectEq(nil, result)
 }
 
 func (t *DirTest) ReadDescendants_Empty() {
@@ -580,7 +661,7 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	var entry fuseutil.Dirent
 
 	// Enable implicit dirs.
-	t.resetInode(true)
+	t.resetInode(true, false)
 
 	// Set up contents.
 	objs := []string{
