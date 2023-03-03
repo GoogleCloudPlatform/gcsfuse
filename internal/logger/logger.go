@@ -64,7 +64,7 @@ func InitLogFile(filename string, format string) error {
 			// debug messages.
 			sysWriter, err = syslog.New(syslog.LOG_LOCAL7|syslog.LOG_DEBUG, ProgrammeName)
 			if err != nil {
-				Infof("error while creating sys writer: %w", err)
+				Infof("error while creating sys writer: %v", err)
 				sysWriter = nil
 			}
 		} else {
