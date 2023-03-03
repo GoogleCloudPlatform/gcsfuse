@@ -155,9 +155,6 @@ func setUpRateLimiting(
 func (bm *bucketManager) SetUpGcsBucket(ctx context.Context, name string) (b gcs.Bucket, err error) {
 	if bm.config.EnableStorageClientLibrary {
 		b = bm.storageHandle.BucketHandle(name)
-		if err != nil {
-			return
-		}
 
 		if reqtrace.Enabled() {
 			b = gcs.GetWrappedWithReqtraceBucket(b)
