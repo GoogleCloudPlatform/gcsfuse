@@ -17,7 +17,6 @@ package gcsx
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path"
 	"time"
 
@@ -155,7 +154,7 @@ func setUpRateLimiting(
 // bucket as described in that package.
 func (bm *bucketManager) SetUpGcsBucket(ctx context.Context, name string) (b gcs.Bucket, err error) {
 	if bm.config.EnableStorageClientLibrary {
-		b, err = bm.storageHandle.BucketHandle(name)
+		b = bm.storageHandle.BucketHandle(name)
 		if err != nil {
 			return
 		}
@@ -245,9 +244,9 @@ func (bm *bucketManager) SetUpBucket(
 	// Check whether this bucket works, giving the user a warning early if there
 	// is some problem.
 	{
-		_, err := b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1})
+		_, err = b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1})
 		if err != nil {
-			fmt.Fprintln(os.Stdout, "WARNING, bucket doesn't appear to work: ", err)
+			return
 		}
 	}
 

@@ -67,19 +67,17 @@ func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc StorageClientConfig)
 
 func (t *StorageHandleTest) TestBucketHandleWhenBucketExists() {
 	storageHandle := t.fakeStorage.CreateStorageHandle()
-	bucketHandle, err := storageHandle.BucketHandle(TestBucketName)
+	bucketHandle := storageHandle.BucketHandle(TestBucketName)
 
-	AssertEq(nil, err)
 	AssertNe(nil, bucketHandle)
 	AssertEq(TestBucketName, bucketHandle.bucketName)
 }
 
 func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExist() {
 	storageHandle := t.fakeStorage.CreateStorageHandle()
-	bucketHandle, err := storageHandle.BucketHandle(invalidBucketName)
+	bucketHandle := storageHandle.BucketHandle(invalidBucketName)
 
-	AssertNe(nil, err)
-	AssertEq(nil, bucketHandle)
+	AssertEq(nil, bucketHandle.Bucket)
 }
 
 func (t *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
