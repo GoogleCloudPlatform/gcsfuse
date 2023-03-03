@@ -15,7 +15,6 @@
 package logger
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"log/syslog"
@@ -65,7 +64,7 @@ func InitLogFile(filename string, format string) error {
 			// debug messages.
 			sysWriter, err = syslog.New(syslog.LOG_LOCAL7|syslog.LOG_DEBUG, ProgrammeName)
 			if err != nil {
-				fmt.Printf("error while creating syswriter: %w", err)
+				Infof("error while creating sys writer: %w", err)
 				sysWriter = nil
 			}
 		} else {
