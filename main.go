@@ -347,6 +347,11 @@ func runCLIApp(c *cli.Context) (err error) {
 			env = append(env, fmt.Sprintf("HOME=%s", homeDir))
 		}
 
+		// This environment variable will be helpful to distinguish b/w the main
+		// process and daemon process. If this environment variable set that means
+		// programme is running as daemon process.
+		env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseAsBackground))
+
 		// Run.
 		err = daemonize.Run(path, args, env, os.Stdout)
 		if err != nil {

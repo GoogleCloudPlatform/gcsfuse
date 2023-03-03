@@ -29,6 +29,7 @@ import (
 // used to filter the logs from syslog and write it to respective log files -
 // gcsfuse.log in case of GCSFuse.
 const ProgrammeName string = "gcsfuse"
+const GCSFuseAsBackground string = "GCSFUSE_AS_BACKGROUND"
 
 var (
 	defaultLoggerFactory *loggerFactory
@@ -40,6 +41,8 @@ var (
 // In case of empty file, it starts writing the log to syslog file, which
 // is eventually filtered and redirected to a fixed location using syslog
 // config.
+// Here, background true means, this InitLogFile has been called for the
+// background daemon.
 func InitLogFile(filename string, format string) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
@@ -54,14 +57,19 @@ func InitLogFile(filename string, format string) error {
 			return err
 		}
 	} else {
-		// Priority consist of facility and severity, here facility to specify the
-		// type of system that is logging the message to syslog and severity is log-level.
-		// User applications are allowed to take facility value between LOG_LOCAL0
-		// to LOG_LOCAL7. We are using LOG_LOCAL7 as facility and LOG_DEBUG to write
-		// debug messages.
-		sysWriter, err = syslog.New(syslog.LOG_LOCAL7|syslog.LOG_DEBUG, ProgrammeName)
-		if err != nil {
-			return fmt.Errorf("error while creating syswriter: %w", err)
+		if _, ok := os.LookupEnv(GCSFuseAsBackground); ok {
+			// Priority consist of facility and severity, here facility to specify the
+			// type of system that is logging the message to syslog and severity is log-level.
+			// User applications are allowed to take facility value between LOG_LOCAL0
+			// to LOG_LOCAL7. We are using LOG_LOCAL7 as facility and LOG_DEBUG to write
+			// debug messages.
+			sysWriter, err = syslog.New(syslog.LOG_LOCAL7|syslog.LOG_DEBUG, ProgrammeName)
+			if err != nil {
+				fmt.Printf("error while creating syswriter: %w", err)
+				sysWriter = nil
+			}
+		} else {
+			sysWriter = nil
 		}
 	}
 
