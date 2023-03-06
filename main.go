@@ -264,7 +264,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		return fmt.Errorf("parsing flags failed: %w", err)
 	}
 
-	if flags.Foreground && flags.LogFile != "" {
+	if flags.Foreground {
 		err = logger.InitLogFile(flags.LogFile, flags.LogFormat)
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
@@ -346,6 +346,11 @@ func runCLIApp(c *cli.Context) (err error) {
 		if homeDir, _ := os.UserHomeDir(); err == nil {
 			env = append(env, fmt.Sprintf("HOME=%s", homeDir))
 		}
+
+		// This environment variable will be helpful to distinguish b/w the main
+		// process and daemon process. If this environment variable set that means
+		// programme is running as daemon process.
+		env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
 
 		// Run.
 		err = daemonize.Run(path, args, env, os.Stdout)
