@@ -55,12 +55,10 @@ var _ TearDownInterface = &BucketHandleTest{}
 func init() { RegisterTestSuite(&BucketHandleTest{}) }
 
 func (t *BucketHandleTest) SetUp(_ *TestInfo) {
-	var err error
 	t.fakeStorage = NewFakeStorage()
 	t.storageHandle = t.fakeStorage.CreateStorageHandle()
-	t.bucketHandle, err = t.storageHandle.BucketHandle(TestBucketName)
+	t.bucketHandle = t.storageHandle.BucketHandle(TestBucketName)
 
-	AssertEq(nil, err)
 	AssertNe(nil, t.bucketHandle)
 }
 

@@ -30,7 +30,7 @@ import (
 )
 
 type StorageHandle interface {
-	BucketHandle(bucketName string) (bh *bucketHandle, err error)
+	BucketHandle(bucketName string) (bh *bucketHandle)
 }
 
 type storageClient struct {
@@ -110,13 +110,9 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 	return
 }
 
-func (sh *storageClient) BucketHandle(bucketName string) (bh *bucketHandle, err error) {
+func (sh *storageClient) BucketHandle(bucketName string) (bh *bucketHandle) {
 	storageBucketHandle := sh.client.Bucket(bucketName)
-	obj, err := storageBucketHandle.Attrs(context.Background())
-	if err != nil {
-		return
-	}
 
-	bh = &bucketHandle{bucket: storageBucketHandle, bucketName: obj.Name}
+	bh = &bucketHandle{bucket: storageBucketHandle, bucketName: bucketName}
 	return
 }
