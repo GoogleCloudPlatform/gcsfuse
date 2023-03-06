@@ -7,61 +7,37 @@ GCSFuse supports different debug flags e.g. --debug_fs, --debug_fuse,
 of gcsfuse. For more information, use `gcsfuse --help`.
 
 ## Log location
-GCSFuse supports a flag named `--log-file` to control the location of the logs.
-By default, the GCSFuse writes the logs to syslog (see syslog section below for
-more details) but users can pass custom location (including stdout and stderr)
-using `--log-file` flag.
+GCSFuse logs its activity to a file if the user specifies one with the `--log-file`
+flag. Otherwise, it logs to **stdout** in the foreground and to **syslog** in the background.
 
-The below sections describe how users can use default and custom locations
-support for logs along with how log rotation can be achieved in those cases.
+## Log rotation
+GCSFuse does not automatically rotate logs, so you must configure this manually.
 
-### Default location - syslog
-By default, if you don't provide --log-file, GCSFuse writes all the logs to
-syslog which eventually redirects to `/var/log/gcsfuse.log`. The redirection
-happens with the help of rsyslog config file. The rsyslog config file is present
-at `/etc/rsyslog.d/08-gcsfuse.conf`, if GCSFuse is installed using released-package.
-Otherwise, the configuration has to be added manually. E.g. in case when you
-mount by building the source code.
+### To support the rotation of logs written to syslog
+1. Please make sure you have rsyslog, logrotate and cron packages installed on the
+system and service running.
+E.g. command to install on ubuntu/deb, and run the corresponding package.
+```bash
+sudo add-apt-repository ppa:adiscon/v8-devel
+sudo apt-get update
+sudo apt-get install rsyslog logrotate cron
 
-#### Log rotation
-We achieve the rotation of logs with the help of logrotate package/config, which
-is applied on the log file `/var/log/gcsfuse.log`. You can find the logrotate
-configuration placed at `/etc/logrotate.hourly.d/gcsfuse` in case of installation
-using released package. Otherwise, you need to add the logrotate configuration
-manually to support the log-rotation.
+sudo systemctl start rsyslog
+sudo systemctl start logrotate
+sudo systemctl start cron
+```
+2. Run the shell script located at [this](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/log_rotate/install_script.sh) location.
+3. Mount the GCS bucket using GCSFuse with enabled logs and verify the logs
+present at `/var/log/gcsfuse.log`.
+4. Run the below command to test this setup.
+```bash
+# The below command should run successfully, it will trigger the hourly cron job.
+# Cron will trigger logrotate and you will find the logrotate status in
+# /var/log/logrotate/status file.
+sudo run-parts -v /etc/cron.hourly 
+```
 
-### Custom log location
-You can specify any custom location for logs by passing the location path to
-`--log-file` flag.
-
-**Note:** log rotation is not supported by default in this case (unlike the case of
-default location i.e. syslog)
-
-#### Write to stdout/err
-We can find the file descriptor corresponding to stdout/err and pass in `--log-file`
-flag to redirect the logs to stdout/err.
-
-Typically, the equivalent file paths for stdout and stderr are:
-`/dev/fd/1` -> `stdout`
-`/dev/fd/2` -> `stderr`
-
-Or you may try finding the equivalent path using the below command:
-
-Command to find:
-`ls -la /dev | grep 'std'`
-
-Output would be:
-`stderr -> /proc/self/fd/2`
-`stdin  -> /proc/self/fd/0`
-`stdout -> /proc/self/fd/1`
-
-E.g. to redirect the logs to stdout we can pass `--log-file=/proc/self/fd/1` as
-an argument of gcsfuse command.
-
-#### Log rotation
-To support the log rotation, you need to create the log-rotation config manually
-and apply on the passed log-location.
-
+### To support the rotation of logs written to custom log-file
 E.g. assume you pass `--log-file=/$HOME/test.log`, gcsfuse will start writing
 the logs to `/$HOME/test.log`. Now, to support log rotation, you can follow the
 below steps:
