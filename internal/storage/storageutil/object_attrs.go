@@ -24,31 +24,45 @@ import (
 )
 
 func convertObjectAccessControlToACLRule(obj *storagev1.ObjectAccessControl) storage.ACLRule {
-	return storage.ACLRule{
+	aclObj := storage.ACLRule{
 		Entity:   storage.ACLEntity(obj.Entity),
 		EntityID: obj.EntityId,
 		Role:     storage.ACLRole(obj.Role),
 		Domain:   obj.Domain,
 		Email:    obj.Email,
-		ProjectTeam: &storage.ProjectTeam{
+	}
+
+	if obj.ProjectTeam != nil {
+		aclObj.ProjectTeam = &storage.ProjectTeam{
 			ProjectNumber: obj.ProjectTeam.ProjectNumber,
 			Team:          obj.ProjectTeam.Team,
-		},
+		}
+	} else {
+		aclObj.ProjectTeam = nil
 	}
+
+	return aclObj
 }
 
 func convertACLRuleToObjectAccessControl(element storage.ACLRule) *storagev1.ObjectAccessControl {
-	return &storagev1.ObjectAccessControl{
+	obj := &storagev1.ObjectAccessControl{
 		Entity:   string(element.Entity),
 		EntityId: element.EntityID,
 		Role:     string(element.Role),
 		Domain:   element.Domain,
 		Email:    element.Email,
-		ProjectTeam: &storagev1.ObjectAccessControlProjectTeam{
+	}
+
+	if element.ProjectTeam != nil {
+		obj.ProjectTeam = &storagev1.ObjectAccessControlProjectTeam{
 			ProjectNumber: element.ProjectTeam.ProjectNumber,
 			Team:          element.ProjectTeam.Team,
-		},
+		}
+	} else {
+		obj.ProjectTeam = nil
 	}
+
+	return obj
 }
 
 func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {

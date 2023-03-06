@@ -60,6 +60,16 @@ func (t objectAttrsTest) TestConvertACLRuleToObjectAccessControlMethod() {
 	ExpectEq(objectAccessControl.ProjectTeam.Team, attrs.ProjectTeam.Team)
 }
 
+func (t objectAttrsTest) TestConvertACLRuleToObjectAccessControlMethodWhenProjectTeamEqualsNil() {
+	var attrs = storage.ACLRule{
+		ProjectTeam: nil,
+	}
+
+	objectAccessControl := convertACLRuleToObjectAccessControl(attrs)
+
+	ExpectEq(nil, objectAccessControl.ProjectTeam)
+}
+
 func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
 	var attrMd5 []byte
 	timeAttr := time.Now()
@@ -153,6 +163,16 @@ func (t objectAttrsTest) TestConvertObjectAccessControlToACLRuleMethod() {
 	ExpectEq(aclRule.Email, objectAccessControl.Email)
 	ExpectEq(aclRule.ProjectTeam.ProjectNumber, objectAccessControl.ProjectTeam.ProjectNumber)
 	ExpectEq(aclRule.ProjectTeam.Team, objectAccessControl.ProjectTeam.Team)
+}
+
+func (t objectAttrsTest) TestConvertObjectAccessControlToACLRuleMethodWhenProjectTeamEqualsNil() {
+	objectAccessControl := &storagev1.ObjectAccessControl{
+		ProjectTeam: nil,
+	}
+
+	aclRule := convertObjectAccessControlToACLRule(objectAccessControl)
+
+	ExpectEq(nil, aclRule.ProjectTeam)
 }
 
 func (t objectAttrsTest) TestSetAttrsInWriterMethod() {
