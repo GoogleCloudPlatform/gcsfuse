@@ -37,8 +37,6 @@ func convertObjectAccessControlToACLRule(obj *storagev1.ObjectAccessControl) sto
 			ProjectNumber: obj.ProjectTeam.ProjectNumber,
 			Team:          obj.ProjectTeam.Team,
 		}
-	} else {
-		aclObj.ProjectTeam = nil
 	}
 
 	return aclObj
@@ -58,8 +56,6 @@ func convertACLRuleToObjectAccessControl(element storage.ACLRule) *storagev1.Obj
 			ProjectNumber: element.ProjectTeam.ProjectNumber,
 			Team:          element.ProjectTeam.Team,
 		}
-	} else {
-		obj.ProjectTeam = nil
 	}
 
 	return obj
