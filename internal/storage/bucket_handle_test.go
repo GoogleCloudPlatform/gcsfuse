@@ -187,7 +187,19 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 			MetaGenerationPrecondition: nil,
 		})
 
-	AssertEq("storage: object doesn't exist", err.Error())
+	AssertEq("gcs.NotFoundError: storage: object doesn't exist", err.Error())
+}
+
+func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingGeneration() {
+
+	err := t.bucketHandle.DeleteObject(context.Background(),
+		&gcs.DeleteObjectRequest{
+			Name: TestObjectName,
+			//Generation:                 1234, // Missing generation
+			MetaGenerationPrecondition: nil,
+		})
+
+	AssertEq(nil, err)
 }
 
 func (t *BucketHandleTest) TestStatObjectMethodWithValidObject() {
