@@ -375,8 +375,5 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 }
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {
-	if conditions != (storage.Conditions{}) {
-		return true
-	}
-	return false
+	return conditions != (storage.Conditions{})
 }
