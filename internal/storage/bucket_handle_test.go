@@ -827,3 +827,186 @@ func (t *BucketHandleTest) TestIsStorageConditionsNotEmptyWithNonEmptyConditions
 	// DoesNotExist is set.
 	AssertTrue(isStorageConditionsNotEmpty(storage.Conditions{DoesNotExist: true}))
 }
+
+func (t *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotExist() {
+	var notfound *gcs.NotFoundError
+	_, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: dstObjectName,
+		})
+	AssertTrue(errors.As(err, &notfound))
+	srcObj1, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: TestObjectName,
+		})
+	AssertEq(nil, err)
+	AssertNe(nil, srcObj1)
+	srcObj2, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: TestSubObjectName,
+		})
+	AssertEq(nil, err)
+	AssertNe(nil, srcObj2)
+
+	// Add DstGenerationPrecondition = 0 as the Destination object doesn't exist.
+	// Note: fakestorage doesn't respect precondition checks but still adding to
+	// make sure that it works when precondition checks are supported or we shift
+	// to different testing storage.
+	var zeroPreCond int64 = 0
+	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
+		&gcs.ComposeObjectsRequest{
+			DstName:                       dstObjectName,
+			DstGenerationPrecondition:     &zeroPreCond,
+			DstMetaGenerationPrecondition: nil,
+			Sources: []gcs.ComposeSource{
+				{
+					Name: TestObjectName,
+				},
+				{
+					Name: TestSubObjectName,
+				},
+			},
+			ContentType: ContentType,
+			Metadata: map[string]string{
+				MetaDataKey: MetaDataValue,
+			},
+			ContentLanguage:    ContentLanguage,
+			ContentEncoding:    ContentEncoding,
+			CacheControl:       CacheControl,
+			ContentDisposition: ContentDisposition,
+			CustomTime:         CustomTime,
+			EventBasedHold:     true,
+			StorageClass:       StorageClass,
+			Acl:                nil,
+		})
+
+	AssertEq(nil, err)
+	// Validation of srcObject1 to ensure that it is not effected.
+	srcBuffer1 := t.readObjectContent(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: TestObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(ContentInTestObject)),
+			},
+		})
+	// Validation of srcObject2 to ensure that it is not effected.
+	srcBuffer2 := t.readObjectContent(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: TestSubObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(ContentInTestSubObject)),
+			},
+		})
+	// Reading content of dstObject
+	dstBuffer := t.readObjectContent(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: dstObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(composedObj.Size),
+			},
+		})
+	// Comparing content of destination object
+	ExpectEq(srcBuffer1+srcBuffer2, dstBuffer)
+	AssertNe(nil, composedObj)
+	AssertEq(srcObj1.Size+srcObj2.Size, composedObj.Size)
+}
+
+func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstObject() {
+	// Checking source object 1 exists. This will also be the destination object.
+	srcObj1, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: TestObjectName,
+		})
+	AssertEq(nil, err)
+	AssertNe(nil, srcObj1)
+
+	// Reading source object 1 content before composing it
+	srcObj1Buffer := t.readObjectContent(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: TestObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(ContentInTestObject)),
+			},
+		})
+	ExpectEq(ContentInTestObject, srcObj1Buffer)
+
+	// Checking source object 2 exists.
+	srcObj2, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: TestSubObjectName,
+		})
+	AssertEq(nil, err)
+	AssertNe(nil, srcObj2)
+
+	// Reading source object 2 content before composing it
+	srcObj2Buffer := t.readObjectContent(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: TestSubObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(ContentInTestSubObject)),
+			},
+		})
+	ExpectEq(ContentInTestSubObject, srcObj2Buffer)
+
+	// Note: fakestorage doesn't respect precondition checks but still adding to
+	// make sure that it works when precondition checks are supported or we shift
+	// to different testing storage.
+	var preCond int64 = srcObj1.Generation
+	// Compose srcObj1 and srcObj2 back into srcObj1
+	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
+		&gcs.ComposeObjectsRequest{
+			DstName:                       srcObj1.Name,
+			DstGenerationPrecondition:     &preCond,
+			DstMetaGenerationPrecondition: nil,
+			Sources: []gcs.ComposeSource{
+				{
+					Name: srcObj1.Name,
+				},
+				{
+					Name: srcObj2.Name,
+				},
+			},
+			ContentType: ContentType,
+			Metadata: map[string]string{
+				MetaDataKey: MetaDataValue,
+			},
+			ContentLanguage:    ContentLanguage,
+			ContentEncoding:    ContentEncoding,
+			CacheControl:       CacheControl,
+			ContentDisposition: ContentDisposition,
+			CustomTime:         CustomTime,
+			EventBasedHold:     true,
+			StorageClass:       StorageClass,
+			Acl:                nil,
+		})
+
+	AssertEq(nil, err)
+	// Validation of src object 2 to ensure that it is not effected.
+	srcObj2BufferAfterCompose := t.readObjectContent(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: TestSubObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(ContentInTestSubObject)),
+			},
+		})
+	ExpectEq(ContentInTestSubObject, srcObj2BufferAfterCompose)
+
+	// Reading content of dstObject (composed back into src object 1)
+	dstBuffer := t.readObjectContent(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: TestObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(composedObj.Size),
+			},
+		})
+	ExpectEq(ContentInTestObject+ContentInTestSubObject, dstBuffer)
+	AssertNe(nil, composedObj)
+	AssertEq(len(ContentInTestObject)+len(ContentInTestSubObject), composedObj.Size)
+}
