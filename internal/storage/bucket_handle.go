@@ -338,8 +338,6 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	// DstGenerationPrecondition or DoesNotExist should be set in dstObj
 	// preconditions to make requests Idempotent.
 	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/7ad451c6f2ead7992e030503e5b66c555b2ebf71/vendor/cloud.google.com/go/storage/copy.go#L230
-	// When DstGenerationPrecondition is 0, set DoesNotExist as true.
-	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/7ad451c6f2ead7992e030503e5b66c555b2ebf71/vendor/cloud.google.com/go/storage/storage.go#L1710
 	if req.DstGenerationPrecondition != nil {
 		if *req.DstGenerationPrecondition == 0 {
 			dstObjConds.DoesNotExist = true
@@ -350,8 +348,6 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	// Only set conditions on dstObj if there is at least one condition in
 	// dstObjConds. Otherwise, storage client library gives empty conditions error.
 	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/7ad451c6f2ead7992e030503e5b66c555b2ebf71/vendor/cloud.google.com/go/storage/storage.go#L1739
-	// Note: Requests are not idempotent when conditions are empty and only
-	// idempotent if GenerationMatch or DoesNotExist is set.
 	if dstObjConds != (storage.Conditions{}) {
 		dstObj = dstObj.If(dstObjConds)
 	}

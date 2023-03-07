@@ -879,8 +879,8 @@ func (t *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotExist() {
 			StorageClass:       StorageClass,
 			Acl:                nil,
 		})
-
 	AssertEq(nil, err)
+
 	// Validation of srcObject1 to ensure that it is not effected.
 	srcBuffer1 := t.readObjectContent(context.Background(),
 		&gcs.ReadObjectRequest{
@@ -890,6 +890,8 @@ func (t *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotExist() {
 				Limit: uint64(len(ContentInTestObject)),
 			},
 		})
+	ExpectEq(ContentInTestObject, srcBuffer1)
+
 	// Validation of srcObject2 to ensure that it is not effected.
 	srcBuffer2 := t.readObjectContent(context.Background(),
 		&gcs.ReadObjectRequest{
@@ -899,6 +901,8 @@ func (t *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotExist() {
 				Limit: uint64(len(ContentInTestSubObject)),
 			},
 		})
+	ExpectEq(ContentInTestSubObject, srcBuffer2)
+
 	// Reading content of dstObject
 	dstBuffer := t.readObjectContent(context.Background(),
 		&gcs.ReadObjectRequest{
