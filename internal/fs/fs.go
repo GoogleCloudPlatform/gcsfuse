@@ -1582,7 +1582,7 @@ func (fs *fileSystem) renameDir(
 	newParent.Unlock()
 	if err != nil {
 		var preconditionErr *gcs.PreconditionError
-		if errors.As(err, &preconditionErr) && strings.Contains(preconditionErr.Error(), "object exists") {
+		if errors.As(err, &preconditionErr) {
 			// This means the new directory already exists, which is OK if
 			// it is empty (checked below).
 		} else {
