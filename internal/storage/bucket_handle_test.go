@@ -849,9 +849,9 @@ func (t *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotExist() {
 	AssertNe(nil, srcObj2)
 
 	// Add DstGenerationPrecondition = 0 as the Destination object doesn't exist.
-	// Note: fakestorage doesn't respect precondition checks but still adding to
-	// make sure that it works when precondition checks are supported or we shift
-	// to different testing storage.
+	// Note: fake-gcs-server doesn't respect precondition checks but still adding
+	// to make sure that it works when precondition checks are supported or we
+	// shift to different testing storage.
 	var zeroPreCond int64 = 0
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
 		&gcs.ComposeObjectsRequest{
@@ -953,9 +953,9 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstObject() 
 		})
 	ExpectEq(ContentInTestSubObject, srcObj2Buffer)
 
-	// Note: fakestorage doesn't respect precondition checks but still adding to
-	// make sure that it works when precondition checks are supported or we shift
-	// to different testing storage.
+	// Note: fake-gcs-server doesn't respect precondition checks but still adding
+	// to make sure that it works when precondition checks are supported or we
+	// shift to different testing storage.
 	var preCond int64 = srcObj1.Generation
 	// Compose srcObj1 and srcObj2 back into srcObj1
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
