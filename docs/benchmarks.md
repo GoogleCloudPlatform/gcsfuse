@@ -19,8 +19,8 @@
 
 ### GCSFuse command
 ```
-gcsfuse --implicit-dirs --stat-cache-ttl=60s --type-cache-ttl=60s
- --disable-http2 --max-conns-per-host=100 <bucket-name> <path-to-mount-point>
+gcsfuse --implicit-dirs --stat-cache-ttl=60s --type-cache-ttl=60s 
+--client-protocol=http1 --max-conns-per-host=100 <bucket-name> <path-to-mount-point>
 ```
 ## Reads
 ### Sequential reads
@@ -54,8 +54,9 @@ gcsfuse --implicit-dirs --stat-cache-ttl=60s --type-cache-ttl=60s
 
 ### Recommendation for reads
 GCSFuse performs well for sequential reads and recommendation is to use GCSFuse
-for doing sequential reads on file sizes > 10MB and < 1GB. Always use
---disable-http2 and --max-connections-per-host flag, it gives better throughput.
+for doing sequential reads on file sizes > 10MB and < 1GB. Always use http1 
+(--client-protocol=http1, enabled by default) and --max-connections-per-host  
+flag, it gives better throughput.
 
 ## Steps to benchmark GCSFuse performance
 1. [Create](https://cloud.google.com/compute/docs/instances/create-start-instance#publicimage) a GCP VM instance.
@@ -70,8 +71,8 @@ sudo apt-get install fio
 ```
   mkdir <path-to-mount-point> 
   
-  gcsfuse --implicit-dirs --stat-cache-ttl=60s --type-cache-ttl=60s
-  --disable-http2 --max-conns-per-host=100 <bucket-name> <path-to-mount-point>
+  gcsfuse --implicit-dirs --stat-cache-ttl=60s --type-cache-ttl=60s --client-protocol=http1 
+  --max-conns-per-host=100 <bucket-name> <path-to-mount-point>
 ```
 7. Create a FIO job spec file.
 ```
