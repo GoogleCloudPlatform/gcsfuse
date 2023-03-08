@@ -8,10 +8,10 @@ sudo apt-get install git
 
 # Running test only for when title includes PerfTest
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
-title=$(cat pr.json | grep "title")
+perfTest=$(cat pr.json | grep "PerfTest")
 rm pr.json
-perfTest=$( $title | grep "PerfTest")
-if [ $perfTest == $title ]
+perfTestStr="$perfTest"
+if [[ "perfTestStr" == *"PerfTest"* ]]
 then
   echo Installing python3-pip
   sudo apt-get -y install python3-pip
@@ -59,3 +59,4 @@ then
   cat result.txt
 else
   echo "No need to execute tests"
+fi
