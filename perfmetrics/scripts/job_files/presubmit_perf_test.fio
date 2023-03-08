@@ -13,6 +13,7 @@ time_based=1
 nrfiles=1
 thread=1
 openfiles=1
+fsync=1
 group_reporting=1
 allrandrepeat=1
 filename_format=$jobname.$jobnum.$filenum
