@@ -27,6 +27,9 @@ sudo systemctl start logrotate
 sudo systemctl start cron
 ```
 2. Run the shell script located at [this](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/log_rotate/install_script.sh) location.
+It installs the configuration for rsyslog (to redirect gcsfuse logs from
+syslog to `/var/log/gcsfuse.log`), logrotate and cron. In the end, restart the
+syslog service.
 3. Mount the GCS bucket using GCSFuse command with logs enabled in background mode.
 Also, verify the logs present at `/var/log/gcsfuse.log`.
 4. Run the below command to test this setup.
