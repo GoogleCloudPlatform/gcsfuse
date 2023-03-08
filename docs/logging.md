@@ -16,7 +16,7 @@ GCSFuse does not automatically rotate logs, so you must configure this manually.
 ### To support the rotation of logs written to syslog
 1. Please make sure you have `rsyslog`, `logrotate` and `cron` packages installed
 and running on the system.
-E.g. commands to install and run the packages on ubuntu/deb:
+E.g. commands to install and run the packages on Ubuntu/Debian:
 ```bash
 sudo add-apt-repository ppa:adiscon/v8-devel
 sudo apt-get update
@@ -71,11 +71,11 @@ Here,
 * copytruncate - truncate the original log file in place after creating a copy, instead 
 of moving the old log file and optionally creating a new one.
 ```
-2. You can verify the above created config using the below logrotate command:
+2. You can verify the above created config using this logrotate command:
    `/usr/sbin/logrotate -d <config_file_path>`
 3. Create a cron job which will execute the logrotate command periodically. E.g.
-the below command creates a cron job which runs every 2 minute. 
-`echo "*/2 * * * * /usr/sbin/logrotate <abs_path_to_config_file> --state <abs_path_to_state_file> | crontab _`  
+the below command creates a cron job which runs every 2 minutes. 
+`echo "*/2 * * * * /usr/sbin/logrotate <abs_path_to_config_file> --state <abs_path_to_state_file>" | crontab _`  
 Note: `--state` flag is useful if logrotate is being run as different user, it saves
 status of logrotate execution as we get by default in `/var/lib/logrotate/status`.
 
