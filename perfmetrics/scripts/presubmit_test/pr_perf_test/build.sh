@@ -24,6 +24,7 @@ then
   export PATH=$PATH:/usr/local/go/bin
   echo Installing fio
   sudo apt-get install fio -y
+
   cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
   echo Mounting gcs bucket for master branch
   mkdir -p gcs
@@ -38,6 +39,7 @@ then
   chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
   ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
   sudo umount gcs
+
   # Fetch PR branch
   echo '[remote "origin"]
           fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' >> .git/config
