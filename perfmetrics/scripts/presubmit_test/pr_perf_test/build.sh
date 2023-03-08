@@ -25,6 +25,7 @@ then
   echo Installing fio
   sudo apt-get install fio -y
 
+  # Run on master branch
   cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
   echo Mounting gcs bucket for master branch
   mkdir -p gcs
