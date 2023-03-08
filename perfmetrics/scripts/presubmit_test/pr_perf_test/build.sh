@@ -11,7 +11,7 @@ curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITH
 perfTest=$(cat pr.json | grep "PerfTest")
 rm pr.json
 perfTestStr="$perfTest"
-if [[ "perfTestStr" == *"PerfTest"* ]]
+if [[ "$perfTestStr" == *"PerfTest"* ]]
 then
   echo Installing python3-pip
   sudo apt-get -y install python3-pip
