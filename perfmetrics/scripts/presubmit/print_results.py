@@ -12,30 +12,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
-# For fetching fio_metrics from fio
-sys.path.append("./perfmetrics/scripts/")
-from fio.fio_metrics import FioMetrics
+from prettytable import PrettyTable
 
-if __name__ == '__main__':
-  argv = sys.argv
-  if len(argv) != 2:
-    raise TypeError('Incorrect number of arguments.\n'
-                    'Usage: '
-                    'python3 show_results.py <fio output json filepath>')
+data = []
+for line in open("result.txt", "r").readlines():
+  data.append(line.strip())
 
-  # Fetching metrics from json file
-  fio_metrics_obj = FioMetrics()
-  data = fio_metrics_obj.get_metrics(argv[1])
+table = PrettyTable(
+    ["Branch", "File Size", "Read BW", "Write BW", "RandRead BW", "RandWrite BW"]
+)
 
-  # Fetching results in result.txt file
-  file = open("result.txt", "a")
-  # Iterating through data
-  for d in data :
-    # Print filesize only once
-    if d['params']['rw'] == "read":
-      file.write(str.format("\n"+"Filesize: "+ str(round(d["params"]["filesize_kb"]/1024.0,3)) + "MiB" + "\n"))
+DATA_DIMENSION = 5
+DATA_SET_SPLIT_INDEX = 15  # Data at [0, DATA_SET_SPLIT_INDEX ) belong to Master branch and [DATA_SET_SPLIT_INDEX , TOTAL_SIZE = 2 * DATA_SET_SPLIT_INDEX ) belongs to PR branch.
 
-    # Print Bandwidth
-    file.write(str.format(d['params']['rw'] + " bw: "+ str(round(d["metrics"]["bw_bytes"]/(1024.0*1024.0),2)) + "MiB/s" + "\n"))
-  file.close()
+for i in range(0, DATA_SET_SPLIT_INDEX, DATA_DIMENSION):
+  dataMaster = []
+  dataMaster.append("Master")
+  # Fetch Results for FileSize, Read, Write, RandRead, and RandWrite for Master
+  for j in range(0, DATA_DIMENSION):
+    dataMaster.append(data[i + j])
+  table.add_row(dataMaster)
+
+  dataPR = []
+  dataPR.append("PR")
+  # Fetch Results for FileSize, Read, Write, RandRead, and RandWrite for PR
+  for j in range(0, DATA_DIMENSION):
+    dataPR.append(data[i + j + DATA_SET_SPLIT_INDEX])
+  table.add_row(dataPR)
+
+  dataNewline = []
+  # Adding New line to differentiate FileSizes
+  for j in range(0, DATA_DIMENSION + 1):
+    dataNewline.append("\n")
+  table.add_row(dataNewline)
+
+print(table)
