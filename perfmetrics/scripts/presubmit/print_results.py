@@ -37,7 +37,7 @@ for i in range(0, DATA_SET_SPLIT_INDEX, DATA_DIMENSION):
   dataPR.append("PR")
   # Fetch Results for FileSize, Read, Write, RandRead, and RandWrite for PR
   for j in range(0, DATA_DIMENSION):
-    dataPR.append(data[i + j + 15])
+    dataPR.append(data[i + j + DATA_SET_SPLIT_INDEX])
   table.add_row(dataPR)
 
   dataNewline = []
