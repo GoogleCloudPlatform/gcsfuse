@@ -28,7 +28,7 @@ if __name__ == '__main__':
   fio_metrics_obj = FioMetrics()
   data = fio_metrics_obj.get_metrics(argv[1])
 
-  mb = 1024.0
+  MB = 1024.0
 
   # Fetching results in result.txt file
   file = open("result.txt", "a")
@@ -36,8 +36,8 @@ if __name__ == '__main__':
   for d in data :
     # Print filesize only once
     if d['params']['rw'] == "read":
-      file.write(str.format(str(round(d["params"]["filesize_kb"]/mb,3)) + "MiB" + "\n"))
+      file.write(str.format(str(round(d["params"]["filesize_kb"]/MB,3)) + "MiB" + "\n"))
 
     # Print Bandwidth
-    file.write(str.format(str(round(d["metrics"]["bw_bytes"]/(mb*mb),2)) + "MiB/s" + "\n"))
+    file.write(str.format(str(round(d["metrics"]["bw_bytes"]/(MB*MB),2)) + "MiB/s" + "\n"))
   file.close()
