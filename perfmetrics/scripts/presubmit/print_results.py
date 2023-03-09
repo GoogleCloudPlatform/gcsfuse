@@ -23,6 +23,7 @@ table = PrettyTable(["Branch",'File Size', "Read BW", "Write BW", "RandRead BW",
 for i in range(0,15,5) :
   dataMaster = []
   dataMaster.append("Master")
+  # Fetch Results for FileSize, Read, Write, RandRead, and RandWrite for Master
   for j in range(0,5) :
     dataMaster.append(data[i+j])
 
@@ -30,6 +31,7 @@ for i in range(0,15,5) :
 
   dataPR = []
   dataPR.append("PR")
+  # Fetch Results for FileSize, Read, Write, RandRead, and RandWrite for PR
   for j in range(0,5) :
     dataPR.append(data[i+j+15])
 
