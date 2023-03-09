@@ -59,4 +59,4 @@ chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 
 echo showing results...
-python3 print_results.py
+python3 ./perfmetrics/scripts/presubmit/print_results.py
