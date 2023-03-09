@@ -41,7 +41,7 @@ for i in range(0, DATA_SET_SPLIT_INDEX, DATA_DIMENSION):
   table.add_row(dataPR)
 
   dataNewline = []
-  # Adding New line to differentiate FileSizes in table
+  # Adding New line to differentiate FileSizes
   for j in range(0, DATA_DIMENSION + 1):
     dataNewline.append("\n")
   table.add_row(dataNewline)
