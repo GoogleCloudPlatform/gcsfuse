@@ -440,6 +440,7 @@ func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
 			ProjectionVal:            0,
 		})
 
+	// Validate that 4 objects are listed when MaxResults is passed 4.
 	AssertEq(nil, err)
 	AssertEq(4, len(fourObj.Objects))
 	AssertEq(TestObjectRootFolderName, fourObj.Objects[0].Name)
@@ -448,11 +449,80 @@ func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
 	AssertEq(TestObjectName, fourObj.Objects[3].Name)
 	AssertEq(nil, fourObj.CollapsedRuns)
 
+	// Validate that 2 objects are listed when MaxResults is passed 2.
 	AssertEq(nil, err2)
 	AssertEq(2, len(twoObj.Objects))
 	AssertEq(TestObjectRootFolderName, twoObj.Objects[0].Name)
 	AssertEq(TestObjectSubRootFolderName, twoObj.Objects[1].Name)
 	AssertEq(nil, twoObj.CollapsedRuns)
+}
+
+func (t *BucketHandleTest) TestListObjectMethodWithMissingMaxResult() {
+	// Validate that ee have 4 objects in fakeserver
+	fourObjWithMaxResults, err := t.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   "",
+			Delimiter:                "",
+			IncludeTrailingDelimiter: true,
+			ContinuationToken:        "",
+			MaxResults:               100,
+			ProjectionVal:            0,
+		})
+	AssertEq(nil, err)
+	AssertEq(4, len(fourObjWithMaxResults.Objects))
+
+	fourObjWithoutMaxResults, err2 := t.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   "",
+			Delimiter:                "",
+			IncludeTrailingDelimiter: true,
+			ContinuationToken:        "",
+			ProjectionVal:            0,
+		})
+
+	// Validate that all objects (4) are listed when MaxResults is not passed.
+	AssertEq(nil, err2)
+	AssertEq(4, len(fourObjWithoutMaxResults.Objects))
+	AssertEq(TestObjectRootFolderName, fourObjWithoutMaxResults.Objects[0].Name)
+	AssertEq(TestObjectSubRootFolderName, fourObjWithoutMaxResults.Objects[1].Name)
+	AssertEq(TestSubObjectName, fourObjWithoutMaxResults.Objects[2].Name)
+	AssertEq(TestObjectName, fourObjWithoutMaxResults.Objects[3].Name)
+	AssertEq(nil, fourObjWithoutMaxResults.CollapsedRuns)
+}
+
+func (t *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
+	// Validate that ee have 4 objects in fakeserver
+	fourObj, err := t.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   "",
+			Delimiter:                "",
+			IncludeTrailingDelimiter: true,
+			ContinuationToken:        "",
+			MaxResults:               100,
+			ProjectionVal:            0,
+		})
+	AssertEq(nil, err)
+	AssertEq(4, len(fourObj.Objects))
+
+	fourObjWithZeroMaxResults, err2 := t.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   "",
+			Delimiter:                "",
+			IncludeTrailingDelimiter: true,
+			ContinuationToken:        "",
+			MaxResults:               0,
+			ProjectionVal:            0,
+		})
+
+	// Validate that all objects (4) are listed when MaxResults is 0. This has
+	// same behavior as not passing MaxResults in request.
+	AssertEq(nil, err2)
+	AssertEq(4, len(fourObjWithZeroMaxResults.Objects))
+	AssertEq(TestObjectRootFolderName, fourObjWithZeroMaxResults.Objects[0].Name)
+	AssertEq(TestObjectSubRootFolderName, fourObjWithZeroMaxResults.Objects[1].Name)
+	AssertEq(TestSubObjectName, fourObjWithZeroMaxResults.Objects[2].Name)
+	AssertEq(TestObjectName, fourObjWithZeroMaxResults.Objects[3].Name)
+	AssertEq(nil, fourObjWithZeroMaxResults.CollapsedRuns)
 }
 
 // FakeGCSServer is not handling ContentType, ContentEncoding, ContentLanguage, CacheControl in updateflow
