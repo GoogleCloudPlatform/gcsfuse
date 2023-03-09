@@ -26,7 +26,6 @@ for i in range(0,15,5) :
   # Fetch Results for FileSize, Read, Write, RandRead, and RandWrite for Master
   for j in range(0,5) :
     dataMaster.append(data[i+j])
-
   table.add_row(dataMaster)
 
   dataPR = []
@@ -34,7 +33,6 @@ for i in range(0,15,5) :
   # Fetch Results for FileSize, Read, Write, RandRead, and RandWrite for PR
   for j in range(0,5) :
     dataPR.append(data[i+j+15])
-
   table.add_row(dataPR)
 
 print(table)
