@@ -263,6 +263,47 @@ func (t *BucketHandleTest) TestCreateObjectMethodWithValidObject() {
 	AssertEq(nil, err)
 }
 
+func (t *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZero() {
+	content := "Creating a new object"
+	var generation int64 = 0
+	obj, err := t.bucketHandle.CreateObject(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:                   "test_object",
+			Contents:               strings.NewReader(content),
+			GenerationPrecondition: &generation,
+		})
+
+	AssertEq(obj.Name, "test_object")
+	AssertEq(obj.Size, len(content))
+	AssertEq(nil, err)
+}
+
+func (t *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZeroWhenObjectAlreadyExists() {
+	content := "Creating a new object"
+	var generation int64 = 0
+	var precondition *gcs.PreconditionError
+	obj, err := t.bucketHandle.CreateObject(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:                   "test_object",
+			Contents:               strings.NewReader(content),
+			GenerationPrecondition: &generation,
+		})
+
+	AssertEq(obj.Name, "test_object")
+	AssertEq(obj.Size, len(content))
+	AssertEq(nil, err)
+
+	obj, err = t.bucketHandle.CreateObject(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:                   "test_object",
+			Contents:               strings.NewReader(content),
+			GenerationPrecondition: &generation,
+		})
+
+	AssertEq(nil, obj)
+	AssertTrue(errors.As(err, &precondition))
+}
+
 func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExist() {
 	var precondition *gcs.PreconditionError
 	content := "Creating a new object"
@@ -764,4 +805,25 @@ func (t *BucketHandleTest) TestNameMethod() {
 	name := t.bucketHandle.Name()
 
 	AssertEq(TestBucketName, name)
+}
+
+func (t *BucketHandleTest) TestIsStorageConditionsNotEmptyWithEmptyConditions() {
+	AssertFalse(isStorageConditionsNotEmpty(storage.Conditions{}))
+}
+
+func (t *BucketHandleTest) TestIsStorageConditionsNotEmptyWithNonEmptyConditions() {
+	// GenerationMatch is set.
+	AssertTrue(isStorageConditionsNotEmpty(storage.Conditions{GenerationMatch: 123}))
+
+	// GenerationNotMatch is set.
+	AssertTrue(isStorageConditionsNotEmpty(storage.Conditions{GenerationNotMatch: 123}))
+
+	// MetagenerationMatch is set.
+	AssertTrue(isStorageConditionsNotEmpty(storage.Conditions{MetagenerationMatch: 123}))
+
+	// MetagenerationNotMatch is set.
+	AssertTrue(isStorageConditionsNotEmpty(storage.Conditions{MetagenerationNotMatch: 123}))
+
+	// DoesNotExist is set.
+	AssertTrue(isStorageConditionsNotEmpty(storage.Conditions{DoesNotExist: true}))
 }

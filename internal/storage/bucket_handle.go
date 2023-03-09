@@ -112,12 +112,24 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// MetaGenerationPrecondition - If non-nil, the object will be created/overwritten
 	// only if the current metaGeneration for the object name is equal to the given value.
 	// Zero means the object does not exist.
-	if req.GenerationPrecondition != nil && *req.GenerationPrecondition != 0 && req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
-		obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition, MetagenerationMatch: *req.MetaGenerationPrecondition})
-	} else if req.GenerationPrecondition != nil && *req.GenerationPrecondition != 0 {
-		obj = obj.If(storage.Conditions{GenerationMatch: *req.GenerationPrecondition})
-	} else if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
-		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
+	preconditions := storage.Conditions{}
+
+	if req.GenerationPrecondition != nil {
+		if *req.GenerationPrecondition == 0 {
+			preconditions.DoesNotExist = true
+		} else {
+			preconditions.GenerationMatch = *req.GenerationPrecondition
+		}
+	}
+
+	if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
+		preconditions.MetagenerationMatch = *req.MetaGenerationPrecondition
+	}
+
+	// Setting up the conditions on the object if it's not empty i.e, atleast
+	// if one of the condition is set.
+	if isStorageConditionsNotEmpty(preconditions) {
+		obj = obj.If(preconditions)
 	}
 
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
@@ -360,4 +372,8 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
 
 	return
+}
+
+func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {
+	return conditions != (storage.Conditions{})
 }
