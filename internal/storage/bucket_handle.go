@@ -331,12 +331,25 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
 	dstObj := b.bucket.Object(req.DstName)
 
-	if req.DstGenerationPrecondition != nil && req.DstMetaGenerationPrecondition != nil {
-		dstObj = dstObj.If(storage.Conditions{GenerationMatch: *req.DstGenerationPrecondition, MetagenerationMatch: *req.DstMetaGenerationPrecondition})
-	} else if req.DstGenerationPrecondition != nil {
-		dstObj = dstObj.If(storage.Conditions{GenerationMatch: *req.DstGenerationPrecondition})
-	} else if req.DstMetaGenerationPrecondition != nil {
-		dstObj = dstObj.If(storage.Conditions{MetagenerationMatch: *req.DstMetaGenerationPrecondition})
+	dstObjConds := storage.Conditions{}
+	if req.DstMetaGenerationPrecondition != nil {
+		dstObjConds.MetagenerationMatch = *req.DstMetaGenerationPrecondition
+	}
+	// DstGenerationPrecondition or DoesNotExist should be set in dstObj
+	// preconditions to make requests Idempotent.
+	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/7ad451c6f2ead7992e030503e5b66c555b2ebf71/vendor/cloud.google.com/go/storage/copy.go#L230
+	if req.DstGenerationPrecondition != nil {
+		if *req.DstGenerationPrecondition == 0 {
+			dstObjConds.DoesNotExist = true
+		} else {
+			dstObjConds.GenerationMatch = *req.DstGenerationPrecondition
+		}
+	}
+	// Only set conditions on dstObj if there is at least one condition in
+	// dstObjConds. Otherwise, storage client library gives empty conditions error.
+	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/7ad451c6f2ead7992e030503e5b66c555b2ebf71/vendor/cloud.google.com/go/storage/storage.go#L1739
+	if isStorageConditionsNotEmpty(dstObjConds) {
+		dstObj = dstObj.If(dstObjConds)
 	}
 
 	// Converting the req.Sources list to a list of storage.ObjectHandle as expected by the Go Storage Client.
