@@ -18,7 +18,7 @@ data = []
 for line in open('result.txt','r').readlines():
   data.append(line.strip())
 
-t = PrettyTable(["Branch",'File Size', "Read BW", "Write BW", "RandRead BW", "RandWrite BW"])
+table = PrettyTable(["Branch",'File Size', "Read BW", "Write BW", "RandRead BW", "RandWrite BW"])
 
 for i in range(0,15,5) :
   dataMaster = []
@@ -26,13 +26,13 @@ for i in range(0,15,5) :
   for j in range(0,5) :
     dataMaster.append(data[i+j])
 
-  t.add_row(dataMaster)
+  table.add_row(dataMaster)
 
   dataPR = []
   dataPR.append("PR")
   for j in range(0,5) :
     dataPR.append(data[i+j+15])
 
-  t.add_row(dataPR)
+  table.add_row(dataPR)
 
-print(t)
+print(table)
