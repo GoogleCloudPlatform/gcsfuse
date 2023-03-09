@@ -15,24 +15,32 @@
 from prettytable import PrettyTable
 
 data = []
-for line in open('result.txt','r').readlines():
+for line in open("result.txt", "r").readlines():
   data.append(line.strip())
 
-table = PrettyTable(["Branch",'File Size', "Read BW", "Write BW", "RandRead BW", "RandWrite BW"])
+table = PrettyTable(
+    ["Branch", "File Size", "Read BW", "Write BW", "RandRead BW", "RandWrite BW"]
+)
 
-for i in range(0,15,5) :
+for i in range(0, 15, 5):
   dataMaster = []
   dataMaster.append("Master")
   # Fetch Results for FileSize, Read, Write, RandRead, and RandWrite for Master
-  for j in range(0,5) :
-    dataMaster.append(data[i+j])
+  for j in range(0, 5):
+    dataMaster.append(data[i + j])
   table.add_row(dataMaster)
 
   dataPR = []
   dataPR.append("PR")
   # Fetch Results for FileSize, Read, Write, RandRead, and RandWrite for PR
-  for j in range(0,5) :
-    dataPR.append(data[i+j+15])
+  for j in range(0, 5):
+    dataPR.append(data[i + j + 15])
   table.add_row(dataPR)
+
+  dataNewline = []
+  # Adding New line to differentiate FileSizes
+  for j in range(0, 6):
+    dataNewline.append("\n")
+  table.add_row(dataNewline)
 
 print(table)
