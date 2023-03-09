@@ -417,19 +417,30 @@ func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
 }
 
 func (t *BucketHandleTest) TestListObjectMethodWithMissingMaxResult() {
-	// We have 4 objects in the fakestorage.
-	fourObjWithoutMaxResults, err := t.bucketHandle.ListObjects(context.Background(),
+	// Validate that ee have 4 objects in fakeserver
+	fourObjWithMaxResults, err := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
 			Prefix:                   "",
 			Delimiter:                "",
 			IncludeTrailingDelimiter: true,
 			ContinuationToken:        "",
-			//MaxResults:               2, // Missing MaxResults
-			ProjectionVal: 0,
+			MaxResults:               100,
+			ProjectionVal:            0,
+		})
+	AssertEq(nil, err)
+	AssertEq(4, len(fourObjWithMaxResults.Objects))
+
+	fourObjWithoutMaxResults, err2 := t.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   "",
+			Delimiter:                "",
+			IncludeTrailingDelimiter: true,
+			ContinuationToken:        "",
+			ProjectionVal:            0,
 		})
 
 	// Validate that all objects (4) are listed when MaxResults is not passed.
-	AssertEq(nil, err)
+	AssertEq(nil, err2)
 	AssertEq(4, len(fourObjWithoutMaxResults.Objects))
 	AssertEq(TestObjectRootFolderName, fourObjWithoutMaxResults.Objects[0].Name)
 	AssertEq(TestObjectSubRootFolderName, fourObjWithoutMaxResults.Objects[1].Name)
@@ -439,8 +450,20 @@ func (t *BucketHandleTest) TestListObjectMethodWithMissingMaxResult() {
 }
 
 func (t *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
-	// We have 4 objects in fakeserver.
-	fourObjWithZeroMaxResults, err := t.bucketHandle.ListObjects(context.Background(),
+	// Validate that ee have 4 objects in fakeserver
+	fourObj, err := t.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   "",
+			Delimiter:                "",
+			IncludeTrailingDelimiter: true,
+			ContinuationToken:        "",
+			MaxResults:               100,
+			ProjectionVal:            0,
+		})
+	AssertEq(nil, err)
+	AssertEq(4, len(fourObj.Objects))
+
+	fourObjWithZeroMaxResults, err2 := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
 			Prefix:                   "",
 			Delimiter:                "",
@@ -452,7 +475,7 @@ func (t *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
 
 	// Validate that all objects (4) are listed when MaxResults is 0. This has
 	// same behavior as not passing MaxResults in request.
-	AssertEq(nil, err)
+	AssertEq(nil, err2)
 	AssertEq(4, len(fourObjWithZeroMaxResults.Objects))
 	AssertEq(TestObjectRootFolderName, fourObjWithZeroMaxResults.Objects[0].Name)
 	AssertEq(TestObjectSubRootFolderName, fourObjWithZeroMaxResults.Objects[1].Name)
