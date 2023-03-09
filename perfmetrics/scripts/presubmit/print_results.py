@@ -25,7 +25,6 @@ table = PrettyTable(
 DATA_DIMENSION = 5
 DATA_SET_SPLIT_INDEX = 15  # Data at [0, DATA_SET_SPLIT_INDEX ) belong to Master branch and [DATA_SET_SPLIT_INDEX , TOTAL_SIZE = 2 * DATA_SET_SPLIT_INDEX ) belongs to PR branch.
 
-
 for i in range(0, DATA_SET_SPLIT_INDEX, DATA_DIMENSION):
   dataMaster = []
   dataMaster.append("Master")
