@@ -1,7 +1,4 @@
 #!/bin/bash
-# It will take approx 80 minutes to run the script.
-sudo apt-get update
-
 # Running test only for when PR contains execute-perf-test label
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
 perfTest=$(cat pr.json | grep "execute-perf-test")
@@ -13,7 +10,9 @@ then
   exit 0
 fi
 
+# It will take approx 80 minutes to run the script.
 set -e
+sudo apt-get update
 echo Installing git
 sudo apt-get install git
 echo Installing python3-pip
