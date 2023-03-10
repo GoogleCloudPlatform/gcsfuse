@@ -90,7 +90,16 @@ type errorMapping struct {
 	logger  *log.Logger
 }
 
+func (em *errorMapping) handlePanic() {
+	// detect if panic occurred or not
+	a := recover()
+	if a != nil {
+		em.logger.Fatal("Panic: ", a)
+	}
+}
+
 func (em *errorMapping) mapError(op string, err error) error {
+	defer em.handlePanic()
 	fsErr := errno(err)
 	if err != nil && fsErr != nil && err != fsErr {
 		em.logger.Printf("%s: %v, %v", op, fsErr, err)
@@ -99,12 +108,14 @@ func (em *errorMapping) mapError(op string, err error) error {
 }
 
 func (em *errorMapping) Destroy() {
+	defer em.handlePanic()
 	em.wrapped.Destroy()
 }
 
 func (em *errorMapping) StatFS(
 	ctx context.Context,
 	op *fuseops.StatFSOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.StatFS(ctx, op)
 	return em.mapError("StatFS", err)
 }
@@ -112,6 +123,7 @@ func (em *errorMapping) StatFS(
 func (em *errorMapping) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.LookUpInode(ctx, op)
 	return em.mapError("LookUpInode", err)
 }
@@ -119,6 +131,7 @@ func (em *errorMapping) LookUpInode(
 func (em *errorMapping) GetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.GetInodeAttributes(ctx, op)
 	return em.mapError("GetInodeAttributes", err)
 }
@@ -126,6 +139,7 @@ func (em *errorMapping) GetInodeAttributes(
 func (em *errorMapping) SetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.SetInodeAttributesOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.SetInodeAttributes(ctx, op)
 	return em.mapError("SetInodeAttributes", err)
 }
@@ -133,6 +147,7 @@ func (em *errorMapping) SetInodeAttributes(
 func (em *errorMapping) ForgetInode(
 	ctx context.Context,
 	op *fuseops.ForgetInodeOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.ForgetInode(ctx, op)
 	return em.mapError("ForgetInode", err)
 }
@@ -140,6 +155,7 @@ func (em *errorMapping) ForgetInode(
 func (em *errorMapping) BatchForget(
 	ctx context.Context,
 	op *fuseops.BatchForgetOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.BatchForget(ctx, op)
 	return em.mapError("BatchForget", err)
 }
@@ -147,6 +163,7 @@ func (em *errorMapping) BatchForget(
 func (em *errorMapping) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.MkDir(ctx, op)
 	return em.mapError("MkDir", err)
 }
@@ -154,6 +171,7 @@ func (em *errorMapping) MkDir(
 func (em *errorMapping) MkNode(
 	ctx context.Context,
 	op *fuseops.MkNodeOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.MkNode(ctx, op)
 	return em.mapError("MkNode", err)
 }
@@ -161,6 +179,7 @@ func (em *errorMapping) MkNode(
 func (em *errorMapping) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.CreateFile(ctx, op)
 	return em.mapError("CreateFile", err)
 }
@@ -168,6 +187,7 @@ func (em *errorMapping) CreateFile(
 func (em *errorMapping) CreateLink(
 	ctx context.Context,
 	op *fuseops.CreateLinkOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.CreateLink(ctx, op)
 	return em.mapError("CreateLink", err)
 }
@@ -175,6 +195,7 @@ func (em *errorMapping) CreateLink(
 func (em *errorMapping) CreateSymlink(
 	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.CreateSymlink(ctx, op)
 	return em.mapError("CreateSymlink", err)
 }
@@ -182,6 +203,7 @@ func (em *errorMapping) CreateSymlink(
 func (em *errorMapping) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.Rename(ctx, op)
 	return em.mapError("Rename", err)
 }
@@ -189,6 +211,7 @@ func (em *errorMapping) Rename(
 func (em *errorMapping) RmDir(
 	ctx context.Context,
 	op *fuseops.RmDirOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.RmDir(ctx, op)
 	return em.mapError("RmDir", err)
 }
@@ -196,6 +219,7 @@ func (em *errorMapping) RmDir(
 func (em *errorMapping) Unlink(
 	ctx context.Context,
 	op *fuseops.UnlinkOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.Unlink(ctx, op)
 	return em.mapError("Unlink", err)
 }
@@ -203,6 +227,7 @@ func (em *errorMapping) Unlink(
 func (em *errorMapping) OpenDir(
 	ctx context.Context,
 	op *fuseops.OpenDirOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.OpenDir(ctx, op)
 	return em.mapError("OpenDir", err)
 }
@@ -210,6 +235,7 @@ func (em *errorMapping) OpenDir(
 func (em *errorMapping) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.ReadDir(ctx, op)
 	return em.mapError("ReadDir", err)
 }
@@ -217,6 +243,7 @@ func (em *errorMapping) ReadDir(
 func (em *errorMapping) ReleaseDirHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseDirHandleOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.ReleaseDirHandle(ctx, op)
 	return em.mapError("ReleaseDirHandle", err)
 }
@@ -224,6 +251,7 @@ func (em *errorMapping) ReleaseDirHandle(
 func (em *errorMapping) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.OpenFile(ctx, op)
 	return em.mapError("OpenFile", err)
 }
@@ -231,6 +259,7 @@ func (em *errorMapping) OpenFile(
 func (em *errorMapping) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.ReadFile(ctx, op)
 	return em.mapError("ReadFile", err)
 }
@@ -238,6 +267,7 @@ func (em *errorMapping) ReadFile(
 func (em *errorMapping) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.WriteFile(ctx, op)
 	return em.mapError("WriteFile", err)
 }
@@ -245,6 +275,7 @@ func (em *errorMapping) WriteFile(
 func (em *errorMapping) SyncFile(
 	ctx context.Context,
 	op *fuseops.SyncFileOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.SyncFile(ctx, op)
 	return em.mapError("SyncFile", err)
 }
@@ -252,6 +283,7 @@ func (em *errorMapping) SyncFile(
 func (em *errorMapping) FlushFile(
 	ctx context.Context,
 	op *fuseops.FlushFileOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.FlushFile(ctx, op)
 	return em.mapError("FlushFile", err)
 }
@@ -259,6 +291,7 @@ func (em *errorMapping) FlushFile(
 func (em *errorMapping) ReleaseFileHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseFileHandleOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.ReleaseFileHandle(ctx, op)
 	return em.mapError("ReleaseFileHandle", err)
 }
@@ -266,6 +299,7 @@ func (em *errorMapping) ReleaseFileHandle(
 func (em *errorMapping) ReadSymlink(
 	ctx context.Context,
 	op *fuseops.ReadSymlinkOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.ReadSymlink(ctx, op)
 	return em.mapError("ReadSymlink", err)
 }
@@ -280,6 +314,7 @@ func (em *errorMapping) RemoveXattr(
 func (em *errorMapping) GetXattr(
 	ctx context.Context,
 	op *fuseops.GetXattrOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.GetXattr(ctx, op)
 	return em.mapError("GetXattr", err)
 }
@@ -287,6 +322,7 @@ func (em *errorMapping) GetXattr(
 func (em *errorMapping) ListXattr(
 	ctx context.Context,
 	op *fuseops.ListXattrOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.ListXattr(ctx, op)
 	return em.mapError("ListXattr", err)
 }
@@ -294,6 +330,7 @@ func (em *errorMapping) ListXattr(
 func (em *errorMapping) SetXattr(
 	ctx context.Context,
 	op *fuseops.SetXattrOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.SetXattr(ctx, op)
 	return em.mapError("SetXattr", err)
 }
@@ -301,6 +338,7 @@ func (em *errorMapping) SetXattr(
 func (em *errorMapping) Fallocate(
 	ctx context.Context,
 	op *fuseops.FallocateOp) error {
+	defer em.handlePanic()
 	err := em.wrapped.Fallocate(ctx, op)
 	return em.mapError("Fallocate", err)
 }
