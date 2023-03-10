@@ -71,7 +71,9 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 	obj := b.bucket.Object(req.Name)
 
 	// Switching to the requested generation of the object. By default, generation
-	// is 0 which signifies the latest generation.
+	// is 0 which signifies the latest generation. Note: GCS will delete the
+	// live object even if generation is not set in request. We are passing 0
+	// generation explicitly to satisfy idempotency condition.
 	obj = obj.Generation(req.Generation)
 
 	// Putting condition that the object's MetaGeneration should match the requested MetaGeneration for deletion to occur.
