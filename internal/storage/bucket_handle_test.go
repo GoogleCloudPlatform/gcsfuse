@@ -191,11 +191,23 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 }
 
 func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingGeneration() {
-
 	err := t.bucketHandle.DeleteObject(context.Background(),
 		&gcs.DeleteObjectRequest{
-			Name: TestObjectName,
-			//Generation:                 1234, // Missing generation
+			Name:                       TestObjectName,
+			MetaGenerationPrecondition: nil,
+		})
+
+	AssertEq(nil, err)
+}
+
+func (t *BucketHandleTest) TestDeleteObjectMethodWithZeroGeneration() {
+	// Note: fake-gcs-server doesn't respect Generation or other conditions in
+	// delete operations. This unit test will be helpful when fake-gcs-server
+	// start respecting these conditions, or we move to other testing framework.
+	err := t.bucketHandle.DeleteObject(context.Background(),
+		&gcs.DeleteObjectRequest{
+			Name:                       TestObjectName,
+			Generation:                 0,
 			MetaGenerationPrecondition: nil,
 		})
 
