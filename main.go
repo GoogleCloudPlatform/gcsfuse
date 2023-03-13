@@ -353,8 +353,8 @@ func runCLIApp(c *cli.Context) (err error) {
 		env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
 
 		// Run.
-		errLog, _ := logger.ErrorLogs(flags.LogFile, flags.LogFormat)
-		err = daemonize.Run(path, args, env, os.Stdout, errLog)
+		//errLog, _ := logger.ErrorLogs(flags.LogFile)
+		err = daemonize.Run(path, args, env, os.Stdout)
 		if err != nil {
 			err = fmt.Errorf("daemonize.Run: %w", err)
 			return
