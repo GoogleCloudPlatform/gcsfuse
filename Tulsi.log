@@ -1,0 +1,119 @@
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Start gcsfuse/unknown (Go version go1.20-20221229-RC00 cl/498461153 +db36eca33c) for app \"\" using mount point: /usr/local/google/home/tulsishah/gcs2\n","timestampSeconds":1678716473,"timestampNanos":664324175}
+{"name":"root","levelname":"NOTICE","severity":"NOTICE","message":"Opening GCS connection...\n","timestampSeconds":1678716473,"timestampNanos":664375648}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Creating a mount at \"/usr/local/google/home/tulsishah/gcs2\"\n","timestampSeconds":1678716473,"timestampNanos":664575776}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Creating a new server...\n","timestampSeconds":1678716473,"timestampNanos":664944743}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Set up root directory for bucket testmethods_tulsishah\n","timestampSeconds":1678716473,"timestampNanos":664958733}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x0: \u003c- ListObjects(\"\")\n","timestampSeconds":1678716473,"timestampNanos":664968124}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x0: -\u003e ListObjects(\"\") (1.04817942s): OK\n","timestampSeconds":1678716474,"timestampNanos":713157324}
+{"name":"root","levelname":"NOTICE","severity":"NOTICE","message":"Mounting file system \"testmethods_tulsishah\"...\n","timestampSeconds":1678716474,"timestampNanos":713232388}
+{"name":"root","levelname":"NOTICE","severity":"NOTICE","message":"File system has been successfully mounted.\n","timestampSeconds":1678716474,"timestampNanos":715183315}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x1: \u003c- ListObjects(\".Trash/\")\n","timestampSeconds":1678716474,"timestampNanos":715988771}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x2: \u003c- StatObject(\".Trash\")\n","timestampSeconds":1678716474,"timestampNanos":716011202}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x1: -\u003e ListObjects(\".Trash/\") (219.927797ms): OK\n","timestampSeconds":1678716474,"timestampNanos":935914338}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x2: -\u003e StatObject(\".Trash\") (362.017711ms): gcs.NotFoundError: storage: object doesn't exist\n","timestampSeconds":1678716475,"timestampNanos":78013882}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x3: \u003c- ListObjects(\".xdg-volume-info/\")\n","timestampSeconds":1678716475,"timestampNanos":78329827}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x4: \u003c- StatObject(\".xdg-volume-info\")\n","timestampSeconds":1678716475,"timestampNanos":78368258}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x3: -\u003e ListObjects(\".xdg-volume-info/\") (637.092018ms): OK\n","timestampSeconds":1678716475,"timestampNanos":715415494}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x4: -\u003e StatObject(\".xdg-volume-info\") (760.169659ms): gcs.NotFoundError: storage: object doesn't exist\n","timestampSeconds":1678716475,"timestampNanos":838515187}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x5: \u003c- ListObjects(\"BDMV/\")\n","timestampSeconds":1678716475,"timestampNanos":838843761}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x6: \u003c- StatObject(\"BDMV\")\n","timestampSeconds":1678716475,"timestampNanos":838881563}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x5: -\u003e ListObjects(\"BDMV/\") (176.842206ms): OK\n","timestampSeconds":1678716476,"timestampNanos":15690148}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x6: -\u003e StatObject(\"BDMV\") (187.154378ms): gcs.NotFoundError: storage: object doesn't exist\n","timestampSeconds":1678716476,"timestampNanos":26013570}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x7: \u003c- ListObjects(\"autorun.inf/\")\n","timestampSeconds":1678716476,"timestampNanos":26360006}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x8: \u003c- StatObject(\"autorun.inf\")\n","timestampSeconds":1678716476,"timestampNanos":26418079}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x8: -\u003e StatObject(\"autorun.inf\") (741.251124ms): gcs.NotFoundError: storage: object doesn't exist\n","timestampSeconds":1678716476,"timestampNanos":767662292}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x7: -\u003e ListObjects(\"autorun.inf/\") (954.008498ms): OK\n","timestampSeconds":1678716476,"timestampNanos":980357763}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x9: \u003c- ListObjects(\"\")\n","timestampSeconds":1678716476,"timestampNanos":980634895}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x9: -\u003e ListObjects(\"\") (604.941439ms): OK\n","timestampSeconds":1678716477,"timestampNanos":585581154}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xa: \u003c- ListObjects(\".Trash-1052824/\")\n","timestampSeconds":1678716477,"timestampNanos":586192402}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xb: \u003c- StatObject(\".Trash-1052824\")\n","timestampSeconds":1678716477,"timestampNanos":586235614}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xa: -\u003e ListObjects(\".Trash-1052824/\") (178.652684ms): OK\n","timestampSeconds":1678716477,"timestampNanos":764831605}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xb: -\u003e StatObject(\".Trash-1052824\") (189.392936ms): gcs.NotFoundError: storage: object doesn't exist\n","timestampSeconds":1678716477,"timestampNanos":775616729}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xc: \u003c- ListObjects(\"\")\n","timestampSeconds":1678716477,"timestampNanos":777366438}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xc: -\u003e ListObjects(\"\") (1.112135125s): OK\n","timestampSeconds":1678716478,"timestampNanos":889500673}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xd: \u003c- ListObjects(\"\")\n","timestampSeconds":1678716478,"timestampNanos":891318685}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xd: -\u003e ListObjects(\"\") (501.515278ms): OK\n","timestampSeconds":1678716479,"timestampNanos":392838243}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xe: \u003c- ListObjects(\"\")\n","timestampSeconds":1678716479,"timestampNanos":394841234}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xe: -\u003e ListObjects(\"\") (814.713303ms): OK\n","timestampSeconds":1678716480,"timestampNanos":209565568}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xf: \u003c- ListObjects(\"\")\n","timestampSeconds":1678716480,"timestampNanos":211604160}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xf: -\u003e ListObjects(\"\") (1.32265493s): OK\n","timestampSeconds":1678716481,"timestampNanos":534266961}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req             0x10: \u003c- ListObjects(\"dttfghjk/\")\n","timestampSeconds":1678716481,"timestampNanos":535170812}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req             0x11: \u003c- StatObject(\"dttfghjk\")\n","timestampSeconds":1678716481,"timestampNanos":536314764}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req             0x11: -\u003e StatObject(\"dttfghjk\") (365.722836ms): gcs.NotFoundError: storage: object doesn't exist\n","timestampSeconds":1678716481,"timestampNanos":900905059}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req             0x10: -\u003e ListObjects(\"dttfghjk/\") (972.295119ms): OK\n","timestampSeconds":1678716482,"timestampNanos":507452451}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req             0x12: \u003c- CreateObject(\"dttfghjk/\")\n","timestampSeconds":1678716482,"timestampNanos":510113151}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req             0x12: -\u003e CreateObject(\"dttfghjk/\") (389.613188ms): OK\n","timestampSeconds":1678716482,"timestampNanos":899730159}
+panic: It will Work
+
+goroutine 226 [running]:
+github.com/googlecloudplatform/gcsfuse/internal/storage.(*bucketHandle).CreateObject(0xc0006246e0?, {0x115cdc8?, 0xc00030cd80}, 0xc000aa61c0)
+	/usr/local/google/home/tulsishah/forktulsishah/gcsfuse-tulsishah/internal/storage/bucket_handle.go:163 +0x4c6
+github.com/jacobsa/gcloud/gcs.(*debugBucket).CreateObject(0xc0006246e0, {0x115cdc8, 0xc00030cd80}, 0xc000aa61c0)
+	/usr/local/google/home/tulsishah/forktulsishah/gcsfuse-tulsishah/vendor/github.com/jacobsa/gcloud/gcs/debug_bucket.go:160 +0x16b
+github.com/jacobsa/gcloud/gcs/gcscaching.(*fastStatBucket).CreateObject(0xc000146480, {0x115cdc8, 0xc00030cd80}, 0xc000aa61c0)
+	/usr/local/google/home/tulsishah/forktulsishah/gcsfuse-tulsishah/vendor/github.com/jacobsa/gcloud/gcs/gcscaching/fast_stat_bucket.go:137 +0x62
+github.com/googlecloudplatform/gcsfuse/internal/gcsx.contentTypeBucket.CreateObject({{0x1160c18?, 0xc000146480?}}, {0x115cdc8?, 0xc00030cd80?}, 0xc000aa61c0?)
+	/usr/local/google/home/tulsishah/forktulsishah/gcsfuse-tulsishah/internal/gcsx/content_type_bucket.go:44 +0x6b
+github.com/googlecloudplatform/gcsfuse/internal/fs/inode.(*dirInode).createNewObject(0xc0001b0c80, {0x115cdc8, 0xc00030cd80}, {{0x0?, 0xc0009d8b40?}, {0xc0009d8b50?, 0x50?}}, 0x0)
+	/usr/local/google/home/tulsishah/forktulsishah/gcsfuse-tulsishah/internal/fs/inode/dir.go:359 +0x14c
+github.com/googlecloudplatform/gcsfuse/internal/fs/inode.(*dirInode).CreateChildDir(0xc0001b0c80, {0x115cdc8, 0xc00030cd80}, {0xc0009d8b40, 0x8})
+	/usr/local/google/home/tulsishah/forktulsishah/gcsfuse-tulsishah/internal/fs/inode/dir.go:717 +0xa7
+github.com/googlecloudplatform/gcsfuse/internal/fs.(*fileSystem).MkDir(0xc00016a000, {0x115cdc8, 0xc00030cd80}, 0xc000aa60e0)
+	/usr/local/google/home/tulsishah/forktulsishah/gcsfuse-tulsishah/internal/fs/fs.go:1174 +0x10e
+github.com/googlecloudplatform/gcsfuse/internal/fs/wrappers.(*errorMapping).MkDir(0xc000a8a4e0, {0x115cdc8?, 0xc00030cd80?}, 0x7?)
+	/usr/local/google/home/tulsishah/forktulsishah/gcsfuse-tulsishah/internal/fs/wrappers/error_mapping.go:150 +0x33
+github.com/googlecloudplatform/gcsfuse/internal/fs/wrappers.(*monitoring).MkDir(0xc000a8e6f0, {0x115cdc8, 0xc00030cd80}, 0x0?)
+	/usr/local/google/home/tulsishah/forktulsishah/gcsfuse-tulsishah/internal/fs/wrappers/monitoring.go:206 +0x76
+github.com/jacobsa/fuse/fuseutil.(*fileSystemServer).handleOp(0x0?, 0x0?, {0x115cdc8, 0xc00030cd80}, {0xcc3340?, 0xc000aa60e0?})
+	/usr/local/google/home/tulsishah/forktulsishah/gcsfuse-tulsishah/vendor/github.com/jacobsa/fuse/fuseutil/file_system.go:172 +0x302
+created by github.com/jacobsa/fuse/fuseutil.(*fileSystemServer).ServeOps
+	/usr/local/google/home/tulsishah/forktulsishah/gcsfuse-tulsishah/vendor/github.com/jacobsa/fuse/fuseutil/file_system.go:123 +0x205
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Start gcsfuse/unknown (Go version go1.20-20221229-RC00 cl/498461153 +db36eca33c) for app \"\" using mount point: /usr/local/google/home/tulsishah/gcs2\n","timestampSeconds":1678716603,"timestampNanos":578162892}
+{"name":"root","levelname":"NOTICE","severity":"NOTICE","message":"Opening GCS connection...\n","timestampSeconds":1678716603,"timestampNanos":578227211}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Creating a mount at \"/usr/local/google/home/tulsishah/gcs2\"\n","timestampSeconds":1678716603,"timestampNanos":578468727}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Creating a new server...\n","timestampSeconds":1678716603,"timestampNanos":578843332}
+{"name":"root","levelname":"INFO","severity":"INFO","message":"Set up root directory for bucket testmethods_tulsishah\n","timestampSeconds":1678716603,"timestampNanos":578855592}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x0: \u003c- ListObjects(\"\")\n","timestampSeconds":1678716603,"timestampNanos":578873881}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x0: -\u003e ListObjects(\"\") (277.234269ms): OK\n","timestampSeconds":1678716603,"timestampNanos":856115730}
+{"name":"root","levelname":"NOTICE","severity":"NOTICE","message":"Mounting file system \"testmethods_tulsishah\"...\n","timestampSeconds":1678716603,"timestampNanos":856185139}
+{"name":"root","levelname":"NOTICE","severity":"NOTICE","message":"File system has been successfully mounted.\n","timestampSeconds":1678716603,"timestampNanos":857939303}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x1: \u003c- ListObjects(\".Trash/\")\n","timestampSeconds":1678716603,"timestampNanos":858972437}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x2: \u003c- StatObject(\".Trash\")\n","timestampSeconds":1678716603,"timestampNanos":859046896}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x2: -\u003e StatObject(\".Trash\") (221.173972ms): gcs.NotFoundError: storage: object doesn't exist\n","timestampSeconds":1678716604,"timestampNanos":80204269}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x1: -\u003e ListObjects(\".Trash/\") (390.883678ms): OK\n","timestampSeconds":1678716604,"timestampNanos":249840066}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x3: \u003c- ListObjects(\".xdg-volume-info/\")\n","timestampSeconds":1678716604,"timestampNanos":250217460}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x4: \u003c- StatObject(\".xdg-volume-info\")\n","timestampSeconds":1678716604,"timestampNanos":251213526}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x3: -\u003e ListObjects(\".xdg-volume-info/\") (532.016344ms): OK\n","timestampSeconds":1678716604,"timestampNanos":782219095}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x4: -\u003e StatObject(\".xdg-volume-info\") (570.145199ms): gcs.NotFoundError: storage: object doesn't exist\n","timestampSeconds":1678716604,"timestampNanos":820363259}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x6: \u003c- StatObject(\"BDMV\")\n","timestampSeconds":1678716604,"timestampNanos":820811172}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x5: \u003c- ListObjects(\"BDMV/\")\n","timestampSeconds":1678716604,"timestampNanos":820930330}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x5: -\u003e ListObjects(\"BDMV/\") (403.349984ms): OK\n","timestampSeconds":1678716605,"timestampNanos":224161315}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x6: -\u003e StatObject(\"BDMV\") (529.864143ms): gcs.NotFoundError: storage: object doesn't exist\n","timestampSeconds":1678716605,"timestampNanos":350671085}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x7: \u003c- ListObjects(\"autorun.inf/\")\n","timestampSeconds":1678716605,"timestampNanos":350938061}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x8: \u003c- StatObject(\"autorun.inf\")\n","timestampSeconds":1678716605,"timestampNanos":351527443}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x8: -\u003e StatObject(\"autorun.inf\") (334.588716ms): gcs.NotFoundError: storage: object doesn't exist\n","timestampSeconds":1678716605,"timestampNanos":685548227}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x7: -\u003e ListObjects(\"autorun.inf/\") (414.599283ms): OK\n","timestampSeconds":1678716605,"timestampNanos":765531485}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x9: \u003c- ListObjects(\"\")\n","timestampSeconds":1678716605,"timestampNanos":765793841}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0x9: -\u003e ListObjects(\"\") (846.190414ms): OK\n","timestampSeconds":1678716606,"timestampNanos":611982575}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xa: \u003c- ListObjects(\".Trash-1052824/\")\n","timestampSeconds":1678716606,"timestampNanos":612630426}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xb: \u003c- StatObject(\".Trash-1052824\")\n","timestampSeconds":1678716606,"timestampNanos":614727607}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xa: -\u003e ListObjects(\".Trash-1052824/\") (182.795441ms): OK\n","timestampSeconds":1678716606,"timestampNanos":795411637}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xb: -\u003e StatObject(\".Trash-1052824\") (251.840833ms): gcs.NotFoundError: storage: object doesn't exist\n","timestampSeconds":1678716606,"timestampNanos":864469379}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xc: \u003c- ListObjects(\"\")\n","timestampSeconds":1678716606,"timestampNanos":865901939}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xc: -\u003e ListObjects(\"\") (542.696711ms): OK\n","timestampSeconds":1678716607,"timestampNanos":408603470}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xd: \u003c- ListObjects(\"\")\n","timestampSeconds":1678716607,"timestampNanos":410434445}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xd: -\u003e ListObjects(\"\") (777.106617ms): OK\n","timestampSeconds":1678716608,"timestampNanos":187549591}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xe: \u003c- ListObjects(\"\")\n","timestampSeconds":1678716608,"timestampNanos":189326239}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xe: -\u003e ListObjects(\"\") (522.553585ms): OK\n","timestampSeconds":1678716608,"timestampNanos":711880294}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xf: \u003c- ListObjects(\"\")\n","timestampSeconds":1678716608,"timestampNanos":713622001}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req              0xf: -\u003e ListObjects(\"\") (658.846032ms): OK\n","timestampSeconds":1678716609,"timestampNanos":372473143}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req             0x10: \u003c- ListObjects(\"\")\n","timestampSeconds":1678716609,"timestampNanos":374266751}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req             0x10: -\u003e ListObjects(\"\") (583.520331ms): OK\n","timestampSeconds":1678716609,"timestampNanos":957788932}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req             0x11: \u003c- ListObjects(\"\")\n","timestampSeconds":1678716609,"timestampNanos":959778147}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req             0x11: -\u003e ListObjects(\"\") (499.791773ms): OK\n","timestampSeconds":1678716610,"timestampNanos":459572100}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req             0x12: \u003c- ListObjects(\"edrtfghj/\")\n","timestampSeconds":1678716610,"timestampNanos":460590478}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req             0x13: \u003c- StatObject(\"edrtfghj\")\n","timestampSeconds":1678716610,"timestampNanos":460714836}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req             0x13: -\u003e StatObject(\"edrtfghj\") (178.330788ms): gcs.NotFoundError: storage: object doesn't exist\n","timestampSeconds":1678716610,"timestampNanos":638930716}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req             0x12: -\u003e ListObjects(\"edrtfghj/\") (184.365466ms): OK\n","timestampSeconds":1678716610,"timestampNanos":644944373}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req             0x14: \u003c- CreateObject(\"edrtfghj/\")\n","timestampSeconds":1678716610,"timestampNanos":649192493}
+{"name":"root","levelname":"DEBUG","severity":"DEBUG","message":"gcs: Req             0x14: -\u003e CreateObject(\"edrtfghj/\") (1.111597669s): OK\n","timestampSeconds":1678716611,"timestampNanos":760795482}

@@ -15,6 +15,7 @@
 package logger
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"log/syslog"
@@ -186,9 +187,12 @@ func ErrorLogs(filename string) (writer io.Writer, err error) {
 			0644,
 		)
 		return f, err
-	} else if sysWriter, err := syslog.New(syslog.LOG_LOCAL7|syslog.LOG_DEBUG, ProgrammeName); err != nil {
+	} else if sysWriter, err := syslog.New(syslog.LOG_LOCAL7|syslog.LOG_DEBUG|syslog.LOG_NOTICE, ProgrammeName); err == nil {
+		fmt.Println("SYSLOG ", sysWriter)
+
 		return sysWriter, err
 	} else {
 		return os.Stderr, nil
 	}
+	return
 }
