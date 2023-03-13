@@ -187,7 +187,31 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 			MetaGenerationPrecondition: nil,
 		})
 
-	AssertEq("storage: object doesn't exist", err.Error())
+	AssertEq("gcs.NotFoundError: storage: object doesn't exist", err.Error())
+}
+
+func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingGeneration() {
+	err := t.bucketHandle.DeleteObject(context.Background(),
+		&gcs.DeleteObjectRequest{
+			Name:                       TestObjectName,
+			MetaGenerationPrecondition: nil,
+		})
+
+	AssertEq(nil, err)
+}
+
+func (t *BucketHandleTest) TestDeleteObjectMethodWithZeroGeneration() {
+	// Note: fake-gcs-server doesn't respect Generation or other conditions in
+	// delete operations. This unit test will be helpful when fake-gcs-server
+	// start respecting these conditions, or we move to other testing framework.
+	err := t.bucketHandle.DeleteObject(context.Background(),
+		&gcs.DeleteObjectRequest{
+			Name:                       TestObjectName,
+			Generation:                 0,
+			MetaGenerationPrecondition: nil,
+		})
+
+	AssertEq(nil, err)
 }
 
 func (t *BucketHandleTest) TestStatObjectMethodWithValidObject() {

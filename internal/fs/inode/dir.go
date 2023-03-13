@@ -766,7 +766,8 @@ func (d *dirInode) DeleteChildDir(
 	err = d.bucket.DeleteObject(
 		ctx,
 		&gcs.DeleteObjectRequest{
-			Name: childName.GcsObjectName(),
+			Name:       childName.GcsObjectName(),
+			Generation: 0, // Delete the latest version of object named after dir.
 		})
 
 	if err != nil {

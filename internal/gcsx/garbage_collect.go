@@ -75,7 +75,8 @@ func garbageCollectOnce(
 			err = bucket.DeleteObject(
 				ctx,
 				&gcs.DeleteObjectRequest{
-					Name: name,
+					Name:       name,
+					Generation: 0, // Latest generation of stale object.
 				})
 
 			if err != nil {
