@@ -34,8 +34,6 @@ import (
 	"syscall"
 )
 
-const ProgrammeName string = "gcsfuse"
-
 // The name of an environment variable used to communicate a file descriptor
 // set up by Run to the daemon process. Gob encoding is used to communicate
 // back to Run.
