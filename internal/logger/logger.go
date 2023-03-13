@@ -177,3 +177,22 @@ func (f *loggerFactory) writer(level string) io.Writer {
 		return os.Stdout
 	}
 }
+
+func ErrorLogs(filename string, format string) (writer io.Writer, err error) {
+	if filename != "" {
+		writer, err = os.OpenFile(
+			filename,
+			os.O_WRONLY|os.O_CREATE|os.O_APPEND,
+			0644,
+		)
+		if err != nil {
+			return nil, err
+		}
+	} else if _, err := os.Stat("/var/log/gcsfuse.log"); err == nil {
+		writer, _ = syslog.New(syslog.LOG_LOCAL7|syslog.LOG_DEBUG, ProgrammeName)
+	} else {
+		writer = os.Stderr
+	}
+
+	return writer, nil
+}
