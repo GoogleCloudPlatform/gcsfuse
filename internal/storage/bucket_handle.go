@@ -21,7 +21,6 @@ package storage
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -370,8 +369,6 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 			if ee.Code == http.StatusNotFound {
 				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
 			}
-		default:
-			err = fmt.Errorf("Error in composing object: %w", err)
 		}
 		return
 	}
