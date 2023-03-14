@@ -70,36 +70,16 @@ func (bh *bucketHandle) NewReader(
 func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
 	obj := b.bucket.Object(req.Name)
 
-	// Switching to the requested generation of the object. By default, generation
-	// is 0 which signifies the latest generation. Note: GCS will delete the
-	// live object even if generation is not set in request. We are passing 0
-	// generation explicitly to satisfy idempotency condition.
-	obj = obj.Generation(req.Generation)
-
+	// Switching to the requested generation of the object.
+	if req.Generation != 0 {
+		obj = obj.Generation(req.Generation)
+	}
 	// Putting condition that the object's MetaGeneration should match the requested MetaGeneration for deletion to occur.
 	if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
 		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.MetaGenerationPrecondition})
 	}
 
-	err := obj.Delete(ctx)
-	// If storage object does not exist, httpclient is returning ErrObjectNotExist error instead of googleapi error
-	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/7ad451c6f2ead7992e030503e5b66c555b2ebf71/vendor/cloud.google.com/go/storage/http_client.go#L399
-	if err != nil {
-		switch ee := err.(type) {
-		case *googleapi.Error:
-			if ee.Code == http.StatusPreconditionFailed {
-				err = &gcs.PreconditionError{Err: ee}
-			}
-		default:
-			if err == storage.ErrObjectNotExist {
-				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
-			} else {
-				err = fmt.Errorf("Error in deleting object: %w", err)
-			}
-		}
-	}
-	return err
-
+	return obj.Delete(ctx)
 }
 
 func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
