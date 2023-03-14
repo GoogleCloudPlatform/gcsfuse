@@ -78,7 +78,6 @@ func init() {
 		log.Fatalf("Couldn't parse %s value %q: %v", envVar, fdStr, err)
 	}
 
-	fmt.Printf("FD ",fd)
 	// Set up the file and the encoder that wraps it.
 	gFile = os.NewFile(uintptr(fd), envVar)
 	gGobEncoder = gob.NewEncoder(gFile)
@@ -150,10 +149,10 @@ func init() {
 // into the supplied writer (which may be nil for silence). Return nil only if
 // it starts successfully.
 func Run(
-	path string,
-	args []string,
-	env []string,
-	status io.Writer, logFile io.Writer) (err error) {
+		path string,
+		args []string,
+		env []string,
+		status io.Writer) (err error) {
 	if status == nil {
 		status = ioutil.Discard
 	}
@@ -170,7 +169,7 @@ func Run(
 	startProcessErr := make(chan error, 1)
 	go func() {
 		defer pipeW.Close()
-		err := startProcess(path, args, env, pipeW,logFile)
+		err := startProcess(path, args, env, pipeW)
 		if err != nil {
 			startProcessErr <- err
 		}
@@ -204,16 +203,14 @@ func Run(
 // Start the daemon process, handing it the supplied pipe for communication. Do
 // not wait for it to return.
 func startProcess(
-	path string,
-	args []string,
-	env []string,
-	pipeW *os.File, logFile io.Writer) (err error) {
+		path string,
+		args []string,
+		env []string,
+		pipeW *os.File) (err error) {
 	cmd := exec.Command(path)
 	cmd.Args = append(cmd.Args, args...)
 	cmd.Env = append(cmd.Env, env...)
 	cmd.ExtraFiles = []*os.File{pipeW}
-	cmd.Stderr = logFile
-
 
 	// Change working directories so that we don't prevent unmounting of the
 	// volume of our current working directory.
@@ -239,8 +236,8 @@ func startProcess(
 // supplied writer (which must be non-nil). Return nil only if the startup
 // succeeds.
 func readFromProcess(
-	r io.Reader,
-	status io.Writer) (err error) {
+		r io.Reader,
+		status io.Writer) (err error) {
 	decoder := gob.NewDecoder(r)
 
 	for {

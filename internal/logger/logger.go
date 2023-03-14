@@ -42,9 +42,10 @@ var (
 // config.
 // Here, background true means, this InitLogFile has been called for the
 // background daemon.
-func InitLogFile(filename string, format string) (err error, writer io.Writer) {
+func InitLogFile(filename string, format string) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
+	var err error
 	if filename != "" {
 		f, err = os.OpenFile(
 			filename,
@@ -52,7 +53,7 @@ func InitLogFile(filename string, format string) (err error, writer io.Writer) {
 			0644,
 		)
 		if err != nil {
-			return err, nil
+			return err
 		}
 	} else {
 		if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
@@ -77,13 +78,7 @@ func InitLogFile(filename string, format string) (err error, writer io.Writer) {
 	}
 	defaultInfoLogger = NewInfo("")
 
-	if f != nil {
-		writer = f
-	} else {
-		writer = sysWriter
-	}
-
-	return nil, writer
+	return nil
 }
 
 // init initializes the logger factory to use stdout and stderr.

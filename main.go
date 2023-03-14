@@ -22,7 +22,6 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -168,10 +167,10 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 
 // Mount the file system according to arguments in the supplied context.
 func mountWithArgs(
-		bucketName string,
-		mountPoint string,
-		flags *flagStorage,
-		mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
+	bucketName string,
+	mountPoint string,
+	flags *flagStorage,
+	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
 		locker.EnableInvariantsCheck()
@@ -221,9 +220,9 @@ func mountWithArgs(
 }
 
 func populateArgs(c *cli.Context) (
-		bucketName string,
-		mountPoint string,
-		err error) {
+	bucketName string,
+	mountPoint string,
+	err error) {
 	// Extract arguments.
 	switch len(c.Args()) {
 	case 1:
@@ -265,12 +264,11 @@ func runCLIApp(c *cli.Context) (err error) {
 		return fmt.Errorf("parsing flags failed: %w", err)
 	}
 
-	var logfile io.Writer
-
-	err, logfile = logger.InitLogFile(flags.LogFile, flags.LogFormat)
-	fmt.Println("LOG FILE INIT ", logfile)
-	if err != nil {
-		return fmt.Errorf("init log file: %w", err)
+	if flags.Foreground {
+		err = logger.InitLogFile(flags.LogFile, flags.LogFormat)
+		if err != nil {
+			return fmt.Errorf("init log file: %w", err)
+		}
 	}
 
 	var bucketName string
@@ -355,16 +353,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
 
 		// Run.
-		var errLogs io.Writer
-		if logfile != nil {
-			errLogs = logfile
-		} else {
-			errLogs = os.Stderr
-		}
-
-		fmt.Println("Log File ", logfile)
-		fmt.Println("Error Logs ", errLogs)
-		err = daemonize.Run(path, args, env, os.Stdout, errLogs)
+		err = daemonize.Run(path, args, env, os.Stdout)
 		if err != nil {
 			err = fmt.Errorf("daemonize.Run: %w", err)
 			return

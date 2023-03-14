@@ -171,7 +171,7 @@ func (em *errorMapping) BatchForget(
 func (em *errorMapping) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) error {
-	//defer em.handlePanic()
+	defer em.handlePanic()
 
 	err := em.wrapped.MkDir(ctx, op)
 	return em.mapError("MkDir", err)

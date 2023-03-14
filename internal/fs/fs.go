@@ -1186,7 +1186,7 @@ func (fs *fileSystem) MkDir(
 		err = fmt.Errorf("CreateChildDir: %w", err)
 		return err
 	}
-
+	panic("It Will Work")
 	// Attempt to create a child inode using the object we created. If we fail to
 	// do so, it means someone beat us to the punch with a newer generation
 	// (unlikely, so we're probably okay with failing here).
