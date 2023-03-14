@@ -149,10 +149,10 @@ func init() {
 // into the supplied writer (which may be nil for silence). Return nil only if
 // it starts successfully.
 func Run(
-		path string,
-		args []string,
-		env []string,
-		status io.Writer) (err error) {
+	path string,
+	args []string,
+	env []string,
+	status io.Writer) (err error) {
 	if status == nil {
 		status = ioutil.Discard
 	}
@@ -203,10 +203,10 @@ func Run(
 // Start the daemon process, handing it the supplied pipe for communication. Do
 // not wait for it to return.
 func startProcess(
-		path string,
-		args []string,
-		env []string,
-		pipeW *os.File) (err error) {
+	path string,
+	args []string,
+	env []string,
+	pipeW *os.File) (err error) {
 	cmd := exec.Command(path)
 	cmd.Args = append(cmd.Args, args...)
 	cmd.Env = append(cmd.Env, env...)
@@ -236,8 +236,8 @@ func startProcess(
 // supplied writer (which must be non-nil). Return nil only if the startup
 // succeeds.
 func readFromProcess(
-		r io.Reader,
-		status io.Writer) (err error) {
+	r io.Reader,
+	status io.Writer) (err error) {
 	decoder := gob.NewDecoder(r)
 
 	for {
