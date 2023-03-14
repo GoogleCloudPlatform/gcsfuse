@@ -44,8 +44,8 @@ func (bh *bucketHandle) Name() string {
 }
 
 func (bh *bucketHandle) NewReader(
-		ctx context.Context,
-		req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
+	ctx context.Context,
+	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -93,7 +93,6 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 		return
 	}
 	if err != nil {
-		err = fmt.Errorf("Error in fetching object attributes: %v", err)
 		return
 	}
 
@@ -246,7 +245,6 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 			break
 		}
 		if err != nil {
-			err = fmt.Errorf("Error in iterating through objects: %v", err)
 			return
 		}
 
