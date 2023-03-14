@@ -44,8 +44,8 @@ func (bh *bucketHandle) Name() string {
 }
 
 func (bh *bucketHandle) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
+		ctx context.Context,
+		req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -309,7 +309,6 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 		return
 	}
 
-	err = fmt.Errorf("Error in updating object")
 	// If storage object does not exist, httpclient is returning ErrObjectNotExist error instead of googleapi error
 	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L516
 	switch ee := err.(type) {
