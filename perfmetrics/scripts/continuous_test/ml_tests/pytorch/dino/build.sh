@@ -20,8 +20,8 @@ sudo docker run --runtime=nvidia --name=pytorch_automation_container --privilege
 --shm-size=128g pytorch-gcsfuse:latest
 
 # Setup the log_rotation.
-chmod +x ./perfmetrics/scripts/ml_tests/setup_log_rotation.sh
-sudo ./perfmetrics/scripts/ml_tests/setup_log_rotation.sh ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts/gcsfuse.log
+chmod +x perfmetrics/scripts/ml_tests/setup_log_rotation.sh
+source perfmetrics/scripts/ml_tests/setup_log_rotation.sh ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts/gcsfuse.log
 
 # Wait for the script completion as well as logs output.
 sudo docker logs -f pytorch_automation_container
