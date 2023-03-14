@@ -36,6 +36,7 @@ EOF
 
 # Set the correct access permission to the config file.
 chmod 0644 ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf
+chown root ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf
 
 # Make sure logrotate installed on the system.
 if test -x /usr/sbin/logrotate ; then
