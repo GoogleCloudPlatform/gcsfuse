@@ -8,7 +8,6 @@ export PATH=$PATH:/usr/local/go/bin
 # Hence, we need to setup the job to delete the logs file if not required.
 git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
 cd gcsfuse
-git checkout automation_log_rotation
 go build .
 cd -
 

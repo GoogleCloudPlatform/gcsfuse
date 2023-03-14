@@ -5,7 +5,7 @@
 
 log_file=$1
 echo "Creating logrotate configuration..."
-cat << EOF | tee ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf
+cat << EOF | sudo tee ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf
 ${log_file} {
   su root adm
   rotate 10
@@ -20,8 +20,8 @@ ${log_file} {
 EOF
 
 # Set the correct access permission to the config file.
-chmod 0644 ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf
-chown root ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf
+sudo chmod 0644 ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf
+sudo chown root ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf
 
 # Make sure logrotate installed on the system.
 if test -x /usr/sbin/logrotate ; then
@@ -33,10 +33,10 @@ fi
 
 # Add a shell script which will be run hourly, which eventually executes the
 # command to rotate the logs according to config present in /etc/logrotate.hourly.d
-cat << EOF | tee /etc/cron.hourly/gcsfuse_logrotate
+cat << EOF | sudo tee /etc/cron.hourly/gcsfuse_logrotate
 #!/bin/bash
 test -x /usr/sbin/logrotate || exit 0
-/usr/sbin/logrotate ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf --state ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate_status"
+/usr/sbin/logrotate ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf --state ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate_status
 EOF
 
 # Make sure, we have hourly logrotate setup inplace correctly.
@@ -47,7 +47,7 @@ else
         exit 1
 fi
 
-chmod 775 /etc/cron.hourly/gcsfuse-logrotate
+sudo chmod 775 /etc/cron.hourly/gcsfuse_logrotate
 
 # Restart the cron service
 sudo service cron restart
