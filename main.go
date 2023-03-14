@@ -194,8 +194,7 @@ func mountWithArgs(
 			conn, err = getConnWithRetry(flags)
 		}
 		if err != nil {
-			mountStatus.Printf("Failed to open connection: %v\n", err)
-			err = fmt.Errorf("getConnWithRetry: %w", err)
+			err = fmt.Errorf("failed to open connection - getConnWithRetry: %w", err)
 			return
 		}
 	}
