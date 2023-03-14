@@ -376,6 +376,7 @@ func runCLIApp(c *cli.Context) (err error) {
 			mountStatus.Println("File system has been successfully mounted.")
 			daemonize.SignalOutcome(nil)
 		} else {
+			mountStatus.Printf("Error while mounting gcsfuse: %v\n", err)
 			err = fmt.Errorf("mountWithArgs: %w", err)
 			daemonize.SignalOutcome(err)
 			return
