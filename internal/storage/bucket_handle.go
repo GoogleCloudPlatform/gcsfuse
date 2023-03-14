@@ -113,7 +113,7 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 		return
 	}
 	if err != nil {
-		err = fmt.Errorf("Error in fetching object attributes: %v", err)
+		err = fmt.Errorf("Error in fetching object attributes: %w", err)
 		return
 	}
 
@@ -266,7 +266,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 			break
 		}
 		if err != nil {
-			err = fmt.Errorf("Error in iterating through objects: %v", err)
+			err = fmt.Errorf("Error in iterating through objects: %w", err)
 			return
 		}
 
