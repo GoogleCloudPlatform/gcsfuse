@@ -19,35 +19,9 @@ echo "Running the docker image build in the previous step..."
 sudo docker run --runtime=nvidia --name=pytorch_automation_container --privileged -d -v ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts:/pytorch_dino/run_artifacts:rw,rshared \
 --shm-size=128g pytorch-gcsfuse:latest
 
-echo "Creating logrotate configuration..."
-cat << EOF | tee ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf
-${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts/gcsfuse.log {
-  su root adm
-  rotate 10
-  size 5G
-  missingok
-  notifempty
-  compress
-  dateext
-  dateformat -%Y%m%d-%s
-  copytruncate
-}
-EOF
-
-# Set the correct access permission to the config file.
-chmod 0644 ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf
-chown root ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf
-
-# Make sure logrotate installed on the system.
-if test -x /usr/sbin/logrotate ; then
-  echo "Logrotate already installed on the system."
-else
-  echo "Installing logrotate on the system..."
-  sudo apt-get install logrotate
-fi
-
-echo "Setting up cron job to rotate the gcsfuse_logs."
-echo "0 */1 * * * /usr/sbin/logrotate ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf --state ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate_status" | crontab -
+# Setup the log_rotation.
+chmod +x ./ml_tests/setup_log_rotation.sh
+sudo ./ml_tests/setup_log_rotation.sh ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts/gcsfuse.log
 
 # Wait for the script completion as well as logs output.
 sudo docker logs -f pytorch_automation_container

@@ -1,5 +1,36 @@
 #!/bin/bash
 
+# This will setup the rotation of log-file present at the $1
+# Please provide the absolute path of log-file.
+
+log_file=$1
+echo "Creating logrotate configuration..."
+cat << EOF | tee ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf
+${log_file} {
+  su root adm
+  rotate 10
+  size 5G
+  missingok
+  notifempty
+  compress
+  dateext
+  dateformat -%Y%m%d-%s
+  copytruncate
+}
+EOF
+
+# Set the correct access permission to the config file.
+chmod 0644 ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf
+chown root ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf
+
+# Make sure logrotate installed on the system.
+if test -x /usr/sbin/logrotate ; then
+  echo "Logrotate already installed on the system."
+else
+  echo "Installing logrotate on the system..."
+  sudo apt-get install logrotate
+fi
+
 # Add a shell script which will be run hourly, which eventually executes the
 # command to rotate the logs according to config present in /etc/logrotate.hourly.d
 cat << EOF | tee /etc/cron.hourly/gcsfuse_logrotate
@@ -17,3 +48,6 @@ else
 fi
 
 chmod 775 /etc/cron.hourly/gcsfuse-logrotate
+
+# Restart the cron service
+sudo service cron restart
