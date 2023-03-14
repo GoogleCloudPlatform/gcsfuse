@@ -376,6 +376,9 @@ func runCLIApp(c *cli.Context) (err error) {
 			mountStatus.Println("File system has been successfully mounted.")
 			daemonize.SignalOutcome(nil)
 		} else {
+			// Printing via mountStatus will have duplicate logs on the console while
+			// mounting gcsfuse in foreground mode. But this is important to avoid
+			// losing error logs when run in the background mode.
 			mountStatus.Printf("Error while mounting gcsfuse: %v\n", err)
 			err = fmt.Errorf("mountWithArgs: %w", err)
 			daemonize.SignalOutcome(err)
