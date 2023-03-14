@@ -194,8 +194,7 @@ func mountWithArgs(
 			conn, err = getConnWithRetry(flags)
 		}
 		if err != nil {
-			mountStatus.Printf("Failed to open connection: %v\n", err)
-			err = fmt.Errorf("getConnWithRetry: %w", err)
+			err = fmt.Errorf("failed to open connection - getConnWithRetry: %w", err)
 			return
 		}
 	}
@@ -370,13 +369,17 @@ func runCLIApp(c *cli.Context) (err error) {
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
-		mountStatus := logger.NewNotice("")
+		mountStatus := logger.NewInfo("")
 		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountStatus)
 
 		if err == nil {
 			mountStatus.Println("File system has been successfully mounted.")
 			daemonize.SignalOutcome(nil)
 		} else {
+			// Printing via mountStatus will have duplicate logs on the console while
+			// mounting gcsfuse in foreground mode. But this is important to avoid
+			// losing error logs when run in the background mode.
+			mountStatus.Printf("Error while mounting gcsfuse: %v\n", err)
 			err = fmt.Errorf("mountWithArgs: %w", err)
 			daemonize.SignalOutcome(err)
 			return
