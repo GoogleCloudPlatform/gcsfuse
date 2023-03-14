@@ -187,8 +187,6 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 			if ee.Code == http.StatusNotFound {
 				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
 			}
-		default:
-			err = fmt.Errorf("Error in copying object: %w", err)
 		}
 		return
 	}
@@ -311,6 +309,7 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 		return
 	}
 
+	err = fmt.Errorf("Error in updating object")
 	// If storage object does not exist, httpclient is returning ErrObjectNotExist error instead of googleapi error
 	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L516
 	switch ee := err.(type) {
@@ -321,8 +320,6 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 	default:
 		if err == storage.ErrObjectNotExist {
 			err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
-		} else {
-			err = fmt.Errorf("Error in updating object: %w", err)
 		}
 	}
 
