@@ -99,8 +99,6 @@ func (em *errorMapping) handlePanic() {
 }
 
 func (em *errorMapping) mapError(op string, err error) error {
-	defer em.handlePanic()
-
 	fsErr := errno(err)
 	if err != nil && fsErr != nil && err != fsErr {
 		em.logger.Printf("%s: %v, %v", op, fsErr, err)
