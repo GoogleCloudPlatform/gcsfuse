@@ -21,7 +21,7 @@ package storage
 
 import (
 	"errors"
-	"fmt"
+	"io"
 	"net/http"
 
 	"cloud.google.com/go/storage"
