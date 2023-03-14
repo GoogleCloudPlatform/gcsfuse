@@ -22,6 +22,7 @@ sudo docker run --runtime=nvidia --name=pytorch_automation_container --privilege
 echo "Creating logrotate configuration..."
 cat << EOF | tee ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf
 ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts/gcsfuse.log {
+  su root adm
   rotate 10
   size 5G
   missingok
@@ -32,6 +33,9 @@ ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts/gcsfuse.log {
   copytruncate
 }
 EOF
+
+# Set the correct access permission to the config file.
+chmod 0644 ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf
 
 # Make sure logrotate installed on the system.
 if test -x /usr/sbin/logrotate ; then
