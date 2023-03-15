@@ -176,10 +176,10 @@ func handlePanic() {
 }
 
 func mountWithArgs(
-		bucketName string,
-		mountPoint string,
-		flags *flagStorage,
-		mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
+	bucketName string,
+	mountPoint string,
+	flags *flagStorage,
+	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
 		locker.EnableInvariantsCheck()
@@ -228,9 +228,9 @@ func mountWithArgs(
 }
 
 func populateArgs(c *cli.Context) (
-		bucketName string,
-		mountPoint string,
-		err error) {
+	bucketName string,
+	mountPoint string,
+	err error) {
 	// Extract arguments.
 	switch len(c.Args()) {
 	case 1:
@@ -375,7 +375,6 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
-	panic("In main")
 	var mfs *fuse.MountedFileSystem
 	{
 		mountStatus := logger.NewInfo("")
