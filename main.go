@@ -166,15 +166,6 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func handlePanic() {
-	// detect if panic occurred or not
-	a := recover()
-	if a != nil {
-		logger.Info("Panic: ", a)
-		os.Exit(1)
-	}
-}
-
 func mountWithArgs(
 	bucketName string,
 	mountPoint string,
@@ -429,6 +420,15 @@ func run() (err error) {
 
 	err = appErr
 	return
+}
+
+func handlePanic() {
+	// detect if panic occurred or not
+	a := recover()
+	if a != nil {
+		logger.Info("Panic: ", a)
+		os.Exit(1)
+	}
 }
 
 func main() {
