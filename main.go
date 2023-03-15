@@ -176,10 +176,10 @@ func handlePanic() {
 }
 
 func mountWithArgs(
-	bucketName string,
-	mountPoint string,
-	flags *flagStorage,
-	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
+		bucketName string,
+		mountPoint string,
+		flags *flagStorage,
+		mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
 		locker.EnableInvariantsCheck()
@@ -228,9 +228,9 @@ func mountWithArgs(
 }
 
 func populateArgs(c *cli.Context) (
-	bucketName string,
-	mountPoint string,
-	err error) {
+		bucketName string,
+		mountPoint string,
+		err error) {
 	// Extract arguments.
 	switch len(c.Args()) {
 	case 1:
@@ -360,6 +360,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		// process and daemon process. If this environment variable set that means
 		// programme is running as daemon process.
 		env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
+
 		// Run.
 		err = daemonize.Run(path, args, env, os.Stdout)
 		if err != nil {
@@ -369,6 +370,7 @@ func runCLIApp(c *cli.Context) (err error) {
 
 		return
 	}
+
 	// The returned error is ignored as we do not enforce monitoring exporters
 	monitor.EnableStackdriverExporter(flags.StackdriverExportInterval)
 	monitor.EnableOpenTelemetryCollectorExporter(flags.OtelCollectorAddress)
