@@ -8,8 +8,8 @@ echo "Creating logrotate configuration..."
 cat << EOF | sudo tee ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/gcsfuse_logrotate.conf
 ${log_file} {
   su root adm
-  rotate 10
-  size 5G
+  rotate 3
+  size 1G
   missingok
   notifempty
   compress
