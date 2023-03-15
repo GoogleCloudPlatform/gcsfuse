@@ -166,11 +166,20 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
+func handlePanic() {
+	// detect if panic occurred or not
+	a := recover()
+	if a != nil {
+		logger.Info("Panic: ", a)
+		os.Exit(1)
+	}
+}
+
 func mountWithArgs(
-	bucketName string,
-	mountPoint string,
-	flags *flagStorage,
-	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
+		bucketName string,
+		mountPoint string,
+		flags *flagStorage,
+		mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
 		locker.EnableInvariantsCheck()
@@ -219,9 +228,9 @@ func mountWithArgs(
 }
 
 func populateArgs(c *cli.Context) (
-	bucketName string,
-	mountPoint string,
-	err error) {
+		bucketName string,
+		mountPoint string,
+		err error) {
 	// Extract arguments.
 	switch len(c.Args()) {
 	case 1:
@@ -282,6 +291,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	// If we haven't been asked to run in foreground mode, we should run a daemon
 	// with the foreground flag set and wait for it to mount.
 	if !flags.Foreground {
+
 		// Find the executable.
 		var path string
 		path, err = osext.Executable()
@@ -350,7 +360,6 @@ func runCLIApp(c *cli.Context) (err error) {
 		// process and daemon process. If this environment variable set that means
 		// programme is running as daemon process.
 		env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
-
 		// Run.
 		err = daemonize.Run(path, args, env, os.Stdout)
 		if err != nil {
@@ -360,13 +369,13 @@ func runCLIApp(c *cli.Context) (err error) {
 
 		return
 	}
-
 	// The returned error is ignored as we do not enforce monitoring exporters
 	monitor.EnableStackdriverExporter(flags.StackdriverExportInterval)
 	monitor.EnableOpenTelemetryCollectorExporter(flags.OtelCollectorAddress)
 
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
+	panic("In main")
 	var mfs *fuse.MountedFileSystem
 	{
 		mountStatus := logger.NewInfo("")
@@ -423,6 +432,8 @@ func run() (err error) {
 }
 
 func main() {
+	defer handlePanic()
+
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
