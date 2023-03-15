@@ -4,8 +4,7 @@ wget -O go_tar.tar.gz https://go.dev/dl/go1.19.5.linux-amd64.tar.gz
 rm -rf /usr/local/go && tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 
-# Log-rotation branch will create the logs.txt file after every 6 hours.
-# Hence, we need to setup the job to delete the logs file if not required.
+# Clone and build the gcsfuse master branch.
 git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
 cd gcsfuse
 go build .
