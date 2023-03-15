@@ -4,12 +4,10 @@ wget -O go_tar.tar.gz https://go.dev/dl/go1.19.5.linux-amd64.tar.gz
 rm -rf /usr/local/go && tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 
-# Todo: please update the branch, when log-rotation changes are merged.
 # Log-rotation branch will create the logs.txt file after every 6 hours.
 # Hence, we need to setup the job to delete the logs file if not required.
 git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
 cd gcsfuse
-git checkout log_rotation
 go build .
 cd -
 
@@ -22,11 +20,10 @@ nohup /pytorch_dino/gcsfuse/gcsfuse --foreground --type-cache-ttl=1728000s \
         --stat-cache-capacity=1320000 \
         --stackdriver-export-interval=60s \
         --implicit-dirs \
-        --experimental-enable-storage-client-library \
         --max-conns-per-host=100 \
         --debug_fs \
         --debug_gcs \
-        --log-file run_artifacts/gcsfuse_logs/logs.txt \
+        --log-file run_artifacts/gcsfuse.log \
         --log-format text \
        gcsfuse-ml-data gcsfuse_data > "run_artifacts/gcsfuse.out" 2> "run_artifacts/gcsfuse.err" &
 
@@ -67,7 +64,7 @@ python3 -m torch.distributed.launch \
   --norm_last_layer False \
   --use_fp16 False \
   --clip_grad 0 \
-  --epochs 200 \
+  --epochs 100 \
   --global_crops_scale 0.25 1.0 \
   --local_crops_number 10 \
   --local_crops_scale 0.05 0.25 \
