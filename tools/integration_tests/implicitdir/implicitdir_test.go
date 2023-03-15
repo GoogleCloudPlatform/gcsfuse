@@ -30,6 +30,7 @@ import (
 )
 
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
+var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test.")
 
 var (
 	binFile string
@@ -161,23 +162,31 @@ func createTempFile() string {
 	return fileName
 }
 
-func executeTest(flags []string, m *testing.M) (successCode int) {
+func executeTest(m *testing.M) (successCode int) {
+	// Creating a temporary directory to store files
+	// to be used for testing.
+	var err error
+	tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
+	if err != nil {
+		logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
+	}
+
+	successCode = m.Run()
+
+	os.RemoveAll(mntDir)
+
+	return successCode
+}
+
+func executeTestForFlags(flags []string, m *testing.M) (successCode int) {
 	var err error
 	for i := 0; i < len(flags); i++ {
 		if err = mountGcsfuse(flags[i]); err != nil {
 			logAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 
-		// Creating a temporary directory to store files
-		// to be used for testing.
-		tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
-		if err != nil {
-			logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
-		}
+		successCode = executeTest(m)
 
-		successCode = m.Run()
-
-		os.RemoveAll(mntDir)
 		err = unMount()
 		if err != nil {
 			logAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
@@ -196,9 +205,18 @@ func executeTest(flags []string, m *testing.M) (successCode int) {
 func TestMain(m *testing.M) {
 	flag.Parse()
 
-	if *testBucket == "" {
-		log.Printf("--testbucket must be specified")
+	if *testBucket == "" && *mountedDirectory == "" {
+		log.Printf("--testbucket or --mountedDirectory must be specified")
 		os.Exit(0)
+	} else if *testBucket != "" && *mountedDirectory != "" {
+		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
+		os.Exit(0)
+	}
+
+	if *mountedDirectory != "" {
+		mntDir = *mountedDirectory
+		successCode := executeTest(m)
+		os.Exit(successCode)
 	}
 
 	if err := setUpTestDir(); err != nil {
@@ -211,7 +229,8 @@ func TestMain(m *testing.M) {
 		"--implicit-dirs=true",
 		"--implicit-dirs=false"}
 
-	successCode := executeTest(flags, m)
+	successCode := executeTestForFlags(flags, m)
+
 	log.Printf("Test log: %s\n", logFile)
 	os.Exit(successCode)
 }
