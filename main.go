@@ -291,7 +291,6 @@ func runCLIApp(c *cli.Context) (err error) {
 	// If we haven't been asked to run in foreground mode, we should run a daemon
 	// with the foreground flag set and wait for it to mount.
 	if !flags.Foreground {
-
 		// Find the executable.
 		var path string
 		path, err = osext.Executable()

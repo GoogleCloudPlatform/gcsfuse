@@ -1,0 +1,2 @@
+I0315 05:27:01.496913 Start gcsfuse/unknown (Go version go1.20-20221229-RC00 cl/498461153 +db36eca33c) for app "" using mount point: /usr/local/google/home/tulsishah/gcs2
+I0315 05:27:01.496946 Panic:  In main
