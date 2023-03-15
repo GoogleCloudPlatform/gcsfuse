@@ -423,7 +423,7 @@ func run() (err error) {
 }
 
 func handlePanic() {
-	// detect if panic occurred or not
+	// Detect if panic happens in main go routine.
 	a := recover()
 	if a != nil {
 		logger.Info("Panic: ", a)
