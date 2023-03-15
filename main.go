@@ -427,7 +427,6 @@ func handlePanic() {
 	a := recover()
 	if a != nil {
 		logger.Info("Panic: ", a)
-		os.Exit(1)
 	}
 }
 
