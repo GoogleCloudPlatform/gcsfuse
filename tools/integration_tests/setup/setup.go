@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -26,8 +25,7 @@ var (
 
 func SetUpTestDir() error {
 	var err error
-
-	TestDir, err = ioutil.TempDir("", "gcsfuse_readwrite_test_")
+	TestDir, err = os.MkdirTemp("", "gcsfuse_readwrite_test_")
 	if err != nil {
 		return fmt.Errorf("TempDir: %w\n", err)
 	}
