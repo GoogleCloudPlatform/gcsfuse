@@ -46,7 +46,7 @@ func SetUpTestDir() error {
 	return nil
 }
 
-func MountGcsfuse(flag ...string) error {
+func MountGcsfuse(flag []string) error {
 	arg := []string{"--debug_gcs",
 		"--debug_fs",
 		"--debug_fuse",

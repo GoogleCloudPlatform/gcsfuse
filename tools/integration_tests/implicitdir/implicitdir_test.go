@@ -89,7 +89,7 @@ func executeTest(m *testing.M) (successCode int) {
 	return successCode
 }
 
-func executeTestForFlags(flags []string, m *testing.M) (successCode int) {
+func executeTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 	var err error
 	for i := 0; i < len(flags); i++ {
 		if err = setup.MountGcsfuse(flags[i]); err != nil {
@@ -105,7 +105,11 @@ func executeTestForFlags(flags []string, m *testing.M) (successCode int) {
 
 		// Print flag on which test fails
 		if successCode != 0 {
-			log.Print("Test Fails on " + flags[i])
+			var f string
+			for j := 0; j < len(flags[i]); j++ {
+				f += flags[i][j]
+			}
+			log.Print("Test Fails on " + f)
 			return
 		}
 
@@ -135,10 +139,10 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	flags := []string{"--enable-storage-client-library=true",
-		"--enable-storage-client-library=false",
-		"--implicit-dirs=true",
-		"--implicit-dirs=false"}
+	flags := [][]string{{"--enable-storage-client-library=true"},
+		{"--enable-storage-client-library=false"},
+		{"--implicit-dirs=true"},
+		{"--implicit-dirs=false"}}
 
 	successCode := executeTestForFlags(flags, m)
 
