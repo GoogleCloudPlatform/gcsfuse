@@ -21,6 +21,8 @@ import (
 	"path"
 	"testing"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
 func TestRenameFile(t *testing.T) {
@@ -62,7 +64,7 @@ func TestFileAttributes(t *testing.T) {
 	if err != nil {
 		t.Errorf("os.Stat error: %s, %v", fileName, err)
 	}
-	statFileName := path.Join(tmpDir, fStat.Name())
+	statFileName := path.Join(setup.TmpDir, fStat.Name())
 	if fileName != statFileName {
 		t.Errorf("File name not matched in os.Stat, found: %s, expected: %s", statFileName, fileName)
 	}

@@ -13,74 +13,26 @@
 // limitations under the License.
 
 // Provides integration tests when implicit_dir flag is set.
-package implicitdir_test
+package readonly_test
 
 import (
 	"flag"
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
-	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-func clearKernelCache() error {
-	if _, err := os.Stat("/proc/sys/vm/drop_caches"); err != nil {
-		log.Printf("Kernel cache file not found: %v", err)
-		// No need to stop the test execution if cache file is not found. Further
-		// reads will be served from kernel cache.
-		return nil
-	}
-
-	// sudo permission is required to clear kernel page cache.
-	cmd := exec.Command("sudo", "sh", "-c", "echo 3 > /proc/sys/vm/drop_caches")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("clear kernel cache failed with error: %w", err)
-	}
-	return nil
-}
-
-func compareFileContents(t *testing.T, fileName string, fileContent string) {
-	// After write, data will be cached by kernel. So subsequent read will be
-	// served using cached data by kernel instead of calling gcsfuse.
-	// Clearing kernel cache to ensure that gcsfuse is invoked during read operation.
-	err := clearKernelCache()
-	if err != nil {
-		t.Errorf("Clear Kernel Cache: %v", err)
-	}
-
-	content, err := os.ReadFile(fileName)
-	if err != nil {
-		t.Errorf("Read: %v", err)
-	}
-
-	if got := string(content); got != fileContent {
-		t.Errorf("File content doesn't match. Expected: %q, Actual: %q", got, fileContent)
-	}
-}
-
-func createTempFile() string {
-	// A temporary file is created and some lines are added
-	// to it for testing purposes.
-	fileName := path.Join(setup.TmpDir, "tmpFile")
-	err := os.WriteFile(fileName, []byte("line 1\nline 2\n"), 0666)
-	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Temporary file at %v", err))
-	}
-	return fileName
-}
-
 func executeTest(m *testing.M) (successCode int) {
 	// Creating a temporary directory to store files
 	// to be used for testing.
-	var err error
-	setup.TmpDir, err = os.MkdirTemp(setup.MntDir, "tmpDir")
-	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Mkdir at %q: %v", setup.MntDir, err))
-	}
+	//var err error
+	//setup.TmpDir, err = os.MkdirTemp(setup.MntDir, "tmpDir")
+	//if err != nil {
+	//	setup.LogAndExit(fmt.Sprintf("Mkdir at %q: %v", setup.MntDir, err))
+	//}
 
 	successCode = m.Run()
 
@@ -135,10 +87,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	flags := []string{"--enable-storage-client-library=true",
-		"--enable-storage-client-library=false",
-		"--implicit-dirs=true",
-		"--implicit-dirs=false"}
+	flags := []string{"--enable-storage-client-library", "--o=ro", "--implicit-dirs=true"}
 
 	successCode := executeTestForFlags(flags, m)
 

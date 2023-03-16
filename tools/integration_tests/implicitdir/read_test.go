@@ -19,12 +19,14 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
 func TestReadAfterWrite(t *testing.T) {
-	tmpDir, err := ioutil.TempDir(mntDir, "tmpDir")
+	tmpDir, err := ioutil.TempDir(setup.MntDir, "tmpDir")
 	if err != nil {
-		t.Errorf("Mkdir at %q: %v", mntDir, err)
+		t.Errorf("Mkdir at %q: %v", setup.MntDir, err)
 		return
 	}
 
