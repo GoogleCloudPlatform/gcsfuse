@@ -23,6 +23,54 @@ var (
 	mntDir  string
 )
 
+func TestBucket() string {
+	return *testBucket
+}
+
+func MountedDirectory() string {
+	return *mountedDirectory
+}
+
+func SetLogFile(logFileValue string) {
+	logFile = logFileValue
+}
+
+func LogFile() string {
+	return logFile
+}
+
+func SetBinFile(binFileValue string) {
+	binFile = binFileValue
+}
+
+func BinFile() string {
+	return binFile
+}
+
+func SetTestDir(testDirValue string) {
+	testDir = testDirValue
+}
+
+func SetTmpDir(tmpDirValue string) {
+	tmpDir = tmpDirValue
+}
+
+func SetMntDir(mntDirValue string) {
+	mntDir = mntDirValue
+}
+
+func MntDir() string {
+	return mntDir
+}
+
+func TestDir() string {
+	return testDir
+}
+
+func TmpDir() string {
+	return tmpDir
+}
+
 func SetUpTestDir() error {
 	var err error
 	testDir, err := os.MkdirTemp("", "gcsfuse_readwrite_test_")
@@ -40,9 +88,9 @@ func SetUpTestDir() error {
 	SetLogFile(path.Join(TestDir(), "gcsfuse.log"))
 	SetMntDir(path.Join(TestDir(), "mnt"))
 
-	err = os.Mkdir(mntDir, 0755)
+	err = os.Mkdir(MntDir(), 0755)
 	if err != nil {
-		return fmt.Errorf("Mkdir(%q): %v\n", mntDir, err)
+		return fmt.Errorf("Mkdir(%q): %v\n", MntDir(), err)
 	}
 	return nil
 }
@@ -53,15 +101,15 @@ func MountGcsfuse(flag []string) error {
 		"--debug_fuse",
 		"--log-file=" + LogFile(),
 		"--log-format=text",
-		*testBucket,
-		mntDir}
+		TestBucket(),
+		MntDir()}
 
 	for i := 0; i < len(arg); i++ {
 		flag = append(flag, arg[i])
 	}
 
 	mountCmd := exec.Command(
-		binFile,
+		BinFile(),
 		flag...,
 	)
 
@@ -93,7 +141,7 @@ func UnMount() error {
 	if err != nil {
 		return fmt.Errorf("cannot find fusermount: %w", err)
 	}
-	cmd := exec.Command(fusermount, "-uz", mntDir)
+	cmd := exec.Command(fusermount, "-uz", MntDir())
 	if _, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("fusermount error: %w", err)
 	}
@@ -103,48 +151,4 @@ func UnMount() error {
 func LogAndExit(s string) {
 	log.Print(s)
 	os.Exit(1)
-}
-
-func TestBucket() string {
-	return *testBucket
-}
-
-func MountedDirectory() string {
-	return *mountedDirectory
-}
-
-func LogFile() string {
-	return logFile
-}
-
-func SetBinFile(binFileValue string) {
-	binFile = binFileValue
-}
-
-func SetTestDir(testDirValue string) {
-	testDir = testDirValue
-}
-
-func SetTmpDir(tmpDirValue string) {
-	tmpDir = tmpDirValue
-}
-
-func SetMntDir(mntDirValue string) {
-	mntDir = mntDirValue
-}
-
-func SetLogFile(logFileValue string) {
-	logFile = logFileValue
-}
-
-func TestDir() string {
-	return testDir
-}
-
-func MntDir() string {
-	return mntDir
-}
-
-func TmpDir() string {
-	return tmpDir
 }
