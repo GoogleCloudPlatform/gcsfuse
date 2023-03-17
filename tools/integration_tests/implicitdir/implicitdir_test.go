@@ -65,7 +65,7 @@ func compareFileContents(t *testing.T, fileName string, fileContent string) {
 func createTempFile() string {
 	// A temporary file is created and some lines are added
 	// to it for testing purposes.
-	fileName := path.Join(setup.TmpDir, "tmpFile")
+	fileName := path.Join(setup.TmpDir(), "tmpFile")
 	err := os.WriteFile(fileName, []byte("line 1\nline 2\n"), 0666)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Temporary file at %v", err))
@@ -77,20 +77,21 @@ func executeTest(m *testing.M) (successCode int) {
 	// Creating a temporary directory to store files
 	// to be used for testing.
 	var err error
-	setup.TmpDir, err = os.MkdirTemp(setup.MntDir, "tmpDir")
+	tmpDir, err := os.MkdirTemp(setup.MntDir(), "tmpDir")
 	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Mkdir at %q: %v", setup.MntDir, err))
+		setup.LogAndExit(fmt.Sprintf("Mkdir at %q: %v", setup.MntDir(), err))
 	}
-
+	setup.SetTmpDir(tmpDir)
 	successCode = m.Run()
 
-	os.RemoveAll(setup.MntDir)
+	os.RemoveAll(setup.MntDir())
 
 	return successCode
 }
 
 func executeTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 	var err error
+
 	for i := 0; i < len(flags); i++ {
 		if err = setup.MountGcsfuse(flags[i]); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
@@ -120,16 +121,16 @@ func executeTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 func TestMain(m *testing.M) {
 	flag.Parse()
 
-	if *setup.TestBucket == "" && *setup.MountedDirectory == "" {
+	if setup.TestBucket() == "" && setup.MountedDirectory() == "" {
 		log.Printf("--testbucket or --mountedDirectory must be specified")
 		os.Exit(0)
-	} else if *setup.TestBucket != "" && *setup.MountedDirectory != "" {
+	} else if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
 		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
 		os.Exit(0)
 	}
 
-	if *setup.MountedDirectory != "" {
-		setup.MntDir = *setup.MountedDirectory
+	if setup.MountedDirectory() != "" {
+		setup.SetMntDir(setup.MountedDirectory())
 		successCode := executeTest(m)
 		os.Exit(successCode)
 	}
@@ -146,6 +147,6 @@ func TestMain(m *testing.M) {
 
 	successCode := executeTestForFlags(flags, m)
 
-	log.Printf("Test log: %s\n", setup.LogFile)
+	log.Printf("Test log: %s\n", setup.LogFile())
 	os.Exit(successCode)
 }

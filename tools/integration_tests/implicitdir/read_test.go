@@ -24,9 +24,9 @@ import (
 )
 
 func TestReadAfterWrite(t *testing.T) {
-	tmpDir, err := ioutil.TempDir(setup.MntDir, "tmpDir")
+	tmpDir, err := ioutil.TempDir(setup.MntDir(), "tmpDir")
 	if err != nil {
-		t.Errorf("Mkdir at %q: %v", setup.MntDir, err)
+		t.Errorf("Mkdir at %q: %v", setup.MntDir(), err)
 		return
 	}
 
