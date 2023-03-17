@@ -95,8 +95,8 @@ func SetUpTestDir() error {
 	return nil
 }
 
-func MountGcsfuse(flag []string) error {
-	arg := []string{"--debug_gcs",
+func MountGcsfuse(flags []string) error {
+	defaultArg := []string{"--debug_gcs",
 		"--debug_fs",
 		"--debug_fuse",
 		"--log-file=" + LogFile(),
@@ -104,13 +104,13 @@ func MountGcsfuse(flag []string) error {
 		TestBucket(),
 		MntDir()}
 
-	for i := 0; i < len(arg); i++ {
-		flag = append(flag, arg[i])
+	for i := 0; i < len(defaultArg); i++ {
+		flags = append(flags, defaultArg[i])
 	}
 
 	mountCmd := exec.Command(
 		BinFile(),
-		flag...,
+		flags...,
 	)
 
 	// Adding mount command in LogFile
