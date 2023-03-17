@@ -51,8 +51,16 @@ func SetTestDir(testDirValue string) {
 	testDir = testDirValue
 }
 
+func TestDir() string {
+	return testDir
+}
+
 func SetTmpDir(tmpDirValue string) {
 	tmpDir = tmpDirValue
+}
+
+func TmpDir() string {
+	return tmpDir
 }
 
 func SetMntDir(mntDirValue string) {
@@ -61,14 +69,6 @@ func SetMntDir(mntDirValue string) {
 
 func MntDir() string {
 	return mntDir
-}
-
-func TestDir() string {
-	return testDir
-}
-
-func TmpDir() string {
-	return tmpDir
 }
 
 func SetUpTestDir() error {
