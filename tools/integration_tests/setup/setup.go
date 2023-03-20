@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
@@ -226,10 +227,7 @@ func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 
 		// Print flag on which test fails
 		if successCode != 0 {
-			var f string
-			for j := 0; j < len(flags[i]); j++ {
-				f += flags[i][j]
-			}
+			f := strings.Join(flags[i], " ")
 			log.Print("Test Fails on " + f)
 			return
 		}

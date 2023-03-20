@@ -46,7 +46,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	flags := [][]string{{"--enable-storage-client-library=true"},
+	flags := [][]string{{"--enable-storage-client-library=true", "--implicit-dirs=true"},
 		{"--enable-storage-client-library=false"},
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"}}
