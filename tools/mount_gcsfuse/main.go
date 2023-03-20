@@ -86,7 +86,10 @@ func makeGcsfuseArgs(
 			"enable_storage_client_library",
 			"reuse_token_from_url",
 			"enable_nonexistent_type_cache":
-			args = append(args, "--"+strings.Replace(name, "_", "-", -1))
+			if value == "" {
+				value = "true"
+			}
+			args = append(args, "--"+strings.Replace(name, "_", "-", -1)+"="+value)
 
 		// Special case: support mount-like formatting for gcsfuse string flags.
 		case "dir_mode",
