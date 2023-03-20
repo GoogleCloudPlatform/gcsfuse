@@ -26,8 +26,8 @@ import (
 )
 
 func TestRenameFile(t *testing.T) {
-	fileName := createTempFile()
-	err := clearKernelCache()
+	fileName := setup.CreateTempFile()
+	err := setup.ClearKernelCache()
 	if err != nil {
 		t.Errorf("Clear Kernel Cache: %v", err)
 	}
@@ -51,12 +51,12 @@ func TestRenameFile(t *testing.T) {
 		t.Errorf("Renamed file %s not found", newFileName)
 	}
 	// Check if the data in the file is the same after renaming.
-	compareFileContents(t, newFileName, string(content))
+	setup.CompareFileContents(t, newFileName, string(content))
 }
 
 func TestFileAttributes(t *testing.T) {
 	preCreateTime := time.Now()
-	fileName := createTempFile()
+	fileName := setup.CreateTempFile()
 	postCreateTime := time.Now()
 
 	fStat, err := os.Stat(fileName)
@@ -78,8 +78,8 @@ func TestFileAttributes(t *testing.T) {
 }
 
 func TestCopyFile(t *testing.T) {
-	fileName := createTempFile()
-	err := clearKernelCache()
+	fileName := setup.CreateTempFile()
+	err := setup.ClearKernelCache()
 	if err != nil {
 		t.Errorf("Clear Kernel Cache: %v", err)
 	}
@@ -110,6 +110,6 @@ func TestCopyFile(t *testing.T) {
 
 	// Check if the data in the copied file matches the original file,
 	// and the data in original file is unchanged.
-	compareFileContents(t, newFileName, string(content))
-	compareFileContents(t, fileName, string(content))
+	setup.CompareFileContents(t, newFileName, string(content))
+	setup.CompareFileContents(t, fileName, string(content))
 }
