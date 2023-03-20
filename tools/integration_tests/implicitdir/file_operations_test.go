@@ -27,7 +27,6 @@ import (
 
 func TestRenameFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
-	
 	err := setup.ClearKernelCache()
 	if err != nil {
 		t.Errorf("Clear Kernel Cache: %v", err)
