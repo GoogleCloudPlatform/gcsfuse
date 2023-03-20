@@ -81,15 +81,15 @@ func makeGcsfuseArgs(
 
 		// Special case: support mount-like formatting for gcsfuse bool flags.
 		case "implicit_dirs",
+			"foreground",
 			"experimental_local_file_cache",
 			"enable_storage_client_library",
 			"reuse_token_from_url",
 			"enable_nonexistent_type_cache":
 			if value == "" {
-				args = append(args, "--"+strings.Replace(name, "_", "-", -1))
-			} else {
-				args = append(args, "--"+strings.Replace(name, "_", "-", -1)+"="+value)
+				value = "true"
 			}
+			args = append(args, "--"+strings.Replace(name, "_", "-", -1)+"="+value)
 
 		// Special case: support mount-like formatting for gcsfuse string flags.
 		case "dir_mode",
@@ -124,8 +124,7 @@ func makeGcsfuseArgs(
 			"debug_gcs",
 			"debug_http",
 			"debug_invariants",
-			"debug_mutex",
-			"foreground":
+			"debug_mutex":
 			args = append(args, "--"+name)
 
 		// Pass through everything else.
