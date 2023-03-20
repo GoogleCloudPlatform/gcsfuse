@@ -31,6 +31,7 @@ func TestRenameFile(t *testing.T) {
 	if err != nil {
 		t.Errorf("Clear Kernel Cache: %v", err)
 	}
+
 	content, err := os.ReadFile(fileName)
 	if err != nil {
 		t.Errorf("Read: %v", err)
