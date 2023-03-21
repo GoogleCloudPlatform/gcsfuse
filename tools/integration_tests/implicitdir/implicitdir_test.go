@@ -16,221 +16,43 @@
 package implicitdir_test
 
 import (
-	"bytes"
 	"flag"
-	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
-	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/util"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
-
-var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
-var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test.")
-
-var (
-	binFile string
-	logFile string
-	mntDir  string
-	testDir string
-	tmpDir  string
-)
-
-func setUpTestDir() error {
-	var err error
-	testDir, err = ioutil.TempDir("", "gcsfuse_readwrite_test_")
-	if err != nil {
-		return fmt.Errorf("TempDir: %w\n", err)
-	}
-
-	err = util.BuildGcsfuse(testDir)
-	if err != nil {
-		return fmt.Errorf("BuildGcsfuse(%q): %w\n", testDir, err)
-	}
-
-	binFile = path.Join(testDir, "bin/gcsfuse")
-	logFile = path.Join(testDir, "gcsfuse.log")
-	mntDir = path.Join(testDir, "mnt")
-
-	err = os.Mkdir(mntDir, 0755)
-	if err != nil {
-		return fmt.Errorf("Mkdir(%q): %v\n", mntDir, err)
-	}
-	return nil
-}
-
-func mountGcsfuse(flag string) error {
-	mountCmd := exec.Command(
-		binFile,
-		"--debug_gcs",
-		"--debug_fs",
-		"--debug_fuse",
-		"--log-file="+logFile,
-		"--log-format=text",
-		flag,
-		*testBucket,
-		mntDir,
-	)
-
-	// Adding mount command in logFile
-	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		fmt.Println("Could not open logfile")
-	}
-	defer file.Close()
-
-	_, err = file.WriteString(mountCmd.String() + "\n")
-	if err != nil {
-		fmt.Println("Could not write cmd to logFile")
-	}
-
-	output, err := mountCmd.CombinedOutput()
-	if err != nil {
-		log.Println(mountCmd.String())
-		return fmt.Errorf("cannot mount gcsfuse: %w\n", err)
-	}
-	if lines := bytes.Count(output, []byte{'\n'}); lines > 1 {
-		return fmt.Errorf("mount output: %q\n", output)
-	}
-	return nil
-}
-
-func unMount() error {
-	fusermount, err := exec.LookPath("fusermount")
-	if err != nil {
-		return fmt.Errorf("cannot find fusermount: %w", err)
-	}
-	cmd := exec.Command(fusermount, "-uz", mntDir)
-	if _, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("fusermount error: %w", err)
-	}
-	return nil
-}
-
-func clearKernelCache() error {
-	if _, err := os.Stat("/proc/sys/vm/drop_caches"); err != nil {
-		log.Printf("Kernel cache file not found: %v", err)
-		// No need to stop the test execution if cache file is not found. Further
-		// reads will be served from kernel cache.
-		return nil
-	}
-
-	// sudo permission is required to clear kernel page cache.
-	cmd := exec.Command("sudo", "sh", "-c", "echo 3 > /proc/sys/vm/drop_caches")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("clear kernel cache failed with error: %w", err)
-	}
-	return nil
-}
-
-func compareFileContents(t *testing.T, fileName string, fileContent string) {
-	// After write, data will be cached by kernel. So subsequent read will be
-	// served using cached data by kernel instead of calling gcsfuse.
-	// Clearing kernel cache to ensure that gcsfuse is invoked during read operation.
-	err := clearKernelCache()
-	if err != nil {
-		t.Errorf("Clear Kernel Cache: %v", err)
-	}
-
-	content, err := os.ReadFile(fileName)
-	if err != nil {
-		t.Errorf("Read: %v", err)
-	}
-
-	if got := string(content); got != fileContent {
-		t.Errorf("File content doesn't match. Expected: %q, Actual: %q", got, fileContent)
-	}
-}
-
-func logAndExit(s string) {
-	log.Print(s)
-	os.Exit(1)
-}
-
-func createTempFile() string {
-	// A temporary file is created and some lines are added
-	// to it for testing purposes.
-	fileName := path.Join(tmpDir, "tmpFile")
-	err := os.WriteFile(fileName, []byte("line 1\nline 2\n"), 0666)
-	if err != nil {
-		logAndExit(fmt.Sprintf("Temporary file at %v", err))
-	}
-	return fileName
-}
-
-func executeTest(m *testing.M) (successCode int) {
-	// Creating a temporary directory to store files
-	// to be used for testing.
-	var err error
-	tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
-	if err != nil {
-		logAndExit(fmt.Sprintf("Mkdir at %q: %v", mntDir, err))
-	}
-
-	successCode = m.Run()
-
-	os.RemoveAll(mntDir)
-
-	return successCode
-}
-
-func executeTestForFlags(flags []string, m *testing.M) (successCode int) {
-	var err error
-	for i := 0; i < len(flags); i++ {
-		if err = mountGcsfuse(flags[i]); err != nil {
-			logAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
-		}
-
-		successCode = executeTest(m)
-
-		err = unMount()
-		if err != nil {
-			logAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
-		}
-
-		// Print flag on which test fails
-		if successCode != 0 {
-			log.Print("Test Fails on " + flags[i])
-			return
-		}
-
-	}
-	return
-}
 
 func TestMain(m *testing.M) {
 	flag.Parse()
 
-	if *testBucket == "" && *mountedDirectory == "" {
+	if setup.TestBucket() == "" && setup.MountedDirectory() == "" {
 		log.Printf("--testbucket or --mountedDirectory must be specified")
 		os.Exit(0)
-	} else if *testBucket != "" && *mountedDirectory != "" {
+	} else if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
 		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
 		os.Exit(0)
 	}
 
-	if *mountedDirectory != "" {
-		mntDir = *mountedDirectory
-		successCode := executeTest(m)
+	if setup.MountedDirectory() != "" {
+		setup.SetMntDir(setup.MountedDirectory())
+		successCode := setup.ExecuteTest(m)
 		os.Exit(successCode)
 	}
 
-	if err := setUpTestDir(); err != nil {
+	if err := setup.SetUpTestDir(); err != nil {
 		log.Printf("setUpTestDir: %v\n", err)
 		os.Exit(1)
 	}
 
-	flags := []string{"--enable-storage-client-library=true",
-		"--enable-storage-client-library=false",
-		"--implicit-dirs=true",
-		"--implicit-dirs=false"}
+	flags := [][]string{{"--enable-storage-client-library=true", "--implicit-dirs=true"},
+		{"--enable-storage-client-library=false"},
+		{"--implicit-dirs=true"},
+		{"--implicit-dirs=false"}}
 
-	successCode := executeTestForFlags(flags, m)
+	successCode := setup.ExecuteTestForFlags(flags, m)
 
-	log.Printf("Test log: %s\n", logFile)
+	log.Printf("Test log: %s\n", setup.LogFile())
 	os.Exit(successCode)
 }

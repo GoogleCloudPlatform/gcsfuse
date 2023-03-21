@@ -18,10 +18,12 @@ package implicitdir_test
 import (
 	"os"
 	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
 func TestWriteAtEndOfFile(t *testing.T) {
-	fileName := createTempFile()
+	fileName := setup.CreateTempFile()
 	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		t.Errorf("Open file for append: %v", err)
@@ -32,11 +34,11 @@ func TestWriteAtEndOfFile(t *testing.T) {
 	}
 	f.Close()
 
-	compareFileContents(t, fileName, "line 1\nline 2\nline 3\n")
+	setup.CompareFileContents(t, fileName, "line 1\nline 2\nline 3\n")
 }
 
 func TestWriteAtStartOfFile(t *testing.T) {
-	fileName := createTempFile()
+	fileName := setup.CreateTempFile()
 	f, err := os.OpenFile(fileName, os.O_WRONLY, 0600)
 	if err != nil {
 		t.Errorf("Open file for write at start: %v", err)
@@ -47,11 +49,11 @@ func TestWriteAtStartOfFile(t *testing.T) {
 	}
 	f.Close()
 
-	compareFileContents(t, fileName, "line 4\nline 2\n")
+	setup.CompareFileContents(t, fileName, "line 4\nline 2\n")
 }
 
 func TestWriteAtRandom(t *testing.T) {
-	fileName := createTempFile()
+	fileName := setup.CreateTempFile()
 
 	f, err := os.OpenFile(fileName, os.O_WRONLY, 0600)
 	if err != nil {
@@ -65,16 +67,16 @@ func TestWriteAtRandom(t *testing.T) {
 	}
 	f.Close()
 
-	compareFileContents(t, fileName, "line 1\nline 5\n")
+	setup.CompareFileContents(t, fileName, "line 1\nline 5\n")
 }
 
 func TestCreateFile(t *testing.T) {
-	fileName := createTempFile()
+	fileName := setup.CreateTempFile()
 
 	// Stat the file to check if it exists.
 	if _, err := os.Stat(fileName); err != nil {
 		t.Errorf("File not found, %v", err)
 	}
 
-	compareFileContents(t, fileName, "line 1\nline 2\n")
+	setup.CompareFileContents(t, fileName, "line 1\nline 2\n")
 }

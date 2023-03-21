@@ -19,12 +19,14 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
 func TestReadAfterWrite(t *testing.T) {
-	tmpDir, err := ioutil.TempDir(mntDir, "tmpDir")
+	tmpDir, err := ioutil.TempDir(setup.MntDir(), "tmpDir")
 	if err != nil {
-		t.Errorf("Mkdir at %q: %v", mntDir, err)
+		t.Errorf("Mkdir at %q: %v", setup.MntDir(), err)
 		return
 	}
 
@@ -46,7 +48,11 @@ func TestReadAfterWrite(t *testing.T) {
 		// After write, data will be cached by kernel. So subsequent read will be
 		// served using cached data by kernel instead of calling gcsfuse.
 		// Clearing kernel cache to ensure that gcsfuse is invoked during read operation.
-		clearKernelCache()
+		err = setup.ClearKernelCache()
+		if err != nil {
+			t.Errorf("Clear Kernel Cache: %v", err)
+		}
+
 		tmpFile, err = os.Open(fileName)
 		if err != nil {
 			t.Errorf("Open %q: %v", fileName, err)
