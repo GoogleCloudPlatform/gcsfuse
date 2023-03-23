@@ -164,6 +164,8 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 		MaxRetryDuration:    flags.MaxRetryDuration,
 		RetryMultiplier:     flags.RetryMultiplier,
 		UserAgent:           getUserAgent(flags.AppName),
+		EnableGRPC:          flags.EnableGRPC,
+		GRPCConnPoolSize:    flags.GRPCConnPoolSize,
 	}
 
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
