@@ -18,6 +18,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -45,6 +46,8 @@ type StorageClientConfig struct {
 	MaxRetryDuration    time.Duration
 	RetryMultiplier     float64
 	UserAgent           string
+	EnableGRPC          bool
+	GRPCConnPoolSize    int
 }
 
 // NewStorageHandle returns the handle of Go storage client containing
@@ -84,8 +87,14 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 		wrapped:   httpClient.Transport,
 		UserAgent: clientConfig.UserAgent,
 	}
+
 	var sc *storage.Client
-	sc, err = storage.NewClient(ctx, option.WithHTTPClient(httpClient))
+	if clientConfig.EnableGRPC {
+		os.Setenv("STORAGE_USE_GRPC", "gRPC")
+		sc, err = storage.NewClient(ctx, option.WithGRPCConnectionPool(clientConfig.GRPCConnPoolSize))
+	} else {
+		sc, err = storage.NewClient(ctx, option.WithHTTPClient(httpClient))
+	}
 	if err != nil {
 		err = fmt.Errorf("go storage client creation failed: %w", err)
 		return

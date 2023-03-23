@@ -274,6 +274,17 @@ func newApp() (app *cli.App) {
 					"cache, it will still return nil.",
 			},
 
+			cli.BoolFlag{
+				Name:  "enable-grpc",
+				Usage: "Once set, it connects to GCS via gRPC protocol.",
+			},
+
+			cli.IntFlag{
+				Name:  "grpc-conn-pool-size",
+				Value: 100,
+				Usage: "The size of grpc connection pool.",
+			},
+
 			/////////////////////////
 			// Monitoring & Logging
 			/////////////////////////
@@ -397,6 +408,8 @@ type flagStorage struct {
 	MaxConnsPerHost            int
 	MaxIdleConnsPerHost        int
 	EnableNonexistentTypeCache bool
+	EnableGRPC                 bool
+	GRPCConnPoolSize           int
 
 	// Monitoring & Logging
 	StackdriverExportInterval time.Duration
@@ -530,6 +543,8 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		MaxConnsPerHost:            c.Int("max-conns-per-host"),
 		MaxIdleConnsPerHost:        c.Int("max-idle-conns-per-host"),
 		EnableNonexistentTypeCache: c.Bool("enable-nonexistent-type-cache"),
+		EnableGRPC:                 c.Bool("enable-grpc"),
+		GRPCConnPoolSize:           c.Int("grpc-conn-pool-size"),
 
 		// Monitoring & Logging
 		StackdriverExportInterval: c.Duration("stackdriver-export-interval"),
