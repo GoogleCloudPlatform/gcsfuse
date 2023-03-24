@@ -296,7 +296,7 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 	obj := b.bucket.Object(req.Name)
 
 	if req.Generation != 0 {
-		obj = obj.Generation(req.Generation)
+		obj = obj.If(storage.Conditions{GenerationMatch: req.Generation})
 	}
 
 	if req.MetaGenerationPrecondition != nil {
