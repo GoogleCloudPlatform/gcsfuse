@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
@@ -73,31 +74,7 @@ func MntDir() string {
 	return mntDir
 }
 
-func ClearKernelCache() error {
-	if _, err := os.Stat("/proc/sys/vm/drop_caches"); err != nil {
-		log.Printf("Kernel cache file not found: %v", err)
-		// No need to stop the test execution if cache file is not found. Further
-		// reads will be served from kernel cache.
-		return nil
-	}
-
-	// sudo permission is required to clear kernel page cache.
-	cmd := exec.Command("sudo", "sh", "-c", "echo 3 > /proc/sys/vm/drop_caches")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("clear kernel cache failed with error: %w", err)
-	}
-	return nil
-}
-
 func CompareFileContents(t *testing.T, fileName string, fileContent string) {
-	// After write, data will be cached by kernel. So subsequent read will be
-	// served using cached data by kernel instead of calling gcsfuse.
-	// Clearing kernel cache to ensure that gcsfuse is invoked during read operation.
-	err := ClearKernelCache()
-	if err != nil {
-		t.Errorf("Clear Kernel Cache: %v", err)
-	}
-
 	content, err := os.ReadFile(fileName)
 	if err != nil {
 		t.Errorf("Read: %v", err)
@@ -112,7 +89,9 @@ func CreateTempFile() string {
 	// A temporary file is created and some lines are added
 	// to it for testing purposes.
 	fileName := path.Join(tmpDir, "tmpFile")
-	err := os.WriteFile(fileName, []byte("line 1\nline 2\n"), 0666)
+	file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, 0666)
+
+	_, err = file.WriteString("line 1\nline 2\n")
 	if err != nil {
 		LogAndExit(fmt.Sprintf("Temporary file at %v", err))
 	}

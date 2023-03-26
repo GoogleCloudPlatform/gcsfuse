@@ -27,10 +27,10 @@ import (
 
 func TestRenameFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
-	err := setup.ClearKernelCache()
-	if err != nil {
-		t.Errorf("Clear Kernel Cache: %v", err)
-	}
+	//err := setup.ClearKernelCache()
+	//if err != nil {
+	//	t.Errorf("Clear Kernel Cache: %v", err)
+	//}
 
 	content, err := os.ReadFile(fileName)
 	if err != nil {
@@ -80,10 +80,7 @@ func TestFileAttributes(t *testing.T) {
 
 func TestCopyFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
-	err := setup.ClearKernelCache()
-	if err != nil {
-		t.Errorf("Clear Kernel Cache: %v", err)
-	}
+
 	content, err := os.ReadFile(fileName)
 	if err != nil {
 		t.Errorf("Read: %v", err)

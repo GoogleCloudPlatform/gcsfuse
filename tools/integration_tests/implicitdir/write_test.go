@@ -19,10 +19,12 @@ import (
 	"os"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
 func TestWriteAtEndOfFile(t *testing.T) {
+	logger.Info("IT is in Write End of File")
 	fileName := setup.CreateTempFile()
 	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
@@ -38,6 +40,7 @@ func TestWriteAtEndOfFile(t *testing.T) {
 }
 
 func TestWriteAtStartOfFile(t *testing.T) {
+	logger.Info("IT is in Write At Start")
 	fileName := setup.CreateTempFile()
 	f, err := os.OpenFile(fileName, os.O_WRONLY, 0600)
 	if err != nil {
