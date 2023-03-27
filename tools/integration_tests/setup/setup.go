@@ -21,7 +21,6 @@ var (
 	binFile string
 	logFile string
 	testDir string
-	tmpDir  string
 	mntDir  string
 )
 
@@ -55,14 +54,6 @@ func SetTestDir(testDirValue string) {
 
 func TestDir() string {
 	return testDir
-}
-
-func SetTmpDir(tmpDirValue string) {
-	tmpDir = tmpDirValue
-}
-
-func TmpDir() string {
-	return tmpDir
 }
 
 func SetMntDir(mntDirValue string) {
@@ -111,7 +102,7 @@ func CompareFileContents(t *testing.T, fileName string, fileContent string) {
 func CreateTempFile() string {
 	// A temporary file is created and some lines are added
 	// to it for testing purposes.
-	fileName := path.Join(tmpDir, "tmpFile")
+	fileName := path.Join(mntDir, "tmpFile")
 	err := os.WriteFile(fileName, []byte("line 1\nline 2\n"), 0666)
 	if err != nil {
 		LogAndExit(fmt.Sprintf("Temporary file at %v", err))
@@ -196,13 +187,6 @@ func UnMount() error {
 }
 
 func ExecuteTest(m *testing.M) (successCode int) {
-	// Creating a temporary directory to store files
-	// to be used for testing.
-	var err error
-	tmpDir, err = os.MkdirTemp(mntDir, "tmpDir")
-	if err != nil {
-		LogAndExit(fmt.Sprintf("Mkdir at %q: %v", MntDir(), err))
-	}
 	successCode = m.Run()
 
 	os.RemoveAll(mntDir)

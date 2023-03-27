@@ -65,7 +65,7 @@ func TestFileAttributes(t *testing.T) {
 	if err != nil {
 		t.Errorf("os.Stat error: %s, %v", fileName, err)
 	}
-	statFileName := path.Join(setup.TmpDir(), fStat.Name())
+	statFileName := path.Join(setup.MntDir(), fStat.Name())
 	if fileName != statFileName {
 		t.Errorf("File name not matched in os.Stat, found: %s, expected: %s", statFileName, fileName)
 	}
