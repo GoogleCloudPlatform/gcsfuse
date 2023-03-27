@@ -17,6 +17,7 @@ package storage
 import (
 	"crypto/tls"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -28,6 +29,8 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
+	// Install google-c2p resolver, which is required for direct path.
+	_ "google.golang.org/grpc/xds/googledirectpath"
 )
 
 type StorageHandle interface {
@@ -98,6 +101,14 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 	var sc *storage.Client
 	if clientConfig.EnableGRPC {
 		os.Setenv("STORAGE_USE_GRPC", "gRPC")
+
+		if err := os.Setenv("STORAGE_USE_GRPC", "gRPC"); err != nil {
+			log.Fatalf("error setting enable grpc: %v", err)
+		}
+
+		if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
+			log.Fatalf("error setting direct path env var: %v", err)
+		}
 		sc, err = storage.NewClient(ctx, option.WithGRPCConnectionPool(clientConfig.GRPCConnPoolSize))
 	} else {
 		sc, err = storage.NewClient(ctx, option.WithHTTPClient(httpClient))
