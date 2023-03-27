@@ -16,6 +16,7 @@ package storage
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"cloud.google.com/go/storage"
