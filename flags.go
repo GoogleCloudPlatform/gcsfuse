@@ -86,7 +86,7 @@ func newApp() (app *cli.App) {
 
 			cli.StringSliceFlag{
 				Name:  "o",
-				Usage: "Additional system-specific mount options. Be careful!",
+				Usage: "Additional system-specific mount options. Multiple options can be passed as comma separated. for readonly use add --o ro",
 			},
 
 			cli.GenericFlag{
