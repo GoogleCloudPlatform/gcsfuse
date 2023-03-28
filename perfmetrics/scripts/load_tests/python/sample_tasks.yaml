@@ -37,7 +37,7 @@
  # Prefetch value in tf.data call.
  prefetch: 50 # [Optional] [Default = -1 (AUTOTUNE)]
  # Parallelism in tf.data calls.
- num_parallel_calls: 1 # [Optional] [Default = -1 (AUTOTUNE)]
+ num_parallel_calls: 100 # [Optional] [Default = -1 (AUTOTUNE)]
  # Shard value in tf.data call
  shard: 100 # [Optional] [Default = 1]
 
