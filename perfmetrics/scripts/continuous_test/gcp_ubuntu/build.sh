@@ -7,7 +7,7 @@ sudo apt-get install git
 echo Installing pip
 sudo apt-get install pip -y
 echo Installing go-lang 1.19.7
-wget -O go_tar.tar.gz https://go.dev/dl/go1.19.5.linux-amd64.tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go1.19.7.linux-amd64.tar.gz
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
 echo Installing fio
