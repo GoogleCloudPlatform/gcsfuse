@@ -24,6 +24,7 @@
  block_size: 16K # [Optional] [Default =  file_size]
 
 # Sample task for reading file using tensorflow's tf.data api.
+# For parallelism in tf.data, tweak num_parallel_calls in task file and always pass 1 to --num-processes & --num-threads
 100mb_tf_data: # [Required] Name of the task (task_name).
  # Task type. Fixed for reading file using tensorflow's tf.data api.
  task_type: tf_data_read # [Required]
@@ -36,8 +37,7 @@
  # Prefetch value in tf.data call.
  prefetch: 50 # [Optional] [Default = -1 (AUTOTUNE)]
  # Parallelism in tf.data calls.
- num_parallel_calls: 100 # [Optional] [Default = -1 (AUTOTUNE)]
+ num_parallel_calls: 1 # [Optional] [Default = -1 (AUTOTUNE)]
  # Shard value in tf.data call
  shard: 100 # [Optional] [Default = 1]
-
 
