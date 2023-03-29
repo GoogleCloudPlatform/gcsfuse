@@ -8,7 +8,7 @@ Files that have not been modified are read portion by portion on demand. Cloud S
 
 **Writes**
 
-For modifications to existing objects, Cloud Storage FUSE downloads the entire backing object's contents from Cloud Storage. The contents are stored in a local temporary file whose location is controlled by the flag --temp-dir. Later, when the file is closed or fsync'd, Cloud Storage FUSE writes the contents of the local file back to Cloud Storage as a new object generation. Modifying even a single bit of an object results in the full re-upload of the object. The exception is if an append is done to the end of a file, where the original file is at leat 2MB,  then only the appended content is uploaded.
+For modifications to existing objects, Cloud Storage FUSE downloads the entire backing object's contents from Cloud Storage. The contents are stored in a local temporary file whose location is controlled by the flag ```--temp-dir```. Later, when the file is closed or fsync'd, Cloud Storage FUSE writes the contents of the local file back to Cloud Storage as a new object generation. Modifying even a single bit of an object results in the full re-upload of the object. The exception is if an append is done to the end of a file, where the original file is at leat 2MB,  then only the appended content is uploaded.
 
 For new objects, objects are first written to the same temporary directory as mentioned above, and you will notice an empty file is created in the Cloud Storage bucket as a hold. Upon closing or fsyncing the file, the file is then written to your Cloud Storage bucket, with the existing empty file now reflecting the accurate file size and content.
 
@@ -41,11 +41,11 @@ Important: The rest of this document assumes that caching is disabled (by settin
 
 The cost of the consistency guarantees discussed in the rest of this document is that Cloud Storage FUSE must frequently send stat object requests to Cloud Storage in order to get the freshest possible answer for the kernel when it asks about a particular name or inode, which happens frequently. This can make what appear to the user to be simple operations, like ls -l, take quite a long time.
 
-To alleviate this slowness, Cloud Storage FUSE supports using cached data where it would otherwise send a stat object request to Cloud Storage, saving some round trips. This behavior is controlled by the --stat-cache-ttl flag, which can be set to a value like 10s or 1.5h. The default is one minute. Positive and negative stat results will be cached for the specified amount of time.
+To alleviate this slowness, Cloud Storage FUSE supports using cached data where it would otherwise send a stat object request to Cloud Storage, saving some round trips. This behavior is controlled by the ```--stat-cache-ttl``` flag, which can be set to a value like 10s or 1.5h. The default is one minute. Positive and negative stat results will be cached for the specified amount of time.
 
---stat-cache-ttl also controls the duration for which Cloud Storage FUSE allows the kernel to cache inode attributes. Caching these can help with file system performance, since otherwise the kernel must send a request for inode attributes to Cloud Storage FUSE for each call to write(2), stat(2), and others.
+```--stat-cache-ttl``` also controls the duration for which Cloud Storage FUSE allows the kernel to cache inode attributes. Caching these can help with file system performance, since otherwise the kernel must send a request for inode attributes to Cloud Storage FUSE for each call to write(2), stat(2), and others.
 
-The size of the stat cache can also be configured with --stat-cache-capacity. By default the stat cache will hold up to 4096 items. If you have folders containing more than 4096 items (folders or files) you may want to increase this, otherwise the caching will not function properly when listing that folder's contents:
+The size of the stat cache can also be configured with ```--stat-cache-capacity```. By default the stat cache will hold up to 4096 items. If you have folders containing more than 4096 items (folders or files) you may want to increase this, otherwise the caching will not function properly when listing that folder's contents:
 - ListObjects will return information on the items within the folder. Each item's data is cached
 - Because there are more objects than cache capacity, the earliest entries will be evicted
 - The linux kernel then asks for a little more information on each file.
@@ -61,14 +61,14 @@ Warning: Using stat caching breaks the consistency guarantees discussed in this 
 
 Because Cloud Storage does not forbid an object named foo from existing next to an object named foo/ (see the Name conflicts section), when Cloud Storage FUSE is asked to look up the name "foo" it must stat both objects.
 
-Stat cache enabled with --stat-cache-ttl can help with this, but it does not help until after the first request. For example, assume that there is an object named foo but not one named foo/, and the stat cache is enabled. When the user runs ls -l, the following happens:
+Stat cache enabled with ```--stat-cache-ttl``` can help with this, but it does not help until after the first request. For example, assume that there is an object named foo but not one named foo/, and the stat cache is enabled. When the user runs ls -l, the following happens:
 - The objects in the bucket are listed. This causes a stat cache entry for foo to be created.
 - ls asks to stat the name "foo", causing a lookup request to be sent for that name.
 - Cloud Storage FUSE sends Cloud Storage stat requests for the object named foo and the object named foo/. The first will hit in the stat cache, but the second will have to go all the way to Cloud Storage to receive a negative result.
 
 The negative result for foo/ will be cached, but that only helps with the second invocation of ls -l.
 
-To alleviate this, Cloud Storage FUSE supports a "type cache" on directory inodes. When --type-cache-ttl is set, each directory inode will maintain a mapping from the name of its children to whether those children are known to be files or directories or both. When a child is looked up, if the parent's cache says that the child is a file but not a directory, only one Cloud Storage object will need to be stated. Similarly if the child is a directory but not a file.
+To alleviate this, Cloud Storage FUSE supports a "type cache" on directory inodes. When ```--type-cache-ttl``` is set, each directory inode will maintain a mapping from the name of its children to whether those children are known to be files or directories or both. When a child is looked up, if the parent's cache says that the child is a file but not a directory, only one Cloud Storage object will need to be stated. Similarly if the child is a directory but not a file.
 
 Warning: Using type caching breaks the consistency guarantees discussed in this document. It is safe only in the following situations:
 - The mounted bucket is never modified.
@@ -118,20 +118,20 @@ So if a user has the following objects in their Cloud Storage buckets, that were
 
 then mounting the bucket and running ‘ls’ to see its content will not show any files until the directories A/, A/B/, and C/ are created on the local filesystem using the ‘mkdir’ command.
 
-This is the default behavior, unless a user passes the --implicit-dirs flag.
+This is the default behavior, unless a user passes the ```--implicit-dirs``` flag.
 
 **Using --implicit-dirs flag:**
 
-Cloud Storage FUSE supports a flag called --implicit-dirs that changes the behavior for how pre-existing directory structures, not created by Cloud Storage FUSE, are mounted and visible to Cloud Storage FUSE. When this flag is enabled, name lookup requests from the kernel use the Cloud Storage API's Objects.list operation to search for objects that would implicitly define the existence of a directory with the name in question. 
+Cloud Storage FUSE supports a flag called ```--implicit-dirs``` that changes the behavior for how pre-existing directory structures, not created by Cloud Storage FUSE, are mounted and visible to Cloud Storage FUSE. When this flag is enabled, name lookup requests from the kernel use the Cloud Storage API's Objects.list operation to search for objects that would implicitly define the existence of a directory with the name in question. 
 
-The example above describes how from the local filesystem the user sees only 0.txt, until the user creates A/, A/B/, C/ using mkdir.  If instead the --implicity-dirs flag is passed, you would see the intended directory structure without first having to create the directories A/, A/B/, C/. 
+The example above describes how from the local filesystem the user sees only 0.txt, until the user creates A/, A/B/, C/ using mkdir.  If instead the ```--implicity-dirs``` flag is passed, you would see the intended directory structure without first having to create the directories A/, A/B/, C/. 
 
 However, implicit directories does have drawbacks:
 - The feature requires an additional request to Cloud Storage for each name lookup, which may have costs in terms of both charges for operations and latency.
 - With the example above, it will appear as if there is a directory called "A/" containing a file called "1.txt". But when the user runs ‘rm A/1.txt’, it will appear as if the file system is completely empty. This is contrary to expectations, since the user hasn't run ‘rmdir A/’.
 - Cloud Storage FUSE sends a single Objects.list request to Cloud Storage, and treats the directory as being implicitly defined if the results are non-empty. In rare cases (notably when many objects have recently been deleted) Objects.list may return an arbitrary number of empty responses with continuation tokens, even for a non-empty name range. In order to bound the number of requests, Cloud Storage FUSE simply ignores this subtlety. Therefore in rare cases an implicitly defined directory will fail to appear.
 
-Alternatively, users can create a script which lists the buckets and creates the appropriate objects for the directories so that the --implicit-dirs flag is not used. 
+Alternatively, users can create a script which lists the buckets and creates the appropriate objects for the directories so that the ```--implicit-dirs``` flag is not used. 
 
 # Generations
 
@@ -196,8 +196,90 @@ Cloud Storage FUSE sets the following pieces of Cloud Storage object metadata fo
 - contentType is set to Cloud Storage's best guess as to the MIME type of the file, based on its file extension.
 - The custom metadata key gcsfuse_mtime is set to track mtime, as discussed above.
 
+# Directory Inodes
+
+Cloud Storage FUSE directory inodes exist simply to satisfy the kernel and export a way to look up child inodes. Unlike file inodes:
+- There are no guarantees about stability of directory inode IDs. They may change from lookup to lookup even if nothing has changed in the Cloud Storage bucket. They may not change even if the directory object in the bucket has been overwritten.
+- Cloud Storage FUSE does not keep track of modification time for directories. There are no guarantees for the contents of stat::st_mtim or equivalent, or the behavior of utimes(2) and similar.
+- There are no guarantees about stat::st_nlink.
+
+Despite no guarantees about the actual times for directories, their time fields in stat structs will be set to something reasonable.
+
+**Unlinking**
+There is no way to delete an empty directory in Cloud Storage atomically. The only way to do it is by making two calls - first to list the objects in the directory object and then delete the directory object if it is empty.
+
+With the perspective of Cloud Storage FUSE if a directory object is deleted without checking the emptiness condition, the child object becomes inaccessible and leads to non-standard file systems behavior.
 
 
 
+Cloud Storage FUSE makes similar calls while deleting a directory: it lists objects with the directory's name as a prefix, returning ENOTEMPTY if anything shows up, and otherwise deletes the backing object.
+
+Note that by definition, implicit directories cannot be empty.
+
+# Symlink inodes
+
+Cloud Storage FUSE represents symlinks with empty Cloud Storage objects that contain the custom metadata key gcsfuse_symlink_target, with the value giving the target of a symlink. In other respects they work like a file inode, including receiving the same permissions. 
+
+# Permissions and ownership
+
+**Inodes**
+
+By default, all inodes in a Cloud Storage FUSE file system show up as being owned by the UID and GID of the Cloud Storage FUSE process itself, i.e. the user who mounted the file system. All files have permission bits 0644, and all directories have permission bits 0755 (but see below for issues with use by other users). Changing inode mode (using chmod(2) or similar) is unsupported, and changes are silently ignored.
+
+These defaults can be overridden with the ```--uid```,```--gid```, ```--file-mode```, and ```--dir-mode``` flags.
+
+**Fuse**
+
+The fuse kernel layer itself restricts file system access to the mounting user ([fuse.txt](https://github.com/torvalds/linux/blob/a33f32244d8550da8b4a26e277ce07d5c6d158b5/Documentation/filesystems/fuse.txt##L102-L105)). No matter what the configured inode permissions are, by default other users will receive "permission denied" errors when attempting to access the file system. This includes the root user.
+
+This can be overridden by setting -o allow_other to allow other users to access the file system. However, there may be [security implications](https://github.com/torvalds/linux/blob/a33f32244d8550da8b4a26e277ce07d5c6d158b5/Documentation/filesystems/fuse.txt#L218-L310).
+
+# Non-standard filesystem behaviors
+
+See [Key Differences from a POSIX filesystem](https://docs.google.com/document/d/1s1K5zQBZikeJD5ThAQS13jgjTbMImAdDiTSmfYKJykg/edit#bookmark=id.hw8mgww7krkp)
+
+**Unlinking directories**
+
+Because Cloud Storage offers no way to delete an object conditional on the non-existence of other objects, there is no way for Cloud Storage FUSE to unlink a directory if and only if it is empty. So Cloud Storage FUSE takes the simple route, and always allows a directory to be unlinked, even if non-empty. The contents of a non-empty directory that is unlinked are not deleted but simply become inaccessible—the placeholder object for the unlinked directory is simply removed. (Unless --implicit-dirs is set; see the section on implicit directories above.)
+
+**Reading directories**
+
+Cloud Storage FUSE implements requests from the kernel to read the contents of a directory (as when listing a directory with ls, for example) by calling [Objects.list](https://cloud.google.com/storage/docs/json_api/v1/objects/list) in the Cloud Storage API. The call uses a delimiter of / to avoid paying the bandwidth and request cost of also listing very large sub-directories.
+
+However, with this implementation there is no way for Cloud Storage FUSE to distinguish a child directory that actually exists (because its placeholder object is present) and one that is only implicitly defined. So when --implicit-dirs is not set, directory listings may contain names that are inaccessible in a later call from the kernel to Cloud Storage FUSE to look up the inode by name. For example, a call to readdir(3) may return names for which fstat(2) returns ENOENT.
+
+**Name conflicts**
+
+It is possible to have a Cloud Storage bucket containing an object named foo and another object named foo/:
+- This situation can easily happen when writing to Cloud Storage directly, since there is nothing special about those names as far as Cloud Storage is concerned.
+- This situation may happen if two different machines have the same bucket mounted with Cloud Storage FUSE, and at about the same time one creates a file named "foo" and the other creates a directory with the same name. This is because the creation of the object foo/ is not preconditioned on the absence of the object named foo, and vice versa.
+
+Traditional file systems do not allow multiple directory entries with the same name, so all tools and kernel code are structured around this assumption. Therefore, it is not possible for Cloud Storage FUSE to faithfully preserve both the file and the directory in this case.
+
+Instead, when a conflicting pair of foo and foo/ objects both exist, it appears in the Cloud Storage FUSE file system as if there is a directory named foo and a file or symlink named foo\n (i.e. foo followed by U+000A, line feed). This is what will appear when the parent's directory entries are read, and Cloud Storage FUSE will respond to requests to look up the inode named foo\n by returning the file inode. \n in particular is chosen because it is not legal in Cloud Storage object names, and therefore is not ambiguous.
+
+**Memory-mapped files**
+
+Cloud Storage FUSE files can be memory-mapped for reading and writing using mmap(2). If you make modifications to such a file and want to ensure that they are durable, you must do the following:
+
+- Keep the file descriptor you supplied to mmap(2) open while you make your modifications.
+- When you are finished modifying the mapping, call msync(2) and check for errors.
+- Call munmap(2) and check for errors.
+- Call close(2) on the original file descriptor and check for errors.
+- If none of the calls returns an error, the modifications have been made durable in Cloud Storage, according to the usual rules documented above.
+
+See the notes on [fuseops.FlushFileOp](http://godoc.org/github.com/jacobsa/fuse/fuseops#FlushFileOp) for more details.
+
+Error Handling
+
+Transient errors can occur in distributed systems like Cloud Storage, such as network timeouts. Cloud Storage FUSE implements Cloud Storage [retry best practices](https://cloud.google.com/storage/docs/retry-strategy) with exponential backoff. 
 
 
+**Missing features**
+
+Not all of the usual file system features are supported. Most prominently:
+- Renaming directories is by default not supported. A directory rename cannot be performed atomically in Cloud Storage and would therefore be arbitrarily expensive in terms of Cloud Storage operations, and for large directories would have high probability of failure, leaving the two directories in an inconsistent state.
+- However, if your application can tolerate the risks, you may enable renaming directories in a non-atomic way, by setting --rename-dir-limit. If a directory contains fewer files than this limit and no subdirectory, it can be renamed.
+- File and directory permissions and ownership cannot be changed. See the permissions section above.
+- Modification times are not tracked for any inodes except for files.
+- No other times besides modification time are tracked. For example, ctime and atime are not tracked (but will be set to something reasonable). Requests to change them will appear to succeed, but the results are unspecified.
