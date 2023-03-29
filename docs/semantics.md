@@ -240,13 +240,13 @@ See [Key Differences from a POSIX filesystem](https://docs.google.com/document/d
 
 **Unlinking directories**
 
-Because Cloud Storage offers no way to delete an object conditional on the non-existence of other objects, there is no way for Cloud Storage FUSE to unlink a directory if and only if it is empty. So Cloud Storage FUSE takes the simple route, and always allows a directory to be unlinked, even if non-empty. The contents of a non-empty directory that is unlinked are not deleted but simply become inaccessible—the placeholder object for the unlinked directory is simply removed. (Unless --implicit-dirs is set; see the section on implicit directories above.)
+Because Cloud Storage offers no way to delete an object conditional on the non-existence of other objects, there is no way for Cloud Storage FUSE to unlink a directory if and only if it is empty. So Cloud Storage FUSE takes the simple route, and always allows a directory to be unlinked, even if non-empty. The contents of a non-empty directory that is unlinked are not deleted but simply become inaccessible—the placeholder object for the unlinked directory is simply removed. (Unless ```--implicit-dirs``` is set; see the section on implicit directories above.)
 
 **Reading directories**
 
 Cloud Storage FUSE implements requests from the kernel to read the contents of a directory (as when listing a directory with ls, for example) by calling [Objects.list](https://cloud.google.com/storage/docs/json_api/v1/objects/list) in the Cloud Storage API. The call uses a delimiter of / to avoid paying the bandwidth and request cost of also listing very large sub-directories.
 
-However, with this implementation there is no way for Cloud Storage FUSE to distinguish a child directory that actually exists (because its placeholder object is present) and one that is only implicitly defined. So when --implicit-dirs is not set, directory listings may contain names that are inaccessible in a later call from the kernel to Cloud Storage FUSE to look up the inode by name. For example, a call to readdir(3) may return names for which fstat(2) returns ENOENT.
+However, with this implementation there is no way for Cloud Storage FUSE to distinguish a child directory that actually exists (because its placeholder object is present) and one that is only implicitly defined. So when ```--implicit-dirs``` is not set, directory listings may contain names that are inaccessible in a later call from the kernel to Cloud Storage FUSE to look up the inode by name. For example, a call to readdir(3) may return names for which fstat(2) returns ENOENT.
 
 **Name conflicts**
 
@@ -279,7 +279,7 @@ Transient errors can occur in distributed systems like Cloud Storage, such as ne
 
 Not all of the usual file system features are supported. Most prominently:
 - Renaming directories is by default not supported. A directory rename cannot be performed atomically in Cloud Storage and would therefore be arbitrarily expensive in terms of Cloud Storage operations, and for large directories would have high probability of failure, leaving the two directories in an inconsistent state.
-- However, if your application can tolerate the risks, you may enable renaming directories in a non-atomic way, by setting --rename-dir-limit. If a directory contains fewer files than this limit and no subdirectory, it can be renamed.
+- However, if your application can tolerate the risks, you may enable renaming directories in a non-atomic way, by setting ```--rename-dir-limit```. If a directory contains fewer files than this limit and no subdirectory, it can be renamed.
 - File and directory permissions and ownership cannot be changed. See the permissions section above.
 - Modification times are not tracked for any inodes except for files.
 - No other times besides modification time are tracked. For example, ctime and atime are not tracked (but will be set to something reasonable). Requests to change them will appear to succeed, but the results are unspecified.
