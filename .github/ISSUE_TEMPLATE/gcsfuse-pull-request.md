@@ -1,5 +1,4 @@
 This will be pull request template
-
 ### Description
 
 ### Link to the issue in case of a bug fix.
