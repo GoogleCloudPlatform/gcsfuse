@@ -3,8 +3,6 @@ name: GCSFuse pull request
 about: Describe information users can provide to enable faster interaction
 title: ''
 assignees: ''
-template: pull_request_template.md
-
 ---
 
 ### Description
