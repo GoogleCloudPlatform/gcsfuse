@@ -1,179 +1,36 @@
-# Credentials
+# Prerequisites
 
-Credentials for use with GCS will automatically be loaded using [Google
-application default credentials][app-default-credentials], unless the flag
-`--key-file` is set to a path to a JSON key file downloaded from the Google
-Developers Console.
+1. Before invoking Cloud Storage FUSE, you must have a Cloud Storage bucket that you want to mount. If you haven't yet, [create](https://cloud.google.com/storage/docs/creating-buckets#storage-create-bucket-console) a storage bucket. 
+2. Provide [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials#howtheywork) to authenticate Cloud Storage FUSE requests to Cloud Storage. By default, Cloud Storage FUSE automatically loads the Application Default Credentials without any further configuration if they exist. You can use the gcloud auth login command to easily generate Application Default Credentials.
 
-The easiest way to set up credentials when running on [Google Compute
-Engine][gce] is to create your VM with a service account using the
-`storage-full` access scope. (See [here][gce-service-accounts] for details on
-VM service accounts.) When gcsfuse is run from such a VM, it automatically has
-access to buckets owned by the same project as the VM.
+        gcloud auth application-default login
+        gcloud auth login
+        gcloud auth list
 
-When testing, especially on a developer machine, credentials can also be
-configured using the [gcloud tool][]:
+   Alternatively, you can authenticate Cloud Storage FUSE by setting the --key-file flag to the path of a JSON key file, which you can download from the Google Cloud console. You can also set the GOOGLE_APPLICATION_CREDENTIALS environment variable to the path of the JSON key.
 
-    gcloud auth application-default login
-    gcloud auth login
+        GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json gcsfuse [...]
+When mounting with an fstab entry, use the key_file option:
 
-Alternatively, you can set the `GOOGLE_APPLICATION_CREDENTIALS` environment
-variable to the path to a JSON key file downloaded from the Google Developers
-Console:
+        my-bucket /mount/point gcsfuse rw,noauto,user,key_file=/path/to/key.json
 
-    GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json gcsfuse [...]
+When you create a Compute Engine VM, its service account can also be used to authenticate access to Cloud Storage FUSE. When Cloud Storage FUSE is run from such a VM, it automatically has access to buckets owned by the same project as the VM.
 
-When mounting with an fstab entry, you can use the `key_file` option. For example:
+# Basic syntax for mounting
 
-    my-bucket /mount/point gcsfuse rw,noauto,user,key_file=/path/to/key.json
+The base syntax for using Cloud Storage FUSE is:
 
-[gce]: https://cloud.google.com/compute/
-[gce-service-accounts]: https://cloud.google.com/compute/docs/authentication
-[gcloud tool]: https://cloud.google.com/sdk/gcloud/
-[app-default-credentials]: https://developers.google.com/identity/protocols/application-default-credentials#howtheywork
+    gcsfuse [global options] [bucket] mountpoint
 
-# Basic usage
+Where [global options] are optional specific flags you can pass (use gcsfuse --help), [bucket] is the optional name of your bucket, and ‘mountpoint’ is the directory on your machine that you are mounting the bucket to. For example:
+    
+    gcsfuse my-bucket /usr/me/myself
 
-## Mounting
+# Static Mounting
 
-There are two ways to mount gcsfuse. If you only use one known bucket, you may
-use static mounting. If you want to mount all the accessible buckets, you may
-use dynamic mounting.
+Static mounting means mounting a specific bucket. For example, say I want to mount the bucket “my-bucket” to the directory /usr/me/myself
 
-
-### Static Mounting
-
-Say you want to mount the GCS bucket called `my-bucket`. First create the
-directory into which you want to mount the gcsfuse bucket, then run gcsfuse:
-
-    mkdir /path/to/mount/point
-    gcsfuse my-bucket /path/to/mount/point
-
+    mkdir /usr/me/myself
+    gcsfuse my-bucket /usr/me/myself
 Note: Avoid using the name of the bucket as the local directory mount point name.
 
-
-### Dynamic Mounting
-
-If you do not specify a bucket name while mounting gcsfuse, it will dynamically
-mounts the buckets you access as subdirectories.
-
-    mkdir /path/to/mount/point
-    gcsfuse /path/to/mount/point
-
-When you access a subdirectory, such as
-
-    ls /path/to/mount/point/my-bucket/foo/
-
-you will have `my-bucket` dynamically mounted.
-
-It is illegal to list subdirectory at the root level in the dynamic mounted file
-system, such as
-
-    ls /path/to/mount/point/
-    # ls: reading directory '/path/to/mount/point': Input/output error
-
-### Ownership
-
-You should run gcsfuse as the user who will be using the file
-system, not as root. Similarly, the directory should be owned by that user. Do
-not use `sudo` for either of the steps above or you will wind up with
-permissions issues.
-
-### Foreground
-
-After the gcsfuse tool exits, you should be able to see your bucket contents if
-you run `ls /path/to/mount/point`. If you would prefer the tool to stay in the
-foreground (for example to see debug logging), run it with the `--foreground`
-flag.
-
-## Unmounting
-
-On Linux, unmount using fuse's `fusermount` tool:
-
-    fusermount -u /path/to/mount/point
-
-On OS X, unmount like any other file system:
-
-    umount /path/to/mount/point
-
-## Logging
-
-Use flags like `--debug_gcs`, `--debug_fuse`, `--debug_http`, `--debug_fs`, and
-`--debug_mutex` to get additional logs from GCS, Fuse, and HTTP requests.
-
-When gcsfuse is run in the foreground, all the logs are printed to stdout and
-stderr. When it is in the background, only a few lines of logs indicating the
-mounting status would be printed to stdout or stderr.
-
-If you need logs when running gcsfuse in the background, please use `--log-file`
-to specify a log file, and `--log-format` to specify the format as `json` or
-`text`. The directory of the log file must pre-exist.
-
-# Access permissions
-
-As a security measure, fuse itself restricts file system access to the user who
-mounted the file system (cf. [fuse.txt][fuse-security]). For this reason,
-gcsfuse by default shows all files as owned by the invoking user. Therefore you
-should invoke gcsfuse as the user that will be using the file system, not as
-root.
-
-If you know what you are doing, you can override these behaviors with the
-[`allow_other`][allow_other] mount option supported by fuse and with the
-`--uid` and `--gid` flags supported by gcsfuse. Be careful, this may have
-security implications!
-
-[fuse-security]: https://github.com/torvalds/linux/blob/a33f32244/Documentation/filesystems/fuse.txt#L253-L300
-[allow_other]: https://github.com/torvalds/linux/blob/a33f32244/Documentation/filesystems/fuse.txt#L100-L105
-
-# mount(8) and fstab compatibility
-
-The gcsfuse [installation process](installing.md) installed a helper understood
-by the `mount` command to your system at one of these two paths, depending on
-your operating system:
-
-- Linux: `/sbin/mount.gcsfuse`
-- OS X: `/sbin/mount_gcsfuse`
-
-On OS X, this program allows you to mount buckets using the `mount` command.
-(On Linux, only root can do this.) For example:
-
-    mount -t gcsfuse -o rw,user my-bucket /path/to/mount/point
-
-The following mount options are supported, in addition to the standard ones for
-your system, matching the semantics of the corresponding `gcsfuse` flags named
-with dashes instead of underscores:
-
-- `implicit_dirs`
-- `dir_mode`
-- `file_mode`
-- `key_file`
-- `temp_dir`
-- `uid`
-- `gid`
-- `only_dir`
-- `limit_ops_per_sec`
-- `limit_bytes_per_sec`
-- `stat_cache_ttl`
-- `type_cache_ttl`
-- `billing_project`
-
-On both OS X and Linux, you can also add entries to your `/etc/fstab` file like
-the following:
-
-    my-bucket /mount/point gcsfuse rw,noauto,user
-
-Afterward, you can run `mount /mount/point` as a non-root user.
-
-The `noauto` option above specifies that the file system should not be mounted
-at boot time.
-
-If you would prefer to mount the file system automatically, you may need to pass
-the `x-systemd.requires=network-online.target` or `_netdev` option to ensure that gcsfuse waits
-for the network system to be ready prior to mounting.
-
-    my-bucket /mount/point gcsfuse rw,x-systemd.requires=network-online.target,user
-
-You can also mount the file system automatically as a non-root user by
-specifying the options `uid` and/or `gid`:
-
-    my-bucket /mount/point gcsfuse rw,_netdev,allow_other,uid=1001,gid=1001
