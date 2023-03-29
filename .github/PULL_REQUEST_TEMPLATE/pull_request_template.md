@@ -1,4 +1,11 @@
-This will be pull request template
+---
+name: GCSFuse pull request
+about: Describe information users can provide to enable faster interaction
+title: ''
+labels: bug
+assignees: ''
+
+---
 
 ### Description
 
