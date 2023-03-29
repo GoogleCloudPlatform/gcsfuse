@@ -47,7 +47,7 @@ filesystem instance.
 
 Cloud Storage FUSE can be deployed as a regular Linux package, but is also
 available as part of a managed turn-key offering with Google Kubernetes Engine 
-(GKE). In addition, Cloud Storage FUSE is integrated with [Vertex AI](, including 
+(GKE). In addition, Cloud Storage FUSE is integrated with [Vertex AI] including 
 Google pre-built Machine Learning images such as a [Deep Learning Virtual Machine] 
 image, or [Deep Learning Container image].
 
@@ -148,7 +148,127 @@ from Cloud Storage FUSE operations, see [Cloud Storage FUSE pricing].
 
 [Cloud Storage FUSE pricing]: https://cloud.google.com/storage/docs/gcs-fuse#charges
 
+# Google Cloud Platforms (GCP) Integrations
 
+## GKE
 
+Using the [Cloud Storage FUSE CSI driver], users get the declarative nature of 
+Kubernetes with all infrastructure fully managed by GKE in combination with 
+Cloud Storage. This CSI driver relies on Cloud Storage FUSE to mount Cloud storage
+buckets as file systems on the GKE nodes, with the Cloud Storage FUSE deployment
+and management fully handled by GKE, providing a turn-key experience.
 
+[Cloud Storage FUSE CSI driver]:https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver
 
+## Deep Learning VM Images
+
+[Deep Learning VM Images] are VM images with pre-built PyTorch or Tensorflow frameworks,
+which includes Cloud Storage FUSE as part of the image.
+
+[Deep Learning VM Images]: https://cloud.google.com/deep-learning-vm
+
+## Deep Learning Containers
+
+Similar to Deep Learning VMs, [Deep Learning Containers] are preconfigured and optimized 
+containers for deep learning environments. It is recommended to use the [GKE Cloud 
+Storage FUSE CSI driver] to mount Google Cloud Storage buckets in the container, or Cloud 
+Storage FUSE can be installed by following the the [installation steps]. 
+
+[Deep Learning Containers]: https://cloud.google.com/deep-learning-containers
+[GKE Cloud Storage FUSE CSI driver]:https://docs.google.com/document/d/1s1K5zQBZikeJD5ThAQS13jgjTbMImAdDiTSmfYKJykg/edit#heading=h.4vm8ad4g855b
+[installation steps]: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/installing.md
+
+## Vertex AI
+
+In all [custom training] jobs, Vertex AI mounts Cloud Storage buckets that you have 
+access to in the /gcs/ directory of each training node's filesystem. As a convenient 
+alternative to using the Python Client for Cloud Storage or another library to access 
+Cloud Storage, you can read and write directly to the local filesystem in order to 
+read and write data to Cloud Storage. For example, to load data from gs://BUCKET/data.csv,
+you can use the following Python code:
+
+    file = open('/gcs/BUCKET/data.csv', 'r')
+
+On [AI Platform Training], the feature is very similar.
+
+See [here](https://cloud.google.com/vertex-ai/docs/training/code-requirements#fuse) for detailed instructions from the VertexAI documentation,
+along with additional insights in [this](https://cloud.google.com/blog/products/ai-machine-learning/cloud-storage-file-system-ai-training) blog post
+
+[AI Platform Training]: https://cloud.google.com/ai-platform/training/docs
+[custom training]:https://cloud.google.com/vertex-ai/docs/training/custom-training
+
+# Support
+
+## Supported applications and platforms
+
+Cloud Storage FUSE officially supports  the latest two versions of the following 
+Machine Learning frameworks:
+
+- TensorFlow V2.x
+- TensorFlow V1.x
+- PyTorch V1.x
+
+Support outside of the above Machine Learning use cases is non-guaranteed, and on 
+a best effort basis.
+
+## Supported operating systems
+
+Cloud Storage FUSE supports usage with the following operating systems:
+- Ubuntu 18.04 and above
+- Debian 10 and above
+- CentOS 7 and above
+- RHEL 7 and above
+
+## Getting support
+
+Request support via your regular Google Cloud support channels, or by opening an
+issue via GitHub [here](https://github.com/GoogleCloudPlatform/gcsfuse/issues)
+
+See [Troubleshooting] for common issue handling
+
+[Troubleshooting]:https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/troubleshooting.md
+
+## Limitations and restrictions
+
+Cloud Storage FUSE is not supported for usage with the following workloads or scenarios:
+
+- Workloads that expect POSIX compliance.
+     - Cloud Storage FUSE is not a traditional POSIX filesystem. For a fully supported
+       enterprise grade filesystem, see [Cloud Filestore]. See Key Differences from a 
+       POSIX filesystem and Semantics doc
+- Workloads that require file locking, or concurrent writes.
+     - You should not write to the same file at the same time from different clients,
+       as there is no concurrency control for multiple writers to a file. When multiple 
+       writers try to replace a file the last write wins and all previous writes are 
+       lost - there is no merging, version control, or user notification of the subsequent overwrite. 
+       For example, if multiple Cloud Storage FUSE clients are writing to the same file, the last flush wins.
+  
+- Object versioning: Cloud Storage FUSE does not support buckets with object versioning enabled.
+No guarantees are made about the behavior when used with a bucket with this feature enabled, which may
+return non-current object versions.
+- Transcoding: Reading or modifying a file backed by an object with a contentEncoding property set may
+yield surprising results, and no guarantees are made about the behavior. It is recommended that you do not use 
+Cloud Storage FUSE to interact with such objects.
+- Retention policy: Cloud Storage FUSE does not support writing to a bucket with a Retention policy enabled - writes will fail.
+Reading objects from a bucket with a Retention policy enabled is supported, but the bucket should be mounted as Read-Only 
+by passing the -o RO flag during mount.
+- Workloads that do file patching (overwrites in place).
+     - Cloud Storage write semantics are for whole objects only. There is no mechanism for patching. Therefore, write patterns
+       like these may result in poor performance and ballooning operations costs.
+- Workloads that do directory renaming:
+     - [Renaming] directories is by default not supported. A directory rename cannot be performed atomically in Cloud Storage 
+       and would therefore be expensive(object copy, then delete) in terms of Cloud Storage operations, and for large directories
+       would have high probability of failure, leaving the two directories in an inconsistent state. For example, Hadoop writes files to a 
+       temporary directory and at the end re-names the directory to indicate completion.
+- Databases
+     - Databases typically use very small data sizes. Cloud Storage FUSE higher latency than a local file system, and as such, 
+       latency and throughput will be reduced when reading or writing one small file at a time.
+     - Traditional Databases on File Servers require overwriting in the middle of the file, which is not supported.
+- Version control systems
+     - Typically require file locking and file patching
+- A filer replacement
+     - Amongst many other things that users require from filers, Cloud Storage FUSE does not support file patching, file locking, 
+       or support native directories. 
+
+[Cloud Filestore]: https://cloud.google.com/filestore
+[Renaming]:https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#missing-features
