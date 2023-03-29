@@ -226,7 +226,7 @@ Cloud Storage FUSE represents symlinks with empty Cloud Storage objects that con
 
 By default, all inodes in a Cloud Storage FUSE file system show up as being owned by the UID and GID of the Cloud Storage FUSE process itself, i.e. the user who mounted the file system. All files have permission bits 0644, and all directories have permission bits 0755 (but see below for issues with use by other users). Changing inode mode (using chmod(2) or similar) is unsupported, and changes are silently ignored.
 
-These defaults can be overridden with the ```--uid```,```--gid```, ```--file-mode```, and ```--dir-mode``` flags.
+These defaults can be overridden with the ```--uid```, ```--gid```, ```--file-mode```, and ```--dir-mode``` flags.
 
 **Fuse**
 
