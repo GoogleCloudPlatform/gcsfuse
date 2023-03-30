@@ -106,15 +106,21 @@ func makeGcsfuseArgs(
 			"limit_ops_per_sec",
 			"rename_dir_limit",
 			"max_retry_sleep",
+			"max_retry_duration",
+			"retry_multiplier",
 			"stat_cache_capacity",
 			"stat_cache_ttl",
 			"type_cache_ttl",
+			"sequential_read_size_mb",
 			"temp_dir",
 			"max_conns_per_host",
+			"max_idle_conns_per_host",
 			"stackdriver_export_interval",
 			"experimental_opentelemetry_collector_address",
 			"log_format",
-			"log_file":
+			"log_file",
+			"endpoint",
+			"":
 			args = append(args, "--"+strings.Replace(name, "_", "-", -1), value)
 
 		// Special case: support mount-like formatting for gcsfuse debug flags.
