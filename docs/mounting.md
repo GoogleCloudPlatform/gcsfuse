@@ -100,7 +100,7 @@ The Cloud Storage FUSE installation process installs a helper understood by the 
 
     mount -t gcsfuse -o rw,user my-bucket /path/to/mount/point
 
-You can also add entries to your /etc/fstab file like the following:
+You can also add entries to your ```/etc/fstab``` file like the following:
 
     my-bucket /mount/point gcsfuse rw,noauto,user
 
@@ -113,7 +113,7 @@ If you would prefer to mount the file system automatically, you may need to pass
     my-bucket /mount/point gcsfuse 
     rw,x-systemd.requires=network-online.target,user
 
-You can also mount the file system automatically as a non-root user by specifying the options uid and/or gid:
+You can also mount the file system automatically as a non-root user by specifying the options ```uid``` and/or ```gid```:
 
     my-bucket /mount/point gcsfuse rw,_netdev,allow_other,uid=1001,gid=1001
 
