@@ -1,4 +1,5 @@
-Install Cloud Storage FUSE and its dependencies using prebuilt Linux binaries
+Install Cloud Storage FUSE and its dependencies using prebuilt Linux binaries.
+
 If you are running Linux on a 64-bit x86 machine and want to install pre-built binaries (i.e. you don't want to build from source), you must have [FUSE](https://github.com/libfuse/libfuse)  installed. You can then download and install the latest release package. The instructions vary by distribution
 
 ## Install on Ubuntu or Debian
@@ -50,7 +51,7 @@ To install Cloud Storage FUSE by building the binaries from source, follow the i
 
 1. Make sure you have a working Go installation, the newest version specified in [go.mod](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/go.mod). See Installing Go from source.
 2. [Fuse](https://github.com/libfuse/libfuse). See the instructions for the binary release above.
-3. Make sure you have the Git command-line tool installed. This is probably available as git in your package manager.
+3. Make sure you have the Git command-line tool installed. This is probably available as ```git``` in your package manager.
 4. To install or update Cloud Storage FUSE, run the following command
 
        GO111MODULE=auto go get -u github.com/googlecloudplatform/gcsfuse
