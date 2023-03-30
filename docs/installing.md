@@ -20,7 +20,7 @@ To install Cloud Storage FUSE for Ubuntu or Debian, follow the instructions belo
 
 3. Cloud Storage FUSE updates can be installed by:
 
-        sudo apt-get update && sudo apt-get install –only-upgrade gcsfus
+        sudo apt-get update && sudo apt-get install –-only-upgrade gcsfuse
 
 ## Install on CentOS or Red Hat
 
