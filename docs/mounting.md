@@ -57,20 +57,20 @@ Dynamically mounted buckets do not allow listing subdirectories at the root moun
 
 # Mounting as read-only
 
-Cloud Storage FUSE supports mounting as read-only by passing -o ro as a global option flag:
+Cloud Storage FUSE supports mounting as read-only by passing ```-o ro``` as a global option flag:
 mkdir ```/path/to/mount/point```
 
     gcsfuse -o ro my-bucket  /path/to/mount/point 
 
 # Mounting a specific directory in a Cloud Storage bucket instead of the entire bucket
 
-By default, Cloud Storage FUSE mounts the entire contents and directory structure within a bucket. To mount only a specific directory, pass the --only-dir option. For example, if ```my-bucket``` contains the path ```my-bucket/a/b``` to mount only a/b to my local directory ```/path/to/mount/point```:
+By default, Cloud Storage FUSE mounts the entire contents and directory structure within a bucket. To mount only a specific directory, pass the ```--only-dir``` option. For example, if ```my-bucket``` contains the path ```my-bucket/a/b``` to mount only a/b to my local directory ```/path/to/mount/point```:
 
     gcsfuse --only-dir my-bucket a/b  /path/to/mount/point
 
 # General filesystem mount options
 
-Most of the generic mount options described in mount are supported, and can be passed along with the -o flag, such as ro, rw, suid, nosuid, dev, nodev, exec, noexec, atime, noatime, sync, async, dirsync. See [here](https://man7.org/linux/man-pages/man8/mount.fuse3.8.html) for additional information. For example
+Most of the generic mount options described in mount are supported, and can be passed along with the ```-o``` flag, such as ```ro```, ```rw```, ```suid```, ```nosuid```, ```dev```, ```nodev```, ```exec```, ```noexec```, ```atime```, ```noatime```, ```sync```, ```async```, ```dirsync```. See [here](https://man7.org/linux/man-pages/man8/mount.fuse3.8.html) for additional information. For example
 
     gcsfuse -o ro my-bucket  /path/to/mount/point
 
@@ -86,9 +86,9 @@ On Linux, unmount using fuse's fusermount tool:
 
 # Logging
 
-Use flags like --debug_gcs, --debug_fuse, --debug_http, --debug_fs, and --debug_mutex to get additional logs from Cloud Storage FUSE, and HTTP requests.
+Use flags like ```--debug_gcs```, ```--debug_fuse```, ```--debug_http```, ```--debug_fs```, and ```--debug_mutex``` to get additional logs from Cloud Storage FUSE, and HTTP requests.
 
-Cloud Storage FUSE logs its activity to a file if the user specifies one with --log-file flag. Otherwise, it logs to stdout in the foreground and to syslog in background mode. In addition you can use --log-format to specify the format as json or text. The directory of the log file must pre-exist.
+Cloud Storage FUSE logs its activity to a file if the user specifies one with ```--log-file``` flag. Otherwise, it logs to stdout in the foreground and to syslog in background mode. In addition you can use ```--log-format``` to specify the format as json or text. The directory of the log file must pre-exist.
 
 Note: Cloud Storage FUSE prints a few lines of logs indicating the mounting status to stdout or stderr.
 
@@ -96,7 +96,7 @@ To support the log-rotation please follow the instructions [here](https://github
 
 # Persisting a mount
 
-The Cloud Storage FUSE installation process installs a helper understood by the mount command to your system at the path /sbin/mount.gcsfuse, allowing you to mount your bucket using the mount command (on Linux, only root can do this). Example:
+The Cloud Storage FUSE installation process installs a helper understood by the mount command to your system at the path ```/sbin/mount```.gcsfuse, allowing you to mount your bucket using the mount command (on Linux, only root can do this). Example:
 
     mount -t gcsfuse -o rw,user my-bucket /path/to/mount/point
 
@@ -131,11 +131,11 @@ Cloud Storage FUSE should run as the user who will be using the file system, not
 
 By default, the access to the Cloud Storage FUSE mount is restricted to the user that mounts it, which is a security measure implemented within the FUSE kernel. For this reason, Cloud Storage FUSE by default shows all files as owned by the invoking user. Therefore you should invoke Cloud Storage FUSE as the user that will be using the file system, not as root.
 
-To allow others to access the GCSFuse mount, use the ‘allow_other’ mounting option at the time of mounting (‘-o allow_other’).
+To allow others to access the GCSFuse mount, use the ```allow_other``` mounting option at the time of mounting (```-o allow_other```).
 
      mount -t gcsfuse -o allow_other my-bucket /path/to/mount/point
 
-If the user mounting the Cloud Storage FUSE is not root then the ‘allow_other’ requires 'user_allow_other' to be added to the /etc/fuse.conf file.
+If the user mounting the Cloud Storage FUSE is not root then the ```allow_other``` requires ```user_allow_other``` to be added to the ```/etc/fuse.conf``` file.
 
 # Full list of mount options
 
