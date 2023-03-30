@@ -26,7 +26,7 @@ Close and fsync create a new generation of the object before returning, as long 
 Examples:
 
 - Machine A opens a file and writes then successfully closes or syncs it, and the file was not concurrently unlinked from the point of view of A. Machine B then opens the file after machine A finishes closing or syncing. Machine B will observe a version of the file at least as new as the one created by machine A.
-- Machine A and B both open the same file, which contains the text ‘ABC’. Machine A modifies the file to ‘ABC-123’ and closes/syncs the file which gets written back to Cloud Storage. After, Machine B, which still has the file open, instead modifies the file to ‘ABC-ZYX’, and saves and closes the file. As the last writer wins, the current state of the file will read ‘ABC-XYZ’.
+- Machine A and B both open the same file, which contains the text ‘ABC’. Machine A modifies the file to ‘ABC-123’ and closes/syncs the file which gets written back to Cloud Storage. After, Machine B, which still has the file open, instead modifies the file to ‘ABC-XYZ’, and saves and closes the file. As the last writer wins, the current state of the file will read ‘ABC-XYZ’.
 
 # Caching
 
@@ -39,11 +39,11 @@ Important: The rest of this document assumes that caching is disabled (by settin
 
 **Stat caching**
 
-The cost of the consistency guarantees discussed in the rest of this document is that Cloud Storage FUSE must frequently send stat object requests to Cloud Storage in order to get the freshest possible answer for the kernel when it asks about a particular name or inode, which happens frequently. This can make what appear to the user to be simple operations, like ls -l, take quite a long time.
+The cost of the consistency guarantees discussed in the rest of this document is that Cloud Storage FUSE must frequently send stat object requests to Cloud Storage in order to get the freshest possible answer for the kernel when it asks about a particular name or inode, which happens frequently. This can make what appear to the user to be simple operations, like ```ls -l```, take quite a long time.
 
-To alleviate this slowness, Cloud Storage FUSE supports using cached data where it would otherwise send a stat object request to Cloud Storage, saving some round trips. This behavior is controlled by the ```--stat-cache-ttl``` flag, which can be set to a value like 10s or 1.5h. The default is one minute. Positive and negative stat results will be cached for the specified amount of time.
+To alleviate this slowness, Cloud Storage FUSE supports using cached data where it would otherwise send a stat object request to Cloud Storage, saving some round trips. This behavior is controlled by the ```--stat-cache-ttl``` flag, which can be set to a value like ```10s``` or ```1.5h```. The default is one minute. Positive and negative stat results will be cached for the specified amount of time.
 
-```--stat-cache-ttl``` also controls the duration for which Cloud Storage FUSE allows the kernel to cache inode attributes. Caching these can help with file system performance, since otherwise the kernel must send a request for inode attributes to Cloud Storage FUSE for each call to write(2), stat(2), and others.
+```--stat-cache-ttl``` also controls the duration for which Cloud Storage FUSE allows the kernel to cache inode attributes. Caching these can help with file system performance, since otherwise the kernel must send a request for inode attributes to Cloud Storage FUSE for each call to ```write(2)```, ```stat(2)```, and others.
 
 The size of the stat cache can also be configured with ```--stat-cache-capacity```. By default the stat cache will hold up to 4096 items. If you have folders containing more than 4096 items (folders or files) you may want to increase this, otherwise the caching will not function properly when listing that folder's contents:
 - ListObjects will return information on the items within the folder. Each item's data is cached
@@ -59,14 +59,14 @@ Warning: Using stat caching breaks the consistency guarantees discussed in this 
 
 **Type caching**
 
-Because Cloud Storage does not forbid an object named foo from existing next to an object named foo/ (see the Name conflicts section), when Cloud Storage FUSE is asked to look up the name "foo" it must stat both objects.
+Because Cloud Storage does not forbid an object named ```foo``` from existing next to an object named ```foo/``` (see the Name conflicts section), when Cloud Storage FUSE is asked to look up the name "foo" it must stat both objects.
 
-Stat cache enabled with ```--stat-cache-ttl``` can help with this, but it does not help until after the first request. For example, assume that there is an object named foo but not one named foo/, and the stat cache is enabled. When the user runs ls -l, the following happens:
-- The objects in the bucket are listed. This causes a stat cache entry for foo to be created.
-- ls asks to stat the name "foo", causing a lookup request to be sent for that name.
-- Cloud Storage FUSE sends Cloud Storage stat requests for the object named foo and the object named foo/. The first will hit in the stat cache, but the second will have to go all the way to Cloud Storage to receive a negative result.
+Stat cache enabled with ```--stat-cache-ttl``` can help with this, but it does not help until after the first request. For example, assume that there is an object named foo but not one named ```foo/```, and the stat cache is enabled. When the user runs ```ls -l```, the following happens:
+- The objects in the bucket are listed. This causes a stat cache entry for ```foo``` to be created.
+- ```ls``` asks to stat the name ```foo```, causing a lookup request to be sent for that name.
+- Cloud Storage FUSE sends Cloud Storage stat requests for the object named ```foo``` and the object named ```foo/```. The first will hit in the stat cache, but the second will have to go all the way to Cloud Storage to receive a negative result.
 
-The negative result for foo/ will be cached, but that only helps with the second invocation of ls -l.
+The negative result for ```foo/``` will be cached, but that only helps with the second invocation of ```ls -l```.
 
 To alleviate this, Cloud Storage FUSE supports a "type cache" on directory inodes. When ```--type-cache-ttl``` is set, each directory inode will maintain a mapping from the name of its children to whether those children are known to be files or directories or both. When a child is looked up, if the parent's cache says that the child is a file but not a directory, only one Cloud Storage object will need to be stated. Similarly if the child is a directory but not a file.
 
@@ -120,7 +120,7 @@ then mounting the bucket and running ‘ls’ to see its content will not show a
 
 This is the default behavior, unless a user passes the ```--implicit-dirs``` flag.
 
-**Using --implicit-dirs flag:**
+**Using ```--implicit-dirs``` flag:**
 
 Cloud Storage FUSE supports a flag called ```--implicit-dirs``` that changes the behavior for how pre-existing directory structures, not created by Cloud Storage FUSE, are mounted and visible to Cloud Storage FUSE. When this flag is enabled, name lookup requests from the kernel use the Cloud Storage API's Objects.list operation to search for objects that would implicitly define the existence of a directory with the name in question. 
 
@@ -137,7 +137,7 @@ Alternatively, users can create a script which lists the buckets and creates the
 
 With each record in Cloud Storage is stored object and metadata [generation numbers](https://cloud.google.com/storage/docs/generations-preconditions). These provide a total order on requests to modify an object's contents and metadata, compatible with causality. So if insert operation A happens before insert operation B, then the generation number resulting from A will be less than that resulting from B.
 
-In the discussion below, the term "generation" refers to both object generation and meta-generation numbers from Cloud Storage. In other words, what we call "generation" is a pair (G, M) of Cloud Storage object generation number G and associated meta-generation number M.
+In the discussion below, the term "generation" refers to both object generation and meta-generation numbers from Cloud Storage. In other words, what we call "generation" is a pair ```(G, M)``` of Cloud Storage object generation number ```G``` and associated meta-generation number ```M```f.
 
 # File inodes
 
@@ -145,7 +145,7 @@ As in any file system, file inodes in a Cloud Storage FUSE file system logically
 
 **Creation**
 
-When a new file is created and open(2) was called with O_CREAT, an empty object with the appropriate name is created in Cloud Storage. The resulting generation is used as the source generation for the inode, and it is as if that object had been pre-existing and was opened.
+When a new file is created and ```open(2)``` was called with ```O_CREAT```, an empty object with the appropriate name is created in Cloud Storage. The resulting generation is used as the source generation for the inode, and it is as if that object had been pre-existing and was opened.
 
 **Pubsub notifications on file creation**
 
@@ -159,9 +159,9 @@ These Cloud Storage events can be used from other cloud products, such as AppEng
 
 **Modifications**
 
-Inodes may be opened for writing. Modifications are reflected immediately in reads of the same inode by processes local to the machine using the same file system. After a successful fsync or a successful close, the contents of the inode are guaranteed to have been written to the Cloud Storage object with the matching name if the object's generation and meta-generation numbers still match the source generation of the inode - they may not have if there had been modifications from another actor in the meantime. There are no guarantees about whether local modifications are reflected in Cloud Storage after writing but before syncing or closing.
+Inodes may be opened for writing. Modifications are reflected immediately in reads of the same inode by processes local to the machine using the same file system. After a successful ```fsync``` or a successful ```close```, the contents of the inode are guaranteed to have been written to the Cloud Storage object with the matching name if the object's generation and meta-generation numbers still match the source generation of the inode - they may not have if there had been modifications from another actor in the meantime. There are no guarantees about whether local modifications are reflected in Cloud Storage after writing but before syncing or closing.
 
-Modification time (stat::st_mtim on Linux) is tracked for file inodes, and can be updated in the usual way using utimes(2) or futimens(2). When dirty inodes are written out to Cloud Storage objects, mtime is stored in the custom metadata key gcsfuse_mtime in an unspecified format.
+Modification time (stat::st_mtim on Linux) is tracked for file inodes, and can be updated in the usual way using ```utimes(2)``` or ```futimens(2)```. When dirty inodes are written out to Cloud Storage objects, mtime is stored in the custom metadata key gcsfuse_mtime in an unspecified format.
 
 There is one special case worth mentioning: mtime updates to unlinked inodes may be silently lost (of course content updates to these inodes will also be lost once the file is closed).
 
@@ -219,7 +219,7 @@ Note that by definition, implicit directories cannot be empty.
 
 # Symlink inodes
 
-Cloud Storage FUSE represents symlinks with empty Cloud Storage objects that contain the custom metadata key gcsfuse_symlink_target, with the value giving the target of a symlink. In other respects they work like a file inode, including receiving the same permissions. 
+Cloud Storage FUSE represents symlinks with empty Cloud Storage objects that contain the custom metadata key ```gcsfuse_symlink_target```, with the value giving the target of a symlink. In other respects they work like a file inode, including receiving the same permissions. 
 
 # Permissions and ownership
 
@@ -233,7 +233,7 @@ These defaults can be overridden with the ```--uid```, ```--gid```, ```--file-mo
 
 The fuse kernel layer itself restricts file system access to the mounting user ([fuse.txt](https://github.com/torvalds/linux/blob/a33f32244d8550da8b4a26e277ce07d5c6d158b5/Documentation/filesystems/fuse.txt##L102-L105)). No matter what the configured inode permissions are, by default other users will receive "permission denied" errors when attempting to access the file system. This includes the root user.
 
-This can be overridden by setting -o allow_other to allow other users to access the file system. However, there may be [security implications](https://github.com/torvalds/linux/blob/a33f32244d8550da8b4a26e277ce07d5c6d158b5/Documentation/filesystems/fuse.txt#L218-L310).
+This can be overridden by setting ```-o allow_other``` to allow other users to access the file system. However, there may be [security implications](https://github.com/torvalds/linux/blob/a33f32244d8550da8b4a26e277ce07d5c6d158b5/Documentation/filesystems/fuse.txt#L218-L310).
 
 # Non-standard filesystem behaviors
 
@@ -247,26 +247,26 @@ Because Cloud Storage offers no way to delete an object conditional on the non-e
 
 Cloud Storage FUSE implements requests from the kernel to read the contents of a directory (as when listing a directory with ls, for example) by calling [Objects.list](https://cloud.google.com/storage/docs/json_api/v1/objects/list) in the Cloud Storage API. The call uses a delimiter of / to avoid paying the bandwidth and request cost of also listing very large sub-directories.
 
-However, with this implementation there is no way for Cloud Storage FUSE to distinguish a child directory that actually exists (because its placeholder object is present) and one that is only implicitly defined. So when ```--implicit-dirs``` is not set, directory listings may contain names that are inaccessible in a later call from the kernel to Cloud Storage FUSE to look up the inode by name. For example, a call to readdir(3) may return names for which fstat(2) returns ENOENT.
+However, with this implementation there is no way for Cloud Storage FUSE to distinguish a child directory that actually exists (because its placeholder object is present) and one that is only implicitly defined. So when ```--implicit-dirs``` is not set, directory listings may contain names that are inaccessible in a later call from the kernel to Cloud Storage FUSE to look up the inode by name. For example, a call to readdir(3) may return names for which fstat(2) returns ```ENOENT```.
 
 **Name conflicts**
 
-It is possible to have a Cloud Storage bucket containing an object named foo and another object named foo/:
+It is possible to have a Cloud Storage bucket containing an object named foo and another object named ```foo/```:
 - This situation can easily happen when writing to Cloud Storage directly, since there is nothing special about those names as far as Cloud Storage is concerned.
-- This situation may happen if two different machines have the same bucket mounted with Cloud Storage FUSE, and at about the same time one creates a file named "foo" and the other creates a directory with the same name. This is because the creation of the object foo/ is not preconditioned on the absence of the object named foo, and vice versa.
+- This situation may happen if two different machines have the same bucket mounted with Cloud Storage FUSE, and at about the same time one creates a file named "foo" and the other creates a directory with the same name. This is because the creation of the object ```foo/``` is not preconditioned on the absence of the object named foo, and vice versa.
 
 Traditional file systems do not allow multiple directory entries with the same name, so all tools and kernel code are structured around this assumption. Therefore, it is not possible for Cloud Storage FUSE to faithfully preserve both the file and the directory in this case.
 
-Instead, when a conflicting pair of foo and foo/ objects both exist, it appears in the Cloud Storage FUSE file system as if there is a directory named foo and a file or symlink named foo\n (i.e. foo followed by U+000A, line feed). This is what will appear when the parent's directory entries are read, and Cloud Storage FUSE will respond to requests to look up the inode named foo\n by returning the file inode. \n in particular is chosen because it is not legal in Cloud Storage object names, and therefore is not ambiguous.
+Instead, when a conflicting pair of foo and ```foo/``` objects both exist, it appears in the Cloud Storage FUSE file system as if there is a directory named foo and a file or symlink named ```foo\n``` (i.e. foo followed by U+000A, line feed). This is what will appear when the parent's directory entries are read, and Cloud Storage FUSE will respond to requests to look up the inode named ```foo\n``` by returning the file inode. ```\n``` in particular is chosen because it is not legal in Cloud Storage object names, and therefore is not ambiguous.
 
 **Memory-mapped files**
 
 Cloud Storage FUSE files can be memory-mapped for reading and writing using mmap(2). If you make modifications to such a file and want to ensure that they are durable, you must do the following:
 
-- Keep the file descriptor you supplied to mmap(2) open while you make your modifications.
-- When you are finished modifying the mapping, call msync(2) and check for errors.
-- Call munmap(2) and check for errors.
-- Call close(2) on the original file descriptor and check for errors.
+- Keep the file descriptor you supplied to ```mmap(2)``` open while you make your modifications.
+- When you are finished modifying the mapping, call ```msync(2)``` and check for errors.
+- Call ```munmap(2)``` and check for errors.
+- Call ```close(2)``` on the original file descriptor and check for errors.
 - If none of the calls returns an error, the modifications have been made durable in Cloud Storage, according to the usual rules documented above.
 
 See the notes on [fuseops.FlushFileOp](http://godoc.org/github.com/jacobsa/fuse/fuseops#FlushFileOp) for more details.
