@@ -8,7 +8,7 @@ Files that have not been modified are read portion by portion on demand. Cloud S
 
 **Writes**
 
-For modifications to existing objects, Cloud Storage FUSE downloads the entire backing object's contents from Cloud Storage. The contents are stored in a local temporary file whose location is controlled by the flag ```--temp-dir```. Later, when the file is closed or fsync'd, Cloud Storage FUSE writes the contents of the local file back to Cloud Storage as a new object generation. Modifying even a single bit of an object results in the full re-upload of the object. The exception is if an append is done to the end of a file, where the original file is at leat 2MB,  then only the appended content is uploaded.
+For modifications to existing objects, Cloud Storage FUSE downloads the entire backing object's contents from Cloud Storage. The contents are stored in a local temporary file whose location is controlled by the flag ```--temp-dir```. Later, when the file is closed or fsync'd, Cloud Storage FUSE writes the contents of the local file back to Cloud Storage as a new object generation. Modifying even a single bit of an object results in the full re-upload of the object. The exception is if an append is done to the end of a file, where the original file is at least 2MB,  then only the appended content is uploaded.
 
 For new objects, objects are first written to the same temporary directory as mentioned above, and you will notice an empty file is created in the Cloud Storage bucket as a hold. Upon closing or fsyncing the file, the file is then written to your Cloud Storage bucket, with the existing empty file now reflecting the accurate file size and content.
 
@@ -149,7 +149,7 @@ When a new file is created and open(2) was called with O_CREAT, an empty object 
 
 **Pubsub notifications on file creation**
 
-[Pubsub notifications](https://cloud.google.com/storage/docs/reporting-changes) may be enabled on a Cloud Storage bucket to help track changes to Cloud Storage objects. Due of the semantics that Cloud Storage FUSE uses to create files, 3 different events are generated, per file created:
+[Pubsub notifications](https://cloud.google.com/storage/docs/reporting-changes) may be enabled on a Cloud Storage bucket to help track changes to Cloud Storage objects. Due to the semantics that Cloud Storage FUSE uses to create files, 3 different events are generated, per file created:
 
 - One OBJECT_FINALIZE event: a zero sized object has been created.
 - One OBJECT_DELETE event: the first generation of the object has been deleted.
@@ -206,6 +206,7 @@ Cloud Storage FUSE directory inodes exist simply to satisfy the kernel and expor
 Despite no guarantees about the actual times for directories, their time fields in stat structs will be set to something reasonable.
 
 **Unlinking**
+
 There is no way to delete an empty directory in Cloud Storage atomically. The only way to do it is by making two calls - first to list the objects in the directory object and then delete the directory object if it is empty.
 
 With the perspective of Cloud Storage FUSE if a directory object is deleted without checking the emptiness condition, the child object becomes inaccessible and leads to non-standard file systems behavior.
@@ -270,7 +271,7 @@ Cloud Storage FUSE files can be memory-mapped for reading and writing using mmap
 
 See the notes on [fuseops.FlushFileOp](http://godoc.org/github.com/jacobsa/fuse/fuseops#FlushFileOp) for more details.
 
-Error Handling
+**Error Handling**
 
 Transient errors can occur in distributed systems like Cloud Storage, such as network timeouts. Cloud Storage FUSE implements Cloud Storage [retry best practices](https://cloud.google.com/storage/docs/retry-strategy) with exponential backoff. 
 
