@@ -26,7 +26,7 @@ Close and fsync create a new generation of the object before returning, as long 
 Examples:
 
 - Machine A opens a file and writes then successfully closes or syncs it, and the file was not concurrently unlinked from the point of view of A. Machine B then opens the file after machine A finishes closing or syncing. Machine B will observe a version of the file at least as new as the one created by machine A.
-- Machine A and B both open the same file, which contains the text ‘ABC’. Machine A modifies the file to ‘ABC-123’ and ```closes/syncs``` the file which gets written back to Cloud Storage. After, Machine B, which still has the file open, instead modifies the file to ‘ABC-XYZ’, and saves and closes the file. As the last writer wins, the current state of the file will read ‘ABC-XYZ’.
+- Machine A and B both open the same file, which contains the text ‘ABC’. Machine A modifies the file to ‘ABC-123’ and closes/syncs the file which gets written back to Cloud Storage. After, Machine B, which still has the file open, instead modifies the file to ‘ABC-XYZ’, and saves and closes the file. As the last writer wins, the current state of the file will read ‘ABC-XYZ’.
 
 # Caching
 
@@ -76,10 +76,10 @@ Warning: Using type caching breaks the consistency guarantees discussed in this 
 
 # Files and Directories
 
-As Cloud Storage FUSE is a way to mount a bucket as a local filesystem, and directories are essential to filesystems, Cloud Storage FUSE presents directories logically using ``` /``` prefixes. Cloud Storage object names map directly to file paths using the separator '/'. Object names ending in a slash represent a directory, and all other object names represent a file. Directories are by default not implicitly defined; they exist only if a matching object ending in a slash exists.
+As Cloud Storage FUSE is a way to mount a bucket as a local filesystem, and directories are essential to filesystems, Cloud Storage FUSE presents directories logically using ```/``` prefixes. Cloud Storage object names map directly to file paths using the separator '/'. Object names ending in a slash represent a directory, and all other object names represent a file. Directories are by default not implicitly defined; they exist only if a matching object ending in a slash exists.
 
 
-How Cloud Storage FUSE uses them depends on where the source structure was originally created - created by Cloud Storage FUSE in a new deployment, or mounting a bucket that already has objects using a ``` /``` prefix to represent a directory structure.
+How Cloud Storage FUSE uses them depends on where the source structure was originally created - created by Cloud Storage FUSE in a new deployment, or mounting a bucket that already has objects using a ```/``` prefix to represent a directory structure.
 
 In the most basic example, let's say a user is creating the following new structure from their Cloud Storage FUSE mount:
 
@@ -137,7 +137,7 @@ Alternatively, users can create a script which lists the buckets and creates the
 
 With each record in Cloud Storage is stored object and metadata [generation numbers](https://cloud.google.com/storage/docs/generations-preconditions). These provide a total order on requests to modify an object's contents and metadata, compatible with causality. So if insert operation A happens before insert operation B, then the generation number resulting from A will be less than that resulting from B.
 
-In the discussion below, the term "generation" refers to both object generation and meta-generation numbers from Cloud Storage. In other words, what we call "generation" is a pair ```(G, M)``` of Cloud Storage object generation number ```G``` and associated meta-generation number ```M```f.
+In the discussion below, the term "generation" refers to both object generation and meta-generation numbers from Cloud Storage. In other words, what we call "generation" is a pair ```(G, M)``` of Cloud Storage object generation number ```G``` and associated meta-generation number ```M```.
 
 # File inodes
 
@@ -186,7 +186,7 @@ One of the fundamental operations in the VFS layer of the kernel is looking up t
 
 **User-visible semantics**
 
-The intent of these conventions is to make it appear as though local writes to a file are in-place modifications as with a traditional file system, whereas remote overwrites of a Cloud Storage object appear as some other process unlinking the file from its directory and then linking a distinct file using the same name. The st_nlink field will reflect this when using ```fstat(2)```.
+The intent of these conventions is to make it appear as though local writes to a file are in-place modifications as with a traditional file system, whereas remote overwrites of a Cloud Storage object appear as some other process unlinking the file from its directory and then linking a distinct file using the same name. The ```st_nlink``` field will reflect this when using ```fstat(2)```.
 
 Note the following consequence: if machine A opens a file and writes to it, then machine B deletes or replaces its backing object, or updates it’s metadata, then machine A closes the file, machine A's writes will be lost. This matches the behavior on a single machine when process A opens a file and then process B unlinks it. Process A continues to have a consistent view of the file's contents until it closes the file handle, at which point the contents are lost.
 
@@ -213,7 +213,7 @@ With the perspective of Cloud Storage FUSE if a directory object is deleted with
 
 
 
-Cloud Storage FUSE makes similar calls while deleting a directory: it lists objects with the directory's name as a prefix, returning ENOTEMPTY if anything shows up, and otherwise deletes the backing object.
+Cloud Storage FUSE makes similar calls while deleting a directory: it lists objects with the directory's name as a prefix, returning ```ENOTEMPTY``` if anything shows up, and otherwise deletes the backing object.
 
 Note that by definition, implicit directories cannot be empty.
 
@@ -261,7 +261,7 @@ Instead, when a conflicting pair of foo and ```foo/``` objects both exist, it ap
 
 **Memory-mapped files**
 
-Cloud Storage FUSE files can be memory-mapped for reading and writing using mmap(2). If you make modifications to such a file and want to ensure that they are durable, you must do the following:
+Cloud Storage FUSE files can be memory-mapped for reading and writing using ```mmap(2)```. If you make modifications to such a file and want to ensure that they are durable, you must do the following:
 
 - Keep the file descriptor you supplied to ```mmap(2)``` open while you make your modifications.
 - When you are finished modifying the mapping, call ```msync(2)``` and check for errors.
