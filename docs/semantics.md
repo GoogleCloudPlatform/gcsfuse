@@ -26,7 +26,7 @@ Close and fsync create a new generation of the object before returning, as long 
 Examples:
 
 - Machine A opens a file and writes then successfully closes or syncs it, and the file was not concurrently unlinked from the point of view of A. Machine B then opens the file after machine A finishes closing or syncing. Machine B will observe a version of the file at least as new as the one created by machine A.
-- Machine A and B both open the same file, which contains the text ‘ABC’. Machine A modifies the file to ‘ABC-123’ and closes/syncs the file which gets written back to Cloud Storage. After, Machine B, which still has the file open, instead modifies the file to ‘ABC-XYZ’, and saves and closes the file. As the last writer wins, the current state of the file will read ‘ABC-XYZ’.
+- Machine A and B both open the same file, which contains the text ‘ABC’. Machine A modifies the file to ‘ABC-123’ and ```closes/syncs``` the file which gets written back to Cloud Storage. After, Machine B, which still has the file open, instead modifies the file to ‘ABC-XYZ’, and saves and closes the file. As the last writer wins, the current state of the file will read ‘ABC-XYZ’.
 
 # Caching
 
@@ -76,10 +76,10 @@ Warning: Using type caching breaks the consistency guarantees discussed in this 
 
 # Files and Directories
 
-As Cloud Storage FUSE is a way to mount a bucket as a local filesystem, and directories are essential to filesystems, Cloud Storage FUSE presents directories logically using “/” prefixes. Cloud Storage object names map directly to file paths using the separator '/'. Object names ending in a slash represent a directory, and all other object names represent a file. Directories are by default not implicitly defined; they exist only if a matching object ending in a slash exists.
+As Cloud Storage FUSE is a way to mount a bucket as a local filesystem, and directories are essential to filesystems, Cloud Storage FUSE presents directories logically using ``` /``` prefixes. Cloud Storage object names map directly to file paths using the separator '/'. Object names ending in a slash represent a directory, and all other object names represent a file. Directories are by default not implicitly defined; they exist only if a matching object ending in a slash exists.
 
 
-How Cloud Storage FUSE uses them depends on where the source structure was originally created - created by Cloud Storage FUSE in a new deployment, or mounting a bucket that already has objects using a “/” prefix to represent a directory structure.
+How Cloud Storage FUSE uses them depends on where the source structure was originally created - created by Cloud Storage FUSE in a new deployment, or mounting a bucket that already has objects using a ``` /``` prefix to represent a directory structure.
 
 In the most basic example, let's say a user is creating the following new structure from their Cloud Storage FUSE mount:
 
@@ -107,7 +107,7 @@ The above example was based on greenfield deployments which assumes starting fre
 However, If a user already has objects with prefixes to simulate a directory structure in their buckets that did not originate from Cloud Storage FUSE, and mounts the bucket using Cloud Storage FUSE, the directories and objects under the directories will not be visible until a user manually creates the directory using mkdir on the local instance. This is because with Cloud Storage FUSE, directories are by default not implicitly defined; they exist only if a matching object ending in a slash exists.
 
 
-So if a user has the following objects in their Cloud Storage buckets, that were not originally created via Cloud Storage FUSE (for example created by uploading a local directory using gsutil cp -r command)
+So if a user has the following objects in their Cloud Storage buckets, that were not originally created via Cloud Storage FUSE (for example created by uploading a local directory using ``` gsutil cp -r``` command)
 
 - A/
 - A/1.txt
@@ -116,7 +116,7 @@ So if a user has the following objects in their Cloud Storage buckets, that were
 - C/
 - C/3.txt
 
-then mounting the bucket and running ‘ls’ to see its content will not show any files until the directories A/, A/B/, and C/ are created on the local filesystem using the ‘mkdir’ command.
+then mounting the bucket and running ```ls``` to see its content will not show any files until the directories A/, A/B/, and C/ are created on the local filesystem using the ```mkdir``` command.
 
 This is the default behavior, unless a user passes the ```--implicit-dirs``` flag.
 
@@ -128,7 +128,7 @@ The example above describes how from the local filesystem the user sees only 0.t
 
 However, implicit directories does have drawbacks:
 - The feature requires an additional request to Cloud Storage for each name lookup, which may have costs in terms of both charges for operations and latency.
-- With the example above, it will appear as if there is a directory called "A/" containing a file called "1.txt". But when the user runs ‘rm A/1.txt’, it will appear as if the file system is completely empty. This is contrary to expectations, since the user hasn't run ‘rmdir A/’.
+- With the example above, it will appear as if there is a directory called "A/" containing a file called "1.txt". But when the user runs ‘rm A/1.txt’, it will appear as if the file system is completely empty. This is contrary to expectations, since the user hasn't run ```rmdir A/```.
 - Cloud Storage FUSE sends a single Objects.list request to Cloud Storage, and treats the directory as being implicitly defined if the results are non-empty. In rare cases (notably when many objects have recently been deleted) Objects.list may return an arbitrary number of empty responses with continuation tokens, even for a non-empty name range. In order to bound the number of requests, Cloud Storage FUSE simply ignores this subtlety. Therefore in rare cases an implicitly defined directory will fail to appear.
 
 Alternatively, users can create a script which lists the buckets and creates the appropriate objects for the directories so that the ```--implicit-dirs``` flag is not used. 
@@ -161,11 +161,11 @@ These Cloud Storage events can be used from other cloud products, such as AppEng
 
 Inodes may be opened for writing. Modifications are reflected immediately in reads of the same inode by processes local to the machine using the same file system. After a successful ```fsync``` or a successful ```close```, the contents of the inode are guaranteed to have been written to the Cloud Storage object with the matching name if the object's generation and meta-generation numbers still match the source generation of the inode - they may not have if there had been modifications from another actor in the meantime. There are no guarantees about whether local modifications are reflected in Cloud Storage after writing but before syncing or closing.
 
-Modification time (stat::st_mtim on Linux) is tracked for file inodes, and can be updated in the usual way using ```utimes(2)``` or ```futimens(2)```. When dirty inodes are written out to Cloud Storage objects, mtime is stored in the custom metadata key gcsfuse_mtime in an unspecified format.
+Modification time (```stat::st_mtim)``` on Linux) is tracked for file inodes, and can be updated in the usual way using ```utimes(2)``` or ```futimens(2)```. When dirty inodes are written out to Cloud Storage objects, mtime is stored in the custom metadata key gcsfuse_mtime in an unspecified format.
 
 There is one special case worth mentioning: mtime updates to unlinked inodes may be silently lost (of course content updates to these inodes will also be lost once the file is closed).
 
-There are no guarantees about other inode times (such as stat::st_ctim and stat::st_atim on Linux) except that they will be set to something reasonable.
+There are no guarantees about other inode times (such as ```stat::st_ctim``` and ```stat::st_atim``` on Linux) except that they will be set to something reasonable.
 
 **Identity**
 
@@ -181,12 +181,12 @@ One of the fundamental operations in the VFS layer of the kernel is looking up t
 
 - Stat the object with the given name within the Cloud Storage bucket.
 - If the object does not exist, return an error.
-- Call the generation of the object (G, M). If there is already an inode for this name with source generation (G, M), return it.
-- Create a new inode for this name with source generation (G, M).
+- Call the generation of the object ```(G, M)```. If there is already an inode for this name with source generation ```(G, M)```, return it.
+- Create a new inode for this name with source generation ```(G, M)```.
 
 **User-visible semantics**
 
-The intent of these conventions is to make it appear as though local writes to a file are in-place modifications as with a traditional file system, whereas remote overwrites of a Cloud Storage object appear as some other process unlinking the file from its directory and then linking a distinct file using the same name. The st_nlink field will reflect this when using fstat(2).
+The intent of these conventions is to make it appear as though local writes to a file are in-place modifications as with a traditional file system, whereas remote overwrites of a Cloud Storage object appear as some other process unlinking the file from its directory and then linking a distinct file using the same name. The st_nlink field will reflect this when using ```fstat(2)```.
 
 Note the following consequence: if machine A opens a file and writes to it, then machine B deletes or replaces its backing object, or updates it’s metadata, then machine A closes the file, machine A's writes will be lost. This matches the behavior on a single machine when process A opens a file and then process B unlinks it. Process A continues to have a consistent view of the file's contents until it closes the file handle, at which point the contents are lost.
 
@@ -200,8 +200,8 @@ Cloud Storage FUSE sets the following pieces of Cloud Storage object metadata fo
 
 Cloud Storage FUSE directory inodes exist simply to satisfy the kernel and export a way to look up child inodes. Unlike file inodes:
 - There are no guarantees about stability of directory inode IDs. They may change from lookup to lookup even if nothing has changed in the Cloud Storage bucket. They may not change even if the directory object in the bucket has been overwritten.
-- Cloud Storage FUSE does not keep track of modification time for directories. There are no guarantees for the contents of stat::st_mtim or equivalent, or the behavior of utimes(2) and similar.
-- There are no guarantees about stat::st_nlink.
+- Cloud Storage FUSE does not keep track of modification time for directories. There are no guarantees for the contents of ```stat::st_mtim``` or equivalent, or the behavior of ```utimes(2)``` and similar.
+- There are no guarantees about ```stat::st_nlink```.
 
 Despite no guarantees about the actual times for directories, their time fields in stat structs will be set to something reasonable.
 
@@ -225,7 +225,7 @@ Cloud Storage FUSE represents symlinks with empty Cloud Storage objects that con
 
 **Inodes**
 
-By default, all inodes in a Cloud Storage FUSE file system show up as being owned by the UID and GID of the Cloud Storage FUSE process itself, i.e. the user who mounted the file system. All files have permission bits 0644, and all directories have permission bits 0755 (but see below for issues with use by other users). Changing inode mode (using chmod(2) or similar) is unsupported, and changes are silently ignored.
+By default, all inodes in a Cloud Storage FUSE file system show up as being owned by the UID and GID of the Cloud Storage FUSE process itself, i.e. the user who mounted the file system. All files have permission bits ```0644```, and all directories have permission bits ```0755``` (but see below for issues with use by other users). Changing inode mode (using chmod(2) or similar) is unsupported, and changes are silently ignored.
 
 These defaults can be overridden with the ```--uid```, ```--gid```, ```--file-mode```, and ```--dir-mode``` flags.
 
@@ -245,15 +245,15 @@ Because Cloud Storage offers no way to delete an object conditional on the non-e
 
 **Reading directories**
 
-Cloud Storage FUSE implements requests from the kernel to read the contents of a directory (as when listing a directory with ls, for example) by calling [Objects.list](https://cloud.google.com/storage/docs/json_api/v1/objects/list) in the Cloud Storage API. The call uses a delimiter of / to avoid paying the bandwidth and request cost of also listing very large sub-directories.
+Cloud Storage FUSE implements requests from the kernel to read the contents of a directory (as when listing a directory with ls, for example) by calling [Objects.list](https://cloud.google.com/storage/docs/json_api/v1/objects/list) in the Cloud Storage API. The call uses a delimiter of ```/``` to avoid paying the bandwidth and request cost of also listing very large sub-directories.
 
-However, with this implementation there is no way for Cloud Storage FUSE to distinguish a child directory that actually exists (because its placeholder object is present) and one that is only implicitly defined. So when ```--implicit-dirs``` is not set, directory listings may contain names that are inaccessible in a later call from the kernel to Cloud Storage FUSE to look up the inode by name. For example, a call to readdir(3) may return names for which fstat(2) returns ```ENOENT```.
+However, with this implementation there is no way for Cloud Storage FUSE to distinguish a child directory that actually exists (because its placeholder object is present) and one that is only implicitly defined. So when ```--implicit-dirs``` is not set, directory listings may contain names that are inaccessible in a later call from the kernel to Cloud Storage FUSE to look up the inode by name. For example, a call to ```readdir(3) ```may return names for which ```fstat(2)``` returns ```ENOENT```.
 
 **Name conflicts**
 
 It is possible to have a Cloud Storage bucket containing an object named foo and another object named ```foo/```:
 - This situation can easily happen when writing to Cloud Storage directly, since there is nothing special about those names as far as Cloud Storage is concerned.
-- This situation may happen if two different machines have the same bucket mounted with Cloud Storage FUSE, and at about the same time one creates a file named "foo" and the other creates a directory with the same name. This is because the creation of the object ```foo/``` is not preconditioned on the absence of the object named foo, and vice versa.
+- This situation may happen if two different machines have the same bucket mounted with Cloud Storage FUSE, and at about the same time one creates a file named ```foo``` and the other creates a directory with the same name. This is because the creation of the object ```foo/``` is not preconditioned on the absence of the object named foo, and vice versa.
 
 Traditional file systems do not allow multiple directory entries with the same name, so all tools and kernel code are structured around this assumption. Therefore, it is not possible for Cloud Storage FUSE to faithfully preserve both the file and the directory in this case.
 
