@@ -28,7 +28,7 @@ Where [global options] are optional specific flags you can pass (use ```gcsfuse 
 
 # Static Mounting
 
-Static mounting means mounting a specific bucket. For example, say I want to mount the bucket ```my-bucket``` to the directory /path/to/mount/point
+Static mounting means mounting a specific bucket. For example, say I want to mount the bucket ```my-bucket``` to the directory ```/path/to/mount/point```
 
     mkdir /path/to/mount/point
     gcsfuse my-bucket /path/to/mount/point
@@ -58,13 +58,13 @@ Dynamically mounted buckets do not allow listing subdirectories at the root moun
 # Mounting as read-only
 
 Cloud Storage FUSE supports mounting as read-only by passing -o ro as a global option flag:
-mkdir /path/to/mount/point
+mkdir ```/path/to/mount/point```
 
     gcsfuse -o ro my-bucket  /path/to/mount/point 
 
 # Mounting a specific directory in a Cloud Storage bucket instead of the entire bucket
 
-By default, Cloud Storage FUSE mounts the entire contents and directory structure within a bucket. To mount only a specific directory, pass the --only-dir option. For example, if ‘my-bucket’ contains the path ‘my-bucket/a/b’ to mount only a/b to my local directory /path/to/mount/point:
+By default, Cloud Storage FUSE mounts the entire contents and directory structure within a bucket. To mount only a specific directory, pass the --only-dir option. For example, if ```my-bucket``` contains the path ```my-bucket/a/b``` to mount only a/b to my local directory ```/path/to/mount/point```:
 
     gcsfuse --only-dir my-bucket a/b  /path/to/mount/point
 
