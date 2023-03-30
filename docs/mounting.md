@@ -7,7 +7,7 @@
         gcloud auth login
         gcloud auth list
 
-   Alternatively, you can authenticate Cloud Storage FUSE by setting the --key-file flag to the path of a JSON key file, which you can download from the Google Cloud console. You can also set the GOOGLE_APPLICATION_CREDENTIALS environment variable to the path of the JSON key.
+   Alternatively, you can authenticate Cloud Storage FUSE by setting the ```--key-file``` flag to the path of a JSON key file, which you can download from the Google Cloud console. You can also set the ```GOOGLE_APPLICATION_CREDENTIALS``` environment variable to the path of the JSON key.
 
         GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json gcsfuse [...]
 When mounting with an fstab entry, use the key_file option:
@@ -22,61 +22,61 @@ The base syntax for using Cloud Storage FUSE is:
 
     gcsfuse [global options] [bucket] mountpoint
 
-Where [global options] are optional specific flags you can pass (use gcsfuse --help), [bucket] is the optional name of your bucket, and ‘mountpoint’ is the directory on your machine that you are mounting the bucket to. For example:
+Where [global options] are optional specific flags you can pass (use ```gcsfuse --help```), [bucket] is the optional name of your bucket, and ‘mountpoint’ is the directory on your machine that you are mounting the bucket to. For example:
     
-    gcsfuse my-bucket /usr/me/myself
+    gcsfuse my-bucket /path/to/mount/point
 
 # Static Mounting
 
-Static mounting means mounting a specific bucket. For example, say I want to mount the bucket “my-bucket” to the directory /usr/me/myself
+Static mounting means mounting a specific bucket. For example, say I want to mount the bucket ```my-bucket``` to the directory /path/to/mount/point
 
-    mkdir /usr/me/myself
-    gcsfuse my-bucket /usr/me/myself
+    mkdir /path/to/mount/point
+    gcsfuse my-bucket /path/to/mount/point
 Note: Avoid using the name of the bucket as the local directory mount point name.
 
 # Dynamic Mounting
 
 Dynamic mounting dynamically mounts all buckets a user has access to as subdirectories, without passing a specific bucket name.
    
-    mkdir /usr/me/myself
-    gcsfuse /usr/me/myself
+    mkdir /path/to/mount/point
+    gcsfuse /path/to/mount/point
 
 As an example, let’s say a user has access to ‘my-bucket’ ‘my-bucket2’ and ‘my-bucket3’. By not passing the specific bucket name the buckets will be dynamically mounted. The individual buckets can be accessed as a subdirectory:
 
-    ls /usr/me/myself/my-bucket/
-    ls /usr/me/myself/my-bucket-2/
-    ls /usr/me/myself/my-bucket-3/
+    ls /path/to/mount/point/my-bucket/
+    ls /path/to/mount/point/my-bucket-2/
+    ls /path/to/mount/point/my-bucket-3/
 
 Dynamically mounted buckets do not allow listing subdirectories at the root mount point, and bucket names must be specified in order to be accessed.
     
-    ls /usr/me/myself/
+    ls /path/to/mount/point
     ls: reading directory .: Operation not supported
 
-    ls /usr/me/myself/my-bucket-1
+    ls /path/to/mount/point/my-bucket-1
     foo.txt
 
 # Mounting as read-only
 
 Cloud Storage FUSE supports mounting as read-only by passing -o ro as a global option flag:
-mkdir /usr/me/myself
+mkdir /path/to/mount/point
 
-    gcsfuse -o ro my-bucket /usr/me/myself 
+    gcsfuse -o ro my-bucket  /path/to/mount/point 
 
 # Mounting a specific directory in a Cloud Storage bucket instead of the entire bucket
 
-By default, Cloud Storage FUSE mounts the entire contents and directory structure within a bucket. To mount only a specific directory, pass the --only-dir option. For example, if ‘my-bucket’ contains the path ‘my-bucket/a/b’ to mount only a/b to my local directory /usr/me/myself:
+By default, Cloud Storage FUSE mounts the entire contents and directory structure within a bucket. To mount only a specific directory, pass the --only-dir option. For example, if ‘my-bucket’ contains the path ‘my-bucket/a/b’ to mount only a/b to my local directory /path/to/mount/point:
 
-    gcsfuse --only-dir my-bucket a/b /usr/me/myself
+    gcsfuse --only-dir my-bucket a/b  /path/to/mount/point
 
 # General filesystem mount options
 
 Most of the generic mount options described in mount are supported, and can be passed along with the -o flag, such as ro, rw, suid, nosuid, dev, nodev, exec, noexec, atime, noatime, sync, async, dirsync. See [here](https://man7.org/linux/man-pages/man8/mount.fuse3.8.html) for additional information. For example
 
-    gcsfuse -o ro my-bucket /usr/me/myself
+    gcsfuse -o ro my-bucket  /path/to/mount/point
 
 # Foreground
 
-After Cloud Storage FUSE exits, you should be able to see your bucket contents if you run ls /path/to/mount/point. If you would prefer the tool to stay in the foreground (for example to see debug logging), run it with the --foreground flag.
+After Cloud Storage FUSE exits, you should be able to see your bucket contents if you run ls ```/path/to/mount/point```. If you would prefer the tool to stay in the foreground (for example to see debug logging), run it with the ```--foreground``` flag.
 
 # Unmounting
 
@@ -104,7 +104,7 @@ You can also add entries to your /etc/fstab file like the following:
 
     my-bucket /mount/point gcsfuse rw,noauto,user
 
-Afterward, you can run mount /mount/point as a non-root user.
+Afterward, you can run mount ```/mount/point``` as a non-root user.
 
 The noauto option above specifies that the file system should not be mounted at boot time.
 
@@ -133,13 +133,13 @@ By default, the access to the Cloud Storage FUSE mount is restricted to the user
 
 To allow others to access the GCSFuse mount, use the ‘allow_other’ mounting option at the time of mounting (‘-o allow_other’).
 
-     mount -t gcsfuse -o allow_other my-bucket /usr/me/myself
+     mount -t gcsfuse -o allow_other my-bucket /path/to/mount/point
 
 If the user mounting the Cloud Storage FUSE is not root then the ‘allow_other’ requires 'user_allow_other' to be added to the /etc/fuse.conf file.
 
 # Full list of mount options
 
-Type gcsfuse --help to see the full list:
+Type ```gcsfuse --help``` to see the full list:
 
 | Option                          | Description                                                                                                      | 
 |---------------------------------|------------------------------------------------------------------------------------------------------------------|
@@ -170,7 +170,7 @@ Type gcsfuse --help to see the full list:
 |--retry-multiplier value|Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries. (default: 2)|
 |--experimental-local-file-cache|Experimental: Cache GCS files on local disk for reads.|
 |--temp-dir value|Path to the temporary directory where writes are staged prior to upload to Cloud Storage. (default: system default, likely /tmp)|
-|--client-protocol value|The protocol used for communicating with the GCS backend. Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2).|
+|--client-protocol value|The protocol used for communicating with the GCS backend. Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2). (default: http1)|
 |--max-conns-per-host value|The max number of TCP connections allowed per server. This is effective when --disable-http2 is set. (default: 100)|
 |--max-idle-conns-per-host value|The number of maximum idle connections allowed per server (default: 100)|
 |--enable-nonexistent-type-cache|Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and flag type-cache-ttl is set to 10 minutes, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.|
