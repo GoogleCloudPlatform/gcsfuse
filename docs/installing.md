@@ -52,8 +52,7 @@ To install Cloud Storage FUSE by building the binaries from source, follow the i
 2. [Fuse](https://github.com/libfuse/libfuse). See the instructions for the binary release above.
 3. Make sure you have the Git command-line tool installed. This is probably available as git in your package manager.
 4. To install or update Cloud Storage FUSE, run the following command
- 
 
-    GO111MODULE=auto go get -u github.com/googlecloudplatform/gcsfuse
+       GO111MODULE=auto go get -u github.com/googlecloudplatform/gcsfuse
 
 This will fetch the latest Cloud Storage FUSE sources to ```$GOPATH/src/github.com/googlecloudplatform/gcsfuse```, build the sources, and then install a binary named gcsfuse to ```$GOPATH/bin```.
