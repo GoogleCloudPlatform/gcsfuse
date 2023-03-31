@@ -92,43 +92,41 @@ func newApp() (app *cli.App) {
 			cli.GenericFlag{
 				Name:  "dir-mode",
 				Value: dirModeValue,
-				Usage: "Permissions bits for directories, in octal.",
+				Usage: "Permissions bits for directories, in octal. (default: 755)",
 			},
 
 			cli.GenericFlag{
 				Name:  "file-mode",
 				Value: fileModeValue,
-				Usage: "Permission bits for files, in octal.",
+				Usage: "Permission bits for files, in octal. (default: 644)",
 			},
 
 			cli.IntFlag{
 				Name:  "uid",
 				Value: -1,
-				Usage: "UID owner of all inodes.",
+				Usage: "UID owner of all inodes. (default: -1)",
 			},
 
 			cli.IntFlag{
 				Name:  "gid",
 				Value: -1,
-				Usage: "GID owner of all inodes.",
+				Usage: "GID owner of all inodes. (default: -1)",
 			},
 
 			cli.BoolFlag{
-				Name: "implicit-dirs",
-				Usage: "Implicitly define directories based on content. See " +
-					"docs/semantics.md",
+				Name:  "implicit-dirs",
+				Usage: "Implicitly define directories based on content. See files and directories in docs/semantics for more information",
 			},
 
 			cli.StringFlag{
 				Name:  "only-dir",
-				Usage: "Mount only the given directory, relative to the bucket root.",
+				Usage: "Mount only a specific directory within the bucket. See docs/mounting for more information",
 			},
 
 			cli.IntFlag{
 				Name:  "rename-dir-limit",
 				Value: 0,
-				Usage: "Allow rename a directory containing fewer descendants " +
-					"than this limit.",
+				Usage: "Allow rename a directory containing fewer descendants than this limit. (default: 0)",
 			},
 
 			/////////////////////////
@@ -138,27 +136,25 @@ func newApp() (app *cli.App) {
 			cli.StringFlag{
 				Name:  "endpoint",
 				Value: "https://storage.googleapis.com:443",
-				Usage: "The endpoint to connect to.",
+				Usage: "The endpoint to connect to. (default: \"https://storage.googleapis.com:443\")",
 			},
 
 			cli.StringFlag{
 				Name:  "billing-project",
 				Value: "",
-				Usage: "Project to use for billing when accessing requester pays buckets. " +
-					"(default: none)",
+				Usage: "Project to use for billing when accessing a bucket enabled with “Requester Pays” (default: none)",
 			},
 
 			cli.StringFlag{
 				Name:  "key-file",
 				Value: "",
-				Usage: "Absolute path to JSON key file for use with GCS. " +
-					"(default: none, Google application default credentials used)",
+				Usage: "Absolute path to JSON key file for use with GCS. (default: none, Google application default credentials used)",
 			},
 
 			cli.StringFlag{
 				Name:  "token-url",
 				Value: "",
-				Usage: "An url for getting an access token when key-file is absent.",
+				Usage: "A url for getting an access token when the key-file is absent.",
 			},
 
 			cli.BoolTFlag{
@@ -169,22 +165,19 @@ func newApp() (app *cli.App) {
 			cli.Float64Flag{
 				Name:  "limit-bytes-per-sec",
 				Value: -1,
-				Usage: "Bandwidth limit for reading data, measured over a 30-second " +
-					"window. (use -1 for no limit)",
+				Usage: "Bandwidth limit for reading data, measured over a 30-second window. (use -1 for no limit) (default: -1)",
 			},
 
 			cli.Float64Flag{
 				Name:  "limit-ops-per-sec",
 				Value: -1,
-				Usage: "Operations per second limit, measured over a 30-second window " +
-					"(use -1 for no limit)",
+				Usage: "Operations per second limit, measured over a 30-second window (use -1 for no limit) (default: -1)",
 			},
 
 			cli.IntFlag{
 				Name:  "sequential-read-size-mb",
 				Value: 200,
-				Usage: "File chunk size to read from GCS in one call. Need to specify " +
-					"the value in MB. ChunkSize less than 1MB is not supported",
+				Usage: "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported (default: 200)",
 			},
 
 			/////////////////////////
@@ -194,41 +187,39 @@ func newApp() (app *cli.App) {
 			cli.DurationFlag{
 				Name:  "max-retry-sleep",
 				Value: time.Minute,
-				Usage: "The maximum duration allowed to sleep in a retry loop with " +
-					"exponential backoff for failed requests to GCS backend. Once the " +
-					"backoff duration exceeds this limit, the retry stops. The default " +
-					"is 1 minute. A value of 0 disables retries.",
+				Usage: "The maximum duration allowed to sleep in a retry loop with exponential backoff " +
+					"for failed requests to GCS backend. Once the backoff duration exceeds this limit, the retry stops." +
+					" The default is 1 minute. A value of 0 disables retries. (default: 1m0s)",
 			},
 
 			cli.IntFlag{
 				Name:  "stat-cache-capacity",
 				Value: 4096,
-				Usage: "How many entries can the stat cache hold (impacts memory consumption)",
+				Usage: "How many entries can the stat cache hold (impacts memory consumption) (default: 4096)",
 			},
 
 			cli.DurationFlag{
 				Name:  "stat-cache-ttl",
 				Value: time.Minute,
-				Usage: "How long to cache StatObject results and inode attributes.",
+				Usage: "How long to cache StatObject results and inode attributes. (default: 1m0s)",
 			},
 
 			cli.DurationFlag{
 				Name:  "type-cache-ttl",
 				Value: time.Minute,
-				Usage: "How long to cache name -> file/dir mappings in directory " +
-					"inodes.",
+				Usage: "How long to cache name -> file/dir mappings in directory inodes. (default: 1m0s)",
 			},
 
 			cli.DurationFlag{
 				Name:  "max-retry-duration",
 				Value: 30 * time.Second,
-				Usage: "The operation will be retried till the value of max-retry-duration.",
+				Usage: "The operation will be retried till the value of max-retry-duration. (default: 30s)",
 			},
 
 			cli.Float64Flag{
 				Name:  "retry-multiplier",
 				Value: 2,
-				Usage: "Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.",
+				Usage: "Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries. (default: 2)",
 			},
 
 			cli.BoolFlag{
@@ -239,39 +230,36 @@ func newApp() (app *cli.App) {
 			cli.StringFlag{
 				Name:  "temp-dir",
 				Value: "",
-				Usage: "Absolute path to temporary directory for local GCS object " +
-					"copies. (default: system default, likely /tmp)",
+				Usage: "Path to the temporary directory where writes are staged prior to" +
+					" upload to Cloud Storage. (default: system default, likely /tmp)",
 			},
 
 			cli.StringFlag{
 				Name:  "client-protocol",
 				Value: string(mountpkg.HTTP1),
-				Usage: "The protocol used for communicating with GCS backend. " +
-					"Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2).",
+				Usage: "The protocol used for communicating with the GCS backend. " +
+					"Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2). (default: http1)",
 			},
 
 			cli.IntFlag{
 				Name:  "max-conns-per-host",
 				Value: 100,
-				Usage: "The max number of TCP connections allowed per server. " +
-					"This is effective when --client-protocol is set as 'http1'.",
+				Usage: "The max number of TCP connections allowed per server. This is " +
+					"effective when --disable-http2 is set. (default: 100)",
 			},
 
 			cli.IntFlag{
 				Name:  "max-idle-conns-per-host",
 				Value: 100,
-				Usage: "The number of maximum idle connections allowed per server",
+				Usage: "The number of maximum idle connections allowed per server (default: 100)",
 			},
 
 			cli.BoolFlag{
 				Name: "enable-nonexistent-type-cache",
-				Usage: "Once set, if an inode is not found in GCS," +
-					"a type cache entry with type NonexistentType will be created. " +
-					"This also means new file/dir created might not be seen. " +
-					"For example, if this flag is set, and flag type-cache-ttl is " +
-					"set to 10 minutes, then we create the same file/node in mean " +
-					"time using the same mount, since we are not refreshing the " +
-					"cache, it will still return nil.",
+				Usage: "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType" +
+					" will be created. This also means new file/dir created might not be seen. For example, if this" +
+					" flag is set, and flag type-cache-ttl is set to 10 minutes, then if we create the same file/node" +
+					" in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.",
 			},
 
 			/////////////////////////
@@ -281,7 +269,7 @@ func newApp() (app *cli.App) {
 			cli.DurationFlag{
 				Name:  "stackdriver-export-interval",
 				Value: 0,
-				Usage: "Experimental: Export metrics to stackdriver with this interval. The default value 0 indicates no exporting.",
+				Usage: "Experimental: Export metrics to stackdriver with this interval. The default value 0 indicates no exporting. (default: 0s)",
 			},
 
 			cli.StringFlag{
@@ -293,15 +281,14 @@ func newApp() (app *cli.App) {
 			cli.StringFlag{
 				Name:  "log-file",
 				Value: "",
-				Usage: "The file for storing logs that can be parsed by " +
-					"fluentd. When not provided, plain text logs are printed to " +
-					"stdout.",
+				Usage: "The file for storing logs that can be parsed by fluentd. When not provided," +
+					" plain text logs are printed to stdout.",
 			},
 
 			cli.StringFlag{
 				Name:  "log-format",
 				Value: "json",
-				Usage: "The format of the log file: 'text' or 'json'.",
+				Usage: "The format of the log file: 'text' or 'json'. (default: \"json\")",
 			},
 
 			/////////////////////////
@@ -310,9 +297,8 @@ func newApp() (app *cli.App) {
 
 			cli.BoolTFlag{
 				Name: "debug_fuse_errors",
-				Usage: "If false, fuse errors will not be logged to the " +
-					"console (in case of --foreground) or the log-file " +
-					"(if specified",
+				Usage: "If false, fuse errors will not be logged to the console (in case of --foreground) " +
+					"or the log-file (if specified)",
 			},
 
 			cli.BoolFlag{
@@ -350,9 +336,8 @@ func newApp() (app *cli.App) {
 			/////////////////////////
 
 			cli.BoolTFlag{
-				Name: "enable-storage-client-library",
-				Usage: "If true, will use go storage client library " +
-					"otherwise jacobsa/gcloud",
+				Name:  "enable-storage-client-library",
+				Usage: "If true, will use go storage client library otherwise jacobsa/gcloud",
 			},
 		},
 	}
