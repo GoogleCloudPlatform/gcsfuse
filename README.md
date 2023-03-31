@@ -148,54 +148,13 @@ from Cloud Storage FUSE operations, see [Cloud Storage FUSE pricing].
 
 [Cloud Storage FUSE pricing]: https://cloud.google.com/storage/docs/gcs-fuse#charges
 
-# Google Cloud Platforms (GCP) Integrations
+# CSI Driver
 
-## GKE
-
-Using the [Cloud Storage FUSE CSI driver], users get the declarative nature of 
-Kubernetes with all infrastructure fully managed by GKE in combination with 
-Cloud Storage. This CSI driver relies on Cloud Storage FUSE to mount Cloud storage
-buckets as file systems on the GKE nodes, with the Cloud Storage FUSE deployment
-and management fully handled by GKE, providing a turn-key experience.
-
-[Cloud Storage FUSE CSI driver]:https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver
-
-## Deep Learning VM Images
-
-[Deep Learning VM Images] are VM images with pre-built PyTorch or Tensorflow frameworks,
-which includes Cloud Storage FUSE as part of the image.
-
-[Deep Learning VM Images]: https://cloud.google.com/deep-learning-vm
-
-## Deep Learning Containers
-
-Similar to Deep Learning VMs, [Deep Learning Containers] are preconfigured and optimized 
-containers for deep learning environments. It is recommended to use the [GKE Cloud 
-Storage FUSE CSI driver] to mount Google Cloud Storage buckets in the container, or Cloud 
-Storage FUSE can be installed by following the the [installation steps]. 
-
-[Deep Learning Containers]: https://cloud.google.com/deep-learning-containers
-[GKE Cloud Storage FUSE CSI driver]:https://docs.google.com/document/d/1s1K5zQBZikeJD5ThAQS13jgjTbMImAdDiTSmfYKJykg/edit#heading=h.4vm8ad4g855b
-[installation steps]: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/installing.md
-
-## Vertex AI
-
-In all [custom training] jobs, Vertex AI mounts Cloud Storage buckets that you have 
-access to in the /gcs/ directory of each training node's filesystem. As a convenient 
-alternative to using the Python Client for Cloud Storage or another library to access 
-Cloud Storage, you can read and write directly to the local filesystem in order to 
-read and write data to Cloud Storage. For example, to load data from gs://BUCKET/data.csv,
-you can use the following Python code:
-
-    file = open('/gcs/BUCKET/data.csv', 'r')
-
-On [AI Platform Training], the feature is very similar.
-
-See [here](https://cloud.google.com/vertex-ai/docs/training/code-requirements#fuse) for detailed instructions from the VertexAI documentation,
-along with additional insights in [this](https://cloud.google.com/blog/products/ai-machine-learning/cloud-storage-file-system-ai-training) blog post
-
-[AI Platform Training]: https://cloud.google.com/ai-platform/training/docs
-[custom training]:https://cloud.google.com/vertex-ai/docs/training/custom-training
+Using the [Cloud Storage FUSE CSI driver](https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver), users get the declarative nature of Kubernetes
+with all infrastructure fully managed by GKE in combination with Cloud Storage. This CSI
+driver relies on Cloud Storage FUSE to mount Cloud storage buckets as file systems on the
+GKE nodes, with the Cloud Storage FUSE deployment and management fully handled by GKE, 
+providing a turn-key experience
 
 # Support
 
