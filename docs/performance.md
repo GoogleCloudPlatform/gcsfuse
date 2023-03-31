@@ -45,3 +45,4 @@ By default, Cloud Storage FUSE uses two forms of caching to save round trips to 
 
 # Benchmarks
 
+Check benchmarks [here](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/benchmarks.md)
