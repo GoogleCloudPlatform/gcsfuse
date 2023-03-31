@@ -92,25 +92,25 @@ func newApp() (app *cli.App) {
 			cli.GenericFlag{
 				Name:  "dir-mode",
 				Value: dirModeValue,
-				Usage: "Permissions bits for directories, in octal. (default: 755)",
+				Usage: "Permissions bits for directories, in octal.",
 			},
 
 			cli.GenericFlag{
 				Name:  "file-mode",
 				Value: fileModeValue,
-				Usage: "Permission bits for files, in octal. (default: 644)",
+				Usage: "Permission bits for files, in octal.",
 			},
 
 			cli.IntFlag{
 				Name:  "uid",
 				Value: -1,
-				Usage: "UID owner of all inodes. (default: -1)",
+				Usage: "UID owner of all inodes.",
 			},
 
 			cli.IntFlag{
 				Name:  "gid",
 				Value: -1,
-				Usage: "GID owner of all inodes. (default: -1)",
+				Usage: "GID owner of all inodes.",
 			},
 
 			cli.BoolFlag{
@@ -126,7 +126,7 @@ func newApp() (app *cli.App) {
 			cli.IntFlag{
 				Name:  "rename-dir-limit",
 				Value: 0,
-				Usage: "Allow rename a directory containing fewer descendants than this limit. (default: 0)",
+				Usage: "Allow rename a directory containing fewer descendants than this limit.",
 			},
 
 			/////////////////////////
@@ -136,13 +136,13 @@ func newApp() (app *cli.App) {
 			cli.StringFlag{
 				Name:  "endpoint",
 				Value: "https://storage.googleapis.com:443",
-				Usage: "The endpoint to connect to. (default: \"https://storage.googleapis.com:443\")",
+				Usage: "The endpoint to connect to.",
 			},
 
 			cli.StringFlag{
 				Name:  "billing-project",
 				Value: "",
-				Usage: "Project to use for billing when accessing a bucket enabled with “Requester Pays” (default: none)",
+				Usage: "Project to use for billing when accessing a bucket enabled with “Requester Pays” ",
 			},
 
 			cli.StringFlag{
@@ -165,19 +165,19 @@ func newApp() (app *cli.App) {
 			cli.Float64Flag{
 				Name:  "limit-bytes-per-sec",
 				Value: -1,
-				Usage: "Bandwidth limit for reading data, measured over a 30-second window. (use -1 for no limit) (default: -1)",
+				Usage: "Bandwidth limit for reading data, measured over a 30-second window. (use -1 for no limit)",
 			},
 
 			cli.Float64Flag{
 				Name:  "limit-ops-per-sec",
 				Value: -1,
-				Usage: "Operations per second limit, measured over a 30-second window (use -1 for no limit) (default: -1)",
+				Usage: "Operations per second limit, measured over a 30-second window (use -1 for no limit) ",
 			},
 
 			cli.IntFlag{
 				Name:  "sequential-read-size-mb",
 				Value: 200,
-				Usage: "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported (default: 200)",
+				Usage: "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported",
 			},
 
 			/////////////////////////
@@ -189,37 +189,37 @@ func newApp() (app *cli.App) {
 				Value: time.Minute,
 				Usage: "The maximum duration allowed to sleep in a retry loop with exponential backoff " +
 					"for failed requests to GCS backend. Once the backoff duration exceeds this limit, the retry stops." +
-					" The default is 1 minute. A value of 0 disables retries. (default: 1m0s)",
+					" The default is 1 minute. A value of 0 disables retries. ",
 			},
 
 			cli.IntFlag{
 				Name:  "stat-cache-capacity",
 				Value: 4096,
-				Usage: "How many entries can the stat cache hold (impacts memory consumption) (default: 4096)",
+				Usage: "How many entries can the stat cache hold (impacts memory consumption) ",
 			},
 
 			cli.DurationFlag{
 				Name:  "stat-cache-ttl",
 				Value: time.Minute,
-				Usage: "How long to cache StatObject results and inode attributes. (default: 1m0s)",
+				Usage: "How long to cache StatObject results and inode attributes. ",
 			},
 
 			cli.DurationFlag{
 				Name:  "type-cache-ttl",
 				Value: time.Minute,
-				Usage: "How long to cache name -> file/dir mappings in directory inodes. (default: 1m0s)",
+				Usage: "How long to cache name -> file/dir mappings in directory inodes.",
 			},
 
 			cli.DurationFlag{
 				Name:  "max-retry-duration",
 				Value: 30 * time.Second,
-				Usage: "The operation will be retried till the value of max-retry-duration. (default: 30s)",
+				Usage: "The operation will be retried till the value of max-retry-duration.",
 			},
 
 			cli.Float64Flag{
 				Name:  "retry-multiplier",
 				Value: 2,
-				Usage: "Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries. (default: 2)",
+				Usage: "Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.",
 			},
 
 			cli.BoolFlag{
@@ -238,20 +238,20 @@ func newApp() (app *cli.App) {
 				Name:  "client-protocol",
 				Value: string(mountpkg.HTTP1),
 				Usage: "The protocol used for communicating with the GCS backend. " +
-					"Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2). (default: http1)",
+					"Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2).",
 			},
 
 			cli.IntFlag{
 				Name:  "max-conns-per-host",
 				Value: 100,
 				Usage: "The max number of TCP connections allowed per server. This is " +
-					"effective when --disable-http2 is set. (default: 100)",
+					"effective when --disable-http2 is set. ",
 			},
 
 			cli.IntFlag{
 				Name:  "max-idle-conns-per-host",
 				Value: 100,
-				Usage: "The number of maximum idle connections allowed per server (default: 100)",
+				Usage: "The number of maximum idle connections allowed per server.",
 			},
 
 			cli.BoolFlag{
@@ -269,7 +269,7 @@ func newApp() (app *cli.App) {
 			cli.DurationFlag{
 				Name:  "stackdriver-export-interval",
 				Value: 0,
-				Usage: "Experimental: Export metrics to stackdriver with this interval. The default value 0 indicates no exporting. (default: 0s)",
+				Usage: "Experimental: Export metrics to stackdriver with this interval. The default value 0 indicates no exporting.",
 			},
 
 			cli.StringFlag{
@@ -288,7 +288,7 @@ func newApp() (app *cli.App) {
 			cli.StringFlag{
 				Name:  "log-format",
 				Value: "json",
-				Usage: "The format of the log file: 'text' or 'json'. (default: \"json\")",
+				Usage: "The format of the log file: 'text' or 'json'.",
 			},
 
 			/////////////////////////
