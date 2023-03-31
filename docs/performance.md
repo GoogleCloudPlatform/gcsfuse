@@ -7,7 +7,7 @@ General performance considerations & best practices
           - Cloud Storage FUSE uses a heuristic to detect when a file is being read sequentially, and will issue fewer, larger read requests to Cloud Storage in this case, using the same open TCP connection.
           - The consequence of this is that Cloud Storage FUSE is relatively efficient when reading or writing entire large files, but will not be particularly fast for small numbers of random writes within larger files, and to a lesser extent the same is true of small random reads.
      - Cloud Storage FUSE has higher latency than a local file system. As such, latency and throughput will be reduced when reading or writing one small file at a time.
-     - Sequential reads: It is recommended to use file sizes that are ```5MB>x>200MB``` for best performance.
+     - Sequential reads: It is recommended to use file sizes that are ```5MB > x > 200MB``` for best performance.
      - Random reads: Sequential reads will always perform better. If random reads are required, it is recommended to use file sizes around 2MB for best performance.
      - Writes: Sequential and random writes will behave roughly the same, as new and modified files are fully staged in the local temporary directory until they are written out to Cloud Storage from being closed or fsync'd. 
 - Cloud Storage can provide very high throughput, especially aggregated across multiple objects. Using larger files and working across multiple different files at a time will help to increase throughput.
