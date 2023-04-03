@@ -245,7 +245,7 @@ func newApp() (app *cli.App) {
 				Name:  "max-conns-per-host",
 				Value: 100,
 				Usage: "The max number of TCP connections allowed per server. This is " +
-					"effective when when --client-protocol is set to 'http2'. ",
+					"effective when --client-protocol is set to 'http2'. ",
 			},
 
 			cli.IntFlag{
