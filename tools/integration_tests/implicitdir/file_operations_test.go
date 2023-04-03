@@ -109,7 +109,7 @@ func TestCopyFile(t *testing.T) {
 	}
 	defer source.Close()
 
-	destination, err := os.OpenFile(newFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, 0666)
+	destination, err := os.OpenFile(newFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, 0666)
 	if err != nil {
 		t.Errorf("Copied file creation error: %v", err)
 	}

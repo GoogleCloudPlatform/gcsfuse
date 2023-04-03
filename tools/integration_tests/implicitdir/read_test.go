@@ -39,7 +39,7 @@ func TestReadAfterWrite(t *testing.T) {
 		}
 
 		fileName := tmpFile.Name()
-		file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, 0666)
+		file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, 0666)
 		if err != nil {
 			t.Errorf("Error in opening file.")
 		}
