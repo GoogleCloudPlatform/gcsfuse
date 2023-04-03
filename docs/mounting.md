@@ -171,7 +171,7 @@ Type ```gcsfuse --help``` to see the full list:
 |--experimental-local-file-cache|Experimental: Cache GCS files on local disk for reads.|
 |--temp-dir value|Path to the temporary directory where writes are staged prior to upload to Cloud Storage. (default: system default, likely /tmp)|
 |--client-protocol value|The protocol used for communicating with the GCS backend. Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2). (default: http1)|
-|--max-conns-per-host value|The max number of TCP connections allowed per server. This is effective when --disable-http2 is set. (default: 100)|
+|--max-conns-per-host value|The max number of TCP connections allowed per server. This is effective when --client-protocol is set to 'http2'. (default: 100)|
 |--max-idle-conns-per-host value|The number of maximum idle connections allowed per server (default: 100)|
 |--enable-nonexistent-type-cache|Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and flag type-cache-ttl is set to 10 minutes, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.|
 |--stackdriver-export-interval value|Experimental: Export metrics to stackdriver with this interval. The default value 0 indicates no exporting. (default: 0s)|
