@@ -35,8 +35,8 @@ func TestRenameFile(t *testing.T) {
 	}
 	defer file.Close()
 
-	buf := make([]byte, 100)
-	n, err := file.Read(buf)
+	content := make([]byte, 100)
+	n, err := file.Read(content)
 	if err != nil {
 		t.Errorf("Read: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestRenameFile(t *testing.T) {
 		t.Errorf("Renamed file %s not found", newFileName)
 	}
 	// Check if the data in the file is the same after renaming.
-	setup.CompareFileContents(t, newFileName, string(buf[:n]))
+	setup.CompareFileContents(t, newFileName, string(content[:n]))
 }
 
 func TestFileAttributes(t *testing.T) {
@@ -91,8 +91,8 @@ func TestCopyFile(t *testing.T) {
 		t.Errorf("Error in the opening file: %v", err)
 	}
 
-	buf := make([]byte, 100)
-	n, err := file.Read(buf)
+	content := make([]byte, 100)
+	n, err := file.Read(content)
 	if err != nil {
 		t.Errorf("Read: %v", err)
 	}
@@ -122,6 +122,6 @@ func TestCopyFile(t *testing.T) {
 
 	// Check if the data in the copied file matches the original file,
 	// and the data in original file is unchanged.
-	setup.CompareFileContents(t, newFileName, string(buf[:n]))
-	setup.CompareFileContents(t, fileName, string(buf[:n]))
+	setup.CompareFileContents(t, newFileName, string(content[:n]))
+	setup.CompareFileContents(t, fileName, string(content[:n]))
 }
