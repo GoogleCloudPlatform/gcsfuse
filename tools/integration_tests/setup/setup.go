@@ -85,6 +85,7 @@ func CreateTempFile() string {
 	if err != nil {
 		LogAndExit(fmt.Sprintf("Error in opening file %v", err))
 	}
+	defer file.Close()
 
 	_, err = file.WriteString("line 1\nline 2\n")
 	if err != nil {
