@@ -17,17 +17,15 @@ package implicitdir_test
 
 import (
 	"os"
-	"testing"
 	"syscall"
+	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
 func TestWriteAtEndOfFile(t *testing.T) {
 
 	fileName := setup.CreateTempFile()
-	logger.Info("IT is in Write At End", fileName)
 	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, 0600)
 	if err != nil {
 		t.Errorf("Open file for append: %v", err)
@@ -43,8 +41,7 @@ func TestWriteAtEndOfFile(t *testing.T) {
 
 func TestWriteAtStartOfFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
-	logger.Info("IT is in Write At Start", fileName)
-	f, err := os.OpenFile(fileName, os.O_WRONLY| syscall.O_DIRECT, 0600)
+	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, 0600)
 	if err != nil {
 		t.Errorf("Open file for write at start: %v", err)
 	}
@@ -60,7 +57,7 @@ func TestWriteAtStartOfFile(t *testing.T) {
 func TestWriteAtRandom(t *testing.T) {
 	fileName := setup.CreateTempFile()
 
-	f, err := os.OpenFile(fileName, os.O_WRONLY| syscall.O_DIRECT, 0600)
+	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, 0600)
 	if err != nil {
 		t.Errorf("Open file for write at random: %v", err)
 	}

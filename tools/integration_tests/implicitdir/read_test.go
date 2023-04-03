@@ -48,14 +48,6 @@ func TestReadAfterWrite(t *testing.T) {
 			t.Errorf("Close: %v", err)
 		}
 
-		// After write, data will be cached by kernel. So subsequent read will be
-		// served using cached data by kernel instead of calling gcsfuse.
-		// Clearing kernel cache to ensure that gcsfuse is invoked during read operation.
-		//err = setup.ClearKernelCache()
-		//if err != nil {
-		//	t.Errorf("Clear Kernel Cache: %v", err)
-		//}
-
 		tmpFile, err = os.Open(fileName)
 		if err != nil {
 			t.Errorf("Open %q: %v", fileName, err)
