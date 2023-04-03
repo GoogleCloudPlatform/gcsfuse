@@ -93,6 +93,9 @@ func TestCopyFile(t *testing.T) {
 
 	buf := make([]byte, 100)
 	n, err := file.Read(buf)
+	if err != nil {
+		t.Errorf("Read: %v", err)
+	}
 
 	newFileName := fileName + "Copy"
 	if _, err := os.Stat(newFileName); err == nil {
