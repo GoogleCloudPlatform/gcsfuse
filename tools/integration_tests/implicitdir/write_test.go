@@ -24,7 +24,6 @@ import (
 )
 
 func TestWriteAtEndOfFile(t *testing.T) {
-
 	fileName := setup.CreateTempFile()
 	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, 0600)
 	if err != nil {
