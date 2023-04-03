@@ -31,7 +31,7 @@ func TestRenameFile(t *testing.T) {
 
 	file, err := os.OpenFile(fileName, syscall.O_DIRECT, 0666)
 	if err != nil {
-		t.Errorf("Error in the opening file.")
+		t.Errorf("Error in the opening file: %v", err)
 	}
 	defer file.Close()
 
@@ -88,7 +88,7 @@ func TestCopyFile(t *testing.T) {
 
 	file, err := os.OpenFile(fileName, syscall.O_DIRECT, 0666)
 	if err != nil {
-		t.Errorf("Error in the opening file.")
+		t.Errorf("Error in the opening file: %v", err)
 	}
 
 	buf := make([]byte, 100)

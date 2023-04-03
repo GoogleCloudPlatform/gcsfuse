@@ -83,7 +83,7 @@ func CreateTempFile() string {
 	fileName := path.Join(mntDir, "tmpFile")
 	file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, 0666)
 	if err != nil {
-		LogAndExit(fmt.Sprintf("Error in the opening file %v", err))
+		LogAndExit(fmt.Sprintf("Error in the opening the file %v", err))
 	}
 	defer file.Close()
 
