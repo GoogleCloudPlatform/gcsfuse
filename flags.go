@@ -142,7 +142,7 @@ func newApp() (app *cli.App) {
 			cli.StringFlag{
 				Name:  "billing-project",
 				Value: "",
-				Usage: "Project to use for billing when accessing a bucket enabled with “Requester Pays” ",
+				Usage: "Project to use for billing when accessing a bucket enabled with “Requester Pays” (default: none)",
 			},
 
 			cli.StringFlag{
@@ -245,7 +245,7 @@ func newApp() (app *cli.App) {
 				Name:  "max-conns-per-host",
 				Value: 100,
 				Usage: "The max number of TCP connections allowed per server. This is " +
-					"effective when --disable-http2 is set. ",
+					"effective when when --client-protocol is set to 'http2'. ",
 			},
 
 			cli.IntFlag{
