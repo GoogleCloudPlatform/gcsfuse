@@ -171,7 +171,7 @@ func newApp() (app *cli.App) {
 			cli.Float64Flag{
 				Name:  "limit-ops-per-sec",
 				Value: -1,
-				Usage: "Operations per second limit, measured over a 30-second window (use -1 for no limit) ",
+				Usage: "Operations per second limit, measured over a 30-second window (use -1 for no limit)",
 			},
 
 			cli.IntFlag{
@@ -189,19 +189,19 @@ func newApp() (app *cli.App) {
 				Value: time.Minute,
 				Usage: "The maximum duration allowed to sleep in a retry loop with exponential backoff " +
 					"for failed requests to GCS backend. Once the backoff duration exceeds this limit, the retry stops." +
-					" The default is 1 minute. A value of 0 disables retries. ",
+					" The default is 1 minute. A value of 0 disables retries.",
 			},
 
 			cli.IntFlag{
 				Name:  "stat-cache-capacity",
 				Value: 4096,
-				Usage: "How many entries can the stat cache hold (impacts memory consumption) ",
+				Usage: "How many entries can the stat cache hold (impacts memory consumption)",
 			},
 
 			cli.DurationFlag{
 				Name:  "stat-cache-ttl",
 				Value: time.Minute,
-				Usage: "How long to cache StatObject results and inode attributes. ",
+				Usage: "How long to cache StatObject results and inode attributes.",
 			},
 
 			cli.DurationFlag{
