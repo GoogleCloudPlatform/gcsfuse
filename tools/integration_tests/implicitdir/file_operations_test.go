@@ -61,7 +61,6 @@ func TestRenameFile(t *testing.T) {
 }
 
 func TestFileAttributes(t *testing.T) {
-
 	preCreateTime := time.Now()
 	fileName := setup.CreateTempFile()
 	postCreateTime := time.Now()
