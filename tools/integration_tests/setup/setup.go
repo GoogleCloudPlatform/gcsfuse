@@ -219,12 +219,14 @@ func RunTests(flags [][]string, m *testing.M) {
 		os.Exit(0)
 	}
 
+	// Execute tests for the mounted directory.
 	if *mountedDirectory != "" {
 		mntDir = *mountedDirectory
 		successCode := ExecuteTest(m)
 		os.Exit(successCode)
 	}
 
+	// Execute tests for testbucket
 	if err := SetUpTestDir(); err != nil {
 		log.Printf("setUpTestDir: %v\n", err)
 		os.Exit(1)
