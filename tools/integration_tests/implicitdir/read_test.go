@@ -18,6 +18,7 @@ package implicitdir_test
 import (
 	"io/ioutil"
 	"os"
+	"syscall"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
@@ -38,19 +39,16 @@ func TestReadAfterWrite(t *testing.T) {
 		}
 
 		fileName := tmpFile.Name()
-		if _, err := tmpFile.WriteString("line 1\n"); err != nil {
+		file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
+		if err != nil {
+			t.Errorf("Error in opening file.")
+		}
+
+		if _, err = file.WriteString("line 1\n"); err != nil {
 			t.Errorf("WriteString: %v", err)
 		}
 		if err := tmpFile.Close(); err != nil {
 			t.Errorf("Close: %v", err)
-		}
-
-		// After write, data will be cached by kernel. So subsequent read will be
-		// served using cached data by kernel instead of calling gcsfuse.
-		// Clearing kernel cache to ensure that gcsfuse is invoked during read operation.
-		err = setup.ClearKernelCache()
-		if err != nil {
-			t.Errorf("Clear Kernel Cache: %v", err)
 		}
 
 		tmpFile, err = os.Open(fileName)

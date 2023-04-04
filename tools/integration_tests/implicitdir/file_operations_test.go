@@ -19,6 +19,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"syscall"
 	"testing"
 	"time"
 
@@ -27,15 +28,19 @@ import (
 
 func TestRenameFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
-	err := setup.ClearKernelCache()
-	if err != nil {
-		t.Errorf("Clear Kernel Cache: %v", err)
-	}
 
-	content, err := os.ReadFile(fileName)
+	file, err := os.OpenFile(fileName, syscall.O_DIRECT, setup.FilePermission_0600)
+	if err != nil {
+		t.Errorf("Error in the opening file: %v", err)
+	}
+	defer file.Close()
+
+	content := make([]byte, setup.BufferSize)
+	n, err := file.Read(content)
 	if err != nil {
 		t.Errorf("Read: %v", err)
 	}
+
 	newFileName := fileName + "Rename"
 	if _, err := os.Stat(newFileName); err == nil {
 		t.Errorf("Renamed file %s already present", newFileName)
@@ -52,7 +57,7 @@ func TestRenameFile(t *testing.T) {
 		t.Errorf("Renamed file %s not found", newFileName)
 	}
 	// Check if the data in the file is the same after renaming.
-	setup.CompareFileContents(t, newFileName, string(content))
+	setup.CompareFileContents(t, newFileName, string(content[:n]))
 }
 
 func TestFileAttributes(t *testing.T) {
@@ -80,30 +85,36 @@ func TestFileAttributes(t *testing.T) {
 
 func TestCopyFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
-	err := setup.ClearKernelCache()
+
+	file, err := os.OpenFile(fileName, syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("Clear Kernel Cache: %v", err)
+		t.Errorf("Error in the opening file: %v", err)
 	}
-	content, err := os.ReadFile(fileName)
+
+	content := make([]byte, setup.BufferSize)
+	n, err := file.Read(content)
 	if err != nil {
 		t.Errorf("Read: %v", err)
 	}
+
 	newFileName := fileName + "Copy"
 	if _, err := os.Stat(newFileName); err == nil {
 		t.Errorf("Copied file %s already present", newFileName)
 	}
 
 	// File copying with io.Copy() utility.
-	source, err := os.Open(fileName)
+	source, err := os.OpenFile(fileName, syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("File %s opening error: %v", fileName, err)
 	}
 	defer source.Close()
-	destination, err := os.Create(newFileName)
+
+	destination, err := os.OpenFile(newFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Copied file creation error: %v", err)
 	}
 	defer destination.Close()
+
 	_, err = io.Copy(destination, source)
 	if err != nil {
 		t.Errorf("Error in file copying: %v", err)
@@ -111,6 +122,6 @@ func TestCopyFile(t *testing.T) {
 
 	// Check if the data in the copied file matches the original file,
 	// and the data in original file is unchanged.
-	setup.CompareFileContents(t, newFileName, string(content))
-	setup.CompareFileContents(t, fileName, string(content))
+	setup.CompareFileContents(t, newFileName, string(content[:n]))
+	setup.CompareFileContents(t, fileName, string(content[:n]))
 }
