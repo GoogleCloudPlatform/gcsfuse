@@ -40,7 +40,7 @@ func TestWriteAtEndOfFile(t *testing.T) {
 
 func TestWriteAtStartOfFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
-	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, 0600)
+	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission)
 	if err != nil {
 		t.Errorf("Open file for write at start: %v", err)
 	}
