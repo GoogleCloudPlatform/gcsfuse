@@ -25,7 +25,7 @@ import (
 
 func TestWriteAtEndOfFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
-	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, 0600)
+	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission)
 	if err != nil {
 		t.Errorf("Open file for append: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestWriteAtStartOfFile(t *testing.T) {
 func TestWriteAtRandom(t *testing.T) {
 	fileName := setup.CreateTempFile()
 
-	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, 0600)
+	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission)
 	if err != nil {
 		t.Errorf("Open file for write at random: %v", err)
 	}

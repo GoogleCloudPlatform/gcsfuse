@@ -18,6 +18,9 @@ import (
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
 var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test.")
 
+const BufferSize = 100
+const FilePermission = 0600
+
 var (
 	binFile string
 	logFile string
@@ -81,7 +84,7 @@ func CreateTempFile() string {
 	// to it for testing purposes.
 
 	fileName := path.Join(mntDir, "tmpFile")
-	file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, 0666)
+	file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, FilePermission)
 	if err != nil {
 		LogAndExit(fmt.Sprintf("Error in the opening the file %v", err))
 	}
