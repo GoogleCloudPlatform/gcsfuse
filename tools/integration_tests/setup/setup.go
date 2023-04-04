@@ -208,7 +208,7 @@ func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 	return
 }
 
-func SetBucketOrMntDir(m *testing.M) {
+func RunTests(flags [][]string, m *testing.M) {
 	flag.Parse()
 
 	if *testBucket == "" && *mountedDirectory == "" {
@@ -229,6 +229,10 @@ func SetBucketOrMntDir(m *testing.M) {
 		log.Printf("setUpTestDir: %v\n", err)
 		os.Exit(1)
 	}
+	successCode := ExecuteTestForFlags(flags, m)
+
+	log.Printf("Test log: %s\n", logFile)
+	os.Exit(successCode)
 }
 
 func LogAndExit(s string) {
