@@ -46,7 +46,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	flags := [][]string{{"--implicit-dirs=true", "--o=ro"}}
+	flags := [][]string{{"--o=ro"}}
 
 	successCode := setup.ExecuteTestForFlags(flags, m)
 
