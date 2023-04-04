@@ -29,7 +29,7 @@ import (
 func TestRenameFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
 
-	file, err := os.OpenFile(fileName, syscall.O_DIRECT, setup.FilePermission)
+	file, err := os.OpenFile(fileName, syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Error in the opening file: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestFileAttributes(t *testing.T) {
 func TestCopyFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
 
-	file, err := os.OpenFile(fileName, syscall.O_DIRECT, setup.FilePermission)
+	file, err := os.OpenFile(fileName, syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Error in the opening file: %v", err)
 	}
@@ -103,13 +103,13 @@ func TestCopyFile(t *testing.T) {
 	}
 
 	// File copying with io.Copy() utility.
-	source, err := os.OpenFile(fileName, syscall.O_DIRECT, setup.FilePermission)
+	source, err := os.OpenFile(fileName, syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("File %s opening error: %v", fileName, err)
 	}
 	defer source.Close()
 
-	destination, err := os.OpenFile(newFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission)
+	destination, err := os.OpenFile(newFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Copied file creation error: %v", err)
 	}
