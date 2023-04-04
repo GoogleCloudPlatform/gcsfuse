@@ -208,6 +208,29 @@ func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 	return
 }
 
+func SetBucketOrMntDir(m *testing.M) {
+	flag.Parse()
+
+	if *testBucket == "" && *mountedDirectory == "" {
+		log.Printf("--testbucket or --mountedDirectory must be specified")
+		os.Exit(0)
+	} else if *testBucket != "" && *mountedDirectory != "" {
+		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
+		os.Exit(0)
+	}
+
+	if *mountedDirectory != "" {
+		mntDir = *mountedDirectory
+		successCode := ExecuteTest(m)
+		os.Exit(successCode)
+	}
+
+	if err := SetUpTestDir(); err != nil {
+		log.Printf("setUpTestDir: %v\n", err)
+		os.Exit(1)
+	}
+}
+
 func LogAndExit(s string) {
 	log.Print(s)
 	os.Exit(1)
