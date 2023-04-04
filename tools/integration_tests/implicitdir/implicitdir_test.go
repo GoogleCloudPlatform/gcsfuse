@@ -16,43 +16,16 @@
 package implicitdir_test
 
 import (
-	"flag"
-	"log"
-	"os"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
 func TestMain(m *testing.M) {
-	flag.Parse()
-
-	if setup.TestBucket() == "" && setup.MountedDirectory() == "" {
-		log.Printf("--testbucket or --mountedDirectory must be specified")
-		os.Exit(0)
-	} else if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
-		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
-		os.Exit(0)
-	}
-
-	if setup.MountedDirectory() != "" {
-		setup.SetMntDir(setup.MountedDirectory())
-		successCode := setup.ExecuteTest(m)
-		os.Exit(successCode)
-	}
-
-	if err := setup.SetUpTestDir(); err != nil {
-		log.Printf("setUpTestDir: %v\n", err)
-		os.Exit(1)
-	}
-
 	flags := [][]string{{"--enable-storage-client-library=true", "--implicit-dirs=true"},
 		{"--enable-storage-client-library=false"},
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"}}
 
-	successCode := setup.ExecuteTestForFlags(flags, m)
-
-	log.Printf("Test log: %s\n", setup.LogFile())
-	os.Exit(successCode)
+	setup.RunTests(flags, m)
 }
