@@ -226,7 +226,7 @@ func RunTests(flags [][]string, m *testing.M) {
 		os.Exit(successCode)
 	}
 
-	// Execute tests for testbucket
+	// Execute tests for testBucket
 	if err := SetUpTestDir(); err != nil {
 		log.Printf("setUpTestDir: %v\n", err)
 		os.Exit(1)
