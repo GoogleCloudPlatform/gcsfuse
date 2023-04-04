@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provides integration tests when implicit_dir flag is set.
+// Provides integration tests when --o=ro flag is set.
 package readonly_test
 
 import (
