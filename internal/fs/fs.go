@@ -1875,11 +1875,11 @@ func (fs *fileSystem) ReleaseFileHandle(
 func (fs *fileSystem) GetXattr(
 	ctx context.Context,
 	op *fuseops.GetXattrOp) (err error) {
-	return syscall.ENODATA
+	return syscall.ENOSYS
 }
 
 func (fs *fileSystem) ListXattr(
 	ctx context.Context,
 	op *fuseops.ListXattrOp) error {
-	return syscall.ENODATA
+	return syscall.ENOSYS
 }
