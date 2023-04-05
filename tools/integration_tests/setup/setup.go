@@ -32,6 +32,10 @@ func TestBucket() string {
 	return *testBucket
 }
 
+func SetTestBucket(testBucketValue string) {
+	*testBucket = testBucketValue
+}
+
 func MountedDirectory() string {
 	return *mountedDirectory
 }
@@ -122,6 +126,7 @@ func SetUpTestDir() error {
 }
 
 func MountGcsfuse(flags []string) error {
+	fmt.Println("Testbucket ", *testBucket)
 	defaultArg := []string{"--debug_gcs",
 		"--debug_fs",
 		"--debug_fuse",

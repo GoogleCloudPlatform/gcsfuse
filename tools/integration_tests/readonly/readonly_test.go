@@ -23,6 +23,7 @@ import (
 
 func TestMain(m *testing.M) {
 	flags := [][]string{{"--o=ro"}}
+	setup.SetTestBucket("testmethods_tulsishah")
 
 	setup.RunTests(flags, m)
 }
