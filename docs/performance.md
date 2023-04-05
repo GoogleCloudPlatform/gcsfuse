@@ -41,7 +41,7 @@ An upload procedure is implemented as a retry loop with exponential backoff for 
 
 # Cloud Storage round trips
 
-By default, Cloud Storage FUSE uses two forms of caching to save round trips to Cloud Storage, at the cost of consistency guarantees. These caching behaviors can be controlled with the flags ```--stat-cache-capacity```, ```--stat-cache-ttl``` and ```--type-cache-ttl```. See semantics.md for more information.
+By default, Cloud Storage FUSE uses two forms of caching to save round trips to Cloud Storage, at the cost of consistency guarantees. These caching behaviors can be controlled with the flags ```--stat-cache-capacity```, ```--stat-cache-ttl``` and ```--type-cache-ttl```. See [semantics.md](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md) for more information.
 
 # Benchmarks
 
