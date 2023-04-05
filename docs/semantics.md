@@ -237,7 +237,7 @@ This can be overridden by setting ```-o allow_other``` to allow other users to a
 
 # Non-standard filesystem behaviors
 
-See [Key Differences from a POSIX filesystem](https://docs.google.com/document/d/1s1K5zQBZikeJD5ThAQS13jgjTbMImAdDiTSmfYKJykg/edit#bookmark=id.hw8mgww7krkp)
+See [Key Differences from a POSIX filesystem](https://cloud.google.com/storage/docs/gcs-fuse#expandable-1)
 
 **Unlinking directories**
 
