@@ -83,7 +83,7 @@ should be taken into account:
 
 **Performance**: Cloud Storage FUSE is a client interface to Cloud Storage and 
 therefore has the same performance characteristics of Cloud Storage. See 
-performance best practices [here](https://docs.google.com/document/d/1s1K5zQBZikeJD5ThAQS13jgjTbMImAdDiTSmfYKJykg/edit#bookmark=id.mk1mwrsv70l1)
+performance best practices [here](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/performance.md)
 
 **Metadata**: Cloud Storage FUSE does not transfer metadata along with the file when 
 uploading to Cloud Storage. This means that if you wish to use Cloud Storage FUSE 
@@ -154,7 +154,7 @@ Using the [Cloud Storage FUSE CSI driver](https://github.com/GoogleCloudPlatform
 with all infrastructure fully managed by GKE in combination with Cloud Storage. This CSI
 driver relies on Cloud Storage FUSE to mount Cloud storage buckets as file systems on the
 GKE nodes, with the Cloud Storage FUSE deployment and management fully handled by GKE, 
-providing a turn-key experience
+providing a turn-key experience.
 
 # Support
 
@@ -193,8 +193,8 @@ Cloud Storage FUSE is not supported for usage with the following workloads or sc
 
 - Workloads that expect POSIX compliance.
      - Cloud Storage FUSE is not a traditional POSIX filesystem. For a fully supported
-       enterprise grade filesystem, see [Cloud Filestore]. See Key Differences from a 
-       POSIX filesystem and Semantics doc
+       enterprise grade filesystem, see [Cloud Filestore]. See [Key Differences from a 
+       POSIX filesystem](https://cloud.google.com/storage/docs/gcs-fuse#expandable-1) and [Semantics doc](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md)
 - Workloads that require file locking, or concurrent writes.
      - You should not write to the same file at the same time from different clients,
        as there is no concurrency control for multiple writers to a file. When multiple 
@@ -210,7 +210,7 @@ yield surprising results, and no guarantees are made about the behavior. It is r
 Cloud Storage FUSE to interact with such objects.
 - Retention policy: Cloud Storage FUSE does not support writing to a bucket with a Retention policy enabled - writes will fail.
 Reading objects from a bucket with a Retention policy enabled is supported, but the bucket should be mounted as Read-Only 
-by passing the -o RO flag during mount.
+by passing the ```-o RO``` flag during mount.
 - Workloads that do file patching (overwrites in place).
      - Cloud Storage write semantics are for whole objects only. There is no mechanism for patching. Therefore, write patterns
        like these may result in poor performance and ballooning operations costs.
