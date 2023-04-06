@@ -15,8 +15,9 @@
 
 ### FIO Spec
 * Test runtime: 60sec
-* Thread count: 40
-* Block Size: 256KB for 256KB files and 1MB for all other files.
+* Thread count
+  * Writes - 112
+  * Reads - 128
 * We have a fsync parameter for writes that defines fio will sync the file after 
 every fsync number of writes issued. When the writeFile operation is invoked, 
 gcsfuse will write data to disk. When syncFile is invoked, gcsfuse will write the
@@ -28,53 +29,54 @@ will be issued to gcsfuse i.e, data will get written to GCS bucket.
 gcsfuse --implicit-dirs  --client-protocol=http1 --max-conns-per-host=100 <bucket-name> <path-to-mount-point>
 ```
 
+## Read
+### Sequential Read
+| File Size | BlockSize | Bandwidth in (MiB/sec) | Avg Latency (msec) |
+|-----------|-----------|------------------------|--------------------|
+| 128KB     | 128K      | 765                    | 20.90              |
+| 256KB     | 128K      | 1579                   | 10.089             |
+| 1MB       | 1M        | 4655                   | 27.23              |
+| 5MB       | 1M        | 7564                   | 16.915             |
+| 10MB      | 1M        | 7564                   | 16.915             |
+| 50MB      | 1M        | 7706                   | 16.598             |
+| 100MB     | 1M        | 7741                   | 16.518             |
+| 200MB     | 1M        | 7683                   | 16.639             |
+| 1GB       | 1M        | 7714                   | 16.573             |
+
+### Random Read
+| File Size | BlockSize | Bandwidth in MiB/sec | Avg Latency (msec) |
+|-----------|-----------|----------------------|--------------------|
+| 128KB     | 128K      | 733                  | 21.77              |
+| 256KB     | 128K      | 956                  | 16.735             |
+| 1MB       | 1M        | 4428                 | 28.90              |
+| 5MB       | 1M        | 2876                 | 44.463             |
+| 10MB      | 1M        | 3629                 | 35.238             |
+| 50MB      | 1M        | 2630                 | 48.643             |
+| 100MB     | 1M        | 2644                 | 48.388             |
+| 200MB     | 1M        | 2279                 | 56.104             |
+| 1GB       | 1M        | 2068                 | 61.858             |
+
+### Recommendation for reads
+GCSFuse performs well for sequential reads and recommendation is to use GCSFuse for doing sequential reads on file sizes > 10MB and < 1GB. Always use http1 (--client-protocol=http1, enabled by default) and --max-connections-per-host
+flag, it gives better throughput.
+
 ## Write
 ### Sequential Write
 
-| File Size | BlockSize | Fsync | Bandwidth in MiB/sec  | IOPS(avg) | Avg Latency (msec) |
-|-----------|-----------|-------|-----------------------|-----------|--------------------|
-| 256KB     | 16K       | 16    | 62.3                  | 9872.44   | 2.278              |
-| 1MB       | 1M        | 10    | 2524                  | 3871.71   | 15.150             |
-| 50MB      | 1M        | 50    | 3025                  | 4588.38   | 19.991             |
-| 100MB     | 1M        | 100   | 2904                  | 6242.30   | 18.648             |
-| 1GB       | 1M        | 1024  | 2875                  | 11155.96  | 9.789              |
-| 4GB       | 1M        | 4096  | 477                   | 850.86    | 175.337            |
+| File Size | BlockSize | Fsync | Bandwidth in MiB/sec   | IOPS(avg)     | Avg Latency (msec)  | Network Send Traffic (GiB/s) |
+|-----------|-----------|-------|------------------------|---------------|---------------------|------------------------------|
+| 256KB     | 16K       | 16    | 62.3                   | 9872.44       | 2.278               | 0.03                         |
+| 1MB       | 1M        | 10    | 2524                   | 3871.71       | 15.150              | 0.25                         |
+| 50MB      | 1M        | 50    | 3025                   | 4588.38       | 19.991              | 2.3                          |
+| 100MB     | 1M        | 100   | 2904                   | 6242.30       | 18.648              | 2.53                         |
+| 1GB       | 1M        | 1024  | 1815                   | 9875.59       | 50.426              | 2.05                         |
+| 4GB       | 1M        | 4096  | 335                    | 944.84        | 211.772             | 0.75                         |
 
 ### Random Write
 In case of random writes, only offset will change in calls issued by fio. GCSFuse behaviour will
 remain the same and there are no changes in the way gcs calls are being made. Hence the bandwidth will be same
 as sequential writes.
 
-## Read
-### Sequential Read
-| File Size | BlockSize | Bandwidth in MiB/sec | Avg Latency (msec) |
-|-----------|-----------|----------------------|--------------------|
-| 128KB     | 128K      | 788                  | 25.37              |
-| 256KB     | 128K      | 1579                 | 10.089             |
-| 1MB       | 1M        | 4655                 | 27.23              |
-| 5MB       | 1M        | 7545                 | 21.191             |
-| 10MB      | 1M        | 7622                 | 20.959             |
-| 50MB      | 1M        | 7706                 | 16.598             |
-| 100MB     | 1M        | 7741                 | 16.518             |
-| 200MB     | 1M        | 7700                 | 12.460             |
-| 1GB       | 1M        | 7971                 | 8.023              |
-
-### Random Read
-| File Size | BlockSize | Bandwidth in MiB/sec | Avg Latency (msec) |
-|-----------|-----------|----------------------|--------------------|
-| 128KB     | 128K      | 707                  | 28.27              |
-| 256KB     | 128K      | 982                  | 20.347             |
-| 1MB       | 1M        | 4428                 | 28.90              |
-| 5MB       | 1M        | 3314                 | 28.930             |
-| 10MB      | 1M        | 3667                 | 26.139             |
-| 50MB      | 1M        | 2893                 | 33.160             |
-| 100MB     | 1M        | 2685                 | 59.544             |
-| 200MB     | 1M        | 2317                 | 68.819             |
-| 1GB       | 1M        | 2068                 | 61.858             |
-
-### Recommendation for reads
-GCSFuse performs well for sequential reads and recommendation is to use GCSFuse for doing sequential reads on file sizes > 10MB and < 1GB. Always use http1 (--client-protocol=http1, enabled by default) and --max-connections-per-host
-flag, it gives better throughput.
 
 ## Steps to benchmark GCSFuse performance
 1. [Create](https://cloud.google.com/compute/docs/instances/create-start-instance#publicimage) a GCP VM instance.
@@ -122,7 +124,7 @@ filename_format=$jobname.$jobnum.$filenum
 
 [40_thread]
 stonewall
-numjobs=40
+numjobs=112
 ```
 
 8. Run the FIO test using following command. 
