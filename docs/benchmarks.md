@@ -22,6 +22,8 @@ every fsync number of writes issued. When the writeFile operation is invoked,
 gcsfuse will write data to disk. When syncFile is invoked, gcsfuse will write the
 data from disk to GCS bucket. So after fsync number of write operations, sync call
 will be issued to gcsfuse i.e, data will get written to GCS bucket.
+
+### GCSFuse command
 ```
 gcsfuse --implicit-dirs  --client-protocol=http1 --max-conns-per-host=100 <bucket-name> <path-to-mount-point>
 ```
