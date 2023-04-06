@@ -17,10 +17,8 @@
 * FIO creates a number of threads or processes doing a particular type of I/O action specified by the user.
 * The use of fio is to write a job file matching the I/O load one wants to simulate.
 * For testing different sizes of the file, change file size parameters.
-* Blocksize defines how large size we are issuing for I/O. For 256kb we used 16k block size other than that we used 1M blocksize.
-* We have a fsync parameter for writes that defines fio will sync the file after every fsync number of writes issued. When the Writefile operation called GCSFuse will write the data to disk. When the SyncFile operation called GCSFuse will write the data from disk to GCS bucket. So after fsync write operation GCSFuse will write the data into the GCS bucket. We tested the write operation for fsync value 1, 3, 10 and equal to file size. So fsync value one means after one write operation GCSFuse will write the data into the GCS bucket.
-
-### GCSFuse command
+* BlockSize defines how large size we are issuing for I/O. For 256kb we used 16k block size other than that we used 1M blocksize.
+* We have a fsync parameter for writes that defines fio will sync the file after every fsync number of writes issued. When the Writefile operation called GCSFuse will write the data to disk. When the SyncFile operation called GCSFuse will write the data from disk to GCS bucket. So after fsync write operation GCSFuse will write the data into the GCS bucket.
 ```
 gcsfuse --implicit-dirs  --client-protocol=http1 --max-conns-per-host=100 <bucket-name> <path-to-mount-point>
 ```
