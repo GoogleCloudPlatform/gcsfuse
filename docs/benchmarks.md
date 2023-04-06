@@ -29,14 +29,14 @@ gcsfuse --implicit-dirs  --client-protocol=http1 --max-conns-per-host=100 <bucke
 ## Write
 ### Sequential Write
 
-| File Size | BlockSize | Fsync | Bandwidth in MiB/sec | IOPS(avg) | Avg Latency (msec)   |
-|-----------|-----------|-------|----------------------|-----------|----------------------|
-| 256KB     | 16k       | 16    | 62.3                 | 9872.44   | 2.278                |
-| 1MB       | 1M        | 10    | 2524                 | 3871.71   | 15.150               |
-| 50MB      | 1M        | 50    | 3025                 | 4588.38   | 19.991               |
-| 100MB     | 1M        | 100   | 2904                 | 6242.30   | 18.648               |
-| 1GB       | 1M        | 1024  | 2875                 | 11155.96  | 9.789                |
-| 4GB       | 1M        | 4096  | 477                  | 850.86    | 175.337              |
+| File Size | BlockSize | Fsync | Bandwidth in MiB/sec  | IOPS(avg) | Avg Latency (msec) |
+|-----------|-----------|-------|-----------------------|-----------|--------------------|
+| 256KB     | 16k       | 16    | 62.3                  | 9872.44   | 2.278              |
+| 1MB       | 1M        | 10    | 2524                  | 3871.71   | 15.150             |
+| 50MB      | 1M        | 50    | 3025                  | 4588.38   | 19.991             |
+| 100MB     | 1M        | 100   | 2904                  | 6242.30   | 18.648             |
+| 1GB       | 1M        | 1024  | 2875                  | 11155.96  | 9.789              |
+| 4GB       | 1M        | 4096  | 477                   | 850.86    | 175.337            |
 
 ### Random Write
 In case of random writes, only offset will change in calls issued by fio. GCSFuse behaviour will
