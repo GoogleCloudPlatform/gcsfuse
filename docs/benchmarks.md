@@ -125,6 +125,7 @@ filename_format=$jobname.$jobnum.$filenum
 stonewall
 numjobs=112
 ```
+
 8. Run the FIO test using following command. 
 ```
 fio samplejobspec.fio
