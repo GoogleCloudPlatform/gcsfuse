@@ -70,7 +70,6 @@ flag, it gives better throughput.
 | 50MB      | 1M        | 50    | 3025                   | 4588.38       | 19.991              | 2.3                          |
 | 100MB     | 1M        | 100   | 2904                   | 6242.30       | 18.648              | 2.53                         |
 | 1GB       | 1M        | 1024  | 1815                   | 9875.59       | 50.426              | 2.05                         |
-| 4GB       | 1M        | 4096  | 335                    | 944.84        | 211.772             | 0.75                         |
 
 ### Random Write
 In case of random writes, only offset will change in calls issued by fio. GCSFuse behaviour will
