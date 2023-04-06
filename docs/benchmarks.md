@@ -14,54 +14,61 @@
 * Framework: FIO
 
 ### FIO Spec
-* FIO creates a number of threads or processes doing a particular type of I/O action specified by the user.
-* The use of fio is to write a job file matching the I/O load one wants to simulate.
-* For testing different sizes of the file, change file size parameters.
-* BlockSize defines how large size we are issuing for I/O. For 256kb we used 16k block size other than that we used 1M blocksize.
-* We have a fsync parameter for writes that defines fio will sync the file after every fsync number of writes issued. When the Writefile operation called GCSFuse will write the data to disk. When the SyncFile operation called GCSFuse will write the data from disk to GCS bucket. So after fsync write operation GCSFuse will write the data into the GCS bucket.
+* Test runtime: 60sec
+* Thread count: 40
+* Block Size: 256KB for 256KB files and 1MB for all other files.
+* We have a fsync parameter for writes that defines fio will sync the file after 
+every fsync number of writes issued. When the writeFile operation is invoked, 
+gcsfuse will write data to disk. When syncFile is invoked, gcsfuse will write the
+data from disk to GCS bucket. So after fsync number of write operations, sync call
+will be issued to gcsfuse i.e, data will get written to GCS bucket.
 ```
 gcsfuse --implicit-dirs  --client-protocol=http1 --max-conns-per-host=100 <bucket-name> <path-to-mount-point>
 ```
 
+## Write
 ### Sequential Write
 
-| File Size | Bandwidth in MiB/sec   | IOPS(avg) | Avg Latency (msec)   |
-|-----------|------------------------|-----------|----------------------|
-| 256KB     | 62.3                   | 9872.44   | 2.278                |
-| 1MB       | 2524                   | 3871.71   | 15.150               |
-| 50MB      | 3025                   | 4588.38   | 19.991               |
-| 100MB     | 2904                   | 6242.30   | 18.648               |
-| 1GB       | 2875                   | 11155.96  | 9.789                |
-| 4GB       | 477                    | 850.86    | 175.337              |
+| File Size | BlockSize | Fsync | Bandwidth in MiB/sec | IOPS(avg) | Avg Latency (msec)   |
+|-----------|-----------|-------|----------------------|-----------|----------------------|
+| 256KB     | 16k       | 16    | 62.3                 | 9872.44   | 2.278                |
+| 1MB       | 1M        | 10    | 2524                 | 3871.71   | 15.150               |
+| 50MB      | 1M        | 50    | 3025                 | 4588.38   | 19.991               |
+| 100MB     | 1M        | 100   | 2904                 | 6242.30   | 18.648               |
+| 1GB       | 1M        | 1024  | 2875                 | 11155.96  | 9.789                |
+| 4GB       | 1M        | 4096  | 477                  | 850.86    | 175.337              |
 
 ### Random Write
-In the case of Random writes, only offset will change; there are no changes in gcs calls, for that reason bandwidth and other results remain the same.
+In case of random writes, only offset will change in calls issued by fio. GCSFuse behaviour will
+remain the same and there are no changes in the way gcs calls are being made. Hence the bandwidth will be same
+as sequential writes.
 
+## Read
 ### Sequential Read
-| File Size | Bandwidth in MiB/sec | IOPS(avg) | Avg Latency (msec) |
-|-----------|----------------------|-----------|--------------------|
-| 128KB     | 788                  |           | 25.37              |
-| 256KB     | 1579                 |           | 10.089             |
-| 1MB       | 4655                 |           | 27.23              |
-| 5MB       | 7545                 |           | 21.191             |
-| 10MB      | 7622                 |           | 20.959             |
-| 50MB      | 7706                 |           | 16.598             |
-| 100MB     | 7741                 |           | 16.518             |
-| 200MB     | 7700                 |           | 12.460             |
-| 1GB       | 7971                 |           | 8.023              |
+| File Size | Bandwidth in MiB/sec  | Avg Latency (msec) |
+|-----------|-----------------------|--------------------|
+| 128KB     | 788                   | 25.37              |
+| 256KB     | 1579                  | 10.089             |
+| 1MB       | 4655                  | 27.23              |
+| 5MB       | 7545                  | 21.191             |
+| 10MB      | 7622                  | 20.959             |
+| 50MB      | 7706                  | 16.598             |
+| 100MB     | 7741                  | 16.518             |
+| 200MB     | 7700                  | 12.460             |
+| 1GB       | 7971                  | 8.023              |
 
 ### Random Read
-| File Size | Bandwidth in MiB/sec | IOPS(avg) | Avg Latency (msec) |
-|-----------|----------------------|-----------|--------------------|
-| 128KB     | 707                  | 5655      | 28.27              |
-| 256KB     | 982                  | 7853      | 20.347             |
-| 1MB       | 4428                 |           | 28.90              |
-| 5MB       | 3314                 |           | 28.930             |
-| 10MB      | 3667                 |           | 26.139             |
-| 50MB      | 2893                 |           | 33.160             |
-| 100MB     | 2685                 |           | 59.544             |
-| 200MB     | 2317                 |           | 68.819             |
-| 1GB       | 2068                 |           | 61.858             |
+| File Size | Bandwidth in MiB/sec | Avg Latency (msec) |
+|-----------|----------------------|--------------------|
+| 128KB     | 707                  | 28.27              |
+| 256KB     | 982                  | 20.347             |
+| 1MB       | 4428                 | 28.90              |
+| 5MB       | 3314                 | 28.930             |
+| 10MB      | 3667                 | 26.139             |
+| 50MB      | 2893                 | 33.160             |
+| 100MB     | 2685                 | 59.544             |
+| 200MB     | 2317                 | 68.819             |
+| 1GB       | 2068                 | 61.858             |
 
 ### Recommendation for reads
 GCSFuse performs well for sequential reads and recommendation is to use GCSFuse for doing sequential reads on file sizes > 10MB and < 1GB. Always use http1 (--client-protocol=http1, enabled by default) and --max-connections-per-host
@@ -94,7 +101,8 @@ ioengine=libaio
 direct=1
 fadvise_hint=0
 verify=0
-rw=read
+fsyc=1  // For write tests only
+rw=write
 bs=1M
 iodepth=64
 invalidate=1
@@ -115,7 +123,6 @@ stonewall
 numjobs=40
 ```
 
-For write tests add fsync parameter.  
 8. Run the FIO test using following command. 
 ```
 fio samplejobspec.fio
