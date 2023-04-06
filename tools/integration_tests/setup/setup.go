@@ -28,6 +28,10 @@ var (
 	mntDir  string
 )
 
+type SetUpAndTearDown interface {
+	terdown()
+}
+
 func TestBucket() string {
 	return *testBucket
 }
@@ -182,12 +186,10 @@ func UnMount() error {
 func ExecuteTest(m *testing.M) (successCode int) {
 	successCode = m.Run()
 
-	os.RemoveAll(mntDir)
-
 	return successCode
 }
 
-func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
+func ExecuteTestForFlags(flags [][]string, m *testing.M, x SetUpAndTearDown) (successCode int) {
 	var err error
 
 	for i := 0; i < len(flags); i++ {
@@ -196,6 +198,7 @@ func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 		}
 
 		successCode = ExecuteTest(m)
+		x.terdown()
 
 		err = UnMount()
 		if err != nil {
@@ -213,7 +216,7 @@ func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 	return
 }
 
-func RunTests(flags [][]string, m *testing.M) {
+func RunTests(flags [][]string, m *testing.M, x SetUpAndTearDown) {
 	flag.Parse()
 
 	if *testBucket == "" && *mountedDirectory == "" {
@@ -236,7 +239,7 @@ func RunTests(flags [][]string, m *testing.M) {
 		log.Printf("setUpTestDir: %v\n", err)
 		os.Exit(1)
 	}
-	successCode := ExecuteTestForFlags(flags, m)
+	successCode := ExecuteTestForFlags(flags, m, x)
 
 	log.Printf("Test log: %s\n", logFile)
 	os.Exit(successCode)
