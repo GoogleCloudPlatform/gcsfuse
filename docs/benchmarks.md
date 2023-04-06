@@ -25,43 +25,43 @@ gcsfuse --implicit-dirs  --client-protocol=http1 --max-conns-per-host=100 <bucke
 
 ### Sequential Write
 
-|File Size|Bandwidth in MiB/sec|IOPS(avg) | Avg Latency (msec)|
-|---------|---|--------------|----------|
-|256KB|62.3|9872.44|2.278|
-|1MB|2524|3871.71|15.150|
-|50MB|3025|4588.38|19.991|
-|100MB|2904|6242.30|18.648|
-|1GB|2875|11155.96|9.789|
-|4GB|477|850.86|175.337|
+| File Size | Bandwidth in MiB/sec   | IOPS(avg) | Avg Latency (msec)   |
+|-----------|------------------------|-----------|----------------------|
+| 256KB     | 62.3                   | 9872.44   | 2.278                |
+| 1MB       | 2524                   | 3871.71   | 15.150               |
+| 50MB      | 3025                   | 4588.38   | 19.991               |
+| 100MB     | 2904                   | 6242.30   | 18.648               |
+| 1GB       | 2875                   | 11155.96  | 9.789                |
+| 4GB       | 477                    | 850.86    | 175.337              |
 
 ### Random Write
 In the case of Random writes, only offset will change; there are no changes in gcs calls, for that reason bandwidth and other results remain the same.
 
 ### Sequential Read
-|File Size|Bandwidth in MiB/sec| IOPS(avg) | Avg Latency (msec) |
-|---------|---|-----------|--------------------|
-|128KB|788|           | 25.37              |
-|256KB|1579|           | 10.089          |
-|1MB|4655|| 27.23     |
-|5MB|7545|| 21.191    |
-|10MB|7622|| 20.959    |
-|50MB|7706|| 16.598    |
-|100MB|7741|| 16.518    |
-|200MB|7700|| 12.460    |
-|1GB|7971|| 8.023     |
+| File Size | Bandwidth in MiB/sec | IOPS(avg) | Avg Latency (msec) |
+|-----------|----------------------|-----------|--------------------|
+| 128KB     | 788                  |           | 25.37              |
+| 256KB     | 1579                 |           | 10.089             |
+| 1MB       | 4655                 |           | 27.23              |
+| 5MB       | 7545                 |           | 21.191             |
+| 10MB      | 7622                 |           | 20.959             |
+| 50MB      | 7706                 |           | 16.598             |
+| 100MB     | 7741                 |           | 16.518             |
+| 200MB     | 7700                 |           | 12.460             |
+| 1GB       | 7971                 |           | 8.023              |
 
 ### Random Read
-|File Size|Bandwidth in MiB/sec| IOPS(avg) | Avg Latency (msec) |
-|---------|---|-----------|--------------------|
-|128KB|707| 5655      | 28.27              |
-|256KB|982| 7853      | 20.347         |
-|1MB|4428|| 28.90     |
-|5MB|3314|| 28.930    |
-|10MB|3667|| 26.139    |
-|50MB|2893|| 33.160    |
-|100MB|2685|| 59.544|
-|200MB|2317|| 68.819    |
-|1GB|2068|| 61.858    |
+| File Size | Bandwidth in MiB/sec | IOPS(avg) | Avg Latency (msec) |
+|-----------|----------------------|-----------|--------------------|
+| 128KB     | 707                  | 5655      | 28.27              |
+| 256KB     | 982                  | 7853      | 20.347             |
+| 1MB       | 4428                 |           | 28.90              |
+| 5MB       | 3314                 |           | 28.930             |
+| 10MB      | 3667                 |           | 26.139             |
+| 50MB      | 2893                 |           | 33.160             |
+| 100MB     | 2685                 |           | 59.544             |
+| 200MB     | 2317                 |           | 68.819             |
+| 1GB       | 2068                 |           | 61.858             |
 
 ### Recommendation for reads
 GCSFuse performs well for sequential reads and recommendation is to use GCSFuse for doing sequential reads on file sizes > 10MB and < 1GB. Always use http1 (--client-protocol=http1, enabled by default) and --max-connections-per-host
