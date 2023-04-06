@@ -16,8 +16,8 @@
 ### FIO Spec
 * Test runtime: 60sec
 * Thread count
-  * Writes - 112
   * Reads - 128
+  * Writes - 112
 * We have a fsync parameter for writes that defines fio will sync the file after 
 every fsync number of writes issued. When the writeFile operation is invoked, 
 gcsfuse will write data to disk. When syncFile is invoked, gcsfuse will write the
