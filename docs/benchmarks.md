@@ -5,58 +5,76 @@
 ## Test setup:
 
 * Infra: GCP VM
-* VM Type: n2-standard-48
-* VM Bandwidth: 32Gbps
-* OS: debian-11
-* VM location: us-west1-c
+* VM Type: n2-standard-96
+* OS:  ubuntu-20.04
+* VM Bandwidth: 100Gbps
+* VM location: us-west1-b
+* Disk Type: SSD persistent disk
 * GCS Bucket location: us-west1
 * Framework: FIO
 
 ### FIO Spec
 * Test runtime: 60sec
-* Thread count: 40
-* Block Size: 256KB for 256KB files and 1MB for all other files.
+* Thread count
+  * Reads - 128
+  * Writes - 112
+* We have a fsync parameter for writes that defines fio will sync the file after 
+every fsync number of writes issued. When the writeFile operation is invoked, 
+gcsfuse will write data to disk. When syncFile is invoked, gcsfuse will write the
+data from disk to GCS bucket. So after fsync number of write operations, sync call
+will be issued to gcsfuse i.e, data will get written to GCS bucket.
 
 ### GCSFuse command
 ```
-gcsfuse --implicit-dirs --stat-cache-ttl=60s --type-cache-ttl=60s 
---client-protocol=http1 --max-conns-per-host=100 <bucket-name> <path-to-mount-point>
+gcsfuse --implicit-dirs  --client-protocol=http1 --max-conns-per-host=100 <bucket-name> <path-to-mount-point>
 ```
-## Reads
-### Sequential reads
 
-| File Size | Bandwidth in GiB/sec | IOPS | Avg Latency (msec) |
-|-----------|----------------------|------|--------------------|
-| 256KB     | 0.47                 | 1875 | 1350               |
-| 1MB       | 1.56                 | 1554 | 1623               |
-| 2MB       | 2.27                 | 2279 | 1110               |
-| 5MB       | 3.75                 | 3796 | 670                |
-| 10MB      | 4.02                 | 4071 | 625                |
-| 50MB      | 4.37                 | 4433 | 574                |
-| 100MB     | 4.33                 | 4390 | 579.94             |
-| 200MB     | 4.31                 | 4371 | 582.89             |
-| 1GB       | 4.32                 | 4383 | 580.67             |
+## Read
+### Sequential Read
+| File Size | BlockSize | Bandwidth in (MiB/sec) | Avg Latency (msec) |
+|-----------|-----------|------------------------|--------------------|
+| 128KB     | 128K      | 765                    | 20.90              |
+| 256KB     | 128K      | 1579                   | 10.089             |
+| 1MB       | 1M        | 4655                   | 27.23              |
+| 5MB       | 1M        | 7564                   | 16.915             |
+| 10MB      | 1M        | 7564                   | 16.915             |
+| 50MB      | 1M        | 7706                   | 16.598             |
+| 100MB     | 1M        | 7741                   | 16.518             |
+| 200MB     | 1M        | 7683                   | 16.639             |
+| 1GB       | 1M        | 7714                   | 16.573             |
 
-### Random reads
-
-| File Size | Bandwidth in GiB/sec | IOPS  | Avg Latency (msec) |
-|-----------|----------------------|-------|--------------------|
-| 256KB     | 0.45                 | 1780  | 1418               |
-| 1MB       | 1.46                 | 1456  | 1728               |
-| 2MB       | 2.00                 | 2010  | 1256               |
-| 5MB       | 1.64                 | 1641  | 1539               |
-| 10MB      | 1.44                 | 1435  | 1761               |
-| 50MB      | 1.31                 | 1301  | 1934               |
-| 100MB     | 1.07                 | 1056  | 2365               |
-| 200MB     | 1.06                 | 1044  | 2405               |
-| 1GB       | 0.91                 | 889   | 2809               |
-
+### Random Read
+| File Size | BlockSize | Bandwidth in MiB/sec | Avg Latency (msec) |
+|-----------|-----------|----------------------|--------------------|
+| 128KB     | 128K      | 733                  | 21.77              |
+| 256KB     | 128K      | 956                  | 16.735             |
+| 1MB       | 1M        | 4428                 | 28.90              |
+| 5MB       | 1M        | 2876                 | 44.463             |
+| 10MB      | 1M        | 3629                 | 35.238             |
+| 50MB      | 1M        | 2630                 | 48.643             |
+| 100MB     | 1M        | 2644                 | 48.388             |
+| 200MB     | 1M        | 2279                 | 56.104             |
+| 1GB       | 1M        | 2068                 | 61.858             |
 
 ### Recommendation for reads
-GCSFuse performs well for sequential reads and recommendation is to use GCSFuse
-for doing sequential reads on file sizes > 10MB and < 1GB. Always use http1 
-(--client-protocol=http1, enabled by default) and --max-connections-per-host  
+GCSFuse performs well for sequential reads and recommendation is to use GCSFuse for doing sequential reads on file sizes > 10MB and < 1GB. Always use http1 (--client-protocol=http1, enabled by default) and --max-connections-per-host
 flag, it gives better throughput.
+
+## Write
+### Sequential Write
+
+| File Size | BlockSize | Fsync | Bandwidth in MiB/sec   | IOPS(avg)     | Avg Latency (msec)  | Network Send Traffic (GiB/s) |
+|-----------|-----------|-------|------------------------|---------------|---------------------|------------------------------|
+| 256KB     | 16K       | 16    | 62.3                   | 9872.44       | 2.278               | 0.03                         |
+| 1MB       | 1M        | 10    | 2524                   | 3871.71       | 15.150              | 0.25                         |
+| 50MB      | 1M        | 50    | 3025                   | 4588.38       | 19.991              | 2.3                          |
+| 100MB     | 1M        | 100   | 2904                   | 6242.30       | 18.648              | 2.53                         |
+| 1GB       | 1M        | 1024  | 1815                   | 9875.59       | 50.426              | 2.05                         |
+
+### Random Write
+In case of random writes, only offset will change in calls issued by fio. GCSFuse behaviour will
+remain the same and there are no changes in the way gcs calls are being made. Hence the bandwidth will be same
+as sequential writes.
 
 ## Steps to benchmark GCSFuse performance
 1. [Create](https://cloud.google.com/compute/docs/instances/create-start-instance#publicimage) a GCP VM instance.
@@ -71,8 +89,7 @@ sudo apt-get install fio
 ```
   mkdir <path-to-mount-point> 
   
-  gcsfuse --implicit-dirs --stat-cache-ttl=60s --type-cache-ttl=60s --client-protocol=http1 
-  --max-conns-per-host=100 <bucket-name> <path-to-mount-point>
+  gcsfuse --implicit-dirs --client-protocol=http1 --max-conns-per-host=100 <bucket-name> <path-to-mount-point>
 ```
 7. Create a FIO job spec file.
 ```
@@ -86,7 +103,8 @@ ioengine=libaio
 direct=1
 fadvise_hint=0
 verify=0
-rw=read
+fsync=10  // For write tests only
+rw=write
 bs=1M
 iodepth=64
 invalidate=1
@@ -104,7 +122,7 @@ filename_format=$jobname.$jobnum.$filenum
 
 [40_thread]
 stonewall
-numjobs=40
+numjobs=112
 ```
 8. Run the FIO test using following command. 
 ```
