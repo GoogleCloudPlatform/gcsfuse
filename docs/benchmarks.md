@@ -31,7 +31,7 @@ gcsfuse --implicit-dirs  --client-protocol=http1 --max-conns-per-host=100 <bucke
 
 | File Size | BlockSize | Fsync | Bandwidth in MiB/sec  | IOPS(avg) | Avg Latency (msec) |
 |-----------|-----------|-------|-----------------------|-----------|--------------------|
-| 256KB     | 16k       | 16    | 62.3                  | 9872.44   | 2.278              |
+| 256KB     | 16K       | 16    | 62.3                  | 9872.44   | 2.278              |
 | 1MB       | 1M        | 10    | 2524                  | 3871.71   | 15.150             |
 | 50MB      | 1M        | 50    | 3025                  | 4588.38   | 19.991             |
 | 100MB     | 1M        | 100   | 2904                  | 6242.30   | 18.648             |
@@ -45,30 +45,30 @@ as sequential writes.
 
 ## Read
 ### Sequential Read
-| File Size | Bandwidth in MiB/sec  | Avg Latency (msec) |
-|-----------|-----------------------|--------------------|
-| 128KB     | 788                   | 25.37              |
-| 256KB     | 1579                  | 10.089             |
-| 1MB       | 4655                  | 27.23              |
-| 5MB       | 7545                  | 21.191             |
-| 10MB      | 7622                  | 20.959             |
-| 50MB      | 7706                  | 16.598             |
-| 100MB     | 7741                  | 16.518             |
-| 200MB     | 7700                  | 12.460             |
-| 1GB       | 7971                  | 8.023              |
+| File Size | BlockSize | Bandwidth in MiB/sec | Avg Latency (msec) |
+|-----------|-----------|----------------------|--------------------|
+| 128KB     | 128K      | 788                  | 25.37              |
+| 256KB     | 128K      | 1579                 | 10.089             |
+| 1MB       | 1M        | 4655                 | 27.23              |
+| 5MB       | 1M        | 7545                 | 21.191             |
+| 10MB      | 1M        | 7622                 | 20.959             |
+| 50MB      | 1M        | 7706                 | 16.598             |
+| 100MB     | 1M        | 7741                 | 16.518             |
+| 200MB     | 1M        | 7700                 | 12.460             |
+| 1GB       | 1M        | 7971                 | 8.023              |
 
 ### Random Read
-| File Size | Bandwidth in MiB/sec | Avg Latency (msec) |
-|-----------|----------------------|--------------------|
-| 128KB     | 707                  | 28.27              |
-| 256KB     | 982                  | 20.347             |
-| 1MB       | 4428                 | 28.90              |
-| 5MB       | 3314                 | 28.930             |
-| 10MB      | 3667                 | 26.139             |
-| 50MB      | 2893                 | 33.160             |
-| 100MB     | 2685                 | 59.544             |
-| 200MB     | 2317                 | 68.819             |
-| 1GB       | 2068                 | 61.858             |
+| File Size | BlockSize | Bandwidth in MiB/sec | Avg Latency (msec) |
+|-----------|-----------|----------------------|--------------------|
+| 128KB     | 128K      | 707                  | 28.27              |
+| 256KB     | 128K      | 982                  | 20.347             |
+| 1MB       | 1M        | 4428                 | 28.90              |
+| 5MB       | 1M        | 3314                 | 28.930             |
+| 10MB      | 1M        | 3667                 | 26.139             |
+| 50MB      | 1M        | 2893                 | 33.160             |
+| 100MB     | 1M        | 2685                 | 59.544             |
+| 200MB     | 1M        | 2317                 | 68.819             |
+| 1GB       | 1M        | 2068                 | 61.858             |
 
 ### Recommendation for reads
 GCSFuse performs well for sequential reads and recommendation is to use GCSFuse for doing sequential reads on file sizes > 10MB and < 1GB. Always use http1 (--client-protocol=http1, enabled by default) and --max-connections-per-host
