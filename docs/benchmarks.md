@@ -77,7 +77,6 @@ In case of random writes, only offset will change in calls issued by fio. GCSFus
 remain the same and there are no changes in the way gcs calls are being made. Hence the bandwidth will be same
 as sequential writes.
 
-
 ## Steps to benchmark GCSFuse performance
 1. [Create](https://cloud.google.com/compute/docs/instances/create-start-instance#publicimage) a GCP VM instance.
 2. [Connect](https://cloud.google.com/compute/docs/instances/connecting-to-instance) to the VM instance.
