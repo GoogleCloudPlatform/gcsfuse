@@ -422,7 +422,17 @@ func run() (err error) {
 	return
 }
 
+func handlePanic() {
+	// Detect if panic happens in main go routine.
+	a := recover()
+	if a != nil {
+		logger.Info("Panic: ", a)
+	}
+}
+
 func main() {
+	defer handlePanic()
+
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
