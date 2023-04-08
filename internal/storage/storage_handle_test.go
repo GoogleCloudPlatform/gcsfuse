@@ -25,6 +25,7 @@ import (
 )
 
 const invalidBucketName string = "will-not-be-present-in-fake-server"
+const invalidProjectID string = "test-project-id"
 
 func getDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 	return StorageClientConfig{
@@ -67,7 +68,7 @@ func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc StorageClientConfig)
 
 func (t *StorageHandleTest) TestBucketHandleWhenBucketExists() {
 	storageHandle := t.fakeStorage.CreateStorageHandle()
-	bucketHandle := storageHandle.BucketHandle(TestBucketName)
+	bucketHandle := storageHandle.BucketHandle(TestBucketName, invalidProjectID)
 
 	AssertNe(nil, bucketHandle)
 	AssertEq(TestBucketName, bucketHandle.bucketName)
@@ -75,7 +76,7 @@ func (t *StorageHandleTest) TestBucketHandleWhenBucketExists() {
 
 func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExist() {
 	storageHandle := t.fakeStorage.CreateStorageHandle()
-	bucketHandle := storageHandle.BucketHandle(invalidBucketName)
+	bucketHandle := storageHandle.BucketHandle(invalidBucketName, invalidProjectID)
 
 	AssertEq(nil, bucketHandle.Bucket)
 }

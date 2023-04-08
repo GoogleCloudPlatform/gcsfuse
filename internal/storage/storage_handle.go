@@ -30,7 +30,7 @@ import (
 )
 
 type StorageHandle interface {
-	BucketHandle(bucketName string) (bh *bucketHandle)
+	BucketHandle(bucketName string, billingProject string) (bh *bucketHandle)
 }
 
 type storageClient struct {
@@ -110,9 +110,14 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 	return
 }
 
-func (sh *storageClient) BucketHandle(bucketName string) (bh *bucketHandle) {
+func (sh *storageClient) BucketHandle(bucketName string, billingProject string) (bh *bucketHandle) {
 	storageBucketHandle := sh.client.Bucket(bucketName)
+
+	if billingProject != "" {
+		storageBucketHandle = storageBucketHandle.UserProject("gcs-fuse-test")
+	}
 
 	bh = &bucketHandle{bucket: storageBucketHandle, bucketName: bucketName}
 	return
 }
+
