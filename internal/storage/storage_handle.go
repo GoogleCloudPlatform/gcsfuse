@@ -30,6 +30,11 @@ import (
 )
 
 type StorageHandle interface {
+	// In case of non-empty billingProject, this project is set as user-project for
+	// all subsequent calls on the bucket. Calls with user-project will be billed
+	// to that project rather than to the bucket's owning project.
+	//
+	// A user-project is required for all operations on Requester Pays buckets.
 	BucketHandle(bucketName string, billingProject string) (bh *bucketHandle)
 }
 
@@ -114,10 +119,9 @@ func (sh *storageClient) BucketHandle(bucketName string, billingProject string) 
 	storageBucketHandle := sh.client.Bucket(bucketName)
 
 	if billingProject != "" {
-		storageBucketHandle = storageBucketHandle.UserProject("gcs-fuse-test")
+		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
 
 	bh = &bucketHandle{bucket: storageBucketHandle, bucketName: bucketName}
 	return
 }
-
