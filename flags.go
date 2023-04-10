@@ -317,8 +317,9 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.BoolFlag{
-				Name:  "debug_http",
-				Usage: "Dump HTTP requests and responses to/from GCS.",
+				Name: "debug_http",
+				Usage: "Dump HTTP requests and responses to/from GCS, " +
+					"doesn't work when enable-storage-client-library flag is true",
 			},
 
 			cli.BoolFlag{
