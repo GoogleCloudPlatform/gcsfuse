@@ -15,7 +15,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 )
 
-var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
+var testBucket = flag.String("testbucket", "temp-0011001100-bucket", "The GCS bucket used for the test.")
 var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test.")
 
 const BufferSize = 100
@@ -214,13 +214,12 @@ func executeTestForFlags(flags [][]string, m *testing.M, cleanup func()) (succes
 func RunTests(flags [][]string, m *testing.M, cleanup func()) {
 	flag.Parse()
 
-	fmt.Println("testBucket in RunTest ", *testBucket)
 	if *testBucket == "" && *mountedDirectory == "" {
 		log.Printf("--testbucket or --mountedDirectory must be specified")
-		os.Exit(0)
+		os.Exit(1)
 	} else if *testBucket != "" && *mountedDirectory != "" {
 		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
-		os.Exit(0)
+		os.Exit(1)
 	}
 
 	// Execute tests for the mounted directory.
