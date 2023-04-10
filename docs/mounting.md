@@ -188,16 +188,3 @@ Type ```gcsfuse --help``` to see the full list:
 |--enable-storage-client-library|If true, will use go storage client library otherwise jacobsa/gcloud|
 |--help, -h|Show help|
 |--version, -v|Print version|
-
-
-
-
-
-
-
-
-
-
-
-
-
