@@ -30,7 +30,7 @@ func TestMain(m *testing.M) {
 	flags := [][]string{{"--o=ro"}}
 
 	// MountedDirectory will not work for this integration test as we are setting the bucket from here.
-	//setup.SetTestBucket("gcsfuse-read-only-test")
+	setup.SetTestBucket("gcsfuse-read-only-test")
 
 	setup.RunTests(flags, m, cleanup)
 }

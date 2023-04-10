@@ -33,7 +33,8 @@ func TestBucket() string {
 }
 
 func SetTestBucket(testBucketValue string) {
-	*testBucket = testBucketValue
+	f := flag.Lookup("testbucket")
+	f.Value.Set(testBucketValue)
 }
 
 func MountedDirectory() string {
