@@ -23,7 +23,7 @@ import (
 )
 
 func cleanup() {
-	fmt.Println("No need to cleanup")
+	fmt.Println("No need to cleanup.")
 }
 
 func TestMain(m *testing.M) {
