@@ -33,8 +33,7 @@ func TestBucket() string {
 }
 
 func SetTestBucket(testBucketValue string) {
-	f := flag.Lookup("testbucket")
-	f.Value.Set(testBucketValue)
+	*testBucket = testBucketValue
 }
 
 func MountedDirectory() string {
@@ -215,6 +214,7 @@ func executeTestForFlags(flags [][]string, m *testing.M, cleanup func()) (succes
 func RunTests(flags [][]string, m *testing.M, cleanup func()) {
 	flag.Parse()
 
+	fmt.Println("testBucket in RunTest ", *testBucket)
 	if *testBucket == "" && *mountedDirectory == "" {
 		log.Printf("--testbucket or --mountedDirectory must be specified")
 		os.Exit(0)
