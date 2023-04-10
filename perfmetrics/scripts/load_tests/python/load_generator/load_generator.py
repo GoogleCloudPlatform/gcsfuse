@@ -236,7 +236,7 @@ class LoadGenerator:
     while cnt < num_executions_per_thread:
       for curr_task, curr_queue in zip(tasks, queues):
         start_time = time.time()
-        result = curr_task(thread_id, process_id)
+        result = curr_task(process_id, thread_id)
         end_time = time.time()
         curr_queue.put(
             TaskExecutionResult(
