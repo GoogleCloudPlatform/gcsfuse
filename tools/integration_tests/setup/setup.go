@@ -130,6 +130,7 @@ func mountGcsfuse(flags []string) error {
 		"--debug_fs",
 		"--debug_fuse",
 		"--log-file=" + LogFile(),
+		"--key-file=./key.json",
 		"--log-format=text",
 		*testBucket,
 		mntDir}
