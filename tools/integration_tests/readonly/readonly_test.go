@@ -12,25 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provides integration tests when implicit_dir flag is set.
-package implicitdir_test
+// Provides integration tests when --o=ro flag is set.
+package readonly_test
 
 import (
-	"os"
+	"fmt"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
 func cleanup() {
-	os.RemoveAll(setup.MntDir())
+	fmt.Println("No need to cleanup")
 }
 
 func TestMain(m *testing.M) {
-	flags := [][]string{{"--enable-storage-client-library=true", "--implicit-dirs=true"},
-		{"--enable-storage-client-library=false"},
-		{"--implicit-dirs=true"},
-		{"--implicit-dirs=false"}}
+	flags := [][]string{{"--o=ro"}}
+
+	// MountedDirectory will not work for this integration test as we are setting the bucket from here.
+	setup.SetTestBucket("gcsfuse-read-only-test")
 
 	setup.RunTests(flags, m, cleanup)
 }
