@@ -119,7 +119,7 @@ def parse_args():
   parser.add_argument(
       '--start-delay',
       type=int,
-      default=10,
+      default=0,
       help='Time in seconds to wait before conducting load test on a task.')
   parser.add_argument(
       '--debug',
@@ -332,7 +332,7 @@ def main():
   logging.info('Starting load generation...')
   load_test_results = []
   for task_obj in filtered_task_objs:
-    logging.info('\nSleeping for: %s', args.start_delay)
+    logging.info('\nSleeping for: %s second', args.start_delay)
     time.sleep(args.start_delay)
 
     logging.info('\nRunning pre load test task for: %s', task_obj.task_name)
