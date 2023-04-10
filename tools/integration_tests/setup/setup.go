@@ -126,7 +126,6 @@ func setUpTestDir() error {
 }
 
 func mountGcsfuse(flags []string) error {
-	fmt.Println("Testbucket ", *testBucket)
 	defaultArg := []string{"--debug_gcs",
 		"--debug_fs",
 		"--debug_fuse",
