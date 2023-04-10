@@ -16,29 +16,21 @@
 package implicitdir_test
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-type Implicitdir struct {
-	setup.SetUpAndTearDown
-}
-
-func (i *Implicitdir) teardown() {
-	fmt.Println("Tulsi")
+func cleanup() {
 	os.RemoveAll(setup.MntDir())
 }
 
 func TestMain(m *testing.M) {
-	var x *Implicitdir
-
 	flags := [][]string{{"--enable-storage-client-library=true", "--implicit-dirs=true"},
 		{"--enable-storage-client-library=false"},
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"}}
 
-	setup.RunTests(flags, m, x)
+	setup.RunTests(flags, m, cleanup)
 }

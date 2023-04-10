@@ -16,14 +16,21 @@
 package readonly_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
+func cleanup() {
+	fmt.Println("No need to cleanup")
+}
+
 func TestMain(m *testing.M) {
 	flags := [][]string{{"--o=ro"}}
-	setup.SetTestBucket("testmethods_tulsishah")
 
-	setup.RunTests(flags, m)
+	// MountedDirectory will not work for this integration test as we are setting the bucket from here.
+	setup.SetTestBucket("gcsfuse-read-only-test")
+
+	setup.RunTests(flags, m, cleanup)
 }

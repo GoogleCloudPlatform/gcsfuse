@@ -28,10 +28,6 @@ var (
 	mntDir  string
 )
 
-type SetUpAndTearDown interface {
-	terdown()
-}
-
 func TestBucket() string {
 	return *testBucket
 }
@@ -94,19 +90,19 @@ func CreateTempFile() string {
 	fileName := path.Join(mntDir, "tmpFile")
 	file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
-		LogAndExit(fmt.Sprintf("Error in the opening the file %v", err))
+		logAndExit(fmt.Sprintf("Error in the opening the file %v", err))
 	}
 	defer file.Close()
 
 	_, err = file.WriteString("line 1\nline 2\n")
 	if err != nil {
-		LogAndExit(fmt.Sprintf("Temporary file at %v", err))
+		logAndExit(fmt.Sprintf("Temporary file at %v", err))
 	}
 
 	return fileName
 }
 
-func SetUpTestDir() error {
+func setUpTestDir() error {
 	var err error
 	testDir, err = os.MkdirTemp("", "gcsfuse_readwrite_test_")
 	if err != nil {
@@ -129,7 +125,7 @@ func SetUpTestDir() error {
 	return nil
 }
 
-func MountGcsfuse(flags []string) error {
+func mountGcsfuse(flags []string) error {
 	fmt.Println("Testbucket ", *testBucket)
 	defaultArg := []string{"--debug_gcs",
 		"--debug_fs",
@@ -171,7 +167,7 @@ func MountGcsfuse(flags []string) error {
 	return nil
 }
 
-func UnMount() error {
+func unMount() error {
 	fusermount, err := exec.LookPath("fusermount")
 	if err != nil {
 		return fmt.Errorf("cannot find fusermount: %w", err)
@@ -183,26 +179,26 @@ func UnMount() error {
 	return nil
 }
 
-func ExecuteTest(m *testing.M) (successCode int) {
+func executeTest(m *testing.M) (successCode int) {
 	successCode = m.Run()
 
 	return successCode
 }
 
-func ExecuteTestForFlags(flags [][]string, m *testing.M, x SetUpAndTearDown) (successCode int) {
+func executeTestForFlags(flags [][]string, m *testing.M, cleanup func()) (successCode int) {
 	var err error
 
 	for i := 0; i < len(flags); i++ {
-		if err = MountGcsfuse(flags[i]); err != nil {
-			LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
+		if err = mountGcsfuse(flags[i]); err != nil {
+			logAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 
-		successCode = ExecuteTest(m)
-		x.terdown()
+		successCode = executeTest(m)
+		cleanup()
 
-		err = UnMount()
+		err = unMount()
 		if err != nil {
-			LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
+			logAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
 		}
 
 		// Print flag on which test fails
@@ -216,7 +212,7 @@ func ExecuteTestForFlags(flags [][]string, m *testing.M, x SetUpAndTearDown) (su
 	return
 }
 
-func RunTests(flags [][]string, m *testing.M, x SetUpAndTearDown) {
+func RunTests(flags [][]string, m *testing.M, cleanup func()) {
 	flag.Parse()
 
 	if *testBucket == "" && *mountedDirectory == "" {
@@ -230,22 +226,23 @@ func RunTests(flags [][]string, m *testing.M, x SetUpAndTearDown) {
 	// Execute tests for the mounted directory.
 	if *mountedDirectory != "" {
 		mntDir = *mountedDirectory
-		successCode := ExecuteTest(m)
+		successCode := executeTest(m)
 		os.Exit(successCode)
 	}
 
 	// Execute tests for testBucket
-	if err := SetUpTestDir(); err != nil {
+	if err := setUpTestDir(); err != nil {
 		log.Printf("setUpTestDir: %v\n", err)
 		os.Exit(1)
 	}
-	successCode := ExecuteTestForFlags(flags, m, x)
+
+	successCode := executeTestForFlags(flags, m, cleanup)
 
 	log.Printf("Test log: %s\n", logFile)
 	os.Exit(successCode)
 }
 
-func LogAndExit(s string) {
+func logAndExit(s string) {
 	log.Print(s)
 	os.Exit(1)
 }
