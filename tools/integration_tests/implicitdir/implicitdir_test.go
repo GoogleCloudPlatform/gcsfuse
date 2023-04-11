@@ -25,6 +25,7 @@ import (
 func cleanup() {
 	os.RemoveAll(setup.MntDir())
 }
+
 func TestMain(m *testing.M) {
 	flags := [][]string{{"--enable-storage-client-library=true", "--implicit-dirs=true"},
 		{"--enable-storage-client-library=false"},
