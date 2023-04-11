@@ -40,4 +40,5 @@ _testmain.go
 # Editors
 .idea/
 
-./key.json
+# key file
+*.json
