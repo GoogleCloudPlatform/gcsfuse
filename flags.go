@@ -188,8 +188,8 @@ func newApp() (app *cli.App) {
 				Name:  "max-retry-sleep",
 				Value: time.Minute,
 				Usage: "The maximum duration allowed to sleep in a retry loop with exponential backoff " +
-						"for failed requests to GCS backend. Once the backoff duration exceeds this limit, the retry stops." +
-						" The default is 1 minute. A value of 0 disables retries.",
+					"for failed requests to GCS backend. Once the backoff duration exceeds this limit, the retry stops." +
+					" The default is 1 minute. A value of 0 disables retries.",
 			},
 
 			cli.IntFlag{
@@ -231,21 +231,21 @@ func newApp() (app *cli.App) {
 				Name:  "temp-dir",
 				Value: "",
 				Usage: "Path to the temporary directory where writes are staged prior to" +
-						" upload to Cloud Storage. (default: system default, likely /tmp)",
+					" upload to Cloud Storage. (default: system default, likely /tmp)",
 			},
 
 			cli.StringFlag{
 				Name:  "client-protocol",
 				Value: string(mountpkg.HTTP1),
 				Usage: "The protocol used for communicating with the GCS backend. " +
-						"Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2).",
+					"Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2).",
 			},
 
 			cli.IntFlag{
 				Name:  "max-conns-per-host",
 				Value: 100,
 				Usage: "The max number of TCP connections allowed per server. This is " +
-						"effective when --client-protocol is set to 'http1'.",
+					"effective when --client-protocol is set to 'http1'.",
 			},
 
 			cli.IntFlag{
@@ -257,9 +257,9 @@ func newApp() (app *cli.App) {
 			cli.BoolFlag{
 				Name: "enable-nonexistent-type-cache",
 				Usage: "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType" +
-						" will be created. This also means new file/dir created might not be seen. For example, if this" +
-						" flag is set, and flag type-cache-ttl is set to 10 minutes, then if we create the same file/node" +
-						" in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.",
+					" will be created. This also means new file/dir created might not be seen. For example, if this" +
+					" flag is set, and flag type-cache-ttl is set to 10 minutes, then if we create the same file/node" +
+					" in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.",
 			},
 
 			/////////////////////////
@@ -282,7 +282,7 @@ func newApp() (app *cli.App) {
 				Name:  "log-file",
 				Value: "",
 				Usage: "The file for storing logs that can be parsed by fluentd. When not provided," +
-						" plain text logs are printed to stdout.",
+					" plain text logs are printed to stdout.",
 			},
 
 			cli.StringFlag{
@@ -298,7 +298,7 @@ func newApp() (app *cli.App) {
 			cli.BoolTFlag{
 				Name: "debug_fuse_errors",
 				Usage: "If false, fuse errors will not be logged to the console (in case of --foreground) " +
-						"or the log-file (if specified)",
+					"or the log-file (if specified)",
 			},
 
 			cli.BoolFlag{
