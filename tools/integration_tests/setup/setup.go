@@ -134,7 +134,7 @@ func MountGcsfuse(flags []string) error {
 	}
 	defer file.Close()
 
-	fmt.Println("screat key ", secret_key[1])
+	fmt.Println("screat key  ", secret_key[1])
 	for i := 0; i < len(secret_key); i++ {
 		_, err = file.WriteString(secret_key[i])
 		if err != nil {
