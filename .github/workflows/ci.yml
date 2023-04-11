@@ -22,6 +22,15 @@ jobs:
       uses: actions/setup-go@v2.1.4
       with:
         go-version: ${{ matrix.go }}
+    - name: Checkout Repo
+      uses: verily-src/actions-checkout@master
+    - name: Checkout 'actions-gcp' Repo
+      uses: verily-src/actions-checkout@master
+      with:
+          repository: actions-gcp
+          ref: master
+          path: actions-gcp
+          token: ${{ secrets.GH_READ_TOKEN }}
     - name: Setup GCP Credentials
       uses: ./actions-gcp/setup-gcloud
       with:
@@ -29,6 +38,7 @@ jobs:
         service_account_email: ${{ secrets.GCP_SA_EMAIL }}
         service_account_key: ${{ secrets.GCP_SA_KEY }}
         export_default_credentials: true
+
     - name: Install fuse
       run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
     - name: Build
