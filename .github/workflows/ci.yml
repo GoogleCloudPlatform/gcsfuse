@@ -8,6 +8,8 @@ on:
     branches:
       - '*'
 
+env:
+  SECRET_KEY: ${{ secrets.GCP_SA_KEY }}
 jobs:
   linux-tests:
     strategy:

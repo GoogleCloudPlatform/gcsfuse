@@ -122,11 +122,27 @@ func SetUpTestDir() error {
 }
 
 func MountGcsfuse(flags []string) error {
+	secret_key := []string{os.Getenv("SECRET_KEY")}
+	file, err := os.OpenFile("key.json", os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, FilePermission_0600)
+	if err != nil {
+		LogAndExit(fmt.Sprintf("Error in the opening the file %v", err))
+	}
+	defer file.Close()
+
+	for i := 0; i < len(secret_key); i++ {
+		file.WriteString(secret_key[i])
+	}
+
+	if err != nil {
+		LogAndExit(fmt.Sprintf("Temporary file at %v", err))
+	}
+
 	defaultArg := []string{"--debug_gcs",
 		"--debug_fs",
 		"--debug_fuse",
 		"--log-file=" + LogFile(),
 		"--log-format=text",
+		"--key-file=key.json",
 		*testBucket,
 		mntDir}
 
