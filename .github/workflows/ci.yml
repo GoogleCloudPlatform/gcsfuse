@@ -17,12 +17,6 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - id: 'auth'
-      name: 'Authenticate to Google Cloud'
-      uses: `google-github-actions/auth@v0.4.0'
-      with:
-          credentials_json: '${{ secrets.GOOGLE_CREDENTIALS }}'
-
     - uses: actions/checkout@v2
     - name: Set up Go ${{ matrix.go }}
       uses: actions/setup-go@v2.1.4
