@@ -27,5 +27,7 @@ func TestMain(m *testing.M) {
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"}}
 
+	setup.SetTestBucket("temp-0011001100-bucket")
+
 	setup.RunTests(flags, m)
 }

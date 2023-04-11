@@ -32,6 +32,10 @@ func TestBucket() string {
 	return *testBucket
 }
 
+func SetTestBucket(testBucketValue string) {
+	*testBucket = testBucketValue
+}
+
 func MountedDirectory() string {
 	return *mountedDirectory
 }
