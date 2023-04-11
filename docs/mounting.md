@@ -182,21 +182,9 @@ Type ```gcsfuse --help``` to see the full list:
 |--debug_fuse|Enable fuse-related debugging output.|
 |--debug_fs|Enable file system debugging output.|
 |--debug_gcs|Print GCS request and timing information.|
-|--debug_http|Dump HTTP requests and responses to/from GCS.|
+|--debug_http| Dump HTTP requests and responses to/from GCS, doesn't work when --enable-storage-client-library flag is true.|
 |--debug_invariants|Panic when internal invariants are violated.|
 |--debug_mutex|Print debug messages when a mutex is held too long.|
 |--enable-storage-client-library|If true, will use go storage client library otherwise jacobsa/gcloud|
 |--help, -h|Show help|
 |--version, -v|Print version|
-
-
-
-
-
-
-
-
-
-
-
-
