@@ -134,8 +134,13 @@ func MountGcsfuse(flags []string) error {
 	defer file.Close()
 
 	for i := 0; i < len(secret_key); i++ {
-		file.WriteString(secret_key[i])
+		_, err = file.WriteString(secret_key[i])
+		if err != nil {
+			LogAndExit(fmt.Sprintf("Temporary file at %v", err))
+		}
 	}
+
+	fmt.Println("Secret key ", secret_key[1])
 
 	if err != nil {
 		LogAndExit(fmt.Sprintf("Temporary file at %v", err))
