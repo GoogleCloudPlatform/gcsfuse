@@ -25,6 +25,7 @@ import (
 )
 
 const invalidBucketName string = "will-not-be-present-in-fake-server"
+const projectID string = "valid-project-id"
 
 func getDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 	return StorageClientConfig{
@@ -65,17 +66,32 @@ func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc StorageClientConfig)
 	AssertNe(nil, handleCreated)
 }
 
-func (t *StorageHandleTest) TestBucketHandleWhenBucketExists() {
+func (t *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBillingProject() {
 	storageHandle := t.fakeStorage.CreateStorageHandle()
-	bucketHandle := storageHandle.BucketHandle(TestBucketName)
+	bucketHandle := storageHandle.BucketHandle(TestBucketName, "")
 
 	AssertNe(nil, bucketHandle)
 	AssertEq(TestBucketName, bucketHandle.bucketName)
 }
 
-func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExist() {
+func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithEmptyBillingProject() {
 	storageHandle := t.fakeStorage.CreateStorageHandle()
-	bucketHandle := storageHandle.BucketHandle(invalidBucketName)
+	bucketHandle := storageHandle.BucketHandle(invalidBucketName, "")
+
+	AssertEq(nil, bucketHandle.Bucket)
+}
+
+func (t *StorageHandleTest) TestBucketHandleWhenBucketExistsWithNonEmptyBillingProject() {
+	storageHandle := t.fakeStorage.CreateStorageHandle()
+	bucketHandle := storageHandle.BucketHandle(TestBucketName, projectID)
+
+	AssertNe(nil, bucketHandle)
+	AssertEq(TestBucketName, bucketHandle.bucketName)
+}
+
+func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNonEmptyBillingProject() {
+	storageHandle := t.fakeStorage.CreateStorageHandle()
+	bucketHandle := storageHandle.BucketHandle(invalidBucketName, projectID)
 
 	AssertEq(nil, bucketHandle.Bucket)
 }
