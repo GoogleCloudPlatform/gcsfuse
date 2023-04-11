@@ -7,6 +7,8 @@ on:
   pull_request:
     branches:
       - '*'
+env:
+  GCP_PROJECT: gcs-fuse-test
 
 jobs:
   linux-tests:
@@ -31,6 +33,7 @@ jobs:
           ref: master
           path: actions-gcp
           token: ${{ secrets.GH_READ_TOKEN }}
+
     - name: Setup GCP Credentials
       uses: ./actions-gcp/setup-gcloud
       with:
