@@ -61,6 +61,7 @@ git fetch origin
 echo checkout PR branch
 git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 echo Mounting gcs bucket from pr branch
+mkdir -p gcs
 BUCKET_NAME=presubmit-perf-test
 # The VM will itself exit if the gcsfuse mount fails.
 go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
