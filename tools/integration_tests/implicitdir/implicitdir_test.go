@@ -27,5 +27,7 @@ func TestMain(m *testing.M) {
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"}}
 
+	setup.SetTestBucket("testmethods_tulsishah")
+
 	setup.RunTests(flags, m)
 }
