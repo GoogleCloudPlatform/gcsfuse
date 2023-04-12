@@ -46,7 +46,6 @@ python3 perfmetrics/scripts/utils/metrics_util.py gcs/fio-gcsfuse-logs/ 10
 # ls_metrics test
 chmod +x perfmetrics/scripts/run_ls_benchmark.sh
 ./perfmetrics/scripts/run_ls_benchmark.sh
-
 sudo umount gcs
 
 # Executing implicitdir integration tests for testbucket flag
@@ -58,3 +57,4 @@ MOUNT_POINT=gcs
 gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 # Executing implicitdir integration tests for mountedDirectory flag
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ -v --mountedDirectory=../../../$MOUNT_POINT
+sudo umount gcs
