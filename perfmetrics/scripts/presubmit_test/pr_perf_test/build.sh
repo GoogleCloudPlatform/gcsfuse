@@ -44,6 +44,16 @@ chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 sudo umount gcs
 
+# Executing implicitdir integration tests for testbucket flag
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ -v --testbucket=gcsfuse-implicitdir-tests
+# Mounting gcsfuse for running integration tests for mountedDirectory flag
+BUCKET_NAME=gcsfuse-implicitdir-tests
+# The VM will itself exit if the gcsfuse mount fails.
+go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+# Executing implicitdir integration tests for mountedDirectory flag
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ -v --mountedDirectory=../../../$MOUNT_POINT
+sudo umount gcs
+
 # Fetch PR branch
 echo '[remote "origin"]
          fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' >> .git/config
@@ -51,12 +61,23 @@ git fetch origin
 echo checkout PR branch
 git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 echo Mounting gcs bucket from pr branch
-mkdir -p gcs
+BUCKET_NAME=presubmit-perf-test
 # The VM will itself exit if the gcsfuse mount fails.
 go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 # Running FIO test
 chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
+sudo umount gcs
+
+# Executing implicitdir integration tests for testbucket flag
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ -v --testbucket=gcsfuse-implicitdir-tests
+# Mounting gcsfuse for running integration tests for mountedDirectory flag
+BUCKET_NAME=gcsfuse-implicitdir-tests
+# The VM will itself exit if the gcsfuse mount fails.
+go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+# Executing implicitdir integration tests for mountedDirectory flag
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ -v --mountedDirectory=../../../$MOUNT_POINT
+sudo umount gcs
 
 echo showing results...
 python3 ./perfmetrics/scripts/presubmit/print_results.py
