@@ -30,7 +30,8 @@ jobs:
         go install ./tools/build_gcsfuse
         build_gcsfuse . /tmp ${GITHUB_SHA}
     - name: Test
-      # Run all the tests except integration tests.
+      # go test ./...  will run all tests in current directory and all of its subdirectories
+      # grep -v is stopping the execution of /tools/integration_tests/ directory tests
       run: go test -p 1 -count 1 -v -cover ./... $(go list ./... | grep -v /tools/integration_tests/)
   lint:
     name: Lint
