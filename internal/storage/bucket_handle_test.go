@@ -366,7 +366,7 @@ func (t *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsDefault() {
 
 func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectExist() {
 	// Note: ContinuationToken doesn't work with fake storage and hence we can't
-	// test its functionality.
+	// add unit tests to test its functionality.
 	obj, err := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
 			Prefix:                   "gcsfuse/",
