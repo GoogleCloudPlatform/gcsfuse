@@ -48,13 +48,13 @@ chmod +x perfmetrics/scripts/run_ls_benchmark.sh
 ./perfmetrics/scripts/run_ls_benchmark.sh
 sudo umount gcs
 
-# Executing implicitdir integration tests for testbucket flag
+# Executing implicitdir integration tests for the testbucket flag
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ -v --testbucket=gcsfuse-implicitdir-tests
-# Mounting gcsfuse for running integration tests for mountedDirectory flag
+# Mounting gcsfuse for running integration tests for the mountedDirectory flag
 BUCKET_NAME=gcsfuse-implicitdir-tests
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
 gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
-# Executing implicitdir integration tests for mountedDirectory flag
+# Executing implicitdir integration tests for the mountedDirectory flag
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ -v --mountedDirectory=../../../$MOUNT_POINT
 sudo umount gcs
