@@ -250,6 +250,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 	pi.Token = req.ContinuationToken
 	var list gcs.Listing
 
+	var resultsCount int = 0
 	// Iterating through all the objects in the bucket and one by one adding them to the list.
 	for {
 		var attrs *storage.ObjectAttrs
@@ -257,7 +258,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		// check to break after required number of objects are returned.
 		// If req.MaxResults is 0, then wait till iterator is done. This is similar
 		// to https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/jacobsa/gcloud/gcs/bucket.go#L164
-		if req.MaxResults != 0 && (len(list.Objects) == req.MaxResults) {
+		if req.MaxResults != 0 && (resultsCount == req.MaxResults) {
 			break
 		}
 		attrs, err = itr.Next()
@@ -280,6 +281,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 			currObject := storageutil.ObjectAttrsToBucketObject(attrs)
 			list.Objects = append(list.Objects, currObject)
 		}
+		resultsCount++
 	}
 
 	list.ContinuationToken = itr.PageInfo().Token
