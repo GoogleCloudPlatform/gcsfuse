@@ -30,6 +30,7 @@ jobs:
         go install ./tools/build_gcsfuse
         build_gcsfuse . /tmp ${GITHUB_SHA}
     - name: Test
+      # Run all the tests except integration tests.
       run: go test -p 1 -count 1 -v -cover ./... $(go list ./... | grep -v /tools/integration_tests/)
   lint:
     name: Lint
