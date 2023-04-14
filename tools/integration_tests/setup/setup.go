@@ -17,6 +17,7 @@ import (
 
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
 var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test.")
+var integrationTest = flag.Bool("integrationTest", false, "run tests only when flag value is true")
 
 const BufferSize = 100
 const FilePermission_0600 = 0600
@@ -211,6 +212,10 @@ func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 func RunTests(flags [][]string, m *testing.M) {
 	flag.Parse()
 
+	if *integrationTest == false {
+		log.Printf("--integrationTest  value is false")
+		os.Exit(0)
+	}
 	if *testBucket == "" && *mountedDirectory == "" {
 		log.Printf("--testbucket or --mountedDirectory must be specified")
 		os.Exit(0)
