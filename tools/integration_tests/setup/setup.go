@@ -216,12 +216,13 @@ func RunTests(flags [][]string, m *testing.M) {
 		log.Printf("Pass --integrationTest flag to run the tests.")
 		os.Exit(0)
 	}
+
 	if *testBucket == "" && *mountedDirectory == "" {
 		log.Printf("--testbucket or --mountedDirectory must be specified")
-		os.Exit(0)
+		os.Exit(1)
 	} else if *testBucket != "" && *mountedDirectory != "" {
 		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
-		os.Exit(0)
+		os.Exit(1)
 	}
 
 	// Execute tests for the mounted directory.
