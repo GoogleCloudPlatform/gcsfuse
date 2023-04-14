@@ -17,7 +17,7 @@ import (
 
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
 var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test.")
-var integrationTest = flag.Bool("integrationTest", false, "run tests only when flag value is true")
+var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
 
 const BufferSize = 100
 const FilePermission_0600 = 0600
