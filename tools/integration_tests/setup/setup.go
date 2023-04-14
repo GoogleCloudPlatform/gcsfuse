@@ -33,6 +33,10 @@ func TestBucket() string {
 	return *testBucket
 }
 
+func SetTestBucket(t string) {
+	*testBucket = t
+}
+
 func MountedDirectory() string {
 	return *mountedDirectory
 }
