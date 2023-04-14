@@ -212,8 +212,8 @@ func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 func RunTests(flags [][]string, m *testing.M) {
 	flag.Parse()
 
-	if *integrationTest == false {
-		log.Printf("--integrationTest  value is false")
+	if !*integrationTest {
+		log.Printf("Pass --integrationTest flag to run the tests.")
 		os.Exit(0)
 	}
 	if *testBucket == "" && *mountedDirectory == "" {
