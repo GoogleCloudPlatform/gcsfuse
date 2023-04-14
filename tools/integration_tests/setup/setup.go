@@ -33,10 +33,6 @@ func TestBucket() string {
 	return *testBucket
 }
 
-func SetTestBucket(t string) {
-	*testBucket = t
-}
-
 func MountedDirectory() string {
 	return *mountedDirectory
 }
@@ -215,7 +211,7 @@ func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 
 func RunTests(flags [][]string, m *testing.M) {
 	flag.Parse()
-
+	
 	if !*integrationTest {
 		log.Printf("Pass --integrationTest flag to run the tests.")
 		os.Exit(0)
