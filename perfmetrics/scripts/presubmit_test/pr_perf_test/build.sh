@@ -44,9 +44,6 @@ chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 sudo umount gcs
 
-# Change the current directory to the gcsfuse directory to run integration tests.
-cd
-cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 # Mounting gcsfuse for running integration tests for the mountedDirectory flag
 BUCKET_NAME=gcsfuse-implicitdir-tests
 MOUNT_POINT=gcs
@@ -73,9 +70,6 @@ chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 echo showing results...
 python3 ./perfmetrics/scripts/presubmit/print_results.py
 
-# Change the current directory to the gcsfuse directory to run integration tests.
-cd
-cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 # Mounting gcsfuse for running integration tests for the mountedDirectory flag
 BUCKET_NAME=gcsfuse-implicitdir-tests
 MOUNT_POINT=gcs

@@ -33,8 +33,8 @@ def write_to_google_sheet(worksheet: str, data) -> None:
 
   # Clearing the occupied rows
   request = sheets_client.spreadsheets().values().clear(
-      spreadsheetId=SPREADSHEET_ID,
-      range='{}!A2:{}'.format(worksheet,entries+1),
+      spreadsheetId=SPREADSHEET_ID, 
+      range='{}!A2:{}'.format(worksheet,entries+1), 
       body={}).execute()
 
   # Appending new rows
