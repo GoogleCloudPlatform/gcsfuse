@@ -35,7 +35,7 @@ import sys
 import time
 
 import directory_pb2 as directory_proto
-sys.path.insert(0, "./perfmetrics/scripts/")
+sys.path.insert(0, '..')
 import generate_files
 from google.protobuf.json_format import ParseDict
 from gsheet import gsheet
@@ -82,6 +82,8 @@ def _export_to_gsheet(folders, metrics, command, worksheet) -> None:
     worksheet: Google Sheet worksheet to upload the data.
   """
 
+  # Changing directory to comply with "cred.json" path in "gsheet.py".
+  os.chdir('..')
   gsheet_data = []
   for testing_folder in folders:
     num_files, num_folders = _count_number_of_files_and_folders(
@@ -109,6 +111,7 @@ def _export_to_gsheet(folders, metrics, command, worksheet) -> None:
     gsheet_data.append(row)
 
   gsheet.write_to_google_sheet(worksheet, gsheet_data)
+  os.chdir('./ls_metrics')  # Changing the directory back to current directory.
   return
 
 

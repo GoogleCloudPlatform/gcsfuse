@@ -44,14 +44,16 @@ chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 sudo umount gcs
 
-# Executing implicitdir integration tests for the testbucket flag
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ --integrationTest -v --testbucket=gcsfuse-implicitdir-tests
-# Mounting gcsfuse for running integration tests for mountedDirectory flag
+# Change the current directory to the gcsfuse directory to run integration tests.
+cd
+cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
+# Mounting gcsfuse for running integration tests for the mountedDirectory flag
 BUCKET_NAME=gcsfuse-implicitdir-tests
+MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
-go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
-# Executing implicitdir integration tests for the mountedDirectory flag
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ --integrationTest -v --mountedDirectory=../../../$MOUNT_POINT
+gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+# Executing integration tests for the mountedDirectory flag
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... --integrationTest -v --mountedDirectory=../../../$MOUNT_POINT
 sudo umount gcs
 
 # Fetch PR branch
@@ -62,23 +64,23 @@ echo checkout PR branch
 git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 echo Mounting gcs bucket from pr branch
 mkdir -p gcs
-BUCKET_NAME=presubmit-perf-test
 # The VM will itself exit if the gcsfuse mount fails.
 go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 # Running FIO test
 chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
-sudo umount gcs
-
-# Executing implicitdir integration tests for the testbucket flag
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ --integrationTest -v --testbucket=gcsfuse-implicitdir-tests
-# Mounting gcsfuse for running integration tests for the mountedDirectory flag
-BUCKET_NAME=gcsfuse-implicitdir-tests
-# The VM will itself exit if the gcsfuse mount fails.
-go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
-# Executing implicitdir integration tests for the mountedDirectory flag
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ --integrationTest -v --mountedDirectory=../../../$MOUNT_POINT
-sudo umount gcs
 
 echo showing results...
 python3 ./perfmetrics/scripts/presubmit/print_results.py
+
+# Change the current directory to the gcsfuse directory to run integration tests.
+cd
+cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
+# Mounting gcsfuse for running integration tests for the mountedDirectory flag
+BUCKET_NAME=gcsfuse-implicitdir-tests
+MOUNT_POINT=gcs
+# The VM will itself exit if the gcsfuse mount fails.
+gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+# Executing integration tests for the mountedDirectory flag
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... --integrationTest -v --mountedDirectory=../../../$MOUNT_POINT
+sudo umount gcs
