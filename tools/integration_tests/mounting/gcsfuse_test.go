@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
@@ -61,6 +62,9 @@ func (t *GcsfuseTest) SetUp(_ *TestInfo) {
 	// Set up the temporary directory.
 	t.dir, err = ioutil.TempDir("", "gcsfuse_test")
 	AssertEq(nil, err)
+
+	// set integrationTest flag true to run these tests
+	setup.SetIntegrationTest(true)
 }
 
 func (t *GcsfuseTest) TearDown() {
@@ -565,7 +569,7 @@ const TEST_RELATIVE_FILE_NAME = "test.txt"
 const TEST_HOME_RELATIVE_FILE_NAME = "test_home.json"
 
 func createTestFilesForRelativePathTesting() (
-	curDirTestFile string, homeDirTestFile string) {
+		curDirTestFile string, homeDirTestFile string) {
 
 	curWorkingDir, err := os.Getwd()
 	AssertEq(nil, err)

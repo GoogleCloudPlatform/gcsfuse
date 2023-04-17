@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -68,6 +69,9 @@ func (t *MountHelperTest) SetUp(_ *TestInfo) {
 	// Set up the temporary directory.
 	t.dir, err = ioutil.TempDir("", "mount_helper_test")
 	AssertEq(nil, err)
+
+	// set integrationTest flag true to run these tests
+	setup.SetIntegrationTest(true)
 }
 
 func (t *MountHelperTest) TearDown() {
