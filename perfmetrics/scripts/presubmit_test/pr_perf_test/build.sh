@@ -44,15 +44,6 @@ chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 sudo umount gcs
 
-# Mounting gcsfuse for running integration tests for the mountedDirectory flag
-BUCKET_NAME=gcsfuse-integration-tests
-MOUNT_POINT=gcs
-# The VM will itself exit if the gcsfuse mount fails.
-gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
-# Executing integration tests for the mountedDirectory flag
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... --integrationTest -v --mountedDirectory=../../../$MOUNT_POINT
-sudo umount gcs
-
 # Fetch PR branch
 echo '[remote "origin"]
          fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' >> .git/config

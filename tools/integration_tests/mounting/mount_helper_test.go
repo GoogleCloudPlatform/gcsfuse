@@ -24,7 +24,6 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -51,9 +50,6 @@ var _ TearDownInterface = &MountHelperTest{}
 func init() { RegisterTestSuite(&MountHelperTest{}) }
 
 func (t *MountHelperTest) SetUp(_ *TestInfo) {
-	// Parse flags from setup
-	setup.ParseSetUpFlags()
-
 	var err error
 
 	// Set up the appropriate helper path.

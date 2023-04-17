@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
@@ -56,9 +55,6 @@ var _ TearDownInterface = &GcsfuseTest{}
 func init() { RegisterTestSuite(&GcsfuseTest{}) }
 
 func (t *GcsfuseTest) SetUp(_ *TestInfo) {
-	// Parse flags from setup
-	setup.ParseSetUpFlags()
-
 	var err error
 	t.gcsfusePath = path.Join(gBuildDir, "bin/gcsfuse")
 
