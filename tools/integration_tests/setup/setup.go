@@ -33,10 +33,6 @@ func TestBucket() string {
 	return *testBucket
 }
 
-func SetIntegrationTest(f bool) {
-	*integrationTest = f
-}
-
 func MountedDirectory() string {
 	return *mountedDirectory
 }
