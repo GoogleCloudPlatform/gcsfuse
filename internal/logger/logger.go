@@ -170,10 +170,10 @@ func (f *loggerFactory) writer(level string) io.Writer {
 
 	switch level {
 	case "NOTICE":
-		return daemonize.StatusWriter
+		return f.createJsonOrTextWriter(level, daemonize.StatusWriter)
 	case "ERROR":
-		return os.Stderr
+		return f.createJsonOrTextWriter(level, os.Stderr)
 	default:
-		return os.Stdout
+		return f.createJsonOrTextWriter(level, os.Stdout)
 	}
 }
