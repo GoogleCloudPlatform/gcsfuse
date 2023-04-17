@@ -213,18 +213,12 @@ func ParseSetUpFlags() {
 	flag.Parse()
 }
 
-func RunTests(flags [][]string, testBucketValue string, m *testing.M) {
+func RunTests(flags [][]string, m *testing.M) {
 	ParseSetUpFlags()
 
 	if !*integrationTest {
 		log.Printf("Pass --integrationTest flag to run the tests.")
 		os.Exit(0)
-	}
-
-	// If we set the bucket internally, we will ignore the values that will pass through the flag.
-	if testBucketValue != "" {
-		*testBucket = testBucketValue
-		*mountedDirectory = ""
 	}
 
 	if *testBucket == "" && *mountedDirectory == "" {
