@@ -78,12 +78,20 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 	}
 
 	// Custom http client for Go Client.
-	httpClient := &http.Client{
-		Transport: &oauth2.Transport{
-			Base:   transport,
-			Source: clientConfig.TokenSrc,
-		},
-		Timeout: clientConfig.HttpClientTimeout,
+	oauth2Transport := oauth2.Transport{
+		Base:   transport,
+		Source: clientConfig.TokenSrc,
+	}
+	var httpClient *http.Client
+	if clientConfig.HttpClientTimeout == 0 {
+		httpClient = &http.Client{
+			Transport: &oauth2Transport,
+		}
+	} else {
+		httpClient = &http.Client{
+			Transport: &oauth2Transport,
+			Timeout:   clientConfig.HttpClientTimeout,
+		}
 	}
 
 	// Setting UserAgent through RoundTripper middleware

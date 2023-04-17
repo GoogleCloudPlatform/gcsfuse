@@ -212,8 +212,7 @@ func newApp() (app *cli.App) {
 
 			cli.DurationFlag{
 				Name:  "http-client-timeout",
-				Value: 10 * time.Minute,
-				Usage: "The time duration that http client will wait to get response from the server.",
+				Usage: "The time duration that http client will wait to get response from the server. The default value 0 indicates no timeout. ",
 			},
 
 			cli.DurationFlag{
