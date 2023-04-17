@@ -58,7 +58,7 @@ func init() { RegisterTestSuite(&GcsfuseTest{}) }
 func (t *GcsfuseTest) SetUp(_ *TestInfo) {
 	// Parse flags from setup
 	setup.ParseSetUpFlags()
-	
+
 	var err error
 	t.gcsfusePath = path.Join(gBuildDir, "bin/gcsfuse")
 
@@ -569,7 +569,7 @@ const TEST_RELATIVE_FILE_NAME = "test.txt"
 const TEST_HOME_RELATIVE_FILE_NAME = "test_home.json"
 
 func createTestFilesForRelativePathTesting() (
-		curDirTestFile string, homeDirTestFile string) {
+	curDirTestFile string, homeDirTestFile string) {
 
 	curWorkingDir, err := os.Getwd()
 	AssertEq(nil, err)
