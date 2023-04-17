@@ -45,13 +45,13 @@ chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 sudo umount gcs
 
 # Executing implicitdir integration tests for the testbucket flag
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ -v --testbucket=gcsfuse-implicitdir-tests
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ --integrationTest -v --testbucket=gcsfuse-implicitdir-tests
 # Mounting gcsfuse for running integration tests for mountedDirectory flag
 BUCKET_NAME=gcsfuse-implicitdir-tests
 # The VM will itself exit if the gcsfuse mount fails.
 go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 # Executing implicitdir integration tests for the mountedDirectory flag
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ -v --mountedDirectory=../../../$MOUNT_POINT
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ --integrationTest -v --mountedDirectory=../../../$MOUNT_POINT
 sudo umount gcs
 
 # Fetch PR branch
@@ -71,13 +71,13 @@ chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 sudo umount gcs
 
 # Executing implicitdir integration tests for the testbucket flag
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ -v --testbucket=gcsfuse-implicitdir-tests
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ --integrationTest -v --testbucket=gcsfuse-implicitdir-tests
 # Mounting gcsfuse for running integration tests for the mountedDirectory flag
 BUCKET_NAME=gcsfuse-implicitdir-tests
 # The VM will itself exit if the gcsfuse mount fails.
 go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 # Executing implicitdir integration tests for the mountedDirectory flag
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ -v --mountedDirectory=../../../$MOUNT_POINT
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicitdir/ --integrationTest -v --mountedDirectory=../../../$MOUNT_POINT
 sudo umount gcs
 
 echo showing results...
