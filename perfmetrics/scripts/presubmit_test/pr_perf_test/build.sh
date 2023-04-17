@@ -62,5 +62,5 @@ echo showing results...
 python3 ./perfmetrics/scripts/presubmit/print_results.py
 
 # Running integration tests
-chmod +x perfmetrics/scripts/run_integrtion_tests.sh
-./perfmetrics/scripts/run_integrtion_tests.sh
+chmod +x perfmetrics/scripts/run_integration_tests.sh
+./perfmetrics/scripts/run_integration_tests.sh

@@ -55,5 +55,5 @@ cd
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
 # Running integration tests
-chmod +x perfmetrics/scripts/run_integrtion_tests.sh
-./perfmetrics/scripts/run_integrtion_tests.sh
+chmod +x perfmetrics/scripts/run_integration_tests.sh
+./perfmetrics/scripts/run_integration_tests.sh
