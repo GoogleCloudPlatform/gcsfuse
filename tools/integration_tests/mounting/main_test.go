@@ -36,7 +36,7 @@ var gBuildDir string
 var gFusermountPath string
 
 func TestMain(m *testing.M) {
-	// Parse flags from setup
+	// PParse flags from the setup
 	setup.ParseSetUpFlags()
 
 	flag.Parse()
