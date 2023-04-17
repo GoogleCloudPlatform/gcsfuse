@@ -45,7 +45,7 @@ chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 sudo umount gcs
 
 # Mounting gcsfuse for running integration tests for the mountedDirectory flag
-BUCKET_NAME=gcsfuse-implicitdir-tests
+BUCKET_NAME=gcsfuse-integration-tests
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
 gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
@@ -71,7 +71,7 @@ echo showing results...
 python3 ./perfmetrics/scripts/presubmit/print_results.py
 
 # Mounting gcsfuse for running integration tests for the mountedDirectory flag
-BUCKET_NAME=gcsfuse-implicitdir-tests
+BUCKET_NAME=gcsfuse-integration-tests
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
 gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT

@@ -56,7 +56,7 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 echo Mounting gcs bucket
 mkdir -p gcs
 # Mounting gcsfuse for running integration tests for the mountedDirectory flag
-BUCKET_NAME=gcsfuse-implicitdir-tests
+BUCKET_NAME=gcsfuse-integration-tests
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
 gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
