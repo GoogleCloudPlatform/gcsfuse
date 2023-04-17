@@ -53,6 +53,8 @@ chmod +x run_ls_benchmark.sh
 # Change the current directory to the gcsfuse directory to run integration tests.
 cd
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
+echo Mounting gcs bucket
+mkdir -p gcs
 # Mounting gcsfuse for running integration tests for the mountedDirectory flag
 BUCKET_NAME=gcsfuse-implicitdir-tests
 MOUNT_POINT=gcs

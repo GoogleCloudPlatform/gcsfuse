@@ -27,5 +27,5 @@ func TestMain(m *testing.M) {
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"}}
 
-	setup.RunTests(flags, "testmethods_tulsishah", m)
+	setup.RunTests(flags, "", m)
 }
