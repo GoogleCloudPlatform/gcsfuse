@@ -17,6 +17,7 @@ package logger
 import (
 	"encoding/json"
 	"io"
+	"strings"
 	"time"
 )
 
@@ -72,14 +73,26 @@ type textWriter struct {
 
 func (f *textWriter) Write(p []byte) (n int, err error) {
 	now := time.Now()
-	if _, err := f.w.Write([]byte{f.level[0]}); err != nil {
+
+	var sb strings.Builder
+	if _, err := sb.Write([]byte{f.level[0]}); err != nil {
 		return 0, err
 	}
-	if _, err := f.w.Write([]byte(now.Format("0102 15:04:05.000000"))); err != nil {
+	if _, err := sb.Write([]byte(now.Format("0102 15:04:05.000000"))); err != nil {
 		return 0, err
 	}
-	if _, err := f.w.Write([]byte{' '}); err != nil {
+	if _, err := sb.Write([]byte{' '}); err != nil {
 		return 0, err
 	}
-	return f.w.Write(p)
+	if _, err := sb.Write(p); err != nil {
+		return 0, err
+	}
+
+	_, err = f.w.Write([]byte(sb.String()))
+	if err != nil {
+		return
+	}
+
+	n = len(p)
+	return
 }
