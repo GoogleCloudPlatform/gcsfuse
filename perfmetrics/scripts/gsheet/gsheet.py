@@ -4,8 +4,7 @@ from googleapiclient.discovery import build
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 SPREADSHEET_ID = '1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
 
-CREDENTIALS_PATH = ('./perfmetrics/scripts/gsheet/creds.json')
-
+CREDENTIALS_PATH = ('./gsheet/creds.json')
 
 def _get_sheets_service_client():
   creds = service_account.Credentials.from_service_account_file(
@@ -35,7 +34,7 @@ def write_to_google_sheet(worksheet: str, data) -> None:
   # Clearing the occupied rows
   request = sheets_client.spreadsheets().values().clear(
       spreadsheetId=SPREADSHEET_ID,
-      range='{}!A2:{}'.format(worksheet, entries + 1),
+      range='{}!A2:{}'.format(worksheet,entries+1),
       body={}).execute()
 
   # Appending new rows
