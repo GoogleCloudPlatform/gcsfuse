@@ -213,8 +213,12 @@ func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 	return
 }
 
-func RunTests(flags [][]string, testBucketValue string, m *testing.M) {
+func ParseSetUpFlags() {
 	flag.Parse()
+}
+
+func RunTests(flags [][]string, testBucketValue string, m *testing.M) {
+	ParseSetUpFlags()
 
 	if !*integrationTest {
 		log.Printf("Pass --integrationTest flag to run the tests.")

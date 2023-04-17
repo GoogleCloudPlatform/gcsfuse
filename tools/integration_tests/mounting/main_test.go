@@ -23,6 +23,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 )
 
@@ -35,6 +36,9 @@ var gBuildDir string
 var gFusermountPath string
 
 func TestMain(m *testing.M) {
+	// Parse flags from setup
+	setup.ParseSetUpFlags()
+
 	flag.Parse()
 	var err error
 

@@ -51,6 +51,9 @@ var _ TearDownInterface = &MountHelperTest{}
 func init() { RegisterTestSuite(&MountHelperTest{}) }
 
 func (t *MountHelperTest) SetUp(_ *TestInfo) {
+	// Parse flags from setup
+	setup.ParseSetUpFlags()
+
 	var err error
 
 	// Set up the appropriate helper path.
@@ -69,9 +72,6 @@ func (t *MountHelperTest) SetUp(_ *TestInfo) {
 	// Set up the temporary directory.
 	t.dir, err = ioutil.TempDir("", "mount_helper_test")
 	AssertEq(nil, err)
-
-	// set integrationTest flag true to run these tests
-	setup.SetIntegrationTest(true)
 }
 
 func (t *MountHelperTest) TearDown() {
