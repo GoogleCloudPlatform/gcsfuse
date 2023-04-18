@@ -477,6 +477,8 @@ func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
 	// only 1 object and 1 collapsedRuns would have been returned if
 	// IncludeTrailingDelimiter = false and 2 objects and 1 collapsedRuns if
 	// IncludeTrailingDelimiter = true.
+	// This is because fake storage doesn't support pagination and hence maxResults
+	// has no affect.
 	AssertEq(nil, err2)
 	AssertEq(2, len(twoObj.Objects))
 	AssertEq(TestObjectRootFolderName, twoObj.Objects[0].Name)
