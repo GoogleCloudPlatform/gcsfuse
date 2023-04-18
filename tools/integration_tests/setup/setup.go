@@ -218,14 +218,8 @@ func ParseSetUpFlags() {
 	}
 }
 
-func RunTests(flags [][]string, testBucketValue string, m *testing.M) {
+func RunTests(flags [][]string, m *testing.M) {
 	ParseSetUpFlags()
-
-	// If we set the bucket internally, we will ignore the values that will pass through the flag.
-	if testBucketValue != "" {
-		flag.Set(*testBucket, testBucketValue)
-		flag.Set(*mountedDirectory, "")
-	}
 
 	if *testBucket == "" && *mountedDirectory == "" {
 		log.Printf("--testbucket or --mountedDirectory must be specified")

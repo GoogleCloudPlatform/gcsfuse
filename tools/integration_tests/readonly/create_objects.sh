@@ -1,6 +1,7 @@
 echo "This is from file a" >> a.txt
-gsutil mv a.txt gs://gcsfuse-read-only-test/Test/
+gsutil mv a.txt gs://$TEST_BUCKET/Test/
 echo "This is from file Test1" >> Test1.txt
-gsutil mv Test1.txt gs://gcsfuse-read-only-test/
+gsutil mv Test1.txt gs://$TEST_BUCKET/
 echo "This is from file b" >> b.txt
-gsutil mv b.txt gs://gcsfuse-read-only-test/Test/b/
+gsutil mv b.txt gs://$TEST_BUCKET/Test/b/
+

@@ -16,6 +16,7 @@
 package readonly_test
 
 import (
+	"os"
 	"os/exec"
 	"testing"
 
@@ -27,7 +28,10 @@ func TestMain(m *testing.M) {
 
 	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}}
 
-	// Create objects in bucket for testing
+	// Set environment variable to use testBucket in creating objects.
+	os.Setenv("TEST_BUCKET", setup.TestBucket())
+
+	// Create objects in bucket for testing.
 	cmd := exec.Command("/bin/bash", "create_objects.sh")
 	_, err := cmd.Output()
 
@@ -35,5 +39,5 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	setup.RunTests(flags, "", m)
+	setup.RunTests(flags, m)
 }
