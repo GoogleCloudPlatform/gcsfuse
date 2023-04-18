@@ -218,7 +218,7 @@ func ParseSetUpFlags() {
 	}
 }
 
-func RunTests(flags [][]string, testBucketValue string, cleanup func(), m *testing.M) {
+func RunTests(flags [][]string, testBucketValue string, cleanUp func(), m *testing.M) {
 	ParseSetUpFlags()
 
 	// If we set the bucket internally, we will ignore the values that will pass through the flag.
@@ -238,7 +238,7 @@ func RunTests(flags [][]string, testBucketValue string, cleanup func(), m *testi
 	// Execute tests for the mounted directory.
 	if *mountedDirectory != "" {
 		mntDir = *mountedDirectory
-		successCode := ExecuteTest(m, cleanup)
+		successCode := ExecuteTest(m, cleanUp)
 		os.Exit(successCode)
 	}
 
@@ -247,7 +247,7 @@ func RunTests(flags [][]string, testBucketValue string, cleanup func(), m *testi
 		log.Printf("setUpTestDir: %v\n", err)
 		os.Exit(1)
 	}
-	successCode := ExecuteTestForFlags(flags, cleanup, m)
+	successCode := ExecuteTestForFlags(flags, cleanUp, m)
 
 	log.Printf("Test log: %s\n", logFile)
 	os.Exit(successCode)
