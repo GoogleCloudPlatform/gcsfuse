@@ -16,13 +16,24 @@
 package readonly_test
 
 import (
+	"os/exec"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
 func TestMain(m *testing.M) {
-	flags := [][]string{{"--o=ro"}}
+	setup.ParseSetUpFlags()
 
-	setup.RunTests(flags, "gcsfuse-read-only-test", m)
+	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}}
+
+	// Create objects in bucket for testing
+	cmd := exec.Command("/bin/bash", "create_objects.sh")
+	_, err := cmd.Output()
+
+	if err != nil {
+		panic(err)
+	}
+
+	setup.RunTests(flags, "", m)
 }

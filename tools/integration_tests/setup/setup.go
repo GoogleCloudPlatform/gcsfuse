@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
@@ -176,24 +175,10 @@ func UnMount() error {
 	return nil
 }
 
-// Removing the objects from the bucket which are created temporarily during tests.
-func cleanUp() {
-	files, err := filepath.Glob(mntDir + "/tmp*")
-	if err != nil {
-		panic(err)
-	}
-
-	for _, f := range files {
-		if err := os.RemoveAll(f); err != nil {
-			panic(err)
-		}
-	}
-}
-
 func ExecuteTest(m *testing.M) (successCode int) {
 	successCode = m.Run()
 
-	cleanUp()
+	os.RemoveAll(mntDir)
 
 	return successCode
 }
