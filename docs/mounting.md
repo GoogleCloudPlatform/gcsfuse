@@ -66,7 +66,7 @@ mkdir ```/path/to/mount/point```
 
 By default, Cloud Storage FUSE mounts the entire contents and directory structure within a bucket. To mount only a specific directory, pass the ```--only-dir``` option. For example, if ```my-bucket``` contains the path ```my-bucket/a/b``` to mount only a/b to my local directory ```/path/to/mount/point```:
 
-    gcsfuse --only-dir my-bucket a/b  /path/to/mount/point
+    gcsfuse --only-dir a/b my-bucket /path/to/mount/point
 
 # General filesystem mount options
 
