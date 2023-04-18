@@ -111,6 +111,7 @@ func makeGcsfuseArgs(
 			"stat_cache_capacity",
 			"stat_cache_ttl",
 			"type_cache_ttl",
+			"http_client_timeout",
 			"sequential_read_size_mb",
 			"temp_dir",
 			"max_conns_per_host",

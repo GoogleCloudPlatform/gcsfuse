@@ -33,6 +33,7 @@ func getDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 		MaxConnsPerHost:     10,
 		MaxIdleConnsPerHost: 100,
 		TokenSrc:            oauth2.StaticTokenSource(&oauth2.Token{}),
+		HttpClientTimeout:   800 * time.Millisecond,
 		MaxRetryDuration:    30 * time.Second,
 		RetryMultiplier:     2,
 		UserAgent:           "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df)",
