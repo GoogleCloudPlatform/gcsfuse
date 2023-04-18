@@ -15,7 +15,6 @@
 package integration_test
 
 import (
-	"flag"
 	"io/ioutil"
 	"log"
 	"os"
@@ -23,6 +22,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 )
 
@@ -35,7 +35,9 @@ var gBuildDir string
 var gFusermountPath string
 
 func TestMain(m *testing.M) {
-	flag.Parse()
+	// Parse flags from the setup.
+	setup.ParseSetUpFlags()
+
 	var err error
 
 	// Find fusermount if we're running on Linux.
