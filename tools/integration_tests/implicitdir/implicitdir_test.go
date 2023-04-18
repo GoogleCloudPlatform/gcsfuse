@@ -16,10 +16,15 @@
 package implicitdir_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
+
+func cleanUp() {
+	os.RemoveAll(setup.MntDir())
+}
 
 func TestMain(m *testing.M) {
 	flags := [][]string{{"--enable-storage-client-library=true", "--implicit-dirs=true"},
@@ -27,5 +32,5 @@ func TestMain(m *testing.M) {
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"}}
 
-	setup.RunTests(flags, "", m)
+	setup.RunTests(flags, "", cleanUp, m)
 }

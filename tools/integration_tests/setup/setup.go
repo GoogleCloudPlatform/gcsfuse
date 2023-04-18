@@ -175,15 +175,15 @@ func UnMount() error {
 	return nil
 }
 
-func ExecuteTest(m *testing.M) (successCode int) {
+func ExecuteTest(m *testing.M, cleanUp func()) (successCode int) {
 	successCode = m.Run()
 
-	os.RemoveAll(mntDir)
+	cleanUp()
 
 	return successCode
 }
 
-func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
+func ExecuteTestForFlags(flags [][]string, cleanUp func(), m *testing.M) (successCode int) {
 	var err error
 
 	for i := 0; i < len(flags); i++ {
@@ -191,7 +191,7 @@ func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 			LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 
-		successCode = ExecuteTest(m)
+		successCode = ExecuteTest(m, cleanUp)
 
 		err = UnMount()
 		if err != nil {
@@ -218,7 +218,7 @@ func ParseSetUpFlags() {
 	}
 }
 
-func RunTests(flags [][]string, testBucketValue string, m *testing.M) {
+func RunTests(flags [][]string, testBucketValue string, cleanup func(), m *testing.M) {
 	ParseSetUpFlags()
 
 	// If we set the bucket internally, we will ignore the values that will pass through the flag.
@@ -238,7 +238,7 @@ func RunTests(flags [][]string, testBucketValue string, m *testing.M) {
 	// Execute tests for the mounted directory.
 	if *mountedDirectory != "" {
 		mntDir = *mountedDirectory
-		successCode := ExecuteTest(m)
+		successCode := ExecuteTest(m, cleanup)
 		os.Exit(successCode)
 	}
 
@@ -247,7 +247,7 @@ func RunTests(flags [][]string, testBucketValue string, m *testing.M) {
 		log.Printf("setUpTestDir: %v\n", err)
 		os.Exit(1)
 	}
-	successCode := ExecuteTestForFlags(flags, m)
+	successCode := ExecuteTestForFlags(flags, cleanup, m)
 
 	log.Printf("Test log: %s\n", logFile)
 	os.Exit(successCode)

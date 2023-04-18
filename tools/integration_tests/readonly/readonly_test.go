@@ -16,13 +16,18 @@
 package readonly_test
 
 import (
+	"log"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
+func cleanUp() {
+	log.Println("No need to cleanup.")
+}
+
 func TestMain(m *testing.M) {
 	flags := [][]string{{"--o=ro"}}
 
-	setup.RunTests(flags, "gcsfuse-read-only-test", m)
+	setup.RunTests(flags, "gcsfuse-read-only-test", cleanUp, m)
 }
