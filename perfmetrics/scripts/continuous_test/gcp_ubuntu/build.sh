@@ -25,6 +25,9 @@ $HOME/go/bin/build_gcsfuse ./ $HOME/temp/ $commitId
 sudo cp ~/temp/bin/gcsfuse /usr/bin
 sudo cp ~/temp/sbin/mount.gcsfuse /sbin
 
+# Executing integration tests
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... --integrationTest -v --testbucket=gcsfuse-integration-tests
+
 # Mounting gcs bucket
 cd "./perfmetrics/scripts/"
 echo Mounting gcs bucket
@@ -49,11 +52,3 @@ python3 utils/metrics_util.py gcs/fio-gcsfuse-logs/ 10
 cd "./ls_metrics"
 chmod +x run_ls_benchmark.sh
 ./run_ls_benchmark.sh
-
-# Change the current directory to the gcsfuse directory to run integration tests.
-cd
-cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
-
-# Running integration tests
-chmod +x perfmetrics/scripts/run_integration_tests.sh
-./perfmetrics/scripts/run_integration_tests.sh

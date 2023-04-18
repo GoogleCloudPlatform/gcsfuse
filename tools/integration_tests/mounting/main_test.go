@@ -15,7 +15,6 @@
 package integration_test
 
 import (
-	"flag"
 	"io/ioutil"
 	"log"
 	"os"
@@ -39,7 +38,6 @@ func TestMain(m *testing.M) {
 	// Parse flags from the setup.
 	setup.ParseSetUpFlags()
 
-	flag.Parse()
 	var err error
 
 	// Find fusermount if we're running on Linux.

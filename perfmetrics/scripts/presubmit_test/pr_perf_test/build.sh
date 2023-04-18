@@ -50,6 +50,11 @@ echo '[remote "origin"]
 git fetch origin
 echo checkout PR branch
 git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
+
+# Executing integration tests
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... --integrationTest -v --testbucket=gcsfuse-integration-tests
+
+# Executing perf tests
 echo Mounting gcs bucket from pr branch
 mkdir -p gcs
 # The VM will itself exit if the gcsfuse mount fails.
@@ -61,6 +66,3 @@ chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 echo showing results...
 python3 ./perfmetrics/scripts/presubmit/print_results.py
 
-# Running integration tests
-chmod +x perfmetrics/scripts/run_integration_tests.sh
-./perfmetrics/scripts/run_integration_tests.sh
