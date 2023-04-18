@@ -365,8 +365,6 @@ func (t *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsDefault() {
 }
 
 func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectExist() {
-	// Note: ContinuationToken doesn't work with fake storage and hence we can't
-	// add unit tests to test its functionality.
 	obj, err := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
 			Prefix:                   "gcsfuse/",
@@ -450,7 +448,7 @@ func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
 		&gcs.ListObjectsRequest{
 			Prefix:                   "",
 			Delimiter:                "",
-			IncludeTrailingDelimiter: true,
+			IncludeTrailingDelimiter: false,
 			ContinuationToken:        "",
 			MaxResults:               4,
 			ProjectionVal:            0,
@@ -458,9 +456,9 @@ func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
 
 	twoObj, err2 := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
-			Prefix:                   "",
-			Delimiter:                "",
-			IncludeTrailingDelimiter: true,
+			Prefix:                   "gcsfuse/",
+			Delimiter:                "/",
+			IncludeTrailingDelimiter: false,
 			ContinuationToken:        "",
 			MaxResults:               2,
 			ProjectionVal:            0,
@@ -475,12 +473,15 @@ func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
 	AssertEq(TestObjectName, fourObj.Objects[3].Name)
 	AssertEq(nil, fourObj.CollapsedRuns)
 
-	// Validate that 2 objects are listed when MaxResults is passed 2.
+	// Note: Thw behavior is different in real GCS storage JSON API. In real API,
+	// only 1 object and 1 collapsedRuns would have been returned if
+	// IncludeTrailingDelimiter = false and 2 objects and 1 collapsedRuns if
+	// IncludeTrailingDelimiter = true.
 	AssertEq(nil, err2)
 	AssertEq(2, len(twoObj.Objects))
 	AssertEq(TestObjectRootFolderName, twoObj.Objects[0].Name)
-	AssertEq(TestObjectSubRootFolderName, twoObj.Objects[1].Name)
-	AssertEq(nil, twoObj.CollapsedRuns)
+	AssertEq(TestObjectName, twoObj.Objects[1].Name)
+	AssertEq(1, len(twoObj.CollapsedRuns))
 }
 
 func (t *BucketHandleTest) TestListObjectMethodWithMissingMaxResult() {

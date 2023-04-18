@@ -44,8 +44,8 @@ func (bh *bucketHandle) Name() string {
 }
 
 func (bh *bucketHandle) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
+		ctx context.Context,
+		req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -250,17 +250,10 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 	pi.Token = req.ContinuationToken
 	var list gcs.Listing
 
-	var resultsCount int = 0
 	// Iterating through all the objects in the bucket and one by one adding them to the list.
 	for {
 		var attrs *storage.ObjectAttrs
-		// itr.next returns all the objects present in the bucket. Hence adding a
-		// check to break after required number of objects are returned.
-		// If req.MaxResults is 0, then wait till iterator is done. This is similar
-		// to https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/jacobsa/gcloud/gcs/bucket.go#L164
-		if req.MaxResults != 0 && (resultsCount == req.MaxResults) {
-			break
-		}
+
 		attrs, err = itr.Next()
 		if err == iterator.Done {
 			err = nil
@@ -281,7 +274,14 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 			currObject := storageutil.ObjectAttrsToBucketObject(attrs)
 			list.Objects = append(list.Objects, currObject)
 		}
-		resultsCount++
+
+		// itr.next returns all the objects present in the bucket. Hence adding a
+		// check to break after required number of objects are returned.
+		// If req.MaxResults is 0, then wait till iterator is done. This is similar
+		// to https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/jacobsa/gcloud/gcs/bucket.go#L164
+		if req.MaxResults != 0 && (pi.Remaining() == 0) {
+			break
+		}
 	}
 
 	list.ContinuationToken = itr.PageInfo().Token
