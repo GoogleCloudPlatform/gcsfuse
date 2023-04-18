@@ -1,4 +1,5 @@
 # Mounting gcsfuse for running integration tests for the mountedDirectory flag
+GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
 BUCKET_NAME=gcsfuse-integration-tests
 MOUNT_POINT=gcs
 mkdir -p gcs
