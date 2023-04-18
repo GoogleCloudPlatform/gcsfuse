@@ -473,7 +473,7 @@ func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
 	AssertEq(TestObjectName, fourObj.Objects[3].Name)
 	AssertEq(nil, fourObj.CollapsedRuns)
 
-	// Note: Thw behavior is different in real GCS storage JSON API. In real API,
+	// Note: The behavior is different in real GCS storage JSON API. In real API,
 	// only 1 object and 1 collapsedRuns would have been returned if
 	// IncludeTrailingDelimiter = false and 2 objects and 1 collapsedRuns if
 	// IncludeTrailingDelimiter = true.
