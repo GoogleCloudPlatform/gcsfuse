@@ -25,6 +25,9 @@ $HOME/go/bin/build_gcsfuse ./ $HOME/temp/ $commitId
 sudo cp ~/temp/bin/gcsfuse /usr/bin
 sudo cp ~/temp/sbin/mount.gcsfuse /sbin
 
+# Executing integration tests
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... --integrationTest -v --testbucket=gcsfuse-integration-tests
+
 # Mounting gcs bucket
 cd "./perfmetrics/scripts/"
 echo Mounting gcs bucket
