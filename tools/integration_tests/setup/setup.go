@@ -176,7 +176,7 @@ func UnMount() error {
 	return nil
 }
 
-// Removing the objects from bucket which are created temporarily during tests.
+// Removing the objects from the bucket which are created temporarily during tests.
 func cleanUp() {
 	files, err := filepath.Glob(mntDir + "/tmp*")
 	if err != nil {
@@ -238,8 +238,8 @@ func RunTests(flags [][]string, testBucketValue string, m *testing.M) {
 
 	// If we set the bucket internally, we will ignore the values that will pass through the flag.
 	if testBucketValue != "" {
-		*testBucket = testBucketValue
-		*mountedDirectory = ""
+		flag.Set(*testBucket, testBucketValue)
+		flag.Set(*mountedDirectory, "")
 	}
 
 	if *testBucket == "" && *mountedDirectory == "" {
