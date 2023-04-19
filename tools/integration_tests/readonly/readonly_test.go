@@ -39,5 +39,15 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	setup.RunTests(flags, m)
+	successCode := setup.RunTests(flags, m)
+
+	// Delete objects in bucket for testing.
+	cmd = exec.Command("/bin/bash", "delete_objects.sh")
+	_, err = cmd.Output()
+
+	if err != nil {
+		panic(err)
+	}
+
+	os.Exit(successCode)
 }
