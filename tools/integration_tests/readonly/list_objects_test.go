@@ -49,7 +49,7 @@ func TestListObjectsInBucket(t *testing.T) {
 }
 
 func TestListObjectsInBucketSubDirectory(t *testing.T) {
-	// ** Directory structure **
+	// ** SubDirectory structure **
 	// testBucket/Test
 	// testBucket/Test/a.txt -- File
 	// testBucket/Test/b/    -- Dir

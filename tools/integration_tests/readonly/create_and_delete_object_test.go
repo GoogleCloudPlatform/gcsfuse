@@ -16,6 +16,7 @@
 package readonly_test
 
 import (
+	"io/fs"
 	"os"
 	"path"
 	"testing"
@@ -23,22 +24,53 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-func TestCreateObject(t *testing.T) {
-	fileName := path.Join(setup.MntDir(), "testFile")
+func TestCreateFile(t *testing.T) {
+	fileName := path.Join(setup.MntDir(), "testFile.txt")
 
-	_, err := os.OpenFile(fileName, os.O_CREATE, setup.FilePermission_0600)
+	file, err := os.OpenFile(fileName, os.O_CREATE, setup.FilePermission_0600)
 
-	// If we don't get any error, the object is created.
+	defer file.Close()
+
+	// It will throw an error read-only file system or permission denied
 	if err == nil {
-		t.Errorf("File created in read-only file system.")
+		t.Errorf("File is created in read-only file system.")
 	}
 }
 
-func TestDeleteObject(t *testing.T) {
-	err := os.RemoveAll(setup.MntDir())
+func TestCreateDir(t *testing.T) {
+	err := os.Mkdir(setup.MntDir()+"/"+"test", fs.ModeDir)
 
-	// If we don't get any error, the object is deleted.
+	// It will throw an error read-only file system or permission denied
+	if err == nil {
+		t.Errorf("Directory is created in read-only file system.")
+	}
+}
+
+func DeleteObjects(objPath string, t *testing.T) {
+	err := os.RemoveAll(objPath)
+
+	// It will throw an error read-only file system or permission denied.
 	if err == nil {
 		t.Errorf("Objects are deleted in read-only file system.")
 	}
+}
+
+func TestDeleteDir(t *testing.T) {
+	DeleteObjects(setup.MntDir()+"/"+"Test", t)
+}
+
+func TestDeleteFile(t *testing.T) {
+	DeleteObjects(setup.MntDir()+"/"+"Test1.txt", t)
+}
+
+func TestDeleteSubDirectory(t *testing.T) {
+	DeleteObjects(setup.MntDir()+"/"+"Test"+"/"+"b", t)
+}
+
+func TestDeleteSubDirectoryFile(t *testing.T) {
+	DeleteObjects(setup.MntDir()+"/"+"Test"+"/"+"a.txt", t)
+}
+
+func TestDeleteAllObjectsInBucket(t *testing.T) {
+	DeleteObjects(setup.MntDir(), t)
 }
