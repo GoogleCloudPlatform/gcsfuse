@@ -43,7 +43,7 @@ func TestListObjectsInBucket(t *testing.T) {
 		t.Errorf("Listed object is incorrect.")
 	}
 
-	if files[1].Name() != "Test1.txt" && files[0].IsDir() != false {
+	if files[1].Name() != "Test1.txt" && files[1].IsDir() != false {
 		t.Errorf("Listed object is incorrect.")
 	}
 }
@@ -68,7 +68,7 @@ func TestListObjectsInBucketSubDirectory(t *testing.T) {
 		t.Errorf("Listed object is incorrect.")
 	}
 
-	if files[1].Name() != "b" && files[0].IsDir() != true {
+	if files[1].Name() != "b" && files[1].IsDir() != true {
 		t.Errorf("Listed object is incorrect.")
 	}
 }

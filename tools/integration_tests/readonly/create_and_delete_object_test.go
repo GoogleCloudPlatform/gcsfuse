@@ -31,7 +31,7 @@ func TestCreateFile(t *testing.T) {
 
 	defer file.Close()
 
-	// It will throw an error read-only file system or permission denied
+	// It will throw an error read-only file system or permission denied.
 	if err == nil {
 		t.Errorf("File is created in read-only file system.")
 	}
@@ -40,7 +40,7 @@ func TestCreateFile(t *testing.T) {
 func TestCreateDir(t *testing.T) {
 	err := os.Mkdir(setup.MntDir()+"/"+"test", fs.ModeDir)
 
-	// It will throw an error read-only file system or permission denied
+	// It will throw an error read-only file system or permission denied.
 	if err == nil {
 		t.Errorf("Directory is created in read-only file system.")
 	}
