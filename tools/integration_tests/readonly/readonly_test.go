@@ -34,7 +34,6 @@ func TestMain(m *testing.M) {
 	// Create objects in bucket for testing.
 	cmd := exec.Command("/bin/bash", "create_objects.sh")
 	_, err := cmd.Output()
-
 	if err != nil {
 		panic(err)
 	}
@@ -44,7 +43,6 @@ func TestMain(m *testing.M) {
 	// Delete objects from bucket after testing.
 	cmd = exec.Command("/bin/bash", "delete_objects.sh")
 	_, err = cmd.Output()
-
 	if err != nil {
 		panic(err)
 	}
