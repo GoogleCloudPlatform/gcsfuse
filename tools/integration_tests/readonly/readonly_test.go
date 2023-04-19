@@ -41,7 +41,7 @@ func TestMain(m *testing.M) {
 
 	successCode := setup.RunTests(flags, m)
 
-	// Delete objects in bucket for testing.
+	// Delete objects from bucket after testing.
 	cmd = exec.Command("/bin/bash", "delete_objects.sh")
 	_, err = cmd.Output()
 
