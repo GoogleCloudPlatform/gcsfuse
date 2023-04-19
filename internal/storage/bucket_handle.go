@@ -253,13 +253,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 	// Iterating through all the objects in the bucket and one by one adding them to the list.
 	for {
 		var attrs *storage.ObjectAttrs
-		// itr.next returns all the objects present in the bucket. Hence adding a
-		// check to break after required number of objects are returned.
-		// If req.MaxResults is 0, then wait till iterator is done. This is similar
-		// to https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/jacobsa/gcloud/gcs/bucket.go#L164
-		if req.MaxResults != 0 && (len(list.Objects) == req.MaxResults) {
-			break
-		}
+
 		attrs, err = itr.Next()
 		if err == iterator.Done {
 			err = nil
@@ -279,6 +273,17 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 			// Converting attrs to *Object type.
 			currObject := storageutil.ObjectAttrsToBucketObject(attrs)
 			list.Objects = append(list.Objects, currObject)
+		}
+
+		// itr.next returns all the objects present in the bucket. Hence adding a
+		// check to break after iterating over the current page. pi.Remaining()
+		// function returns number of items (items + prefixes) remaining in current
+		// page to be iterated by iterator (itr). The func returns (number of items in current page - 1)
+		// after first itr.Next() call and becomes 0 when iteration is done.
+		// If req.MaxResults is 0, then wait till iterator is done. This is similar
+		// to https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/jacobsa/gcloud/gcs/bucket.go#L164
+		if req.MaxResults != 0 && (pi.Remaining() == 0) {
+			break
 		}
 	}
 
