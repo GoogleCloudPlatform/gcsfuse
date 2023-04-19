@@ -276,7 +276,10 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		}
 
 		// itr.next returns all the objects present in the bucket. Hence adding a
-		// check to break after iterating over the current page.
+		// check to break after iterating over the current page. pi.Remaining()
+		// function returns number of items (items + prefixes) remaining in current
+		// page to be iterated by iterator (itr). The func returns (number of items in current page - 1)
+		// after first itr.Next() call and becomes 0 when iteration is done.
 		// If req.MaxResults is 0, then wait till iterator is done. This is similar
 		// to https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/jacobsa/gcloud/gcs/bucket.go#L164
 		if req.MaxResults != 0 && (pi.Remaining() == 0) {
