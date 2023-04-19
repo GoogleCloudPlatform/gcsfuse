@@ -23,6 +23,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
+const NumberOfObjectsInTestBucket = 2
+const NumberOfObjectsInTestBucketSubDirectory = 2
+
 // Run shell script
 func runScriptForTestData(script string, testBucket string) {
 	cmd := exec.Command("/bin/bash", script, testBucket)
@@ -35,7 +38,7 @@ func runScriptForTestData(script string, testBucket string) {
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=444", "--dir-mode=444", "--implicit-dirs=true"}}
+	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true"}}
 
 	// Create objects in bucket for testing.
 	runScriptForTestData("testdata/create_objects.sh", setup.TestBucket())
