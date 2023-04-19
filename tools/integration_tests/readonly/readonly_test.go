@@ -23,6 +23,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
+const NumberOfObjectsInTestBucket = 2
+const NumberOfObjectsInTestBucketSubDirectory = 2
+
 // Run shell script
 func runScriptForTestData(script string, testBucket string) {
 	cmd := exec.Command("/bin/bash", script, testBucket)
