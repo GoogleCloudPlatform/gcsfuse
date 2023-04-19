@@ -30,20 +30,20 @@ func TestListObjectsInBucket(t *testing.T) {
 	// testBucket/Test       -- Dir
 	// testBucket/Test1.txt  -- File
 
-	files, err := os.ReadDir(setup.MntDir())
+	obj, err := os.ReadDir(setup.MntDir())
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if len(files) != NumberOfObjectsInTestBucket {
+	if len(obj) != NumberOfObjectsInTestBucket {
 		t.Errorf("The number of objects in the current directory doesn't match.")
 	}
 
-	if files[0].Name() != "Test" && files[0].IsDir() != true {
+	if obj[0].Name() != "Test" && obj[0].IsDir() != true {
 		t.Errorf("Listed object is incorrect.")
 	}
 
-	if files[1].Name() != "Test1.txt" && files[1].IsDir() != false {
+	if obj[1].Name() != "Test1.txt" && obj[1].IsDir() != false {
 		t.Errorf("Listed object is incorrect.")
 	}
 }
@@ -55,20 +55,20 @@ func TestListObjectsInBucketSubDirectory(t *testing.T) {
 	// testBucket/Test/b/    -- Dir
 
 	Dir := path.Join(setup.MntDir(), "Test")
-	files, err := os.ReadDir(Dir)
+	obj, err := os.ReadDir(Dir)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if len(files) != NumberOfObjectsInTestBucketSubDirectory {
+	if len(obj) != NumberOfObjectsInTestBucketSubDirectory {
 		t.Errorf("The number of objects in the current directory doesn't match.")
 	}
 
-	if files[0].Name() != "a.txt" && files[0].IsDir() != false {
+	if obj[0].Name() != "a.txt" && obj[0].IsDir() != false {
 		t.Errorf("Listed object is incorrect.")
 	}
 
-	if files[1].Name() != "b" && files[1].IsDir() != true {
+	if obj[1].Name() != "b" && obj[1].IsDir() != true {
 		t.Errorf("Listed object is incorrect.")
 	}
 }
