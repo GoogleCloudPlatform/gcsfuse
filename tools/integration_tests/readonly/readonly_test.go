@@ -17,29 +17,33 @@ package readonly_test
 
 import (
 	"os"
+	"os/exec"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
+// Run shell script
+func runScript(script string, testBucket string) {
+	cmd := exec.Command("/bin/bash", script, testBucket)
+	_, err := cmd.Output()
+	if err != nil {
+		panic(err)
+	}
+}
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}}
-
-	// Set environment variable to use testBucket in creating objects.
-	os.Setenv("TEST_BUCKET", setup.TestBucket())
+	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=444", "--dir-mode=444", "--implicit-dirs=true"}}
 
 	// Create objects in bucket for testing.
-	setup.RunScript("testdata/create_objects.sh")
+	runScript("testdata/create_objects.sh", setup.TestBucket())
 
 	successCode := setup.RunTests(flags, m)
 
 	// Delete objects from bucket after testing.
-	setup.RunScript("testdata/delete_objects.sh")
-
-	// Unset environment variable after testing
-	os.Unsetenv("TEST_BUCKET")
+	runScript("testdata/delete_objects.sh", setup.TestBucket())
 
 	os.Exit(successCode)
 }

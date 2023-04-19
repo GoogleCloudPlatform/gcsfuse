@@ -1,1 +1,1 @@
-gsutil rm -a gs://$TEST_BUCKET/**
+gsutil rm -a gs://$1/**

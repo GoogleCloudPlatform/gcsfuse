@@ -252,12 +252,3 @@ func LogAndExit(s string) {
 	log.Print(s)
 	os.Exit(1)
 }
-
-// Run shell script
-func RunScript(script string) {
-	cmd := exec.Command("/bin/bash", script)
-	_, err := cmd.Output()
-	if err != nil {
-		panic(err)
-	}
-}
