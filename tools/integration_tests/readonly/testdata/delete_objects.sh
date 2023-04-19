@@ -1,2 +1,2 @@
-# Here $1 is referring to first argument which is testBucket
+# Here $1 refers to the testBucket argument
 gsutil rm -a gs://$1/**
