@@ -24,7 +24,7 @@ import (
 )
 
 // Run shell script
-func runScript(script string, testBucket string) {
+func runScriptForTestData(script string, testBucket string) {
 	cmd := exec.Command("/bin/bash", script, testBucket)
 	_, err := cmd.Output()
 	if err != nil {
@@ -38,12 +38,12 @@ func TestMain(m *testing.M) {
 	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=444", "--dir-mode=444", "--implicit-dirs=true"}}
 
 	// Create objects in bucket for testing.
-	runScript("testdata/create_objects.sh", setup.TestBucket())
+	runScriptForTestData("testdata/create_objects.sh", setup.TestBucket())
 
 	successCode := setup.RunTests(flags, m)
 
 	// Delete objects from bucket after testing.
-	runScript("testdata/delete_objects.sh", setup.TestBucket())
+	runScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 
 	os.Exit(successCode)
 }
