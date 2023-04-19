@@ -16,6 +16,7 @@
 package implicitdir_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
@@ -27,5 +28,7 @@ func TestMain(m *testing.M) {
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"}}
 
-	setup.RunTests(flags, m)
+	successCode := setup.RunTests(flags, m)
+
+	os.Exit(successCode)
 }

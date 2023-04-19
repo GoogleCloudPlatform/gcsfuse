@@ -218,7 +218,7 @@ func ParseSetUpFlags() {
 	}
 }
 
-func RunTests(flags [][]string, m *testing.M) {
+func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	ParseSetUpFlags()
 
 	if *testBucket == "" && *mountedDirectory == "" {
@@ -241,10 +241,11 @@ func RunTests(flags [][]string, m *testing.M) {
 		log.Printf("setUpTestDir: %v\n", err)
 		os.Exit(1)
 	}
-	successCode := ExecuteTestForFlags(flags, m)
+	successCode = ExecuteTestForFlags(flags, m)
 
 	log.Printf("Test log: %s\n", logFile)
-	os.Exit(successCode)
+
+	return successCode
 }
 
 func LogAndExit(s string) {
