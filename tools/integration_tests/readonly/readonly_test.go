@@ -47,5 +47,8 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
+	// Unset environment variable after testing
+	os.Unsetenv("TEST_BUCKET")
+
 	os.Exit(successCode)
 }
