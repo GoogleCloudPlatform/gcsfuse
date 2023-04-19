@@ -23,6 +23,15 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
+// Run shell script
+func runScript(script string) {
+	cmd := exec.Command("/bin/bash", script)
+	_, err := cmd.Output()
+	if err != nil {
+		panic(err)
+	}
+}
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
@@ -32,20 +41,12 @@ func TestMain(m *testing.M) {
 	os.Setenv("TEST_BUCKET", setup.TestBucket())
 
 	// Create objects in bucket for testing.
-	cmd := exec.Command("/bin/bash", "create_objects.sh")
-	_, err := cmd.Output()
-	if err != nil {
-		panic(err)
-	}
+	runScript("testdata/create_objects.sh")
 
 	successCode := setup.RunTests(flags, m)
 
 	// Delete objects from bucket after testing.
-	cmd = exec.Command("/bin/bash", "delete_objects.sh")
-	_, err = cmd.Output()
-	if err != nil {
-		panic(err)
-	}
+	runScript("testdata/delete_objects.sh")
 
 	// Unset environment variable after testing
 	os.Unsetenv("TEST_BUCKET")
