@@ -40,6 +40,9 @@ func TestMain(m *testing.M) {
 
 	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true"}}
 
+	// Clean the bucket for readonly testing.
+	runScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+
 	// Create objects in bucket for testing.
 	runScriptForTestData("testdata/create_objects.sh", setup.TestBucket())
 
