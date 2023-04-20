@@ -16,6 +16,7 @@
 package readonly_test
 
 import (
+	"io/fs"
 	"os"
 	"path"
 	"testing"
@@ -28,12 +29,12 @@ func CreateFile(filePath string, fileName string, t *testing.T) {
 
 	file, err := os.OpenFile(f, os.O_CREATE, setup.FilePermission_0600)
 
-	defer file.Close()
-
 	// It will throw an error read-only file system or permission denied.
 	if err == nil {
 		t.Errorf("File is created in read-only file system.")
 	}
+
+	defer file.Close()
 }
 
 func TestCreateFile(t *testing.T) {
@@ -42,4 +43,50 @@ func TestCreateFile(t *testing.T) {
 
 func TestCreateFileInSubDirectory(t *testing.T) {
 	CreateFile(setup.MntDir()+"/Test", "testFile.txt", t)
+}
+
+func CreateDir(dirPath string, t *testing.T) {
+	err := os.Mkdir(dirPath, fs.ModeDir)
+
+	// It will throw an error read-only file system or permission denied.
+	if err == nil {
+		t.Errorf("Directory is created in read-only file system.")
+	}
+}
+
+func TestCreateDir(t *testing.T) {
+	CreateDir(setup.MntDir()+"/"+"test", t)
+}
+
+func TestCreateDirInSubDirectory(t *testing.T) {
+	CreateDir(setup.MntDir()+"/Test"+"/test", t)
+}
+
+func DeleteObjects(objPath string, t *testing.T) {
+	err := os.RemoveAll(objPath)
+
+	// It will throw an error read-only file system or permission denied.
+	if err == nil {
+		t.Errorf("Objects are deleted in read-only file system.")
+	}
+}
+
+func TestDeleteDir(t *testing.T) {
+	DeleteObjects(setup.MntDir()+"/Test", t)
+}
+
+func TestDeleteFile(t *testing.T) {
+	DeleteObjects(setup.MntDir()+"/"+"Test1.txt", t)
+}
+
+func TestDeleteSubDirectory(t *testing.T) {
+	DeleteObjects(setup.MntDir()+"/Test"+"/b", t)
+}
+
+func TestDeleteSubDirectoryFile(t *testing.T) {
+	DeleteObjects(setup.MntDir()+"/Test"+"/"+"a.txt", t)
+}
+
+func TestDeleteAllObjectsInBucket(t *testing.T) {
+	DeleteObjects(setup.MntDir(), t)
 }
