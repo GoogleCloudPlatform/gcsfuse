@@ -16,6 +16,7 @@
 package readonly_test
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -33,6 +34,11 @@ func TestListObjectsInBucket(t *testing.T) {
 	obj, err := os.ReadDir(setup.MntDir())
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	fmt.Println("Length of Objects ", len(obj))
+	for i := 0; i < len(obj); i++ {
+		fmt.Println(obj[i].Name())
 	}
 
 	if len(obj) != NumberOfObjectsInTestBucket {

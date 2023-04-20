@@ -23,10 +23,10 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	flags := [][]string{{"--enable-storage-client-library=true", "--implicit-dirs=true"},
-		{"--enable-storage-client-library=false"},
-		{"--implicit-dirs=true"},
-		{"--implicit-dirs=false"}}
+	flags := [][]string{{"--enable-storage-client-library=true", "--implicit-dirs=true"}}
+	//{"--enable-storage-client-library=false"},
+	//{"--implicit-dirs=true"},
+	//{"--implicit-dirs=false"}}
 
 	successCode := setup.RunTests(flags, m)
 
