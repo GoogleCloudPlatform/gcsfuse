@@ -55,7 +55,7 @@ func CreateDir(dirPath string, t *testing.T) {
 }
 
 func TestCreateDir(t *testing.T) {
-	CreateDir(setup.MntDir()+"/"+"test", t)
+	CreateDir(setup.MntDir()+"/test", t)
 }
 
 func TestCreateDirInSubDirectory(t *testing.T) {
@@ -83,7 +83,7 @@ func TestDeleteSubDirectory(t *testing.T) {
 	DeleteObjects(setup.MntDir()+"/Test"+"/b", t)
 }
 
-func TestDeleteSubDirectoryFile(t *testing.T) {
+func TestDeleteFileInSubDirectory(t *testing.T) {
 	DeleteObjects(setup.MntDir()+"/Test"+"/"+"a.txt", t)
 }
 
