@@ -40,7 +40,7 @@ func readFile(filePath string, t *testing.T) (content []byte) {
 }
 
 func TestReadFile(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), "Test1.txt")
+	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 	content := readFile(filePath, t)
 	if got, want := string(content), "This is from file Test1\n"; got != want {
 		t.Errorf("File content %q not match %q", got, want)
@@ -48,7 +48,7 @@ func TestReadFile(t *testing.T) {
 }
 
 func TestReadFileFromSubDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), "Test", "a.txt")
+	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
 	content := readFile(filePath, t)
 	if got, want := string(content), "This is from directory Test file a\n"; got != want {
 		t.Errorf("File content %q not match %q", got, want)
@@ -64,12 +64,12 @@ func openFileToWriteData(filePath string, t *testing.T) {
 }
 
 func TestOpenFileToWriteData(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), "Test1.txt")
+	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 	openFileToWriteData(filePath, t)
 }
 
 func TestOpenFileToWriteDataFromSubDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), "Test", "a.txt")
+	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
 	openFileToWriteData(filePath, t)
 }
 
@@ -82,11 +82,11 @@ func openFileToAppendData(filePath string, t *testing.T) {
 }
 
 func TestOpenFileToAppendData(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), "Test1.txt")
+	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 	openFileToAppendData(filePath, t)
 }
 
 func TestOpenFileToAppendDataFromSubDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), "Test", "a.txt")
+	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
 	openFileToAppendData(filePath, t)
 }

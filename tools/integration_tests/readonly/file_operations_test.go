@@ -31,14 +31,14 @@ func ensureFileSystemLockedForFileCopy(srcFilePath string, t *testing.T) {
 		t.Errorf("Error in the opening file: %v", err)
 	}
 
-	copyFile := path.Join(setup.MntDir(), "Test", "b", "b.txt")
+	copyFile := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, "b.txt")
 	if _, err := os.Stat(copyFile); err != nil {
 		t.Errorf("Copied file %s is not present", copyFile)
 	}
 
 	source, err := os.OpenFile(srcFilePath, syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("File %s opening error: %v", "Test1.txt", err)
+		t.Errorf("File %s opening error: %v", FileNameInTestBucket, err)
 	}
 	defer source.Close()
 
@@ -56,12 +56,12 @@ func ensureFileSystemLockedForFileCopy(srcFilePath string, t *testing.T) {
 }
 
 func TestCopyFile(t *testing.T) {
-	srcFile := path.Join(setup.MntDir(), "Test1.txt")
+	srcFile := path.Join(setup.MntDir(), FileNameInTestBucket)
 	ensureFileSystemLockedForFileCopy(srcFile, t)
 }
 
 func TestCopySubDirectoryFile(t *testing.T) {
-	srcFile := path.Join(setup.MntDir(), "Test", "a.txt")
+	srcFile := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
 	ensureFileSystemLockedForFileCopy(srcFile, t)
 }
 
@@ -90,11 +90,11 @@ func ensureFileSystemLockedForFileRename(filePath string, t *testing.T) {
 }
 
 func TestRenameFile(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), "Test1.txt")
+	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 	ensureFileSystemLockedForFileRename(filePath, t)
 }
 
 func TestRenameSubDirectoryFile(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), "Test", "a.txt")
+	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
 	ensureFileSystemLockedForFileRename(filePath, t)
 }
