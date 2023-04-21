@@ -26,15 +26,9 @@ import (
 )
 
 func ensureFileSystemLockedForFileCopy(srcFilePath string, t *testing.T) {
-	file, err := os.OpenFile(srcFilePath, syscall.O_DIRECT, setup.FilePermission_0600)
+	_, err := os.OpenFile(srcFilePath, syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Error in the opening file: %v", err)
-	}
-
-	content := make([]byte, setup.BufferSize)
-	_, err = file.Read(content)
-	if err != nil {
-		t.Errorf("Read: %v", err)
 	}
 
 	copyFile := path.Join(setup.MntDir(), "Test", "b", "b.txt")
@@ -61,12 +55,46 @@ func ensureFileSystemLockedForFileCopy(srcFilePath string, t *testing.T) {
 	}
 }
 
-func TestCopyFileInExistingFile(t *testing.T) {
+func TestCopyFile(t *testing.T) {
 	srcFile := path.Join(setup.MntDir(), "Test1.txt")
 	ensureFileSystemLockedForFileCopy(srcFile, t)
 }
 
-func TestCopySubDirectoryFileInExistingFile(t *testing.T) {
+func TestCopySubDirectoryFile(t *testing.T) {
 	srcFile := path.Join(setup.MntDir(), "Test", "a.txt")
 	ensureFileSystemLockedForFileCopy(srcFile, t)
+}
+
+func ensureFileSystemLockedForFileRename(filePath string, t *testing.T) {
+	file, err := os.OpenFile(filePath, syscall.O_DIRECT, setup.FilePermission_0600)
+	if err != nil {
+		t.Errorf("Error in the opening file: %v", err)
+	}
+	defer file.Close()
+
+	newFileName := path.Join(setup.MntDir(), "Rename.txt")
+	if _, err := os.Stat(newFileName); err == nil {
+		t.Errorf("Renamed file %s already present", newFileName)
+	}
+
+	if err := os.Rename(file.Name(), newFileName); err == nil {
+		t.Errorf("File Renamed in read-only file system.")
+	}
+
+	if _, err := os.Stat(file.Name()); err != nil {
+		t.Errorf("SrcFile is deleted in read-only file system.")
+	}
+	if _, err := os.Stat(newFileName); err == nil {
+		t.Errorf("Renamed file found in read-only file system.")
+	}
+}
+
+func TestRenameFile(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), "Test1.txt")
+	ensureFileSystemLockedForFileRename(filePath, t)
+}
+
+func TestRenameSubDirectoryFile(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), "Test", "a.txt")
+	ensureFileSystemLockedForFileRename(filePath, t)
 }
