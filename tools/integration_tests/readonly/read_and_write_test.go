@@ -55,7 +55,7 @@ func TestReadFileFromSubDirectory(t *testing.T) {
 	}
 }
 
-func readNonExistentFile(filePath string, t *testing.T) {
+func openNonExistentFileToRead(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err == nil {
 		t.Errorf("Nonexistent file opened to read.")
@@ -65,12 +65,12 @@ func readNonExistentFile(filePath string, t *testing.T) {
 
 func TestReadNonExistentFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNotExist)
-	readNonExistentFile(filePath, t)
+	openNonExistentFileToRead(filePath, t)
 }
 
 func TestReadNonExistentFileFromSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
-	readNonExistentFile(filePath, t)
+	openNonExistentFileToRead(filePath, t)
 }
 
 func ensureFileSystemLockedToWriteOrUpdateContent(filePath string, t *testing.T) {
