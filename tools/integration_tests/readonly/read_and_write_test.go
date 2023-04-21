@@ -81,12 +81,12 @@ func openFileToAppendData(filePath string, t *testing.T) {
 	defer file.Close()
 }
 
-func TestOpenFileForAppendData(t *testing.T) {
+func TestOpenFileToAppendData(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), "Test1.txt")
 	openFileToAppendData(filePath, t)
 }
 
-func TestOpenFileForAppendDataFromSubDirectory(t *testing.T) {
+func TestOpenFileToAppendDataFromSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), "Test", "a.txt")
 	openFileToAppendData(filePath, t)
 }
