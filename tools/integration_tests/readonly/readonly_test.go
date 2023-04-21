@@ -1,4 +1,4 @@
-// Copyright 2021 Google Inc. All Rights Reserved.
+// Copyright 2023 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +23,13 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
+const DirectoryNameInTestBucket = "Test"           //  testBucket/Test
+const FileNameInTestBucket = "Test1.txt"           //  testBucket/Test1.txt
+const SubDirectoryNameInTestBucket = "b"           //  testBucket/Test/b
+const FileInSubDirectoryNameInTestBucket = "a.txt" //  testBucket/Test/a.txt
+const NumberOfObjectsInTestBucket = 2
+const NumberOfObjectsInTestBucketSubDirectory = 2
+
 // Run shell script
 func runScriptForTestData(script string, testBucket string) {
 	cmd := exec.Command("/bin/bash", script, testBucket)
@@ -36,6 +43,9 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true"}}
+
+	// Clean the bucket for readonly testing.
+	runScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 
 	// Create objects in bucket for testing.
 	runScriptForTestData("testdata/create_objects.sh", setup.TestBucket())
