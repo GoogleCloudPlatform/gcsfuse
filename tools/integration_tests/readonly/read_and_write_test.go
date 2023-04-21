@@ -25,38 +25,68 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-func TestReadFile(t *testing.T) {
-	f := path.Join(setup.MntDir(), "Test1.txt")
-
-	file, err := os.OpenFile(f, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+func readFile(filePath string, t *testing.T) (content []byte) {
+	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error in the opening the file %v", err))
 	}
 	defer file.Close()
 
-	content, err := os.ReadFile(file.Name())
+	content, err = os.ReadFile(file.Name())
 	if err != nil {
 		t.Errorf("ReadAll: %v", err)
 	}
+	return content
+}
+
+func TestReadFile(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), "Test1.txt")
+	content := readFile(filePath, t)
 	if got, want := string(content), "This is from file Test1\n"; got != want {
 		t.Errorf("File content %q not match %q", got, want)
 	}
 }
 
 func TestReadFileFromSubDirectory(t *testing.T) {
-	f := path.Join(setup.MntDir(), "Test", "a.txt")
-
-	file, err := os.OpenFile(f, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
-	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error in the opening the file %v", err))
-	}
-	defer file.Close()
-
-	content, err := os.ReadFile(file.Name())
-	if err != nil {
-		t.Errorf("ReadAll: %v", err)
-	}
+	filePath := path.Join(setup.MntDir(), "Test", "a.txt")
+	content := readFile(filePath, t)
 	if got, want := string(content), "This is from directory Test file a\n"; got != want {
 		t.Errorf("File content %q not match %q", got, want)
 	}
+}
+
+func openFileToWrite(filePath string, t *testing.T) {
+	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, setup.FilePermission_0600)
+	if err == nil {
+		t.Errorf("File opened for writing in read-only mount.")
+	}
+	defer file.Close()
+}
+
+func TestOpenFileToWrite(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), "Test1.txt")
+	openFileToWrite(filePath, t)
+}
+
+func TestOpenFileToWriteFromSubDirectory(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), "Test", "a.txt")
+	openFileToWrite(filePath, t)
+}
+
+func openFileToAppendData(filePath string, t *testing.T) {
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+	if err == nil {
+		t.Errorf("File opened for appending data in read-only mount.")
+	}
+	defer file.Close()
+}
+
+func TestOpenFileForAppendData(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), "Test1.txt")
+	openFileToAppendData(filePath, t)
+}
+
+func TestOpenFileForAppendDataFromSubDirectory(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), "Test", "a.txt")
+	openFileToAppendData(filePath, t)
 }
