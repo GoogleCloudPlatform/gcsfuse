@@ -27,6 +27,8 @@ const DirectoryNameInTestBucket = "Test"           //  testBucket/Test
 const FileNameInTestBucket = "Test1.txt"           //  testBucket/Test1.txt
 const SubDirectoryNameInTestBucket = "b"           //  testBucket/Test/b
 const FileInSubDirectoryNameInTestBucket = "a.txt" //  testBucket/Test/a.txt
+const FileNotExist = "notExist.txt"
+const DirNotExist = "notExist"
 const NumberOfObjectsInTestBucket = 2
 const NumberOfObjectsInTestBucketSubDirectory = 2
 

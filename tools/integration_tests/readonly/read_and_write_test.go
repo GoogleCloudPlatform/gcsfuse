@@ -55,7 +55,25 @@ func TestReadFileFromSubDirectory(t *testing.T) {
 	}
 }
 
-func ensureFileSystemLockedToWriteOrUpdateData(filePath string, t *testing.T) {
+func readNonExistentFile(filePath string, t *testing.T) {
+	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+	if err == nil {
+		t.Errorf("Nonexistent file opened to read.")
+	}
+	defer file.Close()
+}
+
+func TestReadNonExistentFile(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), FileNotExist)
+	readNonExistentFile(filePath, t)
+}
+
+func TestReadNonExistentFileFromSubDirectory(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
+	readNonExistentFile(filePath, t)
+}
+
+func ensureFileSystemLockedToWriteOrUpdateContent(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err == nil {
 		t.Errorf("File opened for writing in read-only mount.")
@@ -63,30 +81,66 @@ func ensureFileSystemLockedToWriteOrUpdateData(filePath string, t *testing.T) {
 	defer file.Close()
 }
 
-func TestOpenFileToWriteOrUpdateData(t *testing.T) {
+func TestOpenFileToWriteOrUpdateContent(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
-	ensureFileSystemLockedToWriteOrUpdateData(filePath, t)
+	ensureFileSystemLockedToWriteOrUpdateContent(filePath, t)
 }
 
-func TestOpenFileFromSubDirectoryToWriteOrUpdateData(t *testing.T) {
+func TestOpenFileFromSubDirectoryToWriteOrUpdateContent(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
-	ensureFileSystemLockedToWriteOrUpdateData(filePath, t)
+	ensureFileSystemLockedToWriteOrUpdateContent(filePath, t)
 }
 
-func ensureFileSystemLockedToAppendData(filePath string, t *testing.T) {
-	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+func openNonExistentFileToWriteOrUpdateContent(filePath string, t *testing.T) {
+	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err == nil {
-		t.Errorf("File opened for appending data in read-only mount.")
+		t.Errorf("Nonexistent file opened for writing in read-only mount.")
 	}
 	defer file.Close()
 }
 
-func TestOpenFileToAppendData(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
-	ensureFileSystemLockedToAppendData(filePath, t)
+func TestOpenNonExistentFileToWriteOrUpdateContent(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), FileNotExist)
+	openNonExistentFileToWriteOrUpdateContent(filePath, t)
 }
 
-func TestOpenFileFromSubDirectoryToAppendData(t *testing.T) {
+func TestOpenNonExistentFileFromSubDirectoryToWriteOrUpdateContent(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
+	openNonExistentFileToWriteOrUpdateContent(filePath, t)
+}
+
+func ensureFileSystemLockedToAppendContent(filePath string, t *testing.T) {
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+	if err == nil {
+		t.Errorf("File opened for appending Content in read-only mount.")
+	}
+	defer file.Close()
+}
+
+func TestOpenFileToAppendContent(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
+	ensureFileSystemLockedToAppendContent(filePath, t)
+}
+
+func TestOpenFileFromSubDirectoryToAppendContent(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
-	ensureFileSystemLockedToAppendData(filePath, t)
+	ensureFileSystemLockedToAppendContent(filePath, t)
+}
+
+func openNonExistentFileToAppendContent(filePath string, t *testing.T) {
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+	if err == nil {
+		t.Errorf("Nonexistent file opened for appending content in read-only mount.")
+	}
+	defer file.Close()
+}
+
+func TestOpenNonExistentFileToAppendContent(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), FileNotExist)
+	openNonExistentFileToAppendContent(filePath, t)
+}
+
+func TestOpenNonExistentFileFromSubDirectoryToAppendContent(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
+	openNonExistentFileToAppendContent(filePath, t)
 }
