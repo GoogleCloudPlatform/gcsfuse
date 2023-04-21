@@ -36,7 +36,6 @@ func ensureFileSystemLockedForFileCopy(srcFilePath string, t *testing.T) {
 		t.Errorf("Copied file %s is not present", copyFile)
 	}
 
-	// File copying with io.Copy() utility.
 	source, err := os.OpenFile(srcFilePath, syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("File %s opening error: %v", "Test1.txt", err)
@@ -49,6 +48,7 @@ func ensureFileSystemLockedForFileCopy(srcFilePath string, t *testing.T) {
 	}
 	defer destination.Close()
 
+	// File copying with io.Copy() utility.
 	_, err = io.Copy(destination, source)
 	if err == nil {
 		t.Errorf("File copied in read-only system.")
