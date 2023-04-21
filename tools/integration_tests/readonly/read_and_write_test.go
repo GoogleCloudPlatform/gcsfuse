@@ -39,7 +39,6 @@ func readFile(filePath string, t *testing.T) (content []byte) {
 	return content
 }
 
-// Readfile testBucket/Test1.txt
 func TestReadFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 	content := readFile(filePath, t)
@@ -48,7 +47,6 @@ func TestReadFile(t *testing.T) {
 	}
 }
 
-// Readfile testBucket/Test/a.txt
 func TestReadFileFromSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
 	content := readFile(filePath, t)
@@ -57,7 +55,7 @@ func TestReadFileFromSubDirectory(t *testing.T) {
 	}
 }
 
-func ensureFileSystemLockedForWriteOrUpdateData(filePath string, t *testing.T) {
+func ensureFileSystemLockedToWriteOrUpdateData(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err == nil {
 		t.Errorf("File opened for writing in read-only mount.")
@@ -65,19 +63,17 @@ func ensureFileSystemLockedForWriteOrUpdateData(filePath string, t *testing.T) {
 	defer file.Close()
 }
 
-// OpenFile testBucket/Test1.txt
 func TestOpenFileToWriteOrUpdateData(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
-	ensureFileSystemLockedForWriteOrUpdateData(filePath, t)
+	ensureFileSystemLockedToWriteOrUpdateData(filePath, t)
 }
 
-// OpenFile testBucket/Test/a.txt
-func TestOpenFileToWriteOrUpdateDataFromSubDirectory(t *testing.T) {
+func TestOpenFileFromSubDirectoryToWriteOrUpdateData(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
-	ensureFileSystemLockedForWriteOrUpdateData(filePath, t)
+	ensureFileSystemLockedToWriteOrUpdateData(filePath, t)
 }
 
-func ensureFileSystemLockedForAppendData(filePath string, t *testing.T) {
+func ensureFileSystemLockedToAppendData(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err == nil {
 		t.Errorf("File opened for appending data in read-only mount.")
@@ -85,14 +81,12 @@ func ensureFileSystemLockedForAppendData(filePath string, t *testing.T) {
 	defer file.Close()
 }
 
-// OpenFile testBucket/Test1.txt
 func TestOpenFileToAppendData(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
-	ensureFileSystemLockedForAppendData(filePath, t)
+	ensureFileSystemLockedToAppendData(filePath, t)
 }
 
-// OpenFile testBucket/Test/a.txt
-func TestOpenFileToAppendDataFromSubDirectory(t *testing.T) {
+func TestOpenFileFromSubDirectoryToAppendData(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
-	ensureFileSystemLockedForAppendData(filePath, t)
+	ensureFileSystemLockedToAppendData(filePath, t)
 }

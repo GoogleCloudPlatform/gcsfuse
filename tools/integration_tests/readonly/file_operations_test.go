@@ -62,19 +62,19 @@ func TestCopyFile(t *testing.T) {
 }
 
 // Copy testBucket/Test/a.txt to testBucket/Test/b/b.txt
-func TestCopySubDirectoryFile(t *testing.T) {
+func TestCopyFileFromSubDirectory(t *testing.T) {
 	file := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
 	ensureFileSystemLockedForFileCopy(file, t)
 }
 
-func ensureFileSystemLockedForFileRename(filePath string, t *testing.T) {
+func ensureFileSystemLockedForFileRename(filePath string, dirPath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Error in the opening file: %v", err)
 	}
 	defer file.Close()
 
-	newFileName := path.Join(setup.MntDir(), "Rename.txt")
+	newFileName := path.Join(dirPath, "Rename.txt")
 	if _, err := os.Stat(newFileName); err == nil {
 		t.Errorf("Renamed file %s already present", newFileName)
 	}
@@ -94,11 +94,12 @@ func ensureFileSystemLockedForFileRename(filePath string, t *testing.T) {
 // Rename testBucket/Test1.txt to testBucket/Rename.txt
 func TestRenameFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
-	ensureFileSystemLockedForFileRename(filePath, t)
+	ensureFileSystemLockedForFileRename(filePath, setup.MntDir(), t)
 }
 
-// Rename testBucket/Test/a.txt to testBucket/Rename.txt
-func TestRenameSubDirectoryFile(t *testing.T) {
+// Rename testBucket/Test/a.txt to testBucket/Test/Rename.txt
+func TestRenameFileFromSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
-	ensureFileSystemLockedForFileRename(filePath, t)
+	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
+	ensureFileSystemLockedForFileRename(filePath, dirPath, t)
 }
