@@ -42,8 +42,8 @@ func ensureFileSystemLockedForFileCopy(srcFilePath string, t *testing.T) {
 	}
 	defer source.Close()
 
-	destination, err := os.OpenFile(copyFile, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
-	if err == nil {
+	destination, err := os.OpenFile(copyFile, syscall.O_DIRECT, setup.FilePermission_0600)
+	if err != nil {
 		t.Errorf("File %s opening error: %v", "b.txt", err)
 	}
 	defer destination.Close()
@@ -56,13 +56,13 @@ func ensureFileSystemLockedForFileCopy(srcFilePath string, t *testing.T) {
 }
 
 func TestCopyFile(t *testing.T) {
-	srcFile := path.Join(setup.MntDir(), FileNameInTestBucket)
-	ensureFileSystemLockedForFileCopy(srcFile, t)
+	file := path.Join(setup.MntDir(), FileNameInTestBucket)
+	ensureFileSystemLockedForFileCopy(file, t)
 }
 
 func TestCopySubDirectoryFile(t *testing.T) {
-	srcFile := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
-	ensureFileSystemLockedForFileCopy(srcFile, t)
+	file := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
+	ensureFileSystemLockedForFileCopy(file, t)
 }
 
 func ensureFileSystemLockedForFileRename(filePath string, t *testing.T) {
@@ -78,7 +78,7 @@ func ensureFileSystemLockedForFileRename(filePath string, t *testing.T) {
 	}
 
 	if err := os.Rename(file.Name(), newFileName); err == nil {
-		t.Errorf("File Renamed in read-only file system.")
+		t.Errorf("File renamed in read-only file system.")
 	}
 
 	if _, err := os.Stat(file.Name()); err != nil {

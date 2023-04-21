@@ -55,7 +55,7 @@ func TestReadFileFromSubDirectory(t *testing.T) {
 	}
 }
 
-func openFileToWriteData(filePath string, t *testing.T) {
+func openFileToWriteOrUpdateData(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err == nil {
 		t.Errorf("File opened for writing in read-only mount.")
@@ -63,14 +63,14 @@ func openFileToWriteData(filePath string, t *testing.T) {
 	defer file.Close()
 }
 
-func TestOpenFileToWriteData(t *testing.T) {
+func TestOpenFileToWriteOrUpdateData(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
-	openFileToWriteData(filePath, t)
+	openFileToWriteOrUpdateData(filePath, t)
 }
 
-func TestOpenFileToWriteDataFromSubDirectory(t *testing.T) {
+func TestOpenFileToWriteOrUpdateDataFromSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
-	openFileToWriteData(filePath, t)
+	openFileToWriteOrUpdateData(filePath, t)
 }
 
 func openFileToAppendData(filePath string, t *testing.T) {
