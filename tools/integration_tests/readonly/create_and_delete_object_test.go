@@ -24,10 +24,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-func createFile(filePath string, fileName string, t *testing.T) {
-	f := path.Join(filePath, fileName)
-
-	file, err := os.OpenFile(f, os.O_CREATE, setup.FilePermission_0600)
+func createFile(filePath string, t *testing.T) {
+	file, err := os.OpenFile(filePath, os.O_CREATE, setup.FilePermission_0600)
 
 	// It will throw an error read-only file system or permission denied.
 	if err == nil {
@@ -38,11 +36,13 @@ func createFile(filePath string, fileName string, t *testing.T) {
 }
 
 func TestCreateFile(t *testing.T) {
-	createFile(setup.MntDir(), "testFile.txt", t)
+	filePath := path.Join(setup.MntDir(), "testFile.txt")
+	createFile(filePath, t)
 }
 
 func TestCreateFileInSubDirectory(t *testing.T) {
-	createFile(setup.MntDir()+"/Test", "testFile.txt", t)
+	filePath := path.Join(setup.MntDir(), "Test", "testFile.txt")
+	createFile(filePath, t)
 }
 
 func createDir(dirPath string, t *testing.T) {
@@ -55,11 +55,13 @@ func createDir(dirPath string, t *testing.T) {
 }
 
 func TestCreateDir(t *testing.T) {
-	createDir(setup.MntDir()+"/test", t)
+	dirPath := path.Join(setup.MntDir(), "test")
+	createDir(dirPath, t)
 }
 
 func TestCreateDirInSubDirectory(t *testing.T) {
-	createDir(setup.MntDir()+"/Test"+"/test", t)
+	dirPath := path.Join(setup.MntDir(), "Test", "test")
+	createDir(dirPath, t)
 }
 
 func deleteObjects(objPath string, t *testing.T) {
@@ -72,19 +74,23 @@ func deleteObjects(objPath string, t *testing.T) {
 }
 
 func TestDeleteDir(t *testing.T) {
-	deleteObjects(setup.MntDir()+"/Test", t)
+	objPath := path.Join(setup.MntDir(), "Test")
+	deleteObjects(objPath, t)
 }
 
 func TestDeleteFile(t *testing.T) {
-	deleteObjects(setup.MntDir()+"/"+"Test1.txt", t)
+	objPath := path.Join(setup.MntDir(), "Test1.txt")
+	deleteObjects(objPath, t)
 }
 
 func TestDeleteSubDirectory(t *testing.T) {
-	deleteObjects(setup.MntDir()+"/Test"+"/b", t)
+	objPath := path.Join(setup.MntDir(), "Test", "b")
+	deleteObjects(objPath, t)
 }
 
 func TestDeleteFileInSubDirectory(t *testing.T) {
-	deleteObjects(setup.MntDir()+"/Test"+"/"+"a.txt", t)
+	objPath := path.Join(setup.MntDir(), "Test", "a.txt")
+	deleteObjects(objPath, t)
 }
 
 func TestDeleteAllObjectsInBucket(t *testing.T) {
