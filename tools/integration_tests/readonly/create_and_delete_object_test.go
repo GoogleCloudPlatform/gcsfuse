@@ -24,7 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-func createFile(filePath string, t *testing.T) {
+func ensureFileSystemLockedForFileCreation(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_CREATE, setup.FilePermission_0600)
 
 	// It will throw an error read-only file system or permission denied.
@@ -37,15 +37,15 @@ func createFile(filePath string, t *testing.T) {
 
 func TestCreateFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), "testFile.txt")
-	createFile(filePath, t)
+	ensureFileSystemLockedForFileCreation(filePath, t)
 }
 
 func TestCreateFileInSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), "Test", "testFile.txt")
-	createFile(filePath, t)
+	ensureFileSystemLockedForFileCreation(filePath, t)
 }
 
-func createDir(dirPath string, t *testing.T) {
+func ensureFileSystemLockedForDirCreation(dirPath string, t *testing.T) {
 	err := os.Mkdir(dirPath, fs.ModeDir)
 
 	// It will throw an error read-only file system or permission denied.
@@ -56,15 +56,15 @@ func createDir(dirPath string, t *testing.T) {
 
 func TestCreateDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), "test")
-	createDir(dirPath, t)
+	ensureFileSystemLockedForDirCreation(dirPath, t)
 }
 
 func TestCreateDirInSubDirectory(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), "Test", "test")
-	createDir(dirPath, t)
+	ensureFileSystemLockedForDirCreation(dirPath, t)
 }
 
-func deleteObjects(objPath string, t *testing.T) {
+func ensureFileSystemLockedForDirDeletion(objPath string, t *testing.T) {
 	err := os.RemoveAll(objPath)
 
 	// It will throw an error read-only file system or permission denied.
@@ -75,24 +75,24 @@ func deleteObjects(objPath string, t *testing.T) {
 
 func TestDeleteDir(t *testing.T) {
 	objPath := path.Join(setup.MntDir(), "Test")
-	deleteObjects(objPath, t)
+	ensureFileSystemLockedForDirDeletion(objPath, t)
 }
 
 func TestDeleteFile(t *testing.T) {
 	objPath := path.Join(setup.MntDir(), "Test1.txt")
-	deleteObjects(objPath, t)
+	ensureFileSystemLockedForDirDeletion(objPath, t)
 }
 
 func TestDeleteSubDirectory(t *testing.T) {
 	objPath := path.Join(setup.MntDir(), "Test", "b")
-	deleteObjects(objPath, t)
+	ensureFileSystemLockedForDirDeletion(objPath, t)
 }
 
 func TestDeleteFileInSubDirectory(t *testing.T) {
 	objPath := path.Join(setup.MntDir(), "Test", "a.txt")
-	deleteObjects(objPath, t)
+	ensureFileSystemLockedForDirDeletion(objPath, t)
 }
 
 func TestDeleteAllObjectsInBucket(t *testing.T) {
-	deleteObjects(setup.MntDir(), t)
+	ensureFileSystemLockedForDirDeletion(setup.MntDir(), t)
 }
