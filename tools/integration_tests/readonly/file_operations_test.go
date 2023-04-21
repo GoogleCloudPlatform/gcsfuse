@@ -38,13 +38,13 @@ func ensureFileSystemLockedForFileCopy(srcFilePath string, t *testing.T) {
 
 	source, err := os.OpenFile(srcFilePath, syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("File %s opening error: %v", FileNameInTestBucket, err)
+		t.Errorf("File %s opening error: %v", source.Name(), err)
 	}
 	defer source.Close()
 
 	destination, err := os.OpenFile(copyFile, syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("File %s opening error: %v", "b.txt", err)
+		t.Errorf("File %s opening error: %v", destination.Name(), err)
 	}
 	defer destination.Close()
 
