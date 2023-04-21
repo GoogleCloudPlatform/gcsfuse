@@ -42,7 +42,7 @@ func runScriptForTestData(script string, testBucket string) {
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=5454", "--dir-mode=544", "--implicit-dirs=true"}}
+	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true"}}
 
 	// Clean the bucket for readonly testing.
 	runScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
