@@ -23,6 +23,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
+const DirectoryNameInTestBucket = "Test"
+const FileNameInTestBucket = "Test1.txt"
+const SubDirectoryNameInTestBucket = "b"
+const FileInSubDirectoryNameInTestBucket = "a.txt"
 const NumberOfObjectsInTestBucket = 2
 const NumberOfObjectsInTestBucketSubDirectory = 2
 
@@ -38,7 +42,7 @@ func runScriptForTestData(script string, testBucket string) {
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true"}}
+	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=5454", "--dir-mode=544", "--implicit-dirs=true"}}
 
 	// Clean the bucket for readonly testing.
 	runScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())

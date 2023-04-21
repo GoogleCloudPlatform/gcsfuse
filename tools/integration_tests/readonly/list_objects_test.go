@@ -39,11 +39,11 @@ func TestListObjectsInBucket(t *testing.T) {
 		t.Errorf("The number of objects in the current directory doesn't match.")
 	}
 
-	if obj[0].Name() != "Test" && obj[0].IsDir() != true {
+	if obj[0].Name() != DirectoryNameInTestBucket && obj[0].IsDir() != true {
 		t.Errorf("Listed object is incorrect.")
 	}
 
-	if obj[1].Name() != "Test1.txt" && obj[1].IsDir() != false {
+	if obj[1].Name() != FileNameInTestBucket && obj[1].IsDir() != false {
 		t.Errorf("Listed object is incorrect.")
 	}
 }
@@ -64,11 +64,11 @@ func TestListObjectsInBucketSubDirectory(t *testing.T) {
 		t.Errorf("The number of objects in the current directory doesn't match.")
 	}
 
-	if obj[0].Name() != "a.txt" && obj[0].IsDir() != false {
+	if obj[0].Name() != FileInSubDirectoryNameInTestBucket && obj[0].IsDir() != false {
 		t.Errorf("Listed object is incorrect.")
 	}
 
-	if obj[1].Name() != "b" && obj[1].IsDir() != true {
+	if obj[1].Name() != SubDirectoryNameInTestBucket && obj[1].IsDir() != true {
 		t.Errorf("Listed object is incorrect.")
 	}
 }

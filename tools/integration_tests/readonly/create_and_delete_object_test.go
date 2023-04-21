@@ -41,7 +41,7 @@ func TestCreateFile(t *testing.T) {
 }
 
 func TestCreateFileInSubDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), "Test", "testFile.txt")
+	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "testFile.txt")
 	ensureFileSystemLockedForFileCreation(filePath, t)
 }
 
@@ -60,11 +60,11 @@ func TestCreateDir(t *testing.T) {
 }
 
 func TestCreateDirInSubDirectory(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), "Test", "test")
+	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "test")
 	ensureFileSystemLockedForDirCreation(dirPath, t)
 }
 
-func ensureFileSystemLockedForDirDeletion(objPath string, t *testing.T) {
+func ensureFileSystemLockedForDeletion(objPath string, t *testing.T) {
 	err := os.RemoveAll(objPath)
 
 	// It will throw an error read-only file system or permission denied.
@@ -74,25 +74,25 @@ func ensureFileSystemLockedForDirDeletion(objPath string, t *testing.T) {
 }
 
 func TestDeleteDir(t *testing.T) {
-	objPath := path.Join(setup.MntDir(), "Test")
-	ensureFileSystemLockedForDirDeletion(objPath, t)
+	objPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
+	ensureFileSystemLockedForDeletion(objPath, t)
 }
 
 func TestDeleteFile(t *testing.T) {
-	objPath := path.Join(setup.MntDir(), "Test1.txt")
-	ensureFileSystemLockedForDirDeletion(objPath, t)
+	objPath := path.Join(setup.MntDir(), FileInSubDirectoryNameInTestBucket)
+	ensureFileSystemLockedForDeletion(objPath, t)
 }
 
 func TestDeleteSubDirectory(t *testing.T) {
-	objPath := path.Join(setup.MntDir(), "Test", "b")
-	ensureFileSystemLockedForDirDeletion(objPath, t)
+	objPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
+	ensureFileSystemLockedForDeletion(objPath, t)
 }
 
 func TestDeleteFileInSubDirectory(t *testing.T) {
-	objPath := path.Join(setup.MntDir(), "Test", "a.txt")
-	ensureFileSystemLockedForDirDeletion(objPath, t)
+	objPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
+	ensureFileSystemLockedForDeletion(objPath, t)
 }
 
 func TestDeleteAllObjectsInBucket(t *testing.T) {
-	ensureFileSystemLockedForDirDeletion(setup.MntDir(), t)
+	ensureFileSystemLockedForDeletion(setup.MntDir(), t)
 }
