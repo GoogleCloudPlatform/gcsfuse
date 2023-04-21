@@ -55,11 +55,13 @@ func ensureFileSystemLockedForFileCopy(srcFilePath string, t *testing.T) {
 	}
 }
 
+// Copy testBucket/Test1.txt to testBucket/Test/b/b.txt
 func TestCopyFile(t *testing.T) {
 	file := path.Join(setup.MntDir(), FileNameInTestBucket)
 	ensureFileSystemLockedForFileCopy(file, t)
 }
 
+// Copy testBucket/Test/a.txt to testBucket/Test/b/b.txt
 func TestCopySubDirectoryFile(t *testing.T) {
 	file := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
 	ensureFileSystemLockedForFileCopy(file, t)
@@ -89,11 +91,13 @@ func ensureFileSystemLockedForFileRename(filePath string, t *testing.T) {
 	}
 }
 
+// Rename testBucket/Test1.txt to testBucket/Rename.txt
 func TestRenameFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 	ensureFileSystemLockedForFileRename(filePath, t)
 }
 
+// Rename testBucket/Test/a.txt to testBucket/Rename.txt
 func TestRenameSubDirectoryFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
 	ensureFileSystemLockedForFileRename(filePath, t)

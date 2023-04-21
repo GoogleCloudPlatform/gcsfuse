@@ -39,6 +39,7 @@ func readFile(filePath string, t *testing.T) (content []byte) {
 	return content
 }
 
+// Readfile testBucket/Test1.txt
 func TestReadFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 	content := readFile(filePath, t)
@@ -47,6 +48,7 @@ func TestReadFile(t *testing.T) {
 	}
 }
 
+// Readfile testBucket/Test/a.txt
 func TestReadFileFromSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
 	content := readFile(filePath, t)
@@ -55,7 +57,7 @@ func TestReadFileFromSubDirectory(t *testing.T) {
 	}
 }
 
-func openFileToWriteOrUpdateData(filePath string, t *testing.T) {
+func ensureFileSystemLockedForWriteOrUpdateData(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err == nil {
 		t.Errorf("File opened for writing in read-only mount.")
@@ -63,17 +65,19 @@ func openFileToWriteOrUpdateData(filePath string, t *testing.T) {
 	defer file.Close()
 }
 
+// OpenFile testBucket/Test1.txt
 func TestOpenFileToWriteOrUpdateData(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
-	openFileToWriteOrUpdateData(filePath, t)
+	ensureFileSystemLockedForWriteOrUpdateData(filePath, t)
 }
 
+// OpenFile testBucket/Test/a.txt
 func TestOpenFileToWriteOrUpdateDataFromSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
-	openFileToWriteOrUpdateData(filePath, t)
+	ensureFileSystemLockedForWriteOrUpdateData(filePath, t)
 }
 
-func openFileToAppendData(filePath string, t *testing.T) {
+func ensureFileSystemLockedForAppendData(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err == nil {
 		t.Errorf("File opened for appending data in read-only mount.")
@@ -81,12 +85,14 @@ func openFileToAppendData(filePath string, t *testing.T) {
 	defer file.Close()
 }
 
+// OpenFile testBucket/Test1.txt
 func TestOpenFileToAppendData(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
-	openFileToAppendData(filePath, t)
+	ensureFileSystemLockedForAppendData(filePath, t)
 }
 
+// OpenFile testBucket/Test/a.txt
 func TestOpenFileToAppendDataFromSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
-	openFileToAppendData(filePath, t)
+	ensureFileSystemLockedForAppendData(filePath, t)
 }
