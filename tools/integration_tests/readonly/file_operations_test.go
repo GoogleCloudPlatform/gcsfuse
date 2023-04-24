@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
+// Copy srcFile in testBucket/Test/b/b.txt destination.
 func ensureFileSystemLockedForFileCopy(srcFilePath string, t *testing.T) {
 	_, err := os.OpenFile(srcFilePath, syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
@@ -58,15 +59,18 @@ func ensureFileSystemLockedForFileCopy(srcFilePath string, t *testing.T) {
 // Copy testBucket/Test1.txt to testBucket/Test/b/b.txt
 func TestCopyFile(t *testing.T) {
 	file := path.Join(setup.MntDir(), FileNameInTestBucket)
+
 	ensureFileSystemLockedForFileCopy(file, t)
 }
 
 // Copy testBucket/Test/a.txt to testBucket/Test/b/b.txt
 func TestCopyFileFromSubDirectory(t *testing.T) {
 	file := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
+
 	ensureFileSystemLockedForFileCopy(file, t)
 }
 
+// Rename srcFile to Rename.txt
 func ensureFileSystemLockedForFileRename(filePath string, dirPath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
@@ -94,6 +98,7 @@ func ensureFileSystemLockedForFileRename(filePath string, dirPath string, t *tes
 // Rename testBucket/Test1.txt to testBucket/Rename.txt
 func TestRenameFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
+
 	ensureFileSystemLockedForFileRename(filePath, setup.MntDir(), t)
 }
 
@@ -101,6 +106,7 @@ func TestRenameFile(t *testing.T) {
 func TestRenameFileFromSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
 	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
+
 	ensureFileSystemLockedForFileRename(filePath, dirPath, t)
 }
 
@@ -114,21 +120,25 @@ func ensureFileSystemLockedToWriteOrUpdateContent(filePath string, t *testing.T)
 
 func TestOpenFileToWriteOrUpdateContent(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
+
 	ensureFileSystemLockedToWriteOrUpdateContent(filePath, t)
 }
 
 func TestOpenFileFromSubDirectoryToWriteOrUpdateContent(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
+
 	ensureFileSystemLockedToWriteOrUpdateContent(filePath, t)
 }
 
 func TestOpenNonExistentFileToWriteOrUpdateContent(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNotExist)
+
 	ensureFileSystemLockedToWriteOrUpdateContent(filePath, t)
 }
 
 func TestOpenNonExistentFileFromSubDirectoryToWriteOrUpdateContent(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
+
 	ensureFileSystemLockedToWriteOrUpdateContent(filePath, t)
 }
 
@@ -142,20 +152,24 @@ func ensureFileSystemLockedToAppendContent(filePath string, t *testing.T) {
 
 func TestOpenFileToAppendContent(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
+
 	ensureFileSystemLockedToAppendContent(filePath, t)
 }
 
 func TestOpenFileFromSubDirectoryToAppendContent(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
+
 	ensureFileSystemLockedToAppendContent(filePath, t)
 }
 
 func TestOpenNonExistentFileToAppendContent(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNotExist)
+
 	ensureFileSystemLockedToAppendContent(filePath, t)
 }
 
 func TestOpenNonExistentFileFromSubDirectoryToAppendContent(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
+
 	ensureFileSystemLockedToAppendContent(filePath, t)
 }

@@ -34,21 +34,25 @@ func ensureFileSystemLockedForDeletion(objPath string, t *testing.T) {
 
 func TestDeleteDir(t *testing.T) {
 	objPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
+
 	ensureFileSystemLockedForDeletion(objPath, t)
 }
 
 func TestDeleteFile(t *testing.T) {
 	objPath := path.Join(setup.MntDir(), FileNameInTestBucket)
+
 	ensureFileSystemLockedForDeletion(objPath, t)
 }
 
 func TestDeleteSubDirectory(t *testing.T) {
 	objPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
+
 	ensureFileSystemLockedForDeletion(objPath, t)
 }
 
 func TestDeleteFileInSubDirectory(t *testing.T) {
 	objPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
+
 	ensureFileSystemLockedForDeletion(objPath, t)
 }
 

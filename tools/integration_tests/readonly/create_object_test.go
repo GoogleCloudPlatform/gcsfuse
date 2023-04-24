@@ -37,11 +37,13 @@ func ensureFileSystemLockedForFileCreation(filePath string, t *testing.T) {
 
 func TestCreateFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), "testFile.txt")
+
 	ensureFileSystemLockedForFileCreation(filePath, t)
 }
 
 func TestCreateFileInSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "testFile.txt")
+
 	ensureFileSystemLockedForFileCreation(filePath, t)
 }
 
@@ -56,10 +58,12 @@ func ensureFileSystemLockedForDirCreation(dirPath string, t *testing.T) {
 
 func TestCreateDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), "test")
+
 	ensureFileSystemLockedForDirCreation(dirPath, t)
 }
 
 func TestCreateDirInSubDirectory(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "test")
+
 	ensureFileSystemLockedForDirCreation(dirPath, t)
 }
