@@ -125,7 +125,7 @@ func TestStatNotExistingFile(t *testing.T) {
 	statNotExistingObj(filePath, t)
 }
 
-func TestStatNotExistingSubDirectoryFile(t *testing.T) {
+func TestStatNotExistingFileFromSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
 	statNotExistingObj(filePath, t)
 }
