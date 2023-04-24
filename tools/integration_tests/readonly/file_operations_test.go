@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // Provides integration tests for file operations with --o=ro flag set.
+// copy, rename, open file operations
 package readonly_test
 
 import (
