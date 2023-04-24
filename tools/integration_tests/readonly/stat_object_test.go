@@ -16,62 +16,12 @@
 package readonly_test
 
 import (
-	"log"
 	"os"
 	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
-
-func TestListObjectsInBucket(t *testing.T) {
-	// ** Directory structure **
-	// testBucket
-	// testBucket/Test       -- Dir
-	// testBucket/Test1.txt  -- File
-
-	obj, err := os.ReadDir(setup.MntDir())
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if len(obj) != NumberOfObjectsInTestBucket {
-		t.Errorf("The number of objects in the current directory doesn't match.")
-	}
-
-	if obj[0].Name() != DirectoryNameInTestBucket || obj[0].IsDir() != true {
-		t.Errorf("Listed object is incorrect.")
-	}
-
-	if obj[1].Name() != FileNameInTestBucket || obj[1].IsDir() != false {
-		t.Errorf("Listed object is incorrect.")
-	}
-}
-
-func TestListObjectsInBucketSubDirectory(t *testing.T) {
-	// ** SubDirectory structure **
-	// testBucket/Test
-	// testBucket/Test/a.txt -- File
-	// testBucket/Test/b/    -- Dir
-
-	Dir := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
-	obj, err := os.ReadDir(Dir)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if len(obj) != NumberOfObjectsInTestBucketSubDirectory {
-		t.Errorf("The number of objects in the current directory doesn't match.")
-	}
-
-	if obj[0].Name() != FileInSubDirectoryNameInTestBucket || obj[0].IsDir() != false {
-		t.Errorf("Listed object is incorrect.")
-	}
-
-	if obj[1].Name() != SubDirectoryNameInTestBucket || obj[1].IsDir() != true {
-		t.Errorf("Listed object is incorrect.")
-	}
-}
 
 func statExistingObj(objPath string, t *testing.T) (file os.FileInfo) {
 	file, err := os.Stat(objPath)
