@@ -39,7 +39,7 @@ func TestStatFile(t *testing.T) {
 	}
 }
 
-func TestStatSubDirectoryFile(t *testing.T) {
+func TestStatFileFromSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
 	file := statExistingObj(filePath, t)
 	if file.Name() != FileInSubDirectoryNameInTestBucket || file.IsDir() != false {
