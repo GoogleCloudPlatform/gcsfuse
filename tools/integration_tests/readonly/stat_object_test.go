@@ -34,6 +34,7 @@ func statExistingObj(objPath string, t *testing.T) (file os.FileInfo) {
 func TestStatFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 	file := statExistingObj(filePath, t)
+
 	if file.Name() != FileNameInTestBucket || file.IsDir() != false {
 		t.Errorf("Stat incorrrect file.")
 	}
@@ -42,6 +43,7 @@ func TestStatFile(t *testing.T) {
 func TestStatFileFromSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
 	file := statExistingObj(filePath, t)
+
 	if file.Name() != FileInSubDirectoryNameInTestBucket || file.IsDir() != false {
 		t.Errorf("Stat incorrrect file.")
 	}
@@ -50,6 +52,7 @@ func TestStatFileFromSubDirectory(t *testing.T) {
 func TestStatDirectory(t *testing.T) {
 	DirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
 	dir := statExistingObj(DirPath, t)
+
 	if dir.Name() != DirectoryNameInTestBucket || dir.IsDir() != true {
 		t.Errorf("Stat incorrrect Directory.")
 	}
@@ -58,6 +61,7 @@ func TestStatDirectory(t *testing.T) {
 func TestStatSubDirectory(t *testing.T) {
 	DirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
 	dir := statExistingObj(DirPath, t)
+
 	if dir.Name() != SubDirectoryNameInTestBucket || dir.IsDir() != true {
 		t.Errorf("Stat incorrrect Directory.")
 	}
@@ -72,20 +76,24 @@ func statNotExistingObj(objPath string, t *testing.T) {
 
 func TestStatNotExistingFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNotExist)
+
 	statNotExistingObj(filePath, t)
 }
 
 func TestStatNotExistingFileFromSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
+
 	statNotExistingObj(filePath, t)
 }
 
 func TestStatNotExistingDirectory(t *testing.T) {
 	DirPath := path.Join(setup.MntDir(), DirNotExist)
+
 	statNotExistingObj(DirPath, t)
 }
 
 func TestStatNotExistingSubDirectory(t *testing.T) {
 	DirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, DirNotExist)
+
 	statNotExistingObj(DirPath, t)
 }
