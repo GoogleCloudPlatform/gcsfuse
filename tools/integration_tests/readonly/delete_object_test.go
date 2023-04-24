@@ -16,53 +16,12 @@
 package readonly_test
 
 import (
-	"io/fs"
 	"os"
 	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
-
-func ensureFileSystemLockedForFileCreation(filePath string, t *testing.T) {
-	file, err := os.OpenFile(filePath, os.O_CREATE, setup.FilePermission_0600)
-
-	// It will throw an error read-only file system or permission denied.
-	if err == nil {
-		t.Errorf("File is created in read-only file system.")
-	}
-
-	defer file.Close()
-}
-
-func TestCreateFile(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), "testFile.txt")
-	ensureFileSystemLockedForFileCreation(filePath, t)
-}
-
-func TestCreateFileInSubDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "testFile.txt")
-	ensureFileSystemLockedForFileCreation(filePath, t)
-}
-
-func ensureFileSystemLockedForDirCreation(dirPath string, t *testing.T) {
-	err := os.Mkdir(dirPath, fs.ModeDir)
-
-	// It will throw an error read-only file system or permission denied.
-	if err == nil {
-		t.Errorf("Directory is created in read-only file system.")
-	}
-}
-
-func TestCreateDir(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), "test")
-	ensureFileSystemLockedForDirCreation(dirPath, t)
-}
-
-func TestCreateDirInSubDirectory(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "test")
-	ensureFileSystemLockedForDirCreation(dirPath, t)
-}
 
 func ensureFileSystemLockedForDeletion(objPath string, t *testing.T) {
 	err := os.RemoveAll(objPath)
