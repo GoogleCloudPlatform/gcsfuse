@@ -535,7 +535,13 @@ func (c *grpcStorageClient) UpdateObject(ctx context.Context, bucket, object str
 		fieldMask.Paths = append(fieldMask.Paths, "acl")
 	}
 	// TODO(cathyo): Handle metadata. Pending b/230510191.
-
+	if uattrs.Metadata != nil {
+		for key, element := range uattrs.Metadata {
+			if element != "" {
+				fieldMask.Paths = append(fieldMask.Paths, "metadata." + key)
+			}
+		}
+	}
 	req.UpdateMask = fieldMask
 
 	var attrs *ObjectAttrs
