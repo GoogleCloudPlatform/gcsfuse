@@ -1,3 +1,4 @@
+import os
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
@@ -23,6 +24,10 @@ def write_to_google_sheet(worksheet: str, data) -> None:
   Raises:
     HttpError: For any Google Sheets API call related errors
   """
+
+  if os.getenv('JOB_TYPE') != "RELEASE" :
+    return
+
   sheets_client = _get_sheets_service_client()
 
   # Getting the index of the last occupied row in the sheet
