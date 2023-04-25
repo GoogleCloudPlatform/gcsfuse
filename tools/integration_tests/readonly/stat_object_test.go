@@ -18,6 +18,7 @@ package readonly_test
 import (
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
@@ -40,11 +41,11 @@ func TestStatFile(t *testing.T) {
 	}
 }
 
-func TestStatFileFromSubDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
+func TestStatFileInSubDirectory(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 	file := statExistingObj(filePath, t)
 
-	if file.Name() != FileInSubDirectoryNameInTestBucket || file.IsDir() != false {
+	if file.Name() != FileNameInDirectoryTestBucket || file.IsDir() != false {
 		t.Errorf("Stat incorrrect file.")
 	}
 }
@@ -67,33 +68,38 @@ func TestStatSubDirectory(t *testing.T) {
 	}
 }
 
-func statNotExistingObj(objPath string, t *testing.T) {
+func checkIfNonExistentFileOpenToStat(objPath string, t *testing.T) {
 	_, err := os.Stat(objPath)
 	if err == nil {
 		t.Errorf("Object exist!!")
+	}
+
+	// It will throw an error no such file or directory.
+	if !strings.Contains(err.Error(), "no such file or directory") {
+		t.Errorf("Throwing incorrect error.")
 	}
 }
 
 func TestStatNotExistingFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNotExist)
 
-	statNotExistingObj(filePath, t)
+	checkIfNonExistentFileOpenToStat(filePath, t)
 }
 
 func TestStatNotExistingFileFromSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
 
-	statNotExistingObj(filePath, t)
+	checkIfNonExistentFileOpenToStat(filePath, t)
 }
 
 func TestStatNotExistingDirectory(t *testing.T) {
 	DirPath := path.Join(setup.MntDir(), DirNotExist)
 
-	statNotExistingObj(DirPath, t)
+	checkIfNonExistentFileOpenToStat(DirPath, t)
 }
 
 func TestStatNotExistingSubDirectory(t *testing.T) {
 	DirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, DirNotExist)
 
-	statNotExistingObj(DirPath, t)
+	checkIfNonExistentFileOpenToStat(DirPath, t)
 }
