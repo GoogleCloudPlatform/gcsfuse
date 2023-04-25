@@ -23,10 +23,11 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-const DirectoryNameInTestBucket = "Test"           //  testBucket/Test
-const FileNameInTestBucket = "Test1.txt"           //  testBucket/Test1.txt
-const SubDirectoryNameInTestBucket = "b"           //  testBucket/Test/b
-const FileInSubDirectoryNameInTestBucket = "a.txt" //  testBucket/Test/a.txt
+const DirectoryNameInTestBucket = "Test"         //  testBucket/Test
+const FileNameInTestBucket = "Test1.txt"         //  testBucket/Test1.txt
+const SubDirectoryNameInTestBucket = "b"         //  testBucket/Test/b
+const FileNameInDirectoryTestBucket = "a.txt"    //  testBucket/Test/a.txt
+const FileNameInSubDirectoryTestBucket = "b.txt" //  testBucket/Test/b/b.txt
 const NumberOfObjectsInTestBucket = 2
 const NumberOfObjectsInTestBucketSubDirectory = 2
 

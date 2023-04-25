@@ -56,7 +56,7 @@ func TestDeleteSubDirectory(t *testing.T) {
 }
 
 func TestDeleteFileInSubDirectory(t *testing.T) {
-	objPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
+	objPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 
 	checkIfObjDeletionFailed(objPath, t)
 }
