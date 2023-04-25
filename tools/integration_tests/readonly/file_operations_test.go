@@ -35,6 +35,7 @@ func checkIfFileCopyFailed(srcFilePath string, t *testing.T) {
 		t.Errorf("Error in the opening file: %v", err)
 	}
 
+	// Checking if destination object exist.
 	copyFile := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, "b.txt")
 	if _, err := os.Stat(copyFile); err != nil {
 		t.Errorf("Copied file %s is not present", copyFile)

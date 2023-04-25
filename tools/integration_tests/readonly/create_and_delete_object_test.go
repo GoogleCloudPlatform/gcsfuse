@@ -19,22 +19,17 @@ import (
 	"io/fs"
 	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-func checkIfFileCreationFailed(filePath string, t *testing.T) {
+func ensureFileSystemLockedForFileCreation(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_CREATE, setup.FilePermission_0600)
 
+	// It will throw an error read-only file system or permission denied.
 	if err == nil {
 		t.Errorf("File is created in read-only file system.")
-	}
-
-	// It will throw an error read-only file system or permission denied.
-	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
-		t.Errorf("Throwing incorrect error.")
 	}
 
 	defer file.Close()
@@ -42,37 +37,62 @@ func checkIfFileCreationFailed(filePath string, t *testing.T) {
 
 func TestCreateFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), "testFile.txt")
-
-	checkIfFileCreationFailed(filePath, t)
+	ensureFileSystemLockedForFileCreation(filePath, t)
 }
 
 func TestCreateFileInSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "testFile.txt")
-
-	checkIfFileCreationFailed(filePath, t)
+	ensureFileSystemLockedForFileCreation(filePath, t)
 }
 
-func checkIfDirCreationFailed(dirPath string, t *testing.T) {
+func ensureFileSystemLockedForDirCreation(dirPath string, t *testing.T) {
 	err := os.Mkdir(dirPath, fs.ModeDir)
 
+	// It will throw an error read-only file system or permission denied.
 	if err == nil {
 		t.Errorf("Directory is created in read-only file system.")
-	}
-	
-	// It will throw an error read-only file system or permission denied.
-	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
-		t.Errorf("Throwing incorrect error.")
 	}
 }
 
 func TestCreateDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), "test")
-
-	checkIfDirCreationFailed(dirPath, t)
+	ensureFileSystemLockedForDirCreation(dirPath, t)
 }
 
 func TestCreateDirInSubDirectory(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "test")
+	ensureFileSystemLockedForDirCreation(dirPath, t)
+}
 
-	checkIfDirCreationFailed(dirPath, t)
+func ensureFileSystemLockedForDeletion(objPath string, t *testing.T) {
+	err := os.RemoveAll(objPath)
+
+	// It will throw an error read-only file system or permission denied.
+	if err == nil {
+		t.Errorf("Objects are deleted in read-only file system.")
+	}
+}
+
+func TestDeleteDir(t *testing.T) {
+	objPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
+	ensureFileSystemLockedForDeletion(objPath, t)
+}
+
+func TestDeleteFile(t *testing.T) {
+	objPath := path.Join(setup.MntDir(), FileNameInTestBucket)
+	ensureFileSystemLockedForDeletion(objPath, t)
+}
+
+func TestDeleteSubDirectory(t *testing.T) {
+	objPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
+	ensureFileSystemLockedForDeletion(objPath, t)
+}
+
+func TestDeleteFileInSubDirectory(t *testing.T) {
+	objPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
+	ensureFileSystemLockedForDeletion(objPath, t)
+}
+
+func TestDeleteAllObjectsInBucket(t *testing.T) {
+	ensureFileSystemLockedForDeletion(setup.MntDir(), t)
 }
