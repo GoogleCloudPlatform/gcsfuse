@@ -9,8 +9,8 @@ require (
 	github.com/fsouza/fake-gcs-server v1.38.4
 	github.com/googleapis/gax-go/v2 v2.7.0
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
-	github.com/jacobsa/fuse v0.0.0-20230124164109-5e0f2e6b432b
-	github.com/jacobsa/gcloud v0.0.0-20230127085636-f21b8e5016f7
+	github.com/jacobsa/fuse v0.0.0-20230425120156-b7182e0d0b51
+	github.com/jacobsa/gcloud v0.0.0-20230425120041-5ed2958cdfee
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
 	github.com/jacobsa/oglemock v0.0.0-20150831005832-e94d794d06ff
 	github.com/jacobsa/ogletest v0.0.0-20170503003838-80d50a735a11
