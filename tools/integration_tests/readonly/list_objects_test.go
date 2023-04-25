@@ -35,7 +35,7 @@ func TestListObjectsInBucket(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	// Comparing number of objects in the bucket - 2
+	// Comparing number of objects in the testBucket - 2
 	if len(obj) != NumberOfObjectsInTestBucket {
 		t.Errorf("The number of objects in the current directory doesn't match.")
 	}
@@ -65,7 +65,7 @@ func TestListObjectsInBucketDirectory(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	// Comparing number of objects in the bucket directory - 2.
+	// Comparing number of objects in the directory of testBucket  - 2.
 	if len(obj) != NumberOfObjectsInDirectoryTestBucket {
 		t.Errorf("The number of objects in the current directory doesn't match.")
 	}
