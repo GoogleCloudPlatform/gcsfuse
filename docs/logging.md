@@ -2,7 +2,7 @@
 This readme describes about the logging support in gcsfuse and how users can use
 that support.
 
-GCSFuse supports different debug flags e.g. --debug_fs, --debug_fuse, 
+GCSFuse supports different debug flags e.g. --debug_fuse, 
 --debug_gcs etc. Each of these flags logs debug info of a different component
 of gcsfuse. For more information, use `gcsfuse --help`.
 

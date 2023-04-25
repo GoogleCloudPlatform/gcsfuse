@@ -20,7 +20,7 @@ nohup /pytorch_dino/gcsfuse/gcsfuse --foreground --type-cache-ttl=1728000s \
         --stackdriver-export-interval=60s \
         --implicit-dirs \
         --max-conns-per-host=100 \
-        --debug_fs \
+        --debug_fuse \
         --debug_gcs \
         --log-file run_artifacts/gcsfuse.log \
         --log-format text \

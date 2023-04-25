@@ -312,11 +312,6 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.BoolFlag{
-				Name:  "debug_fs",
-				Usage: "Enable file system debugging output.",
-			},
-
-			cli.BoolFlag{
 				Name:  "debug_gcs",
 				Usage: "Print GCS request and timing information.",
 			},
@@ -399,7 +394,6 @@ type flagStorage struct {
 
 	// Debugging
 	DebugFuse       bool
-	DebugFS         bool
 	DebugGCS        bool
 	DebugHTTP       bool
 	DebugInvariants bool
@@ -534,7 +528,6 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		DebugFuseErrors: c.BoolT("debug_fuse_errors"),
 		DebugFuse:       c.Bool("debug_fuse"),
 		DebugGCS:        c.Bool("debug_gcs"),
-		DebugFS:         c.Bool("debug_fs"),
 		DebugHTTP:       c.Bool("debug_http"),
 		DebugInvariants: c.Bool("debug_invariants"),
 		DebugMutex:      c.Bool("debug_mutex"),
