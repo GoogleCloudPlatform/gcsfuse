@@ -27,8 +27,8 @@ import (
 func TestListObjectsInBucket(t *testing.T) {
 	// ** Directory structure **
 	// testBucket
-	// testBucket/Test       -- Dir
-	// testBucket/Test1.txt  -- File
+	// testBucket/Test        -- Dir
+	// testBucket/Test1.txt   -- File
 
 	obj, err := os.ReadDir(setup.MntDir())
 	if err != nil {
