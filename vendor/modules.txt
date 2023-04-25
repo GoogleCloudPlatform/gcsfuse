@@ -206,9 +206,6 @@ github.com/jmespath/go-jmespath
 # github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 ## explicit
 github.com/kardianos/osext
-# github.com/otiai10/copy v1.11.0
-## explicit; go 1.18
-github.com/otiai10/copy
 # github.com/pkg/xattr v0.4.8
 ## explicit; go 1.14
 github.com/pkg/xattr
