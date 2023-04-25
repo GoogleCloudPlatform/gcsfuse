@@ -27,13 +27,13 @@ import (
 func checkIfObjDeletionFailed(objPath string, t *testing.T) {
 	err := os.RemoveAll(objPath)
 
+	if err == nil {
+		t.Errorf("Objects are deleted in read-only file system.")
+	}
+
 	// It will throw an error read-only file system or permission denied.
 	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
 		t.Errorf("Throwing incorrect error.")
-	}
-
-	if err == nil {
-		t.Errorf("Objects are deleted in read-only file system.")
 	}
 }
 

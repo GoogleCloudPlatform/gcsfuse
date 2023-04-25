@@ -106,13 +106,13 @@ func TestOpenFileFromSubDirectoryWithAppendAccess(t *testing.T) {
 func checkIfNonExistentFileFailedToOpenAndAppend(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 
+	if err == nil {
+		t.Errorf("File opened for appending content in read-only mount.")
+	}
+
 	// It will throw an error no such file or directory.
 	if !strings.Contains(err.Error(), "no such file or directory") {
 		t.Errorf("Throwing incorrect error.")
-	}
-
-	if err == nil {
-		t.Errorf("NonExist file opened for appending content in read-only mount.")
 	}
 	defer file.Close()
 }

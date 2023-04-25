@@ -28,13 +28,13 @@ import (
 func checkIfFileCreationFailed(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_CREATE, setup.FilePermission_0600)
 
+	if err == nil {
+		t.Errorf("File is created in read-only file system.")
+	}
+
 	// It will throw an error read-only file system or permission denied.
 	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
 		t.Errorf("Throwing incorrect error.")
-	}
-	
-	if err == nil {
-		t.Errorf("File is created in read-only file system.")
 	}
 
 	defer file.Close()
@@ -55,13 +55,13 @@ func TestCreateFileInSubDirectory(t *testing.T) {
 func checkIfDirCreationFailed(dirPath string, t *testing.T) {
 	err := os.Mkdir(dirPath, fs.ModeDir)
 
+	if err == nil {
+		t.Errorf("Directory is created in read-only file system.")
+	}
+	
 	// It will throw an error read-only file system or permission denied.
 	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
 		t.Errorf("Throwing incorrect error.")
-	}
-
-	if err == nil {
-		t.Errorf("Directory is created in read-only file system.")
 	}
 }
 

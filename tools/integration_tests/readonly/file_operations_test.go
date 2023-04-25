@@ -40,13 +40,13 @@ func checkIfObjCopyFailed(srcObjPath string, destObjPath string, t *testing.T) {
 
 	err = cp.Copy(srcObjPath, destObjPath)
 
+	if err == nil {
+		t.Errorf("File copied in read-only file system.")
+	}
+
 	// It will throw an error read-only file system or permission denied.
 	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
 		t.Errorf("Throwing incorrect error.")
-	}
-
-	if err == nil {
-		t.Errorf("File copied in read-only file system.")
 	}
 }
 
@@ -95,13 +95,13 @@ func checkIfFileRenameFailed(oldObjPath string, newObjPath string, t *testing.T)
 
 	err = os.Rename(oldObjPath, newObjPath)
 
+	if err == nil {
+		t.Errorf("File renamed in read-only file system.")
+	}
+	
 	// It will throw an error read-only file system or permission denied.
 	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
 		t.Errorf("Throwing incorrect error.")
-	}
-
-	if err == nil {
-		t.Errorf("File renamed in read-only file system.")
 	}
 
 	if _, err := os.Stat(oldObjPath); err != nil {
