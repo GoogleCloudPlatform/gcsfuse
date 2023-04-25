@@ -18,7 +18,6 @@ package readonly_test
 import (
 	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
@@ -31,10 +30,7 @@ func checkIfObjDeletionFailed(objPath string, t *testing.T) {
 		t.Errorf("Objects are deleted in read-only file system.")
 	}
 
-	// It will throw an error read-only file system or permission denied.
-	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
-		t.Errorf("Throwing incorrect error.")
-	}
+	checkErrorForReadOnlyFileSystem(err, t)
 }
 
 func TestDeleteDir(t *testing.T) {
@@ -55,7 +51,7 @@ func TestDeleteSubDirectory(t *testing.T) {
 	checkIfObjDeletionFailed(objPath, t)
 }
 
-func TestDeleteFileInSubDirectory(t *testing.T) {
+func TestDeleteFileInDirectory(t *testing.T) {
 	objPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 
 	checkIfObjDeletionFailed(objPath, t)

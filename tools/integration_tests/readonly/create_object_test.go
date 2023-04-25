@@ -32,10 +32,7 @@ func checkIfFileCreationFailed(filePath string, t *testing.T) {
 		t.Errorf("File is created in read-only file system.")
 	}
 
-	// It will throw an error read-only file system or permission denied.
-	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
-		t.Errorf("Throwing incorrect error.")
-	}
+	checkErrorForReadOnlyFileSystem(err, t)
 
 	defer file.Close()
 }
@@ -46,7 +43,7 @@ func TestCreateFile(t *testing.T) {
 	checkIfFileCreationFailed(filePath, t)
 }
 
-func TestCreateFileInSubDirectory(t *testing.T) {
+func TestCreateFileInDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "testFile.txt")
 
 	checkIfFileCreationFailed(filePath, t)
@@ -71,7 +68,7 @@ func TestCreateDir(t *testing.T) {
 	checkIfDirCreationFailed(dirPath, t)
 }
 
-func TestCreateDirInSubDirectory(t *testing.T) {
+func TestCreateSubDirectoryInDirectory(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "test")
 
 	checkIfDirCreationFailed(dirPath, t)

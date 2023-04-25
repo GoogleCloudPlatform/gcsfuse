@@ -35,20 +35,25 @@ func TestListObjectsInBucket(t *testing.T) {
 		log.Fatal(err)
 	}
 
+	// Comparing number of objects in the bucket - 2
 	if len(obj) != NumberOfObjectsInTestBucket {
 		t.Errorf("The number of objects in the current directory doesn't match.")
 	}
 
+	// Comparing first object name and type
+	// Name - testBucket/Test, Type - Dir
 	if obj[0].Name() != DirectoryNameInTestBucket || obj[0].IsDir() != true {
 		t.Errorf("Listed object is incorrect.")
 	}
 
+	// Comparing second object name and type
+	// Name - testBucket/Test1.txt, Type - File
 	if obj[1].Name() != FileNameInTestBucket || obj[1].IsDir() != false {
 		t.Errorf("Listed object is incorrect.")
 	}
 }
 
-func TestListObjectsInBucketSubDirectory(t *testing.T) {
+func TestListObjectsInBucketDirectory(t *testing.T) {
 	// ** SubDirectory structure **
 	// testBucket/Test
 	// testBucket/Test/a.txt -- File
@@ -60,15 +65,20 @@ func TestListObjectsInBucketSubDirectory(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	if len(obj) != NumberOfObjectsInTestBucketSubDirectory {
+	// Comparing number of objects in the bucket directory - 2.
+	if len(obj) != NumberOfObjectsInDirectoryTestBucket {
 		t.Errorf("The number of objects in the current directory doesn't match.")
 	}
 
+	// Comparing first object name and type.
+	// Name - testBucket/Test/a.txt, Type - File
 	if obj[0].Name() != FileNameInDirectoryTestBucket || obj[0].IsDir() != false {
-		t.Errorf("Listed object is incorrect.")
+		t.Errorf("Listed object from bucket directiry is incorrect.")
 	}
 
+	// Comparing second object name and type.
+	// Name - testBucket/b, Type - Dir
 	if obj[1].Name() != SubDirectoryNameInTestBucket || obj[1].IsDir() != true {
-		t.Errorf("Listed object is incorrect.")
+		t.Errorf("Listed object from bucket directiry is incorrect.")
 	}
 }
