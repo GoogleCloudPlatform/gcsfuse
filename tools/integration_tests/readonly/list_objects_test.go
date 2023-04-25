@@ -27,8 +27,8 @@ import (
 func TestListObjectsInBucket(t *testing.T) {
 	// ** Directory structure **
 	// testBucket
-	// testBucket/Test        -- Dir
-	// testBucket/Test1.txt   -- File
+	// testBucket/Test       -- Dir
+	// testBucket/Test1.txt  -- File
 
 	obj, err := os.ReadDir(setup.MntDir())
 	if err != nil {
@@ -65,7 +65,7 @@ func TestListObjectsInBucketDirectory(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	// Comparing number of objects in the directory of testBucket  - 2.
+	// Comparing number of objects in the directory of testBucket - 2.
 	if len(obj) != NumberOfObjectsInDirectoryTestBucket {
 		t.Errorf("The number of objects in the current directory doesn't match.")
 	}
@@ -73,12 +73,12 @@ func TestListObjectsInBucketDirectory(t *testing.T) {
 	// Comparing first object name and type.
 	// Name - testBucket/Test/a.txt, Type - File
 	if obj[0].Name() != FileNameInDirectoryTestBucket || obj[0].IsDir() != false {
-		t.Errorf("Listed object from bucket directiry is incorrect.")
+		t.Errorf("Listed object from bucket directory is incorrect.")
 	}
 
 	// Comparing second object name and type.
 	// Name - testBucket/b, Type - Dir
 	if obj[1].Name() != SubDirectoryNameInTestBucket || obj[1].IsDir() != true {
-		t.Errorf("Listed object from bucket directiry is incorrect.")
+		t.Errorf("Listed object from bucket directory is incorrect.")
 	}
 }
