@@ -76,7 +76,8 @@ func registerSIGINTHandler(mountPoint string) {
 }
 
 func getUserAgent(appName string) string {
-	return strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), appName, os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE"))) + " (GPN: gcsfuse)"
+	userAgent := fmt.Sprintf("gcsfuse/%s %s %s %s", getVersion(), appName, os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE"), "(GPN: gcsfuse)")
+	return strings.Join(strings.Fields(userAgent), " ")
 }
 
 func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
