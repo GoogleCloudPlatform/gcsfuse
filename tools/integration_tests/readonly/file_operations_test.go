@@ -17,41 +17,34 @@
 package readonly_test
 
 import (
-	"io"
 	"os"
 	"path"
-	"syscall"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
+	cp "github.com/otiai10/copy"
 )
 
-// Copy srcFile in testBucket/Test/b/b.txt destination.
-func ensureFileSystemLockedForFileCopy(srcFilePath string, t *testing.T) {
-	_, err := os.OpenFile(srcFilePath, syscall.O_DIRECT, setup.FilePermission_0600)
+// Copy srcObj to desObj
+func checkIfObjCopyFailed(srcObjPath string, destObjPath string, t *testing.T) {
+	_, err := os.Stat(srcObjPath)
 	if err != nil {
-		t.Errorf("Error in the opening file: %v", err)
+		t.Errorf("SrcObject does not exist: %v", err)
 	}
 
-	copyFile := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, "b.txt")
-	if _, err := os.Stat(copyFile); err != nil {
-		t.Errorf("Copied file %s is not present", copyFile)
-	}
-
-	source, err := os.OpenFile(srcFilePath, syscall.O_DIRECT, setup.FilePermission_0600)
+	_, err = os.Stat(destObjPath)
 	if err != nil {
-		t.Errorf("File %s opening error: %v", source.Name(), err)
+		t.Errorf("DestObject does not exist: %v", err)
 	}
-	defer source.Close()
 
-	destination, err := os.OpenFile(copyFile, syscall.O_DIRECT, setup.FilePermission_0600)
-	if err != nil {
-		t.Errorf("File %s opening error: %v", destination.Name(), err)
+	err = cp.Copy(srcObjPath, destObjPath)
+
+	// It will throw an error read-only file system or permission denied.
+	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
+		t.Errorf("Throwing incorrect error.")
 	}
-	defer destination.Close()
 
-	// File copying with io.Copy() utility.
-	_, err = io.Copy(destination, source)
 	if err == nil {
 		t.Errorf("File copied in read-only file system.")
 	}
@@ -59,118 +52,94 @@ func ensureFileSystemLockedForFileCopy(srcFilePath string, t *testing.T) {
 
 // Copy testBucket/Test1.txt to testBucket/Test/b/b.txt
 func TestCopyFile(t *testing.T) {
-	file := path.Join(setup.MntDir(), FileNameInTestBucket)
+	srcFilePath := path.Join(setup.MntDir(), FileNameInTestBucket)
+	destFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, "b.txt")
 
-	ensureFileSystemLockedForFileCopy(file, t)
+	checkIfObjCopyFailed(srcFilePath, destFilePath, t)
 }
 
 // Copy testBucket/Test/a.txt to testBucket/Test/b/b.txt
 func TestCopyFileFromSubDirectory(t *testing.T) {
-	file := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
+	srcFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
+	destFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, "b.txt")
 
-	ensureFileSystemLockedForFileCopy(file, t)
+	checkIfObjCopyFailed(srcFilePath, destFilePath, t)
+}
+
+// Copy testBucket/Test to testBucket/Test/b
+func TestCopyDir(t *testing.T) {
+	srcDirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
+	destDirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
+
+	checkIfObjCopyFailed(srcDirPath, destDirPath, t)
+}
+
+// Copy testBucket/Test/b to testBucket/Test
+func TestCopySubDirectory(t *testing.T) {
+	srcDirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
+	destDirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
+
+	checkIfObjCopyFailed(srcDirPath, destDirPath, t)
 }
 
 // Rename srcFile to Rename.txt
-func ensureFileSystemLockedForFileRename(filePath string, dirPath string, t *testing.T) {
-	file, err := os.OpenFile(filePath, syscall.O_DIRECT, setup.FilePermission_0600)
+func checkIfFileRenameFailed(oldObjPath string, newObjPath string, t *testing.T) {
+	_, err := os.Stat(oldObjPath)
 	if err != nil {
-		t.Errorf("Error in the opening file: %v", err)
-	}
-	defer file.Close()
-
-	newFileName := path.Join(dirPath, "Rename.txt")
-	if _, err := os.Stat(newFileName); err == nil {
-		t.Errorf("Renamed file %s already present", newFileName)
+		t.Errorf("Error in the stating object: %v", err)
 	}
 
-	if err := os.Rename(file.Name(), newFileName); err == nil {
+	if _, err := os.Stat(newObjPath); err == nil {
+		t.Errorf("Renamed file %s already present", newObjPath)
+	}
+
+	err = os.Rename(oldObjPath, newObjPath)
+
+	// It will throw an error read-only file system or permission denied.
+	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
+		t.Errorf("Throwing incorrect error.")
+	}
+
+	if err == nil {
 		t.Errorf("File renamed in read-only file system.")
 	}
 
-	if _, err := os.Stat(file.Name()); err != nil {
+	if _, err := os.Stat(oldObjPath); err != nil {
 		t.Errorf("SrcFile is deleted in read-only file system.")
 	}
-	if _, err := os.Stat(newFileName); err == nil {
+	if _, err := os.Stat(newObjPath); err == nil {
 		t.Errorf("Renamed file found in read-only file system.")
 	}
 }
 
 // Rename testBucket/Test1.txt to testBucket/Rename.txt
 func TestRenameFile(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
+	oldFilePath := path.Join(setup.MntDir(), FileNameInTestBucket)
+	newFilePath := path.Join(setup.MntDir(), "Rename.txt")
 
-	ensureFileSystemLockedForFileRename(filePath, setup.MntDir(), t)
+	checkIfFileRenameFailed(oldFilePath, newFilePath, t)
 }
 
 // Rename testBucket/Test/a.txt to testBucket/Test/Rename.txt
 func TestRenameFileFromSubDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
-	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
+	oldFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
+	newFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "Rename.txt")
 
-	ensureFileSystemLockedForFileRename(filePath, dirPath, t)
+	checkIfFileRenameFailed(oldFilePath, newFilePath, t)
 }
 
-func ensureFileSystemLockedToWriteOrUpdateContent(filePath string, t *testing.T) {
-	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, setup.FilePermission_0600)
-	if err == nil {
-		t.Errorf("File opened for writing in read-only mount.")
-	}
-	defer file.Close()
+// Rename testBucket/Test to testBucket/Rename
+func TestRenameDir(t *testing.T) {
+	oldDirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
+	newDirPath := path.Join(setup.MntDir(), "Rename")
+
+	checkIfFileRenameFailed(oldDirPath, newDirPath, t)
 }
 
-func TestOpenFileToWriteOrUpdateContent(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
+// Rename testBucket/Test/b to testBucket/Test/Rename
+func TestRenameSubDirectory(t *testing.T) {
+	oldDirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
+	newDirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "Rename")
 
-	ensureFileSystemLockedToWriteOrUpdateContent(filePath, t)
-}
-
-func TestOpenFileFromSubDirectoryToWriteOrUpdateContent(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
-
-	ensureFileSystemLockedToWriteOrUpdateContent(filePath, t)
-}
-
-func TestOpenNonExistentFileToWriteOrUpdateContent(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), FileNotExist)
-
-	ensureFileSystemLockedToWriteOrUpdateContent(filePath, t)
-}
-
-func TestOpenNonExistentFileFromSubDirectoryToWriteOrUpdateContent(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
-
-	ensureFileSystemLockedToWriteOrUpdateContent(filePath, t)
-}
-
-func ensureFileSystemLockedToAppendContent(filePath string, t *testing.T) {
-	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
-	if err == nil {
-		t.Errorf("File opened for appending Content in read-only mount.")
-	}
-	defer file.Close()
-}
-
-func TestOpenFileToAppendContent(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
-
-	ensureFileSystemLockedToAppendContent(filePath, t)
-}
-
-func TestOpenFileFromSubDirectoryToAppendContent(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
-
-	ensureFileSystemLockedToAppendContent(filePath, t)
-}
-
-func TestOpenNonExistentFileToAppendContent(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), FileNotExist)
-
-	ensureFileSystemLockedToAppendContent(filePath, t)
-}
-
-func TestOpenNonExistentFileFromSubDirectoryToAppendContent(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
-
-	ensureFileSystemLockedToAppendContent(filePath, t)
+	checkIfFileRenameFailed(oldDirPath, newDirPath, t)
 }

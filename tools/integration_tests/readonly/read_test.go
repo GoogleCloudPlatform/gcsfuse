@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"syscall"
 	"testing"
 
@@ -57,8 +58,14 @@ func TestReadFileFromSubDirectory(t *testing.T) {
 	}
 }
 
-func openNonExistentFileToRead(filePath string, t *testing.T) {
+func checkIfNonExistentFileOpenFails(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+
+	// It will throw an error no such file or directory.
+	if !strings.Contains(err.Error(), "no such file or directory") {
+		t.Errorf("Throwing incorrect error.")
+	}
+
 	if err == nil {
 		t.Errorf("Nonexistent file opened to read.")
 	}
@@ -68,11 +75,11 @@ func openNonExistentFileToRead(filePath string, t *testing.T) {
 func TestReadNonExistentFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNotExist)
 
-	openNonExistentFileToRead(filePath, t)
+	checkIfNonExistentFileOpenFails(filePath, t)
 }
 
 func TestReadNonExistentFileFromSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
 
-	openNonExistentFileToRead(filePath, t)
+	checkIfNonExistentFileOpenFails(filePath, t)
 }

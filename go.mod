@@ -48,6 +48,7 @@ require (
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	github.com/otiai10/copy v1.11.0 // indirect
 	github.com/pkg/xattr v0.4.8 // indirect
 	github.com/prometheus/prometheus v2.5.0+incompatible // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect

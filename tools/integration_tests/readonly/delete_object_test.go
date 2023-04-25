@@ -18,15 +18,20 @@ package readonly_test
 import (
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-func ensureFileSystemLockedForDeletion(objPath string, t *testing.T) {
+func checkIfObjDeletionFailed(objPath string, t *testing.T) {
 	err := os.RemoveAll(objPath)
 
 	// It will throw an error read-only file system or permission denied.
+	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
+		t.Errorf("Throwing incorrect error.")
+	}
+
 	if err == nil {
 		t.Errorf("Objects are deleted in read-only file system.")
 	}
@@ -35,27 +40,27 @@ func ensureFileSystemLockedForDeletion(objPath string, t *testing.T) {
 func TestDeleteDir(t *testing.T) {
 	objPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
 
-	ensureFileSystemLockedForDeletion(objPath, t)
+	checkIfObjDeletionFailed(objPath, t)
 }
 
 func TestDeleteFile(t *testing.T) {
 	objPath := path.Join(setup.MntDir(), FileNameInTestBucket)
 
-	ensureFileSystemLockedForDeletion(objPath, t)
+	checkIfObjDeletionFailed(objPath, t)
 }
 
 func TestDeleteSubDirectory(t *testing.T) {
 	objPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
 
-	ensureFileSystemLockedForDeletion(objPath, t)
+	checkIfObjDeletionFailed(objPath, t)
 }
 
 func TestDeleteFileInSubDirectory(t *testing.T) {
 	objPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
 
-	ensureFileSystemLockedForDeletion(objPath, t)
+	checkIfObjDeletionFailed(objPath, t)
 }
 
 func TestDeleteAllObjectsInBucket(t *testing.T) {
-	ensureFileSystemLockedForDeletion(setup.MntDir(), t)
+	checkIfObjDeletionFailed(setup.MntDir(), t)
 }

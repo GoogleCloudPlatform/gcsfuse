@@ -19,15 +19,20 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-func ensureFileSystemLockedForFileCreation(filePath string, t *testing.T) {
+func checkIfFileCreationFailed(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_CREATE, setup.FilePermission_0600)
 
 	// It will throw an error read-only file system or permission denied.
+	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
+		t.Errorf("Throwing incorrect error.")
+	}
+	
 	if err == nil {
 		t.Errorf("File is created in read-only file system.")
 	}
@@ -38,19 +43,23 @@ func ensureFileSystemLockedForFileCreation(filePath string, t *testing.T) {
 func TestCreateFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), "testFile.txt")
 
-	ensureFileSystemLockedForFileCreation(filePath, t)
+	checkIfFileCreationFailed(filePath, t)
 }
 
 func TestCreateFileInSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "testFile.txt")
 
-	ensureFileSystemLockedForFileCreation(filePath, t)
+	checkIfFileCreationFailed(filePath, t)
 }
 
-func ensureFileSystemLockedForDirCreation(dirPath string, t *testing.T) {
+func checkIfDirCreationFailed(dirPath string, t *testing.T) {
 	err := os.Mkdir(dirPath, fs.ModeDir)
 
 	// It will throw an error read-only file system or permission denied.
+	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
+		t.Errorf("Throwing incorrect error.")
+	}
+
 	if err == nil {
 		t.Errorf("Directory is created in read-only file system.")
 	}
@@ -59,11 +68,11 @@ func ensureFileSystemLockedForDirCreation(dirPath string, t *testing.T) {
 func TestCreateDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), "test")
 
-	ensureFileSystemLockedForDirCreation(dirPath, t)
+	checkIfDirCreationFailed(dirPath, t)
 }
 
 func TestCreateDirInSubDirectory(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "test")
 
-	ensureFileSystemLockedForDirCreation(dirPath, t)
+	checkIfDirCreationFailed(dirPath, t)
 }
