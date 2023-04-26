@@ -19,7 +19,6 @@ import (
 	"io/fs"
 	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
@@ -56,10 +55,8 @@ func checkIfDirCreationFailed(dirPath string, t *testing.T) {
 		t.Errorf("Directory is created in read-only file system.")
 	}
 
-	// It will throw an error read-only file system or permission denied.
-	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
-		t.Errorf("Throwing incorrect error.")
-	}
+	checkErrorForReadOnlyFileSystem(err, t)
+
 }
 
 func TestCreateDir(t *testing.T) {
