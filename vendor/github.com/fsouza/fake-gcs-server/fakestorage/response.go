@@ -4,20 +4,31 @@
 
 package fakestorage
 
-import "github.com/fsouza/fake-gcs-server/internal/backend"
+import (
+	"time"
+
+	"github.com/fsouza/fake-gcs-server/internal/backend"
+)
 
 const timestampFormat = "2006-01-02T15:04:05.999999Z07:00"
 
+func formatTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.Format(timestampFormat)
+}
+
 type listResponse struct {
-	Kind     string        `json:"kind"`
-	Items    []interface{} `json:"items"`
-	Prefixes []string      `json:"prefixes,omitempty"`
+	Kind     string   `json:"kind"`
+	Items    []any    `json:"items"`
+	Prefixes []string `json:"prefixes,omitempty"`
 }
 
 func newListBucketsResponse(buckets []backend.Bucket, location string) listResponse {
 	resp := listResponse{
 		Kind:  "storage#buckets",
-		Items: make([]interface{}, len(buckets)),
+		Items: make([]any, len(buckets)),
 	}
 	for i, bucket := range buckets {
 		resp.Items[i] = newBucketResponse(bucket, location)
@@ -44,7 +55,7 @@ func newBucketResponse(bucket backend.Bucket, location string) bucketResponse {
 		ID:          bucket.Name,
 		Name:        bucket.Name,
 		Versioning:  &bucketVersioning{bucket.VersioningEnabled},
-		TimeCreated: bucket.TimeCreated.Format(timestampFormat),
+		TimeCreated: formatTime(bucket.TimeCreated),
 		Location:    location,
 	}
 }
@@ -52,7 +63,7 @@ func newBucketResponse(bucket backend.Bucket, location string) bucketResponse {
 func newListObjectsResponse(objs []ObjectAttrs, prefixes []string) listResponse {
 	resp := listResponse{
 		Kind:     "storage#objects",
-		Items:    make([]interface{}, len(objs)),
+		Items:    make([]any, len(objs)),
 		Prefixes: prefixes,
 	}
 	for i, obj := range objs {
@@ -98,6 +109,7 @@ type objectResponse struct {
 	TimeDeleted     string                 `json:"timeDeleted,omitempty"`
 	Updated         string                 `json:"updated,omitempty"`
 	Generation      int64                  `json:"generation,string"`
+	CustomTime      string                 `json:"customTime,omitempty"`
 	Metadata        map[string]string      `json:"metadata,omitempty"`
 }
 
@@ -117,9 +129,10 @@ func newObjectResponse(obj ObjectAttrs) objectResponse {
 		Etag:            obj.Etag,
 		ACL:             acl,
 		Metadata:        obj.Metadata,
-		TimeCreated:     obj.Created.Format(timestampFormat),
-		TimeDeleted:     obj.Deleted.Format(timestampFormat),
-		Updated:         obj.Updated.Format(timestampFormat),
+		TimeCreated:     formatTime(obj.Created),
+		TimeDeleted:     formatTime(obj.Deleted),
+		Updated:         formatTime(obj.Updated),
+		CustomTime:      formatTime(obj.CustomTime),
 		Generation:      obj.Generation,
 	}
 }

@@ -10,7 +10,7 @@ import (
 
 const (
 	// We need to use the default for non supported operating systems
-	ENOATTR = syscall.ENODATA
+	ENOATTR = syscall.Errno(0x59)
 )
 
 // XATTR_SUPPORTED will be true if the current platform is supported

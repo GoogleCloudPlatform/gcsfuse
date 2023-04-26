@@ -14,7 +14,7 @@ const metadataSuffix = ".metadata"
 type metadataFile struct{}
 
 func (m metadataFile) write(path string, encoded []byte) error {
-	return os.WriteFile(path+metadataSuffix, encoded, 0o600)
+	return writeFile(path+metadataSuffix, encoded, 0o600)
 }
 
 func (m metadataFile) read(path string) ([]byte, error) {
@@ -27,4 +27,8 @@ func (m metadataFile) isSpecialFile(path string) bool {
 
 func (m metadataFile) remove(path string) error {
 	return os.Remove(path + metadataSuffix)
+}
+
+func (m metadataFile) rename(pathSrc, pathDst string) error {
+	return os.Rename(pathSrc+metadataSuffix, pathDst+metadataSuffix)
 }

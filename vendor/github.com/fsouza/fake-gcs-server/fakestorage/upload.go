@@ -5,17 +5,22 @@
 package fakestorage
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/fsouza/fake-gcs-server/internal/backend"
 	"github.com/fsouza/fake-gcs-server/internal/checksum"
 	"github.com/gorilla/mux"
 )
@@ -31,6 +36,7 @@ const (
 type multipartMetadata struct {
 	ContentType     string            `json:"contentType"`
 	ContentEncoding string            `json:"contentEncoding"`
+	CustomTime      time.Time         `json:"customTime,omitempty"`
 	Name            string            `json:"name"`
 	Metadata        map[string]string `json:"metadata"`
 }
@@ -43,8 +49,23 @@ type contentRange struct {
 	Total      int  // Total bytes expected, -1 if unknown
 }
 
+type generationCondition struct {
+	ifGenerationMatch    *int64
+	ifGenerationNotMatch *int64
+}
+
+func (c generationCondition) ConditionsMet(activeGeneration int64) bool {
+	if c.ifGenerationMatch != nil && *c.ifGenerationMatch != activeGeneration {
+		return false
+	}
+	if c.ifGenerationNotMatch != nil && *c.ifGenerationNotMatch == activeGeneration {
+		return false
+	}
+	return true
+}
+
 func (s *Server) insertObject(r *http.Request) jsonResponse {
-	bucketName := mux.Vars(r)["bucketName"]
+	bucketName := unescapeMuxVars(mux.Vars(r))["bucketName"]
 
 	if _, err := s.backend.GetBucket(bucketName); err != nil {
 		return jsonResponse{status: http.StatusNotFound}
@@ -76,7 +97,7 @@ func (s *Server) insertObject(r *http.Request) jsonResponse {
 }
 
 func (s *Server) insertFormObject(r *http.Request) xmlResponse {
-	bucketName := mux.Vars(r)["bucketName"]
+	bucketName := unescapeMuxVars(mux.Vars(r))["bucketName"]
 
 	if err := r.ParseMultipartForm(32 << 20); nil != err {
 		return xmlResponse{errorMessage: "invalid form", status: http.StatusBadRequest}
@@ -102,6 +123,17 @@ func (s *Server) insertFormObject(r *http.Request) xmlResponse {
 	if contentTypes, ok := r.MultipartForm.Value["Content-Type"]; ok {
 		contentType = contentTypes[0]
 	}
+	successActionStatus := http.StatusNoContent
+	if successActionStatuses, ok := r.MultipartForm.Value["success_action_status"]; ok {
+		successInt, err := strconv.Atoi(successActionStatuses[0])
+		if err != nil {
+			return xmlResponse{errorMessage: err.Error(), status: http.StatusBadRequest}
+		}
+		if successInt != http.StatusOK && successInt != http.StatusCreated && successInt != http.StatusNoContent {
+			return xmlResponse{errorMessage: "invalid success action status", status: http.StatusBadRequest}
+		}
+		successActionStatus = successInt
+	}
 	metaData := make(map[string]string)
 	for key := range r.MultipartForm.Value {
 		lowerKey := strings.ToLower(key)
@@ -122,58 +154,44 @@ func (s *Server) insertFormObject(r *http.Request) xmlResponse {
 	if err != nil {
 		return xmlResponse{errorMessage: err.Error()}
 	}
-	data, err := io.ReadAll(infile)
-	if err != nil {
-		return xmlResponse{errorMessage: err.Error()}
-	}
-	md5Hash := checksum.EncodedMd5Hash(data)
-	obj := Object{
+	obj := StreamingObject{
 		ObjectAttrs: ObjectAttrs{
 			BucketName:      bucketName,
 			Name:            name,
 			ContentType:     contentType,
 			ContentEncoding: contentEncoding,
-			Crc32c:          checksum.EncodedCrc32cChecksum(data),
-			Md5Hash:         md5Hash,
-			Etag:            fmt.Sprintf("%q", md5Hash),
 			ACL:             getObjectACL(predefinedACL),
 			Metadata:        metaData,
 		},
-		Content: data,
+		Content: infile,
 	}
-	_, err = s.createObject(obj)
+	obj, err = s.createObject(obj, backend.NoConditions{})
 	if err != nil {
 		return xmlResponse{errorMessage: err.Error()}
 	}
-	return xmlResponse{status: http.StatusNoContent}
+	defer obj.Close()
+
+	if successActionStatus == 201 {
+		objectURI := fmt.Sprintf("%s/%s%s", s.URL(), bucketName, name)
+		xmlBody := createXmlResponseBody(bucketName, obj.Etag, strings.TrimPrefix(name, "/"), objectURI)
+		return xmlResponse{status: successActionStatus, data: xmlBody}
+	}
+	return xmlResponse{status: successActionStatus}
 }
 
-func (s *Server) checkUploadPreconditions(r *http.Request, bucketName string, objectName string) *jsonResponse {
+func (s *Server) wrapUploadPreconditions(r *http.Request, bucketName string, objectName string) (generationCondition, error) {
+	result := generationCondition{
+		ifGenerationMatch:    nil,
+		ifGenerationNotMatch: nil,
+	}
 	ifGenerationMatch := r.URL.Query().Get("ifGenerationMatch")
 
 	if ifGenerationMatch != "" {
 		gen, err := strconv.ParseInt(ifGenerationMatch, 10, 64)
 		if err != nil {
-			return &jsonResponse{
-				status:       http.StatusBadRequest,
-				errorMessage: err.Error(),
-			}
+			return generationCondition{}, err
 		}
-		if gen == 0 {
-			_, err := s.backend.GetObject(bucketName, objectName)
-			if err == nil {
-				return &jsonResponse{
-					status:       http.StatusPreconditionFailed,
-					errorMessage: "Precondition failed",
-				}
-			}
-		} else if _, err := s.backend.GetObjectWithGeneration(bucketName, objectName, gen); err != nil {
-			return &jsonResponse{
-				status:       http.StatusPreconditionFailed,
-				errorMessage: "Precondition failed",
-			}
-		}
-		return nil
+		result.ifGenerationMatch = &gen
 	}
 
 	ifGenerationNotMatch := r.URL.Query().Get("ifGenerationNotMatch")
@@ -181,28 +199,12 @@ func (s *Server) checkUploadPreconditions(r *http.Request, bucketName string, ob
 	if ifGenerationNotMatch != "" {
 		gen, err := strconv.ParseInt(ifGenerationNotMatch, 10, 64)
 		if err != nil {
-			return &jsonResponse{
-				status:       http.StatusBadRequest,
-				errorMessage: err.Error(),
-			}
+			return generationCondition{}, err
 		}
-		_, err = s.backend.GetObjectWithGeneration(bucketName, objectName, gen)
-		if gen == 0 {
-			if err != nil {
-				return &jsonResponse{
-					status:       http.StatusPreconditionFailed,
-					errorMessage: "Precondition failed",
-				}
-			}
-		} else if err == nil {
-			return &jsonResponse{
-				status:       http.StatusPreconditionFailed,
-				errorMessage: "Precondition failed",
-			}
-		}
+		result.ifGenerationNotMatch = &gen
 	}
 
-	return nil
+	return result, nil
 }
 
 func (s *Server) simpleUpload(bucketName string, r *http.Request) jsonResponse {
@@ -210,42 +212,46 @@ func (s *Server) simpleUpload(bucketName string, r *http.Request) jsonResponse {
 	name := r.URL.Query().Get("name")
 	predefinedACL := r.URL.Query().Get("predefinedAcl")
 	contentEncoding := r.URL.Query().Get("contentEncoding")
+	customTime := r.URL.Query().Get("customTime")
 	if name == "" {
 		return jsonResponse{
 			status:       http.StatusBadRequest,
 			errorMessage: "name is required for simple uploads",
 		}
 	}
-	data, err := io.ReadAll(r.Body)
-	if err != nil {
-		return jsonResponse{errorMessage: err.Error()}
-	}
-	md5Hash := checksum.EncodedMd5Hash(data)
-	obj := Object{
+	obj := StreamingObject{
 		ObjectAttrs: ObjectAttrs{
 			BucketName:      bucketName,
 			Name:            name,
 			ContentType:     r.Header.Get(contentTypeHeader),
 			ContentEncoding: contentEncoding,
-			Crc32c:          checksum.EncodedCrc32cChecksum(data),
-			Md5Hash:         md5Hash,
-			Etag:            fmt.Sprintf("%q", md5Hash),
+			CustomTime:      convertTimeWithoutError(customTime),
 			ACL:             getObjectACL(predefinedACL),
 		},
-		Content: data,
+		Content: notImplementedSeeker{r.Body},
 	}
-	obj, err = s.createObject(obj)
+	obj, err := s.createObject(obj, backend.NoConditions{})
 	if err != nil {
 		return errToJsonResponse(err)
 	}
+	obj.Close()
 	return jsonResponse{data: newObjectResponse(obj.ObjectAttrs)}
+}
+
+type notImplementedSeeker struct {
+	io.ReadCloser
+}
+
+func (s notImplementedSeeker) Seek(offset int64, whence int) (int64, error) {
+	return 0, errors.New("not implemented")
 }
 
 func (s *Server) signedUpload(bucketName string, r *http.Request) jsonResponse {
 	defer r.Body.Close()
-	name := mux.Vars(r)["objectName"]
+	name := unescapeMuxVars(mux.Vars(r))["objectName"]
 	predefinedACL := r.URL.Query().Get("predefinedAcl")
 	contentEncoding := r.URL.Query().Get("contentEncoding")
+	customTime := r.URL.Query().Get("customTime")
 
 	// Load data from HTTP Headers
 	if contentEncoding == "" {
@@ -260,29 +266,23 @@ func (s *Server) signedUpload(bucketName string, r *http.Request) jsonResponse {
 		}
 	}
 
-	data, err := io.ReadAll(r.Body)
-	if err != nil {
-		return jsonResponse{errorMessage: err.Error()}
-	}
-	md5Hash := checksum.EncodedMd5Hash(data)
-	obj := Object{
+	obj := StreamingObject{
 		ObjectAttrs: ObjectAttrs{
 			BucketName:      bucketName,
 			Name:            name,
 			ContentType:     r.Header.Get(contentTypeHeader),
 			ContentEncoding: contentEncoding,
-			Crc32c:          checksum.EncodedCrc32cChecksum(data),
-			Md5Hash:         md5Hash,
-			Etag:            fmt.Sprintf("%q", md5Hash),
+			CustomTime:      convertTimeWithoutError(customTime),
 			ACL:             getObjectACL(predefinedACL),
 			Metadata:        metaData,
 		},
-		Content: data,
+		Content: notImplementedSeeker{r.Body},
 	}
-	obj, err = s.createObject(obj)
+	obj, err := s.createObject(obj, backend.NoConditions{})
 	if err != nil {
 		return errToJsonResponse(err)
 	}
+	obj.Close()
 	return jsonResponse{data: newObjectResponse(obj.ObjectAttrs)}
 }
 
@@ -298,7 +298,7 @@ func getObjectACL(predefinedACL string) []storage.ACLRule {
 
 	return []storage.ACLRule{
 		{
-			Entity: "projectOwner",
+			Entity: "projectOwner-test-project",
 			Role:   "OWNER",
 		},
 	}
@@ -319,6 +319,9 @@ func (s *Server) multipartUpload(bucketName string, r *http.Request) jsonRespons
 	)
 	var contentType string
 	reader := multipart.NewReader(r.Body, params["boundary"])
+
+	var partReaders []io.Reader
+
 	part, err := reader.NextPart()
 	for ; err == nil; part, err = reader.NextPart() {
 		if metadata == nil {
@@ -327,6 +330,7 @@ func (s *Server) multipartUpload(bucketName string, r *http.Request) jsonRespons
 		} else {
 			contentType = part.Header.Get(contentTypeHeader)
 			content, err = loadContent(part)
+			partReaders = append(partReaders, bytes.NewReader(content))
 		}
 		if err != nil {
 			break
@@ -342,33 +346,39 @@ func (s *Server) multipartUpload(bucketName string, r *http.Request) jsonRespons
 		objName = metadata.Name
 	}
 
-	if resp := s.checkUploadPreconditions(r, bucketName, objName); resp != nil {
-		return *resp
+	conditions, err := s.wrapUploadPreconditions(r, bucketName, objName)
+	if err != nil {
+		return jsonResponse{
+			status:       http.StatusBadRequest,
+			errorMessage: err.Error(),
+		}
 	}
 
-	md5Hash := checksum.EncodedMd5Hash(content)
-	obj := Object{
+	obj := StreamingObject{
 		ObjectAttrs: ObjectAttrs{
 			BucketName:      bucketName,
 			Name:            objName,
 			ContentType:     contentType,
 			ContentEncoding: metadata.ContentEncoding,
-			Crc32c:          checksum.EncodedCrc32cChecksum(content),
-			Md5Hash:         md5Hash,
-			Etag:            fmt.Sprintf("%q", md5Hash),
+			CustomTime:      metadata.CustomTime,
 			ACL:             getObjectACL(predefinedACL),
 			Metadata:        metadata.Metadata,
 		},
-		Content: content,
+		Content: notImplementedSeeker{io.NopCloser(io.MultiReader(partReaders...))},
 	}
-	obj, err = s.createObject(obj)
+
+	obj, err = s.createObject(obj, conditions)
 	if err != nil {
 		return errToJsonResponse(err)
 	}
+	defer obj.Close()
 	return jsonResponse{data: newObjectResponse(obj.ObjectAttrs)}
 }
 
 func (s *Server) resumableUpload(bucketName string, r *http.Request) jsonResponse {
+	if r.URL.Query().Has("upload_id") {
+		return s.uploadFileContent(r)
+	}
 	predefinedACL := r.URL.Query().Get("predefinedAcl")
 	contentEncoding := r.URL.Query().Get("contentEncoding")
 	metadata := new(multipartMetadata)
@@ -383,11 +393,16 @@ func (s *Server) resumableUpload(bucketName string, r *http.Request) jsonRespons
 	if objName == "" {
 		objName = metadata.Name
 	}
+	if contentEncoding == "" {
+		contentEncoding = metadata.ContentEncoding
+	}
 	obj := Object{
 		ObjectAttrs: ObjectAttrs{
 			BucketName:      bucketName,
 			Name:            objName,
+			ContentType:     metadata.ContentType,
 			ContentEncoding: contentEncoding,
+			CustomTime:      metadata.CustomTime,
 			ACL:             getObjectACL(predefinedACL),
 			Metadata:        metadata.Metadata,
 		},
@@ -398,9 +413,16 @@ func (s *Server) resumableUpload(bucketName string, r *http.Request) jsonRespons
 	}
 	s.uploads.Store(uploadID, obj)
 	header := make(http.Header)
-	header.Set("Location", s.URL()+"/upload/resumable/"+uploadID)
+	location := fmt.Sprintf(
+		"%s/upload/storage/v1/b/%s/o?uploadType=resumable&name=%s&upload_id=%s",
+		s.URL(),
+		bucketName,
+		url.PathEscape(objName),
+		uploadID,
+	)
+	header.Set("Location", location)
 	if r.Header.Get("X-Goog-Upload-Command") == "start" {
-		header.Set("X-Goog-Upload-URL", s.URL()+"/upload/resumable/"+uploadID)
+		header.Set("X-Goog-Upload-URL", location)
 		header.Set("X-Goog-Upload-Status", "active")
 	}
 	return jsonResponse{
@@ -445,12 +467,14 @@ func (s *Server) resumableUpload(bucketName string, r *http.Request) jsonRespons
 // then has a status of "200 OK", with a header "X-Http-Status-Code-Override"
 // set to "308".
 func (s *Server) uploadFileContent(r *http.Request) jsonResponse {
-	uploadID := mux.Vars(r)["uploadId"]
+	uploadID := r.URL.Query().Get("upload_id")
 	rawObj, ok := s.uploads.Load(uploadID)
 	if !ok {
 		return jsonResponse{status: http.StatusNotFound}
 	}
 	obj := rawObj.(Object)
+	// TODO: stream upload file content to and from disk (when using the FS
+	// backend, at least) instead of loading the entire content into memory.
 	content, err := loadContent(r.Body)
 	if err != nil {
 		return jsonResponse{errorMessage: err.Error()}
@@ -480,7 +504,12 @@ func (s *Server) uploadFileContent(r *http.Request) jsonResponse {
 	}
 	if commit {
 		s.uploads.Delete(uploadID)
-		obj, err = s.createObject(obj)
+		streamingObject, err := s.createObject(obj.StreamingObject(), backend.NoConditions{})
+		if err != nil {
+			return errToJsonResponse(err)
+		}
+		defer streamingObject.Close()
+		obj, err = streamingObject.BufferedObject()
 		if err != nil {
 			return errToJsonResponse(err)
 		}

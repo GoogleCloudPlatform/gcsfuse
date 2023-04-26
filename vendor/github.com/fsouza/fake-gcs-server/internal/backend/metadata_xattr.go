@@ -27,3 +27,7 @@ func (m metadataXattr) isSpecialFile(path string) bool {
 func (m metadataXattr) remove(path string) error {
 	return nil
 }
+
+func (m metadataXattr) rename(pathSrc, pathDst string) error {
+	return nil
+}

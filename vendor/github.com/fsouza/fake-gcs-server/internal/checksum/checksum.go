@@ -7,6 +7,7 @@ package checksum
 import (
 	"crypto/md5"
 	"encoding/base64"
+	"hash"
 	"hash/crc32"
 )
 
@@ -38,4 +39,32 @@ func EncodedHash(hash []byte) string {
 
 func EncodedMd5Hash(content []byte) string {
 	return EncodedHash(MD5Hash(content))
+}
+
+type StreamingHasher struct {
+	crc32 hash.Hash32
+	md5   hash.Hash
+}
+
+func NewStreamingHasher() *StreamingHasher {
+	return &StreamingHasher{
+		crc32: crc32.New(crc32cTable),
+		md5:   md5.New(),
+	}
+}
+
+func (s *StreamingHasher) Write(p []byte) (n int, err error) {
+	n, err = s.crc32.Write(p)
+	if err != nil {
+		return n, err
+	}
+	return s.md5.Write(p)
+}
+
+func (s *StreamingHasher) EncodedCrc32cChecksum() string {
+	return EncodedChecksum(s.crc32.Sum(nil))
+}
+
+func (s *StreamingHasher) EncodedMd5Hash() string {
+	return EncodedHash(s.md5.Sum(nil))
 }

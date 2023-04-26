@@ -7,6 +7,7 @@ package backend
 import (
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"sync"
 	"time"
@@ -36,7 +37,18 @@ func newBucketInMemory(name string, versioningEnabled bool) bucketInMemory {
 }
 
 func (bm *bucketInMemory) addObject(obj Object) Object {
-	obj.Size = int64(len(obj.Content))
+	if obj.Crc32c == "" {
+		obj.Crc32c = checksum.EncodedCrc32cChecksum(obj.Content)
+	}
+	if obj.Md5Hash == "" {
+		obj.Md5Hash = checksum.EncodedMd5Hash(obj.Content)
+	}
+	if obj.Etag == "" {
+		obj.Etag = fmt.Sprintf("%q", obj.Md5Hash)
+	}
+	if obj.Size == 0 {
+		obj.Size = int64(len(obj.Content))
+	}
 	obj.Generation = getNewGenerationIfZero(obj.Generation)
 	index := findObject(obj, bm.activeObjects, false)
 	if index >= 0 {
@@ -109,18 +121,34 @@ func findObject(obj Object, objectList []Object, matchGeneration bool) int {
 	return -1
 }
 
+// findLastObjectGeneration looks for an object in the given list and return the index where it
+// was found, or -1 if the object doesn't exist.
+func findLastObjectGeneration(obj Object, objectList []Object) int64 {
+	highScore := int64(0)
+	for _, o := range objectList {
+		if obj.IDNoGen() == o.IDNoGen() && o.Generation > highScore {
+			highScore = o.Generation
+		}
+	}
+	return highScore
+}
+
 // NewStorageMemory creates an instance of StorageMemory.
-func NewStorageMemory(objects []Object) Storage {
+func NewStorageMemory(objects []StreamingObject) (Storage, error) {
 	s := &storageMemory{
 		buckets: make(map[string]bucketInMemory),
 	}
 	for _, o := range objects {
+		bufferedObject, err := o.BufferedObject()
+		if err != nil {
+			return nil, err
+		}
 		s.CreateBucket(o.BucketName, false)
 		bucket := s.buckets[o.BucketName]
-		bucket.addObject(o)
+		bucket.addObject(bufferedObject)
 		s.buckets[o.BucketName] = bucket
 	}
-	return s
+	return s, nil
 }
 
 // CreateBucket creates a bucket.
@@ -181,20 +209,28 @@ func (s *storageMemory) DeleteBucket(name string) error {
 }
 
 // CreateObject stores an object in the backend.
-func (s *storageMemory) CreateObject(obj Object) (Object, error) {
+func (s *storageMemory) CreateObject(obj StreamingObject, conditions Conditions) (StreamingObject, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	bucketInMemory, err := s.getBucketInMemory(obj.BucketName)
 	if err != nil {
 		bucketInMemory = newBucketInMemory(obj.BucketName, false)
 	}
-	newObj := bucketInMemory.addObject(obj)
+	bufferedObj, err := obj.BufferedObject()
+	currentGeneration := findLastObjectGeneration(bufferedObj, bucketInMemory.activeObjects)
+	if !conditions.ConditionsMet(currentGeneration) {
+		return StreamingObject{}, PreConditionFailed
+	}
+	if err != nil {
+		return StreamingObject{}, err
+	}
+	newObj := bucketInMemory.addObject(bufferedObj)
 	s.buckets[obj.BucketName] = bucketInMemory
-	return newObj, nil
+	return newObj.StreamingObject(), nil
 }
 
 // ListObjects lists the objects in a given bucket with a given prefix and
-// delimeter.
+// delimiter.
 func (s *storageMemory) ListObjects(bucketName string, prefix string, versions bool) ([]ObjectAttrs, error) {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
@@ -223,17 +259,17 @@ func (s *storageMemory) ListObjects(bucketName string, prefix string, versions b
 	return append(objAttrs, archvObjs...), nil
 }
 
-func (s *storageMemory) GetObject(bucketName, objectName string) (Object, error) {
+func (s *storageMemory) GetObject(bucketName, objectName string) (StreamingObject, error) {
 	return s.GetObjectWithGeneration(bucketName, objectName, 0)
 }
 
 // GetObjectWithGeneration retrieves a specific version of the object.
-func (s *storageMemory) GetObjectWithGeneration(bucketName, objectName string, generation int64) (Object, error) {
+func (s *storageMemory) GetObjectWithGeneration(bucketName, objectName string, generation int64) (StreamingObject, error) {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 	bucketInMemory, err := s.getBucketInMemory(bucketName)
 	if err != nil {
-		return Object{}, err
+		return StreamingObject{}, err
 	}
 	matchGeneration := false
 	obj := Object{ObjectAttrs: ObjectAttrs{BucketName: bucketName, Name: objectName}}
@@ -245,10 +281,10 @@ func (s *storageMemory) GetObjectWithGeneration(bucketName, objectName string, g
 	}
 	index := findObject(obj, listToConsider, matchGeneration)
 	if index < 0 {
-		return obj, errors.New("object not found")
+		return obj.StreamingObject(), errors.New("object not found")
 	}
 
-	return listToConsider[index], nil
+	return listToConsider[index].StreamingObject(), nil
 }
 
 func (s *storageMemory) DeleteObject(bucketName, objectName string) error {
@@ -262,52 +298,57 @@ func (s *storageMemory) DeleteObject(bucketName, objectName string) error {
 	if err != nil {
 		return err
 	}
-	bucketInMemory.deleteObject(obj, true)
+	bufferedObject, err := obj.BufferedObject()
+	if err != nil {
+		return err
+	}
+	bucketInMemory.deleteObject(bufferedObject, true)
 	s.buckets[bucketName] = bucketInMemory
 	return nil
 }
 
-// PatchObject updates an object metadata.
-func (s *storageMemory) PatchObject(bucketName, objectName string, metadata map[string]string) (Object, error) {
+func (s *storageMemory) PatchObject(bucketName, objectName string, attrsToUpdate ObjectAttrs) (StreamingObject, error) {
 	obj, err := s.GetObject(bucketName, objectName)
 	if err != nil {
-		return Object{}, err
+		return StreamingObject{}, err
 	}
-	if obj.Metadata == nil {
+
+	obj.patch(attrsToUpdate)
+	s.CreateObject(obj, NoConditions{})
+	return obj, nil
+}
+
+// UpdateObject replaces an object metadata, custom time, and acl.
+func (s *storageMemory) UpdateObject(bucketName, objectName string, attrsToUpdate ObjectAttrs) (StreamingObject, error) {
+	obj, err := s.GetObject(bucketName, objectName)
+	if err != nil {
+		return StreamingObject{}, err
+	}
+
+	if attrsToUpdate.Metadata != nil {
 		obj.Metadata = map[string]string{}
 	}
-	for k, v := range metadata {
-		obj.Metadata[k] = v
-	}
-	s.CreateObject(obj) // recreate object
+	obj.patch(attrsToUpdate)
+	s.CreateObject(obj, NoConditions{})
 	return obj, nil
 }
 
-// UpdateObject replaces an object metadata.
-func (s *storageMemory) UpdateObject(bucketName, objectName string, metadata map[string]string) (Object, error) {
-	obj, err := s.GetObject(bucketName, objectName)
-	if err != nil {
-		return Object{}, err
-	}
-	obj.Metadata = map[string]string{}
-	for k, v := range metadata {
-		obj.Metadata[k] = v
-	}
-	s.CreateObject(obj) // recreate object
-	return obj, nil
-}
-
-func (s *storageMemory) ComposeObject(bucketName string, objectNames []string, destinationName string, metadata map[string]string, contentType string) (Object, error) {
+func (s *storageMemory) ComposeObject(bucketName string, objectNames []string, destinationName string, metadata map[string]string, contentType string) (StreamingObject, error) {
 	var data []byte
 	for _, n := range objectNames {
 		obj, err := s.GetObject(bucketName, n)
 		if err != nil {
-			return Object{}, err
+			return StreamingObject{}, err
 		}
-		data = append(data, obj.Content...)
+		objectContent, err := io.ReadAll(obj.Content)
+		if err != nil {
+			return StreamingObject{}, err
+		}
+		data = append(data, objectContent...)
 	}
 
-	dest, err := s.GetObject(bucketName, destinationName)
+	var dest Object
+	streamingDest, err := s.GetObject(bucketName, destinationName)
 	if err != nil {
 		dest = Object{
 			ObjectAttrs: ObjectAttrs{
@@ -317,14 +358,21 @@ func (s *storageMemory) ComposeObject(bucketName string, objectNames []string, d
 				Created:     time.Now().String(),
 			},
 		}
+	} else {
+		dest, err = streamingDest.BufferedObject()
+		if err != nil {
+			return StreamingObject{}, err
+		}
 	}
 
 	dest.Content = data
-	dest.Crc32c = checksum.EncodedCrc32cChecksum(data)
-	dest.Md5Hash = checksum.EncodedMd5Hash(data)
+	dest.Crc32c = ""
+	dest.Md5Hash = ""
+	dest.Etag = ""
+	dest.Size = 0
 	dest.Metadata = metadata
 
-	result, err := s.CreateObject(dest)
+	result, err := s.CreateObject(dest.StreamingObject(), NoConditions{})
 	if err != nil {
 		return result, err
 	}

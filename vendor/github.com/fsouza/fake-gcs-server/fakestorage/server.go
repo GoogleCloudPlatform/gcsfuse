@@ -19,11 +19,15 @@ import (
 	"net/http/httptest"
 	"net/http/httputil"
 	"net/textproto"
+	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
 	"cloud.google.com/go/storage"
 	"github.com/fsouza/fake-gcs-server/internal/backend"
+	"github.com/fsouza/fake-gcs-server/internal/checksum"
 	"github.com/fsouza/fake-gcs-server/internal/notification"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -73,6 +77,7 @@ func NewServerWithHostPort(objects []Object, host string, port uint16) (*Server,
 type Options struct {
 	InitialObjects []Object
 	StorageRoot    string
+	Seed           string
 	Scheme         string
 	Host           string
 	Port           uint16
@@ -124,7 +129,7 @@ func NewServerWithOptions(options Options) (*Server, error) {
 		return nil, err
 	}
 
-	allowedHeaders := []string{"Content-Type", "Content-Encoding", "Range"}
+	allowedHeaders := []string{"Content-Type", "Content-Encoding", "Range", "Content-Range"}
 	allowedHeaders = append(allowedHeaders, options.AllowedCORSHeaders...)
 
 	cors := handlers.CORS(
@@ -139,6 +144,7 @@ func NewServerWithOptions(options Options) (*Server, error) {
 		handlers.AllowedHeaders(allowedHeaders),
 		handlers.AllowedOrigins([]string{"*"}),
 		handlers.AllowCredentials(),
+		handlers.ExposedHeaders([]string{"Location"}),
 	)
 
 	handler := cors(s.mux)
@@ -183,13 +189,13 @@ func NewServerWithOptions(options Options) (*Server, error) {
 }
 
 func newServer(options Options) (*Server, error) {
-	backendObjects := toBackendObjects(options.InitialObjects)
+	backendObjects := bufferedObjectsToBackendObjects(options.InitialObjects)
 	var backendStorage backend.Storage
 	var err error
 	if options.StorageRoot != "" {
 		backendStorage, err = backend.NewStorageFS(backendObjects, options.StorageRoot)
 	} else {
-		backendStorage = backend.NewStorageMemory(backendObjects)
+		backendStorage, err = backend.NewStorageMemory(backendObjects)
 	}
 	if err != nil {
 		return nil, err
@@ -211,9 +217,25 @@ func newServer(options Options) (*Server, error) {
 	return &s, nil
 }
 
+func unescapeMuxVars(vars map[string]string) map[string]string {
+	m := make(map[string]string)
+	for k, v := range vars {
+		r, err := url.PathUnescape(v)
+		if err == nil {
+			m[k] = r
+		} else {
+			m[k] = v
+		}
+	}
+	return m
+}
+
 func (s *Server) buildMuxer() {
 	const apiPrefix = "/storage/v1"
-	s.mux = mux.NewRouter()
+	s.mux = mux.NewRouter().SkipClean(true).UseEncodedPath()
+
+	// healthcheck
+	s.mux.Path("/_internal/healthcheck").Methods(http.MethodGet).HandlerFunc(s.healthcheck)
 
 	routers := []*mux.Router{
 		s.mux.PathPrefix(apiPrefix).Subrouter(),
@@ -242,12 +264,14 @@ func (s *Server) buildMuxer() {
 	// Internal / update server configuration
 	s.mux.Path("/_internal/config").Methods(http.MethodPut).HandlerFunc(jsonToHTTPHandler(s.updateServerConfig))
 	s.mux.MatcherFunc(s.publicHostMatcher).Path("/_internal/config").Methods(http.MethodPut).HandlerFunc(jsonToHTTPHandler(s.updateServerConfig))
+	s.mux.Path("/_internal/reseed").Methods(http.MethodPut, http.MethodPost).HandlerFunc(jsonToHTTPHandler(s.reseedServer))
 	// Internal - end
 
 	bucketHost := fmt.Sprintf("{bucketName}.%s", s.publicHost)
 	s.mux.Host(bucketHost).Path("/{objectName:.+}").Methods(http.MethodGet, http.MethodHead).HandlerFunc(s.downloadObject)
 	s.mux.Path("/download/storage/v1/b/{bucketName}/o/{objectName:.+}").Methods(http.MethodGet).HandlerFunc(s.downloadObject)
 	s.mux.Path("/upload/storage/v1/b/{bucketName}/o").Methods(http.MethodPost).HandlerFunc(jsonToHTTPHandler(s.insertObject))
+	s.mux.Path("/upload/storage/v1/b/{bucketName}/o").Methods(http.MethodPut).HandlerFunc(jsonToHTTPHandler(s.uploadFileContent))
 	s.mux.Path("/upload/resumable/{uploadId}").Methods(http.MethodPut, http.MethodPost).HandlerFunc(jsonToHTTPHandler(s.uploadFileContent))
 
 	// Batch endpoint
@@ -261,10 +285,95 @@ func (s *Server) buildMuxer() {
 	s.mux.Host(s.publicHost).Path("/{bucketName}").MatcherFunc(matchFormData).Methods(http.MethodPost, http.MethodPut).HandlerFunc(xmlToHTTPHandler(s.insertFormObject))
 	s.mux.Host(bucketHost).MatcherFunc(matchFormData).Methods(http.MethodPost, http.MethodPut).HandlerFunc(xmlToHTTPHandler(s.insertFormObject))
 
-	// Signed URL Uploads
+	// Signed URLs (upload and download)
 	s.mux.MatcherFunc(s.publicHostMatcher).Path("/{bucketName}/{objectName:.+}").Methods(http.MethodPost, http.MethodPut).HandlerFunc(jsonToHTTPHandler(s.insertObject))
+	s.mux.MatcherFunc(s.publicHostMatcher).Path("/{bucketName}/{objectName:.+}").Methods(http.MethodGet, http.MethodHead).HandlerFunc(s.getObject)
 	s.mux.Host(bucketHost).Path("/{objectName:.+}").Methods(http.MethodPost, http.MethodPut).HandlerFunc(jsonToHTTPHandler(s.insertObject))
 	s.mux.Host("{bucketName:.+}").Path("/{objectName:.+}").Methods(http.MethodPost, http.MethodPut).HandlerFunc(jsonToHTTPHandler(s.insertObject))
+}
+
+func (s *Server) reseedServer(r *http.Request) jsonResponse {
+	initialObjects, emptyBuckets := generateObjectsFromFiles(s.options.Seed)
+
+	backendObjects := bufferedObjectsToBackendObjects(initialObjects)
+
+	var err error
+	if s.options.StorageRoot != "" {
+		s.backend, err = backend.NewStorageFS(backendObjects, s.options.StorageRoot)
+	} else {
+		s.backend, err = backend.NewStorageMemory(backendObjects)
+	}
+	if err != nil {
+		return errToJsonResponse(err)
+	}
+
+	for _, bucketName := range emptyBuckets {
+		s.CreateBucketWithOpts(CreateBucketOpts{Name: bucketName})
+	}
+
+	return jsonResponse{data: fromBackendObjects(backendObjects)}
+}
+
+func generateObjectsFromFiles(folder string) ([]Object, []string) {
+	var objects []Object
+	var emptyBuckets []string
+	if files, err := os.ReadDir(folder); err == nil {
+		for _, f := range files {
+			if !f.IsDir() {
+				continue
+			}
+			bucketName := f.Name()
+			localBucketPath := filepath.Join(folder, bucketName)
+
+			bucketObjects, err := objectsFromBucket(localBucketPath, bucketName)
+			if err != nil {
+				continue
+			}
+
+			if len(bucketObjects) < 1 {
+				emptyBuckets = append(emptyBuckets, bucketName)
+			}
+			objects = append(objects, bucketObjects...)
+		}
+	}
+	return objects, emptyBuckets
+}
+
+func objectsFromBucket(localBucketPath, bucketName string) ([]Object, error) {
+	var objects []Object
+	err := filepath.Walk(localBucketPath, func(path string, info os.FileInfo, _ error) error {
+		if info.Mode().IsRegular() {
+			// Rel() should never return error since path always descend from localBucketPath
+			relPath, _ := filepath.Rel(localBucketPath, path)
+			objectKey := filepath.ToSlash(relPath)
+			fileContent, err := os.ReadFile(path)
+			if err != nil {
+				return fmt.Errorf("could not read file %q: %w", path, err)
+			}
+			objects = append(objects, Object{
+				ObjectAttrs: ObjectAttrs{
+					ACL: []storage.ACLRule{
+						{
+							Entity: "projectOwner-test-project",
+							Role:   "OWNER",
+						},
+					},
+					BucketName:  bucketName,
+					Name:        objectKey,
+					ContentType: mime.TypeByExtension(filepath.Ext(path)),
+					Crc32c:      checksum.EncodedCrc32cChecksum(fileContent),
+					Md5Hash:     checksum.EncodedMd5Hash(fileContent),
+				},
+				Content: fileContent,
+			})
+		}
+		return nil
+	})
+	return objects, err
+}
+
+func (s *Server) healthcheck(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
 }
 
 // publicHostMatcher matches incoming requests against the currently specified server publicHost.

@@ -9,4 +9,5 @@ type metadataHandler interface {
 	read(path string) ([]byte, error)
 	remove(path string) error
 	isSpecialFile(path string) bool
+	rename(pathSrc, pathDst string) error
 }
