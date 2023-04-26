@@ -56,7 +56,6 @@ func checkIfDirCreationFailed(dirPath string, t *testing.T) {
 	}
 
 	checkErrorForReadOnlyFileSystem(err, t)
-
 }
 
 func TestCreateDir(t *testing.T) {
