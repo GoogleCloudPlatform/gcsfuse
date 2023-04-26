@@ -41,15 +41,15 @@ func TestListObjectsInBucket(t *testing.T) {
 	}
 
 	// Comparing first object name and type
-	// Name - testBucket/Test, Type - Dir
+	// Name - testBucket/Test/, Type - Dir
 	if obj[0].Name() != DirectoryNameInTestBucket || obj[0].IsDir() != true {
-		t.Errorf("Listed object is incorrect.")
+		t.Errorf("Object Listed for bucket directory is incorrect.")
 	}
 
 	// Comparing second object name and type
 	// Name - testBucket/Test1.txt, Type - File
 	if obj[1].Name() != FileNameInTestBucket || obj[1].IsDir() != false {
-		t.Errorf("Listed object is incorrect.")
+		t.Errorf("Object Listed for file in bucket is incorrect.")
 	}
 }
 
@@ -73,12 +73,12 @@ func TestListObjectsInBucketDirectory(t *testing.T) {
 	// Comparing first object name and type.
 	// Name - testBucket/Test/a.txt, Type - File
 	if obj[0].Name() != FileNameInDirectoryTestBucket || obj[0].IsDir() != false {
-		t.Errorf("Listed object from bucket directory is incorrect.")
+		t.Errorf("Object Listed for file in bucket directory is incorrect.")
 	}
 
 	// Comparing second object name and type.
-	// Name - testBucket/b, Type - Dir
+	// Name - testBucket/Test/b, Type - Dir
 	if obj[1].Name() != SubDirectoryNameInTestBucket || obj[1].IsDir() != true {
-		t.Errorf("Listed object from bucket directory is incorrect.")
+		t.Errorf("Object Listed for bucket sub directory is incorrect.")
 	}
 }
