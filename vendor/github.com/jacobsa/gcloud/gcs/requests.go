@@ -90,6 +90,11 @@ type CopyObjectRequest struct {
 	//
 	// This is probably only meaningful in conjunction with SrcGeneration.
 	SrcMetaGenerationPrecondition *int64
+
+	// Destination object will be overwritten only if the current
+	// generation is equal to the given value. Zero means the object does not
+	// exist.
+	DstGenerationPrecondition *int64
 }
 
 // MaxSourcesPerComposeRequest is the maximum number of sources that a
