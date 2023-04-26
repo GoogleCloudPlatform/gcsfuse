@@ -46,4 +46,6 @@ jobs:
       with:
         args: -E=goimports
         only-new-issues: true
+      run:
+        modules-download-mode: vendor
 
