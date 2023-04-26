@@ -45,5 +45,6 @@ jobs:
       uses: golangci/golangci-lint-action@032fa5c5e48499f06cf9d32c02149bfac1284239
       with:
         args: -E=goimports
+        version: v1.49.0
         only-new-issues: true
 
