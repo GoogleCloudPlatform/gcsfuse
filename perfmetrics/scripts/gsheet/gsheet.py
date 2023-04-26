@@ -25,7 +25,8 @@ def write_to_google_sheet(worksheet: str, data) -> None:
     HttpError: For any Google Sheets API call related errors
   """
 
-  if os.getenv('JOB_TYPE') != "RELEASE" :
+  # Update the gsheet if it runs as a part of daily Kokoro tests.
+  if os.getenv('KOKORO_JOB_TYPE') != "RELEASE" :
     return
 
   sheets_client = _get_sheets_service_client()
