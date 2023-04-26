@@ -22,7 +22,7 @@ pip install google-cloud
 pip install google-cloud-vision
 pip install google-api-python-client
 pip install prettytable
-echo Installing go-lang 1.20.3
+echo Installing go-lang  1.20.3
 wget -O go_tar.tar.gz https://go.dev/dl/go1.20.3.linux-amd64.tar.gz
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
