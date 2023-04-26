@@ -36,6 +36,6 @@ In resnet_runner.py, batch_size can be adjusted on line 34 and number of epochs 
 to tfm.core.train_lib.run_experiment at line 100
 
 ## Logging
-4 hours of GCSFuse logs with debug flags: --debug_fs, --debug_gcs take around 32 GiB of space on disk.
+4 hours of GCSFuse logs with debug flags: --debug_fuse, --debug_gcs take around 40 GiB of space on disk.
 The gcsfuse based logs are stored in directory ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts/logs
 while the gcsfuse errors and output (Mounted successfully) are stored in ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts/output
