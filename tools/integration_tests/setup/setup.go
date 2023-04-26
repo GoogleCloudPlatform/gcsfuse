@@ -124,6 +124,7 @@ func SetUpTestDir() error {
 
 func MountGcsfuse(flags []string) error {
 	defaultArg := []string{"--debug_gcs",
+		"--debug_fs",
 		"--debug_fuse",
 		"--log-file=" + LogFile(),
 		"--log-format=text",

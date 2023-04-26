@@ -54,6 +54,9 @@ type ServerConfig struct {
 	// LocalFileCache
 	LocalFileCache bool
 
+	// Enable debug messages
+	DebugFS bool
+
 	// The temporary directory to use for local caching, or the empty string to
 	// use the system default.
 	TempDir string
