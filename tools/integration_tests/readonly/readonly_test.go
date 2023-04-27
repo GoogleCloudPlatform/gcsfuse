@@ -49,6 +49,12 @@ func checkErrorForReadOnlyFileSystem(err error, t *testing.T) {
 	}
 }
 
+func checkErrorForObjectNotExist(err error, t *testing.T) {
+	if !strings.Contains(err.Error(), "no such file or directory") {
+		t.Errorf("Incorrect error for object not exist.")
+	}
+}
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 

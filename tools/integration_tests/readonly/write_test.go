@@ -80,10 +80,7 @@ func TestOpenNonExistentFileFromSubDirectoryWithReadWriteAccess(t *testing.T) {
 func checkIfFileAppendContentFailed(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 
-	// It will throw an error read-only file system or permission denied.
-	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
-		t.Errorf("Throwing incorrect error.")
-	}
+	checkErrorForReadOnlyFileSystem(err, t)
 
 	if err == nil {
 		t.Errorf("File opened for appending content in read-only mount.")
@@ -110,10 +107,8 @@ func checkIfNonExistentFileFailedToOpenAndAppend(filePath string, t *testing.T) 
 		t.Errorf("File opened for appending content in read-only mount.")
 	}
 
-	// It will throw an error no such file or directory.
-	if !strings.Contains(err.Error(), "no such file or directory") {
-		t.Errorf("Throwing incorrect error.")
-	}
+	checkErrorForObjectNotExist(err, t)
+
 	defer file.Close()
 }
 
