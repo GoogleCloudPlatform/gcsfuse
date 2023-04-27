@@ -1,4 +1,3 @@
-import os
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
@@ -24,11 +23,6 @@ def write_to_google_sheet(worksheet: str, data) -> None:
   Raises:
     HttpError: For any Google Sheets API call related errors
   """
-
-  # Update the gsheet only if it runs as part of Kokoro tests.
-  if os.getenv('KOKORO_JOB_TYPE') != "RELEASE" and os.getenv('KOKORO_JOB_TYPE')!="CONTINUOUS_INTEGRATION" and os.getenv('KOKORO_JOB_TYPE')!="PRESUBMIT_GITHUB":
-    return
-
   sheets_client = _get_sheets_service_client()
 
   # Getting the index of the last occupied row in the sheet
@@ -39,8 +33,8 @@ def write_to_google_sheet(worksheet: str, data) -> None:
 
   # Clearing the occupied rows
   request = sheets_client.spreadsheets().values().clear(
-      spreadsheetId=SPREADSHEET_ID, 
-      range='{}!A2:{}'.format(worksheet,entries+1), 
+      spreadsheetId=SPREADSHEET_ID,
+      range='{}!A2:{}'.format(worksheet,entries+1),
       body={}).execute()
 
   # Appending new rows
