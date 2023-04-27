@@ -33,6 +33,7 @@ func statExistingObj(objPath string, t *testing.T) (file os.FileInfo) {
 
 func TestStatFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
+	
 	file := statExistingObj(filePath, t)
 
 	// Name - testBucket/Test1.txt, Type - File
@@ -43,6 +44,7 @@ func TestStatFile(t *testing.T) {
 
 func TestStatFileFromBucketDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
+
 	file := statExistingObj(filePath, t)
 
 	// Name - testBucket/Test/a.txt, Type - File
@@ -53,6 +55,7 @@ func TestStatFileFromBucketDirectory(t *testing.T) {
 
 func TestStatDirectory(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
+
 	dir := statExistingObj(dirPath, t)
 
 	// Name - testBucket/Test/, Type - Dir
@@ -63,6 +66,7 @@ func TestStatDirectory(t *testing.T) {
 
 func TestStatSubDirectory(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
+
 	dir := statExistingObj(dirPath, t)
 
 	// Name - testBucket/Test/b, Type - Dir
