@@ -9,7 +9,7 @@ echo Installing requirements..
 pip install -r requirements.txt --user
 echo Running script..
 # Upload data to the gsheet only when it runs through kokoro.
-if [[ "${KOKORO_JOB_TYPE}" == "RELEASE" || "${KOKORO_ARTIFACTS_DIR}" =="CONTINUOUS_INTEGRATION" || "${KOKORO_ARTIFACTS_DIR}" =="PRESUBMIT_GITHUB" ]]
+if [ "${KOKORO_JOB_TYPE}" != "RELEASE" ] && [ "${KOKORO_JOB_TYPE}" != "CONTINUOUS_INTEGRATION" ] && [ "${KOKORO_JOB_TYPE}" != "PRESUBMIT_GITHUB" ];
 then
   python3 listing_benchmark.py config.json --command "ls -R" --num_samples 30 --upload --message "Testing CT setup."
 fi
