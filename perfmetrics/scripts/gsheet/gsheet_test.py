@@ -73,7 +73,7 @@ class GsheetTest(unittest.TestCase):
                 'majorDimension': 'ROWS',
                 'values': [(
                     'read', 50000, 40, 1653027155, 1653027215, 1, 2, 3, 4, 5
-                )]
+                    )]
             },
             range='{}!A2'.format(WORKSHEET_NAME))
     ]
