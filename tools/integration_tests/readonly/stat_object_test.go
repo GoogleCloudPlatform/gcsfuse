@@ -53,6 +53,17 @@ func TestStatFileFromBucketDirectory(t *testing.T) {
 	}
 }
 
+func TestStatFileFromBucketSubDirectory(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
+
+	file := statObject(filePath, t)
+
+	// Name - testBucket/Test/b/b.txt, Type - File
+	if file.Name() != FileNameInSubDirectoryTestBucket || file.IsDir() != false {
+		t.Errorf("Object stated for file in bucket subdirectory is incorrect.")
+	}
+}
+
 func TestStatDirectory(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
 
