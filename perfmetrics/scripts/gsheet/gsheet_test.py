@@ -152,7 +152,6 @@ def check_write_to_google_sheet_with_missing_permissions_raises_http_error_when_
       # Try to update the sheet and http error raised.
       with self.assertRaises(HttpError):
         gsheet.write_to_google_sheet(WORKSHEET_NAME, metrics_to_be_added)
-        # self.assertEqual(len(sheets_service_mock), 0)
         sheets_service_mock.assert_has_calls(calls, any_order=True)
     except:
        # In our case, it should not happen as we don't update the sheet in this case.
