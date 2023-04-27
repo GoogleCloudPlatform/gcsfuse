@@ -18,7 +18,6 @@ package readonly_test
 import (
 	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
@@ -32,74 +31,75 @@ func statExistingObj(objPath string, t *testing.T) (file os.FileInfo) {
 	return file
 }
 
+// Name - testBucket/Test1.txt, Type - File
 func TestStatFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 	file := statExistingObj(filePath, t)
 
 	if file.Name() != FileNameInTestBucket || file.IsDir() != false {
-		t.Errorf("Stat incorrrect file.")
+		t.Errorf("Object stated for file in bucket is incorrect.")
 	}
 }
 
-func TestStatFileInSubDirectory(t *testing.T) {
+// Name - testBucket/Test/a.txt, Type - File
+func TestStatFileFromBucketDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 	file := statExistingObj(filePath, t)
 
 	if file.Name() != FileNameInDirectoryTestBucket || file.IsDir() != false {
-		t.Errorf("Stat incorrrect file.")
+		t.Errorf("Object stated for file in bucket directory is incorrect.")
 	}
 }
 
+// Name - testBucket/Test/, Type - Dir
 func TestStatDirectory(t *testing.T) {
 	DirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
 	dir := statExistingObj(DirPath, t)
 
 	if dir.Name() != DirectoryNameInTestBucket || dir.IsDir() != true {
-		t.Errorf("Stat incorrrect Directory.")
+		t.Errorf("Object stated for bucket directory is incorrect.")
 	}
 }
 
+// Name - testBucket/Test/b, Type - Dir
 func TestStatSubDirectory(t *testing.T) {
 	DirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
 	dir := statExistingObj(DirPath, t)
 
 	if dir.Name() != SubDirectoryNameInTestBucket || dir.IsDir() != true {
-		t.Errorf("Stat incorrrect Directory.")
+		t.Errorf("Object stated for bucket sub directory is incorrect.")
 	}
 }
 
-func checkIfNonExistentFileOpenToStat(objPath string, t *testing.T) {
+func checkIfNonExistentObjectStat(objPath string, t *testing.T) {
 	_, err := os.Stat(objPath)
 	if err == nil {
-		t.Errorf("Object exist!!")
+		t.Errorf("Incorrect object exist!!")
 	}
 
-	// It will throw an error no such file or directory.
-	if !strings.Contains(err.Error(), "no such file or directory") {
-		t.Errorf("Throwing incorrect error.")
-	}
+	checkErrorForObjectNotExist(err, t)
 }
 
 func TestStatNotExistingFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNotExist)
 
-	checkIfNonExistentFileOpenToStat(filePath, t)
+	checkIfNonExistentObjectStat(filePath, t)
 }
 
-func TestStatNotExistingFileFromSubDirectory(t *testing.T) {
+func TestStatNotExistingFileFromBucketDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
 
-	checkIfNonExistentFileOpenToStat(filePath, t)
+	checkIfNonExistentObjectStat(filePath, t)
 }
 
 func TestStatNotExistingDirectory(t *testing.T) {
 	DirPath := path.Join(setup.MntDir(), DirNotExist)
 
-	checkIfNonExistentFileOpenToStat(DirPath, t)
+	checkIfNonExistentObjectStat(DirPath, t)
 }
 
 func TestStatNotExistingSubDirectory(t *testing.T) {
 	DirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, DirNotExist)
 
-	checkIfNonExistentFileOpenToStat(DirPath, t)
+	checkIfNonExistentObjectStat(DirPath, t)
 }

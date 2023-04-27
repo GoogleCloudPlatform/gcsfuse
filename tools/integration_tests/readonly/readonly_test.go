@@ -31,6 +31,8 @@ const FileNameInDirectoryTestBucket = "a.txt"    //  testBucket/Test/a.txt
 const FileNameInSubDirectoryTestBucket = "b.txt" //  testBucket/Test/b/b.txt
 const NumberOfObjectsInTestBucket = 2
 const NumberOfObjectsInDirectoryTestBucket = 2
+const FileNotExist = "notExist.txt"
+const DirNotExist = "notExist"
 
 // Run shell script
 func runScriptForTestData(script string, testBucket string) {
@@ -43,6 +45,12 @@ func runScriptForTestData(script string, testBucket string) {
 
 func checkErrorForReadOnlyFileSystem(err error, t *testing.T) {
 	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
+		t.Errorf("Incorrect error for readonly filesystem.")
+	}
+}
+
+func checkErrorForObjectNotExist(err error, t *testing.T) {
+	if !strings.Contains(err.Error(), "no such file or directory") {
 		t.Errorf("Incorrect error for readonly filesystem.")
 	}
 }
