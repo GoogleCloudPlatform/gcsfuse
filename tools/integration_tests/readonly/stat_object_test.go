@@ -31,41 +31,41 @@ func statExistingObj(objPath string, t *testing.T) (file os.FileInfo) {
 	return file
 }
 
-// Name - testBucket/Test1.txt, Type - File
 func TestStatFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 	file := statExistingObj(filePath, t)
 
+	// Name - testBucket/Test1.txt, Type - File
 	if file.Name() != FileNameInTestBucket || file.IsDir() != false {
 		t.Errorf("Object stated for file in bucket is incorrect.")
 	}
 }
 
-// Name - testBucket/Test/a.txt, Type - File
 func TestStatFileFromBucketDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 	file := statExistingObj(filePath, t)
 
+	// Name - testBucket/Test/a.txt, Type - File
 	if file.Name() != FileNameInDirectoryTestBucket || file.IsDir() != false {
 		t.Errorf("Object stated for file in bucket directory is incorrect.")
 	}
 }
 
-// Name - testBucket/Test/, Type - Dir
 func TestStatDirectory(t *testing.T) {
-	DirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
-	dir := statExistingObj(DirPath, t)
+	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
+	dir := statExistingObj(dirPath, t)
 
+	// Name - testBucket/Test/, Type - Dir
 	if dir.Name() != DirectoryNameInTestBucket || dir.IsDir() != true {
 		t.Errorf("Object stated for bucket directory is incorrect.")
 	}
 }
 
-// Name - testBucket/Test/b, Type - Dir
 func TestStatSubDirectory(t *testing.T) {
-	DirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
-	dir := statExistingObj(DirPath, t)
+	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
+	dir := statExistingObj(dirPath, t)
 
+	// Name - testBucket/Test/b, Type - Dir
 	if dir.Name() != SubDirectoryNameInTestBucket || dir.IsDir() != true {
 		t.Errorf("Object stated for bucket sub directory is incorrect.")
 	}
@@ -93,13 +93,13 @@ func TestStatNotExistingFileFromBucketDirectory(t *testing.T) {
 }
 
 func TestStatNotExistingDirectory(t *testing.T) {
-	DirPath := path.Join(setup.MntDir(), DirNotExist)
+	dirPath := path.Join(setup.MntDir(), DirNotExist)
 
-	checkIfNonExistentObjectStat(DirPath, t)
+	checkIfNonExistentObjectStat(dirPath, t)
 }
 
 func TestStatNotExistingSubDirectory(t *testing.T) {
-	DirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, DirNotExist)
+	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, DirNotExist)
 
-	checkIfNonExistentObjectStat(DirPath, t)
+	checkIfNonExistentObjectStat(dirPath, t)
 }
