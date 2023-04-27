@@ -39,6 +39,7 @@ func readFile(filePath string, t *testing.T) (content []byte) {
 	return content
 }
 
+// testBucket/Test1.txt
 func TestReadFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 	content := readFile(filePath, t)
@@ -48,7 +49,8 @@ func TestReadFile(t *testing.T) {
 	}
 }
 
-func TestReadFileFromSubDirectory(t *testing.T) {
+// testBucket/Test/a.txt
+func TestReadFileFromBucketDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 	content := readFile(filePath, t)
 
@@ -57,7 +59,7 @@ func TestReadFileFromSubDirectory(t *testing.T) {
 	}
 }
 
-func checkIfNonExistentFileFailsToOpen(filePath string, t *testing.T) {
+func checkIfNonExistentFileFailedToOpen(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 
 	checkErrorForObjectNotExist(err, t)
@@ -71,11 +73,11 @@ func checkIfNonExistentFileFailsToOpen(filePath string, t *testing.T) {
 func TestReadNonExistentFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNotExist)
 
-	checkIfNonExistentFileFailsToOpen(filePath, t)
+	checkIfNonExistentFileFailedToOpen(filePath, t)
 }
 
-func TestReadNonExistentFileFromSubDirectory(t *testing.T) {
+func TestReadNonExistentFileFromBucketDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
 
-	checkIfNonExistentFileFailsToOpen(filePath, t)
+	checkIfNonExistentFileFailedToOpen(filePath, t)
 }

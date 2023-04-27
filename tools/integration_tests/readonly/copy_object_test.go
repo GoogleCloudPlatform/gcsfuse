@@ -61,14 +61,14 @@ func TestCopyFile(t *testing.T) {
 }
 
 // Copy testBucket/Test/a.txt to testBucket/Test/b/b.txt
-func TestCopyFileFromSubDirectory(t *testing.T) {
+func TestCopyFileFromBucketDirectory(t *testing.T) {
 	file := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 
 	checkIfFileCopyFailed(file, t)
 }
 
-func checkIfDirCopyFailed(srcDirPath string, newDir string, t *testing.T) {
-	cmd := exec.Command("cp", "--recursive", srcDirPath, newDir)
+func checkIfDirCopyFailed(srcDirPath string, destDirPath string, t *testing.T) {
+	cmd := exec.Command("cp", "--recursive", srcDirPath, destDirPath)
 	err := cmd.Run()
 
 	// Throwing an  exit status 1
@@ -78,17 +78,17 @@ func checkIfDirCopyFailed(srcDirPath string, newDir string, t *testing.T) {
 }
 
 // Copy testBucket/Test to testBucket/Test/b
-func TestCopyDir(t *testing.T) {
+func TestCopyDirectory(t *testing.T) {
 	srcDir := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
 	destDir := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
 
 	checkIfDirCopyFailed(srcDir, destDir, t)
 }
 
-// Copy testBucket/Test/b to testBucket/Test
+// Copy testBucket/Test/b to testBucket
 func TestCopySubDirectory(t *testing.T) {
 	srcDir := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
-	destDir := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
+	destDir := path.Join(setup.MntDir())
 
 	checkIfDirCopyFailed(srcDir, destDir, t)
 }

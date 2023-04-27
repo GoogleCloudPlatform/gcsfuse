@@ -25,7 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-func checkIfFileWriteOrUpdateContentFailed(filePath string, t *testing.T) {
+func checkIfFileFailedToOpenForWrite(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, setup.FilePermission_0600)
 
 	// It will throw an error read-only file system or permission denied.
@@ -42,16 +42,16 @@ func checkIfFileWriteOrUpdateContentFailed(filePath string, t *testing.T) {
 func TestOpenFileWithReadWriteAccess(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 
-	checkIfFileWriteOrUpdateContentFailed(filePath, t)
+	checkIfFileFailedToOpenForWrite(filePath, t)
 }
 
-func TestOpenFileFromSubDirectoryWithReadWriteAccess(t *testing.T) {
+func TestOpenFileFromBucketDirectoryWithReadWriteAccess(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 
-	checkIfFileWriteOrUpdateContentFailed(filePath, t)
+	checkIfFileFailedToOpenForWrite(filePath, t)
 }
 
-func checkIfNonExistentFileFailedToOpenAndWrite(filePath string, t *testing.T) {
+func checkIfNonExistentFileFailedToOpenForWrite(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, setup.FilePermission_0600)
 
 	// It will throw an error no such file or directory.
@@ -65,19 +65,19 @@ func checkIfNonExistentFileFailedToOpenAndWrite(filePath string, t *testing.T) {
 	defer file.Close()
 }
 
-func TestOpenNonExistentFileToWithReadWriteAccess(t *testing.T) {
+func TestOpenNonExistentFileWithReadWriteAccess(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNotExist)
 
-	checkIfNonExistentFileFailedToOpenAndWrite(filePath, t)
+	checkIfNonExistentFileFailedToOpenForWrite(filePath, t)
 }
 
-func TestOpenNonExistentFileFromSubDirectoryWithReadWriteAccess(t *testing.T) {
+func TestOpenNonExistentFileFromBucketDirectoryWithReadWriteAccess(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
 
-	checkIfNonExistentFileFailedToOpenAndWrite(filePath, t)
+	checkIfNonExistentFileFailedToOpenForWrite(filePath, t)
 }
 
-func checkIfFileAppendContentFailed(filePath string, t *testing.T) {
+func checkIfFileFailedToOpenForAppend(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 
 	checkErrorForReadOnlyFileSystem(err, t)
@@ -91,16 +91,16 @@ func checkIfFileAppendContentFailed(filePath string, t *testing.T) {
 func TestOpenFileWithAppendAccess(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 
-	checkIfFileAppendContentFailed(filePath, t)
+	checkIfFileFailedToOpenForAppend(filePath, t)
 }
 
-func TestOpenFileFromSubDirectoryWithAppendAccess(t *testing.T) {
+func TestOpenFileFromBucketDirectoryWithAppendAccess(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 
-	checkIfFileAppendContentFailed(filePath, t)
+	checkIfFileFailedToOpenForAppend(filePath, t)
 }
 
-func checkIfNonExistentFileFailedToOpenAndAppend(filePath string, t *testing.T) {
+func checkIfNonExistentFileFailedToOpenForAppend(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 
 	if err == nil {
@@ -115,11 +115,11 @@ func checkIfNonExistentFileFailedToOpenAndAppend(filePath string, t *testing.T) 
 func TestOpenNonExistentFileWithAppendAccess(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNotExist)
 
-	checkIfNonExistentFileFailedToOpenAndAppend(filePath, t)
+	checkIfNonExistentFileFailedToOpenForAppend(filePath, t)
 }
 
 func TestOpenNonExistentFileFromSubDirectoryWithAppendAccess(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
 
-	checkIfNonExistentFileFailedToOpenAndAppend(filePath, t)
+	checkIfNonExistentFileFailedToOpenForAppend(filePath, t)
 }

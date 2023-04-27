@@ -60,7 +60,7 @@ func TestRenameFile(t *testing.T) {
 }
 
 // Rename testBucket/Test/a.txt to testBucket/Test/Rename.txt
-func TestRenameFileFromSubDirectory(t *testing.T) {
+func TestRenameFileFromBucketDirectory(t *testing.T) {
 	oldFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 	newFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "Rename.txt")
 
