@@ -15,6 +15,7 @@ PERIOD_SEC = 120
 FIO_WORKSHEET_NAME = 'fio_metrics'
 VM_WORKSHEET_NAME = 'vm_metrics'
 
+
 def _parse_arguments(argv):
   """Parses the arguments provided to the script via command line.
 
@@ -35,12 +36,13 @@ def _parse_arguments(argv):
   )
   return parser.parse_args(argv[2:])
 
+
 if __name__ == '__main__':
   argv = sys.argv
   if len(argv) < 2:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
-                    'python3 fetch_metrics.py <fio output json filepath>')
+                    'python3 fetch_metrics.py <fio output json filepath> [--upload]')
 
   fio_metrics_obj = fio_metrics.FioMetrics()
   print('Getting fio metrics...')
