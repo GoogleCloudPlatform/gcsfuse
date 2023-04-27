@@ -23,7 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-func statExistingObj(objPath string, t *testing.T) (file os.FileInfo) {
+func statObject(objPath string, t *testing.T) (file os.FileInfo) {
 	file, err := os.Stat(objPath)
 	if err != nil {
 		t.Errorf("Fail to stat the object.")
@@ -33,8 +33,8 @@ func statExistingObj(objPath string, t *testing.T) (file os.FileInfo) {
 
 func TestStatFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
-	
-	file := statExistingObj(filePath, t)
+
+	file := statObject(filePath, t)
 
 	// Name - testBucket/Test1.txt, Type - File
 	if file.Name() != FileNameInTestBucket || file.IsDir() != false {
@@ -45,7 +45,7 @@ func TestStatFile(t *testing.T) {
 func TestStatFileFromBucketDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 
-	file := statExistingObj(filePath, t)
+	file := statObject(filePath, t)
 
 	// Name - testBucket/Test/a.txt, Type - File
 	if file.Name() != FileNameInDirectoryTestBucket || file.IsDir() != false {
@@ -56,7 +56,7 @@ func TestStatFileFromBucketDirectory(t *testing.T) {
 func TestStatDirectory(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
 
-	dir := statExistingObj(dirPath, t)
+	dir := statObject(dirPath, t)
 
 	// Name - testBucket/Test/, Type - Dir
 	if dir.Name() != DirectoryNameInTestBucket || dir.IsDir() != true {
@@ -67,7 +67,7 @@ func TestStatDirectory(t *testing.T) {
 func TestStatSubDirectory(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
 
-	dir := statExistingObj(dirPath, t)
+	dir := statObject(dirPath, t)
 
 	// Name - testBucket/Test/b, Type - Dir
 	if dir.Name() != SubDirectoryNameInTestBucket || dir.IsDir() != true {
