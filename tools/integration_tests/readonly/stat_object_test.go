@@ -86,10 +86,10 @@ func TestStatSubDirectory(t *testing.T) {
 	}
 }
 
-func checkIfNonExistentObjectStat(objPath string, t *testing.T) {
+func checkIfNonExistentObjectFailedToStat(objPath string, t *testing.T) {
 	_, err := os.Stat(objPath)
 	if err == nil {
-		t.Errorf("Incorrect object exist.")
+		t.Errorf("Incorrect object exist!!")
 	}
 
 	checkErrorForObjectNotExist(err, t)
@@ -98,23 +98,23 @@ func checkIfNonExistentObjectStat(objPath string, t *testing.T) {
 func TestStatNotExistingFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNotExist)
 
-	checkIfNonExistentObjectStat(filePath, t)
+	checkIfNonExistentObjectFailedToStat(filePath, t)
 }
 
 func TestStatNotExistingFileFromBucketDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
 
-	checkIfNonExistentObjectStat(filePath, t)
+	checkIfNonExistentObjectFailedToStat(filePath, t)
 }
 
 func TestStatNotExistingDirectory(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirNotExist)
 
-	checkIfNonExistentObjectStat(dirPath, t)
+	checkIfNonExistentObjectFailedToStat(dirPath, t)
 }
 
 func TestStatNotExistingSubDirectory(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, DirNotExist)
 
-	checkIfNonExistentObjectStat(dirPath, t)
+	checkIfNonExistentObjectFailedToStat(dirPath, t)
 }
