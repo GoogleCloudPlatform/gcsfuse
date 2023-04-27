@@ -18,19 +18,19 @@ package readonly_test
 import (
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-const DirectoryNameInTestBucket = "Test"      //  testBucket/Test
-const FileNameInTestBucket = "Test1.txt"      //  testBucket/Test1.txt
-const SubDirectoryNameInTestBucket = "b"      //  testBucket/Test/b
-const FileNameInDirectoryTestBucket = "a.txt" //  testBucket/Test/a.txt
-const FileNotExist = "notExist.txt"
-const DirNotExist = "notExist"
+const DirectoryNameInTestBucket = "Test"         //  testBucket/Test
+const FileNameInTestBucket = "Test1.txt"         //  testBucket/Test1.txt
+const SubDirectoryNameInTestBucket = "b"         //  testBucket/Test/b
+const FileNameInDirectoryTestBucket = "a.txt"    //  testBucket/Test/a.txt
+const FileNameInSubDirectoryTestBucket = "b.txt" //  testBucket/Test/b/b.txt
 const NumberOfObjectsInTestBucket = 2
-const NumberOfObjectsInTestBucketSubDirectory = 2
+const NumberOfObjectsInDirectoryTestBucket = 2
 
 // Run shell script
 func runScriptForTestData(script string, testBucket string) {
@@ -38,6 +38,12 @@ func runScriptForTestData(script string, testBucket string) {
 	_, err := cmd.Output()
 	if err != nil {
 		panic(err)
+	}
+}
+
+func checkErrorForReadOnlyFileSystem(err error, t *testing.T) {
+	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
+		t.Errorf("Incorrect error for readonly filesystem.")
 	}
 }
 
