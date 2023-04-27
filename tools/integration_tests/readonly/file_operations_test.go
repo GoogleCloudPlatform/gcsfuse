@@ -64,7 +64,7 @@ func TestCopyFile(t *testing.T) {
 
 // Copy testBucket/Test/a.txt to testBucket/Test/b/b.txt
 func TestCopyFileFromSubDirectory(t *testing.T) {
-	file := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
+	file := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 
 	checkIfFileCopyFailed(file, t)
 }
@@ -135,7 +135,7 @@ func TestRenameFile(t *testing.T) {
 
 // Rename testBucket/Test/a.txt to testBucket/Test/Rename.txt
 func TestRenameFileFromSubDirectory(t *testing.T) {
-	oldFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
+	oldFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 	newFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "Rename.txt")
 
 	checkIfFileRenameFailed(oldFilePath, newFilePath, t)

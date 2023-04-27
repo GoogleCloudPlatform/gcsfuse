@@ -46,7 +46,7 @@ func TestOpenFileWithReadWriteAccess(t *testing.T) {
 }
 
 func TestOpenFileFromSubDirectoryWithReadWriteAccess(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
+	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 
 	checkIfFileWriteOrUpdateContentFailed(filePath, t)
 }
@@ -98,7 +98,7 @@ func TestOpenFileWithAppendAccess(t *testing.T) {
 }
 
 func TestOpenFileFromSubDirectoryWithAppendAccess(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
+	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 
 	checkIfFileAppendContentFailed(filePath, t)
 }

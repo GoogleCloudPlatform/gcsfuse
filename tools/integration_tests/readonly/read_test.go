@@ -50,7 +50,7 @@ func TestReadFile(t *testing.T) {
 }
 
 func TestReadFileFromSubDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileInSubDirectoryNameInTestBucket)
+	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 	content := readFile(filePath, t)
 
 	if got, want := string(content), "This is from directory Test file a\n"; got != want {
