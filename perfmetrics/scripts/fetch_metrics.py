@@ -14,6 +14,7 @@ PERIOD_SEC = 120
 # Google sheet worksheets
 FIO_WORKSHEET_NAME = 'fio_metrics'
 VM_WORKSHEET_NAME = 'vm_metrics'
+
 def _parse_arguments(argv):
   """Parses the arguments provided to the script via command line.
 
@@ -48,7 +49,7 @@ if __name__ == '__main__':
 
   if args.upload:
     temp = fio_metrics_obj.get_metrics(argv[1], FIO_WORKSHEET_NAME)
-  else :
+  else:
     temp = fio_metrics_obj.get_metrics(argv[1])
 
   print('Waiting for 360 seconds for metrics to be updated on VM...')
@@ -66,12 +67,13 @@ if __name__ == '__main__':
     end_time_sec = job[fio_metrics.consts.END_TIME]
 
     # Print start and end time of jobs
-    print("Start time: ",start_time_sec)
-    print("End time: ",end_time_sec)
+    print("Start time: ", start_time_sec)
+    print("End time: ", end_time_sec)
 
     rw = job[fio_metrics.consts.PARAMS][fio_metrics.consts.RW]
-    print(f'Getting VM metrics for job at index {ind+1}...')
-    metrics_data = vm_metrics_obj.fetch_metrics(start_time_sec, end_time_sec, INSTANCE, PERIOD_SEC, rw)
+    print(f'Getting VM metrics for job at index {ind + 1}...')
+    metrics_data = vm_metrics_obj.fetch_metrics(start_time_sec, end_time_sec,
+                                                INSTANCE, PERIOD_SEC, rw)
     for row in metrics_data:
       vm_metrics_data.append(row)
 
