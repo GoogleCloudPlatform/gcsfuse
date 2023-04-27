@@ -89,7 +89,7 @@ func TestStatSubDirectory(t *testing.T) {
 func checkIfNonExistentObjectStat(objPath string, t *testing.T) {
 	_, err := os.Stat(objPath)
 	if err == nil {
-		t.Errorf("Incorrect object exist!!")
+		t.Errorf("Incorrect object exist.")
 	}
 
 	checkErrorForObjectNotExist(err, t)
