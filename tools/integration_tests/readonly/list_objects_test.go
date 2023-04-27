@@ -35,20 +35,25 @@ func TestListObjectsInBucket(t *testing.T) {
 		log.Fatal(err)
 	}
 
+	// Comparing number of objects in the testBucket - 2
 	if len(obj) != NumberOfObjectsInTestBucket {
 		t.Errorf("The number of objects in the current directory doesn't match.")
 	}
 
-	if obj[0].Name() != DirectoryNameInTestBucket && obj[0].IsDir() != true {
-		t.Errorf("Listed object is incorrect.")
+	// Comparing first object name and type
+	// Name - testBucket/Test/, Type - Dir
+	if obj[0].Name() != DirectoryNameInTestBucket || obj[0].IsDir() != true {
+		t.Errorf("Object Listed for bucket directory is incorrect.")
 	}
 
-	if obj[1].Name() != FileNameInTestBucket && obj[1].IsDir() != false {
-		t.Errorf("Listed object is incorrect.")
+	// Comparing second object name and type
+	// Name - testBucket/Test1.txt, Type - File
+	if obj[1].Name() != FileNameInTestBucket || obj[1].IsDir() != false {
+		t.Errorf("Object Listed for file in bucket is incorrect.")
 	}
 }
 
-func TestListObjectsInBucketSubDirectory(t *testing.T) {
+func TestListObjectsInBucketDirectory(t *testing.T) {
 	// ** SubDirectory structure **
 	// testBucket/Test
 	// testBucket/Test/a.txt -- File
@@ -60,15 +65,20 @@ func TestListObjectsInBucketSubDirectory(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	if len(obj) != NumberOfObjectsInTestBucketSubDirectory {
+	// Comparing number of objects in the directory of testBucket - 2.
+	if len(obj) != NumberOfObjectsInDirectoryTestBucket {
 		t.Errorf("The number of objects in the current directory doesn't match.")
 	}
 
-	if obj[0].Name() != FileInSubDirectoryNameInTestBucket && obj[0].IsDir() != false {
-		t.Errorf("Listed object is incorrect.")
+	// Comparing first object name and type.
+	// Name - testBucket/Test/a.txt, Type - File
+	if obj[0].Name() != FileNameInDirectoryTestBucket || obj[0].IsDir() != false {
+		t.Errorf("Object Listed for file in bucket directory is incorrect.")
 	}
 
-	if obj[1].Name() != SubDirectoryNameInTestBucket && obj[1].IsDir() != true {
-		t.Errorf("Listed object is incorrect.")
+	// Comparing second object name and type.
+	// Name - testBucket/Test/b, Type - Dir
+	if obj[1].Name() != SubDirectoryNameInTestBucket || obj[1].IsDir() != true {
+		t.Errorf("Object Listed for bucket sub directory is incorrect.")
 	}
 }
