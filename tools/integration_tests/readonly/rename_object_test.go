@@ -67,6 +67,14 @@ func TestRenameFileFromBucketDirectory(t *testing.T) {
 	checkIfFileRenameFailed(oldFilePath, newFilePath, t)
 }
 
+// Rename testBucket/Test/b/b.txt to testBucket/Test/b/Rename.txt
+func TestRenameFileFromBucketSubDirectory(t *testing.T) {
+	oldFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
+	newFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, "Rename.txt")
+
+	checkIfFileRenameFailed(oldFilePath, newFilePath, t)
+}
+
 // Rename testBucket/Test to testBucket/Rename
 func TestRenameDir(t *testing.T) {
 	oldDirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)

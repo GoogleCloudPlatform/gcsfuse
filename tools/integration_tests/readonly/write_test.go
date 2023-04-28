@@ -39,14 +39,23 @@ func checkIfFileFailedToOpenForWrite(filePath string, t *testing.T) {
 	defer file.Close()
 }
 
+// testBucket/Test1.txt
 func TestOpenFileWithReadWriteAccess(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 
 	checkIfFileFailedToOpenForWrite(filePath, t)
 }
 
+// testBucket/Test/a.txt
 func TestOpenFileFromBucketDirectoryWithReadWriteAccess(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
+
+	checkIfFileFailedToOpenForWrite(filePath, t)
+}
+
+// testBucket/Test/b/b.txt
+func TestOpenFileFromBucketSubDirectoryWithReadWriteAccess(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
 
 	checkIfFileFailedToOpenForWrite(filePath, t)
 }
@@ -77,6 +86,12 @@ func TestOpenNonExistentFileFromBucketDirectoryWithReadWriteAccess(t *testing.T)
 	checkIfNonExistentFileFailedToOpenForWrite(filePath, t)
 }
 
+func TestOpenNonExistentFileFromBucketSubDirectoryWithReadWriteAccess(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNotExist)
+
+	checkIfNonExistentFileFailedToOpenForWrite(filePath, t)
+}
+
 func checkIfFileFailedToOpenForAppend(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 
@@ -100,6 +115,12 @@ func TestOpenFileFromBucketDirectoryWithAppendAccess(t *testing.T) {
 	checkIfFileFailedToOpenForAppend(filePath, t)
 }
 
+func TestOpenFileFromBucketSubDirectoryWithAppendAccess(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
+
+	checkIfFileFailedToOpenForAppend(filePath, t)
+}
+
 func checkIfNonExistentFileFailedToOpenForAppend(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 
@@ -118,8 +139,14 @@ func TestOpenNonExistentFileWithAppendAccess(t *testing.T) {
 	checkIfNonExistentFileFailedToOpenForAppend(filePath, t)
 }
 
-func TestOpenNonExistentFileFromSubDirectoryWithAppendAccess(t *testing.T) {
+func TestOpenNonExistentFileFromBucketDirectoryWithAppendAccess(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
+
+	checkIfNonExistentFileFailedToOpenForAppend(filePath, t)
+}
+
+func TestOpenNonExistentFileFromBucketSubDirectoryWithAppendAccess(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNotExist)
 
 	checkIfNonExistentFileFailedToOpenForAppend(filePath, t)
 }
