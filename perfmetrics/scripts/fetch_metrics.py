@@ -28,21 +28,23 @@ def _parse_arguments(argv):
   argv = sys.argv
   parser = argparse.ArgumentParser()
   parser.add_argument(
+      'fio_json_output_path',
+      help='Provide path of the output json file.',
+      action='store'
+  )
+
+  parser.add_argument(
       '--upload',
       help='Upload the results to the Google Sheet.',
       action='store_true',
       default=False,
       required=False,
   )
-  return parser.parse_args(argv[2:])
+  return parser.parse_args(argv[1:])
 
 
 if __name__ == '__main__':
   argv = sys.argv
-  if len(argv) < 2:
-    raise TypeError('Incorrect number of arguments.\n'
-                    'Usage: '
-                    'python3 fetch_metrics.py <fio output json filepath> [--upload]')
 
   fio_metrics_obj = fio_metrics.FioMetrics()
   print('Getting fio metrics...')
@@ -50,9 +52,9 @@ if __name__ == '__main__':
   args = _parse_arguments(argv)
 
   if args.upload:
-    temp = fio_metrics_obj.get_metrics(argv[1], FIO_WORKSHEET_NAME)
+    temp = fio_metrics_obj.get_metrics(args.fio_json_output_path, FIO_WORKSHEET_NAME)
   else:
-    temp = fio_metrics_obj.get_metrics(argv[1])
+    temp = fio_metrics_obj.get_metrics(args.fio_json_output_path)
 
   print('Waiting for 360 seconds for metrics to be updated on VM...')
   # It takes up to 240 seconds for sampled data to be visible on the VM metrics graph
