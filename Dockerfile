@@ -19,7 +19,6 @@
 
 FROM golang:1.20.3-alpine as builder
 
-
 RUN apk add git
 
 ARG GCSFUSE_REPO="/run/gcsfuse/"
