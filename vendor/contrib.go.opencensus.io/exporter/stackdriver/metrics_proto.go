@@ -23,7 +23,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"path"
 	"strings"
 
@@ -33,7 +32,6 @@ import (
 	metricspb "github.com/census-instrumentation/opencensus-proto/gen-go/metrics/v1"
 	resourcepb "github.com/census-instrumentation/opencensus-proto/gen-go/resource/v1"
 	timestamppb "github.com/golang/protobuf/ptypes/timestamp"
-	promvalue "github.com/prometheus/prometheus/pkg/value"
 	distributionpb "google.golang.org/genproto/googleapis/api/distribution"
 	labelpb "google.golang.org/genproto/googleapis/api/label"
 	googlemetricpb "google.golang.org/genproto/googleapis/api/metric"
@@ -483,10 +481,6 @@ func protoToMetricPoint(value interface{}) (*monitoringpb.TypedValue, error) {
 		return nil, fmt.Errorf("protoToMetricPoint: unknown Data type: %T", value)
 
 	case *metricspb.Point_Int64Value:
-		// drop handle stale NaNs that were cast to integers
-		if isStaleInt64(v.Int64Value) {
-			return nil, nil
-		}
 		return &monitoringpb.TypedValue{
 			Value: &monitoringpb.TypedValue_Int64Value{
 				Int64Value: v.Int64Value,
@@ -494,9 +488,6 @@ func protoToMetricPoint(value interface{}) (*monitoringpb.TypedValue, error) {
 		}, nil
 
 	case *metricspb.Point_DoubleValue:
-		if promvalue.IsStaleNaN(v.DoubleValue) {
-			return nil, nil
-		}
 		return &monitoringpb.TypedValue{
 			Value: &monitoringpb.TypedValue_DoubleValue{
 				DoubleValue: v.DoubleValue,
@@ -507,9 +498,6 @@ func protoToMetricPoint(value interface{}) (*monitoringpb.TypedValue, error) {
 		dv := v.DistributionValue
 		var mv *monitoringpb.TypedValue_DistributionValue
 		if dv != nil {
-			if isStaleInt64(dv.Count) || promvalue.IsStaleNaN(dv.Sum) {
-				return nil, nil
-			}
 			var mean float64
 			if dv.Count > 0 {
 				mean = float64(dv.Sum) / float64(dv.Count)
@@ -544,10 +532,6 @@ func protoToMetricPoint(value interface{}) (*monitoringpb.TypedValue, error) {
 		}
 		return &monitoringpb.TypedValue{Value: mv}, nil
 	}
-}
-
-func isStaleInt64(v int64) bool {
-	return v == int64(math.Float64frombits(promvalue.StaleNaN))
 }
 
 func bucketCounts(buckets []*metricspb.DistributionValue_Bucket) []int64 {
