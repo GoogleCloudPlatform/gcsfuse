@@ -313,7 +313,7 @@ func newApp() (app *cli.App) {
 
 			cli.BoolFlag{
 				Name:  "debug_fs",
-				Usage: "Enable file system debugging output.",
+				Usage: "This flag is currently unused.",
 			},
 
 			cli.BoolFlag{
