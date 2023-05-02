@@ -5,7 +5,7 @@
 # and epochs functionality, and runs the model
 
 # Install go lang
-wget -O go_tar.tar.gz https://go.dev/dl/go1.19.7.linux-amd64.tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go1.20.3.linux-amd64.tar.gz
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
 
