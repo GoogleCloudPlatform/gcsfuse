@@ -53,7 +53,7 @@ func checkIfRenameFailed(oldObjPath string, newObjPath string, t *testing.T) {
 // Rename testBucket/Test1.txt to testBucket/Rename.txt
 func TestRenameFile(t *testing.T) {
 	oldFilePath := path.Join(setup.MntDir(), FileNameInTestBucket)
-	newFilePath := path.Join(setup.MntDir(), "Rename.txt")
+	newFilePath := path.Join(setup.MntDir(), RenameFile)
 
 	checkIfRenameFailed(oldFilePath, newFilePath, t)
 }
@@ -94,7 +94,7 @@ func TestRenameDir(t *testing.T) {
 	}
 
 	// Comparing number of objects in the oldDirectory - 2
-	if len(obj) != NumberOfObjectsInTestBucket {
+	if len(obj) != NumberOfObjectsInDirectoryTestBucket {
 		t.Errorf("The number of objects in the current directory doesn't match.")
 	}
 
@@ -136,6 +136,6 @@ func TestRenameSubDirectory(t *testing.T) {
 	// Comparing first object name and type
 	// Name - b/b.txt, Type - File
 	if obj[0].Name() != FileNameInSubDirectoryTestBucket || obj[0].IsDir() != false {
-		t.Errorf("Object Listed for file in bucket is incorrect.")
+		t.Errorf("Object Listed for file in bucket SubDirectory is incorrect.")
 	}
 }

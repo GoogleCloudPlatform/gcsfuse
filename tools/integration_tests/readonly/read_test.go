@@ -24,7 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-func readFile(filePath string, expectedContent string, t *testing.T) {
+func checkIfFileReadSucceeded(filePath string, expectedContent string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Error in the opening the file %v", err)
@@ -44,21 +44,21 @@ func readFile(filePath string, expectedContent string, t *testing.T) {
 func TestReadFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 
-	readFile(filePath, ContentInFileInTestBucket, t)
+	checkIfFileReadSucceeded(filePath, ContentInFileInTestBucket, t)
 }
 
 // testBucket/Test/a.txt
 func TestReadFileFromBucketDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 
-	readFile(filePath, ContentInFileInDirectoryTestBucket, t)
+	checkIfFileReadSucceeded(filePath, ContentInFileInDirectoryTestBucket, t)
 }
 
 // testBucket/Test/b/b.txt
 func TestReadFileFromBucketSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
 
-	readFile(filePath, ContentInFileInSubDirectoryTestBucket, t)
+	checkIfFileReadSucceeded(filePath, ContentInFileInSubDirectoryTestBucket, t)
 }
 
 func checkIfNonExistentFileFailedToOpen(filePath string, t *testing.T) {
