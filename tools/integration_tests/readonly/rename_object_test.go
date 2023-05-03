@@ -82,8 +82,7 @@ func TestRenameDir(t *testing.T) {
 	checkIfRenameFailed(oldDirPath, newDirPath, t)
 
 	// Ensure none of the child is deleted during the directory rename test.
-
-	// ** OldDDirectory structure **
+	// ** OldDirectory structure **
 	// Test
 	// Test/b      -- Dir
 	// Test/a.txt  -- File
@@ -119,7 +118,7 @@ func TestRenameSubDirectory(t *testing.T) {
 	checkIfRenameFailed(oldDirPath, newDirPath, t)
 
 	// Ensure none of the child is deleted during the directory rename test.
-	// ** OldDDirectory structure **
+	// ** OldDirectory structure **
 	// b
 	// b/b.txt   -- File
 
