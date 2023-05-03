@@ -71,9 +71,9 @@ func TestCopyFileFromBucketDirectory(t *testing.T) {
 func checkIfDirCopyFailed(srcDirPath string, destDirPath string, t *testing.T) {
 	// io packages do not have a method to copy the directory.
 	cmd := exec.Command("cp", "--recursive", srcDirPath, destDirPath)
-	err := cmd.Run()
 
-	// Throwing an  exit status 1
+	// In the read-only filesystem, It is Throwing an exit status 1.
+	err := cmd.Run()
 	if err == nil {
 		t.Errorf("Directory copied in read-only file system.")
 	}
