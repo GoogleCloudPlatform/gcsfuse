@@ -16,7 +16,6 @@
 package readonly_test
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"syscall"
@@ -25,48 +24,41 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-func readFile(filePath string, t *testing.T) (content []byte) {
+func readFile(filePath string, expectedContent string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error in the opening the file %v", err))
+		t.Errorf("Error in the opening the file %v", err)
 	}
 	defer file.Close()
 
-	content, err = os.ReadFile(file.Name())
+	content, err := os.ReadFile(file.Name())
 	if err != nil {
 		t.Errorf("ReadAll: %v", err)
 	}
-	return content
+	if got, want := string(content), expectedContent; got != want {
+		t.Errorf("File content %q not match %q", got, want)
+	}
 }
 
 // testBucket/Test1.txt
 func TestReadFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
-	content := readFile(filePath, t)
 
-	if got, want := string(content), "This is from file Test1\n"; got != want {
-		t.Errorf("File content %q not match %q", got, want)
-	}
+	readFile(filePath, ContentInFileInTestBucket, t)
 }
 
 // testBucket/Test/a.txt
 func TestReadFileFromBucketDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
-	content := readFile(filePath, t)
 
-	if got, want := string(content), "This is from directory Test file a\n"; got != want {
-		t.Errorf("File content %q not match %q", got, want)
-	}
+	readFile(filePath, ContentInFileInDirectoryTestBucket, t)
 }
 
 // testBucket/Test/b/b.txt
 func TestReadFileFromBucketSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
-	content := readFile(filePath, t)
 
-	if got, want := string(content), "This is from directory Test/b file b\n"; got != want {
-		t.Errorf("File content %q not match %q", got, want)
-	}
+	readFile(filePath, ContentInFileInSubDirectoryTestBucket, t)
 }
 
 func checkIfNonExistentFileFailedToOpen(filePath string, t *testing.T) {

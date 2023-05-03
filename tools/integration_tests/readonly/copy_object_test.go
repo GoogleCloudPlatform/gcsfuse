@@ -47,7 +47,7 @@ func checkIfFileCopyFailed(srcFilePath string, t *testing.T) {
 
 	// File copying with io.Copy() utility.
 	_, err = io.Copy(destination, source)
-	// Throwing an error "copy_file_range: bad file descriptor"
+	// It will throw an error "copy_file_range: bad file descriptor"
 	if err == nil {
 		t.Errorf("File copied in read-only file system.")
 	}
@@ -68,6 +68,7 @@ func TestCopyFileFromBucketDirectory(t *testing.T) {
 }
 
 func checkIfDirCopyFailed(srcDirPath string, destDirPath string, t *testing.T) {
+	// io packages do not have a method to copy the directory.
 	cmd := exec.Command("cp", "--recursive", srcDirPath, destDirPath)
 	err := cmd.Run()
 

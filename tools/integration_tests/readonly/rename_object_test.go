@@ -13,7 +13,6 @@
 // limitations under the License.
 
 // Provides integration tests for file operations with --o=ro flag set.
-// copy, rename, open file operations
 package readonly_test
 
 import (
@@ -24,30 +23,30 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-// Rename srcFile to Rename.txt
-func checkIfFileRenameFailed(oldObjPath string, newObjPath string, t *testing.T) {
+// Rename oldObj to newObj
+func checkIfRenameFailed(oldObjPath string, newObjPath string, t *testing.T) {
 	_, err := os.Stat(oldObjPath)
 	if err != nil {
 		t.Errorf("Error in the stating object: %v", err)
 	}
 
 	if _, err := os.Stat(newObjPath); err == nil {
-		t.Errorf("Renamed file %s already present", newObjPath)
+		t.Errorf("Renamed object %s already present", newObjPath)
 	}
 
 	err = os.Rename(oldObjPath, newObjPath)
 
 	if err == nil {
-		t.Errorf("File renamed in read-only file system.")
+		t.Errorf("Object renamed in read-only file system.")
 	}
 
 	checkErrorForReadOnlyFileSystem(err, t)
 
 	if _, err := os.Stat(oldObjPath); err != nil {
-		t.Errorf("SrcFile is deleted in read-only file system.")
+		t.Errorf("OldObj is deleted in read-only file system.")
 	}
 	if _, err := os.Stat(newObjPath); err == nil {
-		t.Errorf("Renamed file found in read-only file system.")
+		t.Errorf("Renamed object found in read-only file system.")
 	}
 }
 
@@ -56,37 +55,87 @@ func TestRenameFile(t *testing.T) {
 	oldFilePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 	newFilePath := path.Join(setup.MntDir(), "Rename.txt")
 
-	checkIfFileRenameFailed(oldFilePath, newFilePath, t)
+	checkIfRenameFailed(oldFilePath, newFilePath, t)
 }
 
 // Rename testBucket/Test/a.txt to testBucket/Test/Rename.txt
 func TestRenameFileFromBucketDirectory(t *testing.T) {
 	oldFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
-	newFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "Rename.txt")
+	newFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, RenameFile)
 
-	checkIfFileRenameFailed(oldFilePath, newFilePath, t)
+	checkIfRenameFailed(oldFilePath, newFilePath, t)
 }
 
 // Rename testBucket/Test/b/b.txt to testBucket/Test/b/Rename.txt
 func TestRenameFileFromBucketSubDirectory(t *testing.T) {
 	oldFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
-	newFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, "Rename.txt")
+	newFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, RenameFile)
 
-	checkIfFileRenameFailed(oldFilePath, newFilePath, t)
+	checkIfRenameFailed(oldFilePath, newFilePath, t)
 }
 
 // Rename testBucket/Test to testBucket/Rename
 func TestRenameDir(t *testing.T) {
 	oldDirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
-	newDirPath := path.Join(setup.MntDir(), "Rename")
+	newDirPath := path.Join(setup.MntDir(), RenameDir)
 
-	checkIfFileRenameFailed(oldDirPath, newDirPath, t)
+	checkIfRenameFailed(oldDirPath, newDirPath, t)
+
+	// Ensure none of the child is deleted during the directory rename test.
+
+	// ** OldDDirectory structure **
+	// Test
+	// Test/b      -- Dir
+	// Test/a.txt  -- File
+
+	obj, err := os.ReadDir(oldDirPath)
+	if err != nil {
+		t.Errorf("Error in reading directory %v ,", err.Error())
+	}
+
+	// Comparing number of objects in the oldDirectory - 2
+	if len(obj) != NumberOfObjectsInTestBucket {
+		t.Errorf("The number of objects in the current directory doesn't match.")
+	}
+
+	// Comparing first object name and type
+	// Name - Test/a.txt, Type - File
+	if obj[0].Name() != FileNameInDirectoryTestBucket || obj[0].IsDir() != false {
+		t.Errorf("Object Listed for file in bucket is incorrect.")
+	}
+
+	// Comparing second object name and type
+	// Name - Test/b , Type - Dir
+	if obj[1].Name() != SubDirectoryNameInTestBucket || obj[1].IsDir() != true {
+		t.Errorf("Object Listed for bucket directory is incorrect.")
+	}
 }
 
 // Rename testBucket/Test/b to testBucket/Test/Rename
 func TestRenameSubDirectory(t *testing.T) {
 	oldDirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
-	newDirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "Rename")
+	newDirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, RenameDir)
 
-	checkIfFileRenameFailed(oldDirPath, newDirPath, t)
+	checkIfRenameFailed(oldDirPath, newDirPath, t)
+
+	// Ensure none of the child is deleted during the directory rename test.
+	// ** OldDDirectory structure **
+	// b
+	// b/b.txt   -- File
+
+	obj, err := os.ReadDir(oldDirPath)
+	if err != nil {
+		t.Errorf("Error in reading directory %v ,", err.Error())
+	}
+
+	// Comparing number of objects in the oldDirectory - 1
+	if len(obj) != NumberOfObjectsInSubDirectoryTestBucket {
+		t.Errorf("The number of objects in the current directory doesn't match.")
+	}
+
+	// Comparing first object name and type
+	// Name - b/b.txt, Type - File
+	if obj[0].Name() != FileNameInSubDirectoryTestBucket || obj[0].IsDir() != false {
+		t.Errorf("Object Listed for file in bucket is incorrect.")
+	}
 }
