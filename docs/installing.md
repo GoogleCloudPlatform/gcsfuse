@@ -28,20 +28,20 @@ To install Cloud Storage FUSE for CentOS or Red Hat, follow the instructions bel
 
 1. Configure the Cloud Storage FUSE repository and its associated public key:
 
-        sudo tee /etc/yum.repos.d/gcsfuse.repo > /dev/null <<EOF
-        [gcsfuse]
-        name=gcsfuse (packages.cloud.google.com)
-        baseurl=https://packages.cloud.google.com/yum/repos/gcsfuse-el7-x86_64
-        enabled=1
-        gpgcheck=1
-        repo_gpgcheck=0
-        gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
-               https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
-        EOF
+       sudo tee /etc/yum.repos.d/gcsfuse.repo > /dev/null <<EOF
+       [gcsfuse]
+       name=gcsfuse (packages.cloud.google.com)
+       baseurl=https://packages.cloud.google.com/yum/repos/gcsfuse-el7-x86_64
+       enabled=1
+       gpgcheck=1
+       repo_gpgcheck=0
+       gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
+              https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+       EOF
 
 2. Install Cloud Storage FUSE using the YUM Linux package manager:
 
-        sudo yum install gcsfuse
+       sudo yum install gcsfuse
 
    Be sure to answer "yes" to any questions about adding the GPG signing key.
 
