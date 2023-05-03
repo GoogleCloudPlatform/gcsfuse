@@ -50,7 +50,7 @@ type Dirent struct {
 	Type DirentType
 }
 
-// Write the supplied directory entry intto the given buffer in the format
+// Write the supplied directory entry into the given buffer in the format
 // expected in fuseops.ReadFileOp.Data, returning the number of bytes written.
 // Return zero if the entry would not fit.
 func WriteDirent(buf []byte, d Dirent) (n int) {

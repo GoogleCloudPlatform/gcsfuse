@@ -5,7 +5,7 @@
 # and epochs functionality, and runs the model
 
 # Install go lang
-wget -O go_tar.tar.gz https://go.dev/dl/go1.19.7.linux-amd64.tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go1.20.3.linux-amd64.tar.gz
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
 
@@ -17,7 +17,7 @@ cd -
 
 # Mount the bucket and run in background so that docker doesn't keep running after resnet_runner.py fails
 echo "Mounting the bucket"
-nohup gcsfuse/gcsfuse --foreground --implicit-dirs --enable-storage-client-library --debug_fs --debug_gcs --max-conns-per-host 100 --log-format "text" --log-file /home/logs/gcsfuse.log --stackdriver-export-interval 60s ml-models-data-gcsfuse myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
+nohup gcsfuse/gcsfuse --foreground --implicit-dirs --enable-storage-client-library --debug_fuse --debug_gcs --max-conns-per-host 100 --log-format "text" --log-file /home/logs/gcsfuse.log --stackdriver-export-interval 60s ml-models-data-gcsfuse myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
 
 # Install tensorflow model garden library
 pip3 install --user tf-models-official==2.10.0

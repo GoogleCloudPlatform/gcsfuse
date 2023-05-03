@@ -1,6 +1,6 @@
 #!/bin/bash
 
-wget -O go_tar.tar.gz https://go.dev/dl/go1.19.7.linux-amd64.tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go1.20.3.linux-amd64.tar.gz
 rm -rf /usr/local/go && tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 
@@ -20,7 +20,7 @@ nohup /pytorch_dino/gcsfuse/gcsfuse --foreground --type-cache-ttl=1728000s \
         --stackdriver-export-interval=60s \
         --implicit-dirs \
         --max-conns-per-host=100 \
-        --debug_fs \
+        --debug_fuse \
         --debug_gcs \
         --log-file run_artifacts/gcsfuse.log \
         --log-format text \
