@@ -132,7 +132,7 @@ func TestRenameSubDirectory(t *testing.T) {
 		t.Errorf("The number of objects in the current directory doesn't match.")
 	}
 
-	// Comparing first object name and type
+	// Comparing object name and type
 	// Name - b/b.txt, Type - File
 	if obj[0].Name() != FileNameInSubDirectoryTestBucket || obj[0].IsDir() != false {
 		t.Errorf("Object Listed for file in bucket SubDirectory is incorrect.")

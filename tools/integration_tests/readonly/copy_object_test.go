@@ -33,6 +33,7 @@ func checkIfFileCopyFailed(srcFilePath string, t *testing.T) {
 		t.Errorf("Error in the opening file: %v", err)
 	}
 
+	// cp without destination file creates a destination file and create workflow is already covered separately.
 	// Checking if destination object exist.
 	copyFile := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
 	if _, err := os.Stat(copyFile); err != nil {
@@ -46,8 +47,8 @@ func checkIfFileCopyFailed(srcFilePath string, t *testing.T) {
 	defer destination.Close()
 
 	// File copying with io.Copy() utility.
+	// In read only filesystem, io.Copy throws "copy_file_range: bad file descriptor" error.
 	_, err = io.Copy(destination, source)
-	// It will throw an error "copy_file_range: bad file descriptor"
 	if err == nil {
 		t.Errorf("File copied in read-only file system.")
 	}
