@@ -87,6 +87,9 @@ type InodeAttributes struct {
 	//
 	Mode os.FileMode
 
+	// The device number. Only valid if the file is a device
+	Rdev uint32
+
 	// Time information. See `man 2 stat` for full details.
 	Atime  time.Time // Time of last access
 	Mtime  time.Time // Time of last modification
