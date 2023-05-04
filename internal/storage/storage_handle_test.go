@@ -36,7 +36,7 @@ func getDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 		HttpClientTimeout:   800 * time.Millisecond,
 		MaxRetryDuration:    30 * time.Second,
 		RetryMultiplier:     2,
-		UserAgent:           "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) (GCP: gcsfuse)",
+		UserAgent:           "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) (GCP:gcsfuse)",
 	}
 }
 

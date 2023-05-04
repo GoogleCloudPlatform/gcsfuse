@@ -54,14 +54,14 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
 	defer os.Unsetenv("GCSFUSE_METADATA_IMAGE_TYPE")
 
 	userAgent := getUserAgent("AppName")
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s %s", getVersion(), "AppName", os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE"), "(GPN: gcsfuse)"))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s (GPN:gcsfuse-%s)", getVersion(), "AppName", os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE"), "AppName"))
 
 	ExpectEq(expectedUserAgent, userAgent)
 }
 
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsNotSet() {
 	userAgent := getUserAgent("AppName")
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), "AppName", "(GPN: gcsfuse)"))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s)", getVersion(), "AppName", "AppName"))
 
 	ExpectEq(expectedUserAgent, userAgent)
 }
