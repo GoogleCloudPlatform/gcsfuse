@@ -16,6 +16,7 @@
 package readonly_test
 
 import (
+	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -59,6 +60,14 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true"}}
+
+	if setup.TestBucket() == "" && setup.MountedDirectory() == "" {
+		log.Printf("--testbucket or --mountedDirectory must be specified")
+		os.Exit(1)
+	} else if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
+		log.Printf("Please pass testBucket mounted in mountedDirectory.")
+		os.Exit(1)
+	}
 
 	// Clean the bucket for readonly testing.
 	runScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
