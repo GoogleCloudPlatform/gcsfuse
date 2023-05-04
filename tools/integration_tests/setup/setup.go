@@ -221,6 +221,11 @@ func ParseSetUpFlags() {
 func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	ParseSetUpFlags()
 
+	if *testBucket == "" && *mountedDirectory == "" {
+		log.Printf("--testbucket or --mountedDirectory must be specified")
+		os.Exit(1)
+	}
+
 	// Execute tests for the mounted directory.
 	if *mountedDirectory != "" {
 		mntDir = *mountedDirectory

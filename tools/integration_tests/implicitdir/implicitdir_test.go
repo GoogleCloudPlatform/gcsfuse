@@ -31,10 +31,7 @@ func TestMain(m *testing.M) {
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"}}
 
-	if setup.TestBucket() == "" && setup.MountedDirectory() == "" {
-		log.Printf("--testbucket or --mountedDirectory must be specified")
-		os.Exit(1)
-	} else if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
+	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
 		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
 		os.Exit(1)
 	}
