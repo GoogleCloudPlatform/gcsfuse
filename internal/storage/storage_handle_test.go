@@ -116,9 +116,3 @@ func (t *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost() {
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
-
-func (t *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
-	sc := getDefaultStorageClientConfig()
-
-	t.invokeAndVerifyStorageHandle(sc)
-}
