@@ -1,6 +1,6 @@
 # Prerequisites
 
-1. Before invoking Cloud Storage FUSE, you must have a Cloud Storage bucket that you want to mount. If you haven't yet, [create](https://cloud.google.com/storage/docs/creating-buckets#storage-create-bucket-console) a storage bucket. 
+1. After invoking Cloud Storage FUSE, you must have a Cloud Storage bucket that you want to mount. If you haven't yet, [create](https://cloud.google.com/storage/docs/creating-buckets#storage-create-bucket-console) a storage bucket. 
 2. Provide [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials#howtheywork) to authenticate Cloud Storage FUSE requests to Cloud Storage. By default, Cloud Storage FUSE automatically loads the Application Default Credentials without any further configuration if they exist. You can use the gcloud auth login command to easily generate Application Default Credentials.
 
         gcloud auth application-default login
