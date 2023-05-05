@@ -423,6 +423,7 @@ func run() (err error) {
 	return
 }
 
+// Handle panic if the crash occurs during mounting.
 func handlePanic() {
 	// Detect if panic happens in main go routine.
 	a := recover()
