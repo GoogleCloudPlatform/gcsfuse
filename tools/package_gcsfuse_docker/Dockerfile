@@ -19,7 +19,12 @@
 
 FROM golang:1.20.3 as builder
 
-RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm && gem install --no-document fpm
+RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm && gem install --no-document bundler
+
+# Install gem dependencies in Gemfile
+COPY Gemfile /app/Gemfile
+COPY Gemfile.lock /app/Gemfile.lock
+RUN bundle install --gemfile=/app/Gemfile
 
 ENV CGO_ENABLED=0
 ENV GOOS=linux
@@ -28,7 +33,7 @@ ENV GO111MODULE=auto
 ARG GCSFUSE_VERSION
 ARG GCSFUSE_REPO="github.com/googlecloudplatform/gcsfuse/"
 ENV GCSFUSE_PATH "$GOPATH/src/$GCSFUSE_REPO"
-RUN go get ${GCSFUSE_REPO}
+RUN go get -d ${GCSFUSE_REPO}
 
 WORKDIR ${GCSFUSE_PATH}
 RUN git checkout "v${GCSFUSE_VERSION}"
