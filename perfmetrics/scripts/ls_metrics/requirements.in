@@ -1,0 +1,7 @@
+argparse
+configparser
+statistics
+numpy
+mock
+protobuf==4.21.*
+
