@@ -36,7 +36,11 @@ ARG OS_NAME
 # Image with gcsfuse installed and its package (.deb)
 FROM golang:1.20.3 as gcsfuse-package
 
-RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm fuse && gem install --no-document fpm
+RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm fuse && gem install --no-document bundler
+
+COPY Gemfile /app/Gemfile
+COPY Gemfile.lock /app/Gemfile.lock
+RUN bundle install --gemfile=/app/Gemfile
 
 ENV CGO_ENABLED=0
 ENV GOOS=linux

@@ -19,7 +19,12 @@
 
 FROM golang:1.20.3 as builder
 
-RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm && gem install --no-document fpm
+RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm && gem install --no-document bundler
+
+# Install gem dependencies in Gemfile
+COPY Gemfile /app/Gemfile
+COPY Gemfile.lock /app/Gemfile.lock
+RUN bundle install --gemfile=/app/Gemfile
 
 ENV CGO_ENABLED=0
 ENV GOOS=linux
