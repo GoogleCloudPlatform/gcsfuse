@@ -55,8 +55,17 @@ go install github.com/googlecloudplatform/gcsfuse@master
 ```
 
 ### Method 2: By cloning the git repo
-1. Clone the repo using - `git clone https://github.com/GoogleCloudPlatform/gcsfuse.git`
-2. Change to repo directory - `cd gcsfuse`
-3. Install gcsfuse - `go install .`
+1. Clone the repo using:
+```
+git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
+```
+2. Change to repo directory:
+```
+cd gcsfuse
+```
+3. Install gcsfuse:
+```
+go install .
+```
 
-**Note:** In the both cases, a binary named `gcsfuse` will be installed to `$GOPATH/bin`.
+**Note:** In both cases, a binary named `gcsfuse` will be installed to `$GOPATH/bin`.
