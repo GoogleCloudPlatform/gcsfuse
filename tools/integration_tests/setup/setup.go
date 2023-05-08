@@ -191,9 +191,6 @@ func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 			LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 
-		// Clean the directory before running any tests.
-		os.RemoveAll(mntDir)
-
 		successCode = ExecuteTest(m)
 
 		err = UnMount()
