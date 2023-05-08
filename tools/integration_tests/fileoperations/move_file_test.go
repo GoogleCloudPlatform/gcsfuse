@@ -26,8 +26,7 @@ import (
 )
 
 // Move file from src directory to destination.
-func checkIfFileMoveSucceeded(srcDirPath string, destDirPath string, t *testing.T) {
-	// io packages do not have a method to copy the directory.
+func checkIfMovingFileSucceeded(srcDirPath string, destDirPath string, t *testing.T) {
 	cmd := exec.Command("mv", srcDirPath, destDirPath)
 
 	err := cmd.Run()
@@ -39,7 +38,7 @@ func checkIfFileMoveSucceeded(srcDirPath string, destDirPath string, t *testing.
 // Create below directory and file.
 // Test               -- Directory
 // Test/move.txt      -- File
-func createFileAndDirectory(dirPath string, filePath string, t *testing.T) {
+func createSrcDirectoryAndFile(dirPath string, filePath string, t *testing.T) {
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Mkdir at %q: %v", setup.MntDir(), err)
@@ -54,30 +53,21 @@ func createFileAndDirectory(dirPath string, filePath string, t *testing.T) {
 
 	_, err = file.WriteString(moveFileContent)
 	if err != nil {
-		t.Errorf("Temporary file at %v", err)
+		t.Errorf("File at %v", err)
 	}
 }
 
-// Move file from Test/move.txt to Test/a/move.txt
-func TestMoveFileWithinSameDirectory(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), "Test")
-	filePath := path.Join(dirPath, moveFile)
-
-	createFileAndDirectory(dirPath, filePath, t)
-
-	subDirPath := path.Join(dirPath, "a")
-
-	// Create directory at testBucket/Test/a
-	err := os.Mkdir(subDirPath, setup.FilePermission_0600)
+func createDestinationDirectoryAndMoveFile(t *testing.T, destDirPath string, srcFilePath string) {
+	err := os.Mkdir(destDirPath, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("Mkdir at %q: %v", dirPath, err)
+		t.Errorf("Mkdir at %q: %v", destDirPath, err)
 		return
 	}
 
-	movePath := path.Join(subDirPath, moveFile)
+	movePath := path.Join(destDirPath, moveFile)
 
-	// Move file from Test/move.txt to Test/a/move.txt.
-	checkIfFileMoveSucceeded(filePath, movePath, t)
+	// Move file from Test/move.txt to destination.
+	checkIfMovingFileSucceeded(srcFilePath, movePath, t)
 
 	content, err := os.ReadFile(movePath)
 	if err != nil {
@@ -87,6 +77,18 @@ func TestMoveFileWithinSameDirectory(t *testing.T) {
 	if got, want := string(content), moveFileContent; got != want {
 		t.Errorf("File content %q not match %q", got, want)
 	}
+}
+
+// Move file from Test/move.txt to Test/a/move.txt
+func TestMoveFileWithinSameDirectory(t *testing.T) {
+	dirPath := path.Join(setup.MntDir(), "Test")
+	filePath := path.Join(dirPath, moveFile)
+
+	createSrcDirectoryAndFile(dirPath, filePath, t)
+
+	destDirPath := path.Join(dirPath, "a")
+
+	createDestinationDirectoryAndMoveFile(t, destDirPath, filePath)
 
 	os.RemoveAll(dirPath)
 }
@@ -96,29 +98,11 @@ func TestMoveFileWithinDifferentDirectory(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), "Test")
 	filePath := path.Join(dirPath, moveFile)
 
-	createFileAndDirectory(dirPath, filePath, t)
+	createSrcDirectoryAndFile(dirPath, filePath, t)
 
-	dirPath2 := path.Join(setup.MntDir(), "Test2")
+	destDirPath := path.Join(setup.MntDir(), "Test2")
 
-	// Create directory at testBucket/Test2
-	err := os.Mkdir(dirPath2, setup.FilePermission_0600)
-	if err != nil {
-		t.Errorf("Mkdir at %q: %v", dirPath2, err)
-		return
-	}
-
-	movePath := path.Join(dirPath2, "move.txt")
-
-	checkIfFileMoveSucceeded(filePath, movePath, t)
-
-	content, err := os.ReadFile(movePath)
-	if err != nil {
-		t.Errorf("ReadAll: %v", err)
-	}
-
-	if got, want := string(content), moveFileContent; got != want {
-		t.Errorf("File content %q not match %q", got, want)
-	}
+	createDestinationDirectoryAndMoveFile(t, destDirPath, filePath)
 
 	os.RemoveAll(dirPath)
 }
