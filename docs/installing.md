@@ -45,15 +45,18 @@ To install Cloud Storage FUSE for CentOS or Red Hat, follow the instructions bel
 
    Be sure to answer "yes" to any questions about adding the GPG signing key.
 
-# Install gcsfuse by building the latest source code:
-Make sure you have a working Go installation, follow [this](https://go.dev/doc/install) to install go.
+## Install gcsfuse by building the latest source code:
+Make sure you have `fuse`, `git` and `go` (the newest version specified in [go.mod](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/go.mod)) installed on the system.
 
-## Method 1 by cloning the git repo:
+### Method 1: Using the go install command directly
+Install gcsfuse directly using the below command:
+```
+go install github.com/googlecloudplatform/gcsfuse@master
+```
+
+### Method 2: By cloning the git repo
 1. Clone the repo using - `git clone https://github.com/GoogleCloudPlatform/gcsfuse.git`
 2. Change to repo directory - `cd gcsfuse`
 3. Install gcsfuse - `go install .`
-
-## Method 2 using the go install command directly:
-Install gcsfuse directly - `go install github.com/googlecloudplatform/gcsfuse@master`
 
 **Note:** In the both cases, a binary named `gcsfuse` will be installed to `$GOPATH/bin`.
