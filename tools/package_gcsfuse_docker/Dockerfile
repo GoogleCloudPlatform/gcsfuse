@@ -38,6 +38,11 @@ RUN go get -d ${GCSFUSE_REPO}
 WORKDIR ${GCSFUSE_PATH}
 RUN git checkout "v${GCSFUSE_VERSION}"
 
+#Install fpm package using bundle
+COPY ${GCSFUSE_PATH}/tools/gem_dependency/Gemfile /app/Gemfile
+COPY ${GCSFUSE_PATH}/tools/gem_dependency/Gemfile.lock /app/Gemfile.lock
+RUN bundle install --gemfile=/app/Gemfile
+
 ARG GCSFUSE_BIN="/gcsfuse"
 WORKDIR ${GOPATH}
 RUN go install ${GCSFUSE_REPO}/tools/build_gcsfuse

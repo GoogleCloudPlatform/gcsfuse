@@ -38,10 +38,6 @@ FROM golang:1.20.3 as gcsfuse-package
 
 RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm fuse && gem install --no-document bundler
 
-COPY Gemfile /app/Gemfile
-COPY Gemfile.lock /app/Gemfile.lock
-RUN bundle install --gemfile=/app/Gemfile
-
 ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GO111MODULE=auto
@@ -55,6 +51,11 @@ WORKDIR ${GCSFUSE_PATH}
 # Branch name for building through a particular branch.
 ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
 RUN git checkout "${BRANCH_NAME}"
+
+#Install fpm package using bundle
+COPY ${GCSFUSE_PATH}/tools/gem_dependency/Gemfile /app/Gemfile
+COPY ${GCSFUSE_PATH}/tools/gem_dependency/Gemfile.lock /app/Gemfile.lock
+RUN bundle install --gemfile=/app/Gemfile
 
 ARG GCSFUSE_BIN="/gcsfuse"
 WORKDIR ${GOPATH}
