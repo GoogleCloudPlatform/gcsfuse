@@ -21,6 +21,7 @@ var integrationTest = flag.Bool("integrationTest", false, "Run tests only when t
 
 const BufferSize = 100
 const FilePermission_0600 = 0600
+const DirectoryInTestBucket = "dir"
 
 var (
 	binFile string
@@ -67,6 +68,15 @@ func SetMntDir(mntDirValue string) {
 
 func MntDir() string {
 	return mntDir
+}
+
+// Run shell script
+func RunScriptForTestData(script string, testBucket string) {
+	cmd := exec.Command("/bin/bash", script, testBucket)
+	_, err := cmd.Output()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func CompareFileContents(t *testing.T, fileName string, fileContent string) {
@@ -122,15 +132,7 @@ func SetUpTestDir() error {
 	return nil
 }
 
-func MountGcsfuse(flags []string) error {
-	defaultArg := []string{"--debug_gcs",
-		"--debug_fs",
-		"--debug_fuse",
-		"--log-file=" + LogFile(),
-		"--log-format=text",
-		*testBucket,
-		mntDir}
-
+func MountGcsfuse(defaultArg []string, flags []string) error {
 	for i := 0; i < len(defaultArg); i++ {
 		flags = append(flags, defaultArg[i])
 	}
@@ -163,6 +165,36 @@ func MountGcsfuse(flags []string) error {
 	return nil
 }
 
+func MountGcsfuseWithStaticMounting(flags []string) (err error) {
+	defaultArg := []string{"--debug_gcs",
+		"--debug_fs",
+		"--debug_fuse",
+		"--log-file=" + LogFile(),
+		"--log-format=text",
+		*testBucket,
+		mntDir}
+
+	err = MountGcsfuse(defaultArg, flags)
+
+	return err
+}
+
+func MountGcsfuseWithOnlyDir(flags []string, dir string) (err error) {
+	defaultArg := []string{"--only-dir",
+		dir,
+		"--debug_gcs",
+		"--debug_fs",
+		"--debug_fuse",
+		"--log-file=" + LogFile(),
+		"--log-format=text",
+		*testBucket,
+		mntDir}
+
+	err = MountGcsfuse(defaultArg, flags)
+
+	return err
+}
+
 func UnMount() error {
 	fusermount, err := exec.LookPath("fusermount")
 	if err != nil {
@@ -183,32 +215,76 @@ func ExecuteTest(m *testing.M) (successCode int) {
 	return successCode
 }
 
+func executeTestsForMounting(flags []string, m *testing.M) (successCode int) {
+	// Clean the mountedDirectory before running any tests.
+	os.RemoveAll(mntDir)
+
+	successCode = ExecuteTest(m)
+
+	err := UnMount()
+	if err != nil {
+		LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
+	}
+
+	// Print flag on which test fails
+	if successCode != 0 {
+		f := strings.Join(flags, " ")
+		log.Print("Test Fails on " + f)
+		return
+	}
+	return
+}
+
 func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 	var err error
 
+	// Run tests for static mounting.
 	for i := 0; i < len(flags); i++ {
-		if err = MountGcsfuse(flags[i]); err != nil {
+		if err = MountGcsfuseWithStaticMounting(flags[i]); err != nil {
+			LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
+		}
+		successCode = executeTestsForMounting(flags[i], m)
+	}
+
+	// Run tests for mounting a specific directory in a Cloud Storage bucket instead of the entire bucket, where directory not exist in the bucket.
+	dir := path.Join(*testBucket, DirectoryInTestBucket)
+	for i := 0; i < len(flags); i++ {
+		if err = MountGcsfuseWithOnlyDir(flags[i], DirectoryInTestBucket); err != nil {
 			LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 
-		// Clean the mountedDirectory before running any tests.
-		os.RemoveAll(mntDir)
+		// Create objects for readonly testing in mounted directory from bucket.
+		RunScriptForTestData("../readonly/testdata/create_objects.sh", dir)
 
-		successCode = ExecuteTest(m)
+		successCode = executeTestsForMounting(flags[i], m)
 
-		err = UnMount()
-		if err != nil {
-			LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
-		}
-
-		// Print flag on which test fails
-		if successCode != 0 {
-			f := strings.Join(flags[i], " ")
-			log.Print("Test Fails on " + f)
-			return
-		}
-
+		// Delete objects after testing in mounted directory from bucket.
+		RunScriptForTestData("../setup/testdata/delete_objects.sh", dir)
 	}
+
+	// Run tests for mounting a specific directory in a Cloud Storage bucket instead of the entire bucket, where directory exist in the bucket.
+	// Clean the bucket for readonly testing.
+	RunScriptForTestData("../setup/testdata/delete_objects.sh", *testBucket)
+
+	// Create directory in bucket for mounting.
+	RunScriptForTestData("../setup/testdata/delete_objects.sh", dir)
+
+	// Delete objects before testing in mounted directory from bucket.
+	RunScriptForTestData("../setup/testdata/delete_objects.sh", dir)
+
+	// Create objects for readonly testing in mounted directory from bucket.
+	RunScriptForTestData("../readonly/testdata/create_objects.sh", dir)
+
+	for i := 0; i < len(flags); i++ {
+		if err = MountGcsfuseWithOnlyDir(flags[i], DirectoryInTestBucket); err != nil {
+			LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
+		}
+		successCode = executeTestsForMounting(flags[i], m)
+	}
+
+	// Delete objects after testing in mounted directory from bucket.
+	RunScriptForTestData("../setup/testdata/delete_objects.sh", *testBucket)
+
 	return
 }
 

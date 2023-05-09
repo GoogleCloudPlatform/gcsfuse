@@ -27,7 +27,7 @@ sudo cp ~/temp/bin/gcsfuse /usr/bin
 sudo cp ~/temp/sbin/mount.gcsfuse /sbin
 
 # Executing integration tests
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test -timeout 20m
 
 # Checkout back to master branch to use latest CI test scripts in master.
 git checkout master
