@@ -52,7 +52,7 @@ WORKDIR ${GCSFUSE_PATH}
 ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
 RUN git checkout "${BRANCH_NAME}"
 
-#Install fpm package using bundle
+# Install fpm package using bundle
 RUN bundle install --gemfile=${GCSFUSE_PATH}/tools/gem_dependency/Gemfile
 
 ARG GCSFUSE_BIN="/gcsfuse"
