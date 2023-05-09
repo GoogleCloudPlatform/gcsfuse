@@ -36,7 +36,7 @@ ARG OS_NAME
 # Image with gcsfuse installed and its package (.deb)
 FROM golang:1.20.3 as gcsfuse-package
 
-RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm fuse && gem install --no-document fpm
+RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm fuse && gem install --no-document bundler
 
 ENV CGO_ENABLED=0
 ENV GOOS=linux
@@ -51,6 +51,9 @@ WORKDIR ${GCSFUSE_PATH}
 # Branch name for building through a particular branch.
 ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
 RUN git checkout "${BRANCH_NAME}"
+
+# Install fpm package using bundle
+RUN bundle install --gemfile=${GCSFUSE_PATH}/tools/gem_dependency/Gemfile
 
 ARG GCSFUSE_BIN="/gcsfuse"
 WORKDIR ${GOPATH}
