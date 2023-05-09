@@ -254,22 +254,22 @@ func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 
 		dir := path.Join(*testBucket, DirectoryInTestBucket)
 
-		// Create objects for readonly testing in mounted directory from bucket.
+		// Create objects for read-only testing in the mounted directory from the bucket.
 		RunScriptForTestData("../readonly/testdata/create_objects.sh", dir)
 
 		successCode = executeTestsForMountedDirectory(flags[i], m)
 
-		// Delete objects after testing in mounted directory from bucket.
+		// Delete objects after testing in the mounted directory from the bucket.
 		RunScriptForTestData("../readonly/testdata/delete_objects.sh", dir)
 	}
 
-	// Run tests for mounting a specific directory in a Cloud Storage bucket instead of the entire bucket, where directory exist in the bucket.
-	// Clean the bucket for readonly testing.
+	// Run tests for mounting a specific directory in a Cloud Storage bucket instead of the entire bucket where a directory exists.
+	// Clean the bucket for read-only testing.
 	RunScriptForTestData("../readonly/testdata/delete_objects.sh", *testBucket)
 
 	dir := path.Join(*testBucket, DirectoryInTestBucket)
 
-	// Create objects for readonly testing in mounted directory from bucket.
+	// Create objects for read-only testing in the mounted directory from the bucket.
 	RunScriptForTestData("../readonly/testdata/create_objects.sh", dir)
 
 	for i := 0; i < len(flags); i++ {
@@ -279,7 +279,7 @@ func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 		successCode = executeTestsForMountedDirectory(flags[i], m)
 	}
 
-	// Delete objects after testing in mounted directory from bucket.
+	// Delete objects after testing in the mounted directory from the bucket.
 	RunScriptForTestData("../readonly/testdata/delete_objects.sh", *testBucket)
 
 	return
