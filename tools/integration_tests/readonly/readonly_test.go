@@ -63,7 +63,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// Clean the bucket for readonly testing.
-	setup.RunScriptForTestData("../setup/testdata/delete_objects.sh", setup.TestBucket())
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 
 	// Create objects in bucket for testing.
 	setup.RunScriptForTestData("testdata/create_objects.sh", setup.TestBucket())
@@ -71,7 +71,7 @@ func TestMain(m *testing.M) {
 	successCode := setup.RunTests(flags, m)
 
 	// Delete objects from bucket after testing.
-	setup.RunScriptForTestData("../setup/testdata/delete_objects.sh", setup.TestBucket())
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 
 	os.Exit(successCode)
 }
