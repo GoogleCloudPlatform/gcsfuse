@@ -36,33 +36,33 @@ RUN git checkout "v${GCSFUSE_VERSION}"
 #Install fpm package using bundle
 RUN bundle install --gemfile=${GCSFUSE_PATH}/tools/gem_dependency/Gemfile
 
-#ARG GCSFUSE_BIN="/gcsfuse"
-#WORKDIR ${GOPATH}
-#RUN go install ${GCSFUSE_REPO}/tools/build_gcsfuse
-#RUN mkdir -p ${GCSFUSE_BIN}
-#RUN build_gcsfuse ${GCSFUSE_PATH} ${GCSFUSE_BIN} ${GCSFUSE_VERSION}
-#RUN mkdir -p ${GCSFUSE_BIN}/usr && mv ${GCSFUSE_BIN}/bin ${GCSFUSE_BIN}/usr/bin
-#
-#ARG GCSFUSE_PKG="/packages"
-#RUN mkdir -p ${GCSFUSE_PKG}
-#WORKDIR ${GCSFUSE_PKG}
-#RUN fpm \
-#    -s dir \
-#    -t deb \
-#    -n gcsfuse \
-#    -C ${GCSFUSE_BIN} \
-#    -v ${GCSFUSE_VERSION} \
-#    -d fuse \
-#    --vendor "" \
-#    --url "https://$GCSFUSE_REPO" \
-#    --description "A user-space file system for Google Cloud Storage."
-#RUN fpm \
-#    -s dir \
-#    -t rpm \
-#    -n gcsfuse \
-#    -C ${GCSFUSE_BIN} \
-#    -v ${GCSFUSE_VERSION} \
-#    -d fuse \
-#    --vendor "" \
-#    --url "https://$GCSFUSE_REPO" \
-#    --description "A user-space file system for Google Cloud Storage."
+ARG GCSFUSE_BIN="/gcsfuse"
+WORKDIR ${GOPATH}
+RUN go install ${GCSFUSE_REPO}/tools/build_gcsfuse
+RUN mkdir -p ${GCSFUSE_BIN}
+RUN build_gcsfuse ${GCSFUSE_PATH} ${GCSFUSE_BIN} ${GCSFUSE_VERSION}
+RUN mkdir -p ${GCSFUSE_BIN}/usr && mv ${GCSFUSE_BIN}/bin ${GCSFUSE_BIN}/usr/bin
+
+ARG GCSFUSE_PKG="/packages"
+RUN mkdir -p ${GCSFUSE_PKG}
+WORKDIR ${GCSFUSE_PKG}
+RUN fpm \
+    -s dir \
+    -t deb \
+    -n gcsfuse \
+    -C ${GCSFUSE_BIN} \
+    -v ${GCSFUSE_VERSION} \
+    -d fuse \
+    --vendor "" \
+    --url "https://$GCSFUSE_REPO" \
+    --description "A user-space file system for Google Cloud Storage."
+RUN fpm \
+    -s dir \
+    -t rpm \
+    -n gcsfuse \
+    -C ${GCSFUSE_BIN} \
+    -v ${GCSFUSE_VERSION} \
+    -d fuse \
+    --vendor "" \
+    --url "https://$GCSFUSE_REPO" \
+    --description "A user-space file system for Google Cloud Storage."
