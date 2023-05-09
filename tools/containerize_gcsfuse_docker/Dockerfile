@@ -45,7 +45,7 @@ ENV GO111MODULE=auto
 ARG GCSFUSE_VERSION
 ARG GCSFUSE_REPO="github.com/googlecloudplatform/gcsfuse/"
 ENV GCSFUSE_PATH "$GOPATH/src/$GCSFUSE_REPO"
-RUN go get ${GCSFUSE_REPO}
+RUN go get -d ${GCSFUSE_REPO}
 
 WORKDIR ${GCSFUSE_PATH}
 # Branch name for building through a particular branch.
