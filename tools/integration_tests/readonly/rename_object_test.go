@@ -28,7 +28,7 @@ import (
 func checkIfRenameFileFailed(oldFilePath string, newFilePath string, t *testing.T) {
 	err := file_operations.RenameFile(oldFilePath, newFilePath)
 	if err == nil {
-		t.Errorf("Object renamed in read-only file system.")
+		t.Errorf("File renamed in read-only file system.")
 	}
 
 	checkErrorForReadOnlyFileSystem(err, t)
@@ -44,11 +44,11 @@ func checkIfRenameFileFailed(oldFilePath string, newFilePath string, t *testing.
 func checkIfRenameDirFailed(oldDirPath string, newDirPath string, t *testing.T) {
 	_, err := os.Stat(oldDirPath)
 	if err != nil {
-		t.Errorf("Error in the stating object: %v", err)
+		t.Errorf("Error in the stating directory: %v", err)
 	}
 
 	if _, err := os.Stat(newDirPath); err == nil {
-		t.Errorf("Renamed object %s already present", newDirPath)
+		t.Errorf("Renamed directory %s already present", newDirPath)
 	}
 
 	err = os.Rename(oldDirPath, newDirPath)
@@ -59,10 +59,10 @@ func checkIfRenameDirFailed(oldDirPath string, newDirPath string, t *testing.T) 
 	checkErrorForReadOnlyFileSystem(err, t)
 
 	if _, err := os.Stat(oldDirPath); err != nil {
-		t.Errorf("Old file is deleted in read-only file system.")
+		t.Errorf("Old directory is deleted in read-only file system.")
 	}
 	if _, err := os.Stat(newDirPath); err == nil {
-		t.Errorf("Renamed file found in read-only file system.")
+		t.Errorf("Renamed directory found in read-only file system.")
 	}
 }
 
