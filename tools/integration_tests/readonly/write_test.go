@@ -31,6 +31,8 @@ func checkIfFileFailedToOpenForWrite(filePath string, t *testing.T) {
 	if err == nil {
 		t.Errorf("File opened for writing in read-only mount.")
 	}
+
+	checkErrorForReadOnlyFileSystem(err, t)
 }
 
 // testBucket/Test1.txt
@@ -60,6 +62,8 @@ func checkIfNonExistentFileFailedToOpenForWrite(filePath string, t *testing.T) {
 	if err == nil {
 		t.Errorf("NonExist file opened for writing in read-only mount.")
 	}
+
+	checkErrorForObjectNotExist(err, t)
 }
 
 func TestOpenNonExistentFileWithReadWriteAccess(t *testing.T) {
@@ -86,6 +90,8 @@ func checkIfFileFailedToOpenForAppend(filePath string, t *testing.T) {
 	if err == nil {
 		t.Errorf("File opened for appending content in read-only mount.")
 	}
+
+	checkErrorForReadOnlyFileSystem(err, t)
 }
 
 func TestOpenFileWithAppendAccess(t *testing.T) {
@@ -112,6 +118,8 @@ func checkIfNonExistentFileFailedToOpenForAppend(filePath string, t *testing.T) 
 	if err == nil {
 		t.Errorf("File opened for appending content in read-only mount.")
 	}
+
+	checkErrorForObjectNotExist(err, t)
 }
 
 func TestOpenNonExistentFileWithAppendAccess(t *testing.T) {
