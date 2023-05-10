@@ -16,6 +16,7 @@
 package readonly_test
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -28,6 +29,8 @@ func statObject(objPath string, t *testing.T) (file os.FileInfo) {
 	if err != nil {
 		t.Errorf("Fail to stat the object.")
 	}
+
+	fmt.Sprint("Tulsi")
 	return file
 }
 
