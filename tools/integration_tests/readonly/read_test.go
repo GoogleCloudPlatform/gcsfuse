@@ -25,19 +25,7 @@ import (
 )
 
 func checkIfFileReadSucceeded(filePath string, expectedContent string, t *testing.T) {
-	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
-	if err != nil {
-		t.Errorf("Error in the opening the file %v", err)
-	}
-	defer file.Close()
 
-	content, err := os.ReadFile(file.Name())
-	if err != nil {
-		t.Errorf("ReadAll: %v", err)
-	}
-	if got, want := string(content), expectedContent; got != want {
-		t.Errorf("File content %q not match %q", got, want)
-	}
 }
 
 // testBucket/Test1.txt

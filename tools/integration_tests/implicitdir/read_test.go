@@ -16,53 +16,13 @@
 package implicitdir_test
 
 import (
-	"io/ioutil"
-	"os"
-	"syscall"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/fileoperationhelper"
 )
 
 func TestReadAfterWrite(t *testing.T) {
-	tmpDir, err := ioutil.TempDir(setup.MntDir(), "tmpDir")
-	if err != nil {
-		t.Errorf("Mkdir at %q: %v", setup.MntDir(), err)
-		return
-	}
+	err := fileoperationhelper.ReadAfterWrite()
 
-	for i := 0; i < 10; i++ {
-		tmpFile, err := ioutil.TempFile(tmpDir, "tmpFile")
-		if err != nil {
-			t.Errorf("Create file at %q: %v", tmpDir, err)
-			return
-		}
-
-		fileName := tmpFile.Name()
-		file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
-		if err != nil {
-			t.Errorf("Error in opening file.")
-		}
-
-		if _, err = file.WriteString("line 1\n"); err != nil {
-			t.Errorf("WriteString: %v", err)
-		}
-		if err := tmpFile.Close(); err != nil {
-			t.Errorf("Close: %v", err)
-		}
-
-		tmpFile, err = os.Open(fileName)
-		if err != nil {
-			t.Errorf("Open %q: %v", fileName, err)
-			return
-		}
-
-		content, err := ioutil.ReadAll(tmpFile)
-		if err != nil {
-			t.Errorf("ReadAll: %v", err)
-		}
-		if got, want := string(content), "line 1\n"; got != want {
-			t.Errorf("File content %q not match %q", got, want)
-		}
-	}
+	t.Errorf("Error: %v", err)
 }
