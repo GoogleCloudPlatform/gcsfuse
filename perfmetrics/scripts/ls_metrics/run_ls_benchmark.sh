@@ -6,7 +6,7 @@ echo Installing pip and fuse..
 sudo apt-get install fuse -y
 sudo apt-get install pip -y
 echo Installing requirements..
-pip install -r requirements.txt --user
+pip install --require-hashes -r requirements.txt --user
 echo Running script..
 # Upload data to the gsheet only when it runs through kokoro.
 if [ "${KOKORO_JOB_TYPE}" != "RELEASE" ] && [ "${KOKORO_JOB_TYPE}" != "CONTINUOUS_INTEGRATION" ] && [ "${KOKORO_JOB_TYPE}" != "PRESUBMIT_GITHUB" ];
