@@ -31,7 +31,6 @@ func CopyFile(srcFileName string, newFileName string) (err error) {
 		return
 	}
 
-	// File copying with io.Copy() utility.
 	source, err := os.OpenFile(srcFileName, syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("File %s opening error: %v", srcFileName, err)
@@ -46,6 +45,7 @@ func CopyFile(srcFileName string, newFileName string) (err error) {
 	}
 	defer destination.Close()
 
+	// File copying with io.Copy() utility.
 	_, err = io.Copy(destination, source)
 	if err != nil {
 		err = fmt.Errorf("Error in file copying: %v", err)
