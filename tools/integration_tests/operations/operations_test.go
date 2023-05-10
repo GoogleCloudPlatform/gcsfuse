@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Provides integration tests when implicit_dir flag is set.
-package implicitdir_test
+package operations_test
 
 import (
 	"log"

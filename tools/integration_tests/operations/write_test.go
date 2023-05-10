@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Provides integration tests for write flows with implicit_dir flag set.
-package implicitdir_test
+package operations_test
 
 import (
 	"os"
