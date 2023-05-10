@@ -34,6 +34,7 @@ func Read(filePath string) (content []byte, err error) {
 	content, err = os.ReadFile(file.Name())
 	if err != nil {
 		err = fmt.Errorf("ReadAll: %v", err)
+		return
 	}
 	return
 }
@@ -42,11 +43,13 @@ func ReadAfterWrite(fileName string) (content []byte, err error) {
 	err = WriteAtEndOfFile(fileName, "line 1\n")
 	if err != nil {
 		err = fmt.Errorf("AppendString: %v", err)
+		return
 	}
 
 	content, err = Read(fileName)
 	if err != nil {
 		err = fmt.Errorf("ReadAll: %v", err)
+		return
 	}
 	return content, err
 }
