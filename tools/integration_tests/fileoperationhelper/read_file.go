@@ -23,48 +23,11 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-func ReadAfterWrite() (content []byte, err error) {
-	tmpDir, err := os.MkdirTemp(setup.MntDir(), "tmpDir")
-	if err != nil {
-		err = fmt.Errorf("Mkdir at %q: %v", setup.MntDir(), err)
-		return
-	}
-
-	for i := 0; i < 10; i++ {
-		var tmpFile *os.File
-		tmpFile, err = os.CreateTemp(tmpDir, "tmpFile")
-		if err != nil {
-			err = fmt.Errorf("Create file at %q: %v", tmpDir, err)
-			return
-		}
-
-		fileName := tmpFile.Name()
-
-		var file *os.File
-		file, err = os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
-		if err != nil {
-			err = fmt.Errorf("Error in opening file.")
-		}
-
-		if _, err = file.WriteString("line 1\n"); err != nil {
-			err = fmt.Errorf("WriteString: %v", err)
-		}
-		if err := tmpFile.Close(); err != nil {
-			err = fmt.Errorf("Close: %v", err)
-		}
-
-		content, err = os.ReadFile(fileName)
-		if err != nil {
-			err = fmt.Errorf("ReadAll: %v", err)
-		}
-	}
-	return
-}
-
 func Read(filePath string) (content []byte, err error) {
 	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Error in the opening the file %v", err)
+		return
 	}
 	defer file.Close()
 
@@ -73,4 +36,17 @@ func Read(filePath string) (content []byte, err error) {
 		err = fmt.Errorf("ReadAll: %v", err)
 	}
 	return
+}
+
+func ReadAfterWrite(fileName string) (content []byte, err error) {
+	err = WriteAtEndOfFile(fileName, "line 1\n")
+	if err != nil {
+		err = fmt.Errorf("AppendString: %v", err)
+	}
+
+	content, err = Read(fileName)
+	if err != nil {
+		err = fmt.Errorf("ReadAll: %v", err)
+	}
+	return content, err
 }

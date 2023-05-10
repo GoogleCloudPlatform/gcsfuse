@@ -27,6 +27,7 @@ func WriteAtEndOfFile(fileName string, content string) (err error) {
 	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Open file for append: %v", err)
+		return
 	}
 
 	_, err = f.WriteString(content)
@@ -39,6 +40,7 @@ func WriteAtStartOfFile(fileName string, content string) (err error) {
 	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Open file for write at start: %v", err)
+		return
 	}
 
 	_, err = f.WriteAt([]byte(content), 0)
@@ -51,6 +53,7 @@ func WriteAtRandom(fileName string, content string) (err error) {
 	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Open file for write at start: %v", err)
+		return
 	}
 
 	_, err = f.WriteAt([]byte("line 5\n"), 7)

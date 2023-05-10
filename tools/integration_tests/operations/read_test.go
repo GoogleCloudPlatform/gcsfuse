@@ -16,18 +16,33 @@
 package operations_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/fileoperationhelper"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
 func TestReadAfterWrite(t *testing.T) {
-	content, err := fileoperationhelper.ReadAfterWrite()
-
+	tmpDir, err := os.MkdirTemp(setup.MntDir(), "tmpDir")
 	if err != nil {
-		t.Errorf("ReadAll: %v", err)
+		t.Errorf("Mkdir at %q: %v", setup.MntDir(), err)
+		return
 	}
-	if got, want := string(content), "line 1\n"; got != want {
-		t.Errorf("File content %q not match %q", got, want)
+	for i := 0; i < 10; i++ {
+		tmpFile, err := os.CreateTemp(tmpDir, "tmpFile")
+		if err != nil {
+			t.Errorf("Create file at %q: %v", tmpDir, err)
+			return
+		}
+		fileName := tmpFile.Name()
+
+		content, err := fileoperationhelper.ReadAfterWrite(fileName)
+		if err != nil {
+			t.Errorf("ReadAll: %v", err)
+		}
+		if got, want := string(content), "line 1\n"; got != want {
+			t.Errorf("File content %q not match %q", got, want)
+		}
 	}
 }

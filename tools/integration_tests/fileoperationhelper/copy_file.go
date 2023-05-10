@@ -27,24 +27,28 @@ import (
 func CopyFile(srcFile string, newFileName string) (err error) {
 	if _, err = os.Stat(newFileName); err == nil {
 		err = fmt.Errorf("Copied file %s already present", newFileName)
+		return
 	}
 
 	// File copying with io.Copy() utility.
 	source, err := os.OpenFile(srcFile, syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("File %s opening error: %v", srcFile, err)
+		return
 	}
 	defer source.Close()
 
 	destination, err := os.OpenFile(newFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Copied file creation error: %v", err)
+		return
 	}
 	defer destination.Close()
 
 	_, err = io.Copy(destination, source)
 	if err != nil {
 		err = fmt.Errorf("Error in file copying: %v", err)
+		return
 	}
 	return
 }
