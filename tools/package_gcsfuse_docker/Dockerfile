@@ -19,7 +19,7 @@
 
 FROM golang:1.20.3 as builder
 
-RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm && gem install --no-document fpm
+RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm && gem install --no-document bundler
 
 ENV CGO_ENABLED=0
 ENV GOOS=linux
@@ -32,6 +32,9 @@ RUN go get -d ${GCSFUSE_REPO}
 
 WORKDIR ${GCSFUSE_PATH}
 RUN git checkout "v${GCSFUSE_VERSION}"
+
+# Install fpm package using bundle
+RUN bundle install --gemfile=${GCSFUSE_PATH}/tools/gem_dependency/Gemfile
 
 ARG GCSFUSE_BIN="/gcsfuse"
 WORKDIR ${GOPATH}
