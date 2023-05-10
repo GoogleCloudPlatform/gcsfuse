@@ -37,7 +37,7 @@ func TestReadAfterWrite(t *testing.T) {
 		}
 		fileName := tmpFile.Name()
 
-		err = file_operations.WriteAtEndOfFile(fileName, "line 1\n")
+		err = file_operations.WriteFileInAppendMode(fileName, "line 1\n")
 		if err != nil {
 			t.Errorf("AppendString: %v", err)
 		}
