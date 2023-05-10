@@ -21,11 +21,19 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/fileoperationhelper"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
 func checkIfFileReadSucceeded(filePath string, expectedContent string, t *testing.T) {
+	content, err := fileoperationhelper.Read(filePath)
 
+	if err != nil {
+		t.Errorf("ReadAll: %v", err)
+	}
+	if got, want := string(content), expectedContent; got != want {
+		t.Errorf("File content %q not match %q", got, want)
+	}
 }
 
 // testBucket/Test1.txt

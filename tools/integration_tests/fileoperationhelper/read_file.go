@@ -17,29 +17,31 @@ package fileoperationhelper
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-func ReadAfterWrite() (content string, err error) {
-	tmpDir, err := ioutil.TempDir(setup.MntDir(), "tmpDir")
+func ReadAfterWrite() (content []byte, err error) {
+	tmpDir, err := os.MkdirTemp(setup.MntDir(), "tmpDir")
 	if err != nil {
 		err = fmt.Errorf("Mkdir at %q: %v", setup.MntDir(), err)
 		return
 	}
 
 	for i := 0; i < 10; i++ {
-		tmpFile, err := ioutil.TempFile(tmpDir, "tmpFile")
+		var tmpFile *os.File
+		tmpFile, err = os.CreateTemp(tmpDir, "tmpFile")
 		if err != nil {
 			err = fmt.Errorf("Create file at %q: %v", tmpDir, err)
 			return
 		}
 
 		fileName := tmpFile.Name()
-		file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
+
+		var file *os.File
+		file, err = os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
 		if err != nil {
 			err = fmt.Errorf("Error in opening file.")
 		}
@@ -51,33 +53,24 @@ func ReadAfterWrite() (content string, err error) {
 			err = fmt.Errorf("Close: %v", err)
 		}
 
-		tmpFile, err = os.Open(fileName)
-		if err != nil {
-			err = fmt.Errorf("Open %q: %v", fileName, err)
-			return
-		}
-
-		content, err := ioutil.ReadAll(tmpFile)
+		content, err = os.ReadFile(fileName)
 		if err != nil {
 			err = fmt.Errorf("ReadAll: %v", err)
 		}
-
 	}
 	return
 }
 
-func Read() (err error) {
+func Read(filePath string) (content []byte, err error) {
 	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Error in the opening the file %v", err)
 	}
 	defer file.Close()
 
-	content, err := os.ReadFile(file.Name())
+	content, err = os.ReadFile(file.Name())
 	if err != nil {
 		err = fmt.Errorf("ReadAll: %v", err)
 	}
-	if got, want := string(content), expectedContent; got != want {
-		err = fmt.Errorf("File content %q not match %q", got, want)
-	}
+	return
 }

@@ -16,23 +16,21 @@
 package readonly_test
 
 import (
-	"os"
 	"path"
-	"syscall"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/fileoperationhelper"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-func checkIfFileFailedToOpenForWrite(filePath string, t *testing.T) {
-	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, setup.FilePermission_0600)
+const Content = "Testing"
 
-	checkErrorForReadOnlyFileSystem(err, t)
+func checkIfFileFailedToOpenForWrite(filePath string, t *testing.T) {
+	err := fileoperationhelper.WriteAtStartOfFile(filePath, Content)
 
 	if err == nil {
 		t.Errorf("File opened for writing in read-only mount.")
 	}
-	defer file.Close()
 }
 
 // testBucket/Test1.txt
@@ -57,14 +55,11 @@ func TestOpenFileFromBucketSubDirectoryWithReadWriteAccess(t *testing.T) {
 }
 
 func checkIfNonExistentFileFailedToOpenForWrite(filePath string, t *testing.T) {
-	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, setup.FilePermission_0600)
-
-	checkErrorForObjectNotExist(err, t)
+	err := fileoperationhelper.WriteAtStartOfFile(filePath, Content)
 
 	if err == nil {
 		t.Errorf("NonExist file opened for writing in read-only mount.")
 	}
-	defer file.Close()
 }
 
 func TestOpenNonExistentFileWithReadWriteAccess(t *testing.T) {
@@ -86,14 +81,11 @@ func TestOpenNonExistentFileFromBucketSubDirectoryWithReadWriteAccess(t *testing
 }
 
 func checkIfFileFailedToOpenForAppend(filePath string, t *testing.T) {
-	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
-
-	checkErrorForReadOnlyFileSystem(err, t)
+	err := fileoperationhelper.WriteAtEndOfFile(filePath, Content)
 
 	if err == nil {
 		t.Errorf("File opened for appending content in read-only mount.")
 	}
-	defer file.Close()
 }
 
 func TestOpenFileWithAppendAccess(t *testing.T) {
@@ -115,15 +107,11 @@ func TestOpenFileFromBucketSubDirectoryWithAppendAccess(t *testing.T) {
 }
 
 func checkIfNonExistentFileFailedToOpenForAppend(filePath string, t *testing.T) {
-	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+	err := fileoperationhelper.WriteAtEndOfFile(filePath, Content)
 
 	if err == nil {
 		t.Errorf("File opened for appending content in read-only mount.")
 	}
-
-	checkErrorForObjectNotExist(err, t)
-
-	defer file.Close()
 }
 
 func TestOpenNonExistentFileWithAppendAccess(t *testing.T) {

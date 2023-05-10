@@ -22,7 +22,12 @@ import (
 )
 
 func TestReadAfterWrite(t *testing.T) {
-	err := fileoperationhelper.ReadAfterWrite()
+	content, err := fileoperationhelper.ReadAfterWrite()
 
-	t.Errorf("Error: %v", err)
+	if err != nil {
+		t.Errorf("ReadAll: %v", err)
+	}
+	if got, want := string(content), "line 1\n"; got != want {
+		t.Errorf("File content %q not match %q", got, want)
+	}
 }

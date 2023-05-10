@@ -16,41 +16,22 @@
 package readonly_test
 
 import (
-	"io"
-	"os"
 	"os/exec"
 	"path"
-	"syscall"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/fileoperationhelper"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
 // Copy srcFile in testBucket/Test/b/b.txt destination.
 func checkIfFileCopyFailed(srcFilePath string, t *testing.T) {
-	source, err := os.OpenFile(srcFilePath, syscall.O_DIRECT, setup.FilePermission_0600)
-	if err != nil {
-		t.Errorf("Error in the opening file: %v", err)
-	}
-
 	// cp without destination file creates a destination file and create workflow is already covered separately.
-	// Checking if destination object exist.
 	copyFile := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
-	if _, err := os.Stat(copyFile); err != nil {
-		t.Errorf("Copied file %s is not present", copyFile)
-	}
 
-	destination, err := os.OpenFile(copyFile, syscall.O_DIRECT, setup.FilePermission_0600)
-	if err != nil {
-		t.Errorf("File %s opening error: %v", destination.Name(), err)
-	}
-	defer destination.Close()
-
-	// File copying with io.Copy() utility.
-	// In read only filesystem, io.Copy throws "copy_file_range: bad file descriptor" error.
-	_, err = io.Copy(destination, source)
+	err := fileoperationhelper.CopyFile(srcFilePath, copyFile)
 	if err == nil {
-		t.Errorf("File copied in read-only file system.")
+		t.Errorf("File copied in read-only file system: %v", err)
 	}
 }
 
