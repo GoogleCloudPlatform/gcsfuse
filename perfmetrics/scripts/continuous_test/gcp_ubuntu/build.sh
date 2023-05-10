@@ -2,16 +2,24 @@
 set -e
 sudo apt-get update
 
-echo Installing git
+echo "Installing git"
 sudo apt-get install git
-echo Installing pip
+echo "Installing pip"
 sudo apt-get install pip -y
-echo Installing go-lang 1.20.3
+echo "Installing go-lang 1.20.3"
 wget -O go_tar.tar.gz https://go.dev/dl/go1.20.3.linux-amd64.tar.gz
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
-echo Installing fio
+echo "Installing fio"
 sudo apt-get install fio -y
+echo "Installing docker "
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin -y
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
@@ -19,22 +27,21 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 git checkout $commitId
 
-echo Building and installing gcsfuse
-go install ./tools/build_gcsfuse
-mkdir $HOME/temp
-$HOME/go/bin/build_gcsfuse ./ $HOME/temp/ $commitId
-sudo cp ~/temp/bin/gcsfuse /usr/bin
-sudo cp ~/temp/sbin/mount.gcsfuse /sbin
-
-# Executing integration tests
+echo "Executing integration tests"
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test
 
 # Checkout back to master branch to use latest CI test scripts in master.
 git checkout master
 
+echo "Building and installing gcsfuse"
+# Build the gcsfuse package using the same commands used during release.
+sudo docker build ./tools/package_gcsfuse_docker/ -t gcsfuse:$commitId --build-arg GCSFUSE_VERSION=v0.0.0 --build-arg BRANCH_NAME=$commitId
+sudo docker run -v $HOME/release:/release gcsfuse:$commitId cp -r /packages /release/
+sudo dpkg -i $HOME/release/packages/gcsfuse_0.0.0_amd64.deb
+
 # Mounting gcs bucket
 cd "./perfmetrics/scripts/"
-echo Mounting gcs bucket
+echo "Mounting gcs bucket"
 mkdir -p gcs
 LOG_FILE=log-$(date '+%Y-%m-%d').txt
 GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"
