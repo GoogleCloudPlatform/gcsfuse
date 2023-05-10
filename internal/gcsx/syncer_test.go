@@ -17,7 +17,6 @@ package gcsx
 import (
 	"errors"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 	"time"
@@ -89,7 +88,7 @@ func (t *FullObjectCreatorTest) CallsCreateObject() {
 	AssertNe(nil, req)
 	ExpectThat(req.GenerationPrecondition, Pointee(Equals(0)))
 
-	b, err := ioutil.ReadAll(req.Contents)
+	b, err := io.ReadAll(req.Contents)
 	AssertEq(nil, err)
 	ExpectEq(t.srcContents, string(b))
 }
@@ -192,7 +191,7 @@ func (oc *fakeObjectCreator) Create(
 	// Record args.
 	oc.srcObject = srcObject
 	oc.mtime = mtime
-	oc.contents, err = ioutil.ReadAll(r)
+	oc.contents, err = io.ReadAll(r)
 	AssertEq(nil, err)
 
 	// Return results.

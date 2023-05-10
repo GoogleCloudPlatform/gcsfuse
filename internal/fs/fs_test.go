@@ -18,7 +18,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -147,7 +146,7 @@ func (t *fsTest) SetUpTestSuite() {
 	t.serverCfg.DirPerms = dirPerms
 
 	// Set up a temporary directory for mounting.
-	mntDir, err = ioutil.TempDir("", "fs_test")
+	mntDir, err = os.MkdirTemp("", "fs_test")
 	AssertEq(nil, err)
 
 	// Create a file system server.

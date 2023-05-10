@@ -16,7 +16,7 @@
 package implicitdir_test
 
 import (
-	"io/ioutil"
+	"io"
 	"os"
 	"syscall"
 	"testing"
@@ -25,14 +25,14 @@ import (
 )
 
 func TestReadAfterWrite(t *testing.T) {
-	tmpDir, err := ioutil.TempDir(setup.MntDir(), "tmpDir")
+	tmpDir, err := os.MkdirTemp(setup.MntDir(), "tmpDir")
 	if err != nil {
 		t.Errorf("Mkdir at %q: %v", setup.MntDir(), err)
 		return
 	}
 
 	for i := 0; i < 10; i++ {
-		tmpFile, err := ioutil.TempFile(tmpDir, "tmpFile")
+		tmpFile, err := os.CreateTemp(tmpDir, "tmpFile")
 		if err != nil {
 			t.Errorf("Create file at %q: %v", tmpDir, err)
 			return
@@ -57,7 +57,7 @@ func TestReadAfterWrite(t *testing.T) {
 			return
 		}
 
-		content, err := ioutil.ReadAll(tmpFile)
+		content, err := io.ReadAll(tmpFile)
 		if err != nil {
 			t.Errorf("ReadAll: %v", err)
 		}
