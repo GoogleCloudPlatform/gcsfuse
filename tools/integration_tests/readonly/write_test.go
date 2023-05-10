@@ -19,14 +19,14 @@ import (
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/fileoperationhelper"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/file_operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 const Content = "Testing"
 
 func checkIfFileFailedToOpenForWrite(filePath string, t *testing.T) {
-	err := fileoperationhelper.WriteAtStartOfFile(filePath, Content)
+	err := file_operations.WriteAtStartOfFile(filePath, Content)
 
 	if err == nil {
 		t.Errorf("File opened for writing in read-only mount.")
@@ -57,7 +57,7 @@ func TestOpenFileFromBucketSubDirectoryWithReadWriteAccess(t *testing.T) {
 }
 
 func checkIfNonExistentFileFailedToOpenForWrite(filePath string, t *testing.T) {
-	err := fileoperationhelper.WriteAtStartOfFile(filePath, Content)
+	err := file_operations.WriteAtStartOfFile(filePath, Content)
 
 	if err == nil {
 		t.Errorf("NonExist file opened for writing in read-only mount.")
@@ -85,7 +85,7 @@ func TestOpenNonExistentFileFromBucketSubDirectoryWithReadWriteAccess(t *testing
 }
 
 func checkIfFileFailedToOpenForAppend(filePath string, t *testing.T) {
-	err := fileoperationhelper.WriteAtEndOfFile(filePath, Content)
+	err := file_operations.WriteAtEndOfFile(filePath, Content)
 
 	if err == nil {
 		t.Errorf("File opened for appending content in read-only mount.")
@@ -113,7 +113,7 @@ func TestOpenFileFromBucketSubDirectoryWithAppendAccess(t *testing.T) {
 }
 
 func checkIfNonExistentFileFailedToOpenForAppend(filePath string, t *testing.T) {
-	err := fileoperationhelper.WriteAtEndOfFile(filePath, Content)
+	err := file_operations.WriteAtEndOfFile(filePath, Content)
 
 	if err == nil {
 		t.Errorf("File opened for appending content in read-only mount.")

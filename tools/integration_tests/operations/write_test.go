@@ -17,16 +17,17 @@ package operations_test
 
 import (
 	"os"
+	"syscall"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/fileoperationhelper"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/file_operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func TestWriteAtEndOfFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
 
-	err := fileoperationhelper.WriteAtEndOfFile(fileName, "line 3\n")
+	err := file_operations.WriteAtEndOfFile(fileName, "line 3\n")
 	if err != nil {
 		t.Errorf("AppendString: %v", err)
 	}
@@ -37,7 +38,7 @@ func TestWriteAtEndOfFile(t *testing.T) {
 func TestWriteAtStartOfFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
 
-	err := fileoperationhelper.WriteAtStartOfFile(fileName, "line 4\n")
+	err := file_operations.WriteAtStartOfFile(fileName, "line 4\n")
 	if err != nil {
 		t.Errorf("WriteString-Start: %v", err)
 	}
@@ -48,12 +49,17 @@ func TestWriteAtStartOfFile(t *testing.T) {
 func TestWriteAtRandom(t *testing.T) {
 	fileName := setup.CreateTempFile()
 
+	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+	if err != nil {
+		t.Errorf("Open file for write at random: %v", err)
+	}
+
 	// Write at 7th byte which corresponds to the start of 2nd line
 	// thus changing line2\n with line5\n.
-	err := fileoperationhelper.WriteAtRandom(fileName, "line 5\n")
-	if err != nil {
+	if _, err = f.WriteAt([]byte("line 5\n"), 7); err != nil {
 		t.Errorf("WriteString-Random: %v", err)
 	}
+	f.Close()
 
 	setup.CompareFileContents(t, fileName, "line 1\nline 5\n")
 }
