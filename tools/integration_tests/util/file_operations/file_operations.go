@@ -25,16 +25,16 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func CopyFile(srcFile string, newFileName string) (err error) {
+func CopyFile(srcFileName string, newFileName string) (err error) {
 	if _, err = os.Stat(newFileName); err == nil {
 		err = fmt.Errorf("Copied file %s already present", newFileName)
 		return
 	}
 
 	// File copying with io.Copy() utility.
-	source, err := os.OpenFile(srcFile, syscall.O_DIRECT, setup.FilePermission_0600)
+	source, err := os.OpenFile(srcFileName, syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
-		err = fmt.Errorf("File %s opening error: %v", srcFile, err)
+		err = fmt.Errorf("File %s opening error: %v", srcFileName, err)
 		return
 	}
 	defer source.Close()
@@ -92,7 +92,7 @@ func RenameFile(fileName string, newFileName string) (err error) {
 	return
 }
 
-func WriteAtEndOfFile(fileName string, content string) (err error) {
+func WriteFileInAppendMode(fileName string, content string) (err error) {
 	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Open file for append: %v", err)

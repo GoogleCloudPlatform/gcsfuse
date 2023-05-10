@@ -37,7 +37,7 @@ func TestRenameFile(t *testing.T) {
 
 	err = file_operations.RenameFile(fileName, newFileName)
 	if err != nil {
-		t.Errorf("Error: %v", err)
+		t.Errorf("Error in file copying: %v", err)
 	}
 	// Check if the data in the file is the same after renaming.
 	setup.CompareFileContents(t, newFileName, string(content))

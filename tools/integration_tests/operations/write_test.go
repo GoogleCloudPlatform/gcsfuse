@@ -27,7 +27,7 @@ import (
 func TestWriteAtEndOfFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
 
-	err := file_operations.WriteAtEndOfFile(fileName, "line 3\n")
+	err := file_operations.WriteFileInAppendMode(fileName, "line 3\n")
 	if err != nil {
 		t.Errorf("AppendString: %v", err)
 	}

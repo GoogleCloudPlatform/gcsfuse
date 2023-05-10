@@ -27,7 +27,6 @@ import (
 
 func checkIfFileReadSucceeded(filePath string, expectedContent string, t *testing.T) {
 	content, err := file_operations.ReadFile(filePath)
-
 	if err != nil {
 		t.Errorf("ReadAll: %v", err)
 	}

@@ -85,7 +85,7 @@ func TestOpenNonExistentFileFromBucketSubDirectoryWithReadWriteAccess(t *testing
 }
 
 func checkIfFileFailedToOpenForAppend(filePath string, t *testing.T) {
-	err := file_operations.WriteAtEndOfFile(filePath, Content)
+	err := file_operations.WriteFileInAppendMode(filePath, Content)
 
 	if err == nil {
 		t.Errorf("File opened for appending content in read-only mount.")
@@ -113,7 +113,7 @@ func TestOpenFileFromBucketSubDirectoryWithAppendAccess(t *testing.T) {
 }
 
 func checkIfNonExistentFileFailedToOpenForAppend(filePath string, t *testing.T) {
-	err := file_operations.WriteAtEndOfFile(filePath, Content)
+	err := file_operations.WriteFileInAppendMode(filePath, Content)
 
 	if err == nil {
 		t.Errorf("File opened for appending content in read-only mount.")
