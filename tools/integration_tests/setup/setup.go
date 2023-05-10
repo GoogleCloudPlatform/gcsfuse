@@ -191,6 +191,9 @@ func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 			LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 
+		// Clean the mountedDirectory before running any tests.
+		os.RemoveAll(mntDir)
+
 		successCode = ExecuteTest(m)
 
 		err = UnMount()
@@ -223,9 +226,6 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 
 	if *testBucket == "" && *mountedDirectory == "" {
 		log.Printf("--testbucket or --mountedDirectory must be specified")
-		os.Exit(1)
-	} else if *testBucket != "" && *mountedDirectory != "" {
-		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
 		os.Exit(1)
 	}
 
