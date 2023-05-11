@@ -18,7 +18,7 @@ Please refer to the official documentation of gsutil [here](https://cloud.google
 
 ### Required python modules
 ```
-pip install -r requirements.txt --user
+pip install --require-hashes -r requirements.txt --user
 ```
 
 ## Flags to use with the python script

@@ -43,7 +43,7 @@ fio job_files/your-job-file.fio --lat_percentiles 1 --output-format=json --outpu
 ```
 7. Install requirements by running
 ```bash
-pip install -r requirements.txt --user
+pip install --require-hashes -r requirements.txt --user
 ```
 8. Create a service account by following this [documentation](https://cloud.google.com/iam/docs/creating-managing-service-accounts). Generate your service account key, `creds.json` by following [this doc](https://cloud.google.com/iam/docs/creating-managing-service-account-keys#iam-service-account-keys-create-console) and upload the file on your GCS bucket `your-bucket-name`. If using an old credentials file, make sure that it is not expired. Run the following command to copy it into `gsheet` directory:
 ```bash
