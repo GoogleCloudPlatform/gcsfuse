@@ -37,7 +37,8 @@ func createDirectoryWithNFiles(numberOfFiles int, dirPath string, t *testing.T) 
 	}
 }
 
-// As --rename-directory-limit = 3, the operation should get successful.
+// As --rename-directory-limit = 3, and the number of objects in the directory is three,
+// which is equal to the limit, the operation should get successful.
 func TestRenameDirectoryWithThreeFiles(t *testing.T) {
 	// Create directory structure
 	// testBucket/directoryWithThreeFiles               -- Dir
@@ -60,6 +61,8 @@ func TestRenameDirectoryWithThreeFiles(t *testing.T) {
 	}
 }
 
+// As --rename-directory-limit = 3, and the number of objects in the directory is two,
+// which is less than the limit, the operation should get successful.
 func TestRenameDirectoryWithTwoFiles(t *testing.T) {
 	// Create directory structure
 	// testBucket/directoryWithTwoFiles              -- Dir
@@ -82,6 +85,8 @@ func TestRenameDirectoryWithTwoFiles(t *testing.T) {
 	}
 }
 
+// As --rename-directory-limit = 3, and the number of objects in the directory is two,
+// which is greater than the limit, the operation should get fail.
 func TestRenameDirectoryWithFourFiles(t *testing.T) {
 	// Creating directory structure
 	// testBucket/directoryWithFourFiles              -- Dir
@@ -106,6 +111,8 @@ func TestRenameDirectoryWithFourFiles(t *testing.T) {
 	}
 }
 
+// As --rename-directory-limit = 3, and the number of objects in the directory is three,
+// which is equal to limit, the operation should get successful.
 func TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory(t *testing.T) {
 	// Creating directory structure
 	// testBucket/directoryWithTwoFilesOneEmptyDirectory                       -- Dir
@@ -131,6 +138,8 @@ func TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory(t *testing.T) {
 	}
 }
 
+// As --rename-directory-limit = 3, and the number of objects in the directory is Four,
+// which is greater than the limit, the operation should get fail.
 func TestRenameDirectoryWithTwoFilesAndOneNonEmptyDirectory(t *testing.T) {
 	// Creating directory structure
 	// testBucket/directoryWithTwoFilesOneNonEmptyDirectory                                      -- Dir
