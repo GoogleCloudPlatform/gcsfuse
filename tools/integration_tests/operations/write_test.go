@@ -20,14 +20,14 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/file_operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func TestWriteAtEndOfFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
 
-	err := file_operations.WriteFileInAppendMode(fileName, "line 3\n")
+	err := operations.WriteFileInAppendMode(fileName, "line 3\n")
 	if err != nil {
 		t.Errorf("AppendString: %v", err)
 	}
@@ -38,7 +38,7 @@ func TestWriteAtEndOfFile(t *testing.T) {
 func TestWriteAtStartOfFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
 
-	err := file_operations.WriteAtStartOfFile(fileName, "line 4\n")
+	err := operations.WriteFile(fileName, "line 4\n")
 	if err != nil {
 		t.Errorf("WriteString-Start: %v", err)
 	}

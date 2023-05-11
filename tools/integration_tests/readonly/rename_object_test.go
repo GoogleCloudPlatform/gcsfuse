@@ -20,13 +20,13 @@ import (
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/file_operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 // Rename oldObj to newObj
 func checkIfRenameFileFailed(oldFilePath string, newFilePath string, t *testing.T) {
-	err := file_operations.RenameFile(oldFilePath, newFilePath)
+	err := operations.RenameFile(oldFilePath, newFilePath)
 	if err == nil {
 		t.Errorf("File renamed in read-only file system.")
 	}

@@ -19,7 +19,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/file_operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -37,12 +37,12 @@ func TestReadAfterWrite(t *testing.T) {
 		}
 		fileName := tmpFile.Name()
 
-		err = file_operations.WriteFileInAppendMode(fileName, "line 1\n")
+		err = operations.WriteFileInAppendMode(fileName, "line 1\n")
 		if err != nil {
 			t.Errorf("AppendString: %v", err)
 		}
 
-		content, err := file_operations.ReadFile(fileName)
+		content, err := operations.ReadFile(fileName)
 		if err != nil {
 			t.Errorf("ReadAll: %v", err)
 		}

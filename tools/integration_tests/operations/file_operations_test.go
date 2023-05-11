@@ -21,21 +21,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/file_operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func TestRenameFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
 
-	content, err := file_operations.ReadFile(fileName)
+	content, err := operations.ReadFile(fileName)
 	if err != nil {
 		t.Errorf("Read: %v", err)
 	}
 
 	newFileName := fileName + "Rename"
 
-	err = file_operations.RenameFile(fileName, newFileName)
+	err = operations.RenameFile(fileName, newFileName)
 	if err != nil {
 		t.Errorf("Error in file copying: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestFileAttributes(t *testing.T) {
 func TestCopyFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
 
-	content, err := file_operations.ReadFile(fileName)
+	content, err := operations.ReadFile(fileName)
 	if err != nil {
 		t.Errorf("Read: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestCopyFile(t *testing.T) {
 		t.Errorf("Copied file %s already present", newFileName)
 	}
 
-	err = file_operations.CopyFile(fileName, newFileName)
+	err = operations.CopyFile(fileName, newFileName)
 	if err != nil {
 		t.Errorf("Error : %v", err)
 	}

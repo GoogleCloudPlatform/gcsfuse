@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Provide a helper functions.
-package file_operations
+package operations
 
 import (
 	"fmt"
@@ -105,7 +105,7 @@ func WriteFileInAppendMode(fileName string, content string) (err error) {
 	return
 }
 
-func WriteAtStartOfFile(fileName string, content string) (err error) {
+func WriteFile(fileName string, content string) (err error) {
 	f, err := os.OpenFile(fileName, os.O_RDWR|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Open file for write at start: %v", err)
@@ -118,8 +118,8 @@ func WriteAtStartOfFile(fileName string, content string) (err error) {
 	return
 }
 
-func MoveFile(srcDirPath string, destDirPath string) (err error) {
-	cmd := exec.Command("mv", srcDirPath, destDirPath)
+func MoveFile(srcFilePath string, destFilePath string) (err error) {
+	cmd := exec.Command("mv", srcFilePath, destFilePath)
 
 	err = cmd.Run()
 	if err != nil {

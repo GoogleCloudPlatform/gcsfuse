@@ -20,7 +20,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/file_operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -29,7 +29,7 @@ func checkIfFileCopyFailed(srcFilePath string, t *testing.T) {
 	// cp without destination file creates a destination file and create workflow is already covered separately.
 	copyFile := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
 
-	err := file_operations.CopyFile(srcFilePath, copyFile)
+	err := operations.CopyFile(srcFilePath, copyFile)
 	if err == nil {
 		t.Errorf("File copied in read-only file system: %v", err)
 	}
