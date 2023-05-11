@@ -19,7 +19,12 @@ func createSrcDirectoryAndFile(dirPath string, filePath string, t *testing.T) {
 		return
 	}
 
-	err = operations.WriteFile(filePath, MoveFileContent)
+	file, err := os.Create(filePath)
+	if err != nil {
+		t.Errorf("Error in creating file %v:", err)
+	}
+
+	err = operations.WriteFile(file.Name(), MoveFileContent)
 	if err != nil {
 		t.Errorf("File at %v", err)
 	}
