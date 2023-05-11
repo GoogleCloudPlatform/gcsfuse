@@ -30,22 +30,16 @@ func createSrcDirectoryAndFile(dirPath string, filePath string, t *testing.T) {
 	}
 }
 
-func createDestinationDirectoryAndMoveFile(destDirPath string, srcFilePath string, t *testing.T) {
-	err := os.Mkdir(destDirPath, setup.FilePermission_0600)
-	if err != nil {
-		t.Errorf("Mkdir at %q: %v", destDirPath, err)
-		return
-	}
-
-	movePath := path.Join(destDirPath, MoveFile)
-
+func checkIfFileMovingSucceeded(srcFilePath string, destDirPath string, t *testing.T) {
 	// Move file from Test/move.txt to destination.
-	err = operations.MoveFile(srcFilePath, movePath)
+	err := operations.MoveFile(srcFilePath, destDirPath)
 	if err != nil {
 		t.Errorf("Error in moving file: %v", err)
 	}
 
-	content, err := operations.ReadFile(movePath)
+	// Check if the file content matches.
+	moveFilePath := path.Join(destDirPath, MoveFile)
+	content, err := operations.ReadFile(moveFilePath)
 	if err != nil {
 		t.Errorf("ReadAll: %v", err)
 	}
@@ -63,8 +57,12 @@ func TestMoveFileWithinSameDirectory(t *testing.T) {
 	createSrcDirectoryAndFile(dirPath, filePath, t)
 
 	destDirPath := path.Join(dirPath, "a")
+	err := os.Mkdir(destDirPath, setup.FilePermission_0600)
+	if err != nil {
+		t.Errorf("Mkdir at %q: %v", destDirPath, err)
+	}
 
-	createDestinationDirectoryAndMoveFile(destDirPath, filePath, t)
+	checkIfFileMovingSucceeded(filePath, destDirPath, t)
 
 	os.RemoveAll(dirPath)
 }
@@ -77,8 +75,12 @@ func TestMoveFileWithinDifferentDirectory(t *testing.T) {
 	createSrcDirectoryAndFile(dirPath, filePath, t)
 
 	destDirPath := path.Join(setup.MntDir(), "Test2")
+	err := os.Mkdir(destDirPath, setup.FilePermission_0600)
+	if err != nil {
+		t.Errorf("Mkdir at %q: %v", destDirPath, err)
+	}
 
-	createDestinationDirectoryAndMoveFile(destDirPath, filePath, t)
+	checkIfFileMovingSucceeded(filePath, destDirPath, t)
 
 	os.RemoveAll(dirPath)
 }
