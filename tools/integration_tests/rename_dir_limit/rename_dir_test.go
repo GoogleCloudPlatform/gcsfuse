@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Provides integration tests when --rename-dir-limit flag is set.
-package rename_directory_test
+package rename_dir_limit_test
 
 import (
 	"os"
