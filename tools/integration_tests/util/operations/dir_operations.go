@@ -28,7 +28,6 @@ func CopyDir(srcDirPath string, destDirPath string) (err error) {
 	if err != nil {
 		err = fmt.Errorf("Copying dir operation is failed: %v", err)
 	}
-
 	return
 }
 
@@ -44,11 +43,11 @@ func RenameDir(dirName string, newDirName string) (err error) {
 	}
 
 	if _, err = os.Stat(dirName); err == nil {
-		err = fmt.Errorf("Original file %s still exists", dirName)
+		err = fmt.Errorf("Original directory %s still exists", dirName)
 		return
 	}
 	if _, err = os.Stat(newDirName); err != nil {
-		err = fmt.Errorf("Renamed file %s not found", newDirName)
+		err = fmt.Errorf("Renamed directory %s not found", newDirName)
 		return
 	}
 	return
