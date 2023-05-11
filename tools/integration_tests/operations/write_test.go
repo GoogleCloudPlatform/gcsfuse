@@ -20,35 +20,28 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func TestWriteAtEndOfFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
-	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
-	if err != nil {
-		t.Errorf("Open file for append: %v", err)
-	}
 
-	if _, err = f.WriteString("line 3\n"); err != nil {
+	err := operations.WriteFileInAppendMode(fileName, "line 3\n")
+	if err != nil {
 		t.Errorf("AppendString: %v", err)
 	}
-	f.Close()
 
 	setup.CompareFileContents(t, fileName, "line 1\nline 2\nline 3\n")
 }
 
 func TestWriteAtStartOfFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
-	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
-	if err != nil {
-		t.Errorf("Open file for write at start: %v", err)
-	}
 
-	if _, err = f.WriteAt([]byte("line 4\n"), 0); err != nil {
+	err := operations.WriteFile(fileName, "line 4\n")
+	if err != nil {
 		t.Errorf("WriteString-Start: %v", err)
 	}
-	f.Close()
 
 	setup.CompareFileContents(t, fileName, "line 4\nline 2\n")
 }
