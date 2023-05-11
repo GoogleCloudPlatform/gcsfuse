@@ -72,3 +72,13 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarAndAppNameAreNotSe
 
 	ExpectEq(expectedUserAgent, userAgent)
 }
+
+func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarSetAndAppNameNotSet() {
+	os.Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
+	defer os.Unsetenv("GCSFUSE_METADATA_IMAGE_TYPE")
+
+	userAgent := getUserAgent("")
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM)", getVersion()))
+
+	ExpectEq(expectedUserAgent, userAgent)
+}
