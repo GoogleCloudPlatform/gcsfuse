@@ -36,7 +36,7 @@ func getDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 		HttpClientTimeout:   800 * time.Millisecond,
 		MaxRetryDuration:    30 * time.Second,
 		RetryMultiplier:     2,
-		UserAgent:           "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df)",
+		UserAgent:           "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) (GCP:gcsfuse)",
 	}
 }
 
@@ -113,13 +113,6 @@ func (t *StorageHandleTest) TestNewStorageHandleHttp2Enabled() {
 func (t *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost() {
 	sc := getDefaultStorageClientConfig()
 	sc.MaxConnsPerHost = 0
-
-	t.invokeAndVerifyStorageHandle(sc)
-}
-
-func (t *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
-	sc := getDefaultStorageClientConfig()
-	sc.UserAgent = "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df)"
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
