@@ -136,7 +136,9 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 			"go",
 			"build",
 			"-o",
-			path.Join(dstDir, bin.outputPath))
+			path.Join(dstDir, bin.outputPath),
+			"-C",
+			srcDir)
 
 		if path.Base(bin.outputPath) == "gcsfuse" {
 			cmd.Args = append(
