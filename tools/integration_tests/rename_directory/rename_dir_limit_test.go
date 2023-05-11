@@ -13,11 +13,10 @@
 // limitations under the License.
 
 // Provides integration tests when --rename-dir-limit flag is set.
-package renamedirectory_test
+package rename_directory_test
 
 import (
 	"os"
-	"os/exec"
 	"path"
 	"testing"
 
@@ -25,20 +24,16 @@ import (
 )
 
 func createDir(dirPath string, t *testing.T) {
-	cmd := exec.Command("mkdir", dirPath)
-
-	err := cmd.Run()
+	err := os.Mkdir(dirPath, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("Creating directory operation failed.")
+		t.Errorf("Error in creating directory: %v", err)
 	}
 }
 
 func createFile(filePath string, t *testing.T) {
-	cmd := exec.Command("touch", filePath)
-
-	err := cmd.Run()
+	_, err := os.Create(filePath)
 	if err != nil {
-		t.Errorf("Creating file operation failed.")
+		t.Errorf("Error in creating file: %v", err)
 	}
 }
 
