@@ -21,7 +21,6 @@ var integrationTest = flag.Bool("integrationTest", false, "Run tests only when t
 
 const BufferSize = 100
 const FilePermission_0600 = 0600
-const DirectoryInTestBucket = "dir"
 
 var (
 	binFile string
@@ -68,15 +67,6 @@ func SetMntDir(mntDirValue string) {
 
 func MntDir() string {
 	return mntDir
-}
-
-// Run shell script
-func RunScriptForTestData(script string, testBucket string) {
-	cmd := exec.Command("/bin/bash", script, testBucket)
-	_, err := cmd.Output()
-	if err != nil {
-		panic(err)
-	}
 }
 
 func CompareFileContents(t *testing.T, fileName string, fileContent string) {
@@ -165,36 +155,6 @@ func MountGcsfuse(defaultArg []string, flags []string) error {
 	return nil
 }
 
-func MountGcsfuseWithStaticMounting(flags []string) (err error) {
-	defaultArg := []string{"--debug_gcs",
-		"--debug_fs",
-		"--debug_fuse",
-		"--log-file=" + LogFile(),
-		"--log-format=text",
-		*testBucket,
-		mntDir}
-
-	err = MountGcsfuse(defaultArg, flags)
-
-	return err
-}
-
-func MountGcsfuseWithOnlyDir(flags []string, dir string) (err error) {
-	defaultArg := []string{"--only-dir",
-		dir,
-		"--debug_gcs",
-		"--debug_fs",
-		"--debug_fuse",
-		"--log-file=" + LogFile(),
-		"--log-format=text",
-		*testBucket,
-		mntDir}
-
-	err = MountGcsfuse(defaultArg, flags)
-
-	return err
-}
-
 func UnMount() error {
 	fusermount, err := exec.LookPath("fusermount")
 	if err != nil {
@@ -215,13 +175,15 @@ func ExecuteTest(m *testing.M) (successCode int) {
 	return successCode
 }
 
-func executeTestsForMountedDirectory(flags []string, m *testing.M) (successCode int) {
+func ExecuteTestForFlags(flags []string, m *testing.M) (successCode int) {
+	var err error
+
 	// Clean the mountedDirectory before running any tests.
 	os.RemoveAll(mntDir)
 
 	successCode = ExecuteTest(m)
 
-	err := UnMount()
+	err = UnMount()
 	if err != nil {
 		LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
 	}
@@ -235,56 +197,6 @@ func executeTestsForMountedDirectory(flags []string, m *testing.M) (successCode 
 	return
 }
 
-func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
-	var err error
-
-	// Run tests for static mounting.
-	for i := 0; i < len(flags); i++ {
-		if err = MountGcsfuseWithStaticMounting(flags[i]); err != nil {
-			LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
-		}
-		successCode = executeTestsForMountedDirectory(flags[i], m)
-	}
-
-	// Run tests for mounting a specific directory in a Cloud Storage bucket instead of the entire bucket, where directory not exist in the bucket.
-	for i := 0; i < len(flags); i++ {
-		if err = MountGcsfuseWithOnlyDir(flags[i], DirectoryInTestBucket); err != nil {
-			LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
-		}
-
-		mountingDir := path.Join(*testBucket, DirectoryInTestBucket)
-
-		// Create objects for read-only testing in the mounted directory from the bucket.
-		RunScriptForTestData("../readonly/testdata/create_objects.sh", mountingDir)
-
-		successCode = executeTestsForMountedDirectory(flags[i], m)
-
-		// Delete objects after testing in the mounted directory from the bucket.
-		RunScriptForTestData("../readonly/testdata/delete_objects.sh", mountingDir)
-	}
-
-	// Run tests for mounting a specific directory in a Cloud Storage bucket instead of the entire bucket where a directory exists.
-	// Clean the bucket for read-only testing.
-	RunScriptForTestData("../readonly/testdata/delete_objects.sh", *testBucket)
-
-	mountingDir := path.Join(*testBucket, DirectoryInTestBucket)
-
-	// Create objects for read-only testing in the mounted directory from the bucket.
-	RunScriptForTestData("../readonly/testdata/create_objects.sh", mountingDir)
-
-	for i := 0; i < len(flags); i++ {
-		if err = MountGcsfuseWithOnlyDir(flags[i], DirectoryInTestBucket); err != nil {
-			LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
-		}
-		successCode = executeTestsForMountedDirectory(flags[i], m)
-	}
-
-	// Delete objects after testing in the mounted directory from the bucket.
-	RunScriptForTestData("../readonly/testdata/delete_objects.sh", *testBucket)
-
-	return
-}
-
 func ParseSetUpFlags() {
 	flag.Parse()
 
@@ -294,7 +206,7 @@ func ParseSetUpFlags() {
 	}
 }
 
-func RunTests(flags [][]string, m *testing.M) (successCode int) {
+func RunTests(m *testing.M) {
 	ParseSetUpFlags()
 
 	if *testBucket == "" && *mountedDirectory == "" {
@@ -314,11 +226,6 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 		log.Printf("setUpTestDir: %v\n", err)
 		os.Exit(1)
 	}
-	successCode = ExecuteTestForFlags(flags, m)
-
-	log.Printf("Test log: %s\n", logFile)
-
-	return successCode
 }
 
 func LogAndExit(s string) {
