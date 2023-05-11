@@ -20,128 +20,32 @@ import (
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func createDir(dirPath string, t *testing.T) {
+func createDirectoryWithNFiles(numberOfFiles int, dirPath string, t *testing.T) {
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Error in creating directory: %v", err)
 	}
-}
 
-func createFile(filePath string, t *testing.T) {
-	_, err := os.Create(filePath)
-	if err != nil {
-		t.Errorf("Error in creating file: %v", err)
+	for i := 0; i < numberOfFiles; i++ {
+		_, err := os.CreateTemp(dirPath, "tmpFile")
+		if err != nil {
+			t.Errorf("Create file at %q: %v", dirPath, err)
+		}
 	}
-}
-
-// Directory structure
-// testBucket/directoryWithThreeFiles           -- Dir
-// testBucket/directoryWithThreeFiles/a.txt     -- File
-// testBucket/directoryWithThreeFiles/b.txt     -- File
-// testBucket/directoryWithThreeFiles/c.txt     -- File
-func createDirectoryWithThreeFiles(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), DirectoryWithThreeFiles)
-
-	createDir(dirPath, t)
-
-	filePath1 := path.Join(dirPath, "a.txt")
-	filePath2 := path.Join(dirPath, "b.txt")
-	filePath3 := path.Join(dirPath, "c.txt")
-
-	createFile(filePath1, t)
-	createFile(filePath2, t)
-	createFile(filePath3, t)
-}
-
-// Directory structure
-// testBucket/directoryWithTwoFiles          -- Dir
-// testBucket/directoryWithTwoFiles/a.txt    -- File
-// testBucket/directoryWithTwoFiles/b.txt    -- File
-func createDirectoryWithTwoFiles(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), DirectoryWithTwoFiles)
-
-	createDir(dirPath, t)
-
-	filePath1 := path.Join(dirPath, "a.txt")
-	filePath2 := path.Join(dirPath, "b.txt")
-
-	createFile(filePath1, t)
-	createFile(filePath2, t)
-}
-
-// Directory structure
-// testBucket/directoryWithFourFiles          -- Dir
-// testBucket/directoryWithFourFiles/a.txt    -- File
-// testBucket/directoryWithFourFiles/b.txt    -- File
-// testBucket/directoryWithFourFiles/c.txt    -- File
-// testBucket/directoryWithFourFiles/d.txt    -- File
-func createDirectoryWithFourFiles(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), DirectoryWithFourFiles)
-
-	createDir(dirPath, t)
-
-	filePath1 := path.Join(dirPath, "a.txt")
-	filePath2 := path.Join(dirPath, "b.txt")
-	filePath3 := path.Join(dirPath, "c.txt")
-	filePath4 := path.Join(dirPath, "d.txt")
-
-	createFile(filePath1, t)
-	createFile(filePath2, t)
-	createFile(filePath3, t)
-	createFile(filePath4, t)
-}
-
-// Directory structure
-// testBucket/directoryWithTwoFilesOneEmptyDirectory                       -- Dir
-// testBucket/directoryWithTwoFilesOneEmptyDirectory/a.txt                 -- File
-// testBucket/directoryWithTwoFilesOneEmptyDirectory/b.txt                 -- File
-// testBucket/directoryWithTwoFilesOneEmptyDirectory/emptySubDirectory     -- Dir
-func createDirectoryWithTwoFilesOneEmptyDirectory(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), DirectoryWithTwoFilesOneEmptyDirectory)
-
-	createDir(dirPath, t)
-
-	subDir := path.Join(setup.MntDir(), DirectoryWithTwoFilesOneEmptyDirectory, EmptySubDirectory)
-
-	createDir(subDir, t)
-
-	filePath1 := path.Join(dirPath, "a.txt")
-	filePath2 := path.Join(dirPath, "b.txt")
-
-	createFile(filePath1, t)
-	createFile(filePath2, t)
-}
-
-// Directory structure
-// testBucket/directoryWithTwoFilesOneNonEmptyDirectory                                  -- Dir
-// testBucket/directoryWithTwoFilesOneNonEmptyDirectory/a.txt                            -- File
-// testBucket/directoryWithTwoFilesOneNonEmptyDirectory/b.txt                            -- File
-// testBucket/directoryWithTwoFilesOneNonEmptyDirectory/NonEmptySubDirectory             -- Dir
-// testBucket/directoryWithTwoFilesOneNonEmptyDirectory/NonEmptySubDirectory/c.txt   		 -- File
-func createDirectoryWithTwoFilesOneNonEmptyDirectory(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), DirectoryWithTwoFilesOneNonEmptyDirectory)
-
-	createDir(dirPath, t)
-
-	subDir := path.Join(dirPath, NonEmptySubDirectory)
-
-	createDir(subDir, t)
-
-	filePath1 := path.Join(dirPath, "a.txt")
-	filePath2 := path.Join(dirPath, "b.txt")
-	filePath3 := path.Join(subDir, "c.txt")
-
-	createFile(filePath1, t)
-	createFile(filePath2, t)
-	createFile(filePath3, t)
 }
 
 // As --rename-directory-limit = 3, the operation should get successful.
 func TestRenameDirectoryWithThreeFiles(t *testing.T) {
-	createDirectoryWithThreeFiles(t)
+	// Create directory structure
+	// testBucket/directoryWithThreeFiles               -- Dir
+	// testBucket/directoryWithThreeFiles/temp1.txt     -- File
+	// testBucket/directoryWithThreeFiles/temp2.txt     -- File
+	// testBucket/directoryWithThreeFiles/temp3.txt     -- File
+	dirPath := path.Join(setup.MntDir(), DirectoryWithThreeFiles)
+	createDirectoryWithNFiles(3, dirPath, t)
 
 	oldDirPath := path.Join(setup.MntDir(), DirectoryWithThreeFiles)
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
@@ -157,7 +61,13 @@ func TestRenameDirectoryWithThreeFiles(t *testing.T) {
 }
 
 func TestRenameDirectoryWithTwoFiles(t *testing.T) {
-	createDirectoryWithTwoFiles(t)
+	// Create directory structure
+	// testBucket/directoryWithTwoFiles              -- Dir
+	// testBucket/directoryWithTwoFiles/temp1.txt    -- File
+	// testBucket/directoryWithTwoFiles/temp2.txt    -- File
+	dirPath := path.Join(setup.MntDir(), DirectoryWithTwoFiles)
+
+	createDirectoryWithNFiles(2, dirPath, t)
 
 	oldDirPath := path.Join(setup.MntDir(), DirectoryWithTwoFiles)
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
@@ -173,7 +83,15 @@ func TestRenameDirectoryWithTwoFiles(t *testing.T) {
 }
 
 func TestRenameDirectoryWithFourFiles(t *testing.T) {
-	createDirectoryWithFourFiles(t)
+	// Creating directory structure
+	// testBucket/directoryWithFourFiles              -- Dir
+	// testBucket/directoryWithFourFiles/temp1.txt    -- File
+	// testBucket/directoryWithFourFiles/temp2.txt    -- File
+	// testBucket/directoryWithFourFiles/temp3.txt    -- File
+	// testBucket/directoryWithFourFiles/temp4.txt    -- File
+	dirPath := path.Join(setup.MntDir(), DirectoryWithFourFiles)
+
+	createDirectoryWithNFiles(4, dirPath, t)
 
 	oldDirPath := path.Join(setup.MntDir(), DirectoryWithFourFiles)
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
@@ -189,7 +107,16 @@ func TestRenameDirectoryWithFourFiles(t *testing.T) {
 }
 
 func TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory(t *testing.T) {
-	createDirectoryWithTwoFilesOneEmptyDirectory(t)
+	// Creating directory structure
+	// testBucket/directoryWithTwoFilesOneEmptyDirectory                       -- Dir
+	// testBucket/directoryWithTwoFilesOneEmptyDirectory/a.txt                 -- File
+	// testBucket/directoryWithTwoFilesOneEmptyDirectory/b.txt                 -- File
+	// testBucket/directoryWithTwoFilesOneEmptyDirectory/emptySubDirectory     -- Dir
+	dirPath := path.Join(setup.MntDir(), DirectoryWithTwoFilesOneEmptyDirectory)
+	subDirPath := path.Join(setup.MntDir(), DirectoryWithTwoFilesOneEmptyDirectory, EmptySubDirectory)
+
+	createDirectoryWithNFiles(2, dirPath, t)
+	createDirectoryWithNFiles(0, subDirPath, t)
 
 	oldDirPath := path.Join(setup.MntDir(), DirectoryWithTwoFilesOneEmptyDirectory)
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
@@ -205,7 +132,18 @@ func TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory(t *testing.T) {
 }
 
 func TestRenameDirectoryWithTwoFilesAndOneNonEmptyDirectory(t *testing.T) {
-	createDirectoryWithTwoFilesOneNonEmptyDirectory(t)
+	// Creating directory structure
+	// testBucket/directoryWithTwoFilesOneNonEmptyDirectory                                      -- Dir
+	// testBucket/directoryWithTwoFilesOneNonEmptyDirectory/temp1.txt                            -- File
+	// testBucket/directoryWithTwoFilesOneNonEmptyDirectory/temp2.txt                            -- File
+	// testBucket/directoryWithTwoFilesOneNonEmptyDirectory/NonEmptySubDirectory                 -- Dir
+	// testBucket/directoryWithTwoFilesOneNonEmptyDirectory/NonEmptySubDirectory/temp3.txt   		 -- File
+
+	dirPath := path.Join(setup.MntDir(), DirectoryWithTwoFilesOneNonEmptyDirectory)
+	subDirPath := path.Join(dirPath, NonEmptySubDirectory)
+
+	createDirectoryWithNFiles(2, dirPath, t)
+	createDirectoryWithNFiles(1, subDirPath, t)
 
 	oldDirPath := path.Join(setup.MntDir(), DirectoryWithTwoFilesOneNonEmptyDirectory)
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
