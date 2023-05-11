@@ -16,6 +16,7 @@
 package readonly_test
 
 import (
+	"os"
 	"os/exec"
 	"path"
 	"testing"
@@ -28,6 +29,12 @@ import (
 func checkIfFileCopyFailed(srcFilePath string, t *testing.T) {
 	// cp without destination file creates a destination file and create workflow is already covered separately.
 	copyFile := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
+
+	// cp without destination file creates a destination file and create workflow is already covered separately.
+	// Checking if destination object exist.
+	if _, err := os.Stat(copyFile); err != nil {
+		t.Errorf("Copied file %s is not present", copyFile)
+	}
 
 	err := operations.CopyFile(srcFilePath, copyFile)
 	if err == nil {
