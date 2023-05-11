@@ -16,48 +16,33 @@
 package operations_test
 
 import (
-	"io/ioutil"
 	"os"
-	"syscall"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func TestReadAfterWrite(t *testing.T) {
-	tmpDir, err := ioutil.TempDir(setup.MntDir(), "tmpDir")
+	tmpDir, err := os.MkdirTemp(setup.MntDir(), "tmpDir")
 	if err != nil {
 		t.Errorf("Mkdir at %q: %v", setup.MntDir(), err)
 		return
 	}
-
 	for i := 0; i < 10; i++ {
-		tmpFile, err := ioutil.TempFile(tmpDir, "tmpFile")
+		tmpFile, err := os.CreateTemp(tmpDir, "tmpFile")
 		if err != nil {
 			t.Errorf("Create file at %q: %v", tmpDir, err)
 			return
 		}
-
 		fileName := tmpFile.Name()
-		file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
+
+		err = operations.WriteFileInAppendMode(fileName, "line 1\n")
 		if err != nil {
-			t.Errorf("Error in opening file.")
+			t.Errorf("AppendString: %v", err)
 		}
 
-		if _, err = file.WriteString("line 1\n"); err != nil {
-			t.Errorf("WriteString: %v", err)
-		}
-		if err := tmpFile.Close(); err != nil {
-			t.Errorf("Close: %v", err)
-		}
-
-		tmpFile, err = os.Open(fileName)
-		if err != nil {
-			t.Errorf("Open %q: %v", fileName, err)
-			return
-		}
-
-		content, err := ioutil.ReadAll(tmpFile)
+		content, err := operations.ReadFile(fileName)
 		if err != nil {
 			t.Errorf("ReadAll: %v", err)
 		}
