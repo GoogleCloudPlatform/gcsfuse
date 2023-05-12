@@ -21,8 +21,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/static_mounting"
 )
 
 const DirectoryNameInTestBucket = "Test"         //  testBucket/Test
