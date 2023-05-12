@@ -27,20 +27,8 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 git checkout $commitId
 
-<<<<<<< HEAD
-echo Building and installing gcsfuse
-go install ./tools/build_gcsfuse
-mkdir $HOME/temp
-$HOME/go/bin/build_gcsfuse ./ $HOME/temp/ $commitId
-sudo cp ~/temp/bin/gcsfuse /usr/bin
-sudo cp ~/temp/sbin/mount.gcsfuse /sbin
-
-# Executing integration tests
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test -timeout 20m
-=======
 echo "Executing integration tests"
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test
->>>>>>> 157a3637984684d453a5e8f8a2e229b6c52e581d
 
 # Checkout back to master branch to use latest CI test scripts in master.
 git checkout master
