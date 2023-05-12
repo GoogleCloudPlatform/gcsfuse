@@ -51,7 +51,6 @@ func RunScriptForTestData(script string, testBucket string) {
 		panic(err)
 	}
 }
-
 func TestBucket() string {
 	return *testBucket
 }

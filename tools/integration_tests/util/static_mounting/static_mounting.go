@@ -36,7 +36,7 @@ func mountGcsfuseWithStaticMounting(flags []string) (err error) {
 	return err
 }
 
-func mountGcsFuseForFlagsAndExecuteTests(flags [][]string, m *testing.M) (successCode int) {
+func executeTests(flags [][]string, m *testing.M) (successCode int) {
 	var err error
 
 	for i := 0; i < len(flags); i++ {
@@ -54,7 +54,7 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 
 	setup.RunTests(m)
 
-	successCode = mountGcsFuseForFlagsAndExecuteTests(flags, m)
+	successCode = executeTests(flags, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 
