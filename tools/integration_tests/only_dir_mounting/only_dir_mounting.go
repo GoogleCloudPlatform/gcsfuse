@@ -30,6 +30,9 @@ func MountGcsfuseWithOnlyDir(flags []string, dir string) (err error) {
 func mountGcsFuseForFlags(flags [][]string, m *testing.M) (successCode int) {
 	var err error
 
+	// Clean the bucket.
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+
 	// "Test" directory not exist in bucket.
 	for i := 0; i < len(flags); i++ {
 		if err = MountGcsfuseWithOnlyDir(flags[i], DirectoryInTestBucket); err != nil {
@@ -40,7 +43,8 @@ func mountGcsFuseForFlags(flags [][]string, m *testing.M) (successCode int) {
 
 	// "Test" directory exist in bucket.
 	mountDir := path.Join(setup.MntDir(), DirectoryInTestBucket)
-	// Clean the bucket for readonly testing.
+
+	// Clean the bucket.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 
 	// Create Test directory in bucket.
@@ -53,7 +57,9 @@ func mountGcsFuseForFlags(flags [][]string, m *testing.M) (successCode int) {
 		setup.ExecuteTestForFlags(flags[i], m)
 	}
 
+	// Clean the bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+
 	return
 }
 
