@@ -1,4 +1,4 @@
-// Copyright 2021 Google Inc. All Rights Reserved.
+// Copyright 2023 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,43 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provides integration tests for write flows with implicit_dir flag set.
-package implicitdir_test
+// Provides integration tests for write flows.
+package operations_test
 
 import (
 	"os"
 	"syscall"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func TestWriteAtEndOfFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
-	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
-	if err != nil {
-		t.Errorf("Open file for append: %v", err)
-	}
 
-	if _, err = f.WriteString("line 3\n"); err != nil {
+	err := operations.WriteFileInAppendMode(fileName, "line 3\n")
+	if err != nil {
 		t.Errorf("AppendString: %v", err)
 	}
-	f.Close()
 
 	setup.CompareFileContents(t, fileName, "line 1\nline 2\nline 3\n")
 }
 
 func TestWriteAtStartOfFile(t *testing.T) {
 	fileName := setup.CreateTempFile()
-	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
-	if err != nil {
-		t.Errorf("Open file for write at start: %v", err)
-	}
 
-	if _, err = f.WriteAt([]byte("line 4\n"), 0); err != nil {
+	err := operations.WriteFile(fileName, "line 4\n")
+	if err != nil {
 		t.Errorf("WriteString-Start: %v", err)
 	}
-	f.Close()
 
 	setup.CompareFileContents(t, fileName, "line 4\nline 2\n")
 }

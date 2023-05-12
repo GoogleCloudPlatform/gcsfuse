@@ -21,17 +21,12 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func checkIfFileReadSucceeded(filePath string, expectedContent string, t *testing.T) {
-	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
-	if err != nil {
-		t.Errorf("Error in the opening the file %v", err)
-	}
-	defer file.Close()
-
-	content, err := os.ReadFile(file.Name())
+	content, err := operations.ReadFile(filePath)
 	if err != nil {
 		t.Errorf("ReadAll: %v", err)
 	}
