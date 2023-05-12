@@ -18,7 +18,6 @@ package readonly_test
 import (
 	"log"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 
@@ -41,15 +40,6 @@ const ContentInFileInDirectoryTestBucket = "This is from directory Test file a\n
 const ContentInFileInSubDirectoryTestBucket = "This is from directory Test/b file b\n"
 const RenameFile = "rename.txt"
 const RenameDir = "rename"
-
-// Run shell script
-func runScriptForTestData(script string, testBucket string) {
-	cmd := exec.Command("/bin/bash", script, testBucket)
-	_, err := cmd.Output()
-	if err != nil {
-		panic(err)
-	}
-}
 
 func checkErrorForReadOnlyFileSystem(err error, t *testing.T) {
 	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
@@ -74,15 +64,15 @@ func TestMain(m *testing.M) {
 	}
 
 	// Clean the bucket for readonly testing.
-	runScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 
 	// Create objects in bucket for testing.
-	runScriptForTestData("testdata/create_objects.sh", setup.TestBucket())
+	setup.RunScriptForTestData("testdata/create_objects.sh", setup.TestBucket())
 
 	successCode := static_mounting.RunTests(flags, m)
 
 	// Delete objects from bucket after testing.
-	runScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 
 	os.Exit(successCode)
 }

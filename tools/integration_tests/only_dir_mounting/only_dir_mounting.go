@@ -3,10 +3,13 @@ package only_dir_mounting
 import (
 	"fmt"
 	"log"
+	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
+
+const DirectoryInTestBucket = "Test"
 
 func MountGcsfuseWithOnlyDir(flags []string, dir string) (err error) {
 	defaultArg := []string{"--only-dir",
@@ -29,19 +32,28 @@ func mountGcsFuseForFlags(flags [][]string, m *testing.M) (successCode int) {
 
 	// "Test" directory not exist in bucket.
 	for i := 0; i < len(flags); i++ {
-		if err = MountGcsfuseWithOnlyDir(flags[i], "Test"); err != nil {
+		if err = MountGcsfuseWithOnlyDir(flags[i], DirectoryInTestBucket); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 		setup.ExecuteTestForFlags(flags[i], m)
 	}
 
-	// "Test" directory not exist in bucket.
+	// "Test" directory exist in bucket.
+	mountDir := path.Join(setup.MntDir(), DirectoryInTestBucket)
+	// Clean the bucket for readonly testing.
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+
+	// Create Test directory in bucket.
+	setup.RunScriptForTestData("testdata/create_objects.sh", mountDir)
+
 	for i := 0; i < len(flags); i++ {
-		if err = MountGcsfuseWithOnlyDir(flags[i], "Test"); err != nil {
+		if err = MountGcsfuseWithOnlyDir(flags[i], DirectoryInTestBucket); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 		setup.ExecuteTestForFlags(flags[i], m)
 	}
+
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 	return
 }
 
