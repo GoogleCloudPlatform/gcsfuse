@@ -24,7 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-// Rename oldObj to newObj
+// Rename oldFile to newFile
 func checkIfRenameFileFailed(oldFilePath string, newFilePath string, t *testing.T) {
 	err := operations.RenameFile(oldFilePath, newFilePath)
 	if err == nil {
@@ -41,17 +41,9 @@ func checkIfRenameFileFailed(oldFilePath string, newFilePath string, t *testing.
 	}
 }
 
+// Rename oldDir to newDir
 func checkIfRenameDirFailed(oldDirPath string, newDirPath string, t *testing.T) {
-	_, err := os.Stat(oldDirPath)
-	if err != nil {
-		t.Errorf("Error in the stating directory: %v", err)
-	}
-
-	if _, err := os.Stat(newDirPath); err == nil {
-		t.Errorf("Renamed directory %s already present", newDirPath)
-	}
-
-	err = os.Rename(oldDirPath, newDirPath)
+	err := operations.RenameDir(oldDirPath, newDirPath)
 	if err == nil {
 		t.Errorf("Directory renamed in read-only file system.")
 	}
