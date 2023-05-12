@@ -59,7 +59,10 @@ func executeTests(flags [][]string, m *testing.M) (successCode int) {
 
 	// "Test" directory not exist in bucket.
 	successCode = mountGcsFuseForFlagsAndExecuteTests(flags, DirectoryInTestBucket, m)
-	
+	if successCode != 0 {
+		return
+	}
+
 	// "Test" directory exist in bucket.
 	// Clean the bucket.
 	setup.RunScriptForTestData("../util/only_dir_mounting/testdata/delete_objects.sh", setup.TestBucket())
