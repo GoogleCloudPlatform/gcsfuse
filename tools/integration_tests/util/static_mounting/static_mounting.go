@@ -43,7 +43,6 @@ func executeTests(flags [][]string, m *testing.M) (successCode int) {
 		if err = mountGcsfuseWithStaticMounting(flags[i]); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
-
 		setup.ExecuteTestForFlags(flags[i], m)
 	}
 	return
