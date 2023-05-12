@@ -1,4 +1,4 @@
-package onlydirmounting
+package static_mounting
 
 import (
 	"fmt"
@@ -8,10 +8,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
 )
 
-func MountGcsfuseWithOnlyDir(flags []string, dir string) (err error) {
-	defaultArg := []string{"--only-dir",
-		dir,
-		"--debug_gcs",
+func mountGcsfuseWithStaticMounting(flags []string) (err error) {
+	defaultArg := []string{"--debug_gcs",
 		"--debug_fs",
 		"--debug_fuse",
 		"--log-file=" + setup.LogFile(),
@@ -27,20 +25,13 @@ func MountGcsfuseWithOnlyDir(flags []string, dir string) (err error) {
 func mountGcsFuseForFlags(flags [][]string, m *testing.M) (successCode int) {
 	var err error
 
-	// "Test" directory not exist in bucket.
 	for i := 0; i < len(flags); i++ {
-		if err = MountGcsfuseWithOnlyDir(flags[i], "Test"); err != nil {
+		if err = mountGcsfuseWithStaticMounting(flags[i]); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
-		setup.ExecuteTestForFlags(flags[i], m)
-	}
 
-	// "Test" directory not exist in bucket.
-	for i := 0; i < len(flags); i++ {
-		if err = MountGcsfuseWithOnlyDir(flags[i], "Test"); err != nil {
-			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
-		}
 		setup.ExecuteTestForFlags(flags[i], m)
+
 	}
 	return
 }

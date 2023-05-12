@@ -23,7 +23,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/staticmounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/static_mounting"
 )
 
 const DirectoryNameInTestBucket = "Test"         //  testBucket/Test
@@ -79,7 +79,7 @@ func TestMain(m *testing.M) {
 	// Create objects in bucket for testing.
 	runScriptForTestData("testdata/create_objects.sh", setup.TestBucket())
 
-	successCode := staticmounting.RunTests(flags, m)
+	successCode := static_mounting.RunTests(flags, m)
 
 	// Delete objects from bucket after testing.
 	runScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())

@@ -20,9 +20,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/onlydirmounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/staticmounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/static_mounting"
 )
 
 func TestMain(m *testing.M) {
@@ -38,13 +38,13 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	successCode := staticmounting.RunTests(flags, m)
+	successCode := static_mounting.RunTests(flags, m)
 
 	if successCode != 0 {
 		os.Exit(successCode)
 	}
 
-	successCode = onlydirmounting.RunTests(flags, m)
+	successCode = only_dir_mounting.RunTests(flags, m)
 
 	os.Exit(successCode)
 }
