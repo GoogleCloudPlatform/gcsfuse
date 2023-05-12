@@ -124,7 +124,7 @@ def _run_model(directory_name, data_path, data_read_method, ml_model_path, req_f
             mkdir {directory_name}
             cd {directory_name}
             echo ML model reading data using {data_read_method} >> output.txt
-            pip install -r {req_file_path} --user
+            pip install --require-hashes -r {req_file_path} --user
             ''')
   
   start_time = int(time.time())
