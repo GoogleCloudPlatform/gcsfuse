@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provide a helper functions.
+// Provide a helper for directory operations.
 package operations
 
 import (
