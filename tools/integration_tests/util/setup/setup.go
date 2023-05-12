@@ -29,6 +29,15 @@ var (
 	mntDir  string
 )
 
+// Run shell script
+func RunScriptForTestData(script string, testBucket string) {
+	cmd := exec.Command("/bin/bash", script, testBucket)
+	_, err := cmd.Output()
+	if err != nil {
+		panic(err)
+	}
+}
+
 func TestBucket() string {
 	return *testBucket
 }
