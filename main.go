@@ -77,11 +77,12 @@ func registerSIGINTHandler(mountPoint string) {
 
 func getUserAgent(appName string) string {
 	fmt.Println("run ci lint tests -9may ")
-	fmt.Println("run ci lint tests -9may re")
 	return strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), appName, os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")))
 }
 
 func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
+	fmt.Println("run ci lint tests -9may re")
+
 	var tokenSrc oauth2.TokenSource
 	if flags.Endpoint.Hostname() == "storage.googleapis.com" {
 		tokenSrc, err = auth.GetTokenSource(
