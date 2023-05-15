@@ -14,9 +14,10 @@
 
 // Provides integration tests when --key-file flag is set or GOOGLE_APPLICATION_CREDENTIALS environment variable is set.
 
-package key_file_and_google_application_creds
+package viewer_permission_test
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -27,8 +28,8 @@ import (
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	setup.RunScriptForTestData("testdata/get_key_file.sh", "key-file-integration-test-gcs-fuse")
-	flags := [][]string{{"--key-file=viewer_creds.json", "--implicit-dirs"}}
+	setup.RunScriptForTestData("../testdata/get_key_file.sh", "key-file-integration-test-gcs-fuse")
+	flags := [][]string{{"--key-file=~/admin_creds.json", "--implicit-dirs"}}
 
 	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
 		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
@@ -36,6 +37,7 @@ func TestMain(m *testing.M) {
 	}
 
 	successCode := setup.RunTests(flags, m)
+	fmt.Println(successCode)
 
 	os.Exit(successCode)
 }
