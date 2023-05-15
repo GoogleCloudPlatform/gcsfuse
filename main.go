@@ -76,7 +76,7 @@ func registerSIGINTHandler(mountPoint string) {
 }
 
 func getUserAgent(appName string) string {
-	fmt.Println("run ci lint tests -9may")
+	fmt.Println("run ci lint tests -9may re")
 	return strings.TrimSpace(fmt.Sprintf("gcsfuse/%s %s %s", getVersion(), appName, os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")))
 }
 
