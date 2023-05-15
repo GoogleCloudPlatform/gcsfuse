@@ -17,7 +17,6 @@
 package viewer_permission_test
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -29,7 +28,7 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	setup.RunScriptForTestData("../testdata/get_key_file.sh", "key-file-integration-test-gcs-fuse")
-	flags := [][]string{{"--key-file=~/admin_creds.json", "--implicit-dirs"}}
+	flags := [][]string{{"--key-file=admin_creds.json", "--implicit-dirs"}}
 
 	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
 		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
@@ -37,7 +36,6 @@ func TestMain(m *testing.M) {
 	}
 
 	successCode := setup.RunTests(flags, m)
-	fmt.Println(successCode)
 
 	os.Exit(successCode)
 }
