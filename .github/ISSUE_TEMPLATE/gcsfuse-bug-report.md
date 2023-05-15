@@ -2,7 +2,7 @@
 name: GCSFuse Issue report
 about: Describe information users can provide to enable faster interaction
 title: ''
-labels: question
+labels: "question,p1"
 assignees: ''
 
 ---
