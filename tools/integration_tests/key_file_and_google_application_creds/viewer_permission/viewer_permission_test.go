@@ -27,8 +27,10 @@ import (
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	setup.RunScriptForTestData("../testdata/get_key_file.sh", "key-file-integration-test-gcs-fuse")
-	flags := [][]string{{"--key-file=admin_creds.json", "--implicit-dirs"}}
+	setup.RunScriptForTestData("../testdata/revoke_gcloud_creds.sh", "")
+
+	setup.RunScriptForTestData("../testdata/get_key_files.sh", "key-file-integration-test-gcs-fuse")
+	flags := [][]string{{"--key-file=viewer_creds.json", "--implicit-dirs"}}
 
 	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
 		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
@@ -36,6 +38,12 @@ func TestMain(m *testing.M) {
 	}
 
 	successCode := setup.RunTests(flags, m)
+
+	// Setting back gcloud credentials after testing.
+	setup.RunScriptForTestData("../testdata/set_gcloud_creds.sh", "")
+
+	// Delete key file after using it.
+	setup.RunScriptForTestData("../testdata/delete_key_files.sh", "")
 
 	os.Exit(successCode)
 }
