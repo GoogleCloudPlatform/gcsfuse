@@ -18,8 +18,10 @@ package operations_test
 import (
 	"log"
 	"os"
+	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/key_file"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -27,6 +29,7 @@ const MoveFile = "move.txt"
 const MoveFileContent = "This is from move file in Test directory.\n"
 
 func TestMain(m *testing.M) {
+
 	setup.ParseSetUpFlags()
 
 	flags := [][]string{{"--enable-storage-client-library=true", "--implicit-dirs=true"},
@@ -40,6 +43,17 @@ func TestMain(m *testing.M) {
 	}
 
 	successCode := setup.RunTests(flags, m)
+	if successCode != 0 {
+		os.Exit(successCode)
+	}
+
+	creds_path := path.Join(os.Getenv("HOME"), "admin_creds.json")
+
+	flag_set := []string{"--implicit-dirs"}
+	successCode = key_file.RunTestsForKeyFileAndGoogleApplicationCredentials(creds_path, flag_set, m)
+
+	// Setting back gcloud credentials after testing.
+	setup.RunScriptForTestData("../util/key_file/testdata/set_gcloud_creds.sh", "")
 
 	os.Exit(successCode)
 }

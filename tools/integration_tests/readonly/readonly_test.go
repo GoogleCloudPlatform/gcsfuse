@@ -18,9 +18,11 @@ package readonly_test
 import (
 	"log"
 	"os"
+	"path"
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/key_file"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -41,13 +43,17 @@ const RenameFile = "rename.txt"
 const RenameDir = "rename"
 
 func checkErrorForReadOnlyFileSystem(err error, t *testing.T) {
-	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
+	errMsg := strings.ToLower(err.Error())
+
+	if !strings.Contains(errMsg, "read-only file system") && !strings.Contains(errMsg, "permission denied") {
 		t.Errorf("Incorrect error for readonly filesystem: %v", err.Error())
 	}
 }
 
 func checkErrorForObjectNotExist(err error, t *testing.T) {
-	if !strings.Contains(err.Error(), "no such file or directory") {
+	errMsg := strings.ToLower(err.Error())
+
+	if !strings.Contains(errMsg, "no such file or directory") {
 		t.Errorf("Incorrect error for object not exist: %v", err.Error())
 	}
 }
@@ -70,8 +76,20 @@ func TestMain(m *testing.M) {
 
 	successCode := setup.RunTests(flags, m)
 
+	if successCode != 0 {
+		os.Exit(successCode)
+	}
+
+	creds_path := path.Join(os.Getenv("HOME"), "viewer_creds.json")
+
+	flag_set := []string{"--implicit-dirs", "--rename-dir-limit=2"}
+	successCode = key_file.RunTestsForKeyFileAndGoogleApplicationCredentials(creds_path, flag_set, m)
+
 	// Delete objects from bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+
+	// Setting back gcloud credentials after testing.
+	setup.RunScriptForTestData("../util/key_file/testdata/set_gcloud_creds.sh", "")
 
 	os.Exit(successCode)
 }

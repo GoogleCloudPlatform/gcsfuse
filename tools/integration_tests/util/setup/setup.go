@@ -193,7 +193,8 @@ func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
 
 	for i := 0; i < len(flags); i++ {
 		if err = MountGcsfuse(flags[i]); err != nil {
-			LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
+			log.Print(fmt.Sprintf("mountGcsfuse: %v\n", err))
+			return 1
 		}
 
 		// Clean the mountedDirectory before running any tests.
@@ -227,18 +228,21 @@ func ParseSetUpFlags() {
 }
 
 func RunTests(flags [][]string, m *testing.M) (successCode int) {
+	// Setting gcloud credentials if removed because of previous run.
+	//RunScriptForTestData("../util/key_file/testdata/set_gcloud_creds.sh", "")
+
 	ParseSetUpFlags()
 
 	if *testBucket == "" && *mountedDirectory == "" {
 		log.Printf("--testbucket or --mountedDirectory must be specified")
-		os.Exit(1)
+		return 1
 	}
 
 	// Execute tests for the mounted directory.
 	if *mountedDirectory != "" {
 		mntDir = *mountedDirectory
 		successCode := ExecuteTest(m)
-		os.Exit(successCode)
+		return successCode
 	}
 
 	// Execute tests for testBucket

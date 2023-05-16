@@ -16,6 +16,10 @@
 package readonly_test
 
 import (
+	"bufio"
+	"fmt"
+	"log"
+	"os/exec"
 	"path"
 	"testing"
 
@@ -25,11 +29,30 @@ import (
 
 const Content = "Testing"
 
+// For Storage.Object.Viewer Permission kernal is throwing error when it syncs the file.
+func checkErrorForViewerPermission(filePath string) (err error) {
+	cmd := exec.Command("cat", filePath)
+	stderr, _ := cmd.StderrPipe()
+	if err = cmd.Start(); err != nil {
+		log.Fatal(err)
+	}
+
+	scanner := bufio.NewScanner(stderr)
+	for scanner.Scan() {
+		err = fmt.Errorf(scanner.Text())
+	}
+	return
+}
+
 func checkIfFileFailedToOpenForWrite(filePath string, t *testing.T) {
 	err := operations.WriteFile(filePath, Content)
 
 	if err == nil {
-		t.Errorf("File opened for writing in read-only mount.")
+		err = checkErrorForViewerPermission(filePath)
+		if err == nil {
+			t.Errorf("File opened for writing in read-only mount.")
+			return
+		}
 	}
 
 	checkErrorForReadOnlyFileSystem(err, t)
@@ -88,7 +111,12 @@ func checkIfFileFailedToOpenForAppend(filePath string, t *testing.T) {
 	err := operations.WriteFileInAppendMode(filePath, Content)
 
 	if err == nil {
-		t.Errorf("File opened for appending content in read-only mount.")
+		// For Storage.Object.Viewer Permission kernal is throwing error when it syncs the file.
+		err = checkErrorForViewerPermission(filePath)
+		if err == nil {
+			t.Errorf("File opened for writing in read-only mount.")
+			return
+		}
 	}
 
 	checkErrorForReadOnlyFileSystem(err, t)

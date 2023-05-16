@@ -1,1 +1,0 @@
-rm viewer_creds.json admin_creds.json
