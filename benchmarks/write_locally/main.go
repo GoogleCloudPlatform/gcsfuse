@@ -58,11 +58,11 @@ func run() (err error) {
 	// Make sure we clean it up later.
 	defer func() {
 		log.Printf("Truncating and closing %s.", path)
-		f.Truncate(0)
-		f.Close()
+		_ = f.Truncate(0)
+		_ = f.Close()
 
 		log.Printf("Deleting %s.", path)
-		os.Remove(path)
+		_ = os.Remove(path)
 	}()
 
 	// Extend to the initial size.
@@ -94,11 +94,6 @@ func run() (err error) {
 		// Overwrite.
 		var n int64
 		for n < *fFileSize && time.Since(start) < *fDuration {
-			toWrite := *fFileSize - n
-			if toWrite > *fWriteSize {
-				toWrite = *fWriteSize
-			}
-
 			var tmp int
 			tmp, err = f.Write(buf)
 			if err != nil {

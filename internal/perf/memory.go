@@ -31,7 +31,6 @@ const (
 	MiB = 1024 * KiB
 )
 
-
 func HandleMemoryProfileSignals() {
 	profileOnce := func(path string) (err error) {
 		// Trigger a garbage collection to get up to date information (cf.
@@ -70,7 +69,7 @@ func HandleMemoryProfileSignals() {
 
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
-		logger.Infof("Heap allocation: %d MiB", m.Alloc / MiB)
+		logger.Infof("Heap allocation: %d MiB", m.Alloc/MiB)
 
 		err := profileOnce(path)
 		if err == nil {

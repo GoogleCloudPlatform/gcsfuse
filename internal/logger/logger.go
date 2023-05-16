@@ -33,6 +33,7 @@ const GCSFuseInBackgroundMode string = "GCSFUSE_IN_BACKGROUND_MODE"
 var (
 	defaultLoggerFactory *loggerFactory
 	defaultInfoLogger    *log.Logger
+	defaultErrorLogger   *log.Logger
 )
 
 // InitLogFile initializes the logger factory to create loggers that print to
@@ -77,6 +78,7 @@ func InitLogFile(filename string, format string) error {
 		format:    format,
 	}
 	defaultInfoLogger = NewInfo("")
+	defaultErrorLogger = NewError("")
 
 	return nil
 }
@@ -88,6 +90,7 @@ func init() {
 		flag: log.Ldate | log.Ltime | log.Lmicroseconds,
 	}
 	defaultInfoLogger = NewInfo("")
+	defaultErrorLogger = NewError("")
 }
 
 // Close closes the log file when necessary.
@@ -121,6 +124,11 @@ func NewInfo(prefix string) *log.Logger {
 // file or stderr.
 func NewError(prefix string) *log.Logger {
 	return defaultLoggerFactory.newLogger("ERROR", prefix)
+}
+
+// Errorf calls the default error logger to print the message using Printf.
+func Errorf(format string, v ...interface{}) {
+	defaultErrorLogger.Printf(format, v...)
 }
 
 // Info calls the default info logger to print the message using Printf.
