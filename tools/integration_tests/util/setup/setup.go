@@ -1,7 +1,6 @@
 package setup
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"log"
@@ -152,13 +151,10 @@ func MountGcsfuse(flags []string) error {
 		fmt.Println("Could not write cmd to logFile")
 	}
 
-	output, err := mountCmd.CombinedOutput()
+	_, err = mountCmd.CombinedOutput()
 	if err != nil {
 		log.Println(mountCmd.String())
 		return fmt.Errorf("cannot mount gcsfuse: %w\n", err)
-	}
-	if lines := bytes.Count(output, []byte{'\n'}); lines > 1 {
-		return fmt.Errorf("mount output: %q\n", output)
 	}
 	return nil
 }
