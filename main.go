@@ -54,6 +54,7 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 func registerSIGINTHandler(mountPoint string) {
+	// test comment
 	// Register for SIGINT.
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)
