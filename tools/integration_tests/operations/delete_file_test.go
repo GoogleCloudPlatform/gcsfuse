@@ -40,12 +40,16 @@ func checkIfObjDeletionSucceeded(filePath string, t *testing.T) {
 	}
 }
 
-func TestDeleteFileFromBucket(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
+func createFile(filePath string, t *testing.T) {
 	_, err := os.Create(filePath)
 	if err != nil {
 		t.Errorf("Error in creating file: %v", err)
 	}
+}
+
+func TestDeleteFileFromBucket(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
+	createFile(filePath, t)
 
 	checkIfObjDeletionSucceeded(filePath, t)
 }
@@ -58,10 +62,7 @@ func TestDeleteFileFromBucketDirectory(t *testing.T) {
 	}
 
 	filePath := path.Join(dirPath, FileNameInDirectoryTestBucket)
-	_, err = os.Create(filePath)
-	if err != nil {
-		t.Errorf("Error in creating file: %v", err)
-	}
+	createFile(filePath, t)
 
 	checkIfObjDeletionSucceeded(filePath, t)
 }
