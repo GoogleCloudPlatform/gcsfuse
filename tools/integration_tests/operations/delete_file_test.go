@@ -49,6 +49,7 @@ func createFile(filePath string, t *testing.T) {
 
 func TestDeleteFileFromBucket(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
+
 	createFile(filePath, t)
 
 	checkIfObjDeletionSucceeded(filePath, t)
@@ -62,6 +63,7 @@ func TestDeleteFileFromBucketDirectory(t *testing.T) {
 	}
 
 	filePath := path.Join(dirPath, FileNameInDirectoryTestBucket)
+	
 	createFile(filePath, t)
 
 	checkIfObjDeletionSucceeded(filePath, t)
