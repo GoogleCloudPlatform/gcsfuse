@@ -133,7 +133,7 @@ func Info(v ...interface{}) {
 	defaultInfoLogger.Println(v...)
 }
 
-func Fatal(v ...any) {
+func Fatal(v ...interface{}) {
 	defaultInfoLogger.Fatal(v...)
 }
 
