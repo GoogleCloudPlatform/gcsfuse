@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provides integration tests for delete objects.
-
+// Provides integration tests for delete files.
 package operations
 
 import (
