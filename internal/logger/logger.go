@@ -133,6 +133,7 @@ func Info(v ...interface{}) {
 	defaultInfoLogger.Println(v...)
 }
 
+// Fatal calls the l.Print() followed by a call to os.Exit(1).
 func Fatal(v ...interface{}) {
 	defaultInfoLogger.Fatal(v...)
 }
