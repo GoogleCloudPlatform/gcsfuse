@@ -52,6 +52,7 @@ func createSrcDirectoryWithObjects(dirPath string, t *testing.T) {
 	}
 
 }
+
 func checkIfCopiedDirectoryHasCorrectData(destDir string, t *testing.T) {
 	obj, err := os.ReadDir(destDir)
 	if err != nil {
