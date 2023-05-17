@@ -84,8 +84,6 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	setup.RunTestsForMountedDirectoryFlag(m)
 
 	// Execute tests for testBucket
-	setup.SetUpTestDirForTestBucketFlag()
-
 	successCode = executeTests(flags, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
