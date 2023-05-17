@@ -63,7 +63,6 @@ func TestDeleteFileFromBucketDirectory(t *testing.T) {
 	}
 
 	filePath := path.Join(dirPath, FileNameInDirectoryTestBucket)
-	
 	createFile(filePath, t)
 
 	checkIfObjDeletionSucceeded(filePath, t)
