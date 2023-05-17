@@ -1,13 +1,13 @@
 ---
-name: GCSFuse Bug report
+name: GCSFuse Issue report
 about: Describe information users can provide to enable faster interaction
 title: ''
-labels: bug
+labels: "question,p1"
 assignees: ''
 
 ---
 
-**Describe the bug**
+**Describe the issue**
 Please provide a clear description of what you were trying to achieve along with the details of the flags that you passed.
 
 **To Collect more Debug logs**

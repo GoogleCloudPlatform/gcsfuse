@@ -25,6 +25,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
+const MoveFile = "move.txt"
+const MoveFileContent = "This is from move file in Test directory.\n"
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 

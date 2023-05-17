@@ -118,8 +118,8 @@ func WriteFile(fileName string, content string) (err error) {
 	return
 }
 
-func MoveFile(srcFilePath string, destFilePath string) (err error) {
-	cmd := exec.Command("mv", srcFilePath, destFilePath)
+func MoveFile(srcFilePath string, destDirPath string) (err error) {
+	cmd := exec.Command("mv", srcFilePath, destDirPath)
 
 	err = cmd.Run()
 	if err != nil {
