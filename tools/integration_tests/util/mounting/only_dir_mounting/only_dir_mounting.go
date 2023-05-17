@@ -45,8 +45,7 @@ func mountGcsfuseWithOnlyDir(flags []string, dir string) (err error) {
 func mountGcsFuseForFlagsAndExecuteTests(flags [][]string, dir string, m *testing.M) (successCode int) {
 	for i := 0; i < len(flags); i++ {
 		if err := mountGcsfuseWithOnlyDir(flags[i], dir); err != nil {
-			log.Printf(fmt.Sprintf("mountGcsfuse: %v\n", err))
-			return
+			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 		successCode = setup.ExecuteTestForFlagsSet(flags[i], m)
 	}
