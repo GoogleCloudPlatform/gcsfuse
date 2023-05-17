@@ -25,6 +25,13 @@ import (
 
 const MoveFile = "move.txt"
 const MoveFileContent = "This is from move file in Test directory.\n"
+const SrcCopyDirectory = "srcCopyDir"
+const SubSrcCopyDirectory = "subSrcCopyDir"
+const SrcCopyFile = "copy.txt"
+const SrcCopyFileContent = "This is from copy file in srcCopy directory.\n"
+const DestCopyDirectory = "destCopyDir"
+const DestCopyDirectoryNotExist = "notExist"
+const NumberOfObjectsInSrcCopyDirectory = 2
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
