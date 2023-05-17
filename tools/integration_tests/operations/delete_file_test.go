@@ -28,7 +28,7 @@ const FileNameInTestBucket = "A.txt"
 const FileNameInDirectoryTestBucket = "a.txt"
 
 func checkIfObjDeletionSucceeded(filePath string, t *testing.T) {
-	err := os.RemoveAll(filePath)
+	err := os.Remove(filePath)
 
 	if err != nil {
 		t.Errorf("Objects deletion failed: %v", err)
