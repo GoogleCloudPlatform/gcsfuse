@@ -27,7 +27,7 @@ const DirNameInTestBucket = "A"               // testBucket/A
 const FileNameInTestBucket = "A.txt"          // testBucket/A.txt
 const FileNameInDirectoryTestBucket = "a.txt" // testBucket/A/a.txt
 
-func checkIfObjDeletionSucceeded(filePath string, t *testing.T) {
+func checkIfFileDeletionSucceeded(filePath string, t *testing.T) {
 	err := os.Remove(filePath)
 
 	if err != nil {
@@ -53,7 +53,7 @@ func TestDeleteFileFromBucket(t *testing.T) {
 
 	createFile(filePath, t)
 
-	checkIfObjDeletionSucceeded(filePath, t)
+	checkIfFileDeletionSucceeded(filePath, t)
 }
 
 // Remove testBucket/A/a.txt
@@ -67,5 +67,5 @@ func TestDeleteFileFromBucketDirectory(t *testing.T) {
 	filePath := path.Join(dirPath, FileNameInDirectoryTestBucket)
 	createFile(filePath, t)
 
-	checkIfObjDeletionSucceeded(filePath, t)
+	checkIfFileDeletionSucceeded(filePath, t)
 }
