@@ -428,7 +428,7 @@ func handlePanic() {
 	// Detect if panic happens in main go routine.
 	a := recover()
 	if a != nil {
-		logger.Info("Panic: ", a)
+		logger.Fatal("Panic: ", a)
 	}
 }
 

@@ -133,6 +133,10 @@ func Info(v ...interface{}) {
 	defaultInfoLogger.Println(v...)
 }
 
+func Fatal(v ...any) {
+	defaultInfoLogger.Fatal(v...)
+}
+
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
 	file      *os.File
