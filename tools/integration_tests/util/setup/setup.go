@@ -15,7 +15,6 @@
 package setup
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"log"
@@ -144,39 +143,6 @@ func SetUpTestDir() error {
 	return nil
 }
 
-func MountGcsfuse(defaultArg []string, flags []string) error {
-	for i := 0; i < len(defaultArg); i++ {
-		flags = append(flags, defaultArg[i])
-	}
-
-	mountCmd := exec.Command(
-		binFile,
-		flags...,
-	)
-
-	// Adding mount command in LogFile
-	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		fmt.Println("Could not open logfile")
-	}
-	defer file.Close()
-
-	_, err = file.WriteString(mountCmd.String() + "\n")
-	if err != nil {
-		fmt.Println("Could not write cmd to logFile")
-	}
-
-	output, err := mountCmd.CombinedOutput()
-	if err != nil {
-		log.Println(mountCmd.String())
-		return fmt.Errorf("cannot mount gcsfuse: %w\n", err)
-	}
-	if lines := bytes.Count(output, []byte{'\n'}); lines > 1 {
-		return fmt.Errorf("mount output: %q\n", output)
-	}
-	return nil
-}
-
 func UnMount() error {
 	fusermount, err := exec.LookPath("fusermount")
 	if err != nil {
@@ -189,7 +155,7 @@ func UnMount() error {
 	return nil
 }
 
-func ExecuteTest(m *testing.M) (successCode int) {
+func executeTest(m *testing.M) (successCode int) {
 	successCode = m.Run()
 
 	os.RemoveAll(mntDir)
@@ -203,7 +169,7 @@ func ExecuteTestForFlagsSet(flags []string, m *testing.M) (successCode int) {
 	// Clean the mountedDirectory before running any tests.
 	os.RemoveAll(mntDir)
 
-	successCode = ExecuteTest(m)
+	successCode = executeTest(m)
 
 	err = UnMount()
 	if err != nil {
@@ -228,22 +194,25 @@ func ParseSetUpFlags() {
 	}
 }
 
-func RunTests(m *testing.M) {
+func CheckIfBothTheFlagsAreEnabled() {
 	ParseSetUpFlags()
 
 	if *testBucket == "" && *mountedDirectory == "" {
 		log.Printf("--testbucket or --mountedDirectory must be specified")
 		os.Exit(1)
 	}
+}
 
+func RunTestsForMountedDirectoryFlag(m *testing.M) {
 	// Execute tests for the mounted directory.
 	if *mountedDirectory != "" {
 		mntDir = *mountedDirectory
-		successCode := ExecuteTest(m)
+		successCode := executeTest(m)
 		os.Exit(successCode)
 	}
+}
 
-	// Execute tests for testBucket
+func SetUpTestDirForTestBucketFlag() {
 	if err := SetUpTestDir(); err != nil {
 		log.Printf("setUpTestDir: %v\n", err)
 		os.Exit(1)

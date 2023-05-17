@@ -19,6 +19,7 @@ import (
 	"log"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -31,7 +32,7 @@ func mountGcsfuseWithStaticMounting(flags []string) (err error) {
 		setup.TestBucket(),
 		setup.MntDir()}
 
-	err = setup.MountGcsfuse(defaultArg, flags)
+	err = mounting.MountGcsfuse(defaultArg, flags)
 
 	return err
 }
@@ -41,7 +42,8 @@ func executeTests(flags [][]string, m *testing.M) (successCode int) {
 
 	for i := 0; i < len(flags); i++ {
 		if err = mountGcsfuseWithStaticMounting(flags[i]); err != nil {
-			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
+			log.Print(fmt.Sprintf("mountGcsfuse: %v\n", err))
+			return
 		}
 		setup.ExecuteTestForFlagsSet(flags[i], m)
 	}
@@ -51,7 +53,10 @@ func executeTests(flags [][]string, m *testing.M) (successCode int) {
 func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	setup.ParseSetUpFlags()
 
-	setup.RunTests(m)
+	setup.RunTestsForMountedDirectoryFlag(m)
+
+	// Execute tests for testBucket
+	setup.SetUpTestDirForTestBucketFlag()
 
 	successCode = executeTests(flags, m)
 

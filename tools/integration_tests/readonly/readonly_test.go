@@ -21,8 +21,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/static_mounting"
 )
 
 const DirectoryNameInTestBucket = "Test"         //  testBucket/Test
@@ -57,6 +57,8 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true"}}
+
+	setup.CheckIfBothTheFlagsAreEnabled()
 
 	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
 		log.Printf("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")

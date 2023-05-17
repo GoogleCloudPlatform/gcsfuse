@@ -20,9 +20,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/only_dir_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/static_mounting"
 )
 
 func TestMain(m *testing.M) {
@@ -32,6 +32,8 @@ func TestMain(m *testing.M) {
 		{"--enable-storage-client-library=false"},
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"}}
+
+	setup.CheckIfBothTheFlagsAreEnabled()
 
 	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
 		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")

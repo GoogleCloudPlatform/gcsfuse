@@ -20,6 +20,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -36,15 +37,16 @@ func mountGcsfuseWithOnlyDir(flags []string, dir string) (err error) {
 		setup.TestBucket(),
 		setup.MntDir()}
 
-	err = setup.MountGcsfuse(defaultArg, flags)
+	err = mounting.MountGcsfuse(defaultArg, flags)
 
 	return err
 }
 
 func mountGcsFuseForFlagsAndExecuteTests(flags [][]string, dir string, m *testing.M) (successCode int) {
 	for i := 0; i < len(flags); i++ {
-		if err := mountGcsfuseWithOnlyDir(flags[i], DirectoryInTestBucket); err != nil {
-			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
+		if err := mountGcsfuseWithOnlyDir(flags[i], dir); err != nil {
+			log.Print(fmt.Sprintf("mountGcsfuse: %v\n", err))
+			return
 		}
 		successCode = setup.ExecuteTestForFlagsSet(flags[i], m)
 	}
@@ -55,25 +57,22 @@ func executeTests(flags [][]string, m *testing.M) (successCode int) {
 	mountDirInBucket := path.Join(setup.TestBucket(), DirectoryInTestBucket)
 	// Clean the bucket.
 
-	setup.RunScriptForTestData("../util/only_dir_mounting/testdata/delete_objects.sh", setup.TestBucket())
+	setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/delete_objects.sh", setup.TestBucket())
 
 	// "Test" directory not exist in bucket.
-	successCode = mountGcsFuseForFlagsAndExecuteTests(flags, DirectoryInTestBucket, m)
-	if successCode != 0 {
-		return
-	}
+	mountGcsFuseForFlagsAndExecuteTests(flags, DirectoryInTestBucket, m)
 
 	// "Test" directory exist in bucket.
 	// Clean the bucket.
-	setup.RunScriptForTestData("../util/only_dir_mounting/testdata/delete_objects.sh", setup.TestBucket())
+	setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/delete_objects.sh", setup.TestBucket())
 
 	// Create Test directory in bucket.
-	setup.RunScriptForTestData("../util/only_dir_mounting/testdata/create_objects.sh", mountDirInBucket)
+	setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/create_objects.sh", mountDirInBucket)
 
 	successCode = mountGcsFuseForFlagsAndExecuteTests(flags, DirectoryInTestBucket, m)
 
 	// Clean the bucket after testing.
-	setup.RunScriptForTestData("../util/only_dir_mounting/testdata/delete_objects.sh", setup.TestBucket())
+	setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/delete_objects.sh", setup.TestBucket())
 
 	return
 }
@@ -81,7 +80,10 @@ func executeTests(flags [][]string, m *testing.M) (successCode int) {
 func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	setup.ParseSetUpFlags()
 
-	setup.RunTests(m)
+	setup.RunTestsForMountedDirectoryFlag(m)
+
+	// Execute tests for testBucket
+	setup.SetUpTestDirForTestBucketFlag()
 
 	successCode = executeTests(flags, m)
 
