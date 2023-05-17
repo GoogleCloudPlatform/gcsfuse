@@ -23,9 +23,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const DirNameInTestBucket = "A"
-const FileNameInTestBucket = "A.txt"
-const FileNameInDirectoryTestBucket = "a.txt"
+const DirNameInTestBucket = "A"               // testBucket/A
+const FileNameInTestBucket = "A.txt"          // testBucket/A/A.txt
+const FileNameInDirectoryTestBucket = "a.txt" // testBucket/a.txt
 
 func checkIfObjDeletionSucceeded(filePath string, t *testing.T) {
 	err := os.Remove(filePath)
@@ -47,6 +47,7 @@ func createFile(filePath string, t *testing.T) {
 	}
 }
 
+// Remove testBucket/A.txt
 func TestDeleteFileFromBucket(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 
@@ -55,6 +56,7 @@ func TestDeleteFileFromBucket(t *testing.T) {
 	checkIfObjDeletionSucceeded(filePath, t)
 }
 
+// Remove testBucket/A/a.txt
 func TestDeleteFileFromBucketDirectory(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirNameInTestBucket)
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
