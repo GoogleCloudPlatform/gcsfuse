@@ -24,8 +24,8 @@ import (
 )
 
 const DirNameInTestBucket = "A"               // testBucket/A
-const FileNameInTestBucket = "A.txt"          // testBucket/A/A.txt
-const FileNameInDirectoryTestBucket = "a.txt" // testBucket/a.txt
+const FileNameInTestBucket = "A.txt"          // testBucket/A.txt
+const FileNameInDirectoryTestBucket = "a.txt" // testBucket/A/a.txt
 
 func checkIfObjDeletionSucceeded(filePath string, t *testing.T) {
 	err := os.Remove(filePath)
