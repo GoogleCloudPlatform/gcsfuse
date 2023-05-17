@@ -31,7 +31,7 @@ func checkIfObjDeletionSucceeded(filePath string, t *testing.T) {
 	err := os.Remove(filePath)
 
 	if err != nil {
-		t.Errorf("Objects deletion failed: %v", err)
+		t.Errorf("File deletion failed: %v", err)
 	}
 
 	file, err := os.Stat(filePath)
