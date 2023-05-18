@@ -26,12 +26,14 @@ import (
 )
 
 func createSrcDirectoryWithObjects(dirPath string, t *testing.T) {
+	// testBucket/srcCopyDir
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Mkdir at %q: %v", dirPath, err)
 		return
 	}
 
+	// testBucket/subSrcCopyDir
 	subDirPath := path.Join(dirPath, SubSrcCopyDirectory)
 	err = os.Mkdir(subDirPath, setup.FilePermission_0600)
 	if err != nil {
@@ -39,6 +41,7 @@ func createSrcDirectoryWithObjects(dirPath string, t *testing.T) {
 		return
 	}
 
+	// testBucket/srcCopyDir/copy.txt
 	filePath := path.Join(dirPath, SrcCopyFile)
 
 	file, err := os.Create(filePath)
@@ -157,7 +160,7 @@ func TestCopyDirectoryInOtherDirectory(t *testing.T) {
 	// destCopyDirectory
 	// destCopyDirectory/srcCopyDirectory
 	if len(obj) != 1 || obj[0].Name() != SrcCopyDirectory || obj[0].IsDir() != true {
-		t.Errorf("Error in copying directory")
+		t.Errorf("Error in copying directory.")
 		return
 	}
 
