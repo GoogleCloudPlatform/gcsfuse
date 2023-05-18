@@ -133,7 +133,8 @@ func Info(v ...interface{}) {
 	defaultInfoLogger.Println(v...)
 }
 
-// Fatal calls the default info logger to print the message followed by a call to os.Exit(1).
+// Fatal calls the default info logger to call the Fatal function of go-src-logs.
+// https://github.com/golang/go/blob/master/src/log/log.go#L282
 func Fatal(v ...interface{}) {
 	defaultInfoLogger.Fatal(v...)
 }
