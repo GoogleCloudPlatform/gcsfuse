@@ -50,6 +50,7 @@ func RunScriptForTestData(script string, testBucket string) {
 		panic(err)
 	}
 }
+
 func TestBucket() string {
 	return *testBucket
 }
@@ -194,7 +195,7 @@ func ParseSetUpFlags() {
 	}
 }
 
-func CheckIfBothTheFlagsAreEnabled() {
+func ExitWithFailureIfTestBucketAndMountedDirectoryBothFlagsEnabled() {
 	ParseSetUpFlags()
 
 	if *testBucket == "" && *mountedDirectory == "" {

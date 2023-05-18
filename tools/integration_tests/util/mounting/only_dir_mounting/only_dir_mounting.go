@@ -37,7 +37,11 @@ func mountGcsfuseWithOnlyDir(flags []string, dir string) (err error) {
 		setup.TestBucket(),
 		setup.MntDir()}
 
-	err = mounting.MountGcsfuse(defaultArg, flags)
+	for i := 0; i < len(defaultArg); i++ {
+		flags = append(flags, defaultArg[i])
+	}
+
+	err = mounting.MountGcsfuse(flags)
 
 	return err
 }
@@ -52,7 +56,7 @@ func mountGcsFuseForFlagsAndExecuteTests(flags [][]string, dir string, m *testin
 	return
 }
 
-func executeTests(flags [][]string, m *testing.M) (successCode int) {
+func executeTestsForOnlyDirMounting(flags [][]string, m *testing.M) (successCode int) {
 	setup.SetUpTestDirForTestBucketFlag()
 
 	mountDirInBucket := path.Join(setup.TestBucket(), DirectoryInTestBucket)
@@ -84,7 +88,7 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	setup.RunTestsForMountedDirectoryFlag(m)
 
 	// Execute tests for testBucket
-	successCode = executeTests(flags, m)
+	successCode = executeTestsForOnlyDirMounting(flags, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 

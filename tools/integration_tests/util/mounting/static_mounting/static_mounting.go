@@ -32,12 +32,16 @@ func mountGcsfuseWithStaticMounting(flags []string) (err error) {
 		setup.TestBucket(),
 		setup.MntDir()}
 
-	err = mounting.MountGcsfuse(defaultArg, flags)
+	for i := 0; i < len(defaultArg); i++ {
+		flags = append(flags, defaultArg[i])
+	}
+
+	err = mounting.MountGcsfuse(flags)
 
 	return err
 }
 
-func executeTests(flags [][]string, m *testing.M) (successCode int) {
+func executeTestsForStatingMounting(flags [][]string, m *testing.M) (successCode int) {
 	var err error
 
 	setup.SetUpTestDirForTestBucketFlag()
@@ -57,7 +61,7 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	setup.RunTestsForMountedDirectoryFlag(m)
 
 	// Execute tests for testBucket
-	successCode = executeTests(flags, m)
+	successCode = executeTestsForStatingMounting(flags, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 

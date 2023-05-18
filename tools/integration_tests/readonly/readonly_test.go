@@ -58,7 +58,7 @@ func TestMain(m *testing.M) {
 
 	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true"}}
 
-	setup.CheckIfBothTheFlagsAreEnabled()
+	setup.ExitWithFailureIfTestBucketAndMountedDirectoryBothFlagsEnabled()
 
 	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
 		log.Printf("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")

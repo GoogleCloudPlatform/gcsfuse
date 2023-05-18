@@ -24,11 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func MountGcsfuse(defaultArg []string, flags []string) error {
-	for i := 0; i < len(defaultArg); i++ {
-		flags = append(flags, defaultArg[i])
-	}
-
+func MountGcsfuse(flags []string) error {
 	mountCmd := exec.Command(
 		setup.BinFile(),
 		flags...,
