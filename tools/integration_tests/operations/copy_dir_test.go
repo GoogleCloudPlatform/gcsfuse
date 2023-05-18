@@ -25,6 +25,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
+// Create below directory structure.
+// srcCopyDir               -- Directory
+// srcCopyDir/copy.txt      -- File
+// srcCopyDir/subSrcCopyDir -- Dir
 func createSrcDirectoryWithObjects(dirPath string, t *testing.T) {
 	// testBucket/srcCopyDir
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
@@ -102,10 +106,6 @@ func checkIfCopiedDirectoryHasCorrectData(destDir string, t *testing.T) {
 func TestCopyDirectoryInNonExistingDirectory(t *testing.T) {
 	srcDir := path.Join(setup.MntDir(), SrcCopyDirectory)
 
-	// Create below directory structure.
-	// srcCopyDir               -- Directory
-	// srcCopyDir/copy.txt      -- File
-	// srcCopyDir/subSrcCopyDir -- Dir
 	createSrcDirectoryWithObjects(srcDir, t)
 
 	destDir := path.Join(setup.MntDir(), DestCopyDirectoryNotExist)
@@ -118,6 +118,7 @@ func TestCopyDirectoryInNonExistingDirectory(t *testing.T) {
 	checkIfCopiedDirectoryHasCorrectData(destDir, t)
 
 	os.RemoveAll(srcDir)
+	os.RemoveAll(destDir)
 }
 
 // Copy SrcDirectory in DestDirectory
@@ -129,13 +130,9 @@ func TestCopyDirectoryInNonExistingDirectory(t *testing.T) {
 // destCopyDir/srcCopyDir               -- Directory
 // destCopyDir/srcCopyDir/copy.txt      -- File
 // destCopyDir/srcCopyDir/subSrcCopyDir -- Dir
-func TestCopyDirectoryInOtherDirectory(t *testing.T) {
+func TestCopyDirectoryInEmptyDirectory(t *testing.T) {
 	srcDir := path.Join(setup.MntDir(), SrcCopyDirectory)
 
-	// Create below directory structure.
-	// srcCopyDir               -- Directory
-	// srcCopyDir/copy.txt      -- File
-	// srcCopyDir/subSrcCopyDir -- Dir
 	createSrcDirectoryWithObjects(srcDir, t)
 
 	// Create below directory
@@ -168,4 +165,62 @@ func TestCopyDirectoryInOtherDirectory(t *testing.T) {
 	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
 
 	os.RemoveAll(srcDir)
+	os.RemoveAll(destDir)
+}
+
+func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
+	srcDir := path.Join(setup.MntDir(), SrcCopyDirectory)
+
+	createSrcDirectoryWithObjects(srcDir, t)
+
+	// Create below directory
+	// destCopyDir               -- Directory
+	destDir := path.Join(setup.MntDir(), DestNonEmptyCopyDirectory)
+	err := os.Mkdir(destDir, setup.FilePermission_0600)
+	if err != nil {
+		t.Errorf("Error in creating directory: %v", err)
+	}
+
+	destSubDir := path.Join(destDir, SubDirInNonEmptyDestCopyDirectory)
+	err = os.Mkdir(destSubDir, setup.FilePermission_0600)
+	if err != nil {
+		t.Errorf("Error in creating directory: %v", err)
+	}
+
+	err = operations.CopyDir(srcDir, destDir)
+	if err != nil {
+		t.Errorf("Error in copying directory: %v", err)
+	}
+
+	obj, err := os.ReadDir(destDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Check if destCopyDirectory has the correct directory copied.
+	// destCopyDirectory
+	// destCopyDirectory/srcCopyDirectory
+	// destCopyDirectory/subDestCopyDirectory
+	if len(obj) != NumberOfObjectsInDestCopyDirectory {
+		t.Errorf("The number of objects in the current directory doesn't match.")
+		return
+	}
+
+	// destCopyDirectory/srcCopyDirectory  - Directory
+	if obj[0].Name() != SrcCopyDirectory || obj[0].IsDir() != true {
+		t.Errorf("Error in copying directory.")
+		return
+	}
+
+	// destCopyDirectory/subDirInNonEmptyDestCopyDirectory  - Directory
+	if obj[1].Name() != SubDirInNonEmptyDestCopyDirectory || obj[1].IsDir() != true {
+		t.Errorf("Existing object affected.")
+		return
+	}
+
+	destSrc := path.Join(destDir, SrcCopyDirectory)
+	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
+
+	os.RemoveAll(srcDir)
+	os.RemoveAll(destDir)
 }
