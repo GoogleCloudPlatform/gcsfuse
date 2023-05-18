@@ -156,7 +156,7 @@ func TestCopyDirectoryInOtherDirectory(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	// Copy destCopyDirectory in destCopyDirectory
+	// Check if destCopyDirectory has the correct directory copied.
 	// destCopyDirectory
 	// destCopyDirectory/srcCopyDirectory
 	if len(obj) != 1 || obj[0].Name() != SrcCopyDirectory || obj[0].IsDir() != true {
