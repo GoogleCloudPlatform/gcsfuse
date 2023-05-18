@@ -431,7 +431,18 @@ func run() (err error) {
 	return
 }
 
+// Handle panic if the crash occurs during mounting.
+func handlePanicWhileMounting() {
+	// Detect if panic happens in main go routine.
+	a := recover()
+	if a != nil {
+		logger.Fatal("Panic: ", a)
+	}
+}
+
 func main() {
+	defer handlePanicWhileMounting()
+
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
