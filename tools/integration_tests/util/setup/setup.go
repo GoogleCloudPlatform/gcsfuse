@@ -68,6 +68,20 @@ func MntDir() string {
 	return mntDir
 }
 
+func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, t *testing.T) {
+	err := os.Mkdir(dirPath, FilePermission_0600)
+	if err != nil {
+		t.Errorf("Error in creating directory: %v", err)
+	}
+
+	for i := 0; i < numberOfFiles; i++ {
+		_, err := os.CreateTemp(dirPath, "tmpFile")
+		if err != nil {
+			t.Errorf("Create file at %q: %v", dirPath, err)
+		}
+	}
+}
+
 func CompareFileContents(t *testing.T, fileName string, fileContent string) {
 	content, err := os.ReadFile(fileName)
 	if err != nil {

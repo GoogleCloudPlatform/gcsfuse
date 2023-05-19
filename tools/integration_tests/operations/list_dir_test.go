@@ -16,6 +16,7 @@
 package operations_test
 
 import (
+	"fmt"
 	"io/fs"
 	"log"
 	"os"
@@ -57,7 +58,7 @@ func checkIfListedCorrectDirectory(dirPath string, obj fs.DirEntry, t *testing.T
 	case setup.MntDir():
 		{
 			if obj.Name() != DirectoryForListTest || obj.IsDir() != true {
-				t.Errorf("Listed Incorrect Object.")
+				t.Errorf("Listed incorrect Object.")
 			}
 		}
 	case DirectoryForListTest:
@@ -101,6 +102,9 @@ func listDirectory(path string, t *testing.T) {
 }
 
 func TestListDirectoryRecursively(t *testing.T) {
+	// Clean the bucket for list testing.
+	os.RemoveAll(setup.MntDir())
+
 	// Directory structure
 	// testBucket/directoryForListTest                                                                     -- Dir
 	// testBucket/directoryForListTest/fileInDirectoryForListTest		                                       -- File
@@ -127,5 +131,30 @@ func TestListDirectoryRecursively(t *testing.T) {
 	subDirFilePath = path.Join(subDirPath, FileInSecondSubDirectoryForListTest)
 	createDirectoryWithFile(subDirPath, subDirFilePath, t)
 
+	// Test directory listing recursively.
 	listDirectory(setup.MntDir(), t)
+
+	// Clean the bucket after list testing.
+	os.RemoveAll(setup.MntDir())
+}
+
+func TestLargeDirectoryForListing(t *testing.T) {
+	// Clean the bucket for list testing.
+	//os.RemoveAll(setup.MntDir())
+
+	dirPath := path.Join(setup.MntDir(), DirectoryForListTest)
+	//setup.CreateDirectoryWithNFiles(12000, dirPath, t)
+
+	files, err := os.ReadDir(dirPath)
+	if err != nil {
+		t.Errorf("Error in listing directory.")
+	}
+
+	fmt.Println(len(files))
+	if len(files) != 12000 {
+		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", len(files))
+	}
+
+	// Clean the bucket after list testing.
+	//os.RemoveAll(setup.MntDir())
 }
