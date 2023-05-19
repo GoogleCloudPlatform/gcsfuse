@@ -85,8 +85,6 @@ func executeTestsForOnlyDirMounting(flags [][]string, m *testing.M) (successCode
 func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	setup.ParseSetUpFlags()
 
-	setup.RunTestsForMountedDirectoryFlag(m)
-
 	// Execute tests for testBucket
 	successCode = executeTestsForOnlyDirMounting(flags, m)
 

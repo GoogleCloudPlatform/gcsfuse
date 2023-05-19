@@ -58,8 +58,6 @@ func executeTestsForStatingMounting(flags [][]string, m *testing.M) (successCode
 func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	setup.ParseSetUpFlags()
 
-	setup.RunTestsForMountedDirectoryFlag(m)
-
 	// Execute tests for testBucket
 	successCode = executeTestsForStatingMounting(flags, m)
 

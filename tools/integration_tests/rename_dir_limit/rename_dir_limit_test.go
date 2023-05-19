@@ -46,6 +46,8 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	setup.RunTestsForMountedDirectoryFlag(m)
+
 	successCode := static_mounting.RunTests(flags, m)
 
 	if successCode == 0 {
