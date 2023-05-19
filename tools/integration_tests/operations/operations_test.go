@@ -26,6 +26,13 @@ import (
 const MoveFile = "move.txt"
 const MoveFileContent = "This is from move file in Test directory.\n"
 
+const DirectoryForListTest = "directoryForListTest"
+const FirstSubDirectoryForListTest = "firstSubDirectoryForListTest"
+const FileInDirectoryForListTest = "fileInDirectoryForListTest"
+const FileInFirstSubDirectoryForListTest = "fileInFirstSubDirectoryForListTest"
+const SecondSubDirectoryForListTest = "secondSubDirectoryForListTest"
+const FileInSecondSubDirectoryForListTest = "fileInSecondSubDirectoryForListTest"
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
