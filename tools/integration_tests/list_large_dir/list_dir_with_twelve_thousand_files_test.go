@@ -15,7 +15,6 @@
 package list_large_dir
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -35,9 +34,29 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 		t.Errorf("Error in listing directory.")
 	}
 
-	fmt.Println(len(files))
 	if len(files) != NumberOfFilesInDirectoryWithTwelveThousandFiles {
 		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", len(files))
+	}
+
+	// Clean the bucket after list testing.
+	os.RemoveAll(setup.MntDir())
+}
+
+func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
+	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDir)
+	setup.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, t)
+
+	// Create 100 Explicit directory.
+	for i := 0; i < NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir; i++ {
+		_, err := os.MkdirTemp(dirPath, "tmpDir")
+		if err != nil {
+			t.Errorf("Error in creating directory: %v", err)
+		}
+	}
+
+	_, err := os.ReadDir(dirPath)
+	if err != nil {
+		t.Errorf("Error in listing directory.")
 	}
 
 	// Clean the bucket after list testing.

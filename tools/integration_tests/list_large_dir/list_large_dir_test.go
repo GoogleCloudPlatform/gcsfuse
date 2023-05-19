@@ -23,7 +23,11 @@ import (
 )
 
 const DirectoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles"
+const DirectoryWithTwelveThousandFilesAndHundredExplicitDir = "directoryWithTwelveThousandFilesAndHundredExplicitDir"
 const NumberOfFilesInDirectoryWithTwelveThousandFiles = 12000
+const NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = 1200
+const NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = 100
+const NumberOfObjectsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = 12100
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
