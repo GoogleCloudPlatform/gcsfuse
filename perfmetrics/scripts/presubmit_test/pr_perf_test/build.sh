@@ -62,6 +62,7 @@ go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 # Running FIO test
 chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
+sudo umount gcs
 
 echo showing results...
 python3 ./perfmetrics/scripts/presubmit/print_results.py

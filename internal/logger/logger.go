@@ -133,6 +133,12 @@ func Info(v ...interface{}) {
 	defaultInfoLogger.Println(v...)
 }
 
+// Fatal calls the default info logger to call the Fatal function of go-src-logs.
+// https://github.com/golang/go/blob/master/src/log/log.go#L282
+func Fatal(v ...interface{}) {
+	defaultInfoLogger.Fatal(v...)
+}
+
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
 	file      *os.File
