@@ -56,7 +56,6 @@ func executeTestsForStatingMounting(flags [][]string, m *testing.M) (successCode
 }
 
 func RunTests(flags [][]string, m *testing.M) (successCode int) {
-	// Execute tests for testBucket
 	successCode = executeTestsForStatingMounting(flags, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())

@@ -58,15 +58,12 @@ func TestMain(m *testing.M) {
 
 	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true"}}
 
-	setup.ExitWithFailureIfTestBucketAndMountedDirectoryBothFlagsEnabled()
+	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreSet()
 
 	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
 		log.Printf("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
 		os.Exit(1)
 	}
-
-	// Run tests for mountedDirectory
-	setup.RunTestsForMountedDirectoryFlag(m)
 
 	// Run tests for testBucket
 	// Clean the bucket for readonly testing.
@@ -74,6 +71,9 @@ func TestMain(m *testing.M) {
 
 	// Create objects in bucket for testing.
 	setup.RunScriptForTestData("testdata/create_objects.sh", setup.TestBucket())
+
+	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
+	setup.RunTestsForMountedDirectoryFlag(m)
 
 	successCode := static_mounting.RunTests(flags, m)
 

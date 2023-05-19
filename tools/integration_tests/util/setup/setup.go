@@ -195,7 +195,7 @@ func ParseSetUpFlags() {
 	}
 }
 
-func ExitWithFailureIfTestBucketAndMountedDirectoryBothFlagsEnabled() {
+func ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreSet() {
 	ParseSetUpFlags()
 
 	if *testBucket == "" && *mountedDirectory == "" {
