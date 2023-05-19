@@ -41,8 +41,6 @@ const FileInDirectoryForListTest = "fileInDirectoryForListTest"
 const FileInFirstSubDirectoryForListTest = "fileInFirstSubDirectoryForListTest"
 const SecondSubDirectoryForListTest = "secondSubDirectoryForListTest"
 const FileInSecondSubDirectoryForListTest = "fileInSecondSubDirectoryForListTest"
-const DirectoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles"
-const NumberOfFilesInDirectoryWithTwelveThousandFiles = 12000
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
