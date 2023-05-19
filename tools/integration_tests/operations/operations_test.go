@@ -43,8 +43,10 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	// Run tests for mounteddirectory
 	setup.RunTestsForMountedDirectoryFlag(m)
 
+	// Run tests for testbucket
 	successCode := static_mounting.RunTests(flags, m)
 
 	if successCode == 0 {

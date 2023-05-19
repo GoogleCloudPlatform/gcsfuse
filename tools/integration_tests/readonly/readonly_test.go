@@ -65,8 +65,10 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	// Run tests for mountedDirectory
 	setup.RunTestsForMountedDirectoryFlag(m)
 
+	// Run tests for testBucket
 	// Clean the bucket for readonly testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 
