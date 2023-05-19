@@ -16,7 +16,6 @@
 package operations_test
 
 import (
-	"fmt"
 	"io/fs"
 	"log"
 	"os"
@@ -136,25 +135,4 @@ func TestListDirectoryRecursively(t *testing.T) {
 
 	// Clean the bucket after list testing.
 	os.RemoveAll(setup.MntDir())
-}
-
-func TestLargeDirectoryForListing(t *testing.T) {
-	// Clean the bucket for list testing.
-	//os.RemoveAll(setup.MntDir())
-
-	dirPath := path.Join(setup.MntDir(), DirectoryForListTest)
-	//setup.CreateDirectoryWithNFiles(12000, dirPath, t)
-
-	files, err := os.ReadDir(dirPath)
-	if err != nil {
-		t.Errorf("Error in listing directory.")
-	}
-
-	fmt.Println(len(files))
-	if len(files) != 12000 {
-		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", len(files))
-	}
-
-	// Clean the bucket after list testing.
-	//os.RemoveAll(setup.MntDir())
 }

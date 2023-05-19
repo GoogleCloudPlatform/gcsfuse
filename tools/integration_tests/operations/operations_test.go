@@ -35,13 +35,14 @@ const SubDirInNonEmptyDestCopyDirectory = "subDestCopyDir"
 const DestCopyDirectoryNotExist = "notExist"
 const NumberOfObjectsInSrcCopyDirectory = 2
 const NumberOfObjectsInDestCopyDirectory = 2
-
 const DirectoryForListTest = "directoryForListTest"
 const FirstSubDirectoryForListTest = "firstSubDirectoryForListTest"
 const FileInDirectoryForListTest = "fileInDirectoryForListTest"
 const FileInFirstSubDirectoryForListTest = "fileInFirstSubDirectoryForListTest"
 const SecondSubDirectoryForListTest = "secondSubDirectoryForListTest"
 const FileInSecondSubDirectoryForListTest = "fileInSecondSubDirectoryForListTest"
+const DirectoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles"
+const NumberOfFilesInDirectoryWithTwelveThousandFiles = 12000
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
