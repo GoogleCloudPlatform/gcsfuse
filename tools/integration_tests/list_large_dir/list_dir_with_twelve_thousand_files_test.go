@@ -37,9 +37,6 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 	if len(files) != NumberOfFilesInDirectoryWithTwelveThousandFiles {
 		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", len(files))
 	}
-
-	// Clean the bucket after list testing.
-	os.RemoveAll(setup.MntDir())
 }
 
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
@@ -54,11 +51,24 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 		}
 	}
 
-	_, err := os.ReadDir(dirPath)
+	files, err := os.ReadDir(dirPath)
 	if err != nil {
 		t.Errorf("Error in listing directory.")
 	}
 
-	// Clean the bucket after list testing.
-	os.RemoveAll(setup.MntDir())
+	var numberOfDirs int = 0
+	var numberOfFiles int = 0
+	for _, obj := range files {
+		if obj.IsDir() {
+			numberOfDirs++
+		} else {
+			numberOfFiles++
+		}
+	}
+	if numberOfDirs != NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir {
+		t.Errorf("Incorrect number of directories.")
+	}
+	if numberOfFiles != NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDir {
+		t.Errorf("Incorrect number of Files.")
+	}
 }
