@@ -62,3 +62,6 @@ require (
 	google.golang.org/protobuf v1.29.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
+
+// Retracted un-release version
+retract v1.0.0
