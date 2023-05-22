@@ -82,6 +82,14 @@ func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, t *testing.T) 
 	}
 }
 
+func RunScriptForTestData(script string, testBucket string) {
+	cmd := exec.Command("/bin/bash", script, testBucket)
+	_, err := cmd.Output()
+	if err != nil {
+		panic(err)
+	}
+}
+
 func CompareFileContents(t *testing.T, fileName string, fileContent string) {
 	content, err := os.ReadFile(fileName)
 	if err != nil {

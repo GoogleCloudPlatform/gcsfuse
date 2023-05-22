@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package list_large_dir
+package list_large_dir_test
 
 import (
 	"os"
@@ -22,6 +22,15 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
+func createNExplicitDirectories(numberOfDirs int, dirPath string, t *testing.T) {
+
+	for i := 0; i < NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir; i++ {
+		_, err := os.MkdirTemp(dirPath, "tmpDir")
+		if err != nil {
+			t.Errorf("Error in creating directory: %v", err)
+		}
+	}
+}
 func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 	// Clean the bucket for list testing.
 	os.RemoveAll(setup.MntDir())
@@ -44,12 +53,7 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	setup.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, t)
 
 	// Create 100 Explicit directory.
-	for i := 0; i < NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir; i++ {
-		_, err := os.MkdirTemp(dirPath, "tmpDir")
-		if err != nil {
-			t.Errorf("Error in creating directory: %v", err)
-		}
-	}
+	createNExplicitDirectories(NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, dirPath, t)
 
 	files, err := os.ReadDir(dirPath)
 	if err != nil {
@@ -66,9 +70,40 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 		}
 	}
 	if numberOfDirs != NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir {
-		t.Errorf("Incorrect number of directories.")
+		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", numberOfDirs)
 	}
 	if numberOfFiles != NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDir {
-		t.Errorf("Incorrect number of Files.")
+		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
+	}
+}
+
+func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
+	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDir)
+	setup.CreateDirectoryWithNFiles(10, dirPath, t)
+
+	// Create 100 Explicit directory.
+	createNExplicitDirectories(NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, dirPath, t)
+
+	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", dirPath)
+
+	files, err := os.ReadDir(dirPath)
+	if err != nil {
+		t.Errorf("Error in listing directory.")
+	}
+
+	var numberOfDirs int = 0
+	var numberOfFiles int = 0
+	for _, obj := range files {
+		if obj.IsDir() {
+			numberOfDirs++
+		} else {
+			numberOfFiles++
+		}
+	}
+	if numberOfDirs != 200 {
+		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", numberOfDirs)
+	}
+	if numberOfFiles != 10 {
+		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
 	}
 }
