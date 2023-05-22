@@ -42,7 +42,7 @@ var (
 	mntDir  string
 )
 
-// Run shell script
+// Run the shell script to prepare the testData in the specified bucket.
 func RunScriptForTestData(script string, testBucket string) {
 	cmd := exec.Command("/bin/bash", script, testBucket)
 	_, err := cmd.Output()
