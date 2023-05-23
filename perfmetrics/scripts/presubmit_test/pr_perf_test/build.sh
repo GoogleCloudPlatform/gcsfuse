@@ -37,6 +37,11 @@ GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
 BUCKET_NAME=presubmit-perf-tests
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
+go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+touch result.txt
+# Running FIO test
+chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
+./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 
 # Fetch PR branch
 echo '[remote "origin"]
