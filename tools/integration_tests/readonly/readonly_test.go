@@ -18,10 +18,10 @@ package readonly_test
 import (
 	"log"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -41,15 +41,6 @@ const ContentInFileInSubDirectoryTestBucket = "This is from directory Test/b fil
 const RenameFile = "rename.txt"
 const RenameDir = "rename"
 
-// Run shell script
-func runScriptForTestData(script string, testBucket string) {
-	cmd := exec.Command("/bin/bash", script, testBucket)
-	_, err := cmd.Output()
-	if err != nil {
-		panic(err)
-	}
-}
-
 func checkErrorForReadOnlyFileSystem(err error, t *testing.T) {
 	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
 		t.Errorf("Incorrect error for readonly filesystem: %v", err.Error())
@@ -67,21 +58,27 @@ func TestMain(m *testing.M) {
 
 	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true"}}
 
+	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
+
 	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
 		log.Printf("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
 		os.Exit(1)
 	}
 
+	// Run tests for testBucket
 	// Clean the bucket for readonly testing.
-	runScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 
 	// Create objects in bucket for testing.
-	runScriptForTestData("testdata/create_objects.sh", setup.TestBucket())
+	setup.RunScriptForTestData("testdata/create_objects.sh", setup.TestBucket())
 
-	successCode := setup.RunTests(flags, m)
+	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
+	setup.RunTestsForMountedDirectoryFlag(m)
+
+	successCode := static_mounting.RunTests(flags, m)
 
 	// Delete objects from bucket after testing.
-	runScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 
 	os.Exit(successCode)
 }
