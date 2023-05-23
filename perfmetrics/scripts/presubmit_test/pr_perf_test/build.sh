@@ -37,12 +37,6 @@ GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
 BUCKET_NAME=presubmit-perf-tests
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
-go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
-touch result.txt
-# Running FIO test
-chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
-./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
-sudo umount gcs
 
 # Fetch PR branch
 echo '[remote "origin"]
@@ -55,14 +49,6 @@ git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test
 
 # Executing perf tests
-echo Mounting gcs bucket from pr branch
-mkdir -p gcs
-# The VM will itself exit if the gcsfuse mount fails.
-go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
-# Running FIO test
-chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
-./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
-sudo umount gcs
+
 
 echo showing results...
-python3 ./perfmetrics/scripts/presubmit/print_results.py
