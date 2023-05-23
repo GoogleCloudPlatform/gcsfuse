@@ -33,7 +33,7 @@ sudo apt-get install fio -y
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 echo Mounting gcs bucket for master branch
 mkdir -p gcs
-LOG_FILE=log-$(date '+%Y-%m-%d').txt
+LOG_FILE=logs-new.txt
 GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --debug_fuse --debug_gcs --log-file $LOG_FILE"
 BUCKET_NAME=presubmit-perf-tests
 MOUNT_POINT=gcs
@@ -50,8 +50,10 @@ git fetch origin
 echo checkout PR branch
 git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
+echo new code....
 chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
+sudo umount gcs
 
 # Executing perf tests
 
