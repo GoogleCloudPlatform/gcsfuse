@@ -45,7 +45,7 @@ MOUNT_POINT=gcs
 go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 
 # Executing perf tests
-chmod +x run_load_test_and_fetch_metrics.sh
-./run_load_test_and_fetch_metrics.sh
+chmod +x ./perfmetrics/scripts/run_load_test_and_fetch_metrics.sh
+./perfmetrics/scripts/run_load_test_and_fetch_metrics.sh
 
 sudo umount $MOUNT_POINT
