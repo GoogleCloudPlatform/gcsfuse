@@ -32,13 +32,9 @@ git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
 echo "Building and installing gcsfuse"
 # Build the gcsfuse package using the same commands used during release.
-GCSFUSE_VERSION=0.0.0
-sudo docker build ./tools/package_gcsfuse_docker/ -t gcsfuse:$commitId --build-arg GCSFUSE_VERSION=$GCSFUSE_VERSION --build-arg BRANCH_NAME=$commitId
-sudo docker run -v $HOME/release:/release gcsfuse:$commitId cp -r /packages /release/
-sudo dpkg -i $HOME/release/packages/gcsfuse_${GCSFUSE_VERSION}_amd64.deb
 
 # Mounting gcs bucket
-cd "./perfmetrics/scripts/"
+
 echo "Mounting gcs bucket"
 mkdir -p gcs
 LOG_FILE=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
@@ -46,8 +42,9 @@ GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --enable-storage-client-
 BUCKET_NAME=periodic-perf-tests
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
-gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 
+cd "./perfmetrics/scripts/"
 # Executing perf tests
 chmod +x run_load_test_and_fetch_metrics.sh
 ./run_load_test_and_fetch_metrics.sh
