@@ -32,6 +32,8 @@ if __name__ == '__main__':
 
   # Fetching results in result.txt file
   file = open("result.txt", "a")
+  raise NoValuesError('No values were retrieved from the call for ' +
+                      metric.metric_type)
   # Iterating through data
   for d in data :
     # Print filesize only once
