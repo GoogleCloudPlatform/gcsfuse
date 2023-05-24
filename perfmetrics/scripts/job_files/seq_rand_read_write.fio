@@ -21,6 +21,6 @@ filename_format=$jobname.$jobnum.$filenum
 [1_thread]
 stonewall
 bs=16k
-directory=././gcs/256kb
+directory=gcs/256kb
 filesize=256k
 numjobs=40
