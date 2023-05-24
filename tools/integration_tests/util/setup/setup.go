@@ -1,3 +1,17 @@
+// Copyright 2023 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package setup
 
 import (
@@ -27,6 +41,15 @@ var (
 	testDir string
 	mntDir  string
 )
+
+// Run the shell script to prepare the testData in the specified bucket.
+func RunScriptForTestData(script string, testBucket string) {
+	cmd := exec.Command("/bin/bash", script, testBucket)
+	_, err := cmd.Output()
+	if err != nil {
+		panic(err)
+	}
+}
 
 func TestBucket() string {
 	return *testBucket
@@ -121,44 +144,6 @@ func SetUpTestDir() error {
 	return nil
 }
 
-func MountGcsfuse(flags []string) error {
-	defaultArg := []string{"--debug_gcs",
-		"--debug_fs",
-		"--debug_fuse",
-		"--log-file=" + LogFile(),
-		"--log-format=text",
-		*testBucket,
-		mntDir}
-
-	for i := 0; i < len(defaultArg); i++ {
-		flags = append(flags, defaultArg[i])
-	}
-
-	mountCmd := exec.Command(
-		binFile,
-		flags...,
-	)
-
-	// Adding mount command in LogFile
-	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		fmt.Println("Could not open logfile")
-	}
-	defer file.Close()
-
-	_, err = file.WriteString(mountCmd.String() + "\n")
-	if err != nil {
-		fmt.Println("Could not write cmd to logFile")
-	}
-
-	_, err = mountCmd.CombinedOutput()
-	if err != nil {
-		log.Println(mountCmd.String())
-		return fmt.Errorf("cannot mount gcsfuse: %w\n", err)
-	}
-	return nil
-}
-
 func UnMount() error {
 	fusermount, err := exec.LookPath("fusermount")
 	if err != nil {
@@ -171,7 +156,7 @@ func UnMount() error {
 	return nil
 }
 
-func ExecuteTest(m *testing.M) (successCode int) {
+func executeTest(m *testing.M) (successCode int) {
 	successCode = m.Run()
 
 	os.RemoveAll(mntDir)
@@ -179,31 +164,24 @@ func ExecuteTest(m *testing.M) (successCode int) {
 	return successCode
 }
 
-func ExecuteTestForFlags(flags [][]string, m *testing.M) (successCode int) {
+func ExecuteTestForFlagsSet(flags []string, m *testing.M) (successCode int) {
 	var err error
 
-	for i := 0; i < len(flags); i++ {
-		if err = MountGcsfuse(flags[i]); err != nil {
-			LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
-		}
+	// Clean the mountedDirectory before running any tests.
+	os.RemoveAll(mntDir)
 
-		// Clean the mountedDirectory before running any tests.
-		os.RemoveAll(mntDir)
+	successCode = executeTest(m)
 
-		successCode = ExecuteTest(m)
+	err = UnMount()
+	if err != nil {
+		LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
+	}
 
-		err = UnMount()
-		if err != nil {
-			LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
-		}
-
-		// Print flag on which test fails
-		if successCode != 0 {
-			f := strings.Join(flags[i], " ")
-			log.Print("Test Fails on " + f)
-			return
-		}
-
+	// Print flag on which test fails
+	if successCode != 0 {
+		f := strings.Join(flags, " ")
+		log.Print("Test Fails on " + f)
+		return
 	}
 	return
 }
@@ -217,31 +195,29 @@ func ParseSetUpFlags() {
 	}
 }
 
-func RunTests(flags [][]string, m *testing.M) (successCode int) {
+func ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet() {
 	ParseSetUpFlags()
 
 	if *testBucket == "" && *mountedDirectory == "" {
 		log.Printf("--testbucket or --mountedDirectory must be specified")
 		os.Exit(1)
 	}
+}
 
+func RunTestsForMountedDirectoryFlag(m *testing.M) {
 	// Execute tests for the mounted directory.
 	if *mountedDirectory != "" {
 		mntDir = *mountedDirectory
-		successCode := ExecuteTest(m)
+		successCode := executeTest(m)
 		os.Exit(successCode)
 	}
+}
 
-	// Execute tests for testBucket
+func SetUpTestDirForTestBucketFlag() {
 	if err := SetUpTestDir(); err != nil {
 		log.Printf("setUpTestDir: %v\n", err)
 		os.Exit(1)
 	}
-	successCode = ExecuteTestForFlags(flags, m)
-
-	log.Printf("Test log: %s\n", logFile)
-
-	return successCode
 }
 
 func LogAndExit(s string) {

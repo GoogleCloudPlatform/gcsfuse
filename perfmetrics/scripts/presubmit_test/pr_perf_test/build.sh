@@ -30,9 +30,6 @@ git fetch origin
 echo checkout PR branch
 git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
-# Checkout back to master branch to use latest CI test scripts in master.
-git checkout master
-
 echo "Building and installing gcsfuse"
 # Build the gcsfuse package using the same commands used during release.
 GCSFUSE_VERSION=0.0.0
