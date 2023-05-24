@@ -20,6 +20,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+    "crypto/md5"
+
+
+
 
 	"cloud.google.com/go/storage"
 	"github.com/jacobsa/gcloud/gcs"
@@ -64,6 +68,106 @@ func (t *BucketHandleTest) SetUp(_ *TestInfo) {
 
 func (t *BucketHandleTest) TearDown() {
 	t.fakeStorage.ShutDown()
+}
+
+func (t *BucketHandleTest) TestListObjectsReturnedWithSelectAttributes(){
+
+  //creating dummy object for testing
+   content := "Test Object creation"
+   objName := "test_obj_6_attr"
+   contentType :=    "dummy content type"
+   contentLanguage := "dummy content language"
+   contentEncoding :=   "dummy content encoding"
+   cacheControl    :=   "dummy cache control"
+   contentDisposition := "dummy content disposition"
+   customTime :=       "dummy custom time"
+   eventBasedHold     := true
+   storageClass    := "dummy storage class"
+   dummyMetaKey := "dummy meta key"
+   dummyMetaValue := "dummy meta value"
+   deleted := time.Now()
+   var updated time.Time
+   var crc32c uint32 = 45
+   md5Hash := md5.Sum([]byte(content))
+   var metaData = make(map[string]string)
+   metaData[dummyMetaKey ] = dummyMetaValue
+
+
+   obj, err := t.bucketHandle.CreateObject(context.Background(),
+    		&gcs.CreateObjectRequest{
+    			Name:   objName  ,
+    			Metadata : metaData,
+    			Contents: strings.NewReader(content),
+                ContentType :    contentType,
+                ContentLanguage : contentLanguage,
+                ContentEncoding :   contentEncoding,
+                CacheControl    :   cacheControl,
+                ContentDisposition : contentDisposition,
+                CustomTime :      customTime,
+                EventBasedHold     : eventBasedHold,
+                StorageClass    : storageClass,
+                CRC32C : &crc32c,
+                MD5:  &md5Hash,
+
+    		})
+
+
+   updated=obj.Updated
+
+
+   AssertEq(nil,err)
+   AssertEq(objName,obj.Name)
+   AssertEq(len(content),obj.Size)
+
+
+   listing, list_err := t.bucketHandle.ListObjects(context.Background(), &gcs.ListObjectsRequest{
+   Delimiter: "/",
+   IncludeTrailingDelimiter: true,
+   Prefix: objName ,
+   ContinuationToken: "",
+   MaxResults: 5,
+   ProjectionVal: gcs.NoAcl})
+
+
+   AssertEq(nil,list_err)
+   AssertNe(0,len(listing.Objects))
+
+
+   list_obj :=listing.Objects[0]
+
+   AssertEq(objName,list_obj.Name)
+   AssertNe(0,list_obj.Size)
+   AssertNe(0,list_obj.Generation)
+   AssertEq(0,list_obj.MetaGeneration)
+   AssertEq(dummyMetaValue,list_obj.Metadata[dummyMetaKey])
+   ExpectEq(updated.String(), list_obj.Updated.String())
+
+    //extra attributes not populated via ListObjectsRequest
+
+   AssertNe(contentLanguage,list_obj.ContentLanguage)
+   AssertNe(cacheControl,list_obj.CacheControl)
+   AssertNe(contentDisposition,list_obj.ContentDisposition)
+   AssertNe(customTime,list_obj.CustomTime)
+   AssertNe(eventBasedHold,list_obj.EventBasedHold)
+   AssertNe(storageClass,list_obj.StorageClass)
+   ExpectNe(deleted.String(), list_obj.Deleted.String())
+   AssertEq("",list_obj.Owner)
+   AssertEq(0,list_obj.ComponentCount)
+   AssertEq("",list_obj.Owner)
+   AssertEq("",list_obj.MediaLink)
+
+    //fakeStorage populates it Hence, values do not go to default
+   AssertEq(contentType,list_obj.ContentType)
+   AssertEq(contentEncoding,list_obj.ContentEncoding)
+   ExpectEq(*obj.CRC32C, *list_obj.CRC32C)
+   ExpectEq(string(md5Hash[:]), string(list_obj.MD5[:]))
+
+
+
+
+
+
+
 }
 
 func (t *BucketHandleTest) TestNewReaderMethodWithCompleteRead() {
@@ -280,6 +384,7 @@ func (t *BucketHandleTest) TestCreateObjectMethodWithValidObject() {
 		&gcs.CreateObjectRequest{
 			Name:     "test_object",
 			Contents: strings.NewReader(content),
+
 		})
 
 	AssertEq(obj.Name, "test_object")
@@ -553,6 +658,10 @@ func (t *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
 	AssertEq(TestObjectName, fourObjWithZeroMaxResults.Objects[3].Name)
 	AssertEq(nil, fourObjWithZeroMaxResults.CollapsedRuns)
 }
+
+
+
+
 
 // FakeGCSServer is not handling ContentType, ContentEncoding, ContentLanguage, CacheControl in updateflow
 // Hence, we are not writing tests for these parameters
@@ -926,6 +1035,8 @@ func (t *BucketHandleTest) TestIsStorageConditionsNotEmptyWithNonEmptyConditions
 	// DoesNotExist is set.
 	AssertTrue(isStorageConditionsNotEmpty(storage.Conditions{DoesNotExist: true}))
 }
+
+
 
 func (t *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotExist() {
 	var notfound *gcs.NotFoundError
