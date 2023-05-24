@@ -111,5 +111,5 @@ model, eval_logs = tfm.core.train_lib.run_experiment(
     params=exp_config,
     model_dir=model_dir,
     run_post_eval=True,
-    epochs=2,
+    epochs=200,
     clear_kernel_cache=True)
