@@ -144,14 +144,14 @@ func SetUpTestDir() error {
 	return nil
 }
 
-func RemoveTestDir() error {
-	err := os.RemoveAll(TestDir())
-	if err != nil {
-		LogAndExit("Error in removing test dir.")
-	}
-
-	return err
-}
+//func RemoveTestDir() error {
+//	err := os.RemoveAll(TestDir())
+//	if err != nil {
+//		LogAndExit("Error in removing test dir.")
+//	}
+//
+//	return err
+//}
 
 func UnMount() error {
 	fusermount, err := exec.LookPath("fusermount")
