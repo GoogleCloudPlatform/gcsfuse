@@ -1,25 +1,110 @@
-gcloud config set project gcs-fuse-test
-gcloud compute instances delete --quiet tf-resnet-7d --zone us-central1-c
-gcloud compute instances create tf-resnet-7d \
-    --project=gcs-fuse-test \
-    --zone=us-central1-c \
-    --machine-type=a2-highgpu-2g \
-    --network-interface=network-tier=PREMIUM,nic-type=GVNIC,stack-type=IPV4_ONLY,subnet=default \
-    --metadata=enable-oslogin=true \
-    --maintenance-policy=TERMINATE \
-    --provisioning-model=STANDARD \
-    --service-account=927584127901-compute@developer.gserviceaccount.com \
-    --scopes=https://www.googleapis.com/auth/cloud-platform \
-    --accelerator=count=2,type=nvidia-tesla-a100 \
-    --create-disk=auto-delete=yes,boot=yes,device-name=tf-resnet-7d,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20230523,mode=rw,size=200,type=projects/gcs-fuse-test/zones/us-central1-c/diskTypes/pd-balanced \
-    --no-shielded-secure-boot \
-    --shielded-vtpm \
-    --shielded-integrity-monitoring \
-    --labels=goog-ec-src=vm_add-gcloud \
-    --reservation-affinity=any
-sleep 60s
+#!/bin/bash
 
-gcloud compute ssh tf-resnet-7d --zone us-central1-c --command "mkdir github; cd github; git clone https://github.com/GoogleCloudPlatform/gcsfuse.git; cd gcsfuse; git checkout ai_ml_tests;" --internal-ip
-gcloud compute ssh tf-resnet-7d --zone us-central1-c --command "cd github/gcsfuse/perfmetrics/scripts/continuous_test/ml_tests/tf/resnet/; export KOKORO_ARTIFACTS_DIR=\$HOME; bash build.sh 1> ~/a.out 2> ~/e.err &" --internal-ip
-sleep 100s
-gcloud compute ssh tf-resnet-7d --zone us-central1-c --command "cat a.out; cat e.err;" --internal-ip
+# This will stop execution when any command will have non-zero status.
+set -e
+
+TIMEOUT=(7.5)*24*60*60
+
+function delete_existing_vm_and_create_new () {
+  (
+    echo "Deleting VM $1"
+    gcloud compute instances delete $1 --zone us-central1-c
+  )
+
+  echo "Wait for 60 seconds for old VM to be deleted"
+  sleep 60s
+
+  gcloud compute instances create $1 \
+      --project=gcs-fuse-test \
+      --zone=us-central1-c \
+      --machine-type=a2-highgpu-2g \
+      --network-interface=network-tier=PREMIUM,nic-type=GVNIC,stack-type=IPV4_ONLY,subnet=default \
+      --metadata=enable-oslogin=true \
+      --maintenance-policy=TERMINATE \
+      --provisioning-model=STANDARD \
+      --service-account=927584127901-compute@developer.gserviceaccount.com \
+      --scopes=https://www.googleapis.com/auth/cloud-platform \
+      --accelerator=count=2,type=nvidia-tesla-a100 \
+      --create-disk=auto-delete=yes,boot=yes,device-name=tf-resnet-7d,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20230523,mode=rw,size=200,type=projects/gcs-fuse-test/zones/us-central1-c/diskTypes/pd-balanced \
+      --no-shielded-secure-boot \
+      --shielded-vtpm \
+      --shielded-integrity-monitoring \
+      --labels=goog-ec-src=vm_add-gcloud \
+      --reservation-affinity=any
+
+  echo "Wait for 60 seconds for new VM to be initialised"
+  sleep 60s
+}
+
+function copy_artifacts_to_gcs () {
+  (
+    gcloud compute ssh $1 --zone us-central1-c --internal-ip --command "gsutil cp -R \$HOME/github/gcsfuse/container_artifacts/ gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/$2"
+  )
+  if [ $? -eq 0 ]; then
+      echo "GCSFuse logs successfully copied to GCS bucket gcsfuse-ml-data"
+  else
+      echo "GCSFuse logs are not copied for the run $2"
+  fi
+  gcloud compute ssh $1 --zone us-central1-c --internal-ip --command "gsutil cp \$HOME/build.out gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/$2"
+  gcloud compute ssh $1 --zone us-central1-c --internal-ip --command "gsutil cp \$HOME/build.err gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/$2"
+  echo "Build logs copied to GCS for the run $2"
+}
+
+function get_run_status () {
+  status=$(gsutil cat gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/status.txt)
+  echo "The status of current run is $status"
+  return $status
+}
+
+function get_commit_id () {
+  commit_id=$(gsutil cat gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/commit.txt)
+  echo "The commit id of current run is $commit_id"
+  return $commit_id
+}
+
+gcloud config set project gcs-fuse-test
+exit_status=0
+
+if [ get_run_status -eq "START" ]
+then
+  delete_existing_vm_and_create_new "tf-resnet-7d"
+  echo "Clone the gcsfuse repo on VM (GPU)"
+  gcloud compute ssh tf-resnet-7d --zone us-central1-c --internal-ip --quiet --command "echo 'Running from VM'"
+  gcloud compute ssh tf-resnet-7d --zone us-central1-c --internal-ip --command "mkdir github; cd github; git clone https://github.com/GoogleCloudPlatform/gcsfuse.git; cd gcsfuse; git checkout ai_ml_tests;"
+  echo "Trigger the build script on VM (GPU)"
+  gcloud compute ssh tf-resnet-7d --zone us-central1-c --internal-ip --command "cd github/gcsfuse/perfmetrics/scripts/continuous_test/ml_tests/tf/resnet/; export KOKORO_ARTIFACTS_DIR=\$HOME; bash build.sh 1> ~/build.out 2> ~/build.err &"
+  echo "Sleep for 10 minutes for setting up VM (GPU) for test !"
+  sleep 300s
+  # to-do: change to get the latest commit.
+  commit_id="a234bh"
+  if [ get_run_status != "RUNNING" ] then
+    echo "The model has not started"
+    copy_artifacts_to_gcs "tf-resnet-7d" $commit_id
+    exit_status=1
+  fi
+elif [ get_run_status -eq "RUNNING" ]
+then
+  # check if model has timed out
+  start_time=$$(gsutil cat gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/start_time.txt)
+  current_time=$(date +"%s")
+  if [ ($current_time - $start_time) -gt $TIMEOUT ] then
+    echo "The tests have time out, start_time was $start_time, current time is $current_time"
+    exit_status=1
+  fi
+elif [ get_run_status -eq "ERROR" ]
+then
+  commit_id=$(get_commit_id)
+  copy_artifacts_to_gcs "tf-resnet-7d" $commit_id
+  exit_status=1
+elif [ get_run_status -eq "COMPLETE" ]
+then
+  commit_id=$(get_commit_id)
+  copy_artifacts_to_gcs "tf-resnet-7d" $commit_id
+  exit_status=0
+
+echo "Below is the stdout of build on VM (GPU)"
+gsutil cat gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/$(get_commit_id)/build.out
+
+echo "Below is the stderr of build on VM (GPU)"
+gsutil cat gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/$(get_commit_id)/build.err
+
