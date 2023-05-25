@@ -173,10 +173,12 @@ echo "Update start time file"
 echo $(date +"%s") > start_time.txt
 gsutil cp start_time.txt gs://gcsfuse-ml-data/ci_artifacts/
 
-# We need to run it in foreground mode to make the container running.
-echo "Running the tensorflow resnet model..."
-# Start training the model
-python3 -u resnet_runner.py
+(
+  # We need to run it in foreground mode to make the container running.
+  echo "Running the tensorflow resnet model..."
+  # Start training the model
+  python3 -u resnet_runner.py
+)
 
 if [ $? -eq 0 ]; then
     echo "Tensorflow resnet model completed the training successfully!"
