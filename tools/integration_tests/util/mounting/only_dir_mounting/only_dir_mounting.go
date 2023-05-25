@@ -65,7 +65,10 @@ func executeTestsForOnlyDirMounting(flags [][]string, m *testing.M) (successCode
 	setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/delete_objects.sh", setup.TestBucket())
 
 	// "Test" directory not exist in bucket.
-	mountGcsFuseForFlagsAndExecuteTests(flags, DirectoryInTestBucket, m)
+	successCode = mountGcsFuseForFlagsAndExecuteTests(flags, DirectoryInTestBucket, m)
+	if successCode != 0 {
+		return
+	}
 
 	// "Test" directory exist in bucket.
 	// Clean the bucket.
@@ -79,6 +82,7 @@ func executeTestsForOnlyDirMounting(flags [][]string, m *testing.M) (successCode
 	// Clean the bucket after testing.
 	setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/delete_objects.sh", setup.TestBucket())
 
+	setup.RemoveTestDir()
 	return
 }
 

@@ -52,6 +52,9 @@ func executeTestsForStatingMounting(flags [][]string, m *testing.M) (successCode
 		}
 		setup.ExecuteTestForFlagsSet(flags[i], m)
 	}
+
+	setup.RemoveTestDir()
+	
 	return
 }
 
