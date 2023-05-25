@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -56,9 +57,15 @@ func (t *MountHelperTest) SetUp(_ *TestInfo) {
 	switch runtime.GOOS {
 	case "darwin":
 		t.helperPath = path.Join(gBuildDir, "sbin/mount_gcsfuse")
+		if *setup.TestPackageDir != "" {
+			t.helperPath = "/sbin/mount_gcsfuse"
+		}
 
 	case "linux":
 		t.helperPath = path.Join(gBuildDir, "sbin/mount.gcsfuse")
+		if *setup.TestPackageDir != "" {
+			t.helperPath = "/sbin/mount.gcsfuse"
+		}
 
 	default:
 		AddFailure("Don't know how to deal with OS: %q", runtime.GOOS)
@@ -251,6 +258,9 @@ func (t *MountHelperTest) FuseSubtype() {
 
 	// Mount using the tool that would be invoked by ~mount -t fuse.gcsfuse`.
 	t.helperPath = path.Join(gBuildDir, "sbin/mount.fuse.gcsfuse")
+	if *setup.TestPackageDir != "" {
+		t.helperPath = "/sbin/mount.fuse.gcsfuse"
+	}
 	args := []string{canned.FakeBucketName, t.dir}
 
 	err = t.mount(args)

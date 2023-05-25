@@ -31,6 +31,8 @@ import (
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
 var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test.")
 var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
+var TestPackageDir = flag.String("testPackageDir", "", "[Optional] Run test on the package pointed by the path value provided on this flag. By default builds a new package to run the tests.")
+var testPackageVer = flag.String("testPackageVer", "", "[Optional] version of the test package present in testPackageDir.")
 
 const BufferSize = 100
 const FilePermission_0600 = 0600
@@ -121,6 +123,62 @@ func CreateTempFile() string {
 	return fileName
 }
 
+func setUpDebPackage(debPkg string, destDir string) error {
+	cmd := exec.Command("cp", path.Join(*TestPackageDir, debPkg), destDir)
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to copy package from %s: err: %w", *TestPackageDir, err)
+	}
+	cmd = exec.Command("sudo", "apt", "install", path.Join(*TestPackageDir, debPkg))
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to install debian pkg, err: %w", err)
+	}
+	return nil
+}
+
+func setUpRpmPackage(rpmPkg string, destDir string) error {
+	cmd := exec.Command("cp", path.Join(*TestPackageDir, rpmPkg), destDir)
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to copy package from %s: err: %w", *TestPackageDir, err)
+	}
+	cmd = exec.Command("sudo", "rpm", "-i", path.Join(*TestPackageDir, rpmPkg))
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to install rpm pkg, err: %w", err)
+	}
+	return nil
+}
+
+func SetUpTestPackage(destDir string) error {
+	//check which package exists in testPackageDir
+	rpmPkgFound := false
+	debPkgFound := false
+
+	debPkg := fmt.Sprintf("gcsfuse_%s_amd64.deb", *testPackageVer)
+	_, err := os.Stat(path.Join(*TestPackageDir, debPkg))
+	if err == nil {
+		debPkgFound = true
+	}
+
+	rpmPkg := fmt.Sprintf("gcsfuse-%s-1.x86_64.rpm", *testPackageVer)
+	_, err = os.Stat(path.Join(*TestPackageDir, rpmPkg))
+	if err == nil {
+		rpmPkgFound = true
+	}
+
+	if !rpmPkgFound && !debPkgFound {
+		return fmt.Errorf("package %s or %s doesn't exist in %s: err: %w", debPkg, rpmPkg, *TestPackageDir, err)
+	}
+
+	if debPkgFound {
+		return setUpDebPackage(debPkg, destDir)
+	} else {
+		return setUpRpmPackage(rpmPkg, destDir)
+	}
+}
+
 func SetUpTestDir() error {
 	var err error
 	testDir, err = os.MkdirTemp("", "gcsfuse_readwrite_test_")
@@ -128,11 +186,17 @@ func SetUpTestDir() error {
 		return fmt.Errorf("TempDir: %w\n", err)
 	}
 
-	err = util.BuildGcsfuse(testDir)
-	if err != nil {
-		return fmt.Errorf("BuildGcsfuse(%q): %w\n", TestDir(), err)
+	if *TestPackageDir == "" {
+		err = util.BuildGcsfuse(testDir)
+		if err != nil {
+			return fmt.Errorf("BuildGcsfuse(%q): %w\n", TestDir(), err)
+		}
+	} else {
+		err = SetUpTestPackage(TestDir())
+		if err != nil {
+			return fmt.Errorf("SetUpTestPackage():%w\n", err)
+		}
 	}
-
 	binFile = path.Join(TestDir(), "bin/gcsfuse")
 	logFile = path.Join(TestDir(), "gcsfuse.log")
 	mntDir = path.Join(TestDir(), "mnt")

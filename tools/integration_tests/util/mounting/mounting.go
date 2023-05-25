@@ -29,6 +29,13 @@ func MountGcsfuse(flags []string) error {
 		flags...,
 	)
 
+	if *setup.TestPackageDir != "" {
+		mountCmd = exec.Command(
+			"gcsfuse",
+			flags...,
+		)
+	}
+
 	// Adding mount command in LogFile
 	file, err := os.OpenFile(setup.LogFile(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {

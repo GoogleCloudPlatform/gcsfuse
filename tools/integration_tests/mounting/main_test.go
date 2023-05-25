@@ -15,7 +15,6 @@
 package integration_test
 
 import (
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -49,17 +48,25 @@ func TestMain(m *testing.M) {
 	}
 
 	// Set up a directory into which we will build.
-	gBuildDir, err = ioutil.TempDir("", "gcsfuse_integration_tests")
+	gBuildDir, err = os.MkdirTemp("", "gcsfuse_integration_tests")
 	if err != nil {
 		log.Fatalf("TempDir: %p", err)
 		return
 	}
 
 	// Build into that directory.
-	err = util.BuildGcsfuse(gBuildDir)
-	if err != nil {
-		log.Fatalf("buildGcsfuse: %p", err)
-		return
+	if *setup.TestPackageDir == "" {
+		err = util.BuildGcsfuse(gBuildDir)
+		if err != nil {
+			log.Fatalf("buildGcsfuse: %p", err)
+			return
+		}
+	} else {
+		err = setup.SetUpTestPackage(gBuildDir)
+		if err != nil {
+			log.Fatalf("SetUpTestPackage():%p", err)
+			return
+		}
 	}
 
 	// Run tests.
