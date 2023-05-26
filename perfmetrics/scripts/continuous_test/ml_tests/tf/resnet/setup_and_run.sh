@@ -87,7 +87,6 @@ then
   if [ $(get_run_status) != "RUNNING" ];
   then
     echo "The model has not started"
-    copy_artifacts_to_gcs "tf-resnet-7d" $commit_id
     exit_status=1
   fi
 elif [ $(get_run_status) == "RUNNING" ];
@@ -98,19 +97,16 @@ then
   time_elapsed=$(expr $current_time - $start_time)
   if (( $(echo "$time_elapsed > $TIMEOUT" |bc -l) ));
   then
-    copy_artifacts_to_gcs "tf-resnet-7d" $(get_commit_id)
     echo "The tests have time out, start_time was $start_time, current time is $current_time"
     exit_status=1
   fi
 elif [ $(get_run_status) == "ERROR" ];
 then
   commit_id=$(get_commit_id)
-  copy_artifacts_to_gcs "tf-resnet-7d" $commit_id
   exit_status=1
 elif [ $(get_run_status) == "COMPLETE" ];
 then
   commit_id=$(get_commit_id)
-  copy_artifacts_to_gcs "tf-resnet-7d" $commit_id
   exit_status=0
   # change status back to start
   echo "START" > status.txt
@@ -121,10 +117,13 @@ else
 
 fi
 
+commit_id=$(get_commit_id)
+copy_artifacts_to_gcs "tf-resnet-7d" $commit_id
+
 echo "Below is the stdout of build on VM (GPU)"
-gsutil cat gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/$(get_commit_id)/build.out
+gsutil cat gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/$commit_id/build.out
 
 echo "Below is the stderr of build on VM (GPU)"
-gsutil cat gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/$(get_commit_id)/build.err
+gsutil cat gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/$commit_id/build.err
 
 exit $exit_status
