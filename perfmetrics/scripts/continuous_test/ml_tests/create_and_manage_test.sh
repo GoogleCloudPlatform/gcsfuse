@@ -50,7 +50,7 @@ function delete_existing_vm_and_create_new () {
 
 function copy_artifacts_to_gcs () {
   (
-    gcloud compute ssh $VM_NAME--zone $ZONE_NAME --internal-ip --command "gsutil rsync -R \$HOME/github/gcsfuse/container_artifacts/ $ARTIFACTS_BUCKET_PATH/$1/container_artifacts"
+    gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil rsync -R \$HOME/github/gcsfuse/container_artifacts/ $ARTIFACTS_BUCKET_PATH/$1/container_artifacts"
   ) || (
     if [ $? -eq 0 ]
     then
