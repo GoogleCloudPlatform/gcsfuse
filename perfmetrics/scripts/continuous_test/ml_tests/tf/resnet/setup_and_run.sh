@@ -3,7 +3,7 @@
 # This will stop execution when any command will have non-zero status.
 set -e
 
-TIMEOUT=((7.5)*24*60*60)
+TIMEOUT=$(echo "7.5*24*60*60" | bc)
 
 function delete_existing_vm_and_create_new () {
   (
@@ -95,9 +95,10 @@ then
   # check if model has timed out
   start_time=$(gsutil cat gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/start_time.txt)
   current_time=$(date +"%s")
-  time_elapsed=($current_time - $start_time)
+  time_elapsed=$(expr $current_time - $start_time)
   if [ $time_elapsed -gt $TIMEOUT ];
   then
+    copy_artifacts_to_gcs "tf-resnet-7d" $(get_commit_id)
     echo "The tests have time out, start_time was $start_time, current time is $current_time"
     exit_status=1
   fi
