@@ -114,6 +114,10 @@ then
   # change status back to start
   echo "START" > status.txt
   gsutil cp status.txt gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/
+else
+  echo "Unknown state in status file. Please check."
+  exit 1
+
 fi
 
 echo "Below is the stdout of build on VM (GPU)"
@@ -121,3 +125,5 @@ gsutil cat gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/$(get_commit_id)/build.ou
 
 echo "Below is the stderr of build on VM (GPU)"
 gsutil cat gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/$(get_commit_id)/build.err
+
+exit $exit_status
