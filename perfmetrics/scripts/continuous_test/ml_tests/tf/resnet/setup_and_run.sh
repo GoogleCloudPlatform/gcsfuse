@@ -85,7 +85,7 @@ then
   sleep 120s
   echo "Update commit id"
   commit_id=$(git rev-parse HEAD)
-  echo $(commit_id) > commit.txt
+  echo $commit_id > commit.txt
   gsutil cp commit.txt gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/
   if [ $(get_run_status) != "RUNNING" ];
   then
