@@ -52,8 +52,8 @@ function copy_artifacts_to_gcs () {
         echo "GCSFuse logs are not copied for the run $2"
     fi
   )
-  gcloud compute ssh $1 --zone us-central1-c --internal-ip --command "gsutil cp \$HOME/build.out gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/$2"
-  gcloud compute ssh $1 --zone us-central1-c --internal-ip --command "gsutil cp \$HOME/build.err gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/$2"
+  gcloud compute ssh $1 --zone us-central1-c --internal-ip --command "gsutil cp \$HOME/build.out gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/$2/build.out"
+  gcloud compute ssh $1 --zone us-central1-c --internal-ip --command "gsutil cp \$HOME/build.err gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/$2/build.err"
   echo "Build logs copied to GCS for the run $2"
 }
 
@@ -80,8 +80,10 @@ then
   gcloud compute ssh tf-resnet-7d --zone us-central1-c --internal-ip --command "cd github/gcsfuse/perfmetrics/scripts/continuous_test/ml_tests/tf/resnet/; export KOKORO_ARTIFACTS_DIR=\$HOME; bash build.sh 1> ~/build.out 2> ~/build.err &"
   echo "Sleep for 10 minutes for setting up VM (GPU) for test !"
   sleep 120s
-  # to-do: change to get the latest commit.
-  commit_id="a234bh"
+  echo "Update commit id"
+  commit_id=$(git rev-parse HEAD)
+  echo $(commit_id) > commit.txt
+  gsutil cp commit.txt gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/
   if [ $(get_run_status) != "RUNNING" ];
   then
     echo "The model has not started"
@@ -93,7 +95,8 @@ then
   # check if model has timed out
   start_time=$(gsutil cat gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/start_time.txt)
   current_time=$(date +"%s")
-  if [ $($current_time - $start_time) -gt $TIMEOUT ];
+  time_elapsed=($current_time - $start_time)
+  if [ $time_elapsed -gt $TIMEOUT ];
   then
     echo "The tests have time out, start_time was $start_time, current time is $current_time"
     exit_status=1
@@ -108,6 +111,9 @@ then
   commit_id=$(get_commit_id)
   copy_artifacts_to_gcs "tf-resnet-7d" $commit_id
   exit_status=0
+  # change status back to start
+  echo "START" > status.txt
+  gsutil cp status.txt gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/
 fi
 
 echo "Below is the stdout of build on VM (GPU)"
