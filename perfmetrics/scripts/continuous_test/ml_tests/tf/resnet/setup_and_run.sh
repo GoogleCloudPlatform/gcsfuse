@@ -13,6 +13,7 @@ function delete_existing_vm_and_create_new () {
     if [$? != 0]
     then
       echo "Machine was not deleted as it doesn't exist."
+    fi
   )
 
   echo "Wait for 60 seconds for old VM to be deleted"
@@ -43,13 +44,14 @@ function delete_existing_vm_and_create_new () {
 function copy_artifacts_to_gcs () {
   (
     gcloud compute ssh $1 --zone us-central1-c --internal-ip --command "gsutil cp -R \$HOME/github/gcsfuse/container_artifacts/ gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/$2"
+  ) || (
+    if [ $? -eq 0 ]
+    then
+        echo "GCSFuse logs successfully copied to GCS bucket gcsfuse-ml-data"
+    else
+        echo "GCSFuse logs are not copied for the run $2"
+    fi
   )
-  if [ $? -eq 0 ]
-  then
-      echo "GCSFuse logs successfully copied to GCS bucket gcsfuse-ml-data"
-  else
-      echo "GCSFuse logs are not copied for the run $2"
-  fi
   gcloud compute ssh $1 --zone us-central1-c --internal-ip --command "gsutil cp \$HOME/build.out gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/$2"
   gcloud compute ssh $1 --zone us-central1-c --internal-ip --command "gsutil cp \$HOME/build.err gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/$2"
   echo "Build logs copied to GCS for the run $2"
