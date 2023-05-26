@@ -66,6 +66,8 @@ func TestMain(m *testing.M) {
 	}
 
 	// Run tests for testBucket
+	setup.SetUpTestDirForTestBucketFlag()
+
 	// Clean the bucket for readonly testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 

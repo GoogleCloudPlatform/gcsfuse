@@ -57,6 +57,8 @@ func TestMain(m *testing.M) {
 	setup.RunTestsForMountedDirectoryFlag(m)
 
 	// Run tests for testBucket
+	setup.SetUpTestDirForTestBucketFlag()
+
 	successCode := static_mounting.RunTests(flags, m)
 
 	if successCode == 0 {
