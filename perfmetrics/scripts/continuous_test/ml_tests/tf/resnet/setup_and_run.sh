@@ -96,7 +96,7 @@ then
   start_time=$(gsutil cat gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/start_time.txt)
   current_time=$(date +"%s")
   time_elapsed=$(expr $current_time - $start_time)
-  if [ $time_elapsed -gt $TIMEOUT ];
+  if (( $(echo "$time_elapsed > $TIMEOUT" |bc -l) ));
   then
     copy_artifacts_to_gcs "tf-resnet-7d" $(get_commit_id)
     echo "The tests have time out, start_time was $start_time, current time is $current_time"
