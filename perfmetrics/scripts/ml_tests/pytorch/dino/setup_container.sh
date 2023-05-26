@@ -51,26 +51,44 @@ sed -i "$x"'r bypassed_code.py' $folder_file
 # nproc_per_node - by downloading the model in single thread environment.
 python -c 'import torch;torch.hub.list("facebookresearch/xcit:main")'
 
-# Run the pytorch Dino model
-# We need to run it in foreground mode to make the container running.
-echo "Running the pytorch dino model..."
-experiment=dino_experiment
-python3 -m torch.distributed.launch \
-  --nproc_per_node=2 dino/main_dino.py \
-  --arch vit_small \
-  --num_workers 20 \
-  --data_path gcsfuse_data/imagenet/ILSVRC/Data/CLS-LOC/train/ \
-  --output_dir "./run_artifacts/$experiment" \
-  --norm_last_layer False \
-  --use_fp16 False \
-  --clip_grad 0 \
-  --epochs 100 \
-  --global_crops_scale 0.25 1.0 \
-  --local_crops_number 10 \
-  --local_crops_scale 0.05 0.25 \
-  --teacher_temp 0.07 \
-  --warmup_teacher_temp_epochs 30 \
-  --clip_grad 0 \
-  --min_lr 0.00001
+echo "Update status file"
+echo "RUNNING" > status.txt
+gsutil cp status.txt gs://gcsfuse-ml-data/ci_artifacts/pytorch/dino/
 
-echo "Pytorch DINO model completed the training successfully!"
+echo "Update start time file"
+echo $(date +"%s") > start_time.txt
+gsutil cp start_time.txt gs://gcsfuse-ml-data/ci_artifacts/pytorch/dino/
+
+(
+  # Run the pytorch Dino model
+  # We need to run it in foreground mode to make the container running.
+  echo "Running the pytorch dino model..."
+  experiment=dino_experiment
+  python3 -m torch.distributed.launch \
+    --nproc_per_node=2 dino/main_dino.py \
+    --arch vit_small \
+    --num_workers 20 \
+    --data_path gcsfuse_data/imagenet/ILSVRC/Data/CLS-LOC/train/ \
+    --output_dir "./run_artifacts/$experiment" \
+    --norm_last_layer False \
+    --use_fp16 False \
+    --clip_grad 0 \
+    --epochs 100 \
+    --global_crops_scale 0.25 1.0 \
+    --local_crops_number 10 \
+    --local_crops_scale 0.05 0.25 \
+    --teacher_temp 0.07 \
+    --warmup_teacher_temp_epochs 30 \
+    --clip_grad 0 \
+    --min_lr 0.00001
+) || (
+  if [ $? -eq 0 ]; then
+      echo "Pytorch dino model completed the training successfully!"
+      echo "COMPLETE" > status.txt
+  else
+      echo "Pytorch dino model training failed!"
+      echo "ERROR" > status.txt
+  fi
+)
+
+gsutil cp status.txt gs://gcsfuse-ml-data/ci_artifacts/pytorch/dino/

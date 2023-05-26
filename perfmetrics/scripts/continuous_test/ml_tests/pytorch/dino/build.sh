@@ -3,25 +3,13 @@
 # This will stop execution when any command will have non-zero status.
 set -e
 
-cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts"
+VM_NAME="pytorch-dino-7d"
+ZONE_NAME="us-west1-b"
+ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-data/ci_artifacts/pytorch/dino"
+TEST_SCRIPT_PATH="github/gcsfuse/perfmetrics/scripts/ml_tests/pytorch/dino/setup_host_and_run_model.sh"
 
-echo "Setting up the machine with Docker and Nvidia Driver"
-chmod +x ml_tests/setup_host.sh
-source ml_tests/setup_host.sh
+cd "$HOME/github/gcsfuse/perfmetrics/scripts/continuous_test/ml_tests/"
 
-cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
-echo "Building docker image containing all pytorch libraries..."
-sudo docker build . -f perfmetrics/scripts/ml_tests/pytorch/dino/Dockerfile --tag pytorch-gcsfuse
+chmod +x create_and_manage_test.sh
+source create_and_manage_test.sh $VM_NAME $ZONE_NAME $ARTIFACTS_BUCKET_PATH $TEST_SCRIPT_PATH
 
-mkdir -p container_artifacts
-
-echo "Running the docker image build in the previous step..."
-sudo docker run --runtime=nvidia --name=pytorch_automation_container --privileged -d -v ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts:/pytorch_dino/run_artifacts:rw,rshared \
---shm-size=128g pytorch-gcsfuse:latest
-
-# Setup the log_rotation.
-chmod +x perfmetrics/scripts/ml_tests/setup_log_rotation.sh
-source perfmetrics/scripts/ml_tests/setup_log_rotation.sh ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts/gcsfuse.log
-
-# Wait for the script completion as well as logs output.
-sudo docker logs -f pytorch_automation_container

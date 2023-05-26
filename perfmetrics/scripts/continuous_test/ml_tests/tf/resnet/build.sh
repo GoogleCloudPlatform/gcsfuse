@@ -3,26 +3,13 @@
 # This will stop execution when any command will have non-zero status.
 set -e
 
-cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts"
+VM_NAME="tf-resnet-7d"
+ZONE_NAME="us-central1-c"
+ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-data/ci_artifacts/tf/resnet"
+TEST_SCRIPT_PATH="github/gcsfuse/perfmetrics/scripts/ml_tests/tf/resnet/setup_host_and_run_model.sh"
 
-echo "Setting up the machine with Docker and Nvidia Driver..."
-chmod +x ml_tests/setup_host.sh
-source ml_tests/setup_host.sh
+cd "$HOME/github/gcsfuse/perfmetrics/scripts/continuous_test/ml_tests/"
 
-cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/"
-mkdir container_artifacts && mkdir container_artifacts/logs && mkdir container_artifacts/output
+chmod +x create_and_manage_test.sh
+source create_and_manage_test.sh $VM_NAME $ZONE_NAME $ARTIFACTS_BUCKET_PATH $TEST_SCRIPT_PATH
 
-echo "Building tf DLC docker image containing all tensorflow libraries..."
-sudo docker build . -f perfmetrics/scripts/ml_tests/tf/resnet/Dockerfile -t tf-dlc-gcsfuse --build-arg DLC_IMAGE_NAME=tf-gpu.2-10
-
-echo "Running the docker image build in the previous step..."
-sudo docker run --runtime=nvidia --name tf_model_container --privileged -d \
--v ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts/logs:/home/logs:rw,rshared \
--v ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts/output:/home/output:rw,rshared --shm-size=24g tf-dlc-gcsfuse:latest
-
-# Setup the log_rotation.
-chmod +x perfmetrics/scripts/ml_tests/setup_log_rotation.sh
-source perfmetrics/scripts/ml_tests/setup_log_rotation.sh ${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/container_artifacts/logs/gcsfuse.log
-
-# Wait for the script completion as well as logs output.
-sudo docker logs -f tf_model_container
