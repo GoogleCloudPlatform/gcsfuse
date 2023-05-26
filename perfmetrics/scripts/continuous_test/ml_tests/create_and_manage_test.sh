@@ -17,7 +17,7 @@ function delete_existing_vm_and_create_new () {
     echo "Deleting VM $VM_NAME"
     gcloud compute instances delete $VM_NAME --zone $ZONE_NAME --quiet
   ) || (
-    if [$? != 0]
+    if [ $? != 0 ];
     then
       echo "Machine was not deleted as it doesn't exist."
     fi
