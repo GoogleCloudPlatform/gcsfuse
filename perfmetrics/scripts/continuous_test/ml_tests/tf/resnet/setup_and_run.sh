@@ -3,7 +3,7 @@
 # This will stop execution when any command will have non-zero status.
 set -e
 
-TIMEOUT=(7.5)*24*60*60
+TIMEOUT=((7.5)*24*60*60)
 
 function delete_existing_vm_and_create_new () {
   (
