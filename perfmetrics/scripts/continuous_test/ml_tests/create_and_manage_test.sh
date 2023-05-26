@@ -28,7 +28,7 @@ function delete_existing_vm_and_create_new () {
 
   gcloud compute instances create $VM_NAME \
       --project=$GCP_PROJECT \
-      --zone=$VM_NAME \
+      --zone=$ZONE_NAME \
       --machine-type=a2-highgpu-2g \
       --network-interface=network-tier=PREMIUM,nic-type=GVNIC,stack-type=IPV4_ONLY,subnet=default \
       --metadata=enable-oslogin=true \
