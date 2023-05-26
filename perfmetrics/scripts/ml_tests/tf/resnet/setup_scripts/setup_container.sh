@@ -167,11 +167,11 @@ sed -i "$x"'r bypassed_code.py' $train_lib_file
 
 echo "Update status file"
 echo "RUNNING" > status.txt
-gsutil cp status.txt gs://gcsfuse-ml-data/ci_artifacts/
+gsutil cp status.txt gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/
 
 echo "Update start time file"
 echo $(date +"%s") > start_time.txt
-gsutil cp start_time.txt gs://gcsfuse-ml-data/ci_artifacts/
+gsutil cp start_time.txt gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/
 
 (
   # We need to run it in foreground mode to make the container running.
@@ -187,6 +187,6 @@ else
     echo "Tensorflow resnet model training failed!"
     echo "ERROR" > status.txt
 fi
-gsutil cp status.txt gs://gcsfuse-ml-data/ci_artifacts/
+gsutil cp status.txt gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/
 
 
