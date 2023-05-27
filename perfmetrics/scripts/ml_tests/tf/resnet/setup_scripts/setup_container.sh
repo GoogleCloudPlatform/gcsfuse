@@ -58,6 +58,7 @@ echo "
 
       if clear_kernel_cache:
         os.system(\"sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'\")
+        raise Exception("Failed inbetween")
 
     if checkpoint_at_completion:
       self._maybe_save_checkpoint(check_interval=False)
@@ -177,14 +178,12 @@ gsutil cp start_time.txt gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/
   echo "Running the tensorflow resnet model..."
   # Start training the model
   python3 -u resnet_runner.py
+
+  echo "Tensorflow resnet model completed the training successfully!"
+  echo "COMPLETE" > status.txt
 ) || (
-  if [ $? -eq 0 ]; then
-      echo "Tensorflow resnet model completed the training successfully!"
-      echo "COMPLETE" > status.txt
-  else
-      echo "Tensorflow resnet model training failed!"
-      echo "ERROR" > status.txt
-  fi
+  echo "Tensorflow resnet model training failed!"
+  echo "ERROR" > status.txt
 )
 
 gsutil cp status.txt gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/
