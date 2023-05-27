@@ -81,7 +81,8 @@ function get_commit_id () {
 gcloud config set project $GCP_PROJECT
 exit_status=0
 # Temp ssh
-touch $HOME/.ssh/google_compute_engine
+sudo touch $HOME/.ssh/google_compute_engine
+sudo chmod 777 $HOME/.ssh/google_compute_engine
 gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --quiet --command "echo 'Running from VM'"
 
 # Transitions:
