@@ -58,7 +58,6 @@ echo "
 
       if clear_kernel_cache:
         os.system(\"sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'\")
-        raise Exception("Failed inbetween")
 
     if checkpoint_at_completion:
       self._maybe_save_checkpoint(check_interval=False)
