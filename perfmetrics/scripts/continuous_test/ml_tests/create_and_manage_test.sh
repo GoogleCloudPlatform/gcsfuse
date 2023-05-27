@@ -24,7 +24,7 @@ function delete_existing_vm_and_create_new () {
   )
 
   echo "Wait for 60 seconds for old VM to be deleted"
-  sleep 60s
+  sleep 30s
 
   gcloud compute instances create $VM_NAME \
       --project=$GCP_PROJECT \
@@ -45,7 +45,7 @@ function delete_existing_vm_and_create_new () {
       --reservation-affinity=any
 
   echo "Wait for 60 seconds for new VM to be initialised"
-  sleep 60s
+  sleep 30s
 }
 
 function copy_artifacts_to_gcs () {
