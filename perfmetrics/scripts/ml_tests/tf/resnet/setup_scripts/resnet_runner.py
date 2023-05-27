@@ -111,5 +111,6 @@ model, eval_logs = tfm.core.train_lib.run_experiment(
     params=exp_config,
     model_dir=model_dir,
     run_post_eval=True,
-    epochs=200,
+    # To-do change it back to run for 7 days.
+    epochs=15,
     clear_kernel_cache=True)
