@@ -80,8 +80,6 @@ function get_commit_id () {
 # Set project
 sudo gcloud config set project $GCP_PROJECT
 exit_status=0
-# Temp ssh
-sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --quiet --command "echo 'Running from VM'"
 
 # Transitions:
 # START to START: If model doesn't run due to some error.
