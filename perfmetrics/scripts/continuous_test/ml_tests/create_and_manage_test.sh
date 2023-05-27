@@ -15,7 +15,7 @@ TEST_SCRIPT_PATH=$4
 function delete_existing_vm_and_create_new () {
   (
     echo "Deleting VM $VM_NAME"
-    gcloud compute instances delete $VM_NAME --zone $ZONE_NAME --quiet
+    sudo gcloud compute instances delete $VM_NAME --zone $ZONE_NAME --quiet
   ) || (
     if [ $? != 0 ];
     then
@@ -26,7 +26,7 @@ function delete_existing_vm_and_create_new () {
   echo "Wait for 60 seconds for old VM to be deleted"
   sleep 30s
 
-  gcloud compute instances create $VM_NAME \
+  sudo gcloud compute instances create $VM_NAME \
       --project=$GCP_PROJECT \
       --zone=$ZONE_NAME \
       --machine-type=a2-highgpu-2g \
@@ -41,7 +41,7 @@ function delete_existing_vm_and_create_new () {
       --no-shielded-secure-boot \
       --shielded-vtpm \
       --shielded-integrity-monitoring \
-      --labels=goog-ec-src=vm_add-gcloud \
+      --labels=goog-ec-src=vm_add-sudo gcloud \
       --reservation-affinity=any
 
   echo "Wait for 60 seconds for new VM to be initialised"
@@ -50,7 +50,7 @@ function delete_existing_vm_and_create_new () {
 
 function copy_artifacts_to_gcs () {
   (
-    gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil rsync -R \$HOME/github/gcsfuse/container_artifacts/ $ARTIFACTS_BUCKET_PATH/$1/container_artifacts"
+    sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil rsync -R \$HOME/github/gcsfuse/container_artifacts/ $ARTIFACTS_BUCKET_PATH/$1/container_artifacts"
   ) || (
     if [ $? -eq 0 ]
     then
@@ -59,11 +59,11 @@ function copy_artifacts_to_gcs () {
         echo "GCSFuse logs are not copied for the run $1"
     fi
   )
-  gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp \$HOME/build.out $ARTIFACTS_BUCKET_PATH/$1/build.out"
-  gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp \$HOME/build.err $ARTIFACTS_BUCKET_PATH/$1/build.err"
-  gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp $ARTIFACTS_BUCKET_PATH/status.txt $ARTIFACTS_BUCKET_PATH/$1/"
-  gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp $ARTIFACTS_BUCKET_PATH/commit.txt $ARTIFACTS_BUCKET_PATH/$1/"
-  gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp $ARTIFACTS_BUCKET_PATH/start_time.txt $ARTIFACTS_BUCKET_PATH/$1/"
+  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp \$HOME/build.out $ARTIFACTS_BUCKET_PATH/$1/build.out"
+  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp \$HOME/build.err $ARTIFACTS_BUCKET_PATH/$1/build.err"
+  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp $ARTIFACTS_BUCKET_PATH/status.txt $ARTIFACTS_BUCKET_PATH/$1/"
+  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp $ARTIFACTS_BUCKET_PATH/commit.txt $ARTIFACTS_BUCKET_PATH/$1/"
+  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp $ARTIFACTS_BUCKET_PATH/start_time.txt $ARTIFACTS_BUCKET_PATH/$1/"
   echo "Build logs copied to GCS for the run $1"
 }
 
@@ -78,12 +78,10 @@ function get_commit_id () {
 }
 
 # Set project
-gcloud config set project $GCP_PROJECT
+sudo gcloud config set project $GCP_PROJECT
 exit_status=0
 # Temp ssh
-sudo touch $HOME/.ssh/google_compute_engine
-sudo chmod 777 $HOME/.ssh/google_compute_engine
-gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --quiet --command "echo 'Running from VM'"
+sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --quiet --command "echo 'Running from VM'"
 
 # Transitions:
 # START to START: If model doesn't run due to some error.
@@ -95,10 +93,10 @@ then
   
   echo "Clone the gcsfuse repo on VM (GPU)"
   # Requires running first ssh command with --quiet option to initialize keys.
-  gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --quiet --command "echo 'Running from VM'"
-  gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "mkdir github; cd github; git clone https://github.com/GoogleCloudPlatform/gcsfuse.git; cd gcsfuse; git checkout ai_ml_tests;"
+  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --quiet --command "echo 'Running from VM'"
+  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "mkdir github; cd github; git clone https://github.com/GoogleCloudPlatform/gcsfuse.git; cd gcsfuse; git checkout ai_ml_tests;"
   echo "Trigger the build script on VM (GPU)"
-  gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "bash \$HOME/$TEST_SCRIPT_PATH 1> ~/build.out 2> ~/build.err &"
+  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "bash \$HOME/$TEST_SCRIPT_PATH 1> ~/build.out 2> ~/build.err &"
   echo "Wait for 10 minutes for VM (GPU) to setup for test !"
   sleep 600s
 
