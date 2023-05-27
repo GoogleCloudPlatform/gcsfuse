@@ -64,7 +64,7 @@ function copy_artifacts_to_gcs () {
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp $ARTIFACTS_BUCKET_PATH/status.txt $ARTIFACTS_BUCKET_PATH/$1/"
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp $ARTIFACTS_BUCKET_PATH/commit.txt $ARTIFACTS_BUCKET_PATH/$1/"
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp $ARTIFACTS_BUCKET_PATH/start_time.txt $ARTIFACTS_BUCKET_PATH/$1/"
-  echo "Build logs copied to GCS for the run $1"
+  echo "Build logs copied to GCS bucket for the run $1"
 }
 
 function get_run_status () {
