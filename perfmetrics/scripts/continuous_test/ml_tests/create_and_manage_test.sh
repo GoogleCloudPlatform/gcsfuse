@@ -80,6 +80,9 @@ function get_commit_id () {
 # Set project
 gcloud config set project $GCP_PROJECT
 exit_status=0
+# Temp ssh
+touch $HOME/.ssh/google_compute_engine
+gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --quiet --command "echo 'Running from VM'"
 
 # Transitions:
 # START to START: If model doesn't run due to some error.
@@ -91,7 +94,6 @@ then
   
   echo "Clone the gcsfuse repo on VM (GPU)"
   # Requires running first ssh command with --quiet option to initialize keys.
-  sudo chmod -R 775 $HOME
   gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --quiet --command "echo 'Running from VM'"
   gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "mkdir github; cd github; git clone https://github.com/GoogleCloudPlatform/gcsfuse.git; cd gcsfuse; git checkout ai_ml_tests;"
   echo "Trigger the build script on VM (GPU)"
