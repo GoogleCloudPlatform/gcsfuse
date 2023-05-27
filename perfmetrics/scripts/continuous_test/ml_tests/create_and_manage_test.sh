@@ -41,7 +41,7 @@ function delete_existing_vm_and_create_new () {
       --no-shielded-secure-boot \
       --shielded-vtpm \
       --shielded-integrity-monitoring \
-      --labels=goog-ec-src=vm_add-sudo gcloud \
+      --labels=goog-ec-src=vm_add-gcloud \
       --reservation-affinity=any
 
   echo "Wait for 60 seconds for new VM to be initialised"
