@@ -4,7 +4,7 @@ set -e
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 echo Installing pip and fuse..
 sudo apt-get install fuse -y
-sudo apt-get install pip -y
+sudo apt-get install python-pip -y
 echo Installing requirements..
 pip install --require-hashes -r requirements.txt --user
 echo "$1"
