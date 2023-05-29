@@ -57,7 +57,7 @@ gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 chmod +x run_load_test_and_fetch_metrics.sh
 #./run_load_test_and_fetch_metrics.sh
 
-sudo umount $MOUNT_POINT
+fusermount -u $MOUNT_POINT
 
 GCSFUSE_FLAGS_SUBSET="--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library"
 # ls_metrics test. This test does gcsfuse mount first and then do the testing.
