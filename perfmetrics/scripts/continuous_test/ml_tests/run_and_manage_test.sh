@@ -85,6 +85,7 @@ function copy_run_artifacts_to_gcs () {
     set +e
     echo "Copying GCSFuse logs to GCS bucket"
     sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil rsync -R -d \$HOME/github/gcsfuse/container_artifacts/ $ARTIFACTS_BUCKET_PATH/$1/container_artifacts"
+    echo "\n"
   )
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp \$HOME/build.out $ARTIFACTS_BUCKET_PATH/$1/build.out"
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp \$HOME/build.err $ARTIFACTS_BUCKET_PATH/$1/build.err"
