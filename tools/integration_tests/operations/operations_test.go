@@ -26,10 +26,8 @@ import (
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--enable-storage-client-library=true", "--implicit-dirs=true"},
-		{"--enable-storage-client-library=false"},
-		{"--implicit-dirs=true"},
-		{"--implicit-dirs=false"}}
+	flags := [][]string{{"--implicit-dirs", "--enable-storage-client-library=true"},
+		{"--implicit-dirs", "--enable-storage-client-library=false"}}
 
 	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
 		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
