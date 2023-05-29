@@ -33,7 +33,7 @@ function delete_existing_vm_and_create_new () {
     set +e
     echo "Deleting VM $VM_NAME in zone $ZONE_NAME."
     sudo gcloud compute instances delete $VM_NAME --zone $ZONE_NAME --quiet
-    if [ $? = 0 ];
+    if [ $? -eq 0 ];
     then
       echo "Machine deleted successfully !"
     then
