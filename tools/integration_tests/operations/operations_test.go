@@ -20,8 +20,23 @@ import (
 	"os"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
+
+const MoveFile = "move.txt"
+const MoveFileContent = "This is from move file in Test directory.\n"
+const SrcCopyDirectory = "srcCopyDir"
+const SubSrcCopyDirectory = "subSrcCopyDir"
+const SrcCopyFile = "copy.txt"
+const SrcCopyFileContent = "This is from copy file in srcCopy directory.\n"
+const DestCopyDirectory = "destCopyDir"
+const DestNonEmptyCopyDirectory = "destNonEmptyCopyDirectory"
+const SubDirInNonEmptyDestCopyDirectory = "subDestCopyDir"
+const DestCopyDirectoryNotExist = "notExist"
+const NumberOfObjectsInSrcCopyDirectory = 2
+const NumberOfObjectsInDestCopyDirectory = 2
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
@@ -29,12 +44,22 @@ func TestMain(m *testing.M) {
 	flags := [][]string{{"--implicit-dirs", "--enable-storage-client-library=true"},
 		{"--implicit-dirs", "--enable-storage-client-library=false"}}
 
+	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
+
 	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
 		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
 		os.Exit(1)
 	}
 
-	successCode := setup.RunTests(flags, m)
+	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
+	setup.RunTestsForMountedDirectoryFlag(m)
+
+	// Run tests for testBucket
+	successCode := static_mounting.RunTests(flags, m)
+
+	if successCode == 0 {
+		successCode = only_dir_mounting.RunTests(flags, m)
+	}
 
 	os.Exit(successCode)
 }

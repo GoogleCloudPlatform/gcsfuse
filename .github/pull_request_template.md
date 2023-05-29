@@ -1,9 +1,9 @@
-This will be pull request template
 ### Description
 
 ### Link to the issue in case of a bug fix.
+NA
 
 ### Testing details
-1. Manual
-2. Unit tests
-3. Integration tests
+1. Manual - NA
+2. Unit tests - NA
+3. Integration tests - NA

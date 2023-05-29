@@ -20,33 +20,41 @@ import (
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/setup"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-// Rename oldObj to newObj
-func checkIfRenameFailed(oldObjPath string, newObjPath string, t *testing.T) {
-	_, err := os.Stat(oldObjPath)
-	if err != nil {
-		t.Errorf("Error in the stating object: %v", err)
-	}
-
-	if _, err := os.Stat(newObjPath); err == nil {
-		t.Errorf("Renamed object %s already present", newObjPath)
-	}
-
-	err = os.Rename(oldObjPath, newObjPath)
-
+// Rename oldFile to newFile
+func checkIfRenameFileFailed(oldFilePath string, newFilePath string, t *testing.T) {
+	err := operations.RenameFile(oldFilePath, newFilePath)
 	if err == nil {
-		t.Errorf("Object renamed in read-only file system.")
+		t.Errorf("File renamed in read-only file system.")
 	}
 
 	checkErrorForReadOnlyFileSystem(err, t)
 
-	if _, err := os.Stat(oldObjPath); err != nil {
-		t.Errorf("OldObj is deleted in read-only file system.")
+	if _, err := os.Stat(oldFilePath); err != nil {
+		t.Errorf("Old file is deleted in read-only file system.")
 	}
-	if _, err := os.Stat(newObjPath); err == nil {
-		t.Errorf("Renamed object found in read-only file system.")
+	if _, err := os.Stat(newFilePath); err == nil {
+		t.Errorf("Renamed file found in read-only file system.")
+	}
+}
+
+// Rename oldDir to newDir
+func checkIfRenameDirFailed(oldDirPath string, newDirPath string, t *testing.T) {
+	err := operations.RenameDir(oldDirPath, newDirPath)
+	if err == nil {
+		t.Errorf("Directory renamed in read-only file system.")
+	}
+
+	checkErrorForReadOnlyFileSystem(err, t)
+
+	if _, err := os.Stat(oldDirPath); err != nil {
+		t.Errorf("Old directory is deleted in read-only file system.")
+	}
+	if _, err := os.Stat(newDirPath); err == nil {
+		t.Errorf("Renamed directory found in read-only file system.")
 	}
 }
 
@@ -55,7 +63,7 @@ func TestRenameFile(t *testing.T) {
 	oldFilePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 	newFilePath := path.Join(setup.MntDir(), RenameFile)
 
-	checkIfRenameFailed(oldFilePath, newFilePath, t)
+	checkIfRenameFileFailed(oldFilePath, newFilePath, t)
 }
 
 // Rename testBucket/Test/a.txt to testBucket/Test/Rename.txt
@@ -63,7 +71,7 @@ func TestRenameFileFromBucketDirectory(t *testing.T) {
 	oldFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 	newFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, RenameFile)
 
-	checkIfRenameFailed(oldFilePath, newFilePath, t)
+	checkIfRenameFileFailed(oldFilePath, newFilePath, t)
 }
 
 // Rename testBucket/Test/b/b.txt to testBucket/Test/b/Rename.txt
@@ -71,7 +79,7 @@ func TestRenameFileFromBucketSubDirectory(t *testing.T) {
 	oldFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
 	newFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, RenameFile)
 
-	checkIfRenameFailed(oldFilePath, newFilePath, t)
+	checkIfRenameFileFailed(oldFilePath, newFilePath, t)
 }
 
 // Rename testBucket/Test to testBucket/Rename
@@ -79,7 +87,7 @@ func TestRenameDir(t *testing.T) {
 	oldDirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
 	newDirPath := path.Join(setup.MntDir(), RenameDir)
 
-	checkIfRenameFailed(oldDirPath, newDirPath, t)
+	checkIfRenameDirFailed(oldDirPath, newDirPath, t)
 
 	// Ensure none of the child is deleted during the directory rename test.
 	// ** OldDirectory structure **
@@ -115,7 +123,7 @@ func TestRenameSubDirectory(t *testing.T) {
 	oldDirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
 	newDirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, RenameDir)
 
-	checkIfRenameFailed(oldDirPath, newDirPath, t)
+	checkIfRenameDirFailed(oldDirPath, newDirPath, t)
 
 	// Ensure none of the child is deleted during the directory rename test.
 	// ** OldDirectory structure **
