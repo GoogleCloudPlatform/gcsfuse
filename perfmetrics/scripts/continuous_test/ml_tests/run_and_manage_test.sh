@@ -36,7 +36,7 @@ function delete_existing_vm_and_create_new () {
     if [ $? -eq 0 ];
     then
       echo "Machine deleted successfully !"
-    then
+    else
       echo "Machine was not deleted as it doesn't exist."
     fi
   )
