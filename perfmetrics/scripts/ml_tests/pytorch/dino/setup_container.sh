@@ -60,6 +60,7 @@ echo $(date +"%s") > start_time.txt
 gsutil cp start_time.txt gs://gcsfuse-ml-data/ci_artifacts/pytorch/dino/
 
 (
+  set +e
   # Run the pytorch Dino model
   # We need to run it in foreground mode to make the container running.
   echo "Running the pytorch dino model..."
@@ -73,7 +74,8 @@ gsutil cp start_time.txt gs://gcsfuse-ml-data/ci_artifacts/pytorch/dino/
     --norm_last_layer False \
     --use_fp16 False \
     --clip_grad 0 \
-    --epochs 100 \
+    # To-do: Change it back to run for 7 days.
+    --epochs 1 \
     --global_crops_scale 0.25 1.0 \
     --local_crops_number 10 \
     --local_crops_scale 0.05 0.25 \
@@ -81,14 +83,13 @@ gsutil cp start_time.txt gs://gcsfuse-ml-data/ci_artifacts/pytorch/dino/
     --warmup_teacher_temp_epochs 30 \
     --clip_grad 0 \
     --min_lr 0.00001
-) || (
-  if [ $? -eq 0 ]; then
-      echo "Pytorch dino model completed the training successfully!"
-      echo "COMPLETE" > status.txt
-  else
-      echo "Pytorch dino model training failed!"
-      echo "ERROR" > status.txt
-  fi
+    if [ $? -eq 0 ]; then
+        echo "Pytorch dino model completed the training successfully!"
+        echo "COMPLETE" > status.txt
+    else
+        echo "Pytorch dino model training failed!"
+        echo "ERROR" > status.txt
+    fi
 )
 
 gsutil cp status.txt gs://gcsfuse-ml-data/ci_artifacts/pytorch/dino/

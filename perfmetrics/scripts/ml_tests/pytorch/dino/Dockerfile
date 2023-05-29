@@ -13,8 +13,7 @@
 # limitations under the License.
 
 # Image with gcsfuse installed and its package (.deb)
-# To-Do Change to apt version:
-FROM gcr.io/deeplearning-platform-release/pytorch-gpu
+FROM gcr.io/deeplearning-platform-release/pytorch-gpu.1-12
 
 # Allow non-root users to specify the allow_other or allow_root mount options
 RUN echo "user_allow_other" > /etc/fuse.conf
