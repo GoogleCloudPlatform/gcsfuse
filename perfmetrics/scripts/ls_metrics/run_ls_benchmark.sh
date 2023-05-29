@@ -6,7 +6,7 @@ echo Installing pip and fuse..
 sudo apt-get install fuse -y
 #sudo apt-get install python3-pip -y
 echo Installing requirements..
-pip install --require-hashes -r requirements.txt --user
+pip3 install --require-hashes -r requirements.txt --user
 echo "$1"
 echo Running script..
 # Upload data to the gsheet only when it runs through kokoro.
