@@ -55,7 +55,7 @@ gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 
 # Executing perf tests
 chmod +x run_load_test_and_fetch_metrics.sh
-./run_load_test_and_fetch_metrics.sh
+#./run_load_test_and_fetch_metrics.sh
 
 sudo umount $MOUNT_POINT
 

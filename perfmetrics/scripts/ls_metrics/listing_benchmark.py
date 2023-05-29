@@ -483,6 +483,8 @@ if __name__ == '__main__':
 
   args = _parse_arguments(argv)
 
+  print(args.gcsfuse_flags[0])
+
   _check_dependencies(['gsutil', 'gcsfuse'])
 
   with open(os.path.abspath(args.config_file)) as file:
