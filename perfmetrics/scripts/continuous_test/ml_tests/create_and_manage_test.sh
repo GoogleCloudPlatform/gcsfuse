@@ -46,6 +46,14 @@ function delete_existing_vm_and_create_new () {
 
   echo "Wait for 60 seconds for new VM to be initialised"
   sleep 30s
+
+  echo "Delete existing ssh keys "
+  # This is required to avoid issue: https://github.com/kyma-project/test-infra/issues/93
+  for i in $(sudo gcloud compute os-login ssh-keys list | grep -v FINGERPRINT); do sudo gcloud compute os-login ssh-keys remove --key $i; done
+
+  # Requires running first ssh command with --quiet option to initialize keys.
+  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --quiet --command "echo 'Running from VM'"
+
 }
 
 function copy_artifacts_to_gcs () {
@@ -90,8 +98,6 @@ then
   delete_existing_vm_and_create_new
   
   echo "Clone the gcsfuse repo on VM (GPU)"
-  # Requires running first ssh command with --quiet option to initialize keys.
-  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --quiet --command "echo 'Running from VM'"
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "mkdir github; cd github; git clone https://github.com/GoogleCloudPlatform/gcsfuse.git; cd gcsfuse; git checkout ai_ml_tests;"
   echo "Trigger the build script on VM (GPU)"
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "bash \$HOME/$TEST_SCRIPT_PATH 1> ~/build.out 2> ~/build.err &"
