@@ -75,13 +75,13 @@ function delete_existing_vm_and_create_new () {
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --quiet --command "echo 'Running from VM'"
 }
 
-# Takes commit id of run ($1) and copies the on-going test run artifacts to GCS
-# bucket
+# Takes commit id of on-going test run ($1) artifacts to GCS bucket
 function copy_run_artifacts_to_gcs () {
   (
     # We don't want to exit if failure occurs while copying GCSFuse logs because
-    # it gsutil always gives error while uploading files that are changing while
-    # uploading (e.g. gcsfuse logs files in that case)
+    # gsutil always gives error (even the files are copied) while uploading
+    # files that are changing while uploading and gcsfuse logs are changing
+    # when the test is running.
     set +e
     echo "Copying GCSFuse logs to GCS bucket"
     sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil rsync -R -d \$HOME/github/gcsfuse/container_artifacts/ $ARTIFACTS_BUCKET_PATH/$1/container_artifacts"
@@ -114,14 +114,13 @@ function get_run_commit_id () {
   echo $commit_id
 }
 
-# Set project
 sudo gcloud config set project $GCP_PROJECT
 current_status=$(get_run_status)
 echo "The current status is $current_status"
 exit_status=0
 
 # Transitions:
-# START to START: If model doesn't run due to some error.
+# START to START: If model run is not triggerred due to some error.
 # START to RUNNING: If model is successfully triggerred on GPU. This state is 
 #                   changed by setup_host.sh that runs inside docker container of test VM.
 if [ $current_status == "START" ];
@@ -134,10 +133,11 @@ then
   delete_existing_vm_and_create_new
   
   echo "Clone the gcsfuse repo on test VM"
+  # To-do: change checkout to master branch before merging.
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "mkdir github; cd github; git clone https://github.com/GoogleCloudPlatform/gcsfuse.git; cd gcsfuse; git checkout ai_ml_tests;"
   echo "Trigger the build script on test VM"
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "bash \$HOME/$TEST_SCRIPT_PATH 1> ~/build.out 2> ~/build.err &"
-  echo "Wait for 10 minutes for test VM to setup for test and change the status from START to RUNNING."
+  echo "Wait for 10 minutes for test VM to setup for test and to change the status from START to RUNNING."
   sleep 600s
 
   # If the model is still not running after waiting, then the build should fail.
