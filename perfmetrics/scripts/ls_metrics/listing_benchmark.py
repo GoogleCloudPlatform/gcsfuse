@@ -9,7 +9,7 @@ and also through which multiple tests of different configurations can be
 performed in a single run.
 
 Typical usage example:
-  $ python3 listing_benchmark.py [-h] [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --command COMMAND config_file
+  $ python3 listing_benchmark.py [-h] [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --command COMMAND config_file gcsfuse_flags
 
   Flag -h: Typical help interface of the script.
   Flag --keep_files: Do not delete the generated directory structure from the
@@ -356,7 +356,7 @@ def _unmount_gcs_bucket(gcs_bucket) -> None:
         gcs_bucket)
 
 
-def _mount_gcs_bucket(bucket_name) -> str:
+def _mount_gcs_bucket(bucket_name, gcsfuse_flags) -> str:
   """Mounts the GCS bucket into the gcs_bucket directory.
 
   Args:
@@ -375,8 +375,8 @@ def _mount_gcs_bucket(bucket_name) -> str:
   subprocess.call('mkdir {}'.format(gcs_bucket), shell=True)
 
   exit_code = subprocess.call(
-      'gcsfuse --implicit-dirs --enable-storage-client-library --max-conns-per-host 100 {} {}'.format(
-          bucket_name, gcs_bucket), shell=True)
+      '{} {} {}'.format(
+          gcsfuse_flags, bucket_name, gcs_bucket), shell=True)
   if exit_code != 0:
     log.error('Cannot mount the GCS bucket due to exit code %s.\n', exit_code)
     subprocess.call('bash', shell=True)
@@ -439,6 +439,14 @@ def _parse_arguments(argv):
       default=['ls -R'],
       required=True,
   )
+  parser.add_argument(
+      '--gcsfuse_flags',
+      help='Gcsfuse flags for mounting the bucket',
+      action='store',
+      nargs=1,
+      default=['gcsfuse --implicit-dirs --enable-storage-client-library --max-conns-per-host 100'],
+      required=True,
+  )
   # Ignoring the first parameter, as it is the path of this python
   # script itself.
   return parser.parse_args(argv[1:])
@@ -468,10 +476,10 @@ def _check_dependencies(packages) -> None:
 
 if __name__ == '__main__':
   argv = sys.argv
-  if len(argv) < 3:
+  if len(argv) < 4:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
-                    'python3 listing_benchmark.py [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --command COMMAND config_file')
+                    'python3 listing_benchmark.py --gcsfuse_flags GCSFUSE_FLAGS [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --command COMMAND config_file ')
 
   args = _parse_arguments(argv)
 
@@ -522,7 +530,7 @@ if __name__ == '__main__':
     subprocess.call('bash', shell=True)
   log.info('Directory Structure Created.\n')
 
-  gcs_bucket = _mount_gcs_bucket(directory_structure.name)
+  gcs_bucket = _mount_gcs_bucket(directory_structure.name, args.gcsfuse_flags[0])
 
   gcs_bucket_results, persistent_disk_results = _perform_testing(
       directory_structure.folders, gcs_bucket, persistent_disk,

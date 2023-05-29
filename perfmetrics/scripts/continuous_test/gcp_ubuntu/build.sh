@@ -46,34 +46,12 @@ cd "./perfmetrics/scripts/"
 echo "Mounting gcs bucket"
 mkdir -p gcs
 LOG_FILE=gcsfuse-logs.txt
+GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"
 
-declare -A dict
-
-dict["--implicit-dirs"]="false"
-dict["--max-conns-per-host"]="100"
-dict["--enable-storage-client-library"]="false"
-dict["--debug_fuse"]="false"
-dict["--debug_gcs"]="false"
-dict["--log-file"]=$LOG_FILE
-dict["--log-format"]="\"text\""
-dict["--stackdriver-export-interval"]="30s"
-
-
-GCSFUSE_FLAGS=""
-
-for key in "${!dict[@]}"; do
-    if [ "${dict[$key]}" = "false" ]; then
-        GCSFUSE_FLAGS="$GCSFUSE_FLAGS""$key"" "
-    else
-        GCSFUSE_FLAGS="$GCSFUSE_FLAGS""$key"" ""${dict[$key]}"" "
-    fi
-done
-
-echo "$GCSFUSE_FLAGS"
 BUCKET_NAME=periodic-perf-experiments
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
-gcsfuse "$GCSFUSE_FLAGS"$BUCKET_NAME $MOUNT_POINT
+gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 
 # Executing perf tests
 chmod +x run_load_test_and_fetch_metrics.sh
@@ -81,7 +59,8 @@ chmod +x run_load_test_and_fetch_metrics.sh
 
 sudo umount $MOUNT_POINT
 
+GCSFUSE_FLAGS_SUBSET="--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library"
 # ls_metrics test. This test does gcsfuse mount first and then do the testing.
 cd "./ls_metrics"
 chmod +x run_ls_benchmark.sh
-./run_ls_benchmark.sh "$GCSFUSE_FLAGS"
+./run_ls_benchmark.sh "$GCSFUSE_FLAGS_SUBSET"
