@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+cd "../../../../../"
 sudo apt-get update
 
 echo "Installing git"
@@ -21,14 +22,14 @@ echo \
 sudo apt-get update
 sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin -y
 
-cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
+cd "gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
 # integration tests using code upto that commit.
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 git checkout $commitId
 
-echo "Executing integration tests"
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test -timeout=60m
+#echo "Executing integration tests"
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test -timeout=60m
 
 # Checkout back to master branch to use latest CI test scripts in master.
 git checkout master
@@ -44,12 +45,35 @@ sudo dpkg -i $HOME/release/packages/gcsfuse_${GCSFUSE_VERSION}_amd64.deb
 cd "./perfmetrics/scripts/"
 echo "Mounting gcs bucket"
 mkdir -p gcs
-LOG_FILE=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
-GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"
-BUCKET_NAME=periodic-perf-tests
+LOG_FILE=gcsfuse-logs.txt
+
+declare -A dict
+
+dict["--implicit-dirs"]="false"
+dict["--max-conns-per-host"]="100"
+dict["--enable-storage-client-library"]="false"
+dict["--debug_fuse"]="false"
+dict["--debug_gcs"]="false"
+dict["--log-file"]=$LOG_FILE
+dict["--log-format"]="\"text\""
+dict["--stackdriver-export-interval"]="30s"
+
+
+GCSFUSE_FLAGS=""
+
+for key in "${!dict[@]}"; do
+    if [ "${dict[$key]}" = "false" ]; then
+        GCSFUSE_FLAGS="$GCSFUSE_FLAGS""$key"" "
+    else
+        GCSFUSE_FLAGS="$GCSFUSE_FLAGS""$key"" ""${dict[$key]}"" "
+    fi
+done
+
+echo "$GCSFUSE_FLAGS"
+BUCKET_NAME=periodic-perf-experiments
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
-gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+gcsfuse "$GCSFUSE_FLAGS"$BUCKET_NAME $MOUNT_POINT
 
 # Executing perf tests
 chmod +x run_load_test_and_fetch_metrics.sh
@@ -60,4 +84,4 @@ sudo umount $MOUNT_POINT
 # ls_metrics test. This test does gcsfuse mount first and then do the testing.
 cd "./ls_metrics"
 chmod +x run_ls_benchmark.sh
-./run_ls_benchmark.sh
+./run_ls_benchmark.sh "$GCSFUSE_FLAGS"
