@@ -384,7 +384,7 @@ def _mount_gcs_bucket(bucket_name, gcsfuse_flags) -> str:
   subprocess.call('mkdir {}'.format(gcs_bucket), shell=True)
 
   exit_code = subprocess.call(
-      '{} {} {}'.format(
+      'gcsfuse {} {} {}'.format(
           gcsfuse_flags, bucket_name, gcs_bucket), shell=True)
   if exit_code != 0:
     log.error('Cannot mount the GCS bucket due to exit code %s.\n', exit_code)
