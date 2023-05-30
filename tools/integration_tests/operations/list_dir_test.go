@@ -92,7 +92,6 @@ func listDirectory(path string, t *testing.T) {
 	//Reading contents of the directory
 	objs, err := os.ReadDir(path)
 
-	// error handling
 	if err != nil {
 		log.Fatal(err)
 	}
