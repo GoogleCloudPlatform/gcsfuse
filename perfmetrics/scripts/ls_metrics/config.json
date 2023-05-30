@@ -1,6 +1,6 @@
 {
         "name": "listing-benchmark-experiments" ,
-        "num_folders": 1 ,
+        "num_folders": 11 ,
         "folders": [
                 {
                         "name": "1KB_1000files_0subdir" ,
