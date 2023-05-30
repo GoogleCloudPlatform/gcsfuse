@@ -322,11 +322,11 @@ def _compare_directory_structure(url, directory_structure) -> bool:
     else:
       files.append(content)
 
-  print(len(folders))
+  print("folders", len(folders))
   if len(folders) != directory_structure.num_folders:
     return False
 
-  print(len(files))
+  print("files", len(files))
   if len(files) != directory_structure.num_files:
     return False
 
