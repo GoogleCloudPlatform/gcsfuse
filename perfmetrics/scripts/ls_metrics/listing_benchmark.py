@@ -38,7 +38,7 @@ import directory_pb2 as directory_proto
 sys.path.insert(0, '..')
 import generate_files
 from google.protobuf.json_format import ParseDict
-from gsheet import gsheet
+#from gsheet import gsheet
 import numpy as np
 
 
@@ -545,14 +545,14 @@ if __name__ == '__main__':
       directory_structure.folders, persistent_disk_results, args.message[0],
       int(args.num_samples[0]))
 
-  if args.upload:
-    log.info('Uploading files to the Google Sheet.\n')
-    _export_to_gsheet(
-        directory_structure.folders, gcs_parsed_metrics, args.command[0],
-        WORKSHEET_NAME_GCS)
-    _export_to_gsheet(
-        directory_structure.folders, pd_parsed_metrics, args.command[0],
-        WORKSHEET_NAME_PD)
+  # if args.upload:
+  #   log.info('Uploading files to the Google Sheet.\n')
+  #   _export_to_gsheet(
+  #       directory_structure.folders, gcs_parsed_metrics, args.command[0],
+  #       WORKSHEET_NAME_GCS)
+  #   _export_to_gsheet(
+  #       directory_structure.folders, pd_parsed_metrics, args.command[0],
+  #       WORKSHEET_NAME_PD)
 
   if not args.keep_files:
     log.info('Deleting files from persistent disk.\n')
