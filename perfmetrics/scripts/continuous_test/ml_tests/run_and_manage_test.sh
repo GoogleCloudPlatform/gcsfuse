@@ -16,10 +16,8 @@
 # This will stop execution when any command will have non-zero status.
 set -e
 
-# to-do: change back to 7.5 days
 # 7.5 days of timeout for running test
-#TIMEOUT=$(echo "7.5*24*60*60" | bc)
-TIMEOUT=$(echo "30*60" | bc)
+TIMEOUT=$(echo "7.5*24*60*60" | bc)
 GCP_PROJECT="gcs-fuse-test"
 # Name of test VM.
 VM_NAME=$1
