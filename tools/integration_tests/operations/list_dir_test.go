@@ -56,30 +56,30 @@ func checkIfListedCorrectDirectory(dirPath string, obj fs.DirEntry, t *testing.T
 	switch dirName {
 	case setup.MntDir():
 		{
-			// testBucket/directoryForListTest
+			// testBucket/directoryForListTest    -- Dir
 			if obj.Name() != DirectoryForListTest || obj.IsDir() != true {
 				t.Errorf("Listed incorrect object.")
 			}
 		}
 	case DirectoryForListTest:
 		{
-			// testBucket/directoryForListTest/fileInDirectoryForListTest
-			// testBucket/directoryForListTest/firstSubDirectoryForListTest
-			// testBucket/directoryForListTest/secondSubDirectoryForListTest
+			// testBucket/directoryForListTest/fileInDirectoryForListTest     -- File
+			// testBucket/directoryForListTest/firstSubDirectoryForListTest   -- Dir
+			// testBucket/directoryForListTest/secondSubDirectoryForListTest  -- Dir
 			if (obj.Name() != FileInDirectoryForListTest && obj.IsDir() == true) && (obj.Name() != FirstSubDirectoryForListTest && obj.IsDir() != true) && (obj.Name() != SecondSubDirectoryForListTest && obj.IsDir() != true) {
 				t.Errorf("Listed incorrect object")
 			}
 		}
 	case FirstSubDirectoryForListTest:
 		{
-			// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest
+			// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest     -- File
 			if obj.Name() != FileInFirstSubDirectoryForListTest && obj.IsDir() == true {
 				t.Errorf("Listed incorrect object")
 			}
 		}
 	case SecondSubDirectoryForListTest:
 		{
-			// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest
+			// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest   -- File
 			if obj.Name() != FileInSecondSubDirectoryForListTest && obj.IsDir() == true {
 				t.Errorf("Listed incorrect object")
 			}
@@ -90,14 +90,14 @@ func checkIfListedCorrectDirectory(dirPath string, obj fs.DirEntry, t *testing.T
 // List directory recursively
 func listDirectory(path string, t *testing.T) {
 	//Reading contents of the directory
-	files, err := os.ReadDir(path)
+	objs, err := os.ReadDir(path)
 
 	// error handling
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for _, obj := range files {
+	for _, obj := range objs {
 		checkIfListedCorrectDirectory(path, obj, t)
 		if obj.IsDir() {
 			subDirectoryPath := filepath.Join(path, obj.Name()) // path of the subdirectory
