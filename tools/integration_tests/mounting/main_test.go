@@ -55,7 +55,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// Build into that directory.
-	if *setup.TestPackageDir == "" {
+	if *setup.TestPackagePath == "" {
 		err = util.BuildGcsfuse(gBuildDir)
 		if err != nil {
 			log.Fatalf("buildGcsfuse: %p", err)

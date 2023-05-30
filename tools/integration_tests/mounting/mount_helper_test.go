@@ -57,13 +57,13 @@ func (t *MountHelperTest) SetUp(_ *TestInfo) {
 	switch runtime.GOOS {
 	case "darwin":
 		t.helperPath = path.Join(gBuildDir, "sbin/mount_gcsfuse")
-		if *setup.TestPackageDir != "" {
+		if *setup.TestPackagePath != "" {
 			t.helperPath = "/sbin/mount_gcsfuse"
 		}
 
 	case "linux":
 		t.helperPath = path.Join(gBuildDir, "sbin/mount.gcsfuse")
-		if *setup.TestPackageDir != "" {
+		if *setup.TestPackagePath != "" {
 			t.helperPath = "/sbin/mount.gcsfuse"
 		}
 
@@ -258,7 +258,7 @@ func (t *MountHelperTest) FuseSubtype() {
 
 	// Mount using the tool that would be invoked by ~mount -t fuse.gcsfuse`.
 	t.helperPath = path.Join(gBuildDir, "sbin/mount.fuse.gcsfuse")
-	if *setup.TestPackageDir != "" {
+	if *setup.TestPackagePath != "" {
 		t.helperPath = "/sbin/mount.fuse.gcsfuse"
 	}
 	args := []string{canned.FakeBucketName, t.dir}
