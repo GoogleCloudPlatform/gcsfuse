@@ -25,6 +25,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
 	storagev1 "google.golang.org/api/storage/v1"
+
 )
 
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
@@ -105,6 +106,11 @@ type Bucket interface {
 		ctx context.Context,
 		req *ListObjectsRequest) (*Listing, error)
 
+
+	ListMinObjects(
+    		ctx context.Context,
+    		req *ListObjectsRequest) (*MinObjectListing, error)
+
 	// Update the object specified by newAttrs.Name, patching using the non-zero
 	// fields of newAttrs.
 	//
@@ -133,6 +139,81 @@ type bucket struct {
 
 func (b *bucket) Name() string {
 	return b.name
+}
+
+func (b *bucket) ListMinObjects(
+	ctx context.Context,
+	req *ListObjectsRequest) (listing *MinObjectListing, err error) {
+	// Construct an appropriate URL (cf. http://goo.gl/aVSAhT).
+	opaque := fmt.Sprintf(
+		"//%s/storage/v1/b/%s/o",
+		b.url.Host,
+		httputil.EncodePathSegment(b.Name()))
+
+	query := make(url.Values)
+	query.Set("projection", req.ProjectionVal.String())
+
+	if req.Prefix != "" {
+		query.Set("prefix", req.Prefix)
+	}
+
+	if req.Delimiter != "" {
+		query.Set("delimiter", req.Delimiter)
+		query.Set("includeTrailingDelimiter",
+			fmt.Sprintf("%v", req.IncludeTrailingDelimiter))
+	}
+
+	if req.ContinuationToken != "" {
+		query.Set("pageToken", req.ContinuationToken)
+	}
+
+	if req.MaxResults != 0 {
+		query.Set("maxResults", fmt.Sprintf("%v", req.MaxResults))
+	}
+
+	if b.billingProject != "" {
+		query.Set("userProject", b.billingProject)
+	}
+
+	url := &url.URL{
+		Scheme:   b.url.Scheme,
+		Host:     b.url.Host,
+		Opaque:   opaque,
+		RawQuery: query.Encode(),
+	}
+
+	// Create an HTTP request.
+	httpReq, err := httputil.NewRequest(ctx, "GET", url, nil, 0, b.userAgent)
+	if err != nil {
+		err = fmt.Errorf("httputil.NewRequest: %v", err)
+		return
+	}
+
+	// Call the server.
+	httpRes, err := b.client.Do(httpReq)
+	if err != nil {
+		return
+	}
+
+	defer googleapi.CloseBody(httpRes)
+
+	// Check for HTTP-level errors.
+	if err = googleapi.CheckResponse(httpRes); err != nil {
+		return
+	}
+
+	// Parse the response.
+	var rawListing *storagev1.Objects
+	if err = json.NewDecoder(httpRes.Body).Decode(&rawListing); err != nil {
+		return
+	}
+
+	// Convert the response.
+	if listing, err = toMinListing(rawListing); err != nil {
+		return
+	}
+
+	return
 }
 
 func (b *bucket) ListObjects(

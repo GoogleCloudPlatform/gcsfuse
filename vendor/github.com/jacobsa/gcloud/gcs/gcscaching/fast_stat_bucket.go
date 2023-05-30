@@ -81,6 +81,18 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
+func (b *fastStatBucket) insertMultipleMin(objs []*gcs.MinObject) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	expiration := b.clock.Now().Add(b.ttl)
+	for _, o := range objs {
+		b.cache.InsertMin(o, expiration)
+	}
+}
+
+
+// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) insert(o *gcs.Object) {
 	b.insertMultiple([]*gcs.Object{o})
 }
@@ -209,6 +221,22 @@ func (b *fastStatBucket) StatObject(
 	}
 
 	return b.StatObjectFromGcs(ctx, req)
+}
+
+// LOCKS_EXCLUDED(b.mu)
+func (b *fastStatBucket) ListMinObjects(
+	ctx context.Context,
+	req *gcs.ListObjectsRequest) (listing *gcs.MinObjectListing, err error) {
+	// Fetch the listing.
+	listing, err = b.wrapped.ListMinObjects(ctx, req)
+	if err != nil {
+		return
+	}
+
+	// Note anything we found.
+	b.insertMultipleMin(listing.Objects)
+
+	return
 }
 
 // LOCKS_EXCLUDED(b.mu)

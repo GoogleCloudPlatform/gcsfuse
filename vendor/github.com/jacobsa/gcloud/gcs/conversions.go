@@ -65,6 +65,8 @@ func toListing(in *storagev1.Objects) (out *Listing, err error) {
 	return
 }
 
+
+
 func toObject(in *storagev1.Object) (out *Object, err error) {
 	// Convert the easy fields.
 	out = &Object{
@@ -156,6 +158,53 @@ func toObject(in *storagev1.Object) (out *Object, err error) {
 	return
 }
 
+
+
+func toMinObject ( in *storagev1.Object) (out *MinObject, err error){
+    out = &MinObject{
+    Name : in.Name,
+    Size : in.Size,
+    Generation: in.Generation,
+    MetaGeneration: in.Metageneration,
+    Metadata : in.Metadata,
+    }
+if out.Updated, err = toTime(in.Updated); err != nil {
+		err = fmt.Errorf("Decoding Updated field: %v", err)
+		return
+	}
+    return
+}
+
+
+func toMinObjects(in []*storagev1.Object) (out []*MinObject, err error) {
+	for _, rawObject := range in {
+		var o *MinObject
+		o, err = toMinObject(rawObject)
+		if err != nil {
+			err = fmt.Errorf("toObject(%q): %v", o.Name, err)
+			return
+		}
+
+		out = append(out, o)
+	}
+
+	return
+}
+
+func toMinListing(in *storagev1.Objects) (out *MinObjectListing, err error) {
+	out = &MinObjectListing{
+		CollapsedRuns:     in.Prefixes,
+		ContinuationToken: in.NextPageToken,
+	}
+
+	out.Objects, err = toMinObjects(in.Items)
+	if err != nil {
+		err = fmt.Errorf("toObjects: %v", err)
+		return
+	}
+
+	return
+}
 ////////////////////////////////////////////////////////////////////////
 // From our types
 ////////////////////////////////////////////////////////////////////////

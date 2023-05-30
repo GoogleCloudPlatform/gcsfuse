@@ -311,6 +311,14 @@ type Listing struct {
 	ContinuationToken string
 }
 
+
+type MinObjectListing struct {
+    Objects []*MinObject
+    ContinuationToken string
+    CollapsedRuns []string
+}
+
+
 // A request to update the metadata of an object, accepted by
 // Bucket.UpdateObject.
 type UpdateObjectRequest struct {

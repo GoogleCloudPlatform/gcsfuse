@@ -501,6 +501,20 @@ func (rb *retryBucket) StatObject(
 	return
 }
 
+func (rb *retryBucket) ListMinObjects(
+	ctx context.Context,
+	req *ListObjectsRequest) (listing *MinObjectListing, err error) {
+	err = oneShotExpBackoff(
+		ctx,
+		fmt.Sprintf("ListObjects(%q)", req.Prefix),
+		rb.maxSleep,
+		func() (err error) {
+			listing, err = rb.wrapped.ListMinObjects(ctx, req)
+			return
+		})
+	return
+}
+
 func (rb *retryBucket) ListObjects(
 	ctx context.Context,
 	req *ListObjectsRequest) (listing *Listing, err error) {

@@ -20,6 +20,8 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
+
+
 )
 
 // When this custom metadata key is present in an object record, it is to be
@@ -32,6 +34,12 @@ func IsSymlink(o *gcs.Object) bool {
 	_, ok := o.Metadata[SymlinkMetadataKey]
 	return ok
 }
+
+func IsMinSymlink(o *gcs.MinObject) bool{
+_, ok := o.Metadata[SymlinkMetadataKey]
+	return ok
+}
+
 
 type SymlinkInode struct {
 	/////////////////////////

@@ -529,6 +529,93 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 
 }
 
+
+func (d *dirInode) readMinObjects(
+	ctx context.Context,
+	tok string) (cores map[Name]*MinCore, newTok string, err error) {
+	// Ask the bucket to list some objects.
+	req := &gcs.ListObjectsRequest{
+		Delimiter:                "/",
+		IncludeTrailingDelimiter: true,
+		Prefix:                   d.Name().GcsObjectName(),
+		ContinuationToken:        tok,
+		MaxResults:               MaxResultsForListObjectsCall,
+		// Setting Projection param to noAcl since fetching owner and acls are not
+		// required.
+		ProjectionVal: gcs.NoAcl,
+	}
+
+	listing, err := d.bucket.ListMinObjects(ctx, req)
+	if err != nil {
+		err = fmt.Errorf("ListObjects: %w", err)
+		return
+	}
+
+	cores = make(map[Name]*MinCore)
+	defer func() {
+		now := d.cacheClock.Now()
+		for fullName, c := range cores {
+			d.cache.Insert(now, path.Base(fullName.LocalName()), c.MinObjectType())
+		}
+	}()
+
+	for _, o := range listing.Objects {
+		// Skip empty results or the directory object backing this inode.
+		if o.Name == d.Name().GcsObjectName() || o.Name == "" {
+			continue
+		}
+
+		nameBase := path.Base(o.Name) // ie. "bar" from "foo/bar/" or "foo/bar"
+
+		// Given the alphabetical order of the objects, if a file "foo" and
+		// directory "foo/" coexist, the directory would eventually occupy
+		// the value of records["foo"].
+		if strings.HasSuffix(o.Name, "/") {
+			dirName := NewDirName(d.Name(), nameBase)
+			explicitDir := &MinCore{
+				Bucket:   d.Bucket(),
+				FullName: dirName,
+				Object:   o,
+			}
+			cores[dirName] = explicitDir
+		} else {
+			fileName := NewFileName(d.Name(), nameBase)
+			file := &MinCore{
+				Bucket:   d.Bucket(),
+				FullName: fileName,
+				Object:   o,
+			}
+			cores[fileName] = file
+		}
+	}
+
+	// Return an appropriate continuation token, if any.
+	newTok = listing.ContinuationToken
+
+	if !d.implicitDirs {
+		return
+	}
+
+	// Add implicit directories into the result.
+	for _, p := range listing.CollapsedRuns {
+		pathBase := path.Base(p)
+		dirName := NewDirName(d.Name(), pathBase)
+		if c, ok := cores[dirName]; ok && c.MinObjectType() == ExplicitDirType {
+			continue
+		}
+
+		implicitDir := &MinCore{
+			Bucket:   d.Bucket(),
+			FullName: dirName,
+			Object:   nil,
+		}
+		cores[dirName] = implicitDir
+	}
+	return
+}
+
+
+
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
 	ctx context.Context,
@@ -614,11 +701,13 @@ func (d *dirInode) readObjects(
 	return
 }
 
+
+
 func (d *dirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
-	var cores map[Name]*Core
-	cores, newTok, err = d.readObjects(ctx, tok)
+	var cores map[Name]*MinCore
+	cores, newTok, err = d.readMinObjects(ctx, tok)
 	if err != nil {
 		err = fmt.Errorf("read objects: %w", err)
 		return
@@ -629,7 +718,7 @@ func (d *dirInode) ReadEntries(
 			Name: path.Base(fullName.LocalName()),
 			Type: fuseutil.DT_Unknown,
 		}
-		switch core.Type() {
+		switch core.MinObjectType() {
 		case SymlinkType:
 			entry.Type = fuseutil.DT_Link
 		case RegularFileType:

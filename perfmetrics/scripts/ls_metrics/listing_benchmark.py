@@ -34,6 +34,7 @@ import subprocess
 import sys
 import time
 
+
 import directory_pb2 as directory_proto
 sys.path.insert(0, '..')
 import generate_files
@@ -345,7 +346,7 @@ def _unmount_gcs_bucket(gcs_bucket) -> None:
   """
 
   log.info('Unmounting the GCS Bucket.\n')
-  exit_code = subprocess.call('umount -l {}'.format(gcs_bucket), shell=True)
+  exit_code = subprocess.call('fusermount -u {}'.format(gcs_bucket), shell=True)
   if exit_code != 0:
     log.error('Error encountered in umounting the bucket. Aborting!\n')
     subprocess.call('bash', shell=True)
@@ -375,7 +376,7 @@ def _mount_gcs_bucket(bucket_name) -> str:
   subprocess.call('mkdir {}'.format(gcs_bucket), shell=True)
 
   exit_code = subprocess.call(
-      'gcsfuse --implicit-dirs --enable-storage-client-library --max-conns-per-host 100 {} {}'.format(
+      'go run ./../../../  --implicit-dirs {} {}'.format(
           bucket_name, gcs_bucket), shell=True)
   if exit_code != 0:
     log.error('Cannot mount the GCS bucket due to exit code %s.\n', exit_code)
@@ -475,7 +476,7 @@ if __name__ == '__main__':
 
   args = _parse_arguments(argv)
 
-  _check_dependencies(['gsutil', 'gcsfuse'])
+  # _check_dependencies(['gsutil', 'gcsfuse'])
 
   with open(os.path.abspath(args.config_file)) as file:
     config_json = json.load(file)
@@ -527,10 +528,11 @@ if __name__ == '__main__':
   gcs_bucket_results, persistent_disk_results = _perform_testing(
       directory_structure.folders, gcs_bucket, persistent_disk,
       int(args.num_samples[0]), args.command[0])
-
+  print("GCS results")
   gcs_parsed_metrics = _parse_results(
       directory_structure.folders, gcs_bucket_results, args.message[0],
       int(args.num_samples[0]))
+  print("PD results")
   pd_parsed_metrics = _parse_results(
       directory_structure.folders, persistent_disk_results, args.message[0],
       int(args.num_samples[0]))

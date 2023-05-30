@@ -171,6 +171,17 @@ func (b *reqtraceBucket) StatObject(
 	return
 }
 
+func (b *reqtraceBucket) ListMinObjects(
+	ctx context.Context,
+	req *ListObjectsRequest) (listing *MinObjectListing, err error) {
+	desc := fmt.Sprintf("ListObjects")
+	defer reqtrace.StartSpanWithError(&ctx, &err, desc)()
+
+	listing, err = b.Wrapped.ListMinObjects(ctx, req)
+	return
+}
+
+
 func (b *reqtraceBucket) ListObjects(
 	ctx context.Context,
 	req *ListObjectsRequest) (listing *Listing, err error) {

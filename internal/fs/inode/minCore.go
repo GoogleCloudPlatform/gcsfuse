@@ -1,16 +1,4 @@
-// Copyright 2021 Google Inc. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+
 
 package inode
 
@@ -22,19 +10,18 @@ import (
 
 )
 
-type Type int
 
-var (
-	UnknownType     Type = 0
-	SymlinkType     Type = 1
-	RegularFileType Type = 2
-	ExplicitDirType Type = 3
-	ImplicitDirType Type = 4
-	NonexistentType Type = 5
-)
+
+
+// IsSymlink Does the supplied object represent a symlink inode?
+func MinObjectIsSymlink(o *gcs.MinObject) bool {
+	_, ok := o.Metadata[SymlinkMetadataKey]
+	return ok
+}
+
 
 // Core contains critical information about an inode before its creation.
-type Core struct {
+type MinCore struct {
 	// The full name of the file or directory. Required for all inodes.
 	FullName Name
 
@@ -44,18 +31,20 @@ type Core struct {
 
 	// The GCS object in the bucket above that backs up the inode. Can be empty
 	// if the inode is the base directory or an implicit directory.
-	Object *gcs.Object
+	Object *gcs.MinObject
 }
+
+
 
 
 
 
 // Exists returns true iff the back object exists implicitly or explicitly.
-func (c *Core) Exists() bool {
+func (c *MinCore) MinObjectExists() bool {
 	return c != nil
 }
 
-func (c *Core) Type() Type {
+func (c *MinCore) MinObjectType() Type {
 	switch {
 	case c == nil:
 		return UnknownType
@@ -63,7 +52,7 @@ func (c *Core) Type() Type {
 		return ImplicitDirType
 	case c.FullName.IsDir():
 		return ExplicitDirType
-	case IsSymlink(c.Object):
+	case MinObjectIsSymlink(c.Object):
 		return SymlinkType
 	default:
 		return RegularFileType
@@ -72,7 +61,7 @@ func (c *Core) Type() Type {
 
 // SanityCheck returns an error if the object is conflicting with itself, which
 // means the metadata of the file system is broken.
-func (c Core) SanityCheck() error {
+func (c MinCore) SanityCheckMinCore() error {
 	if c.Object != nil && c.FullName.objectName != c.Object.Name {
 		return fmt.Errorf("inode name %q mismatches object name %q", c.FullName, c.Object.Name)
 	}
@@ -81,5 +70,3 @@ func (c Core) SanityCheck() error {
 	}
 	return nil
 }
-
-

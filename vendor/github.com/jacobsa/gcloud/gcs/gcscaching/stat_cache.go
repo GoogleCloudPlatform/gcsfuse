@@ -34,7 +34,7 @@ type StatCache interface {
 	//
 	// The entry will expire after the supplied time.
 	Insert(o *gcs.Object, expiration time.Time)
-
+    InsertMin( o *gcs.MinObject,expiration time.Time)
 	// Set up a negative entry for the given name, indicating that the name
 	// doesn't exist. Overwrite any existing entry for the name, positive or
 	// negative.
@@ -74,6 +74,10 @@ type entry struct {
 	expiration time.Time
 }
 
+
+
+
+
 // Should the supplied object for a new positive entry replace the given
 // existing entry?
 func shouldReplace(o *gcs.Object, existing entry) bool {
@@ -94,6 +98,51 @@ func shouldReplace(o *gcs.Object, existing entry) bool {
 
 	// Break ties by preferring fresher entries.
 	return true
+}
+
+func shouldMinReplace(o *gcs.MinObject, existing entry) bool {
+	// Negative entries should always be replaced with positive entries.
+	if existing.o == nil {
+		return true
+	}
+
+	// Compare first on generation.
+	if o.Generation != existing.o.Generation {
+		return o.Generation > existing.o.Generation
+	}
+
+	// Break ties on metadata generation.
+	if o.MetaGeneration != existing.o.MetaGeneration {
+		return o.MetaGeneration > existing.o.MetaGeneration
+	}
+
+	// Break ties by preferring fresher entries.
+	return true
+}
+
+func (sc *statCache) InsertMin(o *gcs.MinObject, expiration time.Time) {
+	// Is there already a better entry?
+	if existing := sc.c.LookUp(o.Name); existing != nil {
+		if !shouldMinReplace(o, existing.(entry)) {
+			return
+		}
+	}
+
+	// Insert an entry.
+	e := entry{
+		o:          &gcs.Object{
+		    Name : o.Name,
+		    Size : o.Size,
+		    MetaGeneration : o.MetaGeneration,
+		    Generation :o.Generation,
+		    Updated : o.Updated,
+		    Metadata :o.Metadata,
+
+		},
+		expiration: expiration,
+	}
+
+	sc.c.Insert(o.Name, e)
 }
 
 func (sc *statCache) Insert(o *gcs.Object, expiration time.Time) {

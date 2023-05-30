@@ -32,3 +32,12 @@ type MinObject struct {
 	Updated        time.Time
 	Metadata       map[string]string
 }
+
+
+
+
+type MinObjectListing struct {
+    Objects []*MinObject
+    ContinuationToken string
+    CollapsedRuns []string
+}
