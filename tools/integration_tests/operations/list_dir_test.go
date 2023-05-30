@@ -56,26 +56,32 @@ func checkIfListedCorrectDirectory(dirPath string, obj fs.DirEntry, t *testing.T
 	switch dirName {
 	case setup.MntDir():
 		{
+			// testBucket/directoryForListTest
 			if obj.Name() != DirectoryForListTest || obj.IsDir() != true {
-				t.Errorf("Listed incorrect Object.")
+				t.Errorf("Listed incorrect object.")
 			}
 		}
 	case DirectoryForListTest:
 		{
+			// testBucket/directoryForListTest/fileInDirectoryForListTest
+			// testBucket/directoryForListTest/firstSubDirectoryForListTest
+			// testBucket/directoryForListTest/secondSubDirectoryForListTest
 			if (obj.Name() != FileInDirectoryForListTest && obj.IsDir() == true) && (obj.Name() != FirstSubDirectoryForListTest && obj.IsDir() != true) && (obj.Name() != SecondSubDirectoryForListTest && obj.IsDir() != true) {
-				t.Errorf("Listed incorrect Object")
+				t.Errorf("Listed incorrect object")
 			}
 		}
 	case FirstSubDirectoryForListTest:
 		{
+			// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest
 			if obj.Name() != FileInFirstSubDirectoryForListTest && obj.IsDir() == true {
-				t.Errorf("Listed incorrect Object")
+				t.Errorf("Listed incorrect object")
 			}
 		}
 	case SecondSubDirectoryForListTest:
 		{
+			// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest
 			if obj.Name() != FileInSecondSubDirectoryForListTest && obj.IsDir() == true {
-				t.Errorf("Listed incorrect Object")
+				t.Errorf("Listed incorrect object")
 			}
 		}
 	}
