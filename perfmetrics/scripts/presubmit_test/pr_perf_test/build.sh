@@ -22,8 +22,8 @@ pip install google-cloud
 pip install google-cloud-vision
 pip install google-api-python-client
 pip install prettytable
-echo Installing go-lang  1.20.3
-wget -O go_tar.tar.gz https://go.dev/dl/go1.20.3.linux-amd64.tar.gz
+echo Installing go-lang  1.20.4
+wget -O go_tar.tar.gz https://go.dev/dl/go1.20.4.linux-amd64.tar.gz
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
 echo Installing fio
@@ -52,7 +52,7 @@ echo checkout PR branch
 git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
 # Executing integration tests
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test -timeout=60m
 
 # Executing perf tests
 echo Mounting gcs bucket from pr branch

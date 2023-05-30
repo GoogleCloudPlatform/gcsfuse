@@ -7,9 +7,26 @@
         gcloud auth login
         gcloud auth list
 
-   Alternatively, you can authenticate Cloud Storage FUSE by setting the ```--key-file``` flag to the path of a JSON key file, which you can download from the Google Cloud console. You can also set the ```GOOGLE_APPLICATION_CREDENTIALS``` environment variable to the path of the JSON key.
+   Alternatively, you can authenticate Cloud Storage FUSE using a service account
+key.
 
-        GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json gcsfuse [...]
+   - [Create a service account](https://cloud.google.com/iam/docs/service-accounts-create)
+  with one of the following roles:
+
+     * `Storage Object Viewer (roles/storage.objectViewer)` role to mount a
+    bucket with read-only permissions.
+     * `Storage Object Admin (roles/storage.objectAdmin)` role to mount a bucket with read-write permissions.
+
+   - [Create and download the service account key](https://cloud.google.com/iam/docs/keys-create-delete#iam-service-account-keys-create-console)
+  and set the ```--key-file``` flag to the path of the downloaded JSON key file while
+  mounting the bucket.
+
+           gcsfuse --key-file <path to service account key> [bucket] /path/to/mount/point
+
+  You can also set the ```GOOGLE_APPLICATION_CREDENTIALS``` environment
+  variable to the path of the JSON key.
+
+           GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json gcsfuse [...]
 When mounting with an fstab entry, use the key_file option:
 
     my-bucket /mount/point gcsfuse rw,noauto,user,key_file=/path/to/key.json

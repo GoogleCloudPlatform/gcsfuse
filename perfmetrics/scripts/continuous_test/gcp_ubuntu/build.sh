@@ -6,8 +6,8 @@ echo "Installing git"
 sudo apt-get install git
 echo "Installing pip"
 sudo apt-get install pip -y
-echo "Installing go-lang 1.20.3"
-wget -O go_tar.tar.gz https://go.dev/dl/go1.20.3.linux-amd64.tar.gz
+echo "Installing go-lang 1.20.4"
+wget -O go_tar.tar.gz https://go.dev/dl/go1.20.4.linux-amd64.tar.gz
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
 echo "Installing fio"
@@ -28,7 +28,7 @@ commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 git checkout $commitId
 
 echo "Executing integration tests"
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test -timeout=60m
 
 # Checkout back to master branch to use latest CI test scripts in master.
 git checkout master
@@ -44,7 +44,7 @@ sudo dpkg -i $HOME/release/packages/gcsfuse_${GCSFUSE_VERSION}_amd64.deb
 cd "./perfmetrics/scripts/"
 echo "Mounting gcs bucket"
 mkdir -p gcs
-LOG_FILE=log-$(date '+%Y-%m-%d').txt
+LOG_FILE=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
 GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"
 BUCKET_NAME=periodic-perf-tests
 MOUNT_POINT=gcs
@@ -55,11 +55,6 @@ gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 chmod +x run_load_test_and_fetch_metrics.sh
 ./run_load_test_and_fetch_metrics.sh
 
-# Copying gcsfuse logs to bucket
-gsutil -m cp $LOG_FILE gs://periodic-perf-tests/fio-gcsfuse-logs/
-
-# Deleting logs older than 10 days
-python3 utils/metrics_util.py gcs/fio-gcsfuse-logs/ 10
 sudo umount $MOUNT_POINT
 
 # ls_metrics test. This test does gcsfuse mount first and then do the testing.
