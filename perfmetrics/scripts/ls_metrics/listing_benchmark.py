@@ -493,6 +493,8 @@ if __name__ == '__main__':
     config_json = json.load(file)
   directory_structure = ParseDict(config_json, directory_proto.Directory())
 
+  print(directory_structure)
+  
   log.info('Started checking the directory structure in the bucket.\n')
   directory_structure_present = _compare_directory_structure(
       'gs://{}/'.format(directory_structure.name), directory_structure)
