@@ -332,6 +332,7 @@ def _compare_directory_structure(url, directory_structure) -> bool:
 
   result = True
   for folder in directory_structure.folders:
+    print("hey")
     new_url = url + folder.name + '/'
     print(new_url)
     if new_url not in folders:
