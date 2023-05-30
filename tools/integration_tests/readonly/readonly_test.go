@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -75,7 +75,14 @@ func TestMain(m *testing.M) {
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
 	setup.RunTestsForMountedDirectoryFlag(m)
 
-	successCode := static_mounting.RunTests(flags, m)
+	//successCode := static_mounting.RunTests(flags, m)
+	//
+	//if successCode != 0 {
+	//	return
+	//}
+
+	// Run tests for credentials.
+	successCode := creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentials(flags, m)
 
 	// Delete objects from bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())

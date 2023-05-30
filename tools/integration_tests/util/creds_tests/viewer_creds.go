@@ -15,50 +15,28 @@
 package creds_tests
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
+	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func RunTestsForKeyFileAndGoogleApplicationCredentials(credFilePath string, flags []string, m *testing.M) (successCode int) {
+func runScriptForTestData(script string, testBucket string) {
+	cmd := exec.Command("/bin/bash", script, testBucket)
+	fmt.Println(script)
+	_, err := cmd.Output()
+	if err != nil {
+		panic(err)
+	}
+}
+
+func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m *testing.M) (successCode int) {
 	// Revoking gcloud credentials to test with service account credentials.
 	setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_gcloud_creds.sh", "")
-
-	setup.RunScriptForTestData("../util/creds_tests/testdata/get_key_files.sh", "key-file-integration-test-gcs-fuse")
-
-	// Testing with --key-file
-	defaultArg := []string{"--key-file=" + credFilePath}
-
-	for i := 0; i < len(defaultArg); i++ {
-		flags = append(flags, defaultArg[i])
-	}
-
-	f1 := [][]string{flags}
-	successCode = static_mounting.RunTests(f1, m)
-
-	if successCode != 0 {
-		return
-	}
-
-	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
-	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credFilePath)
-
-	f := [][]string{flags}
-	successCode = static_mounting.RunTests(f, m)
-
-	if successCode != 0 {
-		return
-	}
-
-	// Testing with key-file and GOOGLE_APPLICATION_CREDENTIALS env variable
-	successCode = static_mounting.RunTests(f1, m)
-	if successCode != 0 {
-		return
-	}
-
-	os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
 
 	// Testing without key-file and GOOGLE_APPLICATION_CREDENTIALS env variable
 	//flagSet := []string{"--implicit-dirs"}
@@ -70,8 +48,42 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(credFilePath string, flag
 	//	successCode = 0
 	//}
 
-	// Delete key file after using it.
-	setup.RunScriptForTestData("../util/creds_test/testdata/delete_key_files.sh", "")
+	setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "key-file-integration-test-gcs-fuse")
+
+	creds_path := path.Join(os.Getenv("HOME"), "viewer_creds.json")
+
+	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
+	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
+
+	successCode = static_mounting.RunTests(testFlagSet, m)
+
+	if successCode != 0 {
+		return
+	}
+
+	keyFileFlag := "--key-file=" + creds_path
+
+	for i := 0; i < len(testFlagSet); i++ {
+		testFlagSet[i] = append(testFlagSet[i], keyFileFlag)
+	}
+
+	// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
+	successCode = static_mounting.RunTests(testFlagSet, m)
+
+	if successCode != 0 {
+		return
+	}
+
+	os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
+
+	// Testing with --key-file flag only
+	successCode = static_mounting.RunTests(testFlagSet, m)
+
+	if successCode != 0 {
+		return
+	}
+
+	setup.RunScriptForTestData("../util/creds_tests/testdata/set_gcloud_creds.sh", "")
 
 	return successCode
 }
