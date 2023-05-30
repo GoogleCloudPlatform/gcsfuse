@@ -305,14 +305,14 @@ def _compare_directory_structure(url, directory_structure) -> bool:
 
   contents_url = _list_directory(url)
 
-  print(contents_url)
+  #print(contents_url)
   # gsutil in some cases return the contents_url list with the current
   # directory in the first index. We dont want the current directory so
   # we remove it manually.
   if contents_url and contents_url[0] == url:
     contents_url = contents_url[1:]
 
-  print(contents_url)
+  #print(contents_url)
 
   files = []
   folders = []
