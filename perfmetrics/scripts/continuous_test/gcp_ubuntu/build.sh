@@ -25,8 +25,8 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 cd "gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
 # integration tests using code upto that commit.
-commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
-git checkout $commitId
+#commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+#git checkout $commitId
 
 #echo "Executing integration tests"
 #GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test -timeout=60m
@@ -37,8 +37,8 @@ git checkout master
 echo "Building and installing gcsfuse"
 # Build the gcsfuse package using the same commands used during release.
 GCSFUSE_VERSION=0.0.0
-sudo docker build ./tools/package_gcsfuse_docker/ -t gcsfuse:$commitId --build-arg GCSFUSE_VERSION=$GCSFUSE_VERSION --build-arg BRANCH_NAME=$commitId
-sudo docker run -v $HOME/release:/release gcsfuse:$commitId cp -r /packages /release/
+sudo docker build ./tools/package_gcsfuse_docker/ -t gcsfuse:master --build-arg GCSFUSE_VERSION=$GCSFUSE_VERSION --build-arg BRANCH_NAME=$commitId
+sudo docker run -v $HOME/release:/release gcsfuse:master cp -r /packages /release/
 sudo dpkg -i $HOME/release/packages/gcsfuse_${GCSFUSE_VERSION}_amd64.deb
 
 # Mounting gcs bucket
