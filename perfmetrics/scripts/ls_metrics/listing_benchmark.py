@@ -313,7 +313,7 @@ def _compare_directory_structure(url, directory_structure) -> bool:
     contents_url = contents_url[1:]
 
   print(contents_url)
-  
+
   files = []
   folders = []
   for content in contents_url:
@@ -322,15 +322,18 @@ def _compare_directory_structure(url, directory_structure) -> bool:
     else:
       files.append(content)
 
+  print(len(folders))
   if len(folders) != directory_structure.num_folders:
     return False
 
+  print(len(files))
   if len(files) != directory_structure.num_files:
     return False
 
   result = True
   for folder in directory_structure.folders:
     new_url = url + folder.name + '/'
+    print(new_url)
     if new_url not in folders:
       return False
     result = result and _compare_directory_structure(new_url, folder)
