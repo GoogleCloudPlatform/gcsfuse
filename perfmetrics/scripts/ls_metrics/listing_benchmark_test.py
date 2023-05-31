@@ -201,7 +201,7 @@ def run_bash_command(command):
     subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
     return True
   except subprocess.CalledProcessError as e:
-    print("Command failed with error code {e.returncode}: {e.output.decode()}")
+    print(f"Command failed with error code {e.returncode}: {e.output.decode()}")
     return False
 
 
