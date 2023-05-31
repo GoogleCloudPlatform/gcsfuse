@@ -1,6 +1,6 @@
 {
-        "name": "listing-benchmark-experiments" ,
-        "num_folders": 10 ,
+        "name": "list-benchmark-tests" ,
+        "num_folders": 11 ,
         "folders": [
                 {
                         "name": "1KB_1000files_0subdir" ,
@@ -53,6 +53,12 @@
                 {
                         "name": "1KB_75000files_0subdir" ,
                         "num_files": 75000 ,
+                        "file_name_prefix": "file" ,
+                        "file_size": "1kb"
+                } ,
+                {
+                        "name": "1KB_100000files_0subdir" ,
+                        "num_files": 100000 ,
                         "file_name_prefix": "file" ,
                         "file_size": "1kb"
                 } ,

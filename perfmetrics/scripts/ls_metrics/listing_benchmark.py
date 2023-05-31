@@ -9,9 +9,10 @@ and also through which multiple tests of different configurations can be
 performed in a single run.
 
 Typical usage example:
-  $ python3 listing_benchmark.py [-h] [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --command COMMAND config_file gcsfuse_flags
+  $ python3 listing_benchmark.py --gcsfuse_flags GCSFUSE_FLAGS [-h] [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --command COMMAND config_file
 
   Flag -h: Typical help interface of the script.
+  Flag --gcsfuse_flags: GCSFUSE flags with which the bucket will be mounted.
   Flag --keep_files: Do not delete the generated directory structure from the
                      persistent disk after running the tests.
   Flag --upload: Uploads the results of the test to the Google Sheet.
@@ -38,7 +39,7 @@ import directory_pb2 as directory_proto
 sys.path.insert(0, '..')
 import generate_files
 from google.protobuf.json_format import ParseDict
-#from gsheet import gsheet
+from gsheet import gsheet
 import numpy as np
 
 
@@ -304,15 +305,11 @@ def _compare_directory_structure(url, directory_structure) -> bool:
   """
 
   contents_url = _list_directory(url)
-
-  #print(contents_url)
   # gsutil in some cases return the contents_url list with the current
   # directory in the first index. We dont want the current directory so
   # we remove it manually.
   if contents_url and contents_url[0] == url:
     contents_url = contents_url[1:]
-
-  #print(contents_url)
 
   files = []
   folders = []
@@ -322,20 +319,15 @@ def _compare_directory_structure(url, directory_structure) -> bool:
     else:
       files.append(content)
 
-  print("folders", len(folders))
   if len(folders) != directory_structure.num_folders:
     return False
 
-  print("files", len(files))
   if len(files) != directory_structure.num_files:
     return False
 
   result = True
-  #print(directory_structure.folders)
   for folder in directory_structure.folders:
-    #print("hey")
     new_url = url + folder.name + '/'
-    #print(new_url)
     if new_url not in folders:
       return False
     result = result and _compare_directory_structure(new_url, folder)
@@ -370,6 +362,7 @@ def _mount_gcs_bucket(bucket_name, gcsfuse_flags) -> str:
 
   Args:
     bucket_name: Name of the bucket to be mounted.
+    gcsfuse_flags: Set of flags for which bucket_name will be mounted
 
   Returns:
     A string which contains the name of the directory to which the bucket
@@ -453,7 +446,7 @@ def _parse_arguments(argv):
       help='Gcsfuse flags for mounting the bucket',
       action='store',
       nargs=1,
-      default=['gcsfuse --implicit-dirs --enable-storage-client-library --max-conns-per-host 100'],
+      default=['--implicit-dirs --enable-storage-client-library --max-conns-per-host 100'],
       required=True,
   )
   # Ignoring the first parameter, as it is the path of this python
@@ -488,21 +481,15 @@ if __name__ == '__main__':
   if len(argv) < 4:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
-                    'python3 listing_benchmark.py --gcsfuse_flags GCSFUSE_FLAGS [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --command COMMAND config_file ')
+                    'python3 listing_benchmark.py --gcsfuse_flags GCSFUSE_FLAGS [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --command COMMAND config_file')
 
   args = _parse_arguments(argv)
-
-  print(args)
-
-  print(args.gcsfuse_flags[0])
 
   _check_dependencies(['gsutil', 'gcsfuse'])
 
   with open(os.path.abspath(args.config_file)) as file:
     config_json = json.load(file)
   directory_structure = ParseDict(config_json, directory_proto.Directory())
-
-  print(directory_structure)
 
   log.info('Started checking the directory structure in the bucket.\n')
   directory_structure_present = _compare_directory_structure(
@@ -558,14 +545,14 @@ if __name__ == '__main__':
       directory_structure.folders, persistent_disk_results, args.message[0],
       int(args.num_samples[0]))
 
-  # if args.upload:
-  #   log.info('Uploading files to the Google Sheet.\n')
-  #   _export_to_gsheet(
-  #       directory_structure.folders, gcs_parsed_metrics, args.command[0],
-  #       WORKSHEET_NAME_GCS)
-  #   _export_to_gsheet(
-  #       directory_structure.folders, pd_parsed_metrics, args.command[0],
-  #       WORKSHEET_NAME_PD)
+  if args.upload:
+    log.info('Uploading files to the Google Sheet.\n')
+    _export_to_gsheet(
+        directory_structure.folders, gcs_parsed_metrics, args.command[0],
+        WORKSHEET_NAME_GCS)
+    _export_to_gsheet(
+        directory_structure.folders, pd_parsed_metrics, args.command[0],
+        WORKSHEET_NAME_PD)
 
   if not args.keep_files:
     log.info('Deleting files from persistent disk.\n')
