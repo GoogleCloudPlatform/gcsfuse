@@ -602,6 +602,7 @@ class ListingBenchmarkTest(unittest.TestCase):
         call('mkdir fake_bucket', shell=True),
         call('gcsfuse -o ro --implicit-dirs --max-conns-per-host 100 fake_bucket fake_bucket', shell=True)
     ])
+    self.assertTrue(run_bash_command('chmod u+x fake_bucket'))
     self.assertTrue(run_bash_command('cd fake_bucket'))
     self.assertFalse(run_bash_command('touch foo.txt'))
 
