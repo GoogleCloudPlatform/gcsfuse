@@ -61,11 +61,11 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 		return
 	}
 
-	//keyFileFlag := "--key-file=" + creds_path
-	//
-	//for i := 0; i < len(testFlagSet); i++ {
-	//	testFlagSet[i] = append(testFlagSet[i], keyFileFlag)
-	//}
+	keyFileFlag := "--key-file=" + creds_path
+
+	for i := 0; i < len(testFlagSet); i++ {
+		testFlagSet[i] = append(testFlagSet[i], keyFileFlag)
+	}
 
 	// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
 	successCode = static_mounting.RunTests(testFlagSet, m)
