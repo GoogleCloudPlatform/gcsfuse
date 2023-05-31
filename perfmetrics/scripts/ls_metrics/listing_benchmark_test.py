@@ -591,9 +591,7 @@ class ListingBenchmarkTest(unittest.TestCase):
     self.assertEqual(mock_subprocess_call.call_count, 3)
     self.assertEqual(mock_subprocess_call.call_args_list, [
         call('mkdir fake_bucket', shell=True),
-        call('gcsfuse -o ro --implicit-dirs --max-conns-per-host 100 fake_bucket fake_bucket', shell=True),
-        call('cd fake_bucket', shell=True),
-        call('touch foo.txt', shell=True)
+        call('gcsfuse -o ro --implicit-dirs --max-conns-per-host 100 fake_bucket fake_bucket', shell=True)
     ])
 
   @patch('listing_benchmark.subprocess.call', return_value=1)
