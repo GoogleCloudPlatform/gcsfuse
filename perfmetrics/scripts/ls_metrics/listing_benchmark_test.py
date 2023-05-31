@@ -121,68 +121,68 @@ METRICS3 = [100, 7, 6, 51, 21]
 
 SAMPLE_METRIC_FOR_DIRECTORY_STRUCTURE_2 = {
     '2KB_3files_0subdir':
-      {
-          'Test Desc.': 'fake_test',
-          'Number of samples': 5,
-          'Mean': 0.518,
-          'Median': 0.222,
-          'Standard Dev': 0.556,
-          'Quantiles':
-            {
-                '0 %ile': 0.017,
-                '20 %ile': 0.1,
-                '50 %ile': 0.222,
-                '90 %ile': 1.138,
-                '95 %ile': 1.186,
-                '98 %ile': 1.215,
-                '99 %ile': 1.224,
-                '99.5 %ile': 1.229,
-                '99.9 %ile': 1.233,
-                '100 %ile': 1.234
-            }
-      },
+    {
+        'Test Desc.': 'fake_test',
+        'Number of samples': 5,
+        'Mean': 0.518,
+        'Median': 0.222,
+        'Standard Dev': 0.556,
+        'Quantiles':
+        {
+            '0 %ile': 0.017,
+            '20 %ile': 0.1,
+            '50 %ile': 0.222,
+            '90 %ile': 1.138,
+            '95 %ile': 1.186,
+            '98 %ile': 1.215,
+            '99 %ile': 1.224,
+            '99.5 %ile': 1.229,
+            '99.9 %ile': 1.233,
+            '100 %ile': 1.234
+        }
+    },
     '1KB_2files_0subdir':
-      {
-          'Test Desc.': 'fake_test',
-          'Number of samples': 5,
-          'Mean': 19.965,
-          'Median': 1.95,
-          'Standard Dev': 39.504,
-          'Quantiles':
-            {
-                '0 %ile': 0.001,
-                '20 %ile': 0.267,
-                '50 %ile': 1.95,
-                '90 %ile': 57.106,
-                '95 %ile': 73.778,
-                '98 %ile': 83.781,
-                '99 %ile': 87.116,
-                '99.5 %ile': 88.783,
-                '99.9 %ile': 90.117,
-                '100 %ile': 90.45
-            }
-      },
+    {
+        'Test Desc.': 'fake_test',
+        'Number of samples': 5,
+        'Mean': 19.965,
+        'Median': 1.95,
+        'Standard Dev': 39.504,
+        'Quantiles':
+        {
+            '0 %ile': 0.001,
+            '20 %ile': 0.267,
+            '50 %ile': 1.95,
+            '90 %ile': 57.106,
+            '95 %ile': 73.778,
+            '98 %ile': 83.781,
+            '99 %ile': 87.116,
+            '99.5 %ile': 88.783,
+            '99.9 %ile': 90.117,
+            '100 %ile': 90.45
+        }
+    },
     '1KB_0files_0subdir':
-      {
-          'Test Desc.': 'fake_test',
-          'Number of samples': 5,
-          'Mean': 37,
-          'Median': 21,
-          'Standard Dev': 39.63,
-          'Quantiles':
-            {
-                '0 %ile': 6.0,
-                '20 %ile': 6.8,
-                '50 %ile': 21.0,
-                '90 %ile': 80.4,
-                '95 %ile': 90.2,
-                '98 %ile': 96.08,
-                '99 %ile': 98.04,
-                '99.5 %ile': 99.02,
-                '99.9 %ile': 99.804,
-                '100 %ile': 100.0
-            }
-      }
+    {
+        'Test Desc.': 'fake_test',
+        'Number of samples': 5,
+        'Mean': 37,
+        'Median': 21,
+        'Standard Dev': 39.63,
+        'Quantiles':
+        {
+            '0 %ile': 6.0,
+            '20 %ile': 6.8,
+            '50 %ile': 21.0,
+            '90 %ile': 80.4,
+            '95 %ile': 90.2,
+            '98 %ile': 96.08,
+            '99 %ile': 98.04,
+            '99.5 %ile': 99.02,
+            '99.9 %ile': 99.804,
+            '100 %ile': 100.0
+        }
+    }
 }
 
 # Converting JSON to protobuf.
