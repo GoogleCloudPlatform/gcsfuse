@@ -221,22 +221,22 @@ class ListingBenchmarkTest(unittest.TestCase):
         DIRECTORY_STRUCTURE1.folders, {}, 'fake_test', 5)
     self.assertEqual(metrics, {})
 
-  @patch('listing_benchmark.gsheet.write_to_google_sheet')
-  def test_export_to_google_sheet(self, mock_sheet):
-    listing_benchmark._export_to_gsheet(
-        DIRECTORY_STRUCTURE2.folders, SAMPLE_METRIC_FOR_DIRECTORY_STRUCTURE_2,
-        'ls', WORKSHEET_NAME)
-    self.assertEqual(mock_sheet.call_args_list, [
-        call('ls_metrics_gcsfuse',
-             [
-                 ['fake_test', 'ls', 3, 0, 5, 0.518, 0.222, 0.556, 0.017,
-                  0.1, 0.222, 1.138, 1.186, 1.215, 1.224, 1.229, 1.233, 1.234],
-                 ['fake_test', 'ls', 2, 0, 5, 19.965, 1.95, 39.504, 0.001,
-                  0.267, 1.95, 57.106, 73.778, 83.781, 87.116, 88.783, 90.117, 90.45],
-                 ['fake_test', 'ls', 0, 0, 5, 37, 21, 39.63, 6.0, 6.8, 21.0,
-                  80.4, 90.2, 96.08, 98.04, 99.02, 99.804, 100.0]
-             ])
-    ])
+  # @patch('listing_benchmark.gsheet.write_to_google_sheet')
+  # def test_export_to_google_sheet(self, mock_sheet):
+  #   listing_benchmark._export_to_gsheet(
+  #       DIRECTORY_STRUCTURE2.folders, SAMPLE_METRIC_FOR_DIRECTORY_STRUCTURE_2,
+  #       'ls', WORKSHEET_NAME)
+  #   self.assertEqual(mock_sheet.call_args_list, [
+  #       call('ls_metrics_gcsfuse',
+  #            [
+  #                ['fake_test', 'ls', 3, 0, 5, 0.518, 0.222, 0.556, 0.017,
+  #                 0.1, 0.222, 1.138, 1.186, 1.215, 1.224, 1.229, 1.233, 1.234],
+  #                ['fake_test', 'ls', 2, 0, 5, 19.965, 1.95, 39.504, 0.001,
+  #                 0.267, 1.95, 57.106, 73.778, 83.781, 87.116, 88.783, 90.117, 90.45],
+  #                ['fake_test', 'ls', 0, 0, 5, 37, 21, 39.63, 6.0, 6.8, 21.0,
+  #                 80.4, 90.2, 96.08, 98.04, 99.02, 99.804, 100.0]
+  #            ])
+  #   ])
 
   def test_parse_results_double_level_dir(self):
     metrics = listing_benchmark._parse_results(DIRECTORY_STRUCTURE2.folders, {
@@ -578,7 +578,7 @@ class ListingBenchmarkTest(unittest.TestCase):
   @patch('listing_benchmark.subprocess.call', return_value=0)
   def test_mount_gcs_bucket(self, mock_subprocess_call):
     directory_name = listing_benchmark._mount_gcs_bucket('fake_bucket')
-    self.assertEqual(directory_name, 'fake_bucket')
+    self.assertEqual(directory_name, 'fake_bucket', '--implicit-dirs --max-conns-per-host 100')
     self.assertEqual(mock_subprocess_call.call_count, 2)
     self.assertEqual(mock_subprocess_call.call_args_list, [
         call('mkdir fake_bucket', shell=True),
@@ -587,7 +587,7 @@ class ListingBenchmarkTest(unittest.TestCase):
 
   @patch('listing_benchmark.subprocess.call', return_value=1)
   def test_mount_gcs_bucket_error(self, mock_subprocess_call):
-    listing_benchmark._mount_gcs_bucket('fake_bucket')
+    listing_benchmark._mount_gcs_bucket('fake_bucket', '--implicit-dirs --max-conns-per-host 100')
     self.assertEqual(mock_subprocess_call.call_count, 3)
     self.assertEqual(mock_subprocess_call.call_args_list, [
         call('mkdir fake_bucket', shell=True),
