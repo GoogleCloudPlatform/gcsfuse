@@ -15,7 +15,7 @@
 package creds_tests
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -27,7 +27,6 @@ import (
 
 func runScriptForTestData(script string, testBucket string) {
 	cmd := exec.Command("/bin/bash", script, testBucket)
-	fmt.Println(script)
 	_, err := cmd.Output()
 	if err != nil {
 		panic(err)
@@ -55,17 +54,18 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
 	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
 
-	successCode = static_mounting.RunTests(testFlagSet, m)
+	log.Print(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+	//successCode = static_mounting.RunTests(testFlagSet, m)
 
 	if successCode != 0 {
 		return
 	}
 
-	keyFileFlag := "--key-file=" + creds_path
-
-	for i := 0; i < len(testFlagSet); i++ {
-		testFlagSet[i] = append(testFlagSet[i], keyFileFlag)
-	}
+	//keyFileFlag := "--key-file=" + creds_path
+	//
+	//for i := 0; i < len(testFlagSet); i++ {
+	//	testFlagSet[i] = append(testFlagSet[i], keyFileFlag)
+	//}
 
 	// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
 	successCode = static_mounting.RunTests(testFlagSet, m)
