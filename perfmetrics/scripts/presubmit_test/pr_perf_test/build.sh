@@ -33,6 +33,7 @@ sudo apt-get install fio -y
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 git checkout master
 echo Mounting gcs bucket for master branch
+git checkout master
 mkdir -p gcs
 GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
 BUCKET_NAME=presubmit-perf-tests
