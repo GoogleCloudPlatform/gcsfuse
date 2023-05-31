@@ -441,6 +441,7 @@ func handlePanicWhileMounting() {
 }
 
 func main() {
+	fmt.Println("Tulsi")
 	defer handlePanicWhileMounting()
 
 	// Make logging output better.
