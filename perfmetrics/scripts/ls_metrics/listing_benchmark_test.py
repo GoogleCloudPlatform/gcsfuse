@@ -7,6 +7,7 @@ import directory_pb2 as directory_proto
 from google.protobuf.json_format import ParseDict
 import listing_benchmark
 from mock import patch, call
+import subprocess
 
 # (Type 1) - 0 levels deep directory structure.
 DIRECTORY_STRUCTURE1 = {
@@ -194,6 +195,14 @@ DIRECTORY_STRUCTURE3 = ParseDict(
     DIRECTORY_STRUCTURE3, directory_proto.Directory())
 
 WORKSHEET_NAME = 'ls_metrics_gcsfuse'
+
+def run_bash_command(command):
+  try:
+    subprocess.check.output(command, shell=True, stderr=subprocess.STDOUT)
+    return True
+  except subprocess.CalledProcessError as e:
+    print("Command failed with error code {e.returncode}: {e.output.decode()}")
+    return False
 
 
 class ListingBenchmarkTest(unittest.TestCase):
@@ -593,6 +602,9 @@ class ListingBenchmarkTest(unittest.TestCase):
         call('mkdir fake_bucket', shell=True),
         call('gcsfuse -o ro --implicit-dirs --max-conns-per-host 100 fake_bucket fake_bucket', shell=True)
     ])
+    self.assertTrue(run_bash_command('cd fake_bucket'))
+    self.assertFalse(run_bash_command('touch foo.txt'))
+
 
   @patch('listing_benchmark.subprocess.call', return_value=1)
   def test_mount_gcs_bucket_error(self, mock_subprocess_call):
