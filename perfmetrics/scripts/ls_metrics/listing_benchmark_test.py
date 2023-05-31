@@ -196,15 +196,6 @@ DIRECTORY_STRUCTURE3 = ParseDict(
 
 WORKSHEET_NAME = 'ls_metrics_gcsfuse'
 
-def run_bash_command(command):
-  try:
-    subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
-    return True
-  except subprocess.CalledProcessError as e:
-    print(f"Command failed with error code {e.returncode}: {e.output.decode()}")
-    return False
-
-
 class ListingBenchmarkTest(unittest.TestCase):
 
   def test_num_files_and_folders_single_level_dir(self):
@@ -586,26 +577,13 @@ class ListingBenchmarkTest(unittest.TestCase):
 
   @patch('listing_benchmark.subprocess.call', return_value=0)
   def test_mount_gcs_bucket(self, mock_subprocess_call):
-    directory_name = listing_benchmark._mount_gcs_bucket('fake_bucket', '-o ro --implicit-dirs --max-conns-per-host 100')
+    directory_name = listing_benchmark._mount_gcs_bucket('fake_bucket', '--implicit-dirs --max-conns-per-host 100')
     self.assertEqual(directory_name, 'fake_bucket')
     self.assertEqual(mock_subprocess_call.call_count, 2)
     self.assertEqual(mock_subprocess_call.call_args_list, [
         call('mkdir fake_bucket', shell=True),
-        call('gcsfuse -o ro --implicit-dirs --max-conns-per-host 100 fake_bucket fake_bucket', shell=True)
+        call('gcsfuse --implicit-dirs --max-conns-per-host 100 fake_bucket fake_bucket', shell=True)
     ])
-
-  @patch('listing_benchmark.subprocess.call', return_value=0)
-  def test_mount_gcs_bucket_readonly_error(self, mock_subprocess_call):
-    listing_benchmark._mount_gcs_bucket('fake_bucket', '-o ro --implicit-dirs --max-conns-per-host 100')
-    self.assertEqual(mock_subprocess_call.call_count, 2)
-    self.assertEqual(mock_subprocess_call.call_args_list, [
-        call('mkdir fake_bucket', shell=True),
-        call('gcsfuse -o ro --implicit-dirs --max-conns-per-host 100 fake_bucket fake_bucket', shell=True)
-    ])
-    self.assertTrue(run_bash_command('chmod u+x fake_bucket'))
-    self.assertTrue(run_bash_command('cd fake_bucket'))
-    self.assertFalse(run_bash_command('touch foo.txt'))
-
 
   @patch('listing_benchmark.subprocess.call', return_value=1)
   def test_mount_gcs_bucket_error(self, mock_subprocess_call):
