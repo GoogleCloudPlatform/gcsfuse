@@ -23,7 +23,7 @@ pip install --require-hashes -r requirements.txt --user
 
 ## Flags to use with the python script
 1. Flag -h: Typical help interface of the script.
-2. Flag --gcsfuse_flags: GCSFUSE flags with which the bucket will be mounted.
+2. Flag --gcsfuse_flags: GCSFUSE flags with which the test bucket will be mounted.
 3. Flag --keep_files: Do not delete the generated directory structure from the persistent disk after running the tests.
 4. Flag --upload: Uploads the results of the test to the Google Sheet.
 5. Flag --num_samples: Runs each test for NUM_SAMPLES times.

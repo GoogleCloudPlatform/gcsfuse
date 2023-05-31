@@ -12,7 +12,7 @@ Typical usage example:
   $ python3 listing_benchmark.py --gcsfuse_flags GCSFUSE_FLAGS [-h] [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --command COMMAND config_file
 
   Flag -h: Typical help interface of the script.
-  Flag --gcsfuse_flags: GCSFUSE flags with which the bucket will be mounted.
+  Flag --gcsfuse_flags: GCSFUSE flags with which the test bucket will be mounted.
   Flag --keep_files: Do not delete the generated directory structure from the
                      persistent disk after running the tests.
   Flag --upload: Uploads the results of the test to the Google Sheet.
@@ -443,7 +443,7 @@ def _parse_arguments(argv):
   )
   parser.add_argument(
       '--gcsfuse_flags',
-      help='Gcsfuse flags for mounting the bucket',
+      help='Gcsfuse flags for mounting the test bucket',
       action='store',
       nargs=1,
       default=['--implicit-dirs --enable-storage-client-library --max-conns-per-host 100'],
