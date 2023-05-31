@@ -589,10 +589,11 @@ class ListingBenchmarkTest(unittest.TestCase):
   def test_mount_gcs_bucket_readonly_error(self, mock_subprocess_call):
     directory_name = listing_benchmark._mount_gcs_bucket('fake_bucket', '-o ro --implicit-dirs --max-conns-per-host 100')
     self.assertEqual(directory_name, 'fake_bucket')
-    self.assertEqual(mock_subprocess_call.call_count, 3)
+    self.assertEqual(mock_subprocess_call.call_count, 4)
     self.assertEqual(mock_subprocess_call.call_args_list, [
         call('mkdir fake_bucket', shell=True),
-        call('gcsfuse -o ro --implicit-dirs --max-conns-per-host 100 fake_bucket fake_bucket', shell=True)
+        call('gcsfuse -o ro --implicit-dirs --max-conns-per-host 100 fake_bucket fake_bucket', shell=True),
+        call('cd fake_bucket'),
         call('touch foo.txt')
     ])
 
