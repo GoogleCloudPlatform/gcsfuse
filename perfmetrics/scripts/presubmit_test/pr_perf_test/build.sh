@@ -1,5 +1,4 @@
 #!/bin/bash
-df -H
 # Running test only for when PR contains execute-perf-test label
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
 perfTest=$(cat pr.json | grep "execute-perf-test")
@@ -32,7 +31,6 @@ sudo apt-get install fio -y
 
 # Run on master branch
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
-git stash
 git checkout master
 echo Mounting gcs bucket for master branch
 mkdir -p gcs
@@ -42,7 +40,6 @@ MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
 go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 touch result.txt
-df -H
 # Running FIO test
 chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
@@ -54,12 +51,10 @@ echo '[remote "origin"]
 git fetch origin
 echo checkout PR branch
 git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
-echo "Before"
-df -H
-echo "After"
+
 # Executing integration tests
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test -timeout=60m
-df -H
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test
+
 # Executing perf tests
 echo Mounting gcs bucket from pr branch
 mkdir -p gcs
@@ -69,6 +64,6 @@ go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 sudo umount gcs
-df -H
+
 echo showing results...
 python3 ./perfmetrics/scripts/presubmit/print_results.py
