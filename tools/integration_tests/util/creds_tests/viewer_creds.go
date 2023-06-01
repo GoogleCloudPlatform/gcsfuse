@@ -15,7 +15,10 @@
 package creds_tests
 
 import (
+	"log"
+	"os"
 	"os/exec"
+	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
@@ -43,19 +46,19 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 	//	successCode = 0
 	//}
 
-	//setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "key-file-integration-test-gcs-fuse")
-	//
-	//creds_path := path.Join(os.Getenv("HOME"), "viewer_creds.json")
-	//
-	//// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
-	//os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
-	//
-	//log.Print(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-	////successCode = static_mounting.RunTests(testFlagSet, m)
-	//
-	//if successCode != 0 {
-	//	return
-	//}
+	setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "key-file-integration-test-gcs-fuse")
+
+	creds_path := path.Join(os.Getenv("HOME"), "viewer_creds.json")
+
+	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
+	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
+
+	log.Print(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+	//successCode = static_mounting.RunTests(testFlagSet, m)
+
+	if successCode != 0 {
+		return
+	}
 	//
 	//keyFileFlag := "--key-file=" + creds_path
 	//
