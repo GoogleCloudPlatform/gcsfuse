@@ -1,4 +1,5 @@
 #!/bin/bash
+df -H
 # Running test only for when PR contains execute-perf-test label
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
 perfTest=$(cat pr.json | grep "execute-perf-test")
