@@ -1,5 +1,6 @@
 #!/bin/bash
 # Running test only for when PR contains execute-perf-test label
+df -H
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
 perfTest=$(cat pr.json | grep "execute-perf-test")
 rm pr.json
@@ -41,10 +42,12 @@ MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
 go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 touch result.txt
+df -H
 # Running FIO test
 chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 sudo umount gcs
+df -H
 
 # Fetch PR branch
 echo '[remote "origin"]
@@ -53,9 +56,10 @@ git fetch origin
 echo checkout PR branch
 git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
+df -H
 # Executing integration tests
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test -timeout=60m
-
+df -H
 # Executing perf tests
 echo Mounting gcs bucket from pr branch
 mkdir -p gcs
@@ -65,6 +69,6 @@ go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 sudo umount gcs
-
+df -H
 echo showing results...
 python3 ./perfmetrics/scripts/presubmit/print_results.py
