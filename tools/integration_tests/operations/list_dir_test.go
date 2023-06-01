@@ -27,6 +27,26 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
+func getDirNameFromPath(dirPath string) (dirName string) {
+	if strings.Contains(dirPath, EmptySubDirInDirectoryForListTest) {
+		// testBucket/directoryForListTest/emptySubDirectoryForListTest
+		dirName = EmptySubDirInDirectoryForListTest
+	} else if strings.Contains(dirPath, SecondSubDirectoryForListTest) {
+		// testBucket/directoryForListTest/secondSubDirectoryForListTest
+		dirName = SecondSubDirectoryForListTest
+	} else if strings.Contains(dirPath, FirstSubDirectoryForListTest) {
+		// testBucket/directoryForListTest/firstSubDirectoryForListTest
+		dirName = FirstSubDirectoryForListTest
+	} else if strings.Contains(dirPath, DirectoryForListTest) {
+		// testBucket/directoryForListTest
+		dirName = DirectoryForListTest
+	} else if strings.Contains(dirPath, setup.MntDir()) {
+		// testBucket/
+		dirName = setup.MntDir()
+	}
+
+	return dirName
+}
 func createDirectoryWithFile(dirPath string, filePath string, t *testing.T) {
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
 	if err != nil {
@@ -41,19 +61,7 @@ func createDirectoryWithFile(dirPath string, filePath string, t *testing.T) {
 }
 
 func checkIfListedCorrectDirectory(dirPath string, obj fs.DirEntry, t *testing.T) {
-	var dirName string
-
-	if strings.Contains(dirPath, EmptySubDirInDirectoryForListTest) {
-		dirName = EmptySubDirInDirectoryForListTest
-	} else if strings.Contains(dirPath, SecondSubDirectoryForListTest) {
-		dirName = SecondSubDirectoryForListTest
-	} else if strings.Contains(dirPath, FirstSubDirectoryForListTest) {
-		dirName = FirstSubDirectoryForListTest
-	} else if strings.Contains(dirPath, DirectoryForListTest) {
-		dirName = DirectoryForListTest
-	} else if strings.Contains(dirPath, setup.MntDir()) {
-		dirName = setup.MntDir()
-	}
+	dirName := getDirNameFromPath(dirPath)
 
 	switch dirName {
 	case setup.MntDir():
@@ -68,6 +76,7 @@ func checkIfListedCorrectDirectory(dirPath string, obj fs.DirEntry, t *testing.T
 			// testBucket/directoryForListTest/fileInDirectoryForListTest     -- File
 			// testBucket/directoryForListTest/firstSubDirectoryForListTest   -- Dir
 			// testBucket/directoryForListTest/secondSubDirectoryForListTest  -- Dir
+			// testBucket/directoryForListTest/emptySubDirectoryForListTest  -- Dir
 			if (obj.Name() != FileInDirectoryForListTest && obj.IsDir() == true) && (obj.Name() != FirstSubDirectoryForListTest && obj.IsDir() != true) && (obj.Name() != SecondSubDirectoryForListTest && obj.IsDir() != true) && (obj.Name() != EmptySubDirInDirectoryForListTest && obj.IsDir() != true) {
 				t.Errorf("Listed incorrect object")
 			}
@@ -90,55 +99,42 @@ func checkIfListedCorrectDirectory(dirPath string, obj fs.DirEntry, t *testing.T
 }
 
 func checkIfListedDirectoryHasCorrectNumberOfObjects(dirPath string, numberOfObjects int, t *testing.T) {
-	var dirName string
-
-	if strings.Contains(dirPath, EmptySubDirInDirectoryForListTest) {
-		dirName = EmptySubDirInDirectoryForListTest
-	} else if strings.Contains(dirPath, SecondSubDirectoryForListTest) {
-		dirName = SecondSubDirectoryForListTest
-	} else if strings.Contains(dirPath, FirstSubDirectoryForListTest) {
-		dirName = FirstSubDirectoryForListTest
-	} else if strings.Contains(dirPath, DirectoryForListTest) {
-		dirName = DirectoryForListTest
-	} else if strings.Contains(dirPath, setup.MntDir()) {
-		dirName = setup.MntDir()
-	}
+	dirName := getDirNameFromPath(dirPath)
 
 	switch dirName {
 	case setup.MntDir():
 		{
-			// testBucket/directoryForListTest    -- Dir
-			if numberOfObjects != 1 {
+			// numberOfObjects - 1
+			if numberOfObjects != NumberOfObjectsInBucketDirectoryListTest {
 				t.Errorf("Listed incorrect object.")
 			}
 		}
 	case DirectoryForListTest:
 		{
-			// testBucket/directoryForListTest/fileInDirectoryForListTest     -- File
-			// testBucket/directoryForListTest/firstSubDirectoryForListTest   -- Dir
-			// testBucket/directoryForListTest/secondSubDirectoryForListTest  -- Dir
-			if numberOfObjects != 3 {
-				t.Errorf("Listed incorrect object")
+			// numberOfObjects - 4
+			if numberOfObjects != NumberOfObjectsInDirectoryForListTest {
+				t.Errorf("Incorrect number of objects in the directory.")
 			}
 		}
 	case FirstSubDirectoryForListTest:
 		{
-			// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest     -- File
-			if numberOfObjects != 1 {
-				t.Errorf("Listed incorrect object")
+			// numberOfObjects - 1
+			if numberOfObjects != NumberOfObjectsInFirstSubDirectoryForListTest {
+				t.Errorf("Incorrect number of objects in the directory.")
 			}
 		}
 	case SecondSubDirectoryForListTest:
 		{
-			// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest   -- File
-			if numberOfObjects != 1 {
-				t.Errorf("Listed incorrect object")
+			// numberOfObjects - 1
+			if numberOfObjects != NumberOfObjectsInSecondSubDirectoryForListTest {
+				t.Errorf("Incorrect number of objects in the directory.")
 			}
 		}
 	case EmptySubDirInDirectoryForListTest:
 		{
-			if numberOfObjects != 0 {
-				t.Errorf("Listed incorrect object")
+			// numberOfObjects - 0
+			if numberOfObjects != NumberOfObjectsInEmptySubDirInDirectoryForListTest {
+				t.Errorf("Incorrect number of objects in the directory.")
 			}
 		}
 	}
