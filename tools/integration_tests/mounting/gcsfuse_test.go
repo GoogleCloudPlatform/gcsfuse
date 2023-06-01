@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
@@ -58,9 +57,6 @@ func init() { RegisterTestSuite(&GcsfuseTest{}) }
 func (t *GcsfuseTest) SetUp(_ *TestInfo) {
 	var err error
 	t.gcsfusePath = path.Join(gBuildDir, "bin/gcsfuse")
-	if setup.TestInstalledPackage() {
-		t.gcsfusePath = "gcsfuse"
-	}
 	// Set up the temporary directory.
 	t.dir, err = os.MkdirTemp("", "gcsfuse_test")
 	AssertEq(nil, err)

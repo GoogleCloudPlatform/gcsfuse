@@ -47,6 +47,15 @@ func TestMain(m *testing.M) {
 		}
 	}
 
+	if setup.TestInstalledPackage() {
+		// when testInstalledPackage flag is set, gcsfuse is preinstalled on the
+		// machine. Hence, here we are overwriting gBuildDir to /.
+		gBuildDir = "/"
+		code := m.Run()
+		os.Exit(code)
+	}
+
+	// To test locally built package
 	// Set up a directory into which we will build.
 	gBuildDir, err = os.MkdirTemp("", "gcsfuse_integration_tests")
 	if err != nil {
@@ -55,20 +64,15 @@ func TestMain(m *testing.M) {
 	}
 
 	// Build into that directory.
-	if !setup.TestInstalledPackage() {
-		err = util.BuildGcsfuse(gBuildDir)
-		if err != nil {
-			log.Fatalf("buildGcsfuse: %p", err)
-			return
-		}
-	} else {
-		gBuildDir = "/"
+	err = util.BuildGcsfuse(gBuildDir)
+	if err != nil {
+		log.Fatalf("buildGcsfuse: %p", err)
+		return
 	}
-
-	// Run tests.
-	code := m.Run()
 
 	// Clean up and exit.
 	os.RemoveAll(gBuildDir)
+	// Run tests.
+	code := m.Run()
 	os.Exit(code)
 }

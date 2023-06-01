@@ -60,10 +60,6 @@ func TestInstalledPackage() bool {
 	return *testInstalledPackage
 }
 
-func setTestInstalledPackage(testInstalledPkgValue bool) {
-	*testInstalledPackage = testInstalledPkgValue
-}
-
 func MountedDirectory() string {
 	return *mountedDirectory
 }
@@ -137,7 +133,7 @@ func SetUpTestDir() error {
 		return fmt.Errorf("TempDir: %w\n", err)
 	}
 
-	if !*testInstalledPackage {
+	if !TestInstalledPackage() {
 		err = util.BuildGcsfuse(testDir)
 		if err != nil {
 			return fmt.Errorf("BuildGcsfuse(%q): %w\n", TestDir(), err)
