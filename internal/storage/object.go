@@ -36,8 +36,3 @@ type MinObject struct {
 
 
 
-type MinObjectListing struct {
-    Objects []*MinObject
-    ContinuationToken string
-    CollapsedRuns []string
-}

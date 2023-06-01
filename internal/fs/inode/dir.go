@@ -20,7 +20,6 @@ import (
 	"path"
 	"strings"
 	"time"
-
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/jacobsa/fuse/fuseops"
@@ -706,6 +705,7 @@ func (d *dirInode) readObjects(
 func (d *dirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
+
 	var cores map[Name]*MinCore
 	cores, newTok, err = d.readMinObjects(ctx, tok)
 	if err != nil {

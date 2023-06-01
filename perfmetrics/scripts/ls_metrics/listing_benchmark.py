@@ -374,7 +374,10 @@ def _mount_gcs_bucket(bucket_name) -> str:
   log.info('Started mounting the GCS Bucket using GCSFuse.\n')
   gcs_bucket = bucket_name
   subprocess.call('mkdir {}'.format(gcs_bucket), shell=True)
-
+  #for ls -lh
+  # exit_code = subprocess.call(
+  #     'go run ./../../../  --implicit-dirs --stat-cache-capacity=1000000 --stat-cache-ttl 1440m --type-cache-ttl 1440m {} {}'.format(
+  #         bucket_name, gcs_bucket), shell=True)
   exit_code = subprocess.call(
       'go run ./../../../  --implicit-dirs {} {}'.format(
           bucket_name, gcs_bucket), shell=True)
