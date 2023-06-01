@@ -76,7 +76,7 @@ func checkIfListedCorrectDirectory(dirPath string, obj fs.DirEntry, t *testing.T
 			// testBucket/directoryForListTest/fileInDirectoryForListTest     -- File
 			// testBucket/directoryForListTest/firstSubDirectoryForListTest   -- Dir
 			// testBucket/directoryForListTest/secondSubDirectoryForListTest  -- Dir
-			// testBucket/directoryForListTest/emptySubDirectoryForListTest  -- Dir
+			// testBucket/directoryForListTest/emptySubDirectoryForListTest   -- Dir
 			if (obj.Name() != FileInDirectoryForListTest && obj.IsDir() == true) && (obj.Name() != FirstSubDirectoryForListTest && obj.IsDir() != true) && (obj.Name() != SecondSubDirectoryForListTest && obj.IsDir() != true) && (obj.Name() != EmptySubDirInDirectoryForListTest && obj.IsDir() != true) {
 				t.Errorf("Listed incorrect object")
 			}
@@ -106,35 +106,35 @@ func checkIfListedDirectoryHasCorrectNumberOfObjects(dirPath string, numberOfObj
 		{
 			// numberOfObjects - 1
 			if numberOfObjects != NumberOfObjectsInBucketDirectoryListTest {
-				t.Errorf("Listed incorrect object.")
+				t.Errorf("Incorrect number of objects in the bucket directory.")
 			}
 		}
 	case DirectoryForListTest:
 		{
 			// numberOfObjects - 4
 			if numberOfObjects != NumberOfObjectsInDirectoryForListTest {
-				t.Errorf("Incorrect number of objects in the directory.")
+				t.Errorf("Incorrect number of objects in the directoryForListTest.")
 			}
 		}
 	case FirstSubDirectoryForListTest:
 		{
 			// numberOfObjects - 1
 			if numberOfObjects != NumberOfObjectsInFirstSubDirectoryForListTest {
-				t.Errorf("Incorrect number of objects in the directory.")
+				t.Errorf("Incorrect number of objects in the fileInDirectoryForListTest.")
 			}
 		}
 	case SecondSubDirectoryForListTest:
 		{
 			// numberOfObjects - 1
 			if numberOfObjects != NumberOfObjectsInSecondSubDirectoryForListTest {
-				t.Errorf("Incorrect number of objects in the directory.")
+				t.Errorf("Incorrect number of objects in the secondSubDirectoryForListTest.")
 			}
 		}
 	case EmptySubDirInDirectoryForListTest:
 		{
 			// numberOfObjects - 0
 			if numberOfObjects != NumberOfObjectsInEmptySubDirInDirectoryForListTest {
-				t.Errorf("Incorrect number of objects in the directory.")
+				t.Errorf("Incorrect number of objects in the emptySubDirInDirectoryForListTest.")
 			}
 		}
 	}
@@ -171,6 +171,7 @@ func TestListDirectoryRecursively(t *testing.T) {
 	// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest     -- File
 	// testBucket/directoryForListTest/secondSubDirectoryForListTest                                       -- Dir
 	// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest   -- File
+	// testBucket/directoryForListTest/emptySubDirInDirectoryForListTest                                   -- Dir
 
 	// testBucket/directoryForListTest
 	// testBucket/directoryForListTest/fileInDirectoryForListTest
