@@ -37,7 +37,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 	// Revoking gcloud credentials to test with service account credentials.
 	setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_gcloud_creds.sh", "")
 
-	// Testing without key-file and GOOGLE_APPLICATION_CREDENTIALS env variable
+	//Testing without key-file and GOOGLE_APPLICATION_CREDENTIALS env variable
 	//flagSet := []string{"--implicit-dirs"}
 	//err := setup.MountGcsfuse(flagSet)
 	//if err == nil {
