@@ -29,16 +29,6 @@ func MountGcsfuse(flags []string) error {
 		flags...,
 	)
 
-	// If TestInstalledPackage flag is set, it is assumed that gcsfuse is
-	// preinstalled on the machine. Hence, here we are overwriting the mount
-	// command to use gcsfuse instead os using tempDir/bin/gcsfuse.
-	if *setup.TestInstalledPackage {
-		mountCmd = exec.Command(
-			"gcsfuse",
-			flags...,
-		)
-	}
-
 	// Adding mount command in LogFile
 	file, err := os.OpenFile(setup.LogFile(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
