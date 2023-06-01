@@ -1,12 +1,31 @@
 {
-        "name":"ls-tests-1m" ,
-        "num_folders": 1 ,
-        "folders": [
-               {
-                        "name": "1KB_1000files_0subdir" ,
-                        "num_files": 1000 ,
-                        "file_name_prefix": "file" ,
-                        "file_size": "1kb"
-                }
-        ]
+  "name":"ls-tests-uswest" ,
+  "num_folders": 4 ,
+  "folders": [
+    {
+      "name": "1KB_1000files_0subdir" ,
+      "num_files": 1000 ,
+      "file_name_prefix": "file" ,
+      "file_size": "1kb"
+    } ,
+    {
+      "name": "1KB_10000files_0subdir" ,
+      "num_files": 10000 ,
+      "file_name_prefix": "file" ,
+      "file_size": "1kb"
+    } ,
+    {
+      "name": "1KB_100000files_0subdir" ,
+      "num_files": 100000 ,
+      "file_name_prefix": "file" ,
+      "file_size": "1kb"
+    } ,
+
+    {
+      "name": "1KB_1000000files_0subdir" ,
+      "num_files": 1000000 ,
+      "file_name_prefix": "file" ,
+      "file_size": "1kb"
+    }
+  ]
 }

@@ -531,11 +531,11 @@ if __name__ == '__main__':
   gcs_bucket_results, persistent_disk_results = _perform_testing(
       directory_structure.folders, gcs_bucket, persistent_disk,
       int(args.num_samples[0]), args.command[0])
-  print("GCS results")
+
   gcs_parsed_metrics = _parse_results(
       directory_structure.folders, gcs_bucket_results, args.message[0],
       int(args.num_samples[0]))
-  print("PD results")
+
   pd_parsed_metrics = _parse_results(
       directory_structure.folders, persistent_disk_results, args.message[0],
       int(args.num_samples[0]))
