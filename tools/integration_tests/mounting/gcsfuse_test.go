@@ -57,9 +57,8 @@ func init() { RegisterTestSuite(&GcsfuseTest{}) }
 func (t *GcsfuseTest) SetUp(_ *TestInfo) {
 	var err error
 	t.gcsfusePath = path.Join(gBuildDir, "bin/gcsfuse")
-
 	// Set up the temporary directory.
-	t.dir, err = ioutil.TempDir("", "gcsfuse_test")
+	t.dir, err = os.MkdirTemp("", "gcsfuse_test")
 	AssertEq(nil, err)
 }
 
