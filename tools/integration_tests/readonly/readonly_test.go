@@ -65,9 +65,6 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	// Run tests for testBucket
-	setup.SetUpTestDirForTestBucketFlag()
-
 	// Clean the bucket for readonly testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 
@@ -77,6 +74,8 @@ func TestMain(m *testing.M) {
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
 	setup.RunTestsForMountedDirectoryFlag(m)
 
+	// Run tests for testBucket
+	setup.SetUpTestDirForTestBucketFlag()
 	successCode := static_mounting.RunTests(flags, m)
 
 	// Delete objects from bucket after testing.
