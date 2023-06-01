@@ -38,6 +38,7 @@ const DestCopyDirectoryNotExist = "notExist"
 const NumberOfObjectsInSrcCopyDirectory = 2
 const NumberOfObjectsInDestCopyDirectory = 2
 const DirectoryForListTest = "directoryForListTest"
+const EmptySubDirInDirectoryForListTest = "emptySubDirInDirectoryForListTest"
 const FirstSubDirectoryForListTest = "firstSubDirectoryForListTest"
 const FileInDirectoryForListTest = "fileInDirectoryForListTest"
 const FileInFirstSubDirectoryForListTest = "fileInFirstSubDirectoryForListTest"

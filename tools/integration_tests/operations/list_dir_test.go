@@ -43,7 +43,9 @@ func createDirectoryWithFile(dirPath string, filePath string, t *testing.T) {
 func checkIfListedCorrectDirectory(dirPath string, obj fs.DirEntry, t *testing.T) {
 	var dirName string
 
-	if strings.Contains(dirPath, SecondSubDirectoryForListTest) {
+	if strings.Contains(dirPath, EmptySubDirInDirectoryForListTest) {
+		dirName = EmptySubDirInDirectoryForListTest
+	} else if strings.Contains(dirPath, SecondSubDirectoryForListTest) {
 		dirName = SecondSubDirectoryForListTest
 	} else if strings.Contains(dirPath, FirstSubDirectoryForListTest) {
 		dirName = FirstSubDirectoryForListTest
@@ -66,7 +68,7 @@ func checkIfListedCorrectDirectory(dirPath string, obj fs.DirEntry, t *testing.T
 			// testBucket/directoryForListTest/fileInDirectoryForListTest     -- File
 			// testBucket/directoryForListTest/firstSubDirectoryForListTest   -- Dir
 			// testBucket/directoryForListTest/secondSubDirectoryForListTest  -- Dir
-			if (obj.Name() != FileInDirectoryForListTest && obj.IsDir() == true) && (obj.Name() != FirstSubDirectoryForListTest && obj.IsDir() != true) && (obj.Name() != SecondSubDirectoryForListTest && obj.IsDir() != true) {
+			if (obj.Name() != FileInDirectoryForListTest && obj.IsDir() == true) && (obj.Name() != FirstSubDirectoryForListTest && obj.IsDir() != true) && (obj.Name() != SecondSubDirectoryForListTest && obj.IsDir() != true) && (obj.Name() != EmptySubDirInDirectoryForListTest && obj.IsDir() != true) {
 				t.Errorf("Listed incorrect object")
 			}
 		}
@@ -87,6 +89,61 @@ func checkIfListedCorrectDirectory(dirPath string, obj fs.DirEntry, t *testing.T
 	}
 }
 
+func checkIfListedDirectoryHasCorrectNumberOfObjects(dirPath string, numberOfObjects int, t *testing.T) {
+	var dirName string
+
+	if strings.Contains(dirPath, EmptySubDirInDirectoryForListTest) {
+		dirName = EmptySubDirInDirectoryForListTest
+	} else if strings.Contains(dirPath, SecondSubDirectoryForListTest) {
+		dirName = SecondSubDirectoryForListTest
+	} else if strings.Contains(dirPath, FirstSubDirectoryForListTest) {
+		dirName = FirstSubDirectoryForListTest
+	} else if strings.Contains(dirPath, DirectoryForListTest) {
+		dirName = DirectoryForListTest
+	} else if strings.Contains(dirPath, setup.MntDir()) {
+		dirName = setup.MntDir()
+	}
+
+	switch dirName {
+	case setup.MntDir():
+		{
+			// testBucket/directoryForListTest    -- Dir
+			if numberOfObjects != 1 {
+				t.Errorf("Listed incorrect object.")
+			}
+		}
+	case DirectoryForListTest:
+		{
+			// testBucket/directoryForListTest/fileInDirectoryForListTest     -- File
+			// testBucket/directoryForListTest/firstSubDirectoryForListTest   -- Dir
+			// testBucket/directoryForListTest/secondSubDirectoryForListTest  -- Dir
+			if numberOfObjects != 3 {
+				t.Errorf("Listed incorrect object")
+			}
+		}
+	case FirstSubDirectoryForListTest:
+		{
+			// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest     -- File
+			if numberOfObjects != 1 {
+				t.Errorf("Listed incorrect object")
+			}
+		}
+	case SecondSubDirectoryForListTest:
+		{
+			// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest   -- File
+			if numberOfObjects != 1 {
+				t.Errorf("Listed incorrect object")
+			}
+		}
+	case EmptySubDirInDirectoryForListTest:
+		{
+			if numberOfObjects != 0 {
+				t.Errorf("Listed incorrect object")
+			}
+		}
+	}
+}
+
 // List directory recursively
 func listDirectory(path string, t *testing.T) {
 	//Reading contents of the directory
@@ -95,6 +152,8 @@ func listDirectory(path string, t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	checkIfListedDirectoryHasCorrectNumberOfObjects(path, len(objs), t)
 
 	for _, obj := range objs {
 		checkIfListedCorrectDirectory(path, obj, t)
@@ -134,6 +193,14 @@ func TestListDirectoryRecursively(t *testing.T) {
 	subDirPath = path.Join(dirPath, SecondSubDirectoryForListTest)
 	subDirFilePath = path.Join(subDirPath, FileInSecondSubDirectoryForListTest)
 	createDirectoryWithFile(subDirPath, subDirFilePath, t)
+
+	// testBucket/directoryForListTest/emptySubDirInDirectoryForListTest
+	subDirPath = path.Join(dirPath, EmptySubDirInDirectoryForListTest)
+	err := os.Mkdir(subDirPath, setup.FilePermission_0600)
+	if err != nil {
+		t.Errorf("Mkdir at %q: %v", subDirPath, err)
+		return
+	}
 
 	// Test directory listing recursively.
 	listDirectory(setup.MntDir(), t)
