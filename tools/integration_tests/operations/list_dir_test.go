@@ -47,6 +47,7 @@ func getDirNameFromPath(dirPath string) (dirName string) {
 
 	return dirName
 }
+
 func createDirectoryWithFile(dirPath string, filePath string, t *testing.T) {
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
 	if err != nil {
