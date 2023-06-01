@@ -31,8 +31,8 @@ sudo apt-get install fio -y
 
 # Run on master branch
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
-git checkout master
 git stash
+git checkout master
 echo Mounting gcs bucket for master branch
 mkdir -p gcs
 GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --temp-dir /tmpfs"
