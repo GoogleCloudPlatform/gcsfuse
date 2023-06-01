@@ -61,11 +61,13 @@ func TestMain(m *testing.M) {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
-		log.Printf("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
+		log.Print("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
 		os.Exit(1)
 	}
 
 	// Run tests for testBucket
+	setup.SetUpTestDirForTestBucketFlag()
+
 	// Clean the bucket for readonly testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 

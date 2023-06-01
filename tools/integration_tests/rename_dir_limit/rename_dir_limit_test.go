@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
-		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
+		log.Print("Both --testbucket and --mountedDirectory can't be specified at the same time.")
 		os.Exit(1)
 	}
 
@@ -50,6 +50,8 @@ func TestMain(m *testing.M) {
 	setup.RunTestsForMountedDirectoryFlag(m)
 
 	// Run tests for testBucket
+	setup.SetUpTestDirForTestBucketFlag()
+
 	successCode := static_mounting.RunTests(flags, m)
 
 	if successCode == 0 {
