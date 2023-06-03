@@ -31,11 +31,10 @@ sudo apt-get install fio -y
 
 # Run on master branch
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
-git stash
 git checkout master
 echo Mounting gcs bucket for master branch
 mkdir -p gcs
-GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --temp-dir /tmpfs/tmp"
+GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
 BUCKET_NAME=presubmit-perf-tests
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
