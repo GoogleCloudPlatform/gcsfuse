@@ -88,7 +88,7 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 
-	os.RemoveAll("/tmp/gcsfuse_integration_*")
+	os.RemoveAll("/tmp/gcsfuse_integration*")
 
 	return successCode
 }
