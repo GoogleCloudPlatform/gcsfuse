@@ -235,6 +235,10 @@ func getProjectionValue(req gcs.Projection) storage.Projection {
 	return convertedProjection
 }
 
+func (b *bucketHandle) ListMinObjects(ctx context.Context, req *gcs.ListObjectsRequest)(listing *gcs.Listing, err error){
+    return
+}
+
 func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
 	// Converting *ListObjectsRequest to type *storage.Query as expected by the Go Storage Client.
 	query := &storage.Query{

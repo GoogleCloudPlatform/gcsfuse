@@ -345,7 +345,7 @@ def _unmount_gcs_bucket(gcs_bucket) -> None:
   """
 
   log.info('Unmounting the GCS Bucket.\n')
-  exit_code = subprocess.call('umount -l {}'.format(gcs_bucket), shell=True)
+  exit_code = subprocess.call('fusermount -u {}'.format(gcs_bucket), shell=True)
   if exit_code != 0:
     log.error('Error encountered in umounting the bucket. Aborting!\n')
     subprocess.call('bash', shell=True)
@@ -373,9 +373,12 @@ def _mount_gcs_bucket(bucket_name) -> str:
   log.info('Started mounting the GCS Bucket using GCSFuse.\n')
   gcs_bucket = bucket_name
   subprocess.call('mkdir {}'.format(gcs_bucket), shell=True)
-
+  #for ls -lh
+  # exit_code = subprocess.call(
+  #     'go run ./../../../  --implicit-dirs --stat-cache-capacity=1000000 --stat-cache-ttl 1440m --type-cache-ttl 1440m {} {}'.format(
+  #         bucket_name, gcs_bucket), shell=True)
   exit_code = subprocess.call(
-      'gcsfuse --implicit-dirs --enable-storage-client-library --max-conns-per-host 100 {} {}'.format(
+      'go run ./../../../ --implicit-dirs {} {}'.format(
           bucket_name, gcs_bucket), shell=True)
   if exit_code != 0:
     log.error('Cannot mount the GCS bucket due to exit code %s.\n', exit_code)
@@ -475,7 +478,7 @@ if __name__ == '__main__':
 
   args = _parse_arguments(argv)
 
-  _check_dependencies(['gsutil', 'gcsfuse'])
+  # _check_dependencies(['gsutil', 'gcsfuse'])
 
   with open(os.path.abspath(args.config_file)) as file:
     config_json = json.load(file)

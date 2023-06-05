@@ -197,6 +197,15 @@ func (b *debugBucket) StatObject(
 	o, err = b.wrapped.StatObject(ctx, req)
 	return
 }
+func (b *debugBucket) ListMinObjects(
+	ctx context.Context,
+	req *ListObjectsRequest) (listing *MinObjectListing, err error) {
+	id, desc, start := b.startRequest("ListObjects(%q)", req.Prefix)
+	defer b.finishRequest(id, desc, start, &err)
+
+	listing, err = b.wrapped.ListMinObjects(ctx, req)
+	return
+}
 
 func (b *debugBucket) ListObjects(
 	ctx context.Context,

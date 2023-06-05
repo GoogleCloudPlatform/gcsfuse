@@ -25,6 +25,8 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
 	storagev1 "google.golang.org/api/storage/v1"
+	"cloud.google.com/go/storage"
+    "google.golang.org/api/iterator"
 )
 
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
@@ -94,6 +96,10 @@ type Bucket interface {
 		ctx context.Context,
 		req *StatObjectRequest) (*Object, error)
 
+    ListMinObjects(
+        		ctx context.Context,
+        		req *ListObjectsRequest) (*MinObjectListing, error)
+
 	// List the objects in the bucket that meet the criteria defined by the
 	// request, returning a result object that contains the results and
 	// potentially a cursor for retrieving the next portion of the larger set of
@@ -135,6 +141,88 @@ func (b *bucket) Name() string {
 	return b.name
 }
 
+
+func getProjectionValue(req Projection) storage.Projection {
+	// Explicitly converting Projection Value because the ProjectionVal interface of jacobsa/gcloud and Go Client API are not coupled correctly.
+	var convertedProjection storage.Projection // Stores the Projection Value according to the Go Client API Interface.
+	switch int(req) {
+	// Projection Value 0 in jacobsa/gcloud maps to Projection Value 1 in Go Client API, that is for "full".
+	case 0:
+		convertedProjection = storage.Projection(1)
+	// Projection Value 1 in jacobsa/gcloud maps to Projection Value 2 in Go Client API, that is for "noAcl".
+	case 1:
+		convertedProjection = storage.Projection(2)
+	// Default Projection value in jacobsa/gcloud library is 0 that maps to 1 in Go Client API interface, and that is for "full".
+	default:
+		convertedProjection = storage.Projection(1)
+	}
+	return convertedProjection
+}
+
+func (b *bucket) ListMinObjects(
+	ctx context.Context,
+	req *ListObjectsRequest) (listing *MinObjectListing, err error) {
+	    query := &storage.Query{
+                    		Delimiter:                req.Delimiter,
+                    		Prefix:                   req.Prefix,
+                    		Projection:               getProjectionValue(req.ProjectionVal),
+                    		IncludeTrailingDelimiter: req.IncludeTrailingDelimiter,
+                    		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
+                    	}
+        query.SetAttrSelection([]string{"Name","Size","Generation","MetaGeneration","Updated","Metadata"})
+        itr := b.objbucket.Objects(ctx, query) // Returning iterator to the list of objects.
+                    	pi := itr.PageInfo()
+                    	pi.MaxSize = req.MaxResults
+                    	pi.Token = req.ContinuationToken
+                    	var list MinObjectListing
+                    	// Iterating through all the objects in the bucket and one by one adding them to the list.
+                                    	for {
+                                    		var attrs *storage.ObjectAttrs
+
+                                    		attrs, err = itr.Next()
+                                    		if err == iterator.Done {
+                                    			err = nil
+                                    			break
+                                    		}
+                                    		if err != nil {
+                                    			err = fmt.Errorf("Error in iterating through objects: %w", err)
+                                    			return
+                                    		}
+
+                                    		// Prefix attribute will be set for the objects returned as part of Prefix[] array in list response.
+                                    		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/storage.go#L1304
+                                    		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L370
+                                    		if attrs.Prefix != "" {
+                                    			list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
+                                    		} else {
+                                    			// Converting attrs to *Object type.
+                                    			currObject := &MinObject{
+                                    			    Name : attrs.Name,
+                                    			    Size : uint64(attrs.Size),
+                                    			    Generation:attrs.Generation,
+                                    			    MetaGeneration: attrs.Metageneration,
+                                    			    Updated: attrs.Updated,
+                                    			    Metadata: attrs.Metadata,
+                                    			    }
+                                    			list.Objects = append(list.Objects, currObject)
+                                    		}
+
+                                    		// itr.next returns all the objects present in the bucket. Hence adding a
+                                    		// check to break after iterating over the current page. pi.Remaining()
+                                    		// function returns number of items (items + prefixes) remaining in current
+                                    		// page to be iterated by iterator (itr). The func returns (number of items in current page - 1)
+                                    		// after first itr.Next() call and becomes 0 when iteration is done.
+                                    		// If req.MaxResults is 0, then wait till iterator is done. This is similar
+                                    		// to https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/jacobsa/gcloud/gcs/bucket.go#L164
+                                    		if req.MaxResults != 0 && (pi.Remaining() == 0) {
+                                    			break
+                                    		}
+                                    	}
+
+                                    	list.ContinuationToken = itr.PageInfo().Token
+                                    	listing = &list
+                                    	return
+         }
 func (b *bucket) ListObjects(
 	ctx context.Context,
 	req *ListObjectsRequest) (listing *Listing, err error) {

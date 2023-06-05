@@ -501,6 +501,13 @@ func (rb *retryBucket) StatObject(
 	return
 }
 
+func (rb *retryBucket) ListMinObjects(
+	ctx context.Context,
+	req *ListObjectsRequest) (listing *MinObjectListing, err error) {
+
+	return
+}
+
 func (rb *retryBucket) ListObjects(
 	ctx context.Context,
 	req *ListObjectsRequest) (listing *Listing, err error) {

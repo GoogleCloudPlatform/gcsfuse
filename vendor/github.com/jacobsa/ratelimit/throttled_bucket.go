@@ -135,6 +135,21 @@ func (b *throttledBucket) StatObject(
 	return
 }
 
+func (b *throttledBucket) ListMinObjects(
+	ctx context.Context,
+	req *gcs.ListObjectsRequest) (listing *gcs.MinObjectListing, err error) {
+	// Wait for permission to call through.
+	err = b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return
+	}
+
+	// Call through.
+	listing, err = b.wrapped.ListMinObjects(ctx, req)
+
+	return
+}
+
 func (b *throttledBucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
