@@ -16,37 +16,16 @@
 package operations_test
 
 import (
+	"fmt"
 	"io/fs"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
-
-func getDirNameFromPath(dirPath string) (dirName string) {
-	if strings.Contains(dirPath, EmptySubDirInDirectoryForListTest) {
-		// testBucket/directoryForListTest/emptySubDirectoryForListTest
-		dirName = EmptySubDirInDirectoryForListTest
-	} else if strings.Contains(dirPath, SecondSubDirectoryForListTest) {
-		// testBucket/directoryForListTest/secondSubDirectoryForListTest
-		dirName = SecondSubDirectoryForListTest
-	} else if strings.Contains(dirPath, FirstSubDirectoryForListTest) {
-		// testBucket/directoryForListTest/firstSubDirectoryForListTest
-		dirName = FirstSubDirectoryForListTest
-	} else if strings.Contains(dirPath, DirectoryForListTest) {
-		// testBucket/directoryForListTest
-		dirName = DirectoryForListTest
-	} else if strings.Contains(dirPath, setup.MntDir()) {
-		// testBucket/
-		dirName = setup.MntDir()
-	}
-
-	return dirName
-}
 
 func createDirectoryWithFile(dirPath string, filePath string, t *testing.T) {
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
@@ -61,110 +40,7 @@ func createDirectoryWithFile(dirPath string, filePath string, t *testing.T) {
 	}
 }
 
-func checkIfListedCorrectDirectory(dirPath string, obj fs.DirEntry, t *testing.T) {
-	dirName := getDirNameFromPath(dirPath)
-
-	switch dirName {
-	case setup.MntDir():
-		{
-			// testBucket/directoryForListTest    -- Dir
-			if obj.Name() != DirectoryForListTest || obj.IsDir() != true {
-				t.Errorf("Listed incorrect object.")
-			}
-		}
-	case DirectoryForListTest:
-		{
-			// testBucket/directoryForListTest/fileInDirectoryForListTest     -- File
-			// testBucket/directoryForListTest/firstSubDirectoryForListTest   -- Dir
-			// testBucket/directoryForListTest/secondSubDirectoryForListTest  -- Dir
-			// testBucket/directoryForListTest/emptySubDirectoryForListTest   -- Dir
-			if (obj.Name() != FileInDirectoryForListTest && obj.IsDir() == true) && (obj.Name() != FirstSubDirectoryForListTest && obj.IsDir() != true) && (obj.Name() != SecondSubDirectoryForListTest && obj.IsDir() != true) && (obj.Name() != EmptySubDirInDirectoryForListTest && obj.IsDir() != true) {
-				t.Errorf("Listed incorrect object")
-			}
-		}
-	case FirstSubDirectoryForListTest:
-		{
-			// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest     -- File
-			if obj.Name() != FileInFirstSubDirectoryForListTest && obj.IsDir() == true {
-				t.Errorf("Listed incorrect object")
-			}
-		}
-	case SecondSubDirectoryForListTest:
-		{
-			// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest   -- File
-			if obj.Name() != FileInSecondSubDirectoryForListTest && obj.IsDir() == true {
-				t.Errorf("Listed incorrect object")
-			}
-		}
-	}
-}
-
-func checkIfListedDirectoryHasCorrectNumberOfObjects(dirPath string, numberOfObjects int, t *testing.T) {
-	dirName := getDirNameFromPath(dirPath)
-
-	switch dirName {
-	case setup.MntDir():
-		{
-			// numberOfObjects - 1
-			if numberOfObjects != NumberOfObjectsInBucketDirectoryListTest {
-				t.Errorf("Incorrect number of objects in the bucket directory.")
-			}
-		}
-	case DirectoryForListTest:
-		{
-			// numberOfObjects - 4
-			if numberOfObjects != NumberOfObjectsInDirectoryForListTest {
-				t.Errorf("Incorrect number of objects in the directoryForListTest.")
-			}
-		}
-	case FirstSubDirectoryForListTest:
-		{
-			// numberOfObjects - 1
-			if numberOfObjects != NumberOfObjectsInFirstSubDirectoryForListTest {
-				t.Errorf("Incorrect number of objects in the fileInDirectoryForListTest.")
-			}
-		}
-	case SecondSubDirectoryForListTest:
-		{
-			// numberOfObjects - 1
-			if numberOfObjects != NumberOfObjectsInSecondSubDirectoryForListTest {
-				t.Errorf("Incorrect number of objects in the secondSubDirectoryForListTest.")
-			}
-		}
-	case EmptySubDirInDirectoryForListTest:
-		{
-			// numberOfObjects - 0
-			if numberOfObjects != NumberOfObjectsInEmptySubDirInDirectoryForListTest {
-				t.Errorf("Incorrect number of objects in the emptySubDirInDirectoryForListTest.")
-			}
-		}
-	}
-}
-
-// List directory recursively
-func listDirectory(path string, t *testing.T) {
-	//Reading contents of the directory
-	objs, err := os.ReadDir(path)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	checkIfListedDirectoryHasCorrectNumberOfObjects(path, len(objs), t)
-
-	for _, obj := range objs {
-		checkIfListedCorrectDirectory(path, obj, t)
-		if obj.IsDir() {
-			subDirectoryPath := filepath.Join(path, obj.Name()) // path of the subdirectory
-			listDirectory(subDirectoryPath, t)                  // calling listFiles() again for subdirectory
-		}
-	}
-}
-
-func TestListDirectoryRecursively(t *testing.T) {
-	// Clean the bucket for list testing.
-	os.RemoveAll(setup.MntDir())
-
+func createDirectoryStructureForTest(t *testing.T) {
 	// Directory structure
 	// testBucket/directoryForListTest                                                                     -- Dir
 	// testBucket/directoryForListTest/fileInDirectoryForListTest		                                       -- File
@@ -199,10 +75,116 @@ func TestListDirectoryRecursively(t *testing.T) {
 		t.Errorf("Mkdir at %q: %v", subDirPath, err)
 		return
 	}
+}
 
-	// Test directory listing recursively.
-	listDirectory(setup.MntDir(), t)
+func TestListDirectoryRecursively(t *testing.T) {
+	// Clean the bucket for list testing.
+	os.RemoveAll(setup.MntDir())
 
-	// Clean the bucket after list testing.
+	// Create directory structure for testing.
+	createDirectoryStructureForTest(t)
+
+	// Recursively walk into directory and test.
+	err := filepath.Walk(setup.MntDir(), func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
+			return err
+		}
+
+		objs, err := os.ReadDir(path)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Check if mntDir has correct number of objects.
+		if path == setup.MntDir() {
+			// numberOfObjects - 1
+			if len(objs) != NumberOfObjectsInBucketDirectoryListTest {
+				t.Errorf("Incorrect number of objects in the bucket.")
+			}
+
+			// testBucket/directoryForListTest   -- Dir
+			if objs[0].Name() != DirectoryForListTest || objs[0].IsDir() != true {
+				t.Errorf("Listed incorrect object")
+			}
+		}
+
+		// Check if directoryForListTest directory has correct data.
+		if info.IsDir() && info.Name() == DirectoryForListTest {
+
+			// numberOfObjects - 4
+			if len(objs) != NumberOfObjectsInDirectoryForListTest {
+				t.Errorf("Incorrect number of objects in the directoryForListTest.")
+			}
+
+			// testBucket/directoryForListTest/emptySubDirectoryForListTest   -- Dir
+			if objs[0].Name() != EmptySubDirInDirectoryForListTest || objs[0].IsDir() != true {
+				t.Errorf("Listed incorrect object")
+			}
+
+			// testBucket/directoryForListTest/fileInDirectoryForListTest     -- File
+			if objs[1].Name() != FileInDirectoryForListTest || objs[1].IsDir() != false {
+				t.Errorf("Listed incorrect object")
+			}
+
+			// testBucket/directoryForListTest/firstSubDirectoryForListTest   -- Dir
+			if objs[2].Name() != FirstSubDirectoryForListTest || objs[2].IsDir() != true {
+				t.Errorf("Listed incorrect object")
+			}
+
+			// testBucket/directoryForListTest/secondSubDirectoryForListTest  -- Dir
+			if objs[3].Name() != SecondSubDirectoryForListTest || objs[3].IsDir() != true {
+				t.Errorf("Listed incorrect object")
+			}
+
+			return filepath.SkipDir
+		}
+
+		// Check if firstSubDirectoryForListTest directory has correct data.
+		if info.IsDir() && info.Name() == FirstSubDirectoryForListTest {
+			// numberOfObjects - 1
+			if len(objs) != NumberOfObjectsInFirstSubDirectoryForListTest {
+				t.Errorf("Incorrect number of objects in the firstSubDirectoryForListTest.")
+			}
+
+			// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest     -- File
+			if objs[0].Name() != FileInFirstSubDirectoryForListTest || objs[0].IsDir() == true {
+				t.Errorf("Listed incorrect object")
+			}
+
+			return filepath.SkipDir
+		}
+
+		// Check if secondSubDirectoryForListTest directory has correct data.
+		if info.IsDir() && info.Name() == SecondSubDirectoryForListTest {
+			// numberOfObjects - 1
+			if len(objs) != NumberOfObjectsInSecondSubDirectoryForListTest {
+				t.Errorf("Incorrect number of objects in the secondSubDirectoryForListTest.")
+			}
+
+			// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest   -- File
+			if objs[0].Name() != FileInSecondSubDirectoryForListTest || objs[0].IsDir() == true {
+				t.Errorf("Listed incorrect object")
+			}
+
+			return filepath.SkipDir
+		}
+
+		// Check if emptySubDirInDirectoryForListTest directory has correct data.
+		if info.IsDir() && info.Name() == EmptySubDirInDirectoryForListTest {
+			// numberOfObjects - 0
+			if len(objs) != NumberOfObjectsInEmptySubDirInDirectoryForListTest {
+				t.Errorf("Incorrect number of objects in the emptySubDirInDirectoryForListTest.")
+			}
+			return filepath.SkipDir
+		}
+
+		return nil
+	})
+	if err != nil {
+		fmt.Printf("error walking the path : %v\n", err)
+		return
+	}
+
 	os.RemoveAll(setup.MntDir())
 }
