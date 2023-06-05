@@ -31,6 +31,7 @@ import (
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
 var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test.")
 var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
+var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] Run tests on the package pre-installed on the host machine. By default, integration tests build a new package to run the tests.")
 
 const BufferSize = 100
 const FilePermission_0600 = 0600
@@ -53,6 +54,10 @@ func RunScriptForTestData(script string, testBucket string) {
 
 func TestBucket() string {
 	return *testBucket
+}
+
+func TestInstalledPackage() bool {
+	return *testInstalledPackage
 }
 
 func MountedDirectory() string {
@@ -128,12 +133,17 @@ func SetUpTestDir() error {
 		return fmt.Errorf("TempDir: %w\n", err)
 	}
 
-	err = util.BuildGcsfuse(testDir)
-	if err != nil {
-		return fmt.Errorf("BuildGcsfuse(%q): %w\n", TestDir(), err)
+	if !TestInstalledPackage() {
+		err = util.BuildGcsfuse(testDir)
+		if err != nil {
+			return fmt.Errorf("BuildGcsfuse(%q): %w\n", TestDir(), err)
+		}
+		binFile = path.Join(TestDir(), "bin/gcsfuse")
+	} else {
+		// when testInstalledPackage flag is set, gcsfuse is preinstalled on the
+		// machine. Hence, here we are overwriting binFile to gcsfuse.
+		binFile = "gcsfuse"
 	}
-
-	binFile = path.Join(TestDir(), "bin/gcsfuse")
 	logFile = path.Join(TestDir(), "gcsfuse.log")
 	mntDir = path.Join(TestDir(), "mnt")
 
