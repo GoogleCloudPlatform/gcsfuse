@@ -17,7 +17,6 @@ package only_dir_mounting
 import (
 	"fmt"
 	"log"
-	"os"
 	"path"
 	"testing"
 
@@ -87,8 +86,6 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	successCode = executeTestsForOnlyDirMounting(flags, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
-
-	os.RemoveAll("/tmp/gcsfuse_integration*")
 
 	return successCode
 }

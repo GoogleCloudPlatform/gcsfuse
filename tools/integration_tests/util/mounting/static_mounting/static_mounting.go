@@ -17,7 +17,6 @@ package static_mounting
 import (
 	"fmt"
 	"log"
-	"os"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting"
@@ -61,6 +60,5 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 
-	os.RemoveAll("/tmp/gcsfuse_integration*")
 	return successCode
 }
