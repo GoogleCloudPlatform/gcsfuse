@@ -235,7 +235,7 @@ func getProjectionValue(req gcs.Projection) storage.Projection {
 	return convertedProjection
 }
 
-func (b *bucketHandle) ListMinObjects(ctx context.Context, req *gcs.ListObjectsRequest)(listing *gcs.Listing, err error){
+func (b *bucketHandle) ListMinObjects(ctx context.Context, req *gcs.ListObjectsRequest)(listing *gcs.MinObjectListing, err error){
     return
 }
 
