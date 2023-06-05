@@ -20,6 +20,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -47,34 +48,34 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
 
 	log.Print(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-	//successCode = static_mounting.RunTests(testFlagSet, m)
+	successCode = static_mounting.RunTests(testFlagSet, m)
 
 	if successCode != 0 {
 		return
 	}
-	//
-	//keyFileFlag := "--key-file=" + creds_path
-	//
-	//for i := 0; i < len(testFlagSet); i++ {
-	//	testFlagSet[i] = append(testFlagSet[i], keyFileFlag)
-	//}
-	//
-	//// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
-	//successCode = static_mounting.RunTests(testFlagSet, m)
-	//
-	//if successCode != 0 {
-	//	return
-	//}
-	//
-	//os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
-	//
-	//// Testing with --key-file flag only
-	//successCode = static_mounting.RunTests(testFlagSet, m)
-	//
-	//if successCode != 0 {
-	//	return
-	//}
-	//
+
+	keyFileFlag := "--key-file=" + creds_path
+
+	for i := 0; i < len(testFlagSet); i++ {
+		testFlagSet[i] = append(testFlagSet[i], keyFileFlag)
+	}
+
+	// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
+	successCode = static_mounting.RunTests(testFlagSet, m)
+
+	if successCode != 0 {
+		return
+	}
+
+	os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
+
+	// Testing with --key-file flag only
+	successCode = static_mounting.RunTests(testFlagSet, m)
+
+	if successCode != 0 {
+		return
+	}
+
 	//setup.RunScriptForTestData("../util/creds_tests/testdata/set_gcloud_creds.sh", "")
 
 	return successCode
