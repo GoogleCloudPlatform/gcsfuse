@@ -10,7 +10,6 @@ then
   exit 0
 fi
 
-df -H
 # It will take approx 80 minutes to run the script.
 set -e
 sudo apt-get update
