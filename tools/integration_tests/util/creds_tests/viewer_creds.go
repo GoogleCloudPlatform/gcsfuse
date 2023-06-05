@@ -25,8 +25,6 @@ import (
 )
 
 func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m *testing.M) (successCode int) {
-	setup.SetTestBucket("tulsishah-test")
-
 	// Revoking gcloud credentials to test with service account credentials.
 	//setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_gcloud_creds.sh", "")
 

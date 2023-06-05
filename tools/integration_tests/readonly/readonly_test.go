@@ -78,9 +78,21 @@ func TestMain(m *testing.M) {
 
 	successCode := static_mounting.RunTests(flags, m)
 
+	// Delete objects from bucket after testing.
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+
 	if successCode != 0 {
 		return
 	}
+
+	// Key - File testing
+	setup.SetTestBucket("tulsishah-test")
+
+	// Clean the bucket for readonly testing.
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+
+	// Create objects in bucket for testing.
+	setup.RunScriptForTestData("testdata/create_objects.sh", setup.TestBucket())
 
 	// Run tests for credentials.
 	successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentials(flags, m)
