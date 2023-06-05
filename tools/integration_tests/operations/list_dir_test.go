@@ -96,7 +96,7 @@ func TestListDirectoryRecursively(t *testing.T) {
 			log.Fatal(err)
 		}
 
-		// Check if mntDir has correct number of objects.
+		// Check if mntDir has correct objects.
 		if path == setup.MntDir() {
 			// numberOfObjects - 1
 			if len(objs) != NumberOfObjectsInBucketDirectoryListTest {
@@ -182,7 +182,7 @@ func TestListDirectoryRecursively(t *testing.T) {
 		return nil
 	})
 	if err != nil {
-		fmt.Printf("error walking the path : %v\n", err)
+		t.Errorf("error walking the path : %v\n", err)
 		return
 	}
 
