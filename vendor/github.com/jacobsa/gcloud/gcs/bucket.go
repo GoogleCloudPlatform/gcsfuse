@@ -135,6 +135,7 @@ type bucket struct {
 	userAgent      string
 	name           string
 	billingProject string
+	objbucket     *storage.BucketHandle
 }
 
 func (b *bucket) Name() string {
