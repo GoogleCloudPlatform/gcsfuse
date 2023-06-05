@@ -200,7 +200,7 @@ func ParseSetUpFlags() {
 	flag.Parse()
 
 	if !*integrationTest {
-		log.Printf("Pass --integrationTest flag to run the tests.")
+		log.Print("Pass --integrationTest flag to run the tests.")
 		os.Exit(0)
 	}
 }
@@ -209,7 +209,7 @@ func ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet() {
 	ParseSetUpFlags()
 
 	if *testBucket == "" && *mountedDirectory == "" {
-		log.Printf("--testbucket or --mountedDirectory must be specified")
+		log.Print("--testbucket or --mountedDirectory must be specified")
 		os.Exit(1)
 	}
 }
