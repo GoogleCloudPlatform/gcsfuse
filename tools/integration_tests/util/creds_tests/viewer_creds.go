@@ -25,6 +25,8 @@ import (
 )
 
 func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m *testing.M) (successCode int) {
+	setup.SetTestBucket("tulsishah-test")
+
 	// Revoking gcloud credentials to test with service account credentials.
 	//setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_gcloud_creds.sh", "")
 
@@ -40,7 +42,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 
 	setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "integration-test-tulsishah")
 
-	creds_path := path.Join(os.Getenv("HOME"), "viewer_creds.json")
+	creds_path := path.Join(os.Getenv("HOME"), "admin_creds.json")
 
 	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
 	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
