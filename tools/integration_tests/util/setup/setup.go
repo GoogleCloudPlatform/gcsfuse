@@ -91,6 +91,10 @@ func MntDir() string {
 	return mntDir
 }
 
+func SetTestBucket(testBucketValue string) {
+	*testBucket = testBucketValue
+}
+
 func CompareFileContents(t *testing.T, fileName string, fileContent string) {
 	content, err := os.ReadFile(fileName)
 	if err != nil {

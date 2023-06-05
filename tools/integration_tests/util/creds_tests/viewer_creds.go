@@ -17,24 +17,17 @@ package creds_tests
 import (
 	"log"
 	"os"
-	"os/exec"
 	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func runScriptForTestData(script string, testBucket string) {
-	cmd := exec.Command("/bin/bash", script, testBucket)
-	_, err := cmd.Output()
-	if err != nil {
-		panic(err)
-	}
-}
-
 func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m *testing.M) (successCode int) {
+	setup.SetTestBucket("tulsishah-test")
+
 	// Revoking gcloud credentials to test with service account credentials.
-	setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_gcloud_creds.sh", "")
+	//setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_gcloud_creds.sh", "")
 
 	//Testing without key-file and GOOGLE_APPLICATION_CREDENTIALS env variable
 	//flagSet := []string{"--implicit-dirs"}
@@ -46,7 +39,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 	//	successCode = 0
 	//}
 
-	setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "key-file-integration-test-gcs-fuse")
+	setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "integration-test-tulsishah")
 
 	creds_path := path.Join(os.Getenv("HOME"), "viewer_creds.json")
 
