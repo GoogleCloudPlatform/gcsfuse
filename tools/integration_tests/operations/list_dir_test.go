@@ -85,10 +85,15 @@ func TestListDirectoryRecursively(t *testing.T) {
 	createDirectoryStructureForTest(t)
 
 	// Recursively walk into directory and test.
-	err := filepath.Walk(setup.MntDir(), func(path string, info fs.FileInfo, err error) error {
+	err := filepath.WalkDir(setup.MntDir(), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
 			return err
+		}
+
+		// The object type is not directory.
+		if !dir.IsDir() {
+			return nil
 		}
 
 		objs, err := os.ReadDir(path)
@@ -110,8 +115,7 @@ func TestListDirectoryRecursively(t *testing.T) {
 		}
 
 		// Check if directoryForListTest directory has correct data.
-		if info.IsDir() && info.Name() == DirectoryForListTest {
-
+		if dir.IsDir() && dir.Name() == DirectoryForListTest {
 			// numberOfObjects - 4
 			if len(objs) != NumberOfObjectsInDirectoryForListTest {
 				t.Errorf("Incorrect number of objects in the directoryForListTest.")
@@ -137,11 +141,11 @@ func TestListDirectoryRecursively(t *testing.T) {
 				t.Errorf("Listed incorrect object")
 			}
 
-			return filepath.SkipDir
+			return nil
 		}
 
 		// Check if firstSubDirectoryForListTest directory has correct data.
-		if info.IsDir() && info.Name() == FirstSubDirectoryForListTest {
+		if dir.IsDir() && dir.Name() == FirstSubDirectoryForListTest {
 			// numberOfObjects - 1
 			if len(objs) != NumberOfObjectsInFirstSubDirectoryForListTest {
 				t.Errorf("Incorrect number of objects in the firstSubDirectoryForListTest.")
@@ -152,11 +156,11 @@ func TestListDirectoryRecursively(t *testing.T) {
 				t.Errorf("Listed incorrect object")
 			}
 
-			return filepath.SkipDir
+			return nil
 		}
 
 		// Check if secondSubDirectoryForListTest directory has correct data.
-		if info.IsDir() && info.Name() == SecondSubDirectoryForListTest {
+		if dir.IsDir() && dir.Name() == SecondSubDirectoryForListTest {
 			// numberOfObjects - 1
 			if len(objs) != NumberOfObjectsInSecondSubDirectoryForListTest {
 				t.Errorf("Incorrect number of objects in the secondSubDirectoryForListTest.")
@@ -167,16 +171,17 @@ func TestListDirectoryRecursively(t *testing.T) {
 				t.Errorf("Listed incorrect object")
 			}
 
-			return filepath.SkipDir
+			return nil
 		}
 
 		// Check if emptySubDirInDirectoryForListTest directory has correct data.
-		if info.IsDir() && info.Name() == EmptySubDirInDirectoryForListTest {
+		if dir.IsDir() && dir.Name() == EmptySubDirInDirectoryForListTest {
 			// numberOfObjects - 0
 			if len(objs) != NumberOfObjectsInEmptySubDirInDirectoryForListTest {
 				t.Errorf("Incorrect number of objects in the emptySubDirInDirectoryForListTest.")
 			}
-			return filepath.SkipDir
+
+			return nil
 		}
 
 		return nil
