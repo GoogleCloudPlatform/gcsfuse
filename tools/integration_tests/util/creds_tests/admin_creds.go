@@ -15,7 +15,7 @@
 package creds_tests
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"path"
 	"testing"
@@ -39,7 +39,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
 	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
 
-	fmt.Println("env: ", os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+	log.Print("env: ", os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
 	successCode = static_mounting.RunTests(testFlagSet, m)
 
 	if successCode != 0 {
