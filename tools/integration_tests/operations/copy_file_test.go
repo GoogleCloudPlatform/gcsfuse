@@ -41,6 +41,7 @@ func TestCopyFile(t *testing.T) {
 		t.Errorf("Error : %v", err)
 	}
 
+	t.Errorf("Testing")
 	// Check if the data in the copied file matches the original file,
 	// and the data in original file is unchanged.
 	setup.CompareFileContents(t, newFileName, string(content))
