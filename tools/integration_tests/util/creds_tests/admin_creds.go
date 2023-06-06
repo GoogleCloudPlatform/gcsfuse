@@ -25,12 +25,15 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m *testing.M) (successCode int) {
+func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]string, m *testing.M) (successCode int) {
 	// Saving testBucket value for setting back after testing.
 	testBucket := setup.TestBucket()
 
 	// Set the testBucket value to the bucket belonging to a different project for testing credentials.
 	setup.SetTestBucket("integration-test-gcsfuse")
+
+	// Set back the original testBucket, which we passed through --testBucket flag.
+	defer setup.SetTestBucket(testBucket)
 
 	// Testing without --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
 	for i := 0; i < len(testFlagSet); i++ {
@@ -51,7 +54,6 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 	successCode = static_mounting.RunTests(testFlagSet, m)
 
 	if successCode != 0 {
-		setup.SetTestBucket(testBucket)
 		return
 	}
 
@@ -65,7 +67,6 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 	successCode = static_mounting.RunTests(testFlagSet, m)
 
 	if successCode != 0 {
-		setup.SetTestBucket(testBucket)
 		return
 	}
 
@@ -75,11 +76,8 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 	successCode = static_mounting.RunTests(testFlagSet, m)
 
 	if successCode != 0 {
-		setup.SetTestBucket(testBucket)
 		return
 	}
-
-	setup.SetTestBucket(testBucket)
 
 	return successCode
 }

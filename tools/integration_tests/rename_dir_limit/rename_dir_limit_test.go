@@ -60,7 +60,7 @@ func TestMain(m *testing.M) {
 	}
 
 	if successCode == 0 {
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentials(flags, m)
+		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, m)
 	}
 
 	os.Exit(successCode)
