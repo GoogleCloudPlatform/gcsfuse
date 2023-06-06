@@ -45,6 +45,9 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 
 	setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "key-file-integration-tests")
 
+	// Delete credentials after testing.
+	defer setup.RunScriptForTestData("../util/creds_tests/testdata/delete_creds.sh", "")
+
 	// Get the credential path to pass as a key file.
 	creds_path := path.Join(os.Getenv("HOME"), "admin_creds.json")
 
