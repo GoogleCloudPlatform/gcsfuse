@@ -43,32 +43,32 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 		setup.SetTestBucket(testBucket)
 		return
 	}
-	//
-	//keyFileFlag := "--key-file=" + creds_path
-	//
-	//for i := 0; i < len(testFlagSet); i++ {
-	//	testFlagSet[i] = append(testFlagSet[i], keyFileFlag)
-	//}
-	//
-	//// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
-	//successCode = static_mounting.RunTests(testFlagSet, m)
-	//
-	//if successCode != 0 {
-	//	setup.SetTestBucket(testBucket)
-	//	return
-	//}
-	//
-	//os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
-	//
-	//// Testing with --key-file flag only
-	//successCode = static_mounting.RunTests(testFlagSet, m)
-	//
-	//if successCode != 0 {
-	//	setup.SetTestBucket(testBucket)
-	//	return
-	//}
-	//
-	//setup.SetTestBucket(testBucket)
+
+	keyFileFlag := "--key-file=" + creds_path
+
+	for i := 0; i < len(testFlagSet); i++ {
+		testFlagSet[i] = append(testFlagSet[i], keyFileFlag)
+	}
+
+	// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
+	successCode = static_mounting.RunTests(testFlagSet, m)
+
+	if successCode != 0 {
+		setup.SetTestBucket(testBucket)
+		return
+	}
+
+	os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
+
+	// Testing with --key-file flag only
+	successCode = static_mounting.RunTests(testFlagSet, m)
+
+	if successCode != 0 {
+		setup.SetTestBucket(testBucket)
+		return
+	}
+
+	setup.SetTestBucket(testBucket)
 
 	return successCode
 }
