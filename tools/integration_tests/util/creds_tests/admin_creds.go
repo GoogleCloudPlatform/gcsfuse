@@ -15,31 +15,35 @@
 package creds_tests
 
 import (
+	"os"
+	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m *testing.M) (successCode int) {
-	//testBucket := setup.TestBucket()
+	testBucket := setup.TestBucket()
 	setup.SetTestBucket("tulsishah-test")
 
 	setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "key-file-integration-tests")
 
 	// Run tests for testBucket
 
-	//successCode = static_mounting.RunTests(testFlagSet, m)
-	//
-	//creds_path := path.Join(os.Getenv("HOME"), "viewer_creds.json")
-	//
-	//// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
-	//os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
-	//
-	//successCode = static_mounting.RunTests(testFlagSet, m)
-	//
-	//if successCode != 0 {
-	//	return
-	//}
+	successCode = static_mounting.RunTests(testFlagSet, m)
+
+	creds_path := path.Join(os.Getenv("HOME"), "viewer_creds.json")
+
+	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
+	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
+
+	successCode = static_mounting.RunTests(testFlagSet, m)
+
+	if successCode != 0 {
+		setup.SetTestBucket(testBucket)
+		return
+	}
 	//
 	//keyFileFlag := "--key-file=" + creds_path
 	//
