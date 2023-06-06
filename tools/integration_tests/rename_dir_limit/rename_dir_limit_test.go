@@ -21,6 +21,8 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -41,7 +43,7 @@ func TestMain(m *testing.M) {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
-		log.Print("Both --testbucket and --mountedDirectory can't be specified at the same time.")
+		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
 		os.Exit(1)
 	}
 
@@ -49,17 +51,15 @@ func TestMain(m *testing.M) {
 	setup.RunTestsForMountedDirectoryFlag(m)
 
 	// Run tests for testBucket
-	setup.SetUpTestDirForTestBucketFlag()
+	successCode := static_mounting.RunTests(flags, m)
 
-	//successCode := static_mounting.RunTests(flags, m)
-	//
-	//if successCode == 0 {
-	//	successCode = only_dir_mounting.RunTests(flags, m)
-	//}
+	if successCode == 0 {
+		successCode = only_dir_mounting.RunTests(flags, m)
+	}
 
-	//if successCode == 0 {
-	successCode := creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentials(flags, m)
-	//}
+	if successCode == 0 {
+		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentials(flags, m)
+	}
 
 	os.Exit(successCode)
 }

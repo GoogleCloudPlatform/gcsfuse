@@ -26,7 +26,7 @@ import (
 
 func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m *testing.M) (successCode int) {
 	testBucket := setup.TestBucket()
-	setup.SetTestBucket("tulsishah-test")
+	setup.SetTestBucket("integration-test-gcsfuse")
 
 	setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "key-file-integration-tests")
 
