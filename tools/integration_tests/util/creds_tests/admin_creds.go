@@ -33,7 +33,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 
 	successCode = static_mounting.RunTests(testFlagSet, m)
 
-	creds_path := path.Join(os.Getenv("HOME"), "viewer_creds.json")
+	creds_path := path.Join(os.Getenv("HOME"), "admin_creds.json")
 
 	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
 	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
