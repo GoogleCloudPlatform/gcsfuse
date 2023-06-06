@@ -20,23 +20,34 @@ import (
 	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m *testing.M) (successCode int) {
+	// Saving testBucket value for setting back after testing.
 	testBucket := setup.TestBucket()
+
+	// Set the testBucket value to the bucket belonging to a different project for testing credentials.
 	setup.SetTestBucket("integration-test-gcsfuse")
+
+	// Testing without --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
+	for i := 0; i < len(testFlagSet); i++ {
+		err := mounting.MountGcsfuse(testFlagSet[i])
+		if err == nil {
+			log.Print("Error: Mounting successful without key file.")
+		}
+	}
 
 	setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "key-file-integration-tests")
 
-	// Run tests for testBucket
+	// Get the credential path to pass as a key file.
 	creds_path := path.Join(os.Getenv("HOME"), "admin_creds.json")
 
 	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
 	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
 
-	log.Print("env: ", os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
 	successCode = static_mounting.RunTests(testFlagSet, m)
 
 	if successCode != 0 {
@@ -44,13 +55,13 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 		return
 	}
 
+	// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
 	keyFileFlag := "--key-file=" + creds_path
 
 	for i := 0; i < len(testFlagSet); i++ {
 		testFlagSet[i] = append(testFlagSet[i], keyFileFlag)
 	}
 
-	// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
 	successCode = static_mounting.RunTests(testFlagSet, m)
 
 	if successCode != 0 {
