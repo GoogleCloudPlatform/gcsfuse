@@ -25,8 +25,8 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 	setup.SetTestBucket("tulsishah-test")
 
 	setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "integration-test-tulsishah")
-
-	setup.RunScriptForTestData("../util/creds_tests/testdata/gcloud_set_key_file.sh", "")
+	//
+	//setup.RunScriptForTestData("../util/creds_tests/testdata/gcloud_set_key_file.sh", "")
 
 	//// Run tests for testBucket
 	//// Clean the bucket for readonly testing.
