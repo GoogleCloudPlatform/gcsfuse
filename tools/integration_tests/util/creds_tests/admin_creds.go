@@ -57,6 +57,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 
 	successCode = static_mounting.RunTests(testFlagSet, m)
 
+	successCode = 1
 	if successCode != 0 {
 		return
 	}
