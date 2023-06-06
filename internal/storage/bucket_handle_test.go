@@ -367,7 +367,6 @@ func (t *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsDefault() {
 	AssertEq(storage.ProjectionFull, proj)
 }
 
-
 func (t *BucketHandleTest) TestListMinObjectMethod(){
 
     //creating dummy object for testing
@@ -388,7 +387,6 @@ func (t *BucketHandleTest) TestListMinObjectMethod(){
        var crc32c uint32 = 45
        md5Hash := md5.Sum([]byte(content))
 
-
        obj, err := t.bucketHandle.CreateObject(context.Background(),
         		&gcs.CreateObjectRequest{
         			Name:   objName  ,
@@ -407,14 +405,9 @@ func (t *BucketHandleTest) TestListMinObjectMethod(){
 
         		})
 
-
-
-
        AssertEq(nil,err)
        AssertEq(objName,obj.Name)
        AssertEq(len(content),obj.Size)
-
-
 
        listing, list_err := t.bucketHandle.ListMinObjects(context.Background(), &gcs.ListObjectsRequest{
        Delimiter: "/",
@@ -424,10 +417,8 @@ func (t *BucketHandleTest) TestListMinObjectMethod(){
        MaxResults: 5,
        ProjectionVal: gcs.NoAcl})
 
-
        AssertEq(nil,list_err)
        AssertNe(0,len(listing.Objects))
-
 
        list_obj :=listing.Objects[0]
 
@@ -442,18 +433,13 @@ func (t *BucketHandleTest) TestListMinObjectMethod(){
        non_existent_field_names := [...]string{"ContentType","ContentLanguage","CacheControl","Owner","ContentEncoding",
        "MD5","CRC32C","MediaLink","StorageClass","Deleted","ComponentCount","ContentDisposition","CustomTime","EventBasedHold","Acl"}
 
-
        metaValue := reflect.ValueOf(list_obj).Elem()
        for _,fieldName := range non_existent_field_names{
             field := metaValue.FieldByName(fieldName)
             if field != (reflect.Value{}) {
        		    	fmt.Printf("Field %s should not exist in gcs.minObject",fieldName)
        		}
-       	}
-
-
-
-
+       }
 }
 
 func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectExist() {

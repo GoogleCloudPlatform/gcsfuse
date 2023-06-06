@@ -436,8 +436,9 @@ func (b *bucket) Name() string {
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *bucket) ListMinObjects(ctx context.Context,req *gcs.ListObjectsRequest) (listing *gcs.MinObjectListing, err error){
-
+func (b *bucket) ListMinObjects(
+    ctx context.Context,
+    req *gcs.ListObjectsRequest) (listing *gcs.MinObjectListing, err error){
    return
 }
 

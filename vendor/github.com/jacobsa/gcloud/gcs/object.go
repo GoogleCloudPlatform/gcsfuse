@@ -73,7 +73,6 @@ type Object struct {
 	Acl                []*storagev1.ObjectAccessControl
 }
 
-
 type MinObject struct {
 	Name           string
 	Size           uint64

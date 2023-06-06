@@ -35,8 +35,6 @@ func toTime(s string) (t time.Time, err error) {
 	return
 }
 
-
-
 func toObjects(in []*storagev1.Object) (out []*Object, err error) {
 	for _, rawObject := range in {
 		var o *Object

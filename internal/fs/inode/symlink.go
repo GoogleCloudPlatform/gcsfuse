@@ -34,7 +34,7 @@ func IsSymlink(o *gcs.Object) bool {
 }
 
 func IsMinSymlink(o *gcs.MinObject) bool{
-_, ok := o.Metadata[SymlinkMetadataKey]
+    _, ok := o.Metadata[SymlinkMetadataKey]
 	return ok
 }
 

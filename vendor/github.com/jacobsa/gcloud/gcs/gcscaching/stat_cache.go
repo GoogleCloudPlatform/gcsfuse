@@ -125,21 +125,19 @@ func (sc *statCache) InsertMin(o *gcs.MinObject, expiration time.Time) {
 
 	// Insert an entry.
 	e := entry{
-		o:          &gcs.Object{
-		    Name : o.Name,
-		    Size : o.Size,
-		    MetaGeneration : o.MetaGeneration,
-		    Generation :o.Generation,
-		    Updated : o.Updated,
-		    Metadata :o.Metadata,
-
-		},
-		expiration: expiration,
+         o:&gcs.Object{
+		 Name : o.Name,
+		 Size : o.Size,
+		 MetaGeneration : o.MetaGeneration,
+		 Generation :o.Generation,
+		 Updated : o.Updated,
+		 Metadata :o.Metadata,
+		 },
+		 expiration: expiration,
 	}
 
 	sc.c.Insert(o.Name, e)
 }
-
 
 func (sc *statCache) Insert(o *gcs.Object, expiration time.Time) {
 	// Is there already a better entry?

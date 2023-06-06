@@ -238,7 +238,6 @@ func (b *fastStatBucket) ListMinObjects(
 	return
 }
 
-
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) ListObjects(
 	ctx context.Context,

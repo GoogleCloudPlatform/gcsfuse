@@ -44,11 +44,31 @@ type Core struct {
 	// The GCS object in the bucket above that backs up the inode. Can be empty
 	// if the inode is the base directory or an implicit directory.
 	Object *gcs.Object
+	MinObject *gcs.MinObject
 }
 
 // Exists returns true iff the back object exists implicitly or explicitly.
 func (c *Core) Exists() bool {
 	return c != nil
+}
+
+func (c *Core) MinObjectExists() bool {
+	return c != nil
+}
+
+func (c *Core) MinObjectType() Type {
+	switch {
+	case c == nil:
+		return UnknownType
+	case c.MinObject == nil:
+		return ImplicitDirType
+	case c.FullName.IsDir():
+		return ExplicitDirType
+	case IsMinSymlink(c.MinObject):
+		return SymlinkType
+	default:
+		return RegularFileType
+	}
 }
 
 func (c *Core) Type() Type {
