@@ -27,7 +27,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 	testBucket := setup.TestBucket()
 	setup.SetTestBucket("tulsishah-test")
 
-	setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "integration-test-tulsishah")
+	setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "key-file-integration-tests")
 
 	//// Run tests for testBucket
 
