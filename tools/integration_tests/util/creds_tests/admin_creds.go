@@ -43,6 +43,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 		}
 	}
 
+	// Get credential from bucket.
 	setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "key-file-integration-tests")
 
 	// Delete credentials after testing.
