@@ -43,7 +43,7 @@ func createDirectoryWithFile(dirPath string, filePath string, t *testing.T) {
 func createDirectoryStructureForTest(t *testing.T) {
 	// Directory structure
 	// testBucket/directoryForListTest                                                                            -- Dir
-	// testBucket/directoryForListTest/fileInDirectoryForListTest		                                              -- File
+	// testBucket/directoryForListTest/fileInDirectoryForListTest		                                      -- File
 	// testBucket/directoryForListTest/firstSubDirectoryForListTest                                               -- Dir
 	// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest            -- File
 	// testBucket/directoryForListTest/secondSubDirectoryForListTest                                              -- Dir
