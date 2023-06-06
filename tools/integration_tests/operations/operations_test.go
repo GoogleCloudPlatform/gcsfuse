@@ -45,10 +45,11 @@ const NumberOfObjectsInEmptySubDirInDirectoryForListTest = 0
 const FirstSubDirectoryForListTest = "firstSubDirectoryForListTest"
 const NumberOfObjectsInFirstSubDirectoryForListTest = 1
 const FileInDirectoryForListTest = "fileInDirectoryForListTest"
-const NumberOfObjectsInSecondSubDirectoryForListTest = 1
+const NumberOfObjectsInSecondSubDirectoryForListTest = 2
 const FileInFirstSubDirectoryForListTest = "fileInFirstSubDirectoryForListTest"
 const SecondSubDirectoryForListTest = "secondSubDirectoryForListTest"
-const FileInSecondSubDirectoryForListTest = "fileInSecondSubDirectoryForListTest"
+const FirstFileInSecondSubDirectoryForListTest = "firstFileInSecondSubDirectoryForListTest"
+const SecondFileInSecondSubDirectoryForListTest = "secondFileInSecondSubDirectoryForListTest"
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()

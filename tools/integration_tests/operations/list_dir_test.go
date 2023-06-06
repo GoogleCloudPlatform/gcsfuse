@@ -63,14 +63,20 @@ func createDirectoryStructureForTest(t *testing.T) {
 	createDirectoryWithFile(subDirPath, subDirFilePath, t)
 
 	// testBucket/directoryForListTest/secondSubDirectoryForListTest
-	// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest
+	// testBucket/directoryForListTest/secondSubDirectoryForListTest/firstFileInSecondSubDirectoryForListTest
+	// testBucket/directoryForListTest/secondSubDirectoryForListTest/secondFileInSecondSubDirectoryForListTest
 	subDirPath = path.Join(dirPath, SecondSubDirectoryForListTest)
-	subDirFilePath = path.Join(subDirPath, FileInSecondSubDirectoryForListTest)
+	subDirFilePath = path.Join(subDirPath, FirstFileInSecondSubDirectoryForListTest)
 	createDirectoryWithFile(subDirPath, subDirFilePath, t)
+	filePath = path.Join(subDirPath, SecondFileInSecondSubDirectoryForListTest)
+	_, err := os.Create(filePath)
+	if err != nil {
+		t.Errorf("Error in creating file %v:", err)
+	}
 
 	// testBucket/directoryForListTest/emptySubDirInDirectoryForListTest
 	subDirPath = path.Join(dirPath, EmptySubDirInDirectoryForListTest)
-	err := os.Mkdir(subDirPath, setup.FilePermission_0600)
+	err = os.Mkdir(subDirPath, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Mkdir at %q: %v", subDirPath, err)
 		return
@@ -167,7 +173,12 @@ func TestListDirectoryRecursively(t *testing.T) {
 			}
 
 			// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest   -- File
-			if objs[0].Name() != FileInSecondSubDirectoryForListTest || objs[0].IsDir() == true {
+			if objs[0].Name() != FirstFileInSecondSubDirectoryForListTest || objs[0].IsDir() == true {
+				t.Errorf("Listed incorrect object")
+			}
+
+			// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest   -- File
+			if objs[1].Name() != SecondFileInSecondSubDirectoryForListTest || objs[1].IsDir() == true {
 				t.Errorf("Listed incorrect object")
 			}
 
