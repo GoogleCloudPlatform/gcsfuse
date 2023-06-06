@@ -168,7 +168,7 @@ func (mb *monitoringBucket) ListMinObjects(
 	req *gcs.ListObjectsRequest) (*gcs.MinObjectListing, error) {
 	startTime := time.Now()
 	listing, err := mb.wrapped.ListMinObjects(ctx, req)
-	recordRequest(ctx, "ListObjects", startTime)
+	recordRequest(ctx, "listMinObjects", startTime)
 	return listing, err
 }
 
