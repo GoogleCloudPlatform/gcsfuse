@@ -12,5 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cp testdata/gcloud_creds.json $HOME/.config/gcloud/application_default_credentials.json
-rm testdata/gcloud_creds.json
+gcloud auth activate-service-account --key-file ~/admin_creds.json

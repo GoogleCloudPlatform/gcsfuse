@@ -78,15 +78,10 @@ func TestMain(m *testing.M) {
 
 	successCode := static_mounting.RunTests(flags, m)
 
-	if successCode != 0 {
-		return
-	}
-
-	// Run tests for credentials.
-	successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentials(flags, m)
-
 	// Delete objects from bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+
+	creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentials(flags, m)
 
 	os.Exit(successCode)
 }

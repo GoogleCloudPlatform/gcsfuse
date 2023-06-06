@@ -15,7 +15,6 @@
 package creds_tests
 
 import (
-	"log"
 	"os"
 	"path"
 	"testing"
@@ -25,29 +24,27 @@ import (
 )
 
 func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m *testing.M) (successCode int) {
+	testBucket := setup.TestBucket()
 	setup.SetTestBucket("tulsishah-test")
-
-	// Revoking gcloud credentials to test with service account credentials.
-	//setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_gcloud_creds.sh", "")
-
-	//Testing without key-file and GOOGLE_APPLICATION_CREDENTIALS env variable
-	//flagSet := []string{"--implicit-dirs"}
-	//err := setup.MountGcsfuse(flagSet)
-	//if err == nil {
-	//	log.Print("Mounted successfully without credentials.")
-	//	return 1
-	//} else {
-	//	successCode = 0
-	//}
 
 	setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "integration-test-tulsishah")
 
-	creds_path := path.Join(os.Getenv("HOME"), "admin_creds.json")
+	setup.RunScriptForTestData("../util/creds_tests/testdata/gcloud_set_key_file.sh", "")
+
+	// Run tests for testBucket
+	// Clean the bucket for readonly testing.
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+
+	// Create objects in bucket for testing.
+	setup.RunScriptForTestData("testdata/create_objects.sh", setup.TestBucket())
+
+	successCode = static_mounting.RunTests(testFlagSet, m)
+
+	creds_path := path.Join(os.Getenv("HOME"), "viewer_creds.json")
 
 	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
 	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
 
-	log.Print(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
 	successCode = static_mounting.RunTests(testFlagSet, m)
 
 	if successCode != 0 {
@@ -64,6 +61,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 	successCode = static_mounting.RunTests(testFlagSet, m)
 
 	if successCode != 0 {
+		setup.SetTestBucket(testBucket)
 		return
 	}
 
@@ -73,10 +71,14 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 	successCode = static_mounting.RunTests(testFlagSet, m)
 
 	if successCode != 0 {
+		setup.SetTestBucket(testBucket)
 		return
 	}
 
-	//setup.RunScriptForTestData("../util/creds_tests/testdata/set_gcloud_creds.sh", "")
+	// Delete objects from bucket after testing.
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+
+	setup.SetTestBucket(testBucket)
 
 	return successCode
 }

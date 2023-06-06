@@ -20,7 +20,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -56,13 +57,11 @@ func TestMain(m *testing.M) {
 	setup.RunTestsForMountedDirectoryFlag(m)
 
 	// Run tests for testBucket
-	//successCode := static_mounting.RunTests(flags, m)
+	successCode := static_mounting.RunTests(flags, m)
 
-	//if successCode == 0 {
-	//	successCode = only_dir_mounting.RunTests(flags, m)
-	//}
-	// Run tests for credentials.
-	successCode := creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentials(flags, m)
+	if successCode == 0 {
+		successCode = only_dir_mounting.RunTests(flags, m)
+	}
 
 	os.Exit(successCode)
 }
