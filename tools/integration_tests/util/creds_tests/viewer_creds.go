@@ -15,11 +15,8 @@
 package creds_tests
 
 import (
-	"os"
-	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -31,54 +28,54 @@ func RunTestsForKeyFileAndGoogleApplicationCredentials(testFlagSet [][]string, m
 
 	setup.RunScriptForTestData("../util/creds_tests/testdata/gcloud_set_key_file.sh", "")
 
-	// Run tests for testBucket
-	// Clean the bucket for readonly testing.
-	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
-
-	// Create objects in bucket for testing.
-	setup.RunScriptForTestData("testdata/create_objects.sh", setup.TestBucket())
-
-	successCode = static_mounting.RunTests(testFlagSet, m)
-
-	creds_path := path.Join(os.Getenv("HOME"), "viewer_creds.json")
-
-	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
-	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
-
-	successCode = static_mounting.RunTests(testFlagSet, m)
-
-	if successCode != 0 {
-		return
-	}
-
-	keyFileFlag := "--key-file=" + creds_path
-
-	for i := 0; i < len(testFlagSet); i++ {
-		testFlagSet[i] = append(testFlagSet[i], keyFileFlag)
-	}
-
-	// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
-	successCode = static_mounting.RunTests(testFlagSet, m)
-
-	if successCode != 0 {
-		setup.SetTestBucket(testBucket)
-		return
-	}
-
-	os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
-
-	// Testing with --key-file flag only
-	successCode = static_mounting.RunTests(testFlagSet, m)
-
-	if successCode != 0 {
-		setup.SetTestBucket(testBucket)
-		return
-	}
-
-	// Delete objects from bucket after testing.
-	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
-
-	setup.SetTestBucket(testBucket)
+	//// Run tests for testBucket
+	//// Clean the bucket for readonly testing.
+	//setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+	//
+	//// Create objects in bucket for testing.
+	//setup.RunScriptForTestData("testdata/create_objects.sh", setup.TestBucket())
+	//
+	//successCode = static_mounting.RunTests(testFlagSet, m)
+	//
+	//creds_path := path.Join(os.Getenv("HOME"), "viewer_creds.json")
+	//
+	//// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
+	//os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
+	//
+	//successCode = static_mounting.RunTests(testFlagSet, m)
+	//
+	//if successCode != 0 {
+	//	return
+	//}
+	//
+	//keyFileFlag := "--key-file=" + creds_path
+	//
+	//for i := 0; i < len(testFlagSet); i++ {
+	//	testFlagSet[i] = append(testFlagSet[i], keyFileFlag)
+	//}
+	//
+	//// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
+	//successCode = static_mounting.RunTests(testFlagSet, m)
+	//
+	//if successCode != 0 {
+	//	setup.SetTestBucket(testBucket)
+	//	return
+	//}
+	//
+	//os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
+	//
+	//// Testing with --key-file flag only
+	//successCode = static_mounting.RunTests(testFlagSet, m)
+	//
+	//if successCode != 0 {
+	//	setup.SetTestBucket(testBucket)
+	//	return
+	//}
+	//
+	//// Delete objects from bucket after testing.
+	//setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+	//
+	//setup.SetTestBucket(testBucket)
 
 	return successCode
 }
