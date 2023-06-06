@@ -64,6 +64,10 @@ func MountedDirectory() string {
 	return *mountedDirectory
 }
 
+func SetTestBucket(testBucketValue string) {
+	*testBucket = testBucketValue
+}
+
 func SetLogFile(logFileValue string) {
 	logFile = logFileValue
 }
