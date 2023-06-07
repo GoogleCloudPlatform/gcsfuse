@@ -23,4 +23,5 @@ func TestMain(m *testing.M) {
 
 	// Run tests for testBucket
 	setup.SetUpTestDirForTestBucketFlag()
+
 }
