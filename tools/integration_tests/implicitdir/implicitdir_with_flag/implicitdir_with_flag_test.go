@@ -22,7 +22,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	flags := [][]string{{"--implicit-dirs"}}
+	flags := [][]string{{"--implicit-dirs"}, {"--enable-storage-client-library=false", "--implicit-dirs"}}
 
 	implicitdir.RunTestsForImplicitDir(flags, m)
 }
