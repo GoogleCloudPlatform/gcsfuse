@@ -134,7 +134,7 @@ func TestListDirectoryRecursively(t *testing.T) {
 				t.Errorf("Incorrect number of objects in the firstSubDirectoryForListTest.")
 			}
 
-			// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest     -- File
+			// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest1     -- File
 			if objs[0].Name() != FileInFirstSubDirectoryForListTest || objs[0].IsDir() == true {
 				t.Errorf("Listed incorrect object")
 			}
@@ -149,12 +149,12 @@ func TestListDirectoryRecursively(t *testing.T) {
 				t.Errorf("Incorrect number of objects in the secondSubDirectoryForListTest.")
 			}
 
-			// testBucket/directoryForListTest/secondSubDirectoryForListTest/firstFileInSecondSubDirectoryForListTest    -- File
+			// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest1    -- File
 			if objs[0].Name() != FirstFileInSecondSubDirectoryForListTest || objs[0].IsDir() == true {
 				t.Errorf("Listed incorrect object")
 			}
 
-			// testBucket/directoryForListTest/secondSubDirectoryForListTest/secondFileInSecondSubDirectoryForListTest   -- File
+			// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest2   -- File
 			if objs[1].Name() != SecondFileInSecondSubDirectoryForListTest || objs[1].IsDir() == true {
 				t.Errorf("Listed incorrect object")
 			}
