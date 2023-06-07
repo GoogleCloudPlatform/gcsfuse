@@ -40,16 +40,23 @@ const NumberOfObjectsInDestCopyDirectory = 2
 const NumberOfObjectsInBucketDirectoryListTest = 1
 const DirectoryForListTest = "directoryForListTest"
 const NumberOfObjectsInDirectoryForListTest = 4
+const NumberOfFilesInDirectoryForListTest = 1
 const EmptySubDirInDirectoryForListTest = "emptySubDirInDirectoryForListTest"
 const NumberOfObjectsInEmptySubDirInDirectoryForListTest = 0
+const NumberOfFilesInEmptySubDirInDirectoryForListTest = 0
 const FirstSubDirectoryForListTest = "firstSubDirectoryForListTest"
 const NumberOfObjectsInFirstSubDirectoryForListTest = 1
-const FileInDirectoryForListTest = "fileInDirectoryForListTest"
+const NumberOfFilesInFirstSubDirectoryForListTest = 1
+const PrefixFileInDirectoryForListTest = "fileInDirectoryForListTest"
+const FileInDirectoryForListTest = "fileInDirectoryForListTest1"
 const NumberOfObjectsInSecondSubDirectoryForListTest = 2
-const FileInFirstSubDirectoryForListTest = "fileInFirstSubDirectoryForListTest"
+const NumberOfFilesInSecondSubDirectoryForListTest = 2
+const PrefixFileInFirstSubDirectoryForListTest = "fileInFirstSubDirectoryForListTest"
+const FileInFirstSubDirectoryForListTest = "fileInFirstSubDirectoryForListTest1"
 const SecondSubDirectoryForListTest = "secondSubDirectoryForListTest"
-const FirstFileInSecondSubDirectoryForListTest = "firstFileInSecondSubDirectoryForListTest"
-const SecondFileInSecondSubDirectoryForListTest = "secondFileInSecondSubDirectoryForListTest"
+const PrefixFileInSecondSubDirectoryForListTest = "fileInSecondSubDirectoryForListTest"
+const FirstFileInSecondSubDirectoryForListTest = "fileInSecondSubDirectoryForListTest1"
+const SecondFileInSecondSubDirectoryForListTest = "fileInSecondSubDirectoryForListTest2"
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()

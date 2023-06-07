@@ -24,64 +24,40 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
-
-func createDirectoryWithFile(dirPath string, filePath string, t *testing.T) {
-	err := os.Mkdir(dirPath, setup.FilePermission_0600)
-	if err != nil {
-		t.Errorf("Mkdir at %q: %v", dirPath, err)
-		return
-	}
-
-	_, err = os.Create(filePath)
-	if err != nil {
-		t.Errorf("Error in creating file %v:", err)
-	}
-}
 
 func createDirectoryStructureForTest(t *testing.T) {
 	// Directory structure
 	// testBucket/directoryForListTest                                                                            -- Dir
-	// testBucket/directoryForListTest/fileInDirectoryForListTest		                                      -- File
+	// testBucket/directoryForListTest/fileInDirectoryForListTest1		                                            -- File
 	// testBucket/directoryForListTest/firstSubDirectoryForListTest                                               -- Dir
-	// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest            -- File
+	// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest1           -- File
 	// testBucket/directoryForListTest/secondSubDirectoryForListTest                                              -- Dir
-	// testBucket/directoryForListTest/secondSubDirectoryForListTest/firstFileInSecondSubDirectoryForListTest     -- File
-	// testBucket/directoryForListTest/secondSubDirectoryForListTest/secondFileInSecondSubDirectoryForListTest    -- File
+	// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest1         -- File
+	// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest2         -- File
 	// testBucket/directoryForListTest/emptySubDirInDirectoryForListTest                                          -- Dir
 
 	// testBucket/directoryForListTest
-	// testBucket/directoryForListTest/fileInDirectoryForListTest
+	// testBucket/directoryForListTest/fileInFirstSubDirectoryForListTest1
 	dirPath := path.Join(setup.MntDir(), DirectoryForListTest)
-	filePath := path.Join(dirPath, FileInDirectoryForListTest)
-	createDirectoryWithFile(dirPath, filePath, t)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryForListTest, dirPath, PrefixFileInDirectoryForListTest, t)
 
 	// testBucket/directoryForListTest/firstSubDirectoryForListTest
-	// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest
+	// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest1
 	subDirPath := path.Join(dirPath, FirstSubDirectoryForListTest)
-	subDirFilePath := path.Join(subDirPath, FileInFirstSubDirectoryForListTest)
-	createDirectoryWithFile(subDirPath, subDirFilePath, t)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInFirstSubDirectoryForListTest, subDirPath, PrefixFileInFirstSubDirectoryForListTest, t)
 
 	// testBucket/directoryForListTest/secondSubDirectoryForListTest
-	// testBucket/directoryForListTest/secondSubDirectoryForListTest/firstFileInSecondSubDirectoryForListTest
-	// testBucket/directoryForListTest/secondSubDirectoryForListTest/secondFileInSecondSubDirectoryForListTest
+	// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest1
+	// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest2
 	subDirPath = path.Join(dirPath, SecondSubDirectoryForListTest)
-	subDirFilePath = path.Join(subDirPath, FirstFileInSecondSubDirectoryForListTest)
-	createDirectoryWithFile(subDirPath, subDirFilePath, t)
-	filePath = path.Join(subDirPath, SecondFileInSecondSubDirectoryForListTest)
-	_, err := os.Create(filePath)
-	if err != nil {
-		t.Errorf("Error in creating file %v:", err)
-	}
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInSecondSubDirectoryForListTest, subDirPath, PrefixFileInSecondSubDirectoryForListTest, t)
 
 	// testBucket/directoryForListTest/emptySubDirInDirectoryForListTest
 	subDirPath = path.Join(dirPath, EmptySubDirInDirectoryForListTest)
-	err = os.Mkdir(subDirPath, setup.FilePermission_0600)
-	if err != nil {
-		t.Errorf("Mkdir at %q: %v", subDirPath, err)
-		return
-	}
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInEmptySubDirInDirectoryForListTest, subDirPath, "", t)
 }
 
 func TestListDirectoryRecursively(t *testing.T) {
@@ -133,7 +109,7 @@ func TestListDirectoryRecursively(t *testing.T) {
 				t.Errorf("Listed incorrect object")
 			}
 
-			// testBucket/directoryForListTest/fileInDirectoryForListTest     -- File
+			// testBucket/directoryForListTest/fileInDirectoryForListTest1     -- File
 			if objs[1].Name() != FileInDirectoryForListTest || objs[1].IsDir() != false {
 				t.Errorf("Listed incorrect object")
 			}
