@@ -12,37 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provide tests when implicit directory present and mounted bucket with --implicit-dir flag.
+// Provide tests when implicit directory present and mounted bucket without --implicit-dir flag.
 package implicitdir_without_flag_test
 
 import (
-	"log"
-	"os"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/implicitdir"
 )
 
 func TestMain(m *testing.M) {
-	setup.ParseSetUpFlags()
-
 	flags := [][]string{{}}
 
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
-
-	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
-		log.Print("Both --testbucket and --mountedDirectory can't be specified at the same time.")
-		os.Exit(1)
-	}
-
-	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
-	setup.RunTestsForMountedDirectoryFlag(m)
-
-	// Run tests for testBucket
-	setup.SetUpTestDirForTestBucketFlag()
-
-	successCode := static_mounting.RunTests(flags, m)
-
-	os.Exit(successCode)
+	implicitdir.RunTestsForImplicitDir(flags, m)
 }
