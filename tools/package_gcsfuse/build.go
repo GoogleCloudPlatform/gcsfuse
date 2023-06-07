@@ -16,7 +16,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -35,7 +34,7 @@ func build(
 
 	// Create a directory to become GOCACHE below.
 	var gocache string
-	gocache, err = ioutil.TempDir("", "package_gcsfuse_gocache")
+	gocache, err = os.MkdirTemp("", "package_gcsfuse_gocache")
 	if err != nil {
 		err = fmt.Errorf("TempDir: %w", err)
 		return
@@ -44,7 +43,7 @@ func build(
 
 	// Create a directory to hold our outputs. Kill it if we later return in
 	// error.
-	dir, err = ioutil.TempDir("", "package_gcsfuse_build")
+	dir, err = os.MkdirTemp("", "package_gcsfuse_build")
 	if err != nil {
 		err = fmt.Errorf("TempDir: %w", err)
 		return
@@ -57,7 +56,7 @@ func build(
 	}()
 
 	// Create another directory into which we will clone the git repo bloe.
-	gitDir, err := ioutil.TempDir("", "package_gcsfuse_git")
+	gitDir, err := os.MkdirTemp("", "package_gcsfuse_git")
 	if err != nil {
 		err = fmt.Errorf("TempDir: %w", err)
 		return
