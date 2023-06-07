@@ -13,7 +13,7 @@ const ExplicitDirectory = "explicitDirectory"
 const ImplicitDirectory = "implicitDirectory"
 const ImplicitSubDirectory = "implicitSubDirectory"
 const NumberOfFilesInExplicitDirectory = 2
-const NumberOfFilesInImplicitDirectory = 1
+const NumberOfFilesInImplicitDirectory = 2
 const NumberOfFilesInImplicitSubDirectory = 1
 const PrefixFileInExplicitDirectory = "fileInExplicitDir"
 const FirstFileInExplicitDirectory = "fileInExplicitDir1"
@@ -44,9 +44,6 @@ func CreateImplicitDirectory() {
 
 	// Create implicit directory in bucket for testing.
 	setup.RunScriptForTestData("../testdata/create_objects.sh", setup.TestBucket())
-
-	// Delete objects from bucket after testing.
-	defer setup.RunScriptForTestData("../testdata/delete_objects.sh", setup.TestBucket())
 }
 
 func CreateExplicitDirectory(t *testing.T) {

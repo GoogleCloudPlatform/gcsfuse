@@ -30,6 +30,9 @@ func TestListObjectsInBucket(t *testing.T) {
 	implicitdir.CreateImplicitDirectory()
 	implicitdir.CreateExplicitDirectory(t)
 
+	// Delete objects from bucket after testing.
+	defer setup.RunScriptForTestData("../testdata/delete_objects.sh", setup.TestBucket())
+
 	err := filepath.WalkDir(setup.MntDir(), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
@@ -68,11 +71,11 @@ func TestListObjectsInBucket(t *testing.T) {
 		if dir.IsDir() && dir.Name() == implicitdir.ExplicitDirectory {
 			// numberOfObjects - 2
 			if len(objs) != implicitdir.NumberOfFilesInExplicitDirectory {
-				t.Errorf("Incorrect number of objects in the directoryForListTest.")
+				t.Errorf("Incorrect number of objects in the explicitDirectory.")
 			}
 
 			// testBucket/explicitDir/fileInExplicitDir1   -- File
-			if objs[0].Name() != implicitdir.FirstFileInExplicitDirectory || objs[0].IsDir() != true {
+			if objs[0].Name() != implicitdir.FirstFileInExplicitDirectory || objs[0].IsDir() != false {
 				t.Errorf("Listed incorrect object")
 			}
 
@@ -85,13 +88,17 @@ func TestListObjectsInBucket(t *testing.T) {
 
 		// Check if implicitDir directory has correct data.
 		if dir.IsDir() && dir.Name() == implicitdir.ImplicitDirectory {
-			// numberOfObjects - 1
+			// numberOfObjects - 2
 			if len(objs) != implicitdir.NumberOfFilesInImplicitDirectory {
-				t.Errorf("Incorrect number of objects in the directoryForListTest.")
+				t.Errorf("Incorrect number of objects in the implicitDirectory.")
 			}
 
 			// testBucket/implicitDir/fileInImplicitDir1  -- File
-			if objs[0].Name() != implicitdir.FileInImplicitDirectory || objs[0].IsDir() != true {
+			if objs[0].Name() != implicitdir.FileInImplicitDirectory || objs[0].IsDir() != false {
+				t.Errorf("Listed incorrect object")
+			}
+			// testBucket/implicitDir/implicitSubDirectory  -- Dir
+			if objs[1].Name() != implicitdir.ImplicitSubDirectory || objs[1].IsDir() != true {
 				t.Errorf("Listed incorrect object")
 			}
 			return nil
@@ -101,11 +108,11 @@ func TestListObjectsInBucket(t *testing.T) {
 		if dir.IsDir() && dir.Name() == implicitdir.ImplicitSubDirectory {
 			// numberOfObjects - 1
 			if len(objs) != implicitdir.NumberOfFilesInImplicitSubDirectory {
-				t.Errorf("Incorrect number of objects in the directoryForListTest.")
+				t.Errorf("Incorrect number of objects in the implicitSubDirectoryt.")
 			}
 
 			// testBucket/implicitDir/implicitSubDir/fileInImplicitDir2   -- File
-			if objs[0].Name() != implicitdir.FileInImplicitSubDirectory || objs[0].IsDir() != true {
+			if objs[0].Name() != implicitdir.FileInImplicitSubDirectory || objs[0].IsDir() != false {
 				t.Errorf("Listed incorrect object")
 			}
 			return nil
