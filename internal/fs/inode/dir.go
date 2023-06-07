@@ -530,7 +530,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 }
 
 func (d *dirInode) readObjects(
-    ctx context.Context,
+	ctx context.Context,
 	tok string) (cores map[Name]*Core, newTok string, err error) {
 	// Ask the bucket to list some objects.
 	req := &gcs.ListObjectsRequest{
@@ -572,17 +572,17 @@ func (d *dirInode) readObjects(
 		if strings.HasSuffix(o.Name, "/") {
 			dirName := NewDirName(d.Name(), nameBase)
 			explicitDir := &Core{
-				Bucket:   d.Bucket(),
-				FullName: dirName,
-				MinObject:   o,
+				Bucket:    d.Bucket(),
+				FullName:  dirName,
+				MinObject: o,
 			}
 			cores[dirName] = explicitDir
 		} else {
 			fileName := NewFileName(d.Name(), nameBase)
 			file := &Core{
-				Bucket:   d.Bucket(),
-				FullName: fileName,
-				MinObject:   o,
+				Bucket:    d.Bucket(),
+				FullName:  fileName,
+				MinObject: o,
 			}
 			cores[fileName] = file
 		}
@@ -604,9 +604,9 @@ func (d *dirInode) readObjects(
 		}
 
 		implicitDir := &Core{
-			Bucket:   d.Bucket(),
-			FullName: dirName,
-			MinObject:   nil,
+			Bucket:    d.Bucket(),
+			FullName:  dirName,
+			MinObject: nil,
 		}
 		cores[dirName] = implicitDir
 	}

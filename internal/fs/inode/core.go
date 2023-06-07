@@ -43,7 +43,7 @@ type Core struct {
 
 	// The GCS object in the bucket above that backs up the inode. Can be empty
 	// if the inode is the base directory or an implicit directory.
-	Object *gcs.Object
+	Object    *gcs.Object
 	MinObject *gcs.MinObject
 }
 
@@ -60,7 +60,7 @@ func (c *Core) Type() Type {
 		return ImplicitDirType
 	case c.FullName.IsDir():
 		return ExplicitDirType
-	case (c.Object != nil && IsSymlink(c.Object)) || (c.MinObject != nil && IsMinSymlink(c.MinObject)) :
+	case (c.Object != nil && IsSymlink(c.Object)) || (c.MinObject != nil && IsMinSymlink(c.MinObject)):
 		return SymlinkType
 	default:
 		return RegularFileType
@@ -74,9 +74,9 @@ func (c Core) SanityCheck() error {
 		return fmt.Errorf("inode name %q mismatches object name %q", c.FullName, c.Object.Name)
 	}
 	if c.MinObject != nil && c.Object == nil && c.FullName.objectName != c.MinObject.Name {
-	    return fmt.Errorf("inode name %q mismatches object name %q", c.FullName, c.MinObject.Name)
+		return fmt.Errorf("inode name %q mismatches object name %q", c.FullName, c.MinObject.Name)
 	}
-	if c.Object == nil && c.MinObject == nil  && !c.FullName.IsDir() {
+	if c.Object == nil && c.MinObject == nil && !c.FullName.IsDir() {
 		return fmt.Errorf("object missing for %q", c.FullName)
 	}
 	return nil

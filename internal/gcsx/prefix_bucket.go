@@ -156,9 +156,9 @@ func (b *prefixBucket) StatObject(
 }
 
 func (b *prefixBucket) ListMinObjects(
-    ctx context.Context,
-    req *gcs.ListObjectsRequest) (l *gcs.MinObjectListing, err error) {
-            return
+	ctx context.Context,
+	req *gcs.ListObjectsRequest) (l *gcs.MinObjectListing, err error) {
+	return
 }
 
 func (b *prefixBucket) ListObjects(

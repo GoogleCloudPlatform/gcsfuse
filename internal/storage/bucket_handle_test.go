@@ -16,13 +16,13 @@ package storage
 
 import (
 	"context"
+	"crypto/md5"
 	"errors"
+	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
-	"crypto/md5"
-    "reflect"
-    "fmt"
 
 	"cloud.google.com/go/storage"
 	"github.com/jacobsa/gcloud/gcs"
@@ -367,79 +367,78 @@ func (t *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsDefault() {
 	AssertEq(storage.ProjectionFull, proj)
 }
 
-func (t *BucketHandleTest) TestListMinObjectMethod(){
+func (t *BucketHandleTest) TestListMinObjectMethod() {
 
-    //creating dummy object for testing
-       content := "Test Object creation"
-       objName := "test_obj_6_attr"
-       contentType :=    "dummy content type"
-       contentLanguage := "dummy content language"
-       contentEncoding :=   "dummy content encoding"
-       cacheControl    :=   "dummy cache control"
-       contentDisposition := "dummy content disposition"
-       customTime :=       "dummy custom time"
-       eventBasedHold     := true
-       storageClass    := "dummy storage class"
-       dummyMetaKey := "dummy meta key"
-       dummyMetaValue := "dummy meta value"
-       var metaData = make(map[string]string)
-       metaData[dummyMetaKey ] = dummyMetaValue
-       var crc32c uint32 = 45
-       md5Hash := md5.Sum([]byte(content))
+	//creating dummy object for testing
+	content := "Test Object creation"
+	objName := "test_obj_6_attr"
+	contentType := "dummy content type"
+	contentLanguage := "dummy content language"
+	contentEncoding := "dummy content encoding"
+	cacheControl := "dummy cache control"
+	contentDisposition := "dummy content disposition"
+	customTime := "dummy custom time"
+	eventBasedHold := true
+	storageClass := "dummy storage class"
+	dummyMetaKey := "dummy meta key"
+	dummyMetaValue := "dummy meta value"
+	var metaData = make(map[string]string)
+	metaData[dummyMetaKey] = dummyMetaValue
+	var crc32c uint32 = 45
+	md5Hash := md5.Sum([]byte(content))
 
-       obj, err := t.bucketHandle.CreateObject(context.Background(),
-        		&gcs.CreateObjectRequest{
-        			Name:   objName  ,
-        			Metadata : metaData,
-        			Contents: strings.NewReader(content),
-                    ContentType :    contentType,
-                    ContentLanguage : contentLanguage,
-                    ContentEncoding :   contentEncoding,
-                    CacheControl    :   cacheControl,
-                    ContentDisposition : contentDisposition,
-                    CustomTime :      customTime,
-                    EventBasedHold     : eventBasedHold,
-                    StorageClass    : storageClass,
-                    CRC32C : &crc32c,
-                    MD5:  &md5Hash,
+	obj, err := t.bucketHandle.CreateObject(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:               objName,
+			Metadata:           metaData,
+			Contents:           strings.NewReader(content),
+			ContentType:        contentType,
+			ContentLanguage:    contentLanguage,
+			ContentEncoding:    contentEncoding,
+			CacheControl:       cacheControl,
+			ContentDisposition: contentDisposition,
+			CustomTime:         customTime,
+			EventBasedHold:     eventBasedHold,
+			StorageClass:       storageClass,
+			CRC32C:             &crc32c,
+			MD5:                &md5Hash,
+		})
 
-        		})
+	AssertEq(nil, err)
+	AssertEq(objName, obj.Name)
+	AssertEq(len(content), obj.Size)
 
-       AssertEq(nil,err)
-       AssertEq(objName,obj.Name)
-       AssertEq(len(content),obj.Size)
+	listing, list_err := t.bucketHandle.ListMinObjects(context.Background(), &gcs.ListObjectsRequest{
+		Delimiter:                "/",
+		IncludeTrailingDelimiter: true,
+		Prefix:                   objName,
+		ContinuationToken:        "",
+		MaxResults:               5,
+		ProjectionVal:            gcs.NoAcl})
 
-       listing, list_err := t.bucketHandle.ListMinObjects(context.Background(), &gcs.ListObjectsRequest{
-       Delimiter: "/",
-       IncludeTrailingDelimiter: true,
-       Prefix: objName ,
-       ContinuationToken: "",
-       MaxResults: 5,
-       ProjectionVal: gcs.NoAcl})
+	AssertEq(nil, list_err)
+	AssertNe(0, len(listing.Objects))
 
-       AssertEq(nil,list_err)
-       AssertNe(0,len(listing.Objects))
+	list_obj := listing.Objects[0]
 
-       list_obj :=listing.Objects[0]
+	ExpectEq(objName, list_obj.Name)
+	ExpectEq(obj.Size, list_obj.Size)
+	ExpectEq(obj.Generation, list_obj.Generation)
+	ExpectEq(obj.MetaGeneration, list_obj.MetaGeneration)
+	ExpectEq(obj.Updated.String(), list_obj.Updated.String())
+	ExpectEq(obj.Metadata[dummyMetaKey], list_obj.Metadata[dummyMetaKey])
 
-       ExpectEq(objName, list_obj.Name)
-       ExpectEq(obj.Size,list_obj.Size)
-       ExpectEq(obj.Generation,list_obj.Generation)
-       ExpectEq(obj.MetaGeneration,list_obj.MetaGeneration)
-       ExpectEq(obj.Updated.String(),list_obj.Updated.String())
-       ExpectEq(obj.Metadata[dummyMetaKey],list_obj.Metadata[dummyMetaKey])
+	//checks for attributes that should not be there in gcs.minObj
+	non_existent_field_names := [...]string{"ContentType", "ContentLanguage", "CacheControl", "Owner", "ContentEncoding",
+		"MD5", "CRC32C", "MediaLink", "StorageClass", "Deleted", "ComponentCount", "ContentDisposition", "CustomTime", "EventBasedHold", "Acl"}
 
-       //checks for attributes that should not be there in gcs.minObj
-       non_existent_field_names := [...]string{"ContentType","ContentLanguage","CacheControl","Owner","ContentEncoding",
-       "MD5","CRC32C","MediaLink","StorageClass","Deleted","ComponentCount","ContentDisposition","CustomTime","EventBasedHold","Acl"}
-
-       metaValue := reflect.ValueOf(list_obj).Elem()
-       for _,fieldName := range non_existent_field_names{
-            field := metaValue.FieldByName(fieldName)
-            if field != (reflect.Value{}) {
-       		    	fmt.Printf("Field %s should not exist in gcs.minObject",fieldName)
-       		}
-       }
+	metaValue := reflect.ValueOf(list_obj).Elem()
+	for _, fieldName := range non_existent_field_names {
+		field := metaValue.FieldByName(fieldName)
+		if field != (reflect.Value{}) {
+			fmt.Printf("Field %s should not exist in gcs.minObject", fieldName)
+		}
+	}
 }
 
 func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectExist() {
