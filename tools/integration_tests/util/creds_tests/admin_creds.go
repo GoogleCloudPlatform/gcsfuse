@@ -37,7 +37,10 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 
 	// Testing without --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
 	for i := 0; i < len(testFlagSet); i++ {
-		err := mounting.MountGcsfuse(testFlagSet[i])
+		flags := testFlagSet[i]
+		flags = append(flags, setup.TestBucket())
+		flags = append(flags, setup.MntDir())
+		err := mounting.MountGcsfuse(flags)
 		if err == nil {
 			log.Print("Error: Mounting successful without key file.")
 		}
