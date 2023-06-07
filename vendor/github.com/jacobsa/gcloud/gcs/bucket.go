@@ -96,8 +96,8 @@ type Bucket interface {
 		req *StatObjectRequest) (*Object, error)
 
     ListMinObjects(
-        		ctx context.Context,
-        		req *ListObjectsRequest) (*MinObjectListing, error)
+        ctx context.Context,
+        req *ListObjectsRequest) (*MinObjectListing, error)
 
 	// List the objects in the bucket that meet the criteria defined by the
 	// request, returning a result object that contains the results and

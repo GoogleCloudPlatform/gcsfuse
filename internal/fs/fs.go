@@ -17,7 +17,6 @@ package fs
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"io"
 	iofs "io/fs"
 	"os"
@@ -37,6 +36,7 @@ import (
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/timeutil"
+	"golang.org/x/net/context"
 )
 
 type ServerConfig struct {

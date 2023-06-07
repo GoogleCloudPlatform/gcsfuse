@@ -243,13 +243,11 @@ func (b *bucketHandle) ListMinObjects(ctx context.Context, req *gcs.ListObjectsR
 		IncludeTrailingDelimiter: req.IncludeTrailingDelimiter,
 		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
 	}
-
 	e := query.SetAttrSelection([]string{"Name", "Size", "Generation", "Metageneration", "Updated", "Metadata"})
 	if e != nil {
-		e = fmt.Errorf("Error in fetching attributes: %w", e)
+		err = fmt.Errorf("Error in fetching attributes: %w", e)
 		return
 	}
-
 	itr := b.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
 	pi := itr.PageInfo()
 	pi.MaxSize = req.MaxResults

@@ -439,7 +439,8 @@ func (b *bucket) Name() string {
 func (b *bucket) ListMinObjects(
     ctx context.Context,
     req *gcs.ListObjectsRequest) (listing *gcs.MinObjectListing, err error){
-   return
+    listing = new(gcs.MinObjectListing)
+    return listing,err
 }
 
 // LOCKS_EXCLUDED(b.mu)

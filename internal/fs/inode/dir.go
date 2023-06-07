@@ -546,7 +546,7 @@ func (d *dirInode) readObjects(
 
 	listing, err := d.bucket.ListMinObjects(ctx, req)
 	if err != nil {
-		err = fmt.Errorf("ListObjects: %w", err)
+		err = fmt.Errorf("ListMinObjects: %w", err)
 		return
 	}
 
