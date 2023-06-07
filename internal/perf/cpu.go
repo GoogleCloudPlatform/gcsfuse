@@ -25,7 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 )
 
-
 func HandleCPUProfileSignals() {
 	profileOnce := func(duration time.Duration, path string) (err error) {
 		// Set up the file.
@@ -44,7 +43,11 @@ func HandleCPUProfileSignals() {
 		}()
 
 		// Profile.
-		pprof.StartCPUProfile(f)
+		err = pprof.StartCPUProfile(f)
+		if err != nil {
+			logger.Errorf("StartCPUProfile failed: %v", err)
+			return
+		}
 		time.Sleep(duration)
 		pprof.StopCPUProfile()
 		return
