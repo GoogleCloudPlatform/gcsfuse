@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Run tests for --key-file flag and GOOGLE_APPLICATION_CREDENTIALS env variable
+
 package creds_tests
 
 import (
