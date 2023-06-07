@@ -28,8 +28,8 @@ func RunTestsForImplicitDir(flags [][]string, m *testing.M) {
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
-		log.Print("Both --testbucket and --mountedDirectory can't be specified at the same time.")
+	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
+		log.Print("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
 		os.Exit(1)
 	}
 
