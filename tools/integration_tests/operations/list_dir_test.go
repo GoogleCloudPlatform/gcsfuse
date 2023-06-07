@@ -31,7 +31,7 @@ import (
 func createDirectoryStructureForTest(t *testing.T) {
 	// Directory structure
 	// testBucket/directoryForListTest                                                                            -- Dir
-	// testBucket/directoryForListTest/fileInDirectoryForListTest1		                                            -- File
+	// testBucket/directoryForListTest/fileInDirectoryForListTest1		                                      -- File
 	// testBucket/directoryForListTest/firstSubDirectoryForListTest                                               -- Dir
 	// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest1           -- File
 	// testBucket/directoryForListTest/secondSubDirectoryForListTest                                              -- Dir
