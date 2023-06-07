@@ -2,23 +2,23 @@
 
 This python script benchmarks and compares the latency of listing operation in
 persistent disk vs GCS bucket. It creates the necessary directory structure,
-containing files and folders, needed to test the listing operation. Furthermore
+containing files and folders, needed to test the listing operation. Furthermore,
 it can optionally upload the results of the test to a Google Sheet. It takes
-input a JSON config file whcih contains the info regrading directory structure
+input a JSON config file which contains the info regrading directory structure
 and also through which multiple tests of different configurations can be
 performed in a single run.
 
 Typical usage example:
-  $ python3 listing_benchmark.py --gcsfuse_flags GCSFUSE_FLAGS [-h] [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --command COMMAND config_file
+  $ python3 listing_benchmark.py [-h] [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file
 
   Flag -h: Typical help interface of the script.
-  Flag --gcsfuse_flags: GCSFUSE flags with which the test bucket will be mounted.
   Flag --keep_files: Do not delete the generated directory structure from the
                      persistent disk after running the tests.
   Flag --upload: Uploads the results of the test to the Google Sheet.
   Flag --num_samples: Runs each test for NUM_SAMPLES times.
   Flag --message: Takes input a message string, which describes/titles the test.
-  Flag --command (required): Takes a input a string, which is the command to run
+  Flag --gcsfuse_flags (required): GCSFUSE flags with which the list tests bucket will be mounted.
+  Flag --command (required): Takes as input a string, which is the command to run
                              the tests on.
   config_file (required): Path to the JSON config file which contains the
                           details of the tests.
@@ -194,7 +194,7 @@ def _perform_testing(
   """This function tests the listing operation on the testing folders.
 
   Going through all the testing folders one by one for both GCS bucket and
-  peristent disk, we calculate the latency (in msec) of listing operation
+  persistent disk, we calculate the latency (in msec) of listing operation
   and store the results in a list of that particular testing folder. Reading
   are taken multiple times as specified by num_samples argument.
 
@@ -246,8 +246,8 @@ def _create_directory_structure(
                         files in.
    directory_structure: Protobuf of the current directory.
    create_files_in_gcs: Bool value which is True if we have to create files
-                        in GCS bucket (similar directory strucutre not present).
-                        Otherwise it is False, means that we will not create
+                        in GCS bucket (similar directory structure not present).
+                        Otherwise, it is False, means that we will not create
                         files in GCS bucket from scratch.
 
   Returns:
@@ -390,7 +390,7 @@ def _parse_arguments(argv):
   """Parses the arguments provided to the script via command line.
 
   Args:
-    argv: List of arguments recevied by the script.
+    argv: List of arguments received by the script.
 
   Returns:
     A class containing the parsed arguments.
@@ -443,10 +443,9 @@ def _parse_arguments(argv):
   )
   parser.add_argument(
       '--gcsfuse_flags',
-      help='Gcsfuse flags for mounting the test bucket',
+      help='Gcsfuse flags for mounting the list tests bucket. Example set of flags - "--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"',
       action='store',
       nargs=1,
-      default=['--implicit-dirs --enable-storage-client-library --max-conns-per-host 100'],
       required=True,
   )
   # Ignoring the first parameter, as it is the path of this python
@@ -481,7 +480,7 @@ if __name__ == '__main__':
   if len(argv) < 4:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
-                    'python3 listing_benchmark.py --gcsfuse_flags GCSFUSE_FLAGS [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --command COMMAND config_file')
+                    'python3 listing_benchmark.py [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file')
 
   args = _parse_arguments(argv)
 
