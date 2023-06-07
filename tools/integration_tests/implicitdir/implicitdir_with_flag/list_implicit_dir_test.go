@@ -30,9 +30,6 @@ func TestListImplicitObjectsInBucket(t *testing.T) {
 	implicitdir.CreateImplicitDirectory()
 	implicitdir.CreateExplicitDirectory(t)
 
-	// Delete objects from bucket after testing.
-	defer setup.RunScriptForTestData("../testdata/delete_objects.sh", setup.TestBucket())
-
 	err := filepath.WalkDir(setup.MntDir(), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
@@ -123,4 +120,8 @@ func TestListImplicitObjectsInBucket(t *testing.T) {
 		t.Errorf("error walking the path : %v\n", err)
 		return
 	}
+
+	// Delete objects from bucket after testing.
+	setup.RunScriptForTestData("../testdata/delete_objects.sh", setup.TestBucket())
+
 }

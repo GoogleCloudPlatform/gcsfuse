@@ -87,4 +87,7 @@ func TestNotListingImplicitObjectsInBucket(t *testing.T) {
 		t.Errorf("error walking the path : %v\n", err)
 		return
 	}
+
+	// Delete objects from bucket after testing.
+	setup.RunScriptForTestData("../testdata/delete_objects.sh", setup.TestBucket())
 }
