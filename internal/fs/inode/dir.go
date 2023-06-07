@@ -554,7 +554,7 @@ func (d *dirInode) readObjects(
 	defer func() {
 		now := d.cacheClock.Now()
 		for fullName, c := range cores {
-			d.cache.Insert(now, path.Base(fullName.LocalName()), c.MinObjectType())
+			d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
 		}
 	}()
 
@@ -599,7 +599,7 @@ func (d *dirInode) readObjects(
 	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
 		dirName := NewDirName(d.Name(), pathBase)
-		if c, ok := cores[dirName]; ok && c.MinObjectType() == ExplicitDirType {
+		if c, ok := cores[dirName]; ok && c.Type() == ExplicitDirType {
 			continue
 		}
 
@@ -628,7 +628,7 @@ func (d *dirInode) ReadEntries(
 			Name: path.Base(fullName.LocalName()),
 			Type: fuseutil.DT_Unknown,
 		}
-		switch core.MinObjectType() {
+		switch core.Type() {
 		case SymlinkType:
 			entry.Type = fuseutil.DT_Link
 		case RegularFileType:
