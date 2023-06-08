@@ -17,7 +17,7 @@
 //
 // Usage:
 //
-//     package_gcsfuse dst_dir version [commit]
+//	package_gcsfuse dst_dir version [commit]
 //
 // This will cause the gcsfuse git repo to be cloned to a temporary location
 // and a build performed, embedding the given version name. The build will be
