@@ -121,7 +121,7 @@ You can also add entries to your ```/etc/fstab``` file like the following:
 
     my-bucket /mount/point gcsfuse rw,noauto,user
 
-Afterward, you can run mount ```/mount/point``` as a non-root user.
+Afterward, you can run ```mount /mount/point``` as a non-root user.
 
 The noauto option above specifies that the file system should not be mounted at boot time.
 
@@ -133,6 +133,12 @@ If you would prefer to mount the file system automatically, you may need to pass
 You can also mount the file system automatically as a non-root user by specifying the options ```uid``` and/or ```gid```:
 
     my-bucket /mount/point gcsfuse rw,_netdev,allow_other,uid=1001,gid=1001
+
+You can unmount the filesystem using the following command:
+
+```
+umount /path/to/mount/point
+```
 
 # Directory semantics
 
