@@ -64,7 +64,6 @@ func RunTestsForImplicitDir(flags [][]string, m *testing.M) {
 func CreateImplicitDirectory() {
 	// Implicit Directory Structure
 	// testBucket/implicitDirectory                                                  -- Dir
-	// testBucket/implicitFile                                                       -- File
 	// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
 	// testBucket/implicitDirectory/implicitSubDirectory                             -- Dir
 	// testBucket/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
@@ -88,6 +87,6 @@ func CreateExplicitDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), ExplicitFile)
 	_, err := os.Create(filePath)
 	if err != nil {
-		t.Errorf("Create file at %q: %v", dirPath, err)
+		t.Errorf("Create file at %q: %v", setup.MntDir(), err)
 	}
 }
