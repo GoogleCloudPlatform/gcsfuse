@@ -44,10 +44,10 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDir)
 	//operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
 
-	subdir := path.Join(dirPath, ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir)
+	subDirPath := path.Join(dirPath, ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDir)
 	for i := 0; i < 100; i++ {
 		// Create 100 Explicit directory.
-		operations.CreateDirectoryWithNFiles(1, subdir, PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
+		operations.CreateDirectoryWithNFiles(1, subDirPath, PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
 	}
 
 	files, err := os.ReadDir(dirPath)
@@ -76,12 +76,13 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicit
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir)
 	operations.CreateDirectoryWithNFiles(NumberOfImplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, dirPath, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
 
+	subDirPath := path.Join(dirPath, ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDir)
 	for i := 0; i < 100; i++ {
 		// Create 100 Explicit directory.
-		operations.CreateDirectoryWithNFiles(1, dirPath, PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
+		operations.CreateDirectoryWithNFiles(1, subDirPath, PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
 	}
 
-	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", dirPath)
+	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", subDirPath)
 
 	files, err := os.ReadDir(dirPath)
 	if err != nil {
