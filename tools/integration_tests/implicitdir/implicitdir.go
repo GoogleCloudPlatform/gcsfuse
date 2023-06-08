@@ -87,7 +87,7 @@ func CreateExplicitDirectory(t *testing.T) {
 
 	dirPath := path.Join(setup.MntDir(), ExplicitDirectory)
 	dir, err := os.Stat(dirPath)
-	if err != nil {
+	if err == nil {
 		log.Println(dir.Name())
 	}
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInExplicitDirectory, dirPath, PrefixFileInExplicitDirectory, t)
