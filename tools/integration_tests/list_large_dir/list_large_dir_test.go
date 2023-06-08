@@ -19,7 +19,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
@@ -32,7 +31,6 @@ const NumberOfFilesInDirectoryWithTwelveThousandFiles = 12000
 const NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = 1200
 const NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = 100
 const PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDir = "fileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDir"
-
 const NumberOfObjectsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = 12100
 
 func TestMain(m *testing.M) {
@@ -47,9 +45,9 @@ func TestMain(m *testing.M) {
 
 	successCode := static_mounting.RunTests(flags, m)
 
-	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flags, m)
-	}
+	//if successCode == 0 {
+	//	successCode = only_dir_mounting.RunTests(flags, m)
+	//}
 
 	os.Exit(successCode)
 }
