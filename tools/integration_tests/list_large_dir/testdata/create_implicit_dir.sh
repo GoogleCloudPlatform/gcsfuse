@@ -3,7 +3,7 @@ a=0
 touch a.txt
 while [ $a -lt 100 ]
 do
-   dir="Test"$a
+   dir="implicitFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir"$a
    a=`expr $a + 1`
    gsutil cp a.txt gs://$1/$dir/
 done

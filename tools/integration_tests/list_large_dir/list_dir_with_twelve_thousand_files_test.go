@@ -71,34 +71,35 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	}
 }
 
-//func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
-//	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDir)
-//	operations.CreateDirectoryWithNFiles(10, dirPath, t)
-//
-//	for i := 0; i < 100; i++ {
-//		// Create 100 Explicit directory.
-//		operations.CreateDirectoryWithNFiles(1, dirPath, PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
-//	}
-//	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", dirPath)
-//
-//	files, err := os.ReadDir(dirPath)
-//	if err != nil {
-//		t.Errorf("Error in listing directory.")
-//	}
-//
-//	var numberOfDirs int = 0
-//	var numberOfFiles int = 0
-//	for _, obj := range files {
-//		if obj.IsDir() {
-//			numberOfDirs++
-//		} else {
-//			numberOfFiles++
-//		}
-//	}
-//	if numberOfDirs != 200 {
-//		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", numberOfDirs)
-//	}
-//	if numberOfFiles != 10 {
-//		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
-//	}
-//}
+func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
+	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir)
+	operations.CreateDirectoryWithNFiles(NumberOfImplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, dirPath, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
+
+	for i := 0; i < 100; i++ {
+		// Create 100 Explicit directory.
+		operations.CreateDirectoryWithNFiles(1, dirPath, PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
+	}
+
+	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", dirPath)
+
+	files, err := os.ReadDir(dirPath)
+	if err != nil {
+		t.Errorf("Error in listing directory.")
+	}
+
+	var numberOfDirs int = 0
+	var numberOfFiles int = 0
+	for _, obj := range files {
+		if obj.IsDir() {
+			numberOfDirs++
+		} else {
+			numberOfFiles++
+		}
+	}
+	if numberOfDirs != NumberOfImplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir+NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir {
+		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", numberOfDirs)
+	}
+	if numberOfFiles != NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir {
+		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
+	}
+}
