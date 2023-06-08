@@ -20,6 +20,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -35,6 +37,26 @@ const SubDirInNonEmptyDestCopyDirectory = "subDestCopyDir"
 const DestCopyDirectoryNotExist = "notExist"
 const NumberOfObjectsInSrcCopyDirectory = 2
 const NumberOfObjectsInDestCopyDirectory = 2
+const NumberOfObjectsInBucketDirectoryListTest = 1
+const DirectoryForListTest = "directoryForListTest"
+const NumberOfObjectsInDirectoryForListTest = 4
+const NumberOfFilesInDirectoryForListTest = 1
+const EmptySubDirInDirectoryForListTest = "emptySubDirInDirectoryForListTest"
+const NumberOfObjectsInEmptySubDirInDirectoryForListTest = 0
+const NumberOfFilesInEmptySubDirInDirectoryForListTest = 0
+const FirstSubDirectoryForListTest = "firstSubDirectoryForListTest"
+const NumberOfObjectsInFirstSubDirectoryForListTest = 1
+const NumberOfFilesInFirstSubDirectoryForListTest = 1
+const PrefixFileInDirectoryForListTest = "fileInDirectoryForListTest"
+const FileInDirectoryForListTest = "fileInDirectoryForListTest1"
+const NumberOfObjectsInSecondSubDirectoryForListTest = 2
+const NumberOfFilesInSecondSubDirectoryForListTest = 2
+const PrefixFileInFirstSubDirectoryForListTest = "fileInFirstSubDirectoryForListTest"
+const FileInFirstSubDirectoryForListTest = "fileInFirstSubDirectoryForListTest1"
+const SecondSubDirectoryForListTest = "secondSubDirectoryForListTest"
+const PrefixFileInSecondSubDirectoryForListTest = "fileInSecondSubDirectoryForListTest"
+const FirstFileInSecondSubDirectoryForListTest = "fileInSecondSubDirectoryForListTest1"
+const SecondFileInSecondSubDirectoryForListTest = "fileInSecondSubDirectoryForListTest2"
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
@@ -44,12 +66,24 @@ func TestMain(m *testing.M) {
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"}}
 
+	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
+
 	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
-		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
+		log.Print("Both --testbucket and --mountedDirectory can't be specified at the same time.")
 		os.Exit(1)
 	}
 
-	successCode := setup.RunTests(flags, m)
+	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
+	setup.RunTestsForMountedDirectoryFlag(m)
+
+	// Run tests for testBucket
+	setup.SetUpTestDirForTestBucketFlag()
+
+	successCode := static_mounting.RunTests(flags, m)
+
+	if successCode == 0 {
+		successCode = only_dir_mounting.RunTests(flags, m)
+	}
 
 	os.Exit(successCode)
 }

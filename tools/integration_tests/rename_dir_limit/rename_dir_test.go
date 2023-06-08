@@ -20,6 +20,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -32,7 +33,8 @@ func TestRenameDirectoryWithThreeFiles(t *testing.T) {
 	// testBucket/directoryWithThreeFiles/temp2.txt     -- File
 	// testBucket/directoryWithThreeFiles/temp3.txt     -- File
 	dirPath := path.Join(setup.MntDir(), DirectoryWithThreeFiles)
-	setup.CreateDirectoryWithNFiles(3, dirPath, t)
+
+	operations.CreateDirectoryWithNFiles(3, dirPath, PrefixTempFile, t)
 
 	oldDirPath := path.Join(setup.MntDir(), DirectoryWithThreeFiles)
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
@@ -56,7 +58,7 @@ func TestRenameDirectoryWithTwoFiles(t *testing.T) {
 	// testBucket/directoryWithTwoFiles/temp2.txt    -- File
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwoFiles)
 
-	setup.CreateDirectoryWithNFiles(2, dirPath, t)
+	operations.CreateDirectoryWithNFiles(2, dirPath, PrefixTempFile, t)
 
 	oldDirPath := path.Join(setup.MntDir(), DirectoryWithTwoFiles)
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
@@ -82,7 +84,7 @@ func TestRenameDirectoryWithFourFiles(t *testing.T) {
 	// testBucket/directoryWithFourFiles/temp4.txt    -- File
 	dirPath := path.Join(setup.MntDir(), DirectoryWithFourFiles)
 
-	setup.CreateDirectoryWithNFiles(4, dirPath, t)
+	operations.CreateDirectoryWithNFiles(4, dirPath, PrefixTempFile, t)
 
 	oldDirPath := path.Join(setup.MntDir(), DirectoryWithFourFiles)
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
@@ -108,8 +110,8 @@ func TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwoFilesOneEmptyDirectory)
 	subDirPath := path.Join(setup.MntDir(), DirectoryWithTwoFilesOneEmptyDirectory, EmptySubDirectory)
 
-	setup.CreateDirectoryWithNFiles(2, dirPath, t)
-	setup.CreateDirectoryWithNFiles(0, subDirPath, t)
+	operations.CreateDirectoryWithNFiles(2, dirPath, PrefixTempFile, t)
+	operations.CreateDirectoryWithNFiles(0, subDirPath, PrefixTempFile, t)
 
 	oldDirPath := path.Join(setup.MntDir(), DirectoryWithTwoFilesOneEmptyDirectory)
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
@@ -137,8 +139,8 @@ func TestRenameDirectoryWithTwoFilesAndOneNonEmptyDirectory(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwoFilesOneNonEmptyDirectory)
 	subDirPath := path.Join(dirPath, NonEmptySubDirectory)
 
-	setup.CreateDirectoryWithNFiles(2, dirPath, t)
-	setup.CreateDirectoryWithNFiles(1, subDirPath, t)
+	operations.CreateDirectoryWithNFiles(2, dirPath, PrefixTempFile, t)
+	operations.CreateDirectoryWithNFiles(1, subDirPath, PrefixTempFile, t)
 
 	oldDirPath := path.Join(setup.MntDir(), DirectoryWithTwoFilesOneNonEmptyDirectory)
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)

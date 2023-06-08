@@ -7,9 +7,26 @@
         gcloud auth login
         gcloud auth list
 
-   Alternatively, you can authenticate Cloud Storage FUSE by setting the ```--key-file``` flag to the path of a JSON key file, which you can download from the Google Cloud console. You can also set the ```GOOGLE_APPLICATION_CREDENTIALS``` environment variable to the path of the JSON key.
+   Alternatively, you can authenticate Cloud Storage FUSE using a service account
+key.
 
-        GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json gcsfuse [...]
+   - [Create a service account](https://cloud.google.com/iam/docs/service-accounts-create)
+  with one of the following roles:
+
+     * `Storage Object Viewer (roles/storage.objectViewer)` role to mount a
+    bucket with read-only permissions.
+     * `Storage Object Admin (roles/storage.objectAdmin)` role to mount a bucket with read-write permissions.
+
+   - [Create and download the service account key](https://cloud.google.com/iam/docs/keys-create-delete#iam-service-account-keys-create-console)
+  and set the ```--key-file``` flag to the path of the downloaded JSON key file while
+  mounting the bucket.
+
+           gcsfuse --key-file <path to service account key> [bucket] /path/to/mount/point
+
+  You can also set the ```GOOGLE_APPLICATION_CREDENTIALS``` environment
+  variable to the path of the JSON key.
+
+           GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json gcsfuse [...]
 When mounting with an fstab entry, use the key_file option:
 
     my-bucket /mount/point gcsfuse rw,noauto,user,key_file=/path/to/key.json
@@ -104,7 +121,7 @@ You can also add entries to your ```/etc/fstab``` file like the following:
 
     my-bucket /mount/point gcsfuse rw,noauto,user
 
-Afterward, you can run mount ```/mount/point``` as a non-root user.
+Afterward, you can run ```mount /mount/point``` as a non-root user.
 
 The noauto option above specifies that the file system should not be mounted at boot time.
 
@@ -116,6 +133,12 @@ If you would prefer to mount the file system automatically, you may need to pass
 You can also mount the file system automatically as a non-root user by specifying the options ```uid``` and/or ```gid```:
 
     my-bucket /mount/point gcsfuse rw,_netdev,allow_other,uid=1001,gid=1001
+
+You can unmount the filesystem using the following command:
+
+```
+umount /path/to/mount/point
+```
 
 # Directory semantics
 
@@ -175,7 +198,7 @@ Type ```gcsfuse --help``` to see the full list:
 | --max-conns-per-host value                           | The max number of TCP connections allowed per server. This is effective when --client-protocol is set to 'http1'. (default: 100)                                                                                                                                                                                                                                                             |
 | --max-idle-conns-per-host value                      | The number of maximum idle connections allowed per server (default: 100)                                                                                                                                                                                                                                                                                                                     |
 | --enable-nonexistent-type-cache                      | Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and flag type-cache-ttl is set to 10 minutes, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil. |
-| --stackdriver-export-interval value                  | Experimental: Export metrics to stackdriver with this interval. The default value 0 indicates no exporting. (default: 0s)                                                                                                                                                                                                                                                                    |
+| --stackdriver-export-interval value                  | Export metrics to stackdriver with this interval. The default value 0 indicates no exporting. (default: 0s)                                                                                                                                                                                                                                                                                  |
 | --experimental-opentelemetry-collector-address value | Experimental: Export metrics to the OpenTelemetry collector at this address.                                                                                                                                                                                                                                                                                                                 |
 | --log-file value                                     | The file for storing logs that can be parsed by fluentd. When not provided, plain text logs are printed to stdout.                                                                                                                                                                                                                                                                           |
 | --log-format value                                   | The format of the log file: 'text' or 'json'. (default: "json")                                                                                                                                                                                                                                                                                                                              |
