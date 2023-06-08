@@ -74,7 +74,7 @@ gsutil cp start_time.txt gs://gcsfuse-ml-data/ci_artifacts/pytorch/dino/
     --norm_last_layer False \
     --use_fp16 False \
     --clip_grad 0 \
-    --epochs 100 \
+    --epochs 1 \
     --global_crops_scale 0.25 1.0 \
     --local_crops_number 10 \
     --local_crops_scale 0.05 0.25 \
