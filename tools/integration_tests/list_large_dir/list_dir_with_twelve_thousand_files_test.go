@@ -17,6 +17,7 @@ package list_large_dir_test
 import (
 	"os"
 	"path"
+	"strconv"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
@@ -76,13 +77,13 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicit
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir)
 	operations.CreateDirectoryWithNFiles(NumberOfImplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, dirPath, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
 
-	subDirPath := path.Join(dirPath, ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDir)
 	for i := 0; i < 100; i++ {
+		subDirPath := path.Join(dirPath, ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDir+strconv.Itoa(i))
 		// Create 100 Explicit directory.
 		operations.CreateDirectoryWithNFiles(1, subDirPath, PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
 	}
 
-	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", subDirPath)
+	//setup.RunScriptForTestData("testdata/create_implicit_dir.sh", subDirPath)
 
 	files, err := os.ReadDir(dirPath)
 	if err != nil {
