@@ -25,7 +25,6 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
 	storagev1 "google.golang.org/api/storage/v1"
-
 )
 
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
@@ -95,9 +94,9 @@ type Bucket interface {
 		ctx context.Context,
 		req *StatObjectRequest) (*Object, error)
 
-    ListMinObjects(
-        ctx context.Context,
-        req *ListObjectsRequest) (*MinObjectListing, error)
+	ListMinObjects(
+		ctx context.Context,
+		req *ListObjectsRequest) (*MinObjectListing, error)
 
 	// List the objects in the bucket that meet the criteria defined by the
 	// request, returning a result object that contains the results and
@@ -143,7 +142,8 @@ func (b *bucket) Name() string {
 func (b *bucket) ListMinObjects(
 	ctx context.Context,
 	req *ListObjectsRequest) (listing *MinObjectListing, err error) {
-    return
+	listing = new(MinObjectListing)
+	return listing, err
 }
 
 func (b *bucket) ListObjects(

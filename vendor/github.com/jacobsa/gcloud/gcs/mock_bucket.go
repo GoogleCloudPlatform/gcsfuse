@@ -154,6 +154,7 @@ func (m *mockBucket) DeleteObject(p0 context.Context, p1 *DeleteObjectRequest) (
 }
 
 func (m *mockBucket) ListMinObjects(p0 context.Context, p1 *ListObjectsRequest) (o0 *MinObjectListing, o1 error) {
+    o0 = new(MinObjectListing)
     return
 }
 

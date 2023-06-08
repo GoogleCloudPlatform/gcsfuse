@@ -440,7 +440,26 @@ func (b *bucket) ListMinObjects(
     ctx context.Context,
     req *gcs.ListObjectsRequest) (listing *gcs.MinObjectListing, err error){
     listing = new(gcs.MinObjectListing)
-    return listing,err
+    list,err := b.ListObjects(ctx,req)
+    if err!= nil {
+        err = fmt.Errorf("Error in listing object : %w",err)
+    }
+
+    for _,obj := range list.Objects {
+        minobj := &gcs.MinObject{
+            Name:           obj.Name,
+            Size:           uint64(obj.Size),
+            Generation:     obj.Generation,
+            MetaGeneration: obj.MetaGeneration,
+            Updated:        obj.Updated,
+            Metadata:       obj.Metadata,
+        }
+        listing.Objects = append(listing.Objects,minobj)
+    }
+
+    listing.ContinuationToken= list.ContinuationToken
+    listing.CollapsedRuns = list.CollapsedRuns
+    return
 }
 
 // LOCKS_EXCLUDED(b.mu)
