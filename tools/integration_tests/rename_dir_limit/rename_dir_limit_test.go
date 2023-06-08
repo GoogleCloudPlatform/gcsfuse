@@ -34,6 +34,7 @@ const DirectoryWithTwoFilesOneNonEmptyDirectory = "directoryWithTwoFilesOneNonEm
 const EmptySubDirectory = "emptySubDirectory"
 const NonEmptySubDirectory = "nonEmptySubDirectory"
 const RenamedDirectory = "renamedDirectory"
+const PrefixTempFile = "temp"
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
