@@ -83,13 +83,9 @@ func CreateExplicitDirectory(t *testing.T) {
 	// testBucket/explicitDirectory/fileInExplicitDir2         -- File
 
 	dirPath := path.Join(setup.MntDir(), ExplicitDirectory)
-	dir, err := os.Stat(dirPath)
-	if err == nil {
-		log.Println(dir.Name())
-	}
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInExplicitDirectory, dirPath, PrefixFileInExplicitDirectory, t)
 	filePath := path.Join(setup.MntDir(), ExplicitFile)
-	_, err = os.Create(filePath)
+	_, err := os.Create(filePath)
 	if err != nil {
 		t.Errorf("Create file at %q: %v", setup.MntDir(), err)
 	}
