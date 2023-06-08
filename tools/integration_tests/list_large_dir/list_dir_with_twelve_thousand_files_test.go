@@ -42,11 +42,12 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDir)
-	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
+	//operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
 
+	subdir := path.Join(dirPath, ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir)
 	for i := 0; i < 100; i++ {
 		// Create 100 Explicit directory.
-		operations.CreateDirectoryWithNFiles(1, dirPath, PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
+		operations.CreateDirectoryWithNFiles(1, subdir, PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
 	}
 
 	files, err := os.ReadDir(dirPath)
