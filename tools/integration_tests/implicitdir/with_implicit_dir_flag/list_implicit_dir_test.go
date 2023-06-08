@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package implicitdir_with_flag_test
+package with_implicit_dir_flag_test
 
 import (
 	"fmt"
@@ -27,6 +27,15 @@ import (
 )
 
 func TestListImplicitObjectsInBucket(t *testing.T) {
+	// Directory Structure
+	// implicitDirectory                                                  -- Dir
+	// implicitDirectory/fileInImplicitDir1                               -- File
+	// implicitDirectory/implicitSubDirectory                             -- Dir
+	// implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
+	// explicitDirectory                                                  -- Dir
+	// explicitDirectory/fileInExplicitDir1                               -- File
+	// explicitDirectory/fileInExplicitDir2                               -- File
+
 	implicitdir.CreateImplicitDirectory()
 	implicitdir.CreateExplicitDirectory(t)
 
@@ -123,5 +132,4 @@ func TestListImplicitObjectsInBucket(t *testing.T) {
 
 	// Delete objects from bucket after testing.
 	setup.RunScriptForTestData("../testdata/delete_objects.sh", setup.TestBucket())
-
 }

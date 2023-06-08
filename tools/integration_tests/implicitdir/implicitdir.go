@@ -4,10 +4,10 @@ import (
 	"log"
 	"os"
 	"path"
-	"strconv"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -44,25 +44,14 @@ func RunTestsForImplicitDir(flags [][]string, m *testing.M) {
 	os.Exit(successCode)
 }
 
-func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string, t *testing.T) {
-	err := os.Mkdir(dirPath, setup.FilePermission_0600)
-	if err != nil {
-		t.Errorf("Error in creating directory: %v", err)
-	}
-
-	for i := 1; i <= numberOfFiles; i++ {
-		// Create file with name prefix + i
-		// e.g. If prefix = temp  then temp1, temp2
-		filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
-		_, err := os.Create(filePath)
-		if err != nil {
-			t.Errorf("Create file at %q: %v", dirPath, err)
-		}
-	}
-}
-
 func CreateImplicitDirectory() {
-	// Clean the bucket for readonly testing.
+	// Implicit Directory Structure
+	// implicitDirectory                                                  -- Dir
+	// implicitDirectory/fileInImplicitDir1                               -- File
+	// implicitDirectory/implicitSubDirectory                             -- Dir
+	// implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
+
+	// Clean the bucket.
 	setup.RunScriptForTestData("../testdata/delete_objects.sh", setup.TestBucket())
 
 	// Create implicit directory in bucket for testing.
@@ -70,6 +59,11 @@ func CreateImplicitDirectory() {
 }
 
 func CreateExplicitDirectory(t *testing.T) {
+	// Explicit Directory structure
+	// explicitDirectory                            -- Dir
+	// explicitDirectory/fileInExplicitDir1         -- File
+	// explicitDirectory/fileInExplicitDir2         -- File
+	
 	dirPath := path.Join(setup.MntDir(), ExplicitDirectory)
-	CreateDirectoryWithNFiles(NumberOfFilesInExplicitDirectory, dirPath, PrefixFileInExplicitDirectory, t)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInExplicitDirectory, dirPath, PrefixFileInExplicitDirectory, t)
 }

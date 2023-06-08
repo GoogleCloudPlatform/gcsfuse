@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Provide tests when implicit directory present and mounted bucket without --implicit-dir flag.
-package implicitdir_without_flag_test
+package without_implicit_dir_flag_test
 
 import (
 	"testing"
