@@ -13,10 +13,10 @@
 # limitations under the License.
 
 # Here $1 refers to the testBucket argument
-echo "This is from directory Test file implicitDirectory" >> implicitFile
+echo "This is from implicitFile " >> implicitFile
 # bucket/implicitFile
 gsutil mv implicitFile gs://$1/
-echo "This is from directory Test file implicitDirectory" >> fileInImplicitDir1
+echo "This is from directory fileInImplicitDir1 file implicitDirectory" >> fileInImplicitDir1
 # bucket/implicitDirectory/fileInImplicitDir1
 gsutil mv fileInImplicitDir1 gs://$1/implicitDirectory/
 echo "This is from directory implicitDirectory/implicitSubDirectory file fileInImplicitDir2" >> fileInImplicitDir2
