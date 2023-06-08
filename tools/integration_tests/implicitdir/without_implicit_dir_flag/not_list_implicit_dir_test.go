@@ -59,13 +59,26 @@ func TestNotListingImplicitObjectsInBucket(t *testing.T) {
 
 		// Check if mntDir has correct objects.
 		if path == setup.MntDir() {
-			// numberOfObjects - 2
-			if len(objs) != implicitdir.NumberOfExplicitObjects {
+			if len(objs) != implicitdir.NumberOfTotalObjects {
 				t.Errorf("Incorrect number of objects in the bucket.")
 			}
 
-			// testBucket/explicitDir   -- Dir
+			// testBucket/explicitDir     -- Dir
 			if objs[0].Name() != implicitdir.ExplicitDirectory || objs[0].IsDir() != true {
+				t.Errorf("Listed incorrect object")
+			}
+			// testBucket/explicitFile    -- File
+			if objs[1].Name() != implicitdir.ExplicitFile || objs[1].IsDir() != false {
+				t.Errorf("Listed incorrect object")
+			}
+
+			// testBucket/implicitDir     -- Dir
+			if objs[2].Name() != implicitdir.ImplicitDirectory || objs[2].IsDir() != true {
+				t.Errorf("Listed incorrect object")
+			}
+
+			// testBucket/implicitFile    -- File
+			if objs[3].Name() != implicitdir.ImplicitFile || objs[3].IsDir() != false {
 				t.Errorf("Listed incorrect object")
 			}
 		}
