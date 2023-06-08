@@ -28,6 +28,16 @@ ARTIFACTS_BUCKET_PATH=$3
 # Path of test script relative to $HOME inside test VM.
 TEST_SCRIPT_PATH=$4
 
+function initialize_ssh_keys() {
+    echo "Delete existing ssh keys "
+    # This is required to avoid issue: https://github.com/kyma-project/test-infra/issues/93
+    for i in $(sudo gcloud compute os-login ssh-keys list | grep -v FINGERPRINT); do sudo gcloud compute os-login ssh-keys remove --key $i; done
+
+    # Requires running first ssh command with --quiet option to initialize keys.
+    # Otherwise it prompts for yes and no.
+    sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --quiet --command "echo 'Running from VM'"
+}
+
 function delete_existing_vm_and_create_new () {
   (
     set +e
@@ -66,13 +76,7 @@ function delete_existing_vm_and_create_new () {
   echo "Wait for 30 seconds for new VM to be initialised"
   sleep 30s
 
-  echo "Delete existing ssh keys "
-  # This is required to avoid issue: https://github.com/kyma-project/test-infra/issues/93
-  for i in $(sudo gcloud compute os-login ssh-keys list | grep -v FINGERPRINT); do sudo gcloud compute os-login ssh-keys remove --key $i; done
-
-  # Requires running first ssh command with --quiet option to initialize keys.
-  # Otherwise it prompts for yes and no.
-  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --quiet --command "echo 'Running from VM'"
+  initialize_ssh_keys
 }
 
 # Takes commit id of on-going test run ($1) artifacts to GCS bucket
@@ -185,6 +189,7 @@ else
   exit 1
 fi
 
+initialize_ssh_keys
 commit_id=$(get_run_commit_id)
 copy_run_artifacts_to_gcs $commit_id
 cat_run_artifacts $commit_id
