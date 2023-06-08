@@ -29,7 +29,6 @@ import (
 func TestListImplicitObjectsInBucket(t *testing.T) {
 	// Directory Structure
 	// testBucket/implicitDirectory                                                  -- Dir
-	// testBucket/implicitFile                                                       -- File
 	// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
 	// testBucket/implicitDirectory/implicitSubDirectory                             -- Dir
 	// testBucket/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
@@ -75,11 +74,6 @@ func TestListImplicitObjectsInBucket(t *testing.T) {
 
 			// testBucket/implicitDir     -- Dir
 			if objs[2].Name() != implicitdir.ImplicitDirectory || objs[2].IsDir() != true {
-				t.Errorf("Listed incorrect object")
-			}
-
-			// testBucket/implicitFile    -- File
-			if objs[3].Name() != implicitdir.ImplicitFile || objs[3].IsDir() != false {
 				t.Errorf("Listed incorrect object")
 			}
 		}

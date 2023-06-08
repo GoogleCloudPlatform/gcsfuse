@@ -28,10 +28,9 @@ import (
 const ExplicitDirectory = "explicitDirectory"
 const ExplicitFile = "explicitFile"
 const ImplicitDirectory = "implicitDirectory"
-const ImplicitFile = "implicitFile"
 const ImplicitSubDirectory = "implicitSubDirectory"
 const NumberOfExplicitObjects = 1
-const NumberOfTotalObjects = 4
+const NumberOfTotalObjects = 3
 const NumberOfFilesInExplicitDirectory = 2
 const NumberOfFilesInImplicitDirectory = 2
 const NumberOfFilesInImplicitSubDirectory = 1
