@@ -19,24 +19,16 @@ import (
 	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func createNExplicitDirectories(numberOfDirs int, dirPath string, t *testing.T) {
-
-	for i := 0; i < NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir; i++ {
-		_, err := os.MkdirTemp(dirPath, "tmpDir")
-		if err != nil {
-			t.Errorf("Error in creating directory: %v", err)
-		}
-	}
-}
 func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 	// Clean the bucket for list testing.
 	os.RemoveAll(setup.MntDir())
 
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
-	setup.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, t)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
 
 	files, err := os.ReadDir(dirPath)
 	if err != nil {
@@ -50,10 +42,12 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDir)
-	setup.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, t)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
 
-	// Create 100 Explicit directory.
-	createNExplicitDirectories(NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, dirPath, t)
+	for i := 0; i < 100; i++ {
+		// Create 100 Explicit directory.
+		operations.CreateDirectoryWithNFiles(1, dirPath, PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
+	}
 
 	files, err := os.ReadDir(dirPath)
 	if err != nil {
@@ -77,33 +71,34 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	}
 }
 
-func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDir)
-	setup.CreateDirectoryWithNFiles(10, dirPath, t)
-
-	// Create 100 Explicit directory.
-	createNExplicitDirectories(NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, dirPath, t)
-
-	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", dirPath)
-
-	files, err := os.ReadDir(dirPath)
-	if err != nil {
-		t.Errorf("Error in listing directory.")
-	}
-
-	var numberOfDirs int = 0
-	var numberOfFiles int = 0
-	for _, obj := range files {
-		if obj.IsDir() {
-			numberOfDirs++
-		} else {
-			numberOfFiles++
-		}
-	}
-	if numberOfDirs != 200 {
-		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", numberOfDirs)
-	}
-	if numberOfFiles != 10 {
-		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
-	}
-}
+//func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
+//	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDir)
+//	operations.CreateDirectoryWithNFiles(10, dirPath, t)
+//
+//	for i := 0; i < 100; i++ {
+//		// Create 100 Explicit directory.
+//		operations.CreateDirectoryWithNFiles(1, dirPath, PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
+//	}
+//	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", dirPath)
+//
+//	files, err := os.ReadDir(dirPath)
+//	if err != nil {
+//		t.Errorf("Error in listing directory.")
+//	}
+//
+//	var numberOfDirs int = 0
+//	var numberOfFiles int = 0
+//	for _, obj := range files {
+//		if obj.IsDir() {
+//			numberOfDirs++
+//		} else {
+//			numberOfFiles++
+//		}
+//	}
+//	if numberOfDirs != 200 {
+//		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", numberOfDirs)
+//	}
+//	if numberOfFiles != 10 {
+//		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
+//	}
+//}

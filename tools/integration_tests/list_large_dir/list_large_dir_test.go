@@ -19,14 +19,22 @@ import (
 	"os"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 const DirectoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles"
+const PrefixFileInDirectoryWithTwelveThousandFiles = "fileInDirectoryWithTwelveThousandFiles"
 const DirectoryWithTwelveThousandFilesAndHundredExplicitDir = "directoryWithTwelveThousandFilesAndHundredExplicitDir"
+const PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = "fileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir"
+
+const PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = "fileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir"
 const NumberOfFilesInDirectoryWithTwelveThousandFiles = 12000
 const NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = 1200
 const NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = 100
+const PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDir = "fileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDir"
+
 const NumberOfObjectsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = 12100
 
 func TestMain(m *testing.M) {
@@ -39,7 +47,11 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	successCode := setup.RunTests(flags, m)
+	successCode := static_mounting.RunTests(flags, m)
+
+	if successCode == 0 {
+		successCode = only_dir_mounting.RunTests(flags, m)
+	}
 
 	os.Exit(successCode)
 }
