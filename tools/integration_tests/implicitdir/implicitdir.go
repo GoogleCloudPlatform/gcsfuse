@@ -26,8 +26,12 @@ import (
 )
 
 const ExplicitDirectory = "explicitDirectory"
+const ExplicitFile = "explicitFile"
 const ImplicitDirectory = "implicitDirectory"
+const ImplicitFile = "implicitFile"
 const ImplicitSubDirectory = "implicitSubDirectory"
+const NumberOfExplicitObjects = 1
+const NumberOfTotalObjects = 4
 const NumberOfFilesInExplicitDirectory = 2
 const NumberOfFilesInImplicitDirectory = 2
 const NumberOfFilesInImplicitSubDirectory = 1
@@ -60,10 +64,11 @@ func RunTestsForImplicitDir(flags [][]string, m *testing.M) {
 
 func CreateImplicitDirectory() {
 	// Implicit Directory Structure
-	// implicitDirectory                                                  -- Dir
-	// implicitDirectory/fileInImplicitDir1                               -- File
-	// implicitDirectory/implicitSubDirectory                             -- Dir
-	// implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
+	// testBucket/implicitDirectory                                                  -- Dir
+	// testBucket/implicitFile                                                       -- File
+	// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
+	// testBucket/implicitDirectory/implicitSubDirectory                             -- Dir
+	// testBucket/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
 
 	// Clean the bucket.
 	setup.RunScriptForTestData("../testdata/delete_objects.sh", setup.TestBucket())
@@ -74,10 +79,16 @@ func CreateImplicitDirectory() {
 
 func CreateExplicitDirectory(t *testing.T) {
 	// Explicit Directory structure
-	// explicitDirectory                            -- Dir
-	// explicitDirectory/fileInExplicitDir1         -- File
-	// explicitDirectory/fileInExplicitDir2         -- File
+	// testBucket/explicitDirectory                            -- Dir
+	// testBucket/explictFile                                  -- File
+	// testBucket/explicitDirectory/fileInExplicitDir1         -- File
+	// testBucket/explicitDirectory/fileInExplicitDir2         -- File
 
 	dirPath := path.Join(setup.MntDir(), ExplicitDirectory)
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInExplicitDirectory, dirPath, PrefixFileInExplicitDirectory, t)
+	filePath := path.Join(setup.MntDir(), ExplicitFile)
+	_, err := os.Create(filePath)
+	if err != nil {
+		t.Errorf("Create file at %q: %v", dirPath, err)
+	}
 }

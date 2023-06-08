@@ -28,13 +28,15 @@ import (
 
 func TestListImplicitObjectsInBucket(t *testing.T) {
 	// Directory Structure
-	// implicitDirectory                                                  -- Dir
-	// implicitDirectory/fileInImplicitDir1                               -- File
-	// implicitDirectory/implicitSubDirectory                             -- Dir
-	// implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
-	// explicitDirectory                                                  -- Dir
-	// explicitDirectory/fileInExplicitDir1                               -- File
-	// explicitDirectory/fileInExplicitDir2                               -- File
+	// testBucket/implicitDirectory                                                  -- Dir
+	// testBucket/implicitFile                                                       -- File
+	// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
+	// testBucket/implicitDirectory/implicitSubDirectory                             -- Dir
+	// testBucket/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
+	// testBucket/explicitDirectory                                                  -- Dir
+	// testBucket/explicitFile                                                       -- File
+	// testBucket/explicitDirectory/fileInExplicitDir1                               -- File
+	// testBucket/explicitDirectory/fileInExplicitDir2                               -- File
 
 	implicitdir.CreateImplicitDirectory()
 	implicitdir.CreateExplicitDirectory(t)
@@ -58,17 +60,26 @@ func TestListImplicitObjectsInBucket(t *testing.T) {
 		// Check if mntDir has correct objects.
 		if path == setup.MntDir() {
 			// numberOfObjects - 2
-			if len(objs) != 2 {
+			if len(objs) != implicitdir.NumberOfTotalObjects {
 				t.Errorf("Incorrect number of objects in the bucket.")
 			}
 
-			// testBucket/explicitDir   -- Dir
+			// testBucket/explicitDir     -- Dir
 			if objs[0].Name() != implicitdir.ExplicitDirectory || objs[0].IsDir() != true {
 				t.Errorf("Listed incorrect object")
 			}
+			// testBucket/explicitFile    -- File
+			if objs[1].Name() != implicitdir.ExplicitFile || objs[1].IsDir() != false {
+				t.Errorf("Listed incorrect object")
+			}
 
-			//testBucket/implicitDir   -- Dir
-			if objs[1].Name() != implicitdir.ImplicitDirectory || objs[1].IsDir() != true {
+			// testBucket/implicitDir     -- Dir
+			if objs[2].Name() != implicitdir.ImplicitDirectory || objs[2].IsDir() != true {
+				t.Errorf("Listed incorrect object")
+			}
+
+			// testBucket/implicitFile    -- File
+			if objs[3].Name() != implicitdir.ImplicitFile || objs[3].IsDir() != false {
 				t.Errorf("Listed incorrect object")
 			}
 		}

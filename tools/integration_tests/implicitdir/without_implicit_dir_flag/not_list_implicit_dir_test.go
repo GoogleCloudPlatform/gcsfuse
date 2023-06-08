@@ -28,13 +28,15 @@ import (
 
 func TestNotListingImplicitObjectsInBucket(t *testing.T) {
 	// Directory Structure
-	// implicitDirectory                                                  -- Dir
-	// implicitDirectory/fileInImplicitDir1                               -- File
-	// implicitDirectory/implicitSubDirectory                             -- Dir
-	// implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
-	// explicitDirectory                                                  -- Dir
-	// explicitDirectory/fileInExplicitDir1                               -- File
-	// explicitDirectory/fileInExplicitDir2                               -- File
+	// testBucket/implicitDirectory                                                  -- Dir
+	// testBucket/implicitFile                                                       -- File
+	// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
+	// testBucket/implicitDirectory/implicitSubDirectory                             -- Dir
+	// testBucket/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
+	// testBucket/explicitDirectory                                                  -- Dir
+	// testBucket/explicitFile                                                       -- File
+	// testBucket/explicitDirectory/fileInExplicitDir1                               -- File
+	// testBucket/explicitDirectory/fileInExplicitDir2                               -- File
 
 	implicitdir.CreateImplicitDirectory()
 	implicitdir.CreateExplicitDirectory(t)
@@ -58,7 +60,7 @@ func TestNotListingImplicitObjectsInBucket(t *testing.T) {
 		// Check if mntDir has correct objects.
 		if path == setup.MntDir() {
 			// numberOfObjects - 2
-			if len(objs) != 1 {
+			if len(objs) != implicitdir.NumberOfExplicitObjects {
 				t.Errorf("Incorrect number of objects in the bucket.")
 			}
 
