@@ -50,9 +50,6 @@ func RunTestsForImplicitDir(flags [][]string, m *testing.M) {
 		os.Exit(1)
 	}
 
-	// Clean the bucket.
-	setup.RunScriptForTestData("../testdata/delete_objects.sh", setup.TestBucket())
-
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
 	setup.RunTestsForMountedDirectoryFlag(m)
 

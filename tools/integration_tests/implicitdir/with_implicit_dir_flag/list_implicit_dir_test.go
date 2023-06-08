@@ -26,7 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func TestListImplicitObjectsInBucket(t *testing.T) {
+func TestListImplicitObjectsFromBucket(t *testing.T) {
 	// Directory Structure
 	// testBucket/implicitDirectory                                                  -- Dir
 	// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
@@ -39,6 +39,9 @@ func TestListImplicitObjectsInBucket(t *testing.T) {
 
 	implicitdir.CreateImplicitDirectory()
 	implicitdir.CreateExplicitDirectory(t)
+
+	// Delete objects from bucket after testing.
+	defer os.RemoveAll(setup.MntDir())
 
 	err := filepath.WalkDir(setup.MntDir(), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
@@ -134,7 +137,4 @@ func TestListImplicitObjectsInBucket(t *testing.T) {
 		t.Errorf("error walking the path : %v\n", err)
 		return
 	}
-
-	// Delete objects from bucket after testing.
-	setup.RunScriptForTestData("../testdata/delete_objects.sh", setup.TestBucket())
 }
