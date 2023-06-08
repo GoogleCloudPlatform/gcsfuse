@@ -14,6 +14,8 @@
 
 # Here $1 refers to the testBucket argument
 echo "This is from directory Test file implicitDirectory" >> fileInImplicitDir1
+# bucket/implicitDirectory/fileInImplicitDir1
 gsutil mv fileInImplicitDir1 gs://$1/implicitDirectory/
 echo "This is from directory implicitDirectory/implicitSubDirectory file fileInImplicitDir2" >> fileInImplicitDir2
+# bucket/implicitDirectory/implicitSubDirectory/fileInImplicitDir2
 gsutil mv fileInImplicitDir2 gs://$1/implicitDirectory/implicitSubDirectory/
