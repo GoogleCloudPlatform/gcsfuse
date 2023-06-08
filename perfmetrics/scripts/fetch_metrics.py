@@ -70,6 +70,8 @@ if __name__ == '__main__':
     start_time_sec = job[fio_metrics.consts.START_TIME]
     end_time_sec = job[fio_metrics.consts.END_TIME]
 
+    print(f'Start and end time for job {ind + 1}...')
+
     # Print start and end time of jobs
     print("Start time: ", start_time_sec)
     print("End time: ", end_time_sec)
