@@ -61,6 +61,7 @@ func TestNotListingImplicitObjectsFromBucket(t *testing.T) {
 
 		// Check if mntDir has correct objects.
 		if path == setup.MntDir() {
+			// numberOfObjects - 2
 			if len(objs) != implicitdir.NumberOfExplicitObjects {
 				t.Errorf("Incorrect number of objects in the bucket.")
 			}
