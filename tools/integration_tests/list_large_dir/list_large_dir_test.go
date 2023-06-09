@@ -36,7 +36,7 @@ const NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDi
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--implicit-dirs"}}
+	flags := [][]string{{"--implicit-dirs", "--o=ro"}}
 
 	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
 		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
