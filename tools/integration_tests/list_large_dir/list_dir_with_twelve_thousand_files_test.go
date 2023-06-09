@@ -43,7 +43,7 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDir)
-	//operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
 
 	for i := 0; i < 100; i++ {
 		subDirPath := path.Join(dirPath, ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDir+strconv.Itoa(i))
@@ -84,7 +84,8 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicit
 		operations.CreateDirectoryWithNFiles(1, subDirPath, PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
 	}
 
-	//setup.RunScriptForTestData("testdata/create_implicit_dir.sh", subDirPath)
+	subDirPath := path.Join(dirPath, ImplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir)
+	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", subDirPath)
 
 	files, err := os.ReadDir(dirPath)
 	if err != nil {
