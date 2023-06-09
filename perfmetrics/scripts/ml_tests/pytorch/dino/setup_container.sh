@@ -79,7 +79,7 @@ gsutil cp start_time.txt gs://gcsfuse-ml-data/ci_artifacts/pytorch/dino/
     --local_crops_number 10 \
     --local_crops_scale 0.05 0.25 \
     --teacher_temp 0.07 \
-    --warmup_teacher_temp_epochs 30 \
+    --warmup_teacher_temp_epochs 1 \
     --clip_grad 0 \
     --min_lr 0.00001
     if [ $? -eq 0 ]; then
