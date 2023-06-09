@@ -43,9 +43,9 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDir)
-	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, dirPath, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
 
-	for i := 0; i < 100; i++ {
+	for i := 1; i <= 100; i++ {
 		subDirPath := path.Join(dirPath, ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDir+strconv.Itoa(i))
 
 		// Create 100 Explicit directory.
@@ -76,9 +76,9 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir)
-	operations.CreateDirectoryWithNFiles(NumberOfImplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, dirPath, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, dirPath, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
 
-	for i := 0; i < 100; i++ {
+	for i := 1; i <= 100; i++ {
 		subDirPath := path.Join(dirPath, ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir+strconv.Itoa(i))
 		// Create 100 Explicit directory.
 		operations.CreateDirectoryWithNFiles(1, subDirPath, PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
