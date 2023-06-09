@@ -24,23 +24,14 @@ import (
 )
 
 const DirectoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles"
-const PrefixFileInDirectoryWithTwelveThousandFiles = "fileInDirectoryWithTwelveThousandFiles"
 const DirectoryWithTwelveThousandFilesAndHundredExplicitDir = "directoryWithTwelveThousandFilesAndHundredExplicitDir"
 const DirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir = "directoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir"
-const PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = "fileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir"
 const NumberOfFilesInDirectoryWithTwelveThousandFiles = 12000
 const NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = 12000
 const NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir = 12000
 const NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = 100
 const NumberOfImplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir = 100
-const PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir = "fileInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir"
-const PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDir = "fileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDir"
-const PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir = "explicitFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir"
-const NumberOfObjectsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = 12100
 const NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir = 100
-const ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir = "explicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir"
-const ImplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir = "implicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir"
-const ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = "explicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDir"
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
@@ -52,14 +43,14 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	testBucket := setup.TestBucket()
+
+	setup.SetTestBucket("integration-test-data-gcsfuse")
 	// Run tests for testBucket
 	setup.SetUpTestDirForTestBucketFlag()
 
 	successCode := static_mounting.RunTests(flags, m)
 
-	//if successCode == 0 {
-	//	successCode = only_dir_mounting.RunTests(flags, m)
-	//}
-
+	setup.SetTestBucket(testBucket)
 	os.Exit(successCode)
 }

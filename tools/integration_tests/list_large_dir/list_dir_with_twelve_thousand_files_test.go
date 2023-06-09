@@ -17,19 +17,13 @@ package list_large_dir_test
 import (
 	"os"
 	"path"
-	"strconv"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
-	// Clean the bucket for list testing.
-	os.RemoveAll(setup.MntDir())
-
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
-	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
 
 	files, err := os.ReadDir(dirPath)
 	if err != nil {
@@ -43,15 +37,6 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDir)
-	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, dirPath, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
-
-	for i := 1; i <= 100; i++ {
-		subDirPath := path.Join(dirPath, ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDir+strconv.Itoa(i))
-
-		// Create 100 Explicit directory.
-		operations.CreateDirectoryWithNFiles(1, subDirPath, PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
-	}
-
 	files, err := os.ReadDir(dirPath)
 	if err != nil {
 		t.Errorf("Error in listing directory.")
@@ -76,21 +61,6 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir)
-	//operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, dirPath, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
-	//
-	//for i := 1; i <= 100; i++ {
-	//	subDirPath := path.Join(dirPath, ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir+strconv.Itoa(i))
-	//	// Create 100 Explicit directory.
-	//	operations.CreateDirectoryWithNFiles(1, subDirPath, PrefixFileInSubDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
-	//}
-
-	subDirPath := path.Join(dirPath, ImplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir)
-	err := os.Mkdir(subDirPath, setup.FilePermission_0600)
-	if err != nil {
-		t.Errorf("Error in creating directory: %v", err)
-	}
-	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", subDirPath)
-
 	files, err := os.ReadDir(dirPath)
 	if err != nil {
 		t.Errorf("Error in listing directory.")
