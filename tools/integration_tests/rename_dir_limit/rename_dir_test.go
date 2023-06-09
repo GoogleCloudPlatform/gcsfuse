@@ -33,7 +33,6 @@ func TestRenameDirectoryWithThreeFiles(t *testing.T) {
 	// testBucket/directoryWithThreeFiles/temp2.txt     -- File
 	// testBucket/directoryWithThreeFiles/temp3.txt     -- File
 	dirPath := path.Join(setup.MntDir(), DirectoryWithThreeFiles)
-
 	operations.CreateDirectoryWithNFiles(3, dirPath, PrefixTempFile, t)
 
 	oldDirPath := path.Join(setup.MntDir(), DirectoryWithThreeFiles)
