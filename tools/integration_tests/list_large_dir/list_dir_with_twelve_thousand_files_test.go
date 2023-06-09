@@ -17,7 +17,7 @@ package list_large_dir_test
 import (
 	"os"
 	"path"
-	"slices"
+	"sort"
 	"strconv"
 	"testing"
 
@@ -34,6 +34,14 @@ func storeFileAndDirNameInArray(objs []os.DirEntry) (dirName []string, fileName 
 	}
 	return
 }
+
+func findAndCheckObject(array []string, obj string, t *testing.T) {
+	index := sort.SearchStrings(array, obj)
+	if index < 0 {
+		t.Errorf("Correct object does not exist.")
+	}
+}
+
 func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
 
@@ -61,11 +69,7 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 	}
 
 	for i := 0; i < len(objs); i++ {
-		// Checking if Prefix1 to Prefix12000 present in the bucket
-		index := slices.Index(fileName, PrefixFileInDirectoryWithTwelveThousandFiles+strconv.Itoa(i+1))
-		if index < 0 {
-			t.Errorf("Correct object does not exist.")
-		}
+		findAndCheckObject(fileName, PrefixFileInDirectoryWithTwelveThousandFiles+strconv.Itoa(i+1), t)
 	}
 }
 
@@ -89,20 +93,13 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	// Checking if correct objects present in bucket.
 	for i := 0; i < len(fileName); i++ {
 		// Checking if Prefix1 to Prefix12000 present in the bucket
-		index := slices.Index(fileName, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir+strconv.Itoa(i+1))
-		if index < 0 {
-			t.Errorf("Correct object does not exist.")
-		}
+		findAndCheckObject(fileName, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir+strconv.Itoa(i+1), t)
 	}
 
 	for i := 0; i < len(dirName); i++ {
 		// Checking if Prefix1 to Prefix100 present in the bucket
-		index := slices.Index(dirName, ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDir+strconv.Itoa(i+1))
-		if index < 0 {
-			t.Errorf("Correct object does not exist.")
-		}
+		findAndCheckObject(dirName, ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDir+strconv.Itoa(i+1), t)
 	}
-
 }
 
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
@@ -125,23 +122,13 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicit
 	// Checking if correct objects present in bucket.
 	for i := 0; i < len(fileName); i++ {
 		// Checking if Prefix1 to Prefix12000 present in the bucket
-		index := slices.Index(fileName, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir+strconv.Itoa(i+1))
-		if index < 0 {
-			t.Errorf("Correct object does not exist.")
-		}
+		findAndCheckObject(fileName, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir+strconv.Itoa(i+1), t)
 	}
 
 	for i := 0; i < (len(dirName) / 2); i++ {
 		// Checking if explicitDir1 to explicitDir100 present in the bucket.
-		index := slices.Index(dirName, ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir+strconv.Itoa(i+1))
-		if index < 0 {
-			t.Errorf("Correct object does not exist.")
-		}
-
-		// Checking if implicitDir1 to implicitDir100 present in the bucket.
-		index = slices.Index(dirName, ImplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir+strconv.Itoa(i+1))
-		if index < 0 {
-			t.Errorf("Correct object does not exist.")
-		}
+		findAndCheckObject(dirName, ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir+strconv.Itoa(i+1), t)
+		// Checking if explicitDir1 to implicitDir100 present in the bucket.
+		findAndCheckObject(dirName, ImplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir+strconv.Itoa(i+1), t)
 	}
 }
