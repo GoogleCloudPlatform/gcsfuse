@@ -17,68 +17,131 @@ package list_large_dir_test
 import (
 	"os"
 	"path"
+	"slices"
+	"strconv"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
+func storeFileAndDirNameInArray(objs []os.DirEntry) (dirName []string, fileName []string) {
+	for _, obj := range objs {
+		if obj.IsDir() {
+			dirName = append(dirName, obj.Name())
+		} else {
+			fileName = append(fileName, obj.Name())
+		}
+	}
+	return
+}
 func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
 
-	files, err := os.ReadDir(dirPath)
+	objs, err := os.ReadDir(dirPath)
 	if err != nil {
 		t.Errorf("Error in listing directory.")
 	}
 
-	if len(files) != NumberOfFilesInDirectoryWithTwelveThousandFiles {
-		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", len(files))
+	// Checking number of objects in the bucket.
+	if len(objs) != NumberOfFilesInDirectoryWithTwelveThousandFiles {
+		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", len(objs))
+	}
+
+	// Checking if all the object is File type.
+	for i := 0; i < len(objs); i++ {
+		if objs[i].IsDir() {
+			t.Errorf("Listes object is incorrect.")
+		}
+	}
+
+	// Checking if correct file present in bucket.
+	var fileName []string
+	for i := 0; i < len(objs); i++ {
+		fileName = append(fileName, objs[i].Name())
+	}
+
+	for i := 0; i < len(objs); i++ {
+		// Checking if Prefix1 to Prefix12000 present in the bucket
+		index := slices.Index(fileName, PrefixFileInDirectoryWithTwelveThousandFiles+strconv.Itoa(i+1))
+		if index < 0 {
+			t.Errorf("Correct object does not exist.")
+		}
 	}
 }
 
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDir)
-	files, err := os.ReadDir(dirPath)
+	objs, err := os.ReadDir(dirPath)
 	if err != nil {
 		t.Errorf("Error in listing directory.")
 	}
 
-	var numberOfDirs int = 0
-	var numberOfFiles int = 0
-	for _, obj := range files {
-		if obj.IsDir() {
-			numberOfDirs++
-		} else {
-			numberOfFiles++
+	// Storing file and dir name.
+	dirName, fileName := storeFileAndDirNameInArray(objs)
+
+	if len(dirName) != NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir {
+		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", len(dirName))
+	}
+	if len(fileName) != NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDir {
+		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", len(fileName))
+	}
+
+	// Checking if correct objects present in bucket.
+	for i := 0; i < len(fileName); i++ {
+		// Checking if Prefix1 to Prefix12000 present in the bucket
+		index := slices.Index(fileName, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir+strconv.Itoa(i+1))
+		if index < 0 {
+			t.Errorf("Correct object does not exist.")
 		}
 	}
-	if numberOfDirs != NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir {
-		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", numberOfDirs)
+
+	for i := 0; i < len(dirName); i++ {
+		// Checking if Prefix1 to Prefix100 present in the bucket
+		index := slices.Index(dirName, ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDir+strconv.Itoa(i+1))
+		if index < 0 {
+			t.Errorf("Correct object does not exist.")
+		}
 	}
-	if numberOfFiles != NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDir {
-		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
-	}
+
 }
 
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir)
-	files, err := os.ReadDir(dirPath)
+	objs, err := os.ReadDir(dirPath)
 	if err != nil {
 		t.Errorf("Error in listing directory.")
 	}
 
-	var numberOfDirs int = 0
-	var numberOfFiles int = 0
-	for _, obj := range files {
-		if obj.IsDir() {
-			numberOfDirs++
-		} else {
-			numberOfFiles++
+	// Storing file and dir name.
+	dirName, fileName := storeFileAndDirNameInArray(objs)
+
+	if len(dirName) != NumberOfImplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir+NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir {
+		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", len(dirName))
+	}
+	if len(fileName) != NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir {
+		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", len(fileName))
+	}
+
+	// Checking if correct objects present in bucket.
+	for i := 0; i < len(fileName); i++ {
+		// Checking if Prefix1 to Prefix12000 present in the bucket
+		index := slices.Index(fileName, PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir+strconv.Itoa(i+1))
+		if index < 0 {
+			t.Errorf("Correct object does not exist.")
 		}
 	}
-	if numberOfDirs != NumberOfImplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir+NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir {
-		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", numberOfDirs)
-	}
-	if numberOfFiles != NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir {
-		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
+
+	for i := 0; i < (len(dirName) / 2); i++ {
+		// Checking if explicitDir1 to explicitDir100 present in the bucket.
+		index := slices.Index(dirName, ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir+strconv.Itoa(i+1))
+		if index < 0 {
+			t.Errorf("Correct object does not exist.")
+		}
+
+		// Checking if implicitDir1 to implicitDir100 present in the bucket.
+		index = slices.Index(dirName, ImplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir+strconv.Itoa(i+1))
+		if index < 0 {
+			t.Errorf("Correct object does not exist.")
+		}
 	}
 }
