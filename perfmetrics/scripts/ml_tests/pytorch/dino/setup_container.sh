@@ -82,7 +82,8 @@ gsutil cp start_time.txt gs://gcsfuse-ml-data/ci_artifacts/pytorch/dino/
     --warmup_teacher_temp_epochs 1 \
     --clip_grad 0 \
     --min_lr 0.00001
-    if [ $? -eq 0 ]; then
+    if [ $? -eq 0 ];
+    then
         echo "Pytorch dino model completed the training successfully!"
         echo "COMPLETE" > status.txt
     else
