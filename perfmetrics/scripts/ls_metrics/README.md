@@ -31,7 +31,6 @@ pip install --require-hashes -r requirements.txt --user
 7. Flag --command (required): Takes as input a string, which is the command to run the tests on.
 8. config_file (required): Path to the JSON config file which contains the details of the tests.
 
-
 ## How to run
 1. Create a GCP VM with OS version as Ubuntu 20.04. Follow this [documentation](https://cloud.google.com/compute/docs/create-linux-vm-instance) and start your VM.
 2. Install the required packages as mentioned in the above section.
