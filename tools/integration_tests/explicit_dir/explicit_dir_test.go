@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provide tests when implicit directory present and mounted bucket without --implicit-dir flag.
+// Provide tests for explicit directory only.
 package explicit_dir_test
 
 import (

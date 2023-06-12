@@ -26,7 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
-func TestNotListingImplicitObjectsFromBucket(t *testing.T) {
+func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 	// Directory Structure
 	// testBucket/implicitDirectory                                                  -- Dir
 	// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
