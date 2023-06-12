@@ -31,6 +31,7 @@ sudo apt-get install fio -y
 
 # Run on master branch
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
+git checkout master
 echo Mounting gcs bucket for master branch
 mkdir -p gcs
 GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
@@ -51,9 +52,6 @@ git fetch origin
 echo checkout PR branch
 git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
-# Executing integration tests
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test -timeout=60m
-
 # Executing perf tests
 echo Mounting gcs bucket from pr branch
 mkdir -p gcs
@@ -63,6 +61,9 @@ go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 sudo umount gcs
+
+# Executing integration tests
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test
 
 echo showing results...
 python3 ./perfmetrics/scripts/presubmit/print_results.py

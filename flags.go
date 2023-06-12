@@ -274,7 +274,7 @@ func newApp() (app *cli.App) {
 			cli.DurationFlag{
 				Name:  "stackdriver-export-interval",
 				Value: 0,
-				Usage: "Experimental: Export metrics to stackdriver with this interval. The default value 0 indicates no exporting.",
+				Usage: "Export metrics to stackdriver with this interval. The default value 0 indicates no exporting.",
 			},
 
 			cli.StringFlag{

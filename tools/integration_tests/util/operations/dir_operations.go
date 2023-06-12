@@ -19,6 +19,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
+	"strconv"
+	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func CopyDir(srcDirPath string, destDirPath string) (err error) {
@@ -51,4 +56,21 @@ func RenameDir(dirName string, newDirName string) (err error) {
 		return
 	}
 	return
+}
+
+func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string, t *testing.T) {
+	err := os.Mkdir(dirPath, setup.FilePermission_0600)
+	if err != nil {
+		t.Errorf("Error in creating directory: %v", err)
+	}
+
+	for i := 1; i <= numberOfFiles; i++ {
+		// Create file with name prefix + i
+		// e.g. If prefix = temp  then temp1, temp2
+		filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+		_, err := os.Create(filePath)
+		if err != nil {
+			t.Errorf("Create file at %q: %v", dirPath, err)
+		}
+	}
 }

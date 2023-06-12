@@ -22,7 +22,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"time"
@@ -48,7 +47,7 @@ func run() (err error) {
 	// Create a temporary file.
 	log.Printf("Creating a temporary file in %s.", *fDir)
 
-	f, err := ioutil.TempFile(*fDir, "write_locally")
+	f, err := os.CreateTemp(*fDir, "write_locally")
 	if err != nil {
 		err = fmt.Errorf("TempFile: %w", err)
 		return
@@ -59,11 +58,11 @@ func run() (err error) {
 	// Make sure we clean it up later.
 	defer func() {
 		log.Printf("Truncating and closing %s.", path)
-		f.Truncate(0)
-		f.Close()
+		_ = f.Truncate(0)
+		_ = f.Close()
 
 		log.Printf("Deleting %s.", path)
-		os.Remove(path)
+		_ = os.Remove(path)
 	}()
 
 	// Extend to the initial size.
@@ -95,11 +94,6 @@ func run() (err error) {
 		// Overwrite.
 		var n int64
 		for n < *fFileSize && time.Since(start) < *fDuration {
-			toWrite := *fFileSize - n
-			if toWrite > *fWriteSize {
-				toWrite = *fWriteSize
-			}
-
 			var tmp int
 			tmp, err = f.Write(buf)
 			if err != nil {

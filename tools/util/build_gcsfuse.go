@@ -17,7 +17,6 @@ package util
 import (
 	"fmt"
 	"go/build"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -31,7 +30,7 @@ func BuildGcsfuse(dstDir string) (err error) {
 	var toolPath string
 	{
 		var toolDir string
-		toolDir, err = ioutil.TempDir("", "gcsfuse_integration_tests")
+		toolDir, err = os.MkdirTemp("", "gcsfuse_integration_tests")
 		if err != nil {
 			err = fmt.Errorf("TempDir: %w", err)
 			return
@@ -108,7 +107,7 @@ func buildBuildGcsfuse(dst string) (err error) {
 	}
 
 	// Create a directory to become GOPATH for our build below.
-	gopath, err := ioutil.TempDir("", "build_gcsfuse_gopath")
+	gopath, err := os.MkdirTemp("", "build_gcsfuse_gopath")
 	if err != nil {
 		err = fmt.Errorf("TempDir: %w", err)
 		return
@@ -117,7 +116,7 @@ func buildBuildGcsfuse(dst string) (err error) {
 
 	// Create a directory to become GOCACHE for our build below.
 	var gocache string
-	gocache, err = ioutil.TempDir("", "build_gcsfuse_gocache")
+	gocache, err = os.MkdirTemp("", "build_gcsfuse_gocache")
 	if err != nil {
 		err = fmt.Errorf("TempDir: %w", err)
 		return

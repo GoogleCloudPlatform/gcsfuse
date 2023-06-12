@@ -37,6 +37,33 @@ const SubDirInNonEmptyDestCopyDirectory = "subDestCopyDir"
 const DestCopyDirectoryNotExist = "notExist"
 const NumberOfObjectsInSrcCopyDirectory = 2
 const NumberOfObjectsInDestCopyDirectory = 2
+const NumberOfObjectsInBucketDirectoryListTest = 1
+const DirectoryForListTest = "directoryForListTest"
+const NumberOfObjectsInDirectoryForListTest = 4
+const NumberOfFilesInDirectoryForListTest = 1
+const EmptySubDirInDirectoryForListTest = "emptySubDirInDirectoryForListTest"
+const NumberOfObjectsInEmptySubDirInDirectoryForListTest = 0
+const NumberOfFilesInEmptySubDirInDirectoryForListTest = 0
+const FirstSubDirectoryForListTest = "firstSubDirectoryForListTest"
+const NumberOfObjectsInFirstSubDirectoryForListTest = 1
+const NumberOfFilesInFirstSubDirectoryForListTest = 1
+const PrefixFileInDirectoryForListTest = "fileInDirectoryForListTest"
+const FileInDirectoryForListTest = "fileInDirectoryForListTest1"
+const NumberOfObjectsInSecondSubDirectoryForListTest = 2
+const NumberOfFilesInSecondSubDirectoryForListTest = 2
+const PrefixFileInFirstSubDirectoryForListTest = "fileInFirstSubDirectoryForListTest"
+const FileInFirstSubDirectoryForListTest = "fileInFirstSubDirectoryForListTest1"
+const SecondSubDirectoryForListTest = "secondSubDirectoryForListTest"
+const PrefixFileInSecondSubDirectoryForListTest = "fileInSecondSubDirectoryForListTest"
+const FirstFileInSecondSubDirectoryForListTest = "fileInSecondSubDirectoryForListTest1"
+const SecondFileInSecondSubDirectoryForListTest = "fileInSecondSubDirectoryForListTest2"
+const EmptyExplicitDirectoryForDeleteTest = "emptyExplicitDirectoryForDeleteTest"
+const NonEmptyExplicitDirectoryForDeleteTest = "nonEmptyExplicitDirectoryForDeleteTest"
+const NonEmptyExplicitSubDirectoryForDeleteTest = "nonEmptyExplicitSubDirectoryForDeleteTest"
+const NumberOfFilesInNonEmptyExplicitDirectoryForDeleteTest = 2
+const PrefixFilesInNonEmptyExplicitDirectoryForDeleteTest = "filesInNonEmptyExplicitDirectoryForDeleteTest"
+const NumberOfFilesInNonEmptyExplicitSubDirectoryForDeleteTest = 1
+const PrefixFilesInNonEmptyExplicitSubDirectoryForDeleteTest = "filesInNonEmptyExplicitSubDirectoryForDeleteTest"
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
@@ -49,7 +76,7 @@ func TestMain(m *testing.M) {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
-		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
+		log.Print("Both --testbucket and --mountedDirectory can't be specified at the same time.")
 		os.Exit(1)
 	}
 
@@ -57,6 +84,8 @@ func TestMain(m *testing.M) {
 	setup.RunTestsForMountedDirectoryFlag(m)
 
 	// Run tests for testBucket
+	setup.SetUpTestDirForTestBucketFlag()
+
 	successCode := static_mounting.RunTests(flags, m)
 
 	if successCode == 0 {
