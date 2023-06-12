@@ -46,6 +46,8 @@ const ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = "expl
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
+	// --o=ro flag is for stopping the deletion of objects before and after testing.
+	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/integration_tests/util/setup/setup.go#L172
 	flags := [][]string{{"--implicit-dirs", "--o=ro"}}
 
 	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
@@ -56,11 +58,13 @@ func TestMain(m *testing.M) {
 	testBucket := setup.TestBucket()
 
 	setup.SetTestBucket("integration-test-data-gcsfuse")
-	// Run tests for testBucket
+
 	setup.SetUpTestDirForTestBucketFlag()
 
 	successCode := static_mounting.RunTests(flags, m)
 
+	// Setting back the original bucket pass through flag.
 	setup.SetTestBucket(testBucket)
+
 	os.Exit(successCode)
 }

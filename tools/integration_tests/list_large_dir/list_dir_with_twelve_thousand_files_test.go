@@ -42,6 +42,7 @@ func findIfCorrectObjectExistInList(objs []string, obj string, t *testing.T) {
 	}
 }
 
+// Test with a bucket with twelve thousand files.
 func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
 
@@ -50,7 +51,7 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 		t.Errorf("Error in listing directory.")
 	}
 
-	// Checking number of objects in the bucket.
+	// number of objs - 12000
 	if len(objs) != NumberOfFilesInDirectoryWithTwelveThousandFiles {
 		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", len(objs))
 	}
@@ -73,6 +74,7 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 	}
 }
 
+// Test with a bucket with twelve thousand files and hundred explicit directories.
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDir)
 	objs, err := os.ReadDir(dirPath)
@@ -83,9 +85,11 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	// Differentiate file and dir name.
 	dirName, fileName := differentiateFileAndDirName(objs)
 
+	// number of explicit dirs = 100
 	if len(dirName) != NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir {
 		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", len(dirName))
 	}
+	// number of files = 12000
 	if len(fileName) != NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDir {
 		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", len(fileName))
 	}
@@ -102,6 +106,7 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	}
 }
 
+// Test with a bucket with twelve thousand files, hundred explicit directories, and hundred implicit directories.
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir)
 	objs, err := os.ReadDir(dirPath)
@@ -109,12 +114,14 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicit
 		t.Errorf("Error in listing directory.")
 	}
 
-	// Storing file and dir name.
+	// Differentiate file and dir name.
 	dirName, fileName := differentiateFileAndDirName(objs)
 
+	// number of dirs = 200(Number of implicit + Number of explicit directories)
 	if len(dirName) != NumberOfImplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir+NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir {
-		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", len(dirName))
+		t.Errorf("Listed incorrect number of directories from directory: %v, expected 200", len(dirName))
 	}
+	// number of files = 12000
 	if len(fileName) != NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir {
 		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", len(fileName))
 	}
