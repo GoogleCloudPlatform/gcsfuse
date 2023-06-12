@@ -64,6 +64,13 @@ const NumberOfFilesInNonEmptyExplicitDirectoryForDeleteTest = 2
 const PrefixFilesInNonEmptyExplicitDirectoryForDeleteTest = "filesInNonEmptyExplicitDirectoryForDeleteTest"
 const NumberOfFilesInNonEmptyExplicitSubDirectoryForDeleteTest = 1
 const PrefixFilesInNonEmptyExplicitSubDirectoryForDeleteTest = "filesInNonEmptyExplicitSubDirectoryForDeleteTest"
+const DirOneInCreateThreeLevelDirTest = "drOneInCreateThreeLevelDirTest"
+const DirTwoInCreateThreeLevelDirTest = "dirTwoInCreateThreeLevelDirTest"
+const DirThreeInCreateThreeLevelDirTest = "dirThreeInCreateThreeLevelDirTest"
+const NumberOfObjectsInBucketDirectoryCreateTest = 1
+const NumberOfObjectsInDirOneInCreateThreeLevelDirTest = 1
+const NumberOfObjectsInDirTwoInCreateThreeLevelDirTest = 1
+const NumberOfObjectsInDirThreeInCreateThreeLevelDirTest = 0
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
