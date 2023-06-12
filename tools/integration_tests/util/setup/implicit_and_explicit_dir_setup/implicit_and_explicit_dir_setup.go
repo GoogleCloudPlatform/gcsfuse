@@ -69,10 +69,10 @@ func CreateImplicitDirectory() {
 	// testBucket/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
 
 	// Clean the bucket.
-	setup.RunScriptForTestData("../testdata/delete_objects.sh", setup.TestBucket())
+	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/delete_objects.sh", setup.TestBucket())
 
 	// Create implicit directory in bucket for testing.
-	setup.RunScriptForTestData("../testdata/create_objects.sh", setup.TestBucket())
+	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", setup.TestBucket())
 }
 
 func CreateExplicitDirectory(t *testing.T) {
