@@ -26,7 +26,7 @@ import (
 
 func TestDeleteEmptyExplicitDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), EmptyExplicitDirectoryForDeleteTest)
-	operations.CreateDirectoryWithNFiles(NumberOfFilesInEmptyExplicitDirectoryForDeleteTest, dirPath, "", t)
+	operations.CreateDirectoryWithNFiles(0, dirPath, "", t)
 
 	err := os.RemoveAll(dirPath)
 	if err != nil {

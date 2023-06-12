@@ -60,7 +60,6 @@ const SecondFileInSecondSubDirectoryForListTest = "fileInSecondSubDirectoryForLi
 const EmptyExplicitDirectoryForDeleteTest = "emptyExplicitDirectoryForDeleteTest"
 const NonEmptyExplicitDirectoryForDeleteTest = "nonEmptyExplicitDirectoryForDeleteTest"
 const NonEmptyExplicitSubDirectoryForDeleteTest = "nonEmptyExplicitSubDirectoryForDeleteTest"
-const NumberOfFilesInEmptyExplicitDirectoryForDeleteTest = 0
 const NumberOfFilesInNonEmptyExplicitDirectoryForDeleteTest = 2
 const PrefixFilesInNonEmptyExplicitDirectoryForDeleteTest = "filesInNonEmptyExplicitDirectoryForDeleteTest"
 const NumberOfFilesInNonEmptyExplicitSubDirectoryForDeleteTest = 1
