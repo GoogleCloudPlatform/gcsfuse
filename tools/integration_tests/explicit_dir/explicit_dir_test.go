@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provide tests when implicit directory present and mounted bucket with --implicit-dir flag.
-package with_implicit_dir_flag_test
+// Provide tests when implicit directory present and mounted bucket without --implicit-dir flag.
+package explicit_dir_test
 
 import (
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/implicitdir"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
 func TestMain(m *testing.M) {
-	flags := [][]string{{"--implicit-dirs"}, {"--enable-storage-client-library=false", "--implicit-dirs"}}
+	flags := [][]string{{"--enable-storage-client-library=true"}, {"--enable-storage-client-library=false"}}
 
-	implicitdir.RunTestsForImplicitDir(flags, m)
+	implicit_and_explicit_dir_setup.RunTestsForImplicitDir(flags, m)
 }

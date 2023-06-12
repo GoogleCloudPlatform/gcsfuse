@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package implicitdir
+package implicit_and_explicit_dir_setup
 
 import (
 	"log"

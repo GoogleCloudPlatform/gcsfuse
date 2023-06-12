@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package with_implicit_dir_flag_test
+package explicit_dir_test
 
 import (
 	"fmt"
@@ -22,11 +22,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/implicitdir"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
-func TestListImplicitObjectsFromBucket(t *testing.T) {
+func TestNotListingImplicitObjectsFromBucket(t *testing.T) {
 	// Directory Structure
 	// testBucket/implicitDirectory                                                  -- Dir
 	// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
@@ -37,8 +37,8 @@ func TestListImplicitObjectsFromBucket(t *testing.T) {
 	// testBucket/explicitDirectory/fileInExplicitDir1                               -- File
 	// testBucket/explicitDirectory/fileInExplicitDir2                               -- File
 
-	implicitdir.CreateImplicitDirectory()
-	implicitdir.CreateExplicitDirectory(t)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectory()
+	implicit_and_explicit_dir_setup.CreateExplicitDirectory(t)
 
 	// Delete objects from bucket after testing.
 	defer os.RemoveAll(setup.MntDir())
@@ -61,76 +61,40 @@ func TestListImplicitObjectsFromBucket(t *testing.T) {
 
 		// Check if mntDir has correct objects.
 		if path == setup.MntDir() {
-			// numberOfObjects - 3
-			if len(objs) != implicitdir.NumberOfTotalObjects {
+			// numberOfObjects - 2
+			if len(objs) != implicit_and_explicit_dir_setup.NumberOfExplicitObjects {
 				t.Errorf("Incorrect number of objects in the bucket.")
 			}
 
 			// testBucket/explicitDir     -- Dir
-			if objs[0].Name() != implicitdir.ExplicitDirectory || objs[0].IsDir() != true {
+			if objs[0].Name() != implicit_and_explicit_dir_setup.ExplicitDirectory || objs[0].IsDir() != true {
 				t.Errorf("Listed incorrect object")
 			}
 			// testBucket/explicitFile    -- File
-			if objs[1].Name() != implicitdir.ExplicitFile || objs[1].IsDir() != false {
-				t.Errorf("Listed incorrect object")
-			}
-
-			// testBucket/implicitDir     -- Dir
-			if objs[2].Name() != implicitdir.ImplicitDirectory || objs[2].IsDir() != true {
+			if objs[1].Name() != implicit_and_explicit_dir_setup.ExplicitFile || objs[1].IsDir() != false {
 				t.Errorf("Listed incorrect object")
 			}
 		}
 
 		// Check if explictDir directory has correct data.
-		if dir.IsDir() && dir.Name() == implicitdir.ExplicitDirectory {
+		if dir.IsDir() && dir.Name() == implicit_and_explicit_dir_setup.ExplicitDirectory {
 			// numberOfObjects - 2
-			if len(objs) != implicitdir.NumberOfFilesInExplicitDirectory {
-				t.Errorf("Incorrect number of objects in the explicitDirectory.")
+			if len(objs) != implicit_and_explicit_dir_setup.NumberOfFilesInExplicitDirectory {
+				t.Errorf("Incorrect number of objects in the directoryForListTest.")
 			}
 
 			// testBucket/explicitDir/fileInExplicitDir1   -- File
-			if objs[0].Name() != implicitdir.FirstFileInExplicitDirectory || objs[0].IsDir() != false {
+			if objs[0].Name() != implicit_and_explicit_dir_setup.FirstFileInExplicitDirectory || objs[0].IsDir() != false {
 				t.Errorf("Listed incorrect object")
 			}
 
 			// testBucket/explicitDir/fileInExplicitDir2    -- File
-			if objs[1].Name() != implicitdir.SecondFileInExplicitDirectory || objs[1].IsDir() != false {
+			if objs[1].Name() != implicit_and_explicit_dir_setup.SecondFileInExplicitDirectory || objs[1].IsDir() != false {
 				t.Errorf("Listed incorrect object")
 			}
 			return nil
 		}
 
-		// Check if implicitDir directory has correct data.
-		if dir.IsDir() && dir.Name() == implicitdir.ImplicitDirectory {
-			// numberOfObjects - 2
-			if len(objs) != implicitdir.NumberOfFilesInImplicitDirectory {
-				t.Errorf("Incorrect number of objects in the implicitDirectory.")
-			}
-
-			// testBucket/implicitDir/fileInImplicitDir1  -- File
-			if objs[0].Name() != implicitdir.FileInImplicitDirectory || objs[0].IsDir() != false {
-				t.Errorf("Listed incorrect object")
-			}
-			// testBucket/implicitDir/implicitSubDirectory  -- Dir
-			if objs[1].Name() != implicitdir.ImplicitSubDirectory || objs[1].IsDir() != true {
-				t.Errorf("Listed incorrect object")
-			}
-			return nil
-		}
-
-		// Check if implicitDir directory has correct data.
-		if dir.IsDir() && dir.Name() == implicitdir.ImplicitSubDirectory {
-			// numberOfObjects - 1
-			if len(objs) != implicitdir.NumberOfFilesInImplicitSubDirectory {
-				t.Errorf("Incorrect number of objects in the implicitSubDirectoryt.")
-			}
-
-			// testBucket/implicitDir/implicitSubDir/fileInImplicitDir2   -- File
-			if objs[0].Name() != implicitdir.FileInImplicitSubDirectory || objs[0].IsDir() != false {
-				t.Errorf("Listed incorrect object")
-			}
-			return nil
-		}
 		return nil
 	})
 	if err != nil {
