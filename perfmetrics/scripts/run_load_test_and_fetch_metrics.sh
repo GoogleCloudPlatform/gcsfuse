@@ -3,7 +3,10 @@ set -e
 echo Print the time when FIO tests start
 date
 echo Running fio test..
+
+echo "Overall fio start time:" `date +%s`
 fio job_files/seq_rand_read_write.fio --lat_percentiles 1 --output-format=json --output='fio-output.json'
+echo "Overall fio end time:" `date +%s`
 
 echo Installing requirements..
 pip install --require-hashes -r requirements.txt --user
