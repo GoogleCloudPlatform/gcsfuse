@@ -37,7 +37,7 @@ func differentiateFileAndDirName(objs []os.DirEntry) (dirName []string, fileName
 
 func findIfCorrectObjectExistInList(objs []string, obj string, t *testing.T) {
 	index := sort.SearchStrings(objs, obj)
-	if index < 0 {
+	if objs[index] != obj {
 		t.Errorf("Correct object does not exist.")
 	}
 }
@@ -135,7 +135,7 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicit
 	for i := 0; i < (len(dirName) / 2); i++ {
 		// Checking if explicitDir1 to explicitDir100 present in the bucket.
 		findIfCorrectObjectExistInList(dirName, ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir+strconv.Itoa(i+1), t)
-		// Checking if explicitDir1 to implicitDir100 present in the bucket.
+		// Checking if implicitDir1 to implicitDir100 present in the bucket.
 		findIfCorrectObjectExistInList(dirName, ImplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir+strconv.Itoa(i+1), t)
 	}
 }
