@@ -57,6 +57,13 @@ const SecondSubDirectoryForListTest = "secondSubDirectoryForListTest"
 const PrefixFileInSecondSubDirectoryForListTest = "fileInSecondSubDirectoryForListTest"
 const FirstFileInSecondSubDirectoryForListTest = "fileInSecondSubDirectoryForListTest1"
 const SecondFileInSecondSubDirectoryForListTest = "fileInSecondSubDirectoryForListTest2"
+const EmptyExplicitDirectoryForDeleteTest = "emptyExplicitDirectoryForDeleteTest"
+const NonEmptyExplicitDirectoryForDeleteTest = "nonEmptyExplicitDirectoryForDeleteTest"
+const NonEmptyExplicitSubDirectoryForDeleteTest = "nonEmptyExplicitSubDirectoryForDeleteTest"
+const NumberOfFilesInNonEmptyExplicitDirectoryForDeleteTest = 2
+const PrefixFilesInNonEmptyExplicitDirectoryForDeleteTest = "filesInNonEmptyExplicitDirectoryForDeleteTest"
+const NumberOfFilesInNonEmptyExplicitSubDirectoryForDeleteTest = 1
+const PrefixFilesInNonEmptyExplicitSubDirectoryForDeleteTest = "filesInNonEmptyExplicitSubDirectoryForDeleteTest"
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
