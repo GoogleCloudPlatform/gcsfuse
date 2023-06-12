@@ -155,6 +155,13 @@ func (b *prefixBucket) StatObject(
 	return
 }
 
+func (b *prefixBucket) ListMinObjects(
+	ctx context.Context,
+	req *gcs.ListObjectsRequest) (l *gcs.MinObjectListing, err error) {
+	l, err = b.wrapped.ListMinObjects(ctx, req)
+	return
+}
+
 func (b *prefixBucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (l *gcs.Listing, err error) {

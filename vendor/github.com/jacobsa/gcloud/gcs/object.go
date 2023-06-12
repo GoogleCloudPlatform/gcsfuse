@@ -72,3 +72,18 @@ type Object struct {
 	EventBasedHold     bool
 	Acl                []*storagev1.ObjectAccessControl
 }
+
+type MinObject struct {
+	Name           string
+	Size           uint64
+	Generation     int64
+	MetaGeneration int64
+	Updated        time.Time
+	Metadata       map[string]string
+}
+
+type MinObjectListing struct {
+    Objects []*MinObject
+    ContinuationToken string
+    CollapsedRuns []string
+}

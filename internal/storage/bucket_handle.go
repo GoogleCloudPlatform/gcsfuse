@@ -235,6 +235,74 @@ func getProjectionValue(req gcs.Projection) storage.Projection {
 	return convertedProjection
 }
 
+func (b *bucketHandle) ListMinObjects(ctx context.Context, req *gcs.ListObjectsRequest) (listing *gcs.MinObjectListing, err error) {
+	query := &storage.Query{
+		Delimiter:                req.Delimiter,
+		Prefix:                   req.Prefix,
+		Projection:               getProjectionValue(req.ProjectionVal),
+		IncludeTrailingDelimiter: req.IncludeTrailingDelimiter,
+		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
+	}
+	e := query.SetAttrSelection([]string{"Name", "Size", "Generation", "Metageneration", "Updated", "Metadata"})
+	if e != nil {
+		err = fmt.Errorf("Error in fetching attributes: %w", e)
+		return
+	}
+	itr := b.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
+	pi := itr.PageInfo()
+	pi.MaxSize = req.MaxResults
+	pi.Token = req.ContinuationToken
+	var list gcs.MinObjectListing
+
+	// Iterating through all the objects in the bucket and one by one adding them to the list.
+	for {
+		var attrs *storage.ObjectAttrs
+
+		attrs, err = itr.Next()
+		if err == iterator.Done {
+			err = nil
+			break
+		}
+		if err != nil {
+			err = fmt.Errorf("Error in iterating through objects: %w", err)
+			return
+		}
+
+		// Prefix attribute will be set for the objects returned as part of Prefix[] array in list response.
+		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/storage.go#L1304
+		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L370
+		if attrs.Prefix != "" {
+			list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
+		} else {
+			// Converting attrs to *Object type.
+			currObject := &gcs.MinObject{
+				Name:           attrs.Name,
+				Size:           uint64(attrs.Size),
+				Generation:     attrs.Generation,
+				MetaGeneration: attrs.Metageneration,
+				Updated:        attrs.Updated,
+				Metadata:       attrs.Metadata,
+			}
+			list.Objects = append(list.Objects, currObject)
+		}
+
+		// itr.next returns all the objects present in the bucket. Hence adding a
+		// check to break after iterating over the current page. pi.Remaining()
+		// function returns number of items (items + prefixes) remaining in current
+		// page to be iterated by iterator (itr). The func returns (number of items in current page - 1)
+		// after first itr.Next() call and becomes 0 when iteration is done.
+		// If req.MaxResults is 0, then wait till iterator is done. This is similar
+		// to https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/jacobsa/gcloud/gcs/bucket.go#L164
+		if req.MaxResults != 0 && (pi.Remaining() == 0) {
+			break
+		}
+	}
+
+	list.ContinuationToken = itr.PageInfo().Token
+	listing = &list
+	return
+}
+
 func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
 	// Converting *ListObjectsRequest to type *storage.Query as expected by the Go Storage Client.
 	query := &storage.Query{

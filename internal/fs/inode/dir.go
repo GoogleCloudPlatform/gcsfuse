@@ -529,7 +529,6 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 
 }
 
-// LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
 	ctx context.Context,
 	tok string) (cores map[Name]*Core, newTok string, err error) {
@@ -545,9 +544,9 @@ func (d *dirInode) readObjects(
 		ProjectionVal: gcs.NoAcl,
 	}
 
-	listing, err := d.bucket.ListObjects(ctx, req)
+	listing, err := d.bucket.ListMinObjects(ctx, req)
 	if err != nil {
-		err = fmt.Errorf("ListObjects: %w", err)
+		err = fmt.Errorf("ListMinObjects: %w", err)
 		return
 	}
 
@@ -573,17 +572,17 @@ func (d *dirInode) readObjects(
 		if strings.HasSuffix(o.Name, "/") {
 			dirName := NewDirName(d.Name(), nameBase)
 			explicitDir := &Core{
-				Bucket:   d.Bucket(),
-				FullName: dirName,
-				Object:   o,
+				Bucket:    d.Bucket(),
+				FullName:  dirName,
+				MinObject: o,
 			}
 			cores[dirName] = explicitDir
 		} else {
 			fileName := NewFileName(d.Name(), nameBase)
 			file := &Core{
-				Bucket:   d.Bucket(),
-				FullName: fileName,
-				Object:   o,
+				Bucket:    d.Bucket(),
+				FullName:  fileName,
+				MinObject: o,
 			}
 			cores[fileName] = file
 		}
@@ -605,9 +604,9 @@ func (d *dirInode) readObjects(
 		}
 
 		implicitDir := &Core{
-			Bucket:   d.Bucket(),
-			FullName: dirName,
-			Object:   nil,
+			Bucket:    d.Bucket(),
+			FullName:  dirName,
+			MinObject: nil,
 		}
 		cores[dirName] = implicitDir
 	}

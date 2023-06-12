@@ -94,6 +94,10 @@ type Bucket interface {
 		ctx context.Context,
 		req *StatObjectRequest) (*Object, error)
 
+	ListMinObjects(
+		ctx context.Context,
+		req *ListObjectsRequest) (*MinObjectListing, error)
+
 	// List the objects in the bucket that meet the criteria defined by the
 	// request, returning a result object that contains the results and
 	// potentially a cursor for retrieving the next portion of the larger set of
@@ -133,6 +137,13 @@ type bucket struct {
 
 func (b *bucket) Name() string {
 	return b.name
+}
+
+func (b *bucket) ListMinObjects(
+	ctx context.Context,
+	req *ListObjectsRequest) (listing *MinObjectListing, err error) {
+	listing = new(MinObjectListing)
+	return listing, err
 }
 
 func (b *bucket) ListObjects(

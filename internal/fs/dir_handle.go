@@ -67,7 +67,7 @@ func newDirHandle(
 	}
 
 	// Set up invariant checking.
-	dh.Mu = locker.New("DH." + in.Name().GcsObjectName(), dh.checkInvariants)
+	dh.Mu = locker.New("DH."+in.Name().GcsObjectName(), dh.checkInvariants)
 
 	return
 }

@@ -153,6 +153,11 @@ func (m *mockBucket) DeleteObject(p0 context.Context, p1 *DeleteObjectRequest) (
 	return
 }
 
+func (m *mockBucket) ListMinObjects(p0 context.Context, p1 *ListObjectsRequest) (o0 *MinObjectListing, o1 error) {
+    o0 = new(MinObjectListing)
+    return
+}
+
 func (m *mockBucket) ListObjects(p0 context.Context, p1 *ListObjectsRequest) (o0 *Listing, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)

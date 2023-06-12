@@ -364,6 +364,26 @@ func (t *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsDefault() {
 	AssertEq(storage.ProjectionFull, proj)
 }
 
+func (t *BucketHandleTest) TestListMinObjectMethod() {
+	listing, err := t.bucketHandle.ListMinObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Delimiter:                "/",
+			IncludeTrailingDelimiter: true,
+			Prefix:                   TestObjectName,
+			ContinuationToken:        "",
+			MaxResults:               5,
+			ProjectionVal:            gcs.NoAcl,
+		})
+
+	AssertEq(nil, err)
+	AssertNe(0, len(listing.Objects))
+	obj := listing.Objects[0]
+	ExpectEq(TestObjectName, obj.Name)
+	ExpectEq(TestObjectGeneration, obj.Generation)
+	ExpectEq(len(ContentInTestObject), obj.Size)
+	ExpectEq(MetaDataValue, obj.Metadata[MetaDataKey])
+}
+
 func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectExist() {
 	obj, err := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
