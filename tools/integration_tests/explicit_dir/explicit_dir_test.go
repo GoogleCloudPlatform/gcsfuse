@@ -24,5 +24,5 @@ import (
 func TestMain(m *testing.M) {
 	flags := [][]string{{"--enable-storage-client-library=true"}, {"--enable-storage-client-library=false"}}
 
-	implicit_and_explicit_dir_setup.RunTestsForImplicitDir(flags, m)
+	implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
 }

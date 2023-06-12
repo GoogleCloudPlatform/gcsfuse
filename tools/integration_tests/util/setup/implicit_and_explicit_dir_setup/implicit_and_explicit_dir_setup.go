@@ -40,7 +40,7 @@ const SecondFileInExplicitDirectory = "fileInExplicitDir2"
 const FileInImplicitDirectory = "fileInImplicitDir1"
 const FileInImplicitSubDirectory = "fileInImplicitDir2"
 
-func RunTestsForImplicitDir(flags [][]string, m *testing.M) {
+func RunTestsForImplicitDirAndExplicitDir(flags [][]string, m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
