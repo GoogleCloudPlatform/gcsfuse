@@ -21,21 +21,18 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func checkIfObjNameIsCorrect(objName string, prefix string, t *testing.T) (objNumber int) {
+func checkIfObjNameIsCorrect(objName string, prefix string, maxNumber int, t *testing.T) {
 	// Extracting object number.
 	objNumberStr := strings.ReplaceAll(objName, prefix, "")
 	objNumber, err := strconv.Atoi(objNumberStr)
 	if err != nil {
 		t.Errorf("Error in extracting file number.")
 	}
-	return
-}
-
-func throwErrorForIncorrectObjectNumber(fileNumber int, maxNumber int, t *testing.T) {
-	if fileNumber < 1 || fileNumber > maxNumber {
+	if objNumber < 1 || objNumber > maxNumber {
 		t.Errorf("Correct object does not exist.")
 	}
 }
@@ -62,14 +59,21 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 	}
 
 	for i := 0; i < len(objs); i++ {
-		fileNumber := checkIfObjNameIsCorrect(objs[i].Name(), PrefixFileInDirectoryWithTwelveThousandFiles, t)
-		throwErrorForIncorrectObjectNumber(fileNumber, NumberOfFilesInDirectoryWithTwelveThousandFiles, t)
+		checkIfObjNameIsCorrect(objs[i].Name(), PrefixFileInDirectoryWithTwelveThousandFiles, NumberOfFilesInDirectoryWithTwelveThousandFiles, t)
 	}
 }
 
 // Test with a bucket with twelve thousand files and hundred explicit directories.
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDir)
+	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
+
+	// Create hundred explicit directories.
+	for i := 1; i <= 100; i++ {
+		subDirPath := path.Join(dirPath, PrefixExplicitDirInLargeDirListTest+strconv.Itoa(i))
+		// Create 100 Explicit directory.
+		operations.CreateDirectoryWithNFiles(0, subDirPath, "", t)
+	}
+
 	objs, err := os.ReadDir(dirPath)
 	if err != nil {
 		t.Errorf("Error in listing directory.")
@@ -83,35 +87,46 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 		if !objs[i].IsDir() {
 			numberOfFiles++
 			// Checking if Prefix1 to Prefix12000 present in the bucket
-			fileNumber := checkIfObjNameIsCorrect(objs[i].Name(), PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
-			throwErrorForIncorrectObjectNumber(fileNumber, NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
+			checkIfObjNameIsCorrect(objs[i].Name(), PrefixFileInDirectoryWithTwelveThousandFiles, NumberOfFilesInDirectoryWithTwelveThousandFiles, t)
 		}
 
 		if objs[i].IsDir() {
 			numberOfDirs++
 			// Checking if Prefix1 to Prefix100 present in the bucket
-			dirNumber := checkIfObjNameIsCorrect(objs[i].Name(), ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
-			throwErrorForIncorrectObjectNumber(dirNumber, NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
+			checkIfObjNameIsCorrect(objs[i].Name(), PrefixExplicitDirInLargeDirListTest, NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles, t)
 		}
 	}
 
 	// number of explicit dirs = 100
-	if numberOfDirs != NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir {
+	if numberOfDirs != NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles {
 		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", numberOfDirs)
 	}
 	// number of files = 12000
-	if numberOfFiles != NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDir {
+	if numberOfFiles != NumberOfFilesInDirectoryWithTwelveThousandFiles {
 		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
 	}
 }
 
 // Test with a bucket with twelve thousand files, hundred explicit directories, and hundred implicit directories.
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir)
+	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
 	objs, err := os.ReadDir(dirPath)
 	if err != nil {
 		t.Errorf("Error in listing directory.")
 	}
+
+	// Create hundred explicit directories.
+	for i := 1; i <= 100; i++ {
+		subDirPath := path.Join(dirPath, PrefixExplicitDirInLargeDirListTest+strconv.Itoa(i))
+		// Check if directory exist in previous test.
+		_, err := os.Stat(subDirPath)
+		if err == nil {
+			operations.CreateDirectoryWithNFiles(0, subDirPath, "", t)
+		}
+	}
+
+	subDirPath := path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
+	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", subDirPath)
 
 	var numberOfFiles = 0
 	var numberOfDirs = 0
@@ -122,31 +137,28 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicit
 			numberOfFiles++
 
 			// Checking if Prefix1 to Prefix12000 present in the bucket
-			fileNumber := checkIfObjNameIsCorrect(objs[i].Name(), PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
-			throwErrorForIncorrectObjectNumber(fileNumber, NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
+			checkIfObjNameIsCorrect(objs[i].Name(), PrefixFileInDirectoryWithTwelveThousandFiles, NumberOfFilesInDirectoryWithTwelveThousandFiles, t)
 		}
 
 		if objs[i].IsDir() {
 			numberOfDirs++
 
-			if strings.Contains(objs[i].Name(), ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir) {
+			if strings.Contains(objs[i].Name(), PrefixExplicitDirInLargeDirListTest) {
 				// Checking if explicitDir1 to explicitDir100 present in the bucket.
-				dirNumber := checkIfObjNameIsCorrect(objs[i].Name(), ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
-				throwErrorForIncorrectObjectNumber(dirNumber, NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
+				checkIfObjNameIsCorrect(objs[i].Name(), PrefixExplicitDirInLargeDirListTest, NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles, t)
 			} else {
 				// Checking if implicitDir1 to implicitDir100 present in the bucket.
-				dirNumber := checkIfObjNameIsCorrect(objs[i].Name(), ImplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
-				throwErrorForIncorrectObjectNumber(dirNumber, NumberOfImplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
+				checkIfObjNameIsCorrect(objs[i].Name(), PrefixImplicitDirInLargeDirListTest, NumberOfImplicitDirsInDirectoryWithTwelveThousandFiles, t)
 			}
 		}
 	}
 
 	// number of dirs = 200(Number of implicit + Number of explicit directories)
-	if numberOfDirs != NumberOfImplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir+NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir {
+	if numberOfDirs != NumberOfImplicitDirsInDirectoryWithTwelveThousandFiles+NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles {
 		t.Errorf("Listed incorrect number of directories from directory: %v, expected 200", numberOfDirs)
 	}
 	// number of files = 12000
-	if numberOfFiles != NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir {
+	if numberOfFiles != NumberOfFilesInDirectoryWithTwelveThousandFiles {
 		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
 	}
 }

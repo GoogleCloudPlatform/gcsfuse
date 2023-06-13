@@ -18,6 +18,7 @@ package list_large_dir_test
 import (
 	"log"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
@@ -26,45 +27,32 @@ import (
 
 const DirectoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles"
 const PrefixFileInDirectoryWithTwelveThousandFiles = "fileInDirectoryWithTwelveThousandFiles"
-const DirectoryWithTwelveThousandFilesAndHundredExplicitDir = "directoryWithTwelveThousandFilesAndHundredExplicitDir"
-const DirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir = "directoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir"
-const PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = "fileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir"
+const PrefixExplicitDirInLargeDirListTest = "explicitDirInLargeDirListTest"
+const PrefixImplicitDirInLargeDirListTest = "implicitDirInLargeDirListTest"
 const NumberOfFilesInDirectoryWithTwelveThousandFiles = 12000
-const NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = 12000
-const NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir = 12000
-const NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = 100
-const NumberOfImplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir = 100
-const PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir = "fileInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir"
-const NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir = 100
-const ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir = "explicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir"
-const ImplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir = "implicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir"
-const ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDir = "explicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDir"
+const NumberOfImplicitDirsInDirectoryWithTwelveThousandFiles = 100
+const NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	// --o=ro flag is for stopping the deletion of objects before and after testing.
-	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/integration_tests/util/setup/setup.go#L172
-	flags := [][]string{{"--implicit-dirs", "--o=ro"}}
+	flags := [][]string{{"--implicit-dirs"}}
 
 	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
 		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
 		os.Exit(1)
 	}
 
+	// Create twelve thousand files in the directoryWithTwelveThousandFiles directory.
+	dirPath := path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
+	setup.RunScriptForTestData("../testdata/create_twelve_thousand_files.sh", dirPath)
+
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
 	setup.RunTestsForMountedDirectoryFlag(m)
-
-	testBucket := setup.TestBucket()
-
-	setup.SetTestBucket("integration-test-data-gcsfuse")
 
 	setup.SetUpTestDirForTestBucketFlag()
 
 	successCode := static_mounting.RunTests(flags, m)
-
-	// Setting back the original bucket pass through flag.
-	setup.SetTestBucket(testBucket)
 
 	os.Exit(successCode)
 }
