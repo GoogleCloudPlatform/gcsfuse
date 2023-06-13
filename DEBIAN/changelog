@@ -1,0 +1,5 @@
+gcsfuse (1.0.0) stable; urgency=medium
+
+  * Package created with dpkg-deb --build
+
+ -- GCSFuse Eng Team <gcs-fuse-eng@google.com>  Thu, 13 Jul 2023 05:37:50 +0000
