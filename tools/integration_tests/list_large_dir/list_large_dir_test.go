@@ -55,16 +55,16 @@ func TestMain(m *testing.M) {
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
 	setup.RunTestsForMountedDirectoryFlag(m)
 
-	//testBucket := setup.TestBucket()
+	testBucket := setup.TestBucket()
 
-	//setup.SetTestBucket("integration-test-data-gcsfuse")
+	setup.SetTestBucket("integration-test-data-gcsfuse")
 
 	setup.SetUpTestDirForTestBucketFlag()
 
 	successCode := static_mounting.RunTests(flags, m)
 
 	// Setting back the original bucket pass through flag.
-	//setup.SetTestBucket(testBucket)
+	setup.SetTestBucket(testBucket)
 
 	os.Exit(successCode)
 }
