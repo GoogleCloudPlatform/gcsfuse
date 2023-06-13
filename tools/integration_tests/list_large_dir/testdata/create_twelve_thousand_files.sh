@@ -17,8 +17,8 @@ a=1
 while [ $a -lt 12001 ]
 do
    file="fileInDirectoryWithTwelveThousandFiles"$a
-   touch file
+   touch $file
    a=`expr $a + 1`
-   gsutil cp file gs://$1/$dir/
+   gsutil cp $file gs://$1/$dir/
 done
 
