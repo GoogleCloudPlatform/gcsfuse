@@ -33,7 +33,7 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 	// testBucket/dirOneInCreateThreeLevelDirTest                                                                       -- Dir
 	// testBucket/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest                                       -- Dir
 	// testBucket/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest     -- Dir
-
+	// testBucket/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest/fileInDirThreeInCreateThreeLevelDirTest     -- File
 	os.RemoveAll(setup.MntDir())
 
 	dirPath := path.Join(setup.MntDir(), DirOneInCreateThreeLevelDirTest)
@@ -113,11 +113,12 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 
 		// Check if dirThreeInCreateThreeLevelDirTest directory has correct data.
 		if dir.IsDir() && dir.Name() == DirThreeInCreateThreeLevelDirTest {
-			// numberOfObjects - 0
+			// numberOfObjects - 1
 			if len(objs) != NumberOfObjectsInDirThreeInCreateThreeLevelDirTest {
 				t.Errorf("Incorrect number of objects in the dirThreeInCreateThreeLevelDirTest.")
 			}
 
+			// testBucket/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest/fileInDirThreeInCreateThreeLevelDirTest     -- File
 			if objs[0].Name() != FileInDirThreeInCreateThreeLevelDirTest || objs[0].IsDir() != false {
 				t.Errorf("Incorrect object exist in the dirThreeInCreateThreeLevelDirTest directory.")
 			}
