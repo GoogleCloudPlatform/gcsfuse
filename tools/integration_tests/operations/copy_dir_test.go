@@ -223,3 +223,107 @@ func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
 	os.RemoveAll(srcDir)
 	os.RemoveAll(destDir)
 }
+
+func TestCopyEmptyDirectoryInNonEmptyDirectory(t *testing.T) {
+	srcDir := path.Join(setup.MntDir(), EmptyDirectoryCopyTest)
+	operations.CreateDirectoryWithNFiles(0, srcDir, "", t)
+
+	// Create below directory
+	// destCopyDir               -- Dir
+	destDir := path.Join(setup.MntDir(), DestNonEmptyCopyDirectory)
+	operations.CreateDirectoryWithNFiles(0, destDir, "", t)
+
+	destSubDir := path.Join(destDir, SubDirInNonEmptyDestCopyDirectory)
+	operations.CreateDirectoryWithNFiles(0, destSubDir, "", t)
+
+	err := operations.CopyDir(srcDir, destDir)
+	if err != nil {
+		t.Errorf("Error in copying directory: %v", err)
+	}
+
+	obj, err := os.ReadDir(destDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Check if destCopyDirectory has the correct directory copied.
+	// destCopyDirectory
+	// destCopyDirectory/emptyDirectoryCopyTest
+	// destCopyDirectory/subDestCopyDirectory
+	if len(obj) != NumberOfObjectsInDestCopyDirectory {
+		t.Errorf("The number of objects in the current directory doesn't match.")
+		return
+	}
+
+	// destCopyDirectory/srcCopyDirectory  - Dir
+	if obj[0].Name() != EmptyDirectoryCopyTest || obj[0].IsDir() != true {
+		t.Errorf("Error in copying directory.")
+		return
+	}
+
+	// destCopyDirectory/subDirInNonEmptyDestCopyDirectory  - Dir
+	if obj[1].Name() != SubDirInNonEmptyDestCopyDirectory || obj[1].IsDir() != true {
+		t.Errorf("Existing object affected.")
+		return
+	}
+
+	copyDirPath := path.Join(destDir, EmptyDirectoryCopyTest)
+	objs, err := os.ReadDir(copyDirPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if len(objs) != 0 {
+		t.Errorf("Directory has incorrect data.")
+	}
+
+	os.RemoveAll(srcDir)
+	os.RemoveAll(destDir)
+}
+
+func TestCopyEmptyDirectoryInEmptyDirectory(t *testing.T) {
+	srcDir := path.Join(setup.MntDir(), EmptyDirectoryCopyTest)
+	operations.CreateDirectoryWithNFiles(0, srcDir, "", t)
+
+	// Create below directory
+	// destCopyDir               -- Dir
+	destDir := path.Join(setup.MntDir(), DestEmptyCopyDirectory)
+	operations.CreateDirectoryWithNFiles(0, destDir, "", t)
+
+	err := operations.CopyDir(srcDir, destDir)
+	if err != nil {
+		t.Errorf("Error in copying directory: %v", err)
+	}
+
+	obj, err := os.ReadDir(destDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Check if destCopyDirectory has the correct directory copied.
+	// destCopyDirectory
+	// destCopyDirectory/emptyDirectoryCopyTest
+	if len(obj) != NumberOfObjectsInEmptyDestCopyDirectory {
+		t.Errorf("The number of objects in the current directory doesn't match.")
+		return
+	}
+
+	// destCopyDirectory/srcCopyDirectory  - Dir
+	if obj[0].Name() != EmptyDirectoryCopyTest || obj[0].IsDir() != true {
+		t.Errorf("Error in copying directory.")
+		return
+	}
+
+	copyDirPath := path.Join(destDir, EmptyDirectoryCopyTest)
+	objs, err := os.ReadDir(copyDirPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if len(objs) != 0 {
+		t.Errorf("Directory has incorrect data.")
+	}
+
+	os.RemoveAll(srcDir)
+	os.RemoveAll(destDir)
+}
