@@ -54,9 +54,9 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 	}
 
 	// Recursively walk into directory and test.
-	err = filepath.WalkDir(setup.MntDir(), func(path string, dir fs.DirEntry, err error) error {
+	err = filepath.WalkDir(setup.MntDir(), func(dirPath string, dir fs.DirEntry, err error) error {
 		if err != nil {
-			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
+			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", dirPath, err)
 			return err
 		}
 
@@ -65,13 +65,13 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 			return nil
 		}
 
-		objs, err := os.ReadDir(path)
+		objs, err := os.ReadDir(dirPath)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		// Check if mntDir has correct objects.
-		if path == setup.MntDir() {
+		if dirPath == setup.MntDir() {
 			// numberOfObjects - 1
 			if len(objs) != NumberOfObjectsInBucketDirectoryCreateTest {
 				t.Errorf("Incorrect number of objects in the bucket.")
@@ -123,7 +123,8 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 			}
 
 			// Check if the content of the file is correct.
-			content, err := operations.ReadFile(objs[0].Name())
+			filePath := path.Join(dirPath, objs[0].Name())
+			content, err := operations.ReadFile(filePath)
 			if err != nil {
 				t.Errorf("Error in reading file:%v", err)
 			}
