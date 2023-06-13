@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 
 	// Create twelve thousand files in the directoryWithTwelveThousandFiles directory.
 	dirPath := path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
-	setup.RunScriptForTestData("../testdata/create_twelve_thousand_files.sh", dirPath)
+	setup.RunScriptForTestData("testdata/create_twelve_thousand_files.sh", dirPath)
 
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
 	setup.RunTestsForMountedDirectoryFlag(m)
