@@ -34,14 +34,8 @@ func checkIfObjNameIsCorrect(objName string, prefix string, t *testing.T) (objNu
 	return
 }
 
-func throwErrorForIncorrectFileNumber(fileNumber int, t *testing.T) {
-	if fileNumber < 1 || fileNumber > 12000 {
-		t.Errorf("Correct object does not exist.")
-	}
-}
-
-func throwErrorForIncorrectDirNumber(dirNumber int, t *testing.T) {
-	if dirNumber < 1 || dirNumber > 100 {
+func throwErrorForIncorrectObjectNumber(fileNumber int, maxNumber int, t *testing.T) {
+	if fileNumber < 1 || fileNumber > maxNumber {
 		t.Errorf("Correct object does not exist.")
 	}
 }
@@ -69,7 +63,7 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 
 	for i := 0; i < len(objs); i++ {
 		fileNumber := checkIfObjNameIsCorrect(objs[i].Name(), PrefixFileInDirectoryWithTwelveThousandFiles, t)
-		throwErrorForIncorrectFileNumber(fileNumber, t)
+		throwErrorForIncorrectObjectNumber(fileNumber, NumberOfFilesInDirectoryWithTwelveThousandFiles, t)
 	}
 }
 
@@ -90,14 +84,14 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 			numberOfFiles++
 			// Checking if Prefix1 to Prefix12000 present in the bucket
 			fileNumber := checkIfObjNameIsCorrect(objs[i].Name(), PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
-			throwErrorForIncorrectFileNumber(fileNumber, t)
+			throwErrorForIncorrectObjectNumber(fileNumber, NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
 		}
 
 		if objs[i].IsDir() {
 			numberOfDirs++
 			// Checking if Prefix1 to Prefix100 present in the bucket
 			dirNumber := checkIfObjNameIsCorrect(objs[i].Name(), ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
-			throwErrorForIncorrectDirNumber(dirNumber, t)
+			throwErrorForIncorrectObjectNumber(dirNumber, NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDir, t)
 		}
 	}
 
@@ -129,7 +123,7 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicit
 
 			// Checking if Prefix1 to Prefix12000 present in the bucket
 			fileNumber := checkIfObjNameIsCorrect(objs[i].Name(), PrefixFileInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
-			throwErrorForIncorrectFileNumber(fileNumber, t)
+			throwErrorForIncorrectObjectNumber(fileNumber, NumberOfFilesInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
 		}
 
 		if objs[i].IsDir() {
@@ -138,11 +132,11 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicit
 			if strings.Contains(objs[i].Name(), ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir) {
 				// Checking if explicitDir1 to explicitDir100 present in the bucket.
 				dirNumber := checkIfObjNameIsCorrect(objs[i].Name(), ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
-				throwErrorForIncorrectDirNumber(dirNumber, t)
+				throwErrorForIncorrectObjectNumber(dirNumber, NumberOfExplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
 			} else {
 				// Checking if implicitDir1 to implicitDir100 present in the bucket.
 				dirNumber := checkIfObjNameIsCorrect(objs[i].Name(), ImplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
-				throwErrorForIncorrectDirNumber(dirNumber, t)
+				throwErrorForIncorrectObjectNumber(dirNumber, NumberOfImplicitDirsInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
 			}
 		}
 	}
