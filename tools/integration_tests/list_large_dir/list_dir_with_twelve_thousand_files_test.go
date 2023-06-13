@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -45,6 +46,7 @@ func findIfCorrectObjectExistInList(objs []string, obj string, t *testing.T) {
 // Test with a bucket with twelve thousand files.
 func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
 
 	objs, err := os.ReadDir(dirPath)
 	if err != nil {
