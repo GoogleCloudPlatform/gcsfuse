@@ -25,7 +25,7 @@ import (
 )
 
 func checkIfObjNameIsCorrect(objName string, prefix string, t *testing.T) (objNumber int) {
-	// Extracting file number.
+	// Extracting object number.
 	objNumberStr := strings.ReplaceAll(objName, prefix, "")
 	objNumber, err := strconv.Atoi(objNumberStr)
 	if err != nil {
