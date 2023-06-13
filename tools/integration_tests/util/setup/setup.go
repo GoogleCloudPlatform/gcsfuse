@@ -173,7 +173,7 @@ func UnMount() error {
 func executeTest(m *testing.M) (successCode int) {
 	successCode = m.Run()
 
-	os.RemoveAll(mntDir)
+	//os.RemoveAll(mntDir)
 
 	return successCode
 }
@@ -182,7 +182,7 @@ func ExecuteTestForFlagsSet(flags []string, m *testing.M) (successCode int) {
 	var err error
 
 	// Clean the mountedDirectory before running any tests.
-	os.RemoveAll(mntDir)
+	//os.RemoveAll(mntDir)
 
 	successCode = executeTest(m)
 
