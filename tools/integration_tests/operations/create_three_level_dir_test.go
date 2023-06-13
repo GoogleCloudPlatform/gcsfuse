@@ -46,10 +46,15 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 
 	subDirPath2 := path.Join(subDirPath, DirThreeInCreateThreeLevelDirTest)
 
-	operations.CreateDirectoryWithNFiles(0, subDirPath2, "", t)
+	operations.CreateDirectoryWithNFiles(1, subDirPath2, PrefixFileInDirThreeInCreateThreeLevelDirTest, t)
+	filePath := path.Join(subDirPath2, FileInDirThreeInCreateThreeLevelDirTest)
+	err := operations.WriteFileInAppendMode(filePath, ContentInFileInDirThreeInCreateThreeLevelDirTest)
+	if err != nil {
+		t.Errorf("Write file error: %v", err)
+	}
 
 	// Recursively walk into directory and test.
-	err := filepath.WalkDir(setup.MntDir(), func(path string, dir fs.DirEntry, err error) error {
+	err = filepath.WalkDir(setup.MntDir(), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
 			return err
@@ -82,7 +87,7 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 		if dir.IsDir() && dir.Name() == DirOneInCreateThreeLevelDirTest {
 			// numberOfObjects - 1
 			if len(objs) != NumberOfObjectsInDirOneInCreateThreeLevelDirTest {
-				t.Errorf("Incorrect number of objects in the directoryForListTest.")
+				t.Errorf("Incorrect number of objects in the dirOneInCreateThreeLevelDirTest.")
 			}
 
 			// testBucket/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest    -- Dir
@@ -96,7 +101,7 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 		if dir.IsDir() && dir.Name() == DirTwoInCreateThreeLevelDirTest {
 			// numberOfObjects - 1
 			if len(objs) != NumberOfObjectsInDirTwoInCreateThreeLevelDirTest {
-				t.Errorf("Incorrect number of objects in the firstSubDirectoryForListTest.")
+				t.Errorf("Incorrect number of objects in the dirTwoInCreateThreeLevelDirTest.")
 			}
 
 			// testBucket/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest    -- Dir
@@ -110,8 +115,23 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 		if dir.IsDir() && dir.Name() == DirThreeInCreateThreeLevelDirTest {
 			// numberOfObjects - 0
 			if len(objs) != NumberOfObjectsInDirThreeInCreateThreeLevelDirTest {
-				t.Errorf("Incorrect number of objects in the emptySubDirInDirectoryForListTest.")
+				t.Errorf("Incorrect number of objects in the dirThreeInCreateThreeLevelDirTest.")
 			}
+
+			if objs[0].Name() != FileInDirThreeInCreateThreeLevelDirTest || objs[0].IsDir() != false {
+				t.Errorf("Incorrect object exist in the dirThreeInCreateThreeLevelDirTest directory.")
+			}
+
+			// Check if the content of the file is correct.
+			content, err := operations.ReadFile(objs[0].Name())
+			if err != nil {
+				t.Errorf("Error in reading file:%v", err)
+			}
+
+			if got, want := string(content), ContentInFileInDirThreeInCreateThreeLevelDirTest; got != want {
+				t.Errorf("File content %q not match %q", got, want)
+			}
+
 			return nil
 		}
 

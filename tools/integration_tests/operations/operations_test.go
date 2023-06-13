@@ -70,7 +70,10 @@ const DirThreeInCreateThreeLevelDirTest = "dirThreeInCreateThreeLevelDirTest"
 const NumberOfObjectsInBucketDirectoryCreateTest = 1
 const NumberOfObjectsInDirOneInCreateThreeLevelDirTest = 1
 const NumberOfObjectsInDirTwoInCreateThreeLevelDirTest = 1
-const NumberOfObjectsInDirThreeInCreateThreeLevelDirTest = 0
+const NumberOfObjectsInDirThreeInCreateThreeLevelDirTest = 1
+const PrefixFileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLevelDirTest"
+const FileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLevelDirTest1"
+const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
