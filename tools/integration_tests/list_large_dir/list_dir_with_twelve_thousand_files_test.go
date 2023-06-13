@@ -39,6 +39,7 @@ func throwErrorForIncorrectFileNumber(fileNumber int, t *testing.T) {
 		t.Errorf("Correct object does not exist.")
 	}
 }
+
 func throwErrorForIncorrectDirNumber(dirNumber int, t *testing.T) {
 	if dirNumber < 1 || dirNumber > 100 {
 		t.Errorf("Correct object does not exist.")
@@ -134,8 +135,8 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicit
 		if objs[i].IsDir() {
 			numberOfDirs++
 
-			// Checking if explicitDir1 to explicitDir100 present in the bucket.
 			if strings.Contains(objs[i].Name(), ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir) {
+				// Checking if explicitDir1 to explicitDir100 present in the bucket.
 				dirNumber := checkIfObjNameIsCorrect(objs[i].Name(), ExplicitDirInDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir, t)
 				throwErrorForIncorrectDirNumber(dirNumber, t)
 			} else {
