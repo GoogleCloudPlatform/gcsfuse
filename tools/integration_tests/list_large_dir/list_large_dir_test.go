@@ -49,8 +49,5 @@ func TestMain(m *testing.M) {
 
 	successCode := static_mounting.RunTests(flags, m)
 
-	// Clean the bucket for readonly testing.
-	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
-
 	os.Exit(successCode)
 }

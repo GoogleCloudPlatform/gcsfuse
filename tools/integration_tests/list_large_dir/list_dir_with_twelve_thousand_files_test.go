@@ -175,4 +175,7 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicit
 	if numberOfFiles != NumberOfFilesInDirectoryWithTwelveThousandFiles {
 		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
 	}
+
+	// Clean the bucket for readonly testing.
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 }
