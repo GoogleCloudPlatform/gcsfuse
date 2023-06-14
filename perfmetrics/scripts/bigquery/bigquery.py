@@ -1,4 +1,7 @@
+import argparse
 from google.cloud import bigquery
+import sys
+
 
 PROJECT_ID = 'gcsfuse-intern-project-2023'
 DATASET_ID = 'performance_metrics'
@@ -7,12 +10,51 @@ FIO_TABLE_ID = 'fio_metrics'
 VM_TABLE_ID = 'vm_metrics'
 LS_TABLE_ID = 'ls_metrics'
 
+# Construct a BigQuery client object.
+client = bigquery.Client()
+
 class BigQuery():
 
-  def setup_bigquery(self):
+  def insert_config_and_get_config_id(self, gcsfuse_flags, branch, end_date) -> int:
 
-    # Construct a BigQuery client object.
-    client = bigquery.Client()
+    # Get the dataset reference
+    dataset_ref = client.dataset(DATASET_ID)
+
+    # Query for creating experiment_configuration table if it does not exist
+    query_create_table_experiment_configuration = """
+        CREATE OR REPLACE TABLE {}.{}.{}(
+          configuration_id INT64,
+          gcsfuse_flags STRING,
+          branch STRING,
+          end_date TIMESTAMP,
+          PRIMARY KEY (configuration_id) NOT ENFORCED
+        ) OPTIONS (description = 'Table for storing Job Configurations and respective VM instance name on which the job was run');
+    """.format(PROJECT_ID, DATASET_ID, CONFIGURATION_TABLE_ID)
+
+    gcsfuse_flags = gcsfuse_flags.replace('"', '//"')
+
+    # API Request
+    results = client.query(query_create_table_experiment_configuration)
+    print(results)
+
+    query_check_if_exists = ('SELECT configuration_id FROM `{}.{}.{}` WHERE gcsfuse_flags="{}" AND branch="{}" AND end_date="{}"'
+             .format(PROJECT_ID, DATASET_ID, CONFIGURATION_TABLE_ID, gcsfuse_flags, branch, end_date))
+
+    config_id = 0
+    query_job = client.query(query_check_if_exists)
+    is_exist = len(list(query_job.result())) >= 1
+    if is_exist:
+        for row in query_job:
+          config_id = row['configuration_id']
+    else:
+      table_ref = dataset_ref.table(CONFIGURATION_TABLE_ID)
+      table = client.get_table(table_ref)
+      row_count = table.num_rows
+      config_id = row_count + 1
+
+    return config_id
+
+  def setup_bigquery(self):
 
     # Query for creating fio_metrics table
     query_create_table_fio_metrics = """
@@ -91,10 +133,52 @@ class BigQuery():
         ) OPTIONS (description = 'Table for storing GCSFUSE metrics extracted from listing benchmark tests');
     """.format(PROJECT_ID, DATASET_ID, LS_TABLE_ID, DATASET_ID, CONFIGURATION_TABLE_ID)
 
-    # Executing the queries
+    # API Requests
     results = client.query(query_create_table_fio_metrics)
     print(results)
     results = client.query(query_create_table_vm_metrics)
     print(results)
     results = client.query(query_create_table_ls_metrics)
     print(results)
+
+
+def _parse_arguments(argv):
+  """Parses the arguments provided to the script via command line.
+
+  Args:
+    argv: List of arguments received by the script.
+
+  Returns:
+    A class containing the parsed arguments.
+  """
+  argv = sys.argv
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--gcsfuse_flags',
+      help='GCSFuse flags for mounting the test buckets',
+      action='store',
+      required=True
+  )
+  parser.add_argument(
+      '--branch',
+      help='GCSFuse repo branch to be used for building GCSFuse.',
+      action='store',
+      required=True
+  )
+  parser.add_argument(
+      '--end_date',
+      help='Date upto when tests are run',
+      action='store',
+      required=True
+  )
+  return parser.parse_args(argv[1:])
+
+def main() -> int:
+  argv = sys.argv
+  args = _parse_arguments(argv)
+  bigquery_obj = BigQuery()
+  config_id = bigquery_obj.insert_config_and_get_config_id(args.gcsfuse_flags, args.branch, args.end_date)
+  return config_id
+
+if __name__ == '__main__':
+  main()

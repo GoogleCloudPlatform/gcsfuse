@@ -17,4 +17,3 @@ statistics
 numpy
 mock
 protobuf==4.21.*
-google-cloud-bigquery==3.11.1
