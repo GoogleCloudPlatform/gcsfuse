@@ -39,7 +39,9 @@ func checkIfObjNameIsCorrect(objName string, prefix string, maxNumber int, t *te
 
 // Test with a bucket with twelve thousand files.
 func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
+	// Create twelve thousand files in the directoryWithTwelveThousandFiles directory.
+	dirPath := path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
 
 	objs, err := os.ReadDir(dirPath)
 	if err != nil {
@@ -66,6 +68,15 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 // Test with a bucket with twelve thousand files and hundred explicit directories.
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
+	objs, err := os.ReadDir(dirPath)
+	if err != nil {
+		t.Errorf("Error in listing directory.")
+	}
+
+	if len(objs) != NumberOfFilesInDirectoryWithTwelveThousandFiles {
+		// Create twelve thousand files in the directoryWithTwelveThousandFiles directory if not exist.
+		operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
+	}
 
 	// Create hundred explicit directories.
 	for i := 1; i <= 100; i++ {
@@ -74,7 +85,7 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 		operations.CreateDirectoryWithNFiles(0, subDirPath, "", t)
 	}
 
-	objs, err := os.ReadDir(dirPath)
+	objs, err = os.ReadDir(dirPath)
 	if err != nil {
 		t.Errorf("Error in listing directory.")
 	}
@@ -111,6 +122,16 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
 	objs, err := os.ReadDir(dirPath)
+	if err != nil {
+		t.Errorf("Error in listing directory.")
+	}
+
+	if len(objs) != NumberOfFilesInDirectoryWithTwelveThousandFiles {
+		// Create twelve thousand files in the directoryWithTwelveThousandFiles directory if not exist.
+		operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
+	}
+
+	objs, err = os.ReadDir(dirPath)
 	if err != nil {
 		t.Errorf("Error in listing directory.")
 	}

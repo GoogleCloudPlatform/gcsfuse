@@ -18,7 +18,6 @@ package list_large_dir_test
 import (
 	"log"
 	"os"
-	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
@@ -42,10 +41,6 @@ func TestMain(m *testing.M) {
 		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
 		os.Exit(1)
 	}
-
-	// Create twelve thousand files in the directoryWithTwelveThousandFiles directory.
-	dirPath := path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
-	setup.RunScriptForTestData("testdata/create_twelve_thousand_files.sh", dirPath)
 
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
 	setup.RunTestsForMountedDirectoryFlag(m)
