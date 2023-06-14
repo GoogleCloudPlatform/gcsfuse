@@ -39,13 +39,13 @@ def pil_loader(path: str) -> Image.Image:
     return rgb_img
 " > bypassed_code.py
 
-folder_file="/opt/conda/lib/python3.7/site-packages/torchvision/datasets/folder.py"
-x=$(grep -n "def pil_loader(path: str) -> Image.Image:" $folder_file | cut -f1 -d ':')
-y=$(grep -n "def accimage_loader(path: str) -> Any:" $folder_file | cut -f1 -d ':')
-y=$((y - 2))
-lines="$x,$y"
-sed -i "$lines"'d' $folder_file
-sed -i "$x"'r bypassed_code.py' $folder_file
+#folder_file="/opt/conda/lib/python3.7/site-packages/torchvision/datasets/folder.py"
+#x=$(grep -n "def pil_loader(path: str) -> Image.Image:" $folder_file | cut -f1 -d ':')
+#y=$(grep -n "def accimage_loader(path: str) -> Any:" $folder_file | cut -f1 -d ':')
+#y=$((y - 2))
+#lines="$x,$y"
+#sed -i "$lines"'d' $folder_file
+#sed -i "$x"'r bypassed_code.py' $folder_file
 
 # Fix the caching issue - comes when we run the model first time with 8
 # nproc_per_node - by downloading the model in single thread environment.
@@ -74,7 +74,7 @@ gsutil cp start_time.txt gs://gcsfuse-ml-data/ci_artifacts/pytorch/dino/
     --norm_last_layer False \
     --use_fp16 False \
     --clip_grad 0 \
-    --epochs 10 \
+    --epochs 100 \
     --global_crops_scale 0.25 1.0 \
     --local_crops_number 10 \
     --local_crops_scale 0.05 0.25 \
