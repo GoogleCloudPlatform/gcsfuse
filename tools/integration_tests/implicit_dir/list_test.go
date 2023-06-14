@@ -118,7 +118,7 @@ func TestListImplicitObjectsFromBucket(t *testing.T) {
 			return nil
 		}
 
-		// Check if implicitDir directory has correct data.
+		// Check if implicit sub directory has correct data.
 		if dir.IsDir() && dir.Name() == implicit_and_explicit_dir_setup.ImplicitSubDirectory {
 			// numberOfObjects - 1
 			if len(objs) != implicit_and_explicit_dir_setup.NumberOfFilesInImplicitSubDirectory {

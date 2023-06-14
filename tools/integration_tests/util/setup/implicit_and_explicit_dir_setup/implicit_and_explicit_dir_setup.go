@@ -50,10 +50,10 @@ func RunTestsForImplicitDirAndExplicitDir(flags [][]string, m *testing.M) {
 		os.Exit(1)
 	}
 
-	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
+	// Run tests for mountedDirectory only if --mountedDirectory and --testbucket flag is set.
 	setup.RunTestsForMountedDirectoryFlag(m)
 
-	// Run tests for testBucket
+	// Run tests for testBucket only if --testbucket flag is set.
 	setup.SetUpTestDirForTestBucketFlag()
 
 	successCode := static_mounting.RunTests(flags, m)
