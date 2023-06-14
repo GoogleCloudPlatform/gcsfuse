@@ -20,11 +20,15 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"golang.org/x/net/context"
 )
+
+
+var ContinuationToken string
 
 // State required for reading from directories.
 type dirHandle struct {
@@ -162,36 +166,29 @@ func readAllEntries(
 	ctx context.Context,
 	in inode.DirInode) (entries []fuseutil.Dirent, err error) {
 	// Read one batch at a time.
-	var tok string
-	for {
-		// Read a batch.
-		var batch []fuseutil.Dirent
 
-		batch, tok, err = in.ReadEntries(ctx, tok)
-		if err != nil {
-			err = fmt.Errorf("ReadEntries: %w", err)
-			return
-		}
+	// Read a batch.
+	var batch []fuseutil.Dirent
 
-		// Accumulate.
-		entries = append(entries, batch...)
-
-		// Are we done?
-		if tok == "" {
-			break
-		}
+	batch, ContinuationToken, err = in.ReadEntries(ctx, ContinuationToken)
+	if err != nil {
+		err = fmt.Errorf("ReadEntries: %w", err)
+		return
 	}
+
+	// Accumulate.
+	entries = append(entries, batch...)
 
 	// Ensure that the entries are sorted, for use in fixConflictingNames
 	// below.
-	sort.Sort(sortedDirents(entries))
-
-	// Fix name conflicts.
-	err = fixConflictingNames(entries)
-	if err != nil {
-		err = fmt.Errorf("fixConflictingNames: %w", err)
-		return
-	}
+// 	sort.Sort(sortedDirents(entries))
+//
+// 	// Fix name conflicts.
+// 	err = fixConflictingNames(entries)
+// 	if err != nil {
+// 		err = fmt.Errorf("fixConflictingNames: %w", err)
+// 		return
+// 	}
 
 	// Fix up offset fields.
 	for i := 0; i < len(entries); i++ {
@@ -233,7 +230,12 @@ func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
 	}
 
 	// Update state.
-	dh.entries = entries
+	if len(dh.entries) ==0 {
+	    dh.entries = entries
+	}else{
+	    dh.entries = append(dh.entries,entries...)
+	}
+
 	dh.entriesValid = true
 
 	return
@@ -260,19 +262,28 @@ func (dh *dirHandle) ReadDir(
 		dh.entries = nil
 		dh.entriesValid = false
 	}
+    logger.Infof("Length of the dh.entries: %v",len(dh.entries))
+    logger.Infof("Offset for request : %v",op.Offset)
+	//We need to read the entries if the number of objects is not enough to fetch the next set of dir
+	//when the offset is zero(new call made means fetch)
+	//when the offset is non zero and len(dh.entries ) - offset <0
+	if !dh.entriesValid || len(dh.entries) == int(op.Offset) {
+	    logger.infof("length of the directories %v and cont token before fetch  %v")
 
-	// Do we need to read entries from GCS?
-	if !dh.entriesValid {
 		err = dh.ensureEntries(ctx)
+		logger.infof("length of the directories %v and cont token after fetch  %v")
+		logger.Infof("Length of the dh.entries after fetch: %v",len(dh.entries))
 		if err != nil {
 			return
 		}
 	}
 
+
+
 	// Is the offset past the end of what we have buffered? If so, this must be
 	// an invalid seekdir according to posix.
 	index := int(op.Offset)
-	if index > len(dh.entries) {
+	if index > len(dh.entries)  {
 		err = fuse.EINVAL
 		return
 	}

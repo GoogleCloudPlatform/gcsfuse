@@ -375,7 +375,7 @@ def _mount_gcs_bucket(bucket_name) -> str:
   subprocess.call('mkdir {}'.format(gcs_bucket), shell=True)
 
   exit_code = subprocess.call(
-      'gcsfuse --implicit-dirs --enable-storage-client-library --max-conns-per-host 100 {} {}'.format(
+      'go run ./../../../ --debug_gcs --debug_fuse --log-format="text" --log-file "./logfile" --implicit-dirs {} {}'.format(
           bucket_name, gcs_bucket), shell=True)
   if exit_code != 0:
     log.error('Cannot mount the GCS bucket due to exit code %s.\n', exit_code)
@@ -475,7 +475,7 @@ if __name__ == '__main__':
 
   args = _parse_arguments(argv)
 
-  _check_dependencies(['gsutil', 'gcsfuse'])
+  _check_dependencies(['gsutil'])
 
   with open(os.path.abspath(args.config_file)) as file:
     config_json = json.load(file)
