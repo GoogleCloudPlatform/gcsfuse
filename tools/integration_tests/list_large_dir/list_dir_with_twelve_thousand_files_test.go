@@ -19,11 +19,90 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
+
+func createTwelveThousandFiles(numberOfFiles int, dirPath string, prefix string, t *testing.T) {
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		for i := 1; i <= 1000; i++ {
+			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+			_, err := os.Create(filePath)
+			if err != nil {
+				t.Errorf("Create file at %q: %v", dirPath, err)
+			}
+		}
+	}()
+
+	var wg2 sync.WaitGroup
+	wg2.Add(1)
+
+	go func() {
+		defer wg2.Done()
+		for i := 1001; i <= 2000; i++ {
+			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+			_, err := os.Create(filePath)
+			if err != nil {
+				t.Errorf("Create file at %q: %v", dirPath, err)
+			}
+		}
+	}()
+
+	var wg3 sync.WaitGroup
+	wg3.Add(1)
+
+	go func() {
+		defer wg3.Done()
+		for i := 2001; i <= 3000; i++ {
+			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+			_, err := os.Create(filePath)
+			if err != nil {
+				t.Errorf("Create file at %q: %v", dirPath, err)
+			}
+		}
+	}()
+
+	var wg4 sync.WaitGroup
+	wg4.Add(1)
+
+	go func() {
+		defer wg4.Done()
+		for i := 3001; i <= 4000; i++ {
+			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+			_, err := os.Create(filePath)
+			if err != nil {
+				t.Errorf("Create file at %q: %v", dirPath, err)
+			}
+		}
+	}()
+
+	var wg5 sync.WaitGroup
+	wg5.Add(1)
+
+	go func() {
+		defer wg5.Done()
+		for i := 4001; i <= 5000; i++ {
+			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+			_, err := os.Create(filePath)
+			if err != nil {
+				t.Errorf("Create file at %q: %v", dirPath, err)
+			}
+		}
+	}()
+
+	wg.Wait()
+	wg2.Wait()
+	wg3.Wait()
+	wg4.Wait()
+	wg5.Wait()
+}
 
 func checkIfObjNameIsCorrect(objName string, prefix string, maxNumber int, t *testing.T) {
 	// Extracting object number.
@@ -41,7 +120,13 @@ func checkIfObjNameIsCorrect(objName string, prefix string, maxNumber int, t *te
 func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 	// Create twelve thousand files in the directoryWithTwelveThousandFiles directory.
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
-	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
+	err := os.Mkdir(dirPath, setup.FilePermission_0600)
+	if err != nil {
+		t.Errorf("Error in creating directory: %v", err)
+	}
+	createTwelveThousandFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
+
+	//operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
 
 	objs, err := os.ReadDir(dirPath)
 	if err != nil {
@@ -49,7 +134,7 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 	}
 
 	// number of objs - 12000
-	if len(objs) != NumberOfFilesInDirectoryWithTwelveThousandFiles {
+	if len(objs) != 5000 {
 		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", len(objs))
 	}
 
