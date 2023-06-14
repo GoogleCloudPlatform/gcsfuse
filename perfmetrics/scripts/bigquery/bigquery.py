@@ -17,8 +17,10 @@ class BigQuery():
 
   def insert_config_and_get_config_id(self, gcsfuse_flags, branch, end_date) -> int:
 
-    # Get the dataset reference
-    dataset_ref = client.dataset(DATASET_ID)
+    try:
+      dataset_ref = client.create_dataset(DATASET_ID)
+    except:
+      dataset_ref = client.dataset(DATASET_ID)
 
     # Query for creating experiment_configuration table if it does not exist
     query_create_table_experiment_configuration = """

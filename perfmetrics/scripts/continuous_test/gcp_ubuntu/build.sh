@@ -60,12 +60,13 @@ pip install --require-hashes -r requirements.txt --user
 config_id=$(python3 bigquery.py --gcsfuse_flags "$GCSFUSE_FLAGS" --branch "$BRANCH" --end_date "$END_DATE")
 
 # Executing perf tests
+cd ".."
 chmod +x run_load_test_and_fetch_metrics.sh
 ./run_load_test_and_fetch_metrics.sh "$config_id"
 
 sudo umount $MOUNT_POINT
 
 # ls_metrics test. This test does gcsfuse mount first and then do the testing.
-cd "../ls_metrics"
+cd "./ls_metrics"
 chmod +x run_ls_benchmark.sh
 ./run_ls_benchmark.sh "$config_id"
