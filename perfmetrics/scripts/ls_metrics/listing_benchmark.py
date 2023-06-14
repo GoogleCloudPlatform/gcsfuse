@@ -39,6 +39,7 @@ sys.path.insert(0, '..')
 import generate_files
 from google.protobuf.json_format import ParseDict
 from gsheet import gsheet
+from bigquery import bigquery
 import numpy as np
 
 
@@ -534,6 +535,9 @@ if __name__ == '__main__':
   pd_parsed_metrics = _parse_results(
       directory_structure.folders, persistent_disk_results, args.message[0],
       int(args.num_samples[0]))
+
+  bigquery_obj = bigquery.BigQuery()
+  bigquery_obj.setup_bigquery()
 
   if args.upload:
     log.info('Uploading files to the Google Sheet.\n')
