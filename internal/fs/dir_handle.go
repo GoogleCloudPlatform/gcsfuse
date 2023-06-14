@@ -26,7 +26,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-
 var ContinuationToken string
 
 // State required for reading from directories.
@@ -164,17 +163,13 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 func readAllEntries(
 	ctx context.Context,
 	in inode.DirInode) (entries []fuseutil.Dirent, err error) {
-	// Read one batch at a time.
-
-	// Read a batch.
+	// Read one batch
 	var batch []fuseutil.Dirent
-
 	batch, ContinuationToken, err = in.ReadEntries(ctx, ContinuationToken)
 	if err != nil {
 		err = fmt.Errorf("ReadEntries: %w", err)
 		return
 	}
-
 	// Accumulate.
 	entries = append(entries, batch...)
 
@@ -229,15 +224,14 @@ func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
 	}
 
 	// Update state.
-	if len(dh.entries) ==0 {
-	    dh.entries = entries
-	}else{
-		for i:= 0;i<len(entries);i++ {
-			entries[i].Offset = fuseops.DirOffset(uint64(len(dh.entries)+i+1))
+	if len(dh.entries) == 0 {
+		dh.entries = entries
+	} else {
+		for i := 0; i < len(entries); i++ {
+			entries[i].Offset = fuseops.DirOffset(uint64(len(dh.entries) + i + 1))
 		}
-		dh.entries = append(dh.entries,entries...)
+		dh.entries = append(dh.entries, entries...)
 	}
-
 	dh.entriesValid = true
 
 	return
@@ -265,19 +259,19 @@ func (dh *dirHandle) ReadDir(
 		dh.entriesValid = false
 	}
 
-	//We need to read the entries if the number of objects is not enough to fetch the next set of dir
 	//when the offset is zero(new call made means fetch)
-	//when the offset is non zero and len(dh.entries ) - offset <0
-	if !dh.entriesValid || (len(dh.entries) == int(op.Offset) && op.Offset !=0 && ContinuationToken != "") {
+	//when the offset is non zero and len(dh.entries ) - offset <0 means not enough data to serve the call
+	if !dh.entriesValid || (len(dh.entries) <= int(op.Offset) && op.Offset != 0 && ContinuationToken != "") {
 		err = dh.ensureEntries(ctx)
 		if err != nil {
 			return
 		}
 	}
+
 	// Is the offset past the end of what we have buffered? If so, this must be
 	// an invalid seekdir according to posix.
 	index := int(op.Offset)
-	if index > len(dh.entries)  {
+	if index > len(dh.entries) {
 		err = fuse.EINVAL
 		return
 	}
