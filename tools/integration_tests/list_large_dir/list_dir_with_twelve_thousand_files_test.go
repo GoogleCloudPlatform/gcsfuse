@@ -40,7 +40,7 @@ func checkIfObjNameIsCorrect(objName string, prefix string, maxNumber int, t *te
 // Test with a bucket with twelve thousand files.
 func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 	// Create twelve thousand files in the directoryWithTwelveThousandFiles directory.
-	dirPath := path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
+	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
 
 	objs, err := os.ReadDir(dirPath)
