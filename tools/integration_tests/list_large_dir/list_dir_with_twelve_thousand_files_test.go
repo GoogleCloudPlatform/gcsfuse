@@ -81,7 +81,7 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 		operations.CreateDirectoryWithNFiles(0, subDirPath, "", t)
 	}
 
-	objs, err = os.ReadDir(dirPath)
+	objs, err := os.ReadDir(dirPath)
 	if err != nil {
 		t.Errorf("Error in listing directory.")
 	}
