@@ -267,11 +267,11 @@ func (dh *dirHandle) ReadDir(
 	//We need to read the entries if the number of objects is not enough to fetch the next set of dir
 	//when the offset is zero(new call made means fetch)
 	//when the offset is non zero and len(dh.entries ) - offset <0
-	if !dh.entriesValid || len(dh.entries) == int(op.Offset) {
-	    logger.infof("length of the directories %v and cont token before fetch  %v")
+	if !dh.entriesValid || (len(dh.entries) == int(op.Offset) && op.Offset !=0 && ContinuationToken != "") {
+	    logger.Infof("length of the directories %v and cont token before fetch  %v")
 
 		err = dh.ensureEntries(ctx)
-		logger.infof("length of the directories %v and cont token after fetch  %v")
+		logger.Infof("length of the directories %v and cont token after fetch  %v")
 		logger.Infof("Length of the dh.entries after fetch: %v",len(dh.entries))
 		if err != nil {
 			return
