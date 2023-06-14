@@ -68,13 +68,9 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 // Test with a bucket with twelve thousand files and hundred explicit directories.
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
-	objs, err := os.ReadDir(dirPath)
+	// Check if directory exist in previous test.
+	_, err := os.Stat(dirPath)
 	if err != nil {
-		t.Errorf("Error in listing directory.")
-	}
-
-	if len(objs) != NumberOfFilesInDirectoryWithTwelveThousandFiles {
-		// Create twelve thousand files in the directoryWithTwelveThousandFiles directory if not exist.
 		operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
 	}
 
@@ -121,17 +117,13 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 // Test with a bucket with twelve thousand files, hundred explicit directories, and hundred implicit directories.
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
-	objs, err := os.ReadDir(dirPath)
+	// Check if directory exist in previous test.
+	_, err := os.Stat(dirPath)
 	if err != nil {
-		t.Errorf("Error in listing directory.")
-	}
-
-	if len(objs) != NumberOfFilesInDirectoryWithTwelveThousandFiles {
-		// Create twelve thousand files in the directoryWithTwelveThousandFiles directory if not exist.
 		operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
 	}
 
-	objs, err = os.ReadDir(dirPath)
+	objs, err := os.ReadDir(dirPath)
 	if err != nil {
 		t.Errorf("Error in listing directory.")
 	}
@@ -139,9 +131,10 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicit
 	// Create hundred explicit directories.
 	for i := 1; i <= 100; i++ {
 		subDirPath := path.Join(dirPath, PrefixExplicitDirInLargeDirListTest+strconv.Itoa(i))
+
 		// Check if directory exist in previous test.
 		_, err := os.Stat(subDirPath)
-		if err == nil {
+		if err != nil {
 			operations.CreateDirectoryWithNFiles(0, subDirPath, "", t)
 		}
 	}
