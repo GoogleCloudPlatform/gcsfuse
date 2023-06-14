@@ -123,11 +123,6 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicit
 		operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
 	}
 
-	objs, err := os.ReadDir(dirPath)
-	if err != nil {
-		t.Errorf("Error in listing directory.")
-	}
-
 	// Create hundred explicit directories.
 	for i := 1; i <= 100; i++ {
 		subDirPath := path.Join(dirPath, PrefixExplicitDirInLargeDirListTest+strconv.Itoa(i))
@@ -141,6 +136,11 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicit
 
 	subDirPath := path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
 	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", subDirPath)
+
+	objs, err := os.ReadDir(dirPath)
+	if err != nil {
+		t.Errorf("Error in listing directory.")
+	}
 
 	var numberOfFiles = 0
 	var numberOfDirs = 0
