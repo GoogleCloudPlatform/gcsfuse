@@ -25,3 +25,4 @@ google.cloud==0.34.0
 google_api_python_client==2.55.0
 proto-plus==1.22.1
 protobuf==4.21.6
+google-cloud-bigquery==3.11.1
