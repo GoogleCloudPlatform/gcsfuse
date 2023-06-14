@@ -20,7 +20,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -181,14 +180,14 @@ func readAllEntries(
 
 	// Ensure that the entries are sorted, for use in fixConflictingNames
 	// below.
-// 	sort.Sort(sortedDirents(entries))
-//
-// 	// Fix name conflicts.
-// 	err = fixConflictingNames(entries)
-// 	if err != nil {
-// 		err = fmt.Errorf("fixConflictingNames: %w", err)
-// 		return
-// 	}
+	//sort.Sort(sortedDirents(entries))
+
+	// Fix name conflicts.
+	//err = fixConflictingNames(entries)
+	//if err != nil {
+	//	err = fmt.Errorf("fixConflictingNames: %w", err)
+	//	return
+	//}
 
 	// Fix up offset fields.
 	for i := 0; i < len(entries); i++ {
@@ -233,7 +232,10 @@ func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
 	if len(dh.entries) ==0 {
 	    dh.entries = entries
 	}else{
-	    dh.entries = append(dh.entries,entries...)
+		for i:= 0;i<len(entries);i++ {
+			entries[i].Offset = fuseops.DirOffset(uint64(len(dh.entries)+i+1))
+		}
+		dh.entries = append(dh.entries,entries...)
 	}
 
 	dh.entriesValid = true
@@ -262,24 +264,16 @@ func (dh *dirHandle) ReadDir(
 		dh.entries = nil
 		dh.entriesValid = false
 	}
-    logger.Infof("Length of the dh.entries: %v",len(dh.entries))
-    logger.Infof("Offset for request : %v",op.Offset)
+
 	//We need to read the entries if the number of objects is not enough to fetch the next set of dir
 	//when the offset is zero(new call made means fetch)
 	//when the offset is non zero and len(dh.entries ) - offset <0
 	if !dh.entriesValid || (len(dh.entries) == int(op.Offset) && op.Offset !=0 && ContinuationToken != "") {
-	    logger.Infof("length of the directories %v and cont token before fetch  %v")
-
 		err = dh.ensureEntries(ctx)
-		logger.Infof("length of the directories %v and cont token after fetch  %v")
-		logger.Infof("Length of the dh.entries after fetch: %v",len(dh.entries))
 		if err != nil {
 			return
 		}
 	}
-
-
-
 	// Is the offset past the end of what we have buffered? If so, this must be
 	// an invalid seekdir according to posix.
 	index := int(op.Offset)
