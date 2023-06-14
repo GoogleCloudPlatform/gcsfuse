@@ -28,7 +28,7 @@ import (
 const MoveFile = "move.txt"
 const MoveFileContent = "This is from move file in Test directory.\n"
 const SrcCopyDirectory = "srcCopyDir"
-const EmptyDirectoryCopyTest = "emptyDirectoryCopyTest"
+const EmptySrcDirectoryCopyTest = "emptySrcDirectoryCopyTest"
 const SubSrcCopyDirectory = "subSrcCopyDir"
 const DestEmptyCopyDirectory = "destEmptyCopyDirectory"
 const SrcCopyFile = "copy.txt"

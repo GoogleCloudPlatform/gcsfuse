@@ -225,7 +225,7 @@ func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
 }
 
 func TestCopyEmptyDirectoryInNonEmptyDirectory(t *testing.T) {
-	srcDir := path.Join(setup.MntDir(), EmptyDirectoryCopyTest)
+	srcDir := path.Join(setup.MntDir(), EmptySrcDirectoryCopyTest)
 	operations.CreateDirectoryWithNFiles(0, srcDir, "", t)
 
 	// Create below directory
@@ -256,7 +256,7 @@ func TestCopyEmptyDirectoryInNonEmptyDirectory(t *testing.T) {
 	}
 
 	// destCopyDirectory/srcCopyDirectory  - Dir
-	if obj[0].Name() != EmptyDirectoryCopyTest || obj[0].IsDir() != true {
+	if obj[0].Name() != EmptySrcDirectoryCopyTest || obj[0].IsDir() != true {
 		t.Errorf("Error in copying directory.")
 		return
 	}
@@ -267,7 +267,7 @@ func TestCopyEmptyDirectoryInNonEmptyDirectory(t *testing.T) {
 		return
 	}
 
-	copyDirPath := path.Join(destDir, EmptyDirectoryCopyTest)
+	copyDirPath := path.Join(destDir, EmptySrcDirectoryCopyTest)
 	objs, err := os.ReadDir(copyDirPath)
 	if err != nil {
 		log.Fatal(err)
@@ -282,7 +282,7 @@ func TestCopyEmptyDirectoryInNonEmptyDirectory(t *testing.T) {
 }
 
 func TestCopyEmptyDirectoryInEmptyDirectory(t *testing.T) {
-	srcDir := path.Join(setup.MntDir(), EmptyDirectoryCopyTest)
+	srcDir := path.Join(setup.MntDir(), EmptySrcDirectoryCopyTest)
 	operations.CreateDirectoryWithNFiles(0, srcDir, "", t)
 
 	// Create below directory
@@ -309,12 +309,12 @@ func TestCopyEmptyDirectoryInEmptyDirectory(t *testing.T) {
 	}
 
 	// destCopyDirectory/srcCopyDirectory  - Dir
-	if obj[0].Name() != EmptyDirectoryCopyTest || obj[0].IsDir() != true {
+	if obj[0].Name() != EmptySrcDirectoryCopyTest || obj[0].IsDir() != true {
 		t.Errorf("Error in copying directory.")
 		return
 	}
 
-	copyDirPath := path.Join(destDir, EmptyDirectoryCopyTest)
+	copyDirPath := path.Join(destDir, EmptySrcDirectoryCopyTest)
 	objs, err := os.ReadDir(copyDirPath)
 	if err != nil {
 		log.Fatal(err)
