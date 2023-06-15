@@ -52,12 +52,12 @@ MOUNT_POINT=gcs
 gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 
 BRANCH="master"
-END_DATE="2023-12-25 05:30:00+00"
+END_DATE="2023-12-25 05:30:00"
 
 cd "./bigquery"
 echo Installing requirements..
 pip install --require-hashes -r requirements.txt --user
-config_id=$(python3 bigquery.py --gcsfuse_flags "$GCSFUSE_FLAGS" --branch "$BRANCH" --end_date "$END_DATE")
+config_id=$(eval "python3 bigquery.py --gcsfuse_flags '$GCSFUSE_FLAGS' --branch '$BRANCH' --end_date '$END_DATE'")
 
 # Executing perf tests
 cd ".."

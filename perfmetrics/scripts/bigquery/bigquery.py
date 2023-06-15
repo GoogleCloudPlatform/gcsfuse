@@ -17,14 +17,15 @@ class BigQuery():
 
   def insert_config_and_get_config_id(self, gcsfuse_flags, branch, end_date) -> int:
 
+    dataset_ref = None
     try:
-      dataset_ref = client.create_dataset(DATASET_ID)
-    except:
       dataset_ref = client.dataset(DATASET_ID)
+    except:
+      dataset_ref = client.create_dataset(DATASET_ID)
 
     # Query for creating experiment_configuration table if it does not exist
     query_create_table_experiment_configuration = """
-        CREATE OR REPLACE TABLE {}.{}.{}(
+        CREATE TABLE IF NOT EXISTS {}.{}.{}(
           configuration_id INT64,
           gcsfuse_flags STRING,
           branch STRING,
@@ -33,26 +34,32 @@ class BigQuery():
         ) OPTIONS (description = 'Table for storing Job Configurations and respective VM instance name on which the job was run');
     """.format(PROJECT_ID, DATASET_ID, CONFIGURATION_TABLE_ID)
 
-    gcsfuse_flags = gcsfuse_flags.replace('"', '//"')
-
-    # API Request
+    # API Request to create experiment_configuration if it does not exist
     results = client.query(query_create_table_experiment_configuration)
     print(results)
 
-    query_check_if_exists = ('SELECT configuration_id FROM `{}.{}.{}` WHERE gcsfuse_flags="{}" AND branch="{}" AND end_date="{}"'
-             .format(PROJECT_ID, DATASET_ID, CONFIGURATION_TABLE_ID, gcsfuse_flags, branch, end_date))
+    query_get_configuration_id = """
+      SELECT configuration_id
+      FROM `{}.{}.{}`
+      WHERE gcsfuse_flags = '{}'
+      AND branch = '{}'
+      AND end_date = '{}'
+    """.format(PROJECT_ID, DATASET_ID, CONFIGURATION_TABLE_ID, gcsfuse_flags, branch, end_date)
 
-    config_id = 0
-    query_job = client.query(query_check_if_exists)
-    is_exist = len(list(query_job.result())) >= 1
-    if is_exist:
-        for row in query_job:
-          config_id = row['configuration_id']
-    else:
+    config_id = None
+    exists = False
+    query_job = client.query(query_get_configuration_id)
+    for row in query_job:
+      config_id = row['configuration_id']
+      exists = True
+    if not exists:
       table_ref = dataset_ref.table(CONFIGURATION_TABLE_ID)
       table = client.get_table(table_ref)
       row_count = table.num_rows
       config_id = row_count + 1
+      rows_to_insert = [(config_id, gcsfuse_flags, branch, end_date)]
+      errors = client.insert_rows(table, rows_to_insert)
+      print(errors)
 
     return config_id
 
@@ -159,18 +166,21 @@ def _parse_arguments(argv):
       '--gcsfuse_flags',
       help='GCSFuse flags for mounting the test buckets',
       action='store',
+      nargs=1,
       required=True
   )
   parser.add_argument(
       '--branch',
       help='GCSFuse repo branch to be used for building GCSFuse.',
       action='store',
+      nargs=1,
       required=True
   )
   parser.add_argument(
       '--end_date',
       help='Date upto when tests are run',
       action='store',
+      nargs=1,
       required=True
   )
   return parser.parse_args(argv[1:])
@@ -179,8 +189,9 @@ def main() -> int:
   argv = sys.argv
   args = _parse_arguments(argv)
   bigquery_obj = BigQuery()
-  config_id = bigquery_obj.insert_config_and_get_config_id(args.gcsfuse_flags, args.branch, args.end_date)
+  config_id = bigquery_obj.insert_config_and_get_config_id(args.gcsfuse_flags[0], args.branch[0], args.end_date[0])
   return config_id
 
 if __name__ == '__main__':
-  main()
+  config_id = main()
+  print(config_id)
