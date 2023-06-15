@@ -46,7 +46,7 @@ nohup /pytorch_dino/gcsfuse/gcsfuse --foreground --type-cache-ttl=1728000s \
 #lines="$x,$y"
 #sed -i "$lines"'d' $folder_file
 #sed -i "$x"'r bypassed_code.py' $folder_file
-echo " os.system(\"sh -c 'echo 3 > /proc/sys/vm/drop_caches'\")" > bypassed_code.py
+echo "        os.system(\"sh -c 'echo 3 > /proc/sys/vm/drop_caches'\")" > bypassed_code.py
 controller_file="dino/main_dino.py";
 x=$(grep -n "# ============ training one epoch of DINO ... ============" $controller_file | cut -f1 -d ':');
 x=$((x - 2));
