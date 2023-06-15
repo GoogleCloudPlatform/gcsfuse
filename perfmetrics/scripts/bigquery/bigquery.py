@@ -2,7 +2,7 @@ import argparse
 from google.cloud import bigquery
 import sys
 
-PROJECT_ID = 'gcsfuse-intern-project-2023'
+PROJECT_ID = 'gcs-fuse-test'
 DATASET_ID = 'performance_metrics'
 CONFIGURATION_TABLE_ID = 'experiment_configuration'
 FIO_TABLE_ID = 'fio_metrics'
