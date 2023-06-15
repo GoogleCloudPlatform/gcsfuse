@@ -5,6 +5,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/list_large_dir"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
@@ -16,7 +17,7 @@ func TestWithP(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error in creating directory: %v", err)
 	}
-	createTwelveThousandFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
+	list_large_dir.Test(dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
 }
 
 func TestWithOutP(t *testing.T) {
