@@ -67,7 +67,7 @@ class BigQuery():
 
     # Query for creating fio_metrics table
     query_create_table_fio_metrics = """
-        CREATE OR REPLACE TABLE {}.{}.{}(
+        CREATE TABLE IF NOT EXISTS {}.{}.{}(
           configuration_id INT64, 
           start_time_build TIMESTAMP,
           test_type STRING, 
@@ -92,7 +92,7 @@ class BigQuery():
 
     # Query for creating vm_metrics table
     query_create_table_vm_metrics = """
-        CREATE OR REPLACE TABLE {}.{}.{}(
+        CREATE TABLE IF NOT EXISTS {}.{}.{}(
           configuration_id INT64, 
           start_time_build TIMESTAMP,
           end_time INT64, 
@@ -117,7 +117,7 @@ class BigQuery():
 
     # Query for creating ls_metrics table
     query_create_table_ls_metrics = """
-        CREATE OR REPLACE TABLE {}.{}.{}(
+        CREATE TABLE IF NOT EXISTS {}.{}.{}(
           configuration_id INT64,
           start_time_build TIMESTAMP,
           test_type STRING, 
