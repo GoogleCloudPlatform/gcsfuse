@@ -22,5 +22,5 @@ func TestWithP(t *testing.T) {
 func TestWithOutP(t *testing.T) {
 	// Create twelve thousand files in the directoryWithTwelveThousandFiles directory.
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
-	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
+	operations.CreateDirectoryWithNFiles(1000, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
 }
