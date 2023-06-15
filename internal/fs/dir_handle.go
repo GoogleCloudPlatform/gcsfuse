@@ -26,6 +26,8 @@ import (
 	"golang.org/x/net/context"
 )
 
+var ContinuationToken string
+
 // State required for reading from directories.
 type dirHandle struct {
 	/////////////////////////
@@ -161,29 +163,19 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 func readAllEntries(
 	ctx context.Context,
 	in inode.DirInode) (entries []fuseutil.Dirent, err error) {
-	// Read one batch at a time.
-	var tok string
-	for {
-		// Read a batch.
-		var batch []fuseutil.Dirent
-
-		batch, tok, err = in.ReadEntries(ctx, tok)
-		if err != nil {
-			err = fmt.Errorf("ReadEntries: %w", err)
-			return
-		}
-
-		// Accumulate.
-		entries = append(entries, batch...)
-
-		// Are we done?
-		if tok == "" {
-			break
-		}
+	// Read one batch
+	var batch []fuseutil.Dirent
+	batch, ContinuationToken, err = in.ReadEntries(ctx, ContinuationToken)
+	if err != nil {
+		err = fmt.Errorf("ReadEntries: %w", err)
+		return
 	}
+	// Accumulate.
+	entries = append(entries, batch...)
 
 	// Ensure that the entries are sorted, for use in fixConflictingNames
 	// below.
+	// TODO: Fix this after  asynchronous fetch is added.
 	sort.Sort(sortedDirents(entries))
 
 	// Fix name conflicts.
@@ -191,11 +183,6 @@ func readAllEntries(
 	if err != nil {
 		err = fmt.Errorf("fixConflictingNames: %w", err)
 		return
-	}
-
-	// Fix up offset fields.
-	for i := 0; i < len(entries); i++ {
-		entries[i].Offset = fuseops.DirOffset(i) + 1
 	}
 
 	// Return a bogus inode ID for each entry, but not the root inode ID.
@@ -233,7 +220,11 @@ func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
 	}
 
 	// Update state.
-	dh.entries = entries
+	// Fix up offset fields.
+	for i := 0; i < len(entries); i++ {
+		entries[i].Offset = fuseops.DirOffset(uint64(len(dh.entries) + i + 1))
+	}
+	dh.entries = append(dh.entries, entries...)
 	dh.entriesValid = true
 
 	return
@@ -261,8 +252,9 @@ func (dh *dirHandle) ReadDir(
 		dh.entriesValid = false
 	}
 
-	// Do we need to read entries from GCS?
-	if !dh.entriesValid {
+	//when the offset is zero(new call made means fetch)
+	//when the offset is non zero and len(dh.entries ) - offset <0 means not enough data to serve the call
+	if !dh.entriesValid || (len(dh.entries) <= int(op.Offset) && op.Offset != 0 && ContinuationToken != "") {
 		err = dh.ensureEntries(ctx)
 		if err != nil {
 			return
