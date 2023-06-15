@@ -239,12 +239,10 @@ func checkIfCopiedEmptyDirectoryHasCorrectData(destSrc string, t *testing.T) {
 // emptySrcDirectoryCopyTest
 
 // destNonEmptyCopyDirectory
-// destNonEmptyCopyDirectory/fileInDestNonEmptyCopyDirectory1
 // destNonEmptyCopyDirectory/subDirInNonEmptyDestCopyDirectory
 
 // Output
 // destNonEmptyCopyDirectory
-// destNonEmptyCopyDirectory/fileInDestNonEmptyCopyDirectory1
 // destNonEmptyCopyDirectory/subDirInNonEmptyDestCopyDirectory
 // destNonEmptyCopyDirectory/emptySrcDirectoryCopyTest
 func TestCopyEmptyDirectoryInNonEmptyDirectory(t *testing.T) {
@@ -270,7 +268,6 @@ func TestCopyEmptyDirectoryInNonEmptyDirectory(t *testing.T) {
 	// Check if destCopyDirectory has the correct directory copied.
 	// destNonEmptyCopyDirectory
 	// destNonEmptyCopyDirectory/emptyDirectoryCopyTest           - Dir
-	// destNonEmptyCopyDirectory/fileInDestNonEmptyCopyDirectory  - File
 	// destNonEmptyCopyDirectory/subDestCopyDirectory             - Dir
 	if len(objs) != NumberOfObjectsInDestCopyDirectory {
 		t.Errorf("The number of objects in the current directory doesn't match.")
