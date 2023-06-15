@@ -19,12 +19,12 @@ var wg sync.WaitGroup
 var threadProfile = pprof.Lookup("threadcreate")
 
 func parallelismInAction(x int, dirPath string, prefix string, t *testing.T) {
-	// lock the current thread.
-	runtime.LockOSThread()
+	//// lock the current thread.
+	//runtime.LockOSThread()
 	// defer the call to wg.Done().
 	defer wg.Done()
 	// sleep
-	time.Sleep(time.Second * 2)
+	//time.Sleep(time.Second * 2)
 
 	for i := ((x - 1) * 1000) + 1; i <= x*1000; i++ {
 		filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
@@ -39,7 +39,7 @@ func parallelismInAction(x int, dirPath string, prefix string, t *testing.T) {
 	time.Sleep(time.Second * 2)
 
 	// unlock the current thread.
-	runtime.UnlockOSThread()
+	//runtime.UnlockOSThread()
 }
 
 // init is called before main.
