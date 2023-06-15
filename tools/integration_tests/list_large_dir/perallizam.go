@@ -28,7 +28,7 @@ func parallelismInAction(x int, dirPath string, prefix string, t *testing.T) {
 
 	for i := ((x - 1) * 1000) + 1; i <= x*1000; i++ {
 		filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
-		log.Printf("In 7 thread: %v", filePath)
+		log.Printf("In %v thread: %v", x, filePath)
 		_, err := os.Create(filePath)
 		if err != nil {
 			t.Errorf("Create file at %q: %v", dirPath, err)
