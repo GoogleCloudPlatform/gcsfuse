@@ -2,7 +2,6 @@ import argparse
 from google.cloud import bigquery
 import sys
 
-
 PROJECT_ID = 'gcsfuse-intern-project-2023'
 DATASET_ID = 'performance_metrics'
 CONFIGURATION_TABLE_ID = 'experiment_configuration'
@@ -17,6 +16,18 @@ class BigQuery():
 
   def insert_config_and_get_config_id(self, gcsfuse_flags, branch, end_date) -> int:
 
+    """Gets the experiment configuration and checks if it is already present in the BigQuery tables,
+       If not present: New configuration will be inserted, and it's configuration id will be returned
+       If present: Configuration id will be fetched and returned
+
+    Args:
+      gcsfuse_flags: GCSFuse flags for mounting the test buckets.
+      branch: GCSFuse repo branch to be used for building GCSFuse.
+      end_date: Date upto when tests are run.
+
+    Return:
+      Configuration id of the experiment in the BigQuery tables
+    """
     dataset_ref = None
     try:
       dataset_ref = client.dataset(DATASET_ID)
@@ -65,6 +76,8 @@ class BigQuery():
 
   def setup_bigquery(self):
 
+    """Creates the tables to store the metrics data if they don't exist in the dataset
+    """
     # Query for creating fio_metrics table
     query_create_table_fio_metrics = """
         CREATE TABLE IF NOT EXISTS {}.{}.{}(
@@ -185,13 +198,9 @@ def _parse_arguments(argv):
   )
   return parser.parse_args(argv[1:])
 
-def main() -> int:
+if __name__ == '__main__':
   argv = sys.argv
   args = _parse_arguments(argv)
   bigquery_obj = BigQuery()
   config_id = bigquery_obj.insert_config_and_get_config_id(args.gcsfuse_flags[0], args.branch[0], args.end_date[0])
-  return config_id
-
-if __name__ == '__main__':
-  config_id = main()
   print(config_id)
