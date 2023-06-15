@@ -221,9 +221,9 @@ func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
 
 	// Update state.
 	// Fix up offset fields.
-    for i := 0; i < len(entries); i++ {
-        entries[i].Offset = fuseops.DirOffset(uint64(len(dh.entries) + i + 1))
-    }
+    	for i := 0; i < len(entries); i++ {
+        	entries[i].Offset = fuseops.DirOffset(uint64(len(dh.entries) + i + 1))
+   	 }
 	dh.entries = append(dh.entries, entries...)
 	dh.entriesValid = true
 
