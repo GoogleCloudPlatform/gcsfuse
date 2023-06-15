@@ -175,18 +175,14 @@ func readAllEntries(
 
 	// Ensure that the entries are sorted, for use in fixConflictingNames
 	// below.
-	//sort.Sort(sortedDirents(entries))
+	// TODO: Fix this after  asynchronous fetch is added.
+	sort.Sort(sortedDirents(entries))
 
 	// Fix name conflicts.
-	//err = fixConflictingNames(entries)
-	//if err != nil {
-	//	err = fmt.Errorf("fixConflictingNames: %w", err)
-	//	return
-	//}
-
-	// Fix up offset fields.
-	for i := 0; i < len(entries); i++ {
-		entries[i].Offset = fuseops.DirOffset(i) + 1
+	err = fixConflictingNames(entries)
+	if err != nil {
+		err = fmt.Errorf("fixConflictingNames: %w", err)
+		return
 	}
 
 	// Return a bogus inode ID for each entry, but not the root inode ID.
@@ -224,14 +220,11 @@ func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
 	}
 
 	// Update state.
-	if len(dh.entries) == 0 {
-		dh.entries = entries
-	} else {
-		for i := 0; i < len(entries); i++ {
-			entries[i].Offset = fuseops.DirOffset(uint64(len(dh.entries) + i + 1))
-		}
-		dh.entries = append(dh.entries, entries...)
-	}
+	// Fix up offset fields.
+    for i := 0; i < len(entries); i++ {
+        entries[i].Offset = fuseops.DirOffset(uint64(len(dh.entries) + i + 1))
+    }
+	dh.entries = append(dh.entries, entries...)
 	dh.entriesValid = true
 
 	return
