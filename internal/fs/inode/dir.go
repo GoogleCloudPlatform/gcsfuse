@@ -117,10 +117,11 @@ type DirInode interface {
 		metaGeneration *int64) (err error)
 
 	// Delete the backing object for the child directory with the given
-	// (relative) name.
+	// (relative) name if it is not an Implicit Directory.
 	DeleteChildDir(
 		ctx context.Context,
-		name string) (err error)
+		name string,
+		isImplicitDir bool) (err error)
 }
 
 // An inode that represents a directory from a GCS bucket.
@@ -757,8 +758,12 @@ func (d *dirInode) DeleteChildFile(
 // LOCKS_REQUIRED(d)
 func (d *dirInode) DeleteChildDir(
 	ctx context.Context,
-	name string) (err error) {
+	name string,
+	isImplicitDir bool) (err error) {
 	d.cache.Erase(name)
+	if isImplicitDir {
+		return
+	}
 	childName := NewDirName(d.Name(), name)
 
 	// Delete the backing object. Unfortunately we have no way to precondition

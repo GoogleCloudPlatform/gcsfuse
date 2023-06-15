@@ -1441,8 +1441,9 @@ func (fs *fileSystem) RmDir(
 	cleanUpAndUnlockChild()
 
 	// Delete the backing object.
+	_, isImplicitDir := fs.implicitDirInodes[child.Name()]
 	parent.Lock()
-	err = parent.DeleteChildDir(ctx, op.Name)
+	err = parent.DeleteChildDir(ctx, op.Name, isImplicitDir)
 	parent.Unlock()
 
 	if err != nil {
@@ -1628,8 +1629,9 @@ func (fs *fileSystem) renameDir(
 	releaseInodes()
 
 	// Delete the backing object of the old directory.
+	_, isImplicitDir := fs.implicitDirInodes[oldDir.Name()]
 	oldParent.Lock()
-	err = oldParent.DeleteChildDir(ctx, oldName)
+	err = oldParent.DeleteChildDir(ctx, oldName, isImplicitDir)
 	oldParent.Unlock()
 	if err != nil {
 		return fmt.Errorf("DeleteChildDir: %w", err)
