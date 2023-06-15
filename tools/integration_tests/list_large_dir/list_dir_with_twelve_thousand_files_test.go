@@ -34,8 +34,8 @@ func createTwelveThousandFiles(numberOfFiles int, dirPath string, prefix string,
 	go func() {
 		defer wg.Done()
 		for i := 1; i <= 1000; i++ {
-			log.Print("In 1 thread")
 			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+			log.Print("In 1 thread: %v", filePath)
 			_, err := os.Create(filePath)
 			if err != nil {
 				t.Errorf("Create file at %q: %v", dirPath, err)
@@ -49,8 +49,8 @@ func createTwelveThousandFiles(numberOfFiles int, dirPath string, prefix string,
 	go func() {
 		defer wg2.Done()
 		for i := 1001; i <= 2000; i++ {
-			log.Print("In 2 thread")
 			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+			log.Print("In 2 thread: %v", filePath)
 			_, err := os.Create(filePath)
 			if err != nil {
 				t.Errorf("Create file at %q: %v", dirPath, err)
@@ -64,8 +64,8 @@ func createTwelveThousandFiles(numberOfFiles int, dirPath string, prefix string,
 	go func() {
 		defer wg3.Done()
 		for i := 2001; i <= 3000; i++ {
-			log.Print("In 3 thread")
 			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+			log.Print("In 3 thread: %v", filePath)
 			_, err := os.Create(filePath)
 			if err != nil {
 				t.Errorf("Create file at %q: %v", dirPath, err)
@@ -79,8 +79,8 @@ func createTwelveThousandFiles(numberOfFiles int, dirPath string, prefix string,
 	go func() {
 		defer wg4.Done()
 		for i := 3001; i <= 4000; i++ {
-			log.Print("In 4 thread")
 			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+			log.Print("In 4 thread: %v", filePath)
 			_, err := os.Create(filePath)
 			if err != nil {
 				t.Errorf("Create file at %q: %v", dirPath, err)
@@ -94,8 +94,8 @@ func createTwelveThousandFiles(numberOfFiles int, dirPath string, prefix string,
 	go func() {
 		defer wg5.Done()
 		for i := 4001; i <= 5000; i++ {
-			log.Print("In 5 thread")
 			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+			log.Print("In 5 thread: %v", filePath)
 			_, err := os.Create(filePath)
 			if err != nil {
 				t.Errorf("Create file at %q: %v", dirPath, err)
@@ -109,8 +109,8 @@ func createTwelveThousandFiles(numberOfFiles int, dirPath string, prefix string,
 	go func() {
 		defer wg6.Done()
 		for i := 5001; i <= 6000; i++ {
-			log.Print("In 6 thread")
 			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+			log.Print("In 6 thread: %v", filePath)
 			_, err := os.Create(filePath)
 			if err != nil {
 				t.Errorf("Create file at %q: %v", dirPath, err)
@@ -124,8 +124,8 @@ func createTwelveThousandFiles(numberOfFiles int, dirPath string, prefix string,
 	go func() {
 		defer wg7.Done()
 		for i := 6001; i <= 7000; i++ {
-			log.Print("In 7 thread")
 			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+			log.Print("In 7 thread: %v", filePath)
 			_, err := os.Create(filePath)
 			if err != nil {
 				t.Errorf("Create file at %q: %v", dirPath, err)
@@ -139,8 +139,8 @@ func createTwelveThousandFiles(numberOfFiles int, dirPath string, prefix string,
 	go func() {
 		defer wg8.Done()
 		for i := 7001; i <= 8000; i++ {
-			log.Print("In 8 thread")
 			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+			log.Print("In 8 thread: %v", filePath)
 			_, err := os.Create(filePath)
 			if err != nil {
 				t.Errorf("Create file at %q: %v", dirPath, err)
@@ -154,8 +154,8 @@ func createTwelveThousandFiles(numberOfFiles int, dirPath string, prefix string,
 	go func() {
 		defer wg9.Done()
 		for i := 8001; i <= 9000; i++ {
-			log.Print("In 9 thread")
 			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+			log.Print("In 9 thread: %v", filePath)
 			_, err := os.Create(filePath)
 			if err != nil {
 				t.Errorf("Create file at %q: %v", dirPath, err)
@@ -169,8 +169,8 @@ func createTwelveThousandFiles(numberOfFiles int, dirPath string, prefix string,
 	go func() {
 		defer wg10.Done()
 		for i := 9001; i <= 10000; i++ {
-			log.Print("In 10 thread")
 			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+			log.Print("In 10 thread: %v", filePath)
 			_, err := os.Create(filePath)
 			if err != nil {
 				t.Errorf("Create file at %q: %v", dirPath, err)
@@ -184,8 +184,8 @@ func createTwelveThousandFiles(numberOfFiles int, dirPath string, prefix string,
 	go func() {
 		defer wg11.Done()
 		for i := 10001; i <= 11000; i++ {
-			log.Print("In 11 thread")
 			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+			log.Print("In 11 thread: %v", filePath)
 			_, err := os.Create(filePath)
 			if err != nil {
 				t.Errorf("Create file at %q: %v", dirPath, err)
@@ -199,8 +199,8 @@ func createTwelveThousandFiles(numberOfFiles int, dirPath string, prefix string,
 	go func() {
 		defer wg12.Done()
 		for i := 11001; i <= 12000; i++ {
-			log.Print("In 12 thread")
 			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+			log.Print("In 12 thread: %v", filePath)
 			_, err := os.Create(filePath)
 			if err != nil {
 				t.Errorf("Create file at %q: %v", dirPath, err)
