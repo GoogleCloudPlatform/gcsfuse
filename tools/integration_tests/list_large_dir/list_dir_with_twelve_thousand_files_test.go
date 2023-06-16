@@ -62,7 +62,7 @@ func createHundredExplicitDir(dirPath string, t *testing.T) {
 }
 
 // Test with a bucket with twelve thousand files.
-func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
+func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 	createTwelveThousandFilesAndUploadOnTestBucket(t)
 
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
@@ -88,11 +88,12 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 		checkIfObjNameIsCorrect(objs[i].Name(), PrefixFileInDirectoryWithTwelveThousandFiles, NumberOfFilesInDirectoryWithTwelveThousandFiles, t)
 	}
 
+	// Clear the bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 }
 
 // Test with a bucket with twelve thousand files and hundred explicit directories.
-func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
+func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	createTwelveThousandFilesAndUploadOnTestBucket(t)
 
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
@@ -132,11 +133,12 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
 	}
 
+	// Clear the bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 }
 
 // Test with a bucket with twelve thousand files, hundred explicit directories, and hundred implicit directories.
-func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
+func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
 	createTwelveThousandFilesAndUploadOnTestBucket(t)
 
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
@@ -186,5 +188,6 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicit
 		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
 	}
 
+	// Clear the bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 }
