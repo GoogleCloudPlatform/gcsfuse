@@ -37,20 +37,15 @@ const NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--implicit-dirs"}}
+	flags := [][]string{{"--o=ro", "--implicit-dirs"}, {"--o=ro", "--implicit-dirs", "--enable-storage-client-library=false"}}
 
 	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
 		log.Printf("Both --testbucket and --mountedDirectory can't be specified at the same time.")
 		os.Exit(1)
 	}
 
-	dirPath := path.Join(os.Getenv("HOME"), DirectoryWithTwelveThousandFiles)
-	err := os.Mkdir(dirPath, setup.FilePermission_0600)
-	if err != nil {
-		log.Printf("Error in creating directory: %v", err)
-	}
-
-	for i := 1; i <= 12000; i++ {
+	// Creating twelve thousand files on disk to upload them on a bucket for testing.
+	for i := 1; i <= NumberOfFilesInDirectoryWithTwelveThousandFiles; i++ {
 		filePath := path.Join(os.Getenv("HOME"), PrefixFileInDirectoryWithTwelveThousandFiles+strconv.Itoa(i))
 		_, err := os.Create(filePath)
 		if err != nil {
@@ -58,8 +53,9 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	dirPath = path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
-	setup.RunScriptForTestData("testdata/create_objects.sh", dirPath)
+	// Uploading twelve thousand files to directoryWithTwelveThousandFiles in testBucket.
+	dirPath := path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
+	setup.RunScriptForTestData("testdata/upload_twelve_thousand_files_to_bucket.sh", dirPath)
 
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
 	setup.RunTestsForMountedDirectoryFlag(m)
@@ -68,7 +64,7 @@ func TestMain(m *testing.M) {
 
 	successCode := static_mounting.RunTests(flags, m)
 
-	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", setup.TestBucket())
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 
 	os.Exit(successCode)
 }
