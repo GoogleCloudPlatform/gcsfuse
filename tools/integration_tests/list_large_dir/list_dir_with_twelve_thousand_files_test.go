@@ -39,8 +39,13 @@ func checkIfObjNameIsCorrect(objName string, prefix string, maxNumber int, t *te
 
 // Test with a bucket with twelve thousand files.
 func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
-	// Create twelve thousand files in the directoryWithTwelveThousandFiles directory.
-	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
+	// Create twelve thousand files in the directoryWithTwelveThousandFiles directory in local disk.
+	diskDirPath := path.Join(os.Getenv("HOME"), DirectoryWithTwelveThousandFiles)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, diskDirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
+
+	// Uploading twelve thousand files to directoryWithTwelveThousandFiles in testBucket.
+	dirPath := path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
+	setup.RunScriptForTestData("testdata/upload_twelve_thousand_files_to_bucket.sh", dirPath)
 
 	objs, err := os.ReadDir(dirPath)
 	if err != nil {
@@ -66,11 +71,18 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 
 // Test with a bucket with twelve thousand files and hundred explicit directories.
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
+
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
 	// Check if directory exist in previous test.
 	_, err := os.Stat(dirPath)
 	if err != nil {
-		operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
+		// Create twelve thousand files in the directoryWithTwelveThousandFiles directory in local disk.
+		diskDirPath := path.Join(os.Getenv("HOME"), DirectoryWithTwelveThousandFiles)
+		operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, diskDirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
+
+		// Uploading twelve thousand files to directoryWithTwelveThousandFiles in testBucket.
+		dirPath := path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
+		setup.RunScriptForTestData("testdata/upload_twelve_thousand_files_to_bucket.sh", dirPath)
 	}
 
 	// Create hundred explicit directories.
@@ -119,7 +131,13 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicit
 	// Check if directory exist in previous test.
 	_, err := os.Stat(dirPath)
 	if err != nil {
-		operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
+		// Create twelve thousand files in the directoryWithTwelveThousandFiles directory in local disk.
+		diskDirPath := path.Join(os.Getenv("HOME"), DirectoryWithTwelveThousandFiles)
+		operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, diskDirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
+
+		// Uploading twelve thousand files to directoryWithTwelveThousandFiles in testBucket.
+		dirPath := path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
+		setup.RunScriptForTestData("testdata/upload_twelve_thousand_files_to_bucket.sh", dirPath)
 	}
 
 	// Create hundred explicit directories.
