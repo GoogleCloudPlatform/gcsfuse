@@ -25,7 +25,7 @@ func TestWithOutP(t *testing.T) {
 	dir := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
 	os.Mkdir(dir, setup.FilePermission_0600)
 
-	for i := 0; i < 12000; i++ {
+	for i := 1; i <= 12000; i++ {
 		filePath := path.Join(os.Getenv("HOME"), PrefixFileInDirectoryWithTwelveThousandFiles+strconv.Itoa(i))
 		_, err := os.Create(filePath)
 		if err != nil {
