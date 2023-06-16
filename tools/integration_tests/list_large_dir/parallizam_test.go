@@ -4,9 +4,9 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/list_large_dir"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -22,6 +22,8 @@ func TestWithP(t *testing.T) {
 
 func TestWithOutP(t *testing.T) {
 	// Create twelve thousand files in the directoryWithTwelveThousandFiles directory.
-	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
-	operations.CreateDirectoryWithNFiles(1000, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
+	//dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
+	for i := 0; i < 12000; i++ {
+		time.Sleep(time.Second * 120)
+	}
 }
