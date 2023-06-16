@@ -71,7 +71,6 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 
 // Test with a bucket with twelve thousand files and hundred explicit directories.
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
-
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
 	// Check if directory exist in previous test.
 	_, err := os.Stat(dirPath)

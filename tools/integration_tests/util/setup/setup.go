@@ -56,10 +56,6 @@ func TestBucket() string {
 	return *testBucket
 }
 
-func SetTestBucket(testBucketValue string) {
-	*testBucket = testBucketValue
-}
-
 func TestInstalledPackage() bool {
 	return *testInstalledPackage
 }
