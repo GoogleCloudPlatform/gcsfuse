@@ -13,4 +13,4 @@
 # limitations under the License.
 
 
-gsutil cp -m fileInDirectoryWithTwelveThousandFiles* gs://$1/
+gsutil cp fileInDirectoryWithTwelveThousandFiles* gs://$1/

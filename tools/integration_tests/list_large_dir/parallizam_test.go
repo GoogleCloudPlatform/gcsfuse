@@ -22,13 +22,16 @@ func TestWithP(t *testing.T) {
 
 func TestWithOutP(t *testing.T) {
 	// Create twelve thousand files in the directoryWithTwelveThousandFiles directory.
-	dirPath := path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
+	dir := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
+	os.Mkdir(dir, setup.FilePermission_0600)
+
 	for i := 0; i < 12000; i++ {
 		filePath := path.Join(os.Getenv("HOME"), PrefixFileInDirectoryWithTwelveThousandFiles+strconv.Itoa(i))
 		_, err := os.Create(filePath)
 		if err != nil {
 			t.Errorf("Error in creating file.")
 		}
-		setup.RunScriptForTestData("testdata/create_objects.sh", dirPath)
 	}
+	dirPath := path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
+	setup.RunScriptForTestData("testdata/create_objects.sh", dirPath)
 }
