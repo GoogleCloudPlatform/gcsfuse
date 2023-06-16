@@ -761,6 +761,9 @@ func (d *dirInode) DeleteChildDir(
 	name string,
 	isImplicitDir bool) (err error) {
 	d.cache.Erase(name)
+
+	// if the directory is an implicit directory, then no backing object
+	// exists in the gcs bucket, so returning from here.
 	if isImplicitDir {
 		return
 	}
