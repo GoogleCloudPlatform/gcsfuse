@@ -23,14 +23,9 @@ func parallelismInAction(x int, dirPath string, prefix string, t *testing.T) {
 	// sleep
 	time.Sleep(time.Second * 2)
 
-	//for i := ((x - 1) * 1000) + 1; i <= x*1000; i++ {
-	//	filePath := path.Join(os.Getenv("HOME"), prefix+strconv.Itoa(i))
-	//	log.Printf("In %v thread: %v", x, filePath)
-	//	_, err := os.Create(filePath)
-	//	if err != nil {
-	//		t.Errorf("Create file at %q: %v", dirPath, err)
-	//	}
-	//}
+	for i := ((x - 1) * 1000) + 1; i <= x*1000; i++ {
+
+	}
 
 	time.Sleep(time.Second * 120)
 
