@@ -18,6 +18,8 @@ package list_large_dir_test
 import (
 	"log"
 	"os"
+	"path"
+	"strconv"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
@@ -42,12 +44,31 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	dirPath := path.Join(os.Getenv("HOME"), DirectoryWithTwelveThousandFiles)
+	err := os.Mkdir(dirPath, setup.FilePermission_0600)
+	if err != nil {
+		log.Printf("Error in creating directory: %v", err)
+	}
+
+	for i := 1; i <= 12000; i++ {
+		filePath := path.Join(os.Getenv("HOME"), PrefixFileInDirectoryWithTwelveThousandFiles+strconv.Itoa(i))
+		_, err := os.Create(filePath)
+		if err != nil {
+			log.Printf("Error in creating file.")
+		}
+	}
+
+	dirPath = path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
+	setup.RunScriptForTestData("testdata/create_objects.sh", dirPath)
+
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
 	setup.RunTestsForMountedDirectoryFlag(m)
 
 	setup.SetUpTestDirForTestBucketFlag()
 
 	successCode := static_mounting.RunTests(flags, m)
+
+	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", setup.TestBucket())
 
 	os.Exit(successCode)
 }
