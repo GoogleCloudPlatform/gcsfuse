@@ -52,17 +52,12 @@ func createTwelveThousandFilesAndUploadOnTestBucket(t *testing.T) {
 	setup.RunScriptForTestData("testdata/upload_twelve_thousand_files_to_bucket.sh", dirPath)
 }
 
-// Create a hundred explicit directories if not present in the bucket for testing.
+// Create a hundred explicit directories.
 func createHundredExplicitDir(dirPath string, t *testing.T) {
 	// Create hundred explicit directories.
 	for i := 1; i <= NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles; i++ {
 		subDirPath := path.Join(dirPath, PrefixExplicitDirInLargeDirListTest+strconv.Itoa(i))
-
-		// Check if directory exist in previous test.
-		_, err := os.Stat(subDirPath)
-		if err != nil {
-			operations.CreateDirectoryWithNFiles(0, subDirPath, "", t)
-		}
+		operations.CreateDirectoryWithNFiles(0, subDirPath, "", t)
 	}
 }
 
@@ -92,16 +87,15 @@ func TestDirectoryWithTwelveThousandFiles(t *testing.T) {
 	for i := 0; i < len(objs); i++ {
 		checkIfObjNameIsCorrect(objs[i].Name(), PrefixFileInDirectoryWithTwelveThousandFiles, NumberOfFilesInDirectoryWithTwelveThousandFiles, t)
 	}
+
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 }
 
 // Test with a bucket with twelve thousand files and hundred explicit directories.
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
+	createTwelveThousandFilesAndUploadOnTestBucket(t)
+
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
-	// Check if directory exist in previous test.
-	_, err := os.Stat(dirPath)
-	if err != nil {
-		createTwelveThousandFilesAndUploadOnTestBucket(t)
-	}
 
 	// Create hundred explicit directories.
 	createHundredExplicitDir(dirPath, t)
@@ -137,16 +131,15 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	if numberOfFiles != NumberOfFilesInDirectoryWithTwelveThousandFiles {
 		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
 	}
+
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 }
 
 // Test with a bucket with twelve thousand files, hundred explicit directories, and hundred implicit directories.
 func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
+	createTwelveThousandFilesAndUploadOnTestBucket(t)
+
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
-	// Check if directory exist in previous test.
-	_, err := os.Stat(dirPath)
-	if err != nil {
-		createTwelveThousandFilesAndUploadOnTestBucket(t)
-	}
 
 	// Create hundred explicit directories.
 	createHundredExplicitDir(dirPath, t)
@@ -192,4 +185,6 @@ func TestDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicit
 	if numberOfFiles != NumberOfFilesInDirectoryWithTwelveThousandFiles {
 		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
 	}
+
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 }
