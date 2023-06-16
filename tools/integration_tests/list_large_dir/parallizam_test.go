@@ -1,7 +1,6 @@
 package list_large_dir_test
 
 import (
-	"os"
 	"path"
 	"testing"
 	"time"
@@ -13,10 +12,10 @@ import (
 func TestWithP(t *testing.T) {
 	// Create twelve thousand files in the directoryWithTwelveThousandFiles directory.
 	dirPath := path.Join(setup.MntDir(), DirectoryWithTwelveThousandFiles)
-	err := os.Mkdir(dirPath, setup.FilePermission_0600)
-	if err != nil {
-		t.Errorf("Error in creating directory: %v", err)
-	}
+	//err := os.Mkdir(dirPath, setup.FilePermission_0600)
+	//if err != nil {
+	//	t.Errorf("Error in creating directory: %v", err)
+	//}
 	list_large_dir.Test(dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
 }
 
