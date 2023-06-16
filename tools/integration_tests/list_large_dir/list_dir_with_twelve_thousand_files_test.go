@@ -80,7 +80,7 @@ func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 	// Checking if all the object is File type.
 	for i := 0; i < len(objs); i++ {
 		if objs[i].IsDir() {
-			t.Errorf("Listes object is incorrect.")
+			t.Errorf("Listed object is incorrect.")
 		}
 	}
 
