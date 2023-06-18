@@ -31,7 +31,14 @@ When mounting with an fstab entry, use the key_file option:
 
     my-bucket /mount/point gcsfuse rw,noauto,user,key_file=/path/to/key.json
 
-When you create a Compute Engine VM, its service account can also be used to authenticate access to Cloud Storage FUSE. When Cloud Storage FUSE is run from such a VM, it automatically has access to buckets owned by the same project as the VM.
+When you create a Compute Engine VM, its service account can also be used to
+authenticate access to Cloud Storage FUSE. When Cloud Storage FUSE is run from
+such a VM, it has access to buckets owned by the same project as the VM.\
+**Note:** GCE `access scope` controls what Google Cloud APIs the service account
+on your GCE VM instance can access. The default access scope allows read-only
+access to Storage. To use this service account with write access, change access
+scope to `Allow full access to all Cloud APIs` while creating the Compute Engine
+VM.
 
 # Basic syntax for mounting
 
