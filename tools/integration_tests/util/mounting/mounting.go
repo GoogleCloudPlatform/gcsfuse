@@ -25,7 +25,7 @@ import (
 
 func MountGcsfuse(flags []string) error {
 	mountCmd := exec.Command(
-		setup.BinFile(),
+		setup.SbinFile(),
 		flags...,
 	)
 

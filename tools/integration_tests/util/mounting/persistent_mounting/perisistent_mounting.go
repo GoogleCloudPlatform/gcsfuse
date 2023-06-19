@@ -17,12 +17,21 @@ package persistent_mounting
 import (
 	"fmt"
 	"log"
+	"os/exec"
 	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
+
+func runScriptForTestData(script string, flags []string) {
+	cmd := exec.Command("/bin/bash", script, flags...)
+	_, err := cmd.Output()
+	if err != nil {
+		panic(err)
+	}
+}
 
 func makePersistentMountingArgs(flags []string) (args []string, err error) {
 	for i := range flags {
@@ -56,8 +65,6 @@ func mountGcsfuseWithStaticMounting(flags []string) (err error) {
 	for i := 0; i < len(persistentMountingArgs); i++ {
 		defaultArg = append(defaultArg, "-o "+persistentMountingArgs[i])
 	}
-
-	setup.SetBinFile("sudo mount -t " + setup.BinFile())
 
 	err = mounting.MountGcsfuse(defaultArg)
 
