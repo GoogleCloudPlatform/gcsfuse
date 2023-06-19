@@ -61,7 +61,7 @@ func TestDeleteNonEmptyImplicitSubDir(t *testing.T) {
 	}
 
 	subdir, err := os.Stat(subdirPath)
-	if err == nil && subdir.Name() == ImplicitDirectory && subdir.IsDir() {
+	if err == nil && subdir.Name() == ImplicitSubDirectory && subdir.IsDir() {
 		t.Errorf("Directory is not deleted.")
 	}
 }
