@@ -7,7 +7,6 @@ import argparse
 from fio import fio_metrics
 from vm_metrics import vm_metrics
 from gsheet import gsheet
-from bigquery import bigquery
 
 INSTANCE = socket.gethostname()
 PERIOD_SEC = 120

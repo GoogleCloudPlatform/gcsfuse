@@ -39,7 +39,6 @@ sys.path.insert(0, '..')
 import generate_files
 from google.protobuf.json_format import ParseDict
 from gsheet import gsheet
-from bigquery import bigquery
 import numpy as np
 
 
