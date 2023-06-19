@@ -536,9 +536,6 @@ if __name__ == '__main__':
       directory_structure.folders, persistent_disk_results, args.message[0],
       int(args.num_samples[0]))
 
-  bigquery_obj = bigquery.BigQuery()
-  bigquery_obj.setup_bigquery()
-
   if args.upload:
     log.info('Uploading files to the Google Sheet.\n')
     _export_to_gsheet(
