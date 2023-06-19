@@ -54,7 +54,7 @@ func mountGcsfuseWithStaticMounting(flags []string) (err error) {
 	}
 
 	for i := 0; i < len(persistentMountingArgs); i++ {
-		defaultArg = append(defaultArg, "-o ")
+		defaultArg = append(defaultArg, "-o")
 		defaultArg = append(defaultArg, persistentMountingArgs[i])
 	}
 
