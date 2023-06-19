@@ -23,9 +23,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func MountGcsfuse(flags []string) error {
+func MountGcsfuse(binaryFile string, flags []string) error {
 	mountCmd := exec.Command(
-		setup.SbinFile(),
+		binaryFile,
 		flags...,
 	)
 
@@ -42,8 +42,6 @@ func MountGcsfuse(flags []string) error {
 	}
 
 	_, err = mountCmd.CombinedOutput()
-	fmt.Println(mountCmd.Stdout)
-	fmt.Println(mountCmd.Stderr)
 	if err != nil {
 		log.Println(mountCmd.String())
 		return fmt.Errorf("cannot mount gcsfuse: %w\n", err)
