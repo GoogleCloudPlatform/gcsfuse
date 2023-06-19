@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
+// make e.g --enable-storage-client-library in enable_storage_client_library
 func makePersistentMountingArgs(flags []string) (args []string, err error) {
 	for i := range flags {
 		s := strings.Replace(flags[i], "-", "_", -1)

@@ -1,1 +1,0 @@
-sudo mount -t $1 $2
