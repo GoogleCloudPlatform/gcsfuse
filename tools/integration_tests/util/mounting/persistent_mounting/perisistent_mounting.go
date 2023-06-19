@@ -44,6 +44,7 @@ func mountGcsfuseWithStaticMounting(flags []string) (err error) {
 		"debug_fuse",
 		"-o",
 		"log_file=" + setup.LogFile(),
+		"-o",
 		"log_format=text",
 	}
 
@@ -56,7 +57,7 @@ func mountGcsfuseWithStaticMounting(flags []string) (err error) {
 		defaultArg = append(defaultArg, "-o "+persistentMountingArgs[i])
 	}
 
-	setup.SetBinFile("mount -t " + setup.BinFile())
+	setup.SetBinFile("sudo mount -t " + setup.BinFile())
 
 	err = mounting.MountGcsfuse(defaultArg)
 
@@ -76,8 +77,6 @@ func executeTestsForStatingMounting(flags [][]string, m *testing.M) (successCode
 }
 
 func RunTests(flags [][]string, m *testing.M) (successCode int) {
-	setup.RunScriptForTestData("../util/mounting/persistent_mounting/scripts/go_to_root.sh", "")
-
 	successCode = executeTestsForStatingMounting(flags, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
