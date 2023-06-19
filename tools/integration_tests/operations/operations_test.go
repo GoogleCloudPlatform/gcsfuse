@@ -92,6 +92,7 @@ func TestMain(m *testing.M) {
 	//}
 
 	//if successCode == 0 {
+
 	successCode := persistent_mounting.RunTests(flags, m)
 	//}
 
