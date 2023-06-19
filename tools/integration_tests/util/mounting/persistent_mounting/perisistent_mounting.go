@@ -39,10 +39,12 @@ func makePersistentMountingArgs(flags []string) (args []string, err error) {
 			"--enable-storage-client-library",
 			"--reuse-token-from-url",
 			"--enable-nonexistent-type-cache":
+			{
 
-			s := strings.Replace(flags[i], "-", "_", -1)
-			s = strings.Replace(s, "-", "", -1)
-			args = append(args, s)
+				s := strings.Replace(flags[i], "-", "_", -1)
+				s = strings.Replace(s, "-", "", -1)
+				args = append(args, s)
+			}
 
 		// Special case: support mount-like formatting for gcsfuse string flags.
 		case "--dir-mode",
@@ -74,9 +76,11 @@ func makePersistentMountingArgs(flags []string) (args []string, err error) {
 			"--log-format",
 			"--log-file",
 			"--endpoint":
-			s := strings.Replace(flags[i], "-", "_", -1)
-			s = strings.Replace(s, "-", "", -1)
-			args = append(args, s)
+			{
+				s := strings.Replace(flags[i], "-", "_", -1)
+				s = strings.Replace(s, "-", "", -1)
+				args = append(args, s)
+			}
 
 		// Pass through everything else.
 		default:
@@ -104,13 +108,14 @@ func mountGcsfuseWithStaticMounting(flags []string) (err error) {
 	if err != nil {
 		setup.LogAndExit("Error in converting flags for persistent mounting.")
 	}
-	for i := 0; i < len(defaultArg); i++ {
-		persistentMountingArgs = append(persistentMountingArgs, defaultArg[i])
+
+	for i := 0; i < len(persistentMountingArgs); i++ {
+		defaultArg = append(defaultArg, "-o "+persistentMountingArgs[i])
 	}
 
 	setup.SetBinFile("mount -t " + setup.BinFile())
 
-	err = mounting.MountGcsfuse(persistentMountingArgs)
+	err = mounting.MountGcsfuse(defaultArg)
 
 	return err
 }
