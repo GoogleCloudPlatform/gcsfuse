@@ -48,14 +48,14 @@ func mountGcsfuseWithStaticMounting(flags []string) (err error) {
 		"log_format=text",
 	}
 
-	persistentMountingArgs, err := makePersistentMountingArgs(flags)
-	if err != nil {
-		setup.LogAndExit("Error in converting flags for persistent mounting.")
-	}
+	//persistentMountingArgs, err := makePersistentMountingArgs(flags)
+	//if err != nil {
+	//	setup.LogAndExit("Error in converting flags for persistent mounting.")
+	//}
 
-	for i := 0; i < len(persistentMountingArgs); i++ {
-		defaultArg = append(defaultArg, "-o "+persistentMountingArgs[i])
-	}
+	//for i := 0; i < len(persistentMountingArgs); i++ {
+	//	defaultArg = append(defaultArg, "-o "+persistentMountingArgs[i])
+	//}
 
 	err = mounting.MountGcsfuse(defaultArg)
 
