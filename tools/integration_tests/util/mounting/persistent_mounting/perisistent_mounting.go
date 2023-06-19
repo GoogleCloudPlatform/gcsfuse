@@ -79,7 +79,5 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 
-	setup.SetBinFile(setup.BinFile())
-
 	return successCode
 }

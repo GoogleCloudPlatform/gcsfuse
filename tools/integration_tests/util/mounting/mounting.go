@@ -41,7 +41,9 @@ func MountGcsfuse(flags []string) error {
 		fmt.Println("Could not write cmd to logFile")
 	}
 
-	_, err = mountCmd.CombinedOutput()
+	//mountCmd.Output()
+
+	_, err = mountCmd.Output()
 	if err != nil {
 		log.Println(mountCmd.String())
 		return fmt.Errorf("cannot mount gcsfuse: %w\n", err)
