@@ -117,5 +117,5 @@ func TestDeleteExplicitDirWithImplicitSubDir(t *testing.T) {
 	implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectory(t)
 
 	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ExplicitDirectory)
-	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ExplicitFile, t)
+	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ExplicitDirectory, t)
 }
