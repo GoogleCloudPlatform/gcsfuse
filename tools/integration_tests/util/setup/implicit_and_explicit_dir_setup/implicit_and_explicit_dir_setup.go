@@ -112,6 +112,7 @@ func CreateImplicitDirectoryInExplicitDirectory(t *testing.T) {
 	// testBucket/explicitDirectory/implicitDirectory/fileInImplicitDir1                              -- File
 	// testBucket/explicitDirectory/implicitDirectory/implicitSubDirectory                            -- Dir
 	// testBucket/explicitDirectory/implicitDirectory/implicitSubDirectory/fileInImplicitDir2         -- File
+	os.RemoveAll(setup.MntDir())
 	CreateExplicitDirectory(t)
 	dirPathInBucket := path.Join(setup.TestBucket(), ExplicitDirectory)
 	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", dirPathInBucket)
