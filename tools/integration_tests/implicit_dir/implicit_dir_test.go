@@ -22,7 +22,7 @@ import (
 )
 
 const ImplicitDirectory = "implicitDirectory"
-const ImplicitSubDirectory = "implicitSubDirectory  "
+const ImplicitSubDirectory = "implicitSubDirectory"
 
 func TestMain(m *testing.M) {
 	flags := [][]string{{"--implicit-dirs"}, {"--enable-storage-client-library=false", "--implicit-dirs"}}
