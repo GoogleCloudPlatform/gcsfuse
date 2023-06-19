@@ -92,7 +92,7 @@ func TestDeleteImplicitDirWithExplicitSubDirInImplicitSubDir(t *testing.T) {
 
 	d := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory)
 	dir, err := os.Stat(d)
-	if err != nil {
+	if err == nil {
 		log.Print(dir.Name())
 	}
 
