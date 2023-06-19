@@ -79,10 +79,10 @@ func TestDeleteImplicitDirWithExplicitSubDirInImplicitSubDir(t *testing.T) {
 	explicitDirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory, ExplicitDirInImplicitSubDir)
 
 	d := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory)
-	dir, err := os.Stat(d)
+	dir, err := os.ReadDir(d)
 	log.Print(err)
 	if err == nil {
-		log.Print(dir.Name())
+		log.Print(len(dir))
 	}
 
 	operations.CreateDirectoryWithNFiles(1, explicitDirPath, FileInExplicitDirInImplicitSubDir, t)
