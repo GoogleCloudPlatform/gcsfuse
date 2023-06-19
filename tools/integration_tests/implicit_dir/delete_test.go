@@ -44,3 +44,24 @@ func TestDeleteNonEmptyImplicitDir(t *testing.T) {
 		t.Errorf("Directory is not deleted.")
 	}
 }
+
+func TestDeleteNonEmptyImplicitSubDir(t *testing.T) {
+	// Directory Structure
+	// testBucket/implicitDirectory                                                  -- Dir
+	// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
+	// testBucket/implicitDirectory/implicitSubDirectory                             -- Dir
+	// testBucket/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
+
+	implicit_and_explicit_dir_setup.CreateImplicitDirectory()
+
+	subdirPath := path.Join(setup.MntDir(), ImplicitDirectory, ImplicitSubDirectory)
+	err := os.RemoveAll(subdirPath)
+	if err != nil {
+		t.Errorf("Error in deleting non-empty implicit directory.")
+	}
+
+	subdir, err := os.Stat(subdirPath)
+	if err == nil && subdir.Name() == ImplicitDirectory && subdir.IsDir() {
+		t.Errorf("Directory is not deleted.")
+	}
+}
