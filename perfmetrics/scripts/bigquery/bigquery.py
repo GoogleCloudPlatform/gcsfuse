@@ -115,7 +115,6 @@ class BigQuery():
       config_id = row_count + 1
       rows_to_insert = [(config_id, gcsfuse_flags, branch, end_date)]
       results = client.insert_rows(table, rows_to_insert)
-      print(results)
 
     return int(config_id)
 
@@ -245,4 +244,3 @@ if __name__ == '__main__':
   args = _parse_arguments(argv)
   bigquery_obj = BigQuery()
   config_id = bigquery_obj.insert_config_and_get_config_id(args.gcsfuse_flags[0], args.branch[0], args.end_date[0])
-  print(config_id)
