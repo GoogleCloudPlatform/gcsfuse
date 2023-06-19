@@ -16,12 +16,10 @@
 package implicit_dir_test
 
 import (
-	"log"
 	"os"
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
@@ -59,9 +57,12 @@ func TestDeleteNonEmptyImplicitSubDir(t *testing.T) {
 // testBucket/implicitDirectory/implicitSubDirectory/fileInImplicitDir2                            -- File
 func TestDeleteImplicitDirWithExplicitSubDir(t *testing.T) {
 	implicit_and_explicit_dir_setup.CreateImplicitDirectory()
-	explicitDir := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory, ExplicitDirInImplicitDir)
+	explicitDirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory, ExplicitDirInImplicitDir)
 
-	operations.CreateDirectoryWithNFiles(1, explicitDir, FileInExplicitDirInImplicitDir, t)
+	err := os.Mkdir(explicitDirPath, setup.FilePermission_0600)
+	if err != nil {
+		t.Errorf("Error in creating directory: %v", err)
+	}
 
 	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory)
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
@@ -78,14 +79,10 @@ func TestDeleteImplicitDirWithExplicitSubDirInImplicitSubDir(t *testing.T) {
 	implicit_and_explicit_dir_setup.CreateImplicitDirectory()
 	explicitDirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory, ExplicitDirInImplicitSubDir)
 
-	d := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory)
-	dir, err := os.ReadDir(d)
-	log.Print(err)
-	if err == nil {
-		log.Print(len(dir))
+	err := os.Mkdir(explicitDirPath, setup.FilePermission_0600)
+	if err != nil {
+		t.Errorf("Error in creating directory: %v", err)
 	}
-
-	operations.CreateDirectoryWithNFiles(1, explicitDirPath, FileInExplicitDirInImplicitSubDir, t)
 
 	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory)
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
