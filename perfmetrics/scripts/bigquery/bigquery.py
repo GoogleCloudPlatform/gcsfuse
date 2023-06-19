@@ -1,3 +1,33 @@
+# Copyright 2023 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http:#www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""Python script for setting up tables in BigQuery and exporting performance metrics to them.
+
+This python script sets up creates tables in BigQuery and exports fio, vm as well as list
+metrics to them. It is also used ot insert new experiment configurations into the BigQuery tables
+or update them.
+
+Typical usage from bigquery folder:
+  $ python3 bigquery.py [-h] --gcsfuse_flags GCSFUSE_FLAGS --branch BRANCH --end_date END_DATE
+
+  Flag gcsfuse_flags (required): GCSFuse flags for mounting the test buckets.
+  Flag branch (required): GCSFuse repo branch to be used for building GCSFuse.
+  Flag end_date (required): Date upto when tests are run.
+
+Note:
+  Make sure BigQuery API is enabled for the project
+
+"""
 import argparse
 from google.cloud import bigquery
 import sys
@@ -28,11 +58,9 @@ class BigQuery():
     Return:
       Configuration id of the experiment in the BigQuery tables
     """
-    dataset_ref = None
-    try:
-      dataset_ref = client.dataset(DATASET_ID)
-    except:
-      dataset_ref = client.create_dataset(DATASET_ID)
+    query_create_dataset="""CREATE SCHEMA IF NOT EXISTS performance_metrics OPTIONS()"""
+    results = client.query(query_create_dataset)
+    dataset_ref = client.dataset(DATASET_ID, project=PROJECT_ID)
 
     # Query for creating experiment_configuration table if it does not exist
     query_create_table_experiment_configuration = """
@@ -47,7 +75,25 @@ class BigQuery():
 
     # API Request to create experiment_configuration if it does not exist
     results = client.query(query_create_table_experiment_configuration)
-    print(results)
+
+    query_check_end_date_update = """
+      SELECT configuration_id
+      FROM `{}.{}.{}`
+      WHERE gcsfuse_flags = '{}'
+      AND branch = '{}'
+    """.format(PROJECT_ID, DATASET_ID, CONFIGURATION_TABLE_ID, gcsfuse_flags, branch)
+
+    results = client.query(query_check_end_date_update)
+
+    config_id = None
+    for row in results:
+      config_id = row['configuration_id']
+      query_update_end_date = """
+      UPDATE `{}.{}.{}`
+      SET end_date = '{}'
+      WHERE configuration_id = '{}'
+      """.format(PROJECT_ID, DATASET_ID, CONFIGURATION_TABLE_ID, end_date, config_id)
+      return config_id
 
     query_get_configuration_id = """
       SELECT configuration_id
@@ -57,7 +103,6 @@ class BigQuery():
       AND end_date = '{}'
     """.format(PROJECT_ID, DATASET_ID, CONFIGURATION_TABLE_ID, gcsfuse_flags, branch, end_date)
 
-    config_id = None
     exists = False
     query_job = client.query(query_get_configuration_id)
     for row in query_job:
@@ -69,99 +114,96 @@ class BigQuery():
       row_count = table.num_rows
       config_id = row_count + 1
       rows_to_insert = [(config_id, gcsfuse_flags, branch, end_date)]
-      errors = client.insert_rows(table, rows_to_insert)
-      print(errors)
+      results = client.insert_rows(table, rows_to_insert)
+      print(results)
 
-    return config_id
+    return int(config_id)
 
-  def setup_bigquery(self):
+  def _setup_bigquery(self):
 
     """Creates the tables to store the metrics data if they don't exist in the dataset
     """
     # Query for creating fio_metrics table
     query_create_table_fio_metrics = """
-        CREATE TABLE IF NOT EXISTS {}.{}.{}(
-          configuration_id INT64, 
-          start_time_build TIMESTAMP,
-          test_type STRING, 
-          num_threads INT64, 
-          file_size_kb INT64, 
-          block_size_kb INT64,
-          start_time INT64, 
-          end_time INT64, 
-          iops FLOAT64, 
-          bandwidth_bytes_per_sec INT64, 
-          IO_bytes INT64, 
-          min_latency FLOAT64, 
-          max_latency FLOAT64, 
-          mean_latency FLOAT64, 
-          percentile_latency_20 FLOAT64, 
-          percentile_latency_50 FLOAT64, 
-          percentile_latency_90 FLOAT64, 
-          percentile_latency_95 FLOAT64, 
-          FOREIGN KEY(configuration_id) REFERENCES {}.{} (configuration_id) NOT ENFORCED
-        ) OPTIONS (description = 'Table for storing FIO metrics extracted from periodic performance load testing');
-    """.format(PROJECT_ID, DATASET_ID, FIO_TABLE_ID, DATASET_ID, CONFIGURATION_TABLE_ID)
+          CREATE TABLE IF NOT EXISTS {}.{}.{}(
+            configuration_id INT64, 
+            start_time_build TIMESTAMP,
+            test_type STRING, 
+            num_threads INT64, 
+            file_size_kb INT64, 
+            block_size_kb INT64,
+            start_time INT64, 
+            end_time INT64, 
+            iops FLOAT64, 
+            bandwidth_bytes_per_sec INT64, 
+            IO_bytes INT64, 
+            min_latency FLOAT64, 
+            max_latency FLOAT64, 
+            mean_latency FLOAT64, 
+            percentile_latency_20 FLOAT64, 
+            percentile_latency_50 FLOAT64, 
+            percentile_latency_90 FLOAT64, 
+            percentile_latency_95 FLOAT64, 
+            FOREIGN KEY(configuration_id) REFERENCES {}.{} (configuration_id) NOT ENFORCED
+          ) OPTIONS (description = 'Table for storing FIO metrics extracted from periodic performance load testing');
+      """.format(PROJECT_ID, DATASET_ID, FIO_TABLE_ID, DATASET_ID, CONFIGURATION_TABLE_ID)
 
     # Query for creating vm_metrics table
     query_create_table_vm_metrics = """
-        CREATE TABLE IF NOT EXISTS {}.{}.{}(
-          configuration_id INT64, 
-          start_time_build TIMESTAMP,
-          end_time INT64, 
-          cpu_utilization_peak_percentage FLOAT64, 
-          cpu_utilization_mean_percentage FLOAT64, 
-          received_bytes_peak_bytes_per_sec FLOAT64, 
-          received_bytes_mean_bytes_per_sec FLOAT64, 
-          read_bytes_count INT64,
-          ops_error_count INT64, 
-          ops_mean_latency_sec FLOAT64, 
-          sent_bytes_per_sec FLOAT64, 
-          memory_utilization_ram FLOAT64,
-          memory_utilization_disk_tempdir FLOAT64,
-          iops FLOAT64, 
-          ops_count_list_object INT64, 
-          ops_count_create_object INT64, 
-          ops_count_stat_object INT64, 
-          ops_count_new_reader INT64, 
-          FOREIGN KEY(configuration_id) REFERENCES {}.{} (configuration_id) NOT ENFORCED
-        ) OPTIONS (description = 'Table for storing VM metrics extracted from periodic performance load testing');
-    """.format(PROJECT_ID, DATASET_ID, VM_TABLE_ID, DATASET_ID, CONFIGURATION_TABLE_ID)
+          CREATE TABLE IF NOT EXISTS {}.{}.{}(
+            configuration_id INT64, 
+            start_time_build TIMESTAMP,
+            end_time INT64, 
+            cpu_utilization_peak_percentage FLOAT64, 
+            cpu_utilization_mean_percentage FLOAT64, 
+            received_bytes_peak_bytes_per_sec FLOAT64, 
+            received_bytes_mean_bytes_per_sec FLOAT64, 
+            read_bytes_count INT64,
+            ops_error_count INT64, 
+            ops_mean_latency_sec FLOAT64, 
+            sent_bytes_per_sec FLOAT64, 
+            memory_utilization_ram FLOAT64,
+            memory_utilization_disk_tempdir FLOAT64,
+            iops FLOAT64, 
+            ops_count_list_object INT64, 
+            ops_count_create_object INT64, 
+            ops_count_stat_object INT64, 
+            ops_count_new_reader INT64, 
+            FOREIGN KEY(configuration_id) REFERENCES {}.{} (configuration_id) NOT ENFORCED
+          ) OPTIONS (description = 'Table for storing VM metrics extracted from periodic performance load testing');
+      """.format(PROJECT_ID, DATASET_ID, VM_TABLE_ID, DATASET_ID, CONFIGURATION_TABLE_ID)
 
     # Query for creating ls_metrics table
     query_create_table_ls_metrics = """
-        CREATE TABLE IF NOT EXISTS {}.{}.{}(
-          configuration_id INT64,
-          start_time_build TIMESTAMP,
-          test_type STRING, 
-          command STRING,
-          start_time INT64, 
-          end_time INT64,
-          num_files INT64, 
-          num_samples INT64, 
-          min_latency_msec FLOAT64,
-          max_latency_msec FLOAT64,
-          mean_latency_msec FLOAT64, 
-          median_latency_msec FLOAT64, 
-          standard_dev_msec FLOAT64, 
-          percentile_latency_20 FLOAT64, 
-          percentile_latency_50 FLOAT64, 
-          percentile_latency_90 FLOAT64, 
-          percentile_latency_95 FLOAT64, 
-          cpu_utilization_peak_percentage FLOAT64, 
-          cpu_utilization_mean_percentage FLOAT64,
-          memory_utilization_ram FLOAT64, 
-          FOREIGN KEY(configuration_id) REFERENCES {}.{} (configuration_id) NOT ENFORCED
-        ) OPTIONS (description = 'Table for storing GCSFUSE metrics extracted from listing benchmark tests');
-    """.format(PROJECT_ID, DATASET_ID, LS_TABLE_ID, DATASET_ID, CONFIGURATION_TABLE_ID)
+          CREATE TABLE IF NOT EXISTS {}.{}.{}(
+            configuration_id INT64,
+            start_time_build TIMESTAMP,
+            test_type STRING, 
+            command STRING,
+            start_time FLOAT64, 
+            end_time FLOAT64,
+            num_files INT64, 
+            num_samples INT64, 
+            min_latency_msec FLOAT64,
+            max_latency_msec FLOAT64,
+            mean_latency_msec FLOAT64, 
+            median_latency_msec FLOAT64, 
+            standard_dev_msec FLOAT64, 
+            percentile_latency_20 FLOAT64, 
+            percentile_latency_50 FLOAT64, 
+            percentile_latency_90 FLOAT64, 
+            percentile_latency_95 FLOAT64, 
+            cpu_utilization_peak_percentage FLOAT64, 
+            cpu_utilization_mean_percentage FLOAT64,
+            memory_utilization_ram FLOAT64, 
+            FOREIGN KEY(configuration_id) REFERENCES {}.{} (configuration_id) NOT ENFORCED
+          ) OPTIONS (description = 'Table for storing GCSFUSE metrics extracted from listing benchmark tests');
+      """.format(PROJECT_ID, DATASET_ID, LS_TABLE_ID, DATASET_ID, CONFIGURATION_TABLE_ID)
 
     # API Requests
     results = client.query(query_create_table_fio_metrics)
-    print(results)
     results = client.query(query_create_table_vm_metrics)
-    print(results)
     results = client.query(query_create_table_ls_metrics)
-    print(results)
 
 
 def _parse_arguments(argv):
