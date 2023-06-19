@@ -25,67 +25,10 @@ import (
 )
 
 func makePersistentMountingArgs(flags []string) (args []string, err error) {
-	// Deal with options.
 	for i := range flags {
-		switch flags[i] {
-		// Don't pass through options that are relevant to mount(8) but not to
-		// gcsfuse, and that fusermount chokes on with "Invalid argument" on Linux.
-		case "user", "nouser", "auto", "noauto", "_netdev", "no_netdev":
-
-		// Special case: support mount-like formatting for gcsfuse bool flags.
-		case "--implicit-dirs",
-			"--foreground",
-			"--experimental-local-file-cache",
-			"--enable-storage-client-library",
-			"--reuse-token-from-url",
-			"--enable-nonexistent-type-cache":
-			{
-
-				s := strings.Replace(flags[i], "-", "_", -1)
-				s = strings.Replace(s, "-", "", -1)
-				args = append(args, s)
-			}
-
-		// Special case: support mount-like formatting for gcsfuse string flags.
-		case "--dir-mode",
-			"--file-mode",
-			"--uid",
-			"--gid",
-			"--app-name",
-			"--only-dir",
-			"--billing-project",
-			"--client-protocol",
-			"--key-file",
-			"--token-url",
-			"--limit-bytes-per-sec",
-			"--limit-ops-per-sec",
-			"--rename-dir-limit",
-			"--max-retry-sleep",
-			"--max-retry-duration",
-			"--retry-multiplier",
-			"--stat-cache-capacity",
-			"--stat-cache-ttl",
-			"--type-cache-ttl",
-			"--http-client-timeout",
-			"--sequential-read-size-mb",
-			"--temp-dir",
-			"--max-conns-per-host",
-			"--max-idle-conns-per-host",
-			"--stackdriver-export-interval",
-			"--experimental-opentelemetry-collector-address",
-			"--log-format",
-			"--log-file",
-			"--endpoint":
-			{
-				s := strings.Replace(flags[i], "-", "_", -1)
-				s = strings.Replace(s, "-", "", -1)
-				args = append(args, s)
-			}
-
-		// Pass through everything else.
-		default:
-			args = append(args, flags[i])
-		}
+		s := strings.Replace(flags[i], "-", "_", -1)
+		s = strings.Replace(s, "__", "", -1)
+		args = append(args, s)
 	}
 	return
 }
