@@ -43,16 +43,17 @@ sudo dpkg -i $HOME/release/packages/gcsfuse_${GCSFUSE_VERSION}_amd64.deb
 # Mounting gcs bucket
 cd "./perfmetrics/scripts/"
 
-LOG_FILE=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
-GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"
+LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
+GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-format \"text\" --stackdriver-export-interval=30s"
+GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS"
 
 # Executing perf tests
 chmod +x run_load_test_and_fetch_metrics.sh
-./run_load_test_and_fetch_metrics.sh "$GCSFUSE_FLAGS"
+./run_load_test_and_fetch_metrics.sh "$GCSFUSE_FIO_FLAGS"
 
 # ls_metrics test. This test does gcsfuse mount with the passed flags first and then does the testing.
-LOG_FILE=gcsfuse-list-tests-logs.txt
-GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"
+LOG_FILE_LIST_TESTS=gcsfuse-list-logs.txt
+GCSFUSE_LIST_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_LIST_TESTS"
 cd "./ls_metrics"
 chmod +x run_ls_benchmark.sh
-./run_ls_benchmark.sh "$GCSFUSE_FLAGS"
+./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS
