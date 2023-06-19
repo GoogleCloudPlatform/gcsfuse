@@ -44,7 +44,7 @@ client = bigquery.Client()
 
 class BigQuery():
 
-  def insert_config_and_get_config_id(self, gcsfuse_flags, branch, end_date) -> int:
+  def _insert_config_and_get_config_id(self, gcsfuse_flags, branch, end_date) -> int:
 
     """Gets the experiment configuration and checks if it is already present in the BigQuery tables,
        If not present: New configuration will be inserted, and it's configuration id will be returned
