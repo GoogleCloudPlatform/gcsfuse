@@ -27,12 +27,10 @@ import (
 	"golang.org/x/net/context"
 )
 
-
-
 type Record struct {
 	sync.Mutex
 	length int
-	cond *sync.Cond
+	cond   *sync.Cond
 }
 
 func NewRecord() *Record {
@@ -42,9 +40,7 @@ func NewRecord() *Record {
 }
 
 var ContinuationToken string
-var length int
 var rec = NewRecord()
-
 
 // State required for reading from directories.
 type dirHandle struct {
@@ -249,43 +245,42 @@ func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
 }
 
 func (dh *dirHandle) FetchEntriesAsync(
-    ctx context.Context,
-    rootInodeId int,
-    firstCall int ) (err error) {
-    for ContinuationToken != "" || firstCall==1 {
-        var entries []fuseutil.Dirent
-        dh.in.Lock()
-        ctx = context.TODO()
-        entries,ContinuationToken,err = dh.in.ReadEntries(ctx, ContinuationToken)
-        dh.in.Unlock()
-        if err != nil{
-            err = fmt.Errorf("ReadEntries: %w",err)
-            return
-        }
+	rootInodeId int,
+	firstCall int) (err error) {
+	for ContinuationToken != "" || firstCall == 1 {
+		var entries []fuseutil.Dirent
+		dh.in.Lock()
+		ctx := context.Background()
+		entries, ContinuationToken, err = dh.in.ReadEntries(ctx, ContinuationToken)
+		dh.in.Unlock()
+		if err != nil {
+			err = fmt.Errorf("ReadEntries: %w", err)
+			return
+		}
 
-        sort.Sort(sortedDirents(entries))
-        err = fixConflictingNames(entries)
-        if err != nil{
-            err = fmt.Errorf("fixConflictingNames: %w",err)
-            return
-        }
+		sort.Sort(sortedDirents(entries))
+		err = fixConflictingNames(entries)
+		if err != nil {
+			err = fmt.Errorf("fixConflictingNames: %w", err)
+			return
+		}
 
-        rec.Lock()
-        for i,_ := range entries {
-            entries[i].Inode = fuseops.InodeID(rootInodeId + 1)
-            entries[i].Offset =fuseops.DirOffset(uint64(rec.length + i + 1))
-        }
-        rec.length += len(entries)
-        rec.Unlock()
+		rec.Lock()
+		for i := range entries {
+			entries[i].Inode = fuseops.InodeID(rootInodeId + 1)
+			entries[i].Offset = fuseops.DirOffset(uint64(rec.length + i + 1))
+		}
+		rec.length += len(entries)
+		rec.Unlock()
 
-        dh.Mu.Lock()
-        dh.entries = append(dh.entries,entries...)
-        dh.entriesValid = true
-        dh.Mu.Unlock()
-        rec.cond.Broadcast()
-        firstCall = 0
-    }
-    return
+		dh.Mu.Lock()
+		dh.entries = append(dh.entries, entries...)
+		dh.entriesValid = true
+		dh.Mu.Unlock()
+		rec.cond.Broadcast()
+		firstCall = 0
+	}
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -312,31 +307,31 @@ func (dh *dirHandle) ReadDir(
 		rec.Lock()
 		rec.length = 0
 		rec.Unlock()
-		go dh.FetchEntriesAsync(ctx,fuseops.RootInodeID,1)
+		go dh.FetchEntriesAsync( fuseops.RootInodeID, 1)
 	}
-    rec.Lock()
-    if rec.length <= int(op.Offset) && ( op.Offset == 0 || ContinuationToken != ""){
-        rec.cond.Wait()
-    }
+	rec.Lock()
+	if rec.length <= int(op.Offset) && (op.Offset == 0 || ContinuationToken != "") {
+		rec.cond.Wait()
+	}
 
-    // Is the offset past the end of what we have buffered? If so, this must be
-    // an invalid seekdir according to posix.
-    index := int(op.Offset)
-    if index > rec.length {
-        err = fuse.EINVAL
-        return
-    }
-    rec.Unlock()
-    // We copy out entries until we run out of entries or space.
+	// Is the offset past the end of what we have buffered? If so, this must be
+	// an invalid seekdir according to posix.
+	index := int(op.Offset)
+	if index > rec.length {
+		err = fuse.EINVAL
+		return
+	}
+	rec.Unlock()
+	// We copy out entries until we run out of entries or space.
 
-    dh.Mu.Lock()
-    for i := index; i < len(dh.entries); i++ {
-        n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], dh.entries[i])
-        if n == 0 {
-            break
-        }
-        op.BytesRead += n
-        }
-        dh.Mu.Unlock()
+	dh.Mu.Lock()
+	for i := index; i < len(dh.entries); i++ {
+		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], dh.entries[i])
+		if n == 0 {
+			break
+		}
+		op.BytesRead += n
+	}
+	dh.Mu.Unlock()
 	return
 }
