@@ -27,7 +27,7 @@ class BigQuery():
   fio_table_id = 'read_write_fio_metrics'
   vm_table_id = 'read_write_vm_metrics'
   ls_table_id = 'list_metrics'
-  def __int__(self, project_id, dataset_id, bq_client=None):
+  def __init__(self, project_id, dataset_id, bq_client=None):
     if bq_client is None:
       self.client = bigquery.Client(project=project_id)
     self.project_id = project_id
@@ -44,7 +44,7 @@ class BigQuery():
       Aborts the program if error is encountered while executing th query.
     """
     job = self.client.query(query)
-    job.results()
+    job.result()
     if job.errors:
       for error in job.errors:
         print(f"Error message: {error['message']}")
@@ -156,28 +156,9 @@ class BigQuery():
       ) OPTIONS (description = 'Table for storing GCSFUSE metrics extracted from list experiments.');
     """.format(self.project_id, self.dataset_id, BigQuery.ls_table_id, self.dataset_id, BigQuery.configuration_table_id)
 
-    transaction = self.client.transaction()
-
-    try:
-      # Begin the transaction
-      transaction.begin()
-      self.client.query(query_create_dataset_performance_metrics, transaction=transaction).result()
-      self.client.query(query_create_table_experiment_configuration, transaction=transaction).result()
-      self.client.query(query_create_table_fio_metrics, transaction=transaction).result()
-      self.client.query(query_create_table_vm_metrics, transaction=transaction).result()
-      self.client.query(query_create_table_ls_metrics, transaction=transaction).result()
-      # Commit the transaction
-      transaction.commit()
-
-    except Exception as e:
-      # Rollback the transaction
-      transaction.rollback()
-      print(f"Transaction failed: {e}")
-      sys.exit(1)
-
-    # self._execute_query_and_check_error(query_create_dataset_performance_metrics)
-    # self._execute_query_and_check_error(query_create_table_experiment_configuration)
-    # self._execute_query_and_check_error(query_create_table_fio_metrics)
-    # self._execute_query_and_check_error(query_create_table_vm_metrics)
-    # self._execute_query_and_check_error(query_create_table_ls_metrics)
+    self._execute_query_and_check_error(query_create_dataset_performance_metrics)
+    self._execute_query_and_check_error(query_create_table_experiment_configuration)
+    self._execute_query_and_check_error(query_create_table_fio_metrics)
+    self._execute_query_and_check_error(query_create_table_vm_metrics)
+    self._execute_query_and_check_error(query_create_table_ls_metrics)
 
