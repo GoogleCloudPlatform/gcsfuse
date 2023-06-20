@@ -20,6 +20,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
@@ -33,6 +34,7 @@ func TestDeleteNonEmptyImplicitDir(t *testing.T) {
 	implicit_and_explicit_dir_setup.CreateImplicitDirectory()
 
 	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory)
+
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
 
 	// Cleaning the bucket.
@@ -48,6 +50,7 @@ func TestDeleteNonEmptyImplicitSubDir(t *testing.T) {
 	implicit_and_explicit_dir_setup.CreateImplicitDirectory()
 
 	subDirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory)
+
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(subDirPath, implicit_and_explicit_dir_setup.ImplicitSubDirectory, t)
 
 	// Cleaning the bucket.
@@ -63,14 +66,13 @@ func TestDeleteNonEmptyImplicitSubDir(t *testing.T) {
 // testBucket/implicitDirectory/implicitSubDirectory/fileInImplicitDir2                            -- File
 func TestDeleteImplicitDirWithExplicitSubDir(t *testing.T) {
 	implicit_and_explicit_dir_setup.CreateImplicitDirectory()
+
 	explicitDirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory, ExplicitDirInImplicitDir)
 
-	err := os.Mkdir(explicitDirPath, setup.FilePermission_0600)
-	if err != nil {
-		t.Errorf("Error in creating directory: %v", err)
-	}
+	operations.CreateDirectoryWithNFiles(1, explicitDirPath, FileInExplicitDirInImplicitDir, t)
 
 	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory)
+
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
 
 	// Cleaning the bucket.
@@ -86,14 +88,26 @@ func TestDeleteImplicitDirWithExplicitSubDir(t *testing.T) {
 // testBucket/implicitDirectory/implicitSubDirectory/explicitDirInImplicitDir/fileInExplicitDirInImplicitDir            -- File
 func TestDeleteImplicitDirWithExplicitSubDirInImplicitSubDir(t *testing.T) {
 	implicit_and_explicit_dir_setup.CreateImplicitDirectory()
+
 	explicitDirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory, ExplicitDirInImplicitSubDir)
+
+	//time.Sleep(1 * time.Minute)
 
 	err := os.Mkdir(explicitDirPath, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Error in creating directory: %v", err)
 	}
 
+	//time.Sleep(1 * time.Minute)
+
+	//filePath := path.Join(explicitDirPath, FileInExplicitDirInImplicitSubDir)
+	//_, err = os.Create(filePath)
+	//if err != nil {
+	//	t.Errorf("Create file at %q: %v", explicitDirPath, err)
+	//}
+
 	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory)
+
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
 
 	// Cleaning the bucket.
@@ -113,6 +127,7 @@ func TestDeleteImplicitDirInExplicitDir(t *testing.T) {
 	implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectory(t)
 
 	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ExplicitDirectory, implicit_and_explicit_dir_setup.ImplicitDirectory)
+
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
 
 	// Cleaning the bucket.
@@ -132,6 +147,7 @@ func TestDeleteExplicitDirWithImplicitSubDir(t *testing.T) {
 	implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectory(t)
 
 	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ExplicitDirectory)
+
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ExplicitDirectory, t)
 
 	// Cleaning the bucket.
