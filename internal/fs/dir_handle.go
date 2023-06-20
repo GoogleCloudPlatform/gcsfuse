@@ -265,7 +265,7 @@ func (dh *dirHandle) FetchEntriesAsync(
 
         dh.in.Lock()
         logger.Info("Inode lock acquired\n")
-
+        ctx = context.Background()
         entries,ContinuationToken,err = dh.in.ReadEntries(ctx, ContinuationToken)
         logger.Infof("Entries fetched from dh.in.ReadEntries : %v",len(entries))
         dh.in.Unlock()
