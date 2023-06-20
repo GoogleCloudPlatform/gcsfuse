@@ -27,6 +27,7 @@ class BigQuery():
   fio_table_id = 'read_write_fio_metrics'
   vm_table_id = 'read_write_vm_metrics'
   ls_table_id = 'list_metrics'
+  
   def __init__(self, project_id, dataset_id, bq_client=None):
     if bq_client is None:
       self.client = bigquery.Client(project=project_id)
