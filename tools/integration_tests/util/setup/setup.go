@@ -169,7 +169,7 @@ func UnMount() error {
 func executeTest(m *testing.M) (successCode int) {
 	successCode = m.Run()
 
-	os.RemoveAll(mntDir)
+	//os.RemoveAll(mntDir)
 
 	return successCode
 }

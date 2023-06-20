@@ -22,8 +22,6 @@ import (
 	"path"
 	"strconv"
 	"testing"
-
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func CopyDir(srcDirPath string, destDirPath string) (err error) {
@@ -59,7 +57,7 @@ func RenameDir(dirName string, newDirName string) (err error) {
 }
 
 func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string, t *testing.T) {
-	err := os.Mkdir(dirPath, setup.FilePermission_0600)
+	err := os.Mkdir(dirPath, 777)
 	if err != nil {
 		t.Errorf("Error in creating directory: %v", err)
 	}
