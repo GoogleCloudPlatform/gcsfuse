@@ -137,4 +137,7 @@ func TestListImplicitObjectsFromBucket(t *testing.T) {
 		t.Errorf("error walking the path : %v\n", err)
 		return
 	}
+
+	// Cleaning the bucket.
+	os.RemoveAll(setup.MntDir())
 }

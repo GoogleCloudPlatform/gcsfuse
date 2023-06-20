@@ -34,6 +34,9 @@ func TestDeleteNonEmptyImplicitDir(t *testing.T) {
 
 	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory)
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
+
+	// Cleaning the bucket.
+	os.RemoveAll(setup.MntDir())
 }
 
 // Directory Structure
@@ -46,6 +49,9 @@ func TestDeleteNonEmptyImplicitSubDir(t *testing.T) {
 
 	subDirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory)
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(subDirPath, implicit_and_explicit_dir_setup.ImplicitSubDirectory, t)
+
+	// Cleaning the bucket.
+	os.RemoveAll(setup.MntDir())
 }
 
 // Directory Structure
@@ -66,6 +72,9 @@ func TestDeleteImplicitDirWithExplicitSubDir(t *testing.T) {
 
 	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory)
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
+
+	// Cleaning the bucket.
+	os.RemoveAll(setup.MntDir())
 }
 
 // Directory Structure
@@ -86,6 +95,9 @@ func TestDeleteImplicitDirWithExplicitSubDirInImplicitSubDir(t *testing.T) {
 
 	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory)
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
+
+	// Cleaning the bucket.
+	os.RemoveAll(setup.MntDir())
 }
 
 // Directory Structure
@@ -102,6 +114,9 @@ func TestDeleteImplicitDirInExplicitDir(t *testing.T) {
 
 	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ExplicitDirectory, implicit_and_explicit_dir_setup.ImplicitDirectory)
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
+
+	// Cleaning the bucket.
+	os.RemoveAll(setup.MntDir())
 }
 
 // Directory Structure
@@ -118,4 +133,7 @@ func TestDeleteExplicitDirWithImplicitSubDir(t *testing.T) {
 
 	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ExplicitDirectory)
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ExplicitDirectory, t)
+
+	// Cleaning the bucket.
+	os.RemoveAll(setup.MntDir())
 }
