@@ -21,45 +21,72 @@ Note:
 import sys
 from google.cloud import bigquery
 
-class BigQuery():
 
-  configuration_table_id = 'experiment_configuration'
-  fio_table_id = 'read_write_fio_metrics'
-  vm_table_id = 'read_write_vm_metrics'
-  ls_table_id = 'list_metrics'
+class ExperimentsGCSFuse:
+  """
+    This class can used to create the tables to store the experiment configurations
+    and the tables which will store the metrics data
+
+    Attributes:
+      project_id (str): The project on pantheon in which dataset and tables will be created
+      dataset_id (str): The name of the dataset in the project that will store the tables
+      bq_client (Optional[google.cloud.bigquery.client.Client]): The client for interacting with Bigquery
+  """
+
+  CONFIGURATION_TABLE_ID = 'experiment_configuration'
+  FIO_TABLE_ID = 'read_write_fio_metrics'
+  VM_TABLE_ID = 'read_write_vm_metrics'
+  LS_TABLE_ID = 'list_metrics'
 
   def __init__(self, project_id, dataset_id, bq_client=None):
+    """
+      Initializes a new instance of ExperimentsGCSFuse.
+
+      Args:
+        project_id (str): The project on pantheon in which dataset and tables will be created
+        dataset_id (str): The name of the dataset in the project that will store the tables
+        bq_client (Optional[google.cloud.bigquery.client.Client]): The client for interacting with Bigquery
+    """
     if bq_client is None:
       self.client = bigquery.Client(project=project_id)
     self.project_id = project_id
     self.dataset_id = dataset_id
-    dataset = bigquery.Dataset(f"{project_id}.{dataset_id}")
-    self.client.create_dataset(dataset, exists_ok=True)
-    self.dataset_ref = self.client.get_dataset(dataset_id)
 
-  def _execute_query_and_check_error(self, query):
+  @property
+  def dataset_ref(self):
+    """
+      Gets the reference of the dataset
+
+      Returns:
+        google.cloud.bigquery.dataset.Dataset: The retrieved dataset object
+    """
+    return self.client.get_dataset(self.dataset_id)
+
+  def _execute_query_and_check_for_error(self, query):
     """Executes the query in BigQuery.
 
     Args:
-      query: Query that will be executed in BigQuery.
+      query (str): Query that will be executed in BigQuery.
 
     Raises:
       Aborts the program if error is encountered while executing th query.
     """
     job = self.client.query(query)
-    job.result()
     if job.errors:
       for error in job.errors:
         print(f"Error message: {error['message']}")
       sys.exit(1)
     return
 
-  def setup_bigquery(self):
+  def setup_dataset_and_tables(self):
 
     """Creates the experiment configuration table to store the configuration details and
        creates the list_metrics, read_write_fio_metrics and read_write_vm_metrics tables
        to store the metrics data if they don't already exist in the dataset
     """
+    # Create dataset if not exists
+    dataset = bigquery.Dataset(f"{self.project_id}.{self.dataset_id}")
+    self.client.create_dataset(dataset, exists_ok=True)
 
     # Query for creating experiment_configuration table if it does not exist
     query_create_table_experiment_configuration = """
@@ -71,7 +98,7 @@ class BigQuery():
         end_date TIMESTAMP,
         PRIMARY KEY (configuration_id) NOT ENFORCED
       ) OPTIONS (description = 'Table for storing Job Configurations and respective VM instance name on which the job was run');
-    """.format(self.project_id, self.dataset_id, BigQuery.configuration_table_id)
+    """.format(self.project_id, self.dataset_id, ExperimentsGCSFuse.CONFIGURATION_TABLE_ID)
 
     # Query for creating fio_metrics table
     query_create_table_fio_metrics = """
@@ -96,7 +123,7 @@ class BigQuery():
         percentile_latency_95 FLOAT64, 
         FOREIGN KEY(configuration_id) REFERENCES {}.{} (configuration_id) NOT ENFORCED
       ) OPTIONS (description = 'Table for storing FIO metrics extracted from experiments.');
-    """.format(self.project_id, self.dataset_id, BigQuery.fio_table_id, self.dataset_id, BigQuery.configuration_table_id)
+    """.format(self.project_id, self.dataset_id, ExperimentsGCSFuse.FIO_TABLE_ID, self.dataset_id, ExperimentsGCSFuse.CONFIGURATION_TABLE_ID)
 
     # Query for creating vm_metrics table
     query_create_table_vm_metrics = """
@@ -114,8 +141,6 @@ class BigQuery():
         sent_bytes_peak_per_sec FLOAT64, 
         sent_bytes_mean_per_sec FLOAT64, 
         sent_bytes_count INT64,
-        memory_utilization_ram FLOAT64,
-        memory_utilization_disk_tempdir FLOAT64,
         iops FLOAT64, 
         ops_count_list_object INT64, 
         ops_count_create_object INT64, 
@@ -123,7 +148,7 @@ class BigQuery():
         ops_count_new_reader INT64, 
         FOREIGN KEY(configuration_id) REFERENCES {}.{} (configuration_id) NOT ENFORCED
       ) OPTIONS (description = 'Table for storing VM metrics extracted from experiments.');
-    """.format(self.project_id, self.dataset_id, BigQuery.vm_table_id, self.dataset_id, BigQuery.configuration_table_id)
+    """.format(self.project_id, self.dataset_id, ExperimentsGCSFuse.VM_TABLE_ID, self.dataset_id, ExperimentsGCSFuse.CONFIGURATION_TABLE_ID)
 
     # Query for creating ls_metrics table
     query_create_table_ls_metrics = """
@@ -149,13 +174,14 @@ class BigQuery():
         cpu_utilization_mean_percentage FLOAT64,            
         received_bytes_peak_per_sec FLOAT64, 
         received_bytes_mean_per_sec FLOAT64,
-        memory_utilization_ram FLOAT64, 
         FOREIGN KEY(configuration_id) REFERENCES {}.{} (configuration_id) NOT ENFORCED
       ) OPTIONS (description = 'Table for storing GCSFUSE metrics extracted from list experiments.');
-    """.format(self.project_id, self.dataset_id, BigQuery.ls_table_id, self.dataset_id, BigQuery.configuration_table_id)
+    """.format(self.project_id, self.dataset_id, ExperimentsGCSFuse.LS_TABLE_ID, self.dataset_id, ExperimentsGCSFuse.CONFIGURATION_TABLE_ID)
 
     self._execute_query_and_check_error(query_create_table_experiment_configuration)
     self._execute_query_and_check_error(query_create_table_fio_metrics)
     self._execute_query_and_check_error(query_create_table_vm_metrics)
     self._execute_query_and_check_error(query_create_table_ls_metrics)
+
+
 
