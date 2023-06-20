@@ -577,7 +577,7 @@ class ListingBenchmarkTest(unittest.TestCase):
 
   @patch('listing_benchmark.subprocess.call', return_value=0)
   def test_mount_gcs_bucket(self, mock_subprocess_call):
-    directory_name = listing_benchmark._mount_gcs_bucket('fake_bucket')
+    directory_name = listing_benchmark._mount_gcs_bucket('fake_bucket', '--implicit-dirs --max-conns-per-host 100')
     self.assertEqual(directory_name, 'fake_bucket')
     self.assertEqual(mock_subprocess_call.call_count, 2)
     self.assertEqual(mock_subprocess_call.call_args_list, [
@@ -587,7 +587,7 @@ class ListingBenchmarkTest(unittest.TestCase):
 
   @patch('listing_benchmark.subprocess.call', return_value=1)
   def test_mount_gcs_bucket_error(self, mock_subprocess_call):
-    listing_benchmark._mount_gcs_bucket('fake_bucket')
+    listing_benchmark._mount_gcs_bucket('fake_bucket', '--implicit-dirs --max-conns-per-host 100')
     self.assertEqual(mock_subprocess_call.call_count, 3)
     self.assertEqual(mock_subprocess_call.call_args_list, [
         call('mkdir fake_bucket', shell=True),

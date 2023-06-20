@@ -42,22 +42,18 @@ sudo dpkg -i $HOME/release/packages/gcsfuse_${GCSFUSE_VERSION}_amd64.deb
 
 # Mounting gcs bucket
 cd "./perfmetrics/scripts/"
-echo "Mounting gcs bucket"
-mkdir -p gcs
-LOG_FILE=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
-GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"
-BUCKET_NAME=periodic-perf-tests
-MOUNT_POINT=gcs
-# The VM will itself exit if the gcsfuse mount fails.
-gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+
+GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-format \"text\" --stackdriver-export-interval=30s"
+LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
+GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS"
 
 # Executing perf tests
 chmod +x run_load_test_and_fetch_metrics.sh
-./run_load_test_and_fetch_metrics.sh
+./run_load_test_and_fetch_metrics.sh "$GCSFUSE_FIO_FLAGS"
 
-sudo umount $MOUNT_POINT
-
-# ls_metrics test. This test does gcsfuse mount first and then do the testing.
+# ls_metrics test. This test does gcsfuse mount with the passed flags first and then does the testing.
+LOG_FILE_LIST_TESTS=gcsfuse-list-logs.txt
+GCSFUSE_LIST_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_LIST_TESTS"
 cd "./ls_metrics"
 chmod +x run_ls_benchmark.sh
-./run_ls_benchmark.sh
+./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS
