@@ -1695,7 +1695,7 @@ func (fs *fileSystem) ReadDir(
 	fs.mu.Lock()
 	dh := fs.handles[op.Handle].(*dirHandle)
 	fs.mu.Unlock()
-    logger.Info("Called fs.readDir")
+
 // 	dh.Mu.Lock()
 // 	defer dh.Mu.Unlock()
 

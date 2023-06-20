@@ -22,7 +22,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -256,7 +256,7 @@ func (dh *dirHandle) FetchEntriesAsync(
     rootInodeId int,
     firstCall int ) (err error) {
 
-   logger.Infof("Started fetching entries \n")
+
 
    for ContinuationToken != "" || firstCall==1 {
 
@@ -264,56 +264,56 @@ func (dh *dirHandle) FetchEntriesAsync(
 
 
         dh.in.Lock()
-        logger.Info("Inode lock acquired\n")
-        ctx = context.Background()
+
+        ctx = context.TODO()
         entries,ContinuationToken,err = dh.in.ReadEntries(ctx, ContinuationToken)
-        logger.Infof("Entries fetched from dh.in.ReadEntries : %v",len(entries))
+
         dh.in.Unlock()
-        logger.Info("Inode lock released\n")
+
 
 
 
 
         if err != nil{
             err = fmt.Errorf("ReadEntries: %w",err)
-            logger.Infof("Issue with the dh.in.read Entries: %v \n",err)
+
             return
         }
         sort.Sort(sortedDirents(entries))
-        logger.Info("Sorting done!\n")
+
         err = fixConflictingNames(entries)
         if err != nil{
             err = fmt.Errorf("fixConflictingNames: %w",err)
-            logger.Infof("Issue with the fixing conflicts: %w \n",err)
+
             return
         }
 
-        logger.Info("Fixed naming conflicts!\n")
+
         rec.Lock()
-        logger.Info("rec Lock acquired\n")
+
 
         for i,_ := range entries {
             entries[i].Inode = fuseops.InodeID(rootInodeId + 1)
             entries[i].Offset =fuseops.DirOffset(uint64(rec.length + i + 1))
         }
 
-        logger.Info("Entries fileds updated!\n")
+
 
         rec.length += len(entries)
-        logger.Infof("Rec.length is now : %v \n",rec.length)
+
 
         rec.Unlock()
 
-        logger.Info("rec Lock released\n")
+
         dh.Mu.Lock()
-        logger.Info("Mutex Lock acquired \n")
+
         dh.entries = append(dh.entries,entries...)
         dh.entriesValid = true
         dh.Mu.Unlock()
-        logger.Info("Mutex Lock released \n")
+
 
         rec.cond.Broadcast()
-        logger.Info("Broadcasted !\n")
+
 
 
         firstCall = 0
@@ -339,30 +339,28 @@ func (dh *dirHandle) ReadDir(
 	op *fuseops.ReadDirOp) (err error) {
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
-    logger.Infof("Called readdir at offset : %v",op.Offset)
-    dh.Mu.Lock()
-    logger.Infof("Entries present : %v",len(dh.entries))
-    dh.Mu.Unlock()
+
 	if op.Offset == 0 {
 
 		dh.entries = nil
 		dh.entriesValid = false
 
-		logger.Infof("Done with init \n")
+
+		rec.Lock()
+		rec.length = 0
+		rec.Unlock()
 		go dh.FetchEntriesAsync(ctx,fuseops.RootInodeID,1)
 
 	}
 
 
 
-    logger.Info("readdir served first\n")
+
     rec.Lock()
     if rec.length <= int(op.Offset) && ( op.Offset == 0 || ContinuationToken != ""){
 
-            logger.Info("Before getting blocked on the length \n")
+           rec.cond.Wait()
 
-            rec.cond.Wait()
-            logger.Info("Got unblocked")
 
 
     }
@@ -372,11 +370,11 @@ func (dh *dirHandle) ReadDir(
         	// an invalid seekdir according to posix.
         	index := int(op.Offset)
         	if index > rec.length {
-        	    logger.Infof("Error faced in fuse.EINVAL")
+
         		err = fuse.EINVAL
         		return
         	}
-rec.Unlock()
+            rec.Unlock()
         	// We copy out entries until we run out of entries or space.
 
         	dh.Mu.Lock()
@@ -384,7 +382,7 @@ rec.Unlock()
         		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], dh.entries[i])
 
         		if n == 0 {
-        		logger.Infof("Write Dirent stopped at %v",i)
+
         			break
         		}
 
@@ -393,7 +391,7 @@ rec.Unlock()
         	dh.Mu.Unlock()
 
 
-    logger.Infof("Main go at offset %v got out first \n",op.Offset)
+
 
 
 	return
