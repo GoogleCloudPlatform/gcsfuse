@@ -17,6 +17,7 @@ package fs
 import (
 	"fmt"
 	"sort"
+	"sync"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
@@ -26,7 +27,24 @@ import (
 	"golang.org/x/net/context"
 )
 
+
+
+type Record struct {
+	sync.Mutex
+	length int
+	cond *sync.Cond
+}
+
+func NewRecord() *Record {
+	r := Record{}
+	r.cond = sync.NewCond(&r)
+	return &r
+}
+
 var ContinuationToken string
+var length int
+var rec = NewRecord()
+
 
 // State required for reading from directories.
 type dirHandle struct {
@@ -230,6 +248,46 @@ func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
 	return
 }
 
+func (dh *dirHandle) FetchEntriesAsync(
+    ctx context.Context,
+    rootInodeId int,
+    firstCall int ) (err error) {
+    for ContinuationToken != "" || firstCall==1 {
+        var entries []fuseutil.Dirent
+        dh.in.Lock()
+        ctx = context.TODO()
+        entries,ContinuationToken,err = dh.in.ReadEntries(ctx, ContinuationToken)
+        dh.in.Unlock()
+        if err != nil{
+            err = fmt.Errorf("ReadEntries: %w",err)
+            return
+        }
+
+        sort.Sort(sortedDirents(entries))
+        err = fixConflictingNames(entries)
+        if err != nil{
+            err = fmt.Errorf("fixConflictingNames: %w",err)
+            return
+        }
+
+        rec.Lock()
+        for i,_ := range entries {
+            entries[i].Inode = fuseops.InodeID(rootInodeId + 1)
+            entries[i].Offset =fuseops.DirOffset(uint64(rec.length + i + 1))
+        }
+        rec.length += len(entries)
+        rec.Unlock()
+
+        dh.Mu.Lock()
+        dh.entries = append(dh.entries,entries...)
+        dh.entriesValid = true
+        dh.Mu.Unlock()
+        rec.cond.Broadcast()
+        firstCall = 0
+    }
+    return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -247,37 +305,38 @@ func (dh *dirHandle) ReadDir(
 	op *fuseops.ReadDirOp) (err error) {
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
+
 	if op.Offset == 0 {
 		dh.entries = nil
 		dh.entriesValid = false
+		rec.Lock()
+		rec.length = 0
+		rec.Unlock()
+		go dh.FetchEntriesAsync(ctx,fuseops.RootInodeID,1)
 	}
+    rec.Lock()
+    if rec.length <= int(op.Offset) && ( op.Offset == 0 || ContinuationToken != ""){
+        rec.cond.Wait()
+    }
 
-	//when the offset is zero(new call made means fetch)
-	//when the offset is non zero and len(dh.entries ) - offset <0 means not enough data to serve the call
-	if !dh.entriesValid || (len(dh.entries) <= int(op.Offset) && op.Offset != 0 && ContinuationToken != "") {
-		err = dh.ensureEntries(ctx)
-		if err != nil {
-			return
-		}
-	}
+    // Is the offset past the end of what we have buffered? If so, this must be
+    // an invalid seekdir according to posix.
+    index := int(op.Offset)
+    if index > rec.length {
+        err = fuse.EINVAL
+        return
+    }
+    rec.Unlock()
+    // We copy out entries until we run out of entries or space.
 
-	// Is the offset past the end of what we have buffered? If so, this must be
-	// an invalid seekdir according to posix.
-	index := int(op.Offset)
-	if index > len(dh.entries) {
-		err = fuse.EINVAL
-		return
-	}
-
-	// We copy out entries until we run out of entries or space.
-	for i := index; i < len(dh.entries); i++ {
-		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], dh.entries[i])
-		if n == 0 {
-			break
-		}
-
-		op.BytesRead += n
-	}
-
+    dh.Mu.Lock()
+    for i := index; i < len(dh.entries); i++ {
+        n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], dh.entries[i])
+        if n == 0 {
+            break
+        }
+        op.BytesRead += n
+        }
+        dh.Mu.Unlock()
 	return
 }

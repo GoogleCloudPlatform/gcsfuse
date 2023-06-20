@@ -1696,8 +1696,8 @@ func (fs *fileSystem) ReadDir(
 	dh := fs.handles[op.Handle].(*dirHandle)
 	fs.mu.Unlock()
 
-	dh.Mu.Lock()
-	defer dh.Mu.Unlock()
+	//dh.Mu.Lock()
+	//defer dh.Mu.Unlock()
 
 	// Serve the request.
 	if err := dh.ReadDir(ctx, op); err != nil {

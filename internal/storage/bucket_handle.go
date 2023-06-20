@@ -43,6 +43,7 @@ func (bh *bucketHandle) Name() string {
 	return bh.bucketName
 }
 
+
 func (bh *bucketHandle) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
