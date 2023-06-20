@@ -23,6 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/gcs"
@@ -543,13 +544,13 @@ func (d *dirInode) readObjects(
 		// required.
 		ProjectionVal: gcs.NoAcl,
 	}
-
+    logger.Info("Calling listMinObjects!\n")
 	listing, err := d.bucket.ListMinObjects(ctx, req)
 	if err != nil {
 		err = fmt.Errorf("ListMinObjects: %w", err)
 		return
 	}
-
+    logger.Info("No issue with ListMinObjects ! \n")
 	cores = make(map[Name]*Core)
 	defer func() {
 		now := d.cacheClock.Now()
@@ -617,11 +618,14 @@ func (d *dirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
 	var cores map[Name]*Core
+	logger.Info("calling readobjects! \n")
 	cores, newTok, err = d.readObjects(ctx, tok)
+
 	if err != nil {
 		err = fmt.Errorf("read objects: %w", err)
 		return
 	}
+    logger.Info("no error in reading Objects? \n")
 
 	for fullName, core := range cores {
 		entry := fuseutil.Dirent{

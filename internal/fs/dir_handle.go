@@ -18,15 +18,35 @@ import (
 	"fmt"
 	"sort"
 
+	"sync"
+
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"golang.org/x/net/context"
 )
 
+
+
+type Record struct {
+	sync.Mutex
+	length int
+
+	cond *sync.Cond
+}
+
+func NewRecord() *Record {
+	r := Record{}
+	r.cond = sync.NewCond(&r)
+	return &r
+}
+
 var ContinuationToken string
+var length int
+var rec = NewRecord()
 
 // State required for reading from directories.
 type dirHandle struct {
@@ -230,6 +250,68 @@ func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
 	return
 }
 
+func (dh *dirHandle) FetchEntriesAsync(
+    ctx context.Context,
+    rootInodeId int,
+    firstCall int ) (err error) {
+
+   logger.Infof("Started fetching entries \n")
+
+   for ContinuationToken != "" || firstCall==1 {
+
+        var entries []fuseutil.Dirent
+
+
+        dh.in.Lock()
+        logger.Info("Inode lock acquired\n")
+        entries,ContinuationToken,err = dh.in.ReadEntries(ctx, ContinuationToken)
+        dh.in.Unlock()
+        logger.Info("Inode lock released\n")
+
+        rec.Lock()
+        logger.Info("rec Lock acquired\n")
+        rec.length += len(entries)
+        fetchedTillNow := rec.length
+        rec.Unlock()
+        logger.Info("rec Lock released\n")
+
+        if err != nil{
+            err = fmt.Errorf("ReadEntries: %w",err)
+            logger.Infof("Issue with the dh.in.read Entries: %v \n",err)
+            return
+        }
+        sort.Sort(sortedDirents(entries))
+        logger.Info("Sorting done!\n")
+        err = fixConflictingNames(entries)
+        if err != nil{
+            err = fmt.Errorf("fixConflictingNames: %w",err)
+            logger.Infof("Issue with the fixing conflicts: %w \n",err)
+            return
+        }
+
+        logger.Info("Fixed naming conflicts!\n")
+
+        for i,_ := range entries {
+            entries[i].Inode = fuseops.InodeID(rootInodeId + 1)
+            entries[i].Offset =fuseops.DirOffset(uint64(fetchedTillNow + i + 1))
+        }
+        logger.Info("Entries fileds updated!\n")
+        dh.Mu.Lock()
+        logger.Info("Mutex Lock acquired \n")
+        dh.entries = append(dh.entries,entries...)
+        dh.entriesValid = true
+        dh.Mu.Unlock()
+        logger.Info("Mutex Lock released \n")
+        rec.cond.Broadcast()
+        logger.Info("Broadcasted !\n")
+
+
+        firstCall = 0
+
+    }
+    return
+    }
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -247,37 +329,53 @@ func (dh *dirHandle) ReadDir(
 	op *fuseops.ReadDirOp) (err error) {
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
+
 	if op.Offset == 0 {
+
 		dh.entries = nil
 		dh.entriesValid = false
+
+		logger.Infof("Done with init \n")
+		go dh.FetchEntriesAsync(ctx,fuseops.RootInodeID,1)
+
 	}
 
-	//when the offset is zero(new call made means fetch)
-	//when the offset is non zero and len(dh.entries ) - offset <0 means not enough data to serve the call
-	if !dh.entriesValid || (len(dh.entries) <= int(op.Offset) && op.Offset != 0 && ContinuationToken != "") {
-		err = dh.ensureEntries(ctx)
-		if err != nil {
-			return
-		}
-	}
+    var fetched int
 
-	// Is the offset past the end of what we have buffered? If so, this must be
-	// an invalid seekdir according to posix.
-	index := int(op.Offset)
-	if index > len(dh.entries) {
-		err = fuse.EINVAL
-		return
-	}
+    logger.Info("readdir served first\n")
 
-	// We copy out entries until we run out of entries or space.
-	for i := index; i < len(dh.entries); i++ {
-		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], dh.entries[i])
-		if n == 0 {
-			break
-		}
+    if fetched <= int(op.Offset){
+            rec.Lock()
+            logger.Info("Before getting blocked on the length \n")
+            rec.cond.Wait()
+            logger.Info("Got unblocked")
+            fetched = rec.length
+            rec.Unlock()
+    }else  {
+        // Is the offset past the end of what we have buffered? If so, this must be
+        	// an invalid seekdir according to posix.
+        	index := int(op.Offset)
+        	if index > fetched {
+        		err = fuse.EINVAL
+        		return
+        	}
 
-		op.BytesRead += n
-	}
+        	// We copy out entries until we run out of entries or space.
+
+        	dh.Mu.Lock()
+        	for i := index; i < len(dh.entries); i++ {
+        		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], dh.entries[i])
+        		if n == 0 {
+        			break
+        		}
+
+        		op.BytesRead += n
+        	}
+        	dh.Mu.Unlock()
+
+    }
+    logger.Infof("Main go at offset %v got out first \n",op.Offset)
+
 
 	return
 }

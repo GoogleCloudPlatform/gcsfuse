@@ -27,6 +27,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
@@ -248,7 +249,9 @@ func (b *bucketHandle) ListMinObjects(ctx context.Context, req *gcs.ListObjectsR
 		err = fmt.Errorf("Error in fetching attributes: %w", e)
 		return
 	}
+	logger.Info("Starting with the objects from bucket \n")
 	itr := b.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
+	logger.Info("Ended up with the itr\n")
 	pi := itr.PageInfo()
 	pi.MaxSize = req.MaxResults
 	pi.Token = req.ContinuationToken
