@@ -33,6 +33,9 @@ class BigQuery():
       self.client = bigquery.Client(project=project_id)
     self.project_id = project_id
     self.dataset_id = dataset_id
+    dataset = bigquery.Dataset(f"{project_id}.{dataset_id}")
+    self.client.create_dataset(dataset, exists_ok=True)
+    self.dataset_ref = self.client.get_dataset(dataset_id)
 
   def _execute_query_and_check_error(self, query):
     """Executes the query in BigQuery.
@@ -57,11 +60,6 @@ class BigQuery():
        creates the list_metrics, read_write_fio_metrics and read_write_vm_metrics tables
        to store the metrics data if they don't already exist in the dataset
     """
-    # Query for creating performance_metrics dataset
-    query_create_dataset_performance_metrics= """
-      CREATE SCHEMA IF NOT EXISTS performance_metrics 
-      OPTIONS (description = 'Dataset for storing the experiment configurations tables and metric data tables'
-    )"""
 
     # Query for creating experiment_configuration table if it does not exist
     query_create_table_experiment_configuration = """
@@ -156,7 +154,6 @@ class BigQuery():
       ) OPTIONS (description = 'Table for storing GCSFUSE metrics extracted from list experiments.');
     """.format(self.project_id, self.dataset_id, BigQuery.ls_table_id, self.dataset_id, BigQuery.configuration_table_id)
 
-    self._execute_query_and_check_error(query_create_dataset_performance_metrics)
     self._execute_query_and_check_error(query_create_table_experiment_configuration)
     self._execute_query_and_check_error(query_create_table_fio_metrics)
     self._execute_query_and_check_error(query_create_table_vm_metrics)
