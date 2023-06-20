@@ -246,23 +246,25 @@ func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
 
 func (dh *dirHandle) FetchEntriesAsync(
 	rootInodeId int,
-	firstCall int) (err error) {
+	firstCall int) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var err error
 	for ContinuationToken != "" || firstCall == 1 {
 		var entries []fuseutil.Dirent
 		dh.in.Lock()
-		ctx := context.Background()
+
 		entries, ContinuationToken, err = dh.in.ReadEntries(ctx, ContinuationToken)
 		dh.in.Unlock()
 		if err != nil {
-			err = fmt.Errorf("ReadEntries: %w", err)
-			return
+			fmt.Errorf("ReadEntries: %w", err)
+			cancel()
 		}
 
 		sort.Sort(sortedDirents(entries))
 		err = fixConflictingNames(entries)
 		if err != nil {
-			err = fmt.Errorf("fixConflictingNames: %w", err)
-			return
+			fmt.Errorf("fixConflictingNames: %w", err)
+			cancel()
 		}
 
 		rec.Lock()
@@ -280,7 +282,7 @@ func (dh *dirHandle) FetchEntriesAsync(
 		rec.cond.Broadcast()
 		firstCall = 0
 	}
-	return
+	cancel()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -307,7 +309,8 @@ func (dh *dirHandle) ReadDir(
 		rec.Lock()
 		rec.length = 0
 		rec.Unlock()
-		go dh.FetchEntriesAsync( fuseops.RootInodeID, 1)
+		go dh.FetchEntriesAsync(fuseops.RootInodeID, 1)
+
 	}
 	rec.Lock()
 	if rec.length <= int(op.Offset) && (op.Offset == 0 || ContinuationToken != "") {
