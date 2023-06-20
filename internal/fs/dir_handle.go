@@ -48,6 +48,7 @@ var ContinuationToken string
 var length int
 var rec = NewRecord()
 
+
 // State required for reading from directories.
 type dirHandle struct {
 	/////////////////////////
@@ -264,16 +265,14 @@ func (dh *dirHandle) FetchEntriesAsync(
 
         dh.in.Lock()
         logger.Info("Inode lock acquired\n")
+
         entries,ContinuationToken,err = dh.in.ReadEntries(ctx, ContinuationToken)
+        logger.Infof("Entries fetched from dh.in.ReadEntries : %v",len(entries))
         dh.in.Unlock()
         logger.Info("Inode lock released\n")
 
-        rec.Lock()
-        logger.Info("rec Lock acquired\n")
-        rec.length += len(entries)
-        fetchedTillNow := rec.length
-        rec.Unlock()
-        logger.Info("rec Lock released\n")
+
+
 
         if err != nil{
             err = fmt.Errorf("ReadEntries: %w",err)
@@ -290,18 +289,29 @@ func (dh *dirHandle) FetchEntriesAsync(
         }
 
         logger.Info("Fixed naming conflicts!\n")
+        rec.Lock()
+        logger.Info("rec Lock acquired\n")
 
         for i,_ := range entries {
             entries[i].Inode = fuseops.InodeID(rootInodeId + 1)
-            entries[i].Offset =fuseops.DirOffset(uint64(fetchedTillNow + i + 1))
+            entries[i].Offset =fuseops.DirOffset(uint64(rec.length + i + 1))
         }
+
         logger.Info("Entries fileds updated!\n")
+
+        rec.length += len(entries)
+        logger.Infof("Rec.length is now : %v \n",rec.length)
+
+        rec.Unlock()
+
+        logger.Info("rec Lock released\n")
         dh.Mu.Lock()
         logger.Info("Mutex Lock acquired \n")
         dh.entries = append(dh.entries,entries...)
         dh.entriesValid = true
         dh.Mu.Unlock()
         logger.Info("Mutex Lock released \n")
+
         rec.cond.Broadcast()
         logger.Info("Broadcasted !\n")
 
@@ -329,7 +339,10 @@ func (dh *dirHandle) ReadDir(
 	op *fuseops.ReadDirOp) (err error) {
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
-
+    logger.Infof("Called readdir at offset : %v",op.Offset)
+    dh.Mu.Lock()
+    logger.Infof("Entries present : %v",len(dh.entries))
+    dh.Mu.Unlock()
 	if op.Offset == 0 {
 
 		dh.entries = nil
@@ -340,32 +353,38 @@ func (dh *dirHandle) ReadDir(
 
 	}
 
-    var fetched int
+
 
     logger.Info("readdir served first\n")
+    rec.Lock()
+    if rec.length <= int(op.Offset) && ( op.Offset == 0 || ContinuationToken != ""){
 
-    if fetched <= int(op.Offset){
-            rec.Lock()
             logger.Info("Before getting blocked on the length \n")
+
             rec.cond.Wait()
             logger.Info("Got unblocked")
-            fetched = rec.length
-            rec.Unlock()
-    }else  {
+
+
+    }
+
+
         // Is the offset past the end of what we have buffered? If so, this must be
         	// an invalid seekdir according to posix.
         	index := int(op.Offset)
-        	if index > fetched {
+        	if index > rec.length {
+        	    logger.Infof("Error faced in fuse.EINVAL")
         		err = fuse.EINVAL
         		return
         	}
-
+rec.Unlock()
         	// We copy out entries until we run out of entries or space.
 
         	dh.Mu.Lock()
         	for i := index; i < len(dh.entries); i++ {
         		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], dh.entries[i])
+
         		if n == 0 {
+        		logger.Infof("Write Dirent stopped at %v",i)
         			break
         		}
 
@@ -373,7 +392,7 @@ func (dh *dirHandle) ReadDir(
         	}
         	dh.Mu.Unlock()
 
-    }
+
     logger.Infof("Main go at offset %v got out first \n",op.Offset)
 
 
