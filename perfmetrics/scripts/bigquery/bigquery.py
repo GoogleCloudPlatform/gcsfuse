@@ -11,9 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Python module for setting up tables in BigQuery.
+"""Python module for setting up the dataset and tables in BigQuery.
 
-This python module creates tables that will store experiment configuration and metrics data in BigQuery.
+This python module creates the dataset and the tables that will store experiment
+configurations and metrics data in BigQuery.
 
 Note:
   Make sure BigQuery API is enabled for the project
@@ -22,10 +23,10 @@ import sys
 from google.cloud import bigquery
 
 
-class ExperimentsGCSFuse:
+class ExperimentsGCSFuseBQ:
   """
-    This class can used to create the tables to store the experiment configurations
-    and the tables which will store the metrics data
+    This class can used to create the dataset that will store the tables and the tables
+    to store the experiment configurations and the tables which will store the metrics data.
 
     Attributes:
       project_id (str): The project on pantheon in which dataset and tables will be created
@@ -40,7 +41,7 @@ class ExperimentsGCSFuse:
 
   def __init__(self, project_id, dataset_id, bq_client=None):
     """
-      Initializes a new instance of ExperimentsGCSFuse.
+      Initializes a new instance of ExperimentsGCSFuseBQ.
 
       Args:
         project_id (str): The project on pantheon in which dataset and tables will be created
@@ -72,6 +73,8 @@ class ExperimentsGCSFuse:
       Aborts the program if error is encountered while executing th query.
     """
     job = self.client.query(query)
+    # Wait for the job to complete
+    job.result()
     if job.errors:
       for error in job.errors:
         print(f"Error message: {error['message']}")
@@ -80,9 +83,10 @@ class ExperimentsGCSFuse:
 
   def setup_dataset_and_tables(self):
 
-    """Creates the experiment configuration table to store the configuration details and
-       creates the list_metrics, read_write_fio_metrics and read_write_vm_metrics tables
-       to store the metrics data if they don't already exist in the dataset
+    """Creates the dataset to store the tables and the experiment configuration table
+       to store the configuration details and creates the list_metrics, read_write_fio_metrics
+       and read_write_vm_metrics tables to store the metrics data if it doesn't already exist
+       in the dataset.
     """
     # Create dataset if not exists
     dataset = bigquery.Dataset(f"{self.project_id}.{self.dataset_id}")
@@ -98,7 +102,7 @@ class ExperimentsGCSFuse:
         end_date TIMESTAMP,
         PRIMARY KEY (configuration_id) NOT ENFORCED
       ) OPTIONS (description = 'Table for storing Job Configurations and respective VM instance name on which the job was run');
-    """.format(self.project_id, self.dataset_id, ExperimentsGCSFuse.CONFIGURATION_TABLE_ID)
+    """.format(self.project_id, self.dataset_id, ExperimentsGCSFuseBQ.CONFIGURATION_TABLE_ID)
 
     # Query for creating fio_metrics table
     query_create_table_fio_metrics = """
@@ -123,7 +127,7 @@ class ExperimentsGCSFuse:
         percentile_latency_95 FLOAT64, 
         FOREIGN KEY(configuration_id) REFERENCES {}.{} (configuration_id) NOT ENFORCED
       ) OPTIONS (description = 'Table for storing FIO metrics extracted from experiments.');
-    """.format(self.project_id, self.dataset_id, ExperimentsGCSFuse.FIO_TABLE_ID, self.dataset_id, ExperimentsGCSFuse.CONFIGURATION_TABLE_ID)
+    """.format(self.project_id, self.dataset_id, ExperimentsGCSFuseBQ.FIO_TABLE_ID, self.dataset_id, ExperimentsGCSFuseBQ.CONFIGURATION_TABLE_ID)
 
     # Query for creating vm_metrics table
     query_create_table_vm_metrics = """
@@ -148,7 +152,7 @@ class ExperimentsGCSFuse:
         ops_count_new_reader INT64, 
         FOREIGN KEY(configuration_id) REFERENCES {}.{} (configuration_id) NOT ENFORCED
       ) OPTIONS (description = 'Table for storing VM metrics extracted from experiments.');
-    """.format(self.project_id, self.dataset_id, ExperimentsGCSFuse.VM_TABLE_ID, self.dataset_id, ExperimentsGCSFuse.CONFIGURATION_TABLE_ID)
+    """.format(self.project_id, self.dataset_id, ExperimentsGCSFuseBQ.VM_TABLE_ID, self.dataset_id, ExperimentsGCSFuseBQ.CONFIGURATION_TABLE_ID)
 
     # Query for creating ls_metrics table
     query_create_table_ls_metrics = """
@@ -176,7 +180,7 @@ class ExperimentsGCSFuse:
         received_bytes_mean_per_sec FLOAT64,
         FOREIGN KEY(configuration_id) REFERENCES {}.{} (configuration_id) NOT ENFORCED
       ) OPTIONS (description = 'Table for storing GCSFUSE metrics extracted from list experiments.');
-    """.format(self.project_id, self.dataset_id, ExperimentsGCSFuse.LS_TABLE_ID, self.dataset_id, ExperimentsGCSFuse.CONFIGURATION_TABLE_ID)
+    """.format(self.project_id, self.dataset_id, ExperimentsGCSFuseBQ.LS_TABLE_ID, self.dataset_id, ExperimentsGCSFuseBQ.CONFIGURATION_TABLE_ID)
 
     self._execute_query_and_check_error(query_create_table_experiment_configuration)
     self._execute_query_and_check_error(query_create_table_fio_metrics)
