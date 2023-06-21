@@ -39,7 +39,7 @@ func CopyFile(srcFileName string, newFileName string) (err error) {
 	}
 
 	// Closing file at the end.
-	CloseFile(source)
+	defer CloseFile(source)
 
 	destination, err := os.OpenFile(newFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
@@ -47,7 +47,7 @@ func CopyFile(srcFileName string, newFileName string) (err error) {
 		return
 	}
 	// Closing file at the end.
-	CloseFile(destination)
+	defer CloseFile(destination)
 
 	// File copying with io.Copy() utility.
 	_, err = io.Copy(destination, source)
