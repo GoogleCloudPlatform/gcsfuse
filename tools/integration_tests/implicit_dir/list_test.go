@@ -22,8 +22,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations/clean_mount_dir"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/clean_mount_dir"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
