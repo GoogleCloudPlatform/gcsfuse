@@ -168,7 +168,7 @@ func TestCopyDirectoryInEmptyDirectory(t *testing.T) {
 	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
 
 	// Clean the mountedDirectory before running any tests.
-	clean_mount_dir.CleanMntDir()
+	clean_mount_dir.CleanMntDir(setup.MntDir())
 }
 
 func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
@@ -225,5 +225,5 @@ func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
 	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
 
 	// Clean the mountedDirectory before running any tests.
-	clean_mount_dir.CleanMntDir()
+	clean_mount_dir.CleanMntDir(setup.MntDir())
 }

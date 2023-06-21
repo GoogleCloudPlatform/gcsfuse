@@ -174,7 +174,7 @@ func executeTest(m *testing.M) (successCode int) {
 	successCode = m.Run()
 
 	// Clean the mountedDirectory before running any tests.
-	clean_mount_dir.CleanMntDir()
+	clean_mount_dir.CleanMntDir(mntDir)
 
 	return successCode
 }
@@ -183,7 +183,7 @@ func ExecuteTestForFlagsSet(flags []string, m *testing.M) (successCode int) {
 	var err error
 
 	// Clean the mountedDirectory before running any tests.
-	clean_mount_dir.CleanMntDir()
+	clean_mount_dir.CleanMntDir(mntDir)
 
 	successCode = executeTest(m)
 
