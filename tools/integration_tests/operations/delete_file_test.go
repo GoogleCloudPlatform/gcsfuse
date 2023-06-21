@@ -41,10 +41,17 @@ func checkIfFileDeletionSucceeded(filePath string, t *testing.T) {
 }
 
 func createFile(filePath string, t *testing.T) {
-	_, err := os.Create(filePath)
+	file, err := os.Create(filePath)
 	if err != nil {
 		t.Errorf("Error in creating file: %v", err)
 	}
+
+	// Closing file
+	defer func() {
+		if err := file.Close(); err != nil {
+			t.Errorf("error in closing: %v", err)
+		}
+	}()
 }
 
 // Remove testBucket/A.txt

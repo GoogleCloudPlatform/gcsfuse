@@ -35,6 +35,14 @@ func TestReadAfterWrite(t *testing.T) {
 			t.Errorf("Create file at %q: %v", tmpDir, err)
 			return
 		}
+
+		// Closing file at the end
+		defer func() {
+			if err := tmpFile.Close(); err != nil {
+				t.Errorf("error in closing: %v", err)
+			}
+		}()
+
 		fileName := tmpFile.Name()
 
 		err = operations.WriteFileInAppendMode(fileName, "line 1\n")

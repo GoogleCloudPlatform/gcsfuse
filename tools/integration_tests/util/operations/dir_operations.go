@@ -17,7 +17,6 @@ package operations
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -77,7 +76,7 @@ func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string,
 		// Closing file
 		defer func() {
 			if err := file.Close(); err != nil {
-				log.Printf("error in closing: %v", err)
+				t.Errorf("error in closing: %v", err)
 			}
 		}()
 	}

@@ -27,6 +27,13 @@ import (
 func checkIfFileCreationFailed(filePath string, t *testing.T) {
 	file, err := os.OpenFile(filePath, os.O_CREATE, setup.FilePermission_0600)
 
+	// Closing file at the end.
+	defer func() {
+		if err := file.Close(); err != nil {
+			t.Errorf("error in closing: %v", err)
+		}
+	}()
+
 	if err == nil {
 		t.Errorf("File is created in read-only file system.")
 	}

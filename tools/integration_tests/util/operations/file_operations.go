@@ -36,14 +36,25 @@ func CopyFile(srcFileName string, newFileName string) (err error) {
 		err = fmt.Errorf("File %s opening error: %v", srcFileName, err)
 		return
 	}
-	defer source.Close()
+
+	// Closing file at the end.
+	defer func() {
+		if err := source.Close(); err != nil {
+			setup.LogAndExit(fmt.Sprintf("error in closing: %v", err))
+		}
+	}()
 
 	destination, err := os.OpenFile(newFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Copied file creation error: %v", err)
 		return
 	}
-	defer destination.Close()
+	// Closing file at the end.
+	defer func() {
+		if err := destination.Close(); err != nil {
+			setup.LogAndExit(fmt.Sprintf("error in closing: %v", err))
+		}
+	}()
 
 	// File copying with io.Copy() utility.
 	_, err = io.Copy(destination, source)
@@ -60,7 +71,13 @@ func ReadFile(filePath string) (content []byte, err error) {
 		err = fmt.Errorf("Error in the opening the file %v", err)
 		return
 	}
-	defer file.Close()
+
+	// Closing file at the end.
+	defer func() {
+		if err := file.Close(); err != nil {
+			setup.LogAndExit(fmt.Sprintf("error in closing: %v", err))
+		}
+	}()
 
 	content, err = os.ReadFile(file.Name())
 	if err != nil {
@@ -99,8 +116,14 @@ func WriteFileInAppendMode(fileName string, content string) (err error) {
 		return
 	}
 
+	// Closing file at the end.
+	defer func() {
+		if err := f.Close(); err != nil {
+			setup.LogAndExit(fmt.Sprintf("error in closing: %v", err))
+		}
+	}()
+
 	_, err = f.WriteString(content)
-	f.Close()
 
 	return
 }
@@ -112,8 +135,14 @@ func WriteFile(fileName string, content string) (err error) {
 		return
 	}
 
+	// Closing file at the end.
+	defer func() {
+		if err := f.Close(); err != nil {
+			setup.LogAndExit(fmt.Sprintf("error in closing: %v", err))
+		}
+	}()
+
 	_, err = f.WriteAt([]byte(content), 0)
-	f.Close()
 
 	return
 }

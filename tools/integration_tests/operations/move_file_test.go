@@ -39,6 +39,13 @@ func createSrcDirectoryAndFile(dirPath string, filePath string, t *testing.T) {
 		t.Errorf("Error in creating file %v:", err)
 	}
 
+	// Closing file at the end.
+	defer func() {
+		if err := file.Close(); err != nil {
+			t.Errorf("error in closing: %v", err)
+		}
+	}()
+
 	err = operations.WriteFile(file.Name(), MoveFileContent)
 	if err != nil {
 		t.Errorf("File at %v", err)

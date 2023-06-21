@@ -34,7 +34,12 @@ func MountGcsfuse(flags []string) error {
 	if err != nil {
 		fmt.Println("Could not open logfile")
 	}
-	defer file.Close()
+	// Closing file at the end.
+	defer func() {
+		if err := file.Close(); err != nil {
+			setup.LogAndExit(fmt.Sprintf("error in closing: %v", err))
+		}
+	}()
 
 	_, err = file.WriteString(mountCmd.String() + "\n")
 	if err != nil {

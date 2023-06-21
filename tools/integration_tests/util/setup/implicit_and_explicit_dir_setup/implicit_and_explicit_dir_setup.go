@@ -85,8 +85,15 @@ func CreateExplicitDirectory(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), ExplicitDirectory)
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInExplicitDirectory, dirPath, PrefixFileInExplicitDirectory, t)
 	filePath := path.Join(setup.MntDir(), ExplicitFile)
-	_, err := os.Create(filePath)
+	file, err := os.Create(filePath)
 	if err != nil {
 		t.Errorf("Create file at %q: %v", setup.MntDir(), err)
 	}
+
+	// Closing file at the end.
+	defer func() {
+		if err := file.Close(); err != nil {
+			t.Errorf("error in closing: %v", err)
+		}
+	}()
 }

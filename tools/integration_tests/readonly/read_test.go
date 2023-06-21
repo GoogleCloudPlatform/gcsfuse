@@ -64,7 +64,12 @@ func checkIfNonExistentFileFailedToOpen(filePath string, t *testing.T) {
 	if err == nil {
 		t.Errorf("Nonexistent file opened to read.")
 	}
-	defer file.Close()
+	// Closing file at the end.
+	defer func() {
+		if err := file.Close(); err != nil {
+			t.Errorf("error in closing: %v", err)
+		}
+	}()
 }
 
 func TestReadNonExistentFile(t *testing.T) {

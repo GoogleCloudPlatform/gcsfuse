@@ -117,9 +117,10 @@ func CreateTempFile() string {
 		LogAndExit(fmt.Sprintf("Error in the opening the file %v", err))
 	}
 
+	// Closing file at the end.
 	defer func() {
 		if err := file.Close(); err != nil {
-			log.Printf("error in closing: %v", err)
+			LogAndExit(fmt.Sprintf("error in closing: %v", err))
 		}
 	}()
 
