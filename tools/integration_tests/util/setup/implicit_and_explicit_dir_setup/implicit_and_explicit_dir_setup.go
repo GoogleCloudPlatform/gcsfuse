@@ -91,5 +91,5 @@ func CreateExplicitDirectory(t *testing.T) {
 	}
 
 	// Closing file at the end.
-	operations.CloseFile(file)
+	defer operations.CloseFile(file)
 }

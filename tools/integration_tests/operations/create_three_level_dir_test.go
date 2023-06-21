@@ -145,5 +145,5 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 	}
 
 	// Delete objects from mountedDirectory after testing.
-	operations.CleanMntDir()
+	clean_mount_dir.CleanMntDir()
 }

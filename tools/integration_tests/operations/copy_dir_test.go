@@ -54,7 +54,7 @@ func createSrcDirectoryWithObjects(dirPath string, t *testing.T) {
 	}
 
 	// Closing file at the end
-	operations.CloseFile(file)
+	defer operations.CloseFile(file)
 
 	err = operations.WriteFile(file.Name(), SrcCopyFileContent)
 	if err != nil {
@@ -167,8 +167,8 @@ func TestCopyDirectoryInEmptyDirectory(t *testing.T) {
 	destSrc := path.Join(destDir, SrcCopyDirectory)
 	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
 
-	// Delete objects from bucket after testing.
-	operations.CleanMntDir()
+	// Clean the mountedDirectory before running any tests.
+	clean_mount_dir.CleanMntDir()
 }
 
 func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
@@ -224,6 +224,6 @@ func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
 	destSrc := path.Join(destDir, SrcCopyDirectory)
 	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
 
-	// Delete objects from mountedDirectory after testing.
-	operations.CleanMntDir()
+	// Clean the mountedDirectory before running any tests.
+	clean_mount_dir.CleanMntDir()
 }

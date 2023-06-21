@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"testing"
 
+	clean_mount_dir "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 )
 
@@ -172,7 +173,8 @@ func UnMount() error {
 func executeTest(m *testing.M) (successCode int) {
 	successCode = m.Run()
 
-	os.RemoveAll(mntDir)
+	// Clean the mountedDirectory before running any tests.
+	clean_mount_dir.CleanMntDir()
 
 	return successCode
 }
@@ -181,7 +183,7 @@ func ExecuteTestForFlagsSet(flags []string, m *testing.M) (successCode int) {
 	var err error
 
 	// Clean the mountedDirectory before running any tests.
-	os.RemoveAll(mntDir)
+	clean_mount_dir.CleanMntDir()
 
 	successCode = executeTest(m)
 
