@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/clean_mount_dir"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 )
@@ -123,9 +124,7 @@ func CreateTempFile() string {
 		LogAndExit(fmt.Sprintf("Temporary file at %v", err))
 	}
 
-	if err := file.Close(); err != nil {
-		LogAndExit(fmt.Sprintf("error in closing: %v", err))
-	}
+	defer operations.CloseFile(file)
 
 	return fileName
 }
