@@ -25,7 +25,6 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 )
 
@@ -118,12 +117,13 @@ func CreateTempFile() string {
 		LogAndExit(fmt.Sprintf("Error in the opening the file %v", err))
 	}
 
-	// Closing file at the end.
-	operations.CloseFile(file)
-
 	_, err = file.WriteString("line 1\nline 2\n")
 	if err != nil {
 		LogAndExit(fmt.Sprintf("Temporary file at %v", err))
+	}
+
+	if err := file.Close(); err != nil {
+		LogAndExit(fmt.Sprintf("error in closing: %v", err))
 	}
 
 	return fileName
@@ -172,7 +172,7 @@ func UnMount() error {
 func executeTest(m *testing.M) (successCode int) {
 	successCode = m.Run()
 
-	operations.CleanMntDir()
+	os.RemoveAll(mntDir)
 
 	return successCode
 }
@@ -181,7 +181,7 @@ func ExecuteTestForFlagsSet(flags []string, m *testing.M) (successCode int) {
 	var err error
 
 	// Clean the mountedDirectory before running any tests.
-	operations.CleanMntDir()
+	os.RemoveAll(mntDir)
 
 	successCode = executeTest(m)
 

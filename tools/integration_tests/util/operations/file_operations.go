@@ -18,6 +18,7 @@ package operations
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"syscall"
@@ -139,6 +140,6 @@ func MoveFile(srcFilePath string, destDirPath string) (err error) {
 
 func CloseFile(file *os.File) {
 	if err := file.Close(); err != nil {
-		setup.LogAndExit(fmt.Sprintf("error in closing: %v", err))
+		log.Printf(fmt.Sprintf("error in closing: %v", err))
 	}
 }
