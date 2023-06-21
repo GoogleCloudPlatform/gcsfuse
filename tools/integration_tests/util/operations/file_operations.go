@@ -66,7 +66,7 @@ func ReadFile(filePath string) (content []byte, err error) {
 	}
 
 	// Closing file at the end.
-	CloseFile(file)
+	defer CloseFile(file)
 
 	content, err = os.ReadFile(file.Name())
 	if err != nil {
