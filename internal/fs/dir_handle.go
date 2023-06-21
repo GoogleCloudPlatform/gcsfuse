@@ -331,6 +331,7 @@ func (dh *dirHandle) ReadDir(
 		//cancel the context if faced error while fetching
 		if rec.err != nil {
 			err = rec.err
+			rec.Unlock()
 			return
 		}
 	}
