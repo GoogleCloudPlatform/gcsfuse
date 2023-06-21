@@ -225,6 +225,6 @@ func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
 	destSrc := path.Join(destDir, SrcCopyDirectory)
 	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
 
-	// Clean the mountedDirectory after running any tests.
+	// Clean the mountedDirectory before running any tests.
 	clean_mount_dir2.CleanMntDir(setup.MntDir())
 }
