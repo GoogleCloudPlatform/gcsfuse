@@ -16,7 +16,8 @@
 package implicit_dir_test
 
 import (
-	"fmt"
+	"log"
+	"os"
 	"path"
 	"testing"
 
@@ -73,6 +74,16 @@ func TestDeleteImplicitDirWithExplicitSubDir(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory)
 
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectory()
+
+	//dir := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory)
+	//fmt.Println(dir)
+	//_, err := os.Stat(dir)
+	//log.Print(err)
+	dir := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory)
+	_, err := os.Stat(dir)
+	log.Print(err)
+
 }
 
 // Directory Structure
@@ -85,13 +96,13 @@ func TestDeleteImplicitDirWithExplicitSubDir(t *testing.T) {
 func TestDeleteImplicitDirWithExplicitSubDirInImplicitSubDir(t *testing.T) {
 	implicit_and_explicit_dir_setup.CreateImplicitDirectory()
 
-	dir := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory)
-	fmt.Println(dir)
+	//dir := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory)
+	//fmt.Println(dir)
 	//_, err := os.Stat(dir)
 	//log.Print(err)
-	dir = path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory)
-	//_, err = os.Stat(dir)
-	//log.Print(err)
+	dir := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory)
+	_, err := os.Stat(dir)
+	log.Print(err)
 	//explicitDirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory, ExplicitDirInImplicitSubDir)
 
 	////time.Sleep(1 * time.Minute)
