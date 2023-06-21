@@ -106,7 +106,7 @@ func WriteFileInAppendMode(fileName string, content string) (err error) {
 	}
 
 	// Closing file at the end.
-	CloseFile(f)
+	defer CloseFile(f)
 
 	_, err = f.WriteString(content)
 
@@ -121,7 +121,7 @@ func WriteFile(fileName string, content string) (err error) {
 	}
 
 	// Closing file at the end.
-	CloseFile(f)
+	defer CloseFile(f)
 
 	_, err = f.WriteAt([]byte(content), 0)
 
