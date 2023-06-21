@@ -64,7 +64,7 @@ class ExperimentsGCSFuseBQ:
       query (str): Query that will be executed in BigQuery.
 
     Raises:
-      Aborts the program if error is encountered while executing the query.
+      Exception: If query execution failed.
     """
     job = self.client.query(query)
     # Wait for query to be completed
