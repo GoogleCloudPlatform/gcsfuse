@@ -82,11 +82,11 @@ class ExperimentsGCSFuseBQ:
     return
 
   def setup_dataset_and_tables(self):
-
-    """Creates the dataset to store the tables and the experiment configuration table
-       to store the configuration details and creates the list_metrics, read_write_fio_metrics
-       and read_write_vm_metrics tables to store the metrics data if it doesn't already exist
-       in the dataset.
+    """
+      Creates the dataset to store the tables and the experiment configuration table
+      to store the configuration details and creates the list_metrics, read_write_fio_metrics
+      and read_write_vm_metrics tables to store the metrics data if it doesn't already exist
+      in the dataset.
     """
     # Create dataset if not exists
     dataset = bigquery.Dataset(f"{self.project_id}.{self.dataset_id}")
