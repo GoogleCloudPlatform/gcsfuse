@@ -16,11 +16,13 @@ package fs
 
 import (
 	"fmt"
+	"runtime"
 	"sort"
 	"sync"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
+	// 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -30,6 +32,7 @@ import (
 type Record struct {
 	sync.Mutex
 	length int
+	err    error
 	cond   *sync.Cond
 }
 
@@ -246,25 +249,34 @@ func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
 
 func (dh *dirHandle) FetchEntriesAsync(
 	rootInodeId int,
-	firstCall int) {
-	ctx, cancel := context.WithCancel(context.Background())
+	firstCall bool) {
+	ctx, cancel := context.WithCancel(context.TODO())
 	var err error
-	for ContinuationToken != "" || firstCall == 1 {
+	for ContinuationToken != "" || firstCall {
 		var entries []fuseutil.Dirent
 		dh.in.Lock()
-
 		entries, ContinuationToken, err = dh.in.ReadEntries(ctx, ContinuationToken)
 		dh.in.Unlock()
 		if err != nil {
-			fmt.Errorf("ReadEntries: %w", err)
+			err = fmt.Errorf("ReadEntries: %w", err)
+			rec.Lock()
+			rec.err = err
+			rec.Unlock()
+			rec.cond.Broadcast()
 			cancel()
+			runtime.Goexit()
 		}
 
 		sort.Sort(sortedDirents(entries))
 		err = fixConflictingNames(entries)
 		if err != nil {
-			fmt.Errorf("fixConflictingNames: %w", err)
+			err = fmt.Errorf("fixConflictingNames: %w", err)
+			rec.Lock()
+			rec.err = err
+			rec.Unlock()
+			rec.cond.Broadcast()
 			cancel()
+			runtime.Goexit()
 		}
 
 		rec.Lock()
@@ -280,9 +292,10 @@ func (dh *dirHandle) FetchEntriesAsync(
 		dh.entriesValid = true
 		dh.Mu.Unlock()
 		rec.cond.Broadcast()
-		firstCall = 0
+		firstCall = false
 	}
 	cancel()
+	runtime.Goexit()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -309,12 +322,17 @@ func (dh *dirHandle) ReadDir(
 		rec.Lock()
 		rec.length = 0
 		rec.Unlock()
-		go dh.FetchEntriesAsync(fuseops.RootInodeID, 1)
+		go dh.FetchEntriesAsync(fuseops.RootInodeID, true)
 
 	}
 	rec.Lock()
 	if rec.length <= int(op.Offset) && (op.Offset == 0 || ContinuationToken != "") {
 		rec.cond.Wait()
+		//cancel the context if faced error while fetching
+		if rec.err != nil {
+			err = rec.err
+			return
+		}
 	}
 
 	// Is the offset past the end of what we have buffered? If so, this must be
