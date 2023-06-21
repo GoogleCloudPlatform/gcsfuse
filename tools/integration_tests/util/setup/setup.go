@@ -242,7 +242,15 @@ func LogAndExit(s string) {
 }
 
 func CleanMntDir() {
-	if err := os.RemoveAll(mntDir); err != nil {
-		LogAndExit(fmt.Sprintf("error in removing: %v", err))
+	dir, err := os.ReadDir(mntDir)
+	if err != nil {
+		LogAndExit(fmt.Sprintf("Error in reading directory: %v", err))
+	}
+
+	for _, d := range dir {
+		err := os.RemoveAll(path.Join([]string{mntDir, d.Name()}...))
+		if err != nil {
+			LogAndExit(fmt.Sprintf("Error in removing directory: %v", err))
+		}
 	}
 }
