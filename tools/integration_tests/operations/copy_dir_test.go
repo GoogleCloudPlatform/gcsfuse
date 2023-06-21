@@ -23,7 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
-	clean_mount_dir2 "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/clean_mount_dir"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/clean_mount_dir"
 )
 
 // Create below directory structure.
@@ -120,9 +120,8 @@ func TestCopyDirectoryInNonExistingDirectory(t *testing.T) {
 
 	checkIfCopiedDirectoryHasCorrectData(destDir, t)
 
-	if err := os.RemoveAll(setup.MntDir()); err != nil {
-		t.Errorf("error in removing: %v", err)
-	}
+	// Clean the mountedDirectory after running any tests.
+	clean_mount_dir.CleanMntDir(setup.MntDir())
 }
 
 // Copy SrcDirectory in DestDirectory
@@ -168,8 +167,8 @@ func TestCopyDirectoryInEmptyDirectory(t *testing.T) {
 	destSrc := path.Join(destDir, SrcCopyDirectory)
 	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
 
-	// Clean the mountedDirectory before running any tests.
-	clean_mount_dir2.CleanMntDir(setup.MntDir())
+	// Clean the mountedDirectory after running any tests.
+	clean_mount_dir.CleanMntDir(setup.MntDir())
 }
 
 func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
@@ -225,6 +224,6 @@ func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
 	destSrc := path.Join(destDir, SrcCopyDirectory)
 	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
 
-	// Clean the mountedDirectory before running any tests.
-	clean_mount_dir2.CleanMntDir(setup.MntDir())
+	// Clean the mountedDirectory after running any tests.
+	clean_mount_dir.CleanMntDir(setup.MntDir())
 }
