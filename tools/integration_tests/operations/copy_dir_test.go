@@ -54,13 +54,13 @@ func createSrcDirectoryWithObjects(dirPath string, t *testing.T) {
 		t.Errorf("Error in creating file %v:", err)
 	}
 
-	// Closing file at the end
-	defer operations.CloseFile(file)
-
 	err = operations.WriteFile(file.Name(), SrcCopyFileContent)
 	if err != nil {
 		t.Errorf("File at %v", err)
 	}
+
+	// Closing file at the end
+	defer operations.CloseFile(file)
 }
 
 func checkIfCopiedDirectoryHasCorrectData(destDir string, t *testing.T) {
