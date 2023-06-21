@@ -25,11 +25,11 @@ from google.cloud import bigquery
 
 class ExperimentsGCSFuseBQ:
   """
-    This class can used to create the dataset that will store the tables and the tables
-    to store the experiment configurations and the tables which will store the metrics data.
+    Class to create and interact with Bigquery dataset and tables for storing
+    experiments configurations and their results.
 
     Attributes:
-      project_id (str): The project on pantheon in which dataset and tables will be created
+      project_id (str): The GCP project in which dataset and tables will be created
       dataset_id (str): The name of the dataset in the project that will store the tables
       bq_client (Optional[google.cloud.bigquery.client.Client]): The client for interacting with Bigquery
   """
@@ -40,14 +40,6 @@ class ExperimentsGCSFuseBQ:
   LS_TABLE_ID = 'list_metrics'
 
   def __init__(self, project_id, dataset_id, bq_client=None):
-    """
-      Initializes a new instance of ExperimentsGCSFuseBQ.
-
-      Args:
-        project_id (str): The project on pantheon in which dataset and tables will be created
-        dataset_id (str): The name of the dataset in the project that will store the tables
-        bq_client (Optional[google.cloud.bigquery.client.Client]): The client for interacting with Bigquery
-    """
     if bq_client is None:
       self.client = bigquery.Client(project=project_id)
     self.project_id = project_id
@@ -63,23 +55,23 @@ class ExperimentsGCSFuseBQ:
     """
     return self.client.get_dataset(self.dataset_id)
 
-  def _execute_query_and_check_for_error(self, query):
-    """Executes the query in BigQuery.
+  def _execute_query_and_check_for_error(self, query) -> QueryJob:
+    """Executes the query in BigQuery and raises an exception if query
+       execution could not be completed.
 
     Args:
       query (str): Query that will be executed in BigQuery.
 
     Raises:
-      Aborts the program if error is encountered while executing th query.
+      Aborts the program if error is encountered while executing the query.
     """
     job = self.client.query(query)
-    # Wait for the job to complete
+    # Wait for query to be completed
     job.result()
     if job.errors:
       for error in job.errors:
-        print(f"Error message: {error['message']}")
-      sys.exit(1)
-    return
+        raise Exception(f"Error message: {error['message']}")
+    return job
 
   def setup_dataset_and_tables(self):
     """
