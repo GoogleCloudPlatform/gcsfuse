@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	clean_mount_dir2 "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations/clean_mount_dir"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -145,5 +146,5 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 	}
 
 	// Delete objects from mountedDirectory after testing.
-	clean_mount_dir.CleanMntDir()
+	clean_mount_dir2.CleanMntDir()
 }
