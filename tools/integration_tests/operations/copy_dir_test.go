@@ -168,7 +168,7 @@ func TestCopyDirectoryInEmptyDirectory(t *testing.T) {
 	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
 
 	// Delete objects from bucket after testing.
-	setup.CleanMntDir()
+	operations.CleanMntDir()
 }
 
 func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
@@ -225,5 +225,5 @@ func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
 	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
 
 	// Delete objects from mountedDirectory after testing.
-	setup.CleanMntDir()
+	operations.CleanMntDir()
 }

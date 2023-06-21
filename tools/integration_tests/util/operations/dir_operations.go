@@ -17,6 +17,7 @@ package operations
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -75,5 +76,21 @@ func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string,
 
 		// Closing file at the end.
 		CloseFile(file)
+	}
+}
+
+// Clean mounted directory
+func CleanMntDir() {
+	dir, err := os.ReadDir(setup.MntDir())
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error in reading directory: %v", err))
+	}
+
+	log.Print(len(dir))
+	for _, d := range dir {
+		err := os.RemoveAll(path.Join([]string{setup.MntDir(), d.Name()}...))
+		if err != nil {
+			setup.LogAndExit(fmt.Sprintf("Error in removing directory: %v", err))
+		}
 	}
 }

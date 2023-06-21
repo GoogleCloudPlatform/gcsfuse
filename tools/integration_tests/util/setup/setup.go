@@ -172,7 +172,7 @@ func UnMount() error {
 func executeTest(m *testing.M) (successCode int) {
 	successCode = m.Run()
 
-	CleanMntDir()
+	operations.CleanMntDir()
 
 	return successCode
 }
@@ -181,7 +181,7 @@ func ExecuteTestForFlagsSet(flags []string, m *testing.M) (successCode int) {
 	var err error
 
 	// Clean the mountedDirectory before running any tests.
-	CleanMntDir()
+	operations.CleanMntDir()
 
 	successCode = executeTest(m)
 
@@ -236,20 +236,4 @@ func SetUpTestDirForTestBucketFlag() {
 func LogAndExit(s string) {
 	log.Print(s)
 	os.Exit(1)
-}
-
-// Clean mounted directory
-func CleanMntDir() {
-	dir, err := os.ReadDir(mntDir)
-	if err != nil {
-		LogAndExit(fmt.Sprintf("Error in reading directory: %v", err))
-	}
-
-	log.Print(len(dir))
-	for _, d := range dir {
-		err := os.RemoveAll(path.Join([]string{mntDir, d.Name()}...))
-		if err != nil {
-			LogAndExit(fmt.Sprintf("Error in removing directory: %v", err))
-		}
-	}
 }
