@@ -31,7 +31,8 @@ class ExperimentsGCSFuseBQ:
     Attributes:
       project_id (str): The GCP project in which dataset and tables will be created
       dataset_id (str): The name of the dataset in the project that will store the tables
-      bq_client (Optional[google.cloud.bigquery.client.Client]): The client for interacting with Bigquery
+      bq_client (Optional[google.cloud.bigquery.client.Client]): The client for interacting with Bigquery.
+                                                                 Default value is bigquery.Client(project=project_id).
   """
 
   CONFIGURATION_TABLE_ID = 'experiment_configuration'
