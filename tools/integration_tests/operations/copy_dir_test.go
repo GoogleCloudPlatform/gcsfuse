@@ -122,8 +122,9 @@ func TestCopyDirectoryInNonExistingDirectory(t *testing.T) {
 
 	checkIfCopiedDirectoryHasCorrectData(destDir, t)
 
-	os.RemoveAll(srcDir)
-	os.RemoveAll(destDir)
+	if err := os.RemoveAll(setup.MntDir()); err != nil {
+		t.Errorf("error in removing: %v", err)
+	}
 }
 
 // Copy SrcDirectory in DestDirectory
@@ -169,8 +170,9 @@ func TestCopyDirectoryInEmptyDirectory(t *testing.T) {
 	destSrc := path.Join(destDir, SrcCopyDirectory)
 	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
 
-	os.RemoveAll(srcDir)
-	os.RemoveAll(destDir)
+	if err := os.RemoveAll(setup.MntDir()); err != nil {
+		t.Errorf("error in removing: %v", err)
+	}
 }
 
 func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
@@ -226,6 +228,7 @@ func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
 	destSrc := path.Join(destDir, SrcCopyDirectory)
 	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
 
-	os.RemoveAll(srcDir)
-	os.RemoveAll(destDir)
+	if err := os.RemoveAll(setup.MntDir()); err != nil {
+		t.Errorf("error in removing: %v", err)
+	}
 }
