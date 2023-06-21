@@ -53,6 +53,12 @@ func createSrcDirectoryWithObjects(dirPath string, t *testing.T) {
 		t.Errorf("Error in creating file %v:", err)
 	}
 
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("error in closing: %v", err)
+		}
+	}()
+
 	err = operations.WriteFile(file.Name(), SrcCopyFileContent)
 	if err != nil {
 		t.Errorf("File at %v", err)

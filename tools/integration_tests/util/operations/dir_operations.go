@@ -17,6 +17,7 @@ package operations
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -68,9 +69,16 @@ func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string,
 		// Create file with name prefix + i
 		// e.g. If prefix = temp  then temp1, temp2
 		filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
-		_, err := os.Create(filePath)
+		file, err := os.Create(filePath)
 		if err != nil {
 			t.Errorf("Create file at %q: %v", dirPath, err)
 		}
+
+		// Closing file
+		defer func() {
+			if err := file.Close(); err != nil {
+				log.Printf("error in closing: %v", err)
+			}
+		}()
 	}
 }
