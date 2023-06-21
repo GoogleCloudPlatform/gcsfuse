@@ -53,11 +53,8 @@ func createSrcDirectoryWithObjects(dirPath string, t *testing.T) {
 		t.Errorf("Error in creating file %v:", err)
 	}
 
-	defer func() {
-		if err := file.Close(); err != nil {
-			log.Printf("error in closing: %v", err)
-		}
-	}()
+	// Closing file at the end
+	operations.CloseFile(file)
 
 	err = operations.WriteFile(file.Name(), SrcCopyFileContent)
 	if err != nil {
@@ -170,9 +167,8 @@ func TestCopyDirectoryInEmptyDirectory(t *testing.T) {
 	destSrc := path.Join(destDir, SrcCopyDirectory)
 	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
 
-	if err := os.RemoveAll(setup.MntDir()); err != nil {
-		t.Errorf("error in removing: %v", err)
-	}
+	// Delete objects from bucket after testing.
+	setup.CleanMntDir()
 }
 
 func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
@@ -228,7 +224,6 @@ func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
 	destSrc := path.Join(destDir, SrcCopyDirectory)
 	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
 
-	if err := os.RemoveAll(setup.MntDir()); err != nil {
-		t.Errorf("error in removing: %v", err)
-	}
+	// Delete objects from mountedDirectory after testing.
+	setup.CleanMntDir()
 }

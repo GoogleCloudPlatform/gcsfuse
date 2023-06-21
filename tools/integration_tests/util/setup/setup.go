@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 )
 
@@ -118,11 +119,7 @@ func CreateTempFile() string {
 	}
 
 	// Closing file at the end.
-	defer func() {
-		if err := file.Close(); err != nil {
-			LogAndExit(fmt.Sprintf("error in closing: %v", err))
-		}
-	}()
+	operations.CloseFile(file)
 
 	_, err = file.WriteString("line 1\nline 2\n")
 	if err != nil {
@@ -241,12 +238,14 @@ func LogAndExit(s string) {
 	os.Exit(1)
 }
 
+// Clean mounted directory
 func CleanMntDir() {
 	dir, err := os.ReadDir(mntDir)
 	if err != nil {
 		LogAndExit(fmt.Sprintf("Error in reading directory: %v", err))
 	}
 
+	log.Print(len(dir))
 	for _, d := range dir {
 		err := os.RemoveAll(path.Join([]string{mntDir, d.Name()}...))
 		if err != nil {

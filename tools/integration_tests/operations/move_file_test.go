@@ -86,7 +86,8 @@ func TestMoveFileWithinSameDirectory(t *testing.T) {
 
 	checkIfFileMoveOperationSucceeded(filePath, destDirPath, t)
 
-	os.RemoveAll(dirPath)
+	// Delete objects from mountedDirectory after testing.
+	setup.CleanMntDir()
 }
 
 // Move file from Test/move.txt to Test1/move.txt
@@ -104,5 +105,6 @@ func TestMoveFileWithinDifferentDirectory(t *testing.T) {
 
 	checkIfFileMoveOperationSucceeded(filePath, destDirPath, t)
 
-	os.RemoveAll(dirPath)
+	// Delete objects from mountedDirectory after testing.
+	setup.CleanMntDir()
 }

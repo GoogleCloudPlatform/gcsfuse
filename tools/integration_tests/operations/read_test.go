@@ -37,11 +37,7 @@ func TestReadAfterWrite(t *testing.T) {
 		}
 
 		// Closing file at the end
-		defer func() {
-			if err := tmpFile.Close(); err != nil {
-				t.Errorf("error in closing: %v", err)
-			}
-		}()
+		operations.CloseFile(tmpFile)
 
 		fileName := tmpFile.Name()
 

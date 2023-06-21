@@ -73,11 +73,7 @@ func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string,
 			t.Errorf("Create file at %q: %v", dirPath, err)
 		}
 
-		// Closing file
-		defer func() {
-			if err := file.Close(); err != nil {
-				t.Errorf("error in closing: %v", err)
-			}
-		}()
+		// Closing file at the end.
+		CloseFile(file)
 	}
 }

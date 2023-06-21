@@ -38,11 +38,7 @@ func CopyFile(srcFileName string, newFileName string) (err error) {
 	}
 
 	// Closing file at the end.
-	defer func() {
-		if err := source.Close(); err != nil {
-			setup.LogAndExit(fmt.Sprintf("error in closing: %v", err))
-		}
-	}()
+	CloseFile(source)
 
 	destination, err := os.OpenFile(newFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
@@ -50,11 +46,7 @@ func CopyFile(srcFileName string, newFileName string) (err error) {
 		return
 	}
 	// Closing file at the end.
-	defer func() {
-		if err := destination.Close(); err != nil {
-			setup.LogAndExit(fmt.Sprintf("error in closing: %v", err))
-		}
-	}()
+	CloseFile(destination)
 
 	// File copying with io.Copy() utility.
 	_, err = io.Copy(destination, source)
@@ -73,11 +65,7 @@ func ReadFile(filePath string) (content []byte, err error) {
 	}
 
 	// Closing file at the end.
-	defer func() {
-		if err := file.Close(); err != nil {
-			setup.LogAndExit(fmt.Sprintf("error in closing: %v", err))
-		}
-	}()
+	CloseFile(file)
 
 	content, err = os.ReadFile(file.Name())
 	if err != nil {
@@ -117,11 +105,7 @@ func WriteFileInAppendMode(fileName string, content string) (err error) {
 	}
 
 	// Closing file at the end.
-	defer func() {
-		if err := f.Close(); err != nil {
-			setup.LogAndExit(fmt.Sprintf("error in closing: %v", err))
-		}
-	}()
+	CloseFile(f)
 
 	_, err = f.WriteString(content)
 
@@ -136,11 +120,7 @@ func WriteFile(fileName string, content string) (err error) {
 	}
 
 	// Closing file at the end.
-	defer func() {
-		if err := f.Close(); err != nil {
-			setup.LogAndExit(fmt.Sprintf("error in closing: %v", err))
-		}
-	}()
+	CloseFile(f)
 
 	_, err = f.WriteAt([]byte(content), 0)
 
@@ -155,4 +135,10 @@ func MoveFile(srcFilePath string, destDirPath string) (err error) {
 		err = fmt.Errorf("Moving file operation is failed: %v", err)
 	}
 	return err
+}
+
+func CloseFile(file *os.File) {
+	if err := file.Close(); err != nil {
+		setup.LogAndExit(fmt.Sprintf("error in closing: %v", err))
+	}
 }

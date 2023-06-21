@@ -61,8 +61,8 @@ func createDirectoryStructureForTest(t *testing.T) {
 }
 
 func TestListDirectoryRecursively(t *testing.T) {
-	// Clean the bucket for list testing.
-	os.RemoveAll(setup.MntDir())
+	// Delete objects from bucket after testing.
+	setup.CleanMntDir()
 
 	// Create directory structure for testing.
 	createDirectoryStructureForTest(t)
@@ -179,5 +179,6 @@ func TestListDirectoryRecursively(t *testing.T) {
 		return
 	}
 
-	os.RemoveAll(setup.MntDir())
+	// Delete objects from mountedDirectory after testing.
+	setup.CleanMntDir()
 }

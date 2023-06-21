@@ -40,12 +40,8 @@ func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 	implicit_and_explicit_dir_setup.CreateImplicitDirectory()
 	implicit_and_explicit_dir_setup.CreateExplicitDirectory(t)
 
-	// Delete objects from bucket after testing.
-	defer func() {
-		if err := os.RemoveAll(setup.MntDir()); err != nil {
-			t.Errorf("error in removing: %v", err)
-		}
-	}()
+	// Delete objects from mountedDirectory after testing.
+	defer setup.CleanMntDir()
 
 	err := filepath.WalkDir(setup.MntDir(), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {

@@ -91,9 +91,5 @@ func CreateExplicitDirectory(t *testing.T) {
 	}
 
 	// Closing file at the end.
-	defer func() {
-		if err := file.Close(); err != nil {
-			t.Errorf("error in closing: %v", err)
-		}
-	}()
+	operations.CloseFile(file)
 }

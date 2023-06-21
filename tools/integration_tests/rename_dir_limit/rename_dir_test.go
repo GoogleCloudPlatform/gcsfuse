@@ -39,7 +39,9 @@ func TestRenameDirectoryWithThreeFiles(t *testing.T) {
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
 
 	//  Cleaning the directory before renaming.
-	os.RemoveAll(newDirPath)
+	if err := os.RemoveAll(newDirPath); err != nil {
+		t.Errorf("Error in removing direcitory: %v", err)
+	}
 
 	err := os.Rename(oldDirPath, newDirPath)
 
@@ -63,7 +65,9 @@ func TestRenameDirectoryWithTwoFiles(t *testing.T) {
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
 
 	//  Cleaning the directory before renaming.
-	os.RemoveAll(newDirPath)
+	if err := os.RemoveAll(newDirPath); err != nil {
+		t.Errorf("Error in removing direcitory: %v", err)
+	}
 
 	err := os.Rename(oldDirPath, newDirPath)
 
@@ -89,7 +93,9 @@ func TestRenameDirectoryWithFourFiles(t *testing.T) {
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
 
 	//  Cleaning the directory before renaming.
-	os.RemoveAll(newDirPath)
+	if err := os.RemoveAll(newDirPath); err != nil {
+		t.Errorf("Error in removing direcitory: %v", err)
+	}
 
 	err := os.Rename(oldDirPath, newDirPath)
 
@@ -116,7 +122,9 @@ func TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory(t *testing.T) {
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
 
 	//  Cleaning the directory before renaming.
-	os.RemoveAll(newDirPath)
+	if err := os.RemoveAll(newDirPath); err != nil {
+		t.Errorf("Error in removing direcitory: %v", err)
+	}
 
 	err := os.Rename(oldDirPath, newDirPath)
 
@@ -145,7 +153,9 @@ func TestRenameDirectoryWithTwoFilesAndOneNonEmptyDirectory(t *testing.T) {
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
 
 	//  Cleaning the directory before renaming.
-	os.RemoveAll(newDirPath)
+	if err := os.RemoveAll(newDirPath); err != nil {
+		t.Errorf("Error in removing direcitory: %v", err)
+	}
 
 	err := os.Rename(oldDirPath, newDirPath)
 

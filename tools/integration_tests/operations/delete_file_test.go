@@ -20,6 +20,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -46,12 +47,8 @@ func createFile(filePath string, t *testing.T) {
 		t.Errorf("Error in creating file: %v", err)
 	}
 
-	// Closing file
-	defer func() {
-		if err := file.Close(); err != nil {
-			t.Errorf("error in closing: %v", err)
-		}
-	}()
+	// Closing file at the end
+	operations.CloseFile(file)
 }
 
 // Remove testBucket/A.txt
