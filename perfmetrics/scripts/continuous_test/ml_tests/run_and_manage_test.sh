@@ -28,7 +28,7 @@ ARTIFACTS_BUCKET_PATH=$3
 # Path of test script relative to $HOME inside test VM.
 TEST_SCRIPT_PATH=$4
 
-function initialize_ssh_keys() {
+function initialize_ssh_key () {
     echo "Delete existing ssh keys "
     # This is required to avoid issue: https://github.com/kyma-project/test-infra/issues/93
     for i in $(sudo gcloud compute os-login ssh-keys list | grep -v FINGERPRINT); do sudo gcloud compute os-login ssh-keys remove --key $i; done
@@ -41,6 +41,7 @@ function initialize_ssh_keys() {
 function delete_existing_vm_and_create_new () {
   (
     set +e
+
     echo "Deleting VM $VM_NAME in zone $ZONE_NAME."
     sudo gcloud compute instances delete $VM_NAME --zone $ZONE_NAME --quiet
     if [ $? -eq 0 ];
@@ -66,7 +67,7 @@ function delete_existing_vm_and_create_new () {
       --service-account=927584127901-compute@developer.gserviceaccount.com \
       --scopes=https://www.googleapis.com/auth/cloud-platform \
       --accelerator=count=2,type=nvidia-tesla-a100 \
-      --create-disk=auto-delete=yes,boot=yes,device-name=$VM_NAME,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20230523,mode=rw,size=200,type=projects/$GCP_PROJECT/zones/us-central1-c/diskTypes/pd-balanced \
+      --create-disk=auto-delete=yes,boot=yes,device-name=$VM_NAME,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20230523,mode=rw,size=150,type=projects/$GCP_PROJECT/zones/$ZONE_NAME/diskTypes/pd-balanced \
       --no-shielded-secure-boot \
       --shielded-vtpm \
       --shielded-integrity-monitoring \
@@ -76,29 +77,31 @@ function delete_existing_vm_and_create_new () {
   echo "Wait for 30 seconds for new VM to be initialised"
   sleep 30s
 
-  initialize_ssh_keys
+  initialize_ssh_key
 }
 
-# Takes commit id of on-going test run ($1) artifacts to GCS bucket
+# Takes commit id of on-going test run ($1) and copies artifacts to GCS bucket.
 function copy_run_artifacts_to_gcs () {
   (
     # We don't want to exit if failure occurs while copying GCSFuse logs because
     # gsutil always gives error (even the files are copied) while uploading
-    # files that are changing while uploading and gcsfuse logs are changing
-    # when the test is running.
+    # files that are changing while uploading and gcsfuse logs changes when the
+    # test is running.
     set +e
-    echo "Copying GCSFuse logs to GCS bucket"
+    echo "Copying GCSFuse and test logs to GCS bucket for the run $1"
     sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil rsync -R -d \$HOME/github/gcsfuse/container_artifacts/ $ARTIFACTS_BUCKET_PATH/$1/container_artifacts"
     sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp \$HOME/build.out $ARTIFACTS_BUCKET_PATH/$1/build.out"
     sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp \$HOME/build.err $ARTIFACTS_BUCKET_PATH/$1/build.err"
     echo "\n"
   )
+  echo "Also, copy the status, commit and start time to $1 artifacts location in GCS bucket"
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp $ARTIFACTS_BUCKET_PATH/status.txt $ARTIFACTS_BUCKET_PATH/$1/"
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp $ARTIFACTS_BUCKET_PATH/commit.txt $ARTIFACTS_BUCKET_PATH/$1/"
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "gsutil cp $ARTIFACTS_BUCKET_PATH/start_time.txt $ARTIFACTS_BUCKET_PATH/$1/"
-  echo "Build logs from test VM copied to GCS bucket for the run $1"
+  echo "\n"
 }
 
+# Takes commit id of on-going test run ($1) and cat the artifacts to kokoro build.
 function cat_run_artifacts () {
   echo "Below is the stdout of build on test VM"
   gsutil cat $ARTIFACTS_BUCKET_PATH/$1/build.out
@@ -107,13 +110,13 @@ function cat_run_artifacts () {
   gsutil cat $ARTIFACTS_BUCKET_PATH/$1/build.err
 }
 
-# Returns status of on-going test run.
+# Echo status of on-going test run.
 function get_run_status () {
   status=$(gsutil cat $ARTIFACTS_BUCKET_PATH/status.txt)
   echo $status
 }
 
-# Returns commit id of on-going test run.
+# Echo commit id of on-going test run.
 function get_run_commit_id () {
   commit_id=$(gsutil cat $ARTIFACTS_BUCKET_PATH/commit.txt)
   echo $commit_id
@@ -141,7 +144,7 @@ then
   # To-do: change checkout to master branch before merging.
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "mkdir github; cd github; git clone https://github.com/GoogleCloudPlatform/gcsfuse.git; cd gcsfuse; git checkout ai_ml_tests;"
   echo "Trigger the build script on test VM"
-  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "bash \$HOME/$TEST_SCRIPT_PATH 1> ~/build.out 2> ~/build.err &"
+  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "bash \$HOME/$TEST_SCRIPT_PATH 1> \$HOME/build.out 2> \$HOME/build.err &"
   echo "Wait for 10 minutes for test VM to setup for test and to change the status from START to RUNNING."
   sleep 600s
 
@@ -189,7 +192,7 @@ else
   exit 1
 fi
 
-initialize_ssh_keys
+initialize_ssh_key
 commit_id=$(get_run_commit_id)
 copy_run_artifacts_to_gcs $commit_id
 cat_run_artifacts $commit_id

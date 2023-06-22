@@ -164,13 +164,14 @@ sed -i "$lines"'d' $train_lib_file
 x=$((x-1))
 sed -i "$x"'r bypassed_code.py' $train_lib_file
 
+ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/tf/resnet"
 echo "Update status file"
 echo "RUNNING" > status.txt
-gsutil cp status.txt gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/
+gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/
 
 echo "Update start time file"
 echo $(date +"%s") > start_time.txt
-gsutil cp start_time.txt gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/
+gsutil cp start_time.txt $ARTIFACTS_BUCKET_PATH/
 
 (
   set +e
@@ -188,6 +189,6 @@ gsutil cp start_time.txt gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/
   fi
 )
 
-gsutil cp status.txt gs://gcsfuse-ml-data/ci_artifacts/tf/resnet/
+gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/
 
 

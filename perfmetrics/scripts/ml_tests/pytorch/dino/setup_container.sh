@@ -28,41 +28,37 @@ nohup /pytorch_dino/gcsfuse/gcsfuse --foreground --type-cache-ttl=1728000s \
        gcsfuse-ml-data gcsfuse_data > "run_artifacts/gcsfuse.out" 2> "run_artifacts/gcsfuse.err" &
 
 # Update the pytorch library code to bypass the kernel-cache
-#echo "Updating the pytorch library code to bypass the kernel-cache..."
-#echo "
-#def pil_loader(path: str) -> Image.Image:
-#    fd = os.open(path, os.O_DIRECT)
-#    f = os.fdopen(fd, \"rb\")
-#    img = Image.open(f)
-#    rgb_img = img.convert(\"RGB\")
-#    f.close()
-#    return rgb_img
-#" > bypassed_code.py
+echo "Updating the pytorch library code to bypass the kernel-cache..."
+echo "
+def pil_loader(path: str) -> Image.Image:
+    fd = os.open(path, os.O_DIRECT)
+    f = os.fdopen(fd, \"rb\")
+    img = Image.open(f)
+    rgb_img = img.convert(\"RGB\")
+    f.close()
+    return rgb_img
+" > bypassed_code.py
 
-#folder_file="/opt/conda/lib/python3.7/site-packages/torchvision/datasets/folder.py"
-#x=$(grep -n "def pil_loader(path: str) -> Image.Image:" $folder_file | cut -f1 -d ':')
-#y=$(grep -n "def accimage_loader(path: str) -> Any:" $folder_file | cut -f1 -d ':')
-#y=$((y - 2))
-#lines="$x,$y"
-#sed -i "$lines"'d' $folder_file
-#sed -i "$x"'r bypassed_code.py' $folder_file
-echo "        os.system(\"sh -c 'echo 3 > /proc/sys/vm/drop_caches'\")" > bypassed_code.py
-controller_file="dino/main_dino.py";
-x=$(grep -n "# ============ training one epoch of DINO ... ============" $controller_file | cut -f1 -d ':');
-x=$((x - 2));
-sed -i "$x"'r bypassed_code.py' $controller_file;
+folder_file="/opt/conda/lib/python3.7/site-packages/torchvision/datasets/folder.py"
+x=$(grep -n "def pil_loader(path: str) -> Image.Image:" $folder_file | cut -f1 -d ':')
+y=$(grep -n "def accimage_loader(path: str) -> Any:" $folder_file | cut -f1 -d ':')
+y=$((y - 2))
+lines="$x,$y"
+sed -i "$lines"'d' $folder_file
+sed -i "$x"'r bypassed_code.py' $folder_file
 
 # Fix the caching issue - comes when we run the model first time with 8
 # nproc_per_node - by downloading the model in single thread environment.
 python -c 'import torch;torch.hub.list("facebookresearch/xcit:main")'
 
+ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/dino"
 echo "Update status file"
 echo "RUNNING" > status.txt
-gsutil cp status.txt gs://gcsfuse-ml-data/ci_artifacts/pytorch/dino/
+gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/
 
 echo "Update start time file"
 echo $(date +"%s") > start_time.txt
-gsutil cp start_time.txt gs://gcsfuse-ml-data/ci_artifacts/pytorch/dino/
+gsutil cp start_time.txt $ARTIFACTS_BUCKET_PATH/
 
 (
   set +e
@@ -97,4 +93,4 @@ gsutil cp start_time.txt gs://gcsfuse-ml-data/ci_artifacts/pytorch/dino/
     fi
 )
 
-gsutil cp status.txt gs://gcsfuse-ml-data/ci_artifacts/pytorch/dino/
+gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/
