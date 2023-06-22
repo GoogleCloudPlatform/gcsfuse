@@ -29,6 +29,12 @@ export PATH=$PATH:/usr/local/go/bin
 echo Installing fio
 sudo apt-get install fio -y
 
+echo '[remote "origin"]
+         fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' >> .git/config
+git fetch origin
+echo checkout PR branch
+git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
+
 # Executing integration tests
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test
 
