@@ -25,13 +25,15 @@ import (
 )
 
 func checkIfFileCreationFailed(filePath string, t *testing.T) {
-	_, err := os.OpenFile(filePath, os.O_CREATE, setup.FilePermission_0600)
+	file, err := os.OpenFile(filePath, os.O_CREATE, setup.FilePermission_0600)
 
 	if err == nil {
 		t.Errorf("File is created in read-only file system.")
 	}
 
 	checkErrorForReadOnlyFileSystem(err, t)
+
+	defer file.Close()
 }
 
 func TestCreateFile(t *testing.T) {
