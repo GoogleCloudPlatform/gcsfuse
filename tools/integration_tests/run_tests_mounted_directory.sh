@@ -21,6 +21,7 @@
 
 TEST_BUCKET_NAME=$1
 MOUNT_DIR=$2
+export CGO_ENABLED=0
 
 # Run integration tests for operations directory with static mounting
 gcsfuse --enable-storage-client-library=true --implicit-dirs=true $TEST_BUCKET_NAME $MOUNT_DIR
