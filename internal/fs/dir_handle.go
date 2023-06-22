@@ -22,7 +22,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
-	// 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -321,6 +320,7 @@ func (dh *dirHandle) ReadDir(
 		dh.entriesValid = false
 		rec.Lock()
 		rec.length = 0
+		rec.err = nil
 		rec.Unlock()
 		go dh.FetchEntriesAsync(fuseops.RootInodeID, true)
 
@@ -341,6 +341,7 @@ func (dh *dirHandle) ReadDir(
 	index := int(op.Offset)
 	if index > rec.length {
 		err = fuse.EINVAL
+		rec.Unlock()
 		return
 	}
 	rec.Unlock()
