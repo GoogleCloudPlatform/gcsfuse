@@ -29,29 +29,6 @@ export PATH=$PATH:/usr/local/go/bin
 echo Installing fio
 sudo apt-get install fio -y
 
-# Run on master branch
-cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
-git checkout master
-echo Mounting gcs bucket for master branch
-mkdir -p gcs
-GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
-BUCKET_NAME=presubmit-perf-tests
-MOUNT_POINT=gcs
-# The VM will itself exit if the gcsfuse mount fails.
-go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
-touch result.txt
-# Running FIO test
-chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
-./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
-sudo umount gcs
-
-# Fetch PR branch
-echo '[remote "origin"]
-         fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' >> .git/config
-git fetch origin
-echo checkout PR branch
-git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
-
 # Executing integration tests
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test
 
