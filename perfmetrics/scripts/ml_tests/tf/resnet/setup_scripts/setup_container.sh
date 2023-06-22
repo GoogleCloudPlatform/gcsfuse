@@ -164,9 +164,31 @@ sed -i "$lines"'d' $train_lib_file
 x=$((x-1))
 sed -i "$x"'r bypassed_code.py' $train_lib_file
 
-# We need to run it in foreground mode to make the container running.
-echo "Running the tensorflow resnet model..."
-# Start training the model
-python3 -u resnet_runner.py
+ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/tf/resnet"
+echo "Update status file"
+echo "RUNNING" > status.txt
+gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/
 
-echo "Tensorflow resnet model completed the training successfully!"
+echo "Update start time file"
+echo $(date +"%s") > start_time.txt
+gsutil cp start_time.txt $ARTIFACTS_BUCKET_PATH/
+
+(
+  set +e
+  # We need to run it in foreground mode to make the container running.
+  echo "Running the tensorflow resnet model..."
+  # Start training the model
+  python3 -u resnet_runner.py
+  if [ $? -eq 0 ];
+  then
+    echo "Tensorflow resnet model completed the training successfully!"
+    echo "COMPLETE" > status.txt
+  else
+    echo "Tensorflow resnet model training failed!"
+    echo "ERROR" > status.txt
+  fi
+)
+
+gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/
+
+
