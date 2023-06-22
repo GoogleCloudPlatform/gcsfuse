@@ -53,6 +53,9 @@ func createFile(filePath string, t *testing.T) {
 
 // Remove testBucket/A.txt
 func TestDeleteFileFromBucket(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 
 	createFile(filePath, t)
@@ -62,6 +65,9 @@ func TestDeleteFileFromBucket(t *testing.T) {
 
 // Remove testBucket/A/a.txt
 func TestDeleteFileFromBucketDirectory(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	dirPath := path.Join(setup.MntDir(), DirNameInTestBucket)
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
 	if err != nil {

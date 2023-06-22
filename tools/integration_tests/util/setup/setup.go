@@ -25,7 +25,6 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/clean_mount_dir"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 )
 
@@ -175,17 +174,11 @@ func UnMount() error {
 func executeTest(m *testing.M) (successCode int) {
 	successCode = m.Run()
 
-	// Clean the mountedDirectory before running any tests.
-	clean_mount_dir.CleanMntDir(mntDir)
-
 	return successCode
 }
 
 func ExecuteTestForFlagsSet(flags []string, m *testing.M) (successCode int) {
 	var err error
-
-	// Clean the mountedDirectory before running any tests.
-	clean_mount_dir.CleanMntDir(mntDir)
 
 	successCode = executeTest(m)
 
@@ -240,4 +233,19 @@ func SetUpTestDirForTestBucketFlag() {
 func LogAndExit(s string) {
 	log.Print(s)
 	os.Exit(1)
+}
+
+// Clean the mounted directory
+func CleanMntDir() {
+	dir, err := os.ReadDir(mntDir)
+	if err != nil {
+		log.Printf("Error in reading directory: %v", err)
+	}
+
+	for _, d := range dir {
+		err := os.RemoveAll(path.Join([]string{mntDir, d.Name()}...))
+		if err != nil {
+			log.Printf("Error in removing directory: %v", err)
+		}
+	}
 }

@@ -22,13 +22,15 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/clean_mount_dir"
 )
 
 // Create below directory and file.
 // Test               -- Directory
 // Test/move.txt      -- File
 func createSrcDirectoryAndFile(dirPath string, filePath string, t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+	
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Mkdir at %q: %v", dirPath, err)
@@ -88,7 +90,7 @@ func TestMoveFileWithinSameDirectory(t *testing.T) {
 	checkIfFileMoveOperationSucceeded(filePath, destDirPath, t)
 
 	// Delete objects from mountedDirectory after testing.
-	clean_mount_dir.CleanMntDir(setup.MntDir())
+	setup.CleanMntDir()
 }
 
 // Move file from Test/move.txt to Test1/move.txt
@@ -107,5 +109,5 @@ func TestMoveFileWithinDifferentDirectory(t *testing.T) {
 	checkIfFileMoveOperationSucceeded(filePath, destDirPath, t)
 
 	// Delete objects from mountedDirectory after testing.
-	clean_mount_dir.CleanMntDir(setup.MntDir())
+	setup.CleanMntDir()
 }

@@ -26,7 +26,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
-	clean_mount_dir2 "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/clean_mount_dir"
 )
 
 func TestCreateThreeLevelDirectories(t *testing.T) {
@@ -37,7 +36,7 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 	// testBucket/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest/fileInDirThreeInCreateThreeLevelDirTest     -- File
 
 	// Clean the mountedDirectory before running any tests.
-	clean_mount_dir2.CleanMntDir(setup.MntDir())
+	setup.CleanMntDir()
 
 	dirPath := path.Join(setup.MntDir(), DirOneInCreateThreeLevelDirTest)
 
@@ -146,7 +145,4 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 		t.Errorf("error walking the path : %v\n", err)
 		return
 	}
-
-	// Clean the mountedDirectory before running any tests.
-	clean_mount_dir2.CleanMntDir(setup.MntDir())
 }

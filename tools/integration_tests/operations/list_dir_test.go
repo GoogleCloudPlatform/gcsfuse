@@ -26,7 +26,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
-	clean_mount_dir2 "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/clean_mount_dir"
 )
 
 func createDirectoryStructureForTest(t *testing.T) {
@@ -62,8 +61,8 @@ func createDirectoryStructureForTest(t *testing.T) {
 }
 
 func TestListDirectoryRecursively(t *testing.T) {
-	// Clean the mountedDirectory before running any tests.
-	clean_mount_dir2.CleanMntDir(setup.MntDir())
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
 
 	// Create directory structure for testing.
 	createDirectoryStructureForTest(t)
@@ -179,7 +178,4 @@ func TestListDirectoryRecursively(t *testing.T) {
 		t.Errorf("error walking the path : %v\n", err)
 		return
 	}
-
-	// Clean the mountedDirectory after running any tests.
-	clean_mount_dir2.CleanMntDir(setup.MntDir())
 }

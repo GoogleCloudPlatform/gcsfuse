@@ -57,15 +57,13 @@ func TestReadFileFromBucketSubDirectory(t *testing.T) {
 }
 
 func checkIfNonExistentFileFailedToOpen(filePath string, t *testing.T) {
-	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+	_, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 
 	checkErrorForObjectNotExist(err, t)
 
 	if err == nil {
 		t.Errorf("Nonexistent file opened to read.")
 	}
-	// Closing file at the end.
-	operations.CloseFile(file)
 }
 
 func TestReadNonExistentFile(t *testing.T) {

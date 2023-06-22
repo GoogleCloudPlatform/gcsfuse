@@ -24,6 +24,9 @@ import (
 )
 
 func TestReadAfterWrite(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	tmpDir, err := os.MkdirTemp(setup.MntDir(), "tmpDir")
 	if err != nil {
 		t.Errorf("Mkdir at %q: %v", setup.MntDir(), err)

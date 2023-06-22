@@ -21,15 +21,11 @@ import (
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func checkIfFileCreationFailed(filePath string, t *testing.T) {
-	file, err := os.OpenFile(filePath, os.O_CREATE, setup.FilePermission_0600)
-
-	// Closing file at the end.
-	operations.CloseFile(file)
+	_, err := os.OpenFile(filePath, os.O_CREATE, setup.FilePermission_0600)
 
 	if err == nil {
 		t.Errorf("File is created in read-only file system.")

@@ -23,11 +23,13 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/clean_mount_dir"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
 func TestListImplicitObjectsFromBucket(t *testing.T) {
+	// Clean the mountedDirectory before running any tests.
+	setup.CleanMntDir()
+
 	// Directory Structure
 	// testBucket/implicitDirectory                                                  -- Dir
 	// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
@@ -40,9 +42,6 @@ func TestListImplicitObjectsFromBucket(t *testing.T) {
 
 	implicit_and_explicit_dir_setup.CreateImplicitDirectory()
 	implicit_and_explicit_dir_setup.CreateExplicitDirectory(t)
-
-	// Delete objects from mountedDirectory after testing.
-	defer clean_mount_dir.CleanMntDir(setup.MntDir())
 
 	err := filepath.WalkDir(setup.MntDir(), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
