@@ -77,3 +77,9 @@ func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string,
 		defer CloseFile(file)
 	}
 }
+
+func RemoveDir(dirPath string) {
+	if err := os.RemoveAll(dirPath); err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error in removing direcitory: %v", err))
+	}
+}

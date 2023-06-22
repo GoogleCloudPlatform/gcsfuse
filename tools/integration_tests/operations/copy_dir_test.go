@@ -30,6 +30,9 @@ import (
 // srcCopyDir/copy.txt      -- File
 // srcCopyDir/subSrcCopyDir -- Dir
 func createSrcDirectoryWithObjects(dirPath string, t *testing.T) {
+	// Clean the mountedDirectory before running any tests.
+	setup.CleanMntDir()
+
 	// testBucket/srcCopyDir
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
 	if err != nil {
@@ -133,9 +136,6 @@ func TestCopyDirectoryInNonExistingDirectory(t *testing.T) {
 // destCopyDir/srcCopyDir/copy.txt      -- File
 // destCopyDir/srcCopyDir/subSrcCopyDir -- Dir
 func TestCopyDirectoryInEmptyDirectory(t *testing.T) {
-	// Clean the mountedDirectory before running any tests.
-	setup.CleanMntDir()
-
 	srcDir := path.Join(setup.MntDir(), SrcCopyDirectory)
 
 	createSrcDirectoryWithObjects(srcDir, t)
@@ -171,9 +171,6 @@ func TestCopyDirectoryInEmptyDirectory(t *testing.T) {
 }
 
 func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
-	// Clean the mountedDirectory before running any tests.
-	setup.CleanMntDir()
-
 	srcDir := path.Join(setup.MntDir(), SrcCopyDirectory)
 
 	createSrcDirectoryWithObjects(srcDir, t)
