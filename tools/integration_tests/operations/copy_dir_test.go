@@ -30,7 +30,7 @@ import (
 // srcCopyDir/copy.txt      -- File
 // srcCopyDir/subSrcCopyDir -- Dir
 func createSrcDirectoryWithObjects(dirPath string, t *testing.T) {
-	// Clean the mountedDirectory before running any tests.
+	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
 	// testBucket/srcCopyDir
@@ -121,9 +121,6 @@ func TestCopyDirectoryInNonExistingDirectory(t *testing.T) {
 	}
 
 	checkIfCopiedDirectoryHasCorrectData(destDir, t)
-
-	// Clean the mountedDirectory after running any tests.
-	setup.CleanMntDir()
 }
 
 // Copy SrcDirectory in DestDirectory

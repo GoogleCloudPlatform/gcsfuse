@@ -25,7 +25,7 @@ import (
 )
 
 func TestDeleteEmptyExplicitDir(t *testing.T) {
-	// Clean the mountedDirectory before running any tests.
+	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
 	dirPath := path.Join(setup.MntDir(), EmptyExplicitDirectoryForDeleteTest)
@@ -43,9 +43,9 @@ func TestDeleteEmptyExplicitDir(t *testing.T) {
 }
 
 func TestDeleteNonEmptyExplicitDir(t *testing.T) {
-	// Clean the mountedDirectory before running any tests.
+	// Clean the mountedDirectory before running tests.
 	setup.CleanMntDir()
-	
+
 	dirPath := path.Join(setup.MntDir(), NonEmptyExplicitDirectoryForDeleteTest)
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInNonEmptyExplicitDirectoryForDeleteTest, dirPath, PrefixFilesInNonEmptyExplicitDirectoryForDeleteTest, t)
 

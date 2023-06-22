@@ -117,16 +117,16 @@ func CreateTempFile() string {
 		LogAndExit(fmt.Sprintf("Error in the opening the file %v", err))
 	}
 
-	_, err = file.WriteString("line 1\nline 2\n")
-	if err != nil {
-		LogAndExit(fmt.Sprintf("Temporary file at %v", err))
-	}
-
 	defer func() {
 		if err := file.Close(); err != nil {
 			LogAndExit(fmt.Sprintf("error in closing: %v", err))
 		}
 	}()
+
+	_, err = file.WriteString("line 1\nline 2\n")
+	if err != nil {
+		LogAndExit(fmt.Sprintf("Temporary file at %v", err))
+	}
 
 	return fileName
 }

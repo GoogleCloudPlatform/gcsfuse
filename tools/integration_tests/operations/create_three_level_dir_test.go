@@ -35,7 +35,7 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 	// testBucket/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest     -- Dir
 	// testBucket/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest/fileInDirThreeInCreateThreeLevelDirTest     -- File
 
-	// Clean the mountedDirectory before running any tests.
+	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
 	dirPath := path.Join(setup.MntDir(), DirOneInCreateThreeLevelDirTest)

@@ -27,7 +27,7 @@ import (
 )
 
 func TestListImplicitObjectsFromBucket(t *testing.T) {
-	// Clean the mountedDirectory before running any tests.
+	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
 	// Directory Structure

@@ -140,6 +140,6 @@ func MoveFile(srcFilePath string, destDirPath string) (err error) {
 
 func CloseFile(file *os.File) {
 	if err := file.Close(); err != nil {
-		log.Printf(fmt.Sprintf("error in closing: %v", err))
+		log.Printf("error in closing: %v", err)
 	}
 }
