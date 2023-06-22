@@ -56,23 +56,25 @@ function delete_existing_vm_and_create_new () {
   sleep 30s
 
   echo "Creating VM $VM_NAME in zone $ZONE_NAME"
+  # The below command creates VM using the reservation 'ai-ml-tests'
   sudo gcloud compute instances create $VM_NAME \
-      --project=$GCP_PROJECT \
-      --zone=$ZONE_NAME \
-      --machine-type=a2-highgpu-2g \
-      --network-interface=network-tier=PREMIUM,nic-type=GVNIC,stack-type=IPV4_ONLY,subnet=default \
-      --metadata=enable-oslogin=true \
-      --maintenance-policy=TERMINATE \
-      --provisioning-model=STANDARD \
-      --service-account=927584127901-compute@developer.gserviceaccount.com \
-      --scopes=https://www.googleapis.com/auth/cloud-platform \
-      --accelerator=count=2,type=nvidia-tesla-a100 \
-      --create-disk=auto-delete=yes,boot=yes,device-name=$VM_NAME,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20230523,mode=rw,size=150,type=projects/$GCP_PROJECT/zones/$ZONE_NAME/diskTypes/pd-balanced \
-      --no-shielded-secure-boot \
-      --shielded-vtpm \
-      --shielded-integrity-monitoring \
-      --labels=goog-ec-src=vm_add-gcloud \
-      --reservation-affinity=any
+           --project=$GCP_PROJECT\
+           --zone=$ZONE_NAME \
+           --machine-type=a2-highgpu-1g \
+           --network-interface=network-tier=PREMIUM,stack-type=IPV4_ONLY,subnet=default \
+           --metadata=enable-osconfig=TRUE,enable-oslogin=true \
+           --maintenance-policy=TERMINATE \
+           --provisioning-model=STANDARD \
+           --service-account=927584127901-compute@developer.gserviceaccount.com \
+           --scopes=https://www.googleapis.com/auth/cloud-platform \
+           --accelerator=count=1,type=nvidia-tesla-a100 \
+           --create-disk=auto-delete=yes,boot=yes,device-name=$VM_NAME,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20230616,mode=rw,size=150,type=projects/$GCP_PROJECT/zones/$ZONE_NAME/diskTypes/pd-balanced \
+           --no-shielded-secure-boot \
+           --shielded-vtpm \
+           --shielded-integrity-monitoring \
+           --labels=goog-ops-agent-policy=v2-x86-template-1-0-0,goog-ec-src=vm_add-gcloud \
+           --reservation-affinity=specific \
+           --reservation=projects/$GCP_PROJECT/reservations/ai-ml-tests
 
   echo "Wait for 30 seconds for new VM to be initialised"
   sleep 30s
