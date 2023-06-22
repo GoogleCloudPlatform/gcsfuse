@@ -31,8 +31,6 @@ sudo apt-get install fio -y
 
 # Run on master branch
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
-# remove it
-git reset --hard
 git checkout master
 echo Mounting gcs bucket for master branch
 mkdir -p gcs
