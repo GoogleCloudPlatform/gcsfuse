@@ -17,14 +17,15 @@ package operations
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path"
 	"strconv"
 	"testing"
-
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
+
+const FilePermission_0600 = 0600
 
 func CopyDir(srcDirPath string, destDirPath string) (err error) {
 	cmd := exec.Command("cp", "--recursive", srcDirPath, destDirPath)
@@ -59,7 +60,7 @@ func RenameDir(dirName string, newDirName string) (err error) {
 }
 
 func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string, t *testing.T) {
-	err := os.Mkdir(dirPath, setup.FilePermission_0600)
+	err := os.Mkdir(dirPath, FilePermission_0600)
 	if err != nil {
 		t.Errorf("Error in creating directory: %v", err)
 	}
@@ -80,6 +81,6 @@ func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string,
 
 func RemoveDir(dirPath string) {
 	if err := os.RemoveAll(dirPath); err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error in removing direcitory: %v", err))
+		log.Printf("Error in removing direcitory: %v", err)
 	}
 }

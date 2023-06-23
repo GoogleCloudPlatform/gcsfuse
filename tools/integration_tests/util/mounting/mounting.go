@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -35,11 +36,7 @@ func MountGcsfuse(flags []string) error {
 		fmt.Println("Could not open logfile")
 	}
 	// Closing file at the end.
-	defer func() {
-		if err := file.Close(); err != nil {
-			setup.LogAndExit(fmt.Sprintf("error in closing: %v", err))
-		}
-	}()
+	defer operations.CloseFile(file)
 
 	_, err = file.WriteString(mountCmd.String() + "\n")
 	if err != nil {

@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 )
 
@@ -117,11 +118,7 @@ func CreateTempFile() string {
 		LogAndExit(fmt.Sprintf("Error in the opening the file %v", err))
 	}
 
-	defer func() {
-		if err := file.Close(); err != nil {
-			LogAndExit(fmt.Sprintf("error in closing: %v", err))
-		}
-	}()
+	defer operations.CloseFile(file)
 
 	_, err = file.WriteString("line 1\nline 2\n")
 	if err != nil {

@@ -22,8 +22,6 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
-
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func CopyFile(srcFileName string, newFileName string) (err error) {
@@ -32,7 +30,7 @@ func CopyFile(srcFileName string, newFileName string) (err error) {
 		return
 	}
 
-	source, err := os.OpenFile(srcFileName, syscall.O_DIRECT, setup.FilePermission_0600)
+	source, err := os.OpenFile(srcFileName, syscall.O_DIRECT, 600)
 	if err != nil {
 		err = fmt.Errorf("File %s opening error: %v", srcFileName, err)
 		return
@@ -41,7 +39,7 @@ func CopyFile(srcFileName string, newFileName string) (err error) {
 	// Closing file at the end.
 	defer CloseFile(source)
 
-	destination, err := os.OpenFile(newFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
+	destination, err := os.OpenFile(newFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Copied file creation error: %v", err)
 		return
@@ -59,7 +57,7 @@ func CopyFile(srcFileName string, newFileName string) (err error) {
 }
 
 func ReadFile(filePath string) (content []byte, err error) {
-	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Error in the opening the file %v", err)
 		return
@@ -99,7 +97,7 @@ func RenameFile(fileName string, newFileName string) (err error) {
 }
 
 func WriteFileInAppendMode(fileName string, content string) (err error) {
-	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Open file for append: %v", err)
 		return
@@ -114,7 +112,7 @@ func WriteFileInAppendMode(fileName string, content string) (err error) {
 }
 
 func WriteFile(fileName string, content string) (err error) {
-	f, err := os.OpenFile(fileName, os.O_RDWR|syscall.O_DIRECT, setup.FilePermission_0600)
+	f, err := os.OpenFile(fileName, os.O_RDWR|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Open file for write at start: %v", err)
 		return
