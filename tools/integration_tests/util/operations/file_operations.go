@@ -30,7 +30,7 @@ func CopyFile(srcFileName string, newFileName string) (err error) {
 		return
 	}
 
-	source, err := os.OpenFile(srcFileName, syscall.O_DIRECT, 600)
+	source, err := os.OpenFile(srcFileName, syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("File %s opening error: %v", srcFileName, err)
 		return
