@@ -153,7 +153,6 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		cmd.Env = []string{
 			"GOOS=linux",
 			"GO111MODULE=auto",
-			"CGO_ENABLED=0",
 			fmt.Sprintf("PATH=%s", pathEnv),
 			fmt.Sprintf("GOROOT=%s", runtime.GOROOT()),
 			fmt.Sprintf("GOPATH=%s", gopath),
