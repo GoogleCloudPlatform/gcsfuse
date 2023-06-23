@@ -45,12 +45,12 @@ var ContinuationToken string
 var rec = NewRecord()
 
 // State required for reading from directories.
-type dirHandle struct {
+type DirHandle struct {
 	/////////////////////////
 	// Constant data
 	/////////////////////////
 
-	in           inode.DirInode
+	In           inode.DirInode
 	implicitDirs bool
 
 	/////////////////////////
@@ -64,23 +64,23 @@ type dirHandle struct {
 	// INVARIANT: For each i, entries[i+1].Offset == entries[i].Offset + 1
 	//
 	// GUARDED_BY(Mu)
-	entries []fuseutil.Dirent
+	Entries []fuseutil.Dirent
 
 	// Has entries yet been populated?
 	//
 	// INVARIANT: If !entriesValid, then len(entries) == 0
 	//
 	// GUARDED_BY(Mu)
-	entriesValid bool
+	EntriesValid bool
 }
 
 // Create a directory handle that obtains listings from the supplied inode.
-func newDirHandle(
+func NewDirHandle(
 	in inode.DirInode,
-	implicitDirs bool) (dh *dirHandle) {
+	implicitDirs bool) (dh *DirHandle) {
 	// Set up the basic struct.
-	dh = &dirHandle{
-		in:           in,
+	dh = &DirHandle{
+		In:           in,
 		implicitDirs: implicitDirs,
 	}
 
@@ -101,20 +101,20 @@ func (p sortedDirents) Len() int           { return len(p) }
 func (p sortedDirents) Less(i, j int) bool { return p[i].Name < p[j].Name }
 func (p sortedDirents) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-func (dh *dirHandle) checkInvariants() {
+func (dh *DirHandle) checkInvariants() {
 	// INVARIANT: For each i, entries[i+1].Offset == entries[i].Offset + 1
-	for i := 0; i < len(dh.entries)-1; i++ {
-		if !(dh.entries[i+1].Offset == dh.entries[i].Offset+1) {
+	for i := 0; i < len(dh.Entries)-1; i++ {
+		if !(dh.Entries[i+1].Offset == dh.Entries[i].Offset+1) {
 			panic(
 				fmt.Sprintf(
 					"Unexpected offset sequence: %v, %v",
-					dh.entries[i].Offset,
-					dh.entries[i+1].Offset))
+					dh.Entries[i].Offset,
+					dh.Entries[i+1].Offset))
 		}
 	}
 
 	// INVARIANT: If !entriesValid, then len(entries) == 0
-	if !dh.entriesValid && len(dh.entries) != 0 {
+	if !dh.EntriesValid && len(dh.Entries) != 0 {
 		panic("Unexpected non-empty entries slice")
 	}
 }
@@ -176,86 +176,86 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 // offset fields.
 //
 // LOCKS_REQUIRED(in)
-func readAllEntries(
-	ctx context.Context,
-	in inode.DirInode) (entries []fuseutil.Dirent, err error) {
-	// Read one batch
-	var batch []fuseutil.Dirent
-	batch, ContinuationToken, err = in.ReadEntries(ctx, ContinuationToken)
-	if err != nil {
-		err = fmt.Errorf("ReadEntries: %w", err)
-		return
-	}
-	// Accumulate.
-	entries = append(entries, batch...)
-
-	// Ensure that the entries are sorted, for use in fixConflictingNames
-	// below.
-	// TODO: Fix this after  asynchronous fetch is added.
-	sort.Sort(sortedDirents(entries))
-
-	// Fix name conflicts.
-	err = fixConflictingNames(entries)
-	if err != nil {
-		err = fmt.Errorf("fixConflictingNames: %w", err)
-		return
-	}
-
-	// Return a bogus inode ID for each entry, but not the root inode ID.
-	//
-	// NOTE(jacobsa): As far as I can tell this is harmless. Minting and
-	// returning a real inode ID is difficult because fuse does not count
-	// readdir as an operation that increases the inode ID's lookup count and
-	// we therefore don't get a forget for it later, but we would like to not
-	// have to remember every inode ID that we've ever minted for readdir.
-	//
-	// If it turns out this is not harmless, we'll need to switch to something
-	// like inode IDs based on (object name, generation) hashes. But then what
-	// about the birthday problem? And more importantly, what about our
-	// semantic of not minting a new inode ID when the generation changes due
-	// to a local action?
-	for i, _ := range entries {
-		entries[i].Inode = fuseops.RootInodeID + 1
-	}
-
-	return
-}
+// func readAllEntries(
+// 	ctx context.Context,
+// 	in inode.DirInode) (entries []fuseutil.Dirent, err error) {
+// 	// Read one batch
+// 	var batch []fuseutil.Dirent
+// 	batch, ContinuationToken, err = in.ReadEntries(ctx, ContinuationToken)
+// 	if err != nil {
+// 		err = fmt.Errorf("ReadEntries: %w", err)
+// 		return
+// 	}
+// 	// Accumulate.
+// 	entries = append(entries, batch...)
+//
+// 	// Ensure that the entries are sorted, for use in fixConflictingNames
+// 	// below.
+// 	// TODO: Fix this after  asynchronous fetch is added.
+// 	sort.Sort(sortedDirents(entries))
+//
+// 	// Fix name conflicts.
+// 	err = fixConflictingNames(entries)
+// 	if err != nil {
+// 		err = fmt.Errorf("fixConflictingNames: %w", err)
+// 		return
+// 	}
+//
+// 	// Return a bogus inode ID for each entry, but not the root inode ID.
+// 	//
+// 	// NOTE(jacobsa): As far as I can tell this is harmless. Minting and
+// 	// returning a real inode ID is difficult because fuse does not count
+// 	// readdir as an operation that increases the inode ID's lookup count and
+// 	// we therefore don't get a forget for it later, but we would like to not
+// 	// have to remember every inode ID that we've ever minted for readdir.
+// 	//
+// 	// If it turns out this is not harmless, we'll need to switch to something
+// 	// like inode IDs based on (object name, generation) hashes. But then what
+// 	// about the birthday problem? And more importantly, what about our
+// 	// semantic of not minting a new inode ID when the generation changes due
+// 	// to a local action?
+// 	for i, _ := range entries {
+// 		entries[i].Inode = fuseops.RootInodeID + 1
+// 	}
+//
+// 	return
+// }
 
 // LOCKS_REQUIRED(dh.Mu)
-// LOCKS_EXCLUDED(dh.in)
-func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
-	dh.in.Lock()
-	defer dh.in.Unlock()
+// LOCKS_EXCLUDED(dh.In)
+// func (dh *DirHandle) ensureEntries(ctx context.Context) (err error) {
+// 	dh.In.Lock()
+// 	defer dh.In.Unlock()
+//
+// 	// Read entries.
+// 	var entries []fuseutil.Dirent
+// 	entries, err = readAllEntries(ctx, dh.In)
+// 	if err != nil {
+// 		err = fmt.Errorf("readAllEntries: %w", err)
+// 		return
+// 	}
+//
+// 	// Update state.
+// 	// Fix up offset fields.
+// 	for i := 0; i < len(entries); i++ {
+// 		entries[i].Offset = fuseops.DirOffset(uint64(len(dh.Entries) + i + 1))
+// 	}
+// 	dh.Entries = append(dh.Entries, entries...)
+// 	dh.EntriesValid = true
+//
+// 	return
+// }
 
-	// Read entries.
-	var entries []fuseutil.Dirent
-	entries, err = readAllEntries(ctx, dh.in)
-	if err != nil {
-		err = fmt.Errorf("readAllEntries: %w", err)
-		return
-	}
-
-	// Update state.
-	// Fix up offset fields.
-	for i := 0; i < len(entries); i++ {
-		entries[i].Offset = fuseops.DirOffset(uint64(len(dh.entries) + i + 1))
-	}
-	dh.entries = append(dh.entries, entries...)
-	dh.entriesValid = true
-
-	return
-}
-
-func (dh *dirHandle) FetchEntriesAsync(
+func (dh *DirHandle) FetchEntriesAsync(
 	rootInodeId int,
 	firstCall bool) {
 	ctx, cancel := context.WithCancel(context.TODO())
 	var err error
 	for ContinuationToken != "" || firstCall {
 		var entries []fuseutil.Dirent
-		dh.in.Lock()
-		entries, ContinuationToken, err = dh.in.ReadEntries(ctx, ContinuationToken)
-		dh.in.Unlock()
+		dh.In.Lock()
+		entries, ContinuationToken, err = dh.In.ReadEntries(ctx, ContinuationToken)
+		dh.In.Unlock()
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %w", err)
 			rec.Lock()
@@ -287,14 +287,12 @@ func (dh *dirHandle) FetchEntriesAsync(
 		rec.Unlock()
 
 		dh.Mu.Lock()
-		dh.entries = append(dh.entries, entries...)
-		dh.entriesValid = true
+		dh.Entries = append(dh.Entries, entries...)
+		dh.EntriesValid = true
 		dh.Mu.Unlock()
 		rec.cond.Broadcast()
 		firstCall = false
 	}
-	cancel()
-	runtime.Goexit()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -309,15 +307,15 @@ func (dh *dirHandle) FetchEntriesAsync(
 //
 // LOCKS_REQUIRED(dh.Mu)
 // LOCKS_EXCLUDED(du.in)
-func (dh *dirHandle) ReadDir(
+func (dh *DirHandle) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp) (err error) {
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
 
 	if op.Offset == 0 {
-		dh.entries = nil
-		dh.entriesValid = false
+		dh.Entries = nil
+		dh.EntriesValid = false
 		rec.Lock()
 		rec.length = 0
 		rec.err = nil
@@ -348,8 +346,8 @@ func (dh *dirHandle) ReadDir(
 	// We copy out entries until we run out of entries or space.
 
 	dh.Mu.Lock()
-	for i := index; i < len(dh.entries); i++ {
-		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], dh.entries[i])
+	for i := index; i < len(dh.Entries); i++ {
+		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], dh.Entries[i])
 		if n == 0 {
 			break
 		}

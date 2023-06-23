@@ -511,7 +511,7 @@ func (fs *fileSystem) checkInvariants() {
 	// INVARIANT: All values are of type *dirHandle or *handle.FileHandle
 	for _, h := range fs.handles {
 		switch h.(type) {
-		case *dirHandle:
+		case *DirHandle:
 		case *handle.FileHandle:
 		default:
 			panic(fmt.Sprintf("Unexpected handle type: %T", h))
@@ -1681,7 +1681,7 @@ func (fs *fileSystem) OpenDir(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = newDirHandle(in, fs.implicitDirs)
+	fs.handles[handleID] = NewDirHandle(in, fs.implicitDirs)
 	op.Handle = handleID
 
 	return
@@ -1693,7 +1693,7 @@ func (fs *fileSystem) ReadDir(
 	op *fuseops.ReadDirOp) (err error) {
 	// Find the handle.
 	fs.mu.Lock()
-	dh := fs.handles[op.Handle].(*dirHandle)
+	dh := fs.handles[op.Handle].(*DirHandle)
 	fs.mu.Unlock()
 
 	//dh.Mu.Lock()
@@ -1715,7 +1715,7 @@ func (fs *fileSystem) ReleaseDirHandle(
 	defer fs.mu.Unlock()
 
 	// Sanity check that this handle exists and is of the correct type.
-	_ = fs.handles[op.Handle].(*dirHandle)
+	_ = fs.handles[op.Handle].(*DirHandle)
 
 	// Clear the entry from the map.
 	delete(fs.handles, op.Handle)
