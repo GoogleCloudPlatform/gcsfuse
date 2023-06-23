@@ -31,7 +31,7 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
-// Mount the file system based on the supplied arguments, returning a
+// dummy comment- Mount the file system based on the supplied arguments, returning a
 // fuse.MountedFileSystem that can be joined to wait for unmounting.
 func mountWithConn(
 	ctx context.Context,
