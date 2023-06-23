@@ -30,9 +30,10 @@ import (
 
 type Record struct {
 	sync.Mutex
-	length int
-	err    error
-	cond   *sync.Cond
+	length          int
+	err             error
+	entryForSorting fuseutil.Dirent
+	cond            *sync.Cond
 }
 
 func NewRecord() *Record {
@@ -265,9 +266,14 @@ func (dh *DirHandle) FetchEntriesAsync(
 			cancel()
 			runtime.Goexit()
 		}
-
+		if !firstCall {
+			rec.Lock()
+			entries = append(entries, rec.entryForSorting)
+			rec.Unlock()
+		}
 		sort.Sort(sortedDirents(entries))
 		err = fixConflictingNames(entries)
+
 		if err != nil {
 			err = fmt.Errorf("fixConflictingNames: %w", err)
 			rec.Lock()
@@ -278,6 +284,12 @@ func (dh *DirHandle) FetchEntriesAsync(
 			runtime.Goexit()
 		}
 
+		if ContinuationToken != "" {
+			rec.Lock()
+			rec.entryForSorting = entries[len(entries)-1]
+			rec.Unlock()
+			entries = entries[:len(entries)-1]
+		}
 		rec.Lock()
 		for i := range entries {
 			entries[i].Inode = fuseops.InodeID(rootInodeId + 1)
@@ -319,6 +331,7 @@ func (dh *DirHandle) ReadDir(
 		rec.Lock()
 		rec.length = 0
 		rec.err = nil
+		rec.entryForSorting = fuseutil.Dirent{}
 		rec.Unlock()
 		go dh.FetchEntriesAsync(fuseops.RootInodeID, true)
 
