@@ -151,7 +151,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 
 		// Set up environment.
 		cmd.Env = []string{
-			"GO15VENDOREXPERIMENT=1",
+			"GOOS=linux",
 			"GO111MODULE=auto",
 			"CGO_ENABLED=0",
 			fmt.Sprintf("PATH=%s", pathEnv),
