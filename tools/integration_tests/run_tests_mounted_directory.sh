@@ -53,8 +53,6 @@ gcsfuse --only-dir testDir --implicit-dirs=false $1 $2
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$2
 sudo umount $2
 
-
-
 # Run integration tests for readonly directory with static mounting
 gcsfuse --o=ro --implicit-dirs=true $1 $2
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$2 --testbucket=$1
@@ -73,7 +71,6 @@ gcsfuse --only-dir testDir --file-mode=544 --dir-mode=544 --implicit-dirs=true  
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$2 --testbucket=$1/testDir
 sudo umount $2
 
-
 # Run integration tests for rename_dir_limit directory with static mounting
 gcsfuse --rename-dir-limit=3 --implicit-dirs $1 $2
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$2
@@ -91,7 +88,6 @@ sudo umount $2
 gcsfuse --only-dir testDir --rename-dir-limit=3  $1 $2
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$2
 sudo umount $2
-
 
 # Run integration tests for implicit_dir directory with static mounting
 gcsfuse --implicit-dirs $1 $2
