@@ -16,7 +16,8 @@
 # $1 testbucket.
 # $2 Absolute path of mounted directory.
 # To run this script
-# sh run_tests_mounted_directory.sh <testbucket> <Absolute path of mounted directory>
+# cd gcsfuse
+# sh tools/integration_tests/run_tests_mounted_directory.sh <testbucket> <Absolute path of mounted directory>
 
 # Run integration tests for operations directory with static mounting
 gcsfuse --enable-storage-client-library=true --implicit-dirs=true $1 $2
