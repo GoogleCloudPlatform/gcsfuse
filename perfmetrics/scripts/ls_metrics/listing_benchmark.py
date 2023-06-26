@@ -206,7 +206,7 @@ def _perform_testing(
   """This function tests the listing operation on the testing folders.
 
   Going through all the testing folders one by one for both GCS bucket and
-  perisstent disk, we calculate the latency (in msec) of listing operation
+  persistent disk, we calculate the latency (in msec) of listing operation
   and store the time intervals in a list of that particular testing folder. Reading
   are taken multiple times as specified by num_samples argument.
 
