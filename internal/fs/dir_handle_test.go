@@ -44,21 +44,21 @@ const tmpObjectPrefix = ".gcsfuse_tmp/"
 const appendThreshold = 1
 const fakeBucketName = "some_bucket"
 
-type AsyncFetchTest struct {
+type DirHandleTest struct {
 	ctx    context.Context
 	bucket gcsx.SyncerBucket
 	clock  timeutil.SimulatedClock
 	dh     *fs.DirHandle
 }
 
-var _ SetUpInterface = &AsyncFetchTest{}
-var _ TearDownInterface = &AsyncFetchTest{}
+var _ SetUpInterface = &DirHandleTest{}
+var _ TearDownInterface = &DirHandleTest{}
 
 func init() {
-	RegisterTestSuite(&AsyncFetchTest{})
+	RegisterTestSuite(&DirHandleTest{})
 }
 
-func (t *AsyncFetchTest) SetUp(ti *TestInfo) {
+func (t *DirHandleTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 	t.clock.SetTime(time.Date(2023, 6, 26, 15, 55, 0, 0, time.Local))
 	bucket := gcsfake.NewFakeBucket(&t.clock, fakeBucketName)
@@ -72,11 +72,11 @@ func TestAsync(t *testing.T) {
 	RunTests(t)
 }
 
-func (t *AsyncFetchTest) TearDown() {
+func (t *DirHandleTest) TearDown() {
 }
 
 // Create the inode and directory handle. No implicit dirs by default.
-func (t *AsyncFetchTest) createDirHandle(implicitDirs bool, enableNonexistentTypecache bool, dirInodeName string) {
+func (t *DirHandleTest) createDirHandle(implicitDirs bool, enableNonexistentTypecache bool, dirInodeName string) {
 	in := inode.NewDirInode(
 		dirInodeID,
 		inode.NewDirName(inode.NewRootName(""), dirInodeName),
@@ -94,14 +94,14 @@ func (t *AsyncFetchTest) createDirHandle(implicitDirs bool, enableNonexistentTyp
 	t.dh = fs.NewDirHandle(in, implicitDirs)
 }
 
-func (t *AsyncFetchTest) resetDirHandle() {
+func (t *DirHandleTest) resetDirHandle() {
 	t.dh = nil
 }
 
 // Directory Structure Used
 // foo   --Directory
 // fetchEntriesAsync will return 0 entries for empty directory
-func (t *AsyncFetchTest) FetchAsyncEntries_EmptyDir() {
+func (t *DirHandleTest) FetchAsyncEntries_EmptyDir() {
 	t.createDirHandle(false, false, dirInodeName)
 	t.dh.FetchEntriesAsync(fuseops.RootInodeID, true)
 
@@ -114,7 +114,7 @@ func (t *AsyncFetchTest) FetchAsyncEntries_EmptyDir() {
 // foo       --Directory
 // foo/bar   --File
 // fetchEntriesAsync will return 1 entry for directory with 1 file
-func (t *AsyncFetchTest) FetchAsyncEntries_NonEmptyDir() {
+func (t *DirHandleTest) FetchAsyncEntries_NonEmptyDir() {
 	contents := "Non-empty dir"
 	filePath := path.Join(dirInodeName, fileUnderDir)
 	_, err := t.bucket.CreateObject(
@@ -139,7 +139,7 @@ func (t *AsyncFetchTest) FetchAsyncEntries_NonEmptyDir() {
 // foo/baz          --Implicit Directory
 // foo/baz/bar      --file
 // fetchEntriesAsync will return 1 entry for implicit directory if flag is set to true else 0
-func (t *AsyncFetchTest) FetchAsyncEntries_ImplicitDir() {
+func (t *DirHandleTest) FetchAsyncEntries_ImplicitDir() {
 	contents := "Implicit dir"
 	filePath := path.Join(dirInodeName, path.Join(implicitDirName, fileUnderDir))
 	_, err := t.bucket.CreateObject(

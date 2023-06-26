@@ -179,8 +179,10 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 func (dh *DirHandle) FetchEntriesAsync(
 	rootInodeId int,
 	firstCall bool) {
-	ctx, cancel := context.WithCancel(context.TODO())
+	ctx, cancel := context.WithCancel(context.Background())
 	var err error
+	//ContinuationToken is also empty in case of firstCall and after all entries have been fetched.
+	//Keep fetching entries in batches of MaxResultsForListObjectsCall
 	for ContinuationToken != "" || firstCall {
 		var entries []fuseutil.Dirent
 		dh.In.Lock()
@@ -191,10 +193,15 @@ func (dh *DirHandle) FetchEntriesAsync(
 			rec.Lock()
 			rec.err = err
 			rec.Unlock()
+			//Signal the suspended go routine that an error has occurred.
 			rec.cond.Broadcast()
+			//cancel the context to release the associated resources
 			cancel()
+			//cancelling the context does not kill the go routine.Killing
+			//to prevent go routine leak.
 			runtime.Goexit()
 		}
+		//Use the last entry from the last fetch for fixing naming conflicts
 		if !firstCall {
 			rec.Lock()
 			entries = append(entries, rec.entryForSorting)
@@ -208,11 +215,14 @@ func (dh *DirHandle) FetchEntriesAsync(
 			rec.Lock()
 			rec.err = err
 			rec.Unlock()
+			//Signal the suspended go routine that an error has occurred.
 			rec.cond.Broadcast()
 			cancel()
 			runtime.Goexit()
 		}
 
+		//Save the last entry from current fetch to use it for
+		//fixing naming conflicts for next fetch
 		if ContinuationToken != "" {
 			rec.Lock()
 			rec.entryForSorting = entries[len(entries)-1]
@@ -220,6 +230,7 @@ func (dh *DirHandle) FetchEntriesAsync(
 			entries = entries[:len(entries)-1]
 		}
 		rec.Lock()
+		//Update InodeID and Offset for the entries
 		for i := range entries {
 			entries[i].Inode = fuseops.InodeID(rootInodeId + 1)
 			entries[i].Offset = fuseops.DirOffset(uint64(rec.length + i + 1))
@@ -231,6 +242,8 @@ func (dh *DirHandle) FetchEntriesAsync(
 		dh.Entries = append(dh.Entries, entries...)
 		dh.EntriesValid = true
 		dh.Mu.Unlock()
+		//Signal the suspended go routine that the next set of entries has
+		//been fetched.
 		rec.cond.Broadcast()
 		firstCall = false
 	}
@@ -262,13 +275,16 @@ func (dh *DirHandle) ReadDir(
 		rec.err = nil
 		rec.entryForSorting = fuseutil.Dirent{}
 		rec.Unlock()
+		//Offset zero implies first GCS call so start the process of fetching entries
 		go dh.FetchEntriesAsync(fuseops.RootInodeID, true)
 
 	}
 	rec.Lock()
+	//if there are not enough entries fetched till now to serve the current request,
+	//suspend this goroutine until sufficient entries .Resume after waking up.
 	if rec.length <= int(op.Offset) && (op.Offset == 0 || ContinuationToken != "") {
 		rec.cond.Wait()
-		//cancel the context if faced error while fetching
+		//Return if error faced during latest fetch
 		if rec.err != nil {
 			err = rec.err
 			rec.Unlock()
@@ -286,7 +302,6 @@ func (dh *DirHandle) ReadDir(
 	}
 	rec.Unlock()
 	// We copy out entries until we run out of entries or space.
-
 	dh.Mu.Lock()
 	for i := index; i < len(dh.Entries); i++ {
 		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], dh.Entries[i])
