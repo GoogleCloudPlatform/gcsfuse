@@ -28,6 +28,7 @@ import (
 	"golang.org/x/net/context"
 )
 
+// Record stores metadata of dirent entries fetched from GCSfuse
 type Record struct {
 	sync.Mutex
 	length          int
@@ -173,6 +174,8 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 	return
 }
 
+// Fetch Dirent entries from GCSfuse.Will be used as a goroutine which is run asynchronously
+// to fetch data in the background while kernel requests are also served simultaneously.
 func (dh *DirHandle) FetchEntriesAsync(
 	rootInodeId int,
 	firstCall bool) {

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2023 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,6 +42,7 @@ const uid = 123
 const gid = 456
 const tmpObjectPrefix = ".gcsfuse_tmp/"
 const appendThreshold = 1
+const fakeBucketName = "some_bucket"
 
 type AsyncFetchTest struct {
 	ctx    context.Context
@@ -59,8 +60,8 @@ func init() {
 
 func (t *AsyncFetchTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
-	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
-	bucket := gcsfake.NewFakeBucket(&t.clock, "some_bucket")
+	t.clock.SetTime(time.Date(2023, 6, 26, 15, 55, 0, 0, time.Local))
+	bucket := gcsfake.NewFakeBucket(&t.clock, fakeBucketName)
 	t.bucket = gcsx.NewSyncerBucket(
 		int64(appendThreshold), // Append threshold
 		tmpObjectPrefix,
@@ -103,8 +104,9 @@ func (t *AsyncFetchTest) resetDirHandle() {
 func (t *AsyncFetchTest) FetchAsyncEntries_EmptyDir() {
 	t.createDirHandle(false, false, dirInodeName)
 	t.dh.FetchEntriesAsync(fuseops.RootInodeID, true)
-	AssertEq(len(t.dh.Entries), 0)
-	AssertEq(t.dh.EntriesValid, true)
+
+	AssertEq(0, len(t.dh.Entries))
+	AssertEq(true, t.dh.EntriesValid)
 	t.resetDirHandle()
 }
 
@@ -121,12 +123,14 @@ func (t *AsyncFetchTest) FetchAsyncEntries_NonEmptyDir() {
 			Name:     filePath,
 			Contents: strings.NewReader(contents),
 		})
-	AssertEq(err, nil)
+	AssertEq(nil, err)
+
 	t.createDirHandle(false, false, dirInodeName)
 	t.dh.FetchEntriesAsync(fuseops.RootInodeID, true)
-	AssertEq(len(t.dh.Entries), 1)
-	AssertEq(t.dh.Entries[0].Name, fileUnderDir)
-	AssertEq(t.dh.EntriesValid, true)
+
+	AssertEq(1, len(t.dh.Entries))
+	AssertEq(fileUnderDir, t.dh.Entries[0].Name)
+	AssertEq(true, t.dh.EntriesValid)
 	t.resetDirHandle()
 }
 
@@ -144,18 +148,22 @@ func (t *AsyncFetchTest) FetchAsyncEntries_ImplicitDir() {
 			Name:     filePath,
 			Contents: strings.NewReader(contents),
 		})
-	AssertEq(err, nil)
+	AssertEq(nil, err)
 
+	//implicit-dirs flag set to true
 	t.createDirHandle(true, false, dirInodeName)
 	t.dh.FetchEntriesAsync(fuseops.RootInodeID, true)
-	AssertEq(len(t.dh.Entries), 1)
-	AssertEq(t.dh.Entries[0].Name, implicitDirName)
+
+	AssertEq(1, len(t.dh.Entries))
+	AssertEq(implicitDirName, t.dh.Entries[0].Name)
 	AssertEq(true, t.dh.EntriesValid)
 	t.resetDirHandle()
 
+	//implicit-dirs flag set to false
 	t.createDirHandle(false, false, dirInodeName)
 	t.dh.FetchEntriesAsync(fuseops.RootInodeID, true)
-	AssertEq(len(t.dh.Entries), 0)
+
+	AssertEq(0, len(t.dh.Entries))
 	AssertEq(true, t.dh.EntriesValid)
 	t.resetDirHandle()
 }
