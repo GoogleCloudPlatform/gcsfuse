@@ -273,7 +273,6 @@ func (dh *DirHandle) ReadDir(
 		rec.Lock()
 		rec.length = 0
 		rec.err = nil
-		rec.entryForSorting = fuseutil.Dirent{}
 		rec.Unlock()
 		//Offset zero implies first GCS call so start the process of fetching entries
 		go dh.FetchEntriesAsync(fuseops.RootInodeID, true)
