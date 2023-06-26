@@ -68,7 +68,7 @@ func (t *DirHandleTest) SetUp(ti *TestInfo) {
 		bucket)
 }
 
-func TestAsync(t *testing.T) {
+func TestDirHandle(t *testing.T) {
 	RunTests(t)
 }
 
@@ -96,6 +96,18 @@ func (t *DirHandleTest) createDirHandle(implicitDirs bool, enableNonexistentType
 
 func (t *DirHandleTest) resetDirHandle() {
 	t.dh = nil
+}
+
+func (t *DirHandleTest) createImplicitDirDefinedByFile() (err error) {
+	contents := "Implicit dir"
+	filePath := path.Join(dirInodeName, path.Join(implicitDirName, fileUnderDir))
+	_, err = t.bucket.CreateObject(
+		t.ctx,
+		&gcs.CreateObjectRequest{
+			Name:     filePath,
+			Contents: strings.NewReader(contents),
+		})
+	return err
 }
 
 // Directory Structure Used
@@ -138,16 +150,9 @@ func (t *DirHandleTest) FetchAsyncEntries_NonEmptyDir() {
 // foo              --Directory
 // foo/baz          --Implicit Directory
 // foo/baz/bar      --file
-// fetchEntriesAsync will return 1 entry for implicit directory if flag is set to true else 0
-func (t *DirHandleTest) FetchAsyncEntries_ImplicitDir() {
-	contents := "Implicit dir"
-	filePath := path.Join(dirInodeName, path.Join(implicitDirName, fileUnderDir))
-	_, err := t.bucket.CreateObject(
-		t.ctx,
-		&gcs.CreateObjectRequest{
-			Name:     filePath,
-			Contents: strings.NewReader(contents),
-		})
+// fetchEntriesAsync will return 1 entry for implicit directory if flag is set to true
+func (t *DirHandleTest) FetchAsyncEntries_ImplicitDir_FlagTrue() {
+	err := t.createImplicitDirDefinedByFile()
 	AssertEq(nil, err)
 
 	//implicit-dirs flag set to true
@@ -158,6 +163,13 @@ func (t *DirHandleTest) FetchAsyncEntries_ImplicitDir() {
 	AssertEq(implicitDirName, t.dh.Entries[0].Name)
 	AssertEq(true, t.dh.EntriesValid)
 	t.resetDirHandle()
+}
+
+// Same directory structure as above.
+// fetchEntriesAsync will return 0 entry for implicit directory if flag is set to false
+func (t *DirHandleTest) FetchAsyncEntries_ImplicitDir_FlagFalse() {
+	err := t.createImplicitDirDefinedByFile()
+	AssertEq(nil, err)
 
 	//implicit-dirs flag set to false
 	t.createDirHandle(false, false, dirInodeName)

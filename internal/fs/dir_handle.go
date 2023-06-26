@@ -16,7 +16,6 @@ package fs
 
 import (
 	"fmt"
-	"runtime"
 	"sort"
 	"sync"
 
@@ -31,10 +30,9 @@ import (
 // Record stores metadata of dirent entries fetched from GCSfuse
 type Record struct {
 	sync.Mutex
-	length          int
-	err             error
-	entryForSorting fuseutil.Dirent
-	cond            *sync.Cond
+	length int
+	err    error
+	cond   *sync.Cond
 }
 
 func NewRecord() *Record {
@@ -179,8 +177,9 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 func (dh *DirHandle) FetchEntriesAsync(
 	rootInodeId int,
 	firstCall bool) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx := context.Background()
 	var err error
+	var entryForSorting fuseutil.Dirent
 	//ContinuationToken is also empty in case of firstCall and after all entries have been fetched.
 	//Keep fetching entries in batches of MaxResultsForListObjectsCall
 	for ContinuationToken != "" || firstCall {
@@ -195,16 +194,12 @@ func (dh *DirHandle) FetchEntriesAsync(
 			rec.Unlock()
 			//Signal the suspended go routine that an error has occurred.
 			rec.cond.Broadcast()
-			//cancel the context to release the associated resources
-			cancel()
-			//cancelling the context does not kill the go routine.Killing
-			//to prevent go routine leak.
-			runtime.Goexit()
+			break
 		}
 		//Use the last entry from the last fetch for fixing naming conflicts
 		if !firstCall {
 			rec.Lock()
-			entries = append(entries, rec.entryForSorting)
+			entries = append(entries, entryForSorting)
 			rec.Unlock()
 		}
 		sort.Sort(sortedDirents(entries))
@@ -217,16 +212,13 @@ func (dh *DirHandle) FetchEntriesAsync(
 			rec.Unlock()
 			//Signal the suspended go routine that an error has occurred.
 			rec.cond.Broadcast()
-			cancel()
-			runtime.Goexit()
+			break
 		}
 
 		//Save the last entry from current fetch to use it for
 		//fixing naming conflicts for next fetch
 		if ContinuationToken != "" {
-			rec.Lock()
-			rec.entryForSorting = entries[len(entries)-1]
-			rec.Unlock()
+			entryForSorting = entries[len(entries)-1]
 			entries = entries[:len(entries)-1]
 		}
 		rec.Lock()
@@ -282,6 +274,9 @@ func (dh *DirHandle) ReadDir(
 	//if there are not enough entries fetched till now to serve the current request,
 	//suspend this goroutine until sufficient entries .Resume after waking up.
 	if rec.length <= int(op.Offset) && (op.Offset == 0 || ContinuationToken != "") {
+		//When we wait on the condition variable, the goroutine suspends . Internally
+		//cond.Wait() unlocks it and it locks it again only when it
+		//wakes up by other go routine through a signal/broadcast.
 		rec.cond.Wait()
 		//Return if error faced during latest fetch
 		if rec.err != nil {
