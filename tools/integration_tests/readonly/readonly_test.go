@@ -81,5 +81,7 @@ func TestMain(m *testing.M) {
 	// Delete objects from bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 
+	//creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentials(flags, m)
+
 	os.Exit(successCode)
 }

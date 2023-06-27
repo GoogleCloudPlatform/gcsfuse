@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 )
 
@@ -100,6 +101,10 @@ func MntDir() string {
 	return mntDir
 }
 
+func SetTestBucket(testBucketValue string) {
+	*testBucket = testBucketValue
+}
+
 func CompareFileContents(t *testing.T, fileName string, fileContent string) {
 	content, err := os.ReadFile(fileName)
 	if err != nil {
@@ -120,7 +125,8 @@ func CreateTempFile() string {
 	if err != nil {
 		LogAndExit(fmt.Sprintf("Error in the opening the file %v", err))
 	}
-	defer file.Close()
+
+	defer operations.CloseFile(file)
 
 	_, err = file.WriteString("line 1\nline 2\n")
 	if err != nil {
@@ -173,16 +179,11 @@ func UnMount() error {
 func executeTest(m *testing.M) (successCode int) {
 	successCode = m.Run()
 
-	os.RemoveAll(mntDir)
-
 	return successCode
 }
 
 func ExecuteTestForFlagsSet(flags []string, m *testing.M) (successCode int) {
 	var err error
-
-	// Clean the mountedDirectory before running any tests.
-	os.RemoveAll(mntDir)
 
 	successCode = executeTest(m)
 
@@ -237,4 +238,19 @@ func SetUpTestDirForTestBucketFlag() {
 func LogAndExit(s string) {
 	log.Print(s)
 	os.Exit(1)
+}
+
+// Clean the mounted directory
+func CleanMntDir() {
+	dir, err := os.ReadDir(mntDir)
+	if err != nil {
+		log.Printf("Error in reading directory: %v", err)
+	}
+
+	for _, d := range dir {
+		err := os.RemoveAll(path.Join([]string{mntDir, d.Name()}...))
+		if err != nil {
+			log.Printf("Error in removing directory: %v", err)
+		}
+	}
 }
