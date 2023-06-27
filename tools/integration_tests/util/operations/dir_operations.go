@@ -26,7 +26,7 @@ import (
 )
 
 const FilePermission_0600 = 0600
-const FilePermission_0700 = 0777
+const FilePermission_0777 = 0777
 
 func CopyDir(srcDirPath string, destDirPath string) (err error) {
 	cmd := exec.Command("cp", "--recursive", srcDirPath, destDirPath)
