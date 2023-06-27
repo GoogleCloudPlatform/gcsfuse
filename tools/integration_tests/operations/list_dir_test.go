@@ -61,8 +61,8 @@ func createDirectoryStructureForTest(t *testing.T) {
 }
 
 func TestListDirectoryRecursively(t *testing.T) {
-	// Clean the bucket for list testing.
-	os.RemoveAll(setup.MntDir())
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
 
 	// Create directory structure for testing.
 	createDirectoryStructureForTest(t)
@@ -178,6 +178,4 @@ func TestListDirectoryRecursively(t *testing.T) {
 		t.Errorf("error walking the path : %v\n", err)
 		return
 	}
-
-	os.RemoveAll(setup.MntDir())
 }
