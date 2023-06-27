@@ -61,6 +61,18 @@ func RunTestsForImplicitDirAndExplicitDir(flags [][]string, m *testing.M) {
 	os.Exit(successCode)
 }
 
+func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) {
+	err := os.RemoveAll(dirPath)
+	if err != nil {
+		t.Errorf("Error in deleting non-empty implicit directory:%v", err)
+	}
+
+	dir, err := os.Stat(dirPath)
+	if err == nil && dir.Name() == dirName && dir.IsDir() {
+		t.Errorf("Directory is not deleted.")
+	}
+}
+
 func CreateImplicitDirectory() {
 	// Implicit Directory Structure
 	// testBucket/implicitDirectory                                                  -- Dir
