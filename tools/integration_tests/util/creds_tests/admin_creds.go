@@ -17,6 +17,7 @@
 package creds_tests
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -58,7 +59,10 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	creds_path := path.Join(os.Getenv("HOME"), "admin_creds.json")
 
 	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
-	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
+	err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error in setting environment variable: %v", err))
+	}
 
 	successCode = static_mounting.RunTests(testFlagSet, m)
 
@@ -79,7 +83,10 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 		return
 	}
 
-	os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
+	err = os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error in unsetting environment variable: %v", err))
+	}
 
 	// Testing with --key-file flag only
 	successCode = static_mounting.RunTests(testFlagSet, m)
