@@ -1,0 +1,22 @@
+name: Close inactive issues
+on:
+  schedule:
+  # runs periodically at 2:30 utc (8:00am ist) everyday
+  - cron: '30 02 * * *'
+
+jobs:
+  close-issues:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+    - uses: actions/stale@v5
+      with:
+        only-labels: "pending customer action"
+        days-before-issue-stale: -1
+        days-before-issue-close: 30
+        stale-issue-label: "pending customer action"
+        close-issue-message: "Closing this issue as we haven't received any response in 30 days. Please reopen if you are still experiencing this issue."
+        days-before-pr-stale: -1
+        days-before-pr-close: -1
+        repo-token: ${{ secrets.GITHUB_TOKEN }}

@@ -28,6 +28,9 @@ import (
 // Test               -- Directory
 // Test/move.txt      -- File
 func createSrcDirectoryAndFile(dirPath string, filePath string, t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Mkdir at %q: %v", dirPath, err)
@@ -38,6 +41,9 @@ func createSrcDirectoryAndFile(dirPath string, filePath string, t *testing.T) {
 	if err != nil {
 		t.Errorf("Error in creating file %v:", err)
 	}
+
+	// Closing file at the end.
+	defer operations.CloseFile(file)
 
 	err = operations.WriteFile(file.Name(), MoveFileContent)
 	if err != nil {
@@ -78,8 +84,6 @@ func TestMoveFileWithinSameDirectory(t *testing.T) {
 	}
 
 	checkIfFileMoveOperationSucceeded(filePath, destDirPath, t)
-
-	os.RemoveAll(dirPath)
 }
 
 // Move file from Test/move.txt to Test1/move.txt
@@ -96,6 +100,4 @@ func TestMoveFileWithinDifferentDirectory(t *testing.T) {
 	}
 
 	checkIfFileMoveOperationSucceeded(filePath, destDirPath, t)
-
-	os.RemoveAll(dirPath)
 }

@@ -1375,6 +1375,18 @@ func (fs *fileSystem) CreateSymlink(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) RmDir(
+	// When rm -r or os.RemoveAll call is made, the following calls are made in order
+	//	 1. RmDir (only in the case of os.RemoveAll)
+	//	 2. Unlink all nested files,
+	//	 3. lookupInode call on implicit directory
+	//	 4. Rmdir on the directory.
+	//
+	// When type cache ttl is set, we construct an implicitDir even though one doesn't
+	// exist on GCS (https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/fs/inode/dir.go#L452),
+	// and thus, we get rmDir call to GCSFuse.
+	// Whereas when ttl is zero, lookupInode call itself fails and RmDir is not called
+	// because object is not present in GCS.
+
 	ctx context.Context,
 	op *fuseops.RmDirOp) (err error) {
 	// Find the parent.
@@ -1441,8 +1453,11 @@ func (fs *fileSystem) RmDir(
 	cleanUpAndUnlockChild()
 
 	// Delete the backing object.
+	fs.mu.Lock()
+	_, isImplicitDir := fs.implicitDirInodes[child.Name()]
+	fs.mu.Unlock()
 	parent.Lock()
-	err = parent.DeleteChildDir(ctx, op.Name)
+	err = parent.DeleteChildDir(ctx, op.Name, isImplicitDir)
 	parent.Unlock()
 
 	if err != nil {
@@ -1628,8 +1643,11 @@ func (fs *fileSystem) renameDir(
 	releaseInodes()
 
 	// Delete the backing object of the old directory.
+	fs.mu.Lock()
+	_, isImplicitDir := fs.implicitDirInodes[oldDir.Name()]
+	fs.mu.Unlock()
 	oldParent.Lock()
-	err = oldParent.DeleteChildDir(ctx, oldName)
+	err = oldParent.DeleteChildDir(ctx, oldName, isImplicitDir)
 	oldParent.Unlock()
 	if err != nil {
 		return fmt.Errorf("DeleteChildDir: %w", err)

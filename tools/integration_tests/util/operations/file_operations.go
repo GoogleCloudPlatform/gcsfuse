@@ -18,11 +18,10 @@ package operations
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"syscall"
-
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func CopyFile(srcFileName string, newFileName string) (err error) {
@@ -31,19 +30,22 @@ func CopyFile(srcFileName string, newFileName string) (err error) {
 		return
 	}
 
-	source, err := os.OpenFile(srcFileName, syscall.O_DIRECT, setup.FilePermission_0600)
+	source, err := os.OpenFile(srcFileName, syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("File %s opening error: %v", srcFileName, err)
 		return
 	}
-	defer source.Close()
 
-	destination, err := os.OpenFile(newFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
+	// Closing file at the end.
+	defer CloseFile(source)
+
+	destination, err := os.OpenFile(newFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Copied file creation error: %v", err)
 		return
 	}
-	defer destination.Close()
+	// Closing file at the end.
+	defer CloseFile(destination)
 
 	// File copying with io.Copy() utility.
 	_, err = io.Copy(destination, source)
@@ -55,12 +57,14 @@ func CopyFile(srcFileName string, newFileName string) (err error) {
 }
 
 func ReadFile(filePath string) (content []byte, err error) {
-	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Error in the opening the file %v", err)
 		return
 	}
-	defer file.Close()
+
+	// Closing file at the end.
+	defer CloseFile(file)
 
 	content, err = os.ReadFile(file.Name())
 	if err != nil {
@@ -93,27 +97,31 @@ func RenameFile(fileName string, newFileName string) (err error) {
 }
 
 func WriteFileInAppendMode(fileName string, content string) (err error) {
-	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Open file for append: %v", err)
 		return
 	}
 
+	// Closing file at the end.
+	defer CloseFile(f)
+
 	_, err = f.WriteString(content)
-	f.Close()
 
 	return
 }
 
 func WriteFile(fileName string, content string) (err error) {
-	f, err := os.OpenFile(fileName, os.O_RDWR|syscall.O_DIRECT, setup.FilePermission_0600)
+	f, err := os.OpenFile(fileName, os.O_RDWR|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Open file for write at start: %v", err)
 		return
 	}
 
+	// Closing file at the end.
+	defer CloseFile(f)
+
 	_, err = f.WriteAt([]byte(content), 0)
-	f.Close()
 
 	return
 }
@@ -126,4 +134,10 @@ func MoveFile(srcFilePath string, destDirPath string) (err error) {
 		err = fmt.Errorf("Moving file operation is failed: %v", err)
 	}
 	return err
+}
+
+func CloseFile(file *os.File) {
+	if err := file.Close(); err != nil {
+		log.Printf("error in closing: %v", err)
+	}
 }
