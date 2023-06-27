@@ -39,7 +39,7 @@ gcsfuse --implicit-dirs=false $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
-# Run integration tests for operations with --only-dr mounting.
+# Run integration tests for operations with --only-dir mounting.
 gcsfuse --only-dir testDir --enable-storage-client-library=true --implicit-dirs=true $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
@@ -65,7 +65,7 @@ gcsfuse --file-mode=544 --dir-mode=544 --implicit-dirs=true  $TEST_BUCKET_NAME $
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
-# Run integration tests for readonly with --only-dr mounting.
+# Run integration tests for readonly with --only-dir mounting.
 gcsfuse --only-dir testDir --o=ro --implicit-dirs=true $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
@@ -83,7 +83,7 @@ gcsfuse --rename-dir-limit=3  $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
-# Run integration tests for rename_dir_limit with --only-dr mounting.
+# Run integration tests for rename_dir_limit with --only-dir mounting.
 gcsfuse --only-dir testDir --rename-dir-limit=3 --implicit-dirs $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
@@ -101,7 +101,7 @@ gcsfuse --enable-storage-client-library=false --implicit-dirs  $TEST_BUCKET_NAME
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
-# Run integration tests for implicit_dir with --only-dr mounting.
+# Run integration tests for implicit_dir with --only-dir mounting.
 gcsfuse --only-dir testDir --implicit-dirs $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
@@ -119,7 +119,7 @@ gcsfuse --enable-storage-client-library=false $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/explicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
-# Run integration tests for explicit_dir with --only-dr mounting.
+# Run integration tests for explicit_dir with --only-dir mounting.
 gcsfuse --only-dir testDir --enable-storage-client-library=true $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/explicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
