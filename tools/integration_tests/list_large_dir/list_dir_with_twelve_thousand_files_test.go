@@ -97,7 +97,7 @@ func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 	}
 
 	// Clear the bucket after testing.
-	setup.RunScriptForTestData("testdata/delete_objects.sh")
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 }
 
 // Test with a bucket with twelve thousand files and hundred explicit directories.
@@ -142,7 +142,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T)
 	}
 
 	// Clear the bucket after testing.
-	setup.RunScriptForTestData("testdata/delete_objects.sh")
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 }
 
 // Test with a bucket with twelve thousand files, hundred explicit directories, and hundred implicit directories.
@@ -197,5 +197,5 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImpl
 	}
 
 	// Clear the bucket after testing.
-	setup.RunScriptForTestData("testdata/delete_objects.sh")
+	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 }
