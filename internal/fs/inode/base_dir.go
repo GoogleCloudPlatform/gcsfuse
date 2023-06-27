@@ -199,7 +199,8 @@ func (d *baseDirInode) DeleteChildFile(
 
 func (d *baseDirInode) DeleteChildDir(
 	ctx context.Context,
-	name string) (err error) {
+	name string,
+	isImplicitDir bool) (err error) {
 	err = fuse.ENOSYS
 	return
 }
