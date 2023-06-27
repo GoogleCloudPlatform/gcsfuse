@@ -11,6 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-cd ~/directoryWithTwelveThousandFiles
-gsutil -m mv fileInDirectoryWithTwelveThousandFiles* gs://$1/
-rm -r ~/directoryWithTwelveThousandFiles
+# $1 testbucket
+# $2 DirectoryWithTwelveThousandFiles
+# $3 PrefixFileInDirectoryWithTwelveThousandFiles
+TEST_BUCKET=$1
+DIR_WITH_TWELVE_THOUSAND_FILES=$2
+FILES=$3
+
+cd $DIR_WITH_TWELVE_THOUSAND_FILES
+gsutil -m mv $FILES* gs://$TEST_BUCKET/
+rm -r ~/$DIR_WITH_TWELVE_THOUSAND_FILES
