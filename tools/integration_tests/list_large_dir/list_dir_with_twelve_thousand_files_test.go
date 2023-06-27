@@ -38,6 +38,9 @@ func checkIfObjNameIsCorrect(objName string, prefix string, maxNumber int, t *te
 }
 
 func createTwelveThousandFilesAndUploadOnTestBucket(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	// Creating twelve thousand files on disk to upload them on a bucket for testing.
 	dirPath := path.Join(os.Getenv("HOME"), DirectoryWithTwelveThousandFiles)
 	err := os.Mkdir(dirPath, 0777)
@@ -94,7 +97,7 @@ func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 	}
 
 	// Clear the bucket after testing.
-	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+	setup.RunScriptForTestData("testdata/delete_objects.sh")
 }
 
 // Test with a bucket with twelve thousand files and hundred explicit directories.
@@ -139,7 +142,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T)
 	}
 
 	// Clear the bucket after testing.
-	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+	setup.RunScriptForTestData("testdata/delete_objects.sh")
 }
 
 // Test with a bucket with twelve thousand files, hundred explicit directories, and hundred implicit directories.
@@ -152,7 +155,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImpl
 	createHundredExplicitDir(dirPath, t)
 
 	subDirPath := path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
-	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", subDirPath)
+	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", subDirPath, PrefixImplicitDirInLargeDirListTest)
 
 	objs, err := os.ReadDir(dirPath)
 	if err != nil {
@@ -194,5 +197,5 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImpl
 	}
 
 	// Clear the bucket after testing.
-	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+	setup.RunScriptForTestData("testdata/delete_objects.sh")
 }
