@@ -38,7 +38,7 @@ def pil_loader(path: str) -> Image.Image:
     return rgb_img
 " > bypassed_code.py
 
-folder_file="/opt/conda/lib/python3.8/site-packages/torchvision/datasets/folder.py"
+folder_file="/opt/conda/lib/python3.7/site-packages/torchvision/datasets/folder.py"
 x=$(grep -n "def pil_loader(path: str) -> Image.Image:" $folder_file | cut -f1 -d ':')
 y=$(grep -n "def accimage_loader(path: str) -> Any:" $folder_file | cut -f1 -d ':')
 y=$((y - 2))
@@ -50,26 +50,46 @@ sed -i "$x"'r bypassed_code.py' $folder_file
 # nproc_per_node - by downloading the model in single thread environment.
 python -c 'import torch;torch.hub.list("facebookresearch/xcit:main")'
 
-# Run the pytorch Dino model
-# We need to run it in foreground mode to make the container running.
-echo "Running the pytorch dino model..."
-experiment=dino_experiment
-python3 -m torch.distributed.launch \
-  --nproc_per_node=2 dino/main_dino.py \
-  --arch vit_small \
-  --num_workers 20 \
-  --data_path gcsfuse_data/imagenet/ILSVRC/Data/CLS-LOC/train/ \
-  --output_dir "./run_artifacts/$experiment" \
-  --norm_last_layer False \
-  --use_fp16 False \
-  --clip_grad 0 \
-  --epochs 100 \
-  --global_crops_scale 0.25 1.0 \
-  --local_crops_number 10 \
-  --local_crops_scale 0.05 0.25 \
-  --teacher_temp 0.07 \
-  --warmup_teacher_temp_epochs 30 \
-  --clip_grad 0 \
-  --min_lr 0.00001
+ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/dino"
+echo "Update status file"
+echo "RUNNING" > status.txt
+gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/
 
-echo "Pytorch DINO model completed the training successfully!"
+echo "Update start time file"
+echo $(date +"%s") > start_time.txt
+gsutil cp start_time.txt $ARTIFACTS_BUCKET_PATH/
+
+(
+  set +e
+  # Run the pytorch Dino model
+  # We need to run it in foreground mode to make the container running.
+  echo "Running the pytorch dino model..."
+  experiment=dino_experiment
+  python3 -m torch.distributed.launch \
+    --nproc_per_node=1 dino/main_dino.py \
+    --arch vit_small \
+    --num_workers 20 \
+    --data_path gcsfuse_data/imagenet/ILSVRC/Data/CLS-LOC/train/ \
+    --output_dir "./run_artifacts/$experiment" \
+    --norm_last_layer False \
+    --use_fp16 False \
+    --clip_grad 0 \
+    --epochs 50 \
+    --global_crops_scale 0.25 1.0 \
+    --local_crops_number 10 \
+    --local_crops_scale 0.05 0.25 \
+    --teacher_temp 0.07 \
+    --warmup_teacher_temp_epochs 30 \
+    --clip_grad 0 \
+    --min_lr 0.00001
+    if [ $? -eq 0 ];
+    then
+        echo "Pytorch dino model completed the training successfully!"
+        echo "COMPLETE" > status.txt
+    else
+        echo "Pytorch dino model training failed!"
+        echo "ERROR" > status.txt
+    fi
+)
+
+gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/
