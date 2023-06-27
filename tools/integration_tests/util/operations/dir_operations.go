@@ -61,7 +61,7 @@ func RenameDir(dirName string, newDirName string) (err error) {
 }
 
 func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string, t *testing.T) {
-	err := os.Mkdir(dirPath, FilePermission_0700)
+	err := os.Mkdir(dirPath, FilePermission_0777)
 	if err != nil {
 		t.Errorf("Error in creating directory: %v", err)
 	}
