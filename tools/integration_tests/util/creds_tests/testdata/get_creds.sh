@@ -13,4 +13,3 @@
 # limitations under the License.
 
 gsutil cp gs://$1/admin_creds.json ~/
-
