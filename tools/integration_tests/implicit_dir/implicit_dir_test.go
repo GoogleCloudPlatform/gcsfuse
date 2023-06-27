@@ -23,8 +23,10 @@ import (
 
 const ExplicitDirInImplicitDir = "explicitDirInImplicitDir"
 const ExplicitDirInImplicitSubDir = "explicitDirInImplicitSubDir"
-const FileInExplicitDirInImplicitDir = "fileInExplicitDirInImplicitDir"
-const FileInExplicitDirInImplicitSubDir = "fileInExplicitDirInImplicitSubDir"
+const PrefixFileInExplicitDirInImplicitDir = "fileInExplicitDirInImplicitDir"
+const PrefixFileInExplicitDirInImplicitSubDir = "fileInExplicitDirInImplicitSubDir"
+const NumberOfFilesInExplicitDirInImplicitSubDir = 1
+const NumberOfFilesInExplicitDirInImplicitDir = 1
 
 func TestMain(m *testing.M) {
 	flags := [][]string{{"--implicit-dirs"}, {"--enable-storage-client-library=false", "--implicit-dirs"}}
