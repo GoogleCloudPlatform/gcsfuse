@@ -42,6 +42,7 @@ import (
 	"os/exec"
 	"path"
 	"runtime"
+	"strings"
 )
 
 // Build release binaries according to the supplied settings, setting up the
@@ -133,10 +134,10 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		cmd := exec.Command(
 			"go",
 			"build",
-			"-o",
-			path.Join(dstDir, bin.outputPath),
 			"-C",
-			srcDir)
+			srcDir,
+			"-o",
+			path.Join(dstDir, bin.outputPath))
 
 		if path.Base(bin.outputPath) == "gcsfuse" {
 			cmd.Args = append(
@@ -164,6 +165,9 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		output, err = cmd.CombinedOutput()
 		if err != nil {
 			err = fmt.Errorf("%v: %w\nOutput:\n%s", cmd, err, output)
+			if strings.Contains(string(output), "flag provided but not defined: -C") {
+				err = fmt.Errorf("%v: %w\nOutput:\n%s\nPlease upgrade to go version 1.20 or higher", cmd, err, output)
+			}
 			return
 		}
 	}

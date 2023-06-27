@@ -30,6 +30,7 @@ const MoveFileContent = "This is from move file in Test directory.\n"
 const SrcCopyDirectory = "srcCopyDir"
 const EmptySrcDirectoryCopyTest = "emptySrcDirectoryCopyTest"
 const SubSrcCopyDirectory = "subSrcCopyDir"
+const SrcCopyFile = "srcCopyFile"
 const DestEmptyCopyDirectory = "destEmptyCopyDirectory"
 const PrefixFileInSrcCopyFile = "fileInSrcCopyDir"
 const FileInSrcCopyFile = "fileInSrcCopyDir1"
@@ -68,6 +69,16 @@ const NumberOfFilesInNonEmptyExplicitDirectoryForDeleteTest = 2
 const PrefixFilesInNonEmptyExplicitDirectoryForDeleteTest = "filesInNonEmptyExplicitDirectoryForDeleteTest"
 const NumberOfFilesInNonEmptyExplicitSubDirectoryForDeleteTest = 1
 const PrefixFilesInNonEmptyExplicitSubDirectoryForDeleteTest = "filesInNonEmptyExplicitSubDirectoryForDeleteTest"
+const DirOneInCreateThreeLevelDirTest = "dirOneInCreateThreeLevelDirTest"
+const DirTwoInCreateThreeLevelDirTest = "dirTwoInCreateThreeLevelDirTest"
+const DirThreeInCreateThreeLevelDirTest = "dirThreeInCreateThreeLevelDirTest"
+const NumberOfObjectsInBucketDirectoryCreateTest = 1
+const NumberOfObjectsInDirOneInCreateThreeLevelDirTest = 1
+const NumberOfObjectsInDirTwoInCreateThreeLevelDirTest = 1
+const NumberOfObjectsInDirThreeInCreateThreeLevelDirTest = 1
+const PrefixFileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLevelDirTest"
+const FileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLevelDirTest1"
+const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
