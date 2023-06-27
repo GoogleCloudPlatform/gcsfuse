@@ -74,6 +74,11 @@ const NumberOfObjectsInDirThreeInCreateThreeLevelDirTest = 1
 const PrefixFileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLevelDirTest"
 const FileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLevelDirTest1"
 const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
+const DestEmptyCopyDirectory = "destEmptyCopyDirectory"
+const PrefixFileInSrcCopyFile = "fileInSrcCopyDir"
+const FileInSrcCopyFile = "fileInSrcCopyDir1"
+const EmptySrcDirectoryCopyTest = "emptySrcDirectoryCopyTest"
+const NumberOfObjectsInEmptyDestCopyDirectory = 1
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
