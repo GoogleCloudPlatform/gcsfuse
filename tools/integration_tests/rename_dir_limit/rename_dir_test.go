@@ -27,6 +27,9 @@ import (
 // As --rename-directory-limit = 3, and the number of objects in the directory is three,
 // which is equal to the limit, the operation should get successful.
 func TestRenameDirectoryWithThreeFiles(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	// Create directory structure
 	// testBucket/directoryWithThreeFiles               -- Dir
 	// testBucket/directoryWithThreeFiles/temp1.txt     -- File
@@ -39,7 +42,7 @@ func TestRenameDirectoryWithThreeFiles(t *testing.T) {
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
 
 	//  Cleaning the directory before renaming.
-	os.RemoveAll(newDirPath)
+	operations.RemoveDir(newDirPath)
 
 	err := os.Rename(oldDirPath, newDirPath)
 
@@ -51,6 +54,9 @@ func TestRenameDirectoryWithThreeFiles(t *testing.T) {
 // As --rename-directory-limit = 3, and the number of objects in the directory is two,
 // which is less than the limit, the operation should get successful.
 func TestRenameDirectoryWithTwoFiles(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	// Create directory structure
 	// testBucket/directoryWithTwoFiles              -- Dir
 	// testBucket/directoryWithTwoFiles/temp1.txt    -- File
@@ -63,7 +69,7 @@ func TestRenameDirectoryWithTwoFiles(t *testing.T) {
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
 
 	//  Cleaning the directory before renaming.
-	os.RemoveAll(newDirPath)
+	operations.RemoveDir(newDirPath)
 
 	err := os.Rename(oldDirPath, newDirPath)
 
@@ -75,6 +81,9 @@ func TestRenameDirectoryWithTwoFiles(t *testing.T) {
 // As --rename-directory-limit = 3, and the number of objects in the directory is two,
 // which is greater than the limit, the operation should get fail.
 func TestRenameDirectoryWithFourFiles(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	// Creating directory structure
 	// testBucket/directoryWithFourFiles              -- Dir
 	// testBucket/directoryWithFourFiles/temp1.txt    -- File
@@ -89,7 +98,7 @@ func TestRenameDirectoryWithFourFiles(t *testing.T) {
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
 
 	//  Cleaning the directory before renaming.
-	os.RemoveAll(newDirPath)
+	operations.RemoveDir(newDirPath)
 
 	err := os.Rename(oldDirPath, newDirPath)
 
@@ -101,6 +110,9 @@ func TestRenameDirectoryWithFourFiles(t *testing.T) {
 // As --rename-directory-limit = 3, and the number of objects in the directory is three,
 // which is equal to limit, the operation should get successful.
 func TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	// Creating directory structure
 	// testBucket/directoryWithTwoFilesOneEmptyDirectory                       -- Dir
 	// testBucket/directoryWithTwoFilesOneEmptyDirectory/a.txt                 -- File
@@ -116,7 +128,7 @@ func TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory(t *testing.T) {
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
 
 	//  Cleaning the directory before renaming.
-	os.RemoveAll(newDirPath)
+	operations.RemoveDir(newDirPath)
 
 	err := os.Rename(oldDirPath, newDirPath)
 
@@ -128,6 +140,9 @@ func TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory(t *testing.T) {
 // As --rename-directory-limit = 3, and the number of objects in the directory is Four,
 // which is greater than the limit, the operation should get fail.
 func TestRenameDirectoryWithTwoFilesAndOneNonEmptyDirectory(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	// Creating directory structure
 	// testBucket/directoryWithTwoFilesOneNonEmptyDirectory                                      -- Dir
 	// testBucket/directoryWithTwoFilesOneNonEmptyDirectory/temp1.txt                            -- File
@@ -145,7 +160,7 @@ func TestRenameDirectoryWithTwoFilesAndOneNonEmptyDirectory(t *testing.T) {
 	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
 
 	//  Cleaning the directory before renaming.
-	os.RemoveAll(newDirPath)
+	operations.RemoveDir(newDirPath)
 
 	err := os.Rename(oldDirPath, newDirPath)
 

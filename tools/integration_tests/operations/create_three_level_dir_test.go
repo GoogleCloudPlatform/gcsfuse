@@ -34,7 +34,9 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 	// testBucket/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest                                       -- Dir
 	// testBucket/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest     -- Dir
 	// testBucket/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest/fileInDirThreeInCreateThreeLevelDirTest     -- File
-	os.RemoveAll(setup.MntDir())
+
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
 
 	dirPath := path.Join(setup.MntDir(), DirOneInCreateThreeLevelDirTest)
 
@@ -143,6 +145,4 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 		t.Errorf("error walking the path : %v\n", err)
 		return
 	}
-
-	os.RemoveAll(setup.MntDir())
 }

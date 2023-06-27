@@ -30,6 +30,9 @@ import (
 // srcCopyDir/copy.txt      -- File
 // srcCopyDir/subSrcCopyDir -- Dir
 func createSrcDirectoryWithObjects(dirPath string, t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	// testBucket/srcCopyDir
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
 	if err != nil {
@@ -57,6 +60,9 @@ func createSrcDirectoryWithObjects(dirPath string, t *testing.T) {
 	if err != nil {
 		t.Errorf("File at %v", err)
 	}
+
+	// Closing file at the end
+	defer operations.CloseFile(file)
 }
 
 func checkIfCopiedDirectoryHasCorrectData(destDir string, t *testing.T) {
@@ -115,9 +121,6 @@ func TestCopyDirectoryInNonExistingDirectory(t *testing.T) {
 	}
 
 	checkIfCopiedDirectoryHasCorrectData(destDir, t)
-
-	os.RemoveAll(srcDir)
-	os.RemoveAll(destDir)
 }
 
 // Copy SrcDirectory in DestDirectory
@@ -162,9 +165,6 @@ func TestCopyDirectoryInEmptyDirectory(t *testing.T) {
 
 	destSrc := path.Join(destDir, SrcCopyDirectory)
 	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
-
-	os.RemoveAll(srcDir)
-	os.RemoveAll(destDir)
 }
 
 func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
@@ -219,7 +219,4 @@ func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
 
 	destSrc := path.Join(destDir, SrcCopyDirectory)
 	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
-
-	os.RemoveAll(srcDir)
-	os.RemoveAll(destDir)
 }

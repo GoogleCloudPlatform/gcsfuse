@@ -27,6 +27,9 @@ import (
 )
 
 func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	// Directory Structure
 	// testBucket/implicitDirectory                                                  -- Dir
 	// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
@@ -39,9 +42,6 @@ func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 
 	implicit_and_explicit_dir_setup.CreateImplicitDirectory()
 	implicit_and_explicit_dir_setup.CreateExplicitDirectory(t)
-
-	// Delete objects from bucket after testing.
-	defer os.RemoveAll(setup.MntDir())
 
 	err := filepath.WalkDir(setup.MntDir(), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {

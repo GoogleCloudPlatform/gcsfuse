@@ -25,6 +25,9 @@ import (
 )
 
 func TestFileAttributes(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	preCreateTime := time.Now()
 	fileName := setup.CreateTempFile()
 	postCreateTime := time.Now()
