@@ -41,19 +41,14 @@ func createTwelveThousandFilesAndUploadOnTestBucket(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
-	// Creating twelve thousand files on disk to upload them on a bucket for testing.
+	// Creating twelve thousand files in DirectoryWithTwelveThousandFiles directory to upload them on a bucket for testing.
 	dirPath := path.Join(os.Getenv("HOME"), DirectoryWithTwelveThousandFiles)
 	err := os.Mkdir(dirPath, 0777)
 	if err != nil {
 		t.Errorf("Error in creatig directory: %v", err)
 	}
-	for i := 1; i <= NumberOfFilesInDirectoryWithTwelveThousandFiles; i++ {
-		filePath := path.Join(dirPath, PrefixFileInDirectoryWithTwelveThousandFiles+strconv.Itoa(i))
-		_, err := os.Create(filePath)
-		if err != nil {
-			t.Errorf("Error in creating file.")
-		}
-	}
+
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
 
 	// Uploading twelve thousand files to directoryWithTwelveThousandFiles in testBucket.
 	dirPath = path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
