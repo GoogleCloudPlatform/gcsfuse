@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-gsutil -m mv ~/fileInDirectoryWithTwelveThousandFiles* gs://$1/
+gsutil -m mv ~/Test/fileInDirectoryWithTwelveThousandFiles* gs://$1/
