@@ -17,7 +17,6 @@ package implicit_and_explicit_dir_setup
 import (
 	"log"
 	"os"
-	"os/exec"
 	"path"
 	"testing"
 
@@ -60,37 +59,6 @@ func RunTestsForImplicitDirAndExplicitDir(flags [][]string, m *testing.M) {
 	successCode := static_mounting.RunTests(flags, m)
 
 	os.Exit(successCode)
-}
-
-func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) {
-	cmd := exec.Command(
-		"rm",
-		"-r",
-		dirPath,
-	)
-	_, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Errorf("Error in deleting non-empty implicit directory.")
-	}
-
-	dir, err := os.Stat(dirPath)
-	if err == nil && dir.Name() == dirName && dir.IsDir() {
-		t.Errorf("Directory is not deleted.")
-	}
-}
-
-func CreateImplicitDirectory2() {
-	// Implicit Directory Structure
-	// testBucket/implicitDirectory                                                  -- Dir
-	// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
-	// testBucket/implicitDirectory/implicitSubDirectory                             -- Dir
-	// testBucket/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
-
-	// Clean the bucket.
-	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/delete_objects.sh", setup.TestBucket())
-
-	// Create implicit directory in bucket for testing.
-	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_object2.sh", setup.TestBucket())
 }
 
 func CreateImplicitDirectory() {

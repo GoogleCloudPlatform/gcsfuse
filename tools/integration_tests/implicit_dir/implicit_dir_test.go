@@ -27,7 +27,7 @@ const FileInExplicitDirInImplicitDir = "fileInExplicitDirInImplicitDir"
 const FileInExplicitDirInImplicitSubDir = "fileInExplicitDirInImplicitSubDir"
 
 func TestMain(m *testing.M) {
-	flags := [][]string{{"--enable-storage-client-library=false", "--implicit-dirs"}}
+	flags := [][]string{{"--implicit-dirs"}, {"--enable-storage-client-library=false", "--implicit-dirs"}}
 
 	implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
 }
