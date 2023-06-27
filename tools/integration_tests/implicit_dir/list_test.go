@@ -27,6 +27,9 @@ import (
 )
 
 func TestListImplicitObjectsFromBucket(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	// Directory Structure
 	// testBucket/implicitDirectory                                                  -- Dir
 	// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
@@ -40,10 +43,7 @@ func TestListImplicitObjectsFromBucket(t *testing.T) {
 	implicit_and_explicit_dir_setup.CreateImplicitDirectory()
 	implicit_and_explicit_dir_setup.CreateExplicitDirectory(t)
 
-	// Delete objects from bucket after testing.
-	//defer os.RemoveAll(setup.MntDir())
-
-	err := filepath.Walk(setup.MntDir(), func(path string, dir fs.FileInfo, err error) error {
+	err := filepath.WalkDir(setup.MntDir(), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
 			return err

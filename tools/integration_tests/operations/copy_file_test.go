@@ -24,6 +24,9 @@ import (
 )
 
 func TestCopyFile(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	fileName := setup.CreateTempFile()
 
 	content, err := operations.ReadFile(fileName)

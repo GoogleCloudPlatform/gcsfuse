@@ -25,6 +25,8 @@ import (
 	"testing"
 )
 
+const FilePermission_0600 = 0600
+
 func CopyDir(srcDirPath string, destDirPath string) (err error) {
 	cmd := exec.Command("cp", "--recursive", srcDirPath, destDirPath)
 
@@ -58,7 +60,11 @@ func RenameDir(dirName string, newDirName string) (err error) {
 }
 
 func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string, t *testing.T) {
+<<<<<<< HEAD
 	err := os.Mkdir(dirPath, 777)
+=======
+	err := os.Mkdir(dirPath, FilePermission_0600)
+>>>>>>> 48296dc6fd0060da8aad0335171db89d7a989566
 	if err != nil {
 		t.Errorf("Error in creating directory: %v", err)
 	}
@@ -67,6 +73,7 @@ func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string,
 		// Create file with name prefix + i
 		// e.g. If prefix = temp  then temp1, temp2
 		filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+<<<<<<< HEAD
 		f, err := os.Create(filePath)
 		if err != nil {
 			t.Errorf("Create file at %q: %v", dirPath, err)
@@ -74,5 +81,20 @@ func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string,
 		if err = f.Close(); err != nil {
 			log.Printf("error in closing: %v", err)
 		}
+=======
+		file, err := os.Create(filePath)
+		if err != nil {
+			t.Errorf("Create file at %q: %v", dirPath, err)
+		}
+
+		// Closing file at the end.
+		defer CloseFile(file)
+	}
+}
+
+func RemoveDir(dirPath string) {
+	if err := os.RemoveAll(dirPath); err != nil {
+		log.Printf("Error in removing direcitory: %v", err)
+>>>>>>> 48296dc6fd0060da8aad0335171db89d7a989566
 	}
 }

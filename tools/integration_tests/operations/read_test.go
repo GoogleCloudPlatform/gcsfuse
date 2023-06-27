@@ -24,6 +24,9 @@ import (
 )
 
 func TestReadAfterWrite(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	tmpDir, err := os.MkdirTemp(setup.MntDir(), "tmpDir")
 	if err != nil {
 		t.Errorf("Mkdir at %q: %v", setup.MntDir(), err)
@@ -35,6 +38,10 @@ func TestReadAfterWrite(t *testing.T) {
 			t.Errorf("Create file at %q: %v", tmpDir, err)
 			return
 		}
+
+		// Closing file at the end
+		operations.CloseFile(tmpFile)
+
 		fileName := tmpFile.Name()
 
 		err = operations.WriteFileInAppendMode(fileName, "line 1\n")

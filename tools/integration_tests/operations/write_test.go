@@ -25,6 +25,9 @@ import (
 )
 
 func TestWriteAtEndOfFile(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	fileName := setup.CreateTempFile()
 
 	err := operations.WriteFileInAppendMode(fileName, "line 3\n")
@@ -36,6 +39,9 @@ func TestWriteAtEndOfFile(t *testing.T) {
 }
 
 func TestWriteAtStartOfFile(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	fileName := setup.CreateTempFile()
 
 	err := operations.WriteFile(fileName, "line 4\n")
@@ -47,6 +53,9 @@ func TestWriteAtStartOfFile(t *testing.T) {
 }
 
 func TestWriteAtRandom(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	fileName := setup.CreateTempFile()
 
 	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
@@ -59,12 +68,16 @@ func TestWriteAtRandom(t *testing.T) {
 	if _, err = f.WriteAt([]byte("line 5\n"), 7); err != nil {
 		t.Errorf("WriteString-Random: %v", err)
 	}
-	f.Close()
+	// Closing file at the end
+	operations.CloseFile(f)
 
 	setup.CompareFileContents(t, fileName, "line 1\nline 5\n")
 }
 
 func TestCreateFile(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	fileName := setup.CreateTempFile()
 
 	// Stat the file to check if it exists.
