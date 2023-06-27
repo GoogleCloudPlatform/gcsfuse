@@ -47,7 +47,7 @@ func createTwelveThousandFilesAndUploadOnTestBucket(t *testing.T) {
 
 	// Uploading twelve thousand files to directoryWithTwelveThousandFiles in testBucket.
 	dirPath := path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
-	setup.RunScriptForTestData("testdata/upload_twelve_thousand_files_to_bucket.sh", dirPath, DirectoryWithTwelveThousandFiles, PrefixFileInDirectoryWithTwelveThousandFiles)
+	setup.RunScriptForTestData("testdata/upload_files_to_bucket.sh", dirPath, DirectoryWithTwelveThousandFiles, PrefixFileInDirectoryWithTwelveThousandFiles)
 }
 
 // Create a hundred explicit directories.
@@ -145,7 +145,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImpl
 	createHundredExplicitDir(dirPath, t)
 
 	subDirPath := path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
-	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", subDirPath, PrefixImplicitDirInLargeDirListTest)
+	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", subDirPath, PrefixImplicitDirInLargeDirListTest, strconv.Itoa(NumberOfImplicitDirsInDirectoryWithTwelveThousandFiles))
 
 	objs, err := os.ReadDir(dirPath)
 	if err != nil {

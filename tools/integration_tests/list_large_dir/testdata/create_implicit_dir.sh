@@ -12,12 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# $1 Name of the script
+# $2 PrefixImplicitDirInLargeDirListTest
+# $3 NumberOfImplicitDirsInDirectoryWithTwelveThousandFiles - 100
+
+IMPLICIT_DIR=$2
+NUMBER_OF_FILES=$3
+
 a=1
 #Iterate the loop until a greater than 100
 touch testFile.txt
-while [ $a -lt 101 ]
+while [ $a -le $NUMBER_OF_FILES ]
 do
-   dir="implicitDirInLargeDirListTest"$a
+   dir=$IMPLICIT_DIR$a
    a=`expr $a + 1`
    gsutil cp testFile.txt gs://$1/$dir/
 done
