@@ -47,14 +47,14 @@ type DirHandle struct {
 	// INVARIANT: For each i, entries[i+1].Offset == entries[i].Offset + 1
 	//
 	// GUARDED_BY(Mu)
-	Entries []fuseutil.Dirent
+	entries []fuseutil.Dirent
 
 	// Has entries yet been populated?
 	//
 	// INVARIANT: If !entriesValid, then len(entries) == 0
 	//
 	// GUARDED_BY(Mu)
-	EntriesValid bool
+	entriesValid bool
 
 	//condition variable is for signalling whether a fresh set of entries has been fetched
 	cond *sync.Cond
@@ -88,6 +88,22 @@ func NewDirHandle(
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+func (dh *DirHandle) EntriesValid() bool {
+	return dh.entriesValid
+}
+
+func (dh *DirHandle) SetEntriesValid(entriesValid bool) {
+	dh.entriesValid = entriesValid
+}
+
+func (dh *DirHandle) Entries() []fuseutil.Dirent {
+	return dh.entries
+}
+
+func (dh *DirHandle) SetEntries(entries []fuseutil.Dirent) {
+	dh.entries = entries
+}
+
 // Dirents, sorted by name.
 type sortedDirents []fuseutil.Dirent
 
@@ -97,18 +113,18 @@ func (p sortedDirents) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 func (dh *DirHandle) checkInvariants() {
 	// INVARIANT: For each i, entries[i+1].Offset == entries[i].Offset + 1
-	for i := 0; i < len(dh.Entries)-1; i++ {
-		if !(dh.Entries[i+1].Offset == dh.Entries[i].Offset+1) {
+	for i := 0; i < len(dh.entries)-1; i++ {
+		if !(dh.entries[i+1].Offset == dh.entries[i].Offset+1) {
 			panic(
 				fmt.Sprintf(
 					"Unexpected offset sequence: %v, %v",
-					dh.Entries[i].Offset,
-					dh.Entries[i+1].Offset))
+					dh.entries[i].Offset,
+					dh.entries[i+1].Offset))
 		}
 	}
 
 	// INVARIANT: If !entriesValid, then len(entries) == 0
-	if !dh.EntriesValid && len(dh.Entries) != 0 {
+	if !dh.entriesValid && len(dh.entries) != 0 {
 		panic("Unexpected non-empty entries slice")
 	}
 }
@@ -222,11 +238,11 @@ func (dh *DirHandle) FetchEntriesAsync(
 		//Update InodeID and Offset for the entries
 		for i := range entries {
 			entries[i].Inode = fuseops.InodeID(rootInodeId + 1)
-			entries[i].Offset = fuseops.DirOffset(uint64(len(dh.Entries) + i + 1))
+			entries[i].Offset = fuseops.DirOffset(uint64(len(dh.entries) + i + 1))
 		}
 
-		dh.Entries = append(dh.Entries, entries...)
-		dh.EntriesValid = true
+		dh.entries = append(dh.entries, entries...)
+		dh.entriesValid = true
 		dh.Mu.Unlock()
 		//Signal the suspended go routine that the next set of entries has
 		//been fetched.
@@ -258,12 +274,12 @@ func (dh *DirHandle) ReadDir(
 
 	dh.Mu.Lock()
 	if op.Offset == 0 {
-		dh.Entries = nil
-		dh.EntriesValid = false
+		dh.entries = nil
+		dh.entriesValid = false
 		dh.err = nil
 		dh.fetchOver = false
 	}
-	ev := dh.EntriesValid
+	ev := dh.entriesValid
 	dh.Mu.Unlock()
 
 	if !ev {
@@ -273,7 +289,7 @@ func (dh *DirHandle) ReadDir(
 	dh.Mu.Lock()
 	//if the fetched entries is not sufficient to serve the request, then wait only
 	//if there are more entries to be fetched (fetchOver is false)
-	if len(dh.Entries) <= int(op.Offset) && !dh.fetchOver {
+	if len(dh.entries) <= int(op.Offset) && !dh.fetchOver {
 		//internally, cond.Wait() unlocks the mutex and locks it again when woken up
 		//by other go routines through a signal or a broadcast
 		dh.cond.Wait()
@@ -287,15 +303,15 @@ func (dh *DirHandle) ReadDir(
 	// Is the offset past the end of what we have buffered? If so, this must be
 	// an invalid seekdir according to posix.
 	index := int(op.Offset)
-	if index > len(dh.Entries) {
+	if index > len(dh.entries) {
 		err = fuse.EINVAL
 		dh.Mu.Unlock()
 		return
 	}
 
 	// We copy out entries until we run out of entries or space.
-	for i := index; i < len(dh.Entries); i++ {
-		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], dh.Entries[i])
+	for i := index; i < len(dh.entries); i++ {
+		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], dh.entries[i])
 		if n == 0 {
 			break
 		}

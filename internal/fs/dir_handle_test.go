@@ -117,8 +117,8 @@ func (t *DirHandleTest) FetchAsyncEntries_EmptyDir() {
 	t.createDirHandle(false, false, dirInodeName)
 	t.dh.FetchEntriesAsync(fuseops.RootInodeID, true)
 
-	AssertEq(0, len(t.dh.Entries))
-	AssertEq(true, t.dh.EntriesValid)
+	AssertEq(0, len(t.dh.Entries()))
+	AssertEq(true, t.dh.EntriesValid())
 	t.resetDirHandle()
 }
 
@@ -140,9 +140,10 @@ func (t *DirHandleTest) FetchAsyncEntries_NonEmptyDir() {
 	t.createDirHandle(false, false, dirInodeName)
 	t.dh.FetchEntriesAsync(fuseops.RootInodeID, true)
 
-	AssertEq(1, len(t.dh.Entries))
-	AssertEq(fileUnderDir, t.dh.Entries[0].Name)
-	AssertEq(true, t.dh.EntriesValid)
+	entries := t.dh.Entries()
+	AssertEq(1, len(entries))
+	AssertEq(fileUnderDir, entries[0].Name)
+	AssertEq(true, t.dh.EntriesValid())
 	t.resetDirHandle()
 }
 
@@ -159,9 +160,10 @@ func (t *DirHandleTest) FetchAsyncEntries_ImplicitDir_FlagTrue() {
 	t.createDirHandle(true, false, dirInodeName)
 	t.dh.FetchEntriesAsync(fuseops.RootInodeID, true)
 
-	AssertEq(1, len(t.dh.Entries))
-	AssertEq(implicitDirName, t.dh.Entries[0].Name)
-	AssertEq(true, t.dh.EntriesValid)
+	entries := t.dh.Entries()
+	AssertEq(1, len(entries))
+	AssertEq(implicitDirName, entries[0].Name)
+	AssertEq(true, t.dh.EntriesValid())
 	t.resetDirHandle()
 }
 
@@ -175,7 +177,7 @@ func (t *DirHandleTest) FetchAsyncEntries_ImplicitDir_FlagFalse() {
 	t.createDirHandle(false, false, dirInodeName)
 	t.dh.FetchEntriesAsync(fuseops.RootInodeID, true)
 
-	AssertEq(0, len(t.dh.Entries))
-	AssertEq(true, t.dh.EntriesValid)
+	AssertEq(0, len(t.dh.Entries()))
+	AssertEq(true, t.dh.EntriesValid())
 	t.resetDirHandle()
 }
