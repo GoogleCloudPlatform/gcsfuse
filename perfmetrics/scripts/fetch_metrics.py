@@ -63,6 +63,19 @@ if __name__ == '__main__':
   # waiting for 360 secs instead of 240 secs
   time.sleep(360)
 
+  # Print the start and end time of all the fio-jobs
+  # This is just make sure, the total run time of fio jobs are constant over
+  # different execution.
+  for ind, job in enumerate(temp):
+    start_time_sec = job[fio_metrics.consts.START_TIME]
+    end_time_sec = job[fio_metrics.consts.END_TIME]
+
+    print(f'Start and end time for job {ind + 1}...')
+
+    # Print start and end time of jobs
+    print("Start time: ", start_time_sec)
+    print("End time: ", end_time_sec)
+
   vm_metrics_obj = vm_metrics.VmMetrics()
   vm_metrics_data = []
   # Getting VM metrics for every job

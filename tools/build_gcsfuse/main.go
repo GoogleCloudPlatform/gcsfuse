@@ -17,33 +17,32 @@
 //
 // Usage:
 //
-//     build_gcsfuse src_dir dst_dir version
+//	build_gcsfuse src_dir dst_dir version
 //
 // where src_dir is the root of the gcsfuse git repository (or a tarball
 // thereof).
 //
 // For Linux, writes the following to dst_dir:
 //
-//     bin/gcsfuse
-//     sbin/mount.fuse.gcsfuse
-//     sbin/mount.gcsfuse
+//	bin/gcsfuse
+//	sbin/mount.fuse.gcsfuse
+//	sbin/mount.gcsfuse
 //
 // For OS X:
 //
-//     bin/gcsfuse
-//     sbin/mount_gcsfuse
-//
+//	bin/gcsfuse
+//	sbin/mount_gcsfuse
 package main
 
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path"
 	"runtime"
+	"strings"
 )
 
 // Build release binaries according to the supplied settings, setting up the
@@ -76,7 +75,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 	}
 
 	// Create a directory to become GOPATH for our build below.
-	gopath, err := ioutil.TempDir("", "build_gcsfuse_gopath")
+	gopath, err := os.MkdirTemp("", "build_gcsfuse_gopath")
 	if err != nil {
 		err = fmt.Errorf("TempDir: %w", err)
 		return
@@ -85,7 +84,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 
 	// Create a directory to become GOCACHE for our build below.
 	var gocache string
-	gocache, err = ioutil.TempDir("", "build_gcsfuse_gocache")
+	gocache, err = os.MkdirTemp("", "build_gcsfuse_gocache")
 	if err != nil {
 		err = fmt.Errorf("TempDir: %w", err)
 		return
@@ -135,10 +134,10 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		cmd := exec.Command(
 			"go",
 			"build",
-			"-o",
-			path.Join(dstDir, bin.outputPath),
 			"-C",
-			srcDir)
+			srcDir,
+			"-o",
+			path.Join(dstDir, bin.outputPath))
 
 		if path.Base(bin.outputPath) == "gcsfuse" {
 			cmd.Args = append(
@@ -166,6 +165,9 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		output, err = cmd.CombinedOutput()
 		if err != nil {
 			err = fmt.Errorf("%v: %w\nOutput:\n%s", cmd, err, output)
+			if strings.Contains(string(output), "flag provided but not defined: -C") {
+				err = fmt.Errorf("%v: %w\nOutput:\n%s\nPlease upgrade to go version 1.20 or higher", cmd, err, output)
+			}
 			return
 		}
 	}

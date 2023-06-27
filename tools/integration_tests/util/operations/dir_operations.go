@@ -17,9 +17,15 @@ package operations
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
+	"path"
+	"strconv"
+	"testing"
 )
+
+const FilePermission_0600 = 0600
 
 func CopyDir(srcDirPath string, destDirPath string) (err error) {
 	cmd := exec.Command("cp", "--recursive", srcDirPath, destDirPath)
@@ -51,4 +57,30 @@ func RenameDir(dirName string, newDirName string) (err error) {
 		return
 	}
 	return
+}
+
+func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string, t *testing.T) {
+	err := os.Mkdir(dirPath, FilePermission_0600)
+	if err != nil {
+		t.Errorf("Error in creating directory: %v", err)
+	}
+
+	for i := 1; i <= numberOfFiles; i++ {
+		// Create file with name prefix + i
+		// e.g. If prefix = temp  then temp1, temp2
+		filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+		file, err := os.Create(filePath)
+		if err != nil {
+			t.Errorf("Create file at %q: %v", dirPath, err)
+		}
+
+		// Closing file at the end.
+		defer CloseFile(file)
+	}
+}
+
+func RemoveDir(dirPath string) {
+	if err := os.RemoveAll(dirPath); err != nil {
+		log.Printf("Error in removing direcitory: %v", err)
+	}
 }
