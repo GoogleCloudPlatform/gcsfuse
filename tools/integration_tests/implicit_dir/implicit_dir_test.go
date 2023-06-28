@@ -21,6 +21,13 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
+const ExplicitDirInImplicitDir = "explicitDirInImplicitDir"
+const ExplicitDirInImplicitSubDir = "explicitDirInImplicitSubDir"
+const PrefixFileInExplicitDirInImplicitDir = "fileInExplicitDirInImplicitDir"
+const PrefixFileInExplicitDirInImplicitSubDir = "fileInExplicitDirInImplicitSubDir"
+const NumberOfFilesInExplicitDirInImplicitSubDir = 1
+const NumberOfFilesInExplicitDirInImplicitDir = 1
+
 func TestMain(m *testing.M) {
 	flags := [][]string{{"--implicit-dirs"}, {"--enable-storage-client-library=false", "--implicit-dirs"}}
 

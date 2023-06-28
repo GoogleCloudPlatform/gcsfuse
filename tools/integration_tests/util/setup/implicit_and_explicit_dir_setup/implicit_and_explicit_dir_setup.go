@@ -61,7 +61,16 @@ func RunTestsForImplicitDirAndExplicitDir(flags [][]string, m *testing.M) {
 	os.Exit(successCode)
 }
 
-func CreateImplicitDirectory() {
+func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) {
+	operations.RemoveDir(dirPath)
+
+	dir, err := os.Stat(dirPath)
+	if err == nil && dir.Name() == dirName && dir.IsDir() {
+		t.Errorf("Directory is not deleted.")
+	}
+}
+
+func CreateImplicitDirectoryStructure() {
 	// Implicit Directory Structure
 	// testBucket/implicitDirectory                                                  -- Dir
 	// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
@@ -75,7 +84,7 @@ func CreateImplicitDirectory() {
 	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", setup.TestBucket())
 }
 
-func CreateExplicitDirectory(t *testing.T) {
+func CreateExplicitDirectoryStructure(t *testing.T) {
 	// Explicit Directory structure
 	// testBucket/explicitDirectory                            -- Dir
 	// testBucket/explictFile                                  -- File
@@ -92,4 +101,19 @@ func CreateExplicitDirectory(t *testing.T) {
 
 	// Closing file at the end.
 	defer operations.CloseFile(file)
+}
+
+func CreateImplicitDirectoryInExplicitDirectoryStructure(t *testing.T) {
+	// testBucket/explicitDirectory                                                                   -- Dir
+	// testBucket/explictFile                                                                         -- File
+	// testBucket/explicitDirectory/fileInExplicitDir1                                                -- File
+	// testBucket/explicitDirectory/fileInExplicitDir2                                                -- File
+	// testBucket/explicitDirectory/implicitDirectory                                                 -- Dir
+	// testBucket/explicitDirectory/implicitDirectory/fileInImplicitDir1                              -- File
+	// testBucket/explicitDirectory/implicitDirectory/implicitSubDirectory                            -- Dir
+	// testBucket/explicitDirectory/implicitDirectory/implicitSubDirectory/fileInImplicitDir2         -- File
+
+	CreateExplicitDirectoryStructure(t)
+	dirPathInBucket := path.Join(setup.TestBucket(), ExplicitDirectory)
+	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", dirPathInBucket)
 }
