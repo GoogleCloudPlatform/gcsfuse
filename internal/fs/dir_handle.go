@@ -66,6 +66,10 @@ type DirHandle struct {
 	// Using this as a identification flag to indicate all entries present in the directory
 	// have been fetched already so that the main goroutine does not wait indefinitely for more entries.
 	fetchOver bool
+
+	// To stop the fetching of entries in case of interrupts to main goroutine like ctrl +c
+	// from the user.
+	cancel context.CancelFunc
 }
 
 // Create a directory handle that obtains listings from the supplied inode.
@@ -82,6 +86,9 @@ func NewDirHandle(
 	dh.Mu = locker.New("DH."+in.Name().GcsObjectName(), dh.checkInvariants)
 	// Creating a condition variable to indicate events for locking and unlocking dh.Mu mutex.
 	dh.cond = sync.NewCond(dh.Mu)
+	// Using dummy function since nil pointer reference in fs.ReleaseDirHandle if
+	// not populated from fetchEntriesAsync.
+	dh.cancel = dummyCancel
 	return
 }
 
@@ -103,6 +110,9 @@ func (dh *DirHandle) Entries() []fuseutil.Dirent {
 
 func (dh *DirHandle) SetEntries(entries []fuseutil.Dirent) {
 	dh.entries = entries
+}
+
+func dummyCancel() {
 }
 
 // Dirents, sorted by name.
@@ -189,7 +199,8 @@ func (dh *DirHandle) FetchEntriesAsync(
 	rootInodeId int) {
 	// New context is needed as the parent goroutine exiting earlier than the child will cause the
 	// context to be cancelled prematurely.
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	dh.cancel = cancel
 	var err error
 	var entryForSorting fuseutil.Dirent
 	// ContinuationToken is also empty in case of firstCall and after all entries have been fetched.

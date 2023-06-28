@@ -1712,7 +1712,9 @@ func (fs *fileSystem) ReleaseDirHandle(
 	defer fs.mu.Unlock()
 
 	// Sanity check that this handle exists and is of the correct type.
-	_ = fs.handles[op.Handle].(*DirHandle)
+	dh := fs.handles[op.Handle].(*DirHandle)
+	// Cancel context of goroutine which is fetching data.
+	dh.cancel()
 
 	// Clear the entry from the map.
 	delete(fs.handles, op.Handle)
