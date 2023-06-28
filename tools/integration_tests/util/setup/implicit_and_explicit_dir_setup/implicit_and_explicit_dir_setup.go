@@ -73,7 +73,7 @@ func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) 
 	}
 }
 
-func CreateImplicitDirectory() {
+func CreateImplicitDirectoryStructure() {
 	// Implicit Directory Structure
 	// testBucket/implicitDirectory                                                  -- Dir
 	// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
@@ -87,7 +87,7 @@ func CreateImplicitDirectory() {
 	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", setup.TestBucket())
 }
 
-func CreateExplicitDirectory(t *testing.T) {
+func CreateExplicitDirectoryStructure(t *testing.T) {
 	// Explicit Directory structure
 	// testBucket/explicitDirectory                            -- Dir
 	// testBucket/explictFile                                  -- File
@@ -116,7 +116,7 @@ func CreateImplicitDirectoryInExplicitDirectory(t *testing.T) {
 	// testBucket/explicitDirectory/implicitDirectory/implicitSubDirectory                            -- Dir
 	// testBucket/explicitDirectory/implicitDirectory/implicitSubDirectory/fileInImplicitDir2         -- File
 
-	CreateExplicitDirectory(t)
+	CreateExplicitDirectoryStructure(t)
 	dirPathInBucket := path.Join(setup.TestBucket(), ExplicitDirectory)
 	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", dirPathInBucket)
 }
