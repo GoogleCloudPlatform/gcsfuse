@@ -36,7 +36,12 @@ const DestNonEmptyCopyDirectory = "destNonEmptyCopyDirectory"
 const SubDirInNonEmptyDestCopyDirectory = "subDestCopyDir"
 const DestCopyDirectoryNotExist = "notExist"
 const NumberOfObjectsInSrcCopyDirectory = 2
-const NumberOfObjectsInDestCopyDirectory = 2
+const NumberOfObjectsInNonEmptyDestCopyDirectory = 2
+const DestEmptyCopyDirectory = "destEmptyCopyDirectory"
+const PrefixFileInSrcCopyFile = "fileInSrcCopyDir"
+const FileInSrcCopyFile = "fileInSrcCopyDir1"
+const EmptySrcDirectoryCopyTest = "emptySrcDirectoryCopyTest"
+const NumberOfObjectsInEmptyDestCopyDirectory = 1
 const NumberOfObjectsInBucketDirectoryListTest = 1
 const DirectoryForListTest = "directoryForListTest"
 const NumberOfObjectsInDirectoryForListTest = 4
@@ -74,11 +79,6 @@ const NumberOfObjectsInDirThreeInCreateThreeLevelDirTest = 1
 const PrefixFileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLevelDirTest"
 const FileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLevelDirTest1"
 const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
-const DestEmptyCopyDirectory = "destEmptyCopyDirectory"
-const PrefixFileInSrcCopyFile = "fileInSrcCopyDir"
-const FileInSrcCopyFile = "fileInSrcCopyDir1"
-const EmptySrcDirectoryCopyTest = "emptySrcDirectoryCopyTest"
-const NumberOfObjectsInEmptyDestCopyDirectory = 1
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()

@@ -199,7 +199,7 @@ func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
 	// destCopyDirectory
 	// destCopyDirectory/srcCopyDirectory
 	// destCopyDirectory/subDestCopyDirectory
-	if len(obj) != NumberOfObjectsInDestCopyDirectory {
+	if len(obj) != NumberOfObjectsInNonEmptyDestCopyDirectory {
 		t.Errorf("The number of objects in the current directory doesn't match.")
 		return
 	}
@@ -220,7 +220,7 @@ func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
 	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
 }
 
-func checkIfCopiedEmptyDirectoryHasCorrectData(destSrc string, t *testing.T) {
+func checkIfCopiedEmptyDirectoryHasNoData(destSrc string, t *testing.T) {
 	objs, err := os.ReadDir(destSrc)
 	if err != nil {
 		log.Fatal(err)
@@ -268,7 +268,7 @@ func TestCopyEmptyDirectoryInNonEmptyDirectory(t *testing.T) {
 	// destNonEmptyCopyDirectory
 	// destNonEmptyCopyDirectory/emptyDirectoryCopyTest           - Dir
 	// destNonEmptyCopyDirectory/subDestCopyDirectory             - Dir
-	if len(objs) != NumberOfObjectsInDestCopyDirectory {
+	if len(objs) != NumberOfObjectsInNonEmptyDestCopyDirectory {
 		t.Errorf("The number of objects in the current directory doesn't match.")
 		return
 	}
@@ -286,7 +286,7 @@ func TestCopyEmptyDirectoryInNonEmptyDirectory(t *testing.T) {
 	}
 
 	copyDirPath := path.Join(destDir, EmptySrcDirectoryCopyTest)
-	checkIfCopiedEmptyDirectoryHasCorrectData(copyDirPath, t)
+	checkIfCopiedEmptyDirectoryHasNoData(copyDirPath, t)
 }
 
 // Copy SrcDirectory in DestDirectory
@@ -333,7 +333,7 @@ func TestCopyEmptyDirectoryInEmptyDirectory(t *testing.T) {
 	}
 
 	copyDirPath := path.Join(destDir, EmptySrcDirectoryCopyTest)
-	checkIfCopiedEmptyDirectoryHasCorrectData(copyDirPath, t)
+	checkIfCopiedEmptyDirectoryHasNoData(copyDirPath, t)
 }
 
 // Copy SrcDirectory in DestDirectory
@@ -361,5 +361,5 @@ func TestCopyEmptyDirectoryInNonExistingDirectory(t *testing.T) {
 		t.Errorf("Error in copying directory: %v", err)
 	}
 
-	checkIfCopiedEmptyDirectoryHasCorrectData(destDir, t)
+	checkIfCopiedEmptyDirectoryHasNoData(destDir, t)
 }
