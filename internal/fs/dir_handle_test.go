@@ -115,7 +115,7 @@ func (t *DirHandleTest) createImplicitDirDefinedByFile() (err error) {
 // fetchEntriesAsync will return 0 entries for empty directory
 func (t *DirHandleTest) FetchAsyncEntries_EmptyDir() {
 	t.createDirHandle(false, false, dirInodeName)
-	t.dh.FetchEntriesAsync(fuseops.RootInodeID, true)
+	t.dh.FetchEntriesAsync(fuseops.RootInodeID)
 
 	AssertEq(0, len(t.dh.Entries()))
 	AssertEq(true, t.dh.EntriesValid())
@@ -138,7 +138,7 @@ func (t *DirHandleTest) FetchAsyncEntries_NonEmptyDir() {
 	AssertEq(nil, err)
 
 	t.createDirHandle(false, false, dirInodeName)
-	t.dh.FetchEntriesAsync(fuseops.RootInodeID, true)
+	t.dh.FetchEntriesAsync(fuseops.RootInodeID)
 
 	entries := t.dh.Entries()
 	AssertEq(1, len(entries))
@@ -158,7 +158,7 @@ func (t *DirHandleTest) FetchAsyncEntries_ImplicitDir_FlagTrue() {
 
 	//implicit-dirs flag set to true
 	t.createDirHandle(true, false, dirInodeName)
-	t.dh.FetchEntriesAsync(fuseops.RootInodeID, true)
+	t.dh.FetchEntriesAsync(fuseops.RootInodeID)
 
 	entries := t.dh.Entries()
 	AssertEq(1, len(entries))
@@ -175,7 +175,7 @@ func (t *DirHandleTest) FetchAsyncEntries_ImplicitDir_FlagFalse() {
 
 	//implicit-dirs flag set to false
 	t.createDirHandle(false, false, dirInodeName)
-	t.dh.FetchEntriesAsync(fuseops.RootInodeID, true)
+	t.dh.FetchEntriesAsync(fuseops.RootInodeID)
 
 	AssertEq(0, len(t.dh.Entries()))
 	AssertEq(true, t.dh.EntriesValid())
