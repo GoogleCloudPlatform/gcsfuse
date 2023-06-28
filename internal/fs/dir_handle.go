@@ -56,15 +56,14 @@ type DirHandle struct {
 	// GUARDED_BY(Mu)
 	entriesValid bool
 
-	// Condition variable is for signalling whether a fresh set of entries has been fetched.
+	//condition variable is for signalling whether a fresh set of entries has been fetched
 	cond *sync.Cond
-
-	// Error during the fetching goroutine must be communicated using this to the main go routine
-	// serving kernel requests.
+	//error during the fetching goroutine must be communicated using this to the main go routine
+	//serving kernel requests
 	err error
 
-	// Using this as a identification flag to indicate all entries present in the directory
-	// have been fetched already so that the main goroutine does not wait indefinitely for more entries.
+	//using this as a identification flag to indicate all entries present in the directory
+	//have been fetched already so that the main goroutine does not wait indefinitely for more entries.
 	fetchOver bool
 }
 
@@ -80,7 +79,7 @@ func NewDirHandle(
 
 	// Set up invariant checking.
 	dh.Mu = locker.New("DH."+in.Name().GcsObjectName(), dh.checkInvariants)
-	// Creating a condition variable to indicate events for locking and unlocking this dh.Mu mutex.
+	//creating a condition variable to indicate events for locking and unlocking this dh.Mu mutex
 	dh.cond = sync.NewCond(dh.Mu)
 	return
 }
@@ -186,19 +185,19 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 // Fetch Dirent entries from GCSfuse.Will be used as a goroutine which is run asynchronously
 // to fetch data in the background while kernel requests are also served simultaneously.
 func (dh *DirHandle) FetchEntriesAsync(
-	rootInodeId int) {
-	defer dh.Mu.Unlock()
-	// New context is needed as the parent goroutine exiting earlier than the child will cause the
-	// context to be cancelled prematurely.
+	rootInodeId int,
+	firstCall bool) {
+
+	//New context is needed as the parent goroutine exiting earlier than the child will cause the
+	//context to be cancelled prematurely
 	ctx := context.Background()
 	var err error
 	var entryForSorting fuseutil.Dirent
-	// ContinuationToken is also empty in case of firstCall and after all entries have been fetched.
-	// Keeping continuation token local so as to lessen the time for which the mutex is held.
-	// Keep fetching entries in batches of MaxResultsForListObjectsCall.
+	//ContinuationToken is also empty in case of firstCall and after all entries have been fetched.
+	//Keeping continuation token local so as to lessen the time for which the mutex is held
+	//Keep fetching entries in batches of MaxResultsForListObjectsCall
 	var ContinuationToken string
-
-	for contFetch := true; contFetch; contFetch = ContinuationToken != "" {
+	for ContinuationToken != "" || firstCall {
 		var entries []fuseutil.Dirent
 		dh.In.Lock()
 		entries, ContinuationToken, err = dh.In.ReadEntries(ctx, ContinuationToken)
@@ -207,16 +206,15 @@ func (dh *DirHandle) FetchEntriesAsync(
 			err = fmt.Errorf("ReadEntries: %w", err)
 			dh.Mu.Lock()
 			dh.err = err
-			// Signal the suspended go routine that an error has occurred.
+			dh.Mu.Unlock()
+			//Signal the suspended go routine that an error has occurred.
 			dh.cond.Broadcast()
 			break
 		}
-		// Use the last entry from the last fetch for fixing naming conflicts.
-		dh.Mu.Lock()
-		if len(dh.entries) != 0 {
+		//Use the last entry from the last fetch for fixing naming conflicts
+		if !firstCall {
 			entries = append(entries, entryForSorting)
 		}
-		dh.Mu.Unlock()
 		sort.Sort(sortedDirents(entries))
 		err = fixConflictingNames(entries)
 
@@ -224,33 +222,36 @@ func (dh *DirHandle) FetchEntriesAsync(
 			err = fmt.Errorf("fixConflictingNames: %w", err)
 			dh.Mu.Lock()
 			dh.err = err
-			// Signal the suspended go routine that an error has occurred.
+			dh.Mu.Unlock()
+			//Signal the suspended go routine that an error has occurred.
 			dh.cond.Broadcast()
 			break
 		}
 
-		// Save the last entry from current fetch to use it for
-		// fixing naming conflicts for next fetch.
+		//Save the last entry from current fetch to use it for
+		//fixing naming conflicts for next fetch
 		if ContinuationToken != "" {
 			entryForSorting = entries[len(entries)-1]
 			entries = entries[:len(entries)-1]
 		}
-
 		dh.Mu.Lock()
-		// Update InodeID and Offset for the entries.
+		//Update InodeID and Offset for the entries
 		for i := range entries {
 			entries[i].Inode = fuseops.InodeID(rootInodeId + 1)
 			entries[i].Offset = fuseops.DirOffset(uint64(len(dh.entries) + i + 1))
 		}
+
 		dh.entries = append(dh.entries, entries...)
 		dh.entriesValid = true
 		dh.Mu.Unlock()
-		// Signal the suspended go routine that the next set of entries has
-		// been fetched.
+		//Signal the suspended go routine that the next set of entries has
+		//been fetched.
 		dh.cond.Broadcast()
+		firstCall = false
 	}
 	dh.Mu.Lock()
 	dh.fetchOver = true
+	dh.Mu.Unlock()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -270,26 +271,31 @@ func (dh *DirHandle) ReadDir(
 	op *fuseops.ReadDirOp) (err error) {
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
+
 	dh.Mu.Lock()
-	defer dh.Mu.Unlock()
 	if op.Offset == 0 {
 		dh.entries = nil
 		dh.entriesValid = false
 		dh.err = nil
 		dh.fetchOver = false
 	}
-	if !dh.entriesValid {
-		go dh.FetchEntriesAsync(fuseops.RootInodeID)
+	ev := dh.entriesValid
+	dh.Mu.Unlock()
+
+	if !ev {
+		go dh.FetchEntriesAsync(fuseops.RootInodeID, true)
 	}
 
-	// If the fetched entries is not sufficient to serve the request, then wait only
-	// if there are more entries to be fetched (fetchOver is false).
+	dh.Mu.Lock()
+	//if the fetched entries is not sufficient to serve the request, then wait only
+	//if there are more entries to be fetched (fetchOver is false)
 	if len(dh.entries) <= int(op.Offset) && !dh.fetchOver {
-		// Internally, cond.Wait() unlocks the mutex and locks it again when woken up
-		// by other go routines through a signal or a broadcast.
+		//internally, cond.Wait() unlocks the mutex and locks it again when woken up
+		//by other go routines through a signal or a broadcast
 		dh.cond.Wait()
 		if dh.err != nil {
 			err = dh.err
+			dh.Mu.Unlock()
 			return
 		}
 	}
@@ -299,6 +305,7 @@ func (dh *DirHandle) ReadDir(
 	index := int(op.Offset)
 	if index > len(dh.entries) {
 		err = fuse.EINVAL
+		dh.Mu.Unlock()
 		return
 	}
 
@@ -310,5 +317,6 @@ func (dh *DirHandle) ReadDir(
 		}
 		op.BytesRead += n
 	}
+	dh.Mu.Unlock()
 	return
 }
