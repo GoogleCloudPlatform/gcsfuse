@@ -106,7 +106,7 @@ func CreateExplicitDirectoryStructure(t *testing.T) {
 	defer operations.CloseFile(file)
 }
 
-func CreateImplicitDirectoryInExplicitDirectory(t *testing.T) {
+func CreateImplicitDirectoryInExplicitDirectoryStructure(t *testing.T) {
 	// testBucket/explicitDirectory                                                                   -- Dir
 	// testBucket/explictFile                                                                         -- File
 	// testBucket/explicitDirectory/fileInExplicitDir1                                                -- File

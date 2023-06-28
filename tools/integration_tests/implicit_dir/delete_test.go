@@ -112,7 +112,7 @@ func TestDeleteImplicitDirInExplicitDir(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectory(t)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectoryStructure(t)
 
 	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ExplicitDirectory, implicit_and_explicit_dir_setup.ImplicitDirectory)
 
@@ -132,7 +132,7 @@ func TestDeleteExplicitDirContainingImplicitSubDir(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectory(t)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectoryStructure(t)
 
 	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ExplicitDirectory)
 
