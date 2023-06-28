@@ -85,7 +85,7 @@ func TestDeleteImplicitDirWithExplicitSubDir(t *testing.T) {
 // testBucket/implicitDirectory/implicitSubDirectory/fileInImplicitDir2                                                 -- File
 // testBucket/implicitDirectory/implicitSubDirectory/explicitDirInImplicitDir                                           -- Dir
 // testBucket/implicitDirectory/implicitSubDirectory/explicitDirInImplicitDir/fileInExplicitDirInImplicitDir            -- File
-func TestDeleteImplicitDirWithExplicitSubDirInImplicitSubDir(t *testing.T) {
+func TestDeleteImplicitDirWithImplicitSubDirContainingExplicitDir(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
