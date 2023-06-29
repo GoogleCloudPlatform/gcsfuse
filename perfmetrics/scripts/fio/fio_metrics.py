@@ -17,7 +17,8 @@ from typing import Any, Dict, List, Tuple, Callable
 
 from fio import constants as consts
 from gsheet import gsheet
-
+from bigquery import bigquery
+from bigquery import constants
 
 @dataclass(frozen=True)
 class JobParam:
@@ -72,7 +73,11 @@ REQ_JOB_PARAMS.append(JobParam(consts.THREADS, consts.NUMJOBS,
 REQ_JOB_PARAMS.append(
     JobParam(
         consts.FILESIZE_KB, consts.FILESIZE,
-        lambda val: _convert_value(val, consts.FILESIZE_TO_KB_CONVERSION), 0))
+        lambda val: _convert_value(val, consts.SIZE_TO_KB_CONVERSION), 0))
+REQ_JOB_PARAMS.append(
+    JobParam(
+        consts.BS_KB, consts.BS,
+        lambda val: _convert_value(val, consts.SIZE_TO_KB_CONVERSION), 0))
 # append new params here
 
 REQ_JOB_METRICS = []
@@ -267,7 +272,7 @@ class FioMetrics:
 
     Returns:
       List of dicts, each dict containing parameters for a job
-        Ex: [{'filesize_kb': 50000, 'num_threads': 40, 'rw': 'read'}
+        Ex: [{'bs_kb': 16, 'filesize_kb': 50000, 'num_threads': 40, 'rw': 'read'}
 
     Function working example:
       Ex: out_json = {"global options": {"filesize": "50M", "numjobs": "40"},
@@ -290,12 +295,19 @@ class FioMetrics:
               name= FILESIZE_KB,
               json_name= FILESIZE,
               format_param=lambda val: _convert_value(val,
-              consts.FILESIZE_TO_KB_CONVERSION),
+              consts.SIZE_TO_KB_CONVERSION),
+              default = 0
+          )
+          JobParam(
+              name= BS_KB,
+              json_name= BS,
+              format_param=lambda val: _convert_value(val,
+              consts.SIZE_TO_KB_CONVERSION),
               default = 0
           )
       ]
       Extracted parameters would be [{RW:'read', THREADS: 10, FILESIZE_KB:
-      50000}]
+      50000, BS_KB: 16}]
 
 
     """
@@ -344,7 +356,7 @@ class FioMetrics:
       List of dicts, contains list of jobs and required parameters and metrics
       for each job
       Example return value:
-        [{'params': {'filesize': 50000, 'num_threads': 40, 'rw': 'read'},
+        [{'params': {'bs': 16, 'filesize': 50000, 'num_threads': 40, 'rw': 'read'},
           'start_time': 1653027084, 'end_time': 1653027155, 'metrics':
         {'iops': 95.26093, 'bw_bytes': 99888324, 'io_bytes': 6040846336,
         'lat_s_mean': 0.41775487677469203, 'lat_s_min': 0.35337776000000004,
@@ -412,12 +424,13 @@ class FioMetrics:
 
     return all_jobs
 
-  def _add_to_gsheet(self, jobs, worksheet_name):
-    """Add the metric values to respective columns in a google sheet.
+  def get_values_to_upload(self, jobs):
+    """Get the metrics values in a list to export to Google Spreadsheet and BigQuery.
 
     Args:
-      jobs: list of dicts, contains required metrics for each job
-      worksheet_name: str, worksheet where job metrics should be written.
+      jobs: List of dicts, contains required metrics for each job
+    Returns:
+      list: A 2-d list consisting of metrics values for each job
     """
 
     values = []
@@ -431,30 +444,41 @@ class FioMetrics:
       for metric_val in job[consts.METRICS].values():
         row.append(metric_val)
       values.append(row)
+    return values
 
-    gsheet.write_to_google_sheet(worksheet_name, values)
-
-  def get_metrics(self,
-                  filepath,
-                  worksheet_name=None) -> List[Dict[str, Any]]:
-    """Returns job metrics obtained from given filepath and writes to gsheets.
+  def get_metrics(self, filepath) -> List[Dict[str, Any]]:
+    """Returns job metrics obtained from given filepath.
 
     Args:
-      filepath : str
-        Path of the json file to be parsed
-      worksheet_name: str, optional, default:None
-        Worksheet where job metrics should be written.
-        Pass '' or None to skip writing to Google sheets
+      filepath (str): Path of the json file to be parsed
 
     Returns:
       List of dicts, contains list of jobs and required metrics for each job
     """
     fio_out = self._load_file_dict(filepath)
     job_metrics = self._extract_metrics(fio_out)
-    if worksheet_name:
-      self._add_to_gsheet(job_metrics, worksheet_name)
-
     return job_metrics
+
+  def upload_metrics_to_gsheet(self, metrics_data, worksheet_name):
+    """Uploads metrics data for load tests to Google Spreadsheets
+
+    Args:
+      metrics_data (list): List of metric values for each job
+      worksheet_name (str): Name of Google sheet to which metrics data will be uploaded
+    """
+    gsheet.write_to_google_sheet(worksheet_name, metrics_data)
+
+  def upload_metrics_to_bigquery(self, metrics_data, config_id, start_time_build, table_id_bq):
+    """Uploads metrics data for load tests to Google Spreadsheets
+
+    Args:
+      metrics_data (list): List of metric values for each job
+      config_id (str): configuration ID of the experiment
+      start_time_build (int): Start time of the build
+      table_id_bq (str): ID of table in BigQuery to which metrics data will be uploaded
+    """
+    bigquery_obj = bigquery.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
+    bigquery_obj.upload_metrics_to_table(table_id_bq, config_id, start_time_build, metrics_data)
 
 if __name__ == '__main__':
   argv = sys.argv
@@ -464,6 +488,5 @@ if __name__ == '__main__':
                     'python3 -m fio.fio_metrics <fio output json filepath>')
 
   fio_metrics_obj = FioMetrics()
-  temp = fio_metrics_obj.get_metrics(argv[1], 'fio_metrics_expt')
+  temp = fio_metrics_obj.get_metrics(argv[1])
   print(temp)
-

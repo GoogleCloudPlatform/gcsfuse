@@ -3,24 +3,26 @@
 This python script benchmarks and compares the latency of listing operation in
 persistent disk vs GCS bucket. It creates the necessary directory structure,
 containing files and folders, needed to test the listing operation. Furthermore,
-it can optionally upload the results of the test to a Google Sheet. It takes
-input a JSON config file which contains the info regrading directory structure
+it can optionally upload the results of the test to a Google Sheet or Bigquery. It takes
+input a JSON config file whcih contains the info regrading directory structure
 and also through which multiple tests of different configurations can be
 performed in a single run. It also extracts VM metrics for folders '1KB_100000files_0subdir'
 and '1KB_200000files_0subdir' in case of mount_type 'gcs_bucket'.
 
 Typical usage example:
-  $ python3 listing_benchmark.py [-h] [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file
+  $ python3 listing_benchmark.py [-h] [--keep_files] [--upload_gs] [--upload_bq] [--num_samples NUM_SAMPLES] [--message MESSAGE] [--config_id CONFIG_ID] [--start_time_build START_TIME_BUILD] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file
 
   Flag -h: Typical help interface of the script.
   Flag --keep_files: Do not delete the generated directory structure from the
                      persistent disk after running the tests.
-  Flag --upload: Uploads the results of the test to the Google Sheet.
+  Flag --upload_gs: Uploads the results of the test to the Google Sheet.
+  Flag --upload_bq: Uploads the results of the test to the BigQuery.
   Flag --num_samples: Runs each test for NUM_SAMPLES times.
   Flag --message: Takes input a message string, which describes/titles the test.
+  Flag --config_id: Configuration id of the experiment in BigQuery tables.
+  Flag --start_time_build: Time at which KOKORO triggered the build scripts
   Flag --gcsfuse_flags (required): GCSFUSE flags with which the list tests bucket will be mounted.
   Flag --command (required): Takes as input a string, which is the command to run
-                             the tests on.
   config_file (required): Path to the JSON config file which contains the
                           details of the tests.
 
@@ -42,9 +44,10 @@ sys.path.insert(0, '..')
 import generate_files
 from google.protobuf.json_format import ParseDict
 from gsheet import gsheet
-from vm_metrics import vm_metrics
 import fetch_metrics
-
+from bigquery import bigquery
+from vm_metrics import vm_metrics
+from bigquery import constants
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,7 +58,9 @@ log = logging.getLogger()
 
 WORKSHEET_NAME_GCS = 'ls_metrics_gcsfuse'
 WORKSHEET_NAME_PD = 'ls_metrics_persistent_disk'
-
+VM_METRICS_EXTRACTION_DIRS = ['1KB_100000files_0subdir', '1KB_200000files_0subdir']
+MOUNT_TYPE_GCS = 'gcs_bucket'
+MOUNT_TYPE_PD = 'persistent_disk'
 
 def _count_number_of_files_and_folders(directory, files, folders):
   """Count the number of files and folders in the given directory recursively.
@@ -76,19 +81,19 @@ def _count_number_of_files_and_folders(directory, files, folders):
   return files, folders
 
 
-def _export_to_gsheet(folders, metrics, command, worksheet) -> None:
-  """Exports data to the Google Sheet.
+def _get_values_to_export(folders, metrics, command) -> list:
+  """Returns values to export to Google Sheet and BigQuery.
   Args:
     folders: List containing protobufs of testing folders.
     metrics: A dictionary containing all the result metrics for each
              testing folder.
     command: Command to run the tests on.
-    worksheet: Google Sheet worksheet to upload the data.
+
+  Returns:
+    list: List of results to upload to GSheet or BigQuery
   """
 
-  # Changing directory to comply with "cred.json" path in "gsheet.py".
-  os.chdir('..')
-  gsheet_data = []
+  list_metrics_data = []
   for testing_folder in folders:
     num_files, num_folders = _count_number_of_files_and_folders(
         testing_folder, 0, 0)
@@ -112,32 +117,26 @@ def _export_to_gsheet(folders, metrics, command, worksheet) -> None:
         metrics[testing_folder.name]['Quantiles']['99.9 %ile'],
         metrics[testing_folder.name]['Quantiles']['100 %ile']
     ]
-    gsheet_data.append(row)
+    list_metrics_data.append(row)
 
-  gsheet.write_to_google_sheet(worksheet, gsheet_data)
-  os.chdir('./ls_metrics')  # Changing the directory back to current directory.
-  return
+  return list_metrics_data
 
 
 def _parse_results(folders, time_intervals_dict, message, num_samples) -> dict:
   """Outputs the results on the console.
-
   This function takes in dictionary containing the list of results (for all
   samples) for each testing folder, for both the gcs bucket and persistent disk.
   Then it generates various metrics out of these lists and outputs them into
   the console.
-
   The metrics present in the output are (in msec):
   Mean, Median, Standard Dev, 0th %ile, 20th %ile, 50th %ile, 90th %ile,
   95th %ile, 98th %ile, 99th %ile, 99.5th %ile, 99.9th %ile, 100th %ile.
-
   Args:
     folders: List containing protobufs of testing folders.
     time_intervals_dict: Dictionary containing the list of start and end times
                  (for all samples) for each testing folder.
     message: String which describes/titles the test.
     num_samples: Number of samples to collect for each test.
-
   Returns:
     A dictionary containing the various metrics in a JSON format.
   """
@@ -200,7 +199,6 @@ def _record_time_of_operation(command, path, num_samples) -> list:
 
   return time_intervals_list
 
-
 def _perform_testing(
     folders, gcs_bucket, persistent_disk, num_samples, command):
   """This function tests the listing operation on the testing folders.
@@ -236,7 +234,7 @@ def _perform_testing(
     persistent_disk_time_intervals[testing_folder.name] = _record_time_of_operation(
         command, local_dir_path, num_samples)
     # Sleep time given to get more accurate VM metrics
-    if(testing_folder.name == '1KB_100000files_0subdir' or testing_folder.name == '1KB_200000files_0subdir'):
+    if testing_folder.name in VM_METRICS_EXTRACTION_DIRS:
       time.sleep(60)
     gcs_bucket_time_intervals[testing_folder.name] = _record_time_of_operation(
         command, gcs_bucket_path, num_samples)
@@ -321,7 +319,7 @@ def _compare_directory_structure(url, directory_structure) -> bool:
 
   contents_url = _list_directory(url)
   # gsutil in some cases return the contents_url list with the current
-  # directory in the first index. We dont want the current directory so
+  # directory in the first index. We don't want the current directory, so
   # we remove it manually.
   if contents_url and contents_url[0] == url:
     contents_url = contents_url[1:]
@@ -426,8 +424,15 @@ def _parse_arguments(argv):
       required=False,
   )
   parser.add_argument(
-      '--upload',
+      '--upload_gs',
       help='Upload the results to the Google Sheet.',
+      action='store_true',
+      default=False,
+      required=False,
+  )
+  parser.add_argument(
+      '--upload_bq',
+      help='Upload the results to the BigQuery.',
       action='store_true',
       default=False,
       required=False,
@@ -449,11 +454,39 @@ def _parse_arguments(argv):
       required=False,
   )
   parser.add_argument(
+      '--config_id',
+      help='Configuration id of the experiment in the BigQuery tables',
+      action='store_true',
+      default=False,
+      required=False,
+  )
+  parser.add_argument(
+      '--start_time_build',
+      help='Time at which KOKORO triggered the build script.',
+      action='store_true',
+      default=False,
+      required=False,
+  )
+  parser.add_argument(
       '--command',
       help='Command to run the tests on.',
       action='store',
       nargs=1,
       default=['ls -R'],
+      required=False,
+  )
+  parser.add_argument(
+      '--gcsfuse_flags',
+      help='Gcsfuse flags for mounting the list tests bucket. Example set of flags - "--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"',
+      action='store',
+      nargs=1,
+      required=True,
+  )
+  parser.add_argument(
+      '--gcsfuse_flags',
+      help='Gcsfuse flags for mounting the list tests bucket. Example set of flags - "--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"',
+      action='store',
+      nargs=1,
       required=True,
   )
   parser.add_argument(
@@ -466,7 +499,6 @@ def _parse_arguments(argv):
   # Ignoring the first parameter, as it is the path of this python
   # script itself.
   return parser.parse_args(argv[1:])
-
 
 def _check_dependencies(packages) -> None:
   """Check whether the dependencies are installed or not.
@@ -511,21 +543,54 @@ def _extract_vm_metrics(time_intervals_list, folders, mount_type) -> list:
     end_time_last_sample = time_intervals_list[testing_folder.name][-1][-1]
     metrics_data = []
 
-    if((testing_folder.name == '1KB_100000files_0subdir' or testing_folder.name == '1KB_200000files_0subdir') and mount_type == 'gcs_bucket'):
+    if testing_folder.name in VM_METRICS_EXTRACTION_DIRS and mount_type == 'gcs_bucket':
       metrics_data = vm_metrics_obj.fetch_metrics(start_time_first_sample, end_time_last_sample,
-                                                    fetch_metrics.INSTANCE, fetch_metrics.PERIOD_SEC, 'list')
+                                                  fetch_metrics.INSTANCE, fetch_metrics.PERIOD_SEC, 'list')
+
     else:
       metrics_data = [[start_time_first_sample, end_time_last_sample, None, None, None, None]]
     vm_metrics_data[testing_folder.name] = metrics_data[0]
 
   return vm_metrics_data
 
+
+def _export_to_gsheet(worksheet, ls_data):
+  """Writes list results to Google Spreadsheets
+
+  Args:
+    worksheet (str): Google sheet name to which results will be uploaded
+    ls_data (list): List results to be uploaded
+  """
+  # Changing directory to comply with "cred.json" path in "gsheet.py".
+  os.chdir('..')
+
+  gsheet.write_to_google_sheet(worksheet, ls_data)
+
+  os.chdir('./ls_metrics')  # Changing the directory back to current directory.
+  return
+
+
+def _export_to_bigquery(test_type, config_id, start_time_build, ls_data):
+  """Writes list results to BigQuery
+
+  Args:
+    test_type (str): Table name to which results will be uploaded
+    config_id (str): Configuration ID of the experiment
+    start_time_build (str): Start time of the build
+    ls_data (list): List results to be uploaded
+  """
+  bigquery_obj = bigquery.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
+  ls_data_upload = [[test_type] + row for row in ls_data]
+  bigquery_obj.upload_metrics_to_table(constants.LS_TABLE_ID, config_id, start_time_build, ls_data_upload)
+  return
+
+
 if __name__ == '__main__':
   argv = sys.argv
-  if len(argv) < 4:
+  if len(argv) < 6:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
-                    'python3 listing_benchmark.py [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file')
+                    'python3 listing_benchmark.py [--keep_files] [--upload_gs] [--upload_bq] [--num_samples NUM_SAMPLES] [--message MESSAGE] [--config_id CONFIG_ID] [--start_time_build START_TIME_BUILD] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file')
 
   args = _parse_arguments(argv)
 
@@ -589,14 +654,71 @@ if __name__ == '__main__':
       directory_structure.folders, persistent_disk_time_intervals, args.message[0],
       int(args.num_samples[0]))
 
-  if args.upload:
+  print('Waiting for 360 seconds for metrics to be updated on VM...')
+  # It takes up to 240 seconds for sampled data to be visible on the VM metrics graph
+  # So, waiting for 360 seconds to ensure the returned metrics are not empty.
+  # Intermittently custom metrics are not available after 240 seconds, hence
+  # waiting for 360 secs instead of 240 secs
+  time.sleep(360)
+
+  gcs_results = _extract_vm_metrics(gcs_bucket_results, directory_structure.folders, 'gcs_bucket')
+  pd_results = _extract_vm_metrics(persistent_disk_results, directory_structure.folders, 'persistent_disk')
+
+  for folder in directory_structure.folders:
+    print(f'VM metrics for listing tests (gcs bucket) for folder: {folder.name}...')
+    print(gcs_results[folder.name])
+
+    print(f'VM metrics for listing tests (persistent disk) for folder: {folder.name}...')
+    print(pd_results[folder.name])
+
+  gcs_results_vm = {}
+  pd_results_vm = {}
+
+  for folder in directory_structure.folders:
+    gcs_results_vm[folder.name] = gcs_results[folder.name][2:]
+    pd_results_vm[folder.name] = pd_results[folder.name][2:]
+
+  temp_results_gcs = _get_values_to_export(directory_structure.folders, gcs_parsed_metrics, args.command[0])
+  temp_results_pd = _get_values_to_export(directory_structure.folders, pd_parsed_metrics, args.command[0])
+
+  results_gcs = []
+  results_pd = []
+
+  for folder, values_gcs, values_pd in zip(directory_structure.folders, temp_results_gcs, temp_results_pd):
+    # Only some extracted metrics will be uploaded to Google Spreadsheets and BigQuery
+    upload_values_gcs = values_gcs[1:3] + [values_gcs[4]] + [values_gcs[8]] + [values_gcs[17]] + values_gcs[5:8] + values_gcs[9:13]
+    upload_values_pd = values_pd[1:3] + [values_pd[4]] + [values_pd[8]] + [values_pd[17]] + values_pd[5:8] + values_pd[9:13]
+    # Combining list metrics and VM metrics
+    temp_gcs = [gcs_bucket_results[folder.name][0][0], gcs_bucket_results[folder.name][-1][-1]] + upload_values_gcs + gcs_results_vm[folder.name]
+    temp_pd = [persistent_disk_results[folder.name][0][0], persistent_disk_results[folder.name][-1][-1]] + upload_values_pd + pd_results_vm[folder.name]
+    results_gcs.append(temp_gcs)
+    results_pd.append(temp_pd)
+
+  if args.upload_gs:
     log.info('Uploading files to the Google Sheet.\n')
-    _export_to_gsheet(
-        directory_structure.folders, gcs_parsed_metrics, args.command[0],
-        WORKSHEET_NAME_GCS)
-    _export_to_gsheet(
-        directory_structure.folders, pd_parsed_metrics, args.command[0],
-        WORKSHEET_NAME_PD)
+    _export_to_gsheet(WORKSHEET_NAME_GCS, results_gcs)
+    _export_to_gsheet(WORKSHEET_NAME_PD, results_pd)
+
+  if args.upload_bq:
+    if not args.config_id or args.start_time_build:
+      raise Exception("Pass required arguments experiments configuration ID and start time of build for uploading to BigQuery")
+    log.info('Uploading results to the BigQuery.\n')
+    _export_to_bigquery(MOUNT_TYPE_GCS, args.config_id[0], args.start_time_build[0], results_gcs)
+    _export_to_bigquery(MOUNT_TYPE_PD, args.config_id[0], args.start_time_build[0], results_pd)
+
+  print('Waiting for 360 seconds for metrics to be updated on VM...')
+  # It takes up to 240 seconds for sampled data to be visible on the VM metrics graph
+  # So, waiting for 360 seconds to ensure the returned metrics are not empty.
+  # Intermittently custom metrics are not available after 240 seconds, hence
+  # waiting for 360 secs instead of 240 secs
+  time.sleep(360)
+
+  gcs_vm_results = _extract_vm_metrics(gcs_bucket_time_intervals, directory_structure.folders, 'gcs_bucket')
+  pd_vm_results = _extract_vm_metrics(persistent_disk_time_intervals, directory_structure.folders, 'persistent_disk')
+
+  for folder in directory_structure.folders:
+    print(f'VM metrics for listing tests (gcs bucket) for folder: {folder.name}...')
+    print(gcs_vm_results[folder.name])
 
   print('Waiting for 360 seconds for metrics to be updated on VM...')
   # It takes up to 240 seconds for sampled data to be visible on the VM metrics graph

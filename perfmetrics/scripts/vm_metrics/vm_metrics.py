@@ -256,8 +256,8 @@ class VmMetrics:
     return metrics_data
   
   def _add_new_metric_using_test_type(self, test_type):
-    """Creates a copy of METRICS_LIST and appends new Metric objects to it for
-    load tests or returns LISTING_TESTS_METRICS_LIST for list tests.
+    """Creates a copy of METRICS_LIST and appends new Metric objects to it for read
+      and write tests. Returns the LISTING_TESTS_METRICS_LIST for list type.
 
     Args:
       test_type(str): The type of test for which metrics are taken
