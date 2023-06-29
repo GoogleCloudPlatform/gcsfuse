@@ -54,7 +54,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	// Get credential from bucket.
 	setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "integration-test-data-gcsfuse")
 	buf := &bytes.Buffer{}
-	key, err := createKey(buf, "admin-perm-integration-test@gcs-fuse-test.iam.gserviceaccount.com")
+	key, err := createKey(buf, "tulsishah@gcs-fuse-test-ml.iam.gserviceaccount.com")
 	if err != nil {
 		_, _ = base64.StdEncoding.DecodeString(key.PrivateKeyData)
 	}
