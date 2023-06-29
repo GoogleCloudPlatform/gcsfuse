@@ -5,6 +5,7 @@ import (
 	// "encoding/base64"
 	"fmt"
 	"io"
+	"log"
 
 	iam "google.golang.org/api/iam/v1"
 )
@@ -21,6 +22,7 @@ func createKey(w io.Writer, serviceAccountEmail string) (*iam.ServiceAccountKey,
 	request := &iam.CreateServiceAccountKeyRequest{}
 	key, err := service.Projects.ServiceAccounts.Keys.Create(resource, request).Do()
 	if err != nil {
+		log.Printf("Projects.ServiceAccounts.Keys.Create: %w", err)
 		return nil, fmt.Errorf("Projects.ServiceAccounts.Keys.Create: %w", err)
 	}
 	// The PrivateKeyData field contains the base64-encoded service account key
