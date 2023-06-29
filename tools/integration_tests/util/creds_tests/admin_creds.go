@@ -64,7 +64,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	creds_path := path.Join(os.Getenv("HOME"), "admin_creds.json")
 
 	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
-	err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
+	err = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error in setting environment variable: %v", err))
 	}
