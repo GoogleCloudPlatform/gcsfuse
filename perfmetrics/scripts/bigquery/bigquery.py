@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Python module for setting up dataset tables in BigQuery.
+"""Python module for setting up the dataset and tables in BigQuery.
 
 This python module creates the dataset and the tables that will store experiment
 configurations and metrics data in BigQuery. It can also be used to upload data to the tables.
