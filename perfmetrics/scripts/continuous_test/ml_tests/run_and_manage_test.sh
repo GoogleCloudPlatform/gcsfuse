@@ -185,9 +185,6 @@ then
 elif [ $current_status == "COMPLETE" ];
 then
   exit_status=0
-  # change status back to start
-  echo "START" > status.txt
-  gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/
 else
   echo "Unknown state in status file. Please check."
   exit 1
@@ -197,5 +194,12 @@ initialize_ssh_key
 commit_id=$(get_run_commit_id)
 copy_run_artifacts_to_gcs $commit_id
 cat_run_artifacts $commit_id
+
+# Change status back to start
+if [ $current_status == "COMPLETE" ];
+then
+  echo "START" > status.txt
+  gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/
+fi
 
 exit $exit_status
