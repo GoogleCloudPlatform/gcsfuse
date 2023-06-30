@@ -280,7 +280,7 @@ class ExperimentsGCSFuseBQ:
 
     # If exactly one result -> update end date -> return configuration ID
     else:
-      config_id = job.to_dataframe().iloc[0]['configuration_id']
+      config_id = list(job)[0].get('configuration_id')
       query_update_end_date = """
         UPDATE `{}.{}.{}`
         SET end_date = '{}'
