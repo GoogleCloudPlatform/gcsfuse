@@ -67,7 +67,7 @@ class ExperimentsGCSFuseBQ:
     table = self.client.get_table(table_ref)
     return table
 
-  def _execute_query_and_check_for_error(self, query) -> QueryJob:
+  def _execute_query(self, query) -> QueryJob:
     """Executes the query in BigQuery and raises an exception if query
        execution could not be completed.
 
@@ -98,7 +98,7 @@ class ExperimentsGCSFuseBQ:
       WHERE configuration_id = '{}'
     """.format(self.project_id, self.dataset_id, constants.CONFIGURATION_TABLE_ID, exp_config_id)
 
-    job = self._execute_query_and_check_for_error(query_check_if_config_valid)
+    job = self._execute_query(query_check_if_config_valid)
     row_count = job.result().total_rows
     if row_count:
       return True
@@ -126,7 +126,7 @@ class ExperimentsGCSFuseBQ:
           WHERE configuration_id = '{}'
           AND start_time_build = '{}'
         """.format(self.project_id, self.dataset_id, table_id, config_id, start_time_build)
-        job = self._execute_query_and_check_for_error(query_check_if_row_exists)
+        job = self._execute_query(query_check_if_row_exists)
       raise Exception(f'Error inserting data to BigQuery tables: {result}')
 
   def setup_dataset_and_tables(self):
@@ -232,10 +232,10 @@ class ExperimentsGCSFuseBQ:
 
     """.format(self.project_id, self.dataset_id, constants.LS_TABLE_ID, self.dataset_id, constants.CONFIGURATION_TABLE_ID)
 
-    self._execute_query_and_check_for_error(query_create_table_experiment_configuration)
-    self._execute_query_and_check_for_error(query_create_table_fio_metrics)
-    self._execute_query_and_check_for_error(query_create_table_vm_metrics)
-    self._execute_query_and_check_for_error(query_create_table_ls_metrics)
+    self._execute_query(query_create_table_experiment_configuration)
+    self._execute_query(query_create_table_fio_metrics)
+    self._execute_query(query_create_table_vm_metrics)
+    self._execute_query(query_create_table_ls_metrics)
 
   def get_experiment_configuration_id(self, gcsfuse_flags, branch, end_date, config_name) -> str:
 
@@ -263,7 +263,7 @@ class ExperimentsGCSFuseBQ:
       AND configuration_name = '{}'
     """.format(self.project_id, self.dataset_id, constants.CONFIGURATION_TABLE_ID, gcsfuse_flags, branch, config_name)
 
-    job = self._execute_query_and_check_for_error(query_check_config_exists)
+    job = self._execute_query(query_check_config_exists)
     result_count = job.result().total_rows
 
     # If more than 1 result -> duplicate experiment configuration present -> throw error
@@ -286,7 +286,7 @@ class ExperimentsGCSFuseBQ:
         SET end_date = '{}'
         WHERE configuration_id = '{}'
         """.format(self.project_id, self.dataset_id, constants.CONFIGURATION_TABLE_ID, end_date, config_id)
-      self._execute_query_and_check_for_error(query_update_end_date)
+      self._execute_query(query_update_end_date)
       return config_id
 
   def upload_metrics_to_table(self, table_id, config_id, start_time_build, metrics_data):
