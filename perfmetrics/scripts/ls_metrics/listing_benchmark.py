@@ -654,9 +654,6 @@ if __name__ == '__main__':
     print(f'VM metrics for listing tests (gcs bucket) for folder: {folder.name}...')
     print(gcs_results[folder.name])
 
-    print(f'VM metrics for listing tests (persistent disk) for folder: {folder.name}...')
-    print(pd_results[folder.name])
-
   gcs_results_vm = {}
   pd_results_vm = {}
 
@@ -686,39 +683,11 @@ if __name__ == '__main__':
     _export_to_gsheet(WORKSHEET_NAME_PD, results_pd)
 
   if args.upload_bq:
-    if not args.config_id or args.start_time_build:
+    if not args.config_id or not args.start_time_build:
       raise Exception("Pass required arguments experiments configuration ID and start time of build for uploading to BigQuery")
     log.info('Uploading results to the BigQuery.\n')
     _export_to_bigquery(MOUNT_TYPE_GCS, args.config_id[0], args.start_time_build[0], results_gcs)
     _export_to_bigquery(MOUNT_TYPE_PD, args.config_id[0], args.start_time_build[0], results_pd)
-
-  print('Waiting for 360 seconds for metrics to be updated on VM...')
-  # It takes up to 240 seconds for sampled data to be visible on the VM metrics graph
-  # So, waiting for 360 seconds to ensure the returned metrics are not empty.
-  # Intermittently custom metrics are not available after 240 seconds, hence
-  # waiting for 360 secs instead of 240 secs
-  time.sleep(360)
-
-  gcs_vm_results = _extract_vm_metrics(gcs_bucket_time_intervals, directory_structure.folders, 'gcs_bucket')
-  pd_vm_results = _extract_vm_metrics(persistent_disk_time_intervals, directory_structure.folders, 'persistent_disk')
-
-  for folder in directory_structure.folders:
-    print(f'VM metrics for listing tests (gcs bucket) for folder: {folder.name}...')
-    print(gcs_vm_results[folder.name])
-
-  print('Waiting for 360 seconds for metrics to be updated on VM...')
-  # It takes up to 240 seconds for sampled data to be visible on the VM metrics graph
-  # So, waiting for 360 seconds to ensure the returned metrics are not empty.
-  # Intermittently custom metrics are not available after 240 seconds, hence
-  # waiting for 360 secs instead of 240 secs
-  time.sleep(360)
-
-  gcs_vm_results = _extract_vm_metrics(gcs_bucket_time_intervals, directory_structure.folders, 'gcs_bucket')
-  pd_vm_results = _extract_vm_metrics(persistent_disk_time_intervals, directory_structure.folders, 'persistent_disk')
-
-  for folder in directory_structure.folders:
-    print(f'VM metrics for listing tests (gcs bucket) for folder: {folder.name}...')
-    print(gcs_vm_results[folder.name])
 
   if not args.keep_files:
     log.info('Deleting files from persistent disk.\n')
