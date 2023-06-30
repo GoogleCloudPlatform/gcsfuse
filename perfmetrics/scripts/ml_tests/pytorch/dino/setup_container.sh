@@ -66,7 +66,7 @@ gsutil cp start_time.txt $ARTIFACTS_BUCKET_PATH/
   echo "Running the pytorch dino model..."
   experiment=dino_experiment
   python3 -m torch.distributed.launch \
-    --nproc_per_node=1 dino/main_dino.py \
+    --nproc_per_node=2 dino/main_dino.py \
     --arch vit_small \
     --num_workers 20 \
     --data_path gcsfuse_data/imagenet/ILSVRC/Data/CLS-LOC/train/ \
@@ -74,7 +74,7 @@ gsutil cp start_time.txt $ARTIFACTS_BUCKET_PATH/
     --norm_last_layer False \
     --use_fp16 False \
     --clip_grad 0 \
-    --epochs 50 \
+    --epochs 100 \
     --global_crops_scale 0.25 1.0 \
     --local_crops_number 10 \
     --local_crops_scale 0.05 0.25 \
