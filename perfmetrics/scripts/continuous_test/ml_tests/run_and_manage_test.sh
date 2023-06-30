@@ -60,8 +60,8 @@ function delete_existing_vm_and_create_new () {
   sudo gcloud compute instances create $VM_NAME \
            --project=$GCP_PROJECT\
            --zone=$ZONE_NAME \
-           --machine-type=a2-highgpu-1g \
-           --network-interface=network-tier=PREMIUM,stack-type=IPV4_ONLY,subnet=default \
+           --machine-type=a2-highgpu-2g \
+           --network-interface=network-tier=PREMIUM,nic-type=GVNIC,stack-type=IPV4_ONLY,subnet=default \
            --metadata=enable-osconfig=TRUE,enable-oslogin=true \
            --maintenance-policy=TERMINATE \
            --provisioning-model=STANDARD \
@@ -74,7 +74,7 @@ function delete_existing_vm_and_create_new () {
            --shielded-integrity-monitoring \
            --labels=goog-ops-agent-policy=v2-x86-template-1-0-0,goog-ec-src=vm_add-gcloud \
            --reservation-affinity=specific \
-           --reservation=projects/$GCP_PROJECT/reservations/ai-ml-tests
+           --reservation=projects/$GCP_PROJECT/reservations/ai-ml-tests-2gpus
 
   echo "Wait for 30 seconds for new VM to be initialised"
   sleep 30s
