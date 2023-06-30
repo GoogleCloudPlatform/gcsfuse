@@ -2,13 +2,16 @@
 """
 import socket
 import sys
+import os
+# Add the 'bigquery' directory to the Python path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'bigquery')))
 import time
 import argparse
 from fio import fio_metrics
 from vm_metrics import vm_metrics
 from gsheet import gsheet
-from bigquery import bigquery
 from bigquery import constants
+from bigquery import experiments_gcsfuse_bq
 
 INSTANCE = socket.gethostname()
 PERIOD_SEC = 120
@@ -50,16 +53,16 @@ def _parse_arguments(argv):
   )
   parser.add_argument(
       '--config_id',
-      help='Configuration ID of the experiment',
-      action='store_true',
-      default=False,
+      help='Configuration ID of the experiment.',
+      action='store',
+      nargs=1,
       required=False,
   )
   parser.add_argument(
       '--start_time_build',
       help='Start time of the build.',
-      action='store_true',
-      default=False,
+      action='store',
+      nargs=1,
       required=False,
   )
   return parser.parse_args(argv[1:])
@@ -82,7 +85,7 @@ if __name__ == '__main__':
   if args.upload_bq:
     if not args.config_id or not args.start_time_build:
       raise Exception("Pass required arguments experiments configuration ID and start time of build for uploading to BigQuery")
-    bigquery_obj = bigquery.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
+    bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
     fio_metrics_obj.upload_metrics_to_bigquery(metrics_data, args.config_id[0], args.start_time_build[0], constants.FIO_TABLE_ID)
 
   print('Waiting for 360 seconds for metrics to be updated on VM...')
@@ -132,5 +135,5 @@ if __name__ == '__main__':
   if args.upload_bq:
     if not args.config_id or not args.start_time_build:
       raise Exception("Pass required arguments experiments configuration ID and start time of build for uploading to BigQuery")
-    bigquery_obj = bigquery.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
+    bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
     bigquery_obj.upload_metrics_to_table(constants.VM_TABLE_ID, args.config_id[0], args.start_time_build[0], vm_metrics_data_upload)

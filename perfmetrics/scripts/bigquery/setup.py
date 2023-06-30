@@ -17,9 +17,9 @@ This python script calls the bigquery module to create the dataset that will sto
 the table to store the experiment configurations and the tables to store the metrics data.
 Note: BigQuery API should be enabled for the project
 """
-import bigquery
+import experiments_gcsfuse_bq
 import constants
 
 if __name__ == '__main__':
-  bigquery_obj = bigquery.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
+  bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
   bigquery_obj.setup_dataset_and_tables()

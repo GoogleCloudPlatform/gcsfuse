@@ -83,19 +83,6 @@ class ExperimentsGCSFuseBQ:
         raise Exception(f"Error message: {error['message']}")
     return job
 
-  def _validate_result(self, result):
-    """Check if any result of query insertion contains any errors and raises an
-      exception if insertion could not be completed.
-
-    Args:
-      result (Union[None, List[Dict[str, Any]]]): Result of inserting rows.
-
-    Raises:
-      Exception: If row insertion failed.
-    """
-    if result:
-      raise Exception(f'Error inserting data to BigQuery tables: {result}')
-
   def _check_if_config_valid(self, exp_config_id) -> bool:
     """Checks if exp_config_id exists in the experiment_configuration table.
 
@@ -117,37 +104,29 @@ class ExperimentsGCSFuseBQ:
       return True
     return False
 
-  def _check_if_row_exists(self, table_id, config_id, start_time_build, metrics_data) -> bool:
-    """Checks if a row already exists in table
+  def _insert_rows(self, table, rows_to_insert, table_id, config_id, start_time_build):
+    """Insert rows in table. If insertion of some nth row fails, delete (n-1) rows
+    that were inserted before and raise an exception
 
     Args:
+      table (str): Table in which rows are being inserted
+      rows_to_insert (str): Rows to insert in the table
       table_id (str): ID of table to which results are being uploaded
       config_id (str): config_id of the experiment for which results are being uploaded
       start_time_build (timestamp): Start epoch time of the build
-      metrics_data (list): A 2D list containing the experiment results
 
-    Returns:
-      bool: Returns true if row exists, false otherwise
+    Raises:
+      Exception: If some row insertion failed.
     """
-    end_time_dict = {
-        constants.FIO_TABLE_ID: 5,
-        constants.VM_TABLE_ID: 0,
-        constants.LS_TABLE_ID: 3,
-    }
-    # Extract end_time from metrics_data
-    end_time = end_time_dict[table_id]
-    query_check_if_row_exists = """
-      SELECT configuration_id
-      FROM `{}.{}.{}`
-      WHERE configuration_id = '{}'
-      AND start_time_build = '{}'
-      AND end_time = '{}'
-    """.format(self.project_id, self.dataset_id, table_id, config_id, start_time_build, end_time)
-    job = self._execute_query_and_check_for_error(query_check_if_row_exists)
-    result_count = job.result().total_rows
-    if result_count:
-      return True
-    return False
+    result = self.client.insert_rows(table, rows_to_insert)
+    if result:
+      query_check_if_row_exists = """
+        DELETE FROM `{}.{}.{}`
+        WHERE configuration_id = '{}'
+        AND start_time_build = '{}'
+      """.format(self.project_id, self.dataset_id, table_id, config_id, start_time_build)
+      job = self._execute_query_and_check_for_error(query_check_if_row_exists)
+      raise Exception(f'Error inserting data to BigQuery tables: {result}')
 
   def setup_dataset_and_tables(self):
     f"""
@@ -295,8 +274,7 @@ class ExperimentsGCSFuseBQ:
       table = self._get_table_from_table_id(constants.CONFIGURATION_TABLE_ID)
       uuid_str = str(uuid.uuid4())
       rows_to_insert = [(uuid_str, config_name, gcsfuse_flags, branch, end_date)]
-      result = self.client.insert_rows(table, rows_to_insert)
-      self._validate_result(result)
+      self._insert_rows(table, rows_to_insert)
       return uuid_str
 
     # If exactly one result -> update end date -> return configuration ID
@@ -338,8 +316,6 @@ class ExperimentsGCSFuseBQ:
 
     rows_to_insert = []
     for row in metrics_data:
-      if not self._check_if_row_exists(table_id, config_id, start_time_build, row):
-        rows_to_insert = rows_to_insert + [(config_id, start_time_build) + tuple(row)]
+      rows_to_insert = rows_to_insert + [(config_id, start_time_build) + tuple(row)]
 
-    result = self.client.insert_rows(table, rows_to_insert)
-    self._validate_result(result)
+    self._insert_rows(table, rows_to_insert, table_id, config_id, start_time_build)

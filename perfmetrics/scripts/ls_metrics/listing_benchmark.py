@@ -45,7 +45,7 @@ import generate_files
 from google.protobuf.json_format import ParseDict
 from gsheet import gsheet
 import fetch_metrics
-from bigquery import bigquery
+from bigquery import experiments_gcsfuse_bq
 from vm_metrics import vm_metrics
 from bigquery import constants
 
@@ -455,16 +455,16 @@ def _parse_arguments(argv):
   )
   parser.add_argument(
       '--config_id',
-      help='Configuration id of the experiment in the BigQuery tables',
-      action='store_true',
-      default=False,
+      help='Configuration ID of the experiment.',
+      action='store',
+      nargs=1,
       required=False,
   )
   parser.add_argument(
       '--start_time_build',
-      help='Time at which KOKORO triggered the build script.',
-      action='store_true',
-      default=False,
+      help='Start time of the build.',
+      action='store',
+      nargs=1,
       required=False,
   )
   parser.add_argument(
@@ -477,21 +477,7 @@ def _parse_arguments(argv):
   )
   parser.add_argument(
       '--gcsfuse_flags',
-      help='Gcsfuse flags for mounting the list tests bucket. Example set of flags - "--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"',
-      action='store',
-      nargs=1,
-      required=True,
-  )
-  parser.add_argument(
-      '--gcsfuse_flags',
-      help='Gcsfuse flags for mounting the list tests bucket. Example set of flags - "--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"',
-      action='store',
-      nargs=1,
-      required=True,
-  )
-  parser.add_argument(
-      '--gcsfuse_flags',
-      help='Gcsfuse flags for mounting the list tests bucket. Example set of flags - "--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"',
+      help='Gcsfuse flags for mounting the list tests bucket. Example set of flags - "--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-file gcsfuse-list-logs.txt --log-format \"text\" --stackdriver-export-interval=30s"',
       action='store',
       nargs=1,
       required=True,
@@ -579,7 +565,7 @@ def _export_to_bigquery(test_type, config_id, start_time_build, ls_data):
     start_time_build (str): Start time of the build
     ls_data (list): List results to be uploaded
   """
-  bigquery_obj = bigquery.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
+  bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
   ls_data_upload = [[test_type] + row for row in ls_data]
   bigquery_obj.upload_metrics_to_table(constants.LS_TABLE_ID, config_id, start_time_build, ls_data_upload)
   return
@@ -661,8 +647,8 @@ if __name__ == '__main__':
   # waiting for 360 secs instead of 240 secs
   time.sleep(360)
 
-  gcs_results = _extract_vm_metrics(gcs_bucket_results, directory_structure.folders, 'gcs_bucket')
-  pd_results = _extract_vm_metrics(persistent_disk_results, directory_structure.folders, 'persistent_disk')
+  gcs_results = _extract_vm_metrics(gcs_bucket_time_intervals, directory_structure.folders, 'gcs_bucket')
+  pd_results = _extract_vm_metrics(persistent_disk_time_intervals, directory_structure.folders, 'persistent_disk')
 
   for folder in directory_structure.folders:
     print(f'VM metrics for listing tests (gcs bucket) for folder: {folder.name}...')
@@ -689,8 +675,8 @@ if __name__ == '__main__':
     upload_values_gcs = values_gcs[1:3] + [values_gcs[4]] + [values_gcs[8]] + [values_gcs[17]] + values_gcs[5:8] + values_gcs[9:13]
     upload_values_pd = values_pd[1:3] + [values_pd[4]] + [values_pd[8]] + [values_pd[17]] + values_pd[5:8] + values_pd[9:13]
     # Combining list metrics and VM metrics
-    temp_gcs = [gcs_bucket_results[folder.name][0][0], gcs_bucket_results[folder.name][-1][-1]] + upload_values_gcs + gcs_results_vm[folder.name]
-    temp_pd = [persistent_disk_results[folder.name][0][0], persistent_disk_results[folder.name][-1][-1]] + upload_values_pd + pd_results_vm[folder.name]
+    temp_gcs = [gcs_bucket_time_intervals[folder.name][0][0], gcs_bucket_time_intervals[folder.name][-1][-1]] + upload_values_gcs + gcs_results_vm[folder.name]
+    temp_pd = [persistent_disk_time_intervals[folder.name][0][0], persistent_disk_time_intervals[folder.name][-1][-1]] + upload_values_pd + pd_results_vm[folder.name]
     results_gcs.append(temp_gcs)
     results_pd.append(temp_pd)
 
