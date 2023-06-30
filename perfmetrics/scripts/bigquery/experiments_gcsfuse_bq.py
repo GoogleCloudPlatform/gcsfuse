@@ -104,7 +104,7 @@ class ExperimentsGCSFuseBQ:
       return True
     return False
 
-  def _insert_rows(self, table, rows_to_insert, table_id, config_id, start_time_build):
+  def _insert_rows(self, table, rows_to_insert, table_id = None, config_id = None, start_time_build = None):
     """Insert rows in table. If insertion of some nth row fails, delete (n-1) rows
     that were inserted before and raise an exception
 
@@ -120,12 +120,13 @@ class ExperimentsGCSFuseBQ:
     """
     result = self.client.insert_rows(table, rows_to_insert)
     if result:
-      query_check_if_row_exists = """
-        DELETE FROM `{}.{}.{}`
-        WHERE configuration_id = '{}'
-        AND start_time_build = '{}'
-      """.format(self.project_id, self.dataset_id, table_id, config_id, start_time_build)
-      job = self._execute_query_and_check_for_error(query_check_if_row_exists)
+      if config_id:
+        query_check_if_row_exists = """
+          DELETE FROM `{}.{}.{}`
+          WHERE configuration_id = '{}'
+          AND start_time_build = '{}'
+        """.format(self.project_id, self.dataset_id, table_id, config_id, start_time_build)
+        job = self._execute_query_and_check_for_error(query_check_if_row_exists)
       raise Exception(f'Error inserting data to BigQuery tables: {result}')
 
   def setup_dataset_and_tables(self):
@@ -207,10 +208,10 @@ class ExperimentsGCSFuseBQ:
       CREATE TABLE IF NOT EXISTS {}.{}.{}(
         configuration_id STRING,
         start_time_build INT64,
-        mount_type STRING, 
-        command STRING,
+        mount_type STRING,
         start_time FLOAT64, 
-        end_time FLOAT64,
+        end_time FLOAT64, 
+        command STRING,
         num_files INT64, 
         num_samples INT64, 
         min_latency_msec FLOAT64,
