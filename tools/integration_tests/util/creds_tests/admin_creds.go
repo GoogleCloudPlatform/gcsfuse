@@ -67,7 +67,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 
 	// Get credential from bucket.
 	// setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "integration-test-data-gcsfuse")
-	json_key, err = createKey(buf, "admin-perm-integration-test@gcs-fuse-test.iam.gserviceaccount.com")
+	json_key, err = createKey(buf, "tulsishah@gcs-fuse-test-ml.iam.gserviceaccount.com")
 
 	admin_cred_file_path := path.Join(os.Getenv("HOME"), "admin_creds.json")
 	admin_creds_file, err := os.Create(admin_cred_file_path)
