@@ -17,6 +17,7 @@
 package creds_tests
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -31,6 +32,9 @@ import (
 func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]string, m *testing.M) (successCode int) {
 	// Saving testBucket value for setting back after testing.
 	testBucket := setup.TestBucket()
+
+	buf := &bytes.Buffer{}
+	_, err := createServiceAccount(buf, "gcs-fuse-test", "tulsishah-creds-test", "tulsishah-creds-test")
 
 	// Set the testBucket value to the bucket belonging to a different project for testing credentials.
 	setup.SetTestBucket("integration-test-gcsfuse")
@@ -59,7 +63,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	creds_path := path.Join(os.Getenv("HOME"), "admin_creds.json")
 
 	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
-	err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
+	err = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error in setting environment variable: %v", err))
 	}
