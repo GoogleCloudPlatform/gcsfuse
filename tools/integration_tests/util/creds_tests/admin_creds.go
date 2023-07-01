@@ -34,7 +34,14 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	testBucket := setup.TestBucket()
 
 	buf := &bytes.Buffer{}
-	_, err := createKey(buf, "multi-project-service-account@gcs-fuse-test-ml.iam.gserviceaccount.com")
+	json_key, err := createKey(buf, "multi-project-service-account@gcs-fuse-test-ml.iam.gserviceaccount.com")
+
+	creds_file, err := os.Create("creds.json")
+
+	_, err = creds_file.Write(json_key)
+	if err != nil {
+		log.Printf("Error in writing key file.")
+	}
 
 	// Set the testBucket value to the bucket belonging to a different project for testing credentials.
 	setup.SetTestBucket("integration-test-gcsfuse")

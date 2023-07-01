@@ -2,6 +2,7 @@ package creds_tests
 
 import (
 	"context"
+	"encoding/base64"
 	// "encoding/base64"
 	"fmt"
 	"io"
@@ -11,7 +12,7 @@ import (
 )
 
 // createKey creates a service account key.
-func createKey(w io.Writer, serviceAccountEmail string) (*iam.ServiceAccountKey, error) {
+func createKey(w io.Writer, serviceAccountEmail string) ([]byte, error) {
 	ctx := context.Background()
 	service, err := iam.NewService(ctx)
 	if err != nil {
@@ -29,7 +30,8 @@ func createKey(w io.Writer, serviceAccountEmail string) (*iam.ServiceAccountKey,
 	// in JSON format.
 	// TODO(Developer): Save the below key (jsonKeyFile) to a secure location.
 	// You cannot download it later.
-	// jsonKeyFile, _ := base64.StdEncoding.DecodeString(key.PrivateKeyData)
+	jsonKeyFile, _ := base64.StdEncoding.DecodeString(key.PrivateKeyData)
+
 	fmt.Fprintf(w, "Key created successfully")
-	return key, nil
+	return jsonKeyFile, nil
 }
