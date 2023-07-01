@@ -267,15 +267,11 @@ func newApp() (app *cli.App) {
 					" in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.",
 			},
 
-			cli.BoolFlag{
-				Name:  "enable-grpc",
-				Usage: "Once set, it connects to GCS via gRPC protocol.",
-			},
-
 			cli.IntFlag{
 				Name:  "grpc-conn-pool-size",
-				Value: 100,
-				Usage: "The size of grpc connection pool.",
+				Value: 4,
+				Usage: "Number of gRPC channel. Normally, it's same as number of tcp connection, but in case of" +
+					"direct-path traffic it's hard to determine number of tcp-connections in one grpc channel.",
 			},
 
 			/////////////////////////
@@ -536,7 +532,6 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		MaxConnsPerHost:            c.Int("max-conns-per-host"),
 		MaxIdleConnsPerHost:        c.Int("max-idle-conns-per-host"),
 		EnableNonexistentTypeCache: c.Bool("enable-nonexistent-type-cache"),
-		EnableGRPC:                 c.Bool("enable-grpc"),
 		GRPCConnPoolSize:           c.Int("grpc-conn-pool-size"),
 
 		// Monitoring & Logging

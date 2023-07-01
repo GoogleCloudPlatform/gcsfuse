@@ -296,7 +296,7 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 	obj := b.bucket.Object(req.Name)
 
 	if req.Generation != 0 {
-		obj = obj.If(storage.Conditions{GenerationMatch: req.Generation})
+		obj = obj.Generation(req.Generation)
 	}
 
 	if req.MetaGenerationPrecondition != nil {
@@ -305,25 +305,19 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 
 	updateQuery := storage.ObjectAttrsToUpdate{}
 
-	var changed = false
-
 	if req.ContentType != nil {
-		//changed = true
 		updateQuery.ContentType = *req.ContentType
 	}
 
 	if req.ContentEncoding != nil {
-		//changed = true
 		updateQuery.ContentEncoding = *req.ContentEncoding
 	}
 
 	if req.ContentLanguage != nil {
-		//changed = true
 		updateQuery.ContentLanguage = *req.ContentLanguage
 	}
 
 	if req.CacheControl != nil {
-		//changed = true
 		updateQuery.CacheControl = *req.CacheControl
 	}
 
@@ -331,16 +325,9 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 		updateQuery.Metadata = make(map[string]string)
 		for key, element := range req.Metadata {
 			if element != nil {
-				changed = true
 				updateQuery.Metadata[key] = *element
 			}
 		}
-	}
-
-	if changed == false {
-		attrs, _ := obj.Attrs(ctx)
-		o = storageutil.ObjectAttrsToBucketObject(attrs)
-		return
 	}
 
 	attrs, err := obj.Update(ctx, updateQuery)
