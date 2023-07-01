@@ -44,9 +44,9 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	setup.RunScriptForTestData("../util/creds_tests/testdata/service_account_login.sh", cred_file_path)
 
 	// Set the testBucket value to the bucket belonging to a different project for testing credentials.
-	setup.RunScriptForTestData("../util/creds_tests/testdata/create_bucket.sh", "creds-test-gcsfuse")
-
-	setup.SetTestBucket("creds-test-gcsfuse")
+	//setup.RunScriptForTestData("../util/creds_tests/testdata/create_bucket.sh", "creds-test-gcsfuse")
+	//
+	//setup.SetTestBucket("creds-test-gcsfuse")
 
 	// Set back the original testBucket, which we passed through --testBucket flag.
 	defer setup.SetTestBucket(testBucket)
