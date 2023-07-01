@@ -34,7 +34,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	testBucket := setup.TestBucket()
 
 	buf := &bytes.Buffer{}
-	_, err := createServiceAccount(buf, "gcs-fuse-test", "tulsishah-creds-test", "tulsishah-creds-test")
+	_, err := createServiceAccount(buf, "gcs-fuse-test-ml", "tulsishah-creds-test", "tulsishah-creds-test")
 
 	// Set the testBucket value to the bucket belonging to a different project for testing credentials.
 	setup.SetTestBucket("integration-test-gcsfuse")
