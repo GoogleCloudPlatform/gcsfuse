@@ -68,6 +68,13 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint.String()))
 	}
 
+	return storage.NewClient(ctx, option.WithHTTPClient(httpClient))
+}
+
+// NewStorageHandle returns the handle of Go storage client containing
+// customized http client. We can configure the http client using the
+// storageClientConfig parameter.
+func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh StorageHandle, err error) {
 	var sc *storage.Client
 	sc, err = storage.NewClient(ctx, clientOpts...)
 	if err != nil {
