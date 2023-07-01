@@ -1,0 +1,1 @@
+gcloud storage rm --recursive gs://$1

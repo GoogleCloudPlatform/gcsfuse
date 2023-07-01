@@ -17,7 +17,6 @@
 package creds_tests
 
 import (
-	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -33,18 +32,10 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	// Saving testBucket value for setting back after testing.
 	testBucket := setup.TestBucket()
 
-	buf := &bytes.Buffer{}
-	json_key, err := createKey(buf, "multi-project-service-account@gcs-fuse-test-ml.iam.gserviceaccount.com")
-
 	cred_file_path := path.Join(os.Getenv("HOME"), "creds.json")
-	creds_file, err := os.Create(cred_file_path)
-
-	_, err = creds_file.Write(json_key)
-	if err != nil {
-		log.Printf("Error in writing key file.")
-	}
-
 	setup.RunScriptForTestData("../util/creds_tests/testdata/service_account_login.sh", cred_file_path)
+
+	setup.RunScriptForTestData("../util/creds_tests/testdata/create_key_file.sh", cred_file_path)
 
 	// Set the testBucket value to the bucket belonging to a different project for testing credentials.
 	setup.RunScriptForTestData("../util/creds_tests/testdata/create_bucket.sh", "creds-test-gcsfuse")
@@ -67,21 +58,18 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 
 	// Get credential from bucket.
 	// setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "integration-test-data-gcsfuse")
-	json_key, err = createKey(buf, "tulsishah@gcs-fuse-test-ml.iam.gserviceaccount.com")
+	// json_key, err = createKey(buf, "tulsishah@gcs-fuse-test-ml.iam.gserviceaccount.com")
 
 	admin_cred_file_path := path.Join(os.Getenv("HOME"), "admin_creds.json")
-	admin_creds_file, err := os.Create(admin_cred_file_path)
 
-	_, err = admin_creds_file.Write(json_key)
-	if err != nil {
-		log.Printf("Error in writing key file.")
-	}
+	setup.RunScriptForTestData("../util/creds_tests/testdata/create_key_file.sh", admin_cred_file_path)
 
 	// Delete credentials after testing.
-	defer setup.RunScriptForTestData("../util/creds_tests/testdata/delete_creds.sh", "")
+	defer setup.RunScriptForTestData("../util/creds_tests/testdata/delete_creds.sh")
+	defer setup.RunScriptForTestData("../util/creds_tests/testdata/delete_bucket.sh", "creds-test-gcsfuse")
 
 	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
-	err = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", admin_cred_file_path)
+	err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", admin_cred_file_path)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error in setting environment variable: %v", err))
 	}
