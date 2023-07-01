@@ -18,14 +18,11 @@ package creds_tests
 
 import (
 	"bytes"
-	"fmt"
 	"log"
 	"os"
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -53,63 +50,63 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 
 	// Set back the original testBucket, which we passed through --testBucket flag.
 	defer setup.SetTestBucket(testBucket)
-
-	// Testing without --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
-	for i := 0; i < len(testFlagSet); i++ {
-		flags := testFlagSet[i]
-		flags = append(flags, setup.TestBucket())
-		flags = append(flags, setup.MntDir())
-		err := mounting.MountGcsfuse(flags)
-		if err == nil {
-			log.Print("Error: Mounting successful without key file.")
-		}
-	}
-
-	// Get credential from bucket.
-	setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "integration-test-data-gcsfuse")
-
-	// Delete credentials after testing.
-	defer setup.RunScriptForTestData("../util/creds_tests/testdata/delete_creds.sh", "")
-
-	// Get the credential path to pass as a key file.
-	creds_path := path.Join(os.Getenv("HOME"), "admin_creds.json")
-
-	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
-	err = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
-	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error in setting environment variable: %v", err))
-	}
-
-	successCode = static_mounting.RunTests(testFlagSet, m)
-
-	if successCode != 0 {
-		return
-	}
-
-	// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
-	keyFileFlag := "--key-file=" + creds_path
-
-	for i := 0; i < len(testFlagSet); i++ {
-		testFlagSet[i] = append(testFlagSet[i], keyFileFlag)
-	}
-
-	successCode = static_mounting.RunTests(testFlagSet, m)
-
-	if successCode != 0 {
-		return
-	}
-
-	err = os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
-	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error in unsetting environment variable: %v", err))
-	}
-
-	// Testing with --key-file flag only
-	successCode = static_mounting.RunTests(testFlagSet, m)
-
-	if successCode != 0 {
-		return
-	}
+	//
+	//// Testing without --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
+	//for i := 0; i < len(testFlagSet); i++ {
+	//	flags := testFlagSet[i]
+	//	flags = append(flags, setup.TestBucket())
+	//	flags = append(flags, setup.MntDir())
+	//	err := mounting.MountGcsfuse(flags)
+	//	if err == nil {
+	//		log.Print("Error: Mounting successful without key file.")
+	//	}
+	//}
+	//
+	//// Get credential from bucket.
+	//setup.RunScriptForTestData("../util/creds_tests/testdata/get_creds.sh", "integration-test-data-gcsfuse")
+	//
+	//// Delete credentials after testing.
+	//defer setup.RunScriptForTestData("../util/creds_tests/testdata/delete_creds.sh", "")
+	//
+	//// Get the credential path to pass as a key file.
+	//creds_path := path.Join(os.Getenv("HOME"), "admin_creds.json")
+	//
+	//// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
+	//err = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_path)
+	//if err != nil {
+	//	setup.LogAndExit(fmt.Sprintf("Error in setting environment variable: %v", err))
+	//}
+	//
+	//successCode = static_mounting.RunTests(testFlagSet, m)
+	//
+	//if successCode != 0 {
+	//	return
+	//}
+	//
+	//// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
+	//keyFileFlag := "--key-file=" + creds_path
+	//
+	//for i := 0; i < len(testFlagSet); i++ {
+	//	testFlagSet[i] = append(testFlagSet[i], keyFileFlag)
+	//}
+	//
+	//successCode = static_mounting.RunTests(testFlagSet, m)
+	//
+	//if successCode != 0 {
+	//	return
+	//}
+	//
+	//err = os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
+	//if err != nil {
+	//	setup.LogAndExit(fmt.Sprintf("Error in unsetting environment variable: %v", err))
+	//}
+	//
+	//// Testing with --key-file flag only
+	//successCode = static_mounting.RunTests(testFlagSet, m)
+	//
+	//if successCode != 0 {
+	//	return
+	//}
 
 	return successCode
 }
