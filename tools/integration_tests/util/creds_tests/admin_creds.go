@@ -65,7 +65,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 
 	// Delete credentials after testing.
 	defer setup.RunScriptForTestData("../util/creds_tests/testdata/delete_creds.sh")
-	defer setup.RunScriptForTestData("../util/creds_tests/testdata/delete_bucket.sh", "creds-test-gcsfuse")
+	defer setup.RunScriptForTestData("../util/creds_tests/testdata/delete_bucket.sh", "creds-test-gcsfuse", "admin-perm-integration-test@gcs-fuse-test.iam.gserviceaccount.com")
 
 	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
 	err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", admin_cred_file_path)
