@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 
 	iam "google.golang.org/api/iam/v1"
 )
@@ -24,6 +25,7 @@ func createServiceAccount(w io.Writer, projectID, name, displayName string) (*ia
 	}
 	account, err := service.Projects.ServiceAccounts.Create("projects/"+projectID, request).Do()
 	if err != nil {
+		log.Printf("Projects.ServiceAccounts.Create: %w", err)
 		return nil, fmt.Errorf("Projects.ServiceAccounts.Create: %w", err)
 	}
 	fmt.Fprintf(w, "Created service account: %v", account)
