@@ -401,7 +401,6 @@ type flagStorage struct {
 	MaxConnsPerHost            int
 	MaxIdleConnsPerHost        int
 	EnableNonexistentTypeCache bool
-	EnableGRPC                 bool
 	GRPCConnPoolSize           int
 
 	// Monitoring & Logging
