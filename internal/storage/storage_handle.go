@@ -55,13 +55,10 @@ type StorageClientConfig struct {
 	MaxRetryDuration    time.Duration
 	RetryMultiplier     float64
 	UserAgent           string
-	EnableGRPC          bool
 	GRPCConnPoolSize    int
 }
 
 func createGRPCClientHandle(ctx context.Context, clientConfig StorageClientConfig) (sc *storage.Client, err error) {
-	os.Setenv("STORAGE_USE_GRPC", "gRPC")
-
 	if err := os.Setenv("STORAGE_USE_GRPC", "gRPC"); err != nil {
 		log.Fatalf("error setting enable grpc: %v", err)
 	}
@@ -112,9 +109,9 @@ func createHTTPClientHandle(ctx context.Context, clientConfig StorageClientConfi
 	return storage.NewClient(ctx, option.WithHTTPClient(httpClient))
 }
 
-// NewStorageHandle returns the handle of Go storage client containing
-// customized http client. We can configure the http client using the
-// storageClientConfig parameter.
+// NewStorageHandle returns the handle of Go storage client. It can be gRPC  or
+// HTTP client. We can customized the client by changing the storageClientConfig
+// parameter.
 func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh StorageHandle, err error) {
 	var sc *storage.Client
 	if clientConfig.ClientProtocol == mountpkg.GRPC {
