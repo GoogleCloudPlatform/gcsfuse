@@ -1,0 +1,1 @@
+gcloud storage buckets creatte gs://$1 --project "gcs-fuse-test" --location="us-west1-b"
