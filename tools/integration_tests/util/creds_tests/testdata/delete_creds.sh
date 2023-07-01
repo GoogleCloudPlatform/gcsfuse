@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 rm  ~/admin_creds.json
+rm  ~/creds.json
 arr=$(gcloud iam service-accounts keys list --iam-account=multi-project-service-account@gcs-fuse-test-ml.iam.gserviceaccount.com)
 eval array=($arr)
 gcloud iam service-accounts keys delete ${array[4]} \
