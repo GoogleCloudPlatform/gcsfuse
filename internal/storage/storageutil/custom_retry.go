@@ -38,5 +38,14 @@ func ShouldRetry(err error) (b bool) {
 			return
 		}
 	}
+
+	// HTTP 429 errors (GCS uses these for rate limiting).
+	if typed, ok := err.(*googleapi.Error); ok {
+		if typed.Code == 429 {
+			b = true
+			return
+		}
+	}
+
 	return
 }
