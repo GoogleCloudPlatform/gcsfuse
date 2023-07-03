@@ -17,12 +17,17 @@ package storageutil
 import (
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/grpc/codes"
 )
 
 func ShouldRetry(err error) (b bool) {
 	b = storage.ShouldRetry(err)
 	if b {
 		return
+	}
+
+	if ok && st.Code() == codes.ResourceExhausted {
+		return true
 	}
 
 	// HTTP 401 errors - Invalid Credentials
@@ -34,14 +39,6 @@ func ShouldRetry(err error) (b bool) {
 	// TODO: Please incorporate the correct fix post resolution of the above issue.
 	if typed, ok := err.(*googleapi.Error); ok {
 		if typed.Code == 401 {
-			b = true
-			return
-		}
-	}
-
-	// HTTP 429 errors (GCS uses these for rate limiting).
-	if typed, ok := err.(*googleapi.Error); ok {
-		if typed.Code == 429 {
 			b = true
 			return
 		}
