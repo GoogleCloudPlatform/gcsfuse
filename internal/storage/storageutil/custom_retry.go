@@ -18,6 +18,7 @@ import (
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func ShouldRetry(err error) (b bool) {
@@ -26,7 +27,7 @@ func ShouldRetry(err error) (b bool) {
 		return
 	}
 
-	if ok && st.Code() == codes.ResourceExhausted {
+	if st, ok := status.FromError(err); ok && st.Code() == codes.ResourceExhausted {
 		return true
 	}
 
