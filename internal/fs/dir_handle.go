@@ -28,12 +28,12 @@ import (
 )
 
 // State required for reading from directories.
-type DirHandle struct {
+type dirHandle struct {
 	/////////////////////////
 	// Constant data
 	/////////////////////////
 
-	In           inode.DirInode
+	in           inode.DirInode
 	implicitDirs bool
 
 	/////////////////////////
@@ -73,12 +73,12 @@ type DirHandle struct {
 }
 
 // Create a directory handle that obtains listings from the supplied inode.
-func NewDirHandle(
+func newDirHandle(
 	in inode.DirInode,
-	implicitDirs bool) (dh *DirHandle) {
+	implicitDirs bool) (dh *dirHandle) {
 	// Set up the basic struct.
-	dh = &DirHandle{
-		In:           in,
+	dh = &dirHandle{
+		in:           in,
 		implicitDirs: implicitDirs,
 	}
 
@@ -86,34 +86,12 @@ func NewDirHandle(
 	dh.Mu = locker.New("DH."+in.Name().GcsObjectName(), dh.checkInvariants)
 	// Creating a condition variable to indicate events for locking and unlocking dh.Mu mutex.
 	dh.cond = sync.NewCond(dh.Mu)
-	// Using dummy function since nil pointer reference in fs.ReleaseDirHandle if
-	// not populated from fetchEntriesAsync.
-	dh.cancel = dummyCancel
 	return
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
-
-func (dh *DirHandle) EntriesValid() bool {
-	return dh.entriesValid
-}
-
-func (dh *DirHandle) SetEntriesValid(entriesValid bool) {
-	dh.entriesValid = entriesValid
-}
-
-func (dh *DirHandle) Entries() []fuseutil.Dirent {
-	return dh.entries
-}
-
-func (dh *DirHandle) SetEntries(entries []fuseutil.Dirent) {
-	dh.entries = entries
-}
-
-func dummyCancel() {
-}
 
 // Dirents, sorted by name.
 type sortedDirents []fuseutil.Dirent
@@ -122,7 +100,7 @@ func (p sortedDirents) Len() int           { return len(p) }
 func (p sortedDirents) Less(i, j int) bool { return p[i].Name < p[j].Name }
 func (p sortedDirents) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-func (dh *DirHandle) checkInvariants() {
+func (dh *dirHandle) checkInvariants() {
 	// INVARIANT: For each i, entries[i+1].Offset == entries[i].Offset + 1
 	for i := 0; i < len(dh.entries)-1; i++ {
 		if !(dh.entries[i+1].Offset == dh.entries[i].Offset+1) {
@@ -193,32 +171,36 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 	return
 }
 
+func (dh *dirHandle) setErrorAndBroadcast(err error) {
+	err = fmt.Errorf("ReadEntries: %w", err)
+	dh.Mu.Lock()
+	dh.err = err
+	dh.Mu.Unlock()
+	// Signal the suspended go routine that an error has occurred.
+	dh.cond.Broadcast()
+}
+
 // Fetch Dirent entries from GCSfuse.Will be used as a goroutine which is run asynchronously
 // to fetch data in the background while kernel requests are also served simultaneously.
-func (dh *DirHandle) FetchEntriesAsync(
+func (dh *dirHandle) FetchEntriesAsync(
 	rootInodeId int) {
 	// New context is needed as the parent goroutine exiting earlier than the child will cause the
 	// context to be cancelled prematurely.
-	ctx, cancel := context.WithCancel(context.Background())
-	dh.cancel = cancel
+	var ctx context.Context
+	ctx, dh.cancel = context.WithCancel(context.Background())
 	var err error
 	var entryForSorting fuseutil.Dirent
 	// ContinuationToken is also empty in case of firstCall and after all entries have been fetched.
 	// Keeping continuation token local so as to lessen the time for which the mutex is held.
 	// Keep fetching entries in batches of MaxResultsForListObjectsCall.
 	var ContinuationToken string
-	for contFetch := true; contFetch; contFetch = ContinuationToken != "" {
+	for {
 		var entries []fuseutil.Dirent
-		dh.In.Lock()
-		entries, ContinuationToken, err = dh.In.ReadEntries(ctx, ContinuationToken)
-		dh.In.Unlock()
+		dh.in.Lock()
+		entries, ContinuationToken, err = dh.in.ReadEntries(ctx, ContinuationToken)
+		dh.in.Unlock()
 		if err != nil {
-			err = fmt.Errorf("ReadEntries: %w", err)
-			dh.Mu.Lock()
-			dh.err = err
-			dh.Mu.Unlock()
-			// Signal the suspended go routine that an error has occurred.
-			dh.cond.Broadcast()
+			dh.setErrorAndBroadcast(err)
 			break
 		}
 		// Use the last entry from the last fetch for fixing naming conflicts.
@@ -231,12 +213,7 @@ func (dh *DirHandle) FetchEntriesAsync(
 		err = fixConflictingNames(entries)
 
 		if err != nil {
-			err = fmt.Errorf("fixConflictingNames: %w", err)
-			dh.Mu.Lock()
-			dh.err = err
-			dh.Mu.Unlock()
-			// Signal the suspended go routine that an error has occurred.
-			dh.cond.Broadcast()
+			dh.setErrorAndBroadcast(err)
 			break
 		}
 
@@ -259,10 +236,14 @@ func (dh *DirHandle) FetchEntriesAsync(
 		// Signal the suspended go routine that the next set of entries has
 		// been fetched.
 		dh.cond.Broadcast()
+		if ContinuationToken == "" {
+			break
+		}
 	}
 	dh.Mu.Lock()
 	dh.fetchOver = true
 	dh.Mu.Unlock()
+
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -277,7 +258,7 @@ func (dh *DirHandle) FetchEntriesAsync(
 //
 // LOCKS_REQUIRED(dh.Mu)
 // LOCKS_EXCLUDED(du.in)
-func (dh *DirHandle) ReadDir(
+func (dh *dirHandle) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp) (err error) {
 	// If the request is for offset zero, we assume that either this is the first

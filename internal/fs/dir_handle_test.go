@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fs_test
+package fs
 
 import (
 	"os"
@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
@@ -43,12 +42,16 @@ const gid = 456
 const tmpObjectPrefix = ".gcsfuse_tmp/"
 const appendThreshold = 1
 const fakeBucketName = "some_bucket"
+const dummyInodeId = fuseops.InodeID(2)
+const dummyfuseid = uint64(4)
+const dummypid = uint32(6)
+const dummyHandleId = fuseops.HandleID(8)
 
 type DirHandleTest struct {
 	ctx    context.Context
 	bucket gcsx.SyncerBucket
 	clock  timeutil.SimulatedClock
-	dh     *fs.DirHandle
+	dh     *dirHandle
 }
 
 var _ SetUpInterface = &DirHandleTest{}
@@ -91,7 +94,7 @@ func (t *DirHandleTest) createDirHandle(implicitDirs bool, enableNonexistentType
 		&t.bucket,
 		&t.clock,
 		&t.clock)
-	t.dh = fs.NewDirHandle(in, implicitDirs)
+	t.dh = newDirHandle(in, implicitDirs)
 }
 
 func (t *DirHandleTest) resetDirHandle() {
@@ -117,8 +120,8 @@ func (t *DirHandleTest) FetchAsyncEntries_EmptyDir() {
 	t.createDirHandle(false, false, dirInodeName)
 	t.dh.FetchEntriesAsync(fuseops.RootInodeID)
 
-	AssertEq(0, len(t.dh.Entries()))
-	AssertEq(true, t.dh.EntriesValid())
+	AssertEq(0, len(t.dh.entries))
+	AssertEq(true, t.dh.entriesValid)
 	t.resetDirHandle()
 }
 
@@ -139,11 +142,11 @@ func (t *DirHandleTest) FetchAsyncEntries_NonEmptyDir() {
 
 	t.createDirHandle(false, false, dirInodeName)
 	t.dh.FetchEntriesAsync(fuseops.RootInodeID)
-	entries := t.dh.Entries()
+	entries := t.dh.entries
 
 	AssertEq(1, len(entries))
 	AssertEq(fileUnderDir, entries[0].Name)
-	AssertEq(true, t.dh.EntriesValid())
+	AssertEq(true, t.dh.entriesValid)
 	t.resetDirHandle()
 }
 
@@ -159,11 +162,11 @@ func (t *DirHandleTest) FetchAsyncEntries_ImplicitDir_FlagTrue() {
 	//implicit-dirs flag set to true
 	t.createDirHandle(true, false, dirInodeName)
 	t.dh.FetchEntriesAsync(fuseops.RootInodeID)
-	entries := t.dh.Entries()
+	entries := t.dh.entries
 
 	AssertEq(1, len(entries))
 	AssertEq(implicitDirName, entries[0].Name)
-	AssertEq(true, t.dh.EntriesValid())
+	AssertEq(true, t.dh.entriesValid)
 	t.resetDirHandle()
 }
 
@@ -177,7 +180,111 @@ func (t *DirHandleTest) FetchAsyncEntries_ImplicitDir_FlagFalse() {
 	t.createDirHandle(false, false, dirInodeName)
 	t.dh.FetchEntriesAsync(fuseops.RootInodeID)
 
-	AssertEq(0, len(t.dh.Entries()))
-	AssertEq(true, t.dh.EntriesValid())
+	AssertEq(0, len(t.dh.entries))
+	AssertEq(true, t.dh.entriesValid)
 	t.resetDirHandle()
+}
+
+// Directory Structure Used
+// foo       --Directory
+// foo/bar   --File
+// Offset for first read dir operation is zero.Hence, entries for dir will
+// be fetched. Bytes read for this operation will be 32(size of 1 dirent)
+// as according to the directory structure created.
+func (t *DirHandleTest) Readdir_OffsetZero() {
+	contents := "read dir at zero dirOffset"
+	filePath := path.Join(dirInodeName, fileUnderDir)
+	_, err := t.bucket.CreateObject(
+		t.ctx,
+		&gcs.CreateObjectRequest{
+			Name:     filePath,
+			Contents: strings.NewReader(contents),
+		})
+	AssertEq(nil, err)
+	t.createDirHandle(false, false, dirInodeName)
+	op := &fuseops.ReadDirOp{
+		Inode:  fuseops.InodeID(dummyInodeId),
+		Handle: fuseops.HandleID(dummyHandleId),
+		Offset: fuseops.DirOffset(0),
+		OpContext: fuseops.OpContext{
+			FuseID: dummyfuseid,
+			Pid:    dummypid,
+		},
+		Dst: make([]byte, 1024),
+	}
+
+	err = t.dh.ReadDir(t.ctx, op)
+
+	AssertEq(nil, err)
+	AssertEq(1024, len(op.Dst))
+	AssertEq(32, op.BytesRead)
+}
+
+// Directory Structure Used
+// foo       --Directory
+// foo/bar   --File
+// Offset for first read dir operation is non-zero.Hence, no entries are fetched.
+// Bytes read for this operation will be zero.
+func (t *DirHandleTest) Readdir_OffsetNonZero() {
+	contents := "read dir at non-zero dirOffset"
+	filePath := path.Join(dirInodeName, fileUnderDir)
+	_, err := t.bucket.CreateObject(
+		t.ctx,
+		&gcs.CreateObjectRequest{
+			Name:     filePath,
+			Contents: strings.NewReader(contents),
+		})
+	AssertEq(nil, err)
+	t.createDirHandle(false, false, dirInodeName)
+	op := &fuseops.ReadDirOp{
+		Inode:  fuseops.InodeID(dummyInodeId),
+		Handle: fuseops.HandleID(dummyHandleId),
+		Offset: fuseops.DirOffset(1),
+		OpContext: fuseops.OpContext{
+			FuseID: dummyfuseid,
+			Pid:    dummypid,
+		},
+		Dst: make([]byte, 1024),
+	}
+
+	err = t.dh.ReadDir(t.ctx, op)
+
+	AssertEq(nil, err)
+	AssertEq(1024, len(op.Dst))
+	AssertEq(0, op.BytesRead)
+}
+
+// Directory Structure Used
+// foo       --Directory
+// foo/bar   --File
+// Offset for first read dir operation is zero.However, the size of destination buffer
+// is less than the size of a single dirent here.Hence, even though the entry is fetched,
+// the entry cannot be copied into the buffer and bytes read is 0.
+func (t *DirHandleTest) Readdir_InsufficientBufferSize() {
+	contents := "read dir with insufficient buffer size"
+	filePath := path.Join(dirInodeName, fileUnderDir)
+	_, err := t.bucket.CreateObject(
+		t.ctx,
+		&gcs.CreateObjectRequest{
+			Name:     filePath,
+			Contents: strings.NewReader(contents),
+		})
+	AssertEq(nil, err)
+	t.createDirHandle(false, false, dirInodeName)
+	op := &fuseops.ReadDirOp{
+		Inode:  fuseops.InodeID(dummyInodeId),
+		Handle: fuseops.HandleID(dummyHandleId),
+		Offset: fuseops.DirOffset(0),
+		OpContext: fuseops.OpContext{
+			FuseID: dummyfuseid,
+			Pid:    dummypid,
+		},
+		Dst: make([]byte, 24),
+	}
+
+	err = t.dh.ReadDir(t.ctx, op)
+
+	AssertEq(nil, err)
+	AssertEq(24, len(op.Dst))
+	AssertEq(0, op.BytesRead)
 }
