@@ -127,6 +127,7 @@ if __name__ == '__main__':
       vm_metrics_data.append(row)
 
   # Only some extracted metrics will be uploaded to Google Spreadsheets and BigQuery
+  # Skipping first column as it's a duplicate of 2nd column. Appending 8 none values as those VM metrics are not being extracted currently.
   vm_metrics_data_upload = [row[1:] + [None]*8 for row in vm_metrics_data]
 
   if args.upload_gs:

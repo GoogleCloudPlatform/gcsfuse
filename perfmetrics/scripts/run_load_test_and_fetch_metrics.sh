@@ -22,8 +22,4 @@ pip install --require-hashes -r requirements.txt --user
 gsutil cp gs://periodic-perf-tests/creds.json gsheet
 
 echo Fetching results..
-if [ -z "$UPLOAD_FLAGS" ]; then
-  python3 fetch_metrics.py fio-output.json
-else
-  python3 fetch_metrics.py fio-output.json $UPLOAD_FLAGS
-fi
+python3 fetch_metrics.py fio-output.json $UPLOAD_FLAGS

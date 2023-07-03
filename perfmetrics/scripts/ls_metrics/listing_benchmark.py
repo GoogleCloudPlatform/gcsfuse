@@ -117,7 +117,9 @@ def _get_values_to_export(folders, metrics, command) -> list:
         metrics[testing_folder.name]['Quantiles']['99.9 %ile'],
         metrics[testing_folder.name]['Quantiles']['100 %ile']
     ]
-    list_metrics_data.append(row)
+    # Only some extracted metrics will be uploaded to Google Spreadsheets and BigQuery
+    row_data_to_upload = row[1:3] + [row[4]] + [row[8]] + [row[17]] + row[5:8] + row[9:13]
+    list_metrics_data.append(row_data_to_upload)
 
   return list_metrics_data
 
@@ -661,21 +663,16 @@ if __name__ == '__main__':
     gcs_results_vm[folder.name] = gcs_results[folder.name][2:]
     pd_results_vm[folder.name] = pd_results[folder.name][2:]
 
-  temp_results_gcs = _get_values_to_export(directory_structure.folders, gcs_parsed_metrics, args.command[0])
-  temp_results_pd = _get_values_to_export(directory_structure.folders, pd_parsed_metrics, args.command[0])
+  upload_values_gcs = _get_values_to_export(directory_structure.folders, gcs_parsed_metrics, args.command[0])
+  upload_values_pd = _get_values_to_export(directory_structure.folders, pd_parsed_metrics, args.command[0])
 
   results_gcs = []
   results_pd = []
 
-  for folder, values_gcs, values_pd in zip(directory_structure.folders, temp_results_gcs, temp_results_pd):
-    # Only some extracted metrics will be uploaded to Google Spreadsheets and BigQuery
-    upload_values_gcs = values_gcs[1:3] + [values_gcs[4]] + [values_gcs[8]] + [values_gcs[17]] + values_gcs[5:8] + values_gcs[9:13]
-    upload_values_pd = values_pd[1:3] + [values_pd[4]] + [values_pd[8]] + [values_pd[17]] + values_pd[5:8] + values_pd[9:13]
+  for folder, values_gcs, values_pd in zip(directory_structure.folders, upload_values_gcs, upload_values_pd):
     # Combining list metrics and VM metrics
-    temp_gcs = [gcs_bucket_time_intervals[folder.name][0][0], gcs_bucket_time_intervals[folder.name][-1][-1]] + upload_values_gcs + gcs_results_vm[folder.name]
-    temp_pd = [persistent_disk_time_intervals[folder.name][0][0], persistent_disk_time_intervals[folder.name][-1][-1]] + upload_values_pd + pd_results_vm[folder.name]
-    results_gcs.append(temp_gcs)
-    results_pd.append(temp_pd)
+    results_gcs.append([gcs_bucket_time_intervals[folder.name][0][0], gcs_bucket_time_intervals[folder.name][-1][-1]] + upload_values_gcs + gcs_results_vm[folder.name])
+    results_gcs.append([persistent_disk_time_intervals[folder.name][0][0], persistent_disk_time_intervals[folder.name][-1][-1]] + upload_values_pd + pd_results_vm[folder.name])
 
   if args.upload_gs:
     log.info('Uploading files to the Google Sheet.\n')

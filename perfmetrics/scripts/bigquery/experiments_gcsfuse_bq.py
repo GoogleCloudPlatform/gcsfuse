@@ -121,12 +121,12 @@ class ExperimentsGCSFuseBQ:
     result = self.client.insert_rows(table, rows_to_insert)
     if result:
       if config_id:
-        query_check_if_row_exists = """
+        query_delete_if_row_exists = """
           DELETE FROM `{}.{}.{}`
           WHERE configuration_id = '{}'
           AND start_time_build = '{}'
         """.format(self.project_id, self.dataset_id, table_id, config_id, start_time_build)
-        job = self._execute_query(query_check_if_row_exists)
+        job = self._execute_query(query_delete_if_row_exists)
       raise Exception(f'Error inserting data to BigQuery tables: {result}')
 
   def setup_dataset_and_tables(self):
