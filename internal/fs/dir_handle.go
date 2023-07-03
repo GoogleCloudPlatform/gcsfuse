@@ -205,7 +205,7 @@ func (dh *dirHandle) FetchEntriesAsync(
 		}
 		// Use the last entry from the last fetch for fixing naming conflicts.
 		dh.Mu.Lock()
-		if len(dh.entries) != 0 {
+		if entryForSorting != (fuseutil.Dirent{}) {
 			entries = append(entries, entryForSorting)
 		}
 		dh.Mu.Unlock()

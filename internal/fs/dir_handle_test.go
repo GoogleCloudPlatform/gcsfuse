@@ -46,6 +46,9 @@ const dummyInodeId = fuseops.InodeID(2)
 const dummyfuseid = uint64(4)
 const dummypid = uint32(6)
 const dummyHandleId = fuseops.HandleID(8)
+const singleDirentSize = 32
+const sufficientBufferSize = 1024
+const insufficientBufferSize = 24
 
 type DirHandleTest struct {
 	ctx    context.Context
@@ -63,7 +66,8 @@ func init() {
 
 func (t *DirHandleTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
-	t.clock.SetTime(time.Date(2023, 6, 26, 15, 55, 0, 0, time.Local))
+	now := time.Now()
+	t.clock.SetTime(time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), now.Nanosecond(), time.Local))
 	bucket := gcsfake.NewFakeBucket(&t.clock, fakeBucketName)
 	t.bucket = gcsx.NewSyncerBucket(
 		int64(appendThreshold), // Append threshold
@@ -101,30 +105,34 @@ func (t *DirHandleTest) resetDirHandle() {
 	t.dh = nil
 }
 
-func (t *DirHandleTest) createImplicitDirDefinedByFile() (err error) {
+func (t *DirHandleTest) createImplicitDirDefinedByFile() {
 	contents := "Implicit dir"
 	filePath := path.Join(dirInodeName, path.Join(implicitDirName, fileUnderDir))
-	_, err = t.bucket.CreateObject(
-		t.ctx,
-		&gcs.CreateObjectRequest{
-			Name:     filePath,
-			Contents: strings.NewReader(contents),
-		})
-	return err
-}
 
-// Directory Structure Created
-// foo       --Directory
-// foo/bar   --File
-func (t *DirHandleTest) createSimpleDirectory() {
-	contents := "Simple File contents"
-	filePath := path.Join(dirInodeName, fileUnderDir)
 	_, err := t.bucket.CreateObject(
 		t.ctx,
 		&gcs.CreateObjectRequest{
 			Name:     filePath,
 			Contents: strings.NewReader(contents),
 		})
+
+	AssertEq(nil, err)
+}
+
+// Directory Structure Created
+// foo       --Directory
+// foo/filename   --File
+func (t *DirHandleTest) createSimpleDirectory(fileName string) {
+	contents := "Simple File contents"
+	filePath := path.Join(dirInodeName, fileName)
+
+	_, err := t.bucket.CreateObject(
+		t.ctx,
+		&gcs.CreateObjectRequest{
+			Name:     filePath,
+			Contents: strings.NewReader(contents),
+		})
+
 	AssertEq(nil, err)
 }
 
@@ -133,10 +141,12 @@ func (t *DirHandleTest) createSimpleDirectory() {
 // fetchEntriesAsync will return 0 entries for empty directory.
 func (t *DirHandleTest) FetchAsyncEntries_EmptyDir() {
 	t.createDirHandle(false, false, dirInodeName)
+
 	t.dh.FetchEntriesAsync(fuseops.RootInodeID)
 
 	AssertEq(0, len(t.dh.entries))
 	AssertEq(true, t.dh.entriesValid)
+
 	t.resetDirHandle()
 }
 
@@ -145,14 +155,15 @@ func (t *DirHandleTest) FetchAsyncEntries_EmptyDir() {
 // foo/bar   --File
 // fetchEntriesAsync will return 1 entry for directory with 1 file.
 func (t *DirHandleTest) FetchAsyncEntries_NonEmptyDir() {
-	t.createSimpleDirectory()
+	t.createSimpleDirectory(fileUnderDir)
 	t.createDirHandle(false, false, dirInodeName)
-	t.dh.FetchEntriesAsync(fuseops.RootInodeID)
-	entries := t.dh.entries
 
-	AssertEq(1, len(entries))
-	AssertEq(fileUnderDir, entries[0].Name)
+	t.dh.FetchEntriesAsync(fuseops.RootInodeID)
+
+	AssertEq(1, len(t.dh.entries))
+	AssertEq(fileUnderDir, t.dh.entries[0].Name)
 	AssertEq(true, t.dh.entriesValid)
+
 	t.resetDirHandle()
 }
 
@@ -162,32 +173,31 @@ func (t *DirHandleTest) FetchAsyncEntries_NonEmptyDir() {
 // foo/baz/bar      --file
 // fetchEntriesAsync will return 1 entry for implicit directory if flag is set to true.
 func (t *DirHandleTest) FetchAsyncEntries_ImplicitDir_FlagTrue() {
-	err := t.createImplicitDirDefinedByFile()
-	AssertEq(nil, err)
-
+	t.createImplicitDirDefinedByFile()
 	//implicit-dirs flag set to true
 	t.createDirHandle(true, false, dirInodeName)
-	t.dh.FetchEntriesAsync(fuseops.RootInodeID)
-	entries := t.dh.entries
 
-	AssertEq(1, len(entries))
-	AssertEq(implicitDirName, entries[0].Name)
+	t.dh.FetchEntriesAsync(fuseops.RootInodeID)
+
+	AssertEq(1, len(t.dh.entries))
+	AssertEq(implicitDirName, t.dh.entries[0].Name)
 	AssertEq(true, t.dh.entriesValid)
+
 	t.resetDirHandle()
 }
 
 // Same directory structure as above.
 // fetchEntriesAsync will return 0 entry for implicit directory if flag is set to false.
 func (t *DirHandleTest) FetchAsyncEntries_ImplicitDir_FlagFalse() {
-	err := t.createImplicitDirDefinedByFile()
-	AssertEq(nil, err)
-
+	t.createImplicitDirDefinedByFile()
 	//implicit-dirs flag set to false
 	t.createDirHandle(false, false, dirInodeName)
+
 	t.dh.FetchEntriesAsync(fuseops.RootInodeID)
 
 	AssertEq(0, len(t.dh.entries))
 	AssertEq(true, t.dh.entriesValid)
+
 	t.resetDirHandle()
 }
 
@@ -198,7 +208,7 @@ func (t *DirHandleTest) FetchAsyncEntries_ImplicitDir_FlagFalse() {
 // be fetched. Bytes read for this operation will be 32(size of 1 dirent)
 // as according to the directory structure created.
 func (t *DirHandleTest) Readdir_OffsetZero() {
-	t.createSimpleDirectory()
+	t.createSimpleDirectory(fileUnderDir)
 	t.createDirHandle(false, false, dirInodeName)
 	op := &fuseops.ReadDirOp{
 		Inode:  fuseops.InodeID(dummyInodeId),
@@ -208,14 +218,16 @@ func (t *DirHandleTest) Readdir_OffsetZero() {
 			FuseID: dummyfuseid,
 			Pid:    dummypid,
 		},
-		Dst: make([]byte, 1024),
+		Dst: make([]byte, sufficientBufferSize),
 	}
 
 	err := t.dh.ReadDir(t.ctx, op)
 
 	AssertEq(nil, err)
-	AssertEq(1024, len(op.Dst))
-	AssertEq(32, op.BytesRead)
+	AssertEq(sufficientBufferSize, len(op.Dst))
+	AssertEq(singleDirentSize, op.BytesRead)
+
+	t.resetDirHandle()
 }
 
 // Directory Structure Used
@@ -224,7 +236,7 @@ func (t *DirHandleTest) Readdir_OffsetZero() {
 // Offset for first read dir operation is non-zero.Hence, no entries are fetched.
 // Bytes read for this operation will be zero.
 func (t *DirHandleTest) Readdir_OffsetNonZero() {
-	t.createSimpleDirectory()
+	t.createSimpleDirectory(fileUnderDir)
 	t.createDirHandle(false, false, dirInodeName)
 	op := &fuseops.ReadDirOp{
 		Inode:  fuseops.InodeID(dummyInodeId),
@@ -234,14 +246,16 @@ func (t *DirHandleTest) Readdir_OffsetNonZero() {
 			FuseID: dummyfuseid,
 			Pid:    dummypid,
 		},
-		Dst: make([]byte, 1024),
+		Dst: make([]byte, sufficientBufferSize),
 	}
 
 	err := t.dh.ReadDir(t.ctx, op)
 
 	AssertEq(nil, err)
-	AssertEq(1024, len(op.Dst))
+	AssertEq(sufficientBufferSize, len(op.Dst))
 	AssertEq(0, op.BytesRead)
+
+	t.resetDirHandle()
 }
 
 // Directory Structure Used
@@ -251,7 +265,7 @@ func (t *DirHandleTest) Readdir_OffsetNonZero() {
 // is less than the size of a single dirent here.Hence, even though the entry is fetched,
 // the entry cannot be copied into the buffer and bytes read is 0.
 func (t *DirHandleTest) Readdir_InsufficientBufferSize() {
-	t.createSimpleDirectory()
+	t.createSimpleDirectory(fileUnderDir)
 	t.createDirHandle(false, false, dirInodeName)
 	op := &fuseops.ReadDirOp{
 		Inode:  fuseops.InodeID(dummyInodeId),
@@ -261,12 +275,56 @@ func (t *DirHandleTest) Readdir_InsufficientBufferSize() {
 			FuseID: dummyfuseid,
 			Pid:    dummypid,
 		},
-		Dst: make([]byte, 24),
+		Dst: make([]byte, insufficientBufferSize),
 	}
 
 	err := t.dh.ReadDir(t.ctx, op)
 
 	AssertEq(nil, err)
-	AssertEq(24, len(op.Dst))
+	AssertEq(insufficientBufferSize, len(op.Dst))
 	AssertEq(0, op.BytesRead)
+
+	t.resetDirHandle()
+}
+
+// Test to check if the second readdir() call fetches the next entry.
+// Test SetUp: Creating 2 files under the same directory.
+// The size of buffer is kept to be the size of dirent , so that only
+// 1 entry can be read into the buffer after each readdir() call
+// when the first readdir is called at offset 0, 2 entries are fetched
+// into dh.entries .However, only the first entry is written into the
+// op.Dst buffer.After resetting the values of op.Bytesread to 0 (so
+// that the same buffer is reused which also is similar to how a fresh
+// buffer is made available with each readdir operation in real setting.
+// Another readdir call is made at offset 1 and the second entry from
+// dh.entries is buffered into op.Dst .
+func (t *DirHandleTest) Readdir_verifySecondCall() {
+	t.createSimpleDirectory(fileUnderDir)
+	t.createSimpleDirectory(fileUnderDir + "2")
+	t.createDirHandle(false, false, dirInodeName)
+	op := &fuseops.ReadDirOp{
+		Inode:  fuseops.InodeID(dummyInodeId),
+		Handle: fuseops.HandleID(dummyHandleId),
+		Offset: fuseops.DirOffset(0),
+		OpContext: fuseops.OpContext{
+			FuseID: dummyfuseid,
+			Pid:    dummypid,
+		},
+		Dst: make([]byte, singleDirentSize),
+	}
+
+	errFirstFetch := t.dh.ReadDir(t.ctx, op)
+	bytesReadFirstFetch := op.BytesRead
+	op.Offset += 1
+	op.BytesRead = 0
+	errSecondFetch := t.dh.ReadDir(t.ctx, op)
+	bytesReadSecFetch := op.BytesRead
+
+	AssertEq(nil, errFirstFetch)
+	AssertEq(nil, errSecondFetch)
+	AssertEq(2, len(t.dh.entries))
+	AssertEq(singleDirentSize, bytesReadFirstFetch)
+	AssertEq(singleDirentSize, bytesReadSecFetch)
+
+	t.resetDirHandle()
 }
