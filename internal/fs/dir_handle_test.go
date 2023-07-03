@@ -113,6 +113,21 @@ func (t *DirHandleTest) createImplicitDirDefinedByFile() (err error) {
 	return err
 }
 
+// Directory Structure Created
+// foo       --Directory
+// foo/bar   --File
+func (t *DirHandleTest) createSimpleDirectory() {
+	contents := "Simple File contents"
+	filePath := path.Join(dirInodeName, fileUnderDir)
+	_, err := t.bucket.CreateObject(
+		t.ctx,
+		&gcs.CreateObjectRequest{
+			Name:     filePath,
+			Contents: strings.NewReader(contents),
+		})
+	AssertEq(nil, err)
+}
+
 // Directory Structure Used
 // foo   --Directory
 // fetchEntriesAsync will return 0 entries for empty directory.
@@ -130,16 +145,7 @@ func (t *DirHandleTest) FetchAsyncEntries_EmptyDir() {
 // foo/bar   --File
 // fetchEntriesAsync will return 1 entry for directory with 1 file.
 func (t *DirHandleTest) FetchAsyncEntries_NonEmptyDir() {
-	contents := "Non-empty dir"
-	filePath := path.Join(dirInodeName, fileUnderDir)
-	_, err := t.bucket.CreateObject(
-		t.ctx,
-		&gcs.CreateObjectRequest{
-			Name:     filePath,
-			Contents: strings.NewReader(contents),
-		})
-	AssertEq(nil, err)
-
+	t.createSimpleDirectory()
 	t.createDirHandle(false, false, dirInodeName)
 	t.dh.FetchEntriesAsync(fuseops.RootInodeID)
 	entries := t.dh.entries
@@ -192,15 +198,7 @@ func (t *DirHandleTest) FetchAsyncEntries_ImplicitDir_FlagFalse() {
 // be fetched. Bytes read for this operation will be 32(size of 1 dirent)
 // as according to the directory structure created.
 func (t *DirHandleTest) Readdir_OffsetZero() {
-	contents := "read dir at zero dirOffset"
-	filePath := path.Join(dirInodeName, fileUnderDir)
-	_, err := t.bucket.CreateObject(
-		t.ctx,
-		&gcs.CreateObjectRequest{
-			Name:     filePath,
-			Contents: strings.NewReader(contents),
-		})
-	AssertEq(nil, err)
+	t.createSimpleDirectory()
 	t.createDirHandle(false, false, dirInodeName)
 	op := &fuseops.ReadDirOp{
 		Inode:  fuseops.InodeID(dummyInodeId),
@@ -213,7 +211,7 @@ func (t *DirHandleTest) Readdir_OffsetZero() {
 		Dst: make([]byte, 1024),
 	}
 
-	err = t.dh.ReadDir(t.ctx, op)
+	err := t.dh.ReadDir(t.ctx, op)
 
 	AssertEq(nil, err)
 	AssertEq(1024, len(op.Dst))
@@ -226,15 +224,7 @@ func (t *DirHandleTest) Readdir_OffsetZero() {
 // Offset for first read dir operation is non-zero.Hence, no entries are fetched.
 // Bytes read for this operation will be zero.
 func (t *DirHandleTest) Readdir_OffsetNonZero() {
-	contents := "read dir at non-zero dirOffset"
-	filePath := path.Join(dirInodeName, fileUnderDir)
-	_, err := t.bucket.CreateObject(
-		t.ctx,
-		&gcs.CreateObjectRequest{
-			Name:     filePath,
-			Contents: strings.NewReader(contents),
-		})
-	AssertEq(nil, err)
+	t.createSimpleDirectory()
 	t.createDirHandle(false, false, dirInodeName)
 	op := &fuseops.ReadDirOp{
 		Inode:  fuseops.InodeID(dummyInodeId),
@@ -247,7 +237,7 @@ func (t *DirHandleTest) Readdir_OffsetNonZero() {
 		Dst: make([]byte, 1024),
 	}
 
-	err = t.dh.ReadDir(t.ctx, op)
+	err := t.dh.ReadDir(t.ctx, op)
 
 	AssertEq(nil, err)
 	AssertEq(1024, len(op.Dst))
@@ -261,15 +251,7 @@ func (t *DirHandleTest) Readdir_OffsetNonZero() {
 // is less than the size of a single dirent here.Hence, even though the entry is fetched,
 // the entry cannot be copied into the buffer and bytes read is 0.
 func (t *DirHandleTest) Readdir_InsufficientBufferSize() {
-	contents := "read dir with insufficient buffer size"
-	filePath := path.Join(dirInodeName, fileUnderDir)
-	_, err := t.bucket.CreateObject(
-		t.ctx,
-		&gcs.CreateObjectRequest{
-			Name:     filePath,
-			Contents: strings.NewReader(contents),
-		})
-	AssertEq(nil, err)
+	t.createSimpleDirectory()
 	t.createDirHandle(false, false, dirInodeName)
 	op := &fuseops.ReadDirOp{
 		Inode:  fuseops.InodeID(dummyInodeId),
@@ -282,7 +264,7 @@ func (t *DirHandleTest) Readdir_InsufficientBufferSize() {
 		Dst: make([]byte, 24),
 	}
 
-	err = t.dh.ReadDir(t.ctx, op)
+	err := t.dh.ReadDir(t.ctx, op)
 
 	AssertEq(nil, err)
 	AssertEq(24, len(op.Dst))
