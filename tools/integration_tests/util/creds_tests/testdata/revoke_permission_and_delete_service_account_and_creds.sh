@@ -14,5 +14,7 @@
 
 # Delete bucket after testing
 SERVICE_ACCOUNT=$1
+CREDS=$2
 gcloud auth revoke $1
 gcloud iam service-accounts delete $SERVICE_ACCOUNT
+rm $CREDS

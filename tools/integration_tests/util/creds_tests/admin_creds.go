@@ -29,17 +29,22 @@ import (
 )
 
 func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]string, m *testing.M) (successCode int) {
+	// Create service account
 	setup.RunScriptForTestData("../util/creds_tests/testdata/create_service_account.sh", "creds-test-gcsfuse")
 
 	cred_file_path := path.Join(os.Getenv("HOME"), "creds.json")
 
+	// Create credentials
 	setup.RunScriptForTestData("../util/creds_tests/testdata/create_key_file.sh", cred_file_path, "creds-test-gcsfuse@gcs-fuse-test-ml.iam.gserviceaccount.com")
 
+	// Provide admin permission to the bucket.
 	setup.RunScriptForTestData("../util/creds_tests/testdata/provide_permission.sh", setup.TestBucket(), "creds-test-gcsfuse@gcs-fuse-test-ml.iam.gserviceaccount.com", "objectAdmin")
 
+	// Login with the created service account.
 	setup.RunScriptForTestData("../util/creds_tests/testdata/service_account_login.sh", cred_file_path)
 
-	defer setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_permission_and_delete_service_account.sh", "creds-test-gcsfuse")
+	// Revoke the permission and delete creds and service account after testing.
+	defer setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_permission_and_delete_service_account_and_creds.sh", "creds-test-gcsfuse", "creds.json")
 
 	// Testing without --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
 	for i := 0; i < len(testFlagSet); i++ {
