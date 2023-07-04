@@ -19,11 +19,12 @@ configurations and metrics data in BigQuery. It can also be used to upload data 
 Note:
   Make sure BigQuery API is enabled for the project
 """
-
 import uuid
 import time
 from google.cloud import bigquery
 from google.cloud.bigquery.job import QueryJob
+import sys
+sys.path.insert(0, '..')
 from bigquery import constants
 
 class ExperimentsGCSFuseBQ:
@@ -138,11 +139,10 @@ class ExperimentsGCSFuseBQ:
     try:
       result = self.client.insert_rows(table, rows_to_insert)
       if result:
-        self._delete_rows_incomplete_transaction(table_id, config_id, start_time_build)
-        raise Exception(f'Error inserting data to BigQuery tables: {result}')
+        raise Exception(f'{result}')
     except Exception as e:
       self._delete_rows_incomplete_transaction(table_id, config_id, start_time_build)
-      print(f'Error occurred during the BigQuery API call: {e}')
+      raise Exception(f'Error inserting data to BigQuery table: {e}')
 
   def setup_dataset_and_tables(self):
     f"""
