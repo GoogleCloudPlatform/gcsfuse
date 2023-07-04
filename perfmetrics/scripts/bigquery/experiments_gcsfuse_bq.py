@@ -23,7 +23,7 @@ import uuid
 import time
 from google.cloud import bigquery
 from google.cloud.bigquery.job import QueryJob
-import constants
+from bigquery import constants
 
 class ExperimentsGCSFuseBQ:
   """
