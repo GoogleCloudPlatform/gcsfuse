@@ -44,7 +44,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	setup.RunScriptForTestData("../util/creds_tests/testdata/service_account_login.sh", cred_file_path)
 
 	// Revoke the permission and delete creds and service account after testing.
-	defer setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_permission_and_delete_service_account_and_creds.sh", "creds-test-gcsfuse", "creds.json")
+	defer setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_permission_and_delete_service_account_and_creds.sh", "creds-test-gcsfuse@gcs-fuse-test-ml.iam.gserviceaccount.com", cred_file_path)
 
 	// Testing without --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
 	for i := 0; i < len(testFlagSet); i++ {
