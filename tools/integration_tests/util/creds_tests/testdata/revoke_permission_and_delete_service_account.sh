@@ -12,10 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# create bucket in gcs-fuse-test project and add permissions.
-TEST_BUCKET=$1
-SERVICE_ACCOUNT=$2
-PERMISSION=$3
-
-gcloud storage buckets create gs://$TEST_BUCKET --project "gcs-fuse-test" --location="us-west1"
-gsutil iam ch serviceAccount:$SERVICE_ACCOUNT:$PERMISSION gs://$TEST_BUCKET
+# Delete bucket after testing
+SERVICE_ACCOUNT=$1
+gcloud auth revoke $1
+gcloud iam service-accounts delete $SERVICE_ACCOUNT

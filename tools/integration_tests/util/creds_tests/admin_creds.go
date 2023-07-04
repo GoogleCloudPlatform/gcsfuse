@@ -29,22 +29,17 @@ import (
 )
 
 func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]string, m *testing.M) (successCode int) {
-	// Saving testBucket value for setting back after testing.
-	testBucket := setup.TestBucket()
+	setup.RunScriptForTestData("../util/creds_tests/testdata/create_service_account.sh", "creds-test-gcsfuse")
 
 	cred_file_path := path.Join(os.Getenv("HOME"), "creds.json")
-	setup.RunScriptForTestData("../util/creds_tests/testdata/create_key_file.sh", cred_file_path, "multi-project-service-account@gcs-fuse-test-ml.iam.gserviceaccount.com")
+
+	setup.RunScriptForTestData("../util/creds_tests/testdata/create_key_file.sh", cred_file_path, "creds-test-gcsfuse@gcs-fuse-test-ml.iam.gserviceaccount.com")
 
 	setup.RunScriptForTestData("../util/creds_tests/testdata/service_account_login.sh", cred_file_path)
 
-	// Create bucket in different project and add admin permissions.
-	setup.RunScriptForTestData("../util/creds_tests/testdata/create_bucket.sh", "creds-test-gcsfuse", "admin-perm-integration-test@gcs-fuse-test.iam.gserviceaccount.com", "objectAdmin")
+	setup.RunScriptForTestData("../util/creds_tests/testdata/provide_permission.sh", setup.TestBucket(), "creds-test-gcsfuse@gcs-fuse-test-ml.iam.gserviceaccount.com", "objectAdmin")
 
-	// Set testbucket value to created bucket.
-	setup.SetTestBucket("creds-test-gcsfuse")
-
-	// Set back the original testBucket, which we passed through --testBucket flag.
-	defer setup.SetTestBucket(testBucket)
+	defer setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_permission_and_delete_service_account.sh", "creds-test-gcsfuse")
 
 	// Testing without --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
 	for i := 0; i < len(testFlagSet); i++ {
@@ -57,16 +52,8 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 		}
 	}
 
-	admin_cred_file_path := path.Join(os.Getenv("HOME"), "admin_creds.json")
-
-	// Create admin credential key file.
-	setup.RunScriptForTestData("../util/creds_tests/testdata/create_key_file.sh", admin_cred_file_path, "admin-perm-integration-test@gcs-fuse-test.iam.gserviceaccount.com")
-
-	// Delete credentials after testing.
-	defer setup.RunScriptForTestData("../util/creds_tests/testdata/delete_bucket.sh", "creds-test-gcsfuse")
-
 	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
-	err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", admin_cred_file_path)
+	err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", cred_file_path)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error in setting environment variable: %v", err))
 	}
@@ -78,7 +65,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	}
 
 	// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
-	keyFileFlag := "--key-file=" + admin_cred_file_path
+	keyFileFlag := "--key-file=" + cred_file_path
 
 	for i := 0; i < len(testFlagSet); i++ {
 		testFlagSet[i] = append(testFlagSet[i], keyFileFlag)

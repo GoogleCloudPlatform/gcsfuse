@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Delete bucket after testing
+# create bucket in gcs-fuse-test project and add permissions.
 TEST_BUCKET=$1
-gcloud storage rm --recursive gs://$TEST_BUCKET
+SERVICE_ACCOUNT=$2
+PERMISSION=$3
+
+gsutil iam ch serviceAccount:$SERVICE_ACCOUNT:$PERMISSION gs://$TEST_BUCKET
