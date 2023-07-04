@@ -37,9 +37,6 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	// Create credentials
 	setup.RunScriptForTestData("../util/creds_tests/testdata/create_key_file.sh", cred_file_path, "creds-test-gcsfuse@gcs-fuse-test-ml.iam.gserviceaccount.com")
 
-	// Provide admin permission to the bucket.
-	setup.RunScriptForTestData("../util/creds_tests/testdata/provide_permission.sh", setup.TestBucket(), "creds-test-gcsfuse@gcs-fuse-test-ml.iam.gserviceaccount.com", "objectAdmin")
-
 	// Login with the created service account.
 	setup.RunScriptForTestData("../util/creds_tests/testdata/service_account_login.sh", cred_file_path)
 
@@ -56,6 +53,9 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 			log.Print("Error: Mounting successful without key file.")
 		}
 	}
+
+	// Provide admin permission to the bucket.
+	setup.RunScriptForTestData("../util/creds_tests/testdata/provide_permission.sh", setup.TestBucket(), "creds-test-gcsfuse@gcs-fuse-test-ml.iam.gserviceaccount.com", "objectAdmin")
 
 	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
 	err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", cred_file_path)
