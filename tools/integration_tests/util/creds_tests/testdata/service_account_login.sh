@@ -11,5 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 KEY_FILE_PATH=$1
 gcloud auth activate-service-account --key-file=$KEY_FILE_PATH
