@@ -3,8 +3,6 @@
 import socket
 import sys
 import os
-# Add the 'bigquery' directory to the Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'bigquery')))
 import time
 import argparse
 from fio import fio_metrics

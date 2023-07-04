@@ -24,7 +24,7 @@ import uuid
 import time
 from google.cloud import bigquery
 from google.cloud.bigquery.job import QueryJob
-import constants
+from bigquery import constants
 
 class ExperimentsGCSFuseBQ:
   """
@@ -104,6 +104,23 @@ class ExperimentsGCSFuseBQ:
       return True
     return False
 
+  def _delete_rows_incomplete_transaction(self, table_id = None, config_id = None, start_time_build = None):
+    """Helper function for _insert_row. If insertion of some nth row fails,
+    this method deletes (n-1) rows that were inserted before
+
+    Args:
+      table_id (str): ID of table to which results are being uploaded
+      config_id (str): config_id of the experiment for which results are being uploaded
+      start_time_build (timestamp): Start epoch time of the build
+    """
+    if config_id:
+      query_delete_if_row_exists = """
+        DELETE FROM `{}.{}.{}`
+        WHERE configuration_id = '{}'
+        AND start_time_build = '{}'
+      """.format(self.project_id, self.dataset_id, table_id, config_id, start_time_build)
+      job = self._execute_query(query_delete_if_row_exists)
+  
   def _insert_rows(self, table, rows_to_insert, table_id = None, config_id = None, start_time_build = None):
     """Insert rows in table. If insertion of some nth row fails, delete (n-1) rows
     that were inserted before and raise an exception
@@ -118,16 +135,14 @@ class ExperimentsGCSFuseBQ:
     Raises:
       Exception: If some row insertion failed.
     """
-    result = self.client.insert_rows(table, rows_to_insert)
-    if result:
-      if config_id:
-        query_delete_if_row_exists = """
-          DELETE FROM `{}.{}.{}`
-          WHERE configuration_id = '{}'
-          AND start_time_build = '{}'
-        """.format(self.project_id, self.dataset_id, table_id, config_id, start_time_build)
-        job = self._execute_query(query_delete_if_row_exists)
-      raise Exception(f'Error inserting data to BigQuery tables: {result}')
+    try:
+      result = self.client.insert_rows(table, rows_to_insert)
+      if result:
+        self._delete_rows_incomplete_transaction(table_id, config_id, start_time_build)
+        raise Exception(f'Error inserting data to BigQuery tables: {result}')
+    except Exception as e:
+      self._delete_rows_incomplete_transaction(table_id, config_id, start_time_build)
+      print(f'Error occurred during the BigQuery API call: {e}')
 
   def setup_dataset_and_tables(self):
     f"""
@@ -255,15 +270,13 @@ class ExperimentsGCSFuseBQ:
       str: Configuration ID of the experiment
     """
     # Check if the experiment configuration is already present in table
-    query_check_config_exists = """
+    query_check_config_name_exists = """
       SELECT configuration_id
       FROM `{}.{}.{}`
-      WHERE gcsfuse_flags = '{}'
-      AND branch = '{}'
-      AND configuration_name = '{}'
-    """.format(self.project_id, self.dataset_id, constants.CONFIGURATION_TABLE_ID, gcsfuse_flags, branch, config_name)
+      WHERE configuration_name = '{}'
+    """.format(self.project_id, self.dataset_id, constants.CONFIGURATION_TABLE_ID, config_name)
 
-    job = self._execute_query(query_check_config_exists)
+    job = self._execute_query(query_check_config_name_exists)
     result_count = job.result().total_rows
 
     # If more than 1 result -> duplicate experiment configuration present -> throw error
@@ -278,16 +291,31 @@ class ExperimentsGCSFuseBQ:
       self._insert_rows(table, rows_to_insert)
       return uuid_str
 
-    # If exactly one result -> update end date -> return configuration ID
+    # If exactly one result -> check if config valid -> If valid, update end date -> return configuration ID
     else:
-      config_id = list(job)[0].get('configuration_id')
-      query_update_end_date = """
-        UPDATE `{}.{}.{}`
-        SET end_date = '{}'
-        WHERE configuration_id = '{}'
-        """.format(self.project_id, self.dataset_id, constants.CONFIGURATION_TABLE_ID, end_date, config_id)
-      self._execute_query(query_update_end_date)
-      return config_id
+      query_check_if_config_valid = """
+        SELECT configuration_id
+        FROM `{}.{}.{}`
+        WHERE gcsfuse_flags = '{}'
+        AND branch = '{}'
+        AND configuration_name = '{}'
+      """.format(self.project_id, self.dataset_id, constants.CONFIGURATION_TABLE_ID, gcsfuse_flags, branch, config_name)
+
+      query_job = self._execute_query(query_check_if_config_valid)
+      config_count = query_job.result().total_rows
+      # If the configuration name exists, but GCSFuse flags and branch don't match then raise an exception
+      if not config_count:
+        raise Exception("Configuration name already exists. GCSFuse flags and branch don't match")
+      # If the configuration name exists and GCSFuse flags and branch match then update end date and return configuration ID
+      elif config_count == 1:
+        config_id = list(job)[0].get('configuration_id')
+        query_update_end_date = """
+          UPDATE `{}.{}.{}`
+          SET end_date = '{}'
+          WHERE configuration_id = '{}'
+          """.format(self.project_id, self.dataset_id, constants.CONFIGURATION_TABLE_ID, end_date, config_id)
+        self._execute_query(query_update_end_date)
+        return config_id
 
   def upload_metrics_to_table(self, table_id, config_id, start_time_build, metrics_data):
 
