@@ -120,7 +120,7 @@ class ExperimentsGCSFuseBQ:
         AND start_time_build = '{}'
       """.format(self.project_id, self.dataset_id, table_id, config_id, start_time_build)
       job = self._execute_query(query_delete_if_row_exists)
-  
+
   def _insert_rows(self, table, rows_to_insert, table_id = None, config_id = None, start_time_build = None):
     """Insert rows in table. If insertion of some nth row fails, delete (n-1) rows
     that were inserted before and raise an exception
