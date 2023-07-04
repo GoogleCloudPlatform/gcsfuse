@@ -1,3 +1,2 @@
-gcloud iam service-accounts create $1 \
-    --description="$1" \
-    --display-name="$1"
+SERVICE_ACCOUNT=$1
+gcloud iam service-accounts create $SERVICE_ACCOUNT --description="$SERVICE_ACCOUNT" --display-name="$SERVICE_ACCOUNT"
