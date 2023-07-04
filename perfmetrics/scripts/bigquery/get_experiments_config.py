@@ -16,8 +16,8 @@
 This python script calls the bigquery module with the experiment details and inserts configuration
 if it doesn't exist and only updates end_date in case of existing configuration and gets the configuration ID
 
-Typical usage example from bigquery folder:
-  $ python3 get_experiments_config.py [-h] [--gcsfuse_flags GCSFUSE_FLAGS] [--branch BRANCH] [--end_date END_DATE] [--config_name CONFIG_NAME]
+Typical usage example from perfmetrics/scripts folder:
+  $ python3 bigquery.get_experiments_config [-h] [--gcsfuse_flags GCSFUSE_FLAGS] [--branch BRANCH] [--end_date END_DATE] [--config_name CONFIG_NAME]
 
   Flag -h: Typical help interface of the script.
   Flag gcsfuse_flags (required: str): Set of gcsfuse flags used for experiment.
@@ -27,8 +27,8 @@ Typical usage example from bigquery folder:
 
 Note: BigQuery API should be enabled for the project
 """
-import experiments_gcsfuse_bq
-import constants
+from bigquery import experiments_gcsfuse_bq
+from bigquery import constants
 import argparse
 import sys
 

@@ -13,12 +13,15 @@
 # limitations under the License.
 """Python script for creating the dataset and tables using the BigQuery service in GCP project.
 
+Typical usage example from perfmetrics/scripts folder:
+  $ python3 -m bigquery.setup
+
 This python script calls the bigquery module to create the dataset that will store the tables,
 the table to store the experiment configurations and the tables to store the metrics data.
 Note: BigQuery API should be enabled for the project
 """
-import experiments_gcsfuse_bq
-import constants
+from bigquery import experiments_gcsfuse_bq
+from bigquery import constants
 
 if __name__ == '__main__':
   bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)

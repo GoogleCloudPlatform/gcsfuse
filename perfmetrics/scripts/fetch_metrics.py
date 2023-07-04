@@ -2,7 +2,6 @@
 """
 import socket
 import sys
-import os
 import time
 import argparse
 from fio import fio_metrics
