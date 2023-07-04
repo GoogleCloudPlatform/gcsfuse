@@ -35,9 +35,9 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 
 	setup.RunScriptForTestData("../util/creds_tests/testdata/create_key_file.sh", cred_file_path, "creds-test-gcsfuse@gcs-fuse-test-ml.iam.gserviceaccount.com")
 
-	setup.RunScriptForTestData("../util/creds_tests/testdata/service_account_login.sh", cred_file_path)
-
 	setup.RunScriptForTestData("../util/creds_tests/testdata/provide_permission.sh", setup.TestBucket(), "creds-test-gcsfuse@gcs-fuse-test-ml.iam.gserviceaccount.com", "objectAdmin")
+
+	setup.RunScriptForTestData("../util/creds_tests/testdata/service_account_login.sh", cred_file_path)
 
 	defer setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_permission_and_delete_service_account.sh", "creds-test-gcsfuse")
 
