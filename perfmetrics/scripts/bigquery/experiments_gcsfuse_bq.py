@@ -297,7 +297,7 @@ class ExperimentsGCSFuseBQ:
         raise Exception("Configuration name already exists. GCSFuse flags and branch don't match")
       config_id = row.get('configuration_id')
       # If the configuration name exists and GCSFuse flags and branch match, but end date does not match, then update end date
-      if row.get(end_date) is not end_date:
+      if row.get('end_date') is not end_date:
         query_update_end_date = """
           UPDATE `{}.{}.{}`
           SET end_date = '{}'
