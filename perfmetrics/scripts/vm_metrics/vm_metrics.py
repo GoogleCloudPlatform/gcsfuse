@@ -229,7 +229,7 @@ class VmMetrics:
     return metrics_response
 
   def _get_metrics(self, start_time_sec, end_time_sec, instance, period,
-      metric):
+                   metric):
     """Returns the MetricPoint list for requested metric type.
 
     Args:
@@ -305,7 +305,7 @@ class VmMetrics:
       OPS_MEAN_LATENCY]]
     """
     self._validate_start_end_times(start_time_sec, end_time_sec)
-
+    
     # Getting updated metrics list:
     updated_metrics_list = self._add_new_metric_using_test_type(test_type)
 
