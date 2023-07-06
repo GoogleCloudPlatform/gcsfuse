@@ -26,7 +26,7 @@ class JobParam:
 
   name: Can be any suitable value, it refers to the output dictionary key for
   the parameter. To be used when creating parameter dict for each job.
-  json_name: Must match the FIO job specification key. Key for parameter inside 
+  json_name: Must match the FIO job specification key. Key for parameter inside
   'global options'/'job options' dictionary
     Ex: For output json = {"global options": {"filesize":"50M"}, "jobs": [
     "job options": {"rw": "read"}]}
@@ -49,7 +49,7 @@ class JobParam:
 class JobMetric:
   """Dataclass for a FIO job metric.
 
-  name: Can be any suitable value, it is used as key for the metric 
+  name: Can be any suitable value, it is used as key for the metric
   when creating metric dict for each job
   levels: Keys for the metric inside 'read'/'write' dictionary in each job.
   Each value in the list must match the key in the FIO output JSON
@@ -246,7 +246,7 @@ class FioMetrics:
 
       # for multiple jobs, end time of one job = start time of next job
       end_time_ms = next_end_time_ms if next_end_time_ms > 0 else out_json[
-          consts.TIMESTAMP_MS]
+        consts.TIMESTAMP_MS]
       # job start time = job end time - job runtime - ramp time
       start_time_ms = end_time_ms - job_rw[consts.RUNTIME] - ramptime_ms
       next_end_time_ms = start_time_ms - startdelay_ms
