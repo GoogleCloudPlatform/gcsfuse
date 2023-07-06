@@ -478,13 +478,6 @@ def _parse_arguments(argv):
       nargs=1,
       required=True,
   )
-  parser.add_argument(
-      '--gcsfuse_flags',
-      help='Gcsfuse flags for mounting the list tests bucket. Example set of flags - "--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"',
-      action='store',
-      nargs=1,
-      required=True,
-  )
   # Ignoring the first parameter, as it is the path of this python
   # script itself.
   return parser.parse_args(argv[1:])
@@ -685,20 +678,6 @@ if __name__ == '__main__':
     log.info('Uploading results to the BigQuery.\n')
     _export_to_bigquery(MOUNT_TYPE_GCS, args.config_id[0], args.start_time_build[0], results_gcs)
     _export_to_bigquery(MOUNT_TYPE_PD, args.config_id[0], args.start_time_build[0], results_pd)
-
-  print('Waiting for 360 seconds for metrics to be updated on VM...')
-  # It takes up to 240 seconds for sampled data to be visible on the VM metrics graph
-  # So, waiting for 360 seconds to ensure the returned metrics are not empty.
-  # Intermittently custom metrics are not available after 240 seconds, hence
-  # waiting for 360 secs instead of 240 secs
-  time.sleep(360)
-
-  gcs_vm_results = _extract_vm_metrics(gcs_bucket_time_intervals, directory_structure.folders, 'gcs_bucket')
-  pd_vm_results = _extract_vm_metrics(persistent_disk_time_intervals, directory_structure.folders, 'persistent_disk')
-
-  for folder in directory_structure.folders:
-    print(f'VM metrics for listing tests (gcs bucket) for folder: {folder.name}...')
-    print(gcs_vm_results[folder.name])
 
   if not args.keep_files:
     log.info('Deleting files from persistent disk.\n')
