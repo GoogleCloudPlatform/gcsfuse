@@ -123,15 +123,11 @@ if __name__ == '__main__':
     for row in metrics_data:
       vm_metrics_data.append(row)
 
-  # Only some extracted metrics will be uploaded to Google Spreadsheets and BigQuery
-  # Skipping first column as it's a duplicate of 2nd column. Appending 8 none values as those VM metrics are not being extracted currently.
-  vm_metrics_data_upload = [row[1:] + [None]*8 for row in vm_metrics_data]
-
   if args.upload_gs:
-    gsheet.write_to_google_sheet(VM_WORKSHEET_NAME, vm_metrics_data_upload)
+    gsheet.write_to_google_sheet(VM_WORKSHEET_NAME, vm_metrics_data)
 
   if args.upload_bq:
     if not args.config_id or not args.start_time_build:
       raise Exception("Pass required arguments experiments configuration ID and start time of build for uploading to BigQuery")
     bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
-    bigquery_obj.upload_metrics_to_table(constants.VM_TABLE_ID, args.config_id[0], args.start_time_build[0], vm_metrics_data_upload)
+    bigquery_obj.upload_metrics_to_table(constants.VM_TABLE_ID, args.config_id[0], args.start_time_build[0], vm_metrics_data)

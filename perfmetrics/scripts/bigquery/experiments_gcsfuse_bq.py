@@ -269,7 +269,7 @@ class ExperimentsGCSFuseBQ:
     """
     # Check if the experiment configuration is already present in table
     query_check_config_name_exists = """
-      SELECT configuration_id
+      SELECT configuration_id, gcsfuse_flags, branch, end_date
       FROM `{}.{}.{}`
       WHERE configuration_name = '{}'
     """.format(self.project_id, self.dataset_id, constants.CONFIGURATION_TABLE_ID, config_name)
@@ -289,31 +289,22 @@ class ExperimentsGCSFuseBQ:
       self._insert_rows(table, rows_to_insert)
       return uuid_str
 
-    # If exactly one result -> check if config valid -> If valid, update end date -> return configuration ID
+    # If exactly one result -> check if config valid -> If valid and end date not same, update end date -> return configuration ID
     else:
-      query_check_if_config_valid = """
-        SELECT configuration_id
-        FROM `{}.{}.{}`
-        WHERE gcsfuse_flags = '{}'
-        AND branch = '{}'
-        AND configuration_name = '{}'
-      """.format(self.project_id, self.dataset_id, constants.CONFIGURATION_TABLE_ID, gcsfuse_flags, branch, config_name)
-
-      query_job = self._execute_query(query_check_if_config_valid)
-      config_count = query_job.result().total_rows
+      row = list(job)[0]
       # If the configuration name exists, but GCSFuse flags and branch don't match then raise an exception
-      if not config_count:
+      if row.get('gcsfuse_flags') is not gcsfuse_flags or row.get('branch') is not branch:
         raise Exception("Configuration name already exists. GCSFuse flags and branch don't match")
-      # If the configuration name exists and GCSFuse flags and branch match then update end date and return configuration ID
-      elif config_count == 1:
-        config_id = list(job)[0].get('configuration_id')
+      config_id = row.get('configuration_id')
+      # If the configuration name exists and GCSFuse flags and branch match, but end date does not match, then update end date
+      if row.get(end_date) is not end_date:
         query_update_end_date = """
           UPDATE `{}.{}.{}`
           SET end_date = '{}'
           WHERE configuration_id = '{}'
-          """.format(self.project_id, self.dataset_id, constants.CONFIGURATION_TABLE_ID, end_date, config_id)
+        """.format(self.project_id, self.dataset_id, constants.CONFIGURATION_TABLE_ID, end_date, config_id)
         self._execute_query(query_update_end_date)
-        return config_id
+      return config_id
 
   def upload_metrics_to_table(self, table_id, config_id, start_time_build, metrics_data):
 

@@ -320,7 +320,14 @@ class VmMetrics:
       row.append(end_time_sec)
       for metric in updated_metrics_list:
         row.append(metric.metric_point_list[i].value)
-      metrics_data.append(row)
+      # Only a subset of extracted metrics data and some additional metrics data will be uploaded
+      # to Google Spreadsheets and BigQuery. Skipping the first column as it duplicates the second column.
+      # Appending 8 None values for VM metrics that are currently not extracted.
+      # For detailed schema information of the data uploaded to BigQuery and Google Spreadsheets,
+      # please refer to 'setup_dataset_and_tables' method in the ExperimentsGCSFuseBQ class
+      # from bigquery/experiments_gcsfuse_bq.py.
+      row_to_upload = [values[1:] + [None]*8 for values in row]
+      metrics_data.append(row_to_upload)
 
     return metrics_data
 

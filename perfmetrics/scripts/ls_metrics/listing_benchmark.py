@@ -82,7 +82,9 @@ def _count_number_of_files_and_folders(directory, files, folders):
 
 
 def _get_values_to_export(folders, metrics, command) -> list:
-  """Returns values to export to Google Sheet and BigQuery.
+  """This function takes in extracted metrics data, filters it, rearranges it,
+  and returns the modified data to export to Google Sheet and BigQuery.
+
   Args:
     folders: List containing protobufs of testing folders.
     metrics: A dictionary containing all the result metrics for each
@@ -98,28 +100,20 @@ def _get_values_to_export(folders, metrics, command) -> list:
     num_files, num_folders = _count_number_of_files_and_folders(
         testing_folder, 0, 0)
     row = [
-        metrics[testing_folder.name]['Test Desc.'],
         command,
         num_files,
-        num_folders,
         metrics[testing_folder.name]['Number of samples'],
+        metrics[testing_folder.name]['Quantiles']['0 %ile'],
+        metrics[testing_folder.name]['Quantiles']['100 %ile'],
         metrics[testing_folder.name]['Mean'],
         metrics[testing_folder.name]['Median'],
         metrics[testing_folder.name]['Standard Dev'],
-        metrics[testing_folder.name]['Quantiles']['0 %ile'],
         metrics[testing_folder.name]['Quantiles']['20 %ile'],
         metrics[testing_folder.name]['Quantiles']['50 %ile'],
         metrics[testing_folder.name]['Quantiles']['90 %ile'],
-        metrics[testing_folder.name]['Quantiles']['95 %ile'],
-        metrics[testing_folder.name]['Quantiles']['98 %ile'],
-        metrics[testing_folder.name]['Quantiles']['99 %ile'],
-        metrics[testing_folder.name]['Quantiles']['99.5 %ile'],
-        metrics[testing_folder.name]['Quantiles']['99.9 %ile'],
-        metrics[testing_folder.name]['Quantiles']['100 %ile']
+        metrics[testing_folder.name]['Quantiles']['95 %ile']
     ]
-    # Only some extracted metrics will be uploaded to Google Spreadsheets and BigQuery
-    row_data_to_upload = row[1:3] + [row[4]] + [row[8]] + [row[17]] + row[5:8] + row[9:13]
-    list_metrics_data.append(row_data_to_upload)
+    list_metrics_data.append(row)
 
   return list_metrics_data
 
