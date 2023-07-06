@@ -28,7 +28,9 @@ from google.cloud import monitoring_v3
 from gsheet import gsheet
 from typing import List
 
-PROJECT_NAME = 'projects/gcs-fuse-test-ml'
+# TODO (ruchikasharmaa): Changed project name to gcs-fuse-test for running periodic experiments.
+#  Before merging to master, we need to resolve the conflicts.
+PROJECT_NAME = 'projects/gcs-fuse-test'
 CPU_UTI_METRIC_TYPE = 'compute.googleapis.com/instance/cpu/utilization'
 RECEIVED_BYTES_COUNT_METRIC_TYPE = 'compute.googleapis.com/instance/network/received_bytes_count'
 OPS_LATENCY_METRIC_TYPE = 'custom.googleapis.com/gcsfuse/fs/ops_latency'
@@ -124,12 +126,12 @@ def _get_metric_filter(type, metric_type, instance, extra_filter):
     metric_filter = (
         'metric.type = "{metric_type}" AND metric.label.instance_name '
         '={instance_name}').format(
-            metric_type=metric_type, instance_name=instance)
+        metric_type=metric_type, instance_name=instance)
   elif (type == 'custom'):
     metric_filter = (
         'metric.type = "{metric_type}" AND metric.labels.opencensus_task = '
         'ends_with("{instance_name}")').format(
-            metric_type=metric_type, instance_name=instance)
+        metric_type=metric_type, instance_name=instance)
 
   if (extra_filter == ''):
     return metric_filter
@@ -219,7 +221,7 @@ class VmMetrics:
           'view': monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
           'aggregation': aggregation,
       })
-      
+
     except:
       raise GoogleAPICallError(('The request for API response of {} failed.'
                                 ).format(metric.metric_type))
@@ -227,7 +229,7 @@ class VmMetrics:
     return metrics_response
 
   def _get_metrics(self, start_time_sec, end_time_sec, instance, period,
-                   metric):
+      metric):
     """Returns the MetricPoint list for requested metric type.
 
     Args:
@@ -254,10 +256,10 @@ class VmMetrics:
                           metric.metric_type)
 
     return metrics_data
-  
+
   def _add_new_metric_using_test_type(self, test_type):
-    """Creates a copy of METRICS_LIST and appends new Metric objects to it for
-    load tests or returns LISTING_TESTS_METRICS_LIST for list tests.
+    """Creates a copy of METRICS_LIST and appends new Metric objects to it for read
+      and write tests. Returns the LISTING_TESTS_METRICS_LIST for list type.
 
     Args:
       test_type(str): The type of test for which metrics are taken
@@ -269,9 +271,9 @@ class VmMetrics:
 
     # Getting the fs_op type from test_type:
     if test_type == 'read' or test_type == 'randread':
-        fs_op = 'ReadFile'
+      fs_op = 'ReadFile'
     elif test_type == 'write' or test_type == 'randwrite':
-        fs_op = 'WriteFile'
+      fs_op = 'WriteFile'
 
     updated_metrics_list = list(METRICS_LIST)
 
@@ -320,13 +322,20 @@ class VmMetrics:
       row.append(end_time_sec)
       for metric in updated_metrics_list:
         row.append(metric.metric_point_list[i].value)
-      metrics_data.append(row)
+      # Only a subset of extracted metrics data and some additional metrics data will be uploaded
+      # to Google Spreadsheets and BigQuery. Skipping the first column as it duplicates the second column.
+      # Appending 8 None values for VM metrics that are currently not extracted.
+      # For detailed schema information of the data uploaded to BigQuery and Google Spreadsheets,
+      # please refer to 'setup_dataset_and_tables' method in the ExperimentsGCSFuseBQ class
+      # from bigquery/experiments_gcsfuse_bq.py.
+      row_to_upload = [values[1:] + [None]*8 for values in row]
+      metrics_data.append(row_to_upload)
 
     return metrics_data
 
   def fetch_metrics_and_write_to_google_sheet(self, start_time_sec,
-                                              end_time_sec, instance, period,
-                                              test_type, worksheet_name):
+      end_time_sec, instance, period,
+      test_type, worksheet_name):
     """Fetches the metrics data for all types and writes to a google sheet.
 
     Args:
@@ -340,7 +349,7 @@ class VmMetrics:
       None
     """
     self._validate_start_end_times(start_time_sec, end_time_sec)
-    
+
     # Getting metrics data:
     metrics_data = self.fetch_metrics(start_time_sec, end_time_sec, instance,
                                       period, test_type)

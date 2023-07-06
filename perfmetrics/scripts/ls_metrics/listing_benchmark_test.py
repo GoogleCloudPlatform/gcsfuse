@@ -115,9 +115,9 @@ DIRECTORY_STRUCTURE3 = {
 }
 
 # List of latencies (msec) of list operation to test _parse_results method.
-METRICS1 = [1.234, 0.995, 0.121, 0.222, 0.01709]
-METRICS2 = [90.45, 1.95, 0.334, 7.090, 0.001]
-METRICS3 = [100, 7, 6, 51, 21]
+METRICS1 = [[0, 0.001234], [0, 0.000995], [0, 0.000121], [0, 0.000222], [0, 0.00001709]]
+METRICS2 = [[0, 0.09045], [0, 0.00195], [0, 0.000334], [0, 0.007090], [0, 0.000001]]
+METRICS3 = [[0, 0.100], [0, 0.007], [0, 0.006], [0, 0.051], [0, 0.021]]
 
 SAMPLE_METRIC_FOR_DIRECTORY_STRUCTURE_2 = {
     '2KB_3files_0subdir':
@@ -195,6 +195,14 @@ DIRECTORY_STRUCTURE3 = ParseDict(
 
 WORKSHEET_NAME = 'ls_metrics_gcsfuse'
 
+DIRECTORY_STRUCTURE_2_VALUES = [
+    ['fake_test', 'ls', 3, 0, 5, 0.518, 0.222, 0.556, 0.017,
+     0.1, 0.222, 1.138, 1.186, 1.215, 1.224, 1.229, 1.233, 1.234],
+    ['fake_test', 'ls', 2, 0, 5, 19.965, 1.95, 39.504, 0.001,
+     0.267, 1.95, 57.106, 73.778, 83.781, 87.116, 88.783, 90.117, 90.45],
+    ['fake_test', 'ls', 0, 0, 5, 37, 21, 39.63, 6.0, 6.8, 21.0,
+     80.4, 90.2, 96.08, 98.04, 99.02, 99.804, 100.0]
+]
 
 class ListingBenchmarkTest(unittest.TestCase):
 
@@ -221,21 +229,18 @@ class ListingBenchmarkTest(unittest.TestCase):
         DIRECTORY_STRUCTURE1.folders, {}, 'fake_test', 5)
     self.assertEqual(metrics, {})
 
+  def test_get_values_to_export(self):
+    values = listing_benchmark._get_values_to_export(
+        DIRECTORY_STRUCTURE2.folders, SAMPLE_METRIC_FOR_DIRECTORY_STRUCTURE_2,
+        'ls')
+    self.assertEqual(values, DIRECTORY_STRUCTURE_2_VALUES)
+
   @patch('listing_benchmark.gsheet.write_to_google_sheet')
   def test_export_to_google_sheet(self, mock_sheet):
     listing_benchmark._export_to_gsheet(
-        DIRECTORY_STRUCTURE2.folders, SAMPLE_METRIC_FOR_DIRECTORY_STRUCTURE_2,
-        'ls', WORKSHEET_NAME)
+        WORKSHEET_NAME, DIRECTORY_STRUCTURE_2_VALUES)
     self.assertEqual(mock_sheet.call_args_list, [
-        call('ls_metrics_gcsfuse',
-             [
-                 ['fake_test', 'ls', 3, 0, 5, 0.518, 0.222, 0.556, 0.017,
-                  0.1, 0.222, 1.138, 1.186, 1.215, 1.224, 1.229, 1.233, 1.234],
-                 ['fake_test', 'ls', 2, 0, 5, 19.965, 1.95, 39.504, 0.001,
-                  0.267, 1.95, 57.106, 73.778, 83.781, 87.116, 88.783, 90.117, 90.45],
-                 ['fake_test', 'ls', 0, 0, 5, 37, 21, 39.63, 6.0, 6.8, 21.0,
-                  80.4, 90.2, 96.08, 98.04, 99.02, 99.804, 100.0]
-             ])
+        call('ls_metrics_gcsfuse', DIRECTORY_STRUCTURE_2_VALUES)
     ])
 
   def test_parse_results_double_level_dir(self):
@@ -253,7 +258,7 @@ class ListingBenchmarkTest(unittest.TestCase):
     result_list = listing_benchmark._record_time_of_operation(
         'ls', 'fakepath/', 5)
     self.assertEqual(mock_subprocess_call.call_count, 5)
-    self.assertEqual(result_list, [0, 0, 0, 0, 0])
+    self.assertEqual(result_list, [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1]])
 
   @patch('listing_benchmark.subprocess.call', return_value=1)
   @patch('listing_benchmark.time.time')
@@ -263,12 +268,12 @@ class ListingBenchmarkTest(unittest.TestCase):
     result_list = listing_benchmark._record_time_of_operation(
         'ls', 'fakepath/', 2)
     self.assertEqual(mock_subprocess_call.call_count, 2)
-    self.assertEqual(result_list, [1000, 2000])
+    self.assertEqual(result_list, [[1, 2], [3, 5]])
 
   @patch('listing_benchmark._record_time_of_operation')
   def test_perform_testing_single_level_dir(
       self, mock_record_time_of_operation):
-    mock_record_time_of_operation.return_value = [1, 1, 1]
+    mock_record_time_of_operation.return_value = [[1, 1], [1, 1], [1, 1]]
     gcs_bucket_results, persistent_disk_results = listing_benchmark._perform_testing(
         DIRECTORY_STRUCTURE1.folders, 'fake_bucket', 'fake_disk', 3, 'ls -R')
     self.assertEqual(gcs_bucket_results, persistent_disk_results)
@@ -278,28 +283,28 @@ class ListingBenchmarkTest(unittest.TestCase):
   @patch('listing_benchmark._record_time_of_operation')
   def test_perform_testing_double_level_dir(
       self, mock_record_time_of_operation):
-    mock_record_time_of_operation.return_value = [1, 1, 1]
+    mock_record_time_of_operation.return_value = [[1, 1], [1, 1], [1, 1]]
     gcs_bucket_results, persistent_disk_results = listing_benchmark._perform_testing(
         DIRECTORY_STRUCTURE2.folders, 'fake_bucket', 'fake_disk', 3, 'ls -R')
     self.assertEqual(gcs_bucket_results, persistent_disk_results)
     self.assertTrue(mock_record_time_of_operation.called)
     self.assertEqual(gcs_bucket_results, {
-        '2KB_3files_0subdir': [1, 1, 1],
-        '1KB_2files_0subdir': [1, 1, 1],
-        '1KB_0files_0subdir': [1, 1, 1]
+        '2KB_3files_0subdir': [[1, 1], [1, 1], [1, 1]],
+        '1KB_2files_0subdir': [[1, 1], [1, 1], [1, 1]],
+        '1KB_0files_0subdir': [[1, 1], [1, 1], [1, 1]]
     })
 
   @patch('listing_benchmark._record_time_of_operation', return_value=[1])
   def test_perform_testing_multi_level_dir(self, mock_record_time_of_operation):
-    mock_record_time_of_operation.return_value = [1, 1]
+    mock_record_time_of_operation.return_value = [[1, 1], [1, 1]]
     gcs_bucket_results, persistent_disk_results = listing_benchmark._perform_testing(
         DIRECTORY_STRUCTURE3.folders, 'fake_bucket', 'fake_disk', 2, 'ls -R')
     self.assertEqual(gcs_bucket_results, persistent_disk_results)
     self.assertTrue(mock_record_time_of_operation.called)
     self.assertEqual(gcs_bucket_results, {
-        '1KB_4files_3subdir': [1, 1],
-        '2KB_3files_1subdir': [1, 1],
-        '1KB_1files_0subdir': [1, 1]
+        '1KB_4files_3subdir': [[1, 1], [1, 1]],
+        '2KB_3files_1subdir': [[1, 1], [1, 1]],
+        '1KB_1files_0subdir': [[1, 1], [1, 1]]
     })
 
   @patch('listing_benchmark.subprocess.call', return_value=0)
