@@ -349,7 +349,7 @@ class VmMetrics:
       None
     """
     self._validate_start_end_times(start_time_sec, end_time_sec)
-    
+
     # Getting metrics data:
     metrics_data = self.fetch_metrics(start_time_sec, end_time_sec, instance,
                                       period, test_type)

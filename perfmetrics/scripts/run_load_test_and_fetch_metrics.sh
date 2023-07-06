@@ -26,4 +26,4 @@ else
 fi
 
 echo Fetching results..
-python3 fetch_metrics.py fio-output.json $UPLOAD_FLAGS
+python3 fetch_metrics.py "fio-output${EXPERIMENT_NUMBER}.json" $UPLOAD_FLAGS
