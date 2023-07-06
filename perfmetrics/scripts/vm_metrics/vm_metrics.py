@@ -328,14 +328,14 @@ class VmMetrics:
       # For detailed schema information of the data uploaded to BigQuery and Google Spreadsheets,
       # please refer to 'setup_dataset_and_tables' method in the ExperimentsGCSFuseBQ class
       # from bigquery/experiments_gcsfuse_bq.py.
-      row_to_upload = [values[1:] + [None]*8 for values in row]
+      row_to_upload = row[1:] + [None]*8
       metrics_data.append(row_to_upload)
 
     return metrics_data
 
   def fetch_metrics_and_write_to_google_sheet(self, start_time_sec,
-      end_time_sec, instance, period,
-      test_type, worksheet_name):
+                                              end_time_sec, instance, period,
+                                              test_type, worksheet_name):
     """Fetches the metrics data for all types and writes to a google sheet.
 
     Args:
@@ -349,7 +349,7 @@ class VmMetrics:
       None
     """
     self._validate_start_end_times(start_time_sec, end_time_sec)
-
+    
     # Getting metrics data:
     metrics_data = self.fetch_metrics(start_time_sec, end_time_sec, instance,
                                       period, test_type)
