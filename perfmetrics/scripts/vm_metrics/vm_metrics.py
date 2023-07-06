@@ -126,12 +126,12 @@ def _get_metric_filter(type, metric_type, instance, extra_filter):
     metric_filter = (
         'metric.type = "{metric_type}" AND metric.label.instance_name '
         '={instance_name}').format(
-        metric_type=metric_type, instance_name=instance)
+            metric_type=metric_type, instance_name=instance)
   elif (type == 'custom'):
     metric_filter = (
         'metric.type = "{metric_type}" AND metric.labels.opencensus_task = '
         'ends_with("{instance_name}")').format(
-        metric_type=metric_type, instance_name=instance)
+            metric_type=metric_type, instance_name=instance)
 
   if (extra_filter == ''):
     return metric_filter
@@ -221,7 +221,7 @@ class VmMetrics:
           'view': monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
           'aggregation': aggregation,
       })
-
+      
     except:
       raise GoogleAPICallError(('The request for API response of {} failed.'
                                 ).format(metric.metric_type))
@@ -349,7 +349,7 @@ class VmMetrics:
       None
     """
     self._validate_start_end_times(start_time_sec, end_time_sec)
-    
+
     # Getting metrics data:
     metrics_data = self.fetch_metrics(start_time_sec, end_time_sec, instance,
                                       period, test_type)
