@@ -221,7 +221,7 @@ class VmMetrics:
           'view': monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
           'aggregation': aggregation,
       })
-
+      
     except:
       raise GoogleAPICallError(('The request for API response of {} failed.'
                                 ).format(metric.metric_type))
