@@ -19,6 +19,8 @@ sudo umount $MOUNT_POINT
 
 echo Installing requirements..
 pip install --require-hashes -r requirements.txt --user
+# TODO (ruchikasharmaa): The creds.json in periodic-perf-tests1 bucket is being used here for running periodic experiments.
+#  The bucket is in gcs-fuse-test project. Before merging to master, we need to change it such that same json file can be used in both cases.
 if [ -z "$EXPERIMENT_NUMBER" ]; then
   gsutil cp gs://periodic-perf-tests/creds.json gsheet
 else
