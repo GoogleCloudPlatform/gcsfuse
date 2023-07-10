@@ -38,7 +38,7 @@ func mountGcsfuseWithStaticMounting(flags []string) (err error) {
 	defaultArg := []string{setup.TestBucket(),
 		setup.MntDir(),
 		"-o",
-		"debug_gcs,",
+		"debug_gcs",
 		"-o",
 		"debug_fs",
 		"-o",
