@@ -2,7 +2,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
-# TODO (ruchiksharmaa): This code uses a test gsheet, with modified fields.
+# TODO (ruchikasharmaa): This code uses a test gsheet, with modified fields.
 #  Before merging to master, we need to change the columns of original sheet.
 SPREADSHEET_ID = '1T5ZSUAAYqANS_MUjS2KR2XGN4DhgMFS8zF2I4E8WN4o'
 

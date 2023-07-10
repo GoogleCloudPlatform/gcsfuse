@@ -28,7 +28,9 @@ from google.cloud import monitoring_v3
 from gsheet import gsheet
 from typing import List
 
-PROJECT_NAME = 'projects/gcs-fuse-test-ml'
+# TODO (ruchikasharmaa): Changed project name to gcs-fuse-test for running periodic experiments.
+#  Before merging to master, we need to resolve the conflicts.
+PROJECT_NAME = 'projects/gcs-fuse-test'
 CPU_UTI_METRIC_TYPE = 'compute.googleapis.com/instance/cpu/utilization'
 RECEIVED_BYTES_COUNT_METRIC_TYPE = 'compute.googleapis.com/instance/network/received_bytes_count'
 OPS_LATENCY_METRIC_TYPE = 'custom.googleapis.com/gcsfuse/fs/ops_latency'
@@ -254,7 +256,7 @@ class VmMetrics:
                           metric.metric_type)
 
     return metrics_data
-  
+
   def _add_new_metric_using_test_type(self, test_type):
     """Creates a copy of METRICS_LIST and appends new Metric objects to it for read
       and write tests. Returns the LISTING_TESTS_METRICS_LIST for list type.
@@ -269,9 +271,9 @@ class VmMetrics:
 
     # Getting the fs_op type from test_type:
     if test_type == 'read' or test_type == 'randread':
-        fs_op = 'ReadFile'
+      fs_op = 'ReadFile'
     elif test_type == 'write' or test_type == 'randwrite':
-        fs_op = 'WriteFile'
+      fs_op = 'WriteFile'
 
     updated_metrics_list = list(METRICS_LIST)
 
@@ -320,14 +322,15 @@ class VmMetrics:
       row.append(end_time_sec)
       for metric in updated_metrics_list:
         row.append(metric.metric_point_list[i].value)
-      # Only a subset of extracted metrics data and some additional metrics data will be uploaded
+      # Only a subset of extracted metrics data and some additional metrics data will be uploaded in case of load tests
       # to Google Spreadsheets and BigQuery. Skipping the first column as it duplicates the second column.
       # Appending 8 None values for VM metrics that are currently not extracted.
       # For detailed schema information of the data uploaded to BigQuery and Google Spreadsheets,
       # please refer to 'setup_dataset_and_tables' method in the ExperimentsGCSFuseBQ class
       # from bigquery/experiments_gcsfuse_bq.py.
-      row_to_upload = [values[1:] + [None]*8 for values in row]
-      metrics_data.append(row_to_upload)
+      if test_type != 'list':
+        row = row[1:] + [None]*2
+      metrics_data.append(row)
 
     return metrics_data
 
@@ -347,7 +350,7 @@ class VmMetrics:
       None
     """
     self._validate_start_end_times(start_time_sec, end_time_sec)
-    
+
     # Getting metrics data:
     metrics_data = self.fetch_metrics(start_time_sec, end_time_sec, instance,
                                       period, test_type)

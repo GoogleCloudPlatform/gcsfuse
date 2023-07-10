@@ -4,7 +4,7 @@ echo "Mounting gcs bucket"
 mkdir -p gcs
 GCSFUSE_FLAGS=$1
 UPLOAD_FLAGS=$2
-BUCKET_NAME=periodic-perf-tests
+BUCKET_NAME="periodic-perf-tests${EXPERIMENT_NUMBER}"
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
 gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
@@ -19,7 +19,13 @@ sudo umount $MOUNT_POINT
 
 echo Installing requirements..
 pip install --require-hashes -r requirements.txt --user
-gsutil cp gs://periodic-perf-tests/creds.json gsheet
+# TODO (ruchikasharmaa): The creds.json in periodic-perf-tests1 bucket is being used here for running periodic experiments.
+#  The bucket is in gcs-fuse-test project. Before merging to master, we need to change it such that same json file can be used in both cases.
+if [ -z "$EXPERIMENT_NUMBER" ]; then
+  gsutil cp gs://periodic-perf-tests/creds.json gsheet
+else
+  gsutil cp gs://periodic-perf-tests1/creds.json gsheet
+fi
 
 echo Fetching results..
-python3 fetch_metrics.py fio-output.json $UPLOAD_FLAGS
+python3 fetch_metrics.py "fio-output${EXPERIMENT_NUMBER}.json" $UPLOAD_FLAGS

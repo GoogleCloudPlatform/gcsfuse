@@ -528,7 +528,6 @@ def _extract_vm_metrics(time_intervals_list, folders, mount_type) -> list:
     if testing_folder.name in VM_METRICS_EXTRACTION_DIRS and mount_type == 'gcs_bucket':
       metrics_data = vm_metrics_obj.fetch_metrics(start_time_first_sample, end_time_last_sample,
                                                   fetch_metrics.INSTANCE, fetch_metrics.PERIOD_SEC, 'list')
-
     else:
       metrics_data = [[start_time_first_sample, end_time_last_sample, None, None, None, None]]
     vm_metrics_data[testing_folder.name] = metrics_data[0]
@@ -665,8 +664,8 @@ if __name__ == '__main__':
 
   for folder, values_gcs, values_pd in zip(directory_structure.folders, upload_values_gcs, upload_values_pd):
     # Combining list metrics and VM metrics
-    results_gcs.append([gcs_bucket_time_intervals[folder.name][0][0], gcs_bucket_time_intervals[folder.name][-1][-1]] + upload_values_gcs + gcs_results_vm[folder.name])
-    results_gcs.append([persistent_disk_time_intervals[folder.name][0][0], persistent_disk_time_intervals[folder.name][-1][-1]] + upload_values_pd + pd_results_vm[folder.name])
+    results_gcs.append([gcs_bucket_time_intervals[folder.name][0][0], gcs_bucket_time_intervals[folder.name][-1][-1]] + values_gcs + gcs_results_vm[folder.name])
+    results_pd.append([persistent_disk_time_intervals[folder.name][0][0], persistent_disk_time_intervals[folder.name][-1][-1]] + values_pd + pd_results_vm[folder.name])
 
   if args.upload_gs:
     log.info('Uploading files to the Google Sheet.\n')

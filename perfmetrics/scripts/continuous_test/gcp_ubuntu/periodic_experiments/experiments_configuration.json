@@ -1,0 +1,28 @@
+{
+  "experiment_configuration": [
+    {
+      "config_name": "EnabledStorageClientLibrary",
+      "gcsfuse_flags": "--implicit-dirs --enable-storage-client-library --debug_fuse --debug_gcs",
+      "branch": "master",
+      "end_date": "2023-12-30 05:30:00+00:00"
+    },
+    {
+      "config_name": "DisabledStorageClientLibrary",
+      "gcsfuse_flags": "--implicit-dirs --enable-storage-client-library=false --debug_fuse --debug_gcs",
+      "branch": "master",
+      "end_date": "2023-12-30 05:30:00+00:00"
+    },
+    {
+      "config_name": "EnabledStorageClientLibraryProtocolHTTP2",
+      "gcsfuse_flags": "--implicit-dirs --enable-storage-client-library --client-protocol http2 --debug_fuse --debug_gcs",
+      "branch": "experiments_dashboard",
+      "end_date": "2023-12-30 05:30:00+00:00"
+    },
+    {
+      "config_name": "MaxConnsPerHost40",
+      "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 40 --debug_fuse --debug_gcs",
+      "branch": "experiments_dashboard",
+      "end_date": "2023-12-30 05:30:00+00:00"
+    }
+  ]
+}

@@ -205,13 +205,7 @@ class ExperimentsGCSFuseBQ:
         ops_error_count INT64, 
         ops_mean_latency_sec FLOAT64, 
         sent_bytes_peak_per_sec FLOAT64, 
-        sent_bytes_mean_per_sec FLOAT64, 
-        sent_bytes_count INT64,
-        iops FLOAT64, 
-        ops_count_list_object INT64, 
-        ops_count_create_object INT64, 
-        ops_count_stat_object INT64, 
-        ops_count_new_reader INT64, 
+        sent_bytes_mean_per_sec FLOAT64,
         FOREIGN KEY(configuration_id) REFERENCES {}.{} (configuration_id) NOT ENFORCED
       ) OPTIONS (description = 'Table for storing VM metrics extracted from experiments.');
     """.format(self.project_id, self.dataset_id, constants.VM_TABLE_ID, self.dataset_id, constants.CONFIGURATION_TABLE_ID)
@@ -293,7 +287,7 @@ class ExperimentsGCSFuseBQ:
     else:
       row = list(job)[0]
       # If the configuration name exists, but GCSFuse flags and branch don't match then raise an exception
-      if row.get('gcsfuse_flags') is not gcsfuse_flags or row.get('branch') is not branch:
+      if (row.get('gcsfuse_flags') != gcsfuse_flags) or (row.get('branch') != branch):
         raise Exception("Configuration name already exists. GCSFuse flags and branch don't match")
       config_id = row.get('configuration_id')
       # If the configuration name exists and GCSFuse flags and branch match, but end date does not match, then update end date
