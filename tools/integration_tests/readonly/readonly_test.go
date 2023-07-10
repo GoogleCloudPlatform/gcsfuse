@@ -79,8 +79,9 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 	successCode := static_mounting.RunTests(flags, m)
 
-	if successCode != 0 {
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, m)
+	if successCode == 0 {
+		// Test for admin permission on service account.
+		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectAdmin", m)
 	}
 
 	// Delete objects from bucket after testing.

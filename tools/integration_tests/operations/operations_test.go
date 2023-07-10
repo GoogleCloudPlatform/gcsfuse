@@ -109,7 +109,8 @@ func TestMain(m *testing.M) {
 	}
 
 	if successCode == 0 {
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, m)
+		// Test for admin permission on service account.
+		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectAdmin", m)
 	}
 
 	os.Exit(successCode)
