@@ -39,13 +39,13 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	// Create service account
 	setup.RunScriptForTestData("../util/creds_tests/testdata/create_service_account.sh", NameOfServiceAccount)
 
-	// Fetching project-id to get service account name.
+	// Fetching project-id to get service account id.
 	id, err := metadata.ProjectID()
 	if err != nil {
 		log.Printf("Error in fetching project id: %v", err)
 	}
 
-	// Service account name format is name@project-id.iam.gserviceaccount.com
+	// Service account id format is name@project-id.iam.gserviceaccount.com
 	serviceAccount := NameOfServiceAccount + "@" + id + ".iam.gserviceaccount.com"
 
 	cred_file_path := path.Join(os.Getenv("HOME"), "creds.json")
