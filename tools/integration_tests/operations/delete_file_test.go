@@ -20,6 +20,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -41,14 +42,20 @@ func checkIfFileDeletionSucceeded(filePath string, t *testing.T) {
 }
 
 func createFile(filePath string, t *testing.T) {
-	_, err := os.Create(filePath)
+	file, err := os.Create(filePath)
 	if err != nil {
 		t.Errorf("Error in creating file: %v", err)
 	}
+
+	// Closing file at the end
+	operations.CloseFile(file)
 }
 
 // Remove testBucket/A.txt
 func TestDeleteFileFromBucket(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
 
 	createFile(filePath, t)
@@ -58,6 +65,9 @@ func TestDeleteFileFromBucket(t *testing.T) {
 
 // Remove testBucket/A/a.txt
 func TestDeleteFileFromBucketDirectory(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	dirPath := path.Join(setup.MntDir(), DirNameInTestBucket)
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
 	if err != nil {
