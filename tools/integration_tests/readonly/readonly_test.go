@@ -80,7 +80,7 @@ func TestMain(m *testing.M) {
 	successCode := static_mounting.RunTests(flags, m)
 
 	if successCode == 0 {
-		// Test for admin permission on service account.
+		// Test for admin permission on test bucket.
 		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectAdmin", m)
 	}
 
