@@ -30,9 +30,9 @@ import (
 
 const NameOfServiceAccount = "creds-test-gcsfuse"
 
-func setPermission(permission string) {
+func setPermission(permission string, serviceAccount string) {
 	// Provide admin permission to the bucket.
-	setup.RunScriptForTestData("../util/creds_tests/testdata/provide_permission.sh", setup.TestBucket(), ServiceAccount, permission)
+	setup.RunScriptForTestData("../util/creds_tests/testdata/provide_permission.sh", setup.TestBucket(), serviceAccount, permission)
 }
 
 func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
@@ -53,7 +53,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	setup.RunScriptForTestData("../util/creds_tests/testdata/create_key_file.sh", cred_file_path, serviceAccount)
 
 	// Provide permission to service account for testing.
-	setPermission(permission)
+	setPermission(permission, serviceAccount)
 
 	// Revoke the permission and delete creds and service account after testing.
 	defer setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_permission_and_delete_service_account_and_creds.sh", serviceAccount, cred_file_path)
