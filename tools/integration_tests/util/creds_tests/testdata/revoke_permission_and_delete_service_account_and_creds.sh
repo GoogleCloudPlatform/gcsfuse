@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Delete bucket after testing
+# Delete service account after testing
 SERVICE_ACCOUNT=$1
 CREDS=$2
-gcloud auth revoke $1
+gcloud auth revoke $SERVICE_ACCOUNT
 gcloud iam service-accounts delete $SERVICE_ACCOUNT
 rm $CREDS
