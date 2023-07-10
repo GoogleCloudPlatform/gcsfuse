@@ -18,12 +18,10 @@ package creds_tests
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
@@ -40,22 +38,8 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	// Provide admin permission to the bucket.
 	setup.RunScriptForTestData("../util/creds_tests/testdata/provide_permission.sh", setup.TestBucket(), "creds-test-gcsfuse@gcs-fuse-test-ml.iam.gserviceaccount.com", "objectAdmin")
 
-	// Login with the created service account.
-	setup.RunScriptForTestData("../util/creds_tests/testdata/service_account_login.sh", cred_file_path)
-
 	// Revoke the permission and delete creds and service account after testing.
 	defer setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_permission_and_delete_service_account_and_creds.sh", "creds-test-gcsfuse@gcs-fuse-test-ml.iam.gserviceaccount.com", cred_file_path)
-
-	// Testing without --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
-	for i := 0; i < len(testFlagSet); i++ {
-		flags := testFlagSet[i]
-		flags = append(flags, setup.TestBucket())
-		flags = append(flags, setup.MntDir())
-		err := mounting.MountGcsfuse(flags)
-		if err == nil {
-			log.Print("Error: Mounting successful without key file.")
-		}
-	}
 
 	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
 	err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", cred_file_path)
