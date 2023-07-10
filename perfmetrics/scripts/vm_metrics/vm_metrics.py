@@ -329,7 +329,7 @@ class VmMetrics:
       # please refer to 'setup_dataset_and_tables' method in the ExperimentsGCSFuseBQ class
       # from bigquery/experiments_gcsfuse_bq.py.
       if test_type != 'list':
-        row = row[1:] + [None]*8
+        row = row[1:] + [None]*2
       metrics_data.append(row)
 
     return metrics_data
