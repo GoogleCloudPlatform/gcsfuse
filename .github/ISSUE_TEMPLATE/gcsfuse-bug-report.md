@@ -26,3 +26,6 @@ Steps to reproduce the behavior:
 
 **Additional context**
 Add any other context about the problem here.
+
+**SLO:**
+24 hrs to respond and 7 days to close the issue.
