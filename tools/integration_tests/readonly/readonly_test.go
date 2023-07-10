@@ -21,6 +21,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
@@ -77,6 +78,10 @@ func TestMain(m *testing.M) {
 	// Run tests for testBucket
 	setup.SetUpTestDirForTestBucketFlag()
 	successCode := static_mounting.RunTests(flags, m)
+
+	if successCode == 0 {
+		successCode = persistent_mounting.RunTests(flags, m)
+	}
 
 	// Delete objects from bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
