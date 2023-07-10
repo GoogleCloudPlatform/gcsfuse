@@ -39,10 +39,14 @@ func mountGcsfuseWithStaticMounting(flags []string) (err error) {
 		setup.MntDir(),
 		"-o",
 		"debug_gcs,",
-		"debug_fs,",
-		"debug_fuse,",
-		"log_file=" + setup.LogFile() + ",",
-		"log_format=text,",
+		"-o",
+		"debug_fs",
+		"-o",
+		"debug_fuse",
+		"-o",
+		"log_file=" + setup.LogFile(),
+		"-o",
+		"log_format=text",
 	}
 
 	persistentMountingArgs, err := makePersistentMountingArgs(flags)
@@ -51,7 +55,8 @@ func mountGcsfuseWithStaticMounting(flags []string) (err error) {
 	}
 
 	for i := 0; i < len(persistentMountingArgs); i++ {
-		defaultArg = append(defaultArg, persistentMountingArgs[i]+",")
+		defaultArg = append(defaultArg, "-o")
+		defaultArg = append(defaultArg, persistentMountingArgs[i])
 	}
 
 	err = mounting.MountGcsfuse(setup.SbinFile(), defaultArg)
