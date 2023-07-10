@@ -31,7 +31,7 @@ import (
 const NameOfServiceAccount = "creds-test-gcsfuse"
 
 func setPermission(permission string, serviceAccount string) {
-	// Provide admin permission to the bucket.
+	// Provide permission to the bucket.
 	setup.RunScriptForTestData("../util/creds_tests/testdata/provide_permission.sh", setup.TestBucket(), serviceAccount, permission)
 }
 
