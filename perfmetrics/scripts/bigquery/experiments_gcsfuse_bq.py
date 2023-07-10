@@ -205,7 +205,7 @@ class ExperimentsGCSFuseBQ:
         ops_error_count INT64, 
         ops_mean_latency_sec FLOAT64, 
         sent_bytes_peak_per_sec FLOAT64, 
-        sent_bytes_mean_per_sec FLOAT64
+        sent_bytes_mean_per_sec FLOAT64,
         FOREIGN KEY(configuration_id) REFERENCES {}.{} (configuration_id) NOT ENFORCED
       ) OPTIONS (description = 'Table for storing VM metrics extracted from experiments.');
     """.format(self.project_id, self.dataset_id, constants.VM_TABLE_ID, self.dataset_id, constants.CONFIGURATION_TABLE_ID)
