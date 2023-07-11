@@ -28,13 +28,12 @@ import (
 func makePersistentMountingArgs(flags []string) (args []string, err error) {
 	var s string
 	for i := range flags {
-		if strings.Contains(flags[i], "--o") {
-			// Make --o=ro flag in ro, as we are using -o flag while passing as argument.
-			s = strings.Replace(flags[i], "--o=", "", -1)
-		} else {
-			s = strings.Replace(flags[i], "-", "_", -1)
-			s = strings.Replace(s, "__", "", -1)
-		}
+		// We are already passing flags with -o flag.
+		s = strings.Replace(flags[i], "--o=", "", -1)
+		// e.g. Convert --enable-storage-client-library to __enable_storage_client_library
+		s = strings.Replace(flags[i], "-", "_", -1)
+		// e.g. Convert __enable_storage_client_library to enable_storage_client_library
+		s = strings.Replace(s, "__", "", -1)
 		args = append(args, s)
 	}
 	return
@@ -61,9 +60,8 @@ func mountGcsfuseWithStaticMounting(flags []string) (err error) {
 	}
 
 	for i := 0; i < len(persistentMountingArgs); i++ {
-		// -o flag1, -o flag2, ...
-		defaultArg = append(defaultArg, "-o")
-		defaultArg = append(defaultArg, persistentMountingArgs[i])
+		// e.g. -o flag1, -o flag2, ...
+		defaultArg = append(defaultArg, "-o", persistentMountingArgs[i])
 	}
 
 	err = mounting.MountGcsfuse(setup.SbinFile(), defaultArg)
