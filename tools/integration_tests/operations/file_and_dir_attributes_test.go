@@ -16,6 +16,7 @@
 package operations_test
 
 import (
+	"io/fs"
 	"os"
 	"path"
 	"testing"
@@ -29,7 +30,7 @@ const DirAttrTest = "dirAttrTest"
 const PrefixFileInDirAttrTest = "fileInDirAttrTest"
 const NumberOfFilesInDirAttrTest = 2
 
-func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCreateTime time.Time, size int64, t *testing.T) {
+func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCreateTime time.Time, t *testing.T) (oStat fs.FileInfo) {
 	oStat, err := os.Stat(objName)
 
 	if err != nil {
@@ -42,11 +43,7 @@ func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCre
 	if (preCreateTime.After(oStat.ModTime())) || (postCreateTime.Before(oStat.ModTime())) {
 		t.Errorf("File modification time not in the expected time-range")
 	}
-
-	// The file size in createTempFile() is 14 bytes
-	if oStat.Size() != size {
-		t.Errorf("File size is not 14 bytes, found size: %d bytes", oStat.Size())
-	}
+	return
 }
 
 func TestFileAttributes(t *testing.T) {
@@ -59,7 +56,12 @@ func TestFileAttributes(t *testing.T) {
 
 	// In the setup function we are writing 14 bytes.
 	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/integration_tests/util/setup/setup.go#L124
-	checkIfObjectAttrIsCorrect(fileName, preCreateTime, postCreateTime, 14, t)
+	fStat := checkIfObjectAttrIsCorrect(fileName, preCreateTime, postCreateTime, t)
+
+	// The file size in createTempFile() is 14 bytes
+	if fStat.Size() != 14 {
+		t.Errorf("File size is not 14 bytes, found size: %d bytes", fStat.Size())
+	}
 }
 
 func TestEmptyDirAttributes(t *testing.T) {
@@ -71,7 +73,7 @@ func TestEmptyDirAttributes(t *testing.T) {
 	operations.CreateDirectoryWithNFiles(0, dirName, "", t)
 	postCreateTime := time.Now()
 
-	checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, 0, t)
+	checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, t)
 }
 
 func TestNonEmptyDirAttributes(t *testing.T) {
@@ -83,5 +85,5 @@ func TestNonEmptyDirAttributes(t *testing.T) {
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirAttrTest, dirName, PrefixFileInDirAttrTest, t)
 	postCreateTime := time.Now()
 
-	checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, NumberOfFilesInDirAttrTest, t)
+	checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, t)
 }
