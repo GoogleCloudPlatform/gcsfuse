@@ -24,6 +24,27 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
+const DirAttrTest = "dirAttrTest"
+
+func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCreateTime time.Time, t *testing.T) {
+	oStat, err := os.Stat(objName)
+
+	if err != nil {
+		t.Errorf("os.Stat error: %s, %v", objName, err)
+	}
+	statFileName := path.Join(setup.MntDir(), oStat.Name())
+	if objName != statFileName {
+		t.Errorf("File name not matched in os.Stat, found: %s, expected: %s", statFileName, objName)
+	}
+	if (preCreateTime.After(oStat.ModTime())) || (postCreateTime.Before(oStat.ModTime())) {
+		t.Errorf("File modification time not in the expected time-range")
+	}
+	// The file size in createTempFile() is 14 bytes
+	if oStat.Size() != 14 {
+		t.Errorf("File size is not 14 bytes, found size: %d bytes", oStat.Size())
+	}
+}
+
 func TestFileAttributes(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
@@ -32,20 +53,20 @@ func TestFileAttributes(t *testing.T) {
 	fileName := setup.CreateTempFile()
 	postCreateTime := time.Now()
 
-	fStat, err := os.Stat(fileName)
+	checkIfObjectAttrIsCorrect(fileName, preCreateTime, postCreateTime, t)
+}
 
+func TestDirAttributes(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
+	preCreateTime := time.Now()
+	dirName := path.Join(setup.MntDir(), DirAttrTest)
+	err := os.Mkdir(dirName, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("os.Stat error: %s, %v", fileName, err)
+		t.Errorf("Error in creating directory:%v", err)
 	}
-	statFileName := path.Join(setup.MntDir(), fStat.Name())
-	if fileName != statFileName {
-		t.Errorf("File name not matched in os.Stat, found: %s, expected: %s", statFileName, fileName)
-	}
-	if (preCreateTime.After(fStat.ModTime())) || (postCreateTime.Before(fStat.ModTime())) {
-		t.Errorf("File modification time not in the expected time-range")
-	}
-	// The file size in createTempFile() is 14 bytes
-	if fStat.Size() != 14 {
-		t.Errorf("File size is not 14 bytes, found size: %d bytes", fStat.Size())
-	}
+	postCreateTime := time.Now()
+
+	checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, t)
 }
