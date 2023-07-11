@@ -121,7 +121,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 -
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o ro,only_dir=testDir,implicit_dirs=false
+/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o ro,only_dir=testDir,implicit_dirs=true
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
