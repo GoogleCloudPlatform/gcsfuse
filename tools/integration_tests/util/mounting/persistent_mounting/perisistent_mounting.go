@@ -31,7 +31,7 @@ func makePersistentMountingArgs(flags []string) (args []string, err error) {
 		// We are already passing flags with -o flag.
 		s = strings.Replace(flags[i], "--o=", "", -1)
 		// e.g. Convert --enable-storage-client-library to __enable_storage_client_library
-		s = strings.Replace(flags[i], "-", "_", -1)
+		s = strings.Replace(s, "-", "_", -1)
 		// e.g. Convert __enable_storage_client_library to enable_storage_client_library
 		s = strings.Replace(s, "__", "", -1)
 		args = append(args, s)
