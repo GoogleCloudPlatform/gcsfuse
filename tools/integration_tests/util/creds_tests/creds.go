@@ -61,6 +61,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 
 	// Without –key-file flag and GOOGLE_APPLICATION_CREDENTIALS
 	// This case will not get covered as gcsfuse internally authenticates from a metadata server on GCE VM.
+	// https://github.com/golang/oauth2/blob/master/google/default.go#L160
 
 	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
 	err = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", key_file_path)
