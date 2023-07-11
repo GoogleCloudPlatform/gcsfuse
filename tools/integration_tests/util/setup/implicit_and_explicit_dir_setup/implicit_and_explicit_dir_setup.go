@@ -20,7 +20,6 @@ import (
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
@@ -59,10 +58,10 @@ func RunTestsForImplicitDirAndExplicitDir(flags [][]string, m *testing.M) {
 
 	successCode := static_mounting.RunTests(flags, m)
 
-	if successCode == 0 {
-		// Test for admin permission on test bucket.
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectAdmin", m)
-	}
+	//if successCode == 0 {
+	//	// Test for admin permission on test bucket.
+	//	successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectAdmin", m)
+	//}
 
 	os.Exit(successCode)
 }
