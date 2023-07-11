@@ -14,4 +14,4 @@ UPLOAD_FLAGS=$2
 echo Running script..
 # TODO (ruchikasharmaa): Changed name of bucket in config.json file to 'list-benchmark-test1' for running periodic experiments.
 #  The bucket is in gcs-fuse-test project. Before merging to master, we need to resolve the conflicts.
-python3 listing_benchmark.py config.json --gcsfuse_flags "$GCSFUSE_FLAGS" $UPLOAD_FLAGS --command "ls -R" --num_samples 300 --message "Testing CT setup."
+python3 listing_benchmark.py config.json --gcsfuse_flags "$GCSFUSE_FLAGS" $UPLOAD_FLAGS --command "ls -R" --num_samples 30 --message "Testing CT setup."
