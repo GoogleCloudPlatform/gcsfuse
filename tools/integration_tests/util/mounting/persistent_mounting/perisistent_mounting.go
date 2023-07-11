@@ -29,7 +29,7 @@ func makePersistentMountingArgs(flags []string) (args []string, err error) {
 	var s string
 	for i := range flags {
 		if strings.Contains(flags[i], "--o") {
-			s = strings.Replace(flags[i], "--o", "", -1)
+			s = strings.Replace(flags[i], "--o=", "", -1)
 		} else {
 			s = strings.Replace(flags[i], "-", "_", -1)
 			s = strings.Replace(s, "__", "", -1)
