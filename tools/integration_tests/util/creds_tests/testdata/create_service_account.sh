@@ -18,6 +18,5 @@ SERVICE_ACCOUNT_ID=$2
 gcloud iam service-accounts delete $SERVICE_ACCOUNT_ID
 if [ $? -eq 1 ]; then
   echo "Service account does not exist."
-  exit 0
 fi
 gcloud iam service-accounts create $SERVICE_ACCOUNT --description="$SERVICE_ACCOUNT" --display-name="$SERVICE_ACCOUNT"
