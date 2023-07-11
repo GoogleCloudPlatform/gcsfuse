@@ -59,10 +59,5 @@ func TestMain(m *testing.M) {
 		successCode = only_dir_mounting.RunTests(flags, m)
 	}
 
-	//if successCode == 0 {
-	//	// Test for admin permission on test bucket.
-	//	successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectAdmin", m)
-	//}
-
 	os.Exit(successCode)
 }
