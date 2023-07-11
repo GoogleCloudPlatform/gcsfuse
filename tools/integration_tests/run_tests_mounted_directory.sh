@@ -112,7 +112,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 -
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o file_mode=544 dir_mode=544,implicit_dirs=true
+/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o file_mode=544,dir_mode=544,implicit_dirs=true
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
@@ -132,7 +132,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 -
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,ro,file_mode=544 dir_mode=544,implicit_dirs=true
+/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,ro,file_mode=544,dir_mode=544,implicit_dirs=true
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
