@@ -446,7 +446,7 @@ def _parse_arguments(argv):
       help='Number of samples to collect of each test.',
       action='store',
       nargs=1,
-      default=[300],
+      default=[30],
       required=False,
   )
   parser.add_argument(
