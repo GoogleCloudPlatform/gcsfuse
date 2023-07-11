@@ -29,6 +29,7 @@ func makePersistentMountingArgs(flags []string) (args []string, err error) {
 	var s string
 	for i := range flags {
 		if strings.Contains(flags[i], "--o") {
+			// Make --o=ro flag in ro, as we are using -o flag while passing as argument.
 			s = strings.Replace(flags[i], "--o=", "", -1)
 		} else {
 			s = strings.Replace(flags[i], "-", "_", -1)
@@ -60,6 +61,7 @@ func mountGcsfuseWithStaticMounting(flags []string) (err error) {
 	}
 
 	for i := 0; i < len(persistentMountingArgs); i++ {
+		// -o flag1, -o flag2, ...
 		defaultArg = append(defaultArg, "-o")
 		defaultArg = append(defaultArg, persistentMountingArgs[i])
 	}
