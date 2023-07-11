@@ -48,19 +48,22 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	// Service account id format is name@project-id.iam.gserviceaccount.com
 	serviceAccount := NameOfServiceAccount + "@" + id + ".iam.gserviceaccount.com"
 
-	cred_file_path := path.Join(os.Getenv("HOME"), "creds.json")
+	key_file_path := path.Join(os.Getenv("HOME"), "creds.json")
 
 	// Create credentials
-	setup.RunScriptForTestData("../util/creds_tests/testdata/create_key_file.sh", cred_file_path, serviceAccount)
+	setup.RunScriptForTestData("../util/creds_tests/testdata/create_key_file.sh", key_file_path, serviceAccount)
 
 	// Provide permission to service account for testing.
 	setPermission(permission, serviceAccount)
 
 	// Revoke the permission and delete creds and service account after testing.
-	defer setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_permission_and_delete_service_account_and_creds.sh", serviceAccount, cred_file_path)
+	defer setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_permission_and_delete_service_account_and_creds.sh", serviceAccount, key_file_path)
+
+	// Without –key-file flag and GOOGLE_APPLICATION_CREDENTIALS
+	// This case will not get covered as gcsfuse internally authenticates from a metadata server on GCE VM.
 
 	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
-	err = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", cred_file_path)
+	err = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", key_file_path)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error in setting environment variable: %v", err))
 	}
@@ -72,7 +75,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	}
 
 	// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
-	keyFileFlag := "--key-file=" + cred_file_path
+	keyFileFlag := "--key-file=" + key_file_path
 
 	for i := 0; i < len(testFlagSet); i++ {
 		testFlagSet[i] = append(testFlagSet[i], keyFileFlag)

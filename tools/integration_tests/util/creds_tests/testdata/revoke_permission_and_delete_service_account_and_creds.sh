@@ -14,7 +14,7 @@
 
 # Delete service account after testing
 SERVICE_ACCOUNT=$1
-CREDS=$2
+KEY_FILE=$2
 gcloud auth revoke $SERVICE_ACCOUNT
 gcloud iam service-accounts delete $SERVICE_ACCOUNT
-rm $CREDS
+rm $KEY_FILE

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# create bucket in gcs-fuse-test project and add permissions.
+# Provide permission to the bucket.
 TEST_BUCKET=$1
 SERVICE_ACCOUNT=$2
 PERMISSION=$3
