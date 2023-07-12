@@ -464,20 +464,6 @@ def _parse_arguments(argv):
       required=False,
   )
   parser.add_argument(
-      '--config_id',
-      help='Configuration id of the experiment in the BigQuery tables',
-      action='store_true',
-      default=False,
-      required=False,
-  )
-  parser.add_argument(
-      '--start_time_build',
-      help='Time at which KOKORO triggered the build script.',
-      action='store_true',
-      default=False,
-      required=False,
-  )
-  parser.add_argument(
       '--command',
       help='Command to run the tests on.',
       action='store',
