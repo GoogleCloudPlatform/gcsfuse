@@ -27,6 +27,7 @@ import (
 )
 
 const DirAttrTest = "dirAttrTest"
+const SubDirAttrTest = "subDirAttrTest"
 const PrefixFileInDirAttrTest = "fileInDirAttrTest"
 const NumberOfFilesInDirAttrTest = 2
 
@@ -86,4 +87,18 @@ func TestNonEmptyDirAttributes(t *testing.T) {
 	postCreateTime := time.Now()
 
 	checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, t)
+}
+
+func TestSubDirAttributes(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
+	preCreateTime := time.Now()
+	dir := path.Join(setup.MntDir(), DirAttrTest)
+	operations.CreateDirectoryWithNFiles(0, dir, "", t)
+	subDirName := path.Join(dir, SubDirAttrTest)
+	operations.CreateDirectoryWithNFiles(0, subDirName, "", t)
+	postCreateTime := time.Now()
+
+	checkIfObjectAttrIsCorrect(subDirName, preCreateTime, postCreateTime, t)
 }
