@@ -74,7 +74,7 @@ gsutil cp start_time.txt $ARTIFACTS_BUCKET_PATH/
     --norm_last_layer False \
     --use_fp16 False \
     --clip_grad 0 \
-    --epochs 100 \
+    --epochs 80 \
     --global_crops_scale 0.25 1.0 \
     --local_crops_number 10 \
     --local_crops_scale 0.05 0.25 \
