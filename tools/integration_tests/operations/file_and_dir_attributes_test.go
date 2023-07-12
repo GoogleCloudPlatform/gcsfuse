@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provides integration tests for file attributes.
+// Provides integration tests for file and directory attributes.
 package operations_test
 
 import (
