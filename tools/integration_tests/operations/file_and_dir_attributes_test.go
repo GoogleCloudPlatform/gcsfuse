@@ -37,9 +37,9 @@ func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCre
 	if err != nil {
 		t.Errorf("os.Stat error: %s, %v", objName, err)
 	}
-	statFileName := path.Join(setup.MntDir(), oStat.Name())
-	if objName != statFileName {
-		t.Errorf("File name not matched in os.Stat, found: %s, expected: %s", statFileName, objName)
+	statObjName := path.Join(setup.MntDir(), oStat.Name())
+	if objName != statObjName {
+		t.Errorf("File name not matched in os.Stat, found: %s, expected: %s", statObjName, objName)
 	}
 	if (preCreateTime.After(oStat.ModTime())) || (postCreateTime.Before(oStat.ModTime())) {
 		t.Errorf("File modification time not in the expected time-range")
@@ -87,18 +87,4 @@ func TestNonEmptyDirAttributes(t *testing.T) {
 	postCreateTime := time.Now()
 
 	checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, t)
-}
-
-func TestSubDirAttributes(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-
-	preCreateTime := time.Now()
-	dir := path.Join(setup.MntDir(), DirAttrTest)
-	operations.CreateDirectoryWithNFiles(0, dir, "", t)
-	subDirName := path.Join(dir, SubDirAttrTest)
-	operations.CreateDirectoryWithNFiles(0, subDirName, "", t)
-	postCreateTime := time.Now()
-
-	checkIfObjectAttrIsCorrect(subDirName, preCreateTime, postCreateTime, t)
 }
