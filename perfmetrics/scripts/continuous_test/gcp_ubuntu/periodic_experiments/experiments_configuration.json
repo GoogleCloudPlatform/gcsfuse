@@ -22,7 +22,7 @@
       "config_name": "MaxConnsPerHost40",
       "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 40 --debug_fuse --debug_gcs",
       "branch": "experiments_dashboard",
-      "end_date": "2023-5-30 05:30:00+00:00"
+      "end_date": "2023-05-30 05:30:00+00:00"
     },
     {
       "config_name": "ListExperiments",
