@@ -25,7 +25,7 @@ sudo apt-get install jq -y
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
 # Get the current date and time
-current_date=$(date +"%Y-%m-%d %H:%M:%S")
+current_date=$(TZ="Asia/Kolkata" date +"%Y-%m-%d %H:%M:%S")
 
 # Get the required enabled configuration
 config=$(jq --arg EXPERIMENT_NUMBER "$EXPERIMENT_NUMBER" --arg current_date "$current_date" '.experiment_configuration[] | select(.end_date >= $current_date)' perfmetrics/scripts/continuous_test/gcp_ubuntu/periodic_experiments/experiments_configuration.json | jq -s ".[$EXPERIMENT_NUMBER-1]")
