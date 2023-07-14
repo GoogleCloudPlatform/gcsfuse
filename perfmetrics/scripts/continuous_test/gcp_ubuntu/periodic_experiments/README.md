@@ -1,7 +1,7 @@
 ## Experiment Configuration JSON File README
 ## This JSON file contains configurations for different experiments.
 
-## Configuration Format: 
+## Configuration Format:
 ```
 {
     "experiment_configuration": [
@@ -18,7 +18,7 @@
     ]
 }
 ```
-## Key Descriptions:
+## Key Descriptions: 
 1. config_name (string): The name of the configuration. This should be a unique identifier for each experiment.
 2. gcsfuse_flags (string): Flags to be passed to the gcsfuse command when running the experiment.
 3. branch (string): The Git branch to use for the experiment.
