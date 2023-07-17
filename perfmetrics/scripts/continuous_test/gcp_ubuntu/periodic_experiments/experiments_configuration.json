@@ -7,9 +7,9 @@
       "end_date": "2023-12-30 05:30:00+00:00"
     },
     {
-      "config_name": "DisabledStorageClientLibrary",
-      "gcsfuse_flags": "--implicit-dirs --enable-storage-client-library=false --debug_fuse --debug_gcs",
-      "branch": "master",
+      "config_name": "SeptReleaseEnabledStorageClientLibrary",
+      "gcsfuse_flags": "--implicit-dirs --enable-storage-client-library --debug_fuse --debug_gcs",
+      "branch": "sept_release",
       "end_date": "2023-12-30 05:30:00+00:00"
     },
     {
