@@ -20,6 +20,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
@@ -105,6 +106,11 @@ func TestMain(m *testing.M) {
 
 	if successCode == 0 {
 		successCode = only_dir_mounting.RunTests(flags, m)
+	}
+
+	if successCode == 0 {
+		// Test for admin permission on test bucket.
+		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectAdmin", m)
 	}
 
 	os.Exit(successCode)
