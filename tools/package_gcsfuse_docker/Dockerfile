@@ -66,6 +66,7 @@ RUN fpm \
     -C ${GCSFUSE_BIN} \
     -v ${GCSFUSE_VERSION} \
     -d fuse \
+    --rpm-digest sha256 \
     --vendor "" \
     --url "https://$GCSFUSE_REPO" \
     --description "A user-space file system for Google Cloud Storage."
