@@ -79,21 +79,6 @@ const NumberOfObjectsInDirThreeInCreateThreeLevelDirTest = 1
 const PrefixFileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLevelDirTest"
 const FileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLevelDirTest1"
 const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
-const SrcMoveDirectory = "srcMoveDir"
-const SubSrcMoveDirectory = "subSrcMoveDir"
-const SrcMoveFile = "copy.txt"
-const SrcMoveFileContent = "This is from copy file in srcMove directory.\n"
-const DestMoveDirectory = "destMoveDir"
-const DestNonEmptyMoveDirectory = "destNonEmptyMoveDirectory"
-const SubDirInNonEmptyDestMoveDirectory = "subDestMoveDir"
-const DestMoveDirectoryNotExist = "notExist"
-const NumberOfObjectsInSrcMoveDirectory = 2
-const NumberOfObjectsInNonEmptyDestMoveDirectory = 2
-const DestEmptyMoveDirectory = "destEmptyMoveDirectory"
-const PrefixFileInSrcMoveFile = "fileInSrcMoveDir"
-const FileInSrcMoveFile = "fileInSrcMoveDir1"
-const EmptySrcDirectoryMoveTest = "emptySrcDirectoryMoveTest"
-const NumberOfObjectsInEmptyDestMoveDirectory = 1
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()

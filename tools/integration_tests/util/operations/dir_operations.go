@@ -39,11 +39,11 @@ func CopyDir(srcDirPath string, destDirPath string) (err error) {
 }
 
 func MoveDir(srcDirPath string, destDirPath string) (err error) {
-	cmd := exec.Command("mv", "--recursive", srcDirPath, destDirPath)
+	cmd := exec.Command("mv", srcDirPath, destDirPath)
 
 	err = cmd.Run()
 	if err != nil {
-		err = fmt.Errorf("Copying dir operation is failed: %v", err)
+		err = fmt.Errorf("Moving dir operation is failed: %v", err)
 	}
 	return
 }

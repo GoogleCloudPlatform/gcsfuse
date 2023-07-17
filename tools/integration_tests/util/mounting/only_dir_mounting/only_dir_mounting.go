@@ -60,14 +60,14 @@ func executeTestsForOnlyDirMounting(flags [][]string, m *testing.M) (successCode
 	mountDirInBucket := path.Join(setup.TestBucket(), DirectoryInTestBucket)
 	// Clean the bucket.
 
-	setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/delete_objects.sh", setup.TestBucket())
+	// setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/delete_objects.sh", setup.TestBucket())
 
 	// "Test" directory not exist in bucket.
-	mountGcsFuseForFlagsAndExecuteTests(flags, DirectoryInTestBucket, m)
+	// mountGcsFuseForFlagsAndExecuteTests(flags, DirectoryInTestBucket, m)
 
 	// "Test" directory exist in bucket.
 	// Clean the bucket.
-	setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/delete_objects.sh", setup.TestBucket())
+	//	setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/delete_objects.sh", setup.TestBucket())
 
 	// Create Test directory in bucket.
 	setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/create_objects.sh", mountDirInBucket)

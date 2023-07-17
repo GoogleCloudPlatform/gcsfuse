@@ -2,7 +2,7 @@
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You may obtain a mov of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provides integration tests for copy directory.
-package operations_test
+// Provides integration tests for mov directory.
+package rename_dir_limit_test
 
 import (
 	"log"
@@ -25,10 +25,32 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
+const SrcMoveDirectory = "srcMoveDir"
+const SubSrcMoveDirectory = "subSrcMoveDir"
+const SrcMoveFile = "srcMoveFile"
+const SrcMoveFileContent = "This is from mov file in srcMove directory.\n"
+const DestMoveDirectory = "destMoveDir"
+const DestNonEmptyMoveDirectory = "destNonEmptyMoveDirectory"
+const SubDirInNonEmptyDestMoveDirectory = "subDestMoveDir"
+const DestMoveDirectoryNotExist = "notExist"
+const NumberOfObjectsInSrcMoveDirectory = 2
+const NumberOfObjectsInNonEmptyDestMoveDirectory = 2
+const DestEmptyMoveDirectory = "destEmptyMoveDirectory"
+const EmptySrcDirectoryMoveTest = "emptySrcDirectoryMoveTest"
+const NumberOfObjectsInEmptyDestMoveDirectory = 1
+
+func checkIfSrcDirectoryGetsRemovedAfterMoveOperation(srcDirPath string, t *testing.T) {
+	_, err := os.Stat(srcDirPath)
+
+	if err == nil {
+		t.Errorf("Directory exist after move operation.")
+	}
+}
+
 // Create below directory structure.
-// srcMoveDir               -- Dir
-// srcMoveDir/copy.txt      -- File
-// srcMoveDir/subSrcMoveDir -- Dir
+// srcMoveDir                  -- Dir
+// srcMoveDir/srcMoveFile      -- File
+// srcMoveDir/subSrcMoveDir    -- Dir
 func createSrcDirectoryWithObjectsForMoveDirTest(dirPath string, t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
@@ -48,7 +70,7 @@ func createSrcDirectoryWithObjectsForMoveDirTest(dirPath string, t *testing.T) {
 		return
 	}
 
-	// testBucket/srcMoveDir/copy.txt
+	// testBucket/srcMoveDir/srcMoveFile
 	filePath := path.Join(dirPath, SrcMoveFile)
 
 	file, err := os.Create(filePath)
@@ -78,7 +100,7 @@ func checkIfMovedDirectoryHasCorrectData(destDir string, t *testing.T) {
 	}
 
 	// Comparing first object name and type
-	// Name - testBucket/destMoveDir/copy.txt, Type - file
+	// Name - testBucket/destMoveDir/srcMoveFile, Type - file
 	if obj[0].Name() != SrcMoveFile || obj[0].IsDir() == true {
 		t.Errorf("Object Listed for bucket directory is incorrect.")
 	}
@@ -102,11 +124,11 @@ func checkIfMovedDirectoryHasCorrectData(destDir string, t *testing.T) {
 
 // Move SrcDirectory objects in DestDirectory
 // srcMoveDir               -- Dir
-// srcMoveDir/copy.txt      -- File
+// srcMoveDir/srcMoveFile      -- File
 // srcMoveDir/subSrcMoveDir -- Dir
 
 // destMoveDir               -- Dir
-// destMoveDir/copy.txt      -- File
+// destMoveDir/srcMoveFile      -- File
 // destMoveDir/subSrcMoveDir -- Dir
 func TestMoveDirectoryInNonExistingDirectory(t *testing.T) {
 	srcDir := path.Join(setup.MntDir(), SrcMoveDirectory)
@@ -117,20 +139,21 @@ func TestMoveDirectoryInNonExistingDirectory(t *testing.T) {
 
 	err := operations.MoveDir(srcDir, destDir)
 	if err != nil {
-		t.Errorf("Error in copying directory: %v", err)
+		t.Errorf("Error in moving directory: %v", err)
 	}
 
 	checkIfMovedDirectoryHasCorrectData(destDir, t)
+	checkIfSrcDirectoryGetsRemovedAfterMoveOperation(srcDir, t)
 }
 
 // Move SrcDirectory in DestDirectory
 // srcMoveDir               -- Dir
-// srcMoveDir/copy.txt      -- File
+// srcMoveDir/srcMoveFile      -- File
 // srcMoveDir/subSrcMoveDir -- Dir
 
 // destMoveDir                          -- Dir
 // destMoveDir/srcMoveDir               -- Dir
-// destMoveDir/srcMoveDir/copy.txt      -- File
+// destMoveDir/srcMoveDir/srcMoveFile      -- File
 // destMoveDir/srcMoveDir/subSrcMoveDir -- Dir
 func TestMoveDirectoryInEmptyDirectory(t *testing.T) {
 	srcDir := path.Join(setup.MntDir(), SrcMoveDirectory)
@@ -147,7 +170,7 @@ func TestMoveDirectoryInEmptyDirectory(t *testing.T) {
 
 	err = operations.MoveDir(srcDir, destDir)
 	if err != nil {
-		t.Errorf("Error in copying directory: %v", err)
+		t.Errorf("Error in moving directory: %v", err)
 	}
 
 	obj, err := os.ReadDir(destDir)
@@ -159,12 +182,13 @@ func TestMoveDirectoryInEmptyDirectory(t *testing.T) {
 	// destMoveDirectory
 	// destMoveDirectory/srcMoveDirectory
 	if len(obj) != 1 || obj[0].Name() != SrcMoveDirectory || obj[0].IsDir() != true {
-		t.Errorf("Error in copying directory.")
+		t.Errorf("Error in moving directory.")
 		return
 	}
 
 	destSrc := path.Join(destDir, SrcMoveDirectory)
 	checkIfMovedDirectoryHasCorrectData(destSrc, t)
+	checkIfSrcDirectoryGetsRemovedAfterMoveOperation(srcDir, t)
 }
 
 func createDestNonEmptyDirectoryForMoveTest(t *testing.T) {
@@ -187,7 +211,7 @@ func TestMoveDirectoryInNonEmptyDirectory(t *testing.T) {
 
 	err := operations.MoveDir(srcDir, destDir)
 	if err != nil {
-		t.Errorf("Error in copying directory: %v", err)
+		t.Errorf("Error in moving directory: %v", err)
 	}
 
 	obj, err := os.ReadDir(destDir)
@@ -206,7 +230,7 @@ func TestMoveDirectoryInNonEmptyDirectory(t *testing.T) {
 
 	// destMoveDirectory/srcMoveDirectory  - Dir
 	if obj[0].Name() != SrcMoveDirectory || obj[0].IsDir() != true {
-		t.Errorf("Error in copying directory.")
+		t.Errorf("Error in moving directory.")
 		return
 	}
 
@@ -218,6 +242,7 @@ func TestMoveDirectoryInNonEmptyDirectory(t *testing.T) {
 
 	destSrc := path.Join(destDir, SrcMoveDirectory)
 	checkIfMovedDirectoryHasCorrectData(destSrc, t)
+	checkIfSrcDirectoryGetsRemovedAfterMoveOperation(srcDir, t)
 }
 
 func checkIfMovedEmptyDirectoryHasNoData(destSrc string, t *testing.T) {
@@ -256,7 +281,7 @@ func TestMoveEmptyDirectoryInNonEmptyDirectory(t *testing.T) {
 
 	err := operations.MoveDir(srcDir, destDir)
 	if err != nil {
-		t.Errorf("Error in copying directory: %v", err)
+		t.Errorf("Error in moving directory: %v", err)
 	}
 
 	objs, err := os.ReadDir(destDir)
@@ -275,7 +300,7 @@ func TestMoveEmptyDirectoryInNonEmptyDirectory(t *testing.T) {
 
 	// destNonEmptyMoveDirectory/srcMoveDirectory  - Dir
 	if objs[0].Name() != EmptySrcDirectoryMoveTest || objs[0].IsDir() != true {
-		t.Errorf("Error in copying directory.")
+		t.Errorf("Error in moving directory.")
 		return
 	}
 
@@ -285,8 +310,9 @@ func TestMoveEmptyDirectoryInNonEmptyDirectory(t *testing.T) {
 		return
 	}
 
-	copyDirPath := path.Join(destDir, EmptySrcDirectoryMoveTest)
-	checkIfMovedEmptyDirectoryHasNoData(copyDirPath, t)
+	movDirPath := path.Join(destDir, EmptySrcDirectoryMoveTest)
+	checkIfMovedEmptyDirectoryHasNoData(movDirPath, t)
+	checkIfSrcDirectoryGetsRemovedAfterMoveOperation(srcDir, t)
 }
 
 // Move SrcDirectory in DestDirectory
@@ -310,7 +336,7 @@ func TestMoveEmptyDirectoryInEmptyDirectory(t *testing.T) {
 
 	err := operations.MoveDir(srcDir, destDir)
 	if err != nil {
-		t.Errorf("Error in copying directory: %v", err)
+		t.Errorf("Error in moving directory: %v", err)
 	}
 
 	obj, err := os.ReadDir(destDir)
@@ -328,12 +354,13 @@ func TestMoveEmptyDirectoryInEmptyDirectory(t *testing.T) {
 
 	// destEmptyMoveDirectory/srcMoveDirectory  - Dir
 	if obj[0].Name() != EmptySrcDirectoryMoveTest || obj[0].IsDir() != true {
-		t.Errorf("Error in copying directory.")
+		t.Errorf("Error in moving directory.")
 		return
 	}
 
-	copyDirPath := path.Join(destDir, EmptySrcDirectoryMoveTest)
-	checkIfMovedEmptyDirectoryHasNoData(copyDirPath, t)
+	movDirPath := path.Join(destDir, EmptySrcDirectoryMoveTest)
+	checkIfMovedEmptyDirectoryHasNoData(movDirPath, t)
+	checkIfSrcDirectoryGetsRemovedAfterMoveOperation(srcDir, t)
 }
 
 // Move SrcDirectory in DestDirectory
@@ -358,8 +385,9 @@ func TestMoveEmptyDirectoryInNonExistingDirectory(t *testing.T) {
 
 	err = operations.MoveDir(srcDir, destDir)
 	if err != nil {
-		t.Errorf("Error in copying directory: %v", err)
+		t.Errorf("Error in moving directory: %v", err)
 	}
 
 	checkIfMovedEmptyDirectoryHasNoData(destDir, t)
+	checkIfSrcDirectoryGetsRemovedAfterMoveOperation(srcDir, t)
 }
