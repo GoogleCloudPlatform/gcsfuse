@@ -28,7 +28,7 @@ import (
 const SrcMoveDirectory = "srcMoveDir"
 const SubSrcMoveDirectory = "subSrcMoveDir"
 const SrcMoveFile = "srcMoveFile"
-const SrcMoveFileContent = "This is from mov file in srcMove directory.\n"
+const SrcMoveFileContent = "This is from move file in srcMove directory.\n"
 const DestMoveDirectory = "destMoveDir"
 const DestNonEmptyMoveDirectory = "destNonEmptyMoveDirectory"
 const SubDirInNonEmptyDestMoveDirectory = "subDestMoveDir"
@@ -123,13 +123,13 @@ func checkIfMovedDirectoryHasCorrectData(destDir string, t *testing.T) {
 }
 
 // Move SrcDirectory objects in DestDirectory
-// srcMoveDir               -- Dir
+// srcMoveDir                  -- Dir
 // srcMoveDir/srcMoveFile      -- File
-// srcMoveDir/subSrcMoveDir -- Dir
+// srcMoveDir/subSrcMoveDir    -- Dir
 
-// destMoveDir               -- Dir
+// destMoveDir                  -- Dir
 // destMoveDir/srcMoveFile      -- File
-// destMoveDir/subSrcMoveDir -- Dir
+// destMoveDir/subSrcMoveDir    -- Dir
 func TestMoveDirectoryInNonExistingDirectory(t *testing.T) {
 	srcDir := path.Join(setup.MntDir(), SrcMoveDirectory)
 
@@ -147,14 +147,14 @@ func TestMoveDirectoryInNonExistingDirectory(t *testing.T) {
 }
 
 // Move SrcDirectory in DestDirectory
-// srcMoveDir               -- Dir
+// srcMoveDir                  -- Dir
 // srcMoveDir/srcMoveFile      -- File
-// srcMoveDir/subSrcMoveDir -- Dir
+// srcMoveDir/subSrcMoveDir    -- Dir
 
-// destMoveDir                          -- Dir
-// destMoveDir/srcMoveDir               -- Dir
+// destMoveDir                             -- Dir
+// destMoveDir/srcMoveDir                  -- Dir
 // destMoveDir/srcMoveDir/srcMoveFile      -- File
-// destMoveDir/srcMoveDir/subSrcMoveDir -- Dir
+// destMoveDir/srcMoveDir/subSrcMoveDir    -- Dir
 func TestMoveDirectoryInEmptyDirectory(t *testing.T) {
 	srcDir := path.Join(setup.MntDir(), SrcMoveDirectory)
 
