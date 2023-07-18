@@ -27,9 +27,9 @@ import (
 )
 
 const DirAttrTest = "dirAttrTest"
-const SubDirAttrTest = "subDirAttrTest"
 const PrefixFileInDirAttrTest = "fileInDirAttrTest"
 const NumberOfFilesInDirAttrTest = 2
+const BytesWrittenInFile = 14
 
 func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCreateTime time.Time, t *testing.T) (oStat fs.FileInfo) {
 	oStat, err := os.Stat(objName)
@@ -55,13 +55,12 @@ func TestFileAttributes(t *testing.T) {
 	fileName := setup.CreateTempFile()
 	postCreateTime := time.Now()
 
-	// In the setup function we are writing 14 bytes.
-	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/integration_tests/util/setup/setup.go#L124
 	fStat := checkIfObjectAttrIsCorrect(fileName, preCreateTime, postCreateTime, t)
 
 	// The file size in createTempFile() is 14 bytes
-	if fStat.Size() != 14 {
-		t.Errorf("File size is not 14 bytes, found size: %d bytes", fStat.Size())
+	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/integration_tests/util/setup/setup.go#L124
+	if fStat.Size() != BytesWrittenInFile {
+		t.Errorf("File size is not %v bytes, found size: %d bytes", BytesWrittenInFile, fStat.Size())
 	}
 }
 
