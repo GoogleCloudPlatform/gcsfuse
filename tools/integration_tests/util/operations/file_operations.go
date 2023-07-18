@@ -156,7 +156,10 @@ func ReadFileSequentially(filePath string, numberOfBytes int64) (content []byte,
 
 	for err != io.EOF {
 		var numberOfBytes int
+
+		// Reading 200 bytes chunk sequentially from the file.
 		numberOfBytes, err = file.ReadAt(chunk, offset)
+		// If the file reaches the end, write the remaining content in the buffer and return.
 		if err == io.EOF {
 			for i := offset; i < offset+int64(numberOfBytes); i++ {
 				content[i] = chunk[i-offset]
@@ -167,16 +170,17 @@ func ReadFileSequentially(filePath string, numberOfBytes int64) (content []byte,
 		if err != nil {
 			return
 		}
-		
-		// Store the bytes in the buffer to compare with original content.
+		// Write bytes in the buffer to compare with original content.
 		for i := offset; i < offset+NumberOfBytesReadFromFile; i++ {
 			content[i] = chunk[i-offset]
 		}
 
+		// The number of bytes read is not equal to 200.
 		if numberOfBytes != NumberOfBytesReadFromFile {
 			log.Printf("Incorrect number of bytes read from file.")
 		}
 
+		// The offset will shift to read the next chunk.
 		offset = offset + NumberOfBytesReadFromFile
 	}
 	return
