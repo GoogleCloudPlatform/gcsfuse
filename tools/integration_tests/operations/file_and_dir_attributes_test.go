@@ -16,7 +16,6 @@
 package operations_test
 
 import (
-	"io/fs"
 	"os"
 	"path"
 	"testing"
@@ -31,7 +30,7 @@ const PrefixFileInDirAttrTest = "fileInDirAttrTest"
 const NumberOfFilesInDirAttrTest = 2
 const BytesWrittenInFile = 14
 
-func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCreateTime time.Time, t *testing.T) (oStat fs.FileInfo) {
+func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCreateTime time.Time, byteSize int64, t *testing.T) {
 	oStat, err := os.Stat(objName)
 
 	if err != nil {
@@ -44,6 +43,10 @@ func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCre
 	if (preCreateTime.After(oStat.ModTime())) || (postCreateTime.Before(oStat.ModTime())) {
 		t.Errorf("File modification time not in the expected time-range")
 	}
+
+	if oStat.Size() != byteSize {
+		t.Errorf("File size is not %v bytes, found size: %d bytes", BytesWrittenInFile, oStat.Size())
+	}
 	return
 }
 
@@ -55,13 +58,9 @@ func TestFileAttributes(t *testing.T) {
 	fileName := setup.CreateTempFile()
 	postCreateTime := time.Now()
 
-	fStat := checkIfObjectAttrIsCorrect(fileName, preCreateTime, postCreateTime, t)
-
-	// The file size in createTempFile() is 14 bytes
+	// The file size in createTempFile() is BytesWrittenInFile bytes
 	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/integration_tests/util/setup/setup.go#L124
-	if fStat.Size() != BytesWrittenInFile {
-		t.Errorf("File size is not %v bytes, found size: %d bytes", BytesWrittenInFile, fStat.Size())
-	}
+	checkIfObjectAttrIsCorrect(fileName, preCreateTime, postCreateTime, BytesWrittenInFile, t)
 }
 
 func TestEmptyDirAttributes(t *testing.T) {
@@ -73,7 +72,7 @@ func TestEmptyDirAttributes(t *testing.T) {
 	operations.CreateDirectoryWithNFiles(0, dirName, "", t)
 	postCreateTime := time.Now()
 
-	checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, t)
+	checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, 0, t)
 }
 
 func TestNonEmptyDirAttributes(t *testing.T) {
@@ -85,5 +84,5 @@ func TestNonEmptyDirAttributes(t *testing.T) {
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirAttrTest, dirName, PrefixFileInDirAttrTest, t)
 	postCreateTime := time.Now()
 
-	checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, t)
+	checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, 0, t)
 }
