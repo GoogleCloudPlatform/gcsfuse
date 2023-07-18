@@ -168,7 +168,7 @@ func NewFileSystem(
 		generationBackedInodes:     make(map[inode.Name]inode.GenerationBackedInode),
 		implicitDirInodes:          make(map[inode.Name]inode.DirInode),
 		handles:                    make(map[fuseops.HandleID]interface{}),
-		mountConfig: cfg.MountConfig
+		mountConfig:                cfg.MountConfig,
 	}
 
 	// Set up root bucket
