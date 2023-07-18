@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"golang.org/x/net/context"
 
@@ -38,6 +39,7 @@ func mountWithConn(
 	bucketName string,
 	mountPoint string,
 	flags *flagStorage,
+	mountConfig *config.MountConfig,
 	conn *gcsx.Connection,
 	storageHandle storage.StorageHandle,
 	status *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
@@ -117,6 +119,7 @@ be interacting with the file system.`)
 		RenameDirLimit:             flags.RenameDirLimit,
 		SequentialReadSizeMb:       flags.SequentialReadSizeMb,
 		EnableNonexistentTypeCache: flags.EnableNonexistentTypeCache,
+		MountConfig:                mountConfig,
 	}
 
 	logger.Infof("Creating a new server...\n")
