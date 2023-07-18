@@ -83,7 +83,7 @@ func newApp() (app *cli.App) {
 			cli.StringFlag{
 				Name:  "config-file",
 				Value: "",
-				Usage: "The path to the config file to specify all gcsfuse related config.",
+				Usage: "The path to the config file where all gcsfuse related config needs to be specified.",
 			},
 
 			/////////////////////////
