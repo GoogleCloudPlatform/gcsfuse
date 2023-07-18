@@ -167,9 +167,9 @@ func ReadFileSequentially(filePath string, numberOfBytes int64) (content []byte,
 		if err != nil {
 			return
 		}
-
+		
 		// Store the bytes in the buffer to compare with original content.
-		for i := offset; i < NumberOfBytesReadFromFile; i++ {
+		for i := offset; i < offset+NumberOfBytesReadFromFile; i++ {
 			content[i] = chunk[i-offset]
 		}
 
