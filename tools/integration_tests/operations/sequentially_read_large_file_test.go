@@ -24,10 +24,13 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const OneGigaBytes = 1073741824
+const OneGigaBytes = 1000000000
 const OneGBFile = "oneGbFile.txt"
 
 func TestReadLargeFileSequentially(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
 	file := path.Join(setup.MntDir(), OneGBFile)
 
 	setup.RunScriptForTestData("testdata/write_content_fix_size.sh", file, strconv.Itoa(OneGigaBytes))
@@ -41,7 +44,7 @@ func TestReadLargeFileSequentially(t *testing.T) {
 		t.Errorf("Error in reading file: %v", err)
 	}
 
-	if !bytes.Equal(content, actualContent) {
+	if bytes.Equal(content, actualContent) == false {
 		t.Errorf("Error in reading file sequentially.")
 	}
 }

@@ -146,7 +146,6 @@ func CloseFile(file *os.File) {
 
 func ReadFileSequentially(filePath string, numberOfBytes int64) (content []byte, err error) {
 	content = make([]byte, numberOfBytes)
-
 	chunk := make([]byte, NumberOfBytesReadFromFile)
 	var offset int64 = 0
 
@@ -159,23 +158,26 @@ func ReadFileSequentially(filePath string, numberOfBytes int64) (content []byte,
 		var numberOfBytes int
 		numberOfBytes, err = file.ReadAt(chunk, offset)
 		if err == io.EOF {
+			for i := offset; i < offset+int64(numberOfBytes); i++ {
+				content[i] = chunk[i-offset]
+			}
 			err = nil
 			return
 		}
 		if err != nil {
 			return
 		}
+
+		// Store the bytes in the buffer to compare with original content.
+		for i := offset; i < NumberOfBytesReadFromFile; i++ {
+			content[i] = chunk[i-offset]
+		}
+
 		if numberOfBytes != NumberOfBytesReadFromFile {
 			log.Printf("Incorrect number of bytes read from file.")
 		}
 
-		// Store the bytes in the buffer to compare with original content.
-		for i := offset; i < NumberOfBytesReadFromFile; i++ {
-			content[offset] = chunk[i-offset]
-		}
-
 		offset = offset + NumberOfBytesReadFromFile
 	}
-
 	return
 }
