@@ -15,4 +15,5 @@
 FILE_PATH=$1
 FILE_SIZE=$2
 
+# It will write filesize random data in a file.
 head -c $FILE_SIZE </dev/urandom > $FILE_PATH
