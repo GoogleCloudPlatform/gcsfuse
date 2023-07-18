@@ -24,6 +24,8 @@ import (
 	"syscall"
 )
 
+const NumberOfBytesReadFromFile = 200
+
 func CopyFile(srcFileName string, newFileName string) (err error) {
 	if _, err = os.Stat(newFileName); err == nil {
 		err = fmt.Errorf("Copied file %s already present", newFileName)
@@ -140,4 +142,40 @@ func CloseFile(file *os.File) {
 	if err := file.Close(); err != nil {
 		log.Printf("error in closing: %v", err)
 	}
+}
+
+func ReadFileSequentially(filePath string, numberOfBytes int64) (content []byte, err error) {
+	content = make([]byte, numberOfBytes)
+
+	chunk := make([]byte, NumberOfBytesReadFromFile)
+	var offset int64 = 0
+
+	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, FilePermission_0600)
+	if err != nil {
+		log.Printf("Error in opening file:%v", err)
+	}
+
+	for err != io.EOF {
+		var numberOfBytes int
+		numberOfBytes, err = file.ReadAt(chunk, offset)
+		if err == io.EOF {
+			err = nil
+			return
+		}
+		if err != nil {
+			return
+		}
+		if numberOfBytes != NumberOfBytesReadFromFile {
+			log.Printf("Incorrect number of bytes read from file.")
+		}
+
+		// Store the bytes in the buffer to compare with original content.
+		for i := offset; i < NumberOfBytesReadFromFile; i++ {
+			content[offset] = chunk[i-offset]
+		}
+
+		offset = offset + NumberOfBytesReadFromFile
+	}
+
+	return
 }
