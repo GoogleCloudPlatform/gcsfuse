@@ -14,6 +14,13 @@ type YamlParserTest struct {
 
 func init() { RegisterTestSuite(&YamlParserTest{}) }
 
+func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
+	mountConfig, err := ReadConfigFile("")
+
+	AssertEq(nil, err)
+	AssertNe(nil, mountConfig)
+}
+
 func (t *YamlParserTest) TestReadConfigFile_EmptyFile() {
 	mountConfig, err := ReadConfigFile("testdata/empty_file.yaml")
 

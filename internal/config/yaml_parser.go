@@ -8,16 +8,19 @@ import (
 )
 
 func ReadConfigFile(fileName string) (mountConfig *MountConfig, err error) {
-	buf, err := os.ReadFile(fileName)
+	mountConfig = &MountConfig{}
 
+	if fileName == "" {
+		return
+	}
+
+	buf, err := os.ReadFile(fileName)
 	if err != nil {
 		err = fmt.Errorf("error reading config file: %w", err)
 		return
 	}
 
-	mountConfig = &MountConfig{}
 	err = yaml.Unmarshal(buf, mountConfig)
-
 	if err != nil {
 		err = fmt.Errorf("error parsing config file: %w", err)
 		return
