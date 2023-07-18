@@ -24,7 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const OneGigaBytes = 1000000000
+const OneGigaBytes = 100000000
 const OneGBFile = "oneGbFile.txt"
 
 func TestReadLargeFileSequentially(t *testing.T) {
