@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 
 	. "github.com/jacobsa/ogletest"
@@ -24,12 +25,14 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidFile() {
 	_, err := ReadConfigFile("testdata/invalid_file.yaml")
 
 	AssertNe(nil, err)
+	AssertEq("error reading config file: open testdata/invalid_file.yaml: no such file or directory", err.Error())
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidConfig() {
 	_, err := ReadConfigFile("testdata/invalid_config.yaml")
 
 	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "error parsing config file: yaml: unmarshal errors:"))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {

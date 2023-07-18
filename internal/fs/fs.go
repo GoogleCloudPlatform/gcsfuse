@@ -118,6 +118,7 @@ type ServerConfig struct {
 	// File chunk size to read from GCS in one call. Specified in MB.
 	SequentialReadSizeMb int32
 
+	// MountConfig has all the config specified by the user using configFile flag.
 	MountConfig *config.MountConfig
 }
 
@@ -383,6 +384,7 @@ type fileSystem struct {
 	// GUARDED_BY(mu)
 	nextHandleID fuseops.HandleID
 
+	// Config specified by the user using configFile flag.
 	mountConfig *config.MountConfig
 }
 
