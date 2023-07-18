@@ -24,27 +24,32 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const OneGigaBytes = 100000000
-const OneGBFile = "oneGbFile.txt"
+const HundredMB = 100000000
+const HundredMBFile = "hundredMBFile.txt"
 
 func TestReadLargeFileSequentially(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
-	file := path.Join(setup.MntDir(), OneGBFile)
+	file := path.Join(setup.MntDir(), HundredMBFile)
 
-	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", file, strconv.Itoa(OneGigaBytes))
-	content, err := operations.ReadFileSequentially(file, OneGigaBytes)
+	// Create file of 100 MB with random data.
+	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", file, strconv.Itoa(HundredMB))
+
+	// Sequentially read the data from file.
+	content, err := operations.ReadFileSequentially(file, HundredMB)
 	if err != nil {
 		t.Errorf("Error in reading file: %v", err)
 	}
 
+	// Read actual content from file.
 	actualContent, err := operations.ReadFile(file)
 	if err != nil {
 		t.Errorf("Error in reading file: %v", err)
 	}
 
-	if bytes.Equal(content, actualContent) == false {
+	// Compare actual content and expect content.
+	if bytes.Equal(actualContent, content) == false {
 		t.Errorf("Error in reading file sequentially.")
 	}
 }
