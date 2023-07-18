@@ -21,6 +21,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
@@ -77,6 +78,11 @@ func TestMain(m *testing.M) {
 	// Run tests for testBucket
 	setup.SetUpTestDirForTestBucketFlag()
 	successCode := static_mounting.RunTests(flags, m)
+
+	if successCode == 0 {
+		// Test for viewer permission on test bucket.
+		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectViewer", m)
+	}
 
 	// Delete objects from bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
