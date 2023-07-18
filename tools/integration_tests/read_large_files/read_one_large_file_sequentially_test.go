@@ -33,7 +33,7 @@ func TestReadLargeFileSequentially(t *testing.T) {
 
 	file := path.Join(setup.MntDir(), OneGBFile)
 
-	setup.RunScriptForTestData("testdata/write_content_fix_size.sh", file, strconv.Itoa(OneGigaBytes))
+	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", file, strconv.Itoa(OneGigaBytes))
 	content, err := operations.ReadFileSequentially(file, OneGigaBytes)
 	if err != nil {
 		t.Errorf("Error in reading file: %v", err)
