@@ -361,9 +361,12 @@ func (t *FlagsTest) TestResolvePathForTheFlagInContext() {
 	currentWorkingDir, err := os.Getwd()
 	AssertEq(nil, err)
 	app.Action = func(appCtx *cli.Context) {
-		resolvePathForTheFlagInContext("log-file", appCtx)
-		resolvePathForTheFlagInContext("key-file", appCtx)
-		resolvePathForTheFlagInContext("config-file", appCtx)
+		err = resolvePathForTheFlagInContext("log-file", appCtx)
+		AssertEq(nil, err)
+		err = resolvePathForTheFlagInContext("key-file", appCtx)
+		AssertEq(nil, err)
+		err = resolvePathForTheFlagInContext("config-file", appCtx)
+		AssertEq(nil, err)
 
 		ExpectEq(filepath.Join(currentWorkingDir, "test.txt"),
 			appCtx.String("log-file"))
