@@ -47,7 +47,6 @@ func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCre
 	if oStat.Size() != byteSize {
 		t.Errorf("File size is not %v bytes, found size: %d bytes", BytesWrittenInFile, oStat.Size())
 	}
-	return
 }
 
 func TestFileAttributes(t *testing.T) {
