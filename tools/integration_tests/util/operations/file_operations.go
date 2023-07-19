@@ -16,6 +16,7 @@
 package operations
 
 import (
+	"crypto/rand"
 	"fmt"
 	"io"
 	"log"
@@ -23,6 +24,8 @@ import (
 	"os/exec"
 	"syscall"
 )
+
+const NumberOfBytesReadFromFile = 200
 
 func CopyFile(srcFileName string, newFileName string) (err error) {
 	if _, err = os.Stat(newFileName); err == nil {
@@ -140,4 +143,33 @@ func CloseFile(file *os.File) {
 	if err := file.Close(); err != nil {
 		log.Printf("error in closing: %v", err)
 	}
+}
+
+func WriteFileSequentially(filePath string, numberOfTotalBytes int64) (err error) {
+	var numberOfBytes int
+	var offset int64 = 0
+	chunk := make([]byte, NumberOfBytesReadFromFile)
+
+	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, FilePermission_0600)
+	if err != nil {
+		log.Printf("Error in opening file:%v", err)
+	}
+
+	for offset != numberOfTotalBytes {
+		_, err = rand.Read(chunk)
+		if err != nil {
+			log.Fatalf("error while generating random string: %s", err)
+		}
+
+		numberOfBytes, err = file.Write(chunk)
+		if err != nil {
+			return
+		}
+		if numberOfBytes != NumberOfBytesReadFromFile {
+			log.Printf("Incorrect number of bytes written in the file.")
+		}
+
+		offset = offset + NumberOfBytesReadFromFile
+	}
+	return
 }
