@@ -81,6 +81,9 @@ type FileInode struct {
 	//
 	// GUARDED_BY(mu)
 	destroyed bool
+
+	// Represents a local file which is not yet synced to GCS.
+	local bool
 }
 
 var _ Inode = &FileInode{}
@@ -270,6 +273,14 @@ func (f *FileInode) ID() fuseops.InodeID {
 
 func (f *FileInode) Name() Name {
 	return f.name
+}
+
+func (f *FileInode) IsLocal() bool {
+	return f.local
+}
+
+func (f *FileInode) SetLocal(val bool) {
+	f.local = val
 }
 
 // Source returns a record for the GCS object from which this inode is branched. The
@@ -595,7 +606,12 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 	return
 }
 
-func convertObjToMinObject(o *gcs.Object) (mo storage.MinObject) {
+func convertObjToMinObject(o *gcs.Object) storage.MinObject {
+	var min storage.MinObject
+	if o == nil {
+		return min
+	}
+
 	return storage.MinObject{
 		Name:           o.Name,
 		Size:           o.Size,

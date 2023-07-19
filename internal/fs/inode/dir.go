@@ -87,6 +87,10 @@ type DirInode interface {
 	// Return the full name of the child and the GCS object it backs up.
 	CreateChildFile(ctx context.Context, name string) (*Core, error)
 
+	// Create an empty child local file with the supplied (relative) name. Local
+	// file means the object is not created in GCS.
+	CreateLocalChildFile(name string) (*Core, error)
+
 	// Like CreateChildFile, except clone the supplied source object instead of
 	// creating an empty object.
 	// Return the full name of the child and the GCS object it backs up.
@@ -660,6 +664,18 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 		Bucket:   d.Bucket(),
 		FullName: fullName,
 		Object:   o,
+	}, nil
+}
+
+func (d *dirInode) CreateLocalChildFile(name string) (*Core, error) {
+	fullName := NewFileName(d.Name(), name)
+
+	// TODO: check if its required.
+	d.cache.Insert(d.cacheClock.Now(), name, RegularFileType)
+	return &Core{
+		Bucket:   d.Bucket(),
+		FullName: fullName,
+		Object:   nil,
 	}, nil
 }
 

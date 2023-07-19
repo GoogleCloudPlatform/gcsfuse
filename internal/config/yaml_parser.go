@@ -8,7 +8,7 @@ import (
 )
 
 func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
-	mountConfig = &MountConfig{}
+	mountConfig = NewMountConfig()
 
 	if fileName == "" {
 		return

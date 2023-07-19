@@ -176,6 +176,10 @@ func (d *baseDirInode) CreateChildFile(ctx context.Context, name string) (*Core,
 	return nil, fuse.ENOSYS
 }
 
+func (d *baseDirInode) CreateLocalChildFile(name string) (*Core, error) {
+	return nil, fuse.ENOSYS
+}
+
 func (d *baseDirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.Object) (*Core, error) {
 	return nil, fuse.ENOSYS
 }

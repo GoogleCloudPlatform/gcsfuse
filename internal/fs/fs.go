@@ -168,6 +168,7 @@ func NewFileSystem(
 		nextInodeID:                fuseops.RootInodeID + 1,
 		generationBackedInodes:     make(map[inode.Name]inode.GenerationBackedInode),
 		implicitDirInodes:          make(map[inode.Name]inode.DirInode),
+		localFileInodes:            make(map[inode.Name]inode.Inode),
 		handles:                    make(map[fuseops.HandleID]interface{}),
 		mountConfig:                cfg.MountConfig,
 	}
@@ -369,6 +370,8 @@ type fileSystem struct {
 	//
 	// GUARDED_BY(mu)
 	implicitDirInodes map[inode.Name]inode.DirInode
+
+	localFileInodes map[inode.Name]inode.Inode
 
 	// The collection of live handles, keyed by handle ID.
 	//
@@ -1294,12 +1297,66 @@ func (fs *fileSystem) createFile(
 	return
 }
 
+func (fs *fileSystem) createLocalFile(
+	parentID fuseops.InodeID,
+	name string) (child inode.Inode, err error) {
+	// Find the parent.
+	fs.mu.Lock()
+	parent := fs.dirInodeOrDie(parentID)
+	fs.mu.Unlock()
+
+	defer func() {
+		// We need to release the filesystem lock before acquiring the inode lock.
+		fs.mu.Unlock()
+
+		if child != nil {
+			child.Lock()
+			child.IncrementLookupCount()
+		}
+	}()
+
+	fs.mu.Lock()
+
+	fullName := inode.NewFileName(parent.Name(), name)
+	fmt.Println("fulll name constructed")
+	fmt.Println(fullName)
+	child, ok := fs.localFileInodes[fullName]
+
+	if ok {
+		fmt.Println(child)
+	}
+
+	if !ok {
+		var result *inode.Core
+		result, err = parent.CreateLocalChildFile(name)
+		if err != nil {
+			return
+		}
+
+		child = fs.mintInode(*result)
+
+		fileInode := child.(*inode.FileInode)
+		fileInode.SetLocal(true)
+		fs.localFileInodes[child.Name()] = fileInode
+		fmt.Println("inode name")
+		fmt.Println(child.Name())
+	}
+
+	return
+}
+
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {
 	// Create the child.
-	child, err := fs.createFile(ctx, op.Parent, op.Name, op.Mode)
+	var child inode.Inode
+	if fs.mountConfig.CreateEmptyFile {
+		child, err = fs.createFile(ctx, op.Parent, op.Name, op.Mode)
+	} else {
+		child, err = fs.createLocalFile(op.Parent, op.Name)
+	}
+
 	if err != nil {
 		return err
 	}
@@ -1720,6 +1777,7 @@ func (fs *fileSystem) ReadDir(
 	// Find the handle.
 	fs.mu.Lock()
 	dh := fs.handles[op.Handle].(*dirHandle)
+	fmt.Println(dh.in.Name())
 	fs.mu.Unlock()
 
 	dh.Mu.Lock()
@@ -1820,8 +1878,10 @@ func (fs *fileSystem) ReadSymlink(
 func (fs *fileSystem) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) (err error) {
+	err = errors.New("custom error")
+	return
 	// Find the inode.
-	fs.mu.Lock()
+	/*fs.mu.Lock()
 	in := fs.fileInodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
@@ -1833,7 +1893,7 @@ func (fs *fileSystem) WriteFile(
 		return err
 	}
 
-	return
+	return*/
 }
 
 // LOCKS_EXCLUDED(fs.mu)
