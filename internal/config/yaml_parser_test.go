@@ -18,15 +18,19 @@ func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
 	mountConfig, err := ParseConfigFile("")
 
 	AssertEq(nil, err)
-	AssertNe(nil, mountConfig)
-	AssertEq(true, mountConfig.CreateEmptyFile)
+	validateDefaultConfig(mountConfig)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFile() {
 	mountConfig, err := ParseConfigFile("testdata/empty_file.yaml")
 
 	AssertEq(nil, err)
+	validateDefaultConfig(mountConfig)
+}
+
+func validateDefaultConfig(mountConfig *MountConfig) {
 	AssertNe(nil, mountConfig)
+	AssertEq(true, mountConfig.CreateEmptyFile)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_NonExistingFile() {
