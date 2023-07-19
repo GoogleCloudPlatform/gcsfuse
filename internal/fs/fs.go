@@ -1933,8 +1933,10 @@ func (fs *fileSystem) ReadSymlink(
 func (fs *fileSystem) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) (err error) {
+	err = errors.New("custom error")
+	return
 	// Find the inode.
-	fs.mu.Lock()
+	/*fs.mu.Lock()
 	in := fs.fileInodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
@@ -1946,7 +1948,7 @@ func (fs *fileSystem) WriteFile(
 		return err
 	}
 
-	return
+	return*/
 }
 
 // LOCKS_EXCLUDED(fs.mu)
