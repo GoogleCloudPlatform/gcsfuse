@@ -23,7 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const HundredMB = 1048576
+const HundredMB = 100000000
 const HundredMBFile = "hundredMBFile.txt"
 
 func TestWriteLargeFileSequentially(t *testing.T) {
