@@ -14,6 +14,11 @@ type YamlParserTest struct {
 
 func init() { RegisterTestSuite(&YamlParserTest{}) }
 
+func validateDefaultConfig(mountConfig *MountConfig) {
+	AssertNe(nil, mountConfig)
+	AssertEq(true, mountConfig.CreateEmptyFile)
+}
+
 func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
 	mountConfig, err := ParseConfigFile("")
 
@@ -26,11 +31,6 @@ func (t *YamlParserTest) TestReadConfigFile_EmptyFile() {
 
 	AssertEq(nil, err)
 	validateDefaultConfig(mountConfig)
-}
-
-func validateDefaultConfig(mountConfig *MountConfig) {
-	AssertNe(nil, mountConfig)
-	AssertEq(true, mountConfig.CreateEmptyFile)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_NonExistingFile() {
