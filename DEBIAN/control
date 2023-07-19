@@ -1,6 +1,6 @@
 Version: 1.0.0
 Source: gcsfuse
-Maintainer: GCSFuse Eng Team <gcs-fuse-eng@google.com>
+Maintainer: GCSFuse Team <gcs-fuse-maintainers@google.com>
 Homepage: https://github.com/GoogleCloudPlatform/gcsfuse
 Package: gcsfuse
 Architecture: amd64

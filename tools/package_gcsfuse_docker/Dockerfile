@@ -20,7 +20,6 @@
 FROM golang:1.20.4 as builder
 
 RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm && gem install --no-document bundler
-RUN apt update -qq && apt install -y binutils debhelper devscripts
 
 ENV CGO_ENABLED=0
 ENV GOOS=linux
@@ -32,7 +31,7 @@ ENV GCSFUSE_PATH "$GOPATH/src/$GCSFUSE_REPO"
 RUN go get -d ${GCSFUSE_REPO}
 
 WORKDIR ${GCSFUSE_PATH}
-ARG DEBEMAIL="gcs-fuse-dev@google.com"
+ARG DEBEMAIL="gcs-fuse-maintainers@google.com"
 ARG DEBFULLNAME="GCSFuse Team"
 
 # Build Arg for building through a particular branch/commit. By default, it uses
@@ -56,21 +55,21 @@ RUN mkdir -p ${GCSFUSE_BIN}/DEBIAN && cp $GOPATH/src/$GCSFUSE_REPO/DEBIAN/* ${GC
 RUN mkdir -p ${GCSFUSE_DOC}
 RUN mv ${GCSFUSE_BIN}/DEBIAN/copyright ${GCSFUSE_DOC} &&  \
     mv ${GCSFUSE_BIN}/DEBIAN/changelog ${GCSFUSE_DOC} && \
-    mv ${GCSFUSE_BIN}/DEBIAN/gcsfuse-docs.docs ${GCSFUSE_DOC} \
+    mv ${GCSFUSE_BIN}/DEBIAN/gcsfuse-docs.docs ${GCSFUSE_DOC}
 # Update gcsfuse version in changelog and control file
 RUN sed -i "1s/.*/gcsfuse (${GCSFUSE_VERSION}) stable; urgency=medium/" ${GCSFUSE_DOC}/changelog && \
-    sed -i "1s/.*/Version: ${GCSFUSE_VERSION}/" ${GCSFUSE_BIN}/DEBIAN/control \
+    sed -i "1s/.*/Version: ${GCSFUSE_VERSION}/" ${GCSFUSE_BIN}/DEBIAN/control
 # Compress changelog as required by lintian
 RUN gzip -9 -n ${GCSFUSE_DOC}/changelog
 # Strip unneeded from binaries as required by lintian
 RUN strip --strip-unneeded ${GCSFUSE_BIN}/usr/bin/gcsfuse && \
-    strip --strip-unneeded ${GCSFUSE_BIN}/sbin/mount.gcsfuse \
-# Build the package
-RUN dpkg-deb --build ${GCSFUSE_BIN}
+    strip --strip-unneeded ${GCSFUSE_BIN}/sbin/mount.gcsfuse
 
 ARG GCSFUSE_PKG="/packages"
 RUN mkdir -p ${GCSFUSE_PKG}
 WORKDIR ${GCSFUSE_PKG}
+# Build the package
+RUN dpkg-deb --build ${GCSFUSE_BIN}
 RUN mv ${GCSFUSE_BIN}.deb .
 RUN fpm \
     -s dir \

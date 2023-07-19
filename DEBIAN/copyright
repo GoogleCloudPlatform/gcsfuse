@@ -1,6 +1,6 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: gcsfuse
-Upstream-Contact: gcs-fuse-eng@google.com
+Upstream-Contact: gcs-fuse-maintainers@google.com
 
 Files: *
 Copyright: Copyright 2020 Google Inc.
