@@ -27,6 +27,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
@@ -108,6 +109,7 @@ func mountWithArgs(
 	bucketName string,
 	mountPoint string,
 	flags *flagStorage,
+	mountConfig *config.MountConfig,
 	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
@@ -138,6 +140,7 @@ func mountWithArgs(
 		bucketName,
 		mountPoint,
 		flags,
+		mountConfig,
 		storageHandle,
 		mountStatus)
 
@@ -192,6 +195,11 @@ func runCLIApp(c *cli.Context) (err error) {
 	flags, err := populateFlags(c)
 	if err != nil {
 		return fmt.Errorf("parsing flags failed: %w", err)
+	}
+
+	mountConfig, err := config.ParseConfigFile(flags.ConfigFile)
+	if err != nil {
+		return fmt.Errorf("parsing config file failed: %w", err)
 	}
 
 	if flags.Foreground {
@@ -301,7 +309,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	var mfs *fuse.MountedFileSystem
 	{
 		mountStatus := logger.NewInfo("")
-		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountStatus)
+		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountConfig, mountStatus)
 
 		if err == nil {
 			mountStatus.Println("File system has been successfully mounted.")

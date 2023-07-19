@@ -120,7 +120,8 @@ func makeGcsfuseArgs(
 			"experimental_opentelemetry_collector_address",
 			"log_format",
 			"log_file",
-			"custom_endpoint":
+			"custom_endpoint",
+			"config_file":
 			args = append(args, "--"+strings.Replace(name, "_", "-", -1), value)
 
 		// Special case: support mount-like formatting for gcsfuse debug flags.
