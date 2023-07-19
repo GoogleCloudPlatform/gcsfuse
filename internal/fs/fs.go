@@ -371,6 +371,17 @@ type fileSystem struct {
 	// GUARDED_BY(mu)
 	implicitDirInodes map[inode.Name]inode.DirInode
 
+	// A map from object name to the local file inode that represents
+	// that name, if any. There can be at most one local file inode for a
+	// given name accessible to us at any given time.
+	//
+	// INVARIANT: For each k/v, v.Name() == k
+	// INVARIANT: For each value v, inodes[v.ID()] == v
+	// INVARIANT: For each value v, v is not fileInode
+	// INVARIANT: For each f in inodes that is local fileInode,
+	//            localFileInodes[f.Name()] == f
+	//
+	// GUARDED_BY(mu)
 	localFileInodes map[inode.Name]inode.Inode
 
 	// The collection of live handles, keyed by handle ID.
@@ -516,6 +527,60 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	//////////////////////////////////
+	// Local file inodes
+	//////////////////////////////////
+
+	// INVARIANT: For each value v, inodes[v.ID()] == v
+	// INVARIANT: For each value v, v is not fileInode
+
+	// INVARIANT: For each k/v, v.Name() == k
+	for k, v := range fs.localFileInodes {
+		if !(v.Name() == k) {
+			panic(fmt.Sprintf(
+				"Unexpected name: \"%s\" vs. \"%s\"",
+				v.Name(),
+				k))
+		}
+	}
+
+	// INVARIANT: For each value v, inodes[v.ID()] == v
+	for _, v := range fs.localFileInodes {
+		if fs.inodes[v.ID()] != v {
+			panic(fmt.Sprintf(
+				"Mismatch for ID %v: %v %v",
+				v.ID(),
+				fs.inodes[v.ID()],
+				v))
+		}
+	}
+
+	// INVARIANT: For each value v, v is not ExplicitDirInode
+	for _, v := range fs.localFileInodes {
+		if _, ok := v.(*inode.FileInode); ok {
+			panic(fmt.Sprintf(
+				"Unexpected file inode %d, type %T",
+				v.ID(),
+				v))
+		}
+	}
+
+	// INVARIANT: For each f in inodes that is local fileInode
+	//            localFileInodes[d.Name()] == f
+	for _, in := range fs.inodes {
+		fileInode, ok := in.(*inode.FileInode)
+
+		if ok && fileInode.IsLocal() {
+			if !(fs.localFileInodes[in.Name()] == in) {
+				panic(fmt.Sprintf(
+					"localFileInodes mismatch: %q %v %v",
+					in.Name(),
+					fs.localFileInodes[in.Name()],
+					in))
+			}
+		}
+	}
+
+	//////////////////////////////////
 	// handles
 	//////////////////////////////////
 
@@ -621,7 +686,8 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			ic.Bucket,
 			fs.localFileCache,
 			fs.contentCache,
-			fs.mtimeClock)
+			fs.mtimeClock,
+			ic.Local)
 	}
 
 	// Place it in our map of IDs to inodes.
@@ -1318,13 +1384,7 @@ func (fs *fileSystem) createLocalFile(
 	fs.mu.Lock()
 
 	fullName := inode.NewFileName(parent.Name(), name)
-	fmt.Println("fulll name constructed")
-	fmt.Println(fullName)
 	child, ok := fs.localFileInodes[fullName]
-
-	if ok {
-		fmt.Println(child)
-	}
 
 	if !ok {
 		var result *inode.Core
@@ -1336,10 +1396,7 @@ func (fs *fileSystem) createLocalFile(
 		child = fs.mintInode(*result)
 
 		fileInode := child.(*inode.FileInode)
-		fileInode.SetLocal(true)
 		fs.localFileInodes[child.Name()] = fileInode
-		fmt.Println("inode name")
-		fmt.Println(child.Name())
 	}
 
 	return
@@ -1777,7 +1834,6 @@ func (fs *fileSystem) ReadDir(
 	// Find the handle.
 	fs.mu.Lock()
 	dh := fs.handles[op.Handle].(*dirHandle)
-	fmt.Println(dh.in.Name())
 	fs.mu.Unlock()
 
 	dh.Mu.Lock()
@@ -1878,10 +1934,8 @@ func (fs *fileSystem) ReadSymlink(
 func (fs *fileSystem) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) (err error) {
-	err = errors.New("custom error")
-	return
 	// Find the inode.
-	/*fs.mu.Lock()
+	fs.mu.Lock()
 	in := fs.fileInodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
@@ -1893,7 +1947,7 @@ func (fs *fileSystem) WriteFile(
 		return err
 	}
 
-	return*/
+	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)

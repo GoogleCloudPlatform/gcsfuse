@@ -126,13 +126,6 @@ func (t *CoreTest) SanityCheck() {
 
 	c = &inode.Core{
 		Bucket:   &t.bucket,
-		FullName: inode.NewFileName(root, "bar"),
-		Object:   nil,
-	}
-	ExpectNe(nil, c.SanityCheck()) // missing object for file
-
-	c = &inode.Core{
-		Bucket:   &t.bucket,
 		FullName: inode.NewFileName(root, o.Name),
 		Object:   o,
 	}
@@ -144,4 +137,20 @@ func (t *CoreTest) SanityCheck() {
 		Object:   o,
 	}
 	ExpectNe(nil, c.SanityCheck()) // name mismatch
+
+	c = &inode.Core{
+		Bucket:   &t.bucket,
+		FullName: inode.NewFileName(root, "foo"),
+		Object:   nil,
+		Local:    true,
+	}
+	ExpectEq(nil, c.SanityCheck()) // object is nil for local fileInode.
+
+	c = &inode.Core{
+		Bucket:   &t.bucket,
+		FullName: inode.NewFileName(root, "foo"),
+		Object:   nil,
+		Local:    false,
+	}
+	ExpectNe(nil, c.SanityCheck()) // Missing object for non-local fileInode.
 }
