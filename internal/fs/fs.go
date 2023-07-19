@@ -1390,6 +1390,12 @@ func (fs *fileSystem) createLocalFile(
 
 		child = fs.mintInode(*result)
 		fs.localFileInodes[child.Name()] = child
+
+		fileInode := child.(*inode.FileInode)
+		err = fileInode.CreateEmptyTempFile()
+		if err != nil {
+			return
+		}
 	}
 
 	return
