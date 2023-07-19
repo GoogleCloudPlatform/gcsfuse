@@ -28,11 +28,11 @@ func (t *YamlParserTest) TestReadConfigFile_EmptyFile() {
 	AssertNe(nil, mountConfig)
 }
 
-func (t *YamlParserTest) TestReadConfigFile_InvalidFile() {
-	_, err := ReadConfigFile("testdata/invalid_file.yaml")
+func (t *YamlParserTest) TestReadConfigFile_NonExistingFile() {
+	_, err := ReadConfigFile("testdata/nofile.yaml")
 
 	AssertNe(nil, err)
-	AssertEq("error reading config file: open testdata/invalid_file.yaml: no such file or directory", err.Error())
+	AssertEq("error reading config file: open testdata/nofile.yaml: no such file or directory", err.Error())
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidConfig() {
