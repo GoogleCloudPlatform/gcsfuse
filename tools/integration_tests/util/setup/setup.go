@@ -152,7 +152,7 @@ func SetUpTestDir() error {
 		// when testInstalledPackage flag is set, gcsfuse is preinstalled on the
 		// machine. Hence, here we are overwriting binFile to gcsfuse.
 		binFile = "gcsfuse"
-		sbinFile = "gcsfuse"
+		sbinFile = "mount.gcsfuse"
 	}
 	logFile = path.Join(TestDir(), "gcsfuse.log")
 	mntDir = path.Join(TestDir(), "mnt")
