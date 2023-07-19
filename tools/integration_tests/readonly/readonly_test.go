@@ -82,12 +82,12 @@ func TestMain(m *testing.M) {
 
 	if successCode == 0 {
 		// Test for viewer permission on test bucket.
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectViewer", m)
+		successCode = persistent_mounting.RunTests(flags, m)
 	}
 
 	if successCode == 0 {
 		// Test for viewer permission on test bucket.
-		successCode = persistent_mounting.RunTests(flags, m)
+		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectViewer", m)
 	}
 
 	// Delete objects from bucket after testing.
