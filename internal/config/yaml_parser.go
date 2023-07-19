@@ -7,7 +7,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func ReadConfigFile(fileName string) (mountConfig *MountConfig, err error) {
+func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 	mountConfig = &MountConfig{}
 
 	if fileName == "" {

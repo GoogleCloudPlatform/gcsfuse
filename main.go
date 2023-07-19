@@ -275,7 +275,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		return fmt.Errorf("parsing flags failed: %w", err)
 	}
 
-	mountOptions, err := config.ReadConfigFile(flags.ConfigFile)
+	mountConfig, err := config.ParseConfigFile(flags.ConfigFile)
 	if err != nil {
 		return fmt.Errorf("parsing config file failed: %w", err)
 	}
@@ -387,7 +387,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	var mfs *fuse.MountedFileSystem
 	{
 		mountStatus := logger.NewInfo("")
-		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountOptions, mountStatus)
+		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountConfig, mountStatus)
 
 		if err == nil {
 			mountStatus.Println("File system has been successfully mounted.")
