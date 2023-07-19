@@ -361,17 +361,23 @@ func (t *FlagsTest) TestResolvePathForTheFlagInContext() {
 	currentWorkingDir, err := os.Getwd()
 	AssertEq(nil, err)
 	app.Action = func(appCtx *cli.Context) {
-		resolvePathForTheFlagInContext("log-file", appCtx)
-		resolvePathForTheFlagInContext("key-file", appCtx)
+		err = resolvePathForTheFlagInContext("log-file", appCtx)
+		AssertEq(nil, err)
+		err = resolvePathForTheFlagInContext("key-file", appCtx)
+		AssertEq(nil, err)
+		err = resolvePathForTheFlagInContext("config-file", appCtx)
+		AssertEq(nil, err)
 
 		ExpectEq(filepath.Join(currentWorkingDir, "test.txt"),
 			appCtx.String("log-file"))
 		ExpectEq(filepath.Join(currentWorkingDir, "test.txt"),
 			appCtx.String("key-file"))
+		ExpectEq(filepath.Join(currentWorkingDir, "config.yaml"),
+			appCtx.String("config-file"))
 	}
 	// Simulate argv.
 	fullArgs := []string{"some_app", "--log-file=test.txt",
-		"--key-file=test.txt"}
+		"--key-file=test.txt", "--config-file=config.yaml"}
 
 	err = app.Run(fullArgs)
 
@@ -389,10 +395,12 @@ func (t *FlagsTest) TestResolvePathForTheFlagsInContext() {
 			appCtx.String("log-file"))
 		ExpectEq(filepath.Join(currentWorkingDir, "test.txt"),
 			appCtx.String("key-file"))
+		ExpectEq(filepath.Join(currentWorkingDir, "config.yaml"),
+			appCtx.String("config-file"))
 	}
 	// Simulate argv.
 	fullArgs := []string{"some_app", "--log-file=test.txt",
-		"--key-file=test.txt"}
+		"--key-file=test.txt", "--config-file=config.yaml"}
 
 	err = app.Run(fullArgs)
 

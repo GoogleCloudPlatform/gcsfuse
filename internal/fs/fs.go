@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
@@ -116,6 +117,9 @@ type ServerConfig struct {
 
 	// File chunk size to read from GCS in one call. Specified in MB.
 	SequentialReadSizeMb int32
+
+	// MountConfig has all the config specified by the user using configFile flag.
+	MountConfig *config.MountConfig
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -165,6 +169,7 @@ func NewFileSystem(
 		generationBackedInodes:     make(map[inode.Name]inode.GenerationBackedInode),
 		implicitDirInodes:          make(map[inode.Name]inode.DirInode),
 		handles:                    make(map[fuseops.HandleID]interface{}),
+		mountConfig:                cfg.MountConfig,
 	}
 
 	// Set up root bucket
@@ -378,6 +383,9 @@ type fileSystem struct {
 	//
 	// GUARDED_BY(mu)
 	nextHandleID fuseops.HandleID
+
+	// Config specified by the user using configFile flag.
+	mountConfig *config.MountConfig
 }
 
 ////////////////////////////////////////////////////////////////////////

@@ -80,6 +80,12 @@ func newApp() (app *cli.App) {
 				Usage: "Stay in the foreground after mounting.",
 			},
 
+			cli.StringFlag{
+				Name:  "config-file",
+				Value: "",
+				Usage: "The path to the config file where all gcsfuse related config needs to be specified.",
+			},
+
 			/////////////////////////
 			// File system
 			/////////////////////////
@@ -354,6 +360,7 @@ func newApp() (app *cli.App) {
 type flagStorage struct {
 	AppName    string
 	Foreground bool
+	ConfigFile string
 
 	// File system
 	MountOptions   map[string]string
@@ -472,6 +479,11 @@ func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
 		return fmt.Errorf("resolving for key-file: %w", err)
 	}
 
+	err = resolvePathForTheFlagInContext("config-file", c)
+	if err != nil {
+		return fmt.Errorf("resolving for config-file: %w", err)
+	}
+
 	return
 }
 
@@ -488,6 +500,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 	flags = &flagStorage{
 		AppName:    c.String("app-name"),
 		Foreground: c.Bool("foreground"),
+		ConfigFile: c.String("config-file"),
 
 		// File system
 		MountOptions:   make(map[string]string),
