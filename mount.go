@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"golang.org/x/net/context"
 
@@ -38,6 +39,7 @@ func mountWithStorageHandle(
 	bucketName string,
 	mountPoint string,
 	flags *flagStorage,
+	mountConfig *config.MountConfig,
 	storageHandle storage.StorageHandle,
 	status *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
@@ -115,6 +117,7 @@ be interacting with the file system.`)
 		RenameDirLimit:             flags.RenameDirLimit,
 		SequentialReadSizeMb:       flags.SequentialReadSizeMb,
 		EnableNonexistentTypeCache: flags.EnableNonexistentTypeCache,
+		MountConfig:                mountConfig,
 	}
 
 	logger.Infof("Creating a new server...\n")
