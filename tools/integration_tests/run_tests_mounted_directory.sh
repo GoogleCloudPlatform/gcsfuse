@@ -28,7 +28,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o enable_storage_client_library=true,implicit_dirs=true
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o enable_storage_client_library=true,implicit_dirs=true
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
@@ -37,7 +37,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o enable_storage_client_library=false
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o enable_storage_client_library=false
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
@@ -46,7 +46,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
@@ -55,7 +55,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=false
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=false
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
@@ -65,7 +65,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,enable_storage_client_library=true,implicit_dirs=true
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,enable_storage_client_library=true,implicit_dirs=true
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
@@ -74,7 +74,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,enable_storage_client_library=false
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,enable_storage_client_library=false
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
@@ -83,7 +83,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,implicit_dirs=true
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,implicit_dirs=true
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
@@ -92,7 +92,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,implicit_dirs=false
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,implicit_dirs=false
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
@@ -102,7 +102,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 -
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o ro,implicit_dirs=true
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o ro,implicit_dirs=true
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
@@ -111,7 +111,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 -
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o file_mode=544,dir_mode=544,implicit_dirs=true
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o file_mode=544,dir_mode=544,implicit_dirs=true
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
@@ -121,7 +121,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 -
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o ro,only_dir=testDir,implicit_dirs=true
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o ro,only_dir=testDir,implicit_dirs=true
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
@@ -130,7 +130,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 -
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,file_mode=544,dir_mode=544,implicit_dirs=true
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,file_mode=544,dir_mode=544,implicit_dirs=true
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
@@ -140,7 +140,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o rename_dir_limit=3,implicit_dirs
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o rename_dir_limit=3,implicit_dirs
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
@@ -149,7 +149,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o rename_dir_limit=3
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o rename_dir_limit=3
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
@@ -159,7 +159,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,rename_dir_limit=3,implicit_dirs
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,rename_dir_limit=3,implicit_dirs
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
@@ -168,7 +168,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,rename_dir_limit=3,implicit_dirs
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,rename_dir_limit=3,implicit_dirs
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
@@ -178,7 +178,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
@@ -187,7 +187,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o  enable_storage_client_library=false,implicit_dirs
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o  enable_storage_client_library=false,implicit_dirs
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
@@ -198,7 +198,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,implicit_dirs
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,implicit_dirs
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
@@ -207,7 +207,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,enable_storage_client_library=false,implicit_dirs
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,enable_storage_client_library=false,implicit_dirs
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
@@ -217,7 +217,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/explicit_dir/...  -p
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o enable_storage_client_library=true
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o enable_storage_client_library=true
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/explicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
@@ -226,7 +226,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/explicit_dir/...  -p
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o enable_storage_client_library=false
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o enable_storage_client_library=false
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/explicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
@@ -236,7 +236,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/explicit_dir/...  -p
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,enable_storage_client_library=true
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,enable_storage_client_library=true
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/explicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
@@ -245,7 +245,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/explicit_dir/...  -p
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,enable_storage_client_library=false
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,enable_storage_client_library=false
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/explicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
@@ -255,7 +255,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/list_large_dir/...  
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/list_large_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
@@ -265,6 +265,6 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/list_large_dir/...  
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting
-/sbin/mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,implicit_dirs
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,implicit_dirs
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/list_large_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
