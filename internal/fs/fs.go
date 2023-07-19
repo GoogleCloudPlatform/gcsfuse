@@ -371,8 +371,8 @@ type fileSystem struct {
 	// GUARDED_BY(mu)
 	implicitDirInodes map[inode.Name]inode.DirInode
 
-	// A map from object name to the local file inode that represents
-	// that name, if any. There can be at most one local file inode for a
+	// A map from object name to the local fileInode that represents
+	// that name. There can be at most one local file inode for a
 	// given name accessible to us at any given time.
 	//
 	// INVARIANT: For each k/v, v.Name() == k
@@ -554,7 +554,7 @@ func (fs *fileSystem) checkInvariants() {
 		}
 	}
 
-	// INVARIANT: For each value v, v is not ExplicitDirInode
+	// INVARIANT: For each value v, v is not fileInode
 	for _, v := range fs.localFileInodes {
 		if _, ok := v.(*inode.FileInode); ok {
 			panic(fmt.Sprintf(
@@ -1378,6 +1378,7 @@ func (fs *fileSystem) createLocalFile(
 		if child != nil {
 			child.Lock()
 			child.IncrementLookupCount()
+			// Unlock is done by the calling method.
 		}
 	}()
 
@@ -1385,7 +1386,6 @@ func (fs *fileSystem) createLocalFile(
 
 	fullName := inode.NewFileName(parent.Name(), name)
 	child, ok := fs.localFileInodes[fullName]
-
 	if !ok {
 		var result *inode.Core
 		result, err = parent.CreateLocalChildFile(name)
@@ -1394,9 +1394,7 @@ func (fs *fileSystem) createLocalFile(
 		}
 
 		child = fs.mintInode(*result)
-
-		fileInode := child.(*inode.FileInode)
-		fs.localFileInodes[child.Name()] = fileInode
+		fs.localFileInodes[child.Name()] = child
 	}
 
 	return

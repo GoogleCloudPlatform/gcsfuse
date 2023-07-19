@@ -17,10 +17,8 @@ package wrappers
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
-	"runtime/debug"
 	"strings"
 	"syscall"
 
@@ -96,8 +94,6 @@ func (em *errorMapping) handlePanic() {
 	// detect if panic occurred or not
 	a := recover()
 	if a != nil {
-		fmt.Printf("Error: %+v", errors.New(fmt.Sprintf("%v", a)))
-		fmt.Println(string(debug.Stack()))
 		em.logger.Fatal("Panic: ", a)
 	}
 }
