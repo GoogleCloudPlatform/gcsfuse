@@ -37,7 +37,8 @@ func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
 	mountConfig, err := ParseConfigFile("")
 
 	AssertEq(nil, err)
-	validateDefaultConfig(mountConfig)
+	AssertNe(nil, mountConfig)
+	AssertEq(true, mountConfig.CreateEmptyFile)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFile() {
