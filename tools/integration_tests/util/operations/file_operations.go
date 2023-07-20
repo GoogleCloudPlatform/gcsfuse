@@ -24,8 +24,6 @@ import (
 	"syscall"
 )
 
-const NumberOfBytesReadFromFile = 200
-
 func CopyFile(srcFileName string, newFileName string) (err error) {
 	if _, err = os.Stat(newFileName); err == nil {
 		err = fmt.Errorf("Copied file %s already present", newFileName)
@@ -144,15 +142,24 @@ func CloseFile(file *os.File) {
 	}
 }
 
-func ReadFileSequentially(filePath string, numberOfBytes int64) (content []byte, err error) {
-	content = make([]byte, numberOfBytes)
-	chunk := make([]byte, NumberOfBytesReadFromFile)
+func RemoveFile(filePath string) {
+	err := os.Remove(filePath)
+	if err != nil {
+		log.Printf("Error in removing file:%v", err)
+	}
+}
+
+func ReadFileSequentially(filePath string, fileSize int64, chunkSize int64) (content []byte, err error) {
+	chunk := make([]byte, chunkSize)
 	var offset int64 = 0
 
-	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, FilePermission_0600)
+	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
 		log.Printf("Error in opening file:%v", err)
 	}
+
+	// Closing the file at the end.
+	defer CloseFile(file)
 
 	for err != io.EOF {
 		var numberOfBytes int
@@ -161,8 +168,10 @@ func ReadFileSequentially(filePath string, numberOfBytes int64) (content []byte,
 		numberOfBytes, err = file.ReadAt(chunk, offset)
 		// If the file reaches the end, write the remaining content in the buffer and return.
 		if err == io.EOF {
+
 			for i := offset; i < offset+int64(numberOfBytes); i++ {
-				content[i] = chunk[i-offset]
+				// Adding remaining bytes.
+				content = append(content, chunk[i-offset])
 			}
 			err = nil
 			return
@@ -171,17 +180,15 @@ func ReadFileSequentially(filePath string, numberOfBytes int64) (content []byte,
 			return
 		}
 		// Write bytes in the buffer to compare with original content.
-		for i := offset; i < offset+NumberOfBytesReadFromFile; i++ {
-			content[i] = chunk[i-offset]
-		}
+		content = append(content, chunk...)
 
 		// The number of bytes read is not equal to 200.
-		if numberOfBytes != NumberOfBytesReadFromFile {
+		if int64(numberOfBytes) != chunkSize {
 			log.Printf("Incorrect number of bytes read from file.")
 		}
 
 		// The offset will shift to read the next chunk.
-		offset = offset + NumberOfBytesReadFromFile
+		offset = offset + chunkSize
 	}
 	return
 }
