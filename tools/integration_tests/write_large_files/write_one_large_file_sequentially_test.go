@@ -23,23 +23,24 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const HundredMB = 100000000
-const HundredMBFile = "hundredMBFile.txt"
+const FiveHundredMB = 500000000
+const FiveHundredMBFile = "fiveHundredMBFile.txt"
+const chunkSize = 2000000000
 
 func TestWriteLargeFileSequentially(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
-	filePath := path.Join(setup.MntDir(), HundredMBFile)
+	filePath := path.Join(setup.MntDir(), FiveHundredMBFile)
 
 	// Sequentially read the data from file.
-	err := operations.WriteFileSequentially(filePath, HundredMB)
+	err := operations.WriteFileSequentially(filePath, FiveHundredMB, chunkSize)
 	if err != nil {
 		t.Errorf("Error in writing file: %v", err)
 	}
 
 	fStat, err := os.Stat(filePath)
-	if fStat.Size() != HundredMB {
-		t.Errorf("Expecred file size %v found %d", HundredMB, fStat.Size())
+	if fStat.Size() != FiveHundredMB {
+		t.Errorf("Expecred file size %v found %d", FiveHundredMB, fStat.Size())
 	}
 }

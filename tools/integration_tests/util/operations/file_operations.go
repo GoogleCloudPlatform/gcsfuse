@@ -25,8 +25,6 @@ import (
 	"syscall"
 )
 
-const NumberOfBytesReadFromFile = 200
-
 func CopyFile(srcFileName string, newFileName string) (err error) {
 	if _, err = os.Stat(newFileName); err == nil {
 		err = fmt.Errorf("Copied file %s already present", newFileName)
@@ -145,17 +143,20 @@ func CloseFile(file *os.File) {
 	}
 }
 
-func WriteFileSequentially(filePath string, numberOfTotalBytes int64) (err error) {
+func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (err error) {
 	var numberOfBytes int
 	var offset int64 = 0
-	chunk := make([]byte, NumberOfBytesReadFromFile)
+	chunk := make([]byte, chunkSize)
 
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, FilePermission_0600)
 	if err != nil {
 		log.Printf("Error in opening file:%v", err)
 	}
 
-	for offset != numberOfTotalBytes {
+	// Closing file at the end.
+	defer CloseFile(file)
+
+	for offset != fileSize {
 		_, err = rand.Read(chunk)
 		if err != nil {
 			log.Fatalf("error while generating random string: %s", err)
@@ -165,11 +166,11 @@ func WriteFileSequentially(filePath string, numberOfTotalBytes int64) (err error
 		if err != nil {
 			return
 		}
-		if numberOfBytes != NumberOfBytesReadFromFile {
+		if int64(numberOfBytes) != chunkSize {
 			log.Printf("Incorrect number of bytes written in the file.")
 		}
 
-		offset = offset + NumberOfBytesReadFromFile
+		offset = offset + chunkSize
 	}
 	return
 }
