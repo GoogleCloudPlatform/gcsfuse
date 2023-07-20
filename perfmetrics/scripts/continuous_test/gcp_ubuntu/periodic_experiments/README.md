@@ -1,8 +1,8 @@
 # GCSFuse Experiments Dashboard
-GCSFuse Experiments Dashboard is a powerful tool designed to automate performance tests on GCSFuse, enabling developers to run tests with different configurations and visualize the results effectively. An experiment is a test run on GCSFuse for an experiment config.
+GCSFuse Experiments Dashboard is a powerful tool designed to automate performance tests on GCSFuse, enabling developers to run tests with custom configurations and visualize the results effectively. An experiment is a test run on GCSFuse for an experiment config.
 
 ## Introduction
-GCSFuse Experiments Dashboard simplifies the process of running performance tests on GCSFuse by providing a user-friendly interface. It allows developers to define experiment configurations in a JSON file and execute tests with specific GCSFuse flags and branches effortlessly. The results from these tests are stored in BigQuery tables, and displayed on the GCSFuse Experiments Dashboard making it convenient for further analysis and comparison.
+GCSFuse Experiments Dashboard simplifies the process of running performance tests on GCSFuse by providing a user-friendly interface. It allows developers to define experiment configurations in a JSON file and execute tests with different GCSFuse flags and branch effortlessly. The results from these tests are stored in BigQuery tables, and displayed on the GCSFuse Experiments Dashboard making it convenient for further analysis and comparison.
 
 ## Getting Started
 To get started, follow the instructions in the subsequent sections to add or modify configurations, run experiments, and access the GCSFuse Experiments Dashboard for comprehensive result analysis.
@@ -33,7 +33,12 @@ To add or modify experiment configurations, developers need to update the JSON f
 3. branch (string): The GCSFuse Repo branch to use for the experiment.
 4. end_date (string): The experiment will run every day till this date and time. Format: "%Y-%m-%d %H:%M[:%S%:z]".
 
-**Note**: Ensure that all components of the date (year, month, day, hour, minute, second) are entered as double digits.
+### Important Note:
+Ensure that all components of the date (year, month, day, hour, minute, second) are entered as double digits.
+
+Developers should be cautious when specifying the gcsfuse_flags. The JSON file must only contain the additional flags necessary for each configuration. The default flags are applied automatically during the experiment execution.
+
+It is the responsibility of the developer to ensure that the correct and appropriate set of flags is added to each configuration. Incorrect or conflicting flags may lead to undesired results during the experiments.
 
 ### Configuration Example
 #### An example of the configuration object in the experiment_configuration array:
@@ -45,11 +50,12 @@ To add or modify experiment configurations, developers need to update the JSON f
 ```
 
 ### Uniquely Identifying an Experiment
-##### A configuration name uniquely defines an experiment and two experiments can't have same configuration name. 
-##### Once an experiment configuration has been defined, it is important to note that the gcsfuse flags and branch associated with that configuration cannot be edited directly. If there is a need to modify these values, the right approach is to create a new experiment configuration with the desired changes. This ensures the integrity and consistency of the existing configurations.
+A configuration name uniquely defines an experiment and two experiments can't have same configuration name. 
+
+Once an experiment configuration has been defined, it is important to note that the gcsfuse flags and branch associated with that configuration cannot be edited directly. If there is a need to modify these values, the right approach is to create a new experiment configuration with the desired changes. This ensures the integrity and consistency of the existing configurations.
 
 ## Default Flags
-Certain flags are set by default when running GCSFuse experiments. Notably, the --stackdriver-export-interval=30s flag is enabled by default to facilitate logging, which is always done in text format.
+Certain flags are set by default when running GCSFuse experiments. The --stackdriver-export-interval=30s flag is enabled by default to facilitate logging, which is always done in text format.
 
 ## Working with BigQuery
 The test results obtained from the experiments are stored in BigQuery tables. The relevant project name, dataset ID, and table IDs can be modified in the constants.py file.
