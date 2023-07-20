@@ -65,7 +65,7 @@ The test results obtained from the experiments are stored in BigQuery tables. Th
 2. **‘requirements.in’**: This file contains the dependencies required by the Python scripts and modules for interacting with BigQuery. It lists the packages and their specific versions that must be installed for the code to work correctly. If no version is specified then the latest version will be installed.
 3. **‘get_experiments_config.py’**:This script is used to retrieve the configuration ID based on the provided configuration name, branch, gcsfuse flags, and end date.
 4. **‘constants.py’**: This file contains the IDs of the dataset, project and tables used in the Python scripts and modules for interacting with BigQuery By centralizing these IDs in one place, it makes it simpler to refer to them or manage and update them if needed.
-5. **‘experiments_gcsfuse_bq.py’**: This is the main Python module that contains methods for creating tables and exporting data to BigQuery.This module encapsulates the logic for working with BigQuery, providing functions that can be imported and used by other scripts
+5. **‘experiments_gcsfuse_bq.py’**: This is the main Python module that contains methods for creating tables and exporting data to BigQuery. This module encapsulates the logic for working with BigQuery, providing functions that can be imported and used by other scripts
 6. **‘experiments_gcsfuse_bq_test.py’**: This file contains comprehensive unit tests for the experiments_gcsfuse_bq module. 
 
 ## Dashboard for Result Analysis
