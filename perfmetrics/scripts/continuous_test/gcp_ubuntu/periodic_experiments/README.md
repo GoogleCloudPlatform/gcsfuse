@@ -39,7 +39,7 @@ To add or modify experiment configurations, developers need to update the JSON f
 #### An example of the configuration object in the experiment_configuration array:
 ```
 "config_name": "TestConfiguration1"
-"gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --stackdriver-export-interval=30s"
+"gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs"
 "branch": "master"
 "end_date": "2023-12-30 05:30:00+00:00"
 ```
