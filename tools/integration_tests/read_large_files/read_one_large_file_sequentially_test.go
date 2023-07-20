@@ -45,7 +45,7 @@ func TestReadLargeFileSequentially(t *testing.T) {
 	}
 
 	// Sequentially read the data from file.
-	content, err := operations.ReadFileSequentially(file, FiveHundredMB, chunkSize)
+	content, err := operations.ReadFileSequentially(file, chunkSize)
 	if err != nil {
 		t.Errorf("Error in reading file: %v", err)
 	}

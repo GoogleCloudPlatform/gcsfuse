@@ -149,7 +149,7 @@ func RemoveFile(filePath string) {
 	}
 }
 
-func ReadFileSequentially(filePath string, fileSize int64, chunkSize int64) (content []byte, err error) {
+func ReadFileSequentially(filePath string, chunkSize int64) (content []byte, err error) {
 	chunk := make([]byte, chunkSize)
 	var offset int64 = 0
 

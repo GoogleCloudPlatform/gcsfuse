@@ -44,9 +44,5 @@ func TestMain(m *testing.M) {
 
 	successCode := static_mounting.RunTests(flags, m)
 
-	//if successCode == 0 {
-	//	successCode = only_dir_mounting.RunTests(flags, m)
-	//}
-
 	os.Exit(successCode)
 }
