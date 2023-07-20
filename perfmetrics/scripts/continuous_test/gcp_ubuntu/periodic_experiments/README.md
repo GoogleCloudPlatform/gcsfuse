@@ -61,12 +61,12 @@ Certain flags are set by default when running GCSFuse experiments. The --stackdr
 The test results obtained from the experiments are stored in BigQuery tables. The relevant project name, dataset ID, and table IDs can be modified in the constants.py file.
 
 ### All the python scripts and modules related to BigQuery are present at: perfmetrics/scripts/bigquery:
-1. ‘setup.py’: This script is responsible for creating the dataset and tables in BigQuery. This file should be run once initialize the BigQuery environment.
-2. ‘requirements.in’: This file contains the dependencies required by the Python scripts and modules for interacting with BigQuery. It lists the packages and their specific versions that must be installed for the code to work correctly. If no version is specified then the latest version will be installed.
-3. ‘get_experiments_config.py’:This script is used to retrieve the configuration ID based on the provided configuration name, branch, gcsfuse flags, and end date.
-4. ‘constants.py’: This file contains the IDs of the dataset, project and tables used in the Python scripts and modules for interacting with BigQuery By centralizing these IDs in one place, it makes it simpler to refer to them or manage and update them if needed.
-5. ‘experiments_gcsfuse_bq.py’: This is the main Python module that contains methods for creating tables and exporting data to BigQuery.This module encapsulates the logic for working with BigQuery, providing functions that can be imported and used by other scripts
-6. ‘experiments_gcsfuse_bq_test.py’: This file contains comprehensive unit tests for the experiments_gcsfuse_bq module. 
+1. **‘setup.py’**: This script is responsible for creating the dataset and tables in BigQuery. This file should be run once initialize the BigQuery environment.
+2. **‘requirements.in’**: This file contains the dependencies required by the Python scripts and modules for interacting with BigQuery. It lists the packages and their specific versions that must be installed for the code to work correctly. If no version is specified then the latest version will be installed.
+3. **‘get_experiments_config.py’**:This script is used to retrieve the configuration ID based on the provided configuration name, branch, gcsfuse flags, and end date.
+4. **‘constants.py’**: This file contains the IDs of the dataset, project and tables used in the Python scripts and modules for interacting with BigQuery By centralizing these IDs in one place, it makes it simpler to refer to them or manage and update them if needed.
+5. **‘experiments_gcsfuse_bq.py’**: This is the main Python module that contains methods for creating tables and exporting data to BigQuery.This module encapsulates the logic for working with BigQuery, providing functions that can be imported and used by other scripts
+6. **‘experiments_gcsfuse_bq_test.py’**: This file contains comprehensive unit tests for the experiments_gcsfuse_bq module. 
 
 ## Dashboard for Result Analysis
 After the performance tests are completed, developers can access the GCSFuse Experiments Dashboard, which provides an interactive and insightful interface to compare and visualize the test results. The dashboard offers a range of visualization options, such as charts, and tables, enabling developers to identify performance patterns, analyze bottlenecks, and make data-driven decisions for optimizing GCSFuse.
