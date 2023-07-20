@@ -80,13 +80,13 @@ func createSrcDirectoryWithObjectsForMoveDirTest(dirPath string, t *testing.T) {
 		t.Errorf("Error in creating file %v:", err)
 	}
 
+	// Closing file at the end
+	defer operations.CloseFile(file)
+
 	err = operations.WriteFile(file.Name(), SrcMoveFileContent)
 	if err != nil {
 		t.Errorf("File at %v", err)
 	}
-
-	// Closing file at the end
-	defer operations.CloseFile(file)
 }
 
 func checkIfMovedDirectoryHasCorrectData(destDir string, t *testing.T) {
