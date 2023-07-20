@@ -12,31 +12,59 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-package static_mounting
+package persistent_mounting
 
 import (
 	"fmt"
 	"log"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func mountGcsfuseWithStaticMounting(flags []string) (err error) {
-	defaultArg := []string{"--debug_gcs",
-		"--debug_fs",
-		"--debug_fuse",
-		"--log-file=" + setup.LogFile(),
-		"--log-format=text",
-		setup.TestBucket(),
-		setup.MntDir()}
+// make e.g --enable-storage-client-library in enable_storage_client_library
+func makePersistentMountingArgs(flags []string) (args []string, err error) {
+	var s string
+	for i := range flags {
+		// We are already passing flags with -o flag.
+		s = strings.Replace(flags[i], "--o=", "", -1)
+		// e.g. Convert --enable-storage-client-library to __enable_storage_client_library
+		s = strings.Replace(s, "-", "_", -1)
+		// e.g. Convert __enable_storage_client_library to enable_storage_client_library
+		s = strings.Replace(s, "__", "", -1)
+		args = append(args, s)
+	}
+	return
+}
 
-	for i := 0; i < len(defaultArg); i++ {
-		flags = append(flags, defaultArg[i])
+func mountGcsfuseWithStaticMounting(flags []string) (err error) {
+	defaultArg := []string{setup.TestBucket(),
+		setup.MntDir(),
+		"-o",
+		"debug_gcs",
+		"-o",
+		"debug_fs",
+		"-o",
+		"debug_fuse",
+		"-o",
+		"log_file=" + setup.LogFile(),
+		"-o",
+		"log_format=text",
 	}
 
-	err = mounting.MountGcsfuse(setup.BinFile(), flags)
+	persistentMountingArgs, err := makePersistentMountingArgs(flags)
+	if err != nil {
+		setup.LogAndExit("Error in converting flags for persistent mounting.")
+	}
+
+	for i := 0; i < len(persistentMountingArgs); i++ {
+		// e.g. -o flag1, -o flag2, ...
+		defaultArg = append(defaultArg, "-o", persistentMountingArgs[i])
+	}
+
+	err = mounting.MountGcsfuse(setup.SbinFile(), defaultArg)
 
 	return err
 }

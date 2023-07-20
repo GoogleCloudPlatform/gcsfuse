@@ -38,10 +38,11 @@ const BufferSize = 100
 const FilePermission_0600 = 0600
 
 var (
-	binFile string
-	logFile string
-	testDir string
-	mntDir  string
+	binFile  string
+	logFile  string
+	testDir  string
+	mntDir   string
+	sbinFile string
 )
 
 // Run the shell script to prepare the testData in the specified bucket.
@@ -80,6 +81,10 @@ func SetBinFile(binFileValue string) {
 
 func BinFile() string {
 	return binFile
+}
+
+func SbinFile() string {
+	return sbinFile
 }
 
 func SetTestDir(testDirValue string) {
@@ -142,10 +147,12 @@ func SetUpTestDir() error {
 			return fmt.Errorf("BuildGcsfuse(%q): %w\n", TestDir(), err)
 		}
 		binFile = path.Join(TestDir(), "bin/gcsfuse")
+		sbinFile = path.Join(TestDir(), "sbin/mount.gcsfuse")
 	} else {
 		// when testInstalledPackage flag is set, gcsfuse is preinstalled on the
 		// machine. Hence, here we are overwriting binFile to gcsfuse.
 		binFile = "gcsfuse"
+		sbinFile = "mount.gcsfuse"
 	}
 	logFile = path.Join(TestDir(), "gcsfuse.log")
 	mntDir = path.Join(TestDir(), "mnt")
