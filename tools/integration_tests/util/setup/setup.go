@@ -172,6 +172,16 @@ func SetUpTestDir() error {
 	return nil
 }
 
+// Removing bin file after testing.
+func RemoveBinFileCopiedForTesting() {
+	if !TestInstalledPackage() {
+		err := os.Remove("/usr/local/bin/gcsfuse")
+		if err != nil {
+			log.Printf("Error in removing file:%v", err)
+		}
+	}
+}
+
 func UnMount() error {
 	fusermount, err := exec.LookPath("fusermount")
 	if err != nil {
