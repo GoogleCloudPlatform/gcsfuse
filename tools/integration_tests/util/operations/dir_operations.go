@@ -38,6 +38,16 @@ func CopyDir(srcDirPath string, destDirPath string) (err error) {
 	return
 }
 
+func MoveDir(srcDirPath string, destDirPath string) (err error) {
+	cmd := exec.Command("mv", srcDirPath, destDirPath)
+
+	err = cmd.Run()
+	if err != nil {
+		err = fmt.Errorf("Moving dir operation is failed: %v", err)
+	}
+	return
+}
+
 func RenameDir(dirName string, newDirName string) (err error) {
 	if _, err = os.Stat(newDirName); err == nil {
 		err = fmt.Errorf("Renamed directory %s already present", newDirName)
