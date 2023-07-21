@@ -146,7 +146,6 @@ func CloseFile(file *os.File) {
 func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (err error) {
 	var numberOfBytes int
 	var offset int64 = 0
-	chunk := make([]byte, chunkSize)
 
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, FilePermission_0600)
 	if err != nil {
@@ -156,7 +155,8 @@ func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (er
 	// Closing file at the end.
 	defer CloseFile(file)
 
-	for offset != fileSize {
+	for offset < fileSize {
+		chunk := make([]byte, min(chunkSize, fileSize-offset))
 		_, err = rand.Read(chunk)
 		if err != nil {
 			log.Fatalf("error while generating random string: %s", err)
