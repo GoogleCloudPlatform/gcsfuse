@@ -175,7 +175,8 @@ func SetUpTestDir() error {
 // Removing bin file after testing.
 func RemoveBinFileCopiedForTesting() {
 	if !TestInstalledPackage() {
-		err := os.Remove("/usr/local/bin/gcsfuse")
+		cmd := exec.Command("sudo", "rm", "/usr/local/bin/gcsfuse")
+		err := cmd.Run()
 		if err != nil {
 			log.Printf("Error in removing file:%v", err)
 		}
