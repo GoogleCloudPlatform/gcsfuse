@@ -56,6 +56,9 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	// Provide permission to service account for testing.
 	setPermission(permission, serviceAccount)
 
+	// Revoke the permission and delete creds and service account after testing.
+	defer setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_permission_and_delete_service_account_and_creds.sh", serviceAccount, key_file_path)
+
 	// Without –key-file flag and GOOGLE_APPLICATION_CREDENTIALS
 	// This case will not get covered as gcsfuse internally authenticates from a metadata server on GCE VM.
 	// https://github.com/golang/oauth2/blob/master/google/default.go#L160
