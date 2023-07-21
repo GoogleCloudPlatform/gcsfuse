@@ -29,9 +29,8 @@ const FilePermission_0600 = 0600
 const FilePermission_0777 = 0777
 
 func CopyDir(srcDirPath string, destDirPath string) (err error) {
-	cmd := exec.Command("cp", "--recursive", srcDirPath, destDirPath)
+	cmd := exec.Command("sudo", "cp", "--recursive", srcDirPath, destDirPath)
 
-	log.Print(srcDirPath, destDirPath)
 	err = cmd.Run()
 	if err != nil {
 		err = fmt.Errorf("Copying dir operation is failed: %v", err)
