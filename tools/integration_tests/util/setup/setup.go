@@ -149,6 +149,9 @@ func SetUpTestDir() error {
 		binFile = path.Join(TestDir(), "bin/gcsfuse")
 		sbinFile = path.Join(TestDir(), "sbin/mount.gcsfuse")
 
+		// mount.gcsfuse will find gcsfuse executable in mentioned locations.
+		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/mount_gcsfuse/find.go#L59
+		// Copying the executable to /usr/local/bin
 		err := operations.CopyDir(binFile, "/usr/local/bin")
 		if err != nil {
 			log.Printf("Error in copying bin file:%v", err)
