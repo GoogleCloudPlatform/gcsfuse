@@ -25,9 +25,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const FiveHundredMB = 5000000000
+const FiveHundredMB = 500 * 1024 * 1024
 const FiveHundredMBFile = "fiveHundredMBFile.txt"
-const chunkSize = 2000000000
+const chunkSize = 200 * 1024 * 1024
 
 func TestReadLargeFileSequentially(t *testing.T) {
 	// Clean the mountedDirectory before running test.
