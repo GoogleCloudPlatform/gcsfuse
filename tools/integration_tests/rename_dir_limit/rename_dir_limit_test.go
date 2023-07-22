@@ -64,5 +64,7 @@ func TestMain(m *testing.M) {
 		successCode = persistent_mounting.RunTests(flags, m)
 	}
 
+	setup.RemoveBinFileCopiedForTesting()
+
 	os.Exit(successCode)
 }

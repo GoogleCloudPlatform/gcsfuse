@@ -93,5 +93,7 @@ func TestMain(m *testing.M) {
 	// Delete objects from bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 
+	setup.RemoveBinFileCopiedForTesting()
+
 	os.Exit(successCode)
 }
