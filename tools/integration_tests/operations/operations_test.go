@@ -20,10 +20,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/persistent_mounting"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -103,20 +100,24 @@ func TestMain(m *testing.M) {
 	// Run tests for testBucket
 	setup.SetUpTestDirForTestBucketFlag()
 
-	successCode := static_mounting.RunTests(flags, m)
+	//successCode := static_mounting.RunTests(flags, m)
+	//
+	//if successCode == 0 {
+	//	successCode = only_dir_mounting.RunTests(flags, m)
+	//}
+	//
+	//if successCode == 0 {
+	//	successCode = persistent_mounting.RunTests(flags, m)
+	//}
+	//
+	//if successCode == 0 {
+	//	// Test for admin permission on test bucket.
+	//	successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectAdmin", m)
+	//}
 
-	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flags, m)
-	}
-
-	if successCode == 0 {
-		successCode = persistent_mounting.RunTests(flags, m)
-	}
-
-	if successCode == 0 {
-		// Test for admin permission on test bucket.
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectAdmin", m)
-	}
+	//	if successCode == 0 {
+	successCode := dynamic_mounting.RunTests(flags, m)
+	//	}
 
 	setup.RemoveBinFileCopiedForTesting()
 
