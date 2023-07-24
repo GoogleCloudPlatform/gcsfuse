@@ -46,7 +46,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	serviceAccount := NameOfServiceAccount + "@" + id + ".iam.gserviceaccount.com"
 
 	// Create service account
-	setup.RunScriptForTestData("../util/creds_tests/testdata/create_service_account.sh", NameOfServiceAccount, serviceAccount)
+	setup.RunScriptForTestData("../util/creds_tests/testdata/create_service_account.sh", NameOfServiceAccount)
 
 	key_file_path := path.Join(os.Getenv("HOME"), "creds.json")
 
