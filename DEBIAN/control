@@ -1,0 +1,12 @@
+Version: 1.0.0
+Source: gcsfuse
+Maintainer: GCSFuse Team <gcs-fuse-maintainers@google.com>
+Homepage: https://github.com/GoogleCloudPlatform/gcsfuse
+Package: gcsfuse
+Architecture: amd64
+Depends: libc6 (>= 2.3.2), fuse
+Description: User-space file system for Google Cloud Storage.
+ GCSFuse is a FUSE adapter that allows you to mount and access Cloud Storage
+ buckets as local file systems, so applications can read and write objects in
+ your bucket using standard file system semantics. Cloud Storage FUSE is an
+ open source product that's supported by Google.

@@ -148,6 +148,14 @@ func SetUpTestDir() error {
 		}
 		binFile = path.Join(TestDir(), "bin/gcsfuse")
 		sbinFile = path.Join(TestDir(), "sbin/mount.gcsfuse")
+
+		// mount.gcsfuse will find gcsfuse executable in mentioned locations.
+		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/mount_gcsfuse/find.go#L59
+		// Copying the executable to /usr/local/bin
+		err := operations.CopyDirWithRootPermission(binFile, "/usr/local/bin")
+		if err != nil {
+			log.Printf("Error in copying bin file:%v", err)
+		}
 	} else {
 		// when testInstalledPackage flag is set, gcsfuse is preinstalled on the
 		// machine. Hence, here we are overwriting binFile to gcsfuse.
@@ -162,6 +170,17 @@ func SetUpTestDir() error {
 		return fmt.Errorf("Mkdir(%q): %v\n", MntDir(), err)
 	}
 	return nil
+}
+
+// Removing bin file after testing.
+func RemoveBinFileCopiedForTesting() {
+	if !TestInstalledPackage() {
+		cmd := exec.Command("sudo", "rm", "/usr/local/bin/gcsfuse")
+		err := cmd.Run()
+		if err != nil {
+			log.Printf("Error in removing file:%v", err)
+		}
+	}
 }
 
 func UnMount() error {
