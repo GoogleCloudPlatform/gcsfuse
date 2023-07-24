@@ -79,15 +79,14 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 		log.Printf("Error in fetching project id: %v", err)
 	}
 
-	log.Print(project_id)
-	setup.RunScriptForTestData("testdata/create_bucket.sh", BucketForDynamicMountingTest, project_id)
+	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/create_bucket.sh", BucketForDynamicMountingTest, project_id)
 
 	successCode = executeTestsForDynamicMounting(flags, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 
 	// Deleting bucket after testing.
-	setup.RunScriptForTestData("testdata/delete_bucket.sh", "gcsfuse-dynamic-mounting-test")
+	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/delete_bucket.sh", "gcsfuse-dynamic-mounting-test")
 
 	return successCode
 }
