@@ -14,7 +14,11 @@
 
 SERVICE_ACCOUNT=$1
 SERVICE_ACCOUNT_ID=$2
-gcloud iam service-accounts create $SERVICE_ACCOUNT --description="$SERVICE_ACCOUNT" --display-name="$SERVICE_ACCOUNT"
+gcloud iam service-accounts create $SERVICE_ACCOUNT --description="$SERVICE_ACCOUNT" --display-name="$SERVICE_ACCOUNT" &>> output.txt
 if [ $? -eq 1 ]; then
-  echo "Service account exist."
+  if grep "already exists within project" output.txt; then
+    echo "Service account exist."
+  else
+    exit 1
+  fi
 fi
