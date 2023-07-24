@@ -39,6 +39,7 @@ func TestWriteLargeFileSequentially(t *testing.T) {
 		t.Errorf("Error in writing file: %v", err)
 	}
 
+	// Check if 500MB data written in the file.
 	fStat, err := os.Stat(filePath)
 	if fStat.Size() != FiveHundredMB {
 		t.Errorf("Expecred file size %v found %d", FiveHundredMB, fStat.Size())

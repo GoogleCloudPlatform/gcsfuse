@@ -157,6 +157,7 @@ func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (er
 	defer CloseFile(file)
 
 	for offset < fileSize {
+		// Get random 200MB or remaining filesize data into chunk.
 		chunkSize = int64(math.Min(float64(chunkSize), float64(fileSize-offset)))
 		chunk := make([]byte, chunkSize)
 		_, err = rand.Read(chunk)
@@ -164,6 +165,7 @@ func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (er
 			log.Fatalf("error while generating random string: %s", err)
 		}
 
+		// Writes random 200MB or remaining filesize data into file.
 		numberOfBytes, err = file.Write(chunk)
 		if err != nil {
 			return
