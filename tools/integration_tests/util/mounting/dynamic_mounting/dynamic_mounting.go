@@ -79,6 +79,7 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 		log.Printf("Error in fetching project id: %v", err)
 	}
 
+	log.Print(project_id)
 	setup.RunScriptForTestData("testdata/create_bucket.sh", BucketForDynamicMountingTest, project_id)
 
 	successCode = executeTestsForDynamicMounting(flags, m)
