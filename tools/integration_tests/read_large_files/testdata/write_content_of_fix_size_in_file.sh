@@ -18,4 +18,3 @@ TEST_BUCKET=$3
 
 # It will write filesize random data in a file.
 head -c $FILE_SIZE </dev/urandom > $FILE_PATH
-
