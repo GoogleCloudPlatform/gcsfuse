@@ -18,9 +18,12 @@ KEY_FILE=$2
 
 gcloud auth revoke $SERVICE_ACCOUNT
 # Crete key file output
-# e.g. created key [key_id] of type [json] as [key_file_path] for [service_account]
-# capturing third word from the file to get key-id
-# e.g. capture [KEY_ID]
+# e.g. Created key [KEY_ID] of type [json] as [key_file_path] for [service_account]
+# Capturing third word from the file to get key-id
+# e.g. Capture [KEY_ID]
+if [ ! -f "~/key_id.txt" ]; then
+    echo "file does not exist"
+fi
 KEY_ID=$(cat ~/key_id.txt | cut -d " " -f 3)
 # removing braces
 # e.g. capture KEY_ID
