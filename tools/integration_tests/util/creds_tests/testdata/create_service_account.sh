@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set +e
 SERVICE_ACCOUNT=$1
 SERVICE_ACCOUNT_ID=$2
-# Create service account if already exist.
 gcloud iam service-accounts create $SERVICE_ACCOUNT --description="$SERVICE_ACCOUNT" --display-name="$SERVICE_ACCOUNT"
+if [ $? -eq 1 ]; then
+  echo "Service account exist."
+fi
