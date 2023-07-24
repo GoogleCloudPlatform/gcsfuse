@@ -182,7 +182,7 @@ func ReadFileSequentially(filePath string, chunkSize int64) (content []byte, err
 		// Write bytes in the buffer to compare with original content.
 		content = append(content, chunk...)
 
-		// The number of bytes read is not equal to 2000000000.
+		// The number of bytes read is not equal to 200MB.
 		if int64(numberOfBytes) != chunkSize {
 			log.Printf("Incorrect number of bytes read from file.")
 		}
