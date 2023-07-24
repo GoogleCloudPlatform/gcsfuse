@@ -72,7 +72,7 @@ then
 else
 #  For rhel and centos
     sudo yum makecache
-    sudo yum check-update
+    sudo yum -y update
 
     #Install fuse
     sudo yum -y install fuse
@@ -107,9 +107,10 @@ cd gcsfuse
 git checkout $(sed -n 2p ~/details.txt) |& tee -a ~/logs.txt
 
 #run tests with testbucket flag
+set +e
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=$(sed -n 3p ~/details.txt) --testInstalledPackage --timeout=60m &>> ~/logs.txt
 
-if grep -q FAIL ~/logs.txt;
+if [ $? -ne 0 ];
 then
     echo "Test failures detected" &>> ~/logs.txt
 else

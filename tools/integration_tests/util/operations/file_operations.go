@@ -144,6 +144,57 @@ func CloseFile(file *os.File) {
 	}
 }
 
+func RemoveFile(filePath string) {
+	err := os.Remove(filePath)
+	if err != nil {
+		log.Printf("Error in removing file:%v", err)
+	}
+}
+
+func ReadFileSequentially(filePath string, chunkSize int64) (content []byte, err error) {
+	chunk := make([]byte, chunkSize)
+	var offset int64 = 0
+
+	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, FilePermission_0600)
+	if err != nil {
+		log.Printf("Error in opening file:%v", err)
+	}
+
+	// Closing the file at the end.
+	defer CloseFile(file)
+
+	for err != io.EOF {
+		var numberOfBytes int
+
+		// Reading 200 MB chunk sequentially from the file.
+		numberOfBytes, err = file.ReadAt(chunk, offset)
+		// If the file reaches the end, write the remaining content in the buffer and return.
+		if err == io.EOF {
+
+			for i := offset; i < offset+int64(numberOfBytes); i++ {
+				// Adding remaining bytes.
+				content = append(content, chunk[i-offset])
+			}
+			err = nil
+			return
+		}
+		if err != nil {
+			return
+		}
+		// Write bytes in the buffer to compare with original content.
+		content = append(content, chunk...)
+
+		// The number of bytes read is not equal to 200MB.
+		if int64(numberOfBytes) != chunkSize {
+			log.Printf("Incorrect number of bytes read from file.")
+		}
+
+		// The offset will shift to read the next chunk.
+		offset = offset + chunkSize
+	}
+	return
+}
+
 func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (err error) {
 	var numberOfBytes int
 	var offset int64 = 0
