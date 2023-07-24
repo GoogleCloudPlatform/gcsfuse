@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Delete service account after testing
+# Delete key file after testing
 SERVICE_ACCOUNT=$1
 KEY_FILE=$2
 
@@ -20,10 +20,10 @@ gcloud auth revoke $SERVICE_ACCOUNT
 # Crete key file output
 # e.g. created key [key_id] of type [json] as [key_file_path] for [service_account]
 # capturing third word from the file to get key-id
-
-# capture [KEY_ID]
+# e.g. capture [KEY_ID]
 KEY_ID=$(cat key_id.txt | cut -d " " -f 3)
-# capture KEY_ID
+# removing braces
+# e.g. capture KEY_ID
 KEY_ID=${KEY_ID:1:40}
 
 gcloud iam service-accounts keys delete $KEY_ID --iam-account=$SERVICE_ACCOUNT
