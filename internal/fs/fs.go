@@ -530,7 +530,7 @@ func (fs *fileSystem) checkInvariantsForGenerationBackedInodes() {
 
 func (fs *fileSystem) checkInvariantsForInodes() {
 	// INVARIANT: For all keys k, fuseops.RootInodeID <= k < nextInodeID
-	for id, _ := range fs.inodes {
+	for id := range fs.inodes {
 		if id < fuseops.RootInodeID || id >= fs.nextInodeID {
 			panic(fmt.Sprintf("Illegal inode ID: %v", id))
 		}
