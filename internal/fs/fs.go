@@ -406,55 +406,9 @@ type fileSystem struct {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func (fs *fileSystem) checkInvariants() {
-	//////////////////////////////////
-	// inodes
-	//////////////////////////////////
-
-	// INVARIANT: For all keys k, fuseops.RootInodeID <= k < nextInodeID
-	for id, _ := range fs.inodes {
-		if id < fuseops.RootInodeID || id >= fs.nextInodeID {
-			panic(fmt.Sprintf("Illegal inode ID: %v", id))
-		}
-	}
-
-	// INVARIANT: For all keys k, inodes[k].ID() == k
-	for id, in := range fs.inodes {
-		if in.ID() != id {
-			panic(fmt.Sprintf("ID mismatch: %v vs. %v", in.ID(), id))
-		}
-	}
-
-	// INVARIANT: inodes[fuseops.RootInodeID] is missing or of type inode.DirInode
-	//
-	// The missing case is when we've received a forget request for the root
-	// inode, while unmounting.
-	switch in := fs.inodes[fuseops.RootInodeID].(type) {
-	case nil:
-	case inode.DirInode:
-	default:
-		panic(fmt.Sprintf("Unexpected type for root: %v", reflect.TypeOf(in)))
-	}
-
-	// INVARIANT: For all v, if v.Name().IsDir() then v is inode.DirInode
-	for _, in := range fs.inodes {
-		if in.Name().IsDir() {
-			_, ok := in.(inode.DirInode)
-			if !ok {
-				panic(fmt.Sprintf(
-					"Unexpected inode type for name \"%s\": %v",
-					in.Name(),
-					reflect.TypeOf(in)))
-			}
-		}
-	}
-
-	//////////////////////////////////
-	// generationBackedInodes
-	//////////////////////////////////
-
+func (fs *fileSystem) checkInvariantsForLocalFileInodes() {
 	// INVARIANT: For each k/v, v.Name() == k
-	for k, v := range fs.generationBackedInodes {
+	for k, v := range fs.localFileInodes {
 		if !(v.Name() == k) {
 			panic(fmt.Sprintf(
 				"Unexpected name: \"%s\" vs. \"%s\"",
@@ -464,7 +418,7 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	// INVARIANT: For each value v, inodes[v.ID()] == v
-	for _, v := range fs.generationBackedInodes {
+	for _, v := range fs.localFileInodes {
 		if fs.inodes[v.ID()] != v {
 			panic(fmt.Sprintf(
 				"Mismatch for ID %v: %v %v",
@@ -474,10 +428,34 @@ func (fs *fileSystem) checkInvariants() {
 		}
 	}
 
-	//////////////////////////////////
-	// implicitDirInodes
-	//////////////////////////////////
+	// INVARIANT: For each value v, v is not fileInode
+	for _, v := range fs.localFileInodes {
+		if _, ok := v.(*inode.FileInode); !ok {
+			panic(fmt.Sprintf(
+				"Unexpected file inode %d, type %T",
+				v.ID(),
+				v))
+		}
+	}
 
+	// INVARIANT: For each f in inodes that is local fileInode
+	//            localFileInodes[d.Name()] == f
+	for _, in := range fs.inodes {
+		fileInode, ok := in.(*inode.FileInode)
+
+		if ok && fileInode.IsLocal() {
+			if !(fs.localFileInodes[in.Name()] == in) {
+				panic(fmt.Sprintf(
+					"localFileInodes mismatch: %q %v %v",
+					in.Name(),
+					fs.localFileInodes[in.Name()],
+					in))
+			}
+		}
+	}
+}
+
+func (fs *fileSystem) checkInvariantsForImplicitDirs() {
 	// INVARIANT: For each k/v, v.Name() == k
 	for k, v := range fs.implicitDirInodes {
 		if !(v.Name() == k) {
@@ -525,16 +503,11 @@ func (fs *fileSystem) checkInvariants() {
 			}
 		}
 	}
+}
 
-	//////////////////////////////////
-	// Local file inodes
-	//////////////////////////////////
-
-	// INVARIANT: For each value v, inodes[v.ID()] == v
-	// INVARIANT: For each value v, v is not fileInode
-
+func (fs *fileSystem) checkInvariantsForGenerationBackedInodes() {
 	// INVARIANT: For each k/v, v.Name() == k
-	for k, v := range fs.localFileInodes {
+	for k, v := range fs.generationBackedInodes {
 		if !(v.Name() == k) {
 			panic(fmt.Sprintf(
 				"Unexpected name: \"%s\" vs. \"%s\"",
@@ -544,7 +517,7 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	// INVARIANT: For each value v, inodes[v.ID()] == v
-	for _, v := range fs.localFileInodes {
+	for _, v := range fs.generationBackedInodes {
 		if fs.inodes[v.ID()] != v {
 			panic(fmt.Sprintf(
 				"Mismatch for ID %v: %v %v",
@@ -553,32 +526,54 @@ func (fs *fileSystem) checkInvariants() {
 				v))
 		}
 	}
+}
 
-	// INVARIANT: For each value v, v is not fileInode
-	for _, v := range fs.localFileInodes {
-		if _, ok := v.(*inode.FileInode); ok {
-			panic(fmt.Sprintf(
-				"Unexpected file inode %d, type %T",
-				v.ID(),
-				v))
+func (fs *fileSystem) checkInvariantsForInodes() {
+	// INVARIANT: For all keys k, fuseops.RootInodeID <= k < nextInodeID
+	for id, _ := range fs.inodes {
+		if id < fuseops.RootInodeID || id >= fs.nextInodeID {
+			panic(fmt.Sprintf("Illegal inode ID: %v", id))
 		}
 	}
 
-	// INVARIANT: For each f in inodes that is local fileInode
-	//            localFileInodes[d.Name()] == f
-	for _, in := range fs.inodes {
-		fileInode, ok := in.(*inode.FileInode)
+	// INVARIANT: For all keys k, inodes[k].ID() == k
+	for id, in := range fs.inodes {
+		if in.ID() != id {
+			panic(fmt.Sprintf("ID mismatch: %v vs. %v", in.ID(), id))
+		}
+	}
 
-		if ok && fileInode.IsLocal() {
-			if !(fs.localFileInodes[in.Name()] == in) {
+	// INVARIANT: inodes[fuseops.RootInodeID] is missing or of type inode.DirInode
+	//
+	// The missing case is when we've received a forget request for the root
+	// inode, while unmounting.
+	switch in := fs.inodes[fuseops.RootInodeID].(type) {
+	case nil:
+	case inode.DirInode:
+	default:
+		panic(fmt.Sprintf("Unexpected type for root: %v", reflect.TypeOf(in)))
+	}
+
+	// INVARIANT: For all v, if v.Name().IsDir() then v is inode.DirInode
+	for _, in := range fs.inodes {
+		if in.Name().IsDir() {
+			_, ok := in.(inode.DirInode)
+			if !ok {
 				panic(fmt.Sprintf(
-					"localFileInodes mismatch: %q %v %v",
+					"Unexpected inode type for name \"%s\": %v",
 					in.Name(),
-					fs.localFileInodes[in.Name()],
-					in))
+					reflect.TypeOf(in)))
 			}
 		}
 	}
+}
+
+func (fs *fileSystem) checkInvariants() {
+	// Check invariants for different type of inodes
+	fs.checkInvariantsForInodes()
+	fs.checkInvariantsForGenerationBackedInodes()
+	fs.checkInvariantsForImplicitDirs()
+	fs.checkInvariantsForLocalFileInodes()
 
 	//////////////////////////////////
 	// handles

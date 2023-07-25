@@ -58,7 +58,7 @@ func (c *Core) Type() Type {
 	switch {
 	case c == nil:
 		return UnknownType
-	case c.Object == nil:
+	case c.Object == nil && !c.Local:
 		return ImplicitDirType
 	case c.FullName.IsDir():
 		return ExplicitDirType
@@ -74,9 +74,6 @@ func (c *Core) Type() Type {
 func (c Core) SanityCheck() error {
 	if c.Object != nil && c.FullName.objectName != c.Object.Name {
 		return fmt.Errorf("inode name %q mismatches object name %q", c.FullName, c.Object.Name)
-	}
-	if c.Object != nil {
-		return nil
 	}
 
 	if c.Object == nil && !c.Local && !c.FullName.IsDir() {

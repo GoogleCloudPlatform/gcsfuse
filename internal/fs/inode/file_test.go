@@ -690,7 +690,7 @@ func (t *FileTest) SetMtime_SourceObjectMetaGenerationChanged() {
 	ExpectEq(newObj.MetaGeneration, o.MetaGeneration)
 }
 
-func (t *FileTest) TestCheckInvariants_ShouldNotThrowExceptionForLocalFiles() {
+func (t *FileTest) TestCheckInvariantsShouldNotThrowExceptionForLocalFiles() {
 	t.createInodeWithLocalParam(true)
 
 	AssertNe(nil, t.in)
