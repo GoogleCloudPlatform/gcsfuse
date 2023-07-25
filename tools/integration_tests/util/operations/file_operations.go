@@ -206,7 +206,7 @@ func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (er
 	var offset int64 = 0
 
 	for offset < fileSize {
-		// Get random 200MB or remaining filesize data into chunk.
+		// Get random chunkSize or remaining filesize data into chunk.
 		if (fileSize - offset) < chunkSize {
 			chunkSize = (fileSize - offset)
 		}
@@ -218,7 +218,7 @@ func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (er
 
 		var numberOfBytes int
 
-		// Writes random 200MB or remaining filesize data into file.
+		// Writes random chunkSize or remaining filesize data into file.
 		numberOfBytes, err = file.Write(chunk)
 		if err != nil {
 			return
