@@ -115,12 +115,12 @@ func TestMain(m *testing.M) {
 	}
 
 	if successCode == 0 {
-		// Test for admin permission on test bucket.
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectAdmin", m)
+		successCode = dynamic_mounting.RunTests(flags, m)
 	}
 
 	if successCode == 0 {
-		successCode = dynamic_mounting.RunTests(flags, m)
+		// Test for admin permission on test bucket.
+		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectAdmin", m)
 	}
 
 	setup.RemoveBinFileCopiedForTesting()
