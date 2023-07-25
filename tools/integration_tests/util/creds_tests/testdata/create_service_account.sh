@@ -11,12 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# Create service account if does not exist.
 
 SERVICE_ACCOUNT=$1
-SERVICE_ACCOUNT_ID=$2
-# Delete service account if already exist.
-gcloud iam service-accounts delete $SERVICE_ACCOUNT_ID
-if [ $? -eq 1 ]; then
-  echo "Service account does not exist."
+
+gcloud iam service-accounts create $SERVICE_ACCOUNT --description="$SERVICE_ACCOUNT" --display-name="$SERVICE_ACCOUNT" 2>&1 | tee ~/output.txt
+if grep "already exists within project" ~/output.txt; then
+  echo "Service account exist."
+  rm ~/output.txt
+else
+  rm ~/output.txt
+  exit 1
 fi
-gcloud iam service-accounts create $SERVICE_ACCOUNT --description="$SERVICE_ACCOUNT" --display-name="$SERVICE_ACCOUNT"
