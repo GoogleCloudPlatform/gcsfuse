@@ -44,10 +44,17 @@ func mountGcsfuseWithDynamicMounting(flags []string) (err error) {
 	return err
 }
 
-func runTestsOnGivenMountedTestBucket(bucketName string, flags []string, m *testing.M) (successCode int) {
+func runTestsOnGivenMountedTestBucket(bucketName string, flags []string, rootMntDir string, m *testing.M) (successCode int) {
 	mntDirOfTestBucket := path.Join(setup.MntDir(), bucketName)
+
 	setup.SetMntDir(mntDirOfTestBucket)
-	successCode = setup.ExecuteTestForFlagsSet(flags, m)
+	successCode = setup.ExecuteTest(m)
+
+	// Currently mntDir is mntDir/bucketName.
+	// Unmounting can happen on rootMntDir. Changing mntDir to rootMntDir for unmounting.
+	setup.SetMntDir(rootMntDir)
+	setup.UnMountAndThrowErrorInFailure(flags, successCode)
+
 	return
 }
 
@@ -64,8 +71,8 @@ func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode
 		// In dynamic mounting all the buckets mounted in mntDir which user has permission.
 		// mntDir - bucket1, bucket2, bucket3, ...
 		// We will test on passed testBucket and created bucket.
-		successCode = runTestsOnGivenMountedTestBucket(setup.TestBucket(), flags[i], m)
-		successCode = runTestsOnGivenMountedTestBucket(BucketForDynamicMountingTest, flags[i], m)
+		successCode = runTestsOnGivenMountedTestBucket(setup.TestBucket(), flags[i], mntDir, m)
+		successCode = runTestsOnGivenMountedTestBucket(BucketForDynamicMountingTest, flags[i], mntDir, m)
 	}
 
 	// Setting back the original mntDir after testing.
