@@ -19,6 +19,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"syscall"
 
@@ -94,6 +95,7 @@ func (em *errorMapping) handlePanic() {
 	// detect if panic occurred or not
 	a := recover()
 	if a != nil {
+		em.logger.Printf("%s", string(debug.Stack()))
 		em.logger.Fatal("Panic: ", a)
 	}
 }
