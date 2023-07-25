@@ -15,13 +15,13 @@
 
 BUCKET_NAME=$1
 PROJECT_ID=$2
-
 gcloud storage buckets create gs://$BUCKET_NAME --project=$PROJECT_ID  --location=us-west1 --uniform-bucket-level-access 2>&1 | tee ~/output.txt
-if grep "HTTPError 409" ~/output.txt; then
-  echo "Bucket already exist."
-  rm ~/output.txt
-else
-  rm ~/output.txt
-  exit 1
+if [ $? -eq 1 ]; then
+  if grep "HTTPError 409" ~/output.txt; then
+    echo "Bucket already exist."
+    rm ~/output.txt
+  else
+    rm ~/output.txt
+    exit 1
+  fi
 fi
-
