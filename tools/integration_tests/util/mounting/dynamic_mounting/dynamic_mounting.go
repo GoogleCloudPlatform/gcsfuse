@@ -50,9 +50,12 @@ func runTestsOnGivenMountedTestBucket(bucketName string, flags [][]string, rootM
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 
+		// Changing mntDir to path of bucket mounted in mntDir for testing.
 		mntDirOfTestBucket := path.Join(setup.MntDir(), bucketName)
 
 		setup.SetMntDir(mntDirOfTestBucket)
+
+		// Running tests on flags.
 		successCode = setup.ExecuteTest(m)
 
 		// Currently mntDir is mntDir/bucketName.
@@ -67,9 +70,15 @@ func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode
 	rootMntDir := setup.MntDir()
 	// In dynamic mounting all the buckets mounted in mntDir which user has permission.
 	// mntDir - bucket1, bucket2, bucket3, ...
-	// We will test on passed testBucket and created bucket.
+	// We will test on passed testBucket and one created bucket.
+
+	// Test on testBucket
 	successCode = runTestsOnGivenMountedTestBucket(setup.TestBucket(), flags, rootMntDir, m)
-	successCode = runTestsOnGivenMountedTestBucket(BucketForDynamicMountingTest, flags, rootMntDir, m)
+
+	// Test on created bucket.
+	if successCode == 0 {
+		successCode = runTestsOnGivenMountedTestBucket(BucketForDynamicMountingTest, flags, rootMntDir, m)
+	}
 
 	// Setting back the original mntDir after testing.
 	setup.SetMntDir(rootMntDir)
