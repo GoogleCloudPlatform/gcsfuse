@@ -25,7 +25,7 @@ import (
 
 const FiveHundredMB = 500 * 1024 * 1024
 const FiveHundredMBFile = "fiveHundredMBFile.txt"
-const ChunkSize = 200 * 1024 * 1024
+const ChunkSize = 20 * 1024 * 1024
 
 func TestWriteLargeFileSequentially(t *testing.T) {
 	// Clean the mountedDirectory before running test.
