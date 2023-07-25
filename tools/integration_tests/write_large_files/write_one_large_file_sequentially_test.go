@@ -25,7 +25,7 @@ import (
 
 const FiveHundredMB = 500 * 1024 * 1024
 const FiveHundredMBFile = "fiveHundredMBFile.txt"
-const chunkSize = 200 * 1024 * 1024
+const ChunkSize = 200 * 1024 * 1024
 
 func TestWriteLargeFileSequentially(t *testing.T) {
 	// Clean the mountedDirectory before running test.
@@ -34,7 +34,7 @@ func TestWriteLargeFileSequentially(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), FiveHundredMBFile)
 
 	// Sequentially read the data from file.
-	err := operations.WriteFileSequentially(filePath, FiveHundredMB, chunkSize)
+	err := operations.WriteFileSequentially(filePath, FiveHundredMB, ChunkSize)
 	if err != nil {
 		t.Errorf("Error in writing file: %v", err)
 	}
