@@ -17,9 +17,8 @@ BUCKET_NAME=$1
 PROJECT_ID=$2
 gcloud storage buckets create gs://$BUCKET_NAME --project=$PROJECT_ID  --location=us-west1 --uniform-bucket-level-access &>> ~/output.txt
 if [ $? -eq 1 ]; then
-  echo "Service account does not exist."
   if grep "HTTPError 409" ~/output.txt; then
-    echo "Service account exist."
+    echo "Bucket already exist."
     rm ~/output.txt
   else
     rm ~/output.txt
