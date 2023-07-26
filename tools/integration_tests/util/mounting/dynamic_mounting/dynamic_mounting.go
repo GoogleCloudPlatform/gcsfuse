@@ -17,15 +17,20 @@ package dynamic_mounting
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"path"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/compute/metadata"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const BucketForDynamicMountingTest = "gcsfuse-dynamic-mounting-test"
+const BucketForDynamicMountingTest = "gcsfuse-dynamic-mounting-test_"
+const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 func mountGcsfuseWithDynamicMounting(flags []string) (err error) {
 	defaultArg := []string{"--debug_gcs",
@@ -85,20 +90,29 @@ func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode
 	return
 }
 
+func generateRandomString(length int) string {
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset))]
+	}
+	return string(b)
+}
+
 func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	project_id, err := metadata.ProjectID()
 	if err != nil {
 		log.Printf("Error in fetching project id: %v", err)
 	}
 
-	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/create_bucket.sh", BucketForDynamicMountingTest, project_id)
+	// Create bucket with name gcsfuse-dynamic-mounting-test_xxxxx
+	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/create_bucket.sh", BucketForDynamicMountingTest+generateRandomString(5), project_id)
 
 	successCode = executeTestsForDynamicMounting(flags, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 
 	// Deleting bucket after testing.
-	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/delete_bucket.sh", "gcsfuse-dynamic-mounting-test")
+	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/delete_bucket.sh", BucketForDynamicMountingTest+generateRandomString(5))
 
 	return successCode
 }
