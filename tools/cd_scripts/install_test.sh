@@ -30,7 +30,7 @@ then
     echo 'deb http://packages.cloud.google.com/apt apt-transport-artifact-registry-stable main' | sudo tee -a /etc/apt/sources.list.d/artifact-registry.list
     sudo apt update
     sudo apt install apt-transport-artifact-registry
-    echo 'deb ar+https://us-apt.pkg.dev/projects/gcs-fuse-prod $(lsb_release -cs) main' | sudo tee -a /etc/apt/sources.list.d/artifact-registry.list
+    echo "deb ar+https://us-apt.pkg.dev/projects/gcs-fuse-prod gcsfuse-$(lsb_release -cs) main" | sudo tee -a /etc/apt/sources.list.d/artifact-registry.list
     sudo apt update
 
     # Install released gcsfuse version
