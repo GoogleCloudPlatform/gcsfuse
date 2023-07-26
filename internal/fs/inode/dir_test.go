@@ -1195,3 +1195,19 @@ func (t *DirTest) DeleteChildDir_ImplicitDirTrue() {
 	err := t.in.DeleteChildDir(t.ctx, name, true)
 	ExpectEq(nil, err)
 }
+
+func (t *DirTest) CreateLocalChildFile_ShouldnotCreateObjectInGCS() {
+	const name = "qux"
+
+	// Create the local file inode.
+	core, err := t.in.CreateLocalChildFile(name)
+
+	AssertEq(nil, err)
+	AssertEq(true, core.Local)
+	AssertEq(nil, core.Object)
+
+	// Object shouldn't get created in GCS.
+	result, err := t.in.LookUpChild(t.ctx, name)
+	AssertEq(nil, err)
+	AssertEq(nil, result)
+}

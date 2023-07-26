@@ -68,7 +68,7 @@ type FileInode struct {
 
 	// The source object from which this inode derives.
 	//
-	// INVARIANT: src.Name == name.GcsObjectName()
+	// INVARIANT: for non local files,  src.Name == name.GcsObjectName()
 	//
 	// GUARDED_BY(mu)
 	src storage.MinObject
@@ -81,6 +81,9 @@ type FileInode struct {
 	//
 	// GUARDED_BY(mu)
 	destroyed bool
+
+	// Represents a local file which is not yet synced to GCS.
+	local bool
 }
 
 var _ Inode = &FileInode{}
@@ -101,7 +104,8 @@ func NewFileInode(
 	bucket *gcsx.SyncerBucket,
 	localFileCache bool,
 	contentCache *contentcache.ContentCache,
-	mtimeClock timeutil.Clock) (f *FileInode) {
+	mtimeClock timeutil.Clock,
+	localFile bool) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
 		bucket:         bucket,
@@ -112,6 +116,7 @@ func NewFileInode(
 		localFileCache: localFileCache,
 		contentCache:   contentCache,
 		src:            convertObjToMinObject(o),
+		local:          localFile,
 	}
 
 	f.lc.Init(id)
@@ -138,8 +143,8 @@ func (f *FileInode) checkInvariants() {
 		panic("Illegal file name: " + name.String())
 	}
 
-	// INVARIANT: src.Name == name
-	if f.src.Name != name.GcsObjectName() {
+	// INVARIANT: For non-local inodes, src.Name == name
+	if !f.IsLocal() && f.src.Name != name.GcsObjectName() {
 		panic(fmt.Sprintf(
 			"Name mismatch: %q vs. %q",
 			f.src.Name,
@@ -271,6 +276,10 @@ func (f *FileInode) ID() fuseops.InodeID {
 
 func (f *FileInode) Name() Name {
 	return f.name
+}
+
+func (f *FileInode) IsLocal() bool {
+	return f.local
 }
 
 // Source returns a record for the GCS object from which this inode is branched. The
@@ -596,7 +605,12 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 	return
 }
 
-func convertObjToMinObject(o *gcs.Object) (mo storage.MinObject) {
+func convertObjToMinObject(o *gcs.Object) storage.MinObject {
+	var min storage.MinObject
+	if o == nil {
+		return min
+	}
+
 	return storage.MinObject{
 		Name:            o.Name,
 		Size:            o.Size,
