@@ -22,8 +22,8 @@ pip install google-cloud
 pip install google-cloud-vision
 pip install google-api-python-client
 pip install prettytable
-echo Installing go-lang  1.20.4
-wget -O go_tar.tar.gz https://go.dev/dl/go1.20.4.linux-amd64.tar.gz
+echo Installing go-lang  1.20.5
+wget -O go_tar.tar.gz https://go.dev/dl/go1.20.5.linux-amd64.tar.gz
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
 echo Installing fio
@@ -38,7 +38,7 @@ GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
 BUCKET_NAME=presubmit-perf-tests
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
-go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+CGO_ENABLED=0 go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 touch result.txt
 # Running FIO test
 chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
@@ -53,13 +53,13 @@ echo checkout PR branch
 git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
 # Executing integration tests
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test -timeout 15m
+GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test -timeout 15m
 
 # Executing perf tests
 echo Mounting gcs bucket from pr branch
 mkdir -p gcs
 # The VM will itself exit if the gcsfuse mount fails.
-go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+CGO_ENABLED=0 go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 # Running FIO test
 chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
 ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh

@@ -5,14 +5,14 @@
 # and epochs functionality, and runs the model
 
 # Install go lang
-wget -O go_tar.tar.gz https://go.dev/dl/go1.20.4.linux-amd64.tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go1.20.5.linux-amd64.tar.gz
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
 
 # Clone the repo and build gcsfuse
 git clone "https://github.com/GoogleCloudPlatform/gcsfuse.git"
 cd gcsfuse
-go build .
+CGO_ENABLED=0 go build .
 cd -
 
 # Mount the bucket and run in background so that docker doesn't keep running after resnet_runner.py fails
