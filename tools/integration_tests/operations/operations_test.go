@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
@@ -111,6 +112,10 @@ func TestMain(m *testing.M) {
 
 	if successCode == 0 {
 		successCode = persistent_mounting.RunTests(flags, m)
+	}
+
+	if successCode == 0 {
+		successCode = dynamic_mounting.RunTests(flags, m)
 	}
 
 	if successCode == 0 {

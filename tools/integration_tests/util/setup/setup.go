@@ -195,18 +195,14 @@ func UnMount() error {
 	return nil
 }
 
-func executeTest(m *testing.M) (successCode int) {
+func ExecuteTest(m *testing.M) (successCode int) {
 	successCode = m.Run()
 
 	return successCode
 }
 
-func ExecuteTestForFlagsSet(flags []string, m *testing.M) (successCode int) {
-	var err error
-
-	successCode = executeTest(m)
-
-	err = UnMount()
+func UnMountAndThrowErrorInFailure(flags []string, successCode int) {
+	err := UnMount()
 	if err != nil {
 		LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
 	}
@@ -217,6 +213,13 @@ func ExecuteTestForFlagsSet(flags []string, m *testing.M) (successCode int) {
 		log.Print("Test Fails on " + f)
 		return
 	}
+}
+
+func ExecuteTestForFlagsSet(flags []string, m *testing.M) (successCode int) {
+	successCode = ExecuteTest(m)
+
+	UnMountAndThrowErrorInFailure(flags, successCode)
+
 	return
 }
 
@@ -242,7 +245,7 @@ func RunTestsForMountedDirectoryFlag(m *testing.M) {
 	// Execute tests for the mounted directory.
 	if *mountedDirectory != "" {
 		mntDir = *mountedDirectory
-		successCode := executeTest(m)
+		successCode := ExecuteTest(m)
 		os.Exit(successCode)
 	}
 }
