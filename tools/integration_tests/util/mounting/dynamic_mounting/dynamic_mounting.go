@@ -74,6 +74,7 @@ func runTestsOnGivenMountedTestBucket(bucketName string, flags [][]string, rootM
 
 func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode int) {
 	rootMntDir := setup.MntDir()
+
 	// In dynamic mounting all the buckets mounted in mntDir which user has permission.
 	// mntDir - bucket1, bucket2, bucket3, ...
 	// We will test on passed testBucket and one created bucket.
@@ -105,7 +106,7 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 		log.Printf("Error in fetching project id: %v", err)
 	}
 
-	// Create bucket with name gcsfuse-dynamic-mounting-test_xxxxx
+	// Create bucket with name gcsfuse-dynamic-mounting-test-xxxxx
 	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/create_bucket.sh", testBucketForDynamicMounting, project_id)
 
 	successCode = executeTestsForDynamicMounting(flags, m)
