@@ -31,6 +31,7 @@ const BucketForDynamicMountingTest = "gcsfuse-dynamic-mounting-test_"
 const Charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
+var testBucketForDynamicMounting = BucketForDynamicMountingTest + generateRandomString(5)
 
 func mountGcsfuseWithDynamicMounting(flags []string) (err error) {
 	defaultArg := []string{"--debug_gcs",
@@ -82,7 +83,7 @@ func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode
 
 	// Test on created bucket.
 	if successCode == 0 {
-		successCode = runTestsOnGivenMountedTestBucket(BucketForDynamicMountingTest, flags, rootMntDir, m)
+		successCode = runTestsOnGivenMountedTestBucket(testBucketForDynamicMounting, flags, rootMntDir, m)
 	}
 
 	// Setting back the original mntDir after testing.
@@ -105,7 +106,6 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	}
 
 	// Create bucket with name gcsfuse-dynamic-mounting-test_xxxxx
-	testBucketForDynamicMounting := BucketForDynamicMountingTest + generateRandomString(5)
 	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/create_bucket.sh", testBucketForDynamicMounting, project_id)
 
 	successCode = executeTestsForDynamicMounting(flags, m)
