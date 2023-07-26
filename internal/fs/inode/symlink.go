@@ -29,6 +29,10 @@ const SymlinkMetadataKey = "gcsfuse_symlink_target"
 
 // IsSymlink Does the supplied object represent a symlink inode?
 func IsSymlink(o *gcs.Object) bool {
+	if o == nil {
+		return false
+	}
+
 	_, ok := o.Metadata[SymlinkMetadataKey]
 	return ok
 }
