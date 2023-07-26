@@ -27,11 +27,11 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const BucketForDynamicMountingTest = "gcsfuse-dynamic-mounting-test_"
+const PrefixBucketForDynamicMountingTest = "gcsfuse-dynamic-mounting-test_"
 const Charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
-var testBucketForDynamicMounting = BucketForDynamicMountingTest + generateRandomString(5)
+var testBucketForDynamicMounting = PrefixBucketForDynamicMountingTest + generateRandomString(5)
 
 func mountGcsfuseWithDynamicMounting(flags []string) (err error) {
 	defaultArg := []string{"--debug_gcs",
