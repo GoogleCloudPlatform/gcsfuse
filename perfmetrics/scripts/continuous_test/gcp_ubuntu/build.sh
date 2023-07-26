@@ -6,8 +6,8 @@ echo "Installing git"
 sudo apt-get install git
 echo "Installing pip"
 sudo apt-get install pip -y
-echo "Installing go-lang 1.20.4"
-wget -O go_tar.tar.gz https://go.dev/dl/go1.20.4.linux-amd64.tar.gz
+echo "Installing go-lang 1.20.5"
+wget -O go_tar.tar.gz https://go.dev/dl/go1.20.5.linux-amd64.tar.gz
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
 echo "Installing fio"
@@ -28,7 +28,7 @@ commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 git checkout $commitId
 
 echo "Executing integration tests"
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test
+GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test
 
 # Checkout back to master branch to use latest CI test scripts in master.
 git checkout master
