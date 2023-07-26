@@ -105,14 +105,15 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	}
 
 	// Create bucket with name gcsfuse-dynamic-mounting-test_xxxxx
-	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/create_bucket.sh", BucketForDynamicMountingTest+generateRandomString(5), project_id)
+	testBucketForDynamicMounting := BucketForDynamicMountingTest + generateRandomString(5)
+	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/create_bucket.sh", testBucketForDynamicMounting, project_id)
 
 	successCode = executeTestsForDynamicMounting(flags, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 
 	// Deleting bucket after testing.
-	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/delete_bucket.sh", BucketForDynamicMountingTest+generateRandomString(5))
+	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/delete_bucket.sh", testBucketForDynamicMounting)
 
 	return successCode
 }
