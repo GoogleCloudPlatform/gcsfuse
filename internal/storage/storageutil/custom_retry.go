@@ -27,6 +27,8 @@ func ShouldRetry(err error) (b bool) {
 		return
 	}
 
+	// Actual fix (merged): https://github.com/googleapis/google-cloud-go/pull/8202
+	// TODO: Please remove this condition in the next go-client-library upgrade.
 	if st, ok := status.FromError(err); ok && st.Code() == codes.ResourceExhausted {
 		return true
 	}

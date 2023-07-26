@@ -276,8 +276,9 @@ func newApp() (app *cli.App) {
 			cli.IntFlag{
 				Name:  "grpc-conn-pool-size",
 				Value: 4,
-				Usage: "Number of gRPC channel. Normally, it's same as number of tcp connection, but in case of" +
-					"direct-path traffic it's hard to determine number of tcp-connections in one grpc channel.",
+				Usage: "Number of gRPC channel. For, direct-path traffic, it's hard to determine number of" +
+					" tcp-connections in one gRPC channel. For cloud-path traffic, number of tcp connection is" +
+					" equal to number of gRPC channel.",
 			},
 
 			/////////////////////////

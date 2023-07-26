@@ -60,14 +60,24 @@ type StorageClientConfig struct {
 
 func createGRPCClientHandle(ctx context.Context, clientConfig StorageClientConfig) (sc *storage.Client, err error) {
 	if err := os.Setenv("STORAGE_USE_GRPC", "gRPC"); err != nil {
-		log.Fatalf("error setting enable grpc: %v", err)
+		log.Fatalf("error setting grpc env var: %v", err)
 	}
 
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		log.Fatalf("error setting direct path env var: %v", err)
 	}
 
-	return storage.NewClient(ctx, option.WithGRPCConnectionPool(clientConfig.GRPCConnPoolSize))
+	sc, err = storage.NewClient(ctx, option.WithGRPCConnectionPool(clientConfig.GRPCConnPoolSize))
+
+	if err := os.Unsetenv("STORAGE_USE_GRPC"); err != nil {
+		log.Fatalf("error while unsetting grpc env var: %v", err)
+	}
+
+	if err := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); err != nil {
+		log.Fatalf("error while unsetting direct path env var: %v", err)
+	}
+
+	return
 }
 
 func createHTTPClientHandle(ctx context.Context, clientConfig StorageClientConfig) (sc *storage.Client, err error) {
