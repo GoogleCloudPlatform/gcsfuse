@@ -195,17 +195,14 @@ func ReadFileSequentially(filePath string, chunkSize int64) (content []byte, err
 }
 
 func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (err error) {
-	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, FilePermission_0600)
-	if err != nil {
-		log.Printf("Error in opening file:%v", err)
-	}
-
-	// Closing file at the end.
-	defer CloseFile(file)
-
 	var offset int64 = 0
 
 	for offset < fileSize {
+		file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, FilePermission_0600)
+		if err != nil {
+			log.Printf("Error in opening file:%v", err)
+		}
+
 		// Get random chunkSize or remaining filesize data into chunk.
 		if (fileSize - offset) < chunkSize {
 			chunkSize = (fileSize - offset)
@@ -220,6 +217,7 @@ func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (er
 
 		// Writes random chunkSize or remaining filesize data into file.
 		numberOfBytes, err = file.Write(chunk)
+
 		CloseFile(file)
 
 		if err != nil {
