@@ -198,7 +198,9 @@ func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (er
 	var offset int64 = 0
 
 	for offset < fileSize {
-		file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, FilePermission_0600)
+		var file *os.File
+
+		file, err = os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, FilePermission_0600)
 		if err != nil {
 			log.Printf("Error in opening file:%v", err)
 		}
