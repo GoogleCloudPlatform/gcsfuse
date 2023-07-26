@@ -105,6 +105,8 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 		log.Printf("Error in fetching project id: %v", err)
 	}
 
+	log.Printf(testBucketForDynamicMounting)
+
 	// Create bucket with name gcsfuse-dynamic-mounting-test_xxxxx
 	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/create_bucket.sh", testBucketForDynamicMounting, project_id)
 
