@@ -28,7 +28,7 @@ import (
 )
 
 const BucketForDynamicMountingTest = "gcsfuse-dynamic-mounting-test_"
-const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+const Charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -93,7 +93,7 @@ func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode
 func generateRandomString(length int) string {
 	b := make([]byte, length)
 	for i := range b {
-		b[i] = charset[seededRand.Intn(len(charset))]
+		b[i] = Charset[seededRand.Intn(len(Charset))]
 	}
 	return string(b)
 }
