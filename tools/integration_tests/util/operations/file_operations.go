@@ -16,6 +16,7 @@
 package operations
 
 import (
+	"crypto/rand"
 	"fmt"
 	"io"
 	"log"
@@ -188,6 +189,49 @@ func ReadFileSequentially(filePath string, chunkSize int64) (content []byte, err
 		}
 
 		// The offset will shift to read the next chunk.
+		offset = offset + chunkSize
+	}
+	return
+}
+
+func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (err error) {
+	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, FilePermission_0600)
+	if err != nil {
+		log.Printf("Error in opening file:%v", err)
+	}
+
+	// Closing file at the end.
+	defer CloseFile(file)
+
+	var offset int64 = 0
+
+	for offset < fileSize {
+		// Get random chunkSize or remaining filesize data into chunk.
+		if (fileSize - offset) < chunkSize {
+			chunkSize = (fileSize - offset)
+		}
+		chunk := make([]byte, chunkSize)
+		_, err = rand.Read(chunk)
+		if err != nil {
+			log.Fatalf("error while generating random string: %s", err)
+		}
+
+		var numberOfBytes int
+
+		// Writes random chunkSize or remaining filesize data into file.
+		numberOfBytes, err = file.Write(chunk)
+		err = file.Sync()
+		if err != nil {
+			log.Printf("Error in syncing file:%v", err)
+		}
+
+		if err != nil {
+			return
+		}
+		if int64(numberOfBytes) != chunkSize {
+			log.Fatalf("Incorrect number of bytes written in the file.")
+		}
+
 		offset = offset + chunkSize
 	}
 	return
