@@ -71,6 +71,18 @@ func (t *CoreTest) File() {
 	ExpectEq(inode.RegularFileType, c.Type())
 }
 
+func (t *CoreTest) LocalFile() {
+	name := inode.NewFileName(inode.NewRootName(t.bucket.Name()), "test")
+	c := &inode.Core{
+		Bucket:   &t.bucket,
+		FullName: name,
+		Object:   nil,
+		Local:    true,
+	}
+	ExpectTrue(c.Exists())
+	ExpectEq(inode.RegularFileType, c.Type())
+}
+
 func (t *CoreTest) ExplicitDir() {
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "bar/", []byte(""))
 	AssertEq(nil, err)
@@ -126,13 +138,6 @@ func (t *CoreTest) SanityCheck() {
 
 	c = &inode.Core{
 		Bucket:   &t.bucket,
-		FullName: inode.NewFileName(root, "bar"),
-		Object:   nil,
-	}
-	ExpectNe(nil, c.SanityCheck()) // missing object for file
-
-	c = &inode.Core{
-		Bucket:   &t.bucket,
 		FullName: inode.NewFileName(root, o.Name),
 		Object:   o,
 	}
@@ -144,4 +149,20 @@ func (t *CoreTest) SanityCheck() {
 		Object:   o,
 	}
 	ExpectNe(nil, c.SanityCheck()) // name mismatch
+
+	c = &inode.Core{
+		Bucket:   &t.bucket,
+		FullName: inode.NewFileName(root, "foo"),
+		Object:   nil,
+		Local:    true,
+	}
+	ExpectEq(nil, c.SanityCheck()) // object is nil for local fileInode.
+
+	c = &inode.Core{
+		Bucket:   &t.bucket,
+		FullName: inode.NewFileName(root, "foo"),
+		Object:   nil,
+		Local:    false,
+	}
+	ExpectNe(nil, c.SanityCheck()) // Missing object for non-local fileInode.
 }

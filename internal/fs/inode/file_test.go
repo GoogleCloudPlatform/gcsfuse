@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
@@ -65,6 +66,8 @@ var _ TearDownInterface = &FileTest{}
 func init() { RegisterTestSuite(&FileTest{}) }
 
 func (t *FileTest) SetUp(ti *TestInfo) {
+	// Enabling invariant check for all tests.
+	syncutil.EnableInvariantChecking()
 	t.ctx = ti.Ctx
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
@@ -90,6 +93,9 @@ func (t *FileTest) TearDown() {
 }
 
 func (t *FileTest) createInode() {
+	t.createInodeWithLocalParam(false)
+}
+func (t *FileTest) createInodeWithLocalParam(local bool) {
 	if t.in != nil {
 		t.in.Unlock()
 	}
@@ -114,7 +120,8 @@ func (t *FileTest) createInode() {
 		&syncerBucket,
 		false, // localFileCache
 		contentcache.New("", &t.clock),
-		&t.clock)
+		&t.clock,
+		local)
 
 	t.in.Lock()
 }
@@ -714,4 +721,10 @@ func (t *FileTest) ContentEncodingOther() {
 
 	AssertEq(contentEncoding, t.in.Source().ContentEncoding)
 	AssertFalse(t.in.Source().HasContentEncodingGzip())
+}
+
+func (t *FileTest) TestCheckInvariantsShouldNotThrowExceptionForLocalFiles() {
+	t.createInodeWithLocalParam(true)
+
+	AssertNe(nil, t.in)
 }
