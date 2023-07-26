@@ -17,35 +17,28 @@ package perms
 
 import (
 	"fmt"
-	"os/user"
-	"strconv"
+	"os"
 )
 
 // MyUserAndGroup returns the UID and GID of this process.
-func MyUserAndGroup() (uid uint32, gid uint32, err error) {
-	// Ask for the current user.
-	user, err := user.Current()
-	if err != nil {
-		err = fmt.Errorf("Fetching current user: %w", err)
+func MyUserAndGroup() (uid, gid uint32, err error) {
+	signed_uid := os.Getuid()
+	signed_gid := os.Getgid()
+
+	// Not sure in what scenarios uid/gid could be returned as negative. The only
+	// documented scenario at pkg.go.dev/os#Getuid is windows OS.
+	if signed_gid < 0 || signed_uid < 0 {
+		err = fmt.Errorf("failed to get uid/gid. UID = %d, GID = %d", signed_uid, signed_gid)
+
+		// An untested improvement idea to fallback here is to invoke os.current.User()
+		// and use its partial output even when os.current.User() returned error, as
+		// the partial output would still be useful.
+
 		return
 	}
 
-	// Parse UID.
-	uid64, err := strconv.ParseUint(user.Uid, 10, 32)
-	if err != nil {
-		err = fmt.Errorf("Parsing UID (%s): %w", user.Uid, err)
-		return
-	}
-
-	// Parse GID.
-	gid64, err := strconv.ParseUint(user.Gid, 10, 32)
-	if err != nil {
-		err = fmt.Errorf("Parsing GID (%s): %w", user.Gid, err)
-		return
-	}
-
-	uid = uint32(uid64)
-	gid = uint32(gid64)
+	uid = uint32(signed_uid)
+	gid = uint32(signed_gid)
 
 	return
 }
