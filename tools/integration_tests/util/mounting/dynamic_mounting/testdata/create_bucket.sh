@@ -25,3 +25,4 @@ if [ $? -eq 1 ]; then
     exit 1
   fi
 fi
+rm ~/output.txt
