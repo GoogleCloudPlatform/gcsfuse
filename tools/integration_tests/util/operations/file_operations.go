@@ -220,7 +220,7 @@ func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (er
 
 		// Writes random chunkSize or remaining filesize data into file.
 		numberOfBytes, err = file.Write(chunk)
-		err := file.Sync()
+		err = file.Sync()
 		if err != nil {
 			log.Printf("Error in syncing file:%v", err)
 		}
