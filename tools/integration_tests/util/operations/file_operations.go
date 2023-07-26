@@ -218,13 +218,14 @@ func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (er
 		var numberOfBytes int
 
 		// Writes random chunkSize or remaining filesize data into file.
-		numberOfBytes, err = file.Write(chunk)
+		numberOfBytes, err = file.WriteAt(chunk, offset)
 
 		CloseFile(file)
 
 		if err != nil {
 			return
 		}
+
 		if int64(numberOfBytes) != chunkSize {
 			log.Fatalf("Incorrect number of bytes written in the file.")
 		}
