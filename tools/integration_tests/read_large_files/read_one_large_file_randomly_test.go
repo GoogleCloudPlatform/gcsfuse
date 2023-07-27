@@ -31,7 +31,7 @@ func TestReadLargeFileRandomly(t *testing.T) {
 	setup.CleanMntDir()
 
 	// Create file of 500 MB with random data in local disk.
-	fileInLocalDisk := path.Join("/tmp", FiveHundredMBFile)
+	fileInLocalDisk := path.Join(os.Getenv("HOME"), FiveHundredMBFile)
 	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk, strconv.Itoa(FiveHundredMB))
 
 	// Copy the file in mounted directory.
