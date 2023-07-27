@@ -17,6 +17,7 @@ package read_large_files
 import (
 	"bytes"
 	"math/rand"
+	"os"
 	"path"
 	"strconv"
 	"testing"
@@ -40,6 +41,12 @@ func TestReadLargeFileRandomly(t *testing.T) {
 		t.Errorf("Error in copying file:%v", err)
 	}
 
+	file2 := path.Join(os.Getenv("HOME"), "a.txt")
+	err = operations.CopyFile(fileInLocalDisk, file2)
+	if err != nil {
+		t.Errorf("Error in copying file:%v", err)
+	}
+
 	for i := 0; i < 20; i++ {
 		offset := rand.Int63n(MaxReadbleByteFromFile - MinReadbleByteFromFile)
 		// Randomly read the data from file.
@@ -49,7 +56,7 @@ func TestReadLargeFileRandomly(t *testing.T) {
 		}
 
 		//	Read actual content from file located in local disk.
-		actualContent, err := operations.ReadChunkFromFile(fileInLocalDisk, chunkSize, offset)
+		actualContent, err := operations.ReadChunkFromFile(file2, chunkSize, offset)
 		if err != nil {
 			t.Errorf("Error in reading file: %v", err)
 		}
