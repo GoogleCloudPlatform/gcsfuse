@@ -41,7 +41,7 @@ func TestReadLargeFileRandomly(t *testing.T) {
 		t.Errorf("Error in copying file:%v", err)
 	}
 
-	file2 := path.Join(os.Getenv("HOME"), "a.txt")
+	file2 := path.Join("/tmp", "a.txt")
 	err = operations.CopyFile(fileInLocalDisk, file2)
 	if err != nil {
 		t.Errorf("Error in copying file:%v", err)
