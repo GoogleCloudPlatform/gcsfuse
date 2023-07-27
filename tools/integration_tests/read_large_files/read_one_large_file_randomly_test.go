@@ -16,6 +16,7 @@ package read_large_files
 
 import (
 	"bytes"
+	"log"
 	"math/rand"
 	"os"
 	"path"
@@ -63,6 +64,8 @@ func TestReadLargeFileRandomly(t *testing.T) {
 
 		//	Compare actual content and expect content.
 		if bytes.Equal(actualChunkContent, content) == false {
+			log.Print(actualChunkContent)
+			log.Print(content)
 			t.Errorf("Error in reading file sequentially.")
 		}
 	}
