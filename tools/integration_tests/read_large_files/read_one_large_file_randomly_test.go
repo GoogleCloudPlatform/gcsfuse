@@ -16,7 +16,6 @@ package read_large_files
 
 import (
 	"bytes"
-	"log"
 	"math/rand"
 	"os"
 	"path"
@@ -59,7 +58,6 @@ func TestReadLargeFileRandomly(t *testing.T) {
 		actualChunkContent := make([]byte, chunkSize)
 
 		for j := offset; j < offset+chunkSize && j < FiveHundredMB-offset; j++ {
-			log.Print(j)
 			actualChunkContent[j-offset] = actualWholeContent[j]
 		}
 
