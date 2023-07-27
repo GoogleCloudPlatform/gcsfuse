@@ -16,9 +16,7 @@ package read_large_files
 
 import (
 	"bytes"
-	"log"
 	"math/rand"
-	"os"
 	"path"
 	"strconv"
 	"testing"
@@ -32,7 +30,7 @@ func TestReadLargeFileRandomly(t *testing.T) {
 	setup.CleanMntDir()
 
 	// Create file of 500 MB with random data in local disk.
-	fileInLocalDisk := path.Join(os.Getenv("HOME"), FiveHundredMBFile)
+	fileInLocalDisk := path.Join("/tmp", FiveHundredMBFile)
 	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk, strconv.Itoa(FiveHundredMB))
 
 	// Copy the file in mounted directory.
@@ -51,22 +49,14 @@ func TestReadLargeFileRandomly(t *testing.T) {
 		}
 
 		//	Read actual content from file located in local disk.
-		actualWholeContent, err := operations.ReadFile(fileInLocalDisk)
+		actualContent, err := operations.ReadChunkFromFile(fileInLocalDisk, chunkSize, offset)
 		if err != nil {
 			t.Errorf("Error in reading file: %v", err)
 		}
 
-		actualChunkContent := make([]byte, chunkSize)
-
-		for j := offset; j < offset+chunkSize && j < FiveHundredMB; j++ {
-			actualChunkContent[j-offset] = actualWholeContent[j]
-		}
-
 		//	Compare actual content and expect content.
-		if bytes.Equal(actualChunkContent, content) == false {
-			log.Print(actualChunkContent)
-			log.Print(content)
-			t.Errorf("Error in reading file sequentially.")
+		if bytes.Equal(actualContent, content) == false {
+			t.Errorf("Error in reading file randomly.")
 		}
 	}
 
