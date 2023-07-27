@@ -42,7 +42,7 @@ func TestReadLargeFileRandomly(t *testing.T) {
 		t.Errorf("Error in copying file:%v", err)
 	}
 
-	for i := 0; i < NumberOfRandomReadCalls; i++ {
+	for i := 0; i < 20; i++ {
 		offset := rand.Int63n(MaxReadbleByteFromFile - MinReadbleByteFromFile)
 		// Randomly read the data from file.
 		content, err := operations.ReadChunkFromFile(file, chunkSize, offset)
