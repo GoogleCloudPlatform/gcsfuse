@@ -236,3 +236,30 @@ func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (er
 	}
 	return
 }
+
+func ReadChunkFromFile(filePath string, chunkSize int64, offset int64) (chunk []byte, err error) {
+	chunk = make([]byte, chunkSize)
+
+	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, FilePermission_0600)
+	if err != nil {
+		log.Printf("Error in opening file:%v", err)
+	}
+
+	// Closing the file at the end.
+	defer CloseFile(file)
+
+	var numberOfBytes int
+
+	// Reading chunk size randomly from the file.
+	numberOfBytes, err = file.ReadAt(chunk, offset)
+	if err != nil {
+		return
+	}
+
+	// The number of bytes read is not equal to 200MB.
+	if int64(numberOfBytes) != chunkSize {
+		log.Printf("Incorrect number of bytes read from file.")
+	}
+
+	return
+}
