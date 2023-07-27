@@ -240,7 +240,7 @@ func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (er
 func ReadChunkFromFile(filePath string, chunkSize int64, offset int64) (chunk []byte, err error) {
 	chunk = make([]byte, chunkSize)
 
-	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, 777)
+	file, err := os.OpenFile(filePath, os.O_RDONLY, FilePermission_0600)
 	if err != nil {
 		log.Printf("Error in opening file:%v", err)
 		return
