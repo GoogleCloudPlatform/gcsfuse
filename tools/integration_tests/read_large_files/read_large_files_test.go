@@ -18,9 +18,11 @@ package read_large_files
 import (
 	"log"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -54,4 +56,18 @@ func TestMain(m *testing.M) {
 	setup.RemoveBinFileCopiedForTesting()
 
 	os.Exit(successCode)
+}
+
+func createFileInLocalDiskWithGivenSizeAndCopyInMntDir(fileInLocalDisk string, file string, t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
+	// Create file of 500 MB with random data in local disk.
+	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk, strconv.Itoa(FiveHundredMB))
+
+	// Copy the file in mounted directory.
+	err := operations.CopyFile(fileInLocalDisk, file)
+	if err != nil {
+		t.Errorf("Error in copying file:%v", err)
+	}
 }

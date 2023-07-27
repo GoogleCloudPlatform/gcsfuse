@@ -19,7 +19,6 @@ import (
 	"math/rand"
 	"os"
 	"path"
-	"strconv"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
@@ -27,19 +26,11 @@ import (
 )
 
 func TestReadLargeFileRandomly(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-
-	// Create file of 500 MB with random data in local disk.
 	fileInLocalDisk := path.Join(os.Getenv("HOME"), FiveHundredMBFile)
-	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk, strconv.Itoa(FiveHundredMB))
-
-	// Copy the file in mounted directory.
 	file := path.Join(setup.MntDir(), FiveHundredMBFile)
-	err := operations.CopyFile(fileInLocalDisk, file)
-	if err != nil {
-		t.Errorf("Error in copying file:%v", err)
-	}
+
+	// Create File in local disk with given size and copy it in mountedDirectory.
+	createFileInLocalDiskWithGivenSizeAndCopyInMntDir(fileInLocalDisk, file, t)
 
 	for i := 0; i < NumberOfRandomReadCalls; i++ {
 		offset := rand.Int63n(MaxReadbleByteFromFile - MinReadbleByteFromFile)
