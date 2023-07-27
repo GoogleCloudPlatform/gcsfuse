@@ -58,7 +58,7 @@ func TestReadLargeFileRandomly(t *testing.T) {
 
 		actualChunkContent := make([]byte, chunkSize)
 
-		for j := offset; j < offset+chunkSize && j < FiveHundredMB-offset; j++ {
+		for j := offset; j < offset+chunkSize && j < FiveHundredMB; j++ {
 			actualChunkContent[j-offset] = actualWholeContent[j]
 		}
 
