@@ -259,8 +259,8 @@ func ReadChunkFromFile(filePath string, chunkSize int64, offset int64) (chunk []
 
 	// Reading chunk size randomly from the file.
 	numberOfBytes, err = file.ReadAt(chunk, offset)
-	if err != io.EOF && err != nil {
-		log.Print(err)
+	log.Print(err)
+	if err == io.EOF && err != nil {
 		return
 	}
 
