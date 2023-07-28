@@ -30,7 +30,7 @@ const FileTwo = "fileTwo.txt"
 const FileThree = "fileThree.txt"
 
 func WriteFileParellaly(file string, fileSize int64, wg *sync.WaitGroup, t *testing.T) {
-	// For wait group (wait until all threads done).
+	// Reduce thread count when it is done.
 	defer wg.Done()
 
 	data := make([]byte, fileSize)
