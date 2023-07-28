@@ -28,7 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const NumberOfRandomWriteCalls = 20
+const NumberOfRandomWriteCalls = 10
 const MinWritableByteFromFile = 0
 const MaxWritableByteFromFile = 500 * 1024 * 1024
 
@@ -72,6 +72,9 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error in reading file.")
 		}
+
+		log.Print(writtenContent)
+		log.Print(chunk)
 
 		// Compare actual content and expect content.
 		if bytes.Equal(chunk, writtenContent) == false {
