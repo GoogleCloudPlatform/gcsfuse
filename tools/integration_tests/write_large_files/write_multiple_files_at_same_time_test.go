@@ -66,17 +66,17 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 
 	// Increment the WaitGroup counter.
 	wg.Add(1)
-	// Thread to read first file.
+	// Thread to write first file.
 	go WriteFileParellaly(file1, FiveHundredMB, &wg, t)
 
 	// Increment the WaitGroup counter.
 	wg.Add(1)
-	// Thread to read second file.
+	// Thread to write second file.
 	go WriteFileParellaly(file2, FiveHundredMB, &wg, t)
 
 	// Increment the WaitGroup counter.
 	wg.Add(1)
-	// Thread to read third file.
+	// Thread to write third file.
 	go WriteFileParellaly(file3, FiveHundredMB, &wg, t)
 
 	// Wait on threads to end.

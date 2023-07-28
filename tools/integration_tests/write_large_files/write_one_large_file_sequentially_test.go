@@ -33,7 +33,7 @@ func TestWriteLargeFileSequentially(t *testing.T) {
 
 	filePath := path.Join(setup.MntDir(), FiveHundredMBFile)
 
-	// Sequentially read the data from file.
+	// Sequentially write the data in file.
 	err := operations.WriteFileSequentially(filePath, FiveHundredMB, ChunkSize)
 	if err != nil {
 		t.Errorf("Error in writing file: %v", err)
