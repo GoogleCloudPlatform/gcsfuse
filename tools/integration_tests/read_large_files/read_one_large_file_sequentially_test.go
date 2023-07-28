@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"os"
 	"path"
-	"strconv"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
@@ -33,13 +32,11 @@ func TestReadLargeFileSequentially(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
-	// Create file of 500 MB with random data in local disk.
+	// Create file of 500 MB with random data in local disk and copy it in mntDir.
 	fileInLocalDisk := path.Join(os.Getenv("HOME"), FiveHundredMBFile)
-	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk, strconv.Itoa(FiveHundredMB))
-
-	// Copy the file in mounted directory.
 	file := path.Join(setup.MntDir(), FiveHundredMBFile)
-	CopyFileFromLocalDiskToMntDir(fileInLocalDisk, file, t)
+	CreateFileInLocalDiskAndCopyFileFromLocalDiskToMntDir(fileInLocalDisk, file, FiveHundredMB, t)
+
 	// Sequentially read the data from file.
 	content, err := operations.ReadFileSequentially(file, chunkSize)
 	if err != nil {

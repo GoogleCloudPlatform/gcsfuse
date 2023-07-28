@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"os"
 	"path"
-	"strconv"
 	"sync"
 	"testing"
 
@@ -56,39 +55,33 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 
 	// Create file of 500 MB with random data in local disk.
 	fileInLocalDisk1 := path.Join(os.Getenv("HOME"), FileOne)
-	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk1, strconv.Itoa(FiveHundredMB))
+	file1 := path.Join(setup.MntDir(), FileOne)
+	CreateFileInLocalDiskAndCopyFileFromLocalDiskToMntDir(fileInLocalDisk1, file1, FiveHundredMB, t)
 
 	fileInLocalDisk2 := path.Join(os.Getenv("HOME"), FileTwo)
-	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk2, strconv.Itoa(FiveHundredMB))
+	file2 := path.Join(setup.MntDir(), FileTwo)
+	CreateFileInLocalDiskAndCopyFileFromLocalDiskToMntDir(fileInLocalDisk2, file2, FiveHundredMB, t)
 
 	fileInLocalDisk3 := path.Join(os.Getenv("HOME"), FileThree)
-	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk3, strconv.Itoa(FiveHundredMB))
-
-	file1 := path.Join(setup.MntDir(), FileOne)
-	CopyFileFromLocalDiskToMntDir(fileInLocalDisk1, file1, t)
-
-	file2 := path.Join(setup.MntDir(), FileTwo)
-	CopyFileFromLocalDiskToMntDir(fileInLocalDisk2, file2, t)
-
 	file3 := path.Join(setup.MntDir(), FileThree)
-	CopyFileFromLocalDiskToMntDir(fileInLocalDisk3, file3, t)
+	CreateFileInLocalDiskAndCopyFileFromLocalDiskToMntDir(fileInLocalDisk3, file3, FiveHundredMB, t)
 
 	// For waiting on threads.
 	var wg sync.WaitGroup
 
 	// Increment the WaitGroup counter.
 	wg.Add(1)
-	// Thread.
+	// Thread to read first file.
 	go ReadFileParellaly(fileInLocalDisk1, file1, &wg, t)
 
 	// Increment the WaitGroup counter.
 	wg.Add(1)
-	// Thread.
+	// Thread to read second file.
 	go ReadFileParellaly(fileInLocalDisk2, file2, &wg, t)
 
 	// Increment the WaitGroup counter.
 	wg.Add(1)
-	// Thread.
+	// Thread to read third file.
 	go ReadFileParellaly(fileInLocalDisk3, file3, &wg, t)
 
 	// Wait on threads to end.
