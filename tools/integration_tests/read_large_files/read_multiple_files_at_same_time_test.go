@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -30,15 +31,9 @@ const FileOne = "fileOne.txt"
 const FileTwo = "fileTwo.txt"
 const FileThree = "fileThree.txt"
 
-var tokens = make(chan struct{}, 10)
-
 func ReadFileParellaly(fileInLocalDisk string, fileInMntDir string, wg *sync.WaitGroup, t *testing.T) {
-	log.Print(fileInMntDir)
 	// For wait group (wait until all threads done).
 	defer wg.Done()
-
-	// Acquire token.
-	tokens <- struct{}{}
 
 	dataInMntDirFile, err := operations.ReadFile(fileInMntDir)
 	if err != nil {
@@ -54,9 +49,6 @@ func ReadFileParellaly(fileInLocalDisk string, fileInMntDir string, wg *sync.Wai
 	if bytes.Equal(dataInLocalDiskFile, dataInMntDirFile) == false {
 		t.Errorf("Reading incorrect file.")
 	}
-
-	// Release token.
-	<-tokens
 }
 
 func TestMultipleFilesAtSameTime(t *testing.T) {
@@ -65,13 +57,13 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 
 	// Create file of 500 MB with random data in local disk.
 	fileInLocalDisk1 := path.Join(os.Getenv("HOME"), FileOne)
-	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk1, "200")
+	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk1, strconv.Itoa(FiveHundredMB))
 
 	fileInLocalDisk2 := path.Join(os.Getenv("HOME"), FileTwo)
-	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk2, "200")
+	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk2, strconv.Itoa(FiveHundredMB))
 
 	fileInLocalDisk3 := path.Join(os.Getenv("HOME"), FileThree)
-	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk3, "200")
+	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk3, strconv.Itoa(FiveHundredMB))
 
 	file1 := path.Join(setup.MntDir(), FileOne)
 	CopyFileFromLocalDiskToMntDir(fileInLocalDisk1, file1, t)
@@ -91,14 +83,16 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 	go ReadFileParellaly(fileInLocalDisk1, file1, &wg, t)
 
 	// Increment the WaitGroup counter.
-	wg.Add(2)
+	wg.Add(1)
 	// Thread.
 	go ReadFileParellaly(fileInLocalDisk2, file2, &wg, t)
 
 	// Increment the WaitGroup counter.
-	wg.Add(3)
+	wg.Add(1)
 	// Thread.
 	go ReadFileParellaly(fileInLocalDisk3, file3, &wg, t)
+
+	log.Print("after threads")
 
 	// Wait on threads to end.
 	wg.Wait()
