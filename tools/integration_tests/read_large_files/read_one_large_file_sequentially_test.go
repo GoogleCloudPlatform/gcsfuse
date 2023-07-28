@@ -39,11 +39,7 @@ func TestReadLargeFileSequentially(t *testing.T) {
 
 	// Copy the file in mounted directory.
 	file := path.Join(setup.MntDir(), FiveHundredMBFile)
-	err := operations.CopyFile(fileInLocalDisk, file)
-	if err != nil {
-		t.Errorf("Error in copying file:%v", err)
-	}
-
+	CopyFileFromLocalDiskToMntDir(fileInLocalDisk, file, t)
 	// Sequentially read the data from file.
 	content, err := operations.ReadFileSequentially(file, chunkSize)
 	if err != nil {

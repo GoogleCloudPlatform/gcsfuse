@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -47,4 +48,11 @@ func TestMain(m *testing.M) {
 	setup.RemoveBinFileCopiedForTesting()
 
 	os.Exit(successCode)
+}
+
+func CopyFileFromLocalDiskToMntDir(fileInLocalDisk string, fileInMntDir string, t *testing.T) {
+	err := operations.CopyFile(fileInLocalDisk, fileInMntDir)
+	if err != nil {
+		t.Errorf("Error in copying file:%v", err)
+	}
 }
