@@ -15,11 +15,14 @@
 package read_large_files
 
 import (
+	"bytes"
+	"log"
 	"os"
 	"path"
-	"strconv"
+	"sync"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -27,19 +30,48 @@ const FileOne = "fileOne.txt"
 const FileTwo = "fileTwo.txt"
 const FileThree = "fileThree.txt"
 
+var tokens = make(chan struct{}, 10)
+
+func ReadFileParellaly(fileInLocalDisk string, fileInMntDir string, wg *sync.WaitGroup, t *testing.T) {
+	log.Print(fileInMntDir)
+	// For wait group (wait until all threads done).
+	defer wg.Done()
+
+	// Acquire token.
+	tokens <- struct{}{}
+
+	dataInMntDirFile, err := operations.ReadFile(fileInMntDir)
+	if err != nil {
+		return
+	}
+
+	dataInLocalDiskFile, err := operations.ReadFile(fileInLocalDisk)
+	if err != nil {
+		return
+	}
+
+	// Compare actual content and expect content.
+	if bytes.Equal(dataInLocalDiskFile, dataInMntDirFile) == false {
+		t.Errorf("Reading incorrect file.")
+	}
+
+	// Release token.
+	<-tokens
+}
+
 func TestMultipleFilesAtSameTime(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
 	// Create file of 500 MB with random data in local disk.
 	fileInLocalDisk1 := path.Join(os.Getenv("HOME"), FileOne)
-	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk1, strconv.Itoa(FiveHundredMB))
+	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk1, "200")
 
 	fileInLocalDisk2 := path.Join(os.Getenv("HOME"), FileTwo)
-	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk2, strconv.Itoa(FiveHundredMB))
+	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk2, "200")
 
 	fileInLocalDisk3 := path.Join(os.Getenv("HOME"), FileThree)
-	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk3, strconv.Itoa(FiveHundredMB))
+	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk3, "200")
 
 	file1 := path.Join(setup.MntDir(), FileOne)
 	CopyFileFromLocalDiskToMntDir(fileInLocalDisk1, file1, t)
@@ -50,4 +82,24 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 	file3 := path.Join(setup.MntDir(), FileThree)
 	CopyFileFromLocalDiskToMntDir(fileInLocalDisk3, file3, t)
 
+	// For waiting on threads.
+	var wg sync.WaitGroup
+
+	// Increment the WaitGroup counter.
+	wg.Add(1)
+	// Thread.
+	go ReadFileParellaly(fileInLocalDisk1, file1, &wg, t)
+
+	// Increment the WaitGroup counter.
+	wg.Add(2)
+	// Thread.
+	go ReadFileParellaly(fileInLocalDisk2, file2, &wg, t)
+
+	// Increment the WaitGroup counter.
+	wg.Add(3)
+	// Thread.
+	go ReadFileParellaly(fileInLocalDisk3, file3, &wg, t)
+
+	// Wait on threads to end.
+	wg.Wait()
 }
