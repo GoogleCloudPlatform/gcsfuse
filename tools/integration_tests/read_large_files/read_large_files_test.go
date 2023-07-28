@@ -28,7 +28,7 @@ import (
 
 const FiveHundredMB = 500 * 1024 * 1024
 const FiveHundredMBFile = "fiveHundredMBFile.txt"
-const chunkSize = 200 * 1024 * 1024
+const ChunkSize = 200 * 1024 * 1024
 const NumberOfRandomReadCalls = 200
 const MinReadbleByteFromFile = 0
 const MaxReadbleByteFromFile = 500 * 1024 * 1024

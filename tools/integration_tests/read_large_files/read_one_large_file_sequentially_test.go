@@ -35,7 +35,7 @@ func TestReadLargeFileSequentially(t *testing.T) {
 	CreateFileInLocalDiskAndCopyFileFromLocalDiskToMntDir(fileInLocalDisk, file, FiveHundredMB, t)
 
 	// Sequentially read the data from file.
-	content, err := operations.ReadFileSequentially(file, chunkSize)
+	content, err := operations.ReadFileSequentially(file, ChunkSize)
 	if err != nil {
 		t.Errorf("Error in reading file: %v", err)
 	}

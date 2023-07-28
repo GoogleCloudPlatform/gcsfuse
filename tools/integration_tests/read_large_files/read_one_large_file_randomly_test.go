@@ -38,13 +38,13 @@ func TestReadLargeFileRandomly(t *testing.T) {
 	for i := 0; i < NumberOfRandomReadCalls; i++ {
 		offset := rand.Int63n(MaxReadbleByteFromFile - MinReadbleByteFromFile)
 		// Randomly read the data from file in mountedDirectory.
-		content, err := operations.ReadChunkFromFile(file, chunkSize, offset)
+		content, err := operations.ReadChunkFromFile(file, ChunkSize, offset)
 		if err != nil {
 			t.Errorf("Error in reading file: %v", err)
 		}
 
 		// Read actual content from file located in local disk.
-		actualContent, err := operations.ReadChunkFromFile(fileInLocalDisk, chunkSize, offset)
+		actualContent, err := operations.ReadChunkFromFile(fileInLocalDisk, ChunkSize, offset)
 		if err != nil {
 			t.Errorf("Error in reading file: %v", err)
 		}
