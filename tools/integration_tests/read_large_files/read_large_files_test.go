@@ -18,6 +18,7 @@ package read_large_files
 import (
 	"log"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
@@ -57,7 +58,8 @@ func TestMain(m *testing.M) {
 	os.Exit(successCode)
 }
 
-func CopyFileFromLocalDiskToMntDir(fileInLocalDisk string, fileInMntDir string, t *testing.T) {
+func CreateFileInLocalDiskAndCopyFileFromLocalDiskToMntDir(fileInLocalDisk string, fileInMntDir string, fileSize int, t *testing.T) {
+	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk, strconv.Itoa(fileSize))
 	err := operations.CopyFile(fileInLocalDisk, fileInMntDir)
 	if err != nil {
 		t.Errorf("Error in copying file:%v", err)
