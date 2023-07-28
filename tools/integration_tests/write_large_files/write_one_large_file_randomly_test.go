@@ -29,7 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const NumberOfRandomReadCalls = 2000000
+const NumberOfRandomWriteCalls = 2000000
 const MinWritableByteFromFile = 0
 const MaxWritableByteFromFile = 500 * 1024 * 1024
 
@@ -45,7 +45,7 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 		return
 	}
 
-	for i := 0; i < NumberOfRandomReadCalls; i++ {
+	for i := 0; i < NumberOfRandomWriteCalls; i++ {
 		offset := rand2.Int63n(MaxWritableByteFromFile - MinWritableByteFromFile)
 
 		// Generate chunk with random data.
@@ -73,6 +73,9 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error in reading file.")
 		}
+
+		log.Print(writtenContent)
+		log.Print(chunk)
 
 		// Compare actual content and expect content.
 		if bytes.Equal(chunk, writtenContent) == false {
