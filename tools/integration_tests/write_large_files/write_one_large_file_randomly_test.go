@@ -73,9 +73,6 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 			t.Errorf("Error in reading file.")
 		}
 
-		log.Print(writtenContent)
-		log.Print(chunk)
-
 		// Compare actual content and expect content.
 		if bytes.Equal(chunk, writtenContent) == false {
 			t.Errorf("Incorrect content written in the file.")
