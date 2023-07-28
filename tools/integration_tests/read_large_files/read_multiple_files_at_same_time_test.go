@@ -30,7 +30,7 @@ const FileTwo = "fileTwo.txt"
 const FileThree = "fileThree.txt"
 
 func ReadFileParellaly(fileInLocalDisk string, fileInMntDir string, wg *sync.WaitGroup, t *testing.T) {
-	// For wait group (wait until all threads done).
+	// Reduce thread count when it read the file.
 	defer wg.Done()
 
 	dataInMntDirFile, err := operations.ReadFile(fileInMntDir)
