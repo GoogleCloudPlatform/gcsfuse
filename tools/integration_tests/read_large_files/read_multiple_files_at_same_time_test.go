@@ -16,7 +16,6 @@ package read_large_files
 
 import (
 	"bytes"
-	"log"
 	"os"
 	"path"
 	"strconv"
@@ -91,8 +90,6 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 	wg.Add(1)
 	// Thread.
 	go ReadFileParellaly(fileInLocalDisk3, file3, &wg, t)
-
-	log.Print("after threads")
 
 	// Wait on threads to end.
 	wg.Wait()
