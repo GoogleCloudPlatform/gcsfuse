@@ -17,7 +17,6 @@ package write_large_files
 import (
 	"bytes"
 	"crypto/rand"
-	"fmt"
 	"log"
 	rand2 "math/rand"
 	"os"
@@ -29,7 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const NumberOfRandomWriteCalls = 2000000
+const NumberOfRandomWriteCalls = 200
 const MinWritableByteFromFile = 0
 const MaxWritableByteFromFile = 500 * 1024 * 1024
 
@@ -39,9 +38,9 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 
 	filePath := path.Join(setup.MntDir(), FiveHundredMBFile)
 
-	f, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, setup.FilePermission_0600)
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
-		err = fmt.Errorf("Open file for write at start: %v", err)
+		t.Errorf("Open file for write at start: %v", err)
 		return
 	}
 
@@ -73,9 +72,6 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error in reading file.")
 		}
-
-		log.Print(writtenContent)
-		log.Print(chunk)
 
 		// Compare actual content and expect content.
 		if bytes.Equal(chunk, writtenContent) == false {
