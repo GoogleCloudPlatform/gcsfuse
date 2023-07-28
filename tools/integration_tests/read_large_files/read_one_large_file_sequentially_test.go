@@ -34,7 +34,7 @@ func TestReadLargeFileSequentially(t *testing.T) {
 	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk, strconv.Itoa(FiveHundredMB))
 
 	file := path.Join(setup.MntDir(), FiveHundredMBFile)
-	// Create File in local disk with given size and copy it in mountedDirectory.
+	// Copy the local file in mountedDirectory.
 	CopyFileFromLocalDiskToMntDir(fileInLocalDisk, file, t)
 
 	// Sequentially read the data from file.
