@@ -28,8 +28,9 @@ import (
 const FileOne = "fileOne.txt"
 const FileTwo = "fileTwo.txt"
 const FileThree = "fileThree.txt"
+const NumberOfFilesInLocalDiskForConcurrentRead = 3
 
-func ReadFileParellaly(fileInLocalDisk string, fileInMntDir string, wg *sync.WaitGroup, t *testing.T) {
+func readFile(fileInLocalDisk string, fileInMntDir string, wg *sync.WaitGroup, t *testing.T) {
 	// Reduce thread count when it read the file.
 	defer wg.Done()
 
@@ -49,40 +50,33 @@ func ReadFileParellaly(fileInLocalDisk string, fileInMntDir string, wg *sync.Wai
 	}
 }
 
-func TestMultipleFilesAtSameTime(t *testing.T) {
+func TestReadFilesConcurrently(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
-	// Create file of 500 MB with random data in local disk.
-	fileInLocalDisk1 := path.Join(os.Getenv("HOME"), FileOne)
-	file1 := path.Join(setup.MntDir(), FileOne)
-	CreateFileInLocalDiskAndCopyFileFromLocalDiskToMntDir(fileInLocalDisk1, file1, FiveHundredMB, t)
+	filesInLocalDisk := [NumberOfFilesInLocalDiskForConcurrentRead]string{FileOne, FileTwo, FileThree}
+	var filesInLocalDiskPath []string
+	var filesInMntDir []string
 
-	fileInLocalDisk2 := path.Join(os.Getenv("HOME"), FileTwo)
-	file2 := path.Join(setup.MntDir(), FileTwo)
-	CreateFileInLocalDiskAndCopyFileFromLocalDiskToMntDir(fileInLocalDisk2, file2, FiveHundredMB, t)
+	for i := 0; i < NumberOfFilesInLocalDiskForConcurrentRead; i++ {
+		fileInLocalDisk := path.Join(os.Getenv("HOME"), filesInLocalDisk[i])
+		filesInLocalDiskPath = append(filesInLocalDiskPath, fileInLocalDisk)
 
-	fileInLocalDisk3 := path.Join(os.Getenv("HOME"), FileThree)
-	file3 := path.Join(setup.MntDir(), FileThree)
-	CreateFileInLocalDiskAndCopyFileFromLocalDiskToMntDir(fileInLocalDisk3, file3, FiveHundredMB, t)
+		file := path.Join(setup.MntDir(), filesInLocalDisk[i])
+		filesInMntDir = append(filesInMntDir, file)
+
+		createFileOnDiskAndCopyToMntDir(fileInLocalDisk, file, FiveHundredMB, t)
+	}
 
 	// For waiting on threads.
 	var wg sync.WaitGroup
 
-	// Increment the WaitGroup counter.
-	wg.Add(1)
-	// Thread to read first file.
-	go ReadFileParellaly(fileInLocalDisk1, file1, &wg, t)
-
-	// Increment the WaitGroup counter.
-	wg.Add(1)
-	// Thread to read second file.
-	go ReadFileParellaly(fileInLocalDisk2, file2, &wg, t)
-
-	// Increment the WaitGroup counter.
-	wg.Add(1)
-	// Thread to read third file.
-	go ReadFileParellaly(fileInLocalDisk3, file3, &wg, t)
+	for i := 0; i < NumberOfFilesInLocalDiskForConcurrentRead; i++ {
+		// Increment the WaitGroup counter.
+		wg.Add(1)
+		// Thread to read first file.
+		go readFile(filesInLocalDiskPath[i], filesInMntDir[i], &wg, t)
+	}
 
 	// Wait on threads to end.
 	wg.Wait()

@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 	os.Exit(successCode)
 }
 
-func CreateFileInLocalDiskAndCopyFileFromLocalDiskToMntDir(fileInLocalDisk string, fileInMntDir string, fileSize int, t *testing.T) {
+func createFileOnDiskAndCopyToMntDir(fileInLocalDisk string, fileInMntDir string, fileSize int, t *testing.T) {
 	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk, strconv.Itoa(fileSize))
 	err := operations.CopyFile(fileInLocalDisk, fileInMntDir)
 	if err != nil {
