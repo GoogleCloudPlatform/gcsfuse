@@ -23,9 +23,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const FiveHundredMB = 500 * 1024 * 1024
+const OneMB = 1024 * 1024
+const FiveHundredMB = 500 * OneMB
 const FiveHundredMBFile = "fiveHundredMBFile.txt"
-const ChunkSize = 20 * 1024 * 1024
+const ChunkSize = 20 * OneMB
 
 func TestWriteLargeFileSequentially(t *testing.T) {
 	// Clean the mountedDirectory before running test.

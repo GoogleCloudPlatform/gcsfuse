@@ -28,9 +28,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const NumberOfRandomWriteCalls = 10
+const NumberOfRandomWriteCalls = 20
 const MinWritableByteFromFile = 0
-const MaxWritableByteFromFile = 500 * 1024 * 1024
+const MaxWritableByteFromFile = 500 * OneMB
 
 func TestWriteLargeFileRandomly(t *testing.T) {
 	// Clean the mountedDirectory before running test.
