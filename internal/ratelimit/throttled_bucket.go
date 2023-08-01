@@ -55,6 +55,7 @@ func (b *throttledBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Wait for permission to call through.
+
 	err = b.opThrottle.Wait(ctx)
 	if err != nil {
 		return
