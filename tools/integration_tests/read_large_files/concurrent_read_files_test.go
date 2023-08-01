@@ -55,15 +55,15 @@ func TestReadFilesConcurrently(t *testing.T) {
 	setup.CleanMntDir()
 
 	filesInLocalDisk := [NumberOfFilesInLocalDiskForConcurrentRead]string{FileOne, FileTwo, FileThree}
-	var filesInLocalDiskPath []string
-	var filesInMntDir []string
+	var filesPathInLocalDisk []string
+	var filesPathInMntDir []string
 
 	for i := 0; i < NumberOfFilesInLocalDiskForConcurrentRead; i++ {
 		fileInLocalDisk := path.Join(os.Getenv("HOME"), filesInLocalDisk[i])
-		filesInLocalDiskPath = append(filesInLocalDiskPath, fileInLocalDisk)
+		filesPathInLocalDisk = append(filesPathInLocalDisk, fileInLocalDisk)
 
 		file := path.Join(setup.MntDir(), filesInLocalDisk[i])
-		filesInMntDir = append(filesInMntDir, file)
+		filesPathInMntDir = append(filesPathInMntDir, file)
 
 		createFileOnDiskAndCopyToMntDir(fileInLocalDisk, file, FiveHundredMB, t)
 	}
@@ -74,7 +74,7 @@ func TestReadFilesConcurrently(t *testing.T) {
 	for i := 0; i < NumberOfFilesInLocalDiskForConcurrentRead; i++ {
 		// Increment the WaitGroup counter.
 		wg.Add(1)
-		// Thread to read first file.
+		// Thread to read file.
 		go readFile(filesInLocalDiskPath[i], filesInMntDir[i], &wg, t)
 	}
 
