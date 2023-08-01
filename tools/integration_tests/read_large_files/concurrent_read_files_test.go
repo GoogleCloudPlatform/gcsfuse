@@ -75,7 +75,7 @@ func TestReadFilesConcurrently(t *testing.T) {
 		// Increment the WaitGroup counter.
 		wg.Add(1)
 		// Thread to read file.
-		go readFile(filesInLocalDiskPath[i], filesInMntDir[i], &wg, t)
+		go readFile(filesPathInLocalDisk[i], filesPathInMntDir[i], &wg, t)
 	}
 
 	// Wait on threads to end.
