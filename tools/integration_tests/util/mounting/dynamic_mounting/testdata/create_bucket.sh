@@ -15,7 +15,7 @@
 
 BUCKET_NAME=$1
 PROJECT_ID=$2
-gcloud storage buckets create gs://$BUCKET_NAME --project=$PROJECT_ID  --location=us-west1 --uniform-bucket-level-access 2> ~/output.txt
+gcloud alpha storage buckets create gs://$BUCKET_NAME --project=$PROJECT_ID  --location=us-west1 --uniform-bucket-level-access 2> ~/output.txt
 if [ $? -eq 1 ]; then
   if grep "HTTPError 409" ~/output.txt; then
     echo "Bucket already exist."
