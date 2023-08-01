@@ -19,21 +19,21 @@ import (
 
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
+	"golang.org/x/time/rate"
 )
 
 // Create a bucket that limits the rate at which it calls the wrapped bucket
 // using opThrottle, and limits the bandwidth with which it reads from the
 // wrapped bucket using egressThrottle.
 func NewThrottledBucket(
-	opThrottle Throttle,
-	egressThrottle Throttle,
+	opThrottle *rate.Limiter,
+	egressThrottle *rate.Limiter,
 	wrapped gcs.Bucket) (b gcs.Bucket) {
 	b = &throttledBucket{
 		opThrottle:     opThrottle,
 		egressThrottle: egressThrottle,
 		wrapped:        wrapped,
 	}
-
 	return
 }
 
@@ -42,8 +42,8 @@ func NewThrottledBucket(
 ////////////////////////////////////////////////////////////////////////
 
 type throttledBucket struct {
-	opThrottle     Throttle
-	egressThrottle Throttle
+	opThrottle     *rate.Limiter
+	egressThrottle *rate.Limiter
 	wrapped        gcs.Bucket
 }
 
@@ -55,7 +55,7 @@ func (b *throttledBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Wait for permission to call through.
-	err = b.opThrottle.Wait(ctx, 1)
+	err = b.opThrottle.Wait(ctx)
 	if err != nil {
 		return
 	}
@@ -79,7 +79,7 @@ func (b *throttledBucket) CreateObject(
 	ctx context.Context,
 	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	// Wait for permission to call through.
-	err = b.opThrottle.Wait(ctx, 1)
+	err = b.opThrottle.Wait(ctx)
 	if err != nil {
 		return
 	}
@@ -94,7 +94,7 @@ func (b *throttledBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
 	// Wait for permission to call through.
-	err = b.opThrottle.Wait(ctx, 1)
+	err = b.opThrottle.Wait(ctx)
 	if err != nil {
 		return
 	}
@@ -109,7 +109,7 @@ func (b *throttledBucket) ComposeObjects(
 	ctx context.Context,
 	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
 	// Wait for permission to call through.
-	err = b.opThrottle.Wait(ctx, 1)
+	err = b.opThrottle.Wait(ctx)
 	if err != nil {
 		return
 	}
@@ -124,7 +124,7 @@ func (b *throttledBucket) StatObject(
 	ctx context.Context,
 	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
 	// Wait for permission to call through.
-	err = b.opThrottle.Wait(ctx, 1)
+	err = b.opThrottle.Wait(ctx)
 	if err != nil {
 		return
 	}
@@ -139,7 +139,7 @@ func (b *throttledBucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
 	// Wait for permission to call through.
-	err = b.opThrottle.Wait(ctx, 1)
+	err = b.opThrottle.Wait(ctx)
 	if err != nil {
 		return
 	}
@@ -154,7 +154,7 @@ func (b *throttledBucket) UpdateObject(
 	ctx context.Context,
 	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
 	// Wait for permission to call through.
-	err = b.opThrottle.Wait(ctx, 1)
+	err = b.opThrottle.Wait(ctx)
 	if err != nil {
 		return
 	}
@@ -169,7 +169,7 @@ func (b *throttledBucket) DeleteObject(
 	ctx context.Context,
 	req *gcs.DeleteObjectRequest) (err error) {
 	// Wait for permission to call through.
-	err = b.opThrottle.Wait(ctx, 1)
+	err = b.opThrottle.Wait(ctx)
 	if err != nil {
 		return
 	}

@@ -23,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/jacobsa/reqtrace"
 	"golang.org/x/net/context"
+	"golang.org/x/time/rate"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
@@ -117,7 +118,7 @@ func setUpRateLimiting(
 	// window of the given size.
 	const window = 8 * time.Hour
 
-	opCapacity, err := ratelimit.ChooseTokenBucketCapacity(
+	opCapacity, err := ratelimit.ChooseLimiterCapacity(
 		opRateLimitHz,
 		window)
 
@@ -126,7 +127,7 @@ func setUpRateLimiting(
 		return
 	}
 
-	egressCapacity, err := ratelimit.ChooseTokenBucketCapacity(
+	egressCapacity, err := ratelimit.ChooseLimiterCapacity(
 		egressBandwidthLimit,
 		window)
 
@@ -135,9 +136,9 @@ func setUpRateLimiting(
 		return
 	}
 
-	// Create the throttles.
-	opThrottle := ratelimit.NewThrottle(opRateLimitHz, opCapacity)
-	egressThrottle := ratelimit.NewThrottle(egressBandwidthLimit, egressCapacity)
+	// Create the limiters.
+	opThrottle := rate.NewLimiter(rate.Limit(opRateLimitHz), opCapacity)
+	egressThrottle := rate.NewLimiter(rate.Limit(egressBandwidthLimit), egressCapacity)
 
 	// And the bucket.
 	out = ratelimit.NewThrottledBucket(
