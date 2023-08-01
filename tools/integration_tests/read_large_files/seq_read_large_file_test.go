@@ -31,7 +31,7 @@ func TestReadLargeFileSequentially(t *testing.T) {
 	fileInLocalDisk := path.Join(os.Getenv("HOME"), FiveHundredMBFile)
 	file := path.Join(setup.MntDir(), FiveHundredMBFile)
 	// Create and copy the local file in mountedDirectory.
-	CreateFileOnDiskAndCopyToMntDir(fileInLocalDisk, file, FiveHundredMB, t)
+	createFileOnDiskAndCopyToMntDir(fileInLocalDisk, file, FiveHundredMB, t)
 
 	// Sequentially read the data from file.
 	content, err := operations.ReadFileSequentially(file, ChunkSize)

@@ -32,7 +32,7 @@ func TestReadLargeFileRandomly(t *testing.T) {
 	fileInLocalDisk := path.Join(os.Getenv("HOME"), FiveHundredMBFile)
 	file := path.Join(setup.MntDir(), FiveHundredMBFile)
 	// Create and copy the local file in mountedDirectory.
-	CreateFileOnDiskAndCopyToMntDir(fileInLocalDisk, file, FiveHundredMB, t)
+	createFileOnDiskAndCopyToMntDir(fileInLocalDisk, file, FiveHundredMB, t)
 
 	for i := 0; i < NumberOfRandomReadCalls; i++ {
 		offset := rand.Int63n(MaxReadableByteFromFile - MinReadableByteFromFile)
