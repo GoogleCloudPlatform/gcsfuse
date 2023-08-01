@@ -26,6 +26,14 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
+const OneMB = 1024 * 1024
+const FiveHundredMB = 500 * OneMB
+const FiveHundredMBFile = "fiveHundredMBFile.txt"
+const ChunkSize = 200 * OneMB
+const NumberOfRandomReadCalls = 200
+const MinReadableByteFromFile = 0
+const MaxReadableByteFromFile = 500 * OneMB
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
