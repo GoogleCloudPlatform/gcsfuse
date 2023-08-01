@@ -35,7 +35,7 @@ func TestReadLargeFileRandomly(t *testing.T) {
 	CreateFileInLocalDiskAndCopyFileFromLocalDiskToMntDir(fileInLocalDisk, file, FiveHundredMB, t)
 
 	for i := 0; i < NumberOfRandomReadCalls; i++ {
-		offset := rand.Int63n(MaxReadbleByteFromFile - MinReadbleByteFromFile)
+		offset := rand.Int63n(MaxReadableByteFromFile - MinReadableByteFromFile)
 		// Randomly read the data from file in mountedDirectory.
 		content, err := operations.ReadChunkFromFile(file, ChunkSize, offset)
 		if err != nil {

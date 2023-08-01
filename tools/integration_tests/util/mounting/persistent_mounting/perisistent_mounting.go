@@ -39,7 +39,7 @@ func makePersistentMountingArgs(flags []string) (args []string, err error) {
 	return
 }
 
-func mountGcsfuseWithStaticMounting(flags []string) (err error) {
+func mountGcsfuseWithPersistentMounting(flags []string) (err error) {
 	defaultArg := []string{setup.TestBucket(),
 		setup.MntDir(),
 		"-o",
@@ -69,11 +69,11 @@ func mountGcsfuseWithStaticMounting(flags []string) (err error) {
 	return err
 }
 
-func executeTestsForStatingMounting(flags [][]string, m *testing.M) (successCode int) {
+func executeTestsForPersistentMounting(flags [][]string, m *testing.M) (successCode int) {
 	var err error
 
 	for i := 0; i < len(flags); i++ {
-		if err = mountGcsfuseWithStaticMounting(flags[i]); err != nil {
+		if err = mountGcsfuseWithPersistentMounting(flags[i]); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 		setup.ExecuteTestForFlagsSet(flags[i], m)
@@ -82,7 +82,7 @@ func executeTestsForStatingMounting(flags [][]string, m *testing.M) (successCode
 }
 
 func RunTests(flags [][]string, m *testing.M) (successCode int) {
-	successCode = executeTestsForStatingMounting(flags, m)
+	successCode = executeTestsForPersistentMounting(flags, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 
