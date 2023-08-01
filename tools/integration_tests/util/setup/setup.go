@@ -48,11 +48,22 @@ var (
 // Run the shell script to prepare the testData in the specified bucket.
 // First argument will be name of scipt script
 func RunScriptForTestData(args ...string) {
+	// cmd_args := []string{"/bin/bash"}
+	// cmd_args = append(cmd_args, args...)
+	// fmt.Println("Cmd run: ", cmd_args)
 	cmd := exec.Command("/bin/bash", args...)
 	_, err := cmd.Output()
+	// fmt.Println("Cmd stdout: ", _stdout)
 	if err != nil {
 		panic(err)
 	}
+}
+
+// Run the shell script and returns the stdout output and error
+func RunScriptForOutput(args ...string) (stdout []byte, err error) {
+	cmd := exec.Command("/bin/bash", args...)
+	stdout, err = cmd.Output()
+	return
 }
 
 func TestBucket() string {
@@ -63,6 +74,7 @@ func TestInstalledPackage() bool {
 	return *testInstalledPackage
 }
 
+// User-provided pre-mounted directory.
 func MountedDirectory() string {
 	return *mountedDirectory
 }
@@ -99,6 +111,7 @@ func SetMntDir(mntDirValue string) {
 	mntDir = mntDirValue
 }
 
+// Test-created temp mount directory for test-bucket.
 func MntDir() string {
 	return mntDir
 }
