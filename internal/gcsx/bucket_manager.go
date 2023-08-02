@@ -116,7 +116,7 @@ func setUpRateLimiting(
 	// window of the given size.
 	const window = 8 * time.Hour
 
-	opCapacity, err := ratelimit.ChooseLimiterCapacity(
+	_, err = ratelimit.ChooseLimiterCapacity(
 		opRateLimitHz,
 		window)
 
@@ -135,7 +135,7 @@ func setUpRateLimiting(
 	}
 
 	// Create the throttles.
-	opThrottle := ratelimit.NewThrottle(opRateLimitHz, opCapacity)
+	opThrottle := ratelimit.NewThrottle(opRateLimitHz, 1)
 	egressThrottle := ratelimit.NewThrottle(egressBandwidthLimit, egressCapacity)
 
 	// And the bucket.
