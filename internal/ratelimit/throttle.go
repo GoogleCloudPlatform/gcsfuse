@@ -29,8 +29,7 @@ type limiter struct {
 func NewThrottle(
 	rateHz float64,
 	capacity int) (t Throttle) {
-	typed := &limiter{rate.NewLimiter(rate.Limit(rateHz), capacity)}
-	t = typed
+	t = &limiter{rate.NewLimiter(rate.Limit(rateHz), capacity)}
 	return
 }
 

@@ -40,11 +40,13 @@ func (t *LimiterCapacityTest) TestRateLessThanOrEqualToZero() {
 	_, err := ChooseLimiterCapacity(negativeRateHz, 30)
 
 	expectedError := fmt.Errorf("Illegal rate: %f", negativeRateHz)
+
 	AssertEq(expectedError.Error(), err.Error())
 
 	_, err = ChooseLimiterCapacity(zeroRateHz, 30)
 
 	expectedError = fmt.Errorf("Illegal rate: %f", zeroRateHz)
+
 	AssertEq(expectedError.Error(), err.Error())
 }
 
@@ -55,6 +57,7 @@ func (t *LimiterCapacityTest) TestWindowLessThanEqualToZero() {
 	_, err := ChooseLimiterCapacity(1, negativeWindow)
 
 	expectedError := fmt.Errorf("Illegal window: %v", negativeWindow)
+	
 	AssertEq(expectedError.Error(), err.Error())
 
 	_, err = ChooseLimiterCapacity(1, zeroWindow)
