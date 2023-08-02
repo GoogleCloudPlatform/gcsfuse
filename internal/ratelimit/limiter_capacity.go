@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// Choose a token bucket capacity that ensures that the action gated by the
-// token bucket will be limited to within a few percent of `rateHz * window`
+// Choose a limiter capacity that ensures that the action gated by the
+// limiter will be limited to within a few percent of `rateHz * window`
 // for any window of the given size.
 //
 // This is not be possible for all rates and windows. In that case, an error

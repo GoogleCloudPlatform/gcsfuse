@@ -108,8 +108,9 @@ func (t *ThrottledReaderTest) CallsThrottle() {
 	}
 
 	// Call
-	t.reader.Read(make([]byte, readSize))
+	_, err := t.reader.Read(make([]byte, readSize))
 
+	ExpectEq("", err.Error())
 	ExpectTrue(throttleCalled)
 }
 
@@ -146,8 +147,9 @@ func (t *ThrottledReaderTest) CallsWrapped() {
 	}
 
 	// Call
-	t.reader.Read(buf)
+	_, err := t.reader.Read(buf)
 
+	ExpectEq("", err.Error())
 	ExpectTrue(readCalled)
 }
 
@@ -195,8 +197,8 @@ func (t *ThrottledReaderTest) WrappedReturnsFullRead() {
 	// Call
 	n, err := t.reader.Read(make([]byte, readSize))
 
-	ExpectEq(readSize, n)
 	ExpectEq(nil, err)
+	ExpectEq(readSize, n)
 }
 
 func (t *ThrottledReaderTest) WrappedReturnsShortRead_CallsAgain() {
@@ -223,8 +225,9 @@ func (t *ThrottledReaderTest) WrappedReturnsShortRead_CallsAgain() {
 	}
 
 	// Call
-	t.reader.Read(buf)
+	_, err := t.reader.Read(buf)
 
+	ExpectEq("", err.Error())
 	ExpectEq(2, callCount)
 }
 
@@ -325,7 +328,8 @@ func (t *ThrottledReaderTest) ReadSizeIsAboveThrottleCapacity() {
 	}
 
 	// Call
-	t.reader.Read(buf)
+	_, err := t.reader.Read(buf)
 
+	ExpectEq("", err.Error())
 	ExpectTrue(readCalled)
 }

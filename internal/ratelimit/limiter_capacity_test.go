@@ -22,8 +22,6 @@ import (
 	. "github.com/jacobsa/ogletest"
 )
 
-const MaxFloat64 = 0x1p1023 * (1 + (1 - 0x1p-52))
-
 func TestChooseLimiterCapacity(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////

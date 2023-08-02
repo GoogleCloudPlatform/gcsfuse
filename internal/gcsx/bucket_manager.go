@@ -134,7 +134,7 @@ func setUpRateLimiting(
 		return
 	}
 
-	// Create the limiters.
+	// Create the throttles.
 	opThrottle := ratelimit.NewThrottle(opRateLimitHz, opCapacity)
 	egressThrottle := ratelimit.NewThrottle(egressBandwidthLimit, egressCapacity)
 

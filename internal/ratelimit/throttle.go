@@ -38,7 +38,6 @@ func (l *limiter) Capacity() (c uint64) {
 	return uint64(l.Burst())
 }
 
-// LOCKS_EXCLUDED(t.mu)
 func (l *limiter) Wait(
 	ctx context.Context,
 	tokens uint64) (err error) {
