@@ -64,13 +64,6 @@ func ChooseLimiterCapacity(
 	}
 
 	capacity = int(capacityFloat)
-	if capacity == 0 {
-		panic(fmt.Sprintf(
-			"Calculated a zero capacity for inputs %f, %v. Float version: %f",
-			rateHz,
-			window,
-			capacityFloat))
-	}
 
 	return
 }

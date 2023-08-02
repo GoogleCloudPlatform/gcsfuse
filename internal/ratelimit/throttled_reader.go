@@ -18,7 +18,6 @@ import (
 	"io"
 
 	"golang.org/x/net/context"
-	"golang.org/x/time/rate"
 )
 
 // Create a reader that limits the bandwidth of reads made from r according to
@@ -27,7 +26,7 @@ import (
 func ThrottledReader(
 	ctx context.Context,
 	r io.Reader,
-	throttle *rate.Limiter) io.Reader {
+	throttle Throttle) io.Reader {
 	return &throttledReader{
 		ctx:      ctx,
 		wrapped:  r,
@@ -38,17 +37,17 @@ func ThrottledReader(
 type throttledReader struct {
 	ctx      context.Context
 	wrapped  io.Reader
-	throttle *rate.Limiter
+	throttle Throttle
 }
 
 func (tr *throttledReader) Read(p []byte) (n int, err error) {
 	// We can't serve a read larger than the throttle's capacity.
-	if len(p) > tr.throttle.Burst() {
-		p = p[:tr.throttle.Burst()]
+	if uint64(len(p)) > tr.throttle.Capacity() {
+		p = p[:tr.throttle.Capacity()]
 	}
 
 	// Wait for permission to continue.
-	err = tr.throttle.WaitN(tr.ctx, len(p))
+	err = tr.throttle.Wait(tr.ctx, uint64(len(p)))
 	if err != nil {
 		return
 	}

@@ -17,6 +17,7 @@ package ratelimit
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	. "github.com/jacobsa/ogletest"
 )
@@ -33,6 +34,7 @@ type ChooseLimiterCapacityTest struct {
 }
 
 func init() { RegisterTestSuite(&ChooseLimiterCapacityTest{}) }
+
 func (t *ChooseLimiterCapacityTest) TestRateLessThanOrEqualToZero() {
 	var negativeRateHz float64 = -1
 	var zeroRateHz float64 = 0
@@ -48,17 +50,41 @@ func (t *ChooseLimiterCapacityTest) TestRateLessThanOrEqualToZero() {
 	AssertEq(expectedError.Error(), err.Error())
 }
 
-func (t *ChooseLimiterCapacityTest) TestRateEqualToInfinity() {
-	var negativeRateHz float64 = MaxFloat64
-	var zeroRateHz float64 = -MaxFloat64
+func (t *ChooseLimiterCapacityTest) TestWindowLessThanEqualToZero() {
+	var negativeWindow time.Duration = -1
+	var zeroWindow time.Duration = 0
 
-	_, err := ChooseLimiterCapacity(negativeRateHz, 30)
+	_, err := ChooseLimiterCapacity(1, negativeWindow)
 
-	expectedError := fmt.Errorf("Illegal rate: %f", negativeRateHz)
+	expectedError := fmt.Errorf("Illegal window: %v", negativeWindow)
 	AssertEq(expectedError.Error(), err.Error())
 
-	_, err = ChooseLimiterCapacity(zeroRateHz, 30)
+	_, err = ChooseLimiterCapacity(1, zeroWindow)
 
-	expectedError = fmt.Errorf("Illegal rate: %f", zeroRateHz)
+	expectedError = fmt.Errorf("Illegal window: %v", zeroWindow)
+
 	AssertEq(expectedError.Error(), err.Error())
+}
+
+func (t *ChooseLimiterCapacityTest) TestCapacityLessThanOrEqualToZero() {
+	var rate = 0.5
+	var window time.Duration = 1
+
+	capacity, err := ChooseLimiterCapacity(rate, window)
+
+	expectedError := fmt.Errorf(
+		"Can't use a token bucket to limit to %f Hz over a window of %v (result is a capacity of %f)", rate, window, float64(capacity))
+
+	AssertEq(expectedError.Error(), err.Error())
+}
+
+func (t *ChooseLimiterCapacityTest) TestExpectedCapacity() {
+	var rate float64 = 20
+	var window = 10 * time.Second
+
+	capacity, err := ChooseLimiterCapacity(rate, window)
+	// capacity = floor((20.0 * 10)/50) = floor(4.0) = 4
+
+	ExpectEq(nil, err)
+	ExpectEq(4, capacity)
 }

@@ -20,18 +20,16 @@ import (
 	"path"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	"github.com/jacobsa/reqtrace"
-	"golang.org/x/net/context"
-	"golang.org/x/time/rate"
-
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/ratelimit"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
+	"github.com/jacobsa/reqtrace"
 	"github.com/jacobsa/timeutil"
+	"golang.org/x/net/context"
 )
 
 type BucketConfig struct {
@@ -137,8 +135,8 @@ func setUpRateLimiting(
 	}
 
 	// Create the limiters.
-	opThrottle := rate.NewLimiter(rate.Limit(opRateLimitHz), opCapacity)
-	egressThrottle := rate.NewLimiter(rate.Limit(egressBandwidthLimit), egressCapacity)
+	opThrottle := ratelimit.NewThrottle(opRateLimitHz, opCapacity)
+	egressThrottle := ratelimit.NewThrottle(egressBandwidthLimit, egressCapacity)
 
 	// And the bucket.
 	out = ratelimit.NewThrottledBucket(
