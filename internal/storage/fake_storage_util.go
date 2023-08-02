@@ -32,6 +32,11 @@ const TestObjectGeneration int64 = 780
 const MetaDataValue string = "metaData"
 const MetaDataKey string = "key"
 
+// Data specific to content-encoding gzip tests
+const TestGzipObjectName string = "gcsfuse/test_gzip.txt"
+const ContentInTestGzipObject string = "*&$(%&**432*$*$fsef*&!fsde$"
+const TestGzipObjectGeneration int64 = 781
+
 type FakeStorage interface {
 	CreateStorageHandle() (sh StorageHandle)
 
@@ -101,6 +106,18 @@ func getTestFakeStorageObject() []fakestorage.Object {
 		Content: []byte(ContentInTestSubObject),
 	}
 	fakeObjects = append(fakeObjects, testSubObject)
+
+	testGzipObject := fakestorage.Object{
+		ObjectAttrs: fakestorage.ObjectAttrs{
+			BucketName:      TestBucketName,
+			Name:            TestGzipObjectName,
+			Generation:      TestGzipObjectGeneration,
+			Metadata:        map[string]string{MetaDataKey: MetaDataValue},
+			ContentEncoding: ContentEncodingGzip,
+		},
+		Content: []byte(ContentInTestGzipObject),
+	}
+	fakeObjects = append(fakeObjects, testGzipObject)
 
 	return fakeObjects
 }

@@ -81,7 +81,7 @@ func (t *BucketHandleTest) TestNewReaderMethodWithCompleteRead() {
 	buf := make([]byte, len(ContentInTestObject))
 	_, err = rc.Read(buf)
 	AssertEq(nil, err)
-	ExpectEq(string(buf[:]), ContentInTestObject)
+	ExpectEq(ContentInTestObject, string(buf[:]))
 }
 
 func (t *BucketHandleTest) TestNewReaderMethodWithRangeRead() {
@@ -102,7 +102,7 @@ func (t *BucketHandleTest) TestNewReaderMethodWithRangeRead() {
 	buf := make([]byte, limit-start)
 	_, err = rc.Read(buf)
 	AssertEq(nil, err)
-	ExpectEq(string(buf[:]), ContentInTestObject[start:limit])
+	ExpectEq(ContentInTestObject[start:limit], string(buf[:]))
 }
 
 func (t *BucketHandleTest) TestNewReaderMethodWithNilRange() {
@@ -117,7 +117,7 @@ func (t *BucketHandleTest) TestNewReaderMethodWithNilRange() {
 	buf := make([]byte, len(ContentInTestObject))
 	_, err = rc.Read(buf)
 	AssertEq(nil, err)
-	ExpectEq(string(buf[:]), ContentInTestObject[:])
+	ExpectEq(ContentInTestObject, string(buf[:]))
 }
 
 func (t *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
@@ -150,7 +150,7 @@ func (t *BucketHandleTest) TestNewReaderMethodWithValidGeneration() {
 	buf := make([]byte, len(ContentInTestObject))
 	_, err = rc.Read(buf)
 	AssertEq(nil, err)
-	ExpectEq(string(buf[:]), ContentInTestObject)
+	ExpectEq(ContentInTestObject, string(buf[:]))
 }
 
 func (t *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
@@ -166,6 +166,44 @@ func (t *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
 
 	AssertNe(nil, err)
 	AssertEq(nil, rc)
+}
+
+func (t *BucketHandleTest) TestNewReaderMethodWithCompressionEnabled() {
+	rc, err := t.bucketHandle.NewReader(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: TestGzipObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(ContentInTestGzipObject)),
+			},
+			ReadCompressed: true,
+		})
+
+	AssertEq(nil, err)
+	defer rc.Close()
+	buf := make([]byte, len(ContentInTestGzipObject))
+	_, err = rc.Read(buf)
+	AssertEq(nil, err)
+	ExpectEq(ContentInTestGzipObject, string(buf[:]))
+}
+
+func (t *BucketHandleTest) TestNewReaderMethodWithCompressionDisabled() {
+	rc, err := t.bucketHandle.NewReader(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: TestGzipObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(ContentInTestGzipObject)),
+			},
+			ReadCompressed: false,
+		})
+
+	AssertEq(nil, err)
+	defer rc.Close()
+	buf := make([]byte, len(ContentInTestGzipObject))
+	_, err = rc.Read(buf)
+	AssertEq(nil, err)
+	ExpectEq(ContentInTestGzipObject, string(buf[:]))
 }
 
 func (t *BucketHandleTest) TestDeleteObjectMethodWithValidObject() {
@@ -376,7 +414,7 @@ func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectExist() {
 		})
 
 	AssertEq(nil, err)
-	AssertEq(3, len(obj.Objects))
+	AssertEq(4, len(obj.Objects))
 	AssertEq(1, len(obj.CollapsedRuns))
 	AssertEq(TestObjectRootFolderName, obj.Objects[0].Name)
 	AssertEq(TestObjectSubRootFolderName, obj.Objects[1].Name)
@@ -413,10 +451,11 @@ func (t *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimiterFalse
 		})
 
 	AssertEq(nil, err)
-	AssertEq(2, len(obj.Objects))
+	AssertEq(3, len(obj.Objects))
 	AssertEq(1, len(obj.CollapsedRuns))
 	AssertEq(TestObjectRootFolderName, obj.Objects[0].Name)
 	AssertEq(TestObjectName, obj.Objects[1].Name)
+	AssertEq(TestGzipObjectName, obj.Objects[2].Name)
 	AssertEq(TestObjectSubRootFolderName, obj.CollapsedRuns[0])
 }
 
@@ -433,62 +472,65 @@ func (t *BucketHandleTest) TestListObjectMethodWithEmptyDelimiter() {
 		})
 
 	AssertEq(nil, err)
-	AssertEq(4, len(obj.Objects))
+	AssertEq(5, len(obj.Objects))
 	AssertEq(TestObjectRootFolderName, obj.Objects[0].Name)
 	AssertEq(TestObjectSubRootFolderName, obj.Objects[1].Name)
 	AssertEq(TestSubObjectName, obj.Objects[2].Name)
 	AssertEq(TestObjectName, obj.Objects[3].Name)
+	AssertEq(TestGzipObjectName, obj.Objects[4].Name)
 	AssertEq(TestObjectGeneration, obj.Objects[0].Generation)
 	AssertEq(nil, obj.CollapsedRuns)
 }
 
-// We have 4 objects in fakeserver.
+// We have 5 objects in fakeserver.
 func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
-	fourObj, err := t.bucketHandle.ListObjects(context.Background(),
+	fiveObj, err := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
 			Prefix:                   "",
 			Delimiter:                "",
 			IncludeTrailingDelimiter: false,
 			ContinuationToken:        "",
-			MaxResults:               4,
+			MaxResults:               5,
 			ProjectionVal:            0,
 		})
 
-	twoObj, err2 := t.bucketHandle.ListObjects(context.Background(),
+	threeObj, err2 := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
 			Prefix:                   "gcsfuse/",
 			Delimiter:                "/",
 			IncludeTrailingDelimiter: false,
 			ContinuationToken:        "",
-			MaxResults:               2,
+			MaxResults:               3,
 			ProjectionVal:            0,
 		})
 
-	// Validate that 4 objects are listed when MaxResults is passed 4.
+	// Validate that 5 objects are listed when MaxResults is passed 5.
 	AssertEq(nil, err)
-	AssertEq(4, len(fourObj.Objects))
-	AssertEq(TestObjectRootFolderName, fourObj.Objects[0].Name)
-	AssertEq(TestObjectSubRootFolderName, fourObj.Objects[1].Name)
-	AssertEq(TestSubObjectName, fourObj.Objects[2].Name)
-	AssertEq(TestObjectName, fourObj.Objects[3].Name)
-	AssertEq(nil, fourObj.CollapsedRuns)
+	AssertEq(5, len(fiveObj.Objects))
+	AssertEq(TestObjectRootFolderName, fiveObj.Objects[0].Name)
+	AssertEq(TestObjectSubRootFolderName, fiveObj.Objects[1].Name)
+	AssertEq(TestSubObjectName, fiveObj.Objects[2].Name)
+	AssertEq(TestObjectName, fiveObj.Objects[3].Name)
+	AssertEq(TestGzipObjectName, fiveObj.Objects[4].Name)
+	AssertEq(nil, fiveObj.CollapsedRuns)
 
 	// Note: The behavior is different in real GCS storage JSON API. In real API,
 	// only 1 object and 1 collapsedRuns would have been returned if
-	// IncludeTrailingDelimiter = false and 2 objects and 1 collapsedRuns if
+	// IncludeTrailingDelimiter = false and 3 objects and 1 collapsedRuns if
 	// IncludeTrailingDelimiter = true.
 	// This is because fake storage doesn't support pagination and hence maxResults
 	// has no affect.
 	AssertEq(nil, err2)
-	AssertEq(2, len(twoObj.Objects))
-	AssertEq(TestObjectRootFolderName, twoObj.Objects[0].Name)
-	AssertEq(TestObjectName, twoObj.Objects[1].Name)
-	AssertEq(1, len(twoObj.CollapsedRuns))
+	AssertEq(3, len(threeObj.Objects))
+	AssertEq(TestObjectRootFolderName, threeObj.Objects[0].Name)
+	AssertEq(TestObjectName, threeObj.Objects[1].Name)
+	AssertEq(TestGzipObjectName, threeObj.Objects[2].Name)
+	AssertEq(1, len(threeObj.CollapsedRuns))
 }
 
 func (t *BucketHandleTest) TestListObjectMethodWithMissingMaxResult() {
-	// Validate that ee have 4 objects in fakeserver
-	fourObjWithMaxResults, err := t.bucketHandle.ListObjects(context.Background(),
+	// Validate that ee have 5 objects in fakeserver
+	fiveObjWithMaxResults, err := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
 			Prefix:                   "",
 			Delimiter:                "",
@@ -498,9 +540,9 @@ func (t *BucketHandleTest) TestListObjectMethodWithMissingMaxResult() {
 			ProjectionVal:            0,
 		})
 	AssertEq(nil, err)
-	AssertEq(4, len(fourObjWithMaxResults.Objects))
+	AssertEq(5, len(fiveObjWithMaxResults.Objects))
 
-	fourObjWithoutMaxResults, err2 := t.bucketHandle.ListObjects(context.Background(),
+	fiveObjWithoutMaxResults, err2 := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
 			Prefix:                   "",
 			Delimiter:                "",
@@ -509,19 +551,20 @@ func (t *BucketHandleTest) TestListObjectMethodWithMissingMaxResult() {
 			ProjectionVal:            0,
 		})
 
-	// Validate that all objects (4) are listed when MaxResults is not passed.
+	// Validate that all objects (5) are listed when MaxResults is not passed.
 	AssertEq(nil, err2)
-	AssertEq(4, len(fourObjWithoutMaxResults.Objects))
-	AssertEq(TestObjectRootFolderName, fourObjWithoutMaxResults.Objects[0].Name)
-	AssertEq(TestObjectSubRootFolderName, fourObjWithoutMaxResults.Objects[1].Name)
-	AssertEq(TestSubObjectName, fourObjWithoutMaxResults.Objects[2].Name)
-	AssertEq(TestObjectName, fourObjWithoutMaxResults.Objects[3].Name)
-	AssertEq(nil, fourObjWithoutMaxResults.CollapsedRuns)
+	AssertEq(5, len(fiveObjWithoutMaxResults.Objects))
+	AssertEq(TestObjectRootFolderName, fiveObjWithoutMaxResults.Objects[0].Name)
+	AssertEq(TestObjectSubRootFolderName, fiveObjWithoutMaxResults.Objects[1].Name)
+	AssertEq(TestSubObjectName, fiveObjWithoutMaxResults.Objects[2].Name)
+	AssertEq(TestObjectName, fiveObjWithoutMaxResults.Objects[3].Name)
+	AssertEq(TestGzipObjectName, fiveObjWithoutMaxResults.Objects[4].Name)
+	AssertEq(nil, fiveObjWithoutMaxResults.CollapsedRuns)
 }
 
 func (t *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
-	// Validate that ee have 4 objects in fakeserver
-	fourObj, err := t.bucketHandle.ListObjects(context.Background(),
+	// Validate that we have 5 objects in fakeserver
+	fiveObj, err := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
 			Prefix:                   "",
 			Delimiter:                "",
@@ -531,9 +574,9 @@ func (t *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
 			ProjectionVal:            0,
 		})
 	AssertEq(nil, err)
-	AssertEq(4, len(fourObj.Objects))
+	AssertEq(5, len(fiveObj.Objects))
 
-	fourObjWithZeroMaxResults, err2 := t.bucketHandle.ListObjects(context.Background(),
+	fiveObjWithZeroMaxResults, err2 := t.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
 			Prefix:                   "",
 			Delimiter:                "",
@@ -543,15 +586,16 @@ func (t *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
 			ProjectionVal:            0,
 		})
 
-	// Validate that all objects (4) are listed when MaxResults is 0. This has
+	// Validate that all objects (5) are listed when MaxResults is 0. This has
 	// same behavior as not passing MaxResults in request.
 	AssertEq(nil, err2)
-	AssertEq(4, len(fourObjWithZeroMaxResults.Objects))
-	AssertEq(TestObjectRootFolderName, fourObjWithZeroMaxResults.Objects[0].Name)
-	AssertEq(TestObjectSubRootFolderName, fourObjWithZeroMaxResults.Objects[1].Name)
-	AssertEq(TestSubObjectName, fourObjWithZeroMaxResults.Objects[2].Name)
-	AssertEq(TestObjectName, fourObjWithZeroMaxResults.Objects[3].Name)
-	AssertEq(nil, fourObjWithZeroMaxResults.CollapsedRuns)
+	AssertEq(5, len(fiveObjWithZeroMaxResults.Objects))
+	AssertEq(TestObjectRootFolderName, fiveObjWithZeroMaxResults.Objects[0].Name)
+	AssertEq(TestObjectSubRootFolderName, fiveObjWithZeroMaxResults.Objects[1].Name)
+	AssertEq(TestSubObjectName, fiveObjWithZeroMaxResults.Objects[2].Name)
+	AssertEq(TestObjectName, fiveObjWithZeroMaxResults.Objects[3].Name)
+	AssertEq(TestGzipObjectName, fiveObjWithZeroMaxResults.Objects[4].Name)
+	AssertEq(nil, fiveObjWithZeroMaxResults.CollapsedRuns)
 }
 
 // FakeGCSServer is not handling ContentType, ContentEncoding, ContentLanguage, CacheControl in updateflow
