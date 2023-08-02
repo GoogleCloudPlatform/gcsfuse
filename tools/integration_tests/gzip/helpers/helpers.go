@@ -121,7 +121,9 @@ func CreateLocalTempFile(contentSize int, gzipCompress bool) (string, error) {
 // Downloads given gzipped GCS object (with path without 'gs://') to local disk.
 // Fails if the object doesn't exist or permission to read object is not
 // available.
-// Uses go storage client library to download object.
+// Uses go storage client library to download object. Use of gsutil/gcloud is not
+// possible as they both always read back objects with content-encoding: gzip as
+// uncompressed/decompressed irrespective of any argument passed.
 func DownloadGzipGcsObjectAsCompressed(bucketName, objPathInBucket string) (string, error) {
 	gcsObjectPath := path.Join(setup.TestBucket(), objPathInBucket)
 	gcsObjectSize, err := operations.GetGcsObjectSize(gcsObjectPath)
