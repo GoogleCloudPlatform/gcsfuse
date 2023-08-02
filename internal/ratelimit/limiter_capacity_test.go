@@ -22,18 +22,18 @@ import (
 	. "github.com/jacobsa/ogletest"
 )
 
-func TestChooseLimiterCapacity(t *testing.T) { RunTests(t) }
+func TestLimiterCapacity(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type ChooseLimiterCapacityTest struct {
+type LimiterCapacityTest struct {
 }
 
-func init() { RegisterTestSuite(&ChooseLimiterCapacityTest{}) }
+func init() { RegisterTestSuite(&LimiterCapacityTest{}) }
 
-func (t *ChooseLimiterCapacityTest) TestRateLessThanOrEqualToZero() {
+func (t *LimiterCapacityTest) TestRateLessThanOrEqualToZero() {
 	var negativeRateHz float64 = -1
 	var zeroRateHz float64 = 0
 
@@ -48,7 +48,7 @@ func (t *ChooseLimiterCapacityTest) TestRateLessThanOrEqualToZero() {
 	AssertEq(expectedError.Error(), err.Error())
 }
 
-func (t *ChooseLimiterCapacityTest) TestWindowLessThanEqualToZero() {
+func (t *LimiterCapacityTest) TestWindowLessThanEqualToZero() {
 	var negativeWindow time.Duration = -1
 	var zeroWindow time.Duration = 0
 
@@ -64,7 +64,7 @@ func (t *ChooseLimiterCapacityTest) TestWindowLessThanEqualToZero() {
 	AssertEq(expectedError.Error(), err.Error())
 }
 
-func (t *ChooseLimiterCapacityTest) TestCapacityLessThanOrEqualToZero() {
+func (t *LimiterCapacityTest) TestCapacityLessThanOrEqualToZero() {
 	var rate = 0.5
 	var window time.Duration = 1
 
@@ -76,7 +76,7 @@ func (t *ChooseLimiterCapacityTest) TestCapacityLessThanOrEqualToZero() {
 	AssertEq(expectedError.Error(), err.Error())
 }
 
-func (t *ChooseLimiterCapacityTest) TestExpectedCapacity() {
+func (t *LimiterCapacityTest) TestExpectedCapacity() {
 	var rate float64 = 20
 	var window = 10 * time.Second
 
