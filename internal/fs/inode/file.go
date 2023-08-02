@@ -603,5 +603,6 @@ func convertObjToMinObject(o *gcs.Object) (mo storage.MinObject) {
 		MetaGeneration: o.MetaGeneration,
 		Updated:        o.Updated,
 		Metadata:       o.Metadata,
+		IsGzipEncoded:  o.ContentEncoding == "gzip",
 	}
 }

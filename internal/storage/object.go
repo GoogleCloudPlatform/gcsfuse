@@ -31,4 +31,5 @@ type MinObject struct {
 	MetaGeneration int64
 	Updated        time.Time
 	Metadata       map[string]string
+	IsGzipEncoded  bool
 }
