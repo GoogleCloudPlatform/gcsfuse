@@ -64,6 +64,8 @@ func (bh *bucketHandle) NewReader(
 		obj = obj.Generation(req.Generation)
 	}
 
+	obj = obj.ReadCompressed(true)
+
 	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
 	return obj.NewRangeReader(ctx, start, length)
 }
