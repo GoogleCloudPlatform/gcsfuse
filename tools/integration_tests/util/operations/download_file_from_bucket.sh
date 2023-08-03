@@ -20,7 +20,4 @@ gcloud alpha storage cp gs://$TEST_BUCKET/$OBJECT_NAME $OBJECT_PATH_IN_DISK 2>&1
 if grep "The following URLs matched no objects or files" ~/output.txt; then
   echo "Object does not exist."
   rm ~/output.txt
-else
-  rm ~/output.txt
-  exit 1
 fi
