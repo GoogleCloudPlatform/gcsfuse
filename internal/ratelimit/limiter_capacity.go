@@ -28,7 +28,7 @@ import (
 // will be returned.
 func ChooseLimiterCapacity(
 	rateHz float64,
-	window time.Duration) (capacity int, err error) {
+	window time.Duration) (capacity uint64, err error) {
 	// Check that the input is reasonable.
 	if rateHz <= 0 || math.IsInf(rateHz, 0) {
 		err = fmt.Errorf("Illegal rate: %f", rateHz)
@@ -77,7 +77,7 @@ func ChooseLimiterCapacity(
 		return
 	}
 
-	capacity = int(capacityFloat)
+	capacity = uint64(capacityFloat)
 
 	return
 }
