@@ -28,7 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const NumberOfRandomWriteCalls = 5
+const NumberOfRandomWriteCalls = 20
 const MinWritableByteFromFile = 0
 const MaxWritableByteFromFile = 500 * OneMB
 const FileDownloadedFromBucket = "fileDownloadedFromBucket"
@@ -78,13 +78,13 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 		fileInBucket := path.Join(os.Getenv("HOME"), FileDownloadedFromBucket)
 		setup.RunScriptForTestData("../util/operations/download_file_from_bucket.sh", setup.TestBucket(), FiveHundredMBFile, fileInBucket)
 
-		contentFromFileDownloadedFromBucket, err := operations.ReadChunkFromFile(fileInBucket, ChunkSize, offset)
+		contentInFileDownloadedFromBucket, err := operations.ReadChunkFromFile(fileInBucket, ChunkSize, offset)
 		if err != nil {
 			t.Errorf("Error in reading file.")
 		}
 
 		// Compare actual content and expect content.
-		if bytes.Equal(contentFromFileDownloadedFromBucket, writtenContent) == false {
+		if bytes.Equal(contentInFileDownloadedFromBucket, writtenContent) == false {
 			t.Errorf("Incorrect content written in the file.")
 		}
 

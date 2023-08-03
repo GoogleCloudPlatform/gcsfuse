@@ -15,6 +15,7 @@
 package write_large_files
 
 import (
+	"bytes"
 	"os"
 	"path"
 	"testing"
@@ -40,8 +41,17 @@ func TestWriteLargeFileSequentially(t *testing.T) {
 		t.Errorf("Error in writing file: %v", err)
 	}
 
+	// Download the file from a bucket in which we write the content.
+	fileInBucket := path.Join(os.Getenv("HOME"), FileDownloadedFromBucket)
+	setup.RunScriptForTestData("../util/operations/download_file_from_bucket.sh", setup.TestBucket(), FiveHundredMBFile, fileInBucket)
+
+	contentInFileDownloadedFromBucket, err := operations.ReadFile(fileInBucket)
+	if err != nil {
+		t.Errorf("Error in reading file.")
+	}
+
 	// Check if 500MB data written in the file.
-	fStat, err := os.Stat(filePath)
+	fStat, err := os.Stat(fileInBucket)
 	if err != nil {
 		t.Errorf("Error in stating file:%v", err)
 	}
@@ -49,4 +59,17 @@ func TestWriteLargeFileSequentially(t *testing.T) {
 	if fStat.Size() != FiveHundredMB {
 		t.Errorf("Expecred file size %v found %d", FiveHundredMB, fStat.Size())
 	}
+
+	contentInFileFromMntDir, err := operations.ReadFile(filePath)
+	if err != nil {
+		t.Errorf("Error in reading file.")
+	}
+
+	// Compare actual content and expect content.
+	if bytes.Equal(contentInFileDownloadedFromBucket, contentInFileFromMntDir) == false {
+		t.Errorf("Incorrect content written in the file.")
+	}
+
+	// Remove file after testing.
+	operations.RemoveFile(fileInBucket)
 }
