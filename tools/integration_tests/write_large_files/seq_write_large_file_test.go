@@ -66,7 +66,7 @@ func TestWriteLargeFileSequentially(t *testing.T) {
 	}
 
 	// Compare actual content and expect content.
-	if bytes.Equal(contentInFileDownloadedFromBucket, contentInFileFromMntDir) == false {
+	if bytes.Equal(contentInFileFromMntDir, contentInFileDownloadedFromBucket) == false {
 		t.Errorf("Incorrect content written in the file.")
 	}
 

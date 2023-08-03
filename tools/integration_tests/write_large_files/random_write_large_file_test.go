@@ -84,7 +84,7 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 		}
 
 		// Compare actual content and expect content.
-		if bytes.Equal(contentInFileDownloadedFromBucket, writtenContent) == false {
+		if bytes.Equal(writtenContent, contentInFileDownloadedFromBucket) == false {
 			t.Errorf("Incorrect content written in the file.")
 		}
 
