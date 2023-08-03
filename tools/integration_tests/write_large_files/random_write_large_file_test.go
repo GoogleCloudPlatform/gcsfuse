@@ -31,6 +31,7 @@ import (
 const NumberOfRandomWriteCalls = 20
 const MinWritableByteFromFile = 0
 const MaxWritableByteFromFile = 500 * OneMB
+const FileDownloadedFromBucket = "fileDownloadedFromBucket"
 
 func TestWriteLargeFileRandomly(t *testing.T) {
 	// Clean the mountedDirectory before running test.
@@ -73,8 +74,20 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 			t.Errorf("Error in reading file.")
 		}
 
+		// Download the file from a bucket in which we write the content.
+		fileInBucket := path.Join(os.Getenv("HOME"), FileDownloadedFromBucket)
+		setup.RunScriptForTestData("../util/operations/download_file_from_bucket.sh", setup.TestBucket(), FiveHundredMBFile, fileInBucket)
+
+		// Remove file after testing.
+		defer operations.RemoveFile(fileInBucket)
+
+		contentFromFileDownloadedFromBucket, err := operations.ReadChunkFromFile(fileInBucket, ChunkSize, offset)
+		if err != nil {
+			t.Errorf("Error in reading file.")
+		}
+
 		// Compare actual content and expect content.
-		if bytes.Equal(chunk, writtenContent) == false {
+		if bytes.Equal(contentFromFileDownloadedFromBucket, writtenContent) == false {
 			t.Errorf("Incorrect content written in the file.")
 		}
 	}
