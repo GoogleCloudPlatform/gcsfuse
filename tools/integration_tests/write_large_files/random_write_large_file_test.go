@@ -78,9 +78,6 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 		fileInBucket := path.Join(os.Getenv("HOME"), FileDownloadedFromBucket)
 		setup.RunScriptForTestData("../util/operations/download_file_from_bucket.sh", setup.TestBucket(), FiveHundredMBFile, fileInBucket)
 
-		// Remove file after testing.
-		defer operations.RemoveFile(fileInBucket)
-
 		contentFromFileDownloadedFromBucket, err := operations.ReadChunkFromFile(fileInBucket, ChunkSize, offset)
 		if err != nil {
 			t.Errorf("Error in reading file.")
@@ -90,5 +87,8 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 		if bytes.Equal(contentFromFileDownloadedFromBucket, writtenContent) == false {
 			t.Errorf("Incorrect content written in the file.")
 		}
+
+		// Remove file after testing.
+		operations.RemoveFile(fileInBucket)
 	}
 }
