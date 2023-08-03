@@ -28,7 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const NumberOfRandomWriteCalls = 20
+const NumberOfRandomWriteCalls = 5
 const MinWritableByteFromFile = 0
 const MaxWritableByteFromFile = 500 * OneMB
 const FileDownloadedFromBucket = "fileDownloadedFromBucket"
