@@ -336,15 +336,6 @@ func newApp() (app *cli.App) {
 				Name:  "debug_mutex",
 				Usage: "Print debug messages when a mutex is held too long.",
 			},
-
-			/////////////////////////
-			// Client
-			/////////////////////////
-
-			cli.BoolTFlag{
-				Name:  "enable-storage-client-library",
-				Usage: "If true, will use go storage client library otherwise jacobsa/gcloud",
-			},
 		},
 	}
 
@@ -404,9 +395,6 @@ type flagStorage struct {
 	DebugHTTP       bool
 	DebugInvariants bool
 	DebugMutex      bool
-
-	// client
-	EnableStorageClientLibrary bool
 }
 
 const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
@@ -538,9 +526,6 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		DebugHTTP:       c.Bool("debug_http"),
 		DebugInvariants: c.Bool("debug_invariants"),
 		DebugMutex:      c.Bool("debug_mutex"),
-
-		// Client,
-		EnableStorageClientLibrary: c.Bool("enable-storage-client-library"),
 	}
 
 	// Handle the repeated "-o" flag.

@@ -56,39 +56,11 @@ func (t *BucketManagerTest) TestNewBucketManagerMethod() {
 		DebugGCS:                           true,
 		AppendThreshold:                    2,
 		TmpObjectPrefix:                    "TmpObjectPrefix",
-		EnableStorageClientLibrary:         true,
 	}
 
 	bm := NewBucketManager(bucketConfig, nil, t.storageHandle)
 
 	ExpectNe(nil, bm)
-}
-
-func (t *BucketManagerTest) TestSetupGcsBucketWhenEnableStorageClientLibraryIsTrue() {
-	var bm bucketManager
-	bm.storageHandle = t.storageHandle
-	bm.config.EnableStorageClientLibrary = true
-	bm.config.DebugGCS = true
-
-	bucket, err := bm.SetUpGcsBucket(context.Background(), TestBucketName)
-
-	ExpectNe(nil, bucket)
-	ExpectEq(nil, err)
-}
-
-func (t *BucketManagerTest) TestSetupGcsBucketWhenEnableStorageClientLibraryIsFalse() {
-	var bm bucketManager
-	bm.storageHandle = t.storageHandle
-	bm.config.EnableStorageClientLibrary = false
-	bm.config.BillingProject = "BillingProject"
-	bm.conn = &Connection{
-		wrapped: gcsfake.NewConn(timeutil.RealClock()),
-	}
-
-	bucket, err := bm.SetUpGcsBucket(context.Background(), "fake@bucket")
-
-	ExpectNe(nil, bucket)
-	ExpectEq(nil, err)
 }
 
 func (t *BucketManagerTest) TestSetUpBucketMethod() {
@@ -104,7 +76,6 @@ func (t *BucketManagerTest) TestSetUpBucketMethod() {
 		DebugGCS:                           true,
 		AppendThreshold:                    2,
 		TmpObjectPrefix:                    "TmpObjectPrefix",
-		EnableStorageClientLibrary:         true,
 	}
 	ctx := context.Background()
 	bm.storageHandle = t.storageHandle
@@ -133,7 +104,6 @@ func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist() {
 		DebugGCS:                           true,
 		AppendThreshold:                    2,
 		TmpObjectPrefix:                    "TmpObjectPrefix",
-		EnableStorageClientLibrary:         true,
 	}
 	ctx := context.Background()
 	bm.storageHandle = t.storageHandle

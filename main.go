@@ -196,12 +196,7 @@ func mountWithArgs(
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
 		mountStatus.Println("Opening GCS connection...")
-
-		if flags.EnableStorageClientLibrary {
-			storageHandle, err = createStorageHandle(flags)
-		} else {
-			conn, err = getConnWithRetry(flags)
-		}
+		storageHandle, err = createStorageHandle(flags)
 		if err != nil {
 			err = fmt.Errorf("failed to open connection - getConnWithRetry: %w", err)
 			return
