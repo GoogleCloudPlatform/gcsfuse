@@ -16,6 +16,7 @@ package storage
 
 import (
 	"context"
+	"net/url"
 	"testing"
 	"time"
 
@@ -37,6 +38,7 @@ func getDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 		MaxRetryDuration:    30 * time.Second,
 		RetryMultiplier:     2,
 		UserAgent:           "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) (GCP:gcsfuse)",
+		Endpoint:            &url.URL{},
 	}
 }
 
