@@ -17,7 +17,10 @@ package storage
 import (
 	"crypto/tls"
 	"fmt"
+	"log"
 	"net/http"
+	"net/url"
+	"os"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -51,6 +54,7 @@ type StorageClientConfig struct {
 	MaxRetryDuration    time.Duration
 	RetryMultiplier     float64
 	UserAgent           string
+	Endpoint            *url.URL
 }
 
 // NewStorageHandle returns the handle of Go storage client containing
@@ -58,6 +62,11 @@ type StorageClientConfig struct {
 // storageClientConfig parameter.
 func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh StorageHandle, err error) {
 	var transport *http.Transport
+	err = os.Setenv("STORAGE_EMULATOR_HOST", clientConfig.Endpoint.String())
+	if err != nil {
+		log.Printf("Error in setting environment variable:%v", err)
+	}
+
 	// Using http1 makes the client more performant.
 	if clientConfig.ClientProtocol == mountpkg.HTTP1 {
 		transport = &http.Transport{

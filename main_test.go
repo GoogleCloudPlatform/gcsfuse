@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -31,6 +32,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 		RetryMultiplier:     2,
 		AppName:             "app",
 		KeyFile:             "testdata/test_creds.json",
+		Endpoint:            &url.URL{},
 	}
 
 	storageHandle, err := createStorageHandle(flags)
