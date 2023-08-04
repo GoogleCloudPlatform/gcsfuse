@@ -16,9 +16,11 @@
 package operations
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"os/exec"
@@ -235,4 +237,70 @@ func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (er
 		offset = offset + chunkSize
 	}
 	return
+}
+
+// Returns the stats of a file.
+// Fails if the passed input is a directory.
+func StatFile(file string) (*fs.FileInfo, error) {
+	fstat, err := os.Stat(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat input file %s: %v", file, err)
+	} else if fstat.IsDir() {
+		return nil, fmt.Errorf("input file %s is a directory", file)
+	}
+
+	return &fstat, nil
+}
+
+// Finds if two local files have identical content (equivalnt to binary diff).
+// Needs (a) both files to exist, (b)read permission on both the files, (c) both
+// inputs to be proper files, symlinks/directories not supported.
+// Compares file names first. If different, compares sizes next.
+// If sizes match, then compares hashes of both the files.
+// Not a good idea for very large files as it loads both the files in the memory completely.
+// Returns 0 if no error and files match.
+// Returns 1 if files don't match and captures reason for mismatch in err.
+// Returns 2 if any error.
+func DiffFiles(file1, file2 string) (int, error) {
+	if file1 == "" || file2 == "" {
+		return 2, fmt.Errorf("one or both files being diff'ed have empty path")
+	} else if file1 == file2 {
+		return 0, nil
+	}
+
+	fstat1, err := StatFile(file1)
+	if err != nil {
+		return 2, err
+	}
+
+	fstat2, err := StatFile(file2)
+	if err != nil {
+		return 2, err
+	}
+
+	file1size := (*fstat1).Size()
+	file2size := (*fstat2).Size()
+	if file1size != file2size {
+		return 1, fmt.Errorf("files don't match in size: %s (%d bytes), %s (%d bytes)", file1, file1size, file2, file2size)
+	}
+
+	bytes1, err := ReadFile(file1)
+	if err != nil || bytes1 == nil {
+		return 2, fmt.Errorf("failed to read file %s", file1)
+	} else if int64(len(bytes1)) != file1size {
+		return 2, fmt.Errorf("failed to completely read file %s", file1)
+	}
+
+	bytes2, err := ReadFile(file2)
+	if err != nil || bytes2 == nil {
+		return 2, fmt.Errorf("failed to read file %s", file2)
+	} else if int64(len(bytes2)) != file2size {
+		return 2, fmt.Errorf("failed to completely read file %s", file2)
+	}
+
+	if !bytes.Equal(bytes1, bytes2) {
+		return 1, fmt.Errorf("files don't match in content: %s, %s", file1, file2)
+	}
+
+	return 0, nil
 }

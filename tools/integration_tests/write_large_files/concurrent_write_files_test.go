@@ -28,8 +28,11 @@ import (
 const FileOne = "fileOne.txt"
 const FileTwo = "fileTwo.txt"
 const FileThree = "fileThree.txt"
+const NumberOfFilesInLocalDiskForConcurrentWrite = 3
 
-func WriteFileParellaly(file string, fileSize int64, wg *sync.WaitGroup, t *testing.T) {
+func writeFile(fileName string, fileSize int64, wg *sync.WaitGroup, t *testing.T) {
+	file := path.Join(setup.MntDir(), fileName)
+
 	// Reduce thread count when it is done.
 	defer wg.Done()
 
@@ -44,12 +47,19 @@ func WriteFileParellaly(file string, fileSize int64, wg *sync.WaitGroup, t *test
 		return
 	}
 
-	f, err := os.Stat(file)
+	// Download the file from a bucket in which we write the content.
+	fileInBucket := path.Join(os.Getenv("HOME"), fileName)
+	setup.RunScriptForTestData("../util/operations/download_file_from_bucket.sh", setup.TestBucket(), fileName, fileInBucket)
+
+	_, err = operations.StatFile(fileInBucket)
 	if err != nil {
 		t.Errorf("Error in stating file:%v", err)
 	}
-	if f.Size() != fileSize {
-		t.Errorf("Error in writing multiple files at same time.")
+
+	_, err = operations.DiffFiles(file, fileInBucket)
+
+	if err != nil {
+		t.Errorf("Error in writing files concurrently.")
 	}
 }
 
@@ -60,24 +70,14 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 	// For waiting on threads.
 	var wg sync.WaitGroup
 
-	file1 := path.Join(setup.MntDir(), FileOne)
-	file2 := path.Join(setup.MntDir(), FileTwo)
-	file3 := path.Join(setup.MntDir(), FileThree)
+	files := [NumberOfFilesInLocalDiskForConcurrentWrite]string{FileOne, FileTwo, FileThree}
 
-	// Increment the WaitGroup counter.
-	wg.Add(1)
-	// Thread to write first file.
-	go WriteFileParellaly(file1, FiveHundredMB, &wg, t)
-
-	// Increment the WaitGroup counter.
-	wg.Add(1)
-	// Thread to write second file.
-	go WriteFileParellaly(file2, FiveHundredMB, &wg, t)
-
-	// Increment the WaitGroup counter.
-	wg.Add(1)
-	// Thread to write third file.
-	go WriteFileParellaly(file3, FiveHundredMB, &wg, t)
+	for i := 0; i < NumberOfFilesInLocalDiskForConcurrentWrite; i++ {
+		// Increment the WaitGroup counter.
+		wg.Add(1)
+		// Thread to write first file.
+		go writeFile(files[i], FiveHundredMB, &wg, t)
+	}
 
 	// Wait on threads to end.
 	wg.Wait()
