@@ -51,13 +51,7 @@ func writeFile(fileName string, fileSize int64, wg *sync.WaitGroup, t *testing.T
 	fileInBucket := path.Join(os.Getenv("HOME"), fileName)
 	setup.RunScriptForTestData("../util/operations/download_file_from_bucket.sh", setup.TestBucket(), fileName, fileInBucket)
 
-	_, err = operations.StatFile(fileInBucket)
-	if err != nil {
-		t.Errorf("Error in stating file:%v", err)
-	}
-
 	_, err = operations.DiffFiles(file, fileInBucket)
-
 	if err != nil {
 		t.Errorf("Error in writing files concurrently.")
 	}
