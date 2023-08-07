@@ -526,7 +526,7 @@ func (t *FileTest) TestTruncateUpwardForLocalFileShouldUpdateLocalFileAttributes
 	err = t.in.Truncate(t.ctx, 6)
 
 	AssertEq(nil, err)
-	// The inode should agree about the new mtime.
+	// The inode should return the new size.
 	attrs, err = t.in.Attributes(t.ctx)
 	AssertEq(nil, err)
 	AssertEq(6, attrs.Size)
@@ -550,7 +550,7 @@ func (t *FileTest) TestTruncateDownwardForLocalFileShouldUpdateLocalFileAttribut
 	err = t.in.Truncate(t.ctx, 2)
 
 	AssertEq(nil, err)
-	// The inode should agree about the new mtime.
+	// The inode should return the new size.
 	attrs, err = t.in.Attributes(t.ctx)
 	AssertEq(nil, err)
 	AssertEq(2, attrs.Size)
@@ -771,6 +771,7 @@ func (t *FileTest) TestCreateEmptyTempFileShouldCreateEmptyFile() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, t.in.content)
+	// Validate that file size is 0.
 	sr, err := t.in.content.Stat()
 	AssertEq(nil, err)
 	AssertEq(0, sr.Size)

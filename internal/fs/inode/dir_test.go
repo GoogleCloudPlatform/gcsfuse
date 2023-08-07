@@ -1052,7 +1052,7 @@ func (t *DirTest) DeleteChildFile_WrongGeneration() {
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
-	// Call the inode. inode with the wrong generation. No error should be returned.
+	// Call the inode with the wrong generation. No error should be returned.
 	err = t.in.DeleteChildFile(t.ctx, name, o.Generation+1, &o.MetaGeneration)
 	AssertEq(nil, err)
 
@@ -1072,7 +1072,7 @@ func (t *DirTest) DeleteChildFile_WrongMetaGeneration() {
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
-	// Call the inode. inode with the wrong meta-generation. No error should be
+	// Call the inode with the wrong meta-generation. No error should be
 	// returned.
 	precond := o.MetaGeneration + 1
 	err = t.in.DeleteChildFile(t.ctx, name, o.Generation, &precond)
