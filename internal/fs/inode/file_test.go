@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inode_test
+package inode
 
 import (
 	"fmt"
@@ -26,7 +26,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
-	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/gcs"
@@ -57,7 +56,7 @@ type FileTest struct {
 	initialContents string
 	backingObj      *gcs.Object
 
-	in *inode.FileInode
+	in *FileInode
 }
 
 var _ SetUpInterface = &FileTest{}
@@ -93,22 +92,22 @@ func (t *FileTest) TearDown() {
 }
 
 func (t *FileTest) createInode() {
-	t.createInodeWithLocalParam(false)
+	t.createInodeWithLocalParam(fileName, false)
 }
-func (t *FileTest) createInodeWithLocalParam(local bool) {
+func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 	if t.in != nil {
 		t.in.Unlock()
 	}
 
-	name := inode.NewFileName(
-		inode.NewRootName(""),
-		t.backingObj.Name,
+	name := NewFileName(
+		NewRootName(""),
+		fileName,
 	)
 	syncerBucket := gcsx.NewSyncerBucket(
 		1, // Append threshold
 		".gcsfuse_tmp/",
 		t.bucket)
-	t.in = inode.NewFileInode(
+	t.in = NewFileInode(
 		fileInodeID,
 		name,
 		t.backingObj,
@@ -690,8 +689,67 @@ func (t *FileTest) SetMtime_SourceObjectMetaGenerationChanged() {
 	ExpectEq(newObj.MetaGeneration, o.MetaGeneration)
 }
 
+func (t *FileTest) SetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
+	var err error
+	var attrs fuseops.InodeAttributes
+	t.createInodeWithLocalParam("test", true)
+	err = t.in.CreateEmptyTempFile()
+	AssertEq(nil, err)
+	// Set mtime.
+	mtime := time.Now().UTC().Add(123 * time.Second)
+
+	err = t.in.SetMtime(t.ctx, mtime)
+
+	AssertEq(nil, err)
+	// The inode should agree about the new mtime.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(mtime))
+	ExpectThat(attrs.Ctime, timeutil.TimeEq(mtime))
+	ExpectThat(attrs.Atime, timeutil.TimeEq(mtime))
+	// Data shouldn't be updated to GCS.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	_, err = t.bucket.StatObject(t.ctx, statReq)
+	AssertNe(nil, err)
+}
+
+// Truncate download for local file is same as regular file since attributes
+// are updated to GCS only during sync call.
+func (t *FileTest) TruncateUpwardForLocalFileShouldUpdateLocalFileAttributes() {
+	var err error
+	var attrs fuseops.InodeAttributes
+	t.createInodeWithLocalParam("test", true)
+	err = t.in.CreateEmptyTempFile()
+	AssertEq(nil, err)
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	AssertEq(0, attrs.Size)
+
+	err = t.in.Truncate(t.ctx, 6)
+
+	AssertEq(nil, err)
+	// The inode should agree about the new mtime.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	AssertEq(6, attrs.Size)
+	// Data shouldn't be updated to GCS.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	_, err = t.bucket.StatObject(t.ctx, statReq)
+	AssertNe(nil, err)
+}
+
 func (t *FileTest) TestCheckInvariantsShouldNotThrowExceptionForLocalFiles() {
-	t.createInodeWithLocalParam(true)
+	t.createInodeWithLocalParam("test", true)
 
 	AssertNe(nil, t.in)
+}
+
+func (t *FileTest) TestCreateEmptyTempFileShouldCreateEmptyFile() {
+	err := t.in.CreateEmptyTempFile()
+
+	AssertEq(nil, err)
+	AssertNe(nil, t.in.content)
+	sr, err := t.in.content.Stat()
+	AssertEq(nil, err)
+	AssertEq(0, sr.Size)
 }
