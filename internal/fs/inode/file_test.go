@@ -513,7 +513,7 @@ func (t *FileTest) TruncateUpwardThenSync() {
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(truncateTime.UTC()))
 }
 
-func (t *FileTest) TruncateUpwardForLocalFileShouldUpdateLocalFileAttributes() {
+func (t *FileTest) TestTruncateUpwardForLocalFileShouldUpdateLocalFileAttributes() {
 	var err error
 	var attrs fuseops.InodeAttributes
 	t.createInodeWithLocalParam("test", true)
@@ -536,7 +536,7 @@ func (t *FileTest) TruncateUpwardForLocalFileShouldUpdateLocalFileAttributes() {
 	AssertNe(nil, err)
 }
 
-func (t *FileTest) TruncateDownwardForLocalFileShouldUpdateLocalFileAttributes() {
+func (t *FileTest) TestTruncateDownwardForLocalFileShouldUpdateLocalFileAttributes() {
 	var err error
 	var attrs fuseops.InodeAttributes
 	t.createInodeWithLocalParam("test", true)
@@ -736,7 +736,7 @@ func (t *FileTest) SetMtime_SourceObjectMetaGenerationChanged() {
 	ExpectEq(newObj.MetaGeneration, o.MetaGeneration)
 }
 
-func (t *FileTest) SetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
+func (t *FileTest) TestSetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
 	var err error
 	var attrs fuseops.InodeAttributes
 	t.createInodeWithLocalParam("test", true)
