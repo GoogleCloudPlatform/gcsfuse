@@ -543,6 +543,8 @@ func (t *FileTest) TestTruncateDownwardForLocalFileShouldUpdateLocalFileAttribut
 	err = t.in.CreateEmptyTempFile()
 	AssertEq(nil, err)
 	err = t.in.Write(t.ctx, []byte("burrito"), 0)
+	AssertEq(nil, err)
+	// Validate the new data is written correctly.
 	attrs, err = t.in.Attributes(t.ctx)
 	AssertEq(nil, err)
 	AssertEq(7, attrs.Size)
