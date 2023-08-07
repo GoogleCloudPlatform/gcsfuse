@@ -47,8 +47,6 @@
 package httputil
 
 import (
-	"bytes"
-	"crypto/rand"
 	"fmt"
 	"io"
 )
@@ -56,30 +54,6 @@ import (
 type ContentTypedReader struct {
 	ContentType string
 	Reader      io.Reader
-}
-
-// Create a reader that streams an HTTP multipart body (see RFC 2388) composed
-// of the contents of each component reader in sequence, each with a
-// Content-Type header as specified.
-//
-// Unlike multipart.Writer from the standard library, this can be used directly
-// as http.Request.Body without bending over backwards to convert an io.Writer
-// to an io.Reader.
-func NewMultipartReader(ctrs []ContentTypedReader) *MultipartReader {
-	boundary := randomBoundary()
-
-	// Read each part followed by the trailer.
-	var readers []io.Reader
-	for i, ctr := range ctrs {
-		readers = append(readers, makePartReader(ctr, i == 0, boundary))
-	}
-
-	readers = append(readers, makeTrailerReader(boundary))
-
-	return &MultipartReader{
-		boundary: boundary,
-		r:        io.MultiReader(readers...),
-	}
 }
 
 // MultipartReader is an io.Reader that generates HTTP multipart bodies. See
@@ -98,45 +72,4 @@ func (mr *MultipartReader) Read(p []byte) (n int, err error) {
 // uses mr as the body.
 func (mr *MultipartReader) ContentType() string {
 	return fmt.Sprintf("multipart/related; boundary=%s", mr.boundary)
-}
-
-func randomBoundary() string {
-	var buf [30]byte
-	_, err := io.ReadFull(rand.Reader, buf[:])
-	if err != nil {
-		panic(err)
-	}
-	return fmt.Sprintf("%x", buf[:])
-}
-
-// Create a reader for a single part and the boundary in front of it. first
-// specifies whether this is the first part.
-func makePartReader(
-	ctr ContentTypedReader,
-	first bool,
-	boundary string) (r io.Reader) {
-	// Set up a buffer containing the boundary.
-	var b bytes.Buffer
-	if first {
-		fmt.Fprintf(&b, "--%s\r\n", boundary)
-	} else {
-		fmt.Fprintf(&b, "\r\n--%s\r\n", boundary)
-	}
-
-	fmt.Fprintf(&b, "Content-Type: %s\r\n", ctr.ContentType)
-	fmt.Fprintf(&b, "\r\n")
-
-	// Read the boundary followed by the content.
-	r = io.MultiReader(&b, ctr.Reader)
-
-	return
-}
-
-// Create a reader for the trailing boundary.
-func makeTrailerReader(boundary string) (r io.Reader) {
-	var b bytes.Buffer
-	fmt.Fprintf(&b, "\r\n--%s--\r\n", boundary)
-
-	r = &b
-	return
 }

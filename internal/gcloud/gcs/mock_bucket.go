@@ -8,11 +8,12 @@ package gcs
 
 import (
 	fmt "fmt"
-	oglemock "github.com/jacobsa/oglemock"
-	context "golang.org/x/net/context"
 	io "io"
 	runtime "runtime"
 	unsafe "unsafe"
+
+	oglemock "github.com/jacobsa/oglemock"
+	context "golang.org/x/net/context"
 )
 
 type MockBucket interface {
