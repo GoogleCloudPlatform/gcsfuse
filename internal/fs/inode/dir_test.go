@@ -749,7 +749,7 @@ func (t *DirTest) CreateChildFile_DoesntExist() {
 	const name = "qux"
 	objName := path.Join(dirInodeName, name)
 
-	// Call the
+	// call the inode.
 	result, err := t.in.CreateChildFile(t.ctx, name)
 	AssertEq(nil, err)
 	AssertNe(nil, result)
@@ -776,7 +776,7 @@ func (t *DirTest) CreateChildFile_Exists() {
 	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
-	// Call the
+	// call the inode.
 	_, err = t.in.CreateChildFile(t.ctx, name)
 	ExpectThat(err, Error(HasSubstr("Precondition")))
 	ExpectThat(err, Error(HasSubstr("exists")))
@@ -833,7 +833,7 @@ func (t *DirTest) CloneToChildFile_SourceDoesntExist() {
 
 	AssertEq(nil, err)
 
-	// Call the
+	// call the inode.
 	_, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
 	var notFoundErr *gcs.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
@@ -847,7 +847,7 @@ func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
 	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, []byte("taco"))
 	AssertEq(nil, err)
 
-	// Call the
+	// call the inode.
 	result, err := t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
 	AssertEq(nil, err)
 	AssertNe(nil, result)
@@ -876,7 +876,7 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dstName, []byte(""))
 	AssertEq(nil, err)
 
-	// Call the
+	// call the inode.
 	result, err := t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
 	AssertEq(nil, err)
 	AssertNe(nil, result)
@@ -938,7 +938,7 @@ func (t *DirTest) CreateChildSymlink_DoesntExist() {
 	const target = "taco"
 	objName := path.Join(dirInodeName, name)
 
-	// Call the
+	// call the inode.
 	result, err := t.in.CreateChildSymlink(t.ctx, name, target)
 	AssertEq(nil, err)
 	AssertNe(nil, result)
@@ -961,7 +961,7 @@ func (t *DirTest) CreateChildSymlink_Exists() {
 	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
 	AssertEq(nil, err)
 
-	// Call the
+	// call the inode.
 	_, err = t.in.CreateChildSymlink(t.ctx, name, target)
 	ExpectThat(err, Error(HasSubstr("Precondition")))
 	ExpectThat(err, Error(HasSubstr("exists")))
@@ -1007,7 +1007,7 @@ func (t *DirTest) CreateChildDir_DoesntExist() {
 	const name = "qux"
 	objName := path.Join(dirInodeName, name) + "/"
 
-	// Call the
+	// call the inode.
 	result, err := t.in.CreateChildDir(t.ctx, name)
 	AssertEq(nil, err)
 	AssertNe(nil, result)
@@ -1029,7 +1029,7 @@ func (t *DirTest) CreateChildDir_Exists() {
 	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
-	// Call the
+	// call the inode.
 	_, err = t.in.CreateChildDir(t.ctx, name)
 	ExpectThat(err, Error(HasSubstr("Precondition")))
 	ExpectThat(err, Error(HasSubstr("exists")))
@@ -1052,7 +1052,7 @@ func (t *DirTest) DeleteChildFile_WrongGeneration() {
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
-	// Call the inode with the wrong generation. No error should be returned.
+	// call the inode. inode with the wrong generation. No error should be returned.
 	err = t.in.DeleteChildFile(t.ctx, name, o.Generation+1, &o.MetaGeneration)
 	AssertEq(nil, err)
 
@@ -1072,7 +1072,7 @@ func (t *DirTest) DeleteChildFile_WrongMetaGeneration() {
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
-	// Call the inode with the wrong meta-generation. No error should be
+	// call the inode. inode with the wrong meta-generation. No error should be
 	// returned.
 	precond := o.MetaGeneration + 1
 	err = t.in.DeleteChildFile(t.ctx, name, o.Generation, &precond)
@@ -1096,7 +1096,7 @@ func (t *DirTest) DeleteChildFile_LatestGeneration() {
 	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
-	// Call the
+	// call the inode.
 	err = t.in.DeleteChildFile(t.ctx, name, 0, nil)
 	AssertEq(nil, err)
 
@@ -1116,7 +1116,7 @@ func (t *DirTest) DeleteChildFile_ParticularGenerationAndMetaGeneration() {
 	o, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
-	// Call the
+	// call the inode.
 	err = t.in.DeleteChildFile(t.ctx, name, o.Generation, &o.MetaGeneration)
 	AssertEq(nil, err)
 
@@ -1178,7 +1178,7 @@ func (t *DirTest) DeleteChildDir_Exists() {
 	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
-	// Call the
+	// call the inode.
 	err = t.in.DeleteChildDir(t.ctx, name, false)
 	AssertEq(nil, err)
 
@@ -1198,7 +1198,7 @@ func (t *DirTest) DeleteChildDir_ImplicitDirTrue() {
 func (t *DirTest) CreateLocalChildFile_ShouldnotCreateObjectInGCS() {
 	const name = "qux"
 
-	// Create the local file
+	// Create the local file inode.
 	core, err := t.in.CreateLocalChildFile(name)
 
 	AssertEq(nil, err)

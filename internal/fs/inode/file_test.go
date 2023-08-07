@@ -513,6 +513,53 @@ func (t *FileTest) TruncateUpwardThenSync() {
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(truncateTime.UTC()))
 }
 
+func (t *FileTest) TruncateUpwardForLocalFileShouldUpdateLocalFileAttributes() {
+	var err error
+	var attrs fuseops.InodeAttributes
+	t.createInodeWithLocalParam("test", true)
+	err = t.in.CreateEmptyTempFile()
+	AssertEq(nil, err)
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	AssertEq(0, attrs.Size)
+
+	err = t.in.Truncate(t.ctx, 6)
+
+	AssertEq(nil, err)
+	// The inode should agree about the new mtime.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	AssertEq(6, attrs.Size)
+	// Data shouldn't be updated to GCS.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	_, err = t.bucket.StatObject(t.ctx, statReq)
+	AssertNe(nil, err)
+}
+
+func (t *FileTest) TruncateDownwardForLocalFileShouldUpdateLocalFileAttributes() {
+	var err error
+	var attrs fuseops.InodeAttributes
+	t.createInodeWithLocalParam("test", true)
+	err = t.in.CreateEmptyTempFile()
+	AssertEq(nil, err)
+	err = t.in.Write(t.ctx, []byte("burrito"), 0)
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	AssertEq(7, attrs.Size)
+
+	err = t.in.Truncate(t.ctx, 2)
+
+	AssertEq(nil, err)
+	// The inode should agree about the new mtime.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	AssertEq(2, attrs.Size)
+	// Data shouldn't be updated to GCS.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	_, err = t.bucket.StatObject(t.ctx, statReq)
+	AssertNe(nil, err)
+}
+
 func (t *FileTest) Sync_Clobbered() {
 	var err error
 
@@ -707,31 +754,6 @@ func (t *FileTest) SetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(mtime))
 	ExpectThat(attrs.Ctime, timeutil.TimeEq(mtime))
 	ExpectThat(attrs.Atime, timeutil.TimeEq(mtime))
-	// Data shouldn't be updated to GCS.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	_, err = t.bucket.StatObject(t.ctx, statReq)
-	AssertNe(nil, err)
-}
-
-// Truncate download for local file is same as regular file since attributes
-// are updated to GCS only during sync call.
-func (t *FileTest) TruncateUpwardForLocalFileShouldUpdateLocalFileAttributes() {
-	var err error
-	var attrs fuseops.InodeAttributes
-	t.createInodeWithLocalParam("test", true)
-	err = t.in.CreateEmptyTempFile()
-	AssertEq(nil, err)
-	attrs, err = t.in.Attributes(t.ctx)
-	AssertEq(nil, err)
-	AssertEq(0, attrs.Size)
-
-	err = t.in.Truncate(t.ctx, 6)
-
-	AssertEq(nil, err)
-	// The inode should agree about the new mtime.
-	attrs, err = t.in.Attributes(t.ctx)
-	AssertEq(nil, err)
-	AssertEq(6, attrs.Size)
 	// Data shouldn't be updated to GCS.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	_, err = t.bucket.StatObject(t.ctx, statReq)
