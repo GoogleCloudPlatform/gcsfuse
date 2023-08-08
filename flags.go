@@ -296,6 +296,12 @@ func newApp() (app *cli.App) {
 				Usage: "The format of the log file: 'text' or 'json'.",
 			},
 
+			cli.StringFlag{
+				Name:  "log-level",
+				Value: "info",
+				Usage: "The level of logging.",
+			},
+
 			/////////////////////////
 			// Debugging
 			/////////////////////////
@@ -396,6 +402,7 @@ type flagStorage struct {
 	LogFile                   string
 	LogFormat                 string
 	DebugFuseErrors           bool
+	LogLevel                  string
 
 	// Debugging
 	DebugFuse       bool
@@ -529,6 +536,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		OtelCollectorAddress:      c.String("experimental-opentelemetry-collector-address"),
 		LogFile:                   c.String("log-file"),
 		LogFormat:                 c.String("log-format"),
+		LogLevel:                  c.String("log-level"),
 
 		// Debugging,
 		DebugFuseErrors: c.BoolT("debug_fuse_errors"),

@@ -16,9 +16,9 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/loggernew"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"golang.org/x/net/context"
 
@@ -39,8 +39,7 @@ func mountWithConn(
 	mountPoint string,
 	flags *flagStorage,
 	conn *gcsx.Connection,
-	storageHandle storage.StorageHandle,
-	status *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
+	storageHandle storage.StorageHandle) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
@@ -52,8 +51,8 @@ func mountWithConn(
 
 		if err != nil {
 			err = fmt.Errorf(
-				"Error writing to temporary directory (%q); are you sure it exists "+
-					"with the correct permissions?",
+				"error writing to temporary directory (%q); are you sure it exists "+
+					"with the correct permissions",
 				err.Error())
 			return
 		}
@@ -133,7 +132,7 @@ be interacting with the file system.`)
 	}
 
 	// Mount the file system.
-	status.Printf("Mounting file system %q...", fsName)
+	loggernew.Infof("Mounting file system %q...", fsName)
 	mountCfg := &fuse.MountConfig{
 		FSName:     fsName,
 		Subtype:    "gcsfuse",

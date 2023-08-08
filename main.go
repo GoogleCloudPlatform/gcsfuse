@@ -30,6 +30,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/loggernew"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -62,13 +63,13 @@ func registerSIGINTHandler(mountPoint string) {
 	go func() {
 		for {
 			<-signalChan
-			logger.Info("Received SIGINT, attempting to unmount...")
+			loggernew.Info("Received SIGINT, attempting to unmount...")
 
 			err := fuse.Unmount(mountPoint)
 			if err != nil {
-				logger.Infof("Failed to unmount in response to SIGINT: %v", err)
+				loggernew.Infof("Failed to unmount in response to SIGINT: %v", err)
 			} else {
-				logger.Infof("Successfully unmounted in response to SIGINT.")
+				loggernew.Infof("Successfully unmounted in response to SIGINT.")
 				return
 			}
 		}
@@ -141,7 +142,7 @@ func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 	c, err = getConn(flags)
 	for delay := 1 * time.Second; delay <= flags.MaxRetrySleep && err != nil; delay = delay/2 + delay {
-		logger.Infof("Waiting for connection: %v\n", err)
+		loggernew.Infof("Waiting for connection: %v\n", err)
 		time.Sleep(delay)
 		c, err = getConn(flags)
 	}
@@ -178,8 +179,7 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 func mountWithArgs(
 	bucketName string,
 	mountPoint string,
-	flags *flagStorage,
-	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
+	flags *flagStorage) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
 		locker.EnableInvariantsCheck()
@@ -195,7 +195,7 @@ func mountWithArgs(
 	var conn *gcsx.Connection
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
-		mountStatus.Println("Opening GCS connection...")
+		loggernew.Info("Opening GCS connection...")
 
 		if flags.EnableStorageClientLibrary {
 			storageHandle, err = createStorageHandle(flags)
@@ -209,15 +209,14 @@ func mountWithArgs(
 	}
 
 	// Mount the file system.
-	logger.Infof("Creating a mount at %q\n", mountPoint)
+	loggernew.Infof("Creating a mount at %q\n", mountPoint)
 	mfs, err = mountWithConn(
 		context.Background(),
 		bucketName,
 		mountPoint,
 		flags,
 		conn,
-		storageHandle,
-		mountStatus)
+		storageHandle)
 
 	if err != nil {
 		err = fmt.Errorf("mountWithConn: %w", err)
@@ -274,6 +273,7 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	if flags.Foreground {
 		err = logger.InitLogFile(flags.LogFile, flags.LogFormat)
+		err = loggernew.InitLogFile(flags.LogFile, flags.LogFormat, flags.LogLevel)
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
 		}
@@ -286,7 +286,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		return
 	}
 
-	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", getVersion(), flags.AppName, mountPoint)
+	loggernew.Errorf("Start gcsfuse/%s for app %q using mount point: %s\n", getVersion(), flags.AppName, mountPoint)
 
 	// If we haven't been asked to run in foreground mode, we should run a daemon
 	// with the foreground flag set and wait for it to mount.
@@ -358,7 +358,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		// This environment variable will be helpful to distinguish b/w the main
 		// process and daemon process. If this environment variable set that means
 		// programme is running as daemon process.
-		env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
+		env = append(env, fmt.Sprintf("%s=true", loggernew.GCSFuseInBackgroundMode))
 
 		// Run.
 		err = daemonize.Run(path, args, env, os.Stdout)
@@ -378,17 +378,16 @@ func runCLIApp(c *cli.Context) (err error) {
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
-		mountStatus := logger.NewInfo("")
-		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountStatus)
+		mfs, err = mountWithArgs(bucketName, mountPoint, flags)
 
 		if err == nil {
-			mountStatus.Println("File system has been successfully mounted.")
+			loggernew.Info("File system has been successfully mounted.")
 			daemonize.SignalOutcome(nil)
 		} else {
 			// Printing via mountStatus will have duplicate logs on the console while
 			// mounting gcsfuse in foreground mode. But this is important to avoid
 			// losing error logs when run in the background mode.
-			mountStatus.Printf("Error while mounting gcsfuse: %v\n", err)
+			loggernew.Errorf("Error while mounting gcsfuse: %v\n", err)
 			err = fmt.Errorf("mountWithArgs: %w", err)
 			daemonize.SignalOutcome(err)
 			return
@@ -436,7 +435,7 @@ func handlePanicWhileMounting() {
 	// Detect if panic happens in main go routine.
 	a := recover()
 	if a != nil {
-		logger.Fatal("Panic: ", a)
+		loggernew.Fatal("Panic: ", a)
 	}
 }
 
