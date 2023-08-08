@@ -17,7 +17,6 @@
 // packets at a given rate, asking a limiter when to admit them.
 // limiter can accept  number of packets equivalent to capacity. After that,
 // it will wait until limiter get space to receive the new packet.
-
 package ratelimit_test
 
 import (
@@ -51,27 +50,27 @@ func makeSeed() (seed int64) {
 	}
 
 	seed = (int64(buf[0])>>1)<<56 |
-			int64(buf[1])<<48 |
-			int64(buf[2])<<40 |
-			int64(buf[3])<<32 |
-			int64(buf[4])<<24 |
-			int64(buf[5])<<16 |
-			int64(buf[6])<<8 |
-			int64(buf[7])<<0
+		int64(buf[1])<<48 |
+		int64(buf[2])<<40 |
+		int64(buf[3])<<32 |
+		int64(buf[4])<<24 |
+		int64(buf[5])<<16 |
+		int64(buf[6])<<8 |
+		int64(buf[7])<<0
 
 	return
 }
 
 func processArrivals(
-		ctx context.Context,
-		throttle ratelimit.Throttle,
-		arrivalRateHz float64,
-		d time.Duration) (processed uint64) {
+	ctx context.Context,
+	throttle ratelimit.Throttle,
+	arrivalRateHz float64,
+	d time.Duration) (processed uint64) {
 	// Set up an independent source of randomness.
 	randSrc := rand.New(rand.NewSource(makeSeed()))
 
 	// Tick into a channel at a steady rate, buffering over delays caused by the
-	// limiter.
+	// token bucket.
 	arrivalPeriod := time.Duration((1.0 / arrivalRateHz) * float64(time.Second))
 	ticks := make(chan struct{}, 3*int(float64(d)/float64(arrivalPeriod)))
 
@@ -138,7 +137,7 @@ func (t *ThrottleTest) IntegrationTest() {
 	const perCaseDuration = 1 * time.Second
 
 	// Set up several test cases where we have N goroutines simulating arrival of
-	// packets at a given rate, asking a limiter when to admit them.
+	// packets at a given rate, asking a token bucket when to admit them.
 	testCases := []struct {
 		numActors     int
 		arrivalRateHz float64
