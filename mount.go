@@ -38,7 +38,6 @@ func mountWithConn(
 	bucketName string,
 	mountPoint string,
 	flags *flagStorage,
-	conn *gcsx.Connection,
 	storageHandle storage.StorageHandle,
 	status *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
@@ -96,7 +95,7 @@ be interacting with the file system.`)
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 		DebugGCS:                           flags.DebugGCS,
 	}
-	bm := gcsx.NewBucketManager(bucketCfg, conn, storageHandle)
+	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{

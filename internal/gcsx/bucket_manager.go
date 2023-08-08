@@ -73,7 +73,6 @@ type BucketManager interface {
 
 type bucketManager struct {
 	config        BucketConfig
-	conn          *Connection
 	storageHandle storage.StorageHandle
 
 	// Garbage collector
@@ -81,10 +80,9 @@ type bucketManager struct {
 	stopGarbageCollecting func()
 }
 
-func NewBucketManager(config BucketConfig, conn *Connection, storageHandle storage.StorageHandle) BucketManager {
+func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
 	bm := &bucketManager{
 		config:        config,
-		conn:          conn,
 		storageHandle: storageHandle,
 	}
 	bm.gcCtx, bm.stopGarbageCollecting = context.WithCancel(context.Background())

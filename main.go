@@ -29,7 +29,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
@@ -124,7 +123,6 @@ func mountWithArgs(
 	//
 	// Special case: if we're mounting the fake bucket, we don't need an actual
 	// connection.
-	var conn *gcsx.Connection
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
 		mountStatus.Println("Opening GCS connection...")
@@ -142,7 +140,6 @@ func mountWithArgs(
 		bucketName,
 		mountPoint,
 		flags,
-		conn,
 		storageHandle,
 		mountStatus)
 
