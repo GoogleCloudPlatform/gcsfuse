@@ -24,6 +24,7 @@
 // again with the "-oauthutil.auth_code" flag afterward.
 
 // Restrict this (slow) test to builds that specify the tag 'integration'.
+//go:build integration
 // +build integration
 
 package gcs_test
@@ -36,9 +37,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/gcstesting"
-	"github.com/jacobsa/gcloud/gcs/gcsutil"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcstesting"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"

@@ -21,13 +21,18 @@ import (
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
+const (
+	Scope_FullControl = storagev1.DevstorageFullControlScope
+	Scope_ReadOnly    = storagev1.DevstorageReadOnlyScope
+	Scope_ReadWrite   = storagev1.DevstorageReadWriteScope
+)
+
 // Object is a record representing a particular generation of a particular
 // object name in GCS.
 //
 // See here for more information about its fields:
 //
-//     https://cloud.google.com/storage/docs/json_api/v1/objects#resource
-//
+//	https://cloud.google.com/storage/docs/json_api/v1/objects#resource
 type Object struct {
 	Name            string
 	ContentType     string
@@ -37,7 +42,7 @@ type Object struct {
 	Size            uint64
 	ContentEncoding string
 	MD5             *[md5.Size]byte // Missing for composite objects
-	CRC32C          *uint32 //Missing for CMEK buckets
+	CRC32C          *uint32         //Missing for CMEK buckets
 	MediaLink       string
 	Metadata        map[string]string
 	Generation      int64
