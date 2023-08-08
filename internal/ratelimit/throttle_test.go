@@ -70,7 +70,7 @@ func processArrivals(
 	randSrc := rand.New(rand.NewSource(makeSeed()))
 
 	// Tick into a channel at a steady rate, buffering over delays caused by the
-	// token bucket.
+	// limiter.
 	arrivalPeriod := time.Duration((1.0 / arrivalRateHz) * float64(time.Second))
 	ticks := make(chan struct{}, 3*int(float64(d)/float64(arrivalPeriod)))
 
@@ -137,7 +137,7 @@ func (t *ThrottleTest) IntegrationTest() {
 	const perCaseDuration = 1 * time.Second
 
 	// Set up several test cases where we have N goroutines simulating arrival of
-	// packets at a given rate, asking a token bucket when to admit them.
+	// packets at a given rate, asking a limiter when to admit them.
 	testCases := []struct {
 		numActors     int
 		arrivalRateHz float64
