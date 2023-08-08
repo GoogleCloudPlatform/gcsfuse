@@ -27,7 +27,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/ratelimit"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	"github.com/jacobsa/reqtrace"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 )
@@ -150,12 +149,9 @@ func setUpRateLimiting(
 //
 // Special case: if the bucket name is canned.FakeBucketName, set up a fake
 // bucket as described in that package.
-func (bm *bucketManager) SetUpGcsBucket(ctx context.Context, name string) (b gcs.Bucket, err error) {
+func (bm *bucketManager) SetUpGcsBucket(name string) (b gcs.Bucket, err error) {
 	b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject)
 
-	if reqtrace.Enabled() {
-		b = gcs.GetWrappedWithReqtraceBucket(b)
-	}
 	if bm.config.DebugGCS {
 		b = gcs.NewDebugBucket(b, logger.NewDebug("gcs: "))
 	}
@@ -170,7 +166,7 @@ func (bm *bucketManager) SetUpBucket(
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		b, err = bm.SetUpGcsBucket(ctx, name)
+		b, err = bm.SetUpGcsBucket(name)
 		if err != nil {
 			err = fmt.Errorf("OpenBucket: %w", err)
 			return

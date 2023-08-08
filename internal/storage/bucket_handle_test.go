@@ -44,7 +44,7 @@ var ContentDisposition string = "ContentDisposition"
 func TestBucketHandle(t *testing.T) { RunTests(t) }
 
 type BucketHandleTest struct {
-	bucketHandle  *bucketHandle
+	bucketHandle  *BucketHandle
 	storageHandle StorageHandle
 	fakeStorage   FakeStorage
 }
