@@ -22,10 +22,10 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/jacobsa/fuse/fuseops"
-	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"

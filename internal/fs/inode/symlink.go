@@ -17,8 +17,8 @@ package inode
 import (
 	"sync"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/jacobsa/fuse/fuseops"
-	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
 

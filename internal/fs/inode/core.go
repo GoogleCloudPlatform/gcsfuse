@@ -17,8 +17,8 @@ package inode
 import (
 	"fmt"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
-	"github.com/jacobsa/gcloud/gcs"
 )
 
 type Type int

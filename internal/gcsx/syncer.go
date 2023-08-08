@@ -19,7 +19,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/jacobsa/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"golang.org/x/net/context"
 )
 
@@ -84,10 +84,10 @@ func (oc *fullObjectCreator) Create(
 	srcObject *gcs.Object,
 	mtime time.Time,
 	r io.Reader) (o *gcs.Object, err error) {
-	MetadataMap:= make(map[string]string)
+	MetadataMap := make(map[string]string)
 
 	/* Copy Metadata fields from existing object to retain them for new object. */
-	for key, value  := range srcObject.Metadata{
+	for key, value := range srcObject.Metadata {
 		MetadataMap[key] = value
 	}
 
@@ -133,10 +133,10 @@ type objectCreator interface {
 // Create a syncer that stats the mutable content to see if it's dirty before
 // calling through to one of two object creators if the content is dirty:
 //
-// *   fullCreator accepts the source object and the full contents with which it
+//   - fullCreator accepts the source object and the full contents with which it
 //     should be overwritten.
 //
-// *   appendCreator accepts the source object and the contents that should be
+//   - appendCreator accepts the source object and the contents that should be
 //     "appended" to it.
 //
 // appendThreshold controls the source object length at which we consider it
