@@ -27,19 +27,6 @@ type Connection struct {
 	wrapped gcs.Conn
 }
 
-func NewConnection(cfg *gcs.ConnConfig) (c *Connection, err error) {
-	wrapped, err := gcs.NewConn(cfg)
-	if err != nil {
-		err = fmt.Errorf("Cannot create Conn: %w", err)
-		return
-	}
-
-	c = &Connection{
-		wrapped: wrapped,
-	}
-	return
-}
-
 func (c *Connection) OpenBucket(
 	ctx context.Context,
 	options *gcs.OpenBucketOptions) (b gcs.Bucket, err error) {
