@@ -15,9 +15,8 @@
 // It is performing integration tests for throttle.go
 // Set up several test cases where we have N goroutines simulating the arrival of
 // packets at a given rate, asking a limiter when to admit them.
-// limiter can accept the capacity size packets. After that, it will wait until
-// limiter get space to receive the new packet.
-
+// limiter can accept  number of packets equivalent to capacity. After that,
+// it will wait until limiter get space to receive the new packet.
 package ratelimit_test
 
 import (
