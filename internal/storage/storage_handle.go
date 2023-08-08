@@ -58,7 +58,6 @@ type StorageClientConfig struct {
 // storageClientConfig parameter.
 func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh StorageHandle, err error) {
 	var transport *http.Transport
-
 	// Using http1 makes the client more performant.
 	if clientConfig.ClientProtocol == mountpkg.HTTP1 {
 		transport = &http.Transport{
