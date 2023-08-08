@@ -30,19 +30,6 @@ type CancellableRoundTripper interface {
 	CancelRequest(*http.Request)
 }
 
-// Wrap the supplied round tripper in a layer that dumps information about HTTP
-// requests. unmodified.
-func DebuggingRoundTripper(
-	in CancellableRoundTripper,
-	logger *log.Logger) (out CancellableRoundTripper) {
-	out = &debuggingRoundTripper{
-		wrapped: in,
-		logger:  logger,
-	}
-
-	return
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
