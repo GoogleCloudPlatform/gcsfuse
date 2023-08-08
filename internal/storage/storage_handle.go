@@ -92,7 +92,7 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 		UserAgent: clientConfig.UserAgent,
 	}
 	var sc *storage.Client
-	sc, err = storage.NewClient(ctx, option.WithHTTPClient(httpClient))
+	sc, err = storage.NewClient(ctx, option.WithHTTPClient(httpClient), storage.WithJSONReads())
 	if err != nil {
 		err = fmt.Errorf("go storage client creation failed: %w", err)
 		return
