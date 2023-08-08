@@ -7,9 +7,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	. "github.com/jacobsa/ogletest"
-	"github.com/jacobsa/timeutil"
 )
 
 func TestBucketManager(t *testing.T) { RunTests(t) }
@@ -58,7 +56,7 @@ func (t *BucketManagerTest) TestNewBucketManagerMethod() {
 		TmpObjectPrefix:                    "TmpObjectPrefix",
 	}
 
-	bm := NewBucketManager(bucketConfig, nil, t.storageHandle)
+	bm := NewBucketManager(bucketConfig, t.storageHandle)
 
 	ExpectNe(nil, bm)
 }
@@ -81,9 +79,6 @@ func (t *BucketManagerTest) TestSetUpBucketMethod() {
 	bm.storageHandle = t.storageHandle
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
-	bm.conn = &Connection{
-		wrapped: gcsfake.NewConn(timeutil.RealClock()),
-	}
 
 	bucket, err := bm.SetUpBucket(context.Background(), TestBucketName)
 
@@ -109,9 +104,6 @@ func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist() {
 	bm.storageHandle = t.storageHandle
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
-	bm.conn = &Connection{
-		wrapped: gcsfake.NewConn(timeutil.RealClock()),
-	}
 
 	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName)
 

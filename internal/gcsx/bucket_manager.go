@@ -74,7 +74,6 @@ type BucketManager interface {
 
 type bucketManager struct {
 	config        BucketConfig
-	conn          *Connection
 	storageHandle storage.StorageHandle
 
 	// Garbage collector
@@ -82,10 +81,9 @@ type bucketManager struct {
 	stopGarbageCollecting func()
 }
 
-func NewBucketManager(config BucketConfig, conn *Connection, storageHandle storage.StorageHandle) BucketManager {
+func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
 	bm := &bucketManager{
 		config:        config,
-		conn:          conn,
 		storageHandle: storageHandle,
 	}
 	bm.gcCtx, bm.stopGarbageCollecting = context.WithCancel(context.Background())
@@ -150,7 +148,7 @@ func setUpRateLimiting(
 //
 // Special case: if the bucket name is canned.FakeBucketName, set up a fake
 // bucket as described in that package.
-func (bm *bucketManager) SetUpGcsBucket(ctx context.Context, name string) (b gcs.Bucket, err error) {
+func (bm *bucketManager) SetUpGcsBucket(name string) (b gcs.Bucket, err error) {
 	b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject)
 
 	if reqtrace.Enabled() {
@@ -170,7 +168,7 @@ func (bm *bucketManager) SetUpBucket(
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		b, err = bm.SetUpGcsBucket(ctx, name)
+		b, err = bm.SetUpGcsBucket(name)
 		if err != nil {
 			err = fmt.Errorf("OpenBucket: %w", err)
 			return
