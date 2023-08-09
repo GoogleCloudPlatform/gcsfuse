@@ -106,7 +106,7 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountWithArgs(
+func mountWithStorageHandle(
 	bucketName string,
 	mountPoint string,
 	flags *flagStorage,
@@ -125,10 +125,10 @@ func mountWithArgs(
 	// connection.
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
-		mountStatus.Println("Opening GCS connection...")
+		mountStatus.Println("Creating Storage handle...")
 		storageHandle, err = createStorageHandle(flags)
 		if err != nil {
-			err = fmt.Errorf("failed to open connection - getConnWithRetry: %w", err)
+			err = fmt.Errorf("Failed to create storageHandle: %w", err)
 			return
 		}
 	}
@@ -144,7 +144,7 @@ func mountWithArgs(
 		mountStatus)
 
 	if err != nil {
-		err = fmt.Errorf("mountWithConn: %w", err)
+		err = fmt.Errorf("Error in mounting filesystem: %w", err)
 		return
 	}
 
@@ -303,7 +303,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	var mfs *fuse.MountedFileSystem
 	{
 		mountStatus := logger.NewInfo("")
-		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountStatus)
+		mfs, err = mountWithStorageHandle(bucketName, mountPoint, flags, mountStatus)
 
 		if err == nil {
 			mountStatus.Println("File system has been successfully mounted.")
