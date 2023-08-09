@@ -18,11 +18,21 @@ package read_large_files
 import (
 	"log"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
+
+const OneMB = 1024 * 1024
+const FiveHundredMB = 500 * OneMB
+const FiveHundredMBFile = "fiveHundredMBFile.txt"
+const ChunkSize = 200 * OneMB
+const NumberOfRandomReadCalls = 200
+const MinReadableByteFromFile = 0
+const MaxReadableByteFromFile = 500 * OneMB
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
@@ -47,4 +57,12 @@ func TestMain(m *testing.M) {
 	setup.RemoveBinFileCopiedForTesting()
 
 	os.Exit(successCode)
+}
+
+func createFileOnDiskAndCopyToMntDir(fileInLocalDisk string, fileInMntDir string, fileSize int, t *testing.T) {
+	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk, strconv.Itoa(fileSize))
+	err := operations.CopyFile(fileInLocalDisk, fileInMntDir)
+	if err != nil {
+		t.Errorf("Error in copying file:%v", err)
+	}
 }

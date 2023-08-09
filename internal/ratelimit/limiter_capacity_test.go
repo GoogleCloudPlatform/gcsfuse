@@ -33,37 +33,47 @@ type LimiterCapacityTest struct {
 
 func init() { RegisterTestSuite(&LimiterCapacityTest{}) }
 
-func (t *LimiterCapacityTest) TestRateLessThanOrEqualToZero() {
+func rateLessThanOrEqualToZero(rate float64) {
+	_, err := ChooseLimiterCapacity(rate, 30)
+
+	expectedError := fmt.Errorf("Illegal rate: %f", rate)
+
+	AssertEq(expectedError.Error(), err.Error())
+}
+
+func (t *LimiterCapacityTest) TestRateLessThanZero() {
 	var negativeRateHz float64 = -1
+
+	rateLessThanOrEqualToZero(negativeRateHz)
+}
+
+func (t *LimiterCapacityTest) TestRateEqualToZero() {
 	var zeroRateHz float64 = 0
 
-	_, err := ChooseLimiterCapacity(negativeRateHz, 30)
+	rateLessThanOrEqualToZero(zeroRateHz)
+}
 
-	expectedError := fmt.Errorf("Illegal rate: %f", negativeRateHz)
-	AssertEq(expectedError.Error(), err.Error())
+func windowLessThanOrEqualToZero(window time.Duration) {
+	_, err := ChooseLimiterCapacity(1, window)
 
-	_, err = ChooseLimiterCapacity(zeroRateHz, 30)
+	expectedError := fmt.Errorf("Illegal window: %v", window)
 
-	expectedError = fmt.Errorf("Illegal rate: %f", zeroRateHz)
 	AssertEq(expectedError.Error(), err.Error())
 }
 
-func (t *LimiterCapacityTest) TestWindowLessThanEqualToZero() {
+func (t *LimiterCapacityTest) TestWindowLessThanZero() {
 	var negativeWindow time.Duration = -1
+
+	windowLessThanOrEqualToZero(negativeWindow)
+}
+
+func (t *LimiterCapacityTest) TestWindowEqualToZero() {
 	var zeroWindow time.Duration = 0
 
-	_, err := ChooseLimiterCapacity(1, negativeWindow)
-
-	expectedError := fmt.Errorf("Illegal window: %v", negativeWindow)
-	AssertEq(expectedError.Error(), err.Error())
-
-	_, err = ChooseLimiterCapacity(1, zeroWindow)
-
-	expectedError = fmt.Errorf("Illegal window: %v", zeroWindow)
-	AssertEq(expectedError.Error(), err.Error())
+	windowLessThanOrEqualToZero(zeroWindow)
 }
 
-func (t *LimiterCapacityTest) TestCapacityLessThanOrEqualToZero() {
+func (t *LimiterCapacityTest) TestCapacityEqualToZero() {
 	var rate = 0.5
 	var window time.Duration = 1
 
