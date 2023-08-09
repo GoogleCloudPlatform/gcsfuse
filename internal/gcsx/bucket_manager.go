@@ -20,17 +20,16 @@ import (
 	"path"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	"github.com/jacobsa/reqtrace"
-	"golang.org/x/net/context"
-
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
+	"github.com/googlecloudplatform/gcsfuse/internal/ratelimit"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcscaching"
-	"github.com/jacobsa/ratelimit"
+	"github.com/jacobsa/reqtrace"
 	"github.com/jacobsa/timeutil"
+	"golang.org/x/net/context"
 )
 
 type BucketConfig struct {
@@ -117,7 +116,7 @@ func setUpRateLimiting(
 	// window of the given size.
 	const window = 8 * time.Hour
 
-	opCapacity, err := ratelimit.ChooseTokenBucketCapacity(
+	opCapacity, err := ratelimit.ChooseLimiterCapacity(
 		opRateLimitHz,
 		window)
 
@@ -126,7 +125,7 @@ func setUpRateLimiting(
 		return
 	}
 
-	egressCapacity, err := ratelimit.ChooseTokenBucketCapacity(
+	egressCapacity, err := ratelimit.ChooseLimiterCapacity(
 		egressBandwidthLimit,
 		window)
 
