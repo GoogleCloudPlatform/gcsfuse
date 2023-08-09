@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jacobsa/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -209,10 +209,10 @@ func (t *AppendObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 	t.srcObject.ContentDisposition = "inline"
 	t.srcObject.ContentEncoding = "gzip"
 	t.srcObject.ContentType = "text/plain"
-	t.srcObject.CustomTime  = "2022-04-02T00:30:00Z"
+	t.srcObject.CustomTime = "2022-04-02T00:30:00Z"
 	t.srcObject.EventBasedHold = true
 	t.srcObject.StorageClass = "STANDARD"
-	t.srcObject.Metadata = map[string]string {
+	t.srcObject.Metadata = map[string]string{
 		"test_key": "test_value",
 	}
 	t.mtime = time.Now().Add(123 * time.Second).UTC()
