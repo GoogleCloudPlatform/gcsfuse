@@ -386,7 +386,6 @@ type flagStorage struct {
 	DebugFuse       bool
 	DebugFS         bool
 	DebugGCS        bool
-	DebugHTTP       bool
 	DebugInvariants bool
 	DebugMutex      bool
 }

@@ -29,6 +29,7 @@ import (
 )
 
 const gcsFuseParentProcessDir = "/var/generic/google"
+const EndPoint = "https://storage.googleapis.com:443"
 
 func TestFlags(t *testing.T) { RunTests(t) }
 
@@ -80,6 +81,7 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq(-1, f.EgressBandwidthLimitBytesPerSecond)
 	ExpectEq(-1, f.OpRateLimitHz)
 	ExpectTrue(f.ReuseTokenFromUrl)
+	ExpectEq(EndPoint, f.Endpoint.String())
 
 	// Tuning
 	ExpectEq(4096, f.StatCacheCapacity)
