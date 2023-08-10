@@ -182,7 +182,11 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 	}
 
 	// Add tokenSrc and clientOptions based on provided Endpoint flag.
-	handleCustomEndpoint(flags, &storageClientConfig)
+	err = handleCustomEndpoint(flags, &storageClientConfig)
+	if err != nil {
+		err = fmt.Errorf("error while handling custom endpoint: %w", err)
+		return
+	}
 
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
 	return
