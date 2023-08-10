@@ -297,6 +297,11 @@ func newApp() (app *cli.App) {
 				Usage: "The format of the log file: 'text' or 'json'.",
 			},
 
+			cli.BoolFlag{
+				Name:  "experimental-json-read",
+				Usage: "By default read flow uses xml media, this flag will enable the json path for read operation.",
+			},
+
 			/////////////////////////
 			// Debugging
 			/////////////////////////
@@ -396,6 +401,7 @@ type flagStorage struct {
 	OtelCollectorAddress      string
 	LogFile                   string
 	LogFormat                 string
+	ExperimentalJsonRead      bool
 	DebugFuseErrors           bool
 
 	// Debugging
@@ -530,6 +536,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		OtelCollectorAddress:      c.String("experimental-opentelemetry-collector-address"),
 		LogFile:                   c.String("log-file"),
 		LogFormat:                 c.String("log-format"),
+		ExperimentalJsonRead:      c.Bool("experimental-json-read"),
 
 		// Debugging,
 		DebugFuseErrors: c.BoolT("debug_fuse_errors"),
