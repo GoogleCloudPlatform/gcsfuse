@@ -25,6 +25,9 @@ import (
 	"google.golang.org/api/option"
 )
 
+const ProdEndpoint = "https://storage.googleapis.com:443"
+const CustomEndpoint = "https://localhost:9000"
+
 type StorageHandle interface {
 	// In case of non-empty billingProject, this project is set as user-project for
 	// all subsequent calls on the bucket. Calls with user-project will be billed

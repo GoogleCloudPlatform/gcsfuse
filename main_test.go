@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -25,7 +26,7 @@ type MainTest struct {
 func init() { RegisterTestSuite(&MainTest{}) }
 
 func (t *MainTest) TestIsGCSProdHostnameWithProdHostName() {
-	url, err := url.Parse("https://storage.googleapis.com:443")
+	url, err := url.Parse(storage.ProdEndpoint)
 	AssertEq(nil, err)
 
 	res := isProdEndpoint(url)
@@ -34,12 +35,45 @@ func (t *MainTest) TestIsGCSProdHostnameWithProdHostName() {
 }
 
 func (t *MainTest) TestIsGCSProdHostnameWithCustomName() {
-	url, err := url.Parse("https://localhost:443")
+	url, err := url.Parse(storage.CustomEndpoint)
 	AssertEq(nil, err)
 
 	res := isProdEndpoint(url)
 
 	ExpectFalse(res)
+}
+
+func (t *MainTest) TestCreateTokenSrcWithCustomEndpoint() {
+	url, err := url.Parse(storage.CustomEndpoint)
+	AssertEq(nil, err)
+
+	fs := flagStorage{
+		KeyFile:           DummyKeyFile,
+		ClientProtocol:    mountpkg.HTTP1,
+		HttpClientTimeout: 20,
+		Endpoint:          url,
+	}
+
+	tokenSrc, err := createTokenSource(&fs)
+
+	ExpectEq(nil, err)
+	ExpectNe(nil, &tokenSrc)
+}
+
+func (t *MainTest) TestCreateTokenSrcWithProdEndpoint() {
+	url, err := url.Parse(storage.ProdEndpoint)
+	AssertEq(nil, err)
+	fs := flagStorage{
+		KeyFile:           DummyKeyFile,
+		ClientProtocol:    mountpkg.HTTP1,
+		HttpClientTimeout: 20,
+		Endpoint:          url,
+	}
+
+	tokenSrc, err := createTokenSource(&fs)
+
+	ExpectEq(nil, err)
+	ExpectNe(nil, &tokenSrc)
 }
 
 func (t *MainTest) TestIsGCSProdHostnameWithNoEndpoint() {
@@ -51,7 +85,7 @@ func (t *MainTest) TestIsGCSProdHostnameWithNoEndpoint() {
 	ExpectTrue(res)
 }
 
-func (t *MainTest) TestCreateHttpClientWithHttp1() {
+func (t *MainTest) TestCreateHttpClientObjWithHttp1() {
 	fs := flagStorage{
 		KeyFile:           DummyKeyFile,
 		ClientProtocol:    mountpkg.HTTP1,
@@ -67,7 +101,7 @@ func (t *MainTest) TestCreateHttpClientWithHttp1() {
 	ExpectEq(20, httpClient.Timeout)
 }
 
-func (t *MainTest) TestCreateHttpClientWithHttp2() {
+func (t *MainTest) TestCreateHttpClientObjWithHttp2() {
 	fs := flagStorage{
 		KeyFile:           DummyKeyFile,
 		ClientProtocol:    mountpkg.HTTP2,

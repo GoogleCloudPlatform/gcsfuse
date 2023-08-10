@@ -28,9 +28,6 @@ import (
 const invalidBucketName string = "will-not-be-present-in-fake-server"
 const projectID string = "valid-project-id"
 
-const ProdEndpoint = "https://storage.googleapis.com:443"
-const CustomEndpoint = "https://localhost:9000"
-
 func getDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 	return StorageClientConfig{
 		MaxRetryDuration: 30 * time.Second,
