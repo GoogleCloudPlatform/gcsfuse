@@ -8,9 +8,10 @@ import (
 	"testing"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	. "github.com/jacobsa/ogletest"
 )
+
+const DummyKeyFile = "testdata/test_creds.json"
 
 func Test_Main(t *testing.T) { RunTests(t) }
 
@@ -23,62 +24,63 @@ type MainTest struct {
 
 func init() { RegisterTestSuite(&MainTest{}) }
 
-func (t *MainTest) TestHandleCustomEndpointWithProdGCSEndpoint() {
+func (t *MainTest) TestIsGCSProdHostnameWithProdHostName() {
 	url, err := url.Parse("https://storage.googleapis.com:443")
 	AssertEq(nil, err)
-	fs := flagStorage{
-		KeyFile:  "testdata/test_creds.json",
-		Endpoint: url,
-	}
-	storageClientConfig := storage.StorageClientConfig{
-		ClientProtocol:      mountpkg.HTTP1,
-		MaxConnsPerHost:     10,
-		MaxIdleConnsPerHost: 100,
-	}
 
-	err = handleCustomEndpoint(&fs, &storageClientConfig)
-	AssertEq(nil, err)
+	res := isProdEndpoint(url)
 
-	ExpectNe(nil, &storageClientConfig.TokenSrc)
-	ExpectEq(0, len(storageClientConfig.ClientOptions))
+	ExpectTrue(res)
 }
 
-func (t *MainTest) TestHandleCustomEndpointWithNonProdGCSEndpoint() {
-	url, err := url.Parse("http://localhost:443")
-	AssertEq(nil, err)
-	fs := flagStorage{
-		KeyFile:  "testdata/test_creds.json",
-		Endpoint: url,
-	}
-	storageClientConfig := storage.StorageClientConfig{
-		ClientProtocol:      mountpkg.HTTP1,
-		MaxConnsPerHost:     10,
-		MaxIdleConnsPerHost: 100,
-	}
-
-	err = handleCustomEndpoint(&fs, &storageClientConfig)
+func (t *MainTest) TestIsGCSProdHostnameWithCustomName() {
+	url, err := url.Parse("https://localhost:443")
 	AssertEq(nil, err)
 
-	ExpectNe(nil, &storageClientConfig.TokenSrc)
-	ExpectEq(1, len(storageClientConfig.ClientOptions))
+	res := isProdEndpoint(url)
+
+	ExpectFalse(res)
 }
 
-func (t *MainTest) TestHandleCustomEndpointWithNoEndpoint() {
+func (t *MainTest) TestIsGCSProdHostnameWithNoEndpoint() {
+	// if no url provided, it automatically start using prod GCS endpoint.
+	var url *url.URL
+
+	res := isProdEndpoint(url)
+
+	ExpectTrue(res)
+}
+
+func (t *MainTest) TestCreateHttpClientWithHttp1() {
 	fs := flagStorage{
-		KeyFile:  "testdata/test_creds.json",
-		Endpoint: nil,
-	}
-	storageClientConfig := storage.StorageClientConfig{
-		ClientProtocol:      mountpkg.HTTP1,
-		MaxConnsPerHost:     10,
-		MaxIdleConnsPerHost: 100,
+		KeyFile:           DummyKeyFile,
+		ClientProtocol:    mountpkg.HTTP1,
+		HttpClientTimeout: 20,
 	}
 
-	err := handleCustomEndpoint(&fs, &storageClientConfig)
-	AssertEq(nil, err)
+	// Act: this method add tokenSource and clientOptions.
+	httpClient, err := createHttpClientObj(&fs)
 
-	ExpectNe(nil, &storageClientConfig.TokenSrc)
-	ExpectEq(0, len(storageClientConfig.ClientOptions))
+	ExpectEq(nil, err)
+	ExpectNe(nil, httpClient)
+	ExpectNe(nil, httpClient.Transport)
+	ExpectEq(20, httpClient.Timeout)
+}
+
+func (t *MainTest) TestCreateHttpClientWithHttp2() {
+	fs := flagStorage{
+		KeyFile:           DummyKeyFile,
+		ClientProtocol:    mountpkg.HTTP2,
+		HttpClientTimeout: 20,
+	}
+
+	// Act: this method add tokenSource and clientOptions.
+	httpClient, err := createHttpClientObj(&fs)
+
+	ExpectEq(nil, err)
+	ExpectNe(nil, httpClient)
+	ExpectNe(nil, httpClient.Transport)
+	ExpectEq(20, httpClient.Timeout)
 }
 
 func (t *MainTest) TestCreateStorageHandleEnableStorageClientLibraryIsTrue() {
