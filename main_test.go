@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -20,6 +22,43 @@ type MainTest struct {
 }
 
 func init() { RegisterTestSuite(&MainTest{}) }
+
+func (t *MainTest) TestHandleCustomEndpointWithProdGCSEndpoint() {
+	url, err := url.Parse("https://storage.googleapis.com:443")
+	AssertEq(nil, err)
+	fs := flagStorage{
+		KeyFile:  "testdata/test_creds.json",
+		Endpoint: url,
+	}
+	storageClientConfig := storage.StorageClientConfig{
+		ClientProtocol:      mountpkg.HTTP1,
+		MaxConnsPerHost:     10,
+		MaxIdleConnsPerHost: 100,
+	}
+
+	handleCustomEndpoint(&fs, &storageClientConfig)
+
+	ExpectNe(nil, &storageClientConfig.TokenSrc)
+}
+
+func (t *MainTest) TestHandleCustomEndpointWithNonProdGCSEndpoint() {
+	url, err := url.Parse("http://localhost:443")
+	AssertEq(nil, err)
+	fs := flagStorage{
+		KeyFile:  "testdata/test_creds.json",
+		Endpoint: url,
+	}
+	storageClientConfig := storage.StorageClientConfig{
+		ClientProtocol:      mountpkg.HTTP1,
+		MaxConnsPerHost:     10,
+		MaxIdleConnsPerHost: 100,
+	}
+
+	handleCustomEndpoint(&fs, &storageClientConfig)
+
+	ExpectNe(nil, &storageClientConfig.TokenSrc)
+	ExpectEq(1, len(storageClientConfig.ClientOptions))
+}
 
 func (t *MainTest) TestCreateStorageHandleEnableStorageClientLibraryIsTrue() {
 	storageHandle, err := createStorageHandle(&flagStorage{
