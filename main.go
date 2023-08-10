@@ -53,6 +53,9 @@ import (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+const JacobsaClient = "Jacobsa"
+const GoStorageClient = "GoStorage"
+
 func registerSIGINTHandler(mountPoint string) {
 	// Register for SIGINT.
 	signalChan := make(chan os.Signal, 1)
@@ -75,15 +78,15 @@ func registerSIGINTHandler(mountPoint string) {
 	}()
 }
 
-func getUserAgent(appName string) string {
+func getUserAgent(appName string, clientName string) string {
 	gcsfuseMetadataImageType := os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")
 	if len(gcsfuseMetadataImageType) > 0 {
-		userAgent := fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s)", getVersion(), appName, gcsfuseMetadataImageType)
+		userAgent := fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) client-%s", getVersion(), appName, gcsfuseMetadataImageType, clientName)
 		return strings.Join(strings.Fields(userAgent), " ")
 	} else if len(appName) > 0 {
-		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s)", getVersion(), appName)
+		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) client-%s", getVersion(), appName, clientName)
 	} else {
-		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse)", getVersion())
+		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) client-%s", getVersion(), clientName)
 	}
 }
 
@@ -109,7 +112,7 @@ func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 	cfg := &gcs.ConnConfig{
 		Url:             flags.Endpoint,
 		TokenSource:     tokenSrc,
-		UserAgent:       getUserAgent(flags.AppName),
+		UserAgent:       getUserAgent(flags.AppName, JacobsaClient),
 		MaxBackoffSleep: flags.MaxRetrySleep,
 	}
 
@@ -163,7 +166,7 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 		HttpClientTimeout:   flags.HttpClientTimeout,
 		MaxRetryDuration:    flags.MaxRetryDuration,
 		RetryMultiplier:     flags.RetryMultiplier,
-		UserAgent:           getUserAgent(flags.AppName),
+		UserAgent:           getUserAgent(flags.AppName, GoStorageClient),
 	}
 
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
