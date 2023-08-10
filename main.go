@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path"
@@ -48,6 +49,8 @@ import (
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 )
+
+const GcsProdHostName = "storage.googleapis.com"
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -148,43 +151,83 @@ func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 	return
 }
 
-func handleCustomEndpoint(flags *flagStorage, config *storage.StorageClientConfig) (err error) {
-	var tokenSrc oauth2.TokenSource
-	var opts []option.ClientOption
-	if flags.Endpoint == nil || flags.Endpoint.Hostname() == "storage.googleapis.com" {
-		tokenSrc, err = auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl, flags.ReuseTokenFromUrl)
-		if err != nil {
-			err = fmt.Errorf("GetTokenSource: %w", err)
-			return
+func createHttpClientObj(flags *flagStorage) (httpClient *http.Client, err error) {
+	var transport *http.Transport
+	// Using http1 makes the client more performant.
+	if flags.ClientProtocol == mountpkg.HTTP1 {
+		transport = &http.Transport{
+			MaxConnsPerHost:     flags.MaxConnsPerHost,
+			MaxIdleConnsPerHost: flags.MaxIdleConnsPerHost,
+			// This disables HTTP/2 in transport.
+			TLSNextProto: make(
+				map[string]func(string, *tls.Conn) http.RoundTripper,
+			),
 		}
 	} else {
-
-		// Do not use OAuth with non-Google hosts.
-		tokenSrc = oauth2.StaticTokenSource(&oauth2.Token{})
-		opts = append(opts, option.WithEndpoint(flags.Endpoint.String()))
+		// For http2, change in MaxConnsPerHost doesn't affect the performance.
+		transport = &http.Transport{
+			DisableKeepAlives: true,
+			MaxConnsPerHost:   flags.MaxConnsPerHost,
+			ForceAttemptHTTP2: true,
+		}
 	}
 
-	config.TokenSrc = tokenSrc
-	config.ClientOptions = opts
-	return
+	tokenSrc, err := createTokenSource(flags)
+	if err != nil {
+		err = fmt.Errorf("while fetching tokenSource: %w", err)
+		return
+	}
+
+	// Custom http client for Go Client.
+	httpClient = &http.Client{
+		Transport: &oauth2.Transport{
+			Base:   transport,
+			Source: tokenSrc,
+		},
+		Timeout: flags.HttpClientTimeout,
+	}
+
+	// Setting UserAgent through RoundTripper middleware
+	httpClient.Transport = &storage.UserAgentRoundTripper{
+		Wrapped:   httpClient.Transport,
+		UserAgent: getUserAgent(flags.AppName),
+	}
+
+	return httpClient, err
+}
+
+func isProdEndpoint(endpoint *url.URL) bool {
+	return (endpoint == nil) || (endpoint.Hostname() == GcsProdHostName)
+}
+
+func createTokenSource(flags *flagStorage) (tokenSrc oauth2.TokenSource, err error) {
+	if isProdEndpoint(flags.Endpoint) {
+		return auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl, flags.ReuseTokenFromUrl)
+	} else {
+		return oauth2.StaticTokenSource(&oauth2.Token{}), nil
+	}
 }
 
 func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storage.StorageClientConfig{
-		ClientProtocol:      flags.ClientProtocol,
-		MaxConnsPerHost:     flags.MaxConnsPerHost,
-		MaxIdleConnsPerHost: flags.MaxIdleConnsPerHost,
-		HttpClientTimeout:   flags.HttpClientTimeout,
-		MaxRetryDuration:    flags.MaxRetryDuration,
-		RetryMultiplier:     flags.RetryMultiplier,
-		UserAgent:           getUserAgent(flags.AppName),
+		MaxRetryDuration: flags.MaxRetryDuration,
+		RetryMultiplier:  flags.RetryMultiplier,
 	}
 
-	// Add tokenSrc and clientOptions based on provided Endpoint flag.
-	err = handleCustomEndpoint(flags, &storageClientConfig)
-	if err != nil {
-		err = fmt.Errorf("error while handling custom endpoint: %w", err)
-		return
+	// Add WithHttpClient option.
+	if flags.ClientProtocol == mountpkg.HTTP1 || flags.ClientProtocol == mountpkg.HTTP2 {
+		httpClient, clientErr := createHttpClientObj(flags)
+		if clientErr != nil {
+			err = fmt.Errorf("while creating http endpoint: %w", clientErr)
+			return
+		}
+
+		storageClientConfig.ClientOptions = append(storageClientConfig.ClientOptions, option.WithHTTPClient(httpClient))
+	}
+
+	// Handle custom endpoint.
+	if !isProdEndpoint(flags.Endpoint) {
+		storageClientConfig.ClientOptions = append(storageClientConfig.ClientOptions, option.WithEndpoint(flags.Endpoint.String()))
 	}
 
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
