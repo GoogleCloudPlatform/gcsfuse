@@ -36,7 +36,8 @@ func (t *MainTest) TestHandleCustomEndpointWithProdGCSEndpoint() {
 		MaxIdleConnsPerHost: 100,
 	}
 
-	handleCustomEndpoint(&fs, &storageClientConfig)
+	err = handleCustomEndpoint(&fs, &storageClientConfig)
+	AssertEq(nil, err)
 
 	ExpectNe(nil, &storageClientConfig.TokenSrc)
 }
@@ -54,7 +55,8 @@ func (t *MainTest) TestHandleCustomEndpointWithNonProdGCSEndpoint() {
 		MaxIdleConnsPerHost: 100,
 	}
 
-	handleCustomEndpoint(&fs, &storageClientConfig)
+	err = handleCustomEndpoint(&fs, &storageClientConfig)
+	AssertEq(nil, err)
 
 	ExpectNe(nil, &storageClientConfig.TokenSrc)
 	ExpectEq(1, len(storageClientConfig.ClientOptions))
