@@ -18,6 +18,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -51,6 +52,8 @@ type StorageClientConfig struct {
 	MaxRetryDuration    time.Duration
 	RetryMultiplier     float64
 	UserAgent           string
+	Endpoint            *url.URL
+	ClientOptions       []option.ClientOption
 }
 
 // NewStorageHandle returns the handle of Go storage client containing
@@ -91,8 +94,10 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 		wrapped:   httpClient.Transport,
 		UserAgent: clientConfig.UserAgent,
 	}
+
+	clientOpts := append(clientConfig.ClientOptions, option.WithHTTPClient(httpClient))
 	var sc *storage.Client
-	sc, err = storage.NewClient(ctx, option.WithHTTPClient(httpClient))
+	sc, err = storage.NewClient(ctx, clientOpts...)
 	if err != nil {
 		err = fmt.Errorf("go storage client creation failed: %w", err)
 		return

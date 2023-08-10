@@ -30,10 +30,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	"golang.org/x/net/context"
-	"golang.org/x/oauth2"
-
 	"github.com/googlecloudplatform/gcsfuse/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
@@ -42,11 +38,15 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/perf"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/kardianos/osext"
 	"github.com/urfave/cli"
+	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
+	"google.golang.org/api/option"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -148,23 +148,41 @@ func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 	return
 }
 
-func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
-	tokenSrc, err := auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl, true)
-	if err != nil {
-		err = fmt.Errorf("get token source: %w", err)
-		return
+func handleCustomEndpoint(flags *flagStorage, config *storage.StorageClientConfig) (err error) {
+	var tokenSrc oauth2.TokenSource
+	var opts []option.ClientOption
+	if flags.Endpoint == nil || flags.Endpoint.Hostname() == "storage.googleapis.com" {
+		tokenSrc, err = auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl, flags.ReuseTokenFromUrl)
+		if err != nil {
+			err = fmt.Errorf("GetTokenSource: %w", err)
+			return
+		}
+	} else {
+
+		// Do not use OAuth with non-Google hosts.
+		tokenSrc = oauth2.StaticTokenSource(&oauth2.Token{})
+		opts = append(opts, option.WithEndpoint(flags.Endpoint.String()))
 	}
 
+	config.TokenSrc = tokenSrc
+	config.ClientOptions = opts
+	return
+}
+
+func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storage.StorageClientConfig{
 		ClientProtocol:      flags.ClientProtocol,
 		MaxConnsPerHost:     flags.MaxConnsPerHost,
 		MaxIdleConnsPerHost: flags.MaxIdleConnsPerHost,
-		TokenSrc:            tokenSrc,
 		HttpClientTimeout:   flags.HttpClientTimeout,
 		MaxRetryDuration:    flags.MaxRetryDuration,
 		RetryMultiplier:     flags.RetryMultiplier,
 		UserAgent:           getUserAgent(flags.AppName),
+		Endpoint:            flags.Endpoint,
 	}
+
+	// Add tokenSrc and clientOptions based on provided Endpoint flag.
+	handleCustomEndpoint(flags, &storageClientConfig)
 
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
 	return
