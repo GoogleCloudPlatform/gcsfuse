@@ -98,7 +98,6 @@ func (t *FlagsTest) Defaults() {
 	// Debugging
 	ExpectFalse(f.DebugFuse)
 	ExpectFalse(f.DebugGCS)
-	ExpectFalse(f.DebugHTTP)
 	ExpectFalse(f.DebugInvariants)
 }
 
