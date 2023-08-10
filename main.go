@@ -81,12 +81,12 @@ func registerSIGINTHandler(mountPoint string) {
 func getUserAgent(appName string, clientName string) string {
 	gcsfuseMetadataImageType := os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")
 	if len(gcsfuseMetadataImageType) > 0 {
-		userAgent := fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) client-%s", getVersion(), appName, gcsfuseMetadataImageType, clientName)
+		userAgent := fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) client:%s", getVersion(), appName, gcsfuseMetadataImageType, clientName)
 		return strings.Join(strings.Fields(userAgent), " ")
 	} else if len(appName) > 0 {
-		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) client-%s", getVersion(), appName, clientName)
+		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) client:%s", getVersion(), appName, clientName)
 	} else {
-		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) client-%s", getVersion(), clientName)
+		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) client:%s", getVersion(), clientName)
 	}
 }
 
