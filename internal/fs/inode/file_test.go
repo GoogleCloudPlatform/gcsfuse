@@ -516,9 +516,11 @@ func (t *FileTest) TruncateUpwardThenSync() {
 func (t *FileTest) TestTruncateUpwardForLocalFileShouldUpdateLocalFileAttributes() {
 	var err error
 	var attrs fuseops.InodeAttributes
+	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	err = t.in.CreateEmptyTempFile()
 	AssertEq(nil, err)
+	// Fetch the attributes and check if the file is empty.
 	attrs, err = t.in.Attributes(t.ctx)
 	AssertEq(nil, err)
 	AssertEq(0, attrs.Size)
@@ -534,14 +536,17 @@ func (t *FileTest) TestTruncateUpwardForLocalFileShouldUpdateLocalFileAttributes
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	_, err = t.bucket.StatObject(t.ctx, statReq)
 	AssertNe(nil, err)
+	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
 }
 
 func (t *FileTest) TestTruncateDownwardForLocalFileShouldUpdateLocalFileAttributes() {
 	var err error
 	var attrs fuseops.InodeAttributes
+	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	err = t.in.CreateEmptyTempFile()
 	AssertEq(nil, err)
+	// Write some data to the local file.
 	err = t.in.Write(t.ctx, []byte("burrito"), 0)
 	AssertEq(nil, err)
 	// Validate the new data is written correctly.
@@ -560,6 +565,7 @@ func (t *FileTest) TestTruncateDownwardForLocalFileShouldUpdateLocalFileAttribut
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	_, err = t.bucket.StatObject(t.ctx, statReq)
 	AssertNe(nil, err)
+	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
 }
 
 func (t *FileTest) Sync_Clobbered() {
@@ -741,6 +747,7 @@ func (t *FileTest) SetMtime_SourceObjectMetaGenerationChanged() {
 func (t *FileTest) TestSetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
 	var err error
 	var attrs fuseops.InodeAttributes
+	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	err = t.in.CreateEmptyTempFile()
 	AssertEq(nil, err)
@@ -760,6 +767,7 @@ func (t *FileTest) TestSetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	_, err = t.bucket.StatObject(t.ctx, statReq)
 	AssertNe(nil, err)
+	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
 }
 
 func (t *FileTest) TestCheckInvariantsShouldNotThrowExceptionForLocalFiles() {

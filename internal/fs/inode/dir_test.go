@@ -67,7 +67,7 @@ func (t *DirTest) SetUp(ti *TestInfo) {
 		1, // Append threshold
 		".gcsfuse_tmp/",
 		bucket)
-	// Create the  No implicit dirs by default.
+	// Create the inode. No implicit dirs by default.
 	t.resetInode(false, false)
 }
 
