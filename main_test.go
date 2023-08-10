@@ -81,6 +81,7 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarAndAppNameAndClien
 
 	ExpectEq(expectedUserAgent, userAgent)
 }
+
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarSetAndAppNameNotSet() {
 	os.Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
 	defer os.Unsetenv("GCSFUSE_METADATA_IMAGE_TYPE")
