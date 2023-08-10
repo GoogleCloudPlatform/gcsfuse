@@ -178,7 +178,6 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 		MaxRetryDuration:    flags.MaxRetryDuration,
 		RetryMultiplier:     flags.RetryMultiplier,
 		UserAgent:           getUserAgent(flags.AppName),
-		Endpoint:            flags.Endpoint,
 	}
 
 	// Add tokenSrc and clientOptions based on provided Endpoint flag.

@@ -40,6 +40,7 @@ func (t *MainTest) TestHandleCustomEndpointWithProdGCSEndpoint() {
 	AssertEq(nil, err)
 
 	ExpectNe(nil, &storageClientConfig.TokenSrc)
+	ExpectEq(0, len(storageClientConfig.ClientOptions))
 }
 
 func (t *MainTest) TestHandleCustomEndpointWithNonProdGCSEndpoint() {
@@ -60,6 +61,24 @@ func (t *MainTest) TestHandleCustomEndpointWithNonProdGCSEndpoint() {
 
 	ExpectNe(nil, &storageClientConfig.TokenSrc)
 	ExpectEq(1, len(storageClientConfig.ClientOptions))
+}
+
+func (t *MainTest) TestHandleCustomEndpointWithNoEndpoint() {
+	fs := flagStorage{
+		KeyFile:  "testdata/test_creds.json",
+		Endpoint: nil,
+	}
+	storageClientConfig := storage.StorageClientConfig{
+		ClientProtocol:      mountpkg.HTTP1,
+		MaxConnsPerHost:     10,
+		MaxIdleConnsPerHost: 100,
+	}
+
+	err := handleCustomEndpoint(&fs, &storageClientConfig)
+	AssertEq(nil, err)
+
+	ExpectNe(nil, &storageClientConfig.TokenSrc)
+	ExpectEq(0, len(storageClientConfig.ClientOptions))
 }
 
 func (t *MainTest) TestCreateStorageHandleEnableStorageClientLibraryIsTrue() {

@@ -18,7 +18,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -52,7 +51,6 @@ type StorageClientConfig struct {
 	MaxRetryDuration    time.Duration
 	RetryMultiplier     float64
 	UserAgent           string
-	Endpoint            *url.URL
 	ClientOptions       []option.ClientOption
 }
 
