@@ -98,6 +98,7 @@ func (t *FlagsTest) Defaults() {
 	// Debugging
 	ExpectFalse(f.DebugFuse)
 	ExpectFalse(f.DebugGCS)
+	ExpectFalse(f.DebugHTTP)
 	ExpectFalse(f.DebugInvariants)
 }
 
@@ -107,6 +108,7 @@ func (t *FlagsTest) Bools() {
 		"reuse-token-from-url",
 		"debug_fuse_errors",
 		"debug_fuse",
+		"debug_http",
 		"debug_gcs",
 		"debug_invariants",
 		"enable-nonexistent-type-cache",
@@ -127,6 +129,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugFuseErrors)
 	ExpectTrue(f.DebugFuse)
 	ExpectTrue(f.DebugGCS)
+	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
 	ExpectTrue(f.EnableNonexistentTypeCache)
 
@@ -142,6 +145,7 @@ func (t *FlagsTest) Bools() {
 	ExpectFalse(f.DebugFuseErrors)
 	ExpectFalse(f.DebugFuse)
 	ExpectFalse(f.DebugGCS)
+	ExpectFalse(f.DebugHTTP)
 	ExpectFalse(f.DebugInvariants)
 	ExpectFalse(f.EnableNonexistentTypeCache)
 
@@ -157,6 +161,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugFuseErrors)
 	ExpectTrue(f.DebugFuse)
 	ExpectTrue(f.DebugGCS)
+	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
 	ExpectTrue(f.EnableNonexistentTypeCache)
 }

@@ -322,6 +322,11 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.BoolFlag{
+				Name:  "debug_http",
+				Usage: "This flag is currently unused.",
+			},
+
+			cli.BoolFlag{
 				Name:  "debug_invariants",
 				Usage: "Panic when internal invariants are violated.",
 			},
@@ -386,6 +391,7 @@ type flagStorage struct {
 	DebugFuse       bool
 	DebugFS         bool
 	DebugGCS        bool
+	DebugHTTP       bool
 	DebugInvariants bool
 	DebugMutex      bool
 }
@@ -515,6 +521,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		DebugFuseErrors: c.BoolT("debug_fuse_errors"),
 		DebugFuse:       c.Bool("debug_fuse"),
 		DebugGCS:        c.Bool("debug_gcs"),
+		DebugHTTP:       c.Bool("debug_http"),
 		DebugFS:         c.Bool("debug_fs"),
 		DebugInvariants: c.Bool("debug_invariants"),
 		DebugMutex:      c.Bool("debug_mutex"),
