@@ -61,6 +61,17 @@ func (t *BucketManagerTest) TestNewBucketManagerMethod() {
 	ExpectNe(nil, bm)
 }
 
+func (t *BucketManagerTest) TestSetupGcsBucket() {
+	var bm bucketManager
+	bm.storageHandle = t.storageHandle
+	bm.config.DebugGCS = true
+
+	bucket, err := bm.SetUpGcsBucket(TestBucketName)
+
+	ExpectNe(nil, bucket)
+	ExpectEq(nil, err)
+}
+
 func (t *BucketManagerTest) TestSetUpBucketMethod() {
 	var bm bucketManager
 	bucketConfig := BucketConfig{

@@ -29,6 +29,7 @@ import (
 )
 
 const gcsFuseParentProcessDir = "/var/generic/google"
+const EndPoint = "https://storage.googleapis.com:443"
 
 func TestFlags(t *testing.T) { RunTests(t) }
 
@@ -80,7 +81,7 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq(-1, f.EgressBandwidthLimitBytesPerSecond)
 	ExpectEq(-1, f.OpRateLimitHz)
 	ExpectTrue(f.ReuseTokenFromUrl)
-	ExpectEq("https://storage.googleapis.com:443", f.Endpoint.String())
+	ExpectEq(EndPoint, f.Endpoint.String())
 
 	// Tuning
 	ExpectEq(4096, f.StatCacheCapacity)
@@ -107,8 +108,8 @@ func (t *FlagsTest) Bools() {
 		"reuse-token-from-url",
 		"debug_fuse_errors",
 		"debug_fuse",
-		"debug_gcs",
 		"debug_http",
+		"debug_gcs",
 		"debug_invariants",
 		"enable-nonexistent-type-cache",
 	}

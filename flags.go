@@ -322,9 +322,8 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.BoolFlag{
-				Name: "debug_http",
-				Usage: "Dump HTTP requests and responses to/from GCS, " +
-					"doesn't work when enable-storage-client-library flag is true.",
+				Name:  "debug_http",
+				Usage: "This flag is currently unused.",
 			},
 
 			cli.BoolFlag{
@@ -522,8 +521,8 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		DebugFuseErrors: c.BoolT("debug_fuse_errors"),
 		DebugFuse:       c.Bool("debug_fuse"),
 		DebugGCS:        c.Bool("debug_gcs"),
-		DebugFS:         c.Bool("debug_fs"),
 		DebugHTTP:       c.Bool("debug_http"),
+		DebugFS:         c.Bool("debug_fs"),
 		DebugInvariants: c.Bool("debug_invariants"),
 		DebugMutex:      c.Bool("debug_mutex"),
 	}
