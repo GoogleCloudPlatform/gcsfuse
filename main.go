@@ -53,8 +53,8 @@ import (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-const JacobsaClient = "Jacobsa"
-const GoStorageClient = "GoStorage"
+const JacobsaClient = "jacobsa"
+const GoStorageClient = "go-storage"
 
 func registerSIGINTHandler(mountPoint string) {
 	// Register for SIGINT.
