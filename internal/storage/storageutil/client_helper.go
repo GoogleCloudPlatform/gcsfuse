@@ -30,6 +30,8 @@ type StorageClientConfig struct {
 	ReuseTokenFromUrl   bool
 }
 
+// GetDefaultStorageClientConfig is only for test, making the default endpoint
+// non-nil, so that we can create dummy tokenSource while unit test.
 func GetDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 	return StorageClientConfig{
 		ClientProtocol:      mountpkg.HTTP1,
@@ -39,7 +41,7 @@ func GetDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 		MaxRetryDuration:    30 * time.Second,
 		RetryMultiplier:     2,
 		UserAgent:           "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) (GCP:gcsfuse)",
-		Endpoint:            nil,
+		Endpoint:            &url.URL{},
 		KeyFile:             DummyKeyFile,
 		TokenUrl:            "",
 		ReuseTokenFromUrl:   true,
