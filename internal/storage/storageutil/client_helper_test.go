@@ -28,15 +28,6 @@ type clientHelperTest struct {
 
 func init() { RegisterTestSuite(&clientHelperTest{}) }
 
-func (t *clientHelperTest) TestIsGCSProdHostnameWithProdHostName() {
-	url, err := url.Parse(ProdEndpoint)
-	AssertEq(nil, err)
-
-	res := IsProdEndpoint(url)
-
-	ExpectTrue(res)
-}
-
 func (t *clientHelperTest) TestIsGCSProdHostnameWithCustomName() {
 	url, err := url.Parse(CustomEndpoint)
 	AssertEq(nil, err)
@@ -46,8 +37,8 @@ func (t *clientHelperTest) TestIsGCSProdHostnameWithCustomName() {
 	ExpectFalse(res)
 }
 
-func (t *clientHelperTest) TestIsGCSProdHostnameWithNoEndpoint() {
-	// if no url provided, it automatically start using prod GCS endpoint.
+func (t *clientHelperTest) TestIsGCSProdHostnameEndpoint() {
+	// GCSFuse assumes prod, if we specify endpoint as nil.
 	var url *url.URL
 
 	res := IsProdEndpoint(url)
@@ -69,10 +60,8 @@ func (t *clientHelperTest) TestCreateTokenSrcWithCustomEndpoint() {
 }
 
 func (t *clientHelperTest) TestCreateTokenSrcWithProdEndpoint() {
-	url, err := url.Parse(ProdEndpoint)
-	AssertEq(nil, err)
 	sc := GetDefaultStorageClientConfig()
-	sc.Endpoint = url
+	sc.Endpoint = nil
 
 	tokenSrc, err := createTokenSource(&sc)
 

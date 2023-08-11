@@ -134,10 +134,9 @@ func newApp() (app *cli.App) {
 			/////////////////////////
 
 			cli.StringFlag{
-				Name:  "endpoint",
-				Value: "https://storage.googleapis.com:443",
-				Usage: "The endpoint to connect to, you have to provide the complete endpoint till base url-path. " +
-					"E.g. http://127.0.0.1:9000/storage/v1/ not http://127.0.0.1:9000/",
+				Name: "endpoint",
+				Usage: "The endpoint to connect to - endpoint should be equivalent to the base endpoint " +
+					"for the GCS JSON API (https://storage.googleapis.com/storage/v1).",
 			},
 
 			cli.StringFlag{
