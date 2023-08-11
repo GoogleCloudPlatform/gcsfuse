@@ -106,7 +106,7 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountWithStorageHandle(
+func mountWithArg(
 	bucketName string,
 	mountPoint string,
 	flags *flagStorage,
@@ -303,7 +303,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	var mfs *fuse.MountedFileSystem
 	{
 		mountStatus := logger.NewInfo("")
-		mfs, err = mountWithStorageHandle(bucketName, mountPoint, flags, mountStatus)
+		mfs, err = mountWithArg(bucketName, mountPoint, flags, mountStatus)
 
 		if err == nil {
 			mountStatus.Println("File system has been successfully mounted.")
