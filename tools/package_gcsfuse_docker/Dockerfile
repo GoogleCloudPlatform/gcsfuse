@@ -42,7 +42,8 @@ RUN git checkout "${BRANCH_NAME}"
 # Install fpm package using bundle
 RUN bundle install --gemfile=${GCSFUSE_PATH}/tools/gem_dependency/Gemfile
 
-ARG GCSFUSE_BIN="/gcsfuse_${GCSFUSE_VERSION}_amd64"
+ARG ARCHITECTURE="amd64"
+ARG GCSFUSE_BIN="/gcsfuse_${GCSFUSE_VERSION}_${ARCHITECTURE}"
 ARG GCSFUSE_DOC="${GCSFUSE_BIN}/usr/share/doc/gcsfuse"
 WORKDIR ${GOPATH}
 RUN go install ${GCSFUSE_REPO}/tools/build_gcsfuse
