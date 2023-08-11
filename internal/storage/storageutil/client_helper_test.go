@@ -65,8 +65,9 @@ func (t *clientHelperTest) TestCreateTokenSrcWithProdEndpoint() {
 
 	tokenSrc, err := createTokenSource(&sc)
 
-	ExpectEq(nil, err)
-	ExpectNe(nil, &tokenSrc)
+	// This will fail with file not found error, since dummy file doesn't exist.
+	ExpectNe(nil, err)
+	ExpectEq(nil, tokenSrc)
 }
 
 func (t *clientHelperTest) TestCreateHttpClientObjWithHttp1() {
