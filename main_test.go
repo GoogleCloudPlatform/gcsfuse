@@ -23,6 +23,7 @@ func init() { RegisterTestSuite(&MainTest{}) }
 
 func (t *MainTest) TestCreateStorageHandleEnableStorageClientLibraryIsTrue() {
 	storageHandle, err := createStorageHandle(&flagStorage{
+		ClientProtocol:             mountpkg.HTTP1,
 		EnableStorageClientLibrary: true,
 		KeyFile:                    "testdata/test_creds.json",
 	})
