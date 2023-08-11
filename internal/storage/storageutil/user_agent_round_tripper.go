@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package storageutil
 
 import "net/http"
 
 // WithUserAgent returns a ClientOption that sets the User-Agent. This option is incompatible with the WithHTTPClient option.
 // As we are using http-client, we will need to add this header via RoundTripper middleware.
 // https://pkg.go.dev/google.golang.org/api/option#WithUserAgent
-type UserAgentRoundTripper struct {
-	Wrapped   http.RoundTripper
+type userAgentRoundTripper struct {
+	wrapped   http.RoundTripper
 	UserAgent string
 }
 
-func (ug *UserAgentRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+func (ug *userAgentRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	r.Header.Set("User-Agent", ug.UserAgent)
-	return ug.Wrapped.RoundTrip(r)
+	return ug.wrapped.RoundTrip(r)
 }

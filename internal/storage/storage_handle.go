@@ -16,17 +16,14 @@ package storage
 
 import (
 	"fmt"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googleapis/gax-go/v2"
+	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
-	"google.golang.org/api/option"
+	option "google.golang.org/api/option"
 )
-
-const ProdEndpoint = "https://storage.googleapis.com:443"
-const CustomEndpoint = "https://localhost:9000"
 
 type StorageHandle interface {
 	// In case of non-empty billingProject, this project is set as user-project for
@@ -41,18 +38,30 @@ type storageClient struct {
 	client *storage.Client
 }
 
-type StorageClientConfig struct {
-	MaxRetryDuration time.Duration
-	RetryMultiplier  float64
-	ClientOptions    []option.ClientOption
-}
-
 // NewStorageHandle returns the handle of Go storage client containing
 // customized http client. We can configure the http client using the
 // storageClientConfig parameter.
-func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh StorageHandle, err error) {
+func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig) (sh StorageHandle, err error) {
+
+	var clientOpts []option.ClientOption
+
+	// Add WithHttpClient option.
+	if clientConfig.ClientProtocol == mountpkg.HTTP1 || clientConfig.ClientProtocol == mountpkg.HTTP2 {
+		httpClient, clientErr := storageutil.CreateHttpClientObj(&clientConfig)
+		if clientErr != nil {
+			err = fmt.Errorf("while creating http endpoint: %w", clientErr)
+			return
+		}
+
+		clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
+	}
+
+	// Add Custom endpoint option.
+	if !storageutil.IsProdEndpoint(clientConfig.Endpoint) {
+		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.Endpoint.String()))
+	}
 	var sc *storage.Client
-	sc, err = storage.NewClient(ctx, clientConfig.ClientOptions...)
+	sc, err = storage.NewClient(ctx, clientOpts...)
 	if err != nil {
 		err = fmt.Errorf("go storage client creation failed: %w", err)
 		return
