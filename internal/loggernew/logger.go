@@ -15,12 +15,15 @@
 package loggernew
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
 	"log/slog"
 	"log/syslog"
 	"os"
+	"runtime"
+	"time"
 
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -84,6 +87,10 @@ func InitLogFile(filename string, format string, level string) error {
 	return nil
 }
 
+func GetDefaultLoggerFactory() *loggerFactory {
+	return defaultLoggerFactory
+}
+
 // init initializes the logger factory to use stdout and stderr.
 func init() {
 	defaultLoggerFactory = &loggerFactory{
@@ -134,10 +141,34 @@ type loggerFactory struct {
 	level     string
 }
 
-func (f *loggerFactory) newLogger(level string) *slog.Logger {
-	var programLevel = new(slog.LevelVar) // Info by default
-	logger := slog.New(f.handler(programLevel))
-	slog.SetDefault(logger)
+type handlerWriter struct {
+	h         slog.Handler
+	level     slog.Level
+	capturePC bool
+}
+
+func (w *handlerWriter) Write(buf []byte) (int, error) {
+	if !w.h.Enabled(context.Background(), w.level) {
+		return 0, nil
+	}
+	var pc uintptr
+	if w.capturePC {
+		// skip [runtime.Callers, w.Write, Logger.Output, log.Print]
+		var pcs [1]uintptr
+		runtime.Callers(4, pcs[:])
+		pc = pcs[0]
+	}
+
+	// Remove final newline.
+	origLen := len(buf) // Report that the entire buf was written.
+	if len(buf) > 0 && buf[len(buf)-1] == '\n' {
+		buf = buf[:len(buf)-1]
+	}
+	r := slog.NewRecord(time.Now(), w.level, string(buf), pc)
+	return origLen, w.h.Handle(context.Background(), r)
+}
+
+func setLoggingLevel(level string, programLevel *slog.LevelVar) {
 	switch level {
 	case "INFO":
 	case "info":
@@ -152,6 +183,21 @@ func (f *loggerFactory) newLogger(level string) *slog.Logger {
 		programLevel.Set(slog.LevelError)
 		break
 	}
+}
+
+func (f *loggerFactory) NewStandardDebugLogger(prefix string) *log.Logger {
+	var programLevel = new(slog.LevelVar) // Info by default
+	//logger := slog.NewLogLogger(f.handler(programLevel), slog.LevelDebug)
+	logger := log.New(&handlerWriter{f.handler(programLevel), slog.LevelDebug, true}, prefix, 0)
+	setLoggingLevel(f.level, programLevel)
+	return logger
+}
+
+func (f *loggerFactory) newLogger(level string) *slog.Logger {
+	var programLevel = new(slog.LevelVar) // Info by default
+	logger := slog.New(f.handler(programLevel))
+	slog.SetDefault(logger)
+	setLoggingLevel(level, programLevel)
 	return logger
 }
 

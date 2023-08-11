@@ -133,7 +133,8 @@ func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 	}
 
 	if flags.DebugGCS {
-		cfg.GCSDebugLogger = logger.NewDebug("gcs: ")
+		//cfg.GCSDebugLogger = logger.NewDebug("gcs: ")
+		cfg.GCSDebugLogger = loggernew.GetDefaultLoggerFactory().NewStandardDebugLogger("gcs: ")
 	}
 
 	return gcsx.NewConnection(cfg)

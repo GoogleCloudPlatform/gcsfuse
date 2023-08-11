@@ -20,6 +20,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/loggernew"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/jacobsa/reqtrace"
 	"golang.org/x/net/context"
@@ -160,7 +161,8 @@ func (bm *bucketManager) SetUpGcsBucket(ctx context.Context, name string) (b gcs
 			b = gcs.GetWrappedWithReqtraceBucket(b)
 		}
 		if bm.config.DebugGCS {
-			b = gcs.NewDebugBucket(b, logger.NewDebug("gcs: "))
+			//b = gcs.NewDebugBucket(b, logger.NewDebug("gcs: "))
+			b = gcs.NewDebugBucket(b, loggernew.GetDefaultLoggerFactory().NewStandardDebugLogger("gcs: "))
 		}
 	} else {
 		logger.Infof("OpenBucket(%q, %q)\n", name, bm.config.BillingProject)

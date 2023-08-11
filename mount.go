@@ -145,7 +145,8 @@ be interacting with the file system.`)
 	}
 
 	if flags.DebugFuse {
-		mountCfg.DebugLogger = logger.NewDebug("fuse_debug: ")
+		//mountCfg.DebugLogger = logger.NewDebug("fuse_debug: ")
+		mountCfg.DebugLogger = loggernew.GetDefaultLoggerFactory().NewStandardDebugLogger("fuse_debug: ")
 	}
 
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
