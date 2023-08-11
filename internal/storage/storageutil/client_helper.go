@@ -19,7 +19,6 @@ type StorageClientConfig struct {
 	ClientProtocol      mountpkg.ClientProtocol
 	MaxConnsPerHost     int
 	MaxIdleConnsPerHost int
-	TokenSrc            oauth2.TokenSource
 	HttpClientTimeout   time.Duration
 	MaxRetryDuration    time.Duration
 	RetryMultiplier     float64
@@ -35,7 +34,6 @@ func GetDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 		ClientProtocol:      mountpkg.HTTP1,
 		MaxConnsPerHost:     10,
 		MaxIdleConnsPerHost: 100,
-		TokenSrc:            oauth2.StaticTokenSource(&oauth2.Token{}),
 		HttpClientTimeout:   800 * time.Millisecond,
 		MaxRetryDuration:    30 * time.Second,
 		RetryMultiplier:     2,
