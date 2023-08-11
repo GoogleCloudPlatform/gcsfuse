@@ -174,17 +174,17 @@ func (t *BucketHandleTest) TestNewReaderMethodWithCompressionEnabled() {
 			Name: TestGzipObjectName,
 			Range: &gcs.ByteRange{
 				Start: uint64(0),
-				Limit: uint64(len(ContentInTestGzipObject)),
+				Limit: uint64(len(ContentInTestGzipObjectCompressed)),
 			},
 			ReadCompressed: true,
 		})
 
 	AssertEq(nil, err)
 	defer rc.Close()
-	buf := make([]byte, len(ContentInTestGzipObject))
+	buf := make([]byte, len(ContentInTestGzipObjectCompressed))
 	_, err = rc.Read(buf)
 	AssertEq(nil, err)
-	ExpectEq(ContentInTestGzipObject, string(buf[:]))
+	ExpectEq(ContentInTestGzipObjectCompressed, string(buf))
 }
 
 func (t *BucketHandleTest) TestNewReaderMethodWithCompressionDisabled() {
@@ -193,17 +193,17 @@ func (t *BucketHandleTest) TestNewReaderMethodWithCompressionDisabled() {
 			Name: TestGzipObjectName,
 			Range: &gcs.ByteRange{
 				Start: uint64(0),
-				Limit: uint64(len(ContentInTestGzipObject)),
+				Limit: uint64(len(ContentInTestGzipObjectCompressed)),
 			},
 			ReadCompressed: false,
 		})
 
 	AssertEq(nil, err)
 	defer rc.Close()
-	buf := make([]byte, len(ContentInTestGzipObject))
+	buf := make([]byte, len(ContentInTestGzipObjectDecompressed))
 	_, err = rc.Read(buf)
 	AssertEq(nil, err)
-	ExpectEq(ContentInTestGzipObject, string(buf[:]))
+	ExpectEq(ContentInTestGzipObjectDecompressed, string(buf))
 }
 
 func (t *BucketHandleTest) TestDeleteObjectMethodWithValidObject() {

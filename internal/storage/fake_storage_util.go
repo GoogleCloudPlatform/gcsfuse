@@ -34,7 +34,15 @@ const MetaDataKey string = "key"
 
 // Data specific to content-encoding gzip tests
 const TestGzipObjectName string = "gcsfuse/test_gzip.txt"
-const ContentInTestGzipObject string = "*&$(%&**432*$*$fsef*&!fsde$"
+// ContentInTestGzipObjectCompressed is a gzip-compressed content for gzip tests.
+// It was created by uploading a small file to GCS using `gsutil cp -Z` and then 
+// downloading it as it is (compressed as present on GCS) using go storage client 
+// library. To view/change it, open it in a gzip.newReader() ur using a gzip plugin
+// in the IDE. If you do change it, remember to update ContentInTestGzipObjectDecompressed
+// too correspondingly.
+// It is currently also stored at <gcsfuse>/internal/storage/testdata/a.gz for reference.
+const ContentInTestGzipObjectCompressed string = "\x1f\x8b\b\b\x9d\xab\xd5d\x02\xfftmp1bg8d7ug\x00\v\xc9\xc8,\xe6\x02\x00~r\xe2V\x05\x00\x00\x00"
+const ContentInTestGzipObjectDecompressed string = "This\n"
 const TestGzipObjectGeneration int64 = 781
 
 type FakeStorage interface {
@@ -115,7 +123,7 @@ func getTestFakeStorageObject() []fakestorage.Object {
 			Metadata:        map[string]string{MetaDataKey: MetaDataValue},
 			ContentEncoding: ContentEncodingGzip,
 		},
-		Content: []byte(ContentInTestGzipObject),
+		Content: []byte(ContentInTestGzipObjectCompressed),
 	}
 	fakeObjects = append(fakeObjects, testGzipObject)
 
