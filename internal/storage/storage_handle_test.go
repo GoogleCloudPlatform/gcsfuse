@@ -16,24 +16,15 @@ package storage
 
 import (
 	"context"
-	"net/http"
 	"testing"
-	"time"
 
+	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	. "github.com/jacobsa/ogletest"
-	"golang.org/x/oauth2"
-	"google.golang.org/api/option"
 )
 
 const invalidBucketName string = "will-not-be-present-in-fake-server"
 const projectID string = "valid-project-id"
-
-func getDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
-	return StorageClientConfig{
-		MaxRetryDuration: 30 * time.Second,
-		RetryMultiplier:  2,
-	}
-}
 
 func TestStorageHandle(t *testing.T) { RunTests(t) }
 
@@ -56,7 +47,7 @@ func (t *StorageHandleTest) TearDown() {
 	t.fakeStorage.ShutDown()
 }
 
-func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc StorageClientConfig) {
+func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc storageutil.StorageClientConfig) {
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 	AssertEq(nil, err)
 	AssertNe(nil, handleCreated)
@@ -93,43 +84,28 @@ func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNonEmptyBi
 }
 
 func (t *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
-	sc := getDefaultStorageClientConfig() // by default http1 enabled
+	sc := storageutil.GetDefaultStorageClientConfig() // by default http1 enabled
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpointOption() {
-	sc := getDefaultStorageClientConfig()
-	sc.ClientOptions = append(sc.ClientOptions, option.WithEndpoint(CustomEndpoint))
+func (t *StorageHandleTest) TestNewStorageHandleHttp2Enabled() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.ClientProtocol = mountpkg.HTTP2
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWithoutHttpClientOption() {
-	sc := getDefaultStorageClientConfig()
-	httpClient := &http.Client{
-		Transport: &oauth2.Transport{
-			Base:   nil,
-			Source: nil,
-		},
-		Timeout: 20,
-	}
-	sc.ClientOptions = append(sc.ClientOptions, option.WithHTTPClient(httpClient))
+func (t *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.MaxConnsPerHost = 0
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWithHttpClientAndEndpointOption() {
-	sc := getDefaultStorageClientConfig()
-	httpClient := &http.Client{
-		Transport: &oauth2.Transport{
-			Base:   nil,
-			Source: nil,
-		},
-		Timeout: 20,
-	}
-	sc.ClientOptions = append(sc.ClientOptions, option.WithHTTPClient(httpClient))
-	sc.ClientOptions = append(sc.ClientOptions, option.WithEndpoint(CustomEndpoint))
+func (t *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.UserAgent = "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) appName (GPN:Gcsfuse-DLC)"
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
