@@ -14,6 +14,7 @@ import (
 )
 
 const CustomEndpoint = "https://localhost:9000"
+const DummyKeyFile = "test/test_creds.json"
 
 type StorageClientConfig struct {
 	ClientProtocol      mountpkg.ClientProtocol
@@ -39,19 +40,19 @@ func GetDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 		RetryMultiplier:     2,
 		UserAgent:           "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) (GCP:gcsfuse)",
 		Endpoint:            nil,
-		KeyFile:             "",
+		KeyFile:             DummyKeyFile,
 		TokenUrl:            "",
 		ReuseTokenFromUrl:   true,
 	}
 }
 
-func CreateHttpClientObj(flags *StorageClientConfig) (httpClient *http.Client, err error) {
+func CreateHttpClientObj(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
-	if flags.ClientProtocol == mountpkg.HTTP1 {
+	if storageClientConfig.ClientProtocol == mountpkg.HTTP1 {
 		transport = &http.Transport{
-			MaxConnsPerHost:     flags.MaxConnsPerHost,
-			MaxIdleConnsPerHost: flags.MaxIdleConnsPerHost,
+			MaxConnsPerHost:     storageClientConfig.MaxConnsPerHost,
+			MaxIdleConnsPerHost: storageClientConfig.MaxIdleConnsPerHost,
 			// This disables HTTP/2 in transport.
 			TLSNextProto: make(
 				map[string]func(string, *tls.Conn) http.RoundTripper,
@@ -61,12 +62,12 @@ func CreateHttpClientObj(flags *StorageClientConfig) (httpClient *http.Client, e
 		// For http2, change in MaxConnsPerHost doesn't affect the performance.
 		transport = &http.Transport{
 			DisableKeepAlives: true,
-			MaxConnsPerHost:   flags.MaxConnsPerHost,
+			MaxConnsPerHost:   storageClientConfig.MaxConnsPerHost,
 			ForceAttemptHTTP2: true,
 		}
 	}
 
-	tokenSrc, err := createTokenSource(flags)
+	tokenSrc, err := createTokenSource(storageClientConfig)
 	if err != nil {
 		err = fmt.Errorf("while fetching tokenSource: %w", err)
 		return
@@ -78,13 +79,13 @@ func CreateHttpClientObj(flags *StorageClientConfig) (httpClient *http.Client, e
 			Base:   transport,
 			Source: tokenSrc,
 		},
-		Timeout: flags.HttpClientTimeout,
+		Timeout: storageClientConfig.HttpClientTimeout,
 	}
 
 	// Setting UserAgent through RoundTripper middleware
 	httpClient.Transport = &userAgentRoundTripper{
 		wrapped:   httpClient.Transport,
-		UserAgent: flags.UserAgent,
+		UserAgent: storageClientConfig.UserAgent,
 	}
 
 	return httpClient, err
@@ -98,9 +99,9 @@ func IsProdEndpoint(endpoint *url.URL) bool {
 	return endpoint == nil
 }
 
-func createTokenSource(flags *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
-	if IsProdEndpoint(flags.Endpoint) {
-		return auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl, flags.ReuseTokenFromUrl)
+func createTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
+	if IsProdEndpoint(storageClientConfig.Endpoint) {
+		return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
 	} else {
 		return oauth2.StaticTokenSource(&oauth2.Token{}), nil
 	}
