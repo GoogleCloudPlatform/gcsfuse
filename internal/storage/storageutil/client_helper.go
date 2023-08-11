@@ -13,9 +13,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-const ProdEndpoint = "https://storage.googleapis.com:443"
 const CustomEndpoint = "https://localhost:9000"
-const GcsProdHostName = "storage.googleapis.com"
 
 type StorageClientConfig struct {
 	ClientProtocol      mountpkg.ClientProtocol
@@ -94,8 +92,12 @@ func CreateHttpClientObj(flags *StorageClientConfig) (httpClient *http.Client, e
 	return httpClient, err
 }
 
+// IsProdEndpoint GCSFuse assumes an endpoint as prod endpoint
+// if user haven't specified via --endpoint flag.
+// Also, we don't encourage use --endpoint flag to pass actual gcs url
+// in that case, some configuration is not set. E.g. using MTLS.
 func IsProdEndpoint(endpoint *url.URL) bool {
-	return (endpoint == nil) || (endpoint.Hostname() == GcsProdHostName)
+	return endpoint == nil
 }
 
 func createTokenSource(flags *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {

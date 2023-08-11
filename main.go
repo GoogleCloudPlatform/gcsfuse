@@ -39,6 +39,7 @@ import (
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/perf"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcloud/gcs"
@@ -148,7 +149,7 @@ func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 }
 
 func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
-	storageClientConfig := storage.StorageClientConfig{
+	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:      flags.ClientProtocol,
 		MaxConnsPerHost:     flags.MaxConnsPerHost,
 		MaxIdleConnsPerHost: flags.MaxIdleConnsPerHost,
