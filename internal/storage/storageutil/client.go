@@ -35,7 +35,11 @@ type StorageClientConfig struct {
 	MaxRetryDuration            time.Duration
 	RetryMultiplier             float64
 	UserAgent                   string
+<<<<<<< HEAD:internal/storage/storageutil/client.go
 	CustomEndpoint              *url.URL
+=======
+	Endpoint                    *url.URL
+>>>>>>> 60cc5093 (Incorporating review comments):internal/storage/storageutil/client_helper.go
 	KeyFile                     string
 	TokenUrl                    string
 	ReuseTokenFromUrl           bool

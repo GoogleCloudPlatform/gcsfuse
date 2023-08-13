@@ -150,18 +150,18 @@ func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 
 func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
-		ClientProtocol:      flags.ClientProtocol,
-		MaxConnsPerHost:     flags.MaxConnsPerHost,
-		MaxIdleConnsPerHost: flags.MaxIdleConnsPerHost,
-		HttpClientTimeout:   flags.HttpClientTimeout,
-		MaxRetryDuration:    flags.MaxRetryDuration,
-		RetryMultiplier:     flags.RetryMultiplier,
-		UserAgent:           getUserAgent(flags.AppName),
-		CustomEndpoint:      flags.CustomEndpoint,
-		KeyFile:             flags.KeyFile,
-		TokenUrl:            flags.TokenUrl,
-		ReuseTokenFromUrl:   flags.ReuseTokenFromUrl,
-		ExperimentJsonRead:  flags.ExperimentalJsonRead,
+		ClientProtocol:              flags.ClientProtocol,
+		MaxConnsPerHost:             flags.MaxConnsPerHost,
+		MaxIdleConnsPerHost:         flags.MaxIdleConnsPerHost,
+		HttpClientTimeout:           flags.HttpClientTimeout,
+		MaxRetryDuration:            flags.MaxRetryDuration,
+		RetryMultiplier:             flags.RetryMultiplier,
+		UserAgent:                   getUserAgent(flags.AppName),
+		CustomEndpoint:              flags.CustomEndpoint,
+		KeyFile:                     flags.KeyFile,
+		TokenUrl:                    flags.TokenUrl,
+		ReuseTokenFromUrl:           flags.ReuseTokenFromUrl,
+		ExperimentalEnableJasonRead: flags.ExperimentalEnableJasonRead,
 	}
 
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)

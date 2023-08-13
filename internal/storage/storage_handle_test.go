@@ -117,6 +117,7 @@ func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpoint() {
 	AssertEq(nil, err)
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = url
+	sc.ExperimentalEnableJasonRead = true
 
 	t.invokeAndVerifyStorageHandle(sc)
 }

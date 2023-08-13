@@ -111,7 +111,7 @@ func (t *FlagsTest) Bools() {
 		"debug_invariants",
 		"enable-storage-client-library",
 		"enable-nonexistent-type-cache",
-		"experimental-json-read",
+		"experimental-enable-json-read",
 	}
 
 	var args []string
@@ -133,7 +133,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugInvariants)
 	ExpectTrue(f.EnableStorageClientLibrary)
 	ExpectTrue(f.EnableNonexistentTypeCache)
-	ExpectTrue(f.ExperimentalJsonRead)
+	ExpectTrue(f.ExperimentalEnableJasonRead)
 
 	// --foo=false form
 	args = nil

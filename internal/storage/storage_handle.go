@@ -57,6 +57,11 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
 	}
 
+	// Created client with JSON read.
+	if clientConfig.ExperimentalEnableJasonRead {
+		clientOpts = append(clientOpts, storage.WithJSONReads())
+	}
+
 	// Add Custom endpoint option.
 	if clientConfig.CustomEndpoint != nil {
 		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint.String()))
@@ -67,11 +72,6 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	if err != nil {
 		err = fmt.Errorf("go storage client creation failed: %w", err)
 		return
-	}
-
-	// Created client with JSON read.
-	if clientConfig.ExperimentJsonRead {
-		clientOpts = append(clientOpts, storage.WithJSONReads())
 	}
 
 	// ShouldRetry function checks if an operation should be retried based on the
