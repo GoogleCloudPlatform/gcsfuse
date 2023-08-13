@@ -16,6 +16,7 @@ package storage
 
 import (
 	"fmt"
+	"net/http"
 
 	"cloud.google.com/go/storage"
 	"github.com/googleapis/gax-go/v2"
@@ -44,12 +45,12 @@ type storageClient struct {
 func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig) (sh StorageHandle, err error) {
 
 	var clientOpts []option.ClientOption
-
 	// Add WithHttpClient option.
 	if clientConfig.ClientProtocol == mountpkg.HTTP1 || clientConfig.ClientProtocol == mountpkg.HTTP2 {
-		httpClient, clientErr := storageutil.CreateHttpClientObj(&clientConfig)
-		if clientErr != nil {
-			err = fmt.Errorf("while creating http endpoint: %w", clientErr)
+		var httpClient *http.Client
+		httpClient, err = storageutil.CreateHttpClientObj(&clientConfig)
+		if err != nil {
+			err = fmt.Errorf("while creating http endpoint: %w", err)
 			return
 		}
 
