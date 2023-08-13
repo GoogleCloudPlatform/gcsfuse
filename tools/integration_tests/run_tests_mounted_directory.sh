@@ -64,7 +64,7 @@ mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,implicit_dirs=fal
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
-# readonly
+# package readonly
 # Run tests with static mounting. (flags: --implicit-dirs=true,--o=ro)
 gcsfuse --o=ro --implicit-dirs=true $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
@@ -105,7 +105,7 @@ mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,file_mode=544,dir
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
-# rename_dir_limit
+# package rename_dir_limit
 # Run tests with static mounting. (flags: --rename-dir-limit=3, --implicit-dirs)
 gcsfuse --rename-dir-limit=3 --implicit-dirs $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
@@ -146,7 +146,7 @@ mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,rename_dir_limit=
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
-# implicit_dir
+# package implicit_dir
 # Run tests with static mounting. (flags: --implicit-dirs)
 gcsfuse --implicit-dirs $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
@@ -167,7 +167,7 @@ mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,implicit_dirs
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
-# implicit_dir
+# package explicit_dir
 # Run tests with static mounting. (flags: --implicit-dirs=false)
 gcsfuse --implicit-dirs=false $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/explicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
@@ -188,13 +188,13 @@ mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,implicit_dirs=fal
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/explicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
-# list_large_dir
+# package list_large_dir
 # Run tests with static mounting. (flags: --implicit-dirs)
 gcsfuse --implicit-dirs $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/list_large_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
-# read_large_files
+# package read_large_files
 # Run tests with static mounting. (flags: --implicit-dirs)
 gcsfuse --implicit-dirs $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
