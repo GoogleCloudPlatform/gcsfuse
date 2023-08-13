@@ -31,6 +31,7 @@ import (
 
 // Defines the max value supported by sequential-read-size-mb flag.
 const maxSequentialReadSizeMb = 1024
+const EndPoint = "https://storage.googleapis.com:443"
 
 // Set up custom help text for gcsfuse; in particular the usage section.
 func init() {

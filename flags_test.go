@@ -29,7 +29,6 @@ import (
 )
 
 const gcsFuseParentProcessDir = "/var/generic/google"
-const EndPoint = "https://storage.googleapis.com:443"
 
 func TestFlags(t *testing.T) { RunTests(t) }
 
