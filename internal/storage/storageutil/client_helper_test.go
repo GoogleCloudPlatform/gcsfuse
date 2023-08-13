@@ -17,9 +17,30 @@ package storageutil
 import (
 	"net/url"
 	"testing"
+	"time"
 
+	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
+	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
+
+// GetDefaultStorageClientConfig is only for test, making the default endpoint
+// non-nil, so that we can create dummy tokenSource while unit test.
+func GetDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
+	return StorageClientConfig{
+		ClientProtocol:      mountpkg.HTTP1,
+		MaxConnsPerHost:     10,
+		MaxIdleConnsPerHost: 100,
+		HttpClientTimeout:   800 * time.Millisecond,
+		MaxRetryDuration:    30 * time.Second,
+		RetryMultiplier:     2,
+		UserAgent:           "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) (GCP:gcsfuse)",
+		Endpoint:            &url.URL{},
+		KeyFile:             DummyKeyFile,
+		TokenUrl:            "",
+		ReuseTokenFromUrl:   true,
+	}
+}
 
 func TestClientHelper(t *testing.T) { RunTests(t) }
 
@@ -49,7 +70,6 @@ func (t *clientHelperTest) TestIsGCSProdHostnameEndpoint() {
 func (t *clientHelperTest) TestCreateTokenSrcWithCustomEndpoint() {
 	url, err := url.Parse(CustomEndpoint)
 	AssertEq(nil, err)
-
 	sc := GetDefaultStorageClientConfig()
 	sc.Endpoint = url
 
@@ -63,10 +83,11 @@ func (t *clientHelperTest) TestCreateTokenSrcWithProdEndpoint() {
 	sc := GetDefaultStorageClientConfig()
 	sc.Endpoint = nil
 
+	// It will try to create the actual auth token and fail since key-file doesn't exist.
 	tokenSrc, err := createTokenSource(&sc)
 
-	// This will fail with file not found error, since dummy file doesn't exist.
 	ExpectNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
 	ExpectEq(nil, tokenSrc)
 }
 
