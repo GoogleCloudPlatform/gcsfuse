@@ -69,6 +69,11 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		return
 	}
 
+	// Created client with JSON read.
+	if clientConfig.ExperimentJsonRead {
+		clientOpts = append(clientOpts, storage.WithJSONReads())
+	}
+
 	// ShouldRetry function checks if an operation should be retried based on the
 	// response of operation (error.Code).
 	// RetryAlways causes all operations to be checked for retries using

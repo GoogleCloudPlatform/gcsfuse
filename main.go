@@ -30,7 +30,6 @@ import (
 	"strings"
 	"time"
 
-	cloudStorage "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
@@ -162,10 +161,7 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 		KeyFile:             flags.KeyFile,
 		TokenUrl:            flags.TokenUrl,
 		ReuseTokenFromUrl:   flags.ReuseTokenFromUrl,
-	}
-
-	if flags.ExperimentalJsonRead {
-		storageClientConfig.ClientOptions = append(storageClientConfig.ClientOptions, cloudStorage.WithJSONReads())
+		ExperimentJsonRead:  flags.ExperimentalJsonRead,
 	}
 
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
