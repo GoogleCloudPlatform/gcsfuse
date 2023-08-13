@@ -107,6 +107,10 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 		1, // Append threshold
 		".gcsfuse_tmp/",
 		t.bucket)
+
+	if local {
+		t.backingObj = nil
+	}
 	t.in = NewFileInode(
 		fileInodeID,
 		name,
@@ -381,6 +385,78 @@ func (t *FileTest) WriteThenSync() {
 
 	ExpectEq(len("paco"), attrs.Size)
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(writeTime.UTC()))
+}
+
+func (t *FileTest) WriteToLocalFileThenSync() {
+	var attrs fuseops.InodeAttributes
+	var err error
+	t.createInodeWithLocalParam("test", true)
+	err = t.in.CreateEmptyTempFile()
+	AssertEq(nil, err)
+	// Write some content to temp file.
+	t.clock.AdvanceTime(time.Second)
+	writeTime := t.clock.Now()
+	err = t.in.Write(t.ctx, []byte("tacos"), 0)
+	AssertEq(nil, err)
+	t.clock.AdvanceTime(time.Second)
+
+	// Sync.
+	err = t.in.Sync(t.ctx)
+
+	AssertEq(nil, err)
+	// Verify that fileInode is no more local
+	AssertFalse(t.in.IsLocal())
+	// Stat the current object in the bucket.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	o, err := t.bucket.StatObject(t.ctx, statReq)
+	AssertEq(nil, err)
+	ExpectEq(t.in.SourceGeneration().Object, o.Generation)
+	ExpectEq(t.in.SourceGeneration().Metadata, o.MetaGeneration)
+	ExpectEq(len("tacos"), o.Size)
+	ExpectEq(
+		writeTime.UTC().Format(time.RFC3339Nano),
+		o.Metadata["gcsfuse_mtime"])
+	// Read the object's contents.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	AssertEq(nil, err)
+	ExpectEq("tacos", string(contents))
+	// Check attributes.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	ExpectEq(len("tacos"), attrs.Size)
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(writeTime.UTC()))
+}
+
+func (t *FileTest) SyncEmptyLocalFile() {
+	var attrs fuseops.InodeAttributes
+	var err error
+	t.createInodeWithLocalParam("test", true)
+	err = t.in.CreateEmptyTempFile()
+	AssertEq(nil, err)
+
+	// Sync.
+	err = t.in.Sync(t.ctx)
+
+	AssertEq(nil, err)
+	// Verify that fileInode is no more local
+	AssertFalse(t.in.IsLocal())
+	// Stat the current object in the bucket.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	o, err := t.bucket.StatObject(t.ctx, statReq)
+	AssertEq(nil, err)
+	ExpectEq(t.in.SourceGeneration().Object, o.Generation)
+	ExpectEq(t.in.SourceGeneration().Metadata, o.MetaGeneration)
+	ExpectEq(0, o.Size)
+	_, ok := o.Metadata["gcsfuse_mtime"]
+	AssertFalse(ok)
+	// Read the object's contents.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	AssertEq(nil, err)
+	ExpectEq("", string(contents))
+	// Check attributes.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	ExpectEq(0, attrs.Size)
 }
 
 func (t *FileTest) AppendThenSync() {

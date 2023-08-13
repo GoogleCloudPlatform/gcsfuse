@@ -21,6 +21,7 @@ import (
 	"io"
 	"math"
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -146,7 +147,7 @@ func (t *IntegrationTest) objectGeneration(name string) (gen int64) {
 }
 
 func (t *IntegrationTest) sync(src *gcs.Object) (o *gcs.Object, err error) {
-	o, err = t.syncer.SyncObject(t.ctx, src, t.tf)
+	o, err = t.syncer.SyncObject(t.ctx, src.Name, src, t.tf)
 	if err == nil && o != nil {
 		t.tf = nil
 	}
@@ -178,6 +179,69 @@ func (t *IntegrationTest) ReadThenSync() {
 
 	AssertEq(nil, err)
 	ExpectEq(nil, newObj)
+}
+
+func (t *IntegrationTest) SyncEmptyLocalFile() {
+	// Create a temp file and write some contents to it.
+	tf, err := gcsx.NewTempFile(io.NopCloser(strings.NewReader("")), "", &t.clock)
+	AssertEq(nil, err)
+
+	// Sync should update the object in GCS.
+	newObj, err := t.syncer.SyncObject(t.ctx, "test", nil, tf)
+
+	AssertEq(nil, err)
+	ExpectEq(t.objectGeneration("test"), newObj.Generation)
+	_, ok := newObj.Metadata["gcsfuse_mtime"]
+	AssertFalse(ok)
+	// Read via the bucket.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "test")
+	AssertEq(nil, err)
+	ExpectEq("", string(contents))
+	// There should be no junk left over in the bucket besides the object of
+	// interest.
+	objects, runs, err := gcsutil.ListAll(
+		t.ctx,
+		t.bucket,
+		&gcs.ListObjectsRequest{})
+	AssertEq(nil, err)
+	AssertEq(1, len(objects))
+	AssertEq(0, len(runs))
+	ExpectEq("test", objects[0].Name)
+}
+
+func (t *IntegrationTest) SyncNonEmptyLocalFile() {
+	// Create a temp file and write some contents to it.
+	tf, err := gcsx.NewTempFile(io.NopCloser(strings.NewReader("")), "", &t.clock)
+	AssertEq(nil, err)
+	t.clock.AdvanceTime(time.Second)
+	writeTime := t.clock.Now()
+	n, err := tf.WriteAt([]byte("tacobell"), 0)
+	AssertEq(nil, err)
+	AssertEq(8, n)
+	t.clock.AdvanceTime(time.Second)
+
+	// Sync should update the object in GCS.
+	newObj, err := t.syncer.SyncObject(t.ctx, "test", nil, tf)
+
+	AssertEq(nil, err)
+	ExpectEq(t.objectGeneration("test"), newObj.Generation)
+	ExpectEq(
+		writeTime.UTC().Format(time.RFC3339Nano),
+		newObj.Metadata["gcsfuse_mtime"])
+	// Read via the bucket.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "test")
+	AssertEq(nil, err)
+	ExpectEq("tacobell", string(contents))
+	// There should be no junk left over in the bucket besides the object of
+	// interest.
+	objects, runs, err := gcsutil.ListAll(
+		t.ctx,
+		t.bucket,
+		&gcs.ListObjectsRequest{})
+	AssertEq(nil, err)
+	AssertEq(1, len(objects))
+	AssertEq(0, len(runs))
+	ExpectEq("test", objects[0].Name)
 }
 
 func (t *IntegrationTest) WriteThenSync() {

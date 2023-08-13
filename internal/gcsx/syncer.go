@@ -39,6 +39,7 @@ type Syncer interface {
 	//     *gcs.PreconditionError if the source generation is no longer current).
 	SyncObject(
 		ctx context.Context,
+		fileName string,
 		srcObject *gcs.Object,
 		content TempFile) (o *gcs.Object, err error)
 }
@@ -81,31 +82,47 @@ type fullObjectCreator struct {
 
 func (oc *fullObjectCreator) Create(
 	ctx context.Context,
+	fileName string,
 	srcObject *gcs.Object,
-	mtime time.Time,
+	mtime *time.Time,
 	r io.Reader) (o *gcs.Object, err error) {
 	MetadataMap := make(map[string]string)
 
 	/* Copy Metadata fields from existing object to retain them for new object. */
-	for key, value := range srcObject.Metadata {
-		MetadataMap[key] = value
+	if srcObject != nil {
+		for key, value := range srcObject.Metadata {
+			MetadataMap[key] = value
+		}
 	}
 
-	MetadataMap[MtimeMetadataKey] = mtime.Format(time.RFC3339Nano)
+	if mtime != nil {
+		MetadataMap[MtimeMetadataKey] = mtime.UTC().Format(time.RFC3339Nano)
+	}
 
-	req := &gcs.CreateObjectRequest{
-		Name:                       srcObject.Name,
-		GenerationPrecondition:     &srcObject.Generation,
-		MetaGenerationPrecondition: &srcObject.MetaGeneration,
-		Contents:                   r,
-		Metadata:                   MetadataMap,
-		CacheControl:               srcObject.CacheControl,
-		ContentDisposition:         srcObject.ContentDisposition,
-		ContentEncoding:            srcObject.ContentEncoding,
-		ContentType:                srcObject.ContentType,
-		CustomTime:                 srcObject.CustomTime,
-		EventBasedHold:             srcObject.EventBasedHold,
-		StorageClass:               srcObject.StorageClass,
+	var req *gcs.CreateObjectRequest
+	if srcObject == nil {
+		var precond int64
+		req = &gcs.CreateObjectRequest{
+			Name:                   fileName,
+			Contents:               r,
+			GenerationPrecondition: &precond,
+			Metadata:               MetadataMap,
+		}
+	} else {
+		req = &gcs.CreateObjectRequest{
+			Name:                       srcObject.Name,
+			GenerationPrecondition:     &srcObject.Generation,
+			MetaGenerationPrecondition: &srcObject.MetaGeneration,
+			Contents:                   r,
+			Metadata:                   MetadataMap,
+			CacheControl:               srcObject.CacheControl,
+			ContentDisposition:         srcObject.ContentDisposition,
+			ContentEncoding:            srcObject.ContentEncoding,
+			ContentType:                srcObject.ContentType,
+			CustomTime:                 srcObject.CustomTime,
+			EventBasedHold:             srcObject.EventBasedHold,
+			StorageClass:               srcObject.StorageClass,
+		}
 	}
 
 	o, err = oc.bucket.CreateObject(ctx, req)
@@ -125,8 +142,9 @@ func (oc *fullObjectCreator) Create(
 type objectCreator interface {
 	Create(
 		ctx context.Context,
+		fileName string,
 		srcObject *gcs.Object,
-		mtime time.Time,
+		mtime *time.Time,
 		r io.Reader) (o *gcs.Object, err error)
 }
 
@@ -164,6 +182,7 @@ type syncer struct {
 
 func (os *syncer) SyncObject(
 	ctx context.Context,
+	fileName string,
 	srcObject *gcs.Object,
 	content TempFile) (o *gcs.Object, err error) {
 	// Stat the content.
@@ -171,6 +190,15 @@ func (os *syncer) SyncObject(
 	if err != nil {
 		err = fmt.Errorf("Stat: %w", err)
 		return
+	}
+
+	if srcObject == nil {
+		_, err = content.Seek(0, 0)
+		if err != nil {
+			err = fmt.Errorf("error in seeking: %w", err)
+			return
+		}
+		return os.fullCreator.Create(ctx, fileName, srcObject, sr.Mtime, content)
 	}
 
 	// Make sure the dirty threshold makes sense.
@@ -198,8 +226,8 @@ func (os *syncer) SyncObject(
 		return
 	}
 
-	// Canonicalize to UTC.
-	mtime := sr.Mtime.UTC()
+	fmt.Println("mtime")
+	fmt.Println(sr.Mtime)
 
 	// Otherwise, we need to create a new generation. If the source object is
 	// long enough, hasn't been dirtied, and has a low enough component count,
@@ -213,7 +241,7 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		o, err = os.appendCreator.Create(ctx, srcObject, mtime, content)
+		o, err = os.appendCreator.Create(ctx, fileName, srcObject, sr.Mtime, content)
 	} else {
 		_, err = content.Seek(0, 0)
 		if err != nil {
@@ -221,7 +249,7 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		o, err = os.fullCreator.Create(ctx, srcObject, mtime, content)
+		o, err = os.fullCreator.Create(ctx, fileName, srcObject, sr.Mtime, content)
 	}
 
 	// Deal with errors.

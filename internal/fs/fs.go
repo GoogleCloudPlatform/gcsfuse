@@ -921,6 +921,14 @@ func (fs *fileSystem) syncFile(
 		return
 	}
 
+	fs.mu.Lock()
+	delete(fs.localFileInodes, f.Name())
+	_, ok := fs.generationBackedInodes[f.Name()]
+	if !ok {
+		fs.generationBackedInodes[f.Name()] = f
+	}
+	fs.mu.Unlock()
+
 	// We need not update fileIndex:
 	//
 	// We've held the inode lock the whole time, so there's no way that this
@@ -962,6 +970,10 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, N uint64) {
 		}
 		if fs.implicitDirInodes[name] == in {
 			delete(fs.implicitDirInodes, name)
+		}
+		if fs.localFileInodes[name] == in {
+			fmt.Println("Deleting local file inode")
+			delete(fs.localFileInodes, name)
 		}
 		fs.mu.Unlock()
 	}
@@ -1188,6 +1200,8 @@ func (fs *fileSystem) SetInodeAttributes(
 	// Set file mtimes.
 	if isFile && op.Mtime != nil {
 		err = file.SetMtime(ctx, *op.Mtime)
+		fmt.Println("Set inode attributes")
+		fmt.Println(*op.Mtime)
 		if err != nil {
 			err = fmt.Errorf("SetMtime: %w", err)
 			return err
