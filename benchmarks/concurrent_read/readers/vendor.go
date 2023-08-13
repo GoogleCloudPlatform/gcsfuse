@@ -20,6 +20,7 @@ import (
 	"io"
 	"net/url"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/oauth2/google"
 )
@@ -35,7 +36,7 @@ func NewVendorClient(ctx context.Context, protocol string, connections int, buck
 	if err != nil {
 		return nil, err
 	}
-	endpoint, _ := url.Parse("https://storage.googleapis.com:443")
+	endpoint, _ := url.Parse(storage.EndPoint)
 	config := &gcs.ConnConfig{
 		Url:         endpoint,
 		TokenSource: tokenSrc,

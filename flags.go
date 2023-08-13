@@ -26,12 +26,12 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/urfave/cli"
 )
 
 // Defines the max value supported by sequential-read-size-mb flag.
 const maxSequentialReadSizeMb = 1024
-const EndPoint = "https://storage.googleapis.com:443"
 
 // Set up custom help text for gcsfuse; in particular the usage section.
 func init() {
@@ -136,7 +136,7 @@ func newApp() (app *cli.App) {
 
 			cli.StringFlag{
 				Name:  "endpoint",
-				Value: "https://storage.googleapis.com:443",
+				Value: storage.EndPoint,
 				Usage: "The endpoint to connect to.",
 			},
 
