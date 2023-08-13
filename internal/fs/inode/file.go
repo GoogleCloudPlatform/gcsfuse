@@ -385,7 +385,9 @@ func (f *FileInode) Attributes(
 	attrs.Atime = attrs.Mtime
 	attrs.Ctime = attrs.Mtime
 
-	// Avoid clobbered check and return the attributes for local files.
+	// Clobbered check makes a stat call to GCS. Avoiding stat calls to GCS for
+	// local files when fetching attributes. Any validations will be done during
+	// sync call.
 	if f.IsLocal() {
 		return
 	}
