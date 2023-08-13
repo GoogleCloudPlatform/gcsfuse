@@ -174,6 +174,7 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *g
 	if errors.As(err, &notFoundErr) {
 		err = nil
 		if f.IsLocal() {
+			// For localFile, it is expected that object doesn't exist in GCS.
 			return
 		}
 
@@ -582,6 +583,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// If we wrote out a new object, we need to update our state.
 	if newObj != nil && !f.localFileCache {
 		f.src = convertObjToMinObject(newObj)
+		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false
 		}

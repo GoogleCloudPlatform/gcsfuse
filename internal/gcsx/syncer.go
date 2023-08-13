@@ -95,6 +95,7 @@ func (oc *fullObjectCreator) Create(
 		}
 	}
 
+	// Any existing mtime value will be overwritten with new value.
 	if mtime != nil {
 		MetadataMap[MtimeMetadataKey] = mtime.UTC().Format(time.RFC3339Nano)
 	}
@@ -193,6 +194,8 @@ func (os *syncer) SyncObject(
 	}
 
 	if srcObject == nil {
+		// Content.Stat() seeks the current position to end of file. Seek it back
+		// to beginning of the file.
 		_, err = content.Seek(0, 0)
 		if err != nil {
 			err = fmt.Errorf("error in seeking: %w", err)
@@ -225,9 +228,6 @@ func (os *syncer) SyncObject(
 		err = fmt.Errorf("Wacky stat result: %#v", sr)
 		return
 	}
-
-	fmt.Println("mtime")
-	fmt.Println(sr.Mtime)
 
 	// Otherwise, we need to create a new generation. If the source object is
 	// long enough, hasn't been dirtied, and has a low enough component count,

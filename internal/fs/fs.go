@@ -921,6 +921,8 @@ func (fs *fileSystem) syncFile(
 		return
 	}
 
+	// Once the inode is synced to GCS, it is no longer an localFileInode.
+	// Delete the entry from localFileInodes map and add it to generationBackedInodes.
 	fs.mu.Lock()
 	delete(fs.localFileInodes, f.Name())
 	_, ok := fs.generationBackedInodes[f.Name()]
@@ -972,7 +974,6 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, N uint64) {
 			delete(fs.implicitDirInodes, name)
 		}
 		if fs.localFileInodes[name] == in {
-			fmt.Println("Deleting local file inode")
 			delete(fs.localFileInodes, name)
 		}
 		fs.mu.Unlock()
@@ -1200,8 +1201,6 @@ func (fs *fileSystem) SetInodeAttributes(
 	// Set file mtimes.
 	if isFile && op.Mtime != nil {
 		err = file.SetMtime(ctx, *op.Mtime)
-		fmt.Println("Set inode attributes")
-		fmt.Println(*op.Mtime)
 		if err != nil {
 			err = fmt.Errorf("SetMtime: %w", err)
 			return err
