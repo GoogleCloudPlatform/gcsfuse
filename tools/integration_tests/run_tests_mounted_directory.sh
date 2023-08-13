@@ -49,7 +49,7 @@ gcsfuse --only-dir testDir --implicit-dirs=true $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
-# Run tests with persistent mounting with --only-dir flag. (flags: --implicit-dirs=true, --only-dir=testDir)
+# Run tests with persistent mounting. (flags: --implicit-dirs=true, --only-dir=testDir)
 mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,implicit_dirs=true
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
@@ -200,7 +200,7 @@ gcsfuse --implicit-dirs $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
-# write_large_files
+# package write_large_files
 # Run tests with static mounting. (flags: --implicit-dirs)
 gcsfuse --implicit-dirs $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/write_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
