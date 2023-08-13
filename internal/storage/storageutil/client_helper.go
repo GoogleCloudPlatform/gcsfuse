@@ -30,6 +30,24 @@ type StorageClientConfig struct {
 	ReuseTokenFromUrl   bool
 }
 
+// GetDefaultStorageClientConfig is only for test, making the default endpoint
+// non-nil, so that we can create dummy tokenSource while unit test.
+func GetDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
+	return StorageClientConfig{
+		ClientProtocol:      mountpkg.HTTP1,
+		MaxConnsPerHost:     10,
+		MaxIdleConnsPerHost: 100,
+		HttpClientTimeout:   800 * time.Millisecond,
+		MaxRetryDuration:    30 * time.Second,
+		RetryMultiplier:     2,
+		UserAgent:           "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) (GCP:gcsfuse)",
+		Endpoint:            &url.URL{},
+		KeyFile:             DummyKeyFile,
+		TokenUrl:            "",
+		ReuseTokenFromUrl:   true,
+	}
+}
+
 func CreateHttpClientObj(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
@@ -75,10 +93,11 @@ func CreateHttpClientObj(storageClientConfig *StorageClientConfig) (httpClient *
 	return httpClient, err
 }
 
-// IsProdEndpoint GCSFuse assumes an endpoint as prod endpoint
-// if user haven't specified via --endpoint flag.
-// Also, we don't encourage use --endpoint flag to pass actual gcs url
-// in that case, some configuration is not set. E.g. using MTLS.
+// IsProdEndpoint -  If user pass any url including (GCS prod) using --endpoint flag
+// GCSFuse assumes it as a custom endpoint. Hence, we don't encourage to use --endpoint
+// flag to pass actual GCS prod url, as in that case we also need to take care mTLS
+// option, which hasn't been handled properly in go-client-lib (by design of WithEndpoint
+// option used by GCSFuse).
 func IsProdEndpoint(endpoint *url.URL) bool {
 	return endpoint == nil
 }
