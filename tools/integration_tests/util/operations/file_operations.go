@@ -29,36 +29,53 @@ import (
 	"syscall"
 )
 
-func CopyFile(srcFileName string, newFileName string) (err error) {
-	if _, err = os.Stat(newFileName); err == nil {
-		err = fmt.Errorf("Copied file %s already present", newFileName)
-		return
+func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) {
+	if !allowOverwrite {
+		if _, err = os.Stat(dstFileName); err == nil {
+			err = fmt.Errorf("destination file %s already present", dstFileName)
+			return
+		}
 	}
 
 	source, err := os.OpenFile(srcFileName, syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
-		err = fmt.Errorf("File %s opening error: %v", srcFileName, err)
+		err = fmt.Errorf("file %s opening error: %v", srcFileName, err)
 		return
 	}
 
 	// Closing file at the end.
 	defer CloseFile(source)
 
-	destination, err := os.OpenFile(newFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, FilePermission_0600)
+	var destination *os.File
+	if allowOverwrite {
+		destination, err = os.OpenFile(dstFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT|os.O_TRUNC, FilePermission_0600)
+	} else {
+		destination, err = os.OpenFile(dstFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, FilePermission_0600)
+	}
+
 	if err != nil {
-		err = fmt.Errorf("Copied file creation error: %v", err)
+		err = fmt.Errorf("copied file creation error: %v", err)
 		return
 	}
+
 	// Closing file at the end.
 	defer CloseFile(destination)
 
 	// File copying with io.Copy() utility.
 	_, err = io.Copy(destination, source)
 	if err != nil {
-		err = fmt.Errorf("Error in file copying: %v", err)
+		err = fmt.Errorf("error in file copying: %v", err)
 		return
 	}
 	return
+}
+
+func CopyFile(srcFileName, newFileName string) (err error) {
+	return copyFile(srcFileName, newFileName, false)
+}
+
+func CopyFileAllowOverwrite(srcFileName, newFileName string) (err error) {
+	return copyFile(srcFileName, newFileName, true)
 }
 
 func ReadFile(filePath string) (content []byte, err error) {
@@ -293,10 +310,11 @@ func StatFile(file string) (*fs.FileInfo, error) {
 
 // Finds if two local files have identical content (equivalnt to binary diff).
 // Needs (a) both files to exist, (b)read permission on both the files, (c) both
-// inputs to be proper files, symlinks/directories not supported.
+// inputs to be proper files, i.e. directories not supported.
 // Compares file names first. If different, compares sizes next.
-// If sizes match, then compares hashes of both the files.
-// Not a good idea for very large files as it loads both the files in the memory completely.
+// If sizes match, then compares the contents of both the files.
+// Not a good idea for very large files as it loads both the files' contents in
+// the memory completely.
 // Returns 0 if no error and files match.
 // Returns 1 if files don't match and captures reason for mismatch in err.
 // Returns 2 if any error.
@@ -363,9 +381,16 @@ func executeToolCommandf(tool string, format string, args ...any) ([]byte, error
 	return stdout.Bytes(), nil
 }
 
-// Executes any given gcloud command with given args
-func ExecuteGcloudCommandf(format string, args ...any) ([]byte, error) {
+// Executes any given gcloud command with given args.
+// Using `gcloud alpha` instead of `gcloud` as the latter isn't supported
+// on some VMs e.e. kokoro VMs and rhel/centos VMs etc.
+func executeGcloudCommandf(format string, args ...any) ([]byte, error) {
 	return executeToolCommandf("gcloud alpha", format, args...)
+}
+
+// Executes any given gsutil command with given args.
+func executeGsutilCommandf(format string, args ...any) ([]byte, error) {
+	return executeToolCommandf("gsutil", format, args...)
 }
 
 // Returns size of a give GCS object with path (without 'gs://').
@@ -373,7 +398,7 @@ func ExecuteGcloudCommandf(format string, args ...any) ([]byte, error) {
 // available.
 // Uses 'gcloud storage du -s gs://gcsObjPath'.
 func GetGcsObjectSize(gcsObjPath string) (int, error) {
-	stdout, err := ExecuteGcloudCommandf("storage du -s gs://%s", gcsObjPath)
+	stdout, err := executeGcloudCommandf("storage du -s gs://%s", gcsObjPath)
 	if err != nil {
 		return 0, err
 	}
@@ -394,7 +419,7 @@ func GetGcsObjectSize(gcsObjPath string) (int, error) {
 // available.
 // Uses 'gcloud storage cp gs://gcsObjPath localPath'
 func DownloadGcsObject(gcsObjPath, localPath string) error {
-	_, err := ExecuteGcloudCommandf("storage cp gs://%s %s", gcsObjPath, localPath)
+	_, err := executeGcloudCommandf("storage cp gs://%s %s", gcsObjPath, localPath)
 	if err != nil {
 		return err
 	}
@@ -409,9 +434,11 @@ func DownloadGcsObject(gcsObjPath, localPath string) error {
 func UploadGcsObject(localPath, gcsObjPath string, uploadGzipEncoded bool) error {
 	var err error
 	if uploadGzipEncoded {
-		_, err = ExecuteGcloudCommandf("storage cp -Z %s gs://%s", localPath, gcsObjPath)
+		// Using gsutil instead of `gcloud alpha` here as `gcloud alpha`
+		// option `-Z` isn't supported on the kokoro VM.
+		_, err = executeGsutilCommandf("cp -Z %s gs://%s", localPath, gcsObjPath)
 	} else {
-		_, err = ExecuteGcloudCommandf("storage cp %s gs://%s", localPath, gcsObjPath)
+		_, err = executeGcloudCommandf("storage cp %s gs://%s", localPath, gcsObjPath)
 	}
 
 	return err
@@ -422,15 +449,18 @@ func UploadGcsObject(localPath, gcsObjPath string, uploadGzipEncoded bool) error
 // available.
 // Uses 'gcloud storage rm gs://gcsObjPath'
 func DeleteGcsObject(gcsObjPath string) error {
-	_, err := ExecuteGcloudCommandf("storage rm gs://%s", gcsObjPath)
+	_, err := executeGcloudCommandf("storage rm gs://%s", gcsObjPath)
 	return err
 }
 
 // Clears cache-control attributes on given GCS object (with path without 'gs://').
 // Fails if the file doesn't exist or permission to modify object's metadata is not
 // available.
-// Uses 'gcloud storage objects update gs://gs://gcsObjPath --cache-control=' ' '
+// Uses 'gsutil setmeta -h "Cache-Control:" gs://<path>'
+// Preferred approach is 'gcloud storage objects update gs://gs://gcsObjPath --cache-control=' ' ' but it doesn't work on kokoro VM.
 func ClearCacheControlOnGcsObject(gcsObjPath string) error {
-	_, err := ExecuteGcloudCommandf("storage objects update gs://%s --cache-control=''", gcsObjPath)
+	// Using gsutil instead of `gcloud alpha` here as `gcloud alpha`
+	// implementation for updating object metadata is missing on the kokoro VM.
+	_, err := executeGsutilCommandf("setmeta -h \"Cache-Control:\" gs://%s ", gcsObjPath)
 	return err
 }

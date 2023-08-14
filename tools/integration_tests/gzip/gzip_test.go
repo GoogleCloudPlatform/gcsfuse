@@ -40,6 +40,14 @@ const (
 	GzipContentWithContentEncodingWithNoTransformFilename    = "gzipContentWithContentEncodingWithNoTransform.txt.gz"
 	GzipContentWithContentEncodingWithoutNoTransformFilename = "gzipContentWithContentEncodingWithoutNoTransform.txt.gz"
 
+	TextContentWithContentEncodingWithNoTransformToOverwrite    = "TextContentWithContentEncodingWithNoTransformToOverwrite.txt"
+	TextContentWithContentEncodingWithoutNoTransformToOverwrite = "TextContentWithContentEncodingWithoutNoTransformToOverwrite.txt"
+
+	GzipContentWithoutContentEncodingToOverwrite = "GzipContentWithoutContentEncodingToOverwrite.txt.gz"
+
+	GzipContentWithContentEncodingWithNoTransformToOverwrite    = "GzipContentWithContentEncodingWithNoTransformToOverwrite.txt.gz"
+	GzipContentWithContentEncodingWithoutNoTransformToOverwrite = "GzipContentWithContentEncodingWithoutNoTransformToOverwrite.txt.gz"
+
 	TestBucketPrefixPath = "gzip"
 )
 
@@ -83,6 +91,39 @@ func setup_testdata(m *testing.M) error {
 			enableGzipContentEncoding:   true,
 		}, {
 			filename:                    GzipContentWithContentEncodingWithoutNoTransformFilename,
+			filesize:                    TextContentSize,
+			keepCacheControlNoTransform: false,
+			enableGzipEncodedContent:    true,
+			enableGzipContentEncoding:   true,
+		},
+		{
+			filename:                    TextContentWithContentEncodingWithNoTransformToOverwrite,
+			filesize:                    TextContentSize,
+			keepCacheControlNoTransform: true,
+			enableGzipEncodedContent:    false,
+			enableGzipContentEncoding:   true,
+		},
+		{
+			filename:                    TextContentWithContentEncodingWithoutNoTransformToOverwrite,
+			filesize:                    TextContentSize,
+			keepCacheControlNoTransform: false,
+			enableGzipEncodedContent:    false,
+			enableGzipContentEncoding:   true,
+		},
+		{
+			filename:                    GzipContentWithoutContentEncodingToOverwrite,
+			filesize:                    TextContentSize,
+			keepCacheControlNoTransform: true, // it's a don't care in this case
+			enableGzipEncodedContent:    true,
+			enableGzipContentEncoding:   false,
+		}, {
+			filename:                    GzipContentWithContentEncodingWithNoTransformToOverwrite,
+			filesize:                    TextContentSize,
+			keepCacheControlNoTransform: true,
+			enableGzipEncodedContent:    true,
+			enableGzipContentEncoding:   true,
+		}, {
+			filename:                    GzipContentWithContentEncodingWithoutNoTransformToOverwrite,
 			filesize:                    TextContentSize,
 			keepCacheControlNoTransform: false,
 			enableGzipEncodedContent:    true,
