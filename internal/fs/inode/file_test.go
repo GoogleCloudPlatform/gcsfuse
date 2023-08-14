@@ -390,7 +390,9 @@ func (t *FileTest) WriteThenSync() {
 func (t *FileTest) WriteToLocalFileThenSync() {
 	var attrs fuseops.InodeAttributes
 	var err error
+	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
+	// Create a temp file for the local inode created above.
 	err = t.in.CreateEmptyTempFile()
 	AssertEq(nil, err)
 	// Write some content to temp file.
@@ -430,7 +432,9 @@ func (t *FileTest) WriteToLocalFileThenSync() {
 func (t *FileTest) SyncEmptyLocalFile() {
 	var attrs fuseops.InodeAttributes
 	var err error
+	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
+	// Create a temp file for the local inode created above.
 	err = t.in.CreateEmptyTempFile()
 	AssertEq(nil, err)
 
