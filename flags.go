@@ -135,9 +135,9 @@ func newApp() (app *cli.App) {
 
 			cli.StringFlag{
 				Name: "custom-endpoint",
-				Usage: "The end point to connect to for fetching data. The endpoint should be equivalent " +
-					"to the base endpoint of GCS JSON API (https://storage.googleapis.com/storage/v1). Auth " +
-					"will be skipped for custom endpoint.",
+				Usage: "Alternate endpoint for fetching data. Should be used only for testing purposes. " +
+					"The endpoint should be equivalent to the base endpoint of GCS JSON API (https://storage.googleapis.com/storage/v1). " +
+					"If not specified GCS endpoint will be used. Auth will be skipped for custom endpoint.",
 			},
 
 			cli.StringFlag{
