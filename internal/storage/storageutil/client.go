@@ -90,6 +90,9 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 	return httpClient, err
 }
 
+// It creates dummy token-source in case of non-nil custom url. If the custom-endpoint
+// is nil, it creates the token-source from the provided key-file or using ADC search
+// order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
 func createTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
 	if storageClientConfig.CustomEndpoint == nil {
 		return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
