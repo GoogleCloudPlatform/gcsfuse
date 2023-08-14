@@ -134,9 +134,10 @@ func newApp() (app *cli.App) {
 			/////////////////////////
 
 			cli.StringFlag{
-				Name: "endpoint",
+				Name: "custom-endpoint",
 				Usage: "The endpoint to connect to - endpoint should be equivalent to the base endpoint " +
-					"for the GCS JSON API (https://storage.googleapis.com/storage/v1).",
+					"for the GCS JSON API (https://storage.googleapis.com/storage/v1). Auth will be skipped " +
+					"for custom endpoint.",
 			},
 
 			cli.StringFlag{
@@ -366,7 +367,7 @@ type flagStorage struct {
 	RenameDirLimit int64
 
 	// GCS
-	Endpoint                           *url.URL
+	CustomEndpoint                     *url.URL
 	BillingProject                     string
 	KeyFile                            string
 	TokenUrl                           string
@@ -478,7 +479,7 @@ func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
 // Add the flags accepted by run to the supplied flag set, returning the
 // variables into which the flags will parse.
 func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
-	endpoint, err := url.Parse(c.String("endpoint"))
+	customEndpoint, err := url.Parse(c.String("custom-endpoint"))
 	if err != nil {
 		fmt.Printf("Could not parse endpoint")
 		return
@@ -500,7 +501,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		RenameDirLimit: int64(c.Int("rename-dir-limit")),
 
 		// GCS,
-		Endpoint:                           endpoint,
+		CustomEndpoint:                     customEndpoint,
 		BillingProject:                     c.String("billing-project"),
 		KeyFile:                            c.String("key-file"),
 		TokenUrl:                           c.String("token-url"),
