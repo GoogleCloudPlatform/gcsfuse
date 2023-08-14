@@ -33,8 +33,6 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-const EndPoint = "https://storage.googleapis.com:443"
-
 type bucketHandle struct {
 	gcs.Bucket
 	bucket     *storage.BucketHandle

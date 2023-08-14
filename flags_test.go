@@ -81,7 +81,7 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq(-1, f.EgressBandwidthLimitBytesPerSecond)
 	ExpectEq(-1, f.OpRateLimitHz)
 	ExpectTrue(f.ReuseTokenFromUrl)
-	ExpectEq(storage.EndPoint, f.Endpoint.String())
+	ExpectEq(storage.GcsEndPoint, f.Endpoint.String())
 
 	// Tuning
 	ExpectEq(4096, f.StatCacheCapacity)

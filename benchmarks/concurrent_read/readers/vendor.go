@@ -51,7 +51,7 @@ func NewVendorClient(ctx context.Context, protocol string, connections int, buck
 
 	bucketHandle := storageHandle.BucketHandle(bucketName, "")
 	if err != nil {
-		panic(fmt.Errorf("Cannot create bucket %q: %w", bucketName, err))
+		panic(fmt.Errorf("Cannot create bucketHandle %q: %w", bucketName, err))
 	}
 
 	return &vendorClient{ctx, bucketHandle}, nil

@@ -136,7 +136,7 @@ func newApp() (app *cli.App) {
 
 			cli.StringFlag{
 				Name:  "endpoint",
-				Value: storage.EndPoint,
+				Value: storage.GcsEndPoint,
 				Usage: "The endpoint to connect to.",
 			},
 
