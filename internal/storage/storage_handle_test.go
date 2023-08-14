@@ -109,3 +109,10 @@ func (t *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
+
+func (t *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.UserAgent = "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) appName (GPN:Gcsfuse-DLC)"
+
+	t.invokeAndVerifyStorageHandle(sc)
+}

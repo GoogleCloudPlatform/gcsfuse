@@ -21,6 +21,9 @@ import (
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 )
 
+const CustomEndpoint = "https://localhost:9000"
+const DummyKeyFile = "test/test_creds.json"
+
 // GetDefaultStorageClientConfig is only for test, making the default endpoint
 // non-nil, so that we can create dummy tokenSource while unit test.
 func GetDefaultStorageClientConfig() (clientConfig StorageClientConfig) {

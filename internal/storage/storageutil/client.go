@@ -27,9 +27,6 @@ import (
 	"golang.org/x/oauth2"
 )
 
-const CustomEndpoint = "https://localhost:9000"
-const DummyKeyFile = "test/test_creds.json"
-
 type StorageClientConfig struct {
 	ClientProtocol              mountpkg.ClientProtocol
 	MaxConnsPerHost             int

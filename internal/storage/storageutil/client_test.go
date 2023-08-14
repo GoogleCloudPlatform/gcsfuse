@@ -41,7 +41,7 @@ func (t *clientTest) TestCreateTokenSrcWithCustomEndpoint() {
 	ExpectNe(nil, &tokenSrc)
 }
 
-func (t *clientTest) TestCreateTokenSrcWithProdEndpoint() {
+func (t *clientTest) TestCreateTokenSrcWhenCustomEndpointIsNil() {
 	sc := GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
 
