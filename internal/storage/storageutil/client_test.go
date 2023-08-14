@@ -22,14 +22,14 @@ import (
 	. "github.com/jacobsa/ogletest"
 )
 
-func TestClientHelper(t *testing.T) { RunTests(t) }
+func TestClient(t *testing.T) { RunTests(t) }
 
-type clientHelperTest struct {
+type clientTest struct {
 }
 
-func init() { RegisterTestSuite(&clientHelperTest{}) }
+func init() { RegisterTestSuite(&clientTest{}) }
 
-func (t *clientHelperTest) TestCreateTokenSrcWithCustomEndpoint() {
+func (t *clientTest) TestCreateTokenSrcWithCustomEndpoint() {
 	url, err := url.Parse(CustomEndpoint)
 	AssertEq(nil, err)
 	sc := GetDefaultStorageClientConfig()
@@ -41,7 +41,7 @@ func (t *clientHelperTest) TestCreateTokenSrcWithCustomEndpoint() {
 	ExpectNe(nil, &tokenSrc)
 }
 
-func (t *clientHelperTest) TestCreateTokenSrcWithProdEndpoint() {
+func (t *clientTest) TestCreateTokenSrcWithProdEndpoint() {
 	sc := GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
 
@@ -53,7 +53,7 @@ func (t *clientHelperTest) TestCreateTokenSrcWithProdEndpoint() {
 	ExpectEq(nil, tokenSrc)
 }
 
-func (t *clientHelperTest) TestCreateHttpClientWithHttp1() {
+func (t *clientTest) TestCreateHttpClientWithHttp1() {
 	sc := GetDefaultStorageClientConfig() // By default http1 enabled
 
 	// Act: this method add tokenSource and clientOptions.
@@ -65,7 +65,7 @@ func (t *clientHelperTest) TestCreateHttpClientWithHttp1() {
 	ExpectEq(sc.HttpClientTimeout, httpClient.Timeout)
 }
 
-func (t *clientHelperTest) TestCreateHttpClientWithHttp2() {
+func (t *clientTest) TestCreateHttpClientWithHttp2() {
 	sc := GetDefaultStorageClientConfig()
 
 	// Act: this method add tokenSource and clientOptions.
