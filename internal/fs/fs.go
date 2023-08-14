@@ -846,6 +846,15 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	ctx context.Context,
 	parent inode.DirInode,
 	childName string) (child inode.Inode, err error) {
+	// First check if the requested child is a localFileInode.
+	child = fs.lookUpLocalFileInode(parent, childName)
+	if child != nil {
+		return
+	}
+
+	// If the requested child is not a localFileInode, continue with the existing
+	// flow of checking GCS for file/directory.
+
 	// Set up a function that will find a lookup result for the child with the
 	// given name. Expects no locks to be held.
 	getLookupResult := func() (*inode.Core, error) {
@@ -878,6 +887,34 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	}
 
 	err = fmt.Errorf("cannot find %q in %q with %v tries", childName, parent.Name(), maxTries)
+	return
+}
+
+// Look up the localFileInodes to check if a file with given name exists.
+// Return inode if it exists, else return nil.
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_EXCLUDED(parent)
+// UNLOCK_FUNCTION(fs.mu)
+// LOCK_FUNCTION(child)
+func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName string) (child inode.Inode) {
+	defer func() {
+		if child != nil {
+			// lock is required for the calling function.
+			child.Lock()
+			child.IncrementLookupCount()
+		}
+	}()
+
+	fileName := inode.NewFileName(parent.Name(), childName)
+	// Lock is required to ensure that localFileInode is not updated/deleted in the meantime.
+	fs.mu.Lock()
+	child, ok := fs.localFileInodes[fileName]
+	fs.mu.Unlock()
+
+	if ok {
+		return
+	}
+
 	return
 }
 
@@ -1371,6 +1408,10 @@ func (fs *fileSystem) createFile(
 	return
 }
 
+// Creates localFileInode with the given name under the parent inode.
+// LOCKS_EXCLUDED(fs.mu)
+// UNLOCK_FUNCTION(fs.mu)
+// LOCK_FUNCTION(in)
 func (fs *fileSystem) createLocalFile(
 	parentID fuseops.InodeID,
 	name string) (child inode.Inode, err error) {
