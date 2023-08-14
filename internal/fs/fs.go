@@ -846,6 +846,15 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	ctx context.Context,
 	parent inode.DirInode,
 	childName string) (child inode.Inode, err error) {
+	// First check if the requested child is a localFileInode.
+	child = fs.lookUpLocalFileInode(parent, childName)
+	if child != nil {
+		return
+	}
+
+	// If the requested child is not a localFileInode, continue with the existing
+	// flow of checking GCS for file/directory.
+
 	// Set up a function that will find a lookup result for the child with the
 	// given name. Expects no locks to be held.
 	getLookupResult := func() (*inode.Core, error) {
@@ -878,6 +887,57 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	}
 
 	err = fmt.Errorf("cannot find %q in %q with %v tries", childName, parent.Name(), maxTries)
+	return
+}
+
+// Look up the localFileInodes to check if a file with given name exists.
+// Return inode if it exists, else return nil.
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_EXCLUDED(parent)
+// UNLOCK_FUNCTION(fs.mu)
+// LOCK_FUNCTION(child)
+func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName string) (child inode.Inode) {
+	defer func() {
+		if child != nil {
+			child.IncrementLookupCount()
+		}
+		fs.mu.Unlock()
+	}()
+
+	fileName := inode.NewFileName(parent.Name(), childName)
+
+	fs.mu.Lock()
+	var maxTriesToLookupInode = 3
+	for n := 0; n < maxTriesToLookupInode; n++ {
+		child = fs.localFileInodes[fileName]
+
+		if child == nil {
+			return
+		}
+
+		// If the inode already exists, we need to follow the lock ordering rules
+		// to get the lock. First get inode lock and then fs lock.
+		fs.mu.Unlock()
+		child.Lock()
+		// Filesystem lock will be held till we increment lookUpCount to avoid
+		// deletion of inode from fs.inodes/fs.localFileInodes map by other flows.
+		fs.mu.Lock()
+		// Once we get fs lock, validate if the inode is still valid. If not
+		// try to fetch it again. Eg: If the inode is deleted by other thread after
+		// we fetched it from fs.localFileInodes map, then any call to perform
+		// inode operation will crash GCSFuse since the inode is not valid. Hence
+		// it is important to acquire lock and increment lookUpCount before letting
+		// other threads modify it.
+		if fs.localFileInodes[fileName] != child {
+			child.Unlock()
+			continue
+		}
+
+		return
+	}
+
+	// In case we exhausted the retries, return nil object.
+	child = nil
 	return
 }
 
@@ -1371,6 +1431,10 @@ func (fs *fileSystem) createFile(
 	return
 }
 
+// Creates localFileInode with the given name under the parent inode.
+// LOCKS_EXCLUDED(fs.mu)
+// UNLOCK_FUNCTION(fs.mu)
+// LOCK_FUNCTION(in)
 func (fs *fileSystem) createLocalFile(
 	parentID fuseops.InodeID,
 	name string) (child inode.Inode, err error) {
