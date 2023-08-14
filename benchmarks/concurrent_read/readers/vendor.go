@@ -18,8 +18,8 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/url"
 
+	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/oauth2/google"
@@ -36,27 +36,25 @@ func NewVendorClient(ctx context.Context, protocol string, connections int, buck
 	if err != nil {
 		return nil, err
 	}
-	endpoint, _ := url.Parse(storage.EndPoint)
-	config := &gcs.ConnConfig{
-		Url:         endpoint,
-		TokenSource: tokenSrc,
-		UserAgent:   userAgent,
-		Transport:   getTransport(protocol, connections),
+
+	storageClientConfig := storage.StorageClientConfig{
+		ClientProtocol:  mountpkg.ClientProtocol(protocol),
+		MaxConnsPerHost: connections,
+		TokenSrc:        tokenSrc,
+		UserAgent:       userAgent,
 	}
-	conn, err := gcs.NewConn(config)
+
+	storageHandle, err := storage.NewStorageHandle(context.Background(), storageClientConfig)
 	if err != nil {
 		return nil, err
 	}
-	bucket, err := conn.OpenBucket(
-		ctx,
-		&gcs.OpenBucketOptions{
-			Name: bucketName,
-		},
-	)
+
+	bucketHandle := storageHandle.BucketHandle(bucketName, "")
 	if err != nil {
-		panic(fmt.Errorf("Cannot open bucket %q: %w", bucketName, err))
+		panic(fmt.Errorf("Cannot create bucket %q: %w", bucketName, err))
 	}
-	return &vendorClient{ctx, bucket}, nil
+
+	return &vendorClient{ctx, bucketHandle}, nil
 }
 
 func (c *vendorClient) NewReader(objectName string) (io.ReadCloser, error) {
