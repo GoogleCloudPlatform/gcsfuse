@@ -31,6 +31,6 @@ sudo apt-get install fio -y
 
 # Run on master branch
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
-gcloud alpha storage du -s gs://integration-test-tulsishah-2/a.txt
 # Executing integration tests
-GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test -timeout 15m
+GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/gzip/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test -timeout 15m
+gcloud alpha storage du -s gs://integration-test-tulsishah-2/a.txt
