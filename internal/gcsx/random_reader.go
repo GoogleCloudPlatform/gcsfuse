@@ -372,6 +372,7 @@ func (rr *randomReader) startRead(
 				Start: uint64(start),
 				Limit: uint64(end),
 			},
+			ReadCompressed: rr.object.HasContentEncodingGzip(),
 		})
 
 	if err != nil {
