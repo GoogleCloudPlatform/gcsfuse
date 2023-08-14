@@ -53,11 +53,11 @@ func (t *clientHelperTest) TestCreateTokenSrcWithProdEndpoint() {
 	ExpectEq(nil, tokenSrc)
 }
 
-func (t *clientHelperTest) TestCreateHttpClientObjWithHttp1() {
+func (t *clientHelperTest) TestCreateHttpClientWithHttp1() {
 	sc := GetDefaultStorageClientConfig() // By default http1 enabled
 
 	// Act: this method add tokenSource and clientOptions.
-	httpClient, err := CreateHttpClientObj(&sc)
+	httpClient, err := CreateHttpClient(&sc)
 
 	ExpectEq(nil, err)
 	ExpectNe(nil, httpClient)
@@ -65,11 +65,11 @@ func (t *clientHelperTest) TestCreateHttpClientObjWithHttp1() {
 	ExpectEq(sc.HttpClientTimeout, httpClient.Timeout)
 }
 
-func (t *clientHelperTest) TestCreateHttpClientObjWithHttp2() {
+func (t *clientHelperTest) TestCreateHttpClientWithHttp2() {
 	sc := GetDefaultStorageClientConfig()
 
 	// Act: this method add tokenSource and clientOptions.
-	httpClient, err := CreateHttpClientObj(&sc)
+	httpClient, err := CreateHttpClient(&sc)
 
 	ExpectEq(nil, err)
 	ExpectNe(nil, httpClient)
