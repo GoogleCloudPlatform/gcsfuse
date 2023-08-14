@@ -908,7 +908,7 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 	fileName := inode.NewFileName(parent.Name(), childName)
 	// Lock is required to ensure that localFileInode is not updated/deleted in the meantime.
 	fs.mu.Lock()
-	child, _ = fs.localFileInodes[fileName]
+	child = fs.localFileInodes[fileName]
 	fs.mu.Unlock()
 
 	return
