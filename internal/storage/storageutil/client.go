@@ -28,18 +28,18 @@ import (
 )
 
 type StorageClientConfig struct {
-	ClientProtocol              mountpkg.ClientProtocol
-	MaxConnsPerHost             int
-	MaxIdleConnsPerHost         int
-	HttpClientTimeout           time.Duration
-	MaxRetryDuration            time.Duration
-	RetryMultiplier             float64
-	UserAgent                   string
-	CustomEndpoint              *url.URL
-	KeyFile                     string
-	TokenUrl                    string
-	ReuseTokenFromUrl           bool
-	ExperimentalEnableJasonRead bool
+	ClientProtocol             mountpkg.ClientProtocol
+	MaxConnsPerHost            int
+	MaxIdleConnsPerHost        int
+	HttpClientTimeout          time.Duration
+	MaxRetryDuration           time.Duration
+	RetryMultiplier            float64
+	UserAgent                  string
+	CustomEndpoint             *url.URL
+	KeyFile                    string
+	TokenUrl                   string
+	ReuseTokenFromUrl          bool
+	ExperimentalEnableJsonRead bool
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {

@@ -156,7 +156,7 @@ func (t *StorageHandleTest) TestNewStorageHandleWhenTokenUrlIsSet() {
 
 func (t *StorageHandleTest) TestNewStorageHandleWhenJsonReadEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.ExperimentalEnableJasonRead = true
+	sc.ExperimentalEnableJsonRead = true
 
 	t.invokeAndVerifyStorageHandle(sc)
 }

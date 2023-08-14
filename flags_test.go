@@ -133,7 +133,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugInvariants)
 	ExpectTrue(f.EnableStorageClientLibrary)
 	ExpectTrue(f.EnableNonexistentTypeCache)
-	ExpectTrue(f.ExperimentalEnableJasonRead)
+	ExpectTrue(f.ExperimentalEnableJsonRead)
 
 	// --foo=false form
 	args = nil

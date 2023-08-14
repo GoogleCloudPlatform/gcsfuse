@@ -397,12 +397,12 @@ type flagStorage struct {
 	EnableNonexistentTypeCache bool
 
 	// Monitoring & Logging
-	StackdriverExportInterval   time.Duration
-	OtelCollectorAddress        string
-	LogFile                     string
-	LogFormat                   string
-	ExperimentalEnableJasonRead bool
-	DebugFuseErrors             bool
+	StackdriverExportInterval  time.Duration
+	OtelCollectorAddress       string
+	LogFile                    string
+	LogFormat                  string
+	ExperimentalEnableJsonRead bool
+	DebugFuseErrors            bool
 
 	// Debugging
 	DebugFuse       bool
@@ -532,11 +532,11 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		EnableNonexistentTypeCache: c.Bool("enable-nonexistent-type-cache"),
 
 		// Monitoring & Logging
-		StackdriverExportInterval:   c.Duration("stackdriver-export-interval"),
-		OtelCollectorAddress:        c.String("experimental-opentelemetry-collector-address"),
-		LogFile:                     c.String("log-file"),
-		LogFormat:                   c.String("log-format"),
-		ExperimentalEnableJasonRead: c.Bool("experimental-enable-json-read"),
+		StackdriverExportInterval:  c.Duration("stackdriver-export-interval"),
+		OtelCollectorAddress:       c.String("experimental-opentelemetry-collector-address"),
+		LogFile:                    c.String("log-file"),
+		LogFormat:                  c.String("log-format"),
+		ExperimentalEnableJsonRead: c.Bool("experimental-enable-json-read"),
 
 		// Debugging,
 		DebugFuseErrors: c.BoolT("debug_fuse_errors"),

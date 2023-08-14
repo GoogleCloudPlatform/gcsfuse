@@ -58,7 +58,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	}
 
 	// Create client with JSON read flow, if EnableJasonRead flag is set.
-	if clientConfig.ExperimentalEnableJasonRead {
+	if clientConfig.ExperimentalEnableJsonRead {
 		clientOpts = append(clientOpts, storage.WithJSONReads())
 	}
 
