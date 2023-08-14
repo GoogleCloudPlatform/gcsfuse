@@ -16,12 +16,16 @@
 package operations
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"syscall"
 )
 
@@ -272,4 +276,161 @@ func ReadChunkFromFile(filePath string, chunkSize int64, offset int64) (chunk []
 	}
 
 	return
+}
+
+// Returns the stats of a file.
+// Fails if the passed input is a directory.
+func StatFile(file string) (*fs.FileInfo, error) {
+	fstat, err := os.Stat(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat input file %s: %v", file, err)
+	} else if fstat.IsDir() {
+		return nil, fmt.Errorf("input file %s is a directory", file)
+	}
+
+	return &fstat, nil
+}
+
+// Finds if two local files have identical content (equivalnt to binary diff).
+// Needs (a) both files to exist, (b)read permission on both the files, (c) both
+// inputs to be proper files, symlinks/directories not supported.
+// Compares file names first. If different, compares sizes next.
+// If sizes match, then compares hashes of both the files.
+// Not a good idea for very large files as it loads both the files in the memory completely.
+// Returns 0 if no error and files match.
+// Returns 1 if files don't match and captures reason for mismatch in err.
+// Returns 2 if any error.
+func DiffFiles(filepath1, filepath2 string) (int, error) {
+	if filepath1 == "" || filepath2 == "" {
+		return 2, fmt.Errorf("one or both files being diff'ed have empty path")
+	} else if filepath1 == filepath2 {
+		return 0, nil
+	}
+
+	fstat1, err := StatFile(filepath1)
+	if err != nil {
+		return 2, err
+	}
+
+	fstat2, err := StatFile(filepath2)
+	if err != nil {
+		return 2, err
+	}
+
+	file1size := (*fstat1).Size()
+	file2size := (*fstat2).Size()
+	if file1size != file2size {
+		return 1, fmt.Errorf("files don't match in size: %s (%d bytes), %s (%d bytes)", filepath1, file1size, filepath2, file2size)
+	}
+
+	bytes1, err := ReadFile(filepath1)
+	if err != nil || bytes1 == nil {
+		return 2, fmt.Errorf("failed to read file %s", filepath1)
+	} else if int64(len(bytes1)) != file1size {
+		return 2, fmt.Errorf("failed to completely read file %s", filepath1)
+	}
+
+	bytes2, err := ReadFile(filepath2)
+	if err != nil || bytes2 == nil {
+		return 2, fmt.Errorf("failed to read file %s", filepath2)
+	} else if int64(len(bytes2)) != file2size {
+		return 2, fmt.Errorf("failed to completely read file %s", filepath2)
+	}
+
+	if !bytes.Equal(bytes1, bytes2) {
+		return 1, fmt.Errorf("files don't match in content: %s, %s", filepath1, filepath2)
+	}
+
+	return 0, nil
+}
+
+// Executes any given tool (e.g. gsutil/gcloud) with given args.
+func executeToolCommandf(tool string, format string, args ...any) ([]byte, error) {
+	cmdArgs := tool + " " + fmt.Sprintf(format, args...)
+	cmd := exec.Command("/bin/bash", "-c", cmdArgs)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		return stdout.Bytes(), fmt.Errorf("failed command '%s': %v, %s", cmdArgs, err, stderr.String())
+	}
+
+	return stdout.Bytes(), nil
+}
+
+// Executes any given gcloud command with given args
+func ExecuteGcloudCommandf(format string, args ...any) ([]byte, error) {
+	return executeToolCommandf("gcloud alpha", format, args...)
+}
+
+// Returns size of a give GCS object with path (without 'gs://').
+// Fails if the object doesn't exist or permission to read object's metadata is not
+// available.
+// Uses 'gcloud storage du -s gs://gcsObjPath'.
+func GetGcsObjectSize(gcsObjPath string) (int, error) {
+	stdout, err := ExecuteGcloudCommandf("storage du -s gs://%s", gcsObjPath)
+	if err != nil {
+		return 0, err
+	}
+
+	// The above gcloud command returns output in the following format:
+	// <size> <gcs-object-path>
+	// So, we need to pick out only the first string before ' '.
+	gcsObjectSize, err := strconv.Atoi(strings.TrimSpace(strings.Split(string(stdout), " ")[0]))
+	if err != nil {
+		return gcsObjectSize, err
+	}
+
+	return gcsObjectSize, nil
+}
+
+// Downloads given GCS object (with path without 'gs://') to localPath.
+// Fails if the object doesn't exist or permission to read object is not
+// available.
+// Uses 'gcloud storage cp gs://gcsObjPath localPath'
+func DownloadGcsObject(gcsObjPath, localPath string) error {
+	_, err := ExecuteGcloudCommandf("storage cp gs://%s %s", gcsObjPath, localPath)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Uploads given local file to GCS object (with path without 'gs://').
+// Fails if the file doesn't exist or permission to write to object/bucket is not
+// available.
+// Uses 'gcloud storage cp localPath gs://gcsObjPath'
+func UploadGcsObject(localPath, gcsObjPath string, uploadGzipEncoded bool) error {
+	var err error
+	if uploadGzipEncoded {
+		_, err = ExecuteGcloudCommandf("storage cp -Z %s gs://%s", localPath, gcsObjPath)
+	} else {
+		_, err = ExecuteGcloudCommandf("storage cp %s gs://%s", localPath, gcsObjPath)
+	}
+
+	return err
+}
+
+// Deletes a given GCS object (with path without 'gs://').
+// Fails if the object doesn't exist or permission to delete object is not
+// available.
+// Uses 'gcloud storage rm gs://gcsObjPath'
+func DeleteGcsObject(gcsObjPath string) error {
+	_, err := ExecuteGcloudCommandf("storage rm gs://%s", gcsObjPath)
+	return err
+}
+
+// Clears cache-control attributes on given GCS object (with path without 'gs://').
+// Fails if the file doesn't exist or permission to modify object's metadata is not
+// available.
+// Uses 'gcloud storage objects update gs://gs://gcsObjPath --cache-control=' ' '
+func ClearCacheControlOnGcsObject(gcsObjPath string) error {
+	_, err := ExecuteGcloudCommandf("storage objects update gs://%s --cache-control=''", gcsObjPath)
+	return err
 }
