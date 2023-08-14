@@ -16,10 +16,12 @@ package storage
 
 import (
 	"context"
+	"net/url"
 	"testing"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
+	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -109,10 +111,44 @@ func (t *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
-
-func (t *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
+func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpoint() {
+	url, err := url.Parse(storageutil.CustomEndpoint)
+	AssertEq(nil, err)
 	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.UserAgent = "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) appName (GPN:Gcsfuse-DLC)"
+	sc.CustomEndpoint = url
+
+	t.invokeAndVerifyStorageHandle(sc)
+}
+
+// This will fail while fetching the token-source, since key-file doesn't exist.
+func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNil() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.CustomEndpoint = nil
+
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	AssertNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
+	AssertEq(nil, handleCreated)
+}
+
+func (t *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmpty() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.KeyFile = ""
+
+	t.invokeAndVerifyStorageHandle(sc)
+}
+
+func (t *StorageHandleTest) TestNewStorageHandleWhenReuseTokenUrlFalse() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.ReuseTokenFromUrl = false
+
+	t.invokeAndVerifyStorageHandle(sc)
+}
+
+func (t *StorageHandleTest) TestNewStorageHandleWhenTokenUrlIsSet() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.TokenUrl = storageutil.CustomTokenUrl
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
