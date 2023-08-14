@@ -3,7 +3,7 @@ Source: gcsfuse
 Maintainer: GCSFuse Team <gcs-fuse-maintainers@google.com>
 Homepage: https://github.com/GoogleCloudPlatform/gcsfuse
 Package: gcsfuse
-Architecture: amd64
+Architecture: all
 Depends: fuse
 Description: User-space file system for Google Cloud Storage.
  GCSFuse is a FUSE adapter that allows you to mount and access Cloud Storage
