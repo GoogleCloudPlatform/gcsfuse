@@ -58,9 +58,10 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	}
 
 	// Add Custom endpoint option.
-	if !storageutil.IsProdEndpoint(clientConfig.Endpoint) {
-		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.Endpoint.String()))
+	if clientConfig.CustomEndpoint != nil {
+		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint.String()))
 	}
+
 	var sc *storage.Client
 	sc, err = storage.NewClient(ctx, clientOpts...)
 	if err != nil {

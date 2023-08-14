@@ -89,7 +89,7 @@ func getUserAgent(appName string) string {
 
 func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 	var tokenSrc oauth2.TokenSource
-	if flags.Endpoint.Hostname() == "storage.googleapis.com" {
+	if flags.CustomEndpoint.Hostname() == "storage.googleapis.com" {
 		tokenSrc, err = auth.GetTokenSource(
 			context.Background(),
 			flags.KeyFile,
@@ -107,7 +107,7 @@ func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
 
 	// Create the connection.
 	cfg := &gcs.ConnConfig{
-		Url:             flags.Endpoint,
+		Url:             flags.CustomEndpoint,
 		TokenSource:     tokenSrc,
 		UserAgent:       getUserAgent(flags.AppName),
 		MaxBackoffSleep: flags.MaxRetrySleep,
@@ -150,6 +150,7 @@ func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
 
 func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
+<<<<<<< Updated upstream
 		ClientProtocol:      flags.ClientProtocol,
 		MaxConnsPerHost:     flags.MaxConnsPerHost,
 		MaxIdleConnsPerHost: flags.MaxIdleConnsPerHost,
@@ -161,6 +162,20 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 		KeyFile:             flags.KeyFile,
 		TokenUrl:            flags.TokenUrl,
 		ReuseTokenFromUrl:   flags.ReuseTokenFromUrl,
+=======
+		ClientProtocol:              flags.ClientProtocol,
+		MaxConnsPerHost:             flags.MaxConnsPerHost,
+		MaxIdleConnsPerHost:         flags.MaxIdleConnsPerHost,
+		HttpClientTimeout:           flags.HttpClientTimeout,
+		MaxRetryDuration:            flags.MaxRetryDuration,
+		RetryMultiplier:             flags.RetryMultiplier,
+		UserAgent:                   getUserAgent(flags.AppName),
+		CustomEndpoint:              flags.CustomEndpoint,
+		KeyFile:                     flags.KeyFile,
+		TokenUrl:                    flags.TokenUrl,
+		ReuseTokenFromUrl:           flags.ReuseTokenFromUrl,
+		ExperimentalEnableJasonRead: flags.ExperimentalEnableJasonRead,
+>>>>>>> Stashed changes
 	}
 
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)

@@ -29,29 +29,11 @@ type clientHelperTest struct {
 
 func init() { RegisterTestSuite(&clientHelperTest{}) }
 
-func (t *clientHelperTest) TestIsGCSProdHostnameWithCustomName() {
-	url, err := url.Parse(CustomEndpoint)
-	AssertEq(nil, err)
-
-	res := IsProdEndpoint(url)
-
-	ExpectFalse(res)
-}
-
-func (t *clientHelperTest) TestIsGCSProdHostnameEndpoint() {
-	// GCSFuse assumes prod, if we specify endpoint as nil.
-	var url *url.URL
-
-	res := IsProdEndpoint(url)
-
-	ExpectTrue(res)
-}
-
 func (t *clientHelperTest) TestCreateTokenSrcWithCustomEndpoint() {
 	url, err := url.Parse(CustomEndpoint)
 	AssertEq(nil, err)
 	sc := GetDefaultStorageClientConfig()
-	sc.Endpoint = url
+	sc.CustomEndpoint = url
 
 	tokenSrc, err := createTokenSource(&sc)
 
@@ -61,7 +43,7 @@ func (t *clientHelperTest) TestCreateTokenSrcWithCustomEndpoint() {
 
 func (t *clientHelperTest) TestCreateTokenSrcWithProdEndpoint() {
 	sc := GetDefaultStorageClientConfig()
-	sc.Endpoint = nil
+	sc.CustomEndpoint = nil
 
 	// It will try to create the actual auth token and fail since key-file doesn't exist.
 	tokenSrc, err := createTokenSource(&sc)
