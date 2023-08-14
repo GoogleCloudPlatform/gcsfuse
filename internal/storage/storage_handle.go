@@ -48,7 +48,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	// Add WithHttpClient option.
 	if clientConfig.ClientProtocol == mountpkg.HTTP1 || clientConfig.ClientProtocol == mountpkg.HTTP2 {
 		var httpClient *http.Client
-		httpClient, err = storageutil.CreateHttpClientObj(&clientConfig)
+		httpClient, err = storageutil.CreateHttpClient(&clientConfig)
 		if err != nil {
 			err = fmt.Errorf("while creating http endpoint: %w", err)
 			return

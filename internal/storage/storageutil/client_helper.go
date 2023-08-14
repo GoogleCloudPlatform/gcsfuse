@@ -45,7 +45,7 @@ type StorageClientConfig struct {
 	ExperimentalEnableJasonRead bool
 }
 
-func CreateHttpClientObj(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {
+func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
 	if storageClientConfig.ClientProtocol == mountpkg.HTTP1 {
@@ -90,18 +90,6 @@ func CreateHttpClientObj(storageClientConfig *StorageClientConfig) (httpClient *
 	return httpClient, err
 }
 
-<<<<<<< Updated upstream
-// IsProdEndpoint -  If user pass any url including (GCS prod) using --endpoint flag
-// GCSFuse assumes it as a custom endpoint. Hence, we don't encourage to use --endpoint
-// flag to pass actual GCS prod url, as in that case we also need to take care mTLS
-// option, which hasn't been handled properly in go-client-lib (by design of WithEndpoint
-// option used by GCSFuse).
-func IsProdEndpoint(endpoint *url.URL) bool {
-	return endpoint == nil
-}
-
-=======
->>>>>>> Stashed changes
 func createTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
 	if storageClientConfig.CustomEndpoint == nil {
 		return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
