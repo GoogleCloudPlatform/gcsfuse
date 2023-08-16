@@ -82,40 +82,32 @@ type fullObjectCreator struct {
 
 func (oc *fullObjectCreator) Create(
 	ctx context.Context,
-	fileName string,
+	objectName string,
 	srcObject *gcs.Object,
 	mtime *time.Time,
 	r io.Reader) (o *gcs.Object, err error) {
-	MetadataMap := make(map[string]string)
-
-	/* Copy Metadata fields from existing object to retain them for new object. */
-	if srcObject != nil {
-		for key, value := range srcObject.Metadata {
-			MetadataMap[key] = value
-		}
-	}
-
-	// Any existing mtime value will be overwritten with new value.
-	if mtime != nil {
-		MetadataMap[MtimeMetadataKey] = mtime.UTC().Format(time.RFC3339Nano)
-	}
+	metadataMap := make(map[string]string)
 
 	var req *gcs.CreateObjectRequest
 	if srcObject == nil {
 		var precond int64
 		req = &gcs.CreateObjectRequest{
-			Name:                   fileName,
+			Name:                   objectName,
 			Contents:               r,
 			GenerationPrecondition: &precond,
-			Metadata:               MetadataMap,
+			Metadata:               metadataMap,
 		}
 	} else {
+		for key, value := range srcObject.Metadata {
+			metadataMap[key] = value
+		}
+
 		req = &gcs.CreateObjectRequest{
 			Name:                       srcObject.Name,
 			GenerationPrecondition:     &srcObject.Generation,
 			MetaGenerationPrecondition: &srcObject.MetaGeneration,
 			Contents:                   r,
-			Metadata:                   MetadataMap,
+			Metadata:                   metadataMap,
 			CacheControl:               srcObject.CacheControl,
 			ContentDisposition:         srcObject.ContentDisposition,
 			ContentEncoding:            srcObject.ContentEncoding,
@@ -124,6 +116,11 @@ func (oc *fullObjectCreator) Create(
 			EventBasedHold:             srcObject.EventBasedHold,
 			StorageClass:               srcObject.StorageClass,
 		}
+	}
+
+	// Any existing mtime value will be overwritten with new value.
+	if mtime != nil {
+		metadataMap[MtimeMetadataKey] = mtime.UTC().Format(time.RFC3339Nano)
 	}
 
 	o, err = oc.bucket.CreateObject(ctx, req)
@@ -143,7 +140,7 @@ func (oc *fullObjectCreator) Create(
 type objectCreator interface {
 	Create(
 		ctx context.Context,
-		fileName string,
+		objectName string,
 		srcObject *gcs.Object,
 		mtime *time.Time,
 		r io.Reader) (o *gcs.Object, err error)
@@ -183,7 +180,7 @@ type syncer struct {
 
 func (os *syncer) SyncObject(
 	ctx context.Context,
-	fileName string,
+	objectName string,
 	srcObject *gcs.Object,
 	content TempFile) (o *gcs.Object, err error) {
 	// Stat the content.
@@ -193,6 +190,8 @@ func (os *syncer) SyncObject(
 		return
 	}
 
+	// Local files are not present on GCS, hence only fullCreator is
+	// invoked and append flow is never triggered.
 	if srcObject == nil {
 		// Content.Stat() seeks the current position to end of file. Seek it back
 		// to beginning of the file.
@@ -201,7 +200,7 @@ func (os *syncer) SyncObject(
 			err = fmt.Errorf("error in seeking: %w", err)
 			return
 		}
-		return os.fullCreator.Create(ctx, fileName, srcObject, sr.Mtime, content)
+		return os.fullCreator.Create(ctx, objectName, srcObject, sr.Mtime, content)
 	}
 
 	// Make sure the dirty threshold makes sense.
@@ -241,7 +240,7 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		o, err = os.appendCreator.Create(ctx, fileName, srcObject, sr.Mtime, content)
+		o, err = os.appendCreator.Create(ctx, objectName, srcObject, sr.Mtime, content)
 	} else {
 		_, err = content.Seek(0, 0)
 		if err != nil {
@@ -249,7 +248,7 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		o, err = os.fullCreator.Create(ctx, fileName, srcObject, sr.Mtime, content)
+		o, err = os.fullCreator.Create(ctx, objectName, srcObject, sr.Mtime, content)
 	}
 
 	// Deal with errors.

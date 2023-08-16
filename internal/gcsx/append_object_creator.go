@@ -78,9 +78,12 @@ func (oc *appendObjectCreator) chooseName() (name string, err error) {
 	return
 }
 
+// ObjectName param is present here for consistency between fullObjectCreator
+// and appendObjectCreator. ObjectName is not used in append flow since
+// srcObject.Name gives the objectName.
 func (oc *appendObjectCreator) Create(
 	ctx context.Context,
-	fileName string,
+	objectName string,
 	srcObject *gcs.Object,
 	mtime *time.Time,
 	r io.Reader) (o *gcs.Object, err error) {

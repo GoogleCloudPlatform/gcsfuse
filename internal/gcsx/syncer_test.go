@@ -213,7 +213,7 @@ func (t *FullObjectCreatorTest) validateEmptyProperties(req *gcs.CreateObjectReq
 	AssertEq("", req.CustomTime)
 	AssertEq(false, req.EventBasedHold)
 	AssertEq("", req.StorageClass)
-	// Validate the objecct contents.
+	// Validate the object contents.
 	b, err := ioutil.ReadAll(req.Contents)
 	AssertEq(nil, err)
 	ExpectEq(t.srcContents, string(b))

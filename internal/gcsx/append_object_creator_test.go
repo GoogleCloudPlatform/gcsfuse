@@ -155,7 +155,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjects() {
 	t.srcObject.Name = "foo"
 	t.srcObject.Generation = 17
 	t.srcObject.MetaGeneration = 23
-	t.mtime = time.Now().Add(123 * time.Second).UTC()
+	t.mtime = time.Now().Add(123 * time.Second)
 
 	// CreateObject
 	tmpObject := &gcs.Object{
@@ -188,7 +188,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjects() {
 		Pointee(Equals(t.srcObject.MetaGeneration)))
 
 	ExpectEq(1, len(req.Metadata))
-	ExpectEq(t.mtime.Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
+	ExpectEq(t.mtime.UTC().Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
 
 	AssertEq(2, len(req.Sources))
 	var src gcs.ComposeSource
@@ -216,7 +216,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 	t.srcObject.Metadata = map[string]string{
 		"test_key": "test_value",
 	}
-	t.mtime = time.Now().Add(123 * time.Second).UTC()
+	t.mtime = time.Now().Add(123 * time.Second)
 
 	// CreateObject
 	tmpObject := &gcs.Object{
@@ -255,7 +255,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 	ExpectEq(t.srcObject.EventBasedHold, req.EventBasedHold)
 
 	ExpectEq(2, len(req.Metadata))
-	ExpectEq(t.mtime.Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
+	ExpectEq(t.mtime.UTC().Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
 	ExpectEq("test_value", req.Metadata["test_key"])
 
 	AssertEq(2, len(req.Sources))
