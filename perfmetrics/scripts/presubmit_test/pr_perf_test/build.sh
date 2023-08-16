@@ -87,7 +87,7 @@ then
   # The length of the random string
   length=5
   # Generate the random string
-  random_string=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c $length)
+  random_string=$(tr -dc 'a-z0-9' < /dev/urandom | head -c $length)
   BUCKET_NAME=$bucketPrefix$random_string
   gcloud alpha storage buckets create gs://$BUCKET_NAME --project=gcs-fuse-test-ml --location=us-west1 --uniform-bucket-level-access
 
