@@ -83,7 +83,6 @@ func makeGcsfuseArgs(
 		case "implicit_dirs",
 			"foreground",
 			"experimental_local_file_cache",
-			"enable_storage_client_library",
 			"reuse_token_from_url",
 			"enable_nonexistent_type_cache":
 			if value == "" {

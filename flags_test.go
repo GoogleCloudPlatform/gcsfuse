@@ -23,6 +23,7 @@ import (
 	"time"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/urfave/cli"
@@ -80,6 +81,7 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq(-1, f.EgressBandwidthLimitBytesPerSecond)
 	ExpectEq(-1, f.OpRateLimitHz)
 	ExpectTrue(f.ReuseTokenFromUrl)
+	ExpectEq(storage.GcsEndPoint, f.Endpoint.String())
 
 	// Tuning
 	ExpectEq(4096, f.StatCacheCapacity)
@@ -106,10 +108,9 @@ func (t *FlagsTest) Bools() {
 		"reuse-token-from-url",
 		"debug_fuse_errors",
 		"debug_fuse",
-		"debug_gcs",
 		"debug_http",
+		"debug_gcs",
 		"debug_invariants",
-		"enable-storage-client-library",
 		"enable-nonexistent-type-cache",
 	}
 
@@ -130,7 +131,6 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugGCS)
 	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
-	ExpectTrue(f.EnableStorageClientLibrary)
 	ExpectTrue(f.EnableNonexistentTypeCache)
 
 	// --foo=false form
@@ -147,7 +147,6 @@ func (t *FlagsTest) Bools() {
 	ExpectFalse(f.DebugGCS)
 	ExpectFalse(f.DebugHTTP)
 	ExpectFalse(f.DebugInvariants)
-	ExpectFalse(f.EnableStorageClientLibrary)
 	ExpectFalse(f.EnableNonexistentTypeCache)
 
 	// --foo=true form
@@ -164,7 +163,6 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugGCS)
 	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
-	ExpectTrue(f.EnableStorageClientLibrary)
 	ExpectTrue(f.EnableNonexistentTypeCache)
 }
 
@@ -454,11 +452,4 @@ func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP2ClientPro
 	err := validateFlags(flags)
 
 	AssertEq(nil, err)
-}
-
-func (t *FlagsTest) TestDefaultValueOfEnableStorageClientLibraryFlag() {
-	var args []string = nil
-	f := parseArgs(args)
-
-	ExpectTrue(f.EnableStorageClientLibrary)
 }
