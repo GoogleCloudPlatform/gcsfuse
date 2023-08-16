@@ -23,7 +23,6 @@ import (
 	"time"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/urfave/cli"
@@ -81,7 +80,7 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq(-1, f.EgressBandwidthLimitBytesPerSecond)
 	ExpectEq(-1, f.OpRateLimitHz)
 	ExpectTrue(f.ReuseTokenFromUrl)
-	ExpectEq(storage.GcsEndPoint, f.Endpoint.String())
+	ExpectEq(nil, f.CustomEndpoint)
 
 	// Tuning
 	ExpectEq(4096, f.StatCacheCapacity)

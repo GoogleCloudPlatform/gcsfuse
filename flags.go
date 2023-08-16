@@ -26,7 +26,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/urfave/cli"
 )
 
@@ -135,9 +134,10 @@ func newApp() (app *cli.App) {
 			/////////////////////////
 
 			cli.StringFlag{
-				Name:  "endpoint",
-				Value: storage.GcsEndPoint,
-				Usage: "The endpoint to connect to.",
+				Name: "custom-endpoint",
+				Usage: "Alternate endpoint for fetching data. Should be used only for testing purposes. " +
+					"The endpoint should be equivalent to the base endpoint of GCS JSON API (https://storage.googleapis.com/storage/v1). " +
+					"If not specified GCS endpoint will be used. Auth will be skipped for custom endpoint.",
 			},
 
 			cli.StringFlag{
@@ -357,7 +357,7 @@ type flagStorage struct {
 	RenameDirLimit int64
 
 	// GCS
-	Endpoint                           *url.URL
+	CustomEndpoint                     *url.URL
 	BillingProject                     string
 	KeyFile                            string
 	TokenUrl                           string
@@ -466,11 +466,19 @@ func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
 // Add the flags accepted by run to the supplied flag set, returning the
 // variables into which the flags will parse.
 func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
-	endpoint, err := url.Parse(c.String("endpoint"))
-	if err != nil {
-		fmt.Printf("Could not parse endpoint")
-		return
+	customEndpointStr := c.String("custom-endpoint")
+	var customEndpoint *url.URL
+
+	if customEndpointStr == "" {
+		customEndpoint = nil
+	} else {
+		customEndpoint, err = url.Parse(customEndpointStr)
+		if err != nil {
+			fmt.Printf("Could not parse endpoint")
+			return
+		}
 	}
+
 	clientProtocolString := strings.ToLower(c.String("client-protocol"))
 	clientProtocol := mountpkg.ClientProtocol(clientProtocolString)
 	flags = &flagStorage{
@@ -488,7 +496,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		RenameDirLimit: int64(c.Int("rename-dir-limit")),
 
 		// GCS,
-		Endpoint:                           endpoint,
+		CustomEndpoint:                     customEndpoint,
 		BillingProject:                     c.String("billing-project"),
 		KeyFile:                            c.String("key-file"),
 		TokenUrl:                           c.String("token-url"),

@@ -16,29 +16,17 @@ package storage
 
 import (
 	"context"
+	"net/url"
 	"testing"
-	"time"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
+	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
-	"golang.org/x/oauth2"
 )
 
 const invalidBucketName string = "will-not-be-present-in-fake-server"
 const projectID string = "valid-project-id"
-
-func getDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
-	return StorageClientConfig{
-		ClientProtocol:      mountpkg.HTTP1,
-		MaxConnsPerHost:     10,
-		MaxIdleConnsPerHost: 100,
-		TokenSrc:            oauth2.StaticTokenSource(&oauth2.Token{}),
-		HttpClientTimeout:   800 * time.Millisecond,
-		MaxRetryDuration:    30 * time.Second,
-		RetryMultiplier:     2,
-		UserAgent:           "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) (GCP:gcsfuse)",
-	}
-}
 
 func TestStorageHandle(t *testing.T) { RunTests(t) }
 
@@ -61,7 +49,7 @@ func (t *StorageHandleTest) TearDown() {
 	t.fakeStorage.ShutDown()
 }
 
-func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc StorageClientConfig) {
+func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc storageutil.StorageClientConfig) {
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 	AssertEq(nil, err)
 	AssertNe(nil, handleCreated)
@@ -98,28 +86,69 @@ func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNonEmptyBi
 }
 
 func (t *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
-	sc := getDefaultStorageClientConfig() // by default http1 enabled
+	sc := storageutil.GetDefaultStorageClientConfig() // by default http1 enabled
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
 
 func (t *StorageHandleTest) TestNewStorageHandleHttp2Enabled() {
-	sc := getDefaultStorageClientConfig()
+	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.HTTP2
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
 
 func (t *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost() {
-	sc := getDefaultStorageClientConfig()
+	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.MaxConnsPerHost = 0
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
 
 func (t *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
-	sc := getDefaultStorageClientConfig()
+	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.UserAgent = "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) appName (GPN:Gcsfuse-DLC)"
+
+	t.invokeAndVerifyStorageHandle(sc)
+}
+func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpoint() {
+	url, err := url.Parse(storageutil.CustomEndpoint)
+	AssertEq(nil, err)
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.CustomEndpoint = url
+
+	t.invokeAndVerifyStorageHandle(sc)
+}
+
+// This will fail while fetching the token-source, since key-file doesn't exist.
+func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNil() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.CustomEndpoint = nil
+
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	AssertNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
+	AssertEq(nil, handleCreated)
+}
+
+func (t *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmpty() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.KeyFile = ""
+
+	t.invokeAndVerifyStorageHandle(sc)
+}
+
+func (t *StorageHandleTest) TestNewStorageHandleWhenReuseTokenUrlFalse() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.ReuseTokenFromUrl = false
+
+	t.invokeAndVerifyStorageHandle(sc)
+}
+
+func (t *StorageHandleTest) TestNewStorageHandleWhenTokenUrlIsSet() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.TokenUrl = storageutil.CustomTokenUrl
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
