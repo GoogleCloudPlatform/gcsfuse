@@ -44,6 +44,7 @@ then
   sudo apt-get install fio -y
 
   # Executing perf tests for master branch
+  git stash
   git checkout master
   echo Mounting gcs bucket for master branch
   mkdir -p gcs
