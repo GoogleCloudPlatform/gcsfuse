@@ -80,6 +80,7 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq(-1, f.EgressBandwidthLimitBytesPerSecond)
 	ExpectEq(-1, f.OpRateLimitHz)
 	ExpectTrue(f.ReuseTokenFromUrl)
+	ExpectEq(nil, f.CustomEndpoint)
 
 	// Tuning
 	ExpectEq(4096, f.StatCacheCapacity)
@@ -106,10 +107,9 @@ func (t *FlagsTest) Bools() {
 		"reuse-token-from-url",
 		"debug_fuse_errors",
 		"debug_fuse",
-		"debug_gcs",
 		"debug_http",
+		"debug_gcs",
 		"debug_invariants",
-		"enable-storage-client-library",
 		"enable-nonexistent-type-cache",
 		"experimental-enable-json-read",
 	}
@@ -131,7 +131,6 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugGCS)
 	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
-	ExpectTrue(f.EnableStorageClientLibrary)
 	ExpectTrue(f.EnableNonexistentTypeCache)
 	ExpectTrue(f.ExperimentalEnableJsonRead)
 
@@ -149,7 +148,6 @@ func (t *FlagsTest) Bools() {
 	ExpectFalse(f.DebugGCS)
 	ExpectFalse(f.DebugHTTP)
 	ExpectFalse(f.DebugInvariants)
-	ExpectFalse(f.EnableStorageClientLibrary)
 	ExpectFalse(f.EnableNonexistentTypeCache)
 
 	// --foo=true form
@@ -166,7 +164,6 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugGCS)
 	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
-	ExpectTrue(f.EnableStorageClientLibrary)
 	ExpectTrue(f.EnableNonexistentTypeCache)
 }
 
@@ -456,11 +453,4 @@ func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP2ClientPro
 	err := validateFlags(flags)
 
 	AssertEq(nil, err)
-}
-
-func (t *FlagsTest) TestDefaultValueOfEnableStorageClientLibraryFlag() {
-	var args []string = nil
-	f := parseArgs(args)
-
-	ExpectTrue(f.EnableStorageClientLibrary)
 }

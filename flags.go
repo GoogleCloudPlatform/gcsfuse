@@ -328,9 +328,8 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.BoolFlag{
-				Name: "debug_http",
-				Usage: "Dump HTTP requests and responses to/from GCS, " +
-					"doesn't work when enable-storage-client-library flag is true.",
+				Name:  "debug_http",
+				Usage: "This flag is currently unused.",
 			},
 
 			cli.BoolFlag{
@@ -341,15 +340,6 @@ func newApp() (app *cli.App) {
 			cli.BoolFlag{
 				Name:  "debug_mutex",
 				Usage: "Print debug messages when a mutex is held too long.",
-			},
-
-			/////////////////////////
-			// Client
-			/////////////////////////
-
-			cli.BoolTFlag{
-				Name:  "enable-storage-client-library",
-				Usage: "If true, will use go storage client library otherwise jacobsa/gcloud",
 			},
 		},
 	}
@@ -411,9 +401,6 @@ type flagStorage struct {
 	DebugHTTP       bool
 	DebugInvariants bool
 	DebugMutex      bool
-
-	// client
-	EnableStorageClientLibrary bool
 }
 
 const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
@@ -485,11 +472,19 @@ func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
 // Add the flags accepted by run to the supplied flag set, returning the
 // variables into which the flags will parse.
 func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
-	customEndpoint, err := url.Parse(c.String("custom-endpoint"))
-	if err != nil {
-		fmt.Printf("Could not parse endpoint")
-		return
+	customEndpointStr := c.String("custom-endpoint")
+	var customEndpoint *url.URL
+
+	if customEndpointStr == "" {
+		customEndpoint = nil
+	} else {
+		customEndpoint, err = url.Parse(customEndpointStr)
+		if err != nil {
+			fmt.Printf("Could not parse endpoint")
+			return
+		}
 	}
+
 	clientProtocolString := strings.ToLower(c.String("client-protocol"))
 	clientProtocol := mountpkg.ClientProtocol(clientProtocolString)
 	flags = &flagStorage{
@@ -542,13 +537,10 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		DebugFuseErrors: c.BoolT("debug_fuse_errors"),
 		DebugFuse:       c.Bool("debug_fuse"),
 		DebugGCS:        c.Bool("debug_gcs"),
-		DebugFS:         c.Bool("debug_fs"),
 		DebugHTTP:       c.Bool("debug_http"),
+		DebugFS:         c.Bool("debug_fs"),
 		DebugInvariants: c.Bool("debug_invariants"),
 		DebugMutex:      c.Bool("debug_mutex"),
-
-		// Client,
-		EnableStorageClientLibrary: c.Bool("enable-storage-client-library"),
 	}
 
 	// Handle the repeated "-o" flag.

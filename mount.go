@@ -33,12 +33,11 @@ import (
 
 // Mount the file system based on the supplied arguments, returning a
 // fuse.MountedFileSystem that can be joined to wait for unmounting.
-func mountWithConn(
+func mountWithStorageHandle(
 	ctx context.Context,
 	bucketName string,
 	mountPoint string,
 	flags *flagStorage,
-	conn *gcsx.Connection,
 	storageHandle storage.StorageHandle,
 	status *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
@@ -95,9 +94,8 @@ be interacting with the file system.`)
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 		DebugGCS:                           flags.DebugGCS,
-		EnableStorageClientLibrary:         flags.EnableStorageClientLibrary,
 	}
-	bm := gcsx.NewBucketManager(bucketCfg, conn, storageHandle)
+	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{

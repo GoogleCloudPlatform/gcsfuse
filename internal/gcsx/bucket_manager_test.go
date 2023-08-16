@@ -7,9 +7,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	. "github.com/jacobsa/ogletest"
-	"github.com/jacobsa/timeutil"
 )
 
 func TestBucketManager(t *testing.T) { RunTests(t) }
@@ -56,36 +54,19 @@ func (t *BucketManagerTest) TestNewBucketManagerMethod() {
 		DebugGCS:                           true,
 		AppendThreshold:                    2,
 		TmpObjectPrefix:                    "TmpObjectPrefix",
-		EnableStorageClientLibrary:         true,
 	}
 
-	bm := NewBucketManager(bucketConfig, nil, t.storageHandle)
+	bm := NewBucketManager(bucketConfig, t.storageHandle)
 
 	ExpectNe(nil, bm)
 }
 
-func (t *BucketManagerTest) TestSetupGcsBucketWhenEnableStorageClientLibraryIsTrue() {
+func (t *BucketManagerTest) TestSetupGcsBucket() {
 	var bm bucketManager
 	bm.storageHandle = t.storageHandle
-	bm.config.EnableStorageClientLibrary = true
 	bm.config.DebugGCS = true
 
-	bucket, err := bm.SetUpGcsBucket(context.Background(), TestBucketName)
-
-	ExpectNe(nil, bucket)
-	ExpectEq(nil, err)
-}
-
-func (t *BucketManagerTest) TestSetupGcsBucketWhenEnableStorageClientLibraryIsFalse() {
-	var bm bucketManager
-	bm.storageHandle = t.storageHandle
-	bm.config.EnableStorageClientLibrary = false
-	bm.config.BillingProject = "BillingProject"
-	bm.conn = &Connection{
-		wrapped: gcsfake.NewConn(timeutil.RealClock()),
-	}
-
-	bucket, err := bm.SetUpGcsBucket(context.Background(), "fake@bucket")
+	bucket, err := bm.SetUpGcsBucket(TestBucketName)
 
 	ExpectNe(nil, bucket)
 	ExpectEq(nil, err)
@@ -104,15 +85,11 @@ func (t *BucketManagerTest) TestSetUpBucketMethod() {
 		DebugGCS:                           true,
 		AppendThreshold:                    2,
 		TmpObjectPrefix:                    "TmpObjectPrefix",
-		EnableStorageClientLibrary:         true,
 	}
 	ctx := context.Background()
 	bm.storageHandle = t.storageHandle
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
-	bm.conn = &Connection{
-		wrapped: gcsfake.NewConn(timeutil.RealClock()),
-	}
 
 	bucket, err := bm.SetUpBucket(context.Background(), TestBucketName)
 
@@ -133,15 +110,11 @@ func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist() {
 		DebugGCS:                           true,
 		AppendThreshold:                    2,
 		TmpObjectPrefix:                    "TmpObjectPrefix",
-		EnableStorageClientLibrary:         true,
 	}
 	ctx := context.Background()
 	bm.storageHandle = t.storageHandle
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
-	bm.conn = &Connection{
-		wrapped: gcsfake.NewConn(timeutil.RealClock()),
-	}
 
 	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName)
 

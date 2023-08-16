@@ -86,8 +86,7 @@ const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--enable-storage-client-library=true", "--implicit-dirs=true"},
-		{"--enable-storage-client-library=false"},
+	flags := [][]string{{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"},
 		{"--experimental-enable-json-read=true", "--implicit-dirs=true"}}
 
