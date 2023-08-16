@@ -466,11 +466,19 @@ func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
 // Add the flags accepted by run to the supplied flag set, returning the
 // variables into which the flags will parse.
 func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
-	customEndpoint, err := url.Parse(c.String("custom-endpoint"))
-	if err != nil {
-		fmt.Printf("Could not parse endpoint")
-		return
+	customEndpointStr := c.String("custom-endpoint")
+	var customEndpoint *url.URL
+
+	if customEndpointStr == "" {
+		customEndpoint = nil
+	} else {
+		customEndpoint, err = url.Parse(customEndpointStr)
+		if err != nil {
+			fmt.Printf("Could not parse endpoint")
+			return
+		}
 	}
+
 	clientProtocolString := strings.ToLower(c.String("client-protocol"))
 	clientProtocol := mountpkg.ClientProtocol(clientProtocolString)
 	flags = &flagStorage{
