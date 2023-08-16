@@ -37,7 +37,7 @@ const MaxReadableByteFromFile = 500 * OneMB
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--implicit-dirs"}, {"--enable-storage-client-library=false", "--implicit-dirs"}}
+	flags := [][]string{{"--implicit-dirs"}}
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
