@@ -30,7 +30,7 @@ echo '[remote "origin"]
 git fetch origin
 
 # execute perf tests.
-if [ "$perfTestStr" == *"execute-perf-test"* ];
+if [[ "$perfTestStr" == *"execute-perf-test"* ]];
 then
   # Installing requirements
   echo Installing python3-pip
@@ -76,7 +76,7 @@ then
 fi
 
 # Execute integration tests.
-if [ "$integrationTestsStr" == *"execute-integration-tests"* ];
+if [[ "$integrationTestsStr" == *"execute-integration-tests"* ]];
 then
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
