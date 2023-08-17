@@ -47,6 +47,7 @@ func parseArgs(args []string) (flags *flagStorage) {
 	var err error
 	app.Action = func(appCtx *cli.Context) {
 		flags, err = populateFlags(appCtx)
+		AssertEq(nil, err)
 	}
 
 	// Simulate argv.
