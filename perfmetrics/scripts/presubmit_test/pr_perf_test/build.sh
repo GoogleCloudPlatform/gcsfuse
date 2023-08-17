@@ -62,7 +62,7 @@ then
  # Executing perf tests for master branch
  git stash
  git checkout master
- echo store results
+ # Store results
  touch result.txt
  echo Mounting gcs bucket for master branch and execute tests
  execute_perf_test
