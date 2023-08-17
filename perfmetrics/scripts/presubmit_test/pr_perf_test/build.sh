@@ -2,6 +2,7 @@
 # Running test only for when PR contains execute-perf-test or execute-integration-tests label
 readonly EXECUTE_PERF_TEST_LABEL="execute-perf-test"
 readonly EXECUTE_INTEGRATION_TEST_LABEL="execute-integration-tests"
+readonly INTEGRATION_TEST_EXECUTION_TIME=24m
 
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
 perfTest=$(cat pr.json | grep $EXECUTE_PERF_TEST_LABEL)
@@ -91,10 +92,12 @@ then
   # Generate the random string
   random_string=$(tr -dc 'a-z0-9' < /dev/urandom | head -c $length)
   BUCKET_NAME=$bucketPrefix$random_string
+  echo bucket name
+  echo $BUCKET_NAME
   gcloud alpha storage buckets create gs://$BUCKET_NAME --project=gcs-fuse-test-ml --location=us-west1 --uniform-bucket-level-access
 
   # Executing integration tests
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME -timeout 24m
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME -timeout INTEGRATION_TEST_EXECUTION_TIME
 
   # Delete bucket after testing.
   gcloud alpha storage rm --recursive gs://$BUCKET_NAME/
