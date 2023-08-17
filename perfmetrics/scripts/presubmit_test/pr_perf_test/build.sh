@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 # Running test only for when PR contains execute-perf-test or execute-integration-tests label
 readonly EXECUTE_PERF_TEST_LABEL="execute-perf-test"
 readonly EXECUTE_INTEGRATION_TEST_LABEL="execute-integration-tests"
@@ -17,7 +18,6 @@ then
 fi
 
 # It will take approx 80 minutes to run the script.
-set -e
 sudo apt-get update
 echo Installing git
 sudo apt-get install git
@@ -32,50 +32,51 @@ echo '[remote "origin"]
          fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' >> .git/config
 git fetch origin -q
 
-# execute perf tests.
-if [[ "$perfTestStr" == *$EXECUTE_PERF_TEST_LABEL* ]];
-then
-  # Installing requirements
-  echo Installing python3-pip
-  sudo apt-get -y install python3-pip
-  echo Installing libraries to run python script
-  pip install google-cloud
-  pip install google-cloud-vision
-  pip install google-api-python-client
-  pip install prettytable
-  echo Installing fio
-  sudo apt-get install fio -y
-
-  # Executing perf tests for master branch
-  git checkout master
-  echo Mounting gcs bucket for master branch
+function execute_perf_test() {
   mkdir -p gcs
   GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
   BUCKET_NAME=presubmit-perf-tests
   MOUNT_POINT=gcs
   # The VM will itself exit if the gcsfuse mount fails.
-  CGO_ENABLED=0 go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
-  touch result.txt
+  go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
   # Running FIO test
   chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
   ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
   sudo umount gcs
+}
 
-  # Executing perf tests for PR branch
-  echo checkout PR branch
-  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
-  echo Mounting gcs bucket from pr branch
-  mkdir -p gcs
-  # The VM will itself exit if the gcsfuse mount fails.
-  CGO_ENABLED=0 go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
-  # Running FIO test
-  chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
-  ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
-  sudo umount gcs
+# execute perf tests.
+if [[ "$perfTestStr" == *$EXECUTE_PERF_TEST_LABEL* ]];
+then
+ # Installing requirements
+ echo Installing python3-pip
+ sudo apt-get -y install python3-pip
+ echo Installing libraries to run python script
+ pip install google-cloud
+ pip install google-cloud-vision
+ pip install google-api-python-client
+ pip install prettytable
+ echo Installing fio
+ sudo apt-get install fio -y
 
-  # Show results
-  echo showing results...
-  python3 ./perfmetrics/scripts/presubmit/print_results.py
+ # Executing perf tests for master branch
+ git stash
+ git checkout master
+ echo store results
+ touch result.txt
+ echo Mounting gcs bucket for master branch and execute tests
+ execute_perf_test
+
+
+ # Executing perf tests for PR branch
+ echo checkout PR branch
+ git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
+ echo Mounting gcs bucket from pr branch and execute tests
+ execute_perf_test
+
+ # Show results
+ echo showing results...
+ python3 ./perfmetrics/scripts/presubmit/print_results.py
 fi
 
 # Execute integration tests.
