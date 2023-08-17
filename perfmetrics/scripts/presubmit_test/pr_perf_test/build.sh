@@ -27,7 +27,6 @@ wget -O go_tar.tar.gz https://go.dev/dl/go1.20.5.linux-amd64.tar.gz -q
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
 
-# Run on master branch
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 # Fetch PR branch
 echo '[remote "origin"]
