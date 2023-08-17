@@ -1,13 +1,8 @@
 #!/bin/bash
-readonly EXECUTE_PERF_TEST_TAG="execute-perf-test"
-readonly EXECUTE_INTEGRATION_TEST_TAG="execute-integration-tests"
-readonly INTEGRATION_TEST_EXECUTION_TIME=24m
-export CGO_ENABLED=0
-
 # Running test only for when PR contains execute-perf-test label
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
-perfTest=$(cat pr.json | grep EXECUTE_PERF_TEST_TAG)
-integrationTests=$(cat pr.json | grep EXECUTE_INTEGRATION_TEST_TAG)
+perfTest=$(cat pr.json | grep "execute-perf-test")
+integrationTests=$(cat pr.json | grep "execute-integration-tests")
 rm pr.json
 perfTestStr="$perfTest"
 integrationTestsStr="$integrationTests"
@@ -33,21 +28,8 @@ echo '[remote "origin"]
          fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' >> .git/config
 git fetch origin -q
 
-function execute_perf_test() {
-    mkdir -p gcs
-    GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
-    BUCKET_NAME=presubmit-perf-tests
-    MOUNT_POINT=gcs
-    # The VM will itself exit if the gcsfuse mount fails.
-    go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
-    # Running FIO test
-    chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
-    ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
-    sudo umount gcs
-}
-
 # execute perf tests.
-if [[ "$perfTestStr" == *EXECUTE_PERF_TEST_TAG* ]];
+if [[ "$perfTestStr" == *"execute-perf-test"* ]];
 then
   # Installing requirements
   echo Installing python3-pip
@@ -62,17 +44,30 @@ then
 
   # Executing perf tests for master branch
   git checkout master
-  echo store results
+  echo Mounting gcs bucket for master branch
+  mkdir -p gcs
+  GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
+  BUCKET_NAME=presubmit-perf-tests
+  MOUNT_POINT=gcs
+  # The VM will itself exit if the gcsfuse mount fails.
+  CGO_ENABLED=0 go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
   touch result.txt
-  echo Mounting gcs bucket for master branch and execute tests
-  execute_perf_test
-
+  # Running FIO test
+  chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
+  ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
+  sudo umount gcs
 
   # Executing perf tests for PR branch
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
-  echo Mounting gcs bucket from pr branch and execute tests
-  execute_perf_test
+  echo Mounting gcs bucket from pr branch
+  mkdir -p gcs
+  # The VM will itself exit if the gcsfuse mount fails.
+  CGO_ENABLED=0 go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+  # Running FIO test
+  chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
+  ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
+  sudo umount gcs
 
   # Show results
   echo showing results...
@@ -80,7 +75,7 @@ then
 fi
 
 # Execute integration tests.
-if [[ "$integrationTestsStr" == *EXECUTE_INTEGRATION_TEST_TAG* ]];
+if [[ "$integrationTestsStr" == *"execute-integration-tests"* ]];
 then
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
@@ -93,12 +88,10 @@ then
   # Generate the random string
   random_string=$(tr -dc 'a-z0-9' < /dev/urandom | head -c $length)
   BUCKET_NAME=$bucketPrefix$random_string
-  echo bucket name
-  echo $BUCKET_NAME
   gcloud alpha storage buckets create gs://$BUCKET_NAME --project=gcs-fuse-test-ml --location=us-west1 --uniform-bucket-level-access
 
   # Executing integration tests
-  GODEBUG=asyncpreemptoff=1  go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME -timeout INTEGRATION_TEST_EXECUTION_TIME
+  GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME -timeout 24m
 
   # Delete bucket after testing.
   gcloud alpha storage rm --recursive gs://$BUCKET_NAME/
