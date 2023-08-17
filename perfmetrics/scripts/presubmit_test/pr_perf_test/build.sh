@@ -5,12 +5,12 @@ readonly EXECUTE_INTEGRATION_TEST_LABEL="execute-integration-tests"
 readonly INTEGRATION_TEST_EXECUTION_TIME=24m
 
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
-perfTest=$(cat pr.json | grep $EXECUTE_PERF_TEST_LABEL)
-integrationTests=$(cat pr.json | grep $EXECUTE_INTEGRATION_TEST_LABEL)
+perfTest=$(grep "$EXECUTE_PERF_TEST_LABEL" pr.json)
+integrationTests=$(grep "$EXECUTE_INTEGRATION_TEST_LABEL" pr.json)
 rm pr.json
 perfTestStr="$perfTest"
 integrationTestsStr="$integrationTests"
-if [[ "$perfTestStr" != *$EXECUTE_PERF_TEST_LABEL*  &&  "$integrationTestsStr" != *$EXECUTE_INTEGRATION_TEST_LABEL* ]]
+if [[ "$perfTestStr" != *"$EXECUTE_PERF_TEST_LABEL"*  &&  "$integrationTestsStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL"* ]]
 then
   echo "No need to execute tests"
   exit 0
@@ -46,7 +46,7 @@ function execute_perf_test() {
 }
 
 # execute perf tests.
-if [[ "$perfTestStr" == *$EXECUTE_PERF_TEST_LABEL* ]];
+if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
  # Installing requirements
  echo Installing python3-pip
@@ -79,7 +79,7 @@ then
 fi
 
 # Execute integration tests.
-if [[ "$integrationTestsStr" == *$EXECUTE_INTEGRATION_TEST_LABEL* ]];
+if [[ "$integrationTestsStr" == *"$EXECUTE_INTEGRATION_TEST_LABEL"* ]];
 then
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
@@ -92,8 +92,7 @@ then
   # Generate the random string
   random_string=$(tr -dc 'a-z0-9' < /dev/urandom | head -c $length)
   BUCKET_NAME=$bucketPrefix$random_string
-  echo bucket name
-  echo $BUCKET_NAME
+  echo 'bucket name = '$BUCKET_NAME
   gcloud alpha storage buckets create gs://$BUCKET_NAME --project=gcs-fuse-test-ml --location=us-west1 --uniform-bucket-level-access
 
   # Executing integration tests
