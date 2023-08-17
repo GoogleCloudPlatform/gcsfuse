@@ -60,16 +60,18 @@ then
  sudo apt-get install fio -y
 
  # Executing perf tests for master branch
+ git stash
  git checkout master
- # Store results
+ echo store results
  touch result.txt
- echo Mounting gcs bucket for master branch and execute perf tests
+ echo Mounting gcs bucket for master branch and execute tests
  execute_perf_test
+
 
  # Executing perf tests for PR branch
  echo checkout PR branch
  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
- echo Mounting gcs bucket from pr branch and execute perf tests
+ echo Mounting gcs bucket from pr branch and execute tests
  execute_perf_test
 
  # Show results
