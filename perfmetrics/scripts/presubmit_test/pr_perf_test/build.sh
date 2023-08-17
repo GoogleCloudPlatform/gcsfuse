@@ -19,7 +19,7 @@ echo Installing git
 sudo apt-get install git
 echo Installing go-lang  1.20.5
 wget -O go_tar.tar.gz https://go.dev/dl/go1.20.5.linux-amd64.tar.gz
-sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
+sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local &
 export PATH=$PATH:/usr/local/go/bin
 
 # Run on master branch
@@ -27,7 +27,7 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 # Fetch PR branch
 echo '[remote "origin"]
          fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' >> .git/config
-git fetch origin
+git fetch origin &
 
 # execute perf tests.
 if [[ "$perfTestStr" == *"execute-perf-test"* ]];
