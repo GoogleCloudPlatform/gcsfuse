@@ -16,6 +16,7 @@ package fs
 
 import (
 	"fmt"
+	"path"
 	"sort"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
@@ -58,8 +59,8 @@ type dirHandle struct {
 
 // Create a directory handle that obtains listings from the supplied inode.
 func newDirHandle(
-	in inode.DirInode,
-	implicitDirs bool) (dh *dirHandle) {
+		in inode.DirInode,
+		implicitDirs bool) (dh *dirHandle) {
 	// Set up the basic struct.
 	dh = &dirHandle{
 		in:           in,
@@ -67,7 +68,7 @@ func newDirHandle(
 	}
 
 	// Set up invariant checking.
-	dh.Mu = locker.New("DH." + in.Name().GcsObjectName(), dh.checkInvariants)
+	dh.Mu = locker.New("DH."+in.Name().GcsObjectName(), dh.checkInvariants)
 
 	return
 }
@@ -159,8 +160,10 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 //
 // LOCKS_REQUIRED(in)
 func readAllEntries(
-	ctx context.Context,
-	in inode.DirInode) (entries []fuseutil.Dirent, err error) {
+		ctx context.Context,
+		in inode.DirInode,
+		localFileInodes map[inode.Name]inode.Inode) (entries []fuseutil.Dirent, err error) {
+	//Read entries from GCS
 	// Read one batch at a time.
 	var tok string
 	for {
@@ -181,6 +184,14 @@ func readAllEntries(
 			break
 		}
 	}
+
+	//Append local file entries (not synced to GCS)
+	localEntries, err := localFileEntries(in, localFileInodes)
+	if err != nil {
+		err = fmt.Errorf("ReadLocalFileEntries: %w", err)
+		return
+	}
+	entries = append(entries, localEntries...)
 
 	// Ensure that the entries are sorted, for use in fixConflictingNames
 	// below.
@@ -218,15 +229,30 @@ func readAllEntries(
 	return
 }
 
+// localFileEntries lists the local files present in the directory.
+// Local means that the file is not yet present on GCS.
+func localFileEntries(d inode.DirInode, localFileInodes map[inode.Name]inode.Inode) (localEntries []fuseutil.Dirent, err error) {
+	for localInodeName, _ := range localFileInodes {
+		if localInodeName.IsDirectChildOf(d.Name()) {
+			entry := fuseutil.Dirent{
+				Name: path.Base(localInodeName.LocalName()),
+				Type: fuseutil.DT_File,
+			}
+			localEntries = append(localEntries, entry)
+		}
+	}
+	return
+}
+
 // LOCKS_REQUIRED(dh.Mu)
 // LOCKS_EXCLUDED(dh.in)
-func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
+func (dh *dirHandle) ensureEntries(ctx context.Context, localFileInodes map[inode.Name]inode.Inode) (err error) {
 	dh.in.Lock()
 	defer dh.in.Unlock()
 
 	// Read entries.
 	var entries []fuseutil.Dirent
-	entries, err = readAllEntries(ctx, dh.in)
+	entries, err = readAllEntries(ctx, dh.in, localFileInodes)
 	if err != nil {
 		err = fmt.Errorf("readAllEntries: %w", err)
 		return
@@ -252,8 +278,9 @@ func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
 // LOCKS_REQUIRED(dh.Mu)
 // LOCKS_EXCLUDED(du.in)
 func (dh *dirHandle) ReadDir(
-	ctx context.Context,
-	op *fuseops.ReadDirOp) (err error) {
+		ctx context.Context,
+		op *fuseops.ReadDirOp,
+		localFileInodes map[inode.Name]inode.Inode) (err error) {
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
 	if op.Offset == 0 {
@@ -263,7 +290,7 @@ func (dh *dirHandle) ReadDir(
 
 	// Do we need to read entries from GCS?
 	if !dh.entriesValid {
-		err = dh.ensureEntries(ctx)
+		err = dh.ensureEntries(ctx, localFileInodes)
 		if err != nil {
 			return
 		}

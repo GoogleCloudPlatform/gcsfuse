@@ -1919,7 +1919,7 @@ func (fs *fileSystem) ReadDir(
 	defer dh.Mu.Unlock()
 
 	// Serve the request.
-	if err := dh.ReadDir(ctx, op); err != nil {
+	if err := dh.ReadDir(ctx, op, fs.localFileInodes); err != nil {
 		return err
 	}
 
