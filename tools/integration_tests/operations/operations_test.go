@@ -87,7 +87,8 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	flags := [][]string{{"--implicit-dirs=true"},
-		{"--implicit-dirs=false"}}
+		{"--implicit-dirs=false"},
+		{"--experimental-enable-json-read=true", "--implicit-dirs=true"}}
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

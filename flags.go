@@ -297,6 +297,11 @@ func newApp() (app *cli.App) {
 				Usage: "The format of the log file: 'text' or 'json'.",
 			},
 
+			cli.BoolFlag{
+				Name:  "experimental-enable-json-read",
+				Usage: "By default read flow uses xml media, this flag will enable the json path for read operation.",
+			},
+
 			/////////////////////////
 			// Debugging
 			/////////////////////////
@@ -382,11 +387,12 @@ type flagStorage struct {
 	EnableNonexistentTypeCache bool
 
 	// Monitoring & Logging
-	StackdriverExportInterval time.Duration
-	OtelCollectorAddress      string
-	LogFile                   string
-	LogFormat                 string
-	DebugFuseErrors           bool
+	StackdriverExportInterval  time.Duration
+	OtelCollectorAddress       string
+	LogFile                    string
+	LogFormat                  string
+	ExperimentalEnableJsonRead bool
+	DebugFuseErrors            bool
 
 	// Debugging
 	DebugFuse       bool
@@ -521,10 +527,11 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		EnableNonexistentTypeCache: c.Bool("enable-nonexistent-type-cache"),
 
 		// Monitoring & Logging
-		StackdriverExportInterval: c.Duration("stackdriver-export-interval"),
-		OtelCollectorAddress:      c.String("experimental-opentelemetry-collector-address"),
-		LogFile:                   c.String("log-file"),
-		LogFormat:                 c.String("log-format"),
+		StackdriverExportInterval:  c.Duration("stackdriver-export-interval"),
+		OtelCollectorAddress:       c.String("experimental-opentelemetry-collector-address"),
+		LogFile:                    c.String("log-file"),
+		LogFormat:                  c.String("log-format"),
+		ExperimentalEnableJsonRead: c.Bool("experimental-enable-json-read"),
 
 		// Debugging,
 		DebugFuseErrors: c.BoolT("debug_fuse_errors"),

@@ -111,6 +111,7 @@ func (t *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
+
 func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpoint() {
 	url, err := url.Parse(storageutil.CustomEndpoint)
 	AssertEq(nil, err)
@@ -149,6 +150,13 @@ func (t *StorageHandleTest) TestNewStorageHandleWhenReuseTokenUrlFalse() {
 func (t *StorageHandleTest) TestNewStorageHandleWhenTokenUrlIsSet() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.TokenUrl = storageutil.CustomTokenUrl
+
+	t.invokeAndVerifyStorageHandle(sc)
+}
+
+func (t *StorageHandleTest) TestNewStorageHandleWhenJsonReadEnabled() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.ExperimentalEnableJsonRead = true
 
 	t.invokeAndVerifyStorageHandle(sc)
 }

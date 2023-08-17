@@ -111,6 +111,7 @@ func (t *FlagsTest) Bools() {
 		"debug_gcs",
 		"debug_invariants",
 		"enable-nonexistent-type-cache",
+		"experimental-enable-json-read",
 	}
 
 	var args []string
@@ -131,6 +132,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
 	ExpectTrue(f.EnableNonexistentTypeCache)
+	ExpectTrue(f.ExperimentalEnableJsonRead)
 
 	// --foo=false form
 	args = nil

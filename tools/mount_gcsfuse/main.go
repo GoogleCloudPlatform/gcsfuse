@@ -84,7 +84,8 @@ func makeGcsfuseArgs(
 			"foreground",
 			"experimental_local_file_cache",
 			"reuse_token_from_url",
-			"enable_nonexistent_type_cache":
+			"enable_nonexistent_type_cache",
+			"experimental_enable_json_read":
 			if value == "" {
 				value = "true"
 			}

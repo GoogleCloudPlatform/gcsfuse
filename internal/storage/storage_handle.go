@@ -57,6 +57,11 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
 	}
 
+	// Create client with JSON read flow, if EnableJasonRead flag is set.
+	if clientConfig.ExperimentalEnableJsonRead {
+		clientOpts = append(clientOpts, storage.WithJSONReads())
+	}
+
 	// Add Custom endpoint option.
 	if clientConfig.CustomEndpoint != nil {
 		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint.String()))

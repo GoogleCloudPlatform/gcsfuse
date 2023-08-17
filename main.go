@@ -81,17 +81,18 @@ func getUserAgent(appName string) string {
 
 func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
-		ClientProtocol:      flags.ClientProtocol,
-		MaxConnsPerHost:     flags.MaxConnsPerHost,
-		MaxIdleConnsPerHost: flags.MaxIdleConnsPerHost,
-		HttpClientTimeout:   flags.HttpClientTimeout,
-		MaxRetryDuration:    flags.MaxRetryDuration,
-		RetryMultiplier:     flags.RetryMultiplier,
-		UserAgent:           getUserAgent(flags.AppName),
-		CustomEndpoint:      flags.CustomEndpoint,
-		KeyFile:             flags.KeyFile,
-		TokenUrl:            flags.TokenUrl,
-		ReuseTokenFromUrl:   flags.ReuseTokenFromUrl,
+		ClientProtocol:             flags.ClientProtocol,
+		MaxConnsPerHost:            flags.MaxConnsPerHost,
+		MaxIdleConnsPerHost:        flags.MaxIdleConnsPerHost,
+		HttpClientTimeout:          flags.HttpClientTimeout,
+		MaxRetryDuration:           flags.MaxRetryDuration,
+		RetryMultiplier:            flags.RetryMultiplier,
+		UserAgent:                  getUserAgent(flags.AppName),
+		CustomEndpoint:             flags.CustomEndpoint,
+		KeyFile:                    flags.KeyFile,
+		TokenUrl:                   flags.TokenUrl,
+		ReuseTokenFromUrl:          flags.ReuseTokenFromUrl,
+		ExperimentalEnableJsonRead: flags.ExperimentalEnableJsonRead,
 	}
 
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
