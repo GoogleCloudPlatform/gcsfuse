@@ -11,7 +11,7 @@ integrationTests=$(cat pr.json | grep EXECUTE_INTEGRATION_TEST_TAG)
 rm pr.json
 perfTestStr="$perfTest"
 integrationTestsStr="$integrationTests"
-if [[ "$perfTestStr" != *EXECUTE_PERF_TEST_TAG*  &&  "$integrationTestsStr" != *EXECUTE_INTEGRATION_TEST_TAG* ]]
+if [[ "$perfTestStr" != *"execute-perf-test"*  &&  "$integrationTestsStr" != *"execute-integration-tests"* ]]
 then
   echo "No need to execute tests"
   exit 0
