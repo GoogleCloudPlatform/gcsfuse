@@ -173,6 +173,11 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *g
 	var notFoundErr *gcs.NotFoundError
 	if errors.As(err, &notFoundErr) {
 		err = nil
+		if f.IsLocal() {
+			// For localFile, it is expected that object doesn't exist in GCS.
+			return
+		}
+
 		b = true
 		return
 	}
@@ -380,7 +385,9 @@ func (f *FileInode) Attributes(
 	attrs.Atime = attrs.Mtime
 	attrs.Ctime = attrs.Mtime
 
-	// Avoid clobbered check and return the attributes for local files.
+	// Clobbered check makes a stat call to GCS. Avoiding stat calls to GCS for
+	// local files when fetching attributes. Any validations will be done during
+	// sync call.
 	if f.IsLocal() {
 		return
 	}
@@ -559,7 +566,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// Write out the contents if they are dirty.
 	// Object properties are also synced as part of content sync. Hence, passing
 	// the latest object fetched from gcs which has all the properties populated.
-	newObj, err := f.bucket.SyncObject(ctx, latestGcsObj, f.content)
+	newObj, err := f.bucket.SyncObject(ctx, f.Name().GcsObjectName(), latestGcsObj, f.content)
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.
@@ -578,6 +585,10 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// If we wrote out a new object, we need to update our state.
 	if newObj != nil && !f.localFileCache {
 		f.src = convertObjToMinObject(newObj)
+		// Convert localFile to nonLocalFile after it is synced to GCS.
+		if f.IsLocal() {
+			f.local = false
+		}
 		f.content.Destroy()
 		f.content = nil
 	}

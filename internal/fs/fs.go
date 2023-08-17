@@ -921,6 +921,16 @@ func (fs *fileSystem) syncFile(
 		return
 	}
 
+	// Once the inode is synced to GCS, it is no longer an localFileInode.
+	// Delete the entry from localFileInodes map and add it to generationBackedInodes.
+	fs.mu.Lock()
+	delete(fs.localFileInodes, f.Name())
+	_, ok := fs.generationBackedInodes[f.Name()]
+	if !ok {
+		fs.generationBackedInodes[f.Name()] = f
+	}
+	fs.mu.Unlock()
+
 	// We need not update fileIndex:
 	//
 	// We've held the inode lock the whole time, so there's no way that this
@@ -962,6 +972,9 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, N uint64) {
 		}
 		if fs.implicitDirInodes[name] == in {
 			delete(fs.implicitDirInodes, name)
+		}
+		if fs.localFileInodes[name] == in {
+			delete(fs.localFileInodes, name)
 		}
 		fs.mu.Unlock()
 	}
