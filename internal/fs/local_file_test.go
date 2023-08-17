@@ -23,6 +23,7 @@ func init() {
 }
 
 func (t *LocalFileTest) SetUpTestSuite() {
+	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		WriteConfig: config.WriteConfig{
 			CreateEmptyFile: false,
@@ -38,11 +39,23 @@ func (t *LocalFileTest) NewFileShouldNotGetSyncedToGCSTillClose() {
 	t.newFileShouldGetSyncedToGCSAtClose(FileName)
 }
 
-func (t *LocalFileTest) NewFileUnderSubDirectoryShouldNotGetSyncedToGCSTillClose() {
-	err := os.Mkdir(path.Join(mntDir, "test"), dirPerms)
+func (t *LocalFileTest) NewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose() {
+	err := os.Mkdir(path.Join(mntDir, "explicit"), dirPerms)
 	AssertEq(nil, err)
 
-	t.newFileShouldGetSyncedToGCSAtClose("test/foo")
+	t.newFileShouldGetSyncedToGCSAtClose("explicit/foo")
+}
+
+func (t *LocalFileTest) NewFileUnderImplicitDirectoryShouldNotGetSyncedToGCSTillClose() {
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				// File
+				"implicitFoo/bar": "",
+			}))
+
+	t.newFileShouldGetSyncedToGCSAtClose("implicitFoo/foo")
 }
 
 func (t *LocalFileTest) newFileShouldGetSyncedToGCSAtClose(fileName string) {
