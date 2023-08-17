@@ -81,6 +81,7 @@ fi
 if [[ "$integrationTestsStr" == *$EXECUTE_INTEGRATION_TEST_LABEL* ]];
 then
   echo checkout PR branch
+  git stash
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   # Create bucket for integration tests.
