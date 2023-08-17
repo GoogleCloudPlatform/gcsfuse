@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 # Running test only for when PR contains execute-perf-test or execute-integration-tests label
 readonly EXECUTE_PERF_TEST_LABEL="execute-perf-test"
 readonly EXECUTE_INTEGRATION_TEST_LABEL="execute-integration-tests"
@@ -17,6 +16,7 @@ then
   exit 0
 fi
 
+set -e
 # It will take approx 80 minutes to run the script.
 sudo apt-get update
 echo Installing git
