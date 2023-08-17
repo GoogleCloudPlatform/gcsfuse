@@ -78,10 +78,14 @@ func (oc *appendObjectCreator) chooseName() (name string, err error) {
 	return
 }
 
+// ObjectName param is present here for consistency between fullObjectCreator
+// and appendObjectCreator. ObjectName is not used in append flow since
+// srcObject.Name gives the objectName.
 func (oc *appendObjectCreator) Create(
 	ctx context.Context,
+	objectName string,
 	srcObject *gcs.Object,
-	mtime time.Time,
+	mtime *time.Time,
 	r io.Reader) (o *gcs.Object, err error) {
 	// Choose a name for a temporary object.
 	tmpName, err := oc.chooseName()
@@ -125,7 +129,9 @@ func (oc *appendObjectCreator) Create(
 		MetadataMap[key] = value
 	}
 
-	MetadataMap[MtimeMetadataKey] = mtime.Format(time.RFC3339Nano)
+	if mtime != nil {
+		MetadataMap[MtimeMetadataKey] = mtime.UTC().Format(time.RFC3339Nano)
+	}
 
 	// Compose the old contents plus the new over the old.
 	o, err = oc.bucket.ComposeObjects(
