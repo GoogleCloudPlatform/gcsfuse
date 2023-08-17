@@ -1,12 +1,15 @@
 #!/bin/bash
-# Running test only for when PR contains execute-perf-test label
+# Running test only for when PR contains execute-perf-test or execute-integration-tests label
+readonly EXECUTE_PERF_TEST_LABEL="execute-perf-test"
+readonly EXECUTE_INTEGRATION_TEST_LABEL="execute-integration-tests"
+
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
-perfTest=$(cat pr.json | grep "execute-perf-test")
-integrationTests=$(cat pr.json | grep "execute-integration-tests")
+perfTest=$(cat pr.json | grep $EXECUTE_PERF_TEST_LABEL)
+integrationTests=$(cat pr.json | grep $EXECUTE_INTEGRATION_TEST_LABEL)
 rm pr.json
 perfTestStr="$perfTest"
 integrationTestsStr="$integrationTests"
-if [[ "$perfTestStr" != *"execute-perf-test"*  &&  "$integrationTestsStr" != *"execute-integration-tests"* ]]
+if [[ "$perfTestStr" != *$EXECUTE_PERF_TEST_LABEL*  &&  "$integrationTestsStr" != *$EXECUTE_INTEGRATION_TEST_LABEL* ]]
 then
   echo "No need to execute tests"
   exit 0
@@ -21,7 +24,7 @@ echo Installing go-lang  1.20.5
 wget -O go_tar.tar.gz https://go.dev/dl/go1.20.5.linux-amd64.tar.gz -q
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
-
+export CGO_ENABLED=0
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 # Fetch PR branch
 echo '[remote "origin"]
@@ -29,7 +32,7 @@ echo '[remote "origin"]
 git fetch origin -q
 
 # execute perf tests.
-if [[ "$perfTestStr" == *"execute-perf-test"* ]];
+if [[ "$perfTestStr" == *$EXECUTE_PERF_TEST_LABEL* ]];
 then
   # Installing requirements
   echo Installing python3-pip
@@ -75,7 +78,7 @@ then
 fi
 
 # Execute integration tests.
-if [[ "$integrationTestsStr" == *"execute-integration-tests"* ]];
+if [[ "$integrationTestsStr" == *$EXECUTE_INTEGRATION_TEST_LABEL* ]];
 then
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
@@ -91,7 +94,7 @@ then
   gcloud alpha storage buckets create gs://$BUCKET_NAME --project=gcs-fuse-test-ml --location=us-west1 --uniform-bucket-level-access
 
   # Executing integration tests
-  GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME -timeout 24m
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME -timeout 24m
 
   # Delete bucket after testing.
   gcloud alpha storage rm --recursive gs://$BUCKET_NAME/
