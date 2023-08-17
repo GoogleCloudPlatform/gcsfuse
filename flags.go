@@ -299,7 +299,7 @@ func newApp() (app *cli.App) {
 
 			cli.BoolFlag{
 				Name:  "experimental-enable-json-read",
-				Usage: "By default read flow uses xml media, this flag will enable the json path for read operation.",
+				Usage: "By default read flow uses xml api, this flag will enable the json path for read operation.",
 			},
 
 			/////////////////////////
