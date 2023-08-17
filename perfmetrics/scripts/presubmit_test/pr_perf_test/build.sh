@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 readonly EXECUTE_PERF_TEST_TAG="execute-perf-test"
 readonly EXECUTE_INTEGRATION_TEST_TAG="execute-integration-tests"
 readonly INTEGRATION_TEST_EXECUTION_TIME=24m
@@ -19,6 +18,7 @@ then
 fi
 
 # It will take approx 80 minutes to run the script.
+set -e
 sudo apt-get update
 echo Installing git
 sudo apt-get install git
