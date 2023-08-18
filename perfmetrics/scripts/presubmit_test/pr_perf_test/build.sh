@@ -17,7 +17,6 @@ then
 fi
 
 set -e
-# It will take approx 80 minutes to run the script.
 sudo apt-get update
 echo Installing git
 sudo apt-get install git
