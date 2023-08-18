@@ -905,10 +905,7 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 	}()
 
 	// Trim the suffix assigned to fix conflicting names.
-	if strings.HasSuffix(childName, inode.ConflictingFileNameSuffix) {
-		childName = strings.TrimSuffix(childName, inode.ConflictingFileNameSuffix)
-	}
-
+	childName = strings.TrimSuffix(childName, inode.ConflictingFileNameSuffix)
 	fileName := inode.NewFileName(parent.Name(), childName)
 
 	fs.mu.Lock()
