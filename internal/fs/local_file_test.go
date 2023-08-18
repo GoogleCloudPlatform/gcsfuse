@@ -6,6 +6,7 @@ import (
 	"path"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/ogletest"
@@ -101,6 +102,24 @@ func (t *LocalFileTest) StatOnLocalFile() {
 
 	// Close the file and validate if the file is created on GCS.
 	t.closeFileAndValidateObjectContents(f, FileName, FileContents)
+}
+
+func (t *LocalFileTest) StatOnLocalFileWithConflictingFileNameSuffix() {
+	// Creating a file shouldn't create file on GCS.
+	fileName := path.Join(mntDir, FileName)
+	f, err := os.Create(fileName)
+	AssertEq(nil, err)
+	t.validateObjectNotFoundErr(FileName)
+
+	// Stat the local file.
+	fi, err := os.Stat(fileName + inode.ConflictingFileNameSuffix)
+	AssertEq(nil, err)
+	ExpectEq(path.Base(fileName)+inode.ConflictingFileNameSuffix, fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(filePerms, fi.Mode())
+
+	// Close the file and validate if the file is created on GCS.
+	t.closeFileAndValidateObjectContents(f, FileName, "")
 }
 
 func (t *LocalFileTest) TruncateLocalFile() {
