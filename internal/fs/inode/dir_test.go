@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
@@ -140,6 +141,24 @@ func (t *DirTest) setSymlinkTarget(
 			},
 		})
 
+	return
+}
+
+func (t *DirTest) createLocalFileInode(parent Name, name string, id fuseops.InodeID) (in Inode) {
+	in = NewFileInode(
+		id,
+		NewFileName(parent, name),
+		nil,
+		fuseops.InodeAttributes{
+			Uid:  123,
+			Gid:  456,
+			Mode: 0712,
+		},
+		&t.bucket,
+		false, // localFileCache
+		contentcache.New("", &t.clock),
+		&t.clock,
+		true) //localFile
 	return
 }
 
@@ -1209,4 +1228,44 @@ func (t *DirTest) CreateLocalChildFile_ShouldnotCreateObjectInGCS() {
 	result, err := t.in.LookUpChild(t.ctx, name)
 	AssertEq(nil, err)
 	AssertEq(nil, result)
+}
+
+func (t *DirTest) LocalFileEntriesEmpty() {
+	localFileInodes := map[Name]Inode{}
+
+	entries := t.in.LocalFileEntries(localFileInodes)
+
+	AssertEq(0, len(entries))
+}
+
+func (t *DirTest) LocalFileEntriesWith2LocalChildFiles() {
+	in1 := t.createLocalFileInode(t.in.Name(), "1_localChildInode", 1)
+	in2 := t.createLocalFileInode(t.in.Name(), "2_localChildInode", 2)
+	in3 := t.createLocalFileInode(Name{bucketName: "abc", objectName: "def/"}, "3_localNonChildInode", 3)
+	localFileInodes := map[Name]Inode{
+		in1.Name(): in1,
+		in2.Name(): in2,
+		in3.Name(): in3,
+	}
+
+	entries := t.in.LocalFileEntries(localFileInodes)
+
+	AssertEq(2, len(entries))
+	entryNames := []string{entries[0].Name, entries[1].Name}
+	sort.Strings(entryNames)
+	AssertEq(entryNames[0], "1_localChildInode")
+	AssertEq(entryNames[1], "2_localChildInode")
+}
+
+func (t *DirTest) LocalFileEntriesWithNoLocalChildFiles() {
+	in1 := t.createLocalFileInode(Name{bucketName: "abc", objectName: "def/"}, "1_localNonChildInode", 4)
+	in2 := t.createLocalFileInode(Name{bucketName: "abc", objectName: "def/"}, "2_localNonChildInode", 5)
+	localFileInodes := map[Name]Inode{
+		in1.Name(): in1,
+		in2.Name(): in2,
+	}
+
+	entries := t.in.LocalFileEntries(localFileInodes)
+
+	AssertEq(0, len(entries))
 }
