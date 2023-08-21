@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2023 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -162,14 +162,13 @@ type ComposeSource struct {
 //
 // Its semantics are as follows:
 //
-//  *  If Limit is less than or equal to Start, the range is treated as empty.
+//   - If Limit is less than or equal to Start, the range is treated as empty.
 //
-//  *  The effective range is [start, limit) intersected with [0, L), where L
+//   - The effective range is [start, limit) intersected with [0, L), where L
 //     is the length of the object.
 //
 //     For example, a read for [L-1, L+10) returns the last byte of the object,
 //     and [L+2, L+10) is legal but returns nothing.
-//
 type ByteRange struct {
 	Start uint64
 	Limit uint64
