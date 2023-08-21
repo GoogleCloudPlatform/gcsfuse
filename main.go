@@ -33,7 +33,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/perf"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 
 	"github.com/jacobsa/daemonize"
