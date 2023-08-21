@@ -487,7 +487,7 @@ func (t *ListObjectsTest) WrappedFails() {
 		WillOnce(Return(nil, errors.New("taco")))
 
 	// Call
-	_, err := t.bucket.ListObjects(nil, &gcs.ListObjectsRequest{})
+	_, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
@@ -522,7 +522,7 @@ func (t *ListObjectsTest) NonEmptyListing() {
 	ExpectCall(t.cache, "Insert")(o1, timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
-	listing, err := t.bucket.ListObjects(nil, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
 
 	AssertEq(nil, err)
 	ExpectEq(expected, listing)
@@ -571,7 +571,7 @@ func (t *UpdateObjectTest) WrappedFails() {
 		WillOnce(Return(nil, errors.New("taco")))
 
 	// Call
-	_, err = t.bucket.UpdateObject(nil, &gcs.UpdateObjectRequest{})
+	_, err = t.bucket.UpdateObject(context.TODO(), &gcs.UpdateObjectRequest{})
 
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
