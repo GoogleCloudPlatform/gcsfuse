@@ -23,9 +23,9 @@ import (
 // Create multiple objects with some parallelism, with contents according to
 // the supplied map from name to contents.
 func CreateObjects(
-		ctx context.Context,
-		bucket gcs.Bucket,
-		input map[string][]byte) (err error) {
+	ctx context.Context,
+	bucket gcs.Bucket,
+	input map[string][]byte) (err error) {
 
 	bundle := syncutil.NewBundle(ctx)
 
