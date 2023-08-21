@@ -129,8 +129,8 @@ func (t *DirTest) readAllEntries() (entries []fuseutil.Dirent, err error) {
 }
 
 func (t *DirTest) setSymlinkTarget(
-		objName string,
-		target string) (err error) {
+	objName string,
+	target string) (err error) {
 	_, err = t.bucket.UpdateObject(
 		t.ctx,
 		&gcs.UpdateObjectRequest{
