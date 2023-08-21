@@ -40,7 +40,6 @@ func (c *invariantsCache) Insert(
 	defer c.wrapped.CheckInvariants()
 
 	c.wrapped.Insert(o, expiration)
-	return
 }
 
 func (c *invariantsCache) AddNegativeEntry(
@@ -50,7 +49,6 @@ func (c *invariantsCache) AddNegativeEntry(
 	defer c.wrapped.CheckInvariants()
 
 	c.wrapped.AddNegativeEntry(name, expiration)
-	return
 }
 
 func (c *invariantsCache) Erase(name string) {
@@ -58,7 +56,6 @@ func (c *invariantsCache) Erase(name string) {
 	defer c.wrapped.CheckInvariants()
 
 	c.wrapped.Erase(name)
-	return
 }
 
 func (c *invariantsCache) LookUp(

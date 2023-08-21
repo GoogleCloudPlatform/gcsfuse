@@ -110,8 +110,6 @@ func (m *mockStatCache) Insert(p0 *gcs.Object, p1 time.Time) {
 	if len(retVals) != 0 {
 		panic(fmt.Sprintf("mockStatCache.Insert: invalid return values: %v", retVals))
 	}
-
-	return
 }
 
 func (m *mockStatCache) LookUp(p0 string, p1 time.Time) (o0 bool, o1 *gcs.Object) {
