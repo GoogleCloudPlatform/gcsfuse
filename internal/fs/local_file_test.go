@@ -60,13 +60,11 @@ func (t *LocalFileTest) NewFileUnderImplicitDirectoryShouldNotGetSyncedToGCSTill
 }
 
 func (t *LocalFileTest) newFileShouldGetSyncedToGCSAtClose(fileName string) {
-	// Creating a file shouldn't create file on GCS.
-	f, err := os.Create(path.Join(mntDir, fileName))
-	AssertEq(nil, err)
-	t.validateObjectNotFoundErr(fileName)
+	// Create a local file.
+	_, f := t.createLocalFile(fileName)
 
 	// Writing contents to local file shouldn't create file on GCS.
-	_, err = f.Write([]byte(FileContents))
+	_, err := f.Write([]byte(FileContents))
 	AssertEq(nil, err)
 	t.validateObjectNotFoundErr(fileName)
 
