@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inode_test
+package inode
 
 import (
 	"errors"
@@ -52,7 +52,7 @@ type DirTest struct {
 	bucket gcsx.SyncerBucket
 	clock  timeutil.SimulatedClock
 
-	in inode.DirInode
+	in DirInode
 }
 
 var _ SetUpInterface = &DirTest{}
@@ -91,9 +91,9 @@ func (t *DirTest) resetInode(implicitDirs bool, enableNonexistentTypeCache bool)
 		t.in.Unlock()
 	}
 
-	t.in = inode.NewDirInode(
+	t.in = NewDirInode(
 		dirInodeID,
-		inode.NewDirName(inode.NewRootName(""), dirInodeName),
+		NewDirName(NewRootName(""), dirInodeName),
 		fuseops.InodeAttributes{
 			Uid:  uid,
 			Gid:  gid,
@@ -137,7 +137,7 @@ func (t *DirTest) setSymlinkTarget(
 		&gcs.UpdateObjectRequest{
 			Name: objName,
 			Metadata: map[string]*string{
-				inode.SymlinkMetadataKey: &target,
+				SymlinkMetadataKey: &target,
 			},
 		})
 
@@ -204,7 +204,7 @@ func (t *DirTest) LookUpChild_FileOnly() {
 	ExpectEq(createObj.Size, result.Object.Size)
 
 	// A conflict marker name shouldn't work.
-	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
 }
@@ -231,7 +231,7 @@ func (t *DirTest) LookUpChild_DirOnly() {
 	ExpectEq(createObj.Size, result.Object.Size)
 
 	// A conflict marker name shouldn't work.
-	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
 }
@@ -251,7 +251,7 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Disabled() {
 	ExpectEq(nil, result)
 
 	// Ditto with a conflict marker.
-	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
 }
@@ -277,10 +277,10 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 	ExpectEq(nil, result.Object)
 
 	ExpectEq(objName, result.FullName.GcsObjectName())
-	ExpectEq(inode.ImplicitDirType, result.Type())
+	ExpectEq(ImplicitDirType, result.Type())
 
 	// A conflict marker should not work.
-	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
 }
@@ -311,7 +311,7 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 	ExpectEq(dirObj.Size, result.Object.Size)
 
 	// Look up with the conflict marker name.
-	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
@@ -351,7 +351,7 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 	ExpectEq(dirObj.Size, result.Object.Size)
 
 	// Look up with the conflict marker name.
-	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
@@ -393,7 +393,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 	ExpectEq(dirObj.Size, result.Object.Size)
 
 	// Look up with the conflict marker name.
-	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
@@ -438,7 +438,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	ExpectEq(dirObj.Size, result.Object.Size)
 
 	// Look up with the conflict marker name.
-	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
@@ -564,10 +564,10 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
 	ExpectEq(nil, result.Object)
 
 	ExpectEq(objName, result.FullName.GcsObjectName())
-	ExpectEq(inode.ImplicitDirType, result.Type())
+	ExpectEq(ImplicitDirType, result.Type())
 
 	// A conflict marker should not work.
-	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
 }
@@ -759,7 +759,7 @@ func (t *DirTest) CreateChildFile_DoesntExist() {
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
 	ExpectEq(result.FullName.GcsObjectName(), result.Object.Name)
 	ExpectEq(objName, result.Object.Name)
-	ExpectFalse(inode.IsSymlink(result.Object))
+	ExpectFalse(IsSymlink(result.Object))
 
 	ExpectEq(1, len(result.Object.Metadata))
 	ExpectEq(
@@ -857,7 +857,7 @@ func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
 	ExpectEq(result.FullName.GcsObjectName(), result.Object.Name)
 	ExpectEq(dstName, result.Object.Name)
-	ExpectFalse(inode.IsSymlink(result.Object))
+	ExpectFalse(IsSymlink(result.Object))
 
 	// Check resulting contents.
 	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, dstName)
@@ -886,7 +886,7 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
 	ExpectEq(result.FullName.GcsObjectName(), result.Object.Name)
 	ExpectEq(dstName, result.Object.Name)
-	ExpectFalse(inode.IsSymlink(result.Object))
+	ExpectFalse(IsSymlink(result.Object))
 	ExpectEq(len("taco"), result.Object.Size)
 
 	// Check resulting contents.
@@ -948,7 +948,7 @@ func (t *DirTest) CreateChildSymlink_DoesntExist() {
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
 	ExpectEq(result.FullName.GcsObjectName(), result.Object.Name)
 	ExpectEq(objName, result.Object.Name)
-	ExpectEq(target, result.Object.Metadata[inode.SymlinkMetadataKey])
+	ExpectEq(target, result.Object.Metadata[SymlinkMetadataKey])
 }
 
 func (t *DirTest) CreateChildSymlink_Exists() {
@@ -1017,7 +1017,7 @@ func (t *DirTest) CreateChildDir_DoesntExist() {
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
 	ExpectEq(result.FullName.GcsObjectName(), result.Object.Name)
 	ExpectEq(objName, result.Object.Name)
-	ExpectFalse(inode.IsSymlink(result.Object))
+	ExpectFalse(IsSymlink(result.Object))
 }
 
 func (t *DirTest) CreateChildDir_Exists() {

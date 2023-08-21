@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
@@ -172,6 +173,11 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *g
 	var notFoundErr *gcs.NotFoundError
 	if errors.As(err, &notFoundErr) {
 		err = nil
+		if f.IsLocal() {
+			// For localFile, it is expected that object doesn't exist in GCS.
+			return
+		}
+
 		b = true
 		return
 	}
@@ -342,10 +348,6 @@ func (f *FileInode) Attributes(
 	attrs.Mtime = f.src.Updated
 	attrs.Size = uint64(f.src.Size)
 
-	// We require only that atime and ctime be "reasonable".
-	attrs.Atime = attrs.Mtime
-	attrs.Ctime = attrs.Mtime
-
 	// If the source object has an mtime metadata key, use that instead of its
 	// update time.
 	// If the file was copied via gsutil, we'll have goog-reserved-file-mtime
@@ -377,6 +379,17 @@ func (f *FileInode) Attributes(
 		if sr.Mtime != nil {
 			attrs.Mtime = *sr.Mtime
 		}
+	}
+
+	// We require only that atime and ctime be "reasonable".
+	attrs.Atime = attrs.Mtime
+	attrs.Ctime = attrs.Mtime
+
+	// Clobbered check makes a stat call to GCS. Avoiding stat calls to GCS for
+	// local files when fetching attributes. Any validations will be done during
+	// sync call.
+	if f.IsLocal() {
+		return
 	}
 
 	// If the object has been clobbered, we reflect that as the inode being
@@ -466,13 +479,16 @@ func (f *FileInode) SetMtime(
 		}
 	}
 
-	// If the local content is dirty, simply update its mtime and return. This
+	// 1. If the local content is dirty, simply update its mtime and return. This
 	// will cause the object in the bucket to be updated once we sync. If we lose
 	// power or something the mtime update will be lost, but so will the file
 	// data modifications so this doesn't seem so bad. It's worth saving the
 	// round trip to GCS for the common case of Linux writeback caching, where we
 	// always receive a setattr request just before a flush of a dirty file.
-	if sr.Mtime != nil {
+	//
+	// 2. If the file is local, that means its not yet synced to GCS. Just update
+	// the mtime locally, it will be synced when the object is created on GCS.
+	if sr.Mtime != nil || f.IsLocal() {
 		f.content.SetMtime(mtime)
 		return
 	}
@@ -550,7 +566,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// Write out the contents if they are dirty.
 	// Object properties are also synced as part of content sync. Hence, passing
 	// the latest object fetched from gcs which has all the properties populated.
-	newObj, err := f.bucket.SyncObject(ctx, latestGcsObj, f.content)
+	newObj, err := f.bucket.SyncObject(ctx, f.Name().GcsObjectName(), latestGcsObj, f.content)
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.
@@ -569,6 +585,10 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// If we wrote out a new object, we need to update our state.
 	if newObj != nil && !f.localFileCache {
 		f.src = convertObjToMinObject(newObj)
+		// Convert localFile to nonLocalFile after it is synced to GCS.
+		if f.IsLocal() {
+			f.local = false
+		}
 		f.content.Destroy()
 		f.content = nil
 	}
@@ -601,6 +621,13 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 		err = f.ensureContent(ctx)
 	}
 
+	return
+}
+
+func (f *FileInode) CreateEmptyTempFile() (err error) {
+	// Creating a file with no contents. The contents will be updated with
+	// writeFile operations.
+	f.content, err = f.contentCache.NewTempFile(io.NopCloser(strings.NewReader("")))
 	return
 }
 

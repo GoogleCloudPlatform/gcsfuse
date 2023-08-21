@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inode_test
+package inode
 
 import (
 	"fmt"
@@ -57,7 +57,7 @@ type FileTest struct {
 	initialContents string
 	backingObj      *gcs.Object
 
-	in *inode.FileInode
+	in *FileInode
 }
 
 var _ SetUpInterface = &FileTest{}
@@ -93,22 +93,26 @@ func (t *FileTest) TearDown() {
 }
 
 func (t *FileTest) createInode() {
-	t.createInodeWithLocalParam(false)
+	t.createInodeWithLocalParam(fileName, false)
 }
-func (t *FileTest) createInodeWithLocalParam(local bool) {
+func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 	if t.in != nil {
 		t.in.Unlock()
 	}
 
-	name := inode.NewFileName(
-		inode.NewRootName(""),
-		t.backingObj.Name,
+	name := NewFileName(
+		NewRootName(""),
+		fileName,
 	)
 	syncerBucket := gcsx.NewSyncerBucket(
 		1, // Append threshold
 		".gcsfuse_tmp/",
 		t.bucket)
-	t.in = inode.NewFileInode(
+
+	if local {
+		t.backingObj = nil
+	}
+	t.in = NewFileInode(
 		fileInodeID,
 		name,
 		t.backingObj,
@@ -384,6 +388,82 @@ func (t *FileTest) WriteThenSync() {
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(writeTime.UTC()))
 }
 
+func (t *FileTest) WriteToLocalFileThenSync() {
+	var attrs fuseops.InodeAttributes
+	var err error
+	// Create a local file inode.
+	t.createInodeWithLocalParam("test", true)
+	// Create a temp file for the local inode created above.
+	err = t.in.CreateEmptyTempFile()
+	AssertEq(nil, err)
+	// Write some content to temp file.
+	t.clock.AdvanceTime(time.Second)
+	writeTime := t.clock.Now()
+	err = t.in.Write(t.ctx, []byte("tacos"), 0)
+	AssertEq(nil, err)
+	t.clock.AdvanceTime(time.Second)
+
+	// Sync.
+	err = t.in.Sync(t.ctx)
+
+	AssertEq(nil, err)
+	// Verify that fileInode is no more local
+	AssertFalse(t.in.IsLocal())
+	// Stat the current object in the bucket.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	o, err := t.bucket.StatObject(t.ctx, statReq)
+	AssertEq(nil, err)
+	ExpectEq(t.in.SourceGeneration().Object, o.Generation)
+	ExpectEq(t.in.SourceGeneration().Metadata, o.MetaGeneration)
+	ExpectEq(len("tacos"), o.Size)
+	ExpectEq(
+		writeTime.UTC().Format(time.RFC3339Nano),
+		o.Metadata["gcsfuse_mtime"])
+	// Read the object's contents.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	AssertEq(nil, err)
+	ExpectEq("tacos", string(contents))
+	// Check attributes.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	ExpectEq(len("tacos"), attrs.Size)
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(writeTime.UTC()))
+}
+
+func (t *FileTest) SyncEmptyLocalFile() {
+	var attrs fuseops.InodeAttributes
+	var err error
+	// Create a local file inode.
+	t.createInodeWithLocalParam("test", true)
+	// Create a temp file for the local inode created above.
+	err = t.in.CreateEmptyTempFile()
+	AssertEq(nil, err)
+
+	// Sync.
+	err = t.in.Sync(t.ctx)
+
+	AssertEq(nil, err)
+	// Verify that fileInode is no more local
+	AssertFalse(t.in.IsLocal())
+	// Stat the current object in the bucket.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	o, err := t.bucket.StatObject(t.ctx, statReq)
+	AssertEq(nil, err)
+	ExpectEq(t.in.SourceGeneration().Object, o.Generation)
+	ExpectEq(t.in.SourceGeneration().Metadata, o.MetaGeneration)
+	ExpectEq(0, o.Size)
+	_, ok := o.Metadata["gcsfuse_mtime"]
+	AssertFalse(ok)
+	// Read the object's contents.
+	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	AssertEq(nil, err)
+	ExpectEq("", string(contents))
+	// Check attributes.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	ExpectEq(0, attrs.Size)
+}
+
 func (t *FileTest) AppendThenSync() {
 	var attrs fuseops.InodeAttributes
 	var err error
@@ -512,6 +592,61 @@ func (t *FileTest) TruncateUpwardThenSync() {
 
 	ExpectEq(6, attrs.Size)
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(truncateTime.UTC()))
+}
+
+func (t *FileTest) TestTruncateUpwardForLocalFileShouldUpdateLocalFileAttributes() {
+	var err error
+	var attrs fuseops.InodeAttributes
+	// Create a local file inode.
+	t.createInodeWithLocalParam("test", true)
+	err = t.in.CreateEmptyTempFile()
+	AssertEq(nil, err)
+	// Fetch the attributes and check if the file is empty.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	AssertEq(0, attrs.Size)
+
+	err = t.in.Truncate(t.ctx, 6)
+
+	AssertEq(nil, err)
+	// The inode should return the new size.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	AssertEq(6, attrs.Size)
+	// Data shouldn't be updated to GCS.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	_, err = t.bucket.StatObject(t.ctx, statReq)
+	AssertNe(nil, err)
+	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
+}
+
+func (t *FileTest) TestTruncateDownwardForLocalFileShouldUpdateLocalFileAttributes() {
+	var err error
+	var attrs fuseops.InodeAttributes
+	// Create a local file inode.
+	t.createInodeWithLocalParam("test", true)
+	err = t.in.CreateEmptyTempFile()
+	AssertEq(nil, err)
+	// Write some data to the local file.
+	err = t.in.Write(t.ctx, []byte("burrito"), 0)
+	AssertEq(nil, err)
+	// Validate the new data is written correctly.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	AssertEq(7, attrs.Size)
+
+	err = t.in.Truncate(t.ctx, 2)
+
+	AssertEq(nil, err)
+	// The inode should return the new size.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	AssertEq(2, attrs.Size)
+	// Data shouldn't be updated to GCS.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	_, err = t.bucket.StatObject(t.ctx, statReq)
+	AssertNe(nil, err)
+	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
 }
 
 func (t *FileTest) Sync_Clobbered() {
@@ -690,8 +825,45 @@ func (t *FileTest) SetMtime_SourceObjectMetaGenerationChanged() {
 	ExpectEq(newObj.MetaGeneration, o.MetaGeneration)
 }
 
+func (t *FileTest) TestSetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
+	var err error
+	var attrs fuseops.InodeAttributes
+	// Create a local file inode.
+	t.createInodeWithLocalParam("test", true)
+	err = t.in.CreateEmptyTempFile()
+	AssertEq(nil, err)
+	// Set mtime.
+	mtime := time.Now().UTC().Add(123 * time.Second)
+
+	err = t.in.SetMtime(t.ctx, mtime)
+
+	AssertEq(nil, err)
+	// The inode should agree about the new mtime.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(mtime))
+	ExpectThat(attrs.Ctime, timeutil.TimeEq(mtime))
+	ExpectThat(attrs.Atime, timeutil.TimeEq(mtime))
+	// Data shouldn't be updated to GCS.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	_, err = t.bucket.StatObject(t.ctx, statReq)
+	AssertNe(nil, err)
+	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
+}
+
 func (t *FileTest) TestCheckInvariantsShouldNotThrowExceptionForLocalFiles() {
-	t.createInodeWithLocalParam(true)
+	t.createInodeWithLocalParam("test", true)
 
 	AssertNe(nil, t.in)
+}
+
+func (t *FileTest) TestCreateEmptyTempFileShouldCreateEmptyFile() {
+	err := t.in.CreateEmptyTempFile()
+
+	AssertEq(nil, err)
+	AssertNe(nil, t.in.content)
+	// Validate that file size is 0.
+	sr, err := t.in.content.Stat()
+	AssertEq(nil, err)
+	AssertEq(0, sr.Size)
 }
