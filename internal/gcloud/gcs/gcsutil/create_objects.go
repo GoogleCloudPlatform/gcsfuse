@@ -26,6 +26,7 @@ func CreateObjects(
 		ctx context.Context,
 		bucket gcs.Bucket,
 		input map[string][]byte) (err error) {
+
 	bundle := syncutil.NewBundle(ctx)
 
 	// Feed ObjectInfo records into a channel.

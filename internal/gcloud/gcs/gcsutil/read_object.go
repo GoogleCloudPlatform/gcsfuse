@@ -16,6 +16,7 @@ package gcsutil
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"golang.org/x/net/context"
@@ -27,6 +28,8 @@ func ReadObject(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	name string) (contents []byte, err error) {
+	contents = make([]byte, 1024)
+
 	// Call the bucket.
 	req := &gcs.ReadObjectRequest{
 		Name: name,
@@ -46,11 +49,14 @@ func ReadObject(
 	}()
 
 	// Read the contents.
-	_, err = rc.Read(contents)
+	n, err := rc.Read(contents)
+	if err == io.EOF {
+		err = nil
+	}
 	if err != nil {
 		err = fmt.Errorf("ReadAll: %v", err)
 		return
 	}
 
-	return
+	return contents[:n], err
 }
