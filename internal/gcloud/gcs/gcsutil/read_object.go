@@ -16,7 +16,6 @@ package gcsutil
 
 import (
 	"fmt"
-	"io/ioutil"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"golang.org/x/net/context"
@@ -47,7 +46,7 @@ func ReadObject(
 	}()
 
 	// Read the contents.
-	contents, err = ioutil.ReadAll(rc)
+	_, err = rc.Read(contents)
 	if err != nil {
 		err = fmt.Errorf("ReadAll: %v", err)
 		return
