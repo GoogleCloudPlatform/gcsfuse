@@ -143,13 +143,11 @@ func (t *LocalFileTest) TruncateLocalFile() {
 }
 
 func (t *LocalFileTest) MultipleWritesToLocalFile() {
-	// Creating a file shouldn't create file on GCS.
-	f, err := os.Create(path.Join(mntDir, FileName))
-	AssertEq(nil, err)
-	t.validateObjectNotFoundErr(FileName)
+	// Create a local file.
+	_, f := t.createLocalFile(FileName)
 
 	// Write some contents to file sequentially.
-	_, err = f.Write([]byte("string1"))
+	_, err := f.Write([]byte("string1"))
 	AssertEq(nil, err)
 	_, err = f.Write([]byte("string2"))
 	AssertEq(nil, err)
@@ -163,13 +161,11 @@ func (t *LocalFileTest) MultipleWritesToLocalFile() {
 }
 
 func (t *LocalFileTest) RandomWritesToLocalFile() {
-	// Creating a file shouldn't create file on GCS.
-	f, err := os.Create(path.Join(mntDir, FileName))
-	AssertEq(nil, err)
-	t.validateObjectNotFoundErr(FileName)
+	// Create a local file.
+	_, f := t.createLocalFile(FileName)
 
 	// Write some contents to file randomly.
-	_, err = f.WriteAt([]byte("string1"), 0)
+	_, err := f.WriteAt([]byte("string1"), 0)
 	AssertEq(nil, err)
 	_, err = f.WriteAt([]byte("string2"), 2)
 	AssertEq(nil, err)
