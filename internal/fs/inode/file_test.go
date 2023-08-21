@@ -682,3 +682,36 @@ func (t *FileTest) SetMtime_SourceObjectMetaGenerationChanged() {
 	ExpectEq(newObj.Generation, o.Generation)
 	ExpectEq(newObj.MetaGeneration, o.MetaGeneration)
 }
+
+func (t *FileTest) ContentEncodingGzip() {
+	// Set up an explicit content-encoding on the backing object and re-create the inode.
+	contentEncoding := "gzip"
+	t.backingObj.ContentEncoding = contentEncoding
+
+	t.createInode()
+
+	AssertEq(contentEncoding, t.in.Source().ContentEncoding)
+	AssertTrue(t.in.Source().HasContentEncodingGzip())
+}
+
+func (t *FileTest) ContentEncodingNone() {
+	// Set up an explicit content-encoding on the backing object and re-create the inode.
+	contentEncoding := ""
+	t.backingObj.ContentEncoding = contentEncoding
+
+	t.createInode()
+
+	AssertEq(contentEncoding, t.in.Source().ContentEncoding)
+	AssertFalse(t.in.Source().HasContentEncodingGzip())
+}
+
+func (t *FileTest) ContentEncodingOther() {
+	// Set up an explicit content-encoding on the backing object and re-create the inode.
+	contentEncoding := "other"
+	t.backingObj.ContentEncoding = contentEncoding
+
+	t.createInode()
+
+	AssertEq(contentEncoding, t.in.Source().ContentEncoding)
+	AssertFalse(t.in.Source().HasContentEncodingGzip())
+}

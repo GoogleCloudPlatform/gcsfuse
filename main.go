@@ -27,13 +27,15 @@ import (
 	"path"
 	"strings"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/perf"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
+
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/kardianos/osext"
@@ -80,21 +82,19 @@ func getUserAgent(appName string) string {
 }
 
 func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
-	tokenSrc, err := auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl, true)
-	if err != nil {
-		err = fmt.Errorf("get token source: %w", err)
-		return
-	}
-
-	storageClientConfig := storage.StorageClientConfig{
-		ClientProtocol:      flags.ClientProtocol,
-		MaxConnsPerHost:     flags.MaxConnsPerHost,
-		MaxIdleConnsPerHost: flags.MaxIdleConnsPerHost,
-		TokenSrc:            tokenSrc,
-		HttpClientTimeout:   flags.HttpClientTimeout,
-		MaxRetryDuration:    flags.MaxRetryDuration,
-		RetryMultiplier:     flags.RetryMultiplier,
-		UserAgent:           getUserAgent(flags.AppName),
+	storageClientConfig := storageutil.StorageClientConfig{
+		ClientProtocol:             flags.ClientProtocol,
+		MaxConnsPerHost:            flags.MaxConnsPerHost,
+		MaxIdleConnsPerHost:        flags.MaxIdleConnsPerHost,
+		HttpClientTimeout:          flags.HttpClientTimeout,
+		MaxRetryDuration:           flags.MaxRetryDuration,
+		RetryMultiplier:            flags.RetryMultiplier,
+		UserAgent:                  getUserAgent(flags.AppName),
+		CustomEndpoint:             flags.CustomEndpoint,
+		KeyFile:                    flags.KeyFile,
+		TokenUrl:                   flags.TokenUrl,
+		ReuseTokenFromUrl:          flags.ReuseTokenFromUrl,
+		ExperimentalEnableJsonRead: flags.ExperimentalEnableJsonRead,
 	}
 
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
@@ -106,7 +106,7 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountWithStorageHandle(
+func mountWithArgs(
 	bucketName string,
 	mountPoint string,
 	flags *flagStorage,
@@ -128,14 +128,14 @@ func mountWithStorageHandle(
 		mountStatus.Println("Creating Storage handle...")
 		storageHandle, err = createStorageHandle(flags)
 		if err != nil {
-			err = fmt.Errorf("Failed to create storageHandle: %w", err)
+			err = fmt.Errorf("Failed to create storage handle using createStorageHandle: %w", err)
 			return
 		}
 	}
 
 	// Mount the file system.
 	logger.Infof("Creating a mount at %q\n", mountPoint)
-	mfs, err = mountWithConn(
+	mfs, err = mountWithStorageHandle(
 		context.Background(),
 		bucketName,
 		mountPoint,
@@ -144,7 +144,7 @@ func mountWithStorageHandle(
 		mountStatus)
 
 	if err != nil {
-		err = fmt.Errorf("Error in mounting filesystem: %w", err)
+		err = fmt.Errorf("mountWithStorageHandle: %w", err)
 		return
 	}
 
@@ -303,7 +303,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	var mfs *fuse.MountedFileSystem
 	{
 		mountStatus := logger.NewInfo("")
-		mfs, err = mountWithStorageHandle(bucketName, mountPoint, flags, mountStatus)
+		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountStatus)
 
 		if err == nil {
 			mountStatus.Println("File system has been successfully mounted.")

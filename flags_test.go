@@ -29,7 +29,6 @@ import (
 )
 
 const gcsFuseParentProcessDir = "/var/generic/google"
-const EndPoint = "https://storage.googleapis.com:443"
 
 func TestFlags(t *testing.T) { RunTests(t) }
 
@@ -48,6 +47,7 @@ func parseArgs(args []string) (flags *flagStorage) {
 	var err error
 	app.Action = func(appCtx *cli.Context) {
 		flags, err = populateFlags(appCtx)
+		AssertEq(nil, err)
 	}
 
 	// Simulate argv.
@@ -81,7 +81,7 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq(-1, f.EgressBandwidthLimitBytesPerSecond)
 	ExpectEq(-1, f.OpRateLimitHz)
 	ExpectTrue(f.ReuseTokenFromUrl)
-	ExpectEq(EndPoint, f.Endpoint.String())
+	ExpectEq(nil, f.CustomEndpoint)
 
 	// Tuning
 	ExpectEq(4096, f.StatCacheCapacity)
@@ -112,6 +112,7 @@ func (t *FlagsTest) Bools() {
 		"debug_gcs",
 		"debug_invariants",
 		"enable-nonexistent-type-cache",
+		"experimental-enable-json-read",
 	}
 
 	var args []string
@@ -132,6 +133,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
 	ExpectTrue(f.EnableNonexistentTypeCache)
+	ExpectTrue(f.ExperimentalEnableJsonRead)
 
 	// --foo=false form
 	args = nil
