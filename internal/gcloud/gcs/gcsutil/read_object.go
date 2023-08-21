@@ -1,4 +1,4 @@
-// Copyright 2023 Google Inc. All Rights Reserved.
+// Copyright 2015 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
 
@@ -28,8 +28,6 @@ func ReadObject(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	name string) (contents []byte, err error) {
-	contents = make([]byte, 1024)
-
 	// Call the bucket.
 	req := &gcs.ReadObjectRequest{
 		Name: name,
@@ -49,14 +47,11 @@ func ReadObject(
 	}()
 
 	// Read the contents.
-	n, err := rc.Read(contents)
-	if err == io.EOF {
-		err = nil
-	}
+	contents, err = io.ReadAll(rc)
 	if err != nil {
 		err = fmt.Errorf("ReadAll: %v", err)
 		return
 	}
 
-	return contents[:n], err
+	return
 }

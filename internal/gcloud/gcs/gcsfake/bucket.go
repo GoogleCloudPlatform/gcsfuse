@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
-	"io/ioutil"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -234,7 +233,7 @@ func (b *bucket) createObjectLocked(
 	}
 
 	// Snarf the contents.
-	contents, err := ioutil.ReadAll(req.Contents)
+	contents, err := io.ReadAll(req.Contents)
 	if err != nil {
 		err = fmt.Errorf("ReadAll: %v", err)
 		return
@@ -545,7 +544,7 @@ func (b *bucket) NewReader(
 		return
 	}
 
-	rc = ioutil.NopCloser(r)
+	rc = io.NopCloser(r)
 	return
 }
 
