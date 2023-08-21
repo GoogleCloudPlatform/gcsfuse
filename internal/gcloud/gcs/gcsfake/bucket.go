@@ -1,4 +1,4 @@
-// Copyright 2023 Google Inc. All Rights Reserved.
+// Copyright 2015 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"io/ioutil"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -232,13 +233,8 @@ func (b *bucket) createObjectLocked(
 		return
 	}
 
-	reqContent := req.Contents
-	contents := make([]byte, 1024)
 	// Snarf the contents.
-	n, err := reqContent.Read(contents)
-	if err == io.EOF {
-		err = nil
-	}
+	contents, err := ioutil.ReadAll(req.Contents)
 	if err != nil {
 		err = fmt.Errorf("ReadAll: %v", err)
 		return
@@ -254,7 +250,7 @@ func (b *bucket) createObjectLocked(
 
 	// Check the provided checksum, if any.
 	if req.CRC32C != nil {
-		actual := crc32.Checksum(contents[n:], crc32cTable)
+		actual := crc32.Checksum(contents, crc32cTable)
 		if actual != *req.CRC32C {
 			err = fmt.Errorf(
 				"CRC32C mismatch: got 0x%08x, expected 0x%08x",
@@ -267,7 +263,7 @@ func (b *bucket) createObjectLocked(
 
 	// Check the provided hash, if any.
 	if req.MD5 != nil {
-		actual := md5.Sum(contents[n:])
+		actual := md5.Sum(contents)
 		if actual != *req.MD5 {
 			err = fmt.Errorf(
 				"MD5 mismatch: got %s, expected %s",
@@ -332,7 +328,7 @@ func (b *bucket) createObjectLocked(
 	}
 
 	// Create an object record from the given attributes.
-	fo := b.mintObject(req, contents)
+	var fo fakeObject = b.mintObject(req, contents)
 	o = copyObject(&fo.metadata)
 
 	// Replace an entry in or add an entry to our list of objects.
@@ -544,11 +540,12 @@ func (b *bucket) NewReader(
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	_, _, err = b.newReaderLocked(req)
+	r, _, err := b.newReaderLocked(req)
 	if err != nil {
 		return
 	}
 
+	rc = ioutil.NopCloser(r)
 	return
 }
 

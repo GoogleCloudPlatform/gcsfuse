@@ -282,7 +282,7 @@ func (t *GcsfuseTest) ReadWriteMode() {
 	// Overwrite the canned file.
 	p := path.Join(t.dir, canned.TopLevelFile)
 
-	err = ioutil.WriteFile(p, []byte("enchilada"), 0400)
+	err = os.WriteFile(p, []byte("enchilada"), 0400)
 	AssertEq(nil, err)
 
 	contents, err := ioutil.ReadFile(p)
