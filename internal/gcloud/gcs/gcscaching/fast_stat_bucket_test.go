@@ -92,7 +92,6 @@ func (t *CreateObjectTest) CallsEraseAndWrapped() {
 }
 
 func (t *CreateObjectTest) WrappedFails() {
-	const name = ""
 	var err error
 
 	// Erase
@@ -169,8 +168,6 @@ func (t *CopyObjectTest) CallsEraseAndWrapped() {
 }
 
 func (t *CopyObjectTest) WrappedFails() {
-	const srcName = ""
-	const dstName = ""
 	var err error
 
 	// Erase
@@ -187,7 +184,6 @@ func (t *CopyObjectTest) WrappedFails() {
 }
 
 func (t *CopyObjectTest) WrappedSucceeds() {
-	const srcName = "taco"
 	const dstName = "burrito"
 	var err error
 
@@ -239,7 +235,7 @@ func (t *ComposeObjectsTest) CallsEraseAndWrapped() {
 	req := &gcs.ComposeObjectsRequest{
 		DstName: dstName,
 		Sources: []gcs.ComposeSource{
-			gcs.ComposeSource{Name: srcName},
+			{Name: srcName},
 		},
 	}
 
@@ -250,8 +246,6 @@ func (t *ComposeObjectsTest) CallsEraseAndWrapped() {
 }
 
 func (t *ComposeObjectsTest) WrappedFails() {
-	const srcName = ""
-	const dstName = ""
 	var err error
 
 	// Erase
@@ -268,7 +262,6 @@ func (t *ComposeObjectsTest) WrappedFails() {
 }
 
 func (t *ComposeObjectsTest) WrappedSucceeds() {
-	const srcName = "taco"
 	const dstName = "burrito"
 	var err error
 
@@ -567,7 +560,6 @@ func (t *UpdateObjectTest) CallsEraseAndWrapped() {
 }
 
 func (t *UpdateObjectTest) WrappedFails() {
-	const name = ""
 	var err error
 
 	// Erase
