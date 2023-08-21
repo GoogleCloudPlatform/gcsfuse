@@ -75,16 +75,13 @@ func (t *LocalFileTest) newFileShouldGetSyncedToGCSAtClose(fileName string) {
 }
 
 func (t *LocalFileTest) StatOnLocalFile() {
-	// Creating a file shouldn't create file on GCS.
-	fileName := path.Join(mntDir, FileName)
-	f, err := os.Create(fileName)
-	AssertEq(nil, err)
-	t.validateObjectNotFoundErr(FileName)
+	// Create a local file.
+	filePath, f := t.createLocalFile(FileName)
 
 	// Stat the local file.
-	fi, err := os.Stat(fileName)
+	fi, err := os.Stat(filePath)
 	AssertEq(nil, err)
-	ExpectEq(path.Base(fileName), fi.Name())
+	ExpectEq(path.Base(filePath), fi.Name())
 	ExpectEq(0, fi.Size())
 	ExpectEq(filePerms, fi.Mode())
 
@@ -94,9 +91,9 @@ func (t *LocalFileTest) StatOnLocalFile() {
 	t.validateObjectNotFoundErr(FileName)
 
 	// Stat the local file again to check if new contents are written.
-	fi, err = os.Stat(fileName)
+	fi, err = os.Stat(filePath)
 	AssertEq(nil, err)
-	ExpectEq(path.Base(fileName), fi.Name())
+	ExpectEq(path.Base(filePath), fi.Name())
 	ExpectEq(10, fi.Size())
 	ExpectEq(filePerms, fi.Mode())
 
@@ -105,16 +102,13 @@ func (t *LocalFileTest) StatOnLocalFile() {
 }
 
 func (t *LocalFileTest) StatOnLocalFileWithConflictingFileNameSuffix() {
-	// Creating a file shouldn't create file on GCS.
-	fileName := path.Join(mntDir, FileName)
-	f, err := os.Create(fileName)
-	AssertEq(nil, err)
-	t.validateObjectNotFoundErr(FileName)
+	// Create a local file.
+	filePath, f := t.createLocalFile(FileName)
 
 	// Stat the local file.
-	fi, err := os.Stat(fileName + inode.ConflictingFileNameSuffix)
+	fi, err := os.Stat(filePath + inode.ConflictingFileNameSuffix)
 	AssertEq(nil, err)
-	ExpectEq(path.Base(fileName)+inode.ConflictingFileNameSuffix, fi.Name())
+	ExpectEq(path.Base(filePath)+inode.ConflictingFileNameSuffix, fi.Name())
 	ExpectEq(0, fi.Size())
 	ExpectEq(filePerms, fi.Mode())
 
@@ -123,32 +117,29 @@ func (t *LocalFileTest) StatOnLocalFileWithConflictingFileNameSuffix() {
 }
 
 func (t *LocalFileTest) TruncateLocalFile() {
-	// Creating a file shouldn't create file on GCS.
-	fileName := path.Join(mntDir, FileName)
-	f, err := os.Create(fileName)
-	AssertEq(nil, err)
-	t.validateObjectNotFoundErr(FileName)
+	// Create a local file.
+	filePath, f := t.createLocalFile(FileName)
 
 	// Writing contents to local file .
-	_, err = f.Write([]byte(FileContents))
+	_, err := f.Write([]byte(FileContents))
 	AssertEq(nil, err)
 
 	// Stat the file to validate if new contents are written.
-	fi, err := os.Stat(fileName)
+	fi, err := os.Stat(filePath)
 	AssertEq(nil, err)
-	ExpectEq(path.Base(fileName), fi.Name())
+	ExpectEq(path.Base(filePath), fi.Name())
 	ExpectEq(10, fi.Size())
 	ExpectEq(filePerms, fi.Mode())
 
 	// Truncate the file to update the file size.
-	err = os.Truncate(fileName, 5)
+	err = os.Truncate(filePath, 5)
 	AssertEq(nil, err)
 	t.validateObjectNotFoundErr(FileName)
 
 	// Stat the file to validate if file is truncated correctly.
-	fi, err = os.Stat(fileName)
+	fi, err = os.Stat(filePath)
 	AssertEq(nil, err)
-	ExpectEq(path.Base(fileName), fi.Name())
+	ExpectEq(path.Base(filePath), fi.Name())
 	ExpectEq(5, fi.Size())
 	ExpectEq(filePerms, fi.Mode())
 
@@ -209,4 +200,15 @@ func (t *LocalFileTest) closeFileAndValidateObjectContents(f *os.File, fileName 
 	contentBytes, err := gcsutil.ReadObject(ctx, bucket, fileName)
 	AssertEq(nil, err)
 	ExpectEq(contents, string(contentBytes))
+}
+
+func (t *LocalFileTest) createLocalFile(fileName string) (filePath string, f *os.File) {
+	// Creating a file shouldn't create file on GCS.
+	filePath = path.Join(mntDir, fileName)
+	f, err := os.Create(filePath)
+
+	AssertEq(nil, err)
+	t.validateObjectNotFoundErr(fileName)
+
+	return
 }
