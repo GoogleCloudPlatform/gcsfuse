@@ -240,7 +240,7 @@ func (t *GcsfuseTest) CannedContents() {
 	AssertEq(nil, err)
 	ExpectEq(os.FileMode(0644), fi.Mode())
 
-	contents, err := ioutil.ReadFile(path.Join(t.dir, canned.TopLevelFile))
+	contents, err := os.ReadFile(path.Join(t.dir, canned.TopLevelFile))
 	AssertEq(nil, err)
 	ExpectEq(canned.TopLevelFile_Contents, string(contents))
 
@@ -265,7 +265,7 @@ func (t *GcsfuseTest) ReadOnlyMode() {
 	defer util.Unmount(t.dir)
 
 	// Writing to the file system should fail.
-	err = ioutil.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
+	err = os.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
 	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
