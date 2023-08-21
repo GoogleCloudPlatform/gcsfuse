@@ -62,7 +62,6 @@ func (t *LocalFileTest) NewFileUnderImplicitDirectoryShouldNotGetSyncedToGCSTill
 func (t *LocalFileTest) newFileShouldGetSyncedToGCSAtClose(fileName string) {
 	// Create a local file.
 	_, f := t.createLocalFile(fileName)
-
 	// Writing contents to local file shouldn't create file on GCS.
 	_, err := f.Write([]byte(FileContents))
 	AssertEq(nil, err)
@@ -102,7 +101,6 @@ func (t *LocalFileTest) StatOnLocalFile() {
 func (t *LocalFileTest) StatOnLocalFileWithConflictingFileNameSuffix() {
 	// Create a local file.
 	filePath, f := t.createLocalFile(FileName)
-
 	// Stat the local file.
 	fi, err := os.Stat(filePath + inode.ConflictingFileNameSuffix)
 	AssertEq(nil, err)
@@ -117,7 +115,6 @@ func (t *LocalFileTest) StatOnLocalFileWithConflictingFileNameSuffix() {
 func (t *LocalFileTest) TruncateLocalFile() {
 	// Create a local file.
 	filePath, f := t.createLocalFile(FileName)
-
 	// Writing contents to local file .
 	_, err := f.Write([]byte(FileContents))
 	AssertEq(nil, err)
