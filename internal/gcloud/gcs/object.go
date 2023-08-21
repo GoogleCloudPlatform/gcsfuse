@@ -23,8 +23,6 @@ import (
 
 const (
 	Scope_FullControl = storagev1.DevstorageFullControlScope
-	Scope_ReadOnly    = storagev1.DevstorageReadOnlyScope
-	Scope_ReadWrite   = storagev1.DevstorageReadWriteScope
 )
 
 // Object is a record representing a particular generation of a particular

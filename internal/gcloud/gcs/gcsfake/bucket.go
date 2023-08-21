@@ -233,8 +233,13 @@ func (b *bucket) createObjectLocked(
 		return
 	}
 
+	reqContent := req.Contents
+	contents := make([]byte, 1024)
 	// Snarf the contents.
-	contents, err := ioutil.ReadAll(req.Contents)
+	n, err := reqContent.Read(contents)
+	if err == io.EOF {
+		err = nil
+	}
 	if err != nil {
 		err = fmt.Errorf("ReadAll: %v", err)
 		return
@@ -250,7 +255,7 @@ func (b *bucket) createObjectLocked(
 
 	// Check the provided checksum, if any.
 	if req.CRC32C != nil {
-		actual := crc32.Checksum(contents, crc32cTable)
+		actual := crc32.Checksum(contents[n:], crc32cTable)
 		if actual != *req.CRC32C {
 			err = fmt.Errorf(
 				"CRC32C mismatch: got 0x%08x, expected 0x%08x",
@@ -263,7 +268,7 @@ func (b *bucket) createObjectLocked(
 
 	// Check the provided hash, if any.
 	if req.MD5 != nil {
-		actual := md5.Sum(contents)
+		actual := md5.Sum(contents[n:])
 		if actual != *req.MD5 {
 			err = fmt.Errorf(
 				"MD5 mismatch: got %s, expected %s",
