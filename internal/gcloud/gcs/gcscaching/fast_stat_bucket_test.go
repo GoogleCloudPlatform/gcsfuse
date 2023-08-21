@@ -26,6 +26,7 @@ import (
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"golang.org/x/net/context"
 )
 
 func TestFastStatBucket(t *testing.T) { RunTests(t) }
@@ -85,7 +86,7 @@ func (t *CreateObjectTest) CallsEraseAndWrapped() {
 		Name: name,
 	}
 
-	_, _ = t.bucket.CreateObject(nil, req)
+	_, _ = t.bucket.CreateObject(context.TODO(), req)
 
 	AssertNe(nil, wrappedReq)
 	ExpectEq(req, wrappedReq)
@@ -102,7 +103,7 @@ func (t *CreateObjectTest) WrappedFails() {
 		WillOnce(Return(nil, errors.New("taco")))
 
 	// Call
-	_, err = t.bucket.CreateObject(nil, &gcs.CreateObjectRequest{})
+	_, err = t.bucket.CreateObject(context.TODO(), &gcs.CreateObjectRequest{})
 
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
@@ -127,7 +128,7 @@ func (t *CreateObjectTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Insert")(obj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
-	o, err := t.bucket.CreateObject(nil, &gcs.CreateObjectRequest{})
+	o, err := t.bucket.CreateObject(context.TODO(), &gcs.CreateObjectRequest{})
 
 	AssertEq(nil, err)
 	ExpectEq(obj, o)
