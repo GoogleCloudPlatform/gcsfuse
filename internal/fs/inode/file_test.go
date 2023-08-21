@@ -26,7 +26,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
-	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"

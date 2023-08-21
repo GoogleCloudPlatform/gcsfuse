@@ -24,7 +24,6 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
@@ -130,8 +129,8 @@ func (t *DirTest) readAllEntries() (entries []fuseutil.Dirent, err error) {
 }
 
 func (t *DirTest) setSymlinkTarget(
-	objName string,
-	target string) (err error) {
+		objName string,
+		target string) (err error) {
 	_, err = t.bucket.UpdateObject(
 		t.ctx,
 		&gcs.UpdateObjectRequest{
