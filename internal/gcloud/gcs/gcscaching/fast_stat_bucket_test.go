@@ -179,7 +179,7 @@ func (t *CopyObjectTest) WrappedFails() {
 		WillOnce(Return(nil, errors.New("taco")))
 
 	// Call
-	_, err = t.bucket.CopyObject(nil, &gcs.CopyObjectRequest{})
+	_, err = t.bucket.CopyObject(context.TODO(), &gcs.CopyObjectRequest{})
 
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
@@ -204,7 +204,7 @@ func (t *CopyObjectTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Insert")(obj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
-	o, err := t.bucket.CopyObject(nil, &gcs.CopyObjectRequest{})
+	o, err := t.bucket.CopyObject(context.TODO(), &gcs.CopyObjectRequest{})
 
 	AssertEq(nil, err)
 	ExpectEq(obj, o)
@@ -240,7 +240,7 @@ func (t *ComposeObjectsTest) CallsEraseAndWrapped() {
 		},
 	}
 
-	_, _ = t.bucket.ComposeObjects(nil, req)
+	_, _ = t.bucket.ComposeObjects(context.TODO(), req)
 
 	AssertNe(nil, wrappedReq)
 	ExpectEq(req, wrappedReq)
@@ -257,7 +257,7 @@ func (t *ComposeObjectsTest) WrappedFails() {
 		WillOnce(Return(nil, errors.New("taco")))
 
 	// Call
-	_, err = t.bucket.ComposeObjects(nil, &gcs.ComposeObjectsRequest{})
+	_, err = t.bucket.ComposeObjects(context.TODO(), &gcs.ComposeObjectsRequest{})
 
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
@@ -282,7 +282,7 @@ func (t *ComposeObjectsTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Insert")(obj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
-	o, err := t.bucket.ComposeObjects(nil, &gcs.ComposeObjectsRequest{})
+	o, err := t.bucket.ComposeObjects(context.TODO(), &gcs.ComposeObjectsRequest{})
 
 	AssertEq(nil, err)
 	ExpectEq(obj, o)
@@ -310,7 +310,7 @@ func (t *StatObjectTest) CallsCache() {
 		Name: name,
 	}
 
-	_, _ = t.bucket.StatObject(nil, req)
+	_, _ = t.bucket.StatObject(context.TODO(), req)
 }
 
 func (t *StatObjectTest) CacheHit_Positive() {
@@ -346,7 +346,7 @@ func (t *StatObjectTest) CacheHit_Negative() {
 		Name: name,
 	}
 
-	_, err := t.bucket.StatObject(nil, req)
+	_, err := t.bucket.StatObject(context.TODO(), req)
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
@@ -374,7 +374,7 @@ func (t *StatObjectTest) IgnoresCacheEntryWhenForceFetchFromGcsIsTrue() {
 	// Insert
 	ExpectCall(t.cache, "Insert")(objFromGcs, timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
-	o, err := t.bucket.StatObject(nil, req)
+	o, err := t.bucket.StatObject(context.TODO(), req)
 	AssertEq(nil, err)
 	ExpectEq(objFromGcs, o)
 }
@@ -394,7 +394,7 @@ func (t *StatObjectTest) CallsWrapped() {
 		WillOnce(Return(nil, errors.New("")))
 
 	// Call
-	_, _ = t.bucket.StatObject(nil, req)
+	_, _ = t.bucket.StatObject(context.TODO(), req)
 }
 
 func (t *StatObjectTest) WrappedFails() {
@@ -413,7 +413,7 @@ func (t *StatObjectTest) WrappedFails() {
 		Name: name,
 	}
 
-	_, err := t.bucket.StatObject(nil, req)
+	_, err := t.bucket.StatObject(context.TODO(), req)
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
@@ -466,7 +466,7 @@ func (t *StatObjectTest) WrappedSucceeds() {
 		Name: name,
 	}
 
-	o, err := t.bucket.StatObject(nil, req)
+	o, err := t.bucket.StatObject(context.TODO(), req)
 	AssertEq(nil, err)
 	ExpectEq(obj, o)
 }
@@ -499,7 +499,7 @@ func (t *ListObjectsTest) EmptyListing() {
 		WillOnce(Return(expected, nil))
 
 	// Call
-	listing, err := t.bucket.ListObjects(nil, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
 
 	AssertEq(nil, err)
 	ExpectEq(expected, listing)
@@ -554,7 +554,7 @@ func (t *UpdateObjectTest) CallsEraseAndWrapped() {
 		Name: name,
 	}
 
-	_, _ = t.bucket.UpdateObject(nil, req)
+	_, _ = t.bucket.UpdateObject(context.TODO(), req)
 
 	AssertNe(nil, wrappedReq)
 	ExpectEq(req, wrappedReq)
@@ -596,7 +596,7 @@ func (t *UpdateObjectTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Insert")(obj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
-	o, err := t.bucket.UpdateObject(nil, &gcs.UpdateObjectRequest{})
+	o, err := t.bucket.UpdateObject(context.TODO(), &gcs.UpdateObjectRequest{})
 
 	AssertEq(nil, err)
 	ExpectEq(obj, o)
@@ -613,7 +613,7 @@ type DeleteObjectTest struct {
 func init() { RegisterTestSuite(&DeleteObjectTest{}) }
 
 func (t *DeleteObjectTest) deleteObject(name string) (err error) {
-	err = t.bucket.DeleteObject(nil, &gcs.DeleteObjectRequest{Name: name})
+	err = t.bucket.DeleteObject(context.TODO(), &gcs.DeleteObjectRequest{Name: name})
 	return
 }
 
