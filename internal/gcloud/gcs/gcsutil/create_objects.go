@@ -23,9 +23,9 @@ import (
 // Create multiple objects with some parallelism, with contents according to
 // the supplied map from name to contents.
 func CreateObjects(
-	ctx context.Context,
-	bucket gcs.Bucket,
-	input map[string][]byte) (err error) {
+		ctx context.Context,
+		bucket gcs.Bucket,
+		input map[string][]byte) (err error) {
 	bundle := syncutil.NewBundle(ctx)
 
 	// Feed ObjectInfo records into a channel.
@@ -41,8 +41,6 @@ func CreateObjects(
 
 	close(recordChan)
 
-	// Create the objects in parallel.
-	const parallelism = 64
 	for i := 0; i < 10; i++ {
 		bundle.Add(func(ctx context.Context) (err error) {
 			for r := range recordChan {

@@ -59,8 +59,6 @@ func (m *mockStatCache) AddNegativeEntry(p0 string, p1 time.Time) {
 	if len(retVals) != 0 {
 		panic(fmt.Sprintf("mockStatCache.AddNegativeEntry: invalid return values: %v", retVals))
 	}
-
-	return
 }
 
 func (m *mockStatCache) CheckInvariants() {
@@ -78,8 +76,6 @@ func (m *mockStatCache) CheckInvariants() {
 	if len(retVals) != 0 {
 		panic(fmt.Sprintf("mockStatCache.CheckInvariants: invalid return values: %v", retVals))
 	}
-
-	return
 }
 
 func (m *mockStatCache) Erase(p0 string) {
@@ -97,8 +93,6 @@ func (m *mockStatCache) Erase(p0 string) {
 	if len(retVals) != 0 {
 		panic(fmt.Sprintf("mockStatCache.Erase: invalid return values: %v", retVals))
 	}
-
-	return
 }
 
 func (m *mockStatCache) Insert(p0 *gcs.Object, p1 time.Time) {
