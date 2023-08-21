@@ -162,7 +162,7 @@ func (t *CopyObjectTest) CallsEraseAndWrapped() {
 		DstName: dstName,
 	}
 
-	_, _ = t.bucket.CopyObject(nil, req)
+	_, _ = t.bucket.CopyObject(context.TODO(), req)
 
 	AssertNe(nil, wrappedReq)
 	ExpectEq(req, wrappedReq)
@@ -329,7 +329,7 @@ func (t *StatObjectTest) CacheHit_Positive() {
 		Name: name,
 	}
 
-	o, err := t.bucket.StatObject(nil, req)
+	o, err := t.bucket.StatObject(context.TODO(), req)
 	AssertEq(nil, err)
 	ExpectEq(obj, o)
 }
@@ -438,7 +438,7 @@ func (t *StatObjectTest) WrappedSaysNotFound() {
 		Name: name,
 	}
 
-	_, err := t.bucket.StatObject(nil, req)
+	_, err := t.bucket.StatObject(context.TODO(), req)
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 	ExpectThat(err, Error(HasSubstr("burrito")))
 }
