@@ -27,29 +27,32 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const NumberOfRandomWriteCalls = 20
-const DirForRandomWrite = "dirForRandomWrite"
-const MinWritableByteFromFile = 0
-const MaxWritableByteFromFile = 500 * OneMB
-const FileDownloadedFromBucket = "fileDownloadedFromBucket"
-const FiveHundredMBFileForRandomWriteInLocalSystem = "fiveHundredMBFileForRandomWriteInLocalSystem"
+const (
+	NumberOfRandomWriteCalls                     = 20
+	DirForRandomWrite                            = "dirForRandomWrite"
+	MaxWritableByteFromFile                      = 500 * OneMiB
+	FiveHundredMBFileForRandomWriteInLocalSystem = "fiveHundredMBFileForRandomWriteInLocalSystem"
+)
 
 func TestWriteLargeFileRandomly(t *testing.T) {
 	randomWriteDir := path.Join(setup.MntDir(), DirForRandomWrite)
 	err := os.Mkdir(randomWriteDir, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("Error in creating directory:%v", err)
+		t.Fatalf("Error in creating directory:%v", err)
 	}
 	filePath := path.Join(randomWriteDir, FiveHundredMBFile)
 
 	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("Open file for write at start: %v", err)
-		return
+		t.Fatalf("Open file for write at start: %v", err)
 	}
 
+	// Clean up.
+	defer operations.RemoveDir(randomWriteDir)
+	defer operations.CloseFile(f)
+
 	for i := 0; i < NumberOfRandomWriteCalls; i++ {
-		offset := rand2.Int63n(MaxWritableByteFromFile - MinWritableByteFromFile)
+		offset := rand2.Int63n(MaxWritableByteFromFile)
 
 		// Generate chunk with random data.
 		chunk := make([]byte, ChunkSize)
@@ -64,7 +67,7 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 			t.Errorf("Error in writing randomly in file:%v", err)
 		}
 		if n != ChunkSize {
-			t.Errorf("Incorrect number of bytes written in the file.")
+			t.Errorf("Incorrect number of bytes written in the file actual %d, expected %d", n, ChunkSize)
 		}
 
 		err = f.Sync()
@@ -75,13 +78,10 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 		// Download the file from a bucket in which we write the content and compare with
 		// the file content we wrote in mntDir.
 		filePathInGcsBucket := path.Join(setup.TestBucket(), DirForRandomWrite, FiveHundredMBFile)
-		localFilePath := path.Join(os.Getenv("HOME"), FiveHundredMBFileForRandomWriteInLocalSystem)
+		localFilePath := path.Join(TmpDir, FiveHundredMBFileForRandomWriteInLocalSystem)
 		err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
 		if err != nil {
 			t.Errorf("Error:%v", err)
 		}
 	}
-
-	// Clean up.
-	operations.RemoveDir(randomWriteDir)
 }

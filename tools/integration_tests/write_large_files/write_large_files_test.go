@@ -26,6 +26,11 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
+const (
+	TmpDir = "/tmp"
+	OneMiB = 1024 * 1024
+)
+
 func compareFileFromGCSBucketAndMntDir(gcsFile string, mntDirFile string, localFilePathToDownloadGcsFile string) (err error) {
 	err = operations.DownloadGcsObject(gcsFile, localFilePathToDownloadGcsFile)
 	if err != nil {
@@ -33,15 +38,14 @@ func compareFileFromGCSBucketAndMntDir(gcsFile string, mntDirFile string, localF
 		return
 	}
 
+	// Remove file after testing.
+	defer operations.RemoveFile(localFilePathToDownloadGcsFile)
+
 	diff, err := operations.DiffFiles(mntDirFile, localFilePathToDownloadGcsFile)
 	if diff != 0 {
 		err = fmt.Errorf("Download of GCS object %s) didn't match the Mounted local file (%s): %v", localFilePathToDownloadGcsFile, mntDirFile, err)
 		return
 	}
-
-	// Remove file after testing.
-	operations.RemoveFile(localFilePathToDownloadGcsFile)
-
 	return
 }
 

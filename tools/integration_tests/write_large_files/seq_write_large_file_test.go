@@ -23,18 +23,19 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const OneMB = 1024 * 1024
-const FiveHundredMB = 500 * OneMB
-const FiveHundredMBFile = "fiveHundredMBFile.txt"
-const ChunkSize = 20 * OneMB
-const DirForSeqWrite = "dirForSeqWrite"
-const FiveHundredMBFileForSeqWriteInLocalSystem = "fiveHundredMBFileForSeqWriteInLocalSystem"
+const (
+	FiveHundredMB                             = 500 * OneMiB
+	FiveHundredMBFile                         = "fiveHundredMBFile.txt"
+	ChunkSize                                 = 20 * OneMiB
+	DirForSeqWrite                            = "dirForSeqWrite"
+	FiveHundredMBFileForSeqWriteInLocalSystem = "fiveHundredMBFileForSeqWriteInLocalSystem"
+)
 
 func TestWriteLargeFileSequentially(t *testing.T) {
 	seqWriteDir := path.Join(setup.MntDir(), DirForSeqWrite)
 	err := os.Mkdir(seqWriteDir, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("Error in creating directory:%v", err)
+		t.Fatalf("Error in creating directory:%v", err)
 	}
 	filePath := path.Join(seqWriteDir, FiveHundredMBFile)
 
@@ -44,15 +45,15 @@ func TestWriteLargeFileSequentially(t *testing.T) {
 		t.Errorf("Error in writing file: %v", err)
 	}
 
+	// Clean up.
+	defer operations.RemoveDir(seqWriteDir)
+
 	// Download the file from a bucket in which we write the content and compare with
 	// the file content we wrote in mntDir.
 	filePathInGcsBucket := path.Join(setup.TestBucket(), DirForSeqWrite, FiveHundredMBFile)
-	localFilePath := path.Join(os.Getenv("HOME"), FiveHundredMBFileForSeqWriteInLocalSystem)
+	localFilePath := path.Join(TmpDir, FiveHundredMBFileForSeqWriteInLocalSystem)
 	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
 	if err != nil {
 		t.Errorf("Error:%v", err)
 	}
-
-	// Clean up.
-	operations.RemoveDir(seqWriteDir)
 }
