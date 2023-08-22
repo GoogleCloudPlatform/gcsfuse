@@ -32,10 +32,14 @@ const FiveHundredMBFileForSeqWriteInLocalSystem = "fiveHundredMBFileForSeqWriteI
 
 func TestWriteLargeFileSequentially(t *testing.T) {
 	seqWriteDir := path.Join(setup.MntDir(), DirForSeqWrite)
+	err := os.Mkdir(seqWriteDir, setup.FilePermission_0600)
+	if err != nil {
+		t.Errorf("Error in creating directory:%v", err)
+	}
 	filePath := path.Join(seqWriteDir, FiveHundredMBFile)
 
 	// Sequentially read the data from file.
-	err := operations.WriteFileSequentially(filePath, FiveHundredMB, ChunkSize)
+	err = operations.WriteFileSequentially(filePath, FiveHundredMB, ChunkSize)
 	if err != nil {
 		t.Errorf("Error in writing file: %v", err)
 	}

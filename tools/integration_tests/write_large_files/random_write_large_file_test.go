@@ -36,6 +36,10 @@ const FiveHundredMBFileForRandomWriteInLocalSystem = "fiveHundredMBFileForRandom
 
 func TestWriteLargeFileRandomly(t *testing.T) {
 	randomWriteDir := path.Join(setup.MntDir(), DirForRandomWrite)
+	err := os.Mkdir(randomWriteDir, setup.FilePermission_0600)
+	if err != nil {
+		t.Errorf("Error in creating directory:%v", err)
+	}
 	filePath := path.Join(randomWriteDir, FiveHundredMBFile)
 
 	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
