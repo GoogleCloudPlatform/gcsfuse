@@ -15,7 +15,6 @@
 package write_large_files
 
 import (
-	"bytes"
 	"crypto/rand"
 	"log"
 	rand2 "math/rand"
@@ -29,15 +28,13 @@ import (
 )
 
 const NumberOfRandomWriteCalls = 20
+const DirForRandomWrite = "dirForRandomWrite"
 const MinWritableByteFromFile = 0
 const MaxWritableByteFromFile = 500 * OneMB
 const FileDownloadedFromBucket = "fileDownloadedFromBucket"
 
 func TestWriteLargeFileRandomly(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-
-	filePath := path.Join(setup.MntDir(), FiveHundredMBFile)
+	filePath := path.Join(setup.MntDir(), DirForRandomWrite, FiveHundredMBFile)
 
 	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
@@ -69,26 +66,20 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 			t.Errorf("Error in syncing file:%v", err)
 		}
 
-		writtenContent, err := operations.ReadChunkFromFile(filePath, ChunkSize, offset)
-		if err != nil {
-			t.Errorf("Error in reading file.")
-		}
-
 		// Download the file from a bucket in which we write the content.
-		fileInBucket := path.Join(os.Getenv("HOME"), FileDownloadedFromBucket)
-		setup.RunScriptForTestData("../util/operations/download_file_from_bucket.sh", setup.TestBucket(), FiveHundredMBFile, fileInBucket)
-
-		contentInFileDownloadedFromBucket, err := operations.ReadChunkFromFile(fileInBucket, ChunkSize, offset)
+		filePathInGcsBucket := path.Join(setup.TestBucket(), DirForRandomWrite, FiveHundredMBFile)
+		localFilePath := path.Join(os.Getenv("HOME"), FileDownloadedFromBucket)
+		err = operations.DownloadGcsObject(filePathInGcsBucket, localFilePath)
 		if err != nil {
-			t.Errorf("Error in reading file.")
+			t.Errorf("Error in downloading object:%v", err)
 		}
 
-		// Compare actual content and expect content.
-		if bytes.Equal(writtenContent, contentInFileDownloadedFromBucket) == false {
-			t.Errorf("Incorrect content written in the file.")
+		diff, err := operations.DiffFiles(filePath, localFilePath)
+		if diff != 0 {
+			t.Errorf("Download of GCS object %s) didn't match the Mounted local file (%s): %v", localFilePath, filePath, err)
 		}
 
 		// Remove file after testing.
-		operations.RemoveFile(fileInBucket)
+		operations.RemoveFile(localFilePath)
 	}
 }
