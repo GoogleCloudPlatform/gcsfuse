@@ -26,6 +26,7 @@ require (
 	golang.org/x/oauth2 v0.8.0
 	golang.org/x/time v0.3.0
 	google.golang.org/api v0.126.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
