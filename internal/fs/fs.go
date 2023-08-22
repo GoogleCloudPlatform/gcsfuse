@@ -1692,7 +1692,14 @@ func (fs *fileSystem) Rename(
 		}
 	}
 
-	// Find the object in the old location.
+	// If child is a local file inode (un-synced), rename operation is not supported.
+	localChild := fs.lookUpLocalFileInode(oldParent, op.OldName)
+	if localChild != nil {
+		defer localChild.Unlock()
+		return fmt.Errorf("rename opened file %q: %w", op.OldName, syscall.ENOTSUP)
+	}
+
+	// Else find the object in the old location (on GCS).
 	oldParent.Lock()
 	child, err := oldParent.LookUpChild(ctx, op.OldName)
 	oldParent.Unlock()
@@ -1782,6 +1789,12 @@ func (fs *fileSystem) renameDir(
 		return fmt.Errorf("lookup old directory: %w", err)
 	}
 	pendingInodes = append(pendingInodes, oldDir)
+
+	// If old directory contains local (un-synced) files, rename operation is not supported.
+	entries := oldDir.LocalFileEntries(fs.localFileInodes)
+	if len(entries) != 0 {
+		return fmt.Errorf("directory %s contains opened files: %w", oldName, syscall.ENOTSUP)
+	}
 
 	// Fetch all the descendants of the old directory recursively
 	descendants, err := oldDir.ReadDescendants(ctx, int(fs.renameDirLimit+1))
