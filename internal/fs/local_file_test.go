@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
@@ -426,4 +427,50 @@ func (t *LocalFileTest) TestRecursiveListingWithLocalFiles() {
 	t.closeFileAndValidateObjectContents(&t.f1, "implicitFoo/"+implicitLocalFileName, "")
 	t.closeFileAndValidateObjectContents(&t.f2, "explicitFoo/"+explicitLocalFileName, "")
 	t.closeFileAndValidateObjectContents(&t.f3, ""+FileName, "")
+}
+
+func (t *LocalFileTest) TestLocalFileRenameFails() {
+	// Create local file with some content.
+	_, t.f1 = t.createLocalFile(FileName)
+	_, err := t.f1.WriteString(FileContents)
+	AssertEq(nil, err)
+
+	// Attempt to rename local file.
+	err = os.Rename(path.Join(mntDir, FileName), path.Join(mntDir, "newName"))
+
+	// Verify rename operation fails.
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "operation not supported"))
+	// write more content to local file.
+	_, err = t.f1.WriteString(FileContents)
+	AssertEq(nil, err)
+	// Close the local file.
+	t.closeFileAndValidateObjectContents(&t.f1, FileName, FileContents+FileContents)
+}
+
+func (t *LocalFileTest) TestDirectoryWithLocalFileRenameFails() {
+	// Create directory foo.
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				"foo/":        "",
+				"foo/gcsFile": "",
+			}))
+	// Create local file with some content.
+	_, t.f1 = t.createLocalFile("foo/" + FileName)
+	_, err := t.f1.WriteString(FileContents)
+	AssertEq(nil, err)
+
+	// Attempt to rename directory containing local file.
+	err = os.Rename(path.Join(mntDir, "foo/"), path.Join(mntDir, "bar/"))
+
+	// Verify rename operation fails.
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "operation not supported"))
+	// write more content to local file.
+	_, err = t.f1.WriteString(FileContents)
+	AssertEq(nil, err)
+	// Close the local file.
+	t.closeFileAndValidateObjectContents(&t.f1, "foo/"+FileName, FileContents+FileContents)
 }
