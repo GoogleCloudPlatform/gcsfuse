@@ -29,12 +29,14 @@ import (
 func compareFileFromGCSBucketAndMntDir(gcsFile string, mntDirFile string, localFilePathToDownloadGcsFile string) (err error) {
 	err = operations.DownloadGcsObject(gcsFile, localFilePathToDownloadGcsFile)
 	if err != nil {
-		err = fmt.Errorf("Error in downloading object:%v", err)
+		err = fmt.Errorf("Error in downloading object:%w", err)
+		return
 	}
 
 	diff, err := operations.DiffFiles(mntDirFile, localFilePathToDownloadGcsFile)
 	if diff != 0 {
 		err = fmt.Errorf("Download of GCS object %s) didn't match the Mounted local file (%s): %v", localFilePathToDownloadGcsFile, mntDirFile, err)
+		return
 	}
 
 	// Remove file after testing.
