@@ -1,7 +1,4 @@
 # These owners will be the default owners for everything in
 # the repo. Unless a later match takes precedence,
-*           @ashmeenkaur @gargnitingoogle @raj-prince @sethiay @vadlakondaswetha
-
-# All changes to Go files must be reviewed by the designated reviewer.
-*.go        @sethiay @vadlakondaswetha
+*           @sethiay @vadlakondaswetha
 
