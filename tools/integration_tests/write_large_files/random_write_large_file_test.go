@@ -68,15 +68,15 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 		// Write data in the file.
 		n, err := f.WriteAt(chunk, offset)
 		if err != nil {
-			t.Errorf("Error in writing randomly in file:%v", err)
+			t.Fatalf("Error in writing randomly in file:%v", err)
 		}
 		if n != ChunkSize {
-			t.Errorf("Incorrect number of bytes written in the file actual %d, expected %d", n, ChunkSize)
+			t.Fatalf("Incorrect number of bytes written in the file actual %d, expected %d", n, ChunkSize)
 		}
 
 		err = f.Sync()
 		if err != nil {
-			t.Errorf("Error in syncing file:%v", err)
+			t.Fatalf("Error in syncing file:%v", err)
 		}
 
 		// Download the file from a bucket in which we write the content and compare with
@@ -85,7 +85,7 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 		localFilePath := path.Join(TmpDir, FiveHundredMBFileForRandomWriteInLocalSystem)
 		err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
 		if err != nil {
-			t.Errorf("Error:%v", err)
+			t.Fatalf("Error:%v", err)
 		}
 	}
 }

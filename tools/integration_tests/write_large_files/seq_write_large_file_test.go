@@ -42,7 +42,7 @@ func TestWriteLargeFileSequentially(t *testing.T) {
 	// Sequentially read the data from file.
 	err = operations.WriteFileSequentially(filePath, FiveHundredMB, ChunkSize)
 	if err != nil {
-		t.Errorf("Error in writing file: %v", err)
+		t.Fatalf("Error in writing file: %v", err)
 	}
 
 	// Clean up.
@@ -54,6 +54,6 @@ func TestWriteLargeFileSequentially(t *testing.T) {
 	localFilePath := path.Join(TmpDir, FiveHundredMBFileForSeqWriteInLocalSystem)
 	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
 	if err != nil {
-		t.Errorf("Error:%v", err)
+		t.Fatalf("Error:%v", err)
 	}
 }
