@@ -55,7 +55,11 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 		offset := rand2.Int63n(MaxWritableByteFromFile)
 
 		// Generate chunk with random data.
-		chunk := make([]byte, ChunkSize)
+		chunkSize := ChunkSize
+		if offset+ChunkSize > MaxWritableByteFromFile {
+			chunkSize = int(MaxWritableByteFromFile - offset)
+		}
+		chunk := make([]byte, chunkSize)
 		_, err := rand.Read(chunk)
 		if err != nil {
 			log.Fatalf("error while generating random string: %s", err)
