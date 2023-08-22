@@ -20,33 +20,25 @@
 package main
 
 import (
-	"crypto/tls"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"path"
 	"strings"
-	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	"golang.org/x/net/context"
-	"golang.org/x/oauth2"
-
-	"github.com/googlecloudplatform/gcsfuse/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
-	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/perf"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
-	"github.com/jacobsa/gcloud/gcs"
 	"github.com/kardianos/osext"
 	"github.com/urfave/cli"
+	"golang.org/x/net/context"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -87,83 +79,20 @@ func getUserAgent(appName string) string {
 	}
 }
 
-func getConn(flags *flagStorage) (c *gcsx.Connection, err error) {
-	var tokenSrc oauth2.TokenSource
-	if flags.Endpoint.Hostname() == "storage.googleapis.com" {
-		tokenSrc, err = auth.GetTokenSource(
-			context.Background(),
-			flags.KeyFile,
-			flags.TokenUrl,
-			flags.ReuseTokenFromUrl,
-		)
-		if err != nil {
-			err = fmt.Errorf("GetTokenSource: %w", err)
-			return
-		}
-	} else {
-		// Do not use OAuth with non-Google hosts.
-		tokenSrc = oauth2.StaticTokenSource(&oauth2.Token{})
-	}
-
-	// Create the connection.
-	cfg := &gcs.ConnConfig{
-		Url:             flags.Endpoint,
-		TokenSource:     tokenSrc,
-		UserAgent:       getUserAgent(flags.AppName),
-		MaxBackoffSleep: flags.MaxRetrySleep,
-	}
-
-	// The default HTTP transport uses HTTP/2 with TCP multiplexing, which
-	// does not create new TCP connections even when the idle connections
-	// run out. To specify multiple connections per host, HTTP/2 is disabled
-	// on purpose.
-	if flags.ClientProtocol == mountpkg.HTTP1 {
-		cfg.Transport = &http.Transport{
-			MaxConnsPerHost: flags.MaxConnsPerHost,
-			// This disables HTTP/2 in the transport.
-			TLSNextProto: make(
-				map[string]func(string, *tls.Conn) http.RoundTripper,
-			),
-		}
-	}
-
-	if flags.DebugHTTP {
-		cfg.HTTPDebugLogger = logger.NewDebug("http: ")
-	}
-
-	if flags.DebugGCS {
-		cfg.GCSDebugLogger = logger.NewDebug("gcs: ")
-	}
-
-	return gcsx.NewConnection(cfg)
-}
-
-func getConnWithRetry(flags *flagStorage) (c *gcsx.Connection, err error) {
-	c, err = getConn(flags)
-	for delay := 1 * time.Second; delay <= flags.MaxRetrySleep && err != nil; delay = delay/2 + delay {
-		logger.Infof("Waiting for connection: %v\n", err)
-		time.Sleep(delay)
-		c, err = getConn(flags)
-	}
-	return
-}
-
 func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
-	tokenSrc, err := auth.GetTokenSource(context.Background(), flags.KeyFile, flags.TokenUrl, true)
-	if err != nil {
-		err = fmt.Errorf("get token source: %w", err)
-		return
-	}
-
-	storageClientConfig := storage.StorageClientConfig{
-		ClientProtocol:      flags.ClientProtocol,
-		MaxConnsPerHost:     flags.MaxConnsPerHost,
-		MaxIdleConnsPerHost: flags.MaxIdleConnsPerHost,
-		TokenSrc:            tokenSrc,
-		HttpClientTimeout:   flags.HttpClientTimeout,
-		MaxRetryDuration:    flags.MaxRetryDuration,
-		RetryMultiplier:     flags.RetryMultiplier,
-		UserAgent:           getUserAgent(flags.AppName),
+	storageClientConfig := storageutil.StorageClientConfig{
+		ClientProtocol:             flags.ClientProtocol,
+		MaxConnsPerHost:            flags.MaxConnsPerHost,
+		MaxIdleConnsPerHost:        flags.MaxIdleConnsPerHost,
+		HttpClientTimeout:          flags.HttpClientTimeout,
+		MaxRetryDuration:           flags.MaxRetryDuration,
+		RetryMultiplier:            flags.RetryMultiplier,
+		UserAgent:                  getUserAgent(flags.AppName),
+		CustomEndpoint:             flags.CustomEndpoint,
+		KeyFile:                    flags.KeyFile,
+		TokenUrl:                   flags.TokenUrl,
+		ReuseTokenFromUrl:          flags.ReuseTokenFromUrl,
+		ExperimentalEnableJsonRead: flags.ExperimentalEnableJsonRead,
 	}
 
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
@@ -192,35 +121,28 @@ func mountWithArgs(
 	//
 	// Special case: if we're mounting the fake bucket, we don't need an actual
 	// connection.
-	var conn *gcsx.Connection
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
-		mountStatus.Println("Opening GCS connection...")
-
-		if flags.EnableStorageClientLibrary {
-			storageHandle, err = createStorageHandle(flags)
-		} else {
-			conn, err = getConnWithRetry(flags)
-		}
+		mountStatus.Println("Creating Storage handle...")
+		storageHandle, err = createStorageHandle(flags)
 		if err != nil {
-			err = fmt.Errorf("failed to open connection - getConnWithRetry: %w", err)
+			err = fmt.Errorf("Failed to create storage handle using createStorageHandle: %w", err)
 			return
 		}
 	}
 
 	// Mount the file system.
 	logger.Infof("Creating a mount at %q\n", mountPoint)
-	mfs, err = mountWithConn(
+	mfs, err = mountWithStorageHandle(
 		context.Background(),
 		bucketName,
 		mountPoint,
 		flags,
-		conn,
 		storageHandle,
 		mountStatus)
 
 	if err != nil {
-		err = fmt.Errorf("mountWithConn: %w", err)
+		err = fmt.Errorf("mountWithStorageHandle: %w", err)
 		return
 	}
 
