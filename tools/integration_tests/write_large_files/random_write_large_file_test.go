@@ -16,7 +16,6 @@ package write_large_files
 
 import (
 	"crypto/rand"
-	"log"
 	rand2 "math/rand"
 	"os"
 	"path"
@@ -62,7 +61,7 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 		chunk := make([]byte, chunkSize)
 		_, err := rand.Read(chunk)
 		if err != nil {
-			log.Fatalf("error while generating random string: %s", err)
+			t.Fatalf("error while generating random string: %s", err)
 		}
 
 		// Write data in the file.
