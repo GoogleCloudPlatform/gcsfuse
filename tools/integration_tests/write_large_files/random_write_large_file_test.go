@@ -68,7 +68,8 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 			t.Errorf("Error in syncing file:%v", err)
 		}
 
-		// Download the file from a bucket in which we write the content.
+		// Download the file from a bucket in which we write the content and compare with
+		// the file content we wrote in mntDir.
 		filePathInGcsBucket := path.Join(setup.TestBucket(), DirForRandomWrite, FiveHundredMBFile)
 		localFilePath := path.Join(os.Getenv("HOME"), FiveHundredMBFileForRandomWriteInLocalSystem)
 		err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
