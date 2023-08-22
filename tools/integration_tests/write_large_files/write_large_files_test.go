@@ -16,13 +16,32 @@
 package write_large_files
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
+
+func compareFileFromGCSBucketAndMntDir(gcsFile string, mntDirFile string, localFilePathToDownloadGcsFile string) (err error) {
+	err = operations.DownloadGcsObject(gcsFile, localFilePathToDownloadGcsFile)
+	if err != nil {
+		err = fmt.Errorf("Error in downloading object:%v", err)
+	}
+
+	diff, err := operations.DiffFiles(mntDirFile, localFilePathToDownloadGcsFile)
+	if diff != 0 {
+		err = fmt.Errorf("Download of GCS object %s) didn't match the Mounted local file (%s): %v", localFilePathToDownloadGcsFile, mntDirFile, err)
+	}
+
+	// Remove file after testing.
+	operations.RemoveFile(localFilePathToDownloadGcsFile)
+
+	return
+}
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()

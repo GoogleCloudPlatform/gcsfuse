@@ -32,9 +32,11 @@ const DirForRandomWrite = "dirForRandomWrite"
 const MinWritableByteFromFile = 0
 const MaxWritableByteFromFile = 500 * OneMB
 const FileDownloadedFromBucket = "fileDownloadedFromBucket"
+const FiveHundredMBFileForRandomWriteInLocalSystem = "fiveHundredMBFileForRandomWriteInLocalSystem"
 
 func TestWriteLargeFileRandomly(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirForRandomWrite, FiveHundredMBFile)
+	randomWriteDir := path.Join(setup.MntDir(), DirForRandomWrite)
+	filePath := path.Join(randomWriteDir, FiveHundredMBFile)
 
 	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
@@ -68,18 +70,13 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 
 		// Download the file from a bucket in which we write the content.
 		filePathInGcsBucket := path.Join(setup.TestBucket(), DirForRandomWrite, FiveHundredMBFile)
-		localFilePath := path.Join(os.Getenv("HOME"), FileDownloadedFromBucket)
-		err = operations.DownloadGcsObject(filePathInGcsBucket, localFilePath)
+		localFilePath := path.Join(os.Getenv("HOME"), FiveHundredMBFileForRandomWriteInLocalSystem)
+		err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
 		if err != nil {
-			t.Errorf("Error in downloading object:%v", err)
+			t.Errorf("File content did not match:%v", err)
 		}
-
-		diff, err := operations.DiffFiles(filePath, localFilePath)
-		if diff != 0 {
-			t.Errorf("Download of GCS object %s) didn't match the Mounted local file (%s): %v", localFilePath, filePath, err)
-		}
-
-		// Remove file after testing.
-		operations.RemoveFile(localFilePath)
 	}
+
+	// Clean up.
+	operations.RemoveDir(randomWriteDir)
 }

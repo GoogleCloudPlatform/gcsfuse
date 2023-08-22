@@ -15,7 +15,6 @@
 package write_large_files
 
 import (
-	"bytes"
 	"os"
 	"path"
 	"testing"
@@ -28,12 +27,12 @@ const OneMB = 1024 * 1024
 const FiveHundredMB = 500 * OneMB
 const FiveHundredMBFile = "fiveHundredMBFile.txt"
 const ChunkSize = 20 * OneMB
+const DirForSeqWrite = "dirForSeqWrite"
+const FiveHundredMBFileForSeqWriteInLocalSystem = "fiveHundredMBFileForSeqWriteInLocalSystem"
 
 func TestWriteLargeFileSequentially(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-
-	filePath := path.Join(setup.MntDir(), FiveHundredMBFile)
+	seqWriteDir := path.Join(setup.MntDir(), DirForSeqWrite)
+	filePath := path.Join(seqWriteDir, FiveHundredMBFile)
 
 	// Sequentially read the data from file.
 	err := operations.WriteFileSequentially(filePath, FiveHundredMB, ChunkSize)
@@ -42,34 +41,13 @@ func TestWriteLargeFileSequentially(t *testing.T) {
 	}
 
 	// Download the file from a bucket in which we write the content.
-	fileInBucket := path.Join(os.Getenv("HOME"), FileDownloadedFromBucket)
-	setup.RunScriptForTestData("../util/operations/download_file_from_bucket.sh", setup.TestBucket(), FiveHundredMBFile, fileInBucket)
-
-	contentInFileDownloadedFromBucket, err := operations.ReadFile(fileInBucket)
+	filePathInGcsBucket := path.Join(setup.TestBucket(), DirForSeqWrite, FiveHundredMBFile)
+	localFilePath := path.Join(os.Getenv("HOME"), FiveHundredMBFileForSeqWriteInLocalSystem)
+	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
 	if err != nil {
-		t.Errorf("Error in reading file.")
+		t.Errorf("File content did not match:%v", err)
 	}
 
-	// Check if 500MB data written in the file.
-	fStat, err := os.Stat(fileInBucket)
-	if err != nil {
-		t.Errorf("Error in stating file:%v", err)
-	}
-
-	if fStat.Size() != FiveHundredMB {
-		t.Errorf("Expecred file size %v found %d", FiveHundredMB, fStat.Size())
-	}
-
-	contentInFileFromMntDir, err := operations.ReadFile(filePath)
-	if err != nil {
-		t.Errorf("Error in reading file.")
-	}
-
-	// Compare actual content and expect content.
-	if bytes.Equal(contentInFileFromMntDir, contentInFileDownloadedFromBucket) == false {
-		t.Errorf("Incorrect content written in the file.")
-	}
-
-	// Remove file after testing.
-	operations.RemoveFile(fileInBucket)
+	// Clean up.
+	operations.RemoveDir(seqWriteDir)
 }
