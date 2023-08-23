@@ -43,7 +43,6 @@ RUN git checkout "test_louhi"
 # Install fpm package using bundle
 RUN bundle install --gemfile=${GCSFUSE_PATH}/tools/gem_dependency/Gemfile
 
-ARG ARCHITECTURE="amd64"
 ARG GCSFUSE_BIN="/gcsfuse_${GCSFUSE_VERSION}_${ARCHITECTURE}"
 ARG GCSFUSE_DOC="${GCSFUSE_BIN}/usr/share/doc/gcsfuse"
 WORKDIR ${GOPATH}
