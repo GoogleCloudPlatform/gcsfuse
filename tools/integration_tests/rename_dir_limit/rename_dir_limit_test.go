@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
@@ -58,6 +59,12 @@ func TestMain(m *testing.M) {
 	if successCode == 0 {
 		successCode = only_dir_mounting.RunTests(flags, m)
 	}
+
+	if successCode == 0 {
+		successCode = persistent_mounting.RunTests(flags, m)
+	}
+
+	setup.RemoveBinFileCopiedForTesting()
 
 	os.Exit(successCode)
 }

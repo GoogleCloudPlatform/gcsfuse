@@ -38,10 +38,11 @@ const BufferSize = 100
 const FilePermission_0600 = 0600
 
 var (
-	binFile string
-	logFile string
-	testDir string
-	mntDir  string
+	binFile  string
+	logFile  string
+	testDir  string
+	mntDir   string
+	sbinFile string
 )
 
 // Run the shell script to prepare the testData in the specified bucket.
@@ -80,6 +81,10 @@ func SetBinFile(binFileValue string) {
 
 func BinFile() string {
 	return binFile
+}
+
+func SbinFile() string {
+	return sbinFile
 }
 
 func SetTestDir(testDirValue string) {
@@ -142,10 +147,20 @@ func SetUpTestDir() error {
 			return fmt.Errorf("BuildGcsfuse(%q): %w\n", TestDir(), err)
 		}
 		binFile = path.Join(TestDir(), "bin/gcsfuse")
+		sbinFile = path.Join(TestDir(), "sbin/mount.gcsfuse")
+
+		// mount.gcsfuse will find gcsfuse executable in mentioned locations.
+		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/mount_gcsfuse/find.go#L59
+		// Copying the executable to /usr/local/bin
+		err := operations.CopyDirWithRootPermission(binFile, "/usr/local/bin")
+		if err != nil {
+			log.Printf("Error in copying bin file:%v", err)
+		}
 	} else {
 		// when testInstalledPackage flag is set, gcsfuse is preinstalled on the
 		// machine. Hence, here we are overwriting binFile to gcsfuse.
 		binFile = "gcsfuse"
+		sbinFile = "mount.gcsfuse"
 	}
 	logFile = path.Join(TestDir(), "gcsfuse.log")
 	mntDir = path.Join(TestDir(), "mnt")
@@ -155,6 +170,17 @@ func SetUpTestDir() error {
 		return fmt.Errorf("Mkdir(%q): %v\n", MntDir(), err)
 	}
 	return nil
+}
+
+// Removing bin file after testing.
+func RemoveBinFileCopiedForTesting() {
+	if !TestInstalledPackage() {
+		cmd := exec.Command("sudo", "rm", "/usr/local/bin/gcsfuse")
+		err := cmd.Run()
+		if err != nil {
+			log.Printf("Error in removing file:%v", err)
+		}
+	}
 }
 
 func UnMount() error {
@@ -169,18 +195,14 @@ func UnMount() error {
 	return nil
 }
 
-func executeTest(m *testing.M) (successCode int) {
+func ExecuteTest(m *testing.M) (successCode int) {
 	successCode = m.Run()
 
 	return successCode
 }
 
-func ExecuteTestForFlagsSet(flags []string, m *testing.M) (successCode int) {
-	var err error
-
-	successCode = executeTest(m)
-
-	err = UnMount()
+func UnMountAndThrowErrorInFailure(flags []string, successCode int) {
+	err := UnMount()
 	if err != nil {
 		LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
 	}
@@ -191,6 +213,13 @@ func ExecuteTestForFlagsSet(flags []string, m *testing.M) (successCode int) {
 		log.Print("Test Fails on " + f)
 		return
 	}
+}
+
+func ExecuteTestForFlagsSet(flags []string, m *testing.M) (successCode int) {
+	successCode = ExecuteTest(m)
+
+	UnMountAndThrowErrorInFailure(flags, successCode)
+
 	return
 }
 
@@ -216,7 +245,7 @@ func RunTestsForMountedDirectoryFlag(m *testing.M) {
 	// Execute tests for the mounted directory.
 	if *mountedDirectory != "" {
 		mntDir = *mountedDirectory
-		successCode := executeTest(m)
+		successCode := ExecuteTest(m)
 		os.Exit(successCode)
 	}
 }

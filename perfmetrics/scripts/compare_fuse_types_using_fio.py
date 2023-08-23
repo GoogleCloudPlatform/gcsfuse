@@ -61,7 +61,7 @@ def _install_gcsfuse_source(gcs_bucket, gcsfuse_flags) -> None:
   os.system(f'''git clone {GCSFUSE_REPO}
             mkdir gcs
             cd gcsfuse
-            go run . {gcsfuse_flags} {gcs_bucket} ../gcs
+            CGO_ENABLED=0 go run . {gcsfuse_flags} {gcs_bucket} ../gcs
             cd ..
             ''')
 

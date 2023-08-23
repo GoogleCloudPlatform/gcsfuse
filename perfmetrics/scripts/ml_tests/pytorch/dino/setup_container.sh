@@ -1,13 +1,14 @@
 #!/bin/bash
 
-wget -O go_tar.tar.gz https://go.dev/dl/go1.20.4.linux-amd64.tar.gz
+# Install golang
+wget -O go_tar.tar.gz https://go.dev/dl/go1.20.5.linux-amd64.tar.gz -q
 rm -rf /usr/local/go && tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 
 # Clone and build the gcsfuse master branch.
 git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
 cd gcsfuse
-go build .
+CGO_ENABLED=0 go build .
 cd -
 
 # Create a directory for gcsfuse logs

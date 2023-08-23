@@ -140,9 +140,10 @@ func newApp() (app *cli.App) {
 			/////////////////////////
 
 			cli.StringFlag{
-				Name:  "endpoint",
-				Value: "https://storage.googleapis.com:443",
-				Usage: "The endpoint to connect to.",
+				Name: "custom-endpoint",
+				Usage: "Alternate endpoint for fetching data. Should be used only for testing purposes. " +
+					"The endpoint should be equivalent to the base endpoint of GCS JSON API (https://storage.googleapis.com/storage/v1). " +
+					"If not specified GCS endpoint will be used. Auth will be skipped for custom endpoint.",
 			},
 
 			cli.StringFlag{
@@ -302,6 +303,11 @@ func newApp() (app *cli.App) {
 				Usage: "The format of the log file: 'text' or 'json'.",
 			},
 
+			cli.BoolFlag{
+				Name:  "experimental-enable-json-read",
+				Usage: "By default read flow uses xml api, this flag will enable the json path for read operation.",
+			},
+
 			/////////////////////////
 			// Debugging
 			/////////////////////////
@@ -328,9 +334,8 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.BoolFlag{
-				Name: "debug_http",
-				Usage: "Dump HTTP requests and responses to/from GCS, " +
-					"doesn't work when enable-storage-client-library flag is true.",
+				Name:  "debug_http",
+				Usage: "This flag is currently unused.",
 			},
 
 			cli.BoolFlag{
@@ -341,15 +346,6 @@ func newApp() (app *cli.App) {
 			cli.BoolFlag{
 				Name:  "debug_mutex",
 				Usage: "Print debug messages when a mutex is held too long.",
-			},
-
-			/////////////////////////
-			// Client
-			/////////////////////////
-
-			cli.BoolTFlag{
-				Name:  "enable-storage-client-library",
-				Usage: "If true, will use go storage client library otherwise jacobsa/gcloud",
 			},
 		},
 	}
@@ -373,7 +369,7 @@ type flagStorage struct {
 	RenameDirLimit int64
 
 	// GCS
-	Endpoint                           *url.URL
+	CustomEndpoint                     *url.URL
 	BillingProject                     string
 	KeyFile                            string
 	TokenUrl                           string
@@ -398,11 +394,12 @@ type flagStorage struct {
 	EnableNonexistentTypeCache bool
 
 	// Monitoring & Logging
-	StackdriverExportInterval time.Duration
-	OtelCollectorAddress      string
-	LogFile                   string
-	LogFormat                 string
-	DebugFuseErrors           bool
+	StackdriverExportInterval  time.Duration
+	OtelCollectorAddress       string
+	LogFile                    string
+	LogFormat                  string
+	ExperimentalEnableJsonRead bool
+	DebugFuseErrors            bool
 
 	// Debugging
 	DebugFuse       bool
@@ -411,9 +408,6 @@ type flagStorage struct {
 	DebugHTTP       bool
 	DebugInvariants bool
 	DebugMutex      bool
-
-	// client
-	EnableStorageClientLibrary bool
 }
 
 const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
@@ -490,11 +484,19 @@ func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
 // Add the flags accepted by run to the supplied flag set, returning the
 // variables into which the flags will parse.
 func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
-	endpoint, err := url.Parse(c.String("endpoint"))
-	if err != nil {
-		fmt.Printf("Could not parse endpoint")
-		return
+	customEndpointStr := c.String("custom-endpoint")
+	var customEndpoint *url.URL
+
+	if customEndpointStr == "" {
+		customEndpoint = nil
+	} else {
+		customEndpoint, err = url.Parse(customEndpointStr)
+		if err != nil {
+			err = fmt.Errorf("could not parse custom-endpoint: %w", err)
+			return
+		}
 	}
+
 	clientProtocolString := strings.ToLower(c.String("client-protocol"))
 	clientProtocol := mountpkg.ClientProtocol(clientProtocolString)
 	flags = &flagStorage{
@@ -513,7 +515,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		RenameDirLimit: int64(c.Int("rename-dir-limit")),
 
 		// GCS,
-		Endpoint:                           endpoint,
+		CustomEndpoint:                     customEndpoint,
 		BillingProject:                     c.String("billing-project"),
 		KeyFile:                            c.String("key-file"),
 		TokenUrl:                           c.String("token-url"),
@@ -538,22 +540,20 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		EnableNonexistentTypeCache: c.Bool("enable-nonexistent-type-cache"),
 
 		// Monitoring & Logging
-		StackdriverExportInterval: c.Duration("stackdriver-export-interval"),
-		OtelCollectorAddress:      c.String("experimental-opentelemetry-collector-address"),
-		LogFile:                   c.String("log-file"),
-		LogFormat:                 c.String("log-format"),
+		StackdriverExportInterval:  c.Duration("stackdriver-export-interval"),
+		OtelCollectorAddress:       c.String("experimental-opentelemetry-collector-address"),
+		LogFile:                    c.String("log-file"),
+		LogFormat:                  c.String("log-format"),
+		ExperimentalEnableJsonRead: c.Bool("experimental-enable-json-read"),
 
 		// Debugging,
 		DebugFuseErrors: c.BoolT("debug_fuse_errors"),
 		DebugFuse:       c.Bool("debug_fuse"),
 		DebugGCS:        c.Bool("debug_gcs"),
-		DebugFS:         c.Bool("debug_fs"),
 		DebugHTTP:       c.Bool("debug_http"),
+		DebugFS:         c.Bool("debug_fs"),
 		DebugInvariants: c.Bool("debug_invariants"),
 		DebugMutex:      c.Bool("debug_mutex"),
-
-		// Client,
-		EnableStorageClientLibrary: c.Bool("enable-storage-client-library"),
 	}
 
 	// Handle the repeated "-o" flag.
