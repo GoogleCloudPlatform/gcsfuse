@@ -39,14 +39,14 @@ func TestWriteLargeFileSequentially(t *testing.T) {
 	}
 	filePath := path.Join(seqWriteDir, FiveHundredMBFile)
 
+	// Clean up.
+	defer operations.RemoveDir(seqWriteDir)
+
 	// Sequentially read the data from file.
 	err = operations.WriteFileSequentially(filePath, FiveHundredMB, ChunkSize)
 	if err != nil {
 		t.Fatalf("Error in writing file: %v", err)
 	}
-
-	// Clean up.
-	defer operations.RemoveDir(seqWriteDir)
 
 	// Download the file from a bucket in which we write the content and compare with
 	// the file content we wrote in mntDir.

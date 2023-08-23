@@ -31,7 +31,7 @@ const (
 	OneMiB = 1024 * 1024
 )
 
-func compareFileFromGCSBucketAndMntDir(gcsFile string, mntDirFile string, localFilePathToDownloadGcsFile string) (err error) {
+func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownloadGcsFile string) (err error) {
 	err = operations.DownloadGcsObject(gcsFile, localFilePathToDownloadGcsFile)
 	if err != nil {
 		err = fmt.Errorf("Error in downloading object:%w", err)
@@ -41,6 +41,8 @@ func compareFileFromGCSBucketAndMntDir(gcsFile string, mntDirFile string, localF
 	// Remove file after testing.
 	defer operations.RemoveFile(localFilePathToDownloadGcsFile)
 
+	// DiffFiles loads the entire files into memory. These are both 500 MiB files, hence would have a 1 GiB
+	// requirement just for this step
 	diff, err := operations.DiffFiles(mntDirFile, localFilePathToDownloadGcsFile)
 	if diff != 0 {
 		err = fmt.Errorf("Download of GCS object %s) didn't match the Mounted local file (%s): %v", localFilePathToDownloadGcsFile, mntDirFile, err)
