@@ -17,7 +17,9 @@ package storage
 import (
 	"crypto/tls"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -27,6 +29,8 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
+	// Install google-c2p resolver, which is required for direct path.
+	_ "google.golang.org/grpc/xds/googledirectpath"
 )
 
 type StorageHandle interface {
@@ -51,12 +55,32 @@ type StorageClientConfig struct {
 	MaxRetryDuration    time.Duration
 	RetryMultiplier     float64
 	UserAgent           string
+	GRPCConnPoolSize    int
 }
 
-// NewStorageHandle returns the handle of Go storage client containing
-// customized http client. We can configure the http client using the
-// storageClientConfig parameter.
-func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh StorageHandle, err error) {
+func createGRPCClientHandle(ctx context.Context, clientConfig StorageClientConfig) (sc *storage.Client, err error) {
+	if err := os.Setenv("STORAGE_USE_GRPC", "gRPC"); err != nil {
+		log.Fatalf("error setting grpc env var: %v", err)
+	}
+
+	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
+		log.Fatalf("error setting direct path env var: %v", err)
+	}
+
+	sc, err = storage.NewClient(ctx, option.WithGRPCConnectionPool(clientConfig.GRPCConnPoolSize))
+
+	if err := os.Unsetenv("STORAGE_USE_GRPC"); err != nil {
+		log.Fatalf("error while unsetting grpc env var: %v", err)
+	}
+
+	if err := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); err != nil {
+		log.Fatalf("error while unsetting direct path env var: %v", err)
+	}
+
+	return
+}
+
+func createHTTPClientHandle(ctx context.Context, clientConfig StorageClientConfig) (sc *storage.Client, err error) {
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
 	if clientConfig.ClientProtocol == mountpkg.HTTP1 {
@@ -91,8 +115,21 @@ func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh
 		wrapped:   httpClient.Transport,
 		UserAgent: clientConfig.UserAgent,
 	}
+
+	return storage.NewClient(ctx, option.WithHTTPClient(httpClient))
+}
+
+// NewStorageHandle returns the handle of Go storage client. It can be gRPC  or
+// HTTP client. We can customized the client by changing the storageClientConfig
+// parameter.
+func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh StorageHandle, err error) {
 	var sc *storage.Client
-	sc, err = storage.NewClient(ctx, option.WithHTTPClient(httpClient))
+	if clientConfig.ClientProtocol == mountpkg.GRPC {
+		sc, err = createGRPCClientHandle(ctx, clientConfig)
+	} else {
+		sc, err = createHTTPClientHandle(ctx, clientConfig)
+	}
+
 	if err != nil {
 		err = fmt.Errorf("go storage client creation failed: %w", err)
 		return

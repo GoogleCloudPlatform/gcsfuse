@@ -273,6 +273,14 @@ func newApp() (app *cli.App) {
 					" in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.",
 			},
 
+			cli.IntFlag{
+				Name:  "grpc-conn-pool-size",
+				Value: 4,
+				Usage: "Number of gRPC channel. For, direct-path traffic, it's hard to determine number of" +
+					" tcp-connections in one gRPC channel. For cloud-path traffic, number of tcp connection is" +
+					" equal to number of gRPC channel.",
+			},
+
 			/////////////////////////
 			// Monitoring & Logging
 			/////////////////////////
@@ -396,6 +404,7 @@ type flagStorage struct {
 	MaxConnsPerHost            int
 	MaxIdleConnsPerHost        int
 	EnableNonexistentTypeCache bool
+	GRPCConnPoolSize           int
 
 	// Monitoring & Logging
 	StackdriverExportInterval time.Duration
@@ -536,6 +545,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		MaxConnsPerHost:            c.Int("max-conns-per-host"),
 		MaxIdleConnsPerHost:        c.Int("max-idle-conns-per-host"),
 		EnableNonexistentTypeCache: c.Bool("enable-nonexistent-type-cache"),
+		GRPCConnPoolSize:           c.Int("grpc-conn-pool-size"),
 
 		// Monitoring & Logging
 		StackdriverExportInterval: c.Duration("stackdriver-export-interval"),
