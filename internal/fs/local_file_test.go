@@ -37,11 +37,13 @@ import (
 // //////////////////////////////////////////////////////////////////////
 const FileName = "foo"
 const FileName2 = "foo2"
-const implicitLocalFileName = "impicitLocalFile"
+const implicitLocalFileName = "implicitLocalFile"
 const explicitLocalFileName = "explicitLocalFile"
 const FileContents = "teststring"
 
 type LocalFileTest struct {
+	// fsTest has f1 *osFile and f2 *osFile which we will reuse here.
+	f3 *os.File
 	fsTest
 }
 
@@ -59,8 +61,14 @@ func (t *LocalFileTest) SetUpTestSuite() {
 }
 
 func (t *LocalFileTest) TearDown() {
-	err := os.RemoveAll(mntDir)
-	AssertNe(nil, err)
+	// Close t.f3 in case of test failure.
+	if t.f3 != nil {
+		AssertEq(nil, t.f3.Close())
+		t.f3 = nil
+	}
+
+	// fsTest Cleanups to clean up mntDir and close t.f1 and t.f2.
+	t.fsTest.TearDown()
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -104,13 +112,26 @@ func (t *LocalFileTest) validateObjectNotFoundErr(fileName string) {
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
-func (t *LocalFileTest) closeFileAndValidateObjectContents(f *os.File, fileName string, contents string) {
-	err := f.Close()
+func (t *LocalFileTest) closeFileAndValidateObjectContents(f **os.File, fileName string, contents string) {
+	err := (*f).Close()
 	AssertEq(nil, err)
+	*f = nil
 
 	contentBytes, err := gcsutil.ReadObject(ctx, bucket, fileName)
 	AssertEq(nil, err)
 	ExpectEq(contents, string(contentBytes))
+}
+
+func (t *LocalFileTest) newFileShouldGetSyncedToGCSAtClose(fileName string) {
+	// Create a local file.
+	_, t.f1 = t.createLocalFile(fileName)
+	// Writing contents to local file shouldn't create file on GCS.
+	_, err := t.f1.Write([]byte(FileContents))
+	AssertEq(nil, err)
+	t.validateObjectNotFoundErr(fileName)
+
+	// Close the file and validate if the file is created on GCS.
+	t.closeFileAndValidateObjectContents(&t.f1, fileName, FileContents)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -140,21 +161,10 @@ func (t *LocalFileTest) NewFileUnderImplicitDirectoryShouldNotGetSyncedToGCSTill
 	t.newFileShouldGetSyncedToGCSAtClose("implicitFoo/foo")
 }
 
-func (t *LocalFileTest) newFileShouldGetSyncedToGCSAtClose(fileName string) {
-	// Create a local file.
-	_, f := t.createLocalFile(fileName)
-	// Writing contents to local file shouldn't create file on GCS.
-	_, err := f.Write([]byte(FileContents))
-	AssertEq(nil, err)
-	t.validateObjectNotFoundErr(fileName)
-
-	// Close the file and validate if the file is created on GCS.
-	t.closeFileAndValidateObjectContents(f, fileName, FileContents)
-}
-
 func (t *LocalFileTest) StatOnLocalFile() {
 	// Create a local file.
-	filePath, f := t.createLocalFile(FileName)
+	var filePath string
+	filePath, t.f1 = t.createLocalFile(FileName)
 
 	// Stat the local file.
 	fi, err := os.Stat(filePath)
@@ -164,7 +174,7 @@ func (t *LocalFileTest) StatOnLocalFile() {
 	ExpectEq(filePerms, fi.Mode())
 
 	// Writing contents to local file shouldn't create file on GCS.
-	_, err = f.Write([]byte(FileContents))
+	_, err = t.f1.Write([]byte(FileContents))
 	AssertEq(nil, err)
 	t.validateObjectNotFoundErr(FileName)
 
@@ -176,12 +186,13 @@ func (t *LocalFileTest) StatOnLocalFile() {
 	ExpectEq(filePerms, fi.Mode())
 
 	// Close the file and validate if the file is created on GCS.
-	t.closeFileAndValidateObjectContents(f, FileName, FileContents)
+	t.closeFileAndValidateObjectContents(&t.f1, FileName, FileContents)
 }
 
 func (t *LocalFileTest) StatOnLocalFileWithConflictingFileNameSuffix() {
 	// Create a local file.
-	filePath, f := t.createLocalFile(FileName)
+	var filePath string
+	filePath, t.f1 = t.createLocalFile(FileName)
 	// Stat the local file.
 	fi, err := os.Stat(filePath + inode.ConflictingFileNameSuffix)
 	AssertEq(nil, err)
@@ -190,14 +201,15 @@ func (t *LocalFileTest) StatOnLocalFileWithConflictingFileNameSuffix() {
 	ExpectEq(filePerms, fi.Mode())
 
 	// Close the file and validate if the file is created on GCS.
-	t.closeFileAndValidateObjectContents(f, FileName, "")
+	t.closeFileAndValidateObjectContents(&t.f1, FileName, "")
 }
 
 func (t *LocalFileTest) TruncateLocalFile() {
 	// Create a local file.
-	filePath, f := t.createLocalFile(FileName)
+	var filePath string
+	filePath, t.f1 = t.createLocalFile(FileName)
 	// Writing contents to local file .
-	_, err := f.Write([]byte(FileContents))
+	_, err := t.f1.Write([]byte(FileContents))
 	AssertEq(nil, err)
 
 	// Stat the file to validate if new contents are written.
@@ -220,48 +232,48 @@ func (t *LocalFileTest) TruncateLocalFile() {
 	ExpectEq(filePerms, fi.Mode())
 
 	// Close the file and validate if the file is created on GCS.
-	t.closeFileAndValidateObjectContents(f, FileName, "tests")
+	t.closeFileAndValidateObjectContents(&t.f1, FileName, "tests")
 }
 
 func (t *LocalFileTest) MultipleWritesToLocalFile() {
 	// Create a local file.
-	_, f := t.createLocalFile(FileName)
+	_, t.f1 = t.createLocalFile(FileName)
 
 	// Write some contents to file sequentially.
-	_, err := f.Write([]byte("string1"))
+	_, err := t.f1.Write([]byte("string1"))
 	AssertEq(nil, err)
-	_, err = f.Write([]byte("string2"))
+	_, err = t.f1.Write([]byte("string2"))
 	AssertEq(nil, err)
-	_, err = f.Write([]byte("string3"))
+	_, err = t.f1.Write([]byte("string3"))
 	AssertEq(nil, err)
 	// File shouldn't get created on GCS.
 	t.validateObjectNotFoundErr(FileName)
 
 	// Close the file and validate if the file is created on GCS.
-	t.closeFileAndValidateObjectContents(f, FileName, "string1string2string3")
+	t.closeFileAndValidateObjectContents(&t.f1, FileName, "string1string2string3")
 }
 
 func (t *LocalFileTest) RandomWritesToLocalFile() {
 	// Create a local file.
-	_, f := t.createLocalFile(FileName)
+	_, t.f1 = t.createLocalFile(FileName)
 
 	// Write some contents to file randomly.
-	_, err := f.WriteAt([]byte("string1"), 0)
+	_, err := t.f1.WriteAt([]byte("string1"), 0)
 	AssertEq(nil, err)
-	_, err = f.WriteAt([]byte("string2"), 2)
+	_, err = t.f1.WriteAt([]byte("string2"), 2)
 	AssertEq(nil, err)
-	_, err = f.WriteAt([]byte("string3"), 3)
+	_, err = t.f1.WriteAt([]byte("string3"), 3)
 	AssertEq(nil, err)
 	t.validateObjectNotFoundErr(FileName)
 
 	// Close the file and validate if the file is created on GCS.
-	t.closeFileAndValidateObjectContents(f, FileName, "stsstring3")
+	t.closeFileAndValidateObjectContents(&t.f1, FileName, "stsstring3")
 }
 
 func (t *LocalFileTest) TestReadDirWithEmptyLocalFiles() {
 	// Create local files.
-	_, f1 := t.createLocalFile(FileName)
-	_, f2 := t.createLocalFile(FileName2)
+	_, t.f1 = t.createLocalFile(FileName)
+	_, t.f2 = t.createLocalFile(FileName2)
 
 	// Attempt to list mntDir.
 	entries := t.readDirectory(mntDir)
@@ -271,15 +283,15 @@ func (t *LocalFileTest) TestReadDirWithEmptyLocalFiles() {
 	t.verifyLocalFileEntry(entries[0], FileName, 0)
 	t.verifyLocalFileEntry(entries[1], FileName2, 0)
 	// Close the local files.
-	t.closeFileAndValidateObjectContents(f1, FileName, "")
-	t.closeFileAndValidateObjectContents(f2, FileName2, "")
+	t.closeFileAndValidateObjectContents(&t.f1, FileName, "")
+	t.closeFileAndValidateObjectContents(&t.f2, FileName2, "")
 }
 
 func (t *LocalFileTest) TestReadDirWithNonEmptyLocalFile() {
 	// Create local files.
-	_, f1 := t.createLocalFile(FileName)
-	_, _ = f1.WriteString(FileContents)
-	//AssertNe(nil, err)
+	_, t.f1 = t.createLocalFile(FileName)
+	_, err := t.f1.WriteString(FileContents)
+	AssertEq(nil, err)
 
 	// Attempt to list mntDir.
 	entries := t.readDirectory(mntDir)
@@ -288,7 +300,7 @@ func (t *LocalFileTest) TestReadDirWithNonEmptyLocalFile() {
 	AssertEq(1, len(entries))
 	t.verifyLocalFileEntry(entries[0], FileName, 10)
 	// Close the local files.
-	t.closeFileAndValidateObjectContents(f1, FileName, FileContents)
+	t.closeFileAndValidateObjectContents(&t.f1, FileName, FileContents)
 }
 
 func (t *LocalFileTest) TestReadDirForExplicitDirWithLocalFile() {
@@ -299,8 +311,8 @@ func (t *LocalFileTest) TestReadDirForExplicitDirWithLocalFile() {
 			map[string]string{
 				"explicitFoo/": "",
 			}))
-	_, f1 := t.createLocalFile("explicitFoo/" + FileName)
-	_, f2 := t.createLocalFile("explicitFoo/" + FileName2)
+	_, t.f1 = t.createLocalFile("explicitFoo/" + FileName)
+	_, t.f2 = t.createLocalFile("explicitFoo/" + FileName2)
 
 	// Attempt to list explicit directory.
 	entries := t.readDirectory(path.Join(mntDir, "explicitFoo/"))
@@ -310,8 +322,8 @@ func (t *LocalFileTest) TestReadDirForExplicitDirWithLocalFile() {
 	t.verifyLocalFileEntry(entries[0], FileName, 0)
 	t.verifyLocalFileEntry(entries[1], FileName2, 0)
 	// Close the local files.
-	t.closeFileAndValidateObjectContents(f1, "explicitFoo/"+FileName, "")
-	t.closeFileAndValidateObjectContents(f2, "explicitFoo/"+FileName2, "")
+	t.closeFileAndValidateObjectContents(&t.f1, "explicitFoo/"+FileName, "")
+	t.closeFileAndValidateObjectContents(&t.f2, "explicitFoo/"+FileName2, "")
 }
 
 func (t *LocalFileTest) TestReadDirForImplicitDirWithLocalFile() {
@@ -323,8 +335,8 @@ func (t *LocalFileTest) TestReadDirForImplicitDirWithLocalFile() {
 				// File
 				"implicitFoo/bar": "",
 			}))
-	_, f1 := t.createLocalFile("implicitFoo/" + FileName)
-	_, f2 := t.createLocalFile("implicitFoo/" + FileName2)
+	_, t.f1 = t.createLocalFile("implicitFoo/" + FileName)
+	_, t.f2 = t.createLocalFile("implicitFoo/" + FileName2)
 
 	// Attempt to list implicit directory.
 	entries := t.readDirectory(path.Join(mntDir, "implicitFoo/"))
@@ -335,8 +347,8 @@ func (t *LocalFileTest) TestReadDirForImplicitDirWithLocalFile() {
 	t.verifyLocalFileEntry(entries[1], FileName, 0)
 	t.verifyLocalFileEntry(entries[2], FileName2, 0)
 	// Close the local files.
-	t.closeFileAndValidateObjectContents(f1, "implicitFoo/"+FileName, "")
-	t.closeFileAndValidateObjectContents(f2, "implicitFoo/"+FileName2, "")
+	t.closeFileAndValidateObjectContents(&t.f1, "implicitFoo/"+FileName, "")
+	t.closeFileAndValidateObjectContents(&t.f2, "implicitFoo/"+FileName2, "")
 }
 
 func (t *LocalFileTest) TestRecursiveListingWithLocalFiles() {
@@ -358,7 +370,7 @@ func (t *LocalFileTest) TestRecursiveListingWithLocalFiles() {
 				// File
 				"implicitFoo/bar": "",
 			}))
-	_, f1 := t.createLocalFile("implicitFoo/" + implicitLocalFileName)
+	_, t.f1 = t.createLocalFile("implicitFoo/" + implicitLocalFileName)
 	// Create explicit dir with 1 local file.
 	AssertEq(
 		nil,
@@ -366,9 +378,9 @@ func (t *LocalFileTest) TestRecursiveListingWithLocalFiles() {
 			map[string]string{
 				"explicitFoo/": "",
 			}))
-	_, f2 := t.createLocalFile("explicitFoo/" + explicitLocalFileName)
+	_, t.f2 = t.createLocalFile("explicitFoo/" + explicitLocalFileName)
 	// Create local file in mnt/ dir.
-	_, f3 := t.createLocalFile(FileName)
+	_, t.f3 = t.createLocalFile(FileName)
 
 	// Recursively list mntDir/ directory.
 	err := filepath.WalkDir(mntDir, func(path string, dir fs.DirEntry, err error) error {
@@ -411,7 +423,7 @@ func (t *LocalFileTest) TestRecursiveListingWithLocalFiles() {
 
 	// Validate and close the files.
 	AssertEq(nil, err)
-	t.closeFileAndValidateObjectContents(f1, "implicitFoo/"+implicitLocalFileName, "")
-	t.closeFileAndValidateObjectContents(f2, "explicitFoo/"+explicitLocalFileName, "")
-	t.closeFileAndValidateObjectContents(f3, ""+FileName, "")
+	t.closeFileAndValidateObjectContents(&t.f1, "implicitFoo/"+implicitLocalFileName, "")
+	t.closeFileAndValidateObjectContents(&t.f2, "explicitFoo/"+explicitLocalFileName, "")
+	t.closeFileAndValidateObjectContents(&t.f3, ""+FileName, "")
 }
