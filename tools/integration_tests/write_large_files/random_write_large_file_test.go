@@ -44,7 +44,7 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 	// Clean up.
 	defer operations.RemoveDir(randomWriteDir)
 
-	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
+	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
 		t.Fatalf("Open file for write at start: %v", err)
 	}
