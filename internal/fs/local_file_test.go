@@ -20,9 +20,7 @@ package fs_test
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -86,6 +84,11 @@ func (t *LocalFileTest) verifyLocalFileEntry(entry os.DirEntry, fileName string,
 	fileInfo, err := entry.Info()
 	AssertEq(nil, err)
 	AssertEq(size, fileInfo.Size())
+}
+
+func (t *LocalFileTest) verifyDirectoryEntry(entry os.DirEntry, dirName string) {
+	AssertEq(true, entry.IsDir())
+	AssertEq(dirName, entry.Name())
 }
 
 func (t *LocalFileTest) readDirectory(dirPath string) (entries []os.DirEntry) {
@@ -340,11 +343,11 @@ func (t *LocalFileTest) TestRecursiveListingWithLocalFiles() {
 	/* Structure
 	mntDir/
 		- baseLocalFile 			--- file
-		- explicitFoo/ 				--- directory
+	  - explicitFoo/				--- directory
+			- explicitLocalFile --- file
+		- implicitFoo/ 				--- directory
 			- bar								--- file
 			- implicitLocalFile --- file
-		- explicitFoo/				--- directory
-			- explicitLocalFile --- file
 	*/
 
 	// Create implicit dir with 1 local file1 and 1 synced file.
@@ -378,47 +381,30 @@ func (t *LocalFileTest) TestRecursiveListingWithLocalFiles() {
 		}
 
 		objs, err := os.ReadDir(path)
-		if err != nil {
-			log.Fatal(err)
-		}
+		AssertEq(nil, err)
 
 		// Check if mntDir has correct objects.
 		if path == mntDir {
 			// numberOfObjects = 3
-			if len(objs) != 3 {
-				return fmt.Errorf("incorrect number of objects in the mntDir/")
-			}
-
-			if objs[0].Name() != "explicitFoo" || objs[0].IsDir() != true ||
-					objs[1].Name() != FileName || objs[1].IsDir() != false ||
-					objs[2].Name() != "implicitFoo" || objs[2].IsDir() != true {
-				return fmt.Errorf("listed incorrect object in mntDir/")
-			}
+			AssertEq(3, len(objs))
+			t.verifyDirectoryEntry(objs[0], "explicitFoo")
+			t.verifyLocalFileEntry(objs[1], FileName, 0)
+			t.verifyDirectoryEntry(objs[2], "implicitFoo")
 		}
 
 		// Check if mntDir/explicitFoo/ has correct objects.
 		if path == mntDir+"/explicitFoo" {
 			// numberOfObjects = 1
-			if len(objs) != 1 {
-				return fmt.Errorf("incorrect number of objects in mntDir/explicitFoo/")
-			}
-
-			if objs[0].Name() != explicitLocalFileName || objs[0].IsDir() != false {
-				return fmt.Errorf("listed incorrect object in mntDir/explicitFoo/")
-			}
+			AssertEq(1, len(objs))
+			t.verifyLocalFileEntry(objs[0], explicitLocalFileName, 0)
 		}
 
 		// Check if mntDir/implicitFoo/ has correct objects.
 		if path == mntDir+"/implicitFoo" {
 			// numberOfObjects = 2
-			if len(objs) != 2 {
-				return fmt.Errorf("incorrect number of objects in mntDir/implicitFoo/")
-			}
-
-			if objs[0].Name() != "bar" || objs[0].IsDir() != false ||
-					objs[1].Name() != implicitLocalFileName || objs[1].IsDir() != false {
-				return fmt.Errorf("listed incorrect object in mntDir/implicitFoo/")
-			}
+			AssertEq(2, len(objs))
+			t.verifyLocalFileEntry(objs[0], "bar", 0)
+			t.verifyLocalFileEntry(objs[1], implicitLocalFileName, 0)
 		}
 		return nil
 	})
