@@ -976,6 +976,13 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 func (fs *fileSystem) syncFile(
 	ctx context.Context,
 	f *inode.FileInode) (err error) {
+	// Do not sync local file if it has been deleted from the localFileInodes map.
+	_, ok := fs.localFileInodes[f.Name()]
+	if f.IsLocal() && !ok {
+		// Return without any error. This is in sync with POSIX file behaviour.
+		return
+	}
+
 	// Sync the inode.
 	err = f.Sync(ctx)
 	if err != nil {
@@ -987,7 +994,7 @@ func (fs *fileSystem) syncFile(
 	// Delete the entry from localFileInodes map and add it to generationBackedInodes.
 	fs.mu.Lock()
 	delete(fs.localFileInodes, f.Name())
-	_, ok := fs.generationBackedInodes[f.Name()]
+	_, ok = fs.generationBackedInodes[f.Name()]
 	if !ok {
 		fs.generationBackedInodes[f.Name()] = f
 	}
@@ -1629,6 +1636,16 @@ func (fs *fileSystem) RmDir(
 	//     https://github.com/GoogleCloudPlatform/gcsfuse/issues/9
 	//
 	//
+
+	// Check for local file entries.
+	localFileEntries := childDir.LocalFileEntries(fs.localFileInodes)
+	// Are there any local entries?
+	if len(localFileEntries) != 0 {
+		err = fuse.ENOTEMPTY
+		return
+	}
+
+	// Check for entries on GCS.
 	var tok string
 	for {
 		var entries []fuseutil.Dirent
@@ -1883,6 +1900,16 @@ func (fs *fileSystem) Unlink(
 
 	parent.Lock()
 	defer parent.Unlock()
+
+	inodeName := inode.NewFileName(parent.Name(), op.Name)
+	fs.mu.Lock()
+	_, ok := fs.localFileInodes[inodeName]
+	if ok {
+		delete(fs.localFileInodes, inodeName)
+		fs.mu.Unlock()
+		return
+	}
+	fs.mu.Unlock()
 
 	// Delete the backing object.
 	err = parent.DeleteChildFile(
