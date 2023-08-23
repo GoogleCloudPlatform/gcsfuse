@@ -70,8 +70,8 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error in writing randomly in file:%v", err)
 		}
-		if n != ChunkSize {
-			t.Fatalf("Incorrect number of bytes written in the file actual %d, expected %d", n, ChunkSize)
+		if n != chunkSize {
+			t.Fatalf("Incorrect number of bytes written in the file actual %d, expected %d", n, chunkSize)
 		}
 
 		err = f.Sync()
