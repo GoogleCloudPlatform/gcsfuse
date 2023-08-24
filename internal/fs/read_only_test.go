@@ -19,7 +19,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/jacobsa/gcloud/gcs/gcsutil"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
