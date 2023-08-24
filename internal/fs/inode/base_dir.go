@@ -208,3 +208,8 @@ func (d *baseDirInode) DeleteChildDir(
 	err = fuse.ENOSYS
 	return
 }
+
+func (d *baseDirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent) {
+	// Base directory can not contain local files.
+	return nil
+}

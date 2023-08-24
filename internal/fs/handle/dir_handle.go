@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fs
+package handle
 
 import (
 	"fmt"
@@ -26,8 +26,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-// State required for reading from directories.
-type dirHandle struct {
+// DirHandle is the state required for reading from directories.
+type DirHandle struct {
 	/////////////////////////
 	// Constant data
 	/////////////////////////
@@ -56,18 +56,18 @@ type dirHandle struct {
 	entriesValid bool
 }
 
-// Create a directory handle that obtains listings from the supplied inode.
-func newDirHandle(
+// NewDirHandle creates a directory handle that obtains listings from the supplied inode.
+func NewDirHandle(
 	in inode.DirInode,
-	implicitDirs bool) (dh *dirHandle) {
+	implicitDirs bool) (dh *DirHandle) {
 	// Set up the basic struct.
-	dh = &dirHandle{
+	dh = &DirHandle{
 		in:           in,
 		implicitDirs: implicitDirs,
 	}
 
 	// Set up invariant checking.
-	dh.Mu = locker.New("DH." + in.Name().GcsObjectName(), dh.checkInvariants)
+	dh.Mu = locker.New("DH."+in.Name().GcsObjectName(), dh.checkInvariants)
 
 	return
 }
@@ -76,14 +76,14 @@ func newDirHandle(
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-// Dirents, sorted by name.
+// Directory entries, sorted by name.
 type sortedDirents []fuseutil.Dirent
 
 func (p sortedDirents) Len() int           { return len(p) }
 func (p sortedDirents) Less(i, j int) bool { return p[i].Name < p[j].Name }
 func (p sortedDirents) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-func (dh *dirHandle) checkInvariants() {
+func (dh *DirHandle) checkInvariants() {
 	// INVARIANT: For each i, entries[i+1].Offset == entries[i].Offset + 1
 	for i := 0; i < len(dh.entries)-1; i++ {
 		if !(dh.entries[i+1].Offset == dh.entries[i].Offset+1) {
@@ -109,12 +109,12 @@ func (dh *dirHandle) checkInvariants() {
 func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 	// Sanity check.
 	if !sort.IsSorted(sortedDirents(entries)) {
-		err = fmt.Errorf("Expected sorted input")
+		err = fmt.Errorf("expected sorted input")
 		return
 	}
 
 	// Examine each adjacent pair of names.
-	for i, _ := range entries {
+	for i := range entries {
 		e := &entries[i]
 
 		// Find the previous entry.
@@ -135,7 +135,7 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 
 		if eIsDir == prevIsDir {
 			err = fmt.Errorf(
-				"Weird dirent type pair for name %q: %v, %v",
+				"weird dirent type pair for name %q: %v, %v",
 				e.Name,
 				e.Type,
 				prev.Type)
@@ -160,7 +160,9 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 // LOCKS_REQUIRED(in)
 func readAllEntries(
 	ctx context.Context,
-	in inode.DirInode) (entries []fuseutil.Dirent, err error) {
+	in inode.DirInode,
+	localFileInodes map[inode.Name]inode.Inode) (entries []fuseutil.Dirent, err error) {
+	// Read entries from GCS.
 	// Read one batch at a time.
 	var tok string
 	for {
@@ -182,11 +184,26 @@ func readAllEntries(
 		}
 	}
 
+	// Append local file entries (not synced to GCS).
+	localEntries := in.LocalFileEntries(localFileInodes)
+	entries = append(entries, localEntries...)
+
 	// Ensure that the entries are sorted, for use in fixConflictingNames
 	// below.
 	sort.Sort(sortedDirents(entries))
 
 	// Fix name conflicts.
+	// When a local file is synced to GCS but not removed from the local file map,
+	// the entries list will have two duplicate entries.
+	// To handle this scenario, we had 2 options:
+	// Option 1: [Selected]
+	// Throw an error while fixing conflicting names. The error will be fixed in
+	// subsequent ls calls assuming that entry will be removed from localFileInodes.
+	// Option 2: [Not Selected]
+	// Restrict fixConflictingNames to only GCS entries and show duplicate
+	// entries when ReadDir is called. In this case, a local file can have
+	// same name as directory and LookUpInode call will fetch directory details
+	// for both of them.
 	err = fixConflictingNames(entries)
 	if err != nil {
 		err = fmt.Errorf("fixConflictingNames: %w", err)
@@ -202,7 +219,7 @@ func readAllEntries(
 	//
 	// NOTE(jacobsa): As far as I can tell this is harmless. Minting and
 	// returning a real inode ID is difficult because fuse does not count
-	// readdir as an operation that increases the inode ID's lookup count and
+	// readdir as an operation that increases the inode ID's lookup count, and
 	// we therefore don't get a forget for it later, but we would like to not
 	// have to remember every inode ID that we've ever minted for readdir.
 	//
@@ -211,7 +228,7 @@ func readAllEntries(
 	// about the birthday problem? And more importantly, what about our
 	// semantic of not minting a new inode ID when the generation changes due
 	// to a local action?
-	for i, _ := range entries {
+	for i := range entries {
 		entries[i].Inode = fuseops.RootInodeID + 1
 	}
 
@@ -220,13 +237,13 @@ func readAllEntries(
 
 // LOCKS_REQUIRED(dh.Mu)
 // LOCKS_EXCLUDED(dh.in)
-func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
+func (dh *DirHandle) ensureEntries(ctx context.Context, localFileInodes map[inode.Name]inode.Inode) (err error) {
 	dh.in.Lock()
 	defer dh.in.Unlock()
 
 	// Read entries.
 	var entries []fuseutil.Dirent
-	entries, err = readAllEntries(ctx, dh.in)
+	entries, err = readAllEntries(ctx, dh.in, localFileInodes)
 	if err != nil {
 		err = fmt.Errorf("readAllEntries: %w", err)
 		return
@@ -251,9 +268,10 @@ func (dh *dirHandle) ensureEntries(ctx context.Context) (err error) {
 //
 // LOCKS_REQUIRED(dh.Mu)
 // LOCKS_EXCLUDED(du.in)
-func (dh *dirHandle) ReadDir(
+func (dh *DirHandle) ReadDir(
 	ctx context.Context,
-	op *fuseops.ReadDirOp) (err error) {
+	op *fuseops.ReadDirOp,
+	localFileInodes map[inode.Name]inode.Inode) (err error) {
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
 	if op.Offset == 0 {
@@ -263,7 +281,7 @@ func (dh *dirHandle) ReadDir(
 
 	// Do we need to read entries from GCS?
 	if !dh.entriesValid {
-		err = dh.ensureEntries(ctx)
+		err = dh.ensureEntries(ctx, localFileInodes)
 		if err != nil {
 			return
 		}
