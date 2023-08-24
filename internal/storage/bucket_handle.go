@@ -26,8 +26,8 @@ import (
 	"net/http"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
-	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"

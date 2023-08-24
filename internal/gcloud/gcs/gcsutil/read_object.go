@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/jacobsa/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"golang.org/x/net/context"
 )
 

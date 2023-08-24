@@ -33,9 +33,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
 	"github.com/jacobsa/fuse/fusetesting"
-	"github.com/jacobsa/gcloud/gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
