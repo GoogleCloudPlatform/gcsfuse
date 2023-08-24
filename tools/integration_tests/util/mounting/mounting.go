@@ -24,9 +24,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func MountGcsfuse(flags []string) error {
+func MountGcsfuse(binaryFile string, flags []string) error {
 	mountCmd := exec.Command(
-		setup.BinFile(),
+		binaryFile,
 		flags...,
 	)
 

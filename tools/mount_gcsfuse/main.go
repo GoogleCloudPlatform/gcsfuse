@@ -83,9 +83,9 @@ func makeGcsfuseArgs(
 		case "implicit_dirs",
 			"foreground",
 			"experimental_local_file_cache",
-			"enable_storage_client_library",
 			"reuse_token_from_url",
-			"enable_nonexistent_type_cache":
+			"enable_nonexistent_type_cache",
+			"experimental_enable_json_read":
 			if value == "" {
 				value = "true"
 			}
@@ -120,8 +120,8 @@ func makeGcsfuseArgs(
 			"experimental_opentelemetry_collector_address",
 			"log_format",
 			"log_file",
-			"endpoint",
-			"config_file":
+			"config_file",
+			"custom_endpoint":
 			args = append(args, "--"+strings.Replace(name, "_", "-", -1), value)
 
 		// Special case: support mount-like formatting for gcsfuse debug flags.

@@ -28,12 +28,36 @@ import (
 const FilePermission_0600 = 0600
 const FilePermission_0777 = 0777
 
-func CopyDir(srcDirPath string, destDirPath string) (err error) {
-	cmd := exec.Command("cp", "--recursive", srcDirPath, destDirPath)
-
+func executeCommandForCopyOperation(cmd *exec.Cmd) (err error) {
 	err = cmd.Run()
 	if err != nil {
 		err = fmt.Errorf("Copying dir operation is failed: %v", err)
+	}
+	return
+}
+
+func CopyDir(srcDirPath string, destDirPath string) (err error) {
+	cmd := exec.Command("cp", "--recursive", srcDirPath, destDirPath)
+
+	err = executeCommandForCopyOperation(cmd)
+
+	return
+}
+
+func CopyDirWithRootPermission(srcDirPath string, destDirPath string) (err error) {
+	cmd := exec.Command("sudo", "cp", "--recursive", srcDirPath, destDirPath)
+
+	err = executeCommandForCopyOperation(cmd)
+
+	return
+}
+
+func MoveDir(srcDirPath string, destDirPath string) (err error) {
+	cmd := exec.Command("mv", srcDirPath, destDirPath)
+
+	err = cmd.Run()
+	if err != nil {
+		err = fmt.Errorf("Moving dir operation is failed: %v", err)
 	}
 	return
 }

@@ -14,4 +14,4 @@
 
 KEY_FILE_PATH=$1
 SERVICE_ACCOUNT=$2
-gcloud iam service-accounts keys create $KEY_FILE_PATH --iam-account=$SERVICE_ACCOUNT
+gcloud iam service-accounts keys create $KEY_FILE_PATH --iam-account=$SERVICE_ACCOUNT 2>&1 | tee ~/key_id.txt

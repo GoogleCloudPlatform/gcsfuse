@@ -21,16 +21,6 @@ type MainTest struct {
 
 func init() { RegisterTestSuite(&MainTest{}) }
 
-func (t *MainTest) TestCreateStorageHandleEnableStorageClientLibraryIsTrue() {
-	storageHandle, err := createStorageHandle(&flagStorage{
-		EnableStorageClientLibrary: true,
-		KeyFile:                    "testdata/test_creds.json",
-	})
-
-	ExpectNe(nil, storageHandle)
-	ExpectEq(nil, err)
-}
-
 func (t *MainTest) TestCreateStorageHandle() {
 	flags := &flagStorage{
 		ClientProtocol:      mountpkg.HTTP1,

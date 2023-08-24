@@ -158,6 +158,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 			fmt.Sprintf("GOROOT=%s", runtime.GOROOT()),
 			fmt.Sprintf("GOPATH=%s", gopath),
 			fmt.Sprintf("GOCACHE=%s", gocache),
+			"CGO_ENABLED=0",
 		}
 
 		// Build.

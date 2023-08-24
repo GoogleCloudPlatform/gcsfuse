@@ -21,7 +21,9 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
@@ -84,10 +86,9 @@ const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--enable-storage-client-library=true", "--implicit-dirs=true"},
-		{"--enable-storage-client-library=false"},
-		{"--implicit-dirs=true"},
-		{"--implicit-dirs=false"}}
+	flags := [][]string{{"--implicit-dirs=true"},
+		{"--implicit-dirs=false"},
+		{"--experimental-enable-json-read=true", "--implicit-dirs=true"}}
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
@@ -109,9 +110,20 @@ func TestMain(m *testing.M) {
 	}
 
 	if successCode == 0 {
+
+		successCode = persistent_mounting.RunTests(flags, m)
+	}
+
+	if successCode == 0 {
+		successCode = dynamic_mounting.RunTests(flags, m)
+	}
+
+	if successCode == 0 {
 		// Test for admin permission on test bucket.
 		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectAdmin", m)
 	}
+
+	setup.RemoveBinFileCopiedForTesting()
 
 	os.Exit(successCode)
 }

@@ -3,18 +3,18 @@ module github.com/googlecloudplatform/gcsfuse
 go 1.20
 
 require (
+	cloud.google.com/go/compute/metadata v0.2.3
 	cloud.google.com/go/storage v1.31.0
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.11
-	github.com/fsouza/fake-gcs-server v1.38.4
+	github.com/fsouza/fake-gcs-server v1.40.3
 	github.com/googleapis/gax-go/v2 v2.11.0
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
-	github.com/jacobsa/fuse v0.0.0-20230509090321-7263f3a2b474
-	github.com/jacobsa/gcloud v0.0.0-20230425120041-5ed2958cdfee
+	github.com/jacobsa/fuse v0.0.0-20230810134708-ab21db1af836
+	github.com/jacobsa/gcloud v0.0.0-20230803125757-3196d990d984
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
 	github.com/jacobsa/oglemock v0.0.0-20150831005832-e94d794d06ff
 	github.com/jacobsa/ogletest v0.0.0-20170503003838-80d50a735a11
-	github.com/jacobsa/ratelimit v0.0.0-20150904001804-f5e47030f3b0
 	github.com/jacobsa/reqtrace v0.0.0-20150505043853-245c9e0234cb
 	github.com/jacobsa/syncutil v0.0.0-20180201203307-228ac8e5a6c3
 	github.com/jacobsa/timeutil v0.0.0-20170205232429-577e5acbbcf6
@@ -24,6 +24,7 @@ require (
 	go.opencensus.io v0.24.0
 	golang.org/x/net v0.10.0
 	golang.org/x/oauth2 v0.8.0
+	golang.org/x/time v0.3.0
 	google.golang.org/api v0.126.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -31,11 +32,11 @@ require (
 require (
 	cloud.google.com/go v0.110.2 // indirect
 	cloud.google.com/go/compute v1.19.3 // indirect
-	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v1.1.0 // indirect
 	cloud.google.com/go/monitoring v1.13.0 // indirect
 	cloud.google.com/go/pubsub v1.30.0 // indirect
 	cloud.google.com/go/trace v1.9.0 // indirect
+	github.com/alexbrainman/goissue34681 v0.0.0-20191006012335-3fc7a47baff5 // indirect
 	github.com/aws/aws-sdk-go v1.44.217 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
@@ -50,7 +51,7 @@ require (
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
-	github.com/pkg/xattr v0.4.8 // indirect
+	github.com/pkg/xattr v0.4.9 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/stretchr/testify v1.8.2 // indirect

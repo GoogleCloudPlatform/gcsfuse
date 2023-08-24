@@ -41,7 +41,9 @@ func CreateObjects(
 
 	close(recordChan)
 
-	for i := 0; i < 10; i++ {
+	// Create the objects in parallel.
+	const parallelism = 64
+	for i := 0; i < parallelism; i++ {
 		bundle.Add(func(ctx context.Context) (err error) {
 			for r := range recordChan {
 				_, err = CreateObject(

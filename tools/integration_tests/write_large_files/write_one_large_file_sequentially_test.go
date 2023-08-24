@@ -12,40 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provides integration tests for file attributes.
-package operations_test
+package write_large_files
 
 import (
 	"os"
 	"path"
 	"testing"
-	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func TestFileAttributes(t *testing.T) {
+const FiveHundredMB = 500 * 1024 * 1024
+const FiveHundredMBFile = "fiveHundredMBFile.txt"
+const ChunkSize = 20 * 1024 * 1024
+
+func TestWriteLargeFileSequentially(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
-	preCreateTime := time.Now()
-	fileName := setup.CreateTempFile()
-	postCreateTime := time.Now()
+	filePath := path.Join(setup.MntDir(), FiveHundredMBFile)
 
-	fStat, err := os.Stat(fileName)
-
+	// Sequentially read the data from file.
+	err := operations.WriteFileSequentially(filePath, FiveHundredMB, ChunkSize)
 	if err != nil {
-		t.Errorf("os.Stat error: %s, %v", fileName, err)
+		t.Errorf("Error in writing file: %v", err)
 	}
-	statFileName := path.Join(setup.MntDir(), fStat.Name())
-	if fileName != statFileName {
-		t.Errorf("File name not matched in os.Stat, found: %s, expected: %s", statFileName, fileName)
+
+	// Check if 500MB data written in the file.
+	fStat, err := os.Stat(filePath)
+	if err != nil {
+		t.Errorf("Error in stating file:%v", err)
 	}
-	if (preCreateTime.After(fStat.ModTime())) || (postCreateTime.Before(fStat.ModTime())) {
-		t.Errorf("File modification time not in the expected time-range")
-	}
-	// The file size in createTempFile() is 14 bytes
-	if fStat.Size() != 14 {
-		t.Errorf("File size is not 14 bytes, found size: %d bytes", fStat.Size())
+
+	if fStat.Size() != FiveHundredMB {
+		t.Errorf("Expecred file size %v found %d", FiveHundredMB, fStat.Size())
 	}
 }
