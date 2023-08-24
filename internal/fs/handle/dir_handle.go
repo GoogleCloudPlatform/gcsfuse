@@ -193,6 +193,17 @@ func readAllEntries(
 	sort.Sort(sortedDirents(entries))
 
 	// Fix name conflicts.
+	// When a local file is synced to GCS but not removed from the local file map,
+	// the entries list will have two duplicate entries.
+	// To handle this scenario, we had 2 options:
+	// Option 1: [Selected]
+	// Throw an error while fixing conflicting names. The error will be fixed in
+	// subsequent ls calls assuming that entry will be removed from localFileInodes.
+	// Option 2: [Not Selected]
+	// Restrict fixConflictingNames to only GCS entries and show duplicate
+	// entries when ReadDir is called. In this case, a local file can have
+	// same name as directory and LookUpInode call will fetch directory details
+	// for both of them.
 	err = fixConflictingNames(entries)
 	if err != nil {
 		err = fmt.Errorf("fixConflictingNames: %w", err)
