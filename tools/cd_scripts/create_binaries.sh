@@ -51,8 +51,7 @@ echo Install git
 sudo apt-get install git -y
 sudo apt-get install qemu-user-static binfmt-support
 git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
-cd gcsfuse
-cd tools/package_gcsfuse_docker/
+cd gcsfuse/tools/package_gcsfuse_docker/
 echo "Building docker for amd64"
 sudo docker buildx build --load . -t gcsfuse-release-amd64:"$RELEASE_VERSION" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=amd64 --platform=linux/amd64 &
 echo "Building docker for arm64"
