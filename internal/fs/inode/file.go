@@ -200,8 +200,9 @@ func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 	rc, err := f.bucket.NewReader(
 		ctx,
 		&gcs.ReadObjectRequest{
-			Name:       f.src.Name,
-			Generation: f.src.Generation,
+			Name:           f.src.Name,
+			Generation:     f.src.Generation,
+			ReadCompressed: f.src.HasContentEncodingGzip(),
 		})
 	if err != nil {
 		err = fmt.Errorf("NewReader: %w", err)
@@ -638,11 +639,12 @@ func convertObjToMinObject(o *gcs.Object) storage.MinObject {
 	}
 
 	return storage.MinObject{
-		Name:           o.Name,
-		Size:           o.Size,
-		Generation:     o.Generation,
-		MetaGeneration: o.MetaGeneration,
-		Updated:        o.Updated,
-		Metadata:       o.Metadata,
+		Name:            o.Name,
+		Size:            o.Size,
+		Generation:      o.Generation,
+		MetaGeneration:  o.MetaGeneration,
+		Updated:         o.Updated,
+		Metadata:        o.Metadata,
+		ContentEncoding: o.ContentEncoding,
 	}
 }

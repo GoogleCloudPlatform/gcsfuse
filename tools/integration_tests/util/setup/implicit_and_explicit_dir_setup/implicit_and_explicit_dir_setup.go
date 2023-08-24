@@ -20,6 +20,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
@@ -57,6 +58,12 @@ func RunTestsForImplicitDirAndExplicitDir(flags [][]string, m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 
 	successCode := static_mounting.RunTests(flags, m)
+
+	if successCode == 0 {
+		successCode = persistent_mounting.RunTests(flags, m)
+	}
+
+	setup.RemoveBinFileCopiedForTesting()
 
 	os.Exit(successCode)
 }
