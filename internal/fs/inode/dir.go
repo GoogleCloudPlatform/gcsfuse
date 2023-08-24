@@ -126,6 +126,10 @@ type DirInode interface {
 		ctx context.Context,
 		name string,
 		isImplicitDir bool) (err error)
+
+	// localFileEntries lists the local files present in the directory.
+	// Local means that the file is not yet present on GCS.
+	LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent)
 }
 
 // An inode that represents a directory from a GCS bucket.
@@ -799,5 +803,18 @@ func (d *dirInode) DeleteChildDir(
 	}
 	d.cache.Erase(name)
 
+	return
+}
+
+func (d *dirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent) {
+	for localInodeName := range localFileInodes {
+		if localInodeName.IsDirectChildOf(d.Name()) {
+			entry := fuseutil.Dirent{
+				Name: path.Base(localInodeName.LocalName()),
+				Type: fuseutil.DT_File,
+			}
+			localEntries = append(localEntries, entry)
+		}
+	}
 	return
 }
