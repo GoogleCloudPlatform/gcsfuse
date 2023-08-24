@@ -1692,11 +1692,11 @@ func (fs *fileSystem) Rename(
 		}
 	}
 
-	// If child is a local file inode (un-synced), rename operation is not supported.
+	// If object to be renamed is a local file inode (un-synced), rename operation is not supported.
 	localChild := fs.lookUpLocalFileInode(oldParent, op.OldName)
 	if localChild != nil {
-		defer localChild.Unlock()
-		return fmt.Errorf("rename opened file %q: %w", op.OldName, syscall.ENOTSUP)
+		fs.unlockAndDecrementLookupCount(localChild, 1)
+		return fmt.Errorf("cannot rename open file %q: %w", op.OldName, syscall.ENOTSUP)
 	}
 
 	// Else find the object in the old location (on GCS).
@@ -1791,9 +1791,11 @@ func (fs *fileSystem) renameDir(
 	pendingInodes = append(pendingInodes, oldDir)
 
 	// If old directory contains local (un-synced) files, rename operation is not supported.
+	// We are not acquiring any lock here as kernel locks the directory while
+	// performing rename operations.
 	entries := oldDir.LocalFileEntries(fs.localFileInodes)
 	if len(entries) != 0 {
-		return fmt.Errorf("directory %s contains opened files: %w", oldName, syscall.ENOTSUP)
+		return fmt.Errorf("can't rename directory %s with open files: %w", oldName, syscall.ENOTSUP)
 	}
 
 	// Fetch all the descendants of the old directory recursively
