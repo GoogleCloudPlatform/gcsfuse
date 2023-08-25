@@ -301,7 +301,7 @@ func newApp() (app *cli.App) {
 
 			cli.BoolFlag{
 				Name: "experimental-enable-json-read",
-				Usage: "By default, {{fuse_name}} uses the GCS XML API to get and read objects. " +
+				Usage: "By default, GCSFuse uses the GCS XML API to get and read objects. " +
 					"When this flag is specified, GCSFuse uses the GCS JSON API instead.",
 			},
 
