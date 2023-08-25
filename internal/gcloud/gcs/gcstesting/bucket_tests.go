@@ -1924,7 +1924,6 @@ func (t *composeTest) CompositeSources() {
 		"taco",
 		"burrito",
 	})
-
 	AssertEq(nil, err)
 
 	// Compose them to form another source object.
