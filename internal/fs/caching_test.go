@@ -22,10 +22,10 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcscaching"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/gcscaching"
 	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
