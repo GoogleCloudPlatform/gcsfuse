@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
-	"io/ioutil"
 	"log"
 	"math"
 	"sort"
@@ -253,7 +252,7 @@ func readMultiple(
 
 	// Feed indices into a channel.
 	indices := make(chan int, len(reqs))
-	for i, _ := range reqs {
+	for i := range reqs {
 		indices <- i
 	}
 	close(indices)
@@ -278,7 +277,7 @@ func readMultiple(
 		}
 
 		// Read from it.
-		b, err = ioutil.ReadAll(rc)
+		b, err = io.ReadAll(rc)
 		if err != nil {
 			err = fmt.Errorf("ReadAll: %v", err)
 			return
@@ -290,8 +289,6 @@ func readMultiple(
 			err = fmt.Errorf("Close: %v", err)
 			return
 		}
-
-		return
 	}
 
 	// Run several workers.
@@ -391,7 +388,7 @@ func (t *bucketTest) readObject(objectName string) (contents string, err error) 
 	}()
 
 	// Read the contents of the object.
-	slice, err := ioutil.ReadAll(reader)
+	slice, err := io.ReadAll(reader)
 	if err != nil {
 		return
 	}
@@ -884,6 +881,8 @@ func (t *createTest) GenerationPrecondition_Zero_Unsatisfied() {
 		"foo",
 		[]byte("taco"))
 
+	AssertEq(nil, err)
+
 	// Request to create another version of the object, with a precondition
 	// saying it shouldn't exist. The request should fail.
 	var gen int64 = 0
@@ -982,6 +981,8 @@ func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Present() {
 		"foo",
 		[]byte("taco"))
 
+	AssertEq(nil, err)
+
 	// Request to create another version of the object, with a precondition for
 	// the wrong generation. The request should fail.
 	var gen int64 = o.Generation + 1
@@ -1021,6 +1022,8 @@ func (t *createTest) GenerationPrecondition_NonZero_Satisfied() {
 		t.bucket,
 		"foo",
 		[]byte("taco"))
+
+	AssertEq(nil, err)
 
 	// Request to create another version of the object, with a precondition
 	// saying it should exist with the appropriate generation number. The request
@@ -2655,7 +2658,7 @@ func (t *readTest) EmptyObject() {
 	r, err := t.bucket.NewReader(t.ctx, req)
 	AssertEq(nil, err)
 
-	contents, err := ioutil.ReadAll(r)
+	contents, err := io.ReadAll(r)
 	AssertEq(nil, err)
 	ExpectEq("", string(contents))
 
@@ -2675,7 +2678,7 @@ func (t *readTest) NonEmptyObject() {
 	r, err := t.bucket.NewReader(t.ctx, req)
 	AssertEq(nil, err)
 
-	contents, err := ioutil.ReadAll(r)
+	contents, err := io.ReadAll(r)
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
 
@@ -2766,7 +2769,7 @@ func (t *readTest) ParticularGeneration_Exists() {
 	r, err := t.bucket.NewReader(t.ctx, req)
 	AssertEq(nil, err)
 
-	contents, err := ioutil.ReadAll(r)
+	contents, err := io.ReadAll(r)
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
 
@@ -2817,7 +2820,7 @@ func (t *readTest) ParticularGeneration_ObjectHasBeenOverwritten() {
 	rc, err = t.bucket.NewReader(t.ctx, req)
 	AssertEq(nil, err)
 
-	contents, err := ioutil.ReadAll(rc)
+	contents, err := io.ReadAll(rc)
 	AssertEq(nil, err)
 	ExpectEq("burrito", string(contents))
 
@@ -2834,10 +2837,10 @@ func (t *readTest) Ranges_EmptyObject() {
 		br gcs.ByteRange
 	}{
 		// Empty without knowing object length
-		{gcs.ByteRange{0, 0}},
+		{gcs.ByteRange{Start: 0, Limit: 0}},
 
-		{gcs.ByteRange{1, 1}},
-		{gcs.ByteRange{1, 0}},
+		{gcs.ByteRange{Start: 1, Limit: 1}},
+		{gcs.ByteRange{Start: 1, Limit: 0}},
 
 		{gcs.ByteRange{math.MaxInt64, math.MaxInt64}},
 		{gcs.ByteRange{math.MaxInt64, 17}},
@@ -4160,9 +4163,7 @@ func (t *listTest) Cursor_BucketEndsWithRunOfIndividualObjects() {
 			objects = append(objects, o.Name)
 		}
 
-		for _, p := range listing.CollapsedRuns {
-			runs = append(runs, p)
-		}
+		runs = append(runs, listing.CollapsedRuns...)
 
 		if listing.ContinuationToken == "" {
 			break
@@ -4233,9 +4234,7 @@ func (t *listTest) Cursor_BucketEndsWithRunOfObjectsGroupedByDelimiter() {
 			objects = append(objects, o.Name)
 		}
 
-		for _, p := range listing.CollapsedRuns {
-			runs = append(runs, p)
-		}
+		runs = append(runs, listing.CollapsedRuns...)
 
 		if listing.ContinuationToken == "" {
 			break
