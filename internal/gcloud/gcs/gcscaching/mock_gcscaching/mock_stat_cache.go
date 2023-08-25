@@ -14,6 +14,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	gcscaching "github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcscaching"
+
 	oglemock "github.com/jacobsa/oglemock"
 )
 
