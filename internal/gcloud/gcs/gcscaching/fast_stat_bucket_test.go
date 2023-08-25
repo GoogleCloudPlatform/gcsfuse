@@ -19,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcscaching"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcscaching/mock_gcscaching"

@@ -23,8 +23,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
-	"golang.org/x/net/context"
-
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsfake"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
@@ -34,6 +32,7 @@ import (
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"golang.org/x/net/context"
 )
 
 func TestDir(t *testing.T) { RunTests(t) }
@@ -130,8 +129,8 @@ func (t *DirTest) readAllEntries() (entries []fuseutil.Dirent, err error) {
 }
 
 func (t *DirTest) setSymlinkTarget(
-		objName string,
-		target string) (err error) {
+	objName string,
+	target string) (err error) {
 	_, err = t.bucket.UpdateObject(
 		t.ctx,
 		&gcs.UpdateObjectRequest{
