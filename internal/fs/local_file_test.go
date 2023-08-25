@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
@@ -117,6 +118,10 @@ func (t *LocalFileTest) closeFileAndValidateObjectContents(f **os.File, fileName
 	AssertEq(nil, err)
 	*f = nil
 
+	t.validateObjectContents(fileName, contents)
+}
+
+func (t *LocalFileTest) validateObjectContents(fileName string, contents string) {
 	contentBytes, err := gcsutil.ReadObject(ctx, bucket, fileName)
 	AssertEq(nil, err)
 	ExpectEq(contents, string(contentBytes))
@@ -426,4 +431,76 @@ func (t *LocalFileTest) TestRecursiveListingWithLocalFiles() {
 	t.closeFileAndValidateObjectContents(&t.f1, "implicitFoo/"+implicitLocalFileName, "")
 	t.closeFileAndValidateObjectContents(&t.f2, "explicitFoo/"+explicitLocalFileName, "")
 	t.closeFileAndValidateObjectContents(&t.f3, ""+FileName, "")
+}
+
+func (t *LocalFileTest) TestRenameOfLocalFileFails() {
+	// Create local file with some content.
+	_, t.f1 = t.createLocalFile(FileName)
+	_, err := t.f1.WriteString(FileContents)
+	AssertEq(nil, err)
+
+	// Attempt to rename local file.
+	err = os.Rename(path.Join(mntDir, FileName), path.Join(mntDir, "newName"))
+
+	// Verify rename operation fails.
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "operation not supported"))
+	// write more content to local file.
+	_, err = t.f1.WriteString(FileContents)
+	AssertEq(nil, err)
+	// Close the local file.
+	t.closeFileAndValidateObjectContents(&t.f1, FileName, FileContents+FileContents)
+}
+
+func (t *LocalFileTest) TestRenameOfDirectoryWithLocalFileFails() {
+	// Create directory foo.
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				"foo/":        "",
+				"foo/gcsFile": "",
+			}))
+	// Create local file with some content.
+	_, t.f1 = t.createLocalFile("foo/" + FileName)
+	_, err := t.f1.WriteString(FileContents)
+	AssertEq(nil, err)
+
+	// Attempt to rename directory containing local file.
+	err = os.Rename(path.Join(mntDir, "foo/"), path.Join(mntDir, "bar/"))
+
+	// Verify rename operation fails.
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "operation not supported"))
+	// write more content to local file.
+	_, err = t.f1.WriteString(FileContents)
+	AssertEq(nil, err)
+	// Close the local file.
+	t.closeFileAndValidateObjectContents(&t.f1, "foo/"+FileName, FileContents+FileContents)
+}
+
+func (t *LocalFileTest) TestRenameOfLocalFileSucceedsAfterSync() {
+	t.TestRenameOfLocalFileFails()
+
+	// Attempt to Rename synced file.
+	err := os.Rename(path.Join(mntDir, FileName), path.Join(mntDir, "newName"))
+
+	// Validate.
+	AssertEq(nil, err)
+	t.validateObjectContents("newName", FileContents+FileContents)
+	t.validateObjectNotFoundErr(FileName)
+}
+
+func (t *LocalFileTest) TestRenameOfDirectoryWithLocalFileSucceedsAfterSync() {
+	t.TestRenameOfDirectoryWithLocalFileFails()
+
+	// Attempt to rename directory again after sync.
+	err := os.Rename(path.Join(mntDir, "foo/"), path.Join(mntDir, "bar/"))
+
+	// Validate.
+	AssertEq(nil, err)
+	t.validateObjectContents("bar/"+FileName, FileContents+FileContents)
+	t.validateObjectNotFoundErr("foo/" + FileName)
+	t.validateObjectContents("bar/gcsFile", "")
+	t.validateObjectNotFoundErr("foo/gcsFile")
 }
